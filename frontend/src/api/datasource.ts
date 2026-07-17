@@ -28,6 +28,13 @@ export const datasourceApi = {
   cancelRequests: () => request.cancelRequests(),
   getSchema: (data: any) => request.post('/datasource/getSchemaByConf', data),
   syncFields: (id: number) => request.post(`/datasource/syncFields/${id}`),
+  parseOpenapi: (data: { content?: string; url?: string }) =>
+    request.post('/datasource/parseOpenapi', data),
+  // dsId is CoreDatasource.id — same scope as tableList / previewData
+  resourceDetail: (dsId: number, data: { table_name: string }) =>
+    request.post(`/datasource/resourceDetail/${dsId}`, data),
+  testResource: (dsId: number, data: { table_name: string; params?: Record<string, any> }) =>
+    request.post(`/datasource/testResource/${dsId}`, data),
   exportDsSchema: (id: any) =>
     request.get(`/datasource/exportDsSchema/${id}`, {
       responseType: 'blob',

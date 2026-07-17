@@ -85,6 +85,7 @@ def build_data_training_query(session: SessionDep, oid: int, name: Optional[str]
             DataTraining.enabled,
             DataTraining.advanced_application,
             AssistantModel.name.label('advanced_application_name'),
+            DataTraining.training_type,
         )
         .outerjoin(CoreDatasource, and_(DataTraining.datasource == CoreDatasource.id))
         .outerjoin(AssistantModel,
@@ -115,6 +116,7 @@ def execute_data_training_query(session: SessionDep, stmt) -> List[DataTrainingI
             enabled=row.enabled,
             advanced_application=str(row.advanced_application) if row.advanced_application else None,
             advanced_application_name=row.advanced_application_name,
+            training_type=row.training_type or 'sql',
         ))
 
     return _list
@@ -194,7 +196,8 @@ def create_training(session: SessionDep, info: DataTrainingInfo, oid: int, trans
         datasource=info.datasource,
         advanced_application=info.advanced_application,
         create_time=create_time,
-        enabled=info.enabled if info.enabled is not None else True
+        enabled=info.enabled if info.enabled is not None else True,
+        training_type=info.training_type or "sql"
     )
 
     session.add(data_training)
@@ -227,16 +230,16 @@ def update_training(session: SessionDep, info: DataTrainingInfo, oid: int, trans
         raise Exception(trans('i18n_data_training.data_training_not_exists'))
 
     stmt = select(DataTraining.id).where(
-        and_(DataTraining.question == info.question, DataTraining.oid == oid, DataTraining.id != info.id))
+        and_(DataTraining.question == info.question.strip(), DataTraining.oid == oid, DataTraining.id != info.id))
 
     if info.datasource is not None and info.advanced_application is not None:
         stmt = stmt.where(
             or_(DataTraining.datasource == info.datasource,
                 DataTraining.advanced_application == info.advanced_application))
     elif info.datasource is not None and info.advanced_application is None:
-        stmt = stmt.where(and_(DataTraining.datasource == info.datasource))
+        stmt = stmt.where(DataTraining.datasource == info.datasource)
     elif info.datasource is None and info.advanced_application is not None:
-        stmt = stmt.where(and_(DataTraining.advanced_application == info.advanced_application))
+        stmt = stmt.where(DataTraining.advanced_application == info.advanced_application)
 
     exists = session.query(stmt.exists()).scalar()
 
@@ -248,7 +251,8 @@ def update_training(session: SessionDep, info: DataTrainingInfo, oid: int, trans
         description=info.description.strip(),
         datasource=info.datasource,
         advanced_application=info.advanced_application,
-        enabled=info.enabled if info.enabled is not None else True
+        enabled=info.enabled if info.enabled is not None else True,
+        training_type=info.training_type or "sql"
     )
     session.execute(stmt)
     session.commit()
@@ -358,7 +362,8 @@ def batch_create_training(session: SessionDep, info_list: List[DataTrainingInfo]
             datasource_name=info.datasource_name,
             advanced_application=advanced_application_id,
             advanced_application_name=info.advanced_application_name,
-            enabled=info.enabled if info.enabled is not None else True
+            enabled=info.enabled if info.enabled is not None else True,
+            training_type=info.training_type or 'sql'
         )
 
         valid_records.append(processed_info)
@@ -495,7 +500,8 @@ LIMIT {settings.EMBEDDING_DATA_TRAINING_TOP_COUNT}
 
 
 def select_training_by_question(session: SessionDep, question: str, oid: int, datasource: Optional[int] = None,
-                                advanced_application_id: Optional[int] = None):
+                                advanced_application_id: Optional[int] = None,
+                                training_type: Optional[str] = None):
     if question.strip() == "":
         return []
 
@@ -513,6 +519,8 @@ def select_training_by_question(session: SessionDep, question: str, oid: int, da
                  DataTraining.enabled == True)
         )
     )
+    if training_type is not None:
+        stmt = stmt.where(DataTraining.training_type == training_type)
     if advanced_application_id is not None:
         stmt = stmt.where(and_(DataTraining.advanced_application == advanced_application_id))
     else:
@@ -530,13 +538,25 @@ def select_training_by_question(session: SessionDep, question: str, oid: int, da
 
                 embedding = model.embed_query(question)
 
+                type_filter = "and training_type = :training_type" if training_type else ""
+                params: dict = {'embedding_array': str(embedding), 'oid': oid}
+                if training_type:
+                    params['training_type'] = training_type
+
                 if advanced_application_id is not None:
-                    results = session.execute(text(embedding_sql_in_advanced_application),
-                                              {'embedding_array': str(embedding), 'oid': oid,
-                                               'advanced_application': advanced_application_id})
+                    params['advanced_application'] = advanced_application_id
+                    sql = embedding_sql_in_advanced_application.replace(
+                        "ORDER BY similarity DESC",
+                        f"{type_filter} ORDER BY similarity DESC"
+                    )
+                    results = session.execute(text(sql), params)
                 else:
-                    results = session.execute(text(embedding_sql),
-                                              {'embedding_array': str(embedding), 'oid': oid, 'datasource': datasource})
+                    params['datasource'] = datasource
+                    sql = embedding_sql.replace(
+                        "ORDER BY similarity DESC",
+                        f"{type_filter} ORDER BY similarity DESC"
+                    )
+                    results = session.execute(text(sql), params)
 
                 for row in results:
                     _list.append(DataTraining(id=row.id, question=row.question))
@@ -569,8 +589,8 @@ def select_training_by_question(session: SessionDep, question: str, oid: int, da
     return _results
 
 
-def to_xml_string(_dict: list[dict] | dict, root: str = 'sql-examples') -> str:
-    item_name_func = lambda x: 'sql-example' if x == 'sql-examples' else 'item'
+def to_xml_string(_dict: list[dict] | dict, root: str = 'examples') -> str:
+    item_name_func = lambda x: 'example' if x == 'examples' else 'item'
     dicttoxml.LOG.setLevel(logging.ERROR)
     xml = dicttoxml.dicttoxml(_dict,
                               cdata=['question', 'suggestion-answer'],
@@ -600,12 +620,14 @@ def to_xml_string(_dict: list[dict] | dict, root: str = 'sql-examples') -> str:
 
 
 def get_training_template(session: SessionDep, question: str, oid: Optional[int] = 1, datasource: Optional[int] = None,
-                          advanced_application_id: Optional[int] = None) -> tuple[str, list[dict]]:
+                          advanced_application_id: Optional[int] = None,
+                          training_type: Optional[str] = None) -> tuple[str, list[dict]]:
     if not oid:
         oid = 1
     if not datasource and not advanced_application_id:
         return '', []
-    _results = select_training_by_question(session, question, oid, datasource, advanced_application_id)
+    _results = select_training_by_question(session, question, oid, datasource, advanced_application_id,
+                                           training_type=training_type)
     if _results and len(_results) > 0:
         data_training = to_xml_string(_results)
         template = get_base_data_training_template().format(data_training=data_training)

@@ -18,7 +18,9 @@ export const watchRouter = (router: Router) => {
   router.beforeEach(async (to: any, from: any, next: any) => {
     await loadXpackStatic()
     await appearanceStore.setAppearance()
-    LicenseGenerator.generateRouters(router)
+    if (typeof LicenseGenerator !== 'undefined') {
+      LicenseGenerator.generateRouters(router)
+    }
     if (to.path.startsWith('/login') && userStore.getUid) {
       next(to?.query?.redirect || '/')
       return
@@ -82,7 +84,7 @@ const loadXpackStatic = () => {
     return Promise.resolve()
   }
   const url = `/xpack_static/license-generator.umd.js?t=${Date.now()}`
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     request
       .loadRemoteScript(url, 'sqlbot_xpack_static', () => {
         LicenseGenerator?.init(import.meta.env.VITE_API_BASE_URL).then(() => {
@@ -91,8 +93,9 @@ const loadXpackStatic = () => {
       })
       .catch((error) => {
         console.error('Failed to load xpack_static script:', error)
-        ElMessage.error('Failed to load license generator script')
-        reject(error)
+        // Non-fatal in local dev where xpack is absent; resolve so the
+        // router navigation does not crash.
+        resolve(false)
       })
   })
 }

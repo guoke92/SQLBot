@@ -3,7 +3,6 @@ from decimal import Decimal
 from typing import List, Optional, Union, Dict, Any
 
 import orjson
-import sqlparse
 from sqlalchemy import and_, select, update
 from sqlalchemy import desc, func
 from sqlalchemy.orm import aliased
@@ -14,7 +13,8 @@ from apps.datasource.crud.datasource import get_ds
 from apps.datasource.crud.recommended_problem import get_datasource_recommended_chart
 from apps.datasource.models.datasource import CoreDatasource
 from apps.db.constant import DB
-from apps.db.db import exec_sql
+from apps.protocol import get_protocol_for_ds
+from apps.protocol.base import CAP_SQL_DIALECT
 from apps.system.crud.assistant import AssistantOutDs, AssistantOutDsFactory
 from apps.system.schemas.system_schema import AssistantOutDsSchema
 from common.core.deps import CurrentAssistant, SessionDep, CurrentUser, Trans
@@ -26,12 +26,13 @@ def get_chat_record_by_id(session: SessionDep, record_id: int):
     record: ChatRecord | None = None
 
     stmt = select(ChatRecord.id, ChatRecord.question, ChatRecord.chat_id, ChatRecord.datasource, ChatRecord.engine_type,
-                  ChatRecord.ai_modal_id, ChatRecord.create_by).where(
+                  ChatRecord.ai_modal_id, ChatRecord.create_by, ChatRecord.re_exec).where(
         and_(ChatRecord.id == record_id))
     result = session.execute(stmt)
     for r in result:
         record = ChatRecord(id=r.id, question=r.question, chat_id=r.chat_id, datasource=r.datasource,
-                            engine_type=r.engine_type, ai_modal_id=r.ai_modal_id, create_by=r.create_by)
+                            engine_type=r.engine_type, ai_modal_id=r.ai_modal_id, create_by=r.create_by,
+                            re_exec=r.re_exec)
     return record
 
 
@@ -178,7 +179,7 @@ def get_last_execute_sql_error(session: SessionDep, chart_id: int):
     if res:
         try:
             obj = orjson.loads(res)
-            if obj.get('type') and obj.get('type') == 'exec-sql-err':
+            if obj.get('type') and obj.get('type') == 'exec-query-err':
                 return obj.get('traceback')
         except Exception:
             pass
@@ -241,13 +242,21 @@ def get_chart_data_with_user(session: SessionDep, current_user: CurrentUser, cha
 
 
 def get_chart_data_with_user_live(session: SessionDep, current_user: CurrentUser, chat_record_id: int):
-    stmt = select(ChatRecord.datasource, ChatRecord.sql).where(
+    stmt = select(ChatRecord.datasource, ChatRecord.sql, ChatRecord.re_exec).where(
         and_(ChatRecord.id == chat_record_id, ChatRecord.create_by == current_user.id))
     row = session.execute(stmt).first()
-    return get_chart_data_ds(session, row.datasource, row.sql)
+    if not row:
+        return {'status': 'failed', 'data': [], 'message': 'Record not found'}
+    return get_chart_data_ds(session, row.datasource, row.sql, re_exec_json=row.re_exec)
 
 
-def get_chart_data_ds(session: SessionDep, ds_id, sql):
+def get_chart_data_ds(session: SessionDep, ds_id, sql, re_exec_json: Optional[str] = None):
+    """Re-run a stored chart query through the datasource protocol.
+
+    Preferred payload is ``re_exec_json`` (protocol-owned, complete enough to rebuild a plan).
+    For older SQL records that only have display ``sql``, fall back to replaying that statement
+    only when the protocol still advertises CAP_SQL_DIALECT.
+    """
     json_result: Dict[str, Any] = {'status': 'success', 'data': [], 'message': ''}
     try:
         datasource = get_ds(session, ds_id)
@@ -255,17 +264,38 @@ def get_chart_data_ds(session: SessionDep, ds_id, sql):
             json_result['status'] = 'failed'
             json_result['message'] = 'Datasource not found'
             return json_result
-        else:
-            result = exec_sql(ds=datasource, sql=sql, origin_column=False)
-            _data = DataFormat.convert_large_numbers_in_object_array(result.get('data'))
-            _data = DataFormat.normalize_qualified_sql_column_keys_in_object_array(_data)
-            json_result['data'] = _data
+
+        proto = get_protocol_for_ds(datasource)
+        plan = None
+        if re_exec_json:
+            try:
+                re_exec = orjson.loads(re_exec_json) if isinstance(re_exec_json, (str, bytes)) else re_exec_json
+            except Exception:
+                re_exec = None
+            if isinstance(re_exec, dict):
+                plan = proto.plan_from_re_exec(datasource, re_exec)
+
+        if plan is None and sql and proto.supports(CAP_SQL_DIALECT):
+            # Legacy SQL-path compatibility: display sql was also the executable statement.
+            plan = proto.plan_from_re_exec(datasource, {"sql": sql})
+
+        if plan is None or not plan.success:
+            json_result['status'] = 'failed'
+            json_result['message'] = (
+                plan.message if plan is not None else
+                'Missing re_exec payload; cannot re-execute without a protocol plan'
+            )
             return json_result
+
+        qr = proto.execute(datasource, plan)
+        _data = DataFormat.convert_large_numbers_in_object_array(qr.data)
+        _data = DataFormat.normalize_qualified_sql_column_keys_in_object_array(_data)
+        json_result['data'] = _data
+        return json_result
     except Exception as e:
         SQLBotLogUtil.error(f"Function failed: {e}")
         json_result['status'] = 'failed'
         json_result['message'] = f"{e}"
-        pass
     return json_result
 
 
@@ -342,6 +372,7 @@ def get_chat_with_records(session: SessionDep, chart_id: int, current_user: Curr
 
     stmt = (select(ChatRecord.id, ChatRecord.chat_id, ChatRecord.create_time, ChatRecord.finish_time,
                    ChatRecord.question, ChatRecord.sql_answer, ChatRecord.sql, ChatRecord.datasource,
+                   ChatRecord.engine_type, ChatRecord.re_exec,
                    ChatRecord.chart_answer, ChatRecord.chart, ChatRecord.analysis, ChatRecord.predict,
                    ChatRecord.datasource_select_answer, ChatRecord.analysis_record_id, ChatRecord.predict_record_id,
                    ChatRecord.regenerate_record_id,
@@ -354,7 +385,7 @@ def get_chat_with_records(session: SessionDep, chart_id: int, current_user: Curr
                    )
     .outerjoin(sql_alias_log, and_(sql_alias_log.pid == ChatRecord.id,
                                    sql_alias_log.type == TypeEnum.CHAT,
-                                   sql_alias_log.operate == OperationEnum.GENERATE_SQL))
+                                   sql_alias_log.operate == OperationEnum.GENERATE_QUERY))
     .outerjoin(chart_alias_log, and_(chart_alias_log.pid == ChatRecord.id,
                                      chart_alias_log.type == TypeEnum.CHAT,
                                      chart_alias_log.operate == OperationEnum.GENERATE_CHART))
@@ -369,6 +400,7 @@ def get_chat_with_records(session: SessionDep, chart_id: int, current_user: Curr
     if with_data:
         stmt = select(ChatRecord.id, ChatRecord.chat_id, ChatRecord.create_time, ChatRecord.finish_time,
                       ChatRecord.question, ChatRecord.sql_answer, ChatRecord.sql, ChatRecord.datasource,
+                      ChatRecord.engine_type, ChatRecord.re_exec,
                       ChatRecord.chart_answer, ChatRecord.chart, ChatRecord.analysis, ChatRecord.predict,
                       ChatRecord.datasource_select_answer, ChatRecord.analysis_record_id, ChatRecord.predict_record_id,
                       ChatRecord.regenerate_record_id,
@@ -436,6 +468,8 @@ def get_chat_with_records(session: SessionDep, chart_id: int, current_user: Curr
                                  total_tokens=total_tokens,
                                  question=row.question, sql_answer=row.sql_answer, sql=row.sql,
                                  datasource=row.datasource,
+                                 engine_type=getattr(row, "engine_type", None),
+                                 re_exec=getattr(row, "re_exec", None),
                                  chart_answer=row.chart_answer, chart=row.chart,
                                  analysis=row.analysis, predict=row.predict,
                                  datasource_select_answer=row.datasource_select_answer,
@@ -456,6 +490,8 @@ def get_chat_with_records(session: SessionDep, chart_id: int, current_user: Curr
                                  total_tokens=total_tokens,
                                  question=row.question, sql_answer=row.sql_answer, sql=row.sql,
                                  datasource=row.datasource,
+                                 engine_type=getattr(row, "engine_type", None),
+                                 re_exec=getattr(row, "re_exec", None),
                                  chart_answer=row.chart_answer, chart=row.chart,
                                  analysis=row.analysis, predict=row.predict,
                                  datasource_select_answer=row.datasource_select_answer,
@@ -521,10 +557,10 @@ def format_record(record: ChatRecordResult):
         except Exception:
             pass
     if record.sql and record.sql.strip() != '':
-        try:
-            _dict['sql'] = sqlparse.format(record.sql, reindent=True)
-        except Exception:
-            pass
+        # Display statement is already protocol-formatted at write time
+        # (SqlProtocol.format_statement_for_display / RestProtocol).
+        # Do not re-apply SQL-only pretty printers based on content sniffing.
+        _dict['sql'] = record.sql.strip()
 
     # 格式化duration字段，保留2位小数
     if 'duration' in _dict and _dict['duration'] is not None:
@@ -682,7 +718,7 @@ def get_chat_brief_generate(session: SessionDep, chat_id: int):
 def list_generate_sql_logs(session: SessionDep, chart_id: int) -> List[ChatLog]:
     stmt = select(ChatLog).where(
         and_(ChatLog.pid.in_(select(ChatRecord.id).where(and_(ChatRecord.chat_id == chart_id))),
-             ChatLog.type == TypeEnum.CHAT, ChatLog.operate == OperationEnum.GENERATE_SQL)).order_by(
+             ChatLog.type == TypeEnum.CHAT, ChatLog.operate == OperationEnum.GENERATE_QUERY)).order_by(
         ChatLog.start_time)
     result = session.execute(stmt).all()
     _list = []
@@ -724,7 +760,7 @@ def create_chat(session: SessionDep, current_user: CurrentUser, create_chat_obj:
         if current_assistant and current_assistant.type == 1:
             out_ds_instance: AssistantOutDs = AssistantOutDsFactory.get_instance(current_assistant)
             ds = out_ds_instance.get_ds(chat.datasource)
-            ds.type_name = DB.get_db(ds.type)
+            ds.type_name = DB.get_db(ds.type).db_name
         else:
             ds = session.get(CoreDatasource, create_chat_obj.datasource)
             if ds.oid != current_user.oid:
@@ -733,7 +769,8 @@ def create_chat(session: SessionDep, current_user: CurrentUser, create_chat_obj:
         if not ds:
             raise Exception(f"Datasource with id {create_chat_obj.datasource} not found")
 
-        chat.engine_type = ds.type_name
+        # Persist protocol type key ("api"/"mysql"), not display name ("API"/"MySQL").
+        chat.engine_type = ds.type
     else:
         chat.engine_type = ''
 
@@ -755,7 +792,7 @@ def create_chat(session: SessionDep, current_user: CurrentUser, create_chat_obj:
         record = ChatRecord()
         record.chat_id = chat.id
         record.datasource = ds.id
-        record.engine_type = ds.type_name
+        record.engine_type = ds.type
         record.first_chat = True
         record.finish = True
         record.create_time = datetime.datetime.now()
@@ -1033,6 +1070,17 @@ def save_sql(session: SessionDep, record_id: int, sql: str) -> ChatRecord:
     session.commit()
 
     return result
+
+
+def save_re_exec(session: SessionDep, record_id: int, re_exec: Optional[str]) -> None:
+    """Persist protocol re-execution payload alongside the display statement."""
+    if not record_id or not re_exec:
+        return
+    stmt = update(ChatRecord).where(and_(ChatRecord.id == record_id)).values(
+        re_exec=re_exec
+    )
+    session.execute(stmt)
+    session.commit()
 
 
 def save_chart_answer(session: SessionDep, record_id: int, answer: str) -> ChatRecord:

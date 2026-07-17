@@ -85,12 +85,14 @@ async def export_excel(session: SessionDep, trans: Trans, current_user: CurrentU
                 "description": obj.description,
                 "datasource_name": obj.datasource_name,
                 "advanced_application_name": obj.advanced_application_name,
+                "training_type": obj.training_type or 'sql',
             }
             data_list.append(_data)
 
         fields = []
         fields.append(AxisObj(name=trans('i18n_data_training.problem_description'), value='question'))
-        fields.append(AxisObj(name=trans('i18n_data_training.sample_sql'), value='description'))
+        fields.append(AxisObj(name=trans('i18n_data_training.training_type'), value='training_type'))
+        fields.append(AxisObj(name=trans('i18n_data_training.sample_content'), value='description'))
         fields.append(AxisObj(name=trans('i18n_data_training.effective_data_sources'), value='datasource_name'))
         fields.append(AxisObj(name=trans('i18n_data_training.advanced_application'), value='advanced_application_name'))
 
@@ -117,6 +119,7 @@ async def excel_template(trans: Trans, current_user: CurrentUser):
         data_list = []
         _data1 = {
             "question": '查询TEST表内所有ID',
+            "training_type": 'sql',
             "description": 'SELECT id FROM TEST',
             "datasource_name": '生效数据源1',
             "advanced_application_name": '生效高级应用名称',
@@ -125,7 +128,8 @@ async def excel_template(trans: Trans, current_user: CurrentUser):
 
         fields = []
         fields.append(AxisObj(name=trans('i18n_data_training.problem_description_template'), value='question'))
-        fields.append(AxisObj(name=trans('i18n_data_training.sample_sql_template'), value='description'))
+        fields.append(AxisObj(name=trans('i18n_data_training.training_type_template'), value='training_type'))
+        fields.append(AxisObj(name=trans('i18n_data_training.sample_content_template'), value='description'))
         fields.append(
             AxisObj(name=trans('i18n_data_training.effective_data_sources_template'), value='datasource_name'))
         fields.append(
@@ -175,7 +179,7 @@ async def upload_excel(trans: Trans, current_user: CurrentUser, file: UploadFile
 
     oid = current_user.oid
 
-    use_cols = [0, 1, 2, 3]  # 问题, 描述, 数据源名称, 高级应用名称
+    use_cols = [0, 1, 2, 3, 4]  # 问题, 类型, 描述, 数据源名称, 高级应用名称
 
     def inner():
 
@@ -187,7 +191,7 @@ async def upload_excel(trans: Trans, current_user: CurrentUser, file: UploadFile
 
         for sheet_name in sheet_names:
 
-            if get_excel_column_count(save_path, sheet_name) < len(use_cols):
+            if get_excel_column_count(save_path, sheet_name) < 3:
                 raise Exception(trans("i18n_excel_import.col_num_not_match"))
 
             df = pd.read_excel(
@@ -195,7 +199,6 @@ async def upload_excel(trans: Trans, current_user: CurrentUser, file: UploadFile
                 sheet_name=sheet_name,
                 engine='calamine',
                 header=0,
-                usecols=use_cols,
                 dtype=str
             ).fillna("")
 
@@ -204,18 +207,20 @@ async def upload_excel(trans: Trans, current_user: CurrentUser, file: UploadFile
                 if row.isnull().all():
                     continue
 
-                question = row[0].strip() if pd.notna(row[0]) and row[0].strip() else ''
-                description = row[1].strip() if pd.notna(row[1]) and row[1].strip() else ''
-                datasource_name = row[2].strip() if pd.notna(row[2]) and row[2].strip() else ''
+                question = row.iloc[0].strip() if pd.notna(row.iloc[0]) and row.iloc[0].strip() else ''
+                training_type = row.iloc[1].strip() if len(row) > 1 and pd.notna(row.iloc[1]) and row.iloc[1].strip() else 'sql'
+                description = row.iloc[2].strip() if len(row) > 2 and pd.notna(row.iloc[2]) and row.iloc[2].strip() else ''
+                datasource_name = row.iloc[3].strip() if len(row) > 3 and pd.notna(row.iloc[3]) and row.iloc[3].strip() else ''
 
                 advanced_application_name = None
-                if len(row) > 3:
-                    advanced_application_name = row[3].strip() if pd.notna(row[3]) and row[3].strip() else ''
+                if len(row) > 4:
+                    advanced_application_name = row.iloc[4].strip() if pd.notna(row.iloc[4]) and row.iloc[4].strip() else ''
 
                 import_data.append(
                     DataTrainingInfo(oid=oid, question=question, description=description,
                                      datasource_name=datasource_name,
-                                     advanced_application_name=advanced_application_name))
+                                     advanced_application_name=advanced_application_name,
+                                     training_type=training_type))
 
         res = batch_create_training(session, import_data, oid, trans)
 

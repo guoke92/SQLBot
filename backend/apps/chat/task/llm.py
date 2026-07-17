@@ -12,7 +12,6 @@ import orjson
 import pandas as pd
 import requests
 import sqlglot
-import sqlparse
 from langchain.chat_models.base import BaseChatModel
 from langchain_community.utilities import SQLDatabase
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, BaseMessageChunk
@@ -33,7 +32,7 @@ from apps.chat.curd.chat import save_question, save_sql_answer, save_sql, \
     get_old_questions, save_analysis_predict_record, rename_chat, get_chart_config, \
     get_chat_chart_data, list_generate_sql_logs, list_generate_chart_logs, start_log, end_log, \
     get_last_execute_sql_error, format_json_data, format_chart_fields, get_chat_brief_generate, get_chat_predict_data, \
-    get_chat_chart_config, trigger_log_error
+    get_chat_chart_config, trigger_log_error, save_re_exec
 from apps.chat.models.chat_model import ChatQuestion, ChatRecord, Chat, RenameChat, ChatLog, OperationEnum, \
     ChatFinishStep, AxisObj, SystemPromptMessage, HumanPromptMessage, AIPromptMessage
 from apps.data_training.curd.data_training import get_training_template
@@ -41,7 +40,9 @@ from apps.datasource.crud.datasource import get_table_schema, get_tables_sample_
 from apps.datasource.crud.permission import get_row_permission_filters, is_normal_user
 from apps.datasource.embedding.ds_embedding import get_ds_embedding
 from apps.datasource.models.datasource import CoreDatasource
-from apps.db.db import exec_sql, get_version, check_connection, get_sqlglot_dialect
+from apps.db.db import check_connection, get_sqlglot_dialect
+from apps.protocol import get_protocol, QueryPlan
+from apps.protocol.base import CAP_ROW_PERMISSION, CAP_SQL_DIALECT
 from apps.system.crud.aimodel_manage import get_ai_model_list_by_workspace
 from apps.system.crud.assistant import AssistantOutDs, AssistantOutDsFactory, get_assistant_ds
 from apps.system.crud.parameter_manage import get_groups
@@ -113,6 +114,7 @@ class LLMService:
 
     enable_sql_row_limit: bool = settings.GENERATE_SQL_QUERY_LIMIT_ENABLED
     base_message_round_count_limit: int = settings.GENERATE_SQL_QUERY_HISTORY_ROUND_COUNT
+    _protocol: Any = None
 
     def __init__(self, session: Session, current_user: CurrentUser, chat_question: ChatQuestion,
                  current_assistant: Optional[CurrentAssistant] = None, no_reasoning: bool = False,
@@ -155,7 +157,8 @@ class LLMService:
                     raise SingleMessageError(
                         f"Datasource with id {chat_question.datasource_id} does not belong to current workspace")
                 chat.datasource = _ds.id
-                chat.engine_type = _ds.type_name
+                # Persist type key (e.g. "api"/"mysql"), not display name.
+                chat.engine_type = _ds.type
                 # save chat
                 session.add(chat)
                 session.flush()
@@ -169,12 +172,14 @@ class LLMService:
                 ds = self.out_ds_instance.get_ds(chat.datasource)
                 if not ds:
                     raise SingleMessageError("No available datasource configuration found")
-                chat_question.engine = ds.type + get_version(ds)
+                _proto = get_protocol(ds.type)
+                chat_question.engine = _proto.engine_display_name(ds) + _proto.server_version(ds)
             else:
                 ds = session.get(CoreDatasource, chat.datasource)
                 if not ds:
                     raise SingleMessageError("No available datasource configuration found")
-                chat_question.engine = (ds.type_name if ds.type != 'excel' else 'PostgreSQL') + get_version(ds)
+                _proto = get_protocol(ds.type)
+                chat_question.engine = _proto.engine_display_name(ds) + _proto.server_version(ds)
 
         self.generate_sql_logs = list_generate_sql_logs(session=session, chart_id=chat_id)
         self.generate_chart_logs = list_generate_chart_logs(session=session, chart_id=chat_id)
@@ -254,6 +259,21 @@ class LLMService:
         except Exception as e:
             return True
 
+    @property
+    def protocol(self):
+        """Resolve protocol for the *current* ds.
+
+        Re-resolve when ds type changes so select-datasource cannot sticky-cache
+        a stale protocol after self.ds is swapped mid-request.
+        """
+        if not self.ds:
+            self._protocol = None
+            return None
+        ds_type = getattr(self.ds, "type", None)
+        if self._protocol is None or getattr(self._protocol, "type_key", None) != ds_type:
+            self._protocol = get_protocol(ds_type)
+        return self._protocol
+
     def init_messages(self, session: Session):
 
         self.table_name_list = self.choose_table_schema(session)
@@ -272,24 +292,25 @@ class LLMService:
         count_limit = self.base_message_round_count_limit
 
         self.sql_message = []
-        # add sys prompt
-        _system_templates = self.chat_question.sql_sys_question(self.ds.type, self.enable_sql_row_limit)
+        # add sys prompt — protocol owns content + ack wording; pipeline only assembles messages
+        self.chat_question._ds_type = self.ds.type
+        _system_templates = self.protocol.build_prompt_bundle(
+            self.chat_question, enable_query_limit=self.enable_sql_row_limit
+        ).as_dict()
         self.sql_message.append(SystemPromptMessage(content=_system_templates['system']))
         self.sql_message.append(HumanPromptMessage(content=_system_templates['rules']))
-        self.sql_message.append(
-            AIPromptMessage(content='我已掌握所有规则，包括表结构、SQL规范、安全限制和输出格式，我会严格遵守这些规则。'))
+        self.sql_message.append(AIPromptMessage(content=_system_templates['ack_rules']))
         self.sql_message.append(HumanPromptMessage(content=_system_templates['schema']))
-        self.sql_message.append(
-            AIPromptMessage(content='我已确认您提供的数据库信息与表结构schema，我生成的SQL不会超出您提供的范围。'))
+        self.sql_message.append(AIPromptMessage(content=_system_templates['ack_schema']))
         if _system_templates.get('custom_prompt'):
             self.sql_message.append(HumanPromptMessage(content=_system_templates['custom_prompt']))
-            self.sql_message.append(AIPromptMessage(content='我已确认您提供的额外信息，我会进行参考。'))
+            self.sql_message.append(AIPromptMessage(content=_system_templates['ack_custom_prompt']))
         if _system_templates.get('terminologies'):
             self.sql_message.append(HumanPromptMessage(content=_system_templates['terminologies']))
-            self.sql_message.append(AIPromptMessage(content='我已确认您提供的术语信息，我会进行参考。'))
+            self.sql_message.append(AIPromptMessage(content=_system_templates['ack_terminologies']))
         if _system_templates.get('data_training'):
             self.sql_message.append(HumanPromptMessage(content=_system_templates['data_training']))
-            self.sql_message.append(AIPromptMessage(content='我已确认您提供的SQL示例，我会进行参考。'))
+            self.sql_message.append(AIPromptMessage(content=_system_templates['ack_data_training']))
 
         if last_sql_messages is not None and len(last_sql_messages) > 0:
             last_rounds = get_last_conversation_rounds(last_sql_messages, rounds=count_limit)
@@ -317,11 +338,11 @@ class LLMService:
         count_chart_limit = self.base_message_round_count_limit
 
         self.chart_message = []
-        # add sys prompt
-        _chart_system_templates = self.chat_question.chart_sys_question()
-        self.chart_message.append(SystemPromptMessage(content=_chart_system_templates['system']))
-        self.chart_message.append(HumanPromptMessage(content=_chart_system_templates['rules']))
-        self.chart_message.append(AIPromptMessage(content='我已掌握所有规则，我会严格遵守这些规则来生成符合要求的JSON。'))
+        # add sys prompt — protocol-owned so REST sees API-centric rules, not SQL.
+        _chart_bundle = self.protocol.build_chart_system_prompt(self.chat_question)
+        self.chart_message.append(SystemPromptMessage(content=_chart_bundle['system']))
+        self.chart_message.append(HumanPromptMessage(content=_chart_bundle['rules']))
+        self.chart_message.append(AIPromptMessage(content=_chart_bundle['ack']))
         if last_chart_messages is not None and len(last_chart_messages) > 0:
             last_rounds = get_last_conversation_rounds(last_chart_messages, rounds=count_chart_limit)
 
@@ -405,12 +426,13 @@ class LLMService:
                                                                             full_message=prompt_list)
 
     def filter_training_template(self, _session: Session, oid: int = None, ds_id: int = None):
-        self.current_logs[OperationEnum.FILTER_SQL_EXAMPLE] = start_log(session=_session,
-                                                                        operate=OperationEnum.FILTER_SQL_EXAMPLE,
+        self.current_logs[OperationEnum.FILTER_QUERY_EXAMPLE] = start_log(session=_session,
+                                                                        operate=OperationEnum.FILTER_QUERY_EXAMPLE,
                                                                         record_id=self.record.id,
                                                                         local_operation=True)
         calculate_oid = oid
         calculate_ds_id = ds_id
+        training_type = getattr(self.protocol, 'training_type', 'sql')
         if self.current_assistant:
             calculate_oid = self.current_assistant.oid if self.current_assistant.type != 4 else self.oid
             if self.current_assistant.type == 1:
@@ -419,15 +441,17 @@ class LLMService:
             self.chat_question.data_training, example_list = get_training_template(_session,
                                                                                    self.chat_question.question,
                                                                                    calculate_oid,
-                                                                                   None, self.current_assistant.id)
+                                                                                   None, self.current_assistant.id,
+                                                                                   training_type=training_type)
         else:
             self.chat_question.data_training, example_list = get_training_template(_session,
                                                                                    self.chat_question.question,
                                                                                    calculate_oid,
-                                                                                   calculate_ds_id)
-        self.current_logs[OperationEnum.FILTER_SQL_EXAMPLE] = end_log(session=_session,
+                                                                                   calculate_ds_id,
+                                                                                   training_type=training_type)
+        self.current_logs[OperationEnum.FILTER_QUERY_EXAMPLE] = end_log(session=_session,
                                                                       log=self.current_logs[
-                                                                          OperationEnum.FILTER_SQL_EXAMPLE],
+                                                                          OperationEnum.FILTER_QUERY_EXAMPLE],
                                                                       full_message=example_list)
 
     def choose_table_schema(self, _session: Session):
@@ -435,20 +459,17 @@ class LLMService:
                                                                   operate=OperationEnum.CHOOSE_TABLE,
                                                                   record_id=self.record.id,
                                                                   local_operation=True)
-        self.chat_question.db_schema, tables = self.out_ds_instance.get_db_schema(
-            self.ds.id, self.chat_question.question) if self.out_ds_instance else get_table_schema(
+
+        snapshot = self.protocol.retrieve_schema(
             session=_session,
             current_user=self.current_user,
             ds=self.ds,
-            question=self.chat_question.question)
-
-        # Get sample data for all tables
-        if not self.out_ds_instance:
-            self.chat_question.sample_data = get_tables_sample_data(
-                session=_session,
-                current_user=self.current_user,
-                ds=self.ds,
-                table_list=tables)
+            question=self.chat_question.question,
+            out_ds_instance=self.out_ds_instance,
+        )
+        self.chat_question.db_schema = snapshot.schema_text
+        tables = snapshot.resource_names
+        self.chat_question.sample_data = snapshot.sample_data
 
         self.current_logs[OperationEnum.CHOOSE_TABLE] = end_log(session=_session,
                                                                 log=self.current_logs[OperationEnum.CHOOSE_TABLE],
@@ -563,14 +584,16 @@ class LLMService:
 
     def generate_recommend_questions_task(self, _session: Session):
 
-        # get schema
+        # get schema — use protocol so API datasources get endpoint schema, not SQL M-Schema.
         if self.ds and not self.chat_question.db_schema:
-            self.chat_question.db_schema, tables = self.out_ds_instance.get_db_schema(
-                self.ds.id, self.chat_question.question) if self.out_ds_instance else get_table_schema(
+            snapshot = self.protocol.retrieve_schema(
                 session=_session,
-                current_user=self.current_user, ds=self.ds,
+                current_user=self.current_user,
+                ds=self.ds,
                 question=self.chat_question.question,
-                embedding=False)
+                out_ds_instance=self.out_ds_instance,
+            )
+            self.chat_question.db_schema = snapshot.schema_text
 
             # Get sample data for all tables
             # if not self.out_ds_instance:
@@ -720,9 +743,11 @@ class LLMService:
                 if self.current_assistant and self.current_assistant.type in dynamic_ds_types:
                     _ds = self.out_ds_instance.get_ds(data['id'])
                     self.ds = _ds
-                    self.chat_question.engine = _ds.type + get_version(self.ds)
+                    _proto = get_protocol(_ds.type)
+                    self.chat_question.engine = _proto.engine_display_name(_ds) + _proto.server_version(_ds)
 
-                    _engine_type = self.chat_question.engine
+                    # Persist type key so FE protocol-aware UI never has to sniff statements.
+                    _engine_type = _ds.type
                     _chat.engine_type = _ds.type
                 else:
                     _ds = _session.get(CoreDatasource, _datasource)
@@ -730,11 +755,11 @@ class LLMService:
                         _datasource = None
                         raise SingleMessageError(f"Datasource configuration with id {_datasource} not found")
                     self.ds = CoreDatasource(**_ds.model_dump())
-                    self.chat_question.engine = (_ds.type_name if _ds.type != 'excel' else 'PostgreSQL') + get_version(
-                        self.ds)
+                    _proto = get_protocol(_ds.type)
+                    self.chat_question.engine = _proto.engine_display_name(_ds) + _proto.server_version(_ds)
 
-                    _engine_type = self.chat_question.engine
-                    _chat.engine_type = _ds.type_name
+                    _engine_type = _ds.type
+                    _chat.engine_type = _ds.type
                 # save chat
                 with _session.begin_nested():
                     # 为了能继续记日志，先单独处理下事务
@@ -778,13 +803,16 @@ class LLMService:
     def generate_sql(self, _session: Session):
         # append current question
         self.sql_message.append(HumanMessage(
-            self.chat_question.sql_user_question(current_time=datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                                                 change_title=self.change_title)))
+            self.protocol.build_user_prompt(
+                self.chat_question,
+                current_time=datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                change_title=self.change_title,
+            )))
 
-        self.current_logs[OperationEnum.GENERATE_SQL] = start_log(session=_session,
+        self.current_logs[OperationEnum.GENERATE_QUERY] = start_log(session=_session,
                                                                   ai_modal_id=self.chat_question.ai_modal_id,
                                                                   ai_modal_name=self.chat_question.ai_modal_name,
-                                                                  operate=OperationEnum.GENERATE_SQL,
+                                                                  operate=OperationEnum.GENERATE_QUERY,
                                                                   record_id=self.record.id,
                                                                   full_message=[
                                                                       {'type': msg.type,
@@ -805,8 +833,8 @@ class LLMService:
 
         self.sql_message.append(AIMessage(full_sql_text))
 
-        self.current_logs[OperationEnum.GENERATE_SQL] = end_log(session=_session,
-                                                                log=self.current_logs[OperationEnum.GENERATE_SQL],
+        self.current_logs[OperationEnum.GENERATE_QUERY] = end_log(session=_session,
+                                                                log=self.current_logs[OperationEnum.GENERATE_QUERY],
                                                                 full_message=[{'type': msg.type,
                                                                                'sqlbot_system': getattr(msg,
                                                                                                         'sqlbot_system',
@@ -826,10 +854,10 @@ class LLMService:
         dynamic_sql_msg.append(SystemPromptMessage(content=self.chat_question.dynamic_sys_question()))
         dynamic_sql_msg.append(HumanMessage(content=self.chat_question.dynamic_user_question()))
 
-        self.current_logs[OperationEnum.GENERATE_DYNAMIC_SQL] = start_log(session=session,
+        self.current_logs[OperationEnum.GENERATE_DYNAMIC_QUERY] = start_log(session=session,
                                                                           ai_modal_id=self.chat_question.ai_modal_id,
                                                                           ai_modal_name=self.chat_question.ai_modal_name,
-                                                                          operate=OperationEnum.GENERATE_DYNAMIC_SQL,
+                                                                          operate=OperationEnum.GENERATE_DYNAMIC_QUERY,
                                                                           record_id=self.record.id,
                                                                           full_message=[{'type': msg.type,
                                                                                          'sqlbot_system': getattr(msg,
@@ -851,9 +879,9 @@ class LLMService:
 
         dynamic_sql_msg.append(AIMessage(full_dynamic_text))
 
-        self.current_logs[OperationEnum.GENERATE_DYNAMIC_SQL] = end_log(session=session,
+        self.current_logs[OperationEnum.GENERATE_DYNAMIC_QUERY] = end_log(session=session,
                                                                         log=self.current_logs[
-                                                                            OperationEnum.GENERATE_DYNAMIC_SQL],
+                                                                            OperationEnum.GENERATE_DYNAMIC_QUERY],
                                                                         full_message=[
                                                                             {'type': msg.type,
                                                                              'sqlbot_system': getattr(msg,
@@ -890,10 +918,10 @@ class LLMService:
         permission_sql_msg.append(SystemPromptMessage(content=self.chat_question.filter_sys_question()))
         permission_sql_msg.append(HumanMessage(content=self.chat_question.filter_user_question()))
 
-        self.current_logs[OperationEnum.GENERATE_SQL_WITH_PERMISSIONS] = start_log(session=session,
+        self.current_logs[OperationEnum.GENERATE_QUERY_WITH_PERMISSIONS] = start_log(session=session,
                                                                                    ai_modal_id=self.chat_question.ai_modal_id,
                                                                                    ai_modal_name=self.chat_question.ai_modal_name,
-                                                                                   operate=OperationEnum.GENERATE_SQL_WITH_PERMISSIONS,
+                                                                                   operate=OperationEnum.GENERATE_QUERY_WITH_PERMISSIONS,
                                                                                    record_id=self.record.id,
                                                                                    full_message=[
                                                                                        {'type': msg.type,
@@ -915,9 +943,9 @@ class LLMService:
 
         permission_sql_msg.append(AIMessage(full_filter_text))
 
-        self.current_logs[OperationEnum.GENERATE_SQL_WITH_PERMISSIONS] = end_log(session=session,
+        self.current_logs[OperationEnum.GENERATE_QUERY_WITH_PERMISSIONS] = end_log(session=session,
                                                                                  log=self.current_logs[
-                                                                                     OperationEnum.GENERATE_SQL_WITH_PERMISSIONS],
+                                                                                     OperationEnum.GENERATE_QUERY_WITH_PERMISSIONS],
                                                                                  full_message=[
                                                                                      {'type': msg.type,
                                                                                       'sqlbot_system': getattr(msg,
@@ -949,8 +977,9 @@ class LLMService:
         return self.build_table_filter(session=_session, sql=sql, filters=filters)
 
     def generate_chart(self, _session: Session, chart_type: Optional[str] = '', schema: Optional[str] = ''):
-        # append current question
-        self.chart_message.append(HumanMessage(self.chat_question.chart_user_question(chart_type, schema)))
+        # append current question — protocol-owned so REST sees API-centric prompt.
+        _user_prompt = self.protocol.build_chart_user_prompt(self.chat_question, chart_type, schema)
+        self.chart_message.append(HumanMessage(_user_prompt))
 
         self.current_logs[OperationEnum.GENERATE_CHART] = start_log(session=_session,
                                                                     ai_modal_id=self.chat_question.ai_modal_id,
@@ -1070,7 +1099,12 @@ class LLMService:
 
         return sql
 
-    def check_save_chart(self, session: Session, res: str) -> Dict[str, Any]:
+    def check_save_chart(
+            self,
+            session: Session,
+            res: str,
+            fields: Optional[List[Any]] = None,
+    ) -> Dict[str, Any]:
 
         json_str = extract_nested_json(res)
         if json_str is None:
@@ -1087,33 +1121,9 @@ class LLMService:
             if data['type'] and data['type'] != 'error':
                 # todo type check
                 chart = data
-                if chart.get('columns'):
-                    for v in chart.get('columns'):
-                        v['value'] = v.get('value').lower()
-                if chart.get('axis'):
-                    if chart.get('axis').get('x'):
-                        chart.get('axis').get('x')['value'] = chart.get('axis').get('x').get('value').lower()
-                    y_axis = chart.get('axis').get('y')
-                    if y_axis:
-                        if isinstance(y_axis, list):
-                            # 数组格式: y: [{name, value}, ...]
-                            for item in y_axis:
-                                if item.get('value'):
-                                    item['value'] = item['value'].lower()
-                        elif isinstance(y_axis, dict) and y_axis.get('value'):
-                            # 旧格式: y: {name, value}
-                            y_axis['value'] = y_axis['value'].lower()
-                    if chart.get('axis').get('series'):
-                        chart.get('axis').get('series')['value'] = chart.get('axis').get('series').get('value').lower()
-                if chart.get('axis') and chart['axis'].get('multi-quota'):
-                    multi_quota = chart['axis']['multi-quota']
-                    if multi_quota.get('value'):
-                        if isinstance(multi_quota['value'], list):
-                            # 将数组中的每个值转换为小写
-                            multi_quota['value'] = [v.lower() if v else v for v in multi_quota['value']]
-                        elif isinstance(multi_quota['value'], str):
-                            # 如果是字符串，也转换为小写
-                            multi_quota['value'] = multi_quota['value'].lower()
+                # Bind chart values to actual result keys (SQL lower-case columns and
+                # REST camelCase must both survive). Never blind `.lower()` here.
+                DataFormat.align_chart_bindings(chart, fields)
             elif data['type'] == 'error':
                 message = data['reason']
                 error = True
@@ -1169,18 +1179,19 @@ class LLMService:
         return finish_record(session=session, record_id=self.record.id)
 
     def execute_sql(self, sql: str):
-        """Execute SQL query
+        """Execute a SQL statement on the bound datasource via protocol.
 
-        Args:
-            ds: Data source instance
-            sql: SQL query statement
-
-        Returns:
-            Query results
+        SQL-dialect only: non-SQL protocols must not be driven through this path.
         """
         SQLBotLogUtil.info(f"Executing SQL on ds_id {self.ds.id}: {sql}")
         try:
-            return exec_sql(ds=self.ds, sql=sql, origin_column=False)
+            proto = self.protocol
+            if proto is None or not proto.supports(CAP_SQL_DIALECT):
+                raise SingleMessageError(
+                    f"Datasource type {getattr(self.ds, 'type', None)} does not support SQL execution"
+                )
+            qr = proto.execute(self.ds, QueryPlan(success=True, statement=sql, payload={"sql": sql}))
+            return qr.as_dict()
         except Exception as e:
             if isinstance(e, ParseSQLResultError):
                 raise e
@@ -1265,16 +1276,16 @@ class LLMService:
                              'type': 'datasource-result'}).decode() + '\n\n'
                 if in_chat:
                     yield 'data:' + orjson.dumps({'id': self.ds.id, 'datasource_name': self.ds.name,
-                                                  'engine_type': self.ds.type_name or self.ds.type,
+                                                  'engine_type': getattr(self.ds, 'type', None),
                                                   'type': 'datasource'}).decode() + '\n\n'
 
             else:
                 self.validate_history_ds(_session)
 
             # check connection
-            connected = check_connection(ds=self.ds, trans=None)
+            connected = self.protocol.check_connection(ds=self.ds)
             if not connected:
-                raise SQLBotDBConnectionError('Connect DB failed')
+                raise SQLBotDBConnectionError('Datasource connection failed')
 
             # generate sql
             sql_res = self.generate_sql(_session)
@@ -1287,14 +1298,22 @@ class LLMService:
                          'type': 'sql-result'}).decode() + '\n\n'
             if in_chat:
                 yield 'data:' + orjson.dumps({'type': 'info', 'msg': 'sql generated'}).decode() + '\n\n'
-            # filter sql
+            # filter query plan via protocol
             SQLBotLogUtil.info(full_sql_text)
 
-            chart_type = self.get_chart_type_from_sql_answer(full_sql_text)
+            plan: QueryPlan = self.protocol.parse_llm_output(full_sql_text)
+            if not plan.success:
+                raise SingleMessageError(plan.message or "Failed to parse LLM output")
+
+            plan = self.protocol.validate_plan(self.ds, plan, self.table_name_list)
+            if not plan.success:
+                raise SingleMessageError(plan.message or "Query plan validation failed")
+
+            chart_type = plan.chart_type
 
             # return title
             if self.change_title:
-                llm_brief = self.get_brief_from_sql_answer(full_sql_text)
+                llm_brief = plan.brief
                 llm_brief_generated = bool(llm_brief)
                 if llm_brief_generated or (self.chat_question.question and self.chat_question.question.strip() != ''):
                     save_brief = llm_brief if (llm_brief and llm_brief != '') else self.chat_question.question.strip()[
@@ -1312,63 +1331,64 @@ class LLMService:
             dynamic_sql_result = None
             sqlbot_temp_sql_text = None
             assistant_dynamic_sql = None
-            # row permission
+            # row permission — only for SQL-capable protocols
+            sql_operate = OperationEnum.GENERATE_QUERY
+            sql = plan.payload.get("sql", plan.statement)
 
-            sql_operate = OperationEnum.GENERATE_SQL
-            sql, tables = self.check_sql(session=_session, res=full_sql_text, operate=sql_operate)
+            if self.protocol.supports(CAP_ROW_PERMISSION):
+                if ((not self.current_assistant or is_page_embedded) and is_normal_user(
+                        self.current_user)) or use_dynamic_ds:
+                    sql_result = None
 
-            # 表名安全检查：用 sqlglot 解析真实 SQL，不信任 AI 返回的 tables
-            actual_tables = extract_tables_from_sql(sql, ds_type=self.ds.type)
-            if not actual_tables:
-                raise SingleMessageError(
-                    "SQL parsing failed: unable to extract table names. "
-                    "This may indicate an unsupported SQL syntax or a security issue."
-                )
-            allowed_tables = set(self.table_name_list)
-            unauthorized_tables = actual_tables - allowed_tables
-            if unauthorized_tables:
-                raise SingleMessageError(
-                    f"SQL contains unauthorized tables: {', '.join(unauthorized_tables)}. "
-                    f"Allowed tables: {', '.join(allowed_tables)}"
-                )
+                    if use_dynamic_ds:
+                        dynamic_sql_result = self.generate_assistant_dynamic_sql(_session, sql, plan.resources)
+                        sqlbot_temp_sql_text = dynamic_sql_result.get(
+                            'sqlbot_temp_sql_text') if dynamic_sql_result else None
+                    else:
+                        sql_result = self.generate_filter(_session, sql, plan.resources)
 
-            if ((not self.current_assistant or is_page_embedded) and is_normal_user(
-                    self.current_user)) or use_dynamic_ds:
-                sql_result = None
-
-                if use_dynamic_ds:
-                    dynamic_sql_result = self.generate_assistant_dynamic_sql(_session, sql, tables)
-                    sqlbot_temp_sql_text = dynamic_sql_result.get(
-                        'sqlbot_temp_sql_text') if dynamic_sql_result else None
-                else:
-                    sql_result = self.generate_filter(_session, sql, tables)  # maybe no sql and tables
-
-                if sql_result:
-                    SQLBotLogUtil.info(sql_result)
-                    sql_operate = OperationEnum.GENERATE_SQL_WITH_PERMISSIONS
-                    sql = self.check_save_sql(session=_session, res=sql_result, operate=sql_operate)
-                elif dynamic_sql_result and sqlbot_temp_sql_text:
-                    sql_operate = OperationEnum.GENERATE_DYNAMIC_SQL
-                    assistant_dynamic_sql = self.check_save_sql(session=_session, res=sqlbot_temp_sql_text,
-                                                                operate=sql_operate)
+                    if sql_result:
+                        SQLBotLogUtil.info(sql_result)
+                        sql_operate = OperationEnum.GENERATE_QUERY_WITH_PERMISSIONS
+                        sql = self.check_save_sql(session=_session, res=sql_result, operate=sql_operate)
+                    elif dynamic_sql_result and sqlbot_temp_sql_text:
+                        sql_operate = OperationEnum.GENERATE_DYNAMIC_QUERY
+                        assistant_dynamic_sql = self.check_save_sql(session=_session, res=sqlbot_temp_sql_text,
+                                                                    operate=sql_operate)
+                    else:
+                        sql = self.check_save_sql(session=_session, res=full_sql_text, operate=sql_operate)
                 else:
                     sql = self.check_save_sql(session=_session, res=full_sql_text, operate=sql_operate)
-            else:
-                sql = self.check_save_sql(session=_session, res=full_sql_text, operate=sql_operate)
 
-            SQLBotLogUtil.info('sql: ' + sql)
+                # Update plan payload with final (permission-injected) SQL
+                plan.payload["sql"] = sql
+            else:
+                # Non-SQL protocols: plan already validated; persist display form below.
+                pass
+
+            SQLBotLogUtil.info('statement: ' + plan.statement)
+
+            format_statement = self.protocol.format_statement_for_display(plan)
+            # Chart / history / SSE all share the same protocol display form of the plan.
+            # (Column name remains ChatRecord.sql for DB compatibility.)
+            self.chat_question.sql = format_statement
+            save_sql(session=_session, sql=format_statement, record_id=self.record.id)
 
             if not stream:
-                json_result['sql'] = sql
+                json_result['sql'] = format_statement
 
-            format_sql = sqlparse.format(sql, reindent=True)
             if in_chat:
-                yield 'data:' + orjson.dumps({'content': format_sql, 'type': 'sql'}).decode() + '\n\n'
+                yield 'data:' + orjson.dumps({
+                    'content': format_statement,
+                    'type': 'sql',
+                    # Always the protocol type key (mysql/api/…), never display name.
+                    'engine_type': getattr(self.ds, 'type', None),
+                }).decode() + '\n\n'
             else:
                 if stream:
-                    yield f'```sql\n{format_sql}\n```\n\n'
+                    yield f'```\n{format_statement}\n```\n\n'
 
-            # execute sql
+            # execute query
             real_execute_sql = sql
             if sqlbot_temp_sql_text and assistant_dynamic_sql:
                 dynamic_sql_result.pop('sqlbot_temp_sql_text')
@@ -1376,21 +1396,29 @@ class LLMService:
                     assistant_dynamic_sql = assistant_dynamic_sql.replace(f'{dynamic_subsql_prefix}{origin_table}',
                                                                           subsql)
                 real_execute_sql = assistant_dynamic_sql
+                plan.payload["sql"] = real_execute_sql
 
-            if finish_step.value <= ChatFinishStep.GENERATE_SQL.value:
+            if finish_step.value <= ChatFinishStep.GENERATE_QUERY.value:
                 if in_chat:
                     yield 'data:' + orjson.dumps({'type': 'finish'}).decode() + '\n\n'
                 if not stream:
                     yield json_result
                 return
 
-            self.current_logs[OperationEnum.EXECUTE_SQL] = start_log(session=_session,
-                                                                     operate=OperationEnum.EXECUTE_SQL,
+            self.current_logs[OperationEnum.EXECUTE_QUERY] = start_log(session=_session,
+                                                                     operate=OperationEnum.EXECUTE_QUERY,
                                                                      record_id=self.record.id, local_operation=True)
-            result = self.execute_sql(sql=real_execute_sql)
-            self.current_logs[OperationEnum.EXECUTE_SQL] = end_log(session=_session,
-                                                                   log=self.current_logs[OperationEnum.EXECUTE_SQL],
-                                                                   full_message={'sql': real_execute_sql,
+            qr = self.protocol.execute(self.ds, plan)
+            result = qr.as_dict()
+            # Protocol execute() must raise on business failure; keep a hard guard
+            # so a misbehaving protocol cannot stream a fake null table as success.
+            if result.get("is_success") is False:
+                code = result.get("code_value")
+                msg = f"Query failed (code={code})" if code is not None else "Query failed"
+                raise SingleMessageError(msg)
+            self.current_logs[OperationEnum.EXECUTE_QUERY] = end_log(session=_session,
+                                                                   log=self.current_logs[OperationEnum.EXECUTE_QUERY],
+                                                                   full_message={'statement': plan.statement,
                                                                                  'count': len(result.get('data'))})
 
             _data = DataFormat.convert_large_numbers_in_object_array(result.get('data'))
@@ -1398,6 +1426,16 @@ class LLMService:
             result["data"] = _data
 
             self.save_sql_data(session=_session, data_obj=result)
+            # Persist re-execution payload so data_live / dashboard can replay the query.
+            re_exec_json = result.get("re_exec")
+            if re_exec_json:
+                save_re_exec(session=_session, record_id=self.record.id,
+                             re_exec=orjson.dumps(re_exec_json).decode())
+                if in_chat:
+                    # Push re_exec to FE so "add to dashboard" works without reload.
+                    yield 'data:' + orjson.dumps(
+                        {'content': re_exec_json, 'type': 're_exec'}
+                    ).decode() + '\n\n'
             if in_chat:
                 yield 'data:' + orjson.dumps({'content': 'execute-success', 'type': 'sql-data'}).decode() + '\n\n'
             if not stream:
@@ -1418,7 +1456,7 @@ class LLMService:
                         # data, _fields_list, col_formats = self.format_pd_data(_column_list, result.get('data'))
 
                         if not _data or not _fields_list:
-                            yield 'The SQL execution result is empty.\n\n'
+                            yield 'The query returned no data.\n\n'
                         else:
                             df = pd.DataFrame(_data, columns=_fields_list)
                             df_safe = DataFormat.safe_convert_to_string(df)
@@ -1428,15 +1466,32 @@ class LLMService:
                     yield json_result
                 return
 
-            # generate chart
-            used_tables_schema, used_tables = self.out_ds_instance.get_db_schema(
-                self.ds.id, self.chat_question.question, embedding=False,
-                table_list=tables) if self.out_ds_instance else get_table_schema(
-                session=_session,
-                current_user=self.current_user,
-                ds=self.ds,
-                question=self.chat_question.question,
-                embedding=False, table_list=tables)
+            # generate chart — always via protocol so API yields endpoint schema, not SQL M-Schema.
+            if self.out_ds_instance:
+                used_tables_schema, used_tables = self.out_ds_instance.get_db_schema(
+                    self.ds.id, self.chat_question.question, embedding=False,
+                    table_list=plan.resources)
+            else:
+                chart_snapshot = self.protocol.retrieve_schema(
+                    session=_session,
+                    current_user=self.current_user,
+                    ds=self.ds,
+                    question=self.chat_question.question,
+                    embedding=False,
+                    resource_names=plan.resources or None,
+                )
+                used_tables_schema = chart_snapshot.schema_text
+                used_tables = chart_snapshot.resource_names
+            # Append query result sample so the chart LLM sees real values, not only schema metadata.
+            # Applies to every protocol (API has no SQL-time sample; SQL sample is complimentary).
+            _sample_md = DataFormat.rows_to_markdown_table(
+                result.get('fields') or [],
+                result.get('data') or [],
+                max_rows=5,
+                title="\n【Sample Data】(first 5 rows, for chart reference)",
+            )
+            if _sample_md:
+                used_tables_schema = (used_tables_schema or "") + "\n" + _sample_md
             SQLBotLogUtil.info('used_tables_schema: \n' + used_tables_schema)
             chart_res = self.generate_chart(_session, chart_type, used_tables_schema)
             full_chart_text = ''
@@ -1449,9 +1504,13 @@ class LLMService:
             if in_chat:
                 yield 'data:' + orjson.dumps({'type': 'info', 'msg': 'chart generated'}).decode() + '\n\n'
 
-            # filter chart
+            # filter chart — align bindings to actual result field names (not forced lower)
             SQLBotLogUtil.info(full_chart_text)
-            chart = self.check_save_chart(session=_session, res=full_chart_text)
+            chart = self.check_save_chart(
+                session=_session,
+                res=full_chart_text,
+                fields=result.get('fields'),
+            )
             SQLBotLogUtil.info(chart)
 
             if not stream:
@@ -1518,7 +1577,7 @@ class LLMService:
                     {'message': str(e), 'type': 'db-connection-err'}).decode()
             elif isinstance(e, SQLBotDBError):
                 error_msg = orjson.dumps(
-                    {'message': 'Execute SQL Failed', 'traceback': str(e), 'type': 'exec-sql-err'}).decode()
+                    {'message': 'Query execution failed', 'traceback': str(e), 'type': 'exec-query-err'}).decode()
             else:
                 error_msg = orjson.dumps({'message': str(e), 'traceback': traceback.format_exc(limit=1)}).decode()
             if _session:

@@ -31,6 +31,18 @@ import { useChatConfigStore } from '@/stores/chatConfig.ts'
 
 const chatConfig = useChatConfigStore()
 const showSQLBtn = chatConfig.getShowSQL
+
+// Protocol-aware title: engine_type is the type key (e.g. "api"/"mysql").
+// Never content-sniff the display statement for "GET /path" vs SQL.
+// Accept legacy display-name values ("API") for records written before type-key normalization.
+const sqlDrawerTitle = computed(() => {
+  const engine = (props.message?.record?.engine_type || '').toLowerCase()
+  if (engine === 'api') {
+    return t('chat.show_request')
+  }
+  return t('chat.show_query')
+})
+
 const props = withDefaults(
   defineProps<{
     recordId?: number
@@ -233,12 +245,23 @@ function showSql() {
 }
 
 function addToDashboard() {
+  // Persist both display statement and protocol re_exec so dashboard live replay
+  // can rebuild a QueryPlan without sniffer type branches on the backend.
+  let reExec: unknown = props.message?.record?.re_exec
+  if (typeof reExec === 'string' && reExec.trim()) {
+    try {
+      reExec = JSON.parse(reExec)
+    } catch {
+      // keep raw string; backend accepts either form
+    }
+  }
   const recordeInfo = {
     id: '1-1',
     data: {
       data: data.value,
     },
     sql: props.message?.record?.sql,
+    re_exec: reExec || undefined,
     datasource: props.message?.record?.datasource,
     chart: {},
   }
@@ -514,7 +537,7 @@ function getBaseAxis() {
         </div>
 
         <div v-if="message?.record?.sql && showSQLBtn">
-          <el-tooltip effect="dark" :offset="8" :content="t('chat.show_sql')" placement="top">
+          <el-tooltip effect="dark" :offset="8" :content="sqlDrawerTitle" placement="top">
             <el-button class="tool-btn" text @click="showSql">
               <el-icon size="16">
                 <icon_sql_outlined />
@@ -654,7 +677,7 @@ function getBaseAxis() {
     <el-drawer
       v-model="sqlShow"
       :size="!isCompletePage ? '100%' : '600px'"
-      :title="t('chat.show_sql')"
+      :title="sqlDrawerTitle"
       direction="rtl"
       body-class="chart-sql-drawer-body"
     >

@@ -40,6 +40,8 @@ export class ChatRecord {
   sql_answer?: string
   sql?: string
   datasource?: number
+  engine_type?: string
+  re_exec?: string | any
   data?: string | any
   chart_answer?: string
   chart?: string
@@ -336,6 +338,9 @@ export class ChatLogHistoryItem {
     this.duration = duration
     this.total_tokens = total_tokens
     this.operate_key = operate
+    // Enum member names (GENERATE_QUERY / EXECUTE_QUERY / …) are stored by value
+    // ('0'/'12'/…); history resolves missing value→name via OperationEnum, so labels
+    // always come from current i18n keys. No SQL-era name remap is needed.
     this.operate = t('chat.log.' + operate)
     this.local_operation = !!local_operation
     this.error = !!error

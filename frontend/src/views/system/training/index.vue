@@ -24,6 +24,7 @@ interface Form {
   advanced_application: string | null
   advanced_application_name: string | null
   description: string | null
+  training_type: string | null
 }
 const { t } = useI18n()
 const multipleSelectionAll = ref<any[]>([])
@@ -61,7 +62,16 @@ const defaultForm = {
   datasource_name: null,
   advanced_application: null,
   advanced_application_name: null,
+  training_type: 'sql',
 }
+const descLabel = computed(() =>
+  pageForm.value.training_type === 'rest' ? t('training.sample_call') : t('training.sample_sql')
+)
+const descPlaceholder = computed(() =>
+  pageForm.value.training_type === 'rest'
+    ? t('training.sample_call_placeholder')
+    : t('datasource.please_enter')
+)
 const pageForm = ref<Form>(cloneDeep(defaultForm))
 const copyCode = () => {
   copy(pageForm.value.description!)
@@ -248,10 +258,11 @@ const rules = computed(() => {
       },
     ],
     datasource: [] as any,
+    training_type: [] as any,
     description: [
       {
         required: true,
-        message: t('datasource.please_enter') + t('common.empty') + t('training.sample_sql'),
+        message: t('datasource.please_enter') + t('common.empty') + descLabel.value,
       },
     ],
   }
@@ -303,8 +314,10 @@ const editHandler = (row: any) => {
   pageForm.value.id = null
   if (row) {
     pageForm.value = cloneDeep(row)
+    if (!pageForm.value.training_type) {
+      pageForm.value.training_type = 'sql'
+    }
   }
-  console.log(pageForm.value)
   list()
 
   dialogTitle.value = row?.id ? t('training.edit_training_data') : t('training.add_training_data')
@@ -407,7 +420,14 @@ const onRowFormClose = () => {
           <el-table-column :selectable="selectable" type="selection" width="55" />
           <el-table-column prop="question" :label="$t('training.problem_description')" width="280">
           </el-table-column>
-          <el-table-column prop="description" :label="$t('training.sample_sql')" min-width="240">
+          <el-table-column prop="training_type" :label="$t('training.training_type')" width="110">
+            <template #default="scope">
+              <el-tag :type="scope.row.training_type === 'rest' ? 'warning' : 'success'" size="small">
+                {{ scope.row.training_type === 'rest' ? $t('training.type_rest') : $t('training.type_sql') }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column prop="description" :label="$t('training.sample_content')" min-width="240">
             <template #default="scope">
               <div class="field-comment_d">
                 <span :title="scope.row.description" class="notes-in_table">{{
@@ -482,7 +502,7 @@ const onRowFormClose = () => {
                   <template #icon>
                     <icon_add_outlined></icon_add_outlined>
                   </template>
-                  {{ $t('prompt.add_sql_sample') }}
+                  {{ $t('training.add_training_data') }}
                 </el-button>
               </div>
             </template>
@@ -558,10 +578,16 @@ const onRowFormClose = () => {
           clearable
         />
       </el-form-item>
-      <el-form-item prop="description" :label="t('training.sample_sql')">
+      <el-form-item prop="training_type" :label="t('training.training_type')">
+        <el-select v-model="pageForm.training_type" style="width: 100%">
+          <el-option :label="t('training.type_sql')" value="sql" />
+          <el-option :label="t('training.type_rest')" value="rest" />
+        </el-select>
+      </el-form-item>
+      <el-form-item prop="description" :label="descLabel">
         <el-input
           v-model="pageForm.description"
-          :placeholder="$t('datasource.please_enter')"
+          :placeholder="descPlaceholder"
           :autosize="{ minRows: 3.636, maxRows: 11.09 }"
           type="textarea"
         />
@@ -623,7 +649,12 @@ const onRowFormClose = () => {
           {{ pageForm.question }}
         </div>
       </el-form-item>
-      <el-form-item :label="t('training.sample_sql')">
+      <el-form-item :label="t('training.training_type')">
+        <el-tag :type="pageForm.training_type === 'rest' ? 'warning' : 'success'" size="small">
+          {{ pageForm.training_type === 'rest' ? t('training.type_rest') : t('training.type_sql') }}
+        </el-tag>
+      </el-form-item>
+      <el-form-item :label="descLabel">
         <div style="white-space: pre-wrap" class="content">
           {{ pageForm.description }}
         </div>
@@ -724,19 +755,6 @@ const onRowFormClose = () => {
         color: #646a73;
       }
 
-      .user-status-container {
-        display: flex;
-        align-items: center;
-        font-weight: 400;
-        font-size: 14px;
-        line-height: 22px;
-        height: 24px;
-
-        .ed-icon {
-          margin-left: 8px;
-        }
-      }
-
       .field-comment {
         height: 24px;
 
@@ -772,14 +790,6 @@ const onRowFormClose = () => {
           margin-left: 12px;
         }
       }
-
-      .preview-num {
-        margin: 12px 0;
-        font-weight: 400;
-        font-size: 14px;
-        line-height: 22px;
-        color: #646a73;
-      }
     }
   }
 
@@ -794,25 +804,11 @@ const onRowFormClose = () => {
     background-color: #fff;
     align-items: center;
     padding-left: 24px;
-    background-color: #fff;
     z-index: 10;
 
     .danger-button {
       border: 1px solid var(--ed-color-danger);
       color: var(--ed-color-danger);
-      border-radius: var(--ed-border-radius-base);
-      min-width: 80px;
-      height: 32px;
-      line-height: 32px;
-      text-align: center;
-      cursor: pointer;
-      margin: 0 16px;
-      background-color: transparent;
-    }
-
-    .primary-button {
-      border: 1px solid var(--ed-color-primary);
-      color: var(--ed-color-primary);
       border-radius: var(--ed-border-radius-base);
       min-width: 80px;
       height: 32px;

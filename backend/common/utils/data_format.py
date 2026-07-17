@@ -7,6 +7,38 @@ from apps.chat.models.chat_model import AxisObj
 
 class DataFormat:
     @staticmethod
+    def rows_to_markdown_table(
+        fields: list,
+        rows: list,
+        *,
+        max_rows: int = 5,
+        title: str = "",
+    ) -> str:
+        """Render tabular rows as a markdown table for LLM prompts.
+
+        Shared helper for chart/sample enrichment so protocol consumers don't each
+        hand-roll table formatting (and so SQL-vs-API can stay uniform).
+        """
+        if not fields or not rows:
+            return ""
+        sample = rows[:max_rows]
+        lines: list[str] = []
+        if title:
+            lines.append(title)
+        lines.append("| " + " | ".join(str(f) for f in fields) + " |")
+        lines.append("| " + " | ".join("---" for _ in fields) + " |")
+        for row in sample:
+            if not isinstance(row, dict):
+                vals = ["" for _ in fields]
+            else:
+                vals = [
+                    "" if row.get(f) is None else str(row.get(f))
+                    for f in fields
+                ]
+            lines.append("| " + " | ".join(vals) + " |")
+        return "\n".join(lines)
+
+    @staticmethod
     def safe_convert_to_string(df):
         df_copy = df.copy()
 
@@ -46,6 +78,92 @@ class DataFormat:
             DataFormat.normalize_qualified_sql_column_keys(obj) if isinstance(obj, dict) else obj
             for obj in obj_array
         ]
+
+    @staticmethod
+    def resolve_result_field_name(value: str, fields: list | None) -> str:
+        """Map a chart binding token onto the actual query-result field name.
+
+        Chart ``value`` must match row keys on the FE. SQL drivers usually lower-case
+        columns; REST/OpenAPI keep original (often camelCase). Do **not** force
+        ``.lower()`` on chart values — resolve against the executed result fields:
+        exact match first, then case-insensitive, then bare name after ``.``.
+        When no fields are available, preserve the original token.
+        """
+        if value is None:
+            return value
+        token = str(value)
+        if not token or not fields:
+            return token
+
+        field_names = [str(f) for f in fields if f is not None]
+        if not field_names:
+            return token
+        if token in field_names:
+            return token
+
+        lower_map: dict[str, str] = {}
+        bare_map: dict[str, str] = {}
+        for name in field_names:
+            low = name.lower()
+            if low not in lower_map:
+                lower_map[low] = name
+            if "." in name:
+                bare = name.rsplit(".", 1)[-1]
+                bare_low = bare.lower()
+                if bare_low not in bare_map:
+                    bare_map[bare_low] = name
+
+        hit = lower_map.get(token.lower())
+        if hit is not None:
+            return hit
+        hit = bare_map.get(token.lower())
+        if hit is not None:
+            return hit
+        return token
+
+    @staticmethod
+    def align_chart_bindings(chart: dict, fields: list | None) -> dict:
+        """Rewrite chart column/axis binding values to match actual result field names.
+
+        Mutates and returns ``chart``. Shared by the stream pipeline and any later
+        re-bind path so SQL lower-case columns and REST camelCase keys both bind.
+        """
+        if not chart or not isinstance(chart, dict):
+            return chart
+
+        def _fix(val):
+            if val is None:
+                return val
+            if isinstance(val, list):
+                return [DataFormat.resolve_result_field_name(v, fields) if v else v for v in val]
+            return DataFormat.resolve_result_field_name(val, fields)
+
+        columns = chart.get("columns")
+        if columns:
+            for col in columns:
+                if isinstance(col, dict) and col.get("value") is not None:
+                    col["value"] = _fix(col.get("value"))
+
+        axis = chart.get("axis")
+        if isinstance(axis, dict):
+            for key in ("x", "series"):
+                item = axis.get(key)
+                if isinstance(item, dict) and item.get("value") is not None:
+                    item["value"] = _fix(item.get("value"))
+
+            y_axis = axis.get("y")
+            if isinstance(y_axis, list):
+                for item in y_axis:
+                    if isinstance(item, dict) and item.get("value") is not None:
+                        item["value"] = _fix(item.get("value"))
+            elif isinstance(y_axis, dict) and y_axis.get("value") is not None:
+                y_axis["value"] = _fix(y_axis.get("value"))
+
+            multi_quota = axis.get("multi-quota")
+            if isinstance(multi_quota, dict) and multi_quota.get("value") is not None:
+                multi_quota["value"] = _fix(multi_quota.get("value"))
+
+        return chart
 
     @staticmethod
     def convert_large_numbers_in_object_array(obj_array, int_threshold=1e15, float_threshold=1e10):

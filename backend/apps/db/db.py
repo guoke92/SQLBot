@@ -289,21 +289,24 @@ def check_connection(trans: Optional[Trans], ds: CoreDatasource | AssistantOutDs
 
 def get_version(ds: CoreDatasource | AssistantOutDsSchema):
     version = ''
+    # Only SQL protocols have a meaningful server version. Gate via capability so
+    # REST / future non-SQL types do not branch on type strings here.
+    try:
+        from apps.protocol import get_protocol_for_ds
+        from apps.protocol.base import CAP_SQL_DIALECT
+
+        if not get_protocol_for_ds(ds).supports(CAP_SQL_DIALECT):
+            return ''
+    except Exception:
+        # Unknown type / protocol not registered: no version, never fall back to
+        # type-string special-cases (those belong in protocol capabilities).
+        return ''
     if isinstance(ds, CoreDatasource):
         conf = DatasourceConf(
             **json.loads(aes_decrypt(ds.configuration))) if not equals_ignore_case(ds.type,
                                                                                    "excel") else get_engine_config()
     else:
         conf = DatasourceConf(**json.loads(aes_decrypt(get_out_ds_conf(ds, 10))))
-    # if isinstance(ds, AssistantOutDsSchema):
-    #     conf = DatasourceConf()
-    #     conf.host = ds.host
-    #     conf.port = ds.port
-    #     conf.username = ds.user
-    #     conf.password = ds.password
-    #     conf.database = ds.dataBase
-    #     conf.dbSchema = ds.db_schema
-    #     conf.timeout = 10
     db = DB.get_db(ds.type)
     sql = get_version_sql(ds, conf)
     if not sql:
@@ -336,6 +339,7 @@ def get_version(ds: CoreDatasource | AssistantOutDsSchema):
         print(e)
         version = ''
     return version.decode() if isinstance(version, bytes) else version
+
 
 
 def get_schema(ds: CoreDatasource):

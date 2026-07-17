@@ -93,7 +93,13 @@ defineExpose({
             <template #title> {{ $t('datasource.configuration_information') }} </template>
           </el-step>
           <el-step>
-            <template #title> {{ $t('ds.form.choose_tables') }} </template>
+            <template #title>
+              {{
+                activeType === 'api'
+                  ? $t('ds.form.confirm_endpoints')
+                  : $t('ds.form.choose_tables')
+              }}
+            </template>
           </el-step>
         </el-steps>
       </div>

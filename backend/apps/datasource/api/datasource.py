@@ -6,7 +6,7 @@ import traceback
 import uuid
 import re
 from io import StringIO
-from typing import List
+from typing import Any, Dict, List
 from urllib.parse import quote
 
 import pandas as pd
@@ -171,10 +171,176 @@ async def sync_fields(session: SessionDep, trans: Trans,
 
 
 from pydantic import BaseModel
+from apps.protocol.base import CAP_OPENAPI_IMPORT, CAP_CONF_OWNED_RESOURCES
+from apps.protocol import get_protocol, get_protocol_for_ds
+from urllib.parse import urlparse, urljoin
+import re
+import json
+
+
+# ---------------------------------------------------------------------------
+# Swagger UI URL helpers
+# ---------------------------------------------------------------------------
+
+_SWAGGER_UI_PATTERNS = re.compile(
+    r"swagger-ui|swagger-ui\.html|api-docs\.html", re.IGNORECASE,
+)
+
+# Common spec URL suffixes to try, ordered by likelihood.
+_SPEC_URL_CANDIDATES = [
+    "v2/api-docs",
+    "swagger.json",
+    "v3/api-docs",
+    "openapi.json",
+    "api-docs",
+    "api-docs.json",
+]
+
+
+def _is_swagger_ui_url(url: str) -> bool:
+    """Check if a URL looks like a Swagger UI HTML page (not a spec JSON)."""
+    path = urlparse(url).path.lower()
+    return bool(_SWAGGER_UI_PATTERNS.search(path))
+
+
+def _base_url_from_ui(url: str) -> str:
+    """Extract the base path from a Swagger UI URL.
+
+    ``https://host/ctx/swagger-ui.html`` → ``https://host/ctx/``
+    """
+    parsed = urlparse(url)
+    path = parsed.path
+    # Strip known UI filenames
+    for suffix in ("/swagger-ui.html", "/swagger-ui/", "/index.html"):
+        if path.lower().endswith(suffix):
+            path = path[: -len(suffix)]
+            break
+    else:
+        # Strip trailing filename like /api-docs.html
+        if "." in path.split("/")[-1]:
+            path = "/".join(path.split("/")[:-1])
+    if not path.endswith("/"):
+        path += "/"
+    return f"{parsed.scheme}://{parsed.netloc}{path}"
+
+
+async def _discover_spec_url(client: "httpx.AsyncClient", ui_url: str) -> str | None:
+    """Try common spec URL patterns derived from the Swagger UI base path.
+
+    Returns the first URL that returns valid JSON/YAML, or None.
+    """
+    base = _base_url_from_ui(ui_url)
+    for suffix in _SPEC_URL_CANDIDATES:
+        candidate = urljoin(base, suffix)
+        try:
+            resp = await client.get(candidate, timeout=8)
+            if resp.status_code == 200:
+                text = resp.text.strip()
+                if text.startswith("{") or text.startswith("openapi") or text.startswith("swagger"):
+                    return candidate
+        except Exception:
+            continue
+    return None
+
+
+def _extract_spec_url_from_html(html: str, original_url: str) -> str | None:
+    """Try to extract the spec URL from a Swagger UI HTML page.
+
+    Swagger UI embeds the spec URL in JavaScript configUrl or url attributes.
+    """
+    # Look for configUrl: "..." or url: "..." patterns
+    match = re.search(r'(?:configUrl|url)\s*[:=]\s*["\']([^"\']+)["\']', html)
+    if match:
+        spec_path = match.group(1)
+        base = _base_url_from_ui(original_url)
+        if spec_path.startswith("http"):
+            return spec_path
+        return urljoin(base, spec_path)
+    return None
 
 
 class TestObj(BaseModel):
     sql: str = None
+
+
+class ParseOpenapiRequest(BaseModel):
+    content: str = ""
+    url: str = ""
+
+
+@router.post("/parseOpenapi", summary="Parse OpenAPI/Swagger spec into endpoint list")
+async def parse_openapi(
+    session: SessionDep,
+    user: CurrentUser,
+    trans: Trans,
+    body: ParseOpenapiRequest,
+):
+    """Accept raw OpenAPI 2.0 / 3.x JSON or YAML (or a URL to fetch it from)
+    and return a list of ApiEndpointDef-compatible dicts that can be merged
+    into a datasource's endpoints configuration.
+    """
+    from apps.protocol.rest.openapi_parser import parse_openapi_document
+    from apps.protocol.rest.ssrf import check_ssrf
+    import httpx
+
+    # Gate on capability — currently only the API protocol has this.
+    proto = get_protocol("api")
+    if not proto.supports(CAP_OPENAPI_IMPORT):
+        raise HTTPException(status_code=400, detail="OpenAPI import not supported")
+
+    content = body.content
+    source_url = ""
+
+    if body.url and not content:
+        url = body.url.strip()
+        check_ssrf(url)
+        source_url = url
+        try:
+            async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:
+                # If the URL looks like a Swagger UI HTML page, try to find the actual spec URL first.
+                if _is_swagger_ui_url(url):
+                    spec_url = await _discover_spec_url(client, url)
+                    if spec_url:
+                        check_ssrf(spec_url)
+                        url = spec_url
+                        source_url = spec_url
+
+                resp = await client.get(url)
+                resp.raise_for_status()
+                content = resp.text
+                # Prefer the final resolved URL after redirects for base_url hints.
+                if resp.url is not None:
+                    source_url = str(resp.url)
+
+                # If we got HTML (not JSON/YAML), try to extract spec URL from the page.
+                if content.lstrip().startswith("<"):
+                    spec_url = _extract_spec_url_from_html(content, url)
+                    if spec_url:
+                        check_ssrf(spec_url)
+                        resp = await client.get(spec_url)
+                        resp.raise_for_status()
+                        content = resp.text
+                        source_url = str(resp.url) if resp.url is not None else spec_url
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Failed to fetch spec from URL: {e}")
+    elif body.url:
+        source_url = body.url.strip()
+
+    if not content or not content.strip():
+        raise HTTPException(status_code=400, detail="Either 'content' or 'url' is required")
+
+    try:
+        parsed = parse_openapi_document(content, source_url=source_url)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    return {
+        "endpoints": [ep.model_dump() for ep in parsed["endpoints"]],
+        "base_url": parsed.get("base_url") or "",
+        "title": parsed.get("title") or "",
+    }
 
 
 # not used, just do test
@@ -200,11 +366,108 @@ async def table_list(session: SessionDep, id: int = Path(..., description=f"{PLA
     return get_tables_by_ds_id(session, id)
 
 
-@router.post("/fieldList/{id}", response_model=List[CoreField], summary=f"{PLACEHOLDER_PREFIX}ds_field_list")
+@router.post("/fieldList/{id}", summary=f"{PLACEHOLDER_PREFIX}ds_field_list")
 @require_permissions(permission=SqlbotPermission(role=['ws_admin']))
 async def field_list(session: SessionDep, field: FieldObj,
                      id: int = Path(..., description=f"{PLACEHOLDER_PREFIX}ds_table_id")):
+    # Conf-owned resources (API): project output fields from protocol so CoreField
+    # is not required for schema projection. Request params live in resourceDetail,
+    # not here — fieldList remains a tabular CoreField-compatible view for FE/schema.
+    table = session.query(CoreTable).filter(CoreTable.id == id).first()
+    if table is not None:
+        ds = session.query(CoreDatasource).filter(CoreDatasource.id == table.ds_id).first()
+        if ds is not None:
+            proto = get_protocol_for_ds(ds)
+            if proto.supports(CAP_CONF_OWNED_RESOURCES):
+                raw_fields = proto.get_fields(ds, table.table_name)
+                if field and field.fieldName:
+                    kw = field.fieldName.lower()
+                    raw_fields = [f for f in raw_fields if kw in f.fieldName.lower()]
+                # ColumnSchema → CoreField-compatible dicts for the FE field list.
+                result = []
+                for i, f in enumerate(raw_fields):
+                    result.append({
+                        "id": i,
+                        "table_id": id,
+                        "ds_id": ds.id,
+                        "field_name": f.fieldName,
+                        "field_type": f.fieldType or "",
+                        "field_comment": f.fieldComment or "",
+                        "custom_comment": f.fieldComment or "",
+                        "checked": True,
+                        "field_index": i,
+                    })
+                return result
     return get_fields_by_table_id(session, id, field)
+
+
+class ResourceDetailRequest(BaseModel):
+    table_name: str
+
+
+@router.post(
+    "/resourceDetail/{id}",
+    summary="Get structured resource detail (endpoint / conf-owned resource)",
+)
+@require_permissions(permission=SqlbotPermission(role=['ws_admin'], type='ds', keyExpression="id"))
+async def resource_detail(
+    session: SessionDep,
+    id: int = Path(..., description=f"{PLACEHOLDER_PREFIX}ds_id"),
+    body: ResourceDetailRequest = ...,
+):
+    """Return protocol-owned resource contract.
+
+    Path ``id`` is the datasource id (same as tableList / previewData).
+    Delegates to ``BaseProtocol.get_resource_detail`` — REST returns method/path,
+    params, response_fields and extraction config.
+    """
+    if not body.table_name:
+        raise HTTPException(status_code=400, detail="table_name is required")
+    ds = session.query(CoreDatasource).filter(CoreDatasource.id == id).first()
+    if ds is None:
+        raise HTTPException(status_code=404, detail="Datasource not found")
+
+    proto = get_protocol_for_ds(ds)
+    detail = proto.get_resource_detail(ds, body.table_name)
+    if detail is None:
+        raise HTTPException(status_code=400, detail="Protocol does not support resource detail")
+    return detail
+
+
+class TestResourceRequest(BaseModel):
+    table_name: str
+    params: Dict[str, Any] = {}
+
+
+@router.post(
+    "/testResource/{id}",
+    summary="Execute resource and return extraction pipeline result",
+)
+@require_permissions(permission=SqlbotPermission(role=['ws_admin'], type='ds', keyExpression="id"))
+async def test_resource(
+    session: SessionDep,
+    id: int = Path(..., description=f"{PLACEHOLDER_PREFIX}ds_id"),
+    body: TestResourceRequest = ...,
+):
+    """Execute a conf-owned resource with params and return the full
+    extraction pipeline view from ``BaseProtocol.test_extract``.
+
+    Shares the same execution core as protocol ``execute`` so debug
+    results match production.
+    """
+    if not body.table_name:
+        raise HTTPException(status_code=400, detail="table_name is required")
+    ds = session.query(CoreDatasource).filter(CoreDatasource.id == id).first()
+    if ds is None:
+        raise HTTPException(status_code=404, detail="Datasource not found")
+
+    proto = get_protocol_for_ds(ds)
+    try:
+        return proto.test_extract(ds, body.table_name, body.params or None)
+    except NotImplementedError:
+        raise HTTPException(status_code=400, detail="Protocol does not support test_extract")
+    except Exception as e:
+        return {"error": str(e), "is_success": False}
 
 
 @router.post("/editLocalComment", include_in_schema=False)
@@ -238,7 +501,15 @@ async def preview_data(session: SessionDep, trans: Trans, current_user: CurrentU
             status = check_status(session, trans, ds, True)
             if status:
                 SQLBotLogUtil.error(f"Preview failed: {e}")
-                raise HTTPException(status_code=500, detail=f'Preview Failed: {e.args}')
+                # Return a structured error response instead of crashing, so the
+                # frontend can display the message and the user can fix param values.
+                return {
+                    'fields': [],
+                    'data': [],
+                    'sql': '',
+                    'fields_info': [],
+                    'error': str(e),
+                }
 
     return await asyncio.to_thread(inner)
 

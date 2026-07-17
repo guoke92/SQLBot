@@ -101,6 +101,11 @@ class Settings(BaseSettings):
 
     LOCAL_MODEL_PATH: str = '/opt/sqlbot/models'
     DEFAULT_EMBEDDING_MODEL: str = 'shibing624/text2vec-base-chinese'
+    # Embedding provider: "huggingface" (local sentence-transformers) or
+    # "ollama"/"openai"/"http" (OpenAI-compatible /v1/embeddings, e.g. Ollama).
+    EMBEDDING_PROVIDER: str = 'huggingface'
+    EMBEDDING_API_BASE: str = 'http://localhost:11434/v1'
+    EMBEDDING_API_KEY: str = 'ollama'
     EMBEDDING_ENABLED: bool = True
     EMBEDDING_DEFAULT_SIMILARITY: float = 0.4
     EMBEDDING_TERMINOLOGY_SIMILARITY: float = EMBEDDING_DEFAULT_SIMILARITY
@@ -131,6 +136,12 @@ class Settings(BaseSettings):
     DS_EMBEDDING_COUNT: int = 10
 
     ORACLE_CLIENT_PATH: str = '/opt/sqlbot/db_client/oracle_instant_client'
+
+    # API datasource SSRF protection
+    API_SSRF_PROTECTION: bool = True
+    # Allow private/reserved IPs when SSRF protection is enabled (for internal deployments)
+    API_SSRF_ALLOW_PRIVATE: bool = False
+    API_MAX_RESPONSE_SIZE_MB: int = 10
 
     @field_validator('SQL_DEBUG',
                      'EMBEDDING_ENABLED',

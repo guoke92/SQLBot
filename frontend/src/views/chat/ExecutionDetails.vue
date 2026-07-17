@@ -114,10 +114,10 @@ defineExpose({
         </div>
         <div v-if="expandIds.includes(index)" class="content">
           <LogTerm v-if="ele.operate_key === 'FILTER_TERMS'" :item="ele" />
-          <LogSQLSample v-else-if="ele.operate_key === 'FILTER_SQL_EXAMPLE'" :item="ele" />
+          <LogSQLSample v-else-if="ele.operate_key === 'FILTER_QUERY_EXAMPLE'" :item="ele" />
           <LogCustomPrompt v-else-if="ele.operate_key === 'FILTER_CUSTOM_PROMPT'" :item="ele" />
           <LogChooseTable v-else-if="ele.operate_key === 'CHOOSE_TABLE'" :item="ele" />
-          <LogDataQuery v-else-if="ele.operate_key === 'EXECUTE_SQL'" :item="ele" />
+          <LogDataQuery v-else-if="ele.operate_key === 'EXECUTE_QUERY'" :item="ele" />
           <LogGeneratePicture v-else-if="ele.operate_key === 'GENERATE_PICTURE'" :item="ele" />
           <LogWithAi v-else :item="ele" />
         </div>

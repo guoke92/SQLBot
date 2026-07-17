@@ -33,24 +33,24 @@ class TypeEnum(Enum):
 #     TODO other usage
 
 class OperationEnum(Enum):
-    GENERATE_SQL = '0'
+    GENERATE_QUERY = '0'
     GENERATE_CHART = '1'
     ANALYSIS = '2'
     PREDICT_DATA = '3'
     GENERATE_RECOMMENDED_QUESTIONS = '4'
-    GENERATE_SQL_WITH_PERMISSIONS = '5'
+    GENERATE_QUERY_WITH_PERMISSIONS = '5'
     CHOOSE_DATASOURCE = '6'
-    GENERATE_DYNAMIC_SQL = '7'
+    GENERATE_DYNAMIC_QUERY = '7'
     CHOOSE_TABLE = '8'
     FILTER_TERMS = '9'
-    FILTER_SQL_EXAMPLE = '10'
+    FILTER_QUERY_EXAMPLE = '10'
     FILTER_CUSTOM_PROMPT = '11'
-    EXECUTE_SQL = '12'
+    EXECUTE_QUERY = '12'
     GENERATE_PICTURE = '13'
 
 
 class ChatFinishStep(Enum):
-    GENERATE_SQL = 1
+    GENERATE_QUERY = 1
     QUERY_DATA = 2
     GENERATE_CHART = 3
 
@@ -129,6 +129,7 @@ class ChatRecord(SQLModel, table=True):
     analysis_record_id: int = Field(sa_column=Column(BigInteger, nullable=True))
     predict_record_id: int = Field(sa_column=Column(BigInteger, nullable=True))
     regenerate_record_id: int = Field(sa_column=Column(BigInteger, nullable=True))
+    re_exec: Optional[str] = Field(sa_column=Column(Text, nullable=True))
 
 
 class ChatRecordResult(BaseModel):
@@ -142,6 +143,7 @@ class ChatRecordResult(BaseModel):
     sql_answer: Optional[str] = None
     sql: Optional[str] = None
     datasource: Optional[int] = None
+    engine_type: Optional[str] = None
     data: Optional[str] = None
     chart_answer: Optional[str] = None
     chart: Optional[str] = None
@@ -161,6 +163,7 @@ class ChatRecordResult(BaseModel):
     predict_reasoning_content: Optional[str] = None
     duration: Optional[float] = None  # 耗时字段（单位：秒）
     total_tokens: Optional[int] = None  # token总消耗
+    re_exec: Optional[str] = None
 
 
 class CreateChat(BaseModel):

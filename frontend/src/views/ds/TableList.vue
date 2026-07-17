@@ -10,7 +10,13 @@
       <div class="left-side">
         <div style="display: flex; justify-content: space-between; align-items: center">
           <span>{{ t('ds.tables') }}</span>
-          <el-button style="padding: 12px" text :icon="CreditCard" @click="editTables(ds)" />
+          <el-button
+            v-if="ds?.type !== 'api'"
+            style="padding: 12px"
+            text
+            :icon="CreditCard"
+            @click="editTables(ds)"
+          />
         </div>
         <el-input
           v-model="searchValue"

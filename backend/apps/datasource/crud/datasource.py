@@ -11,8 +11,9 @@ from apps.datasource.crud.permission import get_column_permission_fields, get_ro
 from apps.datasource.embedding.table_embedding import calc_table_embedding
 from apps.datasource.utils.utils import aes_decrypt
 from apps.db.constant import DB
-from apps.db.db import get_tables, get_fields, exec_sql, check_connection
-from apps.db.engine import get_engine_config, get_engine_conn
+from apps.protocol import get_protocol_for_ds, QueryPlan
+from apps.protocol.base import CAP_CONF_OWNED_RESOURCES, CAP_ROW_PERMISSION, CAP_SAMPLE_DATA, CAP_SQL_DIALECT
+from apps.db.engine import get_engine_conn
 from apps.system.schemas.auth import CacheName, CacheNamespace
 from common.core.config import settings
 from common.core.deps import SessionDep, CurrentUser, Trans
@@ -50,7 +51,8 @@ def check_status_by_id(session: SessionDep, trans: Trans, ds_id: int, is_raise: 
 
 
 def check_status(session: SessionDep, trans: Trans, ds: CoreDatasource, is_raise: bool = False):
-    return check_connection(trans, ds, is_raise)
+    proto = get_protocol_for_ds(ds)
+    return proto.check_connection(ds, trans, is_raise)
 
 
 def check_name(session: SessionDep, trans: Trans, user: CurrentUser, ds: CoreDatasource):
@@ -76,7 +78,8 @@ async def create_ds(session: SessionDep, trans: Trans, user: CurrentUser, create
     ds.create_by = user.id
     ds.oid = user.oid if user.oid is not None else 1
     ds.status = "Success"
-    ds.type_name = DB.get_db(ds.type).db_name
+    proto = get_protocol_for_ds(ds)
+    ds.type_name = proto.engine_display_name(ds)
     record = CoreDatasource(**ds.model_dump())
     session.add(record)
     session.flush()
@@ -84,14 +87,32 @@ async def create_ds(session: SessionDep, trans: Trans, user: CurrentUser, create
     ds.id = record.id
     session.commit()
 
-    # save tables and fields
-    sync_table(session, ds, create_ds.tables)
+    # save tables and fields.
+    # Protocols that own resources in conf (CAP_CONF_OWNED_RESOURCES) always re-project
+    # tables/endpoints from conf so client-selected subsets cannot desync projections.
+    if proto.supports(CAP_CONF_OWNED_RESOURCES):
+        tables = [
+            CoreTable(table_name=t.tableName, table_comment=t.tableComment or "")
+            for t in proto.get_tables(ds)
+        ]
+        # Prefer conf resources; fall back to client-selected list if conf is empty.
+        sync_table(session, ds, tables if tables else create_ds.tables)
+    else:
+        sync_table(session, ds, create_ds.tables)
     updateNum(session, ds)
     return ds
 
 
 def chooseTables(session: SessionDep, trans: Trans, id: int, tables: List[CoreTable]):
     ds = session.query(CoreDatasource).filter(CoreDatasource.id == id).first()
+    if ds is not None:
+        proto = get_protocol_for_ds(ds)
+        # Conf-owned resources cannot be freely replaced by client table picks.
+        if proto.supports(CAP_CONF_OWNED_RESOURCES):
+            tables = [
+                CoreTable(table_name=t.tableName, table_comment=t.tableComment or "")
+                for t in proto.get_tables(ds)
+            ]
     check_status(session, trans, ds, True)
     sync_table(session, ds, tables)
     updateNum(session, ds)
@@ -102,12 +123,23 @@ def update_ds(session: SessionDep, trans: Trans, user: CurrentUser, ds: CoreData
     check_name(session, trans, user, ds)
     # status = check_status(session, trans, ds)
     ds.status = "Success"
+    proto = get_protocol_for_ds(ds)
+    ds.type_name = proto.engine_display_name(ds)
     record = session.exec(select(CoreDatasource).where(CoreDatasource.id == ds.id)).first()
     update_data = ds.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(record, field, value)
     session.add(record)
     session.commit()
+
+    # Conf-owned resources re-project into CoreTable/CoreField on every conf update.
+    if proto.supports(CAP_CONF_OWNED_RESOURCES):
+        tables = [
+            CoreTable(table_name=t.tableName, table_comment=t.tableComment or "")
+            for t in proto.get_tables(ds)
+        ]
+        sync_table(session, ds, tables)
+        updateNum(session, ds)
 
     run_save_ds_embeddings([ds.id])
     return ds
@@ -144,30 +176,43 @@ async def delete_ds(session: SessionDep, id: int):
 
 def getTables(session: SessionDep, id: int):
     ds = session.exec(select(CoreDatasource).where(CoreDatasource.id == id)).first()
-    tables = get_tables(ds)
-    return tables
+    proto = get_protocol_for_ds(ds)
+    return proto.get_tables(ds)
 
 
 def getTablesByDs(session: SessionDep, ds: CoreDatasource):
-    # check_status(session, ds, True)
-    tables = get_tables(ds)
-    return tables
+    proto = get_protocol_for_ds(ds)
+    return proto.get_tables(ds)
 
 
 def getFields(session: SessionDep, id: int, table_name: str):
     ds = session.exec(select(CoreDatasource).where(CoreDatasource.id == id)).first()
-    fields = get_fields(ds, table_name)
-    return fields
+    proto = get_protocol_for_ds(ds)
+    return proto.get_fields(ds, table_name)
 
 
 def getFieldsByDs(session: SessionDep, ds: CoreDatasource, table_name: str):
-    fields = get_fields(ds, table_name)
-    return fields
+    proto = get_protocol_for_ds(ds)
+    return proto.get_fields(ds, table_name)
 
 
 def execSql(session: SessionDep, id: int, sql: str):
+    """SQL-only debug/exec endpoint; gated via CAP_SQL_DIALECT on the protocol."""
     ds = session.exec(select(CoreDatasource).where(CoreDatasource.id == id)).first()
-    return exec_sql(ds, sql, True)
+    if ds is None:
+        raise HTTPException(status_code=404, detail="Datasource not found")
+    proto = get_protocol_for_ds(ds)
+    if not proto.supports(CAP_SQL_DIALECT):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Datasource type '{ds.type}' does not support direct SQL execution",
+        )
+    qr = proto.execute(
+        ds,
+        QueryPlan(success=True, statement=sql, payload={"sql": sql}),
+        origin_column=True,
+    )
+    return qr.as_dict()
 
 
 def sync_single_fields(session: SessionDep, trans: Trans, id: int):
@@ -295,78 +340,56 @@ def updateField(session: SessionDep, field: CoreField):
 
 def preview(session: SessionDep, current_user: CurrentUser, id: int, data: TableObj):
     ds = session.query(CoreDatasource).filter(CoreDatasource.id == id).first()
-    # check_status(session, ds, True)
 
     # ignore data's fields param, query fields from database
     if not data.table.id:
-        return {"fields": [], "data": [], "sql": ''}
+        return {"fields": [], "data": [], "sql": ""}
 
+    proto = get_protocol_for_ds(ds)
+    # Conf-owned resources (e.g. API endpoints) may preview before response fields are projected.
+    conf_owned = proto.supports(CAP_CONF_OWNED_RESOURCES)
     fields = session.query(CoreField).filter(CoreField.table_id == data.table.id).order_by(
         CoreField.field_index.asc()).all()
 
-    if fields is None or len(fields) == 0:
-        return {"fields": [], "data": [], "sql": ''}
+    if (fields is None or len(fields) == 0) and not conf_owned:
+        return {"fields": [], "data": [], "sql": ""}
 
-    where = ''
-    f_list = [f for f in fields if f.checked]
-    if is_normal_user(current_user):
-        # column is checked, and, column permission for data.fields
+    where = ""
+    f_list = [f for f in (fields or []) if f.checked]
+    # Row/column permission is SQL-shaped and capability-gated.
+    if proto.supports(CAP_ROW_PERMISSION) and is_normal_user(current_user):
         contain_rules = session.query(DsRules).all()
-        f_list = get_column_permission_fields(session=session, current_user=current_user, table=data.table,
-                                              fields=f_list, contain_rules=contain_rules)
+        f_list = get_column_permission_fields(
+            session=session,
+            current_user=current_user,
+            table=data.table,
+            fields=f_list,
+            contain_rules=contain_rules,
+        )
 
-        # row permission tree
-        where_str = ''
-        filter_mapping = get_row_permission_filters(session=session, current_user=current_user, ds=ds, tables=None,
-                                                    single_table=data.table)
+        where_str = ""
+        filter_mapping = get_row_permission_filters(
+            session=session,
+            current_user=current_user,
+            ds=ds,
+            tables=None,
+            single_table=data.table,
+        )
         if filter_mapping:
             mapping_dict = filter_mapping[0]
-            where_str = mapping_dict.get('filter')
-        where = (' where ' + where_str) if where_str is not None and where_str != '' else ''
+            where_str = mapping_dict.get("filter")
+        where = where_str if where_str else ""
 
-    fields = [f.field_name for f in f_list]
-    if fields is None or len(fields) == 0:
-        return {"fields": [], "data": [], "sql": ''}
+    field_names = [f.field_name for f in f_list]
+    if not field_names and not conf_owned:
+        return {"fields": [], "data": [], "sql": ""}
 
     table = session.query(CoreTable).filter(CoreTable.id == data.table.id).first()
-    conf = DatasourceConf(**json.loads(aes_decrypt(ds.configuration))) if ds.type != "excel" else get_engine_config()
-    sql: str = ""
-    if ds.type == "mysql" or ds.type == "doris" or ds.type == "starrocks" or ds.type == "hive":
-        sql = f"""SELECT `{"`, `".join(fields)}` FROM `{table.table_name}` 
-            {where} 
-            LIMIT 100"""
-    elif ds.type == "sqlServer":
-        sql = f"""SELECT TOP 100 [{"], [".join(fields)}] FROM [{conf.dbSchema}].[{table.table_name}]
-            {where} 
-            """
-    elif ds.type == "pg" or ds.type == "excel" or ds.type == "redshift" or ds.type == "kingbase":
-        sql = f"""SELECT "{'", "'.join(fields)}" FROM "{conf.dbSchema}"."{table.table_name}" 
-            {where} 
-            LIMIT 100"""
-    elif ds.type == "oracle":
-        # sql = f"""SELECT "{'", "'.join(fields)}" FROM "{conf.dbSchema}"."{data.table.table_name}"
-        #     {where}
-        #     ORDER BY "{fields[0]}"
-        #     OFFSET 0 ROWS FETCH NEXT 100 ROWS ONLY"""
-        sql = f"""SELECT * FROM
-                    (SELECT "{'", "'.join(fields)}" FROM "{conf.dbSchema}"."{table.table_name}"
-                    {where} 
-                    ORDER BY "{fields[0]}")
-                    WHERE ROWNUM <= 100
-                    """
-    elif ds.type == "ck":
-        sql = f"""SELECT "{'", "'.join(fields)}" FROM "{table.table_name}" 
-            {where} 
-            LIMIT 100"""
-    elif ds.type == "dm":
-        sql = f"""SELECT "{'", "'.join(fields)}" FROM "{conf.dbSchema}"."{table.table_name}"
-            {where}
-            LIMIT 100"""
-    elif ds.type == "es":
-        sql = f"""SELECT "{'", "'.join(fields)}" FROM "{table.table_name}"
-            {where}
-            LIMIT 100"""
-    return exec_sql(ds, sql, True)
+    # SqlProtocol includes schema in preview SQL when present on the ds.
+    if proto.supports(CAP_SQL_DIALECT):
+        setattr(ds, "_preview_schema", proto.schema_namespace(ds))
+    result = proto.preview(session, current_user, ds, table.table_name, field_names, where=where, limit=100)
+    return result.as_dict()
 
 
 def fieldEnum(session: SessionDep, id: int):
@@ -380,14 +403,31 @@ def fieldEnum(session: SessionDep, id: int):
     if ds is None:
         return []
 
+    # Field enums only make sense for SQL dialects.
+    proto = get_protocol_for_ds(ds)
+    if not proto.supports(CAP_SQL_DIALECT):
+        return []
+
     db = DB.get_db(ds.type)
     sql = f"""SELECT DISTINCT {db.prefix}{field.field_name}{db.suffix} FROM {db.prefix}{table.table_name}{db.suffix}"""
-    res = exec_sql(ds, sql, True)
-    return [item.get(res.get('fields')[0]) for item in res.get('data')]
+    qr = proto.execute(
+        ds,
+        QueryPlan(success=True, statement=sql, payload={"sql": sql}),
+        origin_column=True,
+    )
+    if not qr.fields:
+        return []
+    key = qr.fields[0]
+    return [row.get(key) for row in qr.data]
 
 
 def updateNum(session: SessionDep, ds: CoreDatasource):
-    all_tables = get_tables(ds) if ds.type != 'excel' else json.loads(aes_decrypt(ds.configuration)).get('sheets')
+    # Excel stores sheets in configuration rather than live get_tables.
+    if equals_ignore_case(ds.type, "excel"):
+        all_tables = json.loads(aes_decrypt(ds.configuration)).get('sheets')
+    else:
+        proto = get_protocol_for_ds(ds)
+        all_tables = proto.get_tables(ds)
     selected_tables = get_tables_by_ds_id(session, ds.id)
     num = f'{len(selected_tables)}/{len(all_tables)}'
 
@@ -405,8 +445,8 @@ def get_table_obj_by_ds(session: SessionDep, current_user: CurrentUser, ds: Core
     tables = session.query(CoreTable).filter(
         and_(CoreTable.ds_id == ds.id, CoreTable.checked == True)
     ).all()
-    conf = DatasourceConf(**json.loads(aes_decrypt(ds.configuration))) if ds.type != "excel" else get_engine_config()
-    schema = conf.dbSchema if conf.dbSchema is not None and conf.dbSchema != "" else conf.database
+    proto = get_protocol_for_ds(ds)
+    schema = proto.schema_namespace(ds)
 
     # get all field
     table_ids = [table.id for table in tables]
@@ -436,48 +476,26 @@ def get_table_sample_data(ds: CoreDatasource, table_name: str, fields: list) -> 
     """Get 3 sample rows from a table in JSON format to help AI understand the data"""
     if not fields:
         return ""
+    proto = get_protocol_for_ds(ds)
+    if not proto.supports(CAP_SAMPLE_DATA):
+        return ""
 
-    db = DB.get_db(ds.type)
-    # Get prefix/suffix for identifier quoting
-    prefix = db.prefix if hasattr(db, 'prefix') else '"'
-    suffix = db.suffix if hasattr(db, 'suffix') else '"'
-
-    # Build field list with proper quoting
-    field_names = []
-    for field in fields[:10]:  # Limit to first 10 fields to avoid too wide results
-        field_name = f"{prefix}{field.field_name}{suffix}"
-        field_names.append(field_name)
-
-    # Build LIMIT query based on database type
-    if equals_ignore_case(ds.type, "sqlServer"):
-        query = f"SELECT TOP 3 {','.join(field_names)} FROM {prefix}{table_name}{suffix}"
-    elif equals_ignore_case(ds.type, "ck"):
-        query = f"SELECT {','.join(field_names)} FROM {table_name} LIMIT 3"
-    elif equals_ignore_case(ds.type, "hive"):
-        query = f"SELECT {','.join(field_names)} FROM {table_name} LIMIT 3"
-    elif equals_ignore_case(ds.type, "oracle"):
-        query = f"SELECT {','.join(field_names)} FROM \"{table_name}\" WHERE ROWNUM <= 3"
-    elif equals_ignore_case(ds.type, "dm"):
-        query = f"SELECT {','.join(field_names)} FROM \"{table_name}\" WHERE ROWNUM <= 3"
-    else:
-        query = f"SELECT {','.join(field_names)} FROM {prefix}{table_name}{suffix} LIMIT 3"
-
+    # Prefer protocol preview so dialect quoting stays inside SqlProtocol.
+    field_names = [field.field_name for field in fields[:10]]
     try:
-        result = exec_sql(ds=ds, sql=query, origin_column=True)
-        if result and result.get('data') and len(result['data']) > 0:
-            import json
-            # Truncate long string values for readability
+        setattr(ds, "_preview_schema", proto.schema_namespace(ds))
+        qr = proto.preview(None, None, ds, table_name, field_names, where="", limit=3)
+        if qr and qr.data:
             json_rows = []
-            for row in result['data'][:3]:
+            for row in qr.data[:3]:
                 truncated_row = {}
                 for key, value in row.items():
                     if value is None:
                         truncated_row[key] = None
                     elif isinstance(value, str):
-                        # Truncate long strings
                         if len(value) > 100:
-                            value = value[:100] + '...'
-                        truncated_row[key] = value.replace('\n', ' ').replace('\r', ' ')
+                            value = value[:100] + "..."
+                        truncated_row[key] = value.replace("\n", " ").replace("\r", " ")
                     else:
                         truncated_row[key] = value
                 json_rows.append(truncated_row)

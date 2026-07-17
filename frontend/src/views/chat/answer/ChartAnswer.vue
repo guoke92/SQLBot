@@ -193,6 +193,12 @@ const sendMessage = async () => {
                 break
               case 'sql':
                 _currentChat.value.records[index.value].sql = data.content
+                if (data.engine_type) {
+                  _currentChat.value.records[index.value].engine_type = data.engine_type
+                }
+                break
+              case 're_exec':
+                _currentChat.value.records[index.value].re_exec = data.content
                 break
               case 'sql-data':
                 getChatData(_currentChat.value.records[index.value].id)

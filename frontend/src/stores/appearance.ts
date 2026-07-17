@@ -253,7 +253,7 @@ export const useAppearanceStore = defineStore('appearanceStore', {
       // if (!isDataEaseBi) {
       //   document.title = ''
       // }
-      const obj = LicenseGenerator.getLicense()
+      const obj = typeof LicenseGenerator !== 'undefined' ? LicenseGenerator.getLicense() : null
       if (obj?.status !== 'valid') {
         setCurrentColor('#1CBA90')
         document.title = 'SQLBot'

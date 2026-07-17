@@ -30,6 +30,7 @@ def get_version_sql(ds: CoreDatasource, conf: DatasourceConf):
                 SELECT * FROM v$version
                 """
     elif equals_ignore_case(ds.type, "redshift", "sqlite", "hive"):
+        # Non-SQL types (e.g. api) never reach here: get_version gates on CAP_SQL_DIALECT.
         return ''
 
 

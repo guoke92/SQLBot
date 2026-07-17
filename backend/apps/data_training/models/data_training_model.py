@@ -18,6 +18,7 @@ class DataTraining(SQLModel, table=True):
     embedding: Optional[List[float]] = Field(sa_column=Column(VECTOR(), nullable=True))
     enabled: Optional[bool] = Field(sa_column=Column(Boolean, default=True))
     advanced_application: Optional[int] = Field(sa_column=Column(BigInteger, nullable=True))
+    training_type: Optional[str] = Field(max_length=16, default="sql")
 
 
 class DataTrainingInfo(BaseModel):
@@ -31,6 +32,7 @@ class DataTrainingInfo(BaseModel):
     enabled: Optional[bool] = True
     advanced_application: Optional[int] = None
     advanced_application_name: Optional[str] = None
+    training_type: Optional[str] = "sql"
 
 
 class DataTrainingInfoResult(BaseModel):
@@ -44,3 +46,4 @@ class DataTrainingInfoResult(BaseModel):
     enabled: Optional[bool] = True
     advanced_application: Optional[str] = None
     advanced_application_name: Optional[str] = None
+    training_type: Optional[str] = "sql"

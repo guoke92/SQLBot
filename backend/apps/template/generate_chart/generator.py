@@ -5,6 +5,12 @@ def get_chart_template():
     template = get_base_template()
     return template['template']['chart']
 
+
+def get_chart_api_template():
+    template = get_base_template()
+    return template['template']['chart_api']
+
+
 def get_base_terminology_template():
     template = get_base_template()
     return template['template']['terminology']

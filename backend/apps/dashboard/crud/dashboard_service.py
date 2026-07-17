@@ -50,11 +50,48 @@ def load_resource(session: SessionDep, dashboard: QueryDashboard):
     result_dict = dict(result)
     canvas_view_obj = orjson.loads(result_dict['canvas_view_info'])
     for item in canvas_view_obj.values():
-        if all(key in item for key in ['datasource', 'sql']) and item['datasource'] is not None and item['sql'] is not None:
-            data_result = get_chart_data_ds(session, item['datasource'], item['sql'])
-            item['data']['data'] = data_result['data']
-            item['status'] = data_result['status']
-            item['message'] = data_result['message']
+        # Live replay whenever we have a datasource + either a display sql or re_exec payload.
+        # Protocol.plan_from_re_exec owns payload shape; legacy SQL views without re_exec
+        # still work via SqlProtocol' fallback on the display statement.
+        if item.get('datasource') is None:
+            continue
+        if not item.get('sql') and not item.get('re_exec'):
+            continue
+
+        re_exec_payload = item.get('re_exec')
+        re_exec_json = None
+        if re_exec_payload is not None:
+            if isinstance(re_exec_payload, (str, bytes)):
+                re_exec_json = re_exec_payload
+            else:
+                re_exec_json = orjson.dumps(re_exec_payload).decode()
+
+        data_result = get_chart_data_ds(
+            session,
+            item['datasource'],
+            item.get('sql'),
+            re_exec_json=re_exec_json,
+        )
+        if data_result.get('status') == 'success':
+            if not item.get('data'):
+                item['data'] = {}
+            item['data']['data'] = data_result.get('data') or []
+            item['status'] = 'success'
+            item['message'] = data_result.get('message') or ''
+        else:
+            # Degraded fallback: keep last cached widget data if live re-execution fails
+            # (missing re_exec on non-SQL legacy canvases, endpoint renamed, etc.).
+            cached = (item.get('data') or {}).get('data')
+            if cached:
+                item['data']['data'] = cached
+                item['status'] = 'success'
+                item['message'] = ''
+            else:
+                if not item.get('data'):
+                    item['data'] = {}
+                item['data']['data'] = data_result.get('data') or []
+                item['status'] = data_result.get('status') or 'failed'
+                item['message'] = data_result.get('message') or ''
     result_dict['canvas_view_info'] = orjson.dumps(canvas_view_obj)
     return result_dict
 

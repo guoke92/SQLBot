@@ -160,7 +160,7 @@ onMounted(() => {
           </div>
           <div class="card-item">
             <div class="label">
-              {{ t('parameter.show_sql') }}
+              {{ t('parameter.show_query') }}
             </div>
             <div class="value">
               <el-switch v-model="state.parameterForm['chat.show_sql']" />

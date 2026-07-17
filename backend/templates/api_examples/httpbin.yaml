@@ -1,0 +1,61 @@
+# Example API datasource configuration (reference only; import UI is deferred).
+# Paste equivalent fields into the API datasource form.
+#
+# Base URL: https://httpbin.org
+# Auth: none
+#
+# Endpoint:
+#   name: get_args
+#   method: GET
+#   path: /get
+#   description: Echo query params from httpbin
+#   data_path: ""
+#   params:
+#     - name: foo
+#       type: string
+#       location: query
+#       required: false
+#       default: bar
+#   response_fields:
+#     - name: url
+#       path: url
+#       type: string
+#     - name: origin
+#       path: origin
+#       type: string
+#     - name: args
+#       path: args
+#       type: object
+
+name: httpbin-get
+type: api
+base_url: https://httpbin.org
+timeout: 30
+auth:
+  type: none
+endpoints:
+  - name: get_args
+    method: GET
+    path: /get
+    description: Echo query params from httpbin
+    data_path: ""
+    params:
+      - name: foo
+        type: string
+        location: query
+        required: false
+        default: bar
+        description: Sample query parameter
+    response_fields:
+      - name: url
+        type: string
+        path: url
+        description: Request URL echoed by httpbin
+      - name: origin
+        type: string
+        path: origin
+        description: Client origin IP
+      - name: args
+        type: object
+        path: args
+        description: Query argument map

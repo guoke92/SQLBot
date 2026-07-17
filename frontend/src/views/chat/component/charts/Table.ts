@@ -157,6 +157,51 @@ export class Table extends BaseChart {
       }
     }
 
+    const createTooltipEl = (text: string) => {
+      const container = document.createElement('div')
+      container.style.minWidth = '100px'
+      container.style.maxWidth = '420px'
+      container.style.display = 'flex'
+      container.style.alignItems = 'center'
+      container.style.padding = '8px 16px'
+      container.style.cursor = 'default'
+      container.style.color = '#606266'
+      container.style.fontSize = '14px'
+      container.style.lineHeight = '20px'
+      container.style.whiteSpace = 'pre-wrap'
+      container.style.wordBreak = 'break-word'
+      container.appendChild(document.createTextNode(text))
+      return container
+    }
+
+    const resolveColHeaderText = (cell: any): string => {
+      const meta = cell?.getMeta?.() || {}
+      const field = meta.field || meta.valueField || meta.value
+      const dataSet = cell?.spreadsheet?.dataSet
+      const fieldName =
+        (field != null && dataSet?.getFieldName?.(field)) ||
+        meta.label ||
+        meta.value ||
+        meta.fieldValue ||
+        field
+      return fieldName == null ? '' : String(fieldName)
+    }
+
+    // 按表头文案估算列宽，避免中文长表头被固定均分后只剩省略号且无法查看。
+    const measureHeaderWidth = (text: string) => {
+      let units = 0
+      for (const ch of text) {
+        units += /[\u0000-\u00ff]/.test(ch) ? 0.55 : 1
+      }
+      // 表头文字 + 排序图标/内边距；限制上下限避免极窄或占满整表。
+      return Math.max(88, Math.min(280, Math.ceil(units * 14 + 40)))
+    }
+    const colWidthByField: Record<string, number> = {}
+    for (const a of this.axis || []) {
+      const header = a.name || a.value || ''
+      colWidthByField[a.value] = measureHeaderWidth(String(header))
+    }
+
     const s2Options: S2Options = {
       width: 600,
       height: 360,
@@ -182,33 +227,32 @@ export class Table extends BaseChart {
           onClick: handleSortClick,
         },
       ],
+      style: {
+        // compact 按内容给列宽；再配合 widthByField 保证长表头至少放得下主要文案。
+        layoutWidthType: 'compact',
+        compactMinWidth: 88,
+        compactExtraWidth: 28,
+        colCell: {
+          widthByField: colWidthByField,
+        },
+      },
       tooltip: {
+        // 数据单元格 + 列头：超长时悬停可看全文（S2 仅在 isTextOverflowing 时触发列头 tip）
         operation: {
           sort: true,
+        },
+        colCell: {
+          enable: true,
+          content: (cell) => createTooltipEl(resolveColHeaderText(cell)),
         },
         dataCell: {
           enable: true,
           content: (cell) => {
             const meta = cell.getMeta()
-            const container = document.createElement('div')
-            container.style.padding = '8px 0'
-            container.style.minWidth = '100px'
-            container.style.maxWidth = '400px'
-            container.style.display = 'flex'
-            container.style.alignItems = 'center'
-            container.style.padding = '8px 16px'
-            container.style.cursor = 'pointer'
-            container.style.color = '#606266'
-            container.style.fontSize = '14px'
-            container.style.whiteSpace = 'pre-wrap'
-
             const formattedValue = includes(this.formatNumberFields, meta.valueField)
               ? formatNumber(meta.fieldValue)
               : meta.fieldValue
-            const text = document.createTextNode(String(formattedValue))
-            container.appendChild(text)
-
-            return container
+            return createTooltipEl(String(formattedValue ?? ''))
           },
         },
       },

@@ -22,7 +22,7 @@ const list = computed(() => {
   return (props.item?.message as Array<any>) ?? []
 })
 const title = computed(() => {
-  return t('chat.find_sql_sample_title', [list.value.length])
+  return t('chat.find_query_sample_title', [list.value.length])
 })
 </script>
 
