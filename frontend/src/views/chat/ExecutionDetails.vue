@@ -5,7 +5,7 @@ import gou_icon from '@/assets/svg/gou_icon.svg'
 import icon_error from '@/assets/svg/icon_error.svg'
 import icon_database_colorful from '@/assets/svg/icon_database_colorful.svg'
 import icon_alarm_clock_colorful from '@/assets/svg/icon_alarm-clock_colorful.svg'
-import { chatApi, type ChatLogHistory } from '@/api/chat.ts'
+import { chatApi, type ChatLogHistory, type ChatLogHistoryItem } from '@/api/chat.ts'
 import { useI18n } from 'vue-i18n'
 import { isMobile } from '@/utils/utils'
 import { debounce } from 'lodash-es'
@@ -15,6 +15,7 @@ import LogCustomPrompt from './execution-component/LogCustomPrompt.vue'
 import LogDataQuery from './execution-component/LogDataQuery.vue'
 import LogChooseTable from './execution-component/LogChooseTable.vue'
 import LogGeneratePicture from './execution-component/LogGeneratePicture.vue'
+import LogToolCall from './execution-component/LogToolCall.vue'
 import LogWithAi from '@/views/chat/execution-component/LogWithAi.vue'
 
 const { t } = useI18n()
@@ -22,6 +23,38 @@ const logHistory = ref<ChatLogHistory>({})
 const dialogFormVisible = ref(false)
 const expandIds = ref<any>([])
 const drawerSize = ref('600px')
+
+/**
+ * Drawer step title: keep i18n enum labels, append concrete tool name for TOOL_CALL.
+ * Source of name is ChatLog message payload (same shape as LogToolCall body).
+ * Do not maintain a second title map or hardcode locale strings here.
+ */
+function stepDisplayName(ele: ChatLogHistoryItem | Record<string, any> | undefined): string {
+  if (!ele) {
+    return ''
+  }
+  const base = (ele as ChatLogHistoryItem).operate || ''
+  if ((ele as ChatLogHistoryItem).operate_key === 'TOOL_CALL') {
+    const raw = (ele as ChatLogHistoryItem).message
+    const msg =
+      raw && typeof raw === 'object'
+        ? (raw as Record<string, any>)
+        : typeof raw === 'string'
+          ? (() => {
+              try {
+                return JSON.parse(raw)
+              } catch {
+                return null
+              }
+            })()
+          : null
+    const tool = msg?.name || msg?.tool
+    if (tool) {
+      return `${base} · ${tool}`
+    }
+  }
+  return base
+}
 
 const handleExpand = (index: number) => {
   if (expandIds.value.includes(index)) {
@@ -95,7 +128,7 @@ defineExpose({
             <el-icon class="shrink" :class="expandIds.includes(index) && 'expand'" size="10">
               <icon_expand_right_filled></icon_expand_right_filled>
             </el-icon>
-            {{ ele.operate }}
+            {{ stepDisplayName(ele) }}
           </div>
           <div class="status">
             <div
@@ -119,6 +152,10 @@ defineExpose({
           <LogChooseTable v-else-if="ele.operate_key === 'CHOOSE_TABLE'" :item="ele" />
           <LogDataQuery v-else-if="ele.operate_key === 'EXECUTE_QUERY'" :item="ele" />
           <LogGeneratePicture v-else-if="ele.operate_key === 'GENERATE_PICTURE'" :item="ele" />
+          <LogToolCall
+            v-else-if="ele.operate_key === 'TOOL_CALL' || ele.operate_key === 'CONFIG_AGENT'"
+            :item="ele"
+          />
           <LogWithAi v-else :item="ele" />
         </div>
       </div>

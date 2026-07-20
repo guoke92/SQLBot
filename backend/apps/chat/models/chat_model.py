@@ -47,6 +47,9 @@ class OperationEnum(Enum):
     FILTER_CUSTOM_PROMPT = '11'
     EXECUTE_QUERY = '12'
     GENERATE_PICTURE = '13'
+    # Config-assistant agent/tool loop (ChatLog process channel, same as NLQ)
+    TOOL_CALL = '14'
+    CONFIG_AGENT = '15'
 
 
 class ChatFinishStep(Enum):
@@ -89,7 +92,7 @@ class Chat(SQLModel, table=True):
     create_time: datetime = Field(sa_column=Column(DateTime(timezone=False), nullable=True))
     create_by: int = Field(sa_column=Column(BigInteger, nullable=True))
     brief: str = Field(max_length=64, nullable=True)
-    chat_type: str = Field(max_length=20, default="chat")  # chat, datasource
+    chat_type: str = Field(max_length=20, default="chat")  # chat | config
     datasource: int = Field(sa_column=Column(BigInteger, nullable=True))
     engine_type: str = Field(max_length=64)
     origin: Optional[int] = Field(
@@ -171,6 +174,7 @@ class CreateChat(BaseModel):
     question: str = None
     datasource: int = None
     origin: Optional[int] = 0  # 0是页面上，mcp是1，小助手是2
+    chat_type: str = "chat"  # chat | config
 
 
 class RenameChat(BaseModel):

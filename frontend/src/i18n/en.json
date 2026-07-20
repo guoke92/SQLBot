@@ -295,6 +295,10 @@
     "quick_question": "quick question",
     "new_chat": "New Chat",
     "start_sqlbot": "New Chat",
+    "config_assistant": "Config Assistant",
+    "new_config_chat": "New Config Chat",
+    "config_badge": "Config",
+    "config_assistant_hint": "Describe datasource, table, or field configuration changes in natural language. I will call system metadata APIs to apply them.",
     "title": "Data Q&A",
     "placeholder": "Please enter your question",
     "ask": "Ask",
@@ -891,7 +895,9 @@
       "FILTER_QUERY_EXAMPLE": "Match Query Examples",
       "FILTER_CUSTOM_PROMPT": "Match Custom Prompts",
       "EXECUTE_QUERY": "Execute Query",
-      "GENERATE_PICTURE": "Generate Picture"
+      "GENERATE_PICTURE": "Generate Picture",
+      "TOOL_CALL": "Tool Call",
+      "CONFIG_AGENT": "Config Agent"
     },
     "log_system": "Conversation Template",
     "log_question": "Current Question",

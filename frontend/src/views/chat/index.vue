@@ -124,8 +124,10 @@
               </div>
               <div class="sub">
                 {{
-                  appearanceStore.pc_welcome_desc ??
-                  '我可以查询数据、生成图表、检测数据异常、预测数据等赶快开启智能问数吧～'
+                  isConfigChat
+                    ? t('qa.config_assistant_hint')
+                    : (appearanceStore.pc_welcome_desc ??
+                      '我可以查询数据、生成图表、检测数据异常、预测数据等赶快开启智能问数吧～')
                 }}
               </div>
             </template>
@@ -160,6 +162,13 @@
               </span>
               {{ t('qa.start_sqlbot') }}
             </el-button>
+            <div
+              v-else-if="isCompletePage && isConfigChat && currentChatId !== undefined"
+              class="sub"
+              style="margin-top: 8px; max-width: 520px; text-align: center"
+            >
+              {{ t('qa.config_assistant_hint') }}
+            </div>
           </div>
         </div>
         <div v-else-if="computedMessages.length == 0 && loading" class="welcome-content-block">
@@ -218,24 +227,17 @@
                   :all-messages="computedMessages"
                 />
                 <template v-if="message.role === 'assistant' && !message.first_chat">
-                  <ChartAnswer
-                    v-if="
-                      (message?.record?.analysis_record_id === undefined ||
-                        message?.record?.analysis_record_id === null) &&
-                      (message?.record?.predict_record_id === undefined ||
-                        message?.record?.predict_record_id === null)
-                    "
-                    ref="chartAnswerRef"
+                  <!-- Config assistant: tool/message stream only -->
+                  <ConfigAnswer
+                    v-if="isConfigChat"
+                    ref="configAnswerRef"
                     :chat-list="chatList"
                     :current-chat="currentChat"
                     :current-chat-id="currentChatId"
-                    :record-id="message.record?.id"
                     :loading="isTyping"
                     :message="message"
-                    :reasoning-name="['sql_answer', 'chart_answer']"
-                    @scroll-bottom="scrollToBottom"
-                    @finish="onChartAnswerFinish"
-                    @error="onChartAnswerError"
+                    @finish="onConfigAnswerFinish"
+                    @error="onConfigAnswerError"
                     @stop="onChatStop"
                   >
                     <ErrorInfo :error="message.record?.error" class="error-container" />
@@ -245,131 +247,164 @@
                         :duration="message.record?.duration"
                         :total-tokens="message.record?.total_tokens"
                       />
-                      <ChatToolBar v-if="!message.isTyping" :message="message">
-                        <div class="tool-btns">
-                          <el-tooltip
-                            effect="dark"
-                            :offset="8"
-                            :content="t('qa.ask_again')"
-                            placement="top"
-                          >
-                            <el-button
-                              class="tool-btn"
-                              text
-                              :disabled="isTyping"
-                              @click="askAgain(message)"
+                      <ChatToolBar v-if="!message.isTyping" :message="message" />
+                    </template>
+                  </ConfigAnswer>
+                  <!-- NLQ primary + follow-ups -->
+                  <template v-else>
+                    <ChartAnswer
+                      v-if="
+                        (message?.record?.analysis_record_id === undefined ||
+                          message?.record?.analysis_record_id === null) &&
+                        (message?.record?.predict_record_id === undefined ||
+                          message?.record?.predict_record_id === null)
+                      "
+                      ref="chartAnswerRef"
+                      :chat-list="chatList"
+                      :current-chat="currentChat"
+                      :current-chat-id="currentChatId"
+                      :record-id="message.record?.id"
+                      :loading="isTyping"
+                      :message="message"
+                      :reasoning-name="['sql_answer', 'chart_answer']"
+                      @scroll-bottom="maybeScrollToBottom"
+                      @finish="onChartAnswerFinish"
+                      @error="onChartAnswerError"
+                      @stop="onChatStop"
+                    >
+                      <ErrorInfo :error="message.record?.error" class="error-container" />
+                      <template #tool>
+                        <ChatTokenTime
+                          :record-id="message.record?.id"
+                          :duration="message.record?.duration"
+                          :total-tokens="message.record?.total_tokens"
+                        />
+                        <ChatToolBar v-if="!message.isTyping" :message="message">
+                          <div class="tool-btns">
+                            <el-tooltip
+                              effect="dark"
+                              :offset="8"
+                              :content="t('qa.ask_again')"
+                              placement="top"
                             >
-                              <el-icon size="18">
-                                <icon_replace_outlined />
-                              </el-icon>
-                            </el-button>
-                          </el-tooltip>
-                          <template v-if="message.record?.chart">
-                            <div class="divider"></div>
-                            <div>
                               <el-button
                                 class="tool-btn"
                                 text
                                 :disabled="isTyping"
-                                @click="clickAnalysis(message.record?.id)"
+                                @click="askAgain(message)"
                               >
-                                <span class="tool-btn-inner">
-                                  <el-icon size="18">
-                                    <icon_screen_outlined />
-                                  </el-icon>
-                                  <span class="btn-text">
-                                    {{ t('chat.data_analysis') }}
-                                  </span>
-                                </span>
+                                <el-icon size="18">
+                                  <icon_replace_outlined />
+                                </el-icon>
                               </el-button>
-                            </div>
-                            <div>
-                              <el-button
-                                class="tool-btn"
-                                text
-                                :disabled="isTyping"
-                                @click="clickPredict(message.record?.id)"
-                              >
-                                <span class="tool-btn-inner">
-                                  <el-icon size="18">
-                                    <icon_start_outlined />
-                                  </el-icon>
-                                  <span class="btn-text">
-                                    {{ t('chat.data_predict') }}
+                            </el-tooltip>
+                            <template v-if="message.record?.chart">
+                              <div class="divider"></div>
+                              <div>
+                                <el-button
+                                  class="tool-btn"
+                                  text
+                                  :disabled="isTyping"
+                                  @click="clickAnalysis(message.record?.id)"
+                                >
+                                  <span class="tool-btn-inner">
+                                    <el-icon size="18">
+                                      <icon_screen_outlined />
+                                    </el-icon>
+                                    <span class="btn-text">
+                                      {{ t('chat.data_analysis') }}
+                                    </span>
                                   </span>
-                                </span>
-                              </el-button>
-                            </div>
-                          </template>
-                        </div>
-                      </ChatToolBar>
-                    </template>
-                    <template #footer>
-                      <RecommendQuestion
-                        ref="recommendQuestionRef"
-                        :current-chat="currentChat"
-                        :record-id="message.record?.id"
-                        :questions="message.recommended_question"
-                        :first-chat="message.first_chat"
-                        :disabled="isTyping"
-                        @click-question="quickAsk"
-                        @loading-over="loadingOver"
-                        @stop="onChatStop"
-                      />
-                    </template>
-                  </ChartAnswer>
-                  <AnalysisAnswer
-                    v-if="
-                      message?.record?.analysis_record_id !== undefined &&
-                      message?.record?.analysis_record_id !== null
-                    "
-                    ref="analysisAnswerRef"
-                    :chat-list="chatList"
-                    :current-chat="currentChat"
-                    :current-chat-id="currentChatId"
-                    :loading="isTyping"
-                    :message="message"
-                    @finish="onAnalysisAnswerFinish"
-                    @error="onAnalysisAnswerError"
-                    @stop="onChatStop"
-                  >
-                    <ErrorInfo :error="message.record?.error" class="error-container" />
-                    <template #tool>
-                      <ChatTokenTime
-                        :record-id="message.record?.id"
-                        :duration="message.record?.duration"
-                        :total-tokens="message.record?.total_tokens"
-                      />
-                      <ChatToolBar v-if="!message.isTyping" :message="message" />
-                    </template>
-                  </AnalysisAnswer>
-                  <PredictAnswer
-                    v-if="
-                      message?.record?.predict_record_id !== undefined &&
-                      message?.record?.predict_record_id !== null
-                    "
-                    ref="predictAnswerRef"
-                    :chat-list="chatList"
-                    :current-chat="currentChat"
-                    :current-chat-id="currentChatId"
-                    :record-id="message.record?.id"
-                    :loading="isTyping"
-                    :message="message"
-                    @scroll-bottom="scrollToBottom"
-                    @finish="onPredictAnswerFinish"
-                    @error="onPredictAnswerError"
-                    @stop="onChatStop"
-                  >
-                    <ErrorInfo :error="message.record?.error" class="error-container" />
-                    <template #tool>
-                      <ChatTokenTime
-                        :record-id="message.record?.id"
-                        :duration="message.record?.duration"
-                        :total-tokens="message.record?.total_tokens"
-                      />
-                      <ChatToolBar v-if="!message.isTyping" :message="message" />
-                    </template>
-                  </PredictAnswer>
+                                </el-button>
+                              </div>
+                              <div>
+                                <el-button
+                                  class="tool-btn"
+                                  text
+                                  :disabled="isTyping"
+                                  @click="clickPredict(message.record?.id)"
+                                >
+                                  <span class="tool-btn-inner">
+                                    <el-icon size="18">
+                                      <icon_start_outlined />
+                                    </el-icon>
+                                    <span class="btn-text">
+                                      {{ t('chat.data_predict') }}
+                                    </span>
+                                  </span>
+                                </el-button>
+                              </div>
+                            </template>
+                          </div>
+                        </ChatToolBar>
+                      </template>
+                      <template #footer>
+                        <RecommendQuestion
+                          ref="recommendQuestionRef"
+                          :current-chat="currentChat"
+                          :record-id="message.record?.id"
+                          :questions="message.recommended_question"
+                          :first-chat="message.first_chat"
+                          :disabled="isTyping"
+                          @click-question="quickAsk"
+                          @loading-over="loadingOver"
+                          @stop="onChatStop"
+                        />
+                      </template>
+                    </ChartAnswer>
+                    <AnalysisAnswer
+                      v-if="
+                        message?.record?.analysis_record_id !== undefined &&
+                        message?.record?.analysis_record_id !== null
+                      "
+                      ref="analysisAnswerRef"
+                      :chat-list="chatList"
+                      :current-chat="currentChat"
+                      :current-chat-id="currentChatId"
+                      :loading="isTyping"
+                      :message="message"
+                      @finish="onAnalysisAnswerFinish"
+                      @error="onAnalysisAnswerError"
+                      @stop="onChatStop"
+                    >
+                      <ErrorInfo :error="message.record?.error" class="error-container" />
+                      <template #tool>
+                        <ChatTokenTime
+                          :record-id="message.record?.id"
+                          :duration="message.record?.duration"
+                          :total-tokens="message.record?.total_tokens"
+                        />
+                        <ChatToolBar v-if="!message.isTyping" :message="message" />
+                      </template>
+                    </AnalysisAnswer>
+                    <PredictAnswer
+                      v-if="
+                        message?.record?.predict_record_id !== undefined &&
+                        message?.record?.predict_record_id !== null
+                      "
+                      ref="predictAnswerRef"
+                      :chat-list="chatList"
+                      :current-chat="currentChat"
+                      :current-chat-id="currentChatId"
+                      :record-id="message.record?.id"
+                      :loading="isTyping"
+                      :message="message"
+                      @scroll-bottom="maybeScrollToBottom"
+                      @finish="onPredictAnswerFinish"
+                      @error="onPredictAnswerError"
+                      @stop="onChatStop"
+                    >
+                      <ErrorInfo :error="message.record?.error" class="error-container" />
+                      <template #tool>
+                        <ChatTokenTime
+                          :record-id="message.record?.id"
+                          :duration="message.record?.duration"
+                          :total-tokens="message.record?.total_tokens"
+                        />
+                        <ChatToolBar v-if="!message.isTyping" :message="message" />
+                      </template>
+                    </PredictAnswer>
+                  </template>
                 </template>
               </ChatRow>
             </template>
@@ -377,11 +412,15 @@
         </el-scrollbar>
       </el-main>
       <el-footer
-        v-if="computedMessages.length > 0 || (!isCompletePage && !selectAssistantDs)"
+        v-if="
+          computedMessages.length > 0 ||
+          (!isCompletePage && !selectAssistantDs) ||
+          isConfigChat
+        "
         class="chat-footer"
       >
         <div class="input-wrapper" @click="clickInput">
-          <div v-if="isCompletePage || selectAssistantDs" class="datasource">
+          <div v-if="(isCompletePage || selectAssistantDs) && !isConfigChat" class="datasource">
             <template v-if="currentChat.datasource && currentChat.datasource_name">
               {{ t('qa.selected_datasource') }}:
               <img
@@ -397,7 +436,17 @@
               </span>
             </template>
           </div>
-          <div v-if="computedMessages.length > 0 && currentChat.datasource" class="quick_question">
+          <div
+            v-else-if="isConfigChat"
+            class="datasource"
+            style="opacity: 0.75"
+          >
+            {{ t('qa.config_assistant') }}
+          </div>
+          <div
+            v-if="computedMessages.length > 0 && currentChat.datasource && !isConfigChat"
+            class="quick_question"
+          >
             <quick-question
               ref="quickQuestionRef"
               :datasource-id="currentChat.datasource"
@@ -455,6 +504,7 @@ import ChatRow from './ChatRow.vue'
 import ChartAnswer from './answer/ChartAnswer.vue'
 import AnalysisAnswer from './answer/AnalysisAnswer.vue'
 import PredictAnswer from './answer/PredictAnswer.vue'
+import ConfigAnswer from './answer/ConfigAnswer.vue'
 import UserChat from './chat-block/UserChat.vue'
 import RecommendQuestion from './RecommendQuestion.vue'
 import ChatListContainer from './ChatListContainer.vue'
@@ -479,11 +529,11 @@ import { useAssistantStore } from '@/stores/assistant'
 import { onClickOutside } from '@vueuse/core'
 import { useAppearanceStoreWithOut } from '@/stores/appearance'
 import { useUserStore } from '@/stores/user'
-import { debounce } from 'lodash-es'
 import { isMobile } from '@/utils/utils'
 import router from '@/router'
 import QuickQuestion from '@/views/chat/QuickQuestion.vue'
 import { useChatConfigStore } from '@/stores/chatConfig.ts'
+import { useChatScroll } from '@/hooks/useChatScroll'
 const userStore = useUserStore()
 const props = defineProps<{
   startChatDsId?: number
@@ -504,6 +554,7 @@ const defaultFloatPopoverStyle = ref({
 })
 
 const isCompletePage = computed(() => !assistantStore.getAssistant || assistantStore.getEmbedded)
+const isConfigChat = computed(() => (currentChat.value?.chat_type || 'chat') === 'config')
 const embeddedHistoryHidden = computed(
   () => assistantStore.getAssistant && !assistantStore.getHistory
 )
@@ -528,15 +579,10 @@ const chatListRef = ref()
 const innerRef = ref()
 const chatCreatorRef = ref()
 
-const scrollToBottom = debounce(() => {
-  if (scrolling) return
-  nextTick(() => {
-    chatListRef.value?.scrollTo({
-      top: chatListRef.value.wrapRef.scrollHeight,
-      behavior: 'smooth',
-    })
-  })
-}, 300)
+const { handleScroll, forceScrollToBottom, maybeScrollToBottom } = useChatScroll(
+  chatListRef,
+  innerRef
+)
 
 const loading = ref<boolean>(false)
 const chatList = ref<Array<ChatInfo>>([])
@@ -581,55 +627,6 @@ const computedMessages = computed<Array<ChatMessage>>(() => {
 const goEmpty = (func?: (...p: any[]) => void, ...param: any[]) => {
   inputMessage.value = ''
   stop(func, ...param)
-}
-
-let scrollTime: any
-let scrollingTime: any
-let scrollTopVal = 0
-let scrolling = false
-let userScrolledAway = false // 用户是否主动滚动离开底部
-
-const scrollBottom = () => {
-  if (scrolling) return
-  if (!isTyping.value && !getRecommendQuestionsLoading.value) {
-    clearInterval(scrollTime)
-  }
-  if (!chatListRef.value) {
-    clearInterval(scrollTime)
-    return
-  }
-  chatListRef.value!.setScrollTop(innerRef.value!.clientHeight)
-}
-
-const handleScroll = (val: any) => {
-  scrollTopVal = val.scrollTop
-  scrolling = true
-  clearTimeout(scrollingTime)
-  scrollingTime = setTimeout(() => {
-    scrolling = false
-  }, 400)
-
-  const threshold =
-    innerRef.value!.clientHeight - (document.querySelector('.chat-record-list')!.clientHeight - 20)
-  const isNearBottom = scrollTopVal + 50 >= threshold
-
-  // 用户滚动离开底部时，标记并停止自动滚动
-  if (!isNearBottom) {
-    userScrolledAway = true
-    clearInterval(scrollTime)
-    scrollTime = null
-    return
-  }
-
-  // 用户滚回底部时，重置标记
-  userScrolledAway = false
-
-  // 只有用户在底部、没有主动滚走、且正在输入时才启动自动滚动
-  if (!scrollTime && isTyping.value && !userScrolledAway) {
-    scrollTime = setInterval(() => {
-      scrollBottom()
-    }, 300)
-  }
 }
 
 const createNewChatSimple = async () => {
@@ -691,7 +688,7 @@ function getChatList(callback?: () => void) {
 }
 
 function onClickHistory(chat: ChatInfo) {
-  scrollToBottom()
+  forceScrollToBottom(false)
   forEach(chat?.records, (record: ChatRecord) => {
     // getChatData(record.id)
     if (record.predict_record_id) {
@@ -771,17 +768,36 @@ function quickAsk(question: string) {
 }
 
 const chartAnswerRef = ref()
+const configAnswerRef = ref()
+
+async function onConfigAnswerFinish(id: number) {
+  loading.value = false
+  isTyping.value = false
+  maybeScrollToBottom()
+  if (id) {
+    getRecordUsage(id)
+  }
+}
+function onConfigAnswerError(id: number) {
+  loading.value = false
+  isTyping.value = false
+  if (id) {
+    getRecordUsage(id)
+  }
+}
 const getRecommendQuestionsLoading = ref(false)
 async function onChartAnswerFinish(id: number) {
   getRecommendQuestionsLoading.value = true
   loading.value = false
   isTyping.value = false
+  maybeScrollToBottom()
   getRecordUsage(id)
   getRecommendQuestions(id)
 }
 
 const loadingOver = () => {
   getRecommendQuestionsLoading.value = false
+  maybeScrollToBottom()
 }
 
 function onChartAnswerError(id: number) {
@@ -818,12 +834,8 @@ const sendMessage = async (
 
   loading.value = true
   isTyping.value = true
-  if (isCompletePage.value && innerRef.value) {
-    scrollTopVal = innerRef.value!.clientHeight
-    scrollTime = setInterval(() => {
-      scrollBottom()
-    }, 300)
-  }
+  // User sent a new message: reset stick-away and jump once (no stream interval).
+  forceScrollToBottom()
   await assistantPrepareSend()
   const currentRecord = new ChatRecord()
   currentRecord.create_time = new Date()
@@ -839,14 +851,23 @@ const sendMessage = async (
   inputMessage.value = ''
 
   nextTick(async () => {
-    if (!isCompletePage.value && innerRef.value) {
-      scrollTopVal = innerRef.value!.clientHeight
-      scrollTime = setInterval(() => {
-        scrollBottom()
-      }, 300)
-    }
+    forceScrollToBottom()
     const index = currentChat.value.records.length - 1
-    if (chartAnswerRef.value) {
+    if (isConfigChat.value) {
+      if (configAnswerRef.value) {
+        if (configAnswerRef.value instanceof Array) {
+          for (let i = 0; i < configAnswerRef.value.length; i++) {
+            const _index = configAnswerRef.value[i].index()
+            if (index === _index) {
+              await configAnswerRef.value[i].sendMessage()
+              break
+            }
+          }
+        } else {
+          await configAnswerRef.value.sendMessage()
+        }
+      }
+    } else if (chartAnswerRef.value) {
       if (chartAnswerRef.value instanceof Array) {
         for (let i = 0; i < chartAnswerRef.value.length; i++) {
           const _index = chartAnswerRef.value[i].index()
@@ -867,6 +888,7 @@ const analysisAnswerRef = ref()
 async function onAnalysisAnswerFinish(id: number) {
   loading.value = false
   isTyping.value = false
+  maybeScrollToBottom()
   getRecordUsage(id)
   //await getRecommendQuestions(id)
 }
@@ -903,6 +925,7 @@ async function clickAnalysis(id?: number) {
 
   loading.value = true
   isTyping.value = true
+  forceScrollToBottom()
 
   const currentRecord = new ChatRecord()
   currentRecord.create_time = new Date()
@@ -916,6 +939,7 @@ async function clickAnalysis(id?: number) {
   currentChat.value.records.push(currentRecord)
 
   nextTick(async () => {
+    forceScrollToBottom()
     const index = currentChat.value.records.length - 1
     if (analysisAnswerRef.value) {
       if (analysisAnswerRef.value instanceof Array) {
@@ -963,6 +987,7 @@ const predictAnswerRef = ref()
 async function onPredictAnswerFinish(id: number) {
   loading.value = false
   isTyping.value = false
+  maybeScrollToBottom()
   // console.debug('onPredictAnswerFinish: ', id)
   getRecordUsage(id)
   //await getRecommendQuestions(id)
@@ -981,6 +1006,7 @@ async function clickPredict(id?: number) {
 
   loading.value = true
   isTyping.value = true
+  forceScrollToBottom()
 
   const currentRecord = new ChatRecord()
   currentRecord.create_time = new Date()
@@ -995,6 +1021,7 @@ async function clickPredict(id?: number) {
   currentChat.value.records.push(currentRecord)
 
   nextTick(async () => {
+    forceScrollToBottom()
     const index = currentChat.value.records.length - 1
     if (predictAnswerRef.value) {
       if (predictAnswerRef.value instanceof Array) {
@@ -1041,6 +1068,15 @@ function stop(func?: (...p: any[]) => void, ...param: any[]) {
       }
     } else {
       recommendQuestionRef.value.stop()
+    }
+  }
+  if (configAnswerRef.value) {
+    if (configAnswerRef.value instanceof Array) {
+      for (let i = 0; i < configAnswerRef.value.length; i++) {
+        configAnswerRef.value[i].stop()
+      }
+    } else {
+      configAnswerRef.value.stop()
     }
   }
   if (chartAnswerRef.value) {

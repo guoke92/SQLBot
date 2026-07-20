@@ -3,7 +3,6 @@ import io
 import traceback
 from typing import Optional, List
 
-import orjson
 import pandas as pd
 from fastapi import APIRouter, HTTPException, Path
 from fastapi.responses import StreamingResponse
@@ -17,7 +16,12 @@ from apps.chat.curd.chat import delete_chat_with_user, get_chart_data_with_user,
     get_chat_log_history, get_chart_data_with_user_live
 from apps.chat.models.chat_model import CreateChat, ChatRecord, RenameChat, ChatQuestion, AxisObj, QuickCommand, \
     ChatInfo, Chat, ChatFinishStep, ChatQuestionBase, SimpleChat
+import apps.chat.graphs  # noqa: F401 — register analysis/predict/recommend/nlq builders
+import apps.config_assistant  # noqa: F401 — register config builder
 from apps.chat.task.llm import LLMService
+from apps.conversation.events import emit
+from apps.conversation.runtime import submit_graph
+from apps.conversation.sink import resolve_sink, sink_error_chunks
 from apps.swagger.i18n import PLACEHOLDER_PREFIX
 from apps.system.schemas.permission import SqlbotPermission, require_permissions
 from common.audit.models.log_model import OperationType, OperationModules
@@ -158,7 +162,9 @@ async def delete(session: SessionDep, current_user: CurrentUser, chart_id: int, 
 ))
 async def start_chat(session: SessionDep, current_user: CurrentUser, create_chat_obj: CreateChat):
     try:
-        return create_chat(session, current_user, create_chat_obj)
+        # config chats need no datasource; NLQ still requires one via create_chat.
+        require_ds = (create_chat_obj.chat_type or "chat") != "config"
+        return create_chat(session, current_user, create_chat_obj, require_datasource=require_ds)
     except Exception as e:
         raise HTTPException(
             status_code=500,
@@ -188,7 +194,7 @@ async def start_chat(session: SessionDep, current_user: CurrentUser, current_ass
 async def ask_recommend_questions(session: SessionDep, current_user: CurrentUser, chat_record_id: int,
                                   current_assistant: CurrentAssistant, articles_number: Optional[int] = 4):
     def _return_empty():
-        yield 'data:' + orjson.dumps({'content': '[]', 'type': 'recommended_question'}).decode() + '\n\n'
+        yield emit({'content': '[]', 'type': 'recommended_question'})
 
     try:
         record = get_chat_record_by_id(session, chat_record_id)
@@ -201,16 +207,25 @@ async def ask_recommend_questions(session: SessionDep, current_user: CurrentUser
         llm_service = await LLMService.create(session, current_user, request_question, current_assistant, True)
         llm_service.set_record(record)
         llm_service.set_articles_number(articles_number)
-        llm_service.run_recommend_questions_task_async()
+        runner = submit_graph(
+            "recommend",
+            {
+                "llm_service": llm_service,
+                "record": record,
+                "sink": "sse",
+                "graph_key": "recommend",
+                "mode": "side",
+            },
+        )
     except Exception as e:
         traceback.print_exc()
 
         def _err(_e: Exception):
-            yield 'data:' + orjson.dumps({'content': str(_e), 'type': 'error'}).decode() + '\n\n'
+            yield from sink_error_chunks({"sink": "sse"}, str(_e))
 
         return StreamingResponse(_err(e), media_type="text/event-stream")
 
-    return StreamingResponse(llm_service.await_result(), media_type="text/event-stream")
+    return StreamingResponse(runner.await_result(), media_type="text/event-stream")
 
 
 @router.get("/recent_questions/{datasource_id}", response_model=List[str],
@@ -239,14 +254,15 @@ def find_base_question(record_id: int, session: SessionDep):
 async def question_answer(session: SessionDep, current_user: CurrentUser, request_question: ChatQuestionBase,
                           current_assistant: CurrentAssistant):
     question = ChatQuestion(chat_id=request_question.chat_id, question=request_question.question)
-    return await question_answer_inner(session, current_user, question, current_assistant, embedding=True)
+    return await question_answer_inner(session, current_user, question, current_assistant)
 
 
 async def question_answer_inner(session: SessionDep, current_user: CurrentUser, request_question: ChatQuestion,
                                 current_assistant: Optional[CurrentAssistant] = None, in_chat: bool = True,
                                 stream: bool = True,
-                                finish_step: ChatFinishStep = ChatFinishStep.GENERATE_CHART, embedding: bool = False,
+                                finish_step: ChatFinishStep = ChatFinishStep.GENERATE_CHART,
                                 return_img: bool = True):
+    sink_mode = resolve_sink(in_chat=in_chat, stream=stream)
     try:
         command, text_before_command, record_id, warning_info = parse_quick_command(request_question.question)
         if command:
@@ -302,7 +318,7 @@ async def question_answer_inner(session: SessionDep, current_user: CurrentUser, 
                 request_question.question = text_before_command
                 request_question.regenerate_record_id = rec_id
                 return await stream_sql(session, current_user, request_question, current_assistant, in_chat, stream,
-                                        finish_step, embedding, return_img)
+                                        finish_step, return_img=return_img)
 
             elif command == QuickCommand.ANALYSIS:
                 return await analysis_or_predict(session, current_user, rec_id, 'analysis', current_assistant, in_chat,
@@ -315,17 +331,16 @@ async def question_answer_inner(session: SessionDep, current_user: CurrentUser, 
                 raise Exception(f'Unknown command: {command.value}')
         else:
             return await stream_sql(session, current_user, request_question, current_assistant, in_chat, stream,
-                                    finish_step, embedding, return_img)
+                                    finish_step, return_img=return_img)
     except Exception as e:
         traceback.print_exc()
 
         if stream:
             def _err(_e: Exception):
-                if in_chat:
-                    yield 'data:' + orjson.dumps({'content': str(_e), 'type': 'error'}).decode() + '\n\n'
-                else:
-                    yield f'&#x274c; **ERROR:**\n'
-                    yield f'> {str(_e)}\n'
+                yield from sink_error_chunks(
+                    {"sink": sink_mode, "in_chat": in_chat, "stream": stream},
+                    str(_e),
+                )
 
             return StreamingResponse(_err(e), media_type="text/event-stream")
         else:
@@ -337,19 +352,53 @@ async def question_answer_inner(session: SessionDep, current_user: CurrentUser, 
 
 async def stream_sql(session: SessionDep, current_user: CurrentUser, request_question: ChatQuestion,
                      current_assistant: Optional[CurrentAssistant] = None, in_chat: bool = True, stream: bool = True,
-                     finish_step: ChatFinishStep = ChatFinishStep.GENERATE_CHART, embedding: bool = False,
+                     finish_step: ChatFinishStep = ChatFinishStep.GENERATE_CHART,
                      return_img: bool = True):
+    sink_mode = resolve_sink(in_chat=in_chat, stream=stream)
     try:
-        llm_service = await LLMService.create(session, current_user, request_question, current_assistant,
-                                              embedding=embedding)
-        llm_service.init_record(session=session)
-        llm_service.run_task_async(in_chat=in_chat, stream=stream, finish_step=finish_step, return_img=return_img)
+        chat = session.get(Chat, request_question.chat_id)
+        if not chat:
+            raise Exception(f"Chat with id {request_question.chat_id} not found")
+        chat_type = (chat.chat_type or "chat").strip() or "chat"
+        # Route truth source = registry key from chat_type (primary scenarios only).
+        if chat_type == "config":
+            graph_key = "config"
+            state: dict = {
+                "current_user": current_user,
+                "chat_id": request_question.chat_id,
+                "question": request_question.question,
+                "sink": sink_mode,
+                "graph_key": graph_key,
+                "mode": "primary",
+                "in_chat": in_chat,
+                "stream": stream,
+            }
+        else:
+            graph_key = "nlq"
+            llm_service = await LLMService.create(
+                session, current_user, request_question, current_assistant
+            )
+            llm_service.init_record(session=session)
+            state = {
+                "llm_service": llm_service,
+                "sink": sink_mode,
+                "graph_key": graph_key,
+                "mode": "primary",
+                "chat_id": request_question.chat_id,
+                "finish_step": finish_step,
+                "return_img": return_img,
+            }
+        # Sole runtime entry — no run_task dual path.
+        runner = submit_graph(graph_key, state)
     except Exception as e:
         traceback.print_exc()
 
         if stream:
             def _err(_e: Exception):
-                yield 'data:' + orjson.dumps({'content': str(_e), 'type': 'error'}).decode() + '\n\n'
+                yield from sink_error_chunks(
+                    {"sink": sink_mode, "in_chat": in_chat, "stream": stream},
+                    str(_e),
+                )
 
             return StreamingResponse(_err(e), media_type="text/event-stream")
         else:
@@ -358,9 +407,9 @@ async def stream_sql(session: SessionDep, current_user: CurrentUser, request_que
                 status_code=500,
             )
     if stream:
-        return StreamingResponse(llm_service.await_result(), media_type="text/event-stream")
+        return StreamingResponse(runner.await_result(), media_type="text/event-stream")
     else:
-        res = llm_service.await_result()
+        res = runner.await_result()
         raw_data = {}
         for chunk in res:
             if chunk:
@@ -385,6 +434,7 @@ async def analysis_or_predict_question(session: SessionDep, current_user: Curren
 
 async def analysis_or_predict(session: SessionDep, current_user: CurrentUser, chat_record_id: int, action_type: str,
                               current_assistant: CurrentAssistant, in_chat: bool = True, stream: bool = True):
+    sink_mode = resolve_sink(in_chat=in_chat, stream=stream)
     try:
         if action_type != 'analysis' and action_type != 'predict':
             raise Exception(f"Type {action_type} Not Found")
@@ -411,16 +461,27 @@ async def analysis_or_predict(session: SessionDep, current_user: CurrentUser, ch
         request_question = ChatQuestion(chat_id=record.chat_id, question=record.question)
 
         llm_service = await LLMService.create(session, current_user, request_question, current_assistant)
-        llm_service.run_analysis_or_predict_task_async(session, action_type, record, in_chat, stream)
+        # Sole runtime entry — graph_key is the routing truth source.
+        runner = submit_graph(
+            action_type,
+            {
+                "llm_service": llm_service,
+                "base_record": record,
+                "sink": sink_mode,
+                "graph_key": action_type,
+                "mode": "follow_up",
+                "chat_id": record.chat_id,
+                "base_record_id": record.id,
+            },
+        )
     except Exception as e:
         traceback.print_exc()
         if stream:
             def _err(_e: Exception):
-                if in_chat:
-                    yield 'data:' + orjson.dumps({'content': str(_e), 'type': 'error'}).decode() + '\n\n'
-                else:
-                    yield f'&#x274c; **ERROR:**\n'
-                    yield f'> {str(_e)}\n'
+                yield from sink_error_chunks(
+                    {"sink": sink_mode, "in_chat": in_chat, "stream": stream},
+                    str(_e),
+                )
 
             return StreamingResponse(_err(e), media_type="text/event-stream")
         else:
@@ -429,9 +490,9 @@ async def analysis_or_predict(session: SessionDep, current_user: CurrentUser, ch
                 status_code=500,
             )
     if stream:
-        return StreamingResponse(llm_service.await_result(), media_type="text/event-stream")
+        return StreamingResponse(runner.await_result(), media_type="text/event-stream")
     else:
-        res = llm_service.await_result()
+        res = runner.await_result()
         raw_data = {}
         for chunk in res:
             if chunk:

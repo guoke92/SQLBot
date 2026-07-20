@@ -218,6 +218,12 @@ const handleConfirmPassword = () => {
             :class="{ active: currentChatId === chat.id, hide: !expandMap[group.key] }"
             @click="onClickHistory(chat)"
           >
+            <span
+              v-if="chat.chat_type === 'config'"
+              class="config-badge"
+              :title="$t('qa.config_assistant')"
+              >{{ $t('qa.config_badge') }}</span
+            >
             <span class="title">{{ chat.brief ?? 'Untitled' }}</span>
             <el-popover :teleported="false" popper-class="popover-card_chat" placement="bottom">
               <template #reference>
@@ -340,6 +346,19 @@ const handleConfirmPassword = () => {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+
+    .config-badge {
+      flex-shrink: 0;
+      margin-right: 6px;
+      padding: 0 6px;
+      height: 18px;
+      line-height: 18px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--ed-color-primary);
+      background: var(--ed-color-primary-light-9);
+    }
 
     .title {
       flex: 1;

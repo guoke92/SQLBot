@@ -7,6 +7,7 @@ from sqlalchemy import and_, select, update
 from sqlalchemy import desc, func
 from sqlalchemy.orm import aliased
 
+from apps.chat.constants import DYNAMIC_DS_TYPES
 from apps.chat.models.chat_model import Chat, ChatRecord, CreateChat, ChatInfo, RenameChat, ChatQuestion, ChatLog, \
     TypeEnum, OperationEnum, ChatRecordResult, ChatLogHistory, ChatLogHistoryItem
 from apps.datasource.crud.datasource import get_ds
@@ -338,9 +339,6 @@ def get_chat_with_records_with_data(session: SessionDep, chart_id: int, current_
     return get_chat_with_records(session, chart_id, current_user, current_assistant, True)
 
 
-dynamic_ds_types = [1, 3]
-
-
 def get_chat_with_records(session: SessionDep, chart_id: int, current_user: CurrentUser,
                           current_assistant: CurrentAssistant, with_data: bool = False,
                           trans: Trans = None) -> ChatInfo:
@@ -351,7 +349,7 @@ def get_chat_with_records(session: SessionDep, chart_id: int, current_user: Curr
         raise Exception(f"Chat with id {chart_id} not Owned by the current user")
     chat_info = ChatInfo(**chat.model_dump())
 
-    if current_assistant and current_assistant.type in dynamic_ds_types:
+    if current_assistant and current_assistant.type in DYNAMIC_DS_TYPES:
         out_ds_instance = AssistantOutDsFactory.get_instance(current_assistant)
         ds = out_ds_instance.get_ds(chat.datasource, trans)
     else:
@@ -743,21 +741,34 @@ def list_generate_chart_logs(session: SessionDep, chart_id: int) -> List[ChatLog
 
 def create_chat(session: SessionDep, current_user: CurrentUser, create_chat_obj: CreateChat,
                 require_datasource: bool = True, current_assistant: CurrentAssistant = None) -> ChatInfo:
+    chat_type = (create_chat_obj.chat_type or "chat").strip() or "chat"
+    if chat_type not in ("chat", "config"):
+        raise Exception(f"Unsupported chat_type: {chat_type}")
+    # Config assistant is metadata-only; never require NLQ datasource.
+    # Resolve before the DS-None check so curd is the single truth source.
+    if chat_type == "config":
+        require_datasource = False
+
     if not create_chat_obj.datasource and require_datasource:
         raise Exception("Datasource cannot be None")
 
     if not create_chat_obj.question or create_chat_obj.question.strip() == '':
-        create_chat_obj.question = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        # Config chats default to a recognizable brief (not a bare timestamp).
+        if chat_type == "config":
+            create_chat_obj.question = "Config Assistant"
+        else:
+            create_chat_obj.question = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     chat = Chat(create_time=datetime.datetime.now(),
                 create_by=current_user.id,
                 oid=current_user.oid if current_user.oid is not None else 1,
                 brief=create_chat_obj.question.strip()[:20],
+                chat_type=chat_type,
                 origin=create_chat_obj.origin if create_chat_obj.origin is not None else 0)
     ds: CoreDatasource | AssistantOutDsSchema | None = None
     if create_chat_obj.datasource:
         chat.datasource = create_chat_obj.datasource
-        if current_assistant and current_assistant.type == 1:
+        if current_assistant and current_assistant.type in DYNAMIC_DS_TYPES:
             out_ds_instance: AssistantOutDs = AssistantOutDsFactory.get_instance(current_assistant)
             ds = out_ds_instance.get_ds(chat.datasource)
             ds.type_name = DB.get_db(ds.type).db_name

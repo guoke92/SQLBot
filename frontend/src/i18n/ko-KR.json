@@ -295,6 +295,10 @@
     "quick_question": "빠른 질문",
     "new_chat": "새 대화 생성",
     "start_sqlbot": "데이터 조회 시작",
+    "config_assistant": "구성 도우미",
+    "new_config_chat": "새 구성 대화",
+    "config_badge": "구성",
+    "config_assistant_hint": "데이터 소스, 테이블, 필드 등 구성 변경을 자연어로 설명하면 시스템 메타데이터 API를 호출해 반영합니다.",
     "title": "스마트 데이터 조회",
     "placeholder": "질문을 입력하십시오",
     "ask": "질문하기",
@@ -891,7 +895,9 @@
       "FILTER_QUERY_EXAMPLE": "쿼리 예시 매칭",
       "FILTER_CUSTOM_PROMPT": "사용자 정의 프롬프트 매칭",
       "EXECUTE_QUERY": "쿼리 실행",
-      "GENERATE_PICTURE": "이미지 생성"
+      "GENERATE_PICTURE": "이미지 생성",
+      "TOOL_CALL": "도구 호출",
+      "CONFIG_AGENT": "구성 어시스턴트 추론"
     },
     "log_system": "대화 템플릿",
     "log_question": "현재 질문",

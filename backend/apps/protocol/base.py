@@ -173,8 +173,11 @@ class BaseProtocol(ABC):
     ) -> SchemaSnapshot:
         """Return schema text for prompt / chart context.
 
-        ``resource_names`` optionally restricts to a subset of tables/endpoints
-        (e.g. those already selected by the query plan). Protocol-specific.
+        ``embedding`` is a **mechanism** default (True). Chat graphs/steps must
+        not pass it — table ranking is gated by ``settings.TABLE_EMBEDDING_ENABLED``
+        inside CRUD. ``resource_names`` optionally restricts to a subset of
+        tables/endpoints (e.g. those already selected by the query plan).
+        Assistant out-DS ignores embedding (no table vector rank).
         """
         ...
 
@@ -224,7 +227,7 @@ class BaseProtocol(ABC):
         return plan.statement or ""
 
     def build_chart_system_prompt(self, chat_question: Any) -> Dict[str, str]:
-        """Return chart prompt pieces for ``init_messages()``.
+        """Return chart prompt pieces for message construction (graph chart node).
 
         Keys: ``system``, ``rules``, ``ack``.  Default implementation uses the
         SQL-centric ``template.chart`` section — REST overrides to

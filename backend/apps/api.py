@@ -1,5 +1,10 @@
 from fastapi import APIRouter
 
+# Register conversation graphs before routes so any entry (chat, MCP, …) can
+# submit_graph without relying on router import side effects alone.
+import apps.chat.graphs  # noqa: F401
+import apps.config_assistant  # noqa: F401
+
 from apps.chat.api import chat
 from apps.dashboard.api import dashboard_api
 from apps.data_training.api import data_training

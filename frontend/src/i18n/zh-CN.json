@@ -295,6 +295,10 @@
     "quick_question": "快捷提问",
     "new_chat": "新建对话",
     "start_sqlbot": "开启问数",
+    "config_assistant": "配置助手",
+    "new_config_chat": "新建配置对话",
+    "config_badge": "配置",
+    "config_assistant_hint": "可以用自然语言描述数据源、表、字段等配置变更，我会调用系统元数据接口完成修改。",
     "title": "智能问数",
     "placeholder": "请输入您的问题",
     "ask": "提问",
@@ -891,7 +895,9 @@
       "FILTER_QUERY_EXAMPLE": "匹配查询示例",
       "FILTER_CUSTOM_PROMPT": "匹配自定义提示词",
       "EXECUTE_QUERY": "执行查询",
-      "GENERATE_PICTURE": "生成图片"
+      "GENERATE_PICTURE": "生成图片",
+      "TOOL_CALL": "工具调用",
+      "CONFIG_AGENT": "配置助手推理"
     },
     "log_system": "对话模板",
     "log_question": "本次提问",

@@ -4,6 +4,7 @@ import { chatApi, ChatInfo, type ChatMessage, ChatRecord } from '@/api/chat.ts'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import MdComponent from '@/views/chat/component/MdComponent.vue'
 import ChartBlock from '@/views/chat/chat-block/ChartBlock.vue'
+import { useChatStream, type ChatStreamEvent } from '@/hooks/useChatStream'
 
 const props = withDefaults(
   defineProps<{
@@ -81,9 +82,8 @@ const _loading = computed({
   },
 })
 
-const stopFlag = ref(false)
+const stream = useChatStream()
 const sendMessage = async () => {
-  stopFlag.value = false
   _loading.value = true
 
   if (index.value < 0) {
@@ -93,110 +93,67 @@ const sendMessage = async () => {
 
   const currentRecord: ChatRecord = _currentChat.value.records[index.value]
 
-  let error: boolean = false
   if (_currentChatId.value === undefined || currentRecord.predict_record_id === undefined) {
-    error = true
+    return
   }
-  if (error) return
+
+  let predict_answer = ''
+  let predict_content = ''
 
   try {
-    const controller: AbortController = new AbortController()
-    const response = await chatApi.predict(currentRecord.predict_record_id, controller)
-    const reader = response.body.getReader()
-    const decoder = new TextDecoder('utf-8')
-
-    let predict_answer = ''
-    let predict_content = ''
-
-    let tempResult = ''
-
-    while (true) {
-      if (stopFlag.value) {
-        controller.abort()
-        _loading.value = false
-        break
-      }
-
-      const { done, value } = await reader.read()
-      if (done) {
-        _loading.value = false
-        break
-      }
-
-      let chunk = decoder.decode(value, { stream: true })
-      tempResult += chunk
-      const split = tempResult.match(/data:.*}\n\n/g)
-      if (split) {
-        chunk = split.join('')
-        tempResult = tempResult.replace(chunk, '')
-      } else {
-        continue
-      }
-      if (chunk && chunk.startsWith('data:{')) {
-        if (split) {
-          for (const str of split) {
-            let data
-            try {
-              data = JSON.parse(str.replace('data:{', '{'))
-            } catch (err) {
-              console.error('JSON string:', str)
-              throw err
-            }
-
-            if (data.code && data.code !== 200) {
-              ElMessage({
-                message: data.msg,
-                type: 'error',
-                showClose: true,
-              })
-              return
-            }
-
-            switch (data.type) {
-              case 'id':
-                currentRecord.id = data.id
-                _currentChat.value.records[index.value].id = data.id
-                break
-              case 'info':
-                console.info(data.msg)
-                break
-              case 'error':
-                currentRecord.error = data.content
-                emits('error', currentRecord.id)
-                break
-              case 'predict-result':
-                predict_answer += data.reasoning_content
-                predict_content += data.content
-                _currentChat.value.records[index.value].predict = predict_answer
-                _currentChat.value.records[index.value].predict_content = predict_content
-                break
-              case 'predict-failed':
-                emits('error', currentRecord.id)
-                break
-              case 'predict-success':
-                //currentChat.value.records[_index].predict_data = data.content
-                getChatPredictData(_currentChat.value.records[index.value].id)
-                emits('finish', currentRecord.id)
-                break
-              case 'predict_finish':
-                _loading.value = false
-                break
-            }
-            await nextTick()
+    stream.createController()
+    await stream.run(
+      (controller) =>
+        chatApi.predict(currentRecord.predict_record_id, controller) as Promise<Response>,
+      {
+        onEvent: async (data: ChatStreamEvent) => {
+          switch (data.type) {
+            case 'id':
+              currentRecord.id = data.id
+              _currentChat.value.records[index.value].id = data.id
+              break
+            case 'info':
+              console.info(data.msg)
+              break
+            case 'error':
+              currentRecord.error = data.content
+              emits('error', currentRecord.id)
+              break
+            case 'predict-result':
+              predict_answer += data.reasoning_content
+              predict_content += data.content
+              _currentChat.value.records[index.value].predict = predict_answer
+              _currentChat.value.records[index.value].predict_content = predict_content
+              break
+            case 'predict-failed':
+              emits('error', currentRecord.id)
+              break
+            case 'predict-success':
+              getChatPredictData(_currentChat.value.records[index.value].id)
+              emits('finish', currentRecord.id)
+              break
+            case 'predict_finish':
+              _loading.value = false
+              break
           }
-        }
+          await nextTick()
+        },
+        onTransportError: (error) => {
+          if (!currentRecord.error) {
+            currentRecord.error = ''
+          }
+          if (currentRecord.error.trim().length !== 0) {
+            currentRecord.error = currentRecord.error + '\n'
+          }
+          currentRecord.error = currentRecord.error + 'Error:' + error
+          console.error('Error:', error)
+          emits('error')
+        },
+        onDone: () => {
+          _loading.value = false
+        },
       }
-    }
-  } catch (error) {
-    if (!currentRecord.error) {
-      currentRecord.error = ''
-    }
-    if (currentRecord.error.trim().length !== 0) {
-      currentRecord.error = currentRecord.error + '\n'
-    }
-    currentRecord.error = currentRecord.error + 'Error:' + error
-    console.error('Error:', error)
-    emits('error')
+    )
   } finally {
     _loading.value = false
   }
@@ -252,7 +209,7 @@ function getChatData(recordId?: number) {
 }
 
 function stop() {
-  stopFlag.value = true
+  stream.stop()
   _loading.value = false
   emits('stop')
 }

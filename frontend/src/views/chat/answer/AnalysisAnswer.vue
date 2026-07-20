@@ -3,6 +3,7 @@ import BaseAnswer from './BaseAnswer.vue'
 import { chatApi, ChatInfo, type ChatMessage, ChatRecord } from '@/api/chat.ts'
 import { computed, nextTick, onBeforeUnmount, ref } from 'vue'
 import MdComponent from '@/views/chat/component/MdComponent.vue'
+import { useChatStream, type ChatStreamEvent } from '@/hooks/useChatStream'
 const props = withDefaults(
   defineProps<{
     chatList?: Array<ChatInfo>
@@ -76,9 +77,8 @@ const _loading = computed({
   },
 })
 
-const stopFlag = ref(false)
+const stream = useChatStream()
 const sendMessage = async () => {
-  stopFlag.value = false
   _loading.value = true
 
   if (index.value < 0) {
@@ -88,109 +88,66 @@ const sendMessage = async () => {
 
   const currentRecord: ChatRecord = _currentChat.value.records[index.value]
 
-  let error: boolean = false
   if (_currentChatId.value === undefined || currentRecord.analysis_record_id === undefined) {
-    error = true
+    return
   }
-  if (error) return
+
+  let analysis_answer = ''
+  let analysis_answer_thinking = ''
 
   try {
-    const controller: AbortController = new AbortController()
-    const response = await chatApi.analysis(currentRecord.analysis_record_id, controller)
-    const reader = response.body.getReader()
-    const decoder = new TextDecoder('utf-8')
-
-    let analysis_answer = ''
-    let analysis_answer_thinking = ''
-
-    let tempResult = ''
-
-    while (true) {
-      if (stopFlag.value) {
-        controller.abort()
-        _loading.value = false
-        break
-      }
-
-      const { done, value } = await reader.read()
-      if (done) {
-        _loading.value = false
-        break
-      }
-
-      let chunk = decoder.decode(value, { stream: true })
-      tempResult += chunk
-      const split = tempResult.match(/data:.*}\n\n/g)
-      if (split) {
-        chunk = split.join('')
-        tempResult = tempResult.replace(chunk, '')
-      } else {
-        continue
-      }
-      if (chunk && chunk.startsWith('data:{')) {
-        if (split) {
-          for (const str of split) {
-            let data
-            try {
-              data = JSON.parse(str.replace('data:{', '{'))
-            } catch (err) {
-              console.error('JSON string:', str)
-              throw err
-            }
-
-            if (data.code && data.code !== 200) {
-              ElMessage({
-                message: data.msg,
-                type: 'error',
-                showClose: true,
-              })
-              _loading.value = false
-              return
-            }
-
-            switch (data.type) {
-              case 'id':
-                currentRecord.id = data.id
-                _currentChat.value.records[index.value].id = data.id
-                break
-              case 'info':
-                console.info(data.msg)
-                break
-              case 'error':
-                currentRecord.error = data.content
-                emits('error', currentRecord.id)
-                break
-              case 'analysis-result':
-                analysis_answer += data.content
-                analysis_answer_thinking += data.reasoning_content
-                _currentChat.value.records[index.value].analysis = analysis_answer
-                _currentChat.value.records[index.value].analysis_thinking = analysis_answer_thinking
-                break
-              case 'analysis_finish':
-                emits('finish', currentRecord.id)
-                break
-            }
-            await nextTick()
+    stream.createController()
+    await stream.run(
+      (controller) =>
+        chatApi.analysis(currentRecord.analysis_record_id, controller) as Promise<Response>,
+      {
+        onEvent: async (data: ChatStreamEvent) => {
+          switch (data.type) {
+            case 'id':
+              currentRecord.id = data.id
+              _currentChat.value.records[index.value].id = data.id
+              break
+            case 'info':
+              console.info(data.msg)
+              break
+            case 'error':
+              currentRecord.error = data.content
+              emits('error', currentRecord.id)
+              break
+            case 'analysis-result':
+              analysis_answer += data.content
+              analysis_answer_thinking += data.reasoning_content
+              _currentChat.value.records[index.value].analysis = analysis_answer
+              _currentChat.value.records[index.value].analysis_thinking = analysis_answer_thinking
+              break
+            case 'analysis_finish':
+              emits('finish', currentRecord.id)
+              break
           }
-        }
+          await nextTick()
+        },
+        onTransportError: (error) => {
+          if (!currentRecord.error) {
+            currentRecord.error = ''
+          }
+          if (currentRecord.error.trim().length !== 0) {
+            currentRecord.error = currentRecord.error + '\n'
+          }
+          currentRecord.error = currentRecord.error + 'Error:' + error
+          console.error('Error:', error)
+          emits('error')
+        },
+        onDone: () => {
+          _loading.value = false
+        },
       }
-    }
-  } catch (error) {
-    if (!currentRecord.error) {
-      currentRecord.error = ''
-    }
-    if (currentRecord.error.trim().length !== 0) {
-      currentRecord.error = currentRecord.error + '\n'
-    }
-    currentRecord.error = currentRecord.error + 'Error:' + error
-    console.error('Error:', error)
-    emits('error')
+    )
   } finally {
     _loading.value = false
   }
 }
 function stop() {
-  stopFlag.value = true
+  stream.stop()
   _loading.value = false
   emits('stop')
 }

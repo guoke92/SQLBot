@@ -295,6 +295,10 @@
     "quick_question": "快捷提問",
     "new_chat": "新建對話",
     "start_sqlbot": "開啟問數",
+    "config_assistant": "配置助手",
+    "new_config_chat": "新建配置對話",
+    "config_badge": "配置",
+    "config_assistant_hint": "可以用自然語言描述資料來源、表、欄位等配置變更，我會呼叫系統中繼資料介面完成修改。",
     "title": "智慧問數",
     "placeholder": "請輸入您的問題",
     "ask": "提問",
@@ -891,7 +895,9 @@
       "FILTER_QUERY_EXAMPLE": "匹配查詢範例",
       "FILTER_CUSTOM_PROMPT": "匹配自訂提示詞",
       "EXECUTE_QUERY": "執行查詢",
-      "GENERATE_PICTURE": "產生圖片"
+      "GENERATE_PICTURE": "產生圖片",
+      "TOOL_CALL": "工具呼叫",
+      "CONFIG_AGENT": "配置助手推理"
     },
     "log_system": "對話範本",
     "log_question": "本次提問",

@@ -3,6 +3,7 @@ import { computed, nextTick, onBeforeUnmount, ref } from 'vue'
 import { endsWith, startsWith } from 'lodash-es'
 import { useI18n } from 'vue-i18n'
 import { chatApi, ChatInfo } from '@/api/chat.ts'
+import { useChatStream, type ChatStreamEvent } from '@/hooks/useChatStream'
 
 const props = withDefaults(
   defineProps<{
@@ -65,85 +66,43 @@ function clickQuestion(question: string): void {
   }
 }
 
-const stopFlag = ref(false)
+const stream = useChatStream()
 
 async function getRecommendQuestions(articles_number: number) {
-  stopFlag.value = false
   loading.value = true
   try {
-    const controller: AbortController = new AbortController()
+    stream.createController()
     const params = articles_number ? '?articles_number=' + articles_number : ''
-    const response = await chatApi.recommendQuestions(props.recordId, controller, params)
-    const reader = response.body.getReader()
-    const decoder = new TextDecoder('utf-8')
-
-    let tempResult = ''
-
-    while (true) {
-      if (stopFlag.value) {
-        controller.abort()
-        loading.value = false
-        break
-      }
-
-      const { done, value } = await reader.read()
-      if (done) {
-        break
-      }
-
-      let chunk = decoder.decode(value, { stream: true })
-      tempResult += chunk
-      const split = tempResult.match(/data:.*}\n\n/g)
-      if (split) {
-        chunk = split.join('')
-        tempResult = tempResult.replace(chunk, '')
-      } else {
-        continue
-      }
-
-      if (chunk && chunk.startsWith('data:{')) {
-        if (split) {
-          for (const str of split) {
-            let data
-            try {
-              data = JSON.parse(str.replace('data:{', '{'))
-            } catch (err) {
-              console.error('JSON string:', str)
-              throw err
-            }
-
-            if (data.code && data.code !== 200) {
-              ElMessage({
-                message: data.msg,
-                type: 'error',
-                showClose: true,
-              })
-              return
-            }
-
-            switch (data.type) {
-              case 'recommended_question':
-                if (
-                  data.content &&
-                  data.content.length > 0 &&
-                  startsWith(data.content.trim(), '[') &&
-                  endsWith(data.content.trim(), ']')
-                ) {
-                  if (_currentChat.value?.records) {
-                    for (let record of _currentChat.value.records) {
-                      if (record.id === props.recordId) {
-                        record.recommended_question = data.content
-
-                        await nextTick()
-                      }
+    await stream.run(
+      (controller) =>
+        chatApi.recommendQuestions(props.recordId, controller, params) as Promise<Response>,
+      {
+        onEvent: async (data: ChatStreamEvent) => {
+          switch (data.type) {
+            case 'recommended_question':
+              if (
+                data.content &&
+                data.content.length > 0 &&
+                startsWith(data.content.trim(), '[') &&
+                endsWith(data.content.trim(), ']')
+              ) {
+                if (_currentChat.value?.records) {
+                  for (let record of _currentChat.value.records) {
+                    if (record.id === props.recordId) {
+                      record.recommended_question = data.content
+                      await nextTick()
                     }
                   }
                 }
-            }
+              }
           }
-        }
+        },
+        onDone: () => {
+          loading.value = false
+          emits('loadingOver')
+        },
       }
-    }
+    )
   } finally {
     loading.value = false
     emits('loadingOver')
@@ -151,7 +110,7 @@ async function getRecommendQuestions(articles_number: number) {
 }
 
 function stop() {
-  stopFlag.value = true
+  stream.stop()
   loading.value = false
   emits('stop')
 }

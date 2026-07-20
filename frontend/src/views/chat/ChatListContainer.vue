@@ -112,6 +112,7 @@ function onChatCreated(chat: ChatInfo) {
 }
 
 const chatCreatorRef = ref()
+const configCreating = ref(false)
 
 function goEmpty(func?: (...p: any[]) => void, ...params: any[]) {
   _currentChat.value = new ChatInfo()
@@ -119,9 +120,10 @@ function goEmpty(func?: (...p: any[]) => void, ...params: any[]) {
   emits('goEmpty', func, ...params)
 }
 
-const createNewChat = async () => {
+async function ensureDefaultModel() {
   try {
     await chatApi.checkLLMModel()
+    return true
   } catch (error: any) {
     console.error(error)
     let errorMsg = t('model.default_miss')
@@ -145,6 +147,12 @@ const createNewChat = async () => {
         }
       },
     })
+    return false
+  }
+}
+
+const createNewChat = async () => {
+  if (!(await ensureDefaultModel())) {
     return
   }
   goEmpty(doCreateNewChat)
@@ -155,6 +163,33 @@ async function doCreateNewChat() {
     return
   }
   chatCreatorRef.value?.showDs()
+}
+
+/** Product entry for config_assistant: no DS picker, chat_type=config. */
+const createConfigChat = async () => {
+  if (!(await ensureDefaultModel())) {
+    return
+  }
+  goEmpty(doCreateConfigChat)
+}
+
+async function doCreateConfigChat() {
+  if (configCreating.value) {
+    return
+  }
+  configCreating.value = true
+  try {
+    const res = await chatApi.startChat({ chat_type: 'config' })
+    const chat = chatApi.toChatInfo(res)
+    if (!chat) {
+      throw Error('chat is undefined')
+    }
+    onChatCreated(chat)
+  } catch (e) {
+    console.error(e)
+  } finally {
+    configCreating.value = false
+  }
 }
 
 function onClickHistory(chat: Chat) {
@@ -178,8 +213,6 @@ function goHistory(chat: Chat) {
           const info = chatApi.toChatInfo(res)
           if (info && info.id === _currentChatId.value) {
             _currentChat.value = info
-
-            // scrollToBottom()
             emits('onClickHistory', info)
           }
         })
@@ -230,12 +263,22 @@ function onChatRenamed(chat: Chat) {
           </el-icon>
         </el-button>
       </div>
-      <el-button class="btn" type="primary" @click="createNewChat">
-        <el-icon style="margin-right: 6px">
-          <icon_new_chat_outlined />
-        </el-icon>
-        {{ t('qa.new_chat') }}
-      </el-button>
+      <div class="new-chat-actions">
+        <el-button class="btn" type="primary" @click="createNewChat">
+          <el-icon style="margin-right: 6px">
+            <icon_new_chat_outlined />
+          </el-icon>
+          {{ t('qa.new_chat') }}
+        </el-button>
+        <el-button
+          v-if="isCompletePage"
+          class="btn btn-config"
+          :loading="configCreating"
+          @click="createConfigChat"
+        >
+          {{ t('qa.new_config_chat') }}
+        </el-button>
+      </div>
       <el-input
         v-model="search"
         :prefix-icon="Search"
@@ -289,10 +332,10 @@ function onChatRenamed(chat: Chat) {
 
   .chat-list-header {
     --ed-header-padding: 16px;
-    --ed-header-height: calc(16px + 24px + 16px + 40px + 16px + 32px + 16px);
+    --ed-header-height: calc(16px + 24px + 16px + 40px + 8px + 40px + 16px + 32px + 16px);
 
     &.in-popover {
-      --ed-header-height: calc(16px + 40px + 16px + 32px + 16px);
+      --ed-header-height: calc(16px + 40px + 8px + 40px + 16px + 32px + 16px);
     }
 
     display: flex;
@@ -312,9 +355,17 @@ function onChatRenamed(chat: Chat) {
       font-weight: 500;
     }
 
+    .new-chat-actions {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
     .btn {
       width: 100%;
       height: 40px;
+      margin: 0;
 
       font-size: 16px;
       font-weight: 500;
@@ -327,6 +378,19 @@ function onChatRenamed(chat: Chat) {
       --ed-button-hover-border-color: var(--ed-color-primary, rgba(28, 186, 144, 1));
       --ed-button-active-bg-color: var(--ed-color-primary-60, #a4e3d3);
       --ed-button-active-border-color: var(--ed-color-primary, rgba(28, 186, 144, 1));
+    }
+
+    .btn-config {
+      font-size: 14px;
+      font-weight: 500;
+      --ed-button-text-color: var(--ed-text-color-primary, #1f2329);
+      --ed-button-bg-color: #fff;
+      --ed-button-border-color: var(--ed-border-color, #dee0e3);
+      --ed-button-hover-bg-color: rgba(31, 35, 41, 0.05);
+      --ed-button-hover-text-color: var(--ed-text-color-primary, #1f2329);
+      --ed-button-hover-border-color: var(--ed-border-color-darker, #bbbfc4);
+      --ed-button-active-bg-color: rgba(31, 35, 41, 0.1);
+      --ed-button-active-border-color: var(--ed-border-color-darker, #bbbfc4);
     }
 
     .search {

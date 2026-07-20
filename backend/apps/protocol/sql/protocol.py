@@ -112,9 +112,11 @@ class SqlProtocol(BaseProtocol):
         table_list = list(resource_names) if resource_names is not None else None
 
         if out_ds_instance is not None:
+            # Out-DS does not run table vector ranking (assistant get_db_schema
+            # embedding path is intentionally inactive). resource filter only.
             if table_list is not None:
                 schema_text, names = out_ds_instance.get_db_schema(
-                    ds.id, question, embedding=embedding, table_list=table_list
+                    ds.id, question, table_list=table_list
                 )
             else:
                 schema_text, names = out_ds_instance.get_db_schema(ds.id, question)
