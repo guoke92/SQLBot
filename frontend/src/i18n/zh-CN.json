@@ -908,7 +908,9 @@
     "find_custom_prompt_title": "匹配到 {0} 个自定义提示词",
     "query_count_title": "查询到 {0} 条数据",
     "generate_picture_success": "已生成图片",
-    "show_request": "查看请求"
+    "show_request": "查看请求",
+    "collapse_sql": "收起查询",
+    "summary": "综合分析"
   },
   "about": {
     "title": "关于",

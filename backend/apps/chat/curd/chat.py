@@ -188,7 +188,32 @@ def get_last_execute_sql_error(session: SessionDep, chart_id: int):
     return None
 
 
+def unwrap_chart_data_payload(origin_data: Optional[dict], step_index: int = 0) -> dict:
+    """Normalize stored ChatRecord.data to a single chart data object.
+
+    Multi-step agentic payload::
+        {"steps": [{"sql", "chart", "data": {...}}, ...], "analysis": "..."}
+
+    Legacy single payload::
+        {"fields": [...], "data": [...], ...}
+    """
+    if not origin_data or not isinstance(origin_data, dict):
+        return {}
+    if "steps" in origin_data and isinstance(origin_data.get("steps"), list):
+        steps = origin_data.get("steps") or []
+        if not steps:
+            return {}
+        idx = step_index if 0 <= step_index < len(steps) else 0
+        step = steps[idx] or {}
+        data_obj = step.get("data") if isinstance(step, dict) else None
+        if isinstance(data_obj, dict):
+            return data_obj
+        return {}
+    return origin_data
+
+
 def format_json_data(origin_data: dict):
+    origin_data = unwrap_chart_data_payload(origin_data) if isinstance(origin_data, dict) else {}
     result = {'fields': origin_data.get('fields') if origin_data.get('fields') else [],
               'fields_info': origin_data.get('fields_info') if origin_data.get('fields_info') else None}
     _list = origin_data.get('data') if origin_data.get('data') else []
@@ -300,12 +325,18 @@ def get_chart_data_ds(session: SessionDep, ds_id, sql, re_exec_json: Optional[st
     return json_result
 
 
-def get_chat_chart_data(session: SessionDep, chat_record_id: int):
+def get_chat_chart_data(session: SessionDep, chat_record_id: int, step_index: int = 0):
+    """Return chart rows for a record.
+
+    For multi-step payloads, returns ``steps[step_index].data`` (default first step)
+    so analysis / predict / legacy single-chart consumers keep working.
+    """
     stmt = select(ChatRecord.data).where(and_(ChatRecord.id == chat_record_id))
     res = session.execute(stmt)
     for row in res:
         try:
-            return orjson.loads(row.data)
+            raw = orjson.loads(row.data)
+            return unwrap_chart_data_payload(raw, step_index=step_index)
         except Exception:
             pass
     return {}

@@ -46,6 +46,8 @@ const sqlDrawerTitle = computed(() => {
 const props = withDefaults(
   defineProps<{
     recordId?: number
+    /** Unique chart DOM instance suffix. Required when multiple charts share one record id. */
+    instanceId?: string | number
     message: ChatMessage
     isPredict?: boolean
     chatType?: ChartTypes
@@ -56,6 +58,7 @@ const props = withDefaults(
   }>(),
   {
     recordId: undefined,
+    instanceId: undefined,
     isPredict: false,
     chatType: undefined,
     enlarge: false,
@@ -93,7 +96,17 @@ const isCompletePage = computed(() => !assistantStore.getAssistant || assistantS
 
 const isAssistant = computed(() => assistantStore.getAssistant)
 
-const chartId = computed(() => props.message?.record?.id + (props.enlarge ? '-fullscreen' : ''))
+// Multi-step answers share one ChatRecord.id across N charts. DOM id / S2 mount
+// must stay unique or later charts clobber / fail to paint.
+const chartId = computed(() => {
+  const base = props.message?.record?.id ?? props.recordId ?? 'chart'
+  const inst =
+    props.instanceId !== undefined && props.instanceId !== null && `${props.instanceId}` !== ''
+      ? `-s${props.instanceId}`
+      : ''
+  const full = props.enlarge ? '-fullscreen' : ''
+  return `${base}${inst}${full}`
+})
 
 const data = computed(() => {
   if (props.isPredict) {

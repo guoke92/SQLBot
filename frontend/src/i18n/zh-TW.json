@@ -908,7 +908,9 @@
     "find_custom_prompt_title": "匹配到 {0} 個自訂提示詞",
     "query_count_title": "查詢到 {0} 筆資料",
     "generate_picture_success": "已產生圖片",
-    "show_request": "檢視請求"
+    "show_request": "檢視請求",
+    "collapse_sql": "收起查詢",
+    "summary": "綜合分析"
   },
   "about": {
     "title": "關於",

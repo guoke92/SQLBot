@@ -2,9 +2,9 @@ version: 1
 graph_key: chat
 state: apps.chat.graphs.nodes.nlq.NlqState
 description: >
-  Primary NLQ graph (graph_key=chat, replacing former nlq).
-  prepare_record → ensure_datasource → match_* → build_context → generate_sql
-  → early_finish | execute → data_finish | generate_chart → complete
+  Agentic batch loop: LLM plans N queries → concurrent execution → charts →
+  LLM decides continue/summarize/finish. Max 3 iterations, 5 queries per batch.
+  Respects ChatFinishStep for MCP early stop (query-only / data-only).
 
 nodes:
   prepare_record: apps.chat.graphs.nodes.nlq.prepare_record_node
@@ -13,11 +13,12 @@ nodes:
   match_training: apps.chat.graphs.nodes.nlq.match_training_node
   match_custom_prompts: apps.chat.graphs.nodes.nlq.match_custom_prompts_node
   build_context: apps.chat.graphs.nodes.nlq.build_context_node
-  generate_sql: apps.chat.graphs.nodes.nlq.generate_sql_node
-  early_finish: apps.chat.graphs.nodes.nlq.early_finish_node
-  execute: apps.chat.graphs.nodes.nlq.execute_node
-  data_finish: apps.chat.graphs.nodes.nlq.data_finish_node
-  generate_chart: apps.chat.graphs.nodes.nlq.generate_chart_node
+  ground_entities: apps.chat.graphs.nodes.nlq.ground_entities_node
+  generate_queries: apps.chat.graphs.nodes.nlq.generate_queries_node
+  execute_queries: apps.chat.graphs.nodes.nlq.execute_queries_node
+  generate_charts: apps.chat.graphs.nodes.nlq.generate_charts_node
+  decide_next: apps.chat.graphs.nodes.nlq.decide_next_node
+  summarize: apps.chat.graphs.nodes.nlq.summarize_node
   complete: apps.chat.graphs.nodes.nlq.complete_node
   fail: apps.chat.graphs.nodes.nlq.fail_node
 
@@ -68,42 +69,55 @@ edges:
   - from: build_context
     router:
       type: ok_or_fail
-      next: generate_sql
+      next: ground_entities
     paths:
-      generate_sql: generate_sql
+      ground_entities: ground_entities
       fail: fail
 
-  - from: generate_sql
-    router: apps.chat.graphs.nodes.nlq.route_after_sql
+  - from: ground_entities
+    router:
+      type: ok_or_fail
+      next: generate_queries
     paths:
-      early_finish: early_finish
-      execute: execute
+      generate_queries: generate_queries
       fail: fail
 
-  - from: early_finish
-    to: END
-
-  - from: execute
-    router: apps.chat.graphs.nodes.nlq.route_after_execute
+  - from: generate_queries
+    router: apps.chat.graphs.nodes.nlq.route_after_queries
     paths:
-      data_finish: data_finish
-      generate_chart: generate_chart
-      fail: fail
-
-  - from: data_finish
-    to: END
-
-  - from: generate_chart
-    router: apps.chat.graphs.nodes.nlq.route_after_chart
-    paths:
+      execute_queries: execute_queries
       complete: complete
       fail: fail
 
-  - from: complete
-    router: apps.chat.graphs.nodes.nlq.route_after_complete
+  - from: execute_queries
+    router: apps.chat.graphs.nodes.nlq.route_after_execute
     paths:
-      __end__: END
+      generate_charts: generate_charts
+      complete: complete
       fail: fail
+
+  - from: generate_charts
+    router:
+      type: ok_or_fail
+      next: decide_next
+    paths:
+      decide_next: decide_next
+      fail: fail
+
+  # ── Agentic Loop ──
+  - from: decide_next
+    router: apps.chat.graphs.nodes.nlq.route_after_decision
+    paths:
+      generate_queries: generate_queries
+      summarize: summarize
+      complete: complete
+      fail: fail
+
+  - from: summarize
+    to: complete
+
+  - from: complete
+    to: END
 
   - from: fail
     to: END

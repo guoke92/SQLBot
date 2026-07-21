@@ -27,7 +27,7 @@ export type ChatStreamHandlers = {
 }
 
 export type UseChatStreamOptions = {
-  /** Use json-bigint parse (ChartAnswer sql-data paths). Default JSON.parse. */
+  /** Use json-bigint parse (chart data SSE/REST paths). Default JSON.parse. */
   bigInt?: boolean
 }
 

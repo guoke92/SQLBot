@@ -908,7 +908,9 @@
     "find_custom_prompt_title": "Matched {0} custom prompts",
     "query_count_title": "Found {0} data entries",
     "generate_picture_success": "Image generated",
-    "show_request": "View Request"
+    "show_request": "View Request",
+    "collapse_sql": "Hide Query",
+    "summary": "Summary"
   },
   "about": {
     "title": "About",

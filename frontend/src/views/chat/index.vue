@@ -252,7 +252,7 @@
                   </ConfigAnswer>
                   <!-- NLQ primary + follow-ups -->
                   <template v-else>
-                    <ChartAnswer
+                    <MultiStepAnswer
                       v-if="
                         (message?.record?.analysis_record_id === undefined ||
                           message?.record?.analysis_record_id === null) &&
@@ -266,10 +266,9 @@
                       :record-id="message.record?.id"
                       :loading="isTyping"
                       :message="message"
-                      :reasoning-name="['sql_answer', 'chart_answer']"
                       @scroll-bottom="maybeScrollToBottom"
-                      @finish="onChartAnswerFinish"
-                      @error="onChartAnswerError"
+                      @finish="onPrimaryAnswerFinish"
+                      @error="onPrimaryAnswerError"
                       @stop="onChatStop"
                     >
                       <ErrorInfo :error="message.record?.error" class="error-container" />
@@ -351,7 +350,7 @@
                           @stop="onChatStop"
                         />
                       </template>
-                    </ChartAnswer>
+                    </MultiStepAnswer>
                     <AnalysisAnswer
                       v-if="
                         message?.record?.analysis_record_id !== undefined &&
@@ -501,7 +500,7 @@
 import { computed, nextTick, onMounted, ref } from 'vue'
 import { Chat, chatApi, ChatInfo, type ChatMessage, ChatRecord } from '@/api/chat'
 import ChatRow from './ChatRow.vue'
-import ChartAnswer from './answer/ChartAnswer.vue'
+import MultiStepAnswer from './answer/MultiStepAnswer.vue'
 import AnalysisAnswer from './answer/AnalysisAnswer.vue'
 import PredictAnswer from './answer/PredictAnswer.vue'
 import ConfigAnswer from './answer/ConfigAnswer.vue'
@@ -786,7 +785,7 @@ function onConfigAnswerError(id: number) {
   }
 }
 const getRecommendQuestionsLoading = ref(false)
-async function onChartAnswerFinish(id: number) {
+async function onPrimaryAnswerFinish(id: number) {
   getRecommendQuestionsLoading.value = true
   loading.value = false
   isTyping.value = false
@@ -800,7 +799,7 @@ const loadingOver = () => {
   maybeScrollToBottom()
 }
 
-function onChartAnswerError(id: number) {
+function onPrimaryAnswerError(id: number) {
   loading.value = false
   isTyping.value = false
   getRecordUsage(id)

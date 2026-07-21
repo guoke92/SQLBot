@@ -908,7 +908,9 @@
     "find_custom_prompt_title": "{0}개의 사용자 정의 프롬프트 매칭됨",
     "query_count_title": "{0}개의 데이터 항목 발견됨",
     "generate_picture_success": "이미지가 생성되었습니다",
-    "show_request": "요청 보기"
+    "show_request": "요청 보기",
+    "collapse_sql": "쿼리 숨기기",
+    "summary": "종합 분석"
   },
   "about": {
     "title": "정보",

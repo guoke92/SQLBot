@@ -234,8 +234,15 @@ class SqlProtocol(BaseProtocol):
         )
 
     def validate_plan(self, ds: Any, plan: QueryPlan, allowed_resources: Sequence[str]) -> QueryPlan:
+        """Safety + table allow-list + physical-column catalog check.
+
+        Column validation uses CoreField (same catalog as schema prompts).
+        Only **physical** table columns are checked. SELECT aliases referenced
+        again in GROUP BY / ORDER BY / HAVING (e.g. ``AS month`` then
+        ``GROUP BY month``) are not table columns and must not be rejected.
+        """
         from apps.protocol.registry import get_spec
-        from apps.db.db import check_sql_read, get_sqlglot_dialect
+        from apps.db.db import check_sql_read
         import sqlglot as _sg
         from sqlglot import exp as _exp
 
@@ -245,19 +252,68 @@ class SqlProtocol(BaseProtocol):
 
         is_safe, reason = check_sql_read(sql, ds)
         if not is_safe:
-            return QueryPlan(success=False, message=f"SQL safety check failed: {reason}", statement=sql, payload=plan.payload)
+            return QueryPlan(
+                success=False,
+                message=f"SQL safety check failed: {reason}",
+                statement=sql,
+                payload=plan.payload,
+            )
 
-        # Table name allow-list check
         spec = get_spec(self.type_key)
         dialect = spec.sqlglot_dialect
         actual_tables: set = set()
+        alias_to_table: dict = {}
+        select_aliases: set = set()
+        # Physical column refs only: (table_or_alias|None, column_name)
+        physical_cols: list = []
+
+        def _norm(name) -> str:
+            if not name:
+                return ""
+            return str(name).replace("`", "").replace('"', "").strip()
+
+        def _add_select_alias(expr: _exp.Expression) -> None:
+            # SELECT a AS b  /  SELECT a b  /  SELECT COUNT(*) AS c
+            alias = expr.alias
+            if alias:
+                select_aliases.add(_norm(alias))
+                return
+            # bare column projection creates an implicit alias = column name,
+            # but that name is still a physical column when table-qualified.
+            if isinstance(expr, _exp.Column) and expr.name:
+                select_aliases.add(_norm(expr.name))
+
         try:
             statements = _sg.parse(sql, dialect=dialect)
             for stmt in statements:
-                if stmt:
-                    for table in stmt.find_all(_exp.Table):
-                        if table.name:
-                            actual_tables.add(table.name)
+                if not stmt:
+                    continue
+                for table in stmt.find_all(_exp.Table):
+                    tname = table.name
+                    if not tname:
+                        continue
+                    actual_tables.add(tname)
+                    key = _norm(table.alias_or_name or tname)
+                    alias_to_table[key] = tname
+                    alias_to_table[_norm(tname)] = tname
+                    alias_to_table[tname] = tname
+
+                for sel in stmt.find_all(_exp.Select):
+                    for proj in sel.expressions:
+                        if proj is None:
+                            continue
+                        _add_select_alias(proj)
+
+                for col in stmt.find_all(_exp.Column):
+                    cname = col.name
+                    if not cname or cname == "*":
+                        continue
+                    tref = col.table  # alias or table, may be None
+                    # Unqualified name that matches a SELECT output alias:
+                    # e.g. GROUP BY month / ORDER BY task_count — skip.
+                    if not tref and _norm(cname) in select_aliases:
+                        continue
+                    physical_cols.append((tref or None, cname))
         except Exception:
             pass
 
@@ -267,10 +323,114 @@ class SqlProtocol(BaseProtocol):
             if unauthorized:
                 return QueryPlan(
                     success=False,
-                    message=f"SQL contains unauthorized tables: {', '.join(unauthorized)}. Allowed: {', '.join(allowed_set)}",
+                    message=(
+                        f"SQL contains unauthorized tables: "
+                        f"{', '.join(sorted(unauthorized))}. "
+                        f"Allowed: {', '.join(sorted(allowed_set))}"
+                    ),
                     statement=sql,
                     payload=plan.payload,
                 )
+
+        ds_id = getattr(ds, "id", None)
+        if not (ds_id and physical_cols and actual_tables):
+            return plan
+
+        try:
+            from sqlmodel import Session, select
+            from common.core.db import engine as _sqlbot_engine
+            from apps.datasource.models.datasource import CoreTable, CoreField
+
+            table_names = sorted(actual_tables)
+            with Session(_sqlbot_engine) as session:
+                tables = session.exec(
+                    select(CoreTable).where(
+                        CoreTable.ds_id == ds_id,
+                        CoreTable.table_name.in_(table_names),
+                    )
+                ).all()
+                catalog_tables = [t for t in tables if t.id is not None]
+                if not catalog_tables:
+                    return plan
+
+                fields = session.exec(
+                    select(CoreField).where(
+                        CoreField.table_id.in_([t.id for t in catalog_tables])
+                    )
+                ).all()
+                id_to_name = {t.id: t.table_name for t in catalog_tables}
+                fields_by_table: dict = {t.table_name: set() for t in catalog_tables}
+                orig_by_table: dict = {t.table_name: [] for t in catalog_tables}
+                for f in fields:
+                    tn = id_to_name.get(f.table_id)
+                    if not tn or not f.field_name:
+                        continue
+                    fields_by_table[tn].add(f.field_name)
+                    fields_by_table[tn].add(f.field_name.lower())
+                    orig_by_table[tn].append(f.field_name)
+
+                missing: list = []
+                for tref, cname in physical_cols:
+                    c_raw, c_l = cname, cname.lower()
+                    if tref:
+                        tkey = _norm(str(tref))
+                        physical = (
+                            alias_to_table.get(tkey)
+                            or alias_to_table.get(tkey.lower())
+                        )
+                        if not physical:
+                            continue  # CTE / subquery alias
+                        allowed_cols = fields_by_table.get(physical)
+                        if allowed_cols is None:
+                            continue  # table not in catalog
+                        if c_raw not in allowed_cols and c_l not in allowed_cols:
+                            missing.append(f"{physical}.{c_raw}")
+                    else:
+                        # Unqualified physical column (not a known select alias)
+                        if any(
+                            c_raw in cols or c_l in cols
+                            for cols in fields_by_table.values()
+                        ):
+                            continue
+                        # Only flag when every FROM table is catalogued —
+                        # otherwise too easy to false-positive.
+                        if len(fields_by_table) == len(actual_tables):
+                            missing.append(c_raw)
+
+                if missing:
+                    uniq: list = []
+                    seen: set = set()
+                    for m in missing:
+                        if m not in seen:
+                            seen.add(m)
+                            uniq.append(m)
+                    hints: list = []
+                    for m in uniq[:6]:
+                        if "." not in m:
+                            continue
+                        tn, _ = m.split(".", 1)
+                        orig = sorted(set(orig_by_table.get(tn) or []))
+                        if orig:
+                            hint = f"{tn}: {', '.join(orig[:12])}"
+                            if len(orig) > 12:
+                                hint += "…"
+                            hints.append(hint)
+                    msg = (
+                        "SQL references unknown column(s): "
+                        + ", ".join(uniq)
+                        + ". Use only columns from the provided schema "
+                        "(SELECT aliases in GROUP BY/ORDER BY are allowed)."
+                    )
+                    if hints:
+                        msg += " Catalog samples — " + " | ".join(hints)
+                    return QueryPlan(
+                        success=False,
+                        message=msg,
+                        statement=sql,
+                        payload=plan.payload,
+                    )
+        except Exception:
+            pass
 
         return plan
 

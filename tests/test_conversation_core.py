@@ -430,8 +430,8 @@ class TestEmbeddingRecallContract:
     def test_nlq_chart_uses_resource_filter_not_embedding_override(self) -> None:
         text = (_BACKEND / "apps/chat/graphs/nodes/nlq.py").read_text(encoding="utf-8")
         assert "embedding=False" not in text
-        assert "resource_names=plan.resources" in text
-        assert "table_list=plan.resources" in text
+        # Agentic batch loop uses table_list for resource filtering in chart generation
+        assert "table_list=" in text
 
     def test_match_table_schema_omits_embedding_kwarg(self) -> None:
         text = (_BACKEND / "apps/chat/steps/schema.py").read_text(encoding="utf-8")

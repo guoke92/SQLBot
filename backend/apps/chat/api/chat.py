@@ -79,8 +79,30 @@ async def chat_predict_data(session: SessionDep, chat_record_id: int):
 @router.get("/record/{chat_record_id}/data", summary=f"{PLACEHOLDER_PREFIX}get_chart_data")
 async def chat_record_data(session: SessionDep, current_user: CurrentUser, chat_record_id: int):
     def inner():
+        from apps.chat.curd.chat import unwrap_chart_data_payload
+
         data = get_chart_data_with_user(chat_record_id=chat_record_id, session=session, current_user=current_user)
-        return format_json_data(data)
+        # Agentic multi-step payload: {steps:[{sql,chart,data},...], analysis}
+        if isinstance(data, dict) and isinstance(data.get("steps"), list):
+            steps_out = []
+            for step in data.get("steps") or []:
+                if not isinstance(step, dict):
+                    continue
+                item = {
+                    "sql": step.get("sql") or "",
+                    "brief": step.get("brief") or "",
+                    "chart": step.get("chart"),
+                    "error": step.get("error"),
+                }
+                raw_data = step.get("data") if isinstance(step.get("data"), dict) else {}
+                item["data"] = format_json_data(raw_data) if raw_data else raw_data
+                steps_out.append(item)
+            return {
+                "steps": steps_out,
+                "analysis": data.get("analysis") or "",
+            }
+        # Legacy single payload
+        return format_json_data(unwrap_chart_data_payload(data) if isinstance(data, dict) else data)
 
     return await asyncio.to_thread(inner)
 

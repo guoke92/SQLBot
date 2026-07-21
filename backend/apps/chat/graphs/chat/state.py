@@ -1,42 +1,44 @@
 """Target ChatState — shared state for the unified chat graph.
 
-This is the architecture-draft TypedDict for the target chat graph with
-nlq_path + dialogue_path. Currently stubbed for compile-ability only.
+NLQ path uses the agentic batch-loop fields (same contract as
+``apps.chat.graphs.nodes.nlq.NlqState``). Dialogue path adds intent/evidence.
+Single-query fields (plan/sql/chart/query_result) are intentionally absent.
 """
 
 from __future__ import annotations
 
-from typing import Any, Dict, Literal, Optional
+from typing import Any, Dict, List, Optional
 
-from apps.conversation.state import RunState
 from apps.chat.models.chat_model import ChatFinishStep
 from apps.chat.task.llm import LLMService
+from apps.conversation.state import RunState
 
 
 class ChatState(RunState, total=False):
-    """Unified chat run state — nlq + dialogue paths share this TypedDict."""
+    """Unified chat run state — nlq batch loop + dialogue path."""
 
     # ── common turn ──
     llm_service: LLMService
     finish_step: ChatFinishStep
     return_img: bool
     json_result: Dict[str, Any]
-    intent: str  # TurnRouter output: nlq_new / regenerate / explain_… / critique / …
-    anchor: Any  # Working Set anchor ref for multi-turn
+    intent: str  # TurnRouter: nlq_new / explain / critique / …
+    anchor: Any
 
-    # ── nlq_path ──
-    plan: Any
-    sql: Optional[str]
-    format_statement: Optional[str]
-    chart_type: Optional[str]
-    full_sql_text: str
-    dynamic_sql_result: Any
-    sqlbot_temp_sql_text: Optional[str]
-    assistant_dynamic_sql: Optional[str]
-    query_result: Dict[str, Any]
-    chart: Dict[str, Any]
+    # ── nlq agentic batch loop (canonical; see nodes.nlq.NlqState) ──
+    step_index: int
+    batch_plans: List[Dict[str, Any]]
+    batch_results: List[Dict[str, Any]]
+    batch_charts: List[Dict[str, Any]]
+    all_steps: List[Dict[str, Any]]
+    analysis_text: str
+    max_steps: int
+    max_batch_size: int
+    decision: str
+    repair_hint: str
+    entity_bindings: Dict[str, Any]
 
     # ── dialogue_path ──
-    evidence: Any  # Working Set context block
-    diagnosis: Dict[str, Any]  # structured dialogue output
-    pending_brief: Optional[str]  # RepairBrief to inject into next NLQ turn
+    evidence: Any
+    diagnosis: Dict[str, Any]
+    pending_brief: Optional[str]
