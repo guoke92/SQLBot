@@ -16,8 +16,8 @@ from apps.chat.curd.chat import delete_chat_with_user, get_chart_data_with_user,
     get_chat_log_history, get_chart_data_with_user_live
 from apps.chat.models.chat_model import CreateChat, ChatRecord, RenameChat, ChatQuestion, AxisObj, QuickCommand, \
     ChatInfo, Chat, ChatFinishStep, ChatQuestionBase, SimpleChat
-import apps.chat.graphs  # noqa: F401 — register analysis/predict/recommend/nlq builders
-import apps.config_assistant  # noqa: F401 — register config builder
+# Graph registration is handled by apps.api.bootstrap_graphs — no side-effect
+# imports needed here. submit_graph is the sole runtime entry.
 from apps.chat.task.llm import LLMService
 from apps.conversation.events import emit
 from apps.conversation.runtime import submit_graph
@@ -374,7 +374,7 @@ async def stream_sql(session: SessionDep, current_user: CurrentUser, request_que
                 "stream": stream,
             }
         else:
-            graph_key = "nlq"
+            graph_key = "chat"
             llm_service = await LLMService.create(
                 session, current_user, request_question, current_assistant
             )

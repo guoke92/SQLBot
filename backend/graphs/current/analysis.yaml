@@ -1,0 +1,30 @@
+version: 1
+graph_key: analysis
+state: apps.chat.graphs.nodes.analysis.AnalysisState
+description: >
+  Analysis follow-up graph. prepare → stream → complete; stream errors → fail.
+
+nodes:
+  prepare: apps.chat.graphs.nodes.analysis.prepare_node
+  stream: apps.chat.graphs.nodes.analysis.stream_node
+  complete: apps.chat.graphs.nodes.analysis.complete_node
+  fail: apps.chat.graphs.nodes.analysis.fail_node
+
+edges:
+  - from: START
+    to: prepare
+
+  - from: prepare
+    to: stream
+
+  - from: stream
+    router: apps.chat.graphs.nodes.analysis.route_after_stream
+    paths:
+      complete: complete
+      fail: fail
+
+  - from: complete
+    to: END
+
+  - from: fail
+    to: END

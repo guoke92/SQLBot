@@ -1,0 +1,16 @@
+version: 1
+graph_key: recommend
+state: apps.chat.graphs.nodes.recommend.RecommendState
+description: >
+  Recommend-questions side graph. start → generate → end.
+  Errors are swallowed (historic behaviour).
+
+nodes:
+  generate: apps.chat.graphs.nodes.recommend.generate_node
+
+edges:
+  - from: START
+    to: generate
+
+  - from: generate
+    to: END

@@ -1,0 +1,50 @@
+version: 1
+graph_key: predict
+state: apps.chat.graphs.nodes.predict.PredictState
+description: >
+  Predict follow-up graph.
+  prepare → stream → parse → success|failed → complete; stream/parse errors → fail.
+
+nodes:
+  prepare: apps.chat.graphs.nodes.predict.prepare_node
+  stream: apps.chat.graphs.nodes.predict.stream_node
+  parse: apps.chat.graphs.nodes.predict.parse_node
+  success: apps.chat.graphs.nodes.predict.success_node
+  failed: apps.chat.graphs.nodes.predict.failed_node
+  complete: apps.chat.graphs.nodes.predict.complete_node
+  fail: apps.chat.graphs.nodes.predict.fail_node
+
+edges:
+  - from: START
+    to: prepare
+
+  - from: prepare
+    to: stream
+
+  - from: stream
+    router: apps.chat.graphs.nodes.predict.route_after_stream
+    paths:
+      parse: parse
+      fail: fail
+
+  - from: parse
+    router: apps.chat.graphs.nodes.predict.route_after_parse
+    paths:
+      success: success
+      failed: failed
+      fail: fail
+
+  - from: success
+    router: apps.chat.graphs.nodes.predict.route_after_success
+    paths:
+      complete: complete
+      fail: fail
+
+  - from: failed
+    to: complete
+
+  - from: complete
+    to: END
+
+  - from: fail
+    to: END

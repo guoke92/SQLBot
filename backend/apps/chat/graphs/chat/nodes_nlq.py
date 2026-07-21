@@ -1,11 +1,14 @@
-"""NLQ nodes — backward-compatible re-exports.
+"""Target NLQ-path nodes — re-exports from canonical locations.
 
-Canonical implementations live in ``apps.chat.graphs.nodes.nlq``.
-Topology is driven by ``backend/graphs/current/chat.yaml``.
+In the target chat graph, NLQ path nodes are the same implementations
+as the current chat (nlq) graph. This module re-exports them so the
+target YAML can reference a single package.
+
+Current re-exports from ``apps.chat.graphs.nodes.nlq``.
 """
 
 from apps.chat.graphs.nodes.nlq import (  # noqa: F401
-    NlqState,
+    NlqState as ChatState,  # alias for target YAML state reference
     build_context_node,
     complete_node,
     data_finish_node,

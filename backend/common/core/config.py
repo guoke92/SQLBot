@@ -137,6 +137,9 @@ class Settings(BaseSettings):
 
     ORACLE_CLIENT_PATH: str = '/opt/sqlbot/db_client/oracle_instant_client'
 
+    # Directory containing graph topology YAML files (default: backend/graphs/current)
+    GRAPH_SPEC_DIR: str = ''
+
     # API datasource SSRF protection
     API_SSRF_PROTECTION: bool = True
     # Allow private/reserved IPs when SSRF protection is enabled (for internal deployments)

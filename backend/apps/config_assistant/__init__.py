@@ -5,8 +5,7 @@ Product surface shares ``/chat/start`` + ``/chat/question``; routing is by
 
 Tools wrap existing datasource/table/field CRUD only — never business DML,
 never ``execSql``. No independent HTTP service / dual stream path.
+
+Topology is driven by ``backend/graphs/current/config.yaml``.
+Node/router implementations live in ``apps.config_assistant.nodes``.
 """
-
-from apps.config_assistant import graph as _graph  # noqa: F401 — register_graph("config")
-
-__all__ = ["_graph"]

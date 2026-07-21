@@ -1,0 +1,109 @@
+version: 1
+graph_key: chat
+state: apps.chat.graphs.nodes.nlq.NlqState
+description: >
+  Primary NLQ graph (graph_key=chat, replacing former nlq).
+  prepare_record → ensure_datasource → match_* → build_context → generate_sql
+  → early_finish | execute → data_finish | generate_chart → complete
+
+nodes:
+  prepare_record: apps.chat.graphs.nodes.nlq.prepare_record_node
+  ensure_datasource: apps.chat.graphs.nodes.nlq.ensure_datasource_node
+  match_terminology: apps.chat.graphs.nodes.nlq.match_terminology_node
+  match_training: apps.chat.graphs.nodes.nlq.match_training_node
+  match_custom_prompts: apps.chat.graphs.nodes.nlq.match_custom_prompts_node
+  build_context: apps.chat.graphs.nodes.nlq.build_context_node
+  generate_sql: apps.chat.graphs.nodes.nlq.generate_sql_node
+  early_finish: apps.chat.graphs.nodes.nlq.early_finish_node
+  execute: apps.chat.graphs.nodes.nlq.execute_node
+  data_finish: apps.chat.graphs.nodes.nlq.data_finish_node
+  generate_chart: apps.chat.graphs.nodes.nlq.generate_chart_node
+  complete: apps.chat.graphs.nodes.nlq.complete_node
+  fail: apps.chat.graphs.nodes.nlq.fail_node
+
+edges:
+  - from: START
+    to: prepare_record
+
+  - from: prepare_record
+    router:
+      type: ok_or_fail
+      next: ensure_datasource
+    paths:
+      ensure_datasource: ensure_datasource
+      fail: fail
+
+  - from: ensure_datasource
+    router:
+      type: ok_or_fail
+      next: match_terminology
+    paths:
+      match_terminology: match_terminology
+      fail: fail
+
+  - from: match_terminology
+    router:
+      type: ok_or_fail
+      next: match_training
+    paths:
+      match_training: match_training
+      fail: fail
+
+  - from: match_training
+    router:
+      type: ok_or_fail
+      next: match_custom_prompts
+    paths:
+      match_custom_prompts: match_custom_prompts
+      fail: fail
+
+  - from: match_custom_prompts
+    router:
+      type: ok_or_fail
+      next: build_context
+    paths:
+      build_context: build_context
+      fail: fail
+
+  - from: build_context
+    router:
+      type: ok_or_fail
+      next: generate_sql
+    paths:
+      generate_sql: generate_sql
+      fail: fail
+
+  - from: generate_sql
+    router: apps.chat.graphs.nodes.nlq.route_after_sql
+    paths:
+      early_finish: early_finish
+      execute: execute
+      fail: fail
+
+  - from: early_finish
+    to: END
+
+  - from: execute
+    router: apps.chat.graphs.nodes.nlq.route_after_execute
+    paths:
+      data_finish: data_finish
+      generate_chart: generate_chart
+      fail: fail
+
+  - from: data_finish
+    to: END
+
+  - from: generate_chart
+    router: apps.chat.graphs.nodes.nlq.route_after_chart
+    paths:
+      complete: complete
+      fail: fail
+
+  - from: complete
+    router: apps.chat.graphs.nodes.nlq.route_after_complete
+    paths:
+      __end__: END
+      fail: fail
+
+  - from: fail
+    to: END

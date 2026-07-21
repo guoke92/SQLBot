@@ -243,20 +243,36 @@ class TestRunGraph:
 
 
 class TestProductionGraphSurface:
-    """Sanity: graph source modules register the five product keys (no runtime)."""
+    """Sanity: YAML topology files exist for all five product graph keys."""
 
-    def test_product_graph_files_register_keys(self) -> None:
+    def test_product_graph_yaml_files_exist(self) -> None:
+        """YAML files under graphs/current/ must exist for each production key."""
         expected = {
-            "analysis": "apps/chat/graphs/analysis.py",
-            "predict": "apps/chat/graphs/predict.py",
-            "recommend": "apps/chat/graphs/recommend.py",
-            "nlq": "apps/chat/graphs/nlq.py",
-            "config": "apps/config_assistant/graph.py",
+            "chat": "graphs/current/chat.yaml",
+            "analysis": "graphs/current/analysis.yaml",
+            "predict": "graphs/current/predict.yaml",
+            "recommend": "graphs/current/recommend.yaml",
+            "config": "graphs/current/config.yaml",
         }
         for key, rel in expected.items():
+            path = _BACKEND / rel
+            assert path.exists(), f"missing YAML for {key!r} at {rel}"
+            text = path.read_text(encoding="utf-8")
+            assert f"graph_key: {key}" in text, f"{rel} must declare graph_key: {key}"
+
+    def test_no_register_graph_in_graph_modules(self) -> None:
+        """Graph modules are thin re-exports; register_graph lives only in loader."""
+        stale_files = [
+            "apps/chat/graphs/nlq.py",
+            "apps/chat/graphs/analysis.py",
+            "apps/chat/graphs/predict.py",
+            "apps/chat/graphs/recommend.py",
+            "apps/config_assistant/graph.py",
+        ]
+        for rel in stale_files:
             text = (_BACKEND / rel).read_text(encoding="utf-8")
-            assert f'register_graph("{key}"' in text or f"register_graph('{key}'" in text, (
-                f"{rel} must register_graph({key!r})"
+            assert "register_graph(" not in text, (
+                f"{rel} must not contain register_graph() — registration is YAML-driven"
             )
 
 
@@ -264,18 +280,13 @@ class TestConfigAssistantSurface:
     """Static guards for the config primary graph (no DB / no xpack)."""
 
     def test_config_state_uses_bound_tools_not_tools_channel(self) -> None:
-        text = (_BACKEND / "apps/config_assistant/graph.py").read_text(encoding="utf-8")
+        text = (_BACKEND / "apps/config_assistant/nodes.py").read_text(encoding="utf-8")
         assert "bound_tools: List" in text
-        assert 'add_node("run_tools"' in text
-        assert 'add_node("tools"' not in text
-        assert 'state.get("bound_tools")' in text
-        assert 'state.get("tools")' not in text
-        # Function/node id must stay off state channel names.
         assert "def run_tools_node" in text
 
     def test_config_process_uses_chatlog_not_tool_trace(self) -> None:
         """Process channel is ChatLog (TOOL_CALL/CONFIG_AGENT); no tool_trace dual path."""
-        text = (_BACKEND / "apps/config_assistant/graph.py").read_text(encoding="utf-8")
+        text = (_BACKEND / "apps/config_assistant/nodes.py").read_text(encoding="utf-8")
         assert "tool_trace" not in text
         assert "OperationEnum.TOOL_CALL" in text
         assert "OperationEnum.CONFIG_AGENT" in text
@@ -417,7 +428,7 @@ class TestEmbeddingRecallContract:
         assert not offenders, "chat layer must not pass embedding=; offenders:\n" + "\n".join(offenders)
 
     def test_nlq_chart_uses_resource_filter_not_embedding_override(self) -> None:
-        text = (_BACKEND / "apps/chat/graphs/nlq.py").read_text(encoding="utf-8")
+        text = (_BACKEND / "apps/chat/graphs/nodes/nlq.py").read_text(encoding="utf-8")
         assert "embedding=False" not in text
         assert "resource_names=plan.resources" in text
         assert "table_list=plan.resources" in text
@@ -452,7 +463,7 @@ class TestCreateChatConfigContract:
         for rel in (
             "apps/chat/curd/chat.py",
             "apps/chat/task/llm.py",
-            "apps/chat/graphs/nlq.py",
+            "apps/chat/graphs/nodes/nlq.py",
             "apps/chat/steps/datasource.py",
         ):
             text = (_BACKEND / rel).read_text(encoding="utf-8")
@@ -461,6 +472,94 @@ class TestCreateChatConfigContract:
             ), f"{rel} must import DYNAMIC_DS_TYPES from constants"
             assert "DYNAMIC_DS_TYPES = [1, 3]" not in text
             assert "type in (1, 3)" not in text
+
+
+class TestGraphLoader:
+    """Graph spec parsing + YAML topology validation (no DB, no LLM)."""
+
+    def _load_spec_module(self):
+        return _load("apps.conversation.graph_spec", "apps/conversation/graph_spec.py")
+
+    def _load_routers_builtin(self):
+        return _load("apps.conversation.routers_builtin", "apps/conversation/routers_builtin.py")
+
+    def _parse_current_yaml(self, filename: str):
+        import yaml as _yaml
+
+        spec_mod = self._load_spec_module()
+        path = _BACKEND / "graphs" / "current" / filename
+        raw = _yaml.safe_load(path.read_text(encoding="utf-8"))
+        return spec_mod.parse_graph_spec(raw, source_path=str(path))
+
+    def test_parse_chat_yaml(self) -> None:
+        spec = self._parse_current_yaml("chat.yaml")
+        assert spec.graph_key == "chat"
+        assert spec.version == 1
+        assert "prepare_record" in spec.nodes
+        assert "fail" in spec.nodes
+        # At least one edge from START
+        assert any(
+            (hasattr(e, "source") and e.source == "START") for e in spec.edges
+        )
+
+    def test_parse_analysis_yaml(self) -> None:
+        spec = self._parse_current_yaml("analysis.yaml")
+        assert spec.graph_key == "analysis"
+        assert "prepare" in spec.nodes
+
+    def test_parse_predict_yaml(self) -> None:
+        spec = self._parse_current_yaml("predict.yaml")
+        assert spec.graph_key == "predict"
+        assert "parse" in spec.nodes
+
+    def test_parse_recommend_yaml(self) -> None:
+        spec = self._parse_current_yaml("recommend.yaml")
+        assert spec.graph_key == "recommend"
+        assert "generate" in spec.nodes
+
+    def test_parse_config_yaml(self) -> None:
+        spec = self._parse_current_yaml("config.yaml")
+        assert spec.graph_key == "config"
+        assert "agent" in spec.nodes
+
+    def test_ok_or_fail_router(self) -> None:
+        builtins = self._load_routers_builtin()
+        route = builtins.ok_or_fail("next_node")
+        assert route({"error": None}) == "next_node"
+        assert route({"error": "boom"}) == "fail"
+        assert route({}) == "next_node"
+
+    def test_parse_bad_yaml_missing_graph_key(self) -> None:
+        spec_mod = self._load_spec_module()
+        with pytest.raises(Exception):
+            spec_mod.parse_graph_spec({"version": 1, "state": "x.y", "nodes": {"a": "b"}, "edges": []})
+
+    def test_parse_bad_yaml_unknown_router_type(self) -> None:
+        spec_mod = self._load_spec_module()
+        raw = {
+            "version": 1,
+            "graph_key": "x",
+            "state": "x.y",
+            "nodes": {"a": "x.y", "fail": "x.y"},
+            "edges": [
+                {"from": "START", "to": "a"},
+                {"from": "a", "router": {"type": "bogus"}, "paths": {"b": "fail"}},
+            ],
+        }
+        with pytest.raises(Exception):
+            spec_mod.parse_graph_spec(raw, source_path="test")
+
+    def test_target_chat_yaml_parses(self) -> None:
+        """Target chat.yaml must parse even though it's not default-loaded."""
+        import yaml as _yaml
+
+        spec_mod = self._load_spec_module()
+        path = _BACKEND / "graphs" / "target" / "chat.yaml"
+        raw = _yaml.safe_load(path.read_text(encoding="utf-8"))
+        spec = spec_mod.parse_graph_spec(raw, source_path=str(path))
+        assert spec.graph_key == "chat"
+        assert "dlg_resolve_anchor" in spec.nodes
+        assert "route_turn" in spec.nodes
 
 
 if __name__ == "__main__":

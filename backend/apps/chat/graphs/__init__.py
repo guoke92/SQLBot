@@ -1,12 +1,7 @@
-"""Chat conversation graphs (analysis, predict, recommend, nlq).
+"""Chat conversation graphs (analysis, predict, recommend, chat).
 
-Builders register into conversation.registry on import of this package.
-Product code launches them only via ``conversation.runtime.submit_graph``.
+Topology is driven by YAML files under ``backend/graphs/``.
+Node/router implementations live in ``apps.chat.graphs.nodes.*``.
+Registration is handled by ``apps.conversation.graph_loader.bootstrap_graphs``
+(called from ``apps.api`` at process start).
 """
-
-from apps.chat.graphs import analysis as _analysis  # noqa: F401
-from apps.chat.graphs import nlq as _nlq  # noqa: F401
-from apps.chat.graphs import predict as _predict  # noqa: F401
-from apps.chat.graphs import recommend as _recommend  # noqa: F401
-
-__all__ = ["analysis", "nlq", "predict", "recommend"]
