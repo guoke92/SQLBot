@@ -19,8 +19,27 @@ const props = withDefaults(
 
 const { t } = useI18n()
 
+/** Drop graph-span meta rows injected for ExecutionDetails titles (not chat content). */
+function isSpanMetaMessage(item: any): boolean {
+  if (!item || typeof item !== 'object') return false
+  if (item.sqlbot_span_meta || item.sqlbot_span) return true
+  if (item.type === 'system' && item.sqlbot_system && typeof item.content === 'string') {
+    try {
+      const parsed = JSON.parse(item.content)
+      return !!(parsed && parsed.sqlbot_span)
+    } catch {
+      return false
+    }
+  }
+  return false
+}
+
 const data = computed(() => {
-  return (props.item?.message as Array<any>) ?? []
+  const raw = (props.item?.message as Array<any>) ?? []
+  if (!Array.isArray(raw)) {
+    return []
+  }
+  return raw.filter((item) => !isSpanMetaMessage(item))
 })
 
 // 1. 获取 role 为 system 的一条记录
@@ -28,22 +47,25 @@ const systemRecord = computed(() => find(data.value, { type: 'system' }))
 
 // 2. 获取最后一个 role 为 human 的记录
 const lastHumanIndex = computed(() => findLastIndex(data.value, { type: 'human' }))
-const lastHumanRecord = computed(() => data.value[lastHumanIndex.value])
+const lastHumanRecord = computed(() =>
+  lastHumanIndex.value >= 0 ? data.value[lastHumanIndex.value] : undefined
+)
 
 // 3. 获取最后一个 role 为 ai 且在当前对话提问后出现的记录
-// 使用原生 filter 和 pop
-const aiRecordsAfterHuman = computed(() =>
-  data.value.slice(lastHumanIndex.value + 1).filter((item) => item.type === 'ai')
-)
+const aiRecordsAfterHuman = computed(() => {
+  if (lastHumanIndex.value < 0) return []
+  return data.value.slice(lastHumanIndex.value + 1).filter((item) => item.type === 'ai')
+})
 const lastAiAfterHuman = computed(() =>
   aiRecordsAfterHuman.value.length > 0
     ? aiRecordsAfterHuman.value[aiRecordsAfterHuman.value.length - 1]
     : undefined
 )
 // 4. 获取除 system 以外，当前对话提问前的所有记录
-const recordsBeforeCurrentQuestion = computed(() =>
-  data.value.slice(0, lastHumanIndex.value).filter((item) => item.type !== 'system')
-)
+const recordsBeforeCurrentQuestion = computed(() => {
+  if (lastHumanIndex.value < 0) return []
+  return data.value.slice(0, lastHumanIndex.value).filter((item) => item.type !== 'system')
+})
 </script>
 
 <template>
@@ -52,15 +74,17 @@ const recordsBeforeCurrentQuestion = computed(() =>
       {{ error }}
     </template>
     <div class="item-list flex-gap-fallback flex-col">
-      <div class="inner-title">{{ t('chat.log_system') }}</div>
-      <div class="inner-item flex-gap-fallback flex-col">
-        <div class="inner-item-title">
-          {{ systemRecord.type }}
+      <template v-if="systemRecord">
+        <div class="inner-title">{{ t('chat.log_system') }}</div>
+        <div class="inner-item flex-gap-fallback flex-col">
+          <div class="inner-item-title">
+            {{ systemRecord.type }}
+          </div>
+          <div class="inner-item-description">
+            <SQLComponent :sql="systemRecord.content" />
+          </div>
         </div>
-        <div class="inner-item-description">
-          <SQLComponent :sql="systemRecord.content" />
-        </div>
-      </div>
+      </template>
       <template v-if="recordsBeforeCurrentQuestion.length > 0">
         <div class="inner-title">{{ t('chat.log_history') }}</div>
         <div class="inner-item flex-gap-fallback flex-col">
@@ -74,12 +98,14 @@ const recordsBeforeCurrentQuestion = computed(() =>
           </div>
         </div>
       </template>
-      <div class="inner-title">{{ t('chat.log_question') }}</div>
-      <div class="inner-item flex-gap-fallback flex-col">
-        <div class="inner-item-description">
-          <SQLComponent :sql="lastHumanRecord.content" />
+      <template v-if="lastHumanRecord">
+        <div class="inner-title">{{ t('chat.log_question') }}</div>
+        <div class="inner-item flex-gap-fallback flex-col">
+          <div class="inner-item-description">
+            <SQLComponent :sql="lastHumanRecord.content" />
+          </div>
         </div>
-      </div>
+      </template>
       <template v-if="lastAiAfterHuman">
         <div class="inner-title">{{ t('chat.log_answer') }}</div>
         <div class="inner-item flex-gap-fallback flex-col">

@@ -5,7 +5,6 @@ from typing import List, Optional, Union, Dict, Any
 import orjson
 from sqlalchemy import and_, select, update
 from sqlalchemy import desc, func
-from sqlalchemy.orm import aliased
 
 from apps.chat.constants import DYNAMIC_DS_TYPES
 from apps.chat.models.chat_model import Chat, ChatRecord, CreateChat, ChatInfo, RenameChat, ChatQuestion, ChatLog, \
@@ -370,9 +369,116 @@ def get_chat_with_records_with_data(session: SessionDep, chart_id: int, current_
     return get_chat_with_records(session, chart_id, current_user, current_assistant, True)
 
 
+# Chat-list may attach at most one reasoning blob per (record, operate).
+# Multi generate_query / chart logs (agentic regen) must not multiply ChatRecord rows.
+_REASONING_OPERATES: tuple[OperationEnum, ...] = (
+    OperationEnum.GENERATE_QUERY,
+    OperationEnum.GENERATE_CHART,
+    OperationEnum.ANALYSIS,
+    OperationEnum.PREDICT_DATA,
+)
+
+_REASONING_FIELD_BY_OPERATE: dict[OperationEnum, str] = {
+    OperationEnum.GENERATE_QUERY: "sql_reasoning_content",
+    OperationEnum.GENERATE_CHART: "chart_reasoning_content",
+    OperationEnum.ANALYSIS: "analysis_reasoning_content",
+    OperationEnum.PREDICT_DATA: "predict_reasoning_content",
+}
+
+
+def _latest_reasoning_by_record(
+    session: SessionDep,
+    record_ids: List[int],
+) -> Dict[int, Dict[str, Optional[str]]]:
+    """Map record_id → {sql_reasoning_content, ...} using the latest log per operate.
+
+    ChatLog is 1:N to ChatRecord; never join raw logs into the record list query.
+    """
+    out: Dict[int, Dict[str, Optional[str]]] = {
+        rid: {field: None for field in _REASONING_FIELD_BY_OPERATE.values()}
+        for rid in record_ids
+    }
+    if not record_ids:
+        return out
+
+    stmt = (
+        select(ChatLog.pid, ChatLog.operate, ChatLog.reasoning_content, ChatLog.start_time)
+        .where(
+            and_(
+                ChatLog.pid.in_(record_ids),
+                ChatLog.type == TypeEnum.CHAT,
+                ChatLog.operate.in_(_REASONING_OPERATES),
+            )
+        )
+        .order_by(ChatLog.pid.asc(), ChatLog.start_time.desc())
+    )
+    # First row per (pid, operate) wins (latest start_time).
+    seen: set[tuple[int, str]] = set()
+    for pid, operate, reasoning, _start in session.execute(stmt).all():
+        if pid is None or operate is None:
+            continue
+        op_key = operate.value if isinstance(operate, OperationEnum) else str(operate)
+        # Normalize operate enum from DB string / enum
+        op_enum: Optional[OperationEnum] = None
+        if isinstance(operate, OperationEnum):
+            op_enum = operate
+        else:
+            for item in OperationEnum:
+                if item.value == op_key or item.name == op_key:
+                    op_enum = item
+                    break
+        if op_enum is None or op_enum not in _REASONING_FIELD_BY_OPERATE:
+            continue
+        sk = (int(pid), op_enum.value)
+        if sk in seen:
+            continue
+        seen.add(sk)
+        field = _REASONING_FIELD_BY_OPERATE[op_enum]
+        text = reasoning if isinstance(reasoning, str) else None
+        if text is not None and text.strip() == "":
+            text = None
+        bucket = out.setdefault(int(pid), {f: None for f in _REASONING_FIELD_BY_OPERATE.values()})
+        bucket[field] = text
+    return out
+
+
+def _token_usage_by_record(session: SessionDep, record_ids: List[int]) -> Dict[int, int]:
+    """Sum non-local log token_usage per ChatRecord (1:N safe bulk attach)."""
+    token_usage_map: Dict[int, int] = {}
+    if not record_ids:
+        return token_usage_map
+    log_stmt = select(ChatLog.pid, ChatLog.token_usage).where(
+        and_(
+            ChatLog.pid.in_(record_ids),
+            ChatLog.local_operation == False,  # noqa: E712
+            ChatLog.operate != OperationEnum.GENERATE_RECOMMENDED_QUESTIONS,
+            ChatLog.token_usage.is_not(None),
+        )
+    )
+    for pid, token_usage in session.execute(log_stmt).all():
+        if not pid or token_usage is None:
+            continue
+        tokens_to_add = 0
+        if isinstance(token_usage, dict):
+            if token_usage and "total_tokens" in token_usage:
+                token_value = token_usage["total_tokens"]
+                if isinstance(token_value, (int, float)):
+                    tokens_to_add = int(token_value)
+        elif isinstance(token_usage, (int, float)):
+            tokens_to_add = int(token_usage)
+        if tokens_to_add > 0:
+            token_usage_map[int(pid)] = token_usage_map.get(int(pid), 0) + tokens_to_add
+    return token_usage_map
+
+
 def get_chat_with_records(session: SessionDep, chart_id: int, current_user: CurrentUser,
                           current_assistant: CurrentAssistant, with_data: bool = False,
                           trans: Trans = None) -> ChatInfo:
+    """Load one chat timeline: result cardinality == ChatRecord rows for this chat.
+
+    Reasoning / tokens come from ChatLog via bulk maps — never multi-outerjoin
+    raw logs onto records (agentic regen multiplies GENERATE_* logs).
+    """
     chat = session.get(Chat, chart_id)
     if not chat:
         raise Exception(f"Chat with id {chart_id} not found")
@@ -394,153 +500,105 @@ def get_chat_with_records(session: SessionDep, chart_id: int, current_user: Curr
         chat_info.datasource_name = ds.name
         chat_info.ds_type = ds.type
 
-    sql_alias_log = aliased(ChatLog)
-    chart_alias_log = aliased(ChatLog)
-    analysis_alias_log = aliased(ChatLog)
-    predict_alias_log = aliased(ChatLog)
-
-    stmt = (select(ChatRecord.id, ChatRecord.chat_id, ChatRecord.create_time, ChatRecord.finish_time,
-                   ChatRecord.question, ChatRecord.sql_answer, ChatRecord.sql, ChatRecord.datasource,
-                   ChatRecord.engine_type, ChatRecord.re_exec,
-                   ChatRecord.chart_answer, ChatRecord.chart, ChatRecord.analysis, ChatRecord.predict,
-                   ChatRecord.datasource_select_answer, ChatRecord.analysis_record_id, ChatRecord.predict_record_id,
-                   ChatRecord.regenerate_record_id,
-                   ChatRecord.recommended_question, ChatRecord.first_chat,
-                   ChatRecord.finish, ChatRecord.error,
-                   sql_alias_log.reasoning_content.label('sql_reasoning_content'),
-                   chart_alias_log.reasoning_content.label('chart_reasoning_content'),
-                   analysis_alias_log.reasoning_content.label('analysis_reasoning_content'),
-                   predict_alias_log.reasoning_content.label('predict_reasoning_content')
-                   )
-    .outerjoin(sql_alias_log, and_(sql_alias_log.pid == ChatRecord.id,
-                                   sql_alias_log.type == TypeEnum.CHAT,
-                                   sql_alias_log.operate == OperationEnum.GENERATE_QUERY))
-    .outerjoin(chart_alias_log, and_(chart_alias_log.pid == ChatRecord.id,
-                                     chart_alias_log.type == TypeEnum.CHAT,
-                                     chart_alias_log.operate == OperationEnum.GENERATE_CHART))
-    .outerjoin(analysis_alias_log, and_(analysis_alias_log.pid == ChatRecord.id,
-                                        analysis_alias_log.type == TypeEnum.CHAT,
-                                        analysis_alias_log.operate == OperationEnum.ANALYSIS))
-    .outerjoin(predict_alias_log, and_(predict_alias_log.pid == ChatRecord.id,
-                                       predict_alias_log.type == TypeEnum.CHAT,
-                                       predict_alias_log.operate == OperationEnum.PREDICT_DATA))
-    .where(and_(ChatRecord.create_by == current_user.id, ChatRecord.chat_id == chart_id)).order_by(
-        ChatRecord.create_time))
+    # Single record base query (with_data only toggles data columns).
+    base_cols = [
+        ChatRecord.id,
+        ChatRecord.chat_id,
+        ChatRecord.create_time,
+        ChatRecord.finish_time,
+        ChatRecord.question,
+        ChatRecord.sql_answer,
+        ChatRecord.sql,
+        ChatRecord.datasource,
+        ChatRecord.engine_type,
+        ChatRecord.re_exec,
+        ChatRecord.chart_answer,
+        ChatRecord.chart,
+        ChatRecord.analysis,
+        ChatRecord.predict,
+        ChatRecord.datasource_select_answer,
+        ChatRecord.analysis_record_id,
+        ChatRecord.predict_record_id,
+        ChatRecord.regenerate_record_id,
+        ChatRecord.recommended_question,
+        ChatRecord.first_chat,
+        ChatRecord.finish,
+        ChatRecord.error,
+    ]
     if with_data:
-        stmt = select(ChatRecord.id, ChatRecord.chat_id, ChatRecord.create_time, ChatRecord.finish_time,
-                      ChatRecord.question, ChatRecord.sql_answer, ChatRecord.sql, ChatRecord.datasource,
-                      ChatRecord.engine_type, ChatRecord.re_exec,
-                      ChatRecord.chart_answer, ChatRecord.chart, ChatRecord.analysis, ChatRecord.predict,
-                      ChatRecord.datasource_select_answer, ChatRecord.analysis_record_id, ChatRecord.predict_record_id,
-                      ChatRecord.regenerate_record_id,
-                      ChatRecord.recommended_question, ChatRecord.first_chat,
-                      ChatRecord.finish, ChatRecord.error, ChatRecord.data, ChatRecord.predict_data).where(
-            and_(ChatRecord.create_by == current_user.id, ChatRecord.chat_id == chart_id)).order_by(
-            ChatRecord.create_time)
+        base_cols.extend([ChatRecord.data, ChatRecord.predict_data])
 
-    result = session.execute(stmt).all()
+    stmt = (
+        select(*base_cols)
+        .where(and_(ChatRecord.create_by == current_user.id, ChatRecord.chat_id == chart_id))
+        .order_by(ChatRecord.create_time)
+    )
+    rows = session.execute(stmt).all()
+    record_ids = [int(row.id) for row in rows if row.id is not None]
+
+    token_usage_map = _token_usage_by_record(session, record_ids)
+    # Reasoning is for history hydrate when payload omits or prefers log reasoning;
+    # with_data path historically skipped joins — keep that behavior (maps empty unused).
+    reasoning_map = (
+        {} if with_data else _latest_reasoning_by_record(session, record_ids)
+    )
+
     record_list: list[ChatRecordResult] = []
-
-    # 批量获取所有ChatRecord的token消耗
-    record_ids = [row.id for row in result]
-    token_usage_map = {}
-
-    if record_ids:
-        # 查询所有相关ChatLog的token_usage
-        log_stmt = select(ChatLog.pid, ChatLog.token_usage).where(
-            and_(
-                ChatLog.pid.in_(record_ids),
-                ChatLog.local_operation == False,
-                ChatLog.operate != OperationEnum.GENERATE_RECOMMENDED_QUESTIONS,
-                ChatLog.token_usage.is_not(None)  # 排除token_usage为空的记录
-            )
-        )
-        log_results = session.execute(log_stmt).all()
-
-        # 按pid分组计算total_tokens总和
-        for pid, token_usage in log_results:
-            if pid and token_usage is not None:
-                tokens_to_add = 0
-
-                if isinstance(token_usage, dict):
-                    # 处理字典类型: {"input_tokens": 961, "total_tokens": 1006, "output_tokens": 45}
-                    if token_usage:  # 非空字典
-                        if "total_tokens" in token_usage:
-                            token_value = token_usage["total_tokens"]
-                            if isinstance(token_value, (int, float)):
-                                tokens_to_add = int(token_value)
-                elif isinstance(token_usage, (int, float)):
-                    tokens_to_add = int(token_usage)
-                if tokens_to_add > 0:
-                    if pid not in token_usage_map:
-                        token_usage_map[pid] = 0
-                    token_usage_map[pid] += tokens_to_add
-
-    for row in result:
-        # 计算耗时
+    for row in rows:
         duration = None
         if row.create_time and row.finish_time:
             try:
-                time_diff = row.finish_time - row.create_time
-                duration = time_diff.total_seconds()  # 转换为秒
+                duration = (row.finish_time - row.create_time).total_seconds()
             except Exception:
                 duration = None
 
-        # 获取token总消耗
-        total_tokens = token_usage_map.get(row.id, 0)
+        rid = int(row.id)
+        reason = reasoning_map.get(rid) or {}
+        kwargs: Dict[str, Any] = dict(
+            id=row.id,
+            chat_id=row.chat_id,
+            create_time=row.create_time,
+            finish_time=row.finish_time,
+            duration=duration,
+            total_tokens=token_usage_map.get(rid, 0),
+            question=row.question,
+            sql_answer=row.sql_answer,
+            sql=row.sql,
+            datasource=row.datasource,
+            engine_type=getattr(row, "engine_type", None),
+            re_exec=getattr(row, "re_exec", None),
+            chart_answer=row.chart_answer,
+            chart=row.chart,
+            analysis=row.analysis,
+            predict=row.predict,
+            datasource_select_answer=row.datasource_select_answer,
+            analysis_record_id=row.analysis_record_id,
+            predict_record_id=row.predict_record_id,
+            regenerate_record_id=row.regenerate_record_id,
+            recommended_question=row.recommended_question,
+            first_chat=row.first_chat,
+            finish=row.finish,
+            error=row.error,
+            sql_reasoning_content=reason.get("sql_reasoning_content"),
+            chart_reasoning_content=reason.get("chart_reasoning_content"),
+            analysis_reasoning_content=reason.get("analysis_reasoning_content"),
+            predict_reasoning_content=reason.get("predict_reasoning_content"),
+        )
+        if with_data:
+            kwargs["data"] = getattr(row, "data", None)
+            kwargs["predict_data"] = getattr(row, "predict_data", None)
+        record_list.append(ChatRecordResult(**kwargs))
 
-        if not with_data:
-            record_list.append(
-                ChatRecordResult(id=row.id, chat_id=row.chat_id, create_time=row.create_time,
-                                 finish_time=row.finish_time,
-                                 duration=duration,
-                                 total_tokens=total_tokens,
-                                 question=row.question, sql_answer=row.sql_answer, sql=row.sql,
-                                 datasource=row.datasource,
-                                 engine_type=getattr(row, "engine_type", None),
-                                 re_exec=getattr(row, "re_exec", None),
-                                 chart_answer=row.chart_answer, chart=row.chart,
-                                 analysis=row.analysis, predict=row.predict,
-                                 datasource_select_answer=row.datasource_select_answer,
-                                 analysis_record_id=row.analysis_record_id, predict_record_id=row.predict_record_id,
-                                 regenerate_record_id=row.regenerate_record_id,
-                                 recommended_question=row.recommended_question, first_chat=row.first_chat,
-                                 finish=row.finish, error=row.error,
-                                 sql_reasoning_content=row.sql_reasoning_content,
-                                 chart_reasoning_content=row.chart_reasoning_content,
-                                 analysis_reasoning_content=row.analysis_reasoning_content,
-                                 predict_reasoning_content=row.predict_reasoning_content,
-                                 ))
-        else:
-            record_list.append(
-                ChatRecordResult(id=row.id, chat_id=row.chat_id, create_time=row.create_time,
-                                 finish_time=row.finish_time,
-                                 duration=duration,
-                                 total_tokens=total_tokens,
-                                 question=row.question, sql_answer=row.sql_answer, sql=row.sql,
-                                 datasource=row.datasource,
-                                 engine_type=getattr(row, "engine_type", None),
-                                 re_exec=getattr(row, "re_exec", None),
-                                 chart_answer=row.chart_answer, chart=row.chart,
-                                 analysis=row.analysis, predict=row.predict,
-                                 datasource_select_answer=row.datasource_select_answer,
-                                 analysis_record_id=row.analysis_record_id, predict_record_id=row.predict_record_id,
-                                 regenerate_record_id=row.regenerate_record_id,
-                                 recommended_question=row.recommended_question, first_chat=row.first_chat,
-                                 finish=row.finish, error=row.error, data=row.data, predict_data=row.predict_data))
-
-    result = list(map(format_record, record_list))
-
-    for row in result:
+    formatted = list(map(format_record, record_list))
+    for row in formatted:
         try:
-            data_value = row.get('data')
+            data_value = row.get("data")
             if data_value is not None:
-                row['data'] = format_json_data(data_value)
+                row["data"] = format_json_data(data_value)
         except Exception:
             pass
 
-    chat_info.records = result
-
+    chat_info.records = formatted
     return chat_info
 
 
@@ -695,14 +753,18 @@ def get_chat_log_history(session: SessionDep, chat_record_id: int, current_user:
 
                 if log.messages is not None:
                     message = log.messages
-                    if not log.operate == OperationEnum.CHOOSE_TABLE:
+                    # JSONB may already be dict/list; string payloads try parse.
+                    if not log.operate == OperationEnum.CHOOSE_TABLE and isinstance(
+                        message, (str, bytes)
+                    ):
                         try:
-                            message = orjson.loads(log.messages)
+                            message = orjson.loads(message)
                         except Exception:
                             pass
 
             # 创建ChatLogHistoryItem
             history_item = ChatLogHistoryItem(
+                id=log.id,
                 start_time=log.start_time,
                 finish_time=log.finish_time,
                 duration=duration,

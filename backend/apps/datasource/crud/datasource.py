@@ -234,6 +234,12 @@ def sync_single_fields(session: SessionDep, trans: Trans, id: int):
     # do table embedding
     run_save_table_embeddings([table.id])
     run_save_ds_embeddings([ds.id])
+    try:
+        from apps.datasource.crud.catalog_stats import refresh_table_stats
+
+        refresh_table_stats(session, ds, [table])
+    except Exception as _stats_exc:
+        SQLBotLogUtil.warning(f"refresh_table_stats after sync_single: {_stats_exc}")
 
 
 def sync_table(session: SessionDep, ds: CoreDatasource, tables: List[CoreTable]):
@@ -278,6 +284,19 @@ def sync_table(session: SessionDep, ds: CoreDatasource, tables: List[CoreTable])
     # do table embedding
     run_save_table_embeddings(id_list)
     run_save_ds_embeddings([ds.id])
+    # catalog cost stats (rows / indexes) for plan validation
+    try:
+        from apps.datasource.crud.catalog_stats import refresh_table_stats
+
+        if id_list:
+            synced = (
+                session.query(CoreTable)
+                .filter(CoreTable.ds_id == ds.id, CoreTable.id.in_(id_list))
+                .all()
+            )
+            refresh_table_stats(session, ds, synced)
+    except Exception as _stats_exc:  # never block sync
+        SQLBotLogUtil.warning(f"refresh_table_stats after sync_table: {_stats_exc}")
 
 
 def sync_fields(session: SessionDep, ds: CoreDatasource, table: CoreTable, fields: List[ColumnSchema]):
@@ -545,10 +564,23 @@ def get_table_schema(session: SessionDep, current_user: CurrentUser, ds: CoreDat
         table_comment = ''
         if obj.table.custom_comment:
             table_comment = obj.table.custom_comment.strip()
-        if table_comment == '':
+        stats_bits = []
+        try:
+            ar = getattr(obj.table, "approx_rows", None)
+            if ar is not None:
+                stats_bits.append(f"~{int(ar)} rows")
+            ix = (getattr(obj.table, "index_summary", None) or "")[:160]
+            if ix:
+                stats_bits.append("idx: " + ix)
+        except Exception:
+            pass
+        meta = table_comment
+        if stats_bits:
+            meta = (meta + "; " if meta else "") + "; ".join(stats_bits)
+        if not meta:
             schema_table += '\n[\n'
         else:
-            schema_table += f", {table_comment}\n[\n"
+            schema_table += f", {meta}" + '\n[\n'
 
         if obj.fields:
             field_list = []

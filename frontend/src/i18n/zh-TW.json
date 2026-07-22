@@ -897,7 +897,10 @@
       "EXECUTE_QUERY": "執行查詢",
       "GENERATE_PICTURE": "產生圖片",
       "TOOL_CALL": "工具呼叫",
-      "CONFIG_AGENT": "配置助手推理"
+      "CONFIG_AGENT": "配置助手推理",
+      "GROUND_ENTITIES": "實體接地",
+      "PREPARE_BINDINGS": "查詢邊界探測",
+      "DECIDE_NEXT": "決策下一步"
     },
     "log_system": "對話範本",
     "log_question": "本次提問",

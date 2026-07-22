@@ -79,7 +79,7 @@ alembic revision --autogenerate -m "msg"   # autogenerate is restricted — see 
 1. Router in `apps/chat/api/chat.py` receives `/chat/question` with `CurrentUser` and `CurrentAssistant` injected by `common/core/deps.py`.
 2. `parse_quick_command` checks for `/regenerate` etc., then dispatches to `stream_sql` (or `analysis_or_predict`).
 3. `LLMService.create` (`apps/chat/task/llm.py`) resolves the LLM via `LLMFactory.create_llm`, with the user's default model or a chat-specific one; loads the datasource, applies RAG (terminology + data-training + table/ds embeddings via `EmbeddingModelCache`), constructs the prompt from `templates/template.yaml` + dialect example from `templates/sql_examples/{db}.yaml`, calls the LLM to generate SQL, executes it through `apps/db/db.py::exec_sql` (with row/column permission filters applied), then calls the LLM again to choose a chart spec.
-4. Streaming response is delivered as `text/event-stream` chunks. The whole pipeline is logged via `apps/chat/curd/chat.py` (`save_question`, `save_sql`, `save_chart`, etc.) and the `ChatLog` table captures per-step LLM messages/tokens.
+4. Streaming response is delivered as `text/event-stream` chunks. The whole pipeline is logged via `apps/chat/curd/chat.py` (`save_question`, `save_sql`, `save_chart`, etc.) and the `ChatLog` table is the **single process-audit channel** for Execution Details (graph spans via `apps.chat.steps.observability.log_span` + domain steps). Do not invent a parallel trace store; put batch/attempt identity in span meta, not new tables.
 5. Audit trail: `@system_log` on the route writes a row to `system_log` (operation, module, resource id, status).
 
 ### Permissions

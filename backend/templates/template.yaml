@@ -209,8 +209,17 @@ template:
           <title>禁止要求额外信息</title>
           <requirements>
             <requirement>禁止在回答中向用户询问或要求任何额外信息</requirement>
-            <requirement>只基于表结构和问题生成SQL，不考虑业务逻辑</requirement>
-            <requirement>即使查询条件不完整（如无时间范围），也必须生成可行的SQL</requirement>
+            <requirement>不得向用户追问；缺条件时结合<plan-context>、表结构注释与合理默认口径生成可执行 SQL</requirement>
+            <requirement>必须遵守<plan-context>中的实体绑定（eq/IN）、边界与多事实合成 playbook；不得忽略已解析的标准维值</requirement>
+            <requirement>即使查询条件不完整（如无时间范围），也必须生成可行的SQL，不要用反问代替查询</requirement>
+          </requirements>
+        </rule>
+        <rule priority="critical" id="multi-fact-staging">
+          <title>多事实表合成</title>
+          <requirements>
+            <requirement>同一维度下对比多个事实表时，必须先在子查询/CTE 内各自聚合到共享粒度再 JOIN，或拆成维度一致的 ≤2 条 SQL</requirement>
+            <requirement>禁止未聚合的多事实表直接互 JOIN</requirement>
+            <requirement>月/周等时间维应对双侧事实对齐；一侧无数据时用 FULL OUTER JOIN 或维键 UNION 保留维度全集</requirement>
           </requirements>
         </rule>
         <rule priority="critical">
@@ -364,13 +373,14 @@ template:
         </current-time>
       <background-infos>
       {error_msg}
-      <user-question>
+      {plan_context}<user-question>
       {question}
       </user-question>
       <change-title>
       {change_title}
       </change-title>
       
+
   chart:
     system: |
       <Instruction>

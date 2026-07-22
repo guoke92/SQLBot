@@ -50,6 +50,10 @@ class OperationEnum(Enum):
     # Config-assistant agent/tool loop (ChatLog process channel, same as NLQ)
     TOOL_CALL = '14'
     CONFIG_AGENT = '15'
+    # Agentic NLQ graph spans (process channel; execution-details UI)
+    GROUND_ENTITIES = '16'
+    PREPARE_BINDINGS = '17'
+    DECIDE_NEXT = '18'
 
 
 class ChatFinishStep(Enum):
@@ -203,6 +207,7 @@ class ChatInfo(BaseModel):
 
 
 class ChatLogHistoryItem(BaseModel):
+    id: Optional[int] = None  # chat_log.id — stable UI key
     start_time: Optional[datetime] = None
     finish_time: Optional[datetime] = None
     duration: Optional[float] = None  # 耗时字段（单位：秒）
@@ -241,6 +246,8 @@ class AiModelQuestion(BaseModel):
     regenerate_record_id: Optional[int] = None
     sample_data: str = ""
     sqlbot_name: str = "SQLBot"
+    # Filled by NLQ generate_queries (PlanContext); empty outside agentic path.
+    plan_context: str = ""
 
     def sql_sys_question(self, db_type: Union[str, DB], enable_query_limit: bool = True):
         templates: dict[str, str] = {}
@@ -288,13 +295,41 @@ class AiModelQuestion(BaseModel):
         return templates
 
     def sql_user_question(self, current_time: str, change_title: bool):
+        """Legacy helper; agentic path uses protocol.build_user_prompt via generate_sql.
+
+        Kept in lockstep with SQLProtocol.build_user_prompt (same placeholders).
+        """
+        from apps.chat.plan_context import normalize_plan_context_block
+
         _question = self.question
         if self.regenerate_record_id:
             _question = get_sql_template()['regenerate_hint'] + self.question
-        return get_sql_template()['user'].format(lang=self.lang, engine=self.engine, schema=self.db_schema,
-                                                 question=_question,
-                                                 rule=self.rule, current_time=current_time, error_msg=self.error_msg,
-                                                 change_title=change_title)
+        plan_ctx = normalize_plan_context_block(self.plan_context)
+        user = get_sql_template()['user']
+        try:
+            return user.format(
+                lang=self.lang,
+                engine=self.engine,
+                schema=self.db_schema,
+                question=_question,
+                rule=self.rule,
+                current_time=current_time,
+                error_msg=self.error_msg,
+                change_title=change_title,
+                plan_context=plan_ctx,
+            )
+        except KeyError:
+            body = user.format(
+                lang=self.lang,
+                engine=self.engine,
+                schema=self.db_schema,
+                question=_question,
+                rule=self.rule,
+                current_time=current_time,
+                error_msg=self.error_msg,
+                change_title=change_title,
+            )
+            return (plan_ctx + body) if plan_ctx else body
 
     def chart_sys_question(self):
         templates: dict[str, str] = {

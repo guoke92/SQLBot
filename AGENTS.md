@@ -109,6 +109,17 @@ See `CLAUDE.md` for detailed backend architecture. Key points:
 - **Ports**: 8000 (main app), 8001 (MCP), 3000 (g2-ssr, internal)
 - **Bare-metal**: `installer/install.sh` + `sctl` CLI for Linux servers
 
+
+## Observability (execution details)
+
+Single audit channel: **`chat_log`** → `GET /chat/record/{id}/log` → frontend `ExecutionDetails`.
+
+- Graph units of work write spans via `apps.chat.steps.observability.log_span` or domain steps (`start_log`/`end_log` with `inject_span_meta`).
+- Do **not** build a second timeline from SSE or fabricate steps at `complete`.
+- Envelope: messages may include `{sqlbot_span: true, graph_node, step_index, gen_attempts, unit_index, brief, payload}`.
+- Writer map (NLQ): match_*/schema/sql/chart → steps; ground/bindings/execute/decide/summarize → node `log_span`.
+- Reuse operates when possible (`EXECUTE_QUERY`, `ANALYSIS`); agentic meta disambiguates batch/attempt — do not explode enums per attempt.
+
 ## Gotchas
 
 - `dmpython` (Dameng DB driver) is pinned and excluded on macOS — DM datasource won't work locally

@@ -897,7 +897,10 @@
       "EXECUTE_QUERY": "执行查询",
       "GENERATE_PICTURE": "生成图片",
       "TOOL_CALL": "工具调用",
-      "CONFIG_AGENT": "配置助手推理"
+      "CONFIG_AGENT": "配置助手推理",
+      "GROUND_ENTITIES": "实体接地",
+      "PREPARE_BINDINGS": "查询边界探测",
+      "DECIDE_NEXT": "决策下一步"
     },
     "log_system": "对话模板",
     "log_question": "本次提问",

@@ -897,7 +897,10 @@
       "EXECUTE_QUERY": "Execute Query",
       "GENERATE_PICTURE": "Generate Picture",
       "TOOL_CALL": "Tool Call",
-      "CONFIG_AGENT": "Config Agent"
+      "CONFIG_AGENT": "Config Agent",
+      "GROUND_ENTITIES": "Entity Grounding",
+      "PREPARE_BINDINGS": "Query Boundary Probe",
+      "DECIDE_NEXT": "Decide Next"
     },
     "log_system": "Conversation Template",
     "log_question": "Current Question",

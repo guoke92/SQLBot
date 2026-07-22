@@ -192,17 +192,43 @@ class SqlProtocol(BaseProtocol):
         return bundle
 
     def build_user_prompt(self, chat_question: Any, *, current_time: str, change_title: bool) -> str:
+        from apps.chat.plan_context import normalize_plan_context_block
         from apps.template.generate_sql.generator import get_sql_template
 
         q = chat_question
         question = q.question
         if getattr(q, "regenerate_record_id", None):
             question = get_sql_template()["regenerate_hint"] + q.question
-        return get_sql_template()["user"].format(
-            lang=q.lang, engine=q.engine, schema=q.db_schema,
-            question=question, rule=q.rule, current_time=current_time,
-            error_msg=getattr(q, "error_msg", ""), change_title=change_title,
-        )
+        # Single normalize path (same as AiModelQuestion.sql_user_question).
+        plan_ctx = normalize_plan_context_block(getattr(q, "plan_context", None))
+        user = get_sql_template()["user"]
+        try:
+            return user.format(
+                lang=q.lang,
+                engine=q.engine,
+                schema=q.db_schema,
+                question=question,
+                rule=q.rule,
+                current_time=current_time,
+                error_msg=getattr(q, "error_msg", ""),
+                change_title=change_title,
+                plan_context=plan_ctx,
+            )
+        except KeyError:
+            # Older templates without {plan_context}: prepend manually.
+            body = user.format(
+                lang=q.lang,
+                engine=q.engine,
+                schema=q.db_schema,
+                question=question,
+                rule=q.rule,
+                current_time=current_time,
+                error_msg=getattr(q, "error_msg", ""),
+                change_title=change_title,
+            )
+            if not plan_ctx:
+                return body
+            return plan_ctx + body
 
     # ------------------------------------------------------------------
     # Parse / validate / execute
@@ -426,6 +452,52 @@ class SqlProtocol(BaseProtocol):
                     return QueryPlan(
                         success=False,
                         message=msg,
+                        statement=sql,
+                        payload=plan.payload,
+                    )
+        except Exception:
+            pass
+
+        # ── Cost gates (catalog stats + structure + EXPLAIN) ──
+        try:
+            from apps.chat.plan_policy import LARGE_TABLE_ROWS
+            from apps.protocol.sql.cost_validate import (
+                check_multi_fact_fanout,
+                explain_cost_too_high,
+            )
+            from apps.datasource.crud.catalog_stats import load_table_stats_for_ds
+            from sqlmodel import Session
+            from common.core.db import engine as _sqlbot_engine
+
+            stats_by_table: dict = {}
+            ds_id = getattr(ds, "id", None)
+            if ds_id and actual_tables:
+                with Session(_sqlbot_engine) as _sess:
+                    stats_by_table = load_table_stats_for_ds(
+                        _sess, int(ds_id), list(actual_tables)
+                    )
+            fan = check_multi_fact_fanout(
+                sql, dialect or "mysql", stats_by_table
+            )
+            if fan:
+                return QueryPlan(
+                    success=False,
+                    message=fan,
+                    statement=sql,
+                    payload=plan.payload,
+                )
+            # EXPLAIN can be relatively expensive; only when multiple tables or large facts
+            need_explain = len(actual_tables) >= 3 or any(
+                (stats_by_table.get(n) or {}).get("approx_rows")
+                and int((stats_by_table.get(n) or {}).get("approx_rows") or 0) >= LARGE_TABLE_ROWS
+                for n in actual_tables
+            )
+            if need_explain:
+                exp_msg = explain_cost_too_high(ds, sql)
+                if exp_msg:
+                    return QueryPlan(
+                        success=False,
+                        message=exp_msg,
                         statement=sql,
                         payload=plan.payload,
                     )

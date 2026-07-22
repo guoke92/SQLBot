@@ -21,7 +21,7 @@ from copy import deepcopy
 from typing import Any, Dict, List, Literal, Optional
 
 import orjson
-from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+from langchain_core.messages import AIMessage, HumanMessage
 from sqlbot_xpack.custom_prompt.models.custom_prompt_model import CustomPromptTypeEnum
 
 from apps.chat.constants import DYNAMIC_DS_TYPES
@@ -34,11 +34,12 @@ from apps.chat.curd.chat import (
     save_sql,
     save_sql_exec_data,
 )
-from apps.chat.models.chat_model import ChatFinishStep, RenameChat
+from apps.chat.models.chat_model import ChatFinishStep, OperationEnum, RenameChat
 from apps.chat.steps.chart import generate_chart
 from apps.chat.steps.custom_prompt import match_custom_prompts
 from apps.chat.steps.datasource import select_datasource, validate_history_ds
 from apps.chat.steps.messages import build_prompt_messages
+from apps.chat.steps.observability import log_span
 from apps.chat.steps.permissions import (
     DYNAMIC_SUBSQL_PREFIX,
     generate_assistant_dynamic_sql,
@@ -48,6 +49,19 @@ from apps.chat.steps.persist import check_save_chart
 from apps.chat.steps.sql import generate_sql
 from apps.chat.steps.terminology import match_terminology
 from apps.chat.steps.training import match_training
+from apps.chat.plan_context import (
+    infer_entity_match,
+    render_plan_context,
+    wrap_plan_context,
+)
+from apps.chat.plan_policy import (
+    MAX_BATCH_ROUNDS,
+    MAX_PLAN_REGEN,
+    MAX_QUERIES_PER_BATCH,
+    NULL_DIM_SEVERE,
+    ROW_LIMIT,
+    ROW_LIMIT_NEAR,
+)
 from apps.chat.task.llm import LLMService, request_picture
 from apps.conversation.record import finish as record_finish
 from apps.conversation.record import save_error as record_save_error
@@ -64,9 +78,9 @@ from common.utils.utils import SQLBotLogUtil, extract_nested_json, prepare_for_o
 
 # ── Constants ────────────────────────────────────────────────────────────────
 
-_MAX_STEPS = 2
-_MAX_BATCH_SIZE = 5
-_ROW_LIMIT = 1000
+_MAX_STEPS = MAX_BATCH_ROUNDS
+_MAX_BATCH_SIZE = MAX_QUERIES_PER_BATCH
+_ROW_LIMIT = ROW_LIMIT
 
 
 # ── State ────────────────────────────────────────────────────────────────────
@@ -94,8 +108,10 @@ class NlqState(RunState, total=False):
     max_steps: int
     max_batch_size: int
     decision: str
-    repair_hint: str  # quality-gate rewrite brief for next generate_queries
+    repair_hint: str  # plan-validate or execute-quality rewrite brief
+    gen_attempts: int  # plan-time generate→validate failures in current slot
     entity_bindings: Dict[str, Any]  # NL phrase → canonical dimension values
+    query_bindings: Dict[str, Any]  # boundary probe binds (pk thresholds, etc.)
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
@@ -354,7 +370,7 @@ def _assess_step_quality(step: Dict[str, Any], index: int) -> Dict[str, Any]:
         else:
             rate = _null_rate(rows, f)
             null_rates[f] = round(rate, 3)
-            if rows and rate >= 0.6:
+            if rows and rate >= NULL_DIM_SEVERE:
                 issues.append(
                     f"维度列「{f}」空值率 {rate:.0%}（join/字段选择可能错误）"
                 )
@@ -370,13 +386,13 @@ def _assess_step_quality(step: Dict[str, Any], index: int) -> Dict[str, Any]:
             issues.append(f"指标列「{mf}」全为 0")
 
     # Only flag truncation when page is nearly full (true slice risk)
-    if truncated and len(rows) >= int(_ROW_LIMIT * 0.9):
+    if truncated and len(rows) >= ROW_LIMIT_NEAR:
         issues.append(
             f"结果接近截断上限（{len(rows)} 行 / limit {_ROW_LIMIT}），排序靠前可能偏置"
         )
 
     severity = bool(step.get("error")) or (not rows) or any(
-        r >= 0.6 for r in null_rates.values()
+        r >= NULL_DIM_SEVERE for r in null_rates.values()
     )
     return {
         "index": index,
@@ -458,10 +474,20 @@ def _summarize_steps(all_steps: List[Dict[str, Any]]) -> str:
 
 def _repair_instruction(assessments: List[Dict[str, Any]], question: str) -> str:
     issues = []
+    empty_or_zero = False
     for a in assessments:
+        if int(a.get("row_count") or 0) == 0 or a.get("error"):
+            empty_or_zero = True
         for it in a.get("issues") or []:
             issues.append(f"查询{a['index'] + 1}: {it}")
     issue_text = "\n".join(f"- {x}" for x in issues) or "- （未列出细则，请对照质检摘要）"
+    anti_empty = ""
+    if empty_or_zero:
+        anti_empty = (
+            "7. **禁止改得更空**：禁止在已有 0 行/近空结果上继续收紧等值过滤；"
+            "应放宽为 plan-context 的 IN/后缀匹配、核对时间列与 join 键，"
+            "或保持可出数的结构并在总结中说明局限。\n"
+        )
     return (
         "上一轮查询结果未通过数据质检，请**改写 SQL** 后重新查询，不要只重复同样语句。\n"
         f"用户原问题：{question}\n"
@@ -471,10 +497,12 @@ def _repair_instruction(assessments: List[Dict[str, Any]], question: str) -> str
         "迭代结束时间，而非随便用 create_time）。\n"
         "2. 若报错 unknown column / 字段不存在：必须去掉或改写该列，只使用 schema/字段列表中的列"
         "（注意：有 deleted 的表不等于所有表都有 deleted）。\n"
-        "3. 人员/部门务必通过可验证的关联（user/org）拿到非空维度；避免选择对不上的 name 字段。\n"
-        "4. 多指标若需对比，尽量统一维度表达式；或说明无法统一的原因。\n"
+        "3. 人员/部门务必通过可验证的关联（user/org）拿到非空维度；组织名按实体绑定 IN/eq，"
+        "禁止只用口语短词过窄等值。\n"
+        "4. 多指标若需对比，统一维度并 FULL OUTER / 维键并集对齐；月维不得只挂一侧事实表。\n"
         "5. 聚合分析不要用无意义的 LIMIT 充当前 N 页「全貌」；若必须限制，ORDER BY 应用业务指标而非空维。\n"
         "6. 仍返回系统约定的 JSON（单对象或数组）。\n"
+        f"{anti_empty}"
     )
 
 
@@ -738,7 +766,9 @@ def prepare_record_node(state: NlqState) -> NlqState:
             "analysis_text": "",
             "decision": "",
             "repair_hint": "",
+            "gen_attempts": 0,
             "entity_bindings": {},
+            "query_bindings": {},
             "finish_step": state.get("finish_step") or ChatFinishStep.GENERATE_CHART,
         }
     except Exception as e:
@@ -840,13 +870,37 @@ def ground_entities_node(state: NlqState) -> NlqState:
     """Probe organization-like dimensions before SQL generation.
 
     NL labels (e.g. 研发二部) often differ from warehouse values (战客研发二部).
-    Run small DISTINCT probes, map phrases to canonical values, inject into prompts.
+    Run small DISTINCT probes and write structured ``entity_bindings`` only —
+    prompt text is assembled later via ``plan_context``.
     """
     llm_service = state["llm_service"]
     sink = StreamSink.from_state(state)
+    record_id = getattr(llm_service.record, "id", None) or state.get("record_id")
     question = (llm_service.chat_question.question or "").strip()
     if not question or not llm_service.ds:
         return {**state, "entity_bindings": state.get("entity_bindings") or {}}
+
+    with log_span(
+        operate=OperationEnum.GROUND_ENTITIES,
+        record_id=record_id,
+        ai_modal_id=getattr(llm_service.chat_question, "ai_modal_id", None),
+        ai_modal_name=getattr(llm_service.chat_question, "ai_modal_name", None),
+        local_operation=True,
+        graph_node="ground_entities",
+    ) as span:
+        result_state = _ground_entities_impl(state, llm_service, sink)
+        binds = result_state.get("entity_bindings") or {}
+        span["payload"] = {
+            "candidates": binds.get("candidates") or [],
+            "resolved": binds.get("resolved") or {},
+        }
+        return result_state
+
+
+def _ground_entities_impl(
+    state: NlqState, llm_service: LLMService, sink: StreamSink
+) -> NlqState:
+    question = (llm_service.chat_question.question or "").strip()
 
     # Organizations: take the last 2–8 CJK chars before 部/中心/…
     cands = []
@@ -855,7 +909,7 @@ def ground_entities_node(state: NlqState) -> NlqState:
         # Prefer shorter org tail (e.g. 研发二部 over longer junk prefix)
         if len(s) > 8:
             s = s[-8:]
-        # trim common leading verbs/filler if glued (启发式：从第一「研/产/技/某」)
+        # trim common leading verbs/filler if glued
         for i, ch in enumerate(s):
             if ch in "研产技平运市供销财人教":
                 s = s[i:]
@@ -876,11 +930,11 @@ def ground_entities_node(state: NlqState) -> NlqState:
     # Dimension probes are independent of RAG table_name_list so org tables
     # are still explored even when embedding only returned fact tables.
     probe_specs = [
-        ("d_organization", "organization_name"),
-        ("d_user", "organization_name"),
+        ("d_organization", "organization_name", "organization_name"),
+        ("d_user", "organization_name", "organization_name"),
     ]
 
-    def _probe(table, col, phrase):
+    def _probe(table: str, col: str, phrase: str) -> List[str]:
         phrase_esc = phrase.replace("'", "''").replace("%", "").replace("_", "")
         if not phrase_esc:
             return []
@@ -890,7 +944,7 @@ def ground_entities_node(state: NlqState) -> NlqState:
             "AND `{col}` IS NOT NULL AND `{col}` <> '' "
             "LIMIT 30"
         ).format(col=col, table=table, ph=phrase_esc)
-        vals = []
+        vals: List[str] = []
         try:
             plan = QueryPlan(
                 success=True,
@@ -909,27 +963,33 @@ def ground_entities_node(state: NlqState) -> NlqState:
                     vals.append(str(v).strip())
         except Exception as exc:
             SQLBotLogUtil.warning("entity probe fail %s.%s: %s" % (table, col, exc))
-        out = []
-        seen = set()
+        out: List[str] = []
+        seen: set[str] = set()
         for v in vals:
             if v not in seen:
                 seen.add(v)
                 out.append(v)
         return out
 
-    matched = {}
+    matched: Dict[str, List[str]] = {}
+    col_hints: Dict[str, str] = {}
     for phrase in candidates:
-        hits = []
-        for table, col in probe_specs:
-            hits.extend(_probe(table, col, phrase))
-        uh = []
-        s = set()
+        hits: List[str] = []
+        hint = "organization_name"
+        for table, col, col_hint in probe_specs:
+            got = _probe(table, col, phrase)
+            if got:
+                hits.extend(got)
+                hint = col_hint
+        uh: List[str] = []
+        s: set[str] = set()
         for h in hits:
             if h not in s:
                 s.add(h)
                 uh.append(h)
         if uh:
             matched[phrase] = uh[:20]
+            col_hints[phrase] = hint
 
     if not matched:
         return {
@@ -937,7 +997,7 @@ def ground_entities_node(state: NlqState) -> NlqState:
             "entity_bindings": {"candidates": candidates, "resolved": {}},
         }
 
-    resolved = {}
+    resolved: Dict[str, Any] = {}
     for phrase, hits in matched.items():
         ranked = sorted(
             hits,
@@ -971,20 +1031,32 @@ def ground_entities_node(state: NlqState) -> NlqState:
                         pick = cand
             except Exception as exc:
                 SQLBotLogUtil.warning("entity disambiguation fail: %s" % exc)
+        alts = [h for h in ranked if h != pick][:8]
+        # Prefer IN when warehouse names are longer / multi-hit — prevents
+        # over-narrow `= phrase` filters that return empty (record 113 class).
+        close = [
+            h
+            for h in ranked
+            if h == pick
+            or h.endswith(phrase)
+            or phrase in h
+            or (pick and (pick in h or h in pick))
+        ][:8]
+        if pick not in close:
+            close = [pick] + close
+        match = infer_entity_match(phrase, pick, [h for h in close if h != pick])
+        if match == "in" and len(close) == 1 and close[0] != phrase:
+            # Single longer canonical still needs allowing the warehouse form
+            # and close phrase-containing hits only — alts already ranked.
+            pass
         resolved[phrase] = {
             "canonical": pick,
-            "alternatives": [h for h in ranked if h != pick][:8],
+            "alternatives": alts if match == "eq" else [h for h in close if h != pick][:8],
+            "match": match,
+            "column_hint": col_hints.get(phrase) or "organization_name",
         }
 
-    lines = [
-        "【维度探测结果 — 生成 SQL 时必须遵守】",
-        "自然语言已映射到库中标准值；过滤时优先用标准值做等值或 IN，避免过宽模糊匹配。",
-    ]
-    for phrase, info in resolved.items():
-        alt = info.get("alternatives") or []
-        extra = ("；备选：" + "、".join(alt)) if alt else ""
-        lines.append("- 「%s」→ `%s`%s" % (phrase, info.get("canonical"), extra))
-    llm_service.sql_message.append(SystemMessage(chr(10).join(lines)))
+    # State only — do not append sql_message here.
     try:
         sink.event(
             {
@@ -1005,32 +1077,108 @@ def ground_entities_node(state: NlqState) -> NlqState:
 
 
 
-_MULTI_QUERY_GUIDANCE = """\
-## 查询拆分原则（重要）
-默认用 **一条 SQL** 回答用户问题。仅在下面情况才拆成多条（通常最多 2 条）：
-1. 指标来自很难同粒度合并的不同事实表，且用户明确要多指标；
-2. 需要完全不同的分析切片（如明细 vs 汇总），单条 SQL 会扭曲语义。
+def _extract_title_from_sql_answer(raw_text: str, plans: List[Dict[str, Any]]) -> str:
+    """Best-effort conversation title from plans or raw model JSON (brief)."""
+    for item in plans or []:
+        b = (item.get("brief") or "").strip()
+        if b:
+            return b
+    try:
+        js = extract_nested_json(raw_text or "")
+        if not js:
+            return ""
+        data = orjson.loads(js)
+        items = data if isinstance(data, list) else [data]
+        for it in items:
+            if isinstance(it, dict):
+                b = (it.get("brief") or "").strip()
+                if b:
+                    return b
+    except Exception:
+        pass
+    return ""
 
-同一套维度（如部门/月/系统）下统计 task 与 story：**优先一条 SQL 多指标列或 UNION ALL**，
-禁止为了「全面」拆成多张重复表、禁止重复执行相同 SQL。
 
-一条足够时返回单个 JSON；多条时返回数组，且维度口径一致。
-{"success":true,"sql":"SELECT ...","tables":["t1"],"chart-type":"table","brief":"对话标题≤20字"}
+def _maybe_update_chat_brief(llm_service: Any, sink: StreamSink, title: str) -> None:
+    """Write sidebar title once per chat (works on plan success or validate fail)."""
+    if not getattr(llm_service, "change_title", False):
+        return
+    title = (title or "").replace(chr(10), " ").replace(chr(13), " ").strip()[:20]
+    if not title:
+        title = (llm_service.chat_question.question or "").strip()[:20]
+    if not title or not llm_service.record or not llm_service.record.chat_id:
+        return
+    try:
+        with session_scope() as session:
+            rename_chat(
+                session,
+                RenameChat(
+                    id=llm_service.record.chat_id,
+                    brief=title,
+                    brief_generate=True,
+                ),
+            )
+        sink.event({"type": "brief", "brief": title})
+        llm_service.change_title = False
+    except Exception:
+        traceback.print_exc()
 
-- 使用探测阶段给出的标准维值（若有）做等值/IN，避免过宽 LIKE；
-- 只使用 schema 中存在的列；不要把 A 表字段套到 B 表；
-- 优先可执行结果，不要反问代替查询；聚合慎用 LIMIT。
-"""
+
+def _plan_repair_message(refusal: str) -> str:
+    """Shared plan-time repair text (validate / empty-plan). Schema-general, not ds-specific."""
+    base = (refusal or "").strip() or "未能得到可执行 SQL 计划"
+    parts = [
+        "【计划校验失败 — 请改写 SQL 后重试】",
+        base,
+        "要求：",
+        "1. 列名/表名必须来自 schema；关联用维表主键与事实表外键（勿臆造 *_id 列名）。",
+        "2. 多事实表必须先各自 GROUP BY 到共享粒度再 JOIN，或拆成 ≤2 条 SQL（见 playbook）。",
+        "3. 仍返回协议 JSON（对象或数组），带 brief。",
+        "4. 须继续遵守 <plan-context>：实体 eq/IN、边界、时间列与月维双侧。",
+    ]
+    return chr(10).join(parts) + chr(10)
+
+
+def _attach_plan_context_for_generate(
+    llm_service: LLMService,
+    state: NlqState,
+    *,
+    repair: str = "",
+    extra_sections: Optional[List[str]] = None,
+    include_playbook: bool = True,
+) -> str:
+    """Render PlanContext once and stash on chat_question for build_user_prompt."""
+    body = render_plan_context(
+        entity_bindings=state.get("entity_bindings"),
+        query_bindings=state.get("query_bindings"),
+        include_playbook=include_playbook,
+        repair=repair,
+        extra_sections=extra_sections,
+    )
+    wrapped = wrap_plan_context(body)
+    try:
+        setattr(llm_service.chat_question, "plan_context", wrapped)
+    except Exception:
+        pass
+    return wrapped
 
 
 def generate_queries_node(state: NlqState) -> NlqState:
-    """Plan SQL queries for the current batch (single LLM call → 1..N plans)."""
+    """Plan SQL queries for the current batch.
+
+    Plan-time validate failures set ``repair_hint`` + ``gen_attempts`` and let
+    ``route_after_queries`` loop back (no hard-fail until budget exhausted).
+
+    Prompt path: probe nodes write state only；this node assembles one PlanContext
+    block into the user prompt via ``chat_question.plan_context``.
+    """
     llm_service = state["llm_service"]
     sink = StreamSink.from_state(state)
     step_index = state.get("step_index", 0)
     all_steps = state.get("all_steps") or []
     base = _step_base(state)
     json_result: Dict[str, Any] = dict(state.get("json_result") or {"success": True})
+    gen_attempts = int(state.get("gen_attempts") or 0)
 
     try:
         sink.event(
@@ -1038,99 +1186,127 @@ def generate_queries_node(state: NlqState) -> NlqState:
                 "type": "batch-start",
                 "index": step_index,
                 "base_index": base,
+                "gen_attempts": gen_attempts,
             }
         )
 
-        # Subsequent iterations: inject previous results + optional repair brief
+        repair = (state.get("repair_hint") or "").strip()
+        extra_sections: List[str] = []
+        # Subsequent post-exec rounds: quality summary is secondary insurance.
         if step_index > 0 and all_steps:
             assessments = _assess_all_steps(all_steps)
-            repair = state.get("repair_hint") or ""
             if not repair and _quality_requires_repair(assessments):
                 repair = _repair_instruction(
                     assessments, llm_service.chat_question.question or ""
                 )
-            context_msg = SystemMessage(
-                "以下是用户之前已执行的查询与**数据质检**摘要，请基于这些问题改写/补充查询：\n\n"
-                f"{_summarize_steps(all_steps)}\n\n"
-                + (f"【改写指令】\n{repair}" if repair else "")
+            summary = _summarize_steps(all_steps)
+            extra_sections.append(
+                "## 已执行查询与质检摘要（改写时参考，禁止改得更空）\n" + summary
             )
-            llm_service.sql_message.append(context_msg)
-            # Keep format reminder terse on loops
-            llm_service.sql_message.append(
-                HumanMessage(
-                    "请输出与协议一致的 SQL JSON（对象或数组）。优先修复质检问题，"
-                    "不要原样重复失败 SQL。"
-                )
+            if repair:
+                extra_sections.append("## 改写指令\n" + repair)
+
+        _attach_plan_context_for_generate(
+            llm_service,
+            state,
+            repair=repair if step_index == 0 else "",
+            extra_sections=extra_sections,
+            include_playbook=True,
+        )
+        try:
+            sink.event(
+                {
+                    "type": "plan-context",
+                    "content": getattr(llm_service.chat_question, "plan_context", "") or "",
+                }
             )
-        elif step_index == 0:
-            # Multi-query format guidance only on the first batch
-            llm_service.sql_message.append(HumanMessage(_MULTI_QUERY_GUIDANCE))
+        except Exception:
+            pass
 
         full_sql_text = ""
-        with session_scope() as session:
-            for chunk in generate_sql(llm_service, session):
-                content = chunk.get("content") or ""
-                reasoning = chunk.get("reasoning_content") or ""
-                full_sql_text += content
-                sink.event(
-                    {
-                        "content": content,
-                        "reasoning_content": reasoning,
-                        "type": "step-sql-result",
-                        "index": base,  # streaming belongs to the first planned slot
-                    }
-                )
+        try:
+            with session_scope() as session:
+                for chunk in generate_sql(
+                    llm_service,
+                    session,
+                    step_index=step_index,
+                    gen_attempts=gen_attempts,
+                    graph_node="generate_queries",
+                ):
+                    content = chunk.get("content") or ""
+                    reasoning = chunk.get("reasoning_content") or ""
+                    full_sql_text += content
+                    sink.event(
+                        {
+                            "content": content,
+                            "reasoning_content": reasoning,
+                            "type": "step-sql-result",
+                            "index": base,
+                        }
+                    )
+        finally:
+            # Avoid sticky plan_context on later non-SQL prompts.
+            try:
+                setattr(llm_service.chat_question, "plan_context", "")
+            except Exception:
+                pass
 
         max_batch = state.get("max_batch_size") or _MAX_BATCH_SIZE
         plans, refusal = _parse_query_generation(
             full_sql_text, llm_service, max_batch_size=max_batch
         )
-        if not plans:
-            # Preserve protocol semantics: success:false message is user-facing content,
-            # not an internal "invalid SQL" generic failure.
-            raise SingleMessageError(refusal or "Failed to generate any valid SQL queries")
 
-        for i, p in enumerate(plans):
+        _maybe_update_chat_brief(
+            llm_service, sink, _extract_title_from_sql_answer(full_sql_text, plans)
+        )
+
+        if not plans:
+            msg = refusal or "Failed to generate any valid SQL queries"
+            attempts = gen_attempts + 1
+            repair_msg = _plan_repair_message(msg)
+            SQLBotLogUtil.warning(
+                f"plan generation empty attempt={attempts}: {msg[:240]}"
+            )
+            if attempts <= MAX_PLAN_REGEN:
+                return {
+                    **state,
+                    "json_result": json_result,
+                    "batch_plans": [],
+                    "batch_results": [],
+                    "batch_charts": [],
+                    "repair_hint": repair_msg,
+                    "gen_attempts": attempts,
+                    "record": llm_service.record,
+                    "error": None,
+                }
+            return {
+                **_fail(
+                    {
+                        **state,
+                        "batch_plans": [],
+                        "repair_hint": repair_msg,
+                        "gen_attempts": attempts,
+                    },
+                    llm_service.record.id,
+                    SingleMessageError(msg),
+                ),
+                "json_result": json_result,
+                "record": llm_service.record,
+            }
+
+        for i, pitem in enumerate(plans):
             gidx = base + i
-            display_sql = p.get("format_statement") or p.get("sql") or ""
+            display_sql = pitem.get("format_statement") or pitem.get("sql") or ""
             sink.event(
                 {
                     "content": display_sql,
                     "type": "step-sql",
                     "index": gidx,
                     "engine_type": getattr(llm_service.ds, "type", None),
-                    "brief": p.get("brief") or "",
-                    "title": p.get("brief") or "",
+                    "brief": pitem.get("brief") or "",
+                    "title": pitem.get("brief") or "",
                 }
             )
-
-        
-        # Conversation sidebar title (once per chat when change_title is pending)
-        if step_index == 0 and getattr(llm_service, "change_title", False):
-            title = ""
-            for p in plans:
-                b = (p.get("brief") or "").strip()
-                if b:
-                    title = b
-                    break
-            if not title:
-                title = (llm_service.chat_question.question or "").strip()
-            title = title.replace(chr(10), " ").strip()[:20]
-            if title and llm_service.record and llm_service.record.chat_id:
-                try:
-                    with session_scope() as session:
-                        rename_chat(
-                            session,
-                            RenameChat(
-                                id=llm_service.record.chat_id,
-                                brief=title,
-                                brief_generate=True,
-                            ),
-                        )
-                    sink.event({"type": "brief", "brief": title})
-                    llm_service.change_title = False
-                except Exception:
-                    traceback.print_exc()
 
         sink.event(
             {
@@ -1141,7 +1317,6 @@ def generate_queries_node(state: NlqState) -> NlqState:
             }
         )
 
-        # Compatibility: last display SQL on record
         with session_scope() as session:
             save_sql(
                 session=session,
@@ -1155,7 +1330,10 @@ def generate_queries_node(state: NlqState) -> NlqState:
             "batch_plans": plans,
             "batch_results": [],
             "batch_charts": [],
+            "repair_hint": "",
+            "gen_attempts": 0,
             "record": llm_service.record,
+            "error": None,
         }
     except Exception as e:
         return _fail(state, llm_service.record.id, e)
@@ -1196,27 +1374,73 @@ def execute_queries_node(state: NlqState) -> NlqState:
     results: List[Optional[Dict[str, Any]]] = [None] * len(prepared)
 
     def _execute_single(idx: int, plan_dict: Dict[str, Any]) -> Dict[str, Any]:
-        if plan_dict.get("prep_error"):
-            raise SingleMessageError(plan_dict["prep_error"])
-        qp: QueryPlan = plan_dict["plan"]
-        with session_scope() as session:
-            # session reserved for any future audit; execute uses ds connection
-            _ = session
-            qr = llm_service.protocol.execute(llm_service.ds, qp)
-            result = qr.as_dict()
-            if result.get("is_success") is False:
-                code = result.get("code_value")
-                msg = (
-                    f"Query failed (code={code})" if code is not None else "Query failed"
-                )
-                raise SingleMessageError(msg)
-            result = _normalize_result_data(result, llm_service)
-            return {
-                "index": idx,
-                "result": result,
-                "plan": plan_dict,
-                "re_exec": result.get("re_exec") or getattr(qr, "re_exec", None),
-            }
+        gidx = base + idx
+        sql_show = (
+            plan_dict.get("format_statement")
+            or plan_dict.get("sql")
+            or ""
+        )
+        brief = (plan_dict.get("brief") or "")[:40]
+        record_id = getattr(llm_service.record, "id", None)
+        with log_span(
+            operate=OperationEnum.EXECUTE_QUERY,
+            record_id=record_id,
+            local_operation=True,
+            graph_node="execute_queries",
+            step_index=state.get("step_index", 0),
+            unit_index=gidx,
+            brief=brief,
+            initial_payload={
+                "count": 0,
+                "sql": sql_show[:2000],
+                "index": gidx,
+            },
+        ) as span:
+            try:
+                if plan_dict.get("prep_error"):
+                    raise SingleMessageError(plan_dict["prep_error"])
+                qp: QueryPlan = plan_dict["plan"]
+                with session_scope() as session:
+                    _ = session
+                    qr = llm_service.protocol.execute(llm_service.ds, qp)
+                    result = qr.as_dict()
+                    if result.get("is_success") is False:
+                        code = result.get("code_value")
+                        msg = (
+                            f"Query failed (code={code})"
+                            if code is not None
+                            else "Query failed"
+                        )
+                        raise SingleMessageError(msg)
+                    result = _normalize_result_data(result, llm_service)
+                    rows = result.get("data") if isinstance(result, dict) else None
+                    n = len(rows) if isinstance(rows, list) else 0
+                    span["payload"] = {
+                        "count": n,
+                        "sql": sql_show[:2000],
+                        "index": gidx,
+                        "brief": brief,
+                        "fields": (result.get("fields") or [])[:40]
+                        if isinstance(result, dict)
+                        else [],
+                    }
+                    return {
+                        "index": idx,
+                        "result": result,
+                        "plan": plan_dict,
+                        "re_exec": result.get("re_exec")
+                        or getattr(qr, "re_exec", None),
+                    }
+            except Exception as exc:
+                span["error"] = True
+                span["payload"] = {
+                    "count": 0,
+                    "sql": sql_show[:2000],
+                    "index": gidx,
+                    "brief": brief,
+                    "error": _error_message(exc)[:500],
+                }
+                raise
 
     try:
         # Fast path: single query no thread pool
@@ -1404,7 +1628,13 @@ def generate_charts_node(state: NlqState) -> NlqState:
             with session_scope() as session:
                 full_chart_text = ""
                 for chunk in generate_chart(
-                    llm_service, session, chart_type, schema_text
+                    llm_service,
+                    session,
+                    chart_type,
+                    schema_text,
+                    step_index=state.get("step_index", 0),
+                    unit_index=gidx,
+                    graph_node="generate_charts",
                 ):
                     full_chart_text += chunk.get("content") or ""
                     sink.event(
@@ -1495,7 +1725,46 @@ def decide_next_node(state: NlqState) -> NlqState:
     step_index = state.get("step_index", 0)
     max_steps = state.get("max_steps", _MAX_STEPS)
     finish_v = _finish_step_value(state)
+    record_id = getattr(llm_service.record, "id", None) or state.get("record_id")
 
+    # Impl may set used_llm=True when invoking model. Pure QC auto-continue is local.
+    meta: Dict[str, Any] = {"used_llm": False}
+    # Start as local; promote only if LLM fires (payload). Avoid false non-local spans.
+    with log_span(
+        operate=OperationEnum.DECIDE_NEXT,
+        record_id=record_id,
+        ai_modal_id=getattr(llm_service.chat_question, "ai_modal_id", None),
+        ai_modal_name=getattr(llm_service.chat_question, "ai_modal_name", None),
+        local_operation=True,
+        graph_node="decide_next",
+        brief=f"batch={step_index}",
+        step_index=step_index,
+    ) as span:
+        out = _decide_next_impl(
+            state, llm_service, step_index, max_steps, finish_v, meta=meta
+        )
+        span["payload"] = {
+            "decision": out.get("decision"),
+            "step_index": out.get("step_index"),
+            "has_analysis": bool((out.get("analysis_text") or "").strip()),
+            "repair": bool((out.get("repair_hint") or "").strip()),
+            "used_llm": bool(meta.get("used_llm")),
+            "path": meta.get("path") or "unknown",
+        }
+        return out
+
+
+def _decide_next_impl(
+    state: NlqState,
+    llm_service: LLMService,
+    step_index: int,
+    max_steps: int,
+    finish_v: int,
+    *,
+    meta: Optional[Dict[str, Any]] = None,
+) -> NlqState:
+    if meta is None:
+        meta = {}
     batch_results = state.get("batch_results") or []
     batch_charts = state.get("batch_charts") or []
     batch_plans = state.get("batch_plans") or []
@@ -1512,6 +1781,8 @@ def decide_next_node(state: NlqState) -> NlqState:
     repair_hint = _repair_instruction(assessments, question) if needs_repair else ""
 
     if finish_v < int(ChatFinishStep.GENERATE_CHART.value):
+        meta["path"] = "finish_step_early"
+        meta["used_llm"] = False
         return {
             **state,
             "decision": "finish",
@@ -1525,12 +1796,46 @@ def decide_next_node(state: NlqState) -> NlqState:
 
     force_terminal = step_index >= max_steps - 1
 
-    # Hard gate: bad quality + rounds left → continue with repair brief
-    if needs_repair and not force_terminal:
+    # Post-exec QC is insurance, not the main fix path.
+    # Prefer summarize with honest limitations over automatic continue that
+    # often rewrites filters dryer (empty → emptier). Allow at most one
+    # continue when there is a clear recoverable signal (exec error / unknown
+    # column class) and rounds remain.
+    def _recoverable_continue(assess: List[Dict[str, Any]]) -> bool:
+        if force_terminal:
+            return False
+        # Already spent a post-exec continuation batch.
+        if step_index >= 1:
+            return False
+        texts: List[str] = []
+        for a in assess:
+            if a.get("error"):
+                texts.append(str(a.get("error") or ""))
+            for it in a.get("issues") or []:
+                texts.append(str(it))
+        blob = " ".join(texts).lower()
+        markers = (
+            "unknown column",
+            "字段不存在",
+            "doesn't exist",
+            "执行失败",
+            "syntax",
+            "timeout",
+            "超时",
+        )
+        if any(m in blob for m in markers):
+            return True
+        # Pure empty / all-zero without structural error → summarize, don't thrash.
+        return False
+
+    auto_continue = bool(needs_repair and _recoverable_continue(assessments))
+    if auto_continue:
         SQLBotLogUtil.info(
-            "decide_next quality gate -> continue; issues="
+            "decide_next quality gate -> continue (recoverable); issues="
             + str(sum(len(a.get("issues") or []) for a in assessments))
         )
+        meta["path"] = "auto_continue"
+        meta["used_llm"] = False
         return {
             **state,
             "decision": "continue",
@@ -1541,20 +1846,17 @@ def decide_next_node(state: NlqState) -> NlqState:
             "batch_results": [],
             "batch_charts": [],
             "repair_hint": repair_hint,
+            "gen_attempts": 0,
         }
 
     try:
         steps_summary = _summarize_steps(updated_steps)
-        if needs_repair and force_terminal:
+        if needs_repair:
             repair_policy = (
-                "【质检未通过且已无更多轮次】不允许 continue。"
-                "必须 action=summarize，并在「数据质量与局限」中如实说明问题与 SQL 依据，"
-                "不要把截断/高空值结果包装成可靠结论。"
-            )
-        elif needs_repair:
-            repair_policy = (
-                "【质检未通过】优先 action=continue 并写清 reason；"
-                "仅当确实无法改写时才 summarize 并坦陈局限。"
+                "【质检未通过】默认 action=summarize，在「数据质量与局限」如实说明"
+                "（空结果、过窄过滤、join/字段问题），展示已有表格，不要假装数据充分。"
+                "仅当存在明确可修复的执行/列错误且 reason 写清时才 continue；"
+                "**禁止**把已有近空结果改得更空。"
             )
         else:
             repair_policy = (
@@ -1568,6 +1870,8 @@ def decide_next_node(state: NlqState) -> NlqState:
             repair_policy=repair_policy,
         )
         messages = list(llm_service.sql_message) + [HumanMessage(prompt)]
+        meta["path"] = "llm_decide"
+        meta["used_llm"] = True
         response: AIMessage = llm_service.llm.invoke(messages)
         response_text = (
             response.content
@@ -1653,6 +1957,8 @@ def decide_next_node(state: NlqState) -> NlqState:
             "repair_hint": repair_hint if decision == "continue" else "",
         }
     except Exception as e:
+        meta["path"] = "error"
+        meta["used_llm"] = False
         SQLBotLogUtil.error(f"decide_next_node error: {e}")
         stub = state.get("analysis_text") or ""
         if not stub and assessments:
@@ -1678,14 +1984,50 @@ def summarize_node(state: NlqState) -> NlqState:
     """Stream the analysis text to the user."""
     sink = StreamSink.from_state(state)
     analysis_text = state.get("analysis_text") or ""
+    llm_service = state.get("llm_service")
+    record_id = None
+    if llm_service is not None:
+        record_id = getattr(getattr(llm_service, "record", None), "id", None)
+    record_id = record_id or state.get("record_id")
 
-    if analysis_text:
-        # Chunk for progressive display consistency (single chunk is fine)
-        sink.event({"type": "analysis", "content": analysis_text})
-        if sink.mode == "markdown":
-            sink.text(analysis_text + "\n\n")
-
-    return state
+    with log_span(
+        operate=OperationEnum.ANALYSIS,
+        record_id=record_id,
+        ai_modal_id=getattr(getattr(llm_service, "chat_question", None), "ai_modal_id", None)
+        if llm_service
+        else None,
+        ai_modal_name=getattr(
+            getattr(llm_service, "chat_question", None), "ai_modal_name", None
+        )
+        if llm_service
+        else None,
+        local_operation=True,
+        graph_node="summarize",
+        brief="综合分析",
+        step_index=state.get("step_index"),
+        initial_payload={"source": "nlq_summarize", "chars": len(analysis_text)},
+    ) as span:
+        if analysis_text:
+            sink.event({"type": "analysis", "content": analysis_text})
+            if sink.mode == "markdown":
+                sink.text(analysis_text + "\n\n")
+            # Persist analysis like dedicated analysis path
+            if llm_service is not None and getattr(llm_service, "record", None):
+                try:
+                    with session_scope() as session:
+                        save_analysis_answer(
+                            session=session,
+                            record_id=llm_service.record.id,
+                            answer=analysis_text,
+                        )
+                except Exception:
+                    traceback.print_exc()
+        span["payload"] = {
+            "source": "nlq_summarize",
+            "chars": len(analysis_text),
+            "empty": not bool(analysis_text.strip()),
+        }
+        return state
 
 
 def complete_node(state: NlqState) -> NlqState:
@@ -1780,12 +2122,25 @@ def fail_node(state: NlqState) -> NlqState:
 
 def route_after_queries(
     state: NlqState,
-) -> Literal["execute_queries", "complete", "fail"]:
+) -> Literal["generate_queries", "execute_queries", "complete", "fail"]:
+    """Execute when plans exist; else plan-regen within MAX_PLAN_REGEN, else fail."""
     if state.get("error"):
         return "fail"
-    if _finish_step_value(state) <= int(ChatFinishStep.GENERATE_QUERY.value):
-        return "complete"
-    return "execute_queries"
+
+    plans = state.get("batch_plans") or []
+    if plans:
+        if _finish_step_value(state) <= int(ChatFinishStep.GENERATE_QUERY.value):
+            return "complete"
+        return "execute_queries"
+
+    attempts = int(state.get("gen_attempts") or 0)
+    repair = (state.get("repair_hint") or "").strip()
+    if repair and attempts <= MAX_PLAN_REGEN:
+        SQLBotLogUtil.info(
+            f"route_after_queries: plan regen attempts={attempts}/{MAX_PLAN_REGEN}"
+        )
+        return "generate_queries"
+    return "fail"
 
 
 def route_after_execute(

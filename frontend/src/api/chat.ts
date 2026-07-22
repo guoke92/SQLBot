@@ -302,6 +302,7 @@ const toChatRecordList = (list: any = []): ChatRecord[] => {
 }
 
 export class ChatLogHistoryItem {
+  id?: number | string
   start_time?: Date | string
   finish_time?: Date | string
   duration?: number | undefined
@@ -382,7 +383,7 @@ const toChatLogHistoryItem = (data?: any): any | undefined => {
   if (!data) {
     return undefined
   }
-  return new ChatLogHistoryItem(
+  const item = new ChatLogHistoryItem(
     data.start_time,
     data.finish_time,
     data.duration,
@@ -392,6 +393,8 @@ const toChatLogHistoryItem = (data?: any): any | undefined => {
     data.error,
     data.message
   )
+  ;(item as any).id = data.id
+  return item
 }
 
 const toChatLogHistoryItemList = (list: any = []): ChatLogHistoryItem[] => {

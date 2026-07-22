@@ -34,6 +34,13 @@ class CoreTable(SQLModel, table=True):
     table_comment: str = Field(sa_column=Column(Text))
     custom_comment: str = Field(sa_column=Column(Text))
     embedding: str = Field(sa_column=Column(Text, nullable=True))
+    # Catalog cost stats (refreshed on table sync). Used by validate_plan / probes.
+    approx_rows: Optional[int] = Field(sa_column=Column(BigInteger, nullable=True), default=None)
+    data_bytes: Optional[int] = Field(sa_column=Column(BigInteger, nullable=True), default=None)
+    index_summary: Optional[str] = Field(sa_column=Column(Text, nullable=True), default=None)
+    stats_updated_at: Optional[datetime] = Field(
+        sa_column=Column(DateTime(timezone=False), nullable=True), default=None
+    )
 
 
 class DsRecommendedProblem(SQLModel, table=True):

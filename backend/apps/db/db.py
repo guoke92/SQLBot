@@ -143,6 +143,17 @@ def get_engine(ds: CoreDatasource, timeout: int = 0) -> Engine:
         conf.timeout = timeout
     if timeout > 0:
         conf.timeout = timeout
+    # Floor for hung analytics queries when DS conf timeout is 0/None
+    try:
+        from apps.chat.plan_policy import EXECUTE_TIMEOUT_SEC
+
+        floor = int(EXECUTE_TIMEOUT_SEC or 0)
+    except Exception:
+        floor = 45
+    ct = int(conf.timeout or 0)
+    if ct <= 0 and floor > 0:
+        conf.timeout = floor
+        ct = floor
 
     if equals_ignore_case(ds.type, "pg"):
         if conf.dbSchema is not None and conf.dbSchema != "":
@@ -156,10 +167,16 @@ def get_engine(ds: CoreDatasource, timeout: int = 0) -> Engine:
                                poolclass=NullPool)
     elif equals_ignore_case(ds.type, 'oracle'):
         engine = create_engine(get_uri(ds), poolclass=NullPool)
-    elif equals_ignore_case(ds.type, 'mysql'):  # mysql
+    elif equals_ignore_case(ds.type, 'mysql'):  # mysql — set read/write timeout to avoid hung executes
         ssl_mode = {"require": True} if conf.ssl else None
-        engine = create_engine(get_uri(ds), connect_args={"connect_timeout": conf.timeout, "ssl": ssl_mode},
-                               poolclass=NullPool)
+        connect_args = {
+            "connect_timeout": ct or floor or 10,
+            "read_timeout": ct or floor or 45,
+            "write_timeout": ct or floor or 45,
+        }
+        if ssl_mode:
+            connect_args["ssl"] = ssl_mode
+        engine = create_engine(get_uri(ds), connect_args=connect_args, poolclass=NullPool)
     else:  # ck
         engine = create_engine(get_uri(ds), connect_args={"connect_timeout": conf.timeout}, poolclass=NullPool)
     return engine
@@ -594,10 +611,31 @@ def exec_sql(ds: CoreDatasource | AssistantOutDsSchema, sql: str, origin_column=
     if not is_safe:
         raise ValueError(f"SQL can only contain read operations: {error_reason}")
 
+    # Inject dialect statement timeouts for long analytics SELECTs (best-effort).
+    exec_sql_text = sql
+    try:
+        from apps.chat.plan_policy import EXECUTE_TIMEOUT_MS
+
+        ms = int(EXECUTE_TIMEOUT_MS or 0)
+    except Exception:
+        ms = 0
+    if ms > 0 and equals_ignore_case(getattr(ds, "type", ""), "mysql", "doris", "starrocks", "mariadb"):
+        # MySQL 5.7.8+ SELECT max_execution_time hint (ms)
+        stripped = sql.lstrip()
+        if stripped[:6].upper() == "SELECT" and "max_execution_time" not in stripped.lower():
+            exec_sql_text = f"SELECT /*+ MAX_EXECUTION_TIME({ms}) */ " + stripped[6:].lstrip()
+    elif ms > 0 and equals_ignore_case(getattr(ds, "type", ""), "pg", "postgresql", "kingbase"):
+        pass
+
     db = DB.get_db(ds.type)
     if db.connect_type == ConnectType.sqlalchemy:
         with get_session(ds) as session:
-            with session.execute(text(sql)) as result:
+            if ms > 0 and equals_ignore_case(getattr(ds, "type", ""), "pg", "postgresql", "kingbase"):
+                try:
+                    session.execute(text(f"SET LOCAL statement_timeout = {int(ms)}"))
+                except Exception:
+                    pass
+            with session.execute(text(exec_sql_text)) as result:
                 try:
                     columns = result.keys()._keys if origin_column else [item.lower() for item in result.keys()._keys]
 

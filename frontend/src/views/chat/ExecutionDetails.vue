@@ -17,6 +17,7 @@ import LogChooseTable from './execution-component/LogChooseTable.vue'
 import LogGeneratePicture from './execution-component/LogGeneratePicture.vue'
 import LogToolCall from './execution-component/LogToolCall.vue'
 import LogWithAi from '@/views/chat/execution-component/LogWithAi.vue'
+import LogSpanSummary from './execution-component/LogSpanSummary.vue'
 
 const { t } = useI18n()
 const logHistory = ref<ChatLogHistory>({})
@@ -25,33 +26,71 @@ const expandIds = ref<any>([])
 const drawerSize = ref('600px')
 
 /**
- * Drawer step title: keep i18n enum labels, append concrete tool name for TOOL_CALL.
- * Source of name is ChatLog message payload (same shape as LogToolCall body).
- * Do not maintain a second title map or hardcode locale strings here.
+ * Drawer step title: i18n operate label + optional span meta
+ * (batch / attempt / unit / tool name) from ChatLog messages.
+ * Single title path — no parallel name maps.
  */
+function parseLogMessage(ele: ChatLogHistoryItem | Record<string, any> | undefined): any {
+  if (!ele) return null
+  const raw = (ele as ChatLogHistoryItem).message
+  if (raw && typeof raw === 'object') return raw
+  if (typeof raw === 'string') {
+    try {
+      return JSON.parse(raw)
+    } catch {
+      return null
+    }
+  }
+  return null
+}
+
+function spanMetaFromMessage(msg: any): Record<string, any> | null {
+  if (!msg) return null
+  if (msg.sqlbot_span) return msg
+  if (Array.isArray(msg)) {
+    const head = msg.find((m: any) => m?.sqlbot_span_meta || m?.sqlbot_span)
+    if (head?.sqlbot_span) return head
+    if (head?.content) {
+      try {
+        const parsed = typeof head.content === 'string' ? JSON.parse(head.content) : head.content
+        if (parsed?.sqlbot_span) return parsed
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+  return null
+}
+
+function isSpanPayload(ele: ChatLogHistoryItem | Record<string, any> | undefined): boolean {
+  return !!spanMetaFromMessage(parseLogMessage(ele))
+}
+
 function stepDisplayName(ele: ChatLogHistoryItem | Record<string, any> | undefined): string {
   if (!ele) {
     return ''
   }
   const base = (ele as ChatLogHistoryItem).operate || ''
-  if ((ele as ChatLogHistoryItem).operate_key === 'TOOL_CALL') {
-    const raw = (ele as ChatLogHistoryItem).message
-    const msg =
-      raw && typeof raw === 'object'
-        ? (raw as Record<string, any>)
-        : typeof raw === 'string'
-          ? (() => {
-              try {
-                return JSON.parse(raw)
-              } catch {
-                return null
-              }
-            })()
-          : null
-    const tool = msg?.name || msg?.tool
-    if (tool) {
-      return `${base} · ${tool}`
+  const msg = parseLogMessage(ele)
+  const key = (ele as ChatLogHistoryItem).operate_key
+  if (key === 'TOOL_CALL') {
+    const tool = msg?.name || msg?.tool || msg?.payload?.name
+    if (tool) return `${base} · ${tool}`
+  }
+  const span = spanMetaFromMessage(msg)
+  if (span) {
+    const bits: string[] = []
+    if (span.brief) bits.push(String(span.brief))
+    if (span.step_index !== undefined && span.step_index !== null) {
+      bits.push(`b${span.step_index}`)
     }
+    if (span.gen_attempts !== undefined && span.gen_attempts !== null && Number(span.gen_attempts) > 0) {
+      bits.push(`a${span.gen_attempts}`)
+    }
+    if (span.unit_index !== undefined && span.unit_index !== null) {
+      bits.push(`#${span.unit_index}`)
+    }
+    if (bits.length) return `${base} · ${bits.join(' · ')}`
   }
   return base
 }
@@ -122,7 +161,7 @@ defineExpose({
     <div class="title">{{ t('parameter.execution_details') }}</div>
 
     <div class="list">
-      <div v-for="(ele, index) in logHistory.steps" :key="ele.duration" class="list-item">
+      <div v-for="(ele, index) in logHistory.steps" :key="ele.id ?? index" class="list-item">
         <div class="header" @click="handleExpand(index)">
           <div class="name">
             <el-icon class="shrink" :class="expandIds.includes(index) && 'expand'" size="10">
@@ -154,6 +193,15 @@ defineExpose({
           <LogGeneratePicture v-else-if="ele.operate_key === 'GENERATE_PICTURE'" :item="ele" />
           <LogToolCall
             v-else-if="ele.operate_key === 'TOOL_CALL' || ele.operate_key === 'CONFIG_AGENT'"
+            :item="ele"
+          />
+          <LogSpanSummary
+            v-else-if="
+              ele.operate_key === 'GROUND_ENTITIES' ||
+              ele.operate_key === 'PREPARE_BINDINGS' ||
+              ele.operate_key === 'DECIDE_NEXT' ||
+              (ele.operate_key === 'ANALYSIS' && isSpanPayload(ele))
+            "
             :item="ele"
           />
           <LogWithAi v-else :item="ele" />

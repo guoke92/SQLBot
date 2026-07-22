@@ -897,7 +897,10 @@
       "EXECUTE_QUERY": "쿼리 실행",
       "GENERATE_PICTURE": "이미지 생성",
       "TOOL_CALL": "도구 호출",
-      "CONFIG_AGENT": "구성 어시스턴트 추론"
+      "CONFIG_AGENT": "구성 어시스턴트 추론",
+      "GROUND_ENTITIES": "엔티티 그라운딩",
+      "PREPARE_BINDINGS": "쿼리 경계 탐색",
+      "DECIDE_NEXT": "다음 단계 결정"
     },
     "log_system": "대화 템플릿",
     "log_question": "현재 질문",

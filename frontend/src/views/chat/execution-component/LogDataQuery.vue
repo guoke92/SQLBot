@@ -18,7 +18,11 @@ const props = withDefaults(
 const { t } = useI18n()
 
 const message = computed(() => {
-  return props.item?.message ?? { count: 0 }
+  const raw = props.item?.message ?? { count: 0 }
+  if (raw && typeof raw === 'object' && (raw as any).sqlbot_span && (raw as any).payload) {
+    return { count: 0, ...(raw as any).payload }
+  }
+  return raw
 })
 const title = computed(() => {
   return t('chat.query_count_title', [message.value.count])

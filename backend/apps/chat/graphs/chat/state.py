@@ -36,7 +36,9 @@ class ChatState(RunState, total=False):
     max_batch_size: int
     decision: str
     repair_hint: str
+    gen_attempts: int
     entity_bindings: Dict[str, Any]
+    query_bindings: Dict[str, Any]
 
     # ── dialogue_path ──
     evidence: Any
