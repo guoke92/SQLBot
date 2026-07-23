@@ -45,6 +45,7 @@ export function getAxesWithFilter(axes: ChartAxis[]): {
   series: ChartAxis[]
   multiQuota: string[] // series 为空时返回 multi-quota 为 true 的 y 轴 value 列表
   multiQuotaName?: string
+  multiMetricWithSeries: boolean // true when series + multiple y (need combined rendering)
 } {
   const groups = {
     x: [] as ChartAxis[],
@@ -52,6 +53,7 @@ export function getAxesWithFilter(axes: ChartAxis[]): {
     series: [] as ChartAxis[],
     multiQuota: [] as string[],
     multiQuotaName: undefined as string | undefined,
+    multiMetricWithSeries: false,
   }
 
   // 分组
@@ -64,7 +66,13 @@ export function getAxesWithFilter(axes: ChartAxis[]): {
 
   // 应用过滤规则
   if (groups.series.length > 0) {
-    groups.y = groups.y.slice(0, 1)
+    if (groups.y.length > 1) {
+      // Series + multiple metrics: mark for combined rendering
+      groups.multiMetricWithSeries = true
+      // Keep all y values — processMultiMetricWithSeries handles the transform
+    } else {
+      groups.y = groups.y.slice(0, 1)
+    }
   } else {
     const multiQuotaY = groups.y.filter((item) => item['multi-quota'] === true)
     groups.multiQuota = multiQuotaY.map((item) => item.value)
@@ -74,6 +82,46 @@ export function getAxesWithFilter(axes: ChartAxis[]): {
   }
 
   return groups
+}
+
+/**
+ * When series + multiple metrics, expand each row into N rows (one per metric).
+ * E.g. row {月份: "2026-03", 系统: "AIO", 任务数: 2, 需求数: 0} becomes:
+ *   {月份: "2026-03", sqlbot_combined_series: "AIO-任务数", sqlbot_metric_val: 2}
+ *   {月份: "2026-03", sqlbot_combined_series: "AIO-需求数", sqlbot_metric_val: 0}
+ */
+export function processMultiMetricWithSeries(
+  x: Array<ChartAxis>,
+  y: Array<ChartAxis>,
+  series: Array<ChartAxis>,
+  data: Array<ChartData>
+) {
+  const _list: Array<ChartData> = []
+  const seriesCol = series[0]
+  const _yMap: { [propName: string]: ChartAxis } = {}
+  y.forEach((axis) => {
+    _yMap[axis.value] = axis
+  })
+
+  for (const datum of data) {
+    const seriesVal = String(datum[seriesCol.value] ?? '')
+    for (const yItem of y) {
+      const _data: { [propName: string]: any } = {}
+      for (const xAxis of x) {
+        _data[xAxis.value] = datum[xAxis.value]
+      }
+      _data['sqlbot_metric_val'] = datum[yItem.value]
+      _data['sqlbot_combined_series'] = seriesVal + '-' + (yItem.name || yItem.value)
+      _data['sqlbot_axis_format'] = yItem.formatNumber
+      _list.push(_data)
+    }
+  }
+
+  return {
+    data: _list,
+    y: [{ name: 'sqlbot_metric_val', value: 'sqlbot_metric_val', type: 'y' } as ChartAxis],
+    series: [{ name: seriesCol.name, value: 'sqlbot_combined_series', type: 'series' } as ChartAxis],
+  }
 }
 
 export function processMultiQuotaData(

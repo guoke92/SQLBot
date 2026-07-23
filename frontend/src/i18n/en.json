@@ -873,6 +873,7 @@
     "thinking": "Thinking",
     "data_analysis": "Data Analysis",
     "data_predict": "Data Prediction",
+    "result_count": "{count} records in total",
     "data_over_limit": "The data is too large, only the first {0} entries are displayed.",
     "ds_is_invalid": "Datasource is invalid",
     "error": "Error",
@@ -913,7 +914,11 @@
     "generate_picture_success": "Image generated",
     "show_request": "View Request",
     "collapse_sql": "Hide Query",
-    "summary": "Summary"
+    "summary": "Summary",
+    "series_filter": "Series Filter",
+    "series_filter_active": "Filtered {0}/{1}",
+    "series_select_all": "Select All",
+    "series_deselect_all": "Clear"
   },
   "about": {
     "title": "About",

@@ -122,6 +122,7 @@ def save_sql_data(
         limit = 1000
         if data_result:
             data_result = prepare_for_orjson(data_result)
+            data_obj["row_count"] = len(data_result)
             if data_result and len(data_result) > limit and llm_service.enable_sql_row_limit:
                 data_obj["data"] = data_result[:limit]
                 data_obj["limit"] = limit

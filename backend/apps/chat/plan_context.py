@@ -7,19 +7,115 @@ Post-execution QC does not own SQL correctness; this block does.
 
 from __future__ import annotations
 
+import re
 from typing import Any, Dict, List, Mapping, Optional, Sequence
 
-# Shared multi-fact / dimension playbook (must stay aligned with cost_validate).
-# Complements template.yaml multi-fact-staging (always-on rules).
-# Keep this block about *how* to apply bindings + grain — not a second full rule book.
-JOIN_PLAYBOOK = """\
-## 生成要点（与 Rules 中 multi-fact-staging 一致，此处强调落地）
-1. 多事实对照：CTE/子查询内各自聚合到共享粒度后再 JOIN；或 ≤2 条维度一致的 SQL。未聚合互 JOIN 会被系统拦截。
-2. 时间维：用业务完成/结束时间优先于 create_time（除非用户明确「创建」）；月维双侧对齐，缺侧用 FULL OUTER / 维键 UNION。
-3. 人员：有 FK id 用 id 关联；仅有名则名称列按实体绑定 IN/eq。
-4. 过滤：严格按【实体绑定】的 eq/IN；禁止只用口语短词过窄等值。
-5. 能一条就一条；brief≤20 字；不反问；只用 schema 表列。
+from apps.chat.plan_policy import render_multi_fact_playbook
+
+
+JOIN_PLAYBOOK_SUFFIX = """\
+5. 时间维：按用户语义选择创建/完成/结束时间；无明确口径时结合字段注释，禁止机械套用固定时间列。
+6. 人员：有 FK id 用 id 关联；仅有名称时按实体绑定 IN/eq，并避免非唯一名称 JOIN 放大计数。
+7. 过滤：严格按【实体绑定】的 eq/IN；禁止只用口语短词过窄等值。
+8. 直接给出最终方案，不讨论"为了符合规则"或泛化评价子查询效率；brief≤20 字。
+9. **交叉验证原则**：当用户质疑某个结果项时，必须沿原查询的关联路径验证，辅以相关表交叉验证，**绝不能仅查一张表就下结论**。
+10. **默认时间范围**：当用户未指定时间范围且查询涉及时间维度时，默认使用最近 12 个月（以数据中最新月份为基准往前推）。若结果为空再放宽。仅当用户明确表示"所有时间"或"全部"时才不限时间。
 """
+
+
+def render_join_playbook() -> str:
+    """Compose canonical multi-fact policy with plan-time binding guidance."""
+    return render_multi_fact_playbook() + "\n" + JOIN_PLAYBOOK_SUFFIX.strip()
+
+
+def _extract_tables_from_sql(sql: str) -> List[str]:
+    """Extract table names from FROM/JOIN clauses (best-effort, not a full parser)."""
+    tables: List[str] = []
+    # Match `schema`.`table` or `table` after FROM/JOIN
+    for m in re.finditer(
+        r'(?:FROM|JOIN)\s+(?:`?\w+`?\.)?`?(\w+)`?',
+        sql or "",
+        re.IGNORECASE,
+    ):
+        t = m.group(1).strip()
+        if t and t not in tables:
+            tables.append(t)
+    return tables
+
+
+def _extract_where_conditions(sql: str) -> List[str]:
+    """Extract WHERE conditions mentioning specific values (best-effort)."""
+    conditions: List[str] = []
+    where_match = re.search(r'\bWHERE\b(.+?)(?:\bGROUP\b|\bORDER\b|\bLIMIT\b|\bUNION\b|$)',
+                            sql or "", re.IGNORECASE | re.DOTALL)
+    if not where_match:
+        return conditions
+    where_text = where_match.group(1).strip()
+    # Extract IN (subquery) — note the subquery target
+    for m in re.finditer(r'`?(\w+)`?\s+IN\s*\(\s*(SELECT\s+.+?)\)', where_text, re.IGNORECASE | re.DOTALL):
+        col = m.group(1)
+        sub = m.group(2).strip()[:120]
+        conditions.append(f"`{col}` IN (subquery: {sub}...)")
+    # Extract IN (...) with literal values
+    for m in re.finditer(r'`?(\w+)`?\s+IN\s*\(([^)]+)\)', where_text, re.IGNORECASE):
+        col = m.group(1)
+        vals = m.group(2).strip()
+        if len(vals) < 200:
+            conditions.append(f"`{col}` IN ({vals})")
+    # Extract = 'value' conditions
+    for m in re.finditer(r'`?(\w+)`?\s*=\s*[\'"]([^\'\"]+)[\'"]', where_text):
+        col = m.group(1)
+        val = m.group(2)
+        if col not in ("deleted",):
+            conditions.append(f"`{col}` = '{val}'")
+    # Extract LIKE conditions
+    for m in re.finditer(r'`?(\w+)`?\s+LIKE\s+[\'"]([^\'\"]+)[\'"]', where_text, re.IGNORECASE):
+        col = m.group(1)
+        val = m.group(2)
+        conditions.append(f"`{col}` LIKE '{val}'")
+    return conditions[:12]
+
+
+def build_cross_validation_section(
+    previous_sqls: List[str],
+    question: str,
+) -> str:
+    """Build a cross-validation context section from previous SQL join paths.
+
+    When the user questions a result item, the LLM must trace the original
+    join path and cross-validate — not just query a single table.
+    """
+    if not previous_sqls:
+        return ""
+    # Deduplicate
+    unique_sqls = list(dict.fromkeys(s.strip() for s in previous_sqls if s and s.strip()))
+    if not unique_sqls:
+        return ""
+
+    lines = [
+        "## 上一轮查询关联路径（验证时必须沿此路径交叉验证，禁止仅查单表下结论）",
+    ]
+    for i, sql in enumerate(unique_sqls[:3], 1):
+        tables = _extract_tables_from_sql(sql)
+        conditions = _extract_where_conditions(sql)
+        lines.append(f"### 查询{i}")
+        if tables:
+            lines.append(f"- 涉及表: {', '.join(tables)}")
+        if conditions:
+            lines.append(f"- 过滤条件: {'; '.join(conditions)}")
+        # Show the actual SQL snippet for LLM to understand join logic
+        sql_snip = sql[:600] if len(sql) <= 600 else sql[:600] + " …"
+        lines.append(f"- SQL:\n```sql\n{sql_snip}\n```")
+
+    lines.append("")
+    lines.append(
+        "**验证要求**：用户质疑某个结果项时，必须：\n"
+        "1. 沿原查询的 JOIN 路径确认数据来源\n"
+        "2. 辅以相关表交叉验证（从不同关联角度确认同一结论）\n"
+        "3. 列出具体数据值作为证据\n"
+        "4. **绝不能仅查一张表就给出确定性结论**"
+    )
+    return "\n".join(lines)
 
 
 def _uniq_preserve(items: Sequence[str]) -> List[str]:
@@ -73,8 +169,7 @@ def render_entity_bindings(entity_bindings: Optional[Mapping[str, Any]]) -> str:
 
     lines = [
         "## 实体绑定（生成 WHERE 时必须遵守）",
-        "自然语言已映射到库内名称；按 match 策略过滤机构/部门/人员/系统等名称列"
-        "（如 organization_name、user_name、system_name，以 schema 为准）。",
+        "自然语言已映射到库内名称；按 match 策略过滤名称类列（以 schema 字段注释为准）。",
     ]
     for phrase, info in resolved.items():
         if not isinstance(info, dict):
@@ -149,7 +244,7 @@ def render_plan_context(
     if binds:
         parts.append(binds)
     if include_playbook:
-        parts.append(JOIN_PLAYBOOK.strip())
+        parts.append(render_join_playbook())
     for sec in extra_sections or []:
         s = (sec or "").strip()
         if s:

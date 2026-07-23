@@ -21,6 +21,7 @@ import icon_window_mini_outlined from '@/assets/svg/icon_window-mini_outlined.sv
 import icon_copy_outlined from '@/assets/svg/icon_copy_outlined.svg'
 import ICON_STYLE from '@/assets/svg/icon_style-set_outlined.svg'
 import THOUSAND_SEPARATOR from '@/assets/svg/chart/icon-thousand-separator.svg'
+import ICON_FILTER from '@/assets/svg/icon-filter_outlined.svg'
 import { useI18n } from 'vue-i18n'
 import SQLComponent from '@/views/chat/component/SQLComponent.vue'
 import { useAssistantStore } from '@/stores/assistant'
@@ -28,6 +29,7 @@ import AddViewDashboard from '@/views/dashboard/common/AddViewDashboard.vue'
 import html2canvas from 'html2canvas'
 import { chatApi } from '@/api/chat'
 import { useChatConfigStore } from '@/stores/chatConfig.ts'
+import { getTableViewportHeight } from '@/views/chat/component/tableLayout.ts'
 
 const chatConfig = useChatConfigStore()
 const showSQLBtn = chatConfig.getShowSQL
@@ -79,6 +81,7 @@ const dataObject = computed<{
   fields_info: Array<{ name: string; is_numeric: boolean }>
   data: Array<{ [key: string]: any }>
   limit: number | undefined
+  row_count: number | undefined
   datasource: number | undefined
   sql: string | undefined
 }>(() => {
@@ -177,6 +180,19 @@ const chartType = computed<ChartTypes>({
     currentChartType.value = v
   },
 })
+
+const isTable = computed(() => chartType.value === 'table')
+const resultCount = computed(() => {
+  if (props.isPredict) {
+    return data.value?.length ?? 0
+  }
+  return dataObject.value.row_count ?? data.value?.length ?? 0
+})
+const tableViewportHeight = computed(() => getTableViewportHeight(data.value?.length ?? 0))
+const chartContainerStyle = computed(() => ({
+  '--table-viewport-height': `${tableViewportHeight.value}px`,
+}))
+const showChartFooter = computed(() => isTable.value || Boolean(dataObject.value.limit))
 
 const chartTypeList = computed(() => {
   const _list = []
@@ -433,6 +449,51 @@ function getBaseAxis() {
     optionList.value = _list
   }
 }
+
+// Series filter: isolate specific groups when legend has many items
+const seriesColumn = computed(() => chartObject.value?.axis?.series?.value || '')
+const allSeriesValues = computed(() => {
+  if (!seriesColumn.value || !data.value?.length) return []
+  const vals = new Set<string>()
+  for (const row of data.value) {
+    const v = row[seriesColumn.value]
+    if (v !== undefined && v !== null) vals.add(String(v))
+  }
+  return Array.from(vals).sort()
+})
+const showSeriesFilter = computed(() => allSeriesValues.value.length > 3)
+const selectedSeries = ref<string[]>([])
+const seriesFilterActive = computed(() => {
+  return (
+    selectedSeries.value.length > 0 &&
+    selectedSeries.value.length < allSeriesValues.value.length
+  )
+})
+const filteredData = computed(() => {
+  if (!seriesFilterActive.value || !seriesColumn.value) return data.value
+  const set = new Set(selectedSeries.value)
+  return data.value.filter((row) => set.has(String(row[seriesColumn.value])))
+})
+function toggleSeries(val: string) {
+  const idx = selectedSeries.value.indexOf(val)
+  if (idx >= 0) selectedSeries.value.splice(idx, 1)
+  else selectedSeries.value.push(val)
+}
+function selectAllSeries() {
+  selectedSeries.value = [...allSeriesValues.value]
+}
+function deselectAllSeries() {
+  selectedSeries.value = []
+}
+function isolateSeries(val: string) {
+  selectedSeries.value = [val]
+}
+// Initialize selection when series values change
+watch(allSeriesValues, (vals) => {
+  if (vals.length > 0 && selectedSeries.value.length === 0) {
+    selectedSeries.value = [...vals]
+  }
+}, { immediate: true })
 </script>
 
 <template>
@@ -444,7 +505,8 @@ function getBaseAxis() {
     "
     v-loading.fullscreen.lock="loading"
     class="chart-component-container"
-    :class="{ 'full-screen': enlarge }"
+    :class="{ 'full-screen': enlarge, 'table-chart': isTable }"
+    :style="chartContainerStyle"
   >
     <div class="header-bar flex-gap-fallback">
       <div class="title">
@@ -543,6 +605,62 @@ function getBaseAxis() {
                       >
                     </el-checkbox>
                   </el-checkbox-group>
+                </el-scrollbar>
+              </el-popover>
+            </div>
+          </el-tooltip>
+        </div>
+
+        <div v-if="showSeriesFilter && !isTable" class="chart-select-container flex-gap-fallback">
+          <el-tooltip
+            effect="dark"
+            :offset="8"
+            :content="seriesFilterActive ? t('chat.series_filter_active', [selectedSeries.length, allSeriesValues.length]) : t('chat.series_filter')"
+            placement="top"
+          >
+            <div>
+              <el-popover
+                popper-class="series-filter_popover"
+                :teleported="false"
+                placement="bottom"
+                trigger="click"
+                :width="240"
+              >
+                <template #reference>
+                  <el-button class="tool-btn" :class="{ 'chart-active': seriesFilterActive }" text>
+                    <el-icon size="16">
+                      <ICON_FILTER />
+                    </el-icon>
+                  </el-button>
+                </template>
+                <div style="font-weight: 500; line-height: 28px; margin-bottom: 8px">
+                  {{ t('chat.series_filter') }}
+                  <span style="font-size: 12px; color: #646a73; font-weight: 400">
+                    ({{ selectedSeries.length }}/{{ allSeriesValues.length }})
+                  </span>
+                </div>
+                <div style="display: flex; gap: 8px; margin-bottom: 8px">
+                  <el-button size="small" text @click="selectAllSeries">{{ t('chat.series_select_all') }}</el-button>
+                  <el-button size="small" text @click="deselectAllSeries">{{ t('chat.series_deselect_all') }}</el-button>
+                </div>
+                <el-scrollbar max-height="260px">
+                  <div style="display: flex; flex-direction: column">
+                    <el-checkbox
+                      v-for="val in allSeriesValues"
+                      :key="val"
+                      :model-value="selectedSeries.includes(val)"
+                      size="large"
+                      @change="toggleSeries(val)"
+                      @dblclick="isolateSeries(val)"
+                    >
+                      <span
+                        :title="val"
+                        class="ellipsis"
+                        style="display: inline-block; max-width: 180px"
+                        >{{ val }}</span
+                      >
+                    </el-checkbox>
+                  </div>
                 </el-scrollbar>
               </el-popover>
             </div>
@@ -652,14 +770,19 @@ function getBaseAxis() {
           ref="chartRef"
           :chart-type="chartType"
           :message="message"
-          :data="data"
+          :data="filteredData"
           :loading-data="loadingData"
           :show-label="_showLabel"
           :thousands-separator-list="enableThousandsSeparatorList"
         />
       </div>
-      <div v-if="dataObject.limit" class="over-limit-hint">
-        {{ t('chat.data_over_limit', [dataObject.limit]) }}
+      <div v-if="showChartFooter" class="chart-footer">
+        <span v-if="isTable" class="result-count">
+          {{ t('chat.result_count', { count: resultCount }) }}
+        </span>
+        <span v-if="dataObject.limit" class="over-limit-hint">
+          {{ t('chat.data_over_limit', [dataObject.limit]) }}
+        </span>
       </div>
     </template>
 
@@ -722,6 +845,15 @@ function getBaseAxis() {
 .thousands-separator_popover {
   .ed-checkbox__label {
     max-width: 100%;
+  }
+}
+
+.series-filter_popover {
+  .ed-checkbox__label {
+    max-width: 100%;
+  }
+  .ed-checkbox {
+    height: 28px;
   }
 }
 
@@ -820,12 +952,15 @@ function getBaseAxis() {
       border-bottom: 1px solid rgba(31, 35, 41, 0.15);
       height: 55px;
       padding: 16px 24px;
+      flex-shrink: 0;
     }
 
     .chart-block {
       margin: unset;
       padding: 16px;
-      height: calc(100% - 56px);
+      height: auto;
+      min-height: 0;
+      flex: 1;
     }
   }
 
@@ -955,10 +1090,23 @@ function getBaseAxis() {
 
     margin-top: 16px;
   }
-  .over-limit-hint {
-    min-height: 24px;
-    line-height: 24px;
+
+  &.table-chart:not(.full-screen) {
+    .chart-block {
+      height: var(--table-viewport-height);
+    }
+  }
+
+  .chart-footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 16px;
+    min-height: 22px;
+    margin-top: 8px;
     font-size: 14px;
+    line-height: 22px;
+    color: rgba(100, 106, 115, 1);
   }
 }
 

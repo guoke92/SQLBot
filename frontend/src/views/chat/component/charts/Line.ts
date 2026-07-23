@@ -5,6 +5,7 @@ import {
   checkIsPercent,
   formatNumber,
   getAxesWithFilter,
+  processMultiMetricWithSeries,
   processMultiQuotaData,
 } from '@/views/chat/component/charts/utils.ts'
 import { some } from 'lodash-es'
@@ -29,7 +30,9 @@ export class Line extends BaseG2Chart {
       y: axes.y,
       series: axes.series,
     }
-    if (axes.multiQuota.length > 0) {
+    if (axes.multiMetricWithSeries) {
+      config = processMultiMetricWithSeries(axes.x, config.y, config.series, config.data)
+    } else if (axes.multiQuota.length > 0) {
       config = processMultiQuotaData(
         axes.x,
         config.y,

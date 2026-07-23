@@ -10,12 +10,21 @@ _BACKEND = _ROOT / "backend"
 if str(_BACKEND) not in sys.path:
     sys.path.insert(0, str(_BACKEND))
 
+# test_conversation_core intentionally installs lightweight ``apps`` stubs
+# during collection. Remove only those pathless stubs before normal imports.
+_apps_module = sys.modules.get("apps")
+if _apps_module is not None and not getattr(_apps_module, "__path__", None):
+    for _module_name in list(sys.modules):
+        if _module_name == "apps" or _module_name.startswith("apps."):
+            sys.modules.pop(_module_name, None)
+
 from apps.chat.plan_context import (  # noqa: E402
     entity_match_values,
     infer_entity_match,
     render_plan_context,
     wrap_plan_context,
 )
+from apps.chat.plan_policy import render_multi_fact_rule_xml  # noqa: E402
 
 
 def test_infer_match_eq_when_exact_unique() -> None:
@@ -74,8 +83,16 @@ def test_render_forbids_bare_phrase_eq() -> None:
 def test_template_user_has_plan_context_placeholder() -> None:
     text = (_BACKEND / "templates" / "template.yaml").read_text(encoding="utf-8")
     assert "{plan_context}" in text
-    assert "multi-fact-staging" in text
+    assert "{multi_fact_rules}" in text
+    assert "multi-fact-staging" in render_multi_fact_rule_xml()
     assert "不考虑业务逻辑" not in text
+
+
+def test_multi_fact_policy_avoids_mysql_full_join_emulation() -> None:
+    body = render_plan_context(include_playbook=True)
+    assert "UNION 去重的共享维键集合" in body
+    assert "不得用重复整段聚合查询" in body
+    assert "LEFT/RIGHT JOIN + UNION ALL" in body
 
 
 def test_nlq_no_longer_scatters_multi_query_guidance() -> None:

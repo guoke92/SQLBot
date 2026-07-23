@@ -145,6 +145,7 @@ class SqlProtocol(BaseProtocol):
     # ------------------------------------------------------------------
 
     def build_prompt_bundle(self, chat_question: Any, *, enable_query_limit: bool = True) -> PromptBundle:
+        from apps.chat.plan_policy import render_multi_fact_rule_xml
         from apps.template.generate_sql.generator import get_sql_template, get_sql_example_template
 
         q = chat_question
@@ -165,6 +166,7 @@ class SqlProtocol(BaseProtocol):
             lang=q.lang,
             sqlbot_name=q.sqlbot_name,
             base_sql_rules=base_sql_rules,
+            multi_fact_rules=render_multi_fact_rule_xml(),
             basic_sql_examples=sql_template["basic_example"],
             example_engine=sql_template["example_engine"],
             example_answer_1=sql_template["example_answer_1_with_limit"] if enable_query_limit else sql_template["example_answer_1"],
@@ -267,10 +269,12 @@ class SqlProtocol(BaseProtocol):
         again in GROUP BY / ORDER BY / HAVING (e.g. ``AS month`` then
         ``GROUP BY month``) are not table columns and must not be rejected.
         """
-        from apps.protocol.registry import get_spec
         from apps.db.db import check_sql_read
-        import sqlglot as _sg
-        from sqlglot import exp as _exp
+        from apps.protocol.registry import get_spec
+        from apps.protocol.sql.identifier_validation import (
+            PhysicalColumnRef,
+            collect_sql_identifier_usage,
+        )
 
         sql = plan.payload.get("sql", "")
         if not sql:
@@ -287,59 +291,12 @@ class SqlProtocol(BaseProtocol):
 
         spec = get_spec(self.type_key)
         dialect = spec.sqlglot_dialect
-        actual_tables: set = set()
-        alias_to_table: dict = {}
-        select_aliases: set = set()
-        # Physical column refs only: (table_or_alias|None, column_name)
-        physical_cols: list = []
-
-        def _norm(name) -> str:
-            if not name:
-                return ""
-            return str(name).replace("`", "").replace('"', "").strip()
-
-        def _add_select_alias(expr: _exp.Expression) -> None:
-            # SELECT a AS b  /  SELECT a b  /  SELECT COUNT(*) AS c
-            alias = expr.alias
-            if alias:
-                select_aliases.add(_norm(alias))
-                return
-            # bare column projection creates an implicit alias = column name,
-            # but that name is still a physical column when table-qualified.
-            if isinstance(expr, _exp.Column) and expr.name:
-                select_aliases.add(_norm(expr.name))
-
+        actual_tables: set[str] = set()
+        physical_cols: tuple[PhysicalColumnRef, ...] = ()
         try:
-            statements = _sg.parse(sql, dialect=dialect)
-            for stmt in statements:
-                if not stmt:
-                    continue
-                for table in stmt.find_all(_exp.Table):
-                    tname = table.name
-                    if not tname:
-                        continue
-                    actual_tables.add(tname)
-                    key = _norm(table.alias_or_name or tname)
-                    alias_to_table[key] = tname
-                    alias_to_table[_norm(tname)] = tname
-                    alias_to_table[tname] = tname
-
-                for sel in stmt.find_all(_exp.Select):
-                    for proj in sel.expressions:
-                        if proj is None:
-                            continue
-                        _add_select_alias(proj)
-
-                for col in stmt.find_all(_exp.Column):
-                    cname = col.name
-                    if not cname or cname == "*":
-                        continue
-                    tref = col.table  # alias or table, may be None
-                    # Unqualified name that matches a SELECT output alias:
-                    # e.g. GROUP BY month / ORDER BY task_count — skip.
-                    if not tref and _norm(cname) in select_aliases:
-                        continue
-                    physical_cols.append((tref or None, cname))
+            usage = collect_sql_identifier_usage(sql, dialect)
+            actual_tables = set(usage.physical_tables)
+            physical_cols = usage.physical_columns
         except Exception:
             pass
 
@@ -385,8 +342,12 @@ class SqlProtocol(BaseProtocol):
                     )
                 ).all()
                 id_to_name = {t.id: t.table_name for t in catalog_tables}
-                fields_by_table: dict = {t.table_name: set() for t in catalog_tables}
-                orig_by_table: dict = {t.table_name: [] for t in catalog_tables}
+                fields_by_table: dict[str, set[str]] = {
+                    t.table_name: set() for t in catalog_tables
+                }
+                orig_by_table: dict[str, list[str]] = {
+                    t.table_name: [] for t in catalog_tables
+                }
                 for f in fields:
                     tn = id_to_name.get(f.table_id)
                     if not tn or not f.field_name:
@@ -395,52 +356,59 @@ class SqlProtocol(BaseProtocol):
                     fields_by_table[tn].add(f.field_name.lower())
                     orig_by_table[tn].append(f.field_name)
 
-                missing: list = []
-                for tref, cname in physical_cols:
+                missing: list[str] = []
+                for ref in physical_cols:
+                    cname = ref.column_name
                     c_raw, c_l = cname, cname.lower()
-                    if tref:
-                        tkey = _norm(str(tref))
-                        physical = (
-                            alias_to_table.get(tkey)
-                            or alias_to_table.get(tkey.lower())
-                        )
-                        if not physical:
-                            continue  # CTE / subquery alias
+                    if ref.table_name:
+                        physical = ref.table_name
                         allowed_cols = fields_by_table.get(physical)
                         if allowed_cols is None:
                             continue  # table not in catalog
                         if c_raw not in allowed_cols and c_l not in allowed_cols:
                             missing.append(f"{physical}.{c_raw}")
                     else:
-                        # Unqualified physical column (not a known select alias)
-                        if any(
-                            c_raw in cols or c_l in cols
-                            for cols in fields_by_table.values()
+                        candidate_fields = [
+                            fields_by_table.get(table_name)
+                            for table_name in ref.candidate_tables
+                        ]
+                        # Skip when a source is absent from the local catalog;
+                        # otherwise an unqualified reference is too ambiguous
+                        # for a reliable rejection.
+                        if not candidate_fields or any(
+                            cols is None for cols in candidate_fields
                         ):
                             continue
-                        # Only flag when every FROM table is catalogued —
-                        # otherwise too easy to false-positive.
-                        if len(fields_by_table) == len(actual_tables):
-                            missing.append(c_raw)
+                        if any(
+                            c_raw in cols or c_l in cols
+                            for cols in candidate_fields
+                            if cols is not None
+                        ):
+                            continue
+                        missing.append(c_raw)
 
                 if missing:
-                    uniq: list = []
-                    seen: set = set()
+                    uniq: list[str] = []
+                    seen: set[str] = set()
                     for m in missing:
                         if m not in seen:
                             seen.add(m)
                             uniq.append(m)
-                    hints: list = []
+                    hints: list[str] = []
+                    hinted_tables: set[str] = set()
                     for m in uniq[:6]:
                         if "." not in m:
                             continue
                         tn, _ = m.split(".", 1)
+                        if tn in hinted_tables:
+                            continue
                         orig = sorted(set(orig_by_table.get(tn) or []))
                         if orig:
                             hint = f"{tn}: {', '.join(orig[:12])}"
                             if len(orig) > 12:
                                 hint += "…"
                             hints.append(hint)
+                            hinted_tables.add(tn)
                     msg = (
                         "SQL references unknown column(s): "
                         + ", ".join(uniq)

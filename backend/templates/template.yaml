@@ -96,6 +96,15 @@ template:
         <rule>
           生成的SQL必须符合<db-engine>内提供数据库引擎的规范
         </rule>
+        <rule priority="critical" id="engine-version-syntax">
+          <title>数据库版本语法约束（必须在首次生成时遵守，不得先生成再自查修正）</title>
+          <requirements>
+            <requirement>MySQL 5.x 及更早版本：不支持 CTE（WITH 子句）、不支持窗口函数（ROW_NUMBER/RANK/DENSE_RANK/NTILE/LAG/LEAD）、不支持 GROUPING 函数、不支持 JSON_TABLE。必须使用子查询嵌套替代 CTE。</requirement>
+            <requirement>MySQL 8.0+：支持 CTE、窗口函数等全部语法。</requirement>
+            <requirement>PostgreSQL / Oracle / 达梦：支持 CTE 和窗口函数。</requirement>
+            <requirement>生成SQL前必须先判断<db-engine>中的版本号，选择对应的语法。禁止先用高版本语法生成、再自行检查版本后改写——这浪费计算资源且用户体验差。</requirement>
+          </requirements>
+        </rule>
         <rule priority="critical" id="strict-identifier-preservation">
           <title>严格保持数据库标识符原样</title>
           <description>
@@ -214,14 +223,7 @@ template:
             <requirement>即使查询条件不完整（如无时间范围），也必须生成可行的SQL，不要用反问代替查询</requirement>
           </requirements>
         </rule>
-        <rule priority="critical" id="multi-fact-staging">
-          <title>多事实表合成</title>
-          <requirements>
-            <requirement>同一维度下对比多个事实表时，必须先在子查询/CTE 内各自聚合到共享粒度再 JOIN，或拆成维度一致的 ≤2 条 SQL</requirement>
-            <requirement>禁止未聚合的多事实表直接互 JOIN</requirement>
-            <requirement>月/周等时间维应对双侧事实对齐；一侧无数据时用 FULL OUTER JOIN 或维键 UNION 保留维度全集</requirement>
-          </requirements>
-        </rule>
+        {multi_fact_rules}
         <rule priority="critical">
           不论之前是否有回答相同的问题，都必须检查生成的SQL中使用的表名和字段名是否在<m-schema>内有定义
         </rule>
@@ -438,9 +440,10 @@ template:
         <rule>
           <strong>图表配置决策流程：</strong>
           <strong>1. 先判断SQL查询结果中是否存在分类字段（非时间、非数值的离散字段）</strong>
-          <strong>2. 如果存在分类字段 → 必须使用series配置，此时y轴只能有一个指标字段</strong>
-          <strong>3. 如果不存在分类字段，但存在多个指标字段 → 必须使用multi-quota配置</strong>
-          <strong>4. 如果只有一个指标字段且无分类字段 → 直接配置y轴，不使用series和multi-quota</strong>
+          <strong>2. 如果存在分类字段且只有一个指标字段 → 使用series配置</strong>
+          <strong>3. 如果存在分类字段且有多个指标字段 → 使用series配置，并将所有指标字段放入y数组</strong>
+          <strong>4. 如果不存在分类字段，但存在多个指标字段 → 必须使用multi-quota配置</strong>
+          <strong>5. 如果只有一个指标字段且无分类字段 → 直接配置y轴，不使用series和multi-quota</strong>
         </rule>
         <rule>
           如果需要柱状图，JSON格式应为<strong>（series为可选字段，仅当有分类字段时使用）</strong>：
@@ -493,7 +496,7 @@ template:
         <rule>
           对于柱状图/条形图/折线图：
           1. 如果SQL查询中存在多个指标字段（如"收入"、"支出"、"利润"等数值字段）且不存在分类字段，则必须提供multi-quota配置，形如："multi-quota":{{"name":"指标类型","value":["指标字段1","指标字段2",...]}}
-          2. 如果SQL查询中存在多个指标字段且同时存在分类字段，则以分类字段为主，选取多指标字段中的其中一个作为指标即可，不需要multi-quota配置
+          2. 如果SQL查询中存在多个指标字段且同时存在分类字段，则将所有指标字段放入y数组（如"y":[{{"name":"任务数","value":"任务数"}},{{"name":"需求数","value":"需求数"}}]），series保留分类字段
           3. 如果只有一个指标字段，无论是否存在分类字段，都不需要multi-quota配置
           <strong>重要提醒：multi-quota和series是互斥的配置，一个图表配置中只能使用其中之一，不能同时存在</strong>
         </rule>
@@ -613,9 +616,10 @@ template:
         <rule>
           <strong>图表配置决策流程：</strong>
           <strong>1. 先判断数据中是否存在分类字段（非时间、非数值的离散字段）</strong>
-          <strong>2. 如果存在分类字段 → 必须使用series配置，此时y轴只能有一个指标字段</strong>
-          <strong>3. 如果不存在分类字段，但存在多个指标字段 → 必须使用multi-quota配置</strong>
-          <strong>4. 如果只有一个指标字段且无分类字段 → 直接配置y轴，不使用series和multi-quota</strong>
+          <strong>2. 如果存在分类字段且只有一个指标字段 → 使用series配置</strong>
+          <strong>3. 如果存在分类字段且有多个指标字段 → 使用series配置，并将所有指标字段放入y数组</strong>
+          <strong>4. 如果不存在分类字段，但存在多个指标字段 → 必须使用multi-quota配置</strong>
+          <strong>5. 如果只有一个指标字段且无分类字段 → 直接配置y轴，不使用series和multi-quota</strong>
         </rule>
         <rule>
           如果需要柱状图，JSON格式应为<strong>（series为可选字段，仅当有分类字段时使用）</strong>：
@@ -668,7 +672,7 @@ template:
         <rule>
           对于柱状图/条形图/折线图：
           1. 如果数据中存在多个指标字段（如"收入"、"支出"、"利润"等数值字段）且不存在分类字段，则必须提供multi-quota配置，形如："multi-quota":{{"name":"指标类型","value":["指标字段1","指标字段2",...]}}
-          2. 如果数据中存在多个指标字段且同时存在分类字段，则以分类字段为主，选取多指标字段中的其中一个作为指标即可，不需要multi-quota配置
+          2. 如果数据中存在多个指标字段且同时存在分类字段，则将所有指标字段放入y数组（如"y":[{{"name":"任务数","value":"任务数"}},{{"name":"需求数","value":"需求数"}}]），series保留分类字段
           3. 如果只有一个指标字段，无论是否存在分类字段，都不需要multi-quota配置
           <strong>重要提醒：multi-quota和series是互斥的配置，一个图表配置中只能使用其中之一，不能同时存在</strong>
         </rule>

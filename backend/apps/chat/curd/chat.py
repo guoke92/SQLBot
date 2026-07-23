@@ -218,6 +218,13 @@ def format_json_data(origin_data: dict):
     _list = origin_data.get('data') if origin_data.get('data') else []
     data = format_json_list_data(_list)
     result['data'] = data
+    result['row_count'] = (
+        origin_data.get('row_count')
+        if origin_data.get('row_count') is not None
+        else len(data)
+    )
+    if origin_data.get('limit') is not None:
+        result['limit'] = origin_data.get('limit')
 
     return result
 

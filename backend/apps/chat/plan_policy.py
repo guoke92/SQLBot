@@ -43,6 +43,46 @@ FACT_NAME_HINTS = (
     "transaction",
 )
 
+
+# ── shared SQL-generation policy text ───────────────────────────────────────
+# One semantic source rendered into both the base Rules block and PlanContext.
+MULTI_FACT_REQUIREMENTS = (
+    "同一维度下对比多个事实表时，先在子查询/CTE 内分别聚合到共享粒度再关联；"
+    "确需拆分时最多生成 2 条维度一致的 SQL",
+    "禁止未聚合的事实明细表直接互相 JOIN，避免多对多行数膨胀",
+    "月/周等双侧时间维缺数据时，优先构造 UNION 去重的共享维键集合，"
+    "再分别 LEFT JOIN 各聚合结果",
+    "只有当前数据库引擎明确支持且写法更简洁时才使用 FULL OUTER JOIN；"
+    "不得用重复整段聚合查询的 LEFT/RIGHT JOIN + UNION ALL 模拟",
+)
+
+
+def render_multi_fact_rule_xml() -> str:
+    """Render the canonical multi-fact policy for template Rules."""
+    requirements = "\n".join(
+        f"            <requirement>{requirement}</requirement>"
+        for requirement in MULTI_FACT_REQUIREMENTS
+    )
+    return (
+        '<rule priority="critical" id="multi-fact-staging">\n'
+        "          <title>多事实表合成</title>\n"
+        "          <requirements>\n"
+        f"{requirements}\n"
+        "          </requirements>\n"
+        "        </rule>"
+    )
+
+
+def render_multi_fact_playbook() -> str:
+    """Render the same policy as compact PlanContext guidance."""
+    lines = ["## 多事实表合成（multi-fact-staging）"]
+    lines.extend(
+        f"{index}. {requirement}"
+        for index, requirement in enumerate(MULTI_FACT_REQUIREMENTS, start=1)
+    )
+    return "\n".join(lines)
+
+
 # ── execute SLA (milliseconds for engines that support max_execution_time) ───
 # 0 = do not inject statement timeout (rely on driver only).
 EXECUTE_TIMEOUT_MS = 45_000

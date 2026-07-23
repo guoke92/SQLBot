@@ -33,6 +33,7 @@ from apps.chat.curd.chat import (
     save_re_exec,
     save_sql,
     save_sql_exec_data,
+    trigger_log_error,
 )
 from apps.chat.models.chat_model import ChatFinishStep, OperationEnum, RenameChat
 from apps.chat.steps.chart import generate_chart
@@ -50,6 +51,7 @@ from apps.chat.steps.sql import generate_sql
 from apps.chat.steps.terminology import match_terminology
 from apps.chat.steps.training import match_training
 from apps.chat.plan_context import (
+    build_cross_validation_section,
     infer_entity_match,
     render_plan_context,
     wrap_plan_context,
@@ -288,42 +290,55 @@ def _result_fields(step: Dict[str, Any]) -> List[str]:
     return []
 
 
+# ── Shared row-scan primitives ────────────────────────────────────────────
+
 def _is_metric_field(name: str) -> bool:
     n = (name or "").lower()
     needles = ("数", "count", "sum", "avg", "total", "amount", "qty", "数量", "占比", "rate")
     return any(x in n for x in needles)
 
 
-def _null_rate(rows: List[Dict[str, Any]], field: str) -> float:
-    if not rows:
-        return 0.0
-    nulls = 0
+def _scan_field(rows: List[Dict[str, Any]], field: str) -> Dict[str, Any]:
+    """Single row scan returning null_count, values (non-null), numeric_vals."""
+    values: List[Any] = []
+    numeric_vals: List[float] = []
+    null_count = 0
     for r in rows:
         if not isinstance(r, dict):
-            nulls += 1
+            null_count += 1
             continue
         v = r.get(field)
         if v is None or v == "":
-            nulls += 1
-    return nulls / max(len(rows), 1)
-
-
-def _metric_stats(rows: List[Dict[str, Any]], field: str) -> Dict[str, Any]:
-    vals: List[float] = []
-    for r in rows:
-        if not isinstance(r, dict):
+            null_count += 1
             continue
-        v = r.get(field)
+        values.append(v)
         if isinstance(v, bool):
             continue
         if isinstance(v, (int, float)):
-            vals.append(float(v))
+            numeric_vals.append(float(v))
         else:
             try:
-                if v is not None and str(v).strip() != "":
-                    vals.append(float(v))
+                if str(v).strip() != "":
+                    numeric_vals.append(float(v))
             except Exception:
                 pass
+    return {
+        "null_count": null_count,
+        "values": values,
+        "numeric_vals": numeric_vals,
+    }
+
+
+def _null_rate(rows: List[Dict[str, Any]], field: str) -> float:
+    if not rows:
+        return 0.0
+    scan = _scan_field(rows, field)
+    return scan["null_count"] / max(len(rows), 1)
+
+
+def _metric_stats(rows: List[Dict[str, Any]], field: str) -> Dict[str, Any]:
+    scan = _scan_field(rows, field)
+    vals = scan["numeric_vals"]
     if not vals:
         return {"count": 0}
     return {
@@ -334,8 +349,73 @@ def _metric_stats(rows: List[Dict[str, Any]], field: str) -> Dict[str, Any]:
     }
 
 
+def _column_stats(rows: List[Dict[str, Any]], field: str) -> Dict[str, Any]:
+    """Per-column statistical summary for LLM analysis context.
+
+    Shares scan primitives with _null_rate / _metric_stats.
+    Categorical fields: unique + top-N.  Numeric: min/max/avg/median.
+    """
+    if not rows:
+        return {"unique": 0, "null_count": 0}
+    scan = _scan_field(rows, field)
+    values = scan["values"]
+    numeric_vals = scan["numeric_vals"]
+    if not values:
+        return {"unique": 0, "null_count": scan["null_count"]}
+
+    unique_count = len(set(str(v) for v in values))
+    stats: Dict[str, Any] = {"unique": unique_count, "null_count": scan["null_count"]}
+
+    if numeric_vals and len(numeric_vals) >= len(values) * 0.5:
+        numeric_vals.sort()
+        mid = len(numeric_vals) // 2
+        median = (
+            numeric_vals[mid]
+            if len(numeric_vals) % 2
+            else (numeric_vals[mid - 1] + numeric_vals[mid]) / 2
+        )
+        stats.update({
+            "type": "numeric",
+            "min": numeric_vals[0],
+            "max": numeric_vals[-1],
+            "avg": round(sum(numeric_vals) / len(numeric_vals), 2),
+            "median": median,
+        })
+    else:
+        freq: Dict[str, int] = {}
+        for v in values:
+            s = str(v).strip()
+            if s:
+                freq[s] = freq.get(s, 0) + 1
+        top = sorted(freq.items(), key=lambda x: -x[1])[:8]
+        stats.update({
+            "type": "categorical",
+            "top_values": [{"value": k, "count": c} for k, c in top],
+        })
+    return stats
+
+
+def _data_sample(rows: List[Dict[str, Any]], max_rows: int = 8) -> List[Dict[str, Any]]:
+    """Compact sample rows for LLM (values truncated to avoid token waste)."""
+    out: List[Dict[str, Any]] = []
+    for r in rows[:max_rows]:
+        if not isinstance(r, dict):
+            continue
+        compact: Dict[str, Any] = {}
+        for k, v in r.items():
+            s = str(v) if v is not None else ""
+            compact[k] = s[:80] if len(s) > 80 else v
+        out.append(compact)
+    return out
+
+
 def _assess_step_quality(step: Dict[str, Any], index: int) -> Dict[str, Any]:
-    """Deterministic quality signals for one executed step (no LLM)."""
+    """Deterministic quality signals for one executed step (no LLM).
+
+    Returns metadata (row_count, fields, null_rates, metrics) for severity
+    scoring plus column_stats + data_sample so the decide LLM can reason
+    about actual values rather than writing hypothetical conclusions.
+    """
     issues: List[str] = []
     brief = step.get("brief") or ""
     sql = step.get("format_statement") or step.get("sql") or ""
@@ -350,6 +430,8 @@ def _assess_step_quality(step: Dict[str, Any], index: int) -> Dict[str, Any]:
             "truncated": True,
             "null_rates": {},
             "metrics": {},
+            "column_stats": {},
+            "data_sample": [],
             "issues": issues,
             "severity": True,
         }
@@ -358,14 +440,15 @@ def _assess_step_quality(step: Dict[str, Any], index: int) -> Dict[str, Any]:
     fields = _result_fields(step)
     result = step.get("result") or {}
     truncated = bool(isinstance(result, dict) and result.get("limit"))
-    # Also treat exact platform row-limit size as likely truncated analysis page
     if len(rows) >= _ROW_LIMIT:
         truncated = True
 
     null_rates: Dict[str, float] = {}
     metrics: Dict[str, Any] = {}
+    col_stats: Dict[str, Any] = {}
     for f in fields:
-        if _is_metric_field(f):
+        is_metric = _is_metric_field(f)
+        if is_metric:
             metrics[f] = _metric_stats(rows, f)
         else:
             rate = _null_rate(rows, f)
@@ -376,6 +459,8 @@ def _assess_step_quality(step: Dict[str, Any], index: int) -> Dict[str, Any]:
                 )
             elif rows and rate >= 0.35:
                 issues.append(f"维度列「{f}」空值率偏高 {rate:.0%}")
+        # column_stats for ALL fields (metrics get numeric stats, dims get categorical)
+        col_stats[f] = _column_stats(rows, f)
 
     if not rows:
         issues.append("结果为空（0 行）")
@@ -385,7 +470,6 @@ def _assess_step_quality(step: Dict[str, Any], index: int) -> Dict[str, Any]:
         elif st.get("sum", 0) == 0 and st.get("max", 0) == 0:
             issues.append(f"指标列「{mf}」全为 0")
 
-    # Only flag truncation when page is nearly full (true slice risk)
     if truncated and len(rows) >= ROW_LIMIT_NEAR:
         issues.append(
             f"结果接近截断上限（{len(rows)} 行 / limit {_ROW_LIMIT}），排序靠前可能偏置"
@@ -394,6 +478,7 @@ def _assess_step_quality(step: Dict[str, Any], index: int) -> Dict[str, Any]:
     severity = bool(step.get("error")) or (not rows) or any(
         r >= NULL_DIM_SEVERE for r in null_rates.values()
     )
+
     return {
         "index": index,
         "brief": brief,
@@ -403,6 +488,8 @@ def _assess_step_quality(step: Dict[str, Any], index: int) -> Dict[str, Any]:
         "truncated": truncated,
         "null_rates": null_rates,
         "metrics": metrics,
+        "column_stats": col_stats,
+        "data_sample": _data_sample(rows),
         "issues": issues,
         "severity": severity,
     }
@@ -444,9 +531,45 @@ def _format_assessment_block(assessments: List[Dict[str, Any]]) -> str:
                 else:
                     ms.append(f"{k}: 无数值")
             lines.append(f"- 指标: {'; '.join(ms)}")
+
+        # Column stats: unique values, top-N for categoricals, min/max/avg for numerics
+        col_stats = a.get("column_stats") or {}
+        if col_stats:
+            stat_parts: List[str] = []
+            for fname, cs in col_stats.items():
+                if not isinstance(cs, dict):
+                    continue
+                if cs.get("type") == "numeric":
+                    stat_parts.append(
+                        f"{fname}: unique={cs.get('unique')} "
+                        f"min={cs.get('min')} max={cs.get('max')} "
+                        f"avg={cs.get('avg')} median={cs.get('median')}"
+                    )
+                elif cs.get("type") == "categorical":
+                    top = cs.get("top_values") or []
+                    top_str = ", ".join(
+                        f"{tv['value']}({tv['count']})" for tv in top[:6]
+                    )
+                    stat_parts.append(
+                        f"{fname}: unique={cs.get('unique')} top=[{top_str}]"
+                    )
+                else:
+                    stat_parts.append(f"{fname}: unique={cs.get('unique')}")
+            if stat_parts:
+                lines.append("- 列统计: " + "; ".join(stat_parts))
+
+        # Data sample: actual rows so LLM can reason about real values
+        sample = a.get("data_sample") or []
+        if sample:
+            lines.append(f"- 数据样本（前{len(sample)}行）:")
+            for row in sample[:5]:
+                row_str = ", ".join(f"{k}={v}" for k, v in row.items())
+                lines.append(f"  {row_str}")
+            if len(sample) > 5:
+                lines.append(f"  ... 共{len(sample)}行")
+
         sql = (a.get("sql") or "").strip()
         if sql:
-            # keep SQL readable but bounded
             sql_show = sql if len(sql) <= 800 else sql[:800] + " …"
             lines.append(f"- SQL:\n```sql\n{sql_show}\n```")
         issues = a.get("issues") or []
@@ -493,14 +616,11 @@ def _repair_instruction(assessments: List[Dict[str, Any]], question: str) -> str
         f"用户原问题：{question}\n"
         f"质检问题：\n{issue_text}\n"
         "改写要求：\n"
-        "1. 维度字段对齐用户表述与表结构注释（如月份优先 actual_end_time/actually_end_time/"
-        "迭代结束时间，而非随便用 create_time）。\n"
-        "2. 若报错 unknown column / 字段不存在：必须去掉或改写该列，只使用 schema/字段列表中的列"
-        "（注意：有 deleted 的表不等于所有表都有 deleted）。\n"
-        "3. 人员/部门务必通过可验证的关联（user/org）拿到非空维度；组织名按实体绑定 IN/eq，"
-        "禁止只用口语短词过窄等值。\n"
-        "4. 多指标若需对比，统一维度并 FULL OUTER / 维键并集对齐；月维不得只挂一侧事实表。\n"
-        "5. 聚合分析不要用无意义的 LIMIT 充当前 N 页「全貌」；若必须限制，ORDER BY 应用业务指标而非空维。\n"
+        "1. 时间字段对齐用户语义（完成/创建/更新等），结合表结构注释选择，禁止机械套用固定时间列。\n"
+        "2. 若报错字段不存在：必须去掉或改写该列，只使用 schema 中的列。\n"
+        "3. 维度过滤按实体绑定（IN/eq），禁止只用口语短词过窄等值；关联用维表主键与事实表外键。\n"
+        "4. 多事实表对比时，统一维度并对齐粒度；不得只挂一侧事实表的时间维。\n"
+        "5. 聚合分析不要用无意义的 LIMIT 充当前 N 页全貌；若必须限制，ORDER BY 应用业务指标。\n"
         "6. 仍返回系统约定的 JSON（单对象或数组）。\n"
         f"{anti_empty}"
     )
@@ -511,16 +631,16 @@ def _normalize_result_data(result: Dict[str, Any], llm_service: LLMService) -> D
     data = DataFormat.normalize_qualified_sql_column_keys_in_object_array(data)
     if data:
         data = prepare_for_orjson(data)
+        result = dict(result)
+        result["row_count"] = len(data)
         if (
             llm_service.enable_sql_row_limit
             and isinstance(data, list)
             and len(data) > _ROW_LIMIT
         ):
-            result = dict(result)
             result["data"] = data[:_ROW_LIMIT]
             result["limit"] = _ROW_LIMIT
         else:
-            result = dict(result)
             result["data"] = data
     else:
         result = dict(result)
@@ -535,6 +655,8 @@ def _merge_batch_into_steps(
     batch_plans: List[Dict[str, Any]],
     batch_results: List[Dict[str, Any]],
     batch_charts: List[Dict[str, Any]],
+    *,
+    entity_bindings: Optional[Dict[str, Any]] = None,
 ) -> List[Dict[str, Any]]:
     """Append current batch entries once. Idempotent by global offset."""
     updated = list(all_steps or [])
@@ -570,6 +692,8 @@ def _merge_batch_into_steps(
             "chart_type": plan_dict.get("chart_type", "table"),
             "brief": plan_dict.get("brief", ""),
         }
+        if entity_bindings:
+            entry["_entity_bindings"] = entity_bindings
         r = result_by_idx.get(i)
         if r:
             if r.get("error"):
@@ -606,6 +730,7 @@ def _steps_payload(all_steps: List[Dict[str, Any]], analysis_text: str = "") -> 
                 "fields_info": result.get("fields_info"),
                 "data": result.get("data", []),
                 "limit": result.get("limit"),
+                "row_count": result.get("row_count"),
                 "datasource": result.get("datasource"),
             }
         steps_data.append(step_entry)
@@ -897,37 +1022,69 @@ def ground_entities_node(state: NlqState) -> NlqState:
         return result_state
 
 
+def _extract_entity_candidates_via_llm(
+    llm_service: LLMService, question: str, history_context: str = ""
+) -> List[str]:
+    """Use LLM to extract dimension entity candidates from the question.
+
+    Unlike regex, this understands context: question modifiers like "应该是"
+    are separated from the actual entity name. Language-agnostic, no hardcoded terms.
+    """
+    prompt = (
+        "从以下用户问题中提取可能的维度实体名称（如组织、部门、人员、系统、项目等）。\n"
+        "只提取用户指代的具体名称，忽略疑问词、修饰词、动词。\n"
+        "例如：'X是Y的项目吗' → [\"X\", \"Y\"]；"
+        "'应该是Z吧' → [\"Z\"]；"
+        "'W负责的指标有多少' → [\"W\"]。\n"
+    )
+    if history_context:
+        prompt += f"上文参考：{history_context}\n"
+    prompt += (
+        f"用户问题：{question}\n\n"
+        "只返回 JSON 数组：[\"名称1\", \"名称2\"]。如果没有可提取的名称返回 []。"
+    )
+    try:
+        resp = llm_service.llm.invoke([HumanMessage(prompt)])
+        raw = resp.content if isinstance(resp.content, str) else str(resp.content or "")
+        js = extract_nested_json(raw)
+        if js:
+            data = orjson.loads(js)
+            if isinstance(data, list):
+                return [
+                    str(v).strip()
+                    for v in data
+                    if isinstance(v, (str, int, float)) and str(v).strip() and len(str(v).strip()) >= 2
+                ]
+    except Exception as exc:
+        SQLBotLogUtil.warning("entity candidate extraction failed: %s" % exc)
+    return []
+
+
 def _ground_entities_impl(
     state: NlqState, llm_service: LLMService, sink: StreamSink
 ) -> NlqState:
     question = (llm_service.chat_question.question or "").strip()
 
-    # Organizations: take the last 2–8 CJK chars before 部/中心/…
-    cands = []
-    for m in re.finditer("[\u4e00-\u9fff]{2,12}(?:部|中心|组|事业部|团队|学院|实验室)", question):
-        s = m.group(0)
-        # Prefer shorter org tail (e.g. 研发二部 over longer junk prefix)
-        if len(s) > 8:
-            s = s[-8:]
-        # trim common leading verbs/filler if glued
-        for i, ch in enumerate(s):
-            if ch in "研产技平运市供销财人教":
-                s = s[i:]
-                break
-        cands.append(s)
-    cands += re.findall(r"[「\"']([^」\"']{1,20})[」\"']", question)
-    seen_c = set()
-    candidates = []
-    for c in cands:
-        c = (c or "").strip()
-        if len(c) < 2 or c in seen_c:
-            continue
-        seen_c.add(c)
-        candidates.append(c)
-    if not candidates:
-        return {**state, "entity_bindings": {}}
+    # Get history context for follow-up questions
+    history_context = ""
+    all_steps = state.get("all_steps") or []
+    if all_steps:
+        last_bindings = all_steps[-1].get("_entity_bindings") or {}
+        resolved = last_bindings.get("resolved") or {}
+        if resolved:
+            parts = []
+            for phrase, info in resolved.items():
+                if isinstance(info, dict):
+                    parts.append(f"{phrase}→{info.get('canonical')}")
+            if parts:
+                history_context = "之前已解析的实体：" + "；".join(parts)
 
-    # Dimension probes are independent of RAG table_name_list so org tables
+    # LLM-based candidate extraction (context-aware, no regex/hardcoded terms)
+    candidates = _extract_entity_candidates_via_llm(llm_service, question, history_context)
+    if not candidates:
+        return {**state, "entity_bindings": state.get("entity_bindings") or {}}
+
+    # Dimension probes — independent of RAG table_name_list so org tables
     # are still explored even when embedding only returned fact tables.
     probe_specs = [
         ("d_organization", "organization_name", "organization_name"),
@@ -1127,16 +1284,35 @@ def _maybe_update_chat_brief(llm_service: Any, sink: StreamSink, title: str) -> 
 def _plan_repair_message(refusal: str) -> str:
     """Shared plan-time repair text (validate / empty-plan). Schema-general, not ds-specific."""
     base = (refusal or "").strip() or "未能得到可执行 SQL 计划"
+    # Catalog hints can be verbose. The full failure remains in server logs and
+    # the record error; retry context should stay focused so the model edits the
+    # previous SQL instead of reopening a long design monologue.
+    if len(base) > 1600:
+        base = base[:1600].rstrip() + "…"
     parts = [
-        "【计划校验失败 — 请改写 SQL 后重试】",
+        "【计划校验失败 — 基于上一版 SQL 做最小修改】",
         base,
         "要求：",
         "1. 列名/表名必须来自 schema；关联用维表主键与事实表外键（勿臆造 *_id 列名）。",
-        "2. 多事实表必须先各自 GROUP BY 到共享粒度再 JOIN，或拆成 ≤2 条 SQL（见 playbook）。",
-        "3. 仍返回协议 JSON（对象或数组），带 brief。",
-        "4. 须继续遵守 <plan-context>：实体 eq/IN、边界、时间列与月维双侧。",
+        "2. 保留上一版中已正确的表、过滤和聚合结构，只修复校验指出的问题。",
+        "3. 多事实聚合每段只定义一次；缺侧用 UNION 去重的维键集合再 LEFT JOIN，禁止重复扫描模拟 FULL OUTER。",
+        "4. 直接输出协议 JSON（对象或数组，带 brief），不要讨论候选方案、规则取舍或子查询效率。",
+        "5. 须继续遵守 <plan-context>：实体 eq/IN、边界、时间口径与共享粒度。",
     ]
     return chr(10).join(parts) + chr(10)
+
+
+def _mark_generate_validation_failed(llm_service: LLMService) -> None:
+    """Reflect post-generation validation failure in the existing ChatLog row."""
+    log = llm_service.current_logs.get(OperationEnum.GENERATE_QUERY)
+    if not log:
+        return
+    try:
+        with session_scope() as session:
+            trigger_log_error(session, log)
+    except Exception:
+        # Observability must not affect retry/failure behavior.
+        SQLBotLogUtil.warning("Failed to mark GENERATE_QUERY validation error")
 
 
 def _attach_plan_context_for_generate(
@@ -1192,6 +1368,24 @@ def generate_queries_node(state: NlqState) -> NlqState:
 
         repair = (state.get("repair_hint") or "").strip()
         extra_sections: List[str] = []
+
+        # Inherit entity bindings from previous round when current round has none
+        # (follow-up like "只查看今年的吧" has no org name in question)
+        current_bindings = state.get("entity_bindings") or {}
+        if step_index > 0 and all_steps and not current_bindings.get("resolved"):
+            prev_bindings = {}
+            for step in reversed(all_steps):
+                eb = step.get("_entity_bindings") or {}
+                if eb.get("resolved"):
+                    prev_bindings = eb
+                    break
+            if prev_bindings.get("resolved"):
+                state = {**state, "entity_bindings": prev_bindings}
+                SQLBotLogUtil.info(
+                    "inherited entity_bindings from previous round: %s"
+                    % list((prev_bindings.get("resolved") or {}).keys())
+                )
+
         # Subsequent post-exec rounds: quality summary is secondary insurance.
         if step_index > 0 and all_steps:
             assessments = _assess_all_steps(all_steps)
@@ -1205,6 +1399,19 @@ def generate_queries_node(state: NlqState) -> NlqState:
             )
             if repair:
                 extra_sections.append("## 改写指令\n" + repair)
+
+            # Inject previous SQL join paths for cross-validation on follow-up
+            prev_sqls = [
+                (s.get("format_statement") or s.get("sql") or "")
+                for s in all_steps
+                if (s.get("format_statement") or s.get("sql") or "").strip()
+            ]
+            xval = build_cross_validation_section(
+                prev_sqls,
+                llm_service.chat_question.question or "",
+            )
+            if xval:
+                extra_sections.append(xval)
 
         _attach_plan_context_for_generate(
             llm_service,
@@ -1264,9 +1471,21 @@ def generate_queries_node(state: NlqState) -> NlqState:
             msg = refusal or "Failed to generate any valid SQL queries"
             attempts = gen_attempts + 1
             repair_msg = _plan_repair_message(msg)
+            _mark_generate_validation_failed(llm_service)
             SQLBotLogUtil.warning(
                 f"plan generation empty attempt={attempts}: {msg[:240]}"
             )
+            try:
+                sink.event(
+                    {
+                        "type": "plan-validation",
+                        "status": "failed",
+                        "attempt": attempts,
+                        "message": msg[:800],
+                    }
+                )
+            except Exception:
+                pass
             if attempts <= MAX_PLAN_REGEN:
                 return {
                     **state,
@@ -1499,7 +1718,8 @@ def execute_queries_node(state: NlqState) -> NlqState:
             flat_results.append(r)
 
         snapshot_steps = _merge_batch_into_steps(
-            all_steps, prepared, flat_results, []
+            all_steps, prepared, flat_results, [],
+            entity_bindings=state.get("entity_bindings"),
         )
         try:
             _persist_record_snapshot(
@@ -1666,6 +1886,7 @@ def generate_charts_node(state: NlqState) -> NlqState:
             state.get("batch_plans") or [],
             batch_results,
             charts,
+            entity_bindings=state.get("entity_bindings"),
         )
         try:
             _persist_record_snapshot(
@@ -1716,6 +1937,11 @@ _DECIDE_PROMPT = """\
 
 ## 建议
 若需进一步分析，给 1～3 条可执行的下一步（改字段/加过滤/换关联）。
+
+## 结论规则
+- 结论必须基于实际查询返回的数据值，禁止使用"如果/可能/或许"等假设性表述。
+- 如果数据中未包含用户预期的值，直接说明"数据中未找到相关记录"并列出实际查到的值。
+- 列出关键数据值作为证据（如具体名称、数量、ID），不得笼统概括。
 """
 
 
@@ -1774,6 +2000,7 @@ def _decide_next_impl(
         batch_plans,
         batch_results,
         batch_charts,
+        entity_bindings=state.get("entity_bindings"),
     )
     assessments = _assess_all_steps(updated_steps)
     needs_repair = _quality_requires_repair(assessments)
@@ -1899,30 +2126,12 @@ def _decide_next_impl(
             decision = "summarize"
 
         if decision == "summarize" and not (analysis_text or "").strip():
-            parts = [
-                "## 结论",
-                "已完成查询，但模型未返回完整文字总结；请结合下方表格查看。",
-                "",
-                "## SQL 生成依据与解释",
-            ]
-            for a in assessments:
-                parts.append(
-                    f"### 查询{a['index'] + 1} {a.get('brief') or ''}".rstrip()
-                )
-                parts.append(f"- 字段: {', '.join(a.get('fields') or [])}")
-                parts.append(f"- 行数: {a.get('row_count')}")
-                sql_snip = (a.get("sql") or "")[:300]
-                parts.append(f"- SQL: `{sql_snip}`")
-            parts.append("")
-            parts.append("## 数据质量与局限")
-            for a in assessments:
-                parts.append(
-                    f"- 查询{a['index'] + 1}: "
-                    + "; ".join(a.get("issues") or ["无"])
-                )
-            if not assessments:
-                parts.append("- 无自动质检问题")
-            analysis_text = "\n".join(parts)
+            analysis_text = (
+                "## 结论\n"
+                "系统未能生成完整文字总结，以下基于自动质检与数据样本给出判断。\n\n"
+                "## 查询详情\n"
+                + _format_assessment_block(assessments)
+            )
 
         if decision == "continue" and reason:
             SQLBotLogUtil.info(f"LLM decides to continue: {reason}")
@@ -2044,6 +2253,7 @@ def complete_node(state: NlqState) -> NlqState:
         state.get("batch_plans") or [],
         state.get("batch_results") or [],
         state.get("batch_charts") or [],
+        entity_bindings=state.get("entity_bindings"),
     )
     # Ensure every successful step has a chart (MCP QUERY_DATA / table fallback)
     for step in updated_steps:

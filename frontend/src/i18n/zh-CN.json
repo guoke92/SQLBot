@@ -873,6 +873,7 @@
     "thinking": "思考中",
     "data_analysis": "数据分析",
     "data_predict": "数据预测",
+    "result_count": "共 {count} 条记录",
     "data_over_limit": "数据量过大，仅展示前{0}条数据",
     "ds_is_invalid": "数据源无效",
     "error": "错误",
@@ -913,7 +914,11 @@
     "generate_picture_success": "已生成图片",
     "show_request": "查看请求",
     "collapse_sql": "收起查询",
-    "summary": "综合分析"
+    "summary": "综合分析",
+    "series_filter": "分组筛选",
+    "series_filter_active": "已筛选 {0}/{1}",
+    "series_select_all": "全选",
+    "series_deselect_all": "清空"
   },
   "about": {
     "title": "关于",

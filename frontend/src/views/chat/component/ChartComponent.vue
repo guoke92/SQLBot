@@ -98,6 +98,14 @@ watch(
   { deep: true }
 )
 
+watch(
+  () => params.data,
+  () => {
+    renderChart()
+  },
+  { deep: true }
+)
+
 function destroyChart() {
   if (chartInstance) {
     chartInstance.destroy()
