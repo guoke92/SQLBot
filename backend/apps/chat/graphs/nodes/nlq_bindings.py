@@ -48,12 +48,15 @@ def prepare_query_bindings_node(state: Dict[str, Any]) -> Dict[str, Any]:
         "本年",
         "本月",
         "近一年",
-        "2024",
-        "2025",
-        "2026",
-        "actual_end",
+        "近12个月",
+        "最近",
+        str(datetime.datetime.now().year),
+        str(datetime.datetime.now().year - 1),
         "月份",
         "每月",
+        "趋势",
+        "同比",
+        "环比",
     )
     if not any(k in question for k in time_cues):
         return state
@@ -81,7 +84,24 @@ def prepare_query_bindings_node(state: Dict[str, Any]) -> Dict[str, Any]:
         return state
 
     if not result:
-        return state
+        # Fallback: boundary probe didn't fire (small tables / no pk / no
+        # time_col) but the question has time cues.  Inject a default 12-month
+        # hint so the LLM has a structured time bound instead of relying solely
+        # on playbook text.  Flows through the existing query_bindings →
+        # render_query_bindings → render_plan_context pipeline.
+        now = datetime.datetime.now()
+        cutoff = (now - datetime.timedelta(days=365)).strftime("%Y-%m-%d")
+        fallback_notes = [
+            f"- 默认时间范围：用户未指定具体时间范围时，建议在时间列上添加 "
+            f"WHERE 条件 >= '{cutoff}'（最近 12 个月）。"
+            "若结果为空再逐步放宽。仅当用户明确表示「所有时间」或「全部」时不限时间。"
+        ]
+        binds = {"_notes": fallback_notes}
+        return {
+            **state,
+            "query_bindings": binds,
+            "record": llm_service.record,
+        }
 
     binds, public_binds = result
     record_id = getattr(getattr(llm_service, "record", None), "id", None) or state.get(

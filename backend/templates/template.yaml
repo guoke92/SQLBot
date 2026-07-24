@@ -156,7 +156,7 @@ template:
               <title>柱状图(column)、条形图(bar)、折线图(line)：</title>
               <sub-requirement>必须有一个维度字段（横轴）</sub-requirement>
               <sub-requirement>最多有一个分类维度字段（如系列/颜色分组）</sub-requirement>
-              <sub-requirement>有分类维度时，只能有一个指标字段（纵轴）</sub-requirement>
+              <sub-requirement>有分类维度时，可以有多个指标字段（纵轴），系统会自动展开为多指标对比</sub-requirement>
               <sub-requirement>没有分类维度时，可以有多个指标字段</sub-requirement>
             </requirement-group>
             <requirement-group chart="pie">

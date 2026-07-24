@@ -145,9 +145,14 @@ def infer_entity_match(
     canonical: str,
     alternatives: Sequence[str],
 ) -> str:
-    """eq when unique exact; otherwise in (canonical + close alternatives)."""
-    alts = [a for a in alternatives if a and a != canonical]
-    if not alts and canonical == phrase:
+    """eq when canonical resolved; alternatives are advisory fallback only.
+
+    The canonical name was selected by the disambiguation step, so ``= canonical``
+    is the correct filter.  Alternatives are surfaced to the LLM as advisory
+    notes; they are NOT automatically injected into an IN list (which would
+    pull in deprecated/废弃 orgs or unrelated values the user didn't ask for).
+    """
+    if canonical:
         return "eq"
     return "in"
 

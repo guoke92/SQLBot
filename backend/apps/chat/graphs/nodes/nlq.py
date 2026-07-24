@@ -52,7 +52,6 @@ from apps.chat.steps.terminology import match_terminology
 from apps.chat.steps.training import match_training
 from apps.chat.plan_context import (
     build_cross_validation_section,
-    infer_entity_match,
     render_plan_context,
     wrap_plan_context,
 )
@@ -83,6 +82,10 @@ from common.utils.utils import SQLBotLogUtil, extract_nested_json, prepare_for_o
 _MAX_STEPS = MAX_BATCH_ROUNDS
 _MAX_BATCH_SIZE = MAX_QUERIES_PER_BATCH
 _ROW_LIMIT = ROW_LIMIT
+
+# Match YYYY-MM or YYYY-MM-DD (with - or / separators).  Used by _column_stats
+# to detect temporal string columns for min/max computation.
+_TEMPORAL_RE = re.compile(r"^\d{4}[-/]\d{1,2}([-/]\d{1,2})?$")
 
 
 # ── State ────────────────────────────────────────────────────────────────────
@@ -292,11 +295,6 @@ def _result_fields(step: Dict[str, Any]) -> List[str]:
 
 # ── Shared row-scan primitives ────────────────────────────────────────────
 
-def _is_metric_field(name: str) -> bool:
-    n = (name or "").lower()
-    needles = ("数", "count", "sum", "avg", "total", "amount", "qty", "数量", "占比", "rate")
-    return any(x in n for x in needles)
-
 
 def _scan_field(rows: List[Dict[str, Any]], field: str) -> Dict[str, Any]:
     """Single row scan returning null_count, values (non-null), numeric_vals."""
@@ -353,7 +351,8 @@ def _column_stats(rows: List[Dict[str, Any]], field: str) -> Dict[str, Any]:
     """Per-column statistical summary for LLM analysis context.
 
     Shares scan primitives with _null_rate / _metric_stats.
-    Categorical fields: unique + top-N.  Numeric: min/max/avg/median.
+    Temporal: min/max for YYYY-MM / YYYY-MM-DD strings.
+    Numeric: min/max/avg/median.  Categorical: unique + top-N.
     """
     if not rows:
         return {"unique": 0, "null_count": 0}
@@ -365,6 +364,20 @@ def _column_stats(rows: List[Dict[str, Any]], field: str) -> Dict[str, Any]:
 
     unique_count = len(set(str(v) for v in values))
     stats: Dict[str, Any] = {"unique": unique_count, "null_count": scan["null_count"]}
+
+    # Temporal: string dates (YYYY-MM / YYYY-MM-DD) — sort for min/max so the
+    # LLM gets the true time span instead of guessing from top-N frequency.
+    if not numeric_vals:
+        str_vals = [str(v).strip() for v in values if v is not None and str(v).strip()]
+        temporal_vals = [v for v in str_vals if _TEMPORAL_RE.match(v)]
+        if temporal_vals and len(temporal_vals) >= len(str_vals) * 0.5:
+            temporal_vals.sort()
+            stats.update({
+                "type": "temporal",
+                "min": temporal_vals[0],
+                "max": temporal_vals[-1],
+            })
+            return stats
 
     if numeric_vals and len(numeric_vals) >= len(values) * 0.5:
         numeric_vals.sort()
@@ -443,11 +456,20 @@ def _assess_step_quality(step: Dict[str, Any], index: int) -> Dict[str, Any]:
     if len(rows) >= _ROW_LIMIT:
         truncated = True
 
+    # Use DB-engine-reported column types (from cursor.description) instead of
+    # guessing by field name. fields_info is [{name, is_numeric}] per result.
+    fields_info_list = result.get("fields_info") or []
+    fields_info_map = {
+        fi.get("name"): fi
+        for fi in fields_info_list
+        if isinstance(fi, dict) and fi.get("name")
+    }
+
     null_rates: Dict[str, float] = {}
     metrics: Dict[str, Any] = {}
     col_stats: Dict[str, Any] = {}
     for f in fields:
-        is_metric = _is_metric_field(f)
+        is_metric = bool(fields_info_map.get(f, {}).get("is_numeric", False))
         if is_metric:
             metrics[f] = _metric_stats(rows, f)
         else:
@@ -532,7 +554,8 @@ def _format_assessment_block(assessments: List[Dict[str, Any]]) -> str:
                     ms.append(f"{k}: 无数值")
             lines.append(f"- 指标: {'; '.join(ms)}")
 
-        # Column stats: unique values, top-N for categoricals, min/max/avg for numerics
+        # Column stats: unique values, top-N for categoricals, min/max for
+        # temporal/numeric fields
         col_stats = a.get("column_stats") or {}
         if col_stats:
             stat_parts: List[str] = []
@@ -544,6 +567,11 @@ def _format_assessment_block(assessments: List[Dict[str, Any]]) -> str:
                         f"{fname}: unique={cs.get('unique')} "
                         f"min={cs.get('min')} max={cs.get('max')} "
                         f"avg={cs.get('avg')} median={cs.get('median')}"
+                    )
+                elif cs.get("type") == "temporal":
+                    stat_parts.append(
+                        f"{fname}: unique={cs.get('unique')} "
+                        f"min={cs.get('min')} max={cs.get('max')}"
                     )
                 elif cs.get("type") == "categorical":
                     top = cs.get("top_values") or []
@@ -1188,28 +1216,13 @@ def _ground_entities_impl(
                         pick = cand
             except Exception as exc:
                 SQLBotLogUtil.warning("entity disambiguation fail: %s" % exc)
-        alts = [h for h in ranked if h != pick][:8]
-        # Prefer IN when warehouse names are longer / multi-hit — prevents
-        # over-narrow `= phrase` filters that return empty (record 113 class).
-        close = [
-            h
-            for h in ranked
-            if h == pick
-            or h.endswith(phrase)
-            or phrase in h
-            or (pick and (pick in h or h in pick))
-        ][:8]
-        if pick not in close:
-            close = [pick] + close
-        match = infer_entity_match(phrase, pick, [h for h in close if h != pick])
-        if match == "in" and len(close) == 1 and close[0] != phrase:
-            # Single longer canonical still needs allowing the warehouse form
-            # and close phrase-containing hits only — alts already ranked.
-            pass
+        # Canonical picked → use eq (= canonical).  Alternatives are advisory
+        # notes only; they are NOT auto-injected into an IN list (which would
+        # pull in deprecated/废弃 values the user didn't ask for).
         resolved[phrase] = {
             "canonical": pick,
-            "alternatives": alts if match == "eq" else [h for h in close if h != pick][:8],
-            "match": match,
+            "alternatives": [h for h in ranked if h != pick][:8],
+            "match": "eq",
             "column_hint": col_hints.get(phrase) or "organization_name",
         }
 
