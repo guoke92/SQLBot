@@ -2,14 +2,15 @@ version: 1
 graph_key: config
 state: apps.config_assistant.nodes.ConfigState
 description: >
-  Config-assistant graph. prepare → agent ⇄ run_tools → finish; agent/run_tools errors → fail.
+  Config-assistant graph. prepare → agent ⇄ execute_tools → finish;
+  infrastructure errors route to fail while tool-domain errors return to the agent.
 
 nodes:
   prepare: apps.config_assistant.nodes.prepare_node
-  agent: apps.config_assistant.nodes.agent_node
-  run_tools: apps.config_assistant.nodes.run_tools_node
-  finish: apps.config_assistant.nodes.finish_node
-  fail: apps.config_assistant.nodes.fail_node
+  agent: apps.conversation.agent.agent_node
+  execute_tools: apps.conversation.tooling.execute_tools_node
+  finish: apps.conversation.turn.finish_text_node
+  fail: apps.conversation.turn.fail_node
 
 edges:
   - from: START
@@ -19,14 +20,15 @@ edges:
     to: agent
 
   - from: agent
-    router: apps.config_assistant.nodes.route_after_agent
+    router: apps.conversation.agent.route_after_agent
     paths:
-      run_tools: run_tools
+      agent: agent
+      execute_tools: execute_tools
       finish: finish
       fail: fail
 
-  - from: run_tools
-    router: apps.config_assistant.nodes.route_after_tools
+  - from: execute_tools
+    router: apps.conversation.agent.route_after_tools
     paths:
       agent: agent
       fail: fail

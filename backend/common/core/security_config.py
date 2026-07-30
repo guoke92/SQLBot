@@ -1,6 +1,6 @@
 """
 Security Configuration Module
-Centralized security settings and best practices for the SQLBot application
+Centralized security settings and best practices for the AI智能问数 application
 """
 
 from pydantic import BaseModel, Field

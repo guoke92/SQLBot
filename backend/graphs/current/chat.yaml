@@ -2,24 +2,28 @@ version: 1
 graph_key: chat
 state: apps.chat.graphs.nodes.nlq.NlqState
 description: >
-  Agentic batch loop: LLM plans N queries → concurrent execution → charts →
-  LLM decides continue/summarize/finish. Max 3 iterations, 5 queries per batch.
+  Reviewed batch flow: LLM plans one atomic query batch → concurrent execution
+  → charts → deterministic quality review → optional bounded repair → summary.
+  Runtime limits come from plan_policy.
   Respects ChatFinishStep for MCP early stop (query-only / data-only).
 
 nodes:
   prepare_record: apps.chat.graphs.nodes.nlq.prepare_record_node
   ensure_datasource: apps.chat.graphs.nodes.nlq.ensure_datasource_node
-  match_terminology: apps.chat.graphs.nodes.nlq.match_terminology_node
+  resolve_access_scope: apps.chat.graphs.nodes.nlq.resolve_access_scope_node
+  recall_knowledge: apps.chat.graphs.nodes.nlq.recall_knowledge_node
   match_training: apps.chat.graphs.nodes.nlq.match_training_node
   match_custom_prompts: apps.chat.graphs.nodes.nlq.match_custom_prompts_node
-  build_context: apps.chat.graphs.nodes.nlq.build_context_node
+  retrieve_schema: apps.chat.graphs.nodes.nlq.retrieve_schema_node
   ground_entities: apps.chat.graphs.nodes.nlq.ground_entities_node
-  prepare_query_bindings: apps.chat.graphs.nodes.nlq_bindings.prepare_query_bindings_node
+  prepare_time_intent: apps.chat.graphs.nodes.nlq.prepare_time_intent_node
+  assess_clarity: apps.chat.graphs.nodes.nlq.assess_clarity_node
+  assemble_context: apps.chat.graphs.nodes.nlq.assemble_context_node
+  complete_intent: apps.chat.graphs.nodes.nlq.complete_intent_node
   generate_queries: apps.chat.graphs.nodes.nlq.generate_queries_node
   execute_queries: apps.chat.graphs.nodes.nlq.execute_queries_node
   generate_charts: apps.chat.graphs.nodes.nlq.generate_charts_node
   decide_next: apps.chat.graphs.nodes.nlq.decide_next_node
-  summarize: apps.chat.graphs.nodes.nlq.summarize_node
   complete: apps.chat.graphs.nodes.nlq.complete_node
   fail: apps.chat.graphs.nodes.nlq.fail_node
 
@@ -38,12 +42,28 @@ edges:
   - from: ensure_datasource
     router:
       type: ok_or_fail
-      next: match_terminology
+      next: resolve_access_scope
     paths:
-      match_terminology: match_terminology
+      resolve_access_scope: resolve_access_scope
       fail: fail
 
-  - from: match_terminology
+  - from: resolve_access_scope
+    router:
+      type: ok_or_fail
+      next: recall_knowledge
+    paths:
+      recall_knowledge: recall_knowledge
+      fail: fail
+
+  - from: recall_knowledge
+    router:
+      type: ok_or_fail
+      next: ground_entities
+    paths:
+      ground_entities: ground_entities
+      fail: fail
+
+  - from: ground_entities
     router:
       type: ok_or_fail
       next: match_training
@@ -62,34 +82,44 @@ edges:
   - from: match_custom_prompts
     router:
       type: ok_or_fail
-      next: build_context
+      next: retrieve_schema
     paths:
-      build_context: build_context
+      retrieve_schema: retrieve_schema
       fail: fail
 
-  - from: build_context
+  - from: retrieve_schema
     router:
       type: ok_or_fail
-      next: ground_entities
+      next: prepare_time_intent
     paths:
-      ground_entities: ground_entities
+      prepare_time_intent: prepare_time_intent
       fail: fail
 
-  - from: ground_entities
+  - from: prepare_time_intent
     router:
       type: ok_or_fail
-      next: prepare_query_bindings
+      next: assess_clarity
     paths:
-      prepare_query_bindings: prepare_query_bindings
+      assess_clarity: assess_clarity
       fail: fail
 
-  - from: prepare_query_bindings
+  - from: assess_clarity
+    router: apps.chat.graphs.nodes.nlq.route_after_clarity
+    paths:
+      assemble_context: assemble_context
+      complete_intent: complete_intent
+      fail: fail
+
+  - from: assemble_context
     router:
       type: ok_or_fail
       next: generate_queries
     paths:
       generate_queries: generate_queries
       fail: fail
+
+  - from: complete_intent
+    to: END
 
   - from: generate_queries
     router: apps.chat.graphs.nodes.nlq.route_after_queries
@@ -114,17 +144,13 @@ edges:
       decide_next: decide_next
       fail: fail
 
-  # ── Agentic Loop ──
+  # ── Review / bounded repair ──
   - from: decide_next
     router: apps.chat.graphs.nodes.nlq.route_after_decision
     paths:
       generate_queries: generate_queries
-      summarize: summarize
       complete: complete
       fail: fail
-
-  - from: summarize
-    to: complete
 
   - from: complete
     to: END

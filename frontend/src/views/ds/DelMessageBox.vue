@@ -4,14 +4,6 @@ defineProps({
     type: String,
     default: '-',
   },
-  panelNum: {
-    type: Number,
-    default: 0,
-  },
-  smartNum: {
-    type: Number,
-    default: 0,
-  },
   t: {
     type: Function,
     default: () => {},

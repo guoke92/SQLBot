@@ -22,7 +22,7 @@ const { t } = useI18n()
 
 const customSet = reactive({
   name: '',
-  welcome: t('embedded.i_am_sqlbot'),
+  welcome: t('embedded.i_am_ai_data_assistant'),
   welcome_desc: t('embedded.data_analysis_now'),
   theme: '#1CBA90',
   header_font_color: '#1F2329',

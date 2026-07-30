@@ -1,10 +1,11 @@
 <script lang="ts" setup>
 import { computed } from 'vue'
 import { ElMenu } from 'element-plus-secondary'
+import 'element-plus-secondary/es/components/menu/style/css'
 import { useRoute, useRouter } from 'vue-router'
 import MenuItem from './MenuItem.vue'
 import { useUserStore } from '@/stores/user'
-// import { routes } from '@/router'
+import { getMainNavigation, getSystemNavigation } from '@/router/navigation'
 const userStore = useUserStore()
 const router = useRouter()
 defineProps({
@@ -12,64 +13,16 @@ defineProps({
 })
 
 const route = useRoute()
-// const menuList = computed(() => route.matched[0]?.children || [])
 const activeMenu = computed(() => route.path)
-/* const activeIndex = computed(() => {
-  const arr = route.path.split('/')
-  return arr[arr.length - 1]
-}) */
 const showSysmenu = computed(() => {
   return route.path.includes('/system')
 })
 
-const formatRoute = (arr: any, parentPath = '') => {
-  return arr.map((element: any) => {
-    let children: any = []
-    const path = `${parentPath ? parentPath + '/' : ''}${element.path}`
-    if (element.children?.length) {
-      children = formatRoute(element.children, path)
-    }
-    return {
-      ...element,
-      path,
-      children,
-    }
-  })
-}
-
 const routerList = computed(() => {
   if (showSysmenu.value) {
-    const [sysRouter] = formatRoute(
-      router.getRoutes().filter((route: any) => route?.name === 'system')
-    )
-    return sysRouter.children
+    return getSystemNavigation(router)
   }
-  const list = router.getRoutes().filter((route) => {
-    return (
-      !route.path.includes('embeddedPage') &&
-      !route.path.includes('assistant') &&
-      !route.path.includes('embeddedPage') &&
-      !route.path.includes('canvas') &&
-      !route.path.includes('member') &&
-      !route.path.includes('professional') &&
-      !route.path.includes('401') &&
-      !route.path.includes('training') &&
-      !route.path.includes('prompt') &&
-      !route.path.includes('permission') &&
-      !route.path.includes('embeddedCommon') &&
-      !route.path.includes('preview') &&
-      !route.path.includes('audit') &&
-      route.path !== '/login' &&
-      route.path !== '/admin-login' &&
-      route.path !== '/chatPreview' &&
-      !route.path.includes('/system') &&
-      ((route.path.includes('set') && userStore.isSpaceAdmin) || !route.redirect) &&
-      route.path !== '/:pathMatch(.*)*' &&
-      !route.path.includes('dsTable')
-    )
-  })
-
-  return list
+  return getMainNavigation(router, { isSpaceAdmin: userStore.isSpaceAdmin })
 })
 </script>
 
@@ -85,6 +38,15 @@ const routerList = computed(() => {
   --ed-menu-bg-color: transparent;
   --ed-menu-base-level-padding: 4px;
   border-right: none;
+  width: 100%;
+
+  .menu-item-label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
   .ed-menu-item {
     height: 40px !important;
     border-radius: 6px !important;
@@ -140,14 +102,17 @@ const routerList = computed(() => {
     }
   }
 }
-.ed-sub-menu {
-  .subTitleMenu {
-    display: none;
-  }
+.sub-menu-popup-title {
+  display: none;
 }
 
-.ed-menu--popup-container .subTitleMenu {
+.ed-menu--popup-container .sub-menu-popup-title {
+  display: block;
+  padding: 8px 16px;
   color: #646a73 !important;
+  font-size: 12px;
+  line-height: 20px;
+  list-style: none;
   pointer-events: none;
 }
 </style>

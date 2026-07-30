@@ -37,23 +37,42 @@ const message = computed<Record<string, any>>(() => {
   return { result: String(raw) }
 })
 
+const details = computed<Record<string, any>>(() => {
+  if (message.value.sqlbot_span && typeof message.value.payload === 'object') {
+    return message.value.payload || {}
+  }
+  return message.value
+})
+
 const name = computed(() => {
-  return message.value.name || message.value.tool || t('chat.log.TOOL_CALL')
+  if (details.value.kind === 'agent' || details.value.role === 'agent') {
+    return t('chat.log.AGENT_STEP')
+  }
+  return details.value.name || details.value.tool || t('chat.log.TOOL_CALL')
 })
 
 const ok = computed(() => {
-  if (typeof message.value.ok === 'boolean') {
-    return message.value.ok
+  if (typeof details.value.ok === 'boolean') {
+    return details.value.ok
   }
   return true
 })
 
-const argsText = computed(() => formatJson(message.value.args ?? message.value.arguments))
-const resultText = computed(() => formatJson(message.value.result ?? message.value.content))
+const argsText = computed(() => formatJson(details.value.args ?? details.value.arguments))
+const resultText = computed(() => formatJson(details.value.result ?? details.value.content))
+const errorText = computed(() => {
+  if (!props.item?.error) {
+    return ''
+  }
+  const result = details.value.result
+  if (result && typeof result === 'object' && result.error) {
+    return String(result.error)
+  }
+  return props.error || t('chat.error')
+})
 const contentText = computed(() => {
-  // CONFIG_AGENT rounds may only carry a brief content preview.
-  if (message.value.kind === 'agent' || message.value.role === 'agent') {
-    return formatJson(message.value.content ?? message.value.preview ?? '')
+  if (details.value.kind === 'agent' || details.value.role === 'agent') {
+    return formatJson(details.value.content ?? details.value.preview ?? '')
   }
   return ''
 })
@@ -63,20 +82,14 @@ function formatJson(value: unknown): string {
     return ''
   }
   if (typeof value === 'string') {
-    // ChatLog may store truncated tool results as "...(truncated)"; strip and retry parse.
-    let trimmed = value.trim()
-    const truncSuffix = '…(truncated)'
-    const wasTruncated = trimmed.endsWith(truncSuffix)
-    if (wasTruncated) {
-      trimmed = trimmed.slice(0, -truncSuffix.length).trim()
-    }
-    if ((trimmed.startsWith('{') && (trimmed.endsWith('}') || wasTruncated)) ||
-        (trimmed.startsWith('[') && (trimmed.endsWith(']') || wasTruncated))) {
+    const trimmed = value.trim()
+    if (
+      (trimmed.startsWith('{') && trimmed.endsWith('}')) ||
+      (trimmed.startsWith('[') && trimmed.endsWith(']'))
+    ) {
       try {
-        const pretty = JSON.stringify(JSON.parse(trimmed), null, 2)
-        return wasTruncated ? `${pretty}\n…(truncated)` : pretty
+        return JSON.stringify(JSON.parse(trimmed), null, 2)
       } catch {
-        // partial truncated JSON often fails parse — fall through to raw
         return value
       }
     }
@@ -92,16 +105,14 @@ function formatJson(value: unknown): string {
 
 <template>
   <BaseContent class="base-container">
-    <template v-if="item?.error">
-      {{ error || t('chat.error') }}
-    </template>
-    <div v-else class="item-list flex-gap-fallback flex-col">
+    <div class="item-list flex-gap-fallback flex-col">
       <div class="inner-title">
         {{ name }}
-        <span v-if="message.kind === 'agent'" class="muted"> · agent</span>
+        <span v-if="details.kind === 'agent'" class="muted"> · agent</span>
         <span v-else-if="ok" class="ok"> · ok</span>
         <span v-else class="fail"> · fail</span>
       </div>
+      <div v-if="errorText" class="error-text">{{ errorText }}</div>
       <div v-if="contentText" class="inner-item flex-gap-fallback flex-col">
         <div class="inner-item-title">content</div>
         <div class="inner-item-description">
@@ -140,6 +151,11 @@ function formatJson(value: unknown): string {
   .muted {
     color: #8f959e;
   }
+}
+.error-text {
+  color: #f54a45;
+  font-size: 12px;
+  line-height: 20px;
 }
 .item-list {
   display: flex;

@@ -1,5 +1,5 @@
 <script lang="ts">
-import { h, defineComponent } from 'vue'
+import { h, defineComponent, type Component, type PropType, type VNodeChild } from 'vue'
 import { ElMenuItem, ElSubMenu, ElIcon } from 'element-plus-secondary'
 import { useRouter, useRoute } from 'vue-router'
 import chat from '@/assets/svg/menu/icon_chat_filled.svg'
@@ -21,6 +21,7 @@ import set from '@/assets/svg/menu/icon_setting_filled.svg'
 import noSet from '@/assets/svg/menu/icon-setting.svg'
 import log from '@/assets/svg/menu/icon_log_filled.svg'
 import noLog from '@/assets/svg/menu/icon_log_outlined.svg'
+import type { NavigationRoute } from '@/router/navigation'
 
 const iconMap = {
   chat,
@@ -41,119 +42,89 @@ const iconMap = {
   noEmbedded,
   log,
   noLog,
-} as { [key: string]: any }
+}
+
+type MenuIconName = keyof typeof iconMap
+
+const resolveIcon = (name: unknown): Component | undefined => {
+  if (typeof name !== 'string' || !(name in iconMap)) {
+    return undefined
+  }
+  return iconMap[name as MenuIconName] as unknown as Component
+}
+
+const renderIcon = (name: unknown): VNodeChild => {
+  const icon = resolveIcon(name)
+  if (!icon) {
+    return null
+  }
+  return h(ElIcon, { size: 18 }, { default: () => h(icon) })
+}
+
+const renderLabel = (title: unknown) => h('span', { class: 'menu-item-label' }, String(title ?? ''))
 
 const MenuItem = defineComponent({
   name: 'MenuItem',
   props: {
     menu: {
-      type: Object,
+      type: Object as PropType<NavigationRoute>,
       required: true,
     },
   },
   setup(props) {
     const router = useRouter()
     const route = useRoute()
-    const titleWithIcon = (props: any) => {
-      const { title, icon } = props
-      return [
-        h(ElIcon, { size: '18' }, { default: () => h(iconMap[icon]) }),
-        h('span', null, { default: () => title }),
-      ]
-    }
+    const { emitter } = useEmitt()
 
-    const handleMenuClick = (e: any) => {
-      if (e.index === '/ds/index') {
-        useEmitt().emitter.emit('ds-index-click')
+    const navigate = (path: string) => {
+      if (path === '/ds/index') {
+        emitter.emit('ds-index-click')
       }
-      if (e.index) {
-        router.push(e.redirect || e.index)
-      }
+      void router.push(path)
     }
 
     return () => {
-      const { children, hidden, path } = props.menu
-      if (hidden) {
+      const { children, hidden, path, meta } = props.menu
+      if (hidden || meta.hidden) {
         return null
       }
 
       if (children?.length) {
-        const { title, iconDeActive, iconActive } = props.menu?.meta || {}
-        const icon = route.path.startsWith(path) ? iconActive : iconDeActive
+        const { title, iconDeActive, iconActive } = meta
+        const icon =
+          route.path === path || route.path.startsWith(`${path}/`) ? iconActive : iconDeActive
         return h(
           ElSubMenu,
-          { index: path, onClick: () => handleMenuClick(props.menu) },
+          { index: path },
           {
-            title: () => titleWithIcon({ title, icon }),
+            title: () => [renderIcon(icon), renderLabel(title)],
             default: () => [
-              h(MenuItem, { menu: { meta: { title } }, class: 'subTitleMenu' }),
-              children.map((ele: any) => h(MenuItem, { menu: ele })),
+              h(
+                'li',
+                {
+                  class: 'sub-menu-popup-title',
+                  role: 'presentation',
+                  'aria-hidden': 'true',
+                },
+                String(title ?? '')
+              ),
+              ...children.map((child) => h(MenuItem, { key: child.path, menu: child })),
             ],
           }
         )
       }
 
-      const { title, iconDeActive, iconActive } = props.menu?.meta || {}
+      const { title, iconDeActive, iconActive } = meta
       const icon = route.path === path ? iconActive : iconDeActive
-      const iconCom: any = iconMap[icon] ? ElIcon : null
       return h(
         ElMenuItem,
-        { index: path, onClick: (e: any) => handleMenuClick(e) },
+        { index: path, onClick: () => navigate(path) },
         {
-          default: () => [
-            h(
-              iconCom,
-              { size: 18 },
-              {
-                default: () => h(iconMap[icon]),
-              }
-            ),
-            h('span', null, { default: () => title }),
-          ],
+          default: () => [renderIcon(icon), renderLabel(title)],
         }
       )
     }
   },
 })
-/* const MenuItem = (props: any) => {
-const MenuItem = (props: any) => {
-  const router = useRouter()
-
-  const { children, hidden, path } = props.menu
-  if (hidden) {
-    return null
-  }
-  if (children?.length) {
-    return h(
-      ElSubMenu,
-      { index: path, onClick: (e: any) => handleMenuClick(e) },
-      {
-        index: path,
-      },
-      {
-        title: () => titleWithIcon(props),
-        default: () => children.map((ele: any) => h(MenuItem, { menu: ele })),
-      }
-    )
-  }
-  const { title, icon } = props.menu?.meta || {}
-  const iconCom: any = iconMap[icon] ? ElIcon : null
-  return h(
-    ElMenuItem,
-    { index: path, onClick: (e: any) => handleMenuClick(e) },
-    {
-      index: path,
-      onClick: () => {
-        router.push(path)
-      },
-    },
-    {
-      title: h('span', null, { default: () => title }),
-      default: h(iconCom, null, {
-        default: () => h(iconMap[icon]),
-      }),
-    }
-  )
-} */
 export default MenuItem
 </script>

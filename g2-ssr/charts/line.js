@@ -1,4 +1,10 @@
-const { checkIsPercent, formatNumber, getAxesWithFilter, processMultiQuotaData } = require('./utils')
+const {
+  checkIsPercent,
+  formatNumber,
+  getAxesWithFilter,
+  processMultiMetricWithSeries,
+  processMultiQuotaData,
+} = require('./utils')
 
 function getLineOptions(baseOptions, axis, data) {
 
@@ -13,7 +19,14 @@ function getLineOptions(baseOptions, axis, data) {
     y: axes.y,
     series: axes.series,
   }
-  if (axes.multiQuota.length > 0) {
+  if (axes.multiMetricWithSeries) {
+    config = processMultiMetricWithSeries(
+      axes.x,
+      config.y,
+      config.series,
+      config.data,
+    )
+  } else if (axes.multiQuota.length > 0) {
     config = processMultiQuotaData(
       axes.x,
       config.y,

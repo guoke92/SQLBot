@@ -63,8 +63,9 @@ import { useCache } from '@/utils/useCache'
 
 import router from '@/router'
 import { useUserStore } from '@/stores/user.ts'
-import { getQueryString, getSQLBotAddr, getUrlParams, isPlatformClient } from '@/utils/utils'
+import { getQueryString, getAppAddr, getUrlParams, isPlatformClient } from '@/utils/utils'
 import { loadClient, origin_mapping, type LoginCategory } from './PlatformClient'
+import { isXpackLicenseValid } from '@/platform/xpack'
 
 import { useI18n } from 'vue-i18n'
 const isLdap = ref(false)
@@ -311,7 +312,7 @@ const third_party_authentication = (state?: string) => {
   const urlFlag = findKey && findKey > 5 ? 'platform' : 'authentication'
   const ssoUrl = `/system/${urlFlag}/sso/${findKey}`
   if (!urlParams?.redirect_uri) {
-    urlParams['redirect_uri'] = encodeURIComponent(getSQLBotAddr())
+    urlParams['redirect_uri'] = encodeURIComponent(getAppAddr())
   }
   request
     .post(ssoUrl, urlParams)
@@ -344,7 +345,7 @@ const third_party_authentication = (state?: string) => {
       setTimeout(() => {
         platformLoginMsg.value = e?.message || e
         setTimeout(() => {
-          window.location.href = getSQLBotAddr() + window.location.hash
+          window.location.href = getAppAddr() + window.location.hash
         }, 2000)
       }, 1500)
     })
@@ -410,9 +411,7 @@ onMounted(() => {
     updateLoading(false, 100)
     return
   }
-  // eslint-disable-next-line no-undef
-  const obj = LicenseGenerator.getLicense()
-  if (obj?.status !== 'valid') {
+  if (!isXpackLicenseValid()) {
     updateLoading(false, 100)
     return
   }

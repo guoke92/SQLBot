@@ -8,15 +8,22 @@ Assistant out-DS schema paths do not run table embedding (name filter only).
 
 from __future__ import annotations
 
-from typing import Any, List
+from typing import Any, List, Sequence
 
 from sqlmodel import Session
 
-from apps.chat.curd.chat import end_log, start_log
 from apps.chat.models.chat_model import OperationEnum
+from apps.conversation.observability import end_log, start_log
+from apps.datasource.access import AccessScope
 
 
-def match_table_schema(llm_service: Any, session: Session) -> List[Any]:
+def match_table_schema(
+    llm_service: Any,
+    session: Session,
+    *,
+    required_resource_names: Sequence[str] = (),
+    access_scope: AccessScope | None = None,
+) -> List[Any]:
     """Retrieve schema via protocol; set ``db_schema`` / ``sample_data`` on question.
 
     Does not pass ``embedding`` — protocol default + ``TABLE_EMBEDDING_ENABLED``
@@ -32,8 +39,10 @@ def match_table_schema(llm_service: Any, session: Session) -> List[Any]:
         session=session,
         current_user=llm_service.current_user,
         ds=llm_service.ds,
-        question=llm_service.chat_question.question,
+        question=llm_service.retrieval_question,
         out_ds_instance=llm_service.out_ds_instance,
+        required_resource_names=required_resource_names,
+        access_scope=access_scope,
     )
     llm_service.chat_question.db_schema = snapshot.schema_text
     tables = snapshot.resource_names

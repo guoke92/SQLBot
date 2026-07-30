@@ -1,9 +1,15 @@
 import { request } from '@/utils/request'
+import { encryptWithXpack } from '@/platform/xpack'
+
 export const AuthApi = {
-  login: (credentials: { username: string; password: string }) => {
+  login: async (credentials: { username: string; password: string }) => {
+    const [username, password] = await Promise.all([
+      encryptWithXpack(credentials.username),
+      encryptWithXpack(credentials.password),
+    ])
     const entryCredentials = {
-      username: LicenseGenerator.sqlbotEncrypt(credentials.username),
-      password: LicenseGenerator.sqlbotEncrypt(credentials.password),
+      username,
+      password,
     }
     return request.post<{
       data: any
@@ -15,5 +21,8 @@ export const AuthApi = {
     })
   },
   logout: (data: any) => request.post('/login/logout', data),
-  info: () => request.get('/user/info'),
+  info: () =>
+    request.get('/user/info', {
+      requestOptions: { silent: true },
+    }),
 }

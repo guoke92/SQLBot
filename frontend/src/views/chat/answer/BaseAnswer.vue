@@ -10,18 +10,18 @@ import { useChatConfigStore } from '@/stores/chatConfig.ts'
 const props = withDefaults(
   defineProps<{
     message: ChatMessage
-    loading?: boolean
-    reasoningName:
-      | 'sql_answer'
-      | 'chart_answer'
-      | 'analysis_thinking'
-      | 'predict'
-      | Array<'sql_answer' | 'chart_answer' | 'analysis_thinking' | 'predict'>
+    reasoningItems?: string[]
+    reasoningAvailable?: boolean
   }>(),
   {
-    loading: false,
+    reasoningItems: () => [],
+    reasoningAvailable: false,
   }
 )
+
+const emit = defineEmits<{
+  reasoningToggle: [expanded: boolean]
+}>()
 
 const { t } = useI18n()
 
@@ -29,47 +29,26 @@ const chatConfig = useChatConfigStore()
 
 const show = ref<boolean>(false)
 
-const reasoningContent = computed<Array<string>>(() => {
-  const names: Array<'sql_answer' | 'chart_answer' | 'analysis_thinking' | 'predict'> = []
-  if (typeof props.reasoningName === 'string') {
-    names.push(props.reasoningName)
-  } else {
-    props.reasoningName.forEach((item) => {
-      names.push(item)
-    })
-  }
-  const result: Array<string> = []
-  names.forEach((item) => {
-    if (props.message?.record) {
-      if (props.message?.record[item]) {
-        result.push(props.message?.record[item] ?? '')
-      }
-    }
-  })
-  return result
-})
+const reasoningContent = computed(() => props.reasoningItems.filter((item) => item?.trim()))
 
 const hasReasoning = computed<boolean>(() => {
   if (!chatConfig.getHideThinkingBlock) {
-    if (reasoningContent.value.length > 0) {
-      for (let i = 0; i < reasoningContent.value.length; i++) {
-        if (reasoningContent.value[i] && reasoningContent.value[i].trim() !== '') {
-          return true
-        }
-      }
-    }
+    return props.reasoningAvailable || reasoningContent.value.length > 0
   }
   return false
 })
 
 function clickShow() {
   show.value = !show.value
+  emit('reasoningToggle', show.value)
 }
 
 onMounted(() => {
   if (props.message.isTyping) {
-    // 根据配置项是否默认展开
     show.value = chatConfig.getExpandThinkingBlock
+    if (show.value) {
+      emit('reasoningToggle', true)
+    }
   }
 })
 </script>
@@ -90,7 +69,10 @@ onMounted(() => {
         </span>
       </div>
     </el-button>
-    <div v-if="hasReasoning && show" class="reasoning-content flex-gap-fallback flex-col">
+    <div
+      v-if="hasReasoning && show && reasoningContent.length"
+      class="reasoning-content flex-gap-fallback flex-col"
+    >
       <div v-for="(reason, _index) in reasoningContent" :key="_index" class="reasoning">
         <MdComponent :message="reason" />
       </div>

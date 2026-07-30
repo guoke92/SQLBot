@@ -12,18 +12,17 @@ import { datasourceApi } from '@/api/datasource.ts'
 
 const props = withDefaults(
   defineProps<{
+    id: number
     name: string
     type: string
     typeName: string
-    num: string
+    num: number | string
     description?: string
-    id?: string
   }>(),
   {
     name: '-',
     type: '-',
     description: '-',
-    id: '-',
     typeName: '-',
   }
 )

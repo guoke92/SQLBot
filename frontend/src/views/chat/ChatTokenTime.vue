@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import icon_logs_outlined from '@/assets/svg/icon_logs_outlined.svg'
 import ExecutionDetails from './ExecutionDetails.vue'
 import { useChatConfigStore } from '@/stores/chatConfig.ts'
@@ -9,7 +9,7 @@ const props = defineProps<{
   totalTokens?: number | undefined
 }>()
 const chatConfig = useChatConfigStore()
-const showLogBtn = chatConfig.getShowLog
+const showLogBtn = computed(() => chatConfig.getShowLog)
 const executionDetailsRef = ref()
 function getLogList() {
   executionDetailsRef.value.getLogList(props.recordId)
@@ -17,9 +17,13 @@ function getLogList() {
 </script>
 
 <template>
-  <div v-if="recordId && (duration || totalTokens)" class="tool-container">
-    <span>{{ $t('parameter.tokens_required') }} {{ totalTokens }}</span>
-    <span style="margin-left: 12px">{{ $t('parameter.time_execution') }} {{ duration }} s</span>
+  <div v-if="recordId && (duration || totalTokens || showLogBtn)" class="tool-container">
+    <span v-if="totalTokens !== undefined">
+      {{ $t('parameter.tokens_required') }} {{ totalTokens }}
+    </span>
+    <span v-if="duration !== undefined" style="margin-left: 12px">
+      {{ $t('parameter.time_execution') }} {{ duration }} s
+    </span>
 
     <div v-if="showLogBtn" class="detail" @click="getLogList">
       <el-icon style="margin-right: 4px" size="16">

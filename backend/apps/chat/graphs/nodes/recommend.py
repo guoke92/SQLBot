@@ -1,19 +1,19 @@
-"""Recommend node implementations for the recommend graph.
-
-Extracted from ``apps.chat.graphs.recommend``.
-"""
+"""Recommend node implementations for the recommend graph."""
 
 from __future__ import annotations
-
-import traceback
-from typing import Any, TypedDict
 
 from apps.chat.models.chat_model import ChatRecord
 from apps.chat.steps.recommend import generate_recommend_questions
 from apps.chat.task.llm import LLMService
+from apps.conversation.outcome import (
+    failed_outcome,
+    format_error_message,
+    successful_outcome,
+)
 from apps.conversation.session import session_scope
 from apps.conversation.sink import StreamSink
 from apps.conversation.state import RunState
+from common.utils.utils import SQLBotLogUtil
 
 
 class RecommendState(RunState, total=False):
@@ -47,7 +47,16 @@ def generate_node(state: RecommendState) -> RecommendState:
                 "graph_key": "recommend",
                 "mode": "side",
                 "record": llm_service.record,
+                "outcome": successful_outcome(),
             }
-        except Exception:
-            traceback.print_exc()
-            return state
+        except Exception as exc:
+            error = format_error_message(exc)
+            SQLBotLogUtil.warning(f"recommend graph failed: {error}")
+            sink.event({"type": "recommended_question_error", "content": error})
+            return {
+                **state,
+                "graph_key": "recommend",
+                "mode": "side",
+                "error": error,
+                "outcome": failed_outcome(exc),
+            }

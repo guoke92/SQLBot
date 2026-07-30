@@ -603,7 +603,46 @@ def convert_value(value, datetime_format='space'):
         return value
 
 
-def exec_sql(ds: CoreDatasource | AssistantOutDsSchema, sql: str, origin_column=False):
+def _fetch_query_rows(result, max_rows: int | None):
+    """Fetch at most ``max_rows`` rows plus one sentinel for truncation."""
+    if max_rows is None or max_rows <= 0:
+        return result.fetchall(), False, None
+    rows = result.fetchmany(max_rows + 1)
+    return rows[:max_rows], len(rows) > max_rows, max_rows
+
+
+def _query_result_payload(
+    *,
+    fields,
+    data,
+    fields_info,
+    sql: str,
+    truncated: bool,
+    limit: int | None,
+):
+    payload = {
+        "fields": fields,
+        "data": data,
+        "fields_info": fields_info,
+        "sql": bytes.decode(base64.b64encode(bytes(sql, "utf-8"))),
+    }
+    if truncated:
+        payload.update(
+            {
+                "truncated": True,
+                "limit": limit,
+                "truncation_reason": "query_limit",
+            }
+        )
+    return payload
+
+
+def exec_sql(
+    ds: CoreDatasource | AssistantOutDsSchema,
+    sql: str,
+    origin_column=False,
+    max_rows: int | None = None,
+):
     while sql.endswith(';'):
         sql = sql[:-1]
     # check execute sql only contain read operations
@@ -638,36 +677,25 @@ def exec_sql(ds: CoreDatasource | AssistantOutDsSchema, sql: str, origin_column=
             with session.execute(text(exec_sql_text)) as result:
                 try:
                     columns = result.keys()._keys if origin_column else [item.lower() for item in result.keys()._keys]
+                    fields_info = build_fields_info_from_cursor(
+                        result.cursor,
+                        origin_column,
+                        ds.type,
+                    )
 
-                    fields_info = []
-                    for col_info in result.cursor.description:
-                        # col_info 是 (name, type_code, display_size, internal_size, precision, scale, null_ok)
-                        col_name = col_info[0]
-
-                        # 根据 type_code 判断是否为数值类型
-                        # psycopg2 的类型 OID 常量
-                        is_numeric = col_info[1] in (
-                            20,  # int8
-                            21,  # int2
-                            23,  # int4
-                            700,  # float4
-                            701,  # float8
-                            1700,  # numeric
-                            16,  # boolean
-                        )
-
-                        fields_info.append({
-                            "name": col_name if origin_column else col_name.lower(),
-                            "is_numeric": is_numeric
-                        })
-
-                    res = result.fetchall()
+                    res, truncated, limit = _fetch_query_rows(result, max_rows)
                     result_list = [
                         {str(columns[i]): convert_value(value) for i, value in enumerate(tuple_item)} for tuple_item in
                         res
                     ]
-                    return {"fields": columns, "data": result_list, "fields_info": fields_info,
-                            "sql": bytes.decode(base64.b64encode(bytes(sql, 'utf-8')))}
+                    return _query_result_payload(
+                        fields=columns,
+                        data=result_list,
+                        fields_info=fields_info,
+                        sql=sql,
+                        truncated=truncated,
+                        limit=limit,
+                    )
                 except Exception as ex:
                     raise ParseSQLResultError(str(ex))
     else:
@@ -678,17 +706,23 @@ def exec_sql(ds: CoreDatasource | AssistantOutDsSchema, sql: str, origin_column=
                                   port=conf.port, **extra_config_dict) as conn, conn.cursor() as cursor:
                 try:
                     cursor.execute(sql, timeout=conf.timeout)
-                    res = cursor.fetchall()
+                    res, truncated, limit = _fetch_query_rows(cursor, max_rows)
                     columns = [field[0] for field in cursor.description] if origin_column else [field[0].lower() for
                                                                                                 field in
                                                                                                 cursor.description]
-                    fields_info = build_fields_info_from_cursor(cursor, origin_column, 'dm')
+                    fields_info = build_fields_info_from_cursor(cursor, origin_column, ds.type)
                     result_list = [
                         {str(columns[i]): convert_value(value) for i, value in enumerate(tuple_item)} for tuple_item in
                         res
                     ]
-                    return {"fields": columns, "data": result_list, "fields_info": fields_info,
-                            "sql": bytes.decode(base64.b64encode(bytes(sql, 'utf-8')))}
+                    return _query_result_payload(
+                        fields=columns,
+                        data=result_list,
+                        fields_info=fields_info,
+                        sql=sql,
+                        truncated=truncated,
+                        limit=limit,
+                    )
                 except Exception as ex:
                     raise ParseSQLResultError(str(ex))
         elif equals_ignore_case(ds.type, 'doris', 'starrocks'):
@@ -699,17 +733,23 @@ def exec_sql(ds: CoreDatasource | AssistantOutDsSchema, sql: str, origin_column=
                                  **ssl_args) as conn, conn.cursor() as cursor:
                 try:
                     cursor.execute(sql)
-                    res = cursor.fetchall()
+                    res, truncated, limit = _fetch_query_rows(cursor, max_rows)
                     columns = [field[0] for field in cursor.description] if origin_column else [field[0].lower() for
                                                                                                 field in
                                                                                                 cursor.description]
-                    fields_info = build_fields_info_from_cursor(cursor, origin_column, 'mysql')
+                    fields_info = build_fields_info_from_cursor(cursor, origin_column, ds.type)
                     result_list = [
                         {str(columns[i]): convert_value(value) for i, value in enumerate(tuple_item)} for tuple_item in
                         res
                     ]
-                    return {"fields": columns, "data": result_list, "fields_info": fields_info,
-                            "sql": bytes.decode(base64.b64encode(bytes(sql, 'utf-8')))}
+                    return _query_result_payload(
+                        fields=columns,
+                        data=result_list,
+                        fields_info=fields_info,
+                        sql=sql,
+                        truncated=truncated,
+                        limit=limit,
+                    )
                 except Exception as ex:
                     raise ParseSQLResultError(str(ex))
         elif equals_ignore_case(ds.type, 'redshift'):
@@ -718,17 +758,23 @@ def exec_sql(ds: CoreDatasource | AssistantOutDsSchema, sql: str, origin_column=
                                             timeout=conf.timeout, **extra_config_dict) as conn, conn.cursor() as cursor:
                 try:
                     cursor.execute(sql)
-                    res = cursor.fetchall()
+                    res, truncated, limit = _fetch_query_rows(cursor, max_rows)
                     columns = [field[0] for field in cursor.description] if origin_column else [field[0].lower() for
                                                                                                 field in
                                                                                                 cursor.description]
-                    fields_info = build_fields_info_from_cursor(cursor, origin_column, 'postgresql')
+                    fields_info = build_fields_info_from_cursor(cursor, origin_column, ds.type)
                     result_list = [
                         {str(columns[i]): convert_value(value) for i, value in enumerate(tuple_item)} for tuple_item in
                         res
                     ]
-                    return {"fields": columns, "data": result_list, "fields_info": fields_info,
-                            "sql": bytes.decode(base64.b64encode(bytes(sql, 'utf-8')))}
+                    return _query_result_payload(
+                        fields=columns,
+                        data=result_list,
+                        fields_info=fields_info,
+                        sql=sql,
+                        truncated=truncated,
+                        limit=limit,
+                    )
                 except Exception as ex:
                     raise ParseSQLResultError(str(ex))
         elif equals_ignore_case(ds.type, 'kingbase'):
@@ -738,22 +784,35 @@ def exec_sql(ds: CoreDatasource | AssistantOutDsSchema, sql: str, origin_column=
                                   **extra_config_dict) as conn, conn.cursor() as cursor:
                 try:
                     cursor.execute(sql)
-                    res = cursor.fetchall()
+                    res, truncated, limit = _fetch_query_rows(cursor, max_rows)
                     columns = [field[0] for field in cursor.description] if origin_column else [field[0].lower() for
                                                                                                 field in
                                                                                                 cursor.description]
-                    fields_info = build_fields_info_from_cursor(cursor, origin_column, 'postgresql')
+                    fields_info = build_fields_info_from_cursor(cursor, origin_column, ds.type)
                     result_list = [
                         {str(columns[i]): convert_value(value) for i, value in enumerate(tuple_item)} for tuple_item in
                         res
                     ]
-                    return {"fields": columns, "data": result_list, "fields_info": fields_info,
-                            "sql": bytes.decode(base64.b64encode(bytes(sql, 'utf-8')))}
+                    return _query_result_payload(
+                        fields=columns,
+                        data=result_list,
+                        fields_info=fields_info,
+                        sql=sql,
+                        truncated=truncated,
+                        limit=limit,
+                    )
                 except Exception as ex:
                     raise ParseSQLResultError(str(ex))
         elif equals_ignore_case(ds.type, 'es'):
             try:
                 res, raw_columns = get_es_data_by_http(conf, sql)
+                if max_rows is not None and max_rows > 0:
+                    truncated = len(res) > max_rows
+                    limit = max_rows
+                    res = res[:max_rows]
+                else:
+                    truncated = False
+                    limit = None
                 columns = [field.get('name') for field in raw_columns] if origin_column else [field.get('name').lower()
                                                                                               for
                                                                                               field in
@@ -763,8 +822,14 @@ def exec_sql(ds: CoreDatasource | AssistantOutDsSchema, sql: str, origin_column=
                     {str(columns[i]): convert_value(value) for i, value in enumerate(tuple_item)} for tuple_item in
                     res
                 ]
-                return {"fields": columns, "data": result_list, "fields_info": fields_info,
-                        "sql": bytes.decode(base64.b64encode(bytes(sql, 'utf-8')))}
+                return _query_result_payload(
+                    fields=columns,
+                    data=result_list,
+                    fields_info=fields_info,
+                    sql=sql,
+                    truncated=truncated,
+                    limit=limit,
+                )
             except Exception as ex:
                 raise Exception(str(ex))
         elif equals_ignore_case(ds.type, 'hive'):
@@ -774,19 +839,126 @@ def exec_sql(ds: CoreDatasource | AssistantOutDsSchema, sql: str, origin_column=
                     # Hive uses backticks for identifiers; normalize quoted identifiers as a compatibility fallback.
                     hive_sql = re.sub(r'"([A-Za-z_][A-Za-z0-9_]*)"', r'`\1`', sql)
                     cursor.execute(hive_sql)
-                    res = cursor.fetchall()
+                    res, truncated, limit = _fetch_query_rows(cursor, max_rows)
                     columns = [field[0] for field in cursor.description] if origin_column else [field[0].lower() for
                                                                                                 field in
                                                                                                 cursor.description]
-                    fields_info = build_fields_info_from_cursor(cursor, origin_column, 'hive')
+                    fields_info = build_fields_info_from_cursor(cursor, origin_column, ds.type)
                     result_list = [
                         {str(columns[i]): convert_value(value) for i, value in enumerate(tuple_item)} for tuple_item in
                         res
                     ]
-                    return {"fields": columns, "data": result_list, "fields_info": fields_info,
-                            "sql": bytes.decode(base64.b64encode(bytes(hive_sql, 'utf-8')))}
+                    return _query_result_payload(
+                        fields=columns,
+                        data=result_list,
+                        fields_info=fields_info,
+                        sql=hive_sql,
+                        truncated=truncated,
+                        limit=limit,
+                    )
                 except Exception as ex:
                     raise ParseSQLResultError(str(ex))
+
+
+_CURSOR_TYPE_FAMILIES = {
+    "mysql": "mysql",
+    "mariadb": "mysql",
+    "doris": "mysql",
+    "starrocks": "mysql",
+    "pg": "postgresql",
+    "postgres": "postgresql",
+    "postgresql": "postgresql",
+    "excel": "postgresql",
+    "redshift": "postgresql",
+    "kingbase": "postgresql",
+    "sqlserver": "sqlserver",
+    "mssql": "sqlserver",
+    "oracle": "oracle",
+    "ck": "clickhouse",
+    "clickhouse": "clickhouse",
+    "dm": "dm",
+    "hive": "hive",
+}
+
+_NUMERIC_CURSOR_TYPE_CODES = {
+    "mysql": frozenset({
+        1,  # TINYINT
+        2,  # SMALLINT
+        3,  # INT
+        4,  # FLOAT
+        5,  # DOUBLE
+        8,  # BIGINT
+        9,  # MEDIUMINT
+        16,  # BIT
+        246,  # DECIMAL
+    }),
+    "postgresql": frozenset({
+        16,  # boolean
+        20,  # int8
+        21,  # int2
+        23,  # int4
+        700,  # float4
+        701,  # float8
+        1700,  # numeric
+    }),
+    "dm": frozenset({
+        2,  # NUMBER
+        3,  # DECIMAL/NUMERIC
+        4,  # INTEGER
+        5,  # INT
+        6,  # BIGINT
+        7,  # TINYINT
+        8,  # BYTE
+        9,  # FLOAT
+        10,  # DOUBLE
+        11,  # REAL
+        12,  # BOOLEAN
+    }),
+}
+
+_NUMERIC_TYPE_NAMES = frozenset({
+    "tinyint",
+    "smallint",
+    "int",
+    "bigint",
+    "float",
+    "double",
+    "decimal",
+    "numeric",
+    "number",
+    "real",
+    "boolean",
+    "bool",
+})
+
+_DRIVER_NUMERIC_TYPES = {
+    "sqlserver": (pymssql.NUMBER, pymssql.DECIMAL),
+    "oracle": (
+        oracledb.DB_TYPE_NUMBER,
+        oracledb.DB_TYPE_BINARY_INTEGER,
+        oracledb.DB_TYPE_BINARY_FLOAT,
+        oracledb.DB_TYPE_BINARY_DOUBLE,
+        oracledb.DB_TYPE_BOOLEAN,
+    ),
+}
+
+
+def _is_numeric_cursor_type(type_code, db_type: str) -> bool:
+    family = _CURSOR_TYPE_FAMILIES.get((db_type or "").lower(), (db_type or "").lower())
+    numeric_codes = _NUMERIC_CURSOR_TYPE_CODES.get(family)
+    if numeric_codes is not None:
+        try:
+            if type_code in numeric_codes:
+                return True
+        except TypeError:
+            pass
+
+    if any(type_code == driver_type for driver_type in _DRIVER_NUMERIC_TYPES.get(family, ())):
+        return True
+
+    # Some DB-API drivers expose type objects/names instead of integer codes.
+    type_tokens = set(re.findall(r"[a-z]+[0-9]*", str(type_code).lower()))
+    return bool(type_tokens & _NUMERIC_TYPE_NAMES)
 
 
 def build_fields_info_from_cursor(cursor, origin_column, db_type='postgresql'):
@@ -796,7 +968,7 @@ def build_fields_info_from_cursor(cursor, origin_column, db_type='postgresql'):
     Args:
         cursor: 数据库游标对象
         origin_column: 是否保留原始列名大小写
-        db_type: 数据库类型，支持 'mysql', 'postgresql', 'redshift', 'kingbase', 'dm', 'hive'
+        db_type: 数据源类型；同协议的数据源会统一映射到对应驱动类型
 
     Returns:
         list: 包含字段名和是否数值类型的字典列表
@@ -806,56 +978,9 @@ def build_fields_info_from_cursor(cursor, origin_column, db_type='postgresql'):
     for col_info in cursor.description:
         col_name = col_info[0]
 
-        if db_type == 'mysql':
-            # MySQL/pymysql 类型码
-            is_numeric = col_info[1] in (
-                1,  # TINYINT
-                2,  # SMALLINT
-                3,  # INT
-                4,  # FLOAT
-                5,  # DOUBLE
-                8,  # BIGINT
-                9,  # MEDIUMINT
-                16,  # BIT
-                246,  # DECIMAL
-            )
-        elif db_type in ('postgresql', 'redshift', 'kingbase'):
-            # PostgreSQL/psycopg2 类型 OID
-            is_numeric = col_info[1] in (
-                20,  # int8
-                21,  # int2
-                23,  # int4
-                700,  # float4
-                701,  # float8
-                1700,  # numeric
-                16,  # boolean
-            )
-        elif db_type == 'dm':
-            # 达梦数据库类型码
-            is_numeric = col_info[1] in (
-                3,  # DECIMAL/NUMERIC
-                2,  # NUMBER
-                4,  # INTEGER
-                5,  # INT
-                6,  # BIGINT
-                7,  # TINYINT
-                8,  # BYTE
-                9,  # FLOAT
-                10,  # DOUBLE
-                11,  # REAL
-                12,  # BOOLEAN
-            )
-        elif db_type == 'hive':
-            # Hive 类型对象转字符串判断
-            type_str = str(col_info[1]).lower()
-            NUMERIC_PREFIXES = ('tinyint', 'smallint', 'int', 'bigint', 'float', 'double', 'decimal', 'numeric')
-            is_numeric = type_str == 'boolean' or any(type_str.startswith(p) for p in NUMERIC_PREFIXES)
-        else:
-            is_numeric = False
-
         fields_info.append({
             "name": col_name if origin_column else col_name.lower(),
-            "is_numeric": is_numeric
+            "is_numeric": _is_numeric_cursor_type(col_info[1], db_type)
         })
 
     return fields_info

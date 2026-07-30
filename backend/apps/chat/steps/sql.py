@@ -2,48 +2,51 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from datetime import datetime
-from typing import Any, Dict, Iterator, Optional
+from typing import Any
 
 import orjson
 from langchain_core.messages import AIMessage, HumanMessage
 from sqlmodel import Session
 
-from apps.chat.curd.chat import end_log, save_sql_answer, start_log
 from apps.chat.models.chat_model import OperationEnum
 from apps.chat.steps.observability import inject_span_meta
 from apps.chat.steps.stream import process_stream
+from apps.conversation.observability import end_log, start_log, trigger_log_error
+from apps.conversation.record import persist_snapshot
 
 
 def generate_sql(
     llm_service: Any,
     session: Session,
     *,
-    step_index: Optional[int] = None,
-    gen_attempts: Optional[int] = None,
+    step_index: int | None = None,
+    gen_attempts: int | None = None,
     graph_node: str = "generate_queries",
-) -> Iterator[Dict[str, Any]]:
-    """Append user prompt, stream SQL tokens, persist answer + log.
+) -> Iterator[dict[str, Any]]:
+    """Stream one SQL attempt from an immutable base-message snapshot.
 
     Holds ChatLog on a local handle (not only ``current_logs[enum]``) so
     agentic multi-attempt generates do not clobber identity.
     """
-    llm_service.sql_message.append(
+    attempt_messages = [
+        *llm_service.sql_message,
         HumanMessage(
             llm_service.protocol.build_user_prompt(
                 llm_service.chat_question,
                 current_time=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                 change_title=llm_service.change_title,
             )
-        )
-    )
+        ),
+    ]
     full_message = [
         {
             "type": msg.type,
             "sqlbot_system": getattr(msg, "sqlbot_system", False) is True,
             "content": msg.content,
         }
-        for msg in llm_service.sql_message
+        for msg in attempt_messages
     ]
     full_message = inject_span_meta(
         full_message,
@@ -64,23 +67,27 @@ def generate_sql(
 
     full_thinking_text = ""
     full_sql_text = ""
-    token_usage: Dict[str, Any] = {}
+    token_usage: dict[str, Any] = {}
+    completed = False
     try:
-        for chunk in process_stream(llm_service.llm.stream(llm_service.sql_message), token_usage):
+        for chunk in process_stream(
+            llm_service.llm.stream(attempt_messages), token_usage
+        ):
             if chunk.get("content"):
                 full_sql_text += chunk.get("content")
             if chunk.get("reasoning_content"):
                 full_thinking_text += chunk.get("reasoning_content")
             yield chunk
+        completed = True
     finally:
-        llm_service.sql_message.append(AIMessage(full_sql_text))
+        messages_for_log = [*attempt_messages, AIMessage(full_sql_text)]
         end_msgs = [
             {
                 "type": msg.type,
                 "sqlbot_system": getattr(msg, "sqlbot_system", False) is True,
                 "content": msg.content,
             }
-            for msg in llm_service.sql_message
+            for msg in messages_for_log
         ]
         end_msgs = inject_span_meta(
             end_msgs,
@@ -88,6 +95,8 @@ def generate_sql(
             step_index=step_index,
             gen_attempts=gen_attempts,
         )
+        if not completed:
+            trigger_log_error(session, log)
         llm_service.current_logs[OperationEnum.GENERATE_QUERY] = end_log(
             session=session,
             log=log,
@@ -95,8 +104,9 @@ def generate_sql(
             reasoning_content=full_thinking_text,
             token_usage=token_usage,
         )
-        llm_service.record = save_sql_answer(
-            session=session,
-            record_id=llm_service.record.id,
-            answer=orjson.dumps({"content": full_sql_text}).decode(),
-        )
+        if completed:
+            persist_snapshot(
+                session=session,
+                record_id=llm_service.record.id,
+                sql_answer=orjson.dumps({"content": full_sql_text}).decode(),
+            )

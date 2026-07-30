@@ -56,7 +56,16 @@
     "invalid_origin": "域名校验失败【{origin}】"
   },
   "i18n_chat": {
-    "record_id_in_mcp": "响应ID: "
+    "record_id_in_mcp": "响应ID: ",
+    "clarification": {
+      "entity_targets": "匹配字段：{targets}",
+      "entity_impact": "查询中将“{phrase}”按“{canonical}”精确过滤",
+      "entity_issue": "“{phrase}”需要确认具体业务值",
+      "entity_title": "“{phrase}”具体指哪个业务值？",
+      "entity_reason": "不同取值会直接改变过滤范围。",
+      "entity_recommendation": "按术语召回相关度推荐最匹配的值。",
+      "entity_custom_placeholder": "输入准确的业务值"
+    }
   },
   "i18n_terminology": {
     "terminology_not_exists": "该术语不存在",

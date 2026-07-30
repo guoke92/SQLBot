@@ -8,9 +8,16 @@ process start (see ``apps.api``). Topology truth source = YAML under
 from __future__ import annotations
 
 import importlib
-from functools import lru_cache
 from pathlib import Path
-from typing import Any, Callable, Dict, Iterable, List, Mapping, MutableMapping, Optional
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    Mapping,
+    MutableMapping,
+)
 
 import yaml
 from langgraph.graph import END, START, StateGraph
@@ -178,10 +185,11 @@ def load_specs(spec_dir: Path | None = None) -> List[GraphSpec]:
 
 
 def make_builder(spec: GraphSpec) -> Callable[..., Any]:
-    """Return a registry builder that compiles ``spec`` on each invoke."""
+    """Compile once at bootstrap and return a stable registry builder."""
+    compiled = compile_graph(spec)
 
     def _builder(_ctx: Any = None, **_kwargs: Any) -> Any:
-        return compile_graph(spec)
+        return compiled
 
     _builder.__name__ = f"build_{spec.graph_key}_graph"
     _builder.__qualname__ = _builder.__name__
@@ -195,13 +203,8 @@ def register_specs(specs: Iterable[GraphSpec], *, clear: bool = False) -> List[s
         clear_registry()
     keys: List[str] = []
     for spec in specs:
-        # Fail fast on bad paths at bootstrap (nodes + state + routers)
-        _ = resolve_state_type(spec.state)
-        for node_path in spec.nodes.values():
-            _ = resolve_callable(node_path)
-        for edge in spec.edges:
-            if isinstance(edge, ConditionalEdge) and isinstance(edge.router, str):
-                _ = resolve_callable(edge.router)
+        # make_builder compiles immediately, resolving every state/node/router
+        # and validating LangGraph channel constraints exactly once.
         register_graph(spec.graph_key, make_builder(spec))
         keys.append(spec.graph_key)
     return keys
@@ -218,9 +221,3 @@ def bootstrap_graphs(spec_dir: Path | str | None = None, *, clear: bool = True) 
     keys = register_specs(specs, clear=clear)
     SQLBotLogUtil.info(f"bootstrap_graphs: loaded {keys} from {root}")
     return keys
-
-
-@lru_cache(maxsize=4)
-def _cached_bootstrap_marker(spec_dir_resolved: str) -> tuple[str, ...]:
-    """Process-level cache marker for optional callers; tests use clear + bootstrap."""
-    return tuple(bootstrap_graphs(Path(spec_dir_resolved), clear=True))

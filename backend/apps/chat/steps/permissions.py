@@ -8,9 +8,9 @@ from typing import Any, Dict, List, Optional, Union
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 from sqlmodel import Session
 
-from apps.chat.curd.chat import end_log, start_log
 from apps.chat.models.chat_model import OperationEnum, SystemPromptMessage
 from apps.chat.steps.stream import process_stream
+from apps.conversation.observability import end_log, start_log
 from apps.datasource.crud.permission import get_row_permission_filters
 from apps.system.schemas.system_schema import AssistantOutDsSchema
 from common.utils.utils import SQLBotLogUtil
@@ -151,15 +151,22 @@ def build_table_filter(
 
 
 def generate_filter(
-    llm_service: Any, session: Session, sql: str, tables: List
+    llm_service: Any,
+    session: Session,
+    sql: str,
+    tables: List,
+    *,
+    resolved_filters: Optional[List[dict[str, Any]]] = None,
 ) -> Optional[str]:
     """Apply workspace row-permission filters when present."""
-    filters = get_row_permission_filters(
-        session=session,
-        current_user=llm_service.current_user,
-        ds=llm_service.ds,
-        tables=tables,
-    )
+    filters = resolved_filters
+    if filters is None:
+        filters = get_row_permission_filters(
+            session=session,
+            current_user=llm_service.current_user,
+            ds=llm_service.ds,
+            tables=tables,
+        )
     if not filters:
         return None
     return build_table_filter(llm_service, session, sql, filters)

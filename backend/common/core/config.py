@@ -7,10 +7,11 @@ from pydantic import (
     BeforeValidator,
     PostgresDsn,
     computed_field,
-    field_validator
+    field_validator,
 )
-from pydantic_core import MultiHostUrl
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from common.core.branding import APP_DISPLAY_NAME
 
 
 def parse_cors(v: Any) -> list[str] | str:
@@ -28,7 +29,7 @@ class Settings(BaseSettings):
         env_ignore_empty=True,
         extra="ignore",
     )
-    PROJECT_NAME: str = "SQLBot"
+    PROJECT_NAME: str = APP_DISPLAY_NAME
     #CONTEXT_PATH: str = "/sqlbot"
     CONTEXT_PATH: str = ""
     SECRET_KEY: str = secrets.token_urlsafe(32)
@@ -69,13 +70,13 @@ class Settings(BaseSettings):
 
     LOG_LEVEL: str = "INFO"  # DEBUG, INFO, WARNING, ERROR
     LOG_DIR: str = "logs"
-    LOG_FORMAT: str = "%(asctime)s - %(name)s - %(levelname)s:%(lineno)d - %(message)s"
+    LOG_PATTERN: str = "%(asctime)s - %(name)s - %(levelname)s:%(lineno)d - %(message)s"
     SQL_DEBUG: bool = False
     BASE_DIR: str = "/opt/sqlbot"
     SCRIPT_DIR: str = f"{BASE_DIR}/scripts"
     UPLOAD_DIR: str = "/opt/sqlbot/data/file"
     SQLBOT_KEY_EXPIRED: int = 100  # License key expiration timestamp, 0 means no expiration
-    
+
     SQLBOT_DOC_ENABLED: bool = True
 
     @computed_field  # type: ignore[prop-decorator]
@@ -139,6 +140,10 @@ class Settings(BaseSettings):
 
     # Directory containing graph topology YAML files (default: backend/graphs/current)
     GRAPH_SPEC_DIR: str = ''
+    CONVERSATION_MAX_WORKERS: int = 32
+    CONVERSATION_STREAM_QUEUE_SIZE: int = 256
+    CONVERSATION_RECURSION_LIMIT: int = 64
+    CONVERSATION_QUERY_MAX_CONCURRENCY: int = 16
 
     # API datasource SSRF protection
     API_SSRF_PROTECTION: bool = True

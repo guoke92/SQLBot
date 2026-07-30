@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-SQLBot is an LLM + RAG-powered conversational data analysis (ChatBI) system by DataEase. Users ask natural-language questions; the system retrieves table/column embeddings, generates SQL via an LLM, executes it against the configured datasource, and renders the result as a chart. The repo is a monorepo with three deployable surfaces: `backend/` (FastAPI Python), `frontend/` (Vite/React), and `g2-ssr/` (Node.js server for chart rendering). Backend is the focus of this file.
+AI智能问数 is an LLM + RAG-powered conversational data analysis (ChatBI) system by DataEase. Users ask natural-language questions; the system retrieves table/column embeddings, generates SQL via an LLM, executes it against the configured datasource, and renders the result as a chart. The repo is a monorepo with three deployable surfaces: `backend/` (FastAPI Python), `frontend/` (Vite/React), and `g2-ssr/` (Node.js server for chart rendering). Backend is the focus of this file.
 
 ## Tech Stack & Constraints
 

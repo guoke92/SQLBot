@@ -1,5 +1,6 @@
 from apps.protocol.base import (
     BaseProtocol,
+    DictionaryExtractResult,
     PromptBundle,
     QueryPlan,
     QueryResult,
@@ -9,6 +10,7 @@ from apps.protocol.registry import get_protocol, get_protocol_for_ds, get_spec, 
 
 __all__ = [
     "BaseProtocol",
+    "DictionaryExtractResult",
     "PromptBundle",
     "QueryPlan",
     "QueryResult",

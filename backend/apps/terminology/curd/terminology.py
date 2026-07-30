@@ -829,6 +829,7 @@ def select_terminology_by_word(session: SessionDep, word: str, oid: int, datasou
         return []
 
     _list: List[Terminology] = []
+    _scores: dict[int, float] = {}
 
     stmt = (
         select(
@@ -866,6 +867,8 @@ def select_terminology_by_word(session: SessionDep, word: str, oid: int, datasou
 
     for row in results:
         _list.append(Terminology(id=row.id, word=row.word, pid=row.pid))
+        root_id = int(row.pid) if row.pid is not None else int(row.id)
+        _scores[root_id] = max(_scores.get(root_id, 0.0), 1.0)
 
     if settings.EMBEDDING_ENABLED:
         with session.begin_nested():
@@ -888,6 +891,11 @@ def select_terminology_by_word(session: SessionDep, word: str, oid: int, datasou
 
                 for row in results:
                     _list.append(Terminology(id=row.id, word=row.word, pid=row.pid))
+                    root_id = int(row.pid) if row.pid is not None else int(row.id)
+                    _scores[root_id] = max(
+                        _scores.get(root_id, 0.0),
+                        float(row.similarity or 0.0),
+                    )
 
             except Exception:
                 traceback.print_exc()
@@ -911,7 +919,12 @@ def select_terminology_by_word(session: SessionDep, word: str, oid: int, datasou
     for row in t_list:
         pid = str(row.pid) if row.pid is not None else str(row.id)
         if _map.get(pid) is None:
-            _map[pid] = {'words': [], 'description': ''}
+            _map[pid] = {
+                'id': int(pid),
+                'words': [],
+                'description': '',
+                'score': _scores.get(int(pid), 0.0),
+            }
         if row.pid is None:
             _map[pid]['description'] = row.description
         _map[pid]['words'].append(row.word)
@@ -970,7 +983,14 @@ def get_terminology_template(session: SessionDep, question: str, oid: Optional[i
         oid = 1
     _results = select_terminology_by_word(session, question, oid, datasource, advanced_application_id)
     if _results and len(_results) > 0:
-        terminology = to_xml_string(_results)
+        prompt_results = [
+            {
+                "words": item.get("words") or [],
+                "description": item.get("description") or "",
+            }
+            for item in _results
+        ]
+        terminology = to_xml_string(prompt_results)
         template = get_base_terminology_template().format(terminologies=terminology)
         return template, _results
     else:

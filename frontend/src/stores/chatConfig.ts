@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { store } from '@/stores/index.ts'
 import { request } from '@/utils/request.ts'
 import { formatArg } from '@/utils/utils.ts'
+import { APP_NAME } from '@/constants/branding'
 
 interface ChatConfig {
   sqlbot_name: string
@@ -15,7 +16,7 @@ interface ChatConfig {
 export const chatConfigStore = defineStore('chatConfigStore', {
   state: (): ChatConfig => {
     return {
-      sqlbot_name: 'SQLBot',
+      sqlbot_name: APP_NAME,
       expand_thinking_block: false,
       hide_thinking_block: false,
       limit_rows: true,
@@ -24,7 +25,7 @@ export const chatConfigStore = defineStore('chatConfigStore', {
     }
   },
   getters: {
-    getSQLBotName(): string {
+    getAssistantName(): string {
       return this.sqlbot_name
     },
     getExpandThinkingBlock(): boolean {

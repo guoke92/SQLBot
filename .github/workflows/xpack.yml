@@ -35,7 +35,7 @@ on:
           - testpypi
           - pypi
       xpack_branch:
-        description: 'SQLBot X-Pack Branch'
+        description: 'AI智能问数 X-Pack Branch'
         required: true
         type: choice
         default: "main"
@@ -54,7 +54,7 @@ jobs:
         os: ${{ fromJSON(inputs.target_os) }}
     steps:
       - uses: actions/checkout@v4
-      - name: Check out SQLBot xpack repo
+      - name: Check out AI智能问数 xpack repo
         uses: actions/checkout@v4
         with:
           repository: dataease/sqlbot-xpack

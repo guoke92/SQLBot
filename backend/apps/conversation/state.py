@@ -10,6 +10,7 @@ from typing import Any, Dict, List, Literal, Optional, TypedDict
 
 from langchain_core.messages import BaseMessage
 
+from apps.conversation.outcome import RunOutcome
 from apps.conversation.sink import SinkMode
 
 RunMode = Literal["primary", "follow_up", "side"]
@@ -34,4 +35,5 @@ class RunState(TypedDict, total=False):
     messages: List[BaseMessage]
     full_text: str
     error: str
+    outcome: RunOutcome
     extras: Dict[str, Any]

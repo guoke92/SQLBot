@@ -8,10 +8,11 @@ import orjson
 from langchain_core.messages import AIMessage, HumanMessage
 from sqlmodel import Session
 
-from apps.chat.curd.chat import end_log, save_chart_answer, start_log
+from apps.chat.curd.chat import save_chart_answer
 from apps.chat.models.chat_model import OperationEnum
 from apps.chat.steps.observability import inject_span_meta
 from apps.chat.steps.stream import process_stream
+from apps.conversation.observability import end_log, start_log
 
 
 def generate_chart(

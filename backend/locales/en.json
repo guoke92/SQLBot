@@ -56,7 +56,16 @@
     "invalid_origin": "Domain name validation failed【{origin}】"
   },
   "i18n_chat": {
-    "record_id_in_mcp": "Answer ID: "
+    "record_id_in_mcp": "Answer ID: ",
+    "clarification": {
+      "entity_targets": "Matching fields: {targets}",
+      "entity_impact": "The query will filter “{phrase}” by the exact value “{canonical}”",
+      "entity_issue": "The exact business value for “{phrase}” must be confirmed",
+      "entity_title": "Which business value does “{phrase}” refer to?",
+      "entity_reason": "Different values directly change the query scope.",
+      "entity_recommendation": "The closest terminology match is recommended by relevance.",
+      "entity_custom_placeholder": "Enter the exact business value"
+    }
   },
   "i18n_terminology": {
     "terminology_not_exists": "This terminology does not exist",

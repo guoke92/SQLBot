@@ -35,7 +35,7 @@ function check_and_prepare_env_params() {
         sed -i -e "s#SQLBOT_BASE=.*#SQLBOT_BASE=${SQLBOT_BASE}#g" sctl
         \cp sctl /usr/local/bin && chmod +x /usr/local/bin/sctl
 
-        log_content "停止 SQLBot 服务"
+        log_content "停止 AI智能问数服务"
         sctl stop
 
         INSTALL_TYPE='upgrade'
@@ -230,7 +230,7 @@ function install_docker_compose() {
 }
 
 function load_images() {
-    log_title "加载 SQLBOT 镜像"
+    log_title "加载 AI智能问数镜像"
     cd ${CURRENT_DIR}
 
     for i in $(docker images --format '{{.Repository}}:{{.Tag}}' | grep dataease); do
@@ -254,16 +254,16 @@ function load_images() {
 }
 
 function start_sqlbot() {
-    log_title "启动 SQLBOT 服务"
+    log_title "启动 AI智能问数服务"
     sctl reload 2>&1 | tee -a ${CURRENT_DIR}/install.log
     if [[ $? -ne 0 ]]; then
-        log_content "SQLBOT 服务启动失败，请检查日志"
+        log_content "AI智能问数服务启动失败，请检查日志"
         exit 1
     fi
     echo
     if [[ $INSTALL_TYPE != "upgrade" ]];then
        echo -e "======================= 安装完成 =======================\n" 2>&1 | tee -a ${CURRENT_DIR}/install.log
-       echo -e "系统登录信息如下:\n\t访问地址: http://服务器IP:$SQLBOT_WEB_PORT\n\t用户名: admin\n\t初始密码: SQLBot@123456" 2>&1 | tee -a ${CURRENT_DIR}/install.log
+       echo -e "AI智能问数登录信息如下:\n\t访问地址: http://服务器IP:$SQLBOT_WEB_PORT\n\t用户名: admin\n\t初始密码: SQLBot@123456" 2>&1 | tee -a ${CURRENT_DIR}/install.log
     else
        echo -e "======================= 升级完成 =======================\n" 2>&1 | tee -a ${CURRENT_DIR}/install.log
     fi

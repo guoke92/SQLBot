@@ -16,8 +16,11 @@ import TableRelationship from '@/views/ds/TableRelationship.vue'
 import icon_mindnote_outlined from '@/assets/svg/icon_mindnote_outlined.svg'
 import { Refresh } from '@element-plus/icons-vue'
 import { debounce } from 'lodash-es'
+import DictionaryFieldControl from './DictionaryFieldControl.vue'
+import { useDictionaryConfigs } from '@/features/dictionary/useDictionaryConfigs'
 
 interface Table {
+  type: string
   name: string
   host: string
   port: string
@@ -40,6 +43,7 @@ const props = withDefaults(
   }>(),
   {
     info: () => ({
+      type: '',
       name: '-',
       host: '-',
       port: '-',
@@ -155,11 +159,66 @@ const previewData = ref<any>({})
 const fieldList = ref<any>([])
 // Conf-owned resource detail (API endpoint contract) — same concept as protocol get_resource_detail
 const isApiDs = computed(() => props.info?.type === 'api')
+const {
+  configs: dictionaryConfigs,
+  error: dictionaryError,
+  byField: dictionaryByField,
+  busyFieldIds: dictionaryBusyFieldIds,
+  load: loadDictionaryConfigs,
+  updateEnabled: updateDictionaryEnabled,
+  refresh: refreshDictionaries,
+} = useDictionaryConfigs(
+  () => props.info.id,
+  () => currentTable.value?.id,
+  () => !isApiDs.value
+)
+const currentTableDictionaryConfigs = computed(() =>
+  dictionaryConfigs.value.filter(
+    (config) => config.table_id === currentTable.value?.id && config.enabled
+  )
+)
+const dictionaryRefreshing = computed(() => dictionaryBusyFieldIds.value.size > 0)
+const refreshCurrentTableDictionaries = async () => {
+  try {
+    const results = await refreshDictionaries(currentTableDictionaryConfigs.value)
+    if (results.some((item) => item.error)) {
+      ElMessage.warning(t('datasource.dictionary.refresh_partial_failed'))
+    } else {
+      ElMessage.success(t('datasource.dictionary.refresh_success'))
+    }
+  } catch {
+    ElMessage.error(t('datasource.dictionary.operation_failed'))
+  }
+}
+const handleDictionaryToggle = async (fieldId: number, enabled: boolean) => {
+  const config = dictionaryByField.value.get(fieldId)
+  if (!config) return
+  try {
+    await updateDictionaryEnabled(config, enabled)
+  } catch {
+    ElMessage.error(t('datasource.dictionary.operation_failed'))
+  }
+}
+const refreshDictionaryField = async (fieldId: number) => {
+  const config = dictionaryByField.value.get(fieldId)
+  if (!config) return
+  try {
+    const results = await refreshDictionaries([config])
+    if (results.some((item) => item.error)) {
+      ElMessage.warning(t('datasource.dictionary.refresh_partial_failed'))
+    } else {
+      ElMessage.success(t('datasource.dictionary.refresh_success'))
+    }
+  } catch {
+    ElMessage.error(t('datasource.dictionary.operation_failed'))
+  }
+}
 const resourceDetail = ref<any>(null)
 const apiParamValues = ref<Record<string, any>>({})
 const testResult = ref<any>(null)
 const testLoading = ref(false)
 const showRawResponse = ref<string[]>([])
+let tableLoadSequence = 0
 
 const methodTagType = (method: string) => {
   const m = (method || '').toUpperCase()
@@ -187,9 +246,7 @@ const saveEndpointConfig = async () => {
     const conf = JSON.parse(decrypted(ds.configuration || ''))
     const endpoints = conf.endpoints || []
     const epName = currentTable.value?.table_name
-    const idx = endpoints.findIndex(
-      (e: any) => (e.name || e.path) === epName
-    )
+    const idx = endpoints.findIndex((e: any) => (e.name || e.path) === epName)
     if (idx >= 0) {
       endpoints[idx].params = (resourceDetail.value.params || []).map((p: any) => ({
         name: p.name,
@@ -258,6 +315,7 @@ const removeResponseField = (index: number) => {
 
 const clickTable = async (table: any) => {
   if (activeRelationship.value) return
+  const sequence = ++tableLoadSequence
   loading.value = true
   currentTable.value = table
   fieldList.value = []
@@ -274,6 +332,7 @@ const clickTable = async (table: any) => {
       const detail: any = await datasourceApi.resourceDetail(props.info.id, {
         table_name: table.table_name,
       })
+      if (sequence !== tableLoadSequence) return
       resourceDetail.value = detail
       // Initialize param values from defaults / examples
       if (detail?.params) {
@@ -288,25 +347,34 @@ const clickTable = async (table: any) => {
         apiParamValues.value = vals
       }
     } catch (e: any) {
-      console.error('Failed to load resource detail:', e)
+      if (sequence === tableLoadSequence) {
+        console.error('Failed to load resource detail:', e)
+      }
+    } finally {
+      if (sequence === tableLoadSequence) loading.value = false
     }
-    loading.value = false
   } else {
-    // SQL: existing logic
-    datasourceApi
-      .fieldList(table.id)
-      .then((res) => {
-        fieldList.value = res
-        pageInfo.total = res.length
-        pageInfo.currentPage = 1
-        fieldName.value = ''
-        datasourceApi.previewData(props.info.id, buildData()).then((res) => {
-          previewData.value = res
-        })
+    try {
+      const [fields] = await Promise.all([
+        datasourceApi.fieldList(table.id),
+        loadDictionaryConfigs(),
+      ])
+      if (sequence !== tableLoadSequence) return
+      if (dictionaryError.value) {
+        ElMessage.error(t('datasource.dictionary.load_failed'))
+      }
+      fieldList.value = fields
+      pageInfo.total = fields.length
+      pageInfo.currentPage = 1
+      fieldName.value = ''
+      const preview = await datasourceApi.previewData(props.info.id, {
+        table,
+        fields,
       })
-      .finally(() => {
-        loading.value = false
-      })
+      if (sequence === tableLoadSequence) previewData.value = preview
+    } finally {
+      if (sequence === tableLoadSequence) loading.value = false
+    }
   }
 }
 
@@ -408,19 +476,22 @@ const changeStatus = (row: any) => {
   })
 }
 
-const syncFields = () => {
+const syncFields = async () => {
+  const table = currentTable.value
+  if (!table?.id) return
   loading.value = true
-  datasourceApi
-    .syncFields(currentTable.value.id)
-    .then(() => {
-      btnSelectClick('d')
-      ElMessage.success(t('ds.sync_fields_success'))
-      loading.value = false
-    })
-    .catch(() => {
-      loading.value = false
-      ElMessage.warning(t('ds.sync_fields_failed'))
-    })
+  try {
+    await datasourceApi.syncFields(table.id)
+    if (currentTable.value?.id === table.id) {
+      await clickTable(table)
+      btnSelect.value = 'd'
+    }
+    ElMessage.success(t('ds.sync_fields_success'))
+  } catch {
+    ElMessage.warning(t('ds.sync_fields_failed'))
+  } finally {
+    if (currentTable.value?.id === table.id) loading.value = false
+  }
 }
 
 function downloadTemplate() {
@@ -547,7 +618,7 @@ const btnSelectClick = (val: any) => {
           <el-tooltip
             v-if="ds?.type !== 'api'"
             effect="dark"
-            offset="10"
+            :offset="10"
             :content="$t('ds.form.choose_tables')"
             placement="top"
           >
@@ -602,9 +673,7 @@ const btnSelectClick = (val: any) => {
           <div v-else-if="!initLoading && !tableListWithSearch.length" class="no-data">
             <div class="no-data-msg">
               <div>
-                {{
-                  ds?.type === 'api' ? $t('ds.form.endpoints_empty') : $t('datasource.no_table')
-                }}
+                {{ ds?.type === 'api' ? $t('ds.form.endpoints_empty') : $t('datasource.no_table') }}
               </div>
               <el-button
                 v-if="ds?.type !== 'api'"
@@ -657,9 +726,9 @@ const btnSelectClick = (val: any) => {
             >
               <el-switch
                 v-model="currentTable.checked"
-                @change="changeChecked"
                 size="small"
                 style="margin-right: 8px"
+                @change="changeChecked"
               />
 
               {{ currentTable.checked ? t('user.disable') : t('user.enable') }}
@@ -714,6 +783,16 @@ const btnSelectClick = (val: any) => {
             >
               {{ t('ds.sync_fields') }}
             </el-button>
+            <el-button
+              v-if="currentTableDictionaryConfigs.length"
+              :icon="Refresh"
+              :loading="dictionaryRefreshing"
+              secondary
+              style="margin-left: 12px"
+              @click="refreshCurrentTableDictionaries"
+            >
+              {{ t('datasource.dictionary.refresh_all') }}
+            </el-button>
           </div>
 
           <div
@@ -725,11 +804,17 @@ const btnSelectClick = (val: any) => {
             <template v-if="isApiDs && resourceDetail && btnSelect === 'd'">
               <div class="api-endpoint-detail">
                 <div class="api-detail-header">
-                  <el-tag :type="methodTagType(resourceDetail.method)" size="small" style="margin-right: 8px">
+                  <el-tag
+                    :type="methodTagType(resourceDetail.method)"
+                    size="small"
+                    style="margin-right: 8px"
+                  >
                     {{ resourceDetail.method }}
                   </el-tag>
                   <span class="api-detail-path">{{ resourceDetail.path }}</span>
-                  <span v-if="resourceDetail.description" class="api-detail-desc">{{ resourceDetail.description }}</span>
+                  <span v-if="resourceDetail.description" class="api-detail-desc">{{
+                    resourceDetail.description
+                  }}</span>
                   <el-button
                     type="primary"
                     size="small"
@@ -742,7 +827,14 @@ const btnSelectClick = (val: any) => {
                 </div>
 
                 <div class="api-detail-section">
-                  <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px">
+                  <div
+                    style="
+                      display: flex;
+                      align-items: center;
+                      justify-content: space-between;
+                      margin-bottom: 10px;
+                    "
+                  >
                     <h4 style="margin: 0">{{ t('ds.endpoint.input_params') }}</h4>
                     <el-button text type="primary" size="small" @click="addEndpointParam">
                       + {{ t('ds.form.add_param') }}
@@ -754,7 +846,9 @@ const btnSelectClick = (val: any) => {
                     border
                     size="small"
                     style="width: 100%"
-                    :row-class-name="({ row }: any) => row.enabled === false ? 'is-disabled-row' : ''"
+                    :row-class-name="
+                      ({ row }: any) => (row.enabled === false ? 'is-disabled-row' : '')
+                    "
                   >
                     <el-table-column width="40" align="center">
                       <template #default="{ row }">
@@ -763,12 +857,20 @@ const btnSelectClick = (val: any) => {
                     </el-table-column>
                     <el-table-column :label="t('ds.endpoint.param_name')" min-width="120">
                       <template #default="{ row }">
-                        <el-input v-model="row.name" size="small" :disabled="row.enabled === false" />
+                        <el-input
+                          v-model="row.name"
+                          size="small"
+                          :disabled="row.enabled === false"
+                        />
                       </template>
                     </el-table-column>
                     <el-table-column label="Type" width="100">
                       <template #default="{ row }">
-                        <el-select v-model="row.type" size="small" :disabled="row.enabled === false">
+                        <el-select
+                          v-model="row.type"
+                          size="small"
+                          :disabled="row.enabled === false"
+                        >
                           <el-option label="string" value="string" />
                           <el-option label="number" value="number" />
                           <el-option label="boolean" value="boolean" />
@@ -778,7 +880,11 @@ const btnSelectClick = (val: any) => {
                     </el-table-column>
                     <el-table-column label="Location" width="90">
                       <template #default="{ row }">
-                        <el-select v-model="row.location" size="small" :disabled="row.enabled === false">
+                        <el-select
+                          v-model="row.location"
+                          size="small"
+                          :disabled="row.enabled === false"
+                        >
                           <el-option label="query" value="query" />
                           <el-option label="path" value="path" />
                           <el-option label="header" value="header" />
@@ -793,17 +899,30 @@ const btnSelectClick = (val: any) => {
                     </el-table-column>
                     <el-table-column :label="t('ds.endpoint.default')" min-width="100">
                       <template #default="{ row }">
-                        <el-input v-model="row.default" size="small" :disabled="row.enabled === false" />
+                        <el-input
+                          v-model="row.default"
+                          size="small"
+                          :disabled="row.enabled === false"
+                        />
                       </template>
                     </el-table-column>
                     <el-table-column :label="t('ds.endpoint.description')" min-width="140">
                       <template #default="{ row }">
-                        <el-input v-model="row.description" size="small" :disabled="row.enabled === false" />
+                        <el-input
+                          v-model="row.description"
+                          size="small"
+                          :disabled="row.enabled === false"
+                        />
                       </template>
                     </el-table-column>
                     <el-table-column width="50" align="center">
                       <template #default="{ $index }">
-                        <el-button text type="danger" size="small" @click="removeEndpointParam($index)">
+                        <el-button
+                          text
+                          type="danger"
+                          size="small"
+                          @click="removeEndpointParam($index)"
+                        >
                           <el-icon size="14"><IconOpeDelete /></el-icon>
                         </el-button>
                       </template>
@@ -815,7 +934,14 @@ const btnSelectClick = (val: any) => {
                 </div>
 
                 <div class="api-detail-section">
-                  <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px">
+                  <div
+                    style="
+                      display: flex;
+                      align-items: center;
+                      justify-content: space-between;
+                      margin-bottom: 10px;
+                    "
+                  >
                     <h4 style="margin: 0">{{ t('ds.endpoint.output_fields') }}</h4>
                     <el-button text type="primary" size="small" @click="addResponseField">
                       + {{ t('ds.form.add_field') }}
@@ -827,7 +953,9 @@ const btnSelectClick = (val: any) => {
                     border
                     size="small"
                     style="width: 100%"
-                    :row-class-name="({ row }: any) => row.enabled === false ? 'is-disabled-row' : ''"
+                    :row-class-name="
+                      ({ row }: any) => (row.enabled === false ? 'is-disabled-row' : '')
+                    "
                   >
                     <el-table-column width="40" align="center">
                       <template #default="{ row }">
@@ -836,12 +964,20 @@ const btnSelectClick = (val: any) => {
                     </el-table-column>
                     <el-table-column :label="t('ds.endpoint.field_name')" min-width="120">
                       <template #default="{ row }">
-                        <el-input v-model="row.name" size="small" :disabled="row.enabled === false" />
+                        <el-input
+                          v-model="row.name"
+                          size="small"
+                          :disabled="row.enabled === false"
+                        />
                       </template>
                     </el-table-column>
                     <el-table-column label="Type" width="100">
                       <template #default="{ row }">
-                        <el-select v-model="row.type" size="small" :disabled="row.enabled === false">
+                        <el-select
+                          v-model="row.type"
+                          size="small"
+                          :disabled="row.enabled === false"
+                        >
                           <el-option label="string" value="string" />
                           <el-option label="number" value="number" />
                           <el-option label="boolean" value="boolean" />
@@ -851,17 +987,30 @@ const btnSelectClick = (val: any) => {
                     </el-table-column>
                     <el-table-column label="Path" min-width="120">
                       <template #default="{ row }">
-                        <el-input v-model="row.path" size="small" :disabled="row.enabled === false" />
+                        <el-input
+                          v-model="row.path"
+                          size="small"
+                          :disabled="row.enabled === false"
+                        />
                       </template>
                     </el-table-column>
                     <el-table-column :label="t('ds.endpoint.description')" min-width="140">
                       <template #default="{ row }">
-                        <el-input v-model="row.description" size="small" :disabled="row.enabled === false" />
+                        <el-input
+                          v-model="row.description"
+                          size="small"
+                          :disabled="row.enabled === false"
+                        />
                       </template>
                     </el-table-column>
                     <el-table-column width="50" align="center">
                       <template #default="{ $index }">
-                        <el-button text type="danger" size="small" @click="removeResponseField($index)">
+                        <el-button
+                          text
+                          type="danger"
+                          size="small"
+                          @click="removeResponseField($index)"
+                        >
                           <el-icon size="14"><IconOpeDelete /></el-icon>
                         </el-button>
                       </template>
@@ -873,21 +1022,34 @@ const btnSelectClick = (val: any) => {
                 </div>
 
                 <div
-                  v-if="resourceDetail.data_path || resourceDetail.code_path || resourceDetail.total_path"
+                  v-if="
+                    resourceDetail.data_path ||
+                    resourceDetail.code_path ||
+                    resourceDetail.total_path
+                  "
                   class="api-detail-section"
                 >
                   <h4>{{ t('ds.endpoint.extraction_config') }}</h4>
                   <el-descriptions :column="2" border size="small">
-                    <el-descriptions-item v-if="resourceDetail.data_path" :label="t('ds.endpoint.data_path')">
+                    <el-descriptions-item
+                      v-if="resourceDetail.data_path"
+                      :label="t('ds.endpoint.data_path')"
+                    >
                       {{ resourceDetail.data_path }}
                     </el-descriptions-item>
-                    <el-descriptions-item v-if="resourceDetail.code_path" :label="t('ds.endpoint.code_path')">
+                    <el-descriptions-item
+                      v-if="resourceDetail.code_path"
+                      :label="t('ds.endpoint.code_path')"
+                    >
                       {{ resourceDetail.code_path }}
                       <template v-if="resourceDetail.code_success_value != null">
                         = {{ resourceDetail.code_success_value }}
                       </template>
                     </el-descriptions-item>
-                    <el-descriptions-item v-if="resourceDetail.total_path" :label="t('ds.endpoint.total_path')">
+                    <el-descriptions-item
+                      v-if="resourceDetail.total_path"
+                      :label="t('ds.endpoint.total_path')"
+                    >
                       {{ resourceDetail.total_path }}
                     </el-descriptions-item>
                   </el-descriptions>
@@ -910,8 +1072,18 @@ const btnSelectClick = (val: any) => {
                     >
                       <template #label>
                         <span>{{ p.name }}</span>
-                        <el-tag v-if="p.location" size="small" type="info" style="margin-left: 6px">{{ p.location }}</el-tag>
-                        <span v-if="p.description" style="color: #8f959e; font-size: 12px; margin-left: 6px">{{ p.description }}</span>
+                        <el-tag
+                          v-if="p.location"
+                          size="small"
+                          type="info"
+                          style="margin-left: 6px"
+                          >{{ p.location }}</el-tag
+                        >
+                        <span
+                          v-if="p.description"
+                          style="color: #8f959e; font-size: 12px; margin-left: 6px"
+                          >{{ p.description }}</span
+                        >
                       </template>
                       <el-input
                         v-model="apiParamValues[p.name]"
@@ -940,24 +1112,42 @@ const btnSelectClick = (val: any) => {
                   <div class="api-pipeline-info" style="margin-top: 16px">
                     <el-descriptions :column="3" border size="small">
                       <el-descriptions-item :label="t('ds.endpoint.is_success')">
-                        <el-tag :type="testResult.is_success !== false ? 'success' : 'danger'" size="small">
+                        <el-tag
+                          :type="testResult.is_success !== false ? 'success' : 'danger'"
+                          size="small"
+                        >
                           {{ testResult.is_success !== false ? 'OK' : 'FAIL' }}
                         </el-tag>
                       </el-descriptions-item>
-                      <el-descriptions-item v-if="testResult.http_status != null" :label="t('ds.endpoint.http_status')">
-                        <el-tag :type="testResult.http_status < 400 ? 'success' : 'danger'" size="small">
+                      <el-descriptions-item
+                        v-if="testResult.http_status != null"
+                        :label="t('ds.endpoint.http_status')"
+                      >
+                        <el-tag
+                          :type="testResult.http_status < 400 ? 'success' : 'danger'"
+                          size="small"
+                        >
                           {{ testResult.http_status }}
                         </el-tag>
                       </el-descriptions-item>
-                      <el-descriptions-item v-if="testResult.code_value != null" :label="t('ds.endpoint.code_value')">
-                        <el-tag :type="testResult.is_success !== false ? 'success' : 'danger'" size="small">
+                      <el-descriptions-item
+                        v-if="testResult.code_value != null"
+                        :label="t('ds.endpoint.code_value')"
+                      >
+                        <el-tag
+                          :type="testResult.is_success !== false ? 'success' : 'danger'"
+                          size="small"
+                        >
                           {{ testResult.code_value }}
                           <template v-if="testResult.code_success_value != null">
                             / {{ testResult.code_success_value }}
                           </template>
                         </el-tag>
                       </el-descriptions-item>
-                      <el-descriptions-item v-if="testResult.total != null" :label="t('ds.endpoint.total')">
+                      <el-descriptions-item
+                        v-if="testResult.total != null"
+                        :label="t('ds.endpoint.total')"
+                      >
                         {{ testResult.total }}
                       </el-descriptions-item>
                       <el-descriptions-item :label="t('ds.endpoint.extracted_count')">
@@ -970,7 +1160,9 @@ const btnSelectClick = (val: any) => {
                   <div style="margin-top: 12px">
                     <el-collapse v-model="showRawResponse">
                       <el-collapse-item :title="t('ds.endpoint.raw_response')" name="raw">
-                        <pre class="api-raw-response">{{ JSON.stringify(testResult.raw_response, null, 2) }}</pre>
+                        <pre class="api-raw-response">{{
+                          JSON.stringify(testResult.raw_response, null, 2)
+                        }}</pre>
                       </el-collapse-item>
                     </el-collapse>
                   </div>
@@ -978,7 +1170,13 @@ const btnSelectClick = (val: any) => {
                   <!-- Projected data table -->
                   <div v-if="previewData.data?.length" style="margin-top: 12px">
                     <h4>{{ t('ds.endpoint.result_data') }} ({{ previewData.data.length }})</h4>
-                    <el-table :data="previewData.data" border size="small" style="width: 100%" max-height="400">
+                    <el-table
+                      :data="previewData.data"
+                      border
+                      size="small"
+                      style="width: 100%"
+                      max-height="400"
+                    >
                       <el-table-column
                         v-for="c in previewData.fields"
                         :key="c"
@@ -1044,6 +1242,18 @@ const btnSelectClick = (val: any) => {
                     </div>
                   </template>
                 </el-table-column>
+                <el-table-column :label="t('datasource.dictionary.title')" min-width="260">
+                  <template #default="scope">
+                    <DictionaryFieldControl
+                      v-if="dictionaryByField.has(scope.row.id)"
+                      :config="dictionaryByField.get(scope.row.id)!"
+                      :busy="dictionaryBusyFieldIds.has(scope.row.id)"
+                      @toggle="handleDictionaryToggle(scope.row.id, $event)"
+                      @refresh="refreshDictionaryField(scope.row.id)"
+                    />
+                    <span v-else>-</span>
+                  </template>
+                </el-table-column>
               </el-table>
             </div>
             <div v-if="pageInfo.total && btnSelect === 'd'" class="pagination-container">
@@ -1052,6 +1262,7 @@ const btnSelectClick = (val: any) => {
                 v-model:page-size="pageInfo.pageSize"
                 :page-sizes="[10, 20, 30]"
                 :background="true"
+                :pager-count="5"
                 layout="total, sizes, prev, pager, next, jumper"
                 :total="pageInfo.total"
                 @size-change="handleSizeChange"

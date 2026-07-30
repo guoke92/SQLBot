@@ -5,20 +5,27 @@ from typing import List, Optional, Any, Union
 from fastapi import Body
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 from pydantic import BaseModel
-from sqlalchemy import Column, Integer, Text, BigInteger, DateTime, Identity, Boolean
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    Column,
+    DateTime,
+    ForeignKey,
+    Identity,
+    Integer,
+    Text,
+)
 from sqlalchemy import Enum as SQLAlchemyEnum
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import SQLModel, Field
 
-from apps.db.constant import DB
 from apps.template.filter.generator import get_permissions_template
 from apps.template.generate_analysis.generator import get_analysis_template
-from apps.template.generate_chart.generator import get_chart_template
 from apps.template.generate_dynamic.generator import get_dynamic_template
 from apps.template.generate_guess_question.generator import get_guess_question_template
 from apps.template.generate_predict.generator import get_predict_template
-from apps.template.generate_sql.generator import get_sql_template, get_sql_example_template
 from apps.template.select_datasource.generator import get_datasource_template
+from common.core.branding import APP_DISPLAY_NAME
 
 
 def enum_values(enum_class: type[Enum]) -> list:
@@ -47,12 +54,12 @@ class OperationEnum(Enum):
     FILTER_CUSTOM_PROMPT = '11'
     EXECUTE_QUERY = '12'
     GENERATE_PICTURE = '13'
-    # Config-assistant agent/tool loop (ChatLog process channel, same as NLQ)
+    # Shared tool-agent process channel
     TOOL_CALL = '14'
-    CONFIG_AGENT = '15'
+    AGENT_STEP = '15'
     # Agentic NLQ graph spans (process channel; execution-details UI)
     GROUND_ENTITIES = '16'
-    PREPARE_BINDINGS = '17'
+    CLARIFY_INTENT = '17'
     DECIDE_NEXT = '18'
 
 
@@ -137,6 +144,18 @@ class ChatRecord(SQLModel, table=True):
     predict_record_id: int = Field(sa_column=Column(BigInteger, nullable=True))
     regenerate_record_id: int = Field(sa_column=Column(BigInteger, nullable=True))
     re_exec: Optional[str] = Field(sa_column=Column(Text, nullable=True))
+    intent_context: Optional[dict[str, Any]] = Field(
+        default=None,
+        sa_column=Column(JSONB, nullable=True),
+    )
+    clarification_parent_id: Optional[int] = Field(
+        default=None,
+        sa_column=Column(
+            BigInteger,
+            ForeignKey("chat_record.id", ondelete="CASCADE"),
+            nullable=True,
+        ),
+    )
 
 
 class ChatRecordResult(BaseModel):
@@ -168,9 +187,12 @@ class ChatRecordResult(BaseModel):
     chart_reasoning_content: Optional[str] = None
     analysis_reasoning_content: Optional[str] = None
     predict_reasoning_content: Optional[str] = None
+    intent_reasoning_content: Optional[str] = None
     duration: Optional[float] = None  # 耗时字段（单位：秒）
     total_tokens: Optional[int] = None  # token总消耗
     re_exec: Optional[str] = None
+    intent_context: Optional[dict[str, Any]] = None
+    clarification_parent_id: Optional[int] = None
 
 
 class CreateChat(BaseModel):
@@ -245,102 +267,16 @@ class AiModelQuestion(BaseModel):
     error_msg: str = ""
     regenerate_record_id: Optional[int] = None
     sample_data: str = ""
-    sqlbot_name: str = "SQLBot"
+    sqlbot_name: str = APP_DISPLAY_NAME
     # Filled by NLQ generate_queries (PlanContext); empty outside agentic path.
     plan_context: str = ""
-
-    def sql_sys_question(self, db_type: Union[str, DB], enable_query_limit: bool = True):
-        templates: dict[str, str] = {}
-        _sql_template = get_sql_example_template(db_type)
-        _base_template = get_sql_template()
-        _process_check = _sql_template.get('process_check') if _sql_template.get('process_check') else _base_template[
-            'process_check']
-        _query_limit = _base_template['query_limit'] if enable_query_limit else _base_template['no_query_limit']
-        _other_rule = _sql_template['other_rule'].format(multi_table_condition=_base_template['multi_table_condition'])
-        _base_sql_rules = _sql_template['quot_rule'] + _query_limit + _sql_template['limit_rule'] + _other_rule
-        _sql_examples = _sql_template['basic_example']
-        _example_engine = _sql_template['example_engine']
-        _example_answer_1 = _sql_template['example_answer_1_with_limit'] if enable_query_limit else _sql_template[
-            'example_answer_1']
-        _example_answer_2 = _sql_template['example_answer_2_with_limit'] if enable_query_limit else _sql_template[
-            'example_answer_2']
-        _example_answer_3 = _sql_template['example_answer_3_with_limit'] if enable_query_limit else _sql_template[
-            'example_answer_3']
-
-        templates['system'] = _base_template['system'].format(lang=self.lang, process_check=_process_check,
-                                                              sqlbot_name=self.sqlbot_name)
-        templates['rules'] = _base_template['generate_rules'].format(lang=self.lang,
-                                                                     sqlbot_name=self.sqlbot_name,
-                                                                     base_sql_rules=_base_sql_rules,
-                                                                     basic_sql_examples=_sql_examples,
-                                                                     example_engine=_example_engine,
-                                                                     example_answer_1=_example_answer_1,
-                                                                     example_answer_2=_example_answer_2,
-                                                                     example_answer_3=_example_answer_3)
-        templates['schema'] = _base_template['generate_basic_info'].format(engine=self.engine, schema=self.db_schema,
-                                                                           sample_data=self.sample_data)
-
-        if self.terminologies:
-            templates['terminologies'] = _base_template['generate_terminologies_info'].format(
-                terminologies=self.terminologies)
-
-        if self.data_training:
-            templates['data_training'] = _base_template['generate_data_training_info'].format(
-                data_training=self.data_training)
-
-        if self.custom_prompt:
-            templates['custom_prompt'] = _base_template['generate_custom_prompt_info'].format(
-                custom_prompt=self.custom_prompt)
-
-        return templates
-
-    def sql_user_question(self, current_time: str, change_title: bool):
-        """Legacy helper; agentic path uses protocol.build_user_prompt via generate_sql.
-
-        Kept in lockstep with SQLProtocol.build_user_prompt (same placeholders).
-        """
-        from apps.chat.plan_context import normalize_plan_context_block
-
-        _question = self.question
-        if self.regenerate_record_id:
-            _question = get_sql_template()['regenerate_hint'] + self.question
-        plan_ctx = normalize_plan_context_block(self.plan_context)
-        user = get_sql_template()['user']
-        try:
-            return user.format(
-                lang=self.lang,
-                engine=self.engine,
-                schema=self.db_schema,
-                question=_question,
-                rule=self.rule,
-                current_time=current_time,
-                error_msg=self.error_msg,
-                change_title=change_title,
-                plan_context=plan_ctx,
-            )
-        except KeyError:
-            body = user.format(
-                lang=self.lang,
-                engine=self.engine,
-                schema=self.db_schema,
-                question=_question,
-                rule=self.rule,
-                current_time=current_time,
-                error_msg=self.error_msg,
-                change_title=change_title,
-            )
-            return (plan_ctx + body) if plan_ctx else body
-
-    def chart_sys_question(self):
-        templates: dict[str, str] = {
-            'system': get_chart_template()['system'].format(lang=self.lang, sqlbot_name=self.sqlbot_name),
-            'rules': get_chart_template()['generate_rules'].format(lang=self.lang)
-        }
-        return templates
-
-    def chart_user_question(self, chart_type: Optional[str] = '', schema: Optional[str] = ''):
-        return get_chart_template()['user'].format(lang=self.lang, sql=self.sql, question=self.question, rule=self.rule,
-                                                   chart_type=chart_type, schema=schema)
+    # Request-local projections of one persisted semantic intent.
+    # ``question`` remains the user-visible message persisted on ChatRecord.
+    # Retrieval stays compact; generation keeps the original user request;
+    # confirmed decisions are carried separately by ``plan_context``.
+    planning_question: str = ""
+    retrieval_question: str = ""
+    generation_question: str = ""
 
     def analysis_sys_question(self):
         return get_analysis_template()['system'].format(lang=self.lang, terminologies=self.terminologies,
@@ -360,15 +296,22 @@ class AiModelQuestion(BaseModel):
         return get_datasource_template()['system'].format(lang=self.lang, sqlbot_name=self.sqlbot_name)
 
     def datasource_user_question(self, datasource_list: str = "[]"):
-        return get_datasource_template()['user'].format(lang=self.lang, question=self.question, data=datasource_list)
+        return get_datasource_template()['user'].format(
+            lang=self.lang,
+            question=self.generation_question or self.question,
+            data=datasource_list,
+        )
 
     def guess_sys_question(self, articles_number: int = 4):
         return get_guess_question_template()['system'].format(lang=self.lang, articles_number=articles_number,
                                                               sqlbot_name=self.sqlbot_name)
 
     def guess_user_question(self, old_questions: str = "[]"):
-        return get_guess_question_template()['user'].format(question=self.question, schema=self.db_schema,
-                                                            old_questions=old_questions)
+        return get_guess_question_template()['user'].format(
+            question=self.generation_question or self.question,
+            schema=self.db_schema,
+            old_questions=old_questions,
+        )
 
     def filter_sys_question(self):
         return get_permissions_template()['system'].format(lang=self.lang, engine=self.engine,
@@ -387,6 +330,9 @@ class AiModelQuestion(BaseModel):
 class ChatQuestion(AiModelQuestion):
     chat_id: int
     datasource_id: Optional[int] = None
+    clarification_for_record_id: Optional[int] = None
+    clarification_answers: list[dict[str, Any]] = Field(default_factory=list)
+    intent_context: Optional[dict[str, Any]] = None
 
 
 class ChatMcp(ChatQuestion):
@@ -395,7 +341,7 @@ class ChatMcp(ChatQuestion):
 
 class McpDs(BaseModel):
     token: str = Body(description='用户token')
-    oid: Optional[str] = Body(description='组织ID，如果不传则为最后一次登录SQLBot时所使用的组织ID', default=None)
+    oid: Optional[str] = Body(description='组织ID，如果不传则为最后一次登录AI智能问数时所使用的组织ID', default=None)
 
 
 class ChatToken(BaseModel):
@@ -408,12 +354,20 @@ class ChatStart(BaseModel):
     password: str = Body(description='密码', default=None)
     token: str = Body(description='token', default=None)
     oid: Optional[str] = Body(
-        description='组织ID，仅当数据源ID为空时有效，如果不传则为最后一次登录SQLBot时所使用的组织ID', default=None)
+        description='组织ID，仅当数据源ID为空时有效，如果不传则为最后一次登录AI智能问数时所使用的组织ID', default=None)
 
 
 class ChatQuestionBase(BaseModel):
     question: str = Body(description='用户提问')
     chat_id: int = Body(description='会话ID')
+    clarification_for_record_id: Optional[int] = Body(
+        description='当前回答对应的澄清记录ID',
+        default=None,
+    )
+    clarification_answers: list[dict[str, Any]] = Body(
+        description='结构化澄清回答',
+        default_factory=list,
+    )
 
 
 class McpQuestion(ChatQuestionBase):

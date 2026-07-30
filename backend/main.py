@@ -24,6 +24,7 @@ from apps.system.crud.assistant import init_dynamic_cors
 from apps.system.middleware.auth import TokenMiddleware
 from apps.system.schemas.permission import RequestContextMiddleware
 from common.audit.schemas.request_context import RequestContextMiddlewareCommon
+from common.core.branding import APP_DISPLAY_NAME
 from common.core.config import settings
 from common.core.response_middleware import ResponseMiddleware, exception_handler
 from common.core.sqlbot_cache import init_sqlbot_cache
@@ -57,12 +58,17 @@ async def lifespan(app: FastAPI):
     init_terminology_embedding_data()
     init_data_training_embedding_data()
     init_table_and_ds_embedding()
-    SQLBotLogUtil.info("✅ SQLBot 初始化完成")
+    SQLBotLogUtil.info(f"✅ {APP_DISPLAY_NAME}初始化完成")
     await sqlbot_xpack.core.clean_xpack_cache()
     await async_model_info()  # 异步加密已有模型的密钥和地址
     await sqlbot_xpack.core.monitor_app(app)
-    yield
-    SQLBotLogUtil.info("SQLBot 应用关闭")
+    try:
+        yield
+    finally:
+        from apps.conversation.runtime import shutdown_runtime
+
+        shutdown_runtime(wait=False)
+        SQLBotLogUtil.info(f"{APP_DISPLAY_NAME}应用关闭")
 
 
 def custom_generate_unique_id(route: APIRoute) -> str:
@@ -71,7 +77,7 @@ def custom_generate_unique_id(route: APIRoute) -> str:
 
 
 app = FastAPI(
-    title=settings.PROJECT_NAME,
+    title=APP_DISPLAY_NAME,
     openapi_url=f"{settings.CONTEXT_PATH}/openapi.json" if settings.SQLBOT_DOC_ENABLED else None,
     generate_unique_id_function=custom_generate_unique_id,
     lifespan=lifespan,
@@ -146,7 +152,9 @@ def generate_openapi_for_lang(lang: str) -> Dict[str, Any]:
 
     # 1. create OpenAPI
     openapi_schema = get_openapi(
-        title="SQLBot API Document" if lang == "en" else "SQLBot API 文档",
+        title=f"{APP_DISPLAY_NAME} API Document"
+        if lang == "en"
+        else f"{APP_DISPLAY_NAME} API 文档",
         version="1.0.0",
         routes=app.routes,
         tags=localized_tags
@@ -182,7 +190,7 @@ if settings.SQLBOT_DOC_ENABLED:
         from fastapi.openapi.docs import get_swagger_ui_html
         return get_swagger_ui_html(
             openapi_url=f"./openapi.json?lang={lang}",
-            title="SQLBot API Docs",
+            title=f"{APP_DISPLAY_NAME} API Docs",
             swagger_favicon_url="https://fastapi.tiangolo.com/img/favicon.png",
             swagger_js_url="./swagger-ui-bundle.js",
             swagger_css_url="./swagger-ui.css",
@@ -198,8 +206,8 @@ mcp_app.mount("/images", StaticFiles(directory=images_path), name="images")
 
 mcp = FastApiMCP(
     app,
-    name="SQLBot MCP Server",
-    description="SQLBot MCP Server",
+    name=f"{APP_DISPLAY_NAME} MCP Server",
+    description=f"{APP_DISPLAY_NAME} MCP Server",
     describe_all_responses=True,
     describe_full_response_schema=True,
     include_operations=["mcp_datasource_list", "get_model_list", "mcp_question", "mcp_start", "mcp_assistant", "mcp_ws_list", "access_token"],

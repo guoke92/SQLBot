@@ -9,12 +9,13 @@ from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 from sqlbot_xpack.custom_prompt.models.custom_prompt_model import CustomPromptTypeEnum
 from sqlmodel import Session
 
-from apps.chat.curd.chat import end_log, get_chat_chart_data, save_analysis_answer, start_log
+from apps.chat.curd.chat import get_chat_chart_data, save_analysis_answer
 from apps.chat.models.chat_model import OperationEnum, SystemPromptMessage
 from apps.chat.steps.chart_fields import get_fields_from_chart
 from apps.chat.steps.custom_prompt import match_custom_prompts
+from apps.chat.steps.knowledge import match_knowledge
 from apps.chat.steps.stream import process_stream
-from apps.chat.steps.terminology import match_terminology
+from apps.conversation.observability import end_log, start_log
 from apps.datasource.models.datasource import CoreDatasource
 
 
@@ -26,7 +27,7 @@ def generate_analysis(llm_service: Any, session: Session) -> Iterator[Dict[str, 
     llm_service.chat_question.data = orjson.dumps(data.get("data")).decode()
 
     ds_id = llm_service.ds.id if isinstance(llm_service.ds, CoreDatasource) else None
-    match_terminology(llm_service, session, llm_service.oid, ds_id)
+    match_knowledge(llm_service, session, llm_service.oid, ds_id)
     match_custom_prompts(
         llm_service, session, CustomPromptTypeEnum.ANALYSIS, llm_service.oid, ds_id
     )

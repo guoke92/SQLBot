@@ -19,7 +19,10 @@ edges:
     to: prepare
 
   - from: prepare
-    to: stream
+    router: apps.chat.graphs.nodes.predict.route_after_prepare
+    paths:
+      stream: stream
+      fail: fail
 
   - from: stream
     router: apps.chat.graphs.nodes.predict.route_after_stream

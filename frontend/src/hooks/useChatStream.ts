@@ -32,12 +32,44 @@ export type UseChatStreamOptions = {
 }
 
 function parseFrame(raw: string, bigInt: boolean): ChatStreamEvent {
-  // Match label used historically: data:{...}\n\n
-  const body = raw.replace(/^data:/, '').trim()
+  const body = raw
+    .split('\n')
+    .filter((line) => line.startsWith('data:'))
+    .map((line) => line.slice(5).trimStart())
+    .join('\n')
+    .trim()
+  if (!body) {
+    throw new Error('SSE frame has no data payload')
+  }
   if (bigInt) {
     return JSONBig.parse(body) as ChatStreamEvent
   }
   return JSON.parse(body) as ChatStreamEvent
+}
+
+function parseHttpError(response: Response, text: string): ChatStreamEvent {
+  try {
+    const parsed = JSON.parse(text)
+    if (parsed && typeof parsed === 'object') {
+      const detail = parsed.msg || parsed.message || parsed.detail
+      return {
+        ...parsed,
+        code: parsed.code || response.status,
+        msg:
+          typeof detail === 'string'
+            ? detail
+            : detail
+              ? JSON.stringify(detail)
+              : response.statusText,
+      }
+    }
+  } catch {
+    // Fall through to the normalized text response.
+  }
+  return {
+    code: response.status,
+    msg: text.trim() || response.statusText || `HTTP ${response.status}`,
+  }
 }
 
 /**
@@ -74,14 +106,56 @@ export function useChatStream(options: UseChatStreamOptions = {}) {
     }
     const active = controller
 
+    const dispatchHttpError = (data: ChatStreamEvent) => {
+      if (handlers.onHttpError) {
+        handlers.onHttpError(data)
+        return
+      }
+      ElMessage({
+        message: data.msg,
+        type: 'error',
+        showClose: true,
+      })
+    }
+
     try {
       const response = await fetchResponse(active)
+      if (!response.ok) {
+        dispatchHttpError(parseHttpError(response, await response.text()))
+        return
+      }
+
+      const contentType = response.headers.get('content-type') || ''
+      if (contentType.includes('application/json')) {
+        dispatchHttpError(parseHttpError(response, await response.text()))
+        return
+      }
+
       const reader = response.body?.getReader()
       if (!reader) {
         throw new Error('Response body is not readable')
       }
       const decoder = new TextDecoder('utf-8')
       let tempResult = ''
+
+      const dispatchFrame = async (frame: string): Promise<boolean> => {
+        if (!frame.trim() || frame.trimStart().startsWith(':')) {
+          return false
+        }
+        let data: ChatStreamEvent
+        try {
+          data = parseFrame(frame, !!options.bigInt)
+        } catch (err) {
+          console.error('SSE frame:', frame)
+          throw err
+        }
+
+        if (data.code && data.code !== 200) {
+          dispatchHttpError(data)
+          return true
+        }
+        return !!(await handlers.onEvent?.(data))
+      }
 
       while (true) {
         if (stopFlag.value) {
@@ -99,47 +173,22 @@ export function useChatStream(options: UseChatStreamOptions = {}) {
           break
         }
 
-        let chunk = decoder.decode(value, { stream: true })
-        tempResult += chunk
-        const split = tempResult.match(/data:.*}\n\n/g)
-        if (split) {
-          chunk = split.join('')
-          tempResult = tempResult.replace(chunk, '')
-        } else {
-          continue
-        }
-
-        if (!chunk || !chunk.startsWith('data:{')) {
-          continue
-        }
-
-        for (const str of split) {
-          let data: ChatStreamEvent
-          try {
-            data = parseFrame(str, !!options.bigInt)
-          } catch (err) {
-            console.error('JSON string:', str)
-            throw err
-          }
-
-          if (data.code && data.code !== 200) {
-            if (handlers.onHttpError) {
-              handlers.onHttpError(data)
-            } else {
-              ElMessage({
-                message: data.msg,
-                type: 'error',
-                showClose: true,
-              })
-            }
+        tempResult += decoder.decode(value, { stream: true })
+        tempResult = tempResult.replace(/\r\n/g, '\n')
+        let separator = tempResult.indexOf('\n\n')
+        while (separator >= 0) {
+          const frame = tempResult.slice(0, separator)
+          tempResult = tempResult.slice(separator + 2)
+          if (await dispatchFrame(frame)) {
             return
           }
-
-          const shouldStop = await handlers.onEvent?.(data)
-          if (shouldStop) {
-            return
-          }
+          separator = tempResult.indexOf('\n\n')
         }
+      }
+
+      tempResult += decoder.decode()
+      if (tempResult.trim() && (await dispatchFrame(tempResult))) {
+        return
       }
     } catch (error) {
       if (!stopFlag.value) {

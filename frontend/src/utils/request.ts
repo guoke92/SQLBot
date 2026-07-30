@@ -11,13 +11,11 @@ import axios, {
 import { useCache } from '@/utils/useCache'
 import { getLocale } from './utils'
 import { useAssistantStore } from '@/stores/assistant'
-import { useRouter } from 'vue-router'
 import JSONBig from 'json-bigint'
 // import { i18n } from '@/i18n'
 // const t = i18n.global.t
 const assistantStore = useAssistantStore()
 const { wsCache } = useCache()
-const router = useRouter()
 // Response data structure
 export interface ApiResponse<T = unknown> {
   code: number
@@ -135,25 +133,6 @@ class HttpService {
           /* const val = mapping[locale] || locale */
           config.headers['Accept-Language'] = locale
         }
-        if (config.url?.includes('/xpack_static/') && config.baseURL) {
-          config.baseURL = config.baseURL.replace('/api/v1', '')
-          // Skip auth for xpack_static requests
-          return config
-        }
-
-        /* try {
-          const request_key = LicenseGenerator.generate()
-          config.headers['X-SQLBOT-KEY'] = request_key
-        } catch (e: any) {
-          if (e?.message?.includes('offline')) {
-            this.cancelCurrentRequest('license-key error detected')
-            showLicenseKeyError()
-          }
-        } */
-
-        // Request logging
-        // console.log(`[Request] ${config.method?.toUpperCase()} ${config.url}`)
-
         return config
       },
       (error) => {
@@ -224,11 +203,7 @@ class HttpService {
           // Redirect to login page if needed
           if (assistantStore.getAssistant) {
             wsCache.delete('user.token')
-            if (router?.push) {
-              router.push(`/401?title=${encodeURIComponent(errorMessage)}`)
-            } else {
-              window.location.href = `/#/401?title=${encodeURIComponent(errorMessage)}`
-            }
+            window.location.hash = `/401?title=${encodeURIComponent(errorMessage)}`
             return
           }
           ElMessage({
@@ -334,16 +309,6 @@ class HttpService {
       }
     }
 
-    /* try {
-      const request_key = LicenseGenerator.generate()
-      heads['X-SQLBOT-KEY'] = request_key
-    } catch (e: any) {
-      if (e?.message?.includes('offline')) {
-        controller?.abort('license-key error detected')
-        showLicenseKeyError()
-      }
-    } */
-
     const real_url = import.meta.env.VITE_API_BASE_URL
     return fetch(real_url + url, {
       method: 'POST',
@@ -395,68 +360,6 @@ class HttpService {
       responseType: 'blob',
     })
   }
-
-  public loadRemoteScript(url: string, id?: string, cb?: any): Promise<HTMLElement> {
-    if (!url) {
-      return Promise.reject(new Error('URL is required to load remote script'))
-    }
-    if (id && document.getElementById(id)) {
-      return Promise.resolve(document.getElementById(id) as HTMLElement)
-    }
-    if (url.startsWith('/')) {
-      const real_url = import.meta.env.VITE_API_BASE_URL.replace('/api/v1', '')
-      url = real_url + url
-    }
-    return new Promise<HTMLElement>((resolve, reject) => {
-      // 改用传统的script标签加载方式
-      const script = document.createElement('script')
-      script.src = url
-      script.id = id || `remote-script-${Date.now()}`
-
-      script.onload = () => {
-        if (cb) cb()
-        resolve(script)
-      }
-
-      script.onerror = (error) => {
-        console.error(`Failed to load script from ${url}:`, error)
-        reject(new Error(`Failed to load script from ${url}`))
-      }
-
-      document.head.appendChild(script)
-    })
-  }
-  /* public loadRemoteScript(url: string, id?: string, cb?: any): Promise<HTMLElement> {
-    if (!url) {
-      return Promise.reject(new Error('URL is required to load remote script'))
-    }
-    if (id && document.getElementById(id)) {
-      return Promise.resolve(document.getElementById(id) as HTMLElement)
-    }
-    return new Promise<HTMLElement>((resolve, reject) => {
-      this.get(url, {
-        responseType: 'text',
-        headers: {
-          'Content-Type': 'application/javascript',
-        },
-      })
-        .then((response: any) => {
-          const script = document.createElement('script')
-          script.textContent = response
-          script.id = id || `remote-script-${Date.now()}`
-          // Append script to head
-          document.head.appendChild(script)
-          if (cb) {
-            cb()
-          }
-          resolve(script)
-        })
-        .catch((error: any) => {
-          console.error(`Failed to load script from ${url}:`, error)
-          reject(new Error(`Failed to load script from ${url}: ${error.message}`))
-        })
-    })
-  } */
 }
 
 // Create singleton instance

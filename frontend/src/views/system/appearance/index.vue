@@ -76,7 +76,7 @@
                   <div class="tips-page">
                     {{
                       t('system.screen_customization_supported', {
-                        msg: loginForm.name || 'SQLBot',
+                        msg: loginForm.name || APP_NAME,
                       })
                     }}
                   </div>
@@ -204,7 +204,7 @@
                   <div class="tips-page">
                     {{
                       t('system.screen_customization_settings', {
-                        msg: loginForm.name || 'SQLBot',
+                        msg: loginForm.name || APP_NAME,
                       })
                     }}
                   </div>
@@ -301,6 +301,7 @@ import { setCurrentColor } from '@/utils/utils'
 
 // import TinymceEditor from '@/components/rich-text/TinymceEditor.vue'
 import { cloneDeep } from 'lodash-es'
+import { APP_NAME } from '@/constants/branding'
 const appearanceStore = useAppearanceStoreWithOut()
 const { t } = useI18n()
 interface LoginForm {
@@ -346,7 +347,7 @@ const changedItemArray = ref<ConfigItem[]>([])
 
 const loginFormRef = ref<FormInstance>()
 const defaultLoginForm = reactive<LoginForm>({
-  name: 'SQLBot',
+  name: APP_NAME,
   slogan: t('common.intelligent_questioning_platform'),
   foot: 'false',
   showSlogan: '0',
@@ -377,7 +378,7 @@ const defaultTopForm = {
   help: 'https://dataease.cn/sqlbot/v1/',
   showDoc: '0',
   showAbout: '0',
-  pc_welcome: t('embedded.i_am_sqlbot'),
+  pc_welcome: t('embedded.i_am_ai_data_assistant'),
   pc_welcome_desc: t('qa.hint_description'),
 }
 

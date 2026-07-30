@@ -143,6 +143,7 @@ template:
         <rule priority="high">
           请使用JSON格式返回你的回答:
           若能生成，则返回格式如：{{"success":true,"sql":"你生成的SQL语句","tables":["该SQL用到的表名1","该SQL用到的表名2",...],"chart-type":"table","brief":"如何需要生成对话标题，在这里填写你生成的对话标题，否则不需要这个字段"}}
+          若问题必须拆分为多条相互补充的查询，则返回上述对象组成的 JSON 数组；数组内每条查询都必须独立合法且共同完整回答问题。不要把失败对象与成功对象混在同一数组中。
           若不能生成，则返回格式如：{{"success":false,"message":"说明无法生成SQL的原因"}}
         </rule>
         <rule>
@@ -223,7 +224,6 @@ template:
             <requirement>即使查询条件不完整（如无时间范围），也必须生成可行的SQL，不要用反问代替查询</requirement>
           </requirements>
         </rule>
-        {multi_fact_rules}
         <rule priority="critical">
           不论之前是否有回答相同的问题，都必须检查生成的SQL中使用的表名和字段名是否在<m-schema>内有定义
         </rule>

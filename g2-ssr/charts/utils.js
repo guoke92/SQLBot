@@ -1,5 +1,3 @@
-const { endsWith, filter, replace } = require('lodash')
-
 /**
  * 为数值添加千分符，保持原有小数位数不变
  * 纯字符串处理，避免精度丢失
@@ -40,6 +38,7 @@ function getAxesWithFilter(axes) {
     series: [],
     multiQuota: [],
     multiQuotaName: undefined,
+    multiMetricWithSeries: false,
   }
 
   // 分组
@@ -52,7 +51,11 @@ function getAxesWithFilter(axes) {
 
   // 应用过滤规则
   if (groups.series.length > 0) {
-    groups.y = groups.y.slice(0, 1)
+    if (groups.y.length > 1) {
+      groups.multiMetricWithSeries = true
+    } else {
+      groups.y = groups.y.slice(0, 1)
+    }
   } else {
     const multiQuotaY = groups.y.filter((item) => item['multi-quota'] === true)
     groups.multiQuota = multiQuotaY.map((item) => item.value)
@@ -62,6 +65,35 @@ function getAxesWithFilter(axes) {
   }
 
   return groups
+}
+
+function processMultiMetricWithSeries(x, y, series, data) {
+  const list = []
+  const seriesColumn = series[0]
+  for (const datum of data) {
+    const seriesValue = String(datum[seriesColumn.value] ?? '')
+    for (const metric of y) {
+      const item = {}
+      for (const xAxis of x) {
+        item[xAxis.value] = datum[xAxis.value]
+      }
+      item.sqlbot_metric_val = datum[metric.value]
+      item.sqlbot_combined_series = `${seriesValue}-${metric.name || metric.value}`
+      item.sqlbot_axis_format = metric.formatNumber
+      list.push(item)
+    }
+  }
+  return {
+    data: list,
+    y: [{ name: 'sqlbot_metric_val', value: 'sqlbot_metric_val', type: 'y' }],
+    series: [
+      {
+        name: seriesColumn.name,
+        value: 'sqlbot_combined_series',
+        type: 'series',
+      },
+    ],
+  }
 }
 
 function processMultiQuotaData(
@@ -108,8 +140,7 @@ function checkIsPercent(valueAxes, data) {
 
   // 检查是否有任何一个轴包含百分比数据
   for (const valueAxis of valueAxes) {
-    const notEmptyData = filter(
-      data,
+    const notEmptyData = data.filter(
       (d) =>
         d &&
         d[valueAxis.value] !== null &&
@@ -121,7 +152,7 @@ function checkIsPercent(valueAxes, data) {
 
     if (notEmptyData.length > 0) {
       const v = notEmptyData[0][valueAxis.value] + ''
-      if (endsWith(v.trim(), '%')) {
+      if (v.trim().endsWith('%')) {
         result.isPercent = true
         break // 找到一个百分比轴就结束检查
       }
@@ -135,8 +166,8 @@ function checkIsPercent(valueAxes, data) {
         const value = data[i][valueAxis.value]
         if (value !== null && value !== undefined && value !== '') {
           const strValue = String(value).trim()
-          if (endsWith(strValue, '%')) {
-            const formatValue = replace(strValue, '%', '')
+          if (strValue.endsWith('%')) {
+            const formatValue = strValue.replace('%', '')
             const numValue = Number(formatValue)
             result.data[i][valueAxis.value] = isNaN(numValue) ? 0 : numValue
           }
@@ -148,4 +179,10 @@ function checkIsPercent(valueAxes, data) {
   return result
 }
 
-module.exports = { checkIsPercent, formatNumber, getAxesWithFilter, processMultiQuotaData }
+module.exports = {
+  checkIsPercent,
+  formatNumber,
+  getAxesWithFilter,
+  processMultiMetricWithSeries,
+  processMultiQuotaData,
+}

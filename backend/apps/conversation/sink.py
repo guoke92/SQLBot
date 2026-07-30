@@ -102,7 +102,13 @@ class StreamSink:
             self._raw("&#x274c; **ERROR:**\n")
             self._raw(f"> {message}\n")
         else:
-            self._raw({"success": False, "message": message})
+            self._raw(
+                {
+                    "success": False,
+                    "status": "failed",
+                    "message": message,
+                }
+            )
 
     def error_chunks(self, message: str) -> Iterator[Any]:
         """Outside graph nodes (submit_graph top-level) — yield same shapes."""
@@ -112,7 +118,11 @@ class StreamSink:
             yield "&#x274c; **ERROR:**\n"
             yield f"> {message}\n"
         else:
-            yield {"success": False, "message": message}
+            yield {
+                "success": False,
+                "status": "failed",
+                "message": message,
+            }
 
 
 def sink_error_chunks(ctx: Mapping[str, Any], message: str) -> Iterable[Any]:

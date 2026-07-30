@@ -11,7 +11,7 @@
 import { loadScript } from '@/utils/RemoteJs'
 import { propTypes } from '@/utils/propTypes'
 import { onUnmounted, ref } from 'vue'
-import { getLocale, getSQLBotAddr } from '@/utils/utils'
+import { getLocale, getAppAddr } from '@/utils/utils'
 import { queryClientInfo } from './platformUtils'
 interface WecomInfo {
   corp_id: string
@@ -48,7 +48,7 @@ const formatQrResult = (data: any): WecomInfo => {
   result.corp_id = data.corpid
   result.agent_id = data.agent_id
   result.state = data.state || 'fit2cloud-wecom-qr'
-  result.redirect_uri = data.redirect_uri || getSQLBotAddr()
+  result.redirect_uri = data.redirect_uri || getAppAddr()
   if (props.isBind) {
     result.state += '_sqlbot_bind'
   }

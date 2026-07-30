@@ -15,16 +15,17 @@ from sqlalchemy import and_, select
 from sqlmodel import Session
 
 from apps.chat.constants import DYNAMIC_DS_TYPES
-from apps.chat.curd.chat import end_log, save_select_datasource_answer, start_log
+from apps.chat.curd.chat import save_select_datasource_answer
 from apps.chat.models.chat_model import Chat, OperationEnum, SystemPromptMessage
 from apps.chat.steps.stream import process_stream
+from apps.conversation.observability import end_log, start_log
 from apps.datasource.embedding.ds_embedding import get_ds_embedding
 from apps.datasource.models.datasource import CoreDatasource
 from apps.protocol import get_protocol
 from apps.system.crud.assistant import get_assistant_ds
 from common.core.config import settings
 from common.error import SingleMessageError
-from common.utils.utils import extract_nested_json
+from common.utils.json_utils import extract_nested_json
 
 # Re-export for ``from apps.chat.steps.datasource import DYNAMIC_DS_TYPES``.
 __all__ = ["DYNAMIC_DS_TYPES", "select_datasource", "validate_history_ds"]
@@ -66,7 +67,7 @@ def select_datasource(llm_service: Any, session: Session) -> Iterator[Dict[str, 
                 session,
                 ds_list,
                 llm_service.out_ds_instance,
-                llm_service.chat_question.question,
+                llm_service.retrieval_question,
                 llm_service.current_assistant,
             )
 

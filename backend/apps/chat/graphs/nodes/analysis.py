@@ -1,23 +1,25 @@
-"""Analysis node implementations for the analysis graph.
-
-Extracted from ``apps.chat.graphs.analysis``.
-"""
+"""Analysis node implementations for the analysis graph."""
 
 from __future__ import annotations
 
 import traceback
-from typing import Any, Dict, Literal, TypedDict
+from typing import Any, Dict, Literal, cast
 
-import orjson
 from apps.chat.curd.chat import save_analysis_predict_record
 from apps.chat.models.chat_model import ChatRecord
 from apps.chat.steps.analysis import generate_analysis
 from apps.chat.task.llm import LLMService
-from apps.conversation.record import finish as record_finish
-from apps.conversation.record import save_error as record_save_error
+from apps.conversation.outcome import (
+    failed_outcome,
+    format_error_message,
+    running_outcome,
+    successful_outcome,
+)
+from apps.conversation.record import persist_snapshot
 from apps.conversation.session import session_scope
 from apps.conversation.sink import StreamSink
 from apps.conversation.state import RunState
+from apps.conversation.turn import fail_node as fail_turn_node
 from common.error import SingleMessageError
 
 
@@ -28,33 +30,33 @@ class AnalysisState(RunState, total=False):
     json_result: Dict[str, Any]
 
 
-def _error_message(exc: BaseException) -> str:
-    if isinstance(exc, SingleMessageError):
-        return str(exc)
-    return orjson.dumps(
-        {"message": str(exc), "traceback": traceback.format_exc(limit=1)}
-    ).decode()
-
-
 def prepare_node(state: AnalysisState) -> AnalysisState:
-    base = state["base_record"]
-    if not base.chart:
-        raise SingleMessageError(
-            f"Chat record with id {base.id} has not generated chart, do not support to analyze it"
-        )
-    with session_scope() as session:
-        record = save_analysis_predict_record(session, base, "analysis")
-    state["llm_service"].set_record(record)
-    return {
-        **state,
-        "record": record,
-        "record_id": record.id,
-        "base_record_id": base.id,
-        "graph_key": "analysis",
-        "mode": "follow_up",
-        "json_result": {"success": True, "record_id": record.id},
-        "full_text": "",
-    }
+    try:
+        base = state["base_record"]
+        if not base.chart:
+            raise SingleMessageError(
+                f"Chat record with id {base.id} has not generated chart, do not support to analyze it"
+            )
+        with session_scope() as session:
+            record = save_analysis_predict_record(session, base, "analysis")
+        state["llm_service"].set_record(record)
+        return {
+            **state,
+            "record": record,
+            "record_id": record.id,
+            "base_record_id": base.id,
+            "graph_key": "analysis",
+            "mode": "follow_up",
+            "json_result": {"success": True, "record_id": record.id},
+            "full_text": "",
+            "outcome": running_outcome(),
+        }
+    except Exception as exc:
+        return {
+            **state,
+            "error": format_error_message(exc),
+            "outcome": failed_outcome(exc),
+        }
 
 
 def stream_node(state: AnalysisState) -> AnalysisState:
@@ -90,16 +92,13 @@ def stream_node(state: AnalysisState) -> AnalysisState:
             }
         except Exception as e:
             traceback.print_exc()
-            error_msg = _error_message(e)
-            try:
-                record_save_error(session, llm_service.record.id, error_msg)
-            except Exception:
-                traceback.print_exc()
+            error_msg = format_error_message(e)
             return {
                 **state,
                 "error": error_msg,
                 "full_text": full_text,
                 "json_result": json_result,
+                "outcome": failed_outcome(e),
             }
 
 
@@ -114,21 +113,27 @@ def complete_node(state: AnalysisState) -> AnalysisState:
     sink.text("\n\n")
 
     with session_scope() as session:
-        record_finish(session, llm_service.record.id)
+        persist_snapshot(session, llm_service.record.id, terminal=True)
 
     if sink.mode == "json":
         json_result["content"] = full_text
         sink.json_result(json_result)
 
-    return {**state, "json_result": json_result, "record": llm_service.record}
+    return {
+        **state,
+        "json_result": json_result,
+        "record": llm_service.record,
+        "outcome": successful_outcome(),
+    }
 
 
 def fail_node(state: AnalysisState) -> AnalysisState:
-    sink = StreamSink.from_state(state)
-    error_msg = state.get("error") or "unknown error"
-    sink.error(error_msg)
-    return state
+    return cast(AnalysisState, fail_turn_node(state))
 
 
 def route_after_stream(state: AnalysisState) -> Literal["complete", "fail"]:
     return "fail" if state.get("error") else "complete"
+
+
+def route_after_prepare(state: AnalysisState) -> Literal["stream", "fail"]:
+    return "fail" if state.get("error") else "stream"

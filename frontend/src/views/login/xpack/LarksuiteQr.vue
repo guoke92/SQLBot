@@ -6,7 +6,7 @@
 import { loadScript } from '@/utils/RemoteJs'
 import { propTypes } from '@/utils/propTypes'
 import { queryClientInfo } from './platformUtils'
-import { getSQLBotAddr } from '@/utils/utils'
+import { getAppAddr } from '@/utils/utils'
 import { ref } from 'vue'
 interface LarksuiteQrInfo {
   client_id?: string
@@ -33,7 +33,7 @@ const formatQrResult = (data: any): LarksuiteQrInfo => {
   const result = { client_id: null, state: null, redirect_uri: null } as unknown as LarksuiteQrInfo
   result.client_id = data.client_id
   result.state = 'fit2cloud-larksuite-qr'
-  result.redirect_uri = data.redirect_uri || getSQLBotAddr()
+  result.redirect_uri = data.redirect_uri || getAppAddr()
   if (props.isBind) {
     result.state += '_de_bind'
   }

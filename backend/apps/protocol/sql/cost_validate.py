@@ -6,27 +6,21 @@ SQL dialect / catalog details.
 
 from __future__ import annotations
 
-from typing import Any, Dict, Optional, Set
+from typing import Any
 
 from apps.chat.plan_policy import (
     EXPLAIN_MAX_ROWS,
-    FACT_NAME_HINTS,
     LARGE_TABLE_ROWS,
     MAX_LARGE_FACTS_UNSTAGED,
 )
 from common.utils.utils import SQLBotLogUtil
 
 
-def _name_looks_fact(name: str) -> bool:
-    n = (name or "").lower()
-    return any(h in n for h in FACT_NAME_HINTS)
-
-
-def _is_large_fact(name: str, approx_rows: Optional[int]) -> bool:
+def _is_large_fact(approx_rows: int | None) -> bool:
     """Only *known-large* tables are hard large-facts.
 
-    Name heuristics alone must not block valid plans when catalog stats are
-    cold (approx_rows NULL) — that produced false rejects like d_story(~?).
+    Name heuristics alone must not block valid plans when catalog statistics
+    are unavailable.
     """
     if approx_rows is None:
         return False
@@ -36,7 +30,7 @@ def _is_large_fact(name: str, approx_rows: Optional[int]) -> bool:
         return False
 
 
-def _count_staged_fact_aggs(tree: Any, fact_names: Set[str], exp: Any) -> int:
+def _count_staged_fact_aggs(tree: Any, fact_names: set[str], exp: Any) -> int:
     """How many derived tables / CTEs look like per-fact pre-aggregation."""
     staged = 0
     containers = []
@@ -57,7 +51,7 @@ def _count_staged_fact_aggs(tree: Any, fact_names: Set[str], exp: Any) -> int:
     except Exception:
         pass
 
-    seen_ids: Set[int] = set()
+    seen_ids: set[int] = set()
     for sub in containers:
         sid = id(sub)
         if sid in seen_ids:
@@ -68,9 +62,7 @@ def _count_staged_fact_aggs(tree: Any, fact_names: Set[str], exp: Any) -> int:
             has_agg = bool(list(sub.find_all(exp.AggFunc)))
             if not (has_group or has_agg):
                 continue
-            sub_tables = {
-                t.name for t in sub.find_all(exp.Table) if t.name
-            }
+            sub_tables = {t.name for t in sub.find_all(exp.Table) if t.name}
             # Counts if this subquery aggregates at least one fact table
             if sub_tables & fact_names:
                 staged += 1
@@ -82,8 +74,8 @@ def _count_staged_fact_aggs(tree: Any, fact_names: Set[str], exp: Any) -> int:
 def check_multi_fact_fanout(
     sql: str,
     dialect: str,
-    stats_by_table: Dict[str, Dict[str, Any]],
-) -> Optional[str]:
+    stats_by_table: dict[str, dict[str, Any]],
+) -> str | None:
     """Reject unstaged multi-fact join webs that tend to explode.
 
     Policy:
@@ -107,7 +99,7 @@ def check_multi_fact_fanout(
     for tree in trees:
         if not tree:
             continue
-        tables: Set[str] = set()
+        tables: set[str] = set()
         for t in tree.find_all(exp.Table):
             if t.name:
                 tables.add(t.name)
@@ -115,7 +107,6 @@ def check_multi_fact_fanout(
             continue
 
         known_large: list = []
-        name_facts: Set[str] = set()
         for name in tables:
             st = stats_by_table.get(name) or {}
             rows = st.get("approx_rows")
@@ -123,16 +114,14 @@ def check_multi_fact_fanout(
                 rows_i = int(rows) if rows is not None else None
             except Exception:
                 rows_i = None
-            if _name_looks_fact(name):
-                name_facts.add(name)
-            if _is_large_fact(name, rows_i):
+            if _is_large_fact(rows_i):
                 known_large.append((name, rows_i))
 
         # Need multiple *known* large facts for hard gate
         if len(known_large) <= MAX_LARGE_FACTS_UNSTAGED:
             continue
 
-        fact_name_set = {n for n, _ in known_large} | name_facts
+        fact_name_set = {n for n, _ in known_large}
         staged = _count_staged_fact_aggs(tree, fact_name_set, exp)
         if staged >= 2:
             continue
@@ -166,7 +155,10 @@ def _collect_explain_rows(plan_rows: Any) -> int:
         if isinstance(obj, dict):
             for k, v in obj.items():
                 lk = str(k).lower()
-                if lk in ("rows", "est_rows", "row count", "plan_rows") and v is not None:
+                if (
+                    lk in ("rows", "est_rows", "row count", "plan_rows")
+                    and v is not None
+                ):
                     try:
                         iv = int(float(v))
                         total += iv
@@ -183,8 +175,13 @@ def _collect_explain_rows(plan_rows: Any) -> int:
     return max(total, max_r)
 
 
-def explain_cost_too_high(ds: Any, sql: str) -> Optional[str]:
-    """Run EXPLAIN when supported; reject absurd row estimates."""
+def explain_cost_too_high(ds: Any, sql: str) -> str | None:
+    """Run EXPLAIN when supported; reject invalid or prohibitively costly SQL.
+
+    JSON EXPLAIN is an optional optimization and may fall back to the regular
+    form. Once the datasource rejects regular EXPLAIN, however, the statement
+    is not safe to execute and the error must participate in the repair loop.
+    """
     dtype = (getattr(ds, "type", None) or "").lower()
     if dtype not in (
         "mysql",
@@ -197,9 +194,10 @@ def explain_cost_too_high(ds: Any, sql: str) -> Optional[str]:
     ):
         return None
     try:
-        from apps.db.db import get_session
-        from sqlalchemy import text
         import orjson
+        from sqlalchemy import text
+
+        from apps.db.db import get_session
     except Exception:
         return None
 
@@ -209,16 +207,12 @@ def explain_cost_too_high(ds: Any, sql: str) -> Optional[str]:
         with get_session(ds) as session:
             if use_json:
                 try:
-                    raw = session.execute(
-                        text(f"EXPLAIN FORMAT=JSON {sql}")
-                    ).fetchall()
+                    raw = session.execute(text(f"EXPLAIN FORMAT=JSON {sql}")).fetchall()
                     payload = raw[0][0] if raw else "{}"
                     if isinstance(payload, (bytes, bytearray)):
                         payload = payload.decode()
                     data = (
-                        orjson.loads(payload)
-                        if isinstance(payload, str)
-                        else payload
+                        orjson.loads(payload) if isinstance(payload, str) else payload
                     )
                     est = _collect_explain_rows(data)
                     if est >= EXPLAIN_MAX_ROWS:
@@ -252,5 +246,9 @@ def explain_cost_too_high(ds: Any, sql: str) -> Optional[str]:
                     "Narrow filters, pre-aggregate facts, or split the query."
                 )
     except Exception as exc:
-        SQLBotLogUtil.warning(f"EXPLAIN cost check skipped: {exc}")
+        detail = str(getattr(exc, "orig", exc) or exc).strip()
+        detail = " ".join(detail.split())[:1200]
+        message = f"SQL EXPLAIN validation failed: {detail}"
+        SQLBotLogUtil.warning(message)
+        return message
     return None

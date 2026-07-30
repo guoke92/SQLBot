@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import BaseAnswer from './BaseAnswer.vue'
 import { chatApi, ChatInfo, type ChatMessage, ChatRecord } from '@/api/chat.ts'
-import { computed, nextTick, onBeforeUnmount, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount } from 'vue'
 import MdComponent from '@/views/chat/component/MdComponent.vue'
 import { useChatStream, type ChatStreamEvent } from '@/hooks/useChatStream'
 const props = withDefaults(
@@ -162,8 +162,7 @@ defineExpose({ sendMessage, index: () => index.value, chatList: () => _chatList.
   <BaseAnswer
     v-if="message"
     :message="message"
-    :reasoning-name="['analysis_thinking']"
-    :loading="_loading"
+    :reasoning-items="[message.record?.analysis_thinking || '']"
   >
     <MdComponent :message="message.record?.analysis" style="margin-top: 12px" />
     <slot></slot>

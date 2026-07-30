@@ -120,7 +120,7 @@
                   ><custom_small v-if="appearanceStore.themeColor !== 'default'"></custom_small>
                   <LOGO_fold v-else></LOGO_fold
                 ></el-icon>
-                <span>{{ appearanceStore.pc_welcome ?? '你好，我是 SQLBot' }}</span>
+                <span>{{ appearanceStore.pc_welcome ?? `你好，我是${APP_NAME}` }}</span>
               </div>
               <div class="sub">
                 {{
@@ -231,10 +231,8 @@
                   <ConfigAnswer
                     v-if="isConfigChat"
                     ref="configAnswerRef"
-                    :chat-list="chatList"
                     :current-chat="currentChat"
                     :current-chat-id="currentChatId"
-                    :loading="isTyping"
                     :message="message"
                     @finish="onConfigAnswerFinish"
                     @error="onConfigAnswerError"
@@ -270,6 +268,7 @@
                       @finish="onPrimaryAnswerFinish"
                       @error="onPrimaryAnswerError"
                       @stop="onChatStop"
+                      @clarification-submit="submitClarification"
                     >
                       <ErrorInfo :error="message.record?.error" class="error-container" />
                       <template #tool>
@@ -339,6 +338,11 @@
                       </template>
                       <template #footer>
                         <RecommendQuestion
+                          v-if="
+                            !['needs_clarification', 'blocked'].includes(
+                              message.record?.intent_context?.status || ''
+                            )
+                          "
                           ref="recommendQuestionRef"
                           :current-chat="currentChat"
                           :record-id="message.record?.id"
@@ -412,9 +416,7 @@
       </el-main>
       <el-footer
         v-if="
-          computedMessages.length > 0 ||
-          (!isCompletePage && !selectAssistantDs) ||
-          isConfigChat
+          computedMessages.length > 0 || (!isCompletePage && !selectAssistantDs) || isConfigChat
         "
         class="chat-footer"
       >
@@ -435,11 +437,7 @@
               </span>
             </template>
           </div>
-          <div
-            v-else-if="isConfigChat"
-            class="datasource"
-            style="opacity: 0.75"
-          >
+          <div v-else-if="isConfigChat" class="datasource" style="opacity: 0.75">
             {{ t('qa.config_assistant') }}
           </div>
           <div
@@ -497,8 +495,15 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref } from 'vue'
-import { Chat, chatApi, ChatInfo, type ChatMessage, ChatRecord } from '@/api/chat'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import {
+  Chat,
+  chatApi,
+  ChatInfo,
+  type ChatMessage,
+  ChatRecord,
+  type ClarificationAnswer,
+} from '@/api/chat'
 import ChatRow from './ChatRow.vue'
 import MultiStepAnswer from './answer/MultiStepAnswer.vue'
 import AnalysisAnswer from './answer/AnalysisAnswer.vue'
@@ -533,6 +538,7 @@ import router from '@/router'
 import QuickQuestion from '@/views/chat/QuickQuestion.vue'
 import { useChatConfigStore } from '@/stores/chatConfig.ts'
 import { useChatScroll } from '@/hooks/useChatScroll'
+import { APP_NAME } from '@/constants/branding'
 const userStore = useUserStore()
 const props = defineProps<{
   startChatDsId?: number
@@ -590,6 +596,102 @@ const appearanceStore = useAppearanceStoreWithOut()
 const currentChatId = ref<number | undefined>()
 const currentChat = ref<ChatInfo>(new ChatInfo())
 const isTyping = ref<boolean>(false)
+let persistedTurnTimer: ReturnType<typeof setInterval> | undefined
+let persistedTurnLoading = false
+let persistedTurnGeneration = 0
+
+const persistedTurnInProgress = computed(() =>
+  currentChat.value.records.some((record) => !!record.id && !record.finish)
+)
+
+function stopPersistedTurnPolling() {
+  persistedTurnGeneration += 1
+  if (persistedTurnTimer) {
+    clearInterval(persistedTurnTimer)
+    persistedTurnTimer = undefined
+  }
+}
+
+function mergePersistedChat(info: ChatInfo) {
+  const existingRecords = new Map(
+    currentChat.value.records
+      .filter((record) => record.id !== undefined)
+      .map((record) => [record.id, record])
+  )
+  const mergedRecords = info.records.map((record) => {
+    const existing = record.id !== undefined ? existingRecords.get(record.id) : undefined
+    if (!existing) return record
+    Object.assign(existing, record)
+    return existing
+  })
+  Object.assign(currentChat.value, info)
+  currentChat.value.records = mergedRecords
+}
+
+async function refreshPersistedTurns() {
+  const chatId = currentChatId.value
+  const generation = persistedTurnGeneration
+  if (
+    chatId === undefined ||
+    isTyping.value ||
+    !persistedTurnInProgress.value ||
+    persistedTurnLoading
+  ) {
+    return
+  }
+
+  persistedTurnLoading = true
+  try {
+    const response = await chatApi.get(chatId)
+    const info = chatApi.toChatInfo(response)
+    if (
+      info &&
+      persistedTurnTimer &&
+      persistedTurnGeneration === generation &&
+      currentChatId.value === chatId
+    ) {
+      mergePersistedChat(info)
+    }
+  } catch (error) {
+    console.warn('Failed to refresh persisted conversation state', error)
+  } finally {
+    persistedTurnLoading = false
+    if (
+      persistedTurnGeneration === generation &&
+      (!persistedTurnInProgress.value || currentChatId.value !== chatId || isTyping.value)
+    ) {
+      stopPersistedTurnPolling()
+    }
+  }
+}
+
+function startPersistedTurnPolling() {
+  if (
+    persistedTurnTimer ||
+    currentChatId.value === undefined ||
+    isTyping.value ||
+    !persistedTurnInProgress.value
+  ) {
+    return
+  }
+
+  persistedTurnTimer = setInterval(() => void refreshPersistedTurns(), 1500)
+  void refreshPersistedTurns()
+}
+
+watch(
+  [currentChatId, isTyping, persistedTurnInProgress],
+  ([chatId, typing, turnInProgress], [previousChatId]) => {
+    if (chatId !== previousChatId) {
+      stopPersistedTurnPolling()
+    }
+    if (chatId === undefined || typing || !turnInProgress) {
+      stopPersistedTurnPolling()
+      return
+    }
+    startPersistedTurnPolling()
+  }
+)
 const loginBg = computed(() => {
   return appearanceStore.getLogin
 })
@@ -613,7 +715,9 @@ const computedMessages = computed<Array<ChatMessage>>(() => {
       role: 'assistant',
       create_time: record.create_time,
       record: record,
-      isTyping: i === currentChat.value.records.length - 1 && isTyping.value,
+      isTyping:
+        i === currentChat.value.records.length - 1 &&
+        (isTyping.value || (!!record.id && !record.finish)),
       first_chat: record.first_chat,
       recommended_question: record.recommended_question,
       index: i,
@@ -785,12 +889,16 @@ function onConfigAnswerError(id: number) {
   }
 }
 const getRecommendQuestionsLoading = ref(false)
-async function onPrimaryAnswerFinish(id: number) {
-  getRecommendQuestionsLoading.value = true
+async function onPrimaryAnswerFinish(id: number, status?: string) {
   loading.value = false
   isTyping.value = false
   maybeScrollToBottom()
   getRecordUsage(id)
+  if (status === 'needs_clarification' || status === 'blocked') {
+    getRecommendQuestionsLoading.value = false
+    return
+  }
+  getRecommendQuestionsLoading.value = true
   getRecommendQuestions(id)
 }
 
@@ -824,7 +932,11 @@ const assistantPrepareSend = async () => {
 }
 const sendMessage = async (
   regenerate_record_id: number | undefined = undefined,
-  $event: any = {}
+  $event: any = {},
+  clarification?: {
+    parentRecordId: number
+    answers: ClarificationAnswer[]
+  }
 ) => {
   if ($event?.isComposing) {
     return
@@ -841,6 +953,8 @@ const sendMessage = async (
   currentRecord.chat_id = currentChatId.value
   currentRecord.question = inputMessage.value
   currentRecord.regenerate_record_id = regenerate_record_id
+  currentRecord.clarification_parent_id = clarification?.parentRecordId
+  currentRecord.clarification_answers = clarification?.answers
   currentRecord.sql_answer = ''
   currentRecord.sql = ''
   currentRecord.chart_answer = ''
@@ -880,6 +994,16 @@ const sendMessage = async (
       }
     }
   })
+}
+
+async function submitClarification(payload: {
+  parentRecordId: number
+  answers: ClarificationAnswer[]
+  displayText: string
+}) {
+  if (isTyping.value) return
+  inputMessage.value = payload.displayText
+  await sendMessage(undefined, {}, payload)
 }
 
 const analysisAnswerRef = ref()
@@ -1171,6 +1295,10 @@ onMounted(() => {
   }
   getChatList(jumpCreatChat)
   assistantPrepareInit()
+})
+
+onBeforeUnmount(() => {
+  stopPersistedTurnPolling()
 })
 </script>
 

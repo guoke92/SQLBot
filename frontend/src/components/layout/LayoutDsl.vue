@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { ref, computed, onUnmounted } from 'vue'
+import { ref, computed, onBeforeMount } from 'vue'
 import Menu from './Menu.vue'
 import custom_small from '@/assets/svg/logo-custom_small.svg'
 import Workspace from './Workspace.vue'
@@ -12,28 +12,18 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAppearanceStoreWithOut } from '@/stores/appearance'
 import { useEmitt } from '@/utils/useEmitt'
 import { isMobile } from '@/utils/utils'
-import { onBeforeMount } from 'vue'
 
 const isPhone = computed(() => {
   return isMobile()
 })
 const router = useRouter()
 const collapse = ref(false)
-const collapseCopy = ref(false)
 const appearanceStore = useAppearanceStoreWithOut()
-let time: any
-onUnmounted(() => {
-  clearTimeout(time)
-})
 const loginBg = computed(() => {
   return appearanceStore.getLogin
 })
-const handleCollapseChange = (val: any = true) => {
-  collapseCopy.value = val
-  clearTimeout(time)
-  time = setTimeout(() => {
-    collapse.value = val
-  }, 100)
+const handleCollapseChange = (val: boolean = true) => {
+  collapse.value = val
 }
 useEmitt({
   name: 'collapse-change',
@@ -61,7 +51,6 @@ const showSysmenu = computed(() => {
 onBeforeMount(() => {
   if (isPhone.value) {
     collapse.value = true
-    collapseCopy.value = true
   }
 })
 </script>
@@ -105,7 +94,7 @@ onBeforeMount(() => {
             alt=""
             @click="toChatIndex"
           />
-          <div v-else-if="loginBg && !collapse" class="default-sqlbot">
+          <div v-else-if="loginBg && !collapse" class="default-app">
             <img
               height="30"
               width="30"
@@ -124,7 +113,7 @@ onBeforeMount(() => {
             :class="!collapse && 'collapse-icon'"
           ></custom_small>
 
-          <div v-else class="default-sqlbot">
+          <div v-else class="default-app">
             <custom_small class="collapse-icon"></custom_small>
             <span style="max-width: 150px" :title="appearanceStore.name" class="ellipsis">{{
               appearanceStore.name
@@ -141,7 +130,7 @@ onBeforeMount(() => {
             alt=""
             @click="toChatIndex"
           />
-          <div v-else-if="loginBg && !collapse" class="default-sqlbot">
+          <div v-else-if="loginBg && !collapse" class="default-app">
             <img
               height="30"
               width="30"
@@ -159,7 +148,7 @@ onBeforeMount(() => {
             style="margin: 0 0 6px 5px; cursor: pointer"
             @click="toChatIndex"
           ></custom_small>
-          <div v-else class="default-sqlbot">
+          <div v-else class="default-app">
             <custom_small class="collapse-icon"></custom_small>
             <span style="max-width: 150px" :title="appearanceStore.name" class="ellipsis">{{
               appearanceStore.name
@@ -176,7 +165,7 @@ onBeforeMount(() => {
             alt=""
             @click="toChatIndex"
           />
-          <div v-else-if="loginBg && !collapse" class="default-sqlbot">
+          <div v-else-if="loginBg && !collapse" class="default-app">
             <img
               height="30"
               width="30"
@@ -194,7 +183,7 @@ onBeforeMount(() => {
             style="margin: 0 0 6px 5px; cursor: pointer"
             @click="toChatIndex"
           ></LOGO_fold>
-          <div v-else class="default-sqlbot">
+          <div v-else class="default-app">
             <LOGO_fold class="collapse-icon" @click="toChatIndex"></LOGO_fold>
             <span style="max-width: 150px" :title="appearanceStore.name" class="ellipsis">{{
               appearanceStore.name
@@ -203,7 +192,7 @@ onBeforeMount(() => {
         </template>
       </template>
       <Workspace v-if="!showSysmenu" :collapse="collapse"></Workspace>
-      <Menu :collapse="collapseCopy"></Menu>
+      <Menu :collapse="collapse"></Menu>
       <div class="bottom">
         <div
           v-if="showSysmenu"
@@ -256,7 +245,7 @@ onBeforeMount(() => {
     position: relative;
     min-width: 240px;
 
-    .default-sqlbot {
+    .default-app {
       display: flex;
       align-items: center;
       font-weight: 500;

@@ -4,7 +4,7 @@ import { ElMessage, ElLoading } from 'element-plus-secondary'
 import { useI18n } from 'vue-i18n'
 import type { FormInstance, FormRules } from 'element-plus-secondary'
 import { request } from '@/utils/request'
-import { getSQLBotAddr } from '@/utils/utils'
+import { getAppAddr } from '@/utils/utils'
 const { t } = useI18n()
 const dialogVisible = ref(false)
 const loadingInstance = ref<ReturnType<typeof ElLoading.service> | null>(null)
@@ -29,7 +29,7 @@ const state = reactive({
 })
 
 /* const spMetaDataUrl = ref('')
-spMetaDataUrl.value = getSQLBotAddr() + 'saml/metadata' */
+spMetaDataUrl.value = getAppAddr() + 'saml/metadata' */
 
 const rule = reactive<FormRules>({
   /* idpUri: [
@@ -73,8 +73,8 @@ const submitForm = async (formEl: FormInstance | undefined) => {
   await formEl.validate((valid) => {
     if (valid) {
       const param = { ...state.form } as any
-      param['spEntityId'] = getSQLBotAddr() + 'saml/metadata'
-      param['spAcs'] = getSQLBotAddr() + 'saml/sso'
+      param['spEntityId'] = getAppAddr() + 'saml/metadata'
+      param['spAcs'] = getAppAddr() + 'saml/sso'
       const method = request.post('/setting/authentication/save/saml', param)
       showLoading()
       method
@@ -115,8 +115,8 @@ const closeLoading = () => {
 const validate = () => {
   const url = '/setting/authentication/validate/saml2'
   const data = { ...state.form } as any
-  data['spEntityId'] = getSQLBotAddr() + 'saml/metadata'
-  data['spAcs'] = getSQLBotAddr() + 'saml/sso'
+  data['spEntityId'] = getAppAddr() + 'saml/metadata'
+  data['spAcs'] = getAppAddr() + 'saml/sso'
   showLoading()
   request
     .post(url, data)

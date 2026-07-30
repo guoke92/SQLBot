@@ -23,13 +23,13 @@ const userStore = useUserStore()
 const recommendedProblemConfigRef = ref()
 
 export interface Datasource {
+  id: number
   name: string
   num: string
   type_name: string
   type: string
   img: string
   description: string
-  id?: string
   recommended_config?: string
 }
 
@@ -83,7 +83,7 @@ const handleRecommendation = (res: Datasource) => {
   recommendedProblemConfigRef.value?.init(res)
 }
 
-const handleQuestion = async (id: string) => {
+const handleQuestion = async (id: number) => {
   try {
     await chatApi.checkLLMModel()
   } catch (error: any) {
@@ -127,14 +127,6 @@ const refreshData = () => {
   search()
 }
 
-const panelClick = () => {
-  console.info('panelClick')
-}
-
-const smartClick = () => {
-  console.info('smartClick')
-}
-
 const deleteHandler = (item: any) => {
   ElMessageBox.confirm('', {
     confirmButtonType: 'danger',
@@ -148,10 +140,6 @@ const deleteHandler = (item: any) => {
       DelMessageBox,
       {
         name: item.name,
-        panelNum: 1,
-        smartNum: 4,
-        onPanelClick: panelClick,
-        onSmartClick: smartClick,
         t,
       },
       ''

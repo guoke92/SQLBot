@@ -4,7 +4,7 @@ import { ElMessage, ElLoading } from 'element-plus-secondary'
 import { useI18n } from 'vue-i18n'
 import type { FormInstance, FormRules } from 'element-plus-secondary'
 import { request } from '@/utils/request'
-import { getSQLBotAddr } from '@/utils/utils'
+import { getAppAddr } from '@/utils/utils'
 const { t } = useI18n()
 const dialogVisible = ref(false)
 const loadingInstance = ref<ReturnType<typeof ElLoading.service> | null>(null)
@@ -18,7 +18,7 @@ interface CasForm {
 const state = reactive({
   form: reactive<CasForm>({
     idpUri: '',
-    casCallbackDomain: getSQLBotAddr(),
+    casCallbackDomain: getAppAddr(),
     mapping: '',
   }),
 })
@@ -35,7 +35,7 @@ const validateUrl = (rule, value, callback) => {
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-expect-error
 const validateCbUrl = (rule, value, callback) => {
-  const addr = getSQLBotAddr()
+  const addr = getAppAddr()
   if (value === addr || `${value}/` === addr) {
     callback()
   }

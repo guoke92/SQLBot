@@ -2,6 +2,8 @@ import { defineStore } from 'pinia'
 import { store } from '@/stores/index'
 // import { defaultFont, list } from '@/api/font'
 import { request } from '@/utils/request'
+import { isXpackLicenseValid } from '@/platform/xpack'
+import { APP_NAME } from '@/constants/branding'
 
 import { setTitle, setCurrentColor } from '@/utils/utils'
 
@@ -60,7 +62,7 @@ export const useAppearanceStore = defineStore('appearanceStore', {
       login: '',
       slogan: '',
       web: '',
-      name: 'SQLBot',
+      name: APP_NAME,
       foot: 'false',
       footContent: '',
       loaded: false,
@@ -253,11 +255,11 @@ export const useAppearanceStore = defineStore('appearanceStore', {
       // if (!isDataEaseBi) {
       //   document.title = ''
       // }
-      const obj = typeof LicenseGenerator !== 'undefined' ? LicenseGenerator.getLicense() : null
-      if (obj?.status !== 'valid') {
+      if (!isXpackLicenseValid()) {
         setCurrentColor('#1CBA90')
-        document.title = 'SQLBot'
+        document.title = APP_NAME
         setLinkIcon()
+        this.loaded = true
         return
       }
       const resData = await request.get('/system/appearance/ui')
@@ -301,8 +303,8 @@ export const useAppearanceStore = defineStore('appearanceStore', {
         document.title = this.name
         setTitle(this.name)
       } else {
-        document.title = 'SQLBot'
-        setTitle('SQLBot')
+        document.title = APP_NAME
+        setTitle(APP_NAME)
       }
       setLinkIcon(this.web)
     },

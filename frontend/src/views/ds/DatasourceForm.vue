@@ -287,10 +287,8 @@ const endpointIndeterminate = computed(() => {
   return n > 0 && n < visible.length
 })
 
-const resetEndpointFilters = () => {
-  swaggerFilterKeyword.value = ''
-  swaggerFilterMethods.value = []
-}
+const endpointRowClassName = ({ row }: { row: { enabled?: boolean } }) =>
+  row.enabled === false ? 'is-disabled-row' : ''
 
 const applySwaggerMetaHints = (payload: any) => {
   const baseUrl = String(payload?.base_url || payload?.baseUrl || '').trim()
@@ -316,7 +314,8 @@ const doParseSwagger = async () => {
   swaggerParsing.value = true
   try {
     const res: any = await datasourceApi.parseOpenapi(payload)
-    const data = res?.data && (res.data.endpoints || res.data.base_url !== undefined) ? res.data : res
+    const data =
+      res?.data && (res.data.endpoints || res.data.base_url !== undefined) ? res.data : res
     const endpoints = data?.endpoints || []
     if (!endpoints.length) {
       ElMessage.warning(t('ds.form.swagger_no_endpoints'))
@@ -343,7 +342,9 @@ const doParseSwagger = async () => {
         code_path: ep.code_path || '',
         code_success_value: ep.code_success_value ?? null,
         total_path: ep.total_path || '',
-        params: Array.isArray(ep.params) ? ep.params.map((p: any) => ({ ...createEmptyParam(), ...p })) : [],
+        params: Array.isArray(ep.params)
+          ? ep.params.map((p: any) => ({ ...createEmptyParam(), ...p }))
+          : [],
         response_fields: Array.isArray(ep.response_fields)
           ? ep.response_fields.map((f: any) => ({ ...createEmptyResponseField(), ...f }))
           : [],
@@ -1170,17 +1171,15 @@ defineExpose({
             <el-input
               v-model="form.filename"
               clearable
-              :placeholder="$t('datasource.please_enter') + $t('common.empty') + t('ds.form.file_path')"
+              :placeholder="
+                $t('datasource.please_enter') + $t('common.empty') + t('ds.form.file_path')
+              "
             />
           </el-form-item>
         </div>
         <div v-if="form.type === 'api'" style="margin-top: 16px">
           <el-form-item label="Base URL" prop="baseUrl">
-            <el-input
-              v-model="form.baseUrl"
-              clearable
-              placeholder="https://api.example.com"
-            />
+            <el-input v-model="form.baseUrl" clearable placeholder="https://api.example.com" />
           </el-form-item>
           <el-form-item :label="t('ds.form.auth_type')">
             <el-select v-model="form.authType" style="width: 100%">
@@ -1198,22 +1197,28 @@ defineExpose({
             <el-input v-model="form.apiKeyHeader" clearable placeholder="X-API-Key" />
           </el-form-item>
           <el-form-item v-if="form.authType === 'bearer'" label="Bearer Token">
-            <el-input v-model="form.bearerToken" clearable show-password placeholder="Bearer Token" />
+            <el-input
+              v-model="form.bearerToken"
+              clearable
+              show-password
+              placeholder="Bearer Token"
+            />
           </el-form-item>
           <el-form-item v-if="form.authType === 'basic'" :label="t('ds.form.username')">
             <el-input v-model="form.basicUsername" clearable :placeholder="t('ds.form.username')" />
           </el-form-item>
           <el-form-item v-if="form.authType === 'basic'" :label="t('ds.form.password')">
-            <el-input v-model="form.basicPassword" clearable show-password :placeholder="t('ds.form.password')" />
+            <el-input
+              v-model="form.basicPassword"
+              clearable
+              show-password
+              :placeholder="t('ds.form.password')"
+            />
           </el-form-item>
           <el-form-item v-if="form.authType === 'cookie'" :label="t('ds.form.auth_cookie')">
             <div class="cookie-auth">
               <p class="cookie-auth__hint">{{ t('ds.form.auth_cookie_hint') }}</p>
-              <div
-                v-for="(pair, idx) in form.cookiePairs"
-                :key="idx"
-                class="cookie-auth__row"
-              >
+              <div v-for="(pair, idx) in form.cookiePairs" :key="idx" class="cookie-auth__row">
                 <el-input
                   v-model="pair.name"
                   clearable
@@ -1370,10 +1375,7 @@ defineExpose({
                 class="endpoint-item"
                 :class="{ 'is-expanded': isEndpointExpanded(ep.name) }"
               >
-                <div
-                  class="endpoint-item__row"
-                  @click="toggleEndpointExpand(ep.name)"
-                >
+                <div class="endpoint-item__row" @click="toggleEndpointExpand(ep.name)">
                   <el-checkbox v-model="ep._checked" class="endpoint-item__checkbox" @click.stop />
                   <el-tag
                     size="small"
@@ -1384,7 +1386,9 @@ defineExpose({
                   </el-tag>
                   <span class="endpoint-item__name">{{ ep.name || '(unnamed)' }}</span>
                   <span class="endpoint-item__path">{{ ep.path }}</span>
-                  <span v-if="ep.description" class="endpoint-item__desc">{{ ep.description }}</span>
+                  <span v-if="ep.description" class="endpoint-item__desc">{{
+                    ep.description
+                  }}</span>
                   <el-tag
                     v-if="ep._state === 'saved'"
                     size="small"
@@ -1393,12 +1397,7 @@ defineExpose({
                   >
                     {{ t('ds.form.endpoint_saved') }}
                   </el-tag>
-                  <el-tag
-                    v-else
-                    size="small"
-                    type="warning"
-                    class="endpoint-item__state"
-                  >
+                  <el-tag v-else size="small" type="warning" class="endpoint-item__state">
                     {{ t('ds.form.endpoint_new') }}
                   </el-tag>
                   <el-button
@@ -1430,7 +1429,10 @@ defineExpose({
                     <el-input v-model="ep.name" clearable placeholder="list_users" />
                   </el-form-item>
                   <div class="endpoint-detail__row">
-                    <el-form-item :label="t('ds.form.endpoint_method')" class="endpoint-detail__field">
+                    <el-form-item
+                      :label="t('ds.form.endpoint_method')"
+                      class="endpoint-detail__field"
+                    >
                       <el-select v-model="ep.method" style="width: 120px">
                         <el-option label="GET" value="GET" />
                         <el-option label="POST" value="POST" />
@@ -1439,12 +1441,19 @@ defineExpose({
                         <el-option label="DELETE" value="DELETE" />
                       </el-select>
                     </el-form-item>
-                    <el-form-item :label="t('ds.form.endpoint_path')" class="endpoint-detail__field endpoint-detail__field--wide">
+                    <el-form-item
+                      :label="t('ds.form.endpoint_path')"
+                      class="endpoint-detail__field endpoint-detail__field--wide"
+                    >
                       <el-input v-model="ep.path" clearable placeholder="/v1/users/{id}" />
                     </el-form-item>
                   </div>
                   <el-form-item :label="t('ds.form.endpoint_desc')" class="endpoint-detail__field">
-                    <el-input v-model="ep.description" clearable :placeholder="t('ds.form.endpoint_desc')" />
+                    <el-input
+                      v-model="ep.description"
+                      clearable
+                      :placeholder="t('ds.form.endpoint_desc')"
+                    />
                   </el-form-item>
                   <el-form-item :label="t('ds.form.data_path')" class="endpoint-detail__field">
                     <el-input v-model="ep.data_path" clearable placeholder="data.items" />
@@ -1464,7 +1473,7 @@ defineExpose({
                       size="small"
                       border
                       class="api-field-table"
-                      :row-class-name="({ row }) => row.enabled === false ? 'is-disabled-row' : ''"
+                      :row-class-name="endpointRowClassName"
                     >
                       <el-table-column width="40" align="center">
                         <template #default="{ row }">
@@ -1473,7 +1482,12 @@ defineExpose({
                       </el-table-column>
                       <el-table-column :label="t('ds.form.param_name')" min-width="120">
                         <template #default="{ row }">
-                          <el-input v-model="row.name" size="small" :placeholder="t('ds.form.param_name')" :disabled="!row.enabled" />
+                          <el-input
+                            v-model="row.name"
+                            size="small"
+                            :placeholder="t('ds.form.param_name')"
+                            :disabled="!row.enabled"
+                          />
                         </template>
                       </el-table-column>
                       <el-table-column label="Location" width="100">
@@ -1503,17 +1517,32 @@ defineExpose({
                       </el-table-column>
                       <el-table-column :label="t('ds.form.param_default')" min-width="100">
                         <template #default="{ row }">
-                          <el-input v-model="row.default" size="small" :placeholder="t('ds.form.param_default')" :disabled="!row.enabled" />
+                          <el-input
+                            v-model="row.default"
+                            size="small"
+                            :placeholder="t('ds.form.param_default')"
+                            :disabled="!row.enabled"
+                          />
                         </template>
                       </el-table-column>
                       <el-table-column :label="t('ds.form.field_desc')" min-width="120">
                         <template #default="{ row }">
-                          <el-input v-model="row.description" size="small" :placeholder="t('ds.form.field_desc')" :disabled="!row.enabled" />
+                          <el-input
+                            v-model="row.description"
+                            size="small"
+                            :placeholder="t('ds.form.field_desc')"
+                            :disabled="!row.enabled"
+                          />
                         </template>
                       </el-table-column>
                       <el-table-column width="50" align="center">
                         <template #default="{ $index }">
-                          <el-button text type="danger" size="small" @click="removeEndpointParam(ep, $index)">
+                          <el-button
+                            text
+                            type="danger"
+                            size="small"
+                            @click="removeEndpointParam(ep, $index)"
+                          >
                             <el-icon size="14"><IconOpeDelete /></el-icon>
                           </el-button>
                         </template>
@@ -1527,7 +1556,11 @@ defineExpose({
                   <!-- Response fields sub-table -->
                   <div class="api-subblock">
                     <div class="api-subblock__header">
-                      <span>{{ t('ds.form.response_fields') }} ({{ (ep.response_fields || []).length }})</span>
+                      <span
+                        >{{ t('ds.form.response_fields') }} ({{
+                          (ep.response_fields || []).length
+                        }})</span
+                      >
                       <el-button text type="primary" @click="addResponseField(ep)">
                         {{ t('ds.form.add_field') }}
                       </el-button>
@@ -1538,7 +1571,7 @@ defineExpose({
                       size="small"
                       border
                       class="api-field-table"
-                      :row-class-name="({ row }) => row.enabled === false ? 'is-disabled-row' : ''"
+                      :row-class-name="endpointRowClassName"
                     >
                       <el-table-column width="40" align="center">
                         <template #default="{ row }">
@@ -1547,7 +1580,12 @@ defineExpose({
                       </el-table-column>
                       <el-table-column :label="t('ds.form.field_name')" min-width="120">
                         <template #default="{ row }">
-                          <el-input v-model="row.name" size="small" :placeholder="t('ds.form.field_name')" :disabled="!row.enabled" />
+                          <el-input
+                            v-model="row.name"
+                            size="small"
+                            :placeholder="t('ds.form.field_name')"
+                            :disabled="!row.enabled"
+                          />
                         </template>
                       </el-table-column>
                       <el-table-column label="Type" width="100">
@@ -1562,17 +1600,32 @@ defineExpose({
                       </el-table-column>
                       <el-table-column label="Path" min-width="120">
                         <template #default="{ row }">
-                          <el-input v-model="row.path" size="small" :placeholder="t('ds.form.field_path')" :disabled="!row.enabled" />
+                          <el-input
+                            v-model="row.path"
+                            size="small"
+                            :placeholder="t('ds.form.field_path')"
+                            :disabled="!row.enabled"
+                          />
                         </template>
                       </el-table-column>
                       <el-table-column :label="t('ds.form.field_desc')" min-width="140">
                         <template #default="{ row }">
-                          <el-input v-model="row.description" size="small" :placeholder="t('ds.form.field_desc')" :disabled="!row.enabled" />
+                          <el-input
+                            v-model="row.description"
+                            size="small"
+                            :placeholder="t('ds.form.field_desc')"
+                            :disabled="!row.enabled"
+                          />
                         </template>
                       </el-table-column>
                       <el-table-column width="50" align="center">
                         <template #default="{ $index }">
-                          <el-button text type="danger" size="small" @click="removeResponseField(ep, $index)">
+                          <el-button
+                            text
+                            type="danger"
+                            size="small"
+                            @click="removeResponseField(ep, $index)"
+                          >
                             <el-icon size="14"><IconOpeDelete /></el-icon>
                           </el-button>
                         </template>
@@ -1587,7 +1640,10 @@ defineExpose({
             </div>
           </div>
         </div>
-        <div v-if="form.type !== 'excel' && form.type !== 'sqlite' && form.type !== 'api'" style="margin-top: 16px">
+        <div
+          v-if="form.type !== 'excel' && form.type !== 'sqlite' && form.type !== 'api'"
+          style="margin-top: 16px"
+        >
           <el-form-item
             :label="form.type !== 'es' ? t('ds.form.host') : t('ds.form.address')"
             prop="host"
@@ -1659,7 +1715,11 @@ defineExpose({
           >
             <el-checkbox v-model="form.lowVersion" :label="t('ds.form.low_version')" />
           </el-form-item>
-          <el-form-item v-if="form.type === 'mysql' || form.type === 'doris'" :label="t('ds.form.ssl')" prop="ssl">
+          <el-form-item
+            v-if="form.type === 'mysql' || form.type === 'doris'"
+            :label="t('ds.form.ssl')"
+            prop="ssl"
+          >
             <el-switch v-model="form.ssl" />
           </el-form-item>
           <el-form-item v-if="form.type !== 'es'" :label="t('ds.form.extra_jdbc')">
@@ -1745,7 +1805,11 @@ defineExpose({
               style="width: 100%"
             />
             <div v-else class="api-endpoint-confirm-list">
-              <div v-for="item in tableList" :key="item.tableName" class="list-item_primary api-endpoint-confirm-item">
+              <div
+                v-for="item in tableList"
+                :key="item.tableName"
+                class="list-item_primary api-endpoint-confirm-item"
+              >
                 <el-icon size="16" style="margin-right: 8px">
                   <icon_form_outlined></icon_form_outlined>
                 </el-icon>

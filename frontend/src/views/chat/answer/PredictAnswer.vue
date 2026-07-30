@@ -231,7 +231,7 @@ defineExpose({ sendMessage, index: () => index.value, chatList: () => _chatList,
 </script>
 
 <template>
-  <BaseAnswer v-if="message" :message="message" :reasoning-name="['predict']" :loading="_loading">
+  <BaseAnswer v-if="message" :message="message" :reasoning-items="[message.record?.predict || '']">
     <MdComponent :message="message.record?.predict_content" style="margin-top: 12px" />
     <ChartBlock
       v-if="message.record?.predict_data?.length > 0 && message.record?.data"

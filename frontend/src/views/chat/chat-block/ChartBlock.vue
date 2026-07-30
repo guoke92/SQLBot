@@ -82,6 +82,8 @@ const dataObject = computed<{
   data: Array<{ [key: string]: any }>
   limit: number | undefined
   row_count: number | undefined
+  truncated: boolean | undefined
+  truncation_reason: string | undefined
   datasource: number | undefined
   sql: string | undefined
 }>(() => {
@@ -465,14 +467,15 @@ const showSeriesFilter = computed(() => allSeriesValues.value.length > 3)
 const selectedSeries = ref<string[]>([])
 const seriesFilterActive = computed(() => {
   return (
-    selectedSeries.value.length > 0 &&
-    selectedSeries.value.length < allSeriesValues.value.length
+    selectedSeries.value.length > 0 && selectedSeries.value.length < allSeriesValues.value.length
   )
 })
 const filteredData = computed(() => {
   if (!seriesFilterActive.value || !seriesColumn.value) return data.value
   const set = new Set(selectedSeries.value)
-  return data.value.filter((row) => set.has(String(row[seriesColumn.value])))
+  return data.value.filter((row: Record<string, unknown>) =>
+    set.has(String(row[seriesColumn.value]))
+  )
 })
 function toggleSeries(val: string) {
   const idx = selectedSeries.value.indexOf(val)
@@ -489,11 +492,15 @@ function isolateSeries(val: string) {
   selectedSeries.value = [val]
 }
 // Initialize selection when series values change
-watch(allSeriesValues, (vals) => {
-  if (vals.length > 0 && selectedSeries.value.length === 0) {
-    selectedSeries.value = [...vals]
-  }
-}, { immediate: true })
+watch(
+  allSeriesValues,
+  (vals) => {
+    if (vals.length > 0 && selectedSeries.value.length === 0) {
+      selectedSeries.value = [...vals]
+    }
+  },
+  { immediate: true }
+)
 </script>
 
 <template>
@@ -615,7 +622,11 @@ watch(allSeriesValues, (vals) => {
           <el-tooltip
             effect="dark"
             :offset="8"
-            :content="seriesFilterActive ? t('chat.series_filter_active', [selectedSeries.length, allSeriesValues.length]) : t('chat.series_filter')"
+            :content="
+              seriesFilterActive
+                ? t('chat.series_filter_active', [selectedSeries.length, allSeriesValues.length])
+                : t('chat.series_filter')
+            "
             placement="top"
           >
             <div>
@@ -640,8 +651,12 @@ watch(allSeriesValues, (vals) => {
                   </span>
                 </div>
                 <div style="display: flex; gap: 8px; margin-bottom: 8px">
-                  <el-button size="small" text @click="selectAllSeries">{{ t('chat.series_select_all') }}</el-button>
-                  <el-button size="small" text @click="deselectAllSeries">{{ t('chat.series_deselect_all') }}</el-button>
+                  <el-button size="small" text @click="selectAllSeries">{{
+                    t('chat.series_select_all')
+                  }}</el-button>
+                  <el-button size="small" text @click="deselectAllSeries">{{
+                    t('chat.series_deselect_all')
+                  }}</el-button>
                 </div>
                 <el-scrollbar max-height="260px">
                   <div style="display: flex; flex-direction: column">
@@ -777,10 +792,10 @@ watch(allSeriesValues, (vals) => {
         />
       </div>
       <div v-if="showChartFooter" class="chart-footer">
-        <span v-if="isTable" class="result-count">
+        <span v-if="isTable && !dataObject.truncated" class="result-count">
           {{ t('chat.result_count', { count: resultCount }) }}
         </span>
-        <span v-if="dataObject.limit" class="over-limit-hint">
+        <span v-if="dataObject.truncated && dataObject.limit" class="over-limit-hint">
           {{ t('chat.data_over_limit', [dataObject.limit]) }}
         </span>
       </div>

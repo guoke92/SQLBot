@@ -3,23 +3,19 @@ import hashlib
 import inspect
 import json
 import logging
+import re
 from datetime import datetime, timedelta, timezone
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
-import re
+from typing import Optional
 from urllib.parse import urlparse
 
-from fastapi import Request
-from common.core.config import settings
-from typing import Optional
-
 import jwt
-import orjson
+from fastapi import Request
 from jwt.exceptions import InvalidTokenError
 
 from common.core import security
-
-
+from common.core.config import settings
 def generate_password_reset_token(email: str) -> str:
     delta = timedelta(hours=settings.EMAIL_RESET_TOKEN_EXPIRE_HOURS)
     now = datetime.now(timezone.utc)
@@ -53,32 +49,6 @@ def deepcopy_ignore_extra(src, dest):
     return dest
 
 
-def extract_nested_json(text):
-    stack = []
-    start_index = -1
-    results = []
-
-    for i, char in enumerate(text):
-        if char in '{[':
-            if not stack:  # 记录起始位置
-                start_index = i
-            stack.append(char)
-        elif char in '}]':
-            if stack and ((char == '}' and stack[-1] == '{') or (char == ']' and stack[-1] == '[')):
-                stack.pop()
-                if not stack:  # 栈空时截取完整JSON
-                    json_str = text[start_index:i + 1]
-                    try:
-                        orjson.loads(json_str)  # 验证有效性
-                        results.append(json_str)
-                    except:
-                        pass
-            else:
-                stack = []  # 括号不匹配则重置
-    if len(results) > 0 and results[0]:
-        return results[0]
-    return None
-
 def string_to_numeric_hash(text: str, bits: Optional[int] = 64) -> int:
     hash_bytes = hashlib.sha256(text.encode()).digest()
     hash_num = int.from_bytes(hash_bytes, byteorder='big')
@@ -92,9 +62,7 @@ def setup_logging():
     log_dir.mkdir(parents=True, exist_ok=True)
     
     # 日志格式
-    formatter = logging.Formatter(
-        f'{settings.LOG_FORMAT}'
-    )
+    formatter = logging.Formatter(settings.LOG_PATTERN)
     
     # 控制台日志
     console_handler = logging.StreamHandler()

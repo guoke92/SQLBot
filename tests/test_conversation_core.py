@@ -9,6 +9,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import sys
+import threading
 import types
 from pathlib import Path
 from typing import Any
@@ -16,6 +17,7 @@ from typing import Any
 try:
     import pytest
 except ModuleNotFoundError:  # minimal local run without pytest installed
+
     class _Raises:
         def __init__(self, exc_type):
             self.exc_type = exc_type
@@ -39,10 +41,12 @@ if str(_BACKEND) not in sys.path:
     sys.path.insert(0, str(_BACKEND))
 
 
-def _ensure_pkg(name: str) -> None:
+def _ensure_pkg(name: str, path: Path) -> None:
     if name not in sys.modules:
         m = types.ModuleType(name)
-        m.__path__ = []  # type: ignore[attr-defined]
+        # Preserve normal submodule discovery while bypassing package
+        # __init__ side effects that require the deployment filesystem.
+        m.__path__ = [str(path)]  # type: ignore[attr-defined]
         sys.modules[name] = m
 
 
@@ -56,8 +60,8 @@ def _load(name: str, rel: str) -> Any:
     return mod
 
 
-_ensure_pkg("apps")
-_ensure_pkg("apps.conversation")
+_ensure_pkg("apps", _BACKEND / "apps")
+_ensure_pkg("apps.conversation", _BACKEND / "apps" / "conversation")
 
 events = _load("apps.conversation.events", "apps/conversation/events.py")
 registry = _load("apps.conversation.registry", "apps/conversation/registry.py")
@@ -135,6 +139,29 @@ class TestStreamRunner:
         chunks = list(runner.await_result())
         assert len(chunks) == 2
         assert "id" in chunks[0]
+
+    def test_detach_does_not_cancel_graph_execution(self) -> None:
+        started = threading.Event()
+        release = threading.Event()
+        completed = threading.Event()
+        runner = StreamRunner()
+
+        def gen():
+            started.set()
+            yield emit({"type": "message", "content": "started"})
+            release.wait(timeout=1)
+            completed.set()
+            yield emit({"type": "finish"})
+
+        runner.submit(gen)
+        assert started.wait(timeout=1)
+        consumer = runner.await_result()
+        assert "started" in next(consumer)
+        consumer.close()
+        release.set()
+        assert runner.future is not None
+        runner.future.result(timeout=1)
+        assert completed.is_set()
 
 
 class TestSink:
@@ -260,49 +287,36 @@ class TestProductionGraphSurface:
             text = path.read_text(encoding="utf-8")
             assert f"graph_key: {key}" in text, f"{rel} must declare graph_key: {key}"
 
-    def test_no_register_graph_in_graph_modules(self) -> None:
-        """Graph modules are thin re-exports; register_graph lives only in loader."""
+    def test_legacy_graph_modules_are_removed(self) -> None:
+        """Only YAML specs and canonical node modules define scenario graphs."""
         stale_files = [
-            "apps/chat/graphs/nlq.py",
             "apps/chat/graphs/analysis.py",
             "apps/chat/graphs/predict.py",
             "apps/chat/graphs/recommend.py",
-            "apps/config_assistant/graph.py",
         ]
         for rel in stale_files:
-            text = (_BACKEND / rel).read_text(encoding="utf-8")
-            assert "register_graph(" not in text, (
-                f"{rel} must not contain register_graph() — registration is YAML-driven"
-            )
+            assert not (_BACKEND / rel).exists()
 
 
 class TestConfigAssistantSurface:
-    """Static guards for the config primary graph (no DB / no xpack)."""
+    """Behavioral guards for the config tool-agent surface."""
 
-    def test_config_state_uses_bound_tools_not_tools_channel(self) -> None:
-        text = (_BACKEND / "apps/config_assistant/nodes.py").read_text(encoding="utf-8")
-        assert "bound_tools: List" in text
-        assert "def run_tools_node" in text
-
-    def test_config_process_uses_chatlog_not_tool_trace(self) -> None:
-        """Process channel is ChatLog (TOOL_CALL/CONFIG_AGENT); no tool_trace dual path."""
-        text = (_BACKEND / "apps/config_assistant/nodes.py").read_text(encoding="utf-8")
-        assert "tool_trace" not in text
-        assert "OperationEnum.TOOL_CALL" in text
-        assert "OperationEnum.CONFIG_AGENT" in text
-        assert "start_log" in text and "end_log" in text
-        # Final answer is plain text only.
-        assert "final_text or tool_trace" not in text
-        assert 'answer = final_text' in text or "answer = final_text" in text
+    def test_config_graph_uses_shared_agent_and_tool_nodes(self) -> None:
+        spec = (_BACKEND / "graphs/current/config.yaml").read_text(encoding="utf-8")
+        assert "apps.conversation.agent.agent_node" in spec
+        assert "apps.conversation.tooling.execute_tools_node" in spec
+        assert "apps.conversation.turn.finish_text_node" in spec
 
     def test_operation_enum_has_config_ops(self) -> None:
         text = (_BACKEND / "apps/chat/models/chat_model.py").read_text(encoding="utf-8")
         assert "TOOL_CALL = '14'" in text
-        assert "CONFIG_AGENT = '15'" in text
+        assert "AGENT_STEP = '15'" in text
 
-    def test_config_tools_have_no_execsql(self) -> None:
-        text = (_BACKEND / "apps/config_assistant/tools.py").read_text(encoding="utf-8")
-        names = [
+    def test_config_tool_catalog_is_explicit_and_has_no_sql_executor(self) -> None:
+        from apps.config_assistant.tools import CONFIG_TOOL_NAMES
+
+        names = CONFIG_TOOL_NAMES
+        expected = {
             "list_datasources",
             "get_datasource",
             "create_datasource",
@@ -316,40 +330,27 @@ class TestConfigAssistantSurface:
             "update_table_meta",
             "update_field_meta",
             "get_sample_data",
-        ]
-        for n in names:
-            assert f'name="{n}"' in text, f"missing tool registration {n}"
-        # No business SQL execution tool registration (mentions in docs are fine).
-        assert "name=\"execSql\"" not in text
-        assert "name=\"runSql\"" not in text
-        assert "name=\"execute_sql\"" not in text
-        assert "def exec" not in text
-        assert "_assert_ds_in_workspace" in text
-        assert "_assert_ds_writable" in text
-        assert "aes_encrypt" in text
-        assert "run_coro_sync" in text
-        # choose_tables supports mode=add|remove|set (single write path via chooseTables).
-        assert 'mode: str = Field' in text or 'mode: str =' in text
-        assert 'normalized == "add"' in text or 'mode="add"' in text
-        assert 'normalized == "set"' in text
-        assert '{"add", "remove", "set"}' in text or '"remove"' in text
-        # Sample preview reuses protocol sample path — not a free SQL / chart pipeline.
-        assert "get_table_sample_data" in text
-        assert "CAP_SAMPLE_DATA" in text
-        assert "generate_chart" not in text
-        assert "save_chart" not in text
+            "list_table_relations",
+            "replace_table_relations",
+            "list_terminologies",
+            "save_terminology",
+            "delete_terminologies",
+            "set_terminology_enabled",
+            "list_dictionary_fields",
+            "configure_dictionary_field",
+            "update_dictionary_config",
+            "refresh_dictionary_values",
+        }
+        assert expected <= names
+        assert not names & {"execSql", "runSql", "execute_sql"}
 
-    def test_config_prompt_forbids_execsql(self) -> None:
-        text = (_BACKEND / "apps/config_assistant/prompt.py").read_text(encoding="utf-8")
-        assert "execSql" in text
+    def test_config_prompt_keeps_policy_not_tool_cookbooks(self) -> None:
+        text = (_BACKEND / "apps/config_assistant/prompt.py").read_text(
+            encoding="utf-8"
+        )
         assert "SYSTEM_PROMPT" in text
-        # Add-table cookbook: default mode=add, never set with only new names.
-        assert 'mode="add"' in text
-        assert "choose_tables" in text
-        # Sample preview cookbook; chart analysis routed to NLQ.
-        assert "get_sample_data" in text
-        assert "CAP_SAMPLE_DATA" in text
-        assert "NLQ" in text
+        assert "free-form SQL" in text
+        assert "Cookbook" not in text
 
     def test_node_name_channel_collision_rule(self) -> None:
         """LangGraph forbids node ids that equal state channel keys — prove rename works."""
@@ -374,19 +375,22 @@ class TestConfigAssistantSurface:
             bad.compile()
         except Exception:
             raised = True
-        assert raised, "LangGraph should reject node id that collides with state channel"
+        assert raised, (
+            "LangGraph should reject node id that collides with state channel"
+        )
 
-        # Good: run_tools style name works.
+        # Good: a node name distinct from state channels works.
         good = StateGraph(S)
-        good.add_node("run_tools", _n)
-        good.add_edge(START, "run_tools")
-        good.add_edge("run_tools", END)
+        good.add_node("execute_tools", _n)
+        good.add_edge(START, "execute_tools")
+        good.add_edge("execute_tools", END)
         compiled = good.compile()
         assert compiled is not None
 
-
     def test_async_util_exported_helper(self) -> None:
-        async_util = _load("apps.conversation.async_util", "apps/conversation/async_util.py")
+        async_util = _load(
+            "apps.conversation.async_util", "apps/conversation/async_util.py"
+        )
 
         async def _one() -> int:
             return 1
@@ -419,13 +423,19 @@ class TestEmbeddingRecallContract:
             if not root.exists():
                 continue
             for path in root.rglob("*.py"):
-                for i, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+                for i, line in enumerate(
+                    path.read_text(encoding="utf-8").splitlines(), 1
+                ):
                     stripped = line.lstrip()
                     if stripped.startswith("#"):
                         continue
                     if code_kw.search(line):
-                        offenders.append(f"{path.relative_to(_BACKEND)}:{i}:{line.strip()}")
-        assert not offenders, "chat layer must not pass embedding=; offenders:\n" + "\n".join(offenders)
+                        offenders.append(
+                            f"{path.relative_to(_BACKEND)}:{i}:{line.strip()}"
+                        )
+        assert not offenders, (
+            "chat layer must not pass embedding=; offenders:\n" + "\n".join(offenders)
+        )
 
     def test_nlq_chart_uses_resource_filter_not_embedding_override(self) -> None:
         text = (_BACKEND / "apps/chat/graphs/nodes/nlq.py").read_text(encoding="utf-8")
@@ -481,7 +491,9 @@ class TestGraphLoader:
         return _load("apps.conversation.graph_spec", "apps/conversation/graph_spec.py")
 
     def _load_routers_builtin(self):
-        return _load("apps.conversation.routers_builtin", "apps/conversation/routers_builtin.py")
+        return _load(
+            "apps.conversation.routers_builtin", "apps/conversation/routers_builtin.py"
+        )
 
     def _parse_current_yaml(self, filename: str):
         import yaml as _yaml
@@ -498,9 +510,7 @@ class TestGraphLoader:
         assert "prepare_record" in spec.nodes
         assert "fail" in spec.nodes
         # At least one edge from START
-        assert any(
-            (hasattr(e, "source") and e.source == "START") for e in spec.edges
-        )
+        assert any((hasattr(e, "source") and e.source == "START") for e in spec.edges)
 
     def test_parse_analysis_yaml(self) -> None:
         spec = self._parse_current_yaml("analysis.yaml")
@@ -532,7 +542,9 @@ class TestGraphLoader:
     def test_parse_bad_yaml_missing_graph_key(self) -> None:
         spec_mod = self._load_spec_module()
         with pytest.raises(Exception):
-            spec_mod.parse_graph_spec({"version": 1, "state": "x.y", "nodes": {"a": "b"}, "edges": []})
+            spec_mod.parse_graph_spec(
+                {"version": 1, "state": "x.y", "nodes": {"a": "b"}, "edges": []}
+            )
 
     def test_parse_bad_yaml_unknown_router_type(self) -> None:
         spec_mod = self._load_spec_module()
@@ -549,17 +561,37 @@ class TestGraphLoader:
         with pytest.raises(Exception):
             spec_mod.parse_graph_spec(raw, source_path="test")
 
-    def test_target_chat_yaml_parses(self) -> None:
-        """Target chat.yaml must parse even though it's not default-loaded."""
-        import yaml as _yaml
-
+    def test_parse_rejects_unreachable_node(self) -> None:
         spec_mod = self._load_spec_module()
-        path = _BACKEND / "graphs" / "target" / "chat.yaml"
-        raw = _yaml.safe_load(path.read_text(encoding="utf-8"))
-        spec = spec_mod.parse_graph_spec(raw, source_path=str(path))
-        assert spec.graph_key == "chat"
-        assert "dlg_resolve_anchor" in spec.nodes
-        assert "route_turn" in spec.nodes
+        raw = {
+            "version": 1,
+            "graph_key": "x",
+            "state": "x.y",
+            "nodes": {"a": "x.a", "orphan": "x.orphan"},
+            "edges": [
+                {"from": "START", "to": "a"},
+                {"from": "a", "to": "END"},
+                {"from": "orphan", "to": "END"},
+            ],
+        }
+        with pytest.raises(Exception):
+            spec_mod.parse_graph_spec(raw, source_path="test")
+
+    def test_parse_rejects_node_without_terminal_path(self) -> None:
+        spec_mod = self._load_spec_module()
+        raw = {
+            "version": 1,
+            "graph_key": "x",
+            "state": "x.y",
+            "nodes": {"a": "x.a", "loop": "x.loop"},
+            "edges": [
+                {"from": "START", "to": "a"},
+                {"from": "a", "to": "loop"},
+                {"from": "loop", "to": "loop"},
+            ],
+        }
+        with pytest.raises(Exception):
+            spec_mod.parse_graph_spec(raw, source_path="test")
 
 
 if __name__ == "__main__":

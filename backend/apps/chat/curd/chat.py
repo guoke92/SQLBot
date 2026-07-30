@@ -1,6 +1,6 @@
 import datetime
 from decimal import Decimal
-from typing import List, Optional, Union, Dict, Any
+from typing import List, Optional, Dict, Any
 
 import orjson
 from sqlalchemy import and_, select, update
@@ -9,6 +9,14 @@ from sqlalchemy import desc, func
 from apps.chat.constants import DYNAMIC_DS_TYPES
 from apps.chat.models.chat_model import Chat, ChatRecord, CreateChat, ChatInfo, RenameChat, ChatQuestion, ChatLog, \
     TypeEnum, OperationEnum, ChatRecordResult, ChatLogHistory, ChatLogHistoryItem
+from apps.chat.semantic_intent import (
+    ClarificationAnswer,
+    intent_context_from_payload,
+    merge_clarification_answers,
+    new_intent_context,
+    public_intent_payload,
+    render_planning_question,
+)
 from apps.datasource.crud.datasource import get_ds
 from apps.datasource.crud.recommended_problem import get_datasource_recommended_chart
 from apps.datasource.models.datasource import CoreDatasource
@@ -19,7 +27,8 @@ from apps.system.crud.assistant import AssistantOutDs, AssistantOutDsFactory
 from apps.system.schemas.system_schema import AssistantOutDsSchema
 from common.core.deps import CurrentAssistant, SessionDep, CurrentUser, Trans
 from common.utils.data_format import DataFormat
-from common.utils.utils import extract_nested_json, SQLBotLogUtil
+from common.utils.json_utils import extract_nested_json
+from common.utils.utils import SQLBotLogUtil
 
 
 def get_chat_record_by_id(session: SessionDep, record_id: int):
@@ -223,6 +232,9 @@ def format_json_data(origin_data: dict):
         if origin_data.get('row_count') is not None
         else len(data)
     )
+    result['truncated'] = bool(origin_data.get('truncated'))
+    if origin_data.get('truncation_reason') is not None:
+        result['truncation_reason'] = origin_data.get('truncation_reason')
     if origin_data.get('limit') is not None:
         result['limit'] = origin_data.get('limit')
 
@@ -379,6 +391,7 @@ def get_chat_with_records_with_data(session: SessionDep, chart_id: int, current_
 # Chat-list may attach at most one reasoning blob per (record, operate).
 # Multi generate_query / chart logs (agentic regen) must not multiply ChatRecord rows.
 _REASONING_OPERATES: tuple[OperationEnum, ...] = (
+    OperationEnum.CLARIFY_INTENT,
     OperationEnum.GENERATE_QUERY,
     OperationEnum.GENERATE_CHART,
     OperationEnum.ANALYSIS,
@@ -386,6 +399,7 @@ _REASONING_OPERATES: tuple[OperationEnum, ...] = (
 )
 
 _REASONING_FIELD_BY_OPERATE: dict[OperationEnum, str] = {
+    OperationEnum.CLARIFY_INTENT: "intent_reasoning_content",
     OperationEnum.GENERATE_QUERY: "sql_reasoning_content",
     OperationEnum.GENERATE_CHART: "chart_reasoning_content",
     OperationEnum.ANALYSIS: "analysis_reasoning_content",
@@ -531,6 +545,8 @@ def get_chat_with_records(session: SessionDep, chart_id: int, current_user: Curr
         ChatRecord.first_chat,
         ChatRecord.finish,
         ChatRecord.error,
+        ChatRecord.intent_context,
+        ChatRecord.clarification_parent_id,
     ]
     if with_data:
         base_cols.extend([ChatRecord.data, ChatRecord.predict_data])
@@ -586,10 +602,13 @@ def get_chat_with_records(session: SessionDep, chart_id: int, current_user: Curr
             first_chat=row.first_chat,
             finish=row.finish,
             error=row.error,
+            intent_context=row.intent_context,
+            clarification_parent_id=row.clarification_parent_id,
             sql_reasoning_content=reason.get("sql_reasoning_content"),
             chart_reasoning_content=reason.get("chart_reasoning_content"),
             analysis_reasoning_content=reason.get("analysis_reasoning_content"),
             predict_reasoning_content=reason.get("predict_reasoning_content"),
+            intent_reasoning_content=reason.get("intent_reasoning_content"),
         )
         if with_data:
             kwargs["data"] = getattr(row, "data", None)
@@ -948,6 +967,8 @@ def save_question(session: SessionDep, current_user: CurrentUser, question: Chat
     record.engine_type = chat.engine_type
     record.ai_modal_id = question.ai_modal_id
     record.regenerate_record_id = question.regenerate_record_id
+    record.intent_context = question.intent_context
+    record.clarification_parent_id = question.clarification_for_record_id
 
     result = ChatRecord(**record.model_dump())
 
@@ -958,6 +979,79 @@ def save_question(session: SessionDep, current_user: CurrentUser, question: Chat
     session.commit()
 
     return result
+
+
+def prepare_question_intent(
+    session: SessionDep,
+    current_user: CurrentUser,
+    question: ChatQuestion,
+) -> None:
+    """Resolve and validate one clarification answer before creating its record."""
+    parent_id = question.clarification_for_record_id
+    if parent_id is None:
+        if question.clarification_answers:
+            raise ValueError(
+                "clarification_for_record_id is required with clarification_answers"
+            )
+        if question.regenerate_record_id:
+            source = session.get(ChatRecord, question.regenerate_record_id)
+            if (
+                source is not None
+                and int(source.chat_id) == int(question.chat_id)
+                and int(source.create_by) == int(current_user.id)
+                and source.intent_context
+            ):
+                context = intent_context_from_payload(source.intent_context)
+                context.status = "evaluating"
+                context.issues = []
+                context.questions = []
+                context.blocking_reasons = []
+                question.intent_context = public_intent_payload(context)
+                question.planning_question = render_planning_question(
+                    context,
+                    latest_user_text=question.question or "",
+                )
+                question.retrieval_question = context.original_question
+                question.generation_question = context.original_question
+                return
+        context = new_intent_context(question.question or "")
+        question.intent_context = public_intent_payload(context)
+        question.planning_question = context.original_question
+        question.retrieval_question = context.original_question
+        question.generation_question = context.original_question
+        return
+
+    parent = session.get(ChatRecord, parent_id)
+    if (
+        parent is None
+        or int(parent.chat_id) != int(question.chat_id)
+        or int(parent.create_by) != int(current_user.id)
+    ):
+        raise ValueError("Clarification record not found in the current conversation")
+    if not parent.finish or not parent.intent_context:
+        raise ValueError("Clarification record is not ready for an answer")
+    context = intent_context_from_payload(parent.intent_context)
+    if not context.awaiting_input:
+        raise ValueError("The referenced record is not awaiting clarification")
+    existing_child = session.exec(
+        select(ChatRecord.id).where(
+            ChatRecord.clarification_parent_id == int(parent_id)
+        )
+    ).first()
+    if existing_child is not None:
+        raise ValueError("This clarification has already been answered")
+
+    answers = [
+        ClarificationAnswer.model_validate(answer)
+        for answer in question.clarification_answers
+    ]
+    merged = merge_clarification_answers(context, answers)
+    question.intent_context = public_intent_payload(merged)
+    # The visible child-record question is a presentation summary generated by
+    # the clarification card. Its semantic content already lives in decisions.
+    question.planning_question = render_planning_question(merged)
+    question.retrieval_question = merged.original_question
+    question.generation_question = merged.original_question
 
 
 def save_analysis_predict_record(session: SessionDep, base_record: ChatRecord, action_type: str) -> ChatRecord:
@@ -986,73 +1080,6 @@ def save_analysis_predict_record(session: SessionDep, base_record: ChatRecord, a
     session.commit()
 
     return result
-
-
-def start_log(session: SessionDep, ai_modal_id: int = None, ai_modal_name: str = None, operate: OperationEnum = None,
-              record_id: int = None, full_message: Union[list[dict], dict] = None,
-              local_operation: bool = False) -> ChatLog:
-    log = ChatLog(type=TypeEnum.CHAT, operate=operate, pid=record_id, ai_modal_id=ai_modal_id, base_modal=ai_modal_name,
-                  messages=full_message, start_time=datetime.datetime.now(), local_operation=local_operation)
-
-    result = ChatLog(**log.model_dump())
-
-    session.add(log)
-    session.flush()
-    session.refresh(log)
-    result.id = log.id
-    session.commit()
-
-    return result
-
-
-def end_log(session: SessionDep, log: ChatLog, full_message: Union[list[dict], dict, str],
-            reasoning_content: str = None,
-            token_usage=None) -> ChatLog:
-    if token_usage is None:
-        token_usage = {}
-    log.messages = full_message
-    log.token_usage = token_usage
-    log.finish_time = datetime.datetime.now()
-    log.reasoning_content = reasoning_content if reasoning_content and len(reasoning_content.strip()) > 0 else None
-
-    stmt = update(ChatLog).where(and_(ChatLog.id == log.id)).values(
-        messages=log.messages,
-        token_usage=log.token_usage,
-        finish_time=log.finish_time,
-        reasoning_content=log.reasoning_content
-    )
-    session.execute(stmt)
-    session.commit()
-
-    return log
-
-
-def trigger_log_error(session: SessionDep, log: ChatLog) -> ChatLog:
-    log.error = True
-    stmt = update(ChatLog).where(and_(ChatLog.id == log.id)).values(
-        error=True
-    )
-    session.execute(stmt)
-    session.commit()
-
-    return log
-
-
-def save_sql_answer(session: SessionDep, record_id: int, answer: str) -> ChatRecord:
-    if not record_id:
-        raise Exception("Record id cannot be None")
-
-    stmt = update(ChatRecord).where(and_(ChatRecord.id == record_id)).values(
-        sql_answer=answer,
-    )
-
-    session.execute(stmt)
-
-    session.commit()
-
-    record = get_chat_record_by_id(session, record_id)
-
-    return record
 
 
 def save_analysis_answer(session: SessionDep, record_id: int, answer: str = '') -> ChatRecord:
@@ -1135,7 +1162,7 @@ def save_recommend_question_answer(session: SessionDep, record_id: int,
 
             if not json_str:
                 json_str = '[]'
-        except Exception as e:
+        except Exception:
             pass
     recommended_question = json_str
 

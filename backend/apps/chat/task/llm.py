@@ -234,6 +234,39 @@ class LLMService:
             self._protocol = get_protocol(ds_type)
         return self._protocol
 
+    @property
+    def planning_question(self) -> str:
+        """Return the enriched semantic text used only by intent reasoning."""
+        return (
+            self.chat_question.planning_question
+            or self.chat_question.question
+            or ""
+        ).strip()
+
+    def _original_intent_question(self) -> str:
+        context = self.chat_question.intent_context or {}
+        if isinstance(context, dict):
+            original = str(context.get("original_question") or "").strip()
+            if original:
+                return original
+        return (self.chat_question.question or "").strip()
+
+    @property
+    def retrieval_question(self) -> str:
+        """Compact stable text for terminology/example/schema vector recall."""
+        return (
+            self.chat_question.retrieval_question
+            or self._original_intent_question()
+        ).strip()
+
+    @property
+    def generation_question(self) -> str:
+        """Original user request for SQL/API/chart generation and repair."""
+        return (
+            self.chat_question.generation_question
+            or self._original_intent_question()
+        ).strip()
+
     def init_record(self, session: Session) -> ChatRecord:
         self.record = save_question(
             session=session, current_user=self.current_user, question=self.chat_question

@@ -2,7 +2,7 @@
 
 ## Overview
 
-SQLBot product graphs (LangGraph) are defined as **YAML topology files**.
+AI智能问数 product graphs (LangGraph) are defined as **YAML topology files**.
 The YAML declares nodes (as dotted Python paths), edges, and routers.
 The loader (`apps.conversation.graph_loader`) resolves the dotted paths,
 builds a `StateGraph`, compiles it, and registers it under `graph_key`.
@@ -20,10 +20,6 @@ backend/graphs/
 │   ├── predict.yaml
 │   ├── recommend.yaml
 │   └── config.yaml
-├── target/         ← architecture draft (compile-ready, not default)
-│   ├── chat.yaml   ← unified nlq_path + dialogue_path
-│   ├── config.yaml
-│   └── recommend.yaml
 └── README.md       ← this file
 ```
 
@@ -34,8 +30,8 @@ backend/graphs/
 3. Each `*.yaml` file is parsed into a `GraphSpec` (validated schema).
 4. Dotted paths are resolved to Python objects via `importlib`.
 5. A `StateGraph` is built, compiled, and registered under the file's `graph_key`.
-6. Product code calls `submit_graph("chat", state)` — the runtime looks up the
-   registered builder, compiles a fresh graph, and runs it.
+6. Product code calls `submit_graph("chat", state)` — the runtime runs the
+   graph compiled and registered during bootstrap.
 
 ## YAML Schema
 
@@ -89,16 +85,13 @@ edges:
 Custom routers are any Python callable `(state) -> str` returning a key
 from the `paths` map.
 
-## Switching Between current/ and target/
+## Selecting a graph directory
 
 Set `GRAPH_SPEC_DIR` in `.env` (relative to `backend/` or absolute):
 
 ```bash
-# Default: current (production behaviour)
+# Default production graphs
 GRAPH_SPEC_DIR=
-
-# Target architecture (requires dialogue stubs to be implemented)
-GRAPH_SPEC_DIR=backend/graphs/target
 ```
 
 ## Migration Notes
@@ -112,27 +105,31 @@ GRAPH_SPEC_DIR=backend/graphs/target
   `register_graph()` at import time. All registration goes through
   `bootstrap_graphs()` reading YAML.
 - **Nodes extracted**: Implementations live in `apps.chat.graphs.nodes.*`
-  (nlq, analysis, predict, recommend) and `apps.config_assistant.nodes`.
-
-### Target Graph (not default-loaded)
-
-`graphs/target/chat.yaml` defines the unified chat graph with two internal paths:
-
-- **nlq_path**: Same as current `chat.yaml` (generate_sql → execute → chart).
-- **dialogue_path**: Stub nodes for multi-turn cognition
-  (resolve_anchor → load_evidence → reason → synthesize → repair_brief → complete).
-
-The dialogue path stubs are real callables that compile and run as no-ops.
-Product implementation of Working Set and dialogue LLM is in a future PR.
+  (nlq, analysis, predict, recommend). Tool-enabled scenarios reuse
+  `apps.conversation.agent`, `apps.conversation.tooling`, and
+  `apps.conversation.turn`; `apps.config_assistant.nodes` only prepares
+  configuration-specific state.
 
 ### predict
 
-Predict remains an independent graph in `current/`. The target plan notes
-it will eventually merge into the chat graph as `chat.predict_path`, but
-that is out of scope for this PR.
+Predict remains an independent production graph.
 
 ### analysis
 
-The `analysis` graph remains independent in `current/`. In the target
-architecture, analysis requests will be routed to `submit_graph("chat", intent="explain_result", ...)`,
-eliminating the separate `analysis` key. This cutover is a future PR.
+The `analysis` graph remains an independent production graph.
+
+### config
+
+The configuration assistant keeps its own topology because its domain and
+termination rules differ from NLQ, while reusing the shared conversation
+agent/tool/turn nodes:
+
+```text
+prepare -> agent -> execute_tools -> agent
+                  \-> finish
+          failures -> fail
+```
+
+Configuration tools are explicit domain adapters under
+`apps.config_assistant.tools`; they call datasource, relationship,
+terminology, and dictionary services instead of duplicating persistence logic.

@@ -7,6 +7,6 @@ assignees: xuwei-fit2cloud, yayanpei-fit2cloud
 
 ---
 
-**SQLBot version**
+**AI智能问数 version**
 
 **Please describe your requirements or suggestions for improvement**

@@ -1,15 +1,12 @@
-"""Predict node implementations for the predict graph.
-
-Extracted from ``apps.chat.graphs.predict``.
-"""
+"""Predict node implementations for the predict graph."""
 
 from __future__ import annotations
 
 import traceback
-from typing import Any, Dict, Literal, TypedDict
+from typing import Any, Dict, Literal, cast
 
-import orjson
 import pandas as pd
+
 from apps.chat.curd.chat import (
     format_json_data,
     get_chat_chart_config,
@@ -20,11 +17,17 @@ from apps.chat.curd.chat import (
 from apps.chat.models.chat_model import ChatRecord
 from apps.chat.steps.predict import check_save_predict_data, generate_predict
 from apps.chat.task.llm import LLMService, request_picture
-from apps.conversation.record import finish as record_finish
-from apps.conversation.record import save_error as record_save_error
+from apps.conversation.outcome import (
+    failed_outcome,
+    format_error_message,
+    running_outcome,
+    successful_outcome,
+)
+from apps.conversation.record import persist_snapshot
 from apps.conversation.session import session_scope
 from apps.conversation.sink import StreamSink
 from apps.conversation.state import RunState
+from apps.conversation.turn import fail_node as fail_turn_node
 from common.error import SingleMessageError
 from common.utils.data_format import DataFormat
 from common.utils.utils import SQLBotLogUtil
@@ -36,36 +39,35 @@ class PredictState(RunState, total=False):
     record: ChatRecord
     json_result: Dict[str, Any]
     has_data: bool
-    outcome: Literal["success", "failed"]
-
-
-def _error_message(exc: BaseException) -> str:
-    if isinstance(exc, SingleMessageError):
-        return str(exc)
-    return orjson.dumps(
-        {"message": str(exc), "traceback": traceback.format_exc(limit=1)}
-    ).decode()
 
 
 def prepare_node(state: PredictState) -> PredictState:
-    base = state["base_record"]
-    if not base.chart:
-        raise SingleMessageError(
-            f"Chat record with id {base.id} has not generated chart, do not support to analyze it"
-        )
-    with session_scope() as session:
-        record = save_analysis_predict_record(session, base, "predict")
-    state["llm_service"].set_record(record)
-    return {
-        **state,
-        "record": record,
-        "record_id": record.id,
-        "base_record_id": base.id,
-        "graph_key": "predict",
-        "mode": "follow_up",
-        "json_result": {"success": True, "record_id": record.id},
-        "full_text": "",
-    }
+    try:
+        base = state["base_record"]
+        if not base.chart:
+            raise SingleMessageError(
+                f"Chat record with id {base.id} has not generated chart, do not support to analyze it"
+            )
+        with session_scope() as session:
+            record = save_analysis_predict_record(session, base, "predict")
+        state["llm_service"].set_record(record)
+        return {
+            **state,
+            "record": record,
+            "record_id": record.id,
+            "base_record_id": base.id,
+            "graph_key": "predict",
+            "mode": "follow_up",
+            "json_result": {"success": True, "record_id": record.id},
+            "full_text": "",
+            "outcome": running_outcome(),
+        }
+    except Exception as exc:
+        return {
+            **state,
+            "error": format_error_message(exc),
+            "outcome": failed_outcome(exc),
+        }
 
 
 def stream_node(state: PredictState) -> PredictState:
@@ -101,16 +103,13 @@ def stream_node(state: PredictState) -> PredictState:
             }
         except Exception as e:
             traceback.print_exc()
-            error_msg = _error_message(e)
-            try:
-                record_save_error(session, llm_service.record.id, error_msg)
-            except Exception:
-                traceback.print_exc()
+            error_msg = format_error_message(e)
             return {
                 **state,
                 "error": error_msg,
                 "full_text": full_text,
                 "json_result": json_result,
+                "outcome": failed_outcome(e),
             }
 
 
@@ -124,15 +123,19 @@ def parse_node(state: PredictState) -> PredictState:
     with session_scope() as session:
         try:
             has_data = check_save_predict_data(llm_service, session=session, res=full_text)
-            return {**state, "has_data": has_data, "outcome": "success" if has_data else "failed"}
+            outcome = (
+                successful_outcome()
+                if has_data
+                else failed_outcome(
+                    full_text or "Prediction did not produce data",
+                    kind="validation",
+                )
+            )
+            return {**state, "has_data": has_data, "outcome": outcome}
         except Exception as e:
             traceback.print_exc()
-            error_msg = _error_message(e)
-            try:
-                record_save_error(session, llm_service.record.id, error_msg)
-            except Exception:
-                traceback.print_exc()
-            return {**state, "error": error_msg}
+            error_msg = format_error_message(e)
+            return {**state, "error": error_msg, "outcome": failed_outcome(e)}
 
 
 def success_node(state: PredictState) -> PredictState:
@@ -185,12 +188,13 @@ def success_node(state: PredictState) -> PredictState:
         except Exception as e:
             if sink.mode == "markdown" and chart.get("type") != "table":
                 sink.text("generate or fetch chart picture error.\n\n")
-            error_msg = _error_message(e)
-            try:
-                record_save_error(session, llm_service.record.id, error_msg)
-            except Exception:
-                traceback.print_exc()
-            return {**state, "json_result": json_result, "error": error_msg}
+            error_msg = format_error_message(e)
+            return {
+                **state,
+                "json_result": json_result,
+                "error": error_msg,
+                "outcome": failed_outcome(e),
+            }
 
     return {**state, "json_result": json_result}
 
@@ -216,16 +220,19 @@ def complete_node(state: PredictState) -> PredictState:
 
     sink.event({"type": "predict_finish"})
     with session_scope() as session:
-        record_finish(session, llm_service.record.id)
+        persist_snapshot(session, llm_service.record.id, terminal=True)
     if sink.mode == "json":
         sink.json_result(json_result)
-    return {**state, "json_result": json_result, "record": llm_service.record}
+    return {
+        **state,
+        "json_result": json_result,
+        "record": llm_service.record,
+        "outcome": state.get("outcome") or successful_outcome(),
+    }
 
 
 def fail_node(state: PredictState) -> PredictState:
-    sink = StreamSink.from_state(state)
-    sink.error(state.get("error") or "unknown error")
-    return state
+    return cast(PredictState, fail_turn_node(state))
 
 
 # ── Routers ──────────────────────────────────────────────────────────────────
@@ -233,6 +240,10 @@ def fail_node(state: PredictState) -> PredictState:
 
 def route_after_stream(state: PredictState) -> Literal["parse", "fail"]:
     return "fail" if state.get("error") else "parse"
+
+
+def route_after_prepare(state: PredictState) -> Literal["stream", "fail"]:
+    return "fail" if state.get("error") else "stream"
 
 
 def route_after_parse(state: PredictState) -> Literal["success", "failed", "fail"]:

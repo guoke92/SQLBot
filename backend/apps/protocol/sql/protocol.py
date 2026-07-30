@@ -1,67 +1,25 @@
-"""SQL protocol — wraps existing DB layer with zero new behavior.
+"""SQL protocol — owns SQL-specific schema, validation, and execution.
 
-Delegates to `apps.db.db` for connection, execution, safety, schema discovery.
-All prompt/template logic stays here for protocol-level isolation.
+Database primitives remain delegated to ``apps.db.db`` while dialect syntax
+and physical-resource validation stay behind this protocol boundary.
 """
 
 from __future__ import annotations
 
-import json
-import re
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Mapping, Optional, Sequence
 
 import orjson
 import sqlparse
 
 from apps.protocol.base import (
-    CAP_ROW_PERMISSION,
-    CAP_SAMPLE_DATA,
-    CAP_SQL_DIALECT,
-    CAP_TABLE_RELATION,
     BaseProtocol,
+    DictionaryExtractResult,
     PromptBundle,
     QueryPlan,
     QueryResult,
     SchemaSnapshot,
 )
-
-
-def _extract_nested_json(text: str) -> Optional[str]:
-    """Locate the outermost JSON object in *text* (may include markdown fences)."""
-    text = text.strip()
-    if text.startswith("```"):
-        # Strip markdown code fence
-        fence_end = text.find("```", 3)
-        if fence_end > 0:
-            text = text[3:fence_end].strip()
-            if text.startswith("json"):
-                text = text[4:].strip()
-    start = text.find("{")
-    if start < 0:
-        return None
-    depth = 0
-    in_str = False
-    escape = False
-    for i in range(start, len(text)):
-        ch = text[i]
-        if escape:
-            escape = False
-            continue
-        if ch == "\\":
-            escape = True
-            continue
-        if ch == '"':
-            in_str = not in_str
-            continue
-        if in_str:
-            continue
-        if ch == "{":
-            depth += 1
-        elif ch == "}":
-            depth -= 1
-            if depth == 0:
-                return text[start : i + 1]
-    return None
+from common.utils.json_utils import extract_nested_json
 
 
 class SqlProtocol(BaseProtocol):
@@ -73,11 +31,28 @@ class SqlProtocol(BaseProtocol):
     def __init__(self, type_key: str) -> None:
         self.type_key = type_key
 
+    def normalize_configuration(
+        self,
+        configuration: Mapping[str, Any],
+    ) -> Dict[str, Any]:
+        from apps.datasource.models.datasource import DatasourceConf
+
+        unknown = sorted(set(configuration) - set(DatasourceConf.model_fields))
+        if unknown:
+            raise ValueError(
+                "Unsupported SQL datasource configuration field(s): "
+                f"{', '.join(unknown)}. Use canonical fields such as 'username', "
+                "not aliases such as 'user'."
+            )
+        return DatasourceConf.model_validate(dict(configuration)).model_dump()
+
     # ------------------------------------------------------------------
     # Connection
     # ------------------------------------------------------------------
 
-    def check_connection(self, ds: Any, trans: Any = None, is_raise: bool = False) -> bool:
+    def check_connection(
+        self, ds: Any, trans: Any = None, is_raise: bool = False
+    ) -> bool:
         from apps.db.db import check_connection
 
         return check_connection(trans, ds, is_raise)
@@ -106,8 +81,13 @@ class SqlProtocol(BaseProtocol):
         embedding: bool = True,
         out_ds_instance: Any = None,
         resource_names: Optional[Sequence[str]] = None,
+        required_resource_names: Sequence[str] = (),
+        access_scope: Any = None,
     ) -> SchemaSnapshot:
-        from apps.datasource.crud.datasource import get_table_schema, get_tables_sample_data
+        from apps.datasource.crud.datasource import (
+            get_table_schema,
+            get_tables_sample_data,
+        )
 
         table_list = list(resource_names) if resource_names is not None else None
 
@@ -129,9 +109,23 @@ class SqlProtocol(BaseProtocol):
                 question=question,
                 embedding=embedding,
                 table_list=table_list,
+                required_table_list=list(required_resource_names),
+                table_objs=(
+                    list(access_scope.table_objects)
+                    if access_scope is not None
+                    else None
+                ),
             )
             sample_data = get_tables_sample_data(
-                session=session, current_user=current_user, ds=ds, table_list=names
+                session=session,
+                current_user=current_user,
+                ds=ds,
+                table_list=names,
+                table_objs=(
+                    list(access_scope.table_objects)
+                    if access_scope is not None
+                    else None
+                ),
             )
 
         return SchemaSnapshot(
@@ -144,64 +138,93 @@ class SqlProtocol(BaseProtocol):
     # Prompt assembly
     # ------------------------------------------------------------------
 
-    def build_prompt_bundle(self, chat_question: Any, *, enable_query_limit: bool = True) -> PromptBundle:
-        from apps.chat.plan_policy import render_multi_fact_rule_xml
-        from apps.template.generate_sql.generator import get_sql_template, get_sql_example_template
+    def build_prompt_bundle(
+        self, chat_question: Any, *, enable_query_limit: bool = True
+    ) -> PromptBundle:
+        from apps.template.generate_sql.generator import (
+            get_sql_example_template,
+            get_sql_template,
+        )
 
         q = chat_question
         sql_template = get_sql_example_template(getattr(q, "_ds_type", "pg"))
         base_template = get_sql_template()
 
-        process_check = sql_template.get("process_check") or base_template["process_check"]
-        query_limit = base_template["query_limit"] if enable_query_limit else base_template["no_query_limit"]
+        process_check = (
+            sql_template.get("process_check") or base_template["process_check"]
+        )
+        query_limit = (
+            base_template["query_limit"]
+            if enable_query_limit
+            else base_template["no_query_limit"]
+        )
         other_rule = sql_template["other_rule"].format(
             multi_table_condition=base_template["multi_table_condition"]
         )
         base_sql_rules = (
-            sql_template["quot_rule"] + query_limit + sql_template["limit_rule"] + other_rule
+            sql_template["quot_rule"]
+            + query_limit
+            + sql_template["limit_rule"]
+            + other_rule
         )
 
-        system = base_template["system"].format(lang=q.lang, process_check=process_check, sqlbot_name=q.sqlbot_name)
+        system = base_template["system"].format(
+            lang=q.lang, process_check=process_check, sqlbot_name=q.sqlbot_name
+        )
         rules = base_template["generate_rules"].format(
             lang=q.lang,
             sqlbot_name=q.sqlbot_name,
             base_sql_rules=base_sql_rules,
-            multi_fact_rules=render_multi_fact_rule_xml(),
             basic_sql_examples=sql_template["basic_example"],
             example_engine=sql_template["example_engine"],
-            example_answer_1=sql_template["example_answer_1_with_limit"] if enable_query_limit else sql_template["example_answer_1"],
-            example_answer_2=sql_template["example_answer_2_with_limit"] if enable_query_limit else sql_template["example_answer_2"],
-            example_answer_3=sql_template["example_answer_3_with_limit"] if enable_query_limit else sql_template["example_answer_3"],
+            example_answer_1=sql_template["example_answer_1_with_limit"]
+            if enable_query_limit
+            else sql_template["example_answer_1"],
+            example_answer_2=sql_template["example_answer_2_with_limit"]
+            if enable_query_limit
+            else sql_template["example_answer_2"],
+            example_answer_3=sql_template["example_answer_3_with_limit"]
+            if enable_query_limit
+            else sql_template["example_answer_3"],
         )
         schema = base_template["generate_basic_info"].format(
             engine=q.engine, schema=q.db_schema, sample_data=q.sample_data
         )
 
         bundle = PromptBundle(
-            system=system, rules=rules, schema=schema,
+            system=system,
+            rules=rules,
+            schema_text=schema,
             ack_rules="我已掌握所有规则，包括表结构、SQL规范、安全限制和输出格式，我会严格遵守这些规则。",
             ack_schema="我已确认您提供的数据库信息与表结构schema，我生成的SQL不会超出您提供的范围。",
             ack_data_training="我已确认您提供的SQL示例，我会进行参考。",
         )
 
         if getattr(q, "terminologies", ""):
-            bundle.terminologies = base_template["generate_terminologies_info"].format(terminologies=q.terminologies)
+            bundle.terminologies = base_template["generate_terminologies_info"].format(
+                terminologies=q.terminologies
+            )
         if getattr(q, "data_training", ""):
-            bundle.data_training = base_template["generate_data_training_info"].format(data_training=q.data_training)
+            bundle.data_training = base_template["generate_data_training_info"].format(
+                data_training=q.data_training
+            )
         if getattr(q, "custom_prompt", ""):
-            bundle.custom_prompt = base_template["generate_custom_prompt_info"].format(custom_prompt=q.custom_prompt)
+            bundle.custom_prompt = base_template["generate_custom_prompt_info"].format(
+                custom_prompt=q.custom_prompt
+            )
 
         return bundle
 
-    def build_user_prompt(self, chat_question: Any, *, current_time: str, change_title: bool) -> str:
+    def build_user_prompt(
+        self, chat_question: Any, *, current_time: str, change_title: bool
+    ) -> str:
         from apps.chat.plan_context import normalize_plan_context_block
         from apps.template.generate_sql.generator import get_sql_template
 
         q = chat_question
-        question = q.question
+        question = getattr(q, "generation_question", "") or q.question
         if getattr(q, "regenerate_record_id", None):
-            question = get_sql_template()["regenerate_hint"] + q.question
-        # Single normalize path (same as AiModelQuestion.sql_user_question).
+            question = get_sql_template()["regenerate_hint"] + question
         plan_ctx = normalize_plan_context_block(getattr(q, "plan_context", None))
         user = get_sql_template()["user"]
         try:
@@ -237,20 +260,37 @@ class SqlProtocol(BaseProtocol):
     # ------------------------------------------------------------------
 
     def parse_llm_output(self, text: str) -> QueryPlan:
-        json_str = _extract_nested_json(text)
+        json_str = extract_nested_json(text)
         if json_str is None:
-            return QueryPlan(success=False, message="SQL answer is not a valid json object", statement="", payload={})
+            return QueryPlan(
+                success=False,
+                message="SQL answer is not a valid json object",
+                statement="",
+                payload={},
+            )
         try:
             data = orjson.loads(json_str)
         except Exception:
-            return QueryPlan(success=False, message="Cannot parse sql from answer", statement="", payload={})
+            return QueryPlan(
+                success=False,
+                message="Cannot parse sql from answer",
+                statement="",
+                payload={},
+            )
 
         if not data.get("success"):
-            return QueryPlan(success=False, message=data.get("message", "Unknown error"), statement="", payload={})
+            return QueryPlan(
+                success=False,
+                message=data.get("message", "Unknown error"),
+                statement="",
+                payload={},
+            )
 
         sql = data.get("sql", "")
         if not sql or not sql.strip():
-            return QueryPlan(success=False, message="SQL query is empty", statement="", payload={})
+            return QueryPlan(
+                success=False, message="SQL query is empty", statement="", payload={}
+            )
 
         return QueryPlan(
             success=True,
@@ -261,7 +301,9 @@ class SqlProtocol(BaseProtocol):
             brief=data.get("brief"),
         )
 
-    def validate_plan(self, ds: Any, plan: QueryPlan, allowed_resources: Sequence[str]) -> QueryPlan:
+    def validate_plan(
+        self, ds: Any, plan: QueryPlan, allowed_resources: Sequence[str]
+    ) -> QueryPlan:
         """Safety + table allow-list + physical-column catalog check.
 
         Column validation uses CoreField (same catalog as schema prompts).
@@ -280,14 +322,20 @@ class SqlProtocol(BaseProtocol):
         if not sql:
             return plan
 
+        def reject(message: str) -> QueryPlan:
+            """Preserve plan metadata while marking validation failure."""
+            return plan.model_copy(
+                deep=True,
+                update={
+                    "success": False,
+                    "message": message,
+                    "statement": sql,
+                },
+            )
+
         is_safe, reason = check_sql_read(sql, ds)
         if not is_safe:
-            return QueryPlan(
-                success=False,
-                message=f"SQL safety check failed: {reason}",
-                statement=sql,
-                payload=plan.payload,
-            )
+            return reject(f"SQL safety check failed: {reason}")
 
         spec = get_spec(self.type_key)
         dialect = spec.sqlglot_dialect
@@ -297,32 +345,36 @@ class SqlProtocol(BaseProtocol):
             usage = collect_sql_identifier_usage(sql, dialect)
             actual_tables = set(usage.physical_tables)
             physical_cols = usage.physical_columns
-        except Exception:
-            pass
+        except Exception as exc:
+            return reject(f"SQL identifier validation failed: {exc}")
+
+        validated_plan = plan.model_copy(deep=True)
+        if actual_tables:
+            # Physical resources are derived from the SQL AST. Model-declared
+            # `tables` are advisory and must not drive permission/schema paths.
+            validated_plan.resources = sorted(actual_tables)
 
         if actual_tables and allowed_resources:
             allowed_set = set(allowed_resources)
             unauthorized = actual_tables - allowed_set
             if unauthorized:
-                return QueryPlan(
-                    success=False,
-                    message=(
+                return reject(
+                    (
                         f"SQL contains unauthorized tables: "
                         f"{', '.join(sorted(unauthorized))}. "
                         f"Allowed: {', '.join(sorted(allowed_set))}"
-                    ),
-                    statement=sql,
-                    payload=plan.payload,
+                    )
                 )
 
         ds_id = getattr(ds, "id", None)
         if not (ds_id and physical_cols and actual_tables):
-            return plan
+            return validated_plan
 
         try:
             from sqlmodel import Session, select
+
+            from apps.datasource.models.datasource import CoreField, CoreTable
             from common.core.db import engine as _sqlbot_engine
-            from apps.datasource.models.datasource import CoreTable, CoreField
 
             table_names = sorted(actual_tables)
             with Session(_sqlbot_engine) as session:
@@ -334,7 +386,7 @@ class SqlProtocol(BaseProtocol):
                 ).all()
                 catalog_tables = [t for t in tables if t.id is not None]
                 if not catalog_tables:
-                    return plan
+                    return validated_plan
 
                 fields = session.exec(
                     select(CoreField).where(
@@ -417,24 +469,20 @@ class SqlProtocol(BaseProtocol):
                     )
                     if hints:
                         msg += " Catalog samples — " + " | ".join(hints)
-                    return QueryPlan(
-                        success=False,
-                        message=msg,
-                        statement=sql,
-                        payload=plan.payload,
-                    )
-        except Exception:
-            pass
+                    return reject(msg)
+        except Exception as exc:
+            return reject(f"SQL catalog validation failed: {exc}")
 
         # ── Cost gates (catalog stats + structure + EXPLAIN) ──
         try:
+            from sqlmodel import Session
+
             from apps.chat.plan_policy import LARGE_TABLE_ROWS
+            from apps.datasource.crud.catalog_stats import load_table_stats_for_ds
             from apps.protocol.sql.cost_validate import (
                 check_multi_fact_fanout,
                 explain_cost_too_high,
             )
-            from apps.datasource.crud.catalog_stats import load_table_stats_for_ds
-            from sqlmodel import Session
             from common.core.db import engine as _sqlbot_engine
 
             stats_by_table: dict = {}
@@ -444,41 +492,46 @@ class SqlProtocol(BaseProtocol):
                     stats_by_table = load_table_stats_for_ds(
                         _sess, int(ds_id), list(actual_tables)
                     )
-            fan = check_multi_fact_fanout(
-                sql, dialect or "mysql", stats_by_table
-            )
+            fan = check_multi_fact_fanout(sql, dialect or "mysql", stats_by_table)
             if fan:
-                return QueryPlan(
-                    success=False,
-                    message=fan,
-                    statement=sql,
-                    payload=plan.payload,
-                )
+                return reject(fan)
             # EXPLAIN can be relatively expensive; only when multiple tables or large facts
             need_explain = len(actual_tables) >= 3 or any(
                 (stats_by_table.get(n) or {}).get("approx_rows")
-                and int((stats_by_table.get(n) or {}).get("approx_rows") or 0) >= LARGE_TABLE_ROWS
+                and int((stats_by_table.get(n) or {}).get("approx_rows") or 0)
+                >= LARGE_TABLE_ROWS
                 for n in actual_tables
             )
             if need_explain:
                 exp_msg = explain_cost_too_high(ds, sql)
                 if exp_msg:
-                    return QueryPlan(
-                        success=False,
-                        message=exp_msg,
-                        statement=sql,
-                        payload=plan.payload,
-                    )
-        except Exception:
-            pass
+                    return reject(exp_msg)
+        except Exception as exc:
+            # Cost estimation is advisory. Safety/catalog validation above has
+            # already completed and must never be skipped by this branch.
+            from common.utils.utils import SQLBotLogUtil
 
-        return plan
+            SQLBotLogUtil.warning(f"SQL cost validation skipped: {exc}")
 
-    def execute(self, ds: Any, plan: QueryPlan, *, origin_column: bool = False) -> QueryResult:
+        return validated_plan
+
+    def execute(
+        self,
+        ds: Any,
+        plan: QueryPlan,
+        *,
+        origin_column: bool = False,
+        max_rows: Optional[int] = None,
+    ) -> QueryResult:
         from apps.db.db import exec_sql
 
         sql = plan.payload.get("sql", "")
-        raw = exec_sql(ds=ds, sql=sql, origin_column=origin_column)
+        raw = exec_sql(
+            ds=ds,
+            sql=sql,
+            origin_column=origin_column,
+            max_rows=max_rows,
+        )
         return QueryResult(
             fields=raw.get("fields", []),
             data=raw.get("data", []),
@@ -486,9 +539,74 @@ class SqlProtocol(BaseProtocol):
             raw=raw,
             statement=sql,
             re_exec={"sql": sql},
+            truncated=bool(raw.get("truncated")),
+            limit=raw.get("limit"),
+            truncation_reason=raw.get("truncation_reason"),
         )
 
-    def plan_from_re_exec(self, ds: Any, re_exec: Dict[str, Any]) -> Optional[QueryPlan]:
+    def _quote_identifier(self, identifier: str) -> str:
+        from apps.protocol.registry import get_spec
+
+        spec = get_spec(self.type_key)
+        escaped = identifier.replace(spec.quote_suffix, spec.quote_suffix * 2)
+        return f"{spec.quote_prefix}{escaped}{spec.quote_suffix}"
+
+    def extract_dictionary_values(
+        self,
+        ds: Any,
+        *,
+        resource: str,
+        field: str,
+        limit: int,
+    ) -> DictionaryExtractResult:
+        """Return a limit+1 DISTINCT snapshot using dialect-owned syntax."""
+        from apps.db.db import exec_sql
+
+        if not resource or not field:
+            return DictionaryExtractResult()
+        bounded_limit = max(1, min(int(limit), 5000))
+        fetch_limit = bounded_limit + 1
+        schema = self.schema_namespace(ds)
+        table_sql = self._quote_identifier(resource)
+        if schema:
+            table_sql = f"{self._quote_identifier(schema)}.{table_sql}"
+        field_sql = self._quote_identifier(field)
+        where_sql = f"{field_sql} IS NOT NULL AND TRIM({field_sql}) <> ''"
+        if self.type_key == "sqlServer":
+            sql = (
+                f"SELECT DISTINCT TOP {fetch_limit} {field_sql} AS v "
+                f"FROM {table_sql} WHERE {where_sql}"
+            )
+        elif self.type_key == "oracle":
+            sql = (
+                f"SELECT DISTINCT {field_sql} AS v FROM {table_sql} "
+                f"WHERE {where_sql} FETCH FIRST {fetch_limit} ROWS ONLY"
+            )
+        else:
+            sql = (
+                f"SELECT DISTINCT {field_sql} AS v FROM {table_sql} "
+                f"WHERE {where_sql} LIMIT {fetch_limit}"
+            )
+        raw = exec_sql(ds=ds, sql=sql, origin_column=True)
+        values: List[str] = []
+        for row in raw.get("data") or []:
+            if not isinstance(row, dict):
+                continue
+            value = row.get("v")
+            if value is None and row:
+                value = next(iter(row.values()), None)
+            if value is not None and str(value).strip():
+                values.append(str(value).strip())
+        unique_values = list(dict.fromkeys(values))
+        return DictionaryExtractResult(
+            values=unique_values[:bounded_limit],
+            truncated=len(unique_values) > bounded_limit,
+            statement=sql,
+        )
+
+    def plan_from_re_exec(
+        self, ds: Any, re_exec: Dict[str, Any]
+    ) -> Optional[QueryPlan]:
         if not re_exec:
             return None
         sql = (re_exec.get("sql") or "").strip()
@@ -508,11 +626,7 @@ class SqlProtocol(BaseProtocol):
         limit: int = 100,
     ) -> QueryResult:
         from apps.db.db import exec_sql
-        from apps.protocol.registry import get_spec
 
-        spec = get_spec(self.type_key)
-        pre = spec.quote_prefix
-        suf = spec.quote_suffix
         schema = getattr(ds, "_preview_schema", "")
 
         where_clause = f" WHERE {where}" if where else ""
@@ -547,7 +661,9 @@ class SqlProtocol(BaseProtocol):
                     f'ORDER BY "{fields[0]}") WHERE ROWNUM <= {limit}'
                 )
             else:
-                sql = f"SELECT * FROM {from_clause}{where_clause} WHERE ROWNUM <= {limit}"
+                sql = (
+                    f"SELECT * FROM {from_clause}{where_clause} WHERE ROWNUM <= {limit}"
+                )
         else:
             # pg, excel, redshift, kingbase, dm default
             col_list = ", ".join(f'"{f}"' for f in fields)

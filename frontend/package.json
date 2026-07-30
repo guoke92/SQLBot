@@ -1,5 +1,5 @@
 {
-  "name": "SQLBot",
+  "name": "ai-intelligent-query",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -52,6 +52,8 @@
     "@types/crypto-js": "^4.2.2",
     "@types/element-resize-detector": "^1.1.6",
     "@types/json-bigint": "^1.0.4",
+    "@types/lodash": "4.17.24",
+    "@types/lodash-es": "4.17.12",
     "@types/markdown-it": "^14.1.2",
     "@types/node": "^22.14.1",
     "@typescript-eslint/eslint-plugin": "^8.34.0",

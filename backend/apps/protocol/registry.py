@@ -98,6 +98,7 @@ def bootstrap_default_types() -> None:
     """Register built-in SQL types + api. Idempotent."""
     from apps.protocol.base import (
         CAP_CONF_OWNED_RESOURCES,
+        CAP_DICTIONARY_VALUES,
         CAP_OPENAPI_IMPORT,
         CAP_ROW_PERMISSION,
         CAP_SAMPLE_DATA,
@@ -108,30 +109,43 @@ def bootstrap_default_types() -> None:
     sql_caps = {CAP_SQL_DIALECT, CAP_ROW_PERMISSION, CAP_SAMPLE_DATA, CAP_TABLE_RELATION}
 
     sql_types = [
-        # type_key, display, template, prefix, suffix, sqlglot, illegal, category
-        ("excel", "Excel/CSV", "PostgreSQL", '"', '"', None, (), "file"),
-        ("redshift", "AWS Redshift", "AWS_Redshift", '"', '"', None, (), "database"),
-        ("ck", "ClickHouse", "ClickHouse", '"', '"', None, (), "database"),
-        ("dm", "达梦", "DM", '"', '"', None, (), "database"),
-        ("doris", "Apache Doris", "Doris", "`", "`", "mysql", (), "database"),
-        ("es", "Elasticsearch", "Elasticsearch", '"', '"', None, (), "database"),
-        ("kingbase", "Kingbase", "Kingbase", '"', '"', None, (), "database"),
-        ("sqlServer", "Microsoft SQL Server", "Microsoft_SQL_Server", "[", "]", "tsql", (), "database"),
-        ("mysql", "MySQL", "MySQL", "`", "`", "mysql", ("local_infile",), "database"),
-        ("oracle", "Oracle", "Oracle", '"', '"', None, (), "database"),
-        ("pg", "PostgreSQL", "PostgreSQL", '"', '"', None, (), "database"),
-        ("starrocks", "StarRocks", "StarRocks", "`", "`", "mysql", (), "database"),
-        ("hive", "Apache Hive", "Hive", "`", "`", "hive", (), "database"),
+        # type_key, display, template, prefix, suffix, sqlglot, illegal, category, dictionary
+        ("excel", "Excel/CSV", "PostgreSQL", '"', '"', None, (), "file", True),
+        ("redshift", "AWS Redshift", "AWS_Redshift", '"', '"', None, (), "database", True),
+        ("ck", "ClickHouse", "ClickHouse", '"', '"', None, (), "database", True),
+        ("dm", "达梦", "DM", '"', '"', None, (), "database", True),
+        ("doris", "Apache Doris", "Doris", "`", "`", "mysql", (), "database", True),
+        ("es", "Elasticsearch", "Elasticsearch", '"', '"', None, (), "database", False),
+        ("kingbase", "Kingbase", "Kingbase", '"', '"', None, (), "database", True),
+        ("sqlServer", "Microsoft SQL Server", "Microsoft_SQL_Server", "[", "]", "tsql", (), "database", True),
+        ("mysql", "MySQL", "MySQL", "`", "`", "mysql", ("local_infile",), "database", True),
+        ("oracle", "Oracle", "Oracle", '"', '"', None, (), "database", True),
+        ("pg", "PostgreSQL", "PostgreSQL", '"', '"', None, (), "database", True),
+        ("starrocks", "StarRocks", "StarRocks", "`", "`", "mysql", (), "database", True),
+        ("hive", "Apache Hive", "Hive", "`", "`", "hive", (), "database", True),
     ]
 
-    for type_key, display, template, prefix, suffix, dialect, illegal, category in sql_types:
+    for (
+        type_key,
+        display,
+        template,
+        prefix,
+        suffix,
+        dialect,
+        illegal,
+        category,
+        dictionary_values,
+    ) in sql_types:
+        capabilities = set(sql_caps)
+        if dictionary_values:
+            capabilities.add(CAP_DICTIONARY_VALUES)
         register_type(
             ConnectorSpec(
                 type_key=type_key,
                 display_name=display,
                 protocol_factory=_sql_factory,
                 category=category,
-                capabilities=set(sql_caps),
+                capabilities=capabilities,
                 quote_prefix=prefix,
                 quote_suffix=suffix,
                 template_name=template,

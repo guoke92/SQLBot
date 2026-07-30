@@ -79,7 +79,7 @@ class CreateDatasource(BaseModel):
     status: str = ''
     num: str = ''
     oid: int = 1
-    tables: List[CoreTable] = []
+    tables: List[CoreTable] = Field(default_factory=list)
     recommended_config: int = 1
 
 
@@ -124,7 +124,7 @@ class DatasourceConf(BaseModel):
     extraJdbc: str = ''
     dbSchema: str = ''
     filename: str = ''
-    sheets: List = ''
+    sheets: List = Field(default_factory=list)
     mode: str = ''
     timeout: int = 30
     lowVersion: bool = False

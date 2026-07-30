@@ -31,9 +31,9 @@ ACTION="${1:-}"
 TARGET="${2:-all}"
 
 # ── helpers ─────────────────────────────────────────────────────────────────
-info()  { printf "\033[32m[sqlbot]\033[0m %s\n" "$*"; }
-warn()  { printf "\033[33m[sqlbot] WARN:\033[0m %s\n" "$*" >&2; }
-err()   { printf "\033[31m[sqlbot] ERROR:\033[0m %s\n" "$*" >&2; }
+info()  { printf "\033[32m[AI智能问数]\033[0m %s\n" "$*"; }
+warn()  { printf "\033[33m[AI智能问数] WARN:\033[0m %s\n" "$*" >&2; }
+err()   { printf "\033[31m[AI智能问数] ERROR:\033[0m %s\n" "$*" >&2; }
 
 ensure_dirs() {
     mkdir -p "${RUN_DIR}" "${LOG_DIR}" \
@@ -46,7 +46,10 @@ is_pid_running() { local pid="${1:-}"; [[ -n "${pid}" && "${pid}" =~ ^[0-9]+$ ]]
 
 pid_from_file() { local f="$1"; [[ -f "$f" ]] && tr -d "[:space:]" <"$f" || true; }
 
-port_pid() { local port="$1"; lsof -nP -iTCP:"$port" -sTCP:LISTEN 2>/dev/null | awk 'NR==2{print $2}' || true; }
+port_pids() {
+    local port="$1"
+    lsof -nP -iTCP:"$port" -sTCP:LISTEN -t 2>/dev/null | sort -u || true
+}
 
 graceful_kill() {
     local pid="$1" label="${2:-process}"
@@ -64,10 +67,25 @@ graceful_kill() {
 
 force_kill_port() {
     local port="$1" label="${2:-}"
-    local pid; pid="$(port_pid "$port")"
-    if [[ -n "$pid" ]]; then
-        graceful_kill "$pid" "${label:-port $port}"
-    fi
+    local pid
+    while IFS= read -r pid; do
+        [[ -n "$pid" ]] && graceful_kill "$pid" "${label:-port $port}"
+    done < <(port_pids "$port")
+}
+
+wait_for_http() {
+    local url="$1" pid="$2" timeout="${3:-45}" waited=0
+    while [[ $waited -lt $timeout ]]; do
+        if ! is_pid_running "$pid"; then
+            return 1
+        fi
+        if curl -sS --max-time 2 -o /dev/null "$url" 2>/dev/null; then
+            return 0
+        fi
+        sleep 1
+        ((waited++)) || true
+    done
+    return 1
 }
 
 env_set() {
@@ -134,15 +152,18 @@ start_backend() {
     ensure_dirs
     (
         cd "${BACKEND_DIR}"
-        "${UVICORN_BIN}" main:app --host 0.0.0.0 --port "${BACKEND_PORT}" --reload \
+        nohup "${UVICORN_BIN}" main:app --host 0.0.0.0 --port "${BACKEND_PORT}" --reload \
             >>"${BACKEND_LOG}" 2>&1 &
         echo $! >"${BACKEND_PID_FILE}"
     )
-    sleep 2
-    if pid="$(pid_from_file "${BACKEND_PID_FILE}")" && is_pid_running "$pid"; then
+    pid="$(pid_from_file "${BACKEND_PID_FILE}")"
+    if wait_for_http "http://127.0.0.1:${BACKEND_PORT}/api/v1/user/info" "$pid"; then
         info "Backend started (pid=${pid})  http://localhost:${BACKEND_PORT}/docs"
     else
-        err "Backend failed to start — tail ${BACKEND_LOG}"
+        err "Backend failed readiness check — see ${BACKEND_LOG}"
+        graceful_kill "$pid" "failed-backend"
+        rm -f "${BACKEND_PID_FILE}"
+        force_kill_port "${BACKEND_PORT}" "failed-backend-port"
         return 1
     fi
 }
@@ -170,15 +191,18 @@ start_frontend() {
     ensure_dirs
     (
         cd "${FRONTEND_DIR}"
-        npx vite --host 0.0.0.0 --port "${FRONTEND_PORT}" \
+        nohup npx vite --host 0.0.0.0 --port "${FRONTEND_PORT}" \
             >>"${FRONTEND_LOG}" 2>&1 &
         echo $! >"${FRONTEND_PID_FILE}"
     )
-    sleep 2
-    if pid="$(pid_from_file "${FRONTEND_PID_FILE}")" && is_pid_running "$pid"; then
+    pid="$(pid_from_file "${FRONTEND_PID_FILE}")"
+    if wait_for_http "http://127.0.0.1:${FRONTEND_PORT}/" "$pid" 20; then
         info "Frontend started (pid=${pid})  http://localhost:${FRONTEND_PORT}"
     else
-        err "Frontend failed to start — tail ${FRONTEND_LOG}"
+        err "Frontend failed readiness check — see ${FRONTEND_LOG}"
+        graceful_kill "$pid" "failed-frontend"
+        rm -f "${FRONTEND_PID_FILE}"
+        force_kill_port "${FRONTEND_PORT}" "failed-frontend-port"
         return 1
     fi
 }
@@ -196,12 +220,13 @@ stop_frontend() {
 # ── status ──────────────────────────────────────────────────────────────────
 status_all() {
     echo "=============================="
-    echo " SQLBot Dev Status"
+    echo " AI智能问数 Dev Status"
     echo "=============================="
 
     # Backend
     local bpid; bpid="$(pid_from_file "${BACKEND_PID_FILE}")"
-    if is_pid_running "$bpid"; then
+    if is_pid_running "$bpid" &&
+       curl -sS --max-time 2 -o /dev/null "http://127.0.0.1:${BACKEND_PORT}/api/v1/user/info" 2>/dev/null; then
         echo "  Backend  : RUNNING  pid=${bpid}  http://localhost:${BACKEND_PORT}/docs"
     else
         echo "  Backend  : STOPPED"
@@ -209,7 +234,8 @@ status_all() {
 
     # Frontend
     local fpid; fpid="$(pid_from_file "${FRONTEND_PID_FILE}")"
-    if is_pid_running "$fpid"; then
+    if is_pid_running "$fpid" &&
+       curl -sS --max-time 2 -o /dev/null "http://127.0.0.1:${FRONTEND_PORT}/" 2>/dev/null; then
         echo "  Frontend : RUNNING  pid=${fpid}  http://localhost:${FRONTEND_PORT}"
     else
         echo "  Frontend : STOPPED"

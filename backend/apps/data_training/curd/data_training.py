@@ -9,6 +9,10 @@ from sqlalchemy import and_, select, func, delete, update, or_
 from sqlalchemy import text
 
 from apps.ai_model.embedding import EmbeddingModelCache
+from apps.data_training.curd.recall_query import (
+    TrainingScope,
+    build_embedding_training_sql,
+)
 from apps.data_training.models.data_training_model import DataTrainingInfo, DataTraining, DataTrainingInfoResult
 from apps.datasource.models.datasource import CoreDatasource
 from apps.system.models.system_model import AssistantModel
@@ -475,30 +479,6 @@ def save_embeddings(session_maker, ids: List[int]):
         session_maker.remove()
 
 
-embedding_sql = f"""
-SELECT id, datasource, question, similarity
-FROM
-(SELECT id, datasource, question, oid, enabled,
-( 1 - (embedding <=> :embedding_array) ) AS similarity
-FROM data_training AS child
-) TEMP
-WHERE similarity > {settings.EMBEDDING_DATA_TRAINING_SIMILARITY} and oid = :oid and datasource = :datasource and enabled = true
-ORDER BY similarity DESC
-LIMIT {settings.EMBEDDING_DATA_TRAINING_TOP_COUNT}
-"""
-embedding_sql_in_advanced_application = f"""
-SELECT id, advanced_application, question, similarity
-FROM
-(SELECT id, advanced_application, question, oid, enabled,
-( 1 - (embedding <=> :embedding_array) ) AS similarity
-FROM data_training AS child
-) TEMP
-WHERE similarity > {settings.EMBEDDING_DATA_TRAINING_SIMILARITY} and oid = :oid and advanced_application = :advanced_application and enabled = true
-ORDER BY similarity DESC
-LIMIT {settings.EMBEDDING_DATA_TRAINING_TOP_COUNT}
-"""
-
-
 def select_training_by_question(session: SessionDep, question: str, oid: int, datasource: Optional[int] = None,
                                 advanced_application_id: Optional[int] = None,
                                 training_type: Optional[str] = None):
@@ -538,25 +518,25 @@ def select_training_by_question(session: SessionDep, question: str, oid: int, da
 
                 embedding = model.embed_query(question)
 
-                type_filter = "and training_type = :training_type" if training_type else ""
                 params: dict = {'embedding_array': str(embedding), 'oid': oid}
                 if training_type:
                     params['training_type'] = training_type
 
                 if advanced_application_id is not None:
-                    params['advanced_application'] = advanced_application_id
-                    sql = embedding_sql_in_advanced_application.replace(
-                        "ORDER BY similarity DESC",
-                        f"{type_filter} ORDER BY similarity DESC"
-                    )
-                    results = session.execute(text(sql), params)
+                    scope: TrainingScope = "advanced_application"
+                    scope_value = advanced_application_id
                 else:
-                    params['datasource'] = datasource
-                    sql = embedding_sql.replace(
-                        "ORDER BY similarity DESC",
-                        f"{type_filter} ORDER BY similarity DESC"
-                    )
-                    results = session.execute(text(sql), params)
+                    scope = "datasource"
+                    scope_value = datasource
+
+                params['scope_value'] = scope_value
+                sql = build_embedding_training_sql(
+                    scope,
+                    filter_by_training_type=training_type is not None,
+                    similarity_threshold=settings.EMBEDDING_DATA_TRAINING_SIMILARITY,
+                    top_count=settings.EMBEDDING_DATA_TRAINING_TOP_COUNT,
+                )
+                results = session.execute(text(sql), params)
 
                 for row in results:
                     _list.append(DataTraining(id=row.id, question=row.question))

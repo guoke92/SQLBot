@@ -3,11 +3,15 @@ import { onMounted, onBeforeUnmount, ref, nextTick } from 'vue'
 import { datasourceApi } from '@/api/datasource'
 import { useI18n } from 'vue-i18n'
 import { Graph, Cell, Shape } from '@antv/x6'
-import type { AnyColumn } from 'element-plus-secondary/es/components/table-v2/src/common.mjs'
 import { debounce } from 'lodash-es'
+import { Aim, Minus, Plus } from '@element-plus/icons-vue'
 
 const LINE_HEIGHT = 36
 const NODE_WIDTH = 180
+const NODE_HEADER_HEIGHT = LINE_HEIGHT + 15
+const MIN_SCALE = 0.2
+const MAX_SCALE = 2
+const SCALE_STEP = 0.1
 
 const props = withDefaults(
   defineProps<{
@@ -27,10 +31,12 @@ const loading = ref(false)
 const tooltipY = ref('-999px')
 const tooltipX = ref('-999px')
 const tooltipContent = ref('')
-const nodeIds = ref<any[]>([])
+const nodeIds = ref<number[]>([])
+const graphContainer = ref<HTMLDivElement>()
+const zoomPercent = ref(100)
 
-const cells = ref<Cell[]>([])
-const edgeOPtion = {
+const cells: Cell[] = []
+const edgeOptions = {
   tools: [
     {
       name: 'button-remove', // 工具名称
@@ -44,7 +50,61 @@ const edgeOPtion = {
     },
   },
 }
-let graph: any
+let graph: Graph | null = null
+
+const portItems = (node: any): any[] => {
+  if (Array.isArray(node?.ports)) return node.ports
+  return Array.isArray(node?.ports?.items) ? node.ports.items : []
+}
+
+const nodeHeight = (node: any) => NODE_HEADER_HEIGHT + portItems(node).length * LINE_HEIGHT
+
+const tableNodeOptions = (node: any, position: { x: number; y: number }) => ({
+  ...node,
+  position,
+  attrs: {
+    ...(node.attrs ?? {}),
+    label: {
+      text: String(node.label ?? node.attrs?.label?.text ?? ''),
+      fill: '#1F2329',
+      fontSize: 14,
+      fontWeight: 500,
+      textAnchor: 'left',
+      refX: 34,
+      refY: 28,
+      textWrap: {
+        width: NODE_WIDTH - 46,
+        height: 24,
+        ellipsis: true,
+      },
+    },
+  },
+  height: nodeHeight(node),
+  width: NODE_WIDTH,
+})
+
+const updateZoomPercent = () => {
+  zoomPercent.value = Math.round((graph?.zoom() ?? 1) * 100)
+}
+
+const zoomBy = (delta: number) => {
+  if (!graph) return
+  graph.zoom(delta, {
+    minScale: MIN_SCALE,
+    maxScale: MAX_SCALE,
+  })
+  updateZoomPercent()
+}
+
+const fitView = () => {
+  if (!graph || !graph.getCells().length) return
+  graph.zoomToFit({
+    padding: 40,
+    minScale: MIN_SCALE,
+    maxScale: 1,
+  })
+  updateZoomPercent()
+}
 
 const resetTooltip = () => {
   tooltipY.value = '-1000px'
@@ -53,6 +113,7 @@ const resetTooltip = () => {
 }
 
 const initGraph = () => {
+  if (!graphContainer.value) return
   Graph.registerPortLayout(
     'erPortPosition',
     (portsPositionArgs) => {
@@ -116,6 +177,15 @@ const initGraph = () => {
         label: {
           fill: '#1F2329',
           fontSize: 14,
+          fontWeight: 500,
+          textAnchor: 'left',
+          refX: 34,
+          refY: 28,
+          textWrap: {
+            width: NODE_WIDTH - 46,
+            height: 24,
+            ellipsis: true,
+          },
         },
       },
       ports: {
@@ -163,10 +233,13 @@ const initGraph = () => {
   graph = new Graph({
     mousewheel: {
       enabled: true,
-      modifiers: ['ctrl', 'meta'],
-      factor: 1.05,
+      modifiers: null,
+      factor: 1.1,
+      minScale: MIN_SCALE,
+      maxScale: MAX_SCALE,
+      zoomAtMousePosition: true,
     },
-    container: document.getElementById('container')!,
+    container: graphContainer.value,
     autoResize: true,
     panning: true,
     connecting: {
@@ -184,10 +257,11 @@ const initGraph = () => {
         return true
       },
       createEdge() {
-        return new Shape.Edge(edgeOPtion)
+        return new Shape.Edge(edgeOptions)
       },
     },
   })
+  graph.on('scale', updateZoomPercent)
 
   graph.on('edge:mouseenter', ({ e }: any) => {
     Array.from(document.querySelectorAll('.x6-edge-tool')).forEach((ele: any) => {
@@ -266,12 +340,13 @@ const initGraph = () => {
         offset: { x: 165, y: 28 },
         onClick({ view }: any) {
           node.removeTools()
-          graph.removeNode(view.cell.id)
+          graph?.removeNode(view.cell.id)
           nodeIds.value = nodeIds.value.filter((ele) => ele !== view.cell.id)
           resetTooltip()
           if (!nodeIds.value.length) {
-            graph.dispose()
+            graph?.dispose()
             graph = null
+            zoomPercent.value = 100
           }
           emits('getTableName', [...nodeIds.value])
         },
@@ -296,25 +371,24 @@ const getTableData = () => {
         if (!graph) {
           initGraph()
         }
+        if (!graph) return
+        cells.length = 0
         data.forEach((item: any) => {
           if (item.shape === 'edge') {
-            cells.value.push(graph.createEdge({ ...item, ...edgeOPtion }))
+            cells.push(graph!.createEdge({ ...item, ...edgeOptions }))
           } else {
-            cells.value.push(
-              graph.createNode({
-                ...item,
-                position: {
-                  x: Number.parseInt(item.position.x),
-                  y: Number.parseInt(item.position.y),
-                },
-                height: LINE_HEIGHT + 15,
-                width: NODE_WIDTH,
-              })
+            cells.push(
+              graph!.createNode(
+                tableNodeOptions(item, {
+                  x: Number(item.position?.x ?? 0),
+                  y: Number(item.position?.y ?? 0),
+                })
+              )
             )
           }
         })
-        graph.resetCells(cells.value)
-        graph.zoomToFit({ padding: 100 })
+        graph.resetCells(cells)
+        fitView()
         emits('getTableName', [...nodeIds.value])
       })
     })
@@ -326,6 +400,7 @@ onMounted(() => {
   getTableData()
 })
 onBeforeUnmount(() => {
+  graph?.dispose()
   graph = null
 })
 const dragover = () => {
@@ -336,30 +411,15 @@ const addNode = (node: any, tableX: any, tableY: any) => {
   if (!graph) {
     initGraph()
   }
+  if (!graph) return
   const { x, y } = graph.pageToLocal(tableX, tableY)
   graph.addNode(
-    graph.createNode({
-      ...node,
-      position: {
+    graph.createNode(
+      tableNodeOptions(node, {
         x,
         y,
-      },
-      attrs: {
-        label: {
-          text: node.label,
-          textAnchor: 'left',
-          refX: 34,
-          refY: 28,
-          textWrap: {
-            width: 120,
-            height: 24,
-            ellipsis: true,
-          },
-        },
-      },
-      height: LINE_HEIGHT + 15,
-      width: NODE_WIDTH,
-    })
+      })
+    )
   )
 }
 
@@ -367,7 +427,7 @@ const clickTable = (table: any) => {
   loading.value = true
   datasourceApi
     .fieldList(table.id)
-    .then((res: AnyColumn) => {
+    .then((res: any[]) => {
       const node = {
         id: table.id,
         shape: 'er-rect',
@@ -443,7 +503,29 @@ const save = () => {
   <div v-if="!nodeIds.length" v-loading="loading" class="relationship-empty">
     {{ t('training.add_it_here') }}
   </div>
-  <div v-else id="container" v-loading="loading"></div>
+  <div v-else ref="graphContainer" v-loading="loading" class="graph-container"></div>
+  <div v-if="nodeIds.length" class="zoom-controls">
+    <el-button-group>
+      <el-tooltip :content="t('common.zoom_out')" placement="bottom">
+        <el-button
+          :icon="Minus"
+          :disabled="zoomPercent <= MIN_SCALE * 100"
+          @click="zoomBy(-SCALE_STEP)"
+        />
+      </el-tooltip>
+      <el-button class="zoom-value" disabled>{{ zoomPercent }}%</el-button>
+      <el-tooltip :content="t('common.zoom_in')" placement="bottom">
+        <el-button
+          :icon="Plus"
+          :disabled="zoomPercent >= MAX_SCALE * 100"
+          @click="zoomBy(SCALE_STEP)"
+        />
+      </el-tooltip>
+      <el-tooltip :content="t('common.fit_to_view')" placement="bottom">
+        <el-button :icon="Aim" @click="fitView" />
+      </el-tooltip>
+    </el-button-group>
+  </div>
   <div
     v-show="dragging"
     class="drag-mask"
@@ -501,7 +583,18 @@ const save = () => {
   height: 100%;
   font-size: 16px;
 }
-#container {
+.zoom-controls {
+  position: absolute;
+  right: 16px;
+  top: 16px;
+  z-index: 2;
+
+  .zoom-value {
+    width: 58px;
+    color: var(--ed-text-color-primary);
+  }
+}
+.graph-container {
   font-size: 14px;
   user-select: text;
   overflow: hidden;

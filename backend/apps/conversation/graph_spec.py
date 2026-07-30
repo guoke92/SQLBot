@@ -108,6 +108,7 @@ def parse_graph_spec(raw: Any, *, source_path: str | None = None) -> GraphSpec:
 
     edges: List[Union[PlainEdge, ConditionalEdge]] = []
     known = set(nodes.keys()) | {"START", "END"}
+    declared_sources: set[str] = set()
 
     for i, item in enumerate(edges_raw):
         loc = f"{source_path or 'spec'}.edges[{i}]"
@@ -115,6 +116,14 @@ def parse_graph_spec(raw: Any, *, source_path: str | None = None) -> GraphSpec:
         src = str(edge.get("from") or "").strip()
         if not src:
             raise GraphSpecError(f"{loc}: from is required")
+        if src == "END":
+            raise GraphSpecError(f"{loc}: END cannot be an edge source")
+        if src in declared_sources:
+            raise GraphSpecError(
+                f"{loc}: duplicate outgoing declaration for {src!r}; "
+                "use one conditional edge for branching"
+            )
+        declared_sources.add(src)
         if src not in known and src != "START":
             # START always allowed; other sources must be declared nodes
             if src not in nodes and src != "START":
@@ -154,14 +163,50 @@ def parse_graph_spec(raw: Any, *, source_path: str | None = None) -> GraphSpec:
                 raise GraphSpecError(f"{loc}: unknown from={src!r}")
             edges.append(PlainEdge(source=src, target=dst))
 
-    # Every node should be reachable as a target or START-adjacent — soft check:
-    # require at least one edge from START.
     if not any(
         (isinstance(e, PlainEdge) and e.source == "START")
         or (isinstance(e, ConditionalEdge) and e.source == "START")
         for e in edges
     ):
         raise GraphSpecError(f"{source_path or 'spec'}: missing edge from START")
+
+    adjacency: Dict[str, set[str]] = {name: set() for name in known}
+    reverse: Dict[str, set[str]] = {name: set() for name in known}
+    for edge in edges:
+        targets = (
+            [edge.target]
+            if isinstance(edge, PlainEdge)
+            else list(edge.paths.values())
+        )
+        for target in targets:
+            adjacency.setdefault(edge.source, set()).add(target)
+            reverse.setdefault(target, set()).add(edge.source)
+
+    def reachable(start: str, graph: Dict[str, set[str]]) -> set[str]:
+        visited: set[str] = set()
+        pending = [start]
+        while pending:
+            current = pending.pop()
+            if current in visited:
+                continue
+            visited.add(current)
+            pending.extend(graph.get(current, set()) - visited)
+        return visited
+
+    from_start = reachable("START", adjacency)
+    unreachable = sorted(set(nodes) - from_start)
+    if unreachable:
+        raise GraphSpecError(
+            f"{source_path or 'spec'}: unreachable node(s): {', '.join(unreachable)}"
+        )
+
+    to_end = reachable("END", reverse)
+    non_terminal = sorted(set(nodes) - to_end)
+    if non_terminal:
+        raise GraphSpecError(
+            f"{source_path or 'spec'}: node(s) have no path to END: "
+            + ", ".join(non_terminal)
+        )
 
     description = str(data.get("description") or "")
     return GraphSpec(

@@ -5,11 +5,12 @@ import { useI18n } from 'vue-i18n'
 import PlatformParam from './xpack/PlatformParam.vue'
 import { request } from '@/utils/request'
 import { formatArg } from '@/utils/utils'
+import { APP_NAME } from '@/constants/branding'
 const { t } = useI18n()
 
 const state = reactive({
   parameterForm: reactive<any>({
-    'chat.sqlbot_name': 'SQLBot',
+    'chat.sqlbot_name': APP_NAME,
     'chat.hide_thinking_block': false,
     'chat.expand_thinking_block': false,
     'chat.limit_rows': false,

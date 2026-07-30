@@ -7,7 +7,7 @@ Multi-step chain support is stubbed in QueryPlan.payload.steps for future extens
 from __future__ import annotations
 
 import json
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, Dict, List, Mapping, Optional, Sequence
 from urllib.parse import urljoin
 
 import httpx
@@ -33,13 +33,31 @@ from common.core.config import settings
 from common.error import SingleMessageError
 from common.utils.utils import SQLBotLogUtil
 
-
 # Envelope keys treated as transport metadata, not row business columns.
 _ENVELOPE_META_KEYS = {
-    "code", "status", "statusCode", "status_code", "errcode", "errCode",
-    "message", "msg", "error", "errorMessage", "error_msg", "errorMsg",
-    "error_description", "success", "ok", "traceId", "trace_id",
-    "requestId", "request_id", "url", "timestamp", "ts", "path",
+    "code",
+    "status",
+    "statusCode",
+    "status_code",
+    "errcode",
+    "errCode",
+    "message",
+    "msg",
+    "error",
+    "errorMessage",
+    "error_msg",
+    "errorMsg",
+    "error_description",
+    "success",
+    "ok",
+    "traceId",
+    "trace_id",
+    "requestId",
+    "request_id",
+    "url",
+    "timestamp",
+    "ts",
+    "path",
 }
 
 
@@ -129,7 +147,9 @@ _PLACEHOLDERS: Dict[str, Any] = {
 }
 
 
-def _default_params(ep: ApiEndpointDef, *, allow_placeholder: bool = True) -> Dict[str, Any]:
+def _default_params(
+    ep: ApiEndpointDef, *, allow_placeholder: bool = True
+) -> Dict[str, Any]:
     """Resolve param values from default/example/(optional) type placeholder."""
     params: Dict[str, Any] = {}
     for p in ep.params:
@@ -144,7 +164,9 @@ def _default_params(ep: ApiEndpointDef, *, allow_placeholder: bool = True) -> Di
     return params
 
 
-def _render_api_schema(conf: ApiDatasourceConf, endpoint_names: Optional[Sequence[str]] = None) -> str:
+def _render_api_schema(
+    conf: ApiDatasourceConf, endpoint_names: Optional[Sequence[str]] = None
+) -> str:
     """Render endpoint list as API-native schema text (not SQL M-Schema)."""
     endpoints = conf.endpoints
     if endpoint_names is not None:
@@ -168,7 +190,9 @@ def _render_api_schema(conf: ApiDatasourceConf, endpoint_names: Optional[Sequenc
                 req = "required" if p.required else "optional"
                 default = f", default={p.default}" if p.default is not None else ""
                 desc = f" — {p.description}" if p.description else ""
-                lines.append(f"    - {p.name} ({p.location}, {p.type}, {req}{default}){desc}")
+                lines.append(
+                    f"    - {p.name} ({p.location}, {p.type}, {req}{default}){desc}"
+                )
         else:
             lines.append("  Params: (none)")
         if ep.response_fields:
@@ -192,11 +216,27 @@ class RestProtocol(BaseProtocol):
     def __init__(self, type_key: str) -> None:
         self.type_key = type_key
 
+    def normalize_configuration(
+        self,
+        configuration: Mapping[str, Any],
+    ) -> Dict[str, Any]:
+        unknown = sorted(set(configuration) - set(ApiDatasourceConf.model_fields))
+        if unknown:
+            raise ValueError(
+                "Unsupported API datasource configuration field(s): "
+                f"{', '.join(unknown)}"
+            )
+        return ApiDatasourceConf.model_validate(dict(configuration)).model_dump(
+            mode="json"
+        )
+
     # ------------------------------------------------------------------
     # Connection
     # ------------------------------------------------------------------
 
-    def check_connection(self, ds: Any, trans: Any = None, is_raise: bool = False) -> bool:
+    def check_connection(
+        self, ds: Any, trans: Any = None, is_raise: bool = False
+    ) -> bool:
         conf = _parse_conf(ds)
         if not conf.base_url:
             if is_raise:
@@ -246,6 +286,8 @@ class RestProtocol(BaseProtocol):
         embedding: bool = True,
         out_ds_instance: Any = None,
         resource_names: Optional[Sequence[str]] = None,
+        required_resource_names: Sequence[str] = (),
+        access_scope: Any = None,
     ) -> SchemaSnapshot:
         conf = _parse_conf(ds)
 
@@ -268,27 +310,41 @@ class RestProtocol(BaseProtocol):
                     sample_data="",
                 )
             schema_text, names = out_ds_instance.get_db_schema(ds.id, question)
-            return SchemaSnapshot(schema_text=schema_text, resource_names=list(names), sample_data="")
+            return SchemaSnapshot(
+                schema_text=schema_text, resource_names=list(names), sample_data=""
+            )
 
         # Reuse CoreTable selection + optional embedding to choose endpoints,
         # then re-render as API schema (avoid SQL M-Schema shape).
         from apps.datasource.crud.datasource import get_table_schema
 
         _, names = get_table_schema(
-            session=session, current_user=current_user, ds=ds, question=question, embedding=embedding
+            session=session,
+            current_user=current_user,
+            ds=ds,
+            question=question,
+            embedding=embedding,
+            required_table_list=list(required_resource_names),
+            table_objs=(
+                list(access_scope.table_objects) if access_scope is not None else None
+            ),
         )
         if not names:
             # Fall back to all conf endpoints when projections not yet synced.
             names = [ep.name for ep in conf.endpoints]
 
         schema_text = _render_api_schema(conf, names)
-        return SchemaSnapshot(schema_text=schema_text, resource_names=list(names), sample_data="")
+        return SchemaSnapshot(
+            schema_text=schema_text, resource_names=list(names), sample_data=""
+        )
 
     # ------------------------------------------------------------------
     # Prompt assembly
     # ------------------------------------------------------------------
 
-    def build_prompt_bundle(self, chat_question: Any, *, enable_query_limit: bool = True) -> PromptBundle:
+    def build_prompt_bundle(
+        self, chat_question: Any, *, enable_query_limit: bool = True
+    ) -> PromptBundle:
         from apps.template.template import get_base_template
 
         q = chat_question
@@ -308,36 +364,48 @@ class RestProtocol(BaseProtocol):
         rules = tpl.get("generate_rules", "").format(
             lang=q.lang, sqlbot_name=q.sqlbot_name, base_api_rules=base_api_rules
         )
-        schema = tpl.get("generate_basic_info", "").format(engine=q.engine, schema=q.db_schema)
+        schema = tpl.get("generate_basic_info", "").format(
+            engine=q.engine, schema=q.db_schema
+        )
 
         bundle = PromptBundle(
-            system=system, rules=rules, schema=schema,
+            system=system,
+            rules=rules,
+            schema_text=schema,
             ack_rules="我已掌握所有规则，包括接口定义、参数规范、安全限制和输出格式，我会严格遵守这些规则。",
             ack_schema="我已确认您提供的API接口信息与参数结构，我生成的请求不会超出您提供的接口范围。",
             ack_data_training="我已确认您提供的查询示例，我会进行参考。",
         )
 
         if getattr(q, "terminologies", ""):
-            bundle.terminologies = tpl.get("generate_terminologies_info", "").format(terminologies=q.terminologies)
+            bundle.terminologies = tpl.get("generate_terminologies_info", "").format(
+                terminologies=q.terminologies
+            )
         if getattr(q, "data_training", ""):
-            bundle.data_training = tpl.get("generate_data_training_info", "").format(data_training=q.data_training)
+            bundle.data_training = tpl.get("generate_data_training_info", "").format(
+                data_training=q.data_training
+            )
         if getattr(q, "custom_prompt", ""):
-            bundle.custom_prompt = tpl.get("generate_custom_prompt_info", "").format(custom_prompt=q.custom_prompt)
+            bundle.custom_prompt = tpl.get("generate_custom_prompt_info", "").format(
+                custom_prompt=q.custom_prompt
+            )
 
         return bundle
 
-    def build_user_prompt(self, chat_question: Any, *, current_time: str, change_title: bool) -> str:
+    def build_user_prompt(
+        self, chat_question: Any, *, current_time: str, change_title: bool
+    ) -> str:
         from apps.template.template import get_base_template
 
         q = chat_question
         base_template = get_base_template()
         tpl = base_template.get("template", {}).get("api", {})
         user_tpl = tpl.get("user", "Question: {question}\nRule: {rule}")
-        question = q.question
+        question = getattr(q, "generation_question", "") or q.question
         if getattr(q, "regenerate_record_id", None):
             hint = tpl.get("regenerate_hint", "请重新生成请求。")
-            question = hint + q.question
-        return user_tpl.format(
+            question = hint + question
+        body = user_tpl.format(
             lang=q.lang,
             engine=q.engine,
             schema=q.db_schema,
@@ -347,6 +415,9 @@ class RestProtocol(BaseProtocol):
             error_msg=getattr(q, "error_msg", "") or "",
             change_title=change_title,
         )
+        from apps.chat.plan_context import normalize_plan_context_block
+
+        return normalize_plan_context_block(getattr(q, "plan_context", None)) + body
 
     # ------------------------------------------------------------------
     # Chart prompt overrides (API-centric, protocol-own)
@@ -357,7 +428,9 @@ class RestProtocol(BaseProtocol):
 
         tpl = get_chart_api_template()
         return {
-            "system": tpl["system"].format(lang=chat_question.lang, sqlbot_name=chat_question.sqlbot_name),
+            "system": tpl["system"].format(
+                lang=chat_question.lang, sqlbot_name=chat_question.sqlbot_name
+            ),
             "rules": tpl["generate_rules"].format(lang=chat_question.lang),
             "ack": "我已掌握所有规则，我会严格遵守这些规则来生成符合要求的JSON。",
         }
@@ -374,7 +447,11 @@ class RestProtocol(BaseProtocol):
         return tpl["user"].format(
             lang=chat_question.lang,
             query_plan=chat_question.sql,
-            question=chat_question.question,
+            question=(
+                getattr(chat_question, "generation_question", "")
+                or getattr(chat_question, "planning_question", "")
+                or chat_question.question
+            ),
             rule=chat_question.rule,
             chart_type=chart_type,
             schema=schema,
@@ -422,14 +499,18 @@ class RestProtocol(BaseProtocol):
     def parse_llm_output(self, text: str) -> QueryPlan:
         json_str = self._extract_json(text)
         if json_str is None:
-            return QueryPlan(success=False, message="API answer is not a valid json object")
+            return QueryPlan(
+                success=False, message="API answer is not a valid json object"
+            )
         try:
             data = orjson.loads(json_str)
         except Exception:
             return QueryPlan(success=False, message="Cannot parse API answer")
 
         if not data.get("success"):
-            return QueryPlan(success=False, message=data.get("message", "Unknown error"))
+            return QueryPlan(
+                success=False, message=data.get("message", "Unknown error")
+            )
 
         endpoint_name = data.get("target") or data.get("endpoint") or ""
         params = data.get("params") or {}
@@ -445,7 +526,9 @@ class RestProtocol(BaseProtocol):
             brief=data.get("brief"),
         )
 
-    def validate_plan(self, ds: Any, plan: QueryPlan, allowed_resources: Sequence[str]) -> QueryPlan:
+    def validate_plan(
+        self, ds: Any, plan: QueryPlan, allowed_resources: Sequence[str]
+    ) -> QueryPlan:
         conf = _parse_conf(ds)
         endpoint_name = plan.payload.get("endpoint", "")
 
@@ -477,7 +560,14 @@ class RestProtocol(BaseProtocol):
         plan.statement = f"{ep.method.upper()} {ep.path}"
         return plan
 
-    def execute(self, ds: Any, plan: QueryPlan, *, origin_column: bool = False) -> QueryResult:
+    def execute(
+        self,
+        ds: Any,
+        plan: QueryPlan,
+        *,
+        origin_column: bool = False,
+        max_rows: Optional[int] = None,
+    ) -> QueryResult:
         """Run the plan and return a tabular QueryResult.
 
         Single path: resolve endpoint → HTTP → extraction → QueryResult.
@@ -502,11 +592,28 @@ class RestProtocol(BaseProtocol):
         # Never hand a business failure or pure-null projection back as table data.
         err = extracted.get("error")
         if err or not extracted["is_success"]:
-            raise SingleMessageError(err or self._format_business_error(extracted, raw_response))
+            raise SingleMessageError(
+                err or self._format_business_error(extracted, raw_response)
+            )
+
+        projected_data = extracted["projected_data"]
+        bounded_limit = int(max_rows) if max_rows and max_rows > 0 else None
+        truncated = bool(
+            bounded_limit is not None
+            and (
+                len(projected_data) > bounded_limit
+                or (
+                    extracted["total"] is not None
+                    and int(extracted["total"]) > bounded_limit
+                )
+            )
+        )
+        if bounded_limit is not None:
+            projected_data = projected_data[:bounded_limit]
 
         return QueryResult(
             fields=extracted["projected_fields"],
-            data=extracted["projected_data"],
+            data=projected_data,
             raw=raw_response,
             statement=display_stmt,
             re_exec={
@@ -517,9 +624,14 @@ class RestProtocol(BaseProtocol):
             code_value=extracted["code_value"],
             total=extracted["total"],
             is_success=True,
+            truncated=truncated,
+            limit=bounded_limit if truncated else None,
+            truncation_reason="query_limit" if truncated else None,
         )
 
-    def plan_from_re_exec(self, ds: Any, re_exec: Dict[str, Any]) -> Optional[QueryPlan]:
+    def plan_from_re_exec(
+        self, ds: Any, re_exec: Dict[str, Any]
+    ) -> Optional[QueryPlan]:
         """Rebuild an executable plan from stored re_exec payload."""
         if not re_exec:
             return None
@@ -619,7 +731,9 @@ class RestProtocol(BaseProtocol):
         missing = [
             p.name
             for p in ep.params
-            if p.enabled and p.required and (p.name not in exec_params or exec_params[p.name] in (None, ""))
+            if p.enabled
+            and p.required
+            and (p.name not in exec_params or exec_params[p.name] in (None, ""))
         ]
         if missing:
             return {
@@ -797,7 +911,9 @@ class RestProtocol(BaseProtocol):
 
         return response_json, resp.status_code
 
-    def _apply_extraction(self, response_json: Any, ep: ApiEndpointDef) -> Dict[str, Any]:
+    def _apply_extraction(
+        self, response_json: Any, ep: ApiEndpointDef
+    ) -> Dict[str, Any]:
         """Single extraction pipeline shared by execute and test_extract.
 
         Projection contract:
@@ -935,13 +1051,28 @@ class RestProtocol(BaseProtocol):
 
     # Common envelope keys for business status / messages. Used both when OpenAPI
     # left code_path empty and when projection yields only null business columns.
-    _ENVELOPE_CODE_KEYS = ("code", "status", "statusCode", "status_code", "errcode", "errCode")
+    _ENVELOPE_CODE_KEYS = (
+        "code",
+        "status",
+        "statusCode",
+        "status_code",
+        "errcode",
+        "errCode",
+    )
     _ENVELOPE_MESSAGE_KEYS = (
-        "message", "msg", "error", "errorMessage", "error_msg", "errorMsg", "error_description",
+        "message",
+        "msg",
+        "error",
+        "errorMessage",
+        "error_msg",
+        "errorMsg",
+        "error_description",
     )
 
     @staticmethod
-    def _apply_auth(auth: ApiAuthConfig, headers: Dict[str, str], query: Dict[str, Any]) -> None:
+    def _apply_auth(
+        auth: ApiAuthConfig, headers: Dict[str, str], query: Dict[str, Any]
+    ) -> None:
         if auth.type == ApiAuthType.API_KEY:
             if not auth.api_key:
                 return
@@ -1059,8 +1190,16 @@ class RestProtocol(BaseProtocol):
         specs: List[Dict[str, str]] = []
         dp = (effective_data_path or "").strip().strip(".")
         for f in response_fields:
-            raw_name = getattr(f, "name", None) or (f.get("name") if isinstance(f, dict) else "") or ""
-            raw_path = getattr(f, "path", None) or (f.get("path") if isinstance(f, dict) else "") or raw_name
+            raw_name = (
+                getattr(f, "name", None)
+                or (f.get("name") if isinstance(f, dict) else "")
+                or ""
+            )
+            raw_path = (
+                getattr(f, "path", None)
+                or (f.get("path") if isinstance(f, dict) else "")
+                or raw_name
+            )
             raw_name = str(raw_name)
             raw_path = str(raw_path) if raw_path else raw_name
 
@@ -1101,7 +1240,7 @@ class RestProtocol(BaseProtocol):
                 if s == p.rstrip("."):
                     return ""
                 if s.startswith(p if p.endswith(".") else p + "."):
-                    s = s[len(p):].lstrip(".") if p.endswith(".") else s[len(p) + 1 :]
+                    s = s[len(p) :].lstrip(".") if p.endswith(".") else s[len(p) + 1 :]
                     break
             # Also accept "data0" / mis-parse free forms carefully — not needed.
         # Bare leaf retains original casing (projectName etc.).
@@ -1166,12 +1305,18 @@ class RestProtocol(BaseProtocol):
             return None
 
         message = RestProtocol._guess_message(response_json)
-        code = code_value if code_value is not None else RestProtocol._guess_code_value(response_json)
+        code = (
+            code_value
+            if code_value is not None
+            else RestProtocol._guess_code_value(response_json)
+        )
 
         rows_empty = not extracted_rows
         all_null = False
         if projected_data:
-            business_fields = [f for f in projected_fields if f not in _ENVELOPE_META_KEYS]
+            business_fields = [
+                f for f in projected_fields if f not in _ENVELOPE_META_KEYS
+            ]
             check_fields = business_fields or list(projected_fields)
             if check_fields:
                 all_null = True
@@ -1193,7 +1338,16 @@ class RestProtocol(BaseProtocol):
             return None
 
         success_markers = {
-            0, "0", 200, "200", True, "true", "success", "ok", "SUCCESS", "OK",
+            0,
+            "0",
+            200,
+            "200",
+            True,
+            "true",
+            "success",
+            "ok",
+            "SUCCESS",
+            "OK",
         }
         code_failed = False
         if code is not None and code not in success_markers:
@@ -1212,9 +1366,17 @@ class RestProtocol(BaseProtocol):
             authish = any(
                 tok in low
                 for tok in (
-                    "not logged", "unauthorized", "unauth", "unauthenticated",
-                    "login", "token", "forbidden",
-                    "未登录", "无权限", "鉴权", "登录",
+                    "not logged",
+                    "unauthorized",
+                    "unauth",
+                    "unauthenticated",
+                    "login",
+                    "token",
+                    "forbidden",
+                    "未登录",
+                    "无权限",
+                    "鉴权",
+                    "登录",
                 )
             )
 

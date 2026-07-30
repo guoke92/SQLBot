@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import { ref, computed } from 'vue'
 import DatasourceCard from './DatasourceCard.vue'
+import { APP_NAME } from '@/constants/branding'
 interface Datasource {
   id?: string
   name: string
@@ -28,8 +29,8 @@ const dialogVisible = ref(false)
 
 <template>
   <div class="chat-init_tip">
-    <div class="hello-sqlbot">Hello, I'm SQLBot, happy to serve you!</div>
-    <div class="function-sqlbot">
+    <div class="hello-app">Hello, I'm {{ APP_NAME }}, happy to serve you!</div>
+    <div class="function-app">
       I can help you query data, generate charts, detect data anomalies, predict data, etc. Please
       select a data source and start intelligent data query~
     </div>
@@ -84,12 +85,12 @@ const dialogVisible = ref(false)
 .chat-init_tip {
   width: 780px;
   padding: 16px;
-  .hello-sqlbot {
+  .hello-app {
     margin-bottom: 12px;
     font-size: 16px;
     font-weight: 500;
   }
-  .function-sqlbot {
+  .function-app {
     margin-bottom: 12px;
   }
 

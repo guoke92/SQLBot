@@ -31,6 +31,67 @@ export interface ChatMessage {
   index: number
 }
 
+export type IntentStatus = 'evaluating' | 'needs_clarification' | 'ready' | 'blocked'
+export type IntentKind =
+  | 'datasource'
+  | 'entity'
+  | 'scope'
+  | 'metric'
+  | 'dimension'
+  | 'time'
+  | 'filter'
+  | 'relation'
+  | 'grain'
+  | 'calculation'
+
+export interface IntentResolution {
+  label?: string
+  value: unknown
+  required_identifiers?: string[]
+}
+
+export interface IntentOption {
+  id: string
+  label: string
+  description?: string
+  impact?: string
+  evidence_refs?: string[]
+  resolutions?: Record<string, IntentResolution>
+}
+
+export interface ClarificationQuestion {
+  id: string
+  issue_keys: string[]
+  kind: IntentKind
+  title: string
+  reason?: string
+  selection_type: 'single' | 'multiple' | 'text'
+  required: boolean
+  recommended_option_ids: string[]
+  recommendation_reason?: string
+  recommendation_strength?: 'strong' | 'moderate' | 'weak'
+  options: IntentOption[]
+  allow_custom: boolean
+  custom_placeholder?: string
+}
+
+export interface ClarificationAnswer {
+  question_id: string
+  option_ids: string[]
+  custom_text: string
+}
+
+export interface IntentContext {
+  version: number
+  status: IntentStatus
+  original_question: string
+  summary?: string
+  decisions: Array<Record<string, any>>
+  issues: Array<Record<string, any>>
+  questions: ClarificationQuestion[]
+  blocking_reasons: string[]
+}
+
 export class ChatRecord {
   id?: number
   chat_id?: number
@@ -60,6 +121,10 @@ export class ChatRecord {
   regenerate_record_id?: number
   duration?: number
   total_tokens?: number
+  intent_context?: IntentContext
+  clarification_parent_id?: number
+  clarification_answers?: ClarificationAnswer[]
+  intent_reasoning_content?: string
 
   constructor()
   constructor(
@@ -261,7 +326,7 @@ const toChatRecord = (data?: any): ChatRecord | undefined => {
   if (!data) {
     return undefined
   }
-  return new ChatRecord(
+  const record = new ChatRecord(
     data.id,
     data.chat_id,
     data.create_time,
@@ -289,6 +354,10 @@ const toChatRecord = (data?: any): ChatRecord | undefined => {
     data.duration,
     data.total_tokens
   )
+  record.intent_context = data.intent_context
+  record.clarification_parent_id = data.clarification_parent_id
+  record.intent_reasoning_content = data.intent_reasoning_content
+  return record
 }
 const toChatRecordList = (list: any = []): ChatRecord[] => {
   const records: Array<ChatRecord> = []
@@ -408,6 +477,19 @@ const toChatLogHistoryItemList = (list: any = []): ChatLogHistoryItem[] => {
   return records
 }
 
+const toChatLogHistory = (data?: any): ChatLogHistory | undefined => {
+  if (!data) {
+    return undefined
+  }
+  return new ChatLogHistory(
+    data.start_time,
+    data.finish_time,
+    data.duration,
+    data.total_tokens,
+    toChatLogHistoryItemList(data.steps)
+  )
+}
+
 export const chatApi = {
   toChatInfo: (data?: any): ChatInfo | undefined => {
     if (!data) {
@@ -439,18 +521,7 @@ export const chatApi = {
     }
     return infos
   },
-  toChatLogHistory: (data?: any): ChatLogHistory | undefined => {
-    if (!data) {
-      return undefined
-    }
-    return new ChatLogHistory(
-      data.start_time,
-      data.finish_time,
-      data.duration,
-      data.total_tokens,
-      toChatLogHistoryItemList(data.steps)
-    )
-  },
+  toChatLogHistory,
   list: (): Promise<Array<ChatInfo>> => {
     return request.get('/chat/list')
   },
@@ -466,8 +537,15 @@ export const chatApi = {
   get_chart_predict_data: (record_id?: number): Promise<any> => {
     return request.get(`/chat/record/${record_id}/predict_data`)
   },
-  get_chart_log_history: (record_id?: number): Promise<any> => {
-    return request.get(`/chat/record/${record_id}/log`)
+  get_chart_log_history: async (
+    record_id?: number,
+    options?: { silent?: boolean }
+  ): Promise<ChatLogHistory | undefined> => {
+    const response = await request.get(
+      `/chat/record/${record_id}/log`,
+      options?.silent ? { requestOptions: { silent: true } } : undefined
+    )
+    return toChatLogHistory(response)
   },
   get_chart_usage: (record_id?: number): Promise<any> => {
     return request.get(`/chat/record/${record_id}/usage`)

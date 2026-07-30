@@ -17,6 +17,11 @@ from sqlalchemy import and_
 
 from apps.db.db import get_schema
 from apps.db.engine import get_engine_conn
+from apps.datasource.metadata_service import (
+    update_field_metadata,
+    update_table_and_fields_metadata,
+    update_table_metadata,
+)
 from apps.swagger.i18n import PLACEHOLDER_PREFIX
 from apps.system.schemas.permission import SqlbotPermission, require_permissions
 from common.audit.models.log_model import OperationType, OperationModules
@@ -25,8 +30,8 @@ from common.core.config import settings
 from common.core.deps import SessionDep, CurrentUser, Trans
 from common.utils.utils import SQLBotLogUtil
 from ..crud.datasource import get_datasource_list, check_status, create_ds, update_ds, delete_ds, getTables, getFields, \
-    update_table_and_fields, getTablesByDs, chooseTables, preview, updateTable, updateField, get_ds, fieldEnum, \
-    check_status_by_id, sync_single_fields
+    getTablesByDs, chooseTables, preview, get_ds, fieldEnum, \
+    check_status_by_id, sync_table_fields
 from ..crud.field import get_fields_by_table_id
 from ..crud.table import get_tables_by_ds_id
 from ..models.datasource import CoreDatasource, CreateDatasource, TableObj, CoreTable, CoreField, FieldObj, \
@@ -167,7 +172,7 @@ async def get_fields(session: SessionDep,
 @require_permissions(permission=SqlbotPermission(role=['ws_admin']))
 async def sync_fields(session: SessionDep, trans: Trans,
                       id: int = Path(..., description=f"{PLACEHOLDER_PREFIX}ds_table_id")):
-    return sync_single_fields(session, trans, id)
+    return sync_table_fields(session, trans, id)
 
 
 from pydantic import BaseModel
@@ -473,19 +478,29 @@ async def test_resource(
 @router.post("/editLocalComment", include_in_schema=False)
 @require_permissions(permission=SqlbotPermission(role=['ws_admin']))
 async def edit_local(session: SessionDep, data: TableObj):
-    update_table_and_fields(session, data)
+    update_table_and_fields_metadata(session, data)
 
 
 @router.post("/editTable", response_model=None, summary=f"{PLACEHOLDER_PREFIX}ds_edit_table")
 @require_permissions(permission=SqlbotPermission(role=['ws_admin']))
 async def edit_table(session: SessionDep, table: CoreTable):
-    updateTable(session, table)
+    update_table_metadata(
+        session,
+        table_id=int(table.id),
+        checked=table.checked,
+        custom_comment=table.custom_comment,
+    )
 
 
 @router.post("/editField", response_model=None, summary=f"{PLACEHOLDER_PREFIX}ds_edit_field")
 @require_permissions(permission=SqlbotPermission(role=['ws_admin']))
 async def edit_field(session: SessionDep, field: CoreField):
-    updateField(session, field)
+    update_field_metadata(
+        session,
+        field_id=int(field.id),
+        checked=field.checked,
+        custom_comment=field.custom_comment,
+    )
 
 
 @router.post("/previewData/{id}", response_model=PreviewResponse, summary=f"{PLACEHOLDER_PREFIX}ds_preview_data")

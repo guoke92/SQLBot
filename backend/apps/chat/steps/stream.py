@@ -11,8 +11,6 @@ from typing import Any, Dict, Iterator
 from langchain_core.messages import BaseMessageChunk
 
 from common.core.config import settings
-from common.utils.utils import SQLBotLogUtil
-
 
 def get_token_usage(
     chunk: BaseMessageChunk, token_usage: dict | None = None
@@ -43,7 +41,6 @@ def process_stream(
     pending_start_tag = ""
 
     for chunk in res:
-        SQLBotLogUtil.info(chunk)
         reasoning_content_chunk = ""
         content = chunk.content
         output_content = ""

@@ -1,6 +1,4 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
-// @ts-expect-error eslint-disable-next-line @typescript-eslint/ban-ts-comment
-import Layout from '@/components/layout/index.vue'
 import LayoutDsl from '@/components/layout/LayoutDsl.vue'
 import SinglePage from '@/components/layout/SinglePage.vue'
 import login from '@/views/login/index.vue'
@@ -9,8 +7,6 @@ import DashboardEditor from '@/views/dashboard/editor/index.vue'
 import DashboardPreview from '@//views/dashboard/preview/SQPreviewSingle.vue'
 import Dashboard from '@/views/dashboard/index.vue'
 import Model from '@/views/system/model/Model.vue'
-// import Embedded from '@/views/system/embedded/index.vue'
-// import SetAssistant from '@/views/system/embedded/iframe.vue'
 import SystemEmbedded from '@/views/system/embedded/Page.vue'
 import Variables from '@/views/system/variables/index.vue'
 
@@ -32,12 +28,18 @@ import User from '@/views/system/user/User.vue'
 import Workspace from '@/views/system/workspace/index.vue'
 import Page401 from '@/views/error/index.vue'
 import ChatPreview from '@/views/chat/preview.vue'
+import Datasource from '@/views/ds/Datasource.vue'
+import SetAssistant from '@/views/system/embedded/iframe.vue'
 
 import { i18n } from '@/i18n'
 import { watchRouter } from './watch'
 
 const t = i18n.global.t
 export const routes = [
+  {
+    path: '/',
+    redirect: '/chat',
+  },
   {
     path: '/login',
     name: 'login',
@@ -55,7 +57,13 @@ export const routes = [
         props: (route: any) => {
           return { startChatDsId: route.query.start_chat }
         },
-        meta: { title: t('menu.Data Q&A'), iconActive: 'chat', iconDeActive: 'noChat' },
+        meta: {
+          title: t('menu.Data Q&A'),
+          iconActive: 'chat',
+          iconDeActive: 'noChat',
+          navigation: true,
+          navigationOrder: 10,
+        },
       },
     ],
   },
@@ -71,20 +79,50 @@ export const routes = [
       },
     ],
   },
-  /* {
+  {
     path: '/ds',
     component: LayoutDsl,
     name: 'ds-menu',
     redirect: '/ds/index',
+    meta: { requiresSpaceAdmin: true },
     children: [
       {
         path: 'index',
         name: 'ds',
         component: Datasource,
-        meta: { title: t('menu.Data Connections'), iconActive: 'ds', iconDeActive: 'noDs' },
+        meta: {
+          title: t('menu.Data Connections'),
+          iconActive: 'ds',
+          iconDeActive: 'noDs',
+          requiresSpaceAdmin: true,
+          navigation: true,
+          navigationOrder: 30,
+        },
       },
     ],
-  }, */
+  },
+  {
+    path: '/as',
+    component: LayoutDsl,
+    name: 'as-menu',
+    redirect: '/as/index',
+    meta: { title: t('embedded.assistant_app'), requiresSpaceAdmin: true },
+    children: [
+      {
+        path: 'index',
+        name: 'as',
+        component: SetAssistant,
+        meta: {
+          title: t('embedded.assistant_app'),
+          iconActive: 'embedded',
+          iconDeActive: 'noEmbedded',
+          requiresSpaceAdmin: true,
+          navigation: true,
+          navigationOrder: 40,
+        },
+      },
+    ],
+  },
   {
     path: '/dashboard',
     component: LayoutDsl,
@@ -98,6 +136,8 @@ export const routes = [
           title: t('dashboard.dashboard'),
           iconActive: 'dashboard',
           iconDeActive: 'noDashboard',
+          navigation: true,
+          navigationOrder: 20,
         },
       },
     ],
@@ -107,7 +147,14 @@ export const routes = [
     name: 'set',
     component: LayoutDsl,
     redirect: '/set/member',
-    meta: { title: t('workspace.set'), iconActive: 'set', iconDeActive: 'noSet' },
+    meta: {
+      title: t('workspace.set'),
+      iconActive: 'set',
+      iconDeActive: 'noSet',
+      requiresSpaceAdmin: true,
+      navigation: true,
+      navigationOrder: 50,
+    },
     children: [
       {
         path: '/set/member',
@@ -205,7 +252,7 @@ export const routes = [
       {
         path: 'setting',
         meta: { title: t('system.system_settings'), iconActive: 'set', iconDeActive: 'noSet' },
-        redirect: 'system_/appearance',
+        redirect: '/system/setting/appearance',
         name: 'setting',
         children: [
           {

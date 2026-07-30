@@ -2,6 +2,7 @@ import dayjs from 'dayjs'
 import { useCache } from '@/utils/useCache'
 import colorFunctions from 'less/lib/less/functions/color.js'
 import colorTree from 'less/lib/less/tree/color.js'
+import { APP_TITLE } from '@/constants/branding'
 
 const { wsCache } = useCache()
 const getCheckDate = (timestamp: any) => {
@@ -127,7 +128,7 @@ export const getCurrentRouter = () => {
 }
 
 export const setTitle = (title?: string) => {
-  document.title = title || 'SQLBot'
+  document.title = title || APP_TITLE
 }
 
 function rgbToHex(r: any, g: any, b: any) {
@@ -289,7 +290,7 @@ export function isMobile() {
   )
 }
 
-export const getSQLBotAddr = (portEnd?: boolean) => {
+export const getAppAddr = (portEnd?: boolean) => {
   const addr = location.origin + location.pathname
   if (!portEnd || !addr.endsWith('/')) {
     return addr

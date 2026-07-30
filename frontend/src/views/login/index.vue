@@ -68,7 +68,6 @@
           </div>
           <Handler
             v-model:loading="showLoading"
-            jsname="L2NvbXBvbmVudC9sb2dpbi9IYW5kbGVy"
             @switch-tab="switchTab"
           />
         </div>

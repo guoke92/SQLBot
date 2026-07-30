@@ -9,9 +9,9 @@
           </el-icon>
         </div>
         <div class="tab-card active">
-          <div :title="pageName || 'SQLBot'" class="active-span">
+          <div :title="pageName || APP_NAME" class="active-span">
             <img :src="pageWeb" alt="" />
-            <span>{{ pageName || 'SQLBot' }}</span>
+            <span>{{ pageName || APP_NAME }}</span>
           </div>
           <el-icon size="10">
             <icon_close_outlined />
@@ -105,6 +105,7 @@ import { isBtnShow } from '@/utils/utils'
 import { useI18n } from 'vue-i18n'
 import { computed, ref, onMounted, nextTick } from 'vue'
 import elementResizeDetectorMaker from 'element-resize-detector'
+import { APP_NAME } from '@/constants/branding'
 const basePath = import.meta.env.VITE_API_BASE_URL
 const baseUrl = basePath + '/system/appearance/picture/'
 

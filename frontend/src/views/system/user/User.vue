@@ -562,6 +562,7 @@ import field_text from '@/assets/svg/field_text.svg'
 import field_time from '@/assets/svg/field_time.svg'
 import field_value from '@/assets/svg/field_value.svg'
 import { request } from '@/utils/request'
+import { isXpackLicenseValid } from '@/platform/xpack'
 import { workspaceList } from '@/api/workspace'
 import { variablesApi } from '@/api/variables'
 import { formatTimestamp } from '@/utils/date'
@@ -1183,9 +1184,7 @@ const formatUserOrigin = (origin?: number) => {
 
 const showSyncBtn = ref(false)
 onMounted(() => {
-  // eslint-disable-next-line no-undef
-  const obj = LicenseGenerator.getLicense()
-  if (obj?.status === 'valid') {
+  if (isXpackLicenseValid()) {
     showSyncBtn.value = true
     loadData()
   } else {

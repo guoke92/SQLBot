@@ -87,6 +87,7 @@ import { inject, onMounted, reactive, ref, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { workspaceList } from '@/api/workspace'
 import { request } from '@/utils/request'
+import { isXpackLicenseValid } from '@/platform/xpack'
 import icon_info_outlined_1 from '@/assets/svg/icon_info_outlined_1.svg'
 
 const { t } = useI18n()
@@ -135,9 +136,7 @@ const queryCategoryStatus = () => {
   return request.get(url)
 }
 onMounted(async () => {
-  // eslint-disable-next-line no-undef
-  const obj = LicenseGenerator.getLicense()
-  if (obj?.status !== 'valid') {
+  if (!isXpackLicenseValid()) {
     xpackValid.value = false
     return
   }

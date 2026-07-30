@@ -10,18 +10,17 @@ from sqlbot_xpack.custom_prompt.models.custom_prompt_model import CustomPromptTy
 from sqlmodel import Session
 
 from apps.chat.curd.chat import (
-    end_log,
     get_chat_chart_data,
     save_predict_answer,
     save_predict_data,
-    start_log,
 )
 from apps.chat.models.chat_model import OperationEnum, SystemPromptMessage
 from apps.chat.steps.chart_fields import get_fields_from_chart
 from apps.chat.steps.custom_prompt import match_custom_prompts
 from apps.chat.steps.stream import process_stream
+from apps.conversation.observability import end_log, start_log
 from apps.datasource.models.datasource import CoreDatasource
-from common.utils.utils import extract_nested_json
+from common.utils.json_utils import extract_nested_json
 
 
 def generate_predict(llm_service: Any, session: Session) -> Iterator[Dict[str, Any]]:

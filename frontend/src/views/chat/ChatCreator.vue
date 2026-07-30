@@ -131,7 +131,6 @@ function createChat(datasource: number) {
 const drawerHeight = ref(0)
 const setHeight = () => {
   drawerHeight.value = document.body.clientHeight - 100
-  console.log(drawerHeight.value)
 }
 
 onMounted(() => {

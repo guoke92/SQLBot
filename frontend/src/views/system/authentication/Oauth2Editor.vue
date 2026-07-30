@@ -11,7 +11,7 @@ import {
   ElSelect,
 } from 'element-plus-secondary'
 import { request } from '@/utils/request'
-import { getSQLBotAddr } from '@/utils/utils'
+import { getAppAddr } from '@/utils/utils'
 
 const { t } = useI18n()
 const dialogVisible = ref(false)
@@ -28,7 +28,7 @@ const state = reactive({
     scope: '',
     client_id: '',
     client_secret: '',
-    redirect_url: getSQLBotAddr(),
+    redirect_url: getAppAddr(),
     token_auth_method: 'basic',
     userinfo_auth_method: 'header',
     logout_redirect_url: '',
@@ -84,7 +84,7 @@ const validateUrl = (rule, value, callback) => {
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-expect-error
 const validateCbUrl = (rule, value, callback) => {
-  const addr = getSQLBotAddr()
+  const addr = getAppAddr()
   if (value === addr || `${value}/` === addr) {
     callback()
   }

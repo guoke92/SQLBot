@@ -18,7 +18,7 @@
 <hr/>
 
 
-SQLBot 是一款基于大语言模型和 RAG 的智能问数系统，由 DataEase 开源项目组匠心出品。借助 SQLBot，用户可以实现对话式数据分析（ChatBI），快速提炼获取所需的数据信息及可视化图表，并且支持进一步开展智能分析。
+AI智能问数是一款基于大语言模型和 RAG 的智能问数系统，由 DataEase 开源项目组匠心出品。借助 AI智能问数，用户可以实现对话式数据分析（ChatBI），快速提炼获取所需的数据信息及可视化图表，并且支持进一步开展智能分析。
 
 ## 工作原理
 
@@ -69,9 +69,9 @@ docker run -d \
   dataease/sqlbot
 ```
 
-你也可以通过 [1Panel 应用商店](https://apps.fit2cloud.com/1panel) 快速部署 SQLBot。
+你也可以通过 [1Panel 应用商店](https://apps.fit2cloud.com/1panel) 快速部署 AI智能问数。
 
-如果是内网环境，你可以通过 [离线安装包方式](https://community.fit2cloud.com/#/products/sqlbot/downloads) 部署 SQLBot。
+如果是内网环境，你可以通过 [离线安装包方式](https://community.fit2cloud.com/#/products/sqlbot/downloads) 部署 AI智能问数。
 
 ### 访问方式
 
@@ -109,7 +109,7 @@ docker run -d \
 
 本仓库遵循 [FIT2CLOUD Open Source License](LICENSE) 开源协议，该许可证本质上是 GPLv3，但有一些额外的限制。
 
-你可以基于 SQLBot 的源代码进行二次开发，但是需要遵守以下规定：
+你可以基于 AI智能问数的源代码进行二次开发，但是需要遵守以下规定：
 
 - 不能替换和修改 SQLBot 的 Logo 和版权信息；
 - 二次开发后的衍生作品必须遵守 GPL V3 的开源义务。

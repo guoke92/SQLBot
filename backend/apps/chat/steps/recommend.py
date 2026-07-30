@@ -8,9 +8,10 @@ import orjson
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 from sqlmodel import Session
 
-from apps.chat.curd.chat import end_log, get_old_questions, save_recommend_question_answer, start_log
+from apps.chat.curd.chat import get_old_questions, save_recommend_question_answer
 from apps.chat.models.chat_model import OperationEnum, SystemPromptMessage
 from apps.chat.steps.stream import process_stream
+from apps.conversation.observability import end_log, start_log
 
 
 def generate_recommend_questions(
@@ -22,7 +23,7 @@ def generate_recommend_questions(
             session=session,
             current_user=llm_service.current_user,
             ds=llm_service.ds,
-            question=llm_service.chat_question.question,
+            question=llm_service.retrieval_question,
             out_ds_instance=llm_service.out_ds_instance,
         )
         llm_service.chat_question.db_schema = snapshot.schema_text

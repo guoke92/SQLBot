@@ -1,11 +1,9 @@
-import { ElMessage } from 'element-plus-secondary'
 import { useCache } from '@/utils/useCache'
 import { useAppearanceStoreWithOut } from '@/stores/appearance'
 import { useUserStore } from '@/stores/user'
-import { request } from '@/utils/request'
 import type { Router } from 'vue-router'
-import { generateDynamicRouters } from './dynamic'
 import { toLoginPage } from '@/utils/utils'
+import { installXpackRoutes, loadXpackRuntime } from '@/platform/xpack'
 
 const appearanceStore = useAppearanceStoreWithOut()
 const userStore = useUserStore()
@@ -13,13 +11,43 @@ const { wsCache } = useCache()
 const whiteList = ['/login', '/admin-login']
 const assistantWhiteList = ['/assistant', '/embeddedPage', '/embeddedCommon', '/401']
 
-const wsAdminRouterList = ['/ds/index', '/as/index']
 export const watchRouter = (router: Router) => {
+  let appearanceRuntimeApplied = false
+
+  const prepareXpack = async () => {
+    const runtime = await loadXpackRuntime()
+    if (!runtime) return
+    installXpackRoutes(router)
+    if (!appearanceRuntimeApplied) {
+      appearanceRuntimeApplied = true
+      appearanceStore.setLoaded(false)
+    }
+  }
+
   router.beforeEach(async (to: any, from: any, next: any) => {
-    await loadXpackStatic()
-    await appearanceStore.setAppearance()
-    if (typeof LicenseGenerator !== 'undefined') {
-      LicenseGenerator.generateRouters(router)
+    const token = wsCache.get('user.token')
+    const shouldPrepareXpack = whiteList.includes(to.path) || Boolean(token)
+    const wasUnmatched = !to.matched?.length
+    if (shouldPrepareXpack) {
+      await prepareXpack()
+      if (wasUnmatched) {
+        if (router.resolve(to.fullPath).matched.length) {
+          next({
+            path: to.path,
+            query: to.query,
+            hash: to.hash,
+            replace: true,
+          })
+        } else {
+          next('/chat')
+        }
+        return
+      }
+    }
+    try {
+      await appearanceStore.setAppearance()
+    } catch (error) {
+      console.error('Failed to load appearance settings:', error)
     }
     if (to.path.startsWith('/login') && userStore.getUid) {
       next(to?.query?.redirect || '/')
@@ -29,7 +57,6 @@ export const watchRouter = (router: Router) => {
       next()
       return
     }
-    const token = wsCache.get('user.token')
     if (whiteList.includes(to.path)) {
       next()
       return
@@ -40,14 +67,12 @@ export const watchRouter = (router: Router) => {
       return
     }
     if (!userStore.getUid) {
-      await userStore.info()
-      generateDynamicRouters(router)
-      const isFirstDynamicPath = to?.path && ['/ds/index', '/as/index'].includes(to.path)
-      if (isFirstDynamicPath) {
-        if (userStore.isSpaceAdmin) {
-          next({ ...to, replace: true })
-          return
-        }
+      try {
+        await userStore.info()
+      } catch {
+        userStore.clear()
+        next(toLoginPage(to.fullPath))
+        return
       }
     }
     if (to.path === '/docs') {
@@ -72,30 +97,6 @@ const accessCrossPermission = (to: any) => {
   return (
     (to.path.startsWith('/system') && !userStore.isAdmin) ||
     (to.path.startsWith('/set') && !userStore.isSpaceAdmin) ||
-    (isWsAdminRouter(to) && !userStore.isSpaceAdmin)
+    (to.matched.some((route: any) => route.meta?.requiresSpaceAdmin) && !userStore.isSpaceAdmin)
   )
-}
-
-const isWsAdminRouter = (to?: any) => {
-  return wsAdminRouterList.some((item: string) => to?.path?.startsWith(item))
-}
-const loadXpackStatic = () => {
-  if (document.getElementById('sqlbot_xpack_static')) {
-    return Promise.resolve()
-  }
-  const url = `/xpack_static/license-generator.umd.js?t=${Date.now()}`
-  return new Promise((resolve) => {
-    request
-      .loadRemoteScript(url, 'sqlbot_xpack_static', () => {
-        LicenseGenerator?.init(import.meta.env.VITE_API_BASE_URL).then(() => {
-          resolve(true)
-        })
-      })
-      .catch((error) => {
-        console.error('Failed to load xpack_static script:', error)
-        // Non-fatal in local dev where xpack is absent; resolve so the
-        // router navigation does not crash.
-        resolve(false)
-      })
-  })
 }

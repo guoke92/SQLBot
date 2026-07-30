@@ -9,9 +9,9 @@ from sqlbot_xpack.custom_prompt.models.custom_prompt_model import CustomPromptTy
 from sqlbot_xpack.license.license_manage import SQLBotLicenseUtil
 from sqlmodel import Session
 
-from apps.chat.curd.chat import end_log, start_log
 from apps.chat.models.chat_model import OperationEnum
 from apps.chat.steps.scope import match_scope
+from apps.conversation.observability import end_log, start_log
 
 
 def match_custom_prompts(

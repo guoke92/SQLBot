@@ -5,19 +5,18 @@ import { dsTypeWithImg } from './js/ds-type'
 
 const props = withDefaults(
   defineProps<{
+    id: number
     name: string
     type: string
     typeName: string
-    num: string
+    num: number | string
     isSelected?: boolean
     description?: string
-    id?: string
   }>(),
   {
     name: '-',
     type: '-',
     description: '-',
-    id: '-',
     typeName: '-',
     isSelected: false,
   }

@@ -1,8 +1,8 @@
 # AGENTS.md
 
-Workspace instructions for AI coding agents working on SQLBot.
+Workspace instructions for AI coding agents working on AI智能问数.
 
-## What is SQLBot?
+## What is AI智能问数?
 
 A ChatBI system: users ask natural-language questions, an LLM generates SQL, executes it against a configured datasource, and renders the result as a chart. Built by DataEase / FIT2CLOUD.
 

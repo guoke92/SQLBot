@@ -1,13 +1,22 @@
 <script setup lang="ts">
 import BaseAnswer from './BaseAnswer.vue'
-import { Chat, chatApi, ChatInfo, type ChatMessage, ChatRecord, questionApi } from '@/api/chat.ts'
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, type Ref } from 'vue'
+import {
+  Chat,
+  chatApi,
+  ChatInfo,
+  type ChatMessage,
+  ChatRecord,
+  type IntentContext,
+} from '@/api/chat.ts'
+import { computed, nextTick, onBeforeUnmount, ref, watch, type Ref } from 'vue'
 import ChartBlock from '@/views/chat/chat-block/ChartBlock.vue'
 import MdComponent from '@/views/chat/component/MdComponent.vue'
 import SQLComponent from '@/views/chat/component/SQLComponent.vue'
-import { useChatStream, type ChatStreamEvent } from '@/hooks/useChatStream'
+import type { ChatStreamEvent } from '@/hooks/useChatStream'
+import { useConversationTurn } from '@/features/conversation/useConversationTurn'
 import { useI18n } from 'vue-i18n'
 import icon_sql_outlined from '@/assets/svg/icon_sql_outlined.svg'
+import ClarificationCard from '@/features/conversation/ClarificationCard.vue'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -17,12 +26,20 @@ interface StepState {
   index: number
   title: string
   sql: string
-  sqlReasoning: string
-  chartReasoning: string
   /** Chart config JSON string (same contract as ChatRecord.chart). */
   chart: string
   /** Chart data object {fields, data, ...} — never the multi-step envelope. */
-  data: { fields?: string[]; data?: any[]; fields_info?: any; limit?: number } | undefined
+  data:
+    | {
+        fields?: string[]
+        data?: any[]
+        fields_info?: any
+        limit?: number
+        row_count?: number
+        truncated?: boolean
+        truncation_reason?: string
+      }
+    | undefined
   recordId: number | undefined
   datasource: number | undefined
   engineType: string | undefined
@@ -63,6 +80,7 @@ const emits = defineEmits([
   'update:chatList',
   'update:currentChat',
   'update:currentChatId',
+  'clarification-submit',
 ])
 
 const { t } = useI18n()
@@ -116,13 +134,33 @@ const _loading = computed({
 const steps: Ref<Array<StepState>> = ref([])
 const analysisText = ref('')
 const analysisThinking = ref('')
-/** In-flight GET /data; coalesces concurrent progressive fetches. */
-let hydrateInflight: Promise<void> | null = null
 let hydrateSeq = 0
+let hydratedTerminalRecordId: number | undefined
+let activeChartReasoningIndex: number | undefined
 
-const isMultiStep = computed(() => steps.value.filter((s) => s.sql || s.chart || s.error).length > 1)
+const isMultiStep = computed(
+  () => steps.value.filter((s) => s.sql || s.chart || s.error).length > 1
+)
 
-const recordReasoningNames = computed(() => ['sql_answer', 'chart_answer', 'analysis_thinking'] as const)
+const recordReasoningNames = computed(
+  () => ['intent_reasoning_content', 'sql_answer', 'chart_answer', 'analysis_thinking'] as const
+)
+
+const intentContext = computed<IntentContext | undefined>(
+  () => props.message?.record?.intent_context
+)
+
+const isIntentTerminal = computed(() =>
+  ['needs_clarification', 'blocked'].includes(intentContext.value?.status || '')
+)
+
+const clarificationAnswered = computed(() => {
+  const recordId = props.message?.record?.id
+  if (!recordId) return false
+  return _currentChat.value.records.some(
+    (record) => !!record.id && record.clarification_parent_id === recordId
+  )
+})
 
 function toChartJson(chart: unknown): string {
   if (chart == null || chart === '') return ''
@@ -162,8 +200,6 @@ function ensureStep(stepIndex: number): StepState {
       index: steps.value.length,
       title: '',
       sql: '',
-      sqlReasoning: '',
-      chartReasoning: '',
       chart: '',
       data: undefined,
       recordId: undefined,
@@ -177,7 +213,10 @@ function ensureStep(stepIndex: number): StepState {
   return steps.value[stepIndex]
 }
 
-function appendReasoningToRecord(kind: 'sql_answer' | 'chart_answer' | 'analysis_thinking', text: string) {
+function appendReasoningToRecord(
+  kind: 'sql_answer' | 'chart_answer' | 'analysis_thinking',
+  text: string
+) {
   if (!text || index.value < 0) return
   const rec = _currentChat.value.records[index.value] as any
   rec[kind] = (rec[kind] || '') + text
@@ -187,11 +226,14 @@ function appendReasoningToRecord(kind: 'sql_answer' | 'chart_answer' | 'analysis
  * Apply full multi-step / legacy GET /data payload to all steps.
  * Never assigns the multi envelope onto a single step's `data`.
  */
-function applyFullPayload(payload: any, recordId?: number) {
+function applyFullPayload(payload: any, recordId?: number, authoritative = false) {
   if (!payload) return
 
   if (Array.isArray(payload.steps)) {
-    if (payload.analysis) {
+    if (authoritative) {
+      steps.value = []
+      analysisText.value = String(payload.analysis || '')
+    } else if (payload.analysis) {
       analysisText.value = String(payload.analysis)
     }
     payload.steps.forEach((stepPayload: any, i: number) => {
@@ -214,30 +256,37 @@ function applyFullPayload(payload: any, recordId?: number) {
       }
       step.loading = false
     })
-    // Drop trailing empty slots if payload is shorter (shouldn't happen)
     if (steps.value.length > payload.steps.length) {
-      // keep length so progressive sql from SSE is not wiped mid-stream;
-      // only trim fully empty trailing placeholders
-      while (
-        steps.value.length > payload.steps.length &&
-        !steps.value[steps.value.length - 1].sql &&
-        !steps.value[steps.value.length - 1].chart
-      ) {
-        steps.value.pop()
+      if (authoritative) {
+        steps.value.splice(payload.steps.length)
+      } else {
+        // Progressive snapshots must not erase SQL tokens that arrived over
+        // SSE but have not reached persistence yet.
+        // Only trim fully empty trailing placeholders.
+        while (
+          steps.value.length > payload.steps.length &&
+          !steps.value[steps.value.length - 1].sql &&
+          !steps.value[steps.value.length - 1].chart
+        ) {
+          steps.value.pop()
+        }
       }
     }
     return
   }
 
   // Legacy single payload {fields, data}
+  if (authoritative) {
+    steps.value = []
+  }
   const step = ensureStep(0)
   if (recordId !== undefined) step.recordId = recordId
   step.data = payload
   step.loading = false
 }
 
-function hydrateRecordData(recordId?: number): Promise<void> {
-  if (!recordId) return Promise.resolve()
+function hydrateRecordData(recordId?: number, authoritative = false): Promise<boolean> {
+  if (!recordId) return Promise.resolve(false)
   const seq = ++hydrateSeq
   // Mark incomplete steps loading for UX
   steps.value.forEach((s) => {
@@ -247,18 +296,20 @@ function hydrateRecordData(recordId?: number): Promise<void> {
   const run = chatApi
     .get_chart_data(recordId)
     .then((response) => {
-      if (seq !== hydrateSeq) return // superseded
-      applyFullPayload(response, recordId)
+      if (seq !== hydrateSeq) return false // superseded
+      applyFullPayload(response, recordId, authoritative)
       // Mirror first step onto parent record for toolbar / analysis entry points
       if (index.value >= 0 && steps.value[0]) {
         const rec = _currentChat.value.records[index.value]
         if (steps.value[0].sql) rec.sql = steps.value[0].sql
         if (steps.value[0].chart) rec.chart = steps.value[0].chart as any
         if (steps.value[0].engineType) rec.engine_type = steps.value[0].engineType
+        if (authoritative) rec.analysis = analysisText.value
       }
+      return true
     })
     .catch((err) => {
-      if (seq !== hydrateSeq) return
+      if (seq !== hydrateSeq) return false
       console.error('MultiStep hydrateRecordData error:', err)
       steps.value.forEach((s) => {
         if (!s.data && !s.error) {
@@ -266,15 +317,14 @@ function hydrateRecordData(recordId?: number): Promise<void> {
           s.loading = false
         }
       })
+      return false
     })
     .finally(() => {
       if (seq === hydrateSeq) {
-        hydrateInflight = null
         emits('scrollBottom')
       }
     })
 
-  hydrateInflight = run
   return run
 }
 
@@ -283,6 +333,13 @@ function hydrateHistory(record: ChatRecord) {
   analysisThinking.value = ''
   steps.value = []
   hydrateSeq++
+
+  if (
+    record.intent_context &&
+    ['needs_clarification', 'blocked'].includes(record.intent_context.status)
+  ) {
+    return
+  }
 
   if ((record as any).analysis) {
     const raw = String((record as any).analysis)
@@ -312,8 +369,8 @@ function hydrateHistory(record: ChatRecord) {
     step.loading = true
   }
 
-  hydrateRecordData(record.id).catch(() => {
-    /* errors applied in hydrateRecordData */
+  void hydrateRecordData(record.id, true).then((hydrated) => {
+    if (hydrated) hydratedTerminalRecordId = record.id
   })
 }
 
@@ -321,7 +378,7 @@ function hydrateHistory(record: ChatRecord) {
 // SSE stream
 // ---------------------------------------------------------------------------
 
-const stream = useChatStream({ bigInt: true })
+const turn = useConversationTurn({ bigInt: true })
 
 const sendMessage = async () => {
   _loading.value = true
@@ -340,22 +397,13 @@ const sendMessage = async () => {
   steps.value = []
   analysisText.value = ''
   analysisThinking.value = ''
+  activeChartReasoningIndex = undefined
   hydrateSeq++
-  hydrateInflight = null
 
   try {
-    stream.createController()
-    const param = {
-      question: currentRecord.question,
-      chat_id: _currentChatId.value,
-    }
-    await stream.run((controller) => questionApi.add(param, controller) as Promise<Response>, {
+    await turn.run(_currentChatId.value, currentRecord, {
       onEvent: async (data: ChatStreamEvent) => {
         switch (data.type) {
-          case 'id':
-            currentRecord.id = data.id
-            _currentChat.value.records[index.value].id = data.id
-            break
           case 'regenerate_record_id':
             currentRecord.regenerate_record_id = data.regenerate_record_id
             _currentChat.value.records[index.value].regenerate_record_id = data.regenerate_record_id
@@ -381,71 +429,28 @@ const sendMessage = async () => {
             }
             break
 
-          case 'batch-start':
+          case 'batch-start': {
+            currentRecord.sql_answer = ''
+            currentRecord.chart_answer = ''
+            activeChartReasoningIndex = undefined
+            break
+          }
           case 'batch-plans':
             break
 
           case 'step-sql-result': {
-            const si = Number(data.index ?? 0)
-            const step = ensureStep(si)
             const reason = data.reasoning_content ?? ''
-            step.sqlReasoning += reason
             appendReasoningToRecord('sql_answer', reason)
             break
           }
-          case 'step-sql': {
-            const si = Number(data.index ?? 0)
-            const step = ensureStep(si)
-            step.sql = data.content ?? ''
-            if (data.engine_type) step.engineType = data.engine_type
-            const title = (data as any).title || (data as any).brief
-            if (title) step.title = title
-            if (si === 0) {
-              _currentChat.value.records[index.value].sql = step.sql
-              if (data.engine_type) {
-                _currentChat.value.records[index.value].engine_type = data.engine_type
-              }
-            }
-            break
-          }
-          case 'step-data': {
-            // Progressive: one GET hydrates whole multi payload (not step-isolated).
-            const si = Number(data.index ?? 0)
-            const step = ensureStep(si)
-            const rid = data.record_id ?? data.id ?? currentRecord.id
-            step.recordId = rid
-            if (data.datasource) step.datasource = data.datasource
-            step.loading = true
-            // Coalesce: only one in-flight fetch; superseding ids cancelled by seq
-            if (!hydrateInflight) {
-              hydrateRecordData(rid)
-            }
-            break
-          }
-          case 'step-error': {
-            const si = Number(data.index ?? 0)
-            const step = ensureStep(si)
-            step.error = String(data.error ?? data.content ?? data.msg ?? '')
-            step.loading = false
-            break
-          }
           case 'step-chart-result': {
-            const si = Number(data.index ?? 0)
-            const step = ensureStep(si)
-            const reason = data.reasoning_content ?? ''
-            step.chartReasoning += reason
-            appendReasoningToRecord('chart_answer', reason)
-            break
-          }
-          case 'step-chart': {
-            const si = Number(data.index ?? 0)
-            const step = ensureStep(si)
-            step.chart = data.content ?? ''
-            // Data may already be present from step-data hydrate
-            if (step.data !== undefined) step.loading = false
-            if (si === 0) {
-              _currentChat.value.records[index.value].chart = step.chart
+            const chartIndex = Number(data.index ?? 0)
+            if (activeChartReasoningIndex !== chartIndex) {
+              currentRecord.chart_answer = ''
+              activeChartReasoningIndex = chartIndex
             }
+            const reason = data.reasoning_content ?? ''
+            appendReasoningToRecord('chart_answer', reason)
             break
           }
           case 'analysis': {
@@ -455,31 +460,32 @@ const sendMessage = async () => {
             appendReasoningToRecord('analysis_thinking', reason)
             break
           }
-          case 'error':
-            currentRecord.error = data.content
-            emits('error', currentRecord.id)
+          case 'clarification-reasoning': {
+            currentRecord.intent_reasoning_content =
+              (currentRecord.intent_reasoning_content || '') + (data.content || '')
             break
-          case 'finish':
-            if (analysisText.value) {
-              ;(_currentChat.value.records[index.value] as any).analysis = analysisText.value
-            }
-            // Authoritative final hydrate after complete_node persist
-            if (currentRecord.id) {
-              await hydrateRecordData(currentRecord.id)
-            }
-            emits('finish', currentRecord.id)
+          }
+          case 'clarification':
+          case 'clarification-blocked': {
+            currentRecord.intent_context = data.intent_context
+            _currentChat.value.records[index.value].intent_context = data.intent_context
             break
+          }
         }
         await nextTick()
       },
-      onTransportError: (error) => {
-        if (!currentRecord.error) currentRecord.error = ''
-        if (currentRecord.error.trim().length !== 0) {
-          currentRecord.error = currentRecord.error + '\n'
+      onError: (record) => {
+        emits('error', record.id)
+      },
+      onFinish: async (record) => {
+        if (analysisText.value) {
+          ;(_currentChat.value.records[index.value] as any).analysis = analysisText.value
         }
-        currentRecord.error = currentRecord.error + 'Error:' + error
-        console.error('Error:', error)
-        emits('error')
+        if (record.id && !isIntentTerminal.value) {
+          const hydrated = await hydrateRecordData(record.id, true)
+          if (hydrated) hydratedTerminalRecordId = record.id
+        }
+        emits('finish', record.id, record.intent_context?.status)
       },
       onDone: () => {
         _loading.value = false
@@ -491,7 +497,7 @@ const sendMessage = async () => {
 }
 
 function stop() {
-  stream.stop()
+  turn.stop()
   _loading.value = false
   emits('stop')
 }
@@ -499,31 +505,53 @@ function stop() {
 const enableThousandsSeparatorList = ref<Array<string>>([])
 const showLabel = ref<boolean>(false)
 
+const reasoningItems = computed(() =>
+  recordReasoningNames.value
+    .map((name) => props.message?.record?.[name])
+    .filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+)
+
 onBeforeUnmount(() => {
   stop()
 })
 
-onMounted(() => {
-  if (props.message?.record?.id && props.message?.record?.finish) {
-    hydrateHistory(props.message.record)
-  }
-})
+watch(
+  () =>
+    [props.message?.record?.id, props.message?.record?.finish, props.message?.isTyping] as const,
+  ([recordId, finish, typing]) => {
+    if (
+      recordId &&
+      finish &&
+      !typing &&
+      !isIntentTerminal.value &&
+      hydratedTerminalRecordId !== recordId &&
+      props.message?.record
+    ) {
+      hydrateHistory(props.message.record)
+    }
+  },
+  { immediate: true }
+)
 
 defineExpose({ sendMessage, index: () => index.value, stop })
 </script>
 
 <template>
-  <BaseAnswer
-    v-if="message"
-    :message="message"
-    :reasoning-name="[...recordReasoningNames]"
-    :loading="_loading"
-  >
-    <div v-if="_loading && steps.length === 0" class="multi-step-loading">
+  <BaseAnswer v-if="message" :message="message" :reasoning-items="reasoningItems">
+    <div v-if="_loading && steps.length === 0 && !intentContext" class="multi-step-loading">
       <span>{{ t('qa.thinking') }}</span>
     </div>
 
-    <div class="multi-step-container">
+    <ClarificationCard
+      v-if="intentContext && isIntentTerminal"
+      :record-id="message.record?.id"
+      :context="intentContext"
+      :disabled="_loading"
+      :answered="clarificationAnswered"
+      @submit="emits('clarification-submit', $event)"
+    />
+
+    <div v-if="!isIntentTerminal" class="multi-step-container">
       <div
         v-for="step in steps"
         :key="`step-${step.recordId ?? 'x'}-${step.index}`"

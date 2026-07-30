@@ -1,12 +1,13 @@
 """Scope-aware SQL identifier extraction for catalog validation.
 
 The SQL protocol validates only physical database tables and columns against
-SQLBot metadata. CTEs and derived tables are query-local relations: their
+AI智能问数 metadata. CTEs and derived tables are query-local relations: their
 output aliases must never be mistaken for physical catalog columns.
 """
 
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
@@ -30,6 +31,16 @@ class SqlIdentifierUsage:
 
     physical_tables: frozenset[str]
     physical_columns: tuple[PhysicalColumnRef, ...]
+
+
+@dataclass(frozen=True)
+class SqlClauseUsage:
+    """Column names grouped by their semantic SQL role."""
+
+    all_columns: frozenset[str]
+    predicate_columns: frozenset[str]
+    projection_columns: frozenset[str]
+    grouping_columns: frozenset[str]
 
 
 def _norm(name: Any) -> str:
@@ -136,3 +147,150 @@ def collect_sql_identifier_usage(sql: str, dialect: str) -> SqlIdentifierUsage:
         physical_tables=frozenset(physical_tables),
         physical_columns=tuple(refs),
     )
+
+
+def collect_sql_clause_usage(sql: str, dialect: str | None = None) -> SqlClauseUsage:
+    """Collect column names from the clauses relevant to an intent contract.
+
+    This deliberately models only stable business roles: selected metrics and
+    dimensions, grouping dimensions, and filtering/join predicates. Physical
+    catalog validation remains the responsibility of
+    :func:`collect_sql_identifier_usage`.
+    """
+
+    all_columns: set[str] = set()
+    predicate_columns: set[str] = set()
+    projection_columns: set[str] = set()
+    grouping_columns: set[str] = set()
+
+    def add_columns(target: set[str], expression: exp.Expression | None) -> None:
+        if expression is None:
+            return
+        for column in expression.find_all(exp.Column):
+            name = _norm(column.name).casefold()
+            if name and name != "*":
+                target.add(name)
+                all_columns.add(name)
+
+    for statement in sqlglot.parse(sql, dialect=dialect):
+        if statement is None:
+            continue
+        for select in statement.find_all(exp.Select):
+            for projection in select.expressions:
+                add_columns(projection_columns, projection)
+            add_columns(grouping_columns, select.args.get("group"))
+            add_columns(predicate_columns, select.args.get("where"))
+            add_columns(predicate_columns, select.args.get("having"))
+            add_columns(predicate_columns, select.args.get("qualify"))
+            for join in select.args.get("joins") or []:
+                add_columns(predicate_columns, join.args.get("on"))
+
+    return SqlClauseUsage(
+        all_columns=frozenset(all_columns),
+        predicate_columns=frozenset(predicate_columns),
+        projection_columns=frozenset(projection_columns),
+        grouping_columns=frozenset(grouping_columns),
+    )
+
+
+def _normalized_identifier(identifier: Any) -> str:
+    return str(identifier or "").strip().strip("`\"'[]").rsplit(".", 1)[-1].casefold()
+
+
+def _allowed_contract_columns(kind: str, usage: SqlClauseUsage) -> frozenset[str]:
+    if kind in {"scope", "filter", "entity", "relation"}:
+        return usage.predicate_columns
+    if kind in {"dimension", "grain"}:
+        return usage.projection_columns | usage.grouping_columns
+    if kind == "time":
+        return (
+            usage.predicate_columns | usage.projection_columns | usage.grouping_columns
+        )
+    if kind in {"metric", "calculation"}:
+        return usage.projection_columns
+    return usage.all_columns
+
+
+def validate_sql_contract_structure(
+    statements: Sequence[str],
+    decisions: Sequence[Mapping[str, Any]],
+    *,
+    dialect: str | None,
+) -> str | None:
+    """Validate resolved contract identifiers against their SQL clause roles."""
+    coverages: list[set[str]] = []
+    usages: list[SqlClauseUsage] = []
+    violations_by_plan: list[list[str]] = []
+    for statement in statements:
+        try:
+            usage = collect_sql_clause_usage(statement, dialect)
+        except Exception as exc:
+            return f"SQL contract parsing failed: {exc}"
+        usages.append(usage)
+
+        covered: set[str] = set()
+        violations: list[str] = []
+        for decision in decisions:
+            if not decision.get("locked"):
+                continue
+            identifiers = [
+                str(item or "").strip().strip("`\"'[]")
+                for item in decision.get("required_identifiers") or []
+                if str(item or "").strip().strip("`\"'[]")
+            ]
+            if not identifiers:
+                continue
+            allowed = _allowed_contract_columns(str(decision.get("kind") or ""), usage)
+            if all(
+                _normalized_identifier(identifier) in allowed
+                for identifier in identifiers
+            ):
+                key = str(decision.get("key") or "").strip()
+                if key:
+                    covered.add(key)
+            else:
+                label = str(decision.get("label") or decision.get("key") or "").strip()
+                missing = [
+                    identifier
+                    for identifier in identifiers
+                    if _normalized_identifier(identifier) not in allowed
+                ]
+                violations.append(
+                    f"{label}: {', '.join(missing)}" if label else ", ".join(missing)
+                )
+        coverages.append(covered)
+        violations_by_plan.append(violations)
+
+    required_keys = {
+        str(decision.get("key") or "").strip()
+        for decision in decisions
+        if decision.get("locked")
+        and decision.get("required_identifiers")
+        and str(decision.get("key") or "").strip()
+    }
+    covered_keys = set().union(*coverages) if coverages else set()
+    if required_keys - covered_keys:
+        missing: list[str] = []
+        for plan_violations in violations_by_plan:
+            missing.extend(plan_violations)
+        return (
+            "Generated SQL does not implement required contract identifier(s) "
+            "in the correct clause: " + ", ".join(dict.fromkeys(missing))
+        )
+
+    signatures = [
+        (
+            frozenset(coverage),
+            usage.projection_columns,
+            usage.grouping_columns,
+            usage.predicate_columns,
+        )
+        for coverage, usage in zip(coverages, usages, strict=True)
+        if coverage
+    ]
+    if len(signatures) != len(set(signatures)):
+        return (
+            "Generated SQL batch contains competing plans for the same semantic "
+            "contract. Return one authoritative plan or complementary plans."
+        )
+    return None

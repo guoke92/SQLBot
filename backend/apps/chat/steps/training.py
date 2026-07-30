@@ -6,9 +6,9 @@ from typing import Any, Optional
 
 from sqlmodel import Session
 
-from apps.chat.curd.chat import end_log, start_log
 from apps.chat.models.chat_model import OperationEnum
 from apps.chat.steps.scope import match_scope
+from apps.conversation.observability import end_log, start_log
 from apps.data_training.curd.data_training import get_training_template
 
 
@@ -30,7 +30,7 @@ def match_training(
     if assistant_id is not None:
         llm_service.chat_question.data_training, example_list = get_training_template(
             session,
-            llm_service.chat_question.question,
+            llm_service.retrieval_question,
             calculate_oid,
             None,
             assistant_id,
@@ -39,7 +39,7 @@ def match_training(
     else:
         llm_service.chat_question.data_training, example_list = get_training_template(
             session,
-            llm_service.chat_question.question,
+            llm_service.retrieval_question,
             calculate_oid,
             calculate_ds_id,
             training_type=training_type,

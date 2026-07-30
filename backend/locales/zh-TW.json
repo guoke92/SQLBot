@@ -56,7 +56,16 @@
     "invalid_origin": "網域校驗失敗【{origin}】"
   },
   "i18n_chat": {
-    "record_id_in_mcp": "響應ID: "
+    "record_id_in_mcp": "響應ID: ",
+    "clarification": {
+      "entity_targets": "匹配欄位：{targets}",
+      "entity_impact": "查詢中將「{phrase}」按「{canonical}」精確篩選",
+      "entity_issue": "「{phrase}」需要確認具體業務值",
+      "entity_title": "「{phrase}」具體指哪個業務值？",
+      "entity_reason": "不同取值會直接改變篩選範圍。",
+      "entity_recommendation": "按術語召回相關度推薦最匹配的值。",
+      "entity_custom_placeholder": "輸入準確的業務值"
+    }
   },
   "i18n_terminology": {
     "terminology_not_exists": "該術語不存在",

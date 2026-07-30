@@ -4,7 +4,7 @@ import { ElMessage, ElLoading } from 'element-plus-secondary'
 import { useI18n } from 'vue-i18n'
 import type { FormInstance, FormRules } from 'element-plus-secondary'
 import { request } from '@/utils/request'
-import { getSQLBotAddr } from '@/utils/utils'
+import { getAppAddr } from '@/utils/utils'
 
 const { t } = useI18n()
 const dialogVisible = ref(false)
@@ -17,7 +17,7 @@ const state = reactive({
     client_id: '',
     client_secret: '',
     metadata_url: '',
-    redirect_uri: getSQLBotAddr(),
+    redirect_uri: getAppAddr(),
     realm: '',
     scope: '',
     mapping: '',
@@ -50,7 +50,7 @@ const validateMapping = (rule, value, callback) => {
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-expect-error
 const validateCbUrl = (rule, value, callback) => {
-  const addr = getSQLBotAddr()
+  const addr = getAppAddr()
   if (value === addr || `${value}/` === addr) {
     callback()
   }

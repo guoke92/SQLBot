@@ -3,6 +3,7 @@ from fastapi_cache import FastAPICache
 from functools import partial, wraps
 from typing import Optional, Any, Dict, Tuple
 from inspect import signature
+from common.core.branding import APP_DISPLAY_NAME
 from common.core.config import settings
 from common.utils.utils import SQLBotLogUtil
 from fastapi_cache.backends.inmemory import InMemoryBackend
@@ -128,7 +129,7 @@ def init_sqlbot_cache():
     cache_type: str = settings.CACHE_TYPE
     if cache_type == "memory":
         FastAPICache.init(InMemoryBackend())
-        SQLBotLogUtil.info("SQLBot 使用内存缓存, 仅支持单进程模式")
+        SQLBotLogUtil.info(f"{APP_DISPLAY_NAME}使用内存缓存, 仅支持单进程模式")
     elif cache_type == "redis":
         from fastapi_cache.backends.redis import RedisBackend
         import redis.asyncio as redis
@@ -137,9 +138,9 @@ def init_sqlbot_cache():
         pool = ConnectionPool.from_url(url=redis_url)
         redis_client = redis.Redis(connection_pool=pool)
         FastAPICache.init(RedisBackend(redis_client), prefix="sqlbot-cache")
-        SQLBotLogUtil.info(f"SQLBot 使用Redis缓存, 可使用多进程模式")
+        SQLBotLogUtil.info(f"{APP_DISPLAY_NAME}使用Redis缓存, 可使用多进程模式")
     else:
-        SQLBotLogUtil.warning("SQLBot 未启用缓存, 可使用多进程模式")
+        SQLBotLogUtil.warning(f"{APP_DISPLAY_NAME}未启用缓存, 可使用多进程模式")
     
 
 def is_cache_initialized() -> bool:
