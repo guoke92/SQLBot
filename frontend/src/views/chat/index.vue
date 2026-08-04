@@ -893,7 +893,9 @@ async function onPrimaryAnswerFinish(id: number, status?: string) {
   loading.value = false
   isTyping.value = false
   maybeScrollToBottom()
-  getRecordUsage(id)
+  if (id) {
+    getRecordUsage(id)
+  }
   if (status === 'needs_clarification' || status === 'blocked') {
     getRecommendQuestionsLoading.value = false
     return
@@ -910,7 +912,9 @@ const loadingOver = () => {
 function onPrimaryAnswerError(id: number) {
   loading.value = false
   isTyping.value = false
-  getRecordUsage(id)
+  if (id) {
+    getRecordUsage(id)
+  }
 }
 
 function onChatStop() {

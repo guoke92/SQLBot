@@ -4,9 +4,13 @@ import {
   Chat,
   chatApi,
   ChatInfo,
+  type AnswerPayload,
+  type AnswerPresentation,
   type ChatMessage,
   ChatRecord,
+  type ClarificationAnswer,
   type IntentContext,
+  type ResultQuality,
 } from '@/api/chat.ts'
 import { computed, nextTick, onBeforeUnmount, ref, watch, type Ref } from 'vue'
 import ChartBlock from '@/views/chat/chat-block/ChartBlock.vue'
@@ -17,6 +21,7 @@ import { useConversationTurn } from '@/features/conversation/useConversationTurn
 import { useI18n } from 'vue-i18n'
 import icon_sql_outlined from '@/assets/svg/icon_sql_outlined.svg'
 import ClarificationCard from '@/features/conversation/ClarificationCard.vue'
+import QualityStamp from '@/features/conversation/QualityStamp.vue'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -25,6 +30,7 @@ import ClarificationCard from '@/features/conversation/ClarificationCard.vue'
 interface StepState {
   index: number
   title: string
+  presentation: AnswerPresentation | undefined
   sql: string
   /** Chart config JSON string (same contract as ChatRecord.chart). */
   chart: string
@@ -134,6 +140,7 @@ const _loading = computed({
 const steps: Ref<Array<StepState>> = ref([])
 const analysisText = ref('')
 const analysisThinking = ref('')
+const overallQuality = ref<ResultQuality>()
 let hydrateSeq = 0
 let hydratedTerminalRecordId: number | undefined
 let activeChartReasoningIndex: number | undefined
@@ -162,6 +169,18 @@ const clarificationAnswered = computed(() => {
   )
 })
 
+const clarificationAnswers = computed<ClarificationAnswer[]>(() => {
+  const recordId = props.message?.record?.id
+  const questions = intentContext.value?.questions || []
+  if (!recordId || !questions.length) return []
+  const child = _currentChat.value.records.find(
+    (record) => record.clarification_parent_id === recordId
+  )
+  return child?.clarification_answers?.length
+    ? child.clarification_answers
+    : child?.intent_context?.submitted_answers || []
+})
+
 function toChartJson(chart: unknown): string {
   if (chart == null || chart === '') return ''
   if (typeof chart === 'string') return chart
@@ -183,7 +202,7 @@ function buildStepMessage(step: StepState): ChatMessage {
   record.chat_id = _currentChatId.value
   record.sql = step.sql
   record.chart = step.chart
-  record.data = step.data as any
+  record.data = step.data
   record.datasource = step.datasource
   record.engine_type = step.engineType
   record.finish = true
@@ -199,6 +218,7 @@ function ensureStep(stepIndex: number): StepState {
     steps.value.push({
       index: steps.value.length,
       title: '',
+      presentation: undefined,
       sql: '',
       chart: '',
       data: undefined,
@@ -223,66 +243,57 @@ function appendReasoningToRecord(
 }
 
 /**
- * Apply full multi-step / legacy GET /data payload to all steps.
- * Never assigns the multi envelope onto a single step's `data`.
+ * Apply the canonical terminal answer payload to all steps.
  */
-function applyFullPayload(payload: any, recordId?: number, authoritative = false) {
+function applyFullPayload(payload: AnswerPayload, recordId?: number, authoritative = false) {
   if (!payload) return
 
-  if (Array.isArray(payload.steps)) {
-    if (authoritative) {
-      steps.value = []
-      analysisText.value = String(payload.analysis || '')
-    } else if (payload.analysis) {
-      analysisText.value = String(payload.analysis)
-    }
-    payload.steps.forEach((stepPayload: any, i: number) => {
-      const step = ensureStep(i)
-      if (recordId !== undefined) step.recordId = recordId
-      if (stepPayload?.sql) step.sql = stepPayload.sql
-      if (stepPayload?.brief) step.title = stepPayload.brief
-      if (stepPayload?.chart != null && stepPayload.chart !== '') {
-        step.chart = toChartJson(stepPayload.chart)
-      }
-      if (stepPayload?.error) {
-        step.error = String(stepPayload.error)
-      }
-      // Chart data object only
-      if (stepPayload?.data !== undefined && stepPayload?.data !== null) {
-        step.data = stepPayload.data
-      } else if (!step.error) {
-        // Explicit empty result with chart still present
-        step.data = { fields: [], data: [] }
-      }
-      step.loading = false
-    })
-    if (steps.value.length > payload.steps.length) {
-      if (authoritative) {
-        steps.value.splice(payload.steps.length)
-      } else {
-        // Progressive snapshots must not erase SQL tokens that arrived over
-        // SSE but have not reached persistence yet.
-        // Only trim fully empty trailing placeholders.
-        while (
-          steps.value.length > payload.steps.length &&
-          !steps.value[steps.value.length - 1].sql &&
-          !steps.value[steps.value.length - 1].chart
-        ) {
-          steps.value.pop()
-        }
-      }
-    }
-    return
-  }
-
-  // Legacy single payload {fields, data}
   if (authoritative) {
     steps.value = []
+    analysisText.value = payload.analysis || ''
+    overallQuality.value = payload.outcome.quality
+  } else {
+    if (payload.analysis) analysisText.value = payload.analysis
+    overallQuality.value = payload.outcome.quality
   }
-  const step = ensureStep(0)
-  if (recordId !== undefined) step.recordId = recordId
-  step.data = payload
-  step.loading = false
+  payload.steps.forEach((stepPayload, i) => {
+    const step = ensureStep(i)
+    if (recordId !== undefined) step.recordId = recordId
+    if (stepPayload.sql) step.sql = stepPayload.sql
+    if (stepPayload.presentation) {
+      step.presentation = stepPayload.presentation
+      step.title = stepPayload.presentation.title || stepPayload.brief
+    } else if (stepPayload.brief) {
+      step.title = stepPayload.brief
+    }
+    if (stepPayload.chart != null && stepPayload.chart !== '') {
+      step.chart = toChartJson(stepPayload.chart)
+    }
+    if (stepPayload.error) {
+      step.error = String(stepPayload.error)
+    }
+    if (stepPayload.data !== undefined) {
+      step.data = stepPayload.data
+    } else if (!step.error) {
+      step.data = { fields: [], data: [] }
+    }
+    step.loading = false
+  })
+  if (steps.value.length > payload.steps.length) {
+    if (authoritative) {
+      steps.value.splice(payload.steps.length)
+    } else {
+      // Progressive snapshots must not erase SQL tokens that arrived over
+      // SSE but have not reached persistence yet.
+      while (
+        steps.value.length > payload.steps.length &&
+        !steps.value[steps.value.length - 1].sql &&
+        !steps.value[steps.value.length - 1].chart
+      ) {
+        steps.value.pop()
+      }
+    }
+  }
 }
 
 function hydrateRecordData(recordId?: number, authoritative = false): Promise<boolean> {
@@ -331,6 +342,7 @@ function hydrateRecordData(recordId?: number, authoritative = false): Promise<bo
 function hydrateHistory(record: ChatRecord) {
   analysisText.value = ''
   analysisThinking.value = ''
+  overallQuality.value = undefined
   steps.value = []
   hydrateSeq++
 
@@ -338,6 +350,12 @@ function hydrateHistory(record: ChatRecord) {
     record.intent_context &&
     ['needs_clarification', 'blocked'].includes(record.intent_context.status)
   ) {
+    return
+  }
+
+  if (record.answer) {
+    applyFullPayload(record.answer, record.id, true)
+    hydratedTerminalRecordId = record.id
     return
   }
 
@@ -397,6 +415,7 @@ const sendMessage = async () => {
   steps.value = []
   analysisText.value = ''
   analysisThinking.value = ''
+  overallQuality.value = undefined
   activeChartReasoningIndex = undefined
   hydrateSeq++
 
@@ -548,10 +567,15 @@ defineExpose({ sendMessage, index: () => index.value, stop })
       :context="intentContext"
       :disabled="_loading"
       :answered="clarificationAnswered"
+      :initial-answers="clarificationAnswers"
       @submit="emits('clarification-submit', $event)"
     />
 
     <div v-if="!isIntentTerminal" class="multi-step-container">
+      <div v-if="overallQuality" class="result-quality-toolbar">
+        <QualityStamp :quality="overallQuality" />
+      </div>
+
       <div
         v-for="step in steps"
         :key="`step-${step.recordId ?? 'x'}-${step.index}`"
@@ -585,8 +609,9 @@ defineExpose({ sendMessage, index: () => index.value, stop })
         </template>
 
         <template v-else>
-          <div v-if="step.sql" class="single-step-sql">
+          <div v-if="step.sql" class="single-step-toolbar">
             <el-button
+              v-if="step.sql"
               class="step-sql-toggle"
               text
               size="small"
@@ -599,9 +624,9 @@ defineExpose({ sendMessage, index: () => index.value, stop })
                 {{ step.showSql ? t('chat.collapse_sql') : t('chat.show_query') }}
               </span>
             </el-button>
-            <div v-if="step.showSql" class="step-sql-block">
-              <SQLComponent :sql="step.sql" />
-            </div>
+          </div>
+          <div v-if="step.showSql && step.sql" class="step-sql-block">
+            <SQLComponent :sql="step.sql" />
           </div>
         </template>
 
@@ -667,6 +692,11 @@ defineExpose({ sendMessage, index: () => index.value, stop })
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.result-quality-toolbar {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .single-step-block {
@@ -748,7 +778,11 @@ defineExpose({ sendMessage, index: () => index.value, stop })
   color: rgba(100, 106, 115, 1);
 }
 
-.single-step-sql {
+.single-step-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
   margin-bottom: 4px;
 }
 

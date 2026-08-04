@@ -82,9 +82,40 @@ _lock = threading.Lock()
 locks: dict[str, threading.Lock] = {}
 
 _embedding_model: dict[str, Optional[Embeddings]] = {}
+_embedding_dimensions: dict[str, int] = {}
+_dimension_lock = threading.Lock()
+VECTOR_DIMENSION_PREDICATE = (
+    "vector_dims(child.embedding) = :embedding_dimension"
+)
+
+
+def embedding_query_params(vector: List[float]) -> dict[str, object]:
+    """Build the shared pgvector query parameters with an explicit dimension."""
+    if not vector:
+        raise ValueError("Embedding vector cannot be empty")
+    return {
+        "embedding_array": str(vector),
+        "embedding_dimension": len(vector),
+    }
+
+
+def has_compatible_dimension(
+    query_vector: List[float],
+    stored_vector: List[float],
+) -> bool:
+    """Return whether a persisted vector belongs to the active embedding space."""
+    return bool(
+        query_vector
+        and stored_vector
+        and len(query_vector) == len(stored_vector)
+    )
 
 
 class EmbeddingModelCache:
+
+    @staticmethod
+    def _cache_key(key: str) -> str:
+        return f"{settings.EMBEDDING_PROVIDER}:{key}"
 
     @staticmethod
     def _new_instance(config: EmbeddingModelInfo = local_embedding_model) -> Embeddings:
@@ -132,7 +163,7 @@ class EmbeddingModelCache:
         config: EmbeddingModelInfo = local_embedding_model,
     ) -> Embeddings:
         # Include provider in cache key so .env switches take effect after restart
-        cache_key = f"{settings.EMBEDDING_PROVIDER}:{key}"
+        cache_key = EmbeddingModelCache._cache_key(key)
         model_instance = _embedding_model.get(cache_key)
         if model_instance is None:
             lock = EmbeddingModelCache._get_lock(cache_key)
@@ -142,3 +173,22 @@ class EmbeddingModelCache:
                     model_instance = EmbeddingModelCache._new_instance(config)
                     _embedding_model[cache_key] = model_instance
         return model_instance
+
+    @staticmethod
+    def get_dimension(key: str = settings.DEFAULT_EMBEDDING_MODEL) -> int:
+        """Return and cache the active model dimension for persistence repair."""
+        cache_key = EmbeddingModelCache._cache_key(key)
+        dimension = _embedding_dimensions.get(cache_key)
+        if dimension is not None:
+            return dimension
+        with _dimension_lock:
+            dimension = _embedding_dimensions.get(cache_key)
+            if dimension is None:
+                vector = EmbeddingModelCache.get_model(key).embed_query(
+                    "embedding dimension probe"
+                )
+                if not vector:
+                    raise ValueError("Embedding model returned an empty vector")
+                dimension = len(vector)
+                _embedding_dimensions[cache_key] = dimension
+        return dimension

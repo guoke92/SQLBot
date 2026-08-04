@@ -15,8 +15,7 @@ MAX_QUERIES_PER_BATCH = 3
 MAX_PLAN_REGEN = 1
 DEFAULT_CHART = "table"
 
-# ── result quality (severe-only repair) ──────────────────────────────────────
-NULL_DIM_SEVERE = 0.60
+# ── result window ────────────────────────────────────────────────────────────
 ROW_LIMIT = 1000
 
 # ── catalog / cost gate ──────────────────────────────────────────────────────
@@ -35,6 +34,8 @@ MULTI_FACT_REQUIREMENTS = (
     "禁止未聚合的事实明细表直接互相 JOIN，避免多对多行数膨胀",
     "月/周等双侧时间维缺数据时，优先构造 UNION 去重的共享维键集合，"
     "再分别 LEFT JOIN 各聚合结果",
+    "多事实结果只能保留各事实都能按已确认业务口径映射的共享维度；"
+    "不得用 NULL 伪造缺失维度，也不得用 MIN/MAX 随机挑选维度值",
     "只有当前数据库引擎明确支持且写法更简洁时才使用 FULL OUTER JOIN；"
     "不得用重复整段聚合查询的 LEFT/RIGHT JOIN + UNION ALL 模拟",
 )

@@ -34,43 +34,28 @@ _DIMENSION_HINT_RE = re.compile(
 )
 
 
-def _axis_values(chart: Mapping[str, Any] | None, key: str) -> set[str]:
-    axis = chart.get("axis") if isinstance(chart, Mapping) else None
-    if not isinstance(axis, Mapping):
-        return set()
-    raw = axis.get(key)
-    items = raw if isinstance(raw, list) else [raw]
-    return {
-        str(item.get("value"))
-        for item in items
-        if isinstance(item, Mapping) and item.get("value")
-    }
-
-
 def classify_field_roles(
     fields: Sequence[str],
     fields_info: Sequence[Mapping[str, Any]] | None,
-    chart: Mapping[str, Any] | None,
+    role_hints: Mapping[str, FieldRole] | None = None,
 ) -> FieldRoles:
-    """Prefer chart bindings; use conservative type/name fallback for tables."""
+    """Classify result semantics, preferring confirmed contract roles."""
     known = {str(field) for field in fields}
-    chart_metrics = _axis_values(chart, "y") & known
-    chart_dimensions = (
-        _axis_values(chart, "x") | _axis_values(chart, "series")
-    ) & known
-    if chart_metrics:
-        return {
-            "metrics": chart_metrics,
-            "dimensions": known - chart_metrics,
-        }
-
+    normalized_fields = {field.casefold(): field for field in known}
+    explicit_roles = {
+        normalized_fields[name.casefold()]: role
+        for name, role in (role_hints or {}).items()
+        if name.casefold() in normalized_fields
+    }
     numeric = {
         str(info.get("name"))
         for info in fields_info or []
         if info.get("name") and bool(info.get("is_numeric", False))
     } & known
-    metrics: set[str] = set()
+    metrics = {field for field, role in explicit_roles.items() if role == "metric"}
     for field in numeric:
+        if field in explicit_roles:
+            continue
         if _METRIC_HINT_RE.search(field):
             metrics.add(field)
         elif not _DIMENSION_HINT_RE.search(field):
@@ -79,7 +64,7 @@ def classify_field_roles(
             metrics.add(field)
     return {
         "metrics": metrics,
-        "dimensions": (known - metrics) | chart_dimensions,
+        "dimensions": known - metrics,
     }
 
 

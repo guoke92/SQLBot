@@ -60,7 +60,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { Chat, chatApi, ChatInfo } from '@/api/chat.ts'
+import { Chat, chatApi, ChatInfo, type AnswerStep } from '@/api/chat.ts'
 import DashboardChatList from '@/views/dashboard/editor/DashboardChatList.vue'
 import ChartSelection from '@/views/dashboard/editor/ChartSelection.vue'
 import { concat } from 'lodash-es'
@@ -92,41 +92,46 @@ function selectChange(value: boolean, viewInfo: any) {
   }
 }
 
-const getData = (record: any) => {
-  const recordData = record.data
-  if (record?.predict_record_id !== undefined && record?.predict_record_id !== null) {
-    let _list = []
-    if (record?.predict_data && typeof record?.predict_data === 'string') {
-      if (
-        record?.predict_data.length > 0 &&
-        record?.predict_data.trim().startsWith('[') &&
-        record?.predict_data.trim().endsWith(']')
-      ) {
-        try {
-          _list = JSON.parse(record?.predict_data)
-        } catch (e) {
-          console.error(e)
-        }
-      }
-    } else {
-      if (record?.predict_data.length > 0) {
-        _list = record?.predict_data
-      }
-    }
+const predictionRows = (value: unknown): any[] => {
+  if (Array.isArray(value)) return value
+  if (typeof value !== 'string' || !value.trim()) return []
+  try {
+    const parsed = JSON.parse(value)
+    return Array.isArray(parsed) ? parsed : []
+  } catch (error) {
+    console.error(error)
+    return []
+  }
+}
 
-    if (_list.length == 0) {
-      return _list
-    }
+const recordAnswerSteps = (record: any): AnswerStep[] => {
+  const steps = record.answer?.steps ?? []
+  if (record?.predict_record_id === undefined || record?.predict_record_id === null) {
+    return steps
+  }
+  const rows = predictionRows(record.predict_data)
+  if (!rows.length || !steps.length) return []
+  const first = steps[0]
+  return [
+    {
+      ...first,
+      data: {
+        ...(first.data || {}),
+        data: concat(first.data?.data || [], rows),
+      },
+    },
+  ]
+}
 
-    if (recordData.data && recordData.data.length > 0) {
-      recordData.data = concat(recordData.data, _list)
-    } else {
-      recordData.data = _list
-    }
-
-    return recordData
-  } else {
-    return recordData
+const parseChart = (value: unknown): any => {
+  if (!value) return undefined
+  if (typeof value === 'object') return value
+  if (typeof value !== 'string') return undefined
+  try {
+    return JSON.parse(value)
+  } catch (error) {
+    console.error(error)
+    return undefined
   }
 }
 
@@ -134,54 +139,42 @@ function adaptorChartInfoList(chatInfo: ChatInfo) {
   chartInfoList.value = []
   if (chatInfo && chatInfo.records) {
     chatInfo.records.forEach((record: any) => {
-      const data = getData(record)
-      if (
-        ((record?.analysis_record_id === undefined || record?.analysis_record_id === null) &&
-          (record?.predict_record_id === undefined || record?.predict_record_id === null) &&
-          (record?.sql || record?.chart)) ||
-        (record?.predict_record_id !== undefined &&
-          record?.predict_record_id !== null &&
-          data?.data?.length > 0)
-      ) {
+      if (record?.analysis_record_id !== undefined && record?.analysis_record_id !== null) {
+        return
+      }
+      recordAnswerSteps(record).forEach((step, stepIndex) => {
+        const data = step.data
+        const chartBaseInfo = parseChart(step.chart || record.chart)
+        if (!chartBaseInfo || !data?.data?.length) return
         const recordeInfo = {
-          id: chatInfo.id + '_' + record.id,
-          sql: record.sql,
-          datasource: record.datasource,
+          id: `${chatInfo.id}_${record.id}_${stepIndex}`,
+          sql: step.sql || record.sql,
+          datasource: data.datasource || record.datasource,
           data: data,
           chart: {},
         }
-        const chartBaseInfo = JSON.parse(record.chart)
-        if (chartBaseInfo) {
-          let yAxis = []
-          const axis = chartBaseInfo?.axis
-          if (!axis?.y) {
-            yAxis = []
-          } else {
-            const y = axis.y
-            const multiQuotaValues = axis['multi-quota']?.value || []
-
-            // 统一处理为数组
-            const yArray = Array.isArray(y) ? [...y] : [{ ...y }]
-
-            // 标记 multi-quota
-            yAxis = yArray.map((item) => ({
-              ...item,
-              'multi-quota': multiQuotaValues.includes(item.value),
-            }))
-          }
-
-          recordeInfo['chart'] = {
-            type: chartBaseInfo?.type,
-            title: chartBaseInfo?.title,
-            columns: chartBaseInfo?.columns,
-            xAxis: axis?.x ? [axis?.x] : [],
-            yAxis: yAxis,
-            series: axis?.series ? [axis?.series] : [],
-            multiQuotaName: axis?.['multi-quota']?.name,
-          }
-          chartInfoList.value.push(recordeInfo)
+        let yAxis = []
+        const axis = chartBaseInfo?.axis
+        if (axis?.y) {
+          const y = axis.y
+          const multiQuotaValues = axis['multi-quota']?.value || []
+          const yArray = Array.isArray(y) ? [...y] : [{ ...y }]
+          yAxis = yArray.map((item) => ({
+            ...item,
+            'multi-quota': multiQuotaValues.includes(item.value),
+          }))
         }
-      }
+        recordeInfo['chart'] = {
+          type: chartBaseInfo?.type,
+          title: chartBaseInfo?.title,
+          columns: chartBaseInfo?.columns,
+          xAxis: axis?.x ? [axis?.x] : [],
+          yAxis: yAxis,
+          series: axis?.series ? [axis?.series] : [],
+          multiQuotaName: axis?.['multi-quota']?.name,
+        }
+        chartInfoList.value.push(recordeInfo)
+      })
     })
   }
 }

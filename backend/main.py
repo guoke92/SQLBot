@@ -28,8 +28,11 @@ from common.core.branding import APP_DISPLAY_NAME
 from common.core.config import settings
 from common.core.response_middleware import ResponseMiddleware, exception_handler
 from common.core.sqlbot_cache import init_sqlbot_cache
-from common.utils.embedding_threads import fill_empty_terminology_embeddings, fill_empty_data_training_embeddings, \
-    fill_empty_table_and_ds_embeddings
+from common.utils.embedding_threads import (
+    sync_data_training_embeddings,
+    sync_table_and_ds_embeddings,
+    sync_terminology_embeddings,
+)
 from common.utils.utils import SQLBotLogUtil
 
 
@@ -39,15 +42,15 @@ def run_migrations():
 
 
 def init_terminology_embedding_data():
-    fill_empty_terminology_embeddings()
+    sync_terminology_embeddings()
 
 
 def init_data_training_embedding_data():
-    fill_empty_data_training_embeddings()
+    sync_data_training_embeddings()
 
 
 def init_table_and_ds_embedding():
-    fill_empty_table_and_ds_embeddings()
+    sync_table_and_ds_embeddings()
 
 
 @asynccontextmanager

@@ -8,13 +8,13 @@ from typing import Any, Dict, Literal, cast
 import pandas as pd
 
 from apps.chat.curd.chat import (
-    format_json_data,
     get_chat_chart_config,
     get_chat_chart_data,
     get_chat_predict_data,
     save_analysis_predict_record,
 )
 from apps.chat.models.chat_model import ChatRecord
+from apps.chat.result_data import format_json_data
 from apps.chat.steps.predict import check_save_predict_data, generate_predict
 from apps.chat.task.llm import LLMService, request_picture
 from apps.conversation.outcome import (

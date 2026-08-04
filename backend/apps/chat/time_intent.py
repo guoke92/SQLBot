@@ -11,7 +11,7 @@ import re
 from datetime import datetime, timedelta
 from typing import Literal, TypedDict
 
-TimeScope = Literal["all", "explicit", "rolling", "default"]
+TimeScope = Literal["all", "unspecified", "explicit", "rolling", "default"]
 TimeAnchor = Literal["current_time", "data_max"]
 TimeComparison = Literal["none", "yoy", "mom"]
 TimeGrain = Literal["day", "month", "year"]
@@ -23,7 +23,8 @@ class TimeIntent(TypedDict, total=False):
     scope: TimeScope
     anchor: TimeAnchor
     comparison: TimeComparison
-    grain: TimeGrain
+    range_unit: TimeGrain
+    bucket: TimeGrain
     start: str
     end_exclusive: str
     lookback_months: int
@@ -43,12 +44,39 @@ _TIME_CUES = (
     "近一年",
     "近12个月",
     "最近",
+    "每天",
+    "每日",
+    "按日",
     "月份",
     "每月",
+    "按月",
+    "月度",
+    "每年",
+    "按年",
+    "年度",
     "趋势",
     "同比",
     "环比",
 )
+_DAY_BUCKET_CUES = ("每天", "每日", "按日")
+_MONTH_BUCKET_CUES = ("每月", "按月", "月份", "月度")
+_YEAR_BUCKET_CUES = ("每年", "按年", "年度")
+
+
+def _explicit_bucket(text: str) -> TimeGrain | None:
+    if any(cue in text for cue in _DAY_BUCKET_CUES):
+        return "day"
+    if any(cue in text for cue in _MONTH_BUCKET_CUES):
+        return "month"
+    if any(cue in text for cue in _YEAR_BUCKET_CUES):
+        return "year"
+    return None
+
+
+def _with_bucket(intent: TimeIntent, bucket: TimeGrain | None) -> TimeIntent:
+    if bucket is not None:
+        intent["bucket"] = bucket
+    return intent
 
 
 def _month_end_exclusive(now: datetime) -> str:
@@ -77,15 +105,19 @@ def infer_time_intent(
     if not text:
         return None
     current = now or datetime.now()
+    explicit_bucket = _explicit_bucket(text)
 
     if any(cue in text for cue in _ALL_TIME_CUES):
-        return {
-            "scope": "all",
-            "comparison": "none",
-            "grain": "month",
-            "source": "user",
-            "confidence": 1.0,
-        }
+        return _with_bucket(
+            {
+                "scope": "all",
+                "comparison": "none",
+                "range_unit": "year",
+                "source": "user",
+                "confidence": 1.0,
+            },
+            explicit_bucket,
+        )
 
     comparison: TimeComparison = "none"
     if "同比" in text:
@@ -113,16 +145,19 @@ def infer_time_intent(
                 start_date = target - timedelta(days=1)
             else:
                 start_date = target
-            return {
-                "scope": "explicit",
-                "anchor": "current_time",
-                "comparison": comparison,
-                "grain": "day",
-                "start": start_date.strftime("%Y-%m-%d"),
-                "end_exclusive": (target + timedelta(days=1)).strftime("%Y-%m-%d"),
-                "source": "user",
-                "confidence": 1.0,
-            }
+            return _with_bucket(
+                {
+                    "scope": "explicit",
+                    "anchor": "current_time",
+                    "comparison": comparison,
+                    "range_unit": "day",
+                    "start": start_date.strftime("%Y-%m-%d"),
+                    "end_exclusive": (target + timedelta(days=1)).strftime("%Y-%m-%d"),
+                    "source": "user",
+                    "confidence": 1.0,
+                },
+                explicit_bucket or ("day" if comparison != "none" else None),
+            )
 
     year_month_match = _YEAR_MONTH_RE.search(text)
     if year_month_match:
@@ -137,44 +172,53 @@ def infer_time_intent(
             else:
                 start_year, start_month = year, month
             end_year, end_month = _next_month(year, month)
-            return {
-                "scope": "explicit",
-                "anchor": "current_time",
-                "comparison": comparison,
-                "grain": "month",
-                "start": f"{start_year:04d}-{start_month:02d}-01",
-                "end_exclusive": f"{end_year:04d}-{end_month:02d}-01",
-                "source": "user",
-                "confidence": 1.0,
-            }
+            return _with_bucket(
+                {
+                    "scope": "explicit",
+                    "anchor": "current_time",
+                    "comparison": comparison,
+                    "range_unit": "month",
+                    "start": f"{start_year:04d}-{start_month:02d}-01",
+                    "end_exclusive": f"{end_year:04d}-{end_month:02d}-01",
+                    "source": "user",
+                    "confidence": 1.0,
+                },
+                explicit_bucket or ("month" if comparison != "none" else None),
+            )
 
     year_match = _YEAR_RE.search(text)
     if year_match:
         year = int(year_match.group(1))
         start_year = year - 1 if comparison == "yoy" else year
-        return {
-            "scope": "explicit",
-            "anchor": "current_time",
-            "comparison": comparison,
-            "grain": "month",
-            "start": f"{start_year:04d}-01-01",
-            "end_exclusive": f"{year + 1:04d}-01-01",
-            "source": "user",
-            "confidence": 1.0,
-        }
+        return _with_bucket(
+            {
+                "scope": "explicit",
+                "anchor": "current_time",
+                "comparison": comparison,
+                "range_unit": "year",
+                "start": f"{start_year:04d}-01-01",
+                "end_exclusive": f"{year + 1:04d}-01-01",
+                "source": "user",
+                "confidence": 1.0,
+            },
+            explicit_bucket or ("year" if comparison != "none" else None),
+        )
 
     if "今年" in text or "本年" in text:
         start_year = current.year - 1 if comparison == "yoy" else current.year
-        return {
-            "scope": "explicit",
-            "anchor": "current_time",
-            "comparison": comparison,
-            "grain": "month",
-            "start": f"{start_year:04d}-01-01",
-            "end_exclusive": f"{current.year + 1:04d}-01-01",
-            "source": "user",
-            "confidence": 1.0,
-        }
+        return _with_bucket(
+            {
+                "scope": "explicit",
+                "anchor": "current_time",
+                "comparison": comparison,
+                "range_unit": "year",
+                "start": f"{start_year:04d}-01-01",
+                "end_exclusive": f"{current.year + 1:04d}-01-01",
+                "source": "user",
+                "confidence": 1.0,
+            },
+            explicit_bucket or ("year" if comparison != "none" else None),
+        )
 
     if "本月" in text:
         if comparison == "yoy":
@@ -185,16 +229,19 @@ def infer_time_intent(
             start = f"{previous_year:04d}-{previous_month:02d}-01"
         else:
             start = f"{current.year:04d}-{current.month:02d}-01"
-        return {
-            "scope": "explicit",
-            "anchor": "current_time",
-            "comparison": comparison,
-            "grain": "month",
-            "start": start,
-            "end_exclusive": _month_end_exclusive(current),
-            "source": "user",
-            "confidence": 1.0,
-        }
+        return _with_bucket(
+            {
+                "scope": "explicit",
+                "anchor": "current_time",
+                "comparison": comparison,
+                "range_unit": "month",
+                "start": start,
+                "end_exclusive": _month_end_exclusive(current),
+                "source": "user",
+                "confidence": 1.0,
+            },
+            explicit_bucket or ("month" if comparison != "none" else None),
+        )
 
     recent_months_match = _RECENT_MONTHS_RE.search(text)
     requested_lookback: int | None = None
@@ -207,8 +254,28 @@ def infer_time_intent(
     elif "过去一年" in text:
         requested_lookback = 12
 
-    if requested_lookback is None and not any(cue in text for cue in _TIME_CUES):
+    if (
+        requested_lookback is None
+        and explicit_bucket is None
+        and not any(cue in text for cue in _TIME_CUES)
+    ):
         return None
+
+    if (
+        explicit_bucket is not None
+        and requested_lookback is None
+        and comparison == "none"
+        and "趋势" not in text
+        and not any(cue in text for cue in ("近一年", "近12个月", "最近"))
+    ):
+        return {
+            "scope": "unspecified",
+            "comparison": "none",
+            "range_unit": explicit_bucket,
+            "bucket": explicit_bucket,
+            "source": "user",
+            "confidence": 1.0,
+        }
 
     # A trend without an explicit wall-clock range should follow the data,
     # otherwise a stale warehouse can be filtered to an empty current window.
@@ -224,12 +291,15 @@ def infer_time_intent(
         or any(cue in text for cue in ("近一年", "近12个月", "最近"))
         else "default"
     )
-    return {
-        "scope": scope,
-        "anchor": "data_max",
-        "comparison": comparison,
-        "grain": "month",
-        "lookback_months": lookback,
-        "source": "user" if scope == "rolling" else "default_policy",
-        "confidence": 0.9 if scope == "rolling" else 0.7,
-    }
+    return _with_bucket(
+        {
+            "scope": scope,
+            "anchor": "data_max",
+            "comparison": comparison,
+            "range_unit": "month",
+            "lookback_months": lookback,
+            "source": "user" if scope == "rolling" else "default_policy",
+            "confidence": 0.9 if scope == "rolling" else 0.7,
+        },
+        explicit_bucket or ("month" if "趋势" in text else None),
+    )

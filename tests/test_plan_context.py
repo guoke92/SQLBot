@@ -119,7 +119,8 @@ def test_time_intent_renders_as_mandatory_contract() -> None:
             "scope": "default",
             "anchor": "data_max",
             "comparison": "yoy",
-            "grain": "month",
+            "range_unit": "month",
+            "bucket": "month",
             "lookback_months": 24,
             "source": "default_policy",
             "confidence": 0.7,
@@ -129,6 +130,40 @@ def test_time_intent_renders_as_mandatory_contract() -> None:
     assert "最新有效时间" in block
     assert "24 个自然月" in block
     assert "服务器当前日期" in block
+    assert "按 month 分组" in block
+
+
+def test_bucket_without_range_forbids_an_automatic_time_filter() -> None:
+    block = render_time_intent(
+        {
+            "scope": "unspecified",
+            "comparison": "none",
+            "range_unit": "year",
+            "bucket": "year",
+            "source": "user",
+            "confidence": 1.0,
+        }
+    )
+
+    assert "按 year 分组" in block
+    assert "禁止自动添加时间范围" in block
+
+
+def test_time_range_without_bucket_does_not_force_grouping() -> None:
+    block = render_time_intent(
+        {
+            "scope": "explicit",
+            "anchor": "current_time",
+            "comparison": "none",
+            "range_unit": "year",
+            "start": "2025-01-01",
+            "end_exclusive": "2026-01-01",
+            "source": "user",
+            "confidence": 1.0,
+        }
+    )
+
+    assert "未要求时间分组" in block
 
 
 def test_confirmed_intent_is_rendered_once_in_plan_context() -> None:
@@ -153,6 +188,36 @@ def test_confirmed_intent_is_rendered_once_in_plan_context() -> None:
     body = render_plan_context(intent_context=intent, include_playbook=False)
     assert render_intent_decisions(intent) in body
     assert body.count("已确定查询口径") == 1
+
+
+def test_confirmed_intent_renders_each_physical_field_role() -> None:
+    body = render_intent_decisions(
+        {
+            "decisions": [
+                {
+                    "key": "metric.original_asset",
+                    "label": "原始资产金额",
+                    "value": "按签约日期统计金额合计",
+                    "bindings": [
+                        {
+                            "identifier": "orig_asset_amt",
+                            "role": "measure",
+                            "aggregation": "sum",
+                        },
+                        {
+                            "identifier": "sign_date",
+                            "role": "filter",
+                            "aggregation": "none",
+                        },
+                    ],
+                    "locked": True,
+                }
+            ]
+        }
+    )
+
+    assert "`orig_asset_amt`（角色=measure，聚合=sum）" in body
+    assert "`sign_date`（角色=filter）" in body
 
 
 def test_related_multi_issue_decision_is_displayed_once() -> None:

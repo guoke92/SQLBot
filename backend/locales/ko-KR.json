@@ -64,7 +64,8 @@
       "entity_title": "“{phrase}”은(는) 어떤 비즈니스 값을 의미합니까?",
       "entity_reason": "값에 따라 쿼리 범위가 직접 달라집니다.",
       "entity_recommendation": "용어 검색 관련도가 가장 높은 값을 추천합니다.",
-      "entity_custom_placeholder": "정확한 비즈니스 값을 입력하세요"
+      "entity_custom_placeholder": "정확한 비즈니스 값을 입력하세요",
+      "assessment_unavailable": "비즈니스 조회 의도를 안정적으로 확인하지 못했습니다. 다시 시도해 주세요."
     }
   },
   "i18n_terminology": {

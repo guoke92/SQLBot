@@ -573,7 +573,7 @@ import { useClipboard } from '@vueuse/core'
 const { copy } = useClipboard({ legacy: true })
 
 const { t } = useI18n()
-const defaultPwd = ref('SQLBot@123456')
+const defaultPwd = ref('Lls@123456')
 const keyword = ref('')
 const dialogFormVisible = ref(false)
 const termFormRef = ref()

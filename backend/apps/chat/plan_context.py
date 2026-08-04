@@ -114,13 +114,20 @@ def render_time_intent(time_intent: TimeIntent | None) -> str:
         return ""
     scope = time_intent.get("scope")
     comparison = time_intent.get("comparison", "none")
-    grain = time_intent.get("grain", "month")
+    range_unit = time_intent.get("range_unit", "month")
+    bucket = time_intent.get("bucket")
     lines = [
         "## 时间范围契约（生成 SQL 时必须遵守）",
-        f"- 粒度: {grain}；比较方式: {comparison}",
+        f"- 筛选范围精度: {range_unit}；比较方式: {comparison}",
     ]
+    if bucket:
+        lines.append(f"- 用户要求结果按 {bucket} 分组，必须保留该时间维度。")
+    else:
+        lines.append("- 用户未要求时间分组，不得仅因存在时间范围而额外拆分结果。")
     if scope == "all":
         lines.append("- 用户要求全量时间：禁止自动添加默认时间范围。")
+    elif scope == "unspecified":
+        lines.append("- 用户只确认了时间分组，未指定筛选范围：禁止自动添加时间范围。")
     elif scope == "explicit":
         start = time_intent.get("start")
         end = time_intent.get("end_exclusive")
@@ -149,10 +156,10 @@ def render_intent_decisions(intent_context: Mapping[str, Any] | None) -> str:
     """Render the resolved semantic contract; unresolved questions never reach here."""
     decisions = (intent_context or {}).get("decisions") or []
     lines: list[str] = []
-    for label, rendered, identifiers in decision_contract_rows(decisions):
+    for label, rendered, requirements in decision_contract_rows(decisions):
         requirement = (
-            "；SQL 必须包含物理标识：" + "、".join(f"`{item}`" for item in identifiers)
-            if identifiers
+            "；SQL 必须落实字段职责：" + "、".join(requirements)
+            if requirements
             else ""
         )
         lines.append(f"- {label}: {rendered}{requirement}")

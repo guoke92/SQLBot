@@ -45,10 +45,53 @@ class FailureInfo(TypedDict, total=False):
     step_index: int
 
 
-class ResultQuality(TypedDict):
-    status: Literal["complete", "partial"]
-    truncated: bool
+QualityGrade = Literal[
+    "excellent",
+    "acceptable",
+    "reference_only",
+    "unreliable",
+]
+
+
+QualityAssessor = Literal["program", "ai"]
+ObservationSeverity = Literal["info", "warning", "error"]
+
+
+class QualityDetail(TypedDict):
+    code: str
+    params: dict[str, Any]
+    step_index: NotRequired[int]
+
+
+class QualityDimension(TypedDict):
+    code: str
+    weight: int
+    score: int
+    weighted_score: float
+    assessor: QualityAssessor
+    details: list[QualityDetail]
+
+
+class DataObservation(TypedDict):
+    code: str
+    severity: ObservationSeverity
+    params: dict[str, Any]
+    step_index: NotRequired[int]
+
+
+class QualityCoverage(TypedDict):
     returned_rows: int
+    truncated: bool
+    step_count: int
+
+
+class ResultQuality(TypedDict):
+    score: int
+    grade: QualityGrade
+    dimensions: list[QualityDimension]
+    observations: list[DataObservation]
+    passed_checks: list[str]
+    coverage: QualityCoverage
 
 
 class RunOutcome(TypedDict):

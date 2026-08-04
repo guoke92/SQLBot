@@ -9,6 +9,7 @@ from langchain_core.messages import AIMessage, SystemMessage
 
 from apps.chat.models.chat_model import OperationEnum
 from apps.chat.steps.observability import log_span
+from apps.conversation.messages import message_content_text
 from apps.conversation.outcome import failed_outcome, format_error_message
 from apps.conversation.sink import StreamSink
 from apps.conversation.tooling import redact_value, tool_calls_from_message
@@ -64,11 +65,7 @@ def agent_node(state: Mapping[str, Any]) -> dict[str, Any]:
             response: AIMessage = bound.invoke(model_messages)
             calls = tool_calls_from_message(response)
             safe_calls = redact_value(calls)
-            text = (
-                response.content
-                if isinstance(response.content, str)
-                else str(response.content or "")
-            )
+            text = message_content_text(response.content)
             span["payload"] = {
                 "kind": "agent",
                 "round": rounds + 1,

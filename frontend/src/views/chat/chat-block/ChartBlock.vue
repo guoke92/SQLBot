@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ChatMessage } from '@/api/chat.ts'
+import type { AnswerDataset, ChatMessage } from '@/api/chat.ts'
 import DisplayChartBlock from '@/views/chat/component/DisplayChartBlock.vue'
 import ChartPopover from '@/views/chat/chat-block/ChartPopover.vue'
 import { computed, ref, watch } from 'vue'
@@ -76,23 +76,9 @@ const { t } = useI18n()
 const addViewRef = ref(null)
 const emits = defineEmits(['exitFullScreen', 'update:thousandsSeparatorList', 'update:showLabel'])
 
-const dataObject = computed<{
-  fields: Array<string>
-  fields_info: Array<{ name: string; is_numeric: boolean }>
-  data: Array<{ [key: string]: any }>
-  limit: number | undefined
-  row_count: number | undefined
-  truncated: boolean | undefined
-  truncation_reason: string | undefined
-  datasource: number | undefined
-  sql: string | undefined
-}>(() => {
+const dataObject = computed<AnswerDataset & { sql?: string }>(() => {
   if (props.message?.record?.data) {
-    if (typeof props.message?.record?.data === 'string') {
-      return JSON.parse(props.message.record.data)
-    } else {
-      return props.message.record.data
-    }
+    return props.message.record.data
   }
   return {}
 })

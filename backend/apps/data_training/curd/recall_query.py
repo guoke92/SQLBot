@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Literal
 
+from apps.ai_model.embedding import VECTOR_DIMENSION_PREDICATE
+
 TrainingScope = Literal["datasource", "advanced_application"]
 
 _TRAINING_SCOPES: tuple[TrainingScope, ...] = (
@@ -42,6 +44,7 @@ FROM (
       AND child.{scope} = :scope_value
       AND child.enabled IS TRUE
       AND child.embedding IS NOT NULL
+      AND {VECTOR_DIMENSION_PREDICATE}
       {training_type_filter}
 ) AS candidate
 WHERE candidate.similarity > {similarity_threshold}

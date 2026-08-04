@@ -64,7 +64,8 @@
       "entity_title": "“{phrase}”具体指哪个业务值？",
       "entity_reason": "不同取值会直接改变过滤范围。",
       "entity_recommendation": "按术语召回相关度推荐最匹配的值。",
-      "entity_custom_placeholder": "输入准确的业务值"
+      "entity_custom_placeholder": "输入准确的业务值",
+      "assessment_unavailable": "暂时未能可靠完成业务口径识别，请重试。"
     }
   },
   "i18n_terminology": {

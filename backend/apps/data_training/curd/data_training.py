@@ -8,7 +8,7 @@ import dicttoxml
 from sqlalchemy import and_, select, func, delete, update, or_
 from sqlalchemy import text
 
-from apps.ai_model.embedding import EmbeddingModelCache
+from apps.ai_model.embedding import EmbeddingModelCache, embedding_query_params
 from apps.data_training.curd.recall_query import (
     TrainingScope,
     build_embedding_training_sql,
@@ -427,21 +427,20 @@ def enable_training(session: SessionDep, id: int, enabled: bool, trans: Trans):
     session.commit()
 
 
-# def run_save_embeddings(ids: List[int]):
-#     executor.submit(save_embeddings, ids)
-#
-#
-# def fill_empty_embeddings():
-#     executor.submit(run_fill_empty_embeddings)
-
-
-def run_fill_empty_embeddings(session_maker):
+def run_sync_embeddings(session_maker):
+    """Refresh training vectors missing from the active embedding space."""
     try:
         if not settings.EMBEDDING_ENABLED:
             return
 
+        active_dimension = EmbeddingModelCache.get_dimension()
         session = session_maker()
-        stmt = select(DataTraining.id).where(and_(DataTraining.embedding.is_(None)))
+        stmt = select(DataTraining.id).where(
+            or_(
+                DataTraining.embedding.is_(None),
+                func.vector_dims(DataTraining.embedding) != active_dimension,
+            )
+        )
         results = session.execute(stmt).scalars().all()
 
         save_embeddings(session_maker, results)
@@ -518,7 +517,10 @@ def select_training_by_question(session: SessionDep, question: str, oid: int, da
 
                 embedding = model.embed_query(question)
 
-                params: dict = {'embedding_array': str(embedding), 'oid': oid}
+                params: dict = {
+                    **embedding_query_params(embedding),
+                    'oid': oid,
+                }
                 if training_type:
                     params['training_type'] = training_type
 

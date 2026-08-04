@@ -1,14 +1,31 @@
 import datetime
-from decimal import Decimal
-from typing import List, Optional, Dict, Any
+from typing import Any, Dict, List, Optional
 
 import orjson
-from sqlalchemy import and_, select, update
-from sqlalchemy import desc, func
+from sqlalchemy import and_, desc, func, select, update
 
+from apps.chat.answer_payload import (
+    get_answer_step_data,
+    is_answer_payload,
+    normalize_answer_payload,
+)
 from apps.chat.constants import DYNAMIC_DS_TYPES
-from apps.chat.models.chat_model import Chat, ChatRecord, CreateChat, ChatInfo, RenameChat, ChatQuestion, ChatLog, \
-    TypeEnum, OperationEnum, ChatRecordResult, ChatLogHistory, ChatLogHistoryItem
+from apps.chat.intent_history import latest_reusable_intent_record
+from apps.chat.models.chat_model import (
+    Chat,
+    ChatInfo,
+    ChatLog,
+    ChatLogHistory,
+    ChatLogHistoryItem,
+    ChatQuestion,
+    ChatRecord,
+    ChatRecordResult,
+    CreateChat,
+    OperationEnum,
+    RenameChat,
+    TypeEnum,
+)
+from apps.chat.result_data import format_json_data
 from apps.chat.semantic_intent import (
     ClarificationAnswer,
     intent_context_from_payload,
@@ -22,10 +39,9 @@ from apps.datasource.crud.recommended_problem import get_datasource_recommended_
 from apps.datasource.models.datasource import CoreDatasource
 from apps.db.constant import DB
 from apps.protocol import get_protocol_for_ds
-from apps.protocol.base import CAP_SQL_DIALECT
 from apps.system.crud.assistant import AssistantOutDs, AssistantOutDsFactory
 from apps.system.schemas.system_schema import AssistantOutDsSchema
-from common.core.deps import CurrentAssistant, SessionDep, CurrentUser, Trans
+from common.core.deps import CurrentAssistant, CurrentUser, SessionDep, Trans
 from common.utils.data_format import DataFormat
 from common.utils.json_utils import extract_nested_json
 from common.utils.utils import SQLBotLogUtil
@@ -196,73 +212,6 @@ def get_last_execute_sql_error(session: SessionDep, chart_id: int):
     return None
 
 
-def unwrap_chart_data_payload(origin_data: Optional[dict], step_index: int = 0) -> dict:
-    """Normalize stored ChatRecord.data to a single chart data object.
-
-    Multi-step agentic payload::
-        {"steps": [{"sql", "chart", "data": {...}}, ...], "analysis": "..."}
-
-    Legacy single payload::
-        {"fields": [...], "data": [...], ...}
-    """
-    if not origin_data or not isinstance(origin_data, dict):
-        return {}
-    if "steps" in origin_data and isinstance(origin_data.get("steps"), list):
-        steps = origin_data.get("steps") or []
-        if not steps:
-            return {}
-        idx = step_index if 0 <= step_index < len(steps) else 0
-        step = steps[idx] or {}
-        data_obj = step.get("data") if isinstance(step, dict) else None
-        if isinstance(data_obj, dict):
-            return data_obj
-        return {}
-    return origin_data
-
-
-def format_json_data(origin_data: dict):
-    origin_data = unwrap_chart_data_payload(origin_data) if isinstance(origin_data, dict) else {}
-    result = {'fields': origin_data.get('fields') if origin_data.get('fields') else [],
-              'fields_info': origin_data.get('fields_info') if origin_data.get('fields_info') else None}
-    _list = origin_data.get('data') if origin_data.get('data') else []
-    data = format_json_list_data(_list)
-    result['data'] = data
-    result['row_count'] = (
-        origin_data.get('row_count')
-        if origin_data.get('row_count') is not None
-        else len(data)
-    )
-    result['truncated'] = bool(origin_data.get('truncated'))
-    if origin_data.get('truncation_reason') is not None:
-        result['truncation_reason'] = origin_data.get('truncation_reason')
-    if origin_data.get('limit') is not None:
-        result['limit'] = origin_data.get('limit')
-
-    return result
-
-
-def format_json_list_data(origin_data: list[dict]):
-    data = []
-    for _data in origin_data if origin_data else []:
-        _row = {}
-        for key, value in _data.items():
-            if value is not None:
-                # 检查是否为数字且需要特殊处理
-                if isinstance(value, (int, float)):
-                    # 整数且超过15位 → 转字符串并标记为文本列
-                    if isinstance(value, int) and len(str(abs(value))) > 15:
-                        value = str(value)
-                    # 小数且超过15位有效数字 → 转字符串并标记为文本列
-                    elif isinstance(value, float):
-                        decimal_str = str(Decimal(str(value))).rstrip('0').rstrip('.')
-                        if len(decimal_str) > 15:
-                            value = str(value)
-            _row[key] = value
-        data.append(DataFormat.normalize_qualified_sql_column_keys(_row))
-
-    return data
-
-
 def get_chat_chart_config(session: SessionDep, chat_record_id: int):
     stmt = select(ChatRecord.chart).where(and_(ChatRecord.id == chat_record_id))
     res = session.execute(stmt)
@@ -291,15 +240,14 @@ def get_chart_data_with_user_live(session: SessionDep, current_user: CurrentUser
     row = session.execute(stmt).first()
     if not row:
         return {'status': 'failed', 'data': [], 'message': 'Record not found'}
-    return get_chart_data_ds(session, row.datasource, row.sql, re_exec_json=row.re_exec)
+    return get_chart_data_ds(session, row.datasource, re_exec_json=row.re_exec)
 
 
-def get_chart_data_ds(session: SessionDep, ds_id, sql, re_exec_json: Optional[str] = None):
+def get_chart_data_ds(session: SessionDep, ds_id, re_exec_json: Optional[str] = None):
     """Re-run a stored chart query through the datasource protocol.
 
-    Preferred payload is ``re_exec_json`` (protocol-owned, complete enough to rebuild a plan).
-    For older SQL records that only have display ``sql``, fall back to replaying that statement
-    only when the protocol still advertises CAP_SQL_DIALECT.
+    ``re_exec_json`` is the protocol-owned executable contract. Display SQL is
+    never reinterpreted as an execution plan.
     """
     json_result: Dict[str, Any] = {'status': 'success', 'data': [], 'message': ''}
     try:
@@ -318,10 +266,6 @@ def get_chart_data_ds(session: SessionDep, ds_id, sql, re_exec_json: Optional[st
                 re_exec = None
             if isinstance(re_exec, dict):
                 plan = proto.plan_from_re_exec(datasource, re_exec)
-
-        if plan is None and sql and proto.supports(CAP_SQL_DIALECT):
-            # Legacy SQL-path compatibility: display sql was also the executable statement.
-            plan = proto.plan_from_re_exec(datasource, {"sql": sql})
 
         if plan is None or not plan.success:
             json_result['status'] = 'failed'
@@ -354,7 +298,7 @@ def get_chat_chart_data(session: SessionDep, chat_record_id: int, step_index: in
     for row in res:
         try:
             raw = orjson.loads(row.data)
-            return unwrap_chart_data_payload(raw, step_index=step_index)
+            return get_answer_step_data(raw, step_index=step_index)
         except Exception:
             pass
     return {}
@@ -619,8 +563,11 @@ def get_chat_with_records(session: SessionDep, chart_id: int, current_user: Curr
     for row in formatted:
         try:
             data_value = row.get("data")
-            if data_value is not None:
-                row["data"] = format_json_data(data_value)
+            if isinstance(data_value, dict) and is_answer_payload(data_value):
+                row["data"] = normalize_answer_payload(
+                    data_value,
+                    normalize_data=format_json_data,
+                )
         except Exception:
             pass
 
@@ -926,6 +873,10 @@ def create_chat(session: SessionDep, current_user: CurrentUser, create_chat_obj:
         record.first_chat = True
         record.finish = True
         record.create_time = datetime.datetime.now()
+        # The initial recommendation card is a terminal record. Keep the
+        # lifecycle invariant ``finish => finish_time`` so history/usage code
+        # never has to special-case this record type.
+        record.finish_time = record.create_time
         record.create_by = current_user.id
         if isinstance(ds, CoreDatasource) and ds.recommended_config == 2:
             questions = get_datasource_recommended_chart(session, ds.id)
@@ -1014,7 +965,31 @@ def prepare_question_intent(
                 question.retrieval_question = context.original_question
                 question.generation_question = context.original_question
                 return
-        context = new_intent_context(question.question or "")
+        previous_record = latest_reusable_intent_record(
+            session,
+            chat_id=int(question.chat_id),
+            user_id=int(current_user.id),
+        )
+        previous_context = None
+        if previous_record is not None and previous_record.intent_context:
+            candidate = intent_context_from_payload(previous_record.intent_context)
+            if candidate.status == "ready" and candidate.decisions:
+                previous_context = candidate
+        previous_record_id = (
+            int(previous_record.id)
+            if previous_record is not None
+            and previous_record.id is not None
+            and previous_context is not None
+            else None
+        )
+        context = new_intent_context(
+            question.question or "",
+            base_record_id=previous_record_id,
+            base_decisions=(previous_context.decisions if previous_context else ()),
+            base_time_intent=(
+                previous_context.time_intent if previous_context else None
+            ),
+        )
         question.intent_context = public_intent_payload(context)
         question.planning_question = context.original_question
         question.retrieval_question = context.original_question

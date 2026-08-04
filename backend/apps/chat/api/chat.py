@@ -1,7 +1,7 @@
 import asyncio
 import io
 import traceback
-from typing import Optional, List
+from typing import List, Optional
 
 import pandas as pd
 from fastapi import APIRouter, HTTPException, Path
@@ -9,39 +9,39 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import and_, select
 from starlette.responses import JSONResponse
 
+from apps.chat.answer_payload import normalize_answer_payload
 from apps.chat.curd.chat import (
-    delete_chat_with_user,
-    get_chart_data_with_user,
-    get_chat_predict_data_with_user,
-    list_chats,
-    get_chat_with_records,
     create_chat,
-    get_chat_chart_data,
-    get_chat_predict_data,
-    get_chat_with_records_with_data,
-    get_chat_record_by_id,
-    format_json_data,
-    format_json_list_data,
+    delete_chat_with_user,
     get_chart_config,
-    list_recent_questions,
-    rename_chat_with_user,
-    get_chat_log_history,
+    get_chart_data_with_user,
     get_chart_data_with_user_live,
+    get_chat_chart_data,
+    get_chat_log_history,
+    get_chat_predict_data,
+    get_chat_predict_data_with_user,
+    get_chat_record_by_id,
+    get_chat_with_records,
+    get_chat_with_records_with_data,
+    list_chats,
+    list_recent_questions,
     prepare_question_intent,
+    rename_chat_with_user,
 )
 from apps.chat.models.chat_model import (
-    CreateChat,
-    ChatRecord,
-    RenameChat,
-    ChatQuestion,
     AxisObj,
-    QuickCommand,
-    ChatInfo,
     Chat,
     ChatFinishStep,
+    ChatInfo,
+    ChatQuestion,
     ChatQuestionBase,
+    ChatRecord,
+    CreateChat,
+    QuickCommand,
+    RenameChat,
     SimpleChat,
 )
+from apps.chat.result_data import format_json_data, format_json_list_data
 
 # Graph registration is handled by apps.api.bootstrap_graphs — no side-effect
 # imports needed here. submit_graph is the sole runtime entry.
@@ -51,9 +51,9 @@ from apps.conversation.runtime import submit_graph
 from apps.conversation.sink import resolve_sink, sink_error_chunks
 from apps.swagger.i18n import PLACEHOLDER_PREFIX
 from apps.system.schemas.permission import SqlbotPermission, require_permissions
-from common.audit.models.log_model import OperationType, OperationModules
+from common.audit.models.log_model import OperationModules, OperationType
 from common.audit.schemas.logger_decorator import LogConfig, system_log
-from common.core.deps import CurrentAssistant, SessionDep, CurrentUser, Trans
+from common.core.deps import CurrentAssistant, CurrentUser, SessionDep, Trans
 from common.utils.command_utils import parse_quick_command
 from common.utils.data_format import DataFormat
 
@@ -111,24 +111,6 @@ async def get_chat_with_data(
     return await asyncio.to_thread(inner)
 
 
-""" @router.get("/record/{chat_record_id}/data", summary=f"{PLACEHOLDER_PREFIX}get_chart_data")
-async def chat_record_data(session: SessionDep, chat_record_id: int):
-    def inner():
-        data = get_chat_chart_data(chat_record_id=chat_record_id, session=session)
-        return format_json_data(data)
-
-    return await asyncio.to_thread(inner)
-
-
-@router.get("/record/{chat_record_id}/predict_data", summary=f"{PLACEHOLDER_PREFIX}get_chart_predict_data")
-async def chat_predict_data(session: SessionDep, chat_record_id: int):
-    def inner():
-        data = get_chat_predict_data(chat_record_id=chat_record_id, session=session)
-        return format_json_list_data(data)
-
-    return await asyncio.to_thread(inner) """
-
-
 @router.get(
     "/record/{chat_record_id}/data", summary=f"{PLACEHOLDER_PREFIX}get_chart_data"
 )
@@ -136,35 +118,12 @@ async def chat_record_data(
     session: SessionDep, current_user: CurrentUser, chat_record_id: int
 ):
     def inner():
-        from apps.chat.curd.chat import unwrap_chart_data_payload
-
         data = get_chart_data_with_user(
             chat_record_id=chat_record_id, session=session, current_user=current_user
         )
-        # Agentic multi-step payload: {steps:[{sql,chart,data},...], analysis}
-        if isinstance(data, dict) and isinstance(data.get("steps"), list):
-            steps_out = []
-            for step in data.get("steps") or []:
-                if not isinstance(step, dict):
-                    continue
-                item = {
-                    "sql": step.get("sql") or "",
-                    "brief": step.get("brief") or "",
-                    "chart": step.get("chart"),
-                    "error": step.get("error"),
-                }
-                raw_data = (
-                    step.get("data") if isinstance(step.get("data"), dict) else {}
-                )
-                item["data"] = format_json_data(raw_data) if raw_data else raw_data
-                steps_out.append(item)
-            return {
-                "steps": steps_out,
-                "analysis": data.get("analysis") or "",
-            }
-        # Legacy single payload
-        return format_json_data(
-            unwrap_chart_data_payload(data) if isinstance(data, dict) else data
+        return normalize_answer_payload(
+            data,
+            normalize_data=format_json_data,
         )
 
     return await asyncio.to_thread(inner)

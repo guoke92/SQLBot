@@ -64,7 +64,8 @@
       "entity_title": "「{phrase}」具體指哪個業務值？",
       "entity_reason": "不同取值會直接改變篩選範圍。",
       "entity_recommendation": "按術語召回相關度推薦最匹配的值。",
-      "entity_custom_placeholder": "輸入準確的業務值"
+      "entity_custom_placeholder": "輸入準確的業務值",
+      "assessment_unavailable": "暫時未能可靠完成業務口徑識別，請重試。"
     }
   },
   "i18n_terminology": {

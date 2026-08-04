@@ -50,6 +50,7 @@ def resolve_entity_bindings(
                 alternatives.append(value)
         binding = {
             "canonical": winner.canonical,
+            "description": winner.description,
             "alternatives": alternatives[:8],
             "targets": targets,
             "resolution": winner.match_type,
@@ -71,6 +72,7 @@ def resolve_entity_bindings(
                 "options": [
                     {
                         "canonical": item.canonical,
+                        "description": item.description,
                         "score": item.score,
                         "targets": [target.model_dump() for target in item.targets],
                     }

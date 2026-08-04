@@ -43,11 +43,21 @@ export type IntentKind =
   | 'relation'
   | 'grain'
   | 'calculation'
+export type Aggregation =
+  'none' | 'count' | 'count_distinct' | 'sum' | 'avg' | 'min' | 'max' | 'distinct_concat'
+export type BindingRole = 'group' | 'measure' | 'attribute' | 'filter' | 'join'
+
+export interface IntentBinding {
+  identifier: string
+  role: BindingRole
+  aggregation: Aggregation
+}
 
 export interface IntentResolution {
   label?: string
   value: unknown
-  required_identifiers?: string[]
+  bindings?: IntentBinding[]
+  effect?: 'include' | 'omit'
 }
 
 export interface IntentOption {
@@ -90,6 +100,112 @@ export interface IntentContext {
   issues: Array<Record<string, any>>
   questions: ClarificationQuestion[]
   blocking_reasons: string[]
+  submitted_answers?: ClarificationAnswer[]
+}
+
+export type ResultQualityGrade = 'excellent' | 'acceptable' | 'reference_only' | 'unreliable'
+
+export interface ResultQualityDetail {
+  code: string
+  params: Record<string, string | number>
+  step_index?: number
+}
+
+export interface ResultQualityDimension {
+  code: string
+  weight: number
+  score: number
+  weighted_score: number
+  assessor: 'program' | 'ai'
+  details: ResultQualityDetail[]
+}
+
+export interface ResultDataObservation {
+  code: string
+  severity: 'info' | 'warning' | 'error'
+  params: Record<string, string | number>
+  step_index?: number
+}
+
+export interface ResultQuality {
+  score: number
+  grade: ResultQualityGrade
+  dimensions: ResultQualityDimension[]
+  observations: ResultDataObservation[]
+  passed_checks: string[]
+  coverage: {
+    returned_rows: number
+    truncated: boolean
+    step_count: number
+  }
+}
+
+export type RunStatus =
+  'running' | 'awaiting_input' | 'blocked' | 'success' | 'degraded' | 'failed' | 'limit_reached'
+
+export interface RunOutcome {
+  status: RunStatus
+  failures: Array<Record<string, any>>
+  successful_steps: number
+  total_steps: number
+  quality?: ResultQuality
+}
+
+export interface AnswerDataset {
+  fields?: string[]
+  data?: any[]
+  fields_info?: any
+  limit?: number
+  row_count?: number
+  truncated?: boolean
+  truncation_reason?: string
+  datasource?: number
+}
+
+export interface AnswerPresentation {
+  title: string
+  columns: Array<{
+    field: string
+    label: string
+    display: string
+  }>
+}
+
+export interface AnswerStep {
+  sql: string
+  brief: string
+  presentation?: AnswerPresentation
+  chart?: unknown
+  data?: AnswerDataset
+  error?: string
+  failure?: Record<string, any>
+}
+
+export interface AnswerPayload {
+  steps: AnswerStep[]
+  analysis: string
+  outcome: RunOutcome
+}
+
+export const parseAnswerPayload = (value: unknown): AnswerPayload | undefined => {
+  let parsed = value
+  if (typeof parsed === 'string') {
+    try {
+      parsed = JSON.parse(parsed)
+    } catch {
+      return undefined
+    }
+  }
+  if (!parsed || typeof parsed !== 'object') return undefined
+  const candidate = parsed as Partial<AnswerPayload>
+  if (!Array.isArray(candidate.steps) || !candidate.outcome) return undefined
+  return candidate as AnswerPayload
+}
+
+export const selectAnswerStep = (value: unknown, stepIndex = 0): AnswerStep | undefined => {
+  const payload = parseAnswerPayload(value)
+  if (!payload?.steps.length) return undefined
+  return payload.steps[stepIndex] ?? payload.steps[0]
 }
 
 export class ChatRecord {
@@ -103,7 +219,8 @@ export class ChatRecord {
   datasource?: number
   engine_type?: string
   re_exec?: string | any
-  data?: string | any
+  answer?: AnswerPayload
+  data?: AnswerDataset
   chart_answer?: string
   chart?: string
   analysis?: string
@@ -136,7 +253,7 @@ export class ChatRecord {
     sql_answer: string | undefined,
     sql: string | undefined,
     datasource: number | undefined,
-    data: string | any | undefined,
+    data: unknown,
     chart_answer: string | undefined,
     chart: string | undefined,
     analysis: string | undefined,
@@ -164,7 +281,7 @@ export class ChatRecord {
     sql_answer?: string,
     sql?: string,
     datasource?: number | undefined,
-    data?: string | any,
+    data?: unknown,
     chart_answer?: string,
     chart?: string,
     analysis?: string,
@@ -191,7 +308,7 @@ export class ChatRecord {
     this.sql_answer = sql_answer
     this.sql = sql
     this.datasource = datasource
-    this.data = data
+    this.answer = parseAnswerPayload(data)
     this.chart_answer = chart_answer
     this.chart = chart
     this.analysis = analysis
@@ -531,7 +648,7 @@ export const chatApi = {
   get_with_Data: (id: number): Promise<ChatInfo> => {
     return request.get(`/chat/${id}/with_data`)
   },
-  get_chart_data: (record_id?: number): Promise<any> => {
+  get_chart_data: (record_id?: number): Promise<AnswerPayload> => {
     return request.get(`/chat/record/${record_id}/data`)
   },
   get_chart_predict_data: (record_id?: number): Promise<any> => {

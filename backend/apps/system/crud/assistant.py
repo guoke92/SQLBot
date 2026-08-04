@@ -216,10 +216,8 @@ class AssistantOutDs:
             tables.append(t_obj)
             table_name_list.append(table.name)
 
-        # Table embedding intentionally inactive for out-DS: no CoreTable vectors
-        # on assistant-supplied schemas. Filter only via table_list / name walk.
-        # if embedding and tables and settings.TABLE_EMBEDDING_ENABLED:
-        #     tables = get_table_embedding(tables, question)
+        # Assistant-supplied schemas have no persisted CoreTable vectors.
+        # Their table scope is controlled by the explicit table list.
 
         if tables:
             for s in tables:

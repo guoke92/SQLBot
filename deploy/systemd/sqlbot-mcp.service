@@ -1,0 +1,17 @@
+[Unit]
+Description=SQLBot MCP Server
+After=network.target sqlbot.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/sqlbot/app
+EnvironmentFile=/opt/sqlbot/.env
+ExecStart=/opt/sqlbot/app/.venv/bin/uvicorn main:mcp_app --host 0.0.0.0 --port 8001 --proxy-headers --forwarded-allow-ips='*'
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

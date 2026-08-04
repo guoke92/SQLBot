@@ -4,32 +4,50 @@ from __future__ import annotations
 
 import hashlib
 import re
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
+from dataclasses import dataclass
 from typing import Any, Literal
 
 import orjson
-from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+from langchain_core.messages import HumanMessage, SystemMessage
 from pydantic import BaseModel, Field
 
 from apps.chat.semantic_intent import (
     ClarificationQuestion,
+    IntentBinding,
     IntentContext,
     IntentDecision,
+    IntentKind,
     IntentIssue,
     IntentOption,
     IntentResolution,
+    binding_identifiers,
     render_decision_value,
+    time_contract_incomplete,
+    validate_binding_requirements,
 )
+from apps.conversation.messages import message_content_text
 from common.utils.json_utils import extract_nested_json
 
 
 class IntentAssessment(BaseModel):
+    intent_mode: Literal["new", "refine"] = "new"
     status: Literal["ready", "needs_clarification", "blocked"]
     summary: str = ""
     resolved_decisions: list[IntentDecision] = Field(default_factory=list)
     issues: list[IntentIssue] = Field(default_factory=list)
     questions: list[ClarificationQuestion] = Field(default_factory=list)
     blocking_reasons: list[str] = Field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class SemanticAssessmentResult:
+    """Validated semantic terminal plus bounded diagnostics for one graph span."""
+
+    context: IntentContext
+    usage: dict[str, Any]
+    reasoning: str
+    attempts: list[dict[str, Any]]
 
 
 _FORBIDDEN_USER_FACING_TERMS = (
@@ -57,6 +75,12 @@ _SYSTEM_PROMPT = """你是数据查询意图审核器。你的任务不是生成
 6. 术语、示例、用户已确认决定之间是否冲突；
 7. 实体候选是否存在多个可行解释。
 
+多轮对话处理：
+- previous_query 为空时 intent_mode 使用 new。
+- 当前问题是独立的新查询时使用 new，不继承 previous_query。
+- 当前问题是在上一条成功查询上增加、删除、更换或修正口径时使用 refine。未被当前问题影响的旧决定会由系统保留；你只需返回新增、替换或明确删除的决定，以及因此产生的新歧义。
+- refine 时沿用稳定 key 覆盖旧决定；明确不再需要的旧输出用相同 key、effect=omit 表达。不得通过省略旧决定来暗中删除用户需求。
+
 规则：
 - 先把用户原问题中已经明确表达的指标、字段、聚合、时间、范围、关联、粒度和映射写入 resolved_decisions，再判断剩余歧义；原问题中的明确要求与后续用户锁定决定具有同等约束力，不得换一种说法再次确认。
 - resolved_decisions 只保存用户明确表达或术语/规则/schema 能唯一确定的业务契约；纯 inference 不能关闭歧义，不得把仍有多个业务解释的内容伪装成已解决决定。
@@ -74,23 +98,30 @@ _SYSTEM_PROMPT = """你是数据查询意图审核器。你的任务不是生成
 - ready 必须至少包含一项 resolved_decisions 或已有 locked_decisions，不能只给 summary 而不形成可执行契约。
 - 每个问题给出 2~3 个互斥、可执行的选项，说明影响；标记推荐项及推荐理由。
 - title、reason、description、impact 保持简洁并以业务语言为主，避免重复描述字段结构和已确认决定。
-- 推荐只是默认选择，不能视为用户已确认。
+- 推荐只用于标记建议项，不得视为用户已选择或已确认。
 - 用户已确认决定是锁定事实，不得再次询问或改写。
 - 用户自定义回答属于待解释证据。必须将其归一为具体 resolved_decision 后才能锁定；若仍不唯一，应保留原 issue 并用业务语言继续确认。
+- 选项回答与自定义回答严格互斥。自定义回答若提到 A/B/C，应依据 submitted_clarifications.option_catalog 中相同 marker 的选项作为参考，再按用户补充内容形成新的完整口径；不得同时保留该选项与自定义文本后简单拼接。
 - 已存在锁定决定时，这是契约一致性复核：所有剩余问题仍须本轮一次给出，优先合并由多个决定共同产生的冲突。
 - 只有在现有证据不足以提供可执行选项时才返回 blocked；存在多个合理选项时返回 needs_clarification。
 - 没有实质歧义时返回 ready。
-- issue.key 和 resolved_decision.key 都是稳定的查询契约槽位，例如 scope.department_basis、metric.amount.aggregation、relation.business_object.keys；同一语义不得换 key 或拆出同义子 key。
+- issue.key 和 resolved_decision.key 都是稳定的查询契约槽位，例如 scope.department_basis、metric.amount、relation.business_object.keys；同一语义不得换 key 或拆出同义子 key。
+- 一个业务指标只能形成一个 metric decision；金额字段、业务日期和聚合方式必须共同放在该 decision 的 bindings 中。不得再拆分 metric.amount.aggregation 等修饰型 decision。calculation 仅用于比例、差值、代表值等真正的派生计算。
 - question.issue_keys 必须引用 issues 中的 key。
-- 每个 option.resolutions 必须逐一覆盖 question.issue_keys。每个 resolution 包含用户可理解的 label、具体 value，以及 SQL 必须出现的物理表/字段名 required_identifiers；没有物理标识要求时使用空数组。
+- 每个 option.resolutions 必须逐一覆盖 question.issue_keys。每个 resolution 包含用户可理解的 label、具体 value、effect(include|omit) 和结构化 bindings。effect=omit 或确实不产生 SQL 字段约束时 bindings 才可为空。
+- 业务时间字段与时间范围是两个独立契约槽位。问题标题若同时询问“按哪个时间、哪段期间”，选项必须同时解决 time.basis 与 time.range；不得在结构化选项描述中要求用户另行补充日期。previous_query 已有时间范围且 intent_mode=refine 时可直接继承，只询问受修改影响的业务时间字段。
+- 每个 binding 结构为 {"identifier":"物理字段","role":"group|measure|attribute|filter|join","aggregation":"none|count|count_distinct|sum|avg|min|max|distinct_concat"}。一个字段只承担一个明确角色：统计主体/粒度使用 group，指标值使用 measure，随主体展示的属性使用 attribute，范围和时间条件使用 filter，关系键使用 join。
+- measure 必须声明非 none 聚合；group/filter/join 使用 none；attribute 直接展示时使用 none，取代表值使用 min/max，多值去重拼接使用 distinct_concat。不得把指标的业务日期标成 measure，也不得把多个字段共用一个聚合声明。
+- effect 必须明确使用 include 或 omit。用户明确选择“不输出”时使用 omit；其余情况使用 include。include 的指标、计算、维度和粒度必须提供 bindings，禁止用空数组掩盖尚未完成的字段映射。
 - option.id 和 question.id 在本次响应内唯一，使用简短稳定英文标识。
 - 输出严格 JSON，不要使用 Markdown。
 
 JSON 结构：
 {
+  "intent_mode":"new|refine",
   "status": "ready|needs_clarification|blocked",
   "summary": "已确认口径的简要概述",
-  "resolved_decisions": [{"key":"metric.amount.aggregation","kind":"metric","label":"金额聚合","value":"SUM","source":"user|rule|terminology|schema","evidence_refs":["question"],"required_identifiers":["amount"],"locked":true}],
+  "resolved_decisions": [{"key":"metric.amount","kind":"metric","label":"金额","value":"金额合计","source":"user|rule|terminology|schema","evidence_refs":["question"],"bindings":[{"identifier":"amount","role":"measure","aggregation":"sum"},{"identifier":"business_date","role":"filter","aggregation":"none"}],"effect":"include","locked":true}],
   "issues": [{"key":"...","kind":"scope|metric|dimension|time|filter|relation|grain|calculation|entity|datasource","reason":"...","evidence_refs":["schema"]}],
   "questions": [{
     "id":"...",
@@ -103,7 +134,7 @@ JSON 结构：
     "recommended_option_ids":["..."],
     "recommendation_reason":"...",
     "recommendation_strength":"strong|moderate|weak",
-    "options":[{"id":"...","label":"有任一类业务数据就展示","description":"指标 A 或指标 B 任一侧有记录的业务主体都会保留","impact":"可查看完整业务范围，缺少某项指标时对应值为空","evidence_refs":["schema"],"resolutions":{"result.population":{"label":"业务主体范围","value":"两个指标来源的业务主体合集","required_identifiers":["entity_name","related_entity_id"]}}}],
+    "options":[{"id":"...","label":"有任一类业务数据就展示","description":"指标 A 或指标 B 任一侧有记录的业务主体都会保留","impact":"可查看完整业务范围，缺少某项指标时对应值为空","evidence_refs":["schema"],"resolutions":{"result.population":{"label":"业务主体范围","value":"两个指标来源的业务主体合集","bindings":[{"identifier":"entity_name","role":"group","aggregation":"none"},{"identifier":"business_date","role":"filter","aggregation":"none"}],"effect":"include"}}}],
     "allow_custom":true,
     "custom_placeholder":"也可以描述你的口径"
   }],
@@ -113,6 +144,13 @@ _SYSTEM_PROMPT += (
     f"\n- 面向用户的内容禁止出现以下数据库实现术语：{_FORBIDDEN_DISPLAY}。"
 )
 
+_REPAIR_PROMPT = """你是查询意图 JSON 契约修复器。请根据校验错误修复候选 JSON，不要重新解释业务需求。
+- 只输出修正后的完整 JSON，不要使用 Markdown。
+- 不得编造物理字段。缺少可靠字段映射的 resolved_decision 应移回 issues，并提供业务化澄清问题。
+- 一个业务指标只保留一个 metric decision；金额字段使用 measure，业务日期使用 filter，聚合写在 measure binding 中。
+- calculation 仅用于比例、差值或代表值等派生计算，并必须包含其实际输出字段的 measure binding。
+- 保留候选中其他已经完整且不冲突的决定、问题和选项。"""
+
 
 def _reasoning_content(response: Any) -> str:
     additional = getattr(response, "additional_kwargs", None) or {}
@@ -121,6 +159,70 @@ def _reasoning_content(response: Any) -> str:
             additional.get("reasoning_content") or additional.get("reasoning") or ""
         )
     return ""
+
+
+def _assessment_shape(raw_text: str) -> dict[str, Any]:
+    """Return bounded structural diagnostics without persisting full model text."""
+    try:
+        json_text = extract_nested_json(raw_text)
+        payload = orjson.loads(json_text) if json_text else {}
+    except (TypeError, ValueError):
+        return {}
+    if not isinstance(payload, dict):
+        return {}
+
+    decisions: list[dict[str, Any]] = []
+    for raw in payload.get("resolved_decisions") or []:
+        if not isinstance(raw, dict):
+            continue
+        bindings = [
+            {
+                "identifier": str(binding.get("identifier") or ""),
+                "role": str(binding.get("role") or ""),
+                "aggregation": str(binding.get("aggregation") or "none"),
+            }
+            for binding in raw.get("bindings") or []
+            if isinstance(binding, dict)
+        ]
+        decisions.append(
+            {
+                "key": str(raw.get("key") or ""),
+                "kind": str(raw.get("kind") or ""),
+                "bindings": bindings,
+            }
+        )
+    return {
+        "status": str(payload.get("status") or ""),
+        "decisions": decisions,
+        "issue_keys": [
+            str(issue.get("key") or "")
+            for issue in payload.get("issues") or []
+            if isinstance(issue, dict)
+        ],
+        "question_ids": [
+            str(question.get("id") or "")
+            for question in payload.get("questions") or []
+            if isinstance(question, dict)
+        ],
+    }
+
+
+def _attempt_diagnostic(
+    *,
+    attempt: int,
+    raw_text: str,
+    usage: dict[str, Any],
+    error: Exception | None,
+) -> dict[str, Any]:
+    diagnostic = {
+        "attempt": attempt,
+        "valid": error is None,
+        "token_usage": usage,
+        **_assessment_shape(raw_text),
+    }
+    if error is not None:
+        diagnostic["validation_error"] = str(error)[:1000]
+    return diagnostic
 
 
 def _entity_question_id(phrase: str) -> str:
@@ -159,6 +261,7 @@ def _entity_questions(
                 key,
                 {
                     "canonical": canonical,
+                    "description": str(candidate.get("description") or "").strip(),
                     "targets": [],
                 },
             )
@@ -183,6 +286,16 @@ def _entity_questions(
             field_names = list(
                 dict.fromkeys(target.rsplit(".", 1)[-1] for target in targets)
             )
+            business_name = str(candidate.get("description") or "").strip()
+            if business_name:
+                field_names = [
+                    (
+                        f"{business_name}({field_name})"
+                        if business_name.casefold() != field_name.casefold()
+                        else field_name
+                    )
+                    for field_name in field_names
+                ]
             options.append(
                 IntentOption(
                     id=f"value_{index + 1}",
@@ -209,7 +322,14 @@ def _entity_questions(
                         issue_key: IntentResolution(
                             label=phrase,
                             value=canonical,
-                            required_identifiers=[],
+                            bindings=[
+                                IntentBinding(
+                                    identifier=target,
+                                    role="filter",
+                                    aggregation="none",
+                                )
+                                for target in targets
+                            ],
                         )
                     },
                 )
@@ -270,6 +390,7 @@ def _normalize_question(
     question: ClarificationQuestion,
     *,
     issue_keys: list[str],
+    issue_kinds: Mapping[str, IntentKind],
 ) -> ClarificationQuestion:
     deduplicated: list[IntentOption] = []
     option_ids: set[str] = set()
@@ -291,12 +412,21 @@ def _normalize_question(
                     f"Clarification option {option.id} does not resolve: "
                     + ", ".join(missing_resolutions)
                 )
-            if question.kind == "dimension":
+            for key in issue_keys:
+                resolution = option.resolutions[key]
+                kind = issue_kinds.get(key, question.kind)
+                validate_binding_requirements(
+                    kind=kind,
+                    effect=resolution.effect,
+                    bindings=resolution.bindings,
+                    context=f"Clarification resolution {key}",
+                )
+            if question.kind in {"dimension", "grain"}:
                 identifiers = list(
                     dict.fromkeys(
                         identifier.strip().strip("`\"'[]")
                         for resolution in option.resolutions.values()
-                        for identifier in resolution.required_identifiers
+                        for identifier in binding_identifiers(resolution.bindings)
                         if identifier.strip()
                     )
                 )
@@ -394,11 +524,22 @@ def _normalize_assessment(
     assessment: IntentAssessment,
     context: IntentContext,
     bindings: dict[str, Any],
+    time_intent: Mapping[str, Any],
     trans: Callable[..., str] | None = None,
 ) -> IntentContext:
-    decisions_by_key = {
+    current_decisions_by_key = {
         decision.key: decision for decision in context.decisions if decision.key.strip()
     }
+    decisions_by_key = (
+        {
+            decision.key: decision
+            for decision in context.base_decisions
+            if decision.key.strip()
+        }
+        if assessment.intent_mode == "refine"
+        else {}
+    )
+    decisions_by_key.update(current_decisions_by_key)
     newly_resolved_keys: set[str] = set()
     assessment_decision_keys: set[str] = set()
     for decision in assessment.resolved_decisions:
@@ -415,24 +556,26 @@ def _normalize_assessment(
         if not render_decision_value(decision.value):
             raise ValueError(f"Resolved decision {key} requires a concrete value")
         existing = decisions_by_key.get(key)
-        if existing is not None and existing.locked:
+        if existing is not None and existing.locked and key in current_decisions_by_key:
             continue
+        validate_binding_requirements(
+            kind=decision.kind,
+            effect=decision.effect,
+            bindings=decision.bindings,
+            context=f"Resolved decision {key}",
+        )
         decisions_by_key[key] = decision.model_copy(
             update={
                 "key": key,
                 "locked": True,
                 "binding_phrase": "",
-                "required_identifiers": list(
-                    dict.fromkeys(
-                        identifier.strip()
-                        for identifier in decision.required_identifiers
-                        if identifier.strip()
-                    )
-                ),
             }
         )
         newly_resolved_keys.add(key)
 
+    for issue in assessment.issues:
+        if issue.key not in current_decisions_by_key:
+            decisions_by_key.pop(issue.key, None)
     locked_keys = {key for key, decision in decisions_by_key.items() if decision.locked}
     if any(not issue.key.strip() for issue in assessment.issues):
         raise ValueError("Clarification issue key cannot be empty")
@@ -477,6 +620,11 @@ def _normalize_assessment(
                 else question.model_copy(update={"binding_phrase": ""})
             ),
             issue_keys=issue_keys,
+            issue_kinds={
+                key: issues_by_key[key].kind
+                for key in issue_keys
+                if key in issues_by_key
+            },
         )
         questions.append(normalized)
         covered_issue_keys.update(issue_keys)
@@ -507,6 +655,18 @@ def _normalize_assessment(
         raise ValueError(
             "A ready semantic assessment requires at least one resolved contract decision"
         )
+    if status == "ready" and time_contract_incomplete(
+        list(decisions_by_key.values()),
+        time_intent,
+    ):
+        raise ValueError("A business-time filter requires a structured time range")
+    if (
+        assessment.intent_mode == "refine"
+        and context.base_decisions
+        and not assessment.resolved_decisions
+        and not assessment.issues
+    ):
+        raise ValueError("A refinement must change or question the previous contract")
     if status == "blocked" and not blocking_reasons:
         blocking_reasons = list(
             dict.fromkeys(
@@ -519,6 +679,13 @@ def _normalize_assessment(
         blocking_reasons = [reason for reason in blocking_reasons if reason]
         if not blocking_reasons:
             blocking_reasons = ["现有证据不足以形成可执行的查询口径"]
+    if status == "ready":
+        from apps.chat.query_contract import compile_query_contract
+
+        compile_query_contract(
+            [decision.model_dump(mode="json") for decision in decisions_by_key.values()],
+            time_intent=time_intent or None,
+        )
 
     return IntentContext(
         version=context.version,
@@ -529,6 +696,8 @@ def _normalize_assessment(
         issues=list(issues_by_key.values()) if status != "ready" else [],
         questions=questions if status == "needs_clarification" else [],
         blocking_reasons=blocking_reasons if status == "blocked" else [],
+        time_intent=dict(time_intent),
+        submitted_answers=list(context.submitted_answers),
     )
 
 
@@ -538,8 +707,11 @@ def assess_semantic_intent(
     context: IntentContext,
     bindings: dict[str, Any],
     time_intent: dict[str, Any],
-) -> tuple[IntentContext, dict[str, Any], str]:
+) -> SemanticAssessmentResult:
     """Return the validated semantic gate result, provider usage and reasoning."""
+    submitted_answers = {
+        answer.question_id: answer for answer in context.submitted_answers
+    }
     evidence = {
         "question": (
             getattr(llm_service, "generation_question", "")
@@ -552,7 +724,9 @@ def assess_semantic_intent(
                 "definition": decision.label,
                 "selection": render_decision_value(decision.value),
                 "source": decision.source,
-                "required_identifiers": decision.required_identifiers,
+                "bindings": [
+                    binding.model_dump(mode="json") for binding in decision.bindings
+                ],
             }
             for decision in context.decisions
             if decision.locked
@@ -563,11 +737,45 @@ def assess_semantic_intent(
                 "kind": decision.kind,
                 "definition": decision.label,
                 "user_answer": render_decision_value(decision.value),
+                "bindings": [
+                    binding.model_dump(mode="json") for binding in decision.bindings
+                ],
+                "effect": decision.effect,
             }
             for decision in context.decisions
             if not decision.locked
         ],
+        "submitted_clarifications": [
+            {
+                "question_id": question.id,
+                "title": question.title,
+                "issue_keys": question.issue_keys,
+                "answer": submitted_answers[question.id].model_dump(mode="json"),
+                "option_catalog": [
+                    {
+                        "marker": chr(65 + index),
+                        **option.model_dump(mode="json"),
+                    }
+                    for index, option in enumerate(question.options)
+                ],
+            }
+            for question in context.questions
+            if question.id in submitted_answers
+        ],
         "previous_summary": context.summary,
+        "previous_query": (
+            {
+                "record_id": context.base_record_id,
+                "decisions": [
+                    decision.model_dump(mode="json")
+                    for decision in context.base_decisions
+                    if decision.locked
+                ],
+                "time_intent": context.base_time_intent,
+            }
+            if context.base_record_id is not None
+            else None
+        ),
         "schema": llm_service.chat_question.db_schema,
         "sample_data": llm_service.chat_question.sample_data,
         "terminology": llm_service.chat_question.terminologies,
@@ -591,7 +799,7 @@ def assess_semantic_intent(
     ]
     usage_items: list[dict[str, Any]] = []
     reasoning_items: list[str] = []
-    last_error: ValueError | None = None
+    attempts: list[dict[str, Any]] = []
     for attempt in range(2):
         response = llm_service.llm.invoke(messages)
         from apps.conversation.usage import merge_usage, usage_from_response
@@ -600,23 +808,25 @@ def assess_semantic_intent(
         reasoning = _reasoning_content(response).strip()
         if reasoning:
             reasoning_items.append(reasoning)
-        raw_content = response.content
-        if isinstance(raw_content, list):
-            raw_text = "".join(
-                str(item.get("text") or "") if isinstance(item, dict) else str(item)
-                for item in raw_content
-            )
-        else:
-            raw_text = str(raw_content or "")
+        raw_text = message_content_text(response.content)
         try:
             json_text = extract_nested_json(raw_text)
             if not json_text:
                 raise ValueError("Cannot parse semantic clarification assessment")
             assessment = IntentAssessment.model_validate(orjson.loads(json_text))
+            effective_time_intent = dict(
+                time_intent
+                or (
+                    context.base_time_intent
+                    if assessment.intent_mode == "refine"
+                    else {}
+                )
+            )
             normalized = _normalize_assessment(
                 assessment,
                 context,
                 bindings,
+                effective_time_intent,
                 getattr(llm_service, "trans", None),
             )
             if (
@@ -624,24 +834,62 @@ def assess_semantic_intent(
                 and normalized.status == "ready"
             ):
                 raise ValueError("Clarification assessment omitted required questions")
-            return (
-                normalized,
-                merge_usage(*usage_items),
-                "\n".join(reasoning_items),
+            attempts.append(
+                _attempt_diagnostic(
+                    attempt=attempt + 1,
+                    raw_text=raw_text,
+                    usage=usage_items[-1],
+                    error=None,
+                )
             )
-        except ValueError as exc:
-            last_error = exc
+            return SemanticAssessmentResult(
+                context=normalized,
+                usage=merge_usage(*usage_items),
+                reasoning="\n".join(reasoning_items),
+                attempts=attempts,
+            )
+        except (TypeError, ValueError) as exc:
+            attempts.append(
+                _attempt_diagnostic(
+                    attempt=attempt + 1,
+                    raw_text=raw_text,
+                    usage=usage_items[-1],
+                    error=exc,
+                )
+            )
             if attempt == 1:
                 break
-            messages.extend(
-                [
-                    AIMessage(content=raw_text),
-                    HumanMessage(
-                        content=(
-                            "上一响应未通过结构校验："
-                            f"{exc}。请仅返回修正后的完整 JSON，不要解释。"
-                        )
-                    ),
-                ]
-            )
-    raise last_error or ValueError("Cannot validate semantic clarification assessment")
+            messages = [
+                SystemMessage(content=_REPAIR_PROMPT),
+                HumanMessage(
+                    content=(
+                        "候选 JSON：\n"
+                        f"{raw_text}\n\n"
+                        "校验错误：\n"
+                        f"{exc}\n\n"
+                        "请返回修正后的完整 JSON。"
+                    )
+                ),
+            ]
+
+    trans = getattr(llm_service, "trans", None)
+    blocked_reason = _translated(
+        trans,
+        "i18n_chat.clarification.assessment_unavailable",
+        "暂时未能可靠完成业务口径识别，请重试。",
+    )
+    blocked_context = context.model_copy(
+        update={
+            "status": "blocked",
+            "summary": blocked_reason,
+            "issues": [],
+            "questions": [],
+            "blocking_reasons": [blocked_reason],
+        }
+    )
+    return SemanticAssessmentResult(
+        context=blocked_context,
+        usage=merge_usage(*usage_items),
+        reasoning="\n".join(reasoning_items),
+        attempts=attempts,
+    )

@@ -5,7 +5,7 @@ import time
 import traceback
 from typing import Optional
 
-from apps.ai_model.embedding import EmbeddingModelCache
+from apps.ai_model.embedding import EmbeddingModelCache, has_compatible_dimension
 from apps.datasource.embedding.utils import cosine_similarity
 from apps.datasource.models.datasource import CoreDatasource
 from apps.system.crud.assistant import AssistantOutDs
@@ -71,10 +71,25 @@ def get_ds_embedding(session: SessionDep, _ds_list, out_ds: AssistantOutDs,
                 results = [item.get('embedding') for item in _list]
 
                 q_embedding = model.embed_query(question)
+                incompatible = 0
                 for index in range(len(results)):
                     item = results[index]
                     if item:
-                        _list[index]['cosine_similarity'] = cosine_similarity(q_embedding, json.loads(item))
+                        stored_embedding = json.loads(item)
+                        if not has_compatible_dimension(q_embedding, stored_embedding):
+                            incompatible += 1
+                            continue
+                        _list[index]['cosine_similarity'] = cosine_similarity(
+                            q_embedding,
+                            stored_embedding,
+                        )
+                if incompatible:
+                    SQLBotLogUtil.warning(
+                        "Skipped %s datasource embedding(s) incompatible with "
+                        "active dimension %s",
+                        incompatible,
+                        len(q_embedding),
+                    )
 
                 _list.sort(key=lambda x: x['cosine_similarity'], reverse=True)
                 # print(len(_list))

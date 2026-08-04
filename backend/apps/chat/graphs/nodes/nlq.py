@@ -1,32 +1,39 @@
 """NLQ node implementations — reviewed batch loop.
 
-Topology: generate_queries → execute_queries → generate_charts → decide_next
-  → (repair loop | complete)
+Topology: generate_queries → execute_queries → decide_next
+  → (repair loop | generate_charts → summarize_answer → complete)
 
 Each iteration plans and executes 1~N candidate queries. Candidate plans,
-results, and charts remain private until ``decide_next`` accepts them into
-``all_steps``. Rejected repair attempts remain available to observability and
-the next generation round, but never become answer cards.
+results remain private until ``decide_next`` moves the complete candidate into
+``accepted_candidate``. Only then are charts and summary generated. Rejected
+attempts remain available to observability and the next generation round, but
+never become answer cards.
 Loop and batch limits are defined only in ``apps.chat.plan_policy``.
 
 SSE result cards are hydrated only from the terminal accepted snapshot.
 ChatRecord.data stores::
 
-    {"steps": [{"sql","chart","data","brief","error"?}, ...], "analysis": "..."}
+    {
+        "steps": [{"sql","chart","data","brief","error"?}, ...],
+        "analysis": "...",
+        "outcome": {"status","quality",...},
+    }
 """
 
 from __future__ import annotations
 
 import re
 import traceback
+from collections.abc import Mapping
 from concurrent.futures import as_completed
 from copy import deepcopy
-from typing import Any, Literal, cast
+from typing import Any, Literal, TypedDict, cast
 
 import orjson
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from sqlbot_xpack.custom_prompt.models.custom_prompt_model import CustomPromptTypeEnum
 
+from apps.chat.answer_payload import build_answer_payload
 from apps.chat.binding_resolver import (
     apply_confirmed_entity_bindings,
     binding_resource_names,
@@ -34,10 +41,7 @@ from apps.chat.binding_resolver import (
     retain_binding_resources,
 )
 from apps.chat.constants import DYNAMIC_DS_TYPES
-from apps.chat.curd.chat import (
-    format_json_data,
-    rename_chat,
-)
+from apps.chat.curd.chat import rename_chat
 from apps.chat.models.chat_model import ChatFinishStep, OperationEnum, RenameChat
 from apps.chat.plan_context import (
     render_plan_context,
@@ -47,14 +51,31 @@ from apps.chat.plan_policy import (
     MAX_BATCH_ROUNDS,
     MAX_PLAN_REGEN,
     MAX_QUERIES_PER_BATCH,
-    NULL_DIM_SEVERE,
     ROW_LIMIT,
 )
 from apps.chat.planning import parse_query_generation
+from apps.chat.presentation import (
+    ResultPresentation,
+    build_result_presentation,
+    chart_columns,
+)
+from apps.chat.query_contract import QueryContract, compile_query_contract
+from apps.chat.result_data import format_json_data
+from apps.chat.result_quality import (
+    CompletionEvidence,
+    ExecutionStatus,
+    build_overall_quality,
+    build_step_quality,
+)
 from apps.chat.result_semantics import (
     apply_display_window,
     classify_field_roles,
     read_result_window,
+)
+from apps.chat.result_validation import (
+    ResultValidationReport,
+    validate_result_structure,
+    validation_issue_prompt_text,
 )
 from apps.chat.semantic_intent import (
     intent_context_from_payload,
@@ -82,15 +103,16 @@ from apps.chat.steps.sql import generate_sql
 from apps.chat.steps.training import match_training
 from apps.chat.task.llm import LLMService, request_picture
 from apps.chat.time_intent import TimeIntent, infer_time_intent
+from apps.conversation.messages import message_content_text
 from apps.conversation.observability import end_log, trigger_log_error
 from apps.conversation.outcome import (
+    ResultQuality,
     RunOutcome,
     awaiting_input_outcome,
     blocked_outcome,
     classify_failure,
     failed_outcome,
     format_error_message,
-    outcome_allows_retry,
     outcome_from_steps,
     outcome_is_success,
     running_outcome,
@@ -101,7 +123,7 @@ from apps.conversation.session import session_scope
 from apps.conversation.sink import StreamSink
 from apps.conversation.state import RunState
 from apps.conversation.turn import fail_node as fail_turn_node
-from apps.conversation.usage import merge_usage, usage_from_response
+from apps.conversation.usage import usage_from_response
 from apps.datasource.access import AccessScope, resolve_access_scope
 from apps.datasource.crud.permission import is_normal_user
 from apps.datasource.models.datasource import CoreDatasource
@@ -126,6 +148,19 @@ _TEMPORAL_RE = re.compile(r"^\d{4}[-/]\d{1,2}([-/]\d{1,2})?$")
 # ── State ────────────────────────────────────────────────────────────────────
 
 
+class CandidateBatch(TypedDict, total=False):
+    """One plan batch through planning, execution, review and publication."""
+
+    plans: list[dict[str, Any]]
+    results: list[dict[str, Any]]
+    charts: list[dict[str, Any]]
+    steps: list[dict[str, Any]]
+    quality: ResultQuality
+    outcome: RunOutcome
+    plan_validated: bool
+    contract_satisfied: bool
+
+
 class NlqState(RunState, total=False):
     """Agentic batch loop state.
 
@@ -139,13 +174,11 @@ class NlqState(RunState, total=False):
 
     # batch loop
     step_index: int  # current batch iteration (0-based)
-    batch_plans: list[dict[str, Any]]
-    batch_results: list[dict[str, Any]]
-    batch_charts: list[dict[str, Any]]
-    # Accepted answer steps only. Rejected repair attempts stay in ChatLog and
-    # ``repair_steps`` until the replacement round consumes their context.
-    all_steps: list[dict[str, Any]]
-    repair_steps: list[dict[str, Any]]
+    active_candidate: CandidateBatch
+    # Candidates move atomically between these lifecycle slots. Individual
+    # plans/results/charts are never published or combined across candidates.
+    rejected_candidate: CandidateBatch | None
+    accepted_candidate: CandidateBatch | None
     analysis_text: str
     max_steps: int
     max_batch_size: int
@@ -158,6 +191,7 @@ class NlqState(RunState, total=False):
     access_scope: AccessScope | None
     time_intent: TimeIntent  # semantic time range, independent of cost probes
     intent_context: dict[str, Any]
+    query_contract: QueryContract
     outcome: RunOutcome
 
 
@@ -204,8 +238,9 @@ def _finish_step_value(state: NlqState) -> int:
 
 
 def _context_steps(state: NlqState) -> list[dict[str, Any]]:
-    """Return only the latest rejected batch used as repair evidence."""
-    return list(state.get("repair_steps") or [])
+    """Return the preceding atomic candidate used as repair evidence."""
+    candidate = state.get("rejected_candidate")
+    return list(candidate.get("steps") or []) if candidate else []
 
 
 def _result_rows(step: dict[str, Any]) -> list[dict[str, Any]]:
@@ -360,22 +395,58 @@ def _data_sample(rows: list[dict[str, Any]], max_rows: int = 8) -> list[dict[str
     return out
 
 
-def _assess_step_quality(step: dict[str, Any], index: int) -> dict[str, Any]:
+def _contract_role_hints(
+    contract: QueryContract | None,
+) -> dict[str, Literal["metric", "dimension"]]:
+    """Project confirmed physical roles for direct result-field matches."""
+    hints: dict[str, Literal["metric", "dimension"]] = {}
+    for requirement in contract.requirements if contract else ():
+        if requirement.kind in {"metric", "calculation"}:
+            label_role: Literal["metric", "dimension"] | None = "metric"
+        elif requirement.kind in {"dimension", "grain"}:
+            label_role = "dimension"
+        else:
+            label_role = None
+        normalized_label = str(requirement.label or "").strip().casefold()
+        if label_role and normalized_label:
+            hints[normalized_label] = label_role
+
+        for binding in requirement.bindings:
+            if binding.role == "measure":
+                role: Literal["metric", "dimension"] = "metric"
+            elif binding.role in {"group", "attribute"}:
+                role = "dimension"
+            else:
+                continue
+            normalized = binding.identifier.rsplit(".", 1)[-1].strip().casefold()
+            if normalized:
+                if role == "metric" or normalized not in hints:
+                    hints[normalized] = role
+    return hints
+
+
+def _assess_step_quality(
+    step: dict[str, Any],
+    index: int,
+    *,
+    contract: QueryContract | None = None,
+) -> dict[str, Any]:
     """Deterministic quality signals for one executed step (no LLM).
 
-    Returns metadata (row_count, fields, null_rates, metrics) for severity
-    scoring plus column_stats + data_sample so the decide LLM can reason
-    about actual values rather than writing hypothetical conclusions.
+    Returns raw result signals plus compact statistics. Scoring, reason
+    classification and repairability belong exclusively to result_quality.
     """
-    issues: list[str] = []
     brief = step.get("brief") or ""
     sql = step.get("format_statement") or step.get("sql") or ""
     if step.get("error"):
-        issues.append(f"执行失败: {step.get('error')}")
+        failure = step.get("failure") or {}
         return {
             "index": index,
             "brief": brief,
             "sql": sql,
+            "error": str(step.get("error") or ""),
+            "retryable": bool(failure.get("retryable")),
+            "execution_status": "failed",
             "row_count": 0,
             "fields": [],
             "truncated": False,
@@ -384,20 +455,21 @@ def _assess_step_quality(step: dict[str, Any], index: int) -> dict[str, Any]:
             "metrics": {},
             "column_stats": {},
             "data_sample": [],
-            "issues": issues,
             "limitations": [],
-            "severity": True,
+            "data_rows": [],
         }
 
+    result = step.get("result")
+    execution_status = "success" if isinstance(result, Mapping) else "not_run"
     rows = _result_rows(step)
     fields = _result_fields(step)
-    result = step.get("result") or {}
-    window = read_result_window(result, rows)
+    result_payload = result if isinstance(result, Mapping) else {}
+    window = read_result_window(result_payload, rows)
     truncated = window["truncated"]
 
-    # Chart bindings are the authoritative semantic roles. DB numeric metadata
-    # is only a conservative fallback because IDs and time buckets may be numeric.
-    fields_info_list = result.get("fields_info") or []
+    # Result semantics are classified before presentation. Charts consume the
+    # accepted roles; they never redefine validation or quality inputs.
+    fields_info_list = result_payload.get("fields_info") or []
     fields_info_map = {
         fi.get("name"): fi
         for fi in fields_info_list
@@ -406,7 +478,7 @@ def _assess_step_quality(step: dict[str, Any], index: int) -> dict[str, Any]:
     field_roles = classify_field_roles(
         fields,
         list(fields_info_map.values()),
-        step.get("chart") if isinstance(step.get("chart"), dict) else None,
+        _contract_role_hints(contract),
     )
 
     null_rates: dict[str, float] = {}
@@ -424,49 +496,14 @@ def _assess_step_quality(step: dict[str, Any], index: int) -> dict[str, Any]:
         else:
             rate = _null_rate(rows, f)
             null_rates[f] = round(rate, 3)
-            if rows and rate >= NULL_DIM_SEVERE:
-                message = f"维度列「{f}」展示样本空值率 {rate:.0%}"
-                if truncated:
-                    limitations.append(message + "，不能据此判断全量 join 质量")
-                else:
-                    issues.append(
-                        f"维度列「{f}」空值率 {rate:.0%}（join/字段选择可能错误）"
-                    )
-            elif rows and rate >= 0.35:
-                message = f"维度列「{f}」空值率偏高 {rate:.0%}"
-                if truncated:
-                    limitations.append("展示样本" + message)
-                else:
-                    issues.append(message)
         # column_stats for ALL fields (metrics get numeric stats, dims get categorical)
         col_stats[f] = _column_stats(rows, f)
-
-    if not rows:
-        issues.append("结果为空（0 行）")
-    for mf, st in metrics.items():
-        if st.get("count", 0) == 0:
-            message = f"指标列「{mf}」无可汇总数值"
-            if truncated:
-                limitations.append("展示样本中" + message)
-            else:
-                issues.append(message)
-        elif st.get("sum", 0) == 0 and st.get("max", 0) == 0:
-            message = f"指标列「{mf}」全为 0"
-            if truncated:
-                limitations.append("展示样本中" + message)
-            else:
-                issues.append(message)
-
-    severity = (
-        bool(step.get("error"))
-        or (not rows)
-        or (not truncated and any(r >= NULL_DIM_SEVERE for r in null_rates.values()))
-    )
 
     return {
         "index": index,
         "brief": brief,
         "sql": sql,
+        "execution_status": execution_status,
         "row_count": window["row_count"],
         "fields": fields,
         "truncated": truncated,
@@ -479,21 +516,23 @@ def _assess_step_quality(step: dict[str, Any], index: int) -> dict[str, Any]:
         },
         "column_stats": col_stats,
         "data_sample": _data_sample(rows),
-        "issues": issues,
         "limitations": limitations,
-        "severity": severity,
+        "data_rows": rows,
     }
 
 
-def _assess_all_steps(all_steps: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    return [_assess_step_quality(s, i) for i, s in enumerate(all_steps or [])]
-
-
-def _quality_requires_repair(assessments: list[dict[str, Any]]) -> bool:
-    """Force another SQL round only on severe failures (empty / high-null / errors)."""
-    if not assessments:
-        return False
-    return any(a.get("severity") for a in assessments)
+def _assess_all_steps(
+    all_steps: list[dict[str, Any]],
+    *,
+    contract: QueryContract | None = None,
+) -> list[dict[str, Any]]:
+    return [
+        {
+            **_assess_step_quality(step, index, contract=contract),
+            "structural_issues": list(step.get("_structural_issues") or []),
+        }
+        for index, step in enumerate(all_steps or [])
+    ]
 
 
 def _format_assessment_block(assessments: list[dict[str, Any]]) -> str:
@@ -572,15 +611,8 @@ def _format_assessment_block(assessments: list[dict[str, Any]]) -> str:
 
         sql = (a.get("sql") or "").strip()
         if sql:
-            sql_show = sql if len(sql) <= 800 else sql[:800] + " …"
+            sql_show = sql if len(sql) <= 4000 else sql[:4000] + " …"
             lines.append(f"- SQL:\n```sql\n{sql_show}\n```")
-        issues = a.get("issues") or []
-        if issues:
-            lines.append("- 质检问题:")
-            for it in issues:
-                lines.append(f"  - {it}")
-        else:
-            lines.append("- 质检问题: 无")
         limitations = a.get("limitations") or []
         if limitations:
             lines.append("- 展示限制:")
@@ -589,15 +621,21 @@ def _format_assessment_block(assessments: list[dict[str, Any]]) -> str:
     return "\n\n".join(blocks)
 
 
-def _summarize_steps(all_steps: list[dict[str, Any]]) -> str:
+def _summarize_steps(
+    all_steps: list[dict[str, Any]],
+    assessments: list[dict[str, Any]] | None = None,
+) -> str:
     """Quality-aware step summary for decide / continue context."""
-    assessments = _assess_all_steps(all_steps)
+    assessments = (
+        assessments if assessments is not None else _assess_all_steps(all_steps)
+    )
     if not assessments:
         return "（尚无已执行查询）"
     header = (
-        "下列为已落地执行的查询及其**数据质检**摘要。"
+        "下列为已通过执行与结构门禁的查询及其**需求完成度**摘要。"
         "查询行数上限只影响返回窗口，不代表 SQL 错误；截断结果中的统计均为样本统计，"
-        "不得解释为全量合计。只有执行错误、空结果或严重字段质量问题才应修复 SQL。\n"
+        "不得解释为全量合计。需求完成度评分不参与发布门禁，空结果和数据形态只作为"
+        "独立观察，不自动扣分。\n"
     )
     return header + "\n\n" + _format_assessment_block(assessments)
 
@@ -617,10 +655,13 @@ def _format_generation_context(assessments: list[dict[str, Any]]) -> str:
             ),
             f"- 字段: {', '.join(assessment.get('fields') or []) or '（无）'}",
         ]
-        issues = assessment.get("issues") or []
-        if issues:
+        structural_issues = assessment.get("structural_issues") or []
+        if structural_issues:
             lines.append("- 必须修复:")
-            lines.extend(f"  - {item}" for item in issues)
+            lines.extend(
+                f"  - {validation_issue_prompt_text(item)}"
+                for item in structural_issues
+            )
         limitations = assessment.get("limitations") or []
         if limitations:
             lines.append("- 展示限制（不得据此重写 SQL）:")
@@ -634,16 +675,18 @@ def _format_generation_context(assessments: list[dict[str, Any]]) -> str:
 
 
 def _repair_instruction(assessments: list[dict[str, Any]], question: str) -> str:
-    issues = []
+    reasons: list[str] = []
     empty_or_zero = False
     for a in assessments:
         if int(a.get("row_count") or 0) == 0 or a.get("error"):
             empty_or_zero = True
-        for it in a.get("issues") or []:
-            issues.append(f"查询{a['index'] + 1}: {it}")
-    issue_text = (
-        "\n".join(f"- {x}" for x in issues) or "- （未列出细则，请对照质检摘要）"
-    )
+        if a.get("error"):
+            reasons.append(f"查询{a['index'] + 1}: {a['error']}")
+        for item in a.get("structural_issues") or []:
+            reasons.append(
+                f"查询{a['index'] + 1}: {validation_issue_prompt_text(item)}"
+            )
+    issue_text = "\n".join(f"- {item}" for item in reasons) or "- 未提供确定性结构原因"
     anti_empty = ""
     if empty_or_zero:
         anti_empty = (
@@ -652,7 +695,7 @@ def _repair_instruction(assessments: list[dict[str, Any]], question: str) -> str
             "或保持可出数的结构并在总结中说明局限。\n"
         )
     return (
-        "上一轮查询结果未通过数据质检，请**改写 SQL** 后重新查询，不要只重复同样语句。\n"
+        "上一轮候选未通过执行或结构门禁，请**改写 SQL** 后重新查询，不要只重复同样语句。\n"
         f"用户原问题：{question}\n"
         f"质检问题：\n{issue_text}\n"
         "改写要求：\n"
@@ -741,7 +784,12 @@ def _merge_batch_into_steps(
             "tables": plan_dict.get("tables", []),
             "chart_type": plan_dict.get("chart_type", "table"),
             "brief": plan_dict.get("brief", ""),
+            "presentation_title": plan_dict.get("presentation_title", ""),
+            "projection_requirements": plan_dict.get("projection_requirements", {}),
+            "covered_requirement_keys": plan_dict.get("covered_requirement_keys", []),
         }
+        if isinstance(plan_dict.get("presentation"), dict):
+            entry["presentation"] = plan_dict["presentation"]
         if entity_bindings:
             entry["_entity_bindings"] = entity_bindings
         r = result_by_idx.get(i)
@@ -765,59 +813,51 @@ def _merge_batch_into_steps(
     return updated
 
 
-def _steps_payload(
-    all_steps: list[dict[str, Any]],
-    analysis_text: str = "",
-    outcome: RunOutcome | None = None,
-) -> dict[str, Any]:
-    steps_data: list[dict[str, Any]] = []
-    for step in all_steps or []:
-        step_entry: dict[str, Any] = {
-            "sql": step.get("format_statement") or step.get("sql", ""),
-            "brief": step.get("brief") or "",
-            "chart": step.get("chart"),
+def _build_candidate_quality(
+    assessments: list[dict[str, Any]],
+    *,
+    intent_ready: bool,
+    plan_validated: bool,
+    contract_satisfied: bool,
+) -> ResultQuality:
+    """Score a candidate once from explicit graph-stage evidence."""
+    reports: list[dict[str, Any]] = []
+    for assessment in assessments:
+        raw_status = str(assessment.get("execution_status") or "not_run")
+        execution_status: ExecutionStatus = (
+            cast(ExecutionStatus, raw_status)
+            if raw_status in {"not_run", "success", "failed"}
+            else "not_run"
+        )
+        evidence: CompletionEvidence = {
+            "intent_ready": intent_ready,
+            "plan_validated": plan_validated,
+            "contract_satisfied": contract_satisfied,
+            "execution_status": execution_status,
+            "result_structure_valid": (
+                execution_status == "success"
+                and not bool(assessment.get("structural_issues"))
+            ),
         }
-        if step.get("error"):
-            step_entry["error"] = step["error"]
-            if step.get("failure"):
-                step_entry["failure"] = step["failure"]
-        result = step.get("result") or {}
-        if result:
-            step_entry["data"] = {
-                "fields": result.get("fields", []),
-                "fields_info": result.get("fields_info"),
-                "data": result.get("data", []),
-                "limit": result.get("limit"),
-                "row_count": result.get("row_count"),
-                "truncated": result.get("truncated"),
-                "truncation_reason": result.get("truncation_reason"),
-                "datasource": result.get("datasource"),
-            }
-        steps_data.append(step_entry)
-    payload: dict[str, Any] = {
-        "steps": steps_data,
-        "analysis": analysis_text or "",
-    }
-    if outcome is not None:
-        payload["outcome"] = outcome
-    return payload
+        report = build_step_quality(assessment, evidence=evidence)
+        reports.append(report)
+    return build_overall_quality(reports)
 
 
-def _result_quality(all_steps: list[dict[str, Any]]) -> dict[str, Any]:
-    returned_rows = 0
-    truncated = False
-    for step in all_steps:
-        result = step.get("result")
-        if not isinstance(result, dict):
-            continue
-        rows = _result_rows(step)
-        window = read_result_window(result, rows)
-        returned_rows += window["row_count"]
-        truncated = truncated or window["truncated"]
+def _candidate_batch(
+    steps: list[dict[str, Any]],
+    *,
+    quality: ResultQuality,
+    outcome: RunOutcome | None = None,
+) -> CandidateBatch:
+    candidate_outcome = (
+        dict(outcome) if outcome is not None else outcome_from_steps(steps)
+    )
+    candidate_outcome["quality"] = quality
     return {
-        "status": "partial" if truncated else "complete",
-        "truncated": truncated,
-        "returned_rows": returned_rows,
+        "steps": steps,
+        "quality": quality,
+        "outcome": candidate_outcome,
     }
 
 
@@ -825,20 +865,44 @@ def _fallback_analysis(
     assessments: list[dict[str, Any]],
     *,
     reason: str,
+    target_language: str = "简体中文",
 ) -> str:
     """Build a complete deterministic report when summary generation fails."""
     returned_rows = sum(int(item.get("row_count") or 0) for item in assessments)
     truncated = any(bool(item.get("truncated")) for item in assessments)
+    query_count = len(assessments)
     window_note = (
-        f"本次仅查询并展示前 {returned_rows} 行，未查询结果总数。"
+        f"{query_count} 个查询共返回 {returned_rows} 行；"
+        "至少一个查询仅展示上限内数据，未查询结果总数。"
         if truncated
-        else f"查询返回 {returned_rows} 行。"
+        else f"{query_count} 个查询共返回 {returned_rows} 行。"
     )
     limitation = (
         "结果受查询行数窗口限制，下面的样本指标不能视为全量合计。"
         if truncated
         else "未检测到平台查询行数截断。"
     )
+    if "english" in target_language.casefold() or target_language.casefold() == "en":
+        return "\n".join(
+            [
+                "## Conclusion",
+                f"The query completed. {query_count} query result(s) returned "
+                f"{returned_rows} displayed row(s).",
+                "",
+                "## SQL basis",
+                _format_assessment_block(assessments),
+                "",
+                "## Data interpretation",
+                window_note,
+                "",
+                "## Data quality and limitations",
+                limitation,
+                f"Generated summary was unavailable: {reason}",
+                "",
+                "## Recommendation",
+                "Use the displayed result together with its confidence score.",
+            ]
+        )
     return "\n".join(
         [
             "## 结论",
@@ -856,7 +920,7 @@ def _fallback_analysis(
             f"文字总结生成异常：{reason}",
             "",
             "## 建议",
-            "请以已展示表格作为当前结果；如需全量汇总，请进一步明确聚合粒度或导出范围。",
+            "请结合已展示结果和可信度评分使用；如需调整业务口径，可继续说明期望范围。",
         ]
     )
 
@@ -870,7 +934,9 @@ def _persist_record_snapshot(
     outcome: RunOutcome | None = None,
 ) -> None:
     """Persist the accepted NLQ answer projection."""
-    payload = _steps_payload(all_steps, analysis_text, outcome)
+    if outcome is None:
+        raise ValueError("Terminal NLQ snapshot requires an outcome")
+    payload = build_answer_payload(all_steps, analysis_text, outcome)
     primary = all_steps[0] if all_steps and finish else {}
     primary_sql = primary.get("format_statement") or primary.get("sql") or None
     chart = primary.get("chart")
@@ -996,11 +1062,11 @@ def _apply_row_permissions(
     return new_plan
 
 
-def _table_chart(fields: list[str], title: str = "") -> dict[str, Any]:
+def _table_chart(presentation: ResultPresentation) -> dict[str, Any]:
     return {
         "type": "table",
-        "title": title or "",
-        "columns": [{"name": f, "value": f} for f in fields],
+        "title": presentation["title"],
+        "columns": chart_columns(presentation),
     }
 
 
@@ -1042,11 +1108,9 @@ def prepare_record_node(state: NlqState) -> NlqState:
             "return_img": return_img,
             "json_result": json_result,
             "step_index": 0,
-            "all_steps": [],
-            "repair_steps": [],
-            "batch_plans": [],
-            "batch_results": [],
-            "batch_charts": [],
+            "active_candidate": {},
+            "rejected_candidate": None,
+            "accepted_candidate": None,
             "max_steps": state.get("max_steps") or _MAX_STEPS,
             "max_batch_size": state.get("max_batch_size") or _MAX_BATCH_SIZE,
             "analysis_text": "",
@@ -1239,30 +1303,44 @@ def assess_clarity_node(state: NlqState) -> NlqState:
             brief="确认查询口径",
         ) as span:
             if context.status == "ready":
-                assessed, usage, reasoning = context, {}, ""
+                assessed, usage, reasoning, attempts = context, {}, "", []
             else:
-                assessed, usage, reasoning = assess_semantic_intent(
+                assessment_result = assess_semantic_intent(
                     llm_service,
                     context=context,
                     bindings=state.get("entity_bindings") or {},
                     time_intent=state.get("time_intent") or {},
                 )
+                assessed = assessment_result.context
+                usage = assessment_result.usage
+                reasoning = assessment_result.reasoning
+                attempts = assessment_result.attempts
             payload = public_intent_payload(assessed)
-            display_reasoning = (
-                reasoning.strip()
-                or "\n".join(f"- {issue.reason}" for issue in assessed.issues)
-                or assessed.summary
-            )
+            if assessed.status == "blocked":
+                display_reasoning = (
+                    "\n".join(assessed.blocking_reasons) or assessed.summary
+                )
+            else:
+                display_reasoning = (
+                    reasoning.strip()
+                    or "\n".join(f"- {issue.reason}" for issue in assessed.issues)
+                    or assessed.summary
+                )
             span["payload"] = {
                 "status": assessed.status,
                 "summary": assessed.summary,
+                "assessment_attempt_count": len(attempts),
+                "assessment_attempts": attempts,
                 "resolved_decisions": [
                     {
                         "key": decision.key,
                         "label": decision.label,
                         "value": render_decision_value(decision.value),
                         "source": decision.source,
-                        "required_identifiers": decision.required_identifiers,
+                        "bindings": [
+                            binding.model_dump(mode="json")
+                            for binding in decision.bindings
+                        ],
                     }
                     for decision in assessed.decisions
                     if decision.locked
@@ -1302,6 +1380,7 @@ def assess_clarity_node(state: NlqState) -> NlqState:
         return {
             **state,
             "intent_context": payload,
+            "time_intent": dict(assessed.time_intent),
             "record": llm_service.record,
         }
     except Exception as exc:
@@ -1312,8 +1391,21 @@ def assemble_context_node(state: NlqState) -> NlqState:
     """Assemble SQL/chart prompts only after the semantic gate is ready."""
     llm_service = state["llm_service"]
     try:
+        context = intent_context_from_payload(state["intent_context"])
+        query_contract = compile_query_contract(
+            [
+                decision.model_dump(mode="json")
+                for decision in context.decisions
+                if decision.locked
+            ],
+            time_intent=state.get("time_intent") or None,
+        )
         assemble_prompt_messages(llm_service)
-        return {**state, "record": llm_service.record}
+        return {
+            **state,
+            "query_contract": query_contract,
+            "record": llm_service.record,
+        }
     except Exception as exc:
         return _fail(state, llm_service.record.id, exc)
 
@@ -1640,11 +1732,10 @@ def generate_queries_node(state: NlqState) -> NlqState:
         # an autonomous model must not reinterpret the question and invent
         # additional deliverables after execution.
         if step_index > 0 and context_steps:
-            assessments = _assess_all_steps(context_steps)
-            if not repair and _quality_requires_repair(assessments):
-                repair = _repair_instruction(
-                    assessments, _generation_question(llm_service)
-                )
+            assessments = _assess_all_steps(
+                context_steps,
+                contract=state.get("query_contract"),
+            )
             extra_sections.append(
                 "## 已执行查询（仅用于本轮改写或补充）\n"
                 + _format_generation_context(assessments)
@@ -1703,6 +1794,8 @@ def generate_queries_node(state: NlqState) -> NlqState:
             full_sql_text,
             llm_service,
             max_batch_size=max_batch,
+            time_intent=dict(state.get("time_intent") or {}),
+            query_contract=state.get("query_contract"),
         )
         plans = batch_parse.plans if batch_parse.success else []
         refusal = batch_parse.error_message
@@ -1738,9 +1831,7 @@ def generate_queries_node(state: NlqState) -> NlqState:
                 return {
                     **state,
                     "json_result": json_result,
-                    "batch_plans": [],
-                    "batch_results": [],
-                    "batch_charts": [],
+                    "active_candidate": {},
                     "repair_hint": repair_msg,
                     "gen_attempts": attempts,
                     "record": llm_service.record,
@@ -1750,7 +1841,7 @@ def generate_queries_node(state: NlqState) -> NlqState:
                 **_fail(
                     {
                         **state,
-                        "batch_plans": [],
+                        "active_candidate": {},
                         "repair_hint": repair_msg,
                         "gen_attempts": attempts,
                     },
@@ -1773,9 +1864,11 @@ def generate_queries_node(state: NlqState) -> NlqState:
         return {
             **state,
             "json_result": json_result,
-            "batch_plans": plans,
-            "batch_results": [],
-            "batch_charts": [],
+            "active_candidate": {
+                "plans": plans,
+                "plan_validated": batch_parse.plan_validated,
+                "contract_satisfied": batch_parse.contract_satisfied,
+            },
             "repair_hint": "",
             "gen_attempts": 0,
             "record": llm_service.record,
@@ -1794,7 +1887,8 @@ def execute_queries_node(state: NlqState) -> NlqState:
     ChatLog remains the complete audit trail for every attempt.
     """
     llm_service = state["llm_service"]
-    plans = list(state.get("batch_plans") or [])
+    active_candidate = dict(state.get("active_candidate") or {})
+    plans = list(active_candidate.get("plans") or [])
     base = 0
 
     if not plans:
@@ -1963,8 +2057,13 @@ def execute_queries_node(state: NlqState) -> NlqState:
 
         return {
             **state,
-            "batch_results": flat_results,
-            "batch_plans": prepared,
+            "active_candidate": {
+                **active_candidate,
+                "plans": prepared,
+                "results": flat_results,
+                "steps": snapshot_steps,
+                "outcome": outcome_from_steps(snapshot_steps),
+            },
             "outcome": outcome_from_steps(snapshot_steps),
         }
     except Exception as e:
@@ -1972,18 +2071,17 @@ def execute_queries_node(state: NlqState) -> NlqState:
 
 
 def generate_charts_node(state: NlqState) -> NlqState:
-    """Generate candidate chart configs without publishing answer cards."""
+    """Generate presentation only for a structurally accepted candidate."""
     llm_service = state["llm_service"]
     sink = StreamSink.from_state(state)
-    batch_results = state.get("batch_results") or []
+    accepted_candidate = dict(state.get("accepted_candidate") or {})
+    batch_results = accepted_candidate.get("results") or []
     base = 0
-    finish_v = _finish_step_value(state)
-
-    # MCP / early stop: data only — emit table charts without LLM
-    skip_llm = finish_v < int(ChatFinishStep.GENERATE_CHART.value)
+    prompt_schema = str(getattr(llm_service.chat_question, "db_schema", "") or "")
 
     try:
         charts: list[dict[str, Any]] = []
+        presentations: list[ResultPresentation] = []
         # Isolate chart prompt base so multi-chart does not pollute history
         base_chart_messages = list(getattr(llm_service, "chart_message", []) or [])
 
@@ -2000,7 +2098,12 @@ def generate_charts_node(state: NlqState) -> NlqState:
             entry = by_idx.get(i)
             gidx = base + i
             if entry is None or entry.get("error"):
-                chart = _table_chart([], title="Error")
+                presentation: ResultPresentation = {
+                    "title": "Error",
+                    "columns": [],
+                }
+                chart = _table_chart(presentation)
+                presentations.append(presentation)
                 charts.append(chart)
                 continue
 
@@ -2010,75 +2113,129 @@ def generate_charts_node(state: NlqState) -> NlqState:
             fields = result.get("fields") or []
             data = result.get("data") or []
             brief = plan_dict.get("brief") or ""
+            presentation_title = plan_dict.get("presentation_title") or brief
+            presentation = build_result_presentation(
+                fields,
+                title=presentation_title,
+                contract=state.get("query_contract"),
+                projection_requirements=plan_dict.get("projection_requirements") or {},
+                schema_text=prompt_schema,
+            )
+            presentations.append(presentation)
 
-            if skip_llm or chart_type == "table":
-                chart = _table_chart(fields, title=brief)
+            if chart_type == "table":
+                chart = _table_chart(presentation)
                 charts.append(chart)
                 continue
 
-            sample_md = DataFormat.rows_to_markdown_table(
-                fields,
-                data,
-                max_rows=5,
-                title="\n【Sample Data】(first 5 rows, for chart reference)",
-            )
-            schema_text = ""
-            if llm_service.out_ds_instance:
-                schema_text, _ = llm_service.out_ds_instance.get_db_schema(
-                    llm_service.ds.id,
-                    llm_service.retrieval_question,
-                    table_list=plan_dict.get("tables"),
+            try:
+                sample_md = DataFormat.rows_to_markdown_table(
+                    fields,
+                    data,
+                    max_rows=5,
+                    title="\n【Sample Data】(first 5 rows, for chart reference)",
                 )
-            if sample_md:
-                schema_text = (schema_text or "") + "\n" + sample_md
-
-            # chart_user_prompt consumes chat_question.sql
-            llm_service.chat_question.sql = (
-                plan_dict.get("format_statement")
-                or plan_dict.get("sql")
-                or llm_service.chat_question.sql
-            )
-            llm_service.chart_message = list(base_chart_messages)
-
-            sink.event(
-                {
-                    "type": "step-chart-result",
-                    "index": gidx,
-                    "content": "",
-                    "reasoning_content": "",
-                }
-            )
-
-            with session_scope() as session:
-                full_chart_text = ""
-                for chunk in generate_chart(
-                    llm_service,
-                    session,
-                    chart_type,
-                    schema_text,
-                    step_index=state.get("step_index", 0),
-                    unit_index=gidx,
-                    graph_node="generate_charts",
-                ):
-                    full_chart_text += chunk.get("content") or ""
-                    sink.event(
-                        {
-                            "content": chunk.get("content") or "",
-                            "reasoning_content": chunk.get("reasoning_content") or "",
-                            "type": "step-chart-result",
-                            "index": gidx,
-                        }
+                schema_text = ""
+                if llm_service.out_ds_instance:
+                    schema_text, _ = llm_service.out_ds_instance.get_db_schema(
+                        llm_service.ds.id,
+                        llm_service.retrieval_question,
+                        table_list=plan_dict.get("tables"),
                     )
-                chart = parse_chart(
-                    res=full_chart_text,
-                    fields=fields,
+                if sample_md:
+                    schema_text = (schema_text or "") + "\n" + sample_md
+
+                # chart_user_prompt consumes chat_question.sql
+                llm_service.chat_question.sql = (
+                    plan_dict.get("format_statement")
+                    or plan_dict.get("sql")
+                    or llm_service.chat_question.sql
                 )
-                charts.append(chart)
+                llm_service.chart_message = list(base_chart_messages)
+
+                sink.event(
+                    {
+                        "type": "step-chart-result",
+                        "index": gidx,
+                        "content": "",
+                        "reasoning_content": "",
+                    }
+                )
+
+                with session_scope() as session:
+                    full_chart_text = ""
+                    for chunk in generate_chart(
+                        llm_service,
+                        session,
+                        chart_type,
+                        schema_text,
+                        step_index=state.get("step_index", 0),
+                        unit_index=gidx,
+                        graph_node="generate_charts",
+                    ):
+                        full_chart_text += chunk.get("content") or ""
+                        sink.event(
+                            {
+                                "content": chunk.get("content") or "",
+                                "reasoning_content": chunk.get("reasoning_content")
+                                or "",
+                                "type": "step-chart-result",
+                                "index": gidx,
+                            }
+                        )
+                    chart = parse_chart(
+                        res=full_chart_text,
+                        fields=fields,
+                    )
+                    chart["title"] = presentation["title"]
+                    chart["columns"] = chart_columns(presentation)
+            except Exception as chart_exc:
+                SQLBotLogUtil.warning(
+                    f"Chart generation fallback to table at step {gidx}: {chart_exc}"
+                )
+                log = llm_service.current_logs.get(OperationEnum.GENERATE_CHART)
+                if log is not None:
+                    try:
+                        with session_scope() as session:
+                            trigger_log_error(session, log)
+                    except Exception:
+                        SQLBotLogUtil.warning(
+                            f"Failed to mark chart fallback log at step {gidx}"
+                        )
+                chart = _table_chart(presentation)
+            charts.append(chart)
 
         # Restore base chart messages after batch
         llm_service.chart_message = list(base_chart_messages)
 
-        return {**state, "batch_charts": charts, "record": llm_service.record}
+        published_plans = [
+            {
+                **plan,
+                "presentation": presentations[index],
+            }
+            for index, plan in enumerate(accepted_candidate.get("plans") or [])
+            if index < len(presentations)
+        ]
+        steps = _merge_batch_into_steps(
+            [],
+            published_plans,
+            list(batch_results),
+            charts,
+            entity_bindings=state.get("entity_bindings"),
+        )
+        return {
+            **state,
+            "accepted_candidate": {
+                **accepted_candidate,
+                "plans": published_plans,
+                "charts": charts,
+                "steps": steps,
+                "outcome": accepted_candidate.get("outcome")
+                or outcome_from_steps(steps),
+            },
+            "active_candidate": {},
+            "record": llm_service.record,
+        }
     except Exception as e:
         return _fail(state, llm_service.record.id, e)
 
@@ -2088,9 +2245,18 @@ _SUMMARY_PROMPT = """\
 
 {steps_summary}
 
+平台已经使用确定性规则冻结了以下需求完成度报告：
+{quality_summary}
+
 用户原问题：{question}
 
 直接输出完整 Markdown 报告，不要输出 JSON、action 或额外说明。
+不得修改评分、等级、各指标得分或数据观察，也不得将总结作为结果发布门禁。
+只能解释已执行结果和确定性元数据：
+- MIN/MAX 只表示数值最小/最大，不得擅自解释成业务上的更优/更差；
+- 多个金额相等、空值或单侧为 0 时，只陈述观察；没有证据不得推断业务原因；
+- 描述数值范围或主要分布时必须同时披露样本中的空值情况；
+- 面向用户的字段称谓优先采用“业务名称(field_name)”，不要只罗列技术字段名。
 
 报告必须包含：
 ## 结论
@@ -2107,21 +2273,32 @@ _SUMMARY_PROMPT = """\
 区分 SQL 本身的限制与平台查询行数窗口，明确尚不能从数据中得出的结论。
 
 ## 建议
-给出 1～3 条必要且可执行的后续分析建议。
+只给出 1～3 条与本次结果直接相关的后续分析建议。平台固定仅查询并展示前 N 行时，
+不得建议取消/提高行数窗口或额外查询总记录数；用户确实要求全量统计时，应建议另行生成
+聚合结果，而不是扩大明细展示窗口。
 """
 
 
-def _summary_messages(steps_summary: str, question: str) -> list[Any]:
+def _summary_messages(
+    steps_summary: str,
+    question: str,
+    quality: dict[str, Any],
+    *,
+    target_language: str,
+) -> list[Any]:
+    quality_summary = orjson.dumps(quality).decode()
     return [
         SystemMessage(
             content=(
                 "你负责根据已执行查询结果生成完整 Markdown 总结。"
                 "不要生成或修改 SQL，不要返回 JSON。"
+                f"所有面向用户的内容必须使用当前会话语言：{target_language}。"
             )
         ),
         HumanMessage(
             _SUMMARY_PROMPT.format(
                 steps_summary=steps_summary,
+                quality_summary=quality_summary,
                 question=question,
             )
         ),
@@ -2145,11 +2322,10 @@ def _extract_summary_text(response_text: str) -> str:
 
 
 def decide_next_node(state: NlqState) -> NlqState:
-    """Review the candidate batch, repair deterministically, or summarize."""
+    """Validate the candidate batch and decide repair, accept, or reject."""
     llm_service = state["llm_service"]
     step_index = state.get("step_index", 0)
     max_steps = state.get("max_steps", _MAX_STEPS)
-    finish_v = _finish_step_value(state)
     record_id = getattr(llm_service.record, "id", None) or state.get("record_id")
 
     # Impl sets used_llm/usage only when it actually invokes the model.
@@ -2164,9 +2340,7 @@ def decide_next_node(state: NlqState) -> NlqState:
         brief=f"batch={step_index}",
         step_index=step_index,
     ) as span:
-        out = _decide_next_impl(
-            state, llm_service, step_index, max_steps, finish_v, meta=meta
-        )
+        out = _decide_next_impl(state, llm_service, step_index, max_steps, meta=meta)
         span["local_operation"] = not bool(meta.get("used_llm"))
         span["token_usage"] = meta.get("token_usage") or {}
         span["payload"] = {
@@ -2177,7 +2351,6 @@ def decide_next_node(state: NlqState) -> NlqState:
             "repair": bool((out.get("repair_hint") or "").strip()),
             "used_llm": bool(meta.get("used_llm")),
             "path": meta.get("path") or "unknown",
-            "summary_retried": bool(meta.get("summary_retried")),
         }
         return out
 
@@ -2187,192 +2360,241 @@ def _decide_next_impl(
     llm_service: LLMService,
     step_index: int,
     max_steps: int,
-    finish_v: int,
     *,
     meta: dict[str, Any] | None = None,
 ) -> NlqState:
+    """Accept, repair, or reject one executed candidate without presentation.
+
+    This node is the publication gate. Quality scores never participate in the
+    decision; only execution outcome and deterministic structural validation do.
+    """
     if meta is None:
         meta = {}
-    batch_results = state.get("batch_results") or []
-    batch_charts = state.get("batch_charts") or []
-    batch_plans = state.get("batch_plans") or []
-    current_steps = _merge_batch_into_steps(
-        [],
-        batch_plans,
-        batch_results,
-        batch_charts,
-        entity_bindings=state.get("entity_bindings"),
+    active_candidate = dict(state.get("active_candidate") or {})
+    batch_plans = list(active_candidate.get("plans") or [])
+    batch_results = list(active_candidate.get("results") or [])
+    batch_charts = list(active_candidate.get("charts") or [])
+    current_steps = list(active_candidate.get("steps") or [])
+    if not current_steps:
+        current_steps = _merge_batch_into_steps(
+            [],
+            batch_plans,
+            batch_results,
+            batch_charts,
+            entity_bindings=state.get("entity_bindings"),
+        )
+    assessments = _assess_all_steps(
+        current_steps,
+        contract=state.get("query_contract"),
     )
-    assessments = _assess_all_steps(current_steps)
-    needs_repair = _quality_requires_repair(assessments)
-    current_outcome = outcome_from_steps(current_steps)
+    validation: ResultValidationReport = validate_result_structure(
+        assessments,
+        contract=state.get("query_contract"),
+    )
+    issues_by_step: dict[int, list[dict[str, Any]]] = {}
+    for issue in validation["issues"]:
+        issues_by_step.setdefault(int(issue["step_index"]), []).append(dict(issue))
+    for assessment in assessments:
+        step_issues = issues_by_step.get(int(assessment["index"]), [])
+        assessment["structural_issues"] = step_issues
+        if 0 <= int(assessment["index"]) < len(current_steps):
+            current_steps[int(assessment["index"])]["_structural_issues"] = step_issues
+    quality = _build_candidate_quality(
+        assessments,
+        intent_ready=(state.get("intent_context") or {}).get("status") == "ready",
+        plan_validated=bool(active_candidate.get("plan_validated")),
+        contract_satisfied=bool(active_candidate.get("contract_satisfied")),
+    )
+    raw_outcome = outcome_from_steps(current_steps)
+    current_candidate: CandidateBatch = {
+        **active_candidate,
+        **_candidate_batch(
+            current_steps,
+            quality=quality,
+            outcome=raw_outcome,
+        ),
+    }
+    current_quality = current_candidate["quality"]
+    candidate_outcome = current_candidate["outcome"]
     question = _generation_question(llm_service)
-    repair_hint = _repair_instruction(assessments, question) if needs_repair else ""
-
-    if finish_v < int(ChatFinishStep.GENERATE_CHART.value):
-        meta["path"] = "finish_step_early"
-        meta["used_llm"] = False
-        return {
-            **state,
-            "decision": "finish",
-            "decision_reason": "",
-            "all_steps": current_steps,
-            "repair_steps": [],
-            "step_index": step_index + 1,
-            "batch_plans": [],
-            "batch_results": [],
-            "batch_charts": [],
-            "repair_hint": "",
-            "outcome": current_outcome,
-        }
 
     force_terminal = step_index >= max_steps - 1
-
-    # Post-exec QC is insurance, not the main fix path.
-    # Prefer summarize with honest limitations over automatic repair that
-    # often rewrites filters dryer (empty → emptier). Allow at most one
-    # repair when there is a clear recoverable signal (exec error / unknown
-    # column class) and rounds remain.
-    batch_outcome = outcome_from_steps(current_steps)
-    auto_repair = bool(
-        needs_repair
-        and not force_terminal
-        and step_index < 1
-        and outcome_allows_retry(batch_outcome)
+    failures = candidate_outcome.get("failures") or []
+    execution_valid = candidate_outcome["status"] == "success"
+    retryable_failure = bool(failures) and all(
+        bool(failure.get("retryable")) for failure in failures
     )
-    if auto_repair:
+    needs_repair = not validation["valid"] or retryable_failure
+    repair_hint = _repair_instruction(assessments, question) if needs_repair else ""
+    if needs_repair and not force_terminal:
         SQLBotLogUtil.info(
-            "decide_next quality gate -> repair (recoverable); issues="
-            + str(sum(len(a.get("issues") or []) for a in assessments))
+            "decide_next structural gate -> repair; "
+            f"issues={len(validation['issues'])}, failures={len(failures)}"
         )
-        meta["path"] = "auto_repair"
+        meta["path"] = "structural_repair"
         meta["used_llm"] = False
         return {
             **state,
             "decision": "repair",
-            "decision_reason": "deterministic quality gate",
+            "decision_reason": "deterministic result validation",
             "analysis_text": state.get("analysis_text") or "",
-            "all_steps": [],
-            "repair_steps": current_steps,
+            "accepted_candidate": None,
+            "rejected_candidate": current_candidate,
+            "active_candidate": {},
             "step_index": step_index + 1,
-            "batch_plans": [],
-            "batch_results": [],
-            "batch_charts": [],
             "repair_hint": repair_hint,
             "gen_attempts": 0,
             "outcome": running_outcome(),
         }
 
-    if current_outcome["status"] in {"failed", "degraded"}:
-        meta["path"] = "terminal_failure"
+    if not execution_valid or not validation["valid"]:
+        meta["path"] = "terminal_rejection"
         meta["used_llm"] = False
+        reason = "; ".join(
+            validation_issue_prompt_text(issue) for issue in validation["issues"]
+        ) or next(
+            (
+                str(failure.get("message"))
+                for failure in failures
+                if failure.get("message")
+            ),
+            "candidate execution failed",
+        )
         terminal_outcome = cast(
             RunOutcome,
             {
-                **current_outcome,
+                **candidate_outcome,
                 "status": "failed",
+                "failures": [classify_failure(reason, default_kind="validation")],
+                # No candidate is published after terminal rejection. Its
+                # internal diagnostic score must not become a user-facing
+                # quality stamp for an empty answer.
+                "quality": build_overall_quality([]),
             },
         )
-        analysis_text = (
-            "## 结论\n"
-            "本次查询未取得可用数据，无法基于结果回答原问题。\n\n"
-            "## 数据质量与局限\n" + _format_assessment_block(assessments)
-        )
-        return {
-            **state,
-            "decision": "complete",
-            "decision_reason": "terminal query failure",
-            "analysis_text": analysis_text,
-            # A failed terminal batch means the atomic answer contract was not
-            # completed. Keep every attempted step as diagnostic evidence, but
-            # publish no partial result card.
-            "all_steps": [],
-            "repair_steps": current_steps,
-            "step_index": step_index + 1,
-            "batch_plans": [],
-            "batch_results": [],
-            "batch_charts": [],
-            "repair_hint": "",
-            "outcome": terminal_outcome,
-        }
-
-    try:
-        # A successful, contract-valid batch already answers the confirmed
-        # question. Additional independent outputs must be planned in the
-        # original atomic batch, never invented after seeing valid data.
-        steps_summary = _summarize_steps(current_steps)
-        messages = _summary_messages(steps_summary, question)
-        meta["path"] = "llm_summary"
-        meta["used_llm"] = True
-        response: AIMessage = llm_service.llm.invoke(messages)
-        meta["token_usage"] = usage_from_response(response)
-        response_text = (
-            response.content
-            if isinstance(response.content, str)
-            else str(response.content or "")
-        )
-
-        analysis_text = _extract_summary_text(response_text)
-        reason = "accepted candidate batch"
-
-        if not analysis_text:
-            retry_response: AIMessage = llm_service.llm.invoke(
-                _summary_messages(steps_summary, question)
-            )
-            meta["token_usage"] = merge_usage(
-                meta.get("token_usage") or {},
-                usage_from_response(retry_response),
-            )
-            meta["summary_retried"] = True
-            retry_text = (
-                retry_response.content
-                if isinstance(retry_response.content, str)
-                else str(retry_response.content or "")
-            )
-            analysis_text = _extract_summary_text(retry_text)
-            if not analysis_text:
-                analysis_text = _fallback_analysis(
-                    assessments,
-                    reason="总结模型连续两次未返回可用正文",
-                )
-
         return {
             **state,
             "decision": "complete",
             "decision_reason": reason,
-            "analysis_text": analysis_text,
-            "all_steps": current_steps,
-            "repair_steps": [],
+            "analysis_text": "",
+            "accepted_candidate": None,
+            "rejected_candidate": current_candidate,
+            "active_candidate": {},
             "step_index": step_index + 1,
-            "batch_plans": [],
-            "batch_results": [],
-            "batch_charts": [],
             "repair_hint": "",
-            "outcome": current_outcome,
+            "outcome": terminal_outcome,
         }
-    except Exception as e:
-        meta["path"] = "error"
-        SQLBotLogUtil.error(f"decide_next_node error: {e}")
-        stub = state.get("analysis_text") or ""
-        if not stub and assessments:
-            stub = _fallback_analysis(
-                assessments,
-                reason=f"分析决策阶段异常：{e}",
+
+    if current_quality["grade"] in {"reference_only", "unreliable"}:
+        candidate_outcome["status"] = "degraded"
+    accepted_candidate: CandidateBatch = {
+        **current_candidate,
+        "steps": current_steps,
+        "quality": current_quality,
+        "outcome": candidate_outcome,
+    }
+    meta["path"] = "accepted"
+    meta["used_llm"] = False
+    return {
+        **state,
+        "decision": "accept",
+        "decision_reason": "candidate passed execution and structural validation",
+        "analysis_text": "",
+        "accepted_candidate": accepted_candidate,
+        "rejected_candidate": None,
+        "step_index": step_index + 1,
+        "repair_hint": "",
+        "outcome": candidate_outcome,
+    }
+
+
+def summarize_answer_node(state: NlqState) -> NlqState:
+    """Summarize an already accepted candidate; never gate its publication."""
+    llm_service = state["llm_service"]
+    candidate = dict(state.get("accepted_candidate") or {})
+    steps = list(candidate.get("steps") or [])
+    if not steps:
+        return _fail(
+            state,
+            getattr(llm_service.record, "id", None),
+            SingleMessageError("No accepted result to summarize"),
+        )
+    assessments = _assess_all_steps(
+        steps,
+        contract=state.get("query_contract"),
+    )
+    candidate_quality = candidate.get("quality")
+    if not isinstance(candidate_quality, dict):
+        return _fail(
+            state,
+            getattr(llm_service.record, "id", None),
+            SingleMessageError("Accepted candidate is missing its quality report"),
+        )
+    quality = cast(ResultQuality, candidate_quality)
+    question = _generation_question(llm_service)
+    record_id = getattr(llm_service.record, "id", None) or state.get("record_id")
+    meta: dict[str, Any] = {"used_llm": False}
+    with log_span(
+        operate=OperationEnum.ANALYSIS,
+        record_id=record_id,
+        ai_modal_id=getattr(llm_service.chat_question, "ai_modal_id", None),
+        ai_modal_name=getattr(llm_service.chat_question, "ai_modal_name", None),
+        local_operation=False,
+        graph_node="summarize_answer",
+        brief="结果总结",
+        step_index=state.get("step_index"),
+    ) as span:
+        try:
+            target_language = str(
+                getattr(llm_service.chat_question, "lang", "") or "简体中文"
             )
-        return {
-            **state,
-            "decision": "complete",
-            "decision_reason": format_error_message(e),
-            "analysis_text": stub,
-            "all_steps": current_steps,
-            "repair_steps": [],
-            "step_index": step_index + 1,
-            "batch_plans": [],
-            "batch_results": [],
-            "batch_charts": [],
-            "repair_hint": "",
-            "outcome": current_outcome,
-        }
+            response: AIMessage = llm_service.llm.invoke(
+                _summary_messages(
+                    _summarize_steps(steps, assessments),
+                    question,
+                    quality,
+                    target_language=target_language,
+                )
+            )
+            meta["used_llm"] = True
+            meta["token_usage"] = usage_from_response(response)
+            analysis_text = _extract_summary_text(
+                message_content_text(response.content)
+            )
+            if not analysis_text:
+                analysis_text = _fallback_analysis(
+                    assessments,
+                    reason="总结模型未返回可用正文",
+                    target_language=target_language,
+                )
+            span["token_usage"] = meta["token_usage"]
+            span["payload"] = {
+                "fallback": not bool(
+                    _extract_summary_text(message_content_text(response.content))
+                ),
+                "chars": len(analysis_text),
+            }
+        except Exception as exc:
+            SQLBotLogUtil.error(f"summarize_answer_node error: {exc}")
+            analysis_text = _fallback_analysis(
+                assessments,
+                reason=f"总结模型调用异常：{exc}",
+                target_language=str(
+                    getattr(llm_service.chat_question, "lang", "") or "简体中文"
+                ),
+            )
+            span["error"] = True
+            span["payload"] = {"fallback": True, "chars": len(analysis_text)}
+    return {
+        **state,
+        "analysis_text": analysis_text,
+        "accepted_candidate": {
+            **candidate,
+            "steps": steps,
+            "quality": quality,
+        },
+        "active_candidate": {},
+    }
 
 
 def complete_node(state: NlqState) -> NlqState:
@@ -2383,29 +2605,48 @@ def complete_node(state: NlqState) -> NlqState:
     analysis_text = state.get("analysis_text") or ""
     return_img = bool(state.get("return_img", True))
 
-    # Normal chat completion publishes accepted steps only. Query/data-only
-    # protocol exits intentionally skip review, so accept their current batch
-    # at this explicit boundary instead of relying on a broad fallback merge.
-    if _finish_step_value(state) < int(ChatFinishStep.GENERATE_CHART.value):
+    # Query-only stops before execution and publishes the already validated plan.
+    # Every executed result, including QUERY_DATA, must arrive here through the
+    # same decide_next gate and therefore lives in accepted_candidate.
+    if _finish_step_value(state) <= int(ChatFinishStep.GENERATE_QUERY.value):
+        source_candidate = dict(state.get("active_candidate") or {})
         updated_steps = _merge_batch_into_steps(
             [],
-            state.get("batch_plans") or [],
-            state.get("batch_results") or [],
-            state.get("batch_charts") or [],
+            list(source_candidate.get("plans") or []),
+            list(source_candidate.get("results") or []),
+            list(source_candidate.get("charts") or []),
             entity_bindings=state.get("entity_bindings"),
         )
     else:
-        updated_steps = list(state.get("all_steps") or [])
-    # Ensure every successful step has a chart (MCP QUERY_DATA / table fallback)
+        source_candidate = dict(state.get("accepted_candidate") or {})
+        updated_steps = list(source_candidate.get("steps") or [])
+    # Ensure every successful step has one canonical presentation and a chart
+    # adapter (MCP QUERY_DATA / table fallback).
     for step in updated_steps:
-        if step.get("chart") or step.get("error"):
+        if step.get("error"):
             continue
         fields = (step.get("result") or {}).get("fields") or []
-        step["chart"] = _table_chart(fields, title=step.get("brief") or "")
+        presentation = step.get("presentation")
+        if not isinstance(presentation, dict):
+            presentation = build_result_presentation(
+                fields,
+                title=step.get("presentation_title") or step.get("brief") or "",
+                contract=state.get("query_contract"),
+                projection_requirements=step.get("projection_requirements") or {},
+                schema_text=str(
+                    getattr(llm_service.chat_question, "db_schema", "") or ""
+                ),
+            )
+            step["presentation"] = presentation
+        if step.get("chart"):
+            continue
+        step["chart"] = _table_chart(
+            cast(ResultPresentation, presentation),
+        )
 
     outcome = outcome_from_steps(
         updated_steps,
-        planned_count=len(state.get("batch_plans") or []),
+        planned_count=len(source_candidate.get("plans") or []),
     )
     state_outcome = state.get("outcome")
     if (
@@ -2416,10 +2657,15 @@ def complete_node(state: NlqState) -> NlqState:
         # The rejected candidate is intentionally absent from answer data, but
         # its authoritative terminal failure must still reach persistence/API.
         outcome = cast(RunOutcome, dict(state_outcome))
-    outcome["quality"] = _result_quality(updated_steps)
+    elif state_outcome and state_outcome.get("status") in {"success", "degraded"}:
+        outcome["status"] = state_outcome["status"]
+    quality = (state_outcome or {}).get("quality") or source_candidate.get("quality")
+    if isinstance(quality, dict):
+        outcome["quality"] = cast(ResultQuality, quality)
     json_result["success"] = outcome_is_success(outcome)
     json_result["status"] = outcome["status"]
-    json_result["quality"] = outcome["quality"]
+    if "quality" in outcome:
+        json_result["quality"] = outcome["quality"]
     if outcome["failures"]:
         json_result["failures"] = outcome["failures"]
 
@@ -2438,7 +2684,10 @@ def complete_node(state: NlqState) -> NlqState:
             fail_turn_node(
                 {
                     **state,
-                    "all_steps": updated_steps,
+                    "accepted_candidate": {
+                        **source_candidate,
+                        "steps": updated_steps,
+                    },
                     "error": format_error_message(exc),
                     "outcome": failed_outcome(exc),
                 }
@@ -2448,26 +2697,10 @@ def complete_node(state: NlqState) -> NlqState:
     # The persisted snapshot is the source of truth. Publish analysis only
     # after that commit so live SSE and a subsequent page refresh cannot
     # observe different terminal answers.
-    with log_span(
-        operate=OperationEnum.ANALYSIS,
-        record_id=getattr(llm_service.record, "id", None) or state.get("record_id"),
-        ai_modal_id=getattr(llm_service.chat_question, "ai_modal_id", None),
-        ai_modal_name=getattr(llm_service.chat_question, "ai_modal_name", None),
-        local_operation=True,
-        graph_node="complete",
-        brief="综合分析",
-        step_index=state.get("step_index"),
-        initial_payload={"source": "terminal_snapshot", "chars": len(analysis_text)},
-    ) as span:
-        if analysis_text:
-            sink.event({"type": "analysis", "content": analysis_text})
-            if sink.mode == "markdown":
-                sink.text(analysis_text + "\n\n")
-        span["payload"] = {
-            "source": "terminal_snapshot",
-            "chars": len(analysis_text),
-            "empty": not bool(analysis_text.strip()),
-        }
+    if analysis_text:
+        sink.event({"type": "analysis", "content": analysis_text})
+        if sink.mode == "markdown":
+            sink.text(analysis_text + "\n\n")
 
     if not outcome_is_success(outcome):
         failures = outcome.get("failures") or []
@@ -2480,7 +2713,10 @@ def complete_node(state: NlqState) -> NlqState:
             fail_turn_node(
                 {
                     **state,
-                    "all_steps": updated_steps,
+                    "accepted_candidate": {
+                        **source_candidate,
+                        "steps": updated_steps,
+                    },
                     "json_result": json_result,
                     "error": failure_message,
                     "outcome": outcome,
@@ -2519,18 +2755,56 @@ def complete_node(state: NlqState) -> NlqState:
     if sink.mode == "json":
         sink.json_result(json_result)
 
+    completed_candidate: CandidateBatch = {
+        **source_candidate,
+        "steps": updated_steps,
+        "outcome": outcome,
+    }
+    if "quality" in outcome:
+        completed_candidate["quality"] = outcome["quality"]
     return {
         **state,
         "json_result": json_result,
-        "all_steps": updated_steps,
+        "accepted_candidate": completed_candidate,
         "outcome": outcome,
         "record": llm_service.record,
     }
 
 
 def fail_node(state: NlqState) -> NlqState:
-    """Use the shared terminal failure contract for every conversation graph."""
-    return cast(NlqState, fail_turn_node(state))
+    """Persist the canonical empty NLQ answer before emitting terminal failure."""
+    llm_service = state["llm_service"]
+    error = str(state.get("error") or "unknown error")
+    current_outcome = state.get("outcome")
+    outcome = (
+        cast(RunOutcome, dict(current_outcome))
+        if current_outcome and current_outcome.get("status") != "running"
+        else failed_outcome(error)
+    )
+    if "quality" not in outcome:
+        outcome["quality"] = build_overall_quality([])
+    try:
+        _persist_record_snapshot(
+            llm_service,
+            [],
+            "",
+            finish=True,
+            outcome=outcome,
+        )
+    except Exception as exc:
+        # Failure reporting must still reach the client when persistence itself
+        # is unavailable; the shared terminal node remains the single emitter.
+        SQLBotLogUtil.error(f"persist NLQ failure snapshot failed: {exc}")
+    return cast(
+        NlqState,
+        fail_turn_node(
+            {
+                **state,
+                "error": error,
+                "outcome": outcome,
+            }
+        ),
+    )
 
 
 # ── Routers ──────────────────────────────────────────────────────────────────
@@ -2554,7 +2828,7 @@ def route_after_queries(
     if state.get("error"):
         return "fail"
 
-    plans = state.get("batch_plans") or []
+    plans = (state.get("active_candidate") or {}).get("plans") or []
     if plans:
         if _finish_step_value(state) <= int(ChatFinishStep.GENERATE_QUERY.value):
             return "complete"
@@ -2572,26 +2846,25 @@ def route_after_queries(
 
 def route_after_execute(
     state: NlqState,
-) -> Literal["generate_charts", "complete", "fail"]:
+) -> Literal["decide_next", "fail"]:
     if state.get("error"):
         return "fail"
-    if _finish_step_value(state) <= int(ChatFinishStep.QUERY_DATA.value):
-        return "complete"
-    return "generate_charts"
+    return "decide_next"
 
 
 def route_after_decision(
     state: NlqState,
-) -> Literal["generate_queries", "complete", "fail"]:
+) -> Literal["generate_queries", "generate_charts", "complete", "fail"]:
     if state.get("error"):
         return "fail"
     step_index = state.get("step_index", 0)
     max_steps = state.get("max_steps", _MAX_STEPS)
     decision = state.get("decision") or "finish"
 
-    if step_index >= max_steps:
-        return "complete"
-
     if decision == "repair":
-        return "generate_queries"
+        return "generate_queries" if step_index < max_steps else "complete"
+    if decision == "accept":
+        if _finish_step_value(state) <= int(ChatFinishStep.QUERY_DATA.value):
+            return "complete"
+        return "generate_charts"
     return "complete"

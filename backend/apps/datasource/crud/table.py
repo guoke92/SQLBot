@@ -28,24 +28,46 @@ def get_tables_by_ds_id(session: SessionDep, id: int):
     )
 
 
-def run_fill_empty_table_and_ds_embedding(session_maker):
+def _needs_embedding_refresh(value: str | None, active_dimension: int) -> bool:
+    if not value:
+        return True
+    try:
+        vector = json.loads(value)
+    except (TypeError, ValueError):
+        return True
+    return not isinstance(vector, list) or len(vector) != active_dimension
+
+
+def run_sync_table_and_ds_embeddings(session_maker):
+    """Refresh schema vectors missing from the active embedding space."""
     try:
         if not settings.TABLE_EMBEDDING_ENABLED:
             return
 
+        active_dimension = EmbeddingModelCache.get_dimension()
         session = session_maker()
 
         SQLBotLogUtil.info("get tables")
-        stmt = select(CoreTable.id).where(and_(CoreTable.embedding.is_(None)))
-        results = session.execute(stmt).scalars().all()
+        table_rows = session.execute(
+            select(CoreTable.id, CoreTable.embedding)
+        ).all()
+        results = [
+            table_id
+            for table_id, embedding in table_rows
+            if _needs_embedding_refresh(embedding, active_dimension)
+        ]
         SQLBotLogUtil.info("table result: " + str(len(results)))
         save_table_embedding(session_maker, results)
 
         SQLBotLogUtil.info("get datasource")
-        ds_stmt = select(CoreDatasource.id).where(
-            and_(CoreDatasource.embedding.is_(None))
-        )
-        ds_results = session.execute(ds_stmt).scalars().all()
+        datasource_rows = session.execute(
+            select(CoreDatasource.id, CoreDatasource.embedding)
+        ).all()
+        ds_results = [
+            datasource_id
+            for datasource_id, embedding in datasource_rows
+            if _needs_embedding_refresh(embedding, active_dimension)
+        ]
         SQLBotLogUtil.info("datasource result: " + str(len(ds_results)))
         save_ds_embedding(session_maker, ds_results)
     except Exception:

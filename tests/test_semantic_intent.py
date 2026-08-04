@@ -15,11 +15,13 @@ if str(_BACKEND) not in sys.path:
 
 from apps.chat.binding_resolver import apply_confirmed_entity_bindings  # noqa: E402
 from apps.chat.plan_context import render_intent_decisions  # noqa: E402
-from apps.chat.planning import _missing_confirmed_entity_values  # noqa: E402
+from apps.chat.query_contract import compile_query_contract  # noqa: E402
 from apps.chat.semantic_intent import (  # noqa: E402
     ClarificationAnswer,
     ClarificationQuestion,
+    IntentBinding,
     IntentContext,
+    IntentDecision,
     IntentIssue,
     IntentOption,
     IntentResolution,
@@ -100,6 +102,8 @@ def test_answers_become_locked_decisions_and_planning_text() -> None:
     )
     assert merged.status == "ready"
     assert merged.issues == []
+    assert merged.summary.startswith("部门口径: 任务执行人所属部门")
+    assert "待确认" not in merged.summary
     assert merged.decisions[0].locked
     assert (
         merged.decisions[0].value["selected_options"][0]["label"]
@@ -143,7 +147,8 @@ def test_custom_answer_is_locked_only_after_semantic_reassessment() -> None:
                     '"resolved_decisions":[{"key":"scope.department_basis",'
                     '"kind":"scope","label":"部门口径",'
                     '"value":"仅统计任务验收人当前所属部门",'
-                    '"source":"user","required_identifiers":["accepter"]}],'
+                    '"source":"user","bindings":[{"identifier":"accepter",'
+                    '"role":"filter","aggregation":"none"}]}],'
                     '"issues":[],"questions":[],"blocking_reasons":[]}'
                 )
             )
@@ -171,19 +176,22 @@ def test_custom_answer_is_locked_only_after_semantic_reassessment() -> None:
         ),
     )
 
-    assessed, _, _ = assess_semantic_intent(
+    result = assess_semantic_intent(
         service,
         context=merged,
         bindings={},
         time_intent={},
     )
+    assessed = result.context
 
     assert "provisional_decisions" in model.received
     assert "仅统计任务验收人当前所属部门" in model.received
     assert assessed.status == "ready"
     assert assessed.issues == []
     assert assessed.decisions[0].locked
-    assert assessed.decisions[0].required_identifiers == ["accepter"]
+    assert [binding.identifier for binding in assessed.decisions[0].bindings] == [
+        "accepter"
+    ]
 
 
 def test_assessor_cannot_mark_unresolved_custom_answer_ready() -> None:
@@ -219,13 +227,17 @@ def test_assessor_cannot_mark_unresolved_custom_answer_ready() -> None:
         ),
     )
 
-    with pytest.raises(ValueError, match="provisional"):
-        assess_semantic_intent(
-            service,
-            context=merged,
-            bindings={},
-            time_intent={},
-        )
+    result = assess_semantic_intent(
+        service,
+        context=merged,
+        bindings={},
+        time_intent={},
+    )
+
+    assert result.context.status == "blocked"
+    assert len(result.attempts) == 2
+    assert all(not attempt["valid"] for attempt in result.attempts)
+    assert "provisional" in result.attempts[0]["validation_error"]
 
 
 def test_confirmed_entity_promotes_ambiguous_binding() -> None:
@@ -289,47 +301,7 @@ def test_confirmed_decisions_are_in_plan_context() -> None:
     assert "创建时间" in block
 
 
-def test_sql_guard_requires_only_confirmed_binding_literal() -> None:
-    context = {
-        "decisions": [
-            {
-                "kind": "entity",
-                "locked": True,
-                "binding_phrase": "研发二部",
-                "value": {"selected_options": [{"id": "value_1", "label": "研发二部"}]},
-            }
-        ]
-    }
-    assert (
-        _missing_confirmed_entity_values(
-            "SELECT * FROM d_user WHERE organization_name = '研发二部'",
-            context,
-        )
-        == []
-    )
-    assert _missing_confirmed_entity_values("SELECT * FROM d_user", context) == [
-        "研发二部"
-    ]
-    escaped = {
-        "decisions": [
-            {
-                "kind": "entity",
-                "locked": True,
-                "binding_phrase": "customer",
-                "value": {"selected_options": [{"id": "value_1", "label": "O'Brien"}]},
-            }
-        ]
-    }
-    assert (
-        _missing_confirmed_entity_values(
-            "SELECT * FROM customer WHERE name = 'O''Brien'",
-            escaped,
-        )
-        == []
-    )
-
-
-def test_field_mapping_decision_is_not_promoted_or_literal_validated() -> None:
+def test_field_mapping_decision_is_not_promoted_to_entity_binding() -> None:
     context = {
         "decisions": [
             {
@@ -352,27 +324,102 @@ def test_field_mapping_decision_is_not_promoted_or_literal_validated() -> None:
     bindings = {"resolved": {}, "ambiguous": {}}
 
     assert apply_confirmed_entity_bindings(bindings, context) == bindings
-    assert (
-        _missing_confirmed_entity_values(
-            "SELECT MIN(f.apply_level) FROM finance f",
-            context,
+
+
+def test_option_and_custom_answer_are_mutually_exclusive() -> None:
+    with pytest.raises(ValueError, match="either option_ids or custom_text"):
+        ClarificationAnswer(
+            question_id="department_basis",
+            option_ids=["assignee"],
+            custom_text="但排除外包人员",
         )
-        == []
+
+
+def test_custom_answer_can_reference_an_option_without_selecting_it() -> None:
+    merged = merge_clarification_answers(
+        _context(),
+        [
+            ClarificationAnswer(
+                question_id="department_basis",
+                custom_text="基于 A，但排除外包人员",
+            )
+        ],
     )
 
+    assert merged.status == "evaluating"
+    assert merged.decisions[0].locked is False
+    assert merged.decisions[0].value["selected_options"] == []
+    assert merged.decisions[0].value["custom_text"] == "基于 A，但排除外包人员"
+    assert merged.submitted_answers[0].option_ids == []
+    assert merged.submitted_answers[0].custom_text == "基于 A，但排除外包人员"
+    assert merged.questions[0].options[0].id == "assignee"
 
-def test_single_answer_cannot_mix_option_and_custom_text() -> None:
-    with pytest.raises(ValueError, match="either one option or custom input"):
-        merge_clarification_answers(
-            _context(),
-            [
-                ClarificationAnswer(
-                    question_id="department_basis",
-                    option_ids=["assignee"],
-                    custom_text="按项目归属部门",
-                )
-            ],
-        )
+
+def test_time_basis_selection_needs_a_structured_range_before_ready() -> None:
+    context = IntentContext(
+        status="needs_clarification",
+        original_question="按确权日期统计签收额",
+        issues=[
+            IntentIssue(
+                key="time.basis",
+                kind="time",
+                reason="需要确认业务时间",
+            )
+        ],
+        questions=[
+            ClarificationQuestion(
+                id="time_basis",
+                issue_keys=["time.basis"],
+                kind="time",
+                title="按哪个业务时间统计？",
+                options=[
+                    IntentOption(
+                        id="confirm_date",
+                        label="确权日期(confirm_date)",
+                        resolutions={
+                            "time.basis": IntentResolution(
+                                label="业务时间",
+                                value="确权日期",
+                                bindings=[
+                                    IntentBinding(
+                                        identifier="confirm_date",
+                                        role="filter",
+                                    )
+                                ],
+                            )
+                        },
+                    )
+                ],
+            )
+        ],
+    )
+
+    incomplete = merge_clarification_answers(
+        context,
+        [ClarificationAnswer(question_id="time_basis", option_ids=["confirm_date"])],
+    )
+    range_without_boundaries = merge_clarification_answers(
+        context.model_copy(
+            update={"time_intent": {"scope": "explicit", "range_unit": "year"}}
+        ),
+        [ClarificationAnswer(question_id="time_basis", option_ids=["confirm_date"])],
+    )
+    complete = merge_clarification_answers(
+        context.model_copy(
+            update={
+                "time_intent": {
+                    "scope": "explicit",
+                    "start": "2026-01-01",
+                    "end_exclusive": "2027-01-01",
+                }
+            }
+        ),
+        [ClarificationAnswer(question_id="time_basis", option_ids=["confirm_date"])],
+    )
+
+    assert incomplete.status == "evaluating"
+    assert range_without_boundaries.status == "evaluating"
+    assert complete.status == "ready"
 
 
 def test_one_question_can_lock_multiple_related_issues() -> None:
@@ -409,9 +456,15 @@ def test_one_question_can_lock_multiple_related_issues() -> None:
                             "grain.join_strategy": IntentResolution(
                                 label="统计粒度",
                                 value="企业-核企",
-                                required_identifiers=[
-                                    "company_name",
-                                    "core_company_id",
+                                bindings=[
+                                    IntentBinding(
+                                        identifier="company_name",
+                                        role="group",
+                                    ),
+                                    IntentBinding(
+                                        identifier="core_company_id",
+                                        role="group",
+                                    ),
                                 ],
                             ),
                         },
@@ -427,9 +480,15 @@ def test_one_question_can_lock_multiple_related_issues() -> None:
                             "grain.join_strategy": IntentResolution(
                                 label="统计粒度",
                                 value="企业-核企",
-                                required_identifiers=[
-                                    "company_name",
-                                    "core_company_id",
+                                bindings=[
+                                    IntentBinding(
+                                        identifier="company_name",
+                                        role="group",
+                                    ),
+                                    IntentBinding(
+                                        identifier="core_company_id",
+                                        role="group",
+                                    ),
                                 ],
                             ),
                         },
@@ -458,10 +517,12 @@ def test_one_question_can_lock_multiple_related_issues() -> None:
         decisions["relation.population"].value["selected_options"][0]["resolution"]
         == "融资与资产企业并集"
     )
-    assert decisions["grain.join_strategy"].required_identifiers == [
+    assert [binding.identifier for binding in decisions["grain.join_strategy"].bindings] == [
         "company_name",
         "core_company_id",
     ]
+    assert decisions["relation.population"].kind == "relation"
+    assert decisions["grain.join_strategy"].kind == "grain"
     planning = render_planning_question(merged)
     assert "基础数据集合" in planning
     assert "统计粒度" in planning
@@ -480,6 +541,32 @@ def test_chat_graph_places_clarity_gate_before_sql_generation() -> None:
     assert spec.index("- from: assess_clarity") < spec.index("- from: generate_queries")
 
 
+def test_query_contract_rejects_conflicting_roles_for_one_field() -> None:
+    with pytest.raises(ValueError, match="conflicting bindings for amount"):
+        compile_query_contract(
+            [
+                {
+                    "key": "metric.amount",
+                    "kind": "metric",
+                    "label": "金额",
+                    "locked": True,
+                    "bindings": [
+                        {
+                            "identifier": "amount",
+                            "role": "measure",
+                            "aggregation": "sum",
+                        },
+                        {
+                            "identifier": "amount",
+                            "role": "filter",
+                            "aggregation": "none",
+                        },
+                    ],
+                }
+            ]
+        )
+
+
 def test_semantic_assessor_returns_ready_from_validated_json() -> None:
     class FakeModel:
         def invoke(self, _messages: object) -> AIMessage:
@@ -488,7 +575,8 @@ def test_semantic_assessor_returns_ready_from_validated_json() -> None:
                     '{"status":"ready","summary":"口径唯一",'
                     '"resolved_decisions":[{"key":"metric.orders.count",'
                     '"kind":"metric","label":"订单数","value":"COUNT(*)",'
-                    '"source":"user"}],'
+                    '"source":"user","bindings":[{"identifier":"orders.id",'
+                    '"role":"measure","aggregation":"count"}]}],'
                     '"issues":[],"questions":[],"blocking_reasons":[]}'
                 ),
                 usage_metadata={
@@ -509,16 +597,110 @@ def test_semantic_assessor_returns_ready_from_validated_json() -> None:
             custom_prompt="",
         ),
     )
-    assessed, usage, reasoning = assess_semantic_intent(
+    result = assess_semantic_intent(
         service,
         context=IntentContext(original_question="查询今年订单数"),
         bindings={},
-        time_intent={"scope": "explicit", "grain": "year"},
+        time_intent={"scope": "explicit", "range_unit": "year"},
     )
+    assessed, usage, reasoning = result.context, result.usage, result.reasoning
     assert assessed.status == "ready"
     assert assessed.summary == "口径唯一"
     assert usage["total_tokens"] == 12
     assert reasoning == ""
+
+
+def test_refinement_preserves_unmodified_previous_contract_decisions() -> None:
+    class FakeModel:
+        def invoke(self, _messages: object) -> AIMessage:
+            return AIMessage(
+                content=(
+                    '{"intent_mode":"refine","status":"ready",'
+                    '"summary":"签收额改用上链金额",'
+                    '"resolved_decisions":[{"key":"metric.sign_amount",'
+                    '"kind":"metric","label":"签收额","value":"上链金额合计",'
+                    '"source":"user","bindings":[{"identifier":"transfer_amt",'
+                    '"role":"measure","aggregation":"sum"}]}],'
+                    '"issues":[],"questions":[],"blocking_reasons":[]}'
+                )
+            )
+
+    base_decisions = [
+        IntentDecision(
+            key="metric.sign_amount",
+            kind="metric",
+            label="签收额",
+            value="原始资产金额合计",
+            bindings=[
+                IntentBinding(
+                    identifier="orig_asset_amt",
+                    role="measure",
+                    aggregation="sum",
+                )
+            ],
+        ),
+        IntentDecision(
+            key="metric.financing_amount",
+            kind="metric",
+            label="融资额",
+            value="融资申请金额合计",
+            bindings=[
+                IntentBinding(
+                    identifier="fin_apply_amt",
+                    role="measure",
+                    aggregation="sum",
+                )
+            ],
+        ),
+        IntentDecision(
+            key="dimension.core_company",
+            kind="dimension",
+            label="核企名称",
+            value="核心企业",
+            bindings=[
+                IntentBinding(identifier="core_company_name", role="attribute")
+            ],
+        ),
+    ]
+    context = IntentContext(
+        original_question="签收额改用上链金额",
+        base_record_id=280,
+        base_decisions=base_decisions,
+        base_time_intent={
+            "scope": "explicit",
+            "start": "2026-01-01",
+            "end_exclusive": "2027-01-01",
+        },
+    )
+    service = SimpleNamespace(
+        generation_question=context.original_question,
+        llm=FakeModel(),
+        chat_question=SimpleNamespace(
+            lang="简体中文",
+            db_schema="",
+            sample_data="",
+            terminologies="",
+            data_training="",
+            custom_prompt="",
+        ),
+    )
+
+    result = assess_semantic_intent(
+        service,
+        context=context,
+        bindings={},
+        time_intent={},
+    )
+
+    decisions = {decision.key: decision for decision in result.context.decisions}
+    assert result.context.status == "ready"
+    assert set(decisions) == {
+        "metric.sign_amount",
+        "metric.financing_amount",
+        "dimension.core_company",
+    }
+    assert decisions["metric.sign_amount"].bindings[0].identifier == "transfer_amt"
+    assert result.context.time_intent["start"] == "2026-01-01"
 
 
 def test_explicit_query_contract_only_leaves_true_field_mapping_ambiguity() -> None:
@@ -536,26 +718,46 @@ def test_explicit_query_contract_only_leaves_true_field_mapping_ambiguity() -> N
                                 "label": "企业与核企识别口径",
                                 "value": "company_name + core_company_id",
                                 "source": "user",
-                                "required_identifiers": [
-                                    "company_name",
-                                    "core_company_id",
+                                "bindings": [
+                                    {
+                                        "identifier": "company_name",
+                                        "role": "join",
+                                        "aggregation": "none",
+                                    },
+                                    {
+                                        "identifier": "core_company_id",
+                                        "role": "join",
+                                        "aggregation": "none",
+                                    },
                                 ],
                             },
                             {
-                                "key": "metric.financing.aggregation",
+                                "key": "metric.financing",
                                 "kind": "metric",
                                 "label": "融资额聚合",
                                 "value": "SUM(fin_apply_amt)",
                                 "source": "user",
-                                "required_identifiers": ["fin_apply_amt"],
+                                "bindings": [
+                                    {
+                                        "identifier": "fin_apply_amt",
+                                        "role": "measure",
+                                        "aggregation": "sum",
+                                    }
+                                ],
                             },
                             {
-                                "key": "metric.signing.aggregation",
+                                "key": "metric.signing",
                                 "kind": "metric",
                                 "label": "签收额聚合",
                                 "value": "SUM(transfer_amt)",
                                 "source": "user",
-                                "required_identifiers": ["transfer_amt"],
+                                "bindings": [
+                                    {
+                                        "identifier": "transfer_amt",
+                                        "role": "measure",
+                                        "aggregation": "sum",
+                                    }
+                                ],
                             },
                             {
                                 "key": "relation.population",
@@ -587,7 +789,13 @@ def test_explicit_query_contract_only_leaves_true_field_mapping_ambiguity() -> N
                                             "dimension.supplier_level.field": {
                                                 "label": "供应商层级口径",
                                                 "value": "资产层级",
-                                                "required_identifiers": ["apply_level"],
+                                                "bindings": [
+                                                    {
+                                                        "identifier": "apply_level",
+                                                        "role": "attribute",
+                                                        "aggregation": "min",
+                                                    }
+                                                ],
                                             }
                                         },
                                     },
@@ -598,7 +806,8 @@ def test_explicit_query_contract_only_leaves_true_field_mapping_ambiguity() -> N
                                             "dimension.supplier_level.field": {
                                                 "label": "供应商层级口径",
                                                 "value": "不输出",
-                                                "required_identifiers": [],
+                                                "bindings": [],
+                                                "effect": "omit",
                                             }
                                         },
                                     },
@@ -626,22 +835,27 @@ def test_explicit_query_contract_only_leaves_true_field_mapping_ambiguity() -> N
         ),
     )
 
-    assessed, _, _ = assess_semantic_intent(
+    result = assess_semantic_intent(
         service,
         context=IntentContext(original_question=service.generation_question),
         bindings={},
         time_intent={"scope": "explicit"},
     )
+    assessed = result.context
 
     assert assessed.status == "needs_clarification"
     assert {decision.key for decision in assessed.decisions} == {
         "relation.finance_asset.keys",
-        "metric.financing.aggregation",
-        "metric.signing.aggregation",
+        "metric.financing",
+        "metric.signing",
         "relation.population",
     }
     assert [question.id for question in assessed.questions] == ["supplier_level_field"]
     assert assessed.questions[0].options[0].label == "资产层级(apply_level)"
+    assert {
+        option.id: option.resolutions["dimension.supplier_level.field"].effect
+        for option in assessed.questions[0].options
+    } == {"apply_level": "include", "omit": "omit"}
 
 
 def test_assessor_evidence_preserves_every_locked_contract_key() -> None:
@@ -667,12 +881,19 @@ def test_assessor_evidence_preserves_every_locked_contract_key() -> None:
                 "label": "合并口径",
                 "value": "两表合集",
             },
-            {
-                "key": "grain.supplier",
-                "kind": "grain",
-                "label": "合并口径",
-                "value": "按供应商",
-            },
+                {
+                    "key": "grain.supplier",
+                    "kind": "grain",
+                    "label": "合并口径",
+                    "value": "按供应商",
+                    "bindings": [
+                        {
+                            "identifier": "supplier_id",
+                            "role": "group",
+                            "aggregation": "none",
+                        }
+                    ],
+                },
         ],
     )
     service = SimpleNamespace(
@@ -738,12 +959,13 @@ def test_semantic_assessor_normalizes_options_and_single_recommendation() -> Non
             custom_prompt="",
         ),
     )
-    assessed, _, _ = assess_semantic_intent(
+    result = assess_semantic_intent(
         service,
         context=IntentContext(original_question="按部门统计任务数"),
         bindings={},
         time_intent={},
     )
+    assessed = result.context
 
     question = assessed.questions[0]
     assert [option.label for option in question.options] == [
@@ -794,12 +1016,13 @@ def test_semantic_assessor_keeps_recommended_option_inside_cap() -> None:
         ),
     )
 
-    assessed, _, _ = assess_semantic_intent(
+    result = assess_semantic_intent(
         service,
         context=IntentContext(original_question="汇总签收额和融资额"),
         bindings={},
         time_intent={},
     )
+    assessed = result.context
 
     assert [option.id for option in assessed.questions[0].options] == [
         "project",
@@ -829,7 +1052,8 @@ def test_semantic_assessor_retries_one_invalid_contract() -> None:
                     '{"status":"ready","summary":"口径唯一",'
                     '"resolved_decisions":[{"key":"metric.orders.count",'
                     '"kind":"metric","label":"订单数","value":"COUNT(*)",'
-                    '"source":"user"}],'
+                    '"source":"user","bindings":[{"identifier":"orders.id",'
+                    '"role":"measure","aggregation":"count"}]}],'
                     '"issues":[],"questions":[],"blocking_reasons":[]}'
                 ),
                 usage_metadata={
@@ -852,16 +1076,77 @@ def test_semantic_assessor_retries_one_invalid_contract() -> None:
             custom_prompt="",
         ),
     )
-    assessed, usage, _ = assess_semantic_intent(
+    result = assess_semantic_intent(
         service,
         context=IntentContext(original_question="查询订单数"),
         bindings={},
         time_intent={},
     )
+    assessed, usage = result.context, result.usage
 
     assert assessed.status == "ready"
     assert model.calls == 2
     assert usage["total_tokens"] == 10
+    assert [attempt["valid"] for attempt in result.attempts] == [False, True]
+
+
+def test_semantic_assessor_blocks_incomplete_metric_after_bounded_repair() -> None:
+    class FakeModel:
+        calls = 0
+
+        def invoke(self, _messages: object) -> AIMessage:
+            self.calls += 1
+            return AIMessage(
+                content=(
+                    '{"status":"ready","summary":"按签收日期汇总签收额",'
+                    '"resolved_decisions":[{'
+                    '"key":"metric.sign_amount.aggregation",'
+                    '"kind":"calculation","label":"签收额汇总",'
+                    '"value":"按签收日期统计",'
+                    '"source":"schema","bindings":[{'
+                    '"identifier":"sign_date","role":"filter",'
+                    '"aggregation":"none"}]}],'
+                    '"issues":[],"questions":[],"blocking_reasons":[]}'
+                ),
+                usage_metadata={
+                    "input_tokens": 5,
+                    "output_tokens": 3,
+                    "total_tokens": 8,
+                },
+            )
+
+    model = FakeModel()
+    service = SimpleNamespace(
+        planning_question="查询今年签收额",
+        llm=model,
+        chat_question=SimpleNamespace(
+            lang="简体中文",
+            db_schema="# Table: asset\n(sign_amount:decimal, sign_date:date)",
+            sample_data="",
+            terminologies="",
+            data_training="",
+            custom_prompt="",
+        ),
+    )
+
+    result = assess_semantic_intent(
+        service,
+        context=IntentContext(original_question="查询今年签收额"),
+        bindings={},
+        time_intent={"scope": "explicit", "range_unit": "year"},
+    )
+
+    assert result.context.status == "blocked"
+    assert result.context.questions == []
+    assert result.context.blocking_reasons
+    assert model.calls == 2
+    assert result.usage["total_tokens"] == 16
+    assert len(result.attempts) == 2
+    assert all(not attempt["valid"] for attempt in result.attempts)
+    assert all(
+        "measure binding" in attempt["validation_error"]
+        for attempt in result.attempts
+    )
 
 
 def test_entity_clarification_merges_duplicate_values_and_caps_candidates() -> None:
@@ -916,12 +1201,13 @@ def test_entity_clarification_merges_duplicate_values_and_caps_candidates() -> N
         }
     }
 
-    assessed, _, _ = assess_semantic_intent(
+    result = assess_semantic_intent(
         service,
         context=IntentContext(original_question="查询研发二部数据"),
         bindings=bindings,
         time_intent={},
     )
+    assessed = result.context
 
     assert assessed.status == "needs_clarification"
     question = assessed.questions[0]

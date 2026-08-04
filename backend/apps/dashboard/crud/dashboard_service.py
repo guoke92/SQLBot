@@ -52,10 +52,9 @@ def load_resource(session: SessionDep, dashboard: QueryDashboard):
     for item in canvas_view_obj.values():
         # Live replay whenever we have a datasource + either a display sql or re_exec payload.
         # Protocol.plan_from_re_exec owns payload shape; legacy SQL views without re_exec
-        # still work via SqlProtocol' fallback on the display statement.
         if item.get('datasource') is None:
             continue
-        if not item.get('sql') and not item.get('re_exec'):
+        if not item.get('re_exec'):
             continue
 
         re_exec_payload = item.get('re_exec')
@@ -69,7 +68,6 @@ def load_resource(session: SessionDep, dashboard: QueryDashboard):
         data_result = get_chart_data_ds(
             session,
             item['datasource'],
-            item.get('sql'),
             re_exec_json=re_exec_json,
         )
         if data_result.get('status') == 'success':

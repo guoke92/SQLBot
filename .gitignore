@@ -191,3 +191,8 @@ test.py
 !/.venv/
 
 sqlbot-xpack
+
+# 裸机部署打包产物（本地生成，不入库）
+dist-pack/
+sqlbot-server-*.tar.gz
+.debug-data/

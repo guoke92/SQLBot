@@ -17,7 +17,7 @@ from apps.chat.result_semantics import (  # noqa: E402
 )
 
 
-def test_chart_axis_is_authoritative_for_numeric_dimensions() -> None:
+def test_numeric_identifier_and_time_names_remain_dimensions() -> None:
     roles = classify_field_roles(
         ["month", "system_id", "task_count"],
         [
@@ -25,13 +25,6 @@ def test_chart_axis_is_authoritative_for_numeric_dimensions() -> None:
             {"name": "system_id", "is_numeric": True},
             {"name": "task_count", "is_numeric": True},
         ],
-        {
-            "axis": {
-                "x": {"value": "month"},
-                "series": {"value": "system_id"},
-                "y": [{"value": "task_count"}],
-            }
-        },
     )
     assert roles["metrics"] == {"task_count"}
     assert roles["dimensions"] == {"month", "system_id"}
@@ -46,10 +39,23 @@ def test_table_fallback_excludes_ids_and_time_buckets_from_metrics() -> None:
             {"name": "story_count", "is_numeric": True},
             {"name": "workload", "is_numeric": True},
         ],
-        {"type": "table"},
     )
     assert roles["metrics"] == {"story_count", "workload"}
     assert roles["dimensions"] == {"department_id", "year"}
+
+
+def test_confirmed_role_overrides_numeric_name_heuristics() -> None:
+    roles = classify_field_roles(
+        ["apply_level", "amount"],
+        [
+            {"name": "apply_level", "is_numeric": True},
+            {"name": "amount", "is_numeric": True},
+        ],
+        {"apply_level": "dimension", "amount": "metric"},
+    )
+
+    assert roles["metrics"] == {"amount"}
+    assert roles["dimensions"] == {"apply_level"}
 
 
 def test_display_window_does_not_claim_unknown_total() -> None:

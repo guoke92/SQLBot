@@ -9,9 +9,9 @@ rendering and the next clarification turn.
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from typing import Any, Literal
+from typing import Any, Literal, Self
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 IntentStatus = Literal[
     "evaluating",
@@ -33,6 +33,47 @@ IntentKind = Literal[
 ]
 SelectionType = Literal["single", "multiple", "text"]
 RecommendationStrength = Literal["strong", "moderate", "weak"]
+Aggregation = Literal[
+    "none",
+    "count",
+    "count_distinct",
+    "sum",
+    "avg",
+    "min",
+    "max",
+    "distinct_concat",
+]
+IntentEffect = Literal["include", "omit"]
+BindingRole = Literal["group", "measure", "attribute", "filter", "join"]
+IntentMode = Literal["new", "refine"]
+
+
+class IntentBinding(BaseModel):
+    """One physical field's executable role in a confirmed business decision."""
+
+    identifier: str
+    role: BindingRole
+    aggregation: Aggregation = "none"
+
+    @field_validator("identifier")
+    @classmethod
+    def normalize_identifier(cls, value: str) -> str:
+        identifier = value.strip()
+        if not identifier:
+            raise ValueError("Binding identifier cannot be empty")
+        return identifier
+
+    @model_validator(mode="after")
+    def validate_role_aggregation(self) -> Self:
+        if self.role == "measure" and self.aggregation == "none":
+            raise ValueError(
+                f"Measure binding {self.identifier} requires an aggregation"
+            )
+        if self.role in {"group", "filter", "join"} and self.aggregation != "none":
+            raise ValueError(
+                f"{self.role.title()} binding {self.identifier} cannot aggregate"
+            )
+        return self
 
 
 class IntentResolution(BaseModel):
@@ -40,7 +81,8 @@ class IntentResolution(BaseModel):
 
     label: str = ""
     value: Any
-    required_identifiers: list[str] = Field(default_factory=list)
+    bindings: list[IntentBinding] = Field(default_factory=list)
+    effect: IntentEffect = "include"
 
 
 class IntentOption(BaseModel):
@@ -66,7 +108,8 @@ class IntentDecision(BaseModel):
     value: Any
     source: Literal["user", "rule", "terminology", "schema", "inference"] = "user"
     evidence_refs: list[str] = Field(default_factory=list)
-    required_identifiers: list[str] = Field(default_factory=list)
+    bindings: list[IntentBinding] = Field(default_factory=list)
+    effect: IntentEffect = "include"
     locked: bool = True
     # Set only by deterministic dictionary/entity-binding questions. Generic
     # semantic decisions (including field mappings) must never become filters.
@@ -97,6 +140,14 @@ class ClarificationAnswer(BaseModel):
     option_ids: list[str] = Field(default_factory=list)
     custom_text: str = ""
 
+    @model_validator(mode="after")
+    def validate_answer_mode(self) -> Self:
+        if self.option_ids and self.custom_text.strip():
+            raise ValueError(
+                "Clarification answer must use either option_ids or custom_text"
+            )
+        return self
+
 
 class IntentContext(BaseModel):
     version: int = 1
@@ -107,14 +158,30 @@ class IntentContext(BaseModel):
     issues: list[IntentIssue] = Field(default_factory=list)
     questions: list[ClarificationQuestion] = Field(default_factory=list)
     blocking_reasons: list[str] = Field(default_factory=list)
+    time_intent: dict[str, Any] = Field(default_factory=dict)
+    submitted_answers: list[ClarificationAnswer] = Field(default_factory=list)
+    base_record_id: int | None = None
+    base_decisions: list[IntentDecision] = Field(default_factory=list)
+    base_time_intent: dict[str, Any] = Field(default_factory=dict)
 
     @property
     def awaiting_input(self) -> bool:
         return self.status == "needs_clarification"
 
 
-def new_intent_context(question: str) -> IntentContext:
-    return IntentContext(original_question=(question or "").strip())
+def new_intent_context(
+    question: str,
+    *,
+    base_record_id: int | None = None,
+    base_decisions: Sequence[IntentDecision] = (),
+    base_time_intent: Mapping[str, Any] | None = None,
+) -> IntentContext:
+    return IntentContext(
+        original_question=(question or "").strip(),
+        base_record_id=base_record_id,
+        base_decisions=list(base_decisions),
+        base_time_intent=dict(base_time_intent or {}),
+    )
 
 
 def decision_selected_values(value: Any) -> list[str]:
@@ -132,6 +199,126 @@ def decision_selected_values(value: Any) -> list[str]:
     if custom:
         values.append(custom)
     return list(dict.fromkeys(values))
+
+
+def binding_identifiers(bindings: Sequence[Any]) -> list[str]:
+    """Return stable physical identifiers from structured intent bindings."""
+    values: list[str] = []
+    for binding in bindings:
+        raw = (
+            binding.get("identifier")
+            if isinstance(binding, Mapping)
+            else getattr(binding, "identifier", "")
+        )
+        identifier = str(raw or "").strip()
+        if identifier:
+            values.append(identifier)
+    return list(dict.fromkeys(values))
+
+
+def validate_binding_requirements(
+    *,
+    kind: str,
+    effect: str,
+    bindings: Sequence[Any],
+    binding_phrase: str = "",
+    context: str = "Decision",
+) -> None:
+    """Validate decision completeness once, independently of its source adapter."""
+    if effect == "omit":
+        return
+    signatures: dict[str, tuple[str, str]] = {}
+    for binding in bindings:
+        identifier = str(
+            binding.get("identifier")
+            if isinstance(binding, Mapping)
+            else getattr(binding, "identifier", "")
+        ).strip()
+        role = str(
+            binding.get("role")
+            if isinstance(binding, Mapping)
+            else getattr(binding, "role", "")
+        ).strip()
+        aggregation = str(
+            binding.get("aggregation", "none")
+            if isinstance(binding, Mapping)
+            else getattr(binding, "aggregation", "none")
+        ).strip()
+        signature = (role, aggregation)
+        existing = signatures.get(identifier)
+        if identifier and existing is not None and existing != signature:
+            raise ValueError(f"{context} has conflicting bindings for {identifier}")
+        if identifier:
+            signatures[identifier] = signature
+    roles = {
+        str(
+            binding.get("role")
+            if isinstance(binding, Mapping)
+            else getattr(binding, "role", "")
+        ).strip()
+        for binding in bindings
+    }
+    if kind in {"metric", "calculation"} and "measure" not in roles:
+        raise ValueError(f"{context} requires a measure binding")
+    if kind in {"dimension", "grain"} and not roles.intersection(
+        {"group", "attribute"}
+    ):
+        raise ValueError(f"{context} requires a group or attribute binding")
+    if kind == "entity" and binding_phrase and "filter" not in roles:
+        raise ValueError(f"{context} requires a filter binding")
+
+
+def binding_contract_labels(bindings: Sequence[Any]) -> list[str]:
+    """Render physical bindings with the SQL role the planner must implement."""
+    values: list[str] = []
+    for binding in bindings:
+        if isinstance(binding, Mapping):
+            identifier = str(binding.get("identifier") or "").strip()
+            role = str(binding.get("role") or "").strip()
+            aggregation = str(binding.get("aggregation") or "none").strip()
+        else:
+            identifier = str(getattr(binding, "identifier", "") or "").strip()
+            role = str(getattr(binding, "role", "") or "").strip()
+            aggregation = str(
+                getattr(binding, "aggregation", "none") or "none"
+            ).strip()
+        if not identifier or not role:
+            continue
+        operation = f"，聚合={aggregation}" if aggregation != "none" else ""
+        values.append(f"`{identifier}`（角色={role}{operation}）")
+    return list(dict.fromkeys(values))
+
+
+def time_contract_incomplete(
+    decisions: Sequence[IntentDecision],
+    time_intent: Mapping[str, Any],
+) -> bool:
+    """Return whether a confirmed business-time filter lacks a time scope."""
+    has_time_filter = any(
+        decision.effect == "include"
+        and decision.kind == "time"
+        and any(binding.role == "filter" for binding in decision.bindings)
+        for decision in decisions
+    )
+    if not has_time_filter:
+        return False
+    scope = str(time_intent.get("scope") or "").strip()
+    if scope == "all":
+        return False
+    if scope == "explicit":
+        return not (
+            str(time_intent.get("start") or "").strip()
+            and str(time_intent.get("end_exclusive") or "").strip()
+        )
+    if scope in {"rolling", "default"}:
+        lookback_months = time_intent.get("lookback_months")
+        return not (
+            str(time_intent.get("anchor") or "").strip()
+            and isinstance(lookback_months, int)
+            and not isinstance(lookback_months, bool)
+            and lookback_months > 0
+        )
+    return True
 
 
 def render_decision_value(value: Any) -> str:
@@ -177,11 +364,7 @@ def decision_contract_rows(
                 continue
             label = str(decision.get("label") or decision.get("key") or "").strip()
             value = decision.get("value")
-            identifiers = [
-                str(item).strip()
-                for item in decision.get("required_identifiers") or []
-                if str(item).strip()
-            ]
+            requirements = binding_contract_labels(decision.get("bindings") or [])
         else:
             if not getattr(decision, "locked", False):
                 continue
@@ -189,18 +372,15 @@ def decision_contract_rows(
                 getattr(decision, "label", "") or getattr(decision, "key", "")
             ).strip()
             value = getattr(decision, "value", None)
-            identifiers = [
-                str(item).strip()
-                for item in getattr(decision, "required_identifiers", []) or []
-                if str(item).strip()
-            ]
+            requirements = binding_contract_labels(
+                getattr(decision, "bindings", []) or []
+            )
         rendered = render_decision_value(value)
-        identifiers = list(dict.fromkeys(identifiers))
-        signature = (label, rendered, tuple(identifiers))
+        signature = (label, rendered, tuple(requirements))
         if not rendered or signature in seen:
             continue
         seen.add(signature)
-        rows.append((label, rendered, identifiers))
+        rows.append((label, rendered, requirements))
     return rows
 
 
@@ -225,6 +405,7 @@ def merge_clarification_answers(
     semantic assessor maps them to a concrete contract decision.
     """
     question_by_id = {question.id: question for question in context.questions}
+    issue_kind_by_key = {issue.key: issue.kind for issue in context.issues}
     answer_by_id: dict[str, ClarificationAnswer] = {}
     for answer in answers:
         if answer.question_id in answer_by_id:
@@ -264,10 +445,6 @@ def merge_clarification_answers(
         has_custom_answer = has_custom_answer or bool(custom_text)
         if custom_text and not question.allow_custom:
             raise ValueError(f"Question {question.id} does not accept custom input")
-        if question.selection_type == "single" and answer.option_ids and custom_text:
-            raise ValueError(
-                f"Question {question.id} accepts either one option or custom input"
-            )
         if question.required and not answer.option_ids and not custom_text:
             raise ValueError(f"Question {question.id} requires an answer")
 
@@ -275,9 +452,10 @@ def merge_clarification_answers(
         decision_keys = question.issue_keys or [f"answer.{question.id}"]
         for key in decision_keys:
             selected_values: list[dict[str, Any]] = []
-            required_identifiers: list[str] = []
+            bindings_by_identifier: dict[str, IntentBinding] = {}
             evidence_refs: list[str] = []
             decision_label = question.title
+            effects: set[IntentEffect] = set()
             for option in selected:
                 resolution = option.resolutions.get(key)
                 if resolution is None:
@@ -292,19 +470,35 @@ def merge_clarification_answers(
                 )
                 option_value["resolution"] = resolution.value
                 selected_values.append(option_value)
-                required_identifiers.extend(resolution.required_identifiers)
+                for binding in resolution.bindings:
+                    identifier = binding.identifier.strip()
+                    if not identifier:
+                        continue
+                    existing_binding = bindings_by_identifier.get(identifier)
+                    if existing_binding is not None and existing_binding != binding:
+                        raise ValueError(
+                            f"Selected options for {key} assign conflicting roles "
+                            f"to {identifier}"
+                        )
+                    bindings_by_identifier[identifier] = binding.model_copy(
+                        update={"identifier": identifier}
+                    )
+                effects.add(resolution.effect)
                 evidence_refs.extend(option.evidence_refs)
+            if len(effects) > 1:
+                raise ValueError(f"Selected options for {key} have conflicting effects")
             value: dict[str, Any] = {"selected_options": selected_values}
             if custom_text:
                 value["custom_text"] = custom_text
             decisions_by_key[key] = IntentDecision(
                 key=key,
-                kind=question.kind,
+                kind=issue_kind_by_key.get(key, question.kind),
                 label=decision_label,
                 value=value,
                 source="user",
                 evidence_refs=list(dict.fromkeys(evidence_refs)),
-                required_identifiers=list(dict.fromkeys(required_identifiers)),
+                bindings=list(bindings_by_identifier.values()),
+                effect=next(iter(effects), "include"),
                 locked=not bool(custom_text),
                 binding_phrase=question.binding_phrase,
             )
@@ -317,18 +511,36 @@ def merge_clarification_answers(
     # Structured options already carry complete, validated resolutions for
     # every issue key. Re-running the LLM after such a submission only repeats
     # the same clarification. Custom text still needs semantic interpretation.
+    merged_decisions = list(decisions_by_key.values())
     status: IntentStatus = (
         "ready"
-        if not has_custom_answer and not remaining_issues and decisions_by_key
+        if (
+            not has_custom_answer
+            and not remaining_issues
+            and decisions_by_key
+            and not time_contract_incomplete(merged_decisions, context.time_intent)
+        )
         else "evaluating"
     )
+    summary = context.summary
+    if status == "ready":
+        resolved_summary = "; ".join(
+            f"{label}: {rendered}"
+            for label, rendered in decision_display_rows(
+                list(decisions_by_key.values())
+            )
+        )
+        summary = resolved_summary or context.original_question
     return IntentContext(
         version=context.version,
         status=status,
         original_question=context.original_question,
-        summary=context.summary,
-        decisions=list(decisions_by_key.values()),
+        summary=summary,
+        decisions=merged_decisions,
         issues=remaining_issues,
+        questions=list(context.questions) if status == "evaluating" else [],
+        time_intent=dict(context.time_intent),
+        submitted_answers=list(answers),
     )
 
 

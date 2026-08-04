@@ -8,6 +8,7 @@ const props = defineProps<{
   context: IntentContext
   disabled?: boolean
   answered?: boolean
+  initialAnswers?: ClarificationAnswer[]
 }>()
 
 const emit = defineEmits<{
@@ -24,6 +25,9 @@ const { t } = useI18n()
 const selected = reactive<Record<string, string[]>>({})
 const custom = reactive<Record<string, string>>({})
 const validationError = ref('')
+const activeQuestionId = ref<string>()
+const detailsQuestionId = ref<string>()
+const showCardDetails = ref(false)
 
 const isBlocked = computed(() => props.context.status === 'blocked')
 const canSubmit = computed(
@@ -34,41 +38,94 @@ const canSubmit = computed(
     !props.answered
 )
 
-function initializeQuestions(questions: ClarificationQuestion[]) {
+function hasAnswer(question: ClarificationQuestion) {
+  return !!selected[question.id]?.length || !!custom[question.id]?.trim()
+}
+
+function initializeQuestions(
+  questions: ClarificationQuestion[],
+  initialAnswers: ClarificationAnswer[] = []
+) {
   for (const key of Object.keys(selected)) delete selected[key]
   for (const key of Object.keys(custom)) delete custom[key]
+  const answersByQuestion = new Map(initialAnswers.map((answer) => [answer.question_id, answer]))
   for (const question of questions) {
-    selected[question.id] = [...(question.recommended_option_ids || [])]
-    custom[question.id] = ''
+    const answer = answersByQuestion.get(question.id)
+    selected[question.id] = [...(answer?.option_ids || [])]
+    custom[question.id] = answer?.custom_text || ''
   }
+  activeQuestionId.value = props.answered
+    ? undefined
+    : questions.find((question) => !hasAnswer(question))?.id
+  detailsQuestionId.value = undefined
+  showCardDetails.value = false
   validationError.value = ''
 }
 
 watch(
-  () => props.context.questions,
-  (questions) => initializeQuestions(questions || []),
-  { immediate: true }
+  [() => props.context.questions, () => props.initialAnswers, () => props.answered],
+  ([questions, initialAnswers]) => initializeQuestions(questions || [], initialAnswers || []),
+  { immediate: true, deep: true }
 )
+
+function optionMarker(index: number) {
+  return String.fromCharCode(65 + index)
+}
+
+function selectedLabels(question: ClarificationQuestion) {
+  return (selected[question.id] || []).map((optionId) => {
+    const optionIndex = question.options.findIndex((option) => option.id === optionId)
+    const option = question.options[optionIndex]
+    return option ? `${optionMarker(optionIndex)}. ${option.label}` : optionId
+  })
+}
+
+function toggleQuestion(questionId: string) {
+  const nextQuestionId = activeQuestionId.value === questionId ? undefined : questionId
+  activeQuestionId.value = nextQuestionId
+  if (detailsQuestionId.value !== nextQuestionId) detailsQuestionId.value = undefined
+}
+
+function toggleDetails(questionId: string) {
+  const opening = detailsQuestionId.value !== questionId
+  detailsQuestionId.value = opening ? questionId : undefined
+  if (opening) activeQuestionId.value = questionId
+}
+
+function openNextQuestion(question: ClarificationQuestion) {
+  const currentIndex = props.context.questions.findIndex((item) => item.id === question.id)
+  const next = props.context.questions.slice(currentIndex + 1).find((item) => !hasAnswer(item))
+  activeQuestionId.value = next?.id
+  detailsQuestionId.value = undefined
+}
 
 function chooseOption(question: ClarificationQuestion, optionId: string) {
   if (!canSubmit.value) return
   const values = selected[question.id] || []
   if (question.selection_type === 'multiple') {
-    selected[question.id] = values.includes(optionId)
+    const removing = values.includes(optionId)
+    selected[question.id] = removing
       ? values.filter((id) => id !== optionId)
       : [...values, optionId]
+    if (!removing) custom[question.id] = ''
   } else {
-    selected[question.id] = [optionId]
-    custom[question.id] = ''
+    const removing = values.includes(optionId)
+    selected[question.id] = removing ? [] : [optionId]
+    if (!removing) {
+      custom[question.id] = ''
+      openNextQuestion(question)
+    }
   }
   validationError.value = ''
 }
 
 function onCustomInput(question: ClarificationQuestion) {
-  if (question.selection_type === 'single' && custom[question.id]?.trim()) {
-    selected[question.id] = []
-  }
+  if (custom[question.id]?.trim()) selected[question.id] = []
   validationError.value = ''
+}
+
+function completeCustomAnswer(question: ClarificationQuestion) {
+  if (custom[question.id]?.trim()) openNextQuestion(question)
 }
 
 function questionAnswer(question: ClarificationQuestion): ClarificationAnswer {
@@ -114,11 +171,25 @@ function submit() {
         <div class="card-title">
           {{ isBlocked ? t('chat.clarification_blocked_title') : t('chat.clarification_title') }}
         </div>
-        <div v-if="context.summary" class="card-summary">{{ context.summary }}</div>
+        <div v-if="context.summary && showCardDetails" class="card-summary">
+          {{ context.summary }}
+        </div>
       </div>
-      <el-tag v-if="answered" type="info" effect="plain">
-        {{ t('chat.clarification_answered') }}
-      </el-tag>
+      <div class="header-actions">
+        <button
+          v-if="context.summary"
+          type="button"
+          class="details-toggle"
+          @click="showCardDetails = !showCardDetails"
+        >
+          {{
+            showCardDetails ? t('chat.clarification_hide_details') : t('chat.clarification_details')
+          }}
+        </button>
+        <el-tag v-if="answered" type="info" effect="plain">
+          {{ t('chat.clarification_answered') }}
+        </el-tag>
+      </div>
     </header>
 
     <template v-if="isBlocked">
@@ -138,17 +209,60 @@ function submit() {
       :key="question.id"
       class="clarification-question"
     >
-      <div class="question-heading">
+      <div
+        class="question-heading"
+        role="button"
+        tabindex="0"
+        @click="toggleQuestion(question.id)"
+        @keydown.enter="toggleQuestion(question.id)"
+        @keydown.space.prevent="toggleQuestion(question.id)"
+      >
         <span class="question-index">{{ questionIndex + 1 }}</span>
-        <div>
+        <div class="question-main">
           <div class="question-title">{{ question.title }}</div>
-          <div v-if="question.reason" class="question-reason">{{ question.reason }}</div>
+          <div
+            v-if="activeQuestionId !== question.id && hasAnswer(question)"
+            class="collapsed-answer"
+          >
+            {{ selectedLabels(question).join('、') }}
+            <template v-if="custom[question.id]">
+              <span v-if="selected[question.id]?.length">；</span>{{ custom[question.id] }}
+            </template>
+          </div>
         </div>
+        <button
+          v-if="
+            question.reason ||
+            question.recommendation_reason ||
+            question.options.some((option) => option.description || option.impact)
+          "
+          type="button"
+          class="details-toggle"
+          @click.stop="toggleDetails(question.id)"
+        >
+          {{
+            detailsQuestionId === question.id
+              ? t('chat.clarification_hide_details')
+              : t('chat.clarification_details')
+          }}
+        </button>
+        <span class="question-chevron" :class="{ expanded: activeQuestionId === question.id }"
+          >›</span
+        >
       </div>
 
-      <div v-if="question.options.length" class="option-list">
+      <div
+        v-if="
+          activeQuestionId === question.id && detailsQuestionId === question.id && question.reason
+        "
+        class="question-reason"
+      >
+        {{ question.reason }}
+      </div>
+
+      <div v-if="activeQuestionId === question.id && question.options.length" class="option-list">
         <button
-          v-for="option in question.options"
+          v-for="(option, optionIndex) in question.options"
           :key="option.id"
           type="button"
           class="option"
@@ -156,6 +270,7 @@ function submit() {
           :disabled="!canSubmit"
           @click="chooseOption(question, option.id)"
         >
+          <span class="option-marker">{{ optionMarker(optionIndex) }}</span>
           <span class="selector">
             <span v-if="selected[question.id]?.includes(option.id)" class="selector-dot" />
           </span>
@@ -171,22 +286,36 @@ function submit() {
                 {{ t('chat.clarification_recommended') }}
               </el-tag>
             </span>
-            <span v-if="option.description" class="option-description">
+            <span
+              v-if="detailsQuestionId === question.id && option.description"
+              class="option-description"
+            >
               {{ option.description }}
             </span>
-            <span v-if="option.impact" class="option-impact">
+            <span v-if="detailsQuestionId === question.id && option.impact" class="option-impact">
               {{ t('chat.clarification_impact') }}：{{ option.impact }}
             </span>
           </span>
         </button>
       </div>
 
-      <div v-if="question.recommendation_reason" class="recommendation-reason">
+      <div
+        v-if="
+          activeQuestionId === question.id &&
+          detailsQuestionId === question.id &&
+          question.recommendation_reason
+        "
+        class="recommendation-reason"
+      >
         {{ t('chat.clarification_recommendation_reason') }}：{{ question.recommendation_reason }}
       </div>
 
       <el-input
-        v-if="question.allow_custom"
+        v-if="
+          activeQuestionId === question.id &&
+          question.allow_custom &&
+          (!answered || !!custom[question.id]?.trim())
+        "
         v-model="custom[question.id]"
         class="custom-answer"
         type="textarea"
@@ -194,14 +323,15 @@ function submit() {
         :disabled="!canSubmit"
         :placeholder="question.custom_placeholder || t('chat.clarification_custom_placeholder')"
         @input="onCustomInput(question)"
+        @blur="completeCustomAnswer(question)"
       />
     </div>
 
     <div v-if="validationError" class="validation-error">{{ validationError }}</div>
-    <footer v-if="!isBlocked">
+    <footer v-if="!isBlocked && !answered">
       <span class="submit-hint">{{ t('chat.clarification_submit_hint') }}</span>
       <el-button type="primary" :disabled="!canSubmit" @click="submit">
-        {{ answered ? t('chat.clarification_answered') : t('chat.clarification_continue') }}
+        {{ t('chat.clarification_continue') }}
       </el-button>
     </footer>
   </section>
@@ -251,6 +381,13 @@ function submit() {
   font-size: 16px;
 }
 
+.header-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+}
+
 .card-summary,
 .question-reason,
 .option-description,
@@ -272,8 +409,59 @@ function submit() {
 }
 
 .question-heading {
-  align-items: flex-start !important;
+  align-items: center !important;
   gap: 8px;
+  cursor: pointer;
+  outline: none;
+
+  &:focus-visible {
+    border-radius: 6px;
+    box-shadow: 0 0 0 2px rgba(28, 186, 144, 0.16);
+  }
+}
+
+.question-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.collapsed-answer {
+  margin-top: 3px;
+  overflow: hidden;
+  color: var(--ed-color-primary);
+  font-size: 13px;
+  line-height: 20px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.details-toggle {
+  padding: 2px 6px;
+  color: rgba(100, 106, 115, 1);
+  font-size: 12px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+
+  &:hover {
+    color: var(--ed-color-primary);
+  }
+}
+
+.question-chevron {
+  color: rgba(100, 106, 115, 0.8);
+  font-size: 20px;
+  line-height: 20px;
+  transform: rotate(90deg);
+  transition: transform 0.2s ease;
+
+  &.expanded {
+    transform: rotate(-90deg);
+  }
+}
+
+.question-reason {
+  margin: 8px 0 0 30px;
 }
 
 .question-index {
@@ -315,6 +503,19 @@ function submit() {
   &:disabled {
     cursor: default;
   }
+}
+
+.option-marker {
+  display: inline-flex;
+  flex: 0 0 22px;
+  align-items: center;
+  justify-content: center;
+  height: 22px;
+  border-radius: 6px;
+  background: rgba(100, 106, 115, 0.08);
+  color: rgba(73, 78, 86, 1);
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .selector {

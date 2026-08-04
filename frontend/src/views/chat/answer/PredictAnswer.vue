@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import BaseAnswer from './BaseAnswer.vue'
-import { chatApi, ChatInfo, type ChatMessage, ChatRecord } from '@/api/chat.ts'
+import { chatApi, ChatInfo, type ChatMessage, ChatRecord, selectAnswerStep } from '@/api/chat.ts'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import MdComponent from '@/views/chat/component/MdComponent.vue'
 import ChartBlock from '@/views/chat/chat-block/ChartBlock.vue'
@@ -196,9 +196,16 @@ function getChatData(recordId?: number) {
   chatApi
     .get_chart_data(recordId)
     .then((response) => {
+      const answerStep = selectAnswerStep(response)
       _currentChat.value.records.forEach((record) => {
         if (record.id === recordId) {
-          record.data = response
+          record.data = answerStep?.data
+          if (answerStep?.chart) {
+            record.chart =
+              typeof answerStep.chart === 'string'
+                ? answerStep.chart
+                : JSON.stringify(answerStep.chart)
+          }
         }
       })
     })

@@ -8,7 +8,11 @@ import dicttoxml
 from sqlalchemy import and_, or_, select, func, delete, update, union, text, BigInteger
 from sqlalchemy.orm import aliased
 
-from apps.ai_model.embedding import EmbeddingModelCache
+from apps.ai_model.embedding import (
+    VECTOR_DIMENSION_PREDICATE,
+    EmbeddingModelCache,
+    embedding_query_params,
+)
 from apps.datasource.models.datasource import CoreDatasource
 from apps.system.models.system_model import AssistantModel
 from apps.template.generate_chart.generator import get_base_terminology_template
@@ -723,25 +727,23 @@ def enable_terminology(session: SessionDep, id: int, enabled: bool, trans: Trans
     session.commit()
 
 
-# def run_save_embeddings(ids: List[int]):
-#     executor.submit(save_embeddings, ids)
-#
-#
-# def fill_empty_embeddings():
-#     executor.submit(run_fill_empty_embeddings)
-# from sqlalchemy import create_engine
-# from sqlalchemy.orm import sessionmaker,scoped_session
-# engine = create_engine(str(settings.SQLALCHEMY_DATABASE_URI))
-# session_maker = scoped_session(sessionmaker(bind=engine))
-
-def run_fill_empty_embeddings(session_maker):
+def run_sync_embeddings(session_maker):
+    """Refresh terminology vectors missing from the active embedding space."""
     try:
         if not settings.EMBEDDING_ENABLED:
             return
+        active_dimension = EmbeddingModelCache.get_dimension()
         session = session_maker()
-        stmt1 = select(Terminology.id).where(and_(Terminology.embedding.is_(None), Terminology.pid.is_(None)))
+        needs_refresh = or_(
+            Terminology.embedding.is_(None),
+            func.vector_dims(Terminology.embedding) != active_dimension,
+        )
+        stmt1 = select(Terminology.id).where(
+            and_(needs_refresh, Terminology.pid.is_(None))
+        )
         stmt2 = select(Terminology.pid).where(
-            and_(Terminology.embedding.is_(None), Terminology.pid.isnot(None))).distinct()
+            and_(needs_refresh, Terminology.pid.isnot(None))
+        ).distinct()
         combined_stmt = union(stmt1, stmt2)
         results = session.execute(combined_stmt).scalars().all()
         save_embeddings(session_maker, results)
@@ -785,6 +787,7 @@ FROM
 (SELECT id, pid, word, oid, specific_ds, datasource_ids, enabled,
 ( 1 - (embedding <=> :embedding_array) ) AS similarity
 FROM terminology AS child
+WHERE embedding IS NOT NULL AND {VECTOR_DIMENSION_PREDICATE}
 ) TEMP
 WHERE similarity > {settings.EMBEDDING_TERMINOLOGY_SIMILARITY} AND oid = :oid AND enabled = true
 AND (specific_ds = false OR specific_ds IS NULL)
@@ -798,6 +801,7 @@ FROM
 (SELECT id, pid, word, oid, specific_ds, datasource_ids, enabled,
 ( 1 - (embedding <=> :embedding_array) ) AS similarity
 FROM terminology AS child
+WHERE embedding IS NOT NULL AND {VECTOR_DIMENSION_PREDICATE}
 ) TEMP
 WHERE similarity > {settings.EMBEDDING_TERMINOLOGY_SIMILARITY} AND oid = :oid AND enabled = true
 AND (
@@ -815,6 +819,7 @@ FROM
 (SELECT id, pid, word, oid, specific_ds, advanced_application, enabled,
 ( 1 - (embedding <=> :embedding_array) ) AS similarity
 FROM terminology AS child
+WHERE embedding IS NOT NULL AND {VECTOR_DIMENSION_PREDICATE}
 ) TEMP
 WHERE similarity > {settings.EMBEDDING_TERMINOLOGY_SIMILARITY} AND oid = :oid AND enabled = true
 AND advanced_application = :advanced_application_id
@@ -876,18 +881,19 @@ def select_terminology_by_word(session: SessionDep, word: str, oid: int, datasou
                 model = EmbeddingModelCache.get_model()
 
                 embedding = model.embed_query(word)
+                vector_params = embedding_query_params(embedding)
 
                 if advanced_application_id is not None:
                     results = session.execute(text(embedding_sql_with_advanced_application),
-                                              {'embedding_array': str(embedding), 'oid': oid,
+                                              {**vector_params, 'oid': oid,
                                                'advanced_application_id': advanced_application_id}).fetchall()
                 elif datasource is not None:
                     results = session.execute(text(embedding_sql_with_datasource),
-                                              {'embedding_array': str(embedding), 'oid': oid,
+                                              {**vector_params, 'oid': oid,
                                                'datasource': datasource}).fetchall()
                 else:
                     results = session.execute(text(embedding_sql),
-                                              {'embedding_array': str(embedding), 'oid': oid}).fetchall()
+                                              {**vector_params, 'oid': oid}).fetchall()
 
                 for row in results:
                     _list.append(Terminology(id=row.id, word=row.word, pid=row.pid))
