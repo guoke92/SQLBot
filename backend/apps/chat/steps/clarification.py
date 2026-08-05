@@ -1,4 +1,4 @@
-"""Assess whether an NLQ intent is sufficiently grounded to generate SQL."""
+"""Build and resolve the canonical clause-oriented query contract."""
 
 from __future__ import annotations
 
@@ -9,32 +9,43 @@ from dataclasses import dataclass
 from typing import Any, Literal
 
 import orjson
-from langchain_core.messages import HumanMessage, SystemMessage
-from pydantic import BaseModel, Field
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
+from apps.chat.query_contract import (
+    ContractDraft,
+    ContractRequirement,
+    ContractSlot,
+    FieldRef,
+    GroupRequirement,
+    OutputRequirement,
+    PredicateRequirement,
+    RelationRequirement,
+    SlotEffect,
+    TimeWindowRequirement,
+    parse_requirement,
+    replace_requirement,
+    requirement_fields,
+    requirement_resources,
+)
 from apps.chat.semantic_intent import (
     ClarificationQuestion,
-    IntentBinding,
     IntentContext,
-    IntentDecision,
-    IntentKind,
     IntentIssue,
     IntentOption,
-    IntentResolution,
-    binding_identifiers,
-    render_decision_value,
-    time_contract_incomplete,
-    validate_binding_requirements,
+    contract_display_rows,
 )
 from apps.conversation.messages import message_content_text
 from common.utils.json_utils import extract_nested_json
 
 
 class IntentAssessment(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     intent_mode: Literal["new", "refine"] = "new"
     status: Literal["ready", "needs_clarification", "blocked"]
     summary: str = ""
-    resolved_decisions: list[IntentDecision] = Field(default_factory=list)
+    edits: list[SlotEffect] = Field(default_factory=list)
     issues: list[IntentIssue] = Field(default_factory=list)
     questions: list[ClarificationQuestion] = Field(default_factory=list)
     blocking_reasons: list[str] = Field(default_factory=list)
@@ -42,12 +53,27 @@ class IntentAssessment(BaseModel):
 
 @dataclass(frozen=True)
 class SemanticAssessmentResult:
-    """Validated semantic terminal plus bounded diagnostics for one graph span."""
-
     context: IntentContext
     usage: dict[str, Any]
     reasoning: str
     attempts: list[dict[str, Any]]
+
+
+class SemanticAssessmentError(RuntimeError):
+    """The assessor failed technically; this is not a business blockage."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        usage: dict[str, Any],
+        reasoning: str,
+        attempts: list[dict[str, Any]],
+    ) -> None:
+        super().__init__(message)
+        self.usage = usage
+        self.reasoning = reasoning
+        self.attempts = attempts
 
 
 _FORBIDDEN_USER_FACING_TERMS = (
@@ -61,95 +87,62 @@ _FORBIDDEN_USER_FACING_TERMS = (
     "关联字段",
     "关联路径",
 )
-_FORBIDDEN_DISPLAY = "、".join(_FORBIDDEN_USER_FACING_TERMS)
+
+_BUSINESS_TERM_REPLACEMENTS = {
+    "主键": "唯一业务标识",
+    "外键": "对应业务标识",
+    "关联字段": "业务对应信息",
+    "关联路径": "业务对应关系",
+}
+
+_SYSTEM_PROMPT = """你是数据查询契约审核器。不要生成 SQL。请把用户需求转换为一份按业务子句组织的查询契约，并只澄清会实质改变结果集或统计值的业务歧义。
+
+唯一契约规则：
+- clause 只能是 projection/output/predicate/group/relation/time_window/order/limit。
+- 每个 requirement 只表达一个 clause，不能用一个通用 role 代替多个子句。
+- slot_id 只是稳定引用。新槽位可使用有意义的临时名称，服务端会分配最终身份；已有槽位必须沿用原 slot_id。
+- edits 和选项 effects 只使用 set/omit。set 提供完整 requirement；omit 不提供 requirement。
+- new 查询不得改写已有已确认槽位；refine 才能 set/omit 已确认槽位。未变更槽位不重复返回。
+- schema 只可验证字段存在、类型和用户概念的唯一映射，不能凭 schema 创造“排除隐藏”“仅有效数据”等结果集政策。
+- 用户明确说“最新 N 条”表示 order + limit，不代表时间范围；只有明确期间才产生 time_window。
+- 不输出某字段只影响 projection/output，不等于排除对应数据。
+- 平台返回行数上限不是用户契约；只有用户明确数量才产生 limit。
+- relation 同时给出字段对和业务主体范围 population(intersection/left/right/union)。
+- 一个共享分组结果引用多个事实资源时，relation 是必需子句；字段对依据 schema，population 是业务范围，未明确时必须澄清，不能由 SQL 阶段默认选择。
+- “查询/展示对应的字段”默认是 output(value)，不等于 group；只有用户要求“按该维度统计/拆分”时才生成 group。
+- 多事实结果中的 group 必须是各事实都能对应的共享业务粒度；某字段只存在于一侧且会让另一侧指标重复时，必须澄清取值/展示政策，不能直接按它拆分。
+- output.operation 只能是 value/count/count_distinct/sum/avg/min/max/distinct_concat/ratio/difference；不生成任意公式语言。
+- predicate.null_policy 默认 exclude；只有业务明确要求保留空值时才用 preserve，is_null 使用 only。
+- time_window.mode 只能是 all/explicit/rolling；explicit 使用 start + end_exclusive；一个业务范围涉及多个事实来源时 fields 列出每个对应时间字段。
+- order 使用 field 或 output_slot_id 二选一；limit.value 必须大于 0。
+
+澄清规则：
+- 一次列出当前证据能发现的全部关键业务问题；高度相关的问题可以合并，正交问题保持独立。
+- 用户只确认业务需求，不负责选择表、连接方式或 SQL 实现。
+- 字段提示用“业务名称(field_name)”；不要默认展示物理表名。
+- 推荐仅标记，不代替用户选择。每题提供 2~3 个互斥选项和业务影响，并允许自定义回答。
+- question 不声明 clause kind；一条业务问题可以同时确认 output/time_window/group 等多个相关子句。
+- question.slot_ids 必须覆盖对应 issues.slot_id；每个 option.effects 必须恰好逐一处理这些 slot，不能缺少或额外处理其他 slot。
+- 结构化选项的 set effect 必须给出完整 requirement，requirement.slot_id 与 effect.slot_id 相同；omit 仅可用于 issue.allow_omit=true 的可选业务维度。
+- 自定义回答只作为这些 slot 的新证据，不能与选项简单拼接。
+- deterministic_time_parse 中明确且高置信度的 start/end_exclusive 是用户已表达的期间。每个相关 time_window 选项必须直接使用该范围，并绑定实际业务时间字段；不得创建没有 fields 的独立“年份范围”槽位。
+- 已有契约槽位是锁定事实；除 refine 的显式 replace/remove 外不得改写，也不得重复提问。
+- 只有现有证据无法提供可执行选项才 blocked；存在合理选项则 needs_clarification；所有槽位明确后 ready。
+- ready 必须能形成非空契约，且 edits/issues/questions 互不冲突。
+- 所有面向用户的 title/reason/label/description/impact 使用业务语言，不出现数据库实现术语。
+- 输出必须严格符合随后提供的 JSON Schema，不要 Markdown，也不要输出 schema 之外的字段。
+"""
 
 
-_SYSTEM_PROMPT = """你是数据查询意图审核器。你的任务不是生成 SQL，而是在生成 SQL 前判断查询口径是否已经唯一、完整且有数据库证据支撑。
+def _assessment_schema_text() -> str:
+    return orjson.dumps(IntentAssessment.model_json_schema()).decode()
 
-必须同时检查：
-1. 指标定义与计算方式；
-2. 维度及其数据库映射；
-3. 时间范围、时间粒度及应使用的业务时间字段；
-4. 组织、人员、系统、项目等范围过滤的业务归属口径；
-5. 多表关联路径、基础数据集合/连接方向、统计主体与去重粒度；
-6. 术语、示例、用户已确认决定之间是否冲突；
-7. 实体候选是否存在多个可行解释。
 
-多轮对话处理：
-- previous_query 为空时 intent_mode 使用 new。
-- 当前问题是独立的新查询时使用 new，不继承 previous_query。
-- 当前问题是在上一条成功查询上增加、删除、更换或修正口径时使用 refine。未被当前问题影响的旧决定会由系统保留；你只需返回新增、替换或明确删除的决定，以及因此产生的新歧义。
-- refine 时沿用稳定 key 覆盖旧决定；明确不再需要的旧输出用相同 key、effect=omit 表达。不得通过省略旧决定来暗中删除用户需求。
-
-规则：
-- 先把用户原问题中已经明确表达的指标、字段、聚合、时间、范围、关联、粒度和映射写入 resolved_decisions，再判断剩余歧义；原问题中的明确要求与后续用户锁定决定具有同等约束力，不得换一种说法再次确认。
-- resolved_decisions 只保存用户明确表达或术语/规则/schema 能唯一确定的业务契约；纯 inference 不能关闭歧义，不得把仍有多个业务解释的内容伪装成已解决决定。
-- SQL 实现细节不是业务歧义：过滤下推到 JOIN 前、FULL JOIN 的方言改写、COALESCE 合并两侧字段、预聚合、别名、排序等由系统自行实现，不得询问用户。
-- 用户只确认业务结果，不负责设计数据库实现。多数据来源的技术差异必须翻译成业务影响，例如询问“只要任一类业务有数据是否都展示”“一个业务主体对应多个关联对象时合并一行还是分别展示”，不得询问使用哪张表或如何进行技术关联。
-- 面向用户的字段映射采用“业务名称(field_name)”，例如“资产层级(apply_level)”“确权日期(confirm_date)”。字段名用于辅助核对，不能取代业务名称；不要默认展示原始物理表名。只有同名字段来源会改变业务含义时，才使用业务化来源说明。
-- 若用户术语与字段业务说明不等价（例如用户所说的“对象层级”与“资产层级(apply_level)”），即使只有一个候选字段也必须确认映射，不能仅凭字段说明推断后直接锁定。
-- “汇总金额/金额合计”在没有冲突证据时按 SUM 处理；“名称拼接”默认去重拼接。这类统一规则写入 resolved_decisions，不得阻断查询。
-- 用户明确指定关联字段时直接锁定；若配置关系包含更多字段，先由后续 SQL 校验/数据验证处理，不得仅因存在更多可用字段就要求用户重复确认。只有证据表明用户指定方式无法表达唯一业务关系时才提出一个冲突澄清。
-- 只对会实质改变结果集或统计值的歧义提问；不要询问格式、排序、图表类型等非关键偏好。
-- 一次列出当前证据能发现的全部关键问题，避免逐轮挤牙膏。
-- 先形成完整查询契约再提问：指标、时间、维度、过滤、基础数据集合、关联路径、分组粒度、去重方式都必须覆盖。
-- 若业务范围、结果粒度和多值展示彼此依赖，应合并为一个业务问题；彼此正交的选择保持独立，避免形成复杂的组合选项矩阵。
-- 一个问题可以通过 question.issue_keys 同时解决多个高度相关的 issue；不要生成含义重复或选项等价的问题。
-- ready 必须至少包含一项 resolved_decisions 或已有 locked_decisions，不能只给 summary 而不形成可执行契约。
-- 每个问题给出 2~3 个互斥、可执行的选项，说明影响；标记推荐项及推荐理由。
-- title、reason、description、impact 保持简洁并以业务语言为主，避免重复描述字段结构和已确认决定。
-- 推荐只用于标记建议项，不得视为用户已选择或已确认。
-- 用户已确认决定是锁定事实，不得再次询问或改写。
-- 用户自定义回答属于待解释证据。必须将其归一为具体 resolved_decision 后才能锁定；若仍不唯一，应保留原 issue 并用业务语言继续确认。
-- 选项回答与自定义回答严格互斥。自定义回答若提到 A/B/C，应依据 submitted_clarifications.option_catalog 中相同 marker 的选项作为参考，再按用户补充内容形成新的完整口径；不得同时保留该选项与自定义文本后简单拼接。
-- 已存在锁定决定时，这是契约一致性复核：所有剩余问题仍须本轮一次给出，优先合并由多个决定共同产生的冲突。
-- 只有在现有证据不足以提供可执行选项时才返回 blocked；存在多个合理选项时返回 needs_clarification。
-- 没有实质歧义时返回 ready。
-- issue.key 和 resolved_decision.key 都是稳定的查询契约槽位，例如 scope.department_basis、metric.amount、relation.business_object.keys；同一语义不得换 key 或拆出同义子 key。
-- 一个业务指标只能形成一个 metric decision；金额字段、业务日期和聚合方式必须共同放在该 decision 的 bindings 中。不得再拆分 metric.amount.aggregation 等修饰型 decision。calculation 仅用于比例、差值、代表值等真正的派生计算。
-- question.issue_keys 必须引用 issues 中的 key。
-- 每个 option.resolutions 必须逐一覆盖 question.issue_keys。每个 resolution 包含用户可理解的 label、具体 value、effect(include|omit) 和结构化 bindings。effect=omit 或确实不产生 SQL 字段约束时 bindings 才可为空。
-- 业务时间字段与时间范围是两个独立契约槽位。问题标题若同时询问“按哪个时间、哪段期间”，选项必须同时解决 time.basis 与 time.range；不得在结构化选项描述中要求用户另行补充日期。previous_query 已有时间范围且 intent_mode=refine 时可直接继承，只询问受修改影响的业务时间字段。
-- 每个 binding 结构为 {"identifier":"物理字段","role":"group|measure|attribute|filter|join","aggregation":"none|count|count_distinct|sum|avg|min|max|distinct_concat"}。一个字段只承担一个明确角色：统计主体/粒度使用 group，指标值使用 measure，随主体展示的属性使用 attribute，范围和时间条件使用 filter，关系键使用 join。
-- measure 必须声明非 none 聚合；group/filter/join 使用 none；attribute 直接展示时使用 none，取代表值使用 min/max，多值去重拼接使用 distinct_concat。不得把指标的业务日期标成 measure，也不得把多个字段共用一个聚合声明。
-- effect 必须明确使用 include 或 omit。用户明确选择“不输出”时使用 omit；其余情况使用 include。include 的指标、计算、维度和粒度必须提供 bindings，禁止用空数组掩盖尚未完成的字段映射。
-- option.id 和 question.id 在本次响应内唯一，使用简短稳定英文标识。
-- 输出严格 JSON，不要使用 Markdown。
-
-JSON 结构：
-{
-  "intent_mode":"new|refine",
-  "status": "ready|needs_clarification|blocked",
-  "summary": "已确认口径的简要概述",
-  "resolved_decisions": [{"key":"metric.amount","kind":"metric","label":"金额","value":"金额合计","source":"user|rule|terminology|schema","evidence_refs":["question"],"bindings":[{"identifier":"amount","role":"measure","aggregation":"sum"},{"identifier":"business_date","role":"filter","aggregation":"none"}],"effect":"include","locked":true}],
-  "issues": [{"key":"...","kind":"scope|metric|dimension|time|filter|relation|grain|calculation|entity|datasource","reason":"...","evidence_refs":["schema"]}],
-  "questions": [{
-    "id":"...",
-    "issue_keys":["..."],
-    "kind":"...",
-    "title":"...",
-    "reason":"为什么需要确认",
-    "selection_type":"single|multiple|text",
-    "required":true,
-    "recommended_option_ids":["..."],
-    "recommendation_reason":"...",
-    "recommendation_strength":"strong|moderate|weak",
-    "options":[{"id":"...","label":"有任一类业务数据就展示","description":"指标 A 或指标 B 任一侧有记录的业务主体都会保留","impact":"可查看完整业务范围，缺少某项指标时对应值为空","evidence_refs":["schema"],"resolutions":{"result.population":{"label":"业务主体范围","value":"两个指标来源的业务主体合集","bindings":[{"identifier":"entity_name","role":"group","aggregation":"none"},{"identifier":"business_date","role":"filter","aggregation":"none"}],"effect":"include"}}}],
-    "allow_custom":true,
-    "custom_placeholder":"也可以描述你的口径"
-  }],
-  "blocking_reasons":[]
-}"""
-_SYSTEM_PROMPT += (
-    f"\n- 面向用户的内容禁止出现以下数据库实现术语：{_FORBIDDEN_DISPLAY}。"
-)
-
-_REPAIR_PROMPT = """你是查询意图 JSON 契约修复器。请根据校验错误修复候选 JSON，不要重新解释业务需求。
-- 只输出修正后的完整 JSON，不要使用 Markdown。
-- 不得编造物理字段。缺少可靠字段映射的 resolved_decision 应移回 issues，并提供业务化澄清问题。
-- 一个业务指标只保留一个 metric decision；金额字段使用 measure，业务日期使用 filter，聚合写在 measure binding 中。
-- calculation 仅用于比例、差值或代表值等派生计算，并必须包含其实际输出字段的 measure binding。
-- 保留候选中其他已经完整且不冲突的决定、问题和选项。"""
+_REPAIR_PROMPT = """上一候选未通过结构或契约校验。请基于原始系统规则、原始业务证据和校验问题，返回修正后的完整 JSON。
+- 只修复已指出的问题，不重新解释或遗失已经完整的业务口径。
+- 不得编造字段；不确定的 requirement 应保留为 issue/question。
+- 输出严格符合 JSON Schema，不要 Markdown。
+"""
 
 
 def _reasoning_content(response: Any) -> str:
@@ -162,7 +155,6 @@ def _reasoning_content(response: Any) -> str:
 
 
 def _assessment_shape(raw_text: str) -> dict[str, Any]:
-    """Return bounded structural diagnostics without persisting full model text."""
     try:
         json_text = extract_nested_json(raw_text)
         payload = orjson.loads(json_text) if json_text else {}
@@ -170,39 +162,18 @@ def _assessment_shape(raw_text: str) -> dict[str, Any]:
         return {}
     if not isinstance(payload, dict):
         return {}
-
-    decisions: list[dict[str, Any]] = []
-    for raw in payload.get("resolved_decisions") or []:
-        if not isinstance(raw, dict):
-            continue
-        bindings = [
-            {
-                "identifier": str(binding.get("identifier") or ""),
-                "role": str(binding.get("role") or ""),
-                "aggregation": str(binding.get("aggregation") or "none"),
-            }
-            for binding in raw.get("bindings") or []
-            if isinstance(binding, dict)
-        ]
-        decisions.append(
-            {
-                "key": str(raw.get("key") or ""),
-                "kind": str(raw.get("kind") or ""),
-                "bindings": bindings,
-            }
-        )
     return {
         "status": str(payload.get("status") or ""),
-        "decisions": decisions,
-        "issue_keys": [
-            str(issue.get("key") or "")
-            for issue in payload.get("issues") or []
-            if isinstance(issue, dict)
+        "edit_count": len(payload.get("edits") or []),
+        "issue_slots": [
+            str(item.get("slot_id") or "")
+            for item in payload.get("issues") or []
+            if isinstance(item, dict)
         ],
         "question_ids": [
-            str(question.get("id") or "")
-            for question in payload.get("questions") or []
-            if isinstance(question, dict)
+            str(item.get("id") or "")
+            for item in payload.get("questions") or []
+            if isinstance(item, dict)
         ],
     }
 
@@ -214,20 +185,29 @@ def _attempt_diagnostic(
     usage: dict[str, Any],
     error: Exception | None,
 ) -> dict[str, Any]:
-    diagnostic = {
+    result = {
         "attempt": attempt,
         "valid": error is None,
         "token_usage": usage,
         **_assessment_shape(raw_text),
     }
     if error is not None:
-        diagnostic["validation_error"] = str(error)[:1000]
-    return diagnostic
+        result["validation_error"] = str(error)[:1000]
+    return result
 
 
-def _entity_question_id(phrase: str) -> str:
-    digest = hashlib.sha256(phrase.encode("utf-8")).hexdigest()[:12]
-    return f"entity_{digest}"
+def _validation_diagnostic(error: Exception) -> str:
+    if isinstance(error, ValidationError):
+        issues = [
+            {
+                "path": ".".join(str(part) for part in item.get("loc") or ()),
+                "code": item.get("type"),
+                "message": item.get("msg"),
+            }
+            for item in error.errors(include_url=False, include_input=False)
+        ]
+        return orjson.dumps(issues).decode()
+    return str(error)[:2000]
 
 
 def _translated(
@@ -243,124 +223,109 @@ def _translated(
     return fallback.format(**kwargs)
 
 
+def _entity_slot_id(phrase: str) -> str:
+    digest = hashlib.sha256(phrase.encode("utf-8")).hexdigest()[:12]
+    return f"entity_{digest}"
+
+
+def _target_field(target: Mapping[str, Any]) -> FieldRef | None:
+    table = str(target.get("table_name") or "").strip()
+    field = str(target.get("field_name") or "").strip()
+    if not field:
+        return None
+    return FieldRef(resource=table, field=field)
+
+
 def _entity_questions(
-    bindings: dict[str, Any],
-    trans: Callable[..., str] | None = None,
+    bindings: Mapping[str, Any],
+    trans: Callable[..., str] | None,
 ) -> tuple[list[IntentIssue], list[ClarificationQuestion]]:
     issues: list[IntentIssue] = []
     questions: list[ClarificationQuestion] = []
     for phrase, binding in (bindings.get("ambiguous") or {}).items():
-        issue_key = f"entity.{phrase}"
-        candidates_by_value: dict[str, dict[str, Any]] = {}
-        for candidate in binding.get("options") or []:
-            canonical = str(candidate.get("canonical") or "").strip()
-            if not canonical:
-                continue
-            key = canonical.casefold()
-            grouped = candidates_by_value.setdefault(
-                key,
-                {
-                    "canonical": canonical,
-                    "description": str(candidate.get("description") or "").strip(),
-                    "targets": [],
-                },
-            )
-            known_targets = {
-                (target.get("table_name"), target.get("field_name"))
-                for target in grouped["targets"]
-            }
-            for target in candidate.get("targets") or []:
-                target_key = (target.get("table_name"), target.get("field_name"))
-                if all(target_key) and target_key not in known_targets:
-                    grouped["targets"].append(target)
-                    known_targets.add(target_key)
-
+        slot_id = _entity_slot_id(str(phrase))
         options: list[IntentOption] = []
-        for index, candidate in enumerate(candidates_by_value.values()):
-            canonical = candidate["canonical"]
-            targets = [
-                f"{target.get('table_name')}.{target.get('field_name')}"
+        seen: set[tuple[str, str]] = set()
+        for index, candidate in enumerate(binding.get("options") or []):
+            canonical = str(candidate.get("canonical") or "").strip()
+            fields = [
+                field
                 for target in candidate.get("targets") or []
-                if target.get("table_name") and target.get("field_name")
+                if (field := _target_field(target)) is not None
             ]
-            field_names = list(
-                dict.fromkeys(target.rsplit(".", 1)[-1] for target in targets)
+            if not canonical or not fields:
+                continue
+            field = fields[0]
+            signature = (canonical.casefold(), field.normalized)
+            if signature in seen:
+                continue
+            seen.add(signature)
+            description = str(candidate.get("description") or "").strip()
+            business_field = (
+                f"{description}({field.field})" if description else field.field
             )
-            business_name = str(candidate.get("description") or "").strip()
-            if business_name:
-                field_names = [
-                    (
-                        f"{business_name}({field_name})"
-                        if business_name.casefold() != field_name.casefold()
-                        else field_name
-                    )
-                    for field_name in field_names
-                ]
+            requirement = PredicateRequirement(
+                slot_id=slot_id,
+                label=str(phrase),
+                source="terminology",
+                evidence_refs=[f"field:{field.identifier}"],
+                field=field,
+                operator="eq",
+                values=[canonical],
+            )
             options.append(
                 IntentOption(
                     id=f"value_{index + 1}",
                     label=canonical,
-                    description=(
-                        _translated(
-                            trans,
-                            "i18n_chat.clarification.entity_targets",
-                            "业务字段：{targets}",
-                            targets="、".join(field_names),
-                        )
-                        if field_names
-                        else ""
+                    description=_translated(
+                        trans,
+                        "i18n_chat.clarification.entity_targets",
+                        "业务字段：{targets}",
+                        targets=business_field,
                     ),
                     impact=_translated(
                         trans,
                         "i18n_chat.clarification.entity_impact",
                         "查询中将“{phrase}”按“{canonical}”精确过滤",
-                        phrase=phrase,
+                        phrase=str(phrase),
                         canonical=canonical,
                     ),
-                    evidence_refs=[f"field:{target}" for target in targets],
-                    resolutions={
-                        issue_key: IntentResolution(
-                            label=phrase,
-                            value=canonical,
-                            bindings=[
-                                IntentBinding(
-                                    identifier=target,
-                                    role="filter",
-                                    aggregation="none",
-                                )
-                                for target in targets
-                            ],
+                    evidence_refs=requirement.evidence_refs,
+                    effects=[
+                        SlotEffect(
+                            slot_id=slot_id,
+                            action="set",
+                            requirement=requirement,
                         )
-                    },
+                    ],
                 )
             )
         if not options:
             continue
-        issues.append(
-            IntentIssue(
-                key=issue_key,
-                kind="entity",
-                reason=_translated(
-                    trans,
-                    "i18n_chat.clarification.entity_issue",
-                    "“{phrase}”需要确认具体业务值",
-                    phrase=phrase,
-                ),
-                evidence_refs=[
-                    evidence for option in options for evidence in option.evidence_refs
-                ],
-            )
+        issue = IntentIssue(
+            slot_id=slot_id,
+            clause="predicate",
+            label=str(phrase),
+            reason=_translated(
+                trans,
+                "i18n_chat.clarification.entity_issue",
+                "“{phrase}”需要确认具体业务值",
+                phrase=str(phrase),
+            ),
+            evidence_refs=list(
+                dict.fromkeys(ref for option in options for ref in option.evidence_refs)
+            ),
         )
+        issues.append(issue)
         questions.append(
             ClarificationQuestion(
-                id=_entity_question_id(phrase),
-                issue_keys=[issue_key],
-                kind="entity",
+                id=slot_id,
+                slot_ids=[slot_id],
                 title=_translated(
                     trans,
                     "i18n_chat.clarification.entity_title",
                     "“{phrase}”具体指哪个业务值？",
-                    phrase=phrase,
+                    phrase=str(phrase),
                 ),
                 reason=_translated(
                     trans,
@@ -374,331 +339,576 @@ def _entity_questions(
                     "按术语召回相关度推荐最匹配的值。",
                 ),
                 recommendation_strength="moderate",
-                options=options,
+                options=options[:3],
                 custom_placeholder=_translated(
                     trans,
                     "i18n_chat.clarification.entity_custom_placeholder",
                     "输入准确的业务值",
                 ),
-                binding_phrase=phrase,
             )
         )
     return issues, questions
 
 
-def _normalize_question(
-    question: ClarificationQuestion,
+def _next_slot_id(existing: set[str], counter: int) -> tuple[str, int]:
+    current = counter
+    while True:
+        candidate = f"slot_{current:04d}"
+        current += 1
+        if candidate not in existing:
+            existing.add(candidate)
+            return candidate, current
+
+
+def _source_from_evidence(evidence_refs: list[str]) -> str:
+    joined = " ".join(evidence_refs).casefold()
+    if "terminology" in joined or "entity" in joined:
+        return "terminology"
+    if "example" in joined or "training" in joined:
+        return "example"
+    if "rule" in joined or "custom_prompt" in joined:
+        return "rule"
+    if "schema" in joined or "field:" in joined:
+        return "schema"
+    return "user"
+
+
+_TABLE_HEADER_RE = re.compile(r"^#\s*Table:\s*([^,;\s]+)", re.MULTILINE)
+_FIELD_LINE_RE = re.compile(r"^\s*\(([^:(),\s]+)\s*:", re.MULTILINE)
+
+
+def _schema_fields(schema_text: str) -> dict[str, set[str]]:
+    result: dict[str, set[str]] = {}
+    matches = list(_TABLE_HEADER_RE.finditer(schema_text or ""))
+    for index, match in enumerate(matches):
+        table = match.group(1).strip().strip('`"[]').casefold()
+        end = (
+            matches[index + 1].start() if index + 1 < len(matches) else len(schema_text)
+        )
+        block = schema_text[match.end() : end]
+        fields = {
+            field.group(1).strip().strip('`"[]').casefold()
+            for field in _FIELD_LINE_RE.finditer(block)
+        }
+        result[table] = fields
+        result.setdefault(table.rsplit(".", 1)[-1], fields)
+    return result
+
+
+def _validate_contract_fields(
+    requirements: list[ContractRequirement],
+    schema_text: str,
+) -> None:
+    catalog = _schema_fields(schema_text)
+    if not catalog:
+        return
+    all_fields = set().union(*catalog.values()) if catalog else set()
+    unknown: list[str] = []
+    for requirement in requirements:
+        if isinstance(requirement, OutputRequirement) and requirement.operation in {
+            "ratio",
+            "difference",
+        }:
+            continue
+        for field in requirement_fields(requirement):
+            if field.resource:
+                valid = field.field.casefold() in catalog.get(
+                    field.resource.casefold(),
+                    catalog.get(field.resource_name.casefold(), set()),
+                )
+            else:
+                valid = field.field.casefold() in all_fields
+            if not valid:
+                unknown.append(field.identifier)
+    if unknown:
+        raise ValueError(
+            "Contract references field(s) absent from the retrieved schema: "
+            + ", ".join(dict.fromkeys(unknown))
+        )
+
+
+def _remap_new_slots(
+    assessment: IntentAssessment,
     *,
-    issue_keys: list[str],
-    issue_kinds: Mapping[str, IntentKind],
-) -> ClarificationQuestion:
-    deduplicated: list[IntentOption] = []
+    existing_ids: set[str],
+) -> IntentAssessment:
+    """Turn response-local names into opaque server slot ids exactly once."""
+    mapping: dict[str, str] = {}
+    counter = 1
+    for effect in assessment.edits:
+        raw = effect.slot_id.strip()
+        if raw in existing_ids:
+            mapping[raw] = raw
+        elif effect.action == "omit":
+            raise ValueError(f"Omit edit references unknown slot: {raw}")
+        elif raw not in mapping:
+            mapping[raw], counter = _next_slot_id(existing_ids, counter)
+    for issue in assessment.issues:
+        raw = issue.slot_id.strip()
+        if raw not in existing_ids and raw not in mapping:
+            mapping[raw], counter = _next_slot_id(existing_ids, counter)
+        else:
+            mapping.setdefault(raw, raw)
+
+    edits: list[SlotEffect] = []
+    for effect in assessment.edits:
+        slot_id = mapping.get(effect.slot_id, effect.slot_id)
+        requirement = effect.requirement
+        if requirement is not None:
+            requirement = parse_requirement(
+                {
+                    **requirement.model_dump(mode="json"),
+                    "slot_id": slot_id,
+                    "source": _source_from_evidence(requirement.evidence_refs),
+                }
+            )
+        edits.append(
+            SlotEffect(
+                action=effect.action,
+                slot_id=slot_id,
+                requirement=requirement,
+            )
+        )
+    issues = [
+        issue.model_copy(update={"slot_id": mapping.get(issue.slot_id, issue.slot_id)})
+        for issue in assessment.issues
+    ]
+    questions: list[ClarificationQuestion] = []
+    for question in assessment.questions:
+        slot_ids = [mapping.get(slot_id, slot_id) for slot_id in question.slot_ids]
+        options: list[IntentOption] = []
+        for option in question.options:
+            effects: list[SlotEffect] = []
+            for effect in option.effects:
+                slot_id = mapping.get(effect.slot_id, effect.slot_id)
+                requirement = effect.requirement
+                if requirement is not None:
+                    requirement = parse_requirement(
+                        {
+                            **requirement.model_dump(mode="json"),
+                            "slot_id": slot_id,
+                            "source": _source_from_evidence(requirement.evidence_refs),
+                        }
+                    )
+                effects.append(
+                    SlotEffect(
+                        slot_id=slot_id,
+                        action=effect.action,
+                        requirement=requirement,
+                    )
+                )
+            options.append(option.model_copy(update={"effects": effects}))
+        questions.append(
+            question.model_copy(update={"slot_ids": slot_ids, "options": options})
+        )
+    return assessment.model_copy(
+        update={"edits": edits, "issues": issues, "questions": questions}
+    )
+
+
+def _validate_question(
+    question: ClarificationQuestion,
+    open_slots: Mapping[str, ContractSlot],
+    schema_text: str,
+) -> None:
+    if not question.id.strip():
+        raise ValueError("Clarification question id cannot be empty")
+    if not question.slot_ids or any(
+        slot_id not in open_slots for slot_id in question.slot_ids
+    ):
+        raise ValueError(
+            f"Clarification question {question.id} references non-open slots"
+        )
     option_ids: set[str] = set()
     option_labels: set[str] = set()
-    if question.selection_type != "text":
-        for option in question.options:
-            label_key = option.label.strip().casefold()
-            if not option.id or not label_key:
-                continue
-            if option.id in option_ids or label_key in option_labels:
-                continue
-            option_ids.add(option.id)
-            option_labels.add(label_key)
-            missing_resolutions = [
-                key for key in issue_keys if key not in option.resolutions
-            ]
-            if missing_resolutions:
-                raise ValueError(
-                    f"Clarification option {option.id} does not resolve: "
-                    + ", ".join(missing_resolutions)
-                )
-            for key in issue_keys:
-                resolution = option.resolutions[key]
-                kind = issue_kinds.get(key, question.kind)
-                validate_binding_requirements(
-                    kind=kind,
-                    effect=resolution.effect,
-                    bindings=resolution.bindings,
-                    context=f"Clarification resolution {key}",
-                )
-            if question.kind in {"dimension", "grain"}:
-                identifiers = list(
-                    dict.fromkeys(
-                        identifier.strip().strip("`\"'[]")
-                        for resolution in option.resolutions.values()
-                        for identifier in binding_identifiers(resolution.bindings)
-                        if identifier.strip()
-                    )
-                )
-                if len(identifiers) == 1 and "." not in identifiers[0]:
-                    identifier = identifiers[0]
-                    business_text = re.sub(
-                        r"[\s()（）_\-]|使用|选择|字段",
-                        "",
-                        option.label.casefold().replace(identifier.casefold(), ""),
-                    )
-                    if not business_text:
-                        raise ValueError(
-                            "Dimension option must include a business name before "
-                            f"its physical field hint: {identifier}"
-                        )
-                    if identifier.casefold() not in option.label.casefold():
-                        option = option.model_copy(
-                            update={"label": f"{option.label}({identifier})"}
-                        )
-            deduplicated.append(option)
-        if not deduplicated:
+    normalized_options: list[IntentOption] = []
+    for option in question.options:
+        option = option.model_copy(
+            update={
+                "label": _business_language(option.label),
+                "description": _business_language(option.description),
+                "impact": _business_language(option.impact),
+            }
+        )
+        label = option.label.strip().casefold()
+        if (
+            not option.id
+            or not label
+            or option.id in option_ids
+            or label in option_labels
+        ):
             raise ValueError(
-                f"Clarification question {question.id} requires an option or text input"
+                f"Clarification question {question.id} has duplicate options"
             )
-        recommended_order = {
-            option_id: index
-            for index, option_id in enumerate(question.recommended_option_ids)
-        }
-        original_order = {option.id: index for index, option in enumerate(deduplicated)}
-        deduplicated.sort(
-            key=lambda option: (
-                0 if option.id in recommended_order else 1,
-                recommended_order.get(option.id, original_order[option.id]),
-                original_order[option.id],
+        option_ids.add(option.id)
+        option_labels.add(label)
+        effect_ids = {effect.slot_id for effect in option.effects}
+        expected_ids = set(question.slot_ids)
+        if effect_ids != expected_ids:
+            raise ValueError(
+                f"Clarification option {option.id} must resolve exactly: "
+                + ", ".join(sorted(expected_ids))
+            )
+        for effect in option.effects:
+            slot = open_slots[effect.slot_id]
+            if effect.action == "omit":
+                if not slot.allow_omit:
+                    raise ValueError(
+                        f"Contract slot {effect.slot_id} cannot be omitted"
+                    )
+                continue
+            assert effect.requirement is not None
+            if effect.requirement.clause != slot.clause:
+                raise ValueError(
+                    f"Effect for {effect.slot_id} has clause "
+                    f"{effect.requirement.clause}, expected {slot.clause}"
+                )
+            _validate_contract_fields([effect.requirement], schema_text)
+        fields = list(
+            dict.fromkeys(
+                field.field
+                for effect in option.effects
+                if effect.requirement is not None
+                and effect.requirement.clause
+                in {"output", "group", "time_window", "order"}
+                for field in requirement_fields(effect.requirement)
             )
         )
-    options = deduplicated[:3]
-
-    available_ids = {option.id for option in options}
-    recommended = list(
-        dict.fromkeys(
-            option_id
-            for option_id in question.recommended_option_ids
-            if option_id in available_ids
-        )
+        if len(fields) == 1 and fields[0].casefold() not in option.label.casefold():
+            option = option.model_copy(update={"label": f"{option.label}({fields[0]})"})
+        normalized_options.append(option)
+    if question.selection_type != "text" and len(question.options) < 2:
+        raise ValueError(f"Clarification question {question.id} requires 2-3 options")
+    if len(question.options) > 3:
+        del question.options[3:]
+    question.options = normalized_options[:3]
+    question.title = _business_language(question.title)
+    question.reason = _business_language(question.reason)
+    question.recommendation_reason = _business_language(
+        question.recommendation_reason
     )
-    if question.selection_type == "single":
-        recommended = recommended[:1]
-    if options and not recommended:
-        recommended = [options[0].id]
-    visible_text = "\n".join(
+    question.custom_placeholder = _business_language(question.custom_placeholder)
+    available = {option.id for option in question.options}
+    question.recommended_option_ids = [
+        item
+        for item in dict.fromkeys(question.recommended_option_ids)
+        if item in available
+    ][:1]
+    visible = "\n".join(
         [
             question.title,
             question.reason,
             question.recommendation_reason,
-            question.custom_placeholder,
             *(
                 text
-                for option in options
-                for text in (
-                    option.label,
-                    option.description,
-                    option.impact,
-                    *(resolution.label for resolution in option.resolutions.values()),
-                )
+                for option in question.options
+                for text in (option.label, option.description, option.impact)
             ),
         ]
     ).casefold()
-    forbidden = []
-    for term in _FORBIDDEN_USER_FACING_TERMS:
-        normalized = term.casefold()
+    forbidden = [
+        term
+        for term in _FORBIDDEN_USER_FACING_TERMS
         if (
-            re.search(rf"\b{re.escape(normalized)}\b", visible_text)
-            if normalized.isascii()
-            else normalized in visible_text
-        ):
-            forbidden.append(term)
+            re.search(rf"\b{re.escape(term)}\b", visible)
+            if term.isascii()
+            else term in visible
+        )
+    ]
     if forbidden:
         raise ValueError(
-            "Clarification question exposes database implementation term(s): "
+            "Clarification exposes database implementation terms: "
             + ", ".join(forbidden)
         )
-    return question.model_copy(
-        update={
-            "issue_keys": list(dict.fromkeys(issue_keys)),
-            "options": options,
-            "recommended_option_ids": recommended,
-            "required": True,
-            "allow_custom": True,
-        }
-    )
+
+
+def _business_language(value: str) -> str:
+    """Normalize known implementation vocabulary at the presentation boundary."""
+    result = value
+    for term, replacement in _BUSINESS_TERM_REPLACEMENTS.items():
+        if term.isascii():
+            result = re.sub(
+                rf"\b{re.escape(term)}\b",
+                replacement,
+                result,
+                flags=re.IGNORECASE,
+            )
+        else:
+            result = result.replace(term, replacement)
+    return result
+
+
+def _validate_draft_relation_closure(
+    requirements: list[ContractRequirement],
+    open_slots: Mapping[str, ContractSlot],
+    questions: list[ClarificationQuestion],
+) -> None:
+    """Ensure a multi-resource shared grain cannot omit the relation decision.
+
+    For unresolved slots we only use resources common to every selectable
+    option.  Alternative source choices therefore do not create false
+    multi-resource requirements, while mandatory signed/financing facts do.
+    """
+    clauses: list[tuple[str, frozenset[str]]] = [
+        (requirement.clause, requirement_resources(requirement))
+        for requirement in requirements
+    ]
+    question_by_slot = {
+        slot_id: question
+        for question in questions
+        for slot_id in question.slot_ids
+    }
+    for slot_id, slot in open_slots.items():
+        question = question_by_slot.get(slot_id)
+        if question is None:
+            continue
+        option_resources: list[frozenset[str]] = []
+        for option in question.options:
+            effect = next(
+                (effect for effect in option.effects if effect.slot_id == slot_id),
+                None,
+            )
+            if effect is None or effect.requirement is None:
+                option_resources = []
+                break
+            option_resources.append(requirement_resources(effect.requirement))
+        if option_resources:
+            common = set(option_resources[0])
+            for resources in option_resources[1:]:
+                common.intersection_update(resources)
+            clauses.append((slot.clause, frozenset(common)))
+
+    group_resources = {
+        resource
+        for clause, resources in clauses
+        if clause == "group"
+        for resource in resources
+    }
+    output_resources = {
+        resource
+        for clause, resources in clauses
+        if clause == "output"
+        for resource in resources
+    }
+    result_resources = group_resources | output_resources
+    if not group_resources or len(result_resources) <= 1:
+        return
+    has_relation = any(
+        isinstance(requirement, RelationRequirement) for requirement in requirements
+    ) or any(slot.clause == "relation" for slot in open_slots.values())
+    if not has_relation:
+        raise ValueError(
+            "Grouped multi-resource assessment must expose a relation/population "
+            "contract slot for: " + ", ".join(sorted(result_resources))
+        )
+
+
+def _validate_deterministic_time(
+    requirements: list[ContractRequirement],
+    temporal_parse: Mapping[str, Any],
+) -> None:
+    if (
+        temporal_parse.get("scope") != "explicit"
+        or float(temporal_parse.get("confidence") or 0) < 0.9
+    ):
+        return
+    expected_start = str(temporal_parse.get("start") or "")
+    expected_end = str(temporal_parse.get("end_exclusive") or "")
+    for requirement in requirements:
+        if not isinstance(requirement, TimeWindowRequirement):
+            continue
+        if requirement.mode != "explicit":
+            raise ValueError(
+                f"Time slot {requirement.slot_id} contradicts the explicit user period"
+            )
+        if (
+            requirement.start != expected_start
+            or requirement.end_exclusive != expected_end
+        ):
+            raise ValueError(
+                f"Time slot {requirement.slot_id} must use deterministic bounds "
+                f"{expected_start} to {expected_end}"
+            )
 
 
 def _normalize_assessment(
     assessment: IntentAssessment,
     context: IntentContext,
-    bindings: dict[str, Any],
-    time_intent: Mapping[str, Any],
-    trans: Callable[..., str] | None = None,
+    bindings: Mapping[str, Any],
+    schema_text: str,
+    trans: Callable[..., str] | None,
+    temporal_parse: Mapping[str, Any],
 ) -> IntentContext:
-    current_decisions_by_key = {
-        decision.key: decision for decision in context.decisions if decision.key.strip()
-    }
-    decisions_by_key = (
-        {
-            decision.key: decision
-            for decision in context.base_decisions
-            if decision.key.strip()
-        }
-        if assessment.intent_mode == "refine"
-        else {}
-    )
-    decisions_by_key.update(current_decisions_by_key)
-    newly_resolved_keys: set[str] = set()
-    assessment_decision_keys: set[str] = set()
-    for decision in assessment.resolved_decisions:
-        key = decision.key.strip()
-        if not key:
-            raise ValueError("Resolved decision key cannot be empty")
-        if key in assessment_decision_keys:
-            raise ValueError(f"Duplicate resolved decision key: {key}")
-        assessment_decision_keys.add(key)
-        if decision.source == "inference":
+    existing = {item.slot_id: item for item in context.draft.requirements}
+    existing_open = {slot.slot_id: slot for slot in context.draft.open_slots}
+    if (
+        assessment.intent_mode == "new"
+        and context.base_record_id is not None
+        and not context.submitted_answers
+        and not context.draft.open_slots
+    ):
+        existing = {}
+    known_ids = set(existing) | {slot.slot_id for slot in context.draft.open_slots}
+    normalized = _remap_new_slots(assessment, existing_ids=known_ids)
+    requirements = list(existing.values())
+    changed_slots: set[str] = set()
+    for effect in normalized.edits:
+        if effect.slot_id in changed_slots:
+            raise ValueError(f"Duplicate contract edit for slot {effect.slot_id}")
+        changed_slots.add(effect.slot_id)
+        if effect.slot_id in existing and normalized.intent_mode != "refine":
             raise ValueError(
-                f"Resolved decision {key} cannot rely on an unconfirmed inference"
+                f"New query cannot mutate locked contract slot {effect.slot_id}"
             )
-        if not render_decision_value(decision.value):
-            raise ValueError(f"Resolved decision {key} requires a concrete value")
-        existing = decisions_by_key.get(key)
-        if existing is not None and existing.locked and key in current_decisions_by_key:
-            continue
-        validate_binding_requirements(
-            kind=decision.kind,
-            effect=decision.effect,
-            bindings=decision.bindings,
-            context=f"Resolved decision {key}",
-        )
-        decisions_by_key[key] = decision.model_copy(
-            update={
-                "key": key,
-                "locked": True,
-                "binding_phrase": "",
-            }
-        )
-        newly_resolved_keys.add(key)
+        open_slot = existing_open.get(effect.slot_id)
+        if open_slot is not None:
+            if effect.action == "omit" and not open_slot.allow_omit:
+                raise ValueError(f"Contract slot {effect.slot_id} cannot be omitted")
+            if (
+                effect.requirement is not None
+                and effect.requirement.clause != open_slot.clause
+            ):
+                raise ValueError(
+                    f"Edit for {effect.slot_id} has clause "
+                    f"{effect.requirement.clause}, expected {open_slot.clause}"
+                )
+        if effect.action == "omit":
+            requirements = [
+                item for item in requirements if item.slot_id != effect.slot_id
+            ]
+        else:
+            assert effect.requirement is not None
+            requirements = replace_requirement(requirements, effect.requirement)
 
-    for issue in assessment.issues:
-        if issue.key not in current_decisions_by_key:
-            decisions_by_key.pop(issue.key, None)
-    locked_keys = {key for key, decision in decisions_by_key.items() if decision.locked}
-    if any(not issue.key.strip() for issue in assessment.issues):
-        raise ValueError("Clarification issue key cannot be empty")
-    issue_keys = [issue.key for issue in assessment.issues]
-    if len(issue_keys) != len(set(issue_keys)):
-        raise ValueError("Duplicate clarification issue key")
-    overlap = newly_resolved_keys & {issue.key for issue in assessment.issues}
-    if overlap:
-        raise ValueError(
-            "A contract slot cannot be both resolved and ambiguous: "
-            + ", ".join(sorted(overlap))
-        )
-    issues_by_key = {
-        issue.key: issue for issue in assessment.issues if issue.key not in locked_keys
+    resolved_ids = {item.slot_id for item in requirements}
+    issues_by_id: dict[str, ContractSlot] = {
+        slot_id: slot
+        for slot_id, slot in existing_open.items()
+        if slot_id not in resolved_ids and slot_id not in changed_slots
     }
-    questions: list[ClarificationQuestion] = []
-    known_question_ids: set[str] = set()
-    covered_issue_keys: set[str] = set()
+    for issue in normalized.issues:
+        if issue.slot_id not in resolved_ids:
+            issues_by_id.setdefault(issue.slot_id, issue)
     entity_issues, entity_questions = _entity_questions(bindings, trans)
     for issue in entity_issues:
-        if issue.key not in locked_keys:
-            issues_by_key[issue.key] = issue
-
-    deterministic_entity_ids = {question.id for question in entity_questions}
-    for question in [*entity_questions, *assessment.questions]:
-        if not question.id.strip():
-            raise ValueError("Clarification question id cannot be empty")
-        if question.id in known_question_ids:
-            raise ValueError(f"Duplicate clarification question id: {question.id}")
-        known_question_ids.add(question.id)
-        issue_keys = [
-            key
-            for key in question.issue_keys
-            if key in issues_by_key and key not in locked_keys
-        ]
-        if not issue_keys or all(key in covered_issue_keys for key in issue_keys):
-            continue
-        normalized = _normalize_question(
-            (
-                question
-                if question.id in deterministic_entity_ids
-                else question.model_copy(update={"binding_phrase": ""})
-            ),
-            issue_keys=issue_keys,
-            issue_kinds={
-                key: issues_by_key[key].kind
-                for key in issue_keys
-                if key in issues_by_key
-            },
-        )
-        questions.append(normalized)
-        covered_issue_keys.update(issue_keys)
-
-    uncovered = [key for key in issues_by_key if key not in covered_issue_keys]
-    if uncovered and assessment.status != "blocked":
+        if issue.slot_id not in resolved_ids:
+            issues_by_id.setdefault(issue.slot_id, issue)
+    overlap = set(issues_by_id) & resolved_ids
+    if overlap:
         raise ValueError(
-            "Clarification assessment omitted options for issue(s): "
-            + ", ".join(uncovered)
+            "Contract slots cannot be both resolved and ambiguous: "
+            + ", ".join(sorted(overlap))
+        )
+    draft = ContractDraft(
+        requirements=requirements,
+        open_slots=list(issues_by_id.values()),
+    )
+    _validate_contract_fields(requirements, schema_text)
+    _validate_deterministic_time(requirements, temporal_parse)
+    questions: list[ClarificationQuestion] = []
+    question_ids: set[str] = set()
+    covered: set[str] = set()
+    for question in [*entity_questions, *normalized.questions]:
+        if question.id in question_ids:
+            raise ValueError(f"Duplicate clarification question id: {question.id}")
+        relevant = [slot_id for slot_id in question.slot_ids if slot_id in issues_by_id]
+        if not relevant:
+            raise ValueError(
+                f"Clarification question {question.id} has no matching open slot"
+            )
+        overlap_slots = covered & set(relevant)
+        if overlap_slots:
+            raise ValueError(
+                "Contract slot(s) covered by multiple questions: "
+                + ", ".join(sorted(overlap_slots))
+            )
+        question = question.model_copy(update={"slot_ids": relevant})
+        _validate_question(question, issues_by_id, schema_text)
+        _validate_deterministic_time(
+            [
+                effect.requirement
+                for option in question.options
+                for effect in option.effects
+                if effect.requirement is not None
+            ],
+            temporal_parse,
+        )
+        questions.append(question)
+        question_ids.add(question.id)
+        covered.update(relevant)
+    uncovered = set(issues_by_id) - covered
+    if uncovered and normalized.status != "blocked":
+        raise ValueError(
+            "Clarification omitted options for slot(s): " + ", ".join(sorted(uncovered))
         )
 
-    blocking_reasons = list(dict.fromkeys(assessment.blocking_reasons))
+    if normalized.status != "blocked":
+        _validate_draft_relation_closure(
+            requirements,
+            issues_by_id,
+            questions,
+        )
+
+    blocking = list(dict.fromkeys(normalized.blocking_reasons))
     if questions:
         status: Literal["needs_clarification", "ready", "blocked"] = (
             "needs_clarification"
         )
-    elif blocking_reasons or assessment.status == "blocked":
+    elif normalized.status == "blocked" or blocking:
         status = "blocked"
     else:
         status = "ready"
-    if status == "ready" and any(
-        not decision.locked for decision in decisions_by_key.values()
-    ):
-        raise ValueError(
-            "A ready semantic assessment cannot retain provisional user answers"
-        )
-    if status == "ready" and not locked_keys:
-        raise ValueError(
-            "A ready semantic assessment requires at least one resolved contract decision"
-        )
-    if status == "ready" and time_contract_incomplete(
-        list(decisions_by_key.values()),
-        time_intent,
-    ):
-        raise ValueError("A business-time filter requires a structured time range")
-    if (
-        assessment.intent_mode == "refine"
-        and context.base_decisions
-        and not assessment.resolved_decisions
-        and not assessment.issues
-    ):
-        raise ValueError("A refinement must change or question the previous contract")
-    if status == "blocked" and not blocking_reasons:
-        blocking_reasons = list(
-            dict.fromkeys(
-                [
-                    assessment.summary.strip(),
-                    *(issue.reason.strip() for issue in issues_by_key.values()),
-                ]
-            )
-        )
-        blocking_reasons = [reason for reason in blocking_reasons if reason]
-        if not blocking_reasons:
-            blocking_reasons = ["现有证据不足以形成可执行的查询口径"]
     if status == "ready":
-        from apps.chat.query_contract import compile_query_contract
-
-        compile_query_contract(
-            [decision.model_dump(mode="json") for decision in decisions_by_key.values()],
-            time_intent=time_intent or None,
+        contract = ContractDraft(requirements=requirements).freeze()
+        return IntentContext(
+            status="ready",
+            original_question=context.original_question,
+            summary=normalized.summary,
+            draft=ContractDraft(requirements=requirements),
+            contract=contract,
+            submitted_answers=list(context.submitted_answers),
+            base_record_id=context.base_record_id,
         )
-
+    if status == "blocked" and not blocking:
+        blocking = [normalized.summary or "现有证据不足以形成可执行查询口径"]
     return IntentContext(
-        version=context.version,
         status=status,
         original_question=context.original_question,
-        summary=assessment.summary,
-        decisions=list(decisions_by_key.values()),
-        issues=list(issues_by_key.values()) if status != "ready" else [],
+        summary=normalized.summary,
+        draft=draft,
         questions=questions if status == "needs_clarification" else [],
-        blocking_reasons=blocking_reasons if status == "blocked" else [],
-        time_intent=dict(time_intent),
+        blocking_reasons=blocking if status == "blocked" else [],
         submitted_answers=list(context.submitted_answers),
+        base_record_id=context.base_record_id,
     )
+
+
+def _context_evidence(context: IntentContext) -> dict[str, Any]:
+    submitted = {answer.question_id: answer for answer in context.submitted_answers}
+    return {
+        "existing_contract": [
+            requirement.model_dump(mode="json")
+            for requirement in context.draft.requirements
+        ],
+        "open_slots": [
+            slot.model_dump(mode="json") for slot in context.draft.open_slots
+        ],
+        "submitted_clarifications": [
+            {
+                "question_id": question.id,
+                "title": question.title,
+                "slot_ids": question.slot_ids,
+                "answer": submitted[question.id].model_dump(mode="json"),
+                "option_catalog": [
+                    {"marker": chr(65 + index), **option.model_dump(mode="json")}
+                    for index, option in enumerate(question.options)
+                ],
+            }
+            for question in context.questions
+            if question.id in submitted
+        ],
+        "base_record_id": context.base_record_id,
+    }
 
 
 def assess_semantic_intent(
@@ -706,82 +916,21 @@ def assess_semantic_intent(
     *,
     context: IntentContext,
     bindings: dict[str, Any],
-    time_intent: dict[str, Any],
+    temporal_parse: dict[str, Any],
 ) -> SemanticAssessmentResult:
-    """Return the validated semantic gate result, provider usage and reasoning."""
-    submitted_answers = {
-        answer.question_id: answer for answer in context.submitted_answers
-    }
+    """Return one validated contract draft or frozen contract."""
     evidence = {
         "question": (
             getattr(llm_service, "generation_question", "")
             or getattr(llm_service, "planning_question", "")
         ),
-        "locked_decisions": [
-            {
-                "key": decision.key,
-                "kind": decision.kind,
-                "definition": decision.label,
-                "selection": render_decision_value(decision.value),
-                "source": decision.source,
-                "bindings": [
-                    binding.model_dump(mode="json") for binding in decision.bindings
-                ],
-            }
-            for decision in context.decisions
-            if decision.locked
-        ],
-        "provisional_decisions": [
-            {
-                "key": decision.key,
-                "kind": decision.kind,
-                "definition": decision.label,
-                "user_answer": render_decision_value(decision.value),
-                "bindings": [
-                    binding.model_dump(mode="json") for binding in decision.bindings
-                ],
-                "effect": decision.effect,
-            }
-            for decision in context.decisions
-            if not decision.locked
-        ],
-        "submitted_clarifications": [
-            {
-                "question_id": question.id,
-                "title": question.title,
-                "issue_keys": question.issue_keys,
-                "answer": submitted_answers[question.id].model_dump(mode="json"),
-                "option_catalog": [
-                    {
-                        "marker": chr(65 + index),
-                        **option.model_dump(mode="json"),
-                    }
-                    for index, option in enumerate(question.options)
-                ],
-            }
-            for question in context.questions
-            if question.id in submitted_answers
-        ],
-        "previous_summary": context.summary,
-        "previous_query": (
-            {
-                "record_id": context.base_record_id,
-                "decisions": [
-                    decision.model_dump(mode="json")
-                    for decision in context.base_decisions
-                    if decision.locked
-                ],
-                "time_intent": context.base_time_intent,
-            }
-            if context.base_record_id is not None
-            else None
-        ),
+        **_context_evidence(context),
+        "deterministic_time_parse": temporal_parse,
         "schema": llm_service.chat_question.db_schema,
         "sample_data": llm_service.chat_question.sample_data,
         "terminology": llm_service.chat_question.terminologies,
         "query_examples": llm_service.chat_question.data_training,
         "custom_rules": llm_service.chat_question.custom_prompt,
-        "time_intent": time_intent,
         "entity_bindings": bindings,
     }
     target_language = str(getattr(llm_service.chat_question, "lang", "") or "简体中文")
@@ -789,22 +938,26 @@ def assess_semantic_intent(
         SystemMessage(
             content=(
                 _SYSTEM_PROMPT
-                + f"\n- 所有面向用户的 summary、reason、title、description、impact "
-                f"必须使用当前会话语言：{target_language}。"
+                + "\n所有面向用户的文本必须使用当前会话语言："
+                + target_language
+                + "\n必须符合以下 JSON Schema：\n"
+                + _assessment_schema_text()
             )
         ),
         HumanMessage(
-            content=("请审核以下查询意图及证据：\n" + orjson.dumps(evidence).decode())
+            content="请审核以下需求及证据：\n" + orjson.dumps(evidence).decode()
         ),
     ]
     usage_items: list[dict[str, Any]] = []
     reasoning_items: list[str] = []
     attempts: list[dict[str, Any]] = []
+    assessment_llm = llm_service.llm.bind(temperature=0)
     for attempt in range(2):
-        response = llm_service.llm.invoke(messages)
+        response = assessment_llm.invoke(messages)
         from apps.conversation.usage import merge_usage, usage_from_response
 
-        usage_items.append(usage_from_response(response))
+        usage = usage_from_response(response)
+        usage_items.append(usage)
         reasoning = _reasoning_content(response).strip()
         if reasoning:
             reasoning_items.append(reasoning)
@@ -812,33 +965,21 @@ def assess_semantic_intent(
         try:
             json_text = extract_nested_json(raw_text)
             if not json_text:
-                raise ValueError("Cannot parse semantic clarification assessment")
+                raise ValueError("Cannot parse semantic contract assessment")
             assessment = IntentAssessment.model_validate(orjson.loads(json_text))
-            effective_time_intent = dict(
-                time_intent
-                or (
-                    context.base_time_intent
-                    if assessment.intent_mode == "refine"
-                    else {}
-                )
-            )
             normalized = _normalize_assessment(
                 assessment,
                 context,
                 bindings,
-                effective_time_intent,
+                llm_service.chat_question.db_schema,
                 getattr(llm_service, "trans", None),
+                temporal_parse,
             )
-            if (
-                assessment.status == "needs_clarification"
-                and normalized.status == "ready"
-            ):
-                raise ValueError("Clarification assessment omitted required questions")
             attempts.append(
                 _attempt_diagnostic(
                     attempt=attempt + 1,
                     raw_text=raw_text,
-                    usage=usage_items[-1],
+                    usage=usage,
                     error=None,
                 )
             )
@@ -853,43 +994,39 @@ def assess_semantic_intent(
                 _attempt_diagnostic(
                     attempt=attempt + 1,
                     raw_text=raw_text,
-                    usage=usage_items[-1],
+                    usage=usage,
                     error=exc,
                 )
             )
             if attempt == 1:
                 break
             messages = [
-                SystemMessage(content=_REPAIR_PROMPT),
+                *messages,
+                AIMessage(content=raw_text),
                 HumanMessage(
                     content=(
-                        "候选 JSON：\n"
-                        f"{raw_text}\n\n"
-                        "校验错误：\n"
-                        f"{exc}\n\n"
-                        "请返回修正后的完整 JSON。"
+                        _REPAIR_PROMPT + "\n校验问题：\n" + _validation_diagnostic(exc)
                     )
                 ),
             ]
 
-    trans = getattr(llm_service, "trans", None)
-    blocked_reason = _translated(
-        trans,
-        "i18n_chat.clarification.assessment_unavailable",
-        "暂时未能可靠完成业务口径识别，请重试。",
-    )
-    blocked_context = context.model_copy(
-        update={
-            "status": "blocked",
-            "summary": blocked_reason,
-            "issues": [],
-            "questions": [],
-            "blocking_reasons": [blocked_reason],
-        }
-    )
-    return SemanticAssessmentResult(
-        context=blocked_context,
+    from apps.conversation.usage import merge_usage
+
+    raise SemanticAssessmentError(
+        "Semantic contract assessment failed validation after repair",
         usage=merge_usage(*usage_items),
         reasoning="\n".join(reasoning_items),
         attempts=attempts,
     )
+
+
+def assessment_contract_rows(context: IntentContext) -> list[dict[str, str]]:
+    """Small observability adapter; not another execution representation."""
+    return [
+        {"slot_id": requirement.slot_id, "label": label, "value": value}
+        for requirement, (label, value) in zip(
+            context.draft.requirements,
+            contract_display_rows(context.draft),
+            strict=True,
+        )
+    ]

@@ -13,4 +13,5 @@ else
     cd /opt/sqlbot/g2-ssr
     "${PM2_BIN}" start app.js --name g2-ssr
 fi
+"/opt/sqlbot/health.sh"
 info "已重启"

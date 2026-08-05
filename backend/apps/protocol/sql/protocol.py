@@ -141,6 +141,7 @@ class SqlProtocol(BaseProtocol):
     def build_prompt_bundle(
         self, chat_question: Any, *, enable_query_limit: bool = True
     ) -> PromptBundle:
+        from apps.chat.plan_policy import ROW_LIMIT
         from apps.template.generate_sql.generator import (
             get_sql_example_template,
             get_sql_template,
@@ -154,7 +155,7 @@ class SqlProtocol(BaseProtocol):
             sql_template.get("process_check") or base_template["process_check"]
         )
         query_limit = (
-            base_template["query_limit"]
+            base_template["query_limit"].format(row_limit=ROW_LIMIT)
             if enable_query_limit
             else base_template["no_query_limit"]
         )

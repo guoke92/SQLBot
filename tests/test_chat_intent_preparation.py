@@ -13,8 +13,8 @@ _BACKEND = _ROOT / "backend"
 if str(_BACKEND) not in sys.path:
     sys.path.insert(0, str(_BACKEND))
 
-from apps.chat.intent_history import latest_reusable_intent_record
-from apps.chat.models.chat_model import ChatRecord
+from apps.chat.intent_history import latest_reusable_intent_record  # noqa: E402
+from apps.chat.models.chat_model import ChatRecord  # noqa: E402
 
 
 class _ScalarResult:
@@ -63,6 +63,24 @@ def _answer_payload(status: str) -> str:
     ).decode()
 
 
+def _intent_context() -> dict:
+    requirement = {
+        "slot_id": "slot_total",
+        "clause": "output",
+        "label": "总数",
+        "source": "user",
+        "evidence_refs": ["question"],
+        "field": {"resource": "", "field": "id"},
+        "operation": "count",
+        "operands": [],
+    }
+    return {
+        "version": 2,
+        "status": "ready",
+        "contract": {"version": 2, "requirements": [requirement]},
+    }
+
+
 def test_latest_intent_history_query_returns_latest_reusable_orm_scalar() -> None:
     previous = ChatRecord(
         id=289,
@@ -71,7 +89,7 @@ def test_latest_intent_history_query_returns_latest_reusable_orm_scalar() -> Non
         finish=True,
         sql="SELECT 1",
         data=_answer_payload("success"),
-        intent_context={"status": "ready", "decisions": [{"key": "metric.total"}]},
+        intent_context=_intent_context(),
     )
     failed = ChatRecord(
         id=290,
@@ -80,7 +98,7 @@ def test_latest_intent_history_query_returns_latest_reusable_orm_scalar() -> Non
         finish=True,
         sql="SELECT broken",
         data=_answer_payload("failed"),
-        intent_context={"status": "ready", "decisions": [{"key": "metric.total"}]},
+        intent_context=_intent_context(),
     )
     result = latest_reusable_intent_record(
         _Session([failed, previous]),  # type: ignore[arg-type]

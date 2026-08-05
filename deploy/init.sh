@@ -63,7 +63,7 @@ chmod 600 "${SQLBOT_HOME}/.env" 2>/dev/null || true
 command -v uv >/dev/null 2>&1 || die "未找到 uv，请先安装 uv"
 info "同步后端依赖…"
 cd "${APP_HOME}"
-uv sync --frozen --extra cpu
+uv sync --frozen --no-dev --extra cpu
 
 command -v npm >/dev/null 2>&1 || die "未找到 npm"
 info "同步 g2-ssr 依赖…"
@@ -95,29 +95,7 @@ else
 fi
 "${PM2_BIN}" save >/dev/null
 
-wait_http() {
-    local name="$1"
-    local url="$2"
-    local accept_any="${3:-false}"
-    local code
-    for _ in {1..30}; do
-        code=$(curl -sS -o /dev/null -w '%{http_code}' "${url}" 2>/dev/null || true)
-        if [[ "${code}" =~ ^[23][0-9][0-9]$ ]] || \
-            [[ "${accept_any}" == "true" && "${code}" != "000" && -n "${code}" ]]; then
-            info "  ${name}: HTTP ${code}"
-            return 0
-        fi
-        sleep 1
-    done
-    journalctl -u sqlbot -u sqlbot-mcp --no-pager -n 30 >&2 || true
-    die "${name} 健康检查失败：${url}"
-}
-
-info "检查服务…"
-wait_http "后端/xpack" "http://127.0.0.1:8000/xpack_static/license-generator.umd.js"
-wait_http "MCP" "http://127.0.0.1:8001/" true
-wait_http "g2-ssr" "http://127.0.0.1:3000/"
-wait_http "前端" "http://127.0.0.1:3001/"
+"${SQLBOT_HOME}/health.sh"
 
 echo
 info "部署完成"

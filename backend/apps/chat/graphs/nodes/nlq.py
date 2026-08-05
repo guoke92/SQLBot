@@ -59,7 +59,7 @@ from apps.chat.presentation import (
     build_result_presentation,
     chart_columns,
 )
-from apps.chat.query_contract import QueryContract, compile_query_contract
+from apps.chat.query_contract import GroupRequirement, OutputRequirement, QueryContract
 from apps.chat.result_data import format_json_data
 from apps.chat.result_quality import (
     CompletionEvidence,
@@ -81,10 +81,13 @@ from apps.chat.semantic_intent import (
     intent_context_from_payload,
     new_intent_context,
     public_intent_payload,
-    render_decision_value,
 )
 from apps.chat.steps.chart import generate_chart
-from apps.chat.steps.clarification import assess_semantic_intent
+from apps.chat.steps.clarification import (
+    SemanticAssessmentError,
+    assess_semantic_intent,
+    assessment_contract_rows,
+)
 from apps.chat.steps.custom_prompt import match_custom_prompts
 from apps.chat.steps.datasource import select_datasource, validate_history_ds
 from apps.chat.steps.knowledge import match_knowledge
@@ -102,7 +105,7 @@ from apps.chat.steps.persist import parse_chart
 from apps.chat.steps.sql import generate_sql
 from apps.chat.steps.training import match_training
 from apps.chat.task.llm import LLMService, request_picture
-from apps.chat.time_intent import TimeIntent, infer_time_intent
+from apps.chat.time_intent import TemporalParse, infer_time_intent
 from apps.conversation.messages import message_content_text
 from apps.conversation.observability import end_log, trigger_log_error
 from apps.conversation.outcome import (
@@ -158,7 +161,7 @@ class CandidateBatch(TypedDict, total=False):
     quality: ResultQuality
     outcome: RunOutcome
     plan_validated: bool
-    contract_satisfied: bool
+    contract_status: Literal["verified", "partial", "unsupported"]
 
 
 class NlqState(RunState, total=False):
@@ -189,7 +192,7 @@ class NlqState(RunState, total=False):
     entity_bindings: dict[str, Any]  # NL phrase → canonical dimension values
     knowledge_matches: list[dict[str, Any]]
     access_scope: AccessScope | None
-    time_intent: TimeIntent  # semantic time range, independent of cost probes
+    temporal_parse: TemporalParse  # deterministic evidence; never executable truth
     intent_context: dict[str, Any]
     query_contract: QueryContract
     outcome: RunOutcome
@@ -401,24 +404,26 @@ def _contract_role_hints(
     """Project confirmed physical roles for direct result-field matches."""
     hints: dict[str, Literal["metric", "dimension"]] = {}
     for requirement in contract.requirements if contract else ():
-        if requirement.kind in {"metric", "calculation"}:
-            label_role: Literal["metric", "dimension"] | None = "metric"
-        elif requirement.kind in {"dimension", "grain"}:
+        if isinstance(requirement, OutputRequirement):
+            label_role: Literal["metric", "dimension"] | None = (
+                "dimension" if requirement.operation == "value" else "metric"
+            )
+            fields = [requirement.field]
+        elif isinstance(requirement, GroupRequirement):
             label_role = "dimension"
+            fields = [requirement.field]
         else:
             label_role = None
+            fields = []
         normalized_label = str(requirement.label or "").strip().casefold()
         if label_role and normalized_label:
             hints[normalized_label] = label_role
 
-        for binding in requirement.bindings:
-            if binding.role == "measure":
-                role: Literal["metric", "dimension"] = "metric"
-            elif binding.role in {"group", "attribute"}:
-                role = "dimension"
-            else:
+        for field in fields:
+            if label_role is None:
                 continue
-            normalized = binding.identifier.rsplit(".", 1)[-1].strip().casefold()
+            role = label_role
+            normalized = field.field.strip().casefold()
             if normalized:
                 if role == "metric" or normalized not in hints:
                     hints[normalized] = role
@@ -818,7 +823,7 @@ def _build_candidate_quality(
     *,
     intent_ready: bool,
     plan_validated: bool,
-    contract_satisfied: bool,
+    contract_status: Literal["verified", "partial", "unsupported"],
 ) -> ResultQuality:
     """Score a candidate once from explicit graph-stage evidence."""
     reports: list[dict[str, Any]] = []
@@ -832,7 +837,7 @@ def _build_candidate_quality(
         evidence: CompletionEvidence = {
             "intent_ready": intent_ready,
             "plan_validated": plan_validated,
-            "contract_satisfied": contract_satisfied,
+            "contract_status": contract_status,
             "execution_status": execution_status,
             "result_structure_valid": (
                 execution_status == "success"
@@ -1121,7 +1126,7 @@ def prepare_record_node(state: NlqState) -> NlqState:
             "entity_bindings": {},
             "knowledge_matches": [],
             "access_scope": None,
-            "time_intent": {},
+            "temporal_parse": {},
             "intent_context": (
                 llm_service.chat_question.intent_context
                 or public_intent_payload(
@@ -1199,18 +1204,18 @@ def recall_knowledge_node(state: NlqState) -> NlqState:
             return _fail(state, llm_service.record.id, e)
 
 
-def prepare_time_intent_node(state: NlqState) -> NlqState:
-    """Capture time semantics without guessing columns or probing data."""
+def parse_temporal_evidence_node(state: NlqState) -> NlqState:
+    """Capture deterministic temporal evidence without creating contract state."""
     llm_service = state.get("llm_service")
     question = (
         getattr(llm_service, "generation_question", "")
         if llm_service
         else state.get("question", "")
     )
-    time_intent = infer_time_intent(str(question or ""))
-    if not time_intent:
+    temporal_parse = infer_time_intent(str(question or ""))
+    if not temporal_parse:
         return state
-    return {**state, "time_intent": time_intent}
+    return {**state, "temporal_parse": temporal_parse}
 
 
 def resolve_access_scope_node(state: NlqState) -> NlqState:
@@ -1305,12 +1310,23 @@ def assess_clarity_node(state: NlqState) -> NlqState:
             if context.status == "ready":
                 assessed, usage, reasoning, attempts = context, {}, "", []
             else:
-                assessment_result = assess_semantic_intent(
-                    llm_service,
-                    context=context,
-                    bindings=state.get("entity_bindings") or {},
-                    time_intent=state.get("time_intent") or {},
-                )
+                try:
+                    assessment_result = assess_semantic_intent(
+                        llm_service,
+                        context=context,
+                        bindings=state.get("entity_bindings") or {},
+                        temporal_parse=state.get("temporal_parse") or {},
+                    )
+                except SemanticAssessmentError as exc:
+                    span["token_usage"] = exc.usage
+                    span["reasoning_content"] = exc.reasoning
+                    span["payload"] = {
+                        "status": "failed",
+                        "failure_kind": "contract_validation",
+                        "assessment_attempt_count": len(exc.attempts),
+                        "assessment_attempts": exc.attempts,
+                    }
+                    raise
                 assessed = assessment_result.context
                 usage = assessment_result.usage
                 reasoning = assessment_result.reasoning
@@ -1331,20 +1347,7 @@ def assess_clarity_node(state: NlqState) -> NlqState:
                 "summary": assessed.summary,
                 "assessment_attempt_count": len(attempts),
                 "assessment_attempts": attempts,
-                "resolved_decisions": [
-                    {
-                        "key": decision.key,
-                        "label": decision.label,
-                        "value": render_decision_value(decision.value),
-                        "source": decision.source,
-                        "bindings": [
-                            binding.model_dump(mode="json")
-                            for binding in decision.bindings
-                        ],
-                    }
-                    for decision in assessed.decisions
-                    if decision.locked
-                ],
+                "contract_requirements": assessment_contract_rows(assessed),
                 "issues": [issue.model_dump(mode="json") for issue in assessed.issues],
                 "questions": [
                     {
@@ -1380,7 +1383,6 @@ def assess_clarity_node(state: NlqState) -> NlqState:
         return {
             **state,
             "intent_context": payload,
-            "time_intent": dict(assessed.time_intent),
             "record": llm_service.record,
         }
     except Exception as exc:
@@ -1392,14 +1394,9 @@ def assemble_context_node(state: NlqState) -> NlqState:
     llm_service = state["llm_service"]
     try:
         context = intent_context_from_payload(state["intent_context"])
-        query_contract = compile_query_contract(
-            [
-                decision.model_dump(mode="json")
-                for decision in context.decisions
-                if decision.locked
-            ],
-            time_intent=state.get("time_intent") or None,
-        )
+        if context.contract is None:
+            raise ValueError("Semantic gate is ready without a frozen query contract")
+        query_contract = context.contract
         assemble_prompt_messages(llm_service)
         return {
             **state,
@@ -1657,8 +1654,7 @@ def _attach_plan_context_for_generate(
     """Render PlanContext once and stash on chat_question for build_user_prompt."""
     body = render_plan_context(
         entity_bindings=state.get("entity_bindings"),
-        time_intent=state.get("time_intent"),
-        intent_context=state.get("intent_context"),
+        contract=state.get("query_contract"),
         include_playbook=include_playbook,
         repair=repair,
         extra_sections=extra_sections,
@@ -1794,7 +1790,6 @@ def generate_queries_node(state: NlqState) -> NlqState:
             full_sql_text,
             llm_service,
             max_batch_size=max_batch,
-            time_intent=dict(state.get("time_intent") or {}),
             query_contract=state.get("query_contract"),
         )
         plans = batch_parse.plans if batch_parse.success else []
@@ -1867,7 +1862,7 @@ def generate_queries_node(state: NlqState) -> NlqState:
             "active_candidate": {
                 "plans": plans,
                 "plan_validated": batch_parse.plan_validated,
-                "contract_satisfied": batch_parse.contract_satisfied,
+                "contract_status": batch_parse.contract_status,
             },
             "repair_hint": "",
             "gen_attempts": 0,
@@ -2403,7 +2398,7 @@ def _decide_next_impl(
         assessments,
         intent_ready=(state.get("intent_context") or {}).get("status") == "ready",
         plan_validated=bool(active_candidate.get("plan_validated")),
-        contract_satisfied=bool(active_candidate.get("contract_satisfied")),
+        contract_status=active_candidate.get("contract_status", "unsupported"),
     )
     raw_outcome = outcome_from_steps(current_steps)
     current_candidate: CandidateBatch = {

@@ -1,8 +1,7 @@
-"""Structured time semantics for NLQ planning.
+"""Side-effect-free natural-language temporal parsing for contract drafting.
 
-Time range semantics belong to the query plan context.
-This module performs a deterministic, side-effect-free interpretation of the
-most common time expressions without accessing the datasource.
+The returned value is evidence for clarification, never a second executable
+state. A confirmed time choice is represented only by ``TimeWindowRequirement``.
 """
 
 from __future__ import annotations
@@ -17,8 +16,8 @@ TimeComparison = Literal["none", "yoy", "mom"]
 TimeGrain = Literal["day", "month", "year"]
 
 
-class TimeIntent(TypedDict, total=False):
-    """Serializable time contract consumed by prompt rendering and probes."""
+class TemporalParse(TypedDict, total=False):
+    """Deterministic temporal evidence consumed by the contract assessor."""
 
     scope: TimeScope
     anchor: TimeAnchor
@@ -36,6 +35,9 @@ _YEAR_RE = re.compile(r"(?<!\d)(20\d{2})(?:年)?(?!\d)")
 _YEAR_MONTH_RE = re.compile(r"(?<!\d)(20\d{2})(?:年|[-/])(\d{1,2})(?:月)?(?!\d)")
 _DATE_RE = re.compile(r"(?<!\d)(20\d{2})[-/](\d{1,2})[-/](\d{1,2})(?!\d)")
 _RECENT_MONTHS_RE = re.compile(r"(?:近|最近|过去)\s*(\d{1,2})\s*个?月")
+_LATEST_ROWS_RE = re.compile(
+    r"(?:最新|最近)\s*(?:的)?\s*\d+\s*(?:条(?:数据|记录)?|行(?:数据|记录)?|个(?:数据|记录))"
+)
 _ALL_TIME_CUES = ("所有时间", "全部时间", "不限时间", "全量数据", "全部数据")
 _TIME_CUES = (
     "今年",
@@ -73,7 +75,7 @@ def _explicit_bucket(text: str) -> TimeGrain | None:
     return None
 
 
-def _with_bucket(intent: TimeIntent, bucket: TimeGrain | None) -> TimeIntent:
+def _with_bucket(intent: TemporalParse, bucket: TimeGrain | None) -> TemporalParse:
     if bucket is not None:
         intent["bucket"] = bucket
     return intent
@@ -93,7 +95,7 @@ def infer_time_intent(
     question: str,
     *,
     now: datetime | None = None,
-) -> TimeIntent | None:
+) -> TemporalParse | None:
     """Infer deterministic time semantics without touching a datasource.
 
     ``None`` means the question has no time intent and no default time filter
@@ -106,6 +108,27 @@ def infer_time_intent(
         return None
     current = now or datetime.now()
     explicit_bucket = _explicit_bucket(text)
+
+    # Ranking language describes ORDER/LIMIT, not a time window. It is kept
+    # out of temporal evidence so clarification asks only for the ordering
+    # business field and never invents a date range.
+    if _LATEST_ROWS_RE.search(text) and not any(
+        cue in text
+        for cue in (
+            "今年",
+            "本年",
+            "本月",
+            "近一年",
+            "近12个月",
+            "过去一年",
+            "同比",
+            "环比",
+            "每天",
+            "每月",
+            "每年",
+        )
+    ):
+        return None
 
     if any(cue in text for cue in _ALL_TIME_CUES):
         return _with_bucket(

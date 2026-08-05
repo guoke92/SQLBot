@@ -8,11 +8,11 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Literal
 
 import orjson
 
-from apps.chat.query_contract import QueryContract, compile_query_contract
+from apps.chat.query_contract import QueryContract
 from apps.protocol import QueryPlan
 from apps.protocol.base import CAP_SQL_DIALECT
 from common.utils.json_utils import extract_nested_json
@@ -28,7 +28,7 @@ class BatchParseResult:
     plans: list[dict[str, Any]] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
     plan_validated: bool = False
-    contract_satisfied: bool = False
+    contract_status: Literal["verified", "partial", "unsupported"] = "unsupported"
 
     @property
     def success(self) -> bool:
@@ -62,50 +62,35 @@ def _apply_display_defaults(
     a rejected candidate.  Result titles therefore have one deterministic
     owner and remain stable across retries and page hydration.
     """
-    decisions = [
-        decision
-        for decision in (intent_context or {}).get("decisions") or []
-        if isinstance(decision, dict)
-        and decision.get("locked")
-        and str(decision.get("effect") or "include") != "omit"
+    requirements = [
+        requirement
+        for requirement in ((intent_context or {}).get("contract") or {}).get(
+            "requirements", []
+        )
+        if isinstance(requirement, dict)
     ]
     multiple = len(plans) > 1
     for index, plan in enumerate(plans):
         covered_keys = {
             str(key) for key in plan.get("covered_requirement_keys") or [] if key
         }
-        labels_by_kind: dict[str, list[str]] = {}
-        for decision in decisions:
-            key = str(decision.get("key") or "")
-            if covered_keys and key not in covered_keys:
+        dimensions: list[str] = []
+        metrics: list[str] = []
+        for requirement in requirements:
+            slot_id = str(requirement.get("slot_id") or "")
+            if covered_keys and slot_id not in covered_keys:
                 continue
-            kind = str(decision.get("kind") or "")
-            label = str(decision.get("label") or "").strip()
-            roles = {
-                str(binding.get("role") or "")
-                for binding in decision.get("bindings") or []
-                if isinstance(binding, dict)
-            }
-            if kind in {"dimension", "grain"} and roles and "group" not in roles:
-                continue
+            clause = str(requirement.get("clause") or "")
+            label = str(requirement.get("label") or "").strip()
             if label:
-                labels_by_kind.setdefault(kind, []).append(label)
-        dimensions = list(
-            dict.fromkeys(
-                [
-                    *labels_by_kind.get("dimension", []),
-                    *labels_by_kind.get("grain", []),
-                ]
-            )
-        )
-        metrics = list(
-            dict.fromkeys(
-                [
-                    *labels_by_kind.get("metric", []),
-                    *labels_by_kind.get("calculation", []),
-                ]
-            )
-        )
+                if clause == "group" or (
+                    clause == "output" and requirement.get("operation") == "value"
+                ):
+                    dimensions.append(label)
+                elif clause == "output":
+                    metrics.append(label)
+        dimensions = list(dict.fromkeys(dimensions))
+        metrics = list(dict.fromkeys(metrics))
         if dimensions and metrics:
             fallback = f"按{'、'.join(dimensions)}统计{'、'.join(metrics)}"
         elif metrics:
@@ -147,18 +132,12 @@ def _validate_batch_contract(
     plans: list[dict[str, Any]],
     llm_service: Any,
     *,
-    time_intent: dict[str, Any] | None = None,
     query_contract: QueryContract | None = None,
-) -> str | None:
+) -> tuple[str | None, Literal["verified", "partial", "unsupported"]]:
     """Validate contract requirements across the atomic SQL batch."""
     supports = getattr(llm_service.protocol, "supports", None)
     if not callable(supports) or not supports(CAP_SQL_DIALECT):
-        return None
-    intent_context = getattr(
-        getattr(llm_service, "chat_question", None),
-        "intent_context",
-        None,
-    )
+        return None, "unsupported"
     from apps.protocol.registry import get_spec
     from apps.protocol.sql.identifier_validation import (
         analyze_sql_contract_structure,
@@ -166,23 +145,11 @@ def _validate_batch_contract(
 
     type_key = getattr(llm_service.protocol, "type_key", None)
     dialect = get_spec(type_key).sqlglot_dialect if type_key else None
-    try:
-        contract = query_contract
-        if contract is None:
-            decisions = [
-                decision
-                for decision in (intent_context or {}).get("decisions") or []
-                if isinstance(decision, dict)
-            ]
-            contract = compile_query_contract(
-                decisions,
-                time_intent=time_intent,
-            )
-    except ValueError as exc:
-        return f"Invalid confirmed query contract: {exc}"
+    if query_contract is None:
+        return None, "unsupported"
     validation = analyze_sql_contract_structure(
         [str(plan.get("sql") or plan.get("format_statement") or "") for plan in plans],
-        contract,
+        query_contract,
         dialect=dialect,
     )
     if validation.error is None:
@@ -197,7 +164,7 @@ def _validate_batch_contract(
                 for projection in projections
             }
             plan["covered_requirement_keys"] = sorted(coverage)
-    return validation.error
+    return validation.error, validation.status
 
 
 def parse_query_generation(
@@ -205,7 +172,6 @@ def parse_query_generation(
     llm_service: Any,
     *,
     max_batch_size: int,
-    time_intent: dict[str, Any] | None = None,
     query_contract: QueryContract | None = None,
 ) -> BatchParseResult:
     """Parse and validate one model response as an atomic plan batch."""
@@ -225,10 +191,9 @@ def parse_query_generation(
         if plan.success:
             entry, error = _accept_plan(llm_service, plan)
             if entry:
-                contract_error = _validate_batch_contract(
+                contract_error, contract_status = _validate_batch_contract(
                     [entry],
                     llm_service,
-                    time_intent=time_intent,
                     query_contract=query_contract,
                 )
                 if contract_error:
@@ -236,7 +201,7 @@ def parse_query_generation(
                 return BatchParseResult(
                     plans=_apply_display_defaults([entry], question, intent_context),
                     plan_validated=True,
-                    contract_satisfied=True,
+                    contract_status=contract_status,
                 )
             return BatchParseResult(
                 errors=[
@@ -282,10 +247,9 @@ def parse_query_generation(
     if errors:
         return BatchParseResult(errors=errors)
     if plans:
-        contract_error = _validate_batch_contract(
+        contract_error, contract_status = _validate_batch_contract(
             plans,
             llm_service,
-            time_intent=time_intent,
             query_contract=query_contract,
         )
         if contract_error:
@@ -293,6 +257,6 @@ def parse_query_generation(
         return BatchParseResult(
             plans=_apply_display_defaults(plans, question, intent_context),
             plan_validated=True,
-            contract_satisfied=True,
+            contract_status=contract_status,
         )
     return BatchParseResult(errors=["Failed to generate any valid query plans"])

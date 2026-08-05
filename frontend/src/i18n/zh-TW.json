@@ -946,6 +946,7 @@
     "quality_check": {
       "plan_validated": "查詢計畫已通過協議級校驗",
       "query_contract_satisfied": "查詢計畫已滿足目前協議適用的欄位及查詢契約校驗",
+      "query_contract_partially_verified": "查詢計畫僅通過部分查詢契約校驗",
       "intent_contract_ready": "業務口徑已通過澄清門禁",
       "sql_executed": "SQL 已成功執行",
       "displayable_data": "查詢返回了可顯示資料",
@@ -965,6 +966,7 @@
       "intent_not_machine_confirmed": "缺少可機器驗證的已確認業務口徑。",
       "contract_verified": "查詢計畫已通過欄位、角色及查詢契約校驗。",
       "contract_partially_verified": "查詢已執行，但查詢契約的驗證依據不完整。",
+      "contract_verification_unsupported": "目前資料協議不支援完整的查詢契約校驗。",
       "sql_and_result_verified": "SQL 與執行結果均通過確定性結構校驗。",
       "sql_executed_with_partial_checks": "SQL 已執行，但僅完成部分語義或結構校驗。",
       "result_not_executed": "查詢尚未執行，因此沒有執行結果可供評價。",

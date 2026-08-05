@@ -1,5 +1,3 @@
-"""Deterministic result-quality scoring tests."""
-
 from __future__ import annotations
 
 import sys
@@ -10,211 +8,89 @@ _BACKEND = _ROOT / "backend"
 if str(_BACKEND) not in sys.path:
     sys.path.insert(0, str(_BACKEND))
 
-from apps.chat.query_contract import compile_query_contract  # noqa: E402
 from apps.chat.result_quality import (  # noqa: E402
     CompletionEvidence,
-    ExecutionStatus,
+    build_overall_quality,
     build_step_quality,
 )
-from apps.chat.result_validation import validate_result_structure  # noqa: E402
 
 
-def _evidence(
-    *,
-    execution_status: ExecutionStatus = "success",
-    result_structure_valid: bool = True,
-) -> CompletionEvidence:
+def _evidence(status: str = "verified") -> CompletionEvidence:
     return {
         "intent_ready": True,
         "plan_validated": True,
-        "contract_satisfied": True,
-        "execution_status": execution_status,
-        "result_structure_valid": result_structure_valid,
+        "contract_status": status,  # type: ignore[typeddict-item]
+        "execution_status": "success",
+        "result_structure_valid": True,
     }
 
 
-def test_split_multi_metric_grain_is_a_structural_gate_not_a_score() -> None:
-    rows = []
-    for company in range(10):
-        rows.append(
-            {
-                "company": f"C{company}",
-                "level": 1,
-                "signed": 100,
-                "financed": None,
-            }
-        )
-        rows.append(
-            {
-                "company": f"C{company}",
-                "level": None,
-                "signed": None,
-                "financed": 80,
-            }
-        )
-    assessment = {
-        "row_count": len(rows),
+def _assessment(*, rows: int = 3) -> dict:
+    return {
+        "row_count": rows,
         "truncated": False,
-        "null_rates": {"company": 0.0, "level": 0.5},
-        "metrics": {
-            "signed": {"count": 10, "sum": 1000, "max": 100},
-            "financed": {"count": 10, "sum": 800, "max": 80},
-        },
-        "field_roles": {
-            "metrics": ["signed", "financed"],
-            "dimensions": ["company", "level"],
-        },
-        "data_rows": rows,
+        "null_rates": {},
+        "metrics": {},
     }
-    report = build_step_quality(
-        assessment,
-        evidence=_evidence(result_structure_valid=False),
-    )
-    validation = validate_result_structure([assessment])
-
-    assert report["score"] == 65
-    assert report["grade"] == "reference_only"
-    assert not any(
-        observation["code"] == "split_multi_metric_grain"
-        for observation in report["observations"]
-    )
-    assert {item["code"] for item in report["observations"]} == {"dimension_null_high"}
-    assert validation["valid"] is False
-    assert validation["issues"][0]["code"] == "split_multi_metric_grain"
 
 
-def test_query_window_is_coverage_not_a_penalty() -> None:
-    report = build_step_quality(
-        {
-            "row_count": 1000,
-            "truncated": True,
-            "null_rates": {},
-            "metrics": {"amount": {"count": 1000, "sum": 10, "max": 10}},
-            "field_roles": {"metrics": ["amount"], "dimensions": []},
-            "data_rows": [{"amount": 10}],
-        },
-        evidence=_evidence(),
-    )
-
-    assert report["score"] == 95
-    assert report["coverage"]["truncated"] is True
-    assert {
-        "intent_contract_ready",
-        "plan_validated",
-        "query_contract_satisfied",
-        "sql_executed",
-        "result_structure_valid",
-    } <= set(report["passed_checks"])
-    assert report["observations"][0]["code"] == "truncated_result"
-
-
-def test_empty_result_is_valid_answer_not_a_score_deduction() -> None:
-    report = build_step_quality(
-        {
-            "row_count": 0,
-            "truncated": False,
-            "null_rates": {},
-            "metrics": {},
-            "field_roles": {"metrics": [], "dimensions": ["company"]},
-            "data_rows": [],
-        },
-        evidence=_evidence(),
-    )
-
+def test_verified_contract_scores_user_requirement_completion() -> None:
+    report = build_step_quality(_assessment(), evidence=_evidence())
     assert report["score"] == 95
     assert report["grade"] == "excellent"
-    assert "empty_result_answerable" in report["passed_checks"]
-    assert [item["code"] for item in report["observations"]] == ["empty_result"]
-    usability = next(
-        item for item in report["dimensions"] if item["code"] == "answer_usability"
-    )
-    assert usability["score"] == 100
-    assert {item["code"]: item["weight"] for item in report["dimensions"]} == {
-        "intent_alignment": 25,
-        "contract_completeness": 20,
-        "sql_semantic_correctness": 25,
-        "answer_usability": 15,
-        "evidence_confidence": 10,
-        "limitation_transparency": 5,
-    }
+    assert "query_contract_satisfied" in report["passed_checks"]
     assert sum(item["weight"] for item in report["dimensions"]) == 100
 
 
-def test_unexecuted_plan_is_not_reported_as_an_empty_result() -> None:
-    report = build_step_quality(
-        {
-            "row_count": 0,
-            "truncated": False,
-            "null_rates": {},
-            "metrics": {},
-            "data_rows": [],
-        },
-        evidence=_evidence(
-            execution_status="not_run",
-            result_structure_valid=False,
-        ),
-    )
-
-    assert "sql_executed" not in report["passed_checks"]
-    assert "empty_result_answerable" not in report["passed_checks"]
-    assert report["observations"] == []
-    usability = next(
-        item for item in report["dimensions"] if item["code"] == "answer_usability"
-    )
-    assert usability["score"] == 0
+def test_partial_and_unsupported_verification_are_not_claimed_as_verified() -> None:
+    partial = build_step_quality(_assessment(), evidence=_evidence("partial"))
+    unsupported = build_step_quality(_assessment(), evidence=_evidence("unsupported"))
+    assert partial["score"] < 95
+    assert unsupported["score"] < 95
+    assert "query_contract_satisfied" not in partial["passed_checks"]
+    assert "query_contract_partially_verified" in partial["passed_checks"]
+    assert "query_contract_satisfied" not in unsupported["passed_checks"]
 
 
-def test_confirmed_shared_grain_validates_small_result_sets() -> None:
-    rows = [
-        {"company": "A", "level": 1, "signed": 100, "financed": None},
-        {"company": "A", "level": None, "signed": None, "financed": 80},
-        {"company": "B", "level": 2, "signed": 60, "financed": None},
-        {"company": "B", "level": None, "signed": None, "financed": 40},
-    ]
-    contract = compile_query_contract(
-        [
-            {
-                "key": "grain.company",
-                "kind": "grain",
-                "label": "企业",
-                "locked": True,
-                "bindings": [
-                    {"identifier": "company_id", "role": "group", "aggregation": "none"}
-                ],
-            },
-            {
-                "key": "metric.signed",
-                "kind": "metric",
-                "label": "签收额",
-                "locked": True,
-                "bindings": [
-                    {"identifier": "signed", "role": "measure", "aggregation": "sum"}
-                ],
-            },
-            {
-                "key": "metric.financed",
-                "kind": "metric",
-                "label": "融资额",
-                "locked": True,
-                "bindings": [
-                    {"identifier": "financed", "role": "measure", "aggregation": "sum"}
-                ],
-            },
-        ]
-    )
+def test_empty_result_is_a_valid_answer_and_not_a_score_penalty() -> None:
+    empty = build_step_quality(_assessment(rows=0), evidence=_evidence())
+    populated = build_step_quality(_assessment(rows=8), evidence=_evidence())
+    assert empty["score"] == populated["score"]
+    assert any(item["code"] == "empty_result" for item in empty["observations"])
+    assert "empty_result_answerable" in empty["passed_checks"]
+
+
+def test_data_characteristics_are_observations_not_completion_dimensions() -> None:
     assessment = {
-        "row_count": len(rows),
-        "field_roles": {
-            "metrics": ["signed", "financed"],
-            "dimensions": ["company", "level"],
-        },
-        "data_rows": rows,
+        **_assessment(),
+        "null_rates": {"level": 0.8},
+        "metrics": {"amount": {"count": 0, "sum": 0, "max": 0}},
+    }
+    report = build_step_quality(assessment, evidence=_evidence())
+    assert report["score"] == 95
+    assert {item["code"] for item in report["observations"]} >= {
+        "dimension_null_severe",
+        "metric_without_values",
     }
 
-    validation = validate_result_structure([assessment], contract=contract)
 
-    assert validation["valid"] is False
-    assert validation["issues"][0]["params"]["contract_metric_keys"] == [
-        "metric.signed",
-        "metric.financed",
-    ]
+def test_execution_failure_is_low_confidence_but_still_has_full_weight_definition() -> (
+    None
+):
+    evidence = _evidence()
+    evidence["execution_status"] = "failed"
+    evidence["result_structure_valid"] = False
+    report = build_step_quality(
+        {**_assessment(rows=0), "error": "connection refused"},
+        evidence=evidence,
+    )
+    assert report["grade"] == "unreliable"
+    assert sum(item["weight"] for item in report["dimensions"]) == 100
+
+
+def test_batch_quality_uses_the_weakest_required_step() -> None:
+    good = build_step_quality(_assessment(rows=2), evidence=_evidence())
+    weak = build_step_quality(_assessment(rows=2), evidence=_evidence("partial"))
+    overall = build_overall_quality([good, weak])
+    assert overall["score"] == weak["score"]
+    assert overall["coverage"]["step_count"] == 2

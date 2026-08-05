@@ -946,6 +946,7 @@
     "quality_check": {
       "plan_validated": "쿼리 계획이 프로토콜 수준 검증을 통과했습니다",
       "query_contract_satisfied": "쿼리 계획이 현재 프로토콜에 적용되는 식별자 및 쿼리 계약 검사를 충족했습니다",
+      "query_contract_partially_verified": "쿼리 계획이 쿼리 계약 검사의 일부만 통과했습니다",
       "intent_contract_ready": "업무 정의가 명확화 단계를 통과했습니다",
       "sql_executed": "SQL이 성공적으로 실행되었습니다",
       "displayable_data": "표시 가능한 데이터가 반환되었습니다",
@@ -965,6 +966,7 @@
       "intent_not_machine_confirmed": "기계적으로 검증 가능한 확정 업무 정의가 없습니다.",
       "contract_verified": "쿼리 계획이 필드, 역할 및 쿼리 계약 검증을 통과했습니다.",
       "contract_partially_verified": "쿼리는 실행되었지만 쿼리 계약 검증 근거가 불완전합니다.",
+      "contract_verification_unsupported": "현재 데이터 프로토콜은 전체 쿼리 계약 검증을 지원하지 않습니다.",
       "sql_and_result_verified": "SQL과 실행 결과가 모두 결정적 구조 검증을 통과했습니다.",
       "sql_executed_with_partial_checks": "SQL은 실행되었지만 의미 또는 구조 검증이 일부만 완료되었습니다.",
       "result_not_executed": "쿼리가 실행되지 않아 평가할 실행 결과가 없습니다.",

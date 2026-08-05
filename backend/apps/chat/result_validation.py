@@ -11,7 +11,7 @@ from collections import Counter
 from collections.abc import Mapping, Sequence
 from typing import Any, TypedDict
 
-from apps.chat.query_contract import QueryContract
+from apps.chat.query_contract import GroupRequirement, OutputRequirement, QueryContract
 
 
 class ResultValidationIssue(TypedDict):
@@ -45,16 +45,15 @@ def _split_multi_metric_grain(
     contract_metrics = [
         requirement
         for requirement in (contract.requirements if contract else ())
-        if requirement.kind in {"metric", "calculation"}
+        if isinstance(requirement, OutputRequirement)
+        and requirement.operation != "value"
     ]
     contract_grains = [
         requirement
         for requirement in (contract.requirements if contract else ())
-        if requirement.preserves_grain
+        if isinstance(requirement, GroupRequirement)
     ]
-    contract_defines_shared_grain = (
-        len(contract_metrics) >= 2 and bool(contract_grains)
-    )
+    contract_defines_shared_grain = len(contract_metrics) >= 2 and bool(contract_grains)
     if len(metrics) < 2 or not dimensions:
         return None
     if not contract_defines_shared_grain and len(rows) < 10:
@@ -66,8 +65,7 @@ def _split_multi_metric_grain(
         if (
             any(not _has_value(row.get(field)) for row in rows)
             if contract_defines_shared_grain
-            else sum(not _has_value(row.get(field)) for row in rows) / len(rows)
-            >= 0.25
+            else sum(not _has_value(row.get(field)) for row in rows) / len(rows) >= 0.25
         )
     ]
     stable_dimensions = [
@@ -104,10 +102,10 @@ def _split_multi_metric_grain(
             "sparse_dimensions": sparse_dimensions,
             "stable_dimensions": stable_dimensions,
             "contract_metric_keys": [
-                requirement.key for requirement in contract_metrics
+                requirement.slot_id for requirement in contract_metrics
             ],
             "contract_grain_keys": [
-                requirement.key for requirement in contract_grains
+                requirement.slot_id for requirement in contract_grains
             ],
         },
     }

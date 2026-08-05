@@ -18,6 +18,12 @@ if str(_BACKEND) not in sys.path:
 from apps.chat.answer_payload import build_answer_payload  # noqa: E402
 from apps.chat.graphs.nodes import nlq  # noqa: E402
 from apps.chat.semantic_intent import IntentContext  # noqa: E402
+from apps.chat.query_contract import (  # noqa: E402
+    ContractDraft,
+    FieldRef,
+    OutputRequirement,
+    QueryContract,
+)
 from apps.chat.steps.clarification import SemanticAssessmentResult  # noqa: E402
 from apps.conversation.outcome import RunOutcome  # noqa: E402
 from apps.conversation.usage import merge_usage, usage_from_response  # noqa: E402
@@ -90,7 +96,7 @@ def _state() -> dict[str, Any]:
         "rejected_candidate": None,
         "active_candidate": {
             "plan_validated": True,
-            "contract_satisfied": True,
+            "contract_status": "verified",
             "plans": [
                 {
                     "sql": "SELECT current",
@@ -120,7 +126,7 @@ def _candidate(steps: list[dict[str, Any]]) -> nlq.CandidateBatch:
         assessments,
         intent_ready=True,
         plan_validated=True,
-        contract_satisfied=True,
+        contract_status="verified",
     )
     return nlq._candidate_batch(steps, quality=quality)
 
@@ -142,7 +148,7 @@ def test_candidate_quality_does_not_mutate_the_input_outcome() -> None:
         nlq._assess_all_steps(steps),
         intent_ready=True,
         plan_validated=True,
-        contract_satisfied=True,
+        contract_status="verified",
     )
 
     candidate = nlq._candidate_batch(
@@ -177,7 +183,20 @@ def test_ready_intent_is_persisted_before_sql_generation(
         status="evaluating",
         original_question="汇总签收额和融资额",
     )
-    ready = context.model_copy(update={"status": "ready", "summary": "口径完整"})
+    requirement = OutputRequirement(
+        slot_id="slot_amount",
+        label="签收额",
+        field=FieldRef(field="amount"),
+        operation="sum",
+    )
+    contract = QueryContract(requirements=[requirement])
+    ready = IntentContext(
+        status="ready",
+        original_question=context.original_question,
+        summary="口径完整",
+        draft=ContractDraft(requirements=[requirement]),
+        contract=contract,
+    )
     service = SimpleNamespace(
         record=SimpleNamespace(id=77, intent_context=None),
         chat_question=SimpleNamespace(
@@ -212,7 +231,7 @@ def test_ready_intent_is_persisted_before_sql_generation(
             "llm_service": service,
             "intent_context": context.model_dump(mode="json"),
             "entity_bindings": {},
-            "time_intent": {},
+            "temporal_parse": {},
         }
     )
 
@@ -748,7 +767,7 @@ def test_display_truncation_is_a_limitation_not_a_repair_failure() -> None:
         assessments,
         intent_ready=True,
         plan_validated=True,
-        contract_satisfied=True,
+        contract_status="verified",
     )
     assert report["score"] == 95
     assert report["grade"] == "excellent"
@@ -784,7 +803,7 @@ def test_truncated_sample_quality_signals_do_not_trigger_repair() -> None:
         assessments,
         intent_ready=True,
         plan_validated=True,
-        contract_satisfied=True,
+        contract_status="verified",
     )
 
     assert assessment["limitations"]
@@ -822,7 +841,7 @@ def test_candidate_quality_attributes_structure_failure_to_the_affected_step() -
         assessments,
         intent_ready=True,
         plan_validated=True,
-        contract_satisfied=True,
+        contract_status="verified",
     )
 
     semantic_dimension = next(
@@ -902,7 +921,7 @@ def test_snapshot_persists_one_run_level_quality_report() -> None:
         assessments,
         intent_ready=True,
         plan_validated=True,
-        contract_satisfied=True,
+        contract_status="verified",
     )
 
     payload = build_answer_payload(

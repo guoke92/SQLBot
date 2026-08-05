@@ -37,7 +37,7 @@ class CompletionEvidence(TypedDict):
 
     intent_ready: bool
     plan_validated: bool
-    contract_satisfied: bool
+    contract_status: Literal["verified", "partial", "unsupported"]
     execution_status: ExecutionStatus
     result_structure_valid: bool
 
@@ -168,12 +168,19 @@ def _score_dimensions(
     executed = evidence["execution_status"] == "success"
     intent_ready = evidence["intent_ready"]
     plan_validated = evidence["plan_validated"]
-    contract_valid = evidence["contract_satisfied"]
+    contract_status = evidence["contract_status"]
+    contract_valid = contract_status == "verified"
     structure_valid = evidence["result_structure_valid"]
 
     intent_score = 100 if intent_ready else 70
     contract_score = (
-        100 if plan_validated and contract_valid else (50 if plan_validated else 0)
+        100
+        if plan_validated and contract_status == "verified"
+        else (
+            60
+            if plan_validated and contract_status == "partial"
+            else (45 if plan_validated and contract_status == "unsupported" else 0)
+        )
     )
     if execution_failed:
         sql_score = 0
@@ -217,7 +224,11 @@ def _score_dimensions(
         "contract": _detail(
             "contract_verified"
             if plan_validated and contract_valid
-            else "contract_partially_verified"
+            else (
+                "contract_partially_verified"
+                if contract_status == "partial"
+                else "contract_verification_unsupported"
+            )
         ),
         "sql": _detail(
             "execution_failed"
@@ -246,7 +257,7 @@ def _score_dimensions(
         ),
         "evidence": _detail(
             "schema_contract_evidence"
-            if evidence_score >= 90
+            if contract_valid
             else "limited_verification_evidence"
         ),
         "transparency": _detail(
@@ -281,8 +292,10 @@ def build_step_quality(
         checks.append("intent_contract_ready")
     if evidence["plan_validated"]:
         checks.append("plan_validated")
-    if evidence["contract_satisfied"]:
+    if evidence["contract_status"] == "verified":
         checks.append("query_contract_satisfied")
+    elif evidence["contract_status"] == "partial":
+        checks.append("query_contract_partially_verified")
     if evidence["execution_status"] == "success":
         checks.append("sql_executed")
         checks.append(

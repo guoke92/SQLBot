@@ -17,7 +17,7 @@ nodes:
   match_custom_prompts: apps.chat.graphs.nodes.nlq.match_custom_prompts_node
   retrieve_schema: apps.chat.graphs.nodes.nlq.retrieve_schema_node
   ground_entities: apps.chat.graphs.nodes.nlq.ground_entities_node
-  prepare_time_intent: apps.chat.graphs.nodes.nlq.prepare_time_intent_node
+  parse_temporal_evidence: apps.chat.graphs.nodes.nlq.parse_temporal_evidence_node
   assess_clarity: apps.chat.graphs.nodes.nlq.assess_clarity_node
   assemble_context: apps.chat.graphs.nodes.nlq.assemble_context_node
   complete_intent: apps.chat.graphs.nodes.nlq.complete_intent_node
@@ -92,12 +92,12 @@ edges:
   - from: retrieve_schema
     router:
       type: ok_or_fail
-      next: prepare_time_intent
+      next: parse_temporal_evidence
     paths:
-      prepare_time_intent: prepare_time_intent
+      parse_temporal_evidence: parse_temporal_evidence
       fail: fail
 
-  - from: prepare_time_intent
+  - from: parse_temporal_evidence
     router:
       type: ok_or_fail
       next: assess_clarity

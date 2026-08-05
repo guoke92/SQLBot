@@ -55,13 +55,11 @@ info "  EMBEDDING_API_BASE    = ${EMBEDDING_API_BASE_VAL}"
 info "  DEFAULT_EMBEDDING_MODEL= ${DEFAULT_EMBEDDING_MODEL_VAL}"
 # ── 1. 构建前端 ──────────────────────────────────────────────────────────────
 build_frontend() {
-    info "构建前端（npm run build）…"
+    command -v pnpm >/dev/null 2>&1 || die "本机需要 pnpm"
+    info "安装并构建前端（pnpm frozen lockfile）…"
     cd "${ROOT_DIR}/frontend"
-    if [[ ! -d node_modules ]]; then
-        info "前端依赖未安装，先 npm install…"
-        npm install
-    fi
-    npm run build
+    CI=true pnpm install --frozen-lockfile
+    pnpm build
     [[ -d "${ROOT_DIR}/frontend/dist" ]] || die "前端构建失败，未生成 dist"
     info "前端构建完成"
 }
@@ -110,15 +108,31 @@ render_configs() {
     info "渲染配置文件…"
     local tmpl out
 
+    # sed replacement 中的反斜杠、& 和分隔符必须转义，否则会破坏 .env。
+    escape_sed_replacement() {
+        printf '%s' "$1" | sed 's/[\\&|]/\\&/g'
+    }
+
+    local secret_key_escaped postgres_password_escaped
+    local embedding_api_base_escaped embedding_api_key_escaped
+    local default_embedding_model_escaped
+    secret_key_escaped=$(escape_sed_replacement "${SECRET_KEY_VAL}")
+    postgres_password_escaped=$(escape_sed_replacement "${POSTGRES_PASSWORD_VAL}")
+    embedding_api_base_escaped=$(escape_sed_replacement "${EMBEDDING_API_BASE_VAL}")
+    embedding_api_key_escaped=$(escape_sed_replacement "${EMBEDDING_API_KEY_VAL}")
+    default_embedding_model_escaped=$(
+        escape_sed_replacement "${DEFAULT_EMBEDDING_MODEL_VAL}"
+    )
+
     # .env.server -> .env
     tmpl="${DEPLOY_DIR}/envs/.env.server"
     out="${PKG_DIR}/.env"
     sed \
-        -e "s|__SECRET_KEY__|${SECRET_KEY_VAL}|g" \
-        -e "s|__POSTGRES_PASSWORD__|${POSTGRES_PASSWORD_VAL}|g" \
-        -e "s|__EMBEDDING_API_BASE__|${EMBEDDING_API_BASE_VAL}|g" \
-        -e "s|__EMBEDDING_API_KEY__|${EMBEDDING_API_KEY_VAL}|g" \
-        -e "s|__DEFAULT_EMBEDDING_MODEL__|${DEFAULT_EMBEDDING_MODEL_VAL}|g" \
+        -e "s|__SECRET_KEY__|${secret_key_escaped}|g" \
+        -e "s|__POSTGRES_PASSWORD__|${postgres_password_escaped}|g" \
+        -e "s|__EMBEDDING_API_BASE__|${embedding_api_base_escaped}|g" \
+        -e "s|__EMBEDDING_API_KEY__|${embedding_api_key_escaped}|g" \
+        -e "s|__DEFAULT_EMBEDDING_MODEL__|${default_embedding_model_escaped}|g" \
         "${tmpl}" > "${out}"
     chmod 600 "${out}"
 

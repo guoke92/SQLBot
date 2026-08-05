@@ -32,8 +32,9 @@ MULTI_FACT_REQUIREMENTS = (
     "用户要求在同一结果中展示多个事实指标且存在共享粒度时，必须先在子查询/CTE "
     "内分别聚合后合并为一条查询；只有指标属于独立分析切片或不存在可靠共享键时才拆分",
     "禁止未聚合的事实明细表直接互相 JOIN，避免多对多行数膨胀",
-    "月/周等双侧时间维缺数据时，优先构造 UNION 去重的共享维键集合，"
-    "再分别 LEFT JOIN 各聚合结果",
+    "多事实业务主体范围严格服从已冻结 relation.population；intersection 使用 INNER，"
+    "left/right 保留对应一侧，union 在不支持 FULL OUTER JOIN 的引擎上构造 UNION "
+    "去重的共享维键集合，再分别 LEFT JOIN 各聚合结果",
     "多事实结果只能保留各事实都能按已确认业务口径映射的共享维度；"
     "不得用 NULL 伪造缺失维度，也不得用 MIN/MAX 随机挑选维度值",
     "只有当前数据库引擎明确支持且写法更简洁时才使用 FULL OUTER JOIN；"

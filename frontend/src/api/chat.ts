@@ -32,32 +32,38 @@ export interface ChatMessage {
 }
 
 export type IntentStatus = 'evaluating' | 'needs_clarification' | 'ready' | 'blocked'
-export type IntentKind =
-  | 'datasource'
-  | 'entity'
-  | 'scope'
-  | 'metric'
-  | 'dimension'
-  | 'time'
-  | 'filter'
+export type ClauseType =
+  | 'projection'
+  | 'output'
+  | 'predicate'
+  | 'group'
   | 'relation'
-  | 'grain'
-  | 'calculation'
-export type Aggregation =
-  'none' | 'count' | 'count_distinct' | 'sum' | 'avg' | 'min' | 'max' | 'distinct_concat'
-export type BindingRole = 'group' | 'measure' | 'attribute' | 'filter' | 'join'
+  | 'time_window'
+  | 'order'
+  | 'limit'
 
-export interface IntentBinding {
-  identifier: string
-  role: BindingRole
-  aggregation: Aggregation
+export interface ContractRequirement {
+  slot_id: string
+  clause: ClauseType
+  label: string
+  source?: 'user' | 'rule' | 'terminology' | 'example' | 'schema'
+  evidence_refs?: string[]
+  [key: string]: unknown
 }
 
-export interface IntentResolution {
-  label?: string
-  value: unknown
-  bindings?: IntentBinding[]
-  effect?: 'include' | 'omit'
+export interface ContractSlot {
+  slot_id: string
+  clause: ClauseType
+  label: string
+  reason: string
+  allow_omit?: boolean
+  evidence_refs?: string[]
+}
+
+export interface SlotEffect {
+  slot_id: string
+  action: 'set' | 'omit'
+  requirement?: ContractRequirement | null
 }
 
 export interface IntentOption {
@@ -66,13 +72,12 @@ export interface IntentOption {
   description?: string
   impact?: string
   evidence_refs?: string[]
-  resolutions?: Record<string, IntentResolution>
+  effects?: SlotEffect[]
 }
 
 export interface ClarificationQuestion {
   id: string
-  issue_keys: string[]
-  kind: IntentKind
+  slot_ids: string[]
   title: string
   reason?: string
   selection_type: 'single' | 'multiple' | 'text'
@@ -96,8 +101,15 @@ export interface IntentContext {
   status: IntentStatus
   original_question: string
   summary?: string
-  decisions: Array<Record<string, any>>
-  issues: Array<Record<string, any>>
+  draft: {
+    version: 2
+    requirements: ContractRequirement[]
+    open_slots: ContractSlot[]
+  }
+  contract?: {
+    version: 2
+    requirements: ContractRequirement[]
+  } | null
   questions: ClarificationQuestion[]
   blocking_reasons: string[]
   submitted_answers?: ClarificationAnswer[]

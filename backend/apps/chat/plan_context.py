@@ -11,8 +11,8 @@ from collections.abc import Mapping, Sequence
 from typing import Any
 
 from apps.chat.plan_policy import render_multi_fact_playbook
-from apps.chat.semantic_intent import decision_contract_rows
-from apps.chat.time_intent import TimeIntent
+from apps.chat.query_contract import QueryContract
+from apps.chat.semantic_intent import contract_display_rows
 
 JOIN_PLAYBOOK_SUFFIX = """\
 5. 时间维：按用户语义选择创建/完成/结束时间；无明确口径时结合字段注释，禁止机械套用固定时间列。
@@ -108,78 +108,30 @@ def render_entity_bindings(entity_bindings: Mapping[str, Any] | None) -> str:
     return "\n".join(lines)
 
 
-def render_time_intent(time_intent: TimeIntent | None) -> str:
-    """Render the structured time contract without inventing SQL columns."""
-    if not time_intent:
+def render_query_contract(contract: QueryContract | None) -> str:
+    """Render the sole frozen execution contract for SQL planning."""
+    if contract is None:
         return ""
-    scope = time_intent.get("scope")
-    comparison = time_intent.get("comparison", "none")
-    range_unit = time_intent.get("range_unit", "month")
-    bucket = time_intent.get("bucket")
+    rows = contract_display_rows(contract)
     lines = [
-        "## 时间范围契约（生成 SQL 时必须遵守）",
-        f"- 筛选范围精度: {range_unit}；比较方式: {comparison}",
+        "## 已冻结查询契约（最高优先级）",
+        "每个 slot 是独立且必须落实的业务子句；不得新增业务过滤或改写口径：",
     ]
-    if bucket:
-        lines.append(f"- 用户要求结果按 {bucket} 分组，必须保留该时间维度。")
-    else:
-        lines.append("- 用户未要求时间分组，不得仅因存在时间范围而额外拆分结果。")
-    if scope == "all":
-        lines.append("- 用户要求全量时间：禁止自动添加默认时间范围。")
-    elif scope == "unspecified":
-        lines.append("- 用户只确认了时间分组，未指定筛选范围：禁止自动添加时间范围。")
-    elif scope == "explicit":
-        start = time_intent.get("start")
-        end = time_intent.get("end_exclusive")
-        lines.append(f"- 明确范围: `{start}`（含）至 `{end}`（不含）；不得擅自缩短。")
-    elif scope in ("rolling", "default"):
-        months = int(time_intent.get("lookback_months") or 12)
-        anchor = time_intent.get("anchor") or "data_max"
-        if anchor == "data_max":
-            lines.append(
-                f"- 使用数据中最新有效时间作为锚点，覆盖最近 {months} 个自然月；"
-                "不得用服务器当前日期替代数据锚点。"
-            )
-        else:
-            lines.append(f"- 以当前时间为锚点，覆盖最近 {months} 个自然月。")
-    if comparison == "yoy":
-        lines.append("- 同比必须同时保留目标周期与上一年同期，禁止只查 12 个月。")
-    elif comparison == "mom":
-        lines.append("- 环比必须额外保留前一周期，避免首个展示周期无法计算。")
-    lines.append(
-        "- 从 schema 中选择业务语义匹配的现有时间列；若不存在则不要臆造时间字段。"
-    )
-    return "\n".join(lines)
-
-
-def render_intent_decisions(intent_context: Mapping[str, Any] | None) -> str:
-    """Render the resolved semantic contract; unresolved questions never reach here."""
-    decisions = (intent_context or {}).get("decisions") or []
-    lines: list[str] = []
-    for label, rendered, requirements in decision_contract_rows(decisions):
-        requirement = (
-            "；SQL 必须落实字段职责：" + "、".join(requirements)
-            if requirements
-            else ""
+    for requirement, (label, rendered) in zip(
+        contract.requirements,
+        rows,
+        strict=True,
+    ):
+        lines.append(
+            f"- [{requirement.slot_id}] {requirement.clause} | {label}: {rendered}"
         )
-        lines.append(f"- {label}: {rendered}{requirement}")
-    if not lines:
-        return ""
-    return "\n".join(
-        [
-            "## 已确定查询口径（最高优先级）",
-            "以下契约来自用户明确要求、已确认回答或确定性规则，"
-            "SQL 的过滤、关联、聚合与时间口径必须逐项落实：",
-            *lines,
-        ]
-    )
+    return "\n".join(lines)
 
 
 def render_plan_context(
     *,
     entity_bindings: Mapping[str, Any] | None = None,
-    time_intent: TimeIntent | None = None,
-    intent_context: Mapping[str, Any] | None = None,
+    contract: QueryContract | None = None,
     include_playbook: bool = True,
     repair: str = "",
     extra_sections: Sequence[str] | None = None,
@@ -189,12 +141,9 @@ def render_plan_context(
     ent = render_entity_bindings(entity_bindings)
     if ent:
         parts.append(ent)
-    time_block = render_time_intent(time_intent)
-    if time_block:
-        parts.append(time_block)
-    intent_block = render_intent_decisions(intent_context)
-    if intent_block:
-        parts.append(intent_block)
+    contract_block = render_query_contract(contract)
+    if contract_block:
+        parts.append(contract_block)
     if include_playbook:
         parts.append(render_join_playbook())
     for sec in extra_sections or []:

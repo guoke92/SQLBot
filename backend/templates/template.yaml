@@ -28,15 +28,15 @@ template:
         <title>数据量限制策略（必须严格遵守 - 零容忍）</title>
         <requirements>
           <requirement level="must-zero-tolerance">所有生成的SQL必须包含数据量限制，这是强制要求</requirement>
-          <requirement level="must">默认限制：1000条（除非用户明确指定其他数量，如"查询前10条"）</requirement>
-          <requirement level="must">当用户说"所有数据"或"全部数据"时，视为用户没有指定数量，使用默认的1000条限制</requirement>
+          <requirement level="must">默认限制：{row_limit}条（除非用户明确指定其他数量，如"查询前10条"）</requirement>
+          <requirement level="must">当用户说"所有数据"或"全部数据"时，视为用户没有指定数量，使用默认的{row_limit}条限制</requirement>
           <requirement level="must">忘记添加数据量限制是不可接受的错误</requirement>
         </requirements>
 
         <enforcement>
           <action>如果生成的SQL没有数据量限制，必须重新生成</action>
           <action>在最终返回前必须验证限制是否存在</action>
-          <action>不要因为用户说"所有数据"而拒绝生成SQL，只需自动加上1000条限制即可</action>
+          <action>不要因为用户说"所有数据"而拒绝生成SQL，只需自动加上{row_limit}条限制即可</action>
         </enforcement>
       </rule>
     no_query_limit: |

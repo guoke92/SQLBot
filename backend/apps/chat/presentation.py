@@ -6,7 +6,12 @@ import re
 from collections.abc import Iterable, Mapping, Sequence
 from typing import TypedDict
 
-from apps.chat.query_contract import QueryContract
+from apps.chat.query_contract import (
+    GroupRequirement,
+    OutputRequirement,
+    ProjectionRequirement,
+    QueryContract,
+)
 
 _SCHEMA_FIELD_RE = re.compile(r"^\s*\((?P<body>.*)\),?\s*$", re.MULTILINE)
 
@@ -73,7 +78,7 @@ def build_result_presentation(
     when neither source can establish one unambiguous business meaning.
     """
     requirements = {
-        requirement.key: requirement
+        requirement.slot_id: requirement
         for requirement in (contract.requirements if contract else ())
     }
     lineage = {
@@ -82,8 +87,14 @@ def build_result_presentation(
     }
     exact_labels: dict[str, set[str]] = {}
     for requirement in requirements.values():
-        for binding in requirement.bindings_for("group", "measure", "attribute"):
-            exact_labels.setdefault(_bare_identifier(binding.identifier), set()).add(
+        if isinstance(requirement, (OutputRequirement, GroupRequirement)):
+            requirement_fields = [requirement.field]
+        elif isinstance(requirement, ProjectionRequirement):
+            requirement_fields = requirement.fields
+        else:
+            requirement_fields = []
+        for field in requirement_fields:
+            exact_labels.setdefault(_bare_identifier(field.identifier), set()).add(
                 requirement.label
             )
     schema_labels = schema_field_labels(schema_text)

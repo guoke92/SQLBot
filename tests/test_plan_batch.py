@@ -1,4 +1,4 @@
-"""Atomic generated plan batch contract tests."""
+"""Atomic query-plan and clause-oriented contract tests."""
 
 from __future__ import annotations
 
@@ -7,6 +7,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import orjson
+import pytest
 
 _ROOT = Path(__file__).resolve().parents[1]
 _BACKEND = _ROOT / "backend"
@@ -14,15 +15,31 @@ if str(_BACKEND) not in sys.path:
     sys.path.insert(0, str(_BACKEND))
 
 from apps.chat.planning import parse_query_generation  # noqa: E402
+from apps.chat.query_contract import (  # noqa: E402
+    FieldRef,
+    GroupRequirement,
+    LimitRequirement,
+    OrderRequirement,
+    OutputRequirement,
+    PopulationPolicy,
+    PredicateRequirement,
+    ProjectionRequirement,
+    QueryContract,
+    RelationPair,
+    RelationRequirement,
+    TimeWindowRequirement,
+)
 from apps.protocol import QueryPlan  # noqa: E402
-from apps.protocol.rest.protocol import RestProtocol  # noqa: E402
-from apps.protocol.sql.protocol import SqlProtocol  # noqa: E402
-from common.utils.json_utils import extract_nested_json  # noqa: E402
 
 
 class FakeProtocol:
+    type_key = "mysql"
+
+    def __init__(self, *, sql_capability: bool = True) -> None:
+        self.sql_capability = sql_capability
+
     def supports(self, _capability: str) -> bool:
-        return True
+        return self.sql_capability
 
     def parse_llm_output(self, text: str) -> QueryPlan:
         data = orjson.loads(text)
@@ -54,1248 +71,666 @@ class FakeProtocol:
         return plan.statement
 
 
-def service() -> SimpleNamespace:
+def service(
+    *, sql_capability: bool = True, contract: QueryContract | None = None
+) -> SimpleNamespace:
     return SimpleNamespace(
-        protocol=FakeProtocol(),
+        protocol=FakeProtocol(sql_capability=sql_capability),
         ds=object(),
         table_name_list=["physical_table"],
         chat_question=SimpleNamespace(
-            question="汇总今年签收额和融资额",
-            intent_context=None,
+            question="查询数据",
+            intent_context=(
+                {"contract": contract.model_dump(mode="json") if contract else None}
+            ),
         ),
     )
+
+
+def _raw(*sqls: str) -> str:
+    payload = [
+        {"success": True, "sql": sql, "tables": ["physical_table"]} for sql in sqls
+    ]
+    return orjson.dumps(payload[0] if len(payload) == 1 else payload).decode()
 
 
 def test_mixed_valid_invalid_batch_is_rejected_atomically() -> None:
-    raw = orjson.dumps(
-        [
-            {"success": True, "sql": "SELECT 1", "tables": ["claimed"]},
-            {
-                "success": True,
-                "sql": "SELECT bad_column FROM physical_table",
-                "tables": ["physical_table"],
-            },
-        ]
-    ).decode()
-    result = parse_query_generation(raw, service(), max_batch_size=3)
-
-    assert result.success is False
+    result = parse_query_generation(
+        _raw("SELECT 1", "SELECT bad_column FROM physical_table"),
+        service(),
+        max_batch_size=3,
+    )
+    assert not result.success
     assert result.plans == []
-    assert result.plan_validated is False
-    assert result.contract_satisfied is False
+    assert result.contract_status == "unsupported"
     assert "计划 2" in (result.error_message or "")
 
 
-def test_validated_physical_resources_replace_model_claim() -> None:
-    raw = orjson.dumps(
-        {"success": True, "sql": "SELECT 1", "tables": ["claimed"]}
-    ).decode()
-    result = parse_query_generation(raw, service(), max_batch_size=3)
-
-    assert result.success is True
-    assert result.plan_validated is True
-    assert result.contract_satisfied is True
-    assert result.plans[0]["tables"] == ["physical_table"]
-    assert result.plans[0]["brief"] == "汇总今年签收额和融资额"
-
-
-def test_current_plan_brief_is_not_inherited_from_rejected_attempt() -> None:
-    raw = orjson.dumps(
-        {
-            "success": True,
-            "sql": "SELECT 1",
-            "brief": "",
-        }
-    ).decode()
-
-    result = parse_query_generation(raw, service(), max_batch_size=3)
-
-    assert result.plans[0]["brief"] == "汇总今年签收额和融资额"
-
-
-def test_clarification_text_is_not_used_as_result_title() -> None:
-    llm_service = service()
-    llm_service.chat_question.question = "已确认查询口径：请确认签收额和融资额"
-    llm_service.chat_question.generation_question = "汇总今年签收额和融资额"
-    raw = orjson.dumps(
-        {
-            "success": True,
-            "sql": "SELECT 1",
-            "brief": "模型生成的临时标题",
-        }
-    ).decode()
-
-    result = parse_query_generation(raw, llm_service, max_batch_size=3)
-
-    assert result.plans[0]["brief"] == "汇总今年签收额和融资额"
-
-
-def test_result_title_is_derived_from_confirmed_business_contract() -> None:
-    llm_service = service()
-    llm_service.chat_question.intent_context = {
-        "decisions": [
-            {
-                "key": "dimension.company",
-                "kind": "dimension",
-                "label": "企业",
-                "locked": True,
-                "bindings": [
-                    {
-                        "identifier": "company_name",
-                        "role": "group",
-                        "aggregation": "none",
-                    }
-                ],
-                "value": "按企业",
-            },
-            {
-                "key": "metric.signed_amount",
-                "kind": "metric",
-                "label": "累计签收额",
-                "locked": True,
-                "bindings": [
-                    {"identifier": "amount", "role": "measure", "aggregation": "sum"}
-                ],
-                "value": "合计",
-            },
-        ]
-    }
-
+def test_non_sql_protocol_is_explicitly_unsupported_not_verified() -> None:
     result = parse_query_generation(
-        orjson.dumps(
-            {
-                "success": True,
-                "sql": "SELECT company_name, SUM(amount) FROM asset",
-                "brief": "模型临时标题",
-            }
-        ).decode(),
-        llm_service,
+        _raw("SELECT 1"),
+        service(sql_capability=False),
         max_batch_size=3,
     )
+    assert result.success
+    assert result.contract_status == "unsupported"
 
-    assert result.plans[0]["brief"] == "按企业统计累计签收额"
-    assert result.plans[0]["presentation_title"] == "按企业统计累计签收额"
 
-
-def test_result_title_excludes_display_attributes_from_grouping() -> None:
-    llm_service = service()
-    llm_service.chat_question.intent_context = {
-        "decisions": [
-            {
-                "key": "grain.enterprise",
-                "kind": "grain",
-                "label": "企业主体",
-                "locked": True,
-                "bindings": [
-                    {
-                        "identifier": "company_name",
-                        "role": "group",
-                        "aggregation": "none",
-                    }
-                ],
-            },
-            {
-                "key": "dimension.supplier_level",
-                "kind": "dimension",
-                "label": "供应商层级",
-                "locked": True,
-                "bindings": [
-                    {
-                        "identifier": "apply_level",
-                        "role": "attribute",
-                        "aggregation": "min",
-                    }
-                ],
-            },
-            {
-                "key": "metric.signed_amount",
-                "kind": "metric",
-                "label": "累计签收额",
-                "locked": True,
-                "bindings": [
-                    {
-                        "identifier": "orig_asset_amt",
-                        "role": "measure",
-                        "aggregation": "sum",
-                    }
-                ],
-            },
+def _latest_contract() -> QueryContract:
+    return QueryContract(
+        requirements=[
+            ProjectionRequirement(
+                slot_id="slot_projection",
+                label="全部字段",
+                mode="all",
+            ),
+            OrderRequirement(
+                slot_id="slot_order",
+                label="按创建时间判断最新",
+                field=FieldRef(resource="physical_table", field="create_time"),
+                direction="desc",
+            ),
+            LimitRequirement(slot_id="slot_limit", label="十条", value=10),
         ]
-    }
+    )
 
+
+def test_latest_ten_rows_is_verified_without_a_time_window() -> None:
     result = parse_query_generation(
-        (
-            '{"success":true,"sql":"SELECT company_name, '
-            "MIN(apply_level), SUM(orig_asset_amt) FROM asset "
-            'GROUP BY company_name"}'
+        _raw("SELECT * FROM physical_table ORDER BY create_time DESC LIMIT 10"),
+        service(contract=_latest_contract()),
+        max_batch_size=3,
+        query_contract=_latest_contract(),
+    )
+    assert result.success
+    assert result.contract_status == "verified"
+
+
+def test_unconfirmed_schema_policy_predicate_is_rejected() -> None:
+    result = parse_query_generation(
+        _raw(
+            "SELECT * FROM physical_table WHERE hide_flag != 'Y' "
+            "ORDER BY create_time DESC LIMIT 10"
         ),
-        llm_service,
+        service(contract=_latest_contract()),
         max_batch_size=3,
+        query_contract=_latest_contract(),
     )
-
-    assert result.plans[0]["presentation_title"] == "按企业主体统计累计签收额"
-    assert "供应商层级" not in result.plans[0]["presentation_title"]
-
-
-def test_batch_over_limit_is_rejected_instead_of_truncated() -> None:
-    raw = orjson.dumps(
-        [{"success": True, "sql": f"SELECT {index}"} for index in range(4)]
-    ).decode()
-    result = parse_query_generation(raw, service(), max_batch_size=3)
-
-    assert result.success is False
-    assert "超过单批上限" in (result.error_message or "")
+    assert not result.success
+    assert "unconfirmed business predicates" in (result.error_message or "")
 
 
-def test_batch_must_implement_required_contract_identifiers() -> None:
-    llm_service = service()
-    llm_service.chat_question.intent_context = {
-        "decisions": [
-            {
-                "key": "relation.finance_asset.keys",
-                "kind": "relation",
-                "label": "关联字段",
-                "locked": True,
-                "bindings": [
-                    {
-                        "identifier": "company_name",
-                        "role": "join",
-                        "aggregation": "none",
-                    },
-                    {
-                        "identifier": "core_company_id",
-                        "role": "join",
-                        "aggregation": "none",
-                    },
-                ],
-                "value": "company_name + core_company_id",
-            }
+def test_unconfirmed_public_output_is_rejected() -> None:
+    contract = QueryContract(
+        requirements=[
+            OutputRequirement(
+                slot_id="amount",
+                label="签收额",
+                field=FieldRef(resource="physical_table", field="amount"),
+                operation="sum",
+            )
         ]
-    }
-
-    rejected = parse_query_generation(
-        orjson.dumps(
-            {
-                "success": True,
-                "sql": (
-                    "SELECT * FROM finance f JOIN asset a "
-                    "ON f.company_name = a.company_name"
-                ),
-            }
-        ).decode(),
-        llm_service,
-        max_batch_size=3,
     )
-
-    assert rejected.success is False
-    assert "core_company_id" in (rejected.error_message or "")
-
-    accepted = parse_query_generation(
-        orjson.dumps(
-            {
-                "success": True,
-                "sql": (
-                    "SELECT * FROM finance f JOIN asset a "
-                    "ON f.company_name = a.company_name "
-                    "AND f.core_company_id = a.core_company_id"
-                ),
-            }
-        ).decode(),
-        llm_service,
-        max_batch_size=3,
-    )
-
-    assert accepted.success is True
-
-
-def test_contract_identifier_must_appear_in_its_business_clause() -> None:
-    llm_service = service()
-    llm_service.chat_question.intent_context = {
-        "decisions": [
-            {
-                "key": "scope.department",
-                "kind": "scope",
-                "label": "部门范围",
-                "locked": True,
-                "bindings": [
-                    {
-                        "identifier": "department_name",
-                        "role": "filter",
-                        "aggregation": "none",
-                    }
-                ],
-                "value": "研发二部",
-            }
-        ]
-    }
-
-    rejected = parse_query_generation(
-        orjson.dumps(
-            {
-                "success": True,
-                "sql": "SELECT department_name, COUNT(*) FROM task",
-            }
-        ).decode(),
-        llm_service,
-        max_batch_size=3,
-    )
-    accepted = parse_query_generation(
-        orjson.dumps(
-            {
-                "success": True,
-                "sql": ("SELECT COUNT(*) FROM task WHERE department_name = '研发二部'"),
-            }
-        ).decode(),
-        llm_service,
-        max_batch_size=3,
-    )
-
-    assert rejected.success is False
-    assert "correct clause" in (rejected.error_message or "")
-    assert accepted.success is True
-
-
-def test_batch_rejects_competing_plans_for_same_contract() -> None:
-    llm_service = service()
-    llm_service.chat_question.intent_context = {
-        "decisions": [
-            {
-                "key": "metric.amount",
-                "kind": "metric",
-                "label": "金额",
-                "locked": True,
-                "bindings": [
-                    {"identifier": "amount", "role": "measure", "aggregation": "sum"}
-                ],
-                "value": "SUM(amount)",
-            }
-        ]
-    }
-    raw = orjson.dumps(
-        [
-            {
-                "success": True,
-                "sql": "SELECT SUM(amount) AS total FROM orders",
-            },
-            {
-                "success": True,
-                "sql": "SELECT AVG(amount) AS total FROM orders",
-            },
-        ]
-    ).decode()
-
-    result = parse_query_generation(raw, llm_service, max_batch_size=3)
-
-    assert result.success is False
-    assert "requires SUM but uses AVG" in (result.error_message or "")
-
-
-def test_dimension_contract_rejects_min_max_or_null_placeholder() -> None:
-    llm_service = service()
-    llm_service.chat_question.intent_context = {
-        "decisions": [
-            {
-                "key": "grain.asset_level",
-                "kind": "grain",
-                "label": "资产层级",
-                "locked": True,
-                "bindings": [
-                    {
-                        "identifier": "apply_level",
-                        "role": "group",
-                        "aggregation": "none",
-                    }
-                ],
-                "value": "按资产层级",
-            }
-        ]
-    }
-
-    collapsed = parse_query_generation(
-        orjson.dumps(
-            {
-                "success": True,
-                "sql": (
-                    "SELECT company_name, MAX(apply_level) AS apply_level, "
-                    "SUM(amount) FROM asset GROUP BY company_name"
-                ),
-            }
-        ).decode(),
-        llm_service,
-        max_batch_size=3,
-    )
-    placeholder = parse_query_generation(
-        orjson.dumps(
-            {
-                "success": True,
-                "sql": (
-                    "SELECT company_name, CAST(NULL AS SIGNED) AS apply_level, "
-                    "SUM(amount) FROM asset GROUP BY company_name"
-                ),
-            }
-        ).decode(),
-        llm_service,
-        max_batch_size=3,
-    )
-
-    assert collapsed.success is False
-    assert "MAX" in (collapsed.error_message or "")
-    assert placeholder.success is False
-    assert "projected as NULL" in (placeholder.error_message or "")
-
-
-def test_confirmed_calculation_can_aggregate_a_dimension_identifier() -> None:
-    llm_service = service()
-    llm_service.chat_question.intent_context = {
-        "decisions": [
-            {
-                "key": "grain.asset_level",
-                "kind": "grain",
-                "label": "资产层级",
-                "locked": True,
-                "bindings": [
-                    {
-                        "identifier": "apply_level",
-                        "role": "group",
-                        "aggregation": "none",
-                    }
-                ],
-                "value": "按企业展示代表层级",
-            },
-            {
-                "key": "calculation.asset_level",
-                "kind": "calculation",
-                "label": "资产层级取值方式",
-                "locked": True,
-                "bindings": [
-                    {
-                        "identifier": "apply_level",
-                        "role": "measure",
-                        "aggregation": "max",
-                    }
-                ],
-                "value": "每家企业取最高资产层级",
-            },
-        ]
-    }
-
     result = parse_query_generation(
-        orjson.dumps(
-            {
-                "success": True,
-                "sql": (
-                    "SELECT company_name, MAX(apply_level) AS apply_level "
-                    "FROM asset GROUP BY company_name"
-                ),
-            }
-        ).decode(),
-        llm_service,
+        _raw("SELECT SUM(amount) AS amount, name FROM physical_table GROUP BY name"),
+        service(contract=contract),
         max_batch_size=3,
+        query_contract=contract,
     )
-
-    assert result.success is True
-
-    wrong_aggregation = parse_query_generation(
-        orjson.dumps(
-            {
-                "success": True,
-                "sql": (
-                    "SELECT company_name, MIN(apply_level) AS apply_level "
-                    "FROM asset GROUP BY company_name"
-                ),
-            }
-        ).decode(),
-        llm_service,
-        max_batch_size=3,
-    )
-
-    assert wrong_aggregation.success is False
-    assert "MIN" in (wrong_aggregation.error_message or "")
+    assert not result.success
+    assert "unconfirmed public outputs" in (result.error_message or "")
 
 
-def test_metric_aggregation_is_validated_through_cte_lineage() -> None:
-    llm_service = service()
-    llm_service.chat_question.intent_context = {
-        "decisions": [
-            {
-                "key": "metric.amount",
-                "kind": "metric",
-                "label": "最高金额",
-                "locked": True,
-                "bindings": [
-                    {"identifier": "amount", "role": "measure", "aggregation": "max"}
-                ],
-                "value": "最高金额",
-            }
+def test_unconfirmed_public_grouping_is_rejected() -> None:
+    contract = QueryContract(
+        requirements=[
+            OutputRequirement(
+                slot_id="amount",
+                label="签收额",
+                field=FieldRef(resource="physical_table", field="amount"),
+                operation="sum",
+            )
         ]
-    }
-
-    accepted = parse_query_generation(
-        orjson.dumps(
-            {
-                "success": True,
-                "sql": (
-                    "WITH stats AS (SELECT MAX(amount) AS total FROM asset) "
-                    "SELECT total FROM stats"
-                ),
-            }
-        ).decode(),
-        llm_service,
-        max_batch_size=3,
     )
-    rejected = parse_query_generation(
-        orjson.dumps(
-            {
-                "success": True,
-                "sql": (
-                    "WITH stats AS (SELECT MIN(amount) AS total FROM asset) "
-                    "SELECT total FROM stats"
-                ),
-            }
-        ).decode(),
-        llm_service,
-        max_batch_size=3,
-    )
-
-    assert accepted.success is True
-    assert rejected.success is False
-    assert "requires MAX but uses MIN" in (rejected.error_message or "")
-
-
-def test_count_distinct_aggregation_is_recognized() -> None:
-    llm_service = service()
-    llm_service.chat_question.intent_context = {
-        "decisions": [
-            {
-                "key": "metric.company_count",
-                "kind": "metric",
-                "label": "企业数",
-                "locked": True,
-                "bindings": [
-                    {
-                        "identifier": "company_id",
-                        "role": "measure",
-                        "aggregation": "count_distinct",
-                    }
-                ],
-                "value": "去重企业数",
-            }
-        ]
-    }
-
     result = parse_query_generation(
-        orjson.dumps(
-            {
-                "success": True,
-                "sql": "SELECT COUNT(DISTINCT company_id) FROM asset",
-            }
-        ).decode(),
-        llm_service,
+        _raw("SELECT SUM(amount) AS amount FROM physical_table GROUP BY name"),
+        service(contract=contract),
         max_batch_size=3,
+        query_contract=contract,
     )
+    assert not result.success
+    assert "unconfirmed public grouping" in (result.error_message or "")
 
-    assert result.success is True
 
-
-def test_multiple_confirmed_aggregations_can_share_one_source_field() -> None:
-    llm_service = service()
-    llm_service.chat_question.intent_context = {
-        "decisions": [
-            {
-                "key": "metric.amount.max",
-                "kind": "metric",
-                "label": "最高金额",
-                "locked": True,
-                "bindings": [
-                    {"identifier": "amount", "role": "measure", "aggregation": "max"}
-                ],
-                "value": "最高金额",
-            },
-            {
-                "key": "metric.amount.min",
-                "kind": "metric",
-                "label": "最低金额",
-                "locked": True,
-                "bindings": [
-                    {"identifier": "amount", "role": "measure", "aggregation": "min"}
-                ],
-                "value": "最低金额",
-            },
+def test_output_must_be_projected_with_the_confirmed_aggregation() -> None:
+    contract = QueryContract(
+        requirements=[
+            OutputRequirement(
+                slot_id="amount",
+                label="签收额",
+                field=FieldRef(resource="physical_table", field="amount"),
+                operation="sum",
+            )
         ]
-    }
+    )
+    invalid = parse_query_generation(
+        _raw("SELECT name FROM physical_table WHERE amount > 0"),
+        service(contract=contract),
+        max_batch_size=3,
+        query_contract=contract,
+    )
+    valid = parse_query_generation(
+        _raw("SELECT SUM(amount) AS amount FROM physical_table"),
+        service(contract=contract),
+        max_batch_size=3,
+        query_contract=contract,
+    )
+    assert not invalid.success
+    assert valid.contract_status == "verified"
 
+
+def test_cte_output_lineage_preserves_the_confirmed_aggregation() -> None:
+    contract = QueryContract(
+        requirements=[
+            OutputRequirement(
+                slot_id="amount",
+                label="签收额",
+                field=FieldRef(resource="physical_table", field="amount"),
+                operation="sum",
+            )
+        ]
+    )
+    valid = parse_query_generation(
+        _raw(
+            "WITH aggregate_result AS ("
+            "SELECT SUM(amount) AS total_amount FROM physical_table"
+            ") SELECT total_amount FROM aggregate_result"
+        ),
+        service(contract=contract),
+        max_batch_size=3,
+        query_contract=contract,
+    )
+    hidden = parse_query_generation(
+        _raw(
+            "WITH aggregate_result AS ("
+            "SELECT SUM(amount) AS total_amount FROM physical_table"
+            ") SELECT 1 AS unrelated_value FROM aggregate_result"
+        ),
+        service(contract=contract),
+        max_batch_size=3,
+        query_contract=contract,
+    )
+    assert valid.contract_status == "verified"
+    assert not hidden.success
+
+
+def test_group_time_bucket_is_part_of_the_contract() -> None:
+    contract = QueryContract(
+        requirements=[
+            GroupRequirement(
+                slot_id="month",
+                label="按月统计",
+                field=FieldRef(resource="physical_table", field="create_time"),
+                bucket="month",
+            ),
+            OutputRequirement(
+                slot_id="count",
+                label="记录数",
+                field=FieldRef(resource="physical_table", field="id"),
+                operation="count",
+            ),
+        ]
+    )
+    valid = parse_query_generation(
+        _raw(
+            "SELECT DATE_FORMAT(create_time, '%Y-%m') AS month, COUNT(id) AS count "
+            "FROM physical_table GROUP BY DATE_FORMAT(create_time, '%Y-%m')"
+        ),
+        service(contract=contract),
+        max_batch_size=3,
+        query_contract=contract,
+    )
+    wrong_grain = parse_query_generation(
+        _raw(
+            "SELECT create_time, COUNT(id) AS count FROM physical_table "
+            "GROUP BY create_time"
+        ),
+        service(contract=contract),
+        max_batch_size=3,
+        query_contract=contract,
+    )
+    assert valid.contract_status == "verified"
+    assert not wrong_grain.success
+
+
+def test_derived_output_requires_the_confirmed_arithmetic_operation() -> None:
+    contract = QueryContract(
+        requirements=[
+            OutputRequirement(
+                slot_id="amount",
+                label="签收额",
+                field=FieldRef(resource="physical_table", field="amount"),
+                operation="sum",
+            ),
+            OutputRequirement(
+                slot_id="target",
+                label="目标额",
+                field=FieldRef(resource="physical_table", field="target"),
+                operation="sum",
+            ),
+            OutputRequirement(
+                slot_id="rate",
+                label="完成率",
+                field=FieldRef(field="completion_rate"),
+                operation="ratio",
+                operands=["amount", "target"],
+            ),
+        ]
+    )
+    valid = parse_query_generation(
+        _raw(
+            "SELECT SUM(amount) AS amount, SUM(target) AS target, "
+            "SUM(amount) / NULLIF(SUM(target), 0) AS completion_rate "
+            "FROM physical_table"
+        ),
+        service(contract=contract),
+        max_batch_size=3,
+        query_contract=contract,
+    )
+    wrong_formula = parse_query_generation(
+        _raw(
+            "SELECT SUM(amount) AS amount, SUM(target) AS target, "
+            "1 AS completion_rate FROM physical_table"
+        ),
+        service(contract=contract),
+        max_batch_size=3,
+        query_contract=contract,
+    )
+    assert valid.contract_status == "verified"
+    assert not wrong_formula.success
+
+
+def test_order_by_output_alias_resolves_through_projection_lineage() -> None:
+    contract = QueryContract(
+        requirements=[
+            OutputRequirement(
+                slot_id="amount",
+                label="签收额",
+                field=FieldRef(resource="physical_table", field="amount"),
+                operation="sum",
+            ),
+            OrderRequirement(
+                slot_id="order",
+                label="签收额倒序",
+                output_slot_id="amount",
+                direction="desc",
+            ),
+        ]
+    )
     result = parse_query_generation(
-        orjson.dumps(
-            {
-                "success": True,
-                "sql": "SELECT MAX(amount), MIN(amount) FROM asset",
-            }
-        ).decode(),
-        llm_service,
+        _raw(
+            "SELECT SUM(amount) AS total_amount FROM physical_table "
+            "ORDER BY total_amount DESC"
+        ),
+        service(contract=contract),
         max_batch_size=3,
+        query_contract=contract,
     )
+    assert result.contract_status == "verified"
 
-    assert result.success is True
 
-
-def test_role_aware_contract_accepts_metric_dates_and_reduced_attributes() -> None:
-    """Regression for chat 79: filters must not inherit measure aggregation."""
-    llm_service = service()
-    llm_service.chat_question.intent_context = {
-        "decisions": [
-            {
-                "key": "grain.company",
-                "kind": "grain",
-                "label": "原始供应商",
-                "locked": True,
-                "bindings": [
-                    {
-                        "identifier": "company_name",
-                        "role": "group",
-                        "aggregation": "none",
-                    }
-                ],
-            },
-            {
-                "key": "dimension.core_company",
-                "kind": "dimension",
-                "label": "核企名称",
-                "locked": True,
-                "bindings": [
-                    {
-                        "identifier": "core_company_name",
-                        "role": "attribute",
-                        "aggregation": "distinct_concat",
-                    }
-                ],
-            },
-            {
-                "key": "dimension.supplier_level",
-                "kind": "dimension",
-                "label": "资产层级",
-                "locked": True,
-                "bindings": [
-                    {
-                        "identifier": "apply_level",
-                        "role": "attribute",
-                        "aggregation": "min",
-                    }
-                ],
-            },
-            {
-                "key": "metric.signed_amount",
-                "kind": "metric",
-                "label": "累计签收额",
-                "locked": True,
-                "bindings": [
-                    {
-                        "identifier": "orig_asset_amt",
-                        "role": "measure",
-                        "aggregation": "sum",
-                    },
-                    {
-                        "identifier": "sign_date",
-                        "role": "filter",
-                        "aggregation": "none",
-                    },
-                ],
-            },
-            {
-                "key": "metric.financed_amount",
-                "kind": "metric",
-                "label": "累积融资额",
-                "locked": True,
-                "bindings": [
-                    {
-                        "identifier": "fin_apply_amt",
-                        "role": "measure",
-                        "aggregation": "sum",
-                    },
-                    {
-                        "identifier": "fin_apply_date",
-                        "role": "filter",
-                        "aggregation": "none",
-                    },
-                ],
-            },
+def test_predicate_null_policy_is_never_silently_treated_as_verified() -> None:
+    contract = QueryContract(
+        requirements=[
+            ProjectionRequirement(
+                slot_id="projection",
+                label="全部字段",
+                mode="all",
+            ),
+            PredicateRequirement(
+                slot_id="status",
+                label="排除草稿状态",
+                field=FieldRef(resource="physical_table", field="status"),
+                operator="not_in",
+                values=["draft"],
+            ),
         ]
-    }
+    )
+    result = parse_query_generation(
+        _raw("SELECT * FROM physical_table WHERE status NOT IN ('draft')"),
+        service(contract=contract),
+        max_batch_size=3,
+        query_contract=contract,
+    )
+    preserve = contract.model_copy(
+        update={
+            "requirements": [
+                contract.requirements[0],
+                contract.requirements[1].model_copy(update={"null_policy": "preserve"}),
+            ]
+        }
+    )
+    partial = parse_query_generation(
+        _raw("SELECT * FROM physical_table WHERE status NOT IN ('draft')"),
+        service(contract=preserve),
+        max_batch_size=3,
+        query_contract=preserve,
+    )
+    assert result.contract_status == "verified"
+    assert partial.success
+    assert partial.contract_status == "partial"
+
+
+def test_explicit_time_window_requires_both_bounds_on_every_fact_field() -> None:
+    contract = QueryContract(
+        requirements=[
+            TimeWindowRequirement(
+                slot_id="time",
+                label="2026年",
+                fields=[
+                    FieldRef(resource="task", field="create_time"),
+                    FieldRef(resource="story", field="create_time"),
+                ],
+                mode="explicit",
+                start="2026-01-01",
+                end_exclusive="2027-01-01",
+            ),
+            OutputRequirement(
+                slot_id="task_count",
+                label="任务数",
+                field=FieldRef(resource="task", field="id"),
+                operation="count",
+            ),
+            OutputRequirement(
+                slot_id="story_count",
+                label="需求数",
+                field=FieldRef(resource="story", field="id"),
+                operation="count",
+            ),
+        ]
+    )
     sql = (
-        "SELECT company_name, "
-        "GROUP_CONCAT(DISTINCT core_company_name) AS core_company_name, "
-        "MIN(apply_level) AS apply_level, "
-        "SUM(CASE WHEN sign_date >= '2026-01-01' "
-        "AND sign_date < '2027-01-01' THEN orig_asset_amt ELSE 0 END) AS sign_amt, "
-        "SUM(CASE WHEN fin_apply_date >= '2026-01-01' "
-        "AND fin_apply_date < '2027-01-01' THEN fin_apply_amt ELSE 0 END) AS fin_amt "
-        "FROM finance WHERE company_name IS NOT NULL "
-        "AND ((sign_date >= '2026-01-01' AND sign_date < '2027-01-01') "
-        "OR (fin_apply_date >= '2026-01-01' AND fin_apply_date < '2027-01-01')) "
-        "GROUP BY company_name"
+        "SELECT COUNT(t.id) task_count, COUNT(s.id) story_count "
+        "FROM task t JOIN story s ON t.project_id=s.project_id "
+        "WHERE t.create_time >= '2026-01-01' AND t.create_time < '2027-01-01'"
     )
-
     result = parse_query_generation(
-        orjson.dumps({"success": True, "sql": sql}).decode(),
-        llm_service,
+        _raw(sql),
+        service(contract=contract),
         max_batch_size=3,
-        time_intent={
-            "scope": "explicit",
-            "start": "2026-01-01",
-            "end_exclusive": "2027-01-01",
-        },
+        query_contract=contract,
     )
+    assert not result.success
+    assert "Missing contract slots: time" in (result.error_message or "")
 
-    assert result.success is True
 
-
-def test_distinct_concat_order_is_projection_evidence_through_cte_lineage() -> None:
-    """Regression for chat 85: aggregate-local ORDER is not result ordering."""
-    llm_service = service()
-    llm_service.protocol.type_key = "starrocks"
-    llm_service.chat_question.intent_context = {
-        "decisions": [
-            {
-                "key": "dimension.supplier_level",
-                "kind": "dimension",
-                "label": "供应商层级",
-                "locked": True,
-                "bindings": [
-                    {
-                        "identifier": "finance.apply_level",
-                        "role": "attribute",
-                        "aggregation": "distinct_concat",
-                    }
+def _multi_fact_contract(
+    *, population: PopulationPolicy = "union"
+) -> QueryContract:
+    return QueryContract(
+        requirements=[
+            GroupRequirement(
+                slot_id="company",
+                label="企业",
+                field=FieldRef(resource="finance", field="company_name"),
+            ),
+            OutputRequirement(
+                slot_id="signed",
+                label="累计签收额",
+                field=FieldRef(resource="asset", field="transfer_amt"),
+                operation="sum",
+            ),
+            OutputRequirement(
+                slot_id="financed",
+                label="累计融资额",
+                field=FieldRef(resource="finance", field="fin_apply_amt"),
+                operation="sum",
+            ),
+            RelationRequirement(
+                slot_id="population",
+                label="企业展示范围",
+                pairs=[
+                    RelationPair(
+                        left=FieldRef(resource="asset", field="company_name"),
+                        right=FieldRef(resource="finance", field="company_name"),
+                    )
                 ],
-            }
+                population=population,
+            ),
         ]
-    }
-    sql = (
-        "WITH supplier_levels AS ("
-        "SELECT company_name, "
-        "GROUP_CONCAT(DISTINCT apply_level ORDER BY apply_level SEPARATOR ',') "
-        "AS supplier_level FROM finance "
-        "WHERE apply_level IS NOT NULL GROUP BY company_name"
-        ") SELECT company_name, supplier_level FROM supplier_levels"
     )
 
+
+def test_grouped_multi_resource_contract_cannot_freeze_without_relation() -> None:
+    with pytest.raises(ValueError, match="explicit relation coverage"):
+        QueryContract(
+            requirements=[
+                GroupRequirement(
+                    slot_id="company",
+                    label="企业",
+                    field=FieldRef(resource="finance", field="company_name"),
+                ),
+                OutputRequirement(
+                    slot_id="signed",
+                    label="累计签收额",
+                    field=FieldRef(resource="asset", field="transfer_amt"),
+                    operation="sum",
+                ),
+            ]
+        )
+
+
+def test_union_population_rejects_a_silent_finance_left_join() -> None:
+    contract = _multi_fact_contract()
     result = parse_query_generation(
-        orjson.dumps({"success": True, "sql": sql}).decode(),
-        llm_service,
+        _raw(
+            "SELECT f.company_name, a.total_transfer_amt, f.total_fin_apply_amt "
+            "FROM (SELECT company_name, SUM(fin_apply_amt) total_fin_apply_amt "
+            "FROM finance GROUP BY company_name) f "
+            "LEFT JOIN (SELECT company_name, SUM(transfer_amt) total_transfer_amt "
+            "FROM asset GROUP BY company_name) a "
+            "ON f.company_name=a.company_name"
+        ),
+        service(contract=contract),
         max_batch_size=3,
+        query_contract=contract,
     )
-
-    assert result.success is True
-
-
-def test_explicit_time_boundaries_are_part_of_the_query_contract() -> None:
-    time_intent = {
-        "scope": "explicit",
-        "start": "2026-01-01",
-        "end_exclusive": "2027-01-01",
-    }
-
-    accepted = parse_query_generation(
-        orjson.dumps(
-            {
-                "success": True,
-                "sql": (
-                    "SELECT SUM(amount) FROM asset "
-                    "WHERE created_at >= '2026-01-01' "
-                    "AND created_at < '2027-01-01'"
-                ),
-            }
-        ).decode(),
-        service(),
-        max_batch_size=3,
-        time_intent=time_intent,
-    )
-    rejected = parse_query_generation(
-        orjson.dumps(
-            {
-                "success": True,
-                "sql": "SELECT SUM(amount) FROM asset",
-            }
-        ).decode(),
-        service(),
-        max_batch_size=3,
-        time_intent=time_intent,
-    )
-
-    assert accepted.success is True
-    assert rejected.success is False
-    assert "2026-01-01" in (rejected.error_message or "")
-    assert "2027-01-01" in (rejected.error_message or "")
+    assert not result.success
+    assert "Missing contract slots: population" in (result.error_message or "")
 
 
-def test_explicit_time_range_must_cover_every_union_branch() -> None:
-    time_intent = {
-        "scope": "explicit",
-        "start": "2026-01-01",
-        "end_exclusive": "2027-01-01",
-    }
-    missing_branch = parse_query_generation(
-        orjson.dumps(
-            {
-                "success": True,
-                "sql": (
-                    "SELECT created_at FROM task "
-                    "WHERE created_at >= '2026-01-01' "
-                    "AND created_at < '2027-01-01' "
-                    "UNION ALL SELECT created_at FROM story"
-                ),
-            }
-        ).decode(),
-        service(),
-        max_batch_size=3,
-        time_intent=time_intent,
-    )
-    complete = parse_query_generation(
-        orjson.dumps(
-            {
-                "success": True,
-                "sql": (
-                    "SELECT created_at FROM task "
-                    "WHERE created_at >= '2026-01-01' "
-                    "AND created_at < '2027-01-01' "
-                    "UNION ALL SELECT created_at FROM story "
-                    "WHERE created_at >= '2026-01-01' "
-                    "AND created_at < '2027-01-01'"
-                ),
-            }
-        ).decode(),
-        service(),
-        max_batch_size=3,
-        time_intent=time_intent,
-    )
-
-    assert missing_branch.success is False
-    assert "set-operation branch" in (missing_branch.error_message or "")
-    assert complete.success is True
-
-
-def test_qualified_contract_identifier_rejects_same_column_from_wrong_table() -> None:
-    llm_service = service()
-    llm_service.chat_question.intent_context = {
-        "decisions": [
-            {
-                "key": "metric.amount",
-                "kind": "metric",
-                "label": "融资额",
-                "locked": True,
-                "bindings": [
-                    {
-                        "identifier": "finance.amount",
-                        "role": "measure",
-                        "aggregation": "sum",
-                    }
-                ],
-                "value": "融资额合计",
-            }
-        ]
-    }
-
+def test_union_dimension_scaffold_satisfies_union_population() -> None:
+    contract = _multi_fact_contract()
     result = parse_query_generation(
-        orjson.dumps(
-            {
-                "success": True,
-                "sql": "SELECT SUM(asset.amount) FROM asset",
-            }
-        ).decode(),
-        llm_service,
+        _raw(
+            "SELECT d.company_name, a.total_transfer_amt, f.total_fin_apply_amt "
+            "FROM (SELECT company_name FROM asset "
+            "UNION SELECT company_name FROM finance) d "
+            "LEFT JOIN (SELECT company_name, SUM(transfer_amt) total_transfer_amt "
+            "FROM asset GROUP BY company_name) a "
+            "ON d.company_name=a.company_name "
+            "LEFT JOIN (SELECT company_name, SUM(fin_apply_amt) total_fin_apply_amt "
+            "FROM finance GROUP BY company_name) f "
+            "ON d.company_name=f.company_name"
+        ),
+        service(contract=contract),
         max_batch_size=3,
+        query_contract=contract,
     )
+    assert result.success, result.error_message
+    assert result.contract_status == "verified"
 
-    assert result.success is False
-    assert "finance.amount" in (result.error_message or "")
 
-
-def test_omitted_dimension_does_not_create_an_executable_requirement() -> None:
-    llm_service = service()
-    llm_service.chat_question.intent_context = {
-        "decisions": [
-            {
-                "key": "dimension.supplier_level",
-                "kind": "dimension",
-                "label": "供应商层级",
-                "locked": True,
-                "effect": "omit",
-                "bindings": [],
-                "value": "不输出",
-            },
-            {
-                "key": "metric.amount",
-                "kind": "metric",
-                "label": "金额",
-                "locked": True,
-                "bindings": [
-                    {"identifier": "amount", "role": "measure", "aggregation": "sum"}
-                ],
-                "value": "金额合计",
-            },
-        ]
-    }
-
+def test_cross_resource_join_must_match_the_frozen_relation_pairs() -> None:
+    contract = _multi_fact_contract(population="left")
     result = parse_query_generation(
-        orjson.dumps(
-            {
-                "success": True,
-                "sql": "SELECT SUM(amount) AS amount FROM asset",
-            }
-        ).decode(),
-        llm_service,
+        _raw(
+            "SELECT f.company_name, SUM(a.transfer_amt) total_transfer_amt, "
+            "SUM(f.fin_apply_amt) total_fin_apply_amt FROM finance f "
+            "LEFT JOIN asset a ON f.company_id=a.company_id "
+            "GROUP BY f.company_name"
+        ),
+        service(contract=contract),
         max_batch_size=3,
+        query_contract=contract,
     )
+    assert not result.success
+    assert "unconfirmed cross-resource joins" in (result.error_message or "")
 
-    assert result.success is True
 
-
-def test_metric_aggregation_is_validated_through_wrapper_expression() -> None:
-    llm_service = service()
-    llm_service.chat_question.intent_context = {
-        "decisions": [
-            {
-                "key": "metric.amount",
-                "kind": "metric",
-                "label": "金额",
-                "locked": True,
-                "bindings": [
-                    {"identifier": "amount", "role": "measure", "aggregation": "sum"}
-                ],
-                "value": "金额合计",
-            }
+def test_dialect_specific_rolling_window_is_partial_but_publishable() -> None:
+    contract = QueryContract(
+        requirements=[
+            TimeWindowRequirement(
+                slot_id="time",
+                label="最近三个月",
+                fields=[FieldRef(resource="physical_table", field="create_time")],
+                mode="rolling",
+                rolling_months=3,
+            ),
+            OutputRequirement(
+                slot_id="count",
+                label="数量",
+                field=FieldRef(resource="physical_table", field="id"),
+                operation="count",
+            ),
         ]
-    }
-
+    )
     result = parse_query_generation(
-        orjson.dumps(
-            {
-                "success": True,
-                "sql": (
-                    "WITH stats AS (SELECT MIN(amount) AS total FROM asset) "
-                    "SELECT COALESCE(stats.total, 0) AS total FROM stats"
-                ),
-            }
-        ).decode(),
-        llm_service,
+        _raw(
+            "SELECT COUNT(id) count FROM physical_table "
+            "WHERE create_time >= DATE_SUB(CURRENT_DATE, INTERVAL 3 MONTH)"
+        ),
+        service(contract=contract),
         max_batch_size=3,
+        query_contract=contract,
+    )
+    assert result.success
+    assert result.contract_status == "partial"
+
+
+def _complementary_contract() -> QueryContract:
+    return QueryContract(
+        requirements=[
+            PredicateRequirement(
+                slot_id="department",
+                label="研发二部",
+                field=FieldRef(field="department"),
+                operator="eq",
+                values=["研发二部"],
+            ),
+            GroupRequirement(
+                slot_id="month",
+                label="月份",
+                field=FieldRef(field="month"),
+            ),
+            OutputRequirement(
+                slot_id="task_count",
+                label="任务数",
+                field=FieldRef(field="task_id"),
+                operation="count",
+            ),
+            OutputRequirement(
+                slot_id="story_count",
+                label="需求数",
+                field=FieldRef(field="story_id"),
+                operation="count",
+            ),
+        ]
     )
 
-    assert result.success is False
-    assert "requires SUM but uses MIN" in (result.error_message or "")
 
-
-def test_time_contract_requires_comparison_predicates_not_free_literals() -> None:
-    time_intent = {
-        "scope": "explicit",
-        "start": "2026-01-01",
-        "end_exclusive": "2027-01-01",
-    }
+def test_complementary_batch_requires_universal_scope_in_every_plan() -> None:
+    contract = _complementary_contract()
     result = parse_query_generation(
-        orjson.dumps(
-            {
-                "success": True,
-                "sql": (
-                    "SELECT SUM(amount), '2026-01-01' AS start_value, "
-                    "'2027-01-01' AS end_value FROM asset"
-                ),
-            }
-        ).decode(),
-        service(),
+        _raw(
+            "SELECT month, COUNT(task_id) task_count FROM physical_table "
+            "WHERE department='研发二部' GROUP BY month",
+            "SELECT month, COUNT(story_id) story_count FROM physical_table GROUP BY month",
+        ),
+        service(contract=contract),
         max_batch_size=3,
-        time_intent=time_intent,
+        query_contract=contract,
     )
-
-    assert result.success is False
-    assert "half-open time range" in (result.error_message or "")
-
-
-def test_confirmed_entity_value_must_bind_to_its_target_filter_field() -> None:
-    llm_service = service()
-    llm_service.chat_question.intent_context = {
-        "decisions": [
-            {
-                "key": "entity.department",
-                "kind": "entity",
-                "label": "部门",
-                "locked": True,
-                "binding_phrase": "研发二部",
-                "bindings": [
-                    {
-                        "identifier": "d_user.organization_name",
-                        "role": "filter",
-                        "aggregation": "none",
-                    }
-                ],
-                "value": {"selected_options": [{"id": "value_1", "label": "研发二部"}]},
-            }
-        ]
-    }
-    accepted = parse_query_generation(
-        orjson.dumps(
-            {
-                "success": True,
-                "sql": ("SELECT id FROM d_user WHERE organization_name = '研发二部'"),
-            }
-        ).decode(),
-        llm_service,
-        max_batch_size=3,
-    )
-    rejected = parse_query_generation(
-        orjson.dumps(
-            {
-                "success": True,
-                "sql": "SELECT id FROM d_user WHERE name = '研发二部'",
-            }
-        ).decode(),
-        llm_service,
-        max_batch_size=3,
-    )
-
-    assert accepted.success is True
-    assert rejected.success is False
-    assert "required filter field" in (rejected.error_message or "")
+    assert not result.success
+    assert "omits universal contract slots" in (result.error_message or "")
 
 
-def test_dimension_gate_checks_the_public_projection_not_nested_ctes() -> None:
-    llm_service = service()
-    llm_service.chat_question.intent_context = {
-        "decisions": [
-            {
-                "key": "grain.asset_level",
-                "kind": "grain",
-                "label": "资产层级",
-                "locked": True,
-                "bindings": [
-                    {
-                        "identifier": "apply_level",
-                        "role": "group",
-                        "aggregation": "none",
-                    }
-                ],
-                "value": "保留资产层级",
-            }
-        ]
-    }
-
+def test_complementary_batch_is_disjoint_nonempty_and_complete() -> None:
+    contract = _complementary_contract()
     result = parse_query_generation(
-        orjson.dumps(
-            {
-                "success": True,
-                "sql": (
-                    "WITH stats AS ("
-                    "SELECT company_name, MAX(apply_level) AS max_level "
-                    "FROM asset GROUP BY company_name"
-                    ") SELECT a.company_name, a.apply_level FROM asset a "
-                    "LEFT JOIN stats s ON a.company_name = s.company_name"
-                ),
-            }
-        ).decode(),
-        llm_service,
+        _raw(
+            "SELECT month, COUNT(task_id) task_count FROM physical_table "
+            "WHERE department='研发二部' GROUP BY month",
+            "SELECT month, COUNT(story_id) story_count FROM physical_table "
+            "WHERE department='研发二部' GROUP BY month",
+        ),
+        service(contract=contract),
         max_batch_size=3,
+        query_contract=contract,
     )
-
-    assert result.success is True
-
-
-def test_dimension_gate_follows_public_projection_through_cte() -> None:
-    llm_service = service()
-    llm_service.chat_question.intent_context = {
-        "decisions": [
-            {
-                "key": "grain.asset_level",
-                "kind": "grain",
-                "label": "资产层级",
-                "locked": True,
-                "bindings": [
-                    {
-                        "identifier": "apply_level",
-                        "role": "group",
-                        "aggregation": "none",
-                    }
-                ],
-                "value": "保留资产层级",
-            }
-        ]
-    }
-
-    result = parse_query_generation(
-        orjson.dumps(
-            {
-                "success": True,
-                "sql": (
-                    "WITH stats AS ("
-                    "SELECT company_name, MAX(apply_level) AS apply_level "
-                    "FROM asset GROUP BY company_name"
-                    ") SELECT company_name, apply_level FROM stats"
-                ),
-            }
-        ).decode(),
-        llm_service,
-        max_batch_size=3,
-    )
-
-    assert result.success is False
-    assert "MAX" in (result.error_message or "")
-
-
-def test_batch_allows_complementary_plans_with_shared_scope() -> None:
-    llm_service = service()
-    llm_service.chat_question.intent_context = {
-        "decisions": [
-            {
-                "key": "scope.department",
-                "kind": "scope",
-                "label": "部门范围",
-                "locked": True,
-                "bindings": [
-                    {
-                        "identifier": "department_name",
-                        "role": "filter",
-                        "aggregation": "none",
-                    }
-                ],
-                "value": "研发二部",
-            }
-        ]
-    }
-    raw = orjson.dumps(
-        [
-            {
-                "success": True,
-                "sql": (
-                    "SELECT department_name, COUNT(task_id) FROM task "
-                    "WHERE department_name = '研发二部' GROUP BY department_name"
-                ),
-            },
-            {
-                "success": True,
-                "sql": (
-                    "SELECT department_name, COUNT(story_id) FROM story "
-                    "WHERE department_name = '研发二部' GROUP BY department_name"
-                ),
-            },
-        ]
-    ).decode()
-
-    result = parse_query_generation(raw, llm_service, max_batch_size=3)
-
-    assert result.success is True
-
-
-def test_complementary_plans_receive_titles_for_their_own_projection() -> None:
-    llm_service = service()
-    llm_service.chat_question.intent_context = {
-        "decisions": [
-            {
-                "key": "grain.department",
-                "kind": "grain",
-                "label": "部门",
-                "locked": True,
-                "bindings": [
-                    {
-                        "identifier": "department_name",
-                        "role": "group",
-                        "aggregation": "none",
-                    }
-                ],
-            },
-            {
-                "key": "metric.task_count",
-                "kind": "metric",
-                "label": "Task数",
-                "locked": True,
-                "bindings": [
-                    {
-                        "identifier": "task_id",
-                        "role": "measure",
-                        "aggregation": "count",
-                    }
-                ],
-            },
-            {
-                "key": "metric.story_count",
-                "kind": "metric",
-                "label": "Story数",
-                "locked": True,
-                "bindings": [
-                    {
-                        "identifier": "story_id",
-                        "role": "measure",
-                        "aggregation": "count",
-                    }
-                ],
-            },
-        ]
-    }
-    raw = orjson.dumps(
-        [
-            {
-                "success": True,
-                "sql": (
-                    "SELECT department_name, COUNT(task_id) AS task_count "
-                    "FROM task GROUP BY department_name"
-                ),
-            },
-            {
-                "success": True,
-                "sql": (
-                    "SELECT department_name, COUNT(story_id) AS story_count "
-                    "FROM story GROUP BY department_name"
-                ),
-            },
-        ]
-    ).decode()
-
-    result = parse_query_generation(raw, llm_service, max_batch_size=3)
-
-    assert [plan["presentation_title"] for plan in result.plans] == [
-        "按部门统计Task数（1）",
-        "按部门统计Story数（2）",
+    assert result.success
+    assert result.contract_status == "verified"
+    assert result.plans[0]["covered_requirement_keys"] == [
+        "department",
+        "month",
+        "task_count",
     ]
 
 
-def test_json_extraction_ignores_brackets_inside_sql_strings() -> None:
-    raw = '模型说明：{"success":true,"sql":"SELECT \'{not_a_json_boundary}\' AS value"}'
-
-    extracted = extract_nested_json(raw)
-
-    assert extracted is not None
-    assert orjson.loads(extracted)["success"] is True
-
-
-def _prompt_question() -> SimpleNamespace:
-    return SimpleNamespace(
-        lang="简体中文",
-        engine="MySQL",
-        db_schema="# Table: asset",
-        question="已确认查询口径：保持企业-核企组合",
-        generation_question="汇总今年企业累计签收额和融资额",
-        rule="",
-        error_msg="",
-        regenerate_record_id=None,
-        plan_context="<plan-context>\n- 使用 transfer_amt\n</plan-context>",
+def test_batch_rejects_overlapping_or_zero_output_plans() -> None:
+    contract = _complementary_contract()
+    overlap = parse_query_generation(
+        _raw(
+            "SELECT month, COUNT(task_id) task_count FROM physical_table "
+            "WHERE department='研发二部' GROUP BY month",
+            "SELECT month, COUNT(task_id) task_count, COUNT(story_id) story_count "
+            "FROM physical_table WHERE department='研发二部' GROUP BY month",
+        ),
+        service(contract=contract),
+        max_batch_size=3,
+        query_contract=contract,
     )
+    assert not overlap.success
+    assert "overlap output slots" in (overlap.error_message or "")
 
 
-def test_sql_generation_uses_original_question_and_separate_plan_context() -> None:
-    prompt = SqlProtocol("mysql").build_user_prompt(
-        _prompt_question(),
-        current_time="2026-07-29",
-        change_title=False,
+def test_user_order_or_limit_forces_a_single_authoritative_plan() -> None:
+    contract = QueryContract(
+        requirements=[
+            OutputRequirement(
+                slot_id="value",
+                label="金额",
+                field=FieldRef(field="amount"),
+                operation="sum",
+            ),
+            OrderRequirement(
+                slot_id="order",
+                label="金额倒序",
+                output_slot_id="value",
+                direction="desc",
+            ),
+            LimitRequirement(slot_id="limit", label="前十", value=10),
+        ]
     )
-
-    assert "汇总今年企业累计签收额和融资额" in prompt
-    assert "已确认查询口径：保持企业-核企组合" not in prompt
-    assert prompt.count("<plan-context>") == 1
-
-
-def test_rest_generation_uses_same_question_projection_and_plan_context() -> None:
-    prompt = RestProtocol("api").build_user_prompt(
-        _prompt_question(),
-        current_time="2026-07-29",
-        change_title=False,
+    result = parse_query_generation(
+        _raw(
+            "SELECT SUM(amount) amount FROM physical_table ORDER BY amount DESC LIMIT 10",
+            "SELECT SUM(amount) amount FROM physical_table ORDER BY amount DESC LIMIT 10",
+        ),
+        service(contract=contract),
+        max_batch_size=3,
+        query_contract=contract,
     )
+    assert not result.success
+    assert "must be implemented by one plan" in (result.error_message or "")
 
-    assert "汇总今年企业累计签收额和融资额" in prompt
-    assert "已确认查询口径：保持企业-核企组合" not in prompt
-    assert prompt.count("<plan-context>") == 1
+
+def test_batch_size_limit_is_rejected_not_truncated() -> None:
+    result = parse_query_generation(
+        _raw("SELECT 1", "SELECT 2", "SELECT 3"),
+        service(),
+        max_batch_size=2,
+    )
+    assert not result.success
+    assert "超过单批上限" in (result.error_message or "")

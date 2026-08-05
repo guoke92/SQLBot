@@ -6,7 +6,7 @@ from collections import defaultdict
 from collections.abc import Iterable
 from typing import Any
 
-from apps.chat.semantic_intent import decision_selected_values
+from apps.chat.query_contract import PredicateRequirement, parse_requirement
 from apps.knowledge.models import KnowledgeMatch
 
 
@@ -154,15 +154,21 @@ def apply_confirmed_entity_bindings(
     """Promote user-confirmed entity choices into normal resolved bindings."""
     if not intent_context:
         return bindings
-    decisions = intent_context.get("decisions") or []
+    requirements = (
+        (intent_context.get("contract") or {}).get("requirements")
+        or (intent_context.get("draft") or {}).get("requirements")
+        or []
+    )
     selected_by_phrase: dict[str, str] = {}
-    for decision in decisions:
-        phrase = str(decision.get("binding_phrase") or "").strip()
-        if not phrase:
+    for raw in requirements:
+        if not isinstance(raw, dict) or raw.get("clause") != "predicate":
             continue
-        selected_values = decision_selected_values(decision.get("value"))
-        selected = selected_values[0] if selected_values else ""
-        if selected:
+        requirement = parse_requirement(raw)
+        if not isinstance(requirement, PredicateRequirement):
+            continue
+        phrase = requirement.label.strip()
+        selected = str(requirement.values[0]).strip() if requirement.values else ""
+        if phrase and selected and phrase in (bindings.get("ambiguous") or {}):
             selected_by_phrase[phrase] = selected
 
     if not selected_by_phrase:

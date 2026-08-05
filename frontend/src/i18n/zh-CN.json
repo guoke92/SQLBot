@@ -946,6 +946,7 @@
     "quality_check": {
       "plan_validated": "查询计划已通过协议级校验",
       "query_contract_satisfied": "查询计划已满足当前协议适用的字段及查询契约校验",
+      "query_contract_partially_verified": "查询计划仅通过部分查询契约校验",
       "intent_contract_ready": "业务口径已通过澄清门禁",
       "sql_executed": "SQL 已成功执行",
       "displayable_data": "查询返回了可展示数据",
@@ -965,6 +966,7 @@
       "intent_not_machine_confirmed": "缺少可机器验证的已确认业务口径。",
       "contract_verified": "查询计划已通过字段、角色及查询契约校验。",
       "contract_partially_verified": "查询已执行，但查询契约的验证依据不完整。",
+      "contract_verification_unsupported": "当前数据协议不支持完整的查询契约校验。",
       "sql_and_result_verified": "SQL 与执行结果均通过确定性结构校验。",
       "sql_executed_with_partial_checks": "SQL 已执行，但仅完成部分语义或结构校验。",
       "result_not_executed": "查询尚未执行，因此没有执行结果可供评价。",

@@ -14,9 +14,13 @@ from apps.chat.models.chat_model import ChatRecord
 
 def _has_reusable_outcome(record: ChatRecord) -> bool:
     context = record.intent_context
-    if not isinstance(context, Mapping) or context.get("status") != "ready":
+    if (
+        not isinstance(context, Mapping)
+        or context.get("version") != 2
+        or context.get("status") != "ready"
+    ):
         return False
-    if not context.get("decisions"):
+    if not (context.get("contract") or {}).get("requirements"):
         return False
     try:
         payload = orjson.loads(record.data or "")

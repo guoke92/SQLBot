@@ -270,10 +270,10 @@ class AiModelQuestion(BaseModel):
     sqlbot_name: str = APP_DISPLAY_NAME
     # Filled by NLQ generate_queries (PlanContext); empty outside agentic path.
     plan_context: str = ""
-    # Request-local projections of one persisted semantic intent.
+    # Request-local projections of one persisted clause-oriented contract.
     # ``question`` remains the user-visible message persisted on ChatRecord.
     # Retrieval stays compact; generation keeps the original user request;
-    # confirmed decisions are carried separately by ``plan_context``.
+    # the frozen contract is rendered once through ``plan_context``.
     planning_question: str = ""
     retrieval_question: str = ""
     generation_question: str = ""
