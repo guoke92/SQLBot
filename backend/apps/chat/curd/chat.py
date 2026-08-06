@@ -29,6 +29,7 @@ from apps.chat.result_data import format_json_data
 from apps.chat.semantic_intent import (
     ClarificationAnswer,
     intent_context_from_payload,
+    is_current_intent_payload,
     merge_clarification_answers,
     new_intent_context,
     public_intent_payload,
@@ -950,8 +951,7 @@ def prepare_question_intent(
                 source is not None
                 and int(source.chat_id) == int(question.chat_id)
                 and int(source.create_by) == int(current_user.id)
-                and source.intent_context
-                and source.intent_context.get("version") == 2
+                and is_current_intent_payload(source.intent_context)
             ):
                 context = intent_context_from_payload(source.intent_context)
                 question.intent_context = public_intent_payload(context)
@@ -970,8 +970,7 @@ def prepare_question_intent(
         previous_context = None
         if (
             previous_record is not None
-            and previous_record.intent_context
-            and previous_record.intent_context.get("version") == 2
+            and is_current_intent_payload(previous_record.intent_context)
         ):
             candidate = intent_context_from_payload(previous_record.intent_context)
             if candidate.status == "ready" and candidate.contract is not None:
@@ -1003,6 +1002,14 @@ def prepare_question_intent(
         raise ValueError("Clarification record not found in the current conversation")
     if not parent.finish or not parent.intent_context:
         raise ValueError("Clarification record is not ready for an answer")
+    if not is_current_intent_payload(parent.intent_context):
+        # The card was rendered by an older contract revision. Answering it
+        # would silently reinterpret the user's choices, so the card expires
+        # and the user restates the question instead.
+        raise ValueError(
+            "This clarification was created by an earlier contract revision "
+            "and can no longer be answered"
+        )
     context = intent_context_from_payload(parent.intent_context)
     if not context.awaiting_input:
         raise ValueError("The referenced record is not awaiting clarification")

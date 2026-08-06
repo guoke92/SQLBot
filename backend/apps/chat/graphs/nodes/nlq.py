@@ -41,6 +41,7 @@ from apps.chat.binding_resolver import (
     retain_binding_resources,
 )
 from apps.chat.constants import DYNAMIC_DS_TYPES
+from apps.chat.contract.issues import blocking_issues
 from apps.chat.curd.chat import rename_chat
 from apps.chat.models.chat_model import ChatFinishStep, OperationEnum, RenameChat
 from apps.chat.plan_context import (
@@ -82,11 +83,12 @@ from apps.chat.semantic_intent import (
     new_intent_context,
     public_intent_payload,
 )
+from apps.chat.simple_sql import try_compile_simple_batch
 from apps.chat.steps.chart import generate_chart
 from apps.chat.steps.clarification import (
-    SemanticAssessmentError,
     assess_semantic_intent,
     assessment_contract_rows,
+    render_assumptions,
 )
 from apps.chat.steps.custom_prompt import match_custom_prompts
 from apps.chat.steps.datasource import select_datasource, validate_history_ds
@@ -1310,23 +1312,12 @@ def assess_clarity_node(state: NlqState) -> NlqState:
             if context.status == "ready":
                 assessed, usage, reasoning, attempts = context, {}, "", []
             else:
-                try:
-                    assessment_result = assess_semantic_intent(
-                        llm_service,
-                        context=context,
-                        bindings=state.get("entity_bindings") or {},
-                        temporal_parse=state.get("temporal_parse") or {},
-                    )
-                except SemanticAssessmentError as exc:
-                    span["token_usage"] = exc.usage
-                    span["reasoning_content"] = exc.reasoning
-                    span["payload"] = {
-                        "status": "failed",
-                        "failure_kind": "contract_validation",
-                        "assessment_attempt_count": len(exc.attempts),
-                        "assessment_attempts": exc.attempts,
-                    }
-                    raise
+                assessment_result = assess_semantic_intent(
+                    llm_service,
+                    context=context,
+                    bindings=state.get("entity_bindings") or {},
+                    temporal_parse=state.get("temporal_parse") or {},
+                )
                 assessed = assessment_result.context
                 usage = assessment_result.usage
                 reasoning = assessment_result.reasoning
@@ -1334,7 +1325,7 @@ def assess_clarity_node(state: NlqState) -> NlqState:
             payload = public_intent_payload(assessed)
             if assessed.status == "blocked":
                 display_reasoning = (
-                    "\n".join(assessed.blocking_reasons) or assessed.summary
+                    "\n".join(assessed.blocking_messages) or assessed.summary
                 )
             else:
                 display_reasoning = (
@@ -1342,6 +1333,18 @@ def assess_clarity_node(state: NlqState) -> NlqState:
                     or "\n".join(f"- {issue.reason}" for issue in assessed.issues)
                     or assessed.summary
                 )
+            # A choice made without the user must reach the user, not only the
+            # execution log.
+            display_reasoning = "\n\n".join(
+                part
+                for part in (
+                    display_reasoning,
+                    render_assumptions(
+                        assessed.assumptions, getattr(llm_service, "trans", None)
+                    ),
+                )
+                if part
+            )
             span["payload"] = {
                 "status": assessed.status,
                 "summary": assessed.summary,
@@ -1358,6 +1361,14 @@ def assess_clarity_node(state: NlqState) -> NlqState:
                     for question in assessed.questions
                 ],
                 "blocking_reasons": assessed.blocking_reasons,
+                "contract_issues": [
+                    item.model_dump(mode="json") for item in assessed.contract_issues
+                ],
+                # Inferences resolved on the user's behalf, including any the
+                # gate had to drop to stay executable.
+                "assumptions": [
+                    item.model_dump(mode="json") for item in assessed.assumptions
+                ],
             }
             span["token_usage"] = usage
             span["reasoning_content"] = display_reasoning
@@ -1394,7 +1405,7 @@ def assemble_context_node(state: NlqState) -> NlqState:
     llm_service = state["llm_service"]
     try:
         context = intent_context_from_payload(state["intent_context"])
-        if context.contract is None:
+        if context.status != "ready" or context.contract is None:
             raise ValueError("Semantic gate is ready without a frozen query contract")
         query_contract = context.contract
         assemble_prompt_messages(llm_service)
@@ -1418,9 +1429,13 @@ def complete_intent_node(state: NlqState) -> NlqState:
         event_type = "clarification"
         error = None
     else:
-        message = "; ".join(context.blocking_reasons) or "当前信息不足，无法生成查询"
+        message = "; ".join(context.blocking_messages) or "当前信息不足，无法生成查询"
         outcome = blocked_outcome(message)
-        event_type = "clarification-blocked"
+        event_type = (
+            "contract-preparation-blocked"
+            if blocking_issues(context.contract_issues)
+            else "clarification-blocked"
+        )
         error = None
 
     try:
@@ -1451,7 +1466,7 @@ def complete_intent_node(state: NlqState) -> NlqState:
         if context.status == "blocked":
             sink.text(
                 "## 查询暂无法继续\n\n"
-                + "\n".join(f"- {reason}" for reason in context.blocking_reasons)
+                + "\n".join(f"- {reason}" for reason in context.blocking_messages)
                 + "\n"
             )
         else:
@@ -1739,74 +1754,154 @@ def generate_queries_node(state: NlqState) -> NlqState:
             if repair:
                 extra_sections.append("## 改写指令\n" + repair)
 
-        _attach_plan_context_for_generate(
-            llm_service,
-            state,
-            repair=repair if step_index == 0 else "",
-            extra_sections=extra_sections,
-            include_playbook=_needs_multi_fact_playbook(llm_service),
-        )
-        try:
-            sink.event(
-                {
-                    "type": "plan-context",
-                    "content": getattr(llm_service.chat_question, "plan_context", "")
-                    or "",
-                }
-            )
-        except Exception:
-            pass
-
+        # Prefer a deterministic single-table filter over an LLM round-trip.
+        # Repair rounds always use the model: the compiler does not rewrite.
+        batch_parse = None
         full_sql_text = ""
-        try:
-            with session_scope() as session:
-                for chunk in generate_sql(
-                    llm_service,
-                    session,
+        generation_source = "llm"
+        if not repair:
+            chat_question = getattr(llm_service, "chat_question", None)
+            intent_context = getattr(chat_question, "intent_context", None)
+            question = str(
+                getattr(chat_question, "generation_question", "")
+                or getattr(chat_question, "question", "")
+                or ""
+            )
+            default_limit = (
+                _ROW_LIMIT if llm_service.enable_sql_row_limit else None
+            )
+            batch_parse = try_compile_simple_batch(
+                state.get("query_contract"),
+                llm_service,
+                question=question,
+                intent_context=intent_context,
+                default_limit=default_limit,
+            )
+            if not (batch_parse and batch_parse.plans):
+                batch_parse = None
+            else:
+                generation_source = "compiled"
+                full_sql_text = str(batch_parse.plans[0].get("sql") or "")
+                with log_span(
+                    operate=OperationEnum.GENERATE_QUERY,
+                    record_id=getattr(llm_service.record, "id", None),
+                    ai_modal_id=getattr(
+                        getattr(llm_service, "chat_question", None),
+                        "ai_modal_id",
+                        None,
+                    ),
+                    ai_modal_name=getattr(
+                        getattr(llm_service, "chat_question", None),
+                        "ai_modal_name",
+                        None,
+                    ),
+                    graph_node="generate_queries",
                     step_index=step_index,
                     gen_attempts=gen_attempts,
-                    graph_node="generate_queries",
+                    initial_payload={
+                        "generation_source": "compiled",
+                        "sql": full_sql_text[:2000],
+                    },
                 ):
-                    content = chunk.get("content") or ""
-                    reasoning = chunk.get("reasoning_content") or ""
-                    full_sql_text += content
-                    sink.event(
-                        {
-                            "content": content,
-                            "reasoning_content": reasoning,
-                            "type": "step-sql-result",
-                            "index": base,
-                        }
-                    )
-        finally:
-            # Avoid sticky plan_context on later non-SQL prompts.
+                    try:
+                        sink.event(
+                            {
+                                "content": full_sql_text,
+                                "type": "step-sql-result",
+                                "index": base,
+                                "generation_source": "compiled",
+                            }
+                        )
+                    except Exception:
+                        pass
+
+        if batch_parse is None:
+            _attach_plan_context_for_generate(
+                llm_service,
+                state,
+                repair=repair if step_index == 0 else "",
+                extra_sections=extra_sections,
+                include_playbook=_needs_multi_fact_playbook(llm_service),
+            )
             try:
-                llm_service.chat_question.plan_context = ""
+                sink.event(
+                    {
+                        "type": "plan-context",
+                        "content": getattr(
+                            llm_service.chat_question, "plan_context", ""
+                        )
+                        or "",
+                    }
+                )
             except Exception:
                 pass
 
-        max_batch = state.get("max_batch_size") or _MAX_BATCH_SIZE
-        batch_parse = parse_query_generation(
-            full_sql_text,
-            llm_service,
-            max_batch_size=max_batch,
-            query_contract=state.get("query_contract"),
-        )
-        plans = batch_parse.plans if batch_parse.success else []
+            full_sql_text = ""
+            try:
+                with session_scope() as session:
+                    for chunk in generate_sql(
+                        llm_service,
+                        session,
+                        step_index=step_index,
+                        gen_attempts=gen_attempts,
+                        graph_node="generate_queries",
+                    ):
+                        content = chunk.get("content") or ""
+                        reasoning = chunk.get("reasoning_content") or ""
+                        full_sql_text += content
+                        sink.event(
+                            {
+                                "content": content,
+                                "reasoning_content": reasoning,
+                                "type": "step-sql-result",
+                                "index": base,
+                            }
+                        )
+            finally:
+                # Avoid sticky plan_context on later non-SQL prompts.
+                try:
+                    llm_service.chat_question.plan_context = ""
+                except Exception:
+                    pass
+
+            max_batch = state.get("max_batch_size") or _MAX_BATCH_SIZE
+            batch_parse = parse_query_generation(
+                full_sql_text,
+                llm_service,
+                max_batch_size=max_batch,
+                query_contract=state.get("query_contract"),
+            )
+            generation_source = "llm"
+
+        plans = list(batch_parse.plans)
         refusal = batch_parse.error_message
 
         _maybe_update_chat_brief(
             llm_service, sink, _extract_title_from_sql_answer(full_sql_text, plans)
         )
 
+        candidate: CandidateBatch = {
+            "plans": plans,
+            "plan_validated": batch_parse.plan_validated,
+            "contract_status": batch_parse.contract_status,
+        }
+        if plans and batch_parse.contract_message:
+            # Advisory: execute anyway.  The scoreboard reads contract_status.
+            SQLBotLogUtil.warning(
+                f"plan contract shortfall accepted: "
+                f"{batch_parse.contract_message[:240]}"
+            )
+        if generation_source == "compiled":
+            SQLBotLogUtil.info(
+                f"plan compiled from contract without LLM: {full_sql_text[:240]}"
+            )
+
         if not plans:
             msg = refusal or "Failed to generate any valid SQL queries"
             attempts = gen_attempts + 1
             repair_msg = _plan_repair_message(msg)
             _mark_generate_validation_failed(
-                llm_service,
-                message=msg,
-                attempt=attempts,
+                llm_service, message=msg, attempt=attempts
             )
             SQLBotLogUtil.warning(
                 f"plan generation empty attempt={attempts}: {msg[:240]}"
@@ -1852,18 +1947,14 @@ def generate_queries_node(state: NlqState) -> NlqState:
                 "type": "batch-plans",
                 "index": step_index,
                 "base_index": base,
-                "count": len(plans),
+                "count": len(candidate["plans"]),
             }
         )
 
         return {
             **state,
             "json_result": json_result,
-            "active_candidate": {
-                "plans": plans,
-                "plan_validated": batch_parse.plan_validated,
-                "contract_status": batch_parse.contract_status,
-            },
+            "active_candidate": candidate,
             "repair_hint": "",
             "gen_attempts": 0,
             "record": llm_service.record,

@@ -29,6 +29,9 @@ class BatchParseResult:
     errors: list[str] = field(default_factory=list)
     plan_validated: bool = False
     contract_status: Literal["verified", "partial", "unsupported"] = "unsupported"
+    #: Advisory only.  Disagreement with the contract never empties ``plans``
+    #: and never blocks execution; the quality score reads ``contract_status``.
+    contract_message: str | None = None
 
     @property
     def success(self) -> bool:
@@ -167,6 +170,67 @@ def _validate_batch_contract(
     return validation.error, validation.status
 
 
+def _contract_checked_result(
+    plans: list[dict[str, Any]],
+    llm_service: Any,
+    *,
+    query_contract: QueryContract | None,
+    question: str,
+    intent_context: Any,
+) -> BatchParseResult:
+    """Attach contract status to an already-parsed batch.
+
+    SQL that parses is always returned.  Contract disagreement only lowers
+    ``contract_status`` and records a diagnostic; it does not invent a rewrite
+    loop and does not withhold the answer.
+    """
+    error, status = _validate_batch_contract(
+        plans, llm_service, query_contract=query_contract
+    )
+    prepared = _apply_display_defaults(plans, question, intent_context)
+    return BatchParseResult(
+        plans=prepared,
+        plan_validated=True,
+        contract_status=status,
+        contract_message=error,
+    )
+
+
+def batch_from_compiled_sql(
+    sql: str,
+    llm_service: Any,
+    *,
+    query_contract: QueryContract | None,
+    question: str,
+    intent_context: Any,
+    resources: list[str],
+    chart_type: str = "table",
+) -> BatchParseResult | None:
+    """Accept a deterministically compiled statement through the shared plan gate.
+
+    Returns ``None`` when protocol validation rejects the SQL so the caller can
+    fall back to LLM generation without inventing a second acceptance path.
+    """
+    plan = QueryPlan(
+        success=True,
+        statement=sql,
+        payload={"sql": sql},
+        resources=list(resources),
+        chart_type=chart_type,
+        brief="",
+    )
+    entry, _error = _accept_plan(llm_service, plan)
+    if not entry:
+        return None
+    return _contract_checked_result(
+        [entry],
+        llm_service,
+        query_contract=query_contract,
+        question=question,
+        intent_context=intent_context,
+    )
+
+
 def parse_query_generation(
     raw_text: str,
     llm_service: Any,
@@ -191,17 +255,12 @@ def parse_query_generation(
         if plan.success:
             entry, error = _accept_plan(llm_service, plan)
             if entry:
-                contract_error, contract_status = _validate_batch_contract(
+                return _contract_checked_result(
                     [entry],
                     llm_service,
                     query_contract=query_contract,
-                )
-                if contract_error:
-                    return BatchParseResult(errors=[contract_error])
-                return BatchParseResult(
-                    plans=_apply_display_defaults([entry], question, intent_context),
-                    plan_validated=True,
-                    contract_status=contract_status,
+                    question=question,
+                    intent_context=intent_context,
                 )
             return BatchParseResult(
                 errors=[
@@ -247,16 +306,11 @@ def parse_query_generation(
     if errors:
         return BatchParseResult(errors=errors)
     if plans:
-        contract_error, contract_status = _validate_batch_contract(
+        return _contract_checked_result(
             plans,
             llm_service,
             query_contract=query_contract,
-        )
-        if contract_error:
-            return BatchParseResult(errors=[contract_error])
-        return BatchParseResult(
-            plans=_apply_display_defaults(plans, question, intent_context),
-            plan_validated=True,
-            contract_status=contract_status,
+            question=question,
+            intent_context=intent_context,
         )
     return BatchParseResult(errors=["Failed to generate any valid query plans"])

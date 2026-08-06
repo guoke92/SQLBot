@@ -115,6 +115,11 @@ def render_query_contract(contract: QueryContract | None) -> str:
     rows = contract_display_rows(contract)
     lines = [
         "## 已冻结查询契约（最高优先级）",
+        (
+            "结果形态：明细记录（不得擅自增加 GROUP BY 或聚合）"
+            if contract.result_mode == "detail"
+            else "结果形态：聚合统计（必须严格遵守输出粒度）"
+        ),
         "每个 slot 是独立且必须落实的业务子句；不得新增业务过滤或改写口径：",
     ]
     for requirement, (label, rendered) in zip(

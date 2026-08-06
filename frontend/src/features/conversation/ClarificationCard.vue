@@ -1,7 +1,12 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import type { ClarificationAnswer, ClarificationQuestion, IntentContext } from '@/api/chat'
+import type {
+  ClarificationAnswer,
+  ClarificationQuestion,
+  ContractIssue,
+  IntentContext,
+} from '@/api/chat'
 
 const props = defineProps<{
   recordId?: number
@@ -30,6 +35,26 @@ const detailsQuestionId = ref<string>()
 const showCardDetails = ref(false)
 
 const isBlocked = computed(() => props.context.status === 'blocked')
+const blockingIssues = computed(() =>
+  (props.context.contract_issues || []).filter((item) => item.severity === 'blocking')
+)
+const isPreparationBlocked = computed(() => isBlocked.value && !!blockingIssues.value.length)
+
+/** Issues carry a code, not a sentence, so the text is resolved here. */
+function issueText(issue: ContractIssue) {
+  const key = `chat.contract_issue_${issue.code}`
+  const params = { ...(issue.params || {}), resources: issue.resources.join(', ') }
+  const text = t(key, params)
+  return text === key ? t('chat.contract_issue_unknown', { code: issue.code }) : text
+}
+
+const blockedReasons = computed(() =>
+  isPreparationBlocked.value
+    ? [...new Set(blockingIssues.value.map(issueText))]
+    : props.context.blocking_reasons
+)
+/** Inferences resolved without the user, shown so they can be corrected. */
+const assumptions = computed(() => props.context.assumptions || [])
 const canSubmit = computed(
   () =>
     !!props.recordId &&
@@ -169,7 +194,13 @@ function submit() {
     <header>
       <div>
         <div class="card-title">
-          {{ isBlocked ? t('chat.clarification_blocked_title') : t('chat.clarification_title') }}
+          {{
+            isPreparationBlocked
+              ? t('chat.contract_preparation_blocked_title')
+              : isBlocked
+                ? t('chat.clarification_blocked_title')
+                : t('chat.clarification_title')
+          }}
         </div>
         <div v-if="context.summary && showCardDetails" class="card-summary">
           {{ context.summary }}
@@ -177,7 +208,7 @@ function submit() {
       </div>
       <div class="header-actions">
         <button
-          v-if="context.summary"
+          v-if="context.summary || assumptions.length"
           type="button"
           class="details-toggle"
           @click="showCardDetails = !showCardDetails"
@@ -192,9 +223,17 @@ function submit() {
       </div>
     </header>
 
+    <div v-if="assumptions.length && showCardDetails" class="card-assumptions">
+      <div class="assumptions-title">{{ t('chat.contract_assumptions_title') }}</div>
+      <div v-for="item in assumptions" :key="item.slot_id" class="assumption-row">
+        {{ t(`chat.contract_assumption_${item.code}`, { label: item.label }) }}
+        <span v-if="item.detail">: {{ item.detail }}</span>
+      </div>
+    </div>
+
     <template v-if="isBlocked">
       <el-alert
-        v-for="reason in context.blocking_reasons"
+        v-for="reason in blockedReasons"
         :key="reason"
         :title="reason"
         type="warning"
@@ -401,6 +440,21 @@ function submit() {
 
 .card-summary {
   margin-top: 4px;
+}
+
+.card-assumptions {
+  margin-top: 8px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: rgba(31, 35, 41, 0.04);
+  color: rgba(100, 106, 115, 1);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.assumptions-title {
+  font-weight: 500;
+  color: rgba(31, 35, 41, 1);
 }
 
 .clarification-question {

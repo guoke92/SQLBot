@@ -17,6 +17,7 @@ template:
   other_rule: |
     <rule>必须为每个表生成别名（不加AS）</rule>
     {multi_table_condition}
+    <rule>Hive 的 ORDER BY 在 SELECT 之后求值、只能看见输出列：排序列必须出现在 SELECT 中，写表限定（`t1`.`col`）会直接报错</rule>
     <rule>禁止使用星号(*)，必须明确字段名</rule>
     <rule>中文/特殊字符字段需保留原名并添加英文别名</rule>
     <rule>不能用 + 拼接字符串，字符串必须使用单引号</rule>
@@ -75,14 +76,14 @@ template:
 
   example_engine: Apache Hive 2.X
   example_answer_1: |
-    {"success":true,"sql":"SELECT `country` AS `country_name`, `continent` AS `continent_name`, `year` AS `year`, `gdp` AS `gdp` FROM `Sample_Database`.`sample_country_gdp` ORDER BY `country`, `year`","tables":["sample_country_gdp"],"chart-type":"line"}
+    {"success":true,"sql":"SELECT `t1`.`country` AS `country_name`, `t1`.`continent` AS `continent_name`, `t1`.`year` AS `year`, `t1`.`gdp` AS `gdp` FROM `Sample_Database`.`sample_country_gdp` `t1` ORDER BY `country_name`, `year`","tables":["sample_country_gdp"],"chart-type":"line"}
   example_answer_1_with_limit: |
-    {"success":true,"sql":"SELECT `country` AS `country_name`, `continent` AS `continent_name`, `year` AS `year`, `gdp` AS `gdp` FROM `Sample_Database`.`sample_country_gdp` ORDER BY `country`, `year` LIMIT 1000","tables":["sample_country_gdp"],"chart-type":"line"}
+    {"success":true,"sql":"SELECT `t1`.`country` AS `country_name`, `t1`.`continent` AS `continent_name`, `t1`.`year` AS `year`, `t1`.`gdp` AS `gdp` FROM `Sample_Database`.`sample_country_gdp` `t1` ORDER BY `country_name`, `year` LIMIT 1000","tables":["sample_country_gdp"],"chart-type":"line"}
   example_answer_2: |
-    {"success":true,"sql":"SELECT `country` AS `country_name`, `gdp` AS `gdp` FROM `Sample_Database`.`sample_country_gdp` WHERE `year` = '2024' ORDER BY `gdp` DESC","tables":["sample_country_gdp"],"chart-type":"pie"}
+    {"success":true,"sql":"SELECT `t1`.`country` AS `country_name`, `t1`.`gdp` AS `gdp` FROM `Sample_Database`.`sample_country_gdp` `t1` WHERE `t1`.`year` = '2024' ORDER BY `gdp` DESC","tables":["sample_country_gdp"],"chart-type":"pie"}
   example_answer_2_with_limit: |
-    {"success":true,"sql":"SELECT `country` AS `country_name`, `gdp` AS `gdp` FROM `Sample_Database`.`sample_country_gdp` WHERE `year` = '2024' ORDER BY `gdp` DESC LIMIT 1000","tables":["sample_country_gdp"],"chart-type":"pie"}
+    {"success":true,"sql":"SELECT `t1`.`country` AS `country_name`, `t1`.`gdp` AS `gdp` FROM `Sample_Database`.`sample_country_gdp` `t1` WHERE `t1`.`year` = '2024' ORDER BY `gdp` DESC LIMIT 1000","tables":["sample_country_gdp"],"chart-type":"pie"}
   example_answer_3: |
-    {"success":true,"sql":"SELECT `country` AS `country_name`, `gdp` AS `gdp` FROM `Sample_Database`.`sample_country_gdp` WHERE `year` = '2025' AND `country` = '中国'","tables":["sample_country_gdp"],"chart-type":"table"}
+    {"success":true,"sql":"SELECT `t1`.`country` AS `country_name`, `t1`.`gdp` AS `gdp` FROM `Sample_Database`.`sample_country_gdp` `t1` WHERE `t1`.`year` = '2025' AND `t1`.`country` = '中国'","tables":["sample_country_gdp"],"chart-type":"table"}
   example_answer_3_with_limit: |
-    {"success":true,"sql":"SELECT `country` AS `country_name`, `gdp` AS `gdp` FROM `Sample_Database`.`sample_country_gdp` WHERE `year` = '2025' AND `country` = '中国' LIMIT 1000","tables":["sample_country_gdp"],"chart-type":"table"}
+    {"success":true,"sql":"SELECT `t1`.`country` AS `country_name`, `t1`.`gdp` AS `gdp` FROM `Sample_Database`.`sample_country_gdp` `t1` WHERE `t1`.`year` = '2025' AND `t1`.`country` = '中国' LIMIT 1000","tables":["sample_country_gdp"],"chart-type":"table"}

@@ -3,7 +3,7 @@ template:
     <rule>
       必须对数据库名、表名、字段名、别名外层加反引号（`）。
       <note>
-        1. 点号（.）不能包含在反引号内，必须写成 `database`.`table`
+        1. 点号（.）不能包含在反引号内，必须写成 `catalog`.`database`.`table` 或 `database`.`table`
         2. 当标识符为关键字、含特殊字符或需保留大小写时必须加反引号
         3. StarRocks 标识符默认不区分大小写，但建议统一使用反引号
       </note>
@@ -22,6 +22,7 @@ template:
   other_rule: |
     <rule>必须为每个表生成别名（不加AS）</rule>
     {multi_table_condition}
+    <rule>外部 Catalog（如 Hive Catalog）表必须使用三段式：`catalog`.`database`.`table`，禁止把 catalog.database 写成单段库名</rule>
     <rule>禁止使用星号(*)，必须明确字段名</rule>
     <rule>中文/特殊字符字段需保留原名并添加英文别名</rule>
     <rule>函数字段必须加别名</rule>

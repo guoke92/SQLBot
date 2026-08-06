@@ -14,6 +14,7 @@ _BACKEND = _ROOT / "backend"
 if str(_BACKEND) not in sys.path:
     sys.path.insert(0, str(_BACKEND))
 
+from apps.chat.contract.validation import validate_contract  # noqa: E402
 from apps.chat.planning import parse_query_generation  # noqa: E402
 from apps.chat.query_contract import (  # noqa: E402
     FieldRef,
@@ -146,7 +147,7 @@ def test_latest_ten_rows_is_verified_without_a_time_window() -> None:
     assert result.contract_status == "verified"
 
 
-def test_unconfirmed_schema_policy_predicate_is_rejected() -> None:
+def test_unconfirmed_schema_policy_predicate_is_advisory() -> None:
     result = parse_query_generation(
         _raw(
             "SELECT * FROM physical_table WHERE hide_flag != 'Y' "
@@ -156,11 +157,12 @@ def test_unconfirmed_schema_policy_predicate_is_rejected() -> None:
         max_batch_size=3,
         query_contract=_latest_contract(),
     )
-    assert not result.success
-    assert "unconfirmed business predicates" in (result.error_message or "")
+    assert result.success
+    assert result.plans
+    assert "unconfirmed business predicates" in (result.contract_message or "")
 
 
-def test_unconfirmed_public_output_is_rejected() -> None:
+def test_unconfirmed_public_output_is_advisory() -> None:
     contract = QueryContract(
         requirements=[
             OutputRequirement(
@@ -177,11 +179,11 @@ def test_unconfirmed_public_output_is_rejected() -> None:
         max_batch_size=3,
         query_contract=contract,
     )
-    assert not result.success
-    assert "unconfirmed public outputs" in (result.error_message or "")
+    assert result.success
+    assert "unconfirmed public outputs" in (result.contract_message or "")
 
 
-def test_unconfirmed_public_grouping_is_rejected() -> None:
+def test_unconfirmed_public_grouping_is_advisory() -> None:
     contract = QueryContract(
         requirements=[
             OutputRequirement(
@@ -198,8 +200,8 @@ def test_unconfirmed_public_grouping_is_rejected() -> None:
         max_batch_size=3,
         query_contract=contract,
     )
-    assert not result.success
-    assert "unconfirmed public grouping" in (result.error_message or "")
+    assert result.success
+    assert "unconfirmed public grouping" in (result.contract_message or "")
 
 
 def test_output_must_be_projected_with_the_confirmed_aggregation() -> None:
@@ -225,7 +227,7 @@ def test_output_must_be_projected_with_the_confirmed_aggregation() -> None:
         max_batch_size=3,
         query_contract=contract,
     )
-    assert not invalid.success
+    assert invalid.contract_message
     assert valid.contract_status == "verified"
 
 
@@ -261,7 +263,7 @@ def test_cte_output_lineage_preserves_the_confirmed_aggregation() -> None:
         query_contract=contract,
     )
     assert valid.contract_status == "verified"
-    assert not hidden.success
+    assert hidden.contract_message
 
 
 def test_group_time_bucket_is_part_of_the_contract() -> None:
@@ -300,7 +302,7 @@ def test_group_time_bucket_is_part_of_the_contract() -> None:
         query_contract=contract,
     )
     assert valid.contract_status == "verified"
-    assert not wrong_grain.success
+    assert wrong_grain.contract_message
 
 
 def test_derived_output_requires_the_confirmed_arithmetic_operation() -> None:
@@ -347,7 +349,7 @@ def test_derived_output_requires_the_confirmed_arithmetic_operation() -> None:
         query_contract=contract,
     )
     assert valid.contract_status == "verified"
-    assert not wrong_formula.success
+    assert wrong_formula.contract_message
 
 
 def test_order_by_output_alias_resolves_through_projection_lineage() -> None:
@@ -404,10 +406,10 @@ def test_predicate_null_policy_is_never_silently_treated_as_verified() -> None:
     )
     preserve = contract.model_copy(
         update={
-            "requirements": [
+            "requirements": (
                 contract.requirements[0],
                 contract.requirements[1].model_copy(update={"null_policy": "preserve"}),
-            ]
+            )
         }
     )
     partial = parse_query_generation(
@@ -460,8 +462,8 @@ def test_explicit_time_window_requires_both_bounds_on_every_fact_field() -> None
         max_batch_size=3,
         query_contract=contract,
     )
-    assert not result.success
-    assert "Missing contract slots: time" in (result.error_message or "")
+    assert result.success
+    assert "Missing contract slots: time" in (result.contract_message or "")
 
 
 def _multi_fact_contract(
@@ -501,26 +503,30 @@ def _multi_fact_contract(
     )
 
 
-def test_grouped_multi_resource_contract_cannot_freeze_without_relation() -> None:
-    with pytest.raises(ValueError, match="explicit relation coverage"):
-        QueryContract(
-            requirements=[
-                GroupRequirement(
-                    slot_id="company",
-                    label="企业",
-                    field=FieldRef(resource="finance", field="company_name"),
-                ),
-                OutputRequirement(
-                    slot_id="signed",
-                    label="累计签收额",
-                    field=FieldRef(resource="asset", field="transfer_amt"),
-                    operation="sum",
-                ),
-            ]
-        )
+def test_grouped_multi_resource_contract_freezes_before_planning_diagnostics() -> None:
+    contract = QueryContract(
+        requirements=[
+            GroupRequirement(
+                slot_id="company",
+                label="企业",
+                field=FieldRef(resource="finance", field="company_name"),
+            ),
+            OutputRequirement(
+                slot_id="signed",
+                label="累计签收额",
+                field=FieldRef(resource="asset", field="transfer_amt"),
+                operation="sum",
+            ),
+        ]
+    )
+
+    assert contract.result_mode == "aggregate"
+    assert [
+        item.code for item in validate_contract(contract)
+    ] == ["relation_coverage_missing"]
 
 
-def test_union_population_rejects_a_silent_finance_left_join() -> None:
+def test_union_population_flags_a_silent_finance_left_join() -> None:
     contract = _multi_fact_contract()
     result = parse_query_generation(
         _raw(
@@ -535,8 +541,8 @@ def test_union_population_rejects_a_silent_finance_left_join() -> None:
         max_batch_size=3,
         query_contract=contract,
     )
-    assert not result.success
-    assert "Missing contract slots: population" in (result.error_message or "")
+    assert result.success
+    assert "Missing contract slots: population" in (result.contract_message or "")
 
 
 def test_union_dimension_scaffold_satisfies_union_population() -> None:
@@ -561,7 +567,9 @@ def test_union_dimension_scaffold_satisfies_union_population() -> None:
     assert result.contract_status == "verified"
 
 
-def test_cross_resource_join_must_match_the_frozen_relation_pairs() -> None:
+def test_a_join_on_the_wrong_keys_misses_the_frozen_relation_pairs() -> None:
+    # Joins as such are the schema's business, but a relation the user did
+    # confirm still has to be honoured on the keys and side they agreed to.
     contract = _multi_fact_contract(population="left")
     result = parse_query_generation(
         _raw(
@@ -574,8 +582,8 @@ def test_cross_resource_join_must_match_the_frozen_relation_pairs() -> None:
         max_batch_size=3,
         query_contract=contract,
     )
-    assert not result.success
-    assert "unconfirmed cross-resource joins" in (result.error_message or "")
+    assert result.success
+    assert "population" in (result.contract_message or "")
 
 
 def test_dialect_specific_rolling_window_is_partial_but_publishable() -> None:
@@ -652,8 +660,8 @@ def test_complementary_batch_requires_universal_scope_in_every_plan() -> None:
         max_batch_size=3,
         query_contract=contract,
     )
-    assert not result.success
-    assert "omits universal contract slots" in (result.error_message or "")
+    assert result.success
+    assert "omits universal contract slots" in (result.contract_message or "")
 
 
 def test_complementary_batch_is_disjoint_nonempty_and_complete() -> None:
@@ -678,7 +686,7 @@ def test_complementary_batch_is_disjoint_nonempty_and_complete() -> None:
     ]
 
 
-def test_batch_rejects_overlapping_or_zero_output_plans() -> None:
+def test_batch_flags_overlapping_or_zero_output_plans() -> None:
     contract = _complementary_contract()
     overlap = parse_query_generation(
         _raw(
@@ -691,11 +699,11 @@ def test_batch_rejects_overlapping_or_zero_output_plans() -> None:
         max_batch_size=3,
         query_contract=contract,
     )
-    assert not overlap.success
-    assert "overlap output slots" in (overlap.error_message or "")
+    assert overlap.success
+    assert "overlap output slots" in (overlap.contract_message or "")
 
 
-def test_user_order_or_limit_forces_a_single_authoritative_plan() -> None:
+def test_user_order_or_limit_flags_a_multi_plan_batch() -> None:
     contract = QueryContract(
         requirements=[
             OutputRequirement(
@@ -722,8 +730,8 @@ def test_user_order_or_limit_forces_a_single_authoritative_plan() -> None:
         max_batch_size=3,
         query_contract=contract,
     )
-    assert not result.success
-    assert "must be implemented by one plan" in (result.error_message or "")
+    assert result.success
+    assert "must be implemented by one plan" in (result.contract_message or "")
 
 
 def test_batch_size_limit_is_rejected_not_truncated() -> None:

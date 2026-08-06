@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import re
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any, Literal
 
@@ -12,15 +12,23 @@ import orjson
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
+from apps.chat.contract.issues import (
+    QUESTION_EVIDENCE,
+    ContractAssumption,
+    ContractIssue,
+    blocking_issues,
+    is_inferred_evidence,
+)
+from apps.chat.contract.validation import (
+    field_reference_issues,
+    relation_coverage_issues,
+)
 from apps.chat.query_contract import (
     ContractDraft,
     ContractRequirement,
     ContractSlot,
     FieldRef,
-    GroupRequirement,
-    OutputRequirement,
     PredicateRequirement,
-    RelationRequirement,
     SlotEffect,
     TimeWindowRequirement,
     parse_requirement,
@@ -34,6 +42,10 @@ from apps.chat.semantic_intent import (
     IntentIssue,
     IntentOption,
     contract_display_rows,
+    contract_summary,
+    dropped_assumptions,
+    finalize_intent_context,
+    requirement_value,
 )
 from apps.conversation.messages import message_content_text
 from common.utils.json_utils import extract_nested_json
@@ -57,23 +69,6 @@ class SemanticAssessmentResult:
     usage: dict[str, Any]
     reasoning: str
     attempts: list[dict[str, Any]]
-
-
-class SemanticAssessmentError(RuntimeError):
-    """The assessor failed technically; this is not a business blockage."""
-
-    def __init__(
-        self,
-        message: str,
-        *,
-        usage: dict[str, Any],
-        reasoning: str,
-        attempts: list[dict[str, Any]],
-    ) -> None:
-        super().__init__(message)
-        self.usage = usage
-        self.reasoning = reasoning
-        self.attempts = attempts
 
 
 _FORBIDDEN_USER_FACING_TERMS = (
@@ -110,14 +105,24 @@ _SYSTEM_PROMPT = """你是数据查询契约审核器。不要生成 SQL。请�
 - relation 同时给出字段对和业务主体范围 population(intersection/left/right/union)。
 - 一个共享分组结果引用多个事实资源时，relation 是必需子句；字段对依据 schema，population 是业务范围，未明确时必须澄清，不能由 SQL 阶段默认选择。
 - “查询/展示对应的字段”默认是 output(value)，不等于 group；只有用户要求“按该维度统计/拆分”时才生成 group。
+- “查询记录/明细/列表”是 detail 结果：使用 projection + predicate/order/limit，不创建 record grain、记录标识或 group 澄清，也不要求用户选择唯一标识字段。
+- 只有计数、求和、平均、去重统计或“按某维度汇总/统计”等聚合诉求才产生 aggregate output/group。
 - 多事实结果中的 group 必须是各事实都能对应的共享业务粒度；某字段只存在于一侧且会让另一侧指标重复时，必须澄清取值/展示政策，不能直接按它拆分。
 - output.operation 只能是 value/count/count_distinct/sum/avg/min/max/distinct_concat/ratio/difference；不生成任意公式语言。
 - predicate.null_policy 默认 exclude；只有业务明确要求保留空值时才用 preserve，is_null 使用 only。
 - time_window.mode 只能是 all/explicit/rolling；explicit 使用 start + end_exclusive；一个业务范围涉及多个事实来源时 fields 列出每个对应时间字段。
 - order 使用 field 或 output_slot_id 二选一；limit.value 必须大于 0。
 
+证据与来源规则（决定该子句能否被系统回退，务必如实标注）：
+- 每个 requirement 必须给出 evidence_refs，元素使用命名空间前缀：user:question（用户本轮或原始问题的原话）、user:answer:<question_id>（用户已回答的澄清）、terminology:<术语>、schema:<表>.<字段>、example:<样例>、rule:<规则>。
+- source 只有在 evidence_refs 含 user:question 或 user:answer:* 时才可填 user，表示用户确实表达过该口径；否则填 model/terminology/schema/example/rule。
+- 谎报 user 会使系统无法回退错误推断，务必只在用户原话可对应时使用。
+- 由 schema 观察推导出的结果集政策（如是否排除隐藏数据、默认状态过滤）属于系统推断，evidence_refs 不得包含 user:*。
+
 澄清规则：
 - 一次列出当前证据能发现的全部关键业务问题；高度相关的问题可以合并，正交问题保持独立。
+- 只有用户自己表达过、且不同选项会实质改变结果集或统计值的歧义才值得提问；issue.evidence_refs 必须包含对应的 user:*。
+- 系统自身对结果集政策的不确定不要提问，直接选择最保守的默认（通常是不额外过滤）并作为普通 requirement 输出。
 - 用户只确认业务需求，不负责选择表、连接方式或 SQL 实现。
 - 字段提示用“业务名称(field_name)”；不要默认展示物理表名。
 - 推荐仅标记，不代替用户选择。每题提供 2~3 个互斥选项和业务影响，并允许自定义回答。
@@ -268,7 +273,12 @@ def _entity_questions(
                 slot_id=slot_id,
                 label=str(phrase),
                 source="terminology",
-                evidence_refs=[f"field:{field.identifier}"],
+                # The ambiguous phrase came from the user, so this gap is the
+                # user's to resolve and must never be auto-answered.
+                evidence_refs=[
+                    QUESTION_EVIDENCE,
+                    f"schema:{field.identifier}",
+                ],
                 field=field,
                 operator="eq",
                 values=[canonical],
@@ -360,70 +370,25 @@ def _next_slot_id(existing: set[str], counter: int) -> tuple[str, int]:
             return candidate, current
 
 
-def _source_from_evidence(evidence_refs: list[str]) -> str:
-    joined = " ".join(evidence_refs).casefold()
-    if "terminology" in joined or "entity" in joined:
-        return "terminology"
-    if "example" in joined or "training" in joined:
-        return "example"
-    if "rule" in joined or "custom_prompt" in joined:
-        return "rule"
-    if "schema" in joined or "field:" in joined:
-        return "schema"
-    return "user"
-
-
-_TABLE_HEADER_RE = re.compile(r"^#\s*Table:\s*([^,;\s]+)", re.MULTILINE)
-_FIELD_LINE_RE = re.compile(r"^\s*\(([^:(),\s]+)\s*:", re.MULTILINE)
-
-
-def _schema_fields(schema_text: str) -> dict[str, set[str]]:
-    result: dict[str, set[str]] = {}
-    matches = list(_TABLE_HEADER_RE.finditer(schema_text or ""))
-    for index, match in enumerate(matches):
-        table = match.group(1).strip().strip('`"[]').casefold()
-        end = (
-            matches[index + 1].start() if index + 1 < len(matches) else len(schema_text)
-        )
-        block = schema_text[match.end() : end]
-        fields = {
-            field.group(1).strip().strip('`"[]').casefold()
-            for field in _FIELD_LINE_RE.finditer(block)
-        }
-        result[table] = fields
-        result.setdefault(table.rsplit(".", 1)[-1], fields)
-    return result
-
-
-def _validate_contract_fields(
+def _reject_unknown_fields(
     requirements: list[ContractRequirement],
     schema_text: str,
 ) -> None:
-    catalog = _schema_fields(schema_text)
-    if not catalog:
-        return
-    all_fields = set().union(*catalog.values()) if catalog else set()
-    unknown: list[str] = []
-    for requirement in requirements:
-        if isinstance(requirement, OutputRequirement) and requirement.operation in {
-            "ratio",
-            "difference",
-        }:
-            continue
-        for field in requirement_fields(requirement):
-            if field.resource:
-                valid = field.field.casefold() in catalog.get(
-                    field.resource.casefold(),
-                    catalog.get(field.resource_name.casefold(), set()),
-                )
-            else:
-                valid = field.field.casefold() in all_fields
-            if not valid:
-                unknown.append(field.identifier)
-    if unknown:
+    """Raise on assessor output that invents fields, driving the repair turn.
+
+    Contract-level field problems are issues; a *model response* that cites a
+    non-existent field is a defective response, so it is repaired rather than
+    routed to the user.
+    """
+    issues = [
+        issue
+        for issue in field_reference_issues(requirements, schema_text)
+        if issue.code == "field_not_in_schema"
+    ]
+    if issues:
         raise ValueError(
             "Contract references field(s) absent from the retrieved schema: "
-            + ", ".join(dict.fromkeys(unknown))
+            + ", ".join(issue.params.get("fields", "") for issue in issues)
         )
 
 
@@ -456,11 +421,7 @@ def _remap_new_slots(
         requirement = effect.requirement
         if requirement is not None:
             requirement = parse_requirement(
-                {
-                    **requirement.model_dump(mode="json"),
-                    "slot_id": slot_id,
-                    "source": _source_from_evidence(requirement.evidence_refs),
-                }
+                {**requirement.model_dump(mode="json"), "slot_id": slot_id}
             )
         edits.append(
             SlotEffect(
@@ -484,11 +445,7 @@ def _remap_new_slots(
                 requirement = effect.requirement
                 if requirement is not None:
                     requirement = parse_requirement(
-                        {
-                            **requirement.model_dump(mode="json"),
-                            "slot_id": slot_id,
-                            "source": _source_from_evidence(requirement.evidence_refs),
-                        }
+                        {**requirement.model_dump(mode="json"), "slot_id": slot_id}
                     )
                 effects.append(
                     SlotEffect(
@@ -563,7 +520,7 @@ def _validate_question(
                     f"Effect for {effect.slot_id} has clause "
                     f"{effect.requirement.clause}, expected {slot.clause}"
                 )
-            _validate_contract_fields([effect.requirement], schema_text)
+            _reject_unknown_fields([effect.requirement], schema_text)
         fields = list(
             dict.fromkeys(
                 field.field
@@ -584,9 +541,7 @@ def _validate_question(
     question.options = normalized_options[:3]
     question.title = _business_language(question.title)
     question.reason = _business_language(question.reason)
-    question.recommendation_reason = _business_language(
-        question.recommendation_reason
-    )
+    question.recommendation_reason = _business_language(question.recommendation_reason)
     question.custom_placeholder = _business_language(question.custom_placeholder)
     available = {option.id for option in question.options}
     question.recommended_option_ids = [
@@ -638,25 +593,23 @@ def _business_language(value: str) -> str:
     return result
 
 
-def _validate_draft_relation_closure(
+def _validate_assessment_relation_resolution(
     requirements: list[ContractRequirement],
     open_slots: Mapping[str, ContractSlot],
     questions: list[ClarificationQuestion],
 ) -> None:
-    """Ensure a multi-resource shared grain cannot omit the relation decision.
+    """Ensure model output exposes a missing business relation as a question.
 
-    For unresolved slots we only use resources common to every selectable
-    option.  Alternative source choices therefore do not create false
-    multi-resource requirements, while mandatory signed/financing facts do.
+    This validates the assessor response, not the user's frozen contract. The
+    canonical preparation evaluator still owns relation-coverage semantics;
+    here we only account for resources guaranteed by every selectable option
+    and require the model to expose a relation slot instead of silently omitting
+    that clarification.
     """
-    clauses: list[tuple[str, frozenset[str]]] = [
-        (requirement.clause, requirement_resources(requirement))
-        for requirement in requirements
-    ]
+    additional_group_resources: set[str] = set()
+    additional_output_resources: set[str] = set()
     question_by_slot = {
-        slot_id: question
-        for question in questions
-        for slot_id in question.slot_ids
+        slot_id: question for question in questions for slot_id in question.slot_ids
     }
     for slot_id, slot in open_slots.items():
         question = question_by_slot.get(slot_id)
@@ -676,30 +629,25 @@ def _validate_draft_relation_closure(
             common = set(option_resources[0])
             for resources in option_resources[1:]:
                 common.intersection_update(resources)
-            clauses.append((slot.clause, frozenset(common)))
+            if slot.clause == "group":
+                additional_group_resources.update(common)
+            elif slot.clause == "output":
+                additional_output_resources.update(common)
 
-    group_resources = {
-        resource
-        for clause, resources in clauses
-        if clause == "group"
-        for resource in resources
-    }
-    output_resources = {
-        resource
-        for clause, resources in clauses
-        if clause == "output"
-        for resource in resources
-    }
-    result_resources = group_resources | output_resources
-    if not group_resources or len(result_resources) <= 1:
+    if any(slot.clause == "relation" for slot in open_slots.values()):
         return
-    has_relation = any(
-        isinstance(requirement, RelationRequirement) for requirement in requirements
-    ) or any(slot.clause == "relation" for slot in open_slots.values())
-    if not has_relation:
+    # Any coverage gap in the assessor's own proposal is a defective response,
+    # independent of severity: severity classifies a *contract*, and this
+    # response has not produced one yet.
+    issues = relation_coverage_issues(
+        requirements,
+        additional_group_resources=additional_group_resources,
+        additional_output_resources=additional_output_resources,
+    )
+    if issues:
         raise ValueError(
             "Grouped multi-resource assessment must expose a relation/population "
-            "contract slot for: " + ", ".join(sorted(result_resources))
+            "contract slot for: " + ", ".join(issues[0].resources)
         )
 
 
@@ -729,6 +677,113 @@ def _validate_deterministic_time(
                 f"Time slot {requirement.slot_id} must use deterministic bounds "
                 f"{expected_start} to {expected_end}"
             )
+
+
+def _recommended_option(question: ClarificationQuestion) -> IntentOption | None:
+    """Return the option the assessor recommends, if it marked one.
+
+    Without a recommendation the assessor has no basis for choosing, and
+    neither do we, so the question survives instead of being answered at
+    random.
+    """
+    by_id = {option.id: option for option in question.options}
+    for option_id in question.recommended_option_ids:
+        if option_id in by_id:
+            return by_id[option_id]
+    return None
+
+
+def _omitted(slot: ContractSlot) -> ContractAssumption:
+    return ContractAssumption(
+        slot_id=slot.slot_id, code="auto_omitted", label=slot.label
+    )
+
+
+def _reject_unanswerable_options(
+    question: ClarificationQuestion,
+    requirements: Sequence[ContractRequirement],
+) -> None:
+    """Refuse a question whose answer could not form a valid contract.
+
+    The card promises that picking an option lets the turn continue.  An option
+    that collides with a clause already in the draft breaks that promise at
+    merge time — after the user has spent a round trip, with no repair loop
+    left to run.  Catching it here turns a dead end into a repair attempt.
+    """
+    for option in question.options:
+        merged = list(requirements)
+        for effect in option.effects:
+            if effect.requirement is None:
+                merged = [item for item in merged if item.slot_id != effect.slot_id]
+            else:
+                merged = replace_requirement(merged, effect.requirement)
+        try:
+            ContractDraft(requirements=merged)
+        except ValueError as exc:
+            raise ValueError(
+                f"Option {option.id} of question {question.id} cannot form a "
+                f"valid contract: {exc}"
+            ) from exc
+
+
+def _auto_resolve_inferred_slots(
+    requirements: list[ContractRequirement],
+    open_slots: dict[str, ContractSlot],
+    questions: list[ClarificationQuestion],
+) -> tuple[
+    list[ContractRequirement],
+    dict[str, ContractSlot],
+    list[ClarificationQuestion],
+    list[ContractAssumption],
+]:
+    """Answer the system's own uncertainty instead of charging the user for it.
+
+    A slot that cites only schema or rule evidence is a policy question the
+    system invented.  Asking it costs a round trip and can turn an unambiguous
+    request into a dead end, so it takes its recommended answer and is reported
+    as a stated assumption.  Anything the user implied — or anything of unknown
+    provenance — keeps its question.
+
+    Open slots never coexist with a requirement of the same id, so resolving
+    one only ever adds a clause; nothing has to be removed.
+    """
+    remaining = dict(open_slots)
+    assumptions: list[ContractAssumption] = []
+    kept_questions: list[ClarificationQuestion] = []
+    for question in questions:
+        slots = [
+            remaining[slot_id] for slot_id in question.slot_ids if slot_id in remaining
+        ]
+        option = _recommended_option(question)
+        if (
+            not slots
+            or option is None
+            or not all(is_inferred_evidence(slot.evidence_refs) for slot in slots)
+        ):
+            kept_questions.append(question)
+            continue
+        for effect in option.effects:
+            slot = remaining.pop(effect.slot_id, None)
+            if slot is None:
+                continue
+            if effect.requirement is None:
+                assumptions.append(_omitted(slot))
+                continue
+            requirements = replace_requirement(requirements, effect.requirement)
+            assumptions.append(
+                ContractAssumption(
+                    slot_id=slot.slot_id,
+                    code="auto_resolved",
+                    label=slot.label,
+                    detail=requirement_value(effect.requirement),
+                )
+            )
+    for slot in list(remaining.values()):
+        if not slot.allow_omit or not is_inferred_evidence(slot.evidence_refs):
+            continue
+        remaining.pop(slot.slot_id)
+        assumptions.append(_omitted(slot))
+    return requirements, remaining, kept_questions, assumptions
 
 
 def _normalize_assessment(
@@ -799,11 +854,14 @@ def _normalize_assessment(
             "Contract slots cannot be both resolved and ambiguous: "
             + ", ".join(sorted(overlap))
         )
-    draft = ContractDraft(
-        requirements=requirements,
-        open_slots=list(issues_by_id.values()),
+    _reject_unknown_fields(
+        [
+            effect.requirement
+            for effect in normalized.edits
+            if effect.requirement is not None
+        ],
+        schema_text,
     )
-    _validate_contract_fields(requirements, schema_text)
     _validate_deterministic_time(requirements, temporal_parse)
     questions: list[ClarificationQuestion] = []
     question_ids: set[str] = set()
@@ -824,6 +882,7 @@ def _normalize_assessment(
             )
         question = question.model_copy(update={"slot_ids": relevant})
         _validate_question(question, issues_by_id, schema_text)
+        _reject_unanswerable_options(question, requirements)
         _validate_deterministic_time(
             [
                 effect.requirement
@@ -843,11 +902,17 @@ def _normalize_assessment(
         )
 
     if normalized.status != "blocked":
-        _validate_draft_relation_closure(
+        _validate_assessment_relation_resolution(
             requirements,
             issues_by_id,
             questions,
         )
+
+    requirements, issues_by_id, questions, assumptions = _auto_resolve_inferred_slots(
+        requirements,
+        issues_by_id,
+        questions,
+    )
 
     blocking = list(dict.fromkeys(normalized.blocking_reasons))
     if questions:
@@ -859,15 +924,12 @@ def _normalize_assessment(
     else:
         status = "ready"
     if status == "ready":
-        contract = ContractDraft(requirements=requirements).freeze()
-        return IntentContext(
-            status="ready",
-            original_question=context.original_question,
-            summary=normalized.summary,
+        return finalize_intent_context(
+            context,
             draft=ContractDraft(requirements=requirements),
-            contract=contract,
-            submitted_answers=list(context.submitted_answers),
-            base_record_id=context.base_record_id,
+            summary=normalized.summary,
+            schema_text=schema_text,
+            assumptions=assumptions,
         )
     if status == "blocked" and not blocking:
         blocking = [normalized.summary or "现有证据不足以形成可执行查询口径"]
@@ -875,11 +937,71 @@ def _normalize_assessment(
         status=status,
         original_question=context.original_question,
         summary=normalized.summary,
-        draft=draft,
+        draft=ContractDraft(
+            requirements=requirements,
+            open_slots=list(issues_by_id.values()),
+        ),
         questions=questions if status == "needs_clarification" else [],
         blocking_reasons=blocking if status == "blocked" else [],
+        assumptions=assumptions,
         submitted_answers=list(context.submitted_answers),
         base_record_id=context.base_record_id,
+    )
+
+
+def _salvage_minimal_context(
+    context: IntentContext,
+    assessment: IntentAssessment | None,
+    schema_text: str,
+) -> IntentContext:
+    """Recover an executable turn from an assessment that failed review twice.
+
+    Two failed reviews mean the assessor and our own rules could not agree,
+    which is a system problem rather than a user one.  Whatever the user
+    confirmed is still valid, so the turn continues on that core with every
+    dropped inference stated as an assumption instead of ending in a dead end.
+    """
+    requirements = list(context.draft.requirements)
+    if assessment is not None:
+        try:
+            normalized = _remap_new_slots(
+                assessment,
+                existing_ids={item.slot_id for item in requirements},
+            )
+        except (TypeError, ValueError):
+            normalized = None
+        for effect in normalized.edits if normalized else []:
+            requirement = effect.requirement
+            if effect.action != "set" or requirement is None:
+                continue
+            if not requirement.is_confirmed:
+                continue
+            if blocking_issues(field_reference_issues([requirement], schema_text)):
+                continue
+            requirements = replace_requirement(requirements, requirement)
+    try:
+        draft = ContractDraft(requirements=requirements)
+    except ValueError:
+        draft = ContractDraft(requirements=list(context.draft.requirements))
+
+    contract = draft.minimal_executable()
+    if contract is None:
+        return IntentContext(
+            status="blocked",
+            original_question=context.original_question,
+            contract_issues=[
+                ContractIssue(code="assessment_unavailable", severity="blocking")
+            ],
+            submitted_answers=list(context.submitted_answers),
+            base_record_id=context.base_record_id,
+        )
+    reduced = ContractDraft(requirements=list(contract.requirements))
+    return finalize_intent_context(
+        context,
+        draft=reduced,
+        summary=contract_summary(reduced),
+        schema_text=schema_text,
+        assumptions=dropped_assumptions(draft, contract, "gate_degraded"),
     )
 
 
@@ -951,6 +1073,7 @@ def assess_semantic_intent(
     usage_items: list[dict[str, Any]] = []
     reasoning_items: list[str] = []
     attempts: list[dict[str, Any]] = []
+    last_assessment: IntentAssessment | None = None
     assessment_llm = llm_service.llm.bind(temperature=0)
     for attempt in range(2):
         response = assessment_llm.invoke(messages)
@@ -967,6 +1090,7 @@ def assess_semantic_intent(
             if not json_text:
                 raise ValueError("Cannot parse semantic contract assessment")
             assessment = IntentAssessment.model_validate(orjson.loads(json_text))
+            last_assessment = assessment
             normalized = _normalize_assessment(
                 assessment,
                 context,
@@ -1012,12 +1136,40 @@ def assess_semantic_intent(
 
     from apps.conversation.usage import merge_usage
 
-    raise SemanticAssessmentError(
-        "Semantic contract assessment failed validation after repair",
+    # The gate's own failure must never become the user's terminal state.
+    return SemanticAssessmentResult(
+        context=_salvage_minimal_context(
+            context, last_assessment, llm_service.chat_question.db_schema
+        ),
         usage=merge_usage(*usage_items),
         reasoning="\n".join(reasoning_items),
         attempts=attempts,
     )
+
+
+def render_assumptions(
+    assumptions: Sequence[ContractAssumption],
+    trans: Callable[..., str] | None,
+) -> str:
+    """Render what the system decided alone, so a silent choice stays visible."""
+    if not assumptions:
+        return ""
+    lines = [
+        _translated(
+            trans,
+            "i18n_chat.clarification.assumptions_title",
+            "以下部分由系统代为决定：",
+        )
+    ]
+    for item in assumptions:
+        text = _translated(
+            trans,
+            f"i18n_chat.clarification.assumption_{item.code}",
+            "“{label}”由系统代为决定",
+            label=item.label,
+        )
+        lines.append(f"- {text}: {item.detail}" if item.detail else f"- {text}")
+    return "\n".join(lines)
 
 
 def assessment_contract_rows(context: IntentContext) -> list[dict[str, str]]:

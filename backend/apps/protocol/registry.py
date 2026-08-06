@@ -108,19 +108,22 @@ def bootstrap_default_types() -> None:
 
     sql_caps = {CAP_SQL_DIALECT, CAP_ROW_PERMISSION, CAP_SAMPLE_DATA, CAP_TABLE_RELATION}
 
+    # ``sqlglot`` drives contract-structure analysis of generated SQL. A missing
+    # dialect degrades that analysis to dialect-agnostic parsing, so every
+    # connector whose syntax sqlglot models must declare its closest dialect.
     sql_types = [
         # type_key, display, template, prefix, suffix, sqlglot, illegal, category, dictionary
-        ("excel", "Excel/CSV", "PostgreSQL", '"', '"', None, (), "file", True),
-        ("redshift", "AWS Redshift", "AWS_Redshift", '"', '"', None, (), "database", True),
-        ("ck", "ClickHouse", "ClickHouse", '"', '"', None, (), "database", True),
-        ("dm", "达梦", "DM", '"', '"', None, (), "database", True),
+        ("excel", "Excel/CSV", "PostgreSQL", '"', '"', "postgres", (), "file", True),
+        ("redshift", "AWS Redshift", "AWS_Redshift", '"', '"', "redshift", (), "database", True),
+        ("ck", "ClickHouse", "ClickHouse", '"', '"', "clickhouse", (), "database", True),
+        ("dm", "达梦", "DM", '"', '"', "oracle", (), "database", True),
         ("doris", "Apache Doris", "Doris", "`", "`", "mysql", (), "database", True),
         ("es", "Elasticsearch", "Elasticsearch", '"', '"', None, (), "database", False),
-        ("kingbase", "Kingbase", "Kingbase", '"', '"', None, (), "database", True),
+        ("kingbase", "Kingbase", "Kingbase", '"', '"', "postgres", (), "database", True),
         ("sqlServer", "Microsoft SQL Server", "Microsoft_SQL_Server", "[", "]", "tsql", (), "database", True),
         ("mysql", "MySQL", "MySQL", "`", "`", "mysql", ("local_infile",), "database", True),
-        ("oracle", "Oracle", "Oracle", '"', '"', None, (), "database", True),
-        ("pg", "PostgreSQL", "PostgreSQL", '"', '"', None, (), "database", True),
+        ("oracle", "Oracle", "Oracle", '"', '"', "oracle", (), "database", True),
+        ("pg", "PostgreSQL", "PostgreSQL", '"', '"', "postgres", (), "database", True),
         ("starrocks", "StarRocks", "StarRocks", "`", "`", "mysql", (), "database", True),
         ("hive", "Apache Hive", "Hive", "`", "`", "hive", (), "database", True),
     ]

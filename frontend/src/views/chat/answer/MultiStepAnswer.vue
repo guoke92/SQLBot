@@ -485,7 +485,8 @@ const sendMessage = async () => {
             break
           }
           case 'clarification':
-          case 'clarification-blocked': {
+          case 'clarification-blocked':
+          case 'contract-preparation-blocked': {
             currentRecord.intent_context = data.intent_context
             _currentChat.value.records[index.value].intent_context = data.intent_context
             break

@@ -6,14 +6,15 @@ import re
 import urllib.parse
 from datetime import datetime, date, time, timedelta
 from decimal import Decimal
-from typing import Optional, List
+from typing import Any, Optional, List, Iterator
+from contextlib import contextmanager
 
 import oracledb
 import psycopg2
 import pymssql
 
 from apps.db.db_sql import get_table_sql, get_field_sql, get_version_sql
-from common.error import ParseSQLResultError
+from common.error import SQLBotDBError
 
 if platform.system() != "Darwin":
     import dmPython
@@ -106,6 +107,155 @@ def get_extra_config(conf: DatasourceConf):
             else:
                 raise Exception(f'param: {config} is error')
     return config_dict
+
+
+@contextmanager
+def starrocks_connection(
+    conf: DatasourceConf,
+    *,
+    default_database: str | None = None,
+    connect_timeout: int | None = None,
+    read_timeout: int | None = None,
+) -> Iterator[tuple[Any, Any]]:
+    """Open a pymysql session for Doris/StarRocks with optional SET CATALOG.
+
+    Never passes a dotted ``catalog.database`` as the MySQL protocol database.
+    """
+    from apps.db.starrocks_catalog import (
+        connect_database_arg,
+        resolve_sr_scope,
+        set_catalog_sql,
+        use_database_sql,
+    )
+
+    catalog, databases = resolve_sr_scope(conf)
+    db_arg = connect_database_arg(conf)
+    extra_config_dict = get_extra_config(conf)
+    ssl_args = {"ssl": {"ssl_mode": "REQUIRE"}} if conf.ssl else {}
+    ct = int(connect_timeout if connect_timeout is not None else (conf.timeout or 10))
+    rt = int(read_timeout if read_timeout is not None else (conf.timeout or 10))
+    connect_kwargs: dict[str, Any] = {
+        "user": conf.username,
+        "passwd": conf.password,
+        "host": conf.host,
+        "port": conf.port,
+        "connect_timeout": ct,
+        "read_timeout": rt,
+        **extra_config_dict,
+        **ssl_args,
+    }
+    if db_arg:
+        connect_kwargs["db"] = db_arg
+
+    conn = pymysql.connect(**connect_kwargs)
+    try:
+        cursor = conn.cursor()
+        try:
+            if catalog:
+                cursor.execute(set_catalog_sql(catalog))
+                use_db = default_database or (databases[0] if databases else None)
+                if use_db:
+                    cursor.execute(use_database_sql(use_db))
+            yield conn, cursor
+        finally:
+            cursor.close()
+    finally:
+        conn.close()
+
+
+def _starrocks_list_tables(conf: DatasourceConf) -> list[TableSchema]:
+    """List tables for Doris/StarRocks.
+
+    External catalog → SHOW TABLES FROM catalog.db (information_schema is unreliable).
+    Internal → information_schema.TABLES per database (keeps TABLE_COMMENT).
+    """
+    from apps.db.starrocks_catalog import resolve_sr_scope, show_tables_sql
+
+    catalog, databases = resolve_sr_scope(conf)
+    if not databases:
+        return []
+
+    tables: list[TableSchema] = []
+    with starrocks_connection(conf, default_database=databases[0]) as (_conn, cursor):
+        if catalog:
+            for database in databases:
+                cursor.execute(show_tables_sql(catalog, database))
+                for row in cursor.fetchall():
+                    name = row[0] if row else ""
+                    if isinstance(name, bytes):
+                        name = name.decode("utf-8")
+                    tables.append(TableSchema(name, "", database_name=database))
+            return tables
+
+        sql = """
+                SELECT
+                    TABLE_NAME,
+                    TABLE_COMMENT
+                FROM
+                    information_schema.TABLES
+                WHERE
+                    TABLE_SCHEMA = %s
+                """
+        for database in databases:
+            cursor.execute(sql, (database,))
+            for item in cursor.fetchall():
+                tables.append(TableSchema(item[0], item[1], database_name=database))
+    return tables
+
+
+def _starrocks_list_fields(
+    conf: DatasourceConf,
+    table_name: str | None = None,
+    database_name: str | None = None,
+) -> list[ColumnSchema]:
+    """List columns for Doris/StarRocks.
+
+    Identity is (database_name, bare table_name) — no dotted-name parsing.
+    External catalog → SHOW FULL COLUMNS; internal → INFORMATION_SCHEMA.COLUMNS.
+    """
+    from apps.db.starrocks_catalog import (
+        bare_table_name,
+        resolve_sr_scope,
+        show_full_columns_sql,
+    )
+
+    catalog, databases = resolve_sr_scope(conf)
+    db_name = (database_name or "").strip() or (databases[0] if databases else "")
+    bare_table = bare_table_name(table_name)
+    if not db_name:
+        return []
+
+    if catalog and bare_table:
+        with starrocks_connection(conf, default_database=db_name) as (_conn, cursor):
+            cursor.execute(show_full_columns_sql(catalog, db_name, bare_table))
+            rows = cursor.fetchall()
+            # SHOW FULL COLUMNS: Field, Type, Collation, Null, Key, Default, Extra, Privileges, Comment
+            out: list[ColumnSchema] = []
+            for row in rows:
+                field_name = row[0]
+                field_type = row[1] if len(row) > 1 else ""
+                field_comment = row[8] if len(row) > 8 else (row[-1] if row else "")
+                out.append(ColumnSchema(field_name, field_type, field_comment))
+            return out
+
+    sql = """
+                SELECT
+                    COLUMN_NAME,
+                    DATA_TYPE,
+                    COLUMN_COMMENT
+                FROM
+                    INFORMATION_SCHEMA.COLUMNS
+                WHERE
+                    TABLE_SCHEMA = %s
+                """
+    params: list[Any] = [db_name]
+    if bare_table:
+        sql += " AND TABLE_NAME = %s"
+        params.append(bare_table)
+    with starrocks_connection(conf, default_database=db_name) as (_conn, cursor):
+        cursor.execute(sql, tuple(params))
+        res = cursor.fetchall()
+        return [ColumnSchema(*item) for item in res]
 
 
 def get_origin_connect(type: str, conf: DatasourceConf):
@@ -227,10 +377,10 @@ def check_connection(trans: Optional[Trans], ds: CoreDatasource | AssistantOutDs
                         raise HTTPException(status_code=500, detail=trans('i18n_ds_invalid') + f': {e.args}')
                     return False
         elif equals_ignore_case(ds.type, 'doris', 'starrocks'):
-            ssl_args = {'ssl': {'ssl_mode': 'REQUIRE'}} if conf.ssl else {}
-            with pymysql.connect(user=conf.username, passwd=conf.password, host=conf.host,
-                                 port=conf.port, db=conf.database, connect_timeout=10,
-                                 read_timeout=10, **extra_config_dict, **ssl_args) as conn, conn.cursor() as cursor:
+            with starrocks_connection(conf, connect_timeout=10, read_timeout=10) as (
+                _conn,
+                cursor,
+            ):
                 try:
                     cursor.execute('select 1')
                     SQLBotLogUtil.info("success")
@@ -343,10 +493,10 @@ def get_version(ds: CoreDatasource | AssistantOutDsSchema):
                     res = cursor.fetchall()
                     version = res[0][0]
             elif equals_ignore_case(ds.type, 'doris', 'starrocks'):
-                ssl_args = {'ssl': {'ssl_mode': 'REQUIRE'}} if conf.ssl else {}
-                with pymysql.connect(user=conf.username, passwd=conf.password, host=conf.host,
-                                     port=conf.port, db=conf.database, connect_timeout=10,
-                                     read_timeout=10, **extra_config_dict, **ssl_args) as conn, conn.cursor() as cursor:
+                with starrocks_connection(conf, connect_timeout=10, read_timeout=10) as (
+                    _conn,
+                    cursor,
+                ):
                     cursor.execute(sql)
                     res = cursor.fetchall()
                     version = res[0][0]
@@ -408,11 +558,22 @@ def get_schema(ds: CoreDatasource):
                 res = cursor.fetchall()
                 res_list = [item[0] for item in res]
                 return res_list
+        elif equals_ignore_case(ds.type, 'doris', 'starrocks'):
+            from apps.db.starrocks_catalog import resolve_sr_scope, show_databases_sql
+
+            catalog, _databases = resolve_sr_scope(conf)
+            with starrocks_connection(conf) as (_conn, cursor):
+                cursor.execute(show_databases_sql(catalog))
+                res = cursor.fetchall()
+                return [item[0] if not isinstance(item[0], bytes) else item[0].decode("utf-8") for item in res]
 
 
 def get_tables(ds: CoreDatasource):
     conf = DatasourceConf(**json.loads(aes_decrypt(ds.configuration))) if not equals_ignore_case(ds.type,
                                                                                                  "excel") else get_engine_config()
+    # Doris/StarRocks own their discovery path (catalog-aware); skip db_sql templates.
+    if equals_ignore_case(ds.type, 'doris', 'starrocks'):
+        return _starrocks_list_tables(conf)
     db = DB.get_db(ds.type)
     sql, sql_param = get_table_sql(ds, conf, get_version(ds))
     if db.connect_type == ConnectType.sqlalchemy:
@@ -427,16 +588,6 @@ def get_tables(ds: CoreDatasource):
             with dmPython.connect(user=conf.username, password=conf.password, server=conf.host,
                                   port=conf.port, **extra_config_dict) as conn, conn.cursor() as cursor:
                 cursor.execute(sql, {"param": sql_param}, timeout=conf.timeout)
-                res = cursor.fetchall()
-                res_list = [TableSchema(*item) for item in res]
-                return res_list
-        elif equals_ignore_case(ds.type, 'doris', 'starrocks'):
-            ssl_args = {'ssl': {'ssl_mode': 'REQUIRE'}} if conf.ssl else {}
-            with pymysql.connect(user=conf.username, passwd=conf.password, host=conf.host,
-                                 port=conf.port, db=conf.database, connect_timeout=conf.timeout,
-                                 read_timeout=conf.timeout, **extra_config_dict,
-                                 **ssl_args) as conn, conn.cursor() as cursor:
-                cursor.execute(sql, (sql_param,))
                 res = cursor.fetchall()
                 res_list = [TableSchema(*item) for item in res]
                 return res_list
@@ -470,9 +621,11 @@ def get_tables(ds: CoreDatasource):
                 return res_list
 
 
-def get_fields(ds: CoreDatasource, table_name: str = None):
+def get_fields(ds: CoreDatasource, table_name: str = None, database_name: str | None = None):
     conf = DatasourceConf(**json.loads(aes_decrypt(ds.configuration))) if not equals_ignore_case(ds.type,
                                                                                                  "excel") else get_engine_config()
+    if equals_ignore_case(ds.type, 'doris', 'starrocks'):
+        return _starrocks_list_fields(conf, table_name, database_name=database_name)
     db = DB.get_db(ds.type)
     sql, p1, p2 = get_field_sql(ds, conf, table_name)
     if db.connect_type == ConnectType.sqlalchemy:
@@ -487,16 +640,6 @@ def get_fields(ds: CoreDatasource, table_name: str = None):
             with dmPython.connect(user=conf.username, password=conf.password, server=conf.host,
                                   port=conf.port, **extra_config_dict) as conn, conn.cursor() as cursor:
                 cursor.execute(sql, {"param1": p1, "param2": p2}, timeout=conf.timeout)
-                res = cursor.fetchall()
-                res_list = [ColumnSchema(*item) for item in res]
-                return res_list
-        elif equals_ignore_case(ds.type, 'doris', 'starrocks'):
-            ssl_args = {'ssl': {'ssl_mode': 'REQUIRE'}} if conf.ssl else {}
-            with pymysql.connect(user=conf.username, passwd=conf.password, host=conf.host,
-                                 port=conf.port, db=conf.database, connect_timeout=conf.timeout,
-                                 read_timeout=conf.timeout, **extra_config_dict,
-                                 **ssl_args) as conn, conn.cursor() as cursor:
-                cursor.execute(sql, (p1, p2))
                 res = cursor.fetchall()
                 res_list = [ColumnSchema(*item) for item in res]
                 return res_list
@@ -697,7 +840,7 @@ def exec_sql(
                         limit=limit,
                     )
                 except Exception as ex:
-                    raise ParseSQLResultError(str(ex))
+                    raise SQLBotDBError(str(ex))
     else:
         conf = DatasourceConf(**json.loads(aes_decrypt(ds.configuration)))
         extra_config_dict = get_extra_config(conf)
@@ -724,13 +867,9 @@ def exec_sql(
                         limit=limit,
                     )
                 except Exception as ex:
-                    raise ParseSQLResultError(str(ex))
+                    raise SQLBotDBError(str(ex))
         elif equals_ignore_case(ds.type, 'doris', 'starrocks'):
-            ssl_args = {'ssl': {'ssl_mode': 'REQUIRE'}} if conf.ssl else {}
-            with pymysql.connect(user=conf.username, passwd=conf.password, host=conf.host,
-                                 port=conf.port, db=conf.database, connect_timeout=conf.timeout,
-                                 read_timeout=conf.timeout, **extra_config_dict,
-                                 **ssl_args) as conn, conn.cursor() as cursor:
+            with starrocks_connection(conf) as (_conn, cursor):
                 try:
                     cursor.execute(sql)
                     res, truncated, limit = _fetch_query_rows(cursor, max_rows)
@@ -751,7 +890,7 @@ def exec_sql(
                         limit=limit,
                     )
                 except Exception as ex:
-                    raise ParseSQLResultError(str(ex))
+                    raise SQLBotDBError(str(ex))
         elif equals_ignore_case(ds.type, 'redshift'):
             with redshift_connector.connect(host=conf.host, port=conf.port, database=conf.database, user=conf.username,
                                             password=conf.password,
@@ -776,7 +915,7 @@ def exec_sql(
                         limit=limit,
                     )
                 except Exception as ex:
-                    raise ParseSQLResultError(str(ex))
+                    raise SQLBotDBError(str(ex))
         elif equals_ignore_case(ds.type, 'kingbase'):
             with psycopg2.connect(host=conf.host, port=conf.port, database=conf.database, user=conf.username,
                                   password=conf.password,
@@ -802,7 +941,7 @@ def exec_sql(
                         limit=limit,
                     )
                 except Exception as ex:
-                    raise ParseSQLResultError(str(ex))
+                    raise SQLBotDBError(str(ex))
         elif equals_ignore_case(ds.type, 'es'):
             try:
                 res, raw_columns = get_es_data_by_http(conf, sql)
@@ -831,7 +970,7 @@ def exec_sql(
                     limit=limit,
                 )
             except Exception as ex:
-                raise Exception(str(ex))
+                raise SQLBotDBError(str(ex))
         elif equals_ignore_case(ds.type, 'hive'):
             with hive.connect(host=conf.host, port=conf.port, username=conf.username,
                               database=conf.database, **extra_config_dict) as conn, conn.cursor() as cursor:
@@ -857,7 +996,7 @@ def exec_sql(
                         limit=limit,
                     )
                 except Exception as ex:
-                    raise ParseSQLResultError(str(ex))
+                    raise SQLBotDBError(str(ex))
 
 
 _CURSOR_TYPE_FAMILIES = {

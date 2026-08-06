@@ -46,7 +46,7 @@ export interface ContractRequirement {
   slot_id: string
   clause: ClauseType
   label: string
-  source?: 'user' | 'rule' | 'terminology' | 'example' | 'schema'
+  source?: 'user' | 'model' | 'rule' | 'terminology' | 'example' | 'schema'
   evidence_refs?: string[]
   [key: string]: unknown
 }
@@ -96,22 +96,41 @@ export interface ClarificationAnswer {
   custom_text: string
 }
 
+export interface ContractIssue {
+  code: string
+  severity: 'advisory' | 'blocking'
+  slot_ids: string[]
+  resources: string[]
+  params?: Record<string, string>
+}
+
+/** An inference the system made on the user's behalf, stated openly. */
+export interface ContractAssumption {
+  slot_id: string
+  code: string
+  label: string
+  detail?: string
+}
+
 export interface IntentContext {
-  version: number
+  version: 4
   status: IntentStatus
   original_question: string
   summary?: string
   draft: {
-    version: 2
+    version: 4
     requirements: ContractRequirement[]
     open_slots: ContractSlot[]
   }
   contract?: {
-    version: 2
+    version: 4
     requirements: ContractRequirement[]
+    result_mode: 'detail' | 'aggregate'
   } | null
   questions: ClarificationQuestion[]
   blocking_reasons: string[]
+  contract_issues?: ContractIssue[]
+  assumptions?: ContractAssumption[]
   submitted_answers?: ClarificationAnswer[]
 }
 

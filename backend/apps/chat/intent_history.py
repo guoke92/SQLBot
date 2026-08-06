@@ -2,21 +2,19 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
-
 import orjson
 from sqlalchemy import select
 from sqlmodel import Session
 
 from apps.chat.answer_payload import is_answer_payload
 from apps.chat.models.chat_model import ChatRecord
+from apps.chat.semantic_intent import is_current_intent_payload
 
 
 def _has_reusable_outcome(record: ChatRecord) -> bool:
     context = record.intent_context
     if (
-        not isinstance(context, Mapping)
-        or context.get("version") != 2
+        not is_current_intent_payload(context)
         or context.get("status") != "ready"
     ):
         return False

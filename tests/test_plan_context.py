@@ -72,6 +72,7 @@ def _contract() -> QueryContract:
 def test_plan_context_renders_only_the_frozen_contract_as_execution_truth() -> None:
     body = render_plan_context(contract=_contract(), include_playbook=False)
     assert "已冻结查询契约" in body
+    assert "结果形态：聚合统计" in body
     assert "[slot_department] group" in body
     assert "[slot_task_count] output" in body
     assert "[slot_time] time_window" in body
@@ -94,6 +95,29 @@ def test_contract_renderer_does_not_invent_a_default_time_range() -> None:
     rendered = render_query_contract(contract)
     assert "最近" not in rendered
     assert "默认时间" not in rendered
+
+
+def test_relation_population_reaches_the_prompt_as_a_join_instruction() -> None:
+    # The SQL check rejects a plan whose join kind disagrees with the frozen
+    # population, so the prompt has to name the join rather than print "left".
+    contract = QueryContract(
+        requirements=[
+            RelationRequirement(
+                slot_id="slot_relation",
+                label="企业与联系人关联",
+                pairs=[
+                    RelationPair(
+                        left=FieldRef(resource="d_company", field="id"),
+                        right=FieldRef(resource="d_contact", field="company_id"),
+                    )
+                ],
+                population="left",
+            )
+        ]
+    )
+    rendered = render_query_contract(contract)
+    assert "LEFT JOIN" in rendered
+    assert "left：" not in rendered
 
 
 def test_entity_bindings_remain_grounding_evidence_not_a_second_contract() -> None:

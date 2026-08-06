@@ -9,6 +9,9 @@ echo "=== PM2 ==="
 PM2_BIN=/opt/sqlbot/g2-ssr/node_modules/.bin/pm2
 if [[ -x "${PM2_BIN}" ]]; then
     "${PM2_BIN}" status 2>/dev/null || true
+    echo
+    echo "=== g2-ssr script path ==="
+    "${PM2_BIN}" describe g2-ssr 2>/dev/null | grep -E 'script path|exec cwd|status' || echo "  (g2-ssr 未注册)"
 else
     echo "未找到 ${PM2_BIN}"
 fi

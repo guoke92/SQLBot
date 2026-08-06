@@ -65,7 +65,12 @@
       "entity_reason": "不同取值会直接改变过滤范围。",
       "entity_recommendation": "按术语召回相关度推荐最匹配的值。",
       "entity_custom_placeholder": "输入准确的业务值",
-      "assessment_unavailable": "暂时未能可靠完成业务口径识别，请重试。"
+      "assessment_unavailable": "暂时未能可靠完成业务口径识别，请重试。",
+      "assumptions_title": "以下部分由系统代为决定：",
+      "assumption_auto_resolved": "“{label}”按默认口径处理",
+      "assumption_auto_omitted": "“{label}”未参与本次查询",
+      "assumption_dropped_inference": "“{label}”无法与其余口径合并，已从本次查询中移除",
+      "assumption_gate_degraded": "“{label}”未被采纳，本次仅按已确认的口径执行"
     }
   },
   "i18n_terminology": {

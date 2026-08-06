@@ -8,11 +8,19 @@ consumes questions, answers or display summaries; it consumes the frozen
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from typing import Any, Literal, Self
+from typing import Any, Literal, Self, TypeGuard
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from apps.chat.contract.issues import (
+    ContractAssumption,
+    ContractIssue,
+    answer_evidence,
+    blocking_issues,
+)
+from apps.chat.contract.validation import validate_contract
 from apps.chat.query_contract import (
+    QUERY_CONTRACT_VERSION,
     ContractDraft,
     ContractRequirement,
     ContractSlot,
@@ -109,7 +117,7 @@ class ClarificationAnswer(BaseModel):
 class IntentContext(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    version: Literal[2] = 2
+    version: Literal[4] = 4
     status: IntentStatus = "evaluating"
     original_question: str
     summary: str = ""
@@ -117,6 +125,8 @@ class IntentContext(BaseModel):
     contract: QueryContract | None = None
     questions: list[ClarificationQuestion] = Field(default_factory=list)
     blocking_reasons: list[str] = Field(default_factory=list)
+    contract_issues: list[ContractIssue] = Field(default_factory=list)
+    assumptions: list[ContractAssumption] = Field(default_factory=list)
     submitted_answers: list[ClarificationAnswer] = Field(default_factory=list)
     base_record_id: int | None = None
 
@@ -131,16 +141,39 @@ class IntentContext(BaseModel):
             for slot in self.draft.open_slots
         ]
 
+    @property
+    def blocking_messages(self) -> list[str]:
+        """Return assessor-authored blockers only.
+
+        Structured ``contract_issues`` carry a code and are rendered by the
+        presentation layer through i18n; the backend never composes their text.
+        """
+
+        return list(dict.fromkeys(self.blocking_reasons))
+
     @model_validator(mode="after")
     def validate_terminal_state(self) -> Self:
+        blockers = blocking_issues(self.contract_issues)
         if self.status == "ready":
             if self.contract is None:
                 raise ValueError("Ready intent context requires a frozen contract")
             if self.draft.open_slots:
                 raise ValueError("Ready intent context cannot retain open slots")
-        elif self.contract is not None:
+            # Recomputed independently of the caller: a terminal that claims to
+            # be executable must still hold up on its own contract.
+            blockers = blockers + blocking_issues(validate_contract(self.contract))
+            if blockers:
+                raise ValueError(
+                    "Ready intent context retains blocking contract issues: "
+                    + ", ".join(item.code for item in blockers)
+                )
+        elif self.status != "blocked" and self.contract is not None:
             raise ValueError(
-                "Only a ready intent context may contain a frozen contract"
+                "Only ready or blocked intent may contain a frozen contract"
+            )
+        if self.status == "blocked" and self.contract is not None and not blockers:
+            raise ValueError(
+                "Blocked intent with a frozen contract requires a blocking issue"
             )
         return self
 
@@ -156,6 +189,97 @@ def new_intent_context(
         original_question=(question or "").strip(),
         base_record_id=base_record_id,
         draft=ContractDraft(requirements=requirements),
+    )
+
+
+def dropped_assumptions(
+    draft: ContractDraft,
+    contract: QueryContract,
+    code: str,
+) -> list[ContractAssumption]:
+    """Describe every clause the degradation removed, in business language."""
+    kept = {requirement.slot_id for requirement in contract.requirements}
+    return [
+        ContractAssumption(
+            slot_id=requirement.slot_id,
+            code=code,
+            label=requirement.label,
+            detail=requirement_value(requirement),
+        )
+        for requirement in draft.requirements
+        if requirement.slot_id not in kept
+    ]
+
+
+def finalize_intent_context(
+    context: IntentContext,
+    *,
+    draft: ContractDraft,
+    summary: str,
+    submitted_answers: Sequence[ClarificationAnswer] | None = None,
+    schema_text: str | None = None,
+    assumptions: Sequence[ContractAssumption] = (),
+) -> IntentContext:
+    """Freeze the business revision, degrading inferences before blocking.
+
+    ``freeze()`` only establishes an immutable revision; preparation problems
+    are expected outcomes.  An issue caused solely by system inferences is
+    resolved by dropping those inferences and stating the assumption, so only
+    a problem with what the user actually confirmed can block the turn.
+    """
+
+    contract = draft.freeze()
+    issues = validate_contract(contract, schema_text=schema_text)
+    notes = list(assumptions)
+
+    # Only an inference may be dropped to clear an issue. A confirmed clause
+    # stays no matter which advisory it triggered; that invariant is what makes
+    # degradation safe regardless of the rule that produced the advisory.
+    droppable = {
+        requirement.slot_id
+        for requirement in draft.requirements
+        if not requirement.is_confirmed
+    } & {
+        slot_id
+        for issue in issues
+        if issue.severity == "advisory"
+        for slot_id in issue.slot_ids
+    }
+    if droppable and not blocking_issues(issues):
+        reduced = draft.without(droppable)
+        if reduced is not None:
+            recheck = validate_contract(reduced, schema_text=schema_text)
+            if not blocking_issues(recheck):
+                notes.extend(dropped_assumptions(draft, reduced, "dropped_inference"))
+                contract, issues = reduced, recheck
+
+    resolved_answers = list(
+        submitted_answers
+        if submitted_answers is not None
+        else context.submitted_answers
+    )
+    if blocking_issues(issues):
+        return IntentContext(
+            status="blocked",
+            original_question=context.original_question,
+            summary=summary,
+            draft=draft,
+            contract=contract,
+            contract_issues=issues,
+            assumptions=notes,
+            submitted_answers=resolved_answers,
+            base_record_id=context.base_record_id,
+        )
+    return IntentContext(
+        status="ready",
+        original_question=context.original_question,
+        summary=summary,
+        draft=ContractDraft(requirements=list(contract.requirements)),
+        contract=contract,
+        contract_issues=issues,
+        assumptions=notes,
+        submitted_answers=resolved_answers,
+        base_record_id=context.base_record_id,
     )
 
 
@@ -196,7 +320,15 @@ def requirement_value(requirement: ContractRequirement) -> str:
             f"{_field_text(pair.left)} ↔ {_field_text(pair.right)}"
             for pair in requirement.pairs
         )
-        return f"{requirement.population}：{pairs}"
+        # The join kind is enforced when the generated SQL is checked, so it
+        # has to read as an instruction here rather than as a raw enum.
+        population = {
+            "intersection": "仅保留两侧都匹配的记录（INNER JOIN）",
+            "left": "保留左侧全部记录（LEFT JOIN）",
+            "right": "保留右侧全部记录（RIGHT JOIN）",
+            "union": "保留两侧全部记录（FULL OUTER JOIN，引擎不支持时用 UNION 维键再 LEFT JOIN）",
+        }[requirement.population]
+        return f"{population}：{pairs}"
     if isinstance(requirement, TimeWindowRequirement):
         fields = "、".join(_field_text(field) for field in requirement.fields)
         if requirement.mode == "all":
@@ -225,6 +357,13 @@ def contract_display_rows(
         (requirement.label, requirement_value(requirement))
         for requirement in contract.requirements
     ]
+
+
+def contract_summary(contract: QueryContract | ContractDraft) -> str:
+    """Render a contract as the one-line summary shown above a record."""
+    return "；".join(
+        f"{label}: {value}" for label, value in contract_display_rows(contract)
+    )
 
 
 def _merge_selected_effects(
@@ -267,7 +406,6 @@ def _merge_selected_effects(
             requirement=PredicateRequirement(
                 slot_id=slot_id,
                 label=first.label,
-                source="user",
                 evidence_refs=list(
                     dict.fromkeys(
                         ref for item in requirements for ref in item.evidence_refs
@@ -349,30 +487,35 @@ def merge_clarification_answers(
                 ]
             else:
                 assert effect.requirement is not None
+                # An answered question is the strongest possible evidence, and
+                # the ref is what keeps the clause confirmed after reloading.
                 requirement = parse_requirement(
                     {
                         **effect.requirement.model_dump(mode="json"),
                         "source": "user",
+                        "evidence_refs": list(
+                            dict.fromkeys(
+                                [
+                                    *effect.requirement.evidence_refs,
+                                    answer_evidence(question.id),
+                                ]
+                            )
+                        ),
                     }
                 )
                 requirements = replace_requirement(requirements, requirement)
             remaining.pop(slot_id, None)
 
     draft = ContractDraft(
-        requirements=requirements, open_slots=list(remaining.values())
+        requirements=requirements,
+        open_slots=list(remaining.values()),
     )
     if not has_custom and not draft.open_slots:
-        contract = draft.freeze()
-        return IntentContext(
-            status="ready",
-            original_question=context.original_question,
-            summary="；".join(
-                f"{label}: {value}" for label, value in contract_display_rows(contract)
-            ),
+        return finalize_intent_context(
+            context,
             draft=draft,
-            contract=contract,
-            submitted_answers=list(answers),
-            base_record_id=context.base_record_id,
+            summary=contract_summary(draft),
+            submitted_answers=answers,
         )
     return context.model_copy(
         update={
@@ -403,11 +546,26 @@ def render_planning_question(
 def intent_context_from_payload(payload: Any) -> IntentContext:
     if isinstance(payload, IntentContext):
         return payload
-    if not isinstance(payload, Mapping) or payload.get("version") != 2:
+    if (
+        not isinstance(payload, Mapping)
+        or payload.get("version") != QUERY_CONTRACT_VERSION
+    ):
         raise ValueError(
-            "Only semantic intent contract version 2 can be reused for execution"
+            "Only semantic intent contract version "
+            f"{QUERY_CONTRACT_VERSION} can be reused for execution"
         )
     return IntentContext.model_validate(payload)
+
+
+def is_current_intent_payload(
+    payload: Any,
+) -> TypeGuard[Mapping[str, Any]]:
+    """Check the persisted envelope version without duplicating literals."""
+
+    return (
+        isinstance(payload, Mapping)
+        and payload.get("version") == QUERY_CONTRACT_VERSION
+    )
 
 
 def public_intent_payload(context: IntentContext) -> dict[str, Any]:

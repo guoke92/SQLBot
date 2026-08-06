@@ -69,15 +69,19 @@ def _intent_context() -> dict:
         "clause": "output",
         "label": "总数",
         "source": "user",
-        "evidence_refs": ["question"],
+        "evidence_refs": ["user:question"],
         "field": {"resource": "", "field": "id"},
         "operation": "count",
         "operands": [],
     }
     return {
-        "version": 2,
+        "version": 4,
         "status": "ready",
-        "contract": {"version": 2, "requirements": [requirement]},
+        "contract": {
+            "version": 4,
+            "requirements": [requirement],
+            "result_mode": "aggregate",
+        },
     }
 
 

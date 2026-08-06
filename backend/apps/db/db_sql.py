@@ -136,16 +136,7 @@ def get_table_sql(ds: CoreDatasource, conf: DatasourceConf, db_version: str = ''
                   relkind in  ('r','p', 'f') 
                   AND relnamespace = (SELECT oid FROM pg_namespace WHERE nspname = %s)
                 """, conf.dbSchema
-    elif equals_ignore_case(ds.type, "doris", "starrocks"):
-        return """
-                SELECT 
-                    TABLE_NAME, 
-                    TABLE_COMMENT
-                FROM 
-                    information_schema.TABLES
-                WHERE 
-                    TABLE_SCHEMA = %s
-                """, conf.database
+    # doris/starrocks: owned by apps.db.db._starrocks_list_tables (catalog-aware)
     elif equals_ignore_case(ds.type, "kingbase"):
         return """
               SELECT c.relname                                       AS TABLE_NAME,
@@ -286,19 +277,7 @@ def get_field_sql(ds: CoreDatasource, conf: DatasourceConf, table_name: str = No
                 """
         sql2 = " AND c.TABLE_NAME = :param2" if table_name is not None and table_name != "" else ""
         return sql1 + sql2, conf.dbSchema, table_name
-    elif equals_ignore_case(ds.type, "doris", "starrocks"):
-        sql1 = """
-                SELECT 
-                    COLUMN_NAME,
-                    DATA_TYPE,
-                    COLUMN_COMMENT
-                FROM 
-                    INFORMATION_SCHEMA.COLUMNS
-                WHERE 
-                    TABLE_SCHEMA = %s
-                """
-        sql2 = " AND TABLE_NAME = %s" if table_name is not None and table_name != "" else ""
-        return sql1 + sql2, conf.database, table_name
+    # doris/starrocks: owned by apps.db.db._starrocks_list_fields (catalog-aware)
     elif equals_ignore_case(ds.type, "kingbase"):
         sql1 = """
                        SELECT a.attname                                       AS COLUMN_NAME,

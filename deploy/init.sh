@@ -28,12 +28,13 @@ fi
 [[ ! -f "${TARBALL}" ]] && die "包不存在：${TARBALL}"
 info "使用包：${TARBALL}"
 
-# 停服
+# 停服（解压前：旧环境可能还没有 pm2_g2ssr.sh）
 info "停止服务…"
 systemctl stop sqlbot sqlbot-mcp 2>/dev/null || true
 OLD_PM2_BIN="${G2SSR_HOME}/node_modules/.bin/pm2"
 if [[ -x "${OLD_PM2_BIN}" ]]; then
     "${OLD_PM2_BIN}" stop g2-ssr 2>/dev/null || true
+    "${OLD_PM2_BIN}" stop app 2>/dev/null || true
 fi
 
 # 清理旧版本，但保留体积较大的运行环境和运行期数据。
@@ -59,6 +60,9 @@ tar -xzf "${TARBALL}" -C /opt || die "解压失败"
 
 chmod 600 "${SQLBOT_HOME}/.env" 2>/dev/null || true
 
+# shellcheck source=/dev/null
+source "${SQLBOT_HOME}/pm2_g2ssr.sh"
+
 # 保留现有环境后始终做增量同步：锁文件未变化时不会重新下载全部依赖。
 command -v uv >/dev/null 2>&1 || die "未找到 uv，请先安装 uv"
 info "同步后端依赖…"
@@ -69,9 +73,6 @@ command -v npm >/dev/null 2>&1 || die "未找到 npm"
 info "同步 g2-ssr 依赖…"
 cd "${G2SSR_HOME}"
 npm install --omit=dev
-
-PM2_BIN="${G2SSR_HOME}/node_modules/.bin/pm2"
-[[ -x "${PM2_BIN}" ]] || die "未找到 g2-ssr 本地 PM2：${PM2_BIN}"
 
 info "安装 systemd 服务…"
 cp -f "${DEPLOY_DIR}/sqlbot.service" /etc/systemd/system/sqlbot.service
@@ -87,13 +88,7 @@ systemctl reload nginx
 
 info "启动服务…"
 systemctl restart sqlbot sqlbot-mcp
-if "${PM2_BIN}" describe g2-ssr >/dev/null 2>&1; then
-    "${PM2_BIN}" restart g2-ssr --update-env
-else
-    cd "${G2SSR_HOME}"
-    "${PM2_BIN}" start app.js --name g2-ssr
-fi
-"${PM2_BIN}" save >/dev/null
+pm2_ensure_g2ssr || die "g2-ssr 启动失败"
 
 "${SQLBOT_HOME}/health.sh"
 

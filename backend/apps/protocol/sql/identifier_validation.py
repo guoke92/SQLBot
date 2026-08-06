@@ -29,7 +29,10 @@ from apps.chat.query_contract import (
 class PhysicalColumnRef:
     column_name: str
     table_name: str | None = None
+    database_name: str | None = None
     candidate_tables: tuple[str, ...] = ()
+    #: Parallel to ``candidate_tables`` (empty string when the SQL omits db).
+    candidate_databases: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -143,15 +146,18 @@ def collect_sql_identifier_usage(sql: str, dialect: str) -> SqlIdentifierUsage:
                 _norm(alias).casefold(): source
                 for alias, source in scope.sources.items()
             }
-            physical_scope_tables: list[str] = []
+            # (database_name, table_name) — bare allow-list still uses table only.
+            physical_scope: list[tuple[str, str]] = []
             has_virtual = False
             for source in sources.values():
                 if isinstance(source, exp.Table):
                     table = _norm(source.name)
+                    database = _norm(source.db)
                     if table:
                         physical_tables.add(table)
-                        if table not in physical_scope_tables:
-                            physical_scope_tables.append(table)
+                        pair = (database, table)
+                        if pair not in physical_scope:
+                            physical_scope.append(pair)
                 else:
                     has_virtual = True
             for column in scope.columns:
@@ -161,12 +167,19 @@ def collect_sql_identifier_usage(sql: str, dialect: str) -> SqlIdentifierUsage:
                 ref: PhysicalColumnRef | None = None
                 table_ref = _norm(column.table).casefold()
                 if table_ref and isinstance(sources.get(table_ref), exp.Table):
-                    table = _norm(sources[table_ref].name)
-                    ref = PhysicalColumnRef(name, table_name=table)
-                elif physical_scope_tables and not has_virtual:
+                    source_table = sources[table_ref]
+                    table = _norm(source_table.name)
+                    database = _norm(source_table.db) or None
                     ref = PhysicalColumnRef(
                         name,
-                        candidate_tables=tuple(physical_scope_tables),
+                        table_name=table,
+                        database_name=database,
+                    )
+                elif physical_scope and not has_virtual:
+                    ref = PhysicalColumnRef(
+                        name,
+                        candidate_tables=tuple(t for _db, t in physical_scope),
+                        candidate_databases=tuple(db for db, _t in physical_scope),
                     )
                 if ref is not None and ref not in seen:
                     refs.append(ref)
@@ -174,6 +187,62 @@ def collect_sql_identifier_usage(sql: str, dialect: str) -> SqlIdentifierUsage:
     return SqlIdentifierUsage(
         physical_tables=frozenset(physical_tables),
         physical_columns=tuple(refs),
+    )
+
+
+#: Engines that evaluate ORDER BY after projection, so it resolves against the
+#: SELECT output list instead of the source tables.
+_OUTPUT_SCOPED_ORDER_DIALECTS = frozenset({"hive", "spark", "spark2", "databricks"})
+
+
+def order_by_scope_error(sql: str, dialect: str | None) -> str | None:
+    """Report an ORDER BY the engine is certain to refuse.
+
+    On Hive-family engines ``ORDER BY t.col`` raises SemanticException 10004
+    even when ``t.col`` is projected, because by then only output names exist.
+    The prompt says so and models keep writing the qualified form anyway, at a
+    cost of one generation plus one engine round-trip each time, so the
+    statement is checked before it is sent.  Rewriting it here is not an
+    option: re-emitting the statement through sqlglot drops arguments on
+    functions such as ``FROM_UNIXTIME``, which would silently change the
+    answer.  Naming the exact replacement is what the raw Java stack trace
+    fails to do.
+    """
+    if not sql or dialect not in _OUTPUT_SCOPED_ORDER_DIALECTS:
+        return None
+    try:
+        statements = sqlglot.parse(sql, dialect=dialect)
+    except Exception:
+        return None
+    fixes: dict[str, str] = {}
+    for statement in statements:
+        if statement is None:
+            continue
+        for select in statement.find_all(exp.Select):
+            order = select.args.get("order")
+            if order is None:
+                continue
+            outputs = {
+                _norm(projection.alias_or_name).casefold()
+                for projection in select.expressions
+            }
+            for column in order.find_all(exp.Column):
+                if not _norm(column.table):
+                    continue
+                name = _norm(column.name)
+                fixes.setdefault(
+                    column.sql(dialect=dialect),
+                    f"use `{name}`"
+                    if name.casefold() in outputs
+                    else f"`{name}` is not in the SELECT output; "
+                    "project it or drop it from ORDER BY",
+                )
+    if not fixes:
+        return None
+    return (
+        "ORDER BY on this engine can only reference SELECT output names, "
+        "never table-qualified columns: "
+        + "; ".join(f"{column} -> {fix}" for column, fix in fixes.items())
     )
 
 
@@ -688,41 +757,20 @@ def _join_resources(keys: set[str]) -> set[str]:
     return {key.split(".", 1)[0] for key in keys if "." in key}
 
 
-def _is_cross_resource_join(left: set[str], right: set[str]) -> bool:
-    left_resources = _join_resources(left)
-    right_resources = _join_resources(right)
-    return any(
-        left_resource != right_resource
-        for left_resource in left_resources
-        for right_resource in right_resources
-    )
-
-
-def _join_matches_contract(
-    left: set[str],
-    right: set[str],
-    relations: list[RelationRequirement],
-) -> bool:
-    return any(
-        _relation_pair_matches(pair, left, right)
-        for relation in relations
-        for pair in relation.pairs
-    )
-
-
 def _slot_state(
     requirement: ContractRequirement,
     observed: _ObservedPlan,
     contract: QueryContract,
 ) -> VerificationState:
     if isinstance(requirement, ProjectionRequirement):
-        satisfied = (
-            observed.has_star
-            if requirement.mode == "all"
-            else all(
-                _field_matches(field, observed.projection_fields)
-                for field in requirement.fields
-            )
+        if requirement.mode == "all":
+            # A star proves every column is projected; its absence proves
+            # nothing, because an explicit column list is the form the SQL
+            # prompt teaches and cannot be checked without the table catalog.
+            return "satisfied" if observed.has_star else "unverified"
+        satisfied = all(
+            _field_matches(field, observed.projection_fields)
+            for field in requirement.fields
         )
     elif isinstance(requirement, OutputRequirement):
         if not _field_matches(requirement.field, observed.projection_fields):
@@ -891,7 +939,7 @@ def analyze_sql_contract_structure(
         union = set().union(*output_coverage) if output_coverage else set()
         if union != distributable:
             violations.append(
-                "Batch does not cover output slots: "
+                "Contract outputs not covered by any plan: "
                 + ", ".join(sorted(distributable - union))
             )
         for left_index, left in enumerate(output_coverage):
@@ -900,6 +948,8 @@ def analyze_sql_contract_structure(
             ):
                 overlap = left & right
                 if overlap:
+                    # Two plans emitting the same output duplicates rows once
+                    # the batch is merged.
                     violations.append(
                         f"Plans {left_index + 1} and {right_index + 1} overlap output slots: "
                         + ", ".join(sorted(overlap))
@@ -944,27 +994,11 @@ def analyze_sql_contract_structure(
                 + ", ".join(sorted(extras))
             )
 
-    relation_requirements = [
-        requirement
-        for requirement in contract.requirements
-        if isinstance(requirement, RelationRequirement)
-    ]
-    for index, plan in enumerate(observed):
-        unconfirmed_joins = [
-            (left, right)
-            for left, right, _kind in plan.joins
-            if _is_cross_resource_join(left, right)
-            and not _join_matches_contract(left, right, relation_requirements)
-        ]
-        if unconfirmed_joins:
-            rendered = [
-                f"({'/'.join(sorted(left))})=({'/'.join(sorted(right))})"
-                for left, right in unconfirmed_joins
-            ]
-            violations.append(
-                f"Plan {index + 1} adds unconfirmed cross-resource joins: "
-                + ", ".join(rendered)
-            )
+    # Joins are deliberately absent from this list.  Which tables it takes to
+    # connect two business entities is a property of the schema, not of the
+    # contract: a many-to-many bridge is mandatory yet can never be named by an
+    # assessor that only ever saw the question.  The join the user did decide
+    # is a relation slot, and ``_slot_state`` verifies it.
 
     projection_is_open = any(
         isinstance(requirement, ProjectionRequirement) and requirement.mode == "all"

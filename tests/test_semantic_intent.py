@@ -13,6 +13,8 @@ if str(_BACKEND) not in sys.path:
     sys.path.insert(0, str(_BACKEND))
 
 from apps.chat.binding_resolver import apply_confirmed_entity_bindings  # noqa: E402
+from apps.chat.contract.issues import QUESTION_EVIDENCE  # noqa: E402
+from apps.chat.contract.validation import validate_contract  # noqa: E402
 from apps.chat.query_contract import (  # noqa: E402
     ContractDraft,
     ContractSlot,
@@ -36,6 +38,7 @@ from apps.chat.semantic_intent import (  # noqa: E402
     IntentContext,
     IntentIssue,
     IntentOption,
+    finalize_intent_context,
     intent_context_from_payload,
     merge_clarification_answers,
     new_intent_context,
@@ -43,11 +46,10 @@ from apps.chat.semantic_intent import (  # noqa: E402
 from apps.chat.time_intent import infer_time_intent  # noqa: E402
 from apps.chat.steps.clarification import (  # noqa: E402
     IntentAssessment,
-    SemanticAssessmentError,
     _normalize_assessment,
+    _reject_unknown_fields,
     _remap_new_slots,
-    _validate_contract_fields,
-    _validate_draft_relation_closure,
+    _validate_assessment_relation_resolution,
     assess_semantic_intent,
 )
 
@@ -164,6 +166,184 @@ def test_latest_rows_is_order_and_limit_not_a_time_window() -> None:
     assert infer_time_intent("查询最新的十条数据") is None
 
 
+def test_company_list_records_freeze_as_detail_without_synthetic_grain() -> None:
+    companies = [
+        "荆门新宙邦新材料有限公司",
+        "浙江锦泰电子有限公司",
+        "张家港市国泰华荣化工新材料有限公司",
+    ]
+    contract = ContractDraft(
+        requirements=[
+            ProjectionRequirement(
+                slot_id="projection",
+                label="登记记录",
+                mode="all",
+            ),
+            PredicateRequirement(
+                slot_id="company_scope",
+                label="登记公司范围",
+                field=FieldRef(
+                    resource="dwd_zhanke_recv_finance_info_full",
+                    field="company_name",
+                ),
+                operator="in",
+                values=companies,
+            ),
+        ]
+    ).freeze()
+
+    assert contract.result_mode == "detail"
+    assert not contract.clauses("group")
+    assert validate_contract(contract) == []
+
+
+def _confirmed(requirement):
+    return requirement.model_copy(
+        update={"source": "user", "evidence_refs": (QUESTION_EVIDENCE,)}
+    )
+
+
+def test_freeze_preserves_business_contract_when_planning_metadata_is_missing() -> None:
+    draft = ContractDraft(
+        requirements=[
+            _confirmed(
+                GroupRequirement(
+                    slot_id="company",
+                    label="企业",
+                    field=FieldRef(resource="finance", field="company_name"),
+                )
+            ),
+            _confirmed(
+                OutputRequirement(
+                    slot_id="signed",
+                    label="签收额",
+                    field=FieldRef(resource="asset", field="amount"),
+                    operation="sum",
+                )
+            ),
+            _confirmed(
+                OutputRequirement(
+                    slot_id="financed",
+                    label="融资额",
+                    field=FieldRef(resource="finance", field="amount"),
+                    operation="sum",
+                )
+            ),
+        ]
+    )
+
+    contract = draft.freeze()
+    issues = validate_contract(contract)
+    assert contract.result_mode == "aggregate"
+    assert [(item.code, item.severity) for item in issues] == [
+        ("relation_coverage_missing", "blocking")
+    ]
+
+    context = finalize_intent_context(
+        new_intent_context("按企业汇总签收额和融资额"),
+        draft=draft,
+        summary="按企业汇总签收额和融资额",
+    )
+    assert context.status == "blocked"
+    assert context.contract == contract
+    assert context.contract_issues == issues
+    assert context.blocking_reasons == []
+    restored = intent_context_from_payload(context.model_dump(mode="json"))
+    assert restored.contract == contract
+    assert restored.contract_issues == issues
+
+
+def test_inferred_metric_is_dropped_instead_of_blocking_the_turn() -> None:
+    """An unjoinable metric the user never asked for must not block the turn."""
+    draft = ContractDraft(
+        requirements=[
+            _confirmed(
+                GroupRequirement(
+                    slot_id="company",
+                    label="企业",
+                    field=FieldRef(resource="finance", field="company_name"),
+                )
+            ),
+            _confirmed(
+                OutputRequirement(
+                    slot_id="financed",
+                    label="融资额",
+                    field=FieldRef(resource="finance", field="amount"),
+                    operation="sum",
+                )
+            ),
+            OutputRequirement(
+                slot_id="signed",
+                label="签收额",
+                field=FieldRef(resource="asset", field="amount"),
+                operation="sum",
+            ),
+        ]
+    )
+
+    context = finalize_intent_context(
+        new_intent_context("按企业汇总融资额"),
+        draft=draft,
+        summary="按企业汇总融资额",
+    )
+
+    assert context.status == "ready"
+    assert context.contract is not None
+    assert [item.slot_id for item in context.contract.requirements] == [
+        "company",
+        "financed",
+    ]
+    assert [(item.code, item.slot_id) for item in context.assumptions] == [
+        ("dropped_inference", "signed")
+    ]
+
+
+def test_ready_context_recomputes_contract_preparation_invariant() -> None:
+    draft = ContractDraft(
+        requirements=[
+            _confirmed(
+                GroupRequirement(
+                    slot_id="company",
+                    label="企业",
+                    field=FieldRef(resource="finance", field="company_name"),
+                )
+            ),
+            _confirmed(
+                OutputRequirement(
+                    slot_id="amount",
+                    label="签收额",
+                    field=FieldRef(resource="asset", field="amount"),
+                    operation="sum",
+                )
+            ),
+        ]
+    )
+
+    with pytest.raises(ValueError, match="blocking contract issues"):
+        IntentContext(
+            status="ready",
+            original_question="按企业汇总签收额",
+            draft=draft,
+            contract=draft.freeze(),
+        )
+
+
+def test_frozen_contract_is_an_independent_immutable_snapshot() -> None:
+    requirement = OutputRequirement(
+        slot_id="count",
+        label="数量",
+        field=FieldRef(resource="task", field="id"),
+        operation="count",
+    )
+    draft = ContractDraft(requirements=[requirement])
+    contract = draft.freeze()
+    draft.requirements.clear()
+
+    assert [item.slot_id for item in contract.requirements] == ["count"]
+    with pytest.raises(AttributeError):
+        contract.requirements.append(requirement)  # type: ignore[attr-defined]
+
+
 def test_contract_rejects_duplicate_slots_and_unknown_derived_operands() -> None:
     first = OutputRequirement(
         slot_id="slot_0001",
@@ -188,10 +368,10 @@ def test_contract_rejects_duplicate_slots_and_unknown_derived_operands() -> None
 
 
 def test_old_intent_payload_is_display_only_and_cannot_be_reused() -> None:
-    with pytest.raises(ValueError, match="version 2"):
+    with pytest.raises(ValueError, match="version 4"):
         intent_context_from_payload(
             {
-                "version": 1,
+                "version": 2,
                 "status": "ready",
                 "original_question": "old",
                 "decisions": [],
@@ -287,16 +467,20 @@ def test_one_business_answer_can_resolve_multiple_clause_slots() -> None:
 
 
 def test_multi_resource_draft_requires_a_population_question() -> None:
-    group = GroupRequirement(
-        slot_id="company",
-        label="企业",
-        field=FieldRef(resource="finance", field="company_name"),
+    group = _confirmed(
+        GroupRequirement(
+            slot_id="company",
+            label="企业",
+            field=FieldRef(resource="finance", field="company_name"),
+        )
     )
-    financed = OutputRequirement(
-        slot_id="financed",
-        label="累计融资额",
-        field=FieldRef(resource="finance", field="fin_apply_amt"),
-        operation="sum",
+    financed = _confirmed(
+        OutputRequirement(
+            slot_id="financed",
+            label="累计融资额",
+            field=FieldRef(resource="finance", field="fin_apply_amt"),
+            operation="sum",
+        )
     )
     signed_slot = ContractSlot(
         slot_id="signed",
@@ -334,7 +518,7 @@ def test_multi_resource_draft_requires_a_population_question() -> None:
     )
 
     with pytest.raises(ValueError, match="relation/population contract slot"):
-        _validate_draft_relation_closure(
+        _validate_assessment_relation_resolution(
             [group, financed],
             {signed_slot.slot_id: signed_slot},
             [question],
@@ -567,14 +751,13 @@ class _AlwaysInvalidLLM:
         return AIMessage(content="{}")
 
 
-def test_assessment_repair_keeps_original_evidence_and_fails_technically() -> None:
-    llm = _AlwaysInvalidLLM()
-    service = SimpleNamespace(
+def _assessor_service(llm: _AlwaysInvalidLLM) -> SimpleNamespace:
+    return SimpleNamespace(
         llm=llm,
         generation_question="统计今年签收额",
         chat_question=SimpleNamespace(
             lang="简体中文",
-            db_schema="# Table: asset\n[(amount:decimal), (sign_date:date)]",
+            db_schema="# Table: asset\n[\n(amount:decimal),\n(sign_date:date)\n]",
             sample_data="",
             terminologies="",
             data_training="",
@@ -582,18 +765,66 @@ def test_assessment_repair_keeps_original_evidence_and_fails_technically() -> No
         ),
         trans=None,
     )
-    with pytest.raises(SemanticAssessmentError) as caught:
-        assess_semantic_intent(
-            service,
-            context=new_intent_context("统计今年签收额"),
-            bindings={},
-            temporal_parse={},
-        )
-    assert len(caught.value.attempts) == 2
+
+
+def test_assessment_repair_keeps_original_evidence_before_degrading() -> None:
+    llm = _AlwaysInvalidLLM()
+    result = assess_semantic_intent(
+        _assessor_service(llm),
+        context=new_intent_context("统计今年签收额"),
+        bindings={},
+        temporal_parse={},
+    )
+
+    assert len(result.attempts) == 2
     assert len(llm.calls) == 2
     assert isinstance(llm.calls[1][0], SystemMessage)
     assert "asset" in str(llm.calls[1][1].content)
     assert any(isinstance(message, AIMessage) for message in llm.calls[1])
+    # Nothing was confirmed, so there is no executable core to fall back on.
+    assert result.context.status == "blocked"
+    assert [item.code for item in result.context.contract_issues] == [
+        "assessment_unavailable"
+    ]
+
+
+def test_failed_assessment_still_executes_the_user_confirmed_core() -> None:
+    """A gate that cannot agree with itself must not strand a clear request."""
+    llm = _AlwaysInvalidLLM()
+    context = new_intent_context("批量查询这些企业的登记记录")
+    context.draft.requirements.append(
+        _confirmed(
+            PredicateRequirement(
+                slot_id="slot_company",
+                label="登记公司范围",
+                field=FieldRef(resource="asset", field="amount"),
+                operator="in",
+                values=["A", "B"],
+            )
+        )
+    )
+    context.draft.requirements.append(
+        OutputRequirement(
+            slot_id="slot_hidden",
+            label="隐藏数据处理",
+            field=FieldRef(resource="asset", field="amount"),
+            operation="count",
+        )
+    )
+
+    result = assess_semantic_intent(
+        _assessor_service(llm),
+        context=context,
+        bindings={},
+        temporal_parse={},
+    )
+
+    assert result.context.status == "ready"
+    assert result.context.contract is not None
+    assert [item.slot_id for item in result.context.contract.requirements] == [
+        "slot_company"
+    ]
+    assert [item.code for item in result.context.assumptions] == ["gate_degraded"]
 
 
 def test_contract_field_mapping_is_checked_before_sql_generation() -> None:
@@ -608,9 +839,9 @@ def test_contract_field_mapping_is_checked_before_sql_generation() -> None:
         field=FieldRef(resource="asset", field="amount"),
         operation="sum",
     )
-    _validate_contract_fields([valid], schema)
+    _reject_unknown_fields([valid], schema)
     with pytest.raises(ValueError, match="absent from the retrieved schema"):
-        _validate_contract_fields(
+        _reject_unknown_fields(
             [
                 valid.model_copy(
                     update={"field": FieldRef(resource="asset", field="invented")}
@@ -623,8 +854,8 @@ def test_contract_field_mapping_is_checked_before_sql_generation() -> None:
     qualified = valid.model_copy(
         update={"field": FieldRef(resource="public.asset", field="amount")}
     )
-    _validate_contract_fields([qualified], schema_qualified)
-    _validate_contract_fields([valid], schema_qualified)
+    _reject_unknown_fields([qualified], schema_qualified)
+    _reject_unknown_fields([valid], schema_qualified)
 
 
 def test_new_context_carries_only_the_frozen_base_contract() -> None:
@@ -641,7 +872,7 @@ def test_new_context_carries_only_the_frozen_base_contract() -> None:
     context = new_intent_context("改成按月统计", base_record_id=8, base_contract=base)
     assert context.status == "evaluating"
     assert context.contract is None
-    assert context.draft.requirements == base.requirements
+    assert context.draft.requirements == list(base.requirements)
     assert context.base_record_id == 8
 
 
@@ -683,3 +914,105 @@ def test_confirmed_entity_predicate_promotes_the_existing_candidate() -> None:
 
     assert result["resolved"]["研发二部"]["canonical"] == "技术研发中心/研发二部"
     assert "研发二部" not in result["ambiguous"]
+
+
+def _projection(slot_id: str, label: str, field: str) -> ProjectionRequirement:
+    return ProjectionRequirement(
+        slot_id=slot_id,
+        label=label,
+        mode="listed",
+        fields=[FieldRef(resource="cust_company", field=field)],
+        source="user",
+        evidence_refs=[QUESTION_EVIDENCE],
+    )
+
+
+def test_projecting_two_different_fields_is_not_a_duplicate() -> None:
+    """Showing the name and the phone are two separately confirmable choices.
+
+    Treating every projection as the same clause turned answering a
+    "which phone?" clarification into a hard failure, because merging the
+    answer produced a second projection.
+    """
+    draft = ContractDraft(
+        requirements=[
+            _projection("slot_0002", "企业名称", "company_name"),
+            _projection("slot_0003", "建档联系人电话", "legal_person_mobile"),
+        ]
+    )
+
+    assert len(draft.requirements) == 2
+
+
+def test_projecting_the_same_field_twice_is_still_a_duplicate() -> None:
+    with pytest.raises(ValueError, match="duplicate semantic requirement"):
+        ContractDraft(
+            requirements=[
+                _projection("slot_0002", "企业名称", "company_name"),
+                _projection("slot_0003", "公司名", "company_name"),
+            ]
+        )
+
+
+def test_clarification_option_that_cannot_form_a_contract_is_rejected() -> None:
+    """A card whose answer cannot be merged must fail while repair is possible.
+
+    Once the user has answered, no retry is left, so an option colliding with
+    an existing clause has to be caught during assessment review instead.
+    """
+    context = new_intent_context("查询企业名称")
+    context = context.model_copy(
+        update={
+            "draft": ContractDraft(
+                requirements=[_projection("slot_0002", "企业名称", "company_name")]
+            )
+        }
+    )
+
+    def option(option_id: str, label: str, field: str) -> IntentOption:
+        return IntentOption(
+            id=option_id,
+            label=label,
+            effects=[
+                SlotEffect(
+                    slot_id="phone",
+                    action="set",
+                    requirement=_projection("phone", "联系人电话", field),
+                )
+            ],
+        )
+
+    options = [
+        option("mobile", "法定代表人手机号", "legal_person_mobile"),
+        option("same_field", "仍然取企业名称", "company_name"),
+    ]
+
+    with pytest.raises(ValueError, match="cannot form a valid contract"):
+        _normalize_assessment(
+            IntentAssessment(
+                status="needs_clarification",
+                issues=[
+                    IntentIssue(
+                        slot_id="phone",
+                        clause="projection",
+                        label="联系人电话口径",
+                        reason="电话来源待确认",
+                        evidence_refs=[QUESTION_EVIDENCE],
+                    )
+                ],
+                questions=[
+                    ClarificationQuestion(
+                        id="phone_source",
+                        slot_ids=["phone"],
+                        title="电话按哪个口径取？",
+                        options=options,
+                    )
+                ],
+            ),
+            context,
+            {},
+            "# Table: cust_company\n[\n(company_name:varchar),\n"
+            "(legal_person_mobile:varchar)\n]",
+            None,
+            {},
+        )

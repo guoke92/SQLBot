@@ -65,7 +65,12 @@
       "entity_reason": "Different values directly change the query scope.",
       "entity_recommendation": "The closest terminology match is recommended by relevance.",
       "entity_custom_placeholder": "Enter the exact business value",
-      "assessment_unavailable": "The business query intent could not be resolved reliably. Please try again."
+      "assessment_unavailable": "The business query intent could not be resolved reliably. Please try again.",
+      "assumptions_title": "Decided on your behalf:",
+      "assumption_auto_resolved": "\"{label}\" used its default definition",
+      "assumption_auto_omitted": "\"{label}\" was left out of this query",
+      "assumption_dropped_inference": "\"{label}\" could not be combined with the other definitions and was removed from this query",
+      "assumption_gate_degraded": "\"{label}\" was not applied; this query ran on the confirmed definitions only"
     }
   },
   "i18n_terminology": {

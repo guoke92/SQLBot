@@ -134,7 +134,22 @@ def fetch_table_stats_map(
     if not names:
         return {}
     t = (ds.type or "").lower()
-    if equals_ignore_case(t, "mysql", "doris", "starrocks", "mariadb"):
+    if equals_ignore_case(t, "doris", "starrocks"):
+        conf = DatasourceConf(**json.loads(aes_decrypt(ds.configuration)))
+        catalog = (getattr(conf, "catalog", None) or "").strip()
+        if catalog:
+            # External catalog table stats are unreliable / unavailable via information_schema.
+            SQLBotLogUtil.info(
+                f"skip catalog stats for external catalog ds={getattr(ds, 'id', None)} catalog={catalog}"
+            )
+            return {}
+        # Internal tables: reuse mysql-family path only when SQLAlchemy session works.
+        # StarRocks/Doris are py_driver — skip rather than fail via get_session.
+        SQLBotLogUtil.info(
+            f"skip catalog stats for py_driver ds type={t} id={getattr(ds, 'id', None)}"
+        )
+        return {}
+    if equals_ignore_case(t, "mysql", "mariadb"):
         return _mysql_stats(ds, names)
     if equals_ignore_case(t, "pg", "postgresql", "kingbase", "redshift"):
         return _pg_stats(ds, names)

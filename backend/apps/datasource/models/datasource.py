@@ -1,10 +1,21 @@
 from datetime import datetime
-from typing import List, Optional
+from typing import Any, List, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field as PydanticField
 from sqlalchemy import Column, Text, BigInteger, DateTime, Identity
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import SQLModel, Field
+
+
+def table_identity_key(table: Any) -> tuple[str, str]:
+    """Stable local-catalog key: ``(database_name, table_name)``."""
+    db_name = (
+        getattr(table, "database_name", None)
+        or getattr(table, "databaseName", None)
+        or ""
+    )
+    name = getattr(table, "table_name", None) or getattr(table, "tableName", None) or ""
+    return (str(db_name).strip(), str(name).strip())
 
 
 class CoreDatasource(SQLModel, table=True):
@@ -31,6 +42,9 @@ class CoreTable(SQLModel, table=True):
     ds_id: int = Field(sa_column=Column(BigInteger()))
     checked: bool = Field(default=True)
     table_name: str = Field(sa_column=Column(Text))
+    # Logical database/schema within the datasource (e.g. StarRocks external catalog DB).
+    # Empty/NULL means legacy single-database datasources.
+    database_name: Optional[str] = Field(sa_column=Column(Text, nullable=True), default=None)
     table_comment: str = Field(sa_column=Column(Text))
     custom_comment: str = Field(sa_column=Column(Text))
     embedding: str = Field(sa_column=Column(Text, nullable=True))
@@ -120,6 +134,11 @@ class DatasourceConf(BaseModel):
     username: str = ''
     password: str = ''
     database: str = ''
+    # StarRocks / Doris external catalog name (empty = default_catalog / internal).
+    # Only normalized for doris/starrocks via SqlProtocol.normalize_configuration.
+    catalog: str = ''
+    # Authoritative multi-database list under the connection (or catalog).
+    databases: List[str] = PydanticField(default_factory=list)
     driver: str = ''
     extraJdbc: str = ''
     dbSchema: str = ''
@@ -137,6 +156,8 @@ class DatasourceConf(BaseModel):
             "username": self.username,
             "password": self.password,
             "database": self.database,
+            "catalog": self.catalog,
+            "databases": list(self.databases or []),
             "driver": self.driver,
             "extraJdbc": self.extraJdbc,
             "dbSchema": self.dbSchema,
@@ -150,17 +171,20 @@ class DatasourceConf(BaseModel):
 
 
 class TableSchema:
-    def __init__(self, attr1, attr2=None):
+    def __init__(self, attr1, attr2=None, database_name: str | None = None):
         self.tableName = attr1
         self.tableComment = attr2 if attr2 is None or isinstance(attr2, str) else attr2.decode("utf-8")
+        self.databaseName = database_name or ""
 
     tableName: str
     tableComment: str
+    databaseName: str = ""
 
 
 class TableSchemaResponse(BaseModel):
     tableName: str = ''
     tableComment: str | None = ''
+    databaseName: str | None = ''
 
 
 class ColumnSchema:

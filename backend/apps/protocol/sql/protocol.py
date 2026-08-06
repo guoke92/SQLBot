@@ -44,7 +44,13 @@ class SqlProtocol(BaseProtocol):
                 f"{', '.join(unknown)}. Use canonical fields such as 'username', "
                 "not aliases such as 'user'."
             )
-        return DatasourceConf.model_validate(dict(configuration)).model_dump()
+        conf = DatasourceConf.model_validate(dict(configuration))
+        # Scope sync is StarRocks/Doris-only — do not mutate shared Conf for other engines.
+        if self.type_key in ("doris", "starrocks"):
+            from apps.db.starrocks_catalog import sync_conf_scope
+
+            sync_conf_scope(conf)
+        return conf.model_dump()
 
     # ------------------------------------------------------------------
     # Connection
@@ -66,10 +72,12 @@ class SqlProtocol(BaseProtocol):
 
         return get_tables(ds)
 
-    def get_fields(self, ds: Any, table_name: str) -> List[Any]:
+    def get_fields(
+        self, ds: Any, table_name: str, database_name: str | None = None
+    ) -> List[Any]:
         from apps.db.db import get_fields
 
-        return get_fields(ds, table_name)
+        return get_fields(ds, table_name, database_name=database_name)
 
     def retrieve_schema(
         self,
@@ -317,6 +325,7 @@ class SqlProtocol(BaseProtocol):
         from apps.protocol.sql.identifier_validation import (
             PhysicalColumnRef,
             collect_sql_identifier_usage,
+            order_by_scope_error,
         )
 
         sql = plan.payload.get("sql", "")
@@ -342,6 +351,10 @@ class SqlProtocol(BaseProtocol):
         dialect = spec.sqlglot_dialect
         actual_tables: set[str] = set()
         physical_cols: tuple[PhysicalColumnRef, ...] = ()
+        order_by_problem = order_by_scope_error(sql, dialect)
+        if order_by_problem:
+            return reject(order_by_problem)
+
         try:
             usage = collect_sql_identifier_usage(sql, dialect)
             actual_tables = set(usage.physical_tables)
@@ -374,7 +387,11 @@ class SqlProtocol(BaseProtocol):
         try:
             from sqlmodel import Session, select
 
-            from apps.datasource.models.datasource import CoreField, CoreTable
+            from apps.datasource.models.datasource import (
+                CoreField,
+                CoreTable,
+                table_identity_key,
+            )
             from common.core.db import engine as _sqlbot_engine
 
             table_names = sorted(actual_tables)
@@ -394,48 +411,77 @@ class SqlProtocol(BaseProtocol):
                         CoreField.table_id.in_([t.id for t in catalog_tables])
                     )
                 ).all()
-                id_to_name = {t.id: t.table_name for t in catalog_tables}
-                fields_by_table: dict[str, set[str]] = {
-                    t.table_name: set() for t in catalog_tables
+                id_to_key = {
+                    t.id: table_identity_key(t) for t in catalog_tables
                 }
-                orig_by_table: dict[str, list[str]] = {
-                    t.table_name: [] for t in catalog_tables
+                fields_by_key: dict[tuple[str, str], set[str]] = {
+                    table_identity_key(t): set() for t in catalog_tables
+                }
+                orig_by_key: dict[tuple[str, str], list[str]] = {
+                    table_identity_key(t): [] for t in catalog_tables
                 }
                 for f in fields:
-                    tn = id_to_name.get(f.table_id)
-                    if not tn or not f.field_name:
+                    key = id_to_key.get(f.table_id)
+                    if not key or not f.field_name:
                         continue
-                    fields_by_table[tn].add(f.field_name)
-                    fields_by_table[tn].add(f.field_name.lower())
-                    orig_by_table[tn].append(f.field_name)
+                    fields_by_key[key].add(f.field_name)
+                    fields_by_key[key].add(f.field_name.lower())
+                    orig_by_key[key].append(f.field_name)
+
+                def _lookup_fields(
+                    table_name: str,
+                    database_name: str | None,
+                ) -> tuple[str, str] | None:
+                    """Return identity key for a SQL table ref, or None to skip."""
+                    db = (database_name or "").strip()
+                    if db:
+                        key = (db, table_name)
+                        return key if key in fields_by_key else None
+                    matches = [
+                        k for k in fields_by_key if k[1] == table_name
+                    ]
+                    if len(matches) == 1:
+                        return matches[0]
+                    # Missing or ambiguous across databases — do not guess.
+                    return None
+
+                def _display_key(key: tuple[str, str]) -> str:
+                    db, name = key
+                    return f"{db}.{name}" if db else name
 
                 missing: list[str] = []
                 for ref in physical_cols:
                     cname = ref.column_name
                     c_raw, c_l = cname, cname.lower()
                     if ref.table_name:
-                        physical = ref.table_name
-                        allowed_cols = fields_by_table.get(physical)
-                        if allowed_cols is None:
-                            continue  # table not in catalog
+                        key = _lookup_fields(
+                            ref.table_name, ref.database_name
+                        )
+                        if key is None:
+                            continue
+                        allowed_cols = fields_by_key[key]
                         if c_raw not in allowed_cols and c_l not in allowed_cols:
-                            missing.append(f"{physical}.{c_raw}")
+                            missing.append(f"{_display_key(key)}.{c_raw}")
                     else:
-                        candidate_fields = [
-                            fields_by_table.get(table_name)
-                            for table_name in ref.candidate_tables
-                        ]
-                        # Skip when a source is absent from the local catalog;
-                        # otherwise an unqualified reference is too ambiguous
-                        # for a reliable rejection.
-                        if not candidate_fields or any(
-                            cols is None for cols in candidate_fields
+                        candidate_keys: list[tuple[str, str] | None] = []
+                        dbs = ref.candidate_databases
+                        for i, table_name in enumerate(ref.candidate_tables):
+                            db = dbs[i] if i < len(dbs) else ""
+                            candidate_keys.append(
+                                _lookup_fields(table_name, db or None)
+                            )
+                        # Skip when a source is absent / ambiguous in the local
+                        # catalog; otherwise an unqualified reference is too
+                        # unreliable for a rejection.
+                        if not candidate_keys or any(
+                            key is None for key in candidate_keys
                         ):
                             continue
                         if any(
-                            c_raw in cols or c_l in cols
-                            for cols in candidate_fields
-                            if cols is not None
+                            c_raw in fields_by_key[key]
+                            or c_l in fields_by_key[key]
+                            for key in candidate_keys
+                            if key is not None
                         ):
                             continue
                         missing.append(c_raw)
@@ -448,20 +494,29 @@ class SqlProtocol(BaseProtocol):
                             seen.add(m)
                             uniq.append(m)
                     hints: list[str] = []
-                    hinted_tables: set[str] = set()
+                    hinted_keys: set[tuple[str, str]] = set()
                     for m in uniq[:6]:
                         if "." not in m:
                             continue
-                        tn, _ = m.split(".", 1)
-                        if tn in hinted_tables:
+                        # m is "db.table.col" or "table.col"
+                        parts = m.rsplit(".", 1)
+                        prefix, _col = parts[0], parts[1]
+                        if "." in prefix:
+                            db, tn = prefix.split(".", 1)
+                            key = (db, tn)
+                        else:
+                            key = _lookup_fields(prefix, None)
+                            if key is None:
+                                continue
+                        if key in hinted_keys or key not in orig_by_key:
                             continue
-                        orig = sorted(set(orig_by_table.get(tn) or []))
+                        orig = sorted(set(orig_by_key.get(key) or []))
                         if orig:
-                            hint = f"{tn}: {', '.join(orig[:12])}"
+                            hint = f"{_display_key(key)}: {', '.join(orig[:12])}"
                             if len(orig) > 12:
                                 hint += "…"
                             hints.append(hint)
-                            hinted_tables.add(tn)
+                            hinted_keys.add(key)
                     msg = (
                         "SQL references unknown column(s): "
                         + ", ".join(uniq)
@@ -552,6 +607,70 @@ class SqlProtocol(BaseProtocol):
         escaped = identifier.replace(spec.quote_suffix, spec.quote_suffix * 2)
         return f"{spec.quote_prefix}{escaped}{spec.quote_suffix}"
 
+    def qualify_table(
+        self,
+        ds: Any,
+        table_name: str,
+        *,
+        database_name: str | None = None,
+    ) -> str:
+        """Build a dialect-quoted FROM target for ``table_name``."""
+        import json
+
+        from apps.datasource.models.datasource import DatasourceConf
+        from apps.datasource.utils.utils import aes_decrypt
+
+        if self.type_key in ("doris", "starrocks"):
+            from apps.db.starrocks_catalog import qualified_table, resolve_sr_scope
+
+            conf = DatasourceConf(**json.loads(aes_decrypt(ds.configuration)))
+            catalog, databases = resolve_sr_scope(conf)
+            db = (database_name or "").strip() or (databases[0] if databases else "")
+            return qualified_table(
+                catalog, db, table_name, include_catalog=bool(catalog)
+            )
+
+        schema = self.schema_namespace(ds)
+        table_sql = self._quote_identifier(table_name)
+        if schema:
+            return f"{self._quote_identifier(schema)}.{table_sql}"
+        return table_sql
+
+    def table_prompt_label(
+        self,
+        ds: Any,
+        table_name: str,
+        *,
+        database_name: str | None = None,
+    ) -> str:
+        """Unquoted table label for m-schema prompts (aligned with qualify_table)."""
+        import json
+
+        from apps.datasource.models.datasource import DatasourceConf
+        from apps.datasource.utils.utils import aes_decrypt
+
+        if self.type_key in ("doris", "starrocks"):
+            from apps.db.starrocks_catalog import resolve_sr_scope, table_label
+
+            conf = DatasourceConf(**json.loads(aes_decrypt(ds.configuration)))
+            catalog, databases = resolve_sr_scope(conf)
+            db = (database_name or "").strip() or (databases[0] if databases else "")
+            return table_label(catalog if catalog else "", db, table_name)
+
+        schema = self.schema_namespace(ds)
+        if schema and self.type_key not in (
+            "mysql",
+            "es",
+            "sqlite",
+            "hive",
+            "doris",
+            "starrocks",
+        ):
+            return f"{schema}.{table_name}"
+        if database_name:
+            return f"{database_name}.{table_name}"
+        return table_name
+
     def extract_dictionary_values(
         self,
         ds: Any,
@@ -559,6 +678,7 @@ class SqlProtocol(BaseProtocol):
         resource: str,
         field: str,
         limit: int,
+        database_name: str | None = None,
     ) -> DictionaryExtractResult:
         """Return a limit+1 DISTINCT snapshot using dialect-owned syntax."""
         from apps.db.db import exec_sql
@@ -567,10 +687,7 @@ class SqlProtocol(BaseProtocol):
             return DictionaryExtractResult()
         bounded_limit = max(1, min(int(limit), 5000))
         fetch_limit = bounded_limit + 1
-        schema = self.schema_namespace(ds)
-        table_sql = self._quote_identifier(resource)
-        if schema:
-            table_sql = f"{self._quote_identifier(schema)}.{table_sql}"
+        table_sql = self.qualify_table(ds, resource, database_name=database_name)
         field_sql = self._quote_identifier(field)
         where_sql = f"{field_sql} IS NOT NULL AND TRIM({field_sql}) <> ''"
         if self.type_key == "sqlServer":
@@ -625,23 +742,29 @@ class SqlProtocol(BaseProtocol):
         *,
         where: str = "",
         limit: int = 100,
+        database_name: str | None = None,
     ) -> QueryResult:
         from apps.db.db import exec_sql
-
-        schema = getattr(ds, "_preview_schema", "")
 
         where_clause = f" WHERE {where}" if where else ""
 
         type_key = self.type_key
         if type_key in ("mysql", "doris", "starrocks", "hive"):
             col_list = ", ".join(f"`{f}`" for f in fields)
-            if schema:
-                from_clause = f"`{schema}`.`{table_name}`"
+            if type_key in ("doris", "starrocks"):
+                from_clause = self.qualify_table(
+                    ds, table_name, database_name=database_name
+                )
             else:
-                from_clause = f"`{table_name}`"
+                schema = self.schema_namespace(ds)
+                if schema:
+                    from_clause = f"`{schema}`.`{table_name}`"
+                else:
+                    from_clause = f"`{table_name}`"
             sql = f"SELECT {col_list} FROM {from_clause}{where_clause} LIMIT {limit}"
         elif type_key == "sqlServer":
             col_list = ", ".join(f"[{f}]" for f in fields)
+            schema = self.schema_namespace(ds)
             if schema:
                 from_clause = f"[{schema}].[{table_name}]"
             else:
@@ -652,6 +775,7 @@ class SqlProtocol(BaseProtocol):
             sql = f'SELECT {col_list} FROM "{table_name}"{where_clause} LIMIT {limit}'
         elif type_key in ("oracle",):
             col_list = ", ".join(f'"{f}"' for f in fields)
+            schema = self.schema_namespace(ds)
             if schema:
                 from_clause = f'"{schema}"."{table_name}"'
             else:
@@ -668,6 +792,7 @@ class SqlProtocol(BaseProtocol):
         else:
             # pg, excel, redshift, kingbase, dm default
             col_list = ", ".join(f'"{f}"' for f in fields)
+            schema = self.schema_namespace(ds)
             if schema:
                 from_clause = f'"{schema}"."{table_name}"'
             else:
@@ -717,12 +842,19 @@ class SqlProtocol(BaseProtocol):
         from apps.datasource.models.datasource import DatasourceConf
         from apps.datasource.utils.utils import aes_decrypt
         from apps.db.engine import get_engine_config
+        from apps.db.starrocks_catalog import resolve_sr_scope
 
         try:
             if self.type_key == "excel":
                 conf = get_engine_config()
             else:
                 conf = DatasourceConf(**json.loads(aes_decrypt(ds.configuration)))
+            if self.type_key in ("doris", "starrocks"):
+                catalog, databases = resolve_sr_scope(conf)
+                if catalog:
+                    return catalog
+                if databases:
+                    return databases[0]
             if conf.dbSchema is not None and conf.dbSchema != "":
                 return conf.dbSchema
             return conf.database or ""

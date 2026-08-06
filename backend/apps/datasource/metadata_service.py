@@ -9,7 +9,7 @@ from sqlmodel import Session
 
 from apps.datasource.crud.datasource import chooseTables, get_ds
 from apps.datasource.crud.table import get_tables_by_ds_id
-from apps.datasource.models.datasource import CoreField, CoreTable, TableObj
+from apps.datasource.models.datasource import CoreField, CoreTable, TableObj, table_identity_key
 from common.utils.embedding_threads import (
     run_save_ds_embeddings,
     run_save_table_embeddings,
@@ -35,9 +35,10 @@ def update_table_projection(
     if normalized == "set":
         full = list(tables)
     elif normalized == "add":
-        by_name = {
-            str(table.table_name).strip(): CoreTable(
+        by_key = {
+            table_identity_key(table): CoreTable(
                 table_name=str(table.table_name).strip(),
+                database_name=getattr(table, "database_name", None) or None,
                 table_comment=table.table_comment or table.custom_comment or "",
             )
             for table in current
@@ -47,27 +48,31 @@ def update_table_projection(
             name = str(table.table_name or "").strip()
             if not name:
                 continue
-            existing = by_name.get(name)
-            by_name[name] = CoreTable(
+            key = table_identity_key(table)
+            existing = by_key.get(key)
+            by_key[key] = CoreTable(
                 table_name=name,
+                database_name=getattr(table, "database_name", None)
+                or (existing.database_name if existing is not None else None),
                 table_comment=table.table_comment
                 or (existing.table_comment if existing is not None else "")
                 or "",
             )
-        full = list(by_name.values())
+        full = list(by_key.values())
     else:
         removed = {
-            str(table.table_name).strip()
+            table_identity_key(table)
             for table in tables
             if str(table.table_name or "").strip()
         }
         full = [
             CoreTable(
                 table_name=table.table_name,
+                database_name=getattr(table, "database_name", None) or None,
                 table_comment=table.table_comment or table.custom_comment or "",
             )
             for table in current
-            if str(table.table_name or "").strip() not in removed
+            if table_identity_key(table) not in removed
         ]
 
     chooseTables(session, trans, ds_id, full)

@@ -31,4 +31,9 @@ Rules:
 13. If the request is purely general guidance and genuinely needs no system tool,
     prefix the final answer with {TOOL_FREE_COMPLETION_MARKER}. The runtime removes
     this transport marker before showing the answer.
+14. For StarRocks/Doris external catalogs (e.g. Hive): set configuration.catalog
+    and configuration.databases (a list). Never put "catalog.database" into the
+    single database field. Typical flow: create/update datasource →
+    check_datasource → list_databases → list_catalog_tables → choose_tables
+    (include database_name on each table). Prefer table_id for relations.
 """

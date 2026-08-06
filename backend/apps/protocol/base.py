@@ -179,6 +179,7 @@ class BaseProtocol(ABC):
         resource: str,
         field: str,
         limit: int,
+        database_name: str | None = None,
     ) -> DictionaryExtractResult:
         """Extract a bounded distinct snapshot for an enabled dictionary field."""
         raise NotImplementedError("Dictionary extraction is not supported")
@@ -194,7 +195,9 @@ class BaseProtocol(ABC):
         ...
 
     @abstractmethod
-    def get_fields(self, ds: Any, table_name: str) -> List[Any]:
+    def get_fields(
+        self, ds: Any, table_name: str, database_name: str | None = None
+    ) -> List[Any]:
         """Return ColumnSchema-compatible objects."""
         ...
 
@@ -263,6 +266,7 @@ class BaseProtocol(ABC):
         *,
         where: str = "",
         limit: int = 100,
+        database_name: str | None = None,
     ) -> QueryResult: ...
 
     def plan_from_re_exec(
@@ -277,6 +281,21 @@ class BaseProtocol(ABC):
 
     def format_statement_for_display(self, plan: QueryPlan) -> str:
         return plan.statement or ""
+
+    def table_prompt_label(
+        self,
+        ds: Any,
+        table_name: str,
+        *,
+        database_name: str | None = None,
+    ) -> str:
+        """Unquoted table label for schema prompts. Protocols may override."""
+        if database_name:
+            return f"{database_name}.{table_name}"
+        schema = self.schema_namespace(ds)
+        if schema:
+            return f"{schema}.{table_name}"
+        return table_name
 
     def build_chart_system_prompt(self, chat_question: Any) -> Dict[str, str]:
         """Return chart prompt pieces for message construction (graph chart node).

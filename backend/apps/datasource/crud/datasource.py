@@ -46,6 +46,7 @@ from ..models.datasource import (
     DatasourceConf,
     TableAndFields,
     TableObj,
+    table_identity_key,
 )
 from .table import get_tables_by_ds_id
 
@@ -135,7 +136,11 @@ async def create_ds(
     all_tables = list(proto.get_tables(ds))
     if proto.supports(CAP_CONF_OWNED_RESOURCES):
         selected_tables = [
-            CoreTable(table_name=t.tableName, table_comment=t.tableComment or "")
+            CoreTable(
+                table_name=t.tableName,
+                table_comment=t.tableComment or "",
+                database_name=getattr(t, "databaseName", None) or None,
+            )
             for t in all_tables
         ]
     else:
@@ -163,7 +168,11 @@ def chooseTables(session: SessionDep, trans: Trans, id: int, tables: List[CoreTa
         # Conf-owned resources cannot be freely replaced by client table picks.
         if proto.supports(CAP_CONF_OWNED_RESOURCES):
             tables = [
-                CoreTable(table_name=t.tableName, table_comment=t.tableComment or "")
+                CoreTable(
+                    table_name=t.tableName,
+                    table_comment=t.tableComment or "",
+                    database_name=getattr(t, "databaseName", None) or None,
+                )
                 for t in proto.get_tables(ds)
             ]
     check_status(session, trans, ds, True)
@@ -180,7 +189,11 @@ def update_ds(session: SessionDep, trans: Trans, user: CurrentUser, ds: CoreData
     if proto.supports(CAP_CONF_OWNED_RESOURCES):
         all_tables = list(proto.get_tables(ds))
         projected_tables = [
-            CoreTable(table_name=t.tableName, table_comment=t.tableComment or "")
+            CoreTable(
+                table_name=t.tableName,
+                table_comment=t.tableComment or "",
+                database_name=getattr(t, "databaseName", None) or None,
+            )
             for t in all_tables
         ]
         ds.num = f"{len(projected_tables)}/{len(all_tables)}"
@@ -248,15 +261,20 @@ def getTablesByDs(session: SessionDep, ds: CoreDatasource):
     return proto.get_tables(ds)
 
 
-def getFields(session: SessionDep, id: int, table_name: str):
+def getFields(session: SessionDep, id: int, table_name: str, database_name: str | None = None):
     ds = session.exec(select(CoreDatasource).where(CoreDatasource.id == id)).first()
     proto = get_protocol_for_ds(ds)
-    return proto.get_fields(ds, table_name)
+    return proto.get_fields(ds, table_name, database_name=database_name)
 
 
-def getFieldsByDs(session: SessionDep, ds: CoreDatasource, table_name: str):
+def getFieldsByDs(
+    session: SessionDep,
+    ds: CoreDatasource,
+    table_name: str,
+    database_name: str | None = None,
+):
     proto = get_protocol_for_ds(ds)
-    return proto.get_fields(ds, table_name)
+    return proto.get_fields(ds, table_name, database_name=database_name)
 
 
 def execSql(session: SessionDep, id: int, sql: str):
@@ -295,7 +313,12 @@ def sync_table_fields(session: SessionDep, trans: Trans, id: int):
         raise HTTPException(status_code=500, detail=trans("i18n_table_not_exist"))
 
     # sync field
-    fields = getFieldsByDs(session, ds, table.table_name)
+    fields = getFieldsByDs(
+        session,
+        ds,
+        table.table_name,
+        database_name=getattr(table, "database_name", None),
+    )
     _reconcile_fields(session, ds, table, fields)
     reconcile_configs(session, [table])
     session.flush()
@@ -322,21 +345,28 @@ def sync_catalog(session: SessionDep, ds: CoreDatasource, tables: List[CoreTable
     """Atomically replace the selected local catalog from one remote snapshot."""
     requested = list(tables or [])
     # Complete all remote discovery before mutating the local transaction.
-    fields_by_name = {
-        item.table_name: getFieldsByDs(session, ds, item.table_name)
+    fields_by_key = {
+        table_identity_key(item): getFieldsByDs(
+            session,
+            ds,
+            item.table_name,
+            database_name=getattr(item, "database_name", None),
+        )
         for item in requested
     }
     existing = session.exec(select(CoreTable).where(CoreTable.ds_id == ds.id)).all()
-    existing_by_name = {table.table_name: table for table in existing}
+    existing_by_key = {table_identity_key(table): table for table in existing}
     synced_tables: list[CoreTable] = []
     try:
         for item in requested:
-            record = existing_by_name.get(item.table_name)
+            key = table_identity_key(item)
+            record = existing_by_key.get(key)
             if record is None:
                 record = CoreTable(
                     ds_id=ds.id,
                     checked=True,
                     table_name=item.table_name,
+                    database_name=getattr(item, "database_name", None) or None,
                     table_comment=item.table_comment,
                     custom_comment=item.table_comment,
                 )
@@ -344,13 +374,14 @@ def sync_catalog(session: SessionDep, ds: CoreDatasource, tables: List[CoreTable
                 session.flush()
             else:
                 record.table_comment = item.table_comment
+                record.database_name = getattr(item, "database_name", None) or record.database_name
                 session.add(record)
             item.id = record.id
             _reconcile_fields(
                 session,
                 ds,
                 record,
-                fields_by_name[item.table_name],
+                fields_by_key[key],
             )
             synced_tables.append(record)
 
@@ -505,11 +536,15 @@ def preview(session: SessionDep, current_user: CurrentUser, id: int, data: Table
         return {"fields": [], "data": [], "sql": ""}
 
     table = session.query(CoreTable).filter(CoreTable.id == data.table.id).first()
-    # SqlProtocol includes schema in preview SQL when present on the ds.
-    if proto.supports(CAP_SQL_DIALECT):
-        setattr(ds, "_preview_schema", proto.schema_namespace(ds))
     result = proto.preview(
-        session, current_user, ds, table.table_name, field_names, where=where, limit=100
+        session,
+        current_user,
+        ds,
+        table.table_name,
+        field_names,
+        where=where,
+        limit=100,
+        database_name=getattr(table, "database_name", None),
     )
     return result.as_dict()
 
@@ -534,6 +569,7 @@ def fieldEnum(session: SessionDep, id: int):
         resource=table.table_name,
         field=field.field_name,
         limit=5000,
+        database_name=getattr(table, "database_name", None),
     )
     return result.values
 
@@ -603,7 +639,13 @@ def get_table_obj_by_ds(
     return _list
 
 
-def get_table_sample_data(ds: CoreDatasource, table_name: str, fields: list) -> str:
+def get_table_sample_data(
+    ds: CoreDatasource,
+    table_name: str,
+    fields: list,
+    *,
+    database_name: str | None = None,
+) -> str:
     """Get 3 sample rows from a table in JSON format to help AI understand the data"""
     if not fields:
         return ""
@@ -614,8 +656,16 @@ def get_table_sample_data(ds: CoreDatasource, table_name: str, fields: list) -> 
     # Prefer protocol preview so dialect quoting stays inside SqlProtocol.
     field_names = [field.field_name for field in fields[:10]]
     try:
-        setattr(ds, "_preview_schema", proto.schema_namespace(ds))
-        qr = proto.preview(None, None, ds, table_name, field_names, where="", limit=3)
+        qr = proto.preview(
+            None,
+            None,
+            ds,
+            table_name,
+            field_names,
+            where="",
+            limit=3,
+            database_name=database_name,
+        )
         if qr and qr.data:
             json_rows = []
             for row in qr.data[:3]:
@@ -654,13 +704,24 @@ def get_tables_sample_data(
         return ""
 
     sample_data_parts = []
+    proto = get_protocol_for_ds(ds)
     for obj in table_objs:
         if table_list is not None and obj.table.table_name not in table_list:
             continue
         if obj.fields:
-            sample = get_table_sample_data(ds, obj.table.table_name, obj.fields)
+            sample = get_table_sample_data(
+                ds,
+                obj.table.table_name,
+                obj.fields,
+                database_name=getattr(obj.table, "database_name", None),
+            )
             if sample:
-                sample_data_parts.append(f"# Table: {obj.table.table_name}\n{sample}")
+                label = proto.table_prompt_label(
+                    ds,
+                    obj.table.table_name,
+                    database_name=getattr(obj.table, "database_name", None),
+                )
+                sample_data_parts.append(f"# Table: {label}\n{sample}")
     return "\n".join(sample_data_parts)
 
 
@@ -688,18 +749,20 @@ def get_table_schema(
     tables = []
     all_tables = []  # temp save all tables
     table_name_list = []
+    proto = get_protocol_for_ds(ds)
     for obj in table_objs:
         # 如果传入了table_list，则只处理在列表中的表
         if table_list is not None and obj.table.table_name not in table_list:
             continue
 
         schema_table = ""
-        no_schema_types = ["mysql", "es", "sqlite", "hive", "doris", "starrocks"]
-        schema_table += (
-            f"# Table: {db_name}.{obj.table.table_name}"
-            if ds.type not in no_schema_types and db_name
-            else f"# Table: {obj.table.table_name}"
+        table_db = getattr(obj.table, "database_name", None) or ""
+        label = proto.table_prompt_label(
+            ds,
+            obj.table.table_name,
+            database_name=table_db or None,
         )
+        schema_table += f"# Table: {label}"
         table_comment = ""
         if obj.table.custom_comment:
             table_comment = obj.table.custom_comment.strip()

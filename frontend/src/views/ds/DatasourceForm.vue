@@ -92,6 +92,15 @@ const rules = reactive<FormRules>({
       trigger: 'blur',
     },
   ],
+  databases: [
+    {
+      type: 'array',
+      required: true,
+      min: 1,
+      message: t('datasource.please_enter') + t('common.empty') + t('ds.form.database'),
+      trigger: 'change',
+    },
+  ],
   mode: [{ required: true, message: 'Please choose mode', trigger: 'change' }],
   sheets: [{ required: true, message: t('user.upload_file'), trigger: 'change' }],
   dbSchema: [
@@ -129,6 +138,8 @@ const form = ref<any>({
   username: '',
   password: '',
   database: '',
+  catalog: '',
+  databases: [] as string[],
   extraJdbc: '',
   dbSchema: '',
   filename: '',
@@ -150,6 +161,12 @@ const form = ref<any>({
   endpoints: [] as any[],
   swaggerUrl: '',
 })
+
+const tableKey = (ele: any) => {
+  const db = ele?.databaseName || ele?.database_name || ''
+  const name = ele?.tableName || ele?.table_name || ''
+  return db ? `${db}.${name}` : name
+}
 
 const createEmptyEndpoint = () => ({
   name: '',
@@ -527,6 +544,22 @@ const initForm = (item: any, editTable: boolean = false) => {
         form.value.username = configuration.username
         form.value.password = configuration.password
         form.value.database = configuration.database
+        form.value.catalog = configuration.catalog || ''
+        const dbs = configuration.databases
+        if (Array.isArray(dbs) && dbs.length) {
+          form.value.databases = dbs
+        } else if (configuration.database && String(configuration.database).includes('.')) {
+          const parts = String(configuration.database).split('.')
+          if (parts.length === 2 && parts[0] && parts[1]) {
+            form.value.catalog = form.value.catalog || parts[0]
+            form.value.databases = [parts[1]]
+            form.value.database = parts[1]
+          } else {
+            form.value.databases = configuration.database ? [configuration.database] : []
+          }
+        } else {
+          form.value.databases = configuration.database ? [configuration.database] : []
+        }
         form.value.extraJdbc = configuration.extraJdbc
         form.value.dbSchema = configuration.dbSchema
         form.value.filename = configuration.filename
@@ -564,7 +597,10 @@ const initForm = (item: any, editTable: boolean = false) => {
           .tableList(item.id)
           .then((res: any) => {
             checkList.value = res.map((ele: any) => {
-              return ele.table_name
+              return tableKey({
+                tableName: ele.table_name,
+                databaseName: ele.database_name,
+              })
             })
             if (item.type === 'excel') {
               tableList.value = form.value.sheets
@@ -578,12 +614,9 @@ const initForm = (item: any, editTable: boolean = false) => {
                 .getTablesByConf(requestObj)
                 .then((table) => {
                   tableList.value = table
+                  const remoteKeys = table.map((ele: any) => tableKey(ele))
                   checkList.value = checkList.value.filter((ele: string) => {
-                    return table
-                      .map((ele: any) => {
-                        return ele.tableName
-                      })
-                      .includes(ele)
+                    return remoteKeys.includes(ele)
                   })
                   nextTick(() => {
                     handleCheckedTablesChange([...checkList.value])
@@ -616,6 +649,8 @@ const initForm = (item: any, editTable: boolean = false) => {
       username: '',
       password: '',
       database: '',
+      catalog: '',
+      databases: [],
       extraJdbc: '',
       dbSchema: '',
       filename: '',
@@ -666,10 +701,14 @@ const save = async (formEl: FormInstance | undefined) => {
             }))
           : tableList.value
               .filter((ele: any) => {
-                return checkTableList.value.includes(ele.tableName)
+                return checkTableList.value.includes(tableKey(ele))
               })
               .map((ele: any) => {
-                return { table_name: ele.tableName, table_comment: ele.tableComment }
+                return {
+                  table_name: ele.tableName,
+                  table_comment: ele.tableComment,
+                  database_name: ele.databaseName || ele.database_name || null,
+                }
               })
 
       if (form.value.type !== 'api' && checkTableList.value.length > 30) {
@@ -804,7 +843,14 @@ const buildConf = () => {
       port: form.value.port,
       username: form.value.username,
       password: form.value.password,
-      database: form.value.database,
+      database:
+        (form.value.databases && form.value.databases[0]) || form.value.database || '',
+      catalog: form.value.catalog || '',
+      databases: Array.isArray(form.value.databases)
+        ? form.value.databases
+        : form.value.database
+          ? [form.value.database]
+          : [],
       extraJdbc: form.value.extraJdbc,
       dbSchema: form.value.dbSchema,
       filename: form.value.filename,
@@ -822,6 +868,8 @@ const buildConf = () => {
   delete obj.username
   delete obj.password
   delete obj.database
+  delete obj.catalog
+  delete obj.databases
   delete obj.extraJdbc
   delete obj.dbSchema
   delete obj.filename
@@ -986,12 +1034,12 @@ const keywords = ref('')
 const tableListWithSearch = computed(() => {
   if (!keywords.value) return tableList.value
   return tableList.value.filter((ele: any) =>
-    ele.tableName.toLowerCase().includes(keywords.value.toLowerCase())
+    tableKey(ele).toLowerCase().includes(keywords.value.toLowerCase())
   )
 })
 
 watch(keywords, () => {
-  const tableNameArr = tableListWithSearch.value.map((ele: any) => ele.tableName)
+  const tableNameArr = tableListWithSearch.value.map((ele: any) => tableKey(ele))
   checkList.value = checkTableList.value.filter((ele) => tableNameArr.includes(ele))
   const checkedCount = checkList.value.length
   checkAll.value = checkedCount === tableListWithSearch.value.length
@@ -1024,13 +1072,13 @@ const handleCheckAllChange = (val: any) => {
   checkList.value = val
     ? [
         ...new Set([
-          ...tableListWithSearch.value.map((ele: any) => ele.tableName),
+          ...tableListWithSearch.value.map((ele: any) => tableKey(ele)),
           ...checkList.value,
         ]),
       ]
     : []
   isIndeterminate.value = false
-  const tableNameArr = tableListWithSearch.value.map((ele: any) => ele.tableName)
+  const tableNameArr = tableListWithSearch.value.map((ele: any) => tableKey(ele))
   checkTableList.value = val
     ? [...new Set([...tableNameArr, ...checkTableList.value])]
     : checkTableList.value.filter((ele) => !tableNameArr.includes(ele))
@@ -1040,7 +1088,7 @@ const handleCheckedTablesChange = (value: any[]) => {
   const checkedCount = value.length
   checkAll.value = checkedCount === tableListWithSearch.value.length
   isIndeterminate.value = checkedCount > 0 && checkedCount < tableListWithSearch.value.length
-  const tableNameArr = tableListWithSearch.value.map((ele: any) => ele.tableName)
+  const tableNameArr = tableListWithSearch.value.map((ele: any) => tableKey(ele))
   checkTableList.value = [
     ...new Set([...checkTableList.value.filter((ele) => !tableNameArr.includes(ele)), ...value]),
   ]
@@ -1686,7 +1734,47 @@ defineExpose({
             />
           </el-form-item>
           <el-form-item
-            v-if="form.type !== 'dm' && form.type !== 'es'"
+            v-if="form.type === 'starrocks' || form.type === 'doris'"
+            :label="t('ds.form.catalog')"
+          >
+            <el-input
+              v-model="form.catalog"
+              clearable
+              :placeholder="t('ds.form.catalog_placeholder')"
+            />
+          </el-form-item>
+          <el-form-item
+            v-if="form.type === 'starrocks' || form.type === 'doris'"
+            :label="t('ds.form.database')"
+            prop="databases"
+          >
+            <div class="schema-label" style="display: flex; gap: 8px; width: 100%">
+              <el-select
+                v-model="form.databases"
+                multiple
+                filterable
+                allow-create
+                default-first-option
+                style="flex: 1"
+                :placeholder="t('ds.form.databases_placeholder')"
+                @change="
+                  (val: string[]) => {
+                    form.database = (val && val[0]) || ''
+                  }
+                "
+              >
+                <el-option
+                  v-for="item in schemaList"
+                  :key="item.value"
+                  :label="item.label"
+                  :value="item.value"
+                />
+              </el-select>
+              <el-button @click="getSchema">{{ t('ds.form.get_databases') }}</el-button>
+            </div>
+          </el-form-item>
+          <el-form-item
+            v-else-if="form.type !== 'dm' && form.type !== 'es'"
             :label="t('ds.form.database')"
             prop="database"
           >
@@ -1854,11 +1942,11 @@ defineExpose({
               >
                 <template #default="{ index, style }">
                   <div class="list-item_primary" :style="style">
-                    <el-checkbox :label="tableListWithSearch[index].tableName">
+                    <el-checkbox :label="tableKey(tableListWithSearch[index])">
                       <el-icon size="16" style="margin-right: 8px">
                         <icon_form_outlined></icon_form_outlined>
                       </el-icon>
-                      {{ tableListWithSearch[index].tableName }}</el-checkbox
+                      {{ tableKey(tableListWithSearch[index]) }}</el-checkbox
                     >
                   </div>
                 </template>

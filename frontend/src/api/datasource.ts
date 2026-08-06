@@ -12,8 +12,12 @@ export const datasourceApi = {
   delete: (id: number, name: string) => request.post(`/datasource/delete/${id}/${name}`),
   getTables: (id: number) => request.post(`/datasource/getTables/${id}`),
   getTablesByConf: (data: any) => request.post('/datasource/getTablesByConf', data),
-  getFields: (id: number, table_name: string) =>
-    request.post(`/datasource/getFields/${id}/${table_name}`),
+  getFields: (id: number, table_name: string, database_name?: string) =>
+    request.post(
+      `/datasource/getFields/${id}/${table_name}`,
+      undefined,
+      database_name ? { params: { database_name } } : undefined
+    ),
   execSql: (id: number | string, sql: string) =>
     request.post(`/datasource/execSql/${id}`, { sql: sql }),
   chooseTables: (id: number, data: any) => request.post(`/datasource/chooseTables/${id}`, data),

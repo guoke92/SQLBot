@@ -14,6 +14,7 @@ CONFIG_TOOL_NAMES = frozenset(
         "update_datasource",
         "check_datasource",
         "list_catalog_tables",
+        "list_databases",
         "list_selected_tables",
         "choose_tables",
         "list_catalog_fields",

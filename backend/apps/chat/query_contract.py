@@ -5,6 +5,11 @@ The contract is the only executable semantic truth. Clarification edits a
 Every requirement owns one SQL/business clause and is referenced through an
 opaque server slot id, so labels and model-generated names never become
 contract identity.
+
+Freezing does not make every clause equally permanent.  A clause is
+*confirmed* only when its evidence traces back to something the user said;
+everything else is a system inference that stays revocable, so a failure in
+the system's own reasoning can never invalidate what the user did confirm.
 """
 
 from __future__ import annotations
@@ -21,6 +26,10 @@ from pydantic import (
     model_validator,
 )
 
+from apps.chat.contract.issues import has_user_evidence
+
+QUERY_CONTRACT_VERSION = 4
+
 ClauseType = Literal[
     "projection",
     "output",
@@ -33,6 +42,7 @@ ClauseType = Literal[
 ]
 RequirementSource = Literal[
     "user",
+    "model",
     "rule",
     "terminology",
     "example",
@@ -66,12 +76,13 @@ PredicateOperator = Literal[
 TimeWindowMode = Literal["all", "explicit", "rolling"]
 TimeBucket = Literal["day", "month", "year"]
 PopulationPolicy = Literal["intersection", "left", "right", "union"]
+ResultMode = Literal["detail", "aggregate"]
 
 
 class FieldRef(BaseModel):
     """A physical field identity qualified when a resource is known."""
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", frozen=True)
 
     resource: str = ""
     field: str
@@ -104,12 +115,12 @@ class FieldRef(BaseModel):
 
 
 class RequirementBase(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", frozen=True)
 
     slot_id: str
     label: str
-    source: RequirementSource = "user"
-    evidence_refs: list[str] = Field(default_factory=list)
+    source: RequirementSource = "model"
+    evidence_refs: tuple[str, ...] = ()
 
     @field_validator("slot_id", "label")
     @classmethod
@@ -122,13 +133,23 @@ class RequirementBase(BaseModel):
             raise ValueError("Contract requirement requires a slot_id")
         if not self.label:
             raise ValueError(f"Contract requirement {self.slot_id} requires a label")
+        # A clause counts as user-confirmed only when its evidence points at
+        # the user's own words.  Without that anchor the assessor could label
+        # its own inference as intent and make it unrevocable.
+        if self.source == "user" and not has_user_evidence(self.evidence_refs):
+            object.__setattr__(self, "source", "model")
         return self
+
+    @property
+    def is_confirmed(self) -> bool:
+        """Whether the user confirmed this clause and it cannot be revoked."""
+        return self.source == "user"
 
 
 class ProjectionRequirement(RequirementBase):
     clause: Literal["projection"] = "projection"
     mode: Literal["all", "listed"] = "listed"
-    fields: list[FieldRef] = Field(default_factory=list)
+    fields: tuple[FieldRef, ...] = ()
 
     @model_validator(mode="after")
     def validate_projection(self) -> Self:
@@ -143,7 +164,7 @@ class OutputRequirement(RequirementBase):
     clause: Literal["output"] = "output"
     field: FieldRef
     operation: OutputOperation = "value"
-    operands: list[str] = Field(default_factory=list)
+    operands: tuple[str, ...] = ()
 
     @model_validator(mode="after")
     def validate_output(self) -> Self:
@@ -162,7 +183,7 @@ class PredicateRequirement(RequirementBase):
     clause: Literal["predicate"] = "predicate"
     field: FieldRef
     operator: PredicateOperator
-    values: list[Any] = Field(default_factory=list)
+    values: tuple[Any, ...] = ()
     null_policy: Literal["preserve", "exclude", "only"] = "exclude"
 
     @model_validator(mode="after")
@@ -191,7 +212,7 @@ class GroupRequirement(RequirementBase):
 
 
 class RelationPair(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", frozen=True)
 
     left: FieldRef
     right: FieldRef
@@ -199,7 +220,7 @@ class RelationPair(BaseModel):
 
 class RelationRequirement(RequirementBase):
     clause: Literal["relation"] = "relation"
-    pairs: list[RelationPair]
+    pairs: tuple[RelationPair, ...]
     # The join population changes which business entities are returned.  It is
     # therefore part of the executable contract and must never be supplied by
     # an implicit model/default choice.
@@ -207,7 +228,9 @@ class RelationRequirement(RequirementBase):
 
     @field_validator("pairs")
     @classmethod
-    def validate_pairs(cls, value: list[RelationPair]) -> list[RelationPair]:
+    def validate_pairs(
+        cls, value: tuple[RelationPair, ...]
+    ) -> tuple[RelationPair, ...]:
         if not value:
             raise ValueError("Relation requirement requires at least one field pair")
         return value
@@ -215,7 +238,7 @@ class RelationRequirement(RequirementBase):
 
 class TimeWindowRequirement(RequirementBase):
     clause: Literal["time_window"] = "time_window"
-    fields: list[FieldRef]
+    fields: tuple[FieldRef, ...]
     mode: TimeWindowMode
     start: str | None = None
     end_exclusive: str | None = None
@@ -335,6 +358,61 @@ class ContractSlot(BaseModel):
         return self
 
 
+def infer_result_mode(
+    requirements: Sequence[ContractRequirement],
+) -> ResultMode:
+    """Derive detail-vs-aggregate shape from canonical clauses.
+
+    A record/detail request does not need a synthetic grouping or record-id
+    clarification.  Grouping and aggregate outputs are the only constructs
+    that turn the result into an aggregate shape.
+    """
+
+    if any(isinstance(item, GroupRequirement) for item in requirements):
+        return "aggregate"
+    if any(
+        isinstance(item, OutputRequirement) and item.operation != "value"
+        for item in requirements
+    ):
+        return "aggregate"
+    return "detail"
+
+
+def _validate_result_shape(
+    requirements: Sequence[ContractRequirement],
+    result_mode: ResultMode,
+) -> None:
+    """Reject clause combinations that cannot describe one result shape."""
+
+    projections = [
+        item for item in requirements if isinstance(item, ProjectionRequirement)
+    ]
+    if result_mode == "aggregate" and projections:
+        raise ValueError(
+            "Aggregate contracts must express dimensions and metrics with "
+            "group/output clauses instead of projection"
+        )
+
+    outputs = {
+        item.slot_id: item
+        for item in requirements
+        if isinstance(item, OutputRequirement)
+    }
+    for output in outputs.values():
+        if output.operation not in {"ratio", "difference"}:
+            continue
+        operands = [outputs.get(slot_id) for slot_id in output.operands]
+        if any(item is None for item in operands):
+            raise ValueError(
+                f"Derived output {output.slot_id} operands must reference outputs"
+            )
+        if any(item.operation == "value" for item in operands if item is not None):
+            raise ValueError(
+                f"Derived aggregate output {output.slot_id} cannot use row-level "
+                "value operands"
+            )
+
+
 def _validate_requirement_set(
     requirements: Sequence[ContractRequirement],
     *,
@@ -395,9 +473,16 @@ def _validate_requirement_set(
                 requirement.direction,
             )
         elif isinstance(requirement, LimitRequirement):
+            # A query has exactly one row limit, so the clause alone identifies it.
             signature = (requirement.clause,)
         elif isinstance(requirement, ProjectionRequirement):
-            signature = (requirement.clause,)
+            # Displaying two different things is two decisions the user can
+            # confirm separately, so only the same fields are a duplicate.
+            signature = (
+                requirement.clause,
+                requirement.mode,
+                *sorted(field.normalized for field in requirement.fields),
+            )
         if signature is not None and signature in signatures:
             raise ValueError(
                 f"Query contract contains duplicate semantic requirement: {signature}"
@@ -430,70 +515,29 @@ def requirement_resources(requirement: ContractRequirement) -> frozenset[str]:
     )
 
 
-def _connected_resources(
-    resources: set[str], requirements: Sequence[ContractRequirement]
-) -> set[str]:
-    adjacency: dict[str, set[str]] = {resource: set() for resource in resources}
-    for requirement in requirements:
-        if not isinstance(requirement, RelationRequirement):
-            continue
-        for pair in requirement.pairs:
-            left = pair.left.resource_name.casefold()
-            right = pair.right.resource_name.casefold()
-            if not left or not right or left == right:
-                continue
-            adjacency.setdefault(left, set()).add(right)
-            adjacency.setdefault(right, set()).add(left)
-    if not resources:
-        return set()
-    pending = [next(iter(resources))]
-    visited: set[str] = set()
-    while pending:
-        current = pending.pop()
-        if current in visited:
-            continue
-        visited.add(current)
-        pending.extend(adjacency.get(current, set()) - visited)
-    return visited
-
-
-def validate_relation_closure(
+def _prune_dangling_requirements(
     requirements: Sequence[ContractRequirement],
-) -> None:
-    """Require an explicit relation for one grouped result spanning resources.
-
-    Independent scalar outputs may still be emitted as separate plans.  Once a
-    shared result grain exists, however, an output from another resource cannot
-    be interpreted without both a physical relation and a business population
-    policy.  This is the semantic boundary that prevents SQL generation from
-    silently inventing LEFT/INNER/UNION behaviour.
-    """
-    group_resources = {
-        resource
-        for requirement in requirements
-        if isinstance(requirement, GroupRequirement)
-        for resource in requirement_resources(requirement)
-    }
-    output_resources = {
-        resource
-        for requirement in requirements
-        if isinstance(requirement, OutputRequirement)
-        for resource in requirement_resources(requirement)
-    }
-    result_resources = group_resources | output_resources
-    if not group_resources or len(result_resources) <= 1:
-        return
-    connected = _connected_resources(result_resources, requirements)
-    missing = sorted(result_resources - connected)
-    if missing:
-        raise ValueError(
-            "Grouped multi-resource contract requires explicit relation coverage "
-            "and population policy for: " + ", ".join(sorted(result_resources))
-        )
+) -> list[ContractRequirement]:
+    """Drop clauses whose referenced slots no longer exist, until stable."""
+    current = list(requirements)
+    while True:
+        known = {item.slot_id for item in current}
+        kept: list[ContractRequirement] = []
+        for item in current:
+            if isinstance(item, OutputRequirement) and item.operands:
+                if not set(item.operands) <= known:
+                    continue
+            if isinstance(item, OrderRequirement) and item.output_slot_id:
+                if item.output_slot_id not in known:
+                    continue
+            kept.append(item)
+        if len(kept) == len(current):
+            return kept
+        current = kept
 
 
 class ContractDraft(BaseModel):
-    version: Literal[2] = 2
+    version: Literal[4] = 4
     requirements: list[ContractRequirement] = Field(default_factory=list)
     open_slots: list[ContractSlot] = Field(default_factory=list)
 
@@ -514,19 +558,66 @@ class ContractDraft(BaseModel):
     def freeze(self) -> QueryContract:
         if self.open_slots:
             raise ValueError("Cannot freeze a contract with unresolved slots")
-        return QueryContract(requirements=list(self.requirements))
+        return QueryContract.model_validate(
+            {
+                "requirements": [
+                    item.model_dump(mode="json") for item in self.requirements
+                ]
+            }
+        )
+
+    def without(self, slot_ids: Iterable[str]) -> QueryContract | None:
+        """Freeze this draft with the given clauses and their dependents gone.
+
+        Returns ``None`` when nothing executable remains.
+        """
+        excluded = set(slot_ids)
+        kept = _prune_dangling_requirements(
+            [item for item in self.requirements if item.slot_id not in excluded]
+        )
+        if not kept:
+            return None
+        try:
+            return QueryContract.model_validate(
+                {"requirements": [item.model_dump(mode="json") for item in kept]}
+            )
+        except ValueError:
+            return None
+
+    def minimal_executable(self) -> QueryContract | None:
+        """Return only what the user confirmed.
+
+        This is the escape hatch of the semantic gate: confirmed choices stay
+        executable even when the system's own inferences, its validators or the
+        assessor cannot complete, so an internal failure never becomes a dead
+        end for the user.
+        """
+        return self.without(
+            item.slot_id for item in self.requirements if not item.is_confirmed
+        )
 
 
 class QueryContract(BaseModel):
-    version: Literal[2] = 2
-    requirements: list[ContractRequirement]
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    version: Literal[4] = 4
+    requirements: tuple[ContractRequirement, ...]
+    result_mode: ResultMode | None = None
 
     @model_validator(mode="after")
     def validate_contract(self) -> Self:
         if not self.requirements:
             raise ValueError("Executable query contract cannot be empty")
         _validate_requirement_set(self.requirements, allow_missing_operands=False)
-        validate_relation_closure(self.requirements)
+        inferred = infer_result_mode(self.requirements)
+        if self.result_mode is None:
+            object.__setattr__(self, "result_mode", inferred)
+        elif self.result_mode != inferred:
+            raise ValueError(
+                f"Contract result_mode={self.result_mode} conflicts with "
+                f"its {inferred} requirements"
+            )
+        _validate_result_shape(self.requirements, inferred)
         return self
 
     def by_slot(self) -> dict[str, ContractRequirement]:

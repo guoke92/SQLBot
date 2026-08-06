@@ -77,6 +77,7 @@ def _public_table(table: CoreTable) -> dict[str, Any]:
         "ds_id": table.ds_id,
         "checked": table.checked,
         "table_name": table.table_name,
+        "database_name": getattr(table, "database_name", None),
         "table_comment": table.table_comment,
         "custom_comment": table.custom_comment,
         "approx_rows": table.approx_rows,
@@ -132,6 +133,7 @@ def _parse_table_models(tables: list[Any]) -> List[CoreTable]:
             CoreTable(
                 table_name=raw.get("table_name") or "",
                 table_comment=raw.get("table_comment") or "",
+                database_name=raw.get("database_name") or None,
             )
         )
     return out
@@ -151,18 +153,25 @@ class DsIdArgs(BaseModel):
 class TableSelection(BaseModel):
     table_name: str
     table_comment: str = ""
+    database_name: Optional[str] = Field(
+        default=None,
+        description="Logical database under the datasource/catalog (required for multi-DB StarRocks)",
+    )
 
 
 class CreateDsArgs(BaseModel):
     name: str = Field(description="Datasource name")
     type: str = Field(
-        description="Protocol type key, e.g. mysql/pg/excel/api (not display name)"
+        description="Protocol type key, e.g. mysql/pg/excel/api/starrocks (not display name)"
     )
     configuration: dict[str, Any] = Field(
         description=(
             "Plain JSON object using the datasource protocol's canonical fields. "
             "SQL connections use username (never user), password, host, port, "
-            "database and optional dbSchema/extraJdbc/timeout/ssl."
+            "database and optional dbSchema/extraJdbc/timeout/ssl. "
+            "For StarRocks/Doris external catalogs also set catalog (e.g. hive_emr) "
+            "and databases (list of DB names under that catalog). Never put "
+            "catalog.database into the single database field."
         )
     )
     description: str = Field(default="", description="Optional description")
@@ -209,6 +218,10 @@ class TableIdArgs(BaseModel):
 class CatalogFieldsArgs(BaseModel):
     ds_id: int = Field(description="Datasource id")
     table_name: str = Field(description="Remote catalog table name")
+    database_name: Optional[str] = Field(
+        default=None,
+        description="Logical database name when the datasource spans multiple databases",
+    )
 
 
 class UpdateTableArgs(BaseModel):
@@ -245,6 +258,10 @@ class SampleDataArgs(BaseModel):
             "Already-projected table name (must exist as CoreTable under the "
             "datasource). Protocol-level sample only — not free SQL."
         )
+    )
+    database_name: Optional[str] = Field(
+        default=None,
+        description="Logical database name when multiple databases are projected",
     )
 
 
@@ -325,12 +342,28 @@ def build_metadata_tools(user: Any) -> List[BaseTool]:
                 {
                     "table_name": getattr(t, "tableName", None),
                     "table_comment": getattr(t, "tableComment", None),
+                    "database_name": getattr(t, "databaseName", None) or "",
                 }
                 for t in tables
             ]
             return tool_success(
                 f"Found {len(data)} catalog tables",
                 data,
+            )
+
+    def list_databases(ds_id: int) -> ToolResult:
+        with session_scope() as session:
+            from apps.db.db import get_schema
+
+            ds = get_ds(session, ds_id)
+            _assert_ds_in_workspace(user, ds)
+            try:
+                databases = get_schema(ds)
+            except Exception as exc:
+                raise ValueError(f"Failed to list databases: {exc}") from exc
+            return tool_success(
+                f"Found {len(databases)} databases",
+                {"ds_id": ds_id, "databases": databases},
             )
 
     def list_selected_tables(ds_id: int) -> ToolResult:
@@ -374,11 +407,15 @@ def build_metadata_tools(user: Any) -> List[BaseTool]:
                 },
             )
 
-    def list_catalog_fields(ds_id: int, table_name: str) -> ToolResult:
+    def list_catalog_fields(
+        ds_id: int,
+        table_name: str,
+        database_name: Optional[str] = None,
+    ) -> ToolResult:
         with session_scope() as session:
             ds = get_ds(session, ds_id)
             _assert_ds_in_workspace(user, ds)
-            fields = getFields(session, ds_id, table_name)
+            fields = getFields(session, ds_id, table_name, database_name=database_name)
             data = [
                 {
                     "field_name": getattr(f, "fieldName", None),
@@ -445,7 +482,11 @@ def build_metadata_tools(user: Any) -> List[BaseTool]:
             )
             return tool_success("Field metadata updated", _public_field(updated))
 
-    def get_sample_data(ds_id: int, table_name: str) -> ToolResult:
+    def get_sample_data(
+        ds_id: int,
+        table_name: str,
+        database_name: Optional[str] = None,
+    ) -> ToolResult:
         """Protocol-level sample preview for an already-projected table.
 
         Uses ``get_table_sample_data`` → ``proto.preview`` (CAP_SAMPLE_DATA),
@@ -467,9 +508,15 @@ def build_metadata_tools(user: Any) -> List[BaseTool]:
                 (
                     t
                     for t in tables
-                    if (t.table_name or "") == table_name
-                    or (getattr(t, "table_name", None) or "").lower()
-                    == table_name.lower()
+                    if (
+                        (t.table_name or "") == table_name
+                        or (getattr(t, "table_name", None) or "").lower()
+                        == table_name.lower()
+                    )
+                    and (
+                        not database_name
+                        or (getattr(t, "database_name", None) or "") == database_name
+                    )
                 ),
                 None,
             )
@@ -488,7 +535,12 @@ def build_metadata_tools(user: Any) -> List[BaseTool]:
                 )
 
             field_names = [f.field_name for f in fields[:10] if getattr(f, "field_name", None)]
-            sample_text = get_table_sample_data(ds, match.table_name or table_name, fields)
+            sample_text = get_table_sample_data(
+                ds,
+                match.table_name or table_name,
+                fields,
+                database_name=getattr(match, "database_name", None) or database_name,
+            )
             if not sample_text:
                 return tool_success(
                     f"Preview returned no rows for '{table_name}'",
@@ -562,6 +614,15 @@ def build_metadata_tools(user: Any) -> List[BaseTool]:
             func=list_catalog_tables,
             name="list_catalog_tables",
             description="Read-only: list remote catalog tables for a datasource.",
+            args_schema=DsIdArgs,
+        ),
+        StructuredTool.from_function(
+            func=list_databases,
+            name="list_databases",
+            description=(
+                "Read-only: list databases for a datasource. For StarRocks/Doris with "
+                "an external catalog configured, lists databases under that catalog."
+            ),
             args_schema=DsIdArgs,
         ),
         StructuredTool.from_function(

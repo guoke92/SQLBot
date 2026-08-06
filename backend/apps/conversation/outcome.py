@@ -102,20 +102,34 @@ class RunOutcome(TypedDict):
     quality: NotRequired[ResultQuality]
 
 
-_RETRYABLE_KINDS: frozenset[FailureKind] = frozenset(
-    {"unknown_identifier", "syntax", "timeout", "validation"}
+# Naming what a rewrite cannot fix, rather than what it can, keeps an
+# unfamiliar dialect from dead-ending the turn: every engine words "your SQL is
+# wrong" differently, so a complaint we fail to recognise is still worth one
+# more attempt.  Only the kinds below are beyond talking our way out of.
+_TERMINAL_KINDS: frozenset[FailureKind] = frozenset(
+    {"connection", "permission", "internal", "limit_reached", "empty_response"}
 )
 
 
 def _plain_message(error: BaseException | str) -> str:
+    """Recover everything an envelope knows about why something failed.
+
+    ``format_error_message`` splits an error between a short line to show and a
+    detail to hide behind a drawer, and which half holds the cause differs per
+    envelope.  Diagnosis reads both: the failure kind is matched against this
+    text, and the repair prompt quotes it back to the model.
+    """
     raw = str(error)
     try:
         parsed = json.loads(raw)
-        if isinstance(parsed, dict):
-            return str(parsed.get("message") or parsed.get("traceback") or raw)
     except (TypeError, ValueError):
-        pass
-    return raw
+        return raw
+    if not isinstance(parsed, dict):
+        return raw
+    detail = "\n".join(
+        str(parsed[key]) for key in ("message", "traceback") if parsed.get(key)
+    )
+    return detail or raw
 
 
 def format_error_message(error: BaseException) -> str:
@@ -210,7 +224,7 @@ def classify_failure(
     failure: FailureInfo = {
         "kind": kind,
         "message": message,
-        "retryable": kind in _RETRYABLE_KINDS,
+        "retryable": kind not in _TERMINAL_KINDS,
     }
     if step_index is not None:
         failure["step_index"] = step_index

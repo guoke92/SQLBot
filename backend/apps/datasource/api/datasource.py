@@ -6,11 +6,11 @@ import traceback
 import uuid
 import re
 from io import StringIO
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 from urllib.parse import quote
 
 import pandas as pd
-from fastapi import APIRouter, File, UploadFile, HTTPException, Path
+from fastapi import APIRouter, File, UploadFile, HTTPException, Path, Query
 from fastapi.responses import StreamingResponse
 from psycopg2 import sql
 from sqlalchemy import and_
@@ -164,8 +164,9 @@ async def get_schema_by_conf(session: SessionDep, trans: Trans, ds: CoreDatasour
 @require_permissions(permission=SqlbotPermission(role=['ws_admin'], type='ds', keyExpression="id"))
 async def get_fields(session: SessionDep,
                      id: int = Path(..., description=f"{PLACEHOLDER_PREFIX}ds_id"),
-                     table_name: str = Path(..., description=f"{PLACEHOLDER_PREFIX}ds_table_name")):
-    return getFields(session, id, table_name)
+                     table_name: str = Path(..., description=f"{PLACEHOLDER_PREFIX}ds_table_name"),
+                     database_name: Optional[str] = Query(None, description="Logical database within catalog")):
+    return getFields(session, id, table_name, database_name=database_name)
 
 
 @router.post("/syncFields/{id}", response_model=None, summary=f"{PLACEHOLDER_PREFIX}ds_sync_fields")
@@ -384,7 +385,11 @@ async def field_list(session: SessionDep, field: FieldObj,
         if ds is not None:
             proto = get_protocol_for_ds(ds)
             if proto.supports(CAP_CONF_OWNED_RESOURCES):
-                raw_fields = proto.get_fields(ds, table.table_name)
+                raw_fields = proto.get_fields(
+                    ds,
+                    table.table_name,
+                    database_name=getattr(table, "database_name", None),
+                )
                 if field and field.fieldName:
                     kw = field.fieldName.lower()
                     raw_fields = [f for f in raw_fields if kw in f.fieldName.lower()]

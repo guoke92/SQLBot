@@ -269,7 +269,9 @@ class RestProtocol(BaseProtocol):
         conf = _parse_conf(ds)
         return [_endpoint_table_schema(ep) for ep in conf.endpoints]
 
-    def get_fields(self, ds: Any, table_name: str) -> List[Any]:
+    def get_fields(
+        self, ds: Any, table_name: str, database_name: str | None = None
+    ) -> List[Any]:
         conf = _parse_conf(ds)
         ep = next((e for e in conf.endpoints if e.name == table_name), None)
         if ep is None:
@@ -665,6 +667,7 @@ class RestProtocol(BaseProtocol):
         *,
         where: str = "",
         limit: int = 100,
+        database_name: str | None = None,
     ) -> QueryResult:
         conf = _parse_conf(ds)
         ep = next((e for e in conf.endpoints if e.name == table_name), None)

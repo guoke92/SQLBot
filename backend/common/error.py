@@ -13,7 +13,3 @@ class SQLBotDBConnectionError(Exception):
 
 class SQLBotDBError(Exception):
     pass
-
-
-class ParseSQLResultError(Exception):
-    pass
