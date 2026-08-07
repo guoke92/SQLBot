@@ -66,6 +66,21 @@ async def lifespan(app: FastAPI):
     await async_model_info()  # 异步加密已有模型的密钥和地址
     await sqlbot_xpack.core.monitor_app(app)
     try:
+        # Drain any PENDING / expired-lease metadata scans left from prior runs.
+        from apps.datasource.profiling.service import schedule_worker_kick
+
+        schedule_worker_kick()
+    except Exception as _prof_exc:  # pragma: no cover
+        SQLBotLogUtil.warning(f"profiling worker kick on startup skipped: {_prof_exc}")
+    try:
+        from apps.conversation.session import session_scope
+        from apps.knowledge.capture.runner import run_capture_worker_drain
+
+        with session_scope() as session:
+            run_capture_worker_drain(session, max_jobs=20)
+    except Exception as _cap_exc:  # pragma: no cover
+        SQLBotLogUtil.warning(f"knowledge capture drain on startup skipped: {_cap_exc}")
+    try:
         yield
     finally:
         from apps.conversation.runtime import shutdown_runtime

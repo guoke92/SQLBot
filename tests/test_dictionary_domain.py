@@ -187,6 +187,17 @@ def test_ambiguous_dictionary_match_is_not_forced_to_eq() -> None:
     assert bindings["ambiguous"]["研发部"]["match"] == "candidate"
 
 
+def test_dictionary_recall_requires_ready_status() -> None:
+    """Drifted (STALE) dictionaries must not enter entity_binding."""
+    import inspect
+
+    from apps.knowledge import dictionary_recall
+
+    src = inspect.getsource(dictionary_recall.recall_dictionary)
+    assert "DictionaryStatus.READY" in src
+    assert "published_generation > 0" in src
+
+
 def test_dictionary_recall_preserves_competing_values_for_ambiguity() -> None:
     config = DictionaryFieldConfig(
         id=1,

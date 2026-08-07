@@ -1,0 +1,44 @@
+version: 1
+graph_key: metadata
+state: apps.datasource.profiling.graphs.nodes.MetadataState
+description: >
+  Metadata cognition mining graph (agent-only). Facts bootstrap is owned by the
+  profiling worker; this graph discovers CANDIDATE relations via ReAct tools.
+
+nodes:
+  prepare: apps.datasource.profiling.graphs.nodes.prepare_node
+  # Lease-aware wrappers — same shared agent/tool bodies, metadata scan heartbeat only.
+  agent: apps.datasource.profiling.graphs.nodes.agent_node
+  execute_tools: apps.datasource.profiling.graphs.nodes.execute_tools_node
+  finalize: apps.datasource.profiling.graphs.nodes.finalize_node
+  fail: apps.conversation.turn.fail_node
+
+edges:
+  - from: START
+    to: prepare
+
+  - from: prepare
+    router: apps.datasource.profiling.graphs.nodes.route_after_prepare
+    paths:
+      agent: agent
+      finalize: finalize
+
+  - from: agent
+    router: apps.conversation.agent.route_after_agent
+    paths:
+      agent: agent
+      execute_tools: execute_tools
+      finish: finalize
+      fail: fail
+
+  - from: execute_tools
+    router: apps.conversation.agent.route_after_tools
+    paths:
+      agent: agent
+      fail: fail
+
+  - from: finalize
+    to: END
+
+  - from: fail
+    to: END

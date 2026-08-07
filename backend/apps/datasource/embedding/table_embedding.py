@@ -5,6 +5,7 @@ import time
 from typing import Any
 
 from apps.ai_model.embedding import EmbeddingModelCache, has_compatible_dimension
+from apps.datasource.embedding.recall import select_by_similarity
 from apps.datasource.embedding.utils import cosine_similarity
 from common.core.config import settings
 from common.utils.utils import SQLBotLogUtil
@@ -37,7 +38,11 @@ def calc_table_embedding(
             raw_embedding = candidate.get("embedding")
             if not raw_embedding:
                 continue
-            stored_embedding = json.loads(raw_embedding)
+            try:
+                stored_embedding = json.loads(raw_embedding)
+            except (TypeError, ValueError):
+                incompatible += 1
+                continue
             if not has_compatible_dimension(query_embedding, stored_embedding):
                 incompatible += 1
                 continue
@@ -52,11 +57,15 @@ def calc_table_embedding(
                 len(query_embedding),
             )
 
-        candidates.sort(
-            key=lambda item: float(item["cosine_similarity"]),
-            reverse=True,
+        selected = select_by_similarity(
+            candidates,
+            score_of=lambda item: float(item["cosine_similarity"]),
+            threshold=float(settings.EMBEDDING_TABLE_SIMILARITY),
+            top_count=int(settings.TABLE_EMBEDDING_COUNT),
+            has_vector=lambda item: _usable_stored_vector(
+                item.get("embedding"), query_embedding
+            ),
         )
-        selected = candidates[: settings.TABLE_EMBEDDING_COUNT]
         SQLBotLogUtil.info(
             "Table embedding recall selected %s/%s table(s) in %.3fs",
             len(selected),
@@ -66,4 +75,15 @@ def calc_table_embedding(
         return selected
     except Exception:
         SQLBotLogUtil.exception("Table embedding recall failed")
-        return candidates
+        # Never dump the whole catalog into the prompt on failure.
+        return candidates[: max(1, int(settings.TABLE_EMBEDDING_COUNT))]
+
+
+def _usable_stored_vector(raw_embedding: Any, query_embedding: list[float]) -> bool:
+    if not raw_embedding:
+        return False
+    try:
+        stored = json.loads(raw_embedding)
+    except (TypeError, ValueError):
+        return False
+    return has_compatible_dimension(query_embedding, stored)

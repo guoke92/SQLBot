@@ -10,8 +10,10 @@ bootstrap_graphs()
 from apps.chat.api import chat
 from apps.dashboard.api import dashboard_api
 from apps.data_training.api import data_training
-from apps.datasource.api import datasource, table_relation, recommended_problem
+from apps.datasource.api import datasource, table_relation, recommended_problem, profiling
+
 from apps.dictionary import api as dictionary_api
+from apps.knowledge.api import router as knowledge_router
 from apps.mcp import mcp
 from apps.system.api import login, user, aimodel, workspace, assistant, parameter, apikey, variable_api
 from apps.terminology.api import terminology
@@ -29,7 +31,9 @@ api_router.include_router(base.router)
 api_router.include_router(terminology.router)
 api_router.include_router(data_training.router)
 api_router.include_router(datasource.router)
+api_router.include_router(profiling.router)
 api_router.include_router(dictionary_api.router)
+api_router.include_router(knowledge_router)
 api_router.include_router(chat.router)
 api_router.include_router(dashboard_api.router)
 api_router.include_router(mcp.router)

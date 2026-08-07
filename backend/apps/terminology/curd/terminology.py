@@ -568,11 +568,11 @@ def batch_create_terminology(session: SessionDep, info_list: List[TerminologyInf
 
 
 def update_terminology(session: SessionDep, info: TerminologyInfo, oid: int, trans: Trans):
-    count = session.query(Terminology).filter(
+    parent = session.query(Terminology).filter(
         Terminology.oid == oid,
         Terminology.id == info.id
-    ).count()
-    if count == 0:
+    ).first()
+    if parent is None:
         raise Exception(trans('i18n_terminology.terminology_not_exists'))
 
     specific_ds = info.specific_ds if info.specific_ds is not None else False
@@ -588,6 +588,17 @@ def update_terminology(session: SessionDep, info: TerminologyInfo, oid: int, tra
             raise Exception(trans("i18n_terminology.cannot_be_repeated"))
         else:
             words.append(child.strip())
+
+    # Word identity drives embeddings; description/scope do not.
+    existing_children = (
+        session.query(Terminology).filter(Terminology.pid == info.id).all()
+    )
+    prior_synonyms = {
+        (c.word or "").strip() for c in existing_children if (c.word or "").strip()
+    }
+    new_synonyms = {w.strip() for w in (info.other_words or []) if w and w.strip()}
+    parent_word_changed = (parent.word or "").strip() != info.word.strip()
+    synonyms_changed = prior_synonyms != new_synonyms
 
     # 基础查询条件（word 和 oid 必须满足）
     base_query = and_(
@@ -670,39 +681,51 @@ def update_terminology(session: SessionDep, info: TerminologyInfo, oid: int, tra
         advanced_application=info.advanced_application,
     )
     session.execute(stmt)
-    session.commit()
 
-    stmt = delete(Terminology).where(and_(Terminology.pid == info.id))
-    session.execute(stmt)
-    session.commit()
+    # Preserve synonym-row embeddings by syncing on word identity, not delete-all.
+    children_by_word = {
+        (c.word or "").strip(): c
+        for c in existing_children
+        if (c.word or "").strip()
+    }
+    for word, child in list(children_by_word.items()):
+        if word not in new_synonyms:
+            session.delete(child)
+            del children_by_word[word]
+        else:
+            child.enabled = info.enabled
+            child.specific_ds = specific_ds
+            child.datasource_ids = datasource_ids
+            child.advanced_application = info.advanced_application
+            session.add(child)
 
     create_time = datetime.datetime.now()
-    # 插入子记录（其他词）
-    child_list = []
-    if info.other_words:
-        for other_word in info.other_words:
-            if other_word.strip() == "":
-                continue
-            child_list.append(
-                Terminology(
-                    pid=info.id,
-                    word=other_word.strip(),
-                    create_time=create_time,
-                    oid=oid,
-                    enabled=info.enabled,
-                    specific_ds=specific_ds,
-                    datasource_ids=datasource_ids,
-                    advanced_application=info.advanced_application,
-                )
+    for other_word in sorted(new_synonyms):
+        if other_word in children_by_word:
+            continue
+        session.add(
+            Terminology(
+                pid=info.id,
+                word=other_word,
+                create_time=create_time,
+                oid=oid,
+                enabled=info.enabled,
+                specific_ds=specific_ds,
+                datasource_ids=datasource_ids,
+                advanced_application=info.advanced_application,
             )
+        )
 
-    if child_list:
-        session.bulk_save_objects(child_list)
-        session.flush()
     session.commit()
 
-    # embedding
-    run_save_terminology_embeddings([info.id])
+    # Re-embed only when indexed tokens change or any vector is missing.
+    session.expire_all()
+    family = session.query(Terminology).filter(
+        or_(Terminology.id == info.id, Terminology.pid == info.id)
+    ).all()
+    missing_embedding = any(row.embedding is None for row in family)
+    if parent_word_changed or synonyms_changed or missing_embedding:
+        run_save_terminology_embeddings([info.id])
 
     return info.id
 

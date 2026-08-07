@@ -149,9 +149,40 @@ CAP_SAMPLE_DATA = "sample_data"
 CAP_OPENAPI_IMPORT = "openapi_import"
 CAP_TABLE_RELATION = "table_relation"
 CAP_DICTIONARY_VALUES = "dictionary_values"
+CAP_FIELD_PROFILE = "field_profile"
 # Resources (tables/endpoints) are owned by datasource conf and always re-projected
 # from conf on create/update — free-form chooseTables is not allowed to desync them.
 CAP_CONF_OWNED_RESOURCES = "conf_owned_resources"
+
+
+class FieldProfileResult(BaseModel):
+    """Bounded per-field statistical profile from a protocol-owned probe."""
+
+    supported: bool = True
+    field_name: str = ""
+    row_count: int | None = None
+    non_null_count: int | None = None
+    null_rate: float | None = None
+    approx_distinct: int | None = None
+    distinct_ratio: float | None = None
+    min_value: str | None = None
+    max_value: str | None = None
+    top_values: list[dict[str, Any]] = Field(default_factory=list)
+    sample_method: str = "aggregate"
+    sample_size: int | None = None
+    window_code: str = "ALL"
+    error: str | None = None
+    statement: str = ""
+
+
+class TableConstraintsResult(BaseModel):
+    """Structured PK/FK/UNIQUE constraints when the dialect can expose them."""
+
+    supported: bool = True
+    primary_keys: list[str] = Field(default_factory=list)
+    unique_columns: list[list[str]] = Field(default_factory=list)
+    foreign_keys: list[dict[str, Any]] = Field(default_factory=list)
+    error: str | None = None
 
 
 class BaseProtocol(ABC):
@@ -183,6 +214,36 @@ class BaseProtocol(ABC):
     ) -> DictionaryExtractResult:
         """Extract a bounded distinct snapshot for an enabled dictionary field."""
         raise NotImplementedError("Dictionary extraction is not supported")
+
+    def profile_field(
+        self,
+        ds: Any,
+        *,
+        resource: str,
+        field: str,
+        field_type: str | None = None,
+        database_name: str | None = None,
+        sample_limit: int = 5000,
+        top_k: int = 20,
+    ) -> FieldProfileResult:
+        """Collect bounded field statistics. Override when CAP_FIELD_PROFILE is set."""
+        return FieldProfileResult(
+            supported=False,
+            field_name=field,
+            error="Field profiling is not supported",
+        )
+
+    def extract_table_constraints(
+        self,
+        ds: Any,
+        *,
+        resource: str,
+        database_name: str | None = None,
+    ) -> TableConstraintsResult:
+        """Return PK/FK/UNIQUE when the dialect exposes them."""
+        return TableConstraintsResult(
+            supported=False, error="Constraint extraction is not supported"
+        )
 
     @abstractmethod
     def check_connection(

@@ -6,6 +6,7 @@ import traceback
 from typing import Optional
 
 from apps.ai_model.embedding import EmbeddingModelCache, has_compatible_dimension
+from apps.datasource.embedding.recall import select_by_similarity
 from apps.datasource.embedding.utils import cosine_similarity
 from apps.datasource.models.datasource import CoreDatasource
 from apps.system.crud.assistant import AssistantOutDs
@@ -41,9 +42,14 @@ def get_ds_embedding(session: SessionDep, _ds_list, out_ds: AssistantOutDs,
                     item = results[index]
                     _list[index]['cosine_similarity'] = cosine_similarity(q_embedding, item)
 
-                _list.sort(key=lambda x: x['cosine_similarity'], reverse=True)
-                # print(len(_list))
-                _list = _list[:settings.DS_EMBEDDING_COUNT]
+                _list = select_by_similarity(
+                    _list,
+                    score_of=lambda item: float(item["cosine_similarity"]),
+                    threshold=float(settings.EMBEDDING_DS_SIMILARITY),
+                    top_count=int(settings.DS_EMBEDDING_COUNT),
+                    has_vector=lambda item: float(item["cosine_similarity"]) > 0.0
+                    or bool(item.get("ds_schema")),
+                )
                 SQLBotLogUtil.info(json.dumps(
                     [{"id": ele.get("id"), "name": ele.get("ds").name,
                       "cosine_similarity": ele.get("cosine_similarity")}
@@ -91,11 +97,15 @@ def get_ds_embedding(session: SessionDep, _ds_list, out_ds: AssistantOutDs,
                         len(q_embedding),
                     )
 
-                _list.sort(key=lambda x: x['cosine_similarity'], reverse=True)
-                # print(len(_list))
                 end_time = time.time()
                 SQLBotLogUtil.info(str(end_time - start_time))
-                _list = _list[:settings.DS_EMBEDDING_COUNT]
+                _list = select_by_similarity(
+                    _list,
+                    score_of=lambda item: float(item["cosine_similarity"]),
+                    threshold=float(settings.EMBEDDING_DS_SIMILARITY),
+                    top_count=int(settings.DS_EMBEDDING_COUNT),
+                    has_vector=lambda item: bool(item.get("embedding")),
+                )
                 SQLBotLogUtil.info(json.dumps(
                     [{"id": ele.get("id"), "name": ele.get("ds").name,
                       "cosine_similarity": ele.get("cosine_similarity")}

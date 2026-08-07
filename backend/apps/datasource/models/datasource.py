@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Any, List, Optional
 
 from pydantic import BaseModel, Field as PydanticField
-from sqlalchemy import Column, Text, BigInteger, DateTime, Identity
+from sqlalchemy import Column, Text, BigInteger, DateTime, Identity, String
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import SQLModel, Field
 
@@ -16,6 +16,44 @@ def table_identity_key(table: Any) -> tuple[str, str]:
     )
     name = getattr(table, "table_name", None) or getattr(table, "tableName", None) or ""
     return (str(db_name).strip(), str(name).strip())
+
+
+def resolve_catalog_table(
+    tables: list[Any] | tuple[Any, ...] | Any,
+    table_name: str,
+    *,
+    database_name: str | None = None,
+) -> Any | None:
+    """Resolve a catalog table by ``(database_name, table_name)``.
+
+    Bare ``table_name`` matches only when exactly one checked candidate exists.
+    Ambiguous multi-database names return ``None`` (never pick arbitrarily).
+    """
+    wanted = (table_name or "").strip()
+    if not wanted:
+        return None
+    db = (database_name or "").strip()
+    candidates = [
+        t
+        for t in tables
+        if (getattr(t, "table_name", None) or "").strip() == wanted
+    ]
+    if not candidates:
+        # Case-insensitive fallback for SQL/log parsers.
+        lowered = wanted.lower()
+        candidates = [
+            t
+            for t in tables
+            if (getattr(t, "table_name", None) or "").strip().lower() == lowered
+        ]
+    if db:
+        for t in candidates:
+            if table_identity_key(t)[0] == db:
+                return t
+        return None
+    if len(candidates) == 1:
+        return candidates[0]
+    return None
 
 
 class CoreDatasource(SQLModel, table=True):
@@ -33,7 +71,16 @@ class CoreDatasource(SQLModel, table=True):
     oid: int = Field(sa_column=Column(BigInteger()))
     table_relation: List = Field(sa_column=Column(JSONB, nullable=True))
     embedding: str = Field(sa_column=Column(Text, nullable=True))
+    embedding_fingerprint: Optional[str] = Field(
+        default=None,
+        sa_column=Column(String(64), nullable=True),
+        description="Hash of RANK schema text used for the stored DS embedding",
+    )
     recommended_config: int = Field(sa_column=Column(BigInteger()))
+    # Metadata cognition: default mining preset / capability set for this DS.
+    mining_policy: Optional[dict] = Field(
+        default=None, sa_column=Column(JSONB, nullable=True)
+    )
 
 
 class CoreTable(SQLModel, table=True):
@@ -54,6 +101,29 @@ class CoreTable(SQLModel, table=True):
     index_summary: Optional[str] = Field(sa_column=Column(Text, nullable=True), default=None)
     stats_updated_at: Optional[datetime] = Field(
         sa_column=Column(DateTime(timezone=False), nullable=True), default=None
+    )
+    # Metadata cognition: published field-profile generation + status.
+    active_profile_generation: int = Field(
+        default=0, sa_column=Column(BigInteger(), nullable=False, server_default="0")
+    )
+    profile_status: str = Field(
+        default="EMPTY", sa_column=Column(String(24), nullable=False, server_default="EMPTY")
+    )
+    schema_fingerprint: Optional[str] = Field(
+        default=None, sa_column=Column(String(64), nullable=True)
+    )
+    embedding_fingerprint: Optional[str] = Field(
+        default=None, sa_column=Column(String(64), nullable=True)
+    )
+    profile_error: Optional[str] = Field(
+        default=None, sa_column=Column(Text, nullable=True)
+    )
+    profile_updated_at: Optional[datetime] = Field(
+        sa_column=Column(DateTime(timezone=False), nullable=True), default=None
+    )
+    # Metadata cognition: per-table override (preset/custom/inherit).
+    mining_policy: Optional[dict] = Field(
+        default=None, sa_column=Column(JSONB, nullable=True)
     )
 
 

@@ -1,7 +1,8 @@
 """Local dictionary-value recall.
 
 No datasource access is allowed here. Chat-time grounding consumes only the
-last successfully published local snapshot.
+last successfully published local snapshot in ``READY`` status (STALE /
+DISABLED generations are never bound).
 """
 
 from __future__ import annotations
@@ -13,7 +14,11 @@ from sqlmodel import Session, select
 
 from apps.datasource.models.datasource import CoreField, CoreTable
 from apps.dictionary.matching import best_matching_span, normalize_dictionary_value
-from apps.dictionary.models import DictionaryFieldConfig, DictionaryValue
+from apps.dictionary.models import (
+    DictionaryFieldConfig,
+    DictionaryStatus,
+    DictionaryValue,
+)
 from apps.knowledge.models import FieldTarget, KnowledgeMatch
 
 
@@ -65,6 +70,7 @@ def recall_dictionary(
                 DictionaryFieldConfig.oid == oid,
                 DictionaryFieldConfig.ds_id == ds_id,
                 DictionaryFieldConfig.enabled == True,  # noqa: E712
+                DictionaryFieldConfig.status == DictionaryStatus.READY,
                 DictionaryFieldConfig.published_generation > 0,
                 DictionaryValue.generation
                 == DictionaryFieldConfig.published_generation,

@@ -4,6 +4,7 @@ from typing import List, Optional
 from pgvector.sqlalchemy import VECTOR
 from pydantic import BaseModel
 from sqlalchemy import Column, Text, BigInteger, DateTime, Identity, Boolean
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import SQLModel, Field
 
 
@@ -19,6 +20,10 @@ class DataTraining(SQLModel, table=True):
     enabled: Optional[bool] = Field(sa_column=Column(Boolean, default=True))
     advanced_application: Optional[int] = Field(sa_column=Column(BigInteger, nullable=True))
     training_type: Optional[str] = Field(max_length=16, default="sql")
+    knowledge_meta: Optional[dict] = Field(
+        default=None,
+        sa_column=Column(JSONB, nullable=True),
+    )
 
 
 class DataTrainingInfo(BaseModel):

@@ -19,9 +19,13 @@ def is_string_field_type(field_type: str) -> bool:
 
 def schema_fingerprint(table: CoreTable | Any, field: CoreField | Any) -> str:
     """Identify the physical extraction target, excluding descriptive metadata."""
+    from apps.datasource.models.datasource import table_identity_key
+
+    db_name, table_name = table_identity_key(table)
     raw = "\x1f".join(
         [
-            table.table_name or "",
+            db_name,
+            table_name,
             field.field_name or "",
             field.field_type or "",
         ]

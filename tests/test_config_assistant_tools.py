@@ -547,7 +547,10 @@ def test_relation_replace_preserves_table_layout_and_complete_ports() -> None:
         ),
     }
 
-    class FakeQuery:
+    class FakeListQuery:
+        def __init__(self, rows):
+            self._rows = rows
+
         def filter(self, *_args):
             return self
 
@@ -555,7 +558,14 @@ def test_relation_replace_preserves_table_layout_and_complete_ports() -> None:
             return self
 
         def all(self):
-            return list(fields.values())
+            return list(self._rows)
+
+    class FakeExecResult:
+        def all(self):
+            return []
+
+        def first(self):
+            return None
 
     class FakeSession:
         def get(self, model, item_id):
@@ -567,8 +577,15 @@ def test_relation_replace_preserves_table_layout_and_complete_ports() -> None:
                 return fields.get(item_id)
             return None
 
-        def query(self, _model):
-            return FakeQuery()
+        def query(self, model):
+            if model is CoreTable:
+                return FakeListQuery(list(tables.values()))
+            if model is CoreField:
+                return FakeListQuery(list(fields.values()))
+            return FakeListQuery([])
+
+        def exec(self, _stmt):
+            return FakeExecResult()
 
         def add(self, _item) -> None:
             pass

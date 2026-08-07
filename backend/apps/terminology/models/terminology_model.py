@@ -21,6 +21,10 @@ class Terminology(SQLModel, table=True):
     datasource_ids: Optional[list[int]] = Field(sa_column=Column(JSONB), default=[])
     enabled: Optional[bool] = Field(sa_column=Column(Boolean, default=True))
     advanced_application: Optional[int] = Field(sa_column=Column(BigInteger, nullable=True))
+    knowledge_meta: Optional[dict] = Field(
+        default=None,
+        sa_column=Column(JSONB, nullable=True),
+    )
 
 
 class TerminologyInfo(BaseModel):

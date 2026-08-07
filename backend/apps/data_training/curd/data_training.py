@@ -227,10 +227,10 @@ def update_training(session: SessionDep, info: DataTrainingInfo, oid: int, trans
     if info.datasource is None and info.advanced_application is None:
         raise Exception(trans("i18n_data_training.datasource_assistant_cannot_be_none"))
 
-    count = session.query(DataTraining).filter(
+    existing = session.query(DataTraining).filter(
         DataTraining.id == info.id
-    ).count()
-    if count == 0:
+    ).first()
+    if existing is None:
         raise Exception(trans('i18n_data_training.data_training_not_exists'))
 
     stmt = select(DataTraining.id).where(
@@ -250,8 +250,14 @@ def update_training(session: SessionDep, info: DataTrainingInfo, oid: int, trans
     if exists:
         raise Exception(trans("i18n_data_training.exists_in_db"))
 
+    # Embedding indexes ``question`` only — description/SQL changes need no re-embed.
+    new_question = info.question.strip()
+    need_embedding = (
+        (existing.question or "").strip() != new_question or existing.embedding is None
+    )
+
     stmt = update(DataTraining).where(and_(DataTraining.id == info.id)).values(
-        question=info.question.strip(),
+        question=new_question,
         description=info.description.strip(),
         datasource=info.datasource,
         advanced_application=info.advanced_application,
@@ -261,8 +267,8 @@ def update_training(session: SessionDep, info: DataTrainingInfo, oid: int, trans
     session.execute(stmt)
     session.commit()
 
-    # embedding
-    run_save_data_training_embeddings([info.id])
+    if need_embedding:
+        run_save_data_training_embeddings([info.id])
 
     return info.id
 

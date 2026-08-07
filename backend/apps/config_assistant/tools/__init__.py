@@ -32,6 +32,9 @@ CONFIG_TOOL_NAMES = frozenset(
         "configure_dictionary_field",
         "update_dictionary_config",
         "refresh_dictionary_values",
+        "get_profile_brief",
+        "refresh_metadata_profile",
+        "decide_field_relation",
     }
 )
 
@@ -40,6 +43,7 @@ def build_tools(user: Any) -> list[BaseTool]:
     """Return the explicit, auditable system-configuration tool catalog."""
     from apps.config_assistant.tools.dictionary import build_dictionary_tools
     from apps.config_assistant.tools.metadata import build_metadata_tools
+    from apps.config_assistant.tools.profiling import build_profiling_tools
     from apps.config_assistant.tools.relationship import build_relationship_tools
     from apps.config_assistant.tools.terminology import build_terminology_tools
 
@@ -48,6 +52,7 @@ def build_tools(user: Any) -> list[BaseTool]:
         *build_relationship_tools(user),
         *build_terminology_tools(user),
         *build_dictionary_tools(user),
+        *build_profiling_tools(user),
     ]
     actual = {tool.name for tool in tools}
     if actual != CONFIG_TOOL_NAMES or len(tools) != len(CONFIG_TOOL_NAMES):

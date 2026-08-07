@@ -92,7 +92,7 @@ from apps.chat.steps.clarification import (
 )
 from apps.chat.steps.custom_prompt import match_custom_prompts
 from apps.chat.steps.datasource import select_datasource, validate_history_ds
-from apps.chat.steps.knowledge import match_knowledge
+from apps.chat.steps.knowledge import get_compiled_knowledge, match_knowledge
 from apps.chat.steps.messages import (
     assemble_prompt_messages,
     retrieve_prompt_schema,
@@ -106,6 +106,7 @@ from apps.chat.steps.permissions import (
 from apps.chat.steps.persist import parse_chart
 from apps.chat.steps.sql import generate_sql
 from apps.chat.steps.training import match_training
+from apps.knowledge.bind import apply_bound_calibers_to_intent, render_bind_lock_line
 from apps.chat.task.llm import LLMService, request_picture
 from apps.chat.time_intent import TemporalParse, infer_time_intent
 from apps.conversation.messages import message_content_text
@@ -193,6 +194,7 @@ class NlqState(RunState, total=False):
     gen_attempts: int  # plan-time generate→validate failures in current slot
     entity_bindings: dict[str, Any]  # NL phrase → canonical dimension values
     knowledge_matches: list[dict[str, Any]]
+    compiled_knowledge: dict[str, Any]  # CompiledKnowledge dump; Bind/apply_log
     access_scope: AccessScope | None
     temporal_parse: TemporalParse  # deterministic evidence; never executable truth
     intent_context: dict[str, Any]
@@ -209,6 +211,58 @@ def _ds_scope(llm_service: LLMService) -> tuple[int | None, int | None]:
     oid = llm_service.ds.oid if isinstance(llm_service.ds, CoreDatasource) else 1
     ds_id = llm_service.ds.id if isinstance(llm_service.ds, CoreDatasource) else None
     return oid, ds_id
+
+
+def _enqueue_knowledge_capture(
+    state: NlqState,
+    llm_service: LLMService,
+    outcome: RunOutcome,
+    steps: list[dict[str, Any]],
+) -> None:
+    """Persist a capture job and best-effort drain one item (failure-isolated)."""
+    from apps.chat.steps.scope import match_scope
+    from apps.knowledge.capture import (
+        build_turn_snapshot,
+        enqueue_capture_job,
+        run_capture_worker_once,
+    )
+
+    # Same scope as Compile — do not force oid=1 / drop assistant via _ds_scope alone.
+    calculate_oid, calculate_ds_id, assistant_id = match_scope(
+        llm_service, *_ds_scope(llm_service)
+    )
+    compiled = state.get("compiled_knowledge") or {}
+    apply_log = []
+    if isinstance(compiled, dict):
+        apply_log = list(compiled.get("apply_log") or [])
+    sql_list = [
+        str(step.get("sql") or "")
+        for step in steps
+        if step.get("sql") and not step.get("error")
+    ]
+    snapshot = build_turn_snapshot(
+        record_id=int(llm_service.record.id),
+        oid=int(calculate_oid or 1),
+        ds_id=calculate_ds_id if assistant_id is None else None,
+        question=_generation_question(llm_service),
+        intent_context=state.get("intent_context")
+        or getattr(llm_service.chat_question, "intent_context", None),
+        outcome=str(outcome.get("status") or "success"),
+        knowledge_apply=apply_log,
+        sql_list=sql_list,
+        chat_id=getattr(llm_service.record, "chat_id", None),
+        entity_bindings=state.get("entity_bindings") or {},
+        assistant_id=assistant_id,
+    )
+    with session_scope() as session:
+        enqueue_capture_job(session, snapshot=snapshot)
+        session.commit()
+    # Best-effort immediate drain; restart path can drain remaining jobs.
+    try:
+        with session_scope() as session:
+            run_capture_worker_once(session)
+    except Exception as exc:  # noqa: BLE001
+        SQLBotLogUtil.warning(f"knowledge capture drain failed: {exc}")
 
 
 def _generation_question(llm_service: Any) -> str:
@@ -1127,6 +1181,7 @@ def prepare_record_node(state: NlqState) -> NlqState:
             "gen_attempts": 0,
             "entity_bindings": {},
             "knowledge_matches": [],
+            "compiled_knowledge": {},
             "access_scope": None,
             "temporal_parse": {},
             "intent_context": (
@@ -1190,16 +1245,31 @@ def recall_knowledge_node(state: NlqState) -> NlqState:
     oid, ds_id = _ds_scope(llm_service)
     with session_scope() as session:
         try:
+            has_joins = False
+            if ds_id is not None:
+                try:
+                    from apps.datasource.profiling.service import get_published_relations
+
+                    rels = get_published_relations(session, ds_id=int(ds_id))
+                    has_joins = bool(rels)
+                except Exception:
+                    has_joins = False
             matches = match_knowledge(
                 llm_service,
                 session,
                 oid,
                 ds_id,
                 access_scope=state.get("access_scope"),
+                stage="assess",
+                has_confirmed_joins=has_joins,
             )
+            compiled = get_compiled_knowledge(llm_service)
             return {
                 **state,
                 "knowledge_matches": [match.model_dump() for match in matches],
+                "compiled_knowledge": (
+                    compiled.model_dump(mode="json") if compiled else {}
+                ),
                 "record": llm_service.record,
             }
         except Exception as e:
@@ -1240,14 +1310,16 @@ def resolve_access_scope_node(state: NlqState) -> NlqState:
 
 
 def match_training_node(state: NlqState) -> NlqState:
+    """Defer Example injection until after assess (assemble_context).
+
+    Assess must not receive large SQL examples; Compile Exemplify runs only
+    once the semantic gate is ready.
+    """
     llm_service = state["llm_service"]
-    oid, ds_id = _ds_scope(llm_service)
-    with session_scope() as session:
-        try:
-            match_training(llm_service, session, oid, ds_id)
-            return {**state, "record": llm_service.record}
-        except Exception as e:
-            return _fail(state, llm_service.record.id, e)
+    # Clear any stale training so assess/clarification cannot see examples.
+    if getattr(llm_service, "chat_question", None) is not None:
+        llm_service.chat_question.data_training = ""
+    return {**state, "record": llm_service.record}
 
 
 def match_custom_prompts_node(state: NlqState) -> NlqState:
@@ -1293,13 +1365,42 @@ def assess_clarity_node(state: NlqState) -> NlqState:
     llm_service = state["llm_service"]
     record_id = getattr(llm_service.record, "id", None) or state.get("record_id")
     try:
-        context = intent_context_from_payload(
+        intent_payload = (
             state.get("intent_context")
             or llm_service.chat_question.intent_context
             or public_intent_payload(
                 new_intent_context(llm_service.chat_question.question or "")
             )
         )
+        # Prefill certified Caliber slots before assess (user evidence still wins).
+        from apps.knowledge.compile.bundle import CompiledKnowledge
+
+        compiled_raw = state.get("compiled_knowledge") or {}
+        compiled = None
+        if compiled_raw:
+            try:
+                compiled = CompiledKnowledge.model_validate(compiled_raw)
+            except Exception:
+                compiled = get_compiled_knowledge(llm_service)
+        else:
+            compiled = get_compiled_knowledge(llm_service)
+        if compiled is not None:
+            intent_payload, bind_extra = apply_bound_calibers_to_intent(
+                intent_payload if isinstance(intent_payload, dict) else {},
+                compiled,
+            )
+            if bind_extra:
+                compiled = compiled.model_copy(
+                    update={
+                        "apply_log": list(compiled.apply_log) + list(bind_extra)
+                    }
+                )
+                llm_service.compiled_knowledge = compiled
+        context = intent_context_from_payload(intent_payload)
+        # L-5: surface confirmed-join clarify hints from compile into reasoning
+        join_hint = ""
+        if compiled and compiled.clarify_hints:
+            join_hint = "\n".join(f"- {h}" for h in compiled.clarify_hints)
         with log_span(
             operate=OperationEnum.CLARIFY_INTENT,
             record_id=record_id,
@@ -1345,6 +1446,22 @@ def assess_clarity_node(state: NlqState) -> NlqState:
                 )
                 if part
             )
+            bind_line = ""
+            if compiled and compiled.bound_calibers:
+                bind_line = render_bind_lock_line(compiled.bound_calibers)
+            if join_hint:
+                display_reasoning = "\n\n".join(
+                    part
+                    for part in (
+                        "连接提示：\n" + join_hint if join_hint else "",
+                        display_reasoning,
+                    )
+                    if part
+                )
+            if bind_line:
+                display_reasoning = "\n\n".join(
+                    part for part in (bind_line, display_reasoning) if part
+                )
             span["payload"] = {
                 "status": assessed.status,
                 "summary": assessed.summary,
@@ -1369,6 +1486,10 @@ def assess_clarity_node(state: NlqState) -> NlqState:
                 "assumptions": [
                     item.model_dump(mode="json") for item in assessed.assumptions
                 ],
+                "knowledge_apply": (
+                    compiled.knowledge_apply_payload() if compiled else []
+                ),
+                "clarify_hints": list(compiled.clarify_hints) if compiled else [],
             }
             span["token_usage"] = usage
             span["reasoning_content"] = display_reasoning
@@ -1394,6 +1515,9 @@ def assess_clarity_node(state: NlqState) -> NlqState:
         return {
             **state,
             "intent_context": payload,
+            "compiled_knowledge": (
+                compiled.model_dump(mode="json") if compiled else state.get("compiled_knowledge") or {}
+            ),
             "record": llm_service.record,
         }
     except Exception as exc:
@@ -1408,12 +1532,19 @@ def assemble_context_node(state: NlqState) -> NlqState:
         if context.status != "ready" or context.contract is None:
             raise ValueError("Semantic gate is ready without a frozen query contract")
         query_contract = context.contract
+        # Examples only after assess — sole Exemplify channel for generate.
+        oid, ds_id = _ds_scope(llm_service)
+        with session_scope() as session:
+            match_training(llm_service, session, oid, ds_id)
         assemble_prompt_messages(llm_service)
-        return {
-            **state,
+        compiled = getattr(llm_service, "compiled_knowledge", None)
+        updates: dict[str, Any] = {
             "query_contract": query_contract,
             "record": llm_service.record,
         }
+        if compiled is not None and hasattr(compiled, "model_dump"):
+            updates["compiled_knowledge"] = compiled.model_dump(mode="json")
+        return {**state, **updates}
     except Exception as exc:
         return _fail(state, llm_service.record.id, exc)
 
@@ -1710,6 +1841,21 @@ def generate_queries_node(state: NlqState) -> NlqState:
     gen_attempts = int(state.get("gen_attempts") or 0)
 
     try:
+        # Reuse assess CompiledKnowledge — do NOT re-recall calibers/examples here.
+        # Examples already injected via assemble_context → match_training.
+        # Caliber Bind already applied to draft at assess; frozen contract is SoT.
+        prior_compiled = state.get("compiled_knowledge") or {}
+        extra_lock = ""
+        try:
+            from apps.knowledge.compile.bundle import CompiledKnowledge
+
+            if isinstance(prior_compiled, dict) and prior_compiled:
+                prior_obj = CompiledKnowledge.model_validate(prior_compiled)
+                extra_lock = render_bind_lock_line(prior_obj.bound_calibers) or ""
+        except Exception as _compile_exc:  # noqa: BLE001
+            SQLBotLogUtil.warning(f"reuse compiled_knowledge failed: {_compile_exc}")
+            extra_lock = ""
+
         sink.event(
             {
                 "type": "batch-start",
@@ -1721,6 +1867,8 @@ def generate_queries_node(state: NlqState) -> NlqState:
 
         repair = (state.get("repair_hint") or "").strip()
         extra_sections: list[str] = []
+        if extra_lock:
+            extra_sections.append(extra_lock)
 
         # Inherit entity bindings from previous round when current round has none
         # (follow-up like "只查看今年的吧" has no org name in question)
@@ -2779,6 +2927,13 @@ def complete_node(state: NlqState) -> NlqState:
                 }
             ),
         )
+
+    # Async knowledge capture — never fails the published answer.
+    if outcome_is_success(outcome):
+        try:
+            _enqueue_knowledge_capture(state, llm_service, outcome, updated_steps)
+        except Exception as _cap_exc:  # noqa: BLE001
+            SQLBotLogUtil.warning(f"knowledge capture enqueue failed: {_cap_exc}")
 
     # The persisted snapshot is the source of truth. Publish analysis only
     # after that commit so live SSE and a subsequent page refresh cannot

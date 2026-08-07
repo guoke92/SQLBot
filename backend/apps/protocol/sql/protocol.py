@@ -722,6 +722,261 @@ class SqlProtocol(BaseProtocol):
             statement=sql,
         )
 
+    def profile_field(
+        self,
+        ds: Any,
+        *,
+        resource: str,
+        field: str,
+        field_type: str | None = None,
+        database_name: str | None = None,
+        sample_limit: int = 5000,
+        top_k: int = 20,
+    ) -> Any:
+        """Sample-bounded null/ndv/min/max/topk profile for one column."""
+        from apps.db.db import exec_sql
+        from apps.protocol.base import FieldProfileResult
+
+        if not resource or not field:
+            return FieldProfileResult(supported=False, field_name=field or "", error="missing target")
+        if self.type_key in ("es", "api"):
+            return FieldProfileResult(
+                supported=False, field_name=field, error="unsupported dialect"
+            )
+
+        table_sql = self.qualify_table(ds, resource, database_name=database_name)
+        field_sql = self._quote_identifier(field)
+        bounded = max(100, min(int(sample_limit), 20000))
+        k = max(1, min(int(top_k), 50))
+
+        # Prefer a bounded sample subquery so large facts do not full-scan.
+        if self.type_key == "sqlServer":
+            sample_sql = f"(SELECT TOP {bounded} {field_sql} AS v FROM {table_sql}) s"
+        elif self.type_key == "oracle":
+            sample_sql = (
+                f"(SELECT {field_sql} AS v FROM {table_sql} "
+                f"FETCH FIRST {bounded} ROWS ONLY) s"
+            )
+        else:
+            sample_sql = (
+                f"(SELECT {field_sql} AS v FROM {table_sql} LIMIT {bounded}) s"
+            )
+
+        agg_sql = (
+            f"SELECT COUNT(*) AS row_count, "
+            f"COUNT(v) AS non_null_count, "
+            f"COUNT(DISTINCT v) AS approx_distinct, "
+            f"MIN(v) AS min_value, MAX(v) AS max_value "
+            f"FROM {sample_sql}"
+        )
+        try:
+            raw = exec_sql(ds=ds, sql=agg_sql, origin_column=True)
+        except Exception as exc:
+            return FieldProfileResult(
+                supported=True,
+                field_name=field,
+                error=str(exc)[:500],
+                statement=agg_sql,
+            )
+
+        row = (raw.get("data") or [{}])[0] if raw.get("data") else {}
+        row_count = int(row.get("row_count") or 0)
+        non_null = int(row.get("non_null_count") or 0)
+        approx_distinct = int(row.get("approx_distinct") or 0)
+        null_rate = (
+            ((row_count - non_null) / row_count) if row_count > 0 else None
+        )
+        distinct_ratio = (approx_distinct / non_null) if non_null > 0 else None
+        min_value = row.get("min_value")
+        max_value = row.get("max_value")
+
+        top_values: list[dict[str, Any]] = []
+        top_sql = (
+            f"SELECT v, COUNT(*) AS c FROM {sample_sql} "
+            f"WHERE v IS NOT NULL GROUP BY v ORDER BY c DESC"
+        )
+        if self.type_key == "sqlServer":
+            top_sql = (
+                f"SELECT TOP {k} v, COUNT(*) AS c FROM {sample_sql} "
+                f"WHERE v IS NOT NULL GROUP BY v ORDER BY c DESC"
+            )
+        elif self.type_key == "oracle":
+            top_sql = (
+                f"SELECT v, COUNT(*) AS c FROM {sample_sql} "
+                f"WHERE v IS NOT NULL GROUP BY v ORDER BY COUNT(*) DESC "
+                f"FETCH FIRST {k} ROWS ONLY"
+            )
+        else:
+            top_sql = f"{top_sql} LIMIT {k}"
+        try:
+            top_raw = exec_sql(ds=ds, sql=top_sql, origin_column=True)
+            for item in top_raw.get("data") or []:
+                if not isinstance(item, dict):
+                    continue
+                value = item.get("v")
+                if value is None and item:
+                    value = next(iter(item.values()), None)
+                count = item.get("c")
+                if count is None and len(item) >= 2:
+                    count = list(item.values())[1]
+                if value is None:
+                    continue
+                top_values.append({"value": str(value)[:200], "count": int(count or 0)})
+        except Exception:
+            top_values = []
+
+        return FieldProfileResult(
+            supported=True,
+            field_name=field,
+            row_count=row_count,
+            non_null_count=non_null,
+            null_rate=null_rate,
+            approx_distinct=approx_distinct,
+            distinct_ratio=distinct_ratio,
+            min_value=None if min_value is None else str(min_value)[:200],
+            max_value=None if max_value is None else str(max_value)[:200],
+            top_values=top_values,
+            sample_method="limit_sample",
+            sample_size=bounded,
+            statement=agg_sql,
+        )
+
+    def extract_table_constraints(
+        self,
+        ds: Any,
+        *,
+        resource: str,
+        database_name: str | None = None,
+    ) -> Any:
+        """Best-effort PK/FK extraction for MySQL/PG families."""
+        import json
+
+        from apps.datasource.models.datasource import DatasourceConf
+        from apps.datasource.utils.utils import aes_decrypt
+        from apps.db.db import get_session
+        from apps.protocol.base import TableConstraintsResult
+        from sqlalchemy import text
+
+        if self.type_key not in (
+            "mysql",
+            "mariadb",
+            "pg",
+            "postgresql",
+            "kingbase",
+            "excel",
+        ):
+            return TableConstraintsResult(
+                supported=False, error=f"unsupported dialect {self.type_key}"
+            )
+        if not resource:
+            return TableConstraintsResult(supported=False, error="missing table")
+
+        conf = DatasourceConf(**json.loads(aes_decrypt(ds.configuration)))
+        try:
+            if self.type_key in ("mysql", "mariadb"):
+                schema = conf.database
+                with get_session(ds) as remote:
+                    pk_rows = remote.execute(
+                        text(
+                            """
+                            SELECT COLUMN_NAME
+                            FROM information_schema.KEY_COLUMN_USAGE
+                            WHERE TABLE_SCHEMA = :schema
+                              AND TABLE_NAME = :table
+                              AND CONSTRAINT_NAME = 'PRIMARY'
+                            ORDER BY ORDINAL_POSITION
+                            """
+                        ),
+                        {"schema": schema, "table": resource},
+                    ).all()
+                    primary_keys = [str(r[0]) for r in pk_rows]
+                    fk_rows = remote.execute(
+                        text(
+                            """
+                            SELECT COLUMN_NAME, REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME
+                            FROM information_schema.KEY_COLUMN_USAGE
+                            WHERE TABLE_SCHEMA = :schema
+                              AND TABLE_NAME = :table
+                              AND REFERENCED_TABLE_NAME IS NOT NULL
+                            ORDER BY ORDINAL_POSITION
+                            """
+                        ),
+                        {"schema": schema, "table": resource},
+                    ).all()
+                    foreign_keys = [
+                        {
+                            "column": str(r[0]),
+                            "ref_table": str(r[1]),
+                            "ref_column": str(r[2]),
+                        }
+                        for r in fk_rows
+                    ]
+                return TableConstraintsResult(
+                    supported=True,
+                    primary_keys=primary_keys,
+                    foreign_keys=foreign_keys,
+                )
+
+            schema = conf.dbSchema or "public"
+            with get_session(ds) as remote:
+                pk_rows = remote.execute(
+                    text(
+                        """
+                        SELECT a.attname
+                        FROM pg_index i
+                        JOIN pg_class c ON c.oid = i.indrelid
+                        JOIN pg_namespace n ON n.oid = c.relnamespace
+                        JOIN pg_attribute a ON a.attrelid = c.oid AND a.attnum = ANY(i.indkey)
+                        WHERE i.indisprimary
+                          AND n.nspname = :schema
+                          AND c.relname = :table
+                        ORDER BY a.attnum
+                        """
+                    ),
+                    {"schema": schema, "table": resource},
+                ).all()
+                primary_keys = [str(r[0]) for r in pk_rows]
+                fk_rows = remote.execute(
+                    text(
+                        """
+                        SELECT
+                          src.attname AS column_name,
+                          dst_cls.relname AS ref_table,
+                          dst.attname AS ref_column
+                        FROM pg_constraint con
+                        JOIN pg_class src_cls ON src_cls.oid = con.conrelid
+                        JOIN pg_namespace src_ns ON src_ns.oid = src_cls.relnamespace
+                        JOIN pg_class dst_cls ON dst_cls.oid = con.confrelid
+                        JOIN LATERAL unnest(con.conkey) WITH ORDINALITY AS src_cols(attnum, ord) ON TRUE
+                        JOIN LATERAL unnest(con.confkey) WITH ORDINALITY AS dst_cols(attnum, ord)
+                          ON src_cols.ord = dst_cols.ord
+                        JOIN pg_attribute src
+                          ON src.attrelid = con.conrelid AND src.attnum = src_cols.attnum
+                        JOIN pg_attribute dst
+                          ON dst.attrelid = con.confrelid AND dst.attnum = dst_cols.attnum
+                        WHERE con.contype = 'f'
+                          AND src_ns.nspname = :schema
+                          AND src_cls.relname = :table
+                        """
+                    ),
+                    {"schema": schema, "table": resource},
+                ).all()
+                foreign_keys = [
+                    {
+                        "column": str(r[0]),
+                        "ref_table": str(r[1]),
+                        "ref_column": str(r[2]),
+                    }
+                    for r in fk_rows
+                ]
+            return TableConstraintsResult(
+                supported=True,
+                primary_keys=primary_keys,
+                foreign_keys=foreign_keys,
+            )
+        except Exception as exc:
+            return TableConstraintsResult(supported=False, error=str(exc)[:500])
+
     def plan_from_re_exec(
         self, ds: Any, re_exec: Dict[str, Any]
     ) -> Optional[QueryPlan]:

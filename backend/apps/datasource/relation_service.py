@@ -114,8 +114,106 @@ def get_relation_graph(
     oid: int,
     ds_id: int,
 ) -> list[dict[str, Any]]:
+    """Return ER graph with layout nodes preserved and edges from confirmed relations.
+
+    ``field_relation`` is the semantic truth for edges; X6 JSON keeps layout only.
+    """
     datasource = _get_datasource(session, oid=oid, ds_id=ds_id)
-    return list(datasource.table_relation or [])
+    return project_confirmed_relations_graph(
+        session, oid=oid, ds_id=ds_id, layout=list(datasource.table_relation or [])
+    )
+
+
+def project_confirmed_relations_graph(
+    session: Session,
+    *,
+    oid: int,
+    ds_id: int,
+    layout: Sequence[dict[str, Any]] | None = None,
+) -> list[dict[str, Any]]:
+    """Build an ER payload: layout nodes + CONFIRMED ``field_relation`` edges."""
+    from apps.datasource.profiling.models import (
+        FieldRelation,
+        RelationKind,
+        RelationStatus,
+    )
+    from sqlmodel import select
+
+    existing = list(layout or [])
+    tables = (
+        session.query(CoreTable)
+        .filter(CoreTable.ds_id == ds_id)
+        .order_by(CoreTable.id)
+        .all()
+    )
+    table_map = {int(t.id): t for t in tables if t.id is not None}
+    existing_nodes: dict[int, dict[str, Any]] = {}
+    for item in existing:
+        if item.get("shape") == _EDGE_SHAPE or item.get("id") is None:
+            continue
+        try:
+            table_id = _graph_id(item.get("id"), label="relation node id")
+        except HTTPException:
+            continue
+        if table_id in table_map:
+            existing_nodes[table_id] = item
+
+    # Ensure tables referenced by confirmed relations appear as nodes.
+    relations = list(
+        session.exec(
+            select(FieldRelation).where(
+                FieldRelation.ds_id == ds_id,
+                FieldRelation.status == RelationStatus.CONFIRMED.value,
+                FieldRelation.kind.in_(  # type: ignore[attr-defined]
+                    [RelationKind.EQUI_JOIN.value, RelationKind.HIERARCHY.value]
+                ),
+            )
+        ).all()
+    )
+    for rel in relations:
+        existing_nodes.setdefault(int(rel.source_table_id), {})
+        existing_nodes.setdefault(int(rel.target_table_id), {})
+
+    fields_by_table = _fields_by_table(
+        session, ds_id=ds_id, table_ids=set(existing_nodes) & set(table_map)
+    )
+    nodes = [
+        _table_node(
+            table_map[table_id],
+            fields_by_table.get(table_id, []),
+            existing=existing_nodes.get(table_id) or None,
+            index=index,
+        )
+        for index, table_id in enumerate(sorted(set(existing_nodes) & set(table_map)))
+    ]
+    edges: list[dict[str, Any]] = []
+    for rel in relations:
+        if (
+            int(rel.source_table_id) not in table_map
+            or int(rel.target_table_id) not in table_map
+        ):
+            continue
+        edges.append(
+            {
+                "id": f"fr-{rel.id}",
+                "shape": _EDGE_SHAPE,
+                "source": {
+                    "cell": int(rel.source_table_id),
+                    "port": int(rel.source_field_id),
+                },
+                "target": {
+                    "cell": int(rel.target_table_id),
+                    "port": int(rel.target_field_id),
+                },
+                "attrs": {"line": {"stroke": "#5F95FF"}},
+                "data": {
+                    "field_relation_id": rel.id,
+                    "kind": rel.kind,
+                    "source": rel.source,
+                },
+            }
+        )
+    return [*nodes, *edges]
 
 
 def field_relations_from_graph(
@@ -156,11 +254,34 @@ def save_relation_graph(
     ds_id: int,
     graph: Sequence[dict[str, Any]],
 ) -> None:
+    """Validate canvas graph, sync EQUI_JOIN semantics via profiling service, store layout.
+
+    ``field_relation`` remains the semantic truth; X6 keeps layout nodes and is
+    re-projected from CONFIRMED edges after sync.
+    """
+    from apps.datasource.profiling.service import (
+        project_datasource_relation_layout,
+        sync_manual_equi_joins,
+    )
+
     datasource = _get_datasource(session, oid=oid, ds_id=ds_id)
     _validate_relation_graph(session, ds_id=ds_id, graph=graph)
-    datasource.table_relation = list(graph)
-    session.add(datasource)
-    session.commit()
+    pairs = field_relations_from_graph(graph)
+    sync_manual_equi_joins(
+        session,
+        oid=oid,
+        ds_id=ds_id,
+        pairs=pairs,
+        commit=False,
+    )
+    # Keep node positions from the canvas; edges always come from CONFIRMED rows.
+    layout_nodes = [item for item in graph if item.get("shape") != _EDGE_SHAPE]
+    project_datasource_relation_layout(
+        session,
+        ds=datasource,
+        layout=layout_nodes,
+        commit=True,
+    )
 
 
 def _fields_by_table(

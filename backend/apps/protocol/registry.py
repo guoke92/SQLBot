@@ -99,6 +99,7 @@ def bootstrap_default_types() -> None:
     from apps.protocol.base import (
         CAP_CONF_OWNED_RESOURCES,
         CAP_DICTIONARY_VALUES,
+        CAP_FIELD_PROFILE,
         CAP_OPENAPI_IMPORT,
         CAP_ROW_PERMISSION,
         CAP_SAMPLE_DATA,
@@ -106,7 +107,13 @@ def bootstrap_default_types() -> None:
         CAP_TABLE_RELATION,
     )
 
-    sql_caps = {CAP_SQL_DIALECT, CAP_ROW_PERMISSION, CAP_SAMPLE_DATA, CAP_TABLE_RELATION}
+    sql_caps = {
+        CAP_SQL_DIALECT,
+        CAP_ROW_PERMISSION,
+        CAP_SAMPLE_DATA,
+        CAP_TABLE_RELATION,
+        CAP_FIELD_PROFILE,
+    }
 
     # ``sqlglot`` drives contract-structure analysis of generated SQL. A missing
     # dialect degrades that analysis to dialect-agnostic parsing, so every

@@ -47,6 +47,7 @@ RequirementSource = Literal[
     "terminology",
     "example",
     "schema",
+    "knowledge",
 ]
 OutputOperation = Literal[
     "value",
@@ -142,8 +143,19 @@ class RequirementBase(BaseModel):
 
     @property
     def is_confirmed(self) -> bool:
-        """Whether the user confirmed this clause and it cannot be revoked."""
-        return self.source == "user"
+        """Whether this clause is locked for the turn.
+
+        User evidence is strongest. Certified knowledge binds (source=knowledge
+        with knowledge:caliber:* evidence) also count as filled so assess does
+        not re-ask; the user can still override on a later turn / answer.
+        """
+        if self.source == "user":
+            return True
+        if self.source == "knowledge" and any(
+            str(ref).startswith("knowledge:caliber:") for ref in self.evidence_refs
+        ):
+            return True
+        return False
 
 
 class ProjectionRequirement(RequirementBase):

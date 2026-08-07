@@ -334,11 +334,23 @@ def sync_table_fields(session: SessionDep, trans: Trans, id: int):
     run_save_table_embeddings([table.id])
     run_save_ds_embeddings([ds.id])
     try:
-        from apps.datasource.crud.catalog_stats import refresh_table_stats
+        from apps.datasource.profiling.models import ScanRunMode, ScanTrigger
+        from apps.datasource.profiling.service import (
+            enqueue_table_scan,
+            schedule_worker_kick,
+        )
 
-        refresh_table_stats(session, ds, [table])
-    except Exception as _stats_exc:
-        SQLBotLogUtil.warning(f"refresh_table_stats after sync_single: {_stats_exc}")
+        enqueue_table_scan(
+            session,
+            ds=ds,
+            table=table,
+            run_mode=ScanRunMode.FACTS_ONLY.value,
+            trigger=ScanTrigger.SCHEMA_SYNC.value,
+            skip_if_unchanged=True,
+        )
+        schedule_worker_kick()
+    except Exception as _profile_exc:
+        SQLBotLogUtil.warning(f"enqueue profiling after sync_single: {_profile_exc}")
 
 
 def sync_catalog(session: SessionDep, ds: CoreDatasource, tables: List[CoreTable]):
@@ -392,6 +404,18 @@ def sync_catalog(session: SessionDep, ds: CoreDatasource, tables: List[CoreTable
             if table.id is not None and table.id not in keep_ids
         ]
         if stale_ids:
+            try:
+                from apps.knowledge.assets.caliber import disable_for_schema_change
+
+                disable_for_schema_change(
+                    session,
+                    ds_id=int(ds.id),
+                    changed_table_ids=stale_ids,
+                )
+            except Exception as _knowledge_exc:  # noqa: BLE001
+                SQLBotLogUtil.warning(
+                    f"knowledge L-1 disable on table delete: {_knowledge_exc}"
+                )
             session.query(CoreField).filter(CoreField.table_id.in_(stale_ids)).delete(
                 synchronize_session=False
             )
@@ -422,19 +446,25 @@ def sync_catalog(session: SessionDep, ds: CoreDatasource, tables: List[CoreTable
     id_list = [int(table.id) for table in synced_tables if table.id is not None]
     run_save_table_embeddings(id_list)
     run_save_ds_embeddings([ds.id])
-    # catalog cost stats (rows / indexes) for plan validation
+    # Catalog stats + field profiling run asynchronously via metadata cognition.
     try:
-        from apps.datasource.crud.catalog_stats import refresh_table_stats
+        from apps.datasource.profiling.models import ScanRunMode, ScanTrigger
+        from apps.datasource.profiling.service import (
+            enqueue_tables_after_sync,
+            schedule_worker_kick,
+        )
 
-        if id_list:
-            synced = (
-                session.query(CoreTable)
-                .filter(CoreTable.ds_id == ds.id, CoreTable.id.in_(id_list))
-                .all()
+        if synced_tables:
+            enqueue_tables_after_sync(
+                session,
+                ds=ds,
+                tables=synced_tables,
+                trigger=ScanTrigger.SCHEMA_SYNC.value,
+                run_mode=ScanRunMode.FACTS_ONLY.value,
             )
-            refresh_table_stats(session, ds, synced)
-    except Exception as _stats_exc:  # never block sync
-        SQLBotLogUtil.warning(f"refresh_table_stats after sync_table: {_stats_exc}")
+            schedule_worker_kick()
+    except Exception as _profile_exc:  # never block sync
+        SQLBotLogUtil.warning(f"enqueue profiling after sync_catalog: {_profile_exc}")
 
 
 def _reconcile_fields(
@@ -480,6 +510,18 @@ def _reconcile_fields(
         if field.id is not None and field.id not in id_list
     ]
     if stale_ids:
+        try:
+            from apps.knowledge.assets.caliber import disable_for_schema_change
+
+            disable_for_schema_change(
+                session,
+                ds_id=int(ds.id),
+                changed_field_ids=stale_ids,
+            )
+        except Exception as _knowledge_exc:  # noqa: BLE001
+            SQLBotLogUtil.warning(
+                f"knowledge L-1 disable on field delete: {_knowledge_exc}"
+            )
         session.query(CoreField).filter(CoreField.id.in_(stale_ids)).delete(
             synchronize_session=False
         )
@@ -755,49 +797,21 @@ def get_table_schema(
         if table_list is not None and obj.table.table_name not in table_list:
             continue
 
-        schema_table = ""
         table_db = getattr(obj.table, "database_name", None) or ""
         label = proto.table_prompt_label(
             ds,
             obj.table.table_name,
             database_name=table_db or None,
         )
-        schema_table += f"# Table: {label}"
-        table_comment = ""
-        if obj.table.custom_comment:
-            table_comment = obj.table.custom_comment.strip()
-        stats_bits = []
-        try:
-            ar = getattr(obj.table, "approx_rows", None)
-            if ar is not None:
-                stats_bits.append(f"~{int(ar)} rows")
-            ix = (getattr(obj.table, "index_summary", None) or "")[:160]
-            if ix:
-                stats_bits.append("idx: " + ix)
-        except Exception:
-            pass
-        meta = table_comment
-        if stats_bits:
-            meta = (meta + "; " if meta else "") + "; ".join(stats_bits)
-        if not meta:
-            schema_table += "\n[\n"
-        else:
-            schema_table += f", {meta}" + "\n[\n"
+        from apps.datasource.schema_text import SchemaTextPurpose, render_table_schema_text
 
-        if obj.fields:
-            field_list = []
-            for field in obj.fields:
-                field_comment = ""
-                if field.custom_comment:
-                    field_comment = field.custom_comment.strip()
-                if field_comment == "":
-                    field_list.append(f"({field.field_name}:{field.field_type})")
-                else:
-                    field_list.append(
-                        f"({field.field_name}:{field.field_type}, {field_comment})"
-                    )
-            schema_table += ",\n".join(field_list)
-        schema_table += "\n]\n"
+        schema_table = render_table_schema_text(
+            session,
+            table=obj.table,
+            fields=list(obj.fields or []),
+            table_label=label,
+            purpose=SchemaTextPurpose.PROMPT,
+        )
 
         t_obj = {
             "id": obj.table.id,
@@ -832,69 +846,63 @@ def get_table_schema(
             schema_str += s.get("schema_table")
             table_name_list.append(s.get("table_name"))
 
-    # field relation
-    if tables and ds.table_relation:
-        relations = list(filter(lambda x: x.get("shape") == "edge", ds.table_relation))
-        if relations:
-            # Complete the missing table
-            # get tables in relation, remove irrelevant relation
-            embedding_table_ids = [s.get("id") for s in tables]
-            all_relations = list(
-                filter(
-                    lambda x: (
-                        x.get("source").get("cell") in embedding_table_ids
-                        or x.get("target").get("cell") in embedding_table_ids
-                    ),
-                    relations,
-                )
-            )
+    # Prefer structured confirmed relations; fall back to legacy X6 graph edges.
+    confirmed_block = ""
+    try:
+        from apps.datasource.profiling.models import RelationKind, RelationStatus
+        from apps.datasource.profiling.service import get_published_relations
 
-            # get relation table ids, sub embedding table ids
-            relation_table_ids = []
-            for r in all_relations:
-                relation_table_ids.append(r.get("source").get("cell"))
-                relation_table_ids.append(r.get("target").get("cell"))
-            relation_table_ids = list(set(relation_table_ids))
-            # get table dict
-            table_records = (
-                session.query(CoreTable)
-                .filter(CoreTable.id.in_(list(map(int, relation_table_ids))))
-                .all()
-            )
-            table_dict = {}
-            for ele in table_records:
-                table_dict[ele.id] = ele.table_name
-
-            # get lost table ids
-            lost_table_ids = list(set(relation_table_ids) - set(embedding_table_ids))
-            # get lost table schema and splice it
-            lost_tables = list(
-                filter(lambda x: x.get("id") in lost_table_ids, all_tables)
-            )
-            if lost_tables:
-                for s in lost_tables:
+        selected_ids = [int(s.get("id")) for s in tables if s.get("id") is not None]
+        published = get_published_relations(
+            session,
+            ds_id=int(ds.id),
+            table_ids=selected_ids,
+            statuses=[RelationStatus.CONFIRMED.value],
+        )
+        equi = [
+            r
+            for r in published
+            if r.kind in (RelationKind.EQUI_JOIN.value, RelationKind.HIERARCHY.value)
+        ]
+        if equi:
+            field_ids = {
+                int(r.source_field_id) for r in equi
+            } | {int(r.target_field_id) for r in equi}
+            table_ids = {
+                int(r.source_table_id) for r in equi
+            } | {int(r.target_table_id) for r in equi}
+            field_map = {
+                int(f.id): f.field_name
+                for f in session.query(CoreField).filter(CoreField.id.in_(list(field_ids))).all()
+                if f.id is not None
+            }
+            table_map = {
+                int(t.id): t.table_name
+                for t in session.query(CoreTable).filter(CoreTable.id.in_(list(table_ids))).all()
+                if t.id is not None
+            }
+            # Pull missing endpoint tables into schema text.
+            present = {int(s.get("id")) for s in tables if s.get("id") is not None}
+            missing = [tid for tid in table_ids if tid not in present]
+            if missing:
+                lost = [item for item in all_tables if item.get("id") in missing]
+                for s in lost:
                     schema_str += s.get("schema_table")
                     table_name_list.append(s.get("table_name"))
+            confirmed_block = "【Confirmed relations】\n"
+            for rel in equi:
+                confirmed_block += (
+                    f"{table_map.get(int(rel.source_table_id))}."
+                    f"{field_map.get(int(rel.source_field_id))}="
+                    f"{table_map.get(int(rel.target_table_id))}."
+                    f"{field_map.get(int(rel.target_field_id))}\n"
+                )
+    except Exception as _rel_exc:
+        SQLBotLogUtil.warning(f"confirmed relation schema inject failed: {_rel_exc}")
 
-            # get field dict
-            relation_field_ids = []
-            for relation in all_relations:
-                relation_field_ids.append(relation.get("source").get("port"))
-                relation_field_ids.append(relation.get("target").get("port"))
-            relation_field_ids = list(set(relation_field_ids))
-            field_records = (
-                session.query(CoreField)
-                .filter(CoreField.id.in_(list(map(int, relation_field_ids))))
-                .all()
-            )
-            field_dict = {}
-            for ele in field_records:
-                field_dict[ele.id] = ele.field_name
-
-            if all_relations:
-                schema_str += "【Foreign keys】\n"
-                for ele in all_relations:
-                    schema_str += f"{table_dict.get(int(ele.get('source').get('cell')))}.{field_dict.get(int(ele.get('source').get('port')))}={table_dict.get(int(ele.get('target').get('cell')))}.{field_dict.get(int(ele.get('target').get('port')))}\n"
+    if confirmed_block:
+        schema_str += confirmed_block
+    # Legacy X6 table_relation edges are layout/UI only — never inject as Join truth.
 
     return schema_str, table_name_list
 
