@@ -13,7 +13,10 @@ from apps.chat.models.chat_model import (
     HumanPromptMessage,
     SystemPromptMessage,
 )
-from apps.chat.steps.history import get_last_conversation_rounds
+from apps.chat.steps.history import (
+    get_last_conversation_rounds,
+    select_prompt_history,
+)
 from apps.chat.steps.schema import match_table_schema
 from apps.datasource.access import AccessScope
 
@@ -38,24 +41,11 @@ def retrieve_prompt_schema(
 def assemble_prompt_messages(llm_service: Any) -> None:
     """Assemble SQL/chart messages after semantic intent is confirmed."""
 
-    last_sql_messages: list[dict[str, Any]] = (
-        llm_service.generate_sql_logs[-1].messages
-        if len(llm_service.generate_sql_logs) > 0
-        else []
+    regenerate_record_id = llm_service.chat_question.regenerate_record_id
+    last_sql_messages = select_prompt_history(
+        llm_service.generate_sql_logs,
+        record_id=regenerate_record_id,
     )
-    if llm_service.chat_question.regenerate_record_id:
-        _temp_log = next(
-            filter(
-                lambda obj: obj.pid == llm_service.chat_question.regenerate_record_id,
-                llm_service.generate_sql_logs,
-            ),
-            None,
-        )
-        last_sql_messages = _temp_log.messages if _temp_log else []
-
-    last_sql_messages = [
-        obj for obj in last_sql_messages if obj.get("sqlbot_system") is not True
-    ]
 
     count_limit = llm_service.base_message_round_count_limit
 
@@ -101,7 +91,7 @@ def assemble_prompt_messages(llm_service: Any) -> None:
             AIPromptMessage(content=_system_templates["ack_data_training"])
         )
 
-    if last_sql_messages is not None and len(last_sql_messages) > 0:
+    if last_sql_messages:
         last_rounds = get_last_conversation_rounds(
             last_sql_messages, rounds=count_limit
         )
@@ -115,24 +105,10 @@ def assemble_prompt_messages(llm_service: Any) -> None:
                     AIMessage(content=_msg_dict.get("content"))
                 )
 
-    last_chart_messages: list[dict[str, Any]] = (
-        llm_service.generate_chart_logs[-1].messages
-        if len(llm_service.generate_chart_logs) > 0
-        else []
+    last_chart_messages = select_prompt_history(
+        llm_service.generate_chart_logs,
+        record_id=regenerate_record_id,
     )
-    if llm_service.chat_question.regenerate_record_id:
-        _temp_log = next(
-            filter(
-                lambda obj: obj.pid == llm_service.chat_question.regenerate_record_id,
-                llm_service.generate_chart_logs,
-            ),
-            None,
-        )
-        last_chart_messages = _temp_log.messages if _temp_log else []
-
-    last_chart_messages = [
-        obj for obj in last_chart_messages if obj.get("sqlbot_system") is not True
-    ]
 
     count_chart_limit = llm_service.base_message_round_count_limit
 
@@ -145,7 +121,7 @@ def assemble_prompt_messages(llm_service: Any) -> None:
     )
     llm_service.chart_message.append(HumanPromptMessage(content=_chart_bundle["rules"]))
     llm_service.chart_message.append(AIPromptMessage(content=_chart_bundle["ack"]))
-    if last_chart_messages is not None and len(last_chart_messages) > 0:
+    if last_chart_messages:
         last_rounds = get_last_conversation_rounds(
             last_chart_messages, rounds=count_chart_limit
         )
