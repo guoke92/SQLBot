@@ -30,7 +30,6 @@ from apps.chat.curd.chat import (
     get_chat_brief_generate,
     get_last_execute_sql_error,
     list_generate_chart_logs,
-    list_generate_sql_logs,
     save_question,
 )
 from apps.chat.models.chat_model import Chat, ChatLog, ChatQuestion, ChatRecord
@@ -65,7 +64,6 @@ class LLMService:
     record: ChatRecord
     config: LLMConfig
     llm: BaseChatModel
-    sql_message: List[Union[BaseMessage, dict[str, Any]]]
     chart_message: List[Union[BaseMessage, dict[str, Any]]]
 
     current_user: CurrentUser
@@ -73,7 +71,6 @@ class LLMService:
     out_ds_instance: Optional[AssistantOutDs] = None
     change_title: bool = False
 
-    generate_sql_logs: List[ChatLog]
     generate_chart_logs: List[ChatLog]
     current_logs: dict
     trans: I18nHelper = None
@@ -94,9 +91,7 @@ class LLMService:
         no_reasoning: bool = False,
         config: LLMConfig = None,
     ):
-        self.sql_message = []
         self.chart_message = []
-        self.generate_sql_logs = []
         self.generate_chart_logs = []
         self.current_logs = {}
         self.current_user = current_user
@@ -154,7 +149,6 @@ class LLMService:
                 _proto = get_protocol(ds.type)
                 chat_question.engine = _proto.engine_display_name(ds) + _proto.server_version(ds)
 
-        self.generate_sql_logs = list_generate_sql_logs(session=session, chart_id=chat_id)
         self.generate_chart_logs = list_generate_chart_logs(session=session, chart_id=chat_id)
 
         self.change_title = not get_chat_brief_generate(session=session, chat_id=chat_id)
@@ -244,11 +238,8 @@ class LLMService:
         ).strip()
 
     def _original_intent_question(self) -> str:
-        context = self.chat_question.intent_context or {}
-        if isinstance(context, dict):
-            original = str(context.get("original_question") or "").strip()
-            if original:
-                return original
+        # Immutable question/clarification evidence is owned by EvidenceLedger;
+        # the runtime prompt object keeps only the original visible question.
         return (self.chat_question.question or "").strip()
 
     @property
@@ -267,9 +258,12 @@ class LLMService:
             or self._original_intent_question()
         ).strip()
 
-    def init_record(self, session: Session) -> ChatRecord:
+    def init_record(self, session: Session, *, commit: bool = True) -> ChatRecord:
         self.record = save_question(
-            session=session, current_user=self.current_user, question=self.chat_question
+            session=session,
+            current_user=self.current_user,
+            question=self.chat_question,
+            commit=commit,
         )
         return self.record
 

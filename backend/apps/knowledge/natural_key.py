@@ -7,60 +7,21 @@ import json
 from typing import Any
 
 
-def clause_of(req: dict[str, Any]) -> str:
-    """Canonical clause name (QueryContract uses ``clause``)."""
-    return str(req.get("clause") or req.get("clause_type") or req.get("type") or "")
-
-
-def _normalize_value(value: Any) -> Any:
-    if isinstance(value, (str, int, float, bool)) or value is None:
-        return value
-    if isinstance(value, list):
-        return [_normalize_value(v) for v in value]
-    if isinstance(value, dict):
-        return {str(k): _normalize_value(v) for k, v in sorted(value.items())}
-    return str(value)
-
-
-def _slot_parts(fragment: dict[str, Any]) -> list[dict[str, Any]]:
-    requirements = fragment.get("requirements") or fragment.get("slots") or []
-    if isinstance(fragment.get("contract"), dict):
-        requirements = fragment["contract"].get("requirements") or requirements
-    parts: list[dict[str, Any]] = []
-    for req in requirements if isinstance(requirements, list) else []:
-        if not isinstance(req, dict):
-            continue
-        field = ""
-        ref = req.get("field") or req.get("output") or {}
-        if isinstance(ref, dict):
-            field = f"{ref.get('resource', '')}.{ref.get('field', '')}"
-        elif isinstance(ref, str):
-            field = ref
-        op = req.get("operation") or req.get("operator") or ""
-        value = req.get("value", req.get("values"))
-        parts.append(
-            {
-                "clause": clause_of(req),
-                "field": field,
-                "op": str(op),
-                "value": _normalize_value(value),
-            }
-        )
-    parts.sort(
-        key=lambda item: (
-            item["clause"],
-            item["field"],
-            item["op"],
-            json.dumps(item["value"], sort_keys=True, default=str),
-        )
+def canonical_fragment_fingerprint(fragment: dict[str, Any]) -> str:
+    """Fingerprint the complete typed v3 clause semantics."""
+    from apps.chat.query_specification import (
+        parse_specification_fragment,
+        specification_semantic_material,
     )
-    return parts
 
-
-def canonical_slot_fingerprint(fragment: dict[str, Any]) -> str:
-    """Fingerprint slots including normalized values (same slot ≠ same caliber)."""
-    parts = _slot_parts(fragment)
-    blob = json.dumps(parts, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    specification = parse_specification_fragment(fragment)
+    material = specification_semantic_material(specification)
+    blob = json.dumps(
+        material,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
     return hashlib.sha256(blob.encode("utf-8")).hexdigest()[:32]
 
 
@@ -89,12 +50,45 @@ def caliber_natural_key(
         "ds": datasource_id,
         "fields": field_ids,
         "field_names": field_names,
-        "slots": canonical_slot_fingerprint(fragment),
+        "fragment": canonical_fragment_fingerprint(fragment),
     }
-    raw = json.dumps(material, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    raw = json.dumps(
+        material, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    )
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
 def fragments_equivalent(a: dict[str, Any], b: dict[str, Any]) -> bool:
-    """Equivalence ignores evidence_refs / slot_id / clause_type aliases — fingerprint SoT."""
-    return canonical_slot_fingerprint(a) == canonical_slot_fingerprint(b)
+    """Equivalence ignores turn-local evidence and presentation metadata.
+
+    Legacy or malformed rows (pre-v3 flat slots, empty fragments) are treated as
+    non-equivalent instead of aborting admit/merge — newer typed material wins.
+    """
+    try:
+        return canonical_fragment_fingerprint(a) == canonical_fragment_fingerprint(b)
+    except (TypeError, ValueError):
+        return False
+
+
+def looks_ephemeral(value: str) -> bool:
+    """True for turn-local literals (order ids, long hex) that must not persist."""
+    text = value.strip()
+    if len(text) >= 16 and text.replace("-", "").isalnum():
+        return True
+    if text.isdigit() and len(text) >= 8:
+        return True
+    return False
+
+
+def predicate_looks_ephemeral(req: dict[str, Any]) -> bool:
+    """True when any predicate literal in *req* looks turn-local."""
+    candidates: list[Any] = []
+    for key in ("values", "value"):
+        raw = req.get(key)
+        if raw is None:
+            continue
+        if isinstance(raw, list | tuple):
+            candidates.extend(raw)
+        else:
+            candidates.append(raw)
+    return any(isinstance(v, str) and looks_ephemeral(v) for v in candidates)

@@ -7,7 +7,7 @@ from typing import Any
 
 from sqlmodel import Session, col, select
 
-from apps.knowledge.db_models import BusinessCaliber, KnowledgeStaging
+from apps.knowledge.db_models import KnowledgeEvidence, KnowledgeStaging
 from apps.knowledge.lineage import append_event, new_lineage_id
 from apps.knowledge.natural_key import caliber_natural_key, fragments_equivalent
 
@@ -43,11 +43,11 @@ def admit_candidate(
     suggested_trust_tier: str = "admitted",
     quality_snapshot: dict[str, Any] | None = None,
     field_targets: list[Any] | None = None,
-) -> KnowledgeStaging:
-    """Admit a candidate into staging (pending) or merge/supersede-hint.
+    provenance: dict[str, Any] | None = None,
+) -> tuple[KnowledgeStaging, str]:
+    """Admit a candidate into staging or merge with an existing pending row.
 
-    Staging is never recalled by Compile. Differing material against an enabled
-    caliber stays ``pending`` with ``conflict_with`` so certify can supersede.
+    Returns ``(staging, action)`` where action is ``admitted`` or ``merged``.
     """
     fragment = payload.get("contract_fragment") or payload.get("fragment") or {}
     if not isinstance(fragment, dict):
@@ -82,6 +82,19 @@ def admit_candidate(
             }
             existing_pending.update_time = datetime.utcnow()
             session.add(existing_pending)
+            # Pre-certify reproduce evidence keyed by natural_key; certify
+            # backfills asset_id so promotion counting inherits it seamlessly.
+            session.add(
+                KnowledgeEvidence(
+                    asset_id=None,
+                    asset_kind=kind,
+                    natural_key=natural_key,
+                    signal_kind="reproduce",
+                    record_id=source_record_id,
+                    fact={"trigger": trigger_id, "phase": "staging_merge"},
+                    create_time=datetime.utcnow(),
+                )
+            )
             append_event(
                 session,
                 lineage_id=existing_pending.lineage_id,
@@ -93,9 +106,7 @@ def admit_candidate(
                 require_evidence=False,
             )
             session.flush()
-            return existing_pending
-        # Same natural_key but non-equivalent fragment (legacy keys): keep one
-        # pending row certifiable — newer payload wins; no status=conflict dead-end.
+            return existing_pending, "merged"
         existing_pending.payload = payload
         existing_pending.trigger_id = trigger_id
         existing_pending.source_record_id = source_record_id
@@ -119,62 +130,28 @@ def admit_candidate(
             require_evidence=False,
         )
         session.flush()
-        return existing_pending
+        return existing_pending, "merged"
 
-    existing_caliber = session.exec(
-        select(BusinessCaliber)
-        .where(BusinessCaliber.oid == oid)
-        .where(BusinessCaliber.natural_key == natural_key)
-        .where(BusinessCaliber.enabled.is_(True))  # type: ignore[attr-defined]
-        .where(BusinessCaliber.superseded_by.is_(None))  # type: ignore[attr-defined]
-    ).first()
+    # Rejection memory: a reviewer already said no to this exact knowledge.
+    # Re-admitting it would put the same item back in the triage queue forever.
+    # Explicit manual entry is the recovery channel and bypasses suppression.
+    if (provenance or {}).get("source_type") != "manual":
+        rejected = session.exec(
+            select(KnowledgeStaging)
+            .where(KnowledgeStaging.oid == oid)
+            .where(KnowledgeStaging.natural_key == natural_key)
+            .where(KnowledgeStaging.status == "rejected")
+            .order_by(col(KnowledgeStaging.update_time).desc())
+        ).first()
+        if rejected is not None:
+            return rejected, "suppressed"
+
     now = datetime.utcnow()
     lineage_id = new_lineage_id()
-    status = "pending"
-    conflict_with: list[int] | None = None
-    if existing_caliber is not None:
-        existing_frag = existing_caliber.contract_fragment or {}
-        if fragments_equivalent(existing_frag, fragment):
-            staging = KnowledgeStaging(
-                oid=oid,
-                kind=kind,
-                status="promoted",
-                natural_key=natural_key,
-                scope=scope,
-                payload=payload,
-                trigger_id=trigger_id,
-                source_record_id=source_record_id,
-                suggested_trust_tier=suggested_trust_tier,
-                quality_snapshot={
-                    **(quality_snapshot or {}),
-                    "skipped": "equivalent_caliber",
-                },
-                lineage_id=existing_caliber.lineage_id,
-                create_time=now,
-                update_time=now,
-            )
-            session.add(staging)
-            append_event(
-                session,
-                lineage_id=existing_caliber.lineage_id,
-                asset_kind=kind,
-                action="merged",
-                asset_id=existing_caliber.id,
-                trigger_id=trigger_id,
-                refs={"source_record_id": source_record_id},
-                require_evidence=False,
-            )
-            session.flush()
-            return staging
-        # Same key, different material: stay pending so certify can supersede.
-        # Do not use status=conflict — that dead-ends the supersede path.
-        status = "pending"
-        conflict_with = [int(existing_caliber.id)] if existing_caliber.id else None
-
     staging = KnowledgeStaging(
         oid=oid,
         kind=kind,
-        status=status,
+        status="pending",
         natural_key=natural_key,
         scope=scope,
         payload=payload,
@@ -182,8 +159,8 @@ def admit_candidate(
         source_record_id=source_record_id,
         suggested_trust_tier=suggested_trust_tier,
         quality_snapshot=quality_snapshot,
-        conflict_with=conflict_with,
         lineage_id=lineage_id,
+        provenance=provenance,
         create_time=now,
         update_time=now,
     )
@@ -197,18 +174,17 @@ def admit_candidate(
         asset_id=staging.id,
         trigger_id=trigger_id,
         refs={"source_record_id": source_record_id},
-        payload={"status": status},
+        payload={"status": "pending"},
         require_evidence=False,
     )
-    if status == "pending":
-        append_event(
-            session,
-            lineage_id=lineage_id,
-            asset_kind=kind,
-            action="admitted",
-            asset_id=staging.id,
-            to_tier="admitted",
-            trigger_id=trigger_id,
-            require_evidence=False,
-        )
-    return staging
+    append_event(
+        session,
+        lineage_id=lineage_id,
+        asset_kind=kind,
+        action="admitted",
+        asset_id=staging.id,
+        to_tier="admitted",
+        trigger_id=trigger_id,
+        require_evidence=False,
+    )
+    return staging, "admitted"

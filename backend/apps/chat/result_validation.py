@@ -11,7 +11,11 @@ from collections import Counter
 from collections.abc import Mapping, Sequence
 from typing import Any, TypedDict
 
-from apps.chat.query_contract import GroupRequirement, OutputRequirement, QueryContract
+from apps.chat.query_specification import (
+    GroupRequirement,
+    OutputRequirement,
+    QuerySpecification,
+)
 
 
 class ResultValidationIssue(TypedDict):
@@ -33,7 +37,7 @@ def _split_multi_metric_grain(
     assessment: Mapping[str, Any],
     *,
     step_index: int,
-    contract: QueryContract | None,
+    contract: QuerySpecification | None,
 ) -> ResultValidationIssue | None:
     """Detect mutually exclusive metric rows caused by a sparse dimension."""
     rows = [
@@ -102,10 +106,10 @@ def _split_multi_metric_grain(
             "sparse_dimensions": sparse_dimensions,
             "stable_dimensions": stable_dimensions,
             "contract_metric_keys": [
-                requirement.slot_id for requirement in contract_metrics
+                requirement.requirement_id for requirement in contract_metrics
             ],
             "contract_grain_keys": [
-                requirement.slot_id for requirement in contract_grains
+                requirement.requirement_id for requirement in contract_grains
             ],
         },
     }
@@ -114,7 +118,7 @@ def _split_multi_metric_grain(
 def validate_result_structure(
     assessments: Sequence[Mapping[str, Any]],
     *,
-    contract: QueryContract | None = None,
+    contract: QuerySpecification | None = None,
 ) -> ResultValidationReport:
     """Validate the complete candidate batch before charting or publication."""
     issues: list[ResultValidationIssue] = []

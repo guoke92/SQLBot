@@ -323,6 +323,9 @@
     "thinking": "思考中",
     "thinking_step": "思考过程",
     "ask_again": "重新生成",
+    "feedback_up": "有帮助",
+    "feedback_down": "没帮助",
+    "feedback_submitted": "感谢反馈",
     "today": "今天",
     "week": "7天内",
     "earlier": "更早以前",
@@ -952,8 +955,8 @@
     "quality_coverage_truncated": "{steps} 个查询共返回 {rows} 行；至少一个查询仅展示上限内数据，未查询结果总数",
     "quality_check": {
       "plan_validated": "查询计划已通过协议级校验",
-      "query_contract_satisfied": "查询计划已满足当前协议适用的字段及查询契约校验",
-      "query_contract_partially_verified": "查询计划仅通过部分查询契约校验",
+      "query_specification_satisfied": "查询计划已满足当前协议适用的字段及查询规格校验",
+      "query_specification_partially_verified": "查询计划仅通过部分查询规格校验",
       "intent_contract_ready": "业务口径已通过澄清门禁",
       "sql_executed": "SQL 已成功执行",
       "displayable_data": "查询返回了可展示数据",
@@ -961,12 +964,11 @@
       "result_structure_valid": "执行结果已通过结构一致性检查"
     },
     "quality_dimension": {
-      "intent_alignment": "需求口径一致性",
-      "contract_completeness": "查询契约完整性",
-      "sql_semantic_correctness": "SQL 语义实现正确性",
-      "answer_usability": "结果可回答性",
-      "evidence_confidence": "证据可信度",
-      "limitation_transparency": "局限说明准确性"
+      "semantic_coverage": "语义规格覆盖度",
+      "plan_alignment": "查询计划与规格一致性",
+      "field_relation_evidence": "字段和关系证据充分度",
+      "execution_completeness": "执行完整性",
+      "result_reasonableness": "结果合理性与假设风险"
     },
     "quality_detail": {
       "intent_confirmed": "已确认的业务口径已进入查询契约。",
@@ -984,6 +986,8 @@
       "schema_contract_evidence": "评分已有 Schema、已确认契约和结果结构证据；字段值域关联证据尚未纳入。",
       "limited_verification_evidence": "当前只有部分 Schema 或结构验证证据。",
       "data_observations_disclosed": "截断、空结果、空值率等结果特征已单独披露，不与需求完成度混淆。",
+      "assumption_risk_low": "本次查询未使用中高风险业务假设。",
+      "assumption_risk_present": "本次查询包含 {risk} 风险的业务假设，结果需结合假设理解。",
       "no_published_result": "没有已发布查询结果可供评分。"
     },
     "data_observation": {
@@ -1023,6 +1027,10 @@
     "clarification_details": "详情",
     "clarification_hide_details": "收起详情",
     "clarification_continue": "确认并继续",
+    "clarification_correct": "修改回答",
+    "clarification_cancel_correction": "取消修改",
+    "clarification_save_correction": "保存修改",
+    "clarification_correction_required": "请选择新的选项或输入新的自定义口径",
     "clarification_answered": "已回答",
     "clarification_confirmed": "已确认查询口径：",
     "clarification_required": "请回答“{title}”",
@@ -1195,5 +1203,22 @@
     "create": "创建",
     "to_doc": "查看 API",
     "trigger_limit": "最多支持创建 {0} 个 API Key"
+  },
+  "knowledge": {
+    "title": "知识管理",
+    "triage": "分诊队列",
+    "assets": "资产列表",
+    "staging_queue": "待审核项",
+    "suggestions": "升格建议",
+    "actions": "操作",
+    "certify": "批准",
+    "reject": "拒绝",
+    "promote": "升格",
+    "demote": "降级",
+    "disable": "禁用",
+    "reject_reason": "请输入拒绝原因",
+    "reason": "原因",
+    "cancel": "取消",
+    "confirm": "确认"
   }
 }

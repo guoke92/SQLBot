@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from sqlmodel import Session
+from sqlalchemy import or_
+from sqlmodel import Session, select
 
 from apps.knowledge.compile.bundle import (
     ApplyHit,
@@ -12,6 +13,8 @@ from apps.knowledge.compile.bundle import (
     CompiledKnowledge,
     CompileStage,
 )
+from apps.knowledge.db_models import KnowledgeAsset
+from apps.knowledge.models import KnowledgeBundle
 from apps.knowledge.policy import KnowledgePolicy, get_knowledge_policy
 from apps.knowledge.service import recall_knowledge
 
@@ -25,30 +28,36 @@ def compile_knowledge_for_turn(
     ds_id: int | None,
     advanced_application_id: int | None = None,
     policy: KnowledgePolicy | dict[str, Any] | None = None,
+    include_matches: bool = True,
     include_calibers: bool = True,
     include_examples: bool = False,
     training_type: str | None = None,
-    has_confirmed_joins: bool | None = None,
 ) -> CompiledKnowledge:
     """Assemble a CompiledKnowledge for the given NLQ stage.
 
     Phase A: Term + Dict via recall_knowledge (behavior-preserving).
-    Phase B+: certified Caliber Bind; Phase C+: examples + budgets.
+    Phase B+: strongly applicable certified Caliber candidates. The semantic
+    planner records Bind only after the final specification absorbs them.
+    Phase C+: examples + budgets.
+
+    ``include_matches=False`` skips the Term/Dict recall (with its embedding
+    lookups) for callers that already compiled it earlier in the same turn.
     """
     resolved = (
-        policy
-        if isinstance(policy, KnowledgePolicy)
-        else get_knowledge_policy(policy)
+        policy if isinstance(policy, KnowledgePolicy) else get_knowledge_policy(policy)
     )
     budgets = resolved.compile_budgets
 
-    base = recall_knowledge(
-        session,
-        question=question,
-        oid=oid,
-        ds_id=ds_id,
-        advanced_application_id=advanced_application_id,
-    )
+    if include_matches:
+        base = recall_knowledge(
+            session,
+            question=question,
+            oid=oid,
+            ds_id=ds_id,
+            advanced_application_id=advanced_application_id,
+        )
+    else:
+        base = KnowledgeBundle()
     apply_log: list[ApplyHit] = []
     for match in base.matches:
         if "entity_binding" in match.usages:
@@ -75,7 +84,6 @@ def compile_knowledge_for_turn(
             )
 
     bound_calibers: list[BoundCaliber] = []
-    constraint_cards: list[dict[str, Any]] = []
     if include_calibers and ds_id is not None and advanced_application_id is None:
         from apps.knowledge.retrieval.caliber_provider import recall_bindable_calibers
 
@@ -84,50 +92,10 @@ def compile_knowledge_for_turn(
             oid=oid,
             ds_id=ds_id,
             question=question,
-            policy=resolved,
         )
         for item in candidates:
-            if item.apply == "bind":
+            if item.apply == "bind" and item.bound is not None:
                 bound_calibers.append(item.bound)
-                apply_log.append(
-                    ApplyHit(
-                        asset_kind="caliber",
-                        asset_id=item.bound.caliber_id,
-                        lineage_id=item.bound.lineage_id,
-                        trust_tier=item.bound.trust_tier,
-                        apply="bind",
-                        reason="certified_caliber",
-                        meta={"label": item.bound.label},
-                    )
-                )
-            elif item.apply == "constrain":
-                if (
-                    stage == "assess"
-                    and len(constraint_cards) >= budgets.assess_constrain_cards
-                ):
-                    apply_log.append(
-                        ApplyHit(
-                            asset_kind="caliber",
-                            asset_id=item.asset_id,
-                            lineage_id=item.lineage_id,
-                            trust_tier=item.trust_tier,
-                            apply="drop",
-                            reason="assess_constrain_budget",
-                        )
-                    )
-                    continue
-                constraint_cards.append(item.card)
-                apply_log.append(
-                    ApplyHit(
-                        asset_kind="caliber",
-                        asset_id=item.asset_id,
-                        lineage_id=item.lineage_id,
-                        trust_tier=item.trust_tier,
-                        apply="constrain",
-                        reason="uncertified_or_trusted_caliber",
-                        meta={"label": item.card.get("label")},
-                    )
-                )
             else:
                 apply_log.append(
                     ApplyHit(
@@ -139,6 +107,54 @@ def compile_knowledge_for_turn(
                         reason=item.drop_reason or "policy_drop",
                     )
                 )
+
+    # ── K5 rules: workspace/datasource-scoped business constraints ──
+    # Skipped alongside matches: the planner reads constraints from the
+    # assess-stage compile; re-querying at generate would only duplicate hits.
+    constraints: list[dict[str, Any]] = []
+    if include_matches:
+        rule_stmt = (
+            select(KnowledgeAsset)
+            .where(KnowledgeAsset.kind == "rule")
+            .where(KnowledgeAsset.enabled.is_(True))  # type: ignore[attr-defined]
+            .where(KnowledgeAsset.valid_to.is_(None))  # type: ignore[attr-defined]
+            .where(KnowledgeAsset.oid == oid)
+            .where(
+                KnowledgeAsset.trust_tier.in_(  # type: ignore[attr-defined]
+                    ["published", "trusted", "certified"]
+                )
+            )
+        )
+        if ds_id is not None:
+            rule_stmt = rule_stmt.where(
+                or_(
+                    KnowledgeAsset.datasource_id == ds_id,
+                    KnowledgeAsset.datasource_id.is_(None),  # type: ignore[attr-defined]
+                )
+            )
+        else:
+            rule_stmt = rule_stmt.where(
+                KnowledgeAsset.datasource_id.is_(None)  # type: ignore[attr-defined]
+            )
+        for rule in session.exec(rule_stmt).all():
+            constraints.append(
+                {
+                    "id": rule.id,
+                    "lineage_id": rule.lineage_id,
+                    "label": rule.label,
+                    "content": (rule.payload or {}).get("content", ""),
+                }
+            )
+            apply_log.append(
+                ApplyHit(
+                    asset_kind="rule",
+                    asset_id=rule.id,
+                    lineage_id=rule.lineage_id,
+                    trust_tier=rule.trust_tier,
+                    apply="constrain",
+                    reason="k5_rule",
+                )
+            )
 
     examples: list[dict[str, Any]] = []
     if include_examples and stage in ("generate", "repair"):
@@ -152,9 +168,7 @@ def compile_knowledge_for_turn(
             advanced_application_id=advanced_application_id,
             training_type=training_type,
         )
-        limit = (
-            budgets.repair_hints if stage == "repair" else budgets.generate_examples
-        )
+        limit = budgets.repair_hints if stage == "repair" else budgets.generate_examples
         for idx, example in enumerate(raw_examples):
             if idx >= limit:
                 apply_log.append(
@@ -179,12 +193,19 @@ def compile_knowledge_for_turn(
                 )
             )
 
-    clarify_hints: list[str] = []
-    if has_confirmed_joins:
-        clarify_hints.append(
-            "Confirmed joins exist for this datasource; prefer asking about "
-            "population/filters over how tables connect."
+    # ── K4 VQR: attempt reuse from certified exemplars ──
+    reuse_payload: dict[str, Any] | None = None
+    if stage == "generate" and examples and ds_id is not None:
+        from apps.knowledge.reuse import build_reuse_apply_hit, try_reuse
+
+        reuse_result = try_reuse(
+            question=question,
+            examples=examples,
+            policy=resolved,
         )
+        if reuse_result is not None:
+            reuse_payload = reuse_result.model_dump(mode="json")
+            apply_log.append(build_reuse_apply_hit(reuse_result))
 
     return CompiledKnowledge(
         stage=stage,
@@ -192,9 +213,9 @@ def compile_knowledge_for_turn(
         log_items=base.log_items,
         matches=base.matches,
         bound_calibers=bound_calibers,
-        constraint_cards=constraint_cards,
         examples=examples,
-        clarify_hints=clarify_hints,
+        constraints=constraints,
         structural_ref={"channel": "catalog_prompt", "ds_id": ds_id},
+        reuse=reuse_payload,
         apply_log=apply_log,
     )

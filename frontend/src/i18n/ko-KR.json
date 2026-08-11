@@ -323,6 +323,9 @@
     "thinking": "생각 중",
     "thinking_step": "사고 과정",
     "ask_again": "다시 생성",
+    "feedback_up": "도움이 됨",
+    "feedback_down": "도움이 안 됨",
+    "feedback_submitted": "피드백 감사합니다",
     "today": "오늘",
     "week": "7일 이내",
     "earlier": "더 이전",
@@ -952,8 +955,8 @@
     "quality_coverage_truncated": "{steps}개 쿼리에서 {rows}행을 반환했으며 하나 이상의 쿼리가 제한되어 전체 건수는 조회하지 않았습니다",
     "quality_check": {
       "plan_validated": "쿼리 계획이 프로토콜 수준 검증을 통과했습니다",
-      "query_contract_satisfied": "쿼리 계획이 현재 프로토콜에 적용되는 식별자 및 쿼리 계약 검사를 충족했습니다",
-      "query_contract_partially_verified": "쿼리 계획이 쿼리 계약 검사의 일부만 통과했습니다",
+      "query_specification_satisfied": "쿼리 계획이 현재 프로토콜에 적용되는 식별자 및 쿼리 규격 검사를 충족했습니다",
+      "query_specification_partially_verified": "쿼리 계획이 쿼리 규격 검사의 일부만 통과했습니다",
       "intent_contract_ready": "업무 정의가 명확화 단계를 통과했습니다",
       "sql_executed": "SQL이 성공적으로 실행되었습니다",
       "displayable_data": "표시 가능한 데이터가 반환되었습니다",
@@ -961,12 +964,11 @@
       "result_structure_valid": "결과가 구조 일관성 검사를 통과했습니다"
     },
     "quality_dimension": {
-      "intent_alignment": "업무 의도 일치성",
-      "contract_completeness": "쿼리 계약 완전성",
-      "sql_semantic_correctness": "SQL 의미 구현 정확성",
-      "answer_usability": "결과 답변 가능성",
-      "evidence_confidence": "근거 신뢰도",
-      "limitation_transparency": "제한 사항 설명 정확성"
+      "semantic_coverage": "의미 규격 범위",
+      "plan_alignment": "쿼리 계획과 규격 일치성",
+      "field_relation_evidence": "필드 및 관계 근거",
+      "execution_completeness": "실행 완전성",
+      "result_reasonableness": "결과 타당성과 가정 위험"
     },
     "quality_detail": {
       "intent_confirmed": "확정된 업무 정의가 쿼리 계약에 적용되었습니다.",
@@ -984,6 +986,8 @@
       "schema_contract_evidence": "Schema, 확정 계약 및 결과 구조 근거가 있으며, 필드 값 영역 관계 근거는 아직 포함되지 않았습니다.",
       "limited_verification_evidence": "일부 Schema 또는 구조 검증 근거만 사용할 수 있습니다.",
       "data_observations_disclosed": "잘림, 빈 결과 및 null 비율을 요구사항 충족도와 분리해 표시합니다.",
+      "assumption_risk_low": "중간 또는 높은 위험의 업무 가정을 사용하지 않았습니다.",
+      "assumption_risk_present": "이 쿼리는 {risk} 위험의 업무 가정을 사용하므로 해당 가정과 함께 결과를 해석해야 합니다.",
       "no_published_result": "평가할 게시 결과가 없습니다."
     },
     "data_observation": {
@@ -1023,6 +1027,10 @@
     "clarification_details": "상세",
     "clarification_hide_details": "상세 접기",
     "clarification_continue": "확인 후 계속",
+    "clarification_correct": "답변 수정",
+    "clarification_cancel_correction": "수정 취소",
+    "clarification_save_correction": "수정 저장",
+    "clarification_correction_required": "새 옵션을 선택하거나 새 사용자 정의 기준을 입력하세요",
     "clarification_answered": "답변 완료",
     "clarification_confirmed": "확정된 쿼리 기준:",
     "clarification_required": "“{title}”에 답변해 주세요",
@@ -1195,5 +1203,22 @@
     "create": "생성",
     "to_doc": "API 보기",
     "trigger_limit": "최대 {0}개의 API 키 생성 지원"
+  },
+  "knowledge": {
+    "title": "지식 관리",
+    "triage": "분류 대기열",
+    "assets": "자산 목록",
+    "staging_queue": "검토 대기",
+    "suggestions": "승격 제안",
+    "actions": "작업",
+    "certify": "승인",
+    "reject": "거부",
+    "promote": "승격",
+    "demote": "강등",
+    "disable": "비활성화",
+    "reject_reason": "거부 사유를 입력하세요",
+    "reason": "사유",
+    "cancel": "취소",
+    "confirm": "확인"
   }
 }

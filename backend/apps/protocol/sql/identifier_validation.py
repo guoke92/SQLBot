@@ -9,19 +9,18 @@ import sqlglot
 from sqlglot import exp
 from sqlglot.optimizer.scope import Scope, traverse_scope
 
-from apps.chat.query_contract import (
-    ContractRequirement,
+from apps.chat.query_specification import (
+    BusinessRelationRequirement,
     FieldRef,
     GroupRequirement,
-    LimitRequirement,
     OrderRequirement,
     OutputRequirement,
     PredicateRequirement,
-    ProjectionRequirement,
-    QueryContract,
+    QuerySpecification,
     RelationPair,
-    RelationRequirement,
+    SpecificationRequirement,
     TimeWindowRequirement,
+    requirement_fields,
 )
 
 
@@ -65,8 +64,8 @@ VerificationOverall = Literal["verified", "partial", "unsupported"]
 
 
 @dataclass(frozen=True)
-class SlotVerification:
-    slot_id: str
+class RequirementVerification:
+    requirement_id: str
     state: VerificationState
     reason: str = ""
 
@@ -75,7 +74,7 @@ class SlotVerification:
 class SqlContractValidation:
     error: str | None
     status: VerificationOverall
-    slots: tuple[SlotVerification, ...]
+    requirements: tuple[RequirementVerification, ...]
     per_plan_coverage: tuple[frozenset[str], ...]
     per_plan_projections: tuple[tuple[ResultProjection, ...], ...]
     warnings: tuple[str, ...] = ()
@@ -107,6 +106,8 @@ def _column_key(column: exp.Column, scope: Scope) -> set[str]:
 
 
 def _ref_keys(field: FieldRef) -> set[str]:
+    if not field.field:
+        return set()
     keys = {field.field.casefold()}
     if field.resource_name:
         keys.add(f"{field.resource_name.casefold()}.{field.field.casefold()}")
@@ -128,7 +129,7 @@ def _is_output_alias(column: exp.Column, scope: Scope) -> bool:
         return False
     parent = column.parent
     while parent is not None and parent is not scope.expression:
-        if isinstance(parent, (exp.Group, exp.Order, exp.Having, exp.Qualify)):
+        if isinstance(parent, exp.Group | exp.Order | exp.Having | exp.Qualify):
             return True
         parent = parent.parent
     return False
@@ -380,11 +381,11 @@ def _lineage_column_keys(
 
 def _literal(expression: exp.Expression | None) -> str | None:
     current = expression
-    while isinstance(current, (exp.Cast, exp.Paren)):
+    while isinstance(current, exp.Cast | exp.Paren):
         current = current.this
     if isinstance(current, exp.Literal):
         return str(current.this)
-    if isinstance(current, (exp.Boolean, exp.Null)):
+    if isinstance(current, exp.Boolean | exp.Null):
         return current.sql().casefold()
     return None
 
@@ -634,6 +635,8 @@ def _observe(statement: str, dialect: str | None) -> _ObservedPlan:
 
 
 def _field_matches(field: FieldRef, keys: set[str] | frozenset[str]) -> bool:
+    if not field.field:
+        return False
     normalized = set(keys)
     if field.resource_name:
         return (
@@ -695,33 +698,31 @@ def _relation_pair_matches(
     left: set[str],
     right: set[str],
 ) -> bool:
-    return (
-        _field_matches(pair.left, left) and _field_matches(pair.right, right)
-    ) or (_field_matches(pair.left, right) and _field_matches(pair.right, left))
+    return (_field_matches(pair.left, left) and _field_matches(pair.right, right)) or (
+        _field_matches(pair.left, right) and _field_matches(pair.right, left)
+    )
 
 
 def _matching_relation_joins(
-    requirement: RelationRequirement,
+    requirement: BusinessRelationRequirement,
     observed: _ObservedPlan,
 ) -> list[tuple[set[str], set[str], str]]:
     return [
         join
         for join in observed.joins
         if any(
-            _relation_pair_matches(pair, join[0], join[1])
-            for pair in requirement.pairs
+            _relation_pair_matches(pair, join[0], join[1]) for pair in requirement.pairs
         )
     ]
 
 
 def _relation_satisfied(
-    requirement: RelationRequirement, observed: _ObservedPlan
+    requirement: BusinessRelationRequirement, observed: _ObservedPlan
 ) -> bool:
     matched = _matching_relation_joins(requirement, observed)
     for pair in requirement.pairs:
         if not any(
-            _relation_pair_matches(pair, left, right)
-            for left, right, _kind in matched
+            _relation_pair_matches(pair, left, right) for left, right, _kind in matched
         ):
             return False
     kinds = {kind for _left, _right, kind in matched}
@@ -733,11 +734,7 @@ def _relation_satisfied(
         return any(kind == "right" for kind in kinds)
     if any(kind in {"full", "outer", "full outer"} for kind in kinds):
         return True
-    if (
-        not observed.has_union
-        or not kinds
-        or not all(kind == "left" for kind in kinds)
-    ):
+    if not observed.has_union or not kinds or not all(kind == "left" for kind in kinds):
         return False
     return all(
         any(
@@ -757,22 +754,17 @@ def _join_resources(keys: set[str]) -> set[str]:
     return {key.split(".", 1)[0] for key in keys if "." in key}
 
 
-def _slot_state(
-    requirement: ContractRequirement,
+def _requirement_state(
+    requirement: SpecificationRequirement,
     observed: _ObservedPlan,
-    contract: QueryContract,
+    contract: QuerySpecification,
 ) -> VerificationState:
-    if isinstance(requirement, ProjectionRequirement):
-        if requirement.mode == "all":
-            # A star proves every column is projected; its absence proves
-            # nothing, because an explicit column list is the form the SQL
-            # prompt teaches and cannot be checked without the table catalog.
-            return "satisfied" if observed.has_star else "unverified"
-        satisfied = all(
-            _field_matches(field, observed.projection_fields)
-            for field in requirement.fields
-        )
-    elif isinstance(requirement, OutputRequirement):
+    # semantic_ref intentionally carries an unresolved business concept rather
+    # than a fabricated identifier. SQL AST cannot prove its implementation,
+    # so it is a disclosed risk, not a contract violation or a repair loop.
+    if any(not field.field for field in requirement_fields(requirement)):
+        return "unverified"
+    if isinstance(requirement, OutputRequirement):
         if not _field_matches(requirement.field, observed.projection_fields):
             satisfied = False
         elif requirement.operation == "value":
@@ -801,7 +793,7 @@ def _slot_state(
                 for key, buckets in observed.group_buckets.items()
                 if key in _ref_keys(requirement.field)
             )
-    elif isinstance(requirement, RelationRequirement):
+    elif isinstance(requirement, BusinessRelationRequirement):
         pairs_present = all(
             any(
                 (_field_matches(pair.left, left) and _field_matches(pair.right, right))
@@ -824,10 +816,10 @@ def _slot_state(
         target_keys = (
             _ref_keys(requirement.field)
             if requirement.field is not None
-            else {requirement.output_slot_id.casefold()}
+            else {str(requirement.output_requirement_id).casefold()}
         )
-        if requirement.output_slot_id:
-            output = contract.by_slot().get(requirement.output_slot_id)
+        if requirement.output_requirement_id:
+            output = contract.by_requirement_id().get(requirement.output_requirement_id)
             if isinstance(output, OutputRequirement):
                 target_keys |= _ref_keys(output.field) | {output.label.casefold()}
                 target_keys.update(
@@ -839,8 +831,6 @@ def _slot_state(
             direction == requirement.direction and bool(keys & target_keys)
             for keys, direction in observed.order_fields
         )
-    elif isinstance(requirement, LimitRequirement):
-        satisfied = observed.limit == requirement.value
     else:
         satisfied = False
     return "satisfied" if satisfied else "violated"
@@ -848,46 +838,76 @@ def _slot_state(
 
 def _project_requirement_lineage(
     observed: _ObservedPlan,
-    contract: QueryContract,
+    contract: QuerySpecification,
 ) -> tuple[ResultProjection, ...]:
     result: list[ResultProjection] = []
     for projection in observed.projections:
         keys = set(projection.source_columns) | {projection.output_name.casefold()}
-        slots: list[str] = []
+        requirement_ids: list[str] = []
         for requirement in contract.requirements:
             fields: list[FieldRef] = []
             if isinstance(requirement, OutputRequirement):
                 fields = [requirement.field]
             elif isinstance(requirement, GroupRequirement):
                 fields = [requirement.field]
-            elif isinstance(requirement, ProjectionRequirement):
-                fields = requirement.fields
             if any(_field_matches(field, keys) for field in fields):
-                slots.append(requirement.slot_id)
+                requirement_ids.append(requirement.requirement_id)
         result.append(
             ResultProjection(
                 output_name=projection.output_name,
-                requirement_keys=tuple(sorted(set(slots))),
+                requirement_keys=tuple(sorted(set(requirement_ids))),
                 source_columns=projection.source_columns,
             )
         )
+    # A semantic_ref deliberately has no physical identifier to compare with
+    # the AST. When the number of still-unclaimed public projections matches
+    # the unresolved business concepts, bind them positionally for lineage
+    # only. The requirement remains ``unverified`` and lowers quality; any
+    # additional projection still remains an explicit contract violation.
+    semantic_concepts: list[list[str]] = []
+    concept_index: dict[str, int] = {}
+    for requirement in contract.requirements:
+        if not isinstance(requirement, OutputRequirement | GroupRequirement):
+            continue
+        if requirement.field.field or not requirement.field.semantic_ref:
+            continue
+        key = requirement.field.semantic_ref.casefold()
+        index = concept_index.get(key)
+        if index is None:
+            concept_index[key] = len(semantic_concepts)
+            semantic_concepts.append([requirement.requirement_id])
+        else:
+            semantic_concepts[index].append(requirement.requirement_id)
+    unclaimed = [
+        index for index, item in enumerate(result) if not item.requirement_keys
+    ]
+    if semantic_concepts and len(unclaimed) == len(semantic_concepts):
+        for projection_index, requirement_ids in zip(
+            unclaimed, semantic_concepts, strict=True
+        ):
+            projection = result[projection_index]
+            result[projection_index] = ResultProjection(
+                output_name=projection.output_name,
+                requirement_keys=tuple(sorted(requirement_ids)),
+                source_columns=projection.source_columns,
+            )
     return tuple(result)
 
 
-def analyze_sql_contract_structure(
+def analyze_query_specification_alignment(
     statements: list[str] | tuple[str, ...],
-    contract: QueryContract,
+    contract: QuerySpecification,
     *,
     dialect: str | None,
 ) -> SqlContractValidation:
-    """Compare every generated plan with the same frozen query contract."""
+    """Compare every generated plan with the same active specification revision."""
     try:
         observed = [_observe(statement, dialect) for statement in statements]
     except Exception as exc:
         return SqlContractValidation(
             error=f"SQL contract parsing failed: {exc}",
             status="unsupported",
-            slots=(),
+            requirements=(),
             per_plan_coverage=(),
             per_plan_projections=(),
         )
@@ -896,32 +916,45 @@ def analyze_sql_contract_structure(
     projections = [_project_requirement_lineage(item, contract) for item in observed]
     for plan in observed:
         states = {
-            requirement.slot_id: _slot_state(requirement, plan, contract)
+            requirement.requirement_id: _requirement_state(requirement, plan, contract)
             for requirement in contract.requirements
         }
         states_by_plan.append(states)
         coverages.append(
-            {slot_id for slot_id, state in states.items() if state != "violated"}
+            {
+                requirement_id
+                for requirement_id, state in states.items()
+                if state != "violated"
+            }
         )
 
     violations: list[str] = []
     distributable = {
-        requirement.slot_id
+        requirement.requirement_id
         for requirement in contract.requirements
-        if isinstance(requirement, (OutputRequirement, ProjectionRequirement))
+        if isinstance(requirement, OutputRequirement)
     }
     universal = {
-        requirement.slot_id
+        requirement.requirement_id
         for requirement in contract.requirements
-        if requirement.slot_id not in distributable
-        and not isinstance(requirement, (OrderRequirement, LimitRequirement))
+        if requirement.requirement_id not in distributable
+        and not isinstance(requirement, OrderRequirement)
     }
-    global_slots = {
-        requirement.slot_id
+    global_requirements = {
+        requirement.requirement_id
         for requirement in contract.requirements
-        if isinstance(requirement, (OrderRequirement, LimitRequirement))
+        if isinstance(requirement, OrderRequirement)
     }
-    if len(observed) > 1 and global_slots:
+    if contract.limit is not None:
+        if len(observed) != 1:
+            violations.append(
+                "Global limit specification must be implemented by one plan"
+            )
+        elif observed[0].limit != contract.limit:
+            violations.append(
+                f"Plan limit {observed[0].limit!r} does not match specification {contract.limit}"
+            )
+    if len(observed) > 1 and global_requirements:
         violations.append("Global order/limit contract must be implemented by one plan")
     if len(observed) > 1 and not distributable:
         violations.append("Contract has no distributable outputs and must use one plan")
@@ -929,11 +962,13 @@ def analyze_sql_contract_structure(
         missing_universal = universal - coverage
         if missing_universal:
             violations.append(
-                f"Plan {index + 1} omits universal contract slots: "
+                f"Plan {index + 1} omits universal specification requirements: "
                 + ", ".join(sorted(missing_universal))
             )
         if len(observed) > 1 and not (coverage & distributable):
-            violations.append(f"Plan {index + 1} covers no distributable output slot")
+            violations.append(
+                f"Plan {index + 1} covers no distributable output requirement"
+            )
     if distributable:
         output_coverage = [coverage & distributable for coverage in coverages]
         union = set().union(*output_coverage) if output_coverage else set()
@@ -951,8 +986,8 @@ def analyze_sql_contract_structure(
                     # Two plans emitting the same output duplicates rows once
                     # the batch is merged.
                     violations.append(
-                        f"Plans {left_index + 1} and {right_index + 1} overlap output slots: "
-                        + ", ".join(sorted(overlap))
+                        f"Plans {left_index + 1} and {right_index + 1} "
+                        "overlap output requirements: " + ", ".join(sorted(overlap))
                     )
         for requirement in contract.requirements:
             if (
@@ -961,12 +996,12 @@ def analyze_sql_contract_structure(
             ):
                 continue
             for index, coverage in enumerate(coverages):
-                if requirement.slot_id in coverage and not set(
+                if requirement.requirement_id in coverage and not set(
                     requirement.operands
                 ).issubset(coverage):
                     violations.append(
                         f"Plan {index + 1} separates derived output "
-                        f"{requirement.slot_id} from its operands"
+                        f"{requirement.requirement_id} from its operands"
                     )
 
     allowed_predicate_fields = {
@@ -998,39 +1033,34 @@ def analyze_sql_contract_structure(
     # connect two business entities is a property of the schema, not of the
     # contract: a many-to-many bridge is mandatory yet can never be named by an
     # assessor that only ever saw the question.  The join the user did decide
-    # is a relation slot, and ``_slot_state`` verifies it.
+    # is a business-relation requirement, and ``_requirement_state`` verifies it.
 
-    projection_is_open = any(
-        isinstance(requirement, ProjectionRequirement) and requirement.mode == "all"
-        for requirement in contract.requirements
-    )
     allowed_group_fields = {
         key
         for requirement in contract.requirements
         if isinstance(requirement, GroupRequirement)
         for key in _ref_keys(requirement.field)
     }
-    group_slot_ids = {
-        requirement.slot_id
+    group_requirement_ids = {
+        requirement.requirement_id
         for requirement in contract.requirements
         if isinstance(requirement, GroupRequirement)
     }
     for index, (plan, lineage) in enumerate(zip(observed, projections, strict=True)):
-        if not projection_is_open:
-            extra_outputs = [
-                projection.output_name
-                for projection in lineage
-                if not projection.requirement_keys
-            ]
-            if extra_outputs:
-                violations.append(
-                    f"Plan {index + 1} adds unconfirmed public outputs: "
-                    + ", ".join(extra_outputs)
-                )
+        extra_outputs = [
+            projection.output_name
+            for projection in lineage
+            if not projection.requirement_keys
+        ]
+        if extra_outputs:
+            violations.append(
+                f"Plan {index + 1} adds unconfirmed public outputs: "
+                + ", ".join(extra_outputs)
+            )
         allowed_plan_groups = allowed_group_fields | {
             projection.output_name.casefold()
             for projection in lineage
-            if set(projection.requirement_keys) & group_slot_ids
+            if set(projection.requirement_keys) & group_requirement_ids
         }
         extra_groups = {
             key
@@ -1044,16 +1074,16 @@ def analyze_sql_contract_structure(
             )
 
     all_coverage = set().union(*coverages) if coverages else set()
-    slots = tuple(
-        SlotVerification(
-            slot_id=requirement.slot_id,
+    requirements = tuple(
+        RequirementVerification(
+            requirement_id=requirement.requirement_id,
             state=(
                 "violated"
-                if requirement.slot_id not in all_coverage
+                if requirement.requirement_id not in all_coverage
                 else (
                     "unverified"
                     if all(
-                        states.get(requirement.slot_id) != "satisfied"
+                        states.get(requirement.requirement_id) != "satisfied"
                         for states in states_by_plan
                     )
                     else "satisfied"
@@ -1061,11 +1091,11 @@ def analyze_sql_contract_structure(
             ),
             reason=(
                 f"SQL does not implement {requirement.clause} clause"
-                if requirement.slot_id not in all_coverage
+                if requirement.requirement_id not in all_coverage
                 else (
                     f"{requirement.clause} clause is only partially observable"
                     if all(
-                        states.get(requirement.slot_id) != "satisfied"
+                        states.get(requirement.requirement_id) != "satisfied"
                         for states in states_by_plan
                     )
                     else ""
@@ -1074,14 +1104,20 @@ def analyze_sql_contract_structure(
         )
         for requirement in contract.requirements
     )
-    if violations or any(slot.state == "violated" for slot in slots):
-        missing = [slot.slot_id for slot in slots if slot.state == "violated"]
+    if violations or any(
+        requirement.state == "violated" for requirement in requirements
+    ):
+        missing = [
+            requirement.requirement_id
+            for requirement in requirements
+            if requirement.state == "violated"
+        ]
         parts = list(violations)
         if missing:
-            parts.append("Missing contract slots: " + ", ".join(missing))
+            parts.append("Missing specification requirements: " + ", ".join(missing))
         error = "; ".join(dict.fromkeys(parts))
         status: VerificationOverall = "partial"
-    elif any(slot.state == "unverified" for slot in slots):
+    elif any(requirement.state == "unverified" for requirement in requirements):
         error = None
         status = "partial"
     else:
@@ -1090,7 +1126,7 @@ def analyze_sql_contract_structure(
     return SqlContractValidation(
         error=error,
         status=status,
-        slots=slots,
+        requirements=requirements,
         per_plan_coverage=tuple(frozenset(item) for item in coverages),
         per_plan_projections=tuple(projections),
     )

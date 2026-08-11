@@ -279,7 +279,12 @@ class HttpService {
     return this.request({ ...config, method: 'POST', url, data })
   }
 
-  public async fetchStream(url: string, data?: any, controller?: AbortController): Promise<any> {
+  public async fetchStream(
+    url: string,
+    data?: any,
+    controller?: AbortController,
+    method: 'GET' | 'POST' = 'POST'
+  ): Promise<any> {
     const token = wsCache.get('user.token')
     const heads: any = {
       'Content-Type': 'application/json',
@@ -311,9 +316,9 @@ class HttpService {
 
     const real_url = import.meta.env.VITE_API_BASE_URL
     return fetch(real_url + url, {
-      method: 'POST',
+      method,
       headers: heads,
-      body: JSON.stringify(data),
+      body: method === 'POST' ? JSON.stringify(data) : undefined,
       signal: controller?.signal,
     })
   }

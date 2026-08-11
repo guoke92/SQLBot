@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 from sqlmodel import Session
 
@@ -18,8 +18,8 @@ from apps.template.generate_chart.generator import get_base_data_training_templa
 def match_training(
     llm_service: Any,
     session: Session,
-    oid: Optional[int] = None,
-    ds_id: Optional[int] = None,
+    oid: int | None = None,
+    ds_id: int | None = None,
 ) -> list[Any]:
     """Fill ``chat_question.data_training`` through Compile only (no fallback)."""
     llm_service.current_logs[OperationEnum.FILTER_QUERY_EXAMPLE] = start_log(
@@ -39,6 +39,7 @@ def match_training(
         oid=int(calculate_oid or 1),
         ds_id=calculate_ds_id if assistant_id is None else None,
         advanced_application_id=assistant_id,
+        include_matches=False,
         include_calibers=False,
         include_examples=True,
         training_type=training_type,
@@ -66,6 +67,7 @@ def match_training(
         llm_service.compiled_knowledge = prior.model_copy(
             update={
                 "examples": compiled.examples,
+                "reuse": compiled.reuse,
                 "apply_log": list(prior.apply_log) + list(compiled.apply_log),
             }
         )

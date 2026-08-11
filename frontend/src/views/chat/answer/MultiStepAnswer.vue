@@ -8,8 +8,8 @@ import {
   type AnswerPresentation,
   type ChatMessage,
   ChatRecord,
-  type ClarificationAnswer,
-  type IntentContext,
+  type ConversationInterrupt,
+  type ResumeAnswer,
   type ResultQuality,
 } from '@/api/chat.ts'
 import { computed, nextTick, onBeforeUnmount, ref, watch, type Ref } from 'vue'
@@ -86,7 +86,6 @@ const emits = defineEmits([
   'update:chatList',
   'update:currentChat',
   'update:currentChatId',
-  'clarification-submit',
 ])
 
 const { t } = useI18n()
@@ -153,33 +152,19 @@ const recordReasoningNames = computed(
   () => ['intent_reasoning_content', 'sql_answer', 'chart_answer', 'analysis_thinking'] as const
 )
 
-const intentContext = computed<IntentContext | undefined>(
-  () => props.message?.record?.intent_context
-)
-
-const isIntentTerminal = computed(() =>
-  ['needs_clarification', 'blocked'].includes(intentContext.value?.status || '')
-)
-
-const clarificationAnswered = computed(() => {
-  const recordId = props.message?.record?.id
-  if (!recordId) return false
-  return _currentChat.value.records.some(
-    (record) => !!record.id && record.clarification_parent_id === recordId
-  )
+const visibleInterrupts = computed<ConversationInterrupt[]>(() => {
+  const record = props.message?.record
+  const interrupts = (record?.interrupts || []).filter((item) => item.status !== 'cancelled')
+  if (
+    record?.active_interrupt &&
+    !interrupts.some((item) => item.interrupt_id === record.active_interrupt?.interrupt_id)
+  ) {
+    interrupts.push(record.active_interrupt)
+  }
+  return interrupts
 })
 
-const clarificationAnswers = computed<ClarificationAnswer[]>(() => {
-  const recordId = props.message?.record?.id
-  const questions = intentContext.value?.questions || []
-  if (!recordId || !questions.length) return []
-  const child = _currentChat.value.records.find(
-    (record) => record.clarification_parent_id === recordId
-  )
-  return child?.clarification_answers?.length
-    ? child.clarification_answers
-    : child?.intent_context?.submitted_answers || []
-})
+const isAwaitingInput = computed(() => props.message?.record?.run_status === 'awaiting_input')
 
 function toChartJson(chart: unknown): string {
   if (chart == null || chart === '') return ''
@@ -346,10 +331,7 @@ function hydrateHistory(record: ChatRecord) {
   steps.value = []
   hydrateSeq++
 
-  if (
-    record.intent_context &&
-    ['needs_clarification', 'blocked'].includes(record.intent_context.status)
-  ) {
+  if (record.run_status === 'awaiting_input') {
     return
   }
 
@@ -398,6 +380,74 @@ function hydrateHistory(record: ChatRecord) {
 
 const turn = useConversationTurn({ bigInt: true })
 
+function turnHandlers(currentRecord: ChatRecord) {
+  return {
+    onEvent: async (data: ChatStreamEvent) => {
+      switch (data.type) {
+        case 'regenerate_record_id':
+          currentRecord.regenerate_record_id = data.regenerate_record_id
+          break
+        case 'question':
+          currentRecord.question = data.question
+          break
+        case 'info':
+          console.info(data.msg)
+          break
+        case 'brief':
+          _currentChat.value.brief = data.brief
+          _chatList.value.forEach((chat: Chat) => {
+            if (chat.id === _currentChat.value.id) chat.brief = data.brief
+          })
+          break
+        case 'datasource':
+          if (!_currentChat.value.datasource) _currentChat.value.datasource = data.id
+          break
+        case 'batch-start':
+          currentRecord.sql_answer = ''
+          currentRecord.chart_answer = ''
+          activeChartReasoningIndex = undefined
+          break
+        case 'step-sql-result':
+          appendReasoningToRecord('sql_answer', data.reasoning_content ?? '')
+          break
+        case 'step-chart-result': {
+          const chartIndex = Number(data.index ?? 0)
+          if (activeChartReasoningIndex !== chartIndex) {
+            currentRecord.chart_answer = ''
+            activeChartReasoningIndex = chartIndex
+          }
+          appendReasoningToRecord('chart_answer', data.reasoning_content ?? '')
+          break
+        }
+        case 'analysis': {
+          analysisText.value += data.content ?? ''
+          const reasoning = data.reasoning_content ?? ''
+          analysisThinking.value += reasoning
+          appendReasoningToRecord('analysis_thinking', reasoning)
+          break
+        }
+        case 'clarification-reasoning':
+          currentRecord.intent_reasoning_content =
+            (currentRecord.intent_reasoning_content || '') + (data.content || '')
+          break
+      }
+      await nextTick()
+    },
+    onError: (record: ChatRecord) => emits('error', record.id),
+    onFinish: async (record: ChatRecord) => {
+      if (analysisText.value) currentRecord.analysis = analysisText.value
+      if (record.id && record.run_status !== 'awaiting_input') {
+        const hydrated = await hydrateRecordData(record.id, true)
+        if (hydrated) hydratedTerminalRecordId = record.id
+      }
+      emits('finish', record.id, record.run_status)
+    },
+    onDone: () => {
+      _loading.value = false
+    },
+  }
+}
+
 const sendMessage = async () => {
   _loading.value = true
 
@@ -420,104 +470,56 @@ const sendMessage = async () => {
   hydrateSeq++
 
   try {
-    await turn.run(_currentChatId.value, currentRecord, {
-      onEvent: async (data: ChatStreamEvent) => {
-        switch (data.type) {
-          case 'regenerate_record_id':
-            currentRecord.regenerate_record_id = data.regenerate_record_id
-            _currentChat.value.records[index.value].regenerate_record_id = data.regenerate_record_id
-            break
-          case 'question':
-            currentRecord.question = data.question
-            _currentChat.value.records[index.value].question = data.question
-            break
-          case 'info':
-            console.info(data.msg)
-            break
-          case 'brief':
-            _currentChat.value.brief = data.brief
-            _chatList.value.forEach((c: Chat) => {
-              if (c.id === _currentChat.value.id) {
-                c.brief = _currentChat.value.brief
-              }
-            })
-            break
-          case 'datasource':
-            if (!_currentChat.value.datasource) {
-              _currentChat.value.datasource = data.id
-            }
-            break
+    await turn.run(_currentChatId.value, currentRecord, turnHandlers(currentRecord))
+  } finally {
+    _loading.value = false
+  }
+}
 
-          case 'batch-start': {
-            currentRecord.sql_answer = ''
-            currentRecord.chart_answer = ''
-            activeChartReasoningIndex = undefined
-            break
-          }
-          case 'batch-plans':
-            break
+async function resumeClarification(payload: {
+  interrupt: ConversationInterrupt
+  answers: ResumeAnswer[]
+  displayText: string
+}) {
+  const currentRecord = props.message?.record
+  if (!currentRecord || _loading.value) return
+  _loading.value = true
 
-          case 'step-sql-result': {
-            const reason = data.reasoning_content ?? ''
-            appendReasoningToRecord('sql_answer', reason)
-            break
-          }
-          case 'step-chart-result': {
-            const chartIndex = Number(data.index ?? 0)
-            if (activeChartReasoningIndex !== chartIndex) {
-              currentRecord.chart_answer = ''
-              activeChartReasoningIndex = chartIndex
-            }
-            const reason = data.reasoning_content ?? ''
-            appendReasoningToRecord('chart_answer', reason)
-            break
-          }
-          case 'analysis': {
-            analysisText.value += data.content ?? ''
-            const reason = data.reasoning_content ?? ''
-            analysisThinking.value += reason
-            appendReasoningToRecord('analysis_thinking', reason)
-            break
-          }
-          case 'clarification-reasoning': {
-            currentRecord.intent_reasoning_content =
-              (currentRecord.intent_reasoning_content || '') + (data.content || '')
-            break
-          }
-          case 'clarification':
-          case 'clarification-blocked':
-          case 'contract-preparation-blocked': {
-            currentRecord.intent_context = data.intent_context
-            _currentChat.value.records[index.value].intent_context = data.intent_context
-            break
-          }
-        }
-        await nextTick()
-      },
-      onError: (record) => {
-        emits('error', record.id)
-      },
-      onFinish: async (record) => {
-        if (analysisText.value) {
-          ;(_currentChat.value.records[index.value] as any).analysis = analysisText.value
-        }
-        if (record.id && !isIntentTerminal.value) {
-          const hydrated = await hydrateRecordData(record.id, true)
-          if (hydrated) hydratedTerminalRecordId = record.id
-        }
-        emits('finish', record.id, record.intent_context?.status)
-      },
-      onDone: () => {
-        _loading.value = false
-      },
-    })
+  try {
+    await turn.resume(
+      currentRecord,
+      payload.interrupt,
+      payload.answers,
+      turnHandlers(currentRecord)
+    )
+  } finally {
+    _loading.value = false
+  }
+}
+
+async function correctClarification(payload: {
+  interrupt: ConversationInterrupt
+  answer: ResumeAnswer
+  supersedesEvidenceId: string
+}) {
+  const currentRecord = props.message?.record
+  if (!currentRecord || _loading.value) return
+  _loading.value = true
+  try {
+    await turn.correct(
+      currentRecord,
+      payload.interrupt,
+      payload.answer,
+      payload.supersedesEvidenceId,
+      turnHandlers(currentRecord)
+    )
   } finally {
     _loading.value = false
   }
 }
 
 function stop() {
-  turn.stop()
+  turn.detach()
   _loading.value = false
   emits('stop')
 }
@@ -532,7 +534,8 @@ const reasoningItems = computed(() =>
 )
 
 onBeforeUnmount(() => {
-  stop()
+  turn.detach()
+  _loading.value = false
 })
 
 watch(
@@ -543,7 +546,7 @@ watch(
       recordId &&
       finish &&
       !typing &&
-      !isIntentTerminal.value &&
+      props.message?.record?.run_status !== 'awaiting_input' &&
       hydratedTerminalRecordId !== recordId &&
       props.message?.record
     ) {
@@ -558,21 +561,21 @@ defineExpose({ sendMessage, index: () => index.value, stop })
 
 <template>
   <BaseAnswer v-if="message" :message="message" :reasoning-items="reasoningItems">
-    <div v-if="_loading && steps.length === 0 && !intentContext" class="multi-step-loading">
+    <div v-if="_loading && steps.length === 0 && !isAwaitingInput" class="multi-step-loading">
       <span>{{ t('qa.thinking') }}</span>
     </div>
 
     <ClarificationCard
-      v-if="intentContext && isIntentTerminal"
-      :record-id="message.record?.id"
-      :context="intentContext"
+      v-for="interrupt in visibleInterrupts"
+      :key="interrupt.interrupt_id"
+      :interrupt="interrupt"
       :disabled="_loading"
-      :answered="clarificationAnswered"
-      :initial-answers="clarificationAnswers"
-      @submit="emits('clarification-submit', $event)"
+      :correctable="isAwaitingInput && interrupt.status === 'consumed'"
+      @submit="resumeClarification"
+      @correct="correctClarification"
     />
 
-    <div v-if="!isIntentTerminal" class="multi-step-container">
+    <div v-if="!isAwaitingInput" class="multi-step-container">
       <div v-if="overallQuality" class="result-quality-toolbar">
         <QualityStamp :quality="overallQuality" />
       </div>

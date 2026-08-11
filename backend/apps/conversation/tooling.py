@@ -14,7 +14,9 @@ from langchain_core.tools import BaseTool
 
 from apps.chat.models.chat_model import OperationEnum
 from apps.chat.steps.observability import log_span
+from apps.conversation.messages import deserialize_messages, serialize_messages
 from apps.conversation.outcome import FailureInfo, FailureKind, classify_failure
+from apps.conversation.runtime_context import runtime_value
 
 _LOG_RESULT_LIMIT = 4000
 _SECRET_KEYS = frozenset(
@@ -212,19 +214,26 @@ def _tool_call_signature(name: str, args: Mapping[str, Any]) -> str:
 
 def execute_tools_node(state: Mapping[str, Any]) -> dict[str, Any]:
     """Execute the latest AI tool calls sequentially with per-call audit spans."""
-    messages = list(state.get("messages") or [])
+    messages = deserialize_messages(list(state.get("messages") or []))
     ai_message = last_tool_call_message(messages)
     if ai_message is None:
         return {**state, "error": "Tool execution requested without tool calls"}
 
     tools = {
         tool.name: tool
-        for tool in (state.get("bound_tools") or [])
+        for tool in (runtime_value(state, "bound_tools") or [])
         if isinstance(tool, BaseTool) and tool.name
     }
     record_id = state.get("record_id")
     tool_messages: list[ToolMessage] = []
-    tool_steps: list[dict[str, Any]] = []
+    # State owns the normalized cross-round outcome; chat_log remains the
+    # detailed audit timeline. Preserve earlier rounds so final status cannot
+    # be decided from the last tool call alone.
+    tool_steps: list[dict[str, Any]] = [
+        dict(item)
+        for item in (state.get("tool_steps") or [])
+        if isinstance(item, Mapping)
+    ]
     previous_failure = str(state.get("last_tool_failure_signature") or "")
     consecutive_failures = int(state.get("consecutive_tool_failures") or 0)
     stop_reason = ""
@@ -308,7 +317,7 @@ def execute_tools_node(state: Mapping[str, Any]) -> dict[str, Any]:
 
     return {
         **state,
-        "messages": [*messages, *tool_messages],
+        "messages": serialize_messages([*messages, *tool_messages]),
         "tool_steps": tool_steps,
         "last_tool_failure_signature": previous_failure,
         "consecutive_tool_failures": consecutive_failures,

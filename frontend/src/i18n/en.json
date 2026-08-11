@@ -323,6 +323,9 @@
     "thinking": "Thinking",
     "thinking_step": "Thought Process",
     "ask_again": "Regenerate",
+    "feedback_up": "Helpful",
+    "feedback_down": "Not helpful",
+    "feedback_submitted": "Thanks for your feedback",
     "today": "Today",
     "week": "This Week",
     "earlier": "Earlier",
@@ -952,8 +955,8 @@
     "quality_coverage_truncated": "{steps} queries returned {rows} rows; at least one query was limited and the total count was not queried",
     "quality_check": {
       "plan_validated": "The query plan passed protocol-level validation",
-      "query_contract_satisfied": "The query plan satisfied the identifier and query-contract checks applicable to the protocol",
-      "query_contract_partially_verified": "The query plan passed only part of the query-contract checks",
+      "query_specification_satisfied": "The query plan satisfied the identifier and query-specification checks applicable to the protocol",
+      "query_specification_partially_verified": "The query plan passed only part of the query-specification checks",
       "intent_contract_ready": "Business definitions passed the clarification gate",
       "sql_executed": "SQL executed successfully",
       "displayable_data": "The query returned displayable data",
@@ -961,12 +964,11 @@
       "result_structure_valid": "The result passed structural consistency validation"
     },
     "quality_dimension": {
-      "intent_alignment": "Business-intent alignment",
-      "contract_completeness": "Query-contract completeness",
-      "sql_semantic_correctness": "SQL semantic correctness",
-      "answer_usability": "Answer usability",
-      "evidence_confidence": "Evidence confidence",
-      "limitation_transparency": "Limitation transparency"
+      "semantic_coverage": "Semantic specification coverage",
+      "plan_alignment": "Plan-to-specification alignment",
+      "field_relation_evidence": "Field and relationship evidence",
+      "execution_completeness": "Execution completeness",
+      "result_reasonableness": "Result reasonableness and assumption risk"
     },
     "quality_detail": {
       "intent_confirmed": "Confirmed business definitions were applied to the query contract.",
@@ -984,6 +986,8 @@
       "schema_contract_evidence": "Schema, confirmed-contract, and result-structure evidence is available; field-value relationship evidence is not yet included.",
       "limited_verification_evidence": "Only partial schema or structural evidence is available.",
       "data_observations_disclosed": "Truncation, empty results, and null rates are disclosed separately from requirement completion.",
+      "assumption_risk_low": "No medium- or high-risk business assumption was used.",
+      "assumption_risk_present": "This query uses a {risk}-risk business assumption; interpret the result with that assumption.",
       "no_published_result": "No published result is available for scoring."
     },
     "data_observation": {
@@ -1023,6 +1027,10 @@
     "clarification_details": "Details",
     "clarification_hide_details": "Hide details",
     "clarification_continue": "Confirm and continue",
+    "clarification_correct": "Change answer",
+    "clarification_cancel_correction": "Cancel change",
+    "clarification_save_correction": "Save change",
+    "clarification_correction_required": "Choose a new option or enter a new custom definition",
     "clarification_answered": "Answered",
     "clarification_confirmed": "Confirmed query definitions:",
     "clarification_required": "Please answer “{title}”",
@@ -1195,5 +1203,22 @@
     "create": "Create",
     "to_doc": "View API",
     "trigger_limit": "Supports up to {0} API Keys"
+  },
+  "knowledge": {
+    "title": "Knowledge",
+    "triage": "Triage",
+    "assets": "Assets",
+    "staging_queue": "Pending Review",
+    "suggestions": "Promotion Suggestions",
+    "actions": "Actions",
+    "certify": "Certify",
+    "reject": "Reject",
+    "promote": "Promote",
+    "demote": "Demote",
+    "disable": "Disable",
+    "reject_reason": "Please enter rejection reason",
+    "reason": "Reason",
+    "cancel": "Cancel",
+    "confirm": "Confirm"
   }
 }

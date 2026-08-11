@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 from sqlmodel import Session
 
@@ -37,13 +37,12 @@ def _scope_dictionary_matches(
 def match_knowledge(
     llm_service: Any,
     session: Session,
-    oid: Optional[int] = None,
-    ds_id: Optional[int] = None,
+    oid: int | None = None,
+    ds_id: int | None = None,
     access_scope: AccessScope | None = None,
     *,
     stage: str = "assess",
     include_examples: bool = False,
-    has_confirmed_joins: bool | None = None,
 ) -> list[KnowledgeMatch]:
     """Compile knowledge for the turn; return matches for ground_entities compat."""
     llm_service.current_logs[OperationEnum.FILTER_TERMS] = start_log(
@@ -61,12 +60,11 @@ def match_knowledge(
         ds_id=calculate_ds_id if assistant_id is None else None,
         advanced_application_id=assistant_id,
         include_examples=include_examples,
-        has_confirmed_joins=has_confirmed_joins,
     )
     matches = _scope_dictionary_matches(access_scope, compiled.matches)
     compiled = compiled.model_copy(update={"matches": matches})
     llm_service.chat_question.terminologies = compiled.prompt_template
-    # Stash full compile result for assess Bind / ChatLog knowledge_apply
+    # Stash candidates for v3 KnowledgeSeed application and truthful audit.
     llm_service.compiled_knowledge = compiled
     dictionary_items = [
         {

@@ -22,8 +22,8 @@ export type ChatStreamHandlers = {
   /** Return true to stop reading after this event. */
   onEvent?: (data: ChatStreamEvent) => boolean | void | Promise<boolean | void>
   onHttpError?: (data: ChatStreamEvent) => void
-  onTransportError?: (error: unknown) => void
-  onDone?: () => void
+  onTransportError?: (error: unknown) => void | Promise<void>
+  onDone?: () => void | Promise<void>
 }
 
 export type UseChatStreamOptions = {
@@ -192,11 +192,11 @@ export function useChatStream(options: UseChatStreamOptions = {}) {
       }
     } catch (error) {
       if (!stopFlag.value) {
-        handlers.onTransportError?.(error)
+        await handlers.onTransportError?.(error)
       }
     } finally {
       running.value = false
-      handlers.onDone?.()
+      await handlers.onDone?.()
     }
   }
 

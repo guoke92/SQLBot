@@ -1,7 +1,5 @@
 """HTTP API for metadata cognition briefs, scans, and relation confirmation."""
 
-from __future__ import annotations
-
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query

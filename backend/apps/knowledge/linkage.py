@@ -100,17 +100,3 @@ def maybe_trigger_query_log_joins(
         return 0
 
 
-def soft_signal_hints_for_assess(
-    *,
-    profile_briefs: list[dict[str, Any]] | None,
-) -> list[str]:
-    """L-4: suggest dictionary configure / clarify priority — never auto Caliber."""
-    hints: list[str] = []
-    for brief in profile_briefs or []:
-        if brief.get("suggest_dictionary"):
-            field = brief.get("field_name") or brief.get("field")
-            hints.append(
-                f"Field {field} has low NDV; consider configuring a dictionary "
-                "(do not invent a business caliber from profile alone)."
-            )
-    return hints

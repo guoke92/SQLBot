@@ -323,6 +323,9 @@
     "thinking": "思考中",
     "thinking_step": "思考過程",
     "ask_again": "重新產生",
+    "feedback_up": "有幫助",
+    "feedback_down": "沒幫助",
+    "feedback_submitted": "感謝回饋",
     "today": "今天",
     "week": "7天內",
     "earlier": "更早以前",
@@ -952,8 +955,8 @@
     "quality_coverage_truncated": "{steps} 個查詢共返回 {rows} 行；至少一個查詢僅顯示上限內資料，未查詢結果總數",
     "quality_check": {
       "plan_validated": "查詢計畫已通過協議級校驗",
-      "query_contract_satisfied": "查詢計畫已滿足目前協議適用的欄位及查詢契約校驗",
-      "query_contract_partially_verified": "查詢計畫僅通過部分查詢契約校驗",
+      "query_specification_satisfied": "查詢計畫已滿足目前協議適用的欄位及查詢規格校驗",
+      "query_specification_partially_verified": "查詢計畫僅通過部分查詢規格校驗",
       "intent_contract_ready": "業務口徑已通過澄清門禁",
       "sql_executed": "SQL 已成功執行",
       "displayable_data": "查詢返回了可顯示資料",
@@ -961,12 +964,11 @@
       "result_structure_valid": "執行結果已通過結構一致性檢查"
     },
     "quality_dimension": {
-      "intent_alignment": "需求口徑一致性",
-      "contract_completeness": "查詢契約完整性",
-      "sql_semantic_correctness": "SQL 語義實現正確性",
-      "answer_usability": "結果可回答性",
-      "evidence_confidence": "證據可信度",
-      "limitation_transparency": "侷限說明準確性"
+      "semantic_coverage": "語義規格覆蓋度",
+      "plan_alignment": "查詢計畫與規格一致性",
+      "field_relation_evidence": "欄位與關係證據充分度",
+      "execution_completeness": "執行完整性",
+      "result_reasonableness": "結果合理性與假設風險"
     },
     "quality_detail": {
       "intent_confirmed": "已確認的業務口徑已進入查詢契約。",
@@ -984,6 +986,8 @@
       "schema_contract_evidence": "評分已有 Schema、已確認契約和結果結構證據；欄位值域關聯證據尚未納入。",
       "limited_verification_evidence": "目前只有部分 Schema 或結構驗證證據。",
       "data_observations_disclosed": "截斷、空結果、空值率等結果特徵已單獨披露，不與需求完成度混淆。",
+      "assumption_risk_low": "本次查詢未使用中高風險業務假設。",
+      "assumption_risk_present": "本次查詢包含 {risk} 風險的業務假設，結果需結合假設理解。",
       "no_published_result": "沒有已發布查詢結果可供評分。"
     },
     "data_observation": {
@@ -1023,6 +1027,10 @@
     "clarification_details": "詳情",
     "clarification_hide_details": "收起詳情",
     "clarification_continue": "確認並繼續",
+    "clarification_correct": "修改回答",
+    "clarification_cancel_correction": "取消修改",
+    "clarification_save_correction": "儲存修改",
+    "clarification_correction_required": "請選擇新的選項或輸入新的自訂口徑",
     "clarification_answered": "已回答",
     "clarification_confirmed": "已確認查詢口徑：",
     "clarification_required": "請回答「{title}」",
@@ -1195,5 +1203,22 @@
     "create": "建立",
     "to_doc": "檢視 API",
     "trigger_limit": "最多支援建立 {0} 個 API Key"
+  },
+  "knowledge": {
+    "title": "知識管理",
+    "triage": "分診佇列",
+    "assets": "資產列表",
+    "staging_queue": "待審核項",
+    "suggestions": "升格建議",
+    "actions": "操作",
+    "certify": "批准",
+    "reject": "拒絕",
+    "promote": "升格",
+    "demote": "降級",
+    "disable": "停用",
+    "reject_reason": "請輸入拒絕原因",
+    "reason": "原因",
+    "cancel": "取消",
+    "confirm": "確認"
   }
 }

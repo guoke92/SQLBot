@@ -1,188 +1,186 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import type {
-  ClarificationAnswer,
-  ClarificationQuestion,
-  ContractIssue,
-  IntentContext,
-} from '@/api/chat'
+import type { Ambiguity, ConversationInterrupt, ResumeAnswer } from '@/api/chat'
 
 const props = defineProps<{
-  recordId?: number
-  context: IntentContext
+  interrupt: ConversationInterrupt
   disabled?: boolean
-  answered?: boolean
-  initialAnswers?: ClarificationAnswer[]
+  correctable?: boolean
 }>()
 
 const emit = defineEmits<{
   submit: [
+    payload: { interrupt: ConversationInterrupt; answers: ResumeAnswer[]; displayText: string },
+  ]
+  correct: [
     payload: {
-      parentRecordId: number
-      answers: ClarificationAnswer[]
-      displayText: string
+      interrupt: ConversationInterrupt
+      answer: ResumeAnswer
+      supersedesEvidenceId: string
     },
   ]
 }>()
 
 const { t } = useI18n()
-const selected = reactive<Record<string, string[]>>({})
+const selected = reactive<Record<string, string>>({})
 const custom = reactive<Record<string, string>>({})
+const activeAmbiguityId = ref<string>()
+const detailsAmbiguityId = ref<string>()
+const showSummary = ref(false)
 const validationError = ref('')
-const activeQuestionId = ref<string>()
-const detailsQuestionId = ref<string>()
-const showCardDetails = ref(false)
+const editing = ref(false)
+const correctionAmbiguityId = ref<string>()
 
-const isBlocked = computed(() => props.context.status === 'blocked')
-const blockingIssues = computed(() =>
-  (props.context.contract_issues || []).filter((item) => item.severity === 'blocking')
-)
-const isPreparationBlocked = computed(() => isBlocked.value && !!blockingIssues.value.length)
+const ambiguities = computed(() => props.interrupt.payload.ambiguities || [])
+const answered = computed(() => props.interrupt.status === 'consumed')
+const canSubmit = computed(() => (!answered.value || editing.value) && !props.disabled)
 
-/** Issues carry a code, not a sentence, so the text is resolved here. */
-function issueText(issue: ContractIssue) {
-  const key = `chat.contract_issue_${issue.code}`
-  const params = { ...(issue.params || {}), resources: issue.resources.join(', ') }
-  const text = t(key, params)
-  return text === key ? t('chat.contract_issue_unknown', { code: issue.code }) : text
+function existingAnswer(ambiguityId: string) {
+  return (props.interrupt.answers || []).find((item) => item.ambiguity_id === ambiguityId)
 }
 
-const blockedReasons = computed(() =>
-  isPreparationBlocked.value
-    ? [...new Set(blockingIssues.value.map(issueText))]
-    : props.context.blocking_reasons
-)
-/** Inferences resolved without the user, shown so they can be corrected. */
-const assumptions = computed(() => props.context.assumptions || [])
-const canSubmit = computed(
-  () =>
-    !!props.recordId &&
-    props.context.status === 'needs_clarification' &&
-    !props.disabled &&
-    !props.answered
-)
-
-function hasAnswer(question: ClarificationQuestion) {
-  return !!selected[question.id]?.length || !!custom[question.id]?.trim()
+function hasAnswer(ambiguity: Ambiguity) {
+  return !!selected[ambiguity.ambiguity_id] || !!custom[ambiguity.ambiguity_id]?.trim()
 }
 
-function initializeQuestions(
-  questions: ClarificationQuestion[],
-  initialAnswers: ClarificationAnswer[] = []
-) {
+function initialize() {
   for (const key of Object.keys(selected)) delete selected[key]
   for (const key of Object.keys(custom)) delete custom[key]
-  const answersByQuestion = new Map(initialAnswers.map((answer) => [answer.question_id, answer]))
-  for (const question of questions) {
-    const answer = answersByQuestion.get(question.id)
-    selected[question.id] = [...(answer?.option_ids || [])]
-    custom[question.id] = answer?.custom_text || ''
+  for (const ambiguity of ambiguities.value) {
+    const answer = existingAnswer(ambiguity.ambiguity_id)
+    selected[ambiguity.ambiguity_id] = answer?.mode === 'option' ? answer.option_id || '' : ''
+    custom[ambiguity.ambiguity_id] = answer?.mode === 'custom' ? answer.text || '' : ''
   }
-  activeQuestionId.value = props.answered
+  activeAmbiguityId.value = answered.value
     ? undefined
-    : questions.find((question) => !hasAnswer(question))?.id
-  detailsQuestionId.value = undefined
-  showCardDetails.value = false
+    : ambiguities.value.find((item) => !hasAnswer(item))?.ambiguity_id
+  detailsAmbiguityId.value = undefined
   validationError.value = ''
+  editing.value = false
+  correctionAmbiguityId.value = undefined
 }
 
-watch(
-  [() => props.context.questions, () => props.initialAnswers, () => props.answered],
-  ([questions, initialAnswers]) => initializeQuestions(questions || [], initialAnswers || []),
-  { immediate: true, deep: true }
-)
+watch(() => props.interrupt, initialize, { immediate: true, deep: true })
 
-function optionMarker(index: number) {
+function marker(index: number) {
   return String.fromCharCode(65 + index)
 }
 
-function selectedLabels(question: ClarificationQuestion) {
-  return (selected[question.id] || []).map((optionId) => {
-    const optionIndex = question.options.findIndex((option) => option.id === optionId)
-    const option = question.options[optionIndex]
-    return option ? `${optionMarker(optionIndex)}. ${option.label}` : optionId
-  })
+function selectedText(ambiguity: Ambiguity) {
+  const optionId = selected[ambiguity.ambiguity_id]
+  const index = ambiguity.candidate_resolutions.findIndex((item) => item.option_id === optionId)
+  if (index >= 0) return `${marker(index)}. ${ambiguity.candidate_resolutions[index].label}`
+  return custom[ambiguity.ambiguity_id] || ''
 }
 
-function toggleQuestion(questionId: string) {
-  const nextQuestionId = activeQuestionId.value === questionId ? undefined : questionId
-  activeQuestionId.value = nextQuestionId
-  if (detailsQuestionId.value !== nextQuestionId) detailsQuestionId.value = undefined
+function openNext(ambiguity: Ambiguity) {
+  const index = ambiguities.value.findIndex((item) => item.ambiguity_id === ambiguity.ambiguity_id)
+  activeAmbiguityId.value = ambiguities.value
+    .slice(index + 1)
+    .find((item) => !hasAnswer(item))?.ambiguity_id
+  detailsAmbiguityId.value = undefined
 }
 
-function toggleDetails(questionId: string) {
-  const opening = detailsQuestionId.value !== questionId
-  detailsQuestionId.value = opening ? questionId : undefined
-  if (opening) activeQuestionId.value = questionId
-}
-
-function openNextQuestion(question: ClarificationQuestion) {
-  const currentIndex = props.context.questions.findIndex((item) => item.id === question.id)
-  const next = props.context.questions.slice(currentIndex + 1).find((item) => !hasAnswer(item))
-  activeQuestionId.value = next?.id
-  detailsQuestionId.value = undefined
-}
-
-function chooseOption(question: ClarificationQuestion, optionId: string) {
-  if (!canSubmit.value) return
-  const values = selected[question.id] || []
-  if (question.selection_type === 'multiple') {
-    const removing = values.includes(optionId)
-    selected[question.id] = removing
-      ? values.filter((id) => id !== optionId)
-      : [...values, optionId]
-    if (!removing) custom[question.id] = ''
-  } else {
-    const removing = values.includes(optionId)
-    selected[question.id] = removing ? [] : [optionId]
-    if (!removing) {
-      custom[question.id] = ''
-      openNextQuestion(question)
-    }
+function chooseOption(ambiguity: Ambiguity, optionId: string) {
+  if (!canAnswer(ambiguity)) return
+  if (editing.value) correctionAmbiguityId.value = ambiguity.ambiguity_id
+  selected[ambiguity.ambiguity_id] = selected[ambiguity.ambiguity_id] === optionId ? '' : optionId
+  if (selected[ambiguity.ambiguity_id]) {
+    custom[ambiguity.ambiguity_id] = ''
+    if (!editing.value) openNext(ambiguity)
   }
   validationError.value = ''
 }
 
-function onCustomInput(question: ClarificationQuestion) {
-  if (custom[question.id]?.trim()) selected[question.id] = []
+function onCustomInput(ambiguity: Ambiguity) {
+  if (editing.value) correctionAmbiguityId.value = ambiguity.ambiguity_id
+  if (custom[ambiguity.ambiguity_id]?.trim()) selected[ambiguity.ambiguity_id] = ''
   validationError.value = ''
 }
 
-function completeCustomAnswer(question: ClarificationQuestion) {
-  if (custom[question.id]?.trim()) openNextQuestion(question)
+function canAnswer(ambiguity: Ambiguity) {
+  return (
+    canSubmit.value &&
+    (!editing.value ||
+      !correctionAmbiguityId.value ||
+      correctionAmbiguityId.value === ambiguity.ambiguity_id)
+  )
 }
 
-function questionAnswer(question: ClarificationQuestion): ClarificationAnswer {
-  return {
-    question_id: question.id,
-    option_ids: selected[question.id] || [],
-    custom_text: (custom[question.id] || '').trim(),
+function toggleCorrection() {
+  if (!props.correctable || props.disabled) return
+  if (editing.value) {
+    initialize()
+    return
   }
+  editing.value = true
+  activeAmbiguityId.value = ambiguities.value[0]?.ambiguity_id
+  validationError.value = ''
+}
+
+function toggleAmbiguity(id: string) {
+  activeAmbiguityId.value = activeAmbiguityId.value === id ? undefined : id
+  if (detailsAmbiguityId.value !== activeAmbiguityId.value) detailsAmbiguityId.value = undefined
+}
+
+function toggleDetails(id: string) {
+  detailsAmbiguityId.value = detailsAmbiguityId.value === id ? undefined : id
+  if (detailsAmbiguityId.value) activeAmbiguityId.value = id
 }
 
 function submit() {
-  if (!canSubmit.value || !props.recordId) return
-  const answers = props.context.questions.map(questionAnswer)
-  const missing = props.context.questions.find(
-    (question, index) =>
-      question.required && answers[index].option_ids.length === 0 && !answers[index].custom_text
-  )
-  if (missing) {
-    validationError.value = t('chat.clarification_required', { title: missing.title })
+  if (!canSubmit.value) return
+  if (editing.value) {
+    const ambiguity = ambiguities.value.find(
+      (item) => item.ambiguity_id === correctionAmbiguityId.value
+    )
+    const previous = ambiguity ? existingAnswer(ambiguity.ambiguity_id) : undefined
+    if (!ambiguity || !previous?.evidence_id) {
+      validationError.value = t('chat.clarification_correction_required')
+      return
+    }
+    const text = custom[ambiguity.ambiguity_id]?.trim()
+    const optionId = selected[ambiguity.ambiguity_id]
+    if (!text && !optionId) {
+      validationError.value = t('chat.clarification_correction_required')
+      return
+    }
+    const answer: ResumeAnswer = text
+      ? { ambiguity_id: ambiguity.ambiguity_id, mode: 'custom', text }
+      : { ambiguity_id: ambiguity.ambiguity_id, mode: 'option', option_id: optionId }
+    emit('correct', {
+      interrupt: props.interrupt,
+      answer,
+      supersedesEvidenceId: previous.evidence_id,
+    })
     return
   }
-
-  const lines = props.context.questions.map((question, index) => {
-    const answer = answers[index]
-    const labels = answer.option_ids
-      .map((id) => question.options.find((option) => option.id === id)?.label)
-      .filter(Boolean)
-    if (answer.custom_text) labels.push(answer.custom_text)
-    return `- ${question.title}：${labels.join('、')}`
+  const missing = ambiguities.value.find((item) => !item.can_assume && !hasAnswer(item))
+  if (missing) {
+    validationError.value = t('chat.clarification_required', {
+      title: missing.business_question,
+    })
+    activeAmbiguityId.value = missing.ambiguity_id
+    return
+  }
+  const answers: ResumeAnswer[] = []
+  ambiguities.value.forEach((item) => {
+    const text = custom[item.ambiguity_id]?.trim()
+    if (text) {
+      answers.push({ ambiguity_id: item.ambiguity_id, mode: 'custom', text })
+      return
+    }
+    const optionId = selected[item.ambiguity_id]
+    if (optionId) {
+      answers.push({ ambiguity_id: item.ambiguity_id, mode: 'option', option_id: optionId })
+    }
   })
+  const lines = ambiguities.value
+    .filter(hasAnswer)
+    .map((item) => `- ${item.business_question}：${selectedText(item)}`)
   emit('submit', {
-    parentRecordId: props.recordId,
+    interrupt: props.interrupt,
     answers,
     displayText: `${t('chat.clarification_confirmed')}\n${lines.join('\n')}`,
   })
@@ -190,32 +188,33 @@ function submit() {
 </script>
 
 <template>
-  <section class="clarification-card" :class="{ blocked: isBlocked }">
+  <section class="clarification-card">
     <header>
       <div>
-        <div class="card-title">
-          {{
-            isPreparationBlocked
-              ? t('chat.contract_preparation_blocked_title')
-              : isBlocked
-                ? t('chat.clarification_blocked_title')
-                : t('chat.clarification_title')
-          }}
-        </div>
-        <div v-if="context.summary && showCardDetails" class="card-summary">
-          {{ context.summary }}
+        <div class="card-title">{{ t('chat.clarification_title') }}</div>
+        <div v-if="showSummary && interrupt.payload.summary" class="secondary">
+          {{ interrupt.payload.summary }}
         </div>
       </div>
       <div class="header-actions">
         <button
-          v-if="context.summary || assumptions.length"
+          v-if="answered && correctable"
           type="button"
-          class="details-toggle"
-          @click="showCardDetails = !showCardDetails"
+          class="link-button"
+          :disabled="disabled"
+          @click="toggleCorrection"
         >
           {{
-            showCardDetails ? t('chat.clarification_hide_details') : t('chat.clarification_details')
+            editing ? t('chat.clarification_cancel_correction') : t('chat.clarification_correct')
           }}
+        </button>
+        <button
+          v-if="interrupt.payload.summary"
+          type="button"
+          class="link-button"
+          @click="showSummary = !showSummary"
+        >
+          {{ showSummary ? t('chat.clarification_hide_details') : t('chat.clarification_details') }}
         </button>
         <el-tag v-if="answered" type="info" effect="plain">
           {{ t('chat.clarification_answered') }}
@@ -223,154 +222,117 @@ function submit() {
       </div>
     </header>
 
-    <div v-if="assumptions.length && showCardDetails" class="card-assumptions">
-      <div class="assumptions-title">{{ t('chat.contract_assumptions_title') }}</div>
-      <div v-for="item in assumptions" :key="item.slot_id" class="assumption-row">
-        {{ t(`chat.contract_assumption_${item.code}`, { label: item.label }) }}
-        <span v-if="item.detail">: {{ item.detail }}</span>
-      </div>
-    </div>
-
-    <template v-if="isBlocked">
-      <el-alert
-        v-for="reason in blockedReasons"
-        :key="reason"
-        :title="reason"
-        type="warning"
-        :closable="false"
-        show-icon
-      />
-    </template>
-
     <div
-      v-for="(question, questionIndex) in context.questions"
-      v-else
-      :key="question.id"
-      class="clarification-question"
+      v-for="(ambiguity, ambiguityIndex) in ambiguities"
+      :key="ambiguity.ambiguity_id"
+      class="ambiguity"
     >
       <div
-        class="question-heading"
+        class="ambiguity-heading"
         role="button"
         tabindex="0"
-        @click="toggleQuestion(question.id)"
-        @keydown.enter="toggleQuestion(question.id)"
-        @keydown.space.prevent="toggleQuestion(question.id)"
+        @click="toggleAmbiguity(ambiguity.ambiguity_id)"
       >
-        <span class="question-index">{{ questionIndex + 1 }}</span>
-        <div class="question-main">
-          <div class="question-title">{{ question.title }}</div>
+        <span class="question-index">{{ ambiguityIndex + 1 }}</span>
+        <div class="ambiguity-main">
+          <div class="ambiguity-title">{{ ambiguity.business_question }}</div>
           <div
-            v-if="activeQuestionId !== question.id && hasAnswer(question)"
-            class="collapsed-answer"
+            v-if="activeAmbiguityId !== ambiguity.ambiguity_id && hasAnswer(ambiguity)"
+            class="selected-summary"
           >
-            {{ selectedLabels(question).join('、') }}
-            <template v-if="custom[question.id]">
-              <span v-if="selected[question.id]?.length">；</span>{{ custom[question.id] }}
-            </template>
+            {{ selectedText(ambiguity) }}
           </div>
         </div>
         <button
-          v-if="
-            question.reason ||
-            question.recommendation_reason ||
-            question.options.some((option) => option.description || option.impact)
-          "
           type="button"
-          class="details-toggle"
-          @click.stop="toggleDetails(question.id)"
+          class="link-button"
+          @click.stop="toggleDetails(ambiguity.ambiguity_id)"
         >
           {{
-            detailsQuestionId === question.id
+            detailsAmbiguityId === ambiguity.ambiguity_id
               ? t('chat.clarification_hide_details')
               : t('chat.clarification_details')
           }}
         </button>
-        <span class="question-chevron" :class="{ expanded: activeQuestionId === question.id }"
+        <span class="chevron" :class="{ expanded: activeAmbiguityId === ambiguity.ambiguity_id }"
           >›</span
         >
       </div>
 
-      <div
-        v-if="
-          activeQuestionId === question.id && detailsQuestionId === question.id && question.reason
-        "
-        class="question-reason"
-      >
-        {{ question.reason }}
-      </div>
-
-      <div v-if="activeQuestionId === question.id && question.options.length" class="option-list">
-        <button
-          v-for="(option, optionIndex) in question.options"
-          :key="option.id"
-          type="button"
-          class="option"
-          :class="{ selected: selected[question.id]?.includes(option.id) }"
-          :disabled="!canSubmit"
-          @click="chooseOption(question, option.id)"
+      <div v-if="activeAmbiguityId === ambiguity.ambiguity_id">
+        <div
+          v-if="detailsAmbiguityId === ambiguity.ambiguity_id && ambiguity.reason"
+          class="secondary"
         >
-          <span class="option-marker">{{ optionMarker(optionIndex) }}</span>
-          <span class="selector">
-            <span v-if="selected[question.id]?.includes(option.id)" class="selector-dot" />
-          </span>
-          <span class="option-content">
-            <span class="option-title-row">
-              <span class="option-label">{{ option.label }}</span>
-              <el-tag
-                v-if="question.recommended_option_ids.includes(option.id)"
-                size="small"
-                type="success"
-                effect="light"
+          {{ ambiguity.reason }}
+        </div>
+        <div class="option-list">
+          <button
+            v-for="(option, optionIndex) in ambiguity.candidate_resolutions"
+            :key="option.option_id"
+            type="button"
+            class="option"
+            :class="{ selected: selected[ambiguity.ambiguity_id] === option.option_id }"
+            :disabled="!canAnswer(ambiguity)"
+            @click="chooseOption(ambiguity, option.option_id)"
+          >
+            <span class="option-marker">{{ marker(optionIndex) }}</span>
+            <span class="selector"
+              ><span
+                v-if="selected[ambiguity.ambiguity_id] === option.option_id"
+                class="selector-dot"
+            /></span>
+            <span class="option-content">
+              <span class="option-title">
+                {{ option.label }}
+                <el-tag
+                  v-if="ambiguity.recommended_candidate_id === option.option_id"
+                  size="small"
+                  type="success"
+                  effect="light"
+                >
+                  {{ t('chat.clarification_recommended') }}
+                </el-tag>
+              </span>
+              <span
+                v-if="detailsAmbiguityId === ambiguity.ambiguity_id && option.description"
+                class="secondary"
+                >{{ option.description }}</span
               >
-                {{ t('chat.clarification_recommended') }}
-              </el-tag>
+              <span
+                v-if="detailsAmbiguityId === ambiguity.ambiguity_id && option.impact"
+                class="secondary"
+              >
+                {{ t('chat.clarification_impact') }}：{{ option.impact }}
+              </span>
             </span>
-            <span
-              v-if="detailsQuestionId === question.id && option.description"
-              class="option-description"
-            >
-              {{ option.description }}
-            </span>
-            <span v-if="detailsQuestionId === question.id && option.impact" class="option-impact">
-              {{ t('chat.clarification_impact') }}：{{ option.impact }}
-            </span>
-          </span>
-        </button>
+          </button>
+        </div>
+        <div
+          v-if="detailsAmbiguityId === ambiguity.ambiguity_id && ambiguity.recommendation_reason"
+          class="secondary"
+        >
+          {{ t('chat.clarification_recommendation_reason') }}：{{ ambiguity.recommendation_reason }}
+        </div>
+        <el-input
+          v-if="!answered || editing || custom[ambiguity.ambiguity_id]?.trim()"
+          v-model="custom[ambiguity.ambiguity_id]"
+          class="custom-answer"
+          type="textarea"
+          :rows="2"
+          :disabled="!canAnswer(ambiguity)"
+          :placeholder="t('chat.clarification_custom_placeholder')"
+          @input="onCustomInput(ambiguity)"
+          @blur="custom[ambiguity.ambiguity_id]?.trim() && !editing && openNext(ambiguity)"
+        />
       </div>
-
-      <div
-        v-if="
-          activeQuestionId === question.id &&
-          detailsQuestionId === question.id &&
-          question.recommendation_reason
-        "
-        class="recommendation-reason"
-      >
-        {{ t('chat.clarification_recommendation_reason') }}：{{ question.recommendation_reason }}
-      </div>
-
-      <el-input
-        v-if="
-          activeQuestionId === question.id &&
-          question.allow_custom &&
-          (!answered || !!custom[question.id]?.trim())
-        "
-        v-model="custom[question.id]"
-        class="custom-answer"
-        type="textarea"
-        :rows="2"
-        :disabled="!canSubmit"
-        :placeholder="question.custom_placeholder || t('chat.clarification_custom_placeholder')"
-        @input="onCustomInput(question)"
-        @blur="completeCustomAnswer(question)"
-      />
     </div>
 
     <div v-if="validationError" class="validation-error">{{ validationError }}</div>
-    <footer v-if="!isBlocked && !answered">
-      <span class="submit-hint">{{ t('chat.clarification_submit_hint') }}</span>
+    <footer v-if="!answered || editing">
+      <span class="secondary">{{ t('chat.clarification_submit_hint') }}</span>
       <el-button type="primary" :disabled="!canSubmit" @click="submit">
-        {{ t('chat.clarification_continue') }}
+        {{ editing ? t('chat.clarification_save_correction') : t('chat.clarification_continue') }}
       </el-button>
     </footer>
   </section>
@@ -383,259 +345,129 @@ function submit() {
   border: 1px solid rgba(28, 186, 144, 0.28);
   border-radius: 12px;
   background: rgba(28, 186, 144, 0.04);
-
-  &.blocked {
-    border-color: rgba(230, 162, 60, 0.3);
-    background: rgba(230, 162, 60, 0.05);
-  }
-
-  header,
-  footer,
-  .question-heading,
-  .option-title-row {
-    display: flex;
-    align-items: center;
-  }
-
-  header {
-    justify-content: space-between;
-    gap: 16px;
-    margin-bottom: 14px;
-  }
-
-  footer {
-    justify-content: space-between;
-    gap: 16px;
-    margin-top: 16px;
-  }
 }
-
+header,
+footer,
+.header-actions,
+.ambiguity-heading,
+.option-title {
+  display: flex;
+  align-items: center;
+}
+header,
+footer {
+  justify-content: space-between;
+  gap: 16px;
+}
+.header-actions {
+  gap: 8px;
+}
 .card-title,
-.question-title {
-  color: rgba(31, 35, 41, 1);
+.ambiguity-title {
+  color: #1f2329;
   font-weight: 600;
 }
-
 .card-title {
   font-size: 16px;
 }
-
-.header-actions {
-  display: flex;
-  flex: 0 0 auto;
-  align-items: center;
-  gap: 8px;
-}
-
-.card-summary,
-.question-reason,
-.option-description,
-.option-impact,
-.recommendation-reason,
-.submit-hint {
-  color: rgba(100, 106, 115, 1);
-  font-size: 13px;
-  line-height: 20px;
-}
-
-.card-summary {
-  margin-top: 4px;
-}
-
-.card-assumptions {
-  margin-top: 8px;
-  padding: 8px 12px;
-  border-radius: 6px;
-  background: rgba(31, 35, 41, 0.04);
-  color: rgba(100, 106, 115, 1);
-  font-size: 13px;
-  line-height: 20px;
-}
-
-.assumptions-title {
-  font-weight: 500;
-  color: rgba(31, 35, 41, 1);
-}
-
-.clarification-question {
+.ambiguity {
   padding: 14px 0;
   border-top: 1px solid rgba(31, 35, 41, 0.08);
 }
-
-.question-heading {
-  align-items: center !important;
-  gap: 8px;
+.ambiguity-heading {
+  gap: 12px;
   cursor: pointer;
-  outline: none;
-
-  &:focus-visible {
-    border-radius: 6px;
-    box-shadow: 0 0 0 2px rgba(28, 186, 144, 0.16);
-  }
 }
-
-.question-main {
-  flex: 1;
+.ambiguity-main {
   min-width: 0;
+  flex: 1;
 }
-
-.collapsed-answer {
-  margin-top: 3px;
-  overflow: hidden;
-  color: var(--ed-color-primary);
-  font-size: 13px;
-  line-height: 20px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.details-toggle {
-  padding: 2px 6px;
-  color: rgba(100, 106, 115, 1);
-  font-size: 12px;
-  border: 0;
-  background: transparent;
-  cursor: pointer;
-
-  &:hover {
-    color: var(--ed-color-primary);
-  }
-}
-
-.question-chevron {
-  color: rgba(100, 106, 115, 0.8);
-  font-size: 20px;
-  line-height: 20px;
-  transform: rotate(90deg);
-  transition: transform 0.2s ease;
-
-  &.expanded {
-    transform: rotate(-90deg);
-  }
-}
-
-.question-reason {
-  margin: 8px 0 0 30px;
-}
-
-.question-index {
+.question-index,
+.option-marker {
   display: inline-flex;
-  flex: 0 0 22px;
+  flex: 0 0 auto;
   align-items: center;
   justify-content: center;
-  height: 22px;
-  border-radius: 50%;
-  background: rgba(28, 186, 144, 0.12);
-  color: var(--ed-color-primary);
-  font-size: 12px;
-  font-weight: 600;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.1);
 }
-
+.selected-summary {
+  margin-top: 4px;
+  color: #10b981;
+}
+.link-button {
+  border: 0;
+  color: #667085;
+  background: transparent;
+  cursor: pointer;
+}
+.chevron {
+  color: #667085;
+  transform: rotate(90deg);
+  transition: transform 0.2s;
+}
+.chevron.expanded {
+  transform: rotate(-90deg);
+}
 .option-list {
   display: grid;
   gap: 8px;
-  margin-top: 12px;
+  margin: 12px 0;
 }
-
 .option {
   display: flex;
+  align-items: flex-start;
+  gap: 10px;
   width: 100%;
   padding: 12px;
-  gap: 10px;
+  border: 1px solid rgba(31, 35, 41, 0.14);
+  border-radius: 10px;
   text-align: left;
-  border: 1px solid rgba(222, 224, 227, 1);
-  border-radius: 8px;
   background: #fff;
   cursor: pointer;
-
-  &:hover:not(:disabled),
-  &.selected {
-    border-color: var(--ed-color-primary);
-    background: rgba(28, 186, 144, 0.05);
-  }
-
-  &:disabled {
-    cursor: default;
-  }
 }
-
-.option-marker {
-  display: inline-flex;
-  flex: 0 0 22px;
-  align-items: center;
-  justify-content: center;
-  height: 22px;
-  border-radius: 6px;
-  background: rgba(100, 106, 115, 0.08);
-  color: rgba(73, 78, 86, 1);
-  font-size: 12px;
-  font-weight: 600;
+.option.selected {
+  border-color: #10b981;
+  background: rgba(16, 185, 129, 0.06);
 }
-
 .selector {
-  display: inline-flex;
-  flex: 0 0 16px;
+  display: flex;
   align-items: center;
   justify-content: center;
-  width: 16px;
-  height: 16px;
-  margin-top: 2px;
-  border: 1px solid rgba(100, 106, 115, 0.55);
+  width: 18px;
+  height: 18px;
+  margin-top: 5px;
+  border: 1px solid #98a2b3;
   border-radius: 50%;
 }
-
 .selector-dot {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
-  background: var(--ed-color-primary);
+  background: #10b981;
 }
-
 .option-content {
-  display: flex;
+  display: grid;
   flex: 1;
-  min-width: 0;
-  flex-direction: column;
-  gap: 3px;
+  gap: 4px;
 }
-
-.option-title-row {
+.option-title {
   gap: 8px;
-}
-
-.option-label {
-  color: rgba(31, 35, 41, 1);
-  font-size: 14px;
   font-weight: 500;
 }
-
-.option-impact,
-.recommendation-reason {
-  color: rgba(143, 149, 158, 1);
+.secondary {
+  margin-top: 6px;
+  color: #667085;
+  font-size: 13px;
 }
-
-.recommendation-reason {
-  margin-top: 8px;
-}
-
 .custom-answer {
   margin-top: 10px;
 }
-
 .validation-error {
   margin-top: 8px;
-  color: var(--ed-color-danger);
-  font-size: 13px;
-}
-
-@media (max-width: 768px) {
-  .clarification-card {
-    padding: 14px;
-
-    footer {
-      align-items: stretch;
-      flex-direction: column;
-    }
-  }
+  color: #f04438;
 }
 </style>

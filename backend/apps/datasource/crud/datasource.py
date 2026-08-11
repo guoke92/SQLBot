@@ -1,6 +1,5 @@
 import datetime
 import json
-from typing import List, Optional
 
 from fastapi import HTTPException
 from sqlalchemy import and_, text
@@ -52,8 +51,8 @@ from .table import get_tables_by_ds_id
 
 
 def get_datasource_list(
-    session: SessionDep, user: CurrentUser, oid: Optional[int] = None
-) -> List[CoreDatasource]:
+    session: SessionDep, user: CurrentUser, oid: int | None = None
+) -> list[CoreDatasource]:
     current_oid = user.oid if user.oid is not None else 1
     if user.isAdmin and oid:
         current_oid = oid
@@ -161,7 +160,7 @@ async def create_ds(
     return ds
 
 
-def chooseTables(session: SessionDep, trans: Trans, id: int, tables: List[CoreTable]):
+def chooseTables(session: SessionDep, trans: Trans, id: int, tables: list[CoreTable]):
     ds = session.query(CoreDatasource).filter(CoreDatasource.id == id).first()
     if ds is not None:
         proto = get_protocol_for_ds(ds)
@@ -353,7 +352,7 @@ def sync_table_fields(session: SessionDep, trans: Trans, id: int):
         SQLBotLogUtil.warning(f"enqueue profiling after sync_single: {_profile_exc}")
 
 
-def sync_catalog(session: SessionDep, ds: CoreDatasource, tables: List[CoreTable]):
+def sync_catalog(session: SessionDep, ds: CoreDatasource, tables: list[CoreTable]):
     """Atomically replace the selected local catalog from one remote snapshot."""
     requested = list(tables or [])
     # Complete all remote discovery before mutating the local transaction.
@@ -405,12 +404,14 @@ def sync_catalog(session: SessionDep, ds: CoreDatasource, tables: List[CoreTable
         ]
         if stale_ids:
             try:
-                from apps.knowledge.assets.caliber import disable_for_schema_change
+                from apps.knowledge.gateway import KnowledgeSignal, emit_signal
 
-                disable_for_schema_change(
+                emit_signal(
                     session,
-                    ds_id=int(ds.id),
-                    changed_table_ids=stale_ids,
+                    KnowledgeSignal(
+                        kind="schema_drift",
+                        refs={"ds_id": int(ds.id), "changed_table_ids": stale_ids},
+                    ),
                 )
             except Exception as _knowledge_exc:  # noqa: BLE001
                 SQLBotLogUtil.warning(
@@ -471,7 +472,7 @@ def _reconcile_fields(
     session: SessionDep,
     ds: CoreDatasource,
     table: CoreTable,
-    fields: List[ColumnSchema],
+    fields: list[ColumnSchema],
 ) -> None:
     existing = session.exec(
         select(CoreField).where(CoreField.table_id == table.id)
@@ -511,12 +512,14 @@ def _reconcile_fields(
     ]
     if stale_ids:
         try:
-            from apps.knowledge.assets.caliber import disable_for_schema_change
+            from apps.knowledge.gateway import KnowledgeSignal, emit_signal
 
-            disable_for_schema_change(
+            emit_signal(
                 session,
-                ds_id=int(ds.id),
-                changed_field_ids=stale_ids,
+                KnowledgeSignal(
+                    kind="schema_drift",
+                    refs={"ds_id": int(ds.id), "changed_field_ids": stale_ids},
+                ),
             )
         except Exception as _knowledge_exc:  # noqa: BLE001
             SQLBotLogUtil.warning(
@@ -639,8 +642,8 @@ def updateNum(session: SessionDep, ds: CoreDatasource):
 
 def get_table_obj_by_ds(
     session: SessionDep, current_user: CurrentUser, ds: CoreDatasource
-) -> List[TableAndFields]:
-    _list: List = []
+) -> list[TableAndFields]:
+    _list: list = []
     tables = (
         session.query(CoreTable)
         .filter(and_(CoreTable.ds_id == ds.id, CoreTable.checked == True))
@@ -733,7 +736,7 @@ def get_tables_sample_data(
     current_user: CurrentUser,
     ds: CoreDatasource,
     table_list: list[str] = None,
-    table_objs: Optional[List[TableAndFields]] = None,
+    table_objs: list[TableAndFields] | None = None,
 ) -> str:
     """Get sample data (3 rows) for all tables to help AI understand the data"""
     if table_objs is None:
@@ -775,7 +778,7 @@ def get_table_schema(
     embedding: bool = True,
     table_list: list[str] = None,
     required_table_list: list[str] = None,
-    table_objs: Optional[List[TableAndFields]] = None,
+    table_objs: list[TableAndFields] | None = None,
 ) -> tuple[str, list]:
     schema_str = ""
     if table_objs is None:
@@ -803,7 +806,10 @@ def get_table_schema(
             obj.table.table_name,
             database_name=table_db or None,
         )
-        from apps.datasource.schema_text import SchemaTextPurpose, render_table_schema_text
+        from apps.datasource.schema_text import (
+            SchemaTextPurpose,
+            render_table_schema_text,
+        )
 
         schema_table = render_table_schema_text(
             session,

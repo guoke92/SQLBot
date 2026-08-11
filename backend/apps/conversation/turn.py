@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, Literal
 
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 from sqlalchemy import and_, select
@@ -16,6 +16,7 @@ from apps.conversation.outcome import (
     successful_outcome,
 )
 from apps.conversation.record import persist_snapshot
+from apps.conversation.run_service import finalize_run
 from apps.conversation.session import session_scope
 from apps.conversation.sink import StreamSink
 
@@ -67,6 +68,13 @@ def finish_text_node(state: Mapping[str, Any]) -> dict[str, Any]:
     tool_steps = list(state.get("tool_steps") or [])
     outcome = outcome_from_steps(tool_steps) if tool_steps else successful_outcome()
     success = outcome_is_success(outcome)
+    run_status: Literal["succeeded", "degraded", "failed"] = (
+        "succeeded"
+        if outcome["status"] == "success"
+        else "degraded"
+        if outcome["status"] == "degraded"
+        else "failed"
+    )
     failure_message = next(
         (
             str(item.get("message"))
@@ -77,13 +85,27 @@ def finish_text_node(state: Mapping[str, Any]) -> dict[str, Any]:
     )
     if record_id:
         with session_scope() as session:
-            persist_snapshot(
-                session,
-                record_id,
-                sql_answer=final_text or None,
-                terminal=True,
-                error=None if success else failure_message,
-            )
+            if state.get("run_id"):
+                finalize_run(
+                    session,
+                    run_id=str(state["run_id"]),
+                    status=run_status,
+                    current_node="finish",
+                    record_snapshot={
+                        "sql_answer": final_text or None,
+                        "terminal": True,
+                        "error": None if success else failure_message,
+                    },
+                    error_summary=None if success else failure_message,
+                )
+            else:
+                persist_snapshot(
+                    session,
+                    record_id,
+                    sql_answer=final_text or None,
+                    terminal=True,
+                    error=None if success else failure_message,
+                )
 
     if sink.mode == "markdown" and final_text:
         sink.text(final_text)
@@ -115,7 +137,17 @@ def fail_node(state: Mapping[str, Any]) -> dict[str, Any]:
     sink = StreamSink.from_state(state)
     error = str(state.get("error") or "unknown error")
     record_id = state.get("record_id")
-    if record_id:
+    if record_id and state.get("run_id"):
+        with session_scope() as session:
+            finalize_run(
+                session,
+                run_id=str(state["run_id"]),
+                status="failed",
+                current_node="fail",
+                record_snapshot={"terminal": True, "error": error},
+                error_summary=error,
+            )
+    elif record_id:
         persist_turn_failure(int(record_id), error)
     sink.error(error)
     current = state.get("outcome")

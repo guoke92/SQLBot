@@ -21,12 +21,11 @@ from apps.conversation.outcome import (
 )
 
 _DIMENSION_WEIGHTS: tuple[tuple[str, int], ...] = (
-    ("intent_alignment", 25),
-    ("contract_completeness", 20),
-    ("sql_semantic_correctness", 25),
-    ("answer_usability", 15),
-    ("evidence_confidence", 10),
-    ("limitation_transparency", 5),
+    ("semantic_coverage", 35),
+    ("plan_alignment", 25),
+    ("field_relation_evidence", 15),
+    ("execution_completeness", 15),
+    ("result_reasonableness", 10),
 )
 
 ExecutionStatus = Literal["not_run", "success", "failed"]
@@ -40,6 +39,8 @@ class CompletionEvidence(TypedDict):
     contract_status: Literal["verified", "partial", "unsupported"]
     execution_status: ExecutionStatus
     result_structure_valid: bool
+    specification_confidence: float
+    assumption_risk: Literal["low", "medium", "high"]
 
 
 def _grade(score: int) -> QualityGrade:
@@ -172,8 +173,12 @@ def _score_dimensions(
     contract_valid = contract_status == "verified"
     structure_valid = evidence["result_structure_valid"]
 
-    intent_score = 100 if intent_ready else 70
-    contract_score = (
+    semantic_score = (
+        max(60, round(float(evidence["specification_confidence"]) * 100))
+        if intent_ready
+        else 40
+    )
+    alignment_score = (
         100
         if plan_validated and contract_status == "verified"
         else (
@@ -183,22 +188,23 @@ def _score_dimensions(
         )
     )
     if execution_failed:
-        sql_score = 0
+        alignment_score = 0
+    if execution_failed:
+        execution_score = 0
     elif executed and contract_valid and structure_valid:
         # Deterministic checks prove that the SQL uses the confirmed fields and
         # returns the required shape. They do not yet prove source fact grain
         # or relationship value semantics, so this dimension must not claim
         # perfect semantic verification.
-        sql_score = 90
+        execution_score = 100
     elif executed and contract_valid and not structure_valid:
-        sql_score = 40
+        execution_score = 60
     elif executed and structure_valid:
-        sql_score = 65
+        execution_score = 85
     elif executed:
-        sql_score = 30
+        execution_score = 55
     else:
-        sql_score = 0
-    usability_score = 100 if executed and structure_valid else (30 if executed else 0)
+        execution_score = 0
     if execution_failed:
         evidence_score = 0
     elif intent_ready and contract_valid and structure_valid:
@@ -211,17 +217,15 @@ def _score_dimensions(
         evidence_score = 25
     else:
         evidence_score = 0
-    transparency_score = (
-        100
-        if execution_failed or (executed and structure_valid)
-        else (60 if executed else 0)
-    )
+    risk_score = {"low": 100, "medium": 75, "high": 55}[evidence["assumption_risk"]]
+    if not executed:
+        risk_score = 0
 
     details: dict[str, QualityDetail] = {
-        "intent": _detail(
+        "semantic": _detail(
             "intent_confirmed" if intent_ready else "intent_not_machine_confirmed"
         ),
-        "contract": _detail(
+        "alignment": _detail(
             "contract_verified"
             if plan_validated and contract_valid
             else (
@@ -230,7 +234,7 @@ def _score_dimensions(
                 else "contract_verification_unsupported"
             )
         ),
-        "sql": _detail(
+        "execution": _detail(
             "execution_failed"
             if execution_failed
             else (
@@ -244,35 +248,28 @@ def _score_dimensions(
             ),
             params={"error": str(assessment.get("error") or "")},
         ),
-        "usability": _detail(
-            "empty_result_is_answer"
-            if executed
-            and structure_valid
-            and int(assessment.get("row_count") or 0) == 0
-            else (
-                "result_is_answerable"
-                if executed and structure_valid
-                else "result_unavailable"
-            )
-        ),
         "evidence": _detail(
             "schema_contract_evidence"
             if contract_valid
             else "limited_verification_evidence"
         ),
-        "transparency": _detail(
-            "data_observations_disclosed"
-            if executed or execution_failed
-            else "result_not_executed"
+        "risk": _detail(
+            "empty_result_is_answer"
+            if executed and int(assessment.get("row_count") or 0) == 0
+            else (
+                "assumption_risk_low"
+                if evidence["assumption_risk"] == "low"
+                else "assumption_risk_present"
+            ),
+            params={"risk": evidence["assumption_risk"]},
         ),
     }
     scores = (
-        ("intent_alignment", intent_score, details["intent"]),
-        ("contract_completeness", contract_score, details["contract"]),
-        ("sql_semantic_correctness", sql_score, details["sql"]),
-        ("answer_usability", usability_score, details["usability"]),
-        ("evidence_confidence", evidence_score, details["evidence"]),
-        ("limitation_transparency", transparency_score, details["transparency"]),
+        ("semantic_coverage", semantic_score, details["semantic"]),
+        ("plan_alignment", alignment_score, details["alignment"]),
+        ("field_relation_evidence", evidence_score, details["evidence"]),
+        ("execution_completeness", execution_score, details["execution"]),
+        ("result_reasonableness", risk_score, details["risk"]),
     )
     weights = dict(_DIMENSION_WEIGHTS)
     return [
@@ -293,9 +290,9 @@ def build_step_quality(
     if evidence["plan_validated"]:
         checks.append("plan_validated")
     if evidence["contract_status"] == "verified":
-        checks.append("query_contract_satisfied")
+        checks.append("query_specification_satisfied")
     elif evidence["contract_status"] == "partial":
-        checks.append("query_contract_partially_verified")
+        checks.append("query_specification_partially_verified")
     if evidence["execution_status"] == "success":
         checks.append("sql_executed")
         checks.append(

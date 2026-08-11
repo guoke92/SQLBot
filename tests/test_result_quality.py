@@ -22,6 +22,8 @@ def _evidence(status: str = "verified") -> CompletionEvidence:
         "contract_status": status,  # type: ignore[typeddict-item]
         "execution_status": "success",
         "result_structure_valid": True,
+        "specification_confidence": 0.9,
+        "assumption_risk": "low",
     }
 
 
@@ -36,20 +38,20 @@ def _assessment(*, rows: int = 3) -> dict:
 
 def test_verified_contract_scores_user_requirement_completion() -> None:
     report = build_step_quality(_assessment(), evidence=_evidence())
-    assert report["score"] == 95
+    assert report["score"] >= 90
     assert report["grade"] == "excellent"
-    assert "query_contract_satisfied" in report["passed_checks"]
+    assert "query_specification_satisfied" in report["passed_checks"]
     assert sum(item["weight"] for item in report["dimensions"]) == 100
 
 
 def test_partial_and_unsupported_verification_are_not_claimed_as_verified() -> None:
     partial = build_step_quality(_assessment(), evidence=_evidence("partial"))
     unsupported = build_step_quality(_assessment(), evidence=_evidence("unsupported"))
-    assert partial["score"] < 95
-    assert unsupported["score"] < 95
-    assert "query_contract_satisfied" not in partial["passed_checks"]
-    assert "query_contract_partially_verified" in partial["passed_checks"]
-    assert "query_contract_satisfied" not in unsupported["passed_checks"]
+    assert partial["score"] < 90
+    assert unsupported["score"] < 90
+    assert "query_specification_satisfied" not in partial["passed_checks"]
+    assert "query_specification_partially_verified" in partial["passed_checks"]
+    assert "query_specification_satisfied" not in unsupported["passed_checks"]
 
 
 def test_empty_result_is_a_valid_answer_and_not_a_score_penalty() -> None:
@@ -67,7 +69,7 @@ def test_data_characteristics_are_observations_not_completion_dimensions() -> No
         "metrics": {"amount": {"count": 0, "sum": 0, "max": 0}},
     }
     report = build_step_quality(assessment, evidence=_evidence())
-    assert report["score"] == 95
+    assert report["score"] >= 90
     assert {item["code"] for item in report["observations"]} >= {
         "dimension_null_severe",
         "metric_without_values",

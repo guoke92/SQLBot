@@ -38,7 +38,8 @@ backend/graphs/
 ```yaml
 version: 1              # must be 1
 graph_key: chat         # registry key (must match file stem for clarity)
-state: apps.chat.graphs.nodes.nlq.NlqState   # TypedDict dotted path
+state: apps.chat.graphs.nodes.nlq.NlqState # JSON-only checkpoint state
+durable: true            # use checkpoint + shared run lifecycle (default)
 description: "..."      # human-readable, not parsed
 
 nodes:
@@ -75,6 +76,8 @@ edges:
 - `ok_or_fail` requires `next` to be present in `paths`, and `fail` must be in `paths`.
 - At least one edge from `START` is required.
 - Duplicate `graph_key` across files is an error.
+- `durable` must be boolean. Durable graphs receive run lifecycle/checkpoint
+  handling; side-effect-free helper graphs may explicitly set `durable: false`.
 
 ## Builtin Routers
 

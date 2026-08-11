@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 
 from apps.knowledge.models import KnowledgeMatch
 
-ApplyAction = Literal["bind", "structural", "constrain", "exemplify", "clarify", "drop"]
+ApplyAction = Literal["bind", "constrain", "exemplify", "drop", "reuse"]
 CompileStage = Literal["assess", "generate", "repair"]
 
 
@@ -40,10 +40,10 @@ class CompiledKnowledge(BaseModel):
     log_items: list[dict[str, Any]] = Field(default_factory=list)
     matches: list[KnowledgeMatch] = Field(default_factory=list)
     bound_calibers: list[BoundCaliber] = Field(default_factory=list)
-    constraint_cards: list[dict[str, Any]] = Field(default_factory=list)
     examples: list[dict[str, Any]] = Field(default_factory=list)
-    clarify_hints: list[str] = Field(default_factory=list)
     structural_ref: dict[str, Any] = Field(default_factory=dict)
+    constraints: list[dict[str, Any]] = Field(default_factory=list)
+    reuse: dict[str, Any] | None = None
     apply_log: list[ApplyHit] = Field(default_factory=list)
 
     def knowledge_apply_payload(self) -> list[dict[str, Any]]:

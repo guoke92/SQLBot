@@ -20,7 +20,7 @@
 set -euo pipefail
 
 BASE_URL="${SQLBOT_DEBUG_BASE_URL:-https://et-test.qhhrly.cn}"
-USERNAME="${SQLBOT_DEBUG_USERNAME:-mayanfang}"
+USERNAME="${SQLBOT_DEBUG_USERNAME:-tangjinhong}"
 PASSWORD="${SQLBOT_DEBUG_PASSWORD:-Lls@123456}"
 MAX_ROWS="${SQLBOT_DEBUG_MAX_ROWS:-50}"
 

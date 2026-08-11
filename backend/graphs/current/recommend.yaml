@@ -1,5 +1,6 @@
 version: 1
 graph_key: recommend
+durable: false
 state: apps.chat.graphs.nodes.recommend.RecommendState
 description: >
   Recommend-questions side graph. start → generate → end.

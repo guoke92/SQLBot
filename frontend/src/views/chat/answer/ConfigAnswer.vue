@@ -131,7 +131,7 @@ const sendMessage = async () => {
 }
 
 function stop() {
-  turn.stop()
+  turn.detach()
   stopExecutionPolling()
   emits('stop')
 }
@@ -142,7 +142,7 @@ watch(
 )
 
 onBeforeUnmount(() => {
-  turn.stop()
+  turn.detach()
   stopExecutionPolling()
 })
 

@@ -4,7 +4,6 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-
 KnowledgeUsage = Literal["prompt", "entity_binding"]
 
 

@@ -1,7 +1,6 @@
 import asyncio
 import io
 import traceback
-from typing import List, Optional
 
 import pandas as pd
 from fastapi import APIRouter, HTTPException, Path
@@ -25,8 +24,8 @@ from apps.chat.curd.chat import (
     get_chat_with_records_with_data,
     list_chats,
     list_recent_questions,
-    prepare_question_intent,
     rename_chat_with_user,
+    save_analysis_predict_record,
 )
 from apps.chat.curd.debug_bundle import build_chat_debug_bundle
 from apps.chat.models.chat_model import (
@@ -35,7 +34,6 @@ from apps.chat.models.chat_model import (
     ChatFinishStep,
     ChatInfo,
     ChatQuestion,
-    ChatQuestionBase,
     ChatRecord,
     CreateChat,
     QuickCommand,
@@ -44,11 +42,27 @@ from apps.chat.models.chat_model import (
 )
 from apps.chat.result_data import format_json_data, format_json_list_data
 
-# Graph registration is handled by apps.api.bootstrap_graphs — no side-effect
-# imports needed here. submit_graph is the sole runtime entry.
+# Graph registration is handled by each FastAPI process lifespan; no
+# import-time side effects are needed here. submit_graph is the sole runtime
+# entry.
 from apps.chat.task.llm import LLMService
 from apps.conversation.events import emit
+from apps.conversation.models import ConversationRun
+from apps.conversation.run_service import (
+    CorrectionRequest,
+    CreateRunRequest,
+    ResumeRequest,
+    consume_interrupt,
+    correct_interrupt_answer,
+    create_run,
+    finalize_run,
+    get_owned_run,
+    run_events_after,
+    run_snapshot,
+)
 from apps.conversation.runtime import submit_graph
+from apps.conversation.runtime_context import attach_runtime
+from apps.conversation.session import session_scope
 from apps.conversation.sink import resolve_sink, sink_error_chunks
 from apps.swagger.i18n import PLACEHOLDER_PREFIX
 from apps.system.schemas.permission import SqlbotPermission, require_permissions
@@ -61,8 +75,248 @@ from common.utils.data_format import DataFormat
 router = APIRouter(tags=["Data Q&A"], prefix="/chat")
 
 
+def _user_id(user: object) -> int:
+    return int(user.id)
+
+
+async def _launch_run(
+    session: SessionDep,
+    current_user: CurrentUser,
+    current_assistant: CurrentAssistant,
+    request: CreateRunRequest,
+) -> ConversationRun:
+    chat = session.get(Chat, request.chat_id)
+    if chat is None or int(chat.create_by) != _user_id(current_user):
+        raise HTTPException(status_code=404, detail="Chat not found")
+    if request.datasource_id is not None:
+        chat.datasource = request.datasource_id
+        session.add(chat)
+        session.commit()
+    graph_key = "config" if (chat.chat_type or "chat").strip() == "config" else "chat"
+    if graph_key == "config":
+        from apps.config_assistant.nodes import initialize_config_state
+
+        state = await initialize_config_state(
+            session,
+            user=current_user,
+            chat_id=request.chat_id,
+            question=request.question,
+            base_state={"sink": "sse", "in_chat": True, "stream": True},
+        )
+        run = session.get(ConversationRun, str(state["run_id"]))
+        if run is None:
+            raise RuntimeError("Config run was not created")
+    else:
+        question = ChatQuestion(
+            chat_id=request.chat_id,
+            question=request.question,
+            regenerate_record_id=request.regenerate_record_id,
+        )
+        service = await LLMService.create(
+            session, current_user, question, current_assistant
+        )
+        service.init_record(session=session, commit=False)
+        run = create_run(
+            session,
+            record=service.record,
+            graph_key="chat",
+            user_id=_user_id(current_user),
+            oid=int(getattr(current_user, "oid", None) or 1),
+            assistant_id=(
+                int(current_assistant.id)
+                if current_assistant is not None
+                and getattr(current_assistant, "id", None) is not None
+                else None
+            ),
+        )
+        attach_runtime(run.run_id, llm_service=service)
+        state = {
+            "run_id": run.run_id,
+            "record_id": service.record.id,
+            "chat_id": request.chat_id,
+            "sink": "sse",
+            "graph_key": "chat",
+            "mode": "primary",
+            "finish_step": int(ChatFinishStep.GENERATE_CHART.value),
+            "return_img": True,
+        }
+    runner = submit_graph(graph_key, state)
+    runner.detach()
+    return run
+
+
+@router.post("/runs", summary="Create and start a durable conversation run")
+@require_permissions(
+    permission=SqlbotPermission(type="chat", keyExpression="request.chat_id")
+)
+async def create_conversation_run(
+    session: SessionDep,
+    current_user: CurrentUser,
+    request: CreateRunRequest,
+    current_assistant: CurrentAssistant,
+):
+    run = await _launch_run(session, current_user, current_assistant, request)
+    session.refresh(run)
+    return run_snapshot(session, run)
+
+
+@router.post(
+    "/runs/{run_id}/interrupts/{interrupt_id}/correct",
+    summary="Correct an earlier clarification answer and replan the same run",
+)
+async def correct_conversation_answer(
+    session: SessionDep,
+    current_user: CurrentUser,
+    run_id: str,
+    interrupt_id: str,
+    request: CorrectionRequest,
+):
+    try:
+        run = get_owned_run(session, run_id=run_id, user_id=_user_id(current_user))
+        correction, should_resume = correct_interrupt_answer(
+            session,
+            run=run,
+            interrupt_id=interrupt_id,
+            request=request,
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    if should_resume:
+        submit_graph(
+            run.graph_key,
+            {
+                "run_id": run.run_id,
+                "record_id": run.chat_record_id,
+                "sink": "sse",
+                "graph_key": run.graph_key,
+                "__resume__": {
+                    "type": "correction",
+                    "evidence_id": correction.evidence_id,
+                },
+            },
+        ).detach()
+    session.refresh(run)
+    return run_snapshot(session, run)
+
+
 @router.get(
-    "/list", response_model=List[Chat], summary=f"{PLACEHOLDER_PREFIX}get_chat_list"
+    "/runs/{run_id}",
+    summary="Get the canonical run snapshot",
+    operation_id="get_conversation_run",
+)
+async def get_conversation_run(
+    session: SessionDep,
+    current_user: CurrentUser,
+    run_id: str,
+):
+    try:
+        run = get_owned_run(session, run_id=run_id, user_id=_user_id(current_user))
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return run_snapshot(session, run)
+
+
+@router.get("/runs/{run_id}/events", summary="Subscribe to persisted run events")
+async def conversation_run_events(
+    session: SessionDep,
+    current_user: CurrentUser,
+    run_id: str,
+    cursor: int = 0,
+):
+    get_owned_run(session, run_id=run_id, user_id=_user_id(current_user))
+
+    async def event_stream():
+        nonlocal cursor
+        while True:
+            with session_scope() as event_session:
+                run = event_session.get(ConversationRun, run_id)
+                if run is None:
+                    return
+                events = run_events_after(event_session, run_id=run_id, cursor=cursor)
+                status = run.status
+                latest_cursor = int(run.event_cursor or 0)
+            for item in events:
+                cursor = int(item.get("cursor") or cursor)
+                yield emit(item)
+            if cursor < latest_cursor:
+                continue
+            if status in {
+                "awaiting_input",
+                "succeeded",
+                "degraded",
+                "failed",
+                "cancelled",
+            }:
+                return
+            await asyncio.sleep(0.25)
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
+
+
+@router.post(
+    "/runs/{run_id}/interrupts/{interrupt_id}/resume",
+    summary="Resume the same run with immutable clarification evidence",
+    operation_id="resume_conversation_run",
+)
+async def resume_conversation_run(
+    session: SessionDep,
+    current_user: CurrentUser,
+    run_id: str,
+    interrupt_id: str,
+    request: ResumeRequest,
+):
+    try:
+        run = get_owned_run(session, run_id=run_id, user_id=_user_id(current_user))
+        consumed, should_resume = consume_interrupt(
+            session,
+            run=run,
+            interrupt_id=interrupt_id,
+            request=request,
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    if should_resume:
+        runner = submit_graph(
+            run.graph_key,
+            {
+                "run_id": run.run_id,
+                "record_id": run.chat_record_id,
+                "sink": "sse",
+                "graph_key": run.graph_key,
+                "__resume__": consumed.answers or [],
+            },
+        )
+        runner.detach()
+    session.refresh(run)
+    return run_snapshot(session, run)
+
+
+@router.post("/runs/{run_id}/cancel", summary="Cancel a conversation run")
+async def cancel_conversation_run(
+    session: SessionDep,
+    current_user: CurrentUser,
+    run_id: str,
+):
+    try:
+        run = get_owned_run(session, run_id=run_id, user_id=_user_id(current_user))
+        run = finalize_run(
+            session,
+            run_id=run.run_id,
+            status="cancelled",
+            current_node="cancel",
+            record_snapshot={"terminal": True},
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return run_snapshot(session, run)
+
+
+@router.get(
+    "/list", response_model=list[Chat], summary=f"{PLACEHOLDER_PREFIX}get_chat_list"
 )
 async def chats(session: SessionDep, current_user: CurrentUser):
     return list_chats(session, current_user)
@@ -216,6 +470,29 @@ async def chat_record_usage(
     return await asyncio.to_thread(inner)
 
 
+@router.post(
+    "/record/{chat_record_id}/feedback",
+    summary="Submit user feedback (up/down) for a chat record",
+)
+async def chat_record_feedback(
+    session: SessionDep,
+    current_user: CurrentUser,
+    chat_record_id: int,
+    body: dict,
+):
+    from apps.chat.curd.chat import submit_record_feedback
+
+    def inner():
+        feedback = body.get("feedback")
+        if feedback not in ("up", "down", None):
+            raise HTTPException(status_code=400, detail="feedback must be 'up', 'down' or null")
+        return submit_record_feedback(
+            session, chat_record_id=chat_record_id, user_id=current_user.id, feedback=feedback
+        )
+
+    return await asyncio.to_thread(inner)
+
+
 @router.post("/rename", response_model=str, summary=f"{PLACEHOLDER_PREFIX}rename_chat")
 @system_log(
     LogConfig(
@@ -268,7 +545,7 @@ async def delete(
         result_id_expr="id",
     )
 )
-async def start_chat(
+async def start_chat_session(
     session: SessionDep, current_user: CurrentUser, create_chat_obj: CreateChat
 ):
     try:
@@ -293,7 +570,7 @@ async def start_chat(
         result_id_expr="id",
     )
 )
-async def start_chat(
+async def start_assistant_chat_session(
     session: SessionDep,
     current_user: CurrentUser,
     current_assistant: CurrentAssistant,
@@ -320,7 +597,7 @@ async def ask_recommend_questions(
     current_user: CurrentUser,
     chat_record_id: int,
     current_assistant: CurrentAssistant,
-    articles_number: Optional[int] = 4,
+    articles_number: int | None = 4,
 ):
     def _return_empty():
         yield emit({"content": "[]", "type": "recommended_question"})
@@ -363,7 +640,7 @@ async def ask_recommend_questions(
 
 @router.get(
     "/recent_questions/{datasource_id}",
-    response_model=List[str],
+    response_model=list[str],
     summary=f"{PLACEHOLDER_PREFIX}get_recommend_questions",
 )
 # @require_permissions(permission=SqlbotPermission(type='ds', keyExpression="datasource_id"))
@@ -383,7 +660,7 @@ def find_base_question(record_id: int, session: SessionDep):
     )
     _record = session.execute(stmt).fetchone()
     if not _record:
-        raise Exception(f"Cannot find base chat record")
+        raise Exception("Cannot find base chat record")
     rec_question, rec_regenerate_record_id = _record
     if rec_regenerate_record_id:
         return find_base_question(rec_regenerate_record_id, session)
@@ -391,32 +668,11 @@ def find_base_question(record_id: int, session: SessionDep):
         return rec_question
 
 
-@router.post("/question", summary=f"{PLACEHOLDER_PREFIX}ask_question")
-@require_permissions(
-    permission=SqlbotPermission(type="chat", keyExpression="request_question.chat_id")
-)
-async def question_answer(
-    session: SessionDep,
-    current_user: CurrentUser,
-    request_question: ChatQuestionBase,
-    current_assistant: CurrentAssistant,
-):
-    question = ChatQuestion(
-        chat_id=request_question.chat_id,
-        question=request_question.question,
-        clarification_for_record_id=request_question.clarification_for_record_id,
-        clarification_answers=request_question.clarification_answers,
-    )
-    return await question_answer_inner(
-        session, current_user, question, current_assistant
-    )
-
-
 async def question_answer_inner(
     session: SessionDep,
     current_user: CurrentUser,
     request_question: ChatQuestion,
-    current_assistant: Optional[CurrentAssistant] = None,
+    current_assistant: CurrentAssistant | None = None,
     in_chat: bool = True,
     stream: bool = True,
     finish_step: ChatFinishStep = ChatFinishStep.GENERATE_CHART,
@@ -498,7 +754,7 @@ async def question_answer_inner(
                 _record = session.execute(stmt).fetchone()
 
                 if not _record:
-                    raise Exception(f"You have not ask any question")
+                    raise Exception("You have not ask any question")
 
                 rec_id, rec_chat_id, rec_regenerate_record_id = _record
 
@@ -585,7 +841,7 @@ async def stream_sql(
     session: SessionDep,
     current_user: CurrentUser,
     request_question: ChatQuestion,
-    current_assistant: Optional[CurrentAssistant] = None,
+    current_assistant: CurrentAssistant | None = None,
     in_chat: bool = True,
     stream: bool = True,
     finish_step: ChatFinishStep = ChatFinishStep.GENERATE_CHART,
@@ -615,23 +871,34 @@ async def stream_sql(
             )
         else:
             graph_key = "chat"
-            prepare_question_intent(
-                session,
-                current_user,
-                request_question,
-            )
             llm_service = await LLMService.create(
                 session, current_user, request_question, current_assistant
             )
-            llm_service.init_record(session=session)
+            llm_service.init_record(session=session, commit=False)
+            run = create_run(
+                session,
+                record=llm_service.record,
+                graph_key="chat",
+                user_id=_user_id(current_user),
+                oid=int(getattr(current_user, "oid", None) or 1),
+                assistant_id=(
+                    int(current_assistant.id)
+                    if current_assistant is not None
+                    and getattr(current_assistant, "id", None) is not None
+                    else None
+                ),
+            )
+            attach_runtime(run.run_id, llm_service=llm_service)
             state = {
-                "llm_service": llm_service,
+                "run_id": run.run_id,
                 "record_id": llm_service.record.id,
                 "sink": sink_mode,
                 "graph_key": graph_key,
                 "mode": "primary",
                 "chat_id": request_question.chat_id,
-                "finish_step": finish_step,
+                "finish_step": int(
+                    finish_step.value if hasattr(finish_step, "value") else finish_step
+                ),
                 "return_img": return_img,
             }
         # Sole runtime entry — no run_task dual path.
@@ -702,59 +969,51 @@ async def analysis_or_predict(
     try:
         if action_type != "analysis" and action_type != "predict":
             raise Exception(f"Type {action_type} Not Found")
-        record: ChatRecord | None = None
-
-        stmt = select(
-            ChatRecord.id,
-            ChatRecord.question,
-            ChatRecord.chat_id,
-            ChatRecord.datasource,
-            ChatRecord.engine_type,
-            ChatRecord.ai_modal_id,
-            ChatRecord.create_by,
-            ChatRecord.chart,
-            ChatRecord.data,
-        ).where(and_(ChatRecord.id == chat_record_id))
-        result = session.execute(stmt)
-        for r in result:
-            record = ChatRecord(
-                id=r.id,
-                question=r.question,
-                chat_id=r.chat_id,
-                datasource=r.datasource,
-                engine_type=r.engine_type,
-                ai_modal_id=r.ai_modal_id,
-                create_by=r.create_by,
-                chart=r.chart,
-                data=r.data,
-            )
-
-        if not record:
+        base_record = session.get(ChatRecord, chat_record_id)
+        if not base_record or int(base_record.create_by) != _user_id(current_user):
             raise Exception(f"Chat record with id {chat_record_id} not found")
 
-        if not record.chart:
+        if not base_record.chart:
             raise Exception(
                 f"Chat record with id {chat_record_id} has not generated chart, do not support to analyze it"
             )
 
         request_question = ChatQuestion(
-            chat_id=record.chat_id, question=record.question
+            chat_id=base_record.chat_id, question=base_record.question
         )
 
         llm_service = await LLMService.create(
             session, current_user, request_question, current_assistant
         )
+        record = save_analysis_predict_record(
+            session, base_record, action_type, commit=False
+        )
+        run = create_run(
+            session,
+            record=record,
+            graph_key=action_type,
+            user_id=_user_id(current_user),
+            oid=int(getattr(current_user, "oid", None) or 1),
+            assistant_id=(
+                int(current_assistant.id)
+                if current_assistant is not None
+                and getattr(current_assistant, "id", None) is not None
+                else None
+            ),
+        )
+        llm_service.set_record(record)
+        attach_runtime(run.run_id, llm_service=llm_service)
         # Sole runtime entry — graph_key is the routing truth source.
         runner = submit_graph(
             action_type,
             {
-                "llm_service": llm_service,
-                "base_record": record,
+                "run_id": run.run_id,
+                "record_id": record.id,
                 "sink": sink_mode,
                 "graph_key": action_type,
                 "mode": "follow_up",
-                "chat_id": record.chat_id,
-                "base_record_id": record.id,
+                "chat_id": base_record.chat_id,
+                "base_record_id": base_record.id,
             },
         )
     except Exception as e:
@@ -877,7 +1136,6 @@ async def export_excel(
         )
 
     def inner():
-
         data_list = DataFormat.convert_large_numbers_in_object_array(
             obj_array=_data + _predict_data, int_threshold=1e11
         )

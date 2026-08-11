@@ -6,7 +6,6 @@ from collections import defaultdict
 from collections.abc import Iterable
 from typing import Any
 
-from apps.chat.query_contract import PredicateRequirement, parse_requirement
 from apps.knowledge.models import KnowledgeMatch
 
 
@@ -139,69 +138,6 @@ def retain_binding_resources(
         if options:
             info["options"] = options
             ambiguous[phrase] = info
-    return {
-        **bindings,
-        "candidates": list(dict.fromkeys([*resolved, *ambiguous])),
-        "resolved": resolved,
-        "ambiguous": ambiguous,
-    }
-
-
-def apply_confirmed_entity_bindings(
-    bindings: dict[str, Any],
-    intent_context: dict[str, Any] | None,
-) -> dict[str, Any]:
-    """Promote user-confirmed entity choices into normal resolved bindings."""
-    if not intent_context:
-        return bindings
-    requirements = (
-        (intent_context.get("contract") or {}).get("requirements")
-        or (intent_context.get("draft") or {}).get("requirements")
-        or []
-    )
-    selected_by_phrase: dict[str, str] = {}
-    for raw in requirements:
-        if not isinstance(raw, dict) or raw.get("clause") != "predicate":
-            continue
-        requirement = parse_requirement(raw)
-        if not isinstance(requirement, PredicateRequirement):
-            continue
-        phrase = requirement.label.strip()
-        selected = str(requirement.values[0]).strip() if requirement.values else ""
-        if phrase and selected and phrase in (bindings.get("ambiguous") or {}):
-            selected_by_phrase[phrase] = selected
-
-    if not selected_by_phrase:
-        return bindings
-    resolved = dict(bindings.get("resolved") or {})
-    ambiguous = dict(bindings.get("ambiguous") or {})
-    for phrase, selected in selected_by_phrase.items():
-        source = ambiguous.get(phrase)
-        # A confirmed binding is meaningful only against the deterministic
-        # candidate set that produced its clarification question.
-        if not source:
-            continue
-        matching = next(
-            (
-                option
-                for option in source.get("options") or []
-                if str(option.get("canonical") or "") == selected
-            ),
-            None,
-        )
-        if matching is None:
-            continue
-        targets = list((matching or {}).get("targets") or source.get("targets") or [])
-        resolved[phrase] = {
-            "canonical": selected,
-            "alternatives": [],
-            "targets": targets,
-            "resolution": "user_confirmed",
-            "confidence": 1.0,
-            "margin": 1.0,
-            "match": "eq",
-        }
-        ambiguous.pop(phrase, None)
     return {
         **bindings,
         "candidates": list(dict.fromkeys([*resolved, *ambiguous])),

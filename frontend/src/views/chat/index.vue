@@ -268,7 +268,6 @@
                       @finish="onPrimaryAnswerFinish"
                       @error="onPrimaryAnswerError"
                       @stop="onChatStop"
-                      @clarification-submit="submitClarification"
                     >
                       <ErrorInfo :error="message.record?.error" class="error-container" />
                       <template #tool>
@@ -333,16 +332,49 @@
                                 </el-button>
                               </div>
                             </template>
+                            <div class="divider"></div>
+                            <el-tooltip
+                              effect="dark"
+                              :offset="8"
+                              :content="t('qa.feedback_up')"
+                              placement="top"
+                            >
+                              <el-button
+                                class="tool-btn"
+                                :class="{ 'feedback-active': message.record?.feedback === 'up' }"
+                                text
+                                :disabled="isTyping"
+                                @click="submitFeedback(message, 'up')"
+                              >
+                                <el-icon size="18">
+                                  <svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg"><path d="M602.2 438.4h245.5c30.4 0 55 24.6 55 55 0 8.4-1.9 16.7-5.6 24.3L767.6 802c-8.7 17.9-27 29.3-47.1 29.3H256V438.4l196.4-292.2c17.1-25.5 49.3-34.5 75.8-21.2l5.4 3.1c26.5 17.1 34.1 52.5 17 79l-5.3 7.5-87 164.8h143.9zM320 502.4v265h400.5l113.1-230.6H538.2l110.6-209.2-13-7.4L320 502.4zM256 438.4H128v393h128v-393z" fill="currentColor" /></svg>
+                                </el-icon>
+                              </el-button>
+                            </el-tooltip>
+                            <el-tooltip
+                              effect="dark"
+                              :offset="8"
+                              :content="t('qa.feedback_down')"
+                              placement="top"
+                            >
+                              <el-button
+                                class="tool-btn"
+                                :class="{ 'feedback-active': message.record?.feedback === 'down' }"
+                                text
+                                :disabled="isTyping"
+                                @click="submitFeedback(message, 'down')"
+                              >
+                                <el-icon size="18">
+                                  <svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg"><path d="M421.8 585.6H176.3c-30.4 0-55-24.6-55-55 0-8.4 1.9-16.7 5.6-24.3L256.4 222c8.7-17.9 27-29.3 47.1-29.3H768v393H571.6l-196.4 292.2c-17.1 25.5-49.3 34.5-75.8 21.2l-5.4-3.1c-26.5-17.1-34.1-52.5-17-79l5.3-7.5 87-164.8H421.8zM704 521.6v-265H303.5L190.4 487.2h232.4L312.2 696.4l13 7.4L704 521.6zM768 585.6h128v-393H768v393z" fill="currentColor" /></svg>
+                                </el-icon>
+                              </el-button>
+                            </el-tooltip>
                           </div>
                         </ChatToolBar>
                       </template>
                       <template #footer>
                         <RecommendQuestion
-                          v-if="
-                            !['needs_clarification', 'blocked'].includes(
-                              message.record?.intent_context?.status || ''
-                            )
-                          "
+                          v-if="message.record?.run_status !== 'awaiting_input'"
                           ref="recommendQuestionRef"
                           :current-chat="currentChat"
                           :record-id="message.record?.id"
@@ -496,14 +528,7 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import {
-  Chat,
-  chatApi,
-  ChatInfo,
-  type ChatMessage,
-  ChatRecord,
-  type ClarificationAnswer,
-} from '@/api/chat'
+import { Chat, chatApi, ChatInfo, type ChatMessage, ChatRecord } from '@/api/chat'
 import ChatRow from './ChatRow.vue'
 import MultiStepAnswer from './answer/MultiStepAnswer.vue'
 import AnalysisAnswer from './answer/AnalysisAnswer.vue'
@@ -601,7 +626,9 @@ let persistedTurnLoading = false
 let persistedTurnGeneration = 0
 
 const persistedTurnInProgress = computed(() =>
-  currentChat.value.records.some((record) => !!record.id && !record.finish)
+  currentChat.value.records.some(
+    (record) => !!record.id && ['queued', 'running'].includes(record.run_status || '')
+  )
 )
 
 function stopPersistedTurnPolling() {
@@ -717,7 +744,7 @@ const computedMessages = computed<Array<ChatMessage>>(() => {
       record: record,
       isTyping:
         i === currentChat.value.records.length - 1 &&
-        (isTyping.value || (!!record.id && !record.finish)),
+        (isTyping.value || ['queued', 'running'].includes(record.run_status || '')),
       first_chat: record.first_chat,
       recommended_question: record.recommended_question,
       index: i,
@@ -896,7 +923,7 @@ async function onPrimaryAnswerFinish(id: number, status?: string) {
   if (id) {
     getRecordUsage(id)
   }
-  if (status === 'needs_clarification' || status === 'blocked') {
+  if (status === 'awaiting_input') {
     getRecommendQuestionsLoading.value = false
     return
   }
@@ -936,11 +963,7 @@ const assistantPrepareSend = async () => {
 }
 const sendMessage = async (
   regenerate_record_id: number | undefined = undefined,
-  $event: any = {},
-  clarification?: {
-    parentRecordId: number
-    answers: ClarificationAnswer[]
-  }
+  $event: any = {}
 ) => {
   if ($event?.isComposing) {
     return
@@ -957,8 +980,6 @@ const sendMessage = async (
   currentRecord.chat_id = currentChatId.value
   currentRecord.question = inputMessage.value
   currentRecord.regenerate_record_id = regenerate_record_id
-  currentRecord.clarification_parent_id = clarification?.parentRecordId
-  currentRecord.clarification_answers = clarification?.answers
   currentRecord.sql_answer = ''
   currentRecord.sql = ''
   currentRecord.chart_answer = ''
@@ -1000,16 +1021,6 @@ const sendMessage = async (
   })
 }
 
-async function submitClarification(payload: {
-  parentRecordId: number
-  answers: ClarificationAnswer[]
-  displayText: string
-}) {
-  if (isTyping.value) return
-  inputMessage.value = payload.displayText
-  await sendMessage(undefined, {}, payload)
-}
-
 const analysisAnswerRef = ref()
 
 async function onAnalysisAnswerFinish(id: number) {
@@ -1023,6 +1034,17 @@ function onAnalysisAnswerError(id: number) {
   loading.value = false
   isTyping.value = false
   getRecordUsage(id)
+}
+
+async function submitFeedback(message: ChatMessage, feedback: 'up' | 'down') {
+  if (!message.record?.id) return
+  const newFeedback = message.record.feedback === feedback ? null : feedback
+  try {
+    await chatApi.submitFeedback(message.record.id, newFeedback)
+    message.record.feedback = newFeedback
+  } catch {
+    // silent
+  }
 }
 
 function askAgain(message: ChatMessage) {
@@ -1543,6 +1565,10 @@ onBeforeUnmount(() => {
     width: 1px;
     height: 16px;
     border-left: 1px solid rgba(31, 35, 41, 0.15);
+  }
+
+  .feedback-active {
+    color: var(--el-color-primary) !important;
   }
 }
 

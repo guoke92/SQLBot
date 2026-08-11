@@ -17,6 +17,7 @@ from typing import Any
 
 from apps.conversation.registry import get_graph
 from apps.conversation.sink import sink_error_chunks
+from common.utils.utils import SQLBotLogUtil
 
 
 def _bounded_setting_int(name: str, default: int, *, minimum: int, maximum: int) -> int:
@@ -188,15 +189,27 @@ def run_graph(graph_key: str, ctx: Any, **builder_kwargs: Any) -> Iterator[Any]:
         stream_fn = runnable.stream
         # Prefer a dict-ish input for graph state; plain mapping ctx is fine.
         input_state = ctx if isinstance(ctx, dict) else {}
-        for item in stream_fn(
-            input_state,
-            config={"recursion_limit": _RECURSION_LIMIT},
-            stream_mode="custom",
-        ):
+        run_id = str(input_state.get("run_id") or "")
+        checkpointer = getattr(runnable, "checkpointer", None)
+        if checkpointer is not None and not run_id:
+            raise ValueError("Durable conversation graph requires run_id")
+        resume_value = input_state.pop("__resume__", None)
+        continue_existing = bool(input_state.pop("__continue__", False))
+        graph_input: Any = input_state
+        if resume_value is not None:
+            from langgraph.types import Command
+
+            graph_input = Command(resume=resume_value)
+        elif continue_existing:
+            graph_input = None
+        config: dict[str, Any] = {"recursion_limit": _RECURSION_LIMIT}
+        if run_id:
+            config["configurable"] = {"thread_id": run_id}
+        for item in stream_fn(graph_input, config=config, stream_mode="custom"):
             yield item
         return
 
-    if hasattr(runnable, "__iter__") and not isinstance(runnable, (str, bytes, dict)):
+    if hasattr(runnable, "__iter__") and not isinstance(runnable, str | bytes | dict):
         for item in runnable:
             yield item
         return
@@ -215,21 +228,209 @@ def submit_graph(
     # Materialize a plain dict so workers own a stable snapshot.
     state: dict[str, Any] = dict(ctx)
     record_id = state.get("record_id")
+    run_id = str(state.get("run_id") or "")
     runner = StreamRunner()
 
     def _run() -> Iterator[Any]:
         try:
+            if run_id:
+                from apps.conversation.models import ConversationRun
+                from apps.conversation.run_service import (
+                    ConversationRunCancelled,
+                    update_run_status,
+                )
+                from apps.conversation.session import session_scope
+
+                with session_scope() as session:
+                    current = session.get(ConversationRun, run_id)
+                    if current is not None and current.status == "cancelled":
+                        raise ConversationRunCancelled(run_id)
+                    update_run_status(session, run_id, "running")
             yield from run_graph(graph_key, state, **builder_kwargs)
+            if run_id:
+                from apps.conversation.models import ConversationRun
+                from apps.conversation.session import session_scope
+
+                with session_scope() as session:
+                    completed = session.get(ConversationRun, run_id)
+                    status = completed.status if completed is not None else "missing"
+                if status in {"queued", "running"}:
+                    raise RuntimeError(
+                        f"Conversation graph ended without a terminal or interrupt state: {status}"
+                    )
+                # checkpoint_id is an audit index, not part of the business
+                # outcome. A transient read failure must never rewrite an
+                # already committed terminal result.
+                try:
+                    from apps.conversation.checkpoint import get_checkpointer
+                    from apps.conversation.run_service import record_checkpoint_id
+
+                    checkpoint = get_checkpointer().get_tuple(
+                        {"configurable": {"thread_id": run_id}}
+                    )
+                    checkpoint_id = str(
+                        (
+                            (checkpoint.config if checkpoint else {}).get(
+                                "configurable"
+                            )
+                            or {}
+                        ).get("checkpoint_id")
+                        or ""
+                    )
+                    with session_scope() as session:
+                        record_checkpoint_id(session, run_id, checkpoint_id)
+                except Exception as checkpoint_exc:  # noqa: BLE001
+                    SQLBotLogUtil.warning(
+                        f"checkpoint index update failed for run {run_id}: {checkpoint_exc}"
+                    )
         except Exception as e:
+            from apps.conversation.run_service import (
+                TERMINAL_STATUSES,
+                ConversationRunCancelled,
+            )
+
+            if isinstance(e, ConversationRunCancelled):
+                return
             traceback.print_exc()
-            if record_id:
+            terminal_already_committed = False
+            if run_id:
+                try:
+                    from apps.conversation.models import ConversationRun
+                    from apps.conversation.run_service import (
+                        append_run_event,
+                        finalize_run,
+                    )
+                    from apps.conversation.session import session_scope
+
+                    with session_scope() as session:
+                        current = session.get(ConversationRun, run_id)
+                        terminal_already_committed = bool(
+                            current is not None and current.status in TERMINAL_STATUSES
+                        )
+                        if not terminal_already_committed:
+                            finalize_run(
+                                session,
+                                run_id=run_id,
+                                status="failed",
+                                current_node="runtime",
+                                record_snapshot={"terminal": True, "error": str(e)},
+                                error_summary=str(e),
+                            )
+                    if not terminal_already_committed:
+                        with session_scope() as session:
+                            append_run_event(
+                                session,
+                                run_id=run_id,
+                                payload={"type": "error", "content": str(e)},
+                            )
+                except Exception:
+                    traceback.print_exc()
+            elif record_id:
                 try:
                     from apps.conversation.turn import persist_turn_failure
 
                     persist_turn_failure(int(record_id), str(e))
                 except Exception:
                     traceback.print_exc()
-            yield from sink_error_chunks(state, str(e))
+            if not terminal_already_committed:
+                yield from sink_error_chunks(state, str(e))
+        finally:
+            if run_id:
+                # Checkpoints contain only IDs, so paused and completed runs
+                # can always rehydrate. Keeping request-scoped models here
+                # would leak clients and stale ORM-backed context indefinitely.
+                from apps.conversation.runtime_context import detach_runtime
+
+                detach_runtime(run_id)
 
     runner.submit(_run)
     return runner
+
+
+def recover_incomplete_runs() -> int:
+    """Resume durable checkpoints after process restart.
+
+    ``awaiting_input`` runs intentionally remain paused.  Executed NLQ plans
+    are idempotent in ``nlq_run``, so replay cannot query the datasource twice.
+    """
+    from sqlalchemy import select
+
+    from apps.conversation.checkpoint import get_checkpointer
+    from apps.conversation.models import ConversationRun
+    from apps.conversation.run_service import update_run_status
+    from apps.conversation.session import session_scope
+
+    with session_scope() as session:
+        runs = list(
+            session.exec(
+                select(ConversationRun).where(
+                    ConversationRun.status.in_(["queued", "running", "awaiting_input"])
+                )
+            ).scalars()
+        )
+        detached = [ConversationRun(**run.model_dump()) for run in runs]
+
+    recovered = 0
+    saver = get_checkpointer()
+    for run in detached:
+        try:
+            checkpoint = saver.get_tuple({"configurable": {"thread_id": run.run_id}})
+        except Exception as exc:
+            SQLBotLogUtil.warning(
+                f"checkpoint recovery deferred for run {run.run_id}: {exc}"
+            )
+            continue
+        if run.status == "awaiting_input" and checkpoint is not None:
+            continue
+        if run.status == "awaiting_input":
+            with session_scope() as session:
+                update_run_status(session, run.run_id, "running")
+        if checkpoint is not None:
+            state: dict[str, Any] = {
+                "run_id": run.run_id,
+                "record_id": run.chat_record_id,
+                "graph_key": run.graph_key,
+                "sink": "sse",
+                "__continue__": True,
+            }
+        elif run.graph_key == "config":
+            from apps.config_assistant.nodes import recover_config_state
+
+            state = recover_config_state(run)
+        elif run.graph_key in {"analysis", "predict"}:
+            from apps.chat.models.chat_model import ChatRecord
+
+            with session_scope() as session:
+                record = session.get(ChatRecord, run.chat_record_id)
+                if record is None:
+                    continue
+                base_record_id = (
+                    record.analysis_record_id
+                    if run.graph_key == "analysis"
+                    else record.predict_record_id
+                )
+            if base_record_id is None:
+                continue
+            state = {
+                "run_id": run.run_id,
+                "record_id": run.chat_record_id,
+                "base_record_id": int(base_record_id),
+                "graph_key": run.graph_key,
+                "sink": "sse",
+                "mode": "follow_up",
+            }
+        else:
+            from apps.chat.models.chat_model import ChatFinishStep
+
+            state = {
+                "run_id": run.run_id,
+                "record_id": run.chat_record_id,
+                "graph_key": "chat",
+                "sink": "sse",
+                "mode": "primary",
+                "finish_step": int(ChatFinishStep.GENERATE_CHART.value),
+                "return_img": True,
+            }
+        submit_graph(run.graph_key, state).detach()
+        recovered += 1
+    return recovered

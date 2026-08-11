@@ -1,8 +1,7 @@
 import os
-from typing import Dict, Any
+from typing import Any
 
 import sqlbot_xpack
-from alembic.config import Config
 from fastapi import FastAPI, Request
 from fastapi.concurrency import asynccontextmanager
 from fastapi.openapi.utils import get_openapi
@@ -12,13 +11,19 @@ from fastapi.staticfiles import StaticFiles
 from fastapi_mcp import FastApiMCP
 from starlette.datastructures import MutableHeaders
 from starlette.exceptions import HTTPException as StarletteHTTPException
-from starlette.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.middleware.cors import CORSMiddleware
 
 from alembic import command
+from alembic.config import Config
 from apps.api import api_router
-from apps.swagger.i18n import PLACEHOLDER_PREFIX, tags_metadata, i18n_list
-from apps.swagger.i18n import get_translation, DEFAULT_LANG
+from apps.swagger.i18n import (
+    DEFAULT_LANG,
+    PLACEHOLDER_PREFIX,
+    get_translation,
+    i18n_list,
+    tags_metadata,
+)
 from apps.system.crud.aimodel_manage import async_model_info
 from apps.system.crud.assistant import init_dynamic_cors
 from apps.system.middleware.auth import TokenMiddleware
@@ -53,9 +58,28 @@ def init_table_and_ds_embedding():
     sync_table_and_ds_embeddings()
 
 
+def init_conversation_runtime() -> None:
+    """Initialize the process-local graph registry and checkpointer once."""
+    from apps.conversation.graph_loader import bootstrap_graphs
+
+    bootstrap_graphs()
+
+
+def close_conversation_runtime() -> None:
+    """Release process-local conversation resources."""
+    from apps.conversation.checkpoint import close_checkpointer
+    from apps.conversation.runtime import shutdown_runtime
+
+    shutdown_runtime(wait=False)
+    close_checkpointer()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     run_migrations()
+    # Graph compilation receives the already initialized PostgreSQL
+    # checkpointer. Keeping this in lifespan avoids import-time DB effects.
+    init_conversation_runtime()
     init_sqlbot_cache()
     init_dynamic_cors(app)
     init_terminology_embedding_data()
@@ -81,12 +105,32 @@ async def lifespan(app: FastAPI):
     except Exception as _cap_exc:  # pragma: no cover
         SQLBotLogUtil.warning(f"knowledge capture drain on startup skipped: {_cap_exc}")
     try:
+        from apps.conversation.runtime import recover_incomplete_runs
+
+        recovered = recover_incomplete_runs()
+        if recovered:
+            SQLBotLogUtil.info(f"恢复 {recovered} 个未完成对话运行")
+    except Exception as _recovery_exc:  # pragma: no cover
+        SQLBotLogUtil.error(f"conversation recovery failed: {_recovery_exc}")
+    try:
         yield
     finally:
-        from apps.conversation.runtime import shutdown_runtime
-
-        shutdown_runtime(wait=False)
+        close_conversation_runtime()
         SQLBotLogUtil.info(f"{APP_DISPLAY_NAME}应用关闭")
+
+
+@asynccontextmanager
+async def mcp_lifespan(_app: FastAPI):
+    """MCP owns a separate process and therefore needs its own graph registry.
+
+    Migrations, recovery and background maintenance remain owned by the main
+    application process; MCP only initializes the runtime it actually uses.
+    """
+    init_conversation_runtime()
+    try:
+        yield
+    finally:
+        close_conversation_runtime()
 
 
 def custom_generate_unique_id(route: APIRoute) -> str:
@@ -118,10 +162,10 @@ class McpClientIpForwardMiddleware(BaseHTTPMiddleware):
         return await call_next(request)
 
 # cache docs for different text
-_openapi_cache: Dict[str, Dict[str, Any]] = {}
+_openapi_cache: dict[str, dict[str, Any]] = {}
 
 # replace placeholder
-def replace_placeholders_in_schema(schema: Dict[str, Any], trans: Dict[str, str]) -> None:
+def replace_placeholders_in_schema(schema: dict[str, Any], trans: dict[str, str]) -> None:
     """
     search OpenAPI schema，replace PLACEHOLDER_xxx to text。
     """
@@ -151,7 +195,7 @@ def get_language_from_request(request: Request) -> str:
     return DEFAULT_LANG
 
 
-def generate_openapi_for_lang(lang: str) -> Dict[str, Any]:
+def generate_openapi_for_lang(lang: str) -> dict[str, Any]:
     if lang in _openapi_cache:
         return _openapi_cache[lang]
 
@@ -215,7 +259,7 @@ if settings.SQLBOT_DOC_ENABLED:
         )
 
 
-mcp_app = FastAPI()
+mcp_app = FastAPI(lifespan=mcp_lifespan)
 mcp_app.add_middleware(McpClientIpForwardMiddleware)
 # mcp server, images path
 images_path = settings.MCP_IMAGE_PATH
@@ -228,7 +272,17 @@ mcp = FastApiMCP(
     description=f"{APP_DISPLAY_NAME} MCP Server",
     describe_all_responses=True,
     describe_full_response_schema=True,
-    include_operations=["mcp_datasource_list", "get_model_list", "mcp_question", "mcp_start", "mcp_assistant", "mcp_ws_list", "access_token"],
+    include_operations=[
+        "mcp_datasource_list",
+        "get_model_list",
+        "mcp_question",
+        "mcp_start",
+        "mcp_assistant",
+        "mcp_ws_list",
+        "access_token",
+        "get_conversation_run",
+        "resume_conversation_run",
+    ],
     headers=["Authorization", "X-Forwarded-For", "X-Real-IP", "CF-Connecting-IP", "X-Client-IP"]
 )
 

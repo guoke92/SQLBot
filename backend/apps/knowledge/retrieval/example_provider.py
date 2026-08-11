@@ -42,25 +42,17 @@ def recall_examples(
     del _template
     examples: list[dict[str, Any]] = []
     for item in example_list or []:
-        if isinstance(item, dict):
-            meta = item.get("knowledge_meta") or {}
-            examples.append(
-                {
-                    "id": item.get("id"),
-                    "question": item.get("question") or item.get("word"),
-                    "sql": item.get("description") or item.get("sql"),
-                    "trust_tier": meta.get("trust_tier") or "published",
-                    "knowledge_meta": meta,
-                }
-            )
-        else:
-            examples.append(
-                {
-                    "id": getattr(item, "id", None),
-                    "question": getattr(item, "question", None),
-                    "sql": getattr(item, "description", None),
-                    "trust_tier": "published",
-                    "knowledge_meta": getattr(item, "knowledge_meta", None) or {},
-                }
-            )
+        if not isinstance(item, dict):
+            continue
+        meta = item.get("knowledge_meta") or {}
+        examples.append(
+            {
+                "id": item.get("id"),
+                "question": item.get("question"),
+                "sql": item.get("suggestion-answer"),
+                "similarity": item.get("similarity"),
+                "trust_tier": meta.get("trust_tier") or "published",
+                "knowledge_meta": meta,
+            }
+        )
     return examples

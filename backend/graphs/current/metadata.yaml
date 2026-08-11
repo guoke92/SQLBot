@@ -1,5 +1,6 @@
 version: 1
 graph_key: metadata
+durable: false
 state: apps.datasource.profiling.graphs.nodes.MetadataState
 description: >
   Metadata cognition mining graph (agent-only). Facts bootstrap is owned by the

@@ -12,7 +12,7 @@ from typing import Any, Literal
 
 import orjson
 
-from apps.chat.query_contract import QueryContract
+from apps.chat.query_specification import QuerySpecification
 from apps.protocol import QueryPlan
 from apps.protocol.base import CAP_SQL_DIALECT
 from common.utils.json_utils import extract_nested_json
@@ -41,6 +41,16 @@ class BatchParseResult:
     def error_message(self) -> str | None:
         return "\n".join(self.errors) if self.errors else None
 
+    @property
+    def requires_contract_repair(self) -> bool:
+        """Whether a safe parsed plan has a concrete specification mismatch.
+
+        A ``partial`` status without a message means the SQL AST cannot prove
+        a semantic reference. That risk is scored after execution; generating
+        the same SQL again cannot resolve it.
+        """
+        return bool(self.plans and self.contract_message)
+
 
 def _plan_dict_from_query_plan(plan: QueryPlan) -> dict[str, Any]:
     return {
@@ -49,14 +59,15 @@ def _plan_dict_from_query_plan(plan: QueryPlan) -> dict[str, Any]:
         "tables": list(plan.resources or []),
         "chart_type": plan.chart_type or "table",
         "brief": plan.brief or "",
-        "plan": plan,
+        "message": plan.message,
+        "payload": dict(plan.payload or {}),
     }
 
 
 def _apply_display_defaults(
     plans: list[dict[str, Any]],
     question: str,
-    intent_context: dict[str, Any] | None,
+    specification: QuerySpecification | None,
 ) -> list[dict[str, Any]]:
     """Derive stable business titles from the confirmed query contract.
 
@@ -65,13 +76,7 @@ def _apply_display_defaults(
     a rejected candidate.  Result titles therefore have one deterministic
     owner and remain stable across retries and page hydration.
     """
-    requirements = [
-        requirement
-        for requirement in ((intent_context or {}).get("contract") or {}).get(
-            "requirements", []
-        )
-        if isinstance(requirement, dict)
-    ]
+    requirements = list(specification.requirements) if specification else []
     multiple = len(plans) > 1
     for index, plan in enumerate(plans):
         covered_keys = {
@@ -80,14 +85,14 @@ def _apply_display_defaults(
         dimensions: list[str] = []
         metrics: list[str] = []
         for requirement in requirements:
-            slot_id = str(requirement.get("slot_id") or "")
-            if covered_keys and slot_id not in covered_keys:
+            requirement_id = requirement.requirement_id
+            if covered_keys and requirement_id not in covered_keys:
                 continue
-            clause = str(requirement.get("clause") or "")
-            label = str(requirement.get("label") or "").strip()
+            clause = requirement.clause
+            label = requirement.business_label
             if label:
                 if clause == "group" or (
-                    clause == "output" and requirement.get("operation") == "value"
+                    clause == "output" and getattr(requirement, "aggregation", None) == "value"
                 ):
                     dimensions.append(label)
                 elif clause == "output":
@@ -135,7 +140,7 @@ def _validate_batch_contract(
     plans: list[dict[str, Any]],
     llm_service: Any,
     *,
-    query_contract: QueryContract | None = None,
+    specification: QuerySpecification | None = None,
 ) -> tuple[str | None, Literal["verified", "partial", "unsupported"]]:
     """Validate contract requirements across the atomic SQL batch."""
     supports = getattr(llm_service.protocol, "supports", None)
@@ -143,16 +148,16 @@ def _validate_batch_contract(
         return None, "unsupported"
     from apps.protocol.registry import get_spec
     from apps.protocol.sql.identifier_validation import (
-        analyze_sql_contract_structure,
+        analyze_query_specification_alignment,
     )
 
     type_key = getattr(llm_service.protocol, "type_key", None)
     dialect = get_spec(type_key).sqlglot_dialect if type_key else None
-    if query_contract is None:
+    if specification is None:
         return None, "unsupported"
-    validation = analyze_sql_contract_structure(
+    validation = analyze_query_specification_alignment(
         [str(plan.get("sql") or plan.get("format_statement") or "") for plan in plans],
-        query_contract,
+        specification,
         dialect=dialect,
     )
     if validation.error is None:
@@ -174,9 +179,8 @@ def _contract_checked_result(
     plans: list[dict[str, Any]],
     llm_service: Any,
     *,
-    query_contract: QueryContract | None,
+    specification: QuerySpecification | None,
     question: str,
-    intent_context: Any,
 ) -> BatchParseResult:
     """Attach contract status to an already-parsed batch.
 
@@ -185,9 +189,9 @@ def _contract_checked_result(
     loop and does not withhold the answer.
     """
     error, status = _validate_batch_contract(
-        plans, llm_service, query_contract=query_contract
+        plans, llm_service, specification=specification
     )
-    prepared = _apply_display_defaults(plans, question, intent_context)
+    prepared = _apply_display_defaults(plans, question, specification)
     return BatchParseResult(
         plans=prepared,
         plan_validated=True,
@@ -196,53 +200,17 @@ def _contract_checked_result(
     )
 
 
-def batch_from_compiled_sql(
-    sql: str,
-    llm_service: Any,
-    *,
-    query_contract: QueryContract | None,
-    question: str,
-    intent_context: Any,
-    resources: list[str],
-    chart_type: str = "table",
-) -> BatchParseResult | None:
-    """Accept a deterministically compiled statement through the shared plan gate.
-
-    Returns ``None`` when protocol validation rejects the SQL so the caller can
-    fall back to LLM generation without inventing a second acceptance path.
-    """
-    plan = QueryPlan(
-        success=True,
-        statement=sql,
-        payload={"sql": sql},
-        resources=list(resources),
-        chart_type=chart_type,
-        brief="",
-    )
-    entry, _error = _accept_plan(llm_service, plan)
-    if not entry:
-        return None
-    return _contract_checked_result(
-        [entry],
-        llm_service,
-        query_contract=query_contract,
-        question=question,
-        intent_context=intent_context,
-    )
-
-
 def parse_query_generation(
     raw_text: str,
     llm_service: Any,
     *,
     max_batch_size: int,
-    query_contract: QueryContract | None = None,
+    specification: QuerySpecification | None = None,
 ) -> BatchParseResult:
     """Parse and validate one model response as an atomic plan batch."""
     plans: list[dict[str, Any]] = []
     errors: list[str] = []
     chat_question = getattr(llm_service, "chat_question", None)
-    intent_context = getattr(chat_question, "intent_context", None)
     question = str(
         getattr(chat_question, "generation_question", "")
         or getattr(chat_question, "question", "")
@@ -258,9 +226,8 @@ def parse_query_generation(
                 return _contract_checked_result(
                     [entry],
                     llm_service,
-                    query_contract=query_contract,
+                    specification=specification,
                     question=question,
-                    intent_context=intent_context,
                 )
             return BatchParseResult(
                 errors=[
@@ -309,8 +276,7 @@ def parse_query_generation(
         return _contract_checked_result(
             plans,
             llm_service,
-            query_contract=query_contract,
+            specification=specification,
             question=question,
-            intent_context=intent_context,
         )
     return BatchParseResult(errors=["Failed to generate any valid query plans"])

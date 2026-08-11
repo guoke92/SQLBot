@@ -8,8 +8,6 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Literal, Optional, TypedDict
 
-from langchain_core.messages import BaseMessage
-
 from apps.conversation.outcome import RunOutcome
 from apps.conversation.sink import SinkMode
 
@@ -24,6 +22,7 @@ class RunState(TypedDict, total=False):
     """
 
     graph_key: str
+    run_id: str
     mode: RunMode
     sink: SinkMode
     chat_id: int
@@ -32,7 +31,7 @@ class RunState(TypedDict, total=False):
     user_id: int
     oid: int
     question: str
-    messages: List[BaseMessage]
+    messages: List[Dict[str, Any]]
     full_text: str
     error: str
     outcome: RunOutcome

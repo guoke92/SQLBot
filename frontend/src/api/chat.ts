@@ -4,20 +4,21 @@ import { i18n } from '@/i18n'
 
 const { t } = i18n.global
 
-export const questionApi = {
-  pager: (pageNumber: number, pageSize: number) =>
-    request.get(`/chat/question/pager/${pageNumber}/${pageSize}`),
-  /* add: (data: any) => new Promise((resolve, reject) => {
-      request.post('/chat/question', data, { responseType: 'stream', timeout: 0, onDownloadProgress: p => {
-        resolve(p)
-      }}).catch(e => reject(e))
-    }), */
-  // add: (data: any) => request.post('/chat/question', data),
-  add: (data: any, controller?: AbortController) =>
-    request.fetchStream('/chat/question', data, controller),
-  edit: (data: any) => request.put('/chat/question', data),
-  delete: (id: number) => request.delete(`/chat/question/${id}`),
-  query: (id: number) => request.get(`/chat/question/${id}`),
+export const runApi = {
+  create: (data: CreateRunRequest) => request.post('/chat/runs', data),
+  snapshot: (runId: string) => request.get(`/chat/runs/${runId}`),
+  events: (runId: string, cursor = 0, controller?: AbortController) =>
+    request.fetchStream(
+      `/chat/runs/${runId}/events?cursor=${cursor}`,
+      undefined,
+      controller,
+      'GET'
+    ),
+  resume: (runId: string, interruptId: string, data: ResumeRunRequest) =>
+    request.post(`/chat/runs/${runId}/interrupts/${interruptId}/resume`, data),
+  correct: (runId: string, interruptId: string, data: CorrectionRunRequest) =>
+    request.post(`/chat/runs/${runId}/interrupts/${interruptId}/correct`, data),
+  cancel: (runId: string) => request.post(`/chat/runs/${runId}/cancel`),
 }
 
 export interface ChatMessage {
@@ -31,107 +32,82 @@ export interface ChatMessage {
   index: number
 }
 
-export type IntentStatus = 'evaluating' | 'needs_clarification' | 'ready' | 'blocked'
-export type ClauseType =
-  | 'projection'
-  | 'output'
-  | 'predicate'
-  | 'group'
-  | 'relation'
-  | 'time_window'
-  | 'order'
-  | 'limit'
-
-export interface ContractRequirement {
-  slot_id: string
-  clause: ClauseType
-  label: string
-  source?: 'user' | 'model' | 'rule' | 'terminology' | 'example' | 'schema'
-  evidence_refs?: string[]
-  [key: string]: unknown
-}
-
-export interface ContractSlot {
-  slot_id: string
-  clause: ClauseType
-  label: string
-  reason: string
-  allow_omit?: boolean
-  evidence_refs?: string[]
-}
-
-export interface SlotEffect {
-  slot_id: string
-  action: 'set' | 'omit'
-  requirement?: ContractRequirement | null
-}
-
-export interface IntentOption {
-  id: string
+export interface CandidateResolution {
+  option_id: string
   label: string
   description?: string
   impact?: string
+  resolution?: Record<string, unknown>
   evidence_refs?: string[]
-  effects?: SlotEffect[]
 }
 
-export interface ClarificationQuestion {
-  id: string
-  slot_ids: string[]
-  title: string
+export interface Ambiguity {
+  ambiguity_id: string
+  business_axis: string
+  business_question: string
   reason?: string
-  selection_type: 'single' | 'multiple' | 'text'
-  required: boolean
-  recommended_option_ids: string[]
+  impact_level: 'low' | 'medium' | 'high'
+  candidate_resolutions: CandidateResolution[]
+  recommended_candidate_id?: string
   recommendation_reason?: string
-  recommendation_strength?: 'strong' | 'moderate' | 'weak'
-  options: IntentOption[]
-  allow_custom: boolean
-  custom_placeholder?: string
+  can_assume: boolean
 }
 
-export interface ClarificationAnswer {
-  question_id: string
-  option_ids: string[]
-  custom_text: string
-}
-
-export interface ContractIssue {
-  code: string
-  severity: 'advisory' | 'blocking'
-  slot_ids: string[]
-  resources: string[]
-  params?: Record<string, string>
-}
-
-/** An inference the system made on the user's behalf, stated openly. */
-export interface ContractAssumption {
-  slot_id: string
-  code: string
-  label: string
-  detail?: string
-}
-
-export interface IntentContext {
-  version: 4
-  status: IntentStatus
-  original_question: string
+export interface AmbiguitySet {
+  ambiguities: Ambiguity[]
   summary?: string
-  draft: {
-    version: 4
-    requirements: ContractRequirement[]
-    open_slots: ContractSlot[]
-  }
-  contract?: {
-    version: 4
-    requirements: ContractRequirement[]
-    result_mode: 'detail' | 'aggregate'
-  } | null
-  questions: ClarificationQuestion[]
-  blocking_reasons: string[]
-  contract_issues?: ContractIssue[]
-  assumptions?: ContractAssumption[]
-  submitted_answers?: ClarificationAnswer[]
+}
+
+export interface ResumeAnswer {
+  ambiguity_id: string
+  mode: 'option' | 'custom'
+  option_id?: string
+  text?: string
+  evidence_id?: string
+}
+
+export interface ConversationInterrupt {
+  interrupt_id: string
+  version: number
+  status: 'open' | 'consumed' | 'cancelled'
+  payload: AmbiguitySet
+  answers?: ResumeAnswer[]
+}
+
+export type ConversationRunStatus =
+  'queued' | 'running' | 'awaiting_input' | 'succeeded' | 'degraded' | 'failed' | 'cancelled'
+
+export interface ConversationRunSnapshot {
+  run_id: string
+  chat_record_id: number
+  graph_key: 'chat' | 'config' | 'analysis' | 'predict'
+  status: ConversationRunStatus
+  current_node?: string
+  event_cursor: number
+  active_interrupt?: ConversationInterrupt
+  interrupts: ConversationInterrupt[]
+  record?: Record<string, unknown>
+  error_summary?: string
+}
+
+export interface CreateRunRequest {
+  chat_id: number
+  question: string
+  datasource_id?: number
+  regenerate_record_id?: number
+}
+
+export interface ResumeRunRequest {
+  version: number
+  idempotency_key: string
+  answers: ResumeAnswer[]
+}
+
+export interface CorrectionRunRequest {
+  version: number
+  idempotency_key: string
+  supersedes_evidence_id: string
+  answer: ResumeAnswer
 }
 
 export type ResultQualityGrade = 'excellent' | 'acceptable' | 'reference_only' | 'unreliable'
@@ -269,10 +245,13 @@ export class ChatRecord {
   regenerate_record_id?: number
   duration?: number
   total_tokens?: number
-  intent_context?: IntentContext
-  clarification_parent_id?: number
-  clarification_answers?: ClarificationAnswer[]
+  run_id?: string
+  run_status?: ConversationRunStatus
+  run_event_cursor: number = 0
+  active_interrupt?: ConversationInterrupt
+  interrupts: ConversationInterrupt[] = []
   intent_reasoning_content?: string
+  feedback?: string | null
 
   constructor()
   constructor(
@@ -502,8 +481,11 @@ const toChatRecord = (data?: any): ChatRecord | undefined => {
     data.duration,
     data.total_tokens
   )
-  record.intent_context = data.intent_context
-  record.clarification_parent_id = data.clarification_parent_id
+  record.run_id = data.run_id
+  record.run_status = data.run_status
+  record.run_event_cursor = Number(data.run_event_cursor || 0)
+  record.active_interrupt = data.active_interrupt
+  record.interrupts = data.interrupts || []
   record.intent_reasoning_content = data.intent_reasoning_content
   return record
 }
@@ -697,6 +679,9 @@ export const chatApi = {
   },
   get_chart_usage: (record_id?: number): Promise<any> => {
     return request.get(`/chat/record/${record_id}/usage`)
+  },
+  submitFeedback: (record_id: number, feedback: string | null): Promise<any> => {
+    return request.post(`/chat/record/${record_id}/feedback`, { feedback })
   },
   startChat: (data: any): Promise<ChatInfo> => {
     return request.post('/chat/start', data)

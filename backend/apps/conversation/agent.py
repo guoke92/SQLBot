@@ -9,8 +9,13 @@ from langchain_core.messages import AIMessage, SystemMessage
 
 from apps.chat.models.chat_model import OperationEnum
 from apps.chat.steps.observability import log_span
-from apps.conversation.messages import message_content_text
+from apps.conversation.messages import (
+    deserialize_messages,
+    message_content_text,
+    serialize_messages,
+)
 from apps.conversation.outcome import failed_outcome, format_error_message
+from apps.conversation.runtime_context import runtime_value
 from apps.conversation.sink import StreamSink
 from apps.conversation.tooling import redact_value, tool_calls_from_message
 from apps.conversation.usage import usage_from_response
@@ -20,12 +25,12 @@ from common.utils.utils import SQLBotLogUtil
 def agent_node(state: Mapping[str, Any]) -> dict[str, Any]:
     """Run one model turn and expose only auditable tool-selection metadata."""
     sink = StreamSink.from_state(state)
-    messages = list(state.get("messages") or [])
-    tools = list(state.get("bound_tools") or [])
+    messages = deserialize_messages(list(state.get("messages") or []))
+    tools = list(runtime_value(state, "bound_tools") or [])
     rounds = int(state.get("tool_rounds") or 0)
     round_limit = int(state.get("tool_round_limit") or 8)
     record_id = state.get("record_id")
-    llm = state["llm"]
+    llm = runtime_value(state, "llm")
     stop_reason = str(state.get("tool_stop_reason") or "")
     grounding_retry = bool(state.get("tool_grounding_retry"))
     grounding_marker = str(state.get("tool_free_completion_marker") or "").strip()
@@ -87,14 +92,14 @@ def agent_node(state: Mapping[str, Any]) -> dict[str, Any]:
             error = stop_reason or f"Tool agent reached the round limit ({round_limit})"
             return {
                 **state,
-                "messages": updated_messages,
+                "messages": serialize_messages(updated_messages),
                 "error": error,
                 "outcome": failed_outcome(error, kind="limit_reached"),
             }
         next_round = rounds + 1
         return {
             **state,
-            "messages": updated_messages,
+            "messages": serialize_messages(updated_messages),
             "tool_rounds": next_round,
             "tool_grounding_retry": False,
         }
@@ -103,7 +108,7 @@ def agent_node(state: Mapping[str, Any]) -> dict[str, Any]:
         error = "Model returned an empty response"
         return {
             **state,
-            "messages": updated_messages,
+            "messages": serialize_messages(updated_messages),
             "error": error,
             "outcome": failed_outcome(error, kind="empty_response"),
         }
@@ -116,16 +121,17 @@ def agent_node(state: Mapping[str, Any]) -> dict[str, Any]:
                 error = "Model returned an empty tool-free response"
                 return {
                     **state,
-                    "messages": updated_messages,
+                    "messages": serialize_messages(updated_messages),
                     "error": error,
                     "outcome": failed_outcome(error, kind="empty_response"),
                 }
         elif not grounding_retry:
             return {
                 **state,
-                "messages": [
-                    *updated_messages,
-                    SystemMessage(
+                "messages": serialize_messages(
+                    [
+                        *updated_messages,
+                        SystemMessage(
                         content=(
                             "No system tool was executed in this turn, so the prior "
                             "answer cannot claim that current configuration was "
@@ -134,8 +140,9 @@ def agent_node(state: Mapping[str, Any]) -> dict[str, Any]:
                             f"that needs no system state, answer with {grounding_marker} "
                             "as the exact prefix."
                         )
-                    ),
-                ],
+                        ),
+                    ]
+                ),
                 "final_text": "",
                 "tool_grounding_retry": True,
             }
@@ -146,7 +153,7 @@ def agent_node(state: Mapping[str, Any]) -> dict[str, Any]:
             )
             return {
                 **state,
-                "messages": updated_messages,
+                "messages": serialize_messages(updated_messages),
                 "error": error,
                 "outcome": failed_outcome(error, kind="validation"),
                 "tool_grounding_retry": False,
@@ -155,7 +162,7 @@ def agent_node(state: Mapping[str, Any]) -> dict[str, Any]:
     sink.event({"type": "message", "content": text})
     return {
         **state,
-        "messages": updated_messages,
+        "messages": serialize_messages(updated_messages),
         "final_text": text,
         "tool_stop_reason": "",
         "tool_grounding_retry": False,
@@ -169,7 +176,7 @@ def route_after_agent(
         return "fail"
     if state.get("tool_grounding_retry"):
         return "agent"
-    messages = state.get("messages") or []
+    messages = deserialize_messages(list(state.get("messages") or []))
     if messages:
         last = messages[-1]
         if isinstance(last, AIMessage) and getattr(last, "tool_calls", None):

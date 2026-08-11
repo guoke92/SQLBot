@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import datetime
-from typing import Any
 
 from sqlalchemy import and_, update
 from sqlmodel import Session
@@ -21,9 +20,9 @@ def persist_snapshot(
     re_exec: str | None = None,
     analysis: str | None = None,
     sql_answer: str | None = None,
-    intent_context: dict[str, Any] | None = None,
     terminal: bool = False,
     error: str | None = None,
+    commit: bool = True,
 ) -> bool:
     """Persist one progressive or terminal snapshot in a single transaction.
 
@@ -41,7 +40,6 @@ def persist_snapshot(
         ("re_exec", re_exec),
         ("analysis", analysis),
         ("sql_answer", sql_answer),
-        ("intent_context", intent_context),
     ):
         if value is not None:
             values[field] = value
@@ -84,5 +82,6 @@ def persist_snapshot(
             .values(finish_time=finish_time, error=True)
         )
 
-    session.commit()
+    if commit:
+        session.commit()
     return applied

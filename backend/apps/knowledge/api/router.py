@@ -1,21 +1,26 @@
 """Knowledge Conversation plane admin APIs (staging / certify / lineage)."""
 
-from __future__ import annotations
-
+from datetime import datetime
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
-from sqlmodel import select
+from sqlalchemy import func
+from sqlmodel import col, select
 
 from apps.knowledge.assets.caliber import (
     certify_staging_caliber,
     demote_caliber,
     disable_caliber,
 )
-from apps.knowledge.db_models import BusinessCaliber, KnowledgeStaging
-from apps.knowledge.lineage import list_lineage_events
-from apps.knowledge.staging.service import admit_candidate, list_pending_staging
+from apps.knowledge.db_models import (
+    KnowledgeAsset,
+    KnowledgeEvidence,
+    KnowledgeStaging,
+)
+from apps.knowledge.lineage import append_event, list_lineage_events, new_lineage_id
+from apps.knowledge.policy import get_knowledge_policy
+from apps.knowledge.staging.service import list_pending_staging
 from apps.system.schemas.permission import SqlbotPermission, require_permissions
 from common.audit.models.log_model import OperationModules, OperationType
 from common.audit.schemas.logger_decorator import LogConfig, system_log
@@ -81,18 +86,6 @@ async def get_staging(
     kind: str | None = None,
 ) -> list[StagingOut]:
     rows = list_pending_staging(session, oid=int(user.oid or 1), kind=kind)
-    # Also surface conflicts for the ops queue
-    conflicts = list(
-        session.exec(
-            select(KnowledgeStaging)
-            .where(KnowledgeStaging.oid == int(user.oid or 1))
-            .where(KnowledgeStaging.status == "conflict")
-        ).all()
-    )
-    seen = {r.id for r in rows}
-    for row in conflicts:
-        if row.id not in seen:
-            rows.append(row)
     return [
         StagingOut(
             id=int(r.id),
@@ -108,6 +101,45 @@ async def get_staging(
         for r in rows
         if r.id is not None
     ]
+
+
+class RejectIn(BaseModel):
+    reason: str = ""
+
+
+@router.post("/staging/{staging_id}/reject", response_model=StagingOut)
+@require_permissions(permission=SqlbotPermission(role=["ws_admin"]))
+async def reject_staging_api(
+    session: SessionDep,
+    user: CurrentUser,
+    staging_id: int,
+    body: RejectIn,
+) -> StagingOut:
+    from apps.knowledge.gateway import reject_staging
+
+    try:
+        staging = reject_staging(
+            session,
+            staging_id=staging_id,
+            oid=int(user.oid or 1),
+            actor_user_id=int(user.id) if user.id is not None else None,
+            reason=body.reason,
+        )
+        session.commit()
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    assert staging.id is not None
+    return StagingOut(
+        id=int(staging.id),
+        kind=staging.kind,
+        status=staging.status,
+        natural_key=staging.natural_key,
+        trigger_id=staging.trigger_id,
+        lineage_id=staging.lineage_id,
+        source_record_id=staging.source_record_id,
+        payload=dict(staging.payload or {}),
+        scope=dict(staging.scope or {}),
+    )
 
 
 @router.post("/staging/{staging_id}/certify", response_model=CaliberOut)
@@ -154,31 +186,43 @@ async def save_caliber(
     user: CurrentUser,
     body: SaveCaliberIn,
 ) -> StagingOut:
-    """V-T3: explicit save → staging pending (not auto Bind)."""
+    """V-T3: explicit save → staging pending via the write contract (not auto Bind)."""
     from apps.datasource.models.datasource import CoreDatasource
+    from apps.knowledge.gateway import (
+        KnowledgeCandidate,
+        KnowledgeScope,
+        submit_candidate,
+    )
 
     oid = int(user.oid or 1)
     ds = session.get(CoreDatasource, body.ds_id)
     if ds is None or int(ds.oid or 0) != oid:
         raise HTTPException(status_code=400, detail="datasource not found in workspace")
-    staging = admit_candidate(
+    receipt = submit_candidate(
         session,
-        oid=oid,
-        kind="caliber",
-        trigger_id="V-T3",
-        payload={
-            "label": body.label,
-            "summary": body.summary,
-            "contract_fragment": body.contract_fragment,
-            "field_targets": body.field_targets,
-        },
-        scope={"ds_id": body.ds_id},
+        KnowledgeCandidate(
+            kind="caliber",
+            payload={
+                "label": body.label,
+                "summary": body.summary,
+                "contract_fragment": body.contract_fragment,
+                "field_targets": body.field_targets,
+            },
+            scope=KnowledgeScope(oid=oid, datasource_id=body.ds_id),
+            provenance={
+                "source_type": "manual",
+                "trigger_id": "V-T3",
+                "record_id": body.source_record_id,
+            },
+        ),
         source_record_id=body.source_record_id,
-        suggested_trust_tier="admitted",
-        field_targets=body.field_targets,
+        actor_user_id=int(user.id) if user.id is not None else None,
     )
+    if receipt.action == "rejected" or receipt.staging_id is None:
+        raise HTTPException(status_code=400, detail=receipt.detail or receipt.action)
     session.commit()
-    assert staging.id is not None
+    staging = session.get(KnowledgeStaging, receipt.staging_id)
+    assert staging is not None and staging.id is not None
     return StagingOut(
         id=int(staging.id),
         kind=staging.kind,
@@ -255,9 +299,151 @@ async def disable(
     )
 
 
-class PromoteTrustedIn(BaseModel):
-    reproduce_count: int
-    policy_n: int | None = None
+class SaveRuleIn(BaseModel):
+    label: str
+    content: str
+    ds_id: int | None = None
+
+
+class RuleOut(BaseModel):
+    id: int
+    label: str
+    content: str
+    trust_tier: str
+    enabled: bool
+
+
+@router.post("/rule", response_model=RuleOut)
+@system_log(
+    LogConfig(
+        operation_type=OperationType.CREATE_OR_UPDATE,
+        module=OperationModules.DATASOURCE,
+    )
+)
+@require_permissions(permission=SqlbotPermission(role=["ws_admin"]))
+async def create_rule(
+    session: SessionDep,
+    user: CurrentUser,
+    body: SaveRuleIn,
+) -> RuleOut:
+    oid = int(user.oid or 1)
+    now = datetime.utcnow()
+    lineage_id = new_lineage_id()
+    asset = KnowledgeAsset(
+        kind="rule",
+        natural_key=f"rule:{oid}:{body.label}",
+        lineage_id=lineage_id,
+        version=1,
+        oid=oid,
+        datasource_id=body.ds_id,
+        label=body.label,
+        payload={"content": body.content},
+        trust_tier="certified",
+        certified=True,
+        enabled=True,
+        create_by=int(user.id) if user.id is not None else None,
+        certify_by=int(user.id) if user.id is not None else None,
+        certify_at=now,
+        create_time=now,
+        update_time=now,
+    )
+    session.add(asset)
+    session.flush()
+    append_event(
+        session,
+        lineage_id=lineage_id,
+        asset_kind="rule",
+        action="created",
+        asset_id=asset.id,
+        to_tier="certified",
+        actor={"user_id": int(user.id) if user.id is not None else None},
+        require_evidence=False,
+    )
+    session.commit()
+    assert asset.id is not None
+    return RuleOut(
+        id=int(asset.id),
+        label=asset.label,
+        content=body.content,
+        trust_tier=asset.trust_tier,
+        enabled=asset.enabled,
+    )
+
+
+@router.get("/rules", response_model=list[RuleOut])
+@require_permissions(permission=SqlbotPermission(role=["ws_admin"]))
+async def list_rules(
+    session: SessionDep,
+    user: CurrentUser,
+) -> list[RuleOut]:
+    oid = int(user.oid or 1)
+    stmt = (
+        select(KnowledgeAsset)
+        .where(KnowledgeAsset.kind == "rule")
+        .where(KnowledgeAsset.oid == oid)
+        .where(KnowledgeAsset.valid_to.is_(None))  # type: ignore[attr-defined]
+        .order_by(col(KnowledgeAsset.create_time).desc())
+    )
+    rows = list(session.exec(stmt).all())
+    return [
+        RuleOut(
+            id=int(r.id),  # type: ignore[arg-type]
+            label=r.label,
+            content=(r.payload or {}).get("content", ""),
+            trust_tier=r.trust_tier,
+            enabled=r.enabled,
+        )
+        for r in rows
+        if r.id is not None
+    ]
+
+
+@router.post("/rule/{rule_id}/disable", response_model=RuleOut)
+@require_permissions(permission=SqlbotPermission(role=["ws_admin"]))
+async def disable_rule(
+    session: SessionDep,
+    user: CurrentUser,
+    rule_id: int,
+) -> RuleOut:
+    oid = int(user.oid or 1)
+    asset = session.get(KnowledgeAsset, rule_id)
+    if asset is None or int(asset.oid) != oid or asset.kind != "rule":
+        raise HTTPException(status_code=404, detail="rule not found")
+    asset.enabled = False
+    asset.update_time = datetime.utcnow()
+    session.add(asset)
+    session.commit()
+    return RuleOut(
+        id=int(asset.id),  # type: ignore[arg-type]
+        label=asset.label,
+        content=(asset.payload or {}).get("content", ""),
+        trust_tier=asset.trust_tier,
+        enabled=asset.enabled,
+    )
+
+
+@router.post("/rule/{rule_id}/enable", response_model=RuleOut)
+@require_permissions(permission=SqlbotPermission(role=["ws_admin"]))
+async def enable_rule(
+    session: SessionDep,
+    user: CurrentUser,
+    rule_id: int,
+) -> RuleOut:
+    oid = int(user.oid or 1)
+    asset = session.get(KnowledgeAsset, rule_id)
+    if asset is None or int(asset.oid) != oid or asset.kind != "rule":
+        raise HTTPException(status_code=404, detail="rule not found")
+    asset.enabled = True
+    asset.update_time = datetime.utcnow()
+    session.add(asset)
+    session.commit()
+    return RuleOut(
+        id=int(asset.id),  # type: ignore[arg-type]
+        label=asset.label,
+        content=(asset.payload or {}).get("content", ""),
+        trust_tier=asset.trust_tier,
+        enabled=asset.enabled,
+    )
 
 
 @router.post("/caliber/{caliber_id}/promote-trusted", response_model=CaliberOut)
@@ -266,18 +452,155 @@ async def promote_trusted(
     session: SessionDep,
     user: CurrentUser,
     caliber_id: int,
-    body: PromoteTrustedIn,
 ) -> CaliberOut:
-    # Client-supplied reproduce_count is not trustworthy; server ledger is not
-    # wired yet. Do not accept promotions through this path.
-    del session, user, caliber_id, body
-    raise HTTPException(
-        status_code=400,
-        detail=(
-            "reproduce promotion requires a server-side ledger; "
-            "use certify for Bind eligibility"
-        ),
+    """Promote a published caliber to trusted if server-side evidence is sufficient."""
+    from apps.knowledge.assets.caliber import promote_to_trusted
+
+    policy = get_knowledge_policy()
+    try:
+        asset = promote_to_trusted(
+            session,
+            caliber_id=caliber_id,
+            oid=int(user.oid or 1),
+            policy_n=policy.reproduce_count_n,
+            actor_user_id=int(user.id) if user.id is not None else None,
+        )
+        session.commit()
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    assert asset.id is not None
+    return CaliberOut(
+        id=int(asset.id),
+        lineage_id=asset.lineage_id,
+        label=asset.label,
+        trust_tier=asset.trust_tier,
+        certified=asset.certified,
+        enabled=asset.enabled,
+        natural_key=asset.natural_key,
+        summary=asset.summary,
     )
+
+
+class SuggestionOut(BaseModel):
+    id: int
+    lineage_id: str
+    label: str
+    trust_tier: str
+    evidence_count: int
+
+
+@router.get("/suggestions", response_model=list[SuggestionOut])
+@require_permissions(permission=SqlbotPermission(role=["ws_admin"]))
+async def list_suggestions(
+    session: SessionDep,
+    user: CurrentUser,
+) -> list[SuggestionOut]:
+    """Assets at published tier with enough evidence to upgrade."""
+    oid = int(user.oid or 1)
+    policy = get_knowledge_policy()
+    stmt = (
+        select(
+            KnowledgeAsset.id,
+            KnowledgeAsset.lineage_id,
+            KnowledgeAsset.label,
+            KnowledgeAsset.trust_tier,
+            func.count(func.distinct(KnowledgeEvidence.record_id)).label(
+                "evidence_count"
+            ),
+        )
+        .join(
+            KnowledgeEvidence,
+            (KnowledgeEvidence.asset_id == KnowledgeAsset.id)
+            & (KnowledgeEvidence.asset_kind == KnowledgeAsset.kind),
+        )
+        .where(KnowledgeAsset.oid == oid)
+        .where(KnowledgeAsset.trust_tier == "published")
+        .where(KnowledgeAsset.enabled.is_(True))  # type: ignore[attr-defined]
+        .where(KnowledgeAsset.valid_to.is_(None))  # type: ignore[attr-defined]
+        .where(
+            KnowledgeEvidence.signal_kind.in_(  # type: ignore[attr-defined]
+                ["reproduce", "apply_outcome"]
+            )
+        )
+        .group_by(
+            KnowledgeAsset.id,
+            KnowledgeAsset.lineage_id,
+            KnowledgeAsset.label,
+            KnowledgeAsset.trust_tier,
+        )
+        .having(
+            func.count(func.distinct(KnowledgeEvidence.record_id))
+            >= policy.reproduce_count_n
+        )
+    )
+    rows = session.exec(stmt).all()  # type: ignore[call-overload]
+    return [
+        SuggestionOut(
+            id=int(row[0]),
+            lineage_id=str(row[1]),
+            label=str(row[2]),
+            trust_tier=str(row[3]),
+            evidence_count=int(row[4]),
+        )
+        for row in rows
+    ]
+
+
+class AssetOut(BaseModel):
+    id: int
+    kind: str
+    lineage_id: str
+    label: str
+    summary: str | None = None
+    trust_tier: str
+    certified: bool
+    enabled: bool
+    natural_key: str
+    datasource_id: int | None = None
+    create_time: str | None = None
+
+
+@router.get("/assets", response_model=list[AssetOut])
+@require_permissions(permission=SqlbotPermission(role=["ws_admin"]))
+async def list_assets(
+    session: SessionDep,
+    user: CurrentUser,
+    kind: str | None = None,
+    trust_tier: str | None = None,
+    enabled: bool | None = None,
+) -> list[AssetOut]:
+    oid = int(user.oid or 1)
+    stmt = (
+        select(KnowledgeAsset)
+        .where(KnowledgeAsset.oid == oid)
+        .where(KnowledgeAsset.valid_to.is_(None))  # type: ignore[attr-defined]
+        .order_by(col(KnowledgeAsset.create_time).desc())
+        .limit(200)
+    )
+    if kind:
+        stmt = stmt.where(KnowledgeAsset.kind == kind)
+    if trust_tier:
+        stmt = stmt.where(KnowledgeAsset.trust_tier == trust_tier)
+    if enabled is not None:
+        stmt = stmt.where(KnowledgeAsset.enabled == enabled)
+    rows = list(session.exec(stmt).all())
+    return [
+        AssetOut(
+            id=int(r.id),  # type: ignore[arg-type]
+            kind=r.kind,
+            lineage_id=r.lineage_id,
+            label=r.label,
+            summary=r.summary,
+            trust_tier=r.trust_tier,
+            certified=r.certified,
+            enabled=r.enabled,
+            natural_key=r.natural_key,
+            datasource_id=r.datasource_id,
+            create_time=r.create_time.isoformat() if r.create_time else None,
+        )
+        for r in rows
+        if r.id is not None
+    ]
 
 
 @router.get("/assets/{kind}/{asset_id}/lineage", response_model=list[LineageEventOut])
@@ -291,7 +614,7 @@ async def get_lineage(
     oid = int(user.oid or 1)
     lineage_id: str | None = None
     if kind == "caliber":
-        caliber = session.get(BusinessCaliber, asset_id)
+        caliber = session.get(KnowledgeAsset, asset_id)
         if caliber is None or int(caliber.oid) != oid:
             raise HTTPException(status_code=404, detail="asset not found")
         lineage_id = caliber.lineage_id

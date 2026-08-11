@@ -4,12 +4,20 @@ from __future__ import annotations
 
 from typing import Any
 
-from apps.knowledge.capture.snapshot import TurnSnapshot, has_user_answer_slots
+from apps.chat.query_specification import (
+    QuerySpecification,
+    parse_specification_fragment,
+    requirement_fields,
+)
+from apps.knowledge.capture.snapshot import (
+    TurnSnapshot,
+    has_user_answer_requirements,
+    specification_requirements,
+)
+from apps.knowledge.natural_key import predicate_looks_ephemeral
 
 # Align with conversation.outcome_is_success (includes degraded partial success).
-_CAPTURE_OK_OUTCOMES = frozenset(
-    {"success", "accepted", "completed", "ok", "degraded"}
-)
+_CAPTURE_OK_OUTCOMES = frozenset({"success", "accepted", "completed", "ok", "degraded"})
 
 
 def extract_v_t1_caliber(snapshot: TurnSnapshot) -> dict[str, Any] | None:
@@ -18,13 +26,13 @@ def extract_v_t1_caliber(snapshot: TurnSnapshot) -> dict[str, Any] | None:
         return None
     if snapshot.contract_status == "needs_clarification":
         return None
-    if not has_user_answer_slots(snapshot.intent_context):
+    if not has_user_answer_requirements(snapshot.specification):
         return None
     if snapshot.ds_id is None:
         return None
 
-    contract = snapshot.intent_context.get("contract") or {}
-    requirements = contract.get("requirements") or []
+    specification = snapshot.specification
+    requirements = specification_requirements(specification)
     confirmed: list[dict[str, Any]] = []
     field_targets: list[dict[str, Any]] = []
     for req in requirements:
@@ -34,13 +42,14 @@ def extract_v_t1_caliber(snapshot: TurnSnapshot) -> dict[str, Any] | None:
         if not any(r.startswith("user:answer:") for r in refs):
             continue
         if req.get("clause") == "predicate" or req.get("clause_type") == "predicate":
-            if _predicate_looks_ephemeral(req):
+            if predicate_looks_ephemeral(req):
                 continue
         confirmed.append(_clause_only(req))
-        if not confirmed[-1].get("slot_id") or not confirmed[-1].get("label"):
+        if not confirmed[-1].get("requirement_id") or not confirmed[-1].get(
+            "business_label"
+        ):
             confirmed.pop()
             continue
-        field_targets.extend(_field_targets_from_req(confirmed[-1], snapshot.ds_id))
 
     if not confirmed:
         return None
@@ -48,8 +57,19 @@ def extract_v_t1_caliber(snapshot: TurnSnapshot) -> dict[str, Any] | None:
     label = _label_from_requirements(confirmed) or snapshot.original_question[:80]
     fragment = {
         "requirements": confirmed,
-        "version": contract.get("version"),
+        "version": specification.get("version"),
     }
+    try:
+        parsed_fragment = parse_specification_fragment(fragment)
+    except ValueError:
+        # A partial capture with dangling output/order references cannot be
+        # certified or safely reused. Leave it out of staging instead of
+        # creating a permanently failing capture job.
+        return None
+    field_targets = _field_targets_from_specification(
+        parsed_fragment,
+        snapshot.ds_id,
+    )
     # Envelope for runner; staging payload is stripped to V-T3 shape in runner.
     return {
         "kind": "caliber",
@@ -100,7 +120,9 @@ def staging_payload_from_candidate(candidate: dict[str, Any]) -> dict[str, Any]:
 def _clause_only(req: dict[str, Any]) -> dict[str, Any]:
     """Persist clause only — drop clause_type / evidence noise for fingerprint SoT."""
     out = dict(req)
-    clause = out.pop("clause", None) or out.pop("clause_type", None) or out.pop("type", None)
+    clause = (
+        out.pop("clause", None) or out.pop("clause_type", None) or out.pop("type", None)
+    )
     if clause:
         out["clause"] = clause
     out.pop("clause_type", None)
@@ -111,45 +133,27 @@ def _clause_only(req: dict[str, Any]) -> dict[str, Any]:
     return out
 
 
-def _predicate_looks_ephemeral(req: dict[str, Any]) -> bool:
-    """True when any predicate literal looks turn-local (order id / long hex)."""
-    candidates: list[Any] = []
-    if "values" in req:
-        raw = req.get("values")
-        if isinstance(raw, (list, tuple)):
-            candidates.extend(raw)
-        elif raw is not None:
-            candidates.append(raw)
-    if "value" in req:
-        raw = req.get("value")
-        if isinstance(raw, (list, tuple)):
-            candidates.extend(raw)
-        elif raw is not None:
-            candidates.append(raw)
-    return any(isinstance(item, str) and _looks_ephemeral(item) for item in candidates)
-
-
-def _looks_ephemeral(value: str) -> bool:
-    text = value.strip()
-    if len(text) >= 16 and text.replace("-", "").isalnum():
-        return True
-    if text.isdigit() and len(text) >= 8:
-        return True
-    return False
-
-
-def _field_targets_from_req(req: dict[str, Any], ds_id: int) -> list[dict[str, Any]]:
+def _field_targets_from_specification(
+    specification: QuerySpecification,
+    ds_id: int,
+) -> list[dict[str, Any]]:
     out: list[dict[str, Any]] = []
-    for key in ("field", "output", "time_field"):
-        ref = req.get(key)
-        if isinstance(ref, dict) and ref.get("field"):
+    seen: set[tuple[str, str]] = set()
+    for requirement in specification.requirements:
+        for ref in requirement_fields(requirement):
+            if not ref.field:
+                continue
+            identity = (ref.resource.casefold(), ref.field.casefold())
+            if identity in seen:
+                continue
+            seen.add(identity)
             out.append(
                 {
                     "ds_id": ds_id,
-                    "table_name": ref.get("resource") or "",
-                    "field_name": ref.get("field") or "",
-                    "field_id": ref.get("field_id"),
-                    "table_id": ref.get("table_id"),
+                    "table_name": ref.resource,
+                    "field_name": ref.field,
+                    "field_id": None,
+                    "table_id": None,
                 }
             )
     return out
@@ -158,7 +162,7 @@ def _field_targets_from_req(req: dict[str, Any], ds_id: int) -> list[dict[str, A
 def _label_from_requirements(reqs: list[dict[str, Any]]) -> str:
     for req in reqs:
         if req.get("clause") == "output":
-            label = req.get("label") or ""
+            label = req.get("business_label") or ""
             if label:
                 return str(label)[:255]
             field = req.get("field") or req.get("output") or {}

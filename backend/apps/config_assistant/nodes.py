@@ -16,7 +16,11 @@ from apps.chat.models.chat_model import Chat, ChatQuestion, ChatRecord
 from apps.config_assistant.prompt import SYSTEM_PROMPT, TOOL_FREE_COMPLETION_MARKER
 from apps.config_assistant.tools import build_tools
 from apps.conversation.llm import get_chat_model, get_default_chat_config
+from apps.conversation.messages import serialize_messages
 from apps.conversation.outcome import running_outcome
+from apps.conversation.models import ConversationRun
+from apps.conversation.run_service import create_run
+from apps.conversation.runtime_context import attach_runtime, runtime_value
 from apps.conversation.sink import StreamSink
 from apps.conversation.state import RunState
 from apps.conversation.turn import load_text_history
@@ -27,10 +31,6 @@ _HISTORY_TURNS = 8
 
 
 class ConfigState(RunState, total=False):
-    current_user: Any
-    record: ChatRecord
-    bound_tools: list[Any]
-    llm: Any
     tool_rounds: int
     tool_round_limit: int
     tool_steps: list[dict[str, Any]]
@@ -85,19 +85,30 @@ async def initialize_config_state(
         session=session,
         current_user=user,
         question=chat_question,
+        commit=False,
+    )
+    run = create_run(
+        session,
+        record=record,
+        graph_key="config",
+        user_id=int(getattr(user, "id")),
+        oid=int(getattr(user, "oid", None) or 1),
+    )
+    attach_runtime(
+        run.run_id,
+        current_user=user,
+        bound_tools=bound_tools,
+        llm=llm,
     )
     return {
         **base_state,
-        "current_user": user,
+        "run_id": run.run_id,
         "chat_id": chat_id,
         "question": question,
-        "record": record,
         "record_id": record.id,
         "graph_key": "config",
         "mode": "primary",
-        "messages": messages,
-        "bound_tools": bound_tools,
-        "llm": llm,
+        "messages": serialize_messages(messages),
         "tool_rounds": 0,
         "tool_round_limit": _MAX_TOOL_ROUNDS,
         "tool_steps": [],
@@ -118,7 +129,60 @@ async def initialize_config_state(
 def prepare_node(state: ConfigState) -> ConfigState:
     """Announce the already initialized turn before entering the shared agent."""
     record_id = state.get("record_id")
-    if not record_id or not state.get("messages") or state.get("llm") is None:
+    if not record_id or not state.get("messages"):
         raise RuntimeError("Config turn was not initialized before graph submission")
+    runtime_value(state, "llm")
     StreamSink.from_state(state).event({"type": "id", "id": record_id})
     return state
+
+
+def hydrate_config_runtime(run: ConversationRun) -> dict[str, Any]:
+    """Rebuild non-serializable config-agent dependencies after a restart."""
+    from apps.conversation.async_util import run_coro_sync
+    from apps.conversation.session import session_scope
+    from apps.system.crud.user import get_user_info
+
+    with session_scope() as session:
+        user = run_coro_sync(get_user_info(session=session, user_id=run.user_id))
+        if user is None:
+            raise LookupError(f"User {run.user_id} not found")
+        model_config = run_coro_sync(get_default_chat_config())
+        return {
+            "current_user": user,
+            "bound_tools": build_tools(user),
+            "llm": get_chat_model(model_config),
+        }
+
+
+def recover_config_state(run: ConversationRun) -> ConfigState:
+    """Recreate the initial serializable state when no checkpoint was written."""
+    from apps.conversation.session import session_scope
+
+    runtime = hydrate_config_runtime(run)
+    with session_scope() as session:
+        record = session.get(ChatRecord, run.chat_record_id)
+        if record is None:
+            raise LookupError(f"Chat record {run.chat_record_id} not found")
+        history = load_text_history(session, int(record.chat_id), limit=_HISTORY_TURNS)
+    messages: list[BaseMessage] = [SystemMessage(content=SYSTEM_PROMPT)]
+    messages.extend(history)
+    messages.append(HumanMessage(content=record.question or ""))
+    attach_runtime(run.run_id, **runtime)
+    return {
+        "run_id": run.run_id,
+        "chat_id": int(record.chat_id),
+        "question": record.question or "",
+        "record_id": run.chat_record_id,
+        "graph_key": "config",
+        "sink": "sse",
+        "mode": "primary",
+        "messages": serialize_messages(messages),
+        "tool_rounds": 0,
+        "tool_round_limit": _MAX_TOOL_ROUNDS,
+        "tool_steps": [],
+        "tool_free_completion_marker": TOOL_FREE_COMPLETION_MARKER,
+        "final_text": "",
+        "user_id": run.user_id,
+        "oid": run.oid,
+        "outcome": running_outcome(),
+    }

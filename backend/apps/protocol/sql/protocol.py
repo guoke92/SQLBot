@@ -227,42 +227,23 @@ class SqlProtocol(BaseProtocol):
     def build_user_prompt(
         self, chat_question: Any, *, current_time: str, change_title: bool
     ) -> str:
-        from apps.chat.plan_context import normalize_plan_context_block
         from apps.template.generate_sql.generator import get_sql_template
 
         q = chat_question
         question = getattr(q, "generation_question", "") or q.question
         if getattr(q, "regenerate_record_id", None):
             question = get_sql_template()["regenerate_hint"] + question
-        plan_ctx = normalize_plan_context_block(getattr(q, "plan_context", None))
         user = get_sql_template()["user"]
-        try:
-            return user.format(
-                lang=q.lang,
-                engine=q.engine,
-                schema=q.db_schema,
-                question=question,
-                rule=q.rule,
-                current_time=current_time,
-                error_msg=getattr(q, "error_msg", ""),
-                change_title=change_title,
-                plan_context=plan_ctx,
-            )
-        except KeyError:
-            # Older templates without {plan_context}: prepend manually.
-            body = user.format(
-                lang=q.lang,
-                engine=q.engine,
-                schema=q.db_schema,
-                question=question,
-                rule=q.rule,
-                current_time=current_time,
-                error_msg=getattr(q, "error_msg", ""),
-                change_title=change_title,
-            )
-            if not plan_ctx:
-                return body
-            return plan_ctx + body
+        return user.format(
+            lang=q.lang,
+            engine=q.engine,
+            schema=q.db_schema,
+            question=question,
+            rule=q.rule,
+            current_time=current_time,
+            error_msg=getattr(q, "error_msg", ""),
+            change_title=change_title,
+        )
 
     # ------------------------------------------------------------------
     # Parse / validate / execute

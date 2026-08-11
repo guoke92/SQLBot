@@ -95,6 +95,12 @@ def test_config_turn_is_initialized_before_graph_submission(monkeypatch) -> None
         return ChatRecord(id=99, chat_id=7, question="list datasources")
 
     monkeypatch.setattr(config_nodes, "save_question", fake_save_question)
+    monkeypatch.setattr(
+        config_nodes,
+        "create_run",
+        lambda *_args, **_kwargs: SimpleNamespace(run_id="run-99"),
+    )
+    monkeypatch.setattr(config_nodes, "attach_runtime", lambda *_args, **_kwargs: None)
     state = asyncio.run(
         config_nodes.initialize_config_state(
             FakeSession(),

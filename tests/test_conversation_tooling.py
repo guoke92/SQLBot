@@ -35,6 +35,7 @@ import sqlbot_xpack  # noqa: F401  # initialize extension imports before app mod
 import apps.conversation.agent as agent_module
 import apps.conversation.tooling as tooling_module
 from apps.conversation.agent import agent_node, route_after_agent
+from apps.conversation.messages import deserialize_messages, serialize_messages
 from apps.conversation.tooling import (
     execute_tools_node,
     normalize_tool_result,
@@ -46,6 +47,11 @@ from apps.conversation.tooling import (
 @pytest.fixture(autouse=True)
 def _stub_tool_spans(monkeypatch):
     monkeypatch.setattr(tooling_module, "log_span", _log_span)
+    # Node unit tests isolate tool/agent behavior from the durable runtime
+    # boundary, which is covered separately by run lifecycle tests.
+    direct_runtime_value = lambda state, key: state[key]
+    monkeypatch.setattr(tooling_module, "runtime_value", direct_runtime_value)
+    monkeypatch.setattr(agent_module, "runtime_value", direct_runtime_value)
 
 
 def test_redact_value_handles_nested_and_json_configuration() -> None:
@@ -171,7 +177,7 @@ def test_execute_tools_appends_one_tool_message_per_call() -> None:
             "sink": "json",
         }
     )
-    messages = result["messages"]
+    messages = deserialize_messages(result["messages"])
     tool_messages = [
         message for message in messages if isinstance(message, ToolMessage)
     ]
@@ -212,7 +218,9 @@ def test_execute_tools_redacts_results_before_returning_them_to_the_model() -> N
         }
     )
     tool_message = next(
-        message for message in result["messages"] if isinstance(message, ToolMessage)
+        message
+        for message in deserialize_messages(result["messages"])
+        if isinstance(message, ToolMessage)
     )
     assert json.loads(str(tool_message.content))["data"] == {
         "host": "db.local",
@@ -324,7 +332,7 @@ def test_agent_requires_tool_grounding_before_config_completion(monkeypatch) -> 
     )
     assert result["final_text"] == ""
     assert result["tool_grounding_retry"] is True
-    assert isinstance(result["messages"][-1], SystemMessage)
+    assert isinstance(deserialize_messages(result["messages"])[-1], SystemMessage)
     assert route_after_agent(result) == "agent"
 
 
@@ -447,11 +455,14 @@ def test_execute_tools_stops_after_repeated_equivalent_failure() -> None:
     second = execute_tools_node(
         {
             **first,
-            "messages": [*first["messages"], call_message()],
+            "messages": serialize_messages(
+                [*deserialize_messages(first["messages"]), call_message()]
+            ),
         }
     )
     assert second["consecutive_tool_failures"] == 2
     assert second["tool_stop_reason"] == "invalid repeated the same failed call"
+    assert len(second["tool_steps"]) == 2
 
 
 def test_execute_tools_stops_after_non_retryable_failure() -> None:

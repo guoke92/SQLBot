@@ -14,11 +14,36 @@ from apps.knowledge.capture.extractors import (
     staging_payload_from_candidate,
 )
 from apps.knowledge.capture.snapshot import TurnSnapshot
-from apps.knowledge.db_models import KnowledgeCaptureJob, ProcessEpisode
-from apps.knowledge.lineage import append_event, new_lineage_id
-from apps.knowledge.staging.service import admit_candidate
+from apps.knowledge.db_models import KnowledgeCaptureJob, KnowledgeEpisode
+from apps.knowledge.gateway import (
+    KnowledgeCandidate,
+    KnowledgeScope,
+    KnowledgeSignal,
+    emit_signal,
+    submit_candidate,
+)
 
 _LEASE_SECONDS = 120
+
+# Only genuinely applied knowledge earns apply_outcome evidence; drops and
+# anonymous hits (terminology/dictionary have no asset_id) must not count.
+_APPLY_WEIGHT = {"reuse": 4, "bind": 3, "constrain": 2, "exemplify": 1}
+
+
+def _applied_hits(knowledge_apply: list[Any]) -> list[dict[str, Any]]:
+    """Dedupe per asset keeping the strongest apply action."""
+    best: dict[tuple[str, Any], dict[str, Any]] = {}
+    for hit in knowledge_apply:
+        if not isinstance(hit, dict):
+            continue
+        weight = _APPLY_WEIGHT.get(str(hit.get("apply") or ""), 0)
+        if weight <= 0 or hit.get("asset_id") is None:
+            continue
+        key = (str(hit.get("asset_kind") or ""), hit.get("asset_id"))
+        prev = best.get(key)
+        if prev is None or weight > _APPLY_WEIGHT.get(str(prev.get("apply") or ""), 0):
+            best[key] = hit
+    return list(best.values())
 
 
 def enqueue_capture_job(
@@ -83,25 +108,45 @@ def claim_next_capture_job(
 
 def process_capture_job(session: Session, job: KnowledgeCaptureJob) -> None:
     snapshot = TurnSnapshot.model_validate(job.snapshot or {})
-    # V-T1 caliber
+
     candidate = extract_v_t1_caliber(snapshot)
     if candidate is not None:
-        admit_candidate(
-            session,
+        payload = staging_payload_from_candidate(candidate)
+        scope = KnowledgeScope(
             oid=snapshot.oid,
+            datasource_id=snapshot.ds_id,
+            assistant_id=snapshot.assistant_id,
+        )
+        kc = KnowledgeCandidate(
             kind="caliber",
-            trigger_id=str(candidate.get("trigger_id") or "V-T1"),
-            payload=staging_payload_from_candidate(candidate),
-            scope=candidate.get("scope") or {"ds_id": snapshot.ds_id},
-            source_record_id=snapshot.record_id,
-            suggested_trust_tier=str(
-                candidate.get("suggested_trust_tier") or "admitted"
+            payload=payload,
+            scope=scope,
+            provenance={
+                "source_type": "chat",
+                "trigger_id": str(candidate.get("trigger_id") or "V-T1"),
+                "record_id": snapshot.record_id,
+            },
+            suggested_tier=str(candidate.get("suggested_trust_tier") or "admitted"),
+        )
+        submit_candidate(session, kc, source_record_id=snapshot.record_id)
+
+    for apply_hit in _applied_hits(snapshot.knowledge_apply):
+        emit_signal(
+            session,
+            KnowledgeSignal(
+                kind="apply_outcome",
+                refs={
+                    "asset_id": apply_hit.get("asset_id"),
+                    "asset_kind": apply_hit.get("asset_kind", "caliber"),
+                },
+                fact={
+                    "record_id": snapshot.record_id,
+                    "outcome": snapshot.outcome,
+                    "apply_action": apply_hit.get("apply"),
+                },
             ),
-            quality_snapshot={"outcome": snapshot.outcome},
-            field_targets=candidate.get("field_targets"),
         )
 
-    # L-2 entity → dictionary staging (still requires dict publish)
     from apps.knowledge.linkage import (
         maybe_stage_entity_for_dictionary,
         maybe_trigger_query_log_joins,
@@ -113,12 +158,10 @@ def process_capture_job(session: Session, job: KnowledgeCaptureJob) -> None:
             session, snapshot=snapshot, entity_bindings=entity_bindings
         )
 
-    # Process episode (weak)
     process = extract_process_episode(snapshot)
     if process is not None:
-        _store_process_episode(session, snapshot, process)
+        _store_knowledge_episode(session, snapshot, process)
 
-    # L-3: trigger Catalog join mining (no second parser)
     maybe_trigger_query_log_joins(session, snapshot=snapshot)
 
     job.status = "succeeded"
@@ -129,41 +172,23 @@ def process_capture_job(session: Session, job: KnowledgeCaptureJob) -> None:
     session.flush()
 
 
-def _store_process_episode(
+def _store_knowledge_episode(
     session: Session,
     snapshot: TurnSnapshot,
     process: dict[str, Any],
-) -> ProcessEpisode:
+) -> KnowledgeEpisode:
     now = datetime.utcnow()
-    lineage_id = new_lineage_id()
-    episode = ProcessEpisode(
-        lineage_id=lineage_id,
+    episode = KnowledgeEpisode(
         oid=snapshot.oid,
         datasource_id=snapshot.ds_id,
+        record_id=snapshot.record_id,
         question_norm=str(process.get("question_norm") or "")[:512],
         episode=dict(process.get("episode") or {}),
-        trust_tier="published",
-        enabled=True,
-        source_record_id=snapshot.record_id,
         provenance={"trigger_id": "V-T9"},
         create_time=now,
-        update_time=now,
     )
     session.add(episode)
     session.flush()
-    append_event(
-        session,
-        lineage_id=lineage_id,
-        asset_kind="process",
-        action="published",
-        asset_id=episode.id,
-        trigger_id="V-T9",
-        evidence_snapshot={
-            "source_record_id": snapshot.record_id,
-            "note": "process_never_bind",
-        },
-        to_tier="published",
-    )
     return episode
 
 

@@ -1,4 +1,4 @@
-"""Conversation knowledge plane: staging, caliber, lineage, capture jobs, process.
+"""Conversation knowledge plane: unified asset model.
 
 Revision ID: 083a1b2c3d4e5
 Revises: 082a1b2c3d4e5
@@ -18,20 +18,172 @@ depends_on = None
 
 def upgrade() -> None:
     op.create_table(
-        "knowledge_staging",
+        "knowledge_asset",
         sa.Column("id", sa.BigInteger(), sa.Identity(always=True), primary_key=True),
-        sa.Column("oid", sa.BigInteger(), nullable=False, comment="Workspace id"),
         sa.Column(
             "kind",
             sa.String(length=32),
             nullable=False,
-            comment="caliber|example|term|entity|process",
+            comment="caliber|rule",
         ),
+        sa.Column("natural_key", sa.String(length=128), nullable=False),
+        sa.Column("lineage_id", sa.String(length=64), nullable=False),
+        sa.Column("version", sa.Integer(), nullable=False, server_default="1"),
+        sa.Column("superseded_by", sa.BigInteger(), nullable=True),
+        sa.Column("oid", sa.BigInteger(), nullable=False),
+        sa.Column("datasource_id", sa.BigInteger(), nullable=True),
+        sa.Column("assistant_id", sa.BigInteger(), nullable=True),
+        sa.Column("label", sa.String(length=255), nullable=False),
+        sa.Column("summary", sa.Text(), nullable=True),
+        sa.Column(
+            "payload",
+            postgresql.JSONB(astext_type=sa.Text()),
+            nullable=False,
+            server_default=sa.text("'{}'::jsonb"),
+        ),
+        sa.Column(
+            "trust_tier",
+            sa.String(length=24),
+            nullable=False,
+            server_default="published",
+            comment="staged|published|trusted|certified",
+        ),
+        sa.Column("certified", sa.Boolean(), nullable=False, server_default="false"),
+        sa.Column("enabled", sa.Boolean(), nullable=False, server_default="true"),
+        sa.Column("valid_from", sa.DateTime(timezone=False), nullable=True),
+        sa.Column("valid_to", sa.DateTime(timezone=False), nullable=True),
+        sa.Column(
+            "provenance",
+            postgresql.JSONB(astext_type=sa.Text()),
+            nullable=True,
+        ),
+        sa.Column("embedding_fingerprint", sa.String(length=64), nullable=True),
+        sa.Column("create_by", sa.BigInteger(), nullable=True),
+        sa.Column("certify_by", sa.BigInteger(), nullable=True),
+        sa.Column("certify_at", sa.DateTime(timezone=False), nullable=True),
+        sa.Column("create_time", sa.DateTime(timezone=False), nullable=False),
+        sa.Column("update_time", sa.DateTime(timezone=False), nullable=False),
+    )
+    op.create_index(
+        "ix_knowledge_asset_oid_ds_enabled",
+        "knowledge_asset",
+        ["oid", "datasource_id", "enabled"],
+    )
+    op.create_index(
+        "ix_knowledge_asset_lineage",
+        "knowledge_asset",
+        ["lineage_id"],
+    )
+    op.create_index(
+        "ix_knowledge_asset_natural_key",
+        "knowledge_asset",
+        ["natural_key"],
+    )
+    op.create_index(
+        "ix_knowledge_asset_bindable",
+        "knowledge_asset",
+        ["oid", "kind", "trust_tier", "certified", "enabled"],
+    )
+
+    op.create_table(
+        "knowledge_schema_ref",
+        sa.Column("id", sa.BigInteger(), sa.Identity(always=True), primary_key=True),
+        sa.Column("asset_id", sa.BigInteger(), nullable=False),
+        sa.Column("asset_kind", sa.String(length=32), nullable=False),
+        sa.Column("datasource_id", sa.BigInteger(), nullable=False),
+        sa.Column("table_name", sa.String(length=255), nullable=False),
+        sa.Column("field_name", sa.String(length=255), nullable=True),
+        sa.Column("table_id", sa.BigInteger(), nullable=True),
+        sa.Column("field_id", sa.BigInteger(), nullable=True),
+    )
+    op.create_index(
+        "ix_knowledge_schema_ref_asset",
+        "knowledge_schema_ref",
+        ["asset_id"],
+    )
+    op.create_index(
+        "ix_knowledge_schema_ref_ds_table",
+        "knowledge_schema_ref",
+        ["datasource_id", "table_name"],
+    )
+    op.create_index(
+        "ix_knowledge_schema_ref_field",
+        "knowledge_schema_ref",
+        ["field_id"],
+    )
+
+    op.create_table(
+        "knowledge_evidence",
+        sa.Column("id", sa.BigInteger(), sa.Identity(always=True), primary_key=True),
+        sa.Column("asset_id", sa.BigInteger(), nullable=True),
+        sa.Column("asset_kind", sa.String(length=32), nullable=False),
+        sa.Column("natural_key", sa.String(length=128), nullable=True),
+        sa.Column(
+            "signal_kind",
+            sa.String(length=32),
+            nullable=False,
+            comment="reproduce|apply_outcome|feedback|usage",
+        ),
+        sa.Column("record_id", sa.BigInteger(), nullable=True),
+        sa.Column(
+            "fact",
+            postgresql.JSONB(astext_type=sa.Text()),
+            nullable=False,
+        ),
+        sa.Column("create_time", sa.DateTime(timezone=False), nullable=False),
+    )
+    op.create_index(
+        "ix_knowledge_evidence_asset",
+        "knowledge_evidence",
+        ["asset_id"],
+    )
+    op.create_index(
+        "ix_knowledge_evidence_natural_key",
+        "knowledge_evidence",
+        ["natural_key"],
+    )
+    op.create_index(
+        "ix_knowledge_evidence_signal_time",
+        "knowledge_evidence",
+        ["signal_kind", "create_time"],
+    )
+
+    op.create_table(
+        "knowledge_episode",
+        sa.Column("id", sa.BigInteger(), sa.Identity(always=True), primary_key=True),
+        sa.Column("oid", sa.BigInteger(), nullable=False),
+        sa.Column("datasource_id", sa.BigInteger(), nullable=True),
+        sa.Column("record_id", sa.BigInteger(), nullable=True),
+        sa.Column("question_norm", sa.String(length=512), nullable=False),
+        sa.Column(
+            "episode",
+            postgresql.JSONB(astext_type=sa.Text()),
+            nullable=False,
+            server_default=sa.text("'{}'::jsonb"),
+        ),
+        sa.Column(
+            "provenance",
+            postgresql.JSONB(astext_type=sa.Text()),
+            nullable=True,
+        ),
+        sa.Column("create_time", sa.DateTime(timezone=False), nullable=False),
+    )
+    op.create_index(
+        "ix_knowledge_episode_oid_ds",
+        "knowledge_episode",
+        ["oid", "datasource_id"],
+    )
+
+    op.create_table(
+        "knowledge_staging",
+        sa.Column("id", sa.BigInteger(), sa.Identity(always=True), primary_key=True),
+        sa.Column("oid", sa.BigInteger(), nullable=False, comment="Workspace id"),
+        sa.Column("kind", sa.String(length=32), nullable=False),
         sa.Column(
             "status",
             sa.String(length=24),
             nullable=False,
-            comment="draft|pending|conflict|rejected|promoted",
+            comment="pending|rejected|promoted|expired",
         ),
         sa.Column("natural_key", sa.String(length=128), nullable=False),
         sa.Column(
@@ -55,16 +207,16 @@ def upgrade() -> None:
             nullable=True,
         ),
         sa.Column(
-            "conflict_with",
-            postgresql.ARRAY(sa.BigInteger()),
-            nullable=True,
-        ),
-        sa.Column(
             "lineage_id",
             sa.String(length=64),
             nullable=False,
-            comment="Stable lineage root allocated at capture",
         ),
+        sa.Column(
+            "provenance",
+            postgresql.JSONB(astext_type=sa.Text()),
+            nullable=True,
+        ),
+        sa.Column("reject_reason", sa.Text(), nullable=True),
         sa.Column("create_time", sa.DateTime(timezone=False), nullable=False),
         sa.Column("update_time", sa.DateTime(timezone=False), nullable=False),
     )
@@ -82,74 +234,6 @@ def upgrade() -> None:
         "ix_knowledge_staging_source_record",
         "knowledge_staging",
         ["source_record_id"],
-    )
-
-    op.create_table(
-        "business_caliber",
-        sa.Column("id", sa.BigInteger(), sa.Identity(always=True), primary_key=True),
-        sa.Column("lineage_id", sa.String(length=64), nullable=False),
-        sa.Column("version", sa.Integer(), nullable=False, server_default="1"),
-        sa.Column("oid", sa.BigInteger(), nullable=False),
-        sa.Column("datasource_id", sa.BigInteger(), nullable=True),
-        sa.Column("advanced_application_id", sa.BigInteger(), nullable=True),
-        sa.Column("label", sa.String(length=255), nullable=False),
-        sa.Column("summary", sa.Text(), nullable=True),
-        sa.Column(
-            "contract_fragment",
-            postgresql.JSONB(astext_type=sa.Text()),
-            nullable=False,
-            server_default=sa.text("'{}'::jsonb"),
-        ),
-        sa.Column(
-            "field_targets",
-            postgresql.JSONB(astext_type=sa.Text()),
-            nullable=False,
-            server_default=sa.text("'[]'::jsonb"),
-        ),
-        sa.Column(
-            "synonyms",
-            postgresql.JSONB(astext_type=sa.Text()),
-            nullable=True,
-        ),
-        sa.Column(
-            "trust_tier",
-            sa.String(length=24),
-            nullable=False,
-            server_default="published",
-        ),
-        sa.Column("certified", sa.Boolean(), nullable=False, server_default="false"),
-        sa.Column("enabled", sa.Boolean(), nullable=False, server_default="true"),
-        sa.Column("superseded_by", sa.BigInteger(), nullable=True),
-        sa.Column(
-            "provenance",
-            postgresql.JSONB(astext_type=sa.Text()),
-            nullable=True,
-        ),
-        sa.Column("natural_key", sa.String(length=128), nullable=False),
-        sa.Column("create_by", sa.BigInteger(), nullable=True),
-        sa.Column("certify_by", sa.BigInteger(), nullable=True),
-        sa.Column("create_time", sa.DateTime(timezone=False), nullable=False),
-        sa.Column("update_time", sa.DateTime(timezone=False), nullable=False),
-    )
-    op.create_index(
-        "ix_business_caliber_lineage",
-        "business_caliber",
-        ["lineage_id"],
-    )
-    op.create_index(
-        "ix_business_caliber_oid_ds_enabled",
-        "business_caliber",
-        ["oid", "datasource_id", "enabled"],
-    )
-    op.create_index(
-        "ix_business_caliber_natural_key",
-        "business_caliber",
-        ["natural_key"],
-    )
-    op.create_index(
-        "ix_business_caliber_bindable",
-        "business_caliber",
-        ["oid", "certified", "enabled", "trust_tier"],
     )
 
     op.create_table(
@@ -233,41 +317,6 @@ def upgrade() -> None:
         ["record_id"],
     )
 
-    op.create_table(
-        "process_episode",
-        sa.Column("id", sa.BigInteger(), sa.Identity(always=True), primary_key=True),
-        sa.Column("lineage_id", sa.String(length=64), nullable=False),
-        sa.Column("oid", sa.BigInteger(), nullable=False),
-        sa.Column("datasource_id", sa.BigInteger(), nullable=True),
-        sa.Column("question_norm", sa.String(length=512), nullable=False),
-        sa.Column(
-            "episode",
-            postgresql.JSONB(astext_type=sa.Text()),
-            nullable=False,
-            server_default=sa.text("'{}'::jsonb"),
-        ),
-        sa.Column(
-            "trust_tier",
-            sa.String(length=24),
-            nullable=False,
-            server_default="published",
-        ),
-        sa.Column("enabled", sa.Boolean(), nullable=False, server_default="true"),
-        sa.Column("source_record_id", sa.BigInteger(), nullable=True),
-        sa.Column(
-            "provenance",
-            postgresql.JSONB(astext_type=sa.Text()),
-            nullable=True,
-        ),
-        sa.Column("create_time", sa.DateTime(timezone=False), nullable=False),
-        sa.Column("update_time", sa.DateTime(timezone=False), nullable=False),
-    )
-    op.create_index(
-        "ix_process_episode_oid_ds",
-        "process_episode",
-        ["oid", "datasource_id", "enabled"],
-    )
-
     op.add_column(
         "data_training",
         sa.Column(
@@ -291,8 +340,6 @@ def upgrade() -> None:
 def downgrade() -> None:
     op.drop_column("terminology", "knowledge_meta")
     op.drop_column("data_training", "knowledge_meta")
-    op.drop_index("ix_process_episode_oid_ds", table_name="process_episode")
-    op.drop_table("process_episode")
     op.drop_index("ix_knowledge_capture_job_record", table_name="knowledge_capture_job")
     op.drop_index(
         "ix_knowledge_capture_job_status_lease", table_name="knowledge_capture_job"
@@ -302,14 +349,24 @@ def downgrade() -> None:
         "ix_knowledge_lineage_event_lineage_at", table_name="knowledge_lineage_event"
     )
     op.drop_table("knowledge_lineage_event")
-    op.drop_index("ix_business_caliber_bindable", table_name="business_caliber")
-    op.drop_index("ix_business_caliber_natural_key", table_name="business_caliber")
-    op.drop_index("ix_business_caliber_oid_ds_enabled", table_name="business_caliber")
-    op.drop_index("ix_business_caliber_lineage", table_name="business_caliber")
-    op.drop_table("business_caliber")
     op.drop_index("ix_knowledge_staging_source_record", table_name="knowledge_staging")
     op.drop_index("ix_knowledge_staging_natural_key", table_name="knowledge_staging")
     op.drop_index(
         "ix_knowledge_staging_oid_kind_status", table_name="knowledge_staging"
     )
     op.drop_table("knowledge_staging")
+    op.drop_index("ix_knowledge_episode_oid_ds", table_name="knowledge_episode")
+    op.drop_table("knowledge_episode")
+    op.drop_index("ix_knowledge_evidence_signal_time", table_name="knowledge_evidence")
+    op.drop_index("ix_knowledge_evidence_natural_key", table_name="knowledge_evidence")
+    op.drop_index("ix_knowledge_evidence_asset", table_name="knowledge_evidence")
+    op.drop_table("knowledge_evidence")
+    op.drop_index("ix_knowledge_schema_ref_field", table_name="knowledge_schema_ref")
+    op.drop_index("ix_knowledge_schema_ref_ds_table", table_name="knowledge_schema_ref")
+    op.drop_index("ix_knowledge_schema_ref_asset", table_name="knowledge_schema_ref")
+    op.drop_table("knowledge_schema_ref")
+    op.drop_index("ix_knowledge_asset_bindable", table_name="knowledge_asset")
+    op.drop_index("ix_knowledge_asset_natural_key", table_name="knowledge_asset")
+    op.drop_index("ix_knowledge_asset_lineage", table_name="knowledge_asset")
+    op.drop_index("ix_knowledge_asset_oid_ds_enabled", table_name="knowledge_asset")
+    op.drop_table("knowledge_asset")

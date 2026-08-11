@@ -2,25 +2,17 @@ version: 1
 graph_key: chat
 state: apps.chat.graphs.nodes.nlq.NlqState
 description: >
-  Reviewed batch flow: LLM plans one atomic query batch → concurrent execution
-  → deterministic structural review → optional bounded repair → charts for the
-  accepted candidate → non-blocking summary.
-  Runtime limits come from plan_policy.
-  Respects ChatFinishStep for MCP early stop (query-only / data-only).
+  Durable NLQ v3 flow: retrieve context → produce one business specification
+  or interrupt → validate/repair only the physical plan → execute the accepted
+  candidate → render and score. Runtime limits come from plan_policy.
 
 nodes:
   prepare_record: apps.chat.graphs.nodes.nlq.prepare_record_node
   ensure_datasource: apps.chat.graphs.nodes.nlq.ensure_datasource_node
   resolve_access_scope: apps.chat.graphs.nodes.nlq.resolve_access_scope_node
-  recall_knowledge: apps.chat.graphs.nodes.nlq.recall_knowledge_node
-  match_training: apps.chat.graphs.nodes.nlq.match_training_node
-  match_custom_prompts: apps.chat.graphs.nodes.nlq.match_custom_prompts_node
-  retrieve_schema: apps.chat.graphs.nodes.nlq.retrieve_schema_node
-  ground_entities: apps.chat.graphs.nodes.nlq.ground_entities_node
-  parse_temporal_evidence: apps.chat.graphs.nodes.nlq.parse_temporal_evidence_node
-  assess_clarity: apps.chat.graphs.nodes.nlq.assess_clarity_node
-  assemble_context: apps.chat.graphs.nodes.nlq.assemble_context_node
-  complete_intent: apps.chat.graphs.nodes.nlq.complete_intent_node
+  retrieve_context: apps.chat.graphs.nodes.nlq.retrieve_context_node
+  plan_query: apps.chat.graphs.nodes.nlq.plan_query_node
+  await_clarification: apps.chat.graphs.nodes.nlq.await_clarification_node
   generate_queries: apps.chat.graphs.nodes.nlq.generate_queries_node
   execute_queries: apps.chat.graphs.nodes.nlq.execute_queries_node
   generate_charts: apps.chat.graphs.nodes.nlq.generate_charts_node
@@ -52,76 +44,28 @@ edges:
   - from: resolve_access_scope
     router:
       type: ok_or_fail
-      next: recall_knowledge
+      next: retrieve_context
     paths:
-      recall_knowledge: recall_knowledge
+      retrieve_context: retrieve_context
       fail: fail
 
-  - from: recall_knowledge
+  - from: retrieve_context
     router:
       type: ok_or_fail
-      next: ground_entities
+      next: plan_query
     paths:
-      ground_entities: ground_entities
+      plan_query: plan_query
       fail: fail
 
-  - from: ground_entities
-    router:
-      type: ok_or_fail
-      next: match_training
+  - from: plan_query
+    router: apps.chat.graphs.nodes.nlq.route_after_planning
     paths:
-      match_training: match_training
-      fail: fail
-
-  - from: match_training
-    router:
-      type: ok_or_fail
-      next: match_custom_prompts
-    paths:
-      match_custom_prompts: match_custom_prompts
-      fail: fail
-
-  - from: match_custom_prompts
-    router:
-      type: ok_or_fail
-      next: retrieve_schema
-    paths:
-      retrieve_schema: retrieve_schema
-      fail: fail
-
-  - from: retrieve_schema
-    router:
-      type: ok_or_fail
-      next: parse_temporal_evidence
-    paths:
-      parse_temporal_evidence: parse_temporal_evidence
-      fail: fail
-
-  - from: parse_temporal_evidence
-    router:
-      type: ok_or_fail
-      next: assess_clarity
-    paths:
-      assess_clarity: assess_clarity
-      fail: fail
-
-  - from: assess_clarity
-    router: apps.chat.graphs.nodes.nlq.route_after_clarity
-    paths:
-      assemble_context: assemble_context
-      complete_intent: complete_intent
-      fail: fail
-
-  - from: assemble_context
-    router:
-      type: ok_or_fail
-      next: generate_queries
-    paths:
+      await_clarification: await_clarification
       generate_queries: generate_queries
       fail: fail
 
-  - from: complete_intent
-    to: END
+  - from: await_clarification
+    to: retrieve_context
 
   - from: generate_queries
     router: apps.chat.graphs.nodes.nlq.route_after_queries

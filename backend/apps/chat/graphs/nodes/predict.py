@@ -11,7 +11,6 @@ from apps.chat.curd.chat import (
     get_chat_chart_config,
     get_chat_chart_data,
     get_chat_predict_data,
-    save_analysis_predict_record,
 )
 from apps.chat.models.chat_model import ChatRecord
 from apps.chat.result_data import format_json_data
@@ -23,7 +22,8 @@ from apps.conversation.outcome import (
     running_outcome,
     successful_outcome,
 )
-from apps.conversation.record import persist_snapshot
+from apps.conversation.run_service import finalize_run
+from apps.conversation.runtime_context import runtime_value
 from apps.conversation.session import session_scope
 from apps.conversation.sink import StreamSink
 from apps.conversation.state import RunState
@@ -34,26 +34,27 @@ from common.utils.utils import SQLBotLogUtil
 
 
 class PredictState(RunState, total=False):
-    llm_service: LLMService
-    base_record: ChatRecord
-    record: ChatRecord
     json_result: Dict[str, Any]
     has_data: bool
 
 
 def prepare_node(state: PredictState) -> PredictState:
     try:
-        base = state["base_record"]
+        base_record_id = int(state["base_record_id"])
+        record_id = int(state["record_id"])
+        with session_scope() as session:
+            base = session.get(ChatRecord, base_record_id)
+            record = session.get(ChatRecord, record_id)
+        if base is None or record is None:
+            raise SingleMessageError("Prediction record is unavailable")
         if not base.chart:
             raise SingleMessageError(
                 f"Chat record with id {base.id} has not generated chart, do not support to analyze it"
             )
-        with session_scope() as session:
-            record = save_analysis_predict_record(session, base, "predict")
-        state["llm_service"].set_record(record)
+        llm_service = cast(LLMService, runtime_value(state, "llm_service"))
+        llm_service.set_record(record)
         return {
             **state,
-            "record": record,
             "record_id": record.id,
             "base_record_id": base.id,
             "graph_key": "predict",
@@ -71,8 +72,8 @@ def prepare_node(state: PredictState) -> PredictState:
 
 
 def stream_node(state: PredictState) -> PredictState:
-    llm_service = state["llm_service"]
-    record = state["record"]
+    llm_service = cast(LLMService, runtime_value(state, "llm_service"))
+    record = llm_service.record
     sink = StreamSink.from_state(state)
     json_result: Dict[str, Any] = dict(state.get("json_result") or {"success": True})
     full_text = ""
@@ -99,7 +100,6 @@ def stream_node(state: PredictState) -> PredictState:
                 **state,
                 "full_text": full_text,
                 "json_result": json_result,
-                "record": llm_service.record,
             }
         except Exception as e:
             traceback.print_exc()
@@ -114,7 +114,7 @@ def stream_node(state: PredictState) -> PredictState:
 
 
 def parse_node(state: PredictState) -> PredictState:
-    llm_service = state["llm_service"]
+    llm_service = cast(LLMService, runtime_value(state, "llm_service"))
     sink = StreamSink.from_state(state)
     full_text = state.get("full_text") or ""
 
@@ -122,7 +122,9 @@ def parse_node(state: PredictState) -> PredictState:
 
     with session_scope() as session:
         try:
-            has_data = check_save_predict_data(llm_service, session=session, res=full_text)
+            has_data = check_save_predict_data(
+                llm_service, session=session, res=full_text
+            )
             outcome = (
                 successful_outcome()
                 if has_data
@@ -140,7 +142,7 @@ def parse_node(state: PredictState) -> PredictState:
 
 def success_node(state: PredictState) -> PredictState:
     """MCP table/chart rendering when prediction produced data; SSE: predict-success."""
-    llm_service = state["llm_service"]
+    llm_service = cast(LLMService, runtime_value(state, "llm_service"))
     sink = StreamSink.from_state(state)
     json_result: Dict[str, Any] = dict(state.get("json_result") or {"success": True})
 
@@ -180,7 +182,7 @@ def success_node(state: PredictState) -> PredictState:
                 )
                 SQLBotLogUtil.info(image_url)
                 if sink.mode == "markdown":
-                    sink.text(f'![{chart.get("type")}]({image_url})')
+                    sink.text(f"![{chart.get('type')}]({image_url})")
                 else:
                     json_result["image_url"] = image_url
                 if error is not None:
@@ -214,19 +216,23 @@ def failed_node(state: PredictState) -> PredictState:
 
 
 def complete_node(state: PredictState) -> PredictState:
-    llm_service = state["llm_service"]
     sink = StreamSink.from_state(state)
     json_result: Dict[str, Any] = dict(state.get("json_result") or {"success": True})
 
     sink.event({"type": "predict_finish"})
     with session_scope() as session:
-        persist_snapshot(session, llm_service.record.id, terminal=True)
+        finalize_run(
+            session,
+            run_id=str(state["run_id"]),
+            status="succeeded" if state.get("has_data") else "degraded",
+            current_node="complete",
+            record_snapshot={"terminal": True},
+        )
     if sink.mode == "json":
         sink.json_result(json_result)
     return {
         **state,
         "json_result": json_result,
-        "record": llm_service.record,
         "outcome": state.get("outcome") or successful_outcome(),
     }
 

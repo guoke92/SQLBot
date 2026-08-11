@@ -10,9 +10,9 @@ from sqlalchemy import (
     Boolean,
     Column,
     DateTime,
-    ForeignKey,
     Identity,
     Integer,
+    String,
     Text,
 )
 from sqlalchemy import Enum as SQLAlchemyEnum
@@ -144,18 +144,7 @@ class ChatRecord(SQLModel, table=True):
     predict_record_id: int = Field(sa_column=Column(BigInteger, nullable=True))
     regenerate_record_id: int = Field(sa_column=Column(BigInteger, nullable=True))
     re_exec: Optional[str] = Field(sa_column=Column(Text, nullable=True))
-    intent_context: Optional[dict[str, Any]] = Field(
-        default=None,
-        sa_column=Column(JSONB, nullable=True),
-    )
-    clarification_parent_id: Optional[int] = Field(
-        default=None,
-        sa_column=Column(
-            BigInteger,
-            ForeignKey("chat_record.id", ondelete="CASCADE"),
-            nullable=True,
-        ),
-    )
+    feedback: Optional[str] = Field(default=None, sa_column=Column(String(8), nullable=True))
 
 
 class ChatRecordResult(BaseModel):
@@ -191,8 +180,12 @@ class ChatRecordResult(BaseModel):
     duration: Optional[float] = None  # 耗时字段（单位：秒）
     total_tokens: Optional[int] = None  # token总消耗
     re_exec: Optional[str] = None
-    intent_context: Optional[dict[str, Any]] = None
-    clarification_parent_id: Optional[int] = None
+    feedback: Optional[str] = None
+    run_id: Optional[str] = None
+    run_status: Optional[str] = None
+    run_event_cursor: int = 0
+    active_interrupt: Optional[dict[str, Any]] = None
+    interrupts: List[dict[str, Any]] = Field(default_factory=list)
 
 
 class CreateChat(BaseModel):
@@ -268,12 +261,9 @@ class AiModelQuestion(BaseModel):
     regenerate_record_id: Optional[int] = None
     sample_data: str = ""
     sqlbot_name: str = APP_DISPLAY_NAME
-    # Filled by NLQ generate_queries (PlanContext); empty outside agentic path.
-    plan_context: str = ""
     # Request-local projections of one persisted clause-oriented contract.
     # ``question`` remains the user-visible message persisted on ChatRecord.
-    # Retrieval stays compact; generation keeps the original user request;
-    # the frozen contract is rendered once through ``plan_context``.
+    # Retrieval stays compact while generation keeps the original request.
     planning_question: str = ""
     retrieval_question: str = ""
     generation_question: str = ""
@@ -330,9 +320,6 @@ class AiModelQuestion(BaseModel):
 class ChatQuestion(AiModelQuestion):
     chat_id: int
     datasource_id: Optional[int] = None
-    clarification_for_record_id: Optional[int] = None
-    clarification_answers: list[dict[str, Any]] = Field(default_factory=list)
-    intent_context: Optional[dict[str, Any]] = None
 
 
 class ChatMcp(ChatQuestion):
@@ -360,14 +347,6 @@ class ChatStart(BaseModel):
 class ChatQuestionBase(BaseModel):
     question: str = Body(description='用户提问')
     chat_id: int = Body(description='会话ID')
-    clarification_for_record_id: Optional[int] = Body(
-        description='当前回答对应的澄清记录ID',
-        default=None,
-    )
-    clarification_answers: list[dict[str, Any]] = Body(
-        description='结构化澄清回答',
-        default_factory=list,
-    )
 
 
 class McpQuestion(ChatQuestionBase):

@@ -10,7 +10,6 @@ from apps.chat.answer_payload import (
     normalize_answer_payload,
 )
 from apps.chat.constants import DYNAMIC_DS_TYPES
-from apps.chat.intent_history import latest_reusable_intent_record
 from apps.chat.models.chat_model import (
     Chat,
     ChatInfo,
@@ -26,15 +25,7 @@ from apps.chat.models.chat_model import (
     TypeEnum,
 )
 from apps.chat.result_data import format_json_data
-from apps.chat.semantic_intent import (
-    ClarificationAnswer,
-    intent_context_from_payload,
-    is_current_intent_payload,
-    merge_clarification_answers,
-    new_intent_context,
-    public_intent_payload,
-    render_planning_question,
-)
+from apps.conversation.models import ConversationInterrupt, ConversationRun
 from apps.datasource.crud.datasource import get_ds
 from apps.datasource.crud.recommended_problem import get_datasource_recommended_chart
 from apps.datasource.models.datasource import CoreDatasource
@@ -490,8 +481,6 @@ def get_chat_with_records(session: SessionDep, chart_id: int, current_user: Curr
         ChatRecord.first_chat,
         ChatRecord.finish,
         ChatRecord.error,
-        ChatRecord.intent_context,
-        ChatRecord.clarification_parent_id,
     ]
     if with_data:
         base_cols.extend([ChatRecord.data, ChatRecord.predict_data])
@@ -503,6 +492,32 @@ def get_chat_with_records(session: SessionDep, chart_id: int, current_user: Curr
     )
     rows = session.execute(stmt).all()
     record_ids = [int(row.id) for row in rows if row.id is not None]
+
+    run_rows = list(
+        session.exec(
+            select(ConversationRun).where(
+                ConversationRun.chat_record_id.in_(record_ids)
+            )
+        ).scalars()
+    ) if record_ids else []
+    runs_by_record = {int(run.chat_record_id): run for run in run_rows}
+    run_ids = [run.run_id for run in run_rows]
+    interrupts = (
+        list(
+            session.exec(
+                select(ConversationInterrupt).where(
+                    ConversationInterrupt.run_id.in_(run_ids)
+                )
+            ).scalars()
+        )
+        if run_ids
+        else []
+    )
+    interrupts_by_run: dict[str, list[ConversationInterrupt]] = {}
+    for item in interrupts:
+        interrupts_by_run.setdefault(item.run_id, []).append(item)
+    for items in interrupts_by_run.values():
+        items.sort(key=lambda item: item.version)
 
     token_usage_map = _token_usage_by_record(session, record_ids)
     # Reasoning is for history hydrate when payload omits or prefers log reasoning;
@@ -522,6 +537,19 @@ def get_chat_with_records(session: SessionDep, chart_id: int, current_user: Curr
 
         rid = int(row.id)
         reason = reasoning_map.get(rid) or {}
+        run = runs_by_record.get(rid)
+        active_interrupt = (
+            next(
+                (
+                    item
+                    for item in interrupts_by_run.get(run.run_id, [])
+                    if item.interrupt_id == run.active_interrupt_id
+                ),
+                None,
+            )
+            if run and run.active_interrupt_id
+            else None
+        )
         kwargs: Dict[str, Any] = dict(
             id=row.id,
             chat_id=row.chat_id,
@@ -535,6 +563,7 @@ def get_chat_with_records(session: SessionDep, chart_id: int, current_user: Curr
             datasource=row.datasource,
             engine_type=getattr(row, "engine_type", None),
             re_exec=getattr(row, "re_exec", None),
+            feedback=getattr(row, "feedback", None),
             chart_answer=row.chart_answer,
             chart=row.chart,
             analysis=row.analysis,
@@ -547,8 +576,34 @@ def get_chat_with_records(session: SessionDep, chart_id: int, current_user: Curr
             first_chat=row.first_chat,
             finish=row.finish,
             error=row.error,
-            intent_context=row.intent_context,
-            clarification_parent_id=row.clarification_parent_id,
+            run_id=run.run_id if run else None,
+            run_status=run.status if run else None,
+            run_event_cursor=int(run.event_cursor or 0) if run else 0,
+            active_interrupt=(
+                {
+                    "interrupt_id": active_interrupt.interrupt_id,
+                    "version": active_interrupt.version,
+                    "status": active_interrupt.status,
+                    "payload": active_interrupt.payload,
+                    "answers": active_interrupt.answers,
+                }
+                if active_interrupt
+                else None
+            ),
+            interrupts=(
+                [
+                    {
+                        "interrupt_id": item.interrupt_id,
+                        "version": item.version,
+                        "status": item.status,
+                        "payload": item.payload,
+                        "answers": item.answers,
+                    }
+                    for item in interrupts_by_run.get(run.run_id, [])
+                ]
+                if run
+                else []
+            ),
             sql_reasoning_content=reason.get("sql_reasoning_content"),
             chart_reasoning_content=reason.get("chart_reasoning_content"),
             analysis_reasoning_content=reason.get("analysis_reasoning_content"),
@@ -780,19 +835,6 @@ def get_chat_brief_generate(session: SessionDep, chat_id: int):
         return False
 
 
-def list_generate_sql_logs(session: SessionDep, chart_id: int) -> List[ChatLog]:
-    stmt = select(ChatLog).where(
-        and_(ChatLog.pid.in_(select(ChatRecord.id).where(and_(ChatRecord.chat_id == chart_id))),
-             ChatLog.type == TypeEnum.CHAT, ChatLog.operate == OperationEnum.GENERATE_QUERY)).order_by(
-        ChatLog.start_time)
-    result = session.execute(stmt).all()
-    _list = []
-    for row in result:
-        for r in row:
-            _list.append(ChatLog(**r.model_dump()))
-    return _list
-
-
 def list_generate_chart_logs(session: SessionDep, chart_id: int) -> List[ChatLog]:
     stmt = select(ChatLog).where(
         and_(ChatLog.pid.in_(select(ChatRecord.id).where(and_(ChatRecord.chat_id == chart_id))),
@@ -899,7 +941,13 @@ def create_chat(session: SessionDep, current_user: CurrentUser, create_chat_obj:
     return chat_info
 
 
-def save_question(session: SessionDep, current_user: CurrentUser, question: ChatQuestion) -> ChatRecord:
+def save_question(
+    session: SessionDep,
+    current_user: CurrentUser,
+    question: ChatQuestion,
+    *,
+    commit: bool = True,
+) -> ChatRecord:
     if not question.chat_id:
         raise Exception("ChatId cannot be None")
     if not question.question or question.question.strip() == '':
@@ -919,8 +967,6 @@ def save_question(session: SessionDep, current_user: CurrentUser, question: Chat
     record.engine_type = chat.engine_type
     record.ai_modal_id = question.ai_modal_id
     record.regenerate_record_id = question.regenerate_record_id
-    record.intent_context = question.intent_context
-    record.clarification_parent_id = question.clarification_for_record_id
 
     result = ChatRecord(**record.model_dump())
 
@@ -928,113 +974,19 @@ def save_question(session: SessionDep, current_user: CurrentUser, question: Chat
     session.flush()
     session.refresh(record)
     result.id = record.id
-    session.commit()
+    if commit:
+        session.commit()
 
     return result
 
 
-def prepare_question_intent(
+def save_analysis_predict_record(
     session: SessionDep,
-    current_user: CurrentUser,
-    question: ChatQuestion,
-) -> None:
-    """Resolve and validate one clarification answer before creating its record."""
-    parent_id = question.clarification_for_record_id
-    if parent_id is None:
-        if question.clarification_answers:
-            raise ValueError(
-                "clarification_for_record_id is required with clarification_answers"
-            )
-        if question.regenerate_record_id:
-            source = session.get(ChatRecord, question.regenerate_record_id)
-            if (
-                source is not None
-                and int(source.chat_id) == int(question.chat_id)
-                and int(source.create_by) == int(current_user.id)
-                and is_current_intent_payload(source.intent_context)
-            ):
-                context = intent_context_from_payload(source.intent_context)
-                question.intent_context = public_intent_payload(context)
-                question.planning_question = render_planning_question(
-                    context,
-                    latest_user_text=question.question or "",
-                )
-                question.retrieval_question = context.original_question
-                question.generation_question = context.original_question
-                return
-        previous_record = latest_reusable_intent_record(
-            session,
-            chat_id=int(question.chat_id),
-            user_id=int(current_user.id),
-        )
-        previous_context = None
-        if (
-            previous_record is not None
-            and is_current_intent_payload(previous_record.intent_context)
-        ):
-            candidate = intent_context_from_payload(previous_record.intent_context)
-            if candidate.status == "ready" and candidate.contract is not None:
-                previous_context = candidate
-        previous_record_id = (
-            int(previous_record.id)
-            if previous_record is not None
-            and previous_record.id is not None
-            and previous_context is not None
-            else None
-        )
-        context = new_intent_context(
-            question.question or "",
-            base_record_id=previous_record_id,
-            base_contract=(previous_context.contract if previous_context else None),
-        )
-        question.intent_context = public_intent_payload(context)
-        question.planning_question = context.original_question
-        question.retrieval_question = context.original_question
-        question.generation_question = context.original_question
-        return
-
-    parent = session.get(ChatRecord, parent_id)
-    if (
-        parent is None
-        or int(parent.chat_id) != int(question.chat_id)
-        or int(parent.create_by) != int(current_user.id)
-    ):
-        raise ValueError("Clarification record not found in the current conversation")
-    if not parent.finish or not parent.intent_context:
-        raise ValueError("Clarification record is not ready for an answer")
-    if not is_current_intent_payload(parent.intent_context):
-        # The card was rendered by an older contract revision. Answering it
-        # would silently reinterpret the user's choices, so the card expires
-        # and the user restates the question instead.
-        raise ValueError(
-            "This clarification was created by an earlier contract revision "
-            "and can no longer be answered"
-        )
-    context = intent_context_from_payload(parent.intent_context)
-    if not context.awaiting_input:
-        raise ValueError("The referenced record is not awaiting clarification")
-    existing_child = session.exec(
-        select(ChatRecord.id).where(
-            ChatRecord.clarification_parent_id == int(parent_id)
-        )
-    ).first()
-    if existing_child is not None:
-        raise ValueError("This clarification has already been answered")
-
-    answers = [
-        ClarificationAnswer.model_validate(answer)
-        for answer in question.clarification_answers
-    ]
-    merged = merge_clarification_answers(context, answers)
-    question.intent_context = public_intent_payload(merged)
-    # The visible child-record question is a presentation summary generated by
-    # the clarification card. Its semantic content already lives in the draft.
-    question.planning_question = render_planning_question(merged)
-    question.retrieval_question = merged.original_question
-    question.generation_question = merged.original_question
-
-
-def save_analysis_predict_record(session: SessionDep, base_record: ChatRecord, action_type: str) -> ChatRecord:
+    base_record: ChatRecord,
+    action_type: str,
+    *,
+    commit: bool = True,
+) -> ChatRecord:
     record = ChatRecord()
     record.question = base_record.question
     record.chat_id = base_record.chat_id
@@ -1057,7 +1009,8 @@ def save_analysis_predict_record(session: SessionDep, base_record: ChatRecord, a
     session.flush()
     session.refresh(record)
     result.id = record.id
-    session.commit()
+    if commit:
+        session.commit()
 
     return result
 
@@ -1344,3 +1297,48 @@ def get_old_questions(session: SessionDep, datasource: int):
     for r in result:
         records.append(r.question)
     return records
+
+
+def submit_record_feedback(
+    session: Any,
+    *,
+    chat_record_id: int,
+    user_id: int,
+    feedback: Optional[str],
+) -> dict:
+    """Persist user feedback and emit knowledge signals for applied assets."""
+    record = session.get(ChatRecord, chat_record_id)
+    if record is None or record.create_by != user_id:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="record not found")
+
+    record.feedback = feedback
+    session.add(record)
+
+    if feedback is not None:
+        from apps.knowledge.db_models import KnowledgeEvidence
+        from apps.knowledge.gateway import KnowledgeSignal, emit_signal
+
+        applied = session.exec(
+            select(KnowledgeEvidence)
+            .where(KnowledgeEvidence.record_id == chat_record_id)
+            .where(KnowledgeEvidence.signal_kind == "apply_outcome")
+        ).all()
+        for ev in applied:
+            if ev.asset_id is None:
+                continue
+            emit_signal(
+                session,
+                KnowledgeSignal(
+                    kind="user_feedback",
+                    refs={"asset_id": ev.asset_id, "asset_kind": ev.asset_kind},
+                    fact={
+                        "record_id": chat_record_id,
+                        "feedback": feedback,
+                        "user_id": user_id,
+                    },
+                ),
+            )
+
+    session.commit()
+    return {"feedback": feedback}

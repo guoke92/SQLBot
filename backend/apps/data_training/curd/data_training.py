@@ -1,19 +1,21 @@
 import datetime
 import logging
 import traceback
-from typing import List, Optional
 from xml.dom.minidom import parseString
 
 import dicttoxml
-from sqlalchemy import and_, select, func, delete, update, or_
-from sqlalchemy import text
+from sqlalchemy import and_, delete, func, or_, select, text, update
 
 from apps.ai_model.embedding import EmbeddingModelCache, embedding_query_params
 from apps.data_training.curd.recall_query import (
     TrainingScope,
     build_embedding_training_sql,
 )
-from apps.data_training.models.data_training_model import DataTrainingInfo, DataTraining, DataTrainingInfoResult
+from apps.data_training.models.data_training_model import (
+    DataTraining,
+    DataTrainingInfo,
+    DataTrainingInfoResult,
+)
 from apps.datasource.models.datasource import CoreDatasource
 from apps.system.models.system_model import AssistantModel
 from apps.template.generate_chart.generator import get_base_data_training_template
@@ -22,7 +24,7 @@ from common.core.deps import SessionDep, Trans
 from common.utils.embedding_threads import run_save_data_training_embeddings
 
 
-def get_data_training_base_query(oid: int, name: Optional[str] = None):
+def get_data_training_base_query(oid: int, name: str | None = None):
     """
     获取数据训练查询的基础查询结构
     """
@@ -40,7 +42,7 @@ def get_data_training_base_query(oid: int, name: Optional[str] = None):
     return parent_ids_subquery
 
 
-def build_data_training_query(session: SessionDep, oid: int, name: Optional[str] = None,
+def build_data_training_query(session: SessionDep, oid: int, name: str | None = None,
                               paginate: bool = True, current_page: int = 1, page_size: int = 10):
     """
     构建数据训练查询的通用方法
@@ -101,7 +103,7 @@ def build_data_training_query(session: SessionDep, oid: int, name: Optional[str]
     return stmt, total_count, total_pages, current_page, page_size
 
 
-def execute_data_training_query(session: SessionDep, stmt) -> List[DataTrainingInfoResult]:
+def execute_data_training_query(session: SessionDep, stmt) -> list[DataTrainingInfoResult]:
     """
     执行查询并返回数据训练信息列表
     """
@@ -127,7 +129,7 @@ def execute_data_training_query(session: SessionDep, stmt) -> List[DataTrainingI
 
 
 def page_data_training(session: SessionDep, current_page: int = 1, page_size: int = 10,
-                       name: Optional[str] = None, oid: Optional[int] = 1):
+                       name: str | None = None, oid: int | None = 1):
     """
     分页查询数据训练（原方法保持不变）
     """
@@ -139,7 +141,7 @@ def page_data_training(session: SessionDep, current_page: int = 1, page_size: in
     return current_page, page_size, total_count, total_pages, _list
 
 
-def get_all_data_training(session: SessionDep, name: Optional[str] = None, oid: Optional[int] = 1):
+def get_all_data_training(session: SessionDep, name: str | None = None, oid: int | None = 1):
     """
     获取所有数据训练（不分页）
     """
@@ -273,7 +275,7 @@ def update_training(session: SessionDep, info: DataTrainingInfo, oid: int, trans
     return info.id
 
 
-def batch_create_training(session: SessionDep, info_list: List[DataTrainingInfo], oid: int, trans: Trans):
+def batch_create_training(session: SessionDep, info_list: list[DataTrainingInfo], oid: int, trans: Trans):
     """
     批量创建数据训练记录（复用单条插入逻辑）
     """
@@ -456,7 +458,7 @@ def run_sync_embeddings(session_maker):
         session_maker.remove()
 
 
-def save_embeddings(session_maker, ids: List[int]):
+def save_embeddings(session_maker, ids: list[int]):
     if not settings.EMBEDDING_ENABLED:
         return
 
@@ -484,13 +486,13 @@ def save_embeddings(session_maker, ids: List[int]):
         session_maker.remove()
 
 
-def select_training_by_question(session: SessionDep, question: str, oid: int, datasource: Optional[int] = None,
-                                advanced_application_id: Optional[int] = None,
-                                training_type: Optional[str] = None):
+def select_training_by_question(session: SessionDep, question: str, oid: int, datasource: int | None = None,
+                                advanced_application_id: int | None = None,
+                                training_type: str | None = None):
     if question.strip() == "":
         return []
 
-    _list: List[DataTraining] = []
+    _list: list[DataTraining] = []
 
     # maybe use label later?
     stmt = (
@@ -513,6 +515,7 @@ def select_training_by_question(session: SessionDep, question: str, oid: int, da
 
     results = session.execute(stmt, {'sentence': question}).fetchall()
 
+    similarity_map: dict[int, float] = {}
     for row in results:
         _list.append(DataTraining(id=row.id, question=row.question))
 
@@ -548,6 +551,7 @@ def select_training_by_question(session: SessionDep, question: str, oid: int, da
 
                 for row in results:
                     _list.append(DataTraining(id=row.id, question=row.question))
+                    similarity_map[row.id] = float(row.similarity)
 
             except Exception:
                 traceback.print_exc()
@@ -564,11 +568,19 @@ def select_training_by_question(session: SessionDep, question: str, oid: int, da
     if len(_ids) == 0:
         return []
 
-    t_list = session.query(DataTraining.id, DataTraining.question, DataTraining.description).filter(
-        and_(DataTraining.id.in_(_ids))).all()
+    t_list = session.query(
+        DataTraining.id, DataTraining.question, DataTraining.description,
+        DataTraining.knowledge_meta,
+    ).filter(and_(DataTraining.id.in_(_ids))).all()
 
     for row in t_list:
-        _map[row.id] = {'question': row.question, 'suggestion-answer': row.description}
+        _map[row.id] = {
+            'id': row.id,
+            'question': row.question,
+            'suggestion-answer': row.description,
+            'knowledge_meta': row.knowledge_meta,
+            'similarity': similarity_map.get(row.id),
+        }
 
     _results: list[dict] = []
     for key in _map.keys():
@@ -607,9 +619,9 @@ def to_xml_string(_dict: list[dict] | dict, root: str = 'examples') -> str:
     return pretty_xml
 
 
-def get_training_template(session: SessionDep, question: str, oid: Optional[int] = 1, datasource: Optional[int] = None,
-                          advanced_application_id: Optional[int] = None,
-                          training_type: Optional[str] = None) -> tuple[str, list[dict]]:
+def get_training_template(session: SessionDep, question: str, oid: int | None = 1, datasource: int | None = None,
+                          advanced_application_id: int | None = None,
+                          training_type: str | None = None) -> tuple[str, list[dict]]:
     if not oid:
         oid = 1
     if not datasource and not advanced_application_id:
@@ -617,7 +629,11 @@ def get_training_template(session: SessionDep, question: str, oid: Optional[int]
     _results = select_training_by_question(session, question, oid, datasource, advanced_application_id,
                                            training_type=training_type)
     if _results and len(_results) > 0:
-        data_training = to_xml_string(_results)
+        prompt_rows = [
+            {'question': r['question'], 'suggestion-answer': r['suggestion-answer']}
+            for r in _results
+        ]
+        data_training = to_xml_string(prompt_rows)
         template = get_base_data_training_template().format(data_training=data_training)
         return template, _results
     else:

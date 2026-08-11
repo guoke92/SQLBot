@@ -1,12 +1,5 @@
 from fastapi import APIRouter
 
-from apps.conversation.graph_loader import bootstrap_graphs
-
-# Register conversation graphs from YAML topology configs before routes so
-# any entry (chat, MCP, …) can submit_graph without relying on import
-# side effects.
-bootstrap_graphs()
-
 from apps.chat.api import chat
 from apps.dashboard.api import dashboard_api
 from apps.data_training.api import data_training

@@ -26,6 +26,7 @@ dependencies = [
     "langchain-huggingface>=0.2.0",
     "sentence-transformers>=4.0.2",
     "langgraph>=0.3,<0.4",
+    "langgraph-checkpoint-postgres>=2.0,<3.0",
     "pgvector>=0.4.1",
     "dashscope>=1.14.0,<2.0.0",
     "pymysql (>=1.1.1,<2.0.0)",

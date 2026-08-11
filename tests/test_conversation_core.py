@@ -181,6 +181,30 @@ class TestSink:
         assert chunks[0].startswith("&#x274c;")
         assert "boom" in chunks[1]
 
+    def test_json_sink_renders_actionable_clarification(self) -> None:
+        sink = StreamSink("json", run_id="run-1")
+        chunks: list[object] = []
+        sink._raw = chunks.append  # type: ignore[method-assign]
+        sink.awaiting_input(
+            {
+                "interrupt_id": "interrupt-1",
+                "version": 1,
+                "ambiguities": [],
+            }
+        )
+        assert chunks == [
+            {
+                "success": True,
+                "status": "awaiting_input",
+                "run_id": "run-1",
+                "interrupt": {
+                    "interrupt_id": "interrupt-1",
+                    "version": 1,
+                    "ambiguities": [],
+                },
+            }
+        ]
+
 
 class TestRunGraph:
     def setup_method(self) -> None:

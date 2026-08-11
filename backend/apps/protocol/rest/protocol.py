@@ -417,9 +417,7 @@ class RestProtocol(BaseProtocol):
             error_msg=getattr(q, "error_msg", "") or "",
             change_title=change_title,
         )
-        from apps.chat.plan_context import normalize_plan_context_block
-
-        return normalize_plan_context_block(getattr(q, "plan_context", None)) + body
+        return body
 
     # ------------------------------------------------------------------
     # Chart prompt overrides (API-centric, protocol-own)

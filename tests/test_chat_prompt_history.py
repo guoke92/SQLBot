@@ -18,21 +18,7 @@ from apps.chat.steps.history import (  # noqa: E402
 )
 
 
-class _PromptBundle:
-    def as_dict(self) -> dict[str, str]:
-        return {
-            "system": "sql-system",
-            "rules": "sql-rules",
-            "ack_rules": "sql-rules-ack",
-            "schema": "schema",
-            "ack_schema": "schema-ack",
-        }
-
-
 class _Protocol:
-    def build_prompt_bundle(self, *_args, **_kwargs) -> _PromptBundle:
-        return _PromptBundle()
-
     def build_chart_system_prompt(self, _question) -> dict[str, str]:
         return {
             "system": "chart-system",
@@ -41,9 +27,8 @@ class _Protocol:
         }
 
 
-def _service(*, sql_logs=(), chart_logs=(), regenerate_record_id=None):
+def _service(*, chart_logs=(), regenerate_record_id=None):
     return SimpleNamespace(
-        generate_sql_logs=list(sql_logs),
         generate_chart_logs=list(chart_logs),
         chat_question=SimpleNamespace(regenerate_record_id=regenerate_record_id),
         base_message_round_count_limit=3,
@@ -104,7 +89,7 @@ def test_prompt_history_uses_latest_log_for_regenerated_record() -> None:
     ]
 
 
-def test_compiled_generation_log_does_not_break_next_turn() -> None:
+def test_audit_event_does_not_break_chart_history() -> None:
     compiled_log = SimpleNamespace(
         pid=86,
         messages={
@@ -113,11 +98,10 @@ def test_compiled_generation_log_does_not_break_next_turn() -> None:
             "payload": {"generation_source": "compiled", "sql": "SELECT 1"},
         },
     )
-    service = _service(sql_logs=[compiled_log], chart_logs=[compiled_log])
+    service = _service(chart_logs=[compiled_log])
 
-    nlq.assemble_prompt_messages(service)
+    nlq.assemble_chart_messages(service)
 
-    assert len(service.sql_message) == 5
     assert len(service.chart_message) == 3
 
 
@@ -129,8 +113,8 @@ def test_regenerate_without_generation_history_uses_empty_history() -> None:
             {"type": "ai", "content": "answer"},
         ],
     )
-    service = _service(sql_logs=[previous_log], regenerate_record_id=87)
+    service = _service(chart_logs=[previous_log], regenerate_record_id=87)
 
-    nlq.assemble_prompt_messages(service)
+    nlq.assemble_chart_messages(service)
 
-    assert len(service.sql_message) == 5
+    assert len(service.chart_message) == 3

@@ -43,6 +43,7 @@ class GraphSpec:
     nodes: Dict[str, str]
     edges: List[Union[PlainEdge, ConditionalEdge]] = field(default_factory=list)
     description: str = ""
+    durable: bool = True
     source_path: Optional[str] = None
 
     def node_names(self) -> set[str]:
@@ -209,6 +210,9 @@ def parse_graph_spec(raw: Any, *, source_path: str | None = None) -> GraphSpec:
         )
 
     description = str(data.get("description") or "")
+    durable = data.get("durable", True)
+    if not isinstance(durable, bool):
+        raise GraphSpecError(f"{source_path or 'spec'}: durable must be boolean")
     return GraphSpec(
         version=version,
         graph_key=graph_key,
@@ -216,5 +220,6 @@ def parse_graph_spec(raw: Any, *, source_path: str | None = None) -> GraphSpec:
         nodes=nodes,
         edges=edges,
         description=description,
+        durable=durable,
         source_path=source_path,
     )

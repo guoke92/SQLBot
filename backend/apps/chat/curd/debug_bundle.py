@@ -22,6 +22,12 @@ from apps.chat.models.chat_model import (
     ChatRecord,
     OperationEnum,
 )
+from apps.conversation.models import (
+    ConversationInterrupt,
+    ConversationRun,
+    NlqEvidenceEvent,
+    NlqRun,
+)
 from apps.datasource.models.datasource import CoreDatasource, CoreField, CoreTable
 from apps.system.models.system_model import AiModelDetail
 from common.core.deps import CurrentUser
@@ -234,21 +240,16 @@ def _build_timeline(log_history: Any) -> list[dict[str, Any]]:
     return timeline
 
 
-def _intent_summary(intent_context: Any) -> dict[str, Any] | None:
-    if not isinstance(intent_context, dict):
+def _specification_summary(specification: Any) -> dict[str, Any] | None:
+    if not isinstance(specification, dict) or not specification:
         return None
-    questions = intent_context.get("questions") or []
-    assumptions = intent_context.get("assumptions") or []
-    issues = intent_context.get("issues") or []
     return {
-        "version": intent_context.get("version"),
-        "status": intent_context.get("status"),
-        "summary": intent_context.get("summary"),
-        "question_count": len(questions) if isinstance(questions, list) else 0,
-        "assumption_count": len(assumptions) if isinstance(assumptions, list) else 0,
-        "issue_count": len(issues) if isinstance(issues, list) else 0,
-        "has_frozen_contract": bool(intent_context.get("frozen_contract")),
-        "has_draft": bool(intent_context.get("draft")),
+        "version": specification.get("version"),
+        "revision": specification.get("revision"),
+        "confidence": specification.get("confidence"),
+        "assumption_count": len(specification.get("assumptions") or []),
+        "output_count": len(specification.get("outputs") or []),
+        "predicate_count": len(specification.get("predicates") or []),
     }
 
 
@@ -492,6 +493,17 @@ def build_chat_debug_bundle(
     analysis_failures: list[dict[str, Any]] = []
     clarification_links: list[dict[str, Any]] = []
     high_signal: list[dict[str, Any]] = []
+    record_ids = [int(record.id) for record in records if record.id is not None]
+    runs = (
+        session.exec(
+            select(ConversationRun).where(
+                ConversationRun.chat_record_id.in_(record_ids)
+            )
+        ).all()
+        if record_ids
+        else []
+    )
+    runs_by_record = {int(run.chat_record_id): run for run in runs}
 
     for record in records:
         if record.ai_modal_id:
@@ -506,9 +518,15 @@ def build_chat_debug_bundle(
                 payload = payload_raw
         payload = _truncate_answer_payload(payload, max_rows)
 
-        intent_context = record.intent_context
+        run = runs_by_record.get(int(record.id))
+        nlq_run = session.get(NlqRun, run.run_id) if run and run.graph_key == "chat" else None
+        specification = (
+            nlq_run.specifications[-1]
+            if nlq_run and nlq_run.specifications
+            else None
+        )
         outcome = _outcome_summary(payload)
-        intent = _intent_summary(intent_context)
+        intent = _specification_summary(specification)
 
         raw_logs = _raw_logs_for_record(session, int(record.id))
         log_history = _log_history_from_raw(record, raw_logs)
@@ -542,11 +560,16 @@ def build_chat_debug_bundle(
                 }
             )
 
-        if record.clarification_parent_id:
+        if run and run.active_interrupt_id:
+            active_interrupt = session.get(
+                ConversationInterrupt, run.active_interrupt_id
+            )
             clarification_links.append(
                 {
                     "record_id": record.id,
-                    "parent_id": record.clarification_parent_id,
+                    "run_id": run.run_id,
+                    "interrupt_id": run.active_interrupt_id,
+                    "version": active_interrupt.version if active_interrupt else None,
                     "question": (record.question or "")[:200],
                 }
             )
@@ -583,9 +606,21 @@ def build_chat_debug_bundle(
                 "engine_type": record.engine_type,
                 "ai_modal_id": record.ai_modal_id,
                 "re_exec": _json_load_maybe(record.re_exec),
-                "intent_context": intent_context,
-                "intent_summary": intent,
-                "clarification_parent_id": record.clarification_parent_id,
+                "run": run.model_dump(mode="json") if run else None,
+                "query_specification": specification,
+                "specification_summary": intent,
+                "evidence": (
+                    [
+                        item.model_dump(mode="json")
+                        for item in session.exec(
+                            select(NlqEvidenceEvent)
+                            .where(NlqEvidenceEvent.run_id == run.run_id)
+                            .order_by(NlqEvidenceEvent.sequence)
+                        ).all()
+                    ]
+                    if run and run.graph_key == "chat"
+                    else []
+                ),
                 "analysis_record_id": record.analysis_record_id,
                 "predict_record_id": record.predict_record_id,
                 "regenerate_record_id": record.regenerate_record_id,
@@ -636,7 +671,8 @@ def build_chat_debug_bundle(
             "high_signal_steps": high_signal,
             "notes": [
                 "answer_payload.outcome is the terminal run status/quality.",
-                "intent_context holds draft/frozen contract and clarification state.",
+                "conversation_run owns lifecycle; nlq_run owns specification revisions.",
+                "nlq_evidence_event is the immutable user/system evidence ledger.",
                 "timeline.signal extracts span meta from chat_log messages.",
                 "raw_logs includes all operates (incl. recommended questions).",
                 "datasource.configuration secrets are redacted.",
