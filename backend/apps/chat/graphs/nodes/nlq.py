@@ -50,6 +50,13 @@ from apps.chat.plan_policy import (
     MAX_QUERIES_PER_BATCH,
     ROW_LIMIT,
 )
+from apps.chat.planning import executable_plans, parse_query_generation
+from apps.chat.planning_context import (
+    ChatPlanningMemory,
+    capture_planning_context,
+    load_chat_planning_memory,
+    restore_planning_context,
+)
 from apps.chat.presentation import (
     ResultPresentation,
     build_result_presentation,
@@ -79,7 +86,7 @@ from apps.chat.result_validation import (
     validate_result_structure,
     validation_issue_prompt_text,
 )
-from apps.chat.semantic_planning import stable_id
+from apps.chat.semantic_planning import public_ambiguity_payload, stable_id
 from apps.chat.steps.chart import generate_chart
 from apps.chat.steps.custom_prompt import match_custom_prompts
 from apps.chat.steps.datasource import select_datasource, validate_history_ds
@@ -97,6 +104,7 @@ from apps.chat.steps.permissions import (
 )
 from apps.chat.steps.persist import parse_chart
 from apps.chat.steps.semantic_planner import (
+    SemanticPlanningError,
     plan_semantics_and_query,
     repair_physical_query_plan,
 )
@@ -105,7 +113,6 @@ from apps.chat.task.llm import LLMService, request_picture
 from apps.chat.time_intent import TemporalParse, infer_time_intent
 from apps.conversation.messages import message_content_text
 from apps.conversation.models import NlqRun
-from apps.conversation.observability import trigger_log_error
 from apps.conversation.outcome import (
     ResultQuality,
     RunOutcome,
@@ -114,16 +121,20 @@ from apps.conversation.outcome import (
     format_error_message,
     outcome_from_steps,
     outcome_is_success,
+    public_error_message,
     running_outcome,
 )
 from apps.conversation.run_service import (
+    ConversationRunCancelled,
     active_evidence,
     create_interrupt,
     ensure_evidence,
     finalize_run,
     load_query_plan_result,
     persist_query_plan_result,
+    persist_query_planning_result,
     register_query_plans,
+    require_active_run,
 )
 from apps.conversation.runtime import submit_query
 from apps.conversation.runtime_context import attach_runtime, runtime_value
@@ -197,7 +208,6 @@ class NlqState(RunState, total=False):
     entity_bindings: dict[str, Any]  # NL phrase → canonical dimension values
     knowledge_matches: list[dict[str, Any]]
     compiled_knowledge: dict[str, Any]  # CompiledKnowledge dump; Bind/apply_log
-    access_scope_ready: bool
     temporal_parse: TemporalParse  # deterministic evidence; never executable truth
     planning_decision: Literal["pending", "clarify", "ready", "replan"]
     ambiguity_payload: dict[str, Any]
@@ -243,8 +253,6 @@ def _merge_compiled_apply_log(
 
 
 def _access_scope(state: NlqState) -> AccessScope | None:
-    if not state.get("access_scope_ready"):
-        return None
     return cast(AccessScope | None, runtime_value(state, "access_scope"))
 
 
@@ -287,12 +295,12 @@ def _enqueue_knowledge_capture(
     outcome: RunOutcome,
     steps: list[dict[str, Any]],
 ) -> None:
-    """Persist a capture job and best-effort drain one item (failure-isolated)."""
+    """Persist a capture job; the process worker drains it asynchronously."""
     from apps.chat.steps.scope import match_scope
     from apps.knowledge.capture import (
         build_turn_snapshot,
         enqueue_capture_job,
-        run_capture_worker_once,
+        schedule_capture_worker_kick,
     )
 
     # Same scope as Compile — do not force oid=1 / drop assistant via _ds_scope alone.
@@ -324,12 +332,7 @@ def _enqueue_knowledge_capture(
     with session_scope() as session:
         enqueue_capture_job(session, snapshot=snapshot)
         session.commit()
-    # Best-effort immediate drain; restart path can drain remaining jobs.
-    try:
-        with session_scope() as session:
-            run_capture_worker_once(session)
-    except Exception as exc:  # noqa: BLE001
-        SQLBotLogUtil.warning(f"knowledge capture drain failed: {exc}")
+    schedule_capture_worker_kick()
 
 
 def _generation_question(llm_service: Any) -> str:
@@ -346,11 +349,17 @@ def _generation_question(llm_service: Any) -> str:
 
 
 def _fail(state: NlqState, _record_id: int | None, exc: BaseException) -> NlqState:
+    # This is an internal ownership fence, not a query failure.  Re-raising lets
+    # the graph runtime stop a late worker without routing it through the fail
+    # node or publishing a second terminal outcome.
+    if isinstance(exc, ConversationRunCancelled):
+        raise exc
     traceback.print_exc()
     error_msg = format_error_message(exc)
     return {
         **state,
         "error": error_msg,
+        "public_error": public_error_message(exc),
         "outcome": failed_outcome(exc),
     }
 
@@ -657,111 +666,6 @@ def _assess_all_steps(
     ]
 
 
-def _format_assessment_block(assessments: list[dict[str, Any]]) -> str:
-    blocks: list[str] = []
-    for a in assessments:
-        row_count = int(a.get("row_count") or 0)
-        row_text = (
-            f"- 行数: 仅查询并展示前 {row_count} 行"
-            if a.get("truncated")
-            else f"- 行数: {row_count}"
-        )
-        lines = [
-            f"### 查询{a['index'] + 1}"
-            + (f"（{a['brief']}）" if a.get("brief") else ""),
-            row_text,
-            f"- 字段: {', '.join(a.get('fields') or []) or '（无）'}",
-        ]
-        if a.get("null_rates"):
-            nr = ", ".join(
-                f"{k}={v:.0%}" for k, v in (a.get("null_rates") or {}).items()
-            )
-            lines.append(f"- 维度空值率: {nr}")
-        if a.get("metrics"):
-            ms = []
-            for k, st in (a.get("metrics") or {}).items():
-                if st.get("count"):
-                    ms.append(
-                        f"{k}: sum={st.get('sum')} min={st.get('min')} max={st.get('max')}"
-                    )
-                else:
-                    ms.append(f"{k}: 无数值")
-            metric_label = "展示样本指标" if a.get("truncated") else "指标"
-            lines.append(f"- {metric_label}: {'; '.join(ms)}")
-
-        # Column stats: unique values, top-N for categoricals, min/max for
-        # temporal/numeric fields
-        col_stats = a.get("column_stats") or {}
-        if col_stats:
-            stat_parts: list[str] = []
-            for fname, cs in col_stats.items():
-                if not isinstance(cs, dict):
-                    continue
-                if cs.get("type") == "numeric":
-                    stat_parts.append(
-                        f"{fname}: unique={cs.get('unique')} "
-                        f"min={cs.get('min')} max={cs.get('max')} "
-                        f"avg={cs.get('avg')} median={cs.get('median')}"
-                    )
-                elif cs.get("type") == "temporal":
-                    stat_parts.append(
-                        f"{fname}: unique={cs.get('unique')} "
-                        f"min={cs.get('min')} max={cs.get('max')}"
-                    )
-                elif cs.get("type") == "categorical":
-                    top = cs.get("top_values") or []
-                    top_str = ", ".join(
-                        f"{tv['value']}({tv['count']})" for tv in top[:6]
-                    )
-                    stat_parts.append(
-                        f"{fname}: unique={cs.get('unique')} top=[{top_str}]"
-                    )
-                else:
-                    stat_parts.append(f"{fname}: unique={cs.get('unique')}")
-            if stat_parts:
-                lines.append("- 列统计: " + "; ".join(stat_parts))
-
-        # Data sample: actual rows so LLM can reason about real values
-        sample = a.get("data_sample") or []
-        if sample:
-            lines.append(f"- 数据样本（前{len(sample)}行）:")
-            for row in sample[:5]:
-                row_str = ", ".join(f"{k}={v}" for k, v in row.items())
-                lines.append(f"  {row_str}")
-            if len(sample) > 5:
-                lines.append(f"  ... 共{len(sample)}行")
-
-        sql = (a.get("sql") or "").strip()
-        if sql:
-            sql_show = sql if len(sql) <= 4000 else sql[:4000] + " …"
-            lines.append(f"- SQL:\n```sql\n{sql_show}\n```")
-        limitations = a.get("limitations") or []
-        if limitations:
-            lines.append("- 展示限制:")
-            lines.extend(f"  - {item}" for item in limitations)
-        blocks.append("\n".join(lines))
-    return "\n\n".join(blocks)
-
-
-def _summarize_steps(
-    all_steps: list[dict[str, Any]],
-    assessments: list[dict[str, Any]] | None = None,
-) -> str:
-    """Quality-aware step summary for decide / continue context."""
-    assessments = (
-        assessments if assessments is not None else _assess_all_steps(all_steps)
-    )
-    if not assessments:
-        return "（尚无已执行查询）"
-    header = (
-        "下列为已通过执行与结构门禁的查询及其**需求完成度**摘要。"
-        "查询行数上限只影响返回窗口，不代表 SQL 错误；截断结果中的统计均为样本统计，"
-        "不得解释为全量合计。需求完成度评分不参与发布门禁，空结果和数据形态只作为"
-        "独立观察，不自动扣分。\n"
-    )
-    return header + "\n\n" + _format_assessment_block(assessments)
-
-
 def _repair_instruction(assessments: list[dict[str, Any]], question: str) -> str:
     reasons: list[str] = []
     for a in assessments:
@@ -953,62 +857,22 @@ def _fallback_analysis(
     reason: str,
     target_language: str = "简体中文",
 ) -> str:
-    """Build a complete deterministic report when summary generation fails."""
+    """Short deterministic note when summary generation fails."""
     returned_rows = sum(int(item.get("row_count") or 0) for item in assessments)
     truncated = any(bool(item.get("truncated")) for item in assessments)
     query_count = len(assessments)
-    window_note = (
-        f"{query_count} 个查询共返回 {returned_rows} 行；"
-        "至少一个查询仅展示上限内数据，未查询结果总数。"
-        if truncated
-        else f"{query_count} 个查询共返回 {returned_rows} 行。"
-    )
-    limitation = (
-        "结果受查询行数窗口限制，下面的样本指标不能视为全量合计。"
-        if truncated
-        else "未检测到平台查询行数截断。"
-    )
     if "english" in target_language.casefold() or target_language.casefold() == "en":
-        return "\n".join(
-            [
-                "## Conclusion",
-                f"The query completed. {query_count} query result(s) returned "
-                f"{returned_rows} displayed row(s).",
-                "",
-                "## SQL basis",
-                _format_assessment_block(assessments),
-                "",
-                "## Data interpretation",
-                window_note,
-                "",
-                "## Data quality and limitations",
-                limitation,
-                f"Generated summary was unavailable: {reason}",
-                "",
-                "## Recommendation",
-                "Use the displayed result together with its confidence score.",
-            ]
+        window = (
+            f"{query_count} query result(s), {returned_rows} displayed row(s)"
+            + ("; at least one result is truncated." if truncated else ".")
         )
-    return "\n".join(
-        [
-            "## 结论",
-            f"查询已完成。{window_note}",
-            "",
-            "## SQL 生成依据与解释",
-            "以下内容来自已执行 SQL、结果字段和自动质检信息：",
-            _format_assessment_block(assessments),
-            "",
-            "## 数据解读",
-            window_note,
-            "",
-            "## 数据质量与局限",
-            limitation,
-            f"文字总结生成异常：{reason}",
-            "",
-            "## 建议",
-            "请结合已展示结果和可信度评分使用；如需调整业务口径，可继续说明期望范围。",
-        ]
-    )
+        return f"The query completed ({window}) Summary generation was unavailable: {reason}"
+    window = f"{query_count} 个查询共返回 {returned_rows} 行"
+    if truncated:
+        window += "（含截断结果，样本统计不能当作全量）。"
+    else:
+        window += "。"
+    return f"查询已完成。{window} 文字总结生成异常：{reason}"
 
 
 def _record_snapshot_values(
@@ -1017,11 +881,22 @@ def _record_snapshot_values(
     *,
     finish: bool = False,
     outcome: RunOutcome | None = None,
+    public_error: str | None = None,
 ) -> dict[str, Any]:
     """Build the ChatRecord projection committed by ``finalize_run``."""
     if outcome is None:
         raise ValueError("Terminal NLQ snapshot requires an outcome")
-    payload = build_answer_payload(all_steps, analysis_text, outcome)
+    published_outcome = outcome
+    if public_error and outcome["status"] in {"failed", "limit_reached"}:
+        try:
+            parsed_public_error = orjson.loads(public_error)
+            safe_message = str(parsed_public_error.get("message") or public_error)
+        except (TypeError, ValueError):
+            safe_message = public_error
+        published_outcome = cast(RunOutcome, deepcopy(outcome))
+        for failure in published_outcome.get("failures") or []:
+            failure["message"] = safe_message
+    payload = build_answer_payload(all_steps, analysis_text, published_outcome)
     primary = all_steps[0] if all_steps and finish else {}
     primary_sql = primary.get("format_statement") or primary.get("sql") or None
     chart = primary.get("chart")
@@ -1029,7 +904,7 @@ def _record_snapshot_values(
     error: str | None = None
     if finish and outcome and outcome["status"] in {"failed", "limit_reached"}:
         failures = outcome.get("failures") or []
-        error = str(
+        error = public_error or str(
             failures[0].get("message")
             if failures
             else "Conversation completed without a usable result"
@@ -1198,7 +1073,6 @@ def prepare_record_node(state: NlqState) -> NlqState:
             "entity_bindings": {},
             "knowledge_matches": [],
             "compiled_knowledge": {},
-            "access_scope_ready": False,
             "temporal_parse": {},
             "planning_decision": "pending",
             "ambiguity_payload": {},
@@ -1224,32 +1098,58 @@ def ensure_datasource_node(state: NlqState) -> NlqState:
     llm_service = _llm_service(state)
     sink = StreamSink.from_state(state)
 
-    with session_scope() as session:
-        try:
-            if not llm_service.ds:
-                for chunk in select_datasource(llm_service, session):
-                    sink.token(
-                        content=chunk.get("content"),
-                        reasoning_content=chunk.get("reasoning_content"),
-                        event_type="datasource-result",
+    try:
+        with log_span(
+            operate=OperationEnum.CHOOSE_DATASOURCE,
+            record_id=llm_service.record.id,
+            local_operation=bool(llm_service.ds),
+            phase="prepare",
+            graph_node="ensure_datasource",
+            title_key="chat.log.CHOOSE_DATASOURCE",
+        ) as span:
+            with session_scope() as session:
+                selected_by_model = not bool(llm_service.ds)
+                if selected_by_model:
+                    for chunk in select_datasource(
+                        llm_service, session, audit_span=span
+                    ):
+                        sink.token(
+                            content=chunk.get("content"),
+                            reasoning_content=chunk.get("reasoning_content"),
+                            event_type="datasource-result",
+                        )
+                    sink.event(
+                        {
+                            "id": llm_service.ds.id,
+                            "datasource_name": llm_service.ds.name,
+                            "engine_type": getattr(llm_service.ds, "type", None),
+                            "type": "datasource",
+                        }
                     )
-                sink.event(
+                else:
+                    validate_history_ds(llm_service, session)
+
+                connected = llm_service.protocol.check_connection(ds=llm_service.ds)
+                if not connected:
+                    raise SQLBotDBConnectionError("Datasource connection failed")
+                span.set_input(
                     {
-                        "id": llm_service.ds.id,
-                        "datasource_name": llm_service.ds.name,
-                        "engine_type": getattr(llm_service.ds, "type", None),
-                        "type": "datasource",
+                        "datasource_id": getattr(llm_service.ds, "id", None),
+                        "selected_by_model": selected_by_model,
                     }
                 )
-            else:
-                validate_history_ds(llm_service, session)
-
-            connected = llm_service.protocol.check_connection(ds=llm_service.ds)
-            if not connected:
-                raise SQLBotDBConnectionError("Datasource connection failed")
-            return state
-        except Exception as e:
-            return _fail(state, llm_service.record.id, e)
+                span.set_output(
+                    {
+                        "connected": True,
+                        "datasource_id": getattr(llm_service.ds, "id", None),
+                        "datasource_name": getattr(llm_service.ds, "name", ""),
+                        "engine_type": getattr(llm_service.ds, "type", None),
+                    }
+                )
+                span.set_summary("chat.audit.datasource_selected")
+                return state
+    except Exception as e:
+        return _fail(state, llm_service.record.id, e)
 
 
 def recall_knowledge_node(state: NlqState) -> NlqState:
@@ -1290,20 +1190,33 @@ def parse_temporal_evidence_node(state: NlqState) -> NlqState:
 def resolve_access_scope_node(state: NlqState) -> NlqState:
     """Resolve datasource visibility once for every downstream NLQ stage."""
     llm_service = _llm_service(state)
-    with session_scope() as session:
-        try:
-            access_scope = resolve_access_scope(
-                session,
-                current_user=llm_service.current_user,
-                ds=llm_service.ds,
-            )
-            attach_runtime(str(state["run_id"]), access_scope=access_scope)
-            return {
-                **state,
-                "access_scope_ready": access_scope is not None,
-            }
-        except Exception as exc:
-            return _fail(state, llm_service.record.id, exc)
+    try:
+        with log_span(
+            operate=OperationEnum.CHOOSE_TABLE,
+            record_id=llm_service.record.id,
+            local_operation=True,
+            phase="prepare",
+            graph_node="resolve_access_scope",
+            title_key="chat.log.CHOOSE_TABLE",
+            brief="access scope",
+        ) as span:
+            with session_scope() as session:
+                access_scope = resolve_access_scope(
+                    session,
+                    current_user=llm_service.current_user,
+                    ds=llm_service.ds,
+                )
+                attach_runtime(str(state["run_id"]), access_scope=access_scope)
+                span.set_detail(
+                    {
+                        "access_scope_applied": access_scope is not None,
+                        "datasource_id": getattr(llm_service.ds, "id", None),
+                    }
+                )
+                span.set_summary("chat.audit.access_scope_ready")
+                return state
+    except Exception as exc:
+        return _fail(state, llm_service.record.id, exc)
 
 
 def match_training_node(state: NlqState) -> NlqState:
@@ -1314,10 +1227,13 @@ def match_training_node(state: NlqState) -> NlqState:
     user-confirmed business evidence.
     """
     llm_service = _llm_service(state)
-    # Clear stale data before the single plan_query retrieval/application point.
-    if getattr(llm_service, "chat_question", None) is not None:
-        llm_service.chat_question.data_training = ""
-    return state
+    oid, ds_id = _ds_scope(llm_service)
+    try:
+        with session_scope() as session:
+            match_training(llm_service, session, oid, ds_id)
+        return state
+    except Exception as exc:
+        return _fail(state, llm_service.record.id, exc)
 
 
 def match_custom_prompts_node(state: NlqState) -> NlqState:
@@ -1365,6 +1281,28 @@ def retrieve_context_node(state: NlqState) -> NlqState:
     Re-running this stage after clarification is safe because retrieved facts
     are deduplicated when they enter the evidence ledger.
     """
+    # Clarification only appends immutable user evidence; it does not change
+    # datasource metadata. Reuse the durable snapshot instead of repeating all
+    # external retrieval calls (and their failure modes) after every answer.
+    if state.get("planning_decision") == "replan":
+        llm_service = _llm_service(state)
+        with session_scope() as session:
+            nlq_run = session.get(NlqRun, str(state["run_id"]))
+            persisted = dict(nlq_run.planning_context or {}) if nlq_run else {}
+        if persisted:
+            try:
+                snapshot = restore_planning_context(llm_service, persisted)
+                return {
+                    **state,
+                    "entity_bindings": snapshot.entity_bindings,
+                    "temporal_parse": snapshot.temporal_parse,
+                    "compiled_knowledge": snapshot.compiled_knowledge,
+                }
+            except ValueError:
+                # A malformed/incomplete snapshot is rebuilt through the sole
+                # retrieval path below; planning is never allowed to consume it.
+                pass
+
     current = state
     for step in (
         recall_knowledge_node,
@@ -1377,6 +1315,31 @@ def retrieve_context_node(state: NlqState) -> NlqState:
         current = step(current)
         if current.get("error"):
             break
+    if not current.get("error"):
+        llm_service = _llm_service(current)
+        snapshot = capture_planning_context(
+            llm_service,
+            entity_bindings=current.get("entity_bindings") or {},
+            temporal_parse=current.get("temporal_parse") or {},
+        )
+        if not snapshot.usable:
+            return _fail(
+                current,
+                llm_service.record.id,
+                "No usable datasource schema was retrieved for query planning",
+            )
+        with session_scope() as session:
+            require_active_run(session, str(current["run_id"]))
+            nlq_run = session.get(NlqRun, str(current["run_id"]))
+            if nlq_run is None:
+                return _fail(
+                    current,
+                    llm_service.record.id,
+                    f"NLQ run {current['run_id']} not found",
+                )
+            nlq_run.planning_context = snapshot.model_dump(mode="json")
+            session.add(nlq_run)
+            session.commit()
     return current
 
 
@@ -1390,8 +1353,20 @@ def plan_query_node(state: NlqState) -> NlqState:
         oid, ds_id = _ds_scope(llm_service)
         knowledge_seeds: list[KnowledgeSeed] = []
         knowledge_prepare_log: list[ApplyHit] = []
+        memory = ChatPlanningMemory(
+            turns=[],
+            previous_specification=None,
+            resolved_business_axes=frozenset(),
+        )
         with session_scope() as session:
-            match_training(llm_service, session, oid, ds_id)
+            require_active_run(session, run_id)
+            nlq_run = session.get(NlqRun, run_id)
+            if nlq_run is None:
+                raise LookupError(f"NLQ run {run_id} not found")
+            planning_context = restore_planning_context(
+                llm_service,
+                dict(nlq_run.planning_context or {}),
+            )
             schema_text = str(llm_service.chat_question.db_schema or "")
             ensure_evidence(
                 session,
@@ -1399,7 +1374,10 @@ def plan_query_node(state: NlqState) -> NlqState:
                 kind="schema_fact",
                 source="schema",
                 content="schema:" + hashlib.sha256(schema_text.encode()).hexdigest(),
-                structured_value={"resources": list(llm_service.table_name_list or [])},
+                structured_value={
+                    "resources": list(planning_context.resources),
+                    "fingerprint": planning_context.fingerprint,
+                },
                 confidence=1.0,
             )
             terminology_text = str(llm_service.chat_question.terminologies or "")
@@ -1494,13 +1472,37 @@ def plan_query_node(state: NlqState) -> NlqState:
                     )
             session.commit()
             evidence = active_evidence(session, run_id)
-            nlq_run = session.get(NlqRun, run_id)
-            if nlq_run is None:
-                raise LookupError(f"NLQ run {run_id} not found")
+            memory = load_chat_planning_memory(
+                session,
+                chat_id=int(llm_service.record.chat_id),
+                current_record_id=record_id,
+            )
             previous = (
                 QuerySpecification.model_validate(nlq_run.specifications[-1])
                 if nlq_run.specifications
                 else None
+            )
+            if previous is None and memory.previous_specification:
+                try:
+                    previous = QuerySpecification.model_validate(
+                        memory.previous_specification
+                    )
+                except Exception:
+                    previous = None
+        if compiled is not None:
+            from apps.conversation.lifecycle_log import log_lifecycle
+
+            log_lifecycle(
+                "knowledge_recalled",
+                run_id=run_id,
+                record_id=record_id,
+                graph_key="chat",
+                count=len(compiled.bound_calibers)
+                + sum(
+                    1
+                    for hit in compiled.apply_log
+                    if hit.reason == "staging_caliber_hint"
+                ),
             )
         with log_span(
             operate=OperationEnum.CLARIFY_INTENT,
@@ -1508,23 +1510,37 @@ def plan_query_node(state: NlqState) -> NlqState:
             ai_modal_id=llm_service.chat_question.ai_modal_id,
             ai_modal_name=llm_service.chat_question.ai_modal_name,
             graph_node="plan_query",
+            phase="understand",
+            title_key="chat.log.CLARIFY_INTENT",
             brief="理解需求并规划查询",
         ) as span:
-            compiled_constraints = (
-                compiled.constraints if compiled else []
-            )
+            compiled_constraints = compiled.constraints if compiled else []
             result = plan_semantics_and_query(
                 llm_service,
                 evidence=evidence,
                 previous_specification=previous,
-                entity_bindings=state.get("entity_bindings") or {},
-                temporal_parse=state.get("temporal_parse") or {},
+                entity_bindings=planning_context.entity_bindings,
+                temporal_parse=planning_context.temporal_parse,
                 max_batch_size=state.get("max_batch_size") or _MAX_BATCH_SIZE,
                 knowledge_seeds=knowledge_seeds,
                 business_rules=compiled_constraints,
+                conversation_history=memory.turns,
+                inherited_business_axes=set(memory.resolved_business_axes),
+                audit_span=span,
+                on_stream=lambda chunk: sink.token(
+                    content="",
+                    reasoning_content=chunk.get("reasoning_content") or "",
+                    event_type="clarification-reasoning",
+                ),
             )
             span["token_usage"] = result.usage
             span["reasoning_content"] = result.reasoning
+            span.set_model_context(result.model_messages)
+            span.set_summary(
+                "chat.audit.planning_clarification"
+                if result.decision.decision == "needs_clarification"
+                else "chat.audit.planning_ready"
+            )
             span["payload"] = {
                 "decision": result.decision.decision,
                 "attempts": result.attempts,
@@ -1532,18 +1548,29 @@ def plan_query_node(state: NlqState) -> NlqState:
                     item.model_dump(mode="json") for item in result.knowledge_apply
                 ],
             }
+        if result.knowledge_apply:
+            from apps.conversation.lifecycle_log import log_lifecycle
+
+            for hit in result.knowledge_apply:
+                log_lifecycle(
+                    "knowledge_dropped"
+                    if hit.apply == "drop"
+                    else "knowledge_applied",
+                    run_id=run_id,
+                    record_id=record_id,
+                    graph_key="chat",
+                    asset_id=hit.asset_id,
+                    asset_kind=hit.asset_kind,
+                    reason=hit.reason,
+                )
         compiled_payload = _merge_compiled_apply_log(
             llm_service,
             [*knowledge_prepare_log, *result.knowledge_apply],
         )
-        if result.reasoning:
-            sink.token(
-                content=result.reasoning,
-                event_type="clarification-reasoning",
-            )
         if result.decision.decision == "needs_clarification":
-            payload = result.decision.ambiguity_set.model_dump(mode="json")
+            payload = public_ambiguity_payload(result.decision.ambiguity_set)
             with session_scope() as session:
+                require_active_run(session, run_id)
                 nlq_run = session.get(NlqRun, run_id)
                 if nlq_run is not None:
                     nlq_run.planning_status = "awaiting_input"
@@ -1572,50 +1599,29 @@ def plan_query_node(state: NlqState) -> NlqState:
             specification = previous
         parsed = result.parsed_plans
         parsed_plans = list(parsed.plans if parsed else [])
-        # ``partial`` has two meanings at the AST boundary: a concrete
-        # mismatch carries ``contract_message`` and is repairable, while an
-        # unobservable semantic_ref has no error and must remain a disclosed
-        # quality risk. Retrying SQL cannot make the latter observable.
-        plan_ready = bool(
-            parsed and parsed.success and not parsed.requires_contract_repair
-        )
+        # Specification disagreement is advisory: keep the batch, score later.
+        # Only a structural parse failure withholds plans and asks for repair.
+        plans = executable_plans(parsed)
+        plan_ready = bool(plans)
         safe_candidate: CandidateBatch | None = None
-        if parsed and parsed.requires_contract_repair:
+        if parsed and parsed.requires_contract_repair and parsed_plans:
             safe_candidate = {
                 "plans": parsed_plans,
                 "plan_validated": parsed.plan_validated,
                 "contract_status": "partial",
             }
-        plans = parsed_plans if plan_ready else []
         physical_issue = (
-            (parsed.error_message or parsed.contract_message)
+            parsed.error_message
             if parsed
             else "Planner did not return a physical plan"
         )
         with session_scope() as session:
-            nlq_run = session.get(NlqRun, run_id)
-            if nlq_run is None:
-                raise LookupError(f"NLQ run {run_id} not found")
-            serialized_specification = specification.model_dump(mode="json")
-            if (
-                not nlq_run.specifications
-                or nlq_run.specifications[-1] != serialized_specification
-            ):
-                nlq_run.specifications = [
-                    *(nlq_run.specifications or []),
-                    serialized_specification,
-                ]
-            nlq_run.active_specification_revision = specification.revision
-            nlq_run.planning_status = "ready"
-            session.add(nlq_run)
-            session.commit()
-            if parsed_plans:
-                register_query_plans(
-                    session,
-                    run_id=run_id,
-                    specification_revision=specification.revision,
-                    plans=parsed_plans,
-                )
+            persist_query_planning_result(
+                session,
+                run_id=run_id,
+                specification=specification.model_dump(mode="json"),
+                plans=parsed_plans,
+            )
         # ── K4 Reuse short-circuit (from compile layer) ──
         reuse_match: dict[str, Any] | None = None
         if plan_ready:
@@ -1624,27 +1630,66 @@ def plan_query_node(state: NlqState) -> NlqState:
                 reuse_match = compiled_obj.reuse
 
         if reuse_match is not None:
+            from apps.knowledge.reuse import (
+                ReuseResult,
+                build_reuse_apply_hit,
+            )
+
             reuse_sql = str(
                 reuse_match.get("rebound_sql") or reuse_match.get("sql") or ""
             )
+            reuse_parse = None
+            if reuse_sql:
+                reuse_parse = parse_query_generation(
+                    orjson.dumps([{"sql": reuse_sql}]).decode(),
+                    llm_service,
+                    max_batch_size=1,
+                    specification=specification,
+                )
+            reuse_valid = bool(
+                reuse_parse
+                and reuse_parse.success
+                and reuse_parse.plan_validated
+                and reuse_parse.contract_status == "verified"
+                and not reuse_parse.requires_contract_repair
+                and reuse_parse.plans
+            )
+            if not reuse_valid:
+                drop = ApplyHit(
+                    asset_kind="example",
+                    asset_id=reuse_match.get("exemplar_id"),
+                    lineage_id=reuse_match.get("lineage_id"),
+                    trust_tier="certified",
+                    apply="drop",
+                    reason="reuse_validation_failed",
+                )
+                compiled_payload = _merge_compiled_apply_log(llm_service, [drop])
+                reuse_match = None
+
+        if reuse_match is not None and reuse_parse is not None:
             reuse_plan = {
-                "sql": reuse_sql,
+                **reuse_parse.plans[0],
                 "plan_id": stable_id("reuse", reuse_sql),
                 "reuse": True,
                 "exemplar_id": reuse_match.get("exemplar_id"),
             }
+            reuse_hit = build_reuse_apply_hit(ReuseResult.model_validate(reuse_match))
+            compiled_payload = _merge_compiled_apply_log(llm_service, [reuse_hit])
             with log_span(
                 operate=OperationEnum.GENERATE_QUERY,
                 record_id=record_id,
                 ai_modal_id=llm_service.chat_question.ai_modal_id,
                 ai_modal_name=llm_service.chat_question.ai_modal_name,
                 graph_node="plan_query",
+                phase="plan",
+                title_key="chat.log.GENERATE_QUERY",
                 brief="K4 Reuse 匹配命中",
             ) as span:
                 span["payload"] = {
                     "reuse": True,
                     "exemplar_id": reuse_match.get("exemplar_id"),
-                    "similarity": reuse_match.get("confidence") or reuse_match.get("similarity"),
+                    "similarity": reuse_match.get("confidence")
+                    or reuse_match.get("similarity"),
                 }
             assemble_chart_messages(llm_service)
             return {
@@ -1685,6 +1730,13 @@ def plan_query_node(state: NlqState) -> NlqState:
             "compiled_knowledge": compiled_payload,
         }
     except Exception as exc:
+        if isinstance(exc, SemanticPlanningError):
+            if exc.reasoning:
+                sink.token(
+                    content="",
+                    reasoning_content=exc.reasoning,
+                    event_type="clarification-reasoning",
+                )
         return _fail(state, record_id, exc)
 
 
@@ -1722,8 +1774,10 @@ def ground_entities_node(state: NlqState) -> NlqState:
         record_id=record_id,
         ai_modal_id=getattr(llm_service.chat_question, "ai_modal_id", None),
         ai_modal_name=getattr(llm_service.chat_question, "ai_modal_name", None),
-        local_operation=True,
-        graph_node="ground_entities",
+            local_operation=True,
+            phase="understand",
+            graph_node="ground_entities",
+            title_key="chat.log.GROUND_ENTITIES",
     ) as span:
         bindings = resolve_entity_bindings(
             state.get("knowledge_matches") or [],
@@ -1806,10 +1860,10 @@ def _plan_repair_message(refusal: str) -> str:
 def generate_queries_node(state: NlqState) -> NlqState:
     """Plan SQL queries for the current batch.
 
-    Plan-time validate failures set ``repair_hint`` + ``gen_attempts`` and let
-    ``route_after_queries`` loop back (no hard-fail until budget exhausted).
-
-    The fixed QuerySpecification is the sole semantic input to repair.
+    The initial physical plan is produced with the specification. This node
+    re-enters only for bounded structural repair (empty/invalid SQL or an
+    execute-time rewrite). Specification disagreement is advisory and does
+    not empty ``active_candidate``.
     """
     llm_service = _llm_service(state)
     sink = StreamSink.from_state(state)
@@ -1851,6 +1905,8 @@ def generate_queries_node(state: NlqState) -> NlqState:
             ai_modal_id=llm_service.chat_question.ai_modal_id,
             ai_modal_name=llm_service.chat_question.ai_modal_name,
             graph_node="generate_queries",
+            phase="plan",
+            title_key="chat.log.GENERATE_QUERY",
             brief="修复物理查询计划",
             step_index=step_index,
             gen_attempts=gen_attempts,
@@ -1864,6 +1920,7 @@ def generate_queries_node(state: NlqState) -> NlqState:
             )
             span["token_usage"] = physical.usage
             span["reasoning_content"] = physical.reasoning
+            span.set_model_context(physical.model_messages)
             span["payload"] = {
                 "status": (
                     "valid"
@@ -1886,7 +1943,7 @@ def generate_queries_node(state: NlqState) -> NlqState:
         batch_parse = physical.parsed_plans
         full_sql_text = physical.raw_text
 
-        plans = list(batch_parse.plans)
+        plans = executable_plans(batch_parse)
         refusal = batch_parse.error_message
         if plans:
             for plan in plans:
@@ -1896,16 +1953,13 @@ def generate_queries_node(state: NlqState) -> NlqState:
                         "plan", str(plan.get("payload") or plan.get("sql") or "")
                     ),
                 )
-        contract_partial = batch_parse.requires_contract_repair
         safe_candidate: CandidateBatch | None = None
-        if contract_partial:
+        if batch_parse.requires_contract_repair and batch_parse.plans:
             safe_candidate = {
-                "plans": plans,
+                "plans": list(batch_parse.plans),
                 "plan_validated": batch_parse.plan_validated,
                 "contract_status": "partial",
             }
-            refusal = batch_parse.contract_message or "查询计划未完整覆盖查询规格"
-            plans = []
 
         _maybe_update_chat_brief(
             llm_service, sink, _extract_title_from_sql_answer(full_sql_text, plans)
@@ -2061,39 +2115,51 @@ def execute_queries_node(state: NlqState) -> NlqState:
         brief = (plan_dict.get("brief") or "")[:40]
         record_id = getattr(llm_service.record, "id", None)
         plan_id = str(plan_dict.get("plan_id") or "")
-        if plan_id:
-            with session_scope() as replay_session:
-                persisted = load_query_plan_result(
-                    replay_session,
-                    run_id=str(state["run_id"]),
-                    plan_id=plan_id,
-                )
-            if persisted is not None:
-                return {
-                    "index": idx,
-                    "result": persisted,
-                    "plan": plan_dict,
-                    "re_exec": persisted.get("re_exec"),
-                    "replayed": True,
-                }
         with log_span(
             operate=OperationEnum.EXECUTE_QUERY,
             record_id=record_id,
             local_operation=True,
+            phase="execute",
             graph_node="execute_queries",
+            title_key="chat.log.EXECUTE_QUERY",
             step_index=state.get("step_index", 0),
             unit_index=gidx,
             brief=brief,
-            initial_payload={
-                "count": 0,
-                "sql": sql_show[:2000],
-                "index": gidx,
-            },
         ) as span:
             try:
+                if plan_id:
+                    with session_scope() as replay_session:
+                        persisted = load_query_plan_result(
+                            replay_session,
+                            run_id=str(state["run_id"]),
+                            plan_id=plan_id,
+                        )
+                    if persisted is not None:
+                        rows = persisted.get("data")
+                        count = len(rows) if isinstance(rows, list) else 0
+                        span.set_detail(
+                            {
+                                "count": count,
+                                "sql": sql_show[:2000],
+                                "index": gidx,
+                                "brief": brief,
+                                "source": "replay",
+                            }
+                        )
+                        span.set_input(plan_dict)
+                        span.set_output(persisted)
+                        span.set_summary("chat.audit.query_replayed", count=count)
+                        return {
+                            "index": idx,
+                            "result": persisted,
+                            "plan": plan_dict,
+                            "re_exec": persisted.get("re_exec"),
+                            "replayed": True,
+                        }
                 if plan_dict.get("prep_error"):
                     raise SingleMessageError(plan_dict["prep_error"])
                 qp = _query_plan(plan_dict)
+                span.set_input(plan_dict)
                 with session_scope() as session:
                     _ = session
                     qr = llm_service.protocol.execute(
@@ -2104,6 +2170,7 @@ def execute_queries_node(state: NlqState) -> NlqState:
                         ),
                     )
                     result = qr.as_dict()
+                    span.set_output(result)
                     if result.get("is_success") is False:
                         code = result.get("code_value")
                         msg = (
@@ -2132,6 +2199,7 @@ def execute_queries_node(state: NlqState) -> NlqState:
                         if isinstance(result, dict)
                         else [],
                     }
+                    span.set_summary("chat.audit.query_executed", count=n)
                     return {
                         "index": idx,
                         "result": result,
@@ -2140,7 +2208,7 @@ def execute_queries_node(state: NlqState) -> NlqState:
                         or getattr(qr, "re_exec", None),
                     }
             except Exception as exc:
-                span["error"] = True
+                span.mark_failed(format_error_message(exc)[:500])
                 span["payload"] = {
                     "count": 0,
                     "sql": sql_show[:2000],
@@ -2158,6 +2226,8 @@ def execute_queries_node(state: NlqState) -> NlqState:
             try:
                 r = submit_query(_execute_single, 0, prepared[0]).result()
                 results[0] = r
+            except ConversationRunCancelled:
+                raise
             except Exception as e:
                 results[0] = {
                     "index": 0,
@@ -2174,6 +2244,8 @@ def execute_queries_node(state: NlqState) -> NlqState:
                 idx = futures[future]
                 try:
                     results[idx] = future.result()
+                except ConversationRunCancelled:
+                    raise
                 except Exception as e:
                     results[idx] = {
                         "index": idx,
@@ -2283,7 +2355,25 @@ def generate_charts_node(state: NlqState) -> NlqState:
             presentations.append(presentation)
 
             if chart_type == "table":
-                chart = _table_chart(presentation)
+                with log_span(
+                    operate=OperationEnum.GENERATE_CHART,
+                    record_id=llm_service.record.id,
+                    local_operation=True,
+                    phase="present",
+                    graph_node="generate_charts",
+                    title_key="chat.log.GENERATE_CHART",
+                    step_index=state.get("step_index", 0),
+                    unit_index=gidx,
+                    brief="table",
+                ) as span:
+                    chart = _table_chart(presentation)
+                    span.set_detail(
+                        {
+                            "chart_type": "table",
+                            "column_count": len(presentation.get("columns") or []),
+                        }
+                    )
+                    span.set_summary("chat.audit.table_ready")
                 charts.append(chart)
                 continue
 
@@ -2349,16 +2439,27 @@ def generate_charts_node(state: NlqState) -> NlqState:
                 SQLBotLogUtil.warning(
                     f"Chart generation fallback to table at step {gidx}: {chart_exc}"
                 )
-                log = llm_service.current_logs.get(OperationEnum.GENERATE_CHART)
-                if log is not None:
-                    try:
-                        with session_scope() as session:
-                            trigger_log_error(session, log)
-                    except Exception:
-                        SQLBotLogUtil.warning(
-                            f"Failed to mark chart fallback log at step {gidx}"
-                        )
                 chart = _table_chart(presentation)
+                with log_span(
+                    operate=OperationEnum.GENERATE_CHART,
+                    record_id=llm_service.record.id,
+                    local_operation=True,
+                    phase="present",
+                    graph_node="generate_charts",
+                    title_key="chat.log.GENERATE_CHART",
+                    step_index=state.get("step_index", 0),
+                    unit_index=gidx,
+                    brief="table fallback",
+                ) as fallback_span:
+                    fallback_span.set_detail(
+                        {
+                            "chart_type": "table",
+                            "source": "chart_fallback",
+                            "column_count": len(presentation.get("columns") or []),
+                        }
+                    )
+                    fallback_span.set_summary("chat.audit.table_ready")
+                    fallback_span.mark_degraded(str(chart_exc))
             charts.append(chart)
 
         # Restore base chart messages after batch
@@ -2396,42 +2497,46 @@ def generate_charts_node(state: NlqState) -> NlqState:
 
 
 _SUMMARY_PROMPT = """\
-你是数据分析助手。请只根据已执行结果生成最终总结，不能再生成或修改 SQL。
+根据已执行结果写一段简要分析，直接回答用户问题。
 
 {steps_summary}
 
-平台已经使用确定性规则计算了以下需求完成度报告：
-{quality_summary}
-
 用户原问题：{question}
 
-直接输出完整 Markdown 报告，不要输出 JSON、action 或额外说明。
-不得修改评分、等级、各指标得分或数据观察，也不得将总结作为结果发布门禁。
-只能解释已执行结果和确定性元数据：
-- MIN/MAX 只表示数值最小/最大，不得擅自解释成业务上的更优/更差；
-- 多个金额相等、空值或单侧为 0 时，只陈述观察；没有证据不得推断业务原因；
-- 描述数值范围或主要分布时必须同时披露样本中的空值情况；
-- 面向用户的字段称谓优先采用“业务名称(field_name)”，不要只罗列技术字段名。
-
-报告必须包含：
-## 结论
-直接回答用户问题。
-
-## SQL 生成依据与解释
-说明事实表、共享粒度、关联键、时间范围、过滤、聚合和排序依据。
-
-## 数据解读
-引用实际返回的数据。若结果达到 query_limit，必须写明仅查询并展示了前 N 行、
-未查询总数；样本的 sum/avg 不能解释为全量统计。
-
-## 数据质量与局限
-区分 SQL 本身的限制与平台查询行数窗口，明确尚不能从数据中得出的结论。
-
-## 建议
-只给出 1～3 条与本次结果直接相关的后续分析建议。平台固定仅查询并展示前 N 行时，
-不得建议取消/提高行数窗口或额外查询总记录数；用户确实要求全量统计时，应建议另行生成
-聚合结果，而不是扩大明细展示窗口。
+要求：
+- 只用 3～6 句；不要 SQL、不要 JSON、不要分节标题。
+- 引用关键数字；结果被截断时明确说这是展示窗口内的样本，不能当作全量合计。
+- 没有证据不要推断业务原因。
+- 使用会话语言：{target_language}。
 """
+
+
+def _brief_result_facts(assessments: list[dict[str, Any]]) -> str:
+    """Compact facts for the user-facing summary — not a second SQL dump."""
+    if not assessments:
+        return "（尚无已执行查询）"
+    lines: list[str] = []
+    for item in assessments:
+        index = int(item.get("index") or 0) + 1
+        rows = int(item.get("row_count") or 0)
+        truncated = "，已截断" if item.get("truncated") else ""
+        fields = ", ".join(str(name) for name in (item.get("fields") or [])[:12])
+        lines.append(f"查询{index}: {rows} 行{truncated}")
+        if fields:
+            lines.append(f"字段: {fields}")
+        metrics = item.get("metrics") or {}
+        if isinstance(metrics, dict) and metrics:
+            parts = []
+            for name, stats in list(metrics.items())[:6]:
+                if not isinstance(stats, dict):
+                    continue
+                if stats.get("count"):
+                    parts.append(f"{name} sum={stats.get('sum')}")
+            if parts:
+                lines.append("指标: " + "; ".join(parts))
+        limitations = item.get("limitations") or []
+        lines.extend(f"限制: {note}" for note in limitations[:3])
+    return "\n".join(lines)
 
 
 def _summary_messages(
@@ -2441,11 +2546,11 @@ def _summary_messages(
     *,
     target_language: str,
 ) -> list[Any]:
-    quality_summary = orjson.dumps(quality).decode()
+    del quality  # Quality stays on the stamp; do not ask the model to rewrite it.
     return [
         SystemMessage(
             content=(
-                "你负责根据已执行查询结果生成完整 Markdown 总结。"
+                "你负责用几句话解释已执行查询结果。"
                 "不要生成或修改 SQL，不要返回 JSON。"
                 f"所有面向用户的内容必须使用当前会话语言：{target_language}。"
             )
@@ -2453,8 +2558,8 @@ def _summary_messages(
         HumanMessage(
             _SUMMARY_PROMPT.format(
                 steps_summary=steps_summary,
-                quality_summary=quality_summary,
                 question=question,
+                target_language=target_language,
             )
         ),
     ]
@@ -2491,7 +2596,9 @@ def decide_next_node(state: NlqState) -> NlqState:
         ai_modal_id=getattr(llm_service.chat_question, "ai_modal_id", None),
         ai_modal_name=getattr(llm_service.chat_question, "ai_modal_name", None),
         local_operation=True,
+        phase="review",
         graph_node="decide_next",
+        title_key="chat.log.DECIDE_NEXT",
         brief=f"batch={step_index}",
         step_index=step_index,
     ) as span:
@@ -2725,7 +2832,9 @@ def summarize_answer_node(state: NlqState) -> NlqState:
         ai_modal_id=getattr(llm_service.chat_question, "ai_modal_id", None),
         ai_modal_name=getattr(llm_service.chat_question, "ai_modal_name", None),
         local_operation=False,
+        phase="respond",
         graph_node="summarize_answer",
+        title_key="chat.log.ANALYSIS",
         brief="结果总结",
         step_index=state.get("step_index"),
     ) as span:
@@ -2733,14 +2842,15 @@ def summarize_answer_node(state: NlqState) -> NlqState:
             target_language = str(
                 getattr(llm_service.chat_question, "lang", "") or "简体中文"
             )
-            response: AIMessage = llm_service.llm.invoke(
-                _summary_messages(
-                    _summarize_steps(steps, assessments),
-                    question,
-                    quality,
-                    target_language=target_language,
-                )
+            summary_messages = _summary_messages(
+                _brief_result_facts(assessments),
+                question,
+                quality,
+                target_language=target_language,
             )
+            response: AIMessage = llm_service.llm.bind(
+                temperature=0, max_tokens=600
+            ).invoke(summary_messages)
             meta["used_llm"] = True
             meta["token_usage"] = usage_from_response(response)
             analysis_text = _extract_summary_text(
@@ -2753,12 +2863,14 @@ def summarize_answer_node(state: NlqState) -> NlqState:
                     target_language=target_language,
                 )
             span["token_usage"] = meta["token_usage"]
+            span.set_model_context([*summary_messages, response])
             span["payload"] = {
                 "fallback": not bool(
                     _extract_summary_text(message_content_text(response.content))
                 ),
                 "chars": len(analysis_text),
             }
+            span.set_summary("chat.audit.response_ready")
         except Exception as exc:
             SQLBotLogUtil.error(f"summarize_answer_node error: {exc}")
             analysis_text = _fallback_analysis(
@@ -2768,8 +2880,9 @@ def summarize_answer_node(state: NlqState) -> NlqState:
                     getattr(llm_service.chat_question, "lang", "") or "简体中文"
                 ),
             )
-            span["error"] = True
+            span.mark_degraded(str(exc))
             span["payload"] = {"fallback": True, "chars": len(analysis_text)}
+            span.set_summary("chat.audit.response_ready")
     return {
         **state,
         "analysis_text": analysis_text,
@@ -2875,7 +2988,7 @@ def complete_node(state: NlqState) -> NlqState:
                 session,
                 run_id=str(state["run_id"]),
                 status=run_status,
-                current_node="complete",
+                current_node=None,
                 result_quality=outcome.get("quality"),
                 record_snapshot=_record_snapshot_values(
                     updated_steps,
@@ -2979,6 +3092,7 @@ def complete_node(state: NlqState) -> NlqState:
 def fail_node(state: NlqState) -> NlqState:
     """Persist the canonical empty NLQ answer before emitting terminal failure."""
     error = str(state.get("error") or "unknown error")
+    public_error = str(state.get("public_error") or public_error_message(error))
     current_outcome = state.get("outcome")
     outcome = (
         cast(RunOutcome, dict(current_outcome))
@@ -2994,13 +3108,14 @@ def fail_node(state: NlqState) -> NlqState:
                 session,
                 run_id=str(state["run_id"]),
                 status="failed",
-                current_node="fail",
+                current_node=None,
                 result_quality=outcome.get("quality"),
                 record_snapshot=_record_snapshot_values(
                     [],
                     "",
                     finish=True,
                     outcome=outcome,
+                    public_error=public_error,
                 ),
                 error_summary=error,
             )
@@ -3008,7 +3123,7 @@ def fail_node(state: NlqState) -> NlqState:
         # Failure reporting must still reach the client when persistence itself
         # is unavailable; the shared terminal node remains the single emitter.
         SQLBotLogUtil.error(f"persist NLQ failure snapshot failed: {exc}")
-    sink.error(error)
+    sink.error(public_error)
     return {**state, "error": error, "outcome": outcome}
 
 

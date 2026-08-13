@@ -6,6 +6,7 @@ import sys
 from contextlib import contextmanager
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import Mock
 
 import pytest
 from fastapi import HTTPException
@@ -117,7 +118,7 @@ def test_config_turn_is_initialized_before_graph_submission(monkeypatch) -> None
 
 
 def test_turn_failure_uses_shared_persistence_boundary(monkeypatch) -> None:
-    session = object()
+    session = Mock()
 
     @contextmanager
     def fake_session_scope():
@@ -128,10 +129,11 @@ def test_turn_failure_uses_shared_persistence_boundary(monkeypatch) -> None:
     monkeypatch.setattr(
         conversation_turn,
         "persist_snapshot",
-        lambda current_session, record_id, *, terminal, error: persisted.append(
+        lambda current_session, record_id, *, terminal, error, commit=False: persisted.append(
             (current_session, record_id, terminal, error)
         ),
     )
+    monkeypatch.setattr(conversation_turn, "close_open_audit_spans", lambda *_: 0)
     conversation_turn.persist_turn_failure(99, "late failure")
     assert persisted == [(session, 99, True, "late failure")]
 

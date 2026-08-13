@@ -35,7 +35,7 @@ def test_progressive_snapshot_uses_one_transaction() -> None:
     assert session.commits == 1
 
 
-def test_terminal_failure_closes_record_and_logs_in_one_transaction() -> None:
+def test_terminal_failure_only_persists_record_at_snapshot_boundary() -> None:
     session = _Session()
 
     assert persist_snapshot(
@@ -46,7 +46,9 @@ def test_terminal_failure_closes_record_and_logs_in_one_transaction() -> None:
         error="query failed",
     ) is True
 
-    assert len(session.statements) == 2
+    # Audit spans are closed only by finalize_run / turn terminal boundaries,
+    # never by the generic record snapshot primitive.
+    assert len(session.statements) == 1
     assert session.commits == 1
 
 

@@ -13,6 +13,7 @@ class OperationModules(str, Enum):
     RULES = "rules"  # q组
     TERMINOLOGY = "terminology"  # 术语
     DATA_TRAINING = "data_training"  # SQL 示例库
+    KNOWLEDGE = "knowledge"  # 知识管理
     PROMPT_WORDS = "prompt_words"  # 自定义提示词
     USER = "user"  # 用户
     WORKSPACE = "workspace"  # 工作空间

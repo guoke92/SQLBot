@@ -347,7 +347,12 @@
                                 @click="submitFeedback(message, 'up')"
                               >
                                 <el-icon size="18">
-                                  <svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg"><path d="M602.2 438.4h245.5c30.4 0 55 24.6 55 55 0 8.4-1.9 16.7-5.6 24.3L767.6 802c-8.7 17.9-27 29.3-47.1 29.3H256V438.4l196.4-292.2c17.1-25.5 49.3-34.5 75.8-21.2l5.4 3.1c26.5 17.1 34.1 52.5 17 79l-5.3 7.5-87 164.8h143.9zM320 502.4v265h400.5l113.1-230.6H538.2l110.6-209.2-13-7.4L320 502.4zM256 438.4H128v393h128v-393z" fill="currentColor" /></svg>
+                                  <svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+                                    <path
+                                      d="M602.2 438.4h245.5c30.4 0 55 24.6 55 55 0 8.4-1.9 16.7-5.6 24.3L767.6 802c-8.7 17.9-27 29.3-47.1 29.3H256V438.4l196.4-292.2c17.1-25.5 49.3-34.5 75.8-21.2l5.4 3.1c26.5 17.1 34.1 52.5 17 79l-5.3 7.5-87 164.8h143.9zM320 502.4v265h400.5l113.1-230.6H538.2l110.6-209.2-13-7.4L320 502.4zM256 438.4H128v393h128v-393z"
+                                      fill="currentColor"
+                                    />
+                                  </svg>
                                 </el-icon>
                               </el-button>
                             </el-tooltip>
@@ -365,7 +370,12 @@
                                 @click="submitFeedback(message, 'down')"
                               >
                                 <el-icon size="18">
-                                  <svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg"><path d="M421.8 585.6H176.3c-30.4 0-55-24.6-55-55 0-8.4 1.9-16.7 5.6-24.3L256.4 222c8.7-17.9 27-29.3 47.1-29.3H768v393H571.6l-196.4 292.2c-17.1 25.5-49.3 34.5-75.8 21.2l-5.4-3.1c-26.5-17.1-34.1-52.5-17-79l5.3-7.5 87-164.8H421.8zM704 521.6v-265H303.5L190.4 487.2h232.4L312.2 696.4l13 7.4L704 521.6zM768 585.6h128v-393H768v393z" fill="currentColor" /></svg>
+                                  <svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+                                    <path
+                                      d="M421.8 585.6H176.3c-30.4 0-55-24.6-55-55 0-8.4 1.9-16.7 5.6-24.3L256.4 222c8.7-17.9 27-29.3 47.1-29.3H768v393H571.6l-196.4 292.2c-17.1 25.5-49.3 34.5-75.8 21.2l-5.4-3.1c-26.5-17.1-34.1-52.5-17-79l5.3-7.5 87-164.8H421.8zM704 521.6v-265H303.5L190.4 487.2h232.4L312.2 696.4l13 7.4L704 521.6zM768 585.6h128v-393H768v393z"
+                                      fill="currentColor"
+                                    />
+                                  </svg>
                                 </el-icon>
                               </el-button>
                             </el-tooltip>
@@ -527,7 +537,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref } from 'vue'
 import { Chat, chatApi, ChatInfo, type ChatMessage, ChatRecord } from '@/api/chat'
 import ChatRow from './ChatRow.vue'
 import MultiStepAnswer from './answer/MultiStepAnswer.vue'
@@ -621,104 +631,7 @@ const appearanceStore = useAppearanceStoreWithOut()
 const currentChatId = ref<number | undefined>()
 const currentChat = ref<ChatInfo>(new ChatInfo())
 const isTyping = ref<boolean>(false)
-let persistedTurnTimer: ReturnType<typeof setInterval> | undefined
-let persistedTurnLoading = false
-let persistedTurnGeneration = 0
 
-const persistedTurnInProgress = computed(() =>
-  currentChat.value.records.some(
-    (record) => !!record.id && ['queued', 'running'].includes(record.run_status || '')
-  )
-)
-
-function stopPersistedTurnPolling() {
-  persistedTurnGeneration += 1
-  if (persistedTurnTimer) {
-    clearInterval(persistedTurnTimer)
-    persistedTurnTimer = undefined
-  }
-}
-
-function mergePersistedChat(info: ChatInfo) {
-  const existingRecords = new Map(
-    currentChat.value.records
-      .filter((record) => record.id !== undefined)
-      .map((record) => [record.id, record])
-  )
-  const mergedRecords = info.records.map((record) => {
-    const existing = record.id !== undefined ? existingRecords.get(record.id) : undefined
-    if (!existing) return record
-    Object.assign(existing, record)
-    return existing
-  })
-  Object.assign(currentChat.value, info)
-  currentChat.value.records = mergedRecords
-}
-
-async function refreshPersistedTurns() {
-  const chatId = currentChatId.value
-  const generation = persistedTurnGeneration
-  if (
-    chatId === undefined ||
-    isTyping.value ||
-    !persistedTurnInProgress.value ||
-    persistedTurnLoading
-  ) {
-    return
-  }
-
-  persistedTurnLoading = true
-  try {
-    const response = await chatApi.get(chatId)
-    const info = chatApi.toChatInfo(response)
-    if (
-      info &&
-      persistedTurnTimer &&
-      persistedTurnGeneration === generation &&
-      currentChatId.value === chatId
-    ) {
-      mergePersistedChat(info)
-    }
-  } catch (error) {
-    console.warn('Failed to refresh persisted conversation state', error)
-  } finally {
-    persistedTurnLoading = false
-    if (
-      persistedTurnGeneration === generation &&
-      (!persistedTurnInProgress.value || currentChatId.value !== chatId || isTyping.value)
-    ) {
-      stopPersistedTurnPolling()
-    }
-  }
-}
-
-function startPersistedTurnPolling() {
-  if (
-    persistedTurnTimer ||
-    currentChatId.value === undefined ||
-    isTyping.value ||
-    !persistedTurnInProgress.value
-  ) {
-    return
-  }
-
-  persistedTurnTimer = setInterval(() => void refreshPersistedTurns(), 1500)
-  void refreshPersistedTurns()
-}
-
-watch(
-  [currentChatId, isTyping, persistedTurnInProgress],
-  ([chatId, typing, turnInProgress], [previousChatId]) => {
-    if (chatId !== previousChatId) {
-      stopPersistedTurnPolling()
-    }
-    if (chatId === undefined || typing || !turnInProgress) {
-      stopPersistedTurnPolling()
-      return
-    }
-    startPersistedTurnPolling()
-  }
-)
 const loginBg = computed(() => {
   return appearanceStore.getLogin
 })
@@ -923,7 +836,7 @@ async function onPrimaryAnswerFinish(id: number, status?: string) {
   if (id) {
     getRecordUsage(id)
   }
-  if (status === 'awaiting_input') {
+  if (status !== 'succeeded' && status !== 'degraded') {
     getRecommendQuestionsLoading.value = false
     return
   }
@@ -1321,10 +1234,6 @@ onMounted(() => {
   }
   getChatList(jumpCreatChat)
   assistantPrepareInit()
-})
-
-onBeforeUnmount(() => {
-  stopPersistedTurnPolling()
 })
 </script>
 

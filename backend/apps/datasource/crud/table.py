@@ -79,8 +79,10 @@ def run_sync_table_and_ds_embeddings(session_maker):
         ]
         SQLBotLogUtil.info("datasource result: " + str(len(ds_results)))
         save_ds_embedding(session_maker, ds_results)
-    except Exception:
-        traceback.print_exc()
+    except Exception as exc:
+        SQLBotLogUtil.warning(
+            f"schema embedding refresh skipped: {type(exc).__name__}"
+        )
     finally:
         session_maker.remove()
 

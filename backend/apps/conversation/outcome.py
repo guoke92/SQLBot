@@ -153,6 +153,55 @@ def format_error_message(error: BaseException) -> str:
     ).decode()
 
 
+def public_error_message(error: BaseException | str) -> str:
+    """Return the stable, user-safe error envelope used by chat projections."""
+    if isinstance(error, SingleMessageError):
+        return str(error)
+    if isinstance(error, SQLBotDBConnectionError):
+        return orjson.dumps(
+            {"message": "Datasource connection failed", "type": "db-connection-err"}
+        ).decode()
+    if isinstance(error, SQLBotDBError):
+        return orjson.dumps(
+            {"message": "Query execution failed", "type": "exec-query-err"}
+        ).decode()
+    raw = str(error)
+    try:
+        parsed = json.loads(raw)
+    except (TypeError, ValueError):
+        parsed = None
+    if isinstance(parsed, dict) and parsed.get("type") in {
+        "db-connection-err",
+        "exec-query-err",
+        "planning-error",
+        "runtime-error",
+        "internal-error",
+    }:
+        if parsed.get("type") == "exec-query-err":
+            return orjson.dumps(
+                {"message": "Query execution failed", "type": "exec-query-err"}
+            ).decode()
+        return orjson.dumps(
+            {
+                "message": str(parsed.get("message") or "Conversation failed"),
+                "type": str(parsed["type"]),
+            }
+        ).decode()
+
+    normalized = _plain_message(error).lower()
+    class_name = error.__class__.__name__ if isinstance(error, BaseException) else ""
+    if class_name == "SemanticPlanningError" or "semantic planning failed" in normalized:
+        message = "Query planning could not be completed. Please retry or refine the request."
+        error_type = "planning-error"
+    elif "runtime value" in normalized or "checkpoint" in normalized:
+        message = "Conversation state could not be restored. Please retry this request."
+        error_type = "runtime-error"
+    else:
+        message = "An internal error occurred. Please try again later."
+        error_type = "internal-error"
+    return orjson.dumps({"message": message, "type": error_type}).decode()
+
+
 def classify_failure(
     error: BaseException | str,
     *,

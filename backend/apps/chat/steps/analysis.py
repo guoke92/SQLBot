@@ -14,8 +14,8 @@ from apps.chat.models.chat_model import OperationEnum, SystemPromptMessage
 from apps.chat.steps.chart_fields import get_fields_from_chart
 from apps.chat.steps.custom_prompt import match_custom_prompts
 from apps.chat.steps.knowledge import match_knowledge
+from apps.chat.steps.observability import log_span
 from apps.chat.steps.stream import process_stream
-from apps.conversation.observability import end_log, start_log
 from apps.datasource.models.datasource import CoreDatasource
 
 
@@ -37,47 +37,31 @@ def generate_analysis(llm_service: Any, session: Session) -> Iterator[Dict[str, 
         HumanMessage(content=llm_service.chat_question.analysis_user_question()),
     ]
 
-    llm_service.current_logs[OperationEnum.ANALYSIS] = start_log(
-        session=session,
+    with log_span(
         ai_modal_id=llm_service.chat_question.ai_modal_id,
         ai_modal_name=llm_service.chat_question.ai_modal_name,
         operate=OperationEnum.ANALYSIS,
         record_id=llm_service.record.id,
-        full_message=[
-            {
-                "type": msg.type,
-                "sqlbot_system": getattr(msg, "sqlbot_system", False) is True,
-                "content": msg.content,
-            }
-            for msg in analysis_msg
-        ],
-    )
-
-    full_thinking_text = ""
-    full_analysis_text = ""
-    token_usage: Dict[str, Any] = {}
-    for chunk in process_stream(llm_service.llm.stream(analysis_msg), token_usage):
-        if chunk.get("content"):
-            full_analysis_text += chunk.get("content")
-        if chunk.get("reasoning_content"):
-            full_thinking_text += chunk.get("reasoning_content")
-        yield chunk
-
-    analysis_msg.append(AIMessage(full_analysis_text))
-    llm_service.current_logs[OperationEnum.ANALYSIS] = end_log(
-        session=session,
-        log=llm_service.current_logs[OperationEnum.ANALYSIS],
-        full_message=[
-            {
-                "type": msg.type,
-                "sqlbot_system": getattr(msg, "sqlbot_system", False) is True,
-                "content": msg.content,
-            }
-            for msg in analysis_msg
-        ],
-        reasoning_content=full_thinking_text,
-        token_usage=token_usage,
-    )
+        local_operation=False,
+        phase="respond",
+        graph_node="stream",
+        title_key="chat.log.ANALYSIS",
+    ) as span:
+        full_thinking_text = ""
+        full_analysis_text = ""
+        token_usage: Dict[str, Any] = {}
+        for chunk in process_stream(llm_service.llm.stream(analysis_msg), token_usage):
+            if chunk.get("content"):
+                full_analysis_text += chunk.get("content")
+            if chunk.get("reasoning_content"):
+                full_thinking_text += chunk.get("reasoning_content")
+            yield chunk
+        analysis_msg.append(AIMessage(full_analysis_text))
+        span.set_model_context(analysis_msg)
+        span.set_usage(token_usage)
+        span["reasoning_content"] = full_thinking_text
+        span.set_detail({"chars": len(full_analysis_text)})
+        span.set_summary("chat.audit.response_ready")
     llm_service.record = save_analysis_answer(
         session=session,
         record_id=llm_service.record.id,

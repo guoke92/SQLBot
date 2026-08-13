@@ -5,6 +5,7 @@ Three contracts:
   emit_signal       — external facts → governance (signal)
   compile_knowledge_for_turn — domain → consumers (read, re-exported)
 """
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -16,9 +17,15 @@ from sqlmodel import Session, select
 from apps.knowledge.compile.compile import compile_knowledge_for_turn  # noqa: F401
 from apps.knowledge.db_models import (
     KnowledgeAsset,
-    KnowledgeEvidence,
     KnowledgeSchemaRef,
     KnowledgeStaging,
+)
+from apps.knowledge.evidence import (
+    append_evidence_event,
+    apply_event_key,
+    feedback_event_key,
+    reproduce_event_key,
+    usage_event_key,
 )
 from apps.knowledge.lineage import append_event
 from apps.knowledge.natural_key import caliber_natural_key, predicate_looks_ephemeral
@@ -68,6 +75,8 @@ def _validate_provenance(
         return "manual provenance requires actor_user_id"
     if source_type == "mining" and not prov.get("scan_run_id"):
         return "mining provenance requires scan_run_id"
+    if source_type == "package" and not prov.get("package_id"):
+        return "package provenance requires package_id"
     return None
 
 
@@ -82,7 +91,8 @@ def _scrub_ephemeral(candidate: KnowledgeCandidate) -> KnowledgeCandidate | None
     if not isinstance(reqs, list) or not reqs:
         return candidate
     non_ephemeral = [
-        r for r in reqs
+        r
+        for r in reqs
         if not isinstance(r, dict)
         or r.get("clause") != "predicate"
         or not predicate_looks_ephemeral(r)
@@ -124,7 +134,11 @@ def submit_candidate(
 
     scope = candidate.scope
     prov = candidate.provenance
-    fragment = candidate.payload.get("contract_fragment") or candidate.payload.get("fragment") or {}
+    fragment = (
+        candidate.payload.get("contract_fragment")
+        or candidate.payload.get("fragment")
+        or {}
+    )
     if not isinstance(fragment, dict):
         fragment = {}
     natural_key = caliber_natural_key(
@@ -142,7 +156,16 @@ def submit_candidate(
         .where(KnowledgeAsset.valid_to.is_(None))  # type: ignore[attr-defined]
     ).first()
     if existing_asset is not None:
-        evidence = KnowledgeEvidence(
+        if source_record_id is None:
+            return CandidateReceipt(
+                action="existing",
+                natural_key=natural_key,
+                lineage_id=existing_asset.lineage_id,
+                detail=f"asset {existing_asset.id} already exists",
+            )
+        append_evidence_event(
+            session,
+            event_key=reproduce_event_key(natural_key, source_record_id),
             asset_id=existing_asset.id,
             asset_kind=candidate.kind,
             natural_key=natural_key,
@@ -152,9 +175,7 @@ def submit_candidate(
                 "source_record_id": source_record_id,
                 "trigger": prov.get("trigger_id") or prov.get("source_type"),
             },
-            create_time=datetime.utcnow(),
         )
-        session.add(evidence)
         session.flush()
         return CandidateReceipt(
             action="merged_evidence",
@@ -182,27 +203,62 @@ def submit_candidate(
     )
 
 
-_EVIDENCE_SIGNALS = {
-    "apply_outcome": "apply_outcome",
-    "user_feedback": "feedback",
-    "usage": "usage",
-}
-
-
 def emit_signal(session: Session, signal: KnowledgeSignal) -> int:
     now = datetime.utcnow()
-
-    evidence_kind = _EVIDENCE_SIGNALS.get(signal.kind)
-    if evidence_kind is not None:
-        evidence = KnowledgeEvidence(
-            asset_id=signal.refs.get("asset_id"),
-            asset_kind=signal.refs.get("asset_kind", "caliber"),
-            signal_kind=evidence_kind,
-            record_id=signal.fact.get("record_id"),
+    record_id = signal.fact.get("record_id")
+    if signal.kind == "apply_outcome" and record_id is not None:
+        asset_id = signal.refs.get("asset_id")
+        if asset_id is None:
+            return 0
+        action = str(signal.fact.get("apply_action") or "apply")
+        append_evidence_event(
+            session,
+            event_key=apply_event_key(
+                int(record_id),
+                str(signal.refs.get("asset_kind") or "caliber"),
+                int(asset_id),
+                action,
+            ),
+            asset_id=int(asset_id),
+            asset_kind=str(signal.refs.get("asset_kind") or "caliber"),
+            signal_kind="apply_outcome",
+            record_id=int(record_id),
             fact=signal.fact,
-            create_time=now,
         )
-        session.add(evidence)
+        session.flush()
+        return 1
+    if signal.kind in {"turn_feedback", "user_feedback"} and record_id is not None:
+        revision = int(signal.fact.get("revision") or 0)
+        append_evidence_event(
+            session,
+            event_key=feedback_event_key(int(record_id), revision),
+            asset_id=None,
+            asset_kind="turn",
+            signal_kind="turn_feedback",
+            record_id=int(record_id),
+            fact=signal.fact,
+        )
+        session.flush()
+        return 1
+    if signal.kind == "usage" and record_id is not None:
+        asset_id = signal.refs.get("asset_id")
+        if asset_id is None:
+            return 0
+        usage_kind = str(signal.fact.get("usage_kind") or "usage")
+        append_evidence_event(
+            session,
+            event_key=usage_event_key(
+                int(record_id),
+                str(signal.refs.get("asset_kind") or "caliber"),
+                int(asset_id),
+                usage_kind,
+            ),
+            asset_id=int(asset_id),
+            asset_kind=str(signal.refs.get("asset_kind") or "caliber"),
+            signal_kind="usage",
+            record_id=int(record_id),
+            fact=signal.fact,
+        )
         session.flush()
         return 1
 
@@ -248,7 +304,10 @@ def _handle_schema_drift(
             affected_asset_ids.add(int(ref.asset_id))
         elif ref.table_id is not None and int(ref.table_id) in table_set:
             affected_asset_ids.add(int(ref.asset_id))
-        elif (ref.table_name.casefold(), (ref.field_name or "").casefold()) in name_pairs:
+        elif (
+            ref.table_name.casefold(),
+            (ref.field_name or "").casefold(),
+        ) in name_pairs:
             affected_asset_ids.add(int(ref.asset_id))
         elif ref.table_name.casefold() in t_names:
             affected_asset_ids.add(int(ref.asset_id))

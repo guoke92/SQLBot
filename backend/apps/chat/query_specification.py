@@ -8,6 +8,8 @@ plan validation.
 from __future__ import annotations
 
 import hashlib
+from collections.abc import Mapping
+from copy import deepcopy
 from typing import Annotated, Any, Literal, Self
 
 import orjson
@@ -30,6 +32,17 @@ RequirementSource = Literal[
     "system_default",
 ]
 RequirementStatus = Literal["active", "superseded", "dropped"]
+
+
+def is_user_evidence_ref(ref: str) -> bool:
+    """True when a citation points at immutable user wording in this chat."""
+    value = (ref or "").strip()
+    return (
+        value == "user:question"
+        or value.startswith("user:answer:")
+        or value.startswith("user:prior_question")
+        or value.startswith("user:prior_answer:")
+    )
 Aggregation = Literal[
     "value",
     "count",
@@ -110,8 +123,7 @@ class RequirementBase(BaseModel):
         if not self.requirement_id or not self.business_label:
             raise ValueError("Requirement requires requirement_id and business_label")
         if self.source == "user" and not any(
-            ref == "user:question" or ref.startswith("user:answer:")
-            for ref in self.evidence_refs
+            is_user_evidence_ref(ref) for ref in self.evidence_refs
         ):
             raise ValueError("User requirement must cite immutable user evidence")
         return self
@@ -343,6 +355,68 @@ def parse_requirement(value: Any) -> SpecificationRequirement:
     return _REQUIREMENT_ADAPTER.validate_python(value)
 
 
+def canonicalize_planner_requirement_ids(
+    raw_specification: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Replace model-owned temporary IDs before specification validation.
+
+    Planner IDs are only local references inside one response.  The service is
+    the identity authority and ``normalize_specification`` assigns durable
+    semantic IDs after validation.  This boundary repair accepts harmless
+    duplicate, unreferenced model IDs while still rejecting references that
+    became genuinely ambiguous because an ID was reused.
+    """
+    specification = deepcopy(dict(raw_specification))
+    buckets = (
+        "outputs",
+        "predicates",
+        "group_by",
+        "time_windows",
+        "order_by",
+        "business_relations",
+    )
+    replacements: dict[str, list[str]] = {}
+    rows: list[dict[str, Any]] = []
+    for bucket in buckets:
+        raw_rows = specification.get(bucket) or []
+        if not isinstance(raw_rows, list | tuple):
+            continue
+        rewritten: list[Any] = []
+        for index, raw in enumerate(raw_rows):
+            if not isinstance(raw, Mapping):
+                rewritten.append(raw)
+                continue
+            item = dict(raw)
+            old_id = str(item.get("requirement_id") or "")
+            temporary_id = f"tmp_{bucket}_{index + 1}"
+            item["requirement_id"] = temporary_id
+            if old_id:
+                replacements.setdefault(old_id, []).append(temporary_id)
+            rows.append(item)
+            rewritten.append(item)
+        specification[bucket] = rewritten
+
+    def resolve(reference: Any) -> str:
+        text = str(reference or "")
+        candidates = replacements.get(text, [])
+        if len(candidates) == 1:
+            return candidates[0]
+        if len(candidates) > 1:
+            raise ValueError(
+                f"Planner requirement reference {text!r} is ambiguous because "
+                "the temporary ID was reused"
+            )
+        return text
+
+    for item in rows:
+        operands = item.get("operand_requirement_ids")
+        if isinstance(operands, list | tuple):
+            item["operand_requirement_ids"] = [resolve(value) for value in operands]
+        if item.get("output_requirement_id"):
+            item["output_requirement_id"] = resolve(item["output_requirement_id"])
+    return specification
+
+
 _FRAGMENT_BUCKETS = {
     "output": "outputs",
     "predicate": "predicates",
@@ -495,11 +569,37 @@ def normalize_specification(
     """Assign stable requirement IDs from canonical clause semantics."""
     by_id = specification.by_requirement_id()
     mapping: dict[str, str] = {}
+    identities: list[tuple[SpecificationRequirement, str]] = []
     for requirement in specification.requirements:
         material = _requirement_semantic_data(requirement, by_id=by_id)
         encoded = orjson.dumps(material, option=orjson.OPT_SORT_KEYS)
+        base_id = "req_" + hashlib.sha256(encoded).hexdigest()[:16]
+        identities.append((requirement, base_id))
+
+    semantic_counts: dict[str, int] = {}
+    for _requirement, base_id in identities:
+        semantic_counts[base_id] = semantic_counts.get(base_id, 0) + 1
+    discriminators: dict[str, int] = {}
+    for requirement, base_id in identities:
+        if semantic_counts[base_id] == 1:
+            mapping[requirement.requirement_id] = base_id
+            continue
+        # Two requested business metrics may intentionally share the same
+        # physical expression. Distinguish them by their stable business role,
+        # without changing IDs for the normal one-clause case.
+        role = orjson.dumps(
+            {
+                "clause": requirement.clause,
+                "business_label": requirement.business_label,
+            },
+            option=orjson.OPT_SORT_KEYS,
+        )
+        discriminator = hashlib.sha256(role).hexdigest()[:8]
+        candidate = f"{base_id}_{discriminator}"
+        occurrence = discriminators.get(candidate, 0) + 1
+        discriminators[candidate] = occurrence
         mapping[requirement.requirement_id] = (
-            "req_" + hashlib.sha256(encoded).hexdigest()[:16]
+            candidate if occurrence == 1 else f"{candidate}_{occurrence}"
         )
 
     updates: dict[str, Any] = {"revision": specification.revision}
@@ -508,10 +608,7 @@ def normalize_specification(
         for requirement in getattr(specification, bucket):
             data = requirement.model_dump(mode="python")
             data["requirement_id"] = mapping[requirement.requirement_id]
-            if any(
-                ref == "user:question" or ref.startswith("user:answer:")
-                for ref in requirement.evidence_refs
-            ):
+            if any(is_user_evidence_ref(ref) for ref in requirement.evidence_refs):
                 data["source"] = "user"
             if "operand_requirement_ids" in data:
                 data["operand_requirement_ids"] = tuple(

@@ -12,11 +12,13 @@ import inspect
 from collections.abc import Callable, Iterable, Mapping, MutableMapping
 from functools import wraps
 from pathlib import Path
+from time import perf_counter
 from typing import (
     Any,
 )
 
 import yaml
+from langgraph.errors import GraphInterrupt
 from langgraph.graph import END, START, StateGraph
 
 from apps.conversation.checkpoint import get_checkpointer
@@ -149,6 +151,7 @@ def _with_run_lifecycle(
             return
         from apps.conversation.models import ConversationRun
         from apps.conversation.run_service import (
+            TERMINAL_STATUSES,
             ConversationRunCancelled,
             update_run_status,
         )
@@ -158,25 +161,87 @@ def _with_run_lifecycle(
             run = session.get(ConversationRun, str(state["run_id"]))
             if run is None:
                 raise LookupError(f"Conversation run {state['run_id']} not found")
-            if run.status == "cancelled":
+            if run.status in TERMINAL_STATUSES:
                 raise ConversationRunCancelled(str(state["run_id"]))
+            # Terminal plumbing nodes do not represent a business stage. Keep
+            # the last real node so a failure points at its actual origin.
             update_run_status(
-                session, str(state["run_id"]), "running", current_node=name
+                session,
+                str(state["run_id"]),
+                "running",
+                current_node=None if name in {"complete", "fail"} else name,
             )
+
+    def _log(state: Any, phase: str, *, started: float, error: Exception | None = None) -> None:
+        if not isinstance(state, Mapping) or not state.get("run_id"):
+            return
+        from apps.conversation.lifecycle_log import log_lifecycle
+
+        log_lifecycle(
+            "node_failed" if error else f"node_{phase}",
+            level="error" if error else "info",
+            run_id=str(state.get("run_id")),
+            record_id=state.get("record_id"),
+            chat_id=state.get("chat_id"),
+            graph_key=_graph_key,
+            node=name,
+            phase=phase,
+            specification_revision=state.get("active_specification_revision"),
+            elapsed_ms=(round((perf_counter() - started) * 1000) if phase != "started" else 0),
+            error_type=type(error).__name__ if error else None,
+        )
+
+    def _interrupted(state: Any, *, started: float) -> None:
+        if not isinstance(state, Mapping) or not state.get("run_id"):
+            return
+        from apps.conversation.lifecycle_log import log_lifecycle
+
+        log_lifecycle(
+            "node_interrupted",
+            run_id=str(state.get("run_id")),
+            record_id=state.get("record_id"),
+            chat_id=state.get("chat_id"),
+            graph_key=_graph_key,
+            node=name,
+            phase="interrupted",
+            elapsed_ms=round((perf_counter() - started) * 1000),
+        )
 
     if inspect.iscoroutinefunction(fn):
 
         @wraps(fn)
         async def _async(state: Any, *args: Any, **kwargs: Any) -> Any:
+            started = perf_counter()
             _mark(state)
-            return await fn(state, *args, **kwargs)
+            _log(state, "started", started=started)
+            try:
+                result = await fn(state, *args, **kwargs)
+            except GraphInterrupt:
+                _interrupted(state, started=started)
+                raise
+            except Exception as exc:
+                _log(state, "error", started=started, error=exc)
+                raise
+            _log(state, "finished", started=started)
+            return result
 
         return _async
 
     @wraps(fn)
     def _sync(state: Any, *args: Any, **kwargs: Any) -> Any:
+        started = perf_counter()
         _mark(state)
-        return fn(state, *args, **kwargs)
+        _log(state, "started", started=started)
+        try:
+            result = fn(state, *args, **kwargs)
+        except GraphInterrupt:
+            _interrupted(state, started=started)
+            raise
+        except Exception as exc:
+            _log(state, "error", started=started, error=exc)
+            raise
+        _log(state, "finished", started=started)
+        return result
 
     return _sync
 

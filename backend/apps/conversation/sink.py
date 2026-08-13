@@ -71,6 +71,11 @@ class StreamSink:
                     run_id=self.run_id,
                     payload=event,
                 )
+            if cursor < 0:
+                # Terminal delivery may be live for legacy callers, but the
+                # persisted Run event already exists and must not be duplicated.
+                self._raw(emit(event))
+                return
             if cursor:
                 event["cursor"] = cursor
                 event["run_id"] = self.run_id

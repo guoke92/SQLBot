@@ -1,17 +1,21 @@
-"""Persistence primitives for the shared conversation audit channel."""
+"""Private persistence primitives for ``apps.chat.steps.observability``.
+
+Domain steps must use ``log_span``; these helpers intentionally contain no
+business semantics and are not a second audit API.
+"""
 
 from __future__ import annotations
 
 import datetime
 from typing import Any
 
-from sqlalchemy import update
+from sqlalchemy import and_, update
 from sqlmodel import Session
 
 from apps.chat.models.chat_model import ChatLog, OperationEnum, TypeEnum
 
 
-def start_log(
+def _start_log(
     session: Session,
     ai_modal_id: int | None = None,
     ai_modal_name: str | None = None,
@@ -39,12 +43,13 @@ def start_log(
     return result
 
 
-def end_log(
+def _end_log(
     session: Session,
     log: ChatLog,
     full_message: list[dict[str, Any]] | dict[str, Any] | str,
     reasoning_content: str | None = None,
     token_usage: dict[str, Any] | None = None,
+    error: bool = False,
 ) -> ChatLog:
     log.messages = full_message
     log.token_usage = token_usage or {}
@@ -52,22 +57,19 @@ def end_log(
     log.reasoning_content = (
         reasoning_content if reasoning_content and reasoning_content.strip() else None
     )
-    session.execute(
+    log.error = error
+    result = session.execute(
         update(ChatLog)
-        .where(ChatLog.id == log.id)
+        .where(and_(ChatLog.id == log.id, ChatLog.finish_time.is_(None)))
         .values(
             messages=log.messages,
             token_usage=log.token_usage,
             finish_time=log.finish_time,
             reasoning_content=log.reasoning_content,
+            error=error,
         )
     )
     session.commit()
-    return log
-
-
-def trigger_log_error(session: Session, log: ChatLog) -> ChatLog:
-    log.error = True
-    session.execute(update(ChatLog).where(ChatLog.id == log.id).values(error=True))
-    session.commit()
+    if not getattr(result, "rowcount", 0):
+        return log
     return log

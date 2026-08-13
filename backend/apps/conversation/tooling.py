@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import hashlib
-import json
-import re
 from collections.abc import Mapping, Sequence
 from typing import Any, TypedDict, cast
 
@@ -13,35 +11,12 @@ from langchain_core.messages import AIMessage, BaseMessage, ToolMessage
 from langchain_core.tools import BaseTool
 
 from apps.chat.models.chat_model import OperationEnum
-from apps.chat.steps.observability import log_span
+from apps.chat.steps.observability import log_span, sanitize_audit_value
 from apps.conversation.messages import deserialize_messages, serialize_messages
 from apps.conversation.outcome import FailureInfo, FailureKind, classify_failure
 from apps.conversation.runtime_context import runtime_value
 
 _LOG_RESULT_LIMIT = 4000
-_SECRET_KEYS = frozenset(
-    {
-        "access_token",
-        "access_key",
-        "api_key",
-        "authorization",
-        "bearer_token",
-        "basic_password",
-        "client_key",
-        "client_secret",
-        "credential",
-        "credentials",
-        "password",
-        "private_key",
-        "refresh_token",
-        "secret",
-        "secret_access_key",
-        "secret_key",
-        "token",
-    }
-)
-
-
 class ToolResult(TypedDict):
     ok: bool
     summary: str
@@ -74,42 +49,6 @@ def tool_failure(
         "error": error,
         "failure": failure or classify_failure(error),
     }
-
-
-def _normalize_key(key: object) -> str:
-    text = str(key).strip().replace("-", "_").replace(" ", "_")
-    text = re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", text)
-    return text.lower()
-
-
-def _is_secret_key(key: object) -> bool:
-    normalized = _normalize_key(key)
-    return (
-        normalized in _SECRET_KEYS
-        or normalized.endswith("_password")
-        or normalized.endswith("_secret")
-        or normalized.endswith("_token")
-    )
-
-
-def redact_value(value: Any, *, key: object | None = None) -> Any:
-    """Recursively redact credentials before emitting or persisting tool data."""
-    if key is not None and _is_secret_key(key):
-        return "<redacted>"
-    if _normalize_key(key or "") in {"configuration", "config"} and isinstance(
-        value, str
-    ):
-        try:
-            return redact_value(json.loads(value))
-        except (TypeError, ValueError):
-            return "<redacted>"
-    if isinstance(value, Mapping):
-        return {str(k): redact_value(v, key=k) for k, v in value.items()}
-    if isinstance(value, list):
-        return [redact_value(item) for item in value]
-    if isinstance(value, tuple):
-        return [redact_value(item) for item in value]
-    return value
 
 
 def tool_calls_from_message(message: AIMessage) -> list[dict[str, Any]]:
@@ -242,7 +181,7 @@ def execute_tools_node(state: Mapping[str, Any]) -> dict[str, Any]:
         call_id = call["id"]
         name = call["name"]
         args = call["args"]
-        safe_args = redact_value(args)
+        safe_args = sanitize_audit_value(args)
         initial = {
             "kind": "tool",
             "tool_call_id": call_id,
@@ -255,10 +194,13 @@ def execute_tools_node(state: Mapping[str, Any]) -> dict[str, Any]:
             operate=OperationEnum.TOOL_CALL,
             record_id=record_id,
             local_operation=True,
+            phase="execute",
             graph_node="execute_tools",
+            title_key="chat.log.TOOL_CALL",
             brief=name,
             initial_payload=initial,
         ) as span:
+            span.set_input({"tool": name, "arguments": safe_args})
             tool = tools.get(name)
             try:
                 if tool is None:
@@ -271,9 +213,11 @@ def execute_tools_node(state: Mapping[str, Any]) -> dict[str, Any]:
             except Exception as exc:
                 result = tool_failure(f"{name} failed", str(exc))
 
-            safe_result = redact_value(result)
+            safe_result = sanitize_audit_value(result)
+            span.set_output(safe_result)
             model_content = serialize_tool_result(safe_result)
-            span["error"] = not result["ok"]
+            if not result["ok"]:
+                span.mark_failed(str(result.get("error") or result["summary"]))
             span["payload"] = {
                 **initial,
                 "status": "completed",

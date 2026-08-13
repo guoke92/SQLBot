@@ -9,8 +9,8 @@ from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 from sqlmodel import Session
 
 from apps.chat.models.chat_model import OperationEnum, SystemPromptMessage
+from apps.chat.steps.observability import log_span
 from apps.chat.steps.stream import process_stream
-from apps.conversation.observability import end_log, start_log
 from apps.datasource.crud.permission import get_row_permission_filters
 from apps.system.schemas.system_schema import AssistantOutDsSchema
 from common.utils.utils import SQLBotLogUtil
@@ -30,45 +30,29 @@ def generate_with_sub_sql(
         SystemPromptMessage(content=llm_service.chat_question.dynamic_sys_question()),
         HumanMessage(content=llm_service.chat_question.dynamic_user_question()),
     ]
-    llm_service.current_logs[OperationEnum.GENERATE_DYNAMIC_QUERY] = start_log(
-        session=session,
+    with log_span(
         ai_modal_id=llm_service.chat_question.ai_modal_id,
         ai_modal_name=llm_service.chat_question.ai_modal_name,
         operate=OperationEnum.GENERATE_DYNAMIC_QUERY,
         record_id=llm_service.record.id,
-        full_message=[
-            {
-                "type": msg.type,
-                "sqlbot_system": getattr(msg, "sqlbot_system", False) is True,
-                "content": msg.content,
-            }
-            for msg in dynamic_sql_msg
-        ],
-    )
-    full_thinking_text = ""
-    full_dynamic_text = ""
-    token_usage: Dict[str, Any] = {}
-    for chunk in process_stream(llm_service.llm.stream(dynamic_sql_msg), token_usage):
-        if chunk.get("content"):
-            full_dynamic_text += chunk.get("content")
-        if chunk.get("reasoning_content"):
-            full_thinking_text += chunk.get("reasoning_content")
-
-    dynamic_sql_msg.append(AIMessage(full_dynamic_text))
-    llm_service.current_logs[OperationEnum.GENERATE_DYNAMIC_QUERY] = end_log(
-        session=session,
-        log=llm_service.current_logs[OperationEnum.GENERATE_DYNAMIC_QUERY],
-        full_message=[
-            {
-                "type": msg.type,
-                "sqlbot_system": getattr(msg, "sqlbot_system", False) is True,
-                "content": msg.content,
-            }
-            for msg in dynamic_sql_msg
-        ],
-        reasoning_content=full_thinking_text,
-        token_usage=token_usage,
-    )
+        local_operation=False,
+        phase="execute",
+        graph_node="execute_queries",
+        title_key="chat.log.GENERATE_DYNAMIC_QUERY",
+    ) as span:
+        full_thinking_text = ""
+        full_dynamic_text = ""
+        token_usage: Dict[str, Any] = {}
+        for chunk in process_stream(llm_service.llm.stream(dynamic_sql_msg), token_usage):
+            if chunk.get("content"):
+                full_dynamic_text += chunk.get("content")
+            if chunk.get("reasoning_content"):
+                full_thinking_text += chunk.get("reasoning_content")
+        dynamic_sql_msg.append(AIMessage(full_dynamic_text))
+        span.set_model_context(dynamic_sql_msg)
+        span.set_usage(token_usage)
+        span["reasoning_content"] = full_thinking_text
+        span.set_summary("chat.audit.permission_query_ready")
     SQLBotLogUtil.info(full_dynamic_text)
     return full_dynamic_text
 
@@ -107,45 +91,30 @@ def build_table_filter(
         SystemPromptMessage(content=llm_service.chat_question.filter_sys_question()),
         HumanMessage(content=llm_service.chat_question.filter_user_question()),
     ]
-    llm_service.current_logs[OperationEnum.GENERATE_QUERY_WITH_PERMISSIONS] = start_log(
-        session=session,
+    with log_span(
         ai_modal_id=llm_service.chat_question.ai_modal_id,
         ai_modal_name=llm_service.chat_question.ai_modal_name,
         operate=OperationEnum.GENERATE_QUERY_WITH_PERMISSIONS,
         record_id=llm_service.record.id,
-        full_message=[
-            {
-                "type": msg.type,
-                "sqlbot_system": getattr(msg, "sqlbot_system", False) is True,
-                "content": msg.content,
-            }
-            for msg in permission_sql_msg
-        ],
-    )
-    full_thinking_text = ""
-    full_filter_text = ""
-    token_usage: Dict[str, Any] = {}
-    for chunk in process_stream(llm_service.llm.stream(permission_sql_msg), token_usage):
-        if chunk.get("content"):
-            full_filter_text += chunk.get("content")
-        if chunk.get("reasoning_content"):
-            full_thinking_text += chunk.get("reasoning_content")
-
-    permission_sql_msg.append(AIMessage(full_filter_text))
-    llm_service.current_logs[OperationEnum.GENERATE_QUERY_WITH_PERMISSIONS] = end_log(
-        session=session,
-        log=llm_service.current_logs[OperationEnum.GENERATE_QUERY_WITH_PERMISSIONS],
-        full_message=[
-            {
-                "type": msg.type,
-                "sqlbot_system": getattr(msg, "sqlbot_system", False) is True,
-                "content": msg.content,
-            }
-            for msg in permission_sql_msg
-        ],
-        reasoning_content=full_thinking_text,
-        token_usage=token_usage,
-    )
+        local_operation=False,
+        phase="execute",
+        graph_node="execute_queries",
+        title_key="chat.log.GENERATE_QUERY_WITH_PERMISSIONS",
+    ) as span:
+        full_thinking_text = ""
+        full_filter_text = ""
+        token_usage: Dict[str, Any] = {}
+        for chunk in process_stream(llm_service.llm.stream(permission_sql_msg), token_usage):
+            if chunk.get("content"):
+                full_filter_text += chunk.get("content")
+            if chunk.get("reasoning_content"):
+                full_thinking_text += chunk.get("reasoning_content")
+        permission_sql_msg.append(AIMessage(full_filter_text))
+        span.set_model_context(permission_sql_msg)
+        span.set_usage(token_usage)
+        span["reasoning_content"] = full_thinking_text
+        span.set_detail({"filter_count": len(filters)})
+        span.set_summary("chat.audit.permission_query_ready")
     SQLBotLogUtil.info(full_filter_text)
     return full_filter_text
 

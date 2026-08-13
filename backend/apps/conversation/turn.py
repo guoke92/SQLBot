@@ -9,6 +9,7 @@ from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 from sqlalchemy import and_, select
 
 from apps.chat.models.chat_model import ChatRecord
+from apps.chat.steps.observability import close_open_audit_spans
 from apps.conversation.outcome import (
     failed_outcome,
     outcome_from_steps,
@@ -90,7 +91,7 @@ def finish_text_node(state: Mapping[str, Any]) -> dict[str, Any]:
                     session,
                     run_id=str(state["run_id"]),
                     status=run_status,
-                    current_node="finish",
+                    current_node=None,
                     record_snapshot={
                         "sql_answer": final_text or None,
                         "terminal": True,
@@ -105,7 +106,10 @@ def finish_text_node(state: Mapping[str, Any]) -> dict[str, Any]:
                     sql_answer=final_text or None,
                     terminal=True,
                     error=None if success else failure_message,
+                    commit=False,
                 )
+                close_open_audit_spans(session, int(record_id))
+                session.commit()
 
     if sink.mode == "markdown" and final_text:
         sink.text(final_text)
@@ -129,7 +133,15 @@ def finish_text_node(state: Mapping[str, Any]) -> dict[str, Any]:
 def persist_turn_failure(record_id: int, error: str) -> None:
     """Persist one terminal error through the idempotent lifecycle boundary."""
     with session_scope() as session:
-        persist_snapshot(session, record_id, terminal=True, error=error)
+        persist_snapshot(
+            session,
+            record_id,
+            terminal=True,
+            error=error,
+            commit=False,
+        )
+        close_open_audit_spans(session, record_id)
+        session.commit()
 
 
 def fail_node(state: Mapping[str, Any]) -> dict[str, Any]:
@@ -143,7 +155,7 @@ def fail_node(state: Mapping[str, Any]) -> dict[str, Any]:
                 session,
                 run_id=str(state["run_id"]),
                 status="failed",
-                current_node="fail",
+                current_node=None,
                 record_snapshot={"terminal": True, "error": error},
                 error_summary=error,
             )

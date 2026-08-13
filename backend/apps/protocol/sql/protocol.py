@@ -22,6 +22,42 @@ from apps.protocol.base import (
 from common.utils.json_utils import extract_nested_json
 
 
+def rewrite_identifier_quotes(
+    sql: str,
+    *,
+    dialect: str | None,
+    quote_prefix: str,
+) -> str:
+    """Re-emit SQL with the connector's identifier quotes.
+
+    Model output often copies Postgres ``"ident"`` onto MySQL-family dialects
+    (StarRocks / Doris / Hive). Parse with a quote-tolerant dialect and generate
+    with the target sqlglot dialect so execute sees legal SQL.
+    """
+    if not sql or not dialect:
+        return sql
+    import sqlglot
+    from sqlglot.errors import ParseError
+
+    read_order: list[str] = []
+    if '"' in sql and quote_prefix != '"':
+        read_order.append("postgres")
+    if dialect not in read_order:
+        read_order.append(dialect)
+    for read in read_order:
+        try:
+            parsed = sqlglot.parse_one(sql, dialect=read)
+        except ParseError:
+            continue
+        except Exception:
+            continue
+        try:
+            return parsed.sql(dialect=dialect)
+        except Exception:
+            continue
+    return sql
+
+
 class SqlProtocol(BaseProtocol):
     """Protocol implementation backed by SQL datasources.
 
@@ -156,7 +192,7 @@ class SqlProtocol(BaseProtocol):
         )
 
         q = chat_question
-        sql_template = get_sql_example_template(getattr(q, "_ds_type", "pg"))
+        sql_template = get_sql_example_template(self.type_key)
         base_template = get_sql_template()
 
         process_check = (
@@ -313,6 +349,21 @@ class SqlProtocol(BaseProtocol):
         if not sql:
             return plan
 
+        spec = get_spec(self.type_key)
+        dialect = spec.sqlglot_dialect
+        rewritten = rewrite_identifier_quotes(
+            sql, dialect=dialect, quote_prefix=spec.quote_prefix
+        )
+        if rewritten != sql:
+            sql = rewritten
+            plan = plan.model_copy(
+                deep=True,
+                update={
+                    "statement": sql,
+                    "payload": {**(plan.payload or {}), "sql": sql},
+                },
+            )
+
         def reject(message: str) -> QueryPlan:
             """Preserve plan metadata while marking validation failure."""
             return plan.model_copy(
@@ -328,8 +379,6 @@ class SqlProtocol(BaseProtocol):
         if not is_safe:
             return reject(f"SQL safety check failed: {reason}")
 
-        spec = get_spec(self.type_key)
-        dialect = spec.sqlglot_dialect
         actual_tables: set[str] = set()
         physical_cols: tuple[PhysicalColumnRef, ...] = ()
         order_by_problem = order_by_scope_error(sql, dialect)

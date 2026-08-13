@@ -116,7 +116,7 @@ def complete_node(state: AnalysisState) -> AnalysisState:
             session,
             run_id=str(state["run_id"]),
             status="succeeded",
-            current_node="complete",
+            current_node=None,
             record_snapshot={"terminal": True},
         )
 

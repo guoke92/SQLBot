@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from sqlmodel import Session, col, or_, select
 
 from apps.knowledge.compile.bundle import BoundCaliber
-from apps.knowledge.db_models import KnowledgeAsset
+from apps.knowledge.db_models import KnowledgeAsset, KnowledgeStaging
 
 # Without embedding ranking: hard cap Bind to one relevant caliber.
 _DEFAULT_BIND_LIMIT = 1
@@ -16,12 +16,15 @@ _DEFAULT_BIND_LIMIT = 1
 
 @dataclass
 class CaliberCandidate:
-    apply: str  # bind | drop
+    apply: str  # bind | constrain | drop
     bound: BoundCaliber | None = None
     asset_id: int | None = None
+    staging_id: int | None = None
     lineage_id: str | None = None
     trust_tier: str | None = None
     drop_reason: str | None = None
+    label: str | None = None
+    summary: str | None = None
 
 
 def _is_bindable(asset: KnowledgeAsset) -> bool:
@@ -58,11 +61,12 @@ def recall_bindable_calibers(
     question: str,
     limit: int = _DEFAULT_BIND_LIMIT,
 ) -> list[CaliberCandidate]:
-    """Return caliber candidates for the question.
+    """Return certified caliber candidates for the question.
 
-    Staging is never queried. A protected seed requires an explicit label or
-    synonym phrase match and is capped at ``limit`` (default 1). Unrelated or
-    uncertified rows are dropped before semantic planning.
+    Staging is not a Bind source; pending rows enter compile as constrain
+    hints via ``recall_staging_calibers``. A protected seed requires an
+    explicit label or synonym phrase match and is capped at ``limit``
+    (default 1). Unrelated or uncertified rows are dropped before planning.
     """
     bind_limit = max(1, min(int(limit), 3))
     stmt = (
@@ -147,6 +151,60 @@ def recall_bindable_calibers(
                 asset_id=int(asset.id),
                 lineage_id=asset.lineage_id,
                 trust_tier=asset.trust_tier,
+            )
+        )
+    return out
+
+
+_STAGING_HINT_LIMIT = 3
+
+
+def _staging_ds_id(staging: KnowledgeStaging) -> int | None:
+    scope = staging.scope or {}
+    raw = scope.get("ds_id")
+    if raw is None:
+        raw = scope.get("datasource_id")
+    try:
+        return int(raw) if raw is not None else None
+    except (TypeError, ValueError):
+        return None
+
+
+def recall_staging_calibers(
+    session: Session,
+    *,
+    oid: int,
+    ds_id: int,
+    limit: int = _STAGING_HINT_LIMIT,
+) -> list[CaliberCandidate]:
+    """Pending admitted calibers as constrain hints, never as Bind seeds.
+
+    Capture writes staging only. Certified bind stays on ``recall_bindable_calibers``.
+    Same-datasource pending rows are user-confirmed clarifications for this
+    workspace; they hint the planner without rewriting the specification.
+    """
+    from apps.knowledge.staging.service import list_pending_staging
+
+    hint_limit = max(1, min(int(limit), 5))
+    rows = list_pending_staging(session, oid=oid, kind="caliber", limit=40)
+    out: list[CaliberCandidate] = []
+    for staging in rows:
+        if _staging_ds_id(staging) not in (None, ds_id):
+            continue
+        payload = staging.payload or {}
+        label = str(payload.get("label") or staging.natural_key or "")
+        summary = str(payload.get("summary") or "")
+        if len(out) >= hint_limit:
+            break
+        assert staging.id is not None
+        out.append(
+            CaliberCandidate(
+                apply="constrain",
+                staging_id=int(staging.id),
+                lineage_id=staging.lineage_id,
+                trust_tier=staging.suggested_trust_tier or "admitted",
+                label=label,
+                summary=summary,
             )
         )
     return out

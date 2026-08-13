@@ -205,7 +205,6 @@ def test_seed_is_applied_with_real_provenance_and_log() -> None:
         ),
     )
     applied = apply_knowledge_seeds(candidate, [seed])
-    assert not applied.missing
     assert applied.specification.outputs[0].source == "knowledge"
     assert applied.specification.outputs[0].evidence_refs == ("knowledge:event-7",)
     assert [(item.apply, item.reason) for item in applied.apply_log] == [
@@ -249,14 +248,13 @@ def test_user_time_basis_overrides_certified_default() -> None:
         ),
     )
     applied = apply_knowledge_seeds(user_specification, [seed])
-    assert not applied.missing
     assert applied.specification.time_windows[0].source == "user"
     assert [(item.apply, item.reason) for item in applied.apply_log] == [
         ("drop", "user_override")
     ]
 
 
-def test_missing_seed_without_user_override_requires_planner_repair() -> None:
+def test_seed_is_deterministically_added_without_planner_repair() -> None:
     seed = prepare_knowledge_seed(
         _bound(_output_fragment()),
         evidence_ref="knowledge:event-7",
@@ -274,9 +272,11 @@ def test_missing_seed_without_user_override_requires_planner_repair() -> None:
         ),
     )
     applied = apply_knowledge_seeds(unrelated, [seed])
-    assert len(applied.missing) == 1
-    assert applied.missing[0].startswith("7:req_")
-    assert not applied.apply_log
+    assert len(applied.specification.outputs) == 1
+    assert applied.specification.outputs[0].source == "knowledge"
+    assert [(item.apply, item.reason) for item in applied.apply_log] == [
+        ("bind", "certified_seed_applied")
+    ]
 
 
 def test_field_targets_cover_time_windows_and_relation_pairs() -> None:
@@ -403,6 +403,10 @@ def test_compile_does_not_report_bind_before_specification_absorbs_seed(
             )
         ],
     )
+    monkeypatch.setattr(
+        "apps.knowledge.retrieval.caliber_provider.recall_staging_calibers",
+        lambda *_args, **_kwargs: [],
+    )
     session = SimpleNamespace(
         exec=lambda _stmt: SimpleNamespace(all=lambda: []),
     )
@@ -421,7 +425,61 @@ def test_compile_does_not_report_bind_before_specification_absorbs_seed(
     ]
 
 
-def test_planner_repairs_missing_seed_then_degrades_without_blocking(
+def test_compile_injects_pending_staging_as_constrain(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "apps.knowledge.compile.compile.recall_knowledge",
+        lambda *_args, **_kwargs: SimpleNamespace(
+            prompt_template="",
+            log_items=[],
+            matches=[],
+        ),
+    )
+    monkeypatch.setattr(
+        "apps.knowledge.retrieval.caliber_provider.recall_bindable_calibers",
+        lambda *_args, **_kwargs: [],
+    )
+    monkeypatch.setattr(
+        "apps.knowledge.retrieval.caliber_provider.recall_staging_calibers",
+        lambda *_args, **_kwargs: [
+            SimpleNamespace(
+                apply="constrain",
+                bound=None,
+                asset_id=None,
+                staging_id=2,
+                lineage_id="lineage-stg",
+                trust_tier="admitted",
+                drop_reason=None,
+                label="原始供应商(company_name)",
+                summary="Captured from clarification on record 328",
+            )
+        ],
+    )
+    session = SimpleNamespace(
+        exec=lambda _stmt: SimpleNamespace(all=lambda: []),
+    )
+    compiled = compile_knowledge_for_turn(
+        session,  # type: ignore[arg-type]
+        stage="assess",
+        question="汇总今年的企业累计签收额",
+        oid=1,
+        ds_id=10,
+    )
+    assert compiled.bound_calibers == []
+    assert compiled.constraints[0]["label"] == "原始供应商(company_name)"
+    hints = [
+        item
+        for item in compiled.apply_log
+        if item.reason == "staging_caliber_hint"
+    ]
+    assert len(hints) == 1
+    assert hints[0].apply == "constrain"
+    assert hints[0].asset_id is None
+    assert hints[0].meta["staging_id"] == 2
+
+
+def test_planner_applies_seed_once_without_second_model_turn(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     seed = prepare_knowledge_seed(
@@ -470,9 +528,7 @@ def test_planner_repairs_missing_seed_then_degrades_without_blocking(
         llm=model,
         protocol=SimpleNamespace(
             type_key="sql",
-            build_prompt_bundle=lambda *_args, **_kwargs: SimpleNamespace(
-                as_dict=lambda: {}
-            ),
+            build_prompt_bundle=lambda *_args, **_kwargs: SimpleNamespace(rules=""),
         ),
         chat_question=SimpleNamespace(
             db_schema="",
@@ -518,9 +574,9 @@ def test_planner_repairs_missing_seed_then_degrades_without_blocking(
         max_batch_size=1,
         knowledge_seeds=[seed],
     )
-    assert model.calls == 2
+    assert model.calls == 1
     assert result.decision.decision == "ready"
-    assert result.decision.specification.assumptions[0].risk == "high"
+    assert result.decision.specification.outputs[0].source == "knowledge"
     assert [(item.apply, item.reason) for item in result.knowledge_apply] == [
-        ("drop", "planner_omitted_after_repair")
+        ("bind", "certified_seed_applied")
     ]

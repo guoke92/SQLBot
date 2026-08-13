@@ -26,8 +26,6 @@ const { t } = useI18n()
 const selected = reactive<Record<string, string>>({})
 const custom = reactive<Record<string, string>>({})
 const activeAmbiguityId = ref<string>()
-const detailsAmbiguityId = ref<string>()
-const showSummary = ref(false)
 const validationError = ref('')
 const editing = ref(false)
 const correctionAmbiguityId = ref<string>()
@@ -55,7 +53,6 @@ function initialize() {
   activeAmbiguityId.value = answered.value
     ? undefined
     : ambiguities.value.find((item) => !hasAnswer(item))?.ambiguity_id
-  detailsAmbiguityId.value = undefined
   validationError.value = ''
   editing.value = false
   correctionAmbiguityId.value = undefined
@@ -79,7 +76,6 @@ function openNext(ambiguity: Ambiguity) {
   activeAmbiguityId.value = ambiguities.value
     .slice(index + 1)
     .find((item) => !hasAnswer(item))?.ambiguity_id
-  detailsAmbiguityId.value = undefined
 }
 
 function chooseOption(ambiguity: Ambiguity, optionId: string) {
@@ -121,12 +117,6 @@ function toggleCorrection() {
 
 function toggleAmbiguity(id: string) {
   activeAmbiguityId.value = activeAmbiguityId.value === id ? undefined : id
-  if (detailsAmbiguityId.value !== activeAmbiguityId.value) detailsAmbiguityId.value = undefined
-}
-
-function toggleDetails(id: string) {
-  detailsAmbiguityId.value = detailsAmbiguityId.value === id ? undefined : id
-  if (detailsAmbiguityId.value) activeAmbiguityId.value = id
 }
 
 function submit() {
@@ -192,9 +182,6 @@ function submit() {
     <header>
       <div>
         <div class="card-title">{{ t('chat.clarification_title') }}</div>
-        <div v-if="showSummary && interrupt.payload.summary" class="secondary">
-          {{ interrupt.payload.summary }}
-        </div>
       </div>
       <div class="header-actions">
         <button
@@ -207,14 +194,6 @@ function submit() {
           {{
             editing ? t('chat.clarification_cancel_correction') : t('chat.clarification_correct')
           }}
-        </button>
-        <button
-          v-if="interrupt.payload.summary"
-          type="button"
-          class="link-button"
-          @click="showSummary = !showSummary"
-        >
-          {{ showSummary ? t('chat.clarification_hide_details') : t('chat.clarification_details') }}
         </button>
         <el-tag v-if="answered" type="info" effect="plain">
           {{ t('chat.clarification_answered') }}
@@ -243,29 +222,12 @@ function submit() {
             {{ selectedText(ambiguity) }}
           </div>
         </div>
-        <button
-          type="button"
-          class="link-button"
-          @click.stop="toggleDetails(ambiguity.ambiguity_id)"
-        >
-          {{
-            detailsAmbiguityId === ambiguity.ambiguity_id
-              ? t('chat.clarification_hide_details')
-              : t('chat.clarification_details')
-          }}
-        </button>
         <span class="chevron" :class="{ expanded: activeAmbiguityId === ambiguity.ambiguity_id }"
           >›</span
         >
       </div>
 
       <div v-if="activeAmbiguityId === ambiguity.ambiguity_id">
-        <div
-          v-if="detailsAmbiguityId === ambiguity.ambiguity_id && ambiguity.reason"
-          class="secondary"
-        >
-          {{ ambiguity.reason }}
-        </div>
         <div class="option-list">
           <button
             v-for="(option, optionIndex) in ambiguity.candidate_resolutions"
@@ -294,25 +256,8 @@ function submit() {
                   {{ t('chat.clarification_recommended') }}
                 </el-tag>
               </span>
-              <span
-                v-if="detailsAmbiguityId === ambiguity.ambiguity_id && option.description"
-                class="secondary"
-                >{{ option.description }}</span
-              >
-              <span
-                v-if="detailsAmbiguityId === ambiguity.ambiguity_id && option.impact"
-                class="secondary"
-              >
-                {{ t('chat.clarification_impact') }}：{{ option.impact }}
-              </span>
             </span>
           </button>
-        </div>
-        <div
-          v-if="detailsAmbiguityId === ambiguity.ambiguity_id && ambiguity.recommendation_reason"
-          class="secondary"
-        >
-          {{ t('chat.clarification_recommendation_reason') }}：{{ ambiguity.recommendation_reason }}
         </div>
         <el-input
           v-if="!answered || editing || custom[ambiguity.ambiguity_id]?.trim()"

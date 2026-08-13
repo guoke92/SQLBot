@@ -11,7 +11,7 @@ from collections.abc import Callable, Mapping, Sequence
 from copy import deepcopy
 from typing import Any, TypedDict, cast
 
-from apps.conversation.outcome import RunOutcome
+from apps.conversation.outcome import RunOutcome, failed_outcome
 
 
 class AnswerPresentationColumn(TypedDict):
@@ -84,6 +84,11 @@ def build_answer_payload(
         "analysis": analysis or "",
         "outcome": outcome,
     }
+
+
+def build_failed_answer_payload(error: BaseException | str) -> AnswerPayload:
+    """Create the canonical terminal payload for failures before execution."""
+    return build_answer_payload([], "", failed_outcome(error))
 
 
 def is_answer_payload(value: Any) -> bool:

@@ -10,8 +10,8 @@ from sqlmodel import Session
 
 from apps.chat.curd.chat import get_old_questions, save_recommend_question_answer
 from apps.chat.models.chat_model import OperationEnum, SystemPromptMessage
+from apps.chat.steps.observability import log_span
 from apps.chat.steps.stream import process_stream
-from apps.conversation.observability import end_log, start_log
 
 
 def generate_recommend_questions(
@@ -44,47 +44,30 @@ def generate_recommend_questions(
         )
     )
 
-    llm_service.current_logs[OperationEnum.GENERATE_RECOMMENDED_QUESTIONS] = start_log(
-        session=session,
+    with log_span(
         ai_modal_id=llm_service.chat_question.ai_modal_id,
         ai_modal_name=llm_service.chat_question.ai_modal_name,
         operate=OperationEnum.GENERATE_RECOMMENDED_QUESTIONS,
         record_id=llm_service.record.id,
-        full_message=[
-            {
-                "type": msg.type,
-                "sqlbot_system": getattr(msg, "sqlbot_system", False) is True,
-                "content": msg.content,
-            }
-            for msg in guess_msg
-        ],
-    )
-
-    full_thinking_text = ""
-    full_guess_text = ""
-    token_usage: Dict[str, Any] = {}
-    for chunk in process_stream(llm_service.llm.stream(guess_msg), token_usage):
-        if chunk.get("content"):
-            full_guess_text += chunk.get("content")
-        if chunk.get("reasoning_content"):
-            full_thinking_text += chunk.get("reasoning_content")
-        yield chunk
-
-    guess_msg.append(AIMessage(full_guess_text))
-    llm_service.current_logs[OperationEnum.GENERATE_RECOMMENDED_QUESTIONS] = end_log(
-        session=session,
-        log=llm_service.current_logs[OperationEnum.GENERATE_RECOMMENDED_QUESTIONS],
-        full_message=[
-            {
-                "type": msg.type,
-                "sqlbot_system": getattr(msg, "sqlbot_system", False) is True,
-                "content": msg.content,
-            }
-            for msg in guess_msg
-        ],
-        reasoning_content=full_thinking_text,
-        token_usage=token_usage,
-    )
+        local_operation=False,
+        phase="respond",
+        graph_node="generate",
+        title_key="chat.log.GENERATE_RECOMMENDED_QUESTIONS",
+    ) as span:
+        full_thinking_text = ""
+        full_guess_text = ""
+        token_usage: Dict[str, Any] = {}
+        for chunk in process_stream(llm_service.llm.stream(guess_msg), token_usage):
+            if chunk.get("content"):
+                full_guess_text += chunk.get("content")
+            if chunk.get("reasoning_content"):
+                full_thinking_text += chunk.get("reasoning_content")
+            yield chunk
+        guess_msg.append(AIMessage(full_guess_text))
+        span.set_model_context(guess_msg)
+        span.set_usage(token_usage)
+        span["reasoning_content"] = full_thinking_text
+        span.set_summary("chat.audit.response_ready")
     llm_service.record = save_recommend_question_answer(
         session=session,
         record_id=llm_service.record.id,

@@ -1,3 +1,4 @@
+import { ref, type Ref } from 'vue'
 import {
   runApi,
   type ChatRecord,
@@ -20,6 +21,8 @@ type ConversationTurnHandlers = {
 
 export const useConversationTurn = (options: UseChatStreamOptions = {}) => {
   const stream = useChatStream(options)
+  // Covers the gap after applySnapshot sets run_id but before SSE running=true.
+  const owned: Ref<boolean> = ref(false)
 
   const applySnapshot = (record: ChatRecord, snapshot: ConversationRunSnapshot) => {
     if (snapshot.record && typeof snapshot.record === 'object') {
@@ -29,15 +32,29 @@ export const useConversationTurn = (options: UseChatStreamOptions = {}) => {
     record.run_id = snapshot.run_id
     record.run_status = snapshot.status
     record.run_event_cursor = snapshot.event_cursor
+    record.run_current_node = snapshot.current_node
+    record.run_dispatch_attempts = snapshot.dispatch_attempts
+    record.run_update_time = snapshot.update_time
+    record.run_started_at = snapshot.started_at
+    record.run_completed_at = snapshot.completed_at
     record.active_interrupt = snapshot.active_interrupt
     record.interrupts = snapshot.interrupts || []
   }
 
   const fetchSnapshot = async (runId: string, record: ChatRecord) => {
-    const response = await runApi.snapshot(runId)
-    const snapshot = ((response as any)?.data || response) as ConversationRunSnapshot
-    applySnapshot(record, snapshot)
-    return snapshot
+    let lastError: unknown
+    for (let attempt = 0; attempt < 5; attempt++) {
+      try {
+        const response = await runApi.snapshot(runId)
+        const snapshot = ((response as any)?.data || response) as ConversationRunSnapshot
+        applySnapshot(record, snapshot)
+        return snapshot
+      } catch (error) {
+        lastError = error
+        await new Promise((resolve) => window.setTimeout(resolve, 400 * (attempt + 1)))
+      }
+    }
+    throw lastError
   }
 
   const observe = async (
@@ -48,6 +65,10 @@ export const useConversationTurn = (options: UseChatStreamOptions = {}) => {
   ) => {
     let finishDelivered = false
     let observeDone = false
+    const snapshotError = (snapshot: ConversationRunSnapshot, fallback: string) => {
+      const recordError = snapshot.record?.error
+      return typeof recordError === 'string' ? recordError : snapshot.error_summary || fallback
+    }
     const failTurn = (message: string, terminal: boolean) => {
       record.error = message
       if (terminal && record.id) {
@@ -62,25 +83,38 @@ export const useConversationTurn = (options: UseChatStreamOptions = {}) => {
     while (!observeDone) {
       let latestStatus = record.run_status || initial.status
       let httpFailure = false
+      const reconcileFromRun = async (failedMessage?: string) => {
+        try {
+          const snapshot = await fetchSnapshot(initial.run_id, record)
+          latestStatus = snapshot.status
+          if (snapshot.status === 'failed') {
+            failTurn(snapshotError(snapshot, failedMessage || 'Conversation failed'), true)
+          }
+          return snapshot
+        } catch {
+          return null
+        }
+      }
       await stream.run((controller) => runApi.events(initial.run_id, cursor, controller), {
         onEvent: async (event) => {
           if (event.cursor != null) {
             record.run_event_cursor = Number(event.cursor)
             cursor = record.run_event_cursor
           }
+          if (event.type === 'run_status') {
+            latestStatus = event.status as ConversationRunSnapshot['status']
+            record.run_status = latestStatus
+            record.run_current_node = event.current_node as string | undefined
+            record.run_dispatch_attempts = Number(event.dispatch_attempts || 0)
+            return false
+          }
           if (event.type === 'id') {
             record.id = Number(event.id)
             return
           }
           if (event.type === 'error') {
-            failTurn(String(event.content ?? event.msg ?? ''), false)
-            const snapshot = await fetchSnapshot(initial.run_id, record)
-            latestStatus = snapshot.status
-            if (snapshot.status === 'failed') {
-              failTurn(snapshot.error_summary || String(event.content ?? event.msg ?? ''), true)
-              return true
-            }
-            return false
+            const snapshot = await reconcileFromRun(String(event.content ?? event.msg ?? ''))
+            return snapshot?.status === 'failed'
           }
           if (event.type === 'finish') {
             // The persisted record, not this transport event, is the final
@@ -88,29 +122,27 @@ export const useConversationTurn = (options: UseChatStreamOptions = {}) => {
             return true
           }
           if (event.type === 'clarification') {
-            const snapshot = await fetchSnapshot(initial.run_id, record)
-            latestStatus = snapshot.status
+            await reconcileFromRun()
             await handlers.onEvent?.(event)
             return true
           }
           return handlers.onEvent?.(event)
         },
-        onHttpError: (event) => {
-          httpFailure = true
-          failTurn(String(event.msg ?? event.content ?? `HTTP ${event.code ?? 'error'}`), false)
+        onHttpError: async (event) => {
+          const code = Number(event.code || 0)
+          if (code === 401 || code === 403) {
+            httpFailure = true
+            failTurn(String(event.msg ?? event.content ?? `HTTP ${code}`), false)
+            return
+          }
+          await reconcileFromRun()
         },
         onTransportError: async () => {
-          // Transport is only a subscription. Reconcile from the durable run
-          // instead of turning an SSE disconnect into a business failure.
-          const snapshot = await fetchSnapshot(initial.run_id, record)
-          latestStatus = snapshot.status
-          if (snapshot.status === 'failed') {
-            failTurn(snapshot.error_summary || 'Conversation failed', true)
-          }
+          await reconcileFromRun()
         },
         onDone: async () => {
-          const snapshot = await fetchSnapshot(initial.run_id, record)
-          latestStatus = snapshot.status
+          const snapshot = await reconcileFromRun()
+          if (!snapshot) return
           if (['succeeded', 'degraded', 'failed', 'cancelled'].includes(snapshot.status)) {
             record.finish = true
           }
@@ -144,20 +176,46 @@ export const useConversationTurn = (options: UseChatStreamOptions = {}) => {
     handlers.onDone?.()
   }
 
+  const withOwnership = async (fn: () => Promise<void>) => {
+    if (owned.value) return
+    owned.value = true
+    try {
+      await fn()
+    } finally {
+      owned.value = false
+    }
+  }
+
+  const attach = async (record: ChatRecord, handlers: ConversationTurnHandlers = {}) => {
+    if (!record.run_id) return
+    // Live send/resume/correct already owns the subscription (including the
+    // window after applySnapshot but before SSE running flips true).
+    if (owned.value || stream.running.value) return
+    await withOwnership(async () => {
+      const snapshot = await fetchSnapshot(record.run_id!, record)
+      if (['queued', 'running'].includes(snapshot.status)) {
+        // Replay from zero so a refresh sees the same durable history as first live.
+        await observe(snapshot, record, handlers, 0)
+      }
+    })
+  }
+
   const run = async (
     chatId: number,
     record: ChatRecord,
     handlers: ConversationTurnHandlers = {}
   ) => {
-    const created = await runApi.create({
-      question: record.question || '',
-      chat_id: chatId,
-      regenerate_record_id: record.regenerate_record_id,
+    await withOwnership(async () => {
+      const created = await runApi.create({
+        question: record.question || '',
+        chat_id: chatId,
+        regenerate_record_id: record.regenerate_record_id,
+      })
+      const snapshot = ((created as any)?.data || created) as ConversationRunSnapshot
+      // A run may start emitting before POST /runs returns.  Subscribe from zero
+      // so the first live view sees the same durable history as a refresh.
+      await observe(snapshot, record, handlers, 0)
     })
-    const snapshot = ((created as any)?.data || created) as ConversationRunSnapshot
-    // A run may start emitting before POST /runs returns.  Subscribe from zero
-    // so the first live view sees the same durable history as a refresh.
-    await observe(snapshot, record, handlers, 0)
   }
 
   const resume = async (
@@ -178,18 +236,20 @@ export const useConversationTurn = (options: UseChatStreamOptions = {}) => {
     }
     record.active_interrupt = undefined
     record.run_status = 'running'
-    try {
-      const response = await runApi.resume(runId, pending.interrupt_id, {
-        version: pending.version,
-        idempotency_key: crypto.randomUUID(),
-        answers,
-      })
-      const snapshot = ((response as any)?.data || response) as ConversationRunSnapshot
-      await observe(snapshot, record, handlers, previousCursor)
-    } catch (error) {
-      await fetchSnapshot(runId, record)
-      throw error
-    }
+    await withOwnership(async () => {
+      try {
+        const response = await runApi.resume(runId, pending.interrupt_id, {
+          version: pending.version,
+          idempotency_key: crypto.randomUUID(),
+          answers,
+        })
+        const snapshot = ((response as any)?.data || response) as ConversationRunSnapshot
+        await observe(snapshot, record, handlers, previousCursor)
+      } catch (error) {
+        await fetchSnapshot(runId, record)
+        throw error
+      }
+    })
   }
 
   const correct = async (
@@ -204,19 +264,21 @@ export const useConversationTurn = (options: UseChatStreamOptions = {}) => {
     const previousCursor = record.run_event_cursor || 0
     record.active_interrupt = undefined
     record.run_status = 'running'
-    try {
-      const response = await runApi.correct(runId, source.interrupt_id, {
-        version: source.version,
-        idempotency_key: crypto.randomUUID(),
-        supersedes_evidence_id: supersedesEvidenceId,
-        answer,
-      })
-      const snapshot = ((response as any)?.data || response) as ConversationRunSnapshot
-      await observe(snapshot, record, handlers, previousCursor)
-    } catch (error) {
-      await fetchSnapshot(runId, record)
-      throw error
-    }
+    await withOwnership(async () => {
+      try {
+        const response = await runApi.correct(runId, source.interrupt_id, {
+          version: source.version,
+          idempotency_key: crypto.randomUUID(),
+          supersedes_evidence_id: supersedesEvidenceId,
+          answer,
+        })
+        const snapshot = ((response as any)?.data || response) as ConversationRunSnapshot
+        await observe(snapshot, record, handlers, previousCursor)
+      } catch (error) {
+        await fetchSnapshot(runId, record)
+        throw error
+      }
+    })
   }
 
   const detach = () => {
@@ -232,11 +294,13 @@ export const useConversationTurn = (options: UseChatStreamOptions = {}) => {
   }
 
   return {
+    attach,
     run,
     resume,
     correct,
     detach,
     cancel,
     running: stream.running,
+    owned,
   }
 }

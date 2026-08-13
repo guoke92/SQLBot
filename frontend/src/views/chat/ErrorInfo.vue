@@ -55,6 +55,13 @@ function showTraceBack() {
       <template v-else-if="errorMessage.type === 'exec-query-err'">
         {{ t('chat.exec-query-err') }}
       </template>
+      <template
+        v-else-if="
+          ['planning-error', 'runtime-error', 'internal-error'].includes(errorMessage.type || '')
+        "
+      >
+        {{ t(`chat.${errorMessage.type}`) }}
+      </template>
       <template v-else>
         {{ t('chat.error') }}
       </template>

@@ -107,6 +107,7 @@
     "data_training_not_exists": "該範例不存在",
     "exists_in_db": "該問題已存在",
     "data_training": "SQL 範例庫",
+    "knowledge": "知識管理",
     "problem_description": "問題描述",
     "sample_sql": "範例 SQL",
     "effective_data_sources": "生效數據源",

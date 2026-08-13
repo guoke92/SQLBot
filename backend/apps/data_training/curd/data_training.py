@@ -22,6 +22,7 @@ from apps.template.generate_chart.generator import get_base_data_training_templa
 from common.core.config import settings
 from common.core.deps import SessionDep, Trans
 from common.utils.embedding_threads import run_save_data_training_embeddings
+from common.utils.utils import SQLBotLogUtil
 
 
 def get_data_training_base_query(oid: int, name: str | None = None):
@@ -452,8 +453,10 @@ def run_sync_embeddings(session_maker):
         results = session.execute(stmt).scalars().all()
 
         save_embeddings(session_maker, results)
-    except Exception:
-        traceback.print_exc()
+    except Exception as exc:
+        SQLBotLogUtil.warning(
+            f"training embedding refresh skipped: {type(exc).__name__}"
+        )
     finally:
         session_maker.remove()
 
@@ -522,9 +525,7 @@ def select_training_by_question(session: SessionDep, question: str, oid: int, da
     if settings.EMBEDDING_ENABLED:
         with session.begin_nested():
             try:
-                model = EmbeddingModelCache.get_model()
-
-                embedding = model.embed_query(question)
+                embedding = EmbeddingModelCache.embed_query(question)
 
                 params: dict = {
                     **embedding_query_params(embedding),
@@ -553,8 +554,11 @@ def select_training_by_question(session: SessionDep, question: str, oid: int, da
                     _list.append(DataTraining(id=row.id, question=row.question))
                     similarity_map[row.id] = float(row.similarity)
 
-            except Exception:
-                traceback.print_exc()
+            except Exception as exc:
+                logging.getLogger(__name__).warning(
+                    "Training-example vector recall unavailable: %s",
+                    type(exc).__name__,
+                )
                 session.rollback()
 
     _map: dict = {}

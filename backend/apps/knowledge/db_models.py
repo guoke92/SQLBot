@@ -5,7 +5,18 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import Boolean, Column, DateTime, Identity, Integer, String, Text
+from sqlalchemy import (
+    Boolean,
+    Column,
+    DateTime,
+    ForeignKey,
+    Identity,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import BigInteger, Field, SQLModel
 
@@ -98,6 +109,7 @@ class KnowledgeEvidence(SQLModel, table=True):
     id: int | None = Field(
         sa_column=Column(BigInteger, Identity(always=True), primary_key=True)
     )
+    event_key: str = Field(sa_column=Column(String(255), nullable=False, unique=True))
     asset_id: int | None = Field(
         default=None, sa_column=Column(BigInteger, nullable=True)
     )
@@ -108,7 +120,7 @@ class KnowledgeEvidence(SQLModel, table=True):
     signal_kind: str = Field(
         sa_column=Column(
             String(32), nullable=False,
-            comment="reproduce|apply_outcome|feedback|usage",
+            comment="reproduce|apply_outcome|turn_feedback|usage",
         )
     )
     record_id: int | None = Field(
@@ -236,7 +248,9 @@ class KnowledgeCaptureJob(SQLModel, table=True):
         sa_column=Column(BigInteger, Identity(always=True), primary_key=True)
     )
     oid: int = Field(sa_column=Column(BigInteger, nullable=False))
-    record_id: int = Field(sa_column=Column(BigInteger, nullable=False))
+    record_id: int = Field(
+        sa_column=Column(BigInteger, nullable=False, unique=True)
+    )
     status: str = Field(sa_column=Column(String(24), nullable=False))
     attempt: int = Field(default=0, sa_column=Column(Integer, nullable=False))
     max_attempts: int = Field(default=3, sa_column=Column(Integer, nullable=False))
@@ -255,4 +269,97 @@ class KnowledgeCaptureJob(SQLModel, table=True):
     update_time: datetime = Field(sa_column=Column(DateTime(timezone=False), nullable=False))
     finished_at: datetime | None = Field(
         default=None, sa_column=Column(DateTime(timezone=False), nullable=True)
+    )
+
+
+class KnowledgePackageRegistry(SQLModel, table=True):
+    """Imported package metadata; runtime assets remain in their domain stores."""
+
+    __tablename__ = "knowledge_package_registry"
+    __table_args__ = (
+        UniqueConstraint("oid", "package_id", name="uq_knowledge_package_oid_key"),
+        Index("ix_knowledge_package_oid_updated", "oid", "update_time"),
+    )
+
+    id: int | None = Field(
+        sa_column=Column(BigInteger, Identity(always=True), primary_key=True)
+    )
+    oid: int = Field(sa_column=Column(BigInteger, nullable=False))
+    package_id: str = Field(sa_column=Column(String(255), nullable=False))
+    schema_version: str = Field(sa_column=Column(String(16), nullable=False))
+    title: str = Field(default="", sa_column=Column(String(255), nullable=False))
+    description: str = Field(default="", sa_column=Column(Text, nullable=False))
+    revision: int = Field(default=1, sa_column=Column(Integer, nullable=False))
+    item_count: int = Field(default=0, sa_column=Column(Integer, nullable=False))
+    defaults: dict[str, Any] = Field(
+        default_factory=dict, sa_column=Column(JSONB, nullable=False)
+    )
+    sources: list[dict[str, Any]] = Field(
+        default_factory=list, sa_column=Column(JSONB, nullable=False)
+    )
+    generator: dict[str, Any] = Field(
+        default_factory=dict, sa_column=Column(JSONB, nullable=False)
+    )
+    create_by: int | None = Field(
+        default=None, sa_column=Column(BigInteger, nullable=True)
+    )
+    create_time: datetime = Field(
+        sa_column=Column(DateTime(timezone=False), nullable=False)
+    )
+    update_time: datetime = Field(
+        sa_column=Column(DateTime(timezone=False), nullable=False)
+    )
+
+
+class KnowledgePackageItemRegistry(SQLModel, table=True):
+    """Every extracted item, including review-only and evidence items."""
+
+    __tablename__ = "knowledge_package_item_registry"
+    __table_args__ = (
+        UniqueConstraint(
+            "package_registry_id",
+            "item_id",
+            name="uq_knowledge_package_item_key",
+        ),
+        Index(
+            "ix_knowledge_package_item_governance",
+            "package_registry_id",
+            "present",
+            "kind",
+            "readiness",
+        ),
+    )
+
+    id: int | None = Field(
+        sa_column=Column(BigInteger, Identity(always=True), primary_key=True)
+    )
+    package_registry_id: int = Field(
+        sa_column=Column(
+            BigInteger,
+            ForeignKey("knowledge_package_registry.id", ondelete="CASCADE"),
+            nullable=False,
+        )
+    )
+    item_id: str = Field(sa_column=Column(String(255), nullable=False))
+    kind: str = Field(sa_column=Column(String(32), nullable=False))
+    source_status: str = Field(sa_column=Column(String(24), nullable=False))
+    readiness: str = Field(sa_column=Column(String(24), nullable=False))
+    present: bool = Field(default=True, sa_column=Column(Boolean, nullable=False))
+    payload: dict[str, Any] = Field(
+        default_factory=dict, sa_column=Column(JSONB, nullable=False)
+    )
+    messages: list[str] = Field(
+        default_factory=list, sa_column=Column(JSONB, nullable=False)
+    )
+    runtime_action: str | None = Field(
+        default=None, sa_column=Column(String(32), nullable=True)
+    )
+    runtime_target_id: int | None = Field(
+        default=None, sa_column=Column(BigInteger, nullable=True)
+    )
+    create_time: datetime = Field(
+        sa_column=Column(DateTime(timezone=False), nullable=False)
+    )
+    update_time: datetime = Field(
+        sa_column=Column(DateTime(timezone=False), nullable=False)
     )

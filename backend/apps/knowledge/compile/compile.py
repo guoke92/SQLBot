@@ -84,8 +84,12 @@ def compile_knowledge_for_turn(
             )
 
     bound_calibers: list[BoundCaliber] = []
+    constraints: list[dict[str, Any]] = []
     if include_calibers and ds_id is not None and advanced_application_id is None:
-        from apps.knowledge.retrieval.caliber_provider import recall_bindable_calibers
+        from apps.knowledge.retrieval.caliber_provider import (
+            recall_bindable_calibers,
+            recall_staging_calibers,
+        )
 
         candidates = recall_bindable_calibers(
             session,
@@ -107,11 +111,33 @@ def compile_knowledge_for_turn(
                         reason=item.drop_reason or "policy_drop",
                     )
                 )
+        for item in recall_staging_calibers(session, oid=oid, ds_id=ds_id):
+            label = item.label or ""
+            content = item.summary or label
+            if label or content:
+                constraints.append(
+                    {
+                        "id": item.staging_id,
+                        "lineage_id": item.lineage_id,
+                        "label": label,
+                        "content": content,
+                    }
+                )
+            apply_log.append(
+                ApplyHit(
+                    asset_kind="caliber",
+                    asset_id=None,
+                    lineage_id=item.lineage_id,
+                    trust_tier=item.trust_tier,
+                    apply="constrain",
+                    reason="staging_caliber_hint",
+                    meta={"staging_id": item.staging_id, "label": label},
+                )
+            )
 
     # ── K5 rules: workspace/datasource-scoped business constraints ──
     # Skipped alongside matches: the planner reads constraints from the
     # assess-stage compile; re-querying at generate would only duplicate hits.
-    constraints: list[dict[str, Any]] = []
     if include_matches:
         rule_stmt = (
             select(KnowledgeAsset)
@@ -157,7 +183,7 @@ def compile_knowledge_for_turn(
             )
 
     examples: list[dict[str, Any]] = []
-    if include_examples and stage in ("generate", "repair"):
+    if include_examples and stage == "generate":
         from apps.knowledge.retrieval.example_provider import recall_examples
 
         raw_examples = recall_examples(
@@ -168,7 +194,7 @@ def compile_knowledge_for_turn(
             advanced_application_id=advanced_application_id,
             training_type=training_type,
         )
-        limit = budgets.repair_hints if stage == "repair" else budgets.generate_examples
+        limit = budgets.generate_examples
         for idx, example in enumerate(raw_examples):
             if idx >= limit:
                 apply_log.append(
@@ -196,7 +222,7 @@ def compile_knowledge_for_turn(
     # ── K4 VQR: attempt reuse from certified exemplars ──
     reuse_payload: dict[str, Any] | None = None
     if stage == "generate" and examples and ds_id is not None:
-        from apps.knowledge.reuse import build_reuse_apply_hit, try_reuse
+        from apps.knowledge.reuse import try_reuse
 
         reuse_result = try_reuse(
             question=question,
@@ -205,7 +231,8 @@ def compile_knowledge_for_turn(
         )
         if reuse_result is not None:
             reuse_payload = reuse_result.model_dump(mode="json")
-            apply_log.append(build_reuse_apply_hit(reuse_result))
+            # Compile discovers a candidate only. Reuse becomes an applied fact
+            # after the shared plan validator accepts it.
 
     return CompiledKnowledge(
         stage=stage,

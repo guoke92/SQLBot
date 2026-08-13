@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from datetime import datetime
 from difflib import SequenceMatcher
 from typing import Any
 
@@ -16,8 +15,8 @@ from apps.datasource.profiling.models import (
     FieldRelation,
     RelationKind,
     RelationSource,
-    RelationStatus,
 )
+from apps.datasource.profiling.relation_candidates import admit_relation_candidate
 from apps.datasource.profiling.service import (
     build_profile_brief,
     decide_field_relation,
@@ -102,7 +101,9 @@ class MiningOps:
                 )
             ).all()
             if self.ctx.table_id is not None:
-                fields = [f for f in fields if int(f.table_id) == int(self.ctx.table_id)]
+                fields = [
+                    f for f in fields if int(f.table_id) == int(self.ctx.table_id)
+                ]
             ids = [int(f.id) for f in fields if f.id is not None][:40]
         rows = session.exec(
             select(CoreField).where(
@@ -206,14 +207,15 @@ class MiningOps:
         dst_col = proto._quote_identifier(dst.field_name)
 
         from apps.datasource.profiling.service import get_active_field_profiles
-        from apps.datasource.profiling.soft_signals import inclusion_score, key_likelihood
+        from apps.datasource.profiling.soft_signals import (
+            inclusion_score,
+            key_likelihood,
+        )
 
         src_snap = next(
             (
                 p
-                for p in get_active_field_profiles(
-                    session, table_id=int(src.table_id)
-                )
+                for p in get_active_field_profiles(session, table_id=int(src.table_id))
                 if int(p.field_id) == int(source_field_id)
             ),
             None,
@@ -221,9 +223,7 @@ class MiningOps:
         dst_snap = next(
             (
                 p
-                for p in get_active_field_profiles(
-                    session, table_id=int(dst.table_id)
-                )
+                for p in get_active_field_profiles(session, table_id=int(dst.table_id))
                 if int(p.field_id) == int(target_field_id)
             ),
             None,
@@ -334,71 +334,37 @@ class MiningOps:
         if int(src.ds_id) != self.ctx.ds_id or int(dst.ds_id) != self.ctx.ds_id:
             return tool_failure("upsert failed", "field outside datasource")
         kind_value = (kind or RelationKind.EQUI_JOIN.value).upper()
-        source_value = (source or RelationSource.PROBE.value).strip() or RelationSource.PROBE.value
+        source_value = (
+            source or RelationSource.PROBE.value
+        ).strip() or RelationSource.PROBE.value
         # Hard gate (matches agent prompt): EQUI_JOIN must carry probe approval.
         # query_log mining writes FieldRelation directly and does not use this tool.
         if kind_value == RelationKind.EQUI_JOIN.value:
-            if not isinstance(evidence, dict) or evidence.get("suggest_candidate") is not True:
+            if (
+                not isinstance(evidence, dict)
+                or evidence.get("suggest_candidate") is not True
+            ):
                 return tool_failure(
                     "upsert rejected",
                     "EQUI_JOIN requires evidence.suggest_candidate=true from a probe",
                 )
-        now = datetime.now()
-        existing = session.exec(
-            select(FieldRelation).where(
-                FieldRelation.ds_id == self.ctx.ds_id,
-                FieldRelation.source_field_id == int(source_field_id),
-                FieldRelation.target_field_id == int(target_field_id),
-                FieldRelation.kind == kind_value,
-            )
-        ).first()
-        if existing is not None:
-            if existing.status == RelationStatus.CONFIRMED.value:
-                return tool_success(
-                    "kept confirmed relation",
-                    {"id": existing.id, "status": existing.status},
-                )
-            if existing.status == RelationStatus.REJECTED.value:
-                return tool_success(
-                    "kept rejected relation",
-                    {"id": existing.id, "status": existing.status},
-                )
-            if existing.status == RelationStatus.DISABLED.value:
-                return tool_success(
-                    "kept disabled relation",
-                    {"id": existing.id, "status": existing.status},
-                )
-            existing.status = RelationStatus.CANDIDATE.value
-            existing.confidence = confidence
-            existing.evidence = evidence
-            existing.cardinality = cardinality
-            existing.source = source_value
-            existing.update_time = now
-            session.add(existing)
-            session.commit()
-            session.refresh(existing)
-            return tool_success("relation candidate updated", {"id": existing.id})
-
-        row = FieldRelation(
+        row, action = admit_relation_candidate(
+            session,
             oid=self.ctx.oid,
             ds_id=self.ctx.ds_id,
-            source_table_id=int(src.table_id),
             source_field_id=int(source_field_id),
-            target_table_id=int(dst.table_id),
             target_field_id=int(target_field_id),
             kind=kind_value,
-            cardinality=cardinality,
-            status=RelationStatus.CANDIDATE.value,
-            source=source_value,
             confidence=confidence,
             evidence=evidence,
-            create_time=now,
-            update_time=now,
+            cardinality=cardinality,
+            source=source_value,
         )
-        session.add(row)
         session.commit()
-        session.refresh(row)
-        return tool_success("relation candidate created", {"id": row.id})
+        return tool_success(
+            f"relation candidate {action}",
+            {"id": row.id, "status": row.status},
+        )
 
     def list_relations(self, session: Session, *, status: str) -> dict[str, Any]:
         rows = get_published_relations(
@@ -580,9 +546,7 @@ class MiningOps:
             if cfg.id is None:
                 continue
             try:
-                row = refresh_config(
-                    session, oid=self.ctx.oid, config_id=int(cfg.id)
-                )
+                row = refresh_config(session, oid=self.ctx.oid, config_id=int(cfg.id))
                 refreshed.append({"config_id": row.id, "status": row.status})
             except Exception as exc:
                 errors.append({"config_id": cfg.id, "error": str(exc)[:200]})
@@ -651,7 +615,9 @@ class MiningOps:
         min_count: int = 2,
         sql_limit: int = 200,
     ) -> dict[str, Any]:
-        from apps.datasource.profiling.query_log_joins import mine_query_log_join_candidates
+        from apps.datasource.profiling.query_log_joins import (
+            mine_query_log_join_candidates,
+        )
 
         try:
             result = mine_query_log_join_candidates(
@@ -752,11 +718,7 @@ class MiningOps:
                 tallies["ratio"] += 1
 
         n = tallies["rows"] or 1
-        rates = {
-            k: round(v / n, 4)
-            for k, v in tallies.items()
-            if k != "rows"
-        }
+        rates = {k: round(v / n, 4) for k, v in tallies.items() if k != "rows"}
         best = max(rates.items(), key=lambda item: item[1]) if rates else ("none", 0.0)
         return tool_success(
             "formula probe",

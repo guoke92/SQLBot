@@ -91,6 +91,37 @@ class AmbiguitySet(BaseModel):
     summary: str = ""
 
 
+def public_ambiguity_payload(ambiguity_set: AmbiguitySet) -> dict[str, Any]:
+    """Interrupt JSON shown to the user — labels and wiring only."""
+    payload = ambiguity_set.model_dump(mode="json")
+    compact: list[dict[str, Any]] = []
+    for item in payload.get("ambiguities") or []:
+        if not isinstance(item, dict):
+            continue
+        options = []
+        for option in item.get("candidate_resolutions") or []:
+            if not isinstance(option, dict):
+                continue
+            options.append(
+                {
+                    "option_id": option.get("option_id") or "",
+                    "label": option.get("label") or "",
+                    "resolution": option.get("resolution") or {},
+                }
+            )
+        compact.append(
+            {
+                "ambiguity_id": item.get("ambiguity_id") or "",
+                "business_axis": item.get("business_axis") or "",
+                "business_question": item.get("business_question") or "",
+                "candidate_resolutions": options,
+                "recommended_candidate_id": item.get("recommended_candidate_id"),
+                "can_assume": bool(item.get("can_assume")),
+            }
+        )
+    return {"ambiguities": compact}
+
+
 def enforce_clarification_policy(
     ambiguity_set: AmbiguitySet,
     *,

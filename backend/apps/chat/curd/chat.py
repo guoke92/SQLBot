@@ -25,6 +25,7 @@ from apps.chat.models.chat_model import (
     TypeEnum,
 )
 from apps.chat.result_data import format_json_data
+from apps.chat.steps.observability import project_audit_message
 from apps.conversation.models import ConversationInterrupt, ConversationRun
 from apps.datasource.crud.datasource import get_ds
 from apps.datasource.crud.recommended_problem import get_datasource_recommended_chart
@@ -386,14 +387,16 @@ def _latest_reasoning_by_record(
                     break
         if op_enum is None or op_enum not in _REASONING_FIELD_BY_OPERATE:
             continue
+        text = reasoning if isinstance(reasoning, str) else None
+        if text is not None and text.strip() == "":
+            text = None
+        if text is None:
+            continue
         sk = (int(pid), op_enum.value)
         if sk in seen:
             continue
         seen.add(sk)
         field = _REASONING_FIELD_BY_OPERATE[op_enum]
-        text = reasoning if isinstance(reasoning, str) else None
-        if text is not None and text.strip() == "":
-            text = None
         bucket = out.setdefault(int(pid), {f: None for f in _REASONING_FIELD_BY_OPERATE.values()})
         bucket[field] = text
     return out
@@ -579,6 +582,11 @@ def get_chat_with_records(session: SessionDep, chart_id: int, current_user: Curr
             run_id=run.run_id if run else None,
             run_status=run.status if run else None,
             run_event_cursor=int(run.event_cursor or 0) if run else 0,
+            run_current_node=run.current_node if run else None,
+            run_dispatch_attempts=int(run.dispatch_attempts or 0) if run else 0,
+            run_update_time=run.update_time if run else None,
+            run_started_at=run.started_at if run else None,
+            run_completed_at=run.completed_at if run else None,
             active_interrupt=(
                 {
                     "interrupt_id": active_interrupt.interrupt_id,
@@ -725,6 +733,12 @@ def get_chat_log_history(session: SessionDep, chat_record_id: int, current_user:
     if chat_record.create_by != current_user.id:
         raise Exception(f"ChatRecord with id {chat_record_id} not owned by the current user")
 
+    run = session.exec(
+        select(ConversationRun).where(
+            ConversationRun.chat_record_id == chat_record_id
+        )
+    ).scalars().one_or_none()
+
     # 2. 查询与该ChatRecord相关的所有ChatLog记录
     chat_logs = session.query(ChatLog).filter(
         ChatLog.pid == chat_record_id,
@@ -791,7 +805,19 @@ def get_chat_log_history(session: SessionDep, chat_record_id: int, current_user:
                         except Exception:
                             pass
 
-            # 创建ChatLogHistoryItem
+            run_terminal = bool(
+                run is not None
+                and run.status in {"succeeded", "degraded", "failed", "cancelled"}
+            )
+            projection = project_audit_message(
+                message,
+                finish_time=log.finish_time,
+                error=bool(log.error),
+                run_terminal=run_terminal,
+            )
+
+            # V1 fields are normalized here. The frontend never guesses the
+            # storage shape; unversioned history remains one raw fallback.
             history_item = ChatLogHistoryItem(
                 id=log.id,
                 start_time=log.start_time,
@@ -801,26 +827,93 @@ def get_chat_log_history(session: SessionDep, chat_record_id: int, current_user:
                 operate=operate_name,
                 local_operation=log.local_operation,
                 error=log.error,
-                message=message,
+                status=projection["status"],
+                phase=projection["phase"],
+                graph_node=projection["graph_node"],
+                title_key=projection["title_key"],
+                title_params=projection["title_params"],
+                summary_key=projection["summary_key"],
+                summary_params=projection["summary_params"],
+                batch_index=projection["batch_index"],
+                attempt_index=projection["attempt_index"],
+                unit_index=projection["unit_index"],
+                detail=projection["detail"],
+                input=projection["input"],
+                output=projection["output"],
+                reasoning_content=log.reasoning_content,
+                message=projection["message"],
             )
 
             steps.append(history_item)
 
     # 4. 计算总耗时（使用ChatRecord的时间）
-    total_duration = None
-    if chat_record.create_time and chat_record.finish_time:
+    elapsed_duration = None
+    duration_end = chat_record.finish_time or (
+        run.completed_at
+        if run is not None and run.completed_at is not None
+        else datetime.datetime.now()
+    )
+    if chat_record.create_time and duration_end:
         try:
-            time_diff = chat_record.finish_time - chat_record.create_time
-            total_duration = round(time_diff.total_seconds(), 2)
+            time_diff = duration_end - chat_record.create_time
+            elapsed_duration = round(time_diff.total_seconds(), 2)
         except Exception:
-            total_duration = None
+            elapsed_duration = None
 
-    # 5. 创建并返回ChatLogHistory对象
+    waiting_duration = 0.0
+    if run is not None:
+        interrupts = list(
+            session.exec(
+                select(ConversationInterrupt).where(
+                    ConversationInterrupt.run_id == run.run_id
+                )
+            ).scalars()
+        )
+        for interrupt in interrupts:
+            wait_end = interrupt.consumed_at
+            if wait_end is None:
+                wait_end = run.completed_at or datetime.datetime.now()
+            if interrupt.create_time and wait_end > interrupt.create_time:
+                waiting_duration += (wait_end - interrupt.create_time).total_seconds()
+    waiting_duration = round(waiting_duration, 2)
+    processing_duration = (
+        round(max(0.0, elapsed_duration - waiting_duration), 2)
+        if elapsed_duration is not None
+        else None
+    )
+
+    if run is not None:
+        run_summary = {
+            "run_id": run.run_id,
+            "status": run.status,
+            "current_node": run.current_node,
+            "dispatch_attempts": int(run.dispatch_attempts or 0),
+            "started_at": run.started_at,
+            "completed_at": run.completed_at,
+            "update_time": run.update_time,
+        }
+    else:
+        run_summary = {
+            "status": (
+                "failed"
+                if chat_record.error
+                else "succeeded"
+                if chat_record.finish
+                else "running"
+            ),
+            "started_at": chat_record.create_time,
+            "completed_at": chat_record.finish_time,
+        }
+
+    # 5. 创建并返回统一的 ExecutionDetails 读取模型
     chat_log_history = ChatLogHistory(
         start_time=chat_record.create_time,  # 使用ChatRecord的create_time
         finish_time=chat_record.finish_time,  # 使用ChatRecord的finish_time
-        duration=total_duration,
+        duration=processing_duration,
+        elapsed_duration=elapsed_duration,
+        waiting_duration=waiting_duration,
         total_tokens=total_tokens,
+        run=run_summary,
         steps=steps
     )
 
@@ -1211,38 +1304,6 @@ def save_predict_data(session: SessionDep, record_id: int, data: str = '') -> Ch
     return result
 
 
-def save_error_message(session: SessionDep, record_id: int, message: str) -> ChatRecord:
-    if not record_id:
-        raise Exception("Record id cannot be None")
-    record = get_chat_record_by_id(session, record_id)
-
-    record.error = message
-    record.finish = True
-    record.finish_time = datetime.datetime.now()
-
-    result = ChatRecord(**record.model_dump())
-
-    stmt = update(ChatRecord).where(and_(ChatRecord.id == record.id)).values(
-        error=record.error,
-        finish=record.finish,
-        finish_time=record.finish_time
-    )
-
-    session.execute(stmt)
-
-    session.commit()
-
-    # log error finish
-    stmt = update(ChatLog).where(and_(ChatLog.pid == record.id, ChatLog.finish_time.is_(None))).values(
-        finish_time=record.finish_time,
-        error=True
-    )
-    session.execute(stmt)
-    session.commit()
-
-    return result
-
-
 def save_sql_exec_data(session: SessionDep, record_id: int, data: str) -> ChatRecord:
     if not record_id:
         raise Exception("Record id cannot be None")
@@ -1306,39 +1367,33 @@ def submit_record_feedback(
     user_id: int,
     feedback: Optional[str],
 ) -> dict:
-    """Persist user feedback and emit knowledge signals for applied assets."""
-    record = session.get(ChatRecord, chat_record_id)
+    """Persist one turn-level feedback fact independent of capture timing."""
+    record = session.exec(
+        select(ChatRecord)
+        .where(ChatRecord.id == chat_record_id)
+        .with_for_update()
+    ).scalars().one_or_none()
     if record is None or record.create_by != user_id:
         from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="record not found")
 
     record.feedback = feedback
+    record.feedback_revision = int(record.feedback_revision or 0) + 1
     session.add(record)
+    from apps.knowledge.gateway import KnowledgeSignal, emit_signal
 
-    if feedback is not None:
-        from apps.knowledge.db_models import KnowledgeEvidence
-        from apps.knowledge.gateway import KnowledgeSignal, emit_signal
-
-        applied = session.exec(
-            select(KnowledgeEvidence)
-            .where(KnowledgeEvidence.record_id == chat_record_id)
-            .where(KnowledgeEvidence.signal_kind == "apply_outcome")
-        ).all()
-        for ev in applied:
-            if ev.asset_id is None:
-                continue
-            emit_signal(
-                session,
-                KnowledgeSignal(
-                    kind="user_feedback",
-                    refs={"asset_id": ev.asset_id, "asset_kind": ev.asset_kind},
-                    fact={
-                        "record_id": chat_record_id,
-                        "feedback": feedback,
-                        "user_id": user_id,
-                    },
-                ),
-            )
+    emit_signal(
+        session,
+        KnowledgeSignal(
+            kind="turn_feedback",
+            fact={
+                "record_id": chat_record_id,
+                "feedback": feedback,
+                "revision": record.feedback_revision,
+                "user_id": user_id,
+            },
+        ),
+    )
 
     session.commit()
-    return {"feedback": feedback}
+    return {"feedback": feedback, "revision": record.feedback_revision}

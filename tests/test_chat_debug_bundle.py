@@ -55,32 +55,25 @@ def test_truncate_answer_payload_rows() -> None:
 def test_span_brief_from_envelope() -> None:
     message = {
         "sqlbot_span": True,
+        "version": 1,
+        "phase": "execute",
         "graph_node": "execute_queries",
-        "payload": {"sql": "select 1", "error": "boom", "row_count": 0},
+        "detail": {"sql": "select 1", "error": "boom", "row_count": 0},
     }
     brief = _span_brief(message)
     assert brief["graph_node"] == "execute_queries"
-    assert brief["sql"] == "select 1"
-    assert brief["error"] == "boom"
+    assert brief["detail"]["sql"] == "select 1"
+    assert brief["detail"]["error"] == "boom"
 
 
-def test_span_brief_from_inject_span_meta_list() -> None:
-    import orjson
-
-    meta = {
+def test_span_brief_uses_canonical_envelope() -> None:
+    message = {
         "sqlbot_span": True,
+        "version": 1,
+        "phase": "plan",
         "graph_node": "generate_queries",
-        "payload": {"validation_error": "bad sql"},
+        "detail": {"validation_error": "bad sql"},
     }
-    message = [
-        {
-            "type": "system",
-            "sqlbot_system": True,
-            "sqlbot_span_meta": True,
-            "content": orjson.dumps(meta).decode(),
-        },
-        {"role": "user", "content": "hello"},
-    ]
     brief = _span_brief(message)
     assert brief["graph_node"] == "generate_queries"
-    assert brief["validation_error"] == "bad sql"
+    assert brief["detail"]["validation_error"] == "bad sql"

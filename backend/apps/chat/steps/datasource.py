@@ -7,7 +7,8 @@ and no ``LLMService.embedding`` field.
 
 from __future__ import annotations
 
-from typing import Any, Dict, Iterator, List, Union
+from collections.abc import Iterator
+from typing import Any
 
 import orjson
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
@@ -16,9 +17,9 @@ from sqlmodel import Session
 
 from apps.chat.constants import DYNAMIC_DS_TYPES
 from apps.chat.curd.chat import save_select_datasource_answer
-from apps.chat.models.chat_model import Chat, OperationEnum, SystemPromptMessage
+from apps.chat.models.chat_model import Chat, SystemPromptMessage
+from apps.chat.steps.observability import AuditSpanHandle
 from apps.chat.steps.stream import process_stream
-from apps.conversation.observability import end_log, start_log
 from apps.datasource.embedding.ds_embedding import get_ds_embedding
 from apps.datasource.models.datasource import CoreDatasource
 from apps.protocol import get_protocol
@@ -31,13 +32,18 @@ from common.utils.json_utils import extract_nested_json
 __all__ = ["DYNAMIC_DS_TYPES", "select_datasource", "validate_history_ds"]
 
 
-def select_datasource(llm_service: Any, session: Session) -> Iterator[Dict[str, Any]]:
+def select_datasource(
+    llm_service: Any,
+    session: Session,
+    *,
+    audit_span: AuditSpanHandle | None = None,
+) -> Iterator[dict[str, Any]]:
     """Choose datasource for unbound chats; yield LLM tokens when multi-DS selection runs.
 
     Does **not** re-run terminology / training / prompts — those are graph match nodes.
     Multi-DS ranking uses ``get_ds_embedding`` only when ``TABLE_EMBEDDING_ENABLED``.
     """
-    datasource_msg: List[Union[BaseMessage, dict[str, Any]]] = [
+    datasource_msg: list[BaseMessage | dict[str, Any]] = [
         SystemPromptMessage(llm_service.chat_question.datasource_sys_question())
     ]
     if llm_service.current_assistant and llm_service.current_assistant.type != 4:
@@ -54,6 +60,8 @@ def select_datasource(llm_service: Any, session: Session) -> Iterator[Dict[str, 
         raise SingleMessageError("No available datasource configuration found")
 
     ignore_auto_select = bool(ds_list and len(ds_list) == 1)
+    if audit_span is not None:
+        audit_span["local_operation"] = ignore_auto_select
     full_thinking_text = ""
     full_text = ""
     ds: dict[str, Any] | None = None
@@ -79,22 +87,7 @@ def select_datasource(llm_service: Any, session: Session) -> Iterator[Dict[str, 
                 )
             )
         )
-        llm_service.current_logs[OperationEnum.CHOOSE_DATASOURCE] = start_log(
-            session=session,
-            ai_modal_id=llm_service.chat_question.ai_modal_id,
-            ai_modal_name=llm_service.chat_question.ai_modal_name,
-            operate=OperationEnum.CHOOSE_DATASOURCE,
-            record_id=llm_service.record.id,
-            full_message=[
-                {
-                    "type": msg.type,
-                    "sqlbot_system": getattr(msg, "sqlbot_system", False) is True,
-                    "content": msg.content,
-                }
-                for msg in datasource_msg
-            ],
-        )
-        token_usage: Dict[str, Any] = {}
+        token_usage: dict[str, Any] = {}
         for chunk in process_stream(llm_service.llm.stream(datasource_msg), token_usage):
             if chunk.get("content"):
                 full_text += chunk.get("content")
@@ -102,20 +95,10 @@ def select_datasource(llm_service: Any, session: Session) -> Iterator[Dict[str, 
                 full_thinking_text += chunk.get("reasoning_content")
             yield chunk
         datasource_msg.append(AIMessage(full_text))
-        llm_service.current_logs[OperationEnum.CHOOSE_DATASOURCE] = end_log(
-            session=session,
-            log=llm_service.current_logs[OperationEnum.CHOOSE_DATASOURCE],
-            full_message=[
-                {
-                    "type": msg.type,
-                    "sqlbot_system": getattr(msg, "sqlbot_system", False) is True,
-                    "content": msg.content,
-                }
-                for msg in datasource_msg
-            ],
-            reasoning_content=full_thinking_text,
-            token_usage=token_usage,
-        )
+        if audit_span is not None:
+            audit_span.set_model_context(datasource_msg)
+            audit_span.set_usage(token_usage)
+            audit_span["reasoning_content"] = full_thinking_text
         json_str = extract_nested_json(full_text)
         if json_str is None:
             raise SingleMessageError(f"Cannot parse datasource from answer: {full_text}")

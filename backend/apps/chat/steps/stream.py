@@ -6,11 +6,16 @@ This module only normalizes raw chat-model chunks into content / reasoning pairs
 
 from __future__ import annotations
 
-from typing import Any, Dict, Iterator
+from collections.abc import Callable, Iterator, Sequence
+from dataclasses import dataclass, field
+from typing import Any
 
-from langchain_core.messages import BaseMessageChunk
+from langchain_core.messages import AIMessage, BaseMessageChunk
 
+from apps.conversation.messages import message_content_text
+from apps.conversation.usage import usage_from_response
 from common.core.config import settings
+
 
 def get_token_usage(
     chunk: BaseMessageChunk, token_usage: dict | None = None
@@ -28,11 +33,11 @@ def get_token_usage(
 
 def process_stream(
     res: Iterator[BaseMessageChunk],
-    token_usage: Dict[str, Any] | None = None,
+    token_usage: dict[str, Any] | None = None,
     enable_tag_parsing: bool = settings.PARSE_REASONING_BLOCK_ENABLED,
     start_tag: str = settings.DEFAULT_REASONING_CONTENT_START,
     end_tag: str = settings.DEFAULT_REASONING_CONTENT_END,
-) -> Iterator[Dict[str, Any]]:
+) -> Iterator[dict[str, Any]]:
     """Yield ``{content, reasoning_content}`` for every model chunk."""
     if token_usage is None:
         token_usage = {}
@@ -106,3 +111,74 @@ def process_stream(
             "reasoning_content": reasoning_content_chunk,
         }
         get_token_usage(chunk, token_usage)
+
+
+@dataclass(frozen=True)
+class LlmCallResult:
+    """One completed model exchange assembled from stream chunks or invoke."""
+
+    message: Any
+    content: str
+    reasoning: str
+    usage: dict[str, Any] = field(default_factory=dict)
+
+
+def _reasoning_from(response: Any) -> str:
+    extra = getattr(response, "additional_kwargs", None) or {}
+    if not isinstance(extra, dict):
+        return ""
+    return str(extra.get("reasoning_content") or extra.get("reasoning") or "")
+
+
+def consume_llm(
+    llm: Any,
+    messages: Sequence[Any],
+    *,
+    on_chunk: Callable[[dict[str, str]], None] | None = None,
+) -> LlmCallResult:
+    """Prefer streaming so reasoning can be forwarded before the call ends.
+
+    Providers without ``stream`` (and tests that only stub ``invoke``) fall
+    back to a single blocking response. Storage is always the assembled
+    assistant message plus reasoning text — never the raw chunk list.
+    """
+    stream_fn = getattr(llm, "stream", None)
+    if callable(stream_fn):
+        token_usage: dict[str, Any] = {}
+        content_parts: list[str] = []
+        reasoning_parts: list[str] = []
+        for chunk in process_stream(stream_fn(messages), token_usage):
+            content = str(chunk.get("content") or "")
+            reasoning = str(chunk.get("reasoning_content") or "")
+            if content:
+                content_parts.append(content)
+            if reasoning:
+                reasoning_parts.append(reasoning)
+            if on_chunk and (content or reasoning):
+                on_chunk({"content": content, "reasoning_content": reasoning})
+        content = "".join(content_parts)
+        reasoning = "".join(reasoning_parts)
+        extra = {"reasoning_content": reasoning} if reasoning else {}
+        message = AIMessage(
+            content=content,
+            additional_kwargs=extra,
+            usage_metadata=token_usage or None,
+        )
+        return LlmCallResult(
+            message=message,
+            content=content,
+            reasoning=reasoning,
+            usage=dict(token_usage),
+        )
+
+    response = llm.invoke(messages)
+    content = message_content_text(getattr(response, "content", response))
+    reasoning = _reasoning_from(response)
+    if on_chunk and (content or reasoning):
+        on_chunk({"content": content, "reasoning_content": reasoning})
+    return LlmCallResult(
+        message=response,
+        content=content,
+        reasoning=reasoning,
+        usage=usage_from_response(response),
+    )

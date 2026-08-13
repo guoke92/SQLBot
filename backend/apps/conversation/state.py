@@ -34,5 +34,6 @@ class RunState(TypedDict, total=False):
     messages: List[Dict[str, Any]]
     full_text: str
     error: str
+    public_error: str
     outcome: RunOutcome
     extras: Dict[str, Any]

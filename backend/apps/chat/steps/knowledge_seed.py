@@ -8,8 +8,11 @@ from typing import Any
 import orjson
 
 from apps.chat.query_specification import (
+    OrderRequirement,
+    OutputRequirement,
     QuerySpecification,
     SpecificationRequirement,
+    is_user_evidence_ref,
     normalize_specification,
     parse_specification_fragment,
     requirement_semantic_material,
@@ -42,7 +45,6 @@ class KnowledgeSeed:
 class KnowledgeApplication:
     specification: QuerySpecification
     apply_log: tuple[ApplyHit, ...]
-    missing: tuple[str, ...]
 
 
 def prepare_knowledge_seed(
@@ -82,89 +84,99 @@ def _identity(value: dict[str, Any]) -> bytes:
 
 def _has_user_evidence(requirement: SpecificationRequirement) -> bool:
     return any(
-        ref == "user:question" or ref.startswith("user:answer:")
-        for ref in requirement.evidence_refs
+        is_user_evidence_ref(ref) for ref in requirement.evidence_refs
     )
+
+
+def _dependency_ids(requirement: SpecificationRequirement) -> tuple[str, ...]:
+    if isinstance(requirement, OutputRequirement):
+        return requirement.operand_requirement_ids
+    if isinstance(requirement, OrderRequirement) and requirement.output_requirement_id:
+        return (requirement.output_requirement_id,)
+    return ()
+
+
+def _dependent_closure(
+    requirements: list[SpecificationRequirement],
+    replaced_ids: set[str],
+) -> set[str]:
+    closure = set(replaced_ids)
+    changed = True
+    while changed:
+        changed = False
+        for requirement in requirements:
+            if requirement.requirement_id in closure:
+                continue
+            if closure.intersection(_dependency_ids(requirement)):
+                closure.add(requirement.requirement_id)
+                changed = True
+    return closure
 
 
 def apply_knowledge_seeds(
     specification: QuerySpecification,
     seeds: list[KnowledgeSeed],
 ) -> KnowledgeApplication:
-    """Protect applicable defaults and derive truthful application decisions.
+    """Deterministically merge certified defaults into the active specification.
 
-    Exact semantic matches receive knowledge provenance. A conflicting active
-    user clause wins. Omitting a seed without a user conflict is a planner
-    defect and is returned as ``missing`` for the existing repair turn.
+    A caliber is one semantic unit. Any conflicting user-confirmed target drops
+    that unit; otherwise its clauses replace weaker model inferences and are
+    inserted directly. This keeps user evidence authoritative without relying
+    on another LLM turn to remember certified knowledge.
     """
-    current_by_semantic: dict[bytes, SpecificationRequirement] = {}
-    user_by_target: dict[bytes, SpecificationRequirement] = {}
-    for requirement in specification.requirements:
-        current_by_semantic[
-            _identity(requirement_semantic_material(requirement, specification))
-        ] = requirement
-        if _has_user_evidence(requirement):
-            user_by_target[
-                _identity(requirement_target_material(requirement, specification))
-            ] = requirement
-
-    updates: dict[str, SpecificationRequirement] = {}
-    missing: list[str] = []
+    current = list(specification.requirements)
     logs: list[ApplyHit] = []
     for seed in seeds:
         seed_specification = _seed_specification(seed)
-        applied: list[str] = []
-        overridden: list[str] = []
-        for requirement in seed.requirements:
-            semantic_key = _identity(
-                requirement_semantic_material(
-                    requirement,
-                    seed_specification,
-                )
+        current_specification = _requirements_specification(
+            specification,
+            current,
+        )
+        current_by_semantic = {
+            _identity(
+                requirement_semantic_material(requirement, current_specification)
+            ): requirement
+            for requirement in current
+        }
+        current_by_target: dict[bytes, list[SpecificationRequirement]] = {}
+        for requirement in current:
+            target = _identity(
+                requirement_target_material(requirement, current_specification)
             )
-            current = current_by_semantic.get(semantic_key)
-            if current is not None:
-                refs = tuple(dict.fromkeys((*current.evidence_refs, seed.evidence_ref)))
-                updates[current.requirement_id] = current.model_copy(
-                    update={
-                        "source": "user"
-                        if _has_user_evidence(current)
-                        else "knowledge",
-                        "evidence_refs": refs,
-                        "confidence": max(current.confidence, requirement.confidence),
-                    }
-                )
-                applied.append(requirement.requirement_id)
-                continue
-            target_key = _identity(
-                requirement_target_material(requirement, seed_specification)
-            )
-            if target_key in user_by_target:
-                overridden.append(requirement.requirement_id)
-                continue
-            missing.append(f"{seed.caliber_id}:{requirement.requirement_id}")
+            current_by_target.setdefault(target, []).append(requirement)
 
-        if applied:
-            logs.append(
-                ApplyHit(
-                    asset_kind="caliber",
-                    asset_id=seed.caliber_id,
-                    lineage_id=seed.lineage_id,
-                    trust_tier=seed.trust_tier,
-                    apply="bind",
-                    reason=(
-                        "certified_seed_applied_with_user_override"
-                        if overridden
-                        else "certified_seed_applied"
-                    ),
-                    meta={
-                        "label": seed.label,
-                        "applied_requirements": applied,
-                        "overridden_requirements": overridden,
-                    },
-                )
+        semantic_pairs = [
+            (
+                requirement,
+                _identity(
+                    requirement_semantic_material(requirement, seed_specification)
+                ),
+                _identity(requirement_target_material(requirement, seed_specification)),
             )
-        elif overridden:
+            for requirement in seed.requirements
+        ]
+        user_conflicts: list[str] = []
+        knowledge_conflicts: list[str] = []
+        for requirement, semantic_key, target_key in semantic_pairs:
+            if semantic_key in current_by_semantic:
+                continue
+            conflicts = current_by_target.get(target_key, [])
+            if any(_has_user_evidence(item) for item in conflicts):
+                user_conflicts.append(requirement.requirement_id)
+            elif any(
+                _has_user_evidence(item)
+                for item in current
+                if item.requirement_id
+                in _dependent_closure(
+                    current,
+                    {conflict.requirement_id for conflict in conflicts},
+                )
+            ):
+                user_conflicts.append(requirement.requirement_id)
+            elif any(item.source == "knowledge" for item in conflicts):
+                knowledge_conflicts.append(requirement.requirement_id)
+
+        if user_conflicts or knowledge_conflicts:
             logs.append(
                 ApplyHit(
                     asset_kind="caliber",
@@ -172,38 +184,79 @@ def apply_knowledge_seeds(
                     lineage_id=seed.lineage_id,
                     trust_tier=seed.trust_tier,
                     apply="drop",
-                    reason="user_override",
+                    reason="user_override" if user_conflicts else "knowledge_conflict",
                     meta={
                         "label": seed.label,
-                        "overridden_requirements": overridden,
+                        "conflicting_requirements": user_conflicts
+                        or knowledge_conflicts,
                     },
                 )
             )
+            continue
 
-    rewritten: dict[str, tuple[SpecificationRequirement, ...]] = {}
-    for bucket in (
-        "outputs",
-        "predicates",
-        "group_by",
-        "time_windows",
-        "order_by",
-        "business_relations",
-    ):
-        rewritten[bucket] = tuple(
-            updates.get(requirement.requirement_id, requirement)
-            for requirement in getattr(specification, bucket)
+        replace_ids: set[str] = set()
+        updates: dict[str, SpecificationRequirement] = {}
+        additions: list[SpecificationRequirement] = []
+        applied: list[str] = []
+        for requirement, semantic_key, target_key in semantic_pairs:
+            match = current_by_semantic.get(semantic_key)
+            if match is not None:
+                refs = tuple(dict.fromkeys((*match.evidence_refs, seed.evidence_ref)))
+                updates[match.requirement_id] = match.model_copy(
+                    update={
+                        "source": "user" if _has_user_evidence(match) else "knowledge",
+                        "evidence_refs": refs,
+                        "confidence": max(match.confidence, requirement.confidence),
+                    }
+                )
+            else:
+                directly_replaced = {
+                    item.requirement_id
+                    for item in current_by_target.get(target_key, [])
+                    if not _has_user_evidence(item)
+                }
+                replace_ids.update(_dependent_closure(current, directly_replaced))
+                additions.append(requirement)
+            applied.append(requirement.requirement_id)
+        current = [
+            updates.get(item.requirement_id, item)
+            for item in current
+            if item.requirement_id not in replace_ids
+        ]
+        current.extend(additions)
+        logs.append(
+            ApplyHit(
+                asset_kind="caliber",
+                asset_id=seed.caliber_id,
+                lineage_id=seed.lineage_id,
+                trust_tier=seed.trust_tier,
+                apply="bind",
+                reason="certified_seed_applied",
+                meta={
+                    "label": seed.label,
+                    "applied_requirements": applied,
+                    "replaced_inferences": sorted(replace_ids),
+                },
+            )
         )
-    updated_specification = QuerySpecification.model_validate(
-        {**specification.model_dump(mode="python"), **rewritten}
+
+    updated_specification = normalize_specification(
+        _requirements_specification(specification, current)
     )
     return KnowledgeApplication(
         specification=updated_specification,
         apply_log=tuple(logs),
-        missing=tuple(missing),
     )
 
 
 def _seed_specification(seed: KnowledgeSeed) -> QuerySpecification:
+    return _requirements_specification(None, list(seed.requirements))
+
+
+def _requirements_specification(
+    base: QuerySpecification | None,
+    requirements: list[SpecificationRequirement],
+) -> QuerySpecification:
     buckets: dict[str, list[SpecificationRequirement]] = {
         "outputs": [],
         "predicates": [],
@@ -220,6 +273,18 @@ def _seed_specification(seed: KnowledgeSeed) -> QuerySpecification:
         "order": "order_by",
         "business_relation": "business_relations",
     }
-    for requirement in seed.requirements:
+    for requirement in requirements:
         buckets[names[requirement.clause]].append(requirement)
-    return QuerySpecification.model_validate({"revision": 1, **buckets})
+    common = (
+        {
+            "version": base.version,
+            "revision": base.revision,
+            "limit": base.limit,
+            "assumptions": base.assumptions,
+            "evidence_refs": base.evidence_refs,
+            "confidence": base.confidence,
+        }
+        if base is not None
+        else {"revision": 1}
+    )
+    return QuerySpecification.model_validate({**common, **buckets})

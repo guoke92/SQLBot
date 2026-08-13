@@ -6,7 +6,8 @@ const { t } = i18n.global
 
 export const runApi = {
   create: (data: CreateRunRequest) => request.post('/chat/runs', data),
-  snapshot: (runId: string) => request.get(`/chat/runs/${runId}`),
+  snapshot: (runId: string) =>
+    request.get(`/chat/runs/${runId}`, { requestOptions: { silent: true } }),
   events: (runId: string, cursor = 0, controller?: AbortController) =>
     request.fetchStream(
       `/chat/runs/${runId}/events?cursor=${cursor}`,
@@ -84,6 +85,10 @@ export interface ConversationRunSnapshot {
   status: ConversationRunStatus
   current_node?: string
   event_cursor: number
+  dispatch_attempts: number
+  update_time?: string
+  started_at?: string
+  completed_at?: string
   active_interrupt?: ConversationInterrupt
   interrupts: ConversationInterrupt[]
   record?: Record<string, unknown>
@@ -248,6 +253,11 @@ export class ChatRecord {
   run_id?: string
   run_status?: ConversationRunStatus
   run_event_cursor: number = 0
+  run_current_node?: string
+  run_dispatch_attempts: number = 0
+  run_update_time?: Date | string
+  run_started_at?: Date | string
+  run_completed_at?: Date | string
   active_interrupt?: ConversationInterrupt
   interrupts: ConversationInterrupt[] = []
   intent_reasoning_content?: string
@@ -511,6 +521,20 @@ export class ChatLogHistoryItem {
   local_operation?: boolean | undefined
   error?: boolean | undefined
   message?: any
+  status?: 'running' | 'success' | 'degraded' | 'failed' | 'interrupted'
+  phase?: string
+  graph_node?: string
+  title_key?: string
+  title_params?: Record<string, any>
+  summary_key?: string
+  summary_params?: Record<string, any>
+  batch_index?: number
+  attempt_index?: number
+  unit_index?: number
+  detail?: Record<string, any>
+  input?: any
+  output?: any
+  reasoning_content?: string
 
   constructor()
   constructor(
@@ -552,8 +576,19 @@ export class ChatLogHistory {
   start_time?: Date | string
   finish_time?: Date | string
   duration?: number | undefined
+  elapsed_duration?: number | undefined
+  waiting_duration?: number | undefined
   total_tokens?: number | undefined
   steps?: Array<ChatLogHistoryItem> | undefined
+  run?: {
+    run_id?: string
+    status?: string
+    current_node?: string
+    dispatch_attempts?: number
+    started_at?: Date | string
+    completed_at?: Date | string
+    update_time?: Date | string
+  }
 
   constructor()
   constructor(
@@ -593,6 +628,22 @@ const toChatLogHistoryItem = (data?: any): any | undefined => {
     data.message
   )
   ;(item as any).id = data.id
+  Object.assign(item, {
+    status: data.status,
+    phase: data.phase,
+    graph_node: data.graph_node,
+    title_key: data.title_key,
+    title_params: data.title_params || {},
+    summary_key: data.summary_key,
+    summary_params: data.summary_params || {},
+    batch_index: data.batch_index,
+    attempt_index: data.attempt_index,
+    unit_index: data.unit_index,
+    detail: data.detail || {},
+    input: data.input,
+    output: data.output,
+    reasoning_content: data.reasoning_content,
+  })
   return item
 }
 
@@ -611,13 +662,17 @@ const toChatLogHistory = (data?: any): ChatLogHistory | undefined => {
   if (!data) {
     return undefined
   }
-  return new ChatLogHistory(
+  const history = new ChatLogHistory(
     data.start_time,
     data.finish_time,
     data.duration,
     data.total_tokens,
     toChatLogHistoryItemList(data.steps)
   )
+  history.elapsed_duration = data.elapsed_duration
+  history.waiting_duration = data.waiting_duration
+  history.run = data.run || {}
+  return history
 }
 
 export const chatApi = {

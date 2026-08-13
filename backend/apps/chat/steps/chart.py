@@ -10,9 +10,8 @@ from sqlmodel import Session
 
 from apps.chat.curd.chat import save_chart_answer
 from apps.chat.models.chat_model import OperationEnum
-from apps.chat.steps.observability import inject_span_meta
+from apps.chat.steps.observability import log_span
 from apps.chat.steps.stream import process_stream
-from apps.conversation.observability import end_log, start_log
 
 
 def generate_chart(
@@ -30,35 +29,22 @@ def generate_chart(
         llm_service.chat_question, chart_type, schema
     )
     llm_service.chart_message.append(HumanMessage(user_prompt))
-    full_message = [
-        {
-            "type": msg.type,
-            "sqlbot_system": getattr(msg, "sqlbot_system", False) is True,
-            "content": msg.content,
-        }
-        for msg in llm_service.chart_message
-    ]
-    full_message = inject_span_meta(
-        full_message,
-        graph_node=graph_node,
-        step_index=step_index,
-        unit_index=unit_index,
-        brief=str(chart_type or ""),
-    )
-    log = start_log(
-        session=session,
+    with log_span(
         ai_modal_id=llm_service.chat_question.ai_modal_id,
         ai_modal_name=llm_service.chat_question.ai_modal_name,
         operate=OperationEnum.GENERATE_CHART,
         record_id=llm_service.record.id,
-        full_message=full_message,
-    )
-    llm_service.current_logs[OperationEnum.GENERATE_CHART] = log
-
-    full_thinking_text = ""
-    full_chart_text = ""
-    token_usage: Dict[str, Any] = {}
-    try:
+        local_operation=False,
+        phase="present",
+        graph_node=graph_node,
+        step_index=step_index,
+        unit_index=unit_index,
+        brief=str(chart_type or ""),
+        title_key="chat.log.GENERATE_CHART",
+    ) as span:
+        full_thinking_text = ""
+        full_chart_text = ""
+        token_usage: Dict[str, Any] = {}
         for chunk in process_stream(
             llm_service.llm.stream(llm_service.chart_message), token_usage
         ):
@@ -67,32 +53,14 @@ def generate_chart(
             if chunk.get("reasoning_content"):
                 full_thinking_text += chunk.get("reasoning_content")
             yield chunk
-    finally:
         llm_service.chart_message.append(AIMessage(full_chart_text))
         llm_service.record = save_chart_answer(
             session=session,
             record_id=llm_service.record.id,
             answer=orjson.dumps({"content": full_chart_text}).decode(),
         )
-        end_msgs = [
-            {
-                "type": msg.type,
-                "sqlbot_system": getattr(msg, "sqlbot_system", False) is True,
-                "content": msg.content,
-            }
-            for msg in llm_service.chart_message
-        ]
-        end_msgs = inject_span_meta(
-            end_msgs,
-            graph_node=graph_node,
-            step_index=step_index,
-            unit_index=unit_index,
-            brief=str(chart_type or ""),
-        )
-        llm_service.current_logs[OperationEnum.GENERATE_CHART] = end_log(
-            session=session,
-            log=log,
-            full_message=end_msgs,
-            reasoning_content=full_thinking_text,
-            token_usage=token_usage,
-        )
+        span.set_model_context(llm_service.chart_message)
+        span.set_usage(token_usage)
+        span["reasoning_content"] = full_thinking_text
+        span.set_detail({"chart_type": chart_type or "", "chars": len(full_chart_text)})
+        span.set_summary("chat.audit.chart_ready")

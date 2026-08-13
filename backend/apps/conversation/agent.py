@@ -8,7 +8,7 @@ from typing import Any, Literal
 from langchain_core.messages import AIMessage, SystemMessage
 
 from apps.chat.models.chat_model import OperationEnum
-from apps.chat.steps.observability import log_span
+from apps.chat.steps.observability import log_span, sanitize_audit_value
 from apps.conversation.messages import (
     deserialize_messages,
     message_content_text,
@@ -17,7 +17,7 @@ from apps.conversation.messages import (
 from apps.conversation.outcome import failed_outcome, format_error_message
 from apps.conversation.runtime_context import runtime_value
 from apps.conversation.sink import StreamSink
-from apps.conversation.tooling import redact_value, tool_calls_from_message
+from apps.conversation.tooling import tool_calls_from_message
 from apps.conversation.usage import usage_from_response
 from common.utils.utils import SQLBotLogUtil
 
@@ -58,7 +58,9 @@ def agent_node(state: Mapping[str, Any]) -> dict[str, Any]:
             ai_modal_id=state.get("ai_modal_id"),
             ai_modal_name=state.get("ai_modal_name"),
             local_operation=False,
+            phase="plan",
             graph_node="agent",
+            title_key="chat.log.AGENT_STEP",
             brief="finalize" if finalizing else f"round {rounds + 1}",
             initial_payload={
                 "kind": "agent",
@@ -69,7 +71,7 @@ def agent_node(state: Mapping[str, Any]) -> dict[str, Any]:
             bound = llm if finalizing or not tools else llm.bind_tools(tools)
             response: AIMessage = bound.invoke(model_messages)
             calls = tool_calls_from_message(response)
-            safe_calls = redact_value(calls)
+            safe_calls = sanitize_audit_value(calls)
             text = message_content_text(response.content)
             span["payload"] = {
                 "kind": "agent",
@@ -81,6 +83,7 @@ def agent_node(state: Mapping[str, Any]) -> dict[str, Any]:
                 "ok": not (finalizing and calls),
             }
             span["token_usage"] = usage_from_response(response)
+            span.set_model_context([*model_messages, response])
     except Exception as exc:
         SQLBotLogUtil.error(f"tool agent invoke failed: {exc}")
         error = format_error_message(exc)

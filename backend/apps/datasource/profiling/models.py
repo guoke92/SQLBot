@@ -84,6 +84,7 @@ class RelationSource(str, Enum):
     PROBE = "probe"
     QUERY_LOG = "query_log"
     INCLUSION = "inclusion"
+    PACKAGE = "package"
 
 
 class MetadataScanRun(SQLModel, table=True):

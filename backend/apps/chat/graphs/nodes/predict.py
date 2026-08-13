@@ -225,7 +225,7 @@ def complete_node(state: PredictState) -> PredictState:
             session,
             run_id=str(state["run_id"]),
             status="succeeded" if state.get("has_data") else "degraded",
-            current_node="complete",
+            current_node=None,
             record_snapshot={"terminal": True},
         )
     if sink.mode == "json":

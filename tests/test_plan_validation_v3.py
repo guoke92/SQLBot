@@ -81,6 +81,25 @@ def test_unobservable_alignment_does_not_trigger_physical_repair() -> None:
     assert mismatch.requires_contract_repair
 
 
+def test_executable_plans_keep_contract_mismatch() -> None:
+    from apps.chat.planning import executable_plans
+
+    mismatch = BatchParseResult(
+        plans=[{"sql": "SELECT id FROM customer"}],
+        plan_validated=True,
+        contract_status="partial",
+        contract_message="missing predicate requirement",
+    )
+    empty = BatchParseResult(
+        plans=[],
+        errors=["Failed to generate any valid SQL queries"],
+        plan_validated=False,
+    )
+    assert executable_plans(mismatch) == [{"sql": "SELECT id FROM customer"}]
+    assert executable_plans(empty) == []
+    assert executable_plans(None) == []
+
+
 def test_semantic_reference_is_allowed_until_physical_grounding() -> None:
     specification = QuerySpecification(
         revision=1,

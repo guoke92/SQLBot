@@ -1,6 +1,6 @@
 import os.path
 import threading
-from typing import List, Optional
+import time
 
 import httpx
 from langchain_core.embeddings import Embeddings
@@ -38,7 +38,7 @@ class OllamaOpenAIEmbeddings(BaseModel, Embeddings):
     def _endpoint(self) -> str:
         return self.base_url.rstrip("/") + "/embeddings"
 
-    def _embed(self, texts: List[str]) -> List[List[float]]:
+    def _embed(self, texts: list[str]) -> list[list[float]]:
         if not texts:
             return []
         payload = {"model": self.model, "input": texts if len(texts) > 1 else texts[0]}
@@ -59,15 +59,15 @@ class OllamaOpenAIEmbeddings(BaseModel, Embeddings):
             )
         return vectors
 
-    def embed_documents(self, texts: List[str]) -> List[List[float]]:
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
         # Batch in chunks to avoid oversized requests
         batch_size = 32
-        out: List[List[float]] = []
+        out: list[list[float]] = []
         for i in range(0, len(texts), batch_size):
             out.extend(self._embed(texts[i : i + batch_size]))
         return out
 
-    def embed_query(self, text: str) -> List[float]:
+    def embed_query(self, text: str) -> list[float]:
         return self._embed([text])[0]
 
 
@@ -81,15 +81,18 @@ local_embedding_model = EmbeddingModelInfo(
 _lock = threading.Lock()
 locks: dict[str, threading.Lock] = {}
 
-_embedding_model: dict[str, Optional[Embeddings]] = {}
+_embedding_model: dict[str, Embeddings | None] = {}
 _embedding_dimensions: dict[str, int] = {}
 _dimension_lock = threading.Lock()
+_failure_lock = threading.Lock()
+_unavailable_until: dict[str, float] = {}
+_EMBEDDING_FAILURE_COOLDOWN_SEC = 60.0
 VECTOR_DIMENSION_PREDICATE = (
     "vector_dims(child.embedding) = :embedding_dimension"
 )
 
 
-def embedding_query_params(vector: List[float]) -> dict[str, object]:
+def embedding_query_params(vector: list[float]) -> dict[str, object]:
     """Build the shared pgvector query parameters with an explicit dimension."""
     if not vector:
         raise ValueError("Embedding vector cannot be empty")
@@ -100,8 +103,8 @@ def embedding_query_params(vector: List[float]) -> dict[str, object]:
 
 
 def has_compatible_dimension(
-    query_vector: List[float],
-    stored_vector: List[float],
+    query_vector: list[float],
+    stored_vector: list[float],
 ) -> bool:
     """Return whether a persisted vector belongs to the active embedding space."""
     return bool(
@@ -175,6 +178,37 @@ class EmbeddingModelCache:
         return model_instance
 
     @staticmethod
+    def embed_query(
+        text: str,
+        *,
+        key: str = settings.DEFAULT_EMBEDDING_MODEL,
+    ) -> list[float]:
+        """Embed once through a process-wide short failure circuit.
+
+        Recall callers intentionally degrade to lexical/catalog fallbacks when
+        embeddings are unavailable. Without a shared gate, one failed provider
+        produced the same remote 403 in terminology, table and example recall
+        during every clarification round.
+        """
+        cache_key = EmbeddingModelCache._cache_key(key)
+        now = time.monotonic()
+        with _failure_lock:
+            retry_at = _unavailable_until.get(cache_key, 0.0)
+        if retry_at > now:
+            raise RuntimeError("Embedding provider is temporarily unavailable")
+        try:
+            vector = EmbeddingModelCache.get_model(key).embed_query(text)
+        except Exception:
+            with _failure_lock:
+                _unavailable_until[cache_key] = (
+                    time.monotonic() + _EMBEDDING_FAILURE_COOLDOWN_SEC
+                )
+            raise
+        with _failure_lock:
+            _unavailable_until.pop(cache_key, None)
+        return vector
+
+    @staticmethod
     def get_dimension(key: str = settings.DEFAULT_EMBEDDING_MODEL) -> int:
         """Return and cache the active model dimension for persistence repair."""
         cache_key = EmbeddingModelCache._cache_key(key)
@@ -184,8 +218,8 @@ class EmbeddingModelCache:
         with _dimension_lock:
             dimension = _embedding_dimensions.get(cache_key)
             if dimension is None:
-                vector = EmbeddingModelCache.get_model(key).embed_query(
-                    "embedding dimension probe"
+                vector = EmbeddingModelCache.embed_query(
+                    "embedding dimension probe", key=key
                 )
                 if not vector:
                     raise ValueError("Embedding model returned an empty vector")

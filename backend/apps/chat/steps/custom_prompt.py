@@ -11,7 +11,7 @@ from sqlmodel import Session
 
 from apps.chat.models.chat_model import OperationEnum
 from apps.chat.steps.scope import match_scope
-from apps.conversation.observability import end_log, start_log
+from apps.chat.steps.observability import log_span
 
 
 def match_custom_prompts(
@@ -24,31 +24,30 @@ def match_custom_prompts(
     """Fill ``chat_question.custom_prompt`` when license is valid; else no-op."""
     if not SQLBotLicenseUtil.valid():
         return []
-    llm_service.current_logs[OperationEnum.FILTER_CUSTOM_PROMPT] = start_log(
-        session=session,
+    with log_span(
         operate=OperationEnum.FILTER_CUSTOM_PROMPT,
         record_id=llm_service.record.id,
         local_operation=True,
-    )
-    calculate_oid, calculate_ds_id, assistant_id = match_scope(llm_service, oid, ds_id)
-    if assistant_id is not None:
-        llm_service.chat_question.custom_prompt, prompt_list = find_custom_prompts(
+        phase="understand",
+        graph_node="retrieve_context",
+        title_key="chat.log.FILTER_CUSTOM_PROMPT",
+    ) as span:
+        calculate_oid, calculate_ds_id, assistant_id = match_scope(llm_service, oid, ds_id)
+        if assistant_id is not None:
+            llm_service.chat_question.custom_prompt, prompt_list = find_custom_prompts(
             session,
             custom_prompt_type,
             calculate_oid,
             None,
             assistant_id,
         )
-    else:
-        llm_service.chat_question.custom_prompt, prompt_list = find_custom_prompts(
+        else:
+            llm_service.chat_question.custom_prompt, prompt_list = find_custom_prompts(
             session,
             custom_prompt_type,
             calculate_oid,
             calculate_ds_id,
         )
-    llm_service.current_logs[OperationEnum.FILTER_CUSTOM_PROMPT] = end_log(
-        session=session,
-        log=llm_service.current_logs[OperationEnum.FILTER_CUSTOM_PROMPT],
-        full_message=prompt_list,
-    )
+        span.set_detail({"prompt_count": len(prompt_list), "prompts": prompt_list})
+        span.set_summary("chat.audit.prompts_ready", count=len(prompt_list))
     return prompt_list

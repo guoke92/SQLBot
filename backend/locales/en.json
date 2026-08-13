@@ -174,6 +174,7 @@
     "permission": "Permission",
     "terminology": "Terminology",
     "data_training": "SQL Examples",
+    "knowledge": "Knowledge Management",
     "prompt_words": "Prompt Words",
     "user": "User",
     "workspace": "Workspace",

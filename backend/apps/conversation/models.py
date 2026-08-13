@@ -66,6 +66,9 @@ class ConversationRun(SQLModel, table=True):
     )
     oid: int = Field(default=1, sa_column=Column(BigInteger, nullable=False))
     event_cursor: int = Field(default=0, sa_column=Column(Integer, nullable=False))
+    dispatch_attempts: int = Field(
+        default=0, sa_column=Column(Integer, nullable=False, default=0)
+    )
     error_summary: str | None = Field(
         default=None, sa_column=Column(Text, nullable=True)
     )
@@ -167,6 +170,13 @@ class NlqRun(SQLModel, table=True):
     )
     specifications: list[dict[str, Any]] = Field(
         default_factory=list, sa_column=Column(JSONB, nullable=False, default=list)
+    )
+    # Durable input boundary for semantic planning.  Request-local LLMService
+    # objects are deliberately not checkpointed; the context they assembled
+    # must nevertheless survive a process restart that resumes immediately
+    # before ``plan_query``.
+    planning_context: dict[str, Any] = Field(
+        default_factory=dict, sa_column=Column(JSONB, nullable=False, default=dict)
     )
     planning_status: str = Field(
         default="pending", sa_column=Column(String(24), nullable=False)

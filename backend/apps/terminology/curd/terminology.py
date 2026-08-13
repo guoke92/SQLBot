@@ -20,6 +20,7 @@ from apps.terminology.models.terminology_model import Terminology, TerminologyIn
 from common.core.config import settings
 from common.core.deps import SessionDep, Trans
 from common.utils.embedding_threads import run_save_terminology_embeddings
+from common.utils.utils import SQLBotLogUtil
 
 
 def get_terminology_base_query(oid: int, name: Optional[str] = None):
@@ -770,8 +771,10 @@ def run_sync_embeddings(session_maker):
         combined_stmt = union(stmt1, stmt2)
         results = session.execute(combined_stmt).scalars().all()
         save_embeddings(session_maker, results)
-    except Exception:
-        traceback.print_exc()
+    except Exception as exc:
+        SQLBotLogUtil.warning(
+            f"terminology embedding refresh skipped: {type(exc).__name__}"
+        )
     finally:
         session_maker.remove()
 
@@ -901,9 +904,7 @@ def select_terminology_by_word(session: SessionDep, word: str, oid: int, datasou
     if settings.EMBEDDING_ENABLED:
         with session.begin_nested():
             try:
-                model = EmbeddingModelCache.get_model()
-
-                embedding = model.embed_query(word)
+                embedding = EmbeddingModelCache.embed_query(word)
                 vector_params = embedding_query_params(embedding)
 
                 if advanced_application_id is not None:
@@ -926,8 +927,10 @@ def select_terminology_by_word(session: SessionDep, word: str, oid: int, datasou
                         float(row.similarity or 0.0),
                     )
 
-            except Exception:
-                traceback.print_exc()
+            except Exception as exc:
+                logging.getLogger(__name__).warning(
+                    "Terminology vector recall unavailable: %s", type(exc).__name__
+                )
                 session.rollback()
 
     _map: dict = {}

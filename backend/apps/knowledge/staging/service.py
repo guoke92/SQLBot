@@ -7,7 +7,8 @@ from typing import Any
 
 from sqlmodel import Session, col, select
 
-from apps.knowledge.db_models import KnowledgeEvidence, KnowledgeStaging
+from apps.knowledge.db_models import KnowledgeStaging
+from apps.knowledge.evidence import append_evidence_event, reproduce_event_key
 from apps.knowledge.lineage import append_event, new_lineage_id
 from apps.knowledge.natural_key import caliber_natural_key, fragments_equivalent
 
@@ -66,12 +67,20 @@ def admit_candidate(
         .where(KnowledgeStaging.status == "pending")
     ).first()
     if existing_pending is not None:
-        existing_frag = (existing_pending.payload or {}).get(
-            "contract_fragment"
-        ) or (existing_pending.payload or {}).get("fragment") or {}
+        existing_payload = dict(existing_pending.payload or {})
+        existing_frag = (
+            existing_payload.get("contract_fragment")
+            or existing_payload.get("fragment")
+            or {}
+        )
         if not isinstance(existing_frag, dict):
             existing_frag = {}
-        if fragments_equivalent(existing_frag, fragment):
+        equivalent = (
+            fragments_equivalent(existing_frag, fragment)
+            if kind == "caliber"
+            else existing_payload == payload
+        )
+        if equivalent:
             existing_pending.quality_snapshot = {
                 **(existing_pending.quality_snapshot or {}),
                 **(quality_snapshot or {}),
@@ -84,17 +93,17 @@ def admit_candidate(
             session.add(existing_pending)
             # Pre-certify reproduce evidence keyed by natural_key; certify
             # backfills asset_id so promotion counting inherits it seamlessly.
-            session.add(
-                KnowledgeEvidence(
+            if source_record_id is not None:
+                append_evidence_event(
+                    session,
+                    event_key=reproduce_event_key(natural_key, source_record_id),
                     asset_id=None,
                     asset_kind=kind,
                     natural_key=natural_key,
                     signal_kind="reproduce",
                     record_id=source_record_id,
                     fact={"trigger": trigger_id, "phase": "staging_merge"},
-                    create_time=datetime.utcnow(),
                 )
-            )
             append_event(
                 session,
                 lineage_id=existing_pending.lineage_id,

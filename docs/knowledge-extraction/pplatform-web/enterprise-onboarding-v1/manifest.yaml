@@ -1,0 +1,43 @@
+package_id: pplatform-web.enterprise-onboarding.v1
+title: pplatform-web 企业建档业务数据知识审核包 v1
+status: review_only
+generated_at: 2026-08-12T00:00:00+08:00
+purpose: >-
+  验证能否从业务资料与代码中提取可服务 SQLBot NLQ 的业务—数据知识；
+  本包可完整登记到 SQLBot 知识包管理区，但不代表条目已发布或已认证。
+source_repository:
+  path: /Users/fanjunwei/IdeaProjects/pplatform-web
+  branch: dev-v1.33.0
+  commit: ee434954e465713176e5bd52119eedde5ebe531b
+  dirty: false
+target_repository:
+  path: /Users/fanjunwei/Projects/SQLBot
+scope:
+  catalog:
+    - project_skills
+    - business_rules
+    - code_maps
+    - service_maps
+    - release_documents
+  deep_dive:
+    domain: 客户管理
+    scenario: 企业建档
+    exclusions:
+      - 企业变更完整流程
+      - CA 开通完整流程
+      - 邀请注册完整流程
+      - 实际数据库数据剖析
+      - SQLBot 平台导入
+evidence_policy:
+  code_fact: 可确认当前实现行为，但不能单独决定业务口径
+  document_fact: 用于业务导航和候选解释，必须由代码或数据复核
+  database_fact: 本轮未接入实际数据库，所有表约束与基数均待验证
+outputs:
+  - README.md
+  - source-catalog.jsonl
+  - facts.jsonl
+  - relations.jsonl
+  - asset-candidates.yaml
+  - review-questions.md
+  - review-evidence.yaml
+  - knowledge-package.yaml

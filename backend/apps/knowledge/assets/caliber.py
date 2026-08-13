@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from sqlmodel import Session, func, select
+from sqlmodel import Session, select
 
 from apps.knowledge.db_models import (
     KnowledgeAsset,
@@ -269,6 +269,7 @@ def promote_to_trusted(
     caliber_id: int,
     oid: int,
     policy_n: int,
+    positive_feedback_n: int = 2,
     actor_user_id: int | None = None,
 ) -> KnowledgeAsset:
     """Promote a caliber to trusted when server-side evidence meets *policy_n*.
@@ -283,20 +284,20 @@ def promote_to_trusted(
     if asset.certified or asset.trust_tier in ("trusted", "certified"):
         return asset
 
-    reproduce_count_stmt = (
-        select(func.count(func.distinct(KnowledgeEvidence.record_id)))
-        .where(KnowledgeEvidence.asset_id == caliber_id)
-        .where(KnowledgeEvidence.asset_kind == "caliber")
-        .where(
-            KnowledgeEvidence.signal_kind.in_(["reproduce", "apply_outcome"])  # type: ignore[attr-defined]
-        )
-    )
-    reproduce_count = session.exec(reproduce_count_stmt).one()
+    from apps.knowledge.evidence_policy import summarize_asset_evidence
 
-    if reproduce_count < policy_n:
+    summary = summarize_asset_evidence(
+        session, asset_id=caliber_id, asset_kind="caliber"
+    )
+    if not summary.promotion_ready(
+        reproduce_threshold=policy_n,
+        positive_feedback_threshold=positive_feedback_n,
+    ):
         raise ValueError(
-            f"insufficient evidence: {reproduce_count} distinct records, "
-            f"need {policy_n}"
+            "insufficient or conflicting evidence: "
+            f"reproductions={summary.reproduce_count}/{policy_n}, "
+            f"positive_feedback={summary.positive_feedback_count}/{positive_feedback_n}, "
+            f"negative_feedback={summary.negative_feedback_count}"
         )
     from_tier = asset.trust_tier
     asset.trust_tier = "trusted"
@@ -315,7 +316,10 @@ def promote_to_trusted(
         evidence_snapshot={
             "E1": False,
             "E4": True,
-            "reproduce_count": reproduce_count,
+            "reproduce_count": summary.reproduce_count,
+            "successful_apply_count": summary.successful_apply_count,
+            "positive_feedback_count": summary.positive_feedback_count,
+            "negative_feedback_count": summary.negative_feedback_count,
             "note": "trusted_still_no_bind",
         },
     )

@@ -13,6 +13,7 @@ import threading
 import traceback
 from collections.abc import Callable, Generator, Iterable, Iterator, Mapping
 from concurrent.futures import Future, ThreadPoolExecutor
+from datetime import datetime, timedelta
 from typing import Any
 
 from apps.conversation.registry import get_graph
@@ -67,6 +68,25 @@ _executor: ThreadPoolExecutor | None = None
 _executor_lock = threading.Lock()
 _query_executor: ThreadPoolExecutor | None = None
 _query_executor_lock = threading.Lock()
+_reconciler_thread: threading.Thread | None = None
+_reconciler_stop = threading.Event()
+
+
+def _failure_record_snapshot(graph_key: str, error: BaseException | str) -> dict[str, Any]:
+    """Build one graph-appropriate terminal snapshot at runtime boundaries."""
+    from apps.conversation.outcome import public_error_message
+
+    published_error = public_error_message(error)
+    snapshot: dict[str, Any] = {"terminal": True, "error": published_error}
+    if graph_key == "chat":
+        import orjson
+
+        from apps.chat.answer_payload import build_failed_answer_payload
+
+        snapshot["data"] = orjson.dumps(
+            build_failed_answer_payload(published_error)
+        ).decode()
+    return snapshot
 
 
 def _submit_background(fn: Callable[[], None]) -> Future[None]:
@@ -75,6 +95,11 @@ def _submit_background(fn: Callable[[], None]) -> Future[None]:
         if _executor is None:
             _executor = ThreadPoolExecutor(max_workers=_MAX_WORKERS)
         return _executor.submit(fn)
+
+
+def submit_background(fn: Callable[[], None]) -> Future[None]:
+    """Submit non-critical application work to the shared bounded pool."""
+    return _submit_background(fn)
 
 
 def submit_query(
@@ -95,7 +120,11 @@ def submit_query(
 
 def shutdown_runtime(*, wait: bool = False) -> None:
     """Release conversation worker resources during application shutdown."""
-    global _executor, _query_executor
+    global _executor, _query_executor, _reconciler_thread
+    _reconciler_stop.set()
+    if _reconciler_thread is not None:
+        _reconciler_thread.join(timeout=2)
+        _reconciler_thread = None
     with _executor_lock:
         current = _executor
         _executor = None
@@ -218,7 +247,11 @@ def run_graph(graph_key: str, ctx: Any, **builder_kwargs: Any) -> Iterator[Any]:
 
 
 def submit_graph(
-    graph_key: str, ctx: Mapping[str, Any], **builder_kwargs: Any
+    graph_key: str,
+    ctx: Mapping[str, Any],
+    *,
+    _force_dispatch: bool = False,
+    **builder_kwargs: Any,
 ) -> StreamRunner:
     """**Sole production entry**: registry → graph stream → StreamRunner queue.
 
@@ -230,6 +263,18 @@ def submit_graph(
     record_id = state.get("record_id")
     run_id = str(state.get("run_id") or "")
     runner = StreamRunner()
+    if run_id:
+        from apps.conversation.run_service import record_run_dispatch
+        from apps.conversation.session import session_scope
+
+        with session_scope() as session:
+            dispatched = record_run_dispatch(
+                session,
+                run_id,
+                force=_force_dispatch,
+            )
+        if dispatched is None:
+            return runner
 
     def _run() -> Iterator[Any]:
         try:
@@ -237,7 +282,7 @@ def submit_graph(
                 from apps.conversation.models import ConversationRun
                 from apps.conversation.run_service import (
                     ConversationRunCancelled,
-                    update_run_status,
+                    claim_run,
                 )
                 from apps.conversation.session import session_scope
 
@@ -245,7 +290,11 @@ def submit_graph(
                     current = session.get(ConversationRun, run_id)
                     if current is not None and current.status == "cancelled":
                         raise ConversationRunCancelled(run_id)
-                    update_run_status(session, run_id, "running")
+                    claimed = claim_run(session, run_id)
+                    if claimed is None:
+                        # Duplicate dispatches are expected during recovery.
+                        # Only the worker that atomically claimed queued may run.
+                        return
             yield from run_graph(graph_key, state, **builder_kwargs)
             if run_id:
                 from apps.conversation.models import ConversationRun
@@ -296,10 +345,7 @@ def submit_graph(
             if run_id:
                 try:
                     from apps.conversation.models import ConversationRun
-                    from apps.conversation.run_service import (
-                        append_run_event,
-                        finalize_run,
-                    )
+                    from apps.conversation.run_service import finalize_run
                     from apps.conversation.session import session_scope
 
                     with session_scope() as session:
@@ -312,16 +358,9 @@ def submit_graph(
                                 session,
                                 run_id=run_id,
                                 status="failed",
-                                current_node="runtime",
-                                record_snapshot={"terminal": True, "error": str(e)},
+                                current_node=current.current_node if current else None,
+                                record_snapshot=_failure_record_snapshot(graph_key, e),
                                 error_summary=str(e),
-                            )
-                    if not terminal_already_committed:
-                        with session_scope() as session:
-                            append_run_event(
-                                session,
-                                run_id=run_id,
-                                payload={"type": "error", "content": str(e)},
                             )
                 except Exception:
                     traceback.print_exc()
@@ -347,6 +386,55 @@ def submit_graph(
     return runner
 
 
+def _recovery_state(run: Any, *, checkpoint: Any) -> dict[str, Any] | None:
+    if checkpoint is not None:
+        return {
+            "run_id": run.run_id,
+            "record_id": run.chat_record_id,
+            "graph_key": run.graph_key,
+            "sink": "sse",
+            "__continue__": True,
+        }
+    if run.graph_key == "config":
+        from apps.config_assistant.nodes import recover_config_state
+
+        return recover_config_state(run)
+    if run.graph_key in {"analysis", "predict"}:
+        from apps.chat.models.chat_model import ChatRecord
+        from apps.conversation.session import session_scope
+
+        with session_scope() as session:
+            record = session.get(ChatRecord, run.chat_record_id)
+            if record is None:
+                return None
+            base_record_id = (
+                record.analysis_record_id
+                if run.graph_key == "analysis"
+                else record.predict_record_id
+            )
+        if base_record_id is None:
+            return None
+        return {
+            "run_id": run.run_id,
+            "record_id": run.chat_record_id,
+            "base_record_id": int(base_record_id),
+            "graph_key": run.graph_key,
+            "sink": "sse",
+            "mode": "follow_up",
+        }
+    from apps.chat.models.chat_model import ChatFinishStep
+
+    return {
+        "run_id": run.run_id,
+        "record_id": run.chat_record_id,
+        "graph_key": "chat",
+        "sink": "sse",
+        "mode": "primary",
+        "finish_step": int(ChatFinishStep.GENERATE_CHART.value),
+        "return_img": True,
+    }
+
+
 def recover_incomplete_runs() -> int:
     """Resume durable checkpoints after process restart.
 
@@ -356,8 +444,9 @@ def recover_incomplete_runs() -> int:
     from sqlalchemy import select
 
     from apps.conversation.checkpoint import get_checkpointer
+    from apps.conversation.lifecycle_log import log_lifecycle
     from apps.conversation.models import ConversationRun
-    from apps.conversation.run_service import update_run_status
+    from apps.conversation.run_service import finalize_run, queue_run_for_dispatch
     from apps.conversation.session import session_scope
 
     with session_scope() as session:
@@ -372,65 +461,195 @@ def recover_incomplete_runs() -> int:
 
     recovered = 0
     saver = get_checkpointer()
+
+    def _fail_unchanged_snapshot(
+        snapshot: ConversationRun,
+        *,
+        message: str,
+        error_code: str,
+    ) -> bool:
+        """Fail only the exact run state inspected by this recovery pass.
+
+        Startup recovery may run concurrently in more than one process.  The
+        row lock plus status/timestamp comparison prevents a stale detached
+        snapshot from terminating a run another worker already advanced.
+        """
+        with session_scope() as session:
+            current = session.exec(
+                select(ConversationRun)
+                .where(ConversationRun.run_id == snapshot.run_id)
+                .with_for_update()
+            ).scalars().one_or_none()
+            if (
+                current is None
+                or current.status != snapshot.status
+                or current.update_time != snapshot.update_time
+            ):
+                return False
+            finalize_run(
+                session,
+                run_id=snapshot.run_id,
+                status="failed",
+                current_node="recovery",
+                record_snapshot=_failure_record_snapshot(snapshot.graph_key, message),
+                error_summary=error_code,
+            )
+            return True
+
     for run in detached:
+        if run.status == "awaiting_input":
+            continue
+        # ``dispatch_attempts`` measures submissions that failed to obtain a
+        # worker from the current process pool.  Startup recovery always owns a
+        # fresh pool: submissions made by the process that disappeared cannot
+        # be counted against it, regardless of whether the durable row was
+        # last observed as queued or running.  The in-process reconciler still
+        # enforces the bounded retry policy after this reset.
         try:
             checkpoint = saver.get_tuple({"configurable": {"thread_id": run.run_id}})
         except Exception as exc:
-            SQLBotLogUtil.warning(
-                f"checkpoint recovery deferred for run {run.run_id}: {exc}"
+            SQLBotLogUtil.error(f"checkpoint recovery failed for run {run.run_id}: {exc}")
+            _fail_unchanged_snapshot(
+                run,
+                message="Conversation checkpoint recovery failed",
+                error_code="RUN_CHECKPOINT_RECOVERY_FAILED",
             )
             continue
-        if run.status == "awaiting_input" and checkpoint is not None:
+        state = _recovery_state(run, checkpoint=checkpoint)
+        if state is None:
+            _fail_unchanged_snapshot(
+                run,
+                message="Conversation recovery state is unavailable",
+                error_code="RUN_RECOVERY_STATE_UNAVAILABLE",
+            )
             continue
-        if run.status == "awaiting_input":
-            with session_scope() as session:
-                update_run_status(session, run.run_id, "running")
-        if checkpoint is not None:
-            state: dict[str, Any] = {
-                "run_id": run.run_id,
-                "record_id": run.chat_record_id,
-                "graph_key": run.graph_key,
-                "sink": "sse",
-                "__continue__": True,
-            }
-        elif run.graph_key == "config":
-            from apps.config_assistant.nodes import recover_config_state
+        with session_scope() as session:
+            from apps.chat.steps.observability import close_open_audit_spans
 
-            state = recover_config_state(run)
-        elif run.graph_key in {"analysis", "predict"}:
-            from apps.chat.models.chat_model import ChatRecord
-
-            with session_scope() as session:
-                record = session.get(ChatRecord, run.chat_record_id)
-                if record is None:
-                    continue
-                base_record_id = (
-                    record.analysis_record_id
-                    if run.graph_key == "analysis"
-                    else record.predict_record_id
-                )
-            if base_record_id is None:
+            queued = queue_run_for_dispatch(
+                session,
+                run.run_id,
+                reset_attempts=True,
+                expected_status=run.status,
+                expected_update_time=run.update_time,
+            )
+            if queued is None:
                 continue
-            state = {
-                "run_id": run.run_id,
-                "record_id": run.chat_record_id,
-                "base_record_id": int(base_record_id),
-                "graph_key": run.graph_key,
-                "sink": "sse",
-                "mode": "follow_up",
-            }
-        else:
-            from apps.chat.models.chat_model import ChatFinishStep
-
-            state = {
-                "run_id": run.run_id,
-                "record_id": run.chat_record_id,
-                "graph_key": "chat",
-                "sink": "sse",
-                "mode": "primary",
-                "finish_step": int(ChatFinishStep.GENERATE_CHART.value),
-                "return_img": True,
-            }
-        submit_graph(run.graph_key, state).detach()
+            # Audit closure is part of claiming this recovery boundary, not a
+            # separate scheduler state transition.
+            close_open_audit_spans(session, run.chat_record_id)
+            session.commit()
+        submit_graph(run.graph_key, state, _force_dispatch=True).detach()
+        log_lifecycle(
+            "run_recovered",
+            run_id=run.run_id,
+            record_id=run.chat_record_id,
+            graph_key=run.graph_key,
+            status="queued",
+        )
         recovered += 1
     return recovered
+
+
+def reconcile_stale_runs() -> int:
+    """Retry one stale queued dispatch, then fail it deterministically."""
+    from sqlalchemy import select
+
+    from apps.conversation.checkpoint import get_checkpointer
+    from apps.conversation.lifecycle_log import log_lifecycle
+    from apps.conversation.models import ConversationRun
+    from apps.conversation.run_service import finalize_run
+    from apps.conversation.session import session_scope
+
+    retry_sec = _bounded_setting_int(
+        "CONVERSATION_QUEUED_RETRY_SEC", 15, minimum=5, maximum=600
+    )
+    max_attempts = _bounded_setting_int(
+        "CONVERSATION_MAX_DISPATCH_ATTEMPTS", 2, minimum=1, maximum=10
+    )
+    cutoff = datetime.now() - timedelta(seconds=retry_sec)
+    with session_scope() as session:
+        rows = list(
+            session.exec(
+                select(ConversationRun).where(
+                    ConversationRun.status == "queued",
+                    ConversationRun.update_time < cutoff,
+                )
+            ).scalars()
+        )
+        stale = [ConversationRun(**row.model_dump()) for row in rows]
+
+    handled = 0
+    saver = get_checkpointer()
+    for run in stale:
+        if int(run.dispatch_attempts or 0) >= max_attempts:
+            with session_scope() as session:
+                current = session.exec(
+                    select(ConversationRun)
+                    .where(ConversationRun.run_id == run.run_id)
+                    .with_for_update()
+                ).scalars().one_or_none()
+                if current is None or current.status != "queued":
+                    continue
+                if current.update_time and current.update_time >= cutoff:
+                    continue
+                finalize_run(
+                    session,
+                    run_id=run.run_id,
+                    status="failed",
+                    current_node="dispatch",
+                    record_snapshot=_failure_record_snapshot(
+                        run.graph_key, "Conversation worker dispatch timed out"
+                    ),
+                    error_summary="RUN_DISPATCH_TIMEOUT",
+                )
+            log_lifecycle(
+                "run_dispatch_timeout",
+                level="error",
+                run_id=run.run_id,
+                record_id=run.chat_record_id,
+                graph_key=run.graph_key,
+                status="failed",
+                dispatch_attempt=run.dispatch_attempts,
+                error_code="RUN_DISPATCH_TIMEOUT",
+            )
+            handled += 1
+            continue
+        try:
+            checkpoint = saver.get_tuple(
+                {"configurable": {"thread_id": run.run_id}}
+            )
+            state = _recovery_state(run, checkpoint=checkpoint)
+            if state is None:
+                continue
+            submit_graph(run.graph_key, state).detach()
+            handled += 1
+        except Exception as exc:  # noqa: BLE001
+            SQLBotLogUtil.warning(
+                f"stale run redispatch deferred for {run.run_id}: {type(exc).__name__}"
+            )
+    return handled
+
+
+def start_run_reconciler() -> None:
+    """Start the process-local lightweight run reconciliation loop once."""
+    global _reconciler_thread
+    if _reconciler_thread is not None and _reconciler_thread.is_alive():
+        return
+    _reconciler_stop.clear()
+
+    def _loop() -> None:
+        while not _reconciler_stop.wait(5):
+            try:
+                reconcile_stale_runs()
+            except Exception as exc:  # noqa: BLE001
+                SQLBotLogUtil.warning(
+                    f"conversation run reconciliation failed: {type(exc).__name__}"
+                )
+
+    _reconciler_thread = threading.Thread(
+        target=_loop,
+        name="conversation-run-reconciler",
+        daemon=True,
+    )
+    _reconciler_thread.start()

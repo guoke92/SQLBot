@@ -87,7 +87,7 @@ class ChatLog(SQLModel, table=True):
     pid: Optional[int] = Field(sa_column=Column(BigInteger, nullable=True))
     ai_modal_id: Optional[int] = Field(sa_column=Column(BigInteger))
     base_modal: Optional[str] = Field(max_length=255)
-    messages: Optional[list[dict]] = Field(sa_column=Column(JSONB))
+    messages: Any | None = Field(default=None, sa_column=Column(JSONB))
     reasoning_content: Optional[str | None] = Field(sa_column=Column(Text, nullable=True))
     start_time: datetime = Field(sa_column=Column(DateTime(timezone=False), nullable=True))
     finish_time: datetime = Field(sa_column=Column(DateTime(timezone=False), nullable=True))
@@ -145,6 +145,9 @@ class ChatRecord(SQLModel, table=True):
     regenerate_record_id: int = Field(sa_column=Column(BigInteger, nullable=True))
     re_exec: Optional[str] = Field(sa_column=Column(Text, nullable=True))
     feedback: Optional[str] = Field(default=None, sa_column=Column(String(8), nullable=True))
+    feedback_revision: int = Field(
+        default=0, sa_column=Column(Integer, nullable=False, default=0)
+    )
 
 
 class ChatRecordResult(BaseModel):
@@ -184,6 +187,11 @@ class ChatRecordResult(BaseModel):
     run_id: Optional[str] = None
     run_status: Optional[str] = None
     run_event_cursor: int = 0
+    run_current_node: Optional[str] = None
+    run_dispatch_attempts: int = 0
+    run_update_time: Optional[datetime] = None
+    run_started_at: Optional[datetime] = None
+    run_completed_at: Optional[datetime] = None
     active_interrupt: Optional[dict[str, Any]] = None
     interrupts: List[dict[str, Any]] = Field(default_factory=list)
 
@@ -231,13 +239,40 @@ class ChatLogHistoryItem(BaseModel):
     local_operation: Optional[bool] = False
     message: Optional[str | dict | list] = None
     error: Optional[bool] = False
+    status: str = "success"
+    phase: str = "plan"
+    graph_node: Optional[str] = None
+    title_key: Optional[str] = None
+    title_params: dict[str, Any] = Field(default_factory=dict)
+    summary_key: Optional[str] = None
+    summary_params: dict[str, Any] = Field(default_factory=dict)
+    batch_index: Optional[int] = None
+    attempt_index: Optional[int] = None
+    unit_index: Optional[int] = None
+    detail: dict[str, Any] = Field(default_factory=dict)
+    input: Any = None
+    output: Any = None
+    reasoning_content: Optional[str] = None
+
+
+class ExecutionRunSummary(BaseModel):
+    run_id: Optional[str] = None
+    status: str = "succeeded"
+    current_node: Optional[str] = None
+    dispatch_attempts: int = 0
+    started_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    update_time: Optional[datetime] = None
 
 
 class ChatLogHistory(BaseModel):
     start_time: Optional[datetime] = None
     finish_time: Optional[datetime] = None
     duration: Optional[float] = None  # 耗时字段（单位：秒）
+    elapsed_duration: Optional[float] = None
+    waiting_duration: Optional[float] = None
     total_tokens: Optional[int] = None  # token总消耗
+    run: ExecutionRunSummary = Field(default_factory=ExecutionRunSummary)
     steps: List[ChatLogHistoryItem | dict] = []
 
 

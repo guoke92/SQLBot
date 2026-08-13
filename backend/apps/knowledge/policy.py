@@ -9,11 +9,11 @@ from pydantic import BaseModel, Field
 
 class CompileBudgets(BaseModel):
     generate_examples: int = 2
-    repair_hints: int = 1
 
 
 class KnowledgePolicy(BaseModel):
     reproduce_count_n: int = 3
+    positive_feedback_count_n: int = 2
     compile_budgets: CompileBudgets = Field(default_factory=CompileBudgets)
     reuse_enabled: bool = True
     reuse_similarity_threshold: float = 0.95

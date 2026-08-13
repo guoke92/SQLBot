@@ -25,7 +25,7 @@ if "apps.conversation" not in sys.modules:
 
 @contextmanager
 def _log_span(**_kwargs):
-    yield {"payload": {}, "error": False}
+    yield AuditSpanHandle(payload={}, error=False)
 
 
 from langchain_core.messages import AIMessage, SystemMessage, ToolMessage
@@ -34,12 +34,12 @@ from langchain_core.tools import StructuredTool
 import sqlbot_xpack  # noqa: F401  # initialize extension imports before app modules
 import apps.conversation.agent as agent_module
 import apps.conversation.tooling as tooling_module
+from apps.chat.steps.observability import AuditSpanHandle, sanitize_audit_value
 from apps.conversation.agent import agent_node, route_after_agent
 from apps.conversation.messages import deserialize_messages, serialize_messages
 from apps.conversation.tooling import (
     execute_tools_node,
     normalize_tool_result,
-    redact_value,
     tool_failure,
 )
 
@@ -65,7 +65,7 @@ def test_redact_value_handles_nested_and_json_configuration() -> None:
         ),
         "token": "token",
     }
-    assert redact_value(value) == {
+    assert sanitize_audit_value(value) == {
         "configuration": {
             "host": "db.local",
             "password": "<redacted>",
@@ -85,7 +85,7 @@ def test_redact_value_normalizes_camel_case_secret_keys() -> None:
             "apiKeyHeader": "X-API-Key",
         }
     }
-    assert redact_value(value) == {
+    assert sanitize_audit_value(value) == {
         "configuration": {
             "apiKey": "<redacted>",
             "clientSecret": "<redacted>",
@@ -241,7 +241,7 @@ def test_route_after_agent_uses_shared_tool_loop() -> None:
 
 
 def test_agent_audit_payload_redacts_tool_credentials(monkeypatch) -> None:
-    captured: dict[str, object] = {}
+    captured = AuditSpanHandle()
 
     @contextmanager
     def capture_span(**_kwargs):
@@ -289,7 +289,7 @@ def test_agent_audit_payload_redacts_tool_credentials(monkeypatch) -> None:
 def test_agent_rejects_empty_terminal_response(monkeypatch) -> None:
     @contextmanager
     def capture_span(**_kwargs):
-        yield {}
+        yield AuditSpanHandle()
 
     class FakeModel:
         def invoke(self, _messages):
@@ -311,7 +311,7 @@ def test_agent_rejects_empty_terminal_response(monkeypatch) -> None:
 def test_agent_requires_tool_grounding_before_config_completion(monkeypatch) -> None:
     @contextmanager
     def capture_span(**_kwargs):
-        yield {}
+        yield AuditSpanHandle()
 
     class FakeModel:
         def bind_tools(self, _tools):
@@ -339,7 +339,7 @@ def test_agent_requires_tool_grounding_before_config_completion(monkeypatch) -> 
 def test_agent_accepts_explicit_tool_free_guidance(monkeypatch) -> None:
     @contextmanager
     def capture_span(**_kwargs):
-        yield {}
+        yield AuditSpanHandle()
 
     class FakeModel:
         def bind_tools(self, _tools):
@@ -368,7 +368,7 @@ def test_agent_accepts_explicit_tool_free_guidance(monkeypatch) -> None:
 def test_agent_fails_repeated_ungrounded_config_completion(monkeypatch) -> None:
     @contextmanager
     def capture_span(**_kwargs):
-        yield {}
+        yield AuditSpanHandle()
 
     class FakeModel:
         def bind_tools(self, _tools):
@@ -396,7 +396,7 @@ def test_agent_fails_repeated_ungrounded_config_completion(monkeypatch) -> None:
 def test_agent_finalizes_without_tools_at_round_limit(monkeypatch) -> None:
     @contextmanager
     def capture_span(**_kwargs):
-        yield {}
+        yield AuditSpanHandle()
 
     class FakeModel:
         bind_calls = 0

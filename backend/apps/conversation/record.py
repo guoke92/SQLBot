@@ -7,7 +7,7 @@ import datetime
 from sqlalchemy import and_, update
 from sqlmodel import Session
 
-from apps.chat.models.chat_model import ChatLog, ChatRecord
+from apps.chat.models.chat_model import ChatRecord
 
 
 def persist_snapshot(
@@ -69,18 +69,6 @@ def persist_snapshot(
             .values(**values)
         )
         applied = bool(getattr(result, "rowcount", 0))
-
-    if applied and terminal and error is not None and finish_time is not None:
-        session.execute(
-            update(ChatLog)
-            .where(
-                and_(
-                    ChatLog.pid == record_id,
-                    ChatLog.finish_time.is_(None),
-                )
-            )
-            .values(finish_time=finish_time, error=True)
-        )
 
     if commit:
         session.commit()

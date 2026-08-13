@@ -7,7 +7,11 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
 
-from apps.chat.query_specification import QuerySpecification, requirement_fields
+from apps.chat.query_specification import (
+    QuerySpecification,
+    is_user_evidence_ref,
+    requirement_fields,
+)
 
 _TABLE_RE = re.compile(r"^#\s*Table:\s*([^,;\s]+)", re.MULTILINE)
 _FIELD_RE = re.compile(r"^\s*\(([^:(),\s]+)\s*:", re.MULTILINE)
@@ -131,7 +135,7 @@ def validate_specification_transition(
         cited_user_evidence = {
             ref
             for ref in requirement.evidence_refs
-            if ref == "user:question" or ref.startswith("user:answer:")
+            if is_user_evidence_ref(ref)
         }
         if not (cited_user_evidence & active_evidence_refs):
             continue

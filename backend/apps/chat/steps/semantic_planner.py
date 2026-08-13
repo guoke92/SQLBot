@@ -2,17 +2,20 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any
+from time import monotonic
+from typing import TYPE_CHECKING, Any
 
 import orjson
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from pydantic import ValidationError
 
 from apps.chat.planning import BatchParseResult, parse_query_generation
+from apps.chat.planning_prompt import protocol_prompt_bits, render_planner_input
 from apps.chat.query_specification import (
-    QueryAssumption,
     QuerySpecification,
+    canonicalize_planner_requirement_ids,
     normalize_specification,
 )
 from apps.chat.semantic_planning import (
@@ -26,16 +29,16 @@ from apps.chat.specification_validation import (
     validate_specification,
     validate_specification_transition,
 )
-from apps.chat.steps.knowledge_seed import (
-    KnowledgeApplication,
-    KnowledgeSeed,
-    apply_knowledge_seeds,
-)
+from apps.chat.steps.knowledge_seed import KnowledgeSeed, apply_knowledge_seeds
+from apps.chat.steps.stream import consume_llm
 from apps.conversation.messages import message_content_text
 from apps.conversation.models import NlqEvidenceEvent
-from apps.conversation.usage import merge_usage, usage_from_response
+from apps.conversation.usage import merge_usage
 from apps.knowledge.compile.bundle import ApplyHit
 from common.utils.json_utils import extract_nested_json
+
+if TYPE_CHECKING:
+    from apps.chat.steps.observability import AuditSpanHandle
 
 
 @dataclass(frozen=True)
@@ -46,6 +49,7 @@ class SemanticPlanningResult:
     reasoning: str
     attempts: list[dict[str, Any]]
     knowledge_apply: list[ApplyHit]
+    model_messages: list[Any]
 
 
 @dataclass(frozen=True)
@@ -54,40 +58,62 @@ class PhysicalPlanningResult:
     usage: dict[str, Any]
     reasoning: str
     raw_text: str
+    model_messages: list[Any]
+
+
+class SemanticPlanningError(ValueError):
+    """The planner remained structurally invalid after bounded repair."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        usage: dict[str, Any],
+        reasoning: str,
+        attempts: list[dict[str, Any]],
+        model_messages: list[Any],
+    ) -> None:
+        super().__init__(message)
+        self.usage = usage
+        self.reasoning = reasoning
+        self.attempts = attempts
+        self.model_messages = model_messages
 
 
 _SYSTEM_PROMPT = """你是 AI 智能问数的业务语义规划器和物理查询计划生成器。
 
-你必须只返回 JSON，且严格符合给出的 PlanningDecision schema。
+只返回一个 JSON 对象，不要 Markdown，不要解释。decision 只能是 needs_clarification 或 ready。
 
-唯一真相规则：
-- 用户问题、澄清回答和纠正是不可变证据；不得改写或忽略。
+唯一真相：
+- 当前问题、澄清回答、纠正和 conversation_history 中的先前用户问题都是不可变证据，不得改写或忽略。
+- 同一会话默认延续：不得把「继续」或短续问当成全新独立问题；必须继承 previous_specification 与已确认口径，除非本轮明确开始全新分析。
 - QuerySpecification 是唯一业务语义真相；查询候选只负责实现它。
-- 有任何会显著改变金额、数量、数据归属、时间范围、结果人口或去重粒度的未决业务歧义时，只返回 needs_clarification，不得同时返回候选查询。
-- 非关键展示选择可转成 assumptions，不阻塞执行。
+- 有会显著改变金额、数量、数据归属、时间范围、结果人口或去重粒度的未决业务歧义时，只返回 needs_clarification，不得同时返回候选查询。
+- 非关键展示选择写成 assumptions，不阻塞执行。
 - 不询问 JOIN、表名、关联键、CTE、方言、排序实现等技术问题。
-- schema 只能证明字段、类型和关系存在，不能自行创造业务过滤政策。
-- protected_knowledge_requirements 是当前问题强相关的认证业务口径；除非用户当前证据明确覆盖，不得遗漏、改写或重复询问已解决的口径。
-- business_rules 是工作空间管理员发布的业务规则约束；生成查询时必须遵守，不得忽略或违反。
-- query_examples 只是字段映射、方言和物理查询实现参考；不得用它代替用户回答业务歧义，也不得覆盖用户证据或认证口径。
-- 推荐项只作说明，不代表用户已选择。
-- 每轮最多两个高度相关且必要的问题；每题 2~3 个互斥选项。
-- 面向用户的文字使用业务语言；必要时写“业务名称(field_name)”，不展示表名或连接路径。
-- 每个歧义必须给出稳定、简短、与问句措辞无关的 business_axis（例如 department_scope）；已经存在 user clarification evidence 的 business_axis 不得再次询问。
-- 每个候选项的 resolution 必须包含该业务选择的结构化含义，不能是空对象。
-- clarification_budget_exhausted=true 时不得继续提问；在仍可安全查询时采用最合理口径并明确写入 assumptions。
+- schema 只能证明字段存在，不能创造业务过滤政策。
+- 选项必须能映射到当前 schema/认证知识中的具体字段、值、聚合或粒度。
+- 「主要」「默认」等没有明确字段或规则的选项不可执行。
+- protected_knowledge_requirements 与 business_rules 必须遵守。
+- query_examples 只是实现参考，不能代替用户回答。
+- 每轮最多两个必要问题，每题 2~3 个互斥选项；同一指标组/主体/时间尽量本轮合并。
+- 已在 resolved_business_axes 中的轴不得再问。澄清预算只约束本轮新问题。
+- 面向用户的文字用业务语言，必要时写「业务名称(field_name)」。
+- 候选项只要 label；不要 description、impact、reason、recommendation_reason、summary。
+- 每个 resolution 必须是可执行的结构化含义，不能是空对象或 primary/auto/default。
+- clarification_budget_exhausted=true 时不得继续提问。
 
-规格规则：
-- requirement_id 是临时标识，服务端会重新分配；引用必须在本响应内一致。
-- 每个 requirement 只表达一种 clause。
-- source=user 时 evidence_refs 必须引用 user:question 或 user:answer:<evidence_id>。
-- 明细和聚合都使用 outputs；明细字段 aggregation=value，聚合字段使用对应聚合方式。
-- 最新 N 条是 order_by + limit，不自动创建时间窗口。
-- 不输出字段不等于过滤数据。
-- 用户未要求的返回行上限不写入 specification.limit。
-- 多事实共享粒度时 business_relations 的 population 是业务范围；若其不同选择会明显改变结果，必须澄清。
-- candidates.payload 必须是目标协议原生查询 JSON，不要放 Markdown。
-- candidates 必须逐条完整实现 specification，不得增删业务条件。
+规格：
+- requirement_id 仅在本响应内一致；每个 requirement 一种 clause。
+- source=user 时 evidence_refs 必须引用 user:question、user:prior_question、user:answer:<id> 或 user:prior_answer:<id>。
+- 明细 aggregation=value；最新 N 条用 order_by+limit，不自动建时间窗口。
+- 用户未要求的行上限不写入 specification.limit。
+- candidates.payload 是协议原生查询 JSON。
+
+输出形状：
+{"decision":"needs_clarification","ambiguity_set":{"ambiguities":[{"business_axis":"amount_metric","business_question":"...","candidate_resolutions":[{"label":"...","resolution":{"field":"orig_asset_amt","date_field":"sign_date"}},{"label":"...","resolution":{}}]}]}}
+或
+{"decision":"ready","specification":{"version":3,"revision":1,"outputs":[],"predicates":[],"group_by":[],"time_windows":[],"order_by":[],"limit":null,"business_relations":[],"assumptions":[],"evidence_refs":[],"confidence":0.7},"candidates":[{"payload":{"sql":"SELECT ..."}}],"summary":""}
 """
 
 
@@ -109,18 +135,55 @@ QuerySpecification 是不可修改的唯一业务语义。你只能修复 SQL �
 """
 
 
-# A turn may clarify several related business decisions, but it must not be
-# trapped indefinitely by renamed or progressively fragmented questions.
-_MAX_RESOLVED_AMBIGUITIES = 4
+# A turn may clarify related decisions, but it must not progressively invent
+# more policy after each answer. The UI already supports two related questions
+# in one card; a second card is allowed only when the first card contained one
+# decision. Any remaining uncertainty becomes a disclosed assumption.
+_MAX_RESOLVED_BUSINESS_AXES = 2
 
 
-def _reasoning(response: Any) -> str:
-    extra = getattr(response, "additional_kwargs", None) or {}
-    return (
-        str(extra.get("reasoning_content") or extra.get("reasoning") or "")
-        if isinstance(extra, dict)
-        else ""
-    )
+def _history_evidence(history: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    items: list[dict[str, Any]] = []
+    for index, turn in enumerate(history):
+        question = str(turn.get("question") or "").strip()
+        if question:
+            items.append(
+                {
+                    "evidence_id": f"history-q-{index}",
+                    "reference": f"user:prior_question:{index}",
+                    "kind": "prior_user_question",
+                    "source": "user",
+                    "content": question,
+                    "structured_value": {
+                        "status": turn.get("status"),
+                        "has_specification": bool(turn.get("has_specification")),
+                    },
+                    "confidence": 1.0,
+                    "supersedes": None,
+                }
+            )
+        for option_index, clarification in enumerate(turn.get("clarifications") or []):
+            if not isinstance(clarification, dict):
+                continue
+            content = str(clarification.get("content") or "").strip()
+            if not content:
+                continue
+            items.append(
+                {
+                    "evidence_id": f"history-a-{index}-{option_index}",
+                    "reference": f"user:prior_answer:{index}-{option_index}",
+                    "kind": "prior_clarification",
+                    "source": "user",
+                    "content": content,
+                    "structured_value": {
+                        "business_axis": clarification.get("business_axis") or "",
+                        "resolution": clarification.get("resolution"),
+                    },
+                    "confidence": 1.0,
+                    "supersedes": None,
+                }
+            )
+    return items
 
 
 def _evidence_payload(events: list[NlqEvidenceEvent]) -> list[dict[str, Any]]:
@@ -146,23 +209,16 @@ def _evidence_payload(events: list[NlqEvidenceEvent]) -> list[dict[str, Any]]:
     ]
 
 
-def _evidence_references(events: list[NlqEvidenceEvent]) -> set[str]:
-    return {str(item["reference"]) for item in _evidence_payload(events)}
-
-
-def _protocol_context(llm_service: Any) -> dict[str, Any]:
-    bundle = llm_service.protocol.build_prompt_bundle(
-        llm_service.chat_question,
-        enable_query_limit=llm_service.enable_sql_row_limit,
-    ).as_dict()
-    return {
-        "protocol_type": getattr(llm_service.protocol, "type_key", ""),
-        "protocol_generation_rules": {
-            key: bundle.get(key, "")
-            for key in ("system", "rules", "custom_prompt")
-            if bundle.get(key)
-        },
-    }
+def _evidence_references(
+    events: list[NlqEvidenceEvent],
+    extra: list[dict[str, Any]] | None = None,
+) -> set[str]:
+    refs = {str(item["reference"]) for item in _evidence_payload(events)}
+    for item in extra or []:
+        ref = item.get("reference")
+        if ref:
+            refs.add(str(ref))
+    return refs
 
 
 def plan_semantics_and_query(
@@ -175,72 +231,152 @@ def plan_semantics_and_query(
     max_batch_size: int,
     knowledge_seeds: list[KnowledgeSeed] | None = None,
     business_rules: list[dict[str, Any]] | None = None,
+    conversation_history: list[dict[str, Any]] | None = None,
+    inherited_business_axes: set[str] | None = None,
+    audit_span: AuditSpanHandle | None = None,
+    on_stream: Callable[[dict[str, str]], None] | None = None,
 ) -> SemanticPlanningResult:
     """Return one validated decision; initial ready planning is one model call."""
+    this_run_axes = {
+        str((event.structured_value or {}).get("business_axis") or "")
+        for event in evidence
+        if event.kind
+        in {"clarification_option", "clarification_custom", "user_correction"}
+    }
+    this_run_axes.discard("")
+    inherited_axes = {
+        item.strip() for item in (inherited_business_axes or set()) if item.strip()
+    }
     resolved_ambiguities = {
         str((event.structured_value or {}).get("ambiguity_id") or "")
         for event in evidence
         if event.kind
         in {"clarification_option", "clarification_custom", "user_correction"}
     }
-    resolved_business_axes = {
-        str((event.structured_value or {}).get("business_axis") or "")
-        for event in evidence
-        if event.kind
-        in {"clarification_option", "clarification_custom", "user_correction"}
-    }
-    clarification_budget_exhausted = (
-        len({item for item in resolved_ambiguities if item})
-        >= _MAX_RESOLVED_AMBIGUITIES
+    resolved_business_axes = this_run_axes | inherited_axes
+    remaining_question_budget = max(
+        0, _MAX_RESOLVED_BUSINESS_AXES - len(this_run_axes)
     )
+    clarification_budget_exhausted = remaining_question_budget == 0
     protected_knowledge = list(knowledge_seeds or [])
-    context = {
-        "evidence": _evidence_payload(evidence),
-        "resolved_ambiguity_ids": sorted(item for item in resolved_ambiguities if item),
-        "resolved_business_axes": sorted(
-            item for item in resolved_business_axes if item
-        ),
-        "clarification_budget_exhausted": clarification_budget_exhausted,
-        "previous_specification": previous_specification.model_dump(mode="json")
-        if previous_specification
-        else None,
-        "schema": llm_service.chat_question.db_schema,
-        "sample_data": llm_service.chat_question.sample_data,
-        "terminology": llm_service.chat_question.terminologies,
-        "query_examples": llm_service.chat_question.data_training,
-        "protected_knowledge_requirements": [
-            seed.as_prompt_context() for seed in protected_knowledge
-        ],
-        "business_rules": [
-            {"label": r.get("label", ""), "content": r.get("content", "")}
-            for r in (business_rules or [])
-        ],
-        "custom_rules": llm_service.chat_question.custom_prompt,
-        "entity_bindings": entity_bindings,
-        "deterministic_time_parse": temporal_parse,
-        **_protocol_context(llm_service),
-    }
-    schema = orjson.dumps(PLANNING_DECISION_ADAPTER.json_schema()).decode()
+    history_evidence = _history_evidence(list(conversation_history or []))
+    unresolved_business_axes = (
+        "metric definitions, business subject/population, grouping level, "
+        "time field/range, status scope, and zero-data retention"
+    )
+    question = llm_service.chat_question
+    human_content = render_planner_input(
+        schema=str(question.db_schema or ""),
+        sample_data=str(question.sample_data or ""),
+        terminology=str(question.terminologies or ""),
+        query_examples=str(question.data_training or ""),
+        custom_rules=str(question.custom_prompt or ""),
+        protocol=protocol_prompt_bits(llm_service),
+        structured={
+            "evidence": [*history_evidence, *_evidence_payload(evidence)],
+            "conversation_history": list(conversation_history or []),
+            "resolved_ambiguity_ids": sorted(
+                item for item in resolved_ambiguities if item
+            ),
+            "resolved_business_axes": sorted(resolved_business_axes),
+            "clarification_budget_exhausted": clarification_budget_exhausted,
+            "clarification_policy": {
+                "inspect_axes_before_asking": unresolved_business_axes,
+                "max_questions_this_round": remaining_question_budget,
+                "merge_related_axes": True,
+            },
+            "previous_specification": (
+                previous_specification.model_dump(mode="json")
+                if previous_specification
+                else None
+            ),
+            "protected_knowledge_requirements": [
+                seed.as_prompt_context() for seed in protected_knowledge
+            ],
+            "business_rules": [
+                {"label": r.get("label", ""), "content": r.get("content", "")}
+                for r in (business_rules or [])
+            ],
+            "entity_bindings": entity_bindings,
+            "deterministic_time_parse": temporal_parse,
+        },
+    )
     messages: list[Any] = [
-        SystemMessage(content=_SYSTEM_PROMPT + "\nJSON Schema:\n" + schema),
-        HumanMessage(content=orjson.dumps(context).decode()),
+        SystemMessage(content=_SYSTEM_PROMPT),
+        HumanMessage(content=human_content),
     ]
+    if audit_span is not None:
+        audit_span.set_input_messages(messages)
+        audit_span.persist_progress()
     usage_items: list[dict[str, Any]] = []
     reasoning_items: list[str] = []
     attempts: list[dict[str, Any]] = []
     planner = llm_service.llm.bind(temperature=0)
     last_error = ""
+    available_refs = _evidence_references(evidence, history_evidence)
     for attempt in range(2):
-        response = planner.invoke(messages)
-        usage_items.append(usage_from_response(response))
-        if text := _reasoning(response).strip():
-            reasoning_items.append(text)
-        raw = message_content_text(response.content)
+        streamed_content: list[str] = []
+        streamed_reasoning: list[str] = []
+        last_persist = 0.0
+
+        def _on_chunk(
+            chunk: dict[str, str],
+            *,
+            content_parts: list[str] = streamed_content,
+            reasoning_parts: list[str] = streamed_reasoning,
+        ) -> None:
+            nonlocal last_persist
+            content = chunk.get("content") or ""
+            reasoning = chunk.get("reasoning_content") or ""
+            if content:
+                content_parts.append(content)
+            if reasoning:
+                reasoning_parts.append(reasoning)
+                if on_stream is not None:
+                    on_stream({"content": "", "reasoning_content": reasoning})
+            if audit_span is None:
+                return
+            now = monotonic()
+            if now - last_persist < 2.0:
+                return
+            last_persist = now
+            assembled = "".join(content_parts)
+            thought = "".join(reasoning_parts)
+            if assembled:
+                audit_span.set_output_message(AIMessage(content=assembled))
+            if thought:
+                audit_span["reasoning_content"] = thought
+            audit_span.persist_progress()
+
+        call = consume_llm(planner, messages, on_chunk=_on_chunk)
+        usage_items.append(call.usage)
+        if call.reasoning.strip():
+            reasoning_items.append(call.reasoning.strip())
+        raw = call.content or message_content_text(getattr(call.message, "content", ""))
+        if audit_span is not None:
+            audit_span.set_output_message(call.message)
+            audit_span.set_usage(merge_usage(*usage_items))
+            audit_span["reasoning_content"] = "\n".join(reasoning_items)
+            audit_span.set_detail(
+                {"attempts": attempts, "active_attempt": attempt + 1}
+            )
+            audit_span.persist_progress()
         try:
             nested = extract_nested_json(raw)
             if not nested:
                 raise ValueError("Planner response is not JSON")
-            decision = PLANNING_DECISION_ADAPTER.validate_python(orjson.loads(nested))
+            decision_payload = orjson.loads(nested)
+            if (
+                isinstance(decision_payload, dict)
+                and decision_payload.get("decision") == "ready"
+                and isinstance(decision_payload.get("specification"), dict)
+            ):
+                decision_payload["specification"] = (
+                    canonicalize_planner_requirement_ids(
+                        decision_payload["specification"]
+                    )
+                )
+            decision = PLANNING_DECISION_ADAPTER.validate_python(decision_payload)
             if isinstance(decision, NeedClarification):
                 if clarification_budget_exhausted:
                     raise ValueError(
@@ -275,6 +411,7 @@ def plan_semantics_and_query(
                     reasoning="\n".join(reasoning_items),
                     attempts=attempts,
                     knowledge_apply=[],
+                    model_messages=[*messages, call.message],
                 )
             normalized = decision.model_copy(
                 update={
@@ -285,71 +422,19 @@ def plan_semantics_and_query(
                 normalized.specification,
                 protected_knowledge,
             )
-            if knowledge_application.missing:
-                if attempt == 0:
-                    raise ValueError(
-                        "Planner omitted protected certified knowledge requirements: "
-                        + ", ".join(knowledge_application.missing)
-                    )
-                omitted_ids = {
-                    int(item.split(":", 1)[0]) for item in knowledge_application.missing
-                }
-                omitted_seeds = [
-                    seed
-                    for seed in protected_knowledge
-                    if seed.caliber_id in omitted_ids
-                ]
-                assumptions = list(knowledge_application.specification.assumptions)
-                assumptions.extend(
-                    QueryAssumption(
-                        assumption_id=f"knowledge_seed_{seed.caliber_id}_omitted",
-                        business_label=f"认证口径未完整应用：{seed.label}",
-                        value="未应用",
-                        reason="语义规划修复后仍无法完整吸收该认证口径",
-                        risk="high",
-                        evidence_refs=(seed.evidence_ref,),
-                    )
-                    for seed in omitted_seeds
-                    if not any(
-                        item.assumption_id
-                        == f"knowledge_seed_{seed.caliber_id}_omitted"
-                        for item in assumptions
-                    )
-                )
-                knowledge_application = KnowledgeApplication(
-                    specification=knowledge_application.specification.model_copy(
-                        update={"assumptions": tuple(assumptions)}
-                    ),
-                    apply_log=(
-                        *knowledge_application.apply_log,
-                        *(
-                            ApplyHit(
-                                asset_kind="caliber",
-                                asset_id=seed.caliber_id,
-                                lineage_id=seed.lineage_id,
-                                trust_tier=seed.trust_tier,
-                                apply="drop",
-                                reason="planner_omitted_after_repair",
-                                meta={"label": seed.label},
-                            )
-                            for seed in omitted_seeds
-                        ),
-                    ),
-                    missing=(),
-                )
             normalized = normalized.model_copy(
                 update={"specification": knowledge_application.specification}
             )
             issues = validate_specification(
                 normalized.specification,
                 schema_text=str(llm_service.chat_question.db_schema or ""),
-                available_evidence_refs=_evidence_references(evidence),
+                available_evidence_refs=available_refs,
             )
             issues.extend(
                 validate_specification_transition(
                     previous_specification,
                     normalized.specification,
-                    active_evidence_refs=_evidence_references(evidence),
+                    active_evidence_refs=available_refs,
                 )
             )
             blockers = blocking_issues(issues)
@@ -394,10 +479,16 @@ def plan_semantics_and_query(
                 reasoning="\n".join(reasoning_items),
                 attempts=attempts,
                 knowledge_apply=list(knowledge_application.apply_log),
+                model_messages=[*messages, call.message],
             )
         except (TypeError, ValueError, ValidationError) as exc:
             last_error = str(exc)
             attempts.append({"attempt": attempt + 1, "error": last_error})
+            if audit_span is not None:
+                audit_span.set_detail(
+                    {"attempts": attempts, "active_attempt": attempt + 1}
+                )
+                audit_span.persist_progress()
             if attempt == 0:
                 messages.extend(
                     [
@@ -407,8 +498,16 @@ def plan_semantics_and_query(
                         ),
                     ]
                 )
-    raise ValueError("Semantic planning failed: " + last_error)
-
+                if audit_span is not None:
+                    audit_span.set_input_messages(messages)
+                    audit_span.persist_progress()
+    raise SemanticPlanningError(
+        "Semantic planning failed: " + last_error,
+        usage=merge_usage(*usage_items),
+        reasoning="\n".join(reasoning_items),
+        attempts=attempts,
+        model_messages=messages,
+    )
 
 def repair_physical_query_plan(
     llm_service: Any,
@@ -419,29 +518,31 @@ def repair_physical_query_plan(
     max_batch_size: int,
 ) -> PhysicalPlanningResult:
     """Repair only a physical plan while keeping one specification revision."""
-    context = {
-        "query_specification": specification.model_dump(mode="json"),
-        "schema": llm_service.chat_question.db_schema,
-        "previous_plans": previous_plans,
-        "validation_error": validation_error,
-        **_protocol_context(llm_service),
-    }
-    response = llm_service.llm.bind(temperature=0).invoke(
-        [
-            SystemMessage(content=_PHYSICAL_REPAIR_PROMPT),
-            HumanMessage(content=orjson.dumps(context).decode()),
-        ]
+    question = llm_service.chat_question
+    human_content = render_planner_input(
+        schema=str(question.db_schema or ""),
+        protocol=protocol_prompt_bits(llm_service),
+        structured={
+            "query_specification": specification.model_dump(mode="json"),
+            "previous_plans": previous_plans,
+            "validation_error": validation_error,
+        },
     )
-    raw = message_content_text(response.content)
+    messages = [
+        SystemMessage(content=_PHYSICAL_REPAIR_PROMPT),
+        HumanMessage(content=human_content),
+    ]
+    call = consume_llm(llm_service.llm.bind(temperature=0), messages)
     parsed = parse_query_generation(
-        raw,
+        call.content,
         llm_service,
         max_batch_size=max_batch_size,
         specification=specification,
     )
     return PhysicalPlanningResult(
         parsed_plans=parsed,
-        usage=usage_from_response(response),
-        reasoning=_reasoning(response),
-        raw_text=raw,
+        usage=call.usage,
+        reasoning=call.reasoning,
+        raw_text=call.content,
+        model_messages=[*messages, call.message],
     )

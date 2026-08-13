@@ -19,8 +19,12 @@ from apps.knowledge.assets.caliber import (  # noqa: E402
     certify_staging_caliber,
     promote_to_trusted,
 )
+from apps.knowledge.capture.runner import enqueue_capture_job  # noqa: E402
+from apps.knowledge.capture.runner import schedule_capture_worker_kick  # noqa: E402
+from apps.knowledge.capture.snapshot import TurnSnapshot  # noqa: E402
 from apps.knowledge.db_models import (  # noqa: E402
     KnowledgeAsset,
+    KnowledgeEvidence,
     KnowledgeStaging,
 )
 
@@ -35,6 +39,19 @@ def _mock_session(
     result_proxy = MagicMock()
     result_proxy.first.return_value = exec_first
     result_proxy.one.return_value = exec_one
+    result_proxy.all.return_value = [
+        KnowledgeEvidence(
+            id=index + 1,
+            event_key=f"reproduce:nk:{index}",
+            asset_id=5,
+            asset_kind="caliber",
+            signal_kind="reproduce",
+            record_id=index + 1,
+            fact={},
+            create_time=datetime.utcnow(),
+        )
+        for index in range(exec_one)
+    ]
     session.exec.return_value = result_proxy
     session.get.return_value = get_return
     return session
@@ -116,7 +133,7 @@ class TestPromoteToTrusted:
     def test_insufficient_evidence_raises(self, _mock: MagicMock) -> None:
         asset = _make_asset()
         session = _mock_session(get_return=asset, exec_one=1)  # policy_n=3
-        with pytest.raises(ValueError, match="insufficient evidence"):
+        with pytest.raises(ValueError, match="insufficient or conflicting evidence"):
             promote_to_trusted(session, caliber_id=5, oid=1, policy_n=3)
 
     @patch("apps.knowledge.assets.caliber.append_event")
@@ -138,6 +155,42 @@ class TestPromoteToTrusted:
         session = _mock_session(get_return=asset)
         with pytest.raises(ValueError, match="not found"):
             promote_to_trusted(session, caliber_id=5, oid=1, policy_n=3)
+
+
+def test_capture_enqueue_uses_database_idempotency() -> None:
+    snapshot = TurnSnapshot(record_id=99, oid=1)
+    session = MagicMock()
+    session.scalar.return_value = None
+    existing = SimpleNamespace(id=7, record_id=99, status="pending")
+    session.exec.return_value.first.return_value = existing
+
+    job = enqueue_capture_job(session, snapshot=snapshot)
+
+    assert job is existing
+    session.scalar.assert_called_once()
+    assert "ON CONFLICT" in str(session.scalar.call_args.args[0])
+
+
+def test_capture_worker_reschedules_only_when_batch_is_full() -> None:
+    submitted: list[Any] = []
+
+    def immediate_submit(fn: Any) -> MagicMock:
+        submitted.append(fn)
+        return MagicMock()
+
+    session = MagicMock()
+    scope = MagicMock()
+    scope.__enter__.return_value = session
+    scope.__exit__.return_value = None
+    with (
+        patch("apps.conversation.runtime.submit_background", side_effect=immediate_submit),
+        patch("apps.conversation.session.session_scope", return_value=scope),
+        patch("apps.knowledge.capture.runner.run_capture_worker_drain", return_value=1),
+    ):
+        schedule_capture_worker_kick(max_jobs=2)
+        submitted.pop()()
+
+    assert not submitted
 
 
 # ---------------------------------------------------------------------------

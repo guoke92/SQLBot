@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 from apps.knowledge.models import KnowledgeMatch
 
 ApplyAction = Literal["bind", "constrain", "exemplify", "drop", "reuse"]
-CompileStage = Literal["assess", "generate", "repair"]
+CompileStage = Literal["assess", "generate"]
 
 
 class ApplyHit(BaseModel):

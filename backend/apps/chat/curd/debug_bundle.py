@@ -22,13 +22,16 @@ from apps.chat.models.chat_model import (
     ChatRecord,
     OperationEnum,
 )
+from apps.chat.steps.observability import parse_audit_envelope, project_audit_message
 from apps.conversation.models import (
     ConversationInterrupt,
     ConversationRun,
+    ConversationRunEvent,
     NlqEvidenceEvent,
     NlqRun,
 )
 from apps.datasource.models.datasource import CoreDatasource, CoreField, CoreTable
+from apps.knowledge.db_models import KnowledgeCaptureJob, KnowledgeEvidence
 from apps.system.models.system_model import AiModelDetail
 from common.core.deps import CurrentUser
 
@@ -61,9 +64,9 @@ _SECRET_KEYS = {
 def _json_load_maybe(value: Any) -> Any:
     if value is None:
         return None
-    if isinstance(value, (dict, list)):
+    if isinstance(value, dict | list):
         return value
-    if isinstance(value, (bytes, bytearray)):
+    if isinstance(value, bytes | bytearray):
         try:
             return orjson.loads(value)
         except Exception:
@@ -137,81 +140,25 @@ def _operate_name(operate: Any) -> str | None:
 
 
 def _span_brief(message: Any) -> dict[str, Any]:
-    """Pull high-signal fields from a chat_log messages payload."""
-    brief: dict[str, Any] = {}
-    if message is None:
-        return brief
-    payload = message
-    if isinstance(message, list):
-        for item in message:
-            if not isinstance(item, dict):
-                continue
-            # Dict-shaped span envelope stored as a list element.
-            if item.get("sqlbot_span"):
-                payload = item
-                break
-            # inject_span_meta prepends: type=system + sqlbot_span_meta + content JSON.
-            if item.get("sqlbot_span_meta") or (
-                item.get("sqlbot_system") and item.get("type") == "system"
-            ):
-                parsed = _json_load_maybe(item.get("content"))
-                if isinstance(parsed, dict):
-                    payload = parsed
-                    break
-            # Legacy / alternate chat-message shape.
-            if item.get("role") == "system":
-                parsed = _json_load_maybe(item.get("content"))
-                if isinstance(parsed, dict) and (
-                    parsed.get("sqlbot_span") or parsed.get("sqlbot_span_meta")
-                ):
-                    payload = parsed
-                    break
-    if not isinstance(payload, dict):
-        return brief
-    # Nested content still carrying span meta (defensive).
-    if payload.get("sqlbot_span_meta") and "content" in payload:
-        nested_meta = _json_load_maybe(payload.get("content"))
-        if isinstance(nested_meta, dict):
-            payload = nested_meta
-    for key in (
-        "sqlbot_span",
-        "graph_node",
-        "step_index",
-        "gen_attempts",
-        "unit_index",
-        "brief",
-        "status",
-        "decision",
-        "reason",
-        "path",
-        "validation_error",
-        "error",
-        "sql",
-    ):
-        if key in payload and payload[key] is not None:
-            brief[key] = payload[key]
-    nested = payload.get("payload")
-    if isinstance(nested, dict):
-        for key in (
-            "status",
-            "decision",
-            "reason",
-            "path",
-            "validation_error",
-            "assessment_attempts",
-            "issues",
-            "questions",
-            "assumptions",
-            "contract_issues",
-            "sql",
-            "error",
-            "row_count",
-            "fields",
-            "match_count",
-        ):
-            if key in nested and nested[key] is not None and key not in brief:
-                brief[key] = nested[key]
-    return brief
+    """Use the same normalized contract as ExecutionDetails."""
+    envelope = parse_audit_envelope(message)
+    if envelope is None:
+        return {}
+    return {
+        key: value
+        for key, value in {
+            "version": envelope.get("version"),
+            "phase": envelope.get("phase"),
+            "graph_node": envelope.get("graph_node"),
+            "batch_index": envelope.get("batch_index"),
+            "attempt_index": envelope.get("attempt_index"),
+            "unit_index": envelope.get("unit_index"),
+            "outcome": envelope.get("outcome"),
+            "summary_key": envelope.get("summary_key"),
+            "detail": envelope.get("detail"),
+        }.items()
+        if value is not None
+    }
 
 
 def _build_timeline(log_history: Any) -> list[dict[str, Any]]:
@@ -234,6 +181,11 @@ def _build_timeline(log_history: Any) -> list[dict[str, Any]]:
             "total_tokens": item.get("total_tokens"),
             "start_time": item.get("start_time"),
             "finish_time": item.get("finish_time"),
+            "status": item.get("status"),
+            "phase": item.get("phase"),
+            "graph_node": item.get("graph_node"),
+            "summary_key": item.get("summary_key"),
+            "detail": item.get("detail") or {},
             "signal": _span_brief(message),
         }
         timeline.append(entry)
@@ -368,9 +320,9 @@ def _model_bundle(session: Session, model_ids: set[int]) -> list[dict[str, Any]]
 def _token_count(token_usage: Any) -> int:
     if isinstance(token_usage, dict):
         value = token_usage.get("total_tokens")
-        if isinstance(value, (int, float)):
+        if isinstance(value, int | float):
             return int(value)
-    if isinstance(token_usage, (int, float)):
+    if isinstance(token_usage, int | float):
         return int(token_usage)
     return 0
 
@@ -405,7 +357,9 @@ def _raw_logs_for_record(session: Session, record_id: int) -> list[dict[str, Any
 
 
 def _log_history_from_raw(
-    record: ChatRecord, raw_logs: list[dict[str, Any]]
+    record: ChatRecord,
+    raw_logs: list[dict[str, Any]],
+    run: ConversationRun | None = None,
 ) -> ChatLogHistory:
     steps: list[ChatLogHistoryItem] = []
     total_tokens = 0
@@ -422,12 +376,15 @@ def _log_history_from_raw(
                 )
             except Exception:
                 duration = None
-        message = row.get("messages")
-        if isinstance(message, (str, bytes)) and row.get("operate") != "CHOOSE_TABLE":
-            try:
-                message = orjson.loads(message)
-            except Exception:
-                pass
+        projection = project_audit_message(
+            row.get("messages"),
+            finish_time=row.get("finish_time"),
+            error=bool(row.get("error")),
+            run_terminal=bool(
+                run
+                and run.status in {"succeeded", "degraded", "failed", "cancelled"}
+            ),
+        )
         steps.append(
             ChatLogHistoryItem(
                 id=row.get("id"),
@@ -438,7 +395,21 @@ def _log_history_from_raw(
                 operate=row.get("operate"),
                 local_operation=bool(row.get("local_operation")),
                 error=bool(row.get("error")),
-                message=message,
+                status=projection["status"],
+                phase=projection["phase"],
+                graph_node=projection["graph_node"],
+                title_key=projection["title_key"],
+                title_params=projection["title_params"],
+                summary_key=projection["summary_key"],
+                summary_params=projection["summary_params"],
+                batch_index=projection["batch_index"],
+                attempt_index=projection["attempt_index"],
+                unit_index=projection["unit_index"],
+                detail=projection["detail"],
+                input=projection["input"],
+                output=projection["output"],
+                reasoning_content=row.get("reasoning_content"),
+                message=projection["message"],
             )
         )
     total_duration = None
@@ -527,9 +498,46 @@ def build_chat_debug_bundle(
         )
         outcome = _outcome_summary(payload)
         intent = _specification_summary(specification)
+        run_events = (
+            [
+                item.model_dump(mode="json")
+                for item in session.exec(
+                    select(ConversationRunEvent)
+                    .where(ConversationRunEvent.run_id == run.run_id)
+                    .order_by(ConversationRunEvent.cursor)
+                ).all()
+            ]
+            if run
+            else []
+        )
+        interrupts = (
+            [
+                item.model_dump(mode="json")
+                for item in session.exec(
+                    select(ConversationInterrupt)
+                    .where(ConversationInterrupt.run_id == run.run_id)
+                    .order_by(ConversationInterrupt.version)
+                ).all()
+            ]
+            if run
+            else []
+        )
+        capture_job = session.exec(
+            select(KnowledgeCaptureJob).where(
+                KnowledgeCaptureJob.record_id == int(record.id)
+            )
+        ).first()
+        knowledge_evidence = [
+            item.model_dump(mode="json")
+            for item in session.exec(
+                select(KnowledgeEvidence)
+                .where(KnowledgeEvidence.record_id == int(record.id))
+                .order_by(KnowledgeEvidence.create_time, KnowledgeEvidence.id)
+            ).all()
+        ]
 
         raw_logs = _raw_logs_for_record(session, int(record.id))
-        log_history = _log_history_from_raw(record, raw_logs)
+        log_history = _log_history_from_raw(record, raw_logs, run)
         timeline = _build_timeline(log_history)
         for entry in timeline:
             if entry.get("error") or entry.get("operate") in {
@@ -607,8 +615,30 @@ def build_chat_debug_bundle(
                 "ai_modal_id": record.ai_modal_id,
                 "re_exec": _json_load_maybe(record.re_exec),
                 "run": run.model_dump(mode="json") if run else None,
+                "run_events": run_events,
+                "interrupts": interrupts,
                 "query_specification": specification,
                 "specification_summary": intent,
+                "planning_context": (
+                    {
+                        "version": (nlq_run.planning_context or {}).get("version"),
+                        "resources": (nlq_run.planning_context or {}).get(
+                            "resources", []
+                        ),
+                        "fingerprint": (nlq_run.planning_context or {}).get(
+                            "fingerprint"
+                        ),
+                        "usable": bool(
+                            str(
+                                (nlq_run.planning_context or {}).get(
+                                    "schema_text", ""
+                                )
+                            ).strip()
+                        ),
+                    }
+                    if nlq_run
+                    else None
+                ),
                 "evidence": (
                     [
                         item.model_dump(mode="json")
@@ -621,6 +651,12 @@ def build_chat_debug_bundle(
                     if run and run.graph_key == "chat"
                     else []
                 ),
+                "plans": nlq_run.plans if nlq_run else [],
+                "executed_plan_ids": nlq_run.executed_plan_ids if nlq_run else [],
+                "knowledge_capture_job": (
+                    capture_job.model_dump(mode="json") if capture_job else None
+                ),
+                "knowledge_evidence": knowledge_evidence,
                 "analysis_record_id": record.analysis_record_id,
                 "predict_record_id": record.predict_record_id,
                 "regenerate_record_id": record.regenerate_record_id,
@@ -651,6 +687,50 @@ def build_chat_debug_bundle(
         "recommended_generate": chat.recommended_generate,
     }
 
+    diagnostics: list[dict[str, Any]] = []
+    now = datetime.now()
+    for item in record_bundles:
+        run_data = item.get("run") or {}
+        record_id = item.get("record_id")
+        run_status = run_data.get("status")
+        updated = run_data.get("update_time")
+        if isinstance(updated, str):
+            try:
+                updated = datetime.fromisoformat(updated)
+            except ValueError:
+                updated = None
+        if run_status == "queued" and isinstance(updated, datetime):
+            if (now - updated).total_seconds() > 15:
+                diagnostics.append({"record_id": record_id, "code": "stale_queued"})
+        if run_status == "running" and not run_data.get("checkpoint_id"):
+            diagnostics.append(
+                {"record_id": record_id, "code": "running_without_checkpoint"}
+            )
+        if run_data and not item.get("run_events"):
+            diagnostics.append({"record_id": record_id, "code": "no_run_events"})
+        if any(
+            not step.get("finish_time") and not step.get("error")
+            for step in item.get("raw_logs") or []
+        ):
+            diagnostics.append(
+                {"record_id": record_id, "code": "unfinished_chat_log"}
+            )
+        if run_status in {"succeeded", "degraded", "failed", "cancelled"}:
+            if not item.get("finish"):
+                diagnostics.append(
+                    {"record_id": record_id, "code": "terminal_record_mismatch"}
+                )
+        capture = item.get("knowledge_capture_job") or {}
+        if capture.get("status") in {"pending", "failed"}:
+            diagnostics.append(
+                {
+                    "record_id": record_id,
+                    "code": f"capture_{capture.get('status')}",
+                    "attempt": capture.get("attempt"),
+                    "error": capture.get("error"),
+                }
+            )
+
     return {
         "export_version": EXPORT_VERSION,
         "exported_at": datetime.now(timezone.utc).isoformat(),
@@ -669,6 +749,7 @@ def build_chat_debug_bundle(
             "failed_or_degraded": analysis_failures,
             "clarification_links": clarification_links,
             "high_signal_steps": high_signal,
+            "diagnostics": diagnostics,
             "notes": [
                 "answer_payload.outcome is the terminal run status/quality.",
                 "conversation_run owns lifecycle; nlq_run owns specification revisions.",

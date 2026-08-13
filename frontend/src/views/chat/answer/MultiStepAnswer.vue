@@ -22,6 +22,7 @@ import { useI18n } from 'vue-i18n'
 import icon_sql_outlined from '@/assets/svg/icon_sql_outlined.svg'
 import ClarificationCard from '@/features/conversation/ClarificationCard.vue'
 import QualityStamp from '@/features/conversation/QualityStamp.vue'
+import { conversationStageKey } from '@/features/conversation/executionLog'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -165,6 +166,16 @@ const visibleInterrupts = computed<ConversationInterrupt[]>(() => {
 })
 
 const isAwaitingInput = computed(() => props.message?.record?.run_status === 'awaiting_input')
+
+const runStageText = computed(() => {
+  const record = props.message?.record
+  if (record?.run_status === 'queued') {
+    return record.run_dispatch_attempts > 1
+      ? t('qa.run_stage_redispatch')
+      : t('qa.run_stage_queued')
+  }
+  return t(conversationStageKey(record?.run_current_node))
+})
 
 function toChartJson(chart: unknown): string {
   if (chart == null || chart === '') return ''
@@ -428,7 +439,8 @@ function turnHandlers(currentRecord: ChatRecord) {
         }
         case 'clarification-reasoning':
           currentRecord.intent_reasoning_content =
-            (currentRecord.intent_reasoning_content || '') + (data.content || '')
+            (currentRecord.intent_reasoning_content || '') +
+            (data.reasoning_content || data.content || '')
           break
       }
       await nextTick()
@@ -540,6 +552,46 @@ onBeforeUnmount(() => {
 
 watch(
   () =>
+    [
+      props.message?.record?.run_id,
+      props.message?.record?.run_status,
+      props.message?.record?.id,
+    ] as const,
+  ([runId, status]) => {
+    const record = props.message?.record
+    if (!record || !runId) return
+    if (status === 'awaiting_input') {
+      // Snapshot-only: clarification card already lives on the record.
+      void turn.attach(record, turnHandlers(record))
+      return
+    }
+    if (!['queued', 'running'].includes(status || '')) return
+    // Live send/resume already owns the subscription — do not wipe buffers.
+    if (turn.owned.value || turn.running.value) return
+    // Replay from cursor 0 — clear local stream buffers so append handlers
+    // do not duplicate anything already mirrored onto the record.
+    steps.value = []
+    analysisText.value = ''
+    analysisThinking.value = ''
+    overallQuality.value = undefined
+    activeChartReasoningIndex = undefined
+    hydrateSeq++
+    record.sql_answer = ''
+    record.chart_answer = ''
+    record.intent_reasoning_content = ''
+    record.analysis_thinking = ''
+    _loading.value = true
+    void turn.attach(record, turnHandlers(record)).finally(() => {
+      if (!turn.owned.value && !turn.running.value) {
+        _loading.value = false
+      }
+    })
+  },
+  { immediate: true }
+)
+
+watch(
+  () =>
     [props.message?.record?.id, props.message?.record?.finish, props.message?.isTyping] as const,
   ([recordId, finish, typing]) => {
     if (
@@ -562,7 +614,7 @@ defineExpose({ sendMessage, index: () => index.value, stop })
 <template>
   <BaseAnswer v-if="message" :message="message" :reasoning-items="reasoningItems">
     <div v-if="_loading && steps.length === 0 && !isAwaitingInput" class="multi-step-loading">
-      <span>{{ t('qa.thinking') }}</span>
+      <span>{{ runStageText }}</span>
     </div>
 
     <ClarificationCard

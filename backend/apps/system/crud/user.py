@@ -27,7 +27,7 @@ def get_user_by_account(*, session: Session, account: str) -> BaseUserDTO | None
 
 
 @cache(namespace=CacheNamespace.AUTH_INFO, cacheName=CacheName.USER_INFO, keyExpression="user_id")
-async def get_user_info(*, session: Session, user_id: int) -> UserInfoDTO | None:
+async def _get_user_info_cached(*, session: Session, user_id: int) -> UserInfoDTO | None:
     db_user: UserModel = get_db_user(session=session, user_id=user_id)
     if not db_user:
         return None
@@ -39,6 +39,19 @@ async def get_user_info(*, session: Session, user_id: int) -> UserInfoDTO | None
         select(UserWsModel).where(UserWsModel.uid == userInfo.id, UserWsModel.oid == userInfo.oid)).first()
     userInfo.weight = ws_model.weight if ws_model else -1
     return userInfo
+
+
+async def get_user_info(*, session: Session, user_id: int) -> UserInfoDTO | None:
+    """Return one stable DTO regardless of whether the value came from cache.
+
+    The cache backend serializes Pydantic models as mappings.  Rehydrating at
+    this boundary prevents request and checkpoint-resume paths from observing
+    two different runtime types for the same service dependency.
+    """
+    value = await _get_user_info_cached(session=session, user_id=user_id)
+    if value is None or isinstance(value, UserInfoDTO):
+        return value
+    return UserInfoDTO.model_validate(value)
 
 
 def authenticate(*, session: Session, account: str, password: str) -> BaseUserDTO | None:

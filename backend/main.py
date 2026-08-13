@@ -97,19 +97,21 @@ async def lifespan(app: FastAPI):
     except Exception as _prof_exc:  # pragma: no cover
         SQLBotLogUtil.warning(f"profiling worker kick on startup skipped: {_prof_exc}")
     try:
-        from apps.conversation.session import session_scope
-        from apps.knowledge.capture.runner import run_capture_worker_drain
+        from apps.knowledge.capture.runner import schedule_capture_worker_kick
 
-        with session_scope() as session:
-            run_capture_worker_drain(session, max_jobs=20)
+        schedule_capture_worker_kick(max_jobs=20)
     except Exception as _cap_exc:  # pragma: no cover
         SQLBotLogUtil.warning(f"knowledge capture drain on startup skipped: {_cap_exc}")
     try:
-        from apps.conversation.runtime import recover_incomplete_runs
+        from apps.conversation.runtime import (
+            recover_incomplete_runs,
+            start_run_reconciler,
+        )
 
         recovered = recover_incomplete_runs()
         if recovered:
             SQLBotLogUtil.info(f"恢复 {recovered} 个未完成对话运行")
+        start_run_reconciler()
     except Exception as _recovery_exc:  # pragma: no cover
         SQLBotLogUtil.error(f"conversation recovery failed: {_recovery_exc}")
     try:

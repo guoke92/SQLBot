@@ -1,0 +1,125 @@
+package_status: review_only
+imported: false
+
+k3_terminology_candidates:
+  - candidate_id: TERM-001
+    term: 建档
+    aliases: [企业建档, 客户建档, 企业认证, 客户认证]
+    description: >-
+      企业资料和联系人被提交到运营流程并经历客户确认/审核，最终形成有效企业主数据的业务过程。
+      “建档”本身不代表单一状态或单一时间点。
+    data_refs:
+      - cust_company_info.cust_build_status
+      - cust_company_info.check_status
+      - cust_company_info.cust_status
+      - cust_build_record
+    ambiguity_policy: >-
+      用户询问建档数量、建档时间或建档企业时，应确认其指“提交、审核中、审核通过”中的哪一阶段；
+      若用户明确说“成功/完成”，采用有效已建档企业口径候选。
+    status: needs_business_review
+  - candidate_id: TERM-002
+    term: 建档成功
+    aliases: [认证成功, 已建档, 已认证企业]
+    description: 运营审核通过且企业已生效的企业主数据。
+    predicate_ref: CAL-001
+    status: needs_business_review
+  - candidate_id: TERM-003
+    term: 待客户认证
+    aliases: [待客户确认]
+    description: 运营流程已退回或等待客户补充/确认资料的阶段。
+    data_mapping:
+      field: cust_company_info.cust_build_status
+      value: CUST_CONFIRM_AWAIT
+    status: needs_business_review
+  - candidate_id: TERM-004
+    term: 建档失败
+    aliases: [认证失败, 审核拒绝]
+    description: 建档审核流程被拒绝；变更流程拒绝不能直接按建档失败解释。
+    data_mapping:
+      field: cust_company_info.cust_build_status
+      value: BUILD_FAIL
+    boundary: 仅 process=CHECK；process=CHANGE 拒绝可能保持 BUILD_SUCCESS
+    status: needs_business_review
+
+k2_caliber_candidates:
+  - candidate_id: CAL-001
+    label: 有效已建档企业
+    business_subject: 企业主数据
+    grain: 每个 cust_company_info.id 一家企业
+    requirements:
+      - "predicate cust_company_info.cust_build_status = 'BUILD_SUCCESS'"
+      - "predicate cust_company_info.cust_status = 'EFFECT'"
+      - "predicate cust_company_info.data_type = '1'"
+      - "predicate cust_company_info.enable = 'Y'"
+    caveat: 若问题要包含变更中的有效企业，应增加 CUST_CHANGE + CHANGE 分支，而不是改写本口径。
+    confidence: 0.99
+    status: needs_db_validation
+  - candidate_id: CAL-002
+    label: 首次提交认证企业数
+    business_subject: 首次提交邀请/自主认证的企业
+    grain: 每个 cust_company_info.id 一家企业
+    time_field: cust_company_info.cust_first_submit_auth
+    requirements:
+      - "cust_first_submit_auth IS NOT NULL"
+      - "identify_style IN ('SELF','INVITE')"
+      - "data_type = '1'"
+      - "enable = 'Y'"
+    caveat: 不覆盖 SIMPLE、INVITE_AGW 等所有来源；不能命名为“全部建档提交数”。
+    confidence: 0.97
+    status: needs_business_and_db_review
+  - candidate_id: CAL-003
+    label: 建档推送/补偿记录数
+    business_subject: 建档技术处理记录
+    grain: 每个 cust_build_record.id 一条处理记录
+    caveat: 不等于企业数、不等于建档申请数；同一企业可有成功记录和补偿记录。
+    confidence: 0.94
+    status: needs_db_profile
+
+k1_relation_candidates:
+  - REL-001
+  - REL-002
+  - REL-003
+  - REL-004
+  - REL-005
+  - REL-006
+  - REL-007
+
+k4_exemplar_candidates:
+  - candidate_id: QUERY-001
+    question: 按月统计首次提交认证的企业数
+    intended_contract:
+      subject: cust_company_info.id
+      aggregation: count_distinct
+      time_field: cust_company_info.cust_first_submit_auth
+      group_bucket: month
+      predicates: ["data_type='1'", "enable='Y'", "identify_style IN ('SELF','INVITE')"]
+    status: specification_only_not_executed
+  - candidate_id: QUERY-002
+    question: 查询某项目下已建档成功的核心企业及其管理员
+    intended_contract:
+      subject: cust_company_info.id
+      relations: [REL-002, REL-004]
+      predicates:
+        - "cust_project_rel.project_id = 用户指定项目"
+        - "cust_project_rel.company_type = 'CORE'"
+        - "cust_person_info.user_type = 'accountAdmin'"
+        - "CAL-001"
+    status: specification_only_not_executed
+  - candidate_id: QUERY-003
+    question: 查询建档后置任务失败及重试情况
+    intended_contract:
+      subject: cust_build_record.id
+      predicates: ["remark LIKE 'COMPENSATION_%' OR retry_status IS NOT NULL"]
+      outputs: [fail_type, retry_status, create_time, update_time, cust_id]
+    status: specification_only_not_executed
+
+k5_rule_candidates:
+  - candidate_id: RULE-001
+    label: 建档阶段不可混用
+    rule: 不得把推送完成、流程启动完成或 cust_build_record 存在解释为建档审核成功。
+    status: needs_manual_certification
+  - candidate_id: RULE-002
+    label: 企业查询租户边界
+    rule: 多租户查询必须保留 SQLBot 数据源自身的租户隔离机制；不得只依赖自然语言知识注入 db_tenant_code。
+    status: needs_security_review
+

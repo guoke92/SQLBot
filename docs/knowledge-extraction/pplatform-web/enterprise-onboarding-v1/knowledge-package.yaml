@@ -1,0 +1,935 @@
+schema_version: '1.0'
+package_id: pplatform-enterprise-onboarding-v1
+title: pplatform-web 企业建档业务数据知识审核包 v1
+description: 验证能否从业务资料与代码中提取可服务 SQLBot NLQ 的业务—数据知识； 本包可完整登记到 SQLBot 知识包管理区，但不代表条目已发布或已认证。
+generated_at: '2026-08-12T00:00:00+08:00'
+generator:
+  scanner_warnings: []
+  extraction_manifest:
+    status: review_only
+    source_repository:
+      path: /Users/fanjunwei/IdeaProjects/pplatform-web
+      branch: dev-v1.33.0
+      commit: ee434954e465713176e5bd52119eedde5ebe531b
+      dirty: false
+    target_repository:
+      path: /Users/fanjunwei/Projects/SQLBot
+    scope:
+      catalog:
+      - project_skills
+      - business_rules
+      - code_maps
+      - service_maps
+      - release_documents
+      deep_dive:
+        domain: 客户管理
+        scenario: 企业建档
+        exclusions:
+        - 企业变更完整流程
+        - CA 开通完整流程
+        - 邀请注册完整流程
+        - 实际数据库数据剖析
+        - SQLBot 平台导入
+    evidence_policy:
+      code_fact: 可确认当前实现行为，但不能单独决定业务口径
+      document_fact: 用于业务导航和候选解释，必须由代码或数据复核
+      database_fact: 本轮未接入实际数据库，所有表约束与基数均待验证
+    outputs:
+    - README.md
+    - source-catalog.jsonl
+    - facts.jsonl
+    - relations.jsonl
+    - asset-candidates.yaml
+    - review-questions.md
+defaults: {}
+sources:
+- source_id: SRC-DOC-001
+  kind: business_rule
+  uri: lowcode-pplatform-common/.dev-standards/knowledge/business/客户管理平台业务规则文档.md
+  fingerprint: ccdc731fb2384ddfb3830a58c587659d02a8069a60d1bf8db7fdb7ad05a3888b
+  revision: ''
+  metadata:
+    authority: candidate_business_context
+    usage: 业务域、流程和术语导航；不直接认证状态与表关系
+- source_id: SRC-DOC-002
+  kind: code_map
+  uri: lowcode-pplatform-common/.dev-standards/knowledge/codemap/客户管理平台代码地图.md
+  fingerprint: 7d32e91c7e564390378b9134bf4dc40c5c599ac1a0bdc9760e0297f0c467f7d9
+  revision: ''
+  metadata:
+    authority: navigation_only
+    usage: 定位模块、入口和表候选
+- source_id: SRC-DOC-003
+  kind: service_map
+  uri: lowcode-pplatform-common/.dev-standards/knowledge/service/lowcode-pplatform-customer-management.md
+  fingerprint: 657b7067044c38fbba5dc26425eed797e3c999049b4ed02dc6bf70365732b6dd
+  revision: ''
+  metadata:
+    authority: navigation_only
+    usage: 服务边界和包结构候选
+- source_id: SRC-CODE-001
+  kind: controller
+  uri: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/controller/CustCompanyInfoController.java
+  fingerprint: ''
+  revision: ''
+  metadata:
+    authority: implementation_fact
+    usage: 提交建档、检查建档入口
+- source_id: SRC-CODE-002
+  kind: application
+  uri: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustCompanyInfoApplication.java
+  fingerprint: ''
+  revision: ''
+  metadata:
+    authority: implementation_fact
+    usage: 按认证方式分流、校验和调用建档服务
+- source_id: SRC-CODE-003
+  kind: service
+  uri: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/oper/facade/cust/OperCustFacade.java
+  fingerprint: 834be47597be4063f73f0cf172128dc6d4def86915d8175f2bfc02ad083723fc
+  revision: ''
+  metadata:
+    authority: implementation_fact
+    usage: 建档提交、运营推送、本地初始状态更新
+- source_id: SRC-CODE-004
+  kind: service
+  uri: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/RegAsyncService.java
+  fingerprint: e4d3f86db9a30c338a81d9332c3e415be4aa392662a8889a1eebc436d0e8d462
+  revision: ''
+  metadata:
+    authority: implementation_fact
+    usage: 提交事务后的文件推送、启动流程、建档记录和补偿
+- source_id: SRC-CODE-005
+  kind: callback
+  uri: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/oper/callback/cust/CustSyncEventProcessor.java
+  fingerprint: da10bf963d8319267dcd83c4599c1077a2c40cc4ea861d1f72843c0f2eb202f7
+  revision: ''
+  metadata:
+    authority: implementation_fact
+    usage: 运营回调、状态映射、企业生效和首次提交时间
+- source_id: SRC-CODE-006
+  kind: mapper
+  uri: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  fingerprint: 270bf74160b2118bb204a0b9c1d95bbfc19c672f7ef15b4af837bdf66b62c5dc
+  revision: ''
+  metadata:
+    authority: query_usage_fact
+    usage: 现有有效企业口径和关系用法
+- source_id: SRC-MODEL-001
+  kind: data_model
+  uri: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustCompanyInfoDO.java
+  fingerprint: 86cb6ca77126509d833250c15a48e08168dcfd1b8d5bf42fb8efb125ef6814cc
+  revision: ''
+  metadata:
+    authority: structural_candidate
+    usage: cust_company_info 字段映射；数据库约束待验证
+- source_id: SRC-MODEL-002
+  kind: data_model
+  uri: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustBuildRecordDO.java
+  fingerprint: d4b58e0eb1cfb5139acc8d5e1a6b206a2e64813b30b911f7010317bd270f477a
+  revision: ''
+  metadata:
+    authority: structural_candidate
+    usage: cust_build_record 字段映射；数据库约束待验证
+- source_id: SRC-MODEL-003
+  kind: data_model_set
+  uri: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/
+  fingerprint: ''
+  revision: ''
+  metadata:
+    authority: structural_candidate
+    usage: 人员、角色、项目关系、认证信息表字段映射
+items:
+- item_id: TERM-001
+  status: reviewed
+  confidence: 0.98
+  evidence_refs:
+  - SRC-CODE-003
+  - SRC-CODE-005
+  provenance: {}
+  kind: terminology
+  word: 建档
+  aliases:
+  - 企业建档
+  - 客户建档
+  - 企业认证
+  - 客户认证
+  description: 企业资料和联系人提交到运营流程并经历客户确认或审核，最终形成有效企业主数据的业务过程；建档本身不代表单一状态或单一时间点。
+  enabled: true
+  knowledge_meta: {}
+- item_id: TERM-002
+  status: reviewed
+  confidence: 0.99
+  evidence_refs:
+  - SRC-CODE-005
+  - SRC-CODE-006
+  provenance: {}
+  kind: terminology
+  word: 建档成功
+  aliases:
+  - 认证成功
+  - 已建档
+  - 已认证企业
+  description: 运营审核通过且企业已生效；执行查询时应使用“有效已建档企业”业务口径，不应以推送记录存在代替。
+  enabled: true
+  knowledge_meta: {}
+- item_id: CAL-001
+  status: candidate
+  confidence: 0.99
+  evidence_refs:
+  - SRC-CODE-005
+  - SRC-CODE-006
+  provenance: {}
+  kind: caliber
+  label: 有效已建档企业
+  summary: 企业当前建档状态成功、企业状态有效，且为启用的企业主数据。
+  contract_fragment:
+    version: 3
+    requirements:
+    - clause: predicate
+      requirement_id: built_success
+      business_label: 建档状态为成功
+      field:
+        resource: cust_company_info
+        field: cust_build_status
+      operator: eq
+      values:
+      - BUILD_SUCCESS
+      source: knowledge
+      confidence: 0.99
+    - clause: predicate
+      requirement_id: company_effective
+      business_label: 企业状态为有效
+      field:
+        resource: cust_company_info
+        field: cust_status
+      operator: eq
+      values:
+      - EFFECT
+      source: knowledge
+      confidence: 0.99
+    - clause: predicate
+      requirement_id: master_data
+      business_label: 企业主数据
+      field:
+        resource: cust_company_info
+        field: data_type
+      operator: eq
+      values:
+      - '1'
+      source: knowledge
+      confidence: 0.98
+    - clause: predicate
+      requirement_id: enabled_record
+      business_label: 启用记录
+      field:
+        resource: cust_company_info
+        field: enable
+      operator: eq
+      values:
+      - Y
+      source: knowledge
+      confidence: 0.98
+  draft_definition: {}
+  field_targets: []
+- item_id: REL-003
+  status: candidate
+  confidence: 0.98
+  evidence_refs:
+  - SRC-CODE-003
+  provenance: {}
+  kind: relation
+  left:
+    table_name: cust_company_info
+    field_name: id
+    database_name: ''
+  right:
+    table_name: cust_build_record
+    field_name: cust_id
+    database_name: ''
+  relation_kind: EQUI_JOIN
+  cardinality: 1:N_candidate
+  evidence:
+    reason: 建档记录写入路径明确使用企业主键作为 cust_id
+- item_id: REL-004
+  status: candidate
+  confidence: 0.98
+  evidence_refs:
+  - SRC-CODE-006
+  provenance: {}
+  kind: relation
+  left:
+    table_name: cust_company_info
+    field_name: id
+    database_name: ''
+  right:
+    table_name: cust_person_info
+    field_name: cust_company_id
+    database_name: ''
+  relation_kind: EQUI_JOIN
+  cardinality: 1:N_candidate
+  evidence:
+    reason: 现有查询链路使用企业主键连接联系人
+- item_id: QUERY-001
+  status: candidate
+  confidence: 0.8
+  evidence_refs:
+  - SRC-CODE-005
+  provenance: {}
+  kind: example
+  question: 按月统计首次提交认证的企业数
+  query: SELECT DATE_FORMAT(cust_first_submit_auth, '%Y-%m') AS month, COUNT(DISTINCT
+    id) AS company_count FROM cust_company_info WHERE data_type = '1' AND enable =
+    'Y' AND identify_style IN ('SELF', 'INVITE') AND cust_first_submit_auth IS NOT
+    NULL GROUP BY DATE_FORMAT(cust_first_submit_auth, '%Y-%m')
+  intended_specification: {}
+  training_type: sql
+  enabled: true
+  verification:
+    executed: false
+    passed: false
+    notes: 必须连接目标数据源执行验证后才能导入
+  knowledge_meta: {}
+- item_id: RULE-001
+  status: reviewed
+  confidence: 0.99
+  evidence_refs:
+  - SRC-CODE-003
+  - SRC-CODE-005
+  provenance: {}
+  kind: rule
+  label: 建档阶段不可混用
+  content: 不得把数据推送完成、运营流程启动完成或建档处理记录存在解释为建档审核成功。
+- item_id: FACT-001
+  status: verified
+  confidence: 0.98
+  evidence_refs:
+  - SRC-CODE-003
+  - SRC-CODE-005
+  provenance: {}
+  kind: evidence
+  subject: 建档
+  predicate: is_not_single_stage
+  value: 企业建档至少包含提交或推送、运营流程启动、客户确认或审核、成功或失败回调等阶段。
+  evidence: []
+- item_id: TERM-003
+  status: candidate
+  confidence: 0.5
+  evidence_refs: []
+  provenance: {}
+  kind: terminology
+  word: 待客户认证
+  aliases:
+  - 待客户确认
+  description: 运营流程已退回或等待客户补充/确认资料的阶段。
+  enabled: true
+  knowledge_meta: {}
+- item_id: TERM-004
+  status: candidate
+  confidence: 0.5
+  evidence_refs: []
+  provenance: {}
+  kind: terminology
+  word: 建档失败
+  aliases:
+  - 认证失败
+  - 审核拒绝
+  description: 建档审核流程被拒绝；变更流程拒绝不能直接按建档失败解释。
+  enabled: true
+  knowledge_meta: {}
+- item_id: CAL-002
+  status: candidate
+  confidence: 0.97
+  evidence_refs: []
+  provenance: {}
+  kind: caliber
+  label: 首次提交认证企业数
+  summary: ''
+  contract_fragment: {}
+  draft_definition:
+    business_subject: 首次提交邀请/自主认证的企业
+    grain: 每个 cust_company_info.id 一家企业
+    requirements:
+    - cust_first_submit_auth IS NOT NULL
+    - identify_style IN ('SELF','INVITE')
+    - data_type = '1'
+    - enable = 'Y'
+    time_field: cust_company_info.cust_first_submit_auth
+    caveat: 不覆盖 SIMPLE、INVITE_AGW 等所有来源；不能命名为“全部建档提交数”。
+  field_targets: []
+- item_id: CAL-003
+  status: candidate
+  confidence: 0.94
+  evidence_refs: []
+  provenance: {}
+  kind: caliber
+  label: 建档推送/补偿记录数
+  summary: ''
+  contract_fragment: {}
+  draft_definition:
+    business_subject: 建档技术处理记录
+    grain: 每个 cust_build_record.id 一条处理记录
+    caveat: 不等于企业数、不等于建档申请数；同一企业可有成功记录和补偿记录。
+  field_targets: []
+- item_id: QUERY-002
+  status: candidate
+  confidence: 0.5
+  evidence_refs: []
+  provenance: {}
+  kind: example
+  question: 查询某项目下已建档成功的核心企业及其管理员
+  query: ''
+  intended_specification:
+    subject: cust_company_info.id
+    relations:
+    - REL-002
+    - REL-004
+    predicates:
+    - cust_project_rel.project_id = 用户指定项目
+    - cust_project_rel.company_type = 'CORE'
+    - cust_person_info.user_type = 'accountAdmin'
+    - CAL-001
+  training_type: sql
+  enabled: true
+  verification:
+    executed: false
+    passed: false
+    notes: ''
+  knowledge_meta: {}
+- item_id: QUERY-003
+  status: candidate
+  confidence: 0.5
+  evidence_refs: []
+  provenance: {}
+  kind: example
+  question: 查询建档后置任务失败及重试情况
+  query: ''
+  intended_specification:
+    subject: cust_build_record.id
+    predicates:
+    - remark LIKE 'COMPENSATION_%' OR retry_status IS NOT NULL
+    outputs:
+    - fail_type
+    - retry_status
+    - create_time
+    - update_time
+    - cust_id
+  training_type: sql
+  enabled: true
+  verification:
+    executed: false
+    passed: false
+    notes: ''
+  knowledge_meta: {}
+- item_id: RULE-002
+  status: candidate
+  confidence: 0.5
+  evidence_refs: []
+  provenance: {}
+  kind: rule
+  label: 企业查询租户边界
+  content: 多租户查询必须保留 SQLBot 数据源自身的租户隔离机制；不得只依赖自然语言知识注入 db_tenant_code。
+- item_id: FACT-002
+  status: candidate
+  confidence: 1.0
+  evidence_refs: []
+  provenance: {}
+  kind: evidence
+  subject: 企业建档入口
+  predicate: http_endpoint
+  value: POST /cust-web/custInfo/submitCust 提交当前企业信息
+  evidence:
+  - source_id: SRC-CODE-001
+    lines: 456-460
+- item_id: FACT-003
+  status: candidate
+  confidence: 1.0
+  evidence_refs: []
+  provenance: {}
+  kind: evidence
+  subject: 检查建档
+  predicate: http_endpoint
+  value: POST /cust-web/custInfo/checkBuild 调用 checkBuildNew，并按认证方式、失败状态、管理员和简易认证状态分流
+  evidence:
+  - source_id: SRC-CODE-001
+    lines: 762-779
+  - source_id: SRC-CODE-002
+    lines: 2683-2737
+- item_id: FACT-004
+  status: candidate
+  confidence: 1.0
+  evidence_refs: []
+  provenance: {}
+  kind: evidence
+  subject: 建档提交
+  predicate: updates
+  value: 向运营中台推送成功后，cust_company_info.check_status 更新为 CUST_CHECK_INIT；该动作不是认证成功
+  evidence:
+  - source_id: SRC-CODE-003
+    lines: 3838-3851
+- item_id: FACT-005
+  status: candidate
+  confidence: 1.0
+  evidence_refs: []
+  provenance: {}
+  kind: evidence
+  subject: 建档后置流程
+  predicate: runs_after_commit
+  value: 非自主建档在事务提交后异步执行影像推送、运营流程启动、授权协议流程号替换和建档记录保存
+  evidence:
+  - source_id: SRC-CODE-003
+    lines: 3854-3883
+  - source_id: SRC-CODE-004
+    lines: 124-149
+- item_id: FACT-006
+  status: candidate
+  confidence: 0.94
+  evidence_refs: []
+  provenance: {}
+  kind: evidence
+  subject: cust_build_record
+  predicate: grain_candidate
+  value: 一行表示一次建档推送/后置处理或补偿记录，不是企业当前状态；同一企业可能多行
+  evidence:
+  - source_id: SRC-CODE-004
+    lines: 98-119
+  - source_id: SRC-CODE-004
+    lines: 270-310
+  - source_id: SRC-MODEL-002
+    lines: 33-116
+- item_id: FACT-007
+  status: candidate
+  confidence: 1.0
+  evidence_refs: []
+  provenance: {}
+  kind: evidence
+  subject: cust_build_record
+  predicate: stores
+  value: 保存 cust_id/person_id、运营侧企业和人员 ID、返回数据、流程标识、重试状态、渠道和租户；失败补偿把上下文写入 push_data、错误写入
+    return_data
+  evidence:
+  - source_id: SRC-CODE-004
+    lines: 98-115
+  - source_id: SRC-CODE-004
+    lines: 291-310
+  - source_id: SRC-MODEL-002
+    lines: 41-116
+- item_id: FACT-008
+  status: candidate
+  confidence: 1.0
+  evidence_refs: []
+  provenance: {}
+  kind: evidence
+  subject: 运营审核状态
+  predicate: maps_to_build_status
+  value:
+    CUST_CHECK_BACKTOCUSTOM: CUST_CONFIRM_AWAIT
+    CUST_CHECK_INIT: CUST_BUILDING
+    CUST_CHECK_CHECKING: CUST_BUILDING
+    CUST_CHECK_REJECT: BUILD_FAIL
+    CUST_CHECK_PASS: BUILD_SUCCESS
+  evidence:
+  - source_id: SRC-CODE-005
+    lines: 1103-1118
+- item_id: FACT-009
+  status: candidate
+  confidence: 1.0
+  evidence_refs: []
+  provenance: {}
+  kind: evidence
+  subject: 建档成功
+  predicate: causes
+  value: 运营回调为 CUST_CHECK_PASS 时将建档状态转为 BUILD_SUCCESS，并将企业状态更新为 EFFECT，同时赋予管理员权限
+  evidence:
+  - source_id: SRC-CODE-005
+    lines: 1025-1035
+  - source_id: SRC-CODE-005
+    lines: 1050-1059
+  - source_id: SRC-CODE-005
+    lines: 2057-2087
+- item_id: FACT-010
+  status: candidate
+  confidence: 1.0
+  evidence_refs: []
+  provenance: {}
+  kind: evidence
+  subject: 首次提交认证时间
+  predicate: field_semantics
+  value: cust_company_info.cust_first_submit_auth 只在值为空且 identify_style 为 SELF 或 INVITE
+    时写入当前时间，不能普遍代表所有建档来源的提交时间
+  evidence:
+  - source_id: SRC-CODE-005
+    lines: 935-953
+  - source_id: SRC-MODEL-001
+    lines: 219-224
+- item_id: FACT-011
+  status: candidate
+  confidence: 0.98
+  evidence_refs: []
+  provenance: {}
+  kind: evidence
+  subject: cust_company_info
+  predicate: current_master_filter
+  value: 现有代码将 data_type='1'、enable='Y' 作为企业主数据/有效记录的必要过滤条件
+  evidence:
+  - source_id: SRC-CODE-006
+    lines: 77-92
+  - source_id: SRC-CODE-006
+    lines: 94-107
+- item_id: FACT-012
+  status: candidate
+  confidence: 0.99
+  evidence_refs: []
+  provenance: {}
+  kind: evidence
+  subject: 有效已建档企业
+  predicate: predicate_set
+  value: 常规生效口径为 cust_build_status='BUILD_SUCCESS' AND cust_status='EFFECT' AND data_type='1'
+    AND enable='Y'；变更中的有效企业另有 CUST_CHANGE + CHANGE 分支
+  evidence:
+  - source_id: SRC-CODE-006
+    lines: 77-92
+- item_id: FACT-013
+  status: candidate
+  confidence: 0.99
+  evidence_refs: []
+  provenance: {}
+  kind: evidence
+  subject: cust_company_info
+  predicate: business_key
+  value: code 被现有查询用于连接 cust_role_info.ref_cust_company_info 与 cust_project_rel.ref_cust_project_rel_cust_company_info；id
+    用于连接 cust_build_record.cust_id 和部分 cust_person_info.cust_company_id
+  evidence:
+  - source_id: SRC-CODE-006
+    lines: 77-80
+  - source_id: SRC-CODE-006
+    lines: 96-100
+  - source_id: SRC-MODEL-002
+    lines: 47-56
+  - source_id: SRC-MODEL-003
+    lines: CustPersonInfoDO:126-141
+- item_id: FACT-014
+  status: candidate
+  confidence: 0.99
+  evidence_refs: []
+  provenance: {}
+  kind: evidence
+  subject: 企业角色
+  predicate: stored_in
+  value: cust_role_info.role_type；该表通过 ref_cust_company_info 连接企业 code，并具有 enable/status
+    语义
+  evidence:
+  - source_id: SRC-CODE-006
+    lines: 77-87
+  - source_id: SRC-MODEL-003
+    lines: CustRoleInfoDO:92-110
+- item_id: FACT-015
+  status: candidate
+  confidence: 0.99
+  evidence_refs: []
+  provenance: {}
+  kind: evidence
+  subject: 企业项目关系
+  predicate: stored_in
+  value: cust_project_rel；项目 ID、企业类型、项目开通状态与企业引用位于关系表，企业引用连接 cust_company_info.code
+  evidence:
+  - source_id: SRC-CODE-006
+    lines: 94-107
+  - source_id: SRC-MODEL-003
+    lines: CustProjectRelDO:41-160
+- item_id: FACT-016
+  status: candidate
+  confidence: 0.99
+  evidence_refs: []
+  provenance: {}
+  kind: evidence
+  subject: 企业联系人
+  predicate: stored_in
+  value: cust_person_info；存在 ref_cust_company_info(code 语义) 和 cust_company_id(id 语义)
+    两种企业引用，具体查询必须优先复用已验证链路，不能仅凭字段名任选
+  evidence:
+  - source_id: SRC-CODE-006
+    lines: 54-73
+  - source_id: SRC-MODEL-003
+    lines: CustPersonInfoDO:126-141
+- item_id: FACT-017
+  status: candidate
+  confidence: 0.96
+  evidence_refs: []
+  provenance: {}
+  kind: evidence
+  subject: 认证检查详情
+  predicate: stored_in
+  value: cust_certification_info 通过 ref_cust_company_info 关联企业，并保存自动/人工认证状态、信息、时间和次数
+  evidence:
+  - source_id: SRC-MODEL-003
+    lines: CustCertificationInfoDO:70-95
+  - source_id: SRC-CODE-005
+    lines: 1021-1024
+- item_id: FACT-018
+  status: candidate
+  confidence: 1.0
+  evidence_refs: []
+  provenance: {}
+  kind: evidence
+  subject: 客户建档流程完成日志
+  predicate: means
+  value: OperCustFacade.reg 已完成运营数据推送和本地初始状态更新并注册后置任务；不能解释为业务审核完成
+  evidence:
+  - source_id: SRC-CODE-003
+    lines: 3838-3894
+- item_id: FACT-019
+  status: candidate
+  confidence: 1.0
+  evidence_refs: []
+  provenance: {}
+  kind: evidence
+  subject: 异步建档异常
+  predicate: implementation_risk
+  value: regAsync/regSelfAsync 最终 exceptionally 返回 null，调用方若只检查空结果可能失去原始异常类型；这属于实现风险，不应变成业务知识
+  evidence:
+  - source_id: SRC-CODE-003
+    lines: 3654-3695
+  - source_id: SRC-CODE-003
+    lines: 3701-3743
+- item_id: FACT-020
+  status: candidate
+  confidence: 0.96
+  evidence_refs: []
+  provenance: {}
+  kind: evidence
+  subject: 认证方式
+  predicate: affects_flow
+  value: INVITE 与 SELF 走不同注册入口；SIMPLE 有独立待确认处理；INVITE_AGW 在部分流程转换为 SELF，查询建档来源/方式时必须区分
+    identify_style 与 cust_build_type/cust_source
+  evidence:
+  - source_id: SRC-CODE-002
+    lines: 2728-2735
+  - source_id: SRC-CODE-002
+    lines: 3104-3150
+  - source_id: SRC-CODE-003
+    lines: 3926-4085
+- item_id: REL-001
+  status: candidate
+  confidence: 0.99
+  evidence_refs:
+  - SRC-CODE-006:77-87
+  provenance: {}
+  kind: relation
+  left:
+    table_name: cust_company_info
+    field_name: code
+    database_name: ''
+  right:
+    table_name: cust_role_info
+    field_name: ref_cust_company_info
+    database_name: ''
+  relation_kind: EQUI_JOIN
+  cardinality: 1:N_candidate
+  evidence:
+    source_locations:
+    - SRC-CODE-006:77-87
+- item_id: REL-002
+  status: candidate
+  confidence: 0.99
+  evidence_refs:
+  - SRC-CODE-006:94-107
+  provenance: {}
+  kind: relation
+  left:
+    table_name: cust_company_info
+    field_name: code
+    database_name: ''
+  right:
+    table_name: cust_project_rel
+    field_name: ref_cust_project_rel_cust_company_info
+    database_name: ''
+  relation_kind: EQUI_JOIN
+  cardinality: 1:N_candidate
+  evidence:
+    source_locations:
+    - SRC-CODE-006:94-107
+- item_id: REL-005
+  status: candidate
+  confidence: 0.98
+  evidence_refs:
+  - SRC-CODE-003:3792-3803
+  - SRC-MODEL-003:CustPersonInfoDO:126-141
+  provenance: {}
+  kind: relation
+  left:
+    table_name: cust_company_info
+    field_name: code
+    database_name: ''
+  right:
+    table_name: cust_person_info
+    field_name: ref_cust_company_info
+    database_name: ''
+  relation_kind: EQUI_JOIN
+  cardinality: 1:N_candidate
+  evidence:
+    source_locations:
+    - SRC-CODE-003:3792-3803
+    - SRC-MODEL-003:CustPersonInfoDO:126-141
+- item_id: REL-006
+  status: candidate
+  confidence: 0.92
+  evidence_refs:
+  - SRC-CODE-005:1021-1024
+  - SRC-MODEL-003:CustCertificationInfoDO:70-95
+  provenance: {}
+  kind: relation
+  left:
+    table_name: cust_company_info
+    field_name: code
+    database_name: ''
+  right:
+    table_name: cust_certification_info
+    field_name: ref_cust_company_info
+    database_name: ''
+  relation_kind: EQUI_JOIN
+  cardinality: 1:N_candidate
+  evidence:
+    source_locations:
+    - SRC-CODE-005:1021-1024
+    - SRC-MODEL-003:CustCertificationInfoDO:70-95
+- item_id: REL-007
+  status: candidate
+  confidence: 0.99
+  evidence_refs:
+  - SRC-CODE-006:94-107
+  provenance: {}
+  kind: relation
+  left:
+    table_name: cust_project_rel
+    field_name: project_id
+    database_name: ''
+  right:
+    table_name: cust_project_rel
+    field_name: project_id
+    database_name: ''
+  relation_kind: EQUI_JOIN
+  cardinality: N:N_business_bridge
+  evidence:
+    source_locations:
+    - SRC-CODE-006:94-107
+- item_id: REVIEW-001
+  status: candidate
+  confidence: 1.0
+  evidence_refs: []
+  provenance: {}
+  kind: evidence
+  subject: 建档完成
+  predicate: requires_business_confirmation
+  value: 是否始终要求 BUILD_SUCCESS + EFFECT，还是包含 CUST_CHANGE + CHANGE 的在途变更企业？
+  evidence: []
+- item_id: REVIEW-002
+  status: candidate
+  confidence: 1.0
+  evidence_refs: []
+  provenance: {}
+  kind: evidence
+  subject: 建档时间
+  predicate: requires_business_confirmation
+  value: 默认指首次提交认证时间、运营流程创建时间、审核通过时间，还是企业主记录创建时间？
+  evidence: []
+- item_id: REVIEW-003
+  status: candidate
+  confidence: 1.0
+  evidence_refs: []
+  provenance: {}
+  kind: evidence
+  subject: 首次提交认证时间
+  predicate: requires_business_confirmation
+  value: cust_first_submit_auth 只覆盖 SELF 和 INVITE，其他录入方式应使用哪个时间字段？
+  evidence: []
+- item_id: REVIEW-004
+  status: candidate
+  confidence: 1.0
+  evidence_refs: []
+  provenance: {}
+  kind: evidence
+  subject: 建档中状态
+  predicate: requires_business_confirmation
+  value: BUILDING 与 CUST_BUILDING 是否仍在不同生产场景使用，还是前者仅为历史兼容状态？
+  evidence: []
+- item_id: REVIEW-005
+  status: candidate
+  confidence: 1.0
+  evidence_refs: []
+  provenance: {}
+  kind: evidence
+  subject: 建档成功失败状态
+  predicate: requires_business_confirmation
+  value: CUST_BUILD_SUCCESS/CUST_BUILD_FAIL 与 BUILD_SUCCESS/BUILD_FAIL 的产品口径边界是什么？
+  evidence: []
+- item_id: REVIEW-006
+  status: candidate
+  confidence: 1.0
+  evidence_refs: []
+  provenance: {}
+  kind: evidence
+  subject: cust_build_record
+  predicate: requires_database_confirmation
+  value: 是否存在业务唯一键；一企是否可能存在多条建档、后置处理或补偿记录？
+  evidence: []
+- item_id: REVIEW-007
+  status: candidate
+  confidence: 1.0
+  evidence_refs: []
+  provenance: {}
+  kind: evidence
+  subject: 企业联系人关系
+  predicate: requires_database_confirmation
+  value: 企业与联系人应优先使用 id=cust_company_id 还是 code=ref_cust_company_info？
+  evidence: []
+- item_id: REVIEW-008
+  status: candidate
+  confidence: 1.0
+  evidence_refs: []
+  provenance: {}
+  kind: evidence
+  subject: 企业关系有效性
+  predicate: requires_business_confirmation
+  value: 企业、角色、项目关系表上的 status、enable、project_open_status 分别控制什么业务有效性？
+  evidence: []
+- item_id: REVIEW-009
+  status: candidate
+  confidence: 1.0
+  evidence_refs: []
+  provenance: {}
+  kind: evidence
+  subject: 租户边界
+  predicate: requires_security_confirmation
+  value: db_tenant_code 是否应作为所有关系的必要等值谓词，还是数据源层已经做物理租户隔离？
+  evidence: []
+- item_id: REVIEW-010
+  status: candidate
+  confidence: 1.0
+  evidence_refs: []
+  provenance: {}
+  kind: evidence
+  subject: 审核通过时间
+  predicate: requires_database_confirmation
+  value: 位于哪个可稳定查询字段或历史表；仅凭 update_time 无法证明就是建档成功时间。
+  evidence: []
+- item_id: REVIEW-011
+  status: candidate
+  confidence: 1.0
+  evidence_refs: []
+  provenance: {}
+  kind: evidence
+  subject: 补偿任务
+  predicate: requires_database_confirmation
+  value: 补偿成功后更新原 cust_build_record 还是新增记录？
+  evidence: []
+- item_id: REVIEW-012
+  status: candidate
+  confidence: 1.0
+  evidence_refs: []
+  provenance: {}
+  kind: evidence
+  subject: 状态流转权威来源
+  predicate: requires_business_confirmation
+  value: 文档简化状态流转与当前代码枚举、回调分支不完全一致，应由业务负责人认证最终表述。
+  evidence: []

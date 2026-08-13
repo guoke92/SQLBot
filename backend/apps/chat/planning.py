@@ -52,6 +52,18 @@ class BatchParseResult:
         return bool(self.plans and self.contract_message)
 
 
+def executable_plans(parsed: BatchParseResult | None) -> list[dict[str, Any]]:
+    """Plans that may execute after one model response.
+
+    Structural parse failures withhold the batch. Specification disagreement
+    stays on ``contract_status`` / ``contract_message`` and does not empty
+    plans — the same SQL cannot become more observable by regenerating it.
+    """
+    if parsed is None or not parsed.success:
+        return []
+    return list(parsed.plans)
+
+
 def _plan_dict_from_query_plan(plan: QueryPlan) -> dict[str, Any]:
     return {
         "sql": plan.payload.get("sql", plan.statement),

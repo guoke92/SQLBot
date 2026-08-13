@@ -106,7 +106,11 @@ const sendMessage = async () => {
   ;(currentRecord as any).message = ''
   currentRecord.sql_answer = ''
 
-  await turn.run(props.currentChatId, currentRecord, {
+  await turn.run(props.currentChatId, currentRecord, turnHandlers(currentRecord))
+}
+
+function turnHandlers(currentRecord: ChatRecord) {
+  return {
     onEvent: (data: ChatStreamEvent) => {
       if (data.type === 'message') {
         ;(currentRecord as any).message =
@@ -114,12 +118,12 @@ const sendMessage = async () => {
         currentRecord.sql_answer = (currentRecord as any).message
       }
     },
-    onError: (record) => {
+    onError: (record: ChatRecord) => {
       stopExecutionPolling()
       void refreshExecutionSteps()
       emits('error', record.id)
     },
-    onFinish: async (record) => {
+    onFinish: async (record: ChatRecord) => {
       if ((record as any).message) {
         record.sql_answer = (record as any).message
       }
@@ -127,7 +131,7 @@ const sendMessage = async () => {
       await refreshExecutionSteps()
       emits('finish', record.id)
     },
-  })
+  }
 }
 
 function stop() {
@@ -135,6 +139,24 @@ function stop() {
   stopExecutionPolling()
   emits('stop')
 }
+
+watch(
+  () => [props.message?.record?.run_id, props.message?.record?.run_status] as const,
+  ([runId, status]) => {
+    const record = props.message?.record
+    if (!record || !runId) return
+    if (status === 'awaiting_input') {
+      void turn.attach(record, turnHandlers(record))
+      return
+    }
+    if (!['queued', 'running'].includes(status || '')) return
+    if (turn.owned.value || turn.running.value) return
+    ;(record as any).message = ''
+    record.sql_answer = ''
+    void turn.attach(record, turnHandlers(record))
+  },
+  { immediate: true }
+)
 
 watch(
   () => [props.message?.record?.id, props.message?.isTyping],

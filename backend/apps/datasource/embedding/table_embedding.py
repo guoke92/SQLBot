@@ -31,8 +31,7 @@ def calc_table_embedding(
 
     try:
         started_at = time.monotonic()
-        model = EmbeddingModelCache.get_model()
-        query_embedding = model.embed_query(normalized_question)
+        query_embedding = EmbeddingModelCache.embed_query(normalized_question)
         incompatible = 0
         for candidate in candidates:
             raw_embedding = candidate.get("embedding")

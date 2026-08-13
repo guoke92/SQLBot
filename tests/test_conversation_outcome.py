@@ -3,6 +3,8 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+import orjson
+
 _ROOT = Path(__file__).resolve().parents[1]
 _BACKEND = _ROOT / "backend"
 if str(_BACKEND) not in sys.path:
@@ -13,6 +15,7 @@ from apps.conversation.outcome import (  # noqa: E402
     format_error_message,
     outcome_allows_retry,
     outcome_from_steps,
+    public_error_message,
 )
 from common.error import SQLBotDBError  # noqa: E402
 
@@ -65,3 +68,16 @@ def test_execution_envelope_hides_the_driver_dump_without_losing_it() -> None:
     )
     assert '"type":"exec-query-err"' in envelope
     assert "Error 10004" in classify_failure(envelope)["message"]
+
+
+def test_public_error_hides_internal_planner_validation() -> None:
+    payload = orjson.loads(
+        public_error_message(
+            "Semantic planning failed: QuerySpecification requirement IDs must be unique"
+        )
+    )
+
+    assert payload == {
+        "message": "Query planning could not be completed. Please retry or refine the request.",
+        "type": "planning-error",
+    }

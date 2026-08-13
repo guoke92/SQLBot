@@ -6,8 +6,10 @@ from datetime import datetime, timedelta
 from typing import Any
 from uuid import uuid4
 
+from sqlalchemy.dialects.postgresql import insert
 from sqlmodel import Session, col, or_, select
 
+from apps.conversation.lifecycle_log import log_lifecycle
 from apps.knowledge.capture.extractors import (
     extract_process_episode,
     extract_v_t1_caliber,
@@ -23,7 +25,12 @@ from apps.knowledge.gateway import (
     submit_candidate,
 )
 
-_LEASE_SECONDS = 120
+
+def _capture_lease_seconds() -> int:
+    from common.core.config import settings
+
+    return max(60, int(getattr(settings, "KNOWLEDGE_CAPTURE_LEASE_SECONDS", 300)))
+
 
 # Only genuinely applied knowledge earns apply_outcome evidence; drops and
 # anonymous hits (terminology/dictionary have no asset_id) must not count.
@@ -53,18 +60,37 @@ def enqueue_capture_job(
 ) -> KnowledgeCaptureJob:
     """Persist a capture job; never raise into the NLQ complete path callers."""
     now = datetime.utcnow()
-    job = KnowledgeCaptureJob(
-        oid=snapshot.oid,
-        record_id=snapshot.record_id,
-        status="pending",
-        attempt=0,
-        max_attempts=3,
-        snapshot=snapshot.model_dump(mode="json"),
-        create_time=now,
-        update_time=now,
+    stmt = (
+        insert(KnowledgeCaptureJob)
+        .values(
+            oid=snapshot.oid,
+            record_id=snapshot.record_id,
+            status="pending",
+            attempt=0,
+            max_attempts=3,
+            snapshot=snapshot.model_dump(mode="json"),
+            create_time=now,
+            update_time=now,
+        )
+        .on_conflict_do_nothing(index_elements=["record_id"])
+        .returning(KnowledgeCaptureJob.id)
     )
-    session.add(job)
-    session.flush()
+    inserted_id = session.scalar(stmt)
+    job = (
+        session.get(KnowledgeCaptureJob, int(inserted_id))
+        if inserted_id is not None
+        else session.exec(
+            select(KnowledgeCaptureJob).where(
+                KnowledgeCaptureJob.record_id == snapshot.record_id
+            )
+        ).first()
+    )
+    if job is None:  # pragma: no cover - protects unusual DB adapters
+        raise RuntimeError(f"capture enqueue failed for record {snapshot.record_id}")
+    if inserted_id is not None:
+        log_lifecycle(
+            "capture_enqueued", record_id=snapshot.record_id, status=job.status
+        )
     return job
 
 
@@ -99,7 +125,7 @@ def claim_next_capture_job(
     job.status = "running"
     job.attempt = int(job.attempt or 0) + 1
     job.lease_owner = owner
-    job.lease_until = now + timedelta(seconds=_LEASE_SECONDS)
+    job.lease_until = now + timedelta(seconds=_capture_lease_seconds())
     job.update_time = now
     session.add(job)
     session.flush()
@@ -211,6 +237,12 @@ def run_capture_worker_once(session: Session) -> bool:
         job = session.get(KnowledgeCaptureJob, job_id)
         if job is None:
             return True
+        log_lifecycle(
+            "capture_started",
+            record_id=job.record_id,
+            status=job.status,
+            dispatch_attempt=attempt,
+        )
         process_capture_job(session, job)
         session.commit()
         return True
@@ -229,6 +261,14 @@ def run_capture_worker_once(session: Session) -> bool:
             job.lease_until = None
         session.add(job)
         session.commit()
+        log_lifecycle(
+            "capture_failed",
+            level="error",
+            record_id=job.record_id,
+            status=job.status,
+            dispatch_attempt=attempt,
+            error_type=type(exc).__name__,
+        )
         return True
 
 
@@ -239,3 +279,19 @@ def run_capture_worker_drain(session: Session, *, max_jobs: int = 20) -> int:
             break
         done += 1
     return done
+
+
+def schedule_capture_worker_kick(*, max_jobs: int = 20) -> None:
+    """Drain committed jobs in the shared bounded background pool."""
+    from apps.conversation.runtime import submit_background
+    from apps.conversation.session import session_scope
+
+    def _drain() -> None:
+        with session_scope() as worker_session:
+            drained = run_capture_worker_drain(worker_session, max_jobs=max_jobs)
+        if drained >= max_jobs:
+            # Yield the bounded worker after each batch, but keep draining a
+            # restart backlog without waiting for another conversation.
+            schedule_capture_worker_kick(max_jobs=max_jobs)
+
+    submit_background(_drain)

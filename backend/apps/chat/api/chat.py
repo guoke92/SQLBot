@@ -1,6 +1,7 @@
 import asyncio
 import io
 import traceback
+from time import monotonic
 
 import pandas as pd
 from fastapi import APIRouter, HTTPException, Path
@@ -8,7 +9,10 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import and_, select
 from starlette.responses import JSONResponse
 
-from apps.chat.answer_payload import normalize_answer_payload
+from apps.chat.answer_payload import (
+    build_failed_answer_payload,
+    normalize_answer_payload,
+)
 from apps.chat.curd.chat import (
     create_chat,
     delete_chat_with_user,
@@ -68,6 +72,7 @@ from apps.swagger.i18n import PLACEHOLDER_PREFIX
 from apps.system.schemas.permission import SqlbotPermission, require_permissions
 from common.audit.models.log_model import OperationModules, OperationType
 from common.audit.schemas.logger_decorator import LogConfig, system_log
+from common.core.config import settings
 from common.core.deps import CurrentAssistant, CurrentUser, SessionDep, Trans
 from common.utils.command_utils import parse_quick_command
 from common.utils.data_format import DataFormat
@@ -229,6 +234,7 @@ async def conversation_run_events(
 
     async def event_stream():
         nonlocal cursor
+        last_status_push = 0.0
         while True:
             with session_scope() as event_session:
                 run = event_session.get(ConversationRun, run_id)
@@ -237,11 +243,28 @@ async def conversation_run_events(
                 events = run_events_after(event_session, run_id=run_id, cursor=cursor)
                 status = run.status
                 latest_cursor = int(run.event_cursor or 0)
+                status_payload = {
+                    "type": "run_status",
+                    "status": run.status,
+                    "current_node": run.current_node,
+                    "event_cursor": latest_cursor,
+                    "dispatch_attempts": run.dispatch_attempts,
+                    "update_time": run.update_time.isoformat(),
+                    "started_at": run.started_at.isoformat() if run.started_at else None,
+                    "completed_at": (
+                        run.completed_at.isoformat() if run.completed_at else None
+                    ),
+                }
             for item in events:
                 cursor = int(item.get("cursor") or cursor)
                 yield emit(item)
             if cursor < latest_cursor:
                 continue
+            now = monotonic()
+            if now - last_status_push >= max(1, settings.CONVERSATION_STATUS_PUSH_SEC):
+                yield emit(status_payload)
+                yield ": heartbeat\n\n"
+                last_status_push = now
             if status in {
                 "awaiting_input",
                 "succeeded",
@@ -406,10 +429,16 @@ async def chat_record_data(
         data = get_chart_data_with_user(
             chat_record_id=chat_record_id, session=session, current_user=current_user
         )
-        return normalize_answer_payload(
-            data,
-            normalize_data=format_json_data,
-        )
+        try:
+            return normalize_answer_payload(
+                data,
+                normalize_data=format_json_data,
+            )
+        except ValueError:
+            record = get_chat_record_by_id(session, chat_record_id)
+            if record and record.error:
+                return build_failed_answer_payload(record.error)
+            raise
 
     return await asyncio.to_thread(inner)
 
@@ -606,6 +635,13 @@ async def ask_recommend_questions(
         record = get_chat_record_by_id(session, chat_record_id)
 
         if not record:
+            return StreamingResponse(_return_empty(), media_type="text/event-stream")
+        run = session.exec(
+            select(ConversationRun).where(
+                ConversationRun.chat_record_id == chat_record_id
+            )
+        ).scalars().one_or_none()
+        if run is not None and run.status not in {"succeeded", "degraded"}:
             return StreamingResponse(_return_empty(), media_type="text/event-stream")
 
         request_question = ChatQuestion(

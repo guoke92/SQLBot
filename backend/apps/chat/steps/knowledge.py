@@ -8,7 +8,7 @@ from sqlmodel import Session
 
 from apps.chat.models.chat_model import OperationEnum
 from apps.chat.steps.scope import match_scope
-from apps.conversation.observability import end_log, start_log
+from apps.chat.steps.observability import log_span
 from apps.datasource.access import AccessScope
 from apps.knowledge.compile import CompiledKnowledge, compile_knowledge_for_turn
 from apps.knowledge.models import KnowledgeMatch
@@ -45,48 +45,48 @@ def match_knowledge(
     include_examples: bool = False,
 ) -> list[KnowledgeMatch]:
     """Compile knowledge for the turn; return matches for ground_entities compat."""
-    llm_service.current_logs[OperationEnum.FILTER_TERMS] = start_log(
-        session=session,
+    with log_span(
         operate=OperationEnum.FILTER_TERMS,
         record_id=llm_service.record.id,
         local_operation=True,
-    )
-    calculate_oid, calculate_ds_id, assistant_id = match_scope(llm_service, oid, ds_id)
-    compiled = compile_knowledge_for_turn(
-        session,
-        stage=stage,  # type: ignore[arg-type]
-        question=llm_service.retrieval_question,
-        oid=int(calculate_oid or 1),
-        ds_id=calculate_ds_id if assistant_id is None else None,
-        advanced_application_id=assistant_id,
-        include_examples=include_examples,
-    )
-    matches = _scope_dictionary_matches(access_scope, compiled.matches)
-    compiled = compiled.model_copy(update={"matches": matches})
-    llm_service.chat_question.terminologies = compiled.prompt_template
-    # Stash candidates for v3 KnowledgeSeed application and truthful audit.
-    llm_service.compiled_knowledge = compiled
-    dictionary_items = [
-        {
-            "words": [match.canonical, *match.alternatives],
-            "description": (
-                f"{match.description} "
-                f"({', '.join(f'{target.table_name}.{target.field_name}' for target in match.targets)})"
-            ).strip(),
-        }
-        for match in matches
-        if "entity_binding" in match.usages
-    ]
-    apply_payload = compiled.knowledge_apply_payload()
-    llm_service.current_logs[OperationEnum.FILTER_TERMS] = end_log(
-        session=session,
-        log=llm_service.current_logs[OperationEnum.FILTER_TERMS],
-        full_message=[
-            *compiled.log_items,
-            *dictionary_items,
-            {"knowledge_apply": apply_payload},
-        ],
-    )
+        phase="understand",
+        graph_node="retrieve_context",
+        title_key="chat.log.FILTER_TERMS",
+    ) as span:
+        calculate_oid, calculate_ds_id, assistant_id = match_scope(llm_service, oid, ds_id)
+        compiled = compile_knowledge_for_turn(
+            session,
+            stage=stage,  # type: ignore[arg-type]
+            question=llm_service.retrieval_question,
+            oid=int(calculate_oid or 1),
+            ds_id=calculate_ds_id if assistant_id is None else None,
+            advanced_application_id=assistant_id,
+            include_examples=include_examples,
+        )
+        matches = _scope_dictionary_matches(access_scope, compiled.matches)
+        compiled = compiled.model_copy(update={"matches": matches})
+        llm_service.chat_question.terminologies = compiled.prompt_template
+        llm_service.compiled_knowledge = compiled
+        dictionary_items = [
+            {
+                "words": [match.canonical, *match.alternatives],
+                "description": (
+                    f"{match.description} "
+                    f"({', '.join(f'{target.table_name}.{target.field_name}' for target in match.targets)})"
+                ).strip(),
+            }
+            for match in matches
+            if "entity_binding" in match.usages
+        ]
+        apply_payload = compiled.knowledge_apply_payload()
+        span.set_detail(
+            {
+                "match_count": len(matches),
+                "matches": [*compiled.log_items, *dictionary_items],
+                "knowledge_apply": apply_payload,
+            }
+        )
+        span.set_summary("chat.audit.knowledge_ready", count=len(matches))
     return matches
 
 

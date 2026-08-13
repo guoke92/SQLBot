@@ -15,6 +15,8 @@ from sqlalchemy import func, select
 from sqlmodel import Session
 
 from apps.chat.models.chat_model import ChatRecord
+from apps.chat.steps.observability import close_open_audit_spans
+from apps.conversation.lifecycle_log import log_lifecycle
 from apps.conversation.models import (
     ConversationInterrupt,
     ConversationRun,
@@ -34,6 +36,25 @@ RunStatus = Literal[
     "cancelled",
 ]
 TERMINAL_STATUSES = frozenset({"succeeded", "degraded", "failed", "cancelled"})
+_ALLOWED_TRANSITIONS: dict[str, frozenset[str]] = {
+    "queued": frozenset({"queued", "running", "failed", "cancelled"}),
+    "running": frozenset(
+        {
+            "queued",
+            "running",
+            "awaiting_input",
+            "succeeded",
+            "degraded",
+            "failed",
+            "cancelled",
+        }
+    ),
+    "awaiting_input": frozenset({"awaiting_input", "queued", "failed", "cancelled"}),
+    "succeeded": frozenset({"succeeded"}),
+    "degraded": frozenset({"degraded"}),
+    "failed": frozenset({"failed"}),
+    "cancelled": frozenset({"cancelled"}),
+}
 
 
 class ConversationRunCancelled(RuntimeError):
@@ -155,6 +176,11 @@ def create_run(
     )
     session.add(run)
     session.flush()
+    _append_run_event_locked(
+        session,
+        run=run,
+        payload={"type": "run_started", "status": "queued"},
+    )
     if graph_key == "chat":
         session.add(NlqRun(run_id=run.run_id, update_time=now))
         append_evidence(
@@ -167,6 +193,159 @@ def create_run(
         )
     session.commit()
     session.refresh(run)
+    log_lifecycle(
+        "run_created",
+        run_id=run.run_id,
+        record_id=run.chat_record_id,
+        graph_key=run.graph_key,
+        status=run.status,
+        dispatch_attempt=run.dispatch_attempts,
+    )
+    return run
+
+
+def _entity_one(result: Any) -> Any:
+    return result.scalars().one()
+
+
+def _entity_one_or_none(result: Any) -> Any:
+    return result.scalars().one_or_none()
+
+
+def _assert_transition(run: ConversationRun, target: str) -> None:
+    if target not in _ALLOWED_TRANSITIONS.get(run.status, frozenset()):
+        raise ValueError(
+            f"Illegal conversation run transition {run.status} -> {target} for {run.run_id}"
+        )
+
+
+def require_active_run(session: Session, run_id: str) -> ConversationRun:
+    """Lock and fence a domain write to the currently active run.
+
+    A model/database call can finish after recovery, cancellation, or a
+    terminal failure was published.  Such late workers may finish their local
+    computation, but they must never mutate NLQ state or reopen the visible
+    result.  ConversationRun remains the sole ownership boundary.
+    """
+    run = _entity_one_or_none(
+        session.exec(
+            select(ConversationRun)
+            .where(ConversationRun.run_id == run_id)
+            .with_for_update()
+        )
+    )
+    if run is None:
+        raise LookupError(f"Conversation run {run_id} not found")
+    if run.status != "running":
+        raise ConversationRunCancelled(
+            f"Conversation run {run_id} is no longer active ({run.status})"
+        )
+    return run
+
+
+def queue_run_for_dispatch(
+    session: Session,
+    run_id: str,
+    *,
+    reset_attempts: bool = False,
+    expected_status: str | None = None,
+    expected_update_time: datetime | None = None,
+) -> ConversationRun | None:
+    """Move a resumable phase to queued before it is submitted to the pool."""
+    run = _entity_one(
+        session.exec(
+            select(ConversationRun)
+            .where(ConversationRun.run_id == run_id)
+            .with_for_update()
+        )
+    )
+    if run.status in TERMINAL_STATUSES:
+        # A recovery snapshot can become terminal between enumeration and the
+        # row lock above.  Returning the row would make the caller dispatch and
+        # report a recovery that never actually happened.
+        return None
+    if expected_status is not None and run.status != expected_status:
+        return None
+    if expected_update_time is not None and run.update_time != expected_update_time:
+        return None
+    if run.status != "queued":
+        _assert_transition(run, "queued")
+        run.status = "queued"
+    if reset_attempts:
+        run.dispatch_attempts = 0
+    run.update_time = datetime.now()
+    session.add(run)
+    session.commit()
+    session.refresh(run)
+    return run
+
+
+def record_run_dispatch(
+    session: Session,
+    run_id: str,
+    *,
+    force: bool = False,
+) -> ConversationRun | None:
+    """Record one pool submission; the worker still has to claim the row."""
+    run = _entity_one_or_none(
+        session.exec(
+            select(ConversationRun)
+            .where(ConversationRun.run_id == run_id)
+            .with_for_update()
+        )
+    )
+    if run is None or run.status != "queued":
+        return None
+    if not force and run.dispatch_attempts and run.update_time:
+        from common.core.config import settings
+
+        age = (datetime.now() - run.update_time).total_seconds()
+        if age < max(1, settings.CONVERSATION_QUEUED_RETRY_SEC):
+            return None
+    run.dispatch_attempts = int(run.dispatch_attempts or 0) + 1
+    run.update_time = datetime.now()
+    session.add(run)
+    session.commit()
+    session.refresh(run)
+    log_lifecycle(
+        "run_dispatched",
+        run_id=run.run_id,
+        record_id=run.chat_record_id,
+        graph_key=run.graph_key,
+        status=run.status,
+        dispatch_attempt=run.dispatch_attempts,
+    )
+    return run
+
+
+def claim_run(session: Session, run_id: str) -> ConversationRun | None:
+    """Atomically grant one worker ownership of a queued run."""
+    run = _entity_one_or_none(
+        session.exec(
+            select(ConversationRun)
+            .where(ConversationRun.run_id == run_id)
+            .with_for_update()
+        )
+    )
+    if run is None or run.status != "queued":
+        return None
+    _assert_transition(run, "running")
+    now = datetime.now()
+    run.status = "running"
+    run.started_at = run.started_at or now
+    run.error_summary = None
+    run.update_time = now
+    session.add(run)
+    session.commit()
+    session.refresh(run)
+    log_lifecycle(
+        "run_claimed",
+        run_id=run.run_id,
+        record_id=run.chat_record_id,
+        graph_key=run.graph_key,
+        status=run.status,
+        dispatch_attempt=run.dispatch_attempts,
+    )
     return run
 
 
@@ -272,20 +451,38 @@ def active_evidence(session: Session, run_id: str) -> list[NlqEvidenceEvent]:
     # event may supersede an earlier event, but the earlier audit row is never
     # updated or deleted.
     superseded = {event.supersedes for event in events if event.supersedes}
-    return [event for event in events if event.evidence_id not in superseded]
+    effective = [event for event in events if event.evidence_id not in superseded]
+
+    # User statements are immutable additive evidence. Retrieval products are
+    # snapshots of mutable external context, however, and retaining several
+    # active versions lets a recovered planner consume contradictory schemas
+    # or defaults. Keep their full history in the ledger while projecting only
+    # the latest value per source into semantic planning.
+    latest_context_sequence: dict[tuple[str, str], int] = {}
+    snapshot_kinds = {
+        "schema_fact",
+        "terminology_match",
+        "training_example",
+        "system_default",
+    }
+    for event in effective:
+        if event.kind in snapshot_kinds:
+            latest_context_sequence[(event.kind, event.source)] = event.sequence
+    return [
+        event
+        for event in effective
+        if event.kind not in snapshot_kinds
+        or event.sequence == latest_context_sequence[(event.kind, event.source)]
+    ]
 
 
-def register_query_plans(
-    session: Session,
+def _merge_query_plans(
+    nlq: NlqRun,
     *,
-    run_id: str,
     specification_revision: int,
     plans: list[dict[str, Any]],
 ) -> None:
-    """Upsert physical candidates without replacing prior audit history."""
-    nlq = session.exec(
-        select(NlqRun).where(NlqRun.run_id == run_id).with_for_update()
-    ).one()
+    """Merge idempotent candidates into an already locked NLQ aggregate."""
     existing = {
         str(item.get("plan_id")): dict(item)
         for item in (nlq.plans or [])
@@ -311,6 +508,53 @@ def register_query_plans(
     nlq.plans = [existing[plan_id] for plan_id in order]
     nlq.active_plan_id = order[-1] if order else nlq.active_plan_id
     nlq.update_time = datetime.now()
+
+
+def persist_query_planning_result(
+    session: Session,
+    *,
+    run_id: str,
+    specification: dict[str, Any],
+    plans: list[dict[str, Any]],
+) -> None:
+    """Atomically publish one semantic revision and its initial plans."""
+    require_active_run(session, run_id)
+    nlq = _entity_one(
+        session.exec(select(NlqRun).where(NlqRun.run_id == run_id).with_for_update())
+    )
+    revision = int(specification.get("revision") or 0)
+    if revision <= 0:
+        raise ValueError("Query specification requires a positive revision")
+    if not nlq.specifications or nlq.specifications[-1] != specification:
+        nlq.specifications = [*(nlq.specifications or []), specification]
+    nlq.active_specification_revision = revision
+    nlq.planning_status = "ready"
+    _merge_query_plans(
+        nlq,
+        specification_revision=revision,
+        plans=plans,
+    )
+    session.add(nlq)
+    session.commit()
+
+
+def register_query_plans(
+    session: Session,
+    *,
+    run_id: str,
+    specification_revision: int,
+    plans: list[dict[str, Any]],
+) -> None:
+    """Upsert physical candidates without replacing prior audit history."""
+    require_active_run(session, run_id)
+    nlq = _entity_one(
+        session.exec(select(NlqRun).where(NlqRun.run_id == run_id).with_for_update())
+    )
+    _merge_query_plans(
+        nlq,
+        specification_revision=specification_revision,
+        plans=plans,
+    )
     session.add(nlq)
     session.commit()
 
@@ -339,9 +583,10 @@ def persist_query_plan_result(
     result: dict[str, Any],
 ) -> None:
     """Commit execution once; graph replay reuses this exact result."""
-    nlq = session.exec(
-        select(NlqRun).where(NlqRun.run_id == run_id).with_for_update()
-    ).one()
+    require_active_run(session, run_id)
+    nlq = _entity_one(
+        session.exec(select(NlqRun).where(NlqRun.run_id == run_id).with_for_update())
+    )
     plans = [dict(item) for item in (nlq.plans or [])]
     for index, plan in enumerate(plans):
         if str(plan.get("plan_id") or "") != plan_id:
@@ -364,26 +609,19 @@ def persist_query_plan_result(
     session.commit()
 
 
-def append_run_event(
+def _append_run_event_locked(
     session: Session,
     *,
-    run_id: str,
+    run: ConversationRun,
     payload: dict[str, Any],
 ) -> int:
-    run = session.exec(
-        select(ConversationRun)
-        .where(ConversationRun.run_id == run_id)
-        .with_for_update()
-    ).one_or_none()
-    if run is None:
-        return 0
     cursor = int(run.event_cursor or 0) + 1
     run.event_cursor = cursor
     run.update_time = datetime.now()
     session.add(run)
     session.add(
         ConversationRunEvent(
-            run_id=run_id,
+            run_id=run.run_id,
             cursor=cursor,
             payload={
                 "cursor": cursor,
@@ -392,6 +630,30 @@ def append_run_event(
             },
         )
     )
+    return cursor
+
+
+def append_run_event(
+    session: Session,
+    *,
+    run_id: str,
+    payload: dict[str, Any],
+) -> int:
+    run = _entity_one_or_none(
+        session.exec(
+            select(ConversationRun)
+            .where(ConversationRun.run_id == run_id)
+            .with_for_update()
+        )
+    )
+    if run is None:
+        return 0
+    # ``finalize_run`` atomically writes the terminal event.  Events emitted by
+    # a node after that commit are stale transport echoes and must not reopen
+    # the persisted timeline.
+    if run.status in TERMINAL_STATUSES:
+        return -int(run.event_cursor or 0)
+    cursor = _append_run_event_locked(session, run=run, payload=payload)
     session.commit()
     return cursor
 
@@ -420,15 +682,16 @@ def update_run_status(
     error_summary: str | None = None,
     checkpoint_id: str | None = None,
 ) -> ConversationRun:
-    run = session.exec(
-        select(ConversationRun)
-        .where(ConversationRun.run_id == run_id)
-        .with_for_update()
-    ).one()
-    if run.status in TERMINAL_STATUSES and status != run.status:
-        raise ValueError(
-            f"Terminal run {run_id} is {run.status} and cannot change to {status}"
+    if status in TERMINAL_STATUSES:
+        raise ValueError("Terminal statuses must be written through finalize_run")
+    run = _entity_one(
+        session.exec(
+            select(ConversationRun)
+            .where(ConversationRun.run_id == run_id)
+            .with_for_update()
         )
+    )
+    _assert_transition(run, status)
     now = datetime.now()
     run.status = status
     run.current_node = current_node if current_node is not None else run.current_node
@@ -439,9 +702,6 @@ def update_run_status(
     run.update_time = now
     if status == "running" and run.started_at is None:
         run.started_at = now
-    if status in TERMINAL_STATUSES:
-        run.completed_at = now
-        run.active_interrupt_id = None
     session.add(run)
     session.commit()
     session.refresh(run)
@@ -453,7 +713,7 @@ def finalize_run(
     *,
     run_id: str,
     status: Literal["succeeded", "degraded", "failed", "cancelled"],
-    current_node: str,
+    current_node: str | None,
     result_quality: dict[str, Any] | None = None,
     record_snapshot: dict[str, Any],
     error_summary: str | None = None,
@@ -463,38 +723,56 @@ def finalize_run(
     This is the sole conversation terminal write boundary. Transport delivery and
     checkpoint bookkeeping happen only after this transaction commits.
     """
-    run = session.exec(
-        select(ConversationRun)
-        .where(ConversationRun.run_id == run_id)
-        .with_for_update()
-    ).one()
+    run = _entity_one(
+        session.exec(
+            select(ConversationRun)
+            .where(ConversationRun.run_id == run_id)
+            .with_for_update()
+        )
+    )
     if run.status in TERMINAL_STATUSES:
         if run.status != status:
             raise ValueError(
                 f"Terminal run {run_id} is {run.status} and cannot change to {status}"
             )
         return run
-    nlq = session.exec(
-        select(NlqRun).where(NlqRun.run_id == run_id).with_for_update()
-    ).one_or_none()
+    _assert_transition(run, status)
+    nlq = _entity_one_or_none(
+        session.exec(select(NlqRun).where(NlqRun.run_id == run_id).with_for_update())
+    )
+    published_snapshot = dict(record_snapshot)
+    if status == "failed":
+        from apps.conversation.outcome import public_error_message
+
+        published_snapshot["error"] = public_error_message(
+            published_snapshot.get("error") or error_summary or "Conversation failed"
+        )
     persist_snapshot(
         session,
         run.chat_record_id,
         commit=False,
-        **record_snapshot,
+        **published_snapshot,
     )
+    close_open_audit_spans(session, run.chat_record_id)
+    terminal_node = current_node or run.current_node
     if nlq is not None:
-        nlq.execution_status = (
-            "failed"
-            if status == "failed"
-            else "cancelled"
-            if status == "cancelled"
-            else "completed"
-        )
+        if status == "failed":
+            if getattr(nlq, "planning_status", "pending") != "ready":
+                nlq.planning_status = "failed"
+            nlq.execution_status = (
+                "failed"
+                if nlq.execution_status == "running"
+                or bool(getattr(nlq, "executed_plan_ids", []))
+                else "not_started"
+            )
+        elif status == "cancelled":
+            nlq.execution_status = "cancelled"
+        else:
+            nlq.execution_status = "completed"
         nlq.result_quality = result_quality
         nlq.update_time = datetime.now()
     run.status = status
-    run.current_node = current_node
+    run.current_node = terminal_node
     run.error_summary = error_summary
     run.completed_at = datetime.now()
     run.active_interrupt_id = None
@@ -502,7 +780,27 @@ def finalize_run(
     if nlq is not None:
         session.add(nlq)
     session.add(run)
+    _append_run_event_locked(
+        session,
+        run=run,
+        payload={
+            "type": "error" if status == "failed" else "finish",
+            "content": published_snapshot.get("error") if status == "failed" else None,
+            "status": status,
+            "node": terminal_node,
+        },
+    )
     session.commit()
+    log_lifecycle(
+        "run_finalized",
+        run_id=run.run_id,
+        record_id=run.chat_record_id,
+        graph_key=run.graph_key,
+        node=terminal_node,
+        status=status,
+        dispatch_attempt=run.dispatch_attempts,
+        error_type="RunFailed" if status == "failed" else None,
+    )
     return run
 
 
@@ -525,19 +823,23 @@ def create_interrupt(
     run_id: str,
     payload: dict[str, Any],
 ) -> ConversationInterrupt:
-    run = session.exec(
-        select(ConversationRun)
-        .where(ConversationRun.run_id == run_id)
-        .with_for_update()
-    ).one()
+    run = _entity_one(
+        session.exec(
+            select(ConversationRun)
+            .where(ConversationRun.run_id == run_id)
+            .with_for_update()
+        )
+    )
     if run.status in TERMINAL_STATUSES:
         raise ValueError("Cannot interrupt a terminal run")
-    latest_interrupt = session.exec(
-        select(ConversationInterrupt)
-        .where(ConversationInterrupt.run_id == run_id)
-        .order_by(ConversationInterrupt.version.desc())
-        .limit(1)
-    ).one_or_none()
+    latest_interrupt = _entity_one_or_none(
+        session.exec(
+            select(ConversationInterrupt)
+            .where(ConversationInterrupt.run_id == run_id)
+            .order_by(ConversationInterrupt.version.desc())
+            .limit(1)
+        )
+    )
     if latest_interrupt is not None:
         if interrupt_payload_identity(
             latest_interrupt.payload
@@ -558,12 +860,20 @@ def create_interrupt(
     interrupt = ConversationInterrupt(run_id=run_id, version=version, payload=payload)
     session.add(interrupt)
     session.flush()
+    _assert_transition(run, "awaiting_input")
     run.status = "awaiting_input"
     run.active_interrupt_id = interrupt.interrupt_id
     run.update_time = datetime.now()
     session.add(run)
     session.commit()
     session.refresh(interrupt)
+    log_lifecycle(
+        "run_interrupted",
+        run_id=run.run_id,
+        record_id=run.chat_record_id,
+        graph_key=run.graph_key,
+        status=run.status,
+    )
     return interrupt
 
 
@@ -574,14 +884,16 @@ def consume_interrupt(
     interrupt_id: str,
     request: ResumeRequest,
 ) -> tuple[ConversationInterrupt, bool]:
-    interrupt = session.exec(
-        select(ConversationInterrupt)
-        .where(
-            ConversationInterrupt.interrupt_id == interrupt_id,
-            ConversationInterrupt.run_id == run.run_id,
+    interrupt = _entity_one_or_none(
+        session.exec(
+            select(ConversationInterrupt)
+            .where(
+                ConversationInterrupt.interrupt_id == interrupt_id,
+                ConversationInterrupt.run_id == run.run_id,
+            )
+            .with_for_update()
         )
-        .with_for_update()
-    ).one_or_none()
+    )
     if interrupt is None:
         raise LookupError("Conversation interrupt not found")
     if interrupt.status == "consumed":
@@ -656,12 +968,26 @@ def consume_interrupt(
     interrupt.answers = stored_answers
     interrupt.idempotency_key = request.idempotency_key
     interrupt.consumed_at = now
-    run.status = "running"
+    _assert_transition(run, "queued")
+    run.status = "queued"
+    run.dispatch_attempts = 0
     run.active_interrupt_id = None
     run.update_time = now
+    nlq = session.get(NlqRun, run.run_id)
+    if nlq is not None:
+        nlq.planning_status = "planning"
+        nlq.update_time = now
+        session.add(nlq)
     session.add(interrupt)
     session.add(run)
     session.commit()
+    log_lifecycle(
+        "run_resumed",
+        run_id=run.run_id,
+        record_id=run.chat_record_id,
+        graph_key=run.graph_key,
+        status=run.status,
+    )
     return interrupt, True
 
 
@@ -678,21 +1004,25 @@ def correct_interrupt_answer(
     replans from immutable effective evidence and creates a fresh interrupt if
     a business ambiguity still exists.
     """
-    locked_run = session.exec(
-        select(ConversationRun)
-        .where(ConversationRun.run_id == run.run_id)
-        .with_for_update()
-    ).one()
+    locked_run = _entity_one(
+        session.exec(
+            select(ConversationRun)
+            .where(ConversationRun.run_id == run.run_id)
+            .with_for_update()
+        )
+    )
     if locked_run.status != "awaiting_input" or not locked_run.active_interrupt_id:
         raise ValueError("Corrections require a run that is awaiting input")
-    source_interrupt = session.exec(
-        select(ConversationInterrupt)
-        .where(
-            ConversationInterrupt.interrupt_id == interrupt_id,
-            ConversationInterrupt.run_id == run.run_id,
+    source_interrupt = _entity_one_or_none(
+        session.exec(
+            select(ConversationInterrupt)
+            .where(
+                ConversationInterrupt.interrupt_id == interrupt_id,
+                ConversationInterrupt.run_id == run.run_id,
+            )
+            .with_for_update()
         )
-        .with_for_update()
-    ).one_or_none()
+    )
     if (
         source_interrupt is None
         or source_interrupt.status != "consumed"
@@ -775,9 +1105,16 @@ def correct_interrupt_answer(
     if active_interrupt is not None and active_interrupt.status == "open":
         active_interrupt.status = "cancelled"
         session.add(active_interrupt)
-    locked_run.status = "running"
+    _assert_transition(locked_run, "queued")
+    locked_run.status = "queued"
+    locked_run.dispatch_attempts = 0
     locked_run.active_interrupt_id = None
     locked_run.update_time = datetime.now()
+    nlq = session.get(NlqRun, locked_run.run_id)
+    if nlq is not None:
+        nlq.planning_status = "planning"
+        nlq.update_time = locked_run.update_time
+        session.add(nlq)
     session.add(locked_run)
     session.commit()
     return correction, True
@@ -805,6 +1142,7 @@ def run_snapshot(session: Session, run: ConversationRun) -> dict[str, Any]:
         "status": run.status,
         "current_node": run.current_node,
         "event_cursor": run.event_cursor,
+        "dispatch_attempts": run.dispatch_attempts,
         "active_interrupt": (
             {
                 "interrupt_id": interrupt.interrupt_id,
@@ -838,7 +1176,12 @@ def run_snapshot(session: Session, run: ConversationRun) -> dict[str, Any]:
             else None
         ),
         "record": record.model_dump(mode="json") if record else None,
-        "error_summary": run.error_summary,
+        "error_summary": (
+            record.error
+            if record is not None and record.error
+            else run.error_summary
+        ),
         "started_at": run.started_at,
         "completed_at": run.completed_at,
+        "update_time": run.update_time,
     }
