@@ -141,6 +141,7 @@ from apps.conversation.run_service import (
     persist_query_clarification,
     persist_query_plan_failure,
     persist_query_plan_result,
+    persist_query_planning_failure,
     persist_query_planning_result,
     persist_unverified_plans,
     register_query_plans,
@@ -204,6 +205,7 @@ class NlqState(RunState, total=False):
     return_img: bool
     query_intent: dict[str, Any]
     turn_route: dict[str, Any]
+    referenced_turns: list[dict[str, Any]]
     source_datasets: list[dict[str, Any]]
     inherited_intents: list[dict[str, Any]]
     data_strategy: Literal[
@@ -1739,12 +1741,11 @@ def assemble_turn_context_node(state: NlqState) -> NlqState:
                     )
                 datasets = _record_answer_datasets(referenced)
                 source_datasets.extend(datasets)
-                inherited_run = (
+                latest_run = (
                     session.exec(
                         select(ConversationRun)
                         .where(
                             ConversationRun.chat_record_id == int(referenced.id),
-                            ConversationRun.status.in_(("succeeded", "degraded")),
                         )
                         .order_by(ConversationRun.attempt_index.desc())
                         .limit(1)
@@ -1752,29 +1753,48 @@ def assemble_turn_context_node(state: NlqState) -> NlqState:
                     .scalars()
                     .one_or_none()
                 )
-                inherited_query = (
-                    session.get(QueryRun, inherited_run.run_id)
-                    if inherited_run is not None
+                latest_query = (
+                    session.get(QueryRun, latest_run.run_id)
+                    if latest_run is not None
                     else None
                 )
-                if inherited_query and inherited_query.intent_revisions:
-                    raw_revision = dict(inherited_query.intent_revisions[-1])
-                    if raw_revision.get("status") == "accepted":
-                        inherited_intents.append(
-                            {
-                                "source_record_id": int(referenced.id),
-                                "relation": route.relation,
-                                "intent_revision": raw_revision,
-                            }
-                        )
+                latest_revision = (
+                    dict(latest_query.intent_revisions[-1])
+                    if latest_query and latest_query.intent_revisions
+                    else None
+                )
+                if (
+                    latest_run is not None
+                    and latest_run.status in {"succeeded", "degraded"}
+                    and latest_revision is not None
+                    and latest_revision.get("status") == "accepted"
+                ):
+                    inherited_intents.append(
+                        {
+                            "source_record_id": int(referenced.id),
+                            "relation": route.relation,
+                            "intent_revision": latest_revision,
+                        }
+                    )
+                answer = (
+                    referenced.answer if isinstance(referenced.answer, dict) else {}
+                )
                 referenced_turns.append(
                     {
                         "record_id": referenced.id,
                         "question": referenced.question,
                         "turn_kind": referenced.turn_kind,
-                        "answer_status": (referenced.answer or {}).get("status")
-                        if isinstance(referenced.answer, dict)
+                        "answer_status": answer.get("status"),
+                        "answer_summary": str(answer.get("content") or "")[:1000],
+                        "run_status": latest_run.status
+                        if latest_run is not None
                         else None,
+                        "planning_status": (
+                            latest_query.planning_status
+                            if latest_query is not None
+                            else None
+                        ),
+                        "last_intent_revision": latest_revision,
                         "dataset_ids": [item.get("dataset_id") for item in datasets],
                     }
                 )
@@ -1836,6 +1856,7 @@ def assemble_turn_context_node(state: NlqState) -> NlqState:
             session.commit()
         return {
             **state,
+            "referenced_turns": referenced_turns,
             "source_datasets": source_datasets,
             "inherited_intents": inherited_intents,
             "data_strategy": strategy,
@@ -1957,36 +1978,57 @@ def plan_query_node(state: NlqState) -> NlqState:
             title_key="chat.log.CLARIFY_INTENT",
             brief="理解需求并生成查询计划",
         ) as span:
-            result = run_query_agent(
-                llm_service,
-                evidence=evidence,
-                context={
-                    "target_task": (state.get("turn_route") or {}).get("task_kind"),
-                    "data_strategy": state.get("data_strategy"),
-                    "entity_bindings": planning_context.entity_bindings,
-                    "temporal_parse": planning_context.temporal_parse,
-                    "resources": list(planning_context.resources),
-                    "context_fingerprint": planning_context.fingerprint,
-                    "business_now": business_now_text,
-                    "timezone": business_timezone,
-                    "schema_fingerprint": planning_context.schema_fingerprint,
-                    "inherited_intents": state.get("inherited_intents") or [],
-                    "intent_defaults": _intent_default_payloads(
-                        planning_context.compiled_knowledge
+            try:
+                result = run_query_agent(
+                    llm_service,
+                    evidence=evidence,
+                    context={
+                        "target_task": (state.get("turn_route") or {}).get("task_kind"),
+                        "data_strategy": state.get("data_strategy"),
+                        "entity_bindings": planning_context.entity_bindings,
+                        "temporal_parse": planning_context.temporal_parse,
+                        "resources": list(planning_context.resources),
+                        "context_fingerprint": planning_context.fingerprint,
+                        "business_now": business_now_text,
+                        "timezone": business_timezone,
+                        "schema_fingerprint": planning_context.schema_fingerprint,
+                        "inherited_intents": state.get("inherited_intents") or [],
+                        "referenced_turns": state.get("referenced_turns") or [],
+                        "intent_defaults": _intent_default_payloads(
+                            planning_context.compiled_knowledge
+                        ),
+                        "previous_draft": previous_draft,
+                        "held_plans": held_plans,
+                        "context_truncation": list(planning_context.truncation or []),
+                    },
+                    next_revision=next_revision,
+                    resolved_ambiguity_ids=_resolved_ambiguity_ids(evidence),
+                    max_batch_size=state.get("max_batch_size") or _MAX_BATCH_SIZE,
+                    on_stream=lambda chunk: sink.token(
+                        content="",
+                        reasoning_content=chunk.get("reasoning_content") or "",
+                        event_type="clarification-reasoning",
                     ),
-                    "previous_draft": previous_draft,
-                    "held_plans": held_plans,
-                    "context_truncation": list(planning_context.truncation or []),
-                },
-                next_revision=next_revision,
-                resolved_ambiguity_ids=_resolved_ambiguity_ids(evidence),
-                max_batch_size=state.get("max_batch_size") or _MAX_BATCH_SIZE,
-                on_stream=lambda chunk: sink.token(
-                    content="",
-                    reasoning_content=chunk.get("reasoning_content") or "",
-                    event_type="clarification-reasoning",
-                ),
-            )
+                )
+            except QueryAgentError as exc:
+                partial = exc.result
+                if partial is not None:
+                    span.set_usage(partial.usage)
+                    span["reasoning_content"] = partial.reasoning
+                    span.set_model_context(partial.model_messages)
+                    span.set_detail(
+                        {
+                            "decision": (
+                                partial.decision.decision
+                                if partial.decision is not None
+                                else "invalid"
+                            ),
+                            "attempts": partial.attempts,
+                            "plan_count": len(partial.plans),
+                            "error": str(exc),
+                        }
+                    )
+                raise
             span.set_usage(result.usage)
             span["reasoning_content"] = result.reasoning
             span.set_model_context(result.model_messages)
@@ -2100,6 +2142,18 @@ def plan_query_node(state: NlqState) -> NlqState:
                 "repair_hint": "",
                 "compiled_knowledge": compiled_knowledge,
             }
+        if partial is not None:
+            with session_scope() as session:
+                persist_query_planning_failure(
+                    session,
+                    run_id=run_id,
+                    intent_revision=(
+                        partial.intent_revision.model_dump(mode="json")
+                        if partial.intent_revision is not None
+                        else None
+                    ),
+                    held_plans=partial.plans,
+                )
         return _fail(state, record_id, exc)
     except Exception as exc:
         return _fail(state, record_id, exc)

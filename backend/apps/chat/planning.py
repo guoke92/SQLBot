@@ -8,6 +8,7 @@ or reconstructs a business contract.
 from __future__ import annotations
 
 import logging
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
@@ -101,12 +102,17 @@ def _result(plans: list[dict[str, Any]], question: str) -> BatchParseResult:
 
 
 def parse_query_generation(
-    raw_text: str,
+    raw_text: str | Mapping[str, Any],
     llm_service: Any,
     *,
     max_batch_size: int,
 ) -> BatchParseResult:
-    """Parse and validate one physical-plan response as an atomic batch."""
+    """Parse and validate one physical-plan response as an atomic batch.
+
+    ``Mapping`` is the canonical Query Agent boundary and is parsed as a
+    protocol-native candidate. ``str`` remains the legacy standalone model
+    response boundary until its callers are removed.
+    """
     plans: list[dict[str, Any]] = []
     errors: list[str] = []
     chat_question = getattr(llm_service, "chat_question", None)
@@ -115,6 +121,18 @@ def parse_query_generation(
         or getattr(chat_question, "question", "")
         or ""
     )
+    if isinstance(raw_text, Mapping):
+        plan = llm_service.protocol.parse_candidate_payload(raw_text)
+        if not plan.success:
+            return BatchParseResult(
+                errors=[plan.message or "Query plan payload is invalid"]
+            )
+        entry, error = _accept_plan(llm_service, plan)
+        return (
+            _result([entry], question)
+            if entry
+            else BatchParseResult(errors=[error or "Query plan validation failed"])
+        )
     json_str = extract_nested_json(raw_text)
     if json_str is None:
         plan = llm_service.protocol.parse_llm_output(raw_text)

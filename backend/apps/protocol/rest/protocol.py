@@ -526,6 +526,27 @@ class RestProtocol(BaseProtocol):
             brief=data.get("brief"),
         )
 
+    def parse_candidate_payload(self, payload: Mapping[str, Any]) -> QueryPlan:
+        endpoint_name = str(
+            payload.get("endpoint") or payload.get("target") or ""
+        ).strip()
+        if not endpoint_name:
+            return QueryPlan(
+                success=False,
+                message="API endpoint (target) is empty",
+            )
+        params = payload.get("params") or {}
+        if not isinstance(params, Mapping):
+            return QueryPlan(success=False, message="API params must be an object")
+        return QueryPlan(
+            success=True,
+            statement=f"API: {endpoint_name}",
+            payload={"endpoint": endpoint_name, "params": dict(params)},
+            resources=[endpoint_name],
+            chart_type=payload.get("chart-type") or payload.get("chart_type"),
+            brief=payload.get("brief"),
+        )
+
     def validate_plan(
         self, ds: Any, plan: QueryPlan, allowed_resources: Sequence[str]
     ) -> QueryPlan:

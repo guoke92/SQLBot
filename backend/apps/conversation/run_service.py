@@ -693,6 +693,51 @@ def persist_query_clarification(
     session.commit()
 
 
+def persist_query_planning_failure(
+    session: Session,
+    *,
+    run_id: str,
+    intent_revision: dict[str, Any] | None,
+    held_plans: list[dict[str, Any]],
+) -> None:
+    """Keep the last useful planning artifacts without publishing a result.
+
+    A failed attempt is still valuable continuation context.  It remains
+    explicitly non-executable and never becomes an accepted intent merely
+    because a later turn references this record.
+    """
+    require_active_run(session, run_id)
+    query_run = _entity_one(
+        session.exec(
+            select(QueryRun).where(QueryRun.run_id == run_id).with_for_update()
+        )
+    )
+    revision = 0
+    if intent_revision is not None:
+        revision = int(intent_revision.get("revision") or 0)
+        if revision > 0:
+            draft = {**intent_revision, "status": "draft"}
+            if (
+                not query_run.intent_revisions
+                or query_run.intent_revisions[-1] != draft
+            ):
+                query_run.intent_revisions = [
+                    *(query_run.intent_revisions or []),
+                    draft,
+                ]
+            query_run.active_intent_revision = revision
+    if held_plans:
+        _merge_query_plans(
+            query_run,
+            intent_revision=revision,
+            plans=[{**plan, "status": "held"} for plan in held_plans],
+        )
+    query_run.planning_status = "failed"
+    query_run.update_time = datetime.now()
+    session.add(query_run)
+    session.commit()
+
+
 def persist_unverified_plans(
     session: Session, *, run_id: str, plans: list[dict[str, Any]]
 ) -> None:
@@ -978,12 +1023,16 @@ def append_run_event(
     )
     if run is None:
         return 0
-    _assert_worker_ownership(run)
     # ``finalize_run`` atomically writes the terminal event.  Events emitted by
     # a node after that commit are stale transport echoes and must not reopen
     # the persisted timeline.
     if run.status in TERMINAL_STATUSES:
         return -int(run.event_cursor or 0)
+    # ``create_interrupt`` persists the clarification together with the state
+    # transition. The subsequent sink write is live transport only.
+    if run.status == "awaiting_input" and payload.get("type") == "clarification":
+        return -int(run.event_cursor or 0)
+    _assert_worker_ownership(run)
     cursor = _append_run_event_locked(session, run=run, payload=payload)
     session.commit()
     return cursor
@@ -1264,6 +1313,17 @@ def create_interrupt(
     run.lease_expires_at = None
     run.update_time = datetime.now()
     session.add(run)
+    _append_run_event_locked(
+        session,
+        run=run,
+        payload={
+            "type": "clarification",
+            "interrupt_id": interrupt.interrupt_id,
+            "version": interrupt.version,
+            "ambiguities": payload.get("ambiguities", []),
+            "summary": payload.get("summary", ""),
+        },
+    )
     session.commit()
     session.refresh(interrupt)
     log_lifecycle(

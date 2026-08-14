@@ -242,13 +242,16 @@ function appendReasoningToRecord(
 function applyFullPayload(payload: AnswerPayload, recordId?: number, authoritative = false) {
   if (!payload) return
 
+  // Quality evaluates an actual published result. A planning failure with no
+  // result steps must not be rendered as a misleading zero-score stamp.
+  const publishedQuality = payload.steps.length > 0 ? payload.outcome.quality : undefined
   if (authoritative) {
     steps.value = []
     analysisText.value = payload.analysis || ''
-    overallQuality.value = payload.outcome.quality
+    overallQuality.value = publishedQuality
   } else {
     if (payload.analysis) analysisText.value = payload.analysis
-    overallQuality.value = payload.outcome.quality
+    overallQuality.value = publishedQuality
   }
   payload.steps.forEach((stepPayload, i) => {
     const step = ensureStep(i)
@@ -460,12 +463,9 @@ const regenerate = async () => {
   if (!currentRecord?.id || !_currentChatId.value || _loading.value) return
   _loading.value = true
   try {
-    await turn.run(
-      _currentChatId.value,
-      currentRecord,
-      turnHandlers(currentRecord),
-      { regenerate: true }
-    )
+    await turn.run(_currentChatId.value, currentRecord, turnHandlers(currentRecord), {
+      regenerate: true,
+    })
   } finally {
     _loading.value = false
   }

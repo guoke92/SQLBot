@@ -41,6 +41,39 @@ from common.utils.json_utils import extract_nested_json
 from common.utils.utils import SQLBotLogUtil
 
 
+def _run_duration_breakdown(
+    run: ConversationRun | None,
+    interrupts: list[ConversationInterrupt],
+    *,
+    fallback_start: datetime.datetime | None,
+    fallback_end: datetime.datetime | None,
+) -> tuple[float | None, float, float | None]:
+    """Return elapsed, user-waiting and actual processing seconds."""
+    start = (run.started_at or run.create_time) if run is not None else fallback_start
+    end = (
+        run.completed_at or datetime.datetime.now()
+        if run is not None
+        else fallback_end or datetime.datetime.now()
+    )
+    elapsed: float | None = None
+    if start and end:
+        try:
+            elapsed = round(max(0.0, (end - start).total_seconds()), 2)
+        except Exception:
+            elapsed = None
+    waiting = 0.0
+    if run is not None:
+        for interrupt in interrupts:
+            wait_end = (
+                interrupt.consumed_at or run.completed_at or datetime.datetime.now()
+            )
+            if interrupt.create_time and wait_end > interrupt.create_time:
+                waiting += (wait_end - interrupt.create_time).total_seconds()
+    waiting = round(waiting, 2)
+    processing = round(max(0.0, elapsed - waiting), 2) if elapsed is not None else None
+    return elapsed, waiting, processing
+
+
 def get_chat_record_by_id(session: SessionDep, record_id: int):
     record: ChatRecord | None = None
 
@@ -617,16 +650,15 @@ def get_chat_with_records(
 
     record_list: list[ChatRecordResult] = []
     for row in rows:
-        duration = None
-        if row.create_time and row.finish_time:
-            try:
-                duration = (row.finish_time - row.create_time).total_seconds()
-            except Exception:
-                duration = None
-
         rid = int(row.id)
         reason = reasoning_map.get(rid) or {}
         run = runs_by_record.get(rid)
+        _elapsed, _waiting, duration = _run_duration_breakdown(
+            run,
+            interrupts_by_run.get(run.run_id, []) if run is not None else [],
+            fallback_start=row.create_time,
+            fallback_end=row.finish_time,
+        )
         active_interrupt = (
             next(
                 (
@@ -986,42 +1018,25 @@ def get_chat_log_history(
             steps.append(history_item)
 
     # 4. 计算总耗时（使用ChatRecord的时间）
-    elapsed_duration = None
-    duration_start = (
-        run.started_at or run.create_time if run is not None else chat_record.create_time
-    )
-    duration_end = (
-        run.completed_at or datetime.datetime.now()
-        if run is not None
-        else chat_record.finish_time or datetime.datetime.now()
-    )
-    if duration_start and duration_end:
-        try:
-            time_diff = duration_end - duration_start
-            elapsed_duration = round(time_diff.total_seconds(), 2)
-        except Exception:
-            elapsed_duration = None
-
-    waiting_duration = 0.0
+    run_interrupts: list[ConversationInterrupt] = []
     if run is not None:
-        interrupts = list(
+        run_interrupts = list(
             session.exec(
                 select(ConversationInterrupt).where(
                     ConversationInterrupt.run_id == run.run_id
                 )
             ).scalars()
         )
-        for interrupt in interrupts:
-            wait_end = interrupt.consumed_at
-            if wait_end is None:
-                wait_end = run.completed_at or datetime.datetime.now()
-            if interrupt.create_time and wait_end > interrupt.create_time:
-                waiting_duration += (wait_end - interrupt.create_time).total_seconds()
-    waiting_duration = round(waiting_duration, 2)
-    processing_duration = (
-        round(max(0.0, elapsed_duration - waiting_duration), 2)
-        if elapsed_duration is not None
-        else None
+    history_start = (
+        run.started_at or run.create_time
+        if run is not None
+        else chat_record.create_time
+    )
+    elapsed_duration, waiting_duration, processing_duration = _run_duration_breakdown(
+        run,
+        run_interrupts,
+        fallback_start=chat_record.create_time,
+        fallback_end=chat_record.finish_time,
     )
 
     if run is not None:
@@ -1062,7 +1077,7 @@ def get_chat_log_history(
 
     # 5. 创建并返回统一的 ExecutionDetails 读取模型
     chat_log_history = ChatLogHistory(
-        start_time=duration_start,
+        start_time=history_start,
         finish_time=run.completed_at if run is not None else chat_record.finish_time,
         duration=processing_duration,
         elapsed_duration=elapsed_duration,

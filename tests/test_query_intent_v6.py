@@ -20,6 +20,8 @@ from apps.chat.semantic_planning import (
     public_ambiguity_payload,
 )
 from apps.chat.turn_router import route_turn
+from apps.protocol.rest.protocol import RestProtocol
+from apps.protocol.sql.protocol import SqlProtocol
 
 
 def _intent() -> QueryIntent:
@@ -273,6 +275,59 @@ def test_clarification_payload_keeps_business_explanations() -> None:
     assert ambiguity["reason"] == "两种口径会产生不同金额"
     assert ambiguity["candidate_resolutions"][0]["description"]
     assert ambiguity["recommendation_reason"]
+
+
+def test_clarification_marker_is_not_used_as_business_label() -> None:
+    decision = PLANNING_DECISION_ADAPTER.validate_python(
+        {
+            "decision": "needs_clarification",
+            "ambiguity_set": {
+                "ambiguities": [
+                    {
+                        "business_question": "部门归属按什么口径？",
+                        "candidate_resolutions": [
+                            {
+                                "label": "A",
+                                "resolution": {
+                                    "business_meaning": "按负责人所属部门统计"
+                                },
+                            },
+                            {
+                                "label": "B",
+                                "resolution": {
+                                    "business_meaning": "按项目所属部门统计"
+                                },
+                            },
+                        ],
+                    }
+                ]
+            },
+        }
+    )
+    assert isinstance(decision, NeedClarification)
+    payload = public_ambiguity_payload(decision.ambiguity_set)
+    labels = [
+        item["label"]
+        for item in payload["ambiguities"][0]["candidate_resolutions"]
+    ]
+    assert labels == ["按负责人所属部门统计", "按项目所属部门统计"]
+
+
+def test_protocol_native_candidate_does_not_require_legacy_success_envelope() -> None:
+    sql_plan = SqlProtocol("mysql").parse_candidate_payload(
+        {"sql": "SELECT COUNT(*) FROM customer;"}
+    )
+    assert sql_plan.success
+    assert sql_plan.statement == "SELECT COUNT(*) FROM customer"
+
+    rest_plan = RestProtocol("api").parse_candidate_payload(
+        {"endpoint": "customer_list", "params": {"status": "active"}}
+    )
+    assert rest_plan.success
+    assert rest_plan.payload == {
+        "endpoint": "customer_list",
+        "params": {"status": "active"},
+    }
 
 
 def test_plan_identity_changes_with_physical_payload() -> None:

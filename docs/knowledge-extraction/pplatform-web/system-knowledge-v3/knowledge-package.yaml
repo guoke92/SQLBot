@@ -1,0 +1,502 @@
+schema_version: '1.0'
+package_id: pplatform-system-business-data-v3
+title: pplatform-web 业务数据运行时知识包 v3
+description: 基于代码事实、目标库只读画像和已执行查询整理的企业建档、企业项目关系与租户产品知识。
+generated_at: '2026-08-14T18:00:00+08:00'
+generator:
+  name: sqlbot-business-data-extractor
+  version: '3'
+  scanner_warnings: []
+  source_repository:
+    path: /Users/fanjunwei/IdeaProjects/pplatform-web
+    branch: dev-v1.33.0
+    commit: ee434954e465713176e5bd52119eedde5ebe531b
+  database_profile:
+    database: lowcode_pplatform
+    profiled_at: '2026-08-14'
+    readonly: true
+defaults: {}
+sources:
+  - source_id: CODE-CUST-QUERY
+    kind: mapper
+    uri: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+    revision: ee434954e465713176e5bd52119eedde5ebe531b
+    metadata:
+      authority: implementation_fact
+      usage: 企业、项目、角色现用查询连接和过滤条件
+  - source_id: CODE-CUST-STATUS
+    kind: enum
+    uri: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/CustBuildStatusEnum.java
+    revision: ee434954e465713176e5bd52119eedde5ebe531b
+    metadata:
+      authority: implementation_fact
+      usage: 企业建档状态字典
+  - source_id: CODE-COMPANY-TYPE
+    kind: enum
+    uri: lowcode-pplatform-common/lowcode-pplatform-common-api/src/main/java/com/lls/lowcode/pplatform/common/enums/CustCompanyTypeEnum.java
+    revision: ee434954e465713176e5bd52119eedde5ebe531b
+    metadata:
+      authority: implementation_fact
+      usage: 企业项目角色字典
+  - source_id: CODE-PRODUCT-DAO
+    kind: dao
+    uri: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/infrastructure/dao/TenantProductDaoImpl.java
+    revision: ee434954e465713176e5bd52119eedde5ebe531b
+    metadata:
+      authority: implementation_fact
+      usage: 租户产品开放和启用状态
+  - source_id: DB-PROFILE-20260814
+    kind: database_profile
+    uri: mysql://lowcode_pplatform
+    revision: '2026-08-14'
+    metadata:
+      authority: observed_data_fact
+      readonly: true
+      tables:
+        cust_company_info: 3017
+        cust_project_rel: 1182
+        tenant_product: 78
+        tenant_setting: 91
+        operation_user: 0
+  - source_id: DB-QUERY-VERIFY-20260814
+    kind: query_verification
+    uri: mysql://lowcode_pplatform
+    revision: '2026-08-14'
+    metadata:
+      authority: executed_query
+      readonly: true
+
+items:
+  - kind: terminology
+    item_id: TERM-ONBOARDING
+    status: verified
+    confidence: 0.96
+    word: 建档
+    aliases: [企业建档, 客户建档]
+    description: 企业资料进入建档流程并经过审核确认，最终形成企业主数据的过程。过程记录在 cust_build_record，最终主数据在 cust_company_info；“发起建档”不等于“建档成功”。
+    evidence_refs: [CODE-CUST-STATUS, CODE-CUST-QUERY, DB-PROFILE-20260814]
+    knowledge_meta:
+      tables: [cust_build_record, cust_company_info]
+
+  - kind: terminology
+    item_id: TERM-BUILD-SUCCESS
+    status: verified
+    confidence: 0.99
+    word: 建档成功
+    aliases: [有效已建档企业]
+    description: 查询口径为 cust_company_info.cust_build_status='BUILD_SUCCESS'、cust_status='EFFECT'、data_type='1' 且 enable='Y' 的企业主数据。
+    evidence_refs: [CODE-CUST-STATUS, CODE-CUST-QUERY, DB-PROFILE-20260814]
+    knowledge_meta:
+      table: cust_company_info
+      dictionary_values:
+        cust_build_status: BUILD_SUCCESS
+        cust_status: EFFECT
+        data_type: '1'
+        enable: Y
+
+  - kind: terminology
+    item_id: TERM-CUSTOMER-CONFIRM-AWAIT
+    status: verified
+    confidence: 0.96
+    word: 待客户认证
+    aliases: [客户待认证]
+    description: 企业建档已进入客户侧认证阶段，对应 cust_company_info.cust_build_status='CUST_CONFIRM_AWAIT'；不能视为建档成功。
+    evidence_refs: [CODE-CUST-STATUS, DB-PROFILE-20260814]
+    knowledge_meta:
+      table: cust_company_info
+      field: cust_build_status
+      value: CUST_CONFIRM_AWAIT
+
+  - kind: terminology
+    item_id: TERM-COMPANY-MASTER
+    status: verified
+    confidence: 0.98
+    word: 企业主数据
+    aliases: [客户主数据, 企业档案]
+    description: cust_company_info 中 data_type='1' 的企业级主数据；建档记录、变更记录和同步失败记录是过程数据，不可直接替代企业主数据计数。
+    evidence_refs: [CODE-CUST-QUERY, DB-PROFILE-20260814]
+    knowledge_meta:
+      table: cust_company_info
+      field: data_type
+      value: '1'
+
+  - kind: terminology
+    item_id: TERM-COMPANY-PROJECT-REL
+    status: verified
+    confidence: 0.98
+    word: 企业项目关系
+    aliases: [项目企业关系]
+    description: cust_project_rel 中一条企业在一个租户项目下承担一种业务角色的关系；企业通过 ref_cust_company_info 对应 cust_company_info.code，项目通过 project_id 对应 tenant_project.id。
+    evidence_refs: [CODE-CUST-QUERY, DB-PROFILE-20260814]
+    knowledge_meta:
+      table: cust_project_rel
+      grain: 企业×项目×角色
+
+  - kind: terminology
+    item_id: TERM-COMPANY-ROLE
+    status: verified
+    confidence: 0.97
+    word: 企业角色
+    aliases: [项目企业角色]
+    description: 企业在项目中的业务身份，由 cust_project_rel.company_type 表示；常用值包括供应商 SUPPLIER、核心企业 CORE_COMPANY 和资金方 FINANCE。
+    evidence_refs: [CODE-COMPANY-TYPE, DB-PROFILE-20260814]
+    knowledge_meta:
+      table: cust_project_rel
+      field: company_type
+
+  - kind: terminology
+    item_id: TERM-FINANCING-PARTY
+    status: verified
+    confidence: 0.98
+    word: 资金方
+    aliases: [融资方角色]
+    description: 企业项目关系中 company_type='FINANCE' 的企业角色；统计时通常还需限定 cust_project_rel.enable='Y'。
+    evidence_refs: [CODE-COMPANY-TYPE, CODE-CUST-QUERY, DB-PROFILE-20260814]
+    knowledge_meta:
+      table: cust_project_rel
+      field: company_type
+      value: FINANCE
+
+  - kind: terminology
+    item_id: TERM-TENANT-PRODUCT
+    status: verified
+    confidence: 0.97
+    word: 租户产品
+    aliases: [租户开通产品]
+    description: tenant_product 记录租户实际配置的产品实例，通过 platform_product_id 关联平台产品；开放状态 open_status 的实际值为 Y、N、P，启用状态由 enable 表示。
+    evidence_refs: [CODE-PRODUCT-DAO, DB-PROFILE-20260814]
+    knowledge_meta:
+      table: tenant_product
+
+  - kind: terminology
+    item_id: TERM-SYNC-ERROR
+    status: verified
+    confidence: 0.96
+    word: 同步失败记录
+    aliases: [接口同步失败, 推数失败记录]
+    description: client_api_sync_error 中的一行代表一次失败或待重试的外部调用上下文，可统计失败调用次数和重试次数，但不能直接解释为失败的企业、项目或协议数量。
+    evidence_refs: [DB-PROFILE-20260814, DB-QUERY-VERIFY-20260814]
+    knowledge_meta:
+      table: client_api_sync_error
+      grain: 外部调用失败记录
+
+  - kind: caliber
+    item_id: CAL-ACTIVE-BUILT-COMPANY
+    status: verified
+    confidence: 0.99
+    label: 有效已建档企业
+    summary: 统计已建档且当前有效的企业主数据时使用四项联合过滤。
+    evidence_refs: [CODE-CUST-STATUS, CODE-CUST-QUERY, DB-PROFILE-20260814]
+    contract_fragment:
+      version: 1
+      intent_defaults:
+        - dataset_subject: 企业
+          kind: filter
+          value: {business_name: 建档状态, operator: eq, values: [BUILD_SUCCESS]}
+        - dataset_subject: 企业
+          kind: filter
+          value: {business_name: 企业状态, operator: eq, values: [EFFECT]}
+        - dataset_subject: 企业
+          kind: filter
+          value: {business_name: 数据类型, operator: eq, values: ['1']}
+        - dataset_subject: 企业
+          kind: filter
+          value: {business_name: 启用状态, operator: eq, values: [Y]}
+    field_targets:
+      - {table_name: cust_company_info, field_name: cust_build_status}
+      - {table_name: cust_company_info, field_name: cust_status}
+      - {table_name: cust_company_info, field_name: data_type}
+      - {table_name: cust_company_info, field_name: enable}
+
+  - kind: caliber
+    item_id: CAL-ENABLED-COMPANY-MASTER
+    status: verified
+    confidence: 0.98
+    label: 启用的企业主数据
+    summary: 查询启用的企业主数据，不附加建档成功或企业有效状态。
+    evidence_refs: [CODE-CUST-QUERY, DB-PROFILE-20260814]
+    contract_fragment:
+      version: 1
+      intent_defaults:
+        - dataset_subject: 企业
+          kind: filter
+          value: {business_name: 数据类型, operator: eq, values: ['1']}
+        - dataset_subject: 企业
+          kind: filter
+          value: {business_name: 启用状态, operator: eq, values: [Y]}
+    field_targets:
+      - {table_name: cust_company_info, field_name: data_type}
+      - {table_name: cust_company_info, field_name: enable}
+
+  - kind: caliber
+    item_id: CAL-ENABLED-PROJECT-REL
+    status: verified
+    confidence: 0.98
+    label: 启用的企业项目关系
+    summary: 统计当前有效企业项目关系时排除已停用关系。
+    evidence_refs: [CODE-CUST-QUERY, DB-PROFILE-20260814]
+    contract_fragment:
+      version: 1
+      intent_defaults:
+        - dataset_subject: 企业项目关系
+          kind: filter
+          value: {business_name: 关系启用状态, operator: eq, values: [Y]}
+    field_targets:
+      - {table_name: cust_project_rel, field_name: enable}
+
+  - kind: caliber
+    item_id: CAL-FINANCING-PROJECT-REL
+    status: verified
+    confidence: 0.98
+    label: 启用的资金方项目关系
+    summary: 查询项目资金方时使用资金方角色并排除停用关系。
+    evidence_refs: [CODE-COMPANY-TYPE, CODE-CUST-QUERY, DB-PROFILE-20260814]
+    contract_fragment:
+      version: 1
+      intent_defaults:
+        - dataset_subject: 企业项目关系
+          kind: filter
+          value: {business_name: 企业角色, operator: eq, values: [FINANCE]}
+        - dataset_subject: 企业项目关系
+          kind: filter
+          value: {business_name: 关系启用状态, operator: eq, values: [Y]}
+    field_targets:
+      - {table_name: cust_project_rel, field_name: company_type}
+      - {table_name: cust_project_rel, field_name: enable}
+
+  - kind: caliber
+    item_id: CAL-OPENED-TENANT-PRODUCT
+    status: verified
+    confidence: 0.97
+    label: 已开放且启用的租户产品
+    summary: 租户产品 open_status 使用真实字典值 Y，并限定启用状态。
+    evidence_refs: [CODE-PRODUCT-DAO, DB-PROFILE-20260814]
+    contract_fragment:
+      version: 1
+      intent_defaults:
+        - dataset_subject: 租户产品
+          kind: filter
+          value: {business_name: 开放状态, operator: eq, values: [Y]}
+        - dataset_subject: 租户产品
+          kind: filter
+          value: {business_name: 启用状态, operator: eq, values: [Y]}
+    field_targets:
+      - {table_name: tenant_product, field_name: open_status}
+      - {table_name: tenant_product, field_name: enable}
+
+  - kind: caliber
+    item_id: CAL-ACTIVE-TENANT-SETTING
+    status: verified
+    confidence: 0.97
+    label: 生效且启用的租户配置
+    summary: 查询当前生效的租户配置时同时限定业务状态和启用状态。
+    evidence_refs: [DB-PROFILE-20260814]
+    contract_fragment:
+      version: 1
+      intent_defaults:
+        - dataset_subject: 租户配置
+          kind: filter
+          value: {business_name: 配置状态, operator: eq, values: [Y]}
+        - dataset_subject: 租户配置
+          kind: filter
+          value: {business_name: 启用状态, operator: eq, values: [Y]}
+    field_targets:
+      - {table_name: tenant_setting, field_name: status}
+      - {table_name: tenant_setting, field_name: enable}
+
+  - kind: relation
+    item_id: REL-PROJECT-COMPANY-CODE
+    status: verified
+    confidence: 0.96
+    evidence_refs: [CODE-CUST-QUERY, DB-PROFILE-20260814]
+    left: {table_name: cust_project_rel, field_name: ref_cust_company_info}
+    right: {table_name: cust_company_info, field_name: code}
+    relation_kind: EQUI_JOIN
+    cardinality: N:1
+    evidence:
+      left_rows: 1182
+      left_non_null: 1179
+      unmatched_rows: 262
+      note: 未匹配关系必须按查询需求选择 INNER JOIN 或保留空企业信息
+
+  - kind: relation
+    item_id: REL-PROJECT-REL-TENANT-PROJECT
+    status: verified
+    confidence: 0.97
+    evidence_refs: [CODE-CUST-QUERY, DB-PROFILE-20260814]
+    left: {table_name: cust_project_rel, field_name: project_id}
+    right: {table_name: tenant_project, field_name: id}
+    relation_kind: EQUI_JOIN
+    cardinality: N:1
+    evidence:
+      left_rows: 1182
+      left_non_null: 1111
+      unmatched_rows: 183
+
+  - kind: relation
+    item_id: REL-TENANT-PRODUCT-PLATFORM-PRODUCT
+    status: verified
+    confidence: 0.99
+    evidence_refs: [CODE-PRODUCT-DAO, DB-PROFILE-20260814]
+    left: {table_name: tenant_product, field_name: platform_product_id}
+    right: {table_name: platform_product, field_name: id}
+    relation_kind: EQUI_JOIN
+    cardinality: N:1
+    evidence:
+      left_rows: 78
+      left_non_null: 78
+      unmatched_rows: 0
+
+  - kind: relation
+    item_id: REL-TENANT-PROJECT-TENANT-PRODUCT
+    status: verified
+    confidence: 0.94
+    evidence_refs: [CODE-PRODUCT-DAO, DB-PROFILE-20260814]
+    left: {table_name: tenant_project, field_name: product_id}
+    right: {table_name: tenant_product, field_name: id}
+    relation_kind: EQUI_JOIN
+    cardinality: N:1
+    evidence:
+      left_rows: 317
+      left_non_null: 315
+      unmatched_rows: 22
+
+  - kind: example
+    item_id: EXAMPLE-MONTHLY-ACTIVE-BUILT-COMPANY
+    status: verified
+    confidence: 0.99
+    evidence_refs: [CODE-CUST-QUERY, DB-QUERY-VERIFY-20260814]
+    question: 按企业主数据创建月份统计有效已建档企业数
+    query: >-
+      SELECT DATE_FORMAT(cci.create_time, '%Y-%m') AS month,
+             COUNT(DISTINCT cci.id) AS company_count
+      FROM cust_company_info cci
+      WHERE cci.cust_build_status = 'BUILD_SUCCESS'
+        AND cci.cust_status = 'EFFECT'
+        AND cci.data_type = '1'
+        AND cci.enable = 'Y'
+      GROUP BY DATE_FORMAT(cci.create_time, '%Y-%m')
+      ORDER BY month
+      LIMIT 1000
+    intended_specification:
+      subject: 企业
+      measure: 有效已建档企业数
+      time_basis: 企业主数据创建时间
+      grain: month
+    verification:
+      executed: true
+      passed: true
+      checked_at: '2026-08-14'
+      row_count: 44
+      notes: 在 lowcode_pplatform 只读执行通过
+
+  - kind: example
+    item_id: EXAMPLE-COMPANY-COUNT-BY-PROJECT
+    status: verified
+    confidence: 0.98
+    evidence_refs: [CODE-CUST-QUERY, DB-QUERY-VERIFY-20260814]
+    question: 按租户项目统计当前有效已建档企业数量
+    query: >-
+      SELECT tp.id AS project_id,
+             tp.name AS project_name,
+             COUNT(DISTINCT cci.id) AS company_count
+      FROM tenant_project tp
+      JOIN cust_project_rel cpr ON cpr.project_id = tp.id AND cpr.enable = 'Y'
+      JOIN cust_company_info cci ON cci.code = cpr.ref_cust_company_info
+       AND cci.cust_build_status = 'BUILD_SUCCESS'
+       AND cci.cust_status = 'EFFECT'
+       AND cci.data_type = '1'
+       AND cci.enable = 'Y'
+      WHERE tp.enable = 'Y'
+      GROUP BY tp.id, tp.name
+      ORDER BY company_count DESC, tp.id
+      LIMIT 1000
+    intended_specification:
+      subject: 企业
+      measure: 有效已建档企业数
+      grouping: 租户项目
+    verification:
+      executed: true
+      passed: true
+      checked_at: '2026-08-14'
+      row_count: 92
+      notes: 在 lowcode_pplatform 只读执行通过
+
+  - kind: example
+    item_id: EXAMPLE-FINANCING-PARTY-BY-PROJECT
+    status: verified
+    confidence: 0.98
+    evidence_refs: [CODE-COMPANY-TYPE, CODE-CUST-QUERY, DB-QUERY-VERIFY-20260814]
+    question: 查询每个租户项目当前启用的资金方企业
+    query: >-
+      SELECT tp.id AS project_id,
+             tp.name AS project_name,
+             cci.id AS company_id,
+             cci.name AS company_name
+      FROM cust_project_rel cpr
+      JOIN tenant_project tp ON tp.id = cpr.project_id
+      JOIN cust_company_info cci ON cci.code = cpr.ref_cust_company_info
+      WHERE cpr.company_type = 'FINANCE'
+        AND cpr.enable = 'Y'
+      ORDER BY tp.id, cci.name
+      LIMIT 1000
+    intended_specification:
+      subject: 企业项目关系
+      role: 资金方
+      output: [租户项目, 企业]
+    verification:
+      executed: true
+      passed: true
+      checked_at: '2026-08-14'
+      row_count: 159
+      notes: 在 lowcode_pplatform 只读执行通过
+
+  - kind: example
+    item_id: EXAMPLE-SYNC-ERROR-MONTHLY
+    status: verified
+    confidence: 0.97
+    evidence_refs: [DB-PROFILE-20260814, DB-QUERY-VERIFY-20260814]
+    question: 按失败记录创建月份统计同步失败调用次数和累计重试次数
+    query: >-
+      SELECT DATE_FORMAT(create_time, '%Y-%m') AS month,
+             COUNT(*) AS failed_call_count,
+             SUM(COALESCE(retry_num, 0)) AS retry_count
+      FROM client_api_sync_error
+      GROUP BY DATE_FORMAT(create_time, '%Y-%m')
+      ORDER BY month
+      LIMIT 1000
+    intended_specification:
+      subject: 同步失败记录
+      measures: [失败调用次数, 累计重试次数]
+      time_basis: 失败记录创建时间
+      grain: month
+    verification:
+      executed: true
+      passed: true
+      checked_at: '2026-08-14'
+      row_count: 4
+      notes: 在 lowcode_pplatform 只读执行通过
+
+  - kind: rule
+    item_id: RULE-ACTIVE-BUILT-COMPANY
+    status: verified
+    confidence: 0.99
+    label: 有效已建档企业必须使用联合口径
+    content: 统计“有效已建档企业”时，必须同时满足 cust_build_status='BUILD_SUCCESS'、cust_status='EFFECT'、data_type='1'、enable='Y'；任何单一字段都不足以表达该业务集合。
+    evidence_refs: [CODE-CUST-STATUS, CODE-CUST-QUERY, DB-PROFILE-20260814]
+
+  - kind: rule
+    item_id: RULE-PROJECT-COMPANY-JOIN
+    status: verified
+    confidence: 0.98
+    label: 企业项目关系使用企业编码关联
+    content: cust_project_rel.ref_cust_company_info 应连接 cust_company_info.code；不得仅根据字段命名改连企业 id。目标库存在未匹配关系，查询时需按业务要求选择是否保留。
+    evidence_refs: [CODE-CUST-QUERY, DB-PROFILE-20260814]
+
+  - kind: rule
+    item_id: RULE-SYNC-ERROR-GRAIN
+    status: verified
+    confidence: 0.98
+    label: 同步失败记录按调用粒度统计
+    content: client_api_sync_error 的计数表示失败调用记录数，retry_num 表示重试次数；除非存在可验证业务键去重，否则不得解释为失败企业数、失败项目数或失败协议数。
+    evidence_refs: [DB-PROFILE-20260814, DB-QUERY-VERIFY-20260814]

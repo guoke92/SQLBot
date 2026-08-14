@@ -19,7 +19,7 @@ def stable_id(prefix: str, *parts: str) -> str:
 class CandidateResolution(BaseModel):
     model_config = ConfigDict(extra="forbid")
     option_id: str = ""
-    label: str
+    label: str = ""
     description: str = ""
     impact: str = ""
     resolution: dict[str, Any] = Field(default_factory=dict)
@@ -29,6 +29,16 @@ class CandidateResolution(BaseModel):
     def validate_resolution(self) -> Self:
         if not self.resolution:
             raise ValueError("Clarification option requires a structured resolution")
+        business_meaning = str(self.resolution.get("business_meaning") or "").strip()
+        label = self.label.strip()
+        # A/B/C is presentation identity owned by the client. The option label
+        # is the business-facing resolution and must not duplicate that marker.
+        if business_meaning and (not label or label.casefold() in {"a", "b", "c"}):
+            self.label = business_meaning
+        elif not label:
+            raise ValueError(
+                "Clarification option requires a business-facing label or business_meaning"
+            )
         return self
 
 

@@ -327,6 +327,24 @@ class SqlProtocol(BaseProtocol):
             brief=data.get("brief"),
         )
 
+    def parse_candidate_payload(self, payload: Mapping[str, Any]) -> QueryPlan:
+        sql = str(payload.get("sql") or "").strip().rstrip(";")
+        if not sql:
+            return QueryPlan(
+                success=False,
+                message="SQL query is empty",
+                statement="",
+                payload={},
+            )
+        return QueryPlan(
+            success=True,
+            statement=sql,
+            payload={"sql": sql},
+            resources=list(payload.get("tables") or []),
+            chart_type=payload.get("chart-type") or payload.get("chart_type"),
+            brief=payload.get("brief"),
+        )
+
     def validate_plan(
         self, ds: Any, plan: QueryPlan, allowed_resources: Sequence[str]
     ) -> QueryPlan:

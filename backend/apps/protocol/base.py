@@ -302,6 +302,17 @@ class BaseProtocol(ABC):
     def parse_llm_output(self, text: str) -> QueryPlan: ...
 
     @abstractmethod
+    def parse_candidate_payload(self, payload: Mapping[str, Any]) -> QueryPlan:
+        """Parse one protocol-native Query Agent candidate.
+
+        Unlike ``parse_llm_output``, this boundary never expects the legacy
+        ``success/message`` model-response envelope.  Query Agent candidates
+        are already discriminated by their planning decision and therefore
+        contain only the protocol-native physical payload.
+        """
+        ...
+
+    @abstractmethod
     def validate_plan(
         self, ds: Any, plan: QueryPlan, allowed_resources: Sequence[str]
     ) -> QueryPlan: ...
