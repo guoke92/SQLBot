@@ -10,6 +10,7 @@ from sqlalchemy import (
     Boolean,
     Column,
     DateTime,
+    ForeignKey,
     Identity,
     Integer,
     String,
@@ -61,6 +62,7 @@ class OperationEnum(Enum):
     GROUND_ENTITIES = '16'
     CLARIFY_INTENT = '17'
     DECIDE_NEXT = '18'
+    TURN_ROUTE = '19'
 
 
 class ChatFinishStep(Enum):
@@ -85,6 +87,9 @@ class ChatLog(SQLModel, table=True):
     operate: OperationEnum = Field(
         sa_column=Column(SQLAlchemyEnum(OperationEnum, native_enum=False, values_callable=enum_values, length=3)))
     pid: Optional[int] = Field(sa_column=Column(BigInteger, nullable=True))
+    run_id: Optional[str] = Field(
+        default=None, sa_column=Column(String(36), nullable=True, index=True)
+    )
     ai_modal_id: Optional[int] = Field(sa_column=Column(BigInteger))
     base_modal: Optional[str] = Field(max_length=255)
     messages: Any | None = Field(default=None, sa_column=Column(JSONB))
@@ -126,6 +131,31 @@ class ChatRecord(SQLModel, table=True):
     datasource: int = Field(sa_column=Column(BigInteger, nullable=True))
     engine_type: str = Field(max_length=64, nullable=True)
     question: str = Field(sa_column=Column(Text, nullable=True))
+    turn_kind: str = Field(
+        default="query", sa_column=Column(String(20), nullable=False, default="query")
+    )
+    relation: str = Field(
+        default="independent",
+        sa_column=Column(String(20), nullable=False, default="independent"),
+    )
+    reference_record_ids: List[int] = Field(
+        default_factory=list,
+        sa_column=Column(JSONB, nullable=False, default=list),
+    )
+    active_run_id: Optional[str] = Field(
+        default=None,
+        sa_column=Column(
+            String(36),
+            ForeignKey("conversation_run.run_id", ondelete="SET NULL"),
+            nullable=True,
+        ),
+    )
+    answer_revision: int = Field(
+        default=0, sa_column=Column(Integer, nullable=False, default=0)
+    )
+    answer: Optional[dict[str, Any]] = Field(
+        default=None, sa_column=Column(JSONB, nullable=True)
+    )
     sql_answer: str = Field(sa_column=Column(Text, nullable=True))
     sql: str = Field(sa_column=Column(Text, nullable=True))
     sql_exec_result: str = Field(sa_column=Column(Text, nullable=True))
@@ -140,9 +170,6 @@ class ChatRecord(SQLModel, table=True):
     datasource_select_answer: str = Field(sa_column=Column(Text, nullable=True))
     finish: bool = Field(sa_column=Column(Boolean, nullable=True, default=False))
     error: str = Field(sa_column=Column(Text, nullable=True))
-    analysis_record_id: int = Field(sa_column=Column(BigInteger, nullable=True))
-    predict_record_id: int = Field(sa_column=Column(BigInteger, nullable=True))
-    regenerate_record_id: int = Field(sa_column=Column(BigInteger, nullable=True))
     re_exec: Optional[str] = Field(sa_column=Column(Text, nullable=True))
     feedback: Optional[str] = Field(default=None, sa_column=Column(String(8), nullable=True))
     feedback_revision: int = Field(
@@ -158,6 +185,11 @@ class ChatRecordResult(BaseModel):
     create_time: Optional[datetime] = None
     finish_time: Optional[datetime] = None
     question: Optional[str] = None
+    turn_kind: Optional[str] = None
+    relation: Optional[str] = None
+    reference_record_ids: list[int] = Field(default_factory=list)
+    answer_revision: int = 0
+    answer: Optional[dict[str, Any]] = None
     sql_answer: Optional[str] = None
     sql: Optional[str] = None
     datasource: Optional[int] = None
@@ -172,9 +204,6 @@ class ChatRecordResult(BaseModel):
     datasource_select_answer: Optional[str] = None
     finish: Optional[bool] = None
     error: Optional[str] = None
-    analysis_record_id: Optional[int] = None
-    predict_record_id: Optional[int] = None
-    regenerate_record_id: Optional[int] = None
     sql_reasoning_content: Optional[str] = None
     chart_reasoning_content: Optional[str] = None
     analysis_reasoning_content: Optional[str] = None
@@ -185,6 +214,7 @@ class ChatRecordResult(BaseModel):
     re_exec: Optional[str] = None
     feedback: Optional[str] = None
     run_id: Optional[str] = None
+    run_attempt_index: int = 0
     run_status: Optional[str] = None
     run_event_cursor: int = 0
     run_current_node: Optional[str] = None
@@ -231,6 +261,7 @@ class ChatInfo(BaseModel):
 
 class ChatLogHistoryItem(BaseModel):
     id: Optional[int] = None  # chat_log.id — stable UI key
+    run_id: Optional[str] = None
     start_time: Optional[datetime] = None
     finish_time: Optional[datetime] = None
     duration: Optional[float] = None  # 耗时字段（单位：秒）
@@ -273,6 +304,7 @@ class ChatLogHistory(BaseModel):
     waiting_duration: Optional[float] = None
     total_tokens: Optional[int] = None  # token总消耗
     run: ExecutionRunSummary = Field(default_factory=ExecutionRunSummary)
+    attempts: List[ExecutionRunSummary] = Field(default_factory=list)
     steps: List[ChatLogHistoryItem | dict] = []
 
 

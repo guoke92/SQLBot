@@ -11,11 +11,7 @@ from collections import Counter
 from collections.abc import Mapping, Sequence
 from typing import Any, TypedDict
 
-from apps.chat.query_specification import (
-    GroupRequirement,
-    OutputRequirement,
-    QuerySpecification,
-)
+from apps.chat.query_intent import IntentRevision
 
 
 class ResultValidationIssue(TypedDict):
@@ -37,7 +33,7 @@ def _split_multi_metric_grain(
     assessment: Mapping[str, Any],
     *,
     step_index: int,
-    contract: QuerySpecification | None,
+    intent_revision: IntentRevision | None,
 ) -> ResultValidationIssue | None:
     """Detect mutually exclusive metric rows caused by a sparse dimension."""
     rows = [
@@ -46,16 +42,15 @@ def _split_multi_metric_grain(
     roles = assessment.get("field_roles") or {}
     metrics = [str(item) for item in roles.get("metrics") or []]
     dimensions = [str(item) for item in roles.get("dimensions") or []]
+    intent_datasets = intent_revision.intent.datasets if intent_revision else ()
     contract_metrics = [
-        requirement
-        for requirement in (contract.requirements if contract else ())
-        if isinstance(requirement, OutputRequirement)
-        and requirement.operation != "value"
+        output
+        for dataset in intent_datasets
+        for output in dataset.outputs
+        if output.role == "measure"
     ]
     contract_grains = [
-        requirement
-        for requirement in (contract.requirements if contract else ())
-        if isinstance(requirement, GroupRequirement)
+        grouping for dataset in intent_datasets for grouping in dataset.groupings
     ]
     contract_defines_shared_grain = len(contract_metrics) >= 2 and bool(contract_grains)
     if len(metrics) < 2 or not dimensions:
@@ -105,12 +100,8 @@ def _split_multi_metric_grain(
         "params": {
             "sparse_dimensions": sparse_dimensions,
             "stable_dimensions": stable_dimensions,
-            "contract_metric_keys": [
-                requirement.requirement_id for requirement in contract_metrics
-            ],
-            "contract_grain_keys": [
-                requirement.requirement_id for requirement in contract_grains
-            ],
+            "intent_metrics": [item.business_name for item in contract_metrics],
+            "intent_grains": [item.business_name for item in contract_grains],
         },
     }
 
@@ -118,7 +109,7 @@ def _split_multi_metric_grain(
 def validate_result_structure(
     assessments: Sequence[Mapping[str, Any]],
     *,
-    contract: QuerySpecification | None = None,
+    intent_revision: IntentRevision | None = None,
 ) -> ResultValidationReport:
     """Validate the complete candidate batch before charting or publication."""
     issues: list[ResultValidationIssue] = []
@@ -127,7 +118,7 @@ def validate_result_structure(
         split_issue = _split_multi_metric_grain(
             assessment,
             step_index=step_index,
-            contract=contract,
+            intent_revision=intent_revision,
         )
         if split_issue:
             issues.append(split_issue)

@@ -251,12 +251,6 @@
                   <!-- NLQ primary + follow-ups -->
                   <template v-else>
                     <MultiStepAnswer
-                      v-if="
-                        (message?.record?.analysis_record_id === undefined ||
-                          message?.record?.analysis_record_id === null) &&
-                        (message?.record?.predict_record_id === undefined ||
-                          message?.record?.predict_record_id === null)
-                      "
                       ref="chartAnswerRef"
                       :chat-list="chatList"
                       :current-chat="currentChat"
@@ -397,58 +391,6 @@
                         />
                       </template>
                     </MultiStepAnswer>
-                    <AnalysisAnswer
-                      v-if="
-                        message?.record?.analysis_record_id !== undefined &&
-                        message?.record?.analysis_record_id !== null
-                      "
-                      ref="analysisAnswerRef"
-                      :chat-list="chatList"
-                      :current-chat="currentChat"
-                      :current-chat-id="currentChatId"
-                      :loading="isTyping"
-                      :message="message"
-                      @finish="onAnalysisAnswerFinish"
-                      @error="onAnalysisAnswerError"
-                      @stop="onChatStop"
-                    >
-                      <ErrorInfo :error="message.record?.error" class="error-container" />
-                      <template #tool>
-                        <ChatTokenTime
-                          :record-id="message.record?.id"
-                          :duration="message.record?.duration"
-                          :total-tokens="message.record?.total_tokens"
-                        />
-                        <ChatToolBar v-if="!message.isTyping" :message="message" />
-                      </template>
-                    </AnalysisAnswer>
-                    <PredictAnswer
-                      v-if="
-                        message?.record?.predict_record_id !== undefined &&
-                        message?.record?.predict_record_id !== null
-                      "
-                      ref="predictAnswerRef"
-                      :chat-list="chatList"
-                      :current-chat="currentChat"
-                      :current-chat-id="currentChatId"
-                      :record-id="message.record?.id"
-                      :loading="isTyping"
-                      :message="message"
-                      @scroll-bottom="maybeScrollToBottom"
-                      @finish="onPredictAnswerFinish"
-                      @error="onPredictAnswerError"
-                      @stop="onChatStop"
-                    >
-                      <ErrorInfo :error="message.record?.error" class="error-container" />
-                      <template #tool>
-                        <ChatTokenTime
-                          :record-id="message.record?.id"
-                          :duration="message.record?.duration"
-                          :total-tokens="message.record?.total_tokens"
-                        />
-                        <ChatToolBar v-if="!message.isTyping" :message="message" />
-                      </template>
-                    </PredictAnswer>
                   </template>
                 </template>
               </ChatRow>
@@ -508,7 +450,7 @@
             type="textarea"
             :autosize="{ minRows: 1, maxRows: 8.583 }"
             :placeholder="t('qa.question_placeholder')"
-            @keydown.enter.exact.prevent="($event: any) => sendMessage(undefined, $event)"
+            @keydown.enter.exact.prevent="($event: any) => sendMessage($event)"
             @keydown.ctrl.enter.exact.prevent="handleCtrlEnter"
           />
 
@@ -517,7 +459,7 @@
             type="primary"
             class="input-icon"
             :disabled="isTyping"
-            @click.stop="($event: any) => sendMessage(undefined, $event)"
+            @click.stop="($event: any) => sendMessage($event)"
           >
             <el-icon size="16">
               <icon_send_filled />
@@ -541,8 +483,6 @@ import { computed, nextTick, onMounted, ref } from 'vue'
 import { Chat, chatApi, ChatInfo, type ChatMessage, ChatRecord } from '@/api/chat'
 import ChatRow from './ChatRow.vue'
 import MultiStepAnswer from './answer/MultiStepAnswer.vue'
-import AnalysisAnswer from './answer/AnalysisAnswer.vue'
-import PredictAnswer from './answer/PredictAnswer.vue'
 import ConfigAnswer from './answer/ConfigAnswer.vue'
 import UserChat from './chat-block/UserChat.vue'
 import RecommendQuestion from './RecommendQuestion.vue'
@@ -553,7 +493,7 @@ import ErrorInfo from './ErrorInfo.vue'
 import ChatToolBar from './ChatToolBar.vue'
 import { dsTypeWithImg } from '@/views/ds/js/ds-type'
 import { useI18n } from 'vue-i18n'
-import { find, forEach } from 'lodash-es'
+import { find } from 'lodash-es'
 import custom_small from '@/assets/svg/logo-custom_small.svg'
 import LOGO_fold from '@/assets/LOGO-fold.svg'
 import icon_new_chat_outlined from '@/assets/svg/icon_new_chat_outlined.svg'
@@ -732,12 +672,7 @@ function getChatList(callback?: () => void) {
 
 function onClickHistory(chat: ChatInfo) {
   forceScrollToBottom(false)
-  forEach(chat?.records, (record: ChatRecord) => {
-    // getChatData(record.id)
-    if (record.predict_record_id) {
-      // getChatPredictData(record.id)
-    }
-  })
+  void chat
 }
 
 const currentChatEngineType = computed(() => {
@@ -874,10 +809,7 @@ const assistantPrepareSend = async () => {
     }
   }
 }
-const sendMessage = async (
-  regenerate_record_id: number | undefined = undefined,
-  $event: any = {}
-) => {
+const sendMessage = async ($event: any = {}) => {
   if ($event?.isComposing) {
     return
   }
@@ -892,7 +824,6 @@ const sendMessage = async (
   currentRecord.create_time = new Date()
   currentRecord.chat_id = currentChatId.value
   currentRecord.question = inputMessage.value
-  currentRecord.regenerate_record_id = regenerate_record_id
   currentRecord.sql_answer = ''
   currentRecord.sql = ''
   currentRecord.chart_answer = ''
@@ -934,21 +865,6 @@ const sendMessage = async (
   })
 }
 
-const analysisAnswerRef = ref()
-
-async function onAnalysisAnswerFinish(id: number) {
-  loading.value = false
-  isTyping.value = false
-  maybeScrollToBottom()
-  getRecordUsage(id)
-  //await getRecommendQuestions(id)
-}
-function onAnalysisAnswerError(id: number) {
-  loading.value = false
-  isTyping.value = false
-  getRecordUsage(id)
-}
-
 async function submitFeedback(message: ChatMessage, feedback: 'up' | 'down') {
   if (!message.record?.id) return
   const newFeedback = message.record.feedback === feedback ? null : feedback
@@ -961,64 +877,15 @@ async function submitFeedback(message: ChatMessage, feedback: 'up' | 'down') {
 }
 
 function askAgain(message: ChatMessage) {
-  if (message.record?.question?.trim() === '') {
-    return
-  }
-  // regenerate
-  inputMessage.value = '/regenerate'
-  let regenerate_record_id = message.record?.id
-  if (message.record?.id == undefined && message.record?.regenerate_record_id) {
-    //只有当前对话内，上一次执行失败的重试会进这里
-    regenerate_record_id = message.record?.regenerate_record_id
-  }
-  if (regenerate_record_id) {
-    inputMessage.value = inputMessage.value + ' ' + regenerate_record_id
-  }
-  nextTick(() => {
-    sendMessage(regenerate_record_id)
-  })
+  if (!message.record?.id) return
+  const target = Array.isArray(chartAnswerRef.value)
+    ? chartAnswerRef.value.find((item: any) => item.index() === message.index)
+    : chartAnswerRef.value
+  target?.regenerate?.()
 }
 
 async function clickAnalysis(id?: number) {
-  const baseRecord = find(currentChat.value.records, (value) => id === value.id)
-  if (baseRecord == undefined) {
-    return
-  }
-
-  loading.value = true
-  isTyping.value = true
-  forceScrollToBottom()
-
-  const currentRecord = new ChatRecord()
-  currentRecord.create_time = new Date()
-  currentRecord.chat_id = baseRecord.chat_id
-  currentRecord.question = baseRecord.question
-  currentRecord.chart = baseRecord.chart
-  currentRecord.data = baseRecord.data
-  currentRecord.analysis_record_id = id
-  currentRecord.analysis = ''
-
-  currentChat.value.records.push(currentRecord)
-
-  nextTick(async () => {
-    forceScrollToBottom()
-    const index = currentChat.value.records.length - 1
-    if (analysisAnswerRef.value) {
-      if (analysisAnswerRef.value instanceof Array) {
-        for (let i = 0; i < analysisAnswerRef.value.length; i++) {
-          const _index = analysisAnswerRef.value[i].index()
-          if (index === _index) {
-            await analysisAnswerRef.value[i].sendMessage()
-            break
-          }
-        }
-      } else {
-        await analysisAnswerRef.value.sendMessage()
-      }
-    }
-  })
-
-  return
+  return startReferencedTurn('analysis', id)
 }
 
 function getRecordUsage(recordId: any) {
@@ -1044,27 +911,13 @@ function getRecordUsage(recordId: any) {
   })
 }
 
-const predictAnswerRef = ref()
-
-async function onPredictAnswerFinish(id: number) {
-  loading.value = false
-  isTyping.value = false
-  maybeScrollToBottom()
-  // console.debug('onPredictAnswerFinish: ', id)
-  getRecordUsage(id)
-  //await getRecommendQuestions(id)
-}
-function onPredictAnswerError(id: number) {
-  loading.value = false
-  isTyping.value = false
-  getRecordUsage(id)
-}
-
 async function clickPredict(id?: number) {
+  return startReferencedTurn('prediction', id)
+}
+
+async function startReferencedTurn(kind: 'analysis' | 'prediction', id?: number) {
   const baseRecord = find(currentChat.value.records, (value) => id === value.id)
-  if (baseRecord == undefined) {
-    return
-  }
+  if (baseRecord == undefined || !id) return
 
   loading.value = true
   isTyping.value = true
@@ -1073,34 +926,31 @@ async function clickPredict(id?: number) {
   const currentRecord = new ChatRecord()
   currentRecord.create_time = new Date()
   currentRecord.chat_id = baseRecord.chat_id
-  currentRecord.question = baseRecord.question
-  currentRecord.chart = baseRecord.chart
-  currentRecord.data = baseRecord.data
-  currentRecord.predict_record_id = id
-  currentRecord.predict = ''
-  currentRecord.predict_data = ''
+  currentRecord.question =
+    kind === 'analysis' ? '请分析上一条查询结果' : '请基于上一条查询结果进行预测'
+  currentRecord.turn_kind = kind
+  currentRecord.relation = 'continue'
+  currentRecord.reference_record_ids = [id]
 
   currentChat.value.records.push(currentRecord)
 
   nextTick(async () => {
     forceScrollToBottom()
     const index = currentChat.value.records.length - 1
-    if (predictAnswerRef.value) {
-      if (predictAnswerRef.value instanceof Array) {
-        for (let i = 0; i < predictAnswerRef.value.length; i++) {
-          const _index = predictAnswerRef.value[i].index()
+    if (chartAnswerRef.value) {
+      if (chartAnswerRef.value instanceof Array) {
+        for (let i = 0; i < chartAnswerRef.value.length; i++) {
+          const _index = chartAnswerRef.value[i].index()
           if (index === _index) {
-            await predictAnswerRef.value[i].sendMessage()
+            await chartAnswerRef.value[i].sendMessage()
             break
           }
         }
       } else {
-        await predictAnswerRef.value.sendMessage()
+        await chartAnswerRef.value.sendMessage()
       }
     }
   })
-
-  return
 }
 
 const handleCtrlEnter = (e: KeyboardEvent) => {
@@ -1148,24 +998,6 @@ function stop(func?: (...p: any[]) => void, ...param: any[]) {
       }
     } else {
       chartAnswerRef.value.stop()
-    }
-  }
-  if (analysisAnswerRef.value) {
-    if (analysisAnswerRef.value instanceof Array) {
-      for (let i = 0; i < analysisAnswerRef.value.length; i++) {
-        analysisAnswerRef.value[i].stop()
-      }
-    } else {
-      analysisAnswerRef.value.stop()
-    }
-  }
-  if (predictAnswerRef.value) {
-    if (predictAnswerRef.value instanceof Array) {
-      for (let i = 0; i < predictAnswerRef.value.length; i++) {
-        predictAnswerRef.value[i].stop()
-      }
-    } else {
-      predictAnswerRef.value.stop()
     }
   }
   if (func && typeof func === 'function') {

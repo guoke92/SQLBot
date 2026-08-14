@@ -165,6 +165,57 @@ class KnowledgePackage(BaseModel):
         return self
 
 
+class KnowledgeIssue(BaseModel):
+    """Stable API issue contract; UI must not branch on display text."""
+
+    code: str
+    severity: Literal["info", "warning", "error"] = "info"
+    detail: str = ""
+    params: dict[str, Any] = Field(default_factory=dict)
+
+
+_KNOWN_ISSUES: dict[str, tuple[str, Literal["info", "warning", "error"]]] = {
+    "item status is rejected": ("ITEM_REJECTED", "error"),
+    "evidence is provenance input and is not a runtime asset": (
+        "EVIDENCE_RETAINED",
+        "info",
+    ),
+    "terminology must be reviewed before direct publication": (
+        "TERMINOLOGY_REVIEW_REQUIRED",
+        "warning",
+    ),
+    "terminology will be global to the workspace": (
+        "TERMINOLOGY_GLOBAL_SCOPE",
+        "info",
+    ),
+    "caliber draft must be converted to a QueryIntent default fragment": (
+        "CALIBER_DEFINITION_REQUIRED",
+        "warning",
+    ),
+    "relation will enter CANDIDATE and requires confirmation": (
+        "RELATION_CONFIRMATION_REQUIRED",
+        "warning",
+    ),
+    "query example has an intended specification but no executable plan": (
+        "EXAMPLE_QUERY_REQUIRED",
+        "error",
+    ),
+    "query example requires executed and passed verification": (
+        "EXAMPLE_VERIFICATION_REQUIRED",
+        "warning",
+    ),
+    "rule will enter staging and requires explicit certification": (
+        "RULE_CERTIFICATION_REQUIRED",
+        "info",
+    ),
+}
+
+
+def knowledge_issue_from_message(message: str) -> KnowledgeIssue:
+    code, severity = _KNOWN_ISSUES.get(message, ("VALIDATION_FAILED", "error"))
+    return KnowledgeIssue(code=code, severity=severity, detail=message)
+
+
 class KnowledgeImportItemResult(BaseModel):
     item_id: str
     kind: str
@@ -172,7 +223,16 @@ class KnowledgeImportItemResult(BaseModel):
     action: str = "previewed"
     target_id: int | None = None
     messages: list[str] = Field(default_factory=list)
+    issues: list[KnowledgeIssue] = Field(default_factory=list)
     normalized: dict[str, Any] | None = None
+
+    @model_validator(mode="after")
+    def normalize_issues(self) -> KnowledgeImportItemResult:
+        if not self.issues and self.messages:
+            self.issues = [
+                knowledge_issue_from_message(message) for message in self.messages
+            ]
+        return self
 
 
 class KnowledgeImportReport(BaseModel):

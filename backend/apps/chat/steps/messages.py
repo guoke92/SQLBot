@@ -40,10 +40,9 @@ def retrieve_prompt_schema(
 
 def assemble_chart_messages(llm_service: Any) -> None:
     """Assemble chart history after the query specification is confirmed."""
-    regenerate_record_id = llm_service.chat_question.regenerate_record_id
     last_chart_messages = select_prompt_history(
         llm_service.generate_chart_logs,
-        record_id=regenerate_record_id,
+        record_id=getattr(llm_service.record, "id", None),
     )
 
     count_chart_limit = llm_service.base_message_round_count_limit

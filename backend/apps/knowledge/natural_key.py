@@ -8,14 +8,10 @@ from typing import Any
 
 
 def canonical_fragment_fingerprint(fragment: dict[str, Any]) -> str:
-    """Fingerprint the complete typed v3 clause semantics."""
-    from apps.chat.query_specification import (
-        parse_specification_fragment,
-        specification_semantic_material,
-    )
+    """Fingerprint normalized QueryIntent-default semantics."""
+    from apps.chat.intent_defaults import parse_intent_default_fragment
 
-    specification = parse_specification_fragment(fragment)
-    material = specification_semantic_material(specification)
+    material = parse_intent_default_fragment(fragment).model_dump(mode="json")
     blob = json.dumps(
         material,
         ensure_ascii=False,

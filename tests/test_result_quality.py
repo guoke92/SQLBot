@@ -40,7 +40,7 @@ def test_verified_contract_scores_user_requirement_completion() -> None:
     report = build_step_quality(_assessment(), evidence=_evidence())
     assert report["score"] >= 90
     assert report["grade"] == "excellent"
-    assert "query_specification_satisfied" in report["passed_checks"]
+    assert "query_intent_satisfied" in report["passed_checks"]
     assert sum(item["weight"] for item in report["dimensions"]) == 100
 
 
@@ -49,9 +49,9 @@ def test_partial_and_unsupported_verification_are_not_claimed_as_verified() -> N
     unsupported = build_step_quality(_assessment(), evidence=_evidence("unsupported"))
     assert partial["score"] < 90
     assert unsupported["score"] < 90
-    assert "query_specification_satisfied" not in partial["passed_checks"]
-    assert "query_specification_partially_verified" in partial["passed_checks"]
-    assert "query_specification_satisfied" not in unsupported["passed_checks"]
+    assert "query_intent_satisfied" not in partial["passed_checks"]
+    assert "query_intent_partially_verified" in partial["passed_checks"]
+    assert "query_intent_satisfied" not in unsupported["passed_checks"]
 
 
 def test_empty_result_is_a_valid_answer_and_not_a_score_penalty() -> None:

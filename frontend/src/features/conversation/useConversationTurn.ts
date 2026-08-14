@@ -1,6 +1,8 @@
 import { ref, type Ref } from 'vue'
 import {
   runApi,
+  parseTurnAnswer,
+  turnAnswerToPayload,
   type ChatRecord,
   type ConversationInterrupt,
   type ConversationRunSnapshot,
@@ -27,6 +29,9 @@ export const useConversationTurn = (options: UseChatStreamOptions = {}) => {
   const applySnapshot = (record: ChatRecord, snapshot: ConversationRunSnapshot) => {
     if (snapshot.record && typeof snapshot.record === 'object') {
       Object.assign(record, snapshot.record)
+      const persistedAnswer = (snapshot.record as Record<string, unknown>).answer
+      record.turn_answer = parseTurnAnswer(persistedAnswer)
+      record.answer = turnAnswerToPayload(persistedAnswer) || record.answer
     }
     record.id = snapshot.chat_record_id
     record.run_id = snapshot.run_id
@@ -203,13 +208,16 @@ export const useConversationTurn = (options: UseChatStreamOptions = {}) => {
   const run = async (
     chatId: number,
     record: ChatRecord,
-    handlers: ConversationTurnHandlers = {}
+    handlers: ConversationTurnHandlers = {},
+    options: { regenerate?: boolean } = {}
   ) => {
     await withOwnership(async () => {
       const created = await runApi.create({
         question: record.question || '',
         chat_id: chatId,
-        regenerate_record_id: record.regenerate_record_id,
+        regenerate_record_id: options.regenerate ? record.id : undefined,
+        route_hint: record.turn_kind,
+        reference_record_ids: record.reference_record_ids,
       })
       const snapshot = ((created as any)?.data || created) as ConversationRunSnapshot
       // A run may start emitting before POST /runs returns.  Subscribe from zero
@@ -222,7 +230,8 @@ export const useConversationTurn = (options: UseChatStreamOptions = {}) => {
     record: ChatRecord,
     pending: ConversationInterrupt,
     answers: ResumeAnswer[],
-    handlers: ConversationTurnHandlers = {}
+    handlers: ConversationTurnHandlers = {},
+    proceedWithAssumptions = false
   ) => {
     if (!record.run_id) throw new Error('Conversation run is missing')
     const runId = record.run_id
@@ -242,6 +251,7 @@ export const useConversationTurn = (options: UseChatStreamOptions = {}) => {
           version: pending.version,
           idempotency_key: crypto.randomUUID(),
           answers,
+          proceed_with_assumptions: proceedWithAssumptions,
         })
         const snapshot = ((response as any)?.data || response) as ConversationRunSnapshot
         await observe(snapshot, record, handlers, previousCursor)

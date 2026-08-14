@@ -11,7 +11,7 @@ from typing import Any
 from sqlalchemy import func
 from sqlmodel import Session, select
 
-from apps.chat.query_specification import parse_specification_fragment
+from apps.chat.intent_defaults import parse_intent_default_fragment
 from apps.data_training.curd.data_training import create_training, update_training
 from apps.data_training.models.data_training_model import DataTraining, DataTrainingInfo
 from apps.datasource.models.datasource import CoreDatasource, CoreField, CoreTable
@@ -121,32 +121,10 @@ def _resolve_field(
 
 
 def _fragment_refs(fragment: dict[str, Any]) -> list[PackageFieldRef]:
-    specification = parse_specification_fragment(fragment)
-    refs: dict[tuple[str, str], PackageFieldRef] = {}
-    for requirement in specification.requirements:
-        raw = requirement.model_dump(mode="json")
-        candidates: list[dict[str, Any]] = []
-        if isinstance(raw.get("field"), dict):
-            candidates.append(raw["field"])
-        candidates.extend(
-            value for value in (raw.get("fields") or []) if isinstance(value, dict)
-        )
-        for pair in raw.get("pairs") or []:
-            if isinstance(pair, dict):
-                candidates.extend(
-                    value
-                    for value in (pair.get("left"), pair.get("right"))
-                    if isinstance(value, dict)
-                )
-        for candidate in candidates:
-            resource = str(candidate.get("resource") or "")
-            field = str(candidate.get("field") or "")
-            if resource and field:
-                refs[(resource.casefold(), field.casefold())] = PackageFieldRef(
-                    table_name=resource,
-                    field_name=field,
-                )
-    return list(refs.values())
+    # Intent defaults deliberately contain no physical identifiers. Optional
+    # schema refs must be supplied in ``field_targets`` and are validated below.
+    parse_intent_default_fragment(fragment)
+    return []
 
 
 def _preview_item(
@@ -159,12 +137,14 @@ def _preview_item(
     default_datasource_name: str | None,
 ) -> KnowledgeImportItemResult:
     messages: list[str] = []
+    normalized: dict[str, Any] = item.model_dump(mode="json")
     if item.status == "rejected":
         return KnowledgeImportItemResult(
             item_id=item.item_id,
             kind=item.kind,
             readiness="invalid",
             messages=["item status is rejected"],
+            normalized=normalized,
         )
     try:
         ds = _resolve_datasource(
@@ -175,7 +155,6 @@ def _preview_item(
             default_datasource_id=default_datasource_id,
             default_datasource_name=default_datasource_name,
         )
-        normalized: dict[str, Any] = item.model_dump(mode="json")
         if isinstance(item, EvidencePackageItem):
             return KnowledgeImportItemResult(
                 item_id=item.item_id,
@@ -210,7 +189,7 @@ def _preview_item(
                     kind=item.kind,
                     readiness="review_required",
                     messages=[
-                        "caliber draft must be converted to a QuerySpecification v3 fragment"
+                        "caliber draft must be converted to a QueryIntent default fragment"
                     ],
                     normalized=normalized,
                 )
@@ -257,7 +236,7 @@ def _preview_item(
                 return KnowledgeImportItemResult(
                     item_id=item.item_id,
                     kind=item.kind,
-                    readiness="review_required",
+                    readiness="invalid",
                     messages=[
                         "query example has an intended specification but no executable plan"
                     ],
@@ -298,6 +277,7 @@ def _preview_item(
             kind=item.kind,
             readiness="invalid",
             messages=[str(exc)],
+            normalized=normalized,
         )
 
 
@@ -413,6 +393,7 @@ def apply_knowledge_package(
     default_datasource_id: int | None = None,
     default_datasource_name: str | None = None,
     include_kinds: set[str] | None = None,
+    include_item_ids: set[str] | None = None,
     expected_preview_fingerprint: str | None = None,
 ) -> KnowledgeImportReport:
     full_preview = preview_knowledge_package(
@@ -425,7 +406,8 @@ def apply_knowledge_package(
     selected_ids = {
         item.item_id
         for item in package.items
-        if not include_kinds or item.kind in include_kinds
+        if (not include_kinds or item.kind in include_kinds)
+        and (not include_item_ids or item.item_id in include_item_ids)
     }
     preview = full_preview.model_copy(
         update={

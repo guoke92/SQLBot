@@ -1,93 +1,74 @@
-"""V-T* extractors — emit candidates for staging admission."""
+"""Turn capture extractors for QueryIntent v1 knowledge assets."""
 
 from __future__ import annotations
 
 from typing import Any
 
-from apps.chat.query_specification import (
-    QuerySpecification,
-    parse_specification_fragment,
-    requirement_fields,
-)
+from apps.chat.intent_defaults import parse_intent_default_fragment
+from apps.chat.query_intent import IntentRevision
 from apps.knowledge.capture.snapshot import (
     TurnSnapshot,
     has_user_answer_requirements,
-    specification_requirements,
 )
 from apps.knowledge.natural_key import predicate_looks_ephemeral
 
-# Align with conversation.outcome_is_success (includes degraded partial success).
 _CAPTURE_OK_OUTCOMES = frozenset({"success", "accepted", "completed", "ok", "degraded"})
 
 
 def extract_v_t1_caliber(snapshot: TurnSnapshot) -> dict[str, Any] | None:
-    """V-T1: clarification-chain success → caliber candidate (user-confirmed slots only)."""
-    if snapshot.outcome not in _CAPTURE_OK_OUTCOMES:
+    """Capture only intent items explicitly supported by clarification evidence."""
+    if snapshot.outcome not in _CAPTURE_OK_OUTCOMES or snapshot.ds_id is None:
         return None
-    if snapshot.contract_status == "needs_clarification":
+    if not has_user_answer_requirements(snapshot.intent_revision):
         return None
-    if not has_user_answer_requirements(snapshot.specification):
-        return None
-    if snapshot.ds_id is None:
-        return None
-
-    specification = snapshot.specification
-    requirements = specification_requirements(specification)
-    confirmed: list[dict[str, Any]] = []
-    field_targets: list[dict[str, Any]] = []
-    for req in requirements:
-        if not isinstance(req, dict):
-            continue
-        refs = [str(r) for r in (req.get("evidence_refs") or [])]
-        if not any(r.startswith("user:answer:") for r in refs):
-            continue
-        if req.get("clause") == "predicate" or req.get("clause_type") == "predicate":
-            if predicate_looks_ephemeral(req):
-                continue
-        confirmed.append(_clause_only(req))
-        if not confirmed[-1].get("requirement_id") or not confirmed[-1].get(
-            "business_label"
-        ):
-            confirmed.pop()
-            continue
-
-    if not confirmed:
-        return None
-
-    label = _label_from_requirements(confirmed) or snapshot.original_question[:80]
-    fragment = {
-        "requirements": confirmed,
-        "version": specification.get("version"),
-    }
     try:
-        parsed_fragment = parse_specification_fragment(fragment)
+        revision = IntentRevision.model_validate(snapshot.intent_revision)
     except ValueError:
-        # A partial capture with dangling output/order references cannot be
-        # certified or safely reused. Leave it out of staging instead of
-        # creating a permanently failing capture job.
         return None
-    field_targets = _field_targets_from_specification(
-        parsed_fragment,
-        snapshot.ds_id,
-    )
-    # Envelope for runner; staging payload is stripped to V-T3 shape in runner.
+    if revision.status != "accepted" or revision.execution_mode != "verified":
+        return None
+
+    defaults: list[dict[str, Any]] = []
+    for item_key, value in revision.item_catalog.items():
+        refs = revision.evidence_map.get(item_key, ())
+        if not any(str(ref).startswith("user:answer:") for ref in refs):
+            continue
+        parts = item_key.split(":", 3)
+        if len(parts) < 3 or not parts[0].startswith("d"):
+            continue
+        dataset_index = int(parts[0][1:])
+        kind = parts[1]
+        if kind not in {"output", "group", "filter", "time", "order"}:
+            continue
+        if kind == "filter" and predicate_looks_ephemeral(value):
+            continue
+        defaults.append(
+            {
+                "dataset_subject": revision.intent.datasets[dataset_index].subject,
+                "kind": kind,
+                "value": value,
+            }
+        )
+    if not defaults:
+        return None
+    fragment = {"version": 1, "intent_defaults": defaults}
+    try:
+        parse_intent_default_fragment(fragment)
+    except ValueError:
+        return None
     return {
         "kind": "caliber",
         "trigger_id": "V-T1",
-        "label": label,
+        "label": str(defaults[0]["value"].get("business_name") or "业务口径")[:255],
         "summary": f"Captured from clarification on record {snapshot.record_id}",
         "contract_fragment": fragment,
-        "field_targets": field_targets,
-        "scope": {
-            "ds_id": snapshot.ds_id,
-            "assistant_id": snapshot.assistant_id,
-        },
+        "field_targets": [],
+        "scope": {"ds_id": snapshot.ds_id, "assistant_id": snapshot.assistant_id},
         "suggested_trust_tier": "admitted",
     }
 
 
 def extract_process_episode(snapshot: TurnSnapshot) -> dict[str, Any] | None:
-    """Weak process episode — never Bind / certify."""
     if snapshot.outcome not in _CAPTURE_OK_OUTCOMES:
         return None
     return {
@@ -106,7 +87,6 @@ def extract_process_episode(snapshot: TurnSnapshot) -> dict[str, Any] | None:
 
 
 def staging_payload_from_candidate(candidate: dict[str, Any]) -> dict[str, Any]:
-    """Normalize capture/V-T3 payloads to the same staging shape."""
     return {
         "label": candidate.get("label"),
         "summary": candidate.get("summary"),
@@ -115,57 +95,3 @@ def staging_payload_from_candidate(candidate: dict[str, Any]) -> dict[str, Any]:
         or {},
         "field_targets": list(candidate.get("field_targets") or []),
     }
-
-
-def _clause_only(req: dict[str, Any]) -> dict[str, Any]:
-    """Persist clause only — drop clause_type / evidence noise for fingerprint SoT."""
-    out = dict(req)
-    clause = (
-        out.pop("clause", None) or out.pop("clause_type", None) or out.pop("type", None)
-    )
-    if clause:
-        out["clause"] = clause
-    out.pop("clause_type", None)
-    out.pop("type", None)
-    # Evidence is turn-local; do not bake into reusable caliber fragment.
-    out.pop("evidence_refs", None)
-    out.pop("source", None)
-    return out
-
-
-def _field_targets_from_specification(
-    specification: QuerySpecification,
-    ds_id: int,
-) -> list[dict[str, Any]]:
-    out: list[dict[str, Any]] = []
-    seen: set[tuple[str, str]] = set()
-    for requirement in specification.requirements:
-        for ref in requirement_fields(requirement):
-            if not ref.field:
-                continue
-            identity = (ref.resource.casefold(), ref.field.casefold())
-            if identity in seen:
-                continue
-            seen.add(identity)
-            out.append(
-                {
-                    "ds_id": ds_id,
-                    "table_name": ref.resource,
-                    "field_name": ref.field,
-                    "field_id": None,
-                    "table_id": None,
-                }
-            )
-    return out
-
-
-def _label_from_requirements(reqs: list[dict[str, Any]]) -> str:
-    for req in reqs:
-        if req.get("clause") == "output":
-            label = req.get("business_label") or ""
-            if label:
-                return str(label)[:255]
-            field = req.get("field") or req.get("output") or {}
-            if isinstance(field, dict) and field.get("field"):
-                return str(field["field"])[:255]
-    return ""

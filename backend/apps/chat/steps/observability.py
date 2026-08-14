@@ -348,6 +348,7 @@ def log_span(
     *,
     operate: OperationEnum,
     record_id: int | None,
+    run_id: str | None = None,
     ai_modal_id: int | None = None,
     ai_modal_name: str | None = None,
     local_operation: bool = True,
@@ -381,6 +382,12 @@ def log_span(
         yield span
         return
 
+    if run_id is None:
+        from apps.conversation.runtime_context import current_worker_identity
+
+        active_run_id, _worker_token = current_worker_identity()
+        run_id = active_run_id
+
     common = {
         "phase": phase,
         "graph_node": graph_node,
@@ -400,6 +407,7 @@ def log_span(
                 ai_modal_name=ai_modal_name,
                 operate=operate,
                 record_id=record_id,
+                run_id=run_id,
                 full_message=make_span_message(
                     **common,
                     summary_key=initial_summary_key,

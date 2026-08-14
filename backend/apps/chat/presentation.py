@@ -6,11 +6,7 @@ import re
 from collections.abc import Iterable, Mapping, Sequence
 from typing import TypedDict
 
-from apps.chat.query_specification import (
-    GroupRequirement,
-    OutputRequirement,
-    QuerySpecification,
-)
+from apps.chat.query_intent import IntentRevision
 
 _SCHEMA_FIELD_RE = re.compile(r"^\s*\((?P<body>.*)\),?\s*$", re.MULTILINE)
 
@@ -66,7 +62,7 @@ def build_result_presentation(
     fields: Iterable[str],
     *,
     title: str = "",
-    contract: QuerySpecification | None = None,
+    intent_revision: IntentRevision | None = None,
     projection_requirements: Mapping[str, Sequence[str]] | None = None,
     schema_text: str = "",
 ) -> ResultPresentation:
@@ -76,24 +72,11 @@ def build_result_presentation(
     bindings are the protocol-neutral fallback. Schema comments are used only
     when neither source can establish one unambiguous business meaning.
     """
-    requirements = {
-        requirement.requirement_id: requirement
-        for requirement in (contract.requirements if contract else ())
-    }
+    requirements = dict(intent_revision.item_catalog) if intent_revision else {}
     lineage = {
         _bare_identifier(field): tuple(keys)
         for field, keys in (projection_requirements or {}).items()
     }
-    exact_labels: dict[str, set[str]] = {}
-    for requirement in requirements.values():
-        if isinstance(requirement, OutputRequirement | GroupRequirement):
-            requirement_fields = [requirement.field]
-        else:
-            requirement_fields = []
-        for field in requirement_fields:
-            exact_labels.setdefault(_bare_identifier(field.identifier), set()).add(
-                requirement.label
-            )
     schema_labels = schema_field_labels(schema_text)
 
     columns: list[ResultColumnPresentation] = []
@@ -101,10 +84,10 @@ def build_result_presentation(
         field = str(raw_field)
         normalized = _bare_identifier(field)
         contract_label = _unique_label(
-            requirements[key].label
+            str(requirements[key].get("business_name") or "")
             for key in lineage.get(normalized, ())
             if key in requirements
-        ) or _unique_label(exact_labels.get(normalized, ()))
+        )
         label = contract_label or schema_labels.get(normalized, "")
         display = (
             f"{label}({field})"

@@ -6,25 +6,35 @@ consumers of one lifecycle; none of them infer terminal state independently.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, Literal
+from uuid import uuid4
+from zoneinfo import ZoneInfo
 
 import orjson
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from sqlalchemy import func, select
 from sqlmodel import Session
 
-from apps.chat.models.chat_model import ChatRecord
+from apps.chat.models.chat_model import Chat, ChatRecord
 from apps.chat.steps.observability import close_open_audit_spans
+from apps.chat.turn_contracts import (
+    TURN_ANSWER_ADAPTER,
+    AnalysisTurnAnswer,
+    PredictionTurnAnswer,
+    QueryTurnAnswer,
+    UnsupportedTurnAnswer,
+)
 from apps.conversation.lifecycle_log import log_lifecycle
 from apps.conversation.models import (
+    ConversationEvidence,
     ConversationInterrupt,
     ConversationRun,
     ConversationRunEvent,
-    NlqEvidenceEvent,
-    NlqRun,
+    QueryRun,
+    ResultDataset,
 )
-from apps.conversation.record import persist_snapshot
+from common.core.config import settings
 
 RunStatus = Literal[
     "queued",
@@ -122,10 +132,13 @@ class ResumeRequest(BaseModel):
 
     version: int = Field(gt=0)
     idempotency_key: str = Field(min_length=1, max_length=128)
-    answers: list[ResumeAnswer] = Field(min_length=1)
+    answers: list[ResumeAnswer] = Field(default_factory=list)
+    proceed_with_assumptions: bool = False
 
     @model_validator(mode="after")
     def validate_unique_answers(self) -> ResumeRequest:
+        if not self.answers and not self.proceed_with_assumptions:
+            raise ValueError("At least one answer is required")
         ids = [answer.ambiguity_id for answer in self.answers]
         if len(ids) != len(set(ids)):
             raise ValueError("Each ambiguity may be answered only once")
@@ -150,6 +163,10 @@ class CreateRunRequest(BaseModel):
     question: str = Field(min_length=1)
     datasource_id: int | None = None
     regenerate_record_id: int | None = None
+    route_hint: Literal["query", "analysis", "prediction", "unsupported"] | None = None
+    reference_record_ids: list[int] = Field(default_factory=list, max_length=3)
+    finish_step: int | None = None
+    return_img: bool = True
 
 
 def create_run(
@@ -164,10 +181,50 @@ def create_run(
     if record.id is None:
         raise ValueError("Chat record must be persisted before creating its run")
     now = datetime.now()
+    business_now = datetime.now(ZoneInfo(settings.BUSINESS_TIMEZONE)).replace(
+        tzinfo=None
+    )
+    # Serialize attempts for the visible turn and fence the whole chat against
+    # two concurrent user operations.  A regenerate is another immutable run,
+    # never a reopening of a terminal run.
+    locked_record = _entity_one(
+        session.exec(
+            select(ChatRecord).where(ChatRecord.id == int(record.id)).with_for_update()
+        )
+    )
+    # Different new records in the same chat do not contend on the record row.
+    # Lock the chat aggregate as the single concurrency fence before checking
+    # the partial unique active-run invariant.
+    _entity_one(
+        session.exec(
+            select(Chat).where(Chat.id == int(locked_record.chat_id)).with_for_update()
+        )
+    )
+    active = _entity_one_or_none(
+        session.exec(
+            select(ConversationRun)
+            .where(
+                ConversationRun.chat_id == int(locked_record.chat_id),
+                ConversationRun.status.in_(("queued", "running", "awaiting_input")),
+            )
+            .with_for_update()
+        )
+    )
+    if active is not None:
+        raise ValueError("This conversation already has an active run")
+    last_attempt = session.scalar(
+        select(func.coalesce(func.max(ConversationRun.attempt_index), 0)).where(
+            ConversationRun.chat_record_id == int(record.id)
+        )
+    )
     run = ConversationRun(
         chat_record_id=int(record.id),
+        chat_id=int(locked_record.chat_id),
+        attempt_index=int(last_attempt or 0) + 1,
         graph_key=graph_key,
         status="queued",
+        business_now=business_now,
+        timezone=settings.BUSINESS_TIMEZONE,
         user_id=user_id,
         assistant_id=assistant_id,
         oid=oid,
@@ -176,21 +233,24 @@ def create_run(
     )
     session.add(run)
     session.flush()
+    locked_record.active_run_id = run.run_id
+    session.add(locked_record)
     _append_run_event_locked(
         session,
         run=run,
         payload={"type": "run_started", "status": "queued"},
     )
     if graph_key == "chat":
-        session.add(NlqRun(run_id=run.run_id, update_time=now))
-        append_evidence(
-            session,
-            run_id=run.run_id,
-            kind="user_question",
-            source="user",
-            content=(record.question or "").strip(),
-            confidence=1.0,
-        )
+        session.add(QueryRun(run_id=run.run_id, update_time=now))
+        if not _record_has_user_question(session, int(record.id)):
+            append_evidence(
+                session,
+                run_id=run.run_id,
+                kind="user_question",
+                source="user",
+                content=(record.question or "").strip(),
+                confidence=1.0,
+            )
     session.commit()
     session.refresh(run)
     log_lifecycle(
@@ -219,6 +279,27 @@ def _assert_transition(run: ConversationRun, target: str) -> None:
         )
 
 
+def _lease_deadline() -> datetime:
+    return datetime.now() + timedelta(
+        seconds=max(60, int(settings.CONVERSATION_RUNNING_LEASE_SEC))
+    )
+
+
+def _assert_worker_ownership(run: ConversationRun) -> None:
+    """Fence late workers after cancellation or lease recovery."""
+    from apps.conversation.runtime_context import current_worker_identity
+
+    worker_run_id, worker_token = current_worker_identity()
+    if worker_run_id is None and worker_token is None:
+        return
+    if worker_run_id != run.run_id or not worker_token:
+        raise ConversationRunCancelled(run.run_id)
+    if run.worker_token != worker_token:
+        raise ConversationRunCancelled(
+            f"Conversation run {run.run_id} is owned by another worker"
+        )
+
+
 def require_active_run(session: Session, run_id: str) -> ConversationRun:
     """Lock and fence a domain write to the currently active run.
 
@@ -236,6 +317,7 @@ def require_active_run(session: Session, run_id: str) -> ConversationRun:
     )
     if run is None:
         raise LookupError(f"Conversation run {run_id} not found")
+    _assert_worker_ownership(run)
     if run.status != "running":
         raise ConversationRunCancelled(
             f"Conversation run {run_id} is no longer active ({run.status})"
@@ -271,6 +353,8 @@ def queue_run_for_dispatch(
     if run.status != "queued":
         _assert_transition(run, "queued")
         run.status = "queued"
+    run.worker_token = None
+    run.lease_expires_at = None
     if reset_attempts:
         run.dispatch_attempts = 0
     run.update_time = datetime.now()
@@ -332,6 +416,8 @@ def claim_run(session: Session, run_id: str) -> ConversationRun | None:
     _assert_transition(run, "running")
     now = datetime.now()
     run.status = "running"
+    run.worker_token = str(uuid4())
+    run.lease_expires_at = _lease_deadline()
     run.started_at = run.started_at or now
     run.error_summary = None
     run.update_time = now
@@ -371,25 +457,28 @@ def append_evidence(
     structured_value: dict[str, Any] | None = None,
     confidence: float = 1.0,
     supersedes: str | None = None,
-) -> NlqEvidenceEvent:
-    session.exec(
-        select(ConversationRun.run_id)
-        .where(ConversationRun.run_id == run_id)
-        .with_for_update()
-    ).first()
+) -> ConversationEvidence:
+    run = _entity_one(
+        session.exec(
+            select(ConversationRun)
+            .where(ConversationRun.run_id == run_id)
+            .with_for_update()
+        )
+    )
     # Aggregate selects return Row via session.exec(...).one(); use scalar().
     current_sequence = session.scalar(
-        select(func.coalesce(func.max(NlqEvidenceEvent.sequence), 0)).where(
-            NlqEvidenceEvent.run_id == run_id
+        select(func.coalesce(func.max(ConversationEvidence.sequence), 0)).where(
+            ConversationEvidence.chat_record_id == run.chat_record_id
         )
     )
     sequence = int(current_sequence or 0) + 1
     if supersedes:
-        previous = session.get(NlqEvidenceEvent, supersedes)
-        if previous is None or previous.run_id != run_id:
-            raise ValueError("Superseded evidence does not belong to this run")
-    event = NlqEvidenceEvent(
-        run_id=run_id,
+        previous = session.get(ConversationEvidence, supersedes)
+        if previous is None or previous.chat_record_id != run.chat_record_id:
+            raise ValueError("Superseded evidence does not belong to this turn")
+    event = ConversationEvidence(
+        chat_record_id=run.chat_record_id,
+        created_by_run_id=run_id,
         sequence=sequence,
         kind=kind,
         source=source,
@@ -412,7 +501,7 @@ def ensure_evidence(
     content: str,
     structured_value: dict[str, Any] | None = None,
     confidence: float = 1.0,
-) -> NlqEvidenceEvent:
+) -> ConversationEvidence:
     """Append a context fact once; immutable user events still use append_evidence."""
     existing = next(
         (
@@ -437,12 +526,27 @@ def ensure_evidence(
     )
 
 
-def active_evidence(session: Session, run_id: str) -> list[NlqEvidenceEvent]:
+def _record_has_user_question(session: Session, chat_record_id: int) -> bool:
+    return bool(
+        session.scalar(
+            select(func.count(ConversationEvidence.evidence_id)).where(
+                ConversationEvidence.chat_record_id == chat_record_id,
+                ConversationEvidence.kind == "user_question",
+                ConversationEvidence.source == "user",
+            )
+        )
+    )
+
+
+def active_evidence(session: Session, run_id: str) -> list[ConversationEvidence]:
+    run = session.get(ConversationRun, run_id)
+    if run is None:
+        raise LookupError(f"Conversation run {run_id} not found")
     events = list(
         session.exec(
-            select(NlqEvidenceEvent)
-            .where(NlqEvidenceEvent.run_id == run_id)
-            .order_by(NlqEvidenceEvent.sequence)
+            select(ConversationEvidence)
+            .where(ConversationEvidence.chat_record_id == run.chat_record_id)
+            .order_by(ConversationEvidence.sequence)
         )
         .scalars()
         .all()
@@ -477,19 +581,21 @@ def active_evidence(session: Session, run_id: str) -> list[NlqEvidenceEvent]:
 
 
 def _merge_query_plans(
-    nlq: NlqRun,
+    query_run: QueryRun,
     *,
-    specification_revision: int,
+    intent_revision: int,
     plans: list[dict[str, Any]],
 ) -> None:
     """Merge idempotent candidates into an already locked NLQ aggregate."""
     existing = {
         str(item.get("plan_id")): dict(item)
-        for item in (nlq.plans or [])
+        for item in (query_run.plans or [])
         if item.get("plan_id")
     }
     order = [
-        str(item.get("plan_id")) for item in nlq.plans or [] if item.get("plan_id")
+        str(item.get("plan_id"))
+        for item in query_run.plans or []
+        if item.get("plan_id")
     ]
     for plan in plans:
         plan_id = str(plan.get("plan_id") or "")
@@ -500,41 +606,106 @@ def _merge_query_plans(
             **previous,
             **plan,
             "plan_id": plan_id,
-            "specification_revision": specification_revision,
-            "status": previous.get("status") or "validated",
+            "intent_revision": intent_revision,
+            "status": plan.get("status")
+            or ("validated" if intent_revision > 0 else previous.get("status"))
+            or "held",
         }
         if plan_id not in order:
             order.append(plan_id)
-    nlq.plans = [existing[plan_id] for plan_id in order]
-    nlq.active_plan_id = order[-1] if order else nlq.active_plan_id
-    nlq.update_time = datetime.now()
+    query_run.plans = [existing[plan_id] for plan_id in order]
+    query_run.active_plan_id = order[-1] if order else query_run.active_plan_id
+    query_run.update_time = datetime.now()
 
 
 def persist_query_planning_result(
     session: Session,
     *,
     run_id: str,
-    specification: dict[str, Any],
+    intent_revision: dict[str, Any],
     plans: list[dict[str, Any]],
 ) -> None:
-    """Atomically publish one semantic revision and its initial plans."""
+    """Atomically publish one intent revision and its initial physical plans."""
     require_active_run(session, run_id)
-    nlq = _entity_one(
-        session.exec(select(NlqRun).where(NlqRun.run_id == run_id).with_for_update())
+    query_run = _entity_one(
+        session.exec(
+            select(QueryRun).where(QueryRun.run_id == run_id).with_for_update()
+        )
     )
-    revision = int(specification.get("revision") or 0)
+    revision = int(intent_revision.get("revision") or 0)
     if revision <= 0:
-        raise ValueError("Query specification requires a positive revision")
-    if not nlq.specifications or nlq.specifications[-1] != specification:
-        nlq.specifications = [*(nlq.specifications or []), specification]
-    nlq.active_specification_revision = revision
-    nlq.planning_status = "ready"
+        raise ValueError("Query intent requires a positive revision")
+    if (
+        not query_run.intent_revisions
+        or query_run.intent_revisions[-1] != intent_revision
+    ):
+        query_run.intent_revisions = [
+            *(query_run.intent_revisions or []),
+            intent_revision,
+        ]
+    query_run.active_intent_revision = revision
+    query_run.planning_status = "ready"
     _merge_query_plans(
-        nlq,
-        specification_revision=revision,
+        query_run,
+        intent_revision=revision,
         plans=plans,
     )
-    session.add(nlq)
+    session.add(query_run)
+    session.commit()
+
+
+def persist_query_clarification(
+    session: Session,
+    *,
+    run_id: str,
+    intent_revision: dict[str, Any] | None,
+    held_plans: list[dict[str, Any]] | None = None,
+) -> None:
+    """Persist one clarification boundary without publishing draft plans."""
+    require_active_run(session, run_id)
+    query_run = _entity_one(
+        session.exec(
+            select(QueryRun).where(QueryRun.run_id == run_id).with_for_update()
+        )
+    )
+    revision = 0
+    if intent_revision is not None:
+        revision = int(intent_revision.get("revision") or 0)
+        if revision <= 0:
+            raise ValueError("Intent revision requires a positive revision")
+        if (
+            not query_run.intent_revisions
+            or query_run.intent_revisions[-1] != intent_revision
+        ):
+            query_run.intent_revisions = [
+                *(query_run.intent_revisions or []),
+                intent_revision,
+            ]
+        query_run.active_intent_revision = revision
+    query_run.planning_status = "awaiting_input"
+    if held_plans:
+        _merge_query_plans(
+            query_run,
+            intent_revision=revision,
+            plans=held_plans,
+        )
+    session.add(query_run)
+    session.commit()
+
+
+def persist_unverified_plans(
+    session: Session, *, run_id: str, plans: list[dict[str, Any]]
+) -> None:
+    """Hold structurally safe plans without fabricating a business intent."""
+    require_active_run(session, run_id)
+    query_run = _entity_one(
+        session.exec(
+            select(QueryRun).where(QueryRun.run_id == run_id).with_for_update()
+        )
+    )
+    _merge_query_plans(query_run, intent_revision=0, plans=plans)
+    query_run.planning_status = "unverified"
+    session.add(query_run)
     session.commit()
 
 
@@ -542,37 +713,60 @@ def register_query_plans(
     session: Session,
     *,
     run_id: str,
-    specification_revision: int,
+    intent_revision: int,
     plans: list[dict[str, Any]],
 ) -> None:
     """Upsert physical candidates without replacing prior audit history."""
     require_active_run(session, run_id)
-    nlq = _entity_one(
-        session.exec(select(NlqRun).where(NlqRun.run_id == run_id).with_for_update())
+    query_run = _entity_one(
+        session.exec(
+            select(QueryRun).where(QueryRun.run_id == run_id).with_for_update()
+        )
     )
     _merge_query_plans(
-        nlq,
-        specification_revision=specification_revision,
+        query_run,
+        intent_revision=intent_revision,
         plans=plans,
     )
-    session.add(nlq)
+    session.add(query_run)
     session.commit()
 
 
 def load_query_plan_result(
-    session: Session, *, run_id: str, plan_id: str
+    session: Session,
+    *,
+    run_id: str,
+    plan_id: str,
+    schema_fingerprint: str,
+    access_policy_fingerprint: str,
 ) -> dict[str, Any] | None:
-    nlq = session.get(NlqRun, run_id)
-    if nlq is None:
+    result = _entity_one_or_none(
+        session.exec(
+            select(ResultDataset)
+            .where(
+                ResultDataset.run_id == run_id,
+                ResultDataset.plan_id == plan_id,
+                ResultDataset.status.in_(("succeeded", "degraded")),
+            )
+            .order_by(ResultDataset.create_time.desc())
+            .limit(1)
+        )
+    )
+    if result is None:
         return None
-    for plan in nlq.plans or []:
-        if (
-            str(plan.get("plan_id") or "") == plan_id
-            and plan.get("status") == "executed"
-        ):
-            result = plan.get("execution_result")
-            return dict(result) if isinstance(result, dict) else None
-    return None
+    snapshot = dict(result.schema_snapshot or {})
+    if (
+        snapshot.get("schema_fingerprint") != schema_fingerprint
+        or snapshot.get("access_policy_fingerprint") != access_policy_fingerprint
+    ):
+        return None
+    return {
+        "is_success": True,
+        "fields": list(result.fields or []),
+        "data": list(result.rows or []),
+        "row_count": result.row_count,
+        "truncated": result.truncated,
+    }
 
 
 def persist_query_plan_result(
@@ -581,31 +775,167 @@ def persist_query_plan_result(
     run_id: str,
     plan_id: str,
     result: dict[str, Any],
+    schema_fingerprint: str,
+    access_policy_fingerprint: str,
 ) -> None:
-    """Commit execution once; graph replay reuses this exact result."""
+    """Persist a result dataset before publishing any transport event."""
     require_active_run(session, run_id)
-    nlq = _entity_one(
-        session.exec(select(NlqRun).where(NlqRun.run_id == run_id).with_for_update())
+    query_run = _entity_one(
+        session.exec(
+            select(QueryRun).where(QueryRun.run_id == run_id).with_for_update()
+        )
     )
-    plans = [dict(item) for item in (nlq.plans or [])]
+    plans = [dict(item) for item in (query_run.plans or [])]
+    dataset_id = ""
+    required = True
     for index, plan in enumerate(plans):
         if str(plan.get("plan_id") or "") != plan_id:
             continue
+        dataset_id = str(plan.get("dataset_id") or "dataset_1")
+        required = bool(plan.get("required", True))
         if plan.get("status") != "executed":
             plan["status"] = "executed"
-            plan["execution_result"] = result
             plan["executed_at"] = datetime.now().isoformat()
             plans[index] = plan
         break
     else:
         raise ValueError(f"Cannot persist result for unknown query plan {plan_id}")
-    nlq.plans = plans
-    nlq.executed_plan_ids = list(
-        dict.fromkeys([*(nlq.executed_plan_ids or []), plan_id])
+    existing_result = _entity_one_or_none(
+        session.exec(
+            select(ResultDataset)
+            .where(
+                ResultDataset.run_id == run_id,
+                ResultDataset.dataset_id == dataset_id,
+                ResultDataset.plan_id == plan_id,
+            )
+            .with_for_update()
+        )
     )
-    nlq.execution_status = "running"
-    nlq.update_time = datetime.now()
-    session.add(nlq)
+    rows_raw = result.get("data")
+    rows = [dict(item) for item in rows_raw or [] if isinstance(item, dict)]
+    fields = [str(item) for item in result.get("fields") or []]
+    execution_snapshot = {
+        "schema_fingerprint": schema_fingerprint,
+        "access_policy_fingerprint": access_policy_fingerprint,
+    }
+    if existing_result is None:
+        existing_result = ResultDataset(
+            run_id=run_id,
+            dataset_id=dataset_id,
+            plan_id=plan_id,
+            status="succeeded",
+            required=required,
+            fields=fields,
+            rows=rows,
+            row_count=int(result.get("row_count") or len(rows)),
+            truncated=bool(result.get("truncated")),
+            schema_snapshot=execution_snapshot,
+        )
+        session.add(existing_result)
+        session.flush()
+    else:
+        existing_result.status = "succeeded"
+        existing_result.fields = fields
+        existing_result.rows = rows
+        existing_result.row_count = int(result.get("row_count") or len(rows))
+        existing_result.truncated = bool(result.get("truncated"))
+        existing_result.error = None
+        existing_result.schema_snapshot = execution_snapshot
+        session.add(existing_result)
+    query_run.plans = plans
+    execution = {
+        "dataset_id": dataset_id,
+        "plan_id": plan_id,
+        "required": required,
+        "status": "succeeded",
+        "result_id": existing_result.result_id,
+        "row_count": existing_result.row_count,
+        "truncated": existing_result.truncated,
+    }
+    prior = [
+        item
+        for item in query_run.executions or []
+        if not (item.get("dataset_id") == dataset_id and item.get("plan_id") == plan_id)
+    ]
+    query_run.executions = [*prior, execution]
+    query_run.executed_plan_ids = list(
+        dict.fromkeys([*(query_run.executed_plan_ids or []), plan_id])
+    )
+    query_run.execution_status = "running"
+    query_run.update_time = datetime.now()
+    session.add(query_run)
+    session.commit()
+
+
+def persist_query_plan_failure(
+    session: Session,
+    *,
+    run_id: str,
+    plan_id: str,
+    error: dict[str, Any],
+) -> None:
+    """Persist one failed dataset attempt without exposing it as result data."""
+    require_active_run(session, run_id)
+    query_run = _entity_one(
+        session.exec(
+            select(QueryRun).where(QueryRun.run_id == run_id).with_for_update()
+        )
+    )
+    plan = next(
+        (
+            dict(item)
+            for item in (query_run.plans or [])
+            if str(item.get("plan_id") or "") == plan_id
+        ),
+        None,
+    )
+    if plan is None:
+        raise ValueError(f"Cannot persist failure for unknown query plan {plan_id}")
+    dataset_id = str(plan.get("dataset_id") or "dataset_1")
+    required = bool(plan.get("required", True))
+    existing = _entity_one_or_none(
+        session.exec(
+            select(ResultDataset)
+            .where(
+                ResultDataset.run_id == run_id,
+                ResultDataset.dataset_id == dataset_id,
+                ResultDataset.plan_id == plan_id,
+            )
+            .with_for_update()
+        )
+    )
+    if existing is None:
+        existing = ResultDataset(
+            run_id=run_id,
+            dataset_id=dataset_id,
+            plan_id=plan_id,
+            status="failed",
+            required=required,
+            error=error,
+        )
+        session.add(existing)
+        session.flush()
+    else:
+        existing.status = "failed"
+        existing.error = error
+        session.add(existing)
+    execution = {
+        "dataset_id": dataset_id,
+        "plan_id": plan_id,
+        "required": required,
+        "status": "failed",
+        "result_id": existing.result_id,
+        "error": error,
+    }
+    prior = [
+        item
+        for item in query_run.executions or []
+        if not (item.get("dataset_id") == dataset_id and item.get("plan_id") == plan_id)
+    ]
+    query_run.executions = [*prior, execution]
+    query_run.execution_status = "running"
+    query_run.update_time = datetime.now()
+    session.add(query_run)
     session.commit()
 
 
@@ -648,6 +978,7 @@ def append_run_event(
     )
     if run is None:
         return 0
+    _assert_worker_ownership(run)
     # ``finalize_run`` atomically writes the terminal event.  Events emitted by
     # a node after that commit are stale transport echoes and must not reopen
     # the persisted timeline.
@@ -691,6 +1022,7 @@ def update_run_status(
             .with_for_update()
         )
     )
+    _assert_worker_ownership(run)
     _assert_transition(run, status)
     now = datetime.now()
     run.status = status
@@ -702,6 +1034,8 @@ def update_run_status(
     run.update_time = now
     if status == "running" and run.started_at is None:
         run.started_at = now
+    if status == "running":
+        run.lease_expires_at = _lease_deadline()
     session.add(run)
     session.commit()
     session.refresh(run)
@@ -730,6 +1064,7 @@ def finalize_run(
             .with_for_update()
         )
     )
+    _assert_worker_ownership(run)
     if run.status in TERMINAL_STATUSES:
         if run.status != status:
             raise ValueError(
@@ -737,8 +1072,17 @@ def finalize_run(
             )
         return run
     _assert_transition(run, status)
-    nlq = _entity_one_or_none(
-        session.exec(select(NlqRun).where(NlqRun.run_id == run_id).with_for_update())
+    query_run = _entity_one_or_none(
+        session.exec(
+            select(QueryRun).where(QueryRun.run_id == run_id).with_for_update()
+        )
+    )
+    record = _entity_one(
+        session.exec(
+            select(ChatRecord)
+            .where(ChatRecord.id == run.chat_record_id)
+            .with_for_update()
+        )
     )
     published_snapshot = dict(record_snapshot)
     if status == "failed":
@@ -747,38 +1091,90 @@ def finalize_run(
         published_snapshot["error"] = public_error_message(
             published_snapshot.get("error") or error_summary or "Conversation failed"
         )
-    persist_snapshot(
-        session,
-        run.chat_record_id,
-        commit=False,
-        **published_snapshot,
-    )
+    # The separate config tool graph still renders its plain-text response
+    # through ``sql_answer``. Ordinary chat turns persist only TurnAnswerV1;
+    # writing historical fields here would recreate a second answer truth.
+    if run.graph_key == "config" and published_snapshot.get("sql_answer") is not None:
+        record.sql_answer = published_snapshot["sql_answer"]
+    record.finish = True
+    record.finish_time = datetime.now()
+    record.error = published_snapshot.get("error")
+
+    supplied_answer = published_snapshot.get("answer")
+    should_publish_answer = status in {"succeeded", "degraded"} or record.answer is None
+    if should_publish_answer:
+        next_revision = int(record.answer_revision or 0) + 1
+        answer_status = "failed" if status == "cancelled" else status
+        if isinstance(supplied_answer, dict):
+            supplied_answer = {
+                **supplied_answer,
+                "answer_revision": next_revision,
+                "source_run_id": run_id,
+                "status": answer_status,
+            }
+            answer = TURN_ANSWER_ADAPTER.validate_python(supplied_answer)
+        else:
+            common = {
+                "answer_revision": next_revision,
+                "source_run_id": run_id,
+                "status": answer_status,
+                "content": str(
+                    published_snapshot.get("analysis")
+                    or published_snapshot.get("sql_answer")
+                    or ""
+                ),
+                "error": (
+                    {
+                        "code": "RUN_FAILED",
+                        "message": str(published_snapshot.get("error") or ""),
+                        "retryable": True,
+                    }
+                    if status == "failed"
+                    else None
+                ),
+            }
+            if record.turn_kind == "analysis":
+                answer = AnalysisTurnAnswer(**common)
+            elif record.turn_kind == "prediction":
+                answer = PredictionTurnAnswer(**common)
+            elif record.turn_kind == "unsupported":
+                answer = UnsupportedTurnAnswer(**common)
+            else:
+                answer = QueryTurnAnswer(**common)
+        record.answer_revision = next_revision
+        record.answer = answer.model_dump(mode="json")
+    # A failed regenerate keeps last-known-good Answer but remains the active
+    # attempt so the UI can display its failure alongside the preserved answer.
+    record.active_run_id = run_id
+    session.add(record)
     close_open_audit_spans(session, run.chat_record_id)
     terminal_node = current_node or run.current_node
-    if nlq is not None:
+    if query_run is not None:
         if status == "failed":
-            if getattr(nlq, "planning_status", "pending") != "ready":
-                nlq.planning_status = "failed"
-            nlq.execution_status = (
+            if getattr(query_run, "planning_status", "pending") != "ready":
+                query_run.planning_status = "failed"
+            query_run.execution_status = (
                 "failed"
-                if nlq.execution_status == "running"
-                or bool(getattr(nlq, "executed_plan_ids", []))
+                if query_run.execution_status == "running"
+                or bool(getattr(query_run, "executed_plan_ids", []))
                 else "not_started"
             )
         elif status == "cancelled":
-            nlq.execution_status = "cancelled"
+            query_run.execution_status = "cancelled"
         else:
-            nlq.execution_status = "completed"
-        nlq.result_quality = result_quality
-        nlq.update_time = datetime.now()
+            query_run.execution_status = "completed"
+        query_run.result_quality = result_quality
+        query_run.update_time = datetime.now()
     run.status = status
     run.current_node = terminal_node
     run.error_summary = error_summary
     run.completed_at = datetime.now()
     run.active_interrupt_id = None
+    run.worker_token = None
+    run.lease_expires_at = None
     run.update_time = datetime.now()
-    if nlq is not None:
-        session.add(nlq)
+    if query_run is not None:
+        session.add(query_run)
     session.add(run)
     _append_run_event_locked(
         session,
@@ -830,6 +1226,7 @@ def create_interrupt(
             .with_for_update()
         )
     )
+    _assert_worker_ownership(run)
     if run.status in TERMINAL_STATUSES:
         raise ValueError("Cannot interrupt a terminal run")
     latest_interrupt = _entity_one_or_none(
@@ -863,6 +1260,8 @@ def create_interrupt(
     _assert_transition(run, "awaiting_input")
     run.status = "awaiting_input"
     run.active_interrupt_id = interrupt.interrupt_id
+    run.worker_token = None
+    run.lease_expires_at = None
     run.update_time = datetime.now()
     session.add(run)
     session.commit()
@@ -884,6 +1283,13 @@ def consume_interrupt(
     interrupt_id: str,
     request: ResumeRequest,
 ) -> tuple[ConversationInterrupt, bool]:
+    locked_run = _entity_one(
+        session.exec(
+            select(ConversationRun)
+            .where(ConversationRun.run_id == run.run_id)
+            .with_for_update()
+        )
+    )
     interrupt = _entity_one_or_none(
         session.exec(
             select(ConversationInterrupt)
@@ -900,6 +1306,11 @@ def consume_interrupt(
         if interrupt.idempotency_key == request.idempotency_key:
             return interrupt, False
         raise ValueError("This clarification has already been answered")
+    if (
+        locked_run.status != "awaiting_input"
+        or locked_run.active_interrupt_id != interrupt_id
+    ):
+        raise ValueError("Clarification is no longer active")
     if interrupt.status != "open" or interrupt.version != request.version:
         raise ValueError("Clarification version is stale")
 
@@ -914,7 +1325,10 @@ def consume_interrupt(
         if not bool(item.get("can_assume"))
     }
     supplied = {answer.ambiguity_id for answer in request.answers}
-    missing = required - supplied
+    may_proceed = bool(interrupt.payload.get("can_proceed_with_assumptions"))
+    if request.proceed_with_assumptions and not may_proceed:
+        raise ValueError("This clarification cannot proceed with assumptions")
+    missing = set() if request.proceed_with_assumptions else required - supplied
     if missing:
         raise ValueError("Missing clarification answers: " + ", ".join(sorted(missing)))
 
@@ -936,13 +1350,12 @@ def consume_interrupt(
                 )
             evidence = append_evidence(
                 session,
-                run_id=run.run_id,
+                run_id=locked_run.run_id,
                 kind="clarification_option",
                 source="user",
                 content=str(option.get("label") or answer.option_id),
                 structured_value={
                     "ambiguity_id": answer.ambiguity_id,
-                    "business_axis": ambiguity.get("business_axis"),
                     "option_id": answer.option_id,
                     "resolution": option.get("resolution"),
                 },
@@ -950,43 +1363,66 @@ def consume_interrupt(
         else:
             evidence = append_evidence(
                 session,
-                run_id=run.run_id,
+                run_id=locked_run.run_id,
                 kind="clarification_custom",
                 source="user",
                 content=str(answer.text),
                 structured_value={
                     "ambiguity_id": answer.ambiguity_id,
-                    "business_axis": ambiguity.get("business_axis"),
                 },
             )
         stored_answers.append(
             {**answer.model_dump(mode="json"), "evidence_id": evidence.evidence_id}
         )
 
+    if request.proceed_with_assumptions:
+        for ambiguity_id in sorted(set(catalog) - supplied):
+            evidence = append_evidence(
+                session,
+                run_id=locked_run.run_id,
+                kind="clarification_custom",
+                source="user",
+                content="按当前理解继续，该项采用系统当前合理假设",
+                structured_value={
+                    "ambiguity_id": ambiguity_id,
+                    "proceed_with_assumptions": True,
+                },
+            )
+            stored_answers.append(
+                {
+                    "ambiguity_id": ambiguity_id,
+                    "mode": "custom",
+                    "text": "按当前理解继续，该项采用系统当前合理假设",
+                    "evidence_id": evidence.evidence_id,
+                }
+            )
+
     now = datetime.now()
     interrupt.status = "consumed"
     interrupt.answers = stored_answers
     interrupt.idempotency_key = request.idempotency_key
     interrupt.consumed_at = now
-    _assert_transition(run, "queued")
-    run.status = "queued"
-    run.dispatch_attempts = 0
-    run.active_interrupt_id = None
-    run.update_time = now
-    nlq = session.get(NlqRun, run.run_id)
-    if nlq is not None:
-        nlq.planning_status = "planning"
-        nlq.update_time = now
-        session.add(nlq)
+    _assert_transition(locked_run, "queued")
+    locked_run.status = "queued"
+    locked_run.dispatch_attempts = 0
+    locked_run.active_interrupt_id = None
+    locked_run.worker_token = None
+    locked_run.lease_expires_at = None
+    locked_run.update_time = now
+    query_run = session.get(QueryRun, locked_run.run_id)
+    if query_run is not None:
+        query_run.planning_status = "planning"
+        query_run.update_time = now
+        session.add(query_run)
     session.add(interrupt)
-    session.add(run)
+    session.add(locked_run)
     session.commit()
     log_lifecycle(
         "run_resumed",
-        run_id=run.run_id,
-        record_id=run.chat_record_id,
-        graph_key=run.graph_key,
-        status=run.status,
+        run_id=locked_run.run_id,
+        record_id=locked_run.chat_record_id,
+        graph_key=locked_run.graph_key,
+        status=locked_run.status,
     )
     return interrupt, True
 
@@ -997,7 +1433,7 @@ def correct_interrupt_answer(
     run: ConversationRun,
     interrupt_id: str,
     request: CorrectionRequest,
-) -> tuple[NlqEvidenceEvent, bool]:
+) -> tuple[ConversationEvidence, bool]:
     """Append one correction and invalidate the currently open question card.
 
     Corrections are accepted only while the same run is paused. The graph then
@@ -1068,7 +1504,6 @@ def correct_interrupt_answer(
         raise ValueError("Clarification ambiguity no longer exists")
     structured: dict[str, Any] = {
         "ambiguity_id": request.answer.ambiguity_id,
-        "business_axis": ambiguity.get("business_axis"),
         "idempotency_key": request.idempotency_key,
     }
     if request.answer.mode == "option":
@@ -1109,12 +1544,14 @@ def correct_interrupt_answer(
     locked_run.status = "queued"
     locked_run.dispatch_attempts = 0
     locked_run.active_interrupt_id = None
+    locked_run.worker_token = None
+    locked_run.lease_expires_at = None
     locked_run.update_time = datetime.now()
-    nlq = session.get(NlqRun, locked_run.run_id)
-    if nlq is not None:
-        nlq.planning_status = "planning"
-        nlq.update_time = locked_run.update_time
-        session.add(nlq)
+    query_run = session.get(QueryRun, locked_run.run_id)
+    if query_run is not None:
+        query_run.planning_status = "planning"
+        query_run.update_time = locked_run.update_time
+        session.add(query_run)
     session.add(locked_run)
     session.commit()
     return correction, True
@@ -1127,7 +1564,14 @@ def run_snapshot(session: Session, run: ConversationRun) -> dict[str, Any]:
         if run.active_interrupt_id
         else None
     )
-    nlq = session.get(NlqRun, run.run_id) if run.graph_key == "chat" else None
+    query_run = session.get(QueryRun, run.run_id) if run.graph_key == "chat" else None
+    datasets = list(
+        session.exec(
+            select(ResultDataset)
+            .where(ResultDataset.run_id == run.run_id)
+            .order_by(ResultDataset.create_time)
+        ).scalars()
+    )
     interrupts = list(
         session.exec(
             select(ConversationInterrupt)
@@ -1138,11 +1582,14 @@ def run_snapshot(session: Session, run: ConversationRun) -> dict[str, Any]:
     return {
         "run_id": run.run_id,
         "chat_record_id": run.chat_record_id,
+        "chat_id": run.chat_id,
+        "attempt_index": run.attempt_index,
         "graph_key": run.graph_key,
         "status": run.status,
         "current_node": run.current_node,
         "event_cursor": run.event_cursor,
         "dispatch_attempts": run.dispatch_attempts,
+        "lease_expires_at": run.lease_expires_at,
         "active_interrupt": (
             {
                 "interrupt_id": interrupt.interrupt_id,
@@ -1164,22 +1611,23 @@ def run_snapshot(session: Session, run: ConversationRun) -> dict[str, Any]:
             }
             for item in interrupts
         ],
-        "nlq": (
+        "query": (
             {
-                "active_specification_revision": nlq.active_specification_revision,
-                "specifications": nlq.specifications,
-                "planning_status": nlq.planning_status,
-                "execution_status": nlq.execution_status,
-                "quality": nlq.result_quality,
+                "active_intent_revision": query_run.active_intent_revision,
+                "intent_revisions": query_run.intent_revisions,
+                "planning_status": query_run.planning_status,
+                "execution_status": query_run.execution_status,
+                "quality": query_run.result_quality,
+                "plans": query_run.plans,
+                "executions": query_run.executions,
             }
-            if nlq
+            if query_run
             else None
         ),
+        "result_datasets": [item.model_dump(mode="json") for item in datasets],
         "record": record.model_dump(mode="json") if record else None,
         "error_summary": (
-            record.error
-            if record is not None and record.error
-            else run.error_summary
+            record.error if record is not None and record.error else run.error_summary
         ),
         "started_at": run.started_at,
         "completed_at": run.completed_at,

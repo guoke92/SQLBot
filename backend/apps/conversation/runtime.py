@@ -277,12 +277,16 @@ def submit_graph(
             return runner
 
     def _run() -> Iterator[Any]:
+        worker_scope: Any = None
         try:
             if run_id:
                 from apps.conversation.models import ConversationRun
                 from apps.conversation.run_service import (
                     ConversationRunCancelled,
                     claim_run,
+                )
+                from apps.conversation.runtime_context import (
+                    worker_scope as bind_worker,
                 )
                 from apps.conversation.session import session_scope
 
@@ -295,6 +299,9 @@ def submit_graph(
                         # Duplicate dispatches are expected during recovery.
                         # Only the worker that atomically claimed queued may run.
                         return
+                    worker_token = str(claimed.worker_token or "")
+                worker_scope = bind_worker(run_id, worker_token)
+                worker_scope.__enter__()
             yield from run_graph(graph_key, state, **builder_kwargs)
             if run_id:
                 from apps.conversation.models import ConversationRun
@@ -374,6 +381,8 @@ def submit_graph(
             if not terminal_already_committed:
                 yield from sink_error_chunks(state, str(e))
         finally:
+            if worker_scope is not None:
+                worker_scope.__exit__(None, None, None)
             if run_id:
                 # Checkpoints contain only IDs, so paused and completed runs
                 # can always rehydrate. Keeping request-scoped models here
@@ -399,29 +408,6 @@ def _recovery_state(run: Any, *, checkpoint: Any) -> dict[str, Any] | None:
         from apps.config_assistant.nodes import recover_config_state
 
         return recover_config_state(run)
-    if run.graph_key in {"analysis", "predict"}:
-        from apps.chat.models.chat_model import ChatRecord
-        from apps.conversation.session import session_scope
-
-        with session_scope() as session:
-            record = session.get(ChatRecord, run.chat_record_id)
-            if record is None:
-                return None
-            base_record_id = (
-                record.analysis_record_id
-                if run.graph_key == "analysis"
-                else record.predict_record_id
-            )
-        if base_record_id is None:
-            return None
-        return {
-            "run_id": run.run_id,
-            "record_id": run.chat_record_id,
-            "base_record_id": int(base_record_id),
-            "graph_key": run.graph_key,
-            "sink": "sse",
-            "mode": "follow_up",
-        }
     from apps.chat.models.chat_model import ChatFinishStep
 
     return {
@@ -552,7 +538,7 @@ def recover_incomplete_runs() -> int:
 
 
 def reconcile_stale_runs() -> int:
-    """Retry one stale queued dispatch, then fail it deterministically."""
+    """Recover expired workers and bound retries for unclaimed dispatches."""
     from sqlalchemy import select
 
     from apps.conversation.checkpoint import get_checkpointer
@@ -568,6 +554,7 @@ def reconcile_stale_runs() -> int:
         "CONVERSATION_MAX_DISPATCH_ATTEMPTS", 2, minimum=1, maximum=10
     )
     cutoff = datetime.now() - timedelta(seconds=retry_sec)
+    now = datetime.now()
     with session_scope() as session:
         rows = list(
             session.exec(
@@ -578,9 +565,57 @@ def reconcile_stale_runs() -> int:
             ).scalars()
         )
         stale = [ConversationRun(**row.model_dump()) for row in rows]
+        expired_rows = list(
+            session.exec(
+                select(ConversationRun).where(
+                    ConversationRun.status == "running",
+                    ConversationRun.lease_expires_at.is_not(None),
+                    ConversationRun.lease_expires_at < now,
+                )
+            ).scalars()
+        )
+        expired = [ConversationRun(**row.model_dump()) for row in expired_rows]
 
     handled = 0
     saver = get_checkpointer()
+    for run in expired:
+        try:
+            checkpoint = saver.get_tuple(
+                {"configurable": {"thread_id": run.run_id}}
+            )
+            state = _recovery_state(run, checkpoint=checkpoint)
+            if state is None:
+                continue
+            with session_scope() as session:
+                from apps.chat.steps.observability import close_open_audit_spans
+                from apps.conversation.run_service import queue_run_for_dispatch
+
+                queued = queue_run_for_dispatch(
+                    session,
+                    run.run_id,
+                    reset_attempts=True,
+                    expected_status="running",
+                    expected_update_time=run.update_time,
+                )
+                if queued is None:
+                    continue
+                close_open_audit_spans(session, run.chat_record_id)
+                session.commit()
+            submit_graph(run.graph_key, state, _force_dispatch=True).detach()
+            log_lifecycle(
+                "run_lease_recovered",
+                level="warning",
+                run_id=run.run_id,
+                record_id=run.chat_record_id,
+                graph_key=run.graph_key,
+                status="queued",
+                error_code="RUN_WORKER_LEASE_EXPIRED",
+            )
+            handled += 1
+        except Exception as exc:  # noqa: BLE001
+            SQLBotLogUtil.warning(
+                f"expired run recovery deferred for {run.run_id}: {type(exc).__name__}"
+            )
     for run in stale:
         if int(run.dispatch_attempts or 0) >= max_attempts:
             with session_scope() as session:

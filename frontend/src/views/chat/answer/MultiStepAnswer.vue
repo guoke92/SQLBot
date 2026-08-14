@@ -2,7 +2,6 @@
 import BaseAnswer from './BaseAnswer.vue'
 import {
   Chat,
-  chatApi,
   ChatInfo,
   type AnswerPayload,
   type AnswerPresentation,
@@ -141,7 +140,6 @@ const steps: Ref<Array<StepState>> = ref([])
 const analysisText = ref('')
 const analysisThinking = ref('')
 const overallQuality = ref<ResultQuality>()
-let hydrateSeq = 0
 let hydratedTerminalRecordId: number | undefined
 let activeChartReasoningIndex: number | undefined
 
@@ -292,47 +290,17 @@ function applyFullPayload(payload: AnswerPayload, recordId?: number, authoritati
   }
 }
 
-function hydrateRecordData(recordId?: number, authoritative = false): Promise<boolean> {
-  if (!recordId) return Promise.resolve(false)
-  const seq = ++hydrateSeq
-  // Mark incomplete steps loading for UX
-  steps.value.forEach((s) => {
-    if (!s.data && !s.error) s.loading = true
-  })
-
-  const run = chatApi
-    .get_chart_data(recordId)
-    .then((response) => {
-      if (seq !== hydrateSeq) return false // superseded
-      applyFullPayload(response, recordId, authoritative)
-      // Mirror first step onto parent record for toolbar / analysis entry points
-      if (index.value >= 0 && steps.value[0]) {
-        const rec = _currentChat.value.records[index.value]
-        if (steps.value[0].sql) rec.sql = steps.value[0].sql
-        if (steps.value[0].chart) rec.chart = steps.value[0].chart as any
-        if (steps.value[0].engineType) rec.engine_type = steps.value[0].engineType
-        if (authoritative) rec.analysis = analysisText.value
-      }
-      return true
-    })
-    .catch((err) => {
-      if (seq !== hydrateSeq) return false
-      console.error('MultiStep hydrateRecordData error:', err)
-      steps.value.forEach((s) => {
-        if (!s.data && !s.error) {
-          s.error = String(err)
-          s.loading = false
-        }
-      })
-      return false
-    })
-    .finally(() => {
-      if (seq === hydrateSeq) {
-        emits('scrollBottom')
-      }
-    })
-
-  return run
+function hydrateRecordData(record: ChatRecord, authoritative = false): boolean {
+  if (!record.id || !record.answer) return false
+  applyFullPayload(record.answer, record.id, authoritative)
+  if (steps.value[0]) {
+    if (steps.value[0].sql) record.sql = steps.value[0].sql
+    if (steps.value[0].chart) record.chart = steps.value[0].chart as any
+    if (steps.value[0].engineType) record.engine_type = steps.value[0].engineType
+    if (authoritative) record.analysis = analysisText.value
+  }
+  emits('scrollBottom')
+  return true
 }
 
 function hydrateHistory(record: ChatRecord) {
@@ -340,7 +308,6 @@ function hydrateHistory(record: ChatRecord) {
   analysisThinking.value = ''
   overallQuality.value = undefined
   steps.value = []
-  hydrateSeq++
 
   if (record.run_status === 'awaiting_input') {
     return
@@ -380,9 +347,7 @@ function hydrateHistory(record: ChatRecord) {
     step.loading = true
   }
 
-  void hydrateRecordData(record.id, true).then((hydrated) => {
-    if (hydrated) hydratedTerminalRecordId = record.id
-  })
+  if (hydrateRecordData(record, true)) hydratedTerminalRecordId = record.id
 }
 
 // ---------------------------------------------------------------------------
@@ -395,9 +360,6 @@ function turnHandlers(currentRecord: ChatRecord) {
   return {
     onEvent: async (data: ChatStreamEvent) => {
       switch (data.type) {
-        case 'regenerate_record_id':
-          currentRecord.regenerate_record_id = data.regenerate_record_id
-          break
         case 'question':
           currentRecord.question = data.question
           break
@@ -437,6 +399,13 @@ function turnHandlers(currentRecord: ChatRecord) {
           appendReasoningToRecord('analysis_thinking', reasoning)
           break
         }
+        case 'analysis-reasoning':
+        case 'prediction-reasoning': {
+          const reasoning = data.reasoning_content || data.content || ''
+          analysisThinking.value += reasoning
+          appendReasoningToRecord('analysis_thinking', reasoning)
+          break
+        }
         case 'clarification-reasoning':
           currentRecord.intent_reasoning_content =
             (currentRecord.intent_reasoning_content || '') +
@@ -449,8 +418,7 @@ function turnHandlers(currentRecord: ChatRecord) {
     onFinish: async (record: ChatRecord) => {
       if (analysisText.value) currentRecord.analysis = analysisText.value
       if (record.id && record.run_status !== 'awaiting_input') {
-        const hydrated = await hydrateRecordData(record.id, true)
-        if (hydrated) hydratedTerminalRecordId = record.id
+        if (hydrateRecordData(record, true)) hydratedTerminalRecordId = record.id
       }
       emits('finish', record.id, record.run_status)
     },
@@ -479,10 +447,25 @@ const sendMessage = async () => {
   analysisThinking.value = ''
   overallQuality.value = undefined
   activeChartReasoningIndex = undefined
-  hydrateSeq++
 
   try {
     await turn.run(_currentChatId.value, currentRecord, turnHandlers(currentRecord))
+  } finally {
+    _loading.value = false
+  }
+}
+
+const regenerate = async () => {
+  const currentRecord = props.message?.record
+  if (!currentRecord?.id || !_currentChatId.value || _loading.value) return
+  _loading.value = true
+  try {
+    await turn.run(
+      _currentChatId.value,
+      currentRecord,
+      turnHandlers(currentRecord),
+      { regenerate: true }
+    )
   } finally {
     _loading.value = false
   }
@@ -492,6 +475,7 @@ async function resumeClarification(payload: {
   interrupt: ConversationInterrupt
   answers: ResumeAnswer[]
   displayText: string
+  proceedWithAssumptions?: boolean
 }) {
   const currentRecord = props.message?.record
   if (!currentRecord || _loading.value) return
@@ -502,7 +486,8 @@ async function resumeClarification(payload: {
       currentRecord,
       payload.interrupt,
       payload.answers,
-      turnHandlers(currentRecord)
+      turnHandlers(currentRecord),
+      payload.proceedWithAssumptions
     )
   } finally {
     _loading.value = false
@@ -575,7 +560,6 @@ watch(
     analysisThinking.value = ''
     overallQuality.value = undefined
     activeChartReasoningIndex = undefined
-    hydrateSeq++
     record.sql_answer = ''
     record.chart_answer = ''
     record.intent_reasoning_content = ''
@@ -608,7 +592,7 @@ watch(
   { immediate: true }
 )
 
-defineExpose({ sendMessage, index: () => index.value, stop })
+defineExpose({ sendMessage, regenerate, index: () => index.value, stop })
 </script>
 
 <template>

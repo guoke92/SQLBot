@@ -1,0 +1,941 @@
+k3_terminology_candidates:
+- item_id: TERM-ONBOARDING
+  kind: terminology
+  status: candidate
+  confidence: 0.94
+  evidence_refs:
+  - DOC-BIZ-CUST
+  - CODE-CUST-FACADE
+  - CODE-CUST-CALLBACK
+  provenance:
+    repository_revision: ee434954e465713176e5bd52119eedde5ebe531b
+  word: 建档
+  aliases:
+  - 企业建档
+  - 客户建档
+  - 企业认证
+  description: 企业资料和联系人提交运营流程并经历确认或审核，最终形成有效企业主数据的过程；它不是单一状态，也不能用一条推送记录直接代表。
+  enabled: true
+  knowledge_meta:
+    domain: pplatform-web
+    data_oriented: true
+- item_id: TERM-BUILT-SUCCESS
+  kind: terminology
+  status: candidate
+  confidence: 0.99
+  evidence_refs:
+  - CODE-CUST-CALLBACK
+  - CODE-CUST-QUERY
+  provenance:
+    repository_revision: ee434954e465713176e5bd52119eedde5ebe531b
+  word: 建档成功
+  aliases:
+  - 已建档
+  - 认证成功
+  - 已认证企业
+  description: 运营审核通过且企业已经生效；查询时应使用建档成功、企业有效、主数据、启用记录的组合口径。
+  enabled: true
+  knowledge_meta:
+    domain: pplatform-web
+    data_oriented: true
+- item_id: TERM-AWAIT-CUSTOMER
+  kind: terminology
+  status: candidate
+  confidence: 0.94
+  evidence_refs:
+  - DOC-BIZ-CUST
+  - CODE-CUST-CALLBACK
+  provenance:
+    repository_revision: ee434954e465713176e5bd52119eedde5ebe531b
+  word: 待客户认证
+  aliases:
+  - 待客户确认
+  - 待客户完善
+  description: 建档流程已经进入客户侧确认或认证阶段，但尚未达到建档成功；查询时需使用明确的建档状态组合，不能视为有效已建档企业。
+  enabled: true
+  knowledge_meta:
+    domain: pplatform-web
+    data_oriented: true
+- item_id: TERM-BUILD-FAILED
+  kind: terminology
+  status: candidate
+  confidence: 0.95
+  evidence_refs:
+  - DOC-BIZ-CUST
+  - CODE-CUST-CALLBACK
+  provenance:
+    repository_revision: ee434954e465713176e5bd52119eedde5ebe531b
+  word: 建档失败
+  aliases:
+  - 认证失败
+  - 建档拒绝
+  description: 本次企业建档审核或认证未通过；企业变更被拒绝但原企业仍有效的场景必须与首次建档失败区分。
+  enabled: true
+  knowledge_meta:
+    domain: pplatform-web
+    data_oriented: true
+- item_id: TERM-COMPANY-CHANGE
+  kind: terminology
+  status: candidate
+  confidence: 0.94
+  evidence_refs:
+  - DOC-BIZ-CUST
+  - MODEL-CHANGE
+  provenance:
+    repository_revision: ee434954e465713176e5bd52119eedde5ebe531b
+  word: 企业变更
+  aliases:
+  - 客户变更
+  - 企业信息变更
+  description: 企业主数据变更流程；过程记录位于 cust_change_record，当前企业状态仍以 cust_company_info 为准，不能把变更记录数当企业数。
+  enabled: true
+  knowledge_meta:
+    domain: pplatform-web
+    data_oriented: true
+- item_id: TERM-TENANT-PRODUCT
+  kind: terminology
+  status: candidate
+  confidence: 0.94
+  evidence_refs:
+  - DOC-BIZ-PRODUCT
+  - MODEL-TENANT-PRODUCT
+  - MODEL-PLATFORM-PRODUCT
+  provenance:
+    repository_revision: ee434954e465713176e5bd52119eedde5ebe531b
+  word: 租户产品
+  aliases:
+  - 租户开通产品
+  description: 某租户对平台产品的一次开通配置，数据落在 tenant_product；平台产品定义本身位于 platform_product。
+  enabled: true
+  knowledge_meta:
+    domain: pplatform-web
+    data_oriented: true
+- item_id: TERM-TENANT-PROJECT
+  kind: terminology
+  status: candidate
+  confidence: 0.94
+  evidence_refs:
+  - DOC-BIZ-PROJECT-REL
+  - MODEL-TENANT-PROJECT
+  provenance:
+    repository_revision: ee434954e465713176e5bd52119eedde5ebe531b
+  word: 租户项目
+  aliases:
+  - 项目配置
+  - 租户侧项目
+  description: 租户在某租户产品下配置的业务项目，主数据位于 tenant_project；它与企业加入项目的 cust_project_rel 不是同一粒度。
+  enabled: true
+  knowledge_meta:
+    domain: pplatform-web
+    data_oriented: true
+- item_id: TERM-COMPANY-PROJECT
+  kind: terminology
+  status: candidate
+  confidence: 0.94
+  evidence_refs:
+  - DOC-BIZ-PROJECT-REL
+  - MODEL-PROJECT-REL
+  - CODE-CUST-QUERY
+  provenance:
+    repository_revision: ee434954e465713176e5bd52119eedde5ebe531b
+  word: 企业关联项目
+  aliases:
+  - 企业加入项目
+  - 客户关联项目
+  description: 企业以一个具体企业角色加入租户项目形成的关系记录，数据落在 cust_project_rel，一家企业可关联多个项目或角色。
+  enabled: true
+  knowledge_meta:
+    domain: pplatform-web
+    data_oriented: true
+- item_id: TERM-MAIN-DISPLAY-PROJECT
+  kind: terminology
+  status: candidate
+  confidence: 0.88
+  evidence_refs:
+  - DOC-BIZ-PROJECT-REL
+  - MODEL-PROJECT-REL
+  provenance:
+    repository_revision: ee434954e465713176e5bd52119eedde5ebe531b
+  word: 主展示项目
+  aliases:
+  - 默认展示项目
+  description: 企业项目关系中的展示选择，候选字段为 cust_project_rel.show_flag；它只影响展示选择，不等于项目状态或唯一业务归属。
+  enabled: true
+  knowledge_meta:
+    domain: pplatform-web
+    data_oriented: true
+- item_id: TERM-PRODUCT-OPEN
+  kind: terminology
+  status: candidate
+  confidence: 0.94
+  evidence_refs:
+  - DOC-BIZ-PRODUCT
+  - CODE-OPEN-STATUS
+  - CODE-PRODUCT-DAO
+  provenance:
+    repository_revision: ee434954e465713176e5bd52119eedde5ebe531b
+  word: 产品开通
+  aliases:
+  - 开通产品
+  - 产品已开通
+  description: 租户产品或客户产品授权进入开放状态的业务过程；不同表的 open_status 不能在没有主体说明时混用。
+  enabled: true
+  knowledge_meta:
+    domain: pplatform-web
+    data_oriented: true
+- item_id: TERM-PLATFORM-PRODUCT
+  kind: terminology
+  status: candidate
+  confidence: 0.94
+  evidence_refs:
+  - DOC-BIZ-PRODUCT
+  - MODEL-PLATFORM-PRODUCT
+  provenance:
+    repository_revision: ee434954e465713176e5bd52119eedde5ebe531b
+  word: 平台产品
+  aliases:
+  - 产品定义
+  description: 平台级产品主数据，位于 platform_product；它不是租户已经开通的产品实例。
+  enabled: true
+  knowledge_meta:
+    domain: pplatform-web
+    data_oriented: true
+- item_id: TERM-OP-CONTACT
+  kind: terminology
+  status: candidate
+  confidence: 0.94
+  evidence_refs:
+  - DOC-BIZ-OPERATION
+  - MODEL-OP-USER
+  - MODEL-TENANT-PROJECT
+  provenance:
+    repository_revision: ee434954e465713176e5bd52119eedde5ebe531b
+  word: 运营对接人
+  aliases:
+  - 运营联系人
+  - 项目运营人员
+  description: 租户项目或企业项目关系上配置的运营人员引用；人员基础信息来自 operation_user，同步状态与业务配置分属不同数据对象。
+  enabled: true
+  knowledge_meta:
+    domain: pplatform-web
+    data_oriented: true
+- item_id: TERM-LEFT-OP-USER
+  kind: terminology
+  status: candidate
+  confidence: 0.94
+  evidence_refs:
+  - DOC-BIZ-OPERATION
+  - CODE-OP-SYNC
+  - CODE-TOP-FLAG
+  provenance:
+    repository_revision: ee434954e465713176e5bd52119eedde5ebe531b
+  word: 离职运营人员
+  aliases:
+  - 已删除运营人员
+  - 失效运营人员
+  description: operation_user 中已被运营中台同步标记删除的人员；项目或关系上的 top_flag 只是存在离职引用的风险提示，不等于人员删除状态。
+  enabled: true
+  knowledge_meta:
+    domain: pplatform-web
+    data_oriented: true
+- item_id: TERM-PUSH-DATA
+  kind: terminology
+  status: candidate
+  confidence: 0.94
+  evidence_refs:
+  - SKILL-EXTERNAL
+  - MODEL-SYNC-ERROR
+  provenance:
+    repository_revision: ee434954e465713176e5bd52119eedde5ebe531b
+  word: 推数
+  aliases:
+  - 业务同步
+  - 下游同步
+  description: 平台将业务事件发送给下游系统；发送失败可落 client_api_sync_error，推数成功只说明技术交互完成，不自动代表下游业务处理成功。
+  enabled: true
+  knowledge_meta:
+    domain: pplatform-web
+    data_oriented: true
+- item_id: TERM-SYNC-ERROR
+  kind: terminology
+  status: candidate
+  confidence: 0.94
+  evidence_refs:
+  - SKILL-EXTERNAL
+  - MODEL-SYNC-ERROR
+  provenance:
+    repository_revision: ee434954e465713176e5bd52119eedde5ebe531b
+  word: 同步失败记录
+  aliases:
+  - 推数失败
+  - 接口失败日志
+  description: client_api_sync_error 中的一次客户端接口调用失败与重试上下文，粒度是失败调用而不是企业、项目或业务成功结果。
+  enabled: true
+  knowledge_meta:
+    domain: pplatform-web
+    data_oriented: true
+- item_id: TERM-TENANT-CONFIG
+  kind: terminology
+  status: candidate
+  confidence: 0.94
+  evidence_refs:
+  - DOC-BIZ-TENANT
+  - MODEL-TENANT-CONFIG
+  provenance:
+    repository_revision: ee434954e465713176e5bd52119eedde5ebe531b
+  word: 租户配置
+  aliases:
+  - 租户设置
+  description: 以 db_tenant_code 为主要租户标识的配置数据，位于 tenant_setting_config；包含启用、默认项目、DBAss 和通知等配置。
+  enabled: true
+  knowledge_meta:
+    domain: pplatform-web
+    data_oriented: true
+- item_id: TERM-AGREEMENT
+  kind: terminology
+  status: candidate
+  confidence: 0.94
+  evidence_refs:
+  - DOC-BIZ-COMPONENT
+  - SKILL-AGREEMENT
+  provenance:
+    repository_revision: ee434954e465713176e5bd52119eedde5ebe531b
+  word: 协议签署
+  aliases:
+  - 合同签署
+  - 电子协议
+  description: 通过协议插件生成并签署合同的外部能力；产融侧通常只保存业务引用或路由参数，协议主数据由 BaseContractProvider 所在系统维护。
+  enabled: true
+  knowledge_meta:
+    domain: pplatform-web
+    data_oriented: true
+- item_id: TERM-ENTERPRISE-ROLE
+  kind: terminology
+  status: candidate
+  confidence: 0.94
+  evidence_refs:
+  - DOC-BIZ-PRODUCT
+  - MODEL-ROLE
+  - MODEL-PROJECT-REL
+  provenance:
+    repository_revision: ee434954e465713176e5bd52119eedde5ebe531b
+  word: 企业角色
+  aliases:
+  - 客户角色
+  - 项目企业角色
+  description: 企业在项目或产品中的业务身份，如核心企业、资金方；角色定义与项目关系是不同数据对象，查询需明确统计企业还是角色关系。
+  enabled: true
+  knowledge_meta:
+    domain: pplatform-web
+    data_oriented: true
+k2_caliber_candidates:
+- item_id: CAL-EFFECTIVE-BUILT-COMPANY
+  kind: caliber
+  status: candidate
+  confidence: 0.99
+  evidence_refs:
+  - CODE-CUST-CALLBACK
+  - CODE-CUST-QUERY
+  provenance:
+    repository_revision: ee434954e465713176e5bd52119eedde5ebe531b
+  label: 有效已建档企业
+  summary: 当前建档成功、企业有效、属于企业主数据且记录启用。
+  contract_fragment:
+    version: 3
+    requirements:
+    - clause: predicate
+      requirement_id: built_success
+      business_label: 建档状态为成功
+      field:
+        resource: cust_company_info
+        field: cust_build_status
+      operator: eq
+      values:
+      - BUILD_SUCCESS
+      source: knowledge
+      confidence: 0.98
+    - clause: predicate
+      requirement_id: company_effective
+      business_label: 企业状态为有效
+      field:
+        resource: cust_company_info
+        field: cust_status
+      operator: eq
+      values:
+      - EFFECT
+      source: knowledge
+      confidence: 0.98
+    - clause: predicate
+      requirement_id: company_master
+      business_label: 企业主数据
+      field:
+        resource: cust_company_info
+        field: data_type
+      operator: eq
+      values:
+      - '1'
+      source: knowledge
+      confidence: 0.98
+    - clause: predicate
+      requirement_id: company_enabled
+      business_label: 企业记录启用
+      field:
+        resource: cust_company_info
+        field: enable
+      operator: eq
+      values:
+      - Y
+      source: knowledge
+      confidence: 0.98
+  draft_definition: {}
+  field_targets:
+  - table_name: cust_company_info
+    field_name: cust_build_status
+  - table_name: cust_company_info
+    field_name: cust_status
+  - table_name: cust_company_info
+    field_name: data_type
+  - table_name: cust_company_info
+    field_name: enable
+- item_id: CAL-COMPANY-MASTER
+  kind: caliber
+  status: candidate
+  confidence: 0.96
+  evidence_refs:
+  - CODE-CUST-QUERY
+  provenance:
+    repository_revision: ee434954e465713176e5bd52119eedde5ebe531b
+  label: 启用的企业主数据
+  summary: 不限定建档业务状态，只保留主数据和启用记录。
+  contract_fragment:
+    version: 3
+    requirements:
+    - clause: predicate
+      requirement_id: company_master
+      business_label: 企业主数据
+      field:
+        resource: cust_company_info
+        field: data_type
+      operator: eq
+      values:
+      - '1'
+      source: knowledge
+      confidence: 0.98
+    - clause: predicate
+      requirement_id: company_enabled
+      business_label: 企业记录启用
+      field:
+        resource: cust_company_info
+        field: enable
+      operator: eq
+      values:
+      - Y
+      source: knowledge
+      confidence: 0.98
+  draft_definition: {}
+  field_targets:
+  - table_name: cust_company_info
+    field_name: data_type
+  - table_name: cust_company_info
+    field_name: enable
+- item_id: CAL-ENABLED-PROJECT-REL
+  kind: caliber
+  status: candidate
+  confidence: 0.96
+  evidence_refs:
+  - CODE-CUST-QUERY
+  provenance:
+    repository_revision: ee434954e465713176e5bd52119eedde5ebe531b
+  label: 启用的企业项目关系
+  summary: 只保留当前启用的企业—项目—角色关系。
+  contract_fragment:
+    version: 3
+    requirements:
+    - clause: predicate
+      requirement_id: project_rel_enabled
+      business_label: 企业项目关系启用
+      field:
+        resource: cust_project_rel
+        field: enable
+      operator: eq
+      values:
+      - Y
+      source: knowledge
+      confidence: 0.98
+  draft_definition: {}
+  field_targets:
+  - table_name: cust_project_rel
+    field_name: enable
+- item_id: CAL-FINANCE-PROJECT-REL
+  kind: caliber
+  status: candidate
+  confidence: 0.99
+  evidence_refs:
+  - CODE-CUST-QUERY
+  provenance:
+    repository_revision: ee434954e465713176e5bd52119eedde5ebe531b
+  label: 项目资金方关系
+  summary: 企业在项目中以资金方角色存在且关系启用。
+  contract_fragment:
+    version: 3
+    requirements:
+    - clause: predicate
+      requirement_id: project_rel_finance
+      business_label: 企业角色为资金方
+      field:
+        resource: cust_project_rel
+        field: company_type
+      operator: eq
+      values:
+      - FINANCE
+      source: knowledge
+      confidence: 0.98
+    - clause: predicate
+      requirement_id: project_rel_enabled
+      business_label: 企业项目关系启用
+      field:
+        resource: cust_project_rel
+        field: enable
+      operator: eq
+      values:
+      - Y
+      source: knowledge
+      confidence: 0.98
+  draft_definition: {}
+  field_targets:
+  - table_name: cust_project_rel
+    field_name: company_type
+  - table_name: cust_project_rel
+    field_name: enable
+- item_id: CAL-OPENED-TENANT-PRODUCT
+  kind: caliber
+  status: candidate
+  confidence: 0.96
+  evidence_refs:
+  - CODE-PRODUCT-DAO
+  - CODE-OPEN-STATUS
+  provenance:
+    repository_revision: ee434954e465713176e5bd52119eedde5ebe531b
+  label: 已开通的租户产品
+  summary: 租户产品处于 OPENED 且记录启用。
+  contract_fragment:
+    version: 3
+    requirements:
+    - clause: predicate
+      requirement_id: tenant_product_opened
+      business_label: 租户产品已开通
+      field:
+        resource: tenant_product
+        field: open_status
+      operator: eq
+      values:
+      - OPENED
+      source: knowledge
+      confidence: 0.98
+    - clause: predicate
+      requirement_id: tenant_product_enabled
+      business_label: 租户产品记录启用
+      field:
+        resource: tenant_product
+        field: enable
+      operator: eq
+      values:
+      - Y
+      source: knowledge
+      confidence: 0.98
+  draft_definition: {}
+  field_targets:
+  - table_name: tenant_product
+    field_name: open_status
+  - table_name: tenant_product
+    field_name: enable
+- item_id: CAL-ENABLED-TENANT-CONFIG
+  kind: caliber
+  status: candidate
+  confidence: 0.96
+  evidence_refs:
+  - DOC-BIZ-TENANT
+  - CODE-GROUP-MAPPER
+  provenance:
+    repository_revision: ee434954e465713176e5bd52119eedde5ebe531b
+  label: 启用的租户配置
+  summary: 保留当前启用的租户配置记录。
+  contract_fragment:
+    version: 3
+    requirements:
+    - clause: predicate
+      requirement_id: tenant_config_enabled
+      business_label: 租户配置启用
+      field:
+        resource: tenant_setting_config
+        field: enable
+      operator: eq
+      values:
+      - Y
+      source: knowledge
+      confidence: 0.98
+  draft_definition: {}
+  field_targets:
+  - table_name: tenant_setting_config
+    field_name: enable
+- item_id: CAL-ACTIVE-OP-USER
+  kind: caliber
+  status: candidate
+  confidence: 0.96
+  evidence_refs:
+  - CODE-OP-SYNC
+  provenance:
+    repository_revision: ee434954e465713176e5bd52119eedde5ebe531b
+  label: 当前有效运营人员
+  summary: 运营人员记录启用且未被同步标记删除。
+  contract_fragment:
+    version: 3
+    requirements:
+    - clause: predicate
+      requirement_id: operation_user_enabled
+      business_label: 运营人员记录启用
+      field:
+        resource: operation_user
+        field: enable
+      operator: eq
+      values:
+      - Y
+      source: knowledge
+      confidence: 0.98
+    - clause: predicate
+      requirement_id: operation_user_not_deleted
+      business_label: 运营人员未删除
+      field:
+        resource: operation_user
+        field: deleted
+      operator: eq
+      values:
+      - N
+      source: knowledge
+      confidence: 0.98
+  draft_definition: {}
+  field_targets:
+  - table_name: operation_user
+    field_name: enable
+  - table_name: operation_user
+    field_name: deleted
+- item_id: CAL-DELETED-OP-USER
+  kind: caliber
+  status: candidate
+  confidence: 0.93
+  evidence_refs:
+  - CODE-OP-SYNC
+  - CODE-TOP-FLAG
+  provenance:
+    repository_revision: ee434954e465713176e5bd52119eedde5ebe531b
+  label: 已离职运营人员
+  summary: 运营人员记录启用，但已被运营中台同步标记删除。
+  contract_fragment:
+    version: 3
+    requirements:
+    - clause: predicate
+      requirement_id: operation_user_enabled
+      business_label: 运营人员记录启用
+      field:
+        resource: operation_user
+        field: enable
+      operator: eq
+      values:
+      - Y
+      source: knowledge
+      confidence: 0.98
+    - clause: predicate
+      requirement_id: operation_user_deleted
+      business_label: 运营人员已删除
+      field:
+        resource: operation_user
+        field: deleted
+      operator: eq
+      values:
+      - Y
+      source: knowledge
+      confidence: 0.98
+  draft_definition: {}
+  field_targets:
+  - table_name: operation_user
+    field_name: enable
+  - table_name: operation_user
+    field_name: deleted
+k4_exemplar_candidates:
+- item_id: EX-BUILT-COMPANY-BY-MONTH
+  kind: example
+  status: candidate
+  confidence: 0.86
+  evidence_refs:
+  - CODE-CUST-CALLBACK
+  - CODE-CUST-QUERY
+  provenance:
+    repository_revision: ee434954e465713176e5bd52119eedde5ebe531b
+  question: 统计每月建档成功的企业数
+  query: ''
+  intended_specification:
+    subject: cust_company_info
+    grain: month
+    metric: count_distinct(cust_company_info.id)
+    caliber_refs:
+    - CAL-EFFECTIVE-BUILT-COMPANY
+    ambiguity: 需确认月份采用首次提交、审核通过还是记录创建时间
+  training_type: sql
+  enabled: true
+  verification:
+    executed: false
+    passed: false
+    notes: 缺少目标数据源和数据库执行验证
+  knowledge_meta:
+    review_gate: map datasource, validate relations and execute
+- item_id: EX-PROJECT-COMPANY-COUNT
+  kind: example
+  status: candidate
+  confidence: 0.86
+  evidence_refs:
+  - CODE-CUST-QUERY
+  provenance:
+    repository_revision: ee434954e465713176e5bd52119eedde5ebe531b
+  question: 按项目统计当前关联企业数量
+  query: ''
+  intended_specification:
+    subject: cust_project_rel
+    grain: tenant_project.id
+    metric: count_distinct(cust_company_info.id)
+    caliber_refs:
+    - CAL-ENABLED-PROJECT-REL
+    - CAL-COMPANY-MASTER
+    relation_refs:
+    - REL-PROJECT-COMPANY
+    - REL-PROJECT-TENANT-PROJECT
+  training_type: sql
+  enabled: true
+  verification:
+    executed: false
+    passed: false
+    notes: 缺少目标数据源和数据库执行验证
+  knowledge_meta:
+    review_gate: map datasource, validate relations and execute
+- item_id: EX-PROJECT-FINANCE
+  kind: example
+  status: candidate
+  confidence: 0.86
+  evidence_refs:
+  - CODE-CUST-QUERY
+  provenance:
+    repository_revision: ee434954e465713176e5bd52119eedde5ebe531b
+  question: 查询每个项目对应的资金方企业
+  query: ''
+  intended_specification:
+    subject: cust_project_rel
+    outputs:
+    - tenant_project.name
+    - cust_company_info.name
+    caliber_refs:
+    - CAL-FINANCE-PROJECT-REL
+    - CAL-EFFECTIVE-BUILT-COMPANY
+  training_type: sql
+  enabled: true
+  verification:
+    executed: false
+    passed: false
+    notes: 缺少目标数据源和数据库执行验证
+  knowledge_meta:
+    review_gate: map datasource, validate relations and execute
+- item_id: EX-OPENED-PRODUCT
+  kind: example
+  status: candidate
+  confidence: 0.86
+  evidence_refs:
+  - CODE-PRODUCT-DAO
+  - DOC-BIZ-PRODUCT
+  provenance:
+    repository_revision: ee434954e465713176e5bd52119eedde5ebe531b
+  question: 统计各租户已开通的产品数
+  query: ''
+  intended_specification:
+    subject: tenant_product
+    grain: tenant_id
+    metric: count_distinct(tenant_product.id)
+    caliber_refs:
+    - CAL-OPENED-TENANT-PRODUCT
+  training_type: sql
+  enabled: true
+  verification:
+    executed: false
+    passed: false
+    notes: 缺少目标数据源和数据库执行验证
+  knowledge_meta:
+    review_gate: map datasource, validate relations and execute
+- item_id: EX-LEFT-OP-PROJECT
+  kind: example
+  status: candidate
+  confidence: 0.86
+  evidence_refs:
+  - CODE-OP-SYNC
+  - CODE-TOP-FLAG
+  provenance:
+    repository_revision: ee434954e465713176e5bd52119eedde5ebe531b
+  question: 查询仍引用离职运营人员的项目
+  query: ''
+  intended_specification:
+    subject: tenant_project
+    outputs:
+    - tenant_project.name
+    - tenant_project.top_flag
+    caliber_refs:
+    - CAL-DELETED-OP-USER
+    ambiguity: 多个运营字段是字符串或 JSON，需确定性展开后才能建立可执行关系
+  training_type: sql
+  enabled: true
+  verification:
+    executed: false
+    passed: false
+    notes: 缺少目标数据源和数据库执行验证
+  knowledge_meta:
+    review_gate: map datasource, validate relations and execute
+- item_id: EX-SYNC-ERROR-TREND
+  kind: example
+  status: candidate
+  confidence: 0.86
+  evidence_refs:
+  - SKILL-EXTERNAL
+  - MODEL-SYNC-ERROR
+  provenance:
+    repository_revision: ee434954e465713176e5bd52119eedde5ebe531b
+  question: 统计接口同步失败次数和重试次数
+  query: ''
+  intended_specification:
+    subject: client_api_sync_error
+    metrics:
+    - count(id)
+    - sum(retry_num)
+    caveat: 调用失败次数，不代表业务对象失败数
+  training_type: sql
+  enabled: true
+  verification:
+    executed: false
+    passed: false
+    notes: 缺少目标数据源和数据库执行验证
+  knowledge_meta:
+    review_gate: map datasource, validate relations and execute
+- item_id: EX-TENANT-CONFIG
+  kind: example
+  status: candidate
+  confidence: 0.86
+  evidence_refs:
+  - DOC-BIZ-TENANT
+  - MODEL-TENANT-CONFIG
+  provenance:
+    repository_revision: ee434954e465713176e5bd52119eedde5ebe531b
+  question: 查询当前启用租户的默认项目和通知配置
+  query: ''
+  intended_specification:
+    subject: tenant_setting_config
+    caliber_refs:
+    - CAL-ENABLED-TENANT-CONFIG
+    outputs:
+    - db_tenant_code
+    - default_project_id
+    - send_email
+    - operator_email
+  training_type: sql
+  enabled: true
+  verification:
+    executed: false
+    passed: false
+    notes: 缺少目标数据源和数据库执行验证
+  knowledge_meta:
+    review_gate: map datasource, validate relations and execute
+k5_rule_candidates:
+- item_id: RULE-PROCESS-NOT-SUCCESS
+  kind: rule
+  status: candidate
+  confidence: 0.99
+  evidence_refs:
+  - CODE-CUST-ASYNC
+  - CODE-CUST-CALLBACK
+  - SKILL-EXTERNAL
+  provenance:
+    repository_revision: ee434954e465713176e5bd52119eedde5ebe531b
+  label: 技术流程完成不得解释为业务成功
+  content: 建档推送、事务后动作或推数执行完成只能证明相应技术步骤完成；只有业务状态满足已确认成功口径时，才能称为建档成功、项目成功或下游处理成功。
+- item_id: RULE-GRAIN-SEPARATION
+  kind: rule
+  status: candidate
+  confidence: 0.99
+  evidence_refs:
+  - MODEL-COMPANY
+  - MODEL-BUILD
+  - MODEL-CHANGE
+  - MODEL-SYNC-ERROR
+  provenance:
+    repository_revision: ee434954e465713176e5bd52119eedde5ebe531b
+  label: 主数据与过程记录必须区分粒度
+  content: cust_company_info 按企业主数据理解；cust_build_record、cust_change_record、client_api_sync_error 分别按建档过程、变更过程和失败调用理解，不能直接互相替代计数。
+- item_id: RULE-PROJECT-COMPANY-CODE
+  kind: rule
+  status: candidate
+  confidence: 0.99
+  evidence_refs:
+  - CODE-CUST-QUERY
+  provenance:
+    repository_revision: ee434954e465713176e5bd52119eedde5ebe531b
+  label: 企业项目关系使用企业编码关联
+  content: 在当前实现中 cust_project_rel.ref_cust_project_rel_cust_company_info 连接 cust_company_info.code；不得因字段名含 ref 或 cust 而自动改用企业
+    id。
+- item_id: RULE-TOP-FLAG-RISK
+  kind: rule
+  status: candidate
+  confidence: 0.98
+  evidence_refs:
+  - CODE-TOP-FLAG
+  - CODE-OP-SYNC
+  provenance:
+    repository_revision: ee434954e465713176e5bd52119eedde5ebe531b
+  label: topFlag 是离职引用风险提示
+  content: tenant_project 或企业项目关系的 top_flag 表示配置中仍可能引用已离职运营人员；它不是人员状态、项目生效状态或删除状态。
+- item_id: RULE-AGREEMENT-EXTERNAL
+  kind: rule
+  status: candidate
+  confidence: 0.97
+  evidence_refs:
+  - DOC-BIZ-COMPONENT
+  - SKILL-AGREEMENT
+  provenance:
+    repository_revision: ee434954e465713176e5bd52119eedde5ebe531b
+  label: 协议主数据不在产融本地表
+  content: 协议生成和签署主数据由协议插件维护。未发现本地表时不得根据 serviceKey 或 businessId 虚构本地协议主表。
+- item_id: RULE-TENANT-SCOPE
+  kind: rule
+  status: candidate
+  confidence: 0.97
+  evidence_refs:
+  - DOC-BIZ-TENANT
+  - SKILL-JOB
+  provenance:
+    repository_revision: ee434954e465713176e5bd52119eedde5ebe531b
+  label: 查询必须尊重租户作用域
+  content: 业务表普遍包含 db_tenant_code/app_tenant_code/tenant_id 等租户字段；跨租户查询只有在明确授权和口径确认后才能执行，不得仅凭表关系自动跨租户汇总。
+- item_id: RULE-SYNC-ERROR-GRAIN
+  kind: rule
+  status: candidate
+  confidence: 0.98
+  evidence_refs:
+  - SKILL-EXTERNAL
+  - MODEL-SYNC-ERROR
+  provenance:
+    repository_revision: ee434954e465713176e5bd52119eedde5ebe531b
+  label: 同步失败记录不是业务对象失败
+  content: client_api_sync_error 一行代表一次待重试或已失败的客户端调用上下文；业务对象失败数必须按可验证业务键去重并结合下游结果定义。
+- item_id: RULE-RELATION-CANDIDATE
+  kind: rule
+  status: candidate
+  confidence: 0.99
+  evidence_refs:
+  - CODE-CUST-QUERY
+  - MODEL-PROJECT-REL
+  provenance:
+    repository_revision: ee434954e465713176e5bd52119eedde5ebe531b
+  label: 代码关系必须经数据库画像确认
+  content: 本包从 Mapper、字段命名和写入路径提取的关系只作为 CANDIDATE；发布前必须验证字段存在、类型兼容、基数、空值率及重复率。

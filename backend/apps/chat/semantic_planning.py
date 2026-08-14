@@ -8,7 +8,7 @@ from typing import Any, Literal, Self
 import orjson
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, model_validator
 
-from apps.chat.query_specification import QuerySpecification
+from apps.chat.query_intent import QueryIntent
 
 
 def stable_id(prefix: str, *parts: str) -> str:
@@ -35,7 +35,6 @@ class CandidateResolution(BaseModel):
 class Ambiguity(BaseModel):
     model_config = ConfigDict(extra="forbid")
     ambiguity_id: str = ""
-    business_axis: str = Field(min_length=1, max_length=80)
     business_question: str
     reason: str = ""
     impact_level: Literal["low", "medium", "high"] = "medium"
@@ -49,7 +48,6 @@ class Ambiguity(BaseModel):
         # IDs belong to the service, not to model wording or a model-invented
         # axis name. The mutually exclusive structured resolutions are the
         # semantic identity of the business decision.
-        self.business_axis = self.business_axis.strip().casefold().replace(" ", "_")
         resolution_identities = sorted(
             orjson.dumps(
                 candidate.resolution,
@@ -92,7 +90,7 @@ class AmbiguitySet(BaseModel):
 
 
 def public_ambiguity_payload(ambiguity_set: AmbiguitySet) -> dict[str, Any]:
-    """Interrupt JSON shown to the user — labels and wiring only."""
+    """Return the complete, business-facing clarification card payload."""
     payload = ambiguity_set.model_dump(mode="json")
     compact: list[dict[str, Any]] = []
     for item in payload.get("ambiguities") or []:
@@ -106,45 +104,49 @@ def public_ambiguity_payload(ambiguity_set: AmbiguitySet) -> dict[str, Any]:
                 {
                     "option_id": option.get("option_id") or "",
                     "label": option.get("label") or "",
+                    "description": option.get("description") or "",
+                    "impact": option.get("impact") or "",
                     "resolution": option.get("resolution") or {},
                 }
             )
         compact.append(
             {
                 "ambiguity_id": item.get("ambiguity_id") or "",
-                "business_axis": item.get("business_axis") or "",
                 "business_question": item.get("business_question") or "",
+                "reason": item.get("reason") or "",
+                "impact_level": item.get("impact_level") or "medium",
                 "candidate_resolutions": options,
                 "recommended_candidate_id": item.get("recommended_candidate_id"),
+                "recommendation_reason": item.get("recommendation_reason") or "",
                 "can_assume": bool(item.get("can_assume")),
             }
         )
-    return {"ambiguities": compact}
+    return {"summary": payload.get("summary") or "", "ambiguities": compact}
 
 
 def enforce_clarification_policy(
     ambiguity_set: AmbiguitySet,
     *,
-    resolved_business_axes: set[str] | None = None,
+    resolved_ambiguity_ids: set[str] | None = None,
 ) -> AmbiguitySet:
     """Accept only unresolved, result-changing business questions.
 
     The model discovers ambiguities; this deterministic boundary decides
     whether they are allowed to pause a run. Non-blocking uncertainty belongs
-    in ``QuerySpecification.assumptions`` and must never become an optional
+    in ``QueryIntent.assumptions`` and must never become an optional
     interrupt that the API cannot meaningfully complete.
     """
-    resolved = {item.strip().casefold() for item in resolved_business_axes or set()}
-    axes = [item.business_axis for item in ambiguity_set.ambiguities]
-    if len(axes) != len(set(axes)):
-        raise ValueError("Clarification questions must have unique business axes")
-    repeated = set(axes) & resolved
+    resolved = {item.strip() for item in resolved_ambiguity_ids or set()}
+    identities = [item.ambiguity_id for item in ambiguity_set.ambiguities]
+    if len(identities) != len(set(identities)):
+        raise ValueError("Clarification questions must be semantically unique")
+    repeated = set(identities) & resolved
     if repeated:
         raise ValueError(
-            "Planner repeated resolved business axes: " + ", ".join(sorted(repeated))
+            "Planner repeated resolved ambiguities: " + ", ".join(sorted(repeated))
         )
     non_blocking = [
-        item.business_axis
+        item.business_question
         for item in ambiguity_set.ambiguities
         if item.can_assume or item.impact_level == "low"
     ]
@@ -159,12 +161,17 @@ def enforce_clarification_policy(
 class QueryPlanCandidate(BaseModel):
     model_config = ConfigDict(extra="forbid")
     plan_id: str = ""
+    dataset_index: int = Field(ge=0)
     payload: dict[str, Any]
+    grounding_manifest: list[dict[str, Any]] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def assign_id(self) -> Self:
-        self.plan_id = self.plan_id or stable_id(
+        # Physical candidate identity is service-owned and content-addressed.
+        # A model-provided ID could alias a repaired payload to stale results.
+        self.plan_id = stable_id(
             "plan",
+            str(self.dataset_index),
             orjson.dumps(
                 self.payload,
                 option=orjson.OPT_SORT_KEYS,
@@ -178,15 +185,61 @@ class NeedClarification(BaseModel):
     model_config = ConfigDict(extra="forbid")
     decision: Literal["needs_clarification"] = "needs_clarification"
     ambiguity_set: AmbiguitySet
+    draft_intent: QueryIntent | None = None
+    held_candidates: list[QueryPlanCandidate] = Field(default_factory=list)
+    can_proceed_with_assumptions: bool = False
 
 
 class Ready(BaseModel):
     model_config = ConfigDict(extra="forbid")
     decision: Literal["ready"] = "ready"
-    specification: QuerySpecification
+    intent: QueryIntent
     candidates: list[QueryPlanCandidate] = Field(min_length=1)
+    evidence_bindings: list[dict[str, Any]] = Field(default_factory=list)
     summary: str = ""
 
+    @model_validator(mode="after")
+    def validate_candidate_datasets(self) -> Self:
+        upper = len(self.intent.datasets)
+        indices = [item.dataset_index for item in self.candidates]
+        if len(indices) != len(set(indices)):
+            raise ValueError("Each intent dataset must have exactly one plan candidate")
+        invalid = [
+            item.dataset_index
+            for item in self.candidates
+            if item.dataset_index >= upper
+        ]
+        if invalid:
+            raise ValueError("Plan candidate references an unknown intent dataset")
+        covered = {item.dataset_index for item in self.candidates}
+        required = {
+            index
+            for index, dataset in enumerate(self.intent.datasets)
+            if dataset.required
+        }
+        if not required.issubset(covered):
+            raise ValueError("Every required intent dataset needs a plan candidate")
+        return self
 
-PlanningDecision = NeedClarification | Ready
+
+class QueryUnsupported(BaseModel):
+    """A query-shaped turn that cannot be answered by the selected context."""
+
+    model_config = ConfigDict(extra="forbid")
+    decision: Literal["unsupported"] = "unsupported"
+    message: str
+    reason_code: str = "QUERY_NOT_SUPPORTED"
+
+    @model_validator(mode="after")
+    def validate_message(self) -> Self:
+        self.message = " ".join(self.message.split()).strip()
+        self.reason_code = self.reason_code.strip().upper() or "QUERY_NOT_SUPPORTED"
+        if not self.message:
+            raise ValueError(
+                "Unsupported query decision requires a user-facing message"
+            )
+        return self
+
+
+PlanningDecision = NeedClarification | Ready | QueryUnsupported
 PLANNING_DECISION_ADAPTER = TypeAdapter(PlanningDecision)

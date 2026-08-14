@@ -61,7 +61,7 @@ def test_empty_planning_context_cannot_reach_planner() -> None:
         restore_planning_context(
             _service(""),
             {
-                "version": 1,
+                "version": 2,
                 "schema_text": "",
                 "resources": [],
                 "fingerprint": "empty",

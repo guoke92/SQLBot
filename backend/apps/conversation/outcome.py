@@ -107,7 +107,14 @@ class RunOutcome(TypedDict):
 # wrong" differently, so a complaint we fail to recognise is still worth one
 # more attempt.  Only the kinds below are beyond talking our way out of.
 _TERMINAL_KINDS: frozenset[FailureKind] = frozenset(
-    {"connection", "permission", "internal", "limit_reached", "empty_response"}
+    {
+        "timeout",
+        "connection",
+        "permission",
+        "internal",
+        "limit_reached",
+        "empty_response",
+    }
 )
 
 
@@ -190,7 +197,10 @@ def public_error_message(error: BaseException | str) -> str:
 
     normalized = _plain_message(error).lower()
     class_name = error.__class__.__name__ if isinstance(error, BaseException) else ""
-    if class_name == "SemanticPlanningError" or "semantic planning failed" in normalized:
+    if class_name in {"SemanticPlanningError", "QueryAgentError"} or any(
+        marker in normalized
+        for marker in ("semantic planning failed", "query planning failed")
+    ):
         message = "Query planning could not be completed. Please retry or refine the request."
         error_type = "planning-error"
     elif "runtime value" in normalized or "checkpoint" in normalized:
@@ -250,8 +260,13 @@ def classify_failure(
             "permission denied",
             "not authorized",
             "forbidden",
+            "authentication failed",
+            "access denied",
+            "login failed",
             "无权限",
             "权限不足",
+            "认证失败",
+            "鉴权失败",
         )
     ):
         kind = "permission"

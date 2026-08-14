@@ -1,8 +1,9 @@
-"""Canonical terminal answer contract for NLQ conversations.
+"""Internal accepted-step payload and legacy chart read projection.
 
-The same payload is persisted in ``ChatRecord.data``, returned by the REST
-endpoint, and hydrated by the frontend. Adapters may normalize row values, but
-must not rebuild or drop top-level fields.
+``TurnAnswerV1`` in ``ChatRecord.answer`` is the only durable user-visible
+answer. This module keeps the accepted-step structure used inside the quality
+pipeline and derives old chart endpoint shapes at read time; the projection is
+never a second persisted answer.
 """
 
 from __future__ import annotations
@@ -89,6 +90,69 @@ def build_answer_payload(
 def build_failed_answer_payload(error: BaseException | str) -> AnswerPayload:
     """Create the canonical terminal payload for failures before execution."""
     return build_answer_payload([], "", failed_outcome(error))
+
+
+def project_turn_answer(value: Mapping[str, Any]) -> AnswerPayload:
+    """Project durable TurnAnswerV1 for legacy chart-only read consumers.
+
+    The projection is never persisted. ``ChatRecord.answer`` remains the sole
+    terminal answer truth for normal conversation turns.
+    """
+    datasets = value.get("datasets") or value.get("source_datasets") or []
+    steps: list[AnswerStep] = []
+    failures: list[dict[str, Any]] = []
+    for item in datasets:
+        if not isinstance(item, Mapping):
+            continue
+        if item.get("status") == "failed":
+            error = item.get("error") if isinstance(item.get("error"), Mapping) else {}
+            failures.append(
+                {
+                    "kind": str(error.get("code") or "QUERY_FAILED"),
+                    "message": str(error.get("message") or "Query failed"),
+                    "retryable": bool(error.get("retryable")),
+                }
+            )
+            continue
+        entry: AnswerStep = {
+            "sql": str(item.get("sql") or ""),
+            "brief": str(item.get("title") or ""),
+            "chart": (
+                cast(dict[str, Any], item.get("chart"))
+                if isinstance(item.get("chart"), dict)
+                else None
+            ),
+            "data": {
+                "fields": list(item.get("fields") or []),
+                "data": list(item.get("rows") or []),
+                "row_count": item.get("row_count"),
+                "truncated": bool(item.get("truncated")),
+            },
+        }
+        if isinstance(item.get("presentation"), Mapping):
+            entry["presentation"] = cast(AnswerPresentation, dict(item["presentation"]))
+        steps.append(entry)
+    raw_status = str(value.get("status") or "failed")
+    outcome_status = (
+        "success"
+        if raw_status == "succeeded"
+        else "degraded"
+        if raw_status == "degraded"
+        else "failed"
+    )
+    outcome: RunOutcome = {
+        "status": outcome_status,  # type: ignore[typeddict-item]
+        "failures": failures,
+        "successful_steps": len(steps),
+        "total_steps": len(steps) + len(failures),
+    }
+    if isinstance(value.get("quality"), Mapping):
+        outcome["quality"] = cast(Any, dict(value["quality"]))
+    return {
+        "steps": steps,
+        "analysis": str(value.get("content") or ""),
+        "outcome": outcome,
+    }
 
 
 def is_answer_payload(value: Any) -> bool:

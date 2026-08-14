@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 
 from sqlmodel import Session, select
 
@@ -149,4 +150,37 @@ def list_package_items(
     )
     if present_only:
         statement = statement.where(KnowledgePackageItemRegistry.present.is_(True))
+    statement = statement.order_by(
+        KnowledgePackageItemRegistry.kind,
+        KnowledgePackageItemRegistry.item_id,
+    )
     return registry, list(session.exec(statement).all())
+
+
+def materialize_registered_package(
+    registry: KnowledgePackageRegistry,
+    items: list[KnowledgePackageItemRegistry],
+    *,
+    reviewed_item_id: str | None = None,
+) -> KnowledgePackage:
+    """Rebuild the canonical transport package for a targeted governance action."""
+    payloads: list[dict[str, Any]] = []
+    for item in items:
+        if not item.present:
+            continue
+        payload = dict(item.payload or {})
+        if reviewed_item_id == item.item_id:
+            payload["status"] = "reviewed"
+        payloads.append(payload)
+    return KnowledgePackage.model_validate(
+        {
+            "schema_version": registry.schema_version,
+            "package_id": registry.package_id,
+            "title": registry.title,
+            "description": registry.description,
+            "generator": registry.generator or {},
+            "defaults": registry.defaults or {},
+            "sources": registry.sources or [],
+            "items": payloads,
+        }
+    )

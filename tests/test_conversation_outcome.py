@@ -50,6 +50,16 @@ def test_connection_failure_is_not_sql_repairable() -> None:
     assert failure["retryable"] is False
 
 
+def test_timeout_and_authentication_are_not_sql_repairable() -> None:
+    timeout = classify_failure("Query timed out after 45 seconds")
+    auth = classify_failure("Authentication failed for datasource user")
+
+    assert timeout["kind"] == "timeout"
+    assert timeout["retryable"] is False
+    assert auth["kind"] == "permission"
+    assert auth["retryable"] is False
+
+
 def test_unrecognised_dialect_rejection_still_earns_a_rewrite() -> None:
     # Hive words a bad column reference in none of the phrasings we match on,
     # yet it is exactly the kind of complaint a rewritten statement answers.
@@ -73,7 +83,7 @@ def test_execution_envelope_hides_the_driver_dump_without_losing_it() -> None:
 def test_public_error_hides_internal_planner_validation() -> None:
     payload = orjson.loads(
         public_error_message(
-            "Semantic planning failed: QuerySpecification requirement IDs must be unique"
+            "Query planning failed: QueryIntent is structurally invalid"
         )
     )
 

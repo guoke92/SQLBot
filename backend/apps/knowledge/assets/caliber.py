@@ -20,10 +20,10 @@ _DEMOTE_TIERS = frozenset({"published", "trusted", "admitted"})
 
 
 def _require_valid_fragment(fragment: dict[str, Any]) -> None:
-    from apps.chat.query_specification import parse_specification_fragment
+    from apps.chat.intent_defaults import parse_intent_default_fragment
 
     try:
-        parse_specification_fragment(fragment)
+        parse_intent_default_fragment(fragment)
     except Exception as exc:
         raise ValueError(f"contract_fragment is invalid: {exc}") from exc
 

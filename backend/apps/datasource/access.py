@@ -7,9 +7,11 @@ It is an application DTO, not a second permission implementation.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+import hashlib
+from dataclasses import dataclass
 from typing import Any
 
+import orjson
 from sqlmodel import Session
 
 from apps.datasource.crud.datasource import get_table_obj_by_ds
@@ -30,11 +32,22 @@ class AccessScope:
 
     def filters_for(self, resource_names: list[str]) -> list[dict[str, Any]]:
         allowed = set(resource_names)
-        return [
-            item
-            for item in self.row_filters
-            if item.get("table") in allowed
-        ]
+        return [item for item in self.row_filters if item.get("table") in allowed]
+
+
+def access_scope_fingerprint(scope: AccessScope | None) -> str:
+    """Content identity used to fence persisted result replay."""
+    if scope is None:
+        return hashlib.sha256(b"external-or-unscoped").hexdigest()
+    material = {
+        "resources": sorted(scope.resource_names),
+        "allowed_targets": sorted([list(item) for item in scope.allowed_targets]),
+        "row_filters": list(scope.row_filters),
+        "row_restricted_tables": sorted(scope.row_restricted_tables),
+    }
+    return hashlib.sha256(
+        orjson.dumps(material, option=orjson.OPT_SORT_KEYS, default=str)
+    ).hexdigest()
 
 
 def resolve_access_scope(
@@ -76,8 +89,6 @@ def resolve_access_scope(
         allowed_targets=allowed_targets,
         row_filters=row_filters,
         row_restricted_tables=frozenset(
-            str(item["table"])
-            for item in row_filters
-            if item.get("table")
+            str(item["table"]) for item in row_filters if item.get("table")
         ),
     )

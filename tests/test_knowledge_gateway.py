@@ -58,14 +58,17 @@ def _chat_candidate(
     record_id: int | None = 100,
 ) -> KnowledgeCandidate:
     frag = fragment or {
-        "version": 3,
-        "requirements": [
+        "version": 1,
+        "intent_defaults": [
             {
-                "clause": "output",
-                "requirement_id": "amt",
-                "business_label": "金额",
-                "field": {"resource": "order", "field": "amount"},
-                "aggregation": "sum",
+                "dataset_subject": "订单",
+                "kind": "output",
+                "value": {
+                    "business_name": "金额",
+                    "semantic_definition": "订单金额合计",
+                    "role": "measure",
+                    "aggregation": "sum",
+                },
             }
         ],
     }
@@ -190,15 +193,16 @@ class TestSubmitCandidate:
 
     def test_ephemeral_predicates_rejected(self) -> None:
         fragment = {
-            "version": 3,
-            "requirements": [
+            "version": 1,
+            "intent_defaults": [
                 {
-                    "clause": "predicate",
-                    "requirement_id": "id_filter",
-                    "business_label": "ID过滤",
-                    "field": {"resource": "t", "field": "id"},
-                    "operator": "eq",
-                    "values": ["abc12345-def6-7890-abcd-ef1234567890"],
+                    "dataset_subject": "订单",
+                    "kind": "filter",
+                    "value": {
+                        "business_name": "ID过滤",
+                        "operator": "eq",
+                        "values": ["abc12345-def6-7890-abcd-ef1234567890"],
+                    },
                 }
             ],
         }

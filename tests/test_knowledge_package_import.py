@@ -28,6 +28,7 @@ from apps.knowledge.importing.schema import (  # noqa: E402
     EvidencePackageItem,
     ExamplePackageItem,
     KnowledgePackage,
+    TerminologyPackageItem,
 )
 from apps.knowledge.importing.service import (  # noqa: E402
     apply_knowledge_package,
@@ -169,6 +170,52 @@ def test_unverified_example_is_not_ready_for_import(
 
     assert report.readiness_counts == {"review_required": 1}
     assert "executed and passed" in report.items[0].messages[0]
+    assert report.items[0].issues[0].code == "EXAMPLE_VERIFICATION_REQUIRED"
+    assert report.items[0].issues[0].severity == "warning"
+
+
+def test_empty_query_is_invalid_instead_of_entering_review_queue(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    item = ExamplePackageItem(
+        item_id="query-draft",
+        question="查询企业",
+        intended_specification={"subject": "企业"},
+    )
+    package = KnowledgePackage(package_id="draft-examples", items=[item])
+    monkeypatch.setattr(
+        "apps.knowledge.importing.service._resolve_datasource",
+        lambda *_args, **_kwargs: SimpleNamespace(id=8),
+    )
+
+    report = preview_knowledge_package(MagicMock(), oid=1, package=package)
+
+    assert report.readiness_counts == {"invalid": 1}
+    assert report.items[0].issues[0].code == "EXAMPLE_QUERY_REQUIRED"
+    assert report.items[0].issues[0].severity == "error"
+
+
+def test_invalid_preview_item_keeps_normalized_knowledge_for_review(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    item = TerminologyPackageItem(
+        item_id="term-invalid-scope",
+        word="建档",
+        description="企业资料提交并审核生效的业务过程",
+    )
+    package = KnowledgePackage(package_id="invalid-preview", items=[item])
+    monkeypatch.setattr(
+        "apps.knowledge.importing.service._resolve_datasource",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("invalid scope")),
+    )
+
+    report = preview_knowledge_package(MagicMock(), oid=1, package=package)
+
+    assert report.items[0].readiness == "invalid"
+    assert report.items[0].normalized is not None
+    assert report.items[0].normalized["word"] == "建档"
+    assert report.items[0].issues[0].code == "VALIDATION_FAILED"
+    assert report.items[0].issues[0].detail == "invalid scope"
 
 
 def test_relation_candidate_preserves_reviewer_decision() -> None:

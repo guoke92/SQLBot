@@ -44,7 +44,7 @@ export interface CandidateResolution {
 
 export interface Ambiguity {
   ambiguity_id: string
-  business_axis: string
+  business_axis?: string
   business_question: string
   reason?: string
   impact_level: 'low' | 'medium' | 'high'
@@ -57,6 +57,7 @@ export interface Ambiguity {
 export interface AmbiguitySet {
   ambiguities: Ambiguity[]
   summary?: string
+  can_proceed_with_assumptions?: boolean
 }
 
 export interface ResumeAnswer {
@@ -81,7 +82,7 @@ export type ConversationRunStatus =
 export interface ConversationRunSnapshot {
   run_id: string
   chat_record_id: number
-  graph_key: 'chat' | 'config' | 'analysis' | 'predict'
+  graph_key: 'chat' | 'config'
   status: ConversationRunStatus
   current_node?: string
   event_cursor: number
@@ -100,12 +101,17 @@ export interface CreateRunRequest {
   question: string
   datasource_id?: number
   regenerate_record_id?: number
+  route_hint?: 'query' | 'analysis' | 'prediction' | 'unsupported'
+  reference_record_ids?: number[]
+  finish_step?: number
+  return_img?: boolean
 }
 
 export interface ResumeRunRequest {
   version: number
   idempotency_key: string
   answers: ResumeAnswer[]
+  proceed_with_assumptions?: boolean
 }
 
 export interface CorrectionRunRequest {
@@ -199,6 +205,96 @@ export interface AnswerPayload {
   outcome: RunOutcome
 }
 
+export interface TurnAnswerDataset {
+  dataset_id: string
+  status: 'succeeded' | 'degraded' | 'failed'
+  required?: boolean
+  title?: string
+  sql?: string
+  fields?: string[]
+  rows?: Array<Record<string, any>>
+  row_count?: number
+  truncated?: boolean
+  presentation?: AnswerPresentation
+  chart?: unknown
+  error?: { code: string; message: string; retryable?: boolean }
+}
+
+export interface TurnAnswerV1 {
+  version: 1
+  answer_revision: number
+  source_run_id: string
+  kind: 'query' | 'analysis' | 'prediction' | 'unsupported'
+  status: 'succeeded' | 'degraded' | 'failed'
+  content?: string
+  datasets?: TurnAnswerDataset[]
+  source_datasets?: TurnAnswerDataset[]
+  forecast_rows?: Array<Record<string, any>>
+  assumptions?: Array<Record<string, any>>
+  source_record_ids?: number[]
+  quality?: ResultQuality
+  error?: { code: string; message: string; retryable?: boolean }
+}
+
+export const parseTurnAnswer = (value: unknown): TurnAnswerV1 | undefined => {
+  if (!value || typeof value !== 'object') return undefined
+  const candidate = value as Partial<TurnAnswerV1>
+  if (candidate.version !== 1 || !candidate.kind || !candidate.status) return undefined
+  return candidate as TurnAnswerV1
+}
+
+export const turnAnswerToPayload = (value: unknown): AnswerPayload | undefined => {
+  const answer = parseTurnAnswer(value)
+  if (!answer) return undefined
+  const datasets = answer.datasets || answer.source_datasets || []
+  const failedDatasets = datasets.filter((item) => item.status === 'failed')
+  const steps: AnswerStep[] = datasets
+    .filter((item) => item.status !== 'failed')
+    .map((item) => ({
+      sql: item.sql || '',
+      brief: item.title || '',
+      presentation: item.presentation,
+      chart: item.chart,
+      data: {
+        fields: item.fields || [],
+        data: item.rows || [],
+        row_count: item.row_count,
+        truncated: item.truncated,
+      },
+    }))
+  if (answer.kind === 'prediction' && answer.forecast_rows?.length) {
+    const fields = Object.keys(answer.forecast_rows[0] || {})
+    steps.push({
+      sql: '',
+      brief: t('chat.data_predict'),
+      chart: {
+        type: 'table',
+        columns: fields.map((field) => ({ field, label: field, display: field })),
+      },
+      data: { fields, data: answer.forecast_rows },
+    })
+  }
+  const status: RunStatus = answer.status === 'succeeded' ? 'success' : answer.status
+  return {
+    steps,
+    analysis: answer.content || '',
+    outcome: {
+      status,
+      failures: [
+        ...failedDatasets.map((item) => ({
+          dataset_id: item.dataset_id,
+          required: item.required !== false,
+          message: item.error?.message || t('common.failed'),
+        })),
+        ...(answer.error ? [{ message: answer.error.message }] : []),
+      ],
+      successful_steps: steps.length,
+      total_steps: datasets.length || steps.length,
+      quality: answer.quality,
+    },
+  }
+}
+
 export const parseAnswerPayload = (value: unknown): AnswerPayload | undefined => {
   let parsed = value
   if (typeof parsed === 'string') {
@@ -232,6 +328,11 @@ export class ChatRecord {
   engine_type?: string
   re_exec?: string | any
   answer?: AnswerPayload
+  turn_answer?: TurnAnswerV1
+  answer_revision: number = 0
+  turn_kind?: 'query' | 'analysis' | 'prediction' | 'unsupported'
+  relation?: 'independent' | 'continue' | 'revise'
+  reference_record_ids: number[] = []
   data?: AnswerDataset
   chart_answer?: string
   chart?: string
@@ -245,12 +346,10 @@ export class ChatRecord {
   run_time: number = 0
   first_chat: boolean = false
   recommended_question?: string
-  analysis_record_id?: number
-  predict_record_id?: number
-  regenerate_record_id?: number
   duration?: number
   total_tokens?: number
   run_id?: string
+  run_attempt_index: number = 0
   run_status?: ConversationRunStatus
   run_event_cursor: number = 0
   run_current_node?: string
@@ -286,9 +385,6 @@ export class ChatRecord {
     run_time: number,
     first_chat: boolean,
     recommended_question: string | undefined,
-    analysis_record_id: number | undefined,
-    predict_record_id: number | undefined,
-    regenerate_record_id: number | undefined,
     duration: number | undefined,
     total_tokens: number | undefined
   )
@@ -314,9 +410,6 @@ export class ChatRecord {
     run_time?: number,
     first_chat?: boolean,
     recommended_question?: string,
-    analysis_record_id?: number,
-    predict_record_id?: number,
-    regenerate_record_id?: number,
     duration?: number,
     total_tokens?: number
   ) {
@@ -341,9 +434,6 @@ export class ChatRecord {
     this.run_time = run_time ?? 0
     this.first_chat = !!first_chat
     this.recommended_question = recommended_question
-    this.analysis_record_id = analysis_record_id
-    this.predict_record_id = predict_record_id
-    this.regenerate_record_id = regenerate_record_id
     this.duration = duration
     this.total_tokens = total_tokens
   }
@@ -485,13 +575,17 @@ const toChatRecord = (data?: any): ChatRecord | undefined => {
     data.run_time,
     data.first_chat,
     data.recommended_question,
-    data.analysis_record_id,
-    data.predict_record_id,
-    data.regenerate_record_id,
     data.duration,
     data.total_tokens
   )
   record.run_id = data.run_id
+  record.run_attempt_index = Number(data.run_attempt_index || 0)
+  record.turn_answer = parseTurnAnswer(data.answer)
+  record.answer = turnAnswerToPayload(data.answer) || record.answer
+  record.answer_revision = Number(data.answer_revision || 0)
+  record.turn_kind = data.turn_kind
+  record.relation = data.relation
+  record.reference_record_ids = data.reference_record_ids || []
   record.run_status = data.run_status
   record.run_event_cursor = Number(data.run_event_cursor || 0)
   record.active_interrupt = data.active_interrupt
@@ -589,6 +683,15 @@ export class ChatLogHistory {
     completed_at?: Date | string
     update_time?: Date | string
   }
+  attempts?: Array<{
+    run_id: string
+    status?: string
+    current_node?: string
+    dispatch_attempts?: number
+    started_at?: Date | string
+    completed_at?: Date | string
+    update_time?: Date | string
+  }>
 
   constructor()
   constructor(
@@ -672,6 +775,7 @@ const toChatLogHistory = (data?: any): ChatLogHistory | undefined => {
   history.elapsed_duration = data.elapsed_duration
   history.waiting_duration = data.waiting_duration
   history.run = data.run || {}
+  history.attempts = data.attempts || []
   return history
 }
 
@@ -724,10 +828,11 @@ export const chatApi = {
   },
   get_chart_log_history: async (
     record_id?: number,
-    options?: { silent?: boolean }
+    options?: { silent?: boolean; runId?: string }
   ): Promise<ChatLogHistory | undefined> => {
+    const runQuery = options?.runId ? `?run_id=${encodeURIComponent(options.runId)}` : ''
     const response = await request.get(
-      `/chat/record/${record_id}/log`,
+      `/chat/record/${record_id}/log${runQuery}`,
       options?.silent ? { requestOptions: { silent: true } } : undefined
     )
     return toChatLogHistory(response)

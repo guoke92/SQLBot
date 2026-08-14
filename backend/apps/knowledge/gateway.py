@@ -81,27 +81,27 @@ def _validate_provenance(
 
 
 def _scrub_ephemeral(candidate: KnowledgeCandidate) -> KnowledgeCandidate | None:
-    """Drop ephemeral predicate requirements; None when nothing survives."""
+    """Drop ephemeral filter defaults; None when nothing survives."""
     if candidate.kind != "caliber":
         return candidate
     fragment = candidate.payload.get("contract_fragment") or {}
     if not isinstance(fragment, dict):
         return candidate
-    reqs = fragment.get("requirements") or []
-    if not isinstance(reqs, list) or not reqs:
+    defaults = fragment.get("intent_defaults") or []
+    if not isinstance(defaults, list) or not defaults:
         return candidate
     non_ephemeral = [
-        r
-        for r in reqs
-        if not isinstance(r, dict)
-        or r.get("clause") != "predicate"
-        or not predicate_looks_ephemeral(r)
+        item
+        for item in defaults
+        if not isinstance(item, dict)
+        or item.get("kind") != "filter"
+        or not predicate_looks_ephemeral(dict(item.get("value") or {}))
     ]
     if not non_ephemeral:
         return None
-    if len(non_ephemeral) == len(reqs):
+    if len(non_ephemeral) == len(defaults):
         return candidate
-    fragment = {**fragment, "requirements": non_ephemeral}
+    fragment = {**fragment, "intent_defaults": non_ephemeral}
     return candidate.model_copy(
         update={"payload": {**candidate.payload, "contract_fragment": fragment}}
     )

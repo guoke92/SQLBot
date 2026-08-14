@@ -1,8 +1,8 @@
-"""Durable conversation run, interrupt, and NLQ evidence models.
+"""Durable conversation turn execution models.
 
-``ChatRecord`` remains the user-visible message/result aggregate.  These
-models own workflow state so transport events and message rows never have to
-double as a scheduler or a semantic contract store.
+``ChatRecord`` remains the user-visible immutable turn/result aggregate.
+``ConversationRun`` owns one execution attempt, while user evidence is scoped
+to the turn so clarification survives a regenerate attempt.
 """
 
 from __future__ import annotations
@@ -33,6 +33,11 @@ def new_id() -> str:
 
 class ConversationRun(SQLModel, table=True):
     __tablename__ = "conversation_run"
+    __table_args__ = (
+        UniqueConstraint(
+            "chat_record_id", "attempt_index", name="uq_conversation_run_attempt"
+        ),
+    )
 
     run_id: str = Field(
         default_factory=new_id,
@@ -43,9 +48,11 @@ class ConversationRun(SQLModel, table=True):
             BigInteger,
             ForeignKey("chat_record.id", ondelete="CASCADE"),
             nullable=False,
-            unique=True,
+            index=True,
         )
     )
+    chat_id: int = Field(sa_column=Column(BigInteger, nullable=False, index=True))
+    attempt_index: int = Field(default=1, sa_column=Column(Integer, nullable=False))
     graph_key: str = Field(sa_column=Column(String(32), nullable=False))
     status: str = Field(
         default="queued",
@@ -60,6 +67,20 @@ class ConversationRun(SQLModel, table=True):
     active_interrupt_id: str | None = Field(
         default=None, sa_column=Column(String(36), nullable=True)
     )
+    route_snapshot: dict[str, Any] = Field(
+        default_factory=dict, sa_column=Column(JSONB, nullable=False, default=dict)
+    )
+    context_fingerprint: str | None = Field(
+        default=None, sa_column=Column(String(64), nullable=True)
+    )
+    business_now: datetime = Field(
+        default_factory=datetime.now,
+        sa_column=Column(DateTime(timezone=False), nullable=False),
+    )
+    timezone: str = Field(
+        default="Asia/Shanghai",
+        sa_column=Column(String(64), nullable=False),
+    )
     user_id: int = Field(sa_column=Column(BigInteger, nullable=False, index=True))
     assistant_id: int | None = Field(
         default=None, sa_column=Column(BigInteger, nullable=True)
@@ -68,6 +89,12 @@ class ConversationRun(SQLModel, table=True):
     event_cursor: int = Field(default=0, sa_column=Column(Integer, nullable=False))
     dispatch_attempts: int = Field(
         default=0, sa_column=Column(Integer, nullable=False, default=0)
+    )
+    worker_token: str | None = Field(
+        default=None, sa_column=Column(String(36), nullable=True)
+    )
+    lease_expires_at: datetime | None = Field(
+        default=None, sa_column=Column(DateTime(timezone=False), nullable=True, index=True)
     )
     error_summary: str | None = Field(
         default=None, sa_column=Column(Text, nullable=True)
@@ -155,8 +182,14 @@ class ConversationRunEvent(SQLModel, table=True):
     )
 
 
-class NlqRun(SQLModel, table=True):
-    __tablename__ = "nlq_run"
+class QueryRun(SQLModel, table=True):
+    """Durable query aggregate for one run attempt.
+
+    Grounding and extracted plan facts remain plan-owned JSON.  They are not
+    separate semantic revisions and are never inherited as user intent.
+    """
+
+    __tablename__ = "query_run"
 
     run_id: str = Field(
         sa_column=Column(
@@ -165,10 +198,10 @@ class NlqRun(SQLModel, table=True):
             primary_key=True,
         )
     )
-    active_specification_revision: int = Field(
+    active_intent_revision: int = Field(
         default=0, sa_column=Column(Integer, nullable=False)
     )
-    specifications: list[dict[str, Any]] = Field(
+    intent_revisions: list[dict[str, Any]] = Field(
         default_factory=list, sa_column=Column(JSONB, nullable=False, default=list)
     )
     # Durable input boundary for semantic planning.  Request-local LLMService
@@ -187,6 +220,9 @@ class NlqRun(SQLModel, table=True):
     plans: list[dict[str, Any]] = Field(
         default_factory=list, sa_column=Column(JSONB, nullable=False, default=list)
     )
+    executions: list[dict[str, Any]] = Field(
+        default_factory=list, sa_column=Column(JSONB, nullable=False, default=list)
+    )
     execution_status: str = Field(
         default="pending", sa_column=Column(String(24), nullable=False)
     )
@@ -202,23 +238,34 @@ class NlqRun(SQLModel, table=True):
     )
 
 
-class NlqEvidenceEvent(SQLModel, table=True):
-    __tablename__ = "nlq_evidence_event"
+class ConversationEvidence(SQLModel, table=True):
+    __tablename__ = "conversation_evidence"
     __table_args__ = (
-        UniqueConstraint("run_id", "sequence", name="uq_nlq_evidence_sequence"),
+        UniqueConstraint(
+            "chat_record_id", "sequence", name="uq_conversation_evidence_sequence"
+        ),
     )
 
     evidence_id: str = Field(
         default_factory=new_id,
         sa_column=Column(String(36), primary_key=True),
     )
-    run_id: str = Field(
+    chat_record_id: int = Field(
         sa_column=Column(
-            String(36),
-            ForeignKey("conversation_run.run_id", ondelete="CASCADE"),
+            BigInteger,
+            ForeignKey("chat_record.id", ondelete="CASCADE"),
             nullable=False,
             index=True,
         )
+    )
+    created_by_run_id: str | None = Field(
+        default=None,
+        sa_column=Column(
+            String(36),
+            ForeignKey("conversation_run.run_id", ondelete="SET NULL"),
+            nullable=True,
+            index=True,
+        ),
     )
     sequence: int = Field(sa_column=Column(Integer, nullable=False))
     kind: str = Field(sa_column=Column(String(32), nullable=False))
@@ -232,9 +279,58 @@ class NlqEvidenceEvent(SQLModel, table=True):
         default=None,
         sa_column=Column(
             String(36),
-            ForeignKey("nlq_evidence_event.evidence_id", ondelete="SET NULL"),
+            ForeignKey("conversation_evidence.evidence_id", ondelete="SET NULL"),
             nullable=True,
         ),
+    )
+    create_time: datetime = Field(
+        default_factory=datetime.now,
+        sa_column=Column(DateTime(timezone=False), nullable=False),
+    )
+
+
+class ResultDataset(SQLModel, table=True):
+    __tablename__ = "result_dataset"
+    __table_args__ = (
+        UniqueConstraint(
+            "run_id", "dataset_id", "plan_id", name="uq_result_dataset_execution"
+        ),
+    )
+
+    result_id: str = Field(
+        default_factory=new_id,
+        sa_column=Column(String(36), primary_key=True),
+    )
+    run_id: str = Field(
+        sa_column=Column(
+            String(36),
+            ForeignKey("conversation_run.run_id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        )
+    )
+    dataset_id: str = Field(sa_column=Column(String(64), nullable=False))
+    plan_id: str = Field(sa_column=Column(String(64), nullable=False))
+    status: str = Field(sa_column=Column(String(24), nullable=False))
+    required: bool = Field(default=True, nullable=False)
+    fields: list[str] = Field(
+        default_factory=list, sa_column=Column(JSONB, nullable=False, default=list)
+    )
+    rows: list[dict[str, Any]] = Field(
+        default_factory=list, sa_column=Column(JSONB, nullable=False, default=list)
+    )
+    row_count: int | None = Field(
+        default=None, sa_column=Column(Integer, nullable=True)
+    )
+    truncated: bool = Field(default=False, nullable=False)
+    schema_snapshot: dict[str, Any] = Field(
+        default_factory=dict, sa_column=Column(JSONB, nullable=False, default=dict)
+    )
+    statistics: dict[str, Any] = Field(
+        default_factory=dict, sa_column=Column(JSONB, nullable=False, default=dict)
+    )
+    error: dict[str, Any] | None = Field(
+        default=None, sa_column=Column(JSONB, nullable=True)
     )
     create_time: datetime = Field(
         default_factory=datetime.now,

@@ -11,7 +11,12 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   submit: [
-    payload: { interrupt: ConversationInterrupt; answers: ResumeAnswer[]; displayText: string },
+    payload: {
+      interrupt: ConversationInterrupt
+      answers: ResumeAnswer[]
+      displayText: string
+      proceedWithAssumptions?: boolean
+    },
   ]
   correct: [
     payload: {
@@ -26,6 +31,7 @@ const { t } = useI18n()
 const selected = reactive<Record<string, string>>({})
 const custom = reactive<Record<string, string>>({})
 const activeAmbiguityId = ref<string>()
+const detailAmbiguityIds = reactive<Record<string, boolean>>({})
 const validationError = ref('')
 const editing = ref(false)
 const correctionAmbiguityId = ref<string>()
@@ -45,6 +51,7 @@ function hasAnswer(ambiguity: Ambiguity) {
 function initialize() {
   for (const key of Object.keys(selected)) delete selected[key]
   for (const key of Object.keys(custom)) delete custom[key]
+  for (const key of Object.keys(detailAmbiguityIds)) delete detailAmbiguityIds[key]
   for (const ambiguity of ambiguities.value) {
     const answer = existingAnswer(ambiguity.ambiguity_id)
     selected[ambiguity.ambiguity_id] = answer?.mode === 'option' ? answer.option_id || '' : ''
@@ -119,6 +126,10 @@ function toggleAmbiguity(id: string) {
   activeAmbiguityId.value = activeAmbiguityId.value === id ? undefined : id
 }
 
+function toggleDetails(id: string) {
+  detailAmbiguityIds[id] = !detailAmbiguityIds[id]
+}
+
 function submit() {
   if (!canSubmit.value) return
   if (editing.value) {
@@ -175,6 +186,16 @@ function submit() {
     displayText: `${t('chat.clarification_confirmed')}\n${lines.join('\n')}`,
   })
 }
+
+function proceedWithAssumptions() {
+  if (!canSubmit.value || !props.interrupt.payload.can_proceed_with_assumptions) return
+  emit('submit', {
+    interrupt: props.interrupt,
+    answers: [],
+    displayText: t('chat.clarification_assumption_confirmed'),
+    proceedWithAssumptions: true,
+  })
+}
 </script>
 
 <template>
@@ -222,12 +243,26 @@ function submit() {
             {{ selectedText(ambiguity) }}
           </div>
         </div>
+        <button
+          type="button"
+          class="link-button"
+          @click.stop="toggleDetails(ambiguity.ambiguity_id)"
+        >
+          {{
+            detailAmbiguityIds[ambiguity.ambiguity_id]
+              ? t('chat.clarification_hide_details')
+              : t('chat.clarification_details')
+          }}
+        </button>
         <span class="chevron" :class="{ expanded: activeAmbiguityId === ambiguity.ambiguity_id }"
           >›</span
         >
       </div>
 
       <div v-if="activeAmbiguityId === ambiguity.ambiguity_id">
+        <div v-if="detailAmbiguityIds[ambiguity.ambiguity_id] && ambiguity.reason" class="reason">
+          {{ ambiguity.reason }}
+        </div>
         <div class="option-list">
           <button
             v-for="(option, optionIndex) in ambiguity.candidate_resolutions"
@@ -256,8 +291,24 @@ function submit() {
                   {{ t('chat.clarification_recommended') }}
                 </el-tag>
               </span>
+              <template v-if="detailAmbiguityIds[ambiguity.ambiguity_id]">
+                <span v-if="option.description" class="secondary">{{ option.description }}</span>
+                <span v-if="option.impact" class="secondary">
+                  {{ t('chat.clarification_impact') }}：{{ option.impact }}
+                </span>
+              </template>
             </span>
           </button>
+        </div>
+        <div
+          v-if="
+            detailAmbiguityIds[ambiguity.ambiguity_id] && ambiguity.recommendation_reason
+          "
+          class="recommendation-reason"
+        >
+          {{ t('chat.clarification_recommendation_reason') }}：{{
+            ambiguity.recommendation_reason
+          }}
         </div>
         <el-input
           v-if="!answered || editing || custom[ambiguity.ambiguity_id]?.trim()"
@@ -276,9 +327,20 @@ function submit() {
     <div v-if="validationError" class="validation-error">{{ validationError }}</div>
     <footer v-if="!answered || editing">
       <span class="secondary">{{ t('chat.clarification_submit_hint') }}</span>
-      <el-button type="primary" :disabled="!canSubmit" @click="submit">
-        {{ editing ? t('chat.clarification_save_correction') : t('chat.clarification_continue') }}
-      </el-button>
+      <div class="footer-actions">
+        <el-button
+          v-if="!editing && interrupt.payload.can_proceed_with_assumptions"
+          :disabled="!canSubmit"
+          @click="proceedWithAssumptions"
+        >
+          {{ t('chat.clarification_proceed_assumption') }}
+        </el-button>
+        <el-button type="primary" :disabled="!canSubmit" @click="submit">
+          {{
+            editing ? t('chat.clarification_save_correction') : t('chat.clarification_continue')
+          }}
+        </el-button>
+      </div>
     </footer>
   </section>
 </template>
@@ -305,6 +367,10 @@ footer {
   gap: 16px;
 }
 .header-actions {
+  gap: 8px;
+}
+.footer-actions {
+  display: flex;
   gap: 8px;
 }
 .card-title,
@@ -405,6 +471,12 @@ footer {
 }
 .secondary {
   margin-top: 6px;
+  color: #667085;
+  font-size: 13px;
+}
+.reason,
+.recommendation-reason {
+  margin: 10px 0;
   color: #667085;
   font-size: 13px;
 }

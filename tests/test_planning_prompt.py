@@ -13,7 +13,7 @@ from apps.chat.planning_prompt import (  # noqa: E402
     ProtocolPromptBits,
     render_planner_input,
 )
-from apps.chat.steps import semantic_planner  # noqa: E402
+from apps.chat.steps import query_agent  # noqa: E402
 
 
 def test_schema_quotes_are_not_json_escaped() -> None:
@@ -51,7 +51,7 @@ def test_empty_prose_sections_are_omitted() -> None:
 
 
 def test_semantic_and_physical_paths_share_renderer() -> None:
-    source = inspect.getsource(semantic_planner)
+    source = inspect.getsource(query_agent)
     assert "render_planner_input" in source
     assert "orjson.dumps(context)" not in source
     assert "protocol_generation_rules" not in source

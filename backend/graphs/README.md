@@ -10,14 +10,15 @@ builds a `StateGraph`, compiles it, and registers it under `graph_key`.
 **YAML is the sole topology truth source.** Node/router *bodies* remain
 Python; YAML only wires them together.
 
+普通对话遵循 `docs/对话路由与查询执行统一架构-v6.md`：查询、分析和预测共用唯一
+`chat.yaml`，节点内部不得再次提交旧 analysis/predict Graph。
+
 ## Directory Layout
 
 ```
 backend/graphs/
 ├── current/        ← default production load (GRAPH_SPEC_DIR default)
 │   ├── chat.yaml
-│   ├── analysis.yaml
-│   ├── predict.yaml
 │   ├── recommend.yaml
 │   └── config.yaml
 └── README.md       ← this file
@@ -30,7 +31,8 @@ backend/graphs/
 3. Each `*.yaml` file is parsed into a `GraphSpec` (validated schema).
 4. Dotted paths are resolved to Python objects via `importlib`.
 5. A `StateGraph` is built, compiled, and registered under the file's `graph_key`.
-6. Product code calls `submit_graph("chat", state)` — the runtime runs the
+6. Product code calls `submit_graph("chat", state)` — query, analysis and
+   prediction turns share that single durable topology. The runtime runs the
    graph compiled and registered during bootstrap.
 
 ## YAML Schema

@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import threading
+from collections.abc import Iterator
+from contextlib import contextmanager
+from contextvars import ContextVar
 from typing import TYPE_CHECKING, Any
 
 from sqlmodel import Session
@@ -21,6 +24,34 @@ if TYPE_CHECKING:
 
 _lock = threading.RLock()
 _contexts: dict[str, dict[str, Any]] = {}
+_worker_run_id: ContextVar[str | None] = ContextVar(
+    "conversation_worker_run_id", default=None
+)
+_worker_token: ContextVar[str | None] = ContextVar(
+    "conversation_worker_token", default=None
+)
+
+
+@contextmanager
+def worker_scope(run_id: str, token: str) -> Iterator[None]:
+    """Bind one claimed worker to this execution context.
+
+    The token is intentionally context-local rather than stored in the shared
+    runtime cache. A recovered worker may replace the database owner while an
+    old thread is still unwinding; context-local fencing prevents that stale
+    thread from borrowing the new owner's token.
+    """
+    run_handle = _worker_run_id.set(run_id)
+    token_handle = _worker_token.set(token)
+    try:
+        yield
+    finally:
+        _worker_token.reset(token_handle)
+        _worker_run_id.reset(run_handle)
+
+
+def current_worker_identity() -> tuple[str | None, str | None]:
+    return _worker_run_id.get(), _worker_token.get()
 
 
 def attach_runtime(run_id: str, **values: Any) -> None:
@@ -76,7 +107,6 @@ def _hydrate_chat(run: ConversationRun) -> dict[str, Any]:
         question = ChatQuestion(
             chat_id=record.chat_id,
             question=record.question or "",
-            regenerate_record_id=record.regenerate_record_id,
         )
         service = run_coro_sync(LLMService.create(session, user, question, assistant))
         service.set_record(ChatRecord(**record.model_dump()))

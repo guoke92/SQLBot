@@ -10,32 +10,11 @@ _BACKEND = _ROOT / "backend"
 if str(_BACKEND) not in sys.path:
     sys.path.insert(0, str(_BACKEND))
 
-from apps.chat.graphs.nodes import nlq  # noqa: E402
 from apps.chat.steps.history import (  # noqa: E402
     extract_prompt_messages,
     get_last_conversation_rounds,
     select_prompt_history,
 )
-
-
-class _Protocol:
-    def build_chart_system_prompt(self, _question) -> dict[str, str]:
-        return {
-            "system": "chart-system",
-            "rules": "chart-rules",
-            "ack": "chart-ack",
-        }
-
-
-def _service(*, chart_logs=(), regenerate_record_id=None):
-    return SimpleNamespace(
-        generate_chart_logs=list(chart_logs),
-        chat_question=SimpleNamespace(regenerate_record_id=regenerate_record_id),
-        base_message_round_count_limit=3,
-        ds=SimpleNamespace(type="hive"),
-        protocol=_Protocol(),
-        enable_sql_row_limit=True,
-    )
 
 
 def test_audit_payload_is_not_prompt_history() -> None:
@@ -87,34 +66,3 @@ def test_prompt_history_uses_latest_log_for_regenerated_record() -> None:
     assert select_prompt_history(logs, record_id=7) == [
         {"type": "human", "content": "latest attempt"}
     ]
-
-
-def test_audit_event_does_not_break_chart_history() -> None:
-    compiled_log = SimpleNamespace(
-        pid=86,
-        messages={
-            "sqlbot_span": True,
-            "graph_node": "generate_queries",
-            "payload": {"generation_source": "compiled", "sql": "SELECT 1"},
-        },
-    )
-    service = _service(chart_logs=[compiled_log])
-
-    nlq.assemble_chart_messages(service)
-
-    assert len(service.chart_message) == 3
-
-
-def test_regenerate_without_generation_history_uses_empty_history() -> None:
-    previous_log = SimpleNamespace(
-        pid=86,
-        messages=[
-            {"type": "human", "content": "question"},
-            {"type": "ai", "content": "answer"},
-        ],
-    )
-    service = _service(chart_logs=[previous_log], regenerate_record_id=87)
-
-    nlq.assemble_chart_messages(service)
-
-    assert len(service.chart_message) == 3

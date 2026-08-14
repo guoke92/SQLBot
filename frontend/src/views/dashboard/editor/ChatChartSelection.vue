@@ -63,7 +63,6 @@ import { useI18n } from 'vue-i18n'
 import { Chat, chatApi, ChatInfo, type AnswerStep } from '@/api/chat.ts'
 import DashboardChatList from '@/views/dashboard/editor/DashboardChatList.vue'
 import ChartSelection from '@/views/dashboard/editor/ChartSelection.vue'
-import { concat } from 'lodash-es'
 
 const dialogShow = ref(false)
 const { t } = useI18n()
@@ -92,35 +91,8 @@ function selectChange(value: boolean, viewInfo: any) {
   }
 }
 
-const predictionRows = (value: unknown): any[] => {
-  if (Array.isArray(value)) return value
-  if (typeof value !== 'string' || !value.trim()) return []
-  try {
-    const parsed = JSON.parse(value)
-    return Array.isArray(parsed) ? parsed : []
-  } catch (error) {
-    console.error(error)
-    return []
-  }
-}
-
 const recordAnswerSteps = (record: any): AnswerStep[] => {
-  const steps = record.answer?.steps ?? []
-  if (record?.predict_record_id === undefined || record?.predict_record_id === null) {
-    return steps
-  }
-  const rows = predictionRows(record.predict_data)
-  if (!rows.length || !steps.length) return []
-  const first = steps[0]
-  return [
-    {
-      ...first,
-      data: {
-        ...(first.data || {}),
-        data: concat(first.data?.data || [], rows),
-      },
-    },
-  ]
+  return record.answer?.steps ?? []
 }
 
 const parseChart = (value: unknown): any => {
@@ -139,9 +111,6 @@ function adaptorChartInfoList(chatInfo: ChatInfo) {
   chartInfoList.value = []
   if (chatInfo && chatInfo.records) {
     chatInfo.records.forEach((record: any) => {
-      if (record?.analysis_record_id !== undefined && record?.analysis_record_id !== null) {
-        return
-      }
       recordAnswerSteps(record).forEach((step, stepIndex) => {
         const data = step.data
         const chartBaseInfo = parseChart(step.chart || record.chart)

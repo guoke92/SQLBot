@@ -21,6 +21,7 @@ def _start_log(
     ai_modal_name: str | None = None,
     operate: OperationEnum | None = None,
     record_id: int | None = None,
+    run_id: str | None = None,
     full_message: list[dict[str, Any]] | dict[str, Any] | None = None,
     local_operation: bool = False,
 ) -> ChatLog:
@@ -28,6 +29,7 @@ def _start_log(
         type=TypeEnum.CHAT,
         operate=operate,
         pid=record_id,
+        run_id=run_id,
         ai_modal_id=ai_modal_id,
         base_modal=ai_modal_name,
         messages=full_message,

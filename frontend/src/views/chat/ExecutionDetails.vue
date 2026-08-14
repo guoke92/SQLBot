@@ -22,6 +22,7 @@ const dialogFormVisible = ref(false)
 const expandedIds = ref<Array<number | string>>([])
 const drawerSize = ref('600px')
 const activeRecordId = ref<number>()
+const selectedRunId = ref<string>()
 const loading = ref(false)
 let pollTimer: ReturnType<typeof setTimeout> | undefined
 
@@ -76,7 +77,12 @@ async function load(silent = false) {
   if (!activeRecordId.value || loading.value) return
   loading.value = true
   try {
-    logHistory.value = (await chatApi.get_chart_log_history(activeRecordId.value, { silent })) || {}
+    logHistory.value =
+      (await chatApi.get_chart_log_history(activeRecordId.value, {
+        silent,
+        runId: selectedRunId.value,
+      })) || {}
+    selectedRunId.value = logHistory.value.run?.run_id
     const important = (logHistory.value.steps || []).filter((item) =>
       ['running', 'failed', 'degraded'].includes(executionStepStatus(item))
     )
@@ -102,9 +108,18 @@ function schedulePoll() {
 async function getLogList(recordId: number) {
   setDrawerSize()
   activeRecordId.value = recordId
+  selectedRunId.value = undefined
   dialogFormVisible.value = true
   expandedIds.value = []
   await load()
+  schedulePoll()
+}
+
+async function selectRun(runId: string) {
+  if (runId === selectedRunId.value) return
+  selectedRunId.value = runId
+  expandedIds.value = []
+  await load(true)
   schedulePoll()
 }
 
@@ -150,6 +165,20 @@ defineExpose({ getLogList })
       >
         {{ t('chat.audit.failed_stage') }}：{{ runStageText }}
       </span>
+      <el-select
+        v-if="(logHistory.attempts?.length || 0) > 1"
+        :model-value="selectedRunId"
+        class="attempt-select"
+        size="small"
+        @change="selectRun"
+      >
+        <el-option
+          v-for="(attempt, index) in logHistory.attempts"
+          :key="attempt.run_id"
+          :label="t('chat.audit.run_attempt', { value: index + 1 })"
+          :value="attempt.run_id"
+        />
+      </el-select>
     </div>
     <div class="title">{{ t('parameter.overview') }}</div>
     <div class="overview">
@@ -232,6 +261,10 @@ defineExpose({ getLogList })
   .current-node {
     margin-left: auto;
     font-size: 12px;
+  }
+  .attempt-select {
+    width: 132px;
+    margin-left: 8px;
   }
   .title {
     font-weight: 500;

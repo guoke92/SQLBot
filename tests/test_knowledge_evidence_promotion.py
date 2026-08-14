@@ -59,14 +59,17 @@ def _mock_session(
 
 def _valid_fragment() -> dict[str, Any]:
     return {
-        "version": 3,
-        "requirements": [
+        "version": 1,
+        "intent_defaults": [
             {
-                "clause": "output",
-                "requirement_id": "amt",
-                "business_label": "金额",
-                "field": {"resource": "order", "field": "amount"},
-                "aggregation": "sum",
+                "dataset_subject": "订单",
+                "kind": "output",
+                "value": {
+                    "business_name": "金额",
+                    "semantic_definition": "订单金额合计",
+                    "role": "measure",
+                    "aggregation": "sum",
+                },
             }
         ],
     }

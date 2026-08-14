@@ -1,0 +1,34 @@
+package_id: pplatform-system-business-data-v2
+source_repository:
+  path: /Users/fanjunwei/IdeaProjects/pplatform-web
+  branch: dev-v1.33.0
+  commit: ee434954e465713176e5bd52119eedde5ebe531b
+  dirty: false
+scope:
+  domains:
+  - 客户建档与变更
+  - 产品与租户项目
+  - 企业项目角色
+  - 租户配置
+  - 运营人员同步
+  - OpenAPI与推数
+  - 协议数据边界
+  database_profiled: false
+  query_executed: false
+counts:
+  terminology: 18
+  caliber: 8
+  relation: 13
+  example: 7
+  rule: 8
+  evidence: 30
+outputs:
+- README.md
+- manifest.yaml
+- domain-catalog.md
+- source-catalog.jsonl
+- facts.jsonl
+- relations.jsonl
+- asset-candidates.yaml
+- review-questions.md
+- knowledge-package.yaml

@@ -29,7 +29,6 @@ from apps.chat.curd.chat import (
     list_chats,
     list_recent_questions,
     rename_chat_with_user,
-    save_analysis_predict_record,
 )
 from apps.chat.curd.debug_bundle import build_chat_debug_bundle
 from apps.chat.models.chat_model import (
@@ -112,15 +111,32 @@ async def _launch_run(
         if run is None:
             raise RuntimeError("Config run was not created")
     else:
+        regenerate_record = (
+            session.get(ChatRecord, request.regenerate_record_id)
+            if request.regenerate_record_id is not None
+            else None
+        )
+        if regenerate_record is not None and (
+            int(regenerate_record.chat_id) != int(request.chat_id)
+            or int(regenerate_record.create_by) != _user_id(current_user)
+        ):
+            raise HTTPException(status_code=404, detail="Turn not found")
         question = ChatQuestion(
             chat_id=request.chat_id,
-            question=request.question,
-            regenerate_record_id=request.regenerate_record_id,
+            question=(
+                str(regenerate_record.question)
+                if regenerate_record is not None
+                else request.question
+            ),
         )
         service = await LLMService.create(
             session, current_user, question, current_assistant
         )
-        service.init_record(session=session, commit=False)
+        if regenerate_record is not None:
+            service.set_record(regenerate_record)
+        else:
+            service.init_record(session=session, commit=False)
+            service.record.reference_record_ids = request.reference_record_ids
         run = create_run(
             session,
             record=service.record,
@@ -142,8 +158,32 @@ async def _launch_run(
             "sink": "sse",
             "graph_key": "chat",
             "mode": "primary",
-            "finish_step": int(ChatFinishStep.GENERATE_CHART.value),
-            "return_img": True,
+            "route_hint": (
+                regenerate_record.turn_kind
+                if regenerate_record is not None
+                else request.route_hint
+            ),
+            "reference_record_ids": (
+                list(regenerate_record.reference_record_ids or [])
+                if regenerate_record is not None
+                else request.reference_record_ids
+            ),
+            "preset_route": (
+                {
+                    "task_kind": regenerate_record.turn_kind or "query",
+                    "relation": regenerate_record.relation or "independent",
+                    "reference_record_ids": list(
+                        regenerate_record.reference_record_ids or []
+                    ),
+                    "source": "hint",
+                    "confidence": 1.0,
+                }
+                if regenerate_record is not None
+                else None
+            ),
+            "finish_step": request.finish_step
+            or int(ChatFinishStep.GENERATE_CHART.value),
+            "return_img": request.return_img,
         }
     runner = submit_graph(graph_key, state)
     runner.detach()
@@ -250,7 +290,9 @@ async def conversation_run_events(
                     "event_cursor": latest_cursor,
                     "dispatch_attempts": run.dispatch_attempts,
                     "update_time": run.update_time.isoformat(),
-                    "started_at": run.started_at.isoformat() if run.started_at else None,
+                    "started_at": run.started_at.isoformat()
+                    if run.started_at
+                    else None,
                     "completed_at": (
                         run.completed_at.isoformat() if run.completed_at else None
                     ),
@@ -479,10 +521,15 @@ async def chat_predict_data(
     "/record/{chat_record_id}/log", summary=f"{PLACEHOLDER_PREFIX}get_record_log"
 )
 async def chat_record_log(
-    session: SessionDep, current_user: CurrentUser, chat_record_id: int
+    session: SessionDep,
+    current_user: CurrentUser,
+    chat_record_id: int,
+    run_id: str | None = None,
 ):
     def inner():
-        return get_chat_log_history(session, chat_record_id, current_user)
+        return get_chat_log_history(
+            session, chat_record_id, current_user, run_id=run_id
+        )
 
     return await asyncio.to_thread(inner)
 
@@ -514,9 +561,14 @@ async def chat_record_feedback(
     def inner():
         feedback = body.get("feedback")
         if feedback not in ("up", "down", None):
-            raise HTTPException(status_code=400, detail="feedback must be 'up', 'down' or null")
+            raise HTTPException(
+                status_code=400, detail="feedback must be 'up', 'down' or null"
+            )
         return submit_record_feedback(
-            session, chat_record_id=chat_record_id, user_id=current_user.id, feedback=feedback
+            session,
+            chat_record_id=chat_record_id,
+            user_id=current_user.id,
+            feedback=feedback,
         )
 
     return await asyncio.to_thread(inner)
@@ -636,11 +688,11 @@ async def ask_recommend_questions(
 
         if not record:
             return StreamingResponse(_return_empty(), media_type="text/event-stream")
-        run = session.exec(
-            select(ConversationRun).where(
-                ConversationRun.chat_record_id == chat_record_id
-            )
-        ).scalars().one_or_none()
+        run = (
+            session.get(ConversationRun, record.active_run_id)
+            if record.active_run_id
+            else None
+        )
         if run is not None and run.status not in {"succeeded", "degraded"}:
             return StreamingResponse(_return_empty(), media_type="text/event-stream")
 
@@ -691,17 +743,10 @@ async def recommend_questions(
 
 
 def find_base_question(record_id: int, session: SessionDep):
-    stmt = select(ChatRecord.question, ChatRecord.regenerate_record_id).where(
-        and_(ChatRecord.id == record_id)
-    )
-    _record = session.execute(stmt).fetchone()
-    if not _record:
+    record = session.get(ChatRecord, record_id)
+    if record is None:
         raise Exception("Cannot find base chat record")
-    rec_question, rec_regenerate_record_id = _record
-    if rec_regenerate_record_id:
-        return find_base_question(rec_regenerate_record_id, session)
-    else:
-        return rec_question
+    return record.question
 
 
 async def question_answer_inner(
@@ -727,79 +772,39 @@ async def question_answer_inner(
                 raise Exception(f"Command: {command.value} temporary not supported")
 
             if record_id is not None:
-                # 排除analysis和predict
-                stmt = (
-                    select(
-                        ChatRecord.id,
-                        ChatRecord.chat_id,
-                        ChatRecord.analysis_record_id,
-                        ChatRecord.predict_record_id,
-                        ChatRecord.regenerate_record_id,
-                        ChatRecord.first_chat,
-                    )
-                    .where(and_(ChatRecord.id == record_id))
-                    .order_by(ChatRecord.create_time.desc())
-                )
-                _record = session.execute(stmt).fetchone()
-                if not _record:
+                source_record = session.get(ChatRecord, record_id)
+                if source_record is None:
                     raise Exception(f"Record id: {record_id} does not exist")
-
-                (
-                    rec_id,
-                    rec_chat_id,
-                    rec_analysis_record_id,
-                    rec_predict_record_id,
-                    rec_regenerate_record_id,
-                    rec_first_chat,
-                ) = _record
-
-                if rec_chat_id != request_question.chat_id:
+                if source_record.chat_id != request_question.chat_id:
                     raise Exception(
                         f"Record id: {record_id} does not belong to this chat"
                     )
-                if rec_first_chat:
+                if source_record.create_by != current_user.id:
+                    raise Exception(f"Record id: {record_id} is not owned by the user")
+                if source_record.first_chat:
                     raise Exception(
                         f"Record id: {record_id} does not support this operation"
                     )
-
-                if rec_analysis_record_id:
-                    raise Exception("Analysis record does not support this operation")
-                if rec_predict_record_id:
-                    raise Exception(
-                        "Predict data record does not support this operation"
-                    )
+                rec_id = int(source_record.id)
 
             else:  # get last record id
-                stmt = (
-                    select(
-                        ChatRecord.id,
-                        ChatRecord.chat_id,
-                        ChatRecord.regenerate_record_id,
-                    )
+                source_record = session.exec(
+                    select(ChatRecord)
                     .where(
                         and_(
                             ChatRecord.chat_id == request_question.chat_id,
-                            ChatRecord.first_chat == False,
-                            ChatRecord.analysis_record_id.is_(None),
-                            ChatRecord.predict_record_id.is_(None),
+                            ChatRecord.create_by == current_user.id,
+                            ChatRecord.first_chat.is_(False),
                         )
                     )
                     .order_by(ChatRecord.create_time.desc())
                     .limit(1)
-                )
-                _record = session.execute(stmt).fetchone()
-
-                if not _record:
+                ).scalars().one_or_none()
+                if source_record is None:
                     raise Exception("You have not ask any question")
+                rec_id = int(source_record.id)
 
-                rec_id, rec_chat_id, rec_regenerate_record_id = _record
-
-            # 没有指定的，就查询上一个
-            if not rec_regenerate_record_id:
-                rec_regenerate_record_id = rec_id
-
-            # 针对已经是重新生成的提问，需要找到原来的提问是什么
-            base_question_text = find_base_question(rec_regenerate_record_id, session)
+            base_question_text = find_base_question(rec_id, session)
             text_before_command = (
                 text_before_command
                 + ("\n" if text_before_command else "")
@@ -910,7 +915,20 @@ async def stream_sql(
             llm_service = await LLMService.create(
                 session, current_user, request_question, current_assistant
             )
-            llm_service.init_record(session=session, commit=False)
+            if request_question.regenerate_record_id:
+                regenerate_record = session.get(
+                    ChatRecord, int(request_question.regenerate_record_id)
+                )
+                if (
+                    regenerate_record is None
+                    or int(regenerate_record.create_by or 0)
+                    != _user_id(current_user)
+                    or int(regenerate_record.chat_id) != int(request_question.chat_id)
+                ):
+                    raise Exception("Turn to regenerate was not found")
+                llm_service.set_record(regenerate_record)
+            else:
+                llm_service.init_record(session=session, commit=False)
             run = create_run(
                 session,
                 record=llm_service.record,
@@ -932,6 +950,10 @@ async def stream_sql(
                 "graph_key": graph_key,
                 "mode": "primary",
                 "chat_id": request_question.chat_id,
+                "route_hint": "query",
+                "reference_record_ids": list(
+                    llm_service.record.reference_record_ids or []
+                ),
                 "finish_step": int(
                     finish_step.value if hasattr(finish_step, "value") else finish_step
                 ),
@@ -1009,25 +1031,36 @@ async def analysis_or_predict(
         if not base_record or int(base_record.create_by) != _user_id(current_user):
             raise Exception(f"Chat record with id {chat_record_id} not found")
 
-        if not base_record.chart:
+        answer = base_record.answer if isinstance(base_record.answer, dict) else {}
+        if not (answer.get("datasets") or answer.get("source_datasets")):
             raise Exception(
-                f"Chat record with id {chat_record_id} has not generated chart, do not support to analyze it"
+                f"Chat record with id {chat_record_id} has no usable result dataset"
             )
 
+        task_kind = "analysis" if action_type == "analysis" else "prediction"
         request_question = ChatQuestion(
-            chat_id=base_record.chat_id, question=base_record.question
+            chat_id=base_record.chat_id,
+            question=(
+                "请分析上一条查询结果"
+                if task_kind == "analysis"
+                else "请基于上一条查询结果进行预测"
+            ),
         )
 
         llm_service = await LLMService.create(
             session, current_user, request_question, current_assistant
         )
-        record = save_analysis_predict_record(
-            session, base_record, action_type, commit=False
-        )
+        llm_service.init_record(session=session, commit=False)
+        record = llm_service.record
+        record.turn_kind = task_kind
+        record.relation = "continue"
+        record.reference_record_ids = [int(base_record.id)]
+        session.add(record)
+        session.flush()
         run = create_run(
             session,
             record=record,
-            graph_key=action_type,
+            graph_key="chat",
             user_id=_user_id(current_user),
             oid=int(getattr(current_user, "oid", None) or 1),
             assistant_id=(
@@ -1039,17 +1072,19 @@ async def analysis_or_predict(
         )
         llm_service.set_record(record)
         attach_runtime(run.run_id, llm_service=llm_service)
-        # Sole runtime entry — graph_key is the routing truth source.
+        # Compatibility endpoint only adapts the old button shape into the
+        # one durable chat graph. It does not create an analysis/predict graph.
         runner = submit_graph(
-            action_type,
+            "chat",
             {
                 "run_id": run.run_id,
                 "record_id": record.id,
                 "sink": sink_mode,
-                "graph_key": action_type,
+                "graph_key": "chat",
                 "mode": "follow_up",
                 "chat_id": base_record.chat_id,
-                "base_record_id": base_record.id,
+                "route_hint": task_kind,
+                "reference_record_ids": [int(base_record.id)],
             },
         )
     except Exception as e:
@@ -1114,7 +1149,10 @@ async def export_excel(
             status_code=500,
             detail=f"ChatRecord with id {chat_record_id} not Owned by the current user",
         )
-    is_predict_data = chat_record.predict_record_id is not None
+    is_predict_data = bool(
+        isinstance(chat_record.answer, dict)
+        and chat_record.answer.get("kind") == "prediction"
+    )
 
     _origin_data = format_json_data(
         get_chat_chart_data(chat_record_id=chat_record_id, session=session)

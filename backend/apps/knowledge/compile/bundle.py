@@ -23,13 +23,18 @@ class ApplyHit(BaseModel):
 
 
 class BoundCaliber(BaseModel):
+    """A certified candidate available for deterministic intent defaulting.
+
+    Presence in this collection is recall, not proof that the asset was
+    applied. Only ``CompiledKnowledge.apply_log`` records the final decision.
+    """
+
     caliber_id: int
     lineage_id: str
     label: str
     fragment: dict[str, Any]
     field_targets: list[Any] = Field(default_factory=list)
     trust_tier: str = "certified"
-    apply: Literal["bind"] = "bind"
 
 
 class CompiledKnowledge(BaseModel):

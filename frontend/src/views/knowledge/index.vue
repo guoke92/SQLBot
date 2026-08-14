@@ -1,98 +1,172 @@
 <script lang="ts" setup>
+import { DocumentAdd, FolderOpened } from '@element-plus/icons-vue'
 import { onMounted, reactive, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { datasourceApi } from '@/api/datasource'
 import {
   knowledgeApi,
   type KnowledgeImportReport,
   type KnowledgeImportRequest,
+  type KnowledgePackageDetail,
   type KnowledgePackageItem,
   type KnowledgePackageSummary,
+  type KnowledgeReviewItem,
+  type KnowledgeReviewPage,
   type KnowledgeSuggestion,
+  type RuntimeKnowledgeItem,
+  type RuntimeKnowledgePage,
 } from '@/api/knowledge'
-import { useI18n } from 'vue-i18n'
-import { formatTimestamp } from '@/utils/date'
+import KnowledgePackageWorkbench from './components/KnowledgePackageWorkbench.vue'
+import KnowledgeReviewCenter from './components/KnowledgeReviewCenter.vue'
+import RuntimeKnowledgeList from './components/RuntimeKnowledgeList.vue'
 
 const { t } = useI18n()
-const activeTab = ref('triage')
-
-const stagingList = ref<any[]>([])
-const suggestions = ref<KnowledgeSuggestion[]>([])
-const assetList = ref<any[]>([])
+const activeTab = ref('reviews')
 const loading = ref(false)
 const importLoading = ref(false)
-const importFileName = ref('')
-const importDocuments = ref<Array<{ name: string; content: string }>>([])
-const importReport = ref<KnowledgeImportReport | null>(null)
+const packageLoading = ref(false)
+const reviewPage = ref<KnowledgeReviewPage | null>(null)
+const runtimePage = ref<RuntimeKnowledgePage | null>(null)
+const suggestions = ref<KnowledgeSuggestion[]>([])
 const importedPackages = ref<KnowledgePackageSummary[]>([])
+const packageDetail = ref<KnowledgePackageDetail | null>(null)
+const importReport = ref<KnowledgeImportReport | null>(null)
 const datasourceOptions = ref<Array<{ id: number; name: string }>>([])
+const importDocuments = ref<Array<{ name: string; content: string }>>([])
+const importFileName = ref('')
+const fileInput = ref<HTMLInputElement | null>(null)
+const folderInput = ref<HTMLInputElement | null>(null)
+const selectedPackageId = ref('')
 const previewFingerprint = ref('')
-const importForm = reactive({
-  packageId: '',
-  datasourceId: undefined as number | undefined,
-})
-
-const filters = reactive({ kind: '', trust_tier: '' })
+const importPanelOpen = ref(false)
+const reportMode = ref<'preview' | 'applied' | 'registered'>('registered')
+const importForm = reactive({ packageId: '', datasourceId: undefined as number | undefined })
+let packageRequestSequence = 0
 
 const rejectDialogVisible = ref(false)
 const rejectReason = ref('')
-const rejectTarget = ref<number | null>(null)
-
+const rejectTarget = ref<KnowledgeReviewItem | KnowledgePackageItem | null>(null)
+const rejectSource = ref<'review' | 'package'>('review')
 const demoteDialogVisible = ref(false)
-const demoteTarget = ref<number | null>(null)
+const demoteTarget = ref<RuntimeKnowledgeItem | null>(null)
 const demoteForm = reactive({ to_tier: 'published', reason: '' })
 
-async function loadTriage() {
+function unwrap<T>(response: { data?: T } | T): T {
+  return (response as { data?: T }).data || (response as T)
+}
+
+async function loadReviews(query = { keyword: '', kind: '', page: 1, pageSize: 15 }) {
   loading.value = true
   try {
-    const [s, sg] = await Promise.all([knowledgeApi.getStaging(), knowledgeApi.getSuggestions()])
-    stagingList.value = s.data || s
-    suggestions.value = sg.data || sg
+    const [reviews, suggestionResult] = await Promise.all([
+      knowledgeApi.getReviews({
+        keyword: query.keyword || undefined,
+        kind: query.kind || undefined,
+        page: query.page,
+        page_size: query.pageSize,
+      }),
+      knowledgeApi.getSuggestions(),
+    ])
+    reviewPage.value = unwrap<KnowledgeReviewPage>(reviews)
+    suggestions.value = unwrap<KnowledgeSuggestion[]>(suggestionResult)
   } finally {
     loading.value = false
   }
 }
 
-async function loadAssets() {
+async function loadRuntime(
+  query: {
+    keyword: string
+    kind: string
+    enabled?: boolean
+    page: number
+    pageSize: number
+  } = {
+    keyword: '',
+    kind: '',
+    enabled: undefined,
+    page: 1,
+    pageSize: 15,
+  }
+) {
   loading.value = true
   try {
-    const params: any = {}
-    if (filters.kind) params.kind = filters.kind
-    if (filters.trust_tier) params.trust_tier = filters.trust_tier
-    const res = await knowledgeApi.getAssets(params)
-    assetList.value = res.data || res
+    const response = await knowledgeApi.getRuntimeAssets({
+      keyword: query.keyword || undefined,
+      kind: query.kind || undefined,
+      enabled: query.enabled,
+      page: query.page,
+      page_size: query.pageSize,
+    })
+    runtimePage.value = unwrap<RuntimeKnowledgePage>(response)
   } finally {
     loading.value = false
   }
 }
 
-async function handleCertify(id: number) {
-  await knowledgeApi.certify(id)
-  ElMessage.success(t('knowledge.certify') + ' ✓')
-  loadTriage()
+async function approveReview(item: KnowledgeReviewItem) {
+  if (item.source === 'staging') await knowledgeApi.certify(item.id)
+  else if (item.source === 'relation') await knowledgeApi.decideRelation(item.id, 'CONFIRMED')
+  else if (item.package_id && item.item_id) {
+    await knowledgeApi.advancePackageItem(item.package_id, item.item_id, {
+      action: 'approve_publish',
+      default_datasource_id: importForm.datasourceId,
+    })
+  }
+  ElMessage.success(t('knowledge.review_completed'))
+  await Promise.all([loadReviews(), loadRuntime()])
+  if (selectedPackageId.value) await inspectPackage(selectedPackageId.value)
 }
 
-function openReject(id: number) {
-  rejectTarget.value = id
+function openReviewReject(item: KnowledgeReviewItem) {
+  rejectTarget.value = item
+  rejectSource.value = 'review'
+  rejectReason.value = ''
+  rejectDialogVisible.value = true
+}
+
+function openPackageReject(item: KnowledgePackageItem) {
+  rejectTarget.value = item
+  rejectSource.value = 'package'
   rejectReason.value = ''
   rejectDialogVisible.value = true
 }
 
 async function confirmReject() {
-  if (!rejectTarget.value) return
-  await knowledgeApi.reject(rejectTarget.value, rejectReason.value)
+  const target = rejectTarget.value
+  if (!target) return
+  if (rejectSource.value === 'package') {
+    const item = target as KnowledgePackageItem
+    await knowledgeApi.rejectPackageItem(selectedPackageId.value, item.item_id)
+  } else {
+    const item = target as KnowledgeReviewItem
+    if (item.source === 'staging') await knowledgeApi.reject(item.id, rejectReason.value)
+    else if (item.source === 'relation') await knowledgeApi.decideRelation(item.id, 'REJECTED')
+    else if (item.package_id && item.item_id) {
+      await knowledgeApi.rejectPackageItem(item.package_id, item.item_id)
+    }
+  }
   rejectDialogVisible.value = false
-  ElMessage.success(t('knowledge.reject') + ' ✓')
-  loadTriage()
+  ElMessage.success(t('knowledge.reject_completed'))
+  await loadReviews()
+  if (selectedPackageId.value) await inspectPackage(selectedPackageId.value)
 }
 
-async function handlePromote(id: number) {
-  await knowledgeApi.promote(id)
+async function handlePromote(item: KnowledgeSuggestion) {
+  await knowledgeApi.promote(item.id)
   ElMessage.success(t('knowledge.promote') + ' ✓')
-  loadTriage()
+  await Promise.all([loadReviews(), loadRuntime()])
 }
 
-function openDemote(id: number) {
-  demoteTarget.value = id
+async function handleDisable(item: RuntimeKnowledgeItem) {
+  if (item.kind === 'rule') await knowledgeApi.disableRule(item.id)
+  else await knowledgeApi.disable(item.id)
+  ElMessage.success(t('knowledge.disable') + ' ✓')
+  await loadRuntime()
+}
+
+function openDemote(item: RuntimeKnowledgeItem) {
+  demoteTarget.value = item
   demoteForm.to_tier = 'published'
   demoteForm.reason = ''
   demoteDialogVisible.value = true
@@ -100,29 +174,16 @@ function openDemote(id: number) {
 
 async function confirmDemote() {
   if (!demoteTarget.value) return
-  await knowledgeApi.demote(demoteTarget.value, demoteForm.to_tier, demoteForm.reason)
+  await knowledgeApi.demote(demoteTarget.value.id, demoteForm.to_tier, demoteForm.reason)
   demoteDialogVisible.value = false
   ElMessage.success(t('knowledge.demote') + ' ✓')
-  loadAssets()
-}
-
-async function handleDisable(row: any) {
-  if (row.kind === 'rule') await knowledgeApi.disableRule(row.id)
-  else await knowledgeApi.disable(row.id)
-  ElMessage.success(t('knowledge.disable') + ' ✓')
-  loadAssets()
-}
-
-function tierTagType(tier: string) {
-  if (tier === 'certified') return 'success'
-  if (tier === 'trusted') return 'warning'
-  return 'info'
+  await loadRuntime()
 }
 
 function onTabChange(tab: string) {
-  if (tab === 'triage') loadTriage()
-  else if (tab === 'assets') loadAssets()
-  else if (tab === 'import') loadImportedPackages()
+  if (tab === 'reviews') void loadReviews()
+  else if (tab === 'runtime') void loadRuntime()
+  else if (tab === 'packages') void loadImportedPackages()
 }
 
 async function selectImportFiles(uploadFiles: Array<{ raw?: File; name?: string }>) {
@@ -173,9 +234,13 @@ async function previewImport() {
   }
   importLoading.value = true
   try {
-    const response = await knowledgeApi.previewImport(importRequest())
-    importReport.value = response.data || response
-    previewFingerprint.value = importReport.value?.package_fingerprint || ''
+    importReport.value = unwrap<KnowledgeImportReport>(
+      await knowledgeApi.previewImport(importRequest())
+    )
+    previewFingerprint.value = importReport.value.package_fingerprint
+    selectedPackageId.value = ''
+    packageDetail.value = null
+    reportMode.value = 'preview'
   } finally {
     importLoading.value = false
   }
@@ -185,62 +250,99 @@ async function applyImport() {
   if (!importReport.value || !importDocuments.value.length || !previewFingerprint.value) return
   importLoading.value = true
   try {
-    const response = await knowledgeApi.applyImport({
-      ...importRequest(),
-      expected_preview_fingerprint: previewFingerprint.value,
-    })
-    importReport.value = response.data || response
+    const result = unwrap<KnowledgeImportReport>(
+      await knowledgeApi.applyImport({
+        ...importRequest(),
+        expected_preview_fingerprint: previewFingerprint.value,
+      })
+    )
+    importReport.value = result
     previewFingerprint.value = ''
+    reportMode.value = 'applied'
     ElMessage.success(t('knowledge.import_complete'))
-    void loadImportedPackages()
+    await loadImportedPackages()
+    await inspectPackage(result.package_id)
   } finally {
     importLoading.value = false
   }
 }
 
 async function loadImportedPackages() {
-  const [packageResponse, datasourceResponse] = await Promise.all([
+  const [packages, datasources] = await Promise.allSettled([
     knowledgeApi.getPackages(),
     datasourceApi.list(),
   ])
-  importedPackages.value = packageResponse.data || packageResponse
-  datasourceOptions.value = datasourceResponse.data || datasourceResponse
+  if (packages.status === 'rejected') throw packages.reason
+  importedPackages.value = unwrap<KnowledgePackageSummary[]>(packages.value)
+  if (datasources.status === 'fulfilled') {
+    datasourceOptions.value = unwrap<Array<{ id: number; name: string }>>(datasources.value)
+  }
+  if (!importedPackages.value.length) {
+    importPanelOpen.value = true
+    return
+  }
+  if (!selectedPackageId.value && reportMode.value === 'registered') {
+    await inspectPackage(importedPackages.value[0].package_id)
+  }
 }
 
-async function inspectPackage(packageId: string) {
-  const response = await knowledgeApi.getPackageItems(packageId)
-  const items: KnowledgePackageItem[] = response.data || response
-  previewFingerprint.value = ''
-  importReport.value = {
-    package_id: packageId,
-    package_fingerprint: '',
-    dry_run: false,
-    total: items.length,
-    kind_counts: items.reduce((counts: Record<string, number>, item) => {
-      counts[item.kind] = (counts[item.kind] || 0) + 1
-      return counts
-    }, {}),
-    readiness_counts: items.reduce((counts: Record<string, number>, item) => {
-      counts[item.readiness] = (counts[item.readiness] || 0) + 1
-      return counts
-    }, {}),
-    action_counts: items.reduce((counts: Record<string, number>, item) => {
-      const action = item.runtime_action || 'registered'
-      counts[action] = (counts[action] || 0) + 1
-      return counts
-    }, {}),
-    registry_action: 'registered',
-    warnings: [],
-    items: items.map((item: any) => ({
-      item_id: item.item_id,
-      kind: item.kind,
-      readiness: item.readiness,
-      action: item.runtime_action || 'registered',
-      target_id: item.runtime_target_id,
-      messages: item.messages || [],
-      normalized: item.payload,
-    })),
+async function inspectPackage(
+  packageId: string,
+  query = { keyword: '', kind: '', readiness: '', page: 1, pageSize: 15 }
+) {
+  const sequence = ++packageRequestSequence
+  packageLoading.value = true
+  try {
+    const response = await knowledgeApi.getPackageDetail(packageId, {
+      keyword: query.keyword || undefined,
+      kind: query.kind || undefined,
+      readiness: query.readiness || undefined,
+      page: query.page,
+      page_size: query.pageSize,
+    })
+    if (sequence !== packageRequestSequence) return
+    packageDetail.value = unwrap<KnowledgePackageDetail>(response)
+    selectedPackageId.value = packageId
+    importReport.value = null
+    previewFingerprint.value = ''
+    reportMode.value = 'registered'
+  } finally {
+    if (sequence === packageRequestSequence) packageLoading.value = false
   }
+}
+
+async function queryPackage(query: {
+  keyword: string
+  kind: string
+  readiness: string
+  page: number
+  pageSize: number
+}) {
+  if (selectedPackageId.value) await inspectPackage(selectedPackageId.value, query)
+}
+
+async function advancePackageItem(
+  item: KnowledgePackageItem,
+  action: 'publish' | 'approve_publish'
+) {
+  await knowledgeApi.advancePackageItem(selectedPackageId.value, item.item_id, {
+    action,
+    default_datasource_id: importForm.datasourceId,
+  })
+  ElMessage.success(t('knowledge.advance_completed'))
+  await Promise.all([inspectPackage(selectedPackageId.value), loadReviews(), loadRuntime()])
+}
+
+function gotoReview() {
+  activeTab.value = 'reviews'
+  void loadReviews()
+}
+
+function openImport() {
+  importPanelOpen.value = true
+  window.requestAnimationFrame(() =>
+    document.querySelector('.import-entry')?.scrollIntoView({ behavior: 'smooth' })
+  )
 }
 
 function clearPreview() {
@@ -248,323 +350,144 @@ function clearPreview() {
   previewFingerprint.value = ''
 }
 
-function readinessTag(readiness: string) {
-  if (readiness === 'ready') return 'success'
-  if (readiness === 'invalid') return 'danger'
-  if (readiness === 'review_required') return 'warning'
-  return 'info'
+function invalidateImportPreview() {
+  if (reportMode.value === 'preview' && previewFingerprint.value) clearPreview()
 }
 
-function readinessLabel(readiness: string) {
-  return t(`knowledge.readiness_${readiness}`)
-}
-
-function actionLabel(action: string) {
-  const labels: Record<string, string> = {
-    previewed: t('knowledge.action_previewed'),
-    registered: t('knowledge.action_registered'),
-    skipped: t('knowledge.action_skipped'),
-    rejected: t('knowledge.action_rejected'),
-    imported: t('knowledge.action_imported'),
-    updated: t('knowledge.action_updated'),
-    unchanged: t('knowledge.action_unchanged'),
-    staged: t('knowledge.action_staged'),
-    candidate: t('knowledge.action_candidate'),
-    kept_confirmed: t('knowledge.action_kept_confirmed'),
-    kept_rejected: t('knowledge.action_kept_rejected'),
-    kept_disabled: t('knowledge.action_kept_disabled'),
-  }
-  return labels[action] || action
-}
-
-watch(() => [importForm.packageId, importForm.datasourceId], clearPreview)
-
-onMounted(() => loadTriage())
+watch(() => [importForm.packageId, importForm.datasourceId], invalidateImportPreview)
+onMounted(() => void loadReviews())
 </script>
 
 <template>
   <div class="knowledge-container">
-    <el-tabs v-model="activeTab" @tab-change="onTabChange">
-      <el-tab-pane :label="t('knowledge.triage')" name="triage">
-        <h4 style="margin: 0 0 12px">{{ t('knowledge.staging_queue') }}</h4>
-        <el-table v-loading="loading" :data="stagingList" border size="small">
-          <el-table-column prop="kind" label="Kind" width="100" />
-          <el-table-column label="Label" min-width="200">
-            <template #default="{ row }">
-              {{ row.payload?.label || row.natural_key || '-' }}
-            </template>
-          </el-table-column>
-          <el-table-column prop="trigger_id" label="Trigger" width="180" />
-          <el-table-column prop="status" label="Status" width="100" />
-          <el-table-column :label="t('knowledge.actions')" width="180">
-            <template #default="{ row }">
-              <el-button type="success" size="small" @click="handleCertify(row.id)">
-                {{ t('knowledge.certify') }}
-              </el-button>
-              <el-button type="danger" size="small" @click="openReject(row.id)">
-                {{ t('knowledge.reject') }}
-              </el-button>
-            </template>
-          </el-table-column>
-        </el-table>
-
-        <h4 style="margin: 24px 0 12px">{{ t('knowledge.suggestions') }}</h4>
-        <el-table :data="suggestions" border size="small">
-          <el-table-column prop="label" label="Label" min-width="200" />
-          <el-table-column prop="trust_tier" label="Tier" width="120">
-            <template #default="{ row }">
-              <el-tag :type="tierTagType(row.trust_tier)" size="small">{{ row.trust_tier }}</el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column
-            prop="reproduce_count"
-            :label="t('knowledge.reproductions')"
-            width="110"
-          />
-          <el-table-column
-            prop="successful_apply_count"
-            :label="t('knowledge.applies')"
-            width="100"
-          />
-          <el-table-column
-            prop="positive_feedback_count"
-            :label="t('knowledge.positive')"
-            width="90"
-          />
-          <el-table-column
-            prop="negative_feedback_count"
-            :label="t('knowledge.negative')"
-            width="90"
-          />
-          <el-table-column :label="t('knowledge.actions')" width="120">
-            <template #default="{ row }">
-              <el-button
-                v-if="row.recommended_action === 'promote'"
-                type="primary"
-                size="small"
-                @click="handlePromote(row.id)"
-              >
-                {{ t('knowledge.promote') }}
-              </el-button>
-              <el-tag v-else type="danger" size="small">{{ t('knowledge.needs_review') }}</el-tag>
-            </template>
-          </el-table-column>
-        </el-table>
-      </el-tab-pane>
-
-      <el-tab-pane :label="t('knowledge.assets')" name="assets">
-        <div style="margin-bottom: 12px; display: flex; gap: 12px">
-          <el-select
-            v-model="filters.kind"
-            clearable
-            placeholder="Kind"
-            style="width: 150px"
-            @change="loadAssets"
-          >
-            <el-option label="caliber" value="caliber" />
-            <el-option label="rule" value="rule" />
-          </el-select>
-          <el-select
-            v-model="filters.trust_tier"
-            clearable
-            placeholder="Trust Tier"
-            style="width: 150px"
-            @change="loadAssets"
-          >
-            <el-option label="certified" value="certified" />
-            <el-option label="trusted" value="trusted" />
-            <el-option label="published" value="published" />
-          </el-select>
-        </div>
-        <el-table v-loading="loading" :data="assetList" border size="small">
-          <el-table-column prop="kind" label="Kind" width="100" />
-          <el-table-column prop="label" label="Label" min-width="200" />
-          <el-table-column prop="trust_tier" label="Trust Tier" width="120">
-            <template #default="{ row }">
-              <el-tag :type="tierTagType(row.trust_tier)" size="small">{{ row.trust_tier }}</el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column prop="enabled" label="Enabled" width="80">
-            <template #default="{ row }">
-              <el-tag :type="row.enabled ? 'success' : 'info'" size="small">
-                {{ row.enabled ? 'Yes' : 'No' }}
-              </el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column label="Created" width="160">
-            <template #default="{ row }">
-              {{ row.create_time ? formatTimestamp(row.create_time) : '-' }}
-            </template>
-          </el-table-column>
-          <el-table-column :label="t('knowledge.actions')" width="180">
-            <template #default="{ row }">
-              <el-button v-if="row.kind === 'caliber'" size="small" @click="openDemote(row.id)">
-                {{ t('knowledge.demote') }}
-              </el-button>
-              <el-button type="danger" size="small" @click="handleDisable(row)">
-                {{ t('knowledge.disable') }}
-              </el-button>
-            </template>
-          </el-table-column>
-        </el-table>
-      </el-tab-pane>
-
-      <el-tab-pane :label="t('knowledge.import_package')" name="import">
-        <el-alert
-          :title="t('knowledge.import_description')"
-          type="info"
-          :closable="false"
-          show-icon
-          style="margin-bottom: 16px"
+    <el-tabs v-model="activeTab" class="knowledge-tabs" @tab-change="onTabChange">
+      <el-tab-pane :label="t('knowledge.review_center')" name="reviews">
+        <KnowledgeReviewCenter
+          :page="reviewPage"
+          :suggestions="suggestions"
+          :loading="loading"
+          @load="loadReviews"
+          @approve="approveReview"
+          @reject="openReviewReject"
+          @promote="handlePromote"
         />
-        <section class="import-section">
-          <div class="section-title">{{ t('knowledge.import_source') }}</div>
-          <div class="import-toolbar">
-            <label class="file-picker el-button">
-              {{ t('knowledge.select_files') }}
+      </el-tab-pane>
+
+      <el-tab-pane :label="t('knowledge.runtime_knowledge')" name="runtime">
+        <RuntimeKnowledgeList
+          :page="runtimePage"
+          :loading="loading"
+          @load="loadRuntime"
+          @disable="handleDisable"
+          @demote="openDemote"
+        />
+      </el-tab-pane>
+
+      <el-tab-pane :label="t('knowledge.knowledge_packages')" name="packages">
+        <section class="lifecycle-guide">
+          <strong>{{ t('knowledge.lifecycle_title') }}</strong>
+          <span>{{ t('knowledge.lifecycle_packages') }}</span
+          ><i>→</i> <span>{{ t('knowledge.lifecycle_reviews') }}</span
+          ><i>→</i>
+          <span>{{ t('knowledge.lifecycle_runtime') }}</span>
+        </section>
+
+        <section class="import-entry">
+          <button
+            class="import-entry-toggle"
+            type="button"
+            @click="importPanelOpen = !importPanelOpen"
+          >
+            <span
+              ><strong>{{ t('knowledge.import_new_package') }}</strong
+              ><small>{{ t('knowledge.import_new_package_hint') }}</small></span
+            >
+            <span>{{ importPanelOpen ? t('knowledge.collapse') : t('knowledge.expand') }}</span>
+          </button>
+          <div v-show="importPanelOpen" class="import-entry-body">
+            <div class="import-toolbar">
               <input
+                ref="fileInput"
+                class="native-file-input"
                 type="file"
                 multiple
                 accept=".yaml,.yml,.json,.jsonl"
                 @change="onImportInputChange"
               />
-            </label>
-            <label class="folder-picker el-button">
-              {{ t('knowledge.select_folder') }}
               <input
+                ref="folderInput"
+                class="native-file-input"
                 type="file"
                 multiple
                 webkitdirectory
                 accept=".yaml,.yml,.json,.jsonl"
                 @change="onImportInputChange"
               />
-            </label>
-            <span class="file-name" :title="importFileName">
-              {{ importFileName || t('knowledge.no_package') }}
-            </span>
-          </div>
-          <el-form class="import-form" label-position="top" inline>
-            <el-form-item :label="t('knowledge.package_id')">
-              <el-input v-model="importForm.packageId" style="width: 260px" />
-            </el-form-item>
-            <el-form-item :label="t('knowledge.datasource_scope')">
-              <el-select
-                v-model="importForm.datasourceId"
-                clearable
-                filterable
-                :placeholder="t('knowledge.datasource_optional')"
-                style="width: 260px"
-              >
-                <el-option
-                  v-for="datasource in datasourceOptions"
-                  :key="datasource.id"
-                  :label="datasource.name"
-                  :value="datasource.id"
-                />
-              </el-select>
-            </el-form-item>
-            <el-form-item class="import-actions">
-              <el-button :loading="importLoading" @click="previewImport">
-                {{ t('knowledge.preview_import') }}
+              <el-button :icon="DocumentAdd" @click="fileInput?.click()">
+                {{ t('knowledge.select_files') }}
               </el-button>
-              <el-button
-                type="primary"
-                :loading="importLoading"
-                :disabled="!previewFingerprint || !importDocuments.length"
-                @click="applyImport"
-              >
-                {{ t('knowledge.register_and_publish') }}
+              <el-button :icon="FolderOpened" @click="folderInput?.click()">
+                {{ t('knowledge.select_folder') }}
               </el-button>
-            </el-form-item>
-          </el-form>
-        </section>
-
-        <section v-if="importReport" class="import-section">
-          <div class="section-title">{{ t('knowledge.import_result') }}</div>
-          <div class="import-summary">
-            <el-tag>{{ importReport.package_id }}</el-tag>
-            <span>{{ t('knowledge.total_items', { count: importReport.total }) }}</span>
-            <el-tag v-if="importReport.registry_action" type="success">
-              {{ actionLabel(importReport.registry_action) }}
-              <template v-if="importReport.registry_revision">
-                · Revision {{ importReport.registry_revision }}
-              </template>
-            </el-tag>
-            <span v-for="(count, key) in importReport.kind_counts" :key="`kind-${key}`">
-              {{ t(`knowledge.kind_${key}`) }}: {{ count }}
-            </span>
-            <el-divider direction="vertical" />
-            <span v-for="(count, key) in importReport.readiness_counts" :key="`readiness-${key}`">
-              {{ readinessLabel(key) }}: {{ count }}
-            </span>
-            <template v-if="Object.keys(importReport.action_counts).length">
-              <el-divider direction="vertical" />
-              <span v-for="(count, key) in importReport.action_counts" :key="`action-${key}`">
-                {{ actionLabel(key) }}: {{ count }}
-              </span>
-            </template>
-          </div>
-          <el-alert
-            v-for="warning in importReport.warnings"
-            :key="warning"
-            :title="warning"
-            type="warning"
-            :closable="false"
-            class="import-warning"
-          />
-          <el-table :data="importReport.items" border size="small" max-height="480">
-            <el-table-column prop="item_id" label="ID" min-width="180" show-overflow-tooltip />
-            <el-table-column prop="kind" label="Kind" width="120" />
-            <el-table-column :label="t('knowledge.readiness')" width="150">
-              <template #default="{ row }">
-                <el-tag :type="readinessTag(row.readiness)">
-                  {{ readinessLabel(row.readiness) }}
-                </el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column :label="t('knowledge.action')" width="130">
-              <template #default="{ row }">{{ actionLabel(row.action) }}</template>
-            </el-table-column>
-            <el-table-column :label="t('knowledge.messages')" min-width="320">
-              <template #default="{ row }">{{ row.messages.join('；') || '-' }}</template>
-            </el-table-column>
-          </el-table>
-        </section>
-
-        <section class="import-section">
-          <div class="section-title">{{ t('knowledge.imported_packages') }}</div>
-          <el-table :data="importedPackages" border size="small">
-            <el-table-column
-              prop="package_id"
-              :label="t('knowledge.package_id')"
-              min-width="220"
-              show-overflow-tooltip
-            />
-            <el-table-column
-              prop="title"
-              :label="t('knowledge.package_title')"
-              min-width="200"
-              show-overflow-tooltip
-            />
-            <el-table-column prop="revision" label="Revision" width="100" />
-            <el-table-column prop="item_count" :label="t('knowledge.item_count')" width="100" />
-            <el-table-column :label="t('knowledge.actions')" width="100" fixed="right">
-              <template #default="{ row }">
-                <el-button link type="primary" @click="inspectPackage(row.package_id)">
-                  {{ t('knowledge.view') }}
+              <div class="selected-source" :class="{ empty: !importFileName }">
+                <strong>{{ importFileName || t('knowledge.no_package') }}</strong>
+                <small>{{ t('knowledge.supported_package_files') }}</small>
+              </div>
+            </div>
+            <el-form class="import-form" label-position="top">
+              <el-form-item :label="t('knowledge.package_id')"
+                ><el-input v-model="importForm.packageId"
+              /></el-form-item>
+              <el-form-item :label="t('knowledge.datasource_scope')">
+                <el-select
+                  v-model="importForm.datasourceId"
+                  clearable
+                  filterable
+                  :placeholder="t('knowledge.datasource_optional')"
+                >
+                  <el-option
+                    v-for="datasource in datasourceOptions"
+                    :key="datasource.id"
+                    :label="datasource.name"
+                    :value="datasource.id"
+                  />
+                </el-select>
+              </el-form-item>
+              <el-form-item class="import-actions">
+                <el-button :loading="importLoading" @click="previewImport">{{
+                  t('knowledge.preview_import')
+                }}</el-button>
+                <el-button
+                  type="primary"
+                  :loading="importLoading"
+                  :disabled="!previewFingerprint || !importDocuments.length"
+                  @click="applyImport"
+                >
+                  {{ t('knowledge.register_and_publish') }}
                 </el-button>
-              </template>
-            </el-table-column>
-            <template #empty>
-              <el-empty :description="t('knowledge.no_imported_packages')" :image-size="72" />
-            </template>
-          </el-table>
+              </el-form-item>
+            </el-form>
+          </div>
         </section>
+
+        <KnowledgePackageWorkbench
+          :packages="importedPackages"
+          :detail="packageDetail"
+          :preview="importReport"
+          :selected-package-id="selectedPackageId"
+          :loading="packageLoading"
+          :mode="reportMode"
+          @select-package="inspectPackage"
+          @query="queryPackage"
+          @advance="advancePackageItem"
+          @reject="openPackageReject"
+          @goto-review="gotoReview"
+          @open-import="openImport"
+        />
       </el-tab-pane>
     </el-tabs>
 
-    <!-- Reject Dialog -->
-    <el-dialog v-model="rejectDialogVisible" :title="t('knowledge.reject')" width="400px">
+    <el-dialog v-model="rejectDialogVisible" :title="t('knowledge.reject')" width="420px">
       <el-input
         v-model="rejectReason"
         type="textarea"
@@ -573,22 +496,22 @@ onMounted(() => loadTriage())
       />
       <template #footer>
         <el-button @click="rejectDialogVisible = false">{{ t('knowledge.cancel') }}</el-button>
-        <el-button type="primary" @click="confirmReject">{{ t('knowledge.confirm') }}</el-button>
+        <el-button type="danger" @click="confirmReject">{{ t('knowledge.confirm') }}</el-button>
       </template>
     </el-dialog>
 
-    <!-- Demote Dialog -->
-    <el-dialog v-model="demoteDialogVisible" :title="t('knowledge.demote')" width="400px">
-      <el-form label-width="80px">
-        <el-form-item label="To Tier">
-          <el-select v-model="demoteForm.to_tier">
-            <el-option label="published" value="published" />
-            <el-option label="trusted" value="trusted" />
-          </el-select>
+    <el-dialog v-model="demoteDialogVisible" :title="t('knowledge.demote')" width="420px">
+      <el-form label-width="90px">
+        <el-form-item :label="t('knowledge.trust_tier')">
+          <el-select v-model="demoteForm.to_tier"
+            ><el-option label="published" value="published" /><el-option
+              label="trusted"
+              value="trusted"
+          /></el-select>
         </el-form-item>
-        <el-form-item :label="t('knowledge.reason')">
-          <el-input v-model="demoteForm.reason" type="textarea" :rows="2" />
-        </el-form-item>
+        <el-form-item :label="t('knowledge.reason')"
+          ><el-input v-model="demoteForm.reason" type="textarea" :rows="2"
+        /></el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="demoteDialogVisible = false">{{ t('knowledge.cancel') }}</el-button>
@@ -600,80 +523,139 @@ onMounted(() => loadTriage())
 
 <style scoped>
 .knowledge-container {
-  padding: 20px;
   height: 100%;
+  padding: 18px 24px 28px;
   overflow: auto;
+  background: var(--el-fill-color-extra-light);
 }
-
-.import-section {
-  padding: 20px;
-  margin-bottom: 16px;
+.knowledge-tabs {
+  max-width: 1360px;
+  margin: 0 auto;
+}
+.knowledge-tabs :deep(.el-tabs__header) {
+  margin-bottom: 18px;
   background: var(--el-bg-color);
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: 8px;
+  border-radius: 9px 9px 0 0;
 }
-
-.section-title {
-  margin-bottom: 16px;
-  color: var(--el-text-color-primary);
-  font-size: 16px;
+.knowledge-tabs :deep(.el-tabs__item) {
+  height: 52px;
+  padding: 0 24px;
+  font-size: 15px;
   font-weight: 600;
 }
-
-.import-toolbar,
-.import-summary {
+.lifecycle-guide {
+  display: flex;
+  padding: 13px 16px;
+  margin-bottom: 14px;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  color: var(--el-text-color-secondary);
+  background: var(--el-color-primary-light-9);
+  border: 1px solid var(--el-color-primary-light-8);
+  border-radius: 9px;
+}
+.lifecycle-guide strong {
+  margin-right: 8px;
+  color: var(--el-text-color-primary);
+}
+.lifecycle-guide i {
+  color: var(--el-text-color-placeholder);
+  font-style: normal;
+}
+.import-entry {
+  margin-bottom: 14px;
+  overflow: hidden;
+  background: var(--el-bg-color);
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 9px;
+}
+.import-entry-toggle {
+  display: flex;
+  width: 100%;
+  padding: 14px 18px;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--el-text-color-primary);
+  text-align: left;
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+}
+.import-entry-toggle strong,
+.import-entry-toggle small {
+  display: block;
+}
+.import-entry-toggle small,
+.import-entry-toggle > span:last-child {
+  margin-top: 4px;
+  color: var(--el-text-color-secondary);
+}
+.import-entry-body {
+  padding: 14px 18px 18px;
+  border-top: 1px solid var(--el-border-color-lighter);
+}
+.import-toolbar {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 12px;
-  margin-bottom: 16px;
+  gap: 10px;
 }
-
+.import-toolbar {
+  padding-bottom: 13px;
+  margin-bottom: 13px;
+  border-bottom: 1px solid var(--el-border-color-lighter);
+}
 .import-form {
-  display: flex;
-  align-items: flex-end;
-  flex-wrap: wrap;
-  gap: 0 12px;
+  display: grid;
+  align-items: end;
+  gap: 12px;
+  grid-template-columns: minmax(240px, 1fr) minmax(240px, 1fr) auto;
 }
-
 .import-form :deep(.el-form-item) {
-  margin-right: 0;
-  margin-bottom: 0;
+  margin: 0;
 }
-
-.import-actions :deep(.el-form-item__content) {
-  padding-bottom: 1px;
+.import-form :deep(.el-input),
+.import-form :deep(.el-select) {
+  width: 100%;
 }
-
-.file-name {
-  max-width: 280px;
+.native-file-input {
+  display: none;
+}
+.selected-source {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+.selected-source strong {
+  max-width: 520px;
   overflow: hidden;
-  color: var(--el-text-color-secondary);
+  font-size: 13px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
-.file-picker input,
-.folder-picker input {
-  display: none;
+.selected-source small,
+.selected-source.empty strong {
+  color: var(--el-text-color-secondary);
 }
-
-.import-warning {
-  margin-bottom: 8px;
+.import-actions :deep(.el-form-item__content) {
+  flex-wrap: nowrap;
 }
-
 @media (max-width: 960px) {
   .knowledge-container {
-    padding: 16px;
+    padding: 12px;
   }
-
-  .import-section {
-    padding: 16px;
+  .knowledge-tabs :deep(.el-tabs__item) {
+    padding: 0 14px;
   }
-
-  .file-name {
-    max-width: 100%;
+  .selected-source {
     flex-basis: 100%;
+  }
+  .import-form {
+    grid-template-columns: 1fr;
+  }
+  .import-actions :deep(.el-form-item__content) {
+    justify-content: flex-end;
   }
 }
 </style>

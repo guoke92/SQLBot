@@ -290,9 +290,9 @@ def build_step_quality(
     if evidence["plan_validated"]:
         checks.append("plan_validated")
     if evidence["contract_status"] == "verified":
-        checks.append("query_specification_satisfied")
+        checks.append("query_intent_satisfied")
     elif evidence["contract_status"] == "partial":
-        checks.append("query_specification_partially_verified")
+        checks.append("query_intent_partially_verified")
     if evidence["execution_status"] == "success":
         checks.append("sql_executed")
         checks.append(
@@ -382,4 +382,24 @@ def build_overall_quality(reports: Sequence[Mapping[str, Any]]) -> ResultQuality
             ),
             "step_count": len(reports),
         },
+    }
+
+
+def cap_quality(
+    quality: ResultQuality, *, maximum: int, reason_code: str
+) -> ResultQuality:
+    """Apply an explicit architecture-level confidence ceiling."""
+    score = min(int(quality.get("score") or 0), max(0, min(100, maximum)))
+    observations = list(quality.get("observations") or [])
+    observations.append(
+        cast(
+            DataObservation,
+            {"code": reason_code, "severity": "warning", "params": {"cap": maximum}},
+        )
+    )
+    return {
+        **quality,
+        "score": score,
+        "grade": _grade(score),
+        "observations": observations,
     }

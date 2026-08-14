@@ -60,23 +60,21 @@ items: []
 
 ### 3.2 caliber：可执行业务口径
 
-必填：`label`、`contract_fragment`。`contract_fragment` 必须是 QuerySpecification v3 的闭包片段：
+必填：`label`、`contract_fragment`。`contract_fragment` 必须是 IntentDefault v1 的合法片段：
 
 ```yaml
 contract_fragment:
-  version: 3
-  requirements:
-    - clause: predicate
-      requirement_id: active_company
-      business_label: 有效企业
-      field: {resource: cust_company_info, field: enable}
-      operator: eq
-      values: [Y]
-      source: knowledge
-      confidence: 0.99
+  version: 1
+  intent_defaults:
+    - dataset_subject: 企业
+      kind: filter
+      value:
+        business_name: 有效企业
+        operator: eq
+        values: [Y]
 ```
 
-不允许用自由文本条件、SQL 片段或旧 slot 表达可执行口径。导入预检会解析所有字段，并验证 output/order/derived output 的引用闭包。
+不允许用自由文本条件、SQL 片段、物理表字段映射或旧 slot/QuerySpecification 表达可执行口径。导入预检会通过与运行时相同的 IntentDefault 解析器校验 output/group/filter/time/order 的类型。字段和关系映射属于 GroundingRule，不得混入业务默认口径。
 
 治理：始终进入 `KnowledgeStaging`，认证后才可 Bind。
 

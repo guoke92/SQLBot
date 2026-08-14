@@ -294,14 +294,12 @@ class TestRunGraph:
 
 
 class TestProductionGraphSurface:
-    """Sanity: YAML topology files exist for all five product graph keys."""
+    """Sanity: ordinary turns share one graph; sidecars remain explicit."""
 
     def test_product_graph_yaml_files_exist(self) -> None:
         """YAML files under graphs/current/ must exist for each production key."""
         expected = {
             "chat": "graphs/current/chat.yaml",
-            "analysis": "graphs/current/analysis.yaml",
-            "predict": "graphs/current/predict.yaml",
             "recommend": "graphs/current/recommend.yaml",
             "config": "graphs/current/config.yaml",
         }
@@ -536,15 +534,10 @@ class TestGraphLoader:
         # At least one edge from START
         assert any((hasattr(e, "source") and e.source == "START") for e in spec.edges)
 
-    def test_parse_analysis_yaml(self) -> None:
-        spec = self._parse_current_yaml("analysis.yaml")
-        assert spec.graph_key == "analysis"
-        assert "prepare" in spec.nodes
-
-    def test_parse_predict_yaml(self) -> None:
-        spec = self._parse_current_yaml("predict.yaml")
-        assert spec.graph_key == "predict"
-        assert "parse" in spec.nodes
+    def test_chat_yaml_contains_analysis_and_prediction_agents(self) -> None:
+        spec = self._parse_current_yaml("chat.yaml")
+        assert "analysis_agent" in spec.nodes
+        assert "prediction_agent" in spec.nodes
 
     def test_parse_recommend_yaml(self) -> None:
         spec = self._parse_current_yaml("recommend.yaml")

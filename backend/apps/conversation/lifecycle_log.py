@@ -22,7 +22,7 @@ _ALLOWED_FIELDS = frozenset(
         "phase",
         "status",
         "dispatch_attempt",
-        "specification_revision",
+        "intent_revision",
         "plan_id",
         "elapsed_ms",
         "error_type",

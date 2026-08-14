@@ -35,8 +35,6 @@ def load_text_history(
             .where(
                 and_(
                     ChatRecord.chat_id == chat_id,
-                    ChatRecord.analysis_record_id.is_(None),
-                    ChatRecord.predict_record_id.is_(None),
                     ChatRecord.finish.is_(True),
                     ChatRecord.error.is_(None),
                 )
@@ -53,7 +51,8 @@ def load_text_history(
         if row.first_chat:
             continue
         question = (row.question or "").strip()
-        answer = (row.sql_answer or "").strip()
+        answer_payload = row.answer if isinstance(row.answer, dict) else {}
+        answer = str(answer_payload.get("content") or row.sql_answer or "").strip()
         if not question or not answer:
             continue
         messages.append(HumanMessage(content=question))

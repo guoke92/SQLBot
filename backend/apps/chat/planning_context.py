@@ -10,20 +10,21 @@ of those inputs; it is not a second semantic contract.
 from __future__ import annotations
 
 import hashlib
-from dataclasses import dataclass
 from typing import Any, Literal
 
 import orjson
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import and_, select
 
+from apps.chat.context_bundle import ContextSection, budget_context_sections
 from apps.knowledge.compile import CompiledKnowledge
+
+_PLANNER_CONTEXT_BUDGET = 24_000
 
 
 class PlanningContextSnapshot(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    version: Literal[1] = 1
+    version: Literal[2] = 2
     schema_text: str
     resources: list[str] = Field(default_factory=list)
     sample_data: str = ""
@@ -33,6 +34,8 @@ class PlanningContextSnapshot(BaseModel):
     entity_bindings: dict[str, Any] = Field(default_factory=dict)
     temporal_parse: dict[str, Any] = Field(default_factory=dict)
     compiled_knowledge: dict[str, Any] = Field(default_factory=dict)
+    schema_fingerprint: str = ""
+    truncation: list[dict[str, Any]] = Field(default_factory=list)
     fingerprint: str = ""
 
     @property
@@ -68,18 +71,46 @@ def capture_planning_context(
         ):
             if key in full:
                 compiled_payload[key] = full[key]
+    sections, truncation = budget_context_sections(
+        [
+            ContextSection(
+                name="schema_text", content=str(question.db_schema or ""), trusted=True
+            ),
+            ContextSection(name="compiled_knowledge", content=compiled_payload),
+            ContextSection(
+                name="custom_rules", content=str(question.custom_prompt or "")
+            ),
+            ContextSection(
+                name="terminology", content=str(question.terminologies or "")
+            ),
+            ContextSection(
+                name="query_examples", content=str(question.data_training or "")
+            ),
+            ContextSection(name="sample_data", content=str(question.sample_data or "")),
+        ],
+        max_tokens=_PLANNER_CONTEXT_BUDGET,
+    )
     payload: dict[str, Any] = {
-        "version": 1,
-        "schema_text": str(question.db_schema or ""),
+        "version": 2,
+        "schema_text": sections.get("schema_text", ""),
         "resources": [str(item) for item in (llm_service.table_name_list or [])],
-        "sample_data": str(question.sample_data or ""),
-        "terminology": str(question.terminologies or ""),
-        "query_examples": str(question.data_training or ""),
-        "custom_rules": str(question.custom_prompt or ""),
+        "sample_data": sections.get("sample_data", ""),
+        "terminology": sections.get("terminology", ""),
+        "query_examples": sections.get("query_examples", ""),
+        "custom_rules": sections.get("custom_rules", ""),
         "entity_bindings": dict(entity_bindings or {}),
         "temporal_parse": dict(temporal_parse or {}),
-        "compiled_knowledge": compiled_payload,
+        "compiled_knowledge": sections.get("compiled_knowledge", {}),
+        "truncation": list(truncation),
     }
+    schema_material = orjson.dumps(
+        {
+            "schema_text": payload["schema_text"],
+            "resources": payload["resources"],
+        },
+        option=orjson.OPT_SORT_KEYS,
+    )
+    payload["schema_fingerprint"] = hashlib.sha256(schema_material).hexdigest()
     fingerprint_material = orjson.dumps(payload, option=orjson.OPT_SORT_KEYS)
     payload["fingerprint"] = hashlib.sha256(fingerprint_material).hexdigest()
     return PlanningContextSnapshot.model_validate(payload)
@@ -104,97 +135,3 @@ def restore_planning_context(
             snapshot.compiled_knowledge
         )
     return snapshot
-
-
-@dataclass(frozen=True)
-class ChatPlanningMemory:
-    """Prior turns in the same chat that the current planner must inherit."""
-
-    turns: list[dict[str, Any]]
-    previous_specification: dict[str, Any] | None
-    resolved_business_axes: frozenset[str]
-
-
-def load_chat_planning_memory(
-    session: Any,
-    *,
-    chat_id: int,
-    current_record_id: int | None,
-    limit: int = 5,
-) -> ChatPlanningMemory:
-    """Load recent NLQ turns so a new run continues the same conversation."""
-    from apps.chat.models.chat_model import ChatRecord
-    from apps.conversation.models import ConversationRun, NlqRun
-    from apps.conversation.run_service import active_evidence
-
-    filters = [
-        ChatRecord.chat_id == chat_id,
-        ChatRecord.analysis_record_id.is_(None),
-        ChatRecord.predict_record_id.is_(None),
-    ]
-    if current_record_id is not None:
-        filters.append(ChatRecord.id != current_record_id)
-    records = list(
-        session.execute(
-            select(ChatRecord)
-            .where(and_(*filters))
-            .order_by(ChatRecord.id.desc())
-            .limit(limit)
-        )
-        .scalars()
-        .all()
-    )
-    records.reverse()
-    turns: list[dict[str, Any]] = []
-    previous_specification: dict[str, Any] | None = None
-    resolved_axes: set[str] = set()
-    for record in records:
-        if getattr(record, "first_chat", False):
-            continue
-        question = str(record.question or "").strip()
-        if not question:
-            continue
-        run = session.execute(
-            select(ConversationRun).where(
-                ConversationRun.chat_record_id == record.id
-            )
-        ).scalars().first()
-        nlq = session.get(NlqRun, run.run_id) if run is not None else None
-        spec = None
-        if nlq is not None and nlq.specifications:
-            spec = nlq.specifications[-1]
-            if isinstance(spec, dict):
-                previous_specification = spec
-        clarifications: list[dict[str, Any]] = []
-        if run is not None:
-            for event in active_evidence(session, run.run_id):
-                if event.kind not in {
-                    "clarification_option",
-                    "clarification_custom",
-                    "user_correction",
-                }:
-                    continue
-                structured = dict(event.structured_value or {})
-                axis = str(structured.get("business_axis") or "").strip()
-                if axis:
-                    resolved_axes.add(axis)
-                clarifications.append(
-                    {
-                        "business_axis": axis,
-                        "content": event.content,
-                        "resolution": structured.get("resolution"),
-                    }
-                )
-        turns.append(
-            {
-                "question": question,
-                "status": getattr(run, "status", None),
-                "clarifications": clarifications,
-                "has_specification": spec is not None,
-            }
-        )
-    return ChatPlanningMemory(
-        turns=turns,
-        previous_specification=previous_specification,
-        resolved_business_axes=frozenset(resolved_axes),
-    )

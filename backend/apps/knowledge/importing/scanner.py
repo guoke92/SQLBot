@@ -143,9 +143,6 @@ def normalize_item(
         }
     elif kind == "caliber":
         fragment = record.get("contract_fragment")
-        if fragment is None and isinstance(record.get("requirements"), list):
-            if all(isinstance(value, dict) for value in record["requirements"]):
-                fragment = {"version": 3, "requirements": record["requirements"]}
         payload = {
             **common,
             "label": record.get("label"),
