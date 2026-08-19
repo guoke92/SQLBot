@@ -1,7 +1,7 @@
 from contextvars import ContextVar
 from functools import wraps
 from inspect import signature
-from typing import Optional
+from typing import Any, Callable, Optional, get_type_hints
 from fastapi import HTTPException, Request
 from pydantic import BaseModel
 import re
@@ -44,8 +44,31 @@ async def check_ws_permission(oid, type, resource) -> bool:
     if isinstance(resource, list):
         return set(resource).issubset(set(resource_id_list))
     return resource in resource_id_list
-        
- 
+
+
+def _attach_endpoint_signature(wrapper: Callable[..., Any], func: Callable[..., Any]) -> None:
+    """Resolve postponed annotations against the original endpoint module.
+
+    FastAPI inspects the decorator wrapper, whose ``__globals__`` live in this
+    file. With ``from __future__ import annotations``, that leaves ForwardRefs
+    such as ``list[UploadFile]`` unresolved and crashes app startup.
+    """
+    try:
+        hints = get_type_hints(func, include_extras=True)
+    except Exception:
+        wrapper.__signature__ = signature(func)
+        return
+    sig = signature(func)
+    wrapper.__signature__ = sig.replace(
+        parameters=[
+            param.replace(annotation=hints.get(param.name, param.annotation))
+            for param in sig.parameters.values()
+        ],
+        return_annotation=hints.get("return", sig.return_annotation),
+    )
+    wrapper.__annotations__ = hints
+
+
 def require_permissions(permission: SqlbotPermission):
     def decorator(func):
         @wraps(func)
@@ -102,7 +125,8 @@ def require_permissions(permission: SqlbotPermission):
                 raise Exception(trans('i18n_permission.permission_resource_limit'))
             
             return await func(*args, **kwargs)
-        
+
+        _attach_endpoint_signature(wrapper, func)
         return wrapper
     return decorator
 

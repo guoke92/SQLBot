@@ -470,6 +470,14 @@ class TestEmbeddingRecallContract:
         assert "retrieve_schema(" in text
         assert "embedding=" not in text.split("retrieve_schema(")[1].split(")")[0]
         assert "TABLE_EMBEDDING_ENABLED" in text
+        assert "table_name_list" in text
+
+    def test_retrieve_context_has_single_compile_path(self) -> None:
+        text = (_BACKEND / "apps/chat/graphs/nodes/nlq.py").read_text(encoding="utf-8")
+        assert "match_training" not in text
+        assert "retrieve_prompt_schema" not in text
+        assert "def retrieve_context_node" in text
+        assert "recall_knowledge_node" in text
 
 
 class TestCreateChatConfigContract:
@@ -530,9 +538,18 @@ class TestGraphLoader:
         assert spec.graph_key == "chat"
         assert spec.version == 1
         assert "prepare_record" in spec.nodes
+        assert "review_query" in spec.nodes
         assert "fail" in spec.nodes
         # At least one edge from START
         assert any((hasattr(e, "source") and e.source == "START") for e in spec.edges)
+        review_edges = [
+            e
+            for e in spec.edges
+            if getattr(e, "source", None) == "plan_query"
+            and hasattr(e, "paths")
+        ]
+        assert review_edges
+        assert "review_query" in review_edges[0].paths
 
     def test_chat_yaml_contains_analysis_and_prediction_agents(self) -> None:
         spec = self._parse_current_yaml("chat.yaml")

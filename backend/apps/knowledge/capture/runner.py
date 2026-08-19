@@ -11,8 +11,9 @@ from sqlmodel import Session, col, or_, select
 
 from apps.conversation.lifecycle_log import log_lifecycle
 from apps.knowledge.capture.extractors import (
+    extract_business_resolution,
     extract_process_episode,
-    extract_v_t1_caliber,
+    extract_query_pattern,
     staging_payload_from_candidate,
 )
 from apps.knowledge.capture.snapshot import TurnSnapshot
@@ -135,8 +136,12 @@ def claim_next_capture_job(
 def process_capture_job(session: Session, job: KnowledgeCaptureJob) -> None:
     snapshot = TurnSnapshot.model_validate(job.snapshot or {})
 
-    candidate = extract_v_t1_caliber(snapshot)
-    if candidate is not None:
+    for candidate in (
+        extract_business_resolution(snapshot),
+        extract_query_pattern(snapshot),
+    ):
+        if candidate is None:
+            continue
         payload = staging_payload_from_candidate(candidate)
         scope = KnowledgeScope(
             oid=snapshot.oid,
@@ -144,7 +149,7 @@ def process_capture_job(session: Session, job: KnowledgeCaptureJob) -> None:
             assistant_id=snapshot.assistant_id,
         )
         kc = KnowledgeCandidate(
-            kind="caliber",
+            kind=str(candidate.get("kind") or "caliber"),
             payload=payload,
             scope=scope,
             provenance={

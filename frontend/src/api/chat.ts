@@ -33,35 +33,36 @@ export interface ChatMessage {
   index: number
 }
 
-export interface CandidateResolution {
+export interface ClarificationFieldRef {
+  name: string
+  comment?: string
+  table?: string
+}
+
+export interface ClarificationOption {
   option_id: string
   label: string
-  description?: string
-  impact?: string
-  resolution?: Record<string, unknown>
-  evidence_refs?: string[]
+  meaning: string
+  field?: string
+  field_comment?: string
+  table?: string
+  fields?: ClarificationFieldRef[]
+  recommended?: boolean
 }
 
-export interface Ambiguity {
-  ambiguity_id: string
-  business_axis?: string
-  business_question: string
-  reason?: string
-  impact_level: 'low' | 'medium' | 'high'
-  candidate_resolutions: CandidateResolution[]
-  recommended_candidate_id?: string
-  recommendation_reason?: string
-  can_assume: boolean
+export interface ClarificationQuestion {
+  question_id: string
+  question: string
+  why?: string
+  options: ClarificationOption[]
 }
 
-export interface AmbiguitySet {
-  ambiguities: Ambiguity[]
-  summary?: string
-  can_proceed_with_assumptions?: boolean
+export interface ClarificationCardPayload {
+  questions: ClarificationQuestion[]
 }
 
 export interface ResumeAnswer {
-  ambiguity_id: string
+  question_id: string
   mode: 'option' | 'custom'
   option_id?: string
   text?: string
@@ -72,7 +73,7 @@ export interface ConversationInterrupt {
   interrupt_id: string
   version: number
   status: 'open' | 'consumed' | 'cancelled'
-  payload: AmbiguitySet
+  payload: ClarificationCardPayload
   answers?: ResumeAnswer[]
 }
 
@@ -111,7 +112,6 @@ export interface ResumeRunRequest {
   version: number
   idempotency_key: string
   answers: ResumeAnswer[]
-  proceed_with_assumptions?: boolean
 }
 
 export interface CorrectionRunRequest {
@@ -215,6 +215,8 @@ export interface TurnAnswerDataset {
   rows?: Array<Record<string, any>>
   row_count?: number
   truncated?: boolean
+  limit?: number
+  truncation_reason?: string
   presentation?: AnswerPresentation
   chart?: unknown
   error?: { code: string; message: string; retryable?: boolean }
@@ -260,6 +262,8 @@ export const turnAnswerToPayload = (value: unknown): AnswerPayload | undefined =
         data: item.rows || [],
         row_count: item.row_count,
         truncated: item.truncated,
+        limit: item.limit,
+        truncation_reason: item.truncation_reason,
       },
     }))
   if (answer.kind === 'prediction' && answer.forecast_rows?.length) {
@@ -628,6 +632,18 @@ export class ChatLogHistoryItem {
   detail?: Record<string, any>
   input?: any
   output?: any
+  model_calls?: Array<{
+    attempt: number
+    status: string
+    elapsed_ms: number
+    usage?: Record<string, any>
+    input?: any
+    output?: any
+    purpose?: string
+    model_name?: string
+    reasoning?: string
+    error?: string
+  }>
   reasoning_content?: string
 
   constructor()
@@ -745,6 +761,7 @@ const toChatLogHistoryItem = (data?: any): any | undefined => {
     detail: data.detail || {},
     input: data.input,
     output: data.output,
+    model_calls: data.model_calls || [],
     reasoning_content: data.reasoning_content,
   })
   return item

@@ -1,70 +1,69 @@
-"""Turn capture extractors for QueryIntent v1 knowledge assets."""
+"""Capture verified v7 business resolutions and query patterns."""
 
 from __future__ import annotations
 
 from typing import Any
 
-from apps.chat.intent_defaults import parse_intent_default_fragment
-from apps.chat.query_intent import IntentRevision
-from apps.knowledge.capture.snapshot import (
-    TurnSnapshot,
-    has_user_answer_requirements,
-)
-from apps.knowledge.natural_key import predicate_looks_ephemeral
+from apps.knowledge.capture.snapshot import TurnSnapshot
 
 _CAPTURE_OK_OUTCOMES = frozenset({"success", "accepted", "completed", "ok", "degraded"})
 
 
-def extract_v_t1_caliber(snapshot: TurnSnapshot) -> dict[str, Any] | None:
-    """Capture only intent items explicitly supported by clarification evidence."""
-    if snapshot.outcome not in _CAPTURE_OK_OUTCOMES or snapshot.ds_id is None:
-        return None
-    if not has_user_answer_requirements(snapshot.intent_revision):
-        return None
-    try:
-        revision = IntentRevision.model_validate(snapshot.intent_revision)
-    except ValueError:
-        return None
-    if revision.status != "accepted" or revision.execution_mode != "verified":
-        return None
+def _eligible(snapshot: TurnSnapshot) -> bool:
+    return (
+        snapshot.outcome in _CAPTURE_OK_OUTCOMES
+        and snapshot.validation_status == "verified"
+        and snapshot.ds_id is not None
+        and bool(snapshot.sql_list)
+    )
 
-    defaults: list[dict[str, Any]] = []
-    for item_key, value in revision.item_catalog.items():
-        refs = revision.evidence_map.get(item_key, ())
-        if not any(str(ref).startswith("user:answer:") for ref in refs):
-            continue
-        parts = item_key.split(":", 3)
-        if len(parts) < 3 or not parts[0].startswith("d"):
-            continue
-        dataset_index = int(parts[0][1:])
-        kind = parts[1]
-        if kind not in {"output", "group", "filter", "time", "order"}:
-            continue
-        if kind == "filter" and predicate_looks_ephemeral(value):
-            continue
-        defaults.append(
-            {
-                "dataset_subject": revision.intent.datasets[dataset_index].subject,
-                "kind": kind,
-                "value": value,
-            }
-        )
-    if not defaults:
+
+def extract_business_resolution(snapshot: TurnSnapshot) -> dict[str, Any] | None:
+    if not _eligible(snapshot) or not snapshot.clarification_resolutions:
         return None
-    fragment = {"version": 1, "intent_defaults": defaults}
-    try:
-        parse_intent_default_fragment(fragment)
-    except ValueError:
+    resolutions = [
+        item for item in snapshot.clarification_resolutions if isinstance(item, dict)
+    ]
+    if not resolutions:
         return None
     return {
         "kind": "caliber",
-        "trigger_id": "V-T1",
-        "label": str(defaults[0]["value"].get("business_name") or "业务口径")[:255],
-        "summary": f"Captured from clarification on record {snapshot.record_id}",
-        "contract_fragment": fragment,
+        "trigger_id": "V7-BUSINESS-RESOLUTION",
+        "label": str(
+            resolutions[0].get("question")
+            or resolutions[0].get("business_question")
+            or "已确认业务口径"
+        )[:255],
+        "summary": f"Business resolution captured from record {snapshot.record_id}",
+        "contract_fragment": {
+            "version": 1,
+            "asset_type": "business_resolution",
+            "resolutions": resolutions,
+        },
         "field_targets": [],
         "scope": {"ds_id": snapshot.ds_id, "assistant_id": snapshot.assistant_id},
         "suggested_trust_tier": "admitted",
+    }
+
+
+def extract_query_pattern(snapshot: TurnSnapshot) -> dict[str, Any] | None:
+    if not _eligible(snapshot):
+        return None
+    return {
+        "kind": "rule",
+        "trigger_id": "V7-QUERY-PATTERN",
+        "label": (snapshot.original_question or "查询模式")[:255],
+        "summary": f"Verified query pattern from record {snapshot.record_id}",
+        "contract_fragment": {
+            "version": 1,
+            "asset_type": "query_pattern",
+            "question": snapshot.original_question,
+            "queries": snapshot.sql_list,
+            "plan_facts": snapshot.plan_facts,
+        },
+        "field_targets": [],
+        "scope": {"ds_id": snapshot.ds_id, "assistant_id": snapshot.assistant_id},
+        "suggested_trust_tier": "published",
     }
 
 
@@ -76,7 +75,7 @@ def extract_process_episode(snapshot: TurnSnapshot) -> dict[str, Any] | None:
         "trigger_id": "V-T9",
         "question_norm": (snapshot.original_question or "")[:512],
         "episode": {
-            "status": snapshot.contract_status,
+            "status": snapshot.validation_status,
             "clarification_answered": snapshot.clarification_answered,
             "sql_count": len(snapshot.sql_list),
             "knowledge_apply": snapshot.knowledge_apply[:8],
@@ -90,8 +89,6 @@ def staging_payload_from_candidate(candidate: dict[str, Any]) -> dict[str, Any]:
     return {
         "label": candidate.get("label"),
         "summary": candidate.get("summary"),
-        "contract_fragment": candidate.get("contract_fragment")
-        or candidate.get("fragment")
-        or {},
+        "contract_fragment": candidate.get("contract_fragment") or {},
         "field_targets": list(candidate.get("field_targets") or []),
     }

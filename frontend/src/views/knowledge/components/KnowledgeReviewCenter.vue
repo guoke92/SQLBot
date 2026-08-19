@@ -1,130 +1,115 @@
 <script lang="ts" setup>
-import { MoreFilled } from '@element-plus/icons-vue'
 import { computed, reactive, ref } from 'vue'
-import { useI18n } from 'vue-i18n'
-import type {
-  KnowledgeImportItemResult,
-  KnowledgeReviewItem,
-  KnowledgeReviewPage,
-  KnowledgeSuggestion,
-} from '@/api/knowledge'
-import KnowledgeItemDetail from './KnowledgeItemDetail.vue'
-import { knowledgeItemSummary, knowledgeItemTitle } from '../presentation'
+import type { KnowledgeUnitPage, KnowledgeUnitSummary } from '@/api/knowledge'
+import { nextStepLabel, statusLabel, statusTagType } from '../presentation'
+import KnowledgeUnitDrawer from './KnowledgeUnitDrawer.vue'
+import ValidationIssueList from './ValidationIssueList.vue'
 
-const props = defineProps<{
-  page: KnowledgeReviewPage | null
-  suggestions: KnowledgeSuggestion[]
-  loading: boolean
-}>()
+const lifecycleTabs = [
+  { id: 'IN_REVIEW', label: '待审核' },
+  { id: 'APPROVED', label: '已批准' },
+  { id: 'REJECTED', label: '已拒绝' },
+  { id: 'DRAFT', label: '草稿' },
+  { id: 'PUBLISHED', label: '已发布' },
+  { id: 'RETIRED', label: '已退役' },
+] as const
+
+const props = defineProps<{ page: KnowledgeUnitPage | null; loading: boolean }>()
 const emit = defineEmits<{
-  load: [query: { keyword: string; kind: string; page: number; pageSize: number }]
-  approve: [item: KnowledgeReviewItem]
-  reject: [item: KnowledgeReviewItem]
-  promote: [item: KnowledgeSuggestion]
-}>()
-const { t } = useI18n()
-const query = reactive({ keyword: '', kind: '', page: 1, pageSize: 15 })
-const detailVisible = ref(false)
-const selected = ref<KnowledgeReviewItem | null>(null)
-
-const kinds = computed(() => props.page?.kind_counts || {})
-
-function displayItem(item: KnowledgeReviewItem): KnowledgeImportItemResult {
-  return {
-    item_id: item.item_id || item.review_key,
-    kind: item.kind,
-    readiness: 'review_required',
-    action: item.status,
-    target_id: item.id,
-    messages: [],
-    issues: item.issues || [],
-    normalized: {
-      ...item.payload,
-      provenance: item.provenance,
-      quality_snapshot: item.quality_snapshot,
+  load: [
+    query: {
+      keyword: string
+      lifecycle: string
+      validation: string
+      page: number
+      pageSize: number
     },
+  ]
+}>()
+
+const query = reactive({
+  keyword: '',
+  lifecycle: 'IN_REVIEW',
+  validation: '',
+  page: 1,
+  pageSize: 15,
+})
+const drawerVisible = ref(false)
+const selected = ref<KnowledgeUnitSummary | null>(null)
+const groupedItems = computed(() =>
+  [...(props.page?.items || [])].sort(
+    (left, right) =>
+      left.domain.localeCompare(right.domain, 'zh-CN') ||
+      left.title.localeCompare(right.title, 'zh-CN')
+  )
+)
+const currentTab = computed(
+  () => lifecycleTabs.find((item) => item.id === query.lifecycle) || lifecycleTabs[0]
+)
+const emptyHint = computed(() => `当前没有${currentTab.value.label}的知识单元`)
+
+function lifecycleCount(status: string) {
+  return Number(props.page?.lifecycle_counts?.[status] || 0)
+}
+
+function domainSpan({
+  columnIndex,
+  rowIndex,
+}: {
+  columnIndex: number
+  rowIndex: number
+  row: KnowledgeUnitSummary
+}) {
+  if (columnIndex !== 0) return
+  const items = groupedItems.value
+  const domain = items[rowIndex]?.domain
+  if (rowIndex > 0 && items[rowIndex - 1]?.domain === domain) return [0, 0]
+  let rowspan = 1
+  while (rowIndex + rowspan < items.length && items[rowIndex + rowspan].domain === domain) {
+    rowspan += 1
   }
+  return [rowspan, 1]
 }
 
-function sourceLabel(item: KnowledgeReviewItem) {
-  if (item.source === 'package') return t('knowledge.source_package')
-  if (item.source === 'relation') return t('knowledge.source_relation')
-  return t('knowledge.source_staging')
-}
-
-function kindLabel(kind: string) {
-  return t(`knowledge.kind_${kind}`)
-}
-
-function statusLabel(item: KnowledgeReviewItem) {
-  if (item.source === 'relation') return t('knowledge.review_status_relation_candidate')
-  if (item.source === 'package') return t('knowledge.readiness_review_required')
-  return t('knowledge.review_status_pending_certification')
-}
-
-function approveLabel(item: KnowledgeReviewItem) {
-  if (item.source === 'relation') return t('knowledge.review_action_confirm_relation')
-  if (item.source === 'package') return t('knowledge.next_action_approve_publish')
-  return t('knowledge.review_action_certify_publish')
-}
-
-function approve(item: KnowledgeReviewItem) {
-  detailVisible.value = false
-  emit('approve', item)
-}
-
-function reject(item: KnowledgeReviewItem) {
-  detailVisible.value = false
-  emit('reject', item)
-}
-
-function search() {
-  query.page = 1
+function load(reset = false) {
+  if (reset) query.page = 1
   emit('load', { ...query })
 }
 
-function toggleKind(kind: string) {
-  query.kind = query.kind === kind ? '' : kind
-  search()
+function selectLifecycle(status: string) {
+  if (query.lifecycle === status) return
+  query.lifecycle = status
+  load(true)
 }
 
-function pageChange(page: number) {
-  query.page = page
-  emit('load', { ...query })
-}
-
-function sizeChange(pageSize: number) {
-  query.page = 1
-  query.pageSize = pageSize
-  emit('load', { ...query })
-}
-
-function openDetail(item: KnowledgeReviewItem) {
+function open(item: KnowledgeUnitSummary) {
   selected.value = item
-  detailVisible.value = true
+  drawerVisible.value = true
 }
 </script>
 
 <template>
   <section class="review-center">
-    <header class="section-header">
+    <header class="hero">
       <div>
-        <h3>{{ t('knowledge.review_center_title') }}</h3>
-        <p>{{ t('knowledge.review_center_subtitle') }}</p>
+        <h3>知识审核中心</h3>
+        <p>以完整业务知识单元为审核对象，在同一处核对流程、数据、口径、查询和证据。</p>
       </div>
-      <el-tag type="warning" round>{{ page?.total || 0 }}</el-tag>
+      <el-tag :type="statusTagType(query.lifecycle)" round>
+        {{ lifecycleCount(query.lifecycle) }} {{ currentTab.label }}
+      </el-tag>
     </header>
 
-    <div v-if="Object.keys(kinds).length" class="count-strip">
+    <div class="status-tabs">
       <button
-        v-for="(count, kind) in kinds"
-        :key="String(kind)"
+        v-for="tab in lifecycleTabs"
+        :key="tab.id"
         type="button"
-        :class="{ active: query.kind === kind }"
-        @click="toggleKind(String(kind))"
+        :class="{ active: query.lifecycle === tab.id }"
+        @click="selectLifecycle(tab.id)"
       >
-        <strong>{{ count }}</strong
-        ><span>{{ kindLabel(String(kind)) }}</span>
+        <span>{{ tab.label }}</span>
+        <strong>{{ lifecycleCount(tab.id) }}</strong>
       </button>
     </div>
 
@@ -132,63 +117,97 @@ function openDetail(item: KnowledgeReviewItem) {
       <el-input
         v-model="query.keyword"
         clearable
-        :placeholder="t('knowledge.search_reviews')"
-        @keyup.enter="search"
-        @clear="search"
+        placeholder="搜索知识单元、领域或标识"
+        @keyup.enter="load(true)"
+        @clear="load(true)"
       />
-      <el-button v-if="query.kind" @click="toggleKind(query.kind)">
-        {{ t('knowledge.clear_type_filter') }}
-      </el-button>
+      <el-select v-model="query.validation" clearable placeholder="校验状态" @change="load(true)">
+        <el-option label="通过" value="PASS" />
+        <el-option label="警告" value="WARNING" />
+        <el-option label="失败" value="FAIL" />
+        <el-option label="未校验" value="NOT_RUN" />
+      </el-select>
     </div>
 
-    <el-table v-loading="loading" :data="page?.items || []" size="small" @row-click="openDetail">
-      <el-table-column :label="t('knowledge.knowledge_content')" min-width="400">
+    <el-table
+      v-loading="loading"
+      :data="groupedItems"
+      :span-method="domainSpan"
+      @row-click="open"
+    >
+      <el-table-column label="业务域" width="140">
         <template #default="{ row }">
-          <div class="content-cell">
-            <strong>{{ knowledgeItemTitle(displayItem(row)) }}</strong>
-            <span>{{ knowledgeItemSummary(displayItem(row)) || '-' }}</span>
-            <small>{{ row.item_id || row.review_key }}</small>
+          <strong>{{ row.domain }}</strong>
+        </template>
+      </el-table-column>
+      <el-table-column label="业务知识单元" min-width="320">
+        <template #default="{ row }">
+          <div class="unit-cell">
+            <strong>{{ row.title }}</strong>
+            <span>{{ row.domain }} · {{ row.unit_key }}</span>
+            <small
+              >Revision {{ row.revision }} · 置信度 {{ Math.round(row.confidence * 100) }}%</small
+            >
           </div>
         </template>
       </el-table-column>
-      <el-table-column :label="t('knowledge.knowledge_type')" width="110">
+      <el-table-column label="生命周期" width="130">
         <template #default="{ row }"
-          ><el-tag type="info">{{ kindLabel(row.kind) }}</el-tag></template
+          ><el-tag :type="statusTagType(row.lifecycle_status)">{{
+            statusLabel(row.lifecycle_status)
+          }}</el-tag></template
         >
       </el-table-column>
-      <el-table-column :label="t('knowledge.review_source')" width="120">
-        <template #default="{ row }">{{ sourceLabel(row) }}</template>
-      </el-table-column>
-      <el-table-column :label="t('knowledge.status')" width="120">
-        <template #default="{ row }"
-          ><el-tag type="warning">{{ statusLabel(row) }}</el-tag></template
-        >
-      </el-table-column>
-      <el-table-column :label="t('knowledge.actions')" width="250" fixed="right">
+      <el-table-column label="校验" min-width="220">
         <template #default="{ row }">
-          <div class="row-actions" @click.stop>
-            <el-button size="small" @click="openDetail(row)">
-              {{ t('knowledge.view_details') }}
-            </el-button>
-            <el-button type="primary" size="small" @click="approve(row)">
-              {{ approveLabel(row) }}
-            </el-button>
-            <el-dropdown trigger="click" @command="reject(row)">
-              <el-button :icon="MoreFilled" circle size="small" />
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item command="reject">
-                    {{ t('knowledge.reject') }}
-                  </el-dropdown-item>
-                </el-dropdown-menu>
-              </template>
-            </el-dropdown>
-          </div>
+          <el-popover
+            v-if="row.validation_issue_count"
+            placement="left"
+            :width="420"
+            trigger="hover"
+          >
+            <ValidationIssueList
+              compact
+              :status="row.validation_status"
+              :summary="row.validation_summary_text"
+              :issues="row.validation_issues"
+            />
+            <template #reference>
+              <div class="validation-tags">
+                <el-tag v-if="row.validation_error_count" type="danger">
+                  失败 {{ row.validation_error_count }}
+                </el-tag>
+                <el-tag v-if="row.validation_warning_count" type="warning">
+                  告警 {{ row.validation_warning_count }}
+                </el-tag>
+                <el-tag
+                  v-if="!row.validation_error_count && !row.validation_warning_count"
+                  :type="statusTagType(row.validation_status)"
+                >
+                  {{ statusLabel(row.validation_status) }}
+                  <template v-if="row.validation_issue_count">
+                    · {{ row.validation_issue_count }}
+                  </template>
+                </el-tag>
+              </div>
+            </template>
+          </el-popover>
+          <el-tag v-else :type="statusTagType(row.validation_status)">{{
+            statusLabel(row.validation_status)
+          }}</el-tag>
         </template>
       </el-table-column>
-      <template #empty
-        ><el-empty :description="t('knowledge.no_reviews')" :image-size="72"
-      /></template>
+      <el-table-column label="数据绑定" width="120">
+        <template #default="{ row }">{{ statusLabel(row.binding_status) }}</template>
+      </el-table-column>
+      <el-table-column label="操作" min-width="120">
+        <template #default="{ row }">
+          <el-button type="primary" plain @click.stop="open(row)">{{
+            nextStepLabel(row.next_step)
+          }}</el-button>
+        </template>
+      </el-table-column>
+      <template #empty><el-empty :description="emptyHint" :image-size="72" /></template>
     </el-table>
 
     <el-pagination
@@ -199,67 +218,26 @@ function openDetail(item: KnowledgeReviewItem) {
       layout="total, sizes, prev, pager, next"
       :page-sizes="[10, 15, 30, 50]"
       :total="page.total"
-      @current-change="pageChange"
-      @size-change="sizeChange"
+      @current-change="load()"
+      @size-change="load(true)"
     />
 
-    <section v-if="suggestions.length" class="suggestions">
-      <div class="suggestion-heading">
-        <div>
-          <h4>{{ t('knowledge.suggestions') }}</h4>
-          <p>{{ t('knowledge.promotion_suggestions_hint') }}</p>
-        </div>
-      </div>
-      <div class="suggestion-list">
-        <div v-for="item in suggestions" :key="item.id" class="suggestion-card">
-          <div>
-            <strong>{{ item.label }}</strong
-            ><span>{{ item.trust_tier }}</span>
-          </div>
-          <small>
-            {{ t('knowledge.reproductions') }} {{ item.reproduce_count }} ·
-            {{ t('knowledge.applies') }} {{ item.successful_apply_count }} ·
-            {{ t('knowledge.positive') }} {{ item.positive_feedback_count }}
-          </small>
-          <el-button
-            v-if="item.recommended_action === 'promote'"
-            type="primary"
-            size="small"
-            @click="emit('promote', item)"
-            >{{ t('knowledge.promote') }}</el-button
-          >
-          <el-tag v-else type="danger">{{ t('knowledge.needs_review') }}</el-tag>
-        </div>
-      </div>
-    </section>
-
-    <el-drawer
-      v-model="detailVisible"
-      :title="t('knowledge.review_details')"
-      size="min(760px, 94vw)"
-      destroy-on-close
-    >
-      <KnowledgeItemDetail v-if="selected" :item="displayItem(selected)">
-        <template #actions>
-          <el-button type="danger" plain @click="reject(selected)">{{
-            t('knowledge.reject')
-          }}</el-button>
-          <el-button type="primary" @click="approve(selected)">
-            {{ approveLabel(selected) }}
-          </el-button>
-        </template>
-      </KnowledgeItemDetail>
-    </el-drawer>
+    <KnowledgeUnitDrawer
+      v-model="drawerVisible"
+      mode="review"
+      :item="selected"
+      @changed="load()"
+    />
   </section>
 </template>
 
 <style scoped>
 .review-center {
-  padding: 2px 0 24px;
+  padding-bottom: 24px;
 }
-.section-header {
+.hero {
   display: flex;
-  padding: 16px 18px;
+  padding: 18px;
   margin-bottom: 14px;
   align-items: flex-start;
   justify-content: space-between;
@@ -267,103 +245,72 @@ function openDetail(item: KnowledgeReviewItem) {
   border: 1px solid var(--el-color-primary-light-8);
   border-radius: 10px;
 }
-.section-header h3,
-.suggestion-heading h4 {
+.hero h3 {
   margin: 0;
 }
-.section-header p,
-.suggestion-heading p {
-  margin: 6px 0 0;
+.hero p {
+  margin: 7px 0 0;
   color: var(--el-text-color-secondary);
-  line-height: 1.5;
 }
-.count-strip {
+.status-tabs {
   display: flex;
-  margin-bottom: 12px;
-  overflow-x: auto;
+  margin-bottom: 14px;
   gap: 8px;
+  overflow: auto;
 }
-.count-strip button {
+.status-tabs button {
   display: flex;
-  min-width: 110px;
-  padding: 9px 12px;
+  min-width: 108px;
+  padding: 10px 14px;
   align-items: baseline;
-  gap: 7px;
+  justify-content: space-between;
+  gap: 10px;
   cursor: pointer;
   background: var(--el-fill-color-extra-light);
-  border: 1px solid transparent;
-  border-radius: 7px;
-}
-.count-strip button.active {
-  border-color: var(--el-color-primary-light-5);
-}
-.count-strip span {
-  color: var(--el-text-color-secondary);
-  font-size: 12px;
-}
-.toolbar {
-  display: flex;
-  margin-bottom: 12px;
-  gap: 10px;
-}
-.toolbar :deep(.el-input) {
-  width: min(460px, 100%);
-}
-.content-cell {
-  display: grid;
-  gap: 5px;
-  line-height: 1.45;
-}
-.content-cell span {
-  color: var(--el-text-color-regular);
-}
-.content-cell small {
-  color: var(--el-text-color-placeholder);
-}
-:deep(.el-table__row) {
-  cursor: pointer;
-}
-.row-actions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 6px;
-}
-.row-actions :deep(.el-button + .el-button) {
-  margin-left: 0;
-}
-.pagination {
-  margin-top: 16px;
-  justify-content: flex-end;
-}
-.suggestions {
-  margin-top: 26px;
-}
-.suggestion-list {
-  display: grid;
-  margin-top: 12px;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 10px;
-}
-.suggestion-card {
-  display: grid;
-  padding: 14px;
-  align-items: center;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 8px 14px;
   border: 1px solid var(--el-border-color-lighter);
   border-radius: 8px;
 }
-.suggestion-card div {
+.status-tabs button.active {
+  color: var(--el-color-primary);
+  background: var(--el-color-primary-light-9);
+  border-color: var(--el-color-primary);
+}
+.status-tabs span {
+  font-size: 13px;
+}
+.status-tabs strong {
+  font-size: 18px;
+}
+.toolbar {
   display: grid;
-  gap: 3px;
+  grid-template-columns: minmax(260px, 1fr) 180px;
+  gap: 10px;
+  margin-bottom: 12px;
 }
-.suggestion-card span,
-.suggestion-card small {
+.unit-cell {
+  display: grid;
+  gap: 5px;
+}
+.unit-cell span,
+.unit-cell small {
   color: var(--el-text-color-secondary);
-  font-size: 12px;
 }
-.suggestion-card small {
-  grid-column: 1;
+.pagination {
+  justify-content: flex-end;
+  margin-top: 14px;
+}
+.validation-tags {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+@media (max-width: 700px) {
+  .toolbar {
+    grid-template-columns: 1fr;
+  }
+  .hero {
+    gap: 10px;
+  }
 }
 </style>

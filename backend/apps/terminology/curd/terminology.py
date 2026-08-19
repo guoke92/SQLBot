@@ -16,7 +16,11 @@ from apps.ai_model.embedding import (
 from apps.datasource.models.datasource import CoreDatasource
 from apps.system.models.system_model import AssistantModel
 from apps.template.generate_chart.generator import get_base_terminology_template
-from apps.terminology.models.terminology_model import Terminology, TerminologyInfo, TerminologyInfoResult
+from apps.terminology.models.terminology_model import (
+    Terminology,
+    TerminologyInfo,
+    TerminologyInfoResult,
+)
 from common.core.config import settings
 from common.core.deps import SessionDep, Trans
 from common.utils.embedding_threads import run_save_terminology_embeddings
@@ -34,7 +38,9 @@ def get_terminology_base_query(oid: int, name: Optional[str] = None):
         # 步骤1：先找到所有匹配的节点ID（无论是父节点还是子节点）
         matched_ids_subquery = (
             select(Terminology.id)
-            .where(and_(Terminology.word.ilike(keyword_pattern), Terminology.oid == oid))
+            .where(
+                and_(Terminology.word.ilike(keyword_pattern), Terminology.oid == oid)
+            )
             .subquery()
         )
 
@@ -42,27 +48,34 @@ def get_terminology_base_query(oid: int, name: Optional[str] = None):
         parent_ids_subquery = (
             select(Terminology.id)
             .where(
-                (Terminology.id.in_(matched_ids_subquery)) |
-                (Terminology.id.in_(
-                    select(Terminology.pid)
-                    .where(Terminology.id.in_(matched_ids_subquery))
-                    .where(Terminology.pid.isnot(None))
-                ))
+                (Terminology.id.in_(matched_ids_subquery))
+                | (
+                    Terminology.id.in_(
+                        select(Terminology.pid)
+                        .where(Terminology.id.in_(matched_ids_subquery))
+                        .where(Terminology.pid.isnot(None))
+                    )
+                )
             )
             .where(Terminology.pid.is_(None))  # 只取父节点
         )
     else:
-        parent_ids_subquery = (
-            select(Terminology.id)
-            .where(and_(Terminology.pid.is_(None), Terminology.oid == oid))
+        parent_ids_subquery = select(Terminology.id).where(
+            and_(Terminology.pid.is_(None), Terminology.oid == oid)
         )
 
     return parent_ids_subquery, child
 
 
-def build_terminology_query(session: SessionDep, oid: int, name: Optional[str] = None,
-                            paginate: bool = True, current_page: int = 1, page_size: int = 10,
-                            dslist: Optional[list[int]] = None):
+def build_terminology_query(
+    session: SessionDep,
+    oid: int,
+    name: Optional[str] = None,
+    paginate: bool = True,
+    current_page: int = 1,
+    page_size: int = 10,
+    dslist: Optional[list[int]] = None,
+):
     """
     构建术语查询的通用方法
     """
@@ -74,17 +87,12 @@ def build_terminology_query(session: SessionDep, oid: int, name: Optional[str] =
         # datasource_ids 与 dslist 中的任一元素有交集
         for ds_id in dslist:
             # 使用 JSONB 包含操作符，但需要确保类型正确
-            datasource_conditions.append(
-                Terminology.datasource_ids.contains([ds_id])
-            )
+            datasource_conditions.append(Terminology.datasource_ids.contains([ds_id]))
 
         # datasource_ids 为空数组
         empty_array_condition = Terminology.datasource_ids == []
 
-        ds_filter_condition = or_(
-            *datasource_conditions,
-            empty_array_condition
-        )
+        ds_filter_condition = or_(*datasource_conditions, empty_array_condition)
         parent_ids_subquery = parent_ids_subquery.where(ds_filter_condition)
 
     # 计算总数
@@ -98,8 +106,7 @@ def build_terminology_query(session: SessionDep, oid: int, name: Optional[str] =
         current_page = max(1, min(current_page, total_pages)) if total_pages > 0 else 1
 
         paginated_parent_ids = (
-            parent_ids_subquery
-            .order_by(Terminology.create_time.desc())
+            parent_ids_subquery.order_by(Terminology.create_time.desc())
             .offset((current_page - 1) * page_size)
             .limit(page_size)
             .subquery()
@@ -110,17 +117,17 @@ def build_terminology_query(session: SessionDep, oid: int, name: Optional[str] =
         current_page = 1
         page_size = total_count if total_count > 0 else 1
 
-        paginated_parent_ids = (
-            parent_ids_subquery
-            .order_by(Terminology.create_time.desc())
-            .subquery()
-        )
+        paginated_parent_ids = parent_ids_subquery.order_by(
+            Terminology.create_time.desc()
+        ).subquery()
 
     # 构建公共查询部分
     children_subquery = (
         select(
             child.pid,
-            func.jsonb_agg(child.word).filter(child.word.isnot(None)).label('other_words')
+            func.jsonb_agg(child.word)
+            .filter(child.word.isnot(None))
+            .label("other_words"),
         )
         .where(child.pid.isnot(None))
         .group_by(child.pid)
@@ -130,8 +137,10 @@ def build_terminology_query(session: SessionDep, oid: int, name: Optional[str] =
     # 创建子查询来获取数据源名称
     datasource_names_subquery = (
         select(
-            func.jsonb_array_elements(Terminology.datasource_ids).cast(BigInteger).label('ds_id'),
-            Terminology.id.label('term_id')
+            func.jsonb_array_elements(Terminology.datasource_ids)
+            .cast(BigInteger)
+            .label("ds_id"),
+            Terminology.id.label("term_id"),
         )
         .where(Terminology.id.in_(paginated_parent_ids))
         .subquery()
@@ -146,25 +155,28 @@ def build_terminology_query(session: SessionDep, oid: int, name: Optional[str] =
             Terminology.specific_ds,
             Terminology.datasource_ids,
             children_subquery.c.other_words,
-            func.jsonb_agg(CoreDatasource.name).filter(CoreDatasource.id.isnot(None)).label('datasource_names'),
+            func.jsonb_agg(CoreDatasource.name)
+            .filter(CoreDatasource.id.isnot(None))
+            .label("datasource_names"),
             Terminology.enabled,
             Terminology.advanced_application,
-            AssistantModel.name.label('advanced_application_name'),
+            AssistantModel.name.label("advanced_application_name"),
         )
-        .outerjoin(
-            children_subquery,
-            Terminology.id == children_subquery.c.pid
-        )
+        .outerjoin(children_subquery, Terminology.id == children_subquery.c.pid)
         .outerjoin(
             datasource_names_subquery,
-            datasource_names_subquery.c.term_id == Terminology.id
+            datasource_names_subquery.c.term_id == Terminology.id,
         )
         .outerjoin(
-            CoreDatasource,
-            CoreDatasource.id == datasource_names_subquery.c.ds_id
+            CoreDatasource, CoreDatasource.id == datasource_names_subquery.c.ds_id
         )
-        .outerjoin(AssistantModel,
-                   and_(Terminology.advanced_application == AssistantModel.id, AssistantModel.type == 1))
+        .outerjoin(
+            AssistantModel,
+            and_(
+                Terminology.advanced_application == AssistantModel.id,
+                AssistantModel.type == 1,
+            ),
+        )
         .where(and_(Terminology.id.in_(paginated_parent_ids), Terminology.oid == oid))
         .group_by(
             Terminology.id,
@@ -176,7 +188,7 @@ def build_terminology_query(session: SessionDep, oid: int, name: Optional[str] =
             Terminology.advanced_application,
             AssistantModel.name,
             children_subquery.c.other_words,
-            Terminology.enabled
+            Terminology.enabled,
         )
         .order_by(Terminology.create_time.desc())
     )
@@ -192,25 +204,39 @@ def execute_terminology_query(session: SessionDep, stmt) -> List[TerminologyInfo
     result = session.execute(stmt)
 
     for row in result:
-        _list.append(TerminologyInfoResult(
-            id=row.id,
-            word=row.word,
-            create_time=row.create_time,
-            description=row.description,
-            other_words=row.other_words if row.other_words else [],
-            specific_ds=row.specific_ds if row.specific_ds is not None else False,
-            datasource_ids=row.datasource_ids if row.datasource_ids is not None else [],
-            datasource_names=row.datasource_names if row.datasource_names is not None else [],
-            enabled=row.enabled if row.enabled is not None else False,
-            advanced_application=str(row.advanced_application) if row.advanced_application else None,
-            advanced_application_name=row.advanced_application_name,
-        ))
+        _list.append(
+            TerminologyInfoResult(
+                id=row.id,
+                word=row.word,
+                create_time=row.create_time,
+                description=row.description,
+                other_words=row.other_words if row.other_words else [],
+                specific_ds=row.specific_ds if row.specific_ds is not None else False,
+                datasource_ids=row.datasource_ids
+                if row.datasource_ids is not None
+                else [],
+                datasource_names=row.datasource_names
+                if row.datasource_names is not None
+                else [],
+                enabled=row.enabled if row.enabled is not None else False,
+                advanced_application=str(row.advanced_application)
+                if row.advanced_application
+                else None,
+                advanced_application_name=row.advanced_application_name,
+            )
+        )
 
     return _list
 
 
-def page_terminology(session: SessionDep, current_page: int = 1, page_size: int = 10,
-                     name: Optional[str] = None, oid: Optional[int] = 1, dslist: Optional[list[int]] = None):
+def page_terminology(
+    session: SessionDep,
+    current_page: int = 1,
+    page_size: int = 10,
+    name: Optional[str] = None,
+    oid: Optional[int] = 1,
+    dslist: Optional[list[int]] = None,
+):
     """
     分页查询术语（原方法保持不变）
     """
@@ -222,7 +248,9 @@ def page_terminology(session: SessionDep, current_page: int = 1, page_size: int 
     return current_page, page_size, total_count, total_pages, _list
 
 
-def get_all_terminology(session: SessionDep, name: Optional[str] = None, oid: Optional[int] = 1):
+def get_all_terminology(
+    session: SessionDep, name: Optional[str] = None, oid: Optional[int] = 1
+):
     """
     获取所有术语（不分页）
     """
@@ -234,8 +262,13 @@ def get_all_terminology(session: SessionDep, name: Optional[str] = None, oid: Op
     return _list
 
 
-def create_terminology(session: SessionDep, info: TerminologyInfo, oid: int, trans: Trans,
-                       skip_embedding: bool = False):
+def create_terminology(
+    session: SessionDep,
+    info: TerminologyInfo,
+    oid: int,
+    trans: Trans,
+    skip_embedding: bool = False,
+):
     """
     创建单个术语记录
     Args:
@@ -248,6 +281,9 @@ def create_terminology(session: SessionDep, info: TerminologyInfo, oid: int, tra
     if not info.description or not info.description.strip():
         raise Exception(trans("i18n_terminology.description_cannot_be_empty"))
 
+    if info.enabled:
+        raise Exception(trans("i18n_terminology.cannot_write_enabled_runtime"))
+
     create_time = datetime.datetime.now()
 
     specific_ds = info.specific_ds if info.specific_ds is not None else False
@@ -255,7 +291,9 @@ def create_terminology(session: SessionDep, info: TerminologyInfo, oid: int, tra
 
     if specific_ds:
         if not datasource_ids and info.advanced_application is None:
-            raise Exception(trans("i18n_data_training.datasource_assistant_cannot_be_none"))
+            raise Exception(
+                trans("i18n_data_training.datasource_assistant_cannot_be_none")
+            )
 
     parent = Terminology(
         word=info.word.strip(),
@@ -263,7 +301,7 @@ def create_terminology(session: SessionDep, info: TerminologyInfo, oid: int, tra
         description=info.description.strip(),
         oid=oid,
         specific_ds=specific_ds,
-        enabled=info.enabled,
+        enabled=False,
         datasource_ids=datasource_ids,
         advanced_application=info.advanced_application,
     )
@@ -309,14 +347,13 @@ def create_terminology(session: SessionDep, info: TerminologyInfo, oid: int, tra
             Terminology.specific_ds == False,
         )
         ds_overlap_conditions = [
-            Terminology.datasource_ids.contains([ds_id])
-            for ds_id in datasource_ids
+            Terminology.datasource_ids.contains([ds_id]) for ds_id in datasource_ids
         ]
         scope_conditions.append(
             and_(
                 Terminology.specific_ds == True,
                 Terminology.datasource_ids.isnot(None),
-                or_(*ds_overlap_conditions)
+                or_(*ds_overlap_conditions),
             )
         )
     else:
@@ -327,7 +364,7 @@ def create_terminology(session: SessionDep, info: TerminologyInfo, oid: int, tra
                 or_(
                     Terminology.datasource_ids.is_(None),
                     func.jsonb_array_length(Terminology.datasource_ids) == 0,
-                )
+                ),
             )
         )
 
@@ -362,9 +399,9 @@ def create_terminology(session: SessionDep, info: TerminologyInfo, oid: int, tra
                     word=other_word.strip(),
                     create_time=create_time,
                     oid=oid,
-                    enabled=info.enabled,
+                    enabled=False,
                     specific_ds=specific_ds,
-                    datasource_ids=datasource_ids
+                    datasource_ids=datasource_ids,
                 )
             )
 
@@ -381,17 +418,19 @@ def create_terminology(session: SessionDep, info: TerminologyInfo, oid: int, tra
     return parent.id
 
 
-def batch_create_terminology(session: SessionDep, info_list: List[TerminologyInfo], oid: int, trans: Trans):
+def batch_create_terminology(
+    session: SessionDep, info_list: List[TerminologyInfo], oid: int, trans: Trans
+):
     """
     批量创建术语记录（复用单条插入逻辑）
     """
     if not info_list:
         return {
-            'success_count': 0,
-            'failed_records': [],
-            'duplicate_count': 0,
-            'original_count': 0,
-            'deduplicated_count': 0
+            "success_count": 0,
+            "failed_records": [],
+            "duplicate_count": 0,
+            "original_count": 0,
+            "deduplicated_count": 0,
         }
 
     failed_records = []
@@ -404,7 +443,9 @@ def batch_create_terminology(session: SessionDep, info_list: List[TerminologyInf
 
     for info in info_list:
         # 过滤掉空的其他词
-        filtered_other_words = [w.strip().lower() for w in info.other_words if w and w.strip()]
+        filtered_other_words = [
+            w.strip().lower() for w in info.other_words if w and w.strip()
+        ]
 
         # 根据specific_ds决定是否处理datasource_names
         specific_ds = info.specific_ds if info.specific_ds is not None else False
@@ -412,7 +453,9 @@ def batch_create_terminology(session: SessionDep, info_list: List[TerminologyInf
 
         if specific_ds and info.datasource_names:
             # 只有当specific_ds为True时才考虑数据源名称
-            filtered_datasource_names = [d.strip().lower() for d in info.datasource_names if d and d.strip()]
+            filtered_datasource_names = [
+                d.strip().lower() for d in info.datasource_names if d and d.strip()
+            ]
 
         # 创建唯一标识（根据新的规则）
         # 1. word和other_words合并并排序（考虑顺序不同）
@@ -424,9 +467,9 @@ def batch_create_terminology(session: SessionDep, info_list: List[TerminologyInf
         datasource_names_sorted = sorted(filtered_datasource_names)
 
         unique_key = (
-            ','.join(all_words_sorted),  # 合并后的所有词（排序）
-            ','.join(datasource_names_sorted),  # 数据源名称（排序）
-            str(specific_ds)  # specific_ds状态
+            ",".join(all_words_sorted),  # 合并后的所有词（排序）
+            ",".join(datasource_names_sorted),  # 数据源名称（排序）
+            str(specific_ds),  # specific_ds状态
         )
 
         if unique_key in unique_records:
@@ -439,7 +482,9 @@ def batch_create_terminology(session: SessionDep, info_list: List[TerminologyInf
 
     # 预加载数据源名称到ID的映射
     datasource_name_to_id = {}
-    datasource_stmt = select(CoreDatasource.id, CoreDatasource.name).where(CoreDatasource.oid == oid)
+    datasource_stmt = select(CoreDatasource.id, CoreDatasource.name).where(
+        CoreDatasource.oid == oid
+    )
     datasource_result = session.execute(datasource_stmt).all()
     for ds in datasource_result:
         datasource_name_to_id[ds.name.strip()] = ds.id
@@ -447,7 +492,8 @@ def batch_create_terminology(session: SessionDep, info_list: List[TerminologyInf
     # 预加载高级应用名称到ID的映射
     assistant_name_to_id = {}
     assistant_stmt = select(AssistantModel.id, AssistantModel.name).where(
-        and_(AssistantModel.oid == oid, AssistantModel.type == 1))
+        and_(AssistantModel.oid == oid, AssistantModel.type == 1)
+    )
     assistant_result = session.execute(assistant_stmt).all()
     for a in assistant_result:
         assistant_name_to_id[a.name.strip()] = a.id
@@ -479,19 +525,30 @@ def batch_create_terminology(session: SessionDep, info_list: List[TerminologyInf
                     if ds_name.strip() in datasource_name_to_id:
                         datasource_ids.append(datasource_name_to_id[ds_name.strip()])
                     else:
-                        error_messages.append(trans("i18n_terminology.datasource_not_found").format(ds_name))
+                        error_messages.append(
+                            trans("i18n_terminology.datasource_not_found").format(
+                                ds_name
+                            )
+                        )
 
             # 解析高级应用名称到ID
             if advanced_application is None and info.advanced_application_name:
                 if info.advanced_application_name.strip() in assistant_name_to_id:
-                    advanced_application = assistant_name_to_id[info.advanced_application_name.strip()]
+                    advanced_application = assistant_name_to_id[
+                        info.advanced_application_name.strip()
+                    ]
                 else:
-                    error_messages.append(trans("i18n_data_training.advanced_application_not_found").format(
-                        info.advanced_application_name))
+                    error_messages.append(
+                        trans(
+                            "i18n_data_training.advanced_application_not_found"
+                        ).format(info.advanced_application_name)
+                    )
 
             # 检查specific_ds为True时datasource_ids和advanced_application不能同时为空
             if specific_ds and not datasource_ids and advanced_application is None:
-                error_messages.append(trans("i18n_data_training.datasource_assistant_cannot_be_none"))
+                error_messages.append(
+                    trans("i18n_data_training.datasource_assistant_cannot_be_none")
+                )
         else:
             # specific_ds为False时忽略数据源名称
             datasource_ids = []
@@ -512,10 +569,7 @@ def batch_create_terminology(session: SessionDep, info_list: List[TerminologyInf
                     words.append(word_lower)
 
         if error_messages:
-            failed_records.append({
-                'data': info,
-                'errors': error_messages
-            })
+            failed_records.append({"data": info, "errors": error_messages})
             continue
 
         # 创建新的TerminologyInfo对象
@@ -526,7 +580,7 @@ def batch_create_terminology(session: SessionDep, info_list: List[TerminologyInf
             datasource_ids=datasource_ids,
             datasource_names=info.datasource_names,
             specific_ds=specific_ds,
-            enabled=info.enabled if info.enabled is not None else True,
+            enabled=False,
             advanced_application=advanced_application,
             advanced_application_name=info.advanced_application_name,
         )
@@ -538,17 +592,16 @@ def batch_create_terminology(session: SessionDep, info_list: List[TerminologyInf
         for info in valid_records:
             try:
                 # 直接复用create_terminology方法，跳过embedding处理
-                terminology_id = create_terminology(session, info, oid, trans, skip_embedding=True)
+                terminology_id = create_terminology(
+                    session, info, oid, trans, skip_embedding=True
+                )
                 inserted_ids.append(terminology_id)
                 success_count += 1
 
             except Exception as e:
                 # 如果单条插入失败，回滚当前记录
                 session.rollback()
-                failed_records.append({
-                    'data': info,
-                    'errors': [str(e)]
-                })
+                failed_records.append({"data": info, "errors": [str(e)]})
 
         # 批量处理embedding（只在最后执行一次）
         if success_count > 0 and inserted_ids:
@@ -560,28 +613,33 @@ def batch_create_terminology(session: SessionDep, info_list: List[TerminologyInf
                 # 可以选择将embedding失败的信息记录到日志或返回给调用方
 
     return {
-        'success_count': success_count,
-        'failed_records': failed_records,
-        'duplicate_count': len(duplicate_records),
-        'original_count': len(info_list),
-        'deduplicated_count': len(deduplicated_list)
+        "success_count": success_count,
+        "failed_records": failed_records,
+        "duplicate_count": len(duplicate_records),
+        "original_count": len(info_list),
+        "deduplicated_count": len(deduplicated_list),
     }
 
 
-def update_terminology(session: SessionDep, info: TerminologyInfo, oid: int, trans: Trans):
-    parent = session.query(Terminology).filter(
-        Terminology.oid == oid,
-        Terminology.id == info.id
-    ).first()
+def update_terminology(
+    session: SessionDep, info: TerminologyInfo, oid: int, trans: Trans
+):
+    parent = (
+        session.query(Terminology)
+        .filter(Terminology.oid == oid, Terminology.id == info.id)
+        .first()
+    )
     if parent is None:
-        raise Exception(trans('i18n_terminology.terminology_not_exists'))
+        raise Exception(trans("i18n_terminology.terminology_not_exists"))
 
     specific_ds = info.specific_ds if info.specific_ds is not None else False
     datasource_ids = info.datasource_ids if info.datasource_ids is not None else []
 
     if specific_ds:
         if not datasource_ids and info.advanced_application is None:
-            raise Exception(trans("i18n_data_training.datasource_assistant_cannot_be_none"))
+            raise Exception(
+                trans("i18n_data_training.datasource_assistant_cannot_be_none")
+            )
 
     words = [info.word.strip()]
     for child in info.other_words:
@@ -607,9 +665,9 @@ def update_terminology(session: SessionDep, info: TerminologyInfo, oid: int, tra
         Terminology.oid == oid,
         or_(
             Terminology.pid != info.id,
-            and_(Terminology.pid.is_(None), Terminology.id != info.id)
+            and_(Terminology.pid.is_(None), Terminology.id != info.id),
         ),
-        Terminology.id != info.id
+        Terminology.id != info.id,
     )
 
     # 构建查询
@@ -636,14 +694,13 @@ def update_terminology(session: SessionDep, info: TerminologyInfo, oid: int, tra
             Terminology.specific_ds == False,
         )
         ds_overlap_conditions = [
-            Terminology.datasource_ids.contains([ds_id])
-            for ds_id in datasource_ids
+            Terminology.datasource_ids.contains([ds_id]) for ds_id in datasource_ids
         ]
         scope_conditions.append(
             and_(
                 Terminology.specific_ds == True,
                 Terminology.datasource_ids.isnot(None),
-                or_(*ds_overlap_conditions)
+                or_(*ds_overlap_conditions),
             )
         )
     else:
@@ -654,7 +711,7 @@ def update_terminology(session: SessionDep, info: TerminologyInfo, oid: int, tra
                 or_(
                     Terminology.datasource_ids.is_(None),
                     func.jsonb_array_length(Terminology.datasource_ids) == 0,
-                )
+                ),
             )
         )
 
@@ -673,21 +730,23 @@ def update_terminology(session: SessionDep, info: TerminologyInfo, oid: int, tra
     if exists:
         raise Exception(trans("i18n_terminology.exists_in_db"))
 
-    stmt = update(Terminology).where(and_(Terminology.id == info.id)).values(
-        word=info.word.strip(),
-        description=info.description.strip(),
-        specific_ds=specific_ds,
-        datasource_ids=datasource_ids,
-        enabled=info.enabled,
-        advanced_application=info.advanced_application,
+    stmt = (
+        update(Terminology)
+        .where(and_(Terminology.id == info.id))
+        .values(
+            word=info.word.strip(),
+            description=info.description.strip(),
+            specific_ds=specific_ds,
+            datasource_ids=datasource_ids,
+            enabled=info.enabled,
+            advanced_application=info.advanced_application,
+        )
     )
     session.execute(stmt)
 
     # Preserve synonym-row embeddings by syncing on word identity, not delete-all.
     children_by_word = {
-        (c.word or "").strip(): c
-        for c in existing_children
-        if (c.word or "").strip()
+        (c.word or "").strip(): c for c in existing_children if (c.word or "").strip()
     }
     for word, child in list(children_by_word.items()):
         if word not in new_synonyms:
@@ -721,9 +780,11 @@ def update_terminology(session: SessionDep, info: TerminologyInfo, oid: int, tra
 
     # Re-embed only when indexed tokens change or any vector is missing.
     session.expire_all()
-    family = session.query(Terminology).filter(
-        or_(Terminology.id == info.id, Terminology.pid == info.id)
-    ).all()
+    family = (
+        session.query(Terminology)
+        .filter(or_(Terminology.id == info.id, Terminology.pid == info.id))
+        .all()
+    )
     missing_embedding = any(row.embedding is None for row in family)
     if parent_word_changed or synonyms_changed or missing_embedding:
         run_save_terminology_embeddings([info.id])
@@ -732,20 +793,24 @@ def update_terminology(session: SessionDep, info: TerminologyInfo, oid: int, tra
 
 
 def delete_terminology(session: SessionDep, ids: list[int]):
-    stmt = delete(Terminology).where(or_(Terminology.id.in_(ids), Terminology.pid.in_(ids)))
+    stmt = delete(Terminology).where(
+        or_(Terminology.id.in_(ids), Terminology.pid.in_(ids))
+    )
     session.execute(stmt)
     session.commit()
 
 
 def enable_terminology(session: SessionDep, id: int, enabled: bool, trans: Trans):
-    count = session.query(Terminology).filter(
-        Terminology.id == id
-    ).count()
+    count = session.query(Terminology).filter(Terminology.id == id).count()
     if count == 0:
-        raise Exception(trans('i18n_terminology.terminology_not_exists'))
+        raise Exception(trans("i18n_terminology.terminology_not_exists"))
 
-    stmt = update(Terminology).where(or_(Terminology.id == id, Terminology.pid == id)).values(
-        enabled=enabled,
+    stmt = (
+        update(Terminology)
+        .where(or_(Terminology.id == id, Terminology.pid == id))
+        .values(
+            enabled=enabled,
+        )
     )
     session.execute(stmt)
     session.commit()
@@ -765,9 +830,11 @@ def run_sync_embeddings(session_maker):
         stmt1 = select(Terminology.id).where(
             and_(needs_refresh, Terminology.pid.is_(None))
         )
-        stmt2 = select(Terminology.pid).where(
-            and_(needs_refresh, Terminology.pid.isnot(None))
-        ).distinct()
+        stmt2 = (
+            select(Terminology.pid)
+            .where(and_(needs_refresh, Terminology.pid.isnot(None)))
+            .distinct()
+        )
         combined_stmt = union(stmt1, stmt2)
         results = session.execute(combined_stmt).scalars().all()
         save_embeddings(session_maker, results)
@@ -787,7 +854,11 @@ def save_embeddings(session_maker, ids: List[int]):
         return
     try:
         session = session_maker()
-        _list = session.query(Terminology).filter(or_(Terminology.id.in_(ids), Terminology.pid.in_(ids))).all()
+        _list = (
+            session.query(Terminology)
+            .filter(or_(Terminology.id.in_(ids), Terminology.pid.in_(ids)))
+            .all()
+        )
 
         _words_list = [item.word for item in _list]
 
@@ -797,7 +868,11 @@ def save_embeddings(session_maker, ids: List[int]):
 
         for index in range(len(results)):
             item = results[index]
-            stmt = update(Terminology).where(and_(Terminology.id == _list[index].id)).values(embedding=item)
+            stmt = (
+                update(Terminology)
+                .where(and_(Terminology.id == _list[index].id))
+                .values(embedding=item)
+            )
             session.execute(stmt)
             session.commit()
 
@@ -854,22 +929,28 @@ LIMIT {settings.EMBEDDING_TERMINOLOGY_TOP_COUNT}
 """
 
 
-def select_terminology_by_word(session: SessionDep, word: str, oid: int, datasource: int = None,
-                               advanced_application_id: Optional[int] = None):
+def select_terminology_by_word(
+    session: SessionDep,
+    word: str,
+    oid: int,
+    datasource: int = None,
+    advanced_application_id: Optional[int] = None,
+):
     if word.strip() == "":
         return []
 
     _list: List[Terminology] = []
     _scores: dict[int, float] = {}
 
-    stmt = (
-        select(
-            Terminology.id,
-            Terminology.pid,
-            Terminology.word,
-        )
-        .where(
-            and_(text(":sentence ILIKE '%' || word || '%'"), Terminology.oid == oid, Terminology.enabled == True)
+    stmt = select(
+        Terminology.id,
+        Terminology.pid,
+        Terminology.word,
+    ).where(
+        and_(
+            text(":sentence ILIKE '%' || word || '%'"),
+            Terminology.oid == oid,
+            Terminology.enabled == True,
         )
     )
 
@@ -878,21 +959,25 @@ def select_terminology_by_word(session: SessionDep, word: str, oid: int, datasou
     elif datasource is not None:
         stmt = stmt.where(
             or_(
-                or_(Terminology.specific_ds == False, Terminology.specific_ds.is_(None)),
+                or_(
+                    Terminology.specific_ds == False, Terminology.specific_ds.is_(None)
+                ),
                 and_(
                     Terminology.specific_ds == True,
                     Terminology.datasource_ids.isnot(None),
-                    text("datasource_ids @> jsonb_build_array(:datasource)")
-                )
+                    text("datasource_ids @> jsonb_build_array(:datasource)"),
+                ),
             )
         )
     else:
-        stmt = stmt.where(or_(Terminology.specific_ds == False, Terminology.specific_ds.is_(None)))
+        stmt = stmt.where(
+            or_(Terminology.specific_ds == False, Terminology.specific_ds.is_(None))
+        )
 
     # 执行查询
-    params: dict[str, Any] = {'sentence': word}
+    params: dict[str, Any] = {"sentence": word}
     if datasource is not None:
-        params['datasource'] = datasource
+        params["datasource"] = datasource
 
     results = session.execute(stmt, params).fetchall()
 
@@ -902,36 +987,44 @@ def select_terminology_by_word(session: SessionDep, word: str, oid: int, datasou
         _scores[root_id] = max(_scores.get(root_id, 0.0), 1.0)
 
     if settings.EMBEDDING_ENABLED:
-        with session.begin_nested():
-            try:
-                embedding = EmbeddingModelCache.embed_query(word)
-                vector_params = embedding_query_params(embedding)
+        nested = session.begin_nested()
+        try:
+            embedding = EmbeddingModelCache.embed_query(word)
+            vector_params = embedding_query_params(embedding)
 
-                if advanced_application_id is not None:
-                    results = session.execute(text(embedding_sql_with_advanced_application),
-                                              {**vector_params, 'oid': oid,
-                                               'advanced_application_id': advanced_application_id}).fetchall()
-                elif datasource is not None:
-                    results = session.execute(text(embedding_sql_with_datasource),
-                                              {**vector_params, 'oid': oid,
-                                               'datasource': datasource}).fetchall()
-                else:
-                    results = session.execute(text(embedding_sql),
-                                              {**vector_params, 'oid': oid}).fetchall()
+            if advanced_application_id is not None:
+                results = session.execute(
+                    text(embedding_sql_with_advanced_application),
+                    {
+                        **vector_params,
+                        "oid": oid,
+                        "advanced_application_id": advanced_application_id,
+                    },
+                ).fetchall()
+            elif datasource is not None:
+                results = session.execute(
+                    text(embedding_sql_with_datasource),
+                    {**vector_params, "oid": oid, "datasource": datasource},
+                ).fetchall()
+            else:
+                results = session.execute(
+                    text(embedding_sql), {**vector_params, "oid": oid}
+                ).fetchall()
 
-                for row in results:
-                    _list.append(Terminology(id=row.id, word=row.word, pid=row.pid))
-                    root_id = int(row.pid) if row.pid is not None else int(row.id)
-                    _scores[root_id] = max(
-                        _scores.get(root_id, 0.0),
-                        float(row.similarity or 0.0),
-                    )
-
-            except Exception as exc:
-                logging.getLogger(__name__).warning(
-                    "Terminology vector recall unavailable: %s", type(exc).__name__
+            for row in results:
+                _list.append(Terminology(id=row.id, word=row.word, pid=row.pid))
+                root_id = int(row.pid) if row.pid is not None else int(row.id)
+                _scores[root_id] = max(
+                    _scores.get(root_id, 0.0),
+                    float(row.similarity or 0.0),
                 )
-                session.rollback()
+
+            nested.commit()
+        except Exception as exc:
+            nested.rollback()
+            logging.getLogger(__name__).warning(
+                "Terminology vector recall unavailable: %s", type(exc).__name__
+            )
 
     _map: dict = {}
     _ids: list[int] = []
@@ -946,20 +1039,31 @@ def select_terminology_by_word(session: SessionDep, word: str, oid: int, datasou
     if len(_ids) == 0:
         return []
 
-    t_list = session.query(Terminology.id, Terminology.pid, Terminology.word, Terminology.description).filter(
-        or_(Terminology.id.in_(_ids), Terminology.pid.in_(_ids))).all()
+    t_list = (
+        session.query(
+            Terminology.id,
+            Terminology.pid,
+            Terminology.word,
+            Terminology.description,
+            Terminology.knowledge_meta,
+        )
+        .filter(or_(Terminology.id.in_(_ids), Terminology.pid.in_(_ids)))
+        .all()
+    )
     for row in t_list:
         pid = str(row.pid) if row.pid is not None else str(row.id)
         if _map.get(pid) is None:
             _map[pid] = {
-                'id': int(pid),
-                'words': [],
-                'description': '',
-                'score': _scores.get(int(pid), 0.0),
+                "id": int(pid),
+                "words": [],
+                "description": "",
+                "score": _scores.get(int(pid), 0.0),
+                "knowledge_meta": None,
             }
         if row.pid is None:
-            _map[pid]['description'] = row.description
-        _map[pid]['words'].append(row.word)
+            _map[pid]["description"] = row.description
+            _map[pid]["knowledge_meta"] = row.knowledge_meta
+        _map[pid]["words"].append(row.word)
 
     _results: list[dict] = []
     for key in _map.keys():
@@ -970,50 +1074,60 @@ def select_terminology_by_word(session: SessionDep, word: str, oid: int, datasou
 
 def get_example():
     _obj = {
-        'terminologies': [
-            {'words': ['GDP', '国内生产总值'],
-             'description': '指在一个季度或一年，一个国家或地区的经济中所生产出的全部最终产品和劳务的价值。'},
+        "terminologies": [
+            {
+                "words": ["GDP", "国内生产总值"],
+                "description": "指在一个季度或一年，一个国家或地区的经济中所生产出的全部最终产品和劳务的价值。",
+            },
         ]
     }
-    return to_xml_string(_obj, 'example')
+    return to_xml_string(_obj, "example")
 
 
-def to_xml_string(_dict: list[dict] | dict, root: str = 'terminologies') -> str:
-    item_name_func = lambda x: 'terminology' if x == 'terminologies' else 'word' if x == 'words' else 'item'
+def to_xml_string(_dict: list[dict] | dict, root: str = "terminologies") -> str:
+    item_name_func = (
+        lambda x: "terminology"
+        if x == "terminologies"
+        else "word"
+        if x == "words"
+        else "item"
+    )
     dicttoxml.LOG.setLevel(logging.ERROR)
-    xml = dicttoxml.dicttoxml(_dict,
-                              cdata=['word', 'description'],
-                              custom_root=root,
-                              item_func=item_name_func,
-                              xml_declaration=False,
-                              encoding='utf-8',
-                              attr_type=False).decode('utf-8')
+    xml = dicttoxml.dicttoxml(
+        _dict,
+        cdata=["word", "description"],
+        custom_root=root,
+        item_func=item_name_func,
+        xml_declaration=False,
+        encoding="utf-8",
+        attr_type=False,
+    ).decode("utf-8")
     pretty_xml = parseString(xml).toprettyxml()
 
-    if pretty_xml.startswith('<?xml'):
-        end_index = pretty_xml.find('>') + 1
+    if pretty_xml.startswith("<?xml"):
+        end_index = pretty_xml.find(">") + 1
         pretty_xml = pretty_xml[end_index:].lstrip()
 
     # 替换所有 XML 转义字符
-    escape_map = {
-        '&lt;': '<',
-        '&gt;': '>',
-        '&amp;': '&',
-        '&quot;': '"',
-        '&apos;': "'"
-    }
+    escape_map = {"&lt;": "<", "&gt;": ">", "&amp;": "&", "&quot;": '"', "&apos;": "'"}
     for escaped, original in escape_map.items():
         pretty_xml = pretty_xml.replace(escaped, original)
 
     return pretty_xml
 
 
-def get_terminology_template(session: SessionDep, question: str, oid: Optional[int] = 1,
-                             datasource: Optional[int] = None,
-                             advanced_application_id: Optional[int] = None) -> tuple[str, list[dict]]:
+def get_terminology_template(
+    session: SessionDep,
+    question: str,
+    oid: Optional[int] = 1,
+    datasource: Optional[int] = None,
+    advanced_application_id: Optional[int] = None,
+) -> tuple[str, list[dict]]:
     if not oid:
         oid = 1
-    _results = select_terminology_by_word(session, question, oid, datasource, advanced_application_id)
+    _results = select_terminology_by_word(
+        session, question, oid, datasource, advanced_application_id
+    )
     if _results and len(_results) > 0:
         prompt_results = [
             {
@@ -1026,4 +1140,4 @@ def get_terminology_template(session: SessionDep, question: str, oid: Optional[i
         template = get_base_terminology_template().format(terminologies=terminology)
         return template, _results
     else:
-        return '', []
+        return "", []

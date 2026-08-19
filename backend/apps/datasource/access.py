@@ -2,37 +2,50 @@
 
 The access scope is resolved once after datasource selection and reused by
 knowledge recall, schema rendering, validation, and row-permission rewriting.
-It is an application DTO, not a second permission implementation.
+It is an application DTO: names and permission tuples only, never ORM instances.
+Schema rendering reloads tables in the current Session.
 """
 
 from __future__ import annotations
 
 import hashlib
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
 
 import orjson
 from sqlmodel import Session
 
-from apps.datasource.crud.datasource import get_table_obj_by_ds
-from apps.datasource.crud.permission import get_row_permission_filters, is_normal_user
-from apps.datasource.models.datasource import CoreDatasource
-
 
 @dataclass(frozen=True)
 class AccessScope:
-    table_objects: tuple[Any, ...] = ()
+    resource_names: tuple[str, ...] = ()
     allowed_targets: frozenset[tuple[int, int]] = frozenset()
     row_filters: tuple[dict[str, Any], ...] = ()
     row_restricted_tables: frozenset[str] = frozenset()
 
-    @property
-    def resource_names(self) -> tuple[str, ...]:
-        return tuple(obj.table.table_name for obj in self.table_objects)
-
     def filters_for(self, resource_names: list[str]) -> list[dict[str, Any]]:
         allowed = set(resource_names)
         return [item for item in self.row_filters if item.get("table") in allowed]
+
+
+def project_schema_resources(
+    resource_names: Sequence[str] | None,
+    access_scope: AccessScope | None,
+) -> list[str] | None:
+    """Return an exact schema projection, or None to rank inside the fence.
+
+    ``resource_names`` is a chosen subset (knowledge binding or a prior plan).
+    ``access_scope`` only intersects; it is never itself a projection.
+    An empty list means 'nothing visible', not 'fall back to the catalog'.
+    """
+    if resource_names is None:
+        return None
+    names = [str(name).strip() for name in resource_names if str(name).strip()]
+    if access_scope is None:
+        return names
+    allowed = set(access_scope.resource_names)
+    return [name for name in names if name in allowed]
 
 
 def access_scope_fingerprint(scope: AccessScope | None) -> str:
@@ -57,6 +70,13 @@ def resolve_access_scope(
     ds: Any,
 ) -> AccessScope | None:
     """Resolve local catalog visibility and row filters for one chat request."""
+    from apps.datasource.crud.datasource import get_table_obj_by_ds
+    from apps.datasource.crud.permission import (
+        get_row_permission_filters,
+        is_normal_user,
+    )
+    from apps.datasource.models.datasource import CoreDatasource
+
     if not isinstance(ds, CoreDatasource):
         return None
 
@@ -67,6 +87,7 @@ def resolve_access_scope(
             ds=ds,
         )
     )
+    resource_names = tuple(obj.table.table_name for obj in table_objects)
     allowed_targets = frozenset(
         (int(obj.table.id), int(field.id))
         for obj in table_objects
@@ -74,18 +95,18 @@ def resolve_access_scope(
         if obj.table.id is not None and field.id is not None
     )
     row_filters: tuple[dict[str, Any], ...] = ()
-    if is_normal_user(current_user) and table_objects:
+    if is_normal_user(current_user) and resource_names:
         row_filters = tuple(
             get_row_permission_filters(
                 session=session,
                 current_user=current_user,
                 ds=ds,
-                tables=[obj.table.table_name for obj in table_objects],
+                tables=list(resource_names),
             )
             or []
         )
     return AccessScope(
-        table_objects=table_objects,
+        resource_names=resource_names,
         allowed_targets=allowed_targets,
         row_filters=row_filters,
         row_restricted_tables=frozenset(

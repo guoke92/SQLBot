@@ -144,7 +144,14 @@ class TestSubmitCandidate:
         assert receipt.action == "rejected"
         assert "package_id" in receipt.detail
 
-    def test_existing_asset_merges_evidence(self) -> None:
+    @patch("apps.knowledge.gateway.admit_candidate")
+    def test_existing_asset_still_goes_to_inbox(self, mock_admit: MagicMock) -> None:
+        staging = SimpleNamespace(
+            id=10,
+            natural_key="nk-1",
+            lineage_id="lin-1",
+        )
+        mock_admit.return_value = (staging, "admitted")
         existing = KnowledgeAsset(
             id=5,
             kind="caliber",
@@ -160,36 +167,22 @@ class TestSubmitCandidate:
         )
         session = _mock_session(exec_first=existing)
         receipt = submit_candidate(session, _chat_candidate(), source_record_id=100)
-        assert receipt.action == "merged_evidence"
-        assert receipt.lineage_id == "lin-5"
-        session.scalar.assert_called_once()
+        assert receipt.action == "admitted"
+        mock_admit.assert_called_once()
 
-    def test_existing_pending_staging_merges(self) -> None:
-        pending = KnowledgeStaging(
+    @patch("apps.knowledge.gateway.admit_candidate")
+    def test_existing_pending_staging_merges(self, mock_admit: MagicMock) -> None:
+        staging = SimpleNamespace(
             id=20,
-            oid=1,
-            kind="caliber",
-            status="pending",
             natural_key="nk-20",
             lineage_id="lin-20",
-            trigger_id="chat",
-            payload=_chat_candidate().payload,
-            scope={},
-            quality_snapshot=None,
-            create_time=datetime.utcnow(),
-            update_time=datetime.utcnow(),
         )
-        # first exec → no asset; second exec → pending staging
-        results = [None, pending, None]
+        mock_admit.return_value = (staging, "merged")
         session = _mock_session()
-        session.scalar.return_value = 1
-        session.get.return_value = SimpleNamespace(id=1)
-        session.exec.side_effect = lambda _stmt: SimpleNamespace(
-            first=lambda: results.pop(0)
-        )
         receipt = submit_candidate(session, _chat_candidate(), source_record_id=100)
         assert receipt.action == "merged"
         assert receipt.staging_id == 20
+        mock_admit.assert_called_once()
 
     def test_ephemeral_predicates_rejected(self) -> None:
         fragment = {

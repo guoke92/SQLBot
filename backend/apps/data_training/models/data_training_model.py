@@ -34,7 +34,7 @@ class DataTrainingInfo(BaseModel):
     create_time: Optional[datetime] = None
     question: Optional[str] = None
     description: Optional[str] = None
-    enabled: Optional[bool] = True
+    enabled: Optional[bool] = False
     advanced_application: Optional[int] = None
     advanced_application_name: Optional[str] = None
     training_type: Optional[str] = "sql"

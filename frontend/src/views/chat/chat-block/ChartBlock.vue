@@ -180,7 +180,9 @@ const tableViewportHeight = computed(() => getTableViewportHeight(data.value?.le
 const chartContainerStyle = computed(() => ({
   '--table-viewport-height': `${tableViewportHeight.value}px`,
 }))
-const showChartFooter = computed(() => isTable.value || Boolean(dataObject.value.limit))
+const showChartFooter = computed(() => isTable.value)
+const isTruncatedResult = computed(() => Boolean(dataObject.value.truncated))
+const truncatedLimit = computed(() => dataObject.value.limit ?? resultCount.value)
 
 const chartTypeList = computed(() => {
   const _list = []
@@ -778,11 +780,11 @@ watch(
         />
       </div>
       <div v-if="showChartFooter" class="chart-footer">
-        <span v-if="isTable && !dataObject.truncated" class="result-count">
+        <span v-if="isTable && !isTruncatedResult" class="result-count">
           {{ t('chat.result_count', { count: resultCount }) }}
         </span>
-        <span v-if="dataObject.truncated && dataObject.limit" class="over-limit-hint">
-          {{ t('chat.data_over_limit', [dataObject.limit]) }}
+        <span v-else-if="isTruncatedResult" class="over-limit-hint">
+          {{ t('chat.data_over_limit', [truncatedLimit]) }}
         </span>
       </div>
     </template>
@@ -1108,6 +1110,11 @@ watch(
     font-size: 14px;
     line-height: 22px;
     color: rgba(100, 106, 115, 1);
+  }
+
+  .over-limit-hint {
+    color: #e6a23c;
+    font-size: 12px;
   }
 }
 

@@ -1,12 +1,10 @@
-"""Retrieve schema and assemble chart messages as separate domain steps."""
+"""Assemble chart messages as a domain step."""
 
 from __future__ import annotations
 
-from collections.abc import Sequence
 from typing import Any
 
 from langchain_core.messages import AIMessage, HumanMessage
-from sqlmodel import Session
 
 from apps.chat.models.chat_model import (
     AIPromptMessage,
@@ -17,25 +15,6 @@ from apps.chat.steps.history import (
     get_last_conversation_rounds,
     select_prompt_history,
 )
-from apps.chat.steps.schema import match_table_schema
-from apps.datasource.access import AccessScope
-
-
-def retrieve_prompt_schema(
-    llm_service: Any,
-    session: Session,
-    *,
-    required_resource_names: Sequence[str] = (),
-    access_scope: AccessScope | None = None,
-) -> list[Any]:
-    """Retrieve the permission-scoped schema needed by intent and SQL planning."""
-    llm_service.table_name_list = match_table_schema(
-        llm_service,
-        session,
-        required_resource_names=required_resource_names,
-        access_scope=access_scope,
-    )
-    return llm_service.table_name_list
 
 
 def assemble_chart_messages(llm_service: Any) -> None:

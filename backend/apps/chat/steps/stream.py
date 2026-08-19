@@ -6,6 +6,7 @@ This module only normalizes raw chat-model chunks into content / reasoning pairs
 
 from __future__ import annotations
 
+import time
 from collections.abc import Callable, Iterator, Sequence
 from dataclasses import dataclass, field
 from typing import Any
@@ -17,9 +18,7 @@ from apps.conversation.usage import usage_from_response
 from common.core.config import settings
 
 
-def get_token_usage(
-    chunk: BaseMessageChunk, token_usage: dict | None = None
-) -> None:
+def get_token_usage(chunk: BaseMessageChunk, token_usage: dict | None = None) -> None:
     try:
         if chunk.usage_metadata:
             if token_usage is None:
@@ -142,12 +141,29 @@ def consume_llm(
     back to a single blocking response. Storage is always the assembled
     assistant message plus reasoning text — never the raw chunk list.
     """
+    from apps.conversation.run_service import (
+        lease_renew_interval_sec,
+        renew_owned_run_lease,
+    )
+
+    interval = float(lease_renew_interval_sec())
+    last_renew = time.monotonic()
+
+    def _maybe_renew() -> None:
+        nonlocal last_renew
+        now = time.monotonic()
+        if now - last_renew < interval:
+            return
+        last_renew = now
+        renew_owned_run_lease()
+
     stream_fn = getattr(llm, "stream", None)
     if callable(stream_fn):
         token_usage: dict[str, Any] = {}
         content_parts: list[str] = []
         reasoning_parts: list[str] = []
         for chunk in process_stream(stream_fn(messages), token_usage):
+            _maybe_renew()
             content = str(chunk.get("content") or "")
             reasoning = str(chunk.get("reasoning_content") or "")
             if content:
@@ -176,6 +192,7 @@ def consume_llm(
     reasoning = _reasoning_from(response)
     if on_chunk and (content or reasoning):
         on_chunk({"content": content, "reasoning_content": reasoning})
+    _maybe_renew()
     return LlmCallResult(
         message=response,
         content=content,

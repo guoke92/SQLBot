@@ -201,63 +201,10 @@ def test_capture_worker_reschedules_only_when_batch_is_full() -> None:
 # ---------------------------------------------------------------------------
 
 class TestCertifyStagingCaliber:
-    @patch("apps.knowledge.assets.caliber.append_event")
-    def test_certify_ok(self, _mock: MagicMock) -> None:
-        staging = _make_staging()
-        session = _mock_session(get_return=staging, exec_first=None)
-        _id_counter = [100]
+    def test_certify_does_not_write_runtime(self) -> None:
+        session = _mock_session()
+        with pytest.raises(ValueError, match="2.0 knowledge unit"):
+            certify_staging_caliber(
+                session, staging_id=10, actor_user_id=1, oid=1
+            )
 
-        def _flush_side_effect() -> None:
-            for call in session.add.call_args_list:
-                obj = call[0][0]
-                if hasattr(obj, "id") and obj.id is None:
-                    obj.id = _id_counter[0]
-                    _id_counter[0] += 1
-
-        session.flush.side_effect = _flush_side_effect
-        asset = certify_staging_caliber(
-            session, staging_id=10, actor_user_id=1, oid=1,
-        )
-        assert asset.trust_tier == "certified"
-        assert asset.certified is True
-        assert staging.status == "promoted"
-
-    def test_staging_not_pending_raises(self) -> None:
-        staging = _make_staging(status="rejected")
-        session = _mock_session(get_return=staging)
-        with pytest.raises(ValueError, match="cannot be certified"):
-            certify_staging_caliber(session, staging_id=10, actor_user_id=1, oid=1)
-
-    def test_staging_not_found_raises(self) -> None:
-        session = _mock_session(get_return=None)
-        with pytest.raises(ValueError, match="staging not found"):
-            certify_staging_caliber(session, staging_id=999, actor_user_id=1, oid=1)
-
-    @patch("apps.knowledge.assets.caliber.append_event")
-    def test_supersede_prior_asset(self, _mock: MagicMock) -> None:
-        staging = _make_staging()
-        prior = _make_asset(trust_tier="certified", certified=True)
-        prior.id = 3
-
-        session = MagicMock()
-        session.get.return_value = staging
-        session.exec.return_value = SimpleNamespace(
-            first=lambda: prior, all=lambda: []
-        )
-        _id_counter = [200]
-
-        def _flush_side_effect() -> None:
-            for call in session.add.call_args_list:
-                obj = call[0][0]
-                if hasattr(obj, "id") and obj.id is None:
-                    obj.id = _id_counter[0]
-                    _id_counter[0] += 1
-
-        session.flush.side_effect = _flush_side_effect
-
-        asset = certify_staging_caliber(
-            session, staging_id=10, actor_user_id=1, oid=1,
-        )
-        assert asset.version == 2
-        assert prior.enabled is False
-        assert prior.superseded_by == asset.id

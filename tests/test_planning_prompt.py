@@ -59,6 +59,58 @@ def test_semantic_and_physical_paths_share_renderer() -> None:
     assert source.count("render_planner_input(") >= 2
 
 
+def test_query_agent_clarifies_across_recalled_tables() -> None:
+    source = query_agent._QUERY_AGENT_SYSTEM
+    assert "召回了多张相关表" in source
+    assert "禁止只根据一张表澄清" in source
+    assert "召回了多张相关表" in query_agent._REVIEWER_SYSTEM
+
+
+def test_query_agent_reuses_confirmed_calibers_on_continue() -> None:
+    source = query_agent._QUERY_AGENT_SYSTEM
+    assert "被引用轮次已确认的口径必须沿用" in source
+    assert "禁止再次澄清同一主体、金额、日期、层级槽位" in source
+    assert "被引用轮次已确认的口径不得再以 clarify 复问" in query_agent._REVIEWER_SYSTEM
+    agent_source = inspect.getsource(query_agent.run_query_agent)
+    assert "prior_user_evidence" in agent_source
+
+
+def test_accept_does_not_advance_batch_index() -> None:
+    source = (
+        _ROOT / "backend" / "apps" / "chat" / "graphs" / "nodes" / "nlq.py"
+    ).read_text()
+    assert source.count('"step_index": step_index + 1') == 1
+    repair_idx = source.index('"decision": "repair"')
+    plus_idx = source.index('"step_index": step_index + 1')
+    assert plus_idx > repair_idx
+    assert plus_idx < source.index('"decision": "accept"', repair_idx)
+
+
+def test_execution_schema_refresh_is_not_user_visible() -> None:
+    source = (
+        _ROOT / "backend" / "apps" / "chat" / "graphs" / "nodes" / "nlq.py"
+    ).read_text()
+    schema = (_ROOT / "backend" / "apps" / "chat" / "steps" / "schema.py").read_text()
+    assert 'brief="refresh schema"' in source
+    refresh = source.split('brief="refresh schema"', 1)[1][:200]
+    assert "audit=False" in refresh
+    assert "if not audit:" in schema
+    assert "user-visible" in schema
+    node = (_ROOT / "backend" / "apps" / "chat" / "graphs" / "nodes" / "nlq.py").read_text()
+    assert "execution_schema_resources(" in node
+    assert 'orjson.dumps(payload).decode()' not in node.split("def execute_queries_node", 1)[1].split("def generate_charts_node", 1)[0]
+
+
+def test_planning_does_not_skip_review_on_wall_clock_budget() -> None:
+    source = (
+        _ROOT / "backend" / "apps" / "chat" / "graphs" / "nodes" / "nlq.py"
+    ).read_text()
+    assert "REVIEW_BUDGET_EXHAUSTED" not in source
+    assert "planning budget leaves no time" not in source
+    assert "查询规划已达到时间上限" not in source
+    assert "_planning_call_timeout_sec" in source
+
+
 def test_protocol_prompt_bits_stay_on_dialect_rules() -> None:
     from types import SimpleNamespace
 

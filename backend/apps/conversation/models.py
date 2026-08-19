@@ -198,12 +198,6 @@ class QueryRun(SQLModel, table=True):
             primary_key=True,
         )
     )
-    active_intent_revision: int = Field(
-        default=0, sa_column=Column(Integer, nullable=False)
-    )
-    intent_revisions: list[dict[str, Any]] = Field(
-        default_factory=list, sa_column=Column(JSONB, nullable=False, default=list)
-    )
     # Durable input boundary for semantic planning.  Request-local LLMService
     # objects are deliberately not checkpointed; the context they assembled
     # must nevertheless survive a process restart that resumes immediately
@@ -213,6 +207,24 @@ class QueryRun(SQLModel, table=True):
     )
     planning_status: str = Field(
         default="pending", sa_column=Column(String(24), nullable=False)
+    )
+    agent_decision: dict[str, Any] = Field(
+        default_factory=dict, sa_column=Column(JSONB, nullable=False, default=dict)
+    )
+    hard_gate_report: dict[str, Any] = Field(
+        default_factory=dict, sa_column=Column(JSONB, nullable=False, default=dict)
+    )
+    risk_assessment: dict[str, Any] = Field(
+        default_factory=dict, sa_column=Column(JSONB, nullable=False, default=dict)
+    )
+    plan_facts: list[dict[str, Any]] = Field(
+        default_factory=list, sa_column=Column(JSONB, nullable=False, default=list)
+    )
+    semantic_reviews: list[dict[str, Any]] = Field(
+        default_factory=list, sa_column=Column(JSONB, nullable=False, default=list)
+    )
+    repair_history: list[dict[str, Any]] = Field(
+        default_factory=list, sa_column=Column(JSONB, nullable=False, default=list)
     )
     active_plan_id: str | None = Field(
         default=None, sa_column=Column(String(36), nullable=True)

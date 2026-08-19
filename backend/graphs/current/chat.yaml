@@ -3,8 +3,8 @@ graph_key: chat
 state: apps.chat.graphs.nodes.nlq.NlqState
 description: >
   Unified conversation flow: route the turn once, assemble the selected
-  context, produce one QueryIntent plus physical plans or interrupt, then
-  validate/repair/execute and publish one durable TurnAnswer.
+  context, produce compact protocol plans or interrupt, apply deterministic
+  hard gates and risk review, then repair/execute and publish one durable answer.
 
 nodes:
   prepare_record: apps.chat.graphs.nodes.nlq.prepare_record_node
@@ -18,6 +18,7 @@ nodes:
   resolve_access_scope: apps.chat.graphs.nodes.nlq.resolve_access_scope_node
   retrieve_context: apps.chat.graphs.nodes.nlq.retrieve_context_node
   plan_query: apps.chat.graphs.nodes.nlq.plan_query_node
+  review_query: apps.chat.graphs.nodes.nlq.review_query_node
   await_clarification: apps.chat.graphs.nodes.nlq.await_clarification_node
   generate_queries: apps.chat.graphs.nodes.nlq.generate_queries_node
   execute_queries: apps.chat.graphs.nodes.nlq.execute_queries_node
@@ -106,6 +107,14 @@ edges:
     router: apps.chat.graphs.nodes.nlq.route_after_planning
     paths:
       await_clarification: await_clarification
+      review_query: review_query
+      generate_queries: generate_queries
+      fail: fail
+
+  - from: review_query
+    router: apps.chat.graphs.nodes.nlq.route_after_review
+    paths:
+      await_clarification: await_clarification
       generate_queries: generate_queries
       fail: fail
 
@@ -115,6 +124,7 @@ edges:
   - from: generate_queries
     router: apps.chat.graphs.nodes.nlq.route_after_queries
     paths:
+      await_clarification: await_clarification
       generate_queries: generate_queries
       execute_queries: execute_queries
       complete: complete

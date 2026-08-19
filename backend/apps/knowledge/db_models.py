@@ -9,6 +9,7 @@ from sqlalchemy import (
     Boolean,
     Column,
     DateTime,
+    Float,
     ForeignKey,
     Identity,
     Index,
@@ -51,11 +52,11 @@ class KnowledgeAsset(SQLModel, table=True):
     )
     trust_tier: str = Field(
         default="published",
-        sa_column=Column(String(24), nullable=False, comment="staged|published|trusted|certified"),
+        sa_column=Column(
+            String(24), nullable=False, comment="staged|published|trusted|certified"
+        ),
     )
-    certified: bool = Field(
-        default=False, sa_column=Column(Boolean, nullable=False)
-    )
+    certified: bool = Field(default=False, sa_column=Column(Boolean, nullable=False))
     enabled: bool = Field(default=True, sa_column=Column(Boolean, nullable=False))
     valid_from: datetime | None = Field(
         default=None, sa_column=Column(DateTime(timezone=False), nullable=True)
@@ -78,8 +79,12 @@ class KnowledgeAsset(SQLModel, table=True):
     certify_at: datetime | None = Field(
         default=None, sa_column=Column(DateTime(timezone=False), nullable=True)
     )
-    create_time: datetime = Field(sa_column=Column(DateTime(timezone=False), nullable=False))
-    update_time: datetime = Field(sa_column=Column(DateTime(timezone=False), nullable=False))
+    create_time: datetime = Field(
+        sa_column=Column(DateTime(timezone=False), nullable=False)
+    )
+    update_time: datetime = Field(
+        sa_column=Column(DateTime(timezone=False), nullable=False)
+    )
 
 
 class KnowledgeSchemaRef(SQLModel, table=True):
@@ -119,7 +124,8 @@ class KnowledgeEvidence(SQLModel, table=True):
     )
     signal_kind: str = Field(
         sa_column=Column(
-            String(32), nullable=False,
+            String(32),
+            nullable=False,
             comment="reproduce|apply_outcome|turn_feedback|usage",
         )
     )
@@ -130,7 +136,9 @@ class KnowledgeEvidence(SQLModel, table=True):
         default_factory=dict,
         sa_column=Column(JSONB, nullable=False),
     )
-    create_time: datetime = Field(sa_column=Column(DateTime(timezone=False), nullable=False))
+    create_time: datetime = Field(
+        sa_column=Column(DateTime(timezone=False), nullable=False)
+    )
 
 
 class KnowledgeEpisode(SQLModel, table=True):
@@ -154,7 +162,9 @@ class KnowledgeEpisode(SQLModel, table=True):
     provenance: dict[str, Any] | None = Field(
         default=None, sa_column=Column(JSONB, nullable=True)
     )
-    create_time: datetime = Field(sa_column=Column(DateTime(timezone=False), nullable=False))
+    create_time: datetime = Field(
+        sa_column=Column(DateTime(timezone=False), nullable=False)
+    )
 
 
 class KnowledgeStaging(SQLModel, table=True):
@@ -167,7 +177,8 @@ class KnowledgeStaging(SQLModel, table=True):
     kind: str = Field(sa_column=Column(String(32), nullable=False))
     status: str = Field(
         sa_column=Column(
-            String(24), nullable=False,
+            String(24),
+            nullable=False,
             comment="pending|rejected|promoted|expired",
         )
     )
@@ -197,8 +208,12 @@ class KnowledgeStaging(SQLModel, table=True):
     reject_reason: str | None = Field(
         default=None, sa_column=Column(Text, nullable=True)
     )
-    create_time: datetime = Field(sa_column=Column(DateTime(timezone=False), nullable=False))
-    update_time: datetime = Field(sa_column=Column(DateTime(timezone=False), nullable=False))
+    create_time: datetime = Field(
+        sa_column=Column(DateTime(timezone=False), nullable=False)
+    )
+    update_time: datetime = Field(
+        sa_column=Column(DateTime(timezone=False), nullable=False)
+    )
 
 
 class KnowledgeLineageEvent(SQLModel, table=True):
@@ -248,9 +263,7 @@ class KnowledgeCaptureJob(SQLModel, table=True):
         sa_column=Column(BigInteger, Identity(always=True), primary_key=True)
     )
     oid: int = Field(sa_column=Column(BigInteger, nullable=False))
-    record_id: int = Field(
-        sa_column=Column(BigInteger, nullable=False, unique=True)
-    )
+    record_id: int = Field(sa_column=Column(BigInteger, nullable=False, unique=True))
     status: str = Field(sa_column=Column(String(24), nullable=False))
     attempt: int = Field(default=0, sa_column=Column(Integer, nullable=False))
     max_attempts: int = Field(default=3, sa_column=Column(Integer, nullable=False))
@@ -265,20 +278,26 @@ class KnowledgeCaptureJob(SQLModel, table=True):
         sa_column=Column(JSONB, nullable=False),
     )
     error: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
-    create_time: datetime = Field(sa_column=Column(DateTime(timezone=False), nullable=False))
-    update_time: datetime = Field(sa_column=Column(DateTime(timezone=False), nullable=False))
+    create_time: datetime = Field(
+        sa_column=Column(DateTime(timezone=False), nullable=False)
+    )
+    update_time: datetime = Field(
+        sa_column=Column(DateTime(timezone=False), nullable=False)
+    )
     finished_at: datetime | None = Field(
         default=None, sa_column=Column(DateTime(timezone=False), nullable=True)
     )
 
 
-class KnowledgePackageRegistry(SQLModel, table=True):
-    """Imported package metadata; runtime assets remain in their domain stores."""
+class SemanticKnowledgePackage(SQLModel, table=True):
+    """Immutable KnowledgePackage 2.0 import revision."""
 
-    __tablename__ = "knowledge_package_registry"
+    __tablename__ = "knowledge_package"
     __table_args__ = (
-        UniqueConstraint("oid", "package_id", name="uq_knowledge_package_oid_key"),
-        Index("ix_knowledge_package_oid_updated", "oid", "update_time"),
+        UniqueConstraint(
+            "oid", "package_id", "revision", name="uq_semantic_package_revision"
+        ),
+        Index("ix_semantic_package_updated", "oid", "update_time"),
     )
 
     id: int | None = Field(
@@ -286,18 +305,18 @@ class KnowledgePackageRegistry(SQLModel, table=True):
     )
     oid: int = Field(sa_column=Column(BigInteger, nullable=False))
     package_id: str = Field(sa_column=Column(String(255), nullable=False))
-    schema_version: str = Field(sa_column=Column(String(16), nullable=False))
-    title: str = Field(default="", sa_column=Column(String(255), nullable=False))
+    revision: int = Field(sa_column=Column(Integer, nullable=False))
+    namespace: str = Field(sa_column=Column(String(255), nullable=False))
+    title: str = Field(sa_column=Column(String(255), nullable=False))
     description: str = Field(default="", sa_column=Column(Text, nullable=False))
-    revision: int = Field(default=1, sa_column=Column(Integer, nullable=False))
-    item_count: int = Field(default=0, sa_column=Column(Integer, nullable=False))
-    defaults: dict[str, Any] = Field(
-        default_factory=dict, sa_column=Column(JSONB, nullable=False)
+    schema_version: str = Field(
+        default="2.0", sa_column=Column(String(16), nullable=False)
     )
-    sources: list[dict[str, Any]] = Field(
-        default_factory=list, sa_column=Column(JSONB, nullable=False)
+    content_hash: str = Field(sa_column=Column(String(64), nullable=False))
+    status: str = Field(
+        default="REGISTERED", sa_column=Column(String(24), nullable=False)
     )
-    generator: dict[str, Any] = Field(
+    source_document: dict[str, Any] = Field(
         default_factory=dict, sa_column=Column(JSONB, nullable=False)
     )
     create_by: int | None = Field(
@@ -311,50 +330,125 @@ class KnowledgePackageRegistry(SQLModel, table=True):
     )
 
 
-class KnowledgePackageItemRegistry(SQLModel, table=True):
-    """Every extracted item, including review-only and evidence items."""
+class KnowledgeSourceEvidence(SQLModel, table=True):
+    """Append-only source evidence referenced by semantic unit revisions."""
 
-    __tablename__ = "knowledge_package_item_registry"
+    __tablename__ = "knowledge_source_evidence"
     __table_args__ = (
         UniqueConstraint(
-            "package_registry_id",
-            "item_id",
-            name="uq_knowledge_package_item_key",
+            "package_id", "evidence_key", name="uq_knowledge_source_evidence"
         ),
+        Index("ix_knowledge_source_package", "package_id", "source_id"),
+    )
+
+    id: int | None = Field(
+        sa_column=Column(BigInteger, Identity(always=True), primary_key=True)
+    )
+    oid: int = Field(sa_column=Column(BigInteger, nullable=False))
+    package_id: int = Field(
+        sa_column=Column(
+            BigInteger,
+            ForeignKey("knowledge_package.id", ondelete="CASCADE"),
+            nullable=False,
+        )
+    )
+    evidence_key: str = Field(sa_column=Column(String(255), nullable=False))
+    source_id: str = Field(sa_column=Column(String(255), nullable=False))
+    evidence_kind: str = Field(sa_column=Column(String(64), nullable=False))
+    locator: str = Field(default="", sa_column=Column(Text, nullable=False))
+    content_hash: str = Field(default="", sa_column=Column(String(64), nullable=False))
+    payload: dict[str, Any] = Field(
+        default_factory=dict, sa_column=Column(JSONB, nullable=False)
+    )
+    active: bool = Field(default=True, sa_column=Column(Boolean, nullable=False))
+    create_time: datetime = Field(
+        sa_column=Column(DateTime(timezone=False), nullable=False)
+    )
+
+
+class KnowledgeUnit(SQLModel, table=True):
+    """Stable business knowledge identity across source and review revisions."""
+
+    __tablename__ = "knowledge_unit"
+    __table_args__ = (
+        UniqueConstraint("oid", "unit_key", name="uq_knowledge_unit_key"),
+        Index("ix_knowledge_unit_domain", "oid", "domain"),
+    )
+
+    id: int | None = Field(
+        sa_column=Column(BigInteger, Identity(always=True), primary_key=True)
+    )
+    oid: int = Field(sa_column=Column(BigInteger, nullable=False))
+    unit_key: str = Field(sa_column=Column(String(255), nullable=False))
+    namespace: str = Field(sa_column=Column(String(255), nullable=False))
+    domain: str = Field(sa_column=Column(String(255), nullable=False))
+    title: str = Field(sa_column=Column(String(255), nullable=False))
+    active_revision_id: int | None = Field(
+        default=None,
+        sa_column=Column(
+            BigInteger,
+            ForeignKey("knowledge_unit_revision.id", ondelete="SET NULL"),
+            nullable=True,
+        ),
+    )
+    create_time: datetime = Field(
+        sa_column=Column(DateTime(timezone=False), nullable=False)
+    )
+    update_time: datetime = Field(
+        sa_column=Column(DateTime(timezone=False), nullable=False)
+    )
+
+
+class KnowledgeUnitRevision(SQLModel, table=True):
+    __tablename__ = "knowledge_unit_revision"
+    __table_args__ = (
+        UniqueConstraint("unit_id", "revision", name="uq_knowledge_unit_revision"),
         Index(
-            "ix_knowledge_package_item_governance",
-            "package_registry_id",
-            "present",
-            "kind",
-            "readiness",
+            "ix_knowledge_unit_review",
+            "oid",
+            "lifecycle_status",
+            "validation_status",
         ),
     )
 
     id: int | None = Field(
         sa_column=Column(BigInteger, Identity(always=True), primary_key=True)
     )
-    package_registry_id: int = Field(
+    oid: int = Field(sa_column=Column(BigInteger, nullable=False))
+    unit_id: int = Field(
         sa_column=Column(
             BigInteger,
-            ForeignKey("knowledge_package_registry.id", ondelete="CASCADE"),
+            ForeignKey("knowledge_unit.id", ondelete="CASCADE"),
             nullable=False,
         )
     )
-    item_id: str = Field(sa_column=Column(String(255), nullable=False))
-    kind: str = Field(sa_column=Column(String(32), nullable=False))
-    source_status: str = Field(sa_column=Column(String(24), nullable=False))
-    readiness: str = Field(sa_column=Column(String(24), nullable=False))
-    present: bool = Field(default=True, sa_column=Column(Boolean, nullable=False))
-    payload: dict[str, Any] = Field(
+    package_id: int | None = Field(
+        default=None,
+        sa_column=Column(
+            BigInteger,
+            ForeignKey("knowledge_package.id", ondelete="SET NULL"),
+            nullable=True,
+        ),
+    )
+    revision: int = Field(sa_column=Column(Integer, nullable=False))
+    lifecycle_status: str = Field(
+        default="DRAFT", sa_column=Column(String(24), nullable=False)
+    )
+    validation_status: str = Field(
+        default="NOT_RUN", sa_column=Column(String(24), nullable=False)
+    )
+    content: dict[str, Any] = Field(
         default_factory=dict, sa_column=Column(JSONB, nullable=False)
     )
-    messages: list[str] = Field(
-        default_factory=list, sa_column=Column(JSONB, nullable=False)
+    validation_summary: dict[str, Any] = Field(
+        default_factory=dict, sa_column=Column(JSONB, nullable=False)
     )
-    runtime_action: str | None = Field(
-        default=None, sa_column=Column(String(32), nullable=True)
+    content_hash: str = Field(sa_column=Column(String(64), nullable=False))
+    confidence: float = Field(default=0.5, sa_column=Column(Float, nullable=False))
+    create_by: int | None = Field(
+        default=None, sa_column=Column(BigInteger, nullable=True)
     )
-    runtime_target_id: int | None = Field(
+    review_by: int | None = Field(
         default=None, sa_column=Column(BigInteger, nullable=True)
     )
     create_time: datetime = Field(
@@ -362,4 +456,87 @@ class KnowledgePackageItemRegistry(SQLModel, table=True):
     )
     update_time: datetime = Field(
         sa_column=Column(DateTime(timezone=False), nullable=False)
+    )
+    reviewed_at: datetime | None = Field(
+        default=None, sa_column=Column(DateTime(timezone=False), nullable=True)
+    )
+
+
+class KnowledgeBinding(SQLModel, table=True):
+    __tablename__ = "knowledge_binding"
+    __table_args__ = (
+        UniqueConstraint("revision_id", "datasource_id", name="uq_knowledge_binding"),
+        Index("ix_knowledge_binding_state", "oid", "status"),
+    )
+
+    id: int | None = Field(
+        sa_column=Column(BigInteger, Identity(always=True), primary_key=True)
+    )
+    oid: int = Field(sa_column=Column(BigInteger, nullable=False))
+    revision_id: int = Field(
+        sa_column=Column(
+            BigInteger,
+            ForeignKey("knowledge_unit_revision.id", ondelete="CASCADE"),
+            nullable=False,
+        )
+    )
+    datasource_id: int = Field(sa_column=Column(BigInteger, nullable=False))
+    catalog_fingerprint: str = Field(
+        default="", sa_column=Column(String(64), nullable=False)
+    )
+    status: str = Field(default="UNBOUND", sa_column=Column(String(24), nullable=False))
+    mapping: dict[str, Any] = Field(
+        default_factory=dict, sa_column=Column(JSONB, nullable=False)
+    )
+    validation_result: dict[str, Any] = Field(
+        default_factory=dict, sa_column=Column(JSONB, nullable=False)
+    )
+    create_time: datetime = Field(
+        sa_column=Column(DateTime(timezone=False), nullable=False)
+    )
+    update_time: datetime = Field(
+        sa_column=Column(DateTime(timezone=False), nullable=False)
+    )
+
+
+class KnowledgeDeployment(SQLModel, table=True):
+    __tablename__ = "knowledge_deployment"
+    __table_args__ = (
+        UniqueConstraint("revision_id", "binding_id", name="uq_knowledge_deployment"),
+        Index("ix_knowledge_deployment_active", "oid", "status", "activated_at"),
+    )
+
+    id: int | None = Field(
+        sa_column=Column(BigInteger, Identity(always=True), primary_key=True)
+    )
+    oid: int = Field(sa_column=Column(BigInteger, nullable=False))
+    revision_id: int = Field(
+        sa_column=Column(
+            BigInteger,
+            ForeignKey("knowledge_unit_revision.id", ondelete="CASCADE"),
+            nullable=False,
+        )
+    )
+    binding_id: int = Field(
+        sa_column=Column(
+            BigInteger,
+            ForeignKey("knowledge_binding.id", ondelete="CASCADE"),
+            nullable=False,
+        )
+    )
+    status: str = Field(
+        default="NOT_PUBLISHED", sa_column=Column(String(24), nullable=False)
+    )
+    projection_manifest: dict[str, Any] = Field(
+        default_factory=dict, sa_column=Column(JSONB, nullable=False)
+    )
+    error: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
+    create_time: datetime = Field(
+        sa_column=Column(DateTime(timezone=False), nullable=False)
+    )
+    update_time: datetime = Field(
+        sa_column=Column(DateTime(timezone=False), nullable=False)
+    )
+    activated_at: datetime | None = Field(
+        default=None, sa_column=Column(DateTime(timezone=False), nullable=True)
     )

@@ -280,10 +280,10 @@ class BaseProtocol(ABC):
 
         ``embedding`` is a **mechanism** default (True). Chat graphs/steps must
         not pass it — table ranking is gated by ``settings.TABLE_EMBEDDING_ENABLED``
-        inside CRUD. ``resource_names`` restricts to an exact subset selected
-        by a prior plan. ``required_resource_names`` augments normal recall and
-        is never removed by ranking. ``access_scope`` is a request-scoped,
-        pre-resolved catalog/permission snapshot.
+        inside CRUD. ``resource_names`` is an exact subset (knowledge binding
+        or a prior plan). ``required_resource_names`` augments ranking and is
+        never dropped. ``access_scope`` only intersects a chosen subset; it is
+        never itself a projection. No exact subset means rank inside the fence.
         Assistant out-DS ignores embedding (no table vector rank).
         """
         ...

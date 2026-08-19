@@ -10,15 +10,56 @@ of those inputs; it is not a second semantic contract.
 from __future__ import annotations
 
 import hashlib
+from collections.abc import Mapping, Sequence
 from typing import Any, Literal
 
 import orjson
 from pydantic import BaseModel, ConfigDict, Field
 
 from apps.chat.context_bundle import ContextSection, budget_context_sections
-from apps.knowledge.compile import CompiledKnowledge
+from apps.knowledge.compile import BusinessDataBundle, knowledge_prompt_payload
 
 _PLANNER_CONTEXT_BUDGET = 24_000
+_KNOWLEDGE_FLOOR_KEYS = (
+    "matched_units",
+    "concepts",
+    "datasets",
+    "fields",
+    "relationships",
+    "metrics",
+    "calibers",
+    "rules",
+    "verified_examples",
+    "conflicts",
+)
+_KNOWLEDGE_PROCESS_KEYS = ("processes", "data_effects", "assumptions")
+
+
+def _split_knowledge_payload(
+    compact: dict[str, Any],
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    floor = {
+        key: compact[key] for key in _KNOWLEDGE_FLOOR_KEYS if compact.get(key)
+    }
+    process = {
+        key: compact[key] for key in _KNOWLEDGE_PROCESS_KEYS if compact.get(key)
+    }
+    leftover = {
+        key: value
+        for key, value in compact.items()
+        if key not in _KNOWLEDGE_FLOOR_KEYS and key not in _KNOWLEDGE_PROCESS_KEYS
+    }
+    floor.update(leftover)
+    return floor, process
+
+
+def _bundle_from_prompt_payload(payload: dict[str, Any]) -> BusinessDataBundle:
+    data = dict(payload)
+    if "processes" in data and "scenarios" not in data:
+        data["scenarios"] = data.pop("processes")
+    if "conflicts" in data and "ambiguities" not in data:
+        data["ambiguities"] = data.pop("conflicts")
+    return BusinessDataBundle.model_validate(data)
 
 
 class PlanningContextSnapshot(BaseModel):
@@ -55,52 +96,42 @@ def capture_planning_context(
     question = llm_service.chat_question
     compiled = getattr(llm_service, "compiled_knowledge", None)
     compiled_payload: dict[str, Any] = {}
-    if isinstance(compiled, CompiledKnowledge):
-        # Persist only what plan_query / replan hydrate need. Embedding matches
-        # and prompt log_items are request-local; clarification reuses bindings.
-        full = compiled.model_dump(mode="json")
-        for key in (
-            "stage",
-            "prompt_template",
-            "bound_calibers",
-            "constraints",
-            "examples",
-            "reuse",
-            "apply_log",
-            "structural_ref",
-        ):
-            if key in full:
-                compiled_payload[key] = full[key]
+    process_payload: dict[str, Any] = {}
+    if isinstance(compiled, BusinessDataBundle):
+        compiled_payload, process_payload = _split_knowledge_payload(
+            knowledge_prompt_payload(compiled)
+        )
     sections, truncation = budget_context_sections(
         [
             ContextSection(
                 name="schema_text", content=str(question.db_schema or ""), trusted=True
             ),
-            ContextSection(name="compiled_knowledge", content=compiled_payload),
+            ContextSection(
+                name="compiled_knowledge",
+                content=compiled_payload,
+                trusted=True,
+            ),
+            ContextSection(name="compiled_knowledge_process", content=process_payload),
             ContextSection(
                 name="custom_rules", content=str(question.custom_prompt or "")
-            ),
-            ContextSection(
-                name="terminology", content=str(question.terminologies or "")
-            ),
-            ContextSection(
-                name="query_examples", content=str(question.data_training or "")
             ),
             ContextSection(name="sample_data", content=str(question.sample_data or "")),
         ],
         max_tokens=_PLANNER_CONTEXT_BUDGET,
     )
+    knowledge = dict(sections.get("compiled_knowledge") or {})
+    knowledge.update(sections.get("compiled_knowledge_process") or {})
     payload: dict[str, Any] = {
         "version": 2,
         "schema_text": sections.get("schema_text", ""),
         "resources": [str(item) for item in (llm_service.table_name_list or [])],
         "sample_data": sections.get("sample_data", ""),
-        "terminology": sections.get("terminology", ""),
-        "query_examples": sections.get("query_examples", ""),
+        "terminology": "",
+        "query_examples": "",
         "custom_rules": sections.get("custom_rules", ""),
         "entity_bindings": dict(entity_bindings or {}),
         "temporal_parse": dict(temporal_parse or {}),
-        "compiled_knowledge": sections.get("compiled_knowledge", {}),
+        "compiled_knowledge": knowledge,
         "truncation": list(truncation),
     }
     schema_material = orjson.dumps(
@@ -114,6 +145,29 @@ def capture_planning_context(
     fingerprint_material = orjson.dumps(payload, option=orjson.OPT_SORT_KEYS)
     payload["fingerprint"] = hashlib.sha256(fingerprint_material).hexdigest()
     return PlanningContextSnapshot.model_validate(payload)
+
+
+def execution_schema_resources(
+    snapshot_resources: Sequence[str],
+    plans: Sequence[Mapping[str, Any]],
+) -> list[str] | None:
+    """Exact schema projection for execute-time refresh.
+
+    Planning already chose the visible tables. Execute re-reads that set plus
+    any extra tables named by the plans. A subset of the planned schema is not
+    drift. ``None`` ranks inside the fence; it is not a catalog dump.
+    """
+    names: list[str] = []
+    for value in snapshot_resources:
+        name = str(value).strip()
+        if name and name not in names:
+            names.append(name)
+    for plan in plans:
+        for table in plan.get("tables") or []:
+            name = str(table).strip()
+            if name and name not in names:
+                names.append(name)
+    return names or None
 
 
 def restore_planning_context(
@@ -131,7 +185,7 @@ def restore_planning_context(
     question.custom_prompt = snapshot.custom_rules
     llm_service.table_name_list = list(snapshot.resources)
     if snapshot.compiled_knowledge:
-        llm_service.compiled_knowledge = CompiledKnowledge.model_validate(
+        llm_service.compiled_knowledge = _bundle_from_prompt_payload(
             snapshot.compiled_knowledge
         )
     return snapshot

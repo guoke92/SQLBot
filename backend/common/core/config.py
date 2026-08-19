@@ -156,6 +156,7 @@ class Settings(BaseSettings):
     CONVERSATION_RUNNING_LEASE_SEC: int = 420
     LLM_REQUEST_TIMEOUT_SEC: int = 180
     LLM_MAX_RETRIES: int = 1
+    QUERY_PLANNING_BUDGET_SEC: int = 180
     BUSINESS_TIMEZONE: str = "Asia/Shanghai"
     KNOWLEDGE_CAPTURE_LEASE_SECONDS: int = 300
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from decimal import Decimal
 from typing import Any
 
@@ -44,3 +45,23 @@ def format_json_list_data(origin_data: list[dict[str, Any]]) -> list[dict[str, A
             row[key] = value
         data.append(DataFormat.normalize_qualified_sql_column_keys(row))
     return data
+
+
+def excel_rows_from_dataset(
+    *,
+    chart: Mapping[str, Any] | None,
+    fields: Sequence[str] | None,
+    rows: Sequence[Mapping[str, Any]],
+) -> tuple[list[list[Any]], list[str]]:
+    """Build Excel rows from the durable dataset, not the unused chart column.
+
+    Chart specs only supply display names. Column identity comes from result
+    ``fields`` or, if those are missing, the first row's keys.
+    """
+    data = format_json_list_data([dict(row) for row in rows])
+    column_names = [str(name) for name in (fields or []) if str(name).strip()]
+    if not column_names and data:
+        column_names = [str(key) for key in data[0].keys()]
+    return DataFormat.convert_data_fields_for_pandas(
+        dict(chart or {}), column_names, data
+    )

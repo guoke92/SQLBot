@@ -34,12 +34,12 @@ ExecutionStatus = Literal["not_run", "success", "failed"]
 class CompletionEvidence(TypedDict):
     """Facts emitted by graph stages; the scorer must not infer them."""
 
-    intent_ready: bool
+    requirements_covered: bool
     plan_validated: bool
-    contract_status: Literal["verified", "partial", "unsupported"]
+    semantic_status: Literal["verified", "partial", "unsupported"]
     execution_status: ExecutionStatus
     result_structure_valid: bool
-    specification_confidence: float
+    evidence_confidence: float
     assumption_risk: Literal["low", "medium", "high"]
 
 
@@ -167,37 +167,37 @@ def _score_dimensions(
 ) -> list[QualityDimension]:
     execution_failed = evidence["execution_status"] == "failed"
     executed = evidence["execution_status"] == "success"
-    intent_ready = evidence["intent_ready"]
+    requirements_covered = evidence["requirements_covered"]
     plan_validated = evidence["plan_validated"]
-    contract_status = evidence["contract_status"]
-    contract_valid = contract_status == "verified"
+    semantic_status = evidence["semantic_status"]
+    semantic_valid = semantic_status == "verified"
     structure_valid = evidence["result_structure_valid"]
 
     semantic_score = (
-        max(60, round(float(evidence["specification_confidence"]) * 100))
-        if intent_ready
+        max(60, round(float(evidence["evidence_confidence"]) * 100))
+        if requirements_covered
         else 40
     )
     alignment_score = (
         100
-        if plan_validated and contract_status == "verified"
+        if plan_validated and semantic_status == "verified"
         else (
             60
-            if plan_validated and contract_status == "partial"
-            else (45 if plan_validated and contract_status == "unsupported" else 0)
+            if plan_validated and semantic_status == "partial"
+            else (45 if plan_validated and semantic_status == "unsupported" else 0)
         )
     )
     if execution_failed:
         alignment_score = 0
     if execution_failed:
         execution_score = 0
-    elif executed and contract_valid and structure_valid:
+    elif executed and semantic_valid and structure_valid:
         # Deterministic checks prove that the SQL uses the confirmed fields and
         # returns the required shape. They do not yet prove source fact grain
         # or relationship value semantics, so this dimension must not claim
         # perfect semantic verification.
         execution_score = 100
-    elif executed and contract_valid and not structure_valid:
+    elif executed and semantic_valid and not structure_valid:
         execution_score = 60
     elif executed and structure_valid:
         execution_score = 85
@@ -207,7 +207,7 @@ def _score_dimensions(
         execution_score = 0
     if execution_failed:
         evidence_score = 0
-    elif intent_ready and contract_valid and structure_valid:
+    elif requirements_covered and semantic_valid and structure_valid:
         # Schema, confirmed contract and result structure are verified. Exact
         # fact-grain and relationship-value evidence is not yet available.
         evidence_score = 75
@@ -223,14 +223,14 @@ def _score_dimensions(
 
     details: dict[str, QualityDetail] = {
         "semantic": _detail(
-            "intent_confirmed" if intent_ready else "intent_not_machine_confirmed"
+            "requirements_covered" if requirements_covered else "requirements_not_fully_verified"
         ),
         "alignment": _detail(
-            "contract_verified"
-            if plan_validated and contract_valid
+            "semantic_review_verified"
+            if plan_validated and semantic_valid
             else (
                 "contract_partially_verified"
-                if contract_status == "partial"
+                if semantic_status == "partial"
                 else "contract_verification_unsupported"
             )
         ),
@@ -239,7 +239,7 @@ def _score_dimensions(
             if execution_failed
             else (
                 "sql_executed_with_partial_checks"
-                if executed and contract_valid and structure_valid
+                if executed and semantic_valid and structure_valid
                 else (
                     "sql_executed_with_partial_checks"
                     if executed
@@ -249,8 +249,8 @@ def _score_dimensions(
             params={"error": str(assessment.get("error") or "")},
         ),
         "evidence": _detail(
-            "schema_contract_evidence"
-            if contract_valid
+            "schema_semantic_evidence"
+            if semantic_valid
             else "limited_verification_evidence"
         ),
         "risk": _detail(
@@ -285,14 +285,14 @@ def build_step_quality(
     """Build one immutable completion report from explicit graph evidence."""
     row_count = int(assessment.get("row_count") or 0)
     checks: list[str] = []
-    if evidence["intent_ready"]:
-        checks.append("intent_contract_ready")
+    if evidence["requirements_covered"]:
+        checks.append("requirements_covered")
     if evidence["plan_validated"]:
         checks.append("plan_validated")
-    if evidence["contract_status"] == "verified":
-        checks.append("query_intent_satisfied")
-    elif evidence["contract_status"] == "partial":
-        checks.append("query_intent_partially_verified")
+    if evidence["semantic_status"] == "verified":
+        checks.append("semantic_review_verified")
+    elif evidence["semantic_status"] == "partial":
+        checks.append("semantic_review_partial")
     if evidence["execution_status"] == "success":
         checks.append("sql_executed")
         checks.append(

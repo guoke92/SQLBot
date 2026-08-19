@@ -15,10 +15,13 @@ class TurnSnapshot(BaseModel):
     assistant_id: int | None = None
     original_question: str = ""
     planning_question: str = ""
-    intent_revision: dict[str, Any] = Field(default_factory=dict)
+    risk_assessment: dict[str, Any] = Field(default_factory=dict)
+    semantic_review: dict[str, Any] = Field(default_factory=dict)
+    plan_facts: list[dict[str, Any]] = Field(default_factory=list)
+    clarification_resolutions: list[dict[str, Any]] = Field(default_factory=list)
     outcome: str = ""
     quality: dict[str, Any] = Field(default_factory=dict)
-    contract_status: str = ""
+    validation_status: str = ""
     knowledge_apply: list[dict[str, Any]] = Field(default_factory=list)
     sql_list: list[str] = Field(default_factory=list)
     entity_bindings: dict[str, Any] = Field(default_factory=dict)
@@ -31,7 +34,10 @@ def build_turn_snapshot(
     oid: int,
     ds_id: int | None,
     question: str,
-    intent_revision: dict[str, Any] | None,
+    risk_assessment: dict[str, Any] | None,
+    semantic_review: dict[str, Any] | None,
+    plan_facts: list[dict[str, Any]] | None,
+    clarification_resolutions: list[dict[str, Any]] | None,
     outcome: str,
     knowledge_apply: list[dict[str, Any]] | None = None,
     sql_list: list[str] | None = None,
@@ -39,7 +45,8 @@ def build_turn_snapshot(
     assistant_id: int | None = None,
     entity_bindings: dict[str, Any] | None = None,
 ) -> TurnSnapshot:
-    revision = intent_revision or {}
+    risk = dict(risk_assessment or {})
+    review = dict(semantic_review or {})
     return TurnSnapshot(
         record_id=record_id,
         chat_id=chat_id,
@@ -48,19 +55,18 @@ def build_turn_snapshot(
         assistant_id=assistant_id,
         original_question=question,
         planning_question=question,
-        intent_revision=revision,
+        risk_assessment=risk,
+        semantic_review=review,
+        plan_facts=list(plan_facts or []),
+        clarification_resolutions=list(clarification_resolutions or []),
         outcome=outcome,
-        contract_status="accepted" if revision.get("status") == "accepted" else "missing",
+        validation_status=(
+            "verified"
+            if risk.get("level") == "low" or review.get("verdict") == "pass"
+            else "unverified"
+        ),
         knowledge_apply=list(knowledge_apply or []),
         sql_list=list(sql_list or []),
         entity_bindings=dict(entity_bindings or {}),
-        clarification_answered=has_user_answer_requirements(revision),
-    )
-
-
-def has_user_answer_requirements(intent_revision: dict[str, Any]) -> bool:
-    """True when an intent item cites immutable clarification evidence."""
-    return any(
-        any(str(ref).startswith("user:answer:") for ref in refs or [])
-        for refs in (intent_revision.get("evidence_map") or {}).values()
+        clarification_answered=bool(clarification_resolutions),
     )

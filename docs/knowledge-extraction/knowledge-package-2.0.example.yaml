@@ -1,0 +1,314 @@
+schema_version: "2.0"
+
+package:
+  package_id: customer-enterprise-onboarding
+  revision: 1
+  title: 客户中心企业建档
+  namespace: customer
+  description: 企业建档场景闭环：提交、推送、审核、成功/失败与主数据生效。
+
+sources:
+  - source_id: company-service
+    kind: source_code
+    locator: com.lls.operation.customer.facade.OperCustFacade
+  - source_id: company-schema
+    kind: database_catalog
+    locator: cust_company_info
+  - source_id: build-record-schema
+    kind: database_catalog
+    locator: cust_build_record
+  - source_id: project-rel-schema
+    kind: database_catalog
+    locator: cust_project_rel
+  - source_id: admission-doc
+    kind: business_document
+    locator: .dev-standards/knowledge/business/customer-admission.md
+
+evidence:
+  - evidence_id: ev-doc-admission
+    source_id: admission-doc
+    evidence_kind: document_claim
+    locator: customer-admission.md#onboarding
+    claim: 文档将建档描述为企业准入后的主数据形成过程。
+    confidence: 0.7
+  - evidence_id: ev-facade-submit
+    source_id: company-service
+    evidence_kind: code_path
+    locator: OperCustFacade#submitBuild
+    claim: 提交建档会写入企业主数据并生成推送记录。
+    confidence: 0.95
+  - evidence_id: ev-callback
+    source_id: company-service
+    evidence_kind: code_path
+    locator: OperCustFacade#onOperationCallback
+    claim: 运营回调按 check_status 更新建档状态，PASS 才写 BUILD_SUCCESS 与 EFFECT。
+    confidence: 0.95
+  - evidence_id: ev-company-fields
+    source_id: company-schema
+    evidence_kind: database_schema
+    locator: cust_company_info
+    claim: 企业主数据含建档状态、业务状态、数据类型、启用标记。
+    confidence: 1.0
+  - evidence_id: ev-build-record
+    source_id: build-record-schema
+    evidence_kind: database_schema
+    locator: cust_build_record
+    claim: 推送/补偿过程表一行一次技术过程，不能计为企业数。
+    confidence: 1.0
+  - evidence_id: ev-project-rel
+    source_id: project-rel-schema
+    evidence_kind: database_schema
+    locator: cust_project_rel
+    claim: 项目企业关系用 open_status=Y/N/P，不是 OPENED。
+    confidence: 1.0
+
+knowledge_units:
+  - unit_id: enterprise-onboarding
+    revision: 1
+    title: 企业建档
+    aliases: [建档, 企业开户, 客户建档]
+    domain: enterprise
+    applicability: 企业主数据查询、建档进度、有效企业统计；不用于项目成员清点
+    description: >
+      企业资料提交、向运营推送、审核回调并形成可使用企业主数据的完整业务过程。
+      推送完成、审核中、建档成功、企业生效是不同事件，不能混算。
+    content:
+      concepts:
+        - concept_id: onboarding
+          name: 建档
+          aliases: [企业建档, 开户]
+          definition: 企业从提交资料到主数据生效的全过程，不是单一状态值。
+          evidence_refs: [ev-doc-admission, ev-facade-submit]
+        - concept_id: build-success
+          name: 建档成功
+          aliases: [有效已建档企业, 已建档]
+          definition: 审核通过且主数据有效、启用。不要与推送完成混淆。
+          dictionary:
+            BUILD_SUCCESS: 建档成功
+            EFFECT: 有效
+            Y: 启用
+          evidence_refs: [ev-callback, ev-company-fields]
+        - concept_id: building
+          name: 建档中
+          aliases: [审核中]
+          definition: 已推送运营、尚未得到终态回调。
+          dictionary:
+            CUST_BUILDING: 建档中
+            CUST_CHECK_INIT: 待运营审核
+          evidence_refs: [ev-callback]
+        - concept_id: build-fail
+          name: 建档失败
+          aliases: [建档驳回]
+          definition: 运营拒绝本次建档。企业变更拒绝不等于建档失败。
+          dictionary:
+            BUILD_FAIL: 建档失败
+          evidence_refs: [ev-callback]
+      processes:
+        - stage_id: submitted
+          name: 提交建档
+          trigger: 运营或客户提交企业资料
+          exit_conditions: [生成企业主数据行, 生成推送记录]
+          next_stages: [pushed]
+          data_effects:
+            - operation: insert
+              dataset: company
+              fields: [build_status, check_status, data_type]
+              description: 写入企业过程主数据，check_status=CUST_CHECK_INIT。
+              evidence_refs: [ev-facade-submit]
+            - operation: insert
+              dataset: build_record
+              fields: [company_id, push_status]
+              description: 一行一次推送过程，不能当作企业数。
+              evidence_refs: [ev-facade-submit, ev-build-record]
+          evidence_refs: [ev-facade-submit]
+        - stage_id: reviewing
+          name: 审核中
+          trigger: 运营回调 INIT/CHECKING 或客户待确认
+          enter_conditions: [已推送运营]
+          next_stages: [approved, rejected]
+          data_effects:
+            - operation: update
+              dataset: company
+              fields: [build_status, check_status]
+              condition: check_status IN ('INIT','CHECKING') → cust_build_status=CUST_BUILDING
+              evidence_refs: [ev-callback]
+          evidence_refs: [ev-callback]
+        - stage_id: approved
+          name: 建档审核通过
+          trigger: 运营回调 PASS
+          exit_conditions: [cust_build_status=BUILD_SUCCESS, cust_status=EFFECT]
+          data_effects:
+            - operation: update
+              dataset: company
+              fields: [build_status, company_status, enabled]
+              description: 更新建档结果和主数据可用状态。
+              evidence_refs: [ev-callback, ev-company-fields]
+          evidence_refs: [ev-callback]
+        - stage_id: rejected
+          name: 建档失败
+          trigger: 运营回调 REJECT
+          data_effects:
+            - operation: update
+              dataset: company
+              fields: [build_status]
+              condition: cust_build_status=BUILD_FAIL
+              evidence_refs: [ev-callback]
+          evidence_refs: [ev-callback]
+      datasets:
+        - dataset_id: company
+          name: cust_company_info
+          description: 企业主/过程记录，一行一家企业。业务主数据通常需 data_type='1' AND enable='Y'。
+          fields:
+            - field_id: id
+              name: id
+              data_type: bigint
+              evidence_refs: [ev-company-fields]
+            - field_id: build_status
+              name: cust_build_status
+              data_type: varchar
+              dictionary:
+                CUST_BUILDING: 建档中
+                CUST_CONFIRM_AWAIT: 待客户确认
+                BUILD_SUCCESS: 建档成功
+                BUILD_FAIL: 建档失败
+              evidence_refs: [ev-company-fields]
+            - field_id: check_status
+              name: check_status
+              data_type: varchar
+              dictionary:
+                CUST_CHECK_INIT: 待审核
+                PASS: 通过
+                REJECT: 拒绝
+              evidence_refs: [ev-callback]
+            - field_id: company_status
+              name: cust_status
+              data_type: varchar
+              dictionary:
+                EFFECT: 有效
+              evidence_refs: [ev-company-fields]
+            - field_id: enabled
+              name: enable
+              data_type: varchar
+              dictionary:
+                Y: 启用
+                N: 停用
+              evidence_refs: [ev-company-fields]
+            - field_id: data_type
+              name: data_type
+              data_type: varchar
+              dictionary:
+                "1": 正式企业主数据
+              evidence_refs: [ev-company-fields]
+            - field_id: create_time
+              name: create_time
+              data_type: timestamp
+              description: 行创建时间，不是建档成功时间。
+              evidence_refs: [ev-company-fields]
+        - dataset_id: build_record
+          name: cust_build_record
+          description: 推送、异步后置或补偿记录。一行一次技术过程，不能计为企业数或建档成功数。
+          fields:
+            - field_id: company_id
+              name: company_id
+              data_type: bigint
+              evidence_refs: [ev-build-record]
+            - field_id: push_status
+              name: push_status
+              data_type: varchar
+              evidence_refs: [ev-build-record]
+        - dataset_id: project_rel
+          name: cust_project_rel
+          description: 项目—企业—角色关系。开通状态真实值为 Y/N/P。
+          fields:
+            - field_id: company_id
+              name: company_id
+              data_type: bigint
+              evidence_refs: [ev-project-rel]
+            - field_id: open_status
+              name: open_status
+              data_type: varchar
+              dictionary:
+                Y: 已开通
+                N: 未开通
+                P: 开通中
+              evidence_refs: [ev-project-rel]
+      relationships:
+        - relationship_id: company-build-record
+          left: { dataset: company, field: id }
+          right: { dataset: build_record, field: company_id }
+          relationship_type: EQUI_JOIN
+          cardinality: 1:n
+          business_meaning: 企业主数据对应多次推送过程
+          status: proposed
+          evidence_refs: [ev-facade-submit, ev-build-record]
+        - relationship_id: company-project-rel
+          left: { dataset: company, field: id }
+          right: { dataset: project_rel, field: company_id }
+          relationship_type: EQUI_JOIN
+          cardinality: 1:n
+          business_meaning: 企业可加入多个项目
+          status: proposed
+          evidence_refs: [ev-project-rel]
+      metrics: []
+      calibers:
+        - caliber_id: active-built-company
+          label: 有效已建档企业
+          description: 同时满足建档成功、企业有效和启用状态的企业主数据。
+          contract_fragment:
+            predicates:
+              - field: company.build_status
+                operator: eq
+                values: [BUILD_SUCCESS]
+              - field: company.company_status
+                operator: eq
+                values: [EFFECT]
+              - field: company.enabled
+                operator: eq
+                values: [Y]
+              - field: company.data_type
+                operator: eq
+                values: ["1"]
+          field_targets:
+            - { dataset: company, field: build_status }
+            - { dataset: company, field: company_status }
+            - { dataset: company, field: enabled }
+            - { dataset: company, field: data_type }
+          evidence_refs: [ev-callback, ev-company-fields]
+      domain_rules:
+        - rule_id: do-not-count-push-records
+          label: 推送记录不计企业数
+          content: 统计建档企业必须用 cust_company_info 去重，禁止用 cust_build_record 行数。
+          applicability: 企业数、建档成功数
+          query_impact: 主表必须是 company，build_record 只作过程过滤
+          field_targets:
+            - { dataset: company, field: build_status }
+            - { dataset: build_record, field: company_id }
+          evidence_refs: [ev-build-record]
+      verified_query_patterns:
+        - pattern_id: count-built-companies
+          question: 有效已建档企业有多少
+          query: >
+            SELECT COUNT(1) AS built_company_count
+            FROM cust_company_info
+            WHERE cust_build_status = 'BUILD_SUCCESS'
+              AND cust_status = 'EFFECT'
+              AND enable = 'Y'
+              AND data_type = '1'
+          intended_specification:
+            grain: company
+            caliber_id: active-built-company
+          evidence_refs: [ev-company-fields]
+    evidence_refs:
+      - ev-doc-admission
+      - ev-facade-submit
+      - ev-callback
+      - ev-company-fields
+      - ev-build-record
+      - ev-project-rel
+    assumptions:
+      - 正式企业主数据以 data_type='1' 为准，待库画像复核。
+    conflicts:
+      - topic: 建档成功时间
+        parties: [admission-doc, company-schema]
+        summary: 文档倾向用提交时间，代码未单独写成功时间字段；问数不得用 create_time 顶替建档成功。
+    confidence: 0.93

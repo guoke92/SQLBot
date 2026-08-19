@@ -283,6 +283,7 @@ class ChatLogHistoryItem(BaseModel):
     detail: dict[str, Any] = Field(default_factory=dict)
     input: Any = None
     output: Any = None
+    model_calls: list[dict[str, Any]] = Field(default_factory=list)
     reasoning_content: Optional[str] = None
 
 

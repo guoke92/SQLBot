@@ -97,7 +97,8 @@
     "synonyms_template_example_2": "成交总额",
     "word_cannot_be_empty": "术语名称不能为空",
     "description_cannot_be_empty": "术语描述不能为空",
-    "datasource_not_found": "找不到数据源"
+    "datasource_not_found": "找不到数据源",
+    "cannot_write_enabled_runtime": "禁止通过创建接口直接写入已启用运行时术语，请走知识单元发布或启用接口"
   },
   "i18n_data_training": {
     "datasource_list_is_not_found": "数据源列表未找到",
@@ -126,7 +127,8 @@
     "question_cannot_be_empty": "问题不能为空",
     "description_cannot_be_empty": "示例内容不能为空",
     "datasource_not_found": "找不到数据源",
-    "advanced_application_not_found": "找不到高级应用"
+    "advanced_application_not_found": "找不到高级应用",
+    "cannot_write_enabled_runtime": "禁止通过创建接口直接写入已启用运行时示例，请走知识单元发布或启用接口"
   },
   "i18n_custom_prompt": {
     "exists_in_db": "模版名称已存在",

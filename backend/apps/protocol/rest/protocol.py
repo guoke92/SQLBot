@@ -293,12 +293,14 @@ class RestProtocol(BaseProtocol):
     ) -> SchemaSnapshot:
         conf = _parse_conf(ds)
 
-        # Explicit allow-list (e.g. chart step after plan chose an endpoint).
-        if resource_names is not None:
-            names = list(resource_names)
+        # Explicit allow-list (knowledge binding or a prior plan).
+        from apps.datasource.access import project_schema_resources
+
+        exact = project_schema_resources(resource_names, access_scope)
+        if exact is not None:
             return SchemaSnapshot(
-                schema_text=_render_api_schema(conf, names),
-                resource_names=names,
+                schema_text=_render_api_schema(conf, exact),
+                resource_names=exact,
                 sample_data="",
             )
 
@@ -326,10 +328,8 @@ class RestProtocol(BaseProtocol):
             ds=ds,
             question=question,
             embedding=embedding,
+            table_list=None,
             required_table_list=list(required_resource_names),
-            table_objs=(
-                list(access_scope.table_objects) if access_scope is not None else None
-            ),
         )
         if not names:
             # Fall back to all conf endpoints when projections not yet synced.

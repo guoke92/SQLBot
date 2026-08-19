@@ -16,9 +16,9 @@ from apps.chat.answer_payload import (
 from apps.chat.curd.chat import (
     create_chat,
     delete_chat_with_user,
-    get_chart_config,
     get_chart_data_with_user,
     get_chart_data_with_user_live,
+    get_chat_chart_config,
     get_chat_chart_data,
     get_chat_log_history,
     get_chat_predict_data,
@@ -32,7 +32,6 @@ from apps.chat.curd.chat import (
 )
 from apps.chat.curd.debug_bundle import build_chat_debug_bundle
 from apps.chat.models.chat_model import (
-    AxisObj,
     Chat,
     ChatFinishStep,
     ChatInfo,
@@ -43,7 +42,11 @@ from apps.chat.models.chat_model import (
     RenameChat,
     SimpleChat,
 )
-from apps.chat.result_data import format_json_data, format_json_list_data
+from apps.chat.result_data import (
+    excel_rows_from_dataset,
+    format_json_data,
+    format_json_list_data,
+)
 
 # Graph registration is handled by each FastAPI process lifespan; no
 # import-time side effects are needed here. submit_graph is the sole runtime
@@ -788,18 +791,22 @@ async def question_answer_inner(
                 rec_id = int(source_record.id)
 
             else:  # get last record id
-                source_record = session.exec(
-                    select(ChatRecord)
-                    .where(
-                        and_(
-                            ChatRecord.chat_id == request_question.chat_id,
-                            ChatRecord.create_by == current_user.id,
-                            ChatRecord.first_chat.is_(False),
+                source_record = (
+                    session.exec(
+                        select(ChatRecord)
+                        .where(
+                            and_(
+                                ChatRecord.chat_id == request_question.chat_id,
+                                ChatRecord.create_by == current_user.id,
+                                ChatRecord.first_chat.is_(False),
+                            )
                         )
+                        .order_by(ChatRecord.create_time.desc())
+                        .limit(1)
                     )
-                    .order_by(ChatRecord.create_time.desc())
-                    .limit(1)
-                ).scalars().one_or_none()
+                    .scalars()
+                    .one_or_none()
+                )
                 if source_record is None:
                     raise Exception("You have not ask any question")
                 rec_id = int(source_record.id)
@@ -921,8 +928,7 @@ async def stream_sql(
                 )
                 if (
                     regenerate_record is None
-                    or int(regenerate_record.create_by or 0)
-                    != _user_id(current_user)
+                    or int(regenerate_record.create_by or 0) != _user_id(current_user)
                     or int(regenerate_record.chat_id) != int(request_question.chat_id)
                 ):
                     raise Exception("Turn to regenerate was not found")
@@ -1166,42 +1172,7 @@ async def export_excel(
             status_code=500, detail=trans("i18n_excel_export.data_is_empty")
         )
 
-    chart_info = get_chart_config(session, chat_record_id)
-
-    _title = chart_info.get("title") if chart_info.get("title") else "Excel"
-
-    fields = []
-    if chart_info.get("columns") and len(chart_info.get("columns")) > 0:
-        for column in chart_info.get("columns"):
-            fields.append(AxisObj(name=column.get("name"), value=column.get("value")))
-    # 处理 axis
-    if axis := chart_info.get("axis"):
-        # 处理 x 轴
-        if x_axis := axis.get("x"):
-            if "name" in x_axis or "value" in x_axis:
-                fields.append(
-                    AxisObj(name=x_axis.get("name"), value=x_axis.get("value"))
-                )
-
-        # 处理 y 轴 - 兼容数组和对象格式
-        if y_axis := axis.get("y"):
-            if isinstance(y_axis, list):
-                for column in y_axis:
-                    if "name" in column or "value" in column:
-                        fields.append(
-                            AxisObj(name=column.get("name"), value=column.get("value"))
-                        )
-            elif isinstance(y_axis, dict) and ("name" in y_axis or "value" in y_axis):
-                fields.append(
-                    AxisObj(name=y_axis.get("name"), value=y_axis.get("value"))
-                )
-
-        # 处理 series
-        if series := axis.get("series"):
-            if "name" in series or "value" in series:
-                fields.append(
-                    AxisObj(name=series.get("name"), value=series.get("value"))
-                )
+    chart_info = get_chat_chart_config(session, chat_record_id)
 
     _predict_data = []
     if is_predict_data:
@@ -1209,38 +1180,28 @@ async def export_excel(
             get_chat_predict_data(chat_record_id=chat_record_id, session=session)
         )
 
+    data_list = DataFormat.convert_large_numbers_in_object_array(
+        obj_array=_data + _predict_data, int_threshold=1e11
+    )
+    md_data, fields_list = excel_rows_from_dataset(
+        chart=chart_info,
+        fields=_base_field,
+        rows=data_list,
+    )
+    if not fields_list:
+        raise HTTPException(
+            status_code=500, detail=trans("i18n_excel_export.data_is_empty")
+        )
+
     def inner():
-        data_list = DataFormat.convert_large_numbers_in_object_array(
-            obj_array=_data + _predict_data, int_threshold=1e11
-        )
-
-        md_data, _fields_list = DataFormat.convert_object_array_for_pandas(
-            fields, data_list
-        )
-
-        # data, _fields_list, col_formats = LLMService.format_pd_data(fields, _data + _predict_data)
-
-        df = pd.DataFrame(md_data, columns=_fields_list)
-
+        df = pd.DataFrame(md_data, columns=fields_list)
         buffer = io.BytesIO()
-
         with pd.ExcelWriter(
             buffer,
             engine="xlsxwriter",
             engine_kwargs={"options": {"strings_to_numbers": False}},
         ) as writer:
             df.to_excel(writer, sheet_name="Sheet1", index=False)
-
-            # 获取 xlsxwriter 的工作簿和工作表对象
-            # workbook = writer.book
-            # worksheet = writer.sheets['Sheet1']
-            #
-            # for col_idx, fmt_type in col_formats.items():
-            #     if fmt_type == 'text':
-            #         worksheet.set_column(col_idx, col_idx, None, workbook.add_format({'num_format': '@'}))
-            #     elif fmt_type == 'number':
-            #         worksheet.set_column(col_idx, col_idx, None, workbook.add_format({'num_format': '0'}))
-
         buffer.seek(0)
         return io.BytesIO(buffer.getvalue())
 

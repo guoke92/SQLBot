@@ -186,9 +186,6 @@ def _with_run_lifecycle(
             graph_key=_graph_key,
             node=name,
             phase=phase,
-            intent_revision=(state.get("query_intent") or {}).get("revision")
-            if isinstance(state.get("query_intent"), dict)
-            else None,
             elapsed_ms=(round((perf_counter() - started) * 1000) if phase != "started" else 0),
             error_type=type(error).__name__ if error else None,
         )

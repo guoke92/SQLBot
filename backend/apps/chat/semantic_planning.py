@@ -1,14 +1,27 @@
-"""Business ambiguity and semantic planning decision contracts."""
+"""Planning decisions and the single clarification card contract.
+
+The model names business questions and options. Service-owned IDs, resume
+answers and the interrupt payload all use this same shape. LLM extras and
+historical aliases are coerced once, then discarded.
+"""
 
 from __future__ import annotations
 
 import hashlib
+import re
+from collections.abc import Mapping, Sequence
 from typing import Any, Literal, Self
 
-import orjson
-from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    TypeAdapter,
+    ValidationError,
+    model_validator,
+)
 
-from apps.chat.query_intent import QueryIntent
+MAX_CLARIFICATION_QUESTIONS = 4
 
 
 def stable_id(prefix: str, *parts: str) -> str:
@@ -16,226 +29,402 @@ def stable_id(prefix: str, *parts: str) -> str:
     return f"{prefix}_{hashlib.sha256(body.encode()).hexdigest()[:16]}"
 
 
-class CandidateResolution(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    option_id: str = ""
-    label: str = ""
-    description: str = ""
-    impact: str = ""
-    resolution: dict[str, Any] = Field(default_factory=dict)
-    evidence_refs: list[str] = Field(default_factory=list)
-
-    @model_validator(mode="after")
-    def validate_resolution(self) -> Self:
-        if not self.resolution:
-            raise ValueError("Clarification option requires a structured resolution")
-        business_meaning = str(self.resolution.get("business_meaning") or "").strip()
-        label = self.label.strip()
-        # A/B/C is presentation identity owned by the client. The option label
-        # is the business-facing resolution and must not duplicate that marker.
-        if business_meaning and (not label or label.casefold() in {"a", "b", "c"}):
-            self.label = business_meaning
-        elif not label:
-            raise ValueError(
-                "Clarification option requires a business-facing label or business_meaning"
-            )
-        return self
+def _text(*values: Any) -> str:
+    for value in values:
+        text = " ".join(str(value or "").split())
+        if text:
+            return text
+    return ""
 
 
-class Ambiguity(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    ambiguity_id: str = ""
-    business_question: str
-    reason: str = ""
-    impact_level: Literal["low", "medium", "high"] = "medium"
-    candidate_resolutions: list[CandidateResolution] = Field(min_length=2, max_length=3)
-    recommended_candidate_id: str | None = None
-    recommendation_reason: str = ""
-    can_assume: bool = False
-
-    @model_validator(mode="after")
-    def validate_candidates(self) -> Self:
-        # IDs belong to the service, not to model wording or a model-invented
-        # axis name. The mutually exclusive structured resolutions are the
-        # semantic identity of the business decision.
-        resolution_identities = sorted(
-            orjson.dumps(
-                candidate.resolution,
-                option=orjson.OPT_SORT_KEYS,
-                default=str,
-            ).decode()
-            for candidate in self.candidate_resolutions
+def _option_meaning(option: dict[str, Any]) -> str:
+    resolution = option.get("resolution")
+    if isinstance(resolution, dict):
+        return _text(
+            option.get("meaning"),
+            resolution.get("business_meaning"),
+            option.get("label"),
+            option.get("description"),
         )
-        self.ambiguity_id = stable_id("amb", *resolution_identities)
-        supplied_to_stable: dict[str, str] = {}
-        for candidate in self.candidate_resolutions:
-            supplied_id = candidate.option_id
-            candidate.option_id = stable_id(
-                "opt",
-                self.ambiguity_id,
-                orjson.dumps(
-                    candidate.resolution,
-                    option=orjson.OPT_SORT_KEYS,
-                    default=str,
-                ).decode(),
-            )
-            if supplied_id:
-                supplied_to_stable[supplied_id] = candidate.option_id
-        if self.recommended_candidate_id in supplied_to_stable:
-            self.recommended_candidate_id = supplied_to_stable[
-                self.recommended_candidate_id
-            ]
-        ids = [item.option_id for item in self.candidate_resolutions]
-        if len(ids) != len(set(ids)):
-            raise ValueError("Ambiguity candidate IDs must be unique")
-        if self.recommended_candidate_id and self.recommended_candidate_id not in ids:
-            raise ValueError("Recommended candidate must exist")
-        return self
+    if isinstance(resolution, str):
+        return _text(option.get("meaning"), resolution, option.get("label"))
+    return _text(option.get("meaning"), option.get("label"), option.get("description"))
 
 
-class AmbiguitySet(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    ambiguities: list[Ambiguity] = Field(min_length=1, max_length=2)
-    summary: str = ""
+def _coerce_field_ref(item: Any) -> dict[str, Any] | None:
+    if isinstance(item, str):
+        name = _text(item)
+        return {"name": name, "comment": "", "table": ""} if name else None
+    payload = _as_dict(item)
+    if payload is None:
+        return None
+    name = _text(payload.get("name"), payload.get("field"), payload.get("field_name"))
+    if not name:
+        return None
+    return {
+        "name": name,
+        "comment": _text(payload.get("comment"), payload.get("field_comment")),
+        "table": _text(payload.get("table"), payload.get("table_name")),
+    }
 
 
-def public_ambiguity_payload(ambiguity_set: AmbiguitySet) -> dict[str, Any]:
-    """Return the complete, business-facing clarification card payload."""
-    payload = ambiguity_set.model_dump(mode="json")
-    compact: list[dict[str, Any]] = []
-    for item in payload.get("ambiguities") or []:
-        if not isinstance(item, dict):
-            continue
-        options = []
-        for option in item.get("candidate_resolutions") or []:
+def _coerce_option(option: dict[str, Any], *, recommended: bool) -> dict[str, Any]:
+    meaning = _option_meaning(option)
+    label = _text(option.get("label"))
+    if not label or label.casefold() in {"a", "b", "c"}:
+        label = meaning
+    fields: list[dict[str, Any]] = []
+    raw_fields = option.get("fields")
+    if isinstance(raw_fields, list):
+        for item in raw_fields:
+            ref = _coerce_field_ref(item)
+            if ref is not None:
+                fields.append(ref)
+    field = _text(option.get("field"), option.get("field_name"))
+    field_comment = _text(
+        option.get("field_comment"),
+        option.get("comment"),
+        option.get("field_label"),
+    )
+    table = _text(option.get("table"), option.get("table_name"))
+    if not fields and field:
+        fields = [{"name": field, "comment": field_comment, "table": table}]
+    first = fields[0] if fields else {"name": "", "comment": "", "table": ""}
+    return {
+        "option_id": _text(option.get("option_id")),
+        "label": label,
+        "meaning": meaning,
+        "field": first["name"],
+        "field_comment": first["comment"],
+        "table": first["table"] or table,
+        "fields": fields,
+        "recommended": bool(option.get("recommended")) or recommended,
+    }
+
+
+def _coerce_question(item: dict[str, Any]) -> dict[str, Any]:
+    raw_options = item.get("options")
+    if not isinstance(raw_options, list):
+        raw_options = item.get("candidate_resolutions")
+    recommended_id = _text(item.get("recommended_candidate_id"))
+    options: list[dict[str, Any]] = []
+    if isinstance(raw_options, list):
+        for option in raw_options:
             if not isinstance(option, dict):
                 continue
+            supplied_id = _text(option.get("option_id"))
             options.append(
-                {
-                    "option_id": option.get("option_id") or "",
-                    "label": option.get("label") or "",
-                    "description": option.get("description") or "",
-                    "impact": option.get("impact") or "",
-                    "resolution": option.get("resolution") or {},
-                }
+                _coerce_option(
+                    option,
+                    recommended=bool(recommended_id) and supplied_id == recommended_id,
+                )
             )
-        compact.append(
-            {
-                "ambiguity_id": item.get("ambiguity_id") or "",
-                "business_question": item.get("business_question") or "",
-                "reason": item.get("reason") or "",
-                "impact_level": item.get("impact_level") or "medium",
-                "candidate_resolutions": options,
-                "recommended_candidate_id": item.get("recommended_candidate_id"),
-                "recommendation_reason": item.get("recommendation_reason") or "",
-                "can_assume": bool(item.get("can_assume")),
-            }
-        )
-    return {"summary": payload.get("summary") or "", "ambiguities": compact}
+    return {
+        "question_id": _text(item.get("question_id") or item.get("ambiguity_id")),
+        "question": _text(item.get("question"), item.get("business_question")),
+        "why": _text(item.get("why"), item.get("reason")),
+        "options": options,
+    }
+
+
+def _as_dict(item: Any) -> dict[str, Any] | None:
+    if isinstance(item, dict):
+        return item
+    dump = getattr(item, "model_dump", None)
+    if callable(dump):
+        payload = dump(mode="python")
+        if isinstance(payload, dict):
+            return payload
+    return None
+
+
+def coerce_clarification_questions(value: Any) -> list[dict[str, Any]]:
+    """Lift historical/LLM aliases onto canonical ``questions``."""
+    if isinstance(value, list):
+        items = value
+    elif isinstance(value, dict):
+        items = value.get("questions")
+        if not isinstance(items, list):
+            nested = value.get("ambiguity_set")
+            nested_dict = nested if isinstance(nested, dict) else {}
+            items = (
+                nested_dict.get("questions")
+                or nested_dict.get("ambiguities")
+                or value.get("ambiguities")
+            )
+    else:
+        items = None
+    if not isinstance(items, list):
+        return []
+    questions: list[dict[str, Any]] = []
+    for item in items:
+        payload = _as_dict(item)
+        if payload is not None:
+            questions.append(_coerce_question(payload))
+    return questions
+
+
+def unsigned_clarification_questions(
+    questions: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Drop model-invented IDs so the service can mint stable ones."""
+    unsigned: list[dict[str, Any]] = []
+    for item in questions:
+        options = []
+        for option in item.get("options") or []:
+            options.append({**option, "option_id": ""})
+        unsigned.append({**item, "question_id": "", "options": options})
+    return unsigned
+
+
+class ClarificationFieldRef(BaseModel):
+    """One schema field cited by a clarification option.
+
+    Composite caliber (e.g. signed amount by sign_date and financed amount by
+    apply_date) uses several refs on the same option.
+    """
+
+    model_config = ConfigDict(extra="ignore")
+    name: str = ""
+    comment: str = ""
+    table: str = ""
+
+    @model_validator(mode="after")
+    def normalize(self) -> Self:
+        self.name = _text(self.name)
+        self.comment = _text(self.comment)
+        self.table = _text(self.table)
+        if not self.name:
+            raise ValueError("Clarification field requires a name")
+        return self
+
+
+class ClarificationOption(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    option_id: str = ""
+    label: str = ""
+    meaning: str = ""
+    field: str = ""
+    field_comment: str = ""
+    table: str = ""
+    fields: list[ClarificationFieldRef] = Field(default_factory=list)
+    recommended: bool = False
+
+    @model_validator(mode="after")
+    def validate_option(self) -> Self:
+        self.meaning = _text(self.meaning, self.label)
+        self.label = _text(self.label) or self.meaning
+        self.field = _text(self.field)
+        self.field_comment = _text(self.field_comment)
+        self.table = _text(self.table)
+        if not self.fields and self.field:
+            self.fields = [
+                ClarificationFieldRef(
+                    name=self.field, comment=self.field_comment, table=self.table
+                )
+            ]
+        if self.fields:
+            first = self.fields[0]
+            self.field = first.name
+            self.field_comment = first.comment
+            self.table = first.table
+        if self.label.casefold() in {"a", "b", "c"} and self.meaning:
+            self.label = self.meaning
+        if not self.meaning:
+            raise ValueError("Clarification option requires a business meaning")
+        return self
+
+
+class ClarificationQuestion(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    question_id: str = ""
+    question: str
+    why: str = ""
+    options: list[ClarificationOption] = Field(min_length=2, max_length=3)
+
+    @model_validator(mode="after")
+    def assign_ids(self) -> Self:
+        self.question = _text(self.question)
+        self.why = _text(self.why)
+        if not self.question:
+            raise ValueError("Clarification question is required")
+        meanings = sorted(option.meaning for option in self.options)
+        if not self.question_id:
+            self.question_id = stable_id("q", *meanings)
+        for option in self.options:
+            if not option.option_id:
+                option.option_id = stable_id("opt", self.question_id, option.meaning)
+        ids = [option.option_id for option in self.options]
+        if len(ids) != len(set(ids)):
+            raise ValueError("Clarification option meanings must be unique")
+        if sum(1 for option in self.options if option.recommended) > 1:
+            raise ValueError("At most one option may be recommended")
+        return self
+
+
+class ClarificationCard(BaseModel):
+    """Canonical interrupt payload and planner clarify body."""
+
+    model_config = ConfigDict(extra="ignore")
+    questions: list[ClarificationQuestion] = Field(
+        min_length=1, max_length=MAX_CLARIFICATION_QUESTIONS
+    )
+
+    @model_validator(mode="before")
+    @classmethod
+    def coerce_payload(cls, value: Any) -> Any:
+        if not isinstance(value, dict):
+            return value
+        return {"questions": coerce_clarification_questions(value)}
+
+
+def public_interrupt_payload(payload: dict[str, Any] | None) -> dict[str, Any]:
+    """Serialize a stored interrupt body into the canonical card."""
+    try:
+        return ClarificationCard.model_validate(payload or {}).model_dump(mode="json")
+    except ValidationError:
+        return {"questions": []}
+
+
+def public_resume_answers(answers: list[Any] | None) -> list[dict[str, Any]]:
+    result: list[dict[str, Any]] = []
+    for item in answers or []:
+        if not isinstance(item, dict):
+            continue
+        row = dict(item)
+        question_id = _text(row.get("question_id"), row.get("ambiguity_id"))
+        if question_id:
+            row["question_id"] = question_id
+        row.pop("ambiguity_id", None)
+        result.append(row)
+    return result
+
+
+def question_id_of(value: dict[str, Any] | None) -> str:
+    payload = value or {}
+    return _text(payload.get("question_id"), payload.get("ambiguity_id"))
 
 
 def enforce_clarification_policy(
-    ambiguity_set: AmbiguitySet,
+    card: ClarificationCard,
     *,
-    resolved_ambiguity_ids: set[str] | None = None,
-) -> AmbiguitySet:
-    """Accept only unresolved, result-changing business questions.
+    resolved_question_ids: set[str] | None = None,
+) -> ClarificationCard:
+    """Accept only unresolved questions that change the business result.
 
-    The model discovers ambiguities; this deterministic boundary decides
-    whether they are allowed to pause a run. Non-blocking uncertainty belongs
-    in ``QueryIntent.assumptions`` and must never become an optional
-    interrupt that the API cannot meaningfully complete.
+    Emitting a question is itself the blocking signal. Skip/assume flags are
+    not part of the contract; low-impact uncertainty belongs in the query
+    description, not on this card.
     """
-    resolved = {item.strip() for item in resolved_ambiguity_ids or set()}
-    identities = [item.ambiguity_id for item in ambiguity_set.ambiguities]
+    resolved = {item.strip() for item in resolved_question_ids or set() if item.strip()}
+    identities = [item.question_id for item in card.questions]
     if len(identities) != len(set(identities)):
         raise ValueError("Clarification questions must be semantically unique")
     repeated = set(identities) & resolved
     if repeated:
         raise ValueError(
-            "Planner repeated resolved ambiguities: " + ", ".join(sorted(repeated))
+            "Planner repeated resolved questions: " + ", ".join(sorted(repeated))
         )
-    non_blocking = [
-        item.business_question
-        for item in ambiguity_set.ambiguities
-        if item.can_assume or item.impact_level == "low"
-    ]
-    if non_blocking:
-        raise ValueError(
-            "Non-blocking uncertainty must be recorded as assumptions: "
-            + ", ".join(non_blocking)
-        )
-    return ambiguity_set
+    return card
 
 
-class QueryPlanCandidate(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    plan_id: str = ""
-    dataset_index: int = Field(ge=0)
-    payload: dict[str, Any]
-    grounding_manifest: list[dict[str, Any]] = Field(default_factory=list)
+def _rule_constrained_fields(rule: Mapping[str, Any]) -> set[str]:
+    names: set[str] = set()
+    for target in rule.get("field_targets") or []:
+        if not isinstance(target, dict):
+            continue
+        field = str(target.get("field") or "").strip()
+        if field:
+            names.add(field.casefold())
+    for text in (rule.get("content"), rule.get("query_impact")):
+        hay = str(text or "")
+        names.update(
+            match.group(0).casefold()
+            for match in re.finditer(r"[A-Za-z_][A-Za-z0-9_]*", hay)
+            if "_" in match.group(0)
+        )
+    return names
+
+
+def constrain_clarification_by_rules(
+    card: ClarificationCard,
+    rules: Sequence[Mapping[str, Any]] | None,
+) -> ClarificationCard:
+    """Drop recommended when an option field is named by a published rule."""
+    forbidden: set[str] = set()
+    for rule in rules or []:
+        if isinstance(rule, Mapping):
+            forbidden.update(_rule_constrained_fields(rule))
+    if not forbidden:
+        return card
+    questions: list[ClarificationQuestion] = []
+    changed = False
+    for question in card.questions:
+        options: list[ClarificationOption] = []
+        for option in question.options:
+            field_names = {
+                ref.name.casefold() for ref in option.fields if ref.name
+            }
+            if option.field:
+                field_names.add(option.field.casefold())
+            if option.recommended and field_names & forbidden:
+                options.append(option.model_copy(update={"recommended": False}))
+                changed = True
+            else:
+                options.append(option)
+        questions.append(question.model_copy(update={"options": options}))
+    return card.model_copy(update={"questions": questions}) if changed else card
+
+
+class QueryDescription(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    description: str = ""
+    sql: str | None = None
+    request: dict[str, Any] | None = None
 
     @model_validator(mode="after")
-    def assign_id(self) -> Self:
-        # Physical candidate identity is service-owned and content-addressed.
-        # A model-provided ID could alias a repaired payload to stale results.
-        self.plan_id = stable_id(
-            "plan",
-            str(self.dataset_index),
-            orjson.dumps(
-                self.payload,
-                option=orjson.OPT_SORT_KEYS,
-                default=str,
-            ).decode(),
-        )
+    def validate_payload(self) -> Self:
+        self.description = " ".join(self.description.split()).strip()
+        if bool(self.sql and self.sql.strip()) == bool(self.request):
+            raise ValueError("Each query requires exactly one SQL or REST request")
+        if self.sql is not None:
+            self.sql = self.sql.strip()
         return self
 
 
 class NeedClarification(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    decision: Literal["needs_clarification"] = "needs_clarification"
-    ambiguity_set: AmbiguitySet
-    draft_intent: QueryIntent | None = None
-    held_candidates: list[QueryPlanCandidate] = Field(default_factory=list)
-    can_proceed_with_assumptions: bool = False
+    model_config = ConfigDict(extra="ignore")
+    decision: Literal["clarify"] = "clarify"
+    questions: list[ClarificationQuestion] = Field(
+        min_length=1, max_length=MAX_CLARIFICATION_QUESTIONS
+    )
+
+    @model_validator(mode="before")
+    @classmethod
+    def coerce_payload(cls, value: Any) -> Any:
+        if not isinstance(value, dict):
+            return value
+        return {
+            "decision": value.get("decision") or "clarify",
+            "questions": unsigned_clarification_questions(
+                coerce_clarification_questions(value)
+            ),
+        }
+
+    def as_card(self) -> ClarificationCard:
+        return ClarificationCard(questions=self.questions)
 
 
 class Ready(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="ignore")
     decision: Literal["ready"] = "ready"
-    intent: QueryIntent
-    candidates: list[QueryPlanCandidate] = Field(min_length=1)
-    evidence_bindings: list[dict[str, Any]] = Field(default_factory=list)
-    summary: str = ""
-
-    @model_validator(mode="after")
-    def validate_candidate_datasets(self) -> Self:
-        upper = len(self.intent.datasets)
-        indices = [item.dataset_index for item in self.candidates]
-        if len(indices) != len(set(indices)):
-            raise ValueError("Each intent dataset must have exactly one plan candidate")
-        invalid = [
-            item.dataset_index
-            for item in self.candidates
-            if item.dataset_index >= upper
-        ]
-        if invalid:
-            raise ValueError("Plan candidate references an unknown intent dataset")
-        covered = {item.dataset_index for item in self.candidates}
-        required = {
-            index
-            for index, dataset in enumerate(self.intent.datasets)
-            if dataset.required
-        }
-        if not required.issubset(covered):
-            raise ValueError("Every required intent dataset needs a plan candidate")
-        return self
+    queries: list[QueryDescription] = Field(min_length=1)
 
 
 class QueryUnsupported(BaseModel):
     """A query-shaped turn that cannot be answered by the selected context."""
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="ignore")
     decision: Literal["unsupported"] = "unsupported"
     message: str
     reason_code: str = "QUERY_NOT_SUPPORTED"

@@ -6,17 +6,24 @@ consumers of one lifecycle; none of them infer terminal state independently.
 
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from datetime import datetime, timedelta
 from typing import Any, Literal
 from uuid import uuid4
 from zoneinfo import ZoneInfo
 
 import orjson
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, model_validator
 from sqlalchemy import func, select
 from sqlmodel import Session
 
 from apps.chat.models.chat_model import Chat, ChatRecord
+from apps.chat.semantic_planning import (
+    ClarificationCard,
+    public_interrupt_payload,
+    public_resume_answers,
+    question_id_of,
+)
 from apps.chat.steps.observability import close_open_audit_spans
 from apps.chat.turn_contracts import (
     TURN_ANSWER_ADAPTER,
@@ -46,6 +53,12 @@ RunStatus = Literal[
     "cancelled",
 ]
 TERMINAL_STATUSES = frozenset({"succeeded", "degraded", "failed", "cancelled"})
+_USER_EVIDENCE_KINDS = (
+    "user_question",
+    "clarification_option",
+    "clarification_custom",
+    "user_correction",
+)
 _ALLOWED_TRANSITIONS: dict[str, frozenset[str]] = {
     "queued": frozenset({"queued", "running", "failed", "cancelled"}),
     "running": frozenset(
@@ -74,39 +87,30 @@ class ConversationRunCancelled(RuntimeError):
 def interrupt_payload_identity(payload: dict[str, Any]) -> bytes:
     """Return the semantic identity of a clarification card.
 
-    Display wording and recommendation explanations may vary across a replay;
-    the unresolved business axes and structured candidate resolutions decide
-    whether it is the same interrupt.
+    Display wording may vary across a replay; the unresolved questions and
+    option meanings decide whether it is the same interrupt.
     """
-    ambiguities: list[dict[str, Any]] = []
-    for item in payload.get("ambiguities") or []:
-        if not isinstance(item, dict):
-            continue
-        candidates = [
-            {
-                "option_id": option.get("option_id"),
-                "resolution": option.get("resolution"),
-            }
-            for option in item.get("candidate_resolutions") or []
-            if isinstance(option, dict)
-        ]
-        ambiguities.append(
-            {
-                "ambiguity_id": item.get("ambiguity_id"),
-                "candidates": sorted(
-                    candidates,
-                    key=lambda value: str(value.get("option_id") or ""),
-                ),
-            }
-        )
-    ambiguities.sort(key=lambda value: str(value.get("ambiguity_id") or ""))
-    return orjson.dumps(ambiguities, option=orjson.OPT_SORT_KEYS, default=str)
+    try:
+        card = ClarificationCard.model_validate(payload or {})
+    except Exception:
+        return orjson.dumps([], option=orjson.OPT_SORT_KEYS)
+    questions = [
+        {
+            "question_id": item.question_id,
+            "meanings": sorted(option.meaning for option in item.options),
+        }
+        for item in card.questions
+    ]
+    questions.sort(key=lambda value: str(value.get("question_id") or ""))
+    return orjson.dumps(questions, option=orjson.OPT_SORT_KEYS, default=str)
 
 
 class ResumeAnswer(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="ignore", populate_by_name=True)
 
-    ambiguity_id: str
+    question_id: str = Field(
+        validation_alias=AliasChoices("question_id", "ambiguity_id")
+    )
     mode: Literal["option", "custom"]
     option_id: str | None = None
     text: str | None = None
@@ -119,29 +123,26 @@ class ResumeAnswer(BaseModel):
             raise ValueError("option answers require option_id and cannot include text")
         if self.mode == "custom" and (not text or option):
             raise ValueError("custom answers require text and cannot include option_id")
-        self.ambiguity_id = self.ambiguity_id.strip()
+        self.question_id = self.question_id.strip()
         self.option_id = option or None
         self.text = text or None
-        if not self.ambiguity_id:
-            raise ValueError("ambiguity_id is required")
+        if not self.question_id:
+            raise ValueError("question_id is required")
         return self
 
 
 class ResumeRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="ignore")
 
     version: int = Field(gt=0)
     idempotency_key: str = Field(min_length=1, max_length=128)
-    answers: list[ResumeAnswer] = Field(default_factory=list)
-    proceed_with_assumptions: bool = False
+    answers: list[ResumeAnswer] = Field(min_length=1)
 
     @model_validator(mode="after")
     def validate_unique_answers(self) -> ResumeRequest:
-        if not self.answers and not self.proceed_with_assumptions:
-            raise ValueError("At least one answer is required")
-        ids = [answer.ambiguity_id for answer in self.answers]
+        ids = [answer.question_id for answer in self.answers]
         if len(ids) != len(set(ids)):
-            raise ValueError("Each ambiguity may be answered only once")
+            raise ValueError("Each question may be answered only once")
         return self
 
 
@@ -283,6 +284,38 @@ def _lease_deadline() -> datetime:
     return datetime.now() + timedelta(
         seconds=max(60, int(settings.CONVERSATION_RUNNING_LEASE_SEC))
     )
+
+
+def lease_renew_interval_sec() -> int:
+    """Heartbeat interval so a long model call cannot outlive the worker lease."""
+    lease = max(60, int(settings.CONVERSATION_RUNNING_LEASE_SEC))
+    return max(30, lease // 4)
+
+
+def renew_owned_run_lease() -> bool:
+    """Extend the current worker's running lease. No-op without ownership."""
+    from apps.conversation.runtime_context import current_worker_identity
+    from apps.conversation.session import session_scope
+
+    run_id, token = current_worker_identity()
+    if not run_id or not token:
+        return False
+    try:
+        with session_scope() as session:
+            run = session.get(ConversationRun, run_id)
+            if (
+                run is None
+                or run.status != "running"
+                or (run.worker_token or "") != token
+            ):
+                return False
+            run.lease_expires_at = _lease_deadline()
+            run.update_time = datetime.now()
+            session.add(run)
+            session.commit()
+        return True
+    except Exception:
+        return False
 
 
 def _assert_worker_ownership(run: ConversationRun) -> None:
@@ -580,10 +613,104 @@ def active_evidence(session: Session, run_id: str) -> list[ConversationEvidence]
     ]
 
 
+def walk_reference_record_ids(
+    start: Sequence[int],
+    references: Mapping[int, Sequence[int]],
+    *,
+    max_records: int = 8,
+) -> list[int]:
+    """Return referenced record ids oldest-first, following the continue chain."""
+    seen: set[int] = set()
+    ordered: list[int] = []
+    queue = [int(item) for item in start if int(item) > 0]
+    while queue and len(ordered) < max_records:
+        record_id = queue.pop(0)
+        if record_id in seen:
+            continue
+        seen.add(record_id)
+        ordered.append(record_id)
+        for child in references.get(record_id, ()):
+            child_id = int(child)
+            if child_id > 0 and child_id not in seen:
+                queue.append(child_id)
+    ordered.reverse()
+    return ordered
+
+
+def load_prior_user_evidence(
+    session: Session,
+    *,
+    chat_id: int,
+    user_id: int,
+    reference_record_ids: Sequence[int],
+    max_records: int = 8,
+) -> list[dict[str, Any]]:
+    """Collect user questions and confirmed calibers from referenced turns."""
+    pending = [int(item) for item in reference_record_ids if int(item) > 0]
+    references: dict[int, list[int]] = {}
+    owned: set[int] = set()
+    while pending:
+        record_id = pending.pop()
+        if record_id in references:
+            continue
+        record = session.get(ChatRecord, record_id)
+        if (
+            record is None
+            or int(record.chat_id) != int(chat_id)
+            or int(record.create_by or 0) != int(user_id)
+        ):
+            references[record_id] = []
+            continue
+        owned.add(record_id)
+        children = [
+            int(item) for item in (record.reference_record_ids or []) if int(item) > 0
+        ]
+        references[record_id] = children
+        pending.extend(children)
+
+    order = [
+        record_id
+        for record_id in walk_reference_record_ids(
+            reference_record_ids, references, max_records=max_records
+        )
+        if record_id in owned
+    ]
+    if not order:
+        return []
+    events = list(
+        session.exec(
+            select(ConversationEvidence)
+            .where(
+                ConversationEvidence.chat_record_id.in_(order),
+                ConversationEvidence.kind.in_(_USER_EVIDENCE_KINDS),
+            )
+            .order_by(ConversationEvidence.sequence)
+        )
+        .scalars()
+        .all()
+    )
+    by_record: dict[int, list[ConversationEvidence]] = {
+        record_id: [] for record_id in order
+    }
+    for event in events:
+        by_record.setdefault(int(event.chat_record_id), []).append(event)
+    payload: list[dict[str, Any]] = []
+    for record_id in order:
+        for event in by_record.get(record_id, []):
+            payload.append(
+                {
+                    "record_id": record_id,
+                    "kind": event.kind,
+                    "content": event.content,
+                    "structured_value": event.structured_value,
+                }
+            )
+    return payload
+
+
 def _merge_query_plans(
     query_run: QueryRun,
     *,
-    intent_revision: int,
     plans: list[dict[str, Any]],
 ) -> None:
     """Merge idempotent candidates into an already locked NLQ aggregate."""
@@ -606,10 +733,7 @@ def _merge_query_plans(
             **previous,
             **plan,
             "plan_id": plan_id,
-            "intent_revision": intent_revision,
-            "status": plan.get("status")
-            or ("validated" if intent_revision > 0 else previous.get("status"))
-            or "held",
+            "status": plan.get("status") or previous.get("status") or "held",
         }
         if plan_id not in order:
             order.append(plan_id)
@@ -618,138 +742,64 @@ def _merge_query_plans(
     query_run.update_time = datetime.now()
 
 
-def persist_query_planning_result(
-    session: Session,
-    *,
-    run_id: str,
-    intent_revision: dict[str, Any],
-    plans: list[dict[str, Any]],
-) -> None:
-    """Atomically publish one intent revision and its initial physical plans."""
-    require_active_run(session, run_id)
-    query_run = _entity_one(
-        session.exec(
-            select(QueryRun).where(QueryRun.run_id == run_id).with_for_update()
-        )
-    )
-    revision = int(intent_revision.get("revision") or 0)
-    if revision <= 0:
-        raise ValueError("Query intent requires a positive revision")
-    if (
-        not query_run.intent_revisions
-        or query_run.intent_revisions[-1] != intent_revision
-    ):
-        query_run.intent_revisions = [
-            *(query_run.intent_revisions or []),
-            intent_revision,
-        ]
-    query_run.active_intent_revision = revision
-    query_run.planning_status = "ready"
-    _merge_query_plans(
-        query_run,
-        intent_revision=revision,
-        plans=plans,
-    )
-    session.add(query_run)
-    session.commit()
-
-
 def persist_query_clarification(
     session: Session,
     *,
     run_id: str,
-    intent_revision: dict[str, Any] | None,
     held_plans: list[dict[str, Any]] | None = None,
 ) -> None:
-    """Persist one clarification boundary without publishing draft plans."""
+    """Persist one clarification boundary without publishing held plans."""
     require_active_run(session, run_id)
     query_run = _entity_one(
         session.exec(
             select(QueryRun).where(QueryRun.run_id == run_id).with_for_update()
         )
     )
-    revision = 0
-    if intent_revision is not None:
-        revision = int(intent_revision.get("revision") or 0)
-        if revision <= 0:
-            raise ValueError("Intent revision requires a positive revision")
-        if (
-            not query_run.intent_revisions
-            or query_run.intent_revisions[-1] != intent_revision
-        ):
-            query_run.intent_revisions = [
-                *(query_run.intent_revisions or []),
-                intent_revision,
-            ]
-        query_run.active_intent_revision = revision
     query_run.planning_status = "awaiting_input"
     if held_plans:
-        _merge_query_plans(
-            query_run,
-            intent_revision=revision,
-            plans=held_plans,
-        )
+        _merge_query_plans(query_run, plans=held_plans)
     session.add(query_run)
     session.commit()
 
 
-def persist_query_planning_failure(
+def persist_query_decision(
     session: Session,
     *,
     run_id: str,
-    intent_revision: dict[str, Any] | None,
-    held_plans: list[dict[str, Any]],
+    decision: dict[str, Any],
+    plans: list[dict[str, Any]],
+    hard_gate_report: dict[str, Any],
+    risk_assessment: dict[str, Any],
+    plan_facts: list[dict[str, Any]],
+    planning_status: str,
+    semantic_review: dict[str, Any] | None = None,
+    repair_record: dict[str, Any] | None = None,
 ) -> None:
-    """Keep the last useful planning artifacts without publishing a result.
-
-    A failed attempt is still valuable continuation context.  It remains
-    explicitly non-executable and never becomes an accepted intent merely
-    because a later turn references this record.
-    """
+    """Persist the v7 query boundary without inventing a semantic contract."""
     require_active_run(session, run_id)
     query_run = _entity_one(
         session.exec(
             select(QueryRun).where(QueryRun.run_id == run_id).with_for_update()
         )
     )
-    revision = 0
-    if intent_revision is not None:
-        revision = int(intent_revision.get("revision") or 0)
-        if revision > 0:
-            draft = {**intent_revision, "status": "draft"}
-            if (
-                not query_run.intent_revisions
-                or query_run.intent_revisions[-1] != draft
-            ):
-                query_run.intent_revisions = [
-                    *(query_run.intent_revisions or []),
-                    draft,
-                ]
-            query_run.active_intent_revision = revision
-    if held_plans:
-        _merge_query_plans(
-            query_run,
-            intent_revision=revision,
-            plans=[{**plan, "status": "held"} for plan in held_plans],
-        )
-    query_run.planning_status = "failed"
+    query_run.agent_decision = decision
+    query_run.hard_gate_report = hard_gate_report
+    query_run.risk_assessment = risk_assessment
+    query_run.plan_facts = plan_facts
+    query_run.planning_status = planning_status
+    if semantic_review is not None:
+        query_run.semantic_reviews = [
+            *(query_run.semantic_reviews or []),
+            semantic_review,
+        ]
+    if plans:
+        _merge_query_plans(query_run, plans=plans)
+    if repair_record is not None:
+        query_run.repair_history = [
+            *(query_run.repair_history or []),
+            repair_record,
+        ]
     query_run.update_time = datetime.now()
-    session.add(query_run)
-    session.commit()
-
-
-def persist_unverified_plans(
-    session: Session, *, run_id: str, plans: list[dict[str, Any]]
-) -> None:
-    """Hold structurally safe plans without fabricating a business intent."""
-    require_active_run(session, run_id)
-    query_run = _entity_one(
-        session.exec(
-            select(QueryRun).where(QueryRun.run_id == run_id).with_for_update()
-        )
-    )
-    _merge_query_plans(query_run, intent_revision=0, plans=plans)
-    query_run.planning_status = "unverified"
     session.add(query_run)
     session.commit()
 
@@ -758,8 +808,8 @@ def register_query_plans(
     session: Session,
     *,
     run_id: str,
-    intent_revision: int,
     plans: list[dict[str, Any]],
+    repair_record: dict[str, Any] | None = None,
 ) -> None:
     """Upsert physical candidates without replacing prior audit history."""
     require_active_run(session, run_id)
@@ -768,11 +818,12 @@ def register_query_plans(
             select(QueryRun).where(QueryRun.run_id == run_id).with_for_update()
         )
     )
-    _merge_query_plans(
-        query_run,
-        intent_revision=intent_revision,
-        plans=plans,
-    )
+    _merge_query_plans(query_run, plans=plans)
+    if repair_record is not None:
+        query_run.repair_history = [
+            *(query_run.repair_history or []),
+            repair_record,
+        ]
     session.add(query_run)
     session.commit()
 
@@ -805,13 +856,17 @@ def load_query_plan_result(
         or snapshot.get("access_policy_fingerprint") != access_policy_fingerprint
     ):
         return None
-    return {
+    payload = {
         "is_success": True,
         "fields": list(result.fields or []),
         "data": list(result.rows or []),
         "row_count": result.row_count,
         "truncated": result.truncated,
     }
+    totals = dict(result.statistics or {}).get("coverage_totals")
+    if isinstance(totals, dict) and totals:
+        payload["coverage_totals"] = totals
+    return payload
 
 
 def persist_query_plan_result(
@@ -863,6 +918,10 @@ def persist_query_plan_result(
         "schema_fingerprint": schema_fingerprint,
         "access_policy_fingerprint": access_policy_fingerprint,
     }
+    statistics = dict(getattr(existing_result, "statistics", None) or {})
+    totals = result.get("coverage_totals")
+    if isinstance(totals, dict) and totals:
+        statistics["coverage_totals"] = dict(totals)
     if existing_result is None:
         existing_result = ResultDataset(
             run_id=run_id,
@@ -875,6 +934,7 @@ def persist_query_plan_result(
             row_count=int(result.get("row_count") or len(rows)),
             truncated=bool(result.get("truncated")),
             schema_snapshot=execution_snapshot,
+            statistics=statistics,
         )
         session.add(existing_result)
         session.flush()
@@ -886,6 +946,7 @@ def persist_query_plan_result(
         existing_result.truncated = bool(result.get("truncated"))
         existing_result.error = None
         existing_result.schema_snapshot = execution_snapshot
+        existing_result.statistics = statistics
         session.add(existing_result)
     query_run.plans = plans
     execution = {
@@ -1278,6 +1339,9 @@ def create_interrupt(
     _assert_worker_ownership(run)
     if run.status in TERMINAL_STATUSES:
         raise ValueError("Cannot interrupt a terminal run")
+    payload = public_interrupt_payload(payload)
+    if not payload.get("questions"):
+        raise ValueError("Clarification card has no questions")
     latest_interrupt = _entity_one_or_none(
         session.exec(
             select(ConversationInterrupt)
@@ -1375,49 +1439,42 @@ def consume_interrupt(
         raise ValueError("Clarification version is stale")
 
     catalog = {
-        str(item.get("ambiguity_id")): item
-        for item in interrupt.payload.get("ambiguities", [])
-        if isinstance(item, dict)
+        question.question_id: question
+        for question in ClarificationCard.model_validate(interrupt.payload).questions
     }
-    required = {
-        ambiguity_id
-        for ambiguity_id, item in catalog.items()
-        if not bool(item.get("can_assume"))
-    }
-    supplied = {answer.ambiguity_id for answer in request.answers}
-    may_proceed = bool(interrupt.payload.get("can_proceed_with_assumptions"))
-    if request.proceed_with_assumptions and not may_proceed:
-        raise ValueError("This clarification cannot proceed with assumptions")
-    missing = set() if request.proceed_with_assumptions else required - supplied
+    required = set(catalog)
+    supplied = {answer.question_id for answer in request.answers}
+    missing = required - supplied
     if missing:
         raise ValueError("Missing clarification answers: " + ", ".join(sorted(missing)))
 
     stored_answers: list[dict[str, Any]] = []
     for answer in request.answers:
-        ambiguity = catalog.get(answer.ambiguity_id)
-        if ambiguity is None:
-            raise ValueError(f"Unknown ambiguity: {answer.ambiguity_id}")
+        question = catalog.get(answer.question_id)
+        if question is None:
+            raise ValueError(f"Unknown question: {answer.question_id}")
         if answer.mode == "option":
-            options = {
-                str(item.get("option_id")): item
-                for item in ambiguity.get("candidate_resolutions", [])
-                if isinstance(item, dict)
-            }
+            options = {item.option_id: item for item in question.options}
             option = options.get(str(answer.option_id))
             if option is None:
                 raise ValueError(
-                    f"Unknown option {answer.option_id} for {answer.ambiguity_id}"
+                    f"Unknown option {answer.option_id} for {answer.question_id}"
                 )
             evidence = append_evidence(
                 session,
                 run_id=locked_run.run_id,
                 kind="clarification_option",
                 source="user",
-                content=str(option.get("label") or answer.option_id),
+                content=option.label,
                 structured_value={
-                    "ambiguity_id": answer.ambiguity_id,
+                    "question_id": answer.question_id,
                     "option_id": answer.option_id,
-                    "resolution": option.get("resolution"),
+                    "question": question.question,
+                    "meaning": option.meaning,
+                    "field": option.field,
+                    "field_comment": option.field_comment,
+                    "table": option.table,
+                    "fields": [item.model_dump(mode="json") for item in option.fields],
                 },
             )
         else:
@@ -1428,34 +1485,14 @@ def consume_interrupt(
                 source="user",
                 content=str(answer.text),
                 structured_value={
-                    "ambiguity_id": answer.ambiguity_id,
+                    "question_id": answer.question_id,
+                    "question": question.question,
+                    "meaning": str(answer.text),
                 },
             )
         stored_answers.append(
             {**answer.model_dump(mode="json"), "evidence_id": evidence.evidence_id}
         )
-
-    if request.proceed_with_assumptions:
-        for ambiguity_id in sorted(set(catalog) - supplied):
-            evidence = append_evidence(
-                session,
-                run_id=locked_run.run_id,
-                kind="clarification_custom",
-                source="user",
-                content="按当前理解继续，该项采用系统当前合理假设",
-                structured_value={
-                    "ambiguity_id": ambiguity_id,
-                    "proceed_with_assumptions": True,
-                },
-            )
-            stored_answers.append(
-                {
-                    "ambiguity_id": ambiguity_id,
-                    "mode": "custom",
-                    "text": "按当前理解继续，该项采用系统当前合理假设",
-                    "evidence_id": evidence.evidence_id,
-                }
-            )
 
     now = datetime.now()
     interrupt.status = "consumed"
@@ -1530,7 +1567,7 @@ def correct_interrupt_answer(
         (
             item
             for item in source_interrupt.answers or []
-            if str(item.get("ambiguity_id")) == request.answer.ambiguity_id
+            if question_id_of(item) == request.answer.question_id
             and str(item.get("evidence_id")) == request.supersedes_evidence_id
         ),
         None,
@@ -1555,35 +1592,34 @@ def correct_interrupt_answer(
         raise ValueError("Clarification answer has already been superseded")
 
     catalog = {
-        str(item.get("ambiguity_id")): item
-        for item in source_interrupt.payload.get("ambiguities", [])
-        if isinstance(item, dict)
+        question.question_id: question
+        for question in ClarificationCard.model_validate(
+            source_interrupt.payload
+        ).questions
     }
-    ambiguity = catalog.get(request.answer.ambiguity_id)
-    if ambiguity is None:
-        raise ValueError("Clarification ambiguity no longer exists")
+    question = catalog.get(request.answer.question_id)
+    if question is None:
+        raise ValueError("Clarification question no longer exists")
     structured: dict[str, Any] = {
-        "ambiguity_id": request.answer.ambiguity_id,
+        "question_id": request.answer.question_id,
+        "question": question.question,
         "idempotency_key": request.idempotency_key,
     }
     if request.answer.mode == "option":
-        options = {
-            str(item.get("option_id")): item
-            for item in ambiguity.get("candidate_resolutions", [])
-            if isinstance(item, dict)
-        }
+        options = {item.option_id: item for item in question.options}
         option = options.get(str(request.answer.option_id))
         if option is None:
-            raise ValueError("Correction option does not belong to this ambiguity")
-        content = str(option.get("label") or request.answer.option_id)
+            raise ValueError("Correction option does not belong to this question")
+        content = option.label
         structured.update(
             {
                 "option_id": request.answer.option_id,
-                "resolution": option.get("resolution"),
+                "meaning": option.meaning,
             }
         )
     else:
         content = str(request.answer.text)
+        structured["meaning"] = content
 
     correction = append_evidence(
         session,
@@ -1615,6 +1651,16 @@ def correct_interrupt_answer(
     session.add(locked_run)
     session.commit()
     return correction, True
+
+
+def serialize_interrupt(interrupt: ConversationInterrupt) -> dict[str, Any]:
+    return {
+        "interrupt_id": interrupt.interrupt_id,
+        "version": interrupt.version,
+        "status": interrupt.status,
+        "payload": public_interrupt_payload(interrupt.payload),
+        "answers": public_resume_answers(interrupt.answers),
+    }
 
 
 def run_snapshot(session: Session, run: ConversationRun) -> dict[str, Any]:
@@ -1650,32 +1696,17 @@ def run_snapshot(session: Session, run: ConversationRun) -> dict[str, Any]:
         "event_cursor": run.event_cursor,
         "dispatch_attempts": run.dispatch_attempts,
         "lease_expires_at": run.lease_expires_at,
-        "active_interrupt": (
-            {
-                "interrupt_id": interrupt.interrupt_id,
-                "version": interrupt.version,
-                "status": interrupt.status,
-                "payload": interrupt.payload,
-                "answers": interrupt.answers,
-            }
-            if interrupt
-            else None
-        ),
-        "interrupts": [
-            {
-                "interrupt_id": item.interrupt_id,
-                "version": item.version,
-                "status": item.status,
-                "payload": item.payload,
-                "answers": item.answers,
-            }
-            for item in interrupts
-        ],
+        "active_interrupt": serialize_interrupt(interrupt) if interrupt else None,
+        "interrupts": [serialize_interrupt(item) for item in interrupts],
         "query": (
             {
-                "active_intent_revision": query_run.active_intent_revision,
-                "intent_revisions": query_run.intent_revisions,
                 "planning_status": query_run.planning_status,
+                "agent_decision": query_run.agent_decision,
+                "hard_gate_report": query_run.hard_gate_report,
+                "plan_facts": query_run.plan_facts,
+                "risk_assessment": query_run.risk_assessment,
+                "semantic_reviews": query_run.semantic_reviews,
+                "repair_history": query_run.repair_history,
                 "execution_status": query_run.execution_status,
                 "quality": query_run.result_quality,
                 "plans": query_run.plans,

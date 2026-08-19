@@ -63,6 +63,7 @@ def _planner_dialect_rules(
 
         parts.append(
             f"用户未要求返回行上限时不要写入 LIMIT；展示窗口由服务端截断（上限 {ROW_LIMIT}）。"
+            "分组汇总可能超过该窗口时，必须按主指标 DESC 排序，不要依赖无序截断代表全量。"
         )
     else:
         parts.append("不要因为展示需要自行添加 LIMIT。")

@@ -36,7 +36,7 @@ class TerminologyInfo(BaseModel):
     specific_ds: Optional[bool] = False
     datasource_ids: Optional[list[int]] = []
     datasource_names: Optional[list[str]] = []
-    enabled: Optional[bool] = True
+    enabled: Optional[bool] = False
     advanced_application: Optional[int] = None
     advanced_application_name: Optional[str] = None
 

@@ -37,6 +37,7 @@ def _field(**kwargs: Any) -> SimpleNamespace:
         "field_name": "status",
         "field_type": "varchar",
         "custom_comment": "订单状态",
+        "field_index": 0,
     }
     defaults.update(kwargs)
     return SimpleNamespace(**defaults)
@@ -110,6 +111,35 @@ def test_prompt_skips_profile_bits_when_stale(monkeypatch: pytest.MonkeyPatch) -
     assert "null=" not in text
     assert "topk=" not in text
     assert "status:varchar" in text
+
+
+def test_prompt_orders_commented_fields_first() -> None:
+    fields = [
+        _field(
+            id=1, field_name="id", field_type="bigint", custom_comment="", field_index=0
+        ),
+        _field(
+            id=2,
+            field_name="company_name",
+            field_type="varchar",
+            custom_comment="原始供应商",
+            field_index=1,
+        ),
+    ]
+    prompt = render_table_schema_text(
+        _FakeSession(),
+        table=_table(profile_status="STALE"),
+        fields=fields,
+        purpose=SchemaTextPurpose.PROMPT,
+    )
+    rank = render_table_schema_text(
+        _FakeSession(),
+        table=_table(),
+        fields=fields,
+        purpose=SchemaTextPurpose.RANK,
+    )
+    assert prompt.index("company_name") < prompt.index("(id:bigint)")
+    assert rank.index("(id:bigint)") < rank.index("company_name")
 
 
 def test_select_by_similarity_threshold_and_fallbacks() -> None:

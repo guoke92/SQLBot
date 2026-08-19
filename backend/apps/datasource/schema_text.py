@@ -40,10 +40,9 @@ class SchemaTextPurpose(str, Enum):
 
 def profile_prompt_allowed(table: CoreTable) -> bool:
     """PROMPT may inject snapshot bits only for a published READY generation."""
-    return (
-        (table.profile_status or "") == ProfileStatus.READY.value
-        and int(table.active_profile_generation or 0) > 0
-    )
+    return (table.profile_status or "") == ProfileStatus.READY.value and int(
+        table.active_profile_generation or 0
+    ) > 0
 
 
 def render_table_schema_text(
@@ -91,7 +90,16 @@ def render_table_schema_text(
             profiles = {}
 
     field_lines: list[str] = []
-    for field in fields:
+    ordered_fields = list(fields)
+    if for_prompt:
+        ordered_fields.sort(
+            key=lambda field: (
+                0 if (getattr(field, "custom_comment", None) or "").strip() else 1,
+                int(getattr(field, "field_index", None) or 0),
+                str(getattr(field, "field_name", None) or ""),
+            )
+        )
+    for field in ordered_fields:
         bits = [f"{field.field_name}:{field.field_type}"]
         field_comment = (field.custom_comment or "").strip()
         if field_comment:

@@ -35,6 +35,8 @@ def _dataset_payload(datasets: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "fields": list(item.get("fields") or []),
             "row_count": item.get("row_count"),
             "truncated": bool(item.get("truncated")),
+            "limit": item.get("limit"),
+            "truncation_reason": item.get("truncation_reason"),
             "rows": [
                 dict(row)
                 for row in (item.get("rows") or [])[:200]
@@ -60,7 +62,7 @@ def run_turn_agent(
     if task_kind == "analysis":
         system = """你是 AI 智能问数的数据分析 Agent。
 只能根据提供的数据集回答当前问题，不得补造数据、执行 SQL 或改变查询口径。
-若数据被截断或来源不完整，必须明确说明限制。输出简洁的自然语言分析。"""
+若 truncated 为 true，数据只是展示窗口：必须先说明仅展示前 N 行，禁止把窗口内合计写成累计、总额或全量。输出简洁的自然语言分析。"""
         response_rule = "请直接给出分析结论。"
     else:
         system = """你是 AI 智能问数的预测 Agent。

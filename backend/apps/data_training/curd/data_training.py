@@ -167,6 +167,9 @@ def create_training(session: SessionDep, info: DataTrainingInfo, oid: int, trans
     if not info.description or not info.description.strip():
         raise Exception(trans("i18n_data_training.description_cannot_be_empty"))
 
+    if info.enabled:
+        raise Exception(trans("i18n_data_training.cannot_write_enabled_runtime"))
+
     create_time = datetime.datetime.now()
 
     # 检查数据源和高级应用不能同时为空
@@ -203,7 +206,7 @@ def create_training(session: SessionDep, info: DataTrainingInfo, oid: int, trans
         datasource=info.datasource,
         advanced_application=info.advanced_application,
         create_time=create_time,
-        enabled=info.enabled if info.enabled is not None else True,
+        enabled=False,
         training_type=info.training_type or "sql"
     )
 
@@ -375,7 +378,7 @@ def batch_create_training(session: SessionDep, info_list: list[DataTrainingInfo]
             datasource_name=info.datasource_name,
             advanced_application=advanced_application_id,
             advanced_application_name=info.advanced_application_name,
-            enabled=info.enabled if info.enabled is not None else True,
+            enabled=False,
             training_type=info.training_type or 'sql'
         )
 

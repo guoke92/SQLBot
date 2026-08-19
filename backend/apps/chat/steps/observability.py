@@ -16,7 +16,7 @@ from sqlmodel import Session
 
 from apps.chat.models.chat_model import ChatLog, OperationEnum
 from apps.conversation.observability import _end_log, _start_log
-from apps.conversation.session import session_scope
+from apps.conversation.session import audit_session
 
 SPAN_FLAG = "sqlbot_span"
 AUDIT_VERSION = 1
@@ -85,9 +85,7 @@ def sanitize_audit_value(value: Any, *, key: object | None = None) -> Any:
             value,
         )
         value = re.sub(r"(?<=\s)-p[^\s]+", "-p<redacted>", value)
-        value = re.sub(
-            r"(https?://[^:/\s]+:)[^@/\s]+@", r"\1<redacted>@", value
-        )
+        value = re.sub(r"(https?://[^:/\s]+:)[^@/\s]+@", r"\1<redacted>@", value)
         value = re.sub(
             r"(?i)(authorization\s*:\s*(?:bearer|basic)\s+)[^\s]+",
             r"\1<redacted>",
@@ -134,6 +132,36 @@ def _model_io(messages: Sequence[Any] | None) -> tuple[Any | None, Any | None]:
     return serialized, None
 
 
+def serialize_model_calls(
+    calls: Sequence[Mapping[str, Any]] | None,
+) -> list[dict[str, Any]]:
+    """Serialize every model exchange instead of collapsing retries together."""
+    result: list[dict[str, Any]] = []
+    for position, call in enumerate(calls or [], start=1):
+        messages = call.get("messages")
+        if isinstance(messages, Sequence) and not isinstance(
+            messages, str | bytes | bytearray
+        ):
+            input_value, output_value = _model_io(messages)
+        else:
+            input_value = sanitize_audit_value(call.get("input"))
+            output_value = sanitize_audit_value(call.get("output"))
+        item = {
+            "attempt": int(call.get("attempt") or position),
+            "status": str(call.get("status") or "completed"),
+            "elapsed_ms": int(call.get("elapsed_ms") or 0),
+            "usage": sanitize_audit_value(call.get("usage") or {}),
+            "purpose": str(call.get("purpose") or "model_call"),
+            "model_name": str(call.get("model_name") or ""),
+            "input": input_value,
+            "output": output_value,
+            "reasoning": sanitize_audit_value(call.get("reasoning") or ""),
+            "error": sanitize_audit_value(call.get("error") or ""),
+        }
+        result.append(item)
+    return result
+
+
 def make_span_message(
     *,
     phase: AuditPhase = "plan",
@@ -150,6 +178,7 @@ def make_span_message(
     payload: dict[str, Any] | None = None,
     input_value: Any | None = None,
     output_value: Any | None = None,
+    model_calls: Sequence[Mapping[str, Any]] | None = None,
     extra: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Build the only persisted, versioned audit envelope."""
@@ -168,11 +197,11 @@ def make_span_message(
         message["summary_key"] = summary_key
     if summary_params:
         message["summary_params"] = sanitize_audit_value(summary_params)
-    if step_index is not None:
+    if step_index:
         message["batch_index"] = int(step_index)
-    if gen_attempts is not None:
+    if gen_attempts:
         message["attempt_index"] = int(gen_attempts)
-    if unit_index is not None:
+    if unit_index:
         message["unit_index"] = int(unit_index)
     if brief:
         message["brief"] = brief
@@ -184,6 +213,8 @@ def make_span_message(
         message["input"] = sanitize_audit_value(input_value)
     if output_value is not None:
         message["output"] = sanitize_audit_value(output_value)
+    if model_calls:
+        message["model_calls"] = sanitize_audit_value(model_calls)
     for item_key, item_value in (extra or {}).items():
         if item_key not in message and item_value is not None:
             message[item_key] = sanitize_audit_value(item_value, key=item_key)
@@ -238,12 +269,14 @@ def project_audit_message(
         summary_params = {}
     input_value = (envelope or {}).get("input")
     output_value = (envelope or {}).get("output")
-    if input_value is None and output_value is None and (envelope or {}).get(
-        "model_messages"
+    if (
+        input_value is None
+        and output_value is None
+        and (envelope or {}).get("model_messages")
     ):
-        input_value, output_value = _model_io(
-            (envelope or {}).get("model_messages")
-        )
+        input_value, output_value = _model_io((envelope or {}).get("model_messages"))
+    detail = dict((envelope or {}).get("detail") or {})
+    model_calls = list((envelope or {}).get("model_calls") or [])
     return {
         "status": status,
         "phase": str((envelope or {}).get("phase") or "plan"),
@@ -255,9 +288,10 @@ def project_audit_message(
         "batch_index": (envelope or {}).get("batch_index"),
         "attempt_index": (envelope or {}).get("attempt_index"),
         "unit_index": (envelope or {}).get("unit_index"),
-        "detail": dict((envelope or {}).get("detail") or {}),
+        "detail": detail,
         "input": input_value,
         "output": output_value,
+        "model_calls": model_calls,
         "message": message if envelope is None else None,
     }
 
@@ -304,6 +338,9 @@ class AuditSpanHandle(dict[str, Any]):
         input_value, output_value = _model_io(messages)
         self["input"] = input_value
         self["output"] = output_value
+
+    def set_model_calls(self, calls: Sequence[Mapping[str, Any]]) -> None:
+        self["model_calls"] = serialize_model_calls(calls)
 
     def set_input_messages(self, messages: Sequence[Any]) -> None:
         self["input"] = serialize_model_messages(messages) or None
@@ -373,6 +410,7 @@ def log_span(
         reasoning_content=None,
         input=None,
         output=None,
+        model_calls=[],
         summary_key=initial_summary_key,
         summary_params=dict(initial_summary_params or {}),
         local_operation=local_operation,
@@ -400,7 +438,7 @@ def log_span(
     }
     log: ChatLog | None = None
     try:
-        with session_scope() as session:
+        with audit_session() as session:
             log = _start_log(
                 session=session,
                 ai_modal_id=ai_modal_id,
@@ -427,16 +465,15 @@ def log_span(
                     payload=span.get("payload") or None,
                     input_value=span.get("input"),
                     output_value=span.get("output"),
+                    model_calls=span.get("model_calls") or None,
                 )
-                with session_scope() as progress_session:
+                with audit_session() as progress_session:
                     progress_session.execute(
                         update(ChatLog)
                         .where(ChatLog.id == log.id, ChatLog.finish_time.is_(None))
                         .values(
                             messages=progress_message,
-                            reasoning_content=(
-                                span.get("reasoning_content") or None
-                            ),
+                            reasoning_content=(span.get("reasoning_content") or None),
                             token_usage=span.get("token_usage") or {},
                         )
                     )
@@ -477,8 +514,9 @@ def log_span(
                     payload=span.get("payload") or None,
                     input_value=span.get("input"),
                     output_value=span.get("output"),
+                    model_calls=span.get("model_calls") or None,
                 )
-                with session_scope() as session:
+                with audit_session() as session:
                     final_local = bool(span.get("local_operation", local_operation))
                     if final_local != local_operation:
                         session.execute(

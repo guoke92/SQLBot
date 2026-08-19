@@ -1,248 +1,447 @@
-"""Knowledge Compile — sole apply gate for NLQ knowledge."""
+"""Compile active semantic knowledge into the sole Query Agent knowledge bundle."""
 
 from __future__ import annotations
 
-from typing import Any
+from collections.abc import Mapping, Sequence
+from typing import Any, Literal
 
-from sqlalchemy import or_
-from sqlmodel import Session, select
+from sqlmodel import Session, col, select
 
-from apps.knowledge.compile.bundle import (
-    ApplyHit,
-    BoundCaliber,
-    CompiledKnowledge,
-    CompileStage,
+from apps.knowledge.compile.bundle import ApplyHit, BusinessDataBundle, CompileStage
+from apps.knowledge.db_models import (
+    KnowledgeBinding,
+    KnowledgeDeployment,
+    KnowledgeUnit,
+    KnowledgeUnitRevision,
 )
-from apps.knowledge.db_models import KnowledgeAsset
 from apps.knowledge.models import KnowledgeBundle
 from apps.knowledge.policy import KnowledgePolicy, get_knowledge_policy
+from apps.knowledge.providers import DictionaryProvider
+from apps.knowledge.semantic.schema import KnowledgeUnitEntry
 from apps.knowledge.service import recall_knowledge
+from apps.terminology.curd.terminology import select_terminology_by_word
+
+SeedPolicy = Literal["none", "reuse", "fallback"]
+
+_STATE_TOKENS = (
+    "状态",
+    "阶段",
+    "审核",
+    "通过",
+    "失败",
+    "成功",
+    "待",
+    "中",
+    "完成",
+    "提交",
+    "建档",
+    "生效",
+    "驳回",
+)
+
+_UnitHit = tuple[
+    KnowledgeUnit, KnowledgeUnitRevision, KnowledgeUnitEntry, dict[str, Any]
+]
 
 
-def compile_knowledge_for_turn(
+def _normalise(value: str) -> str:
+    return "".join(value.casefold().split())
+
+
+def _intersects(question: str, *values: str) -> bool:
+    needle = _normalise(question)
+    return any(
+        (normalised := _normalise(value)) and normalised in needle
+        for value in values
+        if value
+    )
+
+
+def _relevance(question: str, entry: KnowledgeUnitEntry) -> int:
+    names = [entry.title, *entry.aliases]
+    names.extend(item.name for item in entry.content.concepts)
+    names.extend(alias for item in entry.content.concepts for alias in item.aliases)
+    return sum(
+        1
+        for name in names
+        if (normalised := _normalise(name)) and normalised in _normalise(question)
+    )
+
+
+def unit_seed_policy(relation: str) -> SeedPolicy:
+    """Turn relation → how referenced revisions seed this compile."""
+    if relation == "revise":
+        return "reuse"
+    if relation == "continue":
+        return "fallback"
+    return "none"
+
+
+def matched_revision_ids(knowledge: Mapping[str, Any] | None) -> list[int]:
+    ids: list[int] = []
+    for item in (knowledge or {}).get("matched_units") or []:
+        if not isinstance(item, dict):
+            continue
+        raw = item.get("revision_id")
+        try:
+            revision_id = int(raw)
+        except (TypeError, ValueError):
+            continue
+        if revision_id > 0 and revision_id not in ids:
+            ids.append(revision_id)
+    return ids
+
+
+def seed_revisions_for_turn(
+    relation: str,
+    referenced_turns: Sequence[Mapping[str, Any]] | None = None,
+) -> tuple[list[int], SeedPolicy]:
+    policy = unit_seed_policy(relation)
+    if policy == "none":
+        return [], policy
+    ids: list[int] = []
+    for turn in referenced_turns or []:
+        for raw in turn.get("revision_ids") or []:
+            try:
+                revision_id = int(raw)
+            except (TypeError, ValueError):
+                continue
+            if revision_id > 0 and revision_id not in ids:
+                ids.append(revision_id)
+    return ids, policy
+
+
+def _mapping_table_names(
+    mapping: Mapping[str, Any],
+    entry: KnowledgeUnitEntry,
+) -> list[str]:
+    names: list[str] = []
+    datasets = (
+        mapping.get("datasets") if isinstance(mapping.get("datasets"), dict) else {}
+    )
+    for dataset in entry.content.datasets:
+        mapped = (
+            datasets.get(dataset.dataset_id) if isinstance(datasets, dict) else None
+        )
+        name = ""
+        if isinstance(mapped, dict):
+            name = str(mapped.get("table_name") or "").strip()
+        if not name:
+            name = dataset.name.strip()
+        if name and name not in names:
+            names.append(name)
+    return names
+
+
+def _semantic_unit_matches(
+    session: Session,
+    *,
+    question: str,
+    oid: int,
+    datasource_id: int | None,
+) -> dict[int, float]:
+    """Resolve terminology hits to their active unit revisions."""
+    terms = select_terminology_by_word(
+        session,
+        question,
+        oid,
+        datasource_id,
+    )
+    matches: dict[int, float] = {}
+    for term in terms:
+        meta = term.get("knowledge_meta")
+        if not isinstance(meta, dict):
+            continue
+        revision_id = meta.get("unit_revision_id")
+        if not isinstance(revision_id, int):
+            continue
+        matches[revision_id] = max(
+            matches.get(revision_id, 0.0),
+            float(term.get("score") or 0.0),
+        )
+    return matches
+
+
+def _active_units(
+    session: Session,
+    *,
+    oid: int,
+    datasource_id: int | None,
+    question: str,
+    semantic_matches: dict[int, float] | None = None,
+    seed_revision_ids: Sequence[int] = (),
+    seed_policy: SeedPolicy = "none",
+    limit: int = 2,
+) -> list[_UnitHit]:
+    statement = (
+        select(
+            KnowledgeUnit, KnowledgeUnitRevision, KnowledgeDeployment, KnowledgeBinding
+        )
+        .join(
+            KnowledgeUnitRevision,
+            KnowledgeUnitRevision.id == KnowledgeUnit.active_revision_id,
+        )
+        .join(
+            KnowledgeDeployment,
+            KnowledgeDeployment.revision_id == KnowledgeUnitRevision.id,
+        )
+        .join(KnowledgeBinding, KnowledgeBinding.id == KnowledgeDeployment.binding_id)
+        .where(
+            KnowledgeUnit.oid == oid,
+            KnowledgeUnitRevision.lifecycle_status == "PUBLISHED",
+            KnowledgeDeployment.status == "ACTIVE",
+            col(KnowledgeBinding.status).in_(["BOUND", "STALE"]),
+        )
+    )
+    if datasource_id is not None:
+        statement = statement.where(KnowledgeBinding.datasource_id == datasource_id)
+    semantic_matches = semantic_matches or {}
+    catalog: dict[int, _UnitHit] = {}
+    ranked: list[tuple[tuple[int, float, str], _UnitHit]] = []
+    for unit, revision, _deployment, binding in session.exec(statement).all():
+        entry = KnowledgeUnitEntry.model_validate(revision.content)
+        mapping = dict(binding.mapping or {})
+        revision_id = int(revision.id or 0)
+        hit: _UnitHit = (unit, revision, entry, mapping)
+        if revision_id > 0:
+            catalog[revision_id] = hit
+        exact = _relevance(question, entry)
+        semantic = semantic_matches.get(revision_id, 0.0)
+        if exact == 0 and semantic == 0.0:
+            continue
+        ranked.append(((exact, semantic, unit.unit_key), hit))
+    ranked.sort(key=lambda item: (-item[0][0], -item[0][1], item[0][2]))
+    question_hits = [hit for _score, hit in ranked[:limit]]
+
+    def from_seeds() -> list[_UnitHit]:
+        selected: list[_UnitHit] = []
+        for raw in seed_revision_ids:
+            try:
+                revision_id = int(raw)
+            except (TypeError, ValueError):
+                continue
+            hit = catalog.get(revision_id)
+            if hit is None or hit in selected:
+                continue
+            selected.append(hit)
+            if len(selected) >= limit:
+                break
+        return selected
+
+    if seed_policy == "reuse":
+        seeded = from_seeds()
+        if seeded:
+            return seeded
+    if question_hits:
+        return question_hits
+    if seed_policy in {"reuse", "fallback"}:
+        return from_seeds()
+    return []
+
+
+def _include_process(question: str, entry: KnowledgeUnitEntry) -> bool:
+    if any(token in question for token in _STATE_TOKENS):
+        return True
+    return any(
+        _intersects(question, process.name, process.stage_id, process.description)
+        for process in entry.content.processes
+    )
+
+
+def compile_business_data_bundle(
     session: Session,
     *,
     stage: CompileStage,
     question: str,
     oid: int,
     ds_id: int | None,
-    advanced_application_id: int | None = None,
     policy: KnowledgePolicy | dict[str, Any] | None = None,
     include_matches: bool = True,
-    include_calibers: bool = True,
     include_examples: bool = False,
-    training_type: str | None = None,
-) -> CompiledKnowledge:
-    """Assemble a CompiledKnowledge for the given NLQ stage.
+    seed_revision_ids: Sequence[int] = (),
+    seed_policy: SeedPolicy = "none",
+) -> BusinessDataBundle:
+    """Expand at most two active units. Draft/staging knowledge never enters NLQ.
 
-    Phase A: Term + Dict via recall_knowledge (behavior-preserving).
-    Phase B+: strongly applicable certified Caliber candidates. The semantic
-    planner records Bind only after the final specification absorbs them.
-    Phase C+: examples + budgets.
-
-    ``include_matches=False`` skips the Term/Dict recall (with its embedding
-    lookups) for callers that already compiled it earlier in the same turn.
+    Once a unit is selected, datasets/fields/relationships/calibers/metrics/rules
+    are floor slots. Processes follow the question; verified examples stay
+    mapping-gated and capped.
     """
     resolved = (
         policy if isinstance(policy, KnowledgePolicy) else get_knowledge_policy(policy)
     )
-    budgets = resolved.compile_budgets
-
-    if include_matches:
-        base = recall_knowledge(
+    base = (
+        recall_knowledge(
             session,
             question=question,
             oid=oid,
             ds_id=ds_id,
-            advanced_application_id=advanced_application_id,
+            providers=(DictionaryProvider(),),
         )
-    else:
-        base = KnowledgeBundle()
-    apply_log: list[ApplyHit] = []
-    for match in base.matches:
-        if "entity_binding" in match.usages:
-            apply_log.append(
-                ApplyHit(
-                    asset_kind="dictionary",
-                    asset_id=None,
-                    trust_tier="trusted",
-                    apply="bind",
-                    reason="entity_binding",
-                    meta={"query": match.query, "canonical": match.canonical},
-                )
+        if include_matches
+        else KnowledgeBundle()
+    )
+    apply_log = [
+        ApplyHit(
+            asset_kind="dictionary",
+            apply="bind",
+            trust_tier="trusted",
+            reason="published_dictionary_binding",
+            meta={"query": match.query, "canonical": match.canonical},
+        )
+        for match in base.matches
+        if "entity_binding" in match.usages
+    ]
+    bundle = BusinessDataBundle(
+        stage=stage,
+        matches=base.matches,
+        log_items=base.log_items,
+        apply_log=apply_log,
+        structural_ref={"channel": "active_knowledge_units", "ds_id": ds_id},
+    )
+    semantic_matches = _semantic_unit_matches(
+        session,
+        question=question,
+        oid=oid,
+        datasource_id=ds_id,
+    )
+    seen_datasets: set[str] = set()
+    seen_fields: set[str] = set()
+    seen_calibers: set[str] = set()
+    bound_resources: list[str] = []
+    for unit, revision, entry, mapping in _active_units(
+        session,
+        oid=oid,
+        datasource_id=ds_id,
+        question=question,
+        semantic_matches=semantic_matches,
+        seed_revision_ids=seed_revision_ids,
+        seed_policy=seed_policy,
+    ):
+        revision_id = int(revision.id or 0)
+        bundle.matched_units.append(
+            {
+                "unit_id": int(unit.id or 0),
+                "unit_key": unit.unit_key,
+                "revision_id": revision_id,
+                "revision": revision.revision,
+                "title": entry.title,
+                "domain": entry.domain,
+                "description": entry.description,
+                "applicability": entry.applicability,
+                "confidence": entry.confidence,
+            }
+        )
+        for table_name in _mapping_table_names(mapping, entry):
+            if table_name not in bound_resources:
+                bound_resources.append(table_name)
+        bundle.concepts.extend(
+            item.model_dump(mode="json") for item in entry.content.concepts
+        )
+        if _include_process(question, entry):
+            bundle.scenarios.extend(
+                item.model_dump(mode="json") for item in entry.content.processes
             )
-        if "prompt" in match.usages:
-            apply_log.append(
-                ApplyHit(
-                    asset_kind="terminology",
-                    asset_id=None,
-                    trust_tier="published",
-                    apply="constrain",
-                    reason="terminology_prompt",
-                    meta={"query": match.query, "canonical": match.canonical},
-                )
-            )
-
-    bound_calibers: list[BoundCaliber] = []
-    constraints: list[dict[str, Any]] = []
-    if include_calibers and ds_id is not None and advanced_application_id is None:
-        from apps.knowledge.retrieval.caliber_provider import (
-            recall_bindable_calibers,
-            recall_staging_calibers,
-        )
-
-        candidates = recall_bindable_calibers(
-            session,
-            oid=oid,
-            ds_id=ds_id,
-            question=question,
-        )
-        for item in candidates:
-            if item.apply == "bind" and item.bound is not None:
-                bound_calibers.append(item.bound)
-            else:
-                apply_log.append(
-                    ApplyHit(
-                        asset_kind="caliber",
-                        asset_id=item.asset_id,
-                        lineage_id=item.lineage_id,
-                        trust_tier=item.trust_tier,
-                        apply="drop",
-                        reason=item.drop_reason or "policy_drop",
-                    )
-                )
-        for item in recall_staging_calibers(session, oid=oid, ds_id=ds_id):
-            label = item.label or ""
-            content = item.summary or label
-            if label or content:
-                constraints.append(
+            for process in entry.content.processes:
+                bundle.data_effects.extend(
                     {
-                        "id": item.staging_id,
-                        "lineage_id": item.lineage_id,
-                        "label": label,
-                        "content": content,
+                        **effect.model_dump(mode="json"),
+                        "stage_id": process.stage_id,
+                        "unit_revision_id": revision_id,
                     }
+                    for effect in process.data_effects
                 )
-            apply_log.append(
-                ApplyHit(
-                    asset_kind="caliber",
-                    asset_id=None,
-                    lineage_id=item.lineage_id,
-                    trust_tier=item.trust_tier,
-                    apply="constrain",
-                    reason="staging_caliber_hint",
-                    meta={"staging_id": item.staging_id, "label": label},
+        for dataset in entry.content.datasets:
+            if dataset.dataset_id not in seen_datasets:
+                seen_datasets.add(dataset.dataset_id)
+                bundle.datasets.append(dataset.model_dump(mode="json"))
+            for field in dataset.fields:
+                field_key = f"{dataset.dataset_id}.{field.field_id}"
+                if field_key in seen_fields:
+                    continue
+                seen_fields.add(field_key)
+                bundle.fields.append(
+                    {**field.model_dump(mode="json"), "dataset_id": dataset.dataset_id}
                 )
-            )
-
-    # ── K5 rules: workspace/datasource-scoped business constraints ──
-    # Skipped alongside matches: the planner reads constraints from the
-    # assess-stage compile; re-querying at generate would only duplicate hits.
-    if include_matches:
-        rule_stmt = (
-            select(KnowledgeAsset)
-            .where(KnowledgeAsset.kind == "rule")
-            .where(KnowledgeAsset.enabled.is_(True))  # type: ignore[attr-defined]
-            .where(KnowledgeAsset.valid_to.is_(None))  # type: ignore[attr-defined]
-            .where(KnowledgeAsset.oid == oid)
-            .where(
-                KnowledgeAsset.trust_tier.in_(  # type: ignore[attr-defined]
-                    ["published", "trusted", "certified"]
-                )
-            )
+        bundle.relationships.extend(
+            item.model_dump(mode="json") for item in entry.content.relationships
         )
-        if ds_id is not None:
-            rule_stmt = rule_stmt.where(
-                or_(
-                    KnowledgeAsset.datasource_id == ds_id,
-                    KnowledgeAsset.datasource_id.is_(None),  # type: ignore[attr-defined]
-                )
-            )
-        else:
-            rule_stmt = rule_stmt.where(
-                KnowledgeAsset.datasource_id.is_(None)  # type: ignore[attr-defined]
-            )
-        for rule in session.exec(rule_stmt).all():
-            constraints.append(
-                {
-                    "id": rule.id,
-                    "lineage_id": rule.lineage_id,
-                    "label": rule.label,
-                    "content": (rule.payload or {}).get("content", ""),
-                }
-            )
-            apply_log.append(
-                ApplyHit(
-                    asset_kind="rule",
-                    asset_id=rule.id,
-                    lineage_id=rule.lineage_id,
-                    trust_tier=rule.trust_tier,
-                    apply="constrain",
-                    reason="k5_rule",
-                )
-            )
-
-    examples: list[dict[str, Any]] = []
-    if include_examples and stage == "generate":
-        from apps.knowledge.retrieval.example_provider import recall_examples
-
-        raw_examples = recall_examples(
-            session,
-            question=question,
-            oid=oid,
-            ds_id=ds_id,
-            advanced_application_id=advanced_application_id,
-            training_type=training_type,
+        bundle.metrics.extend(
+            item.model_dump(mode="json") for item in entry.content.metrics
         )
-        limit = budgets.generate_examples
-        for idx, example in enumerate(raw_examples):
-            if idx >= limit:
-                apply_log.append(
-                    ApplyHit(
-                        asset_kind="example",
-                        asset_id=example.get("id"),
-                        trust_tier=example.get("trust_tier"),
-                        apply="drop",
-                        reason=f"{stage}_example_budget",
-                    )
-                )
+        for caliber in entry.content.calibers:
+            if caliber.caliber_id in seen_calibers:
                 continue
-            examples.append(example)
-            apply_log.append(
-                ApplyHit(
-                    asset_kind="example",
-                    asset_id=example.get("id"),
-                    lineage_id=(example.get("knowledge_meta") or {}).get("lineage_id"),
-                    trust_tier=example.get("trust_tier") or "published",
-                    apply="exemplify",
-                    reason="training_example",
-                )
+            seen_calibers.add(caliber.caliber_id)
+            bundle.calibers.append(caliber.model_dump(mode="json"))
+        bundle.rules.extend(
+            item.model_dump(mode="json") for item in entry.content.domain_rules
+        )
+        if include_examples or stage == "generate":
+            passed = mapping.get("verified_query_patterns") or {}
+            selected = [
+                item
+                for item in entry.content.verified_query_patterns
+                if isinstance(passed.get(item.pattern_id), dict)
+                and passed[item.pattern_id].get("passed")
+            ][:2]
+            bundle.verified_examples.extend(
+                {
+                    "id": item.pattern_id,
+                    "question": item.question,
+                    "sql": item.query,
+                    "description": item.query,
+                    "trust_tier": "published",
+                    "knowledge_meta": {"unit_revision_id": revision_id},
+                }
+                for item in selected
             )
-
-    # ── K4 VQR: attempt reuse from certified exemplars ──
-    reuse_payload: dict[str, Any] | None = None
-    if stage == "generate" and examples and ds_id is not None:
+        bundle.assumptions.extend(entry.assumptions)
+        bundle.ambiguities.extend(entry.conflicts)
+        bundle.apply_log.append(
+            ApplyHit(
+                asset_kind="knowledge_unit",
+                asset_id=revision_id,
+                lineage_id=unit.unit_key,
+                trust_tier="published",
+                apply="constrain",
+                reason="active_unit_expanded",
+            )
+        )
+    bundle.bound_resources = bound_resources
+    if stage == "generate" and bundle.verified_examples and ds_id is not None:
         from apps.knowledge.reuse import try_reuse
 
-        reuse_result = try_reuse(
-            question=question,
-            examples=examples,
-            policy=resolved,
+        reuse = try_reuse(
+            question=question, examples=bundle.verified_examples, policy=resolved
         )
-        if reuse_result is not None:
-            reuse_payload = reuse_result.model_dump(mode="json")
-            # Compile discovers a candidate only. Reuse becomes an applied fact
-            # after the shared plan validator accepts it.
+        if reuse is not None:
+            bundle.reuse = reuse.model_dump(mode="json")
+    return bundle
 
-    return CompiledKnowledge(
-        stage=stage,
-        prompt_template=base.prompt_template,
-        log_items=base.log_items,
-        matches=base.matches,
-        bound_calibers=bound_calibers,
-        examples=examples,
-        constraints=constraints,
-        structural_ref={"channel": "catalog_prompt", "ds_id": ds_id},
-        reuse=reuse_payload,
-        apply_log=apply_log,
+
+def knowledge_prompt_payload(bundle: BusinessDataBundle) -> dict[str, Any]:
+    """Compact Query Agent knowledge slots. Keys match the prompt contract."""
+    payload: dict[str, Any] = {}
+    mapping = (
+        ("matched_units", "matched_units"),
+        ("concepts", "concepts"),
+        ("scenarios", "processes"),
+        ("data_effects", "data_effects"),
+        ("datasets", "datasets"),
+        ("fields", "fields"),
+        ("relationships", "relationships"),
+        ("metrics", "metrics"),
+        ("calibers", "calibers"),
+        ("rules", "rules"),
+        ("verified_examples", "verified_examples"),
+        ("ambiguities", "conflicts"),
+        ("assumptions", "assumptions"),
     )
+    for source, target in mapping:
+        value = getattr(bundle, source)
+        if value:
+            payload[target] = value
+    if bundle.reuse:
+        payload["reuse"] = bundle.reuse
+    return payload

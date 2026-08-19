@@ -28,6 +28,7 @@ from apps.chat.models.chat_model import (
 from apps.chat.result_data import format_json_data
 from apps.chat.steps.observability import project_audit_message
 from apps.conversation.models import ConversationInterrupt, ConversationRun
+from apps.conversation.run_service import serialize_interrupt
 from apps.datasource.crud.datasource import get_ds
 from apps.datasource.crud.recommended_problem import get_datasource_recommended_chart
 from apps.datasource.models.datasource import CoreDatasource
@@ -265,7 +266,9 @@ def get_last_execute_sql_error(session: SessionDep, chart_id: int):
     return None
 
 
-def get_chat_chart_config(session: SessionDep, chat_record_id: int):
+def get_chat_chart_config(
+    session: SessionDep, chat_record_id: int, step_index: int = 0
+):
     stmt = select(ChatRecord.answer, ChatRecord.chart).where(
         and_(ChatRecord.id == chat_record_id)
     )
@@ -275,8 +278,11 @@ def get_chat_chart_config(session: SessionDep, chat_record_id: int):
             datasets = (
                 row.answer.get("datasets") or row.answer.get("source_datasets") or []
             )
-            if datasets and isinstance(datasets[0], dict):
-                return datasets[0].get("chart") or {}
+            if datasets:
+                index = step_index if 0 <= step_index < len(datasets) else 0
+                item = datasets[index]
+                if isinstance(item, dict) and isinstance(item.get("chart"), dict):
+                    return item.get("chart") or {}
         try:
             return orjson.loads(row.chart)
         except Exception:
@@ -709,27 +715,10 @@ def get_chat_with_records(
             run_started_at=run.started_at if run else None,
             run_completed_at=run.completed_at if run else None,
             active_interrupt=(
-                {
-                    "interrupt_id": active_interrupt.interrupt_id,
-                    "version": active_interrupt.version,
-                    "status": active_interrupt.status,
-                    "payload": active_interrupt.payload,
-                    "answers": active_interrupt.answers,
-                }
-                if active_interrupt
-                else None
+                serialize_interrupt(active_interrupt) if active_interrupt else None
             ),
             interrupts=(
-                [
-                    {
-                        "interrupt_id": item.interrupt_id,
-                        "version": item.version,
-                        "status": item.status,
-                        "payload": item.payload,
-                        "answers": item.answers,
-                    }
-                    for item in interrupts_by_run.get(run.run_id, [])
-                ]
+                [serialize_interrupt(item) for item in interrupts_by_run.get(run.run_id, [])]
                 if run
                 else []
             ),
@@ -1011,6 +1000,7 @@ def get_chat_log_history(
                 detail=projection["detail"],
                 input=projection["input"],
                 output=projection["output"],
+                model_calls=projection["model_calls"],
                 reasoning_content=log.reasoning_content,
                 message=projection["message"],
             )

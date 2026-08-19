@@ -127,6 +127,8 @@ def project_turn_answer(value: Mapping[str, Any]) -> AnswerPayload:
                 "data": list(item.get("rows") or []),
                 "row_count": item.get("row_count"),
                 "truncated": bool(item.get("truncated")),
+                "limit": item.get("limit"),
+                "truncation_reason": item.get("truncation_reason"),
             },
         }
         if isinstance(item.get("presentation"), Mapping):

@@ -16,6 +16,17 @@ generator:
     profiled_at: '2026-08-14'
     readonly: true
 defaults: {}
+target:
+  database_name: lowcode_pplatform
+  required_tables:
+    - cust_company_info
+    - cust_build_record
+    - cust_project_rel
+    - tenant_project
+    - tenant_product
+    - platform_product
+    - tenant_setting
+    - client_api_sync_error
 sources:
   - source_id: CODE-CUST-QUERY
     kind: mapper

@@ -230,8 +230,7 @@ export const useConversationTurn = (options: UseChatStreamOptions = {}) => {
     record: ChatRecord,
     pending: ConversationInterrupt,
     answers: ResumeAnswer[],
-    handlers: ConversationTurnHandlers = {},
-    proceedWithAssumptions = false
+    handlers: ConversationTurnHandlers = {}
   ) => {
     if (!record.run_id) throw new Error('Conversation run is missing')
     const runId = record.run_id
@@ -251,7 +250,6 @@ export const useConversationTurn = (options: UseChatStreamOptions = {}) => {
           version: pending.version,
           idempotency_key: crypto.randomUUID(),
           answers,
-          proceed_with_assumptions: proceedWithAssumptions,
         })
         const snapshot = ((response as any)?.data || response) as ConversationRunSnapshot
         await observe(snapshot, record, handlers, previousCursor)

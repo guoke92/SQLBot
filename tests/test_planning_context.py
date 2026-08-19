@@ -13,13 +13,10 @@ if str(_BACKEND) not in sys.path:
 
 from apps.chat.planning_context import (  # noqa: E402
     capture_planning_context,
+    execution_schema_resources,
     restore_planning_context,
 )
-from apps.knowledge.compile.bundle import (  # noqa: E402
-    ApplyHit,
-    BoundCaliber,
-    CompiledKnowledge,
-)
+from apps.knowledge.compile.bundle import ApplyHit, BusinessDataBundle  # noqa: E402
 from apps.knowledge.models import KnowledgeMatch  # noqa: E402
 from apps.knowledge.policy import CompileBudgets, get_knowledge_policy  # noqa: E402
 
@@ -71,9 +68,8 @@ def test_empty_planning_context_cannot_reach_planner() -> None:
 
 def test_planning_context_omits_matches_and_log_items() -> None:
     source = _service()
-    source.compiled_knowledge = CompiledKnowledge(
+    source.compiled_knowledge = BusinessDataBundle(
         stage="generate",
-        prompt_template="terms-bag",
         log_items=[{"words": ["x"]}],
         matches=[
             KnowledgeMatch(
@@ -85,16 +81,17 @@ def test_planning_context_omits_matches_and_log_items() -> None:
                 score=1.0,
             )
         ],
-        bound_calibers=[
-            BoundCaliber(
-                caliber_id=7,
-                lineage_id="lineage-7",
-                label="done",
-                fragment={"requirements": []},
-            )
+        calibers=[
+            {
+                "caliber_id": "done",
+                "label": "done",
+                "contract_fragment": {"requirements": []},
+            }
         ],
-        constraints=[{"label": "rule", "content": "keep"}],
-        examples=[{"id": 1, "question": "q", "sql": "SELECT 1"}],
+        rules=[{"label": "rule", "content": "keep"}],
+        scenarios=[{"stage_id": "approved", "name": "审核通过"}],
+        ambiguities=[{"topic": "建档成功时间", "summary": "不能用 create_time"}],
+        verified_examples=[{"id": 1, "question": "q", "sql": "SELECT 1"}],
         reuse={"exemplar_id": 9},
         apply_log=[
             ApplyHit(
@@ -113,18 +110,25 @@ def test_planning_context_omits_matches_and_log_items() -> None:
     dumped = snapshot.compiled_knowledge
     assert "matches" not in dumped
     assert "log_items" not in dumped
-    assert dumped["bound_calibers"][0]["caliber_id"] == 7
-    assert dumped["constraints"][0]["label"] == "rule"
+    assert "bound_calibers" not in dumped
+    assert "apply_log" not in dumped
+    assert dumped["calibers"][0]["caliber_id"] == "done"
+    assert dumped["rules"][0]["label"] == "rule"
+    assert dumped["processes"][0]["stage_id"] == "approved"
+    assert dumped["conflicts"][0]["topic"] == "建档成功时间"
+    assert "scenarios" not in dumped
+    assert "ambiguities" not in dumped
     assert dumped["reuse"]["exemplar_id"] == 9
-    assert dumped["apply_log"][0]["reason"] == "staging_caliber_hint"
 
     restored = _service("")
     restore_planning_context(restored, snapshot.model_dump(mode="json"))
     compiled = restored.compiled_knowledge
-    assert isinstance(compiled, CompiledKnowledge)
+    assert isinstance(compiled, BusinessDataBundle)
     assert compiled.matches == []
-    assert compiled.bound_calibers[0].caliber_id == 7
-    assert compiled.constraints[0]["label"] == "rule"
+    assert compiled.calibers[0]["caliber_id"] == "done"
+    assert compiled.rules[0]["label"] == "rule"
+    assert compiled.scenarios[0]["stage_id"] == "approved"
+    assert compiled.ambiguities[0]["topic"] == "建档成功时间"
 
 
 def test_compile_budgets_have_no_repair_hints() -> None:
@@ -133,3 +137,13 @@ def test_compile_budgets_have_no_repair_hints() -> None:
     assert not hasattr(budgets, "repair_hints")
     policy = get_knowledge_policy({"compile_budgets": {"repair_hints": 9}})
     assert not hasattr(policy.compile_budgets, "repair_hints")
+
+
+def test_execution_schema_keeps_planned_projection() -> None:
+    resources = execution_schema_resources(
+        ["cust_company_info", "cust_build_record"],
+        [{"tables": ["cust_company_info"]}],
+    )
+    assert resources == ["cust_company_info", "cust_build_record"]
+    assert execution_schema_resources([], [{"tables": ["orders"]}]) == ["orders"]
+    assert execution_schema_resources([], [{}]) is None

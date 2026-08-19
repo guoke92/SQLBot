@@ -1,8 +1,8 @@
 """Build a self-contained debug dump for one chat conversation.
 
 Goal: enough local artifacts to reproduce and locate failures without
-re-running the live turn — records, TurnAnswerV1/outcome, QueryIntent,
-full chat_log spans, and datasource schema (secrets redacted).
+re-running the live turn — records, TurnAnswerV1/outcome, query decisions,
+plan facts/risk/reviews, full chat_log spans, and redacted datasource schema.
 """
 
 from __future__ import annotations
@@ -190,21 +190,6 @@ def _build_timeline(log_history: Any) -> list[dict[str, Any]]:
         }
         timeline.append(entry)
     return timeline
-
-
-def _intent_summary(revision: Any) -> dict[str, Any] | None:
-    if not isinstance(revision, dict) or not revision:
-        return None
-    intent = revision.get("intent") if isinstance(revision.get("intent"), dict) else {}
-    return {
-        "version": intent.get("version"),
-        "revision": revision.get("revision"),
-        "status": revision.get("status"),
-        "execution_mode": revision.get("execution_mode"),
-        "confidence": intent.get("confidence"),
-        "assumption_count": len(intent.get("assumptions") or []),
-        "dataset_count": len(intent.get("datasets") or []),
-    }
 
 
 def _outcome_summary(payload: Any) -> dict[str, Any] | None:
@@ -499,11 +484,7 @@ def build_chat_debug_bundle(
 
         record_runs = runs_by_record.get(int(record.id), [])
         run = next(
-            (
-                item
-                for item in record_runs
-                if item.run_id == record.active_run_id
-            ),
+            (item for item in record_runs if item.run_id == record.active_run_id),
             record_runs[-1] if record_runs else None,
         )
         nlq_run = (
@@ -511,13 +492,7 @@ def build_chat_debug_bundle(
             if run and run.graph_key == "chat"
             else None
         )
-        intent_revision = (
-            nlq_run.intent_revisions[-1]
-            if nlq_run and nlq_run.intent_revisions
-            else None
-        )
         outcome = _outcome_summary(payload)
-        intent = _intent_summary(intent_revision)
         run_events = (
             [
                 item.model_dump(mode="json")
@@ -637,13 +612,15 @@ def build_chat_debug_bundle(
                 "ai_modal_id": record.ai_modal_id,
                 "re_exec": _json_load_maybe(record.re_exec),
                 "run": run.model_dump(mode="json") if run else None,
-                "run_attempts": [
-                    item.model_dump(mode="json") for item in record_runs
-                ],
+                "run_attempts": [item.model_dump(mode="json") for item in record_runs],
                 "run_events": run_events,
                 "interrupts": interrupts,
-                "query_intent_revision": intent_revision,
-                "intent_summary": intent,
+                "query_agent_decision": nlq_run.agent_decision if nlq_run else {},
+                "hard_gate_report": nlq_run.hard_gate_report if nlq_run else {},
+                "plan_facts": nlq_run.plan_facts if nlq_run else [],
+                "risk_assessment": nlq_run.risk_assessment if nlq_run else {},
+                "semantic_reviews": nlq_run.semantic_reviews if nlq_run else [],
+                "repair_history": nlq_run.repair_history if nlq_run else [],
                 "planning_context": (
                     {
                         "version": (nlq_run.planning_context or {}).get("version"),

@@ -22,34 +22,38 @@ class ApplyHit(BaseModel):
     meta: dict[str, Any] = Field(default_factory=dict)
 
 
-class BoundCaliber(BaseModel):
-    """A certified candidate available for deterministic intent defaulting.
+class BusinessDataBundle(BaseModel):
+    """Single runtime knowledge contract consumed by the Query Agent.
 
-    Presence in this collection is recall, not proof that the asset was
-    applied. Only ``CompiledKnowledge.apply_log`` records the final decision.
+    Semantic slots expand from active knowledge-unit revisions. Dictionary
+    matches stay on this object for entity binding; ``bound_resources`` is the
+    schema projection, not a prompt slot.
     """
 
-    caliber_id: int
-    lineage_id: str
-    label: str
-    fragment: dict[str, Any]
-    field_targets: list[Any] = Field(default_factory=list)
-    trust_tier: str = "certified"
-
-
-class CompiledKnowledge(BaseModel):
-    """Phase A fills legacy KnowledgeBundle fields for ground_entities compat."""
+    matched_units: list[dict[str, Any]] = Field(default_factory=list)
+    bound_resources: list[str] = Field(default_factory=list)
+    concepts: list[dict[str, Any]] = Field(default_factory=list)
+    scenarios: list[dict[str, Any]] = Field(default_factory=list)
+    data_effects: list[dict[str, Any]] = Field(default_factory=list)
+    datasets: list[dict[str, Any]] = Field(default_factory=list)
+    fields: list[dict[str, Any]] = Field(default_factory=list)
+    relationships: list[dict[str, Any]] = Field(default_factory=list)
+    metrics: list[dict[str, Any]] = Field(default_factory=list)
+    calibers: list[dict[str, Any]] = Field(default_factory=list)
+    rules: list[dict[str, Any]] = Field(default_factory=list)
+    verified_examples: list[dict[str, Any]] = Field(default_factory=list)
+    ambiguities: list[dict[str, Any]] = Field(default_factory=list)
+    assumptions: list[str] = Field(default_factory=list)
 
     stage: CompileStage = "assess"
-    prompt_template: str = ""
     log_items: list[dict[str, Any]] = Field(default_factory=list)
     matches: list[KnowledgeMatch] = Field(default_factory=list)
-    bound_calibers: list[BoundCaliber] = Field(default_factory=list)
-    examples: list[dict[str, Any]] = Field(default_factory=list)
     structural_ref: dict[str, Any] = Field(default_factory=dict)
-    constraints: list[dict[str, Any]] = Field(default_factory=list)
     reuse: dict[str, Any] | None = None
     apply_log: list[ApplyHit] = Field(default_factory=list)
+
+    def is_empty(self) -> bool:
+        return not self.matched_units and not self.matches
 
     def knowledge_apply_payload(self) -> list[dict[str, Any]]:
         return [hit.model_dump(mode="json") for hit in self.apply_log]

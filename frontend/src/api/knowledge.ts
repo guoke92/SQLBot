@@ -1,223 +1,252 @@
 import { request } from '@/utils/request'
+import { packageUploadForm } from '@/api/knowledgePackageDocuments'
 
-export interface KnowledgeSuggestion {
-  id: number
-  lineage_id: string
-  label: string
-  trust_tier: string
-  reproduce_count: number
-  successful_apply_count: number
-  positive_feedback_count: number
-  negative_feedback_count: number
-  requires_review: boolean
-  recommended_action: 'promote' | 'review'
-}
-
-export type KnowledgeImportReadiness = 'ready' | 'review_required' | 'invalid' | 'retained_only'
-
-export interface KnowledgeIssue {
-  code: string
-  severity: 'info' | 'warning' | 'error'
-  detail: string
-  params: Record<string, unknown>
-}
-
-export interface KnowledgeImportItemResult {
-  item_id: string
-  kind: string
-  readiness: KnowledgeImportReadiness
-  action: string
-  target_id?: number
-  messages: string[]
-  issues: KnowledgeIssue[]
-  normalized?: Record<string, unknown>
-}
-
-export interface KnowledgeImportReport {
-  package_id: string
-  package_fingerprint: string
-  dry_run: boolean
-  total: number
-  kind_counts: Record<string, number>
-  readiness_counts: Record<string, number>
-  action_counts: Record<string, number>
-  registry_id?: number
-  registry_revision?: number
-  registry_action?: string
-  warnings: string[]
-  items: KnowledgeImportItemResult[]
-}
-
-export interface KnowledgeImportRequest {
-  package?: Record<string, unknown> | unknown[] | string
-  documents?: Array<{ name: string; content: string }>
-  package_id?: string
-  default_datasource_id?: number
-  default_datasource_name?: string
-  include_kinds?: string[]
-  expected_preview_fingerprint?: string
-}
+export type KnowledgeLifecycle =
+  'DRAFT' | 'IN_REVIEW' | 'APPROVED' | 'PUBLISHED' | 'REJECTED' | 'RETIRED'
+export type KnowledgeValidation = 'NOT_RUN' | 'PASS' | 'WARNING' | 'FAIL'
+export type KnowledgeBindingStatus = 'UNBOUND' | 'BOUND' | 'STALE'
+export type KnowledgeDeploymentStatus =
+  'NOT_PUBLISHED' | 'BUILDING' | 'ACTIVE' | 'ERROR' | 'RETIRED'
 
 export interface KnowledgePackageSummary {
+  id: number
   package_id: string
+  revision: number
   schema_version: string
+  namespace: string
   title: string
   description: string
-  revision: number
-  item_count: number
-  source_count: number
+  status: string
+  unit_count: number
   update_time: string
 }
 
-export interface KnowledgePackageItem {
-  registry_item_id: number
-  item_id: string
-  kind: string
-  source_status: string
-  readiness: KnowledgeImportReadiness
-  present: boolean
-  payload: Record<string, unknown>
-  messages: string[]
-  issues: KnowledgeIssue[]
-  runtime_action?: string
-  runtime_target_id?: number
+export interface KnowledgeUnitSummary {
+  unit_id: number
+  unit_key: string
+  title: string
+  domain: string
+  revision_id: number
+  revision: number
+  lifecycle_status: KnowledgeLifecycle
+  validation_status: KnowledgeValidation
+  binding_status: KnowledgeBindingStatus
+  deployment_status: KnowledgeDeploymentStatus
+  confidence: number
+  datasource_id?: number | null
+  next_step: string
+  update_time: string
+  validation_summary_text?: string
+  validation_error_count?: number
+  validation_warning_count?: number
+  validation_issue_count?: number
+  validation_issues?: Array<Record<string, unknown>>
+}
+
+export interface KnowledgePackageUnitSummary {
+  unit_id: number
+  unit_key: string
+  title: string
+  domain: string
+  revision_id: number
+  revision: number
+  lifecycle_status: KnowledgeLifecycle
+  validation_status: KnowledgeValidation
+  binding_status?: KnowledgeBindingStatus
+  datasource_id?: number | null
+  next_step?: string
+  validation_summary_text?: string
+  validation_error_count?: number
+  validation_warning_count?: number
+  validation_issue_count?: number
+  validation_issues?: Array<Record<string, unknown>>
+}
+
+export interface KnowledgeUnitPage {
+  items: KnowledgeUnitSummary[]
+  total: number
+  page: number
+  page_size: number
+  lifecycle_counts: Record<string, number>
+}
+
+export interface KnowledgeUnitContent {
+  unit_id: string
+  revision: number
+  title: string
+  aliases: string[]
+  domain: string
+  applicability: string
+  description: string
+  content: {
+    concepts: Array<Record<string, unknown>>
+    processes: Array<Record<string, unknown>>
+    datasets: Array<Record<string, unknown>>
+    relationships: Array<Record<string, unknown>>
+    metrics: Array<Record<string, unknown>>
+    calibers: Array<Record<string, unknown>>
+    domain_rules: Array<Record<string, unknown>>
+    verified_query_patterns: Array<Record<string, unknown>>
+  }
+  evidence_refs: string[]
+  assumptions: string[]
+  conflicts: Array<Record<string, unknown>>
+  confidence: number
+}
+
+export interface KnowledgeBinding {
+  id: number
+  datasource_id: number
+  status: KnowledgeBindingStatus
+  validation_result: {
+    status: KnowledgeValidation
+    summary?: string
+    issues?: Array<Record<string, unknown>>
+  }
+  mapping: Record<string, unknown>
+  catalog_fingerprint: string
+}
+
+export interface KnowledgeDeployment {
+  id: number
+  revision_id: number
+  binding_id: number
+  status: KnowledgeDeploymentStatus
+  projection_manifest: Record<string, unknown>
+  error?: string
+  activated_at?: string
+  update_time: string
+}
+
+export interface KnowledgeUnitDetail {
+  unit: { id: number; unit_key: string; namespace: string; domain: string; title: string }
+  revision: {
+    id: number
+    revision: number
+    lifecycle_status: KnowledgeLifecycle
+    validation_status: KnowledgeValidation
+    validation_summary: Record<string, unknown>
+    confidence: number
+    content: KnowledgeUnitContent
+  }
+  evidence: Array<{
+    id: number
+    evidence_key: string
+    reference_id: string
+    source_id: string
+    evidence_kind: string
+    locator: string
+    content_hash: string
+    payload: Record<string, unknown>
+    active: boolean
+    create_time: string
+  }>
+  bindings: KnowledgeBinding[]
+  deployments: KnowledgeDeployment[]
 }
 
 export interface KnowledgePackageDetail {
   package: KnowledgePackageSummary
   sources: Array<Record<string, unknown>>
-  items: KnowledgePackageItem[]
+  evidence_count: number
+  units: KnowledgePackageUnitSummary[]
+}
+
+export interface DatasourceBindingCandidate {
+  datasource_id: number
+  datasource_name: string
+  required_count: number
+  matched_count: number
+  coverage: number
+  missing: string[]
+}
+
+export interface PageResult<T> {
+  items: T[]
   total: number
   page: number
   page_size: number
-  kind_counts: Record<string, number>
-  readiness_counts: Record<string, number>
-  action_counts: Record<string, number>
-}
-
-export interface KnowledgeStagingItem {
-  id: number
-  kind: string
-  status: string
-  natural_key: string
-  trigger_id: string
-  lineage_id: string
-  source_record_id?: number
-  payload: Record<string, unknown>
-  scope: Record<string, unknown>
-  provenance: Record<string, unknown>
-  quality_snapshot: Record<string, unknown>
-  suggested_trust_tier?: string
-  create_time: string
-  update_time: string
-}
-
-export interface KnowledgeReviewItem {
-  review_key: string
-  source: 'staging' | 'relation' | 'package'
-  id: number
-  kind: string
-  status: string
-  trigger_id: string
-  package_id?: string
-  item_id?: string
-  payload: Record<string, unknown>
-  scope: Record<string, unknown>
-  provenance: Record<string, unknown>
-  quality_snapshot: Record<string, unknown>
-  issues: KnowledgeIssue[]
-  actions: Array<'approve' | 'reject' | 'approve_publish'>
-  create_time: string
-}
-
-export interface KnowledgeReviewPage {
-  items: KnowledgeReviewItem[]
-  total: number
-  page: number
-  page_size: number
-  kind_counts: Record<string, number>
-}
-
-export interface RuntimeKnowledgeItem {
-  id: number
-  kind: string
-  label: string
-  summary: string
-  trust_tier: string
-  enabled: boolean
-  datasource_id?: number
-  source: string
-  create_time?: string
-  payload: Record<string, unknown>
-}
-
-export interface RuntimeKnowledgePage {
-  items: RuntimeKnowledgeItem[]
-  total: number
-  page: number
-  page_size: number
-  kind_counts: Record<string, number>
 }
 
 export const knowledgeApi = {
-  getStaging: () => request.get('/knowledge/staging'),
-  certify: (stagingId: number) => request.post(`/knowledge/staging/${stagingId}/certify`),
-  reject: (stagingId: number, reason: string) =>
-    request.post(`/knowledge/staging/${stagingId}/reject`, { reason }),
-  getAssets: (params?: { kind?: string; trust_tier?: string; enabled?: boolean }) =>
-    request.get('/knowledge/assets', { params }),
-  getRuntimeAssets: (params?: {
+  importFiles: (files: File[]) =>
+    request.post('/knowledge/packages/upload', packageUploadForm(files), {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }),
+  getPackages: (params?: { page?: number; page_size?: number }) =>
+    request.get('/knowledge/packages', { params }),
+  getPackage: (packageId: string, revision?: number) =>
+    request.get(`/knowledge/packages/${encodeURIComponent(packageId)}`, {
+      params: { revision },
+    }),
+  getBindingCandidates: (packageId: string, revision?: number) =>
+    request.get(`/knowledge/packages/${encodeURIComponent(packageId)}/binding-candidates`, {
+      params: { revision },
+    }),
+  bindPackage: (packageId: string, revision: number, datasourceId: number) =>
+    request.post(
+      `/knowledge/packages/${encodeURIComponent(packageId)}/bind`,
+      { datasource_id: datasourceId },
+      { params: { revision } }
+    ),
+  validatePackage: (packageId: string, revision?: number) =>
+    request.post(
+      `/knowledge/packages/${encodeURIComponent(packageId)}/validate`,
+      {},
+      { params: { revision } }
+    ),
+  submitPackageReview: (packageId: string, revision?: number) =>
+    request.post(
+      `/knowledge/packages/${encodeURIComponent(packageId)}/submit-review`,
+      {},
+      { params: { revision } }
+    ),
+  publishPackage: (packageId: string, revision?: number) =>
+    request.post(
+      `/knowledge/packages/${encodeURIComponent(packageId)}/publish`,
+      {},
+      { params: { revision } }
+    ),
+  unpublishPackage: (packageId: string, revision?: number) =>
+    request.post(
+      `/knowledge/packages/${encodeURIComponent(packageId)}/unpublish`,
+      {},
+      { params: { revision } }
+    ),
+  deletePackage: (packageId: string, revision?: number) =>
+    request.delete(`/knowledge/packages/${encodeURIComponent(packageId)}`, {
+      params: { revision },
+    }),
+  getUnits: (params?: {
     keyword?: string
-    kind?: string
-    enabled?: boolean
+    lifecycle?: string
+    validation?: string
     page?: number
     page_size?: number
-  }) => request.get('/knowledge/runtime-assets', { params }),
-  getReviews: (params?: { keyword?: string; kind?: string; page?: number; page_size?: number }) =>
-    request.get('/knowledge/reviews', { params }),
-  getSuggestions: () => request.get('/knowledge/suggestions'),
-  promote: (caliberId: number) => request.post(`/knowledge/caliber/${caliberId}/promote-trusted`),
-  demote: (caliberId: number, to_tier: string, reason: string) =>
-    request.post(`/knowledge/caliber/${caliberId}/demote`, { to_tier, reason }),
-  disable: (caliberId: number) => request.post(`/knowledge/caliber/${caliberId}/disable`),
-  getRules: () => request.get('/knowledge/rules'),
-  createRule: (data: { label: string; content: string; ds_id?: number }) =>
-    request.post('/knowledge/rule', data),
-  disableRule: (ruleId: number) => request.post(`/knowledge/rule/${ruleId}/disable`),
-  enableRule: (ruleId: number) => request.post(`/knowledge/rule/${ruleId}/enable`),
-  getLineage: (kind: string, assetId: number) =>
-    request.get(`/knowledge/assets/${kind}/${assetId}/lineage`),
-  previewImport: (data: KnowledgeImportRequest) => request.post('/knowledge/import/preview', data),
-  applyImport: (data: KnowledgeImportRequest) => request.post('/knowledge/import/apply', data),
-  getPackages: () => request.get('/knowledge/packages'),
-  getPackageDetail: (
-    packageId: string,
-    params?: {
-      keyword?: string
-      kind?: string
-      readiness?: string
-      page?: number
-      page_size?: number
-    }
-  ) => request.get(`/knowledge/packages/${encodeURIComponent(packageId)}`, { params }),
-  getPackageItems: (packageId: string) =>
-    request.get(`/knowledge/packages/${encodeURIComponent(packageId)}/items`),
-  advancePackageItem: (
-    packageId: string,
-    itemId: string,
-    data: {
-      action: 'publish' | 'approve_publish'
-      default_datasource_id?: number
-    }
+  }) => request.get('/knowledge/units', { params }),
+  getUnit: (unitId: number, revision: number) =>
+    request.get(`/knowledge/units/${unitId}/revisions/${revision}`),
+  editUnit: (
+    unitId: number,
+    revision: number,
+    content: KnowledgeUnitContent,
+    fork = false
   ) =>
-    request.post(
-      `/knowledge/packages/${encodeURIComponent(packageId)}/items/${encodeURIComponent(itemId)}/advance`,
-      data
-    ),
-  rejectPackageItem: (packageId: string, itemId: string) =>
-    request.post(
-      `/knowledge/packages/${encodeURIComponent(packageId)}/items/${encodeURIComponent(itemId)}/reject`
-    ),
-  decideRelation: (relationId: number, status: 'CONFIRMED' | 'REJECTED') =>
-    request.post(`/datasource/profiling/relations/${relationId}/decision`, { status }),
+    request.patch(`/knowledge/units/${unitId}/revisions/${revision}`, { content, fork }),
+  deleteUnit: (unitId: number) => request.delete(`/knowledge/units/${unitId}`),
+  approve: (unitId: number, revision: number, reason = '') =>
+    request.post(`/knowledge/units/${unitId}/revisions/${revision}/approve`, { reason }),
+  reject: (unitId: number, revision: number, reason: string) =>
+    request.post(`/knowledge/units/${unitId}/revisions/${revision}/reject`, { reason }),
+  requestChanges: (unitId: number, revision: number, reason: string) =>
+    request.post(`/knowledge/units/${unitId}/revisions/${revision}/request-changes`, {
+      reason,
+    }),
+  publish: (unitId: number, revision: number) =>
+    request.post(`/knowledge/units/${unitId}/revisions/${revision}/publish`),
+  unpublish: (unitId: number, revision: number) =>
+    request.post(`/knowledge/units/${unitId}/revisions/${revision}/unpublish`),
+  getDeployments: (params?: { status?: string; page?: number; page_size?: number }) =>
+    request.get('/knowledge/deployments', { params }),
+  getDeployment: (deploymentId: number) => request.get(`/knowledge/deployments/${deploymentId}`),
 }

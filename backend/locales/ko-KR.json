@@ -99,7 +99,8 @@
     "synonyms_template_example_2": "총거래액",
     "word_cannot_be_empty": "용어는 비울 수 없습니다",
     "description_cannot_be_empty": "용어 설명은 비울 수 없습니다",
-    "datasource_not_found": "데이터 소스를 찾을 수 없음"
+    "datasource_not_found": "데이터 소스를 찾을 수 없음",
+    "cannot_write_enabled_runtime": "생성 API로 활성화된 런타임 용어를 직접 쓸 수 없습니다. 지식 유닛 게시 또는 활성화 API를 사용하세요"
   },
   "i18n_data_training": {
     "datasource_cannot_be_none": "데이터 소스는 비울 수 없습니다",
@@ -122,7 +123,8 @@
     "question_cannot_be_empty": "질문은 비울 수 없습니다",
     "description_cannot_be_empty": "예시 SQL은 비울 수 없습니다",
     "datasource_not_found": "데이터 소스를 찾을 수 없음",
-    "advanced_application_not_found": "고급 애플리케이션을 찾을 수 없음"
+    "advanced_application_not_found": "고급 애플리케이션을 찾을 수 없음",
+    "cannot_write_enabled_runtime": "생성 API로 활성화된 런타임 예시를 직접 쓸 수 없습니다. 지식 유닛 게시 또는 활성화 API를 사용하세요"
   },
   "i18n_custom_prompt": {
     "exists_in_db": "템플릿 이름이 이미 존재합니다",

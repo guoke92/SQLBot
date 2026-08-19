@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import Any, Literal
+from typing import Any
 
 import orjson
 
@@ -26,8 +26,6 @@ class BatchParseResult:
     plans: list[dict[str, Any]] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
     plan_validated: bool = False
-    contract_status: Literal["verified", "partial", "unsupported"] = "unsupported"
-    contract_message: str | None = None
 
     @property
     def success(self) -> bool:
@@ -36,10 +34,6 @@ class BatchParseResult:
     @property
     def error_message(self) -> str | None:
         return "\n".join(self.errors) if self.errors else None
-
-    @property
-    def requires_contract_repair(self) -> bool:
-        return False
 
 
 def executable_plans(parsed: BatchParseResult | None) -> list[dict[str, Any]]:
@@ -97,7 +91,6 @@ def _result(plans: list[dict[str, Any]], question: str) -> BatchParseResult:
     return BatchParseResult(
         plans=_apply_display_defaults(plans, question),
         plan_validated=True,
-        contract_status="unsupported",
     )
 
 

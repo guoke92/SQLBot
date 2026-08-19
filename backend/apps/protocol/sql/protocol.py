@@ -6,7 +6,8 @@ and physical-resource validation stay behind this protocol boundary.
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Mapping, Optional, Sequence
+from collections.abc import Mapping, Sequence
+from typing import Any
 
 import orjson
 import sqlparse
@@ -70,7 +71,7 @@ class SqlProtocol(BaseProtocol):
     def normalize_configuration(
         self,
         configuration: Mapping[str, Any],
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         from apps.datasource.models.datasource import DatasourceConf
 
         unknown = sorted(set(configuration) - set(DatasourceConf.model_fields))
@@ -103,14 +104,14 @@ class SqlProtocol(BaseProtocol):
     # Schema discovery
     # ------------------------------------------------------------------
 
-    def get_tables(self, ds: Any) -> List[Any]:
+    def get_tables(self, ds: Any) -> list[Any]:
         from apps.db.db import get_tables
 
         return get_tables(ds)
 
     def get_fields(
         self, ds: Any, table_name: str, database_name: str | None = None
-    ) -> List[Any]:
+    ) -> list[Any]:
         from apps.db.db import get_fields
 
         return get_fields(ds, table_name, database_name=database_name)
@@ -124,16 +125,17 @@ class SqlProtocol(BaseProtocol):
         *,
         embedding: bool = True,
         out_ds_instance: Any = None,
-        resource_names: Optional[Sequence[str]] = None,
+        resource_names: Sequence[str] | None = None,
         required_resource_names: Sequence[str] = (),
         access_scope: Any = None,
     ) -> SchemaSnapshot:
+        from apps.datasource.access import project_schema_resources
         from apps.datasource.crud.datasource import (
             get_table_schema,
             get_tables_sample_data,
         )
 
-        table_list = list(resource_names) if resource_names is not None else None
+        table_list = project_schema_resources(resource_names, access_scope)
 
         if out_ds_instance is not None:
             # Out-DS does not run table vector ranking (assistant get_db_schema
@@ -154,22 +156,12 @@ class SqlProtocol(BaseProtocol):
                 embedding=embedding,
                 table_list=table_list,
                 required_table_list=list(required_resource_names),
-                table_objs=(
-                    list(access_scope.table_objects)
-                    if access_scope is not None
-                    else None
-                ),
             )
             sample_data = get_tables_sample_data(
                 session=session,
                 current_user=current_user,
                 ds=ds,
                 table_list=names,
-                table_objs=(
-                    list(access_scope.table_objects)
-                    if access_scope is not None
-                    else None
-                ),
             )
 
         return SchemaSnapshot(
@@ -421,11 +413,9 @@ class SqlProtocol(BaseProtocol):
             unauthorized = actual_tables - allowed_set
             if unauthorized:
                 return reject(
-                    (
-                        f"SQL contains unauthorized tables: "
-                        f"{', '.join(sorted(unauthorized))}. "
-                        f"Allowed: {', '.join(sorted(allowed_set))}"
-                    )
+                    f"SQL contains unauthorized tables: "
+                    f"{', '.join(sorted(unauthorized))}. "
+                    f"Allowed: {', '.join(sorted(allowed_set))}"
                 )
 
         ds_id = getattr(ds, "id", None)
@@ -459,9 +449,7 @@ class SqlProtocol(BaseProtocol):
                         CoreField.table_id.in_([t.id for t in catalog_tables])
                     )
                 ).all()
-                id_to_key = {
-                    t.id: table_identity_key(t) for t in catalog_tables
-                }
+                id_to_key = {t.id: table_identity_key(t) for t in catalog_tables}
                 fields_by_key: dict[tuple[str, str], set[str]] = {
                     table_identity_key(t): set() for t in catalog_tables
                 }
@@ -485,9 +473,7 @@ class SqlProtocol(BaseProtocol):
                     if db:
                         key = (db, table_name)
                         return key if key in fields_by_key else None
-                    matches = [
-                        k for k in fields_by_key if k[1] == table_name
-                    ]
+                    matches = [k for k in fields_by_key if k[1] == table_name]
                     if len(matches) == 1:
                         return matches[0]
                     # Missing or ambiguous across databases — do not guess.
@@ -502,9 +488,7 @@ class SqlProtocol(BaseProtocol):
                     cname = ref.column_name
                     c_raw, c_l = cname, cname.lower()
                     if ref.table_name:
-                        key = _lookup_fields(
-                            ref.table_name, ref.database_name
-                        )
+                        key = _lookup_fields(ref.table_name, ref.database_name)
                         if key is None:
                             continue
                         allowed_cols = fields_by_key[key]
@@ -526,8 +510,7 @@ class SqlProtocol(BaseProtocol):
                         ):
                             continue
                         if any(
-                            c_raw in fields_by_key[key]
-                            or c_l in fields_by_key[key]
+                            c_raw in fields_by_key[key] or c_l in fields_by_key[key]
                             for key in candidate_keys
                             if key is not None
                         ):
@@ -625,7 +608,7 @@ class SqlProtocol(BaseProtocol):
         plan: QueryPlan,
         *,
         origin_column: bool = False,
-        max_rows: Optional[int] = None,
+        max_rows: int | None = None,
     ) -> QueryResult:
         from apps.db.db import exec_sql
 
@@ -754,7 +737,7 @@ class SqlProtocol(BaseProtocol):
                 f"WHERE {where_sql} LIMIT {fetch_limit}"
             )
         raw = exec_sql(ds=ds, sql=sql, origin_column=True)
-        values: List[str] = []
+        values: list[str] = []
         for row in raw.get("data") or []:
             if not isinstance(row, dict):
                 continue
@@ -786,7 +769,9 @@ class SqlProtocol(BaseProtocol):
         from apps.protocol.base import FieldProfileResult
 
         if not resource or not field:
-            return FieldProfileResult(supported=False, field_name=field or "", error="missing target")
+            return FieldProfileResult(
+                supported=False, field_name=field or "", error="missing target"
+            )
         if self.type_key in ("es", "api"):
             return FieldProfileResult(
                 supported=False, field_name=field, error="unsupported dialect"
@@ -806,9 +791,7 @@ class SqlProtocol(BaseProtocol):
                 f"FETCH FIRST {bounded} ROWS ONLY) s"
             )
         else:
-            sample_sql = (
-                f"(SELECT {field_sql} AS v FROM {table_sql} LIMIT {bounded}) s"
-            )
+            sample_sql = f"(SELECT {field_sql} AS v FROM {table_sql} LIMIT {bounded}) s"
 
         agg_sql = (
             f"SELECT COUNT(*) AS row_count, "
@@ -831,9 +814,7 @@ class SqlProtocol(BaseProtocol):
         row_count = int(row.get("row_count") or 0)
         non_null = int(row.get("non_null_count") or 0)
         approx_distinct = int(row.get("approx_distinct") or 0)
-        null_rate = (
-            ((row_count - non_null) / row_count) if row_count > 0 else None
-        )
+        null_rate = ((row_count - non_null) / row_count) if row_count > 0 else None
         distinct_ratio = (approx_distinct / non_null) if non_null > 0 else None
         min_value = row.get("min_value")
         max_value = row.get("max_value")
@@ -899,11 +880,12 @@ class SqlProtocol(BaseProtocol):
         """Best-effort PK/FK extraction for MySQL/PG families."""
         import json
 
+        from sqlalchemy import text
+
         from apps.datasource.models.datasource import DatasourceConf
         from apps.datasource.utils.utils import aes_decrypt
         from apps.db.db import get_session
         from apps.protocol.base import TableConstraintsResult
-        from sqlalchemy import text
 
         if self.type_key not in (
             "mysql",
@@ -1025,9 +1007,7 @@ class SqlProtocol(BaseProtocol):
         except Exception as exc:
             return TableConstraintsResult(supported=False, error=str(exc)[:500])
 
-    def plan_from_re_exec(
-        self, ds: Any, re_exec: Dict[str, Any]
-    ) -> Optional[QueryPlan]:
+    def plan_from_re_exec(self, ds: Any, re_exec: dict[str, Any]) -> QueryPlan | None:
         if not re_exec:
             return None
         sql = (re_exec.get("sql") or "").strip()

@@ -475,7 +475,6 @@ async function resumeClarification(payload: {
   interrupt: ConversationInterrupt
   answers: ResumeAnswer[]
   displayText: string
-  proceedWithAssumptions?: boolean
 }) {
   const currentRecord = props.message?.record
   if (!currentRecord || _loading.value) return
@@ -486,8 +485,7 @@ async function resumeClarification(payload: {
       currentRecord,
       payload.interrupt,
       payload.answers,
-      turnHandlers(currentRecord),
-      payload.proceedWithAssumptions
+      turnHandlers(currentRecord)
     )
   } finally {
     _loading.value = false

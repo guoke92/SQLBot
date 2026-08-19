@@ -26,6 +26,5 @@ def match_scope(
             else getattr(llm_service, "oid", None)
         )
         if current_assistant.type == 1:
-            calculate_ds_id = None
             assistant_id = current_assistant.id
     return calculate_oid, calculate_ds_id, assistant_id

@@ -3,7 +3,7 @@
 Three contracts:
   submit_candidate  — producers → domain (write)
   emit_signal       — external facts → governance (signal)
-  compile_knowledge_for_turn — domain → consumers (read, re-exported)
+  compile_business_data_bundle — domain → consumers (read, re-exported)
 """
 
 from __future__ import annotations
@@ -14,7 +14,7 @@ from typing import Any
 from pydantic import BaseModel, Field
 from sqlmodel import Session, select
 
-from apps.knowledge.compile.compile import compile_knowledge_for_turn  # noqa: F401
+from apps.knowledge.compile.compile import compile_business_data_bundle  # noqa: F401
 from apps.knowledge.db_models import (
     KnowledgeAsset,
     KnowledgeSchemaRef,
@@ -24,7 +24,6 @@ from apps.knowledge.evidence import (
     append_evidence_event,
     apply_event_key,
     feedback_event_key,
-    reproduce_event_key,
     usage_event_key,
 )
 from apps.knowledge.lineage import append_event
@@ -148,42 +147,8 @@ def submit_candidate(
         fragment=fragment,
     )
 
-    existing_asset = session.exec(
-        select(KnowledgeAsset)
-        .where(KnowledgeAsset.oid == scope.oid)
-        .where(KnowledgeAsset.natural_key == natural_key)
-        .where(KnowledgeAsset.enabled.is_(True))  # type: ignore[attr-defined]
-        .where(KnowledgeAsset.valid_to.is_(None))  # type: ignore[attr-defined]
-    ).first()
-    if existing_asset is not None:
-        if source_record_id is None:
-            return CandidateReceipt(
-                action="existing",
-                natural_key=natural_key,
-                lineage_id=existing_asset.lineage_id,
-                detail=f"asset {existing_asset.id} already exists",
-            )
-        append_evidence_event(
-            session,
-            event_key=reproduce_event_key(natural_key, source_record_id),
-            asset_id=existing_asset.id,
-            asset_kind=candidate.kind,
-            natural_key=natural_key,
-            signal_kind="reproduce",
-            record_id=source_record_id,
-            fact={
-                "source_record_id": source_record_id,
-                "trigger": prov.get("trigger_id") or prov.get("source_type"),
-            },
-        )
-        session.flush()
-        return CandidateReceipt(
-            action="merged_evidence",
-            natural_key=natural_key,
-            lineage_id=existing_asset.lineage_id,
-            detail=f"evidence merged into asset {existing_asset.id}",
-        )
-
+    # Capture and other producers only append inbox fragments. Certified
+    # runtime knowledge is published from a 2.0 unit, never from staging.
     staging, action = admit_candidate(
         session,
         oid=scope.oid,
