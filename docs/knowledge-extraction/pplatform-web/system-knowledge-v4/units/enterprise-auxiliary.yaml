@@ -1,0 +1,349 @@
+unit_id: enterprise-auxiliary
+revision: 1
+title: 企业补充事实与邀请
+aliases:
+- 总公司
+- 集团工商
+- 冻结解冻
+- 股东
+- 邀请
+domain: enterprise
+applicability: 总公司/集团工商、企业生命周期冻结、股东出资、企业邀请；不用于企业主数据建档与实名认证
+description: 总公司/集团工商在 cust_head_company_info，企业冻结/解冻在 cust_company_lifecycle_info，股东出资在 cust_shareholder_info，企业邀请在 cust_invite_info，均以 ref/company_id 关联企业主数据。
+content:
+  concepts:
+  - concept_id: head-company
+    name: 总公司/集团工商
+    aliases:
+    - 总公司
+    - 集团
+    definition: 企业所属总公司/集团的工商主体信息，一行一个总公司。
+    evidence_refs:
+    - ev-head-company-fields
+  - concept_id: company-lifecycle
+    name: 企业生命周期
+    aliases:
+    - 冻结
+    - 解冻
+    definition: 企业冻结/解冻记录，type 区分 FRZ/UNFRZ。
+    dictionary:
+      FRZ: 冻结
+      UNFRZ: 解冻
+    evidence_refs:
+    - ev-company-lifecycle-fields
+  - concept_id: shareholder
+    name: 股东出资
+    aliases:
+    - 股东
+    - 出资人
+    definition: 企业股东/出资人及认缴实缴出资信息。
+    evidence_refs:
+    - ev-shareholder-fields
+  - concept_id: invite
+    name: 企业邀请
+    aliases:
+    - 邀请记录
+    definition: 企业邀请记录，progress 描述邀请进度。
+    evidence_refs:
+    - ev-invite-fields
+  datasets:
+  - dataset_id: company
+    name: cust_company_info
+    database: lowcode_pplatform
+    description: 企业主数据，仅作为本单元事实表的关联锚点。
+    fields:
+    - field_id: id
+      name: id
+      data_type: bigint
+      evidence_refs:
+      - ev-head-company-fields
+    - field_id: code
+      name: code
+      data_type: varchar
+      evidence_refs:
+      - ev-head-company-fields
+    evidence_refs:
+    - ev-head-company-fields
+  - dataset_id: head_company
+    name: cust_head_company_info
+    database: lowcode_pplatform
+    description: 总公司/集团工商主体信息。
+    fields:
+    - field_id: id
+      name: id
+      data_type: bigint
+      evidence_refs:
+      - ev-head-company-fields
+    - field_id: ref_cust_head_company_info_cust_company_info
+      name: ref_cust_head_company_info_cust_company_info
+      data_type: varchar
+      description: 关联企业主数据 code。
+      evidence_refs:
+      - ev-head-company-fields
+    - field_id: certification_no
+      name: certification_no
+      data_type: varchar
+      evidence_refs:
+      - ev-head-company-fields
+    - field_id: head_business_scope
+      name: head_business_scope
+      data_type: varchar
+      evidence_refs:
+      - ev-head-company-fields
+    - field_id: legal_name
+      name: legal_name
+      data_type: varchar
+      evidence_refs:
+      - ev-head-company-fields
+    - field_id: enable
+      name: enable
+      data_type: varchar
+      evidence_refs:
+      - ev-head-company-fields
+      dictionary:
+        Y: 启用
+        N: 停用
+    evidence_refs:
+    - ev-head-company-fields
+  - dataset_id: lifecycle
+    name: cust_company_lifecycle_info
+    database: lowcode_pplatform
+    description: 企业冻结/解冻记录。
+    fields:
+    - field_id: id
+      name: id
+      data_type: bigint
+      evidence_refs:
+      - ev-company-lifecycle-fields
+    - field_id: company_id
+      name: company_id
+      data_type: bigint
+      evidence_refs:
+      - ev-company-lifecycle-fields
+    - field_id: type
+      name: type
+      data_type: varchar
+      evidence_refs:
+      - ev-company-lifecycle-fields
+      dictionary:
+        FRZ: 冻结
+        UNFRZ: 解冻
+    - field_id: reason
+      name: reason
+      data_type: varchar
+      evidence_refs:
+      - ev-company-lifecycle-fields
+    - field_id: enable
+      name: enable
+      data_type: varchar
+      evidence_refs:
+      - ev-company-lifecycle-fields
+      dictionary:
+        Y: 启用
+        N: 停用
+    evidence_refs:
+    - ev-company-lifecycle-fields
+  - dataset_id: shareholder
+    name: cust_shareholder_info
+    database: lowcode_pplatform
+    description: 股东/出资人信息。
+    fields:
+    - field_id: id
+      name: id
+      data_type: bigint
+      evidence_refs:
+      - ev-shareholder-fields
+    - field_id: ref_cust_company_info
+      name: ref_cust_company_info
+      data_type: varchar
+      description: 关联企业主数据 code。
+      evidence_refs:
+      - ev-shareholder-fields
+    - field_id: relation_type
+      name: relation_type
+      data_type: varchar
+      evidence_refs:
+      - ev-shareholder-fields
+    - field_id: fund_type
+      name: fund_type
+      data_type: varchar
+      evidence_refs:
+      - ev-shareholder-fields
+    - field_id: currency
+      name: currency
+      data_type: varchar
+      evidence_refs:
+      - ev-shareholder-fields
+    - field_id: fund_amount_ought
+      name: fund_amount_ought
+      data_type: varchar
+      evidence_refs:
+      - ev-shareholder-fields
+    - field_id: fund_amount_act
+      name: fund_amount_act
+      data_type: varchar
+      evidence_refs:
+      - ev-shareholder-fields
+    - field_id: enable
+      name: enable
+      data_type: varchar
+      evidence_refs:
+      - ev-shareholder-fields
+      dictionary:
+        Y: 启用
+        N: 停用
+    evidence_refs:
+    - ev-shareholder-fields
+  - dataset_id: invite
+    name: cust_invite_info
+    database: lowcode_pplatform
+    description: 企业邀请记录。
+    fields:
+    - field_id: id
+      name: id
+      data_type: bigint
+      evidence_refs:
+      - ev-invite-fields
+    - field_id: progress
+      name: progress
+      data_type: varchar
+      evidence_refs:
+      - ev-invite-fields
+    - field_id: contact_name
+      name: contact_name
+      data_type: varchar
+      evidence_refs:
+      - ev-invite-fields
+    - field_id: contact_phone
+      name: contact_phone
+      data_type: varchar
+      evidence_refs:
+      - ev-invite-fields
+    - field_id: channel_code
+      name: channel_code
+      data_type: varchar
+      evidence_refs:
+      - ev-invite-fields
+    - field_id: invite_from
+      name: invite_from
+      data_type: varchar
+      evidence_refs:
+      - ev-invite-fields
+    - field_id: invite_cust_id
+      name: invite_cust_id
+      data_type: bigint
+      evidence_refs:
+      - ev-invite-fields
+    - field_id: enable
+      name: enable
+      data_type: varchar
+      evidence_refs:
+      - ev-invite-fields
+      dictionary:
+        Y: 启用
+        N: 停用
+    evidence_refs:
+    - ev-invite-fields
+  relationships:
+  - relationship_id: head-company-company
+    left:
+      dataset: head_company
+      field: ref_cust_head_company_info_cust_company_info
+    right:
+      dataset: company
+      field: code
+    relationship_type: EQUI_JOIN
+    cardinality: n:1
+    business_meaning: 总公司记录通过企业 code 关联企业主数据。
+    status: proposed
+    evidence_refs:
+    - ev-head-company-fields
+  - relationship_id: lifecycle-company
+    left:
+      dataset: lifecycle
+      field: company_id
+    right:
+      dataset: company
+      field: id
+    relationship_type: EQUI_JOIN
+    cardinality: n:1
+    business_meaning: 生命周期记录指向企业。
+    status: proposed
+    evidence_refs:
+    - ev-company-lifecycle-fields
+  - relationship_id: shareholder-company
+    left:
+      dataset: shareholder
+      field: ref_cust_company_info
+    right:
+      dataset: company
+      field: code
+    relationship_type: EQUI_JOIN
+    cardinality: n:1
+    business_meaning: 股东通过企业 code 关联企业主数据。
+    status: proposed
+    evidence_refs:
+    - ev-shareholder-fields
+  metrics:
+  - metric_id: frozen-company-count
+    name: 冻结中企业数
+    description: 存在冻结记录且未解冻的企业数。
+    aggregation: COUNT_DISTINCT
+    field:
+      dataset: lifecycle
+      field: company_id
+    evidence_refs:
+    - ev-company-lifecycle-fields
+  calibers:
+  - caliber_id: frozen-company
+    label: 冻结中企业
+    description: 存在 type=FRZ 且 enable=Y 的生命周期记录的企业。
+    contract_fragment:
+      predicates:
+      - field: lifecycle.type
+        operator: eq
+        values:
+        - FRZ
+      - field: lifecycle.enable
+        operator: eq
+        values:
+        - Y
+    field_targets:
+    - dataset: lifecycle
+      field: type
+    - dataset: lifecycle
+      field: enable
+    evidence_refs:
+    - ev-company-lifecycle-fields
+  domain_rules:
+  - rule_id: lifecycle-frz-unfrz
+    label: 冻结/解冻只用于生命周期表
+    content: FRZ/UNFRZ 只描述 cust_company_lifecycle_info.type，不代表企业建档状态。
+    applicability: 冻结企业、解冻企业
+    query_impact: 判断企业是否冻结必须查 lifecycle.type，不能拿企业 enable 代替。
+    field_targets:
+    - dataset: lifecycle
+      field: type
+    evidence_refs:
+    - ev-company-lifecycle-fields
+  verified_query_patterns:
+  - pattern_id: count-frozen-companies
+    question: 冻结中的企业有多少
+    query: "SELECT COUNT(DISTINCT company_id) AS frozen_company_count\nFROM cust_company_lifecycle_info\nWHERE type = 'FRZ'\n  AND enable = 'Y'\n"
+    intended_specification:
+      grain: lifecycle
+      caliber_id: frozen-company
+    verification:
+      status: PENDING_VALIDATION
+    evidence_refs:
+    - ev-company-lifecycle-fields
+evidence_refs:
+- ev-head-company-fields
+- ev-company-lifecycle-fields
+- ev-shareholder-fields
+- ev-invite-fields
+assumptions:
+- 总公司/股东以 ref 字符串关联企业 code，生命周期以 company_id 关联企业 id，两套关联键待连库确认。
+- 查询范例未在目标库逐条执行。
+conflicts: []
+confidence: 0.78

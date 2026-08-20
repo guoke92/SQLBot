@@ -284,11 +284,12 @@ class KnowledgePackageV2(BaseModel):
         return self
 
 
-def validate_knowledge_unit(
-    unit: KnowledgeUnitEntry,
-    known_evidence: set[str],
-) -> None:
-    """Validate the reference closure shared by import and revision editing."""
+def collect_evidence_refs(unit: KnowledgeUnitEntry) -> set[str]:
+    """Collect every evidence reference reachable from one knowledge unit.
+
+    Shared by reference-closure validation and extraction QA so the two never
+    drift on which buckets/fields can cite evidence.
+    """
     refs = set(unit.evidence_refs)
     for bucket in (
         unit.content.concepts,
@@ -308,7 +309,15 @@ def validate_knowledge_unit(
     for process in unit.content.processes:
         for effect in process.data_effects:
             refs.update(effect.evidence_refs)
-    missing = sorted(refs - known_evidence)
+    return refs
+
+
+def validate_knowledge_unit(
+    unit: KnowledgeUnitEntry,
+    known_evidence: set[str],
+) -> None:
+    """Validate the reference closure shared by import and revision editing."""
+    missing = sorted(collect_evidence_refs(unit) - known_evidence)
     if missing:
         raise ValueError(
             f"unit {unit.unit_id} references unknown evidence: {', '.join(missing)}"

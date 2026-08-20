@@ -391,7 +391,10 @@ def compile_business_data_bundle(
                     "question": item.question,
                     "sql": item.query,
                     "description": item.query,
-                    "trust_tier": "published",
+                    # selected 仅含 bind 时对目标库实际执行通过（passed:true）的
+                    # 范例，属执行验证后的 certified；try_reuse 要求 certified 才
+                    # 允许短路复用，二者必须一致，否则 VQR 复用永远命中不了。
+                    "trust_tier": "certified",
                     "knowledge_meta": {"unit_revision_id": revision_id},
                 }
                 for item in selected

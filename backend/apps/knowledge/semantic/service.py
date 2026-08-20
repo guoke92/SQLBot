@@ -1722,35 +1722,3 @@ def _projection_embeddings(texts: list[str]) -> list[list[float]] | None:
     return vectors
 
 
-def _asset_projection(
-    *,
-    kind: str,
-    key: str,
-    label: str,
-    summary: str,
-    payload: dict[str, Any],
-    oid: int,
-    datasource_id: int,
-    now: datetime,
-) -> KnowledgeAsset:
-    natural_key = sha256(
-        f"semantic:{payload['unit_revision_id']}:{kind}:{key}".encode()
-    ).hexdigest()
-    return KnowledgeAsset(
-        kind=kind,
-        natural_key=natural_key,
-        lineage_id=natural_key[:64],
-        version=1,
-        oid=oid,
-        datasource_id=datasource_id,
-        label=label,
-        summary=summary,
-        payload=payload,
-        trust_tier="published",
-        certified=True,
-        enabled=True,
-        valid_from=now,
-        provenance={"source": "knowledge_unit", **payload},
-        create_time=now,
-        update_time=now,
-    )

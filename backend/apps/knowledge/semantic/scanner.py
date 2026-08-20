@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import posixpath
 from io import BytesIO
 from pathlib import Path
 from typing import Any
@@ -59,18 +60,69 @@ def scan_package_payload(payload: dict[str, Any] | str) -> KnowledgePackageV2:
     return KnowledgePackageV2.model_validate(decoded)
 
 
+def _unit_locator(manifest_locator: str, unit_path: str) -> str:
+    """Resolve a manifest-relative unit path to the same normalized locator used
+    for files arriving from pickers, drag-drop and ZIP members."""
+    base = posixpath.dirname(manifest_locator)
+    candidate = unit_path if not base else posixpath.join(base, unit_path)
+    return document_locator(candidate)
+
+
+def _assemble_package(
+    manifest_locator: str,
+    manifest: Any,
+    documents_by_locator: dict[str, str],
+) -> KnowledgePackageV2:
+    """Assemble the single semantic contract from a manifest plus unit files.
+
+    ``units`` is an on-disk authoring/transport concern only. It is removed
+    before validation so ``KnowledgePackageV2`` remains the sole semantic
+    contract and no second schema is introduced.
+    """
+    if not isinstance(manifest, dict):
+        raise ValueError("KnowledgePackage 2.0 manifest root must be an object")
+    unit_paths = manifest.get("units")
+    inline_units = manifest.get("knowledge_units")
+    if unit_paths is not None and inline_units is not None:
+        raise ValueError("manifest cannot define both `units` and `knowledge_units`")
+    if unit_paths is None:
+        return scan_package_payload(manifest)
+
+    if not isinstance(unit_paths, list) or not unit_paths:
+        raise ValueError("manifest `units` must be a non-empty list of relative paths")
+    entries: list[Any] = []
+    for unit_path in unit_paths:
+        if not isinstance(unit_path, str) or not unit_path.strip():
+            raise ValueError("manifest `units` entries must be non-empty strings")
+        locator = _unit_locator(manifest_locator, unit_path.strip())
+        raw = documents_by_locator.get(locator)
+        if raw is None:
+            raise ValueError(f"unit file not found: {unit_path}")
+        entries.append(decode_document(locator, raw))
+
+    assembled = {key: value for key, value in manifest.items() if key != "units"}
+    assembled["knowledge_units"] = entries
+    return scan_package_payload(assembled)
+
+
 def scan_package_documents(documents: list[tuple[str, str]]) -> KnowledgePackageV2:
     """Find one canonical package from files, dropped directories or archives.
 
-    Referenced evidence files are retained by their locator/hash in the manifest;
-    they are not reinterpreted as independent knowledge items.
+    The package may be a single inline manifest or a manifest referencing one
+    file per knowledge unit under ``units``. Referenced evidence files are
+    retained by their locator/hash in the manifest; they are not reinterpreted
+    as independent knowledge items.
     """
     manifests: list[tuple[str, Any]] = []
+    documents_by_locator: dict[str, str] = {}
     for name, content in sorted(documents):
         locator = document_locator(name)
-        if not locator or Path(locator).name.lower() not in _MANIFEST_NAMES:
+        if not locator:
             continue
-        manifests.append((locator, decode_document(locator, content)))
+        if Path(locator).name.lower() in _MANIFEST_NAMES:
+            manifests.append((locator, decode_document(locator, content)))
+        elif Path(locator).suffix.lower() in _DOCUMENT_SUFFIXES:
+            documents_by_locator[locator] = content
     if not manifests and len(documents) == 1:
         locator = document_locator(documents[0][0]) or documents[0][0]
         manifests.append((locator, decode_document(locator, documents[0][1])))
@@ -81,7 +133,8 @@ def scan_package_documents(documents: list[tuple[str, str]]) -> KnowledgePackage
     if len(manifests) > 1:
         names = ", ".join(name for name, _payload in manifests)
         raise ValueError(f"multiple package manifests selected: {names}")
-    return scan_package_payload(manifests[0][1])
+    manifest_locator, manifest = manifests[0]
+    return _assemble_package(manifest_locator, manifest, documents_by_locator)
 
 
 def scan_package_files(documents: list[tuple[str, bytes]]) -> KnowledgePackageV2:

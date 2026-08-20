@@ -2,10 +2,12 @@
 
 提取日期：2026-08-18。关系一律 `proposed`。查询范例 `verification.status: PENDING_VALIDATION`，未在目标库逐条执行。
 
+> 本文件只保留需「目标库画像 / 绑定数据源后」才能确认的遗留项；可由源码直接确认的事实已落入各单元的 relationships/domain_rules/assumptions，不在此重复列为待复核。✅ 表示源码已确认、仅剩画像/绑定部分。
+
 ## 脏值与字典冲突
 
 1. **`cust_change_record.status`**  
-   代码写入 `CUST_CHECK_*`。画像另有 `1`、`returnCust-*`。问数只认 `CUST_CHECK_*`。若生产仍有短名 `PASS`，需再核对画像分组是否截断。
+   ✅ 代码经 `CheckStatus` 枚举写入 `CUST_CHECK_INIT/CHECKING/PASS/REJECT`（源码已确认）。画像另有 `1`、`returnCust-*`。问数只认 `CUST_CHECK_*`。仅「生产是否仍有短名 `PASS`」待画像确认。
 
 2. **两套开通字典**  
    - 租户产品 `tenant_product.open_status`：`Y` / `P` / `N`  
@@ -23,9 +25,9 @@
 
 ## 低置信度关系
 
-- `cust_project_rel.project_id` 是 `tenant_project.id` 的字符串，JOIN 需 CAST；方言待绑定后确认。
+- ✅ `cust_project_rel.project_id` 是 `tenant_project.id` 的字符串（源码确认 `String projectId`），JOIN 需 CAST——已入 project-enterprise-rel 单元（`CAST(tp.id AS CHAR)`）；仅方言待绑定后确认。
 - `ca_fee_order.company_id` 与 `ca_fee_company.id` / `cust_company_info.id` 的对齐未做画像 JOIN 验证。
-- 运营对接人 B / 风控 B 可能是 JSON 数组，不能当等值 JOIN 主路径。
+- ✅ 运营对接人 B / 风控 B：源码确认 `opContactB` / `riskControlContactB` 为 String 存 JSON 数组（`TenantProjectApplication#JSON.parseArray`），不能当等值 JOIN 主路径。
 - `op_contact_a` = `operation_user.operation_id` 仅为代码路径 proposed。
 
 ## 口径冲突（包内已写）

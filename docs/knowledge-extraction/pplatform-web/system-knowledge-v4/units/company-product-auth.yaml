@@ -1,0 +1,428 @@
+unit_id: company-product-auth
+revision: 1
+title: 企业授权协议与产品开通申请
+aliases:
+- 授权协议
+- 产品开通申请
+domain: product
+applicability: 企业是否已认证授权协议、企业产品开通申请 OPENED；不要用来统计租户产品 open_status=Y
+description: 授权协议 authed_status 为 Y/N。企业产品申请 open_status 为 OPENED/OPENING/NOT_OPENED。
+content:
+  concepts:
+  - concept_id: authorization-agreement
+    name: 授权协议
+    aliases:
+    - 已认证协议
+    definition: 企业在某产品上的授权协议签署记录。
+    dictionary:
+      Y: 已认证
+      N: 未认证
+    evidence_refs:
+    - ev-auth-agreement-fields
+    - ev-auth-agreement-signed
+  - concept_id: company-product-application
+    name: 企业产品开通申请
+    aliases:
+    - 开通申请
+    definition: 企业侧产品开通申请，字典与租户产品 Y/P/N 不同。
+    dictionary:
+      OPENED: 已开通
+      OPENING: 开通中
+      NOT_OPENED: 未开通
+    evidence_refs:
+    - ev-auth-application-dict
+    - ev-profile-auth
+  processes:
+  - stage_id: list-signed-agreement
+    name: 查询已签署协议企业
+    trigger: AuthorizationAgreementDaoImpl.listCompanyIdsWithSignedPlatformAgreement
+    enter_conditions:
+    - 企业 id 集合
+    exit_conditions:
+    - authed_status=Y 且 enable=Y
+    data_effects:
+    - operation: read
+      dataset: agreement
+      fields:
+      - authed_status
+      - enable
+      - cust_id
+      evidence_refs:
+      - ev-auth-agreement-signed
+    evidence_refs:
+    - ev-auth-agreement-signed
+  datasets:
+  - dataset_id: company
+    name: cust_company_info
+    database: lowcode_pplatform
+    description: 企业主数据。本单元通过 id 或 code 连接，统计建档成功数应回到 enterprise-onboarding。
+    fields:
+    - field_id: id
+      name: id
+      data_type: bigint
+      evidence_refs:
+      - ev-company-fields
+    - field_id: code
+      name: code
+      data_type: varchar
+      evidence_refs:
+      - ev-company-fields
+      description: 企业业务键。
+    - field_id: name
+      name: name
+      data_type: varchar
+      evidence_refs:
+      - ev-company-fields
+    - field_id: build_status
+      name: cust_build_status
+      data_type: varchar
+      evidence_refs:
+      - ev-company-fields
+      dictionary:
+        INIT: 初始化
+        TO_BE_BUILD: 未建档
+        BUILDING: 建档中
+        BUILD_SUCCESS: 认证成功
+        BUILD_FAIL: 认证失败
+        BUILD_BACK: 退回
+        BUILD_ACTIVATE: 待激活
+        CUST_CONFIRM_AWAIT: 待客户认证
+        CUST_AUDIT_AWAIT: 待审核
+        CUST_BUILDING: 审核中
+        CUST_BUILD_SUCCESS: 审核通过
+        CUST_BUILD_FAIL: 审核拒绝
+        CUST_CHANGE: 变更
+        AWAIT_CUST_CONFIRM: 待客户确认
+    - field_id: company_status
+      name: cust_status
+      data_type: varchar
+      evidence_refs:
+      - ev-company-fields
+      dictionary:
+        ADD: 新增
+        EFFECT: 生效
+        FAILURE: 失效
+        WRITEOFF: 注销
+        FREEZE: 冻结
+        CHANGE: 变更
+    - field_id: enabled
+      name: enable
+      data_type: varchar
+      evidence_refs:
+      - ev-company-fields
+      dictionary:
+        Y: 启用
+        N: 停用
+    - field_id: data_type
+      name: data_type
+      data_type: varchar
+      evidence_refs:
+      - ev-company-fields
+      dictionary:
+        '1': 正式企业主数据
+    - field_id: db_tenant_code
+      name: db_tenant_code
+      data_type: varchar
+      evidence_refs:
+      - ev-company-fields
+    evidence_refs:
+    - ev-company-fields
+  - dataset_id: agreement
+    name: authorization_agreement
+    database: lowcode_pplatform
+    description: 授权协议。cust_id 为企业 id。
+    fields:
+    - field_id: id
+      name: id
+      data_type: bigint
+      evidence_refs:
+      - ev-auth-agreement-fields
+    - field_id: cust_id
+      name: cust_id
+      data_type: bigint
+      evidence_refs:
+      - ev-auth-agreement-fields
+      - ev-auth-agreement-signed
+    - field_id: authed_status
+      name: authed_status
+      data_type: varchar
+      evidence_refs:
+      - ev-auth-agreement-signed
+      - ev-profile-auth
+      dictionary:
+        Y: 已认证
+        N: 未认证
+    - field_id: platform_product_code
+      name: platform_product_code
+      data_type: varchar
+      evidence_refs:
+      - ev-auth-agreement-fields
+    - field_id: enable
+      name: enable
+      data_type: varchar
+      evidence_refs:
+      - ev-auth-agreement-fields
+      dictionary:
+        Y: 启用
+        N: 停用
+    evidence_refs:
+    - ev-auth-agreement-fields
+  - dataset_id: auth_application
+    name: cust_auth_application
+    database: lowcode_pplatform
+    description: 企业产品开通申请。ref_cust_company_info 为企业 code。
+    fields:
+    - field_id: id
+      name: id
+      data_type: bigint
+      evidence_refs:
+      - ev-auth-application-fields
+    - field_id: company_code
+      name: ref_cust_company_info
+      data_type: varchar
+      evidence_refs:
+      - ev-auth-application-fields
+      - ev-auth-application-query
+    - field_id: open_status
+      name: open_status
+      data_type: varchar
+      evidence_refs:
+      - ev-auth-application-dict
+      - ev-profile-auth
+      dictionary:
+        OPENED: 已开通
+        OPENING: 开通中
+        NOT_OPENED: 未开通
+    - field_id: platform_product_code
+      name: platform_product_code
+      data_type: varchar
+      evidence_refs:
+      - ev-auth-application-fields
+    - field_id: enable
+      name: enable
+      data_type: varchar
+      evidence_refs:
+      - ev-auth-application-fields
+      dictionary:
+        Y: 启用
+        N: 停用
+    - field_id: main_data_id
+      name: main_data_id
+      data_type: bigint
+      description: 关联企业主数据 id。
+      evidence_refs:
+      - ev-auth-application-fields
+    - field_id: ref_parent_company
+      name: ref_parent_company
+      data_type: varchar
+      description: 关联母公司 code。
+      evidence_refs:
+      - ev-auth-application-fields
+    - field_id: ref_cust_auth_application_tenant_product
+      name: ref_cust_auth_application_tenant_product
+      data_type: varchar
+      description: 关联租户产品 code。
+      evidence_refs:
+      - ev-auth-application-fields
+    evidence_refs:
+    - ev-auth-application-fields
+  - dataset_id: tenant_product
+    name: tenant_product
+    database: lowcode_pplatform
+    description: 租户产品开通实例，本单元作为关联锚点。
+    fields:
+    - field_id: id
+      name: id
+      data_type: bigint
+      evidence_refs:
+      - ev-tenant-product-fields
+    - field_id: code
+      name: code
+      data_type: varchar
+      evidence_refs:
+      - ev-tenant-product-fields
+    evidence_refs:
+    - ev-tenant-product-fields
+  relationships:
+  - relationship_id: agreement-company
+    left:
+      dataset: agreement
+      field: cust_id
+    right:
+      dataset: company
+      field: id
+    relationship_type: EQUI_JOIN
+    cardinality: n:1
+    business_meaning: 协议行指向企业主键
+    status: proposed
+    evidence_refs:
+    - ev-auth-agreement-signed
+  - relationship_id: application-company
+    left:
+      dataset: auth_application
+      field: company_code
+    right:
+      dataset: company
+      field: code
+    relationship_type: EQUI_JOIN
+    cardinality: n:1
+    business_meaning: 开通申请按企业 code 连接
+    status: proposed
+    evidence_refs:
+    - ev-auth-application-query
+  - relationship_id: application-main-data-company
+    left:
+      dataset: auth_application
+      field: main_data_id
+    right:
+      dataset: company
+      field: id
+    relationship_type: EQUI_JOIN
+    cardinality: n:1
+    business_meaning: 开通申请按企业主数据 id 连接企业。
+    status: proposed
+    evidence_refs:
+    - ev-auth-application-fields
+    - ev-company-fields
+  - relationship_id: application-parent-company
+    left:
+      dataset: auth_application
+      field: ref_parent_company
+    right:
+      dataset: company
+      field: code
+    relationship_type: EQUI_JOIN
+    cardinality: n:1
+    business_meaning: 开通申请按母公司 code 连接企业。
+    status: proposed
+    evidence_refs:
+    - ev-auth-application-fields
+    - ev-company-fields
+  - relationship_id: application-tenant-product
+    left:
+      dataset: auth_application
+      field: ref_cust_auth_application_tenant_product
+    right:
+      dataset: tenant_product
+      field: code
+    relationship_type: EQUI_JOIN
+    cardinality: n:1
+    business_meaning: 企业开通申请关联对应租户产品编码。
+    status: proposed
+    evidence_refs:
+    - ev-auth-application-fields
+    - ev-tenant-product-fields
+  metrics:
+  - metric_id: opened-company-product-count
+    name: 已开通企业产品数
+    description: 企业产品开通申请中已开通的数量，按产品统计。
+    aggregation: COUNT_DISTINCT
+    field:
+      dataset: auth_application
+      field: id
+    grain:
+    - dataset: auth_application
+      field: platform_product_code
+    evidence_refs:
+    - ev-auth-application-query
+    - ev-profile-auth
+  - metric_id: signed-agreement-count
+    name: 已签署授权协议数
+    description: 已认证/签署的授权协议数，按产品统计。
+    aggregation: COUNT_DISTINCT
+    field:
+      dataset: agreement
+      field: id
+    grain:
+    - dataset: agreement
+      field: platform_product_code
+    evidence_refs:
+    - ev-auth-agreement-signed
+    - ev-profile-auth
+  calibers:
+  - caliber_id: signed-agreement
+    label: 已认证授权协议
+    description: authed_status=Y 且 enable=Y。
+    contract_fragment:
+      predicates:
+      - field: agreement.authed_status
+        operator: eq
+        values:
+        - Y
+      - field: agreement.enable
+        operator: eq
+        values:
+        - Y
+    field_targets:
+    - dataset: agreement
+      field: authed_status
+    - dataset: agreement
+      field: enable
+    evidence_refs:
+    - ev-auth-agreement-signed
+    - ev-profile-auth
+  - caliber_id: opened-company-product
+    label: 企业已开通产品申请
+    description: open_status=OPENED 且 enable=Y。
+    contract_fragment:
+      predicates:
+      - field: auth_application.open_status
+        operator: eq
+        values:
+        - OPENED
+      - field: auth_application.enable
+        operator: eq
+        values:
+        - Y
+    field_targets:
+    - dataset: auth_application
+      field: open_status
+    - dataset: auth_application
+      field: enable
+    evidence_refs:
+    - ev-auth-application-dict
+    - ev-profile-auth
+  domain_rules:
+  - rule_id: company-open-not-tenant-open
+    label: 企业开通申请不是租户产品开通
+    content: cust_auth_application 用 OPENED；tenant_product 用 Y。不要互相替代。
+    applicability: 企业已开通产品、租户已开通产品
+    query_impact: 本单元过滤必须使用 OPENED/OPENING/NOT_OPENED
+    field_targets:
+    - dataset: auth_application
+      field: open_status
+    evidence_refs:
+    - ev-auth-application-dict
+    - ev-product-open-ynp
+  verified_query_patterns:
+  - pattern_id: count-opened-company-products
+    question: 企业已开通的产品申请有多少
+    query: "SELECT COUNT(1) AS opened_company_product_count\nFROM cust_auth_application\n\
+      WHERE open_status = 'OPENED'\n  AND enable = 'Y'\n"
+    intended_specification:
+      grain: auth_application
+      caliber_id: opened-company-product
+    verification:
+      status: PENDING_VALIDATION
+    evidence_refs:
+    - ev-auth-application-dict
+    - ev-profile-auth
+evidence_refs:
+- ev-auth-agreement-fields
+- ev-auth-agreement-signed
+- ev-auth-application-fields
+- ev-auth-application-dict
+- ev-auth-application-query
+- ev-profile-auth
+- ev-company-fields
+- ev-product-open-ynp
+- ev-tenant-product-fields
+assumptions:
+- 查询范例未在目标库逐条执行。
+conflicts:
+- topic: 两套开通字典
+  parties:
+  - src-product-active-const
+  - src-product-open-enum
+  summary: 企业申请 OPENED；租户产品 Y。按表选择，禁止混用。
+confidence: 0.9

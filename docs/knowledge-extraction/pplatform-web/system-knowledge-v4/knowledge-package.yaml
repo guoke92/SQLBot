@@ -7,10 +7,6 @@ package:
   description: 从 pplatform-web@ee434954e 提取的系统级 2.0 知识包。吸收 customer-v2 的企业建档与项目关联两单元，并闭环变更、租户产品/项目、运营人员、联系人、集团、租户配置、资金规则、CA
     费、授权协议与 OpenAPI。关系均为 proposed。查询范例未在目标库逐条执行。
 sources:
-- source_id: src-skill-operation
-  kind: skill
-  locator: .cursor/skills/lls-operation/SKILL.md
-  repository_revision: ee434954e
 - source_id: src-doc-customer
   kind: business_document
   locator: lowcode-pplatform-common/.dev-standards/knowledge/business/客户管理平台业务规则文档.md
@@ -271,6 +267,214 @@ sources:
   kind: database_catalog
   locator: lowcode_pplatform readonly profile 2026-08-18 datasource-13
   repository_revision: ee434954e
+- source_id: src-project-approval-do
+  kind: database_catalog
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProjectApprovalDO.java
+  repository_revision: ee434954e
+- source_id: src-approval-biz-do
+  kind: database_catalog
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProjectApprovalBusinessInfoDO.java
+  repository_revision: ee434954e
+- source_id: src-approval-flow-do
+  kind: database_catalog
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProjectApprovalFlowDO.java
+  repository_revision: ee434954e
+- source_id: src-approval-flow-config-do
+  kind: database_catalog
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProjectApprovalFlowConfigDO.java
+  repository_revision: ee434954e
+- source_id: src-approval-flow-credit-do
+  kind: database_catalog
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProjectApprovalFlowCreditDO.java
+  repository_revision: ee434954e
+- source_id: src-approval-flow-file-do
+  kind: database_catalog
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProjectApprovalFlowFileDO.java
+  repository_revision: ee434954e
+- source_id: src-approval-flow-node-do
+  kind: database_catalog
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProjectApprovalFlowNodeDO.java
+  repository_revision: ee434954e
+- source_id: src-approval-wf-status-enum
+  kind: source_code
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/domain/enums/ProjectApprovalWorkflowStatusEnum.java
+  repository_revision: ee434954e
+- source_id: src-approval-project-type-enum
+  kind: source_code
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/domain/enums/ProjectApprovalProjectTypeEnum.java
+  repository_revision: ee434954e
+- source_id: src-approval-flow-code-enum
+  kind: source_code
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/domain/enums/ProjectApprovalFlowCodeEnum.java
+  repository_revision: ee434954e
+- source_id: src-cert-info-do
+  kind: database_catalog
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustCertificationInfoDO.java
+  repository_revision: ee434954e
+- source_id: src-account-info-do
+  kind: database_catalog
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustAccountInfoDO.java
+  repository_revision: ee434954e
+- source_id: src-ca-cert-info-do
+  kind: database_catalog
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CaCertificationInfoDO.java
+  repository_revision: ee434954e
+- source_id: src-cert-type-enum
+  kind: source_code
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/CustCertificationTypeEnum.java
+  repository_revision: ee434954e
+- source_id: src-cert-result-enum
+  kind: source_code
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/CustCertificationResultTypeEnum.java
+  repository_revision: ee434954e
+- source_id: src-account-type-enum
+  kind: source_code
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/AccountTypeEnum.java
+  repository_revision: ee434954e
+- source_id: src-receive-payment-enum
+  kind: source_code
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/ReceivePaymentTypeEnum.java
+  repository_revision: ee434954e
+- source_id: src-account-auth-state
+  kind: source_code
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/AccountAuthState.java
+  repository_revision: ee434954e
+- source_id: src-ca-submit-status-enum
+  kind: source_code
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/cfca/enums/CaSubmitStatusEnum.java
+  repository_revision: ee434954e
+- source_id: src-ca-fee-project-config-do
+  kind: database_catalog
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CaFeeProjectConfigDO.java
+  repository_revision: ee434954e
+- source_id: src-funding-exception-do
+  kind: database_catalog
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/FundingExceptionResolutionDO.java
+  repository_revision: ee434954e
+- source_id: src-funding-party-cfg-do
+  kind: database_catalog
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/FundingPartyRuleCfgDO.java
+  repository_revision: ee434954e
+- source_id: src-funding-party-detail-do
+  kind: database_catalog
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/FundingPartyRuleDetailDO.java
+  repository_revision: ee434954e
+- source_id: src-funding-party-front-do
+  kind: database_catalog
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/FundingPartyRuleFrontDO.java
+  repository_revision: ee434954e
+- source_id: src-funding-rule-detail-do
+  kind: database_catalog
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/FundingRuleDetailDO.java
+  repository_revision: ee434954e
+- source_id: src-funding-rule-front-do
+  kind: database_catalog
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/FundingRuleFrontCfgDO.java
+  repository_revision: ee434954e
+- source_id: src-tenant-setting-share-do
+  kind: database_catalog
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantSettingConfigShareDO.java
+  repository_revision: ee434954e
+- source_id: src-platform-product-client-do
+  kind: database_catalog
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/PlatformProductClientDO.java
+  repository_revision: ee434954e
+- source_id: src-platform-product-cust-role-do
+  kind: database_catalog
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/PlatformProductCustRoleDO.java
+  repository_revision: ee434954e
+- source_id: src-tenant-product-ext-field-do
+  kind: database_catalog
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProductExtFieldDO.java
+  repository_revision: ee434954e
+- source_id: src-tenant-product-ext-field-form-do
+  kind: database_catalog
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProductExtFieldFormDO.java
+  repository_revision: ee434954e
+- source_id: src-cust-customized-product-do
+  kind: database_catalog
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustCustomizedProductDO.java
+  repository_revision: ee434954e
+- source_id: src-project-file-info-do
+  kind: database_catalog
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/ProjectFileInfoDO.java
+  repository_revision: ee434954e
+- source_id: src-wechat-approval-apply-do
+  kind: database_catalog
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/WechatProjectApprovalApplyDO.java
+  repository_revision: ee434954e
+- source_id: src-wechat-approval-field-history-do
+  kind: database_catalog
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/WechatProjectApprovalFieldHistoryDO.java
+  repository_revision: ee434954e
+- source_id: src-user-rel-do
+  kind: database_catalog
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustUserRelDO.java
+  repository_revision: ee434954e
+- source_id: src-oper-change-record-do
+  kind: database_catalog
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustOperChangeRecordDO.java
+  repository_revision: ee434954e
+- source_id: src-head-company-do
+  kind: database_catalog
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustHeadCompanyInfoDO.java
+  repository_revision: ee434954e
+- source_id: src-company-lifecycle-do
+  kind: database_catalog
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustCompanyLifecycleInfoDO.java
+  repository_revision: ee434954e
+- source_id: src-shareholder-do
+  kind: database_catalog
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustShareholderInfoDO.java
+  repository_revision: ee434954e
+- source_id: src-invite-do
+  kind: database_catalog
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustInviteInfoDO.java
+  repository_revision: ee434954e
+- source_id: src-survey-state-do
+  kind: database_catalog
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustCompanySurveyStateDO.java
+  repository_revision: ee434954e
+- source_id: src-survey-whitelist-do
+  kind: database_catalog
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustCompanySurveyWhitelistDO.java
+  repository_revision: ee434954e
+- source_id: src-survey-answer-do
+  kind: database_catalog
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustSurveyAnswerDO.java
+  repository_revision: ee434954e
+- source_id: src-config-mapping-do
+  kind: database_catalog
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustConfigMappingDO.java
+  repository_revision: ee434954e
+- source_id: src-cust-setting-config-do
+  kind: database_catalog
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustSettingConfigDO.java
+  repository_revision: ee434954e
+- source_id: src-interworking-product-do
+  kind: database_catalog
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustInterworkingProductDO.java
+  repository_revision: ee434954e
+- source_id: src-tenant-interworking-product-do
+  kind: database_catalog
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantInterworkingProductDO.java
+  repository_revision: ee434954e
+- source_id: src-tenant-interworking-project-do
+  kind: database_catalog
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantInterworkingProjectDO.java
+  repository_revision: ee434954e
+- source_id: src-org-manage-do
+  kind: database_catalog
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/OrgManageDO.java
+  repository_revision: ee434954e
+- source_id: src-project-code-record-do
+  kind: database_catalog
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustProjectCodeRecordDO.java
+  repository_revision: ee434954e
+- source_id: src-project-pushcust-do
+  kind: database_catalog
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustProjectPushcustDO.java
+  repository_revision: ee434954e
 evidence:
 - evidence_id: ev-doc-admission
   source_id: src-doc-customer
@@ -284,12 +488,6 @@ evidence:
   locator: 租户项目与企业关联说明.md
   claim: 文档定义租户项目与 cust_project_rel 三角绑定（角色/产品/项目），并写 POST /app-web/custCompanyInfo/relateProject。
   confidence: 0.7
-- evidence_id: ev-skill-operation
-  source_id: src-skill-operation
-  evidence_kind: document_claim
-  locator: lls-operation/SKILL.md
-  claim: skill 导航 OperCustFacade 推数与回调，不是口径来源。
-  confidence: 0.5
 - evidence_id: ev-submit-endpoint
   source_id: src-controller
   evidence_kind: code_path
@@ -318,7 +516,8 @@ evidence:
   source_id: src-facade
   evidence_kind: code_path
   locator: OperCustFacade#resetStatus
-  claim: 简易建档且不走工作流时直接写 cust_status=EFFECT、cust_build_status=BUILD_SUCCESS；否则变更写 CHANGE + CUST_CHANGE。
+  claim: 简易建档且不走工作流时直接写 cust_status=EFFECT、cust_build_status=BUILD_SUCCESS；否则变更写 CHANGE
+    + CUST_CHANGE。
   confidence: 1.0
 - evidence_id: ev-async-record
   source_id: src-async
@@ -336,8 +535,8 @@ evidence:
   source_id: src-callback
   evidence_kind: code_path
   locator: CustSyncEventProcessor#updateCustBuildStatus
-  claim: PASS 写 BUILD_SUCCESS；REJECT 仅当 process=CHECK 写 BUILD_FAIL，变更拒绝仍保持 BUILD_SUCCESS。状态更新同时要求 enable=Y
-    且 data_type=主数据。
+  claim: PASS 写 BUILD_SUCCESS；REJECT 仅当 process=CHECK 写 BUILD_FAIL，变更拒绝仍保持 BUILD_SUCCESS。状态更新同时要求
+    enable=Y 且 data_type=主数据。
   confidence: 1.0
 - evidence_id: ev-effect-cust
   source_id: src-callback
@@ -361,8 +560,8 @@ evidence:
   source_id: src-mapper
   evidence_kind: query_usage
   locator: CustCompanyQueryMapper.xml#listEffectFinance
-  claim: 资金方有效企业用 cust_build_status='BUILD_SUCCESS' AND cust_status='EFFECT' AND data_type='1' AND enable='Y'，经
-    cust_project_rel.code 连接。
+  claim: 资金方有效企业用 cust_build_status='BUILD_SUCCESS' AND cust_status='EFFECT' AND data_type='1'
+    AND enable='Y'，经 cust_project_rel.code 连接。
   confidence: 1.0
 - evidence_id: ev-group-caliber
   source_id: src-group-mapper
@@ -382,11 +581,24 @@ evidence:
   locator: CustBuildRecordDO
   claim: 表 cust_build_record；企业引用字段是 cust_id，不是 company_id。
   confidence: 1.0
+- evidence_id: ev-build-record-person
+  source_id: src-facade
+  evidence_kind: code_path
+  locator: OperCustFacade#saveCustBuildRecord
+  claim: cust_build_record.person_id 写入经办联系人 id（形参 personId 来自 getCustPerson），对应 cust_person_info.id。
+  confidence: 1.0
+- evidence_id: ev-self-reg-flow
+  source_id: src-facade
+  evidence_kind: code_path
+  locator: OperCustFacade#regSelfOld
+  claim: 自主注册建档读写链：读企业→按 ref_cust_company_info 读联系人→非管理员升级 accountAdmin→推送运营→置 check_status=CUST_CHECK_INIT→回写 platform_user_id→落 cust_build_record。
+  confidence: 1.0
 - evidence_id: ev-project-rel-fields
   source_id: src-project-rel-do
   evidence_kind: database_schema
   locator: CustProjectRelDO
-  claim: 表 cust_project_rel；企业引用是 ref_cust_project_rel_cust_company_info（企业 code）；开通状态字段是 project_open_status。
+  claim: 表 cust_project_rel；企业引用是 ref_cust_project_rel_cust_company_info（企业 code）；开通状态字段是
+    project_open_status。
   confidence: 1.0
 - evidence_id: ev-tenant-project-fields
   source_id: src-tenant-project-do
@@ -476,13 +688,15 @@ evidence:
   source_id: src-callback
   evidence_kind: code_path
   locator: CustSyncEventProcessor in-flight change record
-  claim: 在途变更单条件为 status NOT IN (CUST_CHECK_PASS, CUST_CHECK_REJECT)，JOIN cust_id = cust_company_info.id。
+  claim: 在途变更单条件为 status NOT IN (CUST_CHECK_PASS, CUST_CHECK_REJECT)，JOIN cust_id
+    = cust_company_info.id。
   confidence: 0.9
 - evidence_id: ev-profile-change
   source_id: src-db-profile
   evidence_kind: database_profile
   locator: cust_change_record GROUP BY status 2026-08-18
-  claim: 5172 行。除 CUST_CHECK_* 外还有脏值 1 与 returnCust-*。企业主表 CUST_CHANGE 631、cust_status CHANGE 641。
+  claim: 5172 行。除 CUST_CHECK_* 外还有脏值 1 与 returnCust-*。企业主表 CUST_CHANGE 631、cust_status
+    CHANGE 641。
   confidence: 0.95
 - evidence_id: ev-tenant-product-endpoint
   source_id: src-tenant-product-controller
@@ -566,7 +780,8 @@ evidence:
   source_id: src-top-flag-check
   evidence_kind: code_path
   locator: TopFlagCheckService
-  claim: 离职运营人员 = deleted=Y 且 enable=Y 的 operation_id。对接人都不在该集合时把 top_flag 从 1 清为 0。
+  claim: 离职运营人员 = deleted=Y 且 enable=Y 的 operation_id。对接人都不在该集合时把 top_flag 从 1 清为
+    0。
   confidence: 0.9
 - evidence_id: ev-project-report-top
   source_id: src-project-report-controller
@@ -596,13 +811,15 @@ evidence:
   source_id: src-person-controller
   evidence_kind: code_path
   locator: CustPersonController#/cust-web/custPerson
-  claim: 联系人/管理员查询以 status=EFFECT、user_type=accountAdmin、enable=Y、ref_cust_company_info=企业 code。
+  claim: 联系人/管理员查询以 status=EFFECT、user_type=accountAdmin、enable=Y、ref_cust_company_info=企业
+    code。
   confidence: 0.9
 - evidence_id: ev-person-fields
   source_id: src-person-do
   evidence_kind: database_schema
   locator: CustPersonInfoDO
-  claim: cust_person_info 通过 ref_cust_company_info 存企业 code；status 为联系人状态；user_type 为账号类型。
+  claim: cust_person_info 通过 ref_cust_company_info 存企业 code；status 为联系人状态；user_type
+    为账号类型。
   confidence: 0.9
 - evidence_id: ev-role-endpoint
   source_id: src-role-controller
@@ -656,7 +873,8 @@ evidence:
   source_id: src-group-rel-do
   evidence_kind: database_schema
   locator: CustGroupRelDO
-  claim: cust_group_rel.cust_id 为企业 id；status 注释为 EFFECTIVE/INEFFECTIVE/REJECTED；root_flag 为 Y/N。
+  claim: cust_group_rel.cust_id 为企业 id；status 注释为 EFFECTIVE/INEFFECTIVE/REJECTED；root_flag
+    为 Y/N。
   confidence: 0.9
 - evidence_id: ev-profile-group
   source_id: src-db-profile
@@ -764,7 +982,8 @@ evidence:
   source_id: src-db-profile
   evidence_kind: database_profile
   locator: authorization_agreement / cust_auth_application 2026-08-18
-  claim: 协议 30973：authed Y+enable Y 11442。申请 31615：OPENED 8855 / OPENING 22705 / NOT_OPENED 55。
+  claim: 协议 30973：authed Y+enable Y 11442。申请 31615：OPENED 8855 / OPENING 22705 / NOT_OPENED
+    55。
   confidence: 0.95
 - evidence_id: ev-access-endpoint
   source_id: src-access-controller
@@ -802,3848 +1021,338 @@ evidence:
   locator: cust_project_rel 2026-08-18
   claim: 58645 行。开通字段是 project_open_status；无 open_status 列。top_flag=1 共 404。
   confidence: 0.95
-knowledge_units:
-- unit_id: enterprise-onboarding
-  revision: 1
-  title: 企业建档
-  aliases:
-  - 建档
-  - 企业开户
-  - 客户建档
-  - 企业认证
-  domain: enterprise
-  applicability: 企业主数据查询、建档进度、有效已建档企业统计；不用于项目成员清点或开通产品数
-  description: |
-    企业资料提交、向运营中台推送、审核回调并形成可使用企业主数据的过程。 推送完成、审核中、建档成功、企业生效是不同事件。推送记录不是企业。
-  content:
-    concepts:
-    - concept_id: onboarding
-      name: 建档
-      aliases:
-      - 企业建档
-      - 开户
-      - 企业认证
-      definition: 从提交资料到主数据生效的全过程，不是单一状态值，也不能用一次接口返回等同完成。
-      evidence_refs:
-      - ev-doc-admission
-      - ev-submit-endpoint
-      - ev-push-init
-      - ev-update-build-status
-    - concept_id: build-success
-      name: 建档成功
-      aliases:
-      - 认证成功
-      - 有效已建档企业
-      - 已建档
-      definition: 主数据建档状态为 BUILD_SUCCESS。口语「建档成功」对应枚举展示名「认证成功」。
-      dictionary:
-        BUILD_SUCCESS: 认证成功
-        EFFECT: 生效
-      evidence_refs:
-      - ev-build-status-dict
-      - ev-effect-cust
-      - ev-strict-caliber
-    - concept_id: building
-      name: 建档中
-      aliases:
-      - 审核中
-      definition: 已推送运营、尚未得到终态回调。
-      dictionary:
-        CUST_BUILDING: 审核中
-        CUST_CHECK_INIT: 待运营审核
-        CUST_CHECK_CHECKING: 审核中
-      evidence_refs:
-      - ev-status-map
-      - ev-push-init
-    - concept_id: await-customer
-      name: 待客户确认
-      aliases:
-      - 退回客户
-      - 待客户认证
-      definition: 运营退回客户补正，不是建档失败。
-      dictionary:
-        CUST_CONFIRM_AWAIT: 待客户认证
-        CUST_CHECK_BACKTOCUSTOM: 退回客户
-      evidence_refs:
-      - ev-status-map
-    - concept_id: build-fail
-      name: 建档失败
-      aliases:
-      - 认证失败
-      - 建档驳回
-      definition: 仅建档审核流程（process=CHECK）被拒绝。企业变更拒绝不等于建档失败。
-      dictionary:
-        BUILD_FAIL: 认证失败
-      evidence_refs:
-      - ev-update-build-status
-    - concept_id: changing
-      name: 变更中
-      aliases:
-      - 企业变更
-      definition: 已建档企业发起变更时的状态组合，仍可能出现在部分「有效企业」查询中。
-      dictionary:
-        CUST_CHANGE: 变更
-        CHANGE: 变更
-      evidence_refs:
-      - ev-active-caliber
-      - ev-simple-success
-    processes:
-    - stage_id: submitted
-      name: 提交建档
-      trigger: POST /cust-web/custInfo/submitCust 或 checkBuild 分流后的注册推送
-      exit_conditions:
-      - 运营推送成功
-      - check_status=CUST_CHECK_INIT
-      next_stages:
-      - async_push
-      data_effects:
-      - operation: update
-        dataset: company
-        fields:
-        - check_status
-        condition: check_status = CUST_CHECK_INIT
-        description: 推送成功只表示运营已收单，不是建档成功。
-        evidence_refs:
-        - ev-push-init
-        - ev-submit-endpoint
-      evidence_refs:
-      - ev-submit-endpoint
-      - ev-check-build-endpoint
-      - ev-push-init
-    - stage_id: async_push
-      name: 异步后置与过程记录
-      trigger: 提交事务提交之后
-      enter_conditions:
-      - 非自主建档的后置任务已注册
-      next_stages:
-      - reviewing
-      - await_customer
-      - simple_shortcut
-      data_effects:
-      - operation: insert
-        dataset: build_record
-        fields:
-        - cust_id
-        - person_id
-        - retry_status
-        - channel
-        description: 一行一次推送/补偿，不能计为企业数。
-        evidence_refs:
-        - ev-async-record
-        - ev-build-record-fields
-      evidence_refs:
-      - ev-async-record
-    - stage_id: reviewing
-      name: 审核中
-      trigger: 运营回调 INIT 或 CHECKING
-      enter_conditions:
-      - 已推送运营
-      next_stages:
-      - approved
-      - rejected
-      - await_customer
-      data_effects:
-      - operation: update
-        dataset: company
-        fields:
-        - build_status
-        - check_status
-        condition: check_status IN (CUST_CHECK_INIT, CUST_CHECK_CHECKING) → cust_build_status=CUST_BUILDING
-        evidence_refs:
-        - ev-status-map
-      evidence_refs:
-      - ev-status-map
-    - stage_id: await_customer
-      name: 退回待客户确认
-      trigger: 运营回调 BACKTOCUSTOM
-      next_stages:
-      - reviewing
-      data_effects:
-      - operation: update
-        dataset: company
-        fields:
-        - build_status
-        - check_status
-        condition: cust_build_status=CUST_CONFIRM_AWAIT
-        evidence_refs:
-        - ev-status-map
-        - ev-update-build-status
-      evidence_refs:
-      - ev-status-map
-    - stage_id: approved
-      name: 建档审核通过
-      trigger: 运营回调 CUST_CHECK_PASS
-      exit_conditions:
-      - cust_build_status=BUILD_SUCCESS
-      - cust_status=EFFECT
-      data_effects:
-      - operation: update
-        dataset: company
-        fields:
-        - build_status
-        - check_status
-        - company_status
-        description: 先写 BUILD_SUCCESS，再 effectCust 写 EFFECT。
-        evidence_refs:
-        - ev-update-build-status
-        - ev-effect-cust
-      evidence_refs:
-      - ev-update-build-status
-      - ev-effect-cust
-    - stage_id: rejected
-      name: 建档失败
-      trigger: 运营回调 REJECT 且 process=CHECK
-      data_effects:
-      - operation: update
-        dataset: company
-        fields:
-        - build_status
-        - check_status
-        condition: process=CHECK → BUILD_FAIL；process=CHANGE 时保持 BUILD_SUCCESS
-        evidence_refs:
-        - ev-update-build-status
-      evidence_refs:
-      - ev-update-build-status
-    - stage_id: simple_shortcut
-      name: 简易建档本地成功
-      trigger: identify_style=SIMPLE 且变更项不启动工作流
-      exit_conditions:
-      - cust_build_status=BUILD_SUCCESS
-      - cust_status=EFFECT
-      data_effects:
-      - operation: update
-        dataset: company
-        fields:
-        - build_status
-        - company_status
-        - check_status
-        description: 不经运营 PASS 回调，本地直接成功。
-        evidence_refs:
-        - ev-simple-success
-      evidence_refs:
-      - ev-simple-success
-    datasets:
-    - dataset_id: company
-      name: cust_company_info
-      database: lowcode_pplatform
-      description: 企业主/过程记录，一行一家企业。业务主数据通常需 data_type='1' AND enable='Y'。连接关系表用 code，连接推送记录用 id。
-      fields:
-      - field_id: id
-        name: id
-        data_type: bigint
-        evidence_refs:
-        - ev-company-fields
-      - field_id: code
-        name: code
-        data_type: varchar
-        description: 业务键，连接 cust_project_rel.ref_cust_project_rel_cust_company_info。
-        evidence_refs:
-        - ev-company-fields
-        - ev-strict-caliber
-      - field_id: name
-        name: name
-        data_type: varchar
-        evidence_refs:
-        - ev-company-fields
-      - field_id: build_status
-        name: cust_build_status
-        data_type: varchar
-        dictionary:
-          CUST_BUILDING: 审核中
-          CUST_CONFIRM_AWAIT: 待客户认证
-          BUILD_SUCCESS: 认证成功
-          BUILD_FAIL: 认证失败
-          CUST_CHANGE: 变更
-          AWAIT_CUST_CONFIRM: 待客户确认
-        evidence_refs:
-        - ev-company-fields
-        - ev-build-status-dict
-      - field_id: check_status
-        name: check_status
-        data_type: varchar
-        dictionary:
-          CUST_CHECK_INIT: 待审核
-          CUST_CHECK_CHECKING: 审核中
-          CUST_CHECK_BACKTOCUSTOM: 退回客户
-          CUST_CHECK_PASS: 通过
-          CUST_CHECK_REJECT: 拒绝
-        evidence_refs:
-        - ev-push-init
-        - ev-status-map
-      - field_id: company_status
-        name: cust_status
-        data_type: varchar
-        dictionary:
-          ADD: 新增
-          EFFECT: 生效
-          CHANGE: 变更
-          FAILURE: 失效
-          WRITEOFF: 注销
-          FREEZE: 冻结
-        evidence_refs:
-        - ev-company-fields
-        - ev-cust-status-dict
-      - field_id: enabled
-        name: enable
-        data_type: varchar
-        dictionary:
-          'Y': 启用
-          'N': 停用
-        evidence_refs:
-        - ev-company-fields
-      - field_id: data_type
-        name: data_type
-        data_type: varchar
-        dictionary:
-          '1': 正式企业主数据
-        evidence_refs:
-        - ev-data-type-main
-        - ev-company-fields
-      - field_id: identify_style
-        name: identify_style
-        data_type: varchar
-        dictionary:
-          SELF: 自主认证
-          INVITE: 邀请认证
-          SIMPLE: 简易认证
-          INVITE_AGW: 网关邀请
-        evidence_refs:
-        - ev-first-submit
-        - ev-simple-success
-      - field_id: first_submit_auth
-        name: cust_first_submit_auth
-        data_type: timestamp
-        description: 仅 SELF/INVITE 首次提交时写入，不能代表全部来源的建档时间。
-        evidence_refs:
-        - ev-first-submit
-      - field_id: create_time
-        name: create_time
-        data_type: timestamp
-        description: 行创建时间，不是建档成功时间。
-        evidence_refs:
-        - ev-company-fields
-      - field_id: db_tenant_code
-        name: db_tenant_code
-        data_type: varchar
-        evidence_refs:
-        - ev-company-fields
-      evidence_refs:
-      - ev-company-fields
-    - dataset_id: build_record
-      name: cust_build_record
-      database: lowcode_pplatform
-      description: 推送、异步后置或补偿记录。一行一次技术过程，不能计为企业数或建档成功数。
-      fields:
-      - field_id: id
-        name: id
-        data_type: bigint
-        evidence_refs:
-        - ev-build-record-fields
-      - field_id: cust_id
-        name: cust_id
-        data_type: bigint
-        description: 企业主键，对应 cust_company_info.id。
-        evidence_refs:
-        - ev-build-record-fields
-      - field_id: person_id
-        name: person_id
-        data_type: bigint
-        evidence_refs:
-        - ev-build-record-fields
-      - field_id: retry_status
-        name: retry_status
-        data_type: varchar
-        evidence_refs:
-        - ev-build-record-fields
-      - field_id: channel
-        name: channel
-        data_type: varchar
-        evidence_refs:
-        - ev-build-record-fields
-      - field_id: enable
-        name: enable
-        data_type: varchar
-        evidence_refs:
-        - ev-build-record-fields
-      - field_id: create_time
-        name: create_time
-        data_type: timestamp
-        evidence_refs:
-        - ev-build-record-fields
-      evidence_refs:
-      - ev-build-record-fields
-      - ev-async-record
-    relationships:
-    - relationship_id: company-build-record
-      left:
-        dataset: company
-        field: id
-      right:
-        dataset: build_record
-        field: cust_id
-      relationship_type: EQUI_JOIN
-      cardinality: 1:n
-      business_meaning: 一家企业对应多次推送/补偿过程
-      status: proposed
-      evidence_refs:
-      - ev-async-record
-      - ev-build-record-fields
-    metrics: []
-    calibers:
-    - caliber_id: active-built-company
-      label: 有效已建档企业
-      description: 建档成功且企业生效的正式主数据。用户未声明「含变更中」时使用此口径。
-      contract_fragment:
-        predicates:
-        - field: company.build_status
-          operator: eq
-          values:
-          - BUILD_SUCCESS
-        - field: company.company_status
-          operator: eq
-          values:
-          - EFFECT
-        - field: company.enabled
-          operator: eq
-          values:
-          - 'Y'
-        - field: company.data_type
-          operator: eq
-          values:
-          - '1'
-      field_targets:
-      - dataset: company
-        field: build_status
-      - dataset: company
-        field: company_status
-      - dataset: company
-        field: enabled
-      - dataset: company
-        field: data_type
-      evidence_refs:
-      - ev-strict-caliber
-      - ev-group-caliber
-      - ev-data-type-main
-    - caliber_id: effect-company-including-change
-      label: 有效企业（含变更中）
-      description: Mapper listEffectCompanyByCustType 的宽松口径。仅当用户明确要求包含变更中企业时使用。
-      contract_fragment:
-        predicates:
-        - field: company.enabled
-          operator: eq
-          values:
-          - 'Y'
-        - field: company.data_type
-          operator: eq
-          values:
-          - '1'
-        - any_of:
-          - predicates:
-            - field: company.build_status
-              operator: eq
-              values:
-              - BUILD_SUCCESS
-            - field: company.company_status
-              operator: eq
-              values:
-              - EFFECT
-          - predicates:
-            - field: company.build_status
-              operator: eq
-              values:
-              - CUST_CHANGE
-            - field: company.company_status
-              operator: eq
-              values:
-              - CHANGE
-      field_targets:
-      - dataset: company
-        field: build_status
-      - dataset: company
-        field: company_status
-      - dataset: company
-        field: enabled
-      - dataset: company
-        field: data_type
-      evidence_refs:
-      - ev-active-caliber
-    domain_rules:
-    - rule_id: do-not-count-push-records
-      label: 推送记录不计企业数
-      content: 统计建档企业必须用 cust_company_info 去重，禁止用 cust_build_record 行数。
-      applicability: 企业数、建档成功数
-      query_impact: 主表必须是 company，build_record 只作过程过滤
-      field_targets:
-      - dataset: company
-        field: build_status
-      - dataset: build_record
-        field: cust_id
-      evidence_refs:
-      - ev-build-record-fields
-      - ev-async-record
-    - rule_id: change-reject-is-not-build-fail
-      label: 变更拒绝不是建档失败
-      content: 运营 REJECT 且 process=CHANGE 时企业保持 BUILD_SUCCESS，不得计入建档失败。
-      applicability: 建档失败、驳回数
-      query_impact: 失败口径必须同时约束建档流程，不能只看 check_status=CUST_CHECK_REJECT
-      field_targets:
-      - dataset: company
-        field: build_status
-      - dataset: company
-        field: check_status
-      evidence_refs:
-      - ev-update-build-status
-    - rule_id: create-time-is-not-success-time
-      label: 创建时间不是建档成功时间
-      content: 没有统一的审核通过时间字段；create_time 不可顶替建档成功日；cust_first_submit_auth 仅覆盖 SELF/INVITE。
-      applicability: 建档趋势、本月新增已建档企业
-      query_impact: 缺时间字段时不得默用 create_time；应对用户澄清时间口径
-      field_targets:
-      - dataset: company
-        field: create_time
-      - dataset: company
-        field: first_submit_auth
-      evidence_refs:
-      - ev-first-submit
-      - ev-company-fields
-    verified_query_patterns:
-    - pattern_id: count-built-companies
-      question: 有效已建档企业有多少
-      query: |
-        SELECT COUNT(1) AS built_company_count FROM cust_company_info WHERE cust_build_status = 'BUILD_SUCCESS'
-          AND cust_status = 'EFFECT'
-          AND enable = 'Y'
-          AND data_type = '1'
-      intended_specification:
-        grain: company
-        caliber_id: active-built-company
-      evidence_refs:
-      - ev-strict-caliber
-      - ev-group-caliber
-      verification:
-        status: PENDING_VALIDATION
-    - pattern_id: count-building-companies
-      question: 正在建档审核中的企业有多少
-      query: |
-        SELECT COUNT(1) AS building_company_count FROM cust_company_info WHERE cust_build_status = 'CUST_BUILDING'
-          AND enable = 'Y'
-          AND data_type = '1'
-      intended_specification:
-        grain: company
-      evidence_refs:
-      - ev-status-map
-      - ev-data-type-main
-      verification:
-        status: PENDING_VALIDATION
-  evidence_refs:
-  - ev-submit-endpoint
-  - ev-push-init
-  - ev-status-map
-  - ev-update-build-status
-  - ev-effect-cust
-  - ev-company-fields
-  - ev-build-record-fields
-  - ev-strict-caliber
-  assumptions:
-  - 正式企业主数据以 data_type='1' 为准，待库画像复核空值与历史脏数据。
-  - 未连接目标库，关系与基数均为 proposed。
-  - 查询范例未在目标数据源执行，绑定后才可升级为已验证模式。
-  conflicts:
-  - topic: 有效企业是否包含变更中
-    parties:
-    - src-mapper#listEffectCompanyByCustType
-    - src-mapper#listEffectFinance
-    summary: 部分列表接口把 CUST_CHANGE+CHANGE 算作有效企业；资金方/严格口径只要 BUILD_SUCCESS+EFFECT。用户未说明时用严格口径并允许澄清。
-  - topic: 建档成功时间
-    parties:
-    - src-doc-customer
-    - src-company-do
-    - src-callback
-    summary: 文档没有物理成功时间字段；代码仅对 SELF/INVITE 写 cust_first_submit_auth；不得用 create_time 顶替。
-  - topic: 建档成功的展示名
-    parties:
-    - src-build-status-enum
-    - src-doc-customer
-    summary: 枚举展示名为认证成功，业务口语常说建档成功；问数按库值 BUILD_SUCCESS 对齐。
-  confidence: 0.93
-- unit_id: project-enterprise-rel
-  revision: 1
-  title: 企业关联租户项目
-  aliases:
-  - 关联项目
-  - 项目成员企业
-  - 开通项目
-  domain: project
-  applicability: 某企业加入了哪些项目、某项目下有哪些企业、项目开通状态；不用于统计建档成功企业总数
-  description: |
-    企业在建档之后按客户角色、租户产品和租户项目写入 cust_project_rel。 租户项目是 tenant_project 上的业务项目实例，不是 ERP 泛项目。 开通状态真实值为 Y/N/P；已生效项目的库值是 '1'。
-  content:
-    concepts:
-    - concept_id: tenant-project
-      name: 租户项目
-      aliases:
-      - 项目配置
-      - 业务项目
-      definition: 某租户在已开通产品下的可运营项目实例，对应表 tenant_project。
-      evidence_refs:
-      - ev-doc-project
-      - ev-tenant-project-fields
-    - concept_id: project-rel
-      name: 企业项目关联
-      aliases:
-      - 关联项目
-      - 项目成员
-      definition: 一行表示某企业以某角色绑定某租户项目，不是企业主数据。
-      evidence_refs:
-      - ev-project-rel-fields
-      - ev-relate-impl
-    - concept_id: project-open
-      name: 项目开通
-      aliases:
-      - 已开通
-      - 开通中
-      definition: 关系表上的开通状态，值是 Y/P/N，不是 OPENED。
-      dictionary:
-        'Y': 已开通
-        'P': 开通中
-        'N': 未开通
-      evidence_refs:
-      - ev-open-status-dict
-      - ev-project-rel-fields
-    processes:
-    - stage_id: relate-project
-      name: 关联项目
-      trigger: POST /cust-web/custInfo/relateProject
-      enter_conditions:
-      - 企业已存在
-      - 选择客户角色/产品/项目
-      exit_conditions:
-      - 写入或更新 cust_project_rel
-      data_effects:
-      - operation: upsert
-        dataset: project_rel
-        fields:
-        - project_id
-        - product_id
-        - company_type
-        - company_code
-        description: 同企业同角色不可重复绑定同一项目；可能先填空项目再补 project_id。
-        evidence_refs:
-        - ev-relate-impl
-        - ev-relate-endpoint
-      evidence_refs:
-      - ev-relate-impl
-      - ev-relate-endpoint
-      - ev-doc-project
-    datasets:
-    - dataset_id: company
-      name: cust_company_info
-      database: lowcode_pplatform
-      description: 企业主数据。本单元通过 code 连接项目关系，统计企业数时应回到建档单元口径。
-      fields:
-      - field_id: id
-        name: id
-        data_type: bigint
-        evidence_refs:
-        - ev-company-fields
-      - field_id: code
-        name: code
-        data_type: varchar
-        evidence_refs:
-        - ev-company-fields
-        - ev-strict-caliber
-      - field_id: name
-        name: name
-        data_type: varchar
-        evidence_refs:
-        - ev-company-fields
-      - field_id: build_status
-        name: cust_build_status
-        data_type: varchar
-        dictionary:
-          BUILD_SUCCESS: 认证成功
-          CUST_BUILDING: 审核中
-        evidence_refs:
-        - ev-build-status-dict
-      - field_id: company_status
-        name: cust_status
-        data_type: varchar
-        dictionary:
-          EFFECT: 生效
-        evidence_refs:
-        - ev-cust-status-dict
-      - field_id: enabled
-        name: enable
-        data_type: varchar
-        dictionary:
-          'Y': 启用
-        evidence_refs:
-        - ev-company-fields
-      - field_id: data_type
-        name: data_type
-        data_type: varchar
-        dictionary:
-          '1': 正式企业主数据
-        evidence_refs:
-        - ev-data-type-main
-      - field_id: db_tenant_code
-        name: db_tenant_code
-        data_type: varchar
-        evidence_refs:
-        - ev-company-fields
-      evidence_refs:
-      - ev-company-fields
-    - dataset_id: project_rel
-      name: cust_project_rel
-      database: lowcode_pplatform
-      description: 项目—企业—角色关系。企业引用连接 cust_company_info.code。project_id 存 tenant_project.id 的字符串。
-      fields:
-      - field_id: id
-        name: id
-        data_type: bigint
-        evidence_refs:
-        - ev-project-rel-fields
-      - field_id: project_id
-        name: project_id
-        data_type: varchar
-        description: 租户项目主键的字符串形式。
-        evidence_refs:
-        - ev-project-rel-fields
-        - ev-relate-impl
-      - field_id: product_id
-        name: product_id
-        data_type: varchar
-        description: 租户产品 ID。
-        evidence_refs:
-        - ev-project-rel-fields
-      - field_id: company_type
-        name: company_type
-        data_type: varchar
-        dictionary:
-          CORE: 核心企业
-          FINANCE: 金融机构
-          SUPPLIER: 供应商
-          DEALER: 经销商
-          CORPORATION_COMPANY: 集团公司
-        evidence_refs:
-        - ev-company-type-dict
-        - ev-project-rel-fields
-      - field_id: project_open_status
-        name: project_open_status
-        data_type: varchar
-        dictionary:
-          'Y': 已开通
-          'P': 开通中
-          'N': 未开通
-        evidence_refs:
-        - ev-open-status-dict
-        - ev-project-rel-fields
-      - field_id: company_code
-        name: ref_cust_project_rel_cust_company_info
-        data_type: varchar
-        description: 企业业务键，连接 cust_company_info.code，不是企业 id。
-        evidence_refs:
-        - ev-project-rel-fields
-        - ev-strict-caliber
-      - field_id: enable
-        name: enable
-        data_type: varchar
-        dictionary:
-          'Y': 启用
-          'N': 停用
-        evidence_refs:
-        - ev-project-rel-fields
-      - field_id: db_tenant_code
-        name: db_tenant_code
-        data_type: varchar
-        evidence_refs:
-        - ev-project-rel-fields
-      evidence_refs:
-      - ev-project-rel-fields
-    - dataset_id: tenant_project
-      name: tenant_project
-      database: lowcode_pplatform
-      description: 租户在某产品下的业务项目实例。已生效状态库值为 '1'。
-      fields:
-      - field_id: id
-        name: id
-        data_type: bigint
-        evidence_refs:
-        - ev-tenant-project-fields
-      - field_id: name
-        name: name
-        data_type: varchar
-        evidence_refs:
-        - ev-tenant-project-fields
-      - field_id: product_id
-        name: product_id
-        data_type: bigint
-        evidence_refs:
-        - ev-tenant-project-fields
-      - field_id: project_status
-        name: project_status
-        data_type: varchar
-        dictionary:
-          '0': 待生效
-          '1': 已生效
-          '2': 已失效
-        evidence_refs:
-        - ev-project-status-dict
-        - ev-tenant-project-fields
-      - field_id: enable
-        name: enable
-        data_type: varchar
-        dictionary:
-          'Y': 启用
-        evidence_refs:
-        - ev-tenant-project-fields
-      - field_id: db_tenant_code
-        name: db_tenant_code
-        data_type: varchar
-        evidence_refs:
-        - ev-tenant-project-fields
-      - field_id: tenant_flg_en
-        name: tenant_flg_en
-        data_type: varchar
-        evidence_refs:
-        - ev-tenant-project-fields
-      - field_id: project_effective_time
-        name: project_effective_time
-        data_type: timestamp
-        evidence_refs:
-        - ev-tenant-project-fields
-      evidence_refs:
-      - ev-tenant-project-fields
-    relationships:
-    - relationship_id: company-project-rel
-      left:
-        dataset: company
-        field: code
-      right:
-        dataset: project_rel
-        field: company_code
-      relationship_type: EQUI_JOIN
-      cardinality: 1:n
-      business_meaning: 一家企业可按不同角色绑定多个租户项目
-      status: proposed
-      evidence_refs:
-      - ev-strict-caliber
-      - ev-project-rel-fields
-    - relationship_id: project-rel-tenant-project
-      left:
-        dataset: project_rel
-        field: project_id
-      right:
-        dataset: tenant_project
-        field: id
-      relationship_type: EQUI_JOIN
-      cardinality: n:1
-      business_meaning: 关系上的 project_id 是 tenant_project.id 的字符串，JOIN 需类型转换
-      status: proposed
-      evidence_refs:
-      - ev-relate-impl
-      - ev-tenant-project-fields
-    metrics: []
-    calibers:
-    - caliber_id: opened-project-rel
-      label: 已开通的企业项目关系
-      description: 启用且开通完成的项目绑定。统计企业数时仍应按企业去重并叠加建档口径。
-      contract_fragment:
-        predicates:
-        - field: project_rel.project_open_status
-          operator: eq
-          values:
-          - 'Y'
-        - field: project_rel.enable
-          operator: eq
-          values:
-          - 'Y'
-      field_targets:
-      - dataset: project_rel
-        field: project_open_status
-      - dataset: project_rel
-        field: enable
-      evidence_refs:
-      - ev-open-status-dict
-      - ev-project-rel-fields
-    - caliber_id: effective-tenant-project
-      label: 已生效租户项目
-      description: 企业下拉可选项目来自已生效租户项目，库值是 '1' 不是 EFFECTIVE。
-      contract_fragment:
-        predicates:
-        - field: tenant_project.project_status
-          operator: eq
-          values:
-          - '1'
-        - field: tenant_project.enable
-          operator: eq
-          values:
-          - 'Y'
-      field_targets:
-      - dataset: tenant_project
-        field: project_status
-      - dataset: tenant_project
-        field: enable
-      evidence_refs:
-      - ev-effective-project
-      - ev-project-status-dict
-    - caliber_id: project-member-built-company
-      label: 项目下有效已建档企业
-      description: 按项目统计成员企业时，关系行去重到企业，并套用建档成功口径。
-      contract_fragment:
-        predicates:
-        - field: project_rel.enable
-          operator: eq
-          values:
-          - 'Y'
-        - field: company.build_status
-          operator: eq
-          values:
-          - BUILD_SUCCESS
-        - field: company.company_status
-          operator: eq
-          values:
-          - EFFECT
-        - field: company.enabled
-          operator: eq
-          values:
-          - 'Y'
-        - field: company.data_type
-          operator: eq
-          values:
-          - '1'
-      field_targets:
-      - dataset: project_rel
-        field: enable
-      - dataset: project_rel
-        field: company_code
-      - dataset: company
-        field: build_status
-      - dataset: company
-        field: company_status
-      - dataset: company
-        field: enabled
-      - dataset: company
-        field: data_type
-      evidence_refs:
-      - ev-strict-caliber
-    domain_rules:
-    - rule_id: join-company-by-code
-      label: 项目关系按企业 code 连接
-      content: cust_project_rel 通过 ref_cust_project_rel_cust_company_info 连接 cust_company_info.code，禁止按企业
-        id 臆造 JOIN。
-      applicability: 项目成员、资金方、核心企业查询
-      query_impact: JOIN 必须使用 company.code = project_rel.company_code
-      field_targets:
-      - dataset: company
-        field: code
-      - dataset: project_rel
-        field: company_code
-      evidence_refs:
-      - ev-strict-caliber
-      - ev-project-rel-fields
-    - rule_id: open-status-is-ynp
-      label: 开通状态不是 OPENED
-      content: 项目开通状态字段是 project_open_status，值为 Y/P/N。
-      applicability: 已开通项目、开通中项目
-      query_impact: 过滤必须使用 Y/P/N，不能使用 OPENED/OPENING
-      field_targets:
-      - dataset: project_rel
-        field: project_open_status
-      evidence_refs:
-      - ev-open-status-dict
-    - rule_id: rel-row-is-not-company
-      label: 关系行不是企业
-      content: 统计企业数必须按企业 code/id 去重，禁止直接 COUNT(cust_project_rel)。
-      applicability: 项目企业数、开通企业数
-      query_impact: grain 必须是 company，关系表只提供存在性过滤
-      field_targets:
-      - dataset: company
-        field: code
-      - dataset: project_rel
-        field: company_code
-      evidence_refs:
-      - ev-project-rel-fields
-      - ev-strict-caliber
-    verified_query_patterns:
-    - pattern_id: companies-in-project
-      question: 某项目下有效已建档企业有哪些
-      query: |
-        SELECT DISTINCT cci.id, cci.code, cci.name FROM cust_project_rel cpl JOIN cust_company_info cci
-          ON cci.code = cpl.ref_cust_project_rel_cust_company_info
-        WHERE cpl.project_id = :project_id
-          AND cpl.enable = 'Y'
-          AND cci.cust_build_status = 'BUILD_SUCCESS'
-          AND cci.cust_status = 'EFFECT'
-          AND cci.enable = 'Y'
-          AND cci.data_type = '1'
-      intended_specification:
-        grain: company
-        caliber_id: project-member-built-company
-      evidence_refs:
-      - ev-strict-caliber
-      verification:
-        status: PENDING_VALIDATION
-    - pattern_id: opened-projects-of-company
-      question: 某企业已开通哪些项目
-      query: |
-        SELECT tp.id, tp.name, cpl.company_type, cpl.project_open_status FROM cust_project_rel cpl JOIN tenant_project tp
-          ON CAST(tp.id AS CHAR) = cpl.project_id
-        JOIN cust_company_info cci
-          ON cci.code = cpl.ref_cust_project_rel_cust_company_info
-        WHERE cci.id = :company_id
-          AND cpl.enable = 'Y'
-          AND cpl.project_open_status = 'Y'
-      intended_specification:
-        grain: project_rel
-        caliber_id: opened-project-rel
-      evidence_refs:
-      - ev-relate-impl
-      - ev-open-status-dict
-      - ev-tenant-project-fields
-      verification:
-        status: PENDING_VALIDATION
-  evidence_refs:
-  - ev-relate-endpoint
-  - ev-relate-impl
-  - ev-project-rel-fields
-  - ev-tenant-project-fields
-  - ev-strict-caliber
-  - ev-open-status-dict
-  - ev-project-status-dict
-  assumptions:
-  - project_id 与 tenant_project.id 的字符串转换方言待绑定数据源后确认。
-  - 未验证生产环境 project_open_status 空值含义。
-  - 金融机构跨租户例外只影响写入校验，问数仍应按实际落库的 db_tenant_code 过滤。
-  conflicts:
-  - topic: 关联项目接口路径
-    parties:
-    - src-doc-project-rel
-    - src-controller
-    summary: 文档写 POST /app-web/custCompanyInfo/relateProject，代码为 POST /cust-web/custInfo/relateProject。问数与溯源以代码为准。
-  confidence: 0.9
-- unit_id: enterprise-change
-  revision: 1
-  title: 企业变更审核
-  aliases:
-  - 客户变更
-  - 变更中
-  - CUST_CHANGE
-  domain: enterprise
-  applicability: 变更中企业、变更通过/驳回单、在途变更；不用于把变更拒绝计成建档失败，也不替代有效已建档口径
-  description: 企业主数据进入 CUST_CHANGE+CHANGE 后，变更过程落在 cust_change_record。通过后主表恢复 BUILD_SUCCESS+EFFECT。
-  content:
-    concepts:
-    - concept_id: enterprise-change
-      name: 企业变更
-      aliases:
-      - 客户变更
-      - 变更审核
-      definition: 已建档企业修改关键信息并走审核。主表在途标志是 cust_build_status=CUST_CHANGE 且 cust_status=CHANGE。
-      evidence_refs:
-      - ev-change-endpoint
-      - ev-profile-change
-      - ev-active-caliber
-    - concept_id: change-record
-      name: 变更单
-      aliases:
-      - 变更记录
-      definition: 一行一次变更审核过程，通过 cust_id 连接企业主键，不能直接当企业数。
-      dictionary:
-        CUST_CHECK_INIT: 待审核
-        CUST_CHECK_CHECKING: 审核中
-        CUST_CHECK_PASS: 审核通过
-        CUST_CHECK_REJECT: 审核不通过
-        CUST_CHECK_BACKTOCUSTOM: 待客户确认
-      evidence_refs:
-      - ev-check-status-change
-      - ev-change-record-fields
-    processes:
-    - stage_id: submit-change
-      name: 提交变更
-      trigger: POST /cust-web/change 及相关 OperCustFacade.saveChangeRecord
-      enter_conditions:
-      - 企业已存在
-      - 允许发起变更
-      exit_conditions:
-      - 写入 cust_change_record
-      - 主表进入 CUST_CHANGE+CHANGE
-      data_effects:
-      - operation: insert
-        dataset: change_record
-        fields:
-        - cust_id
-        - status
-        - enable
-        description: 走运营流程写 CUST_CHECK_CHECKING；本地直接通过写 CUST_CHECK_PASS。
-        evidence_refs:
-        - ev-change-write-status
-      - operation: update
-        dataset: company
-        fields:
-        - build_status
-        - company_status
-        description: 主表置 CUST_CHANGE 与 CHANGE。
-        evidence_refs:
-        - ev-change-write-status
-      evidence_refs:
-      - ev-change-endpoint
-      - ev-change-write-status
-    - stage_id: pass-change
-      name: 变更通过
-      trigger: 运营 PASS 回调 CustSyncEventProcessor.changeHandler
-      enter_conditions:
-      - 存在在途变更单
-      exit_conditions:
-      - 主表恢复 BUILD_SUCCESS+EFFECT
-      data_effects:
-      - operation: update
-        dataset: company
-        fields:
-        - build_status
-        - company_status
-        description: PASS 后恢复认证成功且生效。
-        evidence_refs:
-        - ev-change-pass-restore
-      evidence_refs:
-      - ev-change-pass-restore
-    datasets:
-    - dataset_id: company
-      name: cust_company_info
-      database: lowcode_pplatform
-      description: 企业主数据。本单元通过 id 或 code 连接，统计建档成功数应回到 enterprise-onboarding。
-      fields:
-      - field_id: id
-        name: id
-        data_type: bigint
-        evidence_refs:
-        - ev-company-fields
-        - ev-profile-change
-      - field_id: code
-        name: code
-        data_type: varchar
-        evidence_refs:
-        - ev-company-fields
-        - ev-profile-change
-        description: 企业业务键。
-      - field_id: name
-        name: name
-        data_type: varchar
-        evidence_refs:
-        - ev-company-fields
-        - ev-profile-change
-      - field_id: build_status
-        name: cust_build_status
-        data_type: varchar
-        evidence_refs:
-        - ev-company-fields
-        - ev-profile-change
-        dictionary:
-          BUILD_SUCCESS: 认证成功
-          CUST_CHANGE: 变更
-          CUST_BUILDING: 审核中
-      - field_id: company_status
-        name: cust_status
-        data_type: varchar
-        evidence_refs:
-        - ev-company-fields
-        - ev-profile-change
-        dictionary:
-          EFFECT: 生效
-          CHANGE: 变更
-          ADD: 新增
-      - field_id: enabled
-        name: enable
-        data_type: varchar
-        evidence_refs:
-        - ev-company-fields
-        - ev-profile-change
-        dictionary:
-          'Y': 启用
-          'N': 停用
-      - field_id: data_type
-        name: data_type
-        data_type: varchar
-        evidence_refs:
-        - ev-company-fields
-        - ev-profile-change
-        dictionary:
-          '1': 正式企业主数据
-      - field_id: db_tenant_code
-        name: db_tenant_code
-        data_type: varchar
-        evidence_refs:
-        - ev-company-fields
-        - ev-profile-change
-      evidence_refs:
-      - ev-company-fields
-      - ev-profile-change
-    - dataset_id: change_record
-      name: cust_change_record
-      database: lowcode_pplatform
-      description: 变更审核单。一行一次过程，JOIN 企业用 cust_id = cust_company_info.id。
-      fields:
-      - field_id: id
-        name: id
-        data_type: bigint
-        evidence_refs:
-        - ev-change-record-fields
-      - field_id: cust_id
-        name: cust_id
-        data_type: bigint
-        evidence_refs:
-        - ev-change-record-fields
-        - ev-change-inflight-sql
-        description: 企业主键，不是企业 code。
-      - field_id: status
-        name: status
-        data_type: varchar
-        evidence_refs:
-        - ev-check-status-change
-        - ev-profile-change
-        description: 问数只认 CUST_CHECK_*；库中另有脏值 1、returnCust-*。
-        dictionary:
-          CUST_CHECK_INIT: 待审核
-          CUST_CHECK_CHECKING: 审核中
-          CUST_CHECK_PASS: 审核通过
-          CUST_CHECK_REJECT: 审核不通过
-          CUST_CHECK_BACKTOCUSTOM: 待客户确认
-      - field_id: enable
-        name: enable
-        data_type: varchar
-        evidence_refs:
-        - ev-change-record-fields
-        dictionary:
-          'Y': 启用
-          'N': 停用
-      - field_id: alter_type
-        name: alter_type
-        data_type: varchar
-        evidence_refs:
-        - ev-change-record-fields
-      - field_id: oper_app_no
-        name: oper_app_no
-        data_type: varchar
-        evidence_refs:
-        - ev-change-record-fields
-      - field_id: create_time
-        name: create_time
-        data_type: timestamp
-        evidence_refs:
-        - ev-change-record-fields
-      evidence_refs:
-      - ev-change-record-fields
-    relationships:
-    - relationship_id: company-change-record
-      left:
-        dataset: company
-        field: id
-      right:
-        dataset: change_record
-        field: cust_id
-      relationship_type: EQUI_JOIN
-      cardinality: 1:n
-      business_meaning: 一家企业可有多次变更单
-      status: proposed
-      evidence_refs:
-      - ev-change-inflight-sql
-      - ev-change-record-fields
-    metrics: []
-    calibers:
-    - caliber_id: in-change-company
-      label: 变更中企业
-      description: 主表在途变更。用户未声明含变更中时，有效已建档仍用 BUILD_SUCCESS+EFFECT。
-      contract_fragment:
-        predicates:
-        - field: company.build_status
-          operator: eq
-          values:
-          - CUST_CHANGE
-        - field: company.company_status
-          operator: eq
-          values:
-          - CHANGE
-        - field: company.enabled
-          operator: eq
-          values:
-          - 'Y'
-        - field: company.data_type
-          operator: eq
-          values:
-          - '1'
-      field_targets:
-      - dataset: company
-        field: build_status
-      - dataset: company
-        field: company_status
-      - dataset: company
-        field: enabled
-      - dataset: company
-        field: data_type
-      evidence_refs:
-      - ev-active-caliber
-      - ev-profile-change
-    - caliber_id: inflight-change-record
-      label: 在途变更单
-      description: 尚未终态的变更审核单。终态是 CUST_CHECK_PASS 与 CUST_CHECK_REJECT。
-      contract_fragment:
-        predicates:
-        - field: change_record.status
-          operator: not_in
-          values:
-          - CUST_CHECK_PASS
-          - CUST_CHECK_REJECT
-        - field: change_record.enable
-          operator: eq
-          values:
-          - 'Y'
-      field_targets:
-      - dataset: change_record
-        field: status
-      - dataset: change_record
-        field: enable
-      evidence_refs:
-      - ev-change-inflight-sql
-      - ev-change-write-status
-    domain_rules:
-    - rule_id: change-row-is-not-company
-      label: 变更单行不是企业
-      content: 统计变更中企业必须用企业主表去重，禁止 COUNT(cust_change_record)。
-      applicability: 变更中企业数、在途变更企业
-      query_impact: grain 必须是 company；变更表只提供过程过滤
-      field_targets:
-      - dataset: company
-        field: id
-      - dataset: change_record
-        field: cust_id
-      evidence_refs:
-      - ev-change-record-fields
-      - ev-change-inflight-sql
-    - rule_id: ignore-dirty-change-status
-      label: 忽略脏变更状态
-      content: status 存在 1 与 returnCust-*，问数只认 CUST_CHECK_*。
-      applicability: 变更通过数、驳回数、在途单
-      query_impact: 过滤必须使用 CUST_CHECK_PASS/REJECT/CHECKING 等枚举名，不能把 PASS 短名或 1 当口径
-      field_targets:
-      - dataset: change_record
-        field: status
-      evidence_refs:
-      - ev-profile-change
-      - ev-check-status-change
-    - rule_id: change-reject-keeps-built
-      label: 变更拒绝保持已建档
-      content: 变更 REJECT 后企业仍是已建档主数据，不得计入建档失败。
-      applicability: 建档失败、变更驳回
-      query_impact: 失败口径不能只看 change_record.status=CUST_CHECK_REJECT
-      field_targets:
-      - dataset: company
-        field: build_status
-      - dataset: change_record
-        field: status
-      evidence_refs:
-      - ev-update-build-status
-      - ev-change-pass-restore
-    verified_query_patterns:
-    - pattern_id: count-in-change-companies
-      question: 正在变更中的企业有多少
-      query: |
-        SELECT COUNT(1) AS in_change_company_count
-        FROM cust_company_info
-        WHERE cust_build_status = 'CUST_CHANGE'
-          AND cust_status = 'CHANGE'
-          AND enable = 'Y'
-          AND data_type = '1'
-      intended_specification:
-        grain: company
-        caliber_id: in-change-company
-      verification:
-        status: PENDING_VALIDATION
-      evidence_refs:
-      - ev-active-caliber
-      - ev-profile-change
-    - pattern_id: count-inflight-change-records
-      question: 在途变更单有多少
-      query: |
-        SELECT COUNT(1) AS inflight_change_count
-        FROM cust_change_record
-        WHERE enable = 'Y'
-          AND status NOT IN ('CUST_CHECK_PASS', 'CUST_CHECK_REJECT')
-          AND status LIKE 'CUST_CHECK_%'
-      intended_specification:
-        grain: change_record
-        caliber_id: inflight-change-record
-      verification:
-        status: PENDING_VALIDATION
-      evidence_refs:
-      - ev-change-inflight-sql
-      - ev-profile-change
-  evidence_refs:
-  - ev-change-endpoint
-  - ev-change-record-fields
-  - ev-check-status-change
-  - ev-change-write-status
-  - ev-change-pass-restore
-  - ev-change-inflight-sql
-  - ev-profile-change
-  - ev-company-fields
-  - ev-update-build-status
-  - ev-active-caliber
-  assumptions:
-  - 脏 status 不纳入通过/驳回/在途口径。
-  - 查询范例未在目标库逐条执行。
-  conflicts:
-  - topic: 有效企业是否包含变更中
-    parties:
-    - src-mapper#listEffectCompanyByCustType
-    - enterprise-onboarding
-    summary: 部分列表把 CUST_CHANGE+CHANGE 算有效企业；未说明时有效已建档仍用 BUILD_SUCCESS+EFFECT。
-  confidence: 0.9
-- unit_id: tenant-product-lifecycle
-  revision: 1
-  title: 租户产品开通
-  aliases:
-  - 开通产品
-  - 待激活产品
-  - 取消产品
-  domain: product
-  applicability: 租户已开通/开通中/未开通产品数；不用于企业侧 OPENED 申请，也不用于项目生效
-  description: 租户在平台产品目录上的开通实例是 tenant_product。开通状态物理值是 Y/P/N。
-  content:
-    concepts:
-    - concept_id: tenant-product
-      name: 租户产品
-      aliases:
-      - 开通产品
-      definition: 某租户对平台产品的开通记录，对应表 tenant_product。
-      evidence_refs:
-      - ev-tenant-product-fields
-      - ev-platform-product-fields
-    - concept_id: tenant-product-open
-      name: 租户产品开通状态
-      aliases:
-      - 已开通
-      - 开通中
-      - 未开通
-      definition: tenant_product.open_status，值是 Y/P/N。
-      dictionary:
-        'Y': 已开通
-        'P': 开通中
-        'N': 未开通
-      evidence_refs:
-      - ev-product-open-ynp
-      - ev-profile-tenant-product
-    processes:
-    - stage_id: active-tenant-product
-      name: 开通租户产品
-      trigger: POST /app-web/tenantProduct/cmd/active
-      enter_conditions:
-      - 租户产品行已存在
-      exit_conditions:
-      - open_status 进入开通完成或开通中
-      data_effects:
-      - operation: update
-        dataset: tenant_product
-        fields:
-        - open_status
-        description: 开通完成写 Y；过程中可写 P。
-        evidence_refs:
-        - ev-tenant-product-active-write
-        - ev-tenant-product-endpoint
-      evidence_refs:
-      - ev-tenant-product-endpoint
-      - ev-tenant-product-active-write
-    - stage_id: cancel-tenant-product
-      name: 取消租户产品
-      trigger: POST /app-web/tenantProduct/cmd/cancel
-      enter_conditions:
-      - 租户产品已开通或开通中
-      exit_conditions:
-      - 产品取消开通
-      data_effects:
-      - operation: update
-        dataset: tenant_product
-        fields:
-        - open_status
-        evidence_refs:
-        - ev-tenant-product-endpoint
-      evidence_refs:
-      - ev-tenant-product-endpoint
-    datasets:
-    - dataset_id: tenant_product
-      name: tenant_product
-      database: lowcode_pplatform
-      description: 租户产品开通实例。已开通口径是 open_status='Y' AND enable='Y'。
-      fields:
-      - field_id: id
-        name: id
-        data_type: bigint
-        evidence_refs:
-        - ev-tenant-product-fields
-      - field_id: name
-        name: name
-        data_type: varchar
-        evidence_refs:
-        - ev-tenant-product-fields
-      - field_id: platform_product_id
-        name: platform_product_id
-        data_type: bigint
-        evidence_refs:
-        - ev-tenant-product-fields
-        - ev-platform-product-fields
-      - field_id: platform_product_code
-        name: platform_product_code
-        data_type: varchar
-        evidence_refs:
-        - ev-tenant-product-fields
-      - field_id: open_status
-        name: open_status
-        data_type: varchar
-        evidence_refs:
-        - ev-product-open-ynp
-        - ev-profile-tenant-product
-        dictionary:
-          'Y': 已开通
-          'P': 开通中
-          'N': 未开通
-      - field_id: enable
-        name: enable
-        data_type: varchar
-        evidence_refs:
-        - ev-tenant-product-fields
-        dictionary:
-          'Y': 启用
-          'N': 停用
-      - field_id: db_tenant_code
-        name: db_tenant_code
-        data_type: varchar
-        evidence_refs:
-        - ev-tenant-product-fields
-      evidence_refs:
-      - ev-tenant-product-fields
-    - dataset_id: platform_product
-      name: platform_product
-      database: lowcode_pplatform
-      description: 平台产品目录，不是租户开通实例。
-      fields:
-      - field_id: id
-        name: id
-        data_type: bigint
-        evidence_refs:
-        - ev-platform-product-fields
-      - field_id: code
-        name: code
-        data_type: varchar
-        evidence_refs:
-        - ev-platform-product-fields
-      - field_id: name
-        name: name
-        data_type: varchar
-        evidence_refs:
-        - ev-platform-product-fields
-      - field_id: product_code
-        name: product_code
-        data_type: varchar
-        evidence_refs:
-        - ev-platform-product-fields
-      evidence_refs:
-      - ev-platform-product-fields
-    relationships:
-    - relationship_id: tenant-product-platform
-      left:
-        dataset: tenant_product
-        field: platform_product_id
-      right:
-        dataset: platform_product
-        field: id
-      relationship_type: EQUI_JOIN
-      cardinality: n:1
-      business_meaning: 租户开通实例指向一条平台产品
-      status: proposed
-      evidence_refs:
-      - ev-tenant-product-fields
-      - ev-platform-product-fields
-    metrics: []
-    calibers:
-    - caliber_id: opened-tenant-product
-      label: 已开通租户产品
-      description: 启用且开通完成的租户产品。
-      contract_fragment:
-        predicates:
-        - field: tenant_product.open_status
-          operator: eq
-          values:
-          - 'Y'
-        - field: tenant_product.enable
-          operator: eq
-          values:
-          - 'Y'
-      field_targets:
-      - dataset: tenant_product
-        field: open_status
-      - dataset: tenant_product
-        field: enable
-      evidence_refs:
-      - ev-tenant-product-opened-query
-      - ev-product-open-ynp
-    domain_rules:
-    - rule_id: tenant-product-open-is-ynp
-      label: 租户产品开通不是 OPENED
-      content: tenant_product.open_status 只用 Y/P/N。企业申请表的 OPENED/OPENING/NOT_OPENED 属于另一单元。
-      applicability: 已开通产品、开通中产品
-      query_impact: 过滤必须使用 Y/P/N，禁止 OPENED
-      field_targets:
-      - dataset: tenant_product
-        field: open_status
-      evidence_refs:
-      - ev-product-open-ynp
-      - ev-auth-application-dict
-    verified_query_patterns:
-    - pattern_id: count-opened-tenant-products
-      question: 已开通的租户产品有多少
-      query: |
-        SELECT COUNT(1) AS opened_tenant_product_count
-        FROM tenant_product
-        WHERE open_status = 'Y'
-          AND enable = 'Y'
-      intended_specification:
-        grain: tenant_product
-        caliber_id: opened-tenant-product
-      verification:
-        status: PENDING_VALIDATION
-      evidence_refs:
-      - ev-tenant-product-opened-query
-      - ev-profile-tenant-product
-  evidence_refs:
-  - ev-tenant-product-endpoint
-  - ev-tenant-product-fields
-  - ev-platform-product-fields
-  - ev-product-open-ynp
-  - ev-tenant-product-opened-query
-  - ev-tenant-product-active-write
-  - ev-profile-tenant-product
-  - ev-auth-application-dict
-  assumptions:
-  - 查询范例未在目标库逐条执行。
-  conflicts:
-  - topic: 两套开通字典
-    parties:
-    - src-product-open-enum
-    - src-product-active-const
-    summary: 租户产品 Y/P/N；企业申请 OPENED/OPENING/NOT_OPENED。按表选字典，不要混用。
-  confidence: 0.92
-- unit_id: tenant-project-lifecycle
-  revision: 1
-  title: 租户项目生效
-  aliases:
-  - 待生效项目
-  - 已生效项目
-  - 已失效项目
-  domain: project
-  applicability: 租户项目待生效/已生效/已失效数量；不用于资金规则 PENDING/ACTIVE，也不替代企业项目关联成员数
-  description: 租户项目状态字段是 tenant_project.project_status，物理值 0/1/2。rule_status 属于资金规则表。
-  content:
-    concepts:
-    - concept_id: tenant-project-lifecycle
-      name: 租户项目生命周期
-      aliases:
-      - 项目生效
-      - 项目失效
-      definition: tenant_project 上的业务项目实例从待生效到生效或失效。
-      dictionary:
-        '0': 待生效
-        '1': 已生效
-        '2': 已失效
-      evidence_refs:
-      - ev-project-status-dict
-      - ev-tenant-project-status-write
-    processes:
-    - stage_id: create-project
-      name: 创建项目
-      trigger: POST /app-web/tenantProject/create
-      enter_conditions:
-      - 租户产品已存在
-      exit_conditions:
-      - 写入 tenant_project 且 project_status=0
-      data_effects:
-      - operation: insert
-        dataset: tenant_project
-        fields:
-        - project_status
-        - product_id
-        - enable
-        description: 创建写待生效 0。
-        evidence_refs:
-        - ev-tenant-project-status-write
-      evidence_refs:
-      - ev-tenant-project-endpoint
-      - ev-tenant-project-status-write
-    - stage_id: effective-project
-      name: 生效项目
-      trigger: POST /app-web/tenantProject/effective
-      enter_conditions:
-      - 项目已创建
-      exit_conditions:
-      - project_status=1
-      data_effects:
-      - operation: update
-        dataset: tenant_project
-        fields:
-        - project_status
-        evidence_refs:
-        - ev-tenant-project-status-write
-      evidence_refs:
-      - ev-tenant-project-endpoint
-      - ev-tenant-project-status-write
-    - stage_id: invalid-project
-      name: 失效项目
-      trigger: POST /app-web/tenantProject/invalid
-      enter_conditions:
-      - 项目已生效或待生效
-      exit_conditions:
-      - project_status=2
-      data_effects:
-      - operation: update
-        dataset: tenant_project
-        fields:
-        - project_status
-        evidence_refs:
-        - ev-tenant-project-status-write
-      evidence_refs:
-      - ev-tenant-project-endpoint
-      - ev-tenant-project-status-write
-    datasets:
-    - dataset_id: tenant_project
-      name: tenant_project
-      database: lowcode_pplatform
-      description: 租户业务项目实例。已生效库值是 '1'。product_id 连 tenant_product.id。
-      fields:
-      - field_id: id
-        name: id
-        data_type: bigint
-        evidence_refs:
-        - ev-tenant-project-fields
-      - field_id: name
-        name: name
-        data_type: varchar
-        evidence_refs:
-        - ev-tenant-project-fields
-      - field_id: product_id
-        name: product_id
-        data_type: bigint
-        evidence_refs:
-        - ev-tenant-project-fields
-      - field_id: project_status
-        name: project_status
-        data_type: varchar
-        evidence_refs:
-        - ev-project-status-dict
-        - ev-profile-tenant-project
-        dictionary:
-          '0': 待生效
-          '1': 已生效
-          '2': 已失效
-      - field_id: enable
-        name: enable
-        data_type: varchar
-        evidence_refs:
-        - ev-tenant-project-fields
-        dictionary:
-          'Y': 启用
-          'N': 停用
-      - field_id: top_flag
-        name: top_flag
-        data_type: varchar
-        evidence_refs:
-        - ev-tenant-project-fields
-        - ev-profile-tenant-project
-        description: 离职风险置顶标记在项目表，不在 operation_user。
-        dictionary:
-          '1': 置顶
-          '0': 未置顶
-      - field_id: db_tenant_code
-        name: db_tenant_code
-        data_type: varchar
-        evidence_refs:
-        - ev-tenant-project-fields
-      - field_id: project_effective_time
-        name: project_effective_time
-        data_type: timestamp
-        evidence_refs:
-        - ev-tenant-project-fields
-      evidence_refs:
-      - ev-tenant-project-fields
-    - dataset_id: tenant_product
-      name: tenant_product
-      database: lowcode_pplatform
-      description: 项目所属租户产品。本单元只用来连接，开通口径见 tenant-product-lifecycle。
-      fields:
-      - field_id: id
-        name: id
-        data_type: bigint
-        evidence_refs:
-        - ev-tenant-product-fields
-      - field_id: name
-        name: name
-        data_type: varchar
-        evidence_refs:
-        - ev-tenant-product-fields
-      - field_id: enable
-        name: enable
-        data_type: varchar
-        evidence_refs:
-        - ev-tenant-product-fields
-        dictionary:
-          'Y': 启用
-          'N': 停用
-      evidence_refs:
-      - ev-tenant-product-fields
-    relationships:
-    - relationship_id: project-belongs-product
-      left:
-        dataset: tenant_project
-        field: product_id
-      right:
-        dataset: tenant_product
-        field: id
-      relationship_type: EQUI_JOIN
-      cardinality: n:1
-      business_meaning: 项目挂在一条租户产品下
-      status: proposed
-      evidence_refs:
-      - ev-tenant-project-fields
-      - ev-tenant-product-fields
-    metrics: []
-    calibers:
-    - caliber_id: effective-tenant-project-v4
-      label: 已生效租户项目
-      description: 启用且 project_status='1'。
-      contract_fragment:
-        predicates:
-        - field: tenant_project.project_status
-          operator: eq
-          values:
-          - '1'
-        - field: tenant_project.enable
-          operator: eq
-          values:
-          - 'Y'
-      field_targets:
-      - dataset: tenant_project
-        field: project_status
-      - dataset: tenant_project
-        field: enable
-      evidence_refs:
-      - ev-effective-project
-      - ev-project-status-dict
-    - caliber_id: pending-tenant-project
-      label: 待生效租户项目
-      description: 启用且 project_status='0'。
-      contract_fragment:
-        predicates:
-        - field: tenant_project.project_status
-          operator: eq
-          values:
-          - '0'
-        - field: tenant_project.enable
-          operator: eq
-          values:
-          - 'Y'
-      field_targets:
-      - dataset: tenant_project
-        field: project_status
-      - dataset: tenant_project
-        field: enable
-      evidence_refs:
-      - ev-tenant-project-status-write
-      - ev-profile-tenant-project
-    domain_rules:
-    - rule_id: project-status-is-not-rule-status
-      label: 项目状态不是 rule_status
-      content: 项目用 project_status 的 0/1/2；PENDING/ACTIVE/INACTIVE 属于 funding_rule_info.rule_status。
-      applicability: 已生效项目、待生效项目
-      query_impact: 过滤必须使用 project_status IN ('0','1','2')，禁止 PENDING/ACTIVE
-      field_targets:
-      - dataset: tenant_project
-        field: project_status
-      evidence_refs:
-      - ev-project-status-dict
-      - ev-funding-fields
-    verified_query_patterns:
-    - pattern_id: count-effective-tenant-projects
-      question: 已生效的租户项目有多少
-      query: |
-        SELECT COUNT(1) AS effective_project_count
-        FROM tenant_project
-        WHERE project_status = '1'
-          AND enable = 'Y'
-      intended_specification:
-        grain: tenant_project
-        caliber_id: effective-tenant-project-v4
-      verification:
-        status: PENDING_VALIDATION
-      evidence_refs:
-      - ev-effective-project
-      - ev-profile-tenant-project
-  evidence_refs:
-  - ev-tenant-project-endpoint
-  - ev-tenant-project-status-write
-  - ev-tenant-project-fields
-  - ev-project-status-dict
-  - ev-effective-project
-  - ev-profile-tenant-project
-  - ev-tenant-product-fields
-  - ev-funding-fields
-  assumptions:
-  - 查询范例未在目标库逐条执行。
-  conflicts: []
-  confidence: 0.93
-- unit_id: op-user-coverage
-  revision: 1
-  title: 运营对接人与离职置顶
-  aliases:
-  - 运营人员
-  - 离职置顶
-  - top_flag
-  domain: operation
-  applicability: 在职运营人员、离职运营人员、置顶项目；不要把 top_flag 解释成风险分数，也不要在 operation_user 上找 top_flag 列
-  description: 运营人员主数据在 operation_user，业务键是 operation_id。top_flag 在项目/关系表，值为 1/0。
-  content:
-    concepts:
-    - concept_id: operation-user
-      name: 运营人员
-      aliases:
-      - 运营对接人
-      definition: 运营中台人员镜像。关联键是 operation_id，不是本地 id。
-      evidence_refs:
-      - ev-operation-user-fields
-      - ev-profile-op-user
-    - concept_id: top-flag
-      name: 离职置顶
-      aliases:
-      - topFlag
-      definition: 项目或关系上的置顶标记。对接人均不在 deleted=Y 列表时清为 0。
-      dictionary:
-        '1': 置顶
-        '0': 未置顶
-      evidence_refs:
-      - ev-top-flag-clear
-      - ev-project-report-top
-    processes:
-    - stage_id: clear-top-flag
-      name: 清除离职置顶
-      trigger: TopFlagCheckService 在项目/关系保存后
-      enter_conditions:
-      - top_flag=1
-      exit_conditions:
-      - 若对接人已无离职人员则 top_flag=0
-      data_effects:
-      - operation: update
-        dataset: tenant_project
-        fields:
-        - top_flag
-        evidence_refs:
-        - ev-top-flag-clear
-      - operation: update
-        dataset: wec_project_op
-        fields:
-        - top_flag
-        evidence_refs:
-        - ev-top-flag-clear
-      evidence_refs:
-      - ev-top-flag-clear
-    datasets:
-    - dataset_id: operation_user
-      name: operation_user
-      database: lowcode_pplatform
-      description: 运营人员。在职口径 deleted='N' AND enable='Y'。无 top_flag 列。
-      fields:
-      - field_id: id
-        name: id
-        data_type: bigint
-        evidence_refs:
-        - ev-operation-user-fields
-      - field_id: operation_id
-        name: operation_id
-        data_type: varchar
-        evidence_refs:
-        - ev-operation-user-fields
-        - ev-top-flag-clear
-        description: 与项目对接人字段比较的业务键。
-      - field_id: operation_name
-        name: operation_name
-        data_type: varchar
-        evidence_refs:
-        - ev-operation-user-fields
-      - field_id: deleted
-        name: deleted
-        data_type: varchar
-        evidence_refs:
-        - ev-operation-user-fields
-        - ev-op-user-active-query
-        dictionary:
-          'Y': 已删除/离职
-          'N': 未删除
-      - field_id: enable
-        name: enable
-        data_type: varchar
-        evidence_refs:
-        - ev-operation-user-fields
-        dictionary:
-          'Y': 启用
-          'N': 停用
-      - field_id: operation_group
-        name: operation_group
-        data_type: varchar
-        evidence_refs:
-        - ev-operation-user-fields
-      evidence_refs:
-      - ev-operation-user-fields
-    - dataset_id: tenant_project
-      name: tenant_project
-      database: lowcode_pplatform
-      description: 项目上的对接人与 top_flag。对接人字段存 operation_id。
-      fields:
-      - field_id: id
-        name: id
-        data_type: bigint
-        evidence_refs:
-        - ev-tenant-project-fields
-      - field_id: name
-        name: name
-        data_type: varchar
-        evidence_refs:
-        - ev-tenant-project-fields
-      - field_id: op_contact_a
-        name: op_contact_a
-        data_type: varchar
-        evidence_refs:
-        - ev-top-flag-clear
-        - ev-tenant-project-fields
-      - field_id: top_flag
-        name: top_flag
-        data_type: varchar
-        evidence_refs:
-        - ev-top-flag-clear
-        - ev-profile-tenant-project
-        dictionary:
-          '1': 置顶
-          '0': 未置顶
-      - field_id: enable
-        name: enable
-        data_type: varchar
-        evidence_refs:
-        - ev-tenant-project-fields
-        dictionary:
-          'Y': 启用
-          'N': 停用
-      evidence_refs:
-      - ev-tenant-project-fields
-      - ev-top-flag-clear
-    - dataset_id: wec_project_op
-      name: wec_project_operation_rel
-      database: lowcode_pplatform
-      description: 微企链项目运营关系，对接人存 operation_id。
-      fields:
-      - field_id: id
-        name: id
-        data_type: bigint
-        evidence_refs:
-        - ev-wec-project-op-fields
-      - field_id: op_contact_a
-        name: op_contact_a
-        data_type: varchar
-        evidence_refs:
-        - ev-wec-project-op-fields
-        - ev-top-flag-clear
-      - field_id: top_flag
-        name: top_flag
-        data_type: varchar
-        evidence_refs:
-        - ev-wec-project-op-fields
-        dictionary:
-          '1': 置顶
-          '0': 未置顶
-      - field_id: enable
-        name: enable
-        data_type: varchar
-        evidence_refs:
-        - ev-wec-project-op-fields
-        dictionary:
-          'Y': 启用
-          'N': 停用
-      evidence_refs:
-      - ev-wec-project-op-fields
-    - dataset_id: wec_cust_op
-      name: wec_project_cust_operation_rel
-      database: lowcode_pplatform
-      description: 微企链企业×项目运营关系。
-      fields:
-      - field_id: id
-        name: id
-        data_type: bigint
-        evidence_refs:
-        - ev-wec-cust-op-fields
-      - field_id: project_id
-        name: project_id
-        data_type: varchar
-        evidence_refs:
-        - ev-wec-cust-op-fields
-      - field_id: op_contact_a
-        name: op_contact_a
-        data_type: varchar
-        evidence_refs:
-        - ev-wec-cust-op-fields
-        - ev-top-flag-clear
-      - field_id: top_flag
-        name: top_flag
-        data_type: varchar
-        evidence_refs:
-        - ev-wec-cust-op-fields
-        dictionary:
-          '1': 置顶
-          '0': 未置顶
-      - field_id: enable
-        name: enable
-        data_type: varchar
-        evidence_refs:
-        - ev-wec-cust-op-fields
-        dictionary:
-          'Y': 启用
-          'N': 停用
-      evidence_refs:
-      - ev-wec-cust-op-fields
-    relationships:
-    - relationship_id: op-user-project-contact
-      left:
-        dataset: operation_user
-        field: operation_id
-      right:
-        dataset: tenant_project
-        field: op_contact_a
-      relationship_type: EQUI_JOIN
-      cardinality: 1:n
-      business_meaning: 项目运营对接人 A 引用运营人员 operation_id；B 类字段可能是 JSON 数组，不能当等值 JOIN 主路径
-      status: proposed
-      evidence_refs:
-      - ev-top-flag-clear
-    metrics: []
-    calibers:
-    - caliber_id: active-operation-user
-      label: 在职运营人员
-      description: 未删除且启用的运营人员。
-      contract_fragment:
-        predicates:
-        - field: operation_user.deleted
-          operator: eq
-          values:
-          - 'N'
-        - field: operation_user.enable
-          operator: eq
-          values:
-          - 'Y'
-      field_targets:
-      - dataset: operation_user
-        field: deleted
-      - dataset: operation_user
-        field: enable
-      evidence_refs:
-      - ev-op-user-active-query
-      - ev-profile-op-user
-    - caliber_id: deleted-operation-user
-      label: 离职运营人员
-      description: TopFlag 使用的离职集合：deleted=Y 且 enable=Y。
-      contract_fragment:
-        predicates:
-        - field: operation_user.deleted
-          operator: eq
-          values:
-          - 'Y'
-        - field: operation_user.enable
-          operator: eq
-          values:
-          - 'Y'
-      field_targets:
-      - dataset: operation_user
-        field: deleted
-      - dataset: operation_user
-        field: enable
-      evidence_refs:
-      - ev-top-flag-clear
-    - caliber_id: top-flag-project
-      label: 置顶项目
-      description: tenant_project.top_flag='1'。
-      contract_fragment:
-        predicates:
-        - field: tenant_project.top_flag
-          operator: eq
-          values:
-          - '1'
-        - field: tenant_project.enable
-          operator: eq
-          values:
-          - 'Y'
-      field_targets:
-      - dataset: tenant_project
-        field: top_flag
-      - dataset: tenant_project
-        field: enable
-      evidence_refs:
-      - ev-top-flag-clear
-      - ev-profile-tenant-project
-    domain_rules:
-    - rule_id: top-flag-not-on-op-user
-      label: top_flag 不在运营人员表
-      content: operation_user 没有 top_flag。置顶问数必须落在 tenant_project / wec_* / cust_project_rel。
-      applicability: 置顶项目、离职置顶
-      query_impact: 禁止在 operation_user 上过滤 top_flag；JOIN 用 operation_id 而不是 id
-      field_targets:
-      - dataset: operation_user
-        field: operation_id
-      - dataset: tenant_project
-        field: top_flag
-      evidence_refs:
-      - ev-operation-user-fields
-      - ev-top-flag-clear
-    verified_query_patterns:
-    - pattern_id: count-active-operation-users
-      question: 在职运营人员有多少
-      query: |
-        SELECT COUNT(1) AS active_operation_user_count
-        FROM operation_user
-        WHERE deleted = 'N'
-          AND enable = 'Y'
-      intended_specification:
-        grain: operation_user
-        caliber_id: active-operation-user
-      verification:
-        status: PENDING_VALIDATION
-      evidence_refs:
-      - ev-op-user-active-query
-      - ev-profile-op-user
-  evidence_refs:
-  - ev-operation-user-fields
-  - ev-wec-project-op-fields
-  - ev-wec-cust-op-fields
-  - ev-top-flag-clear
-  - ev-project-report-top
-  - ev-wec-op-endpoint
-  - ev-op-user-active-query
-  - ev-profile-op-user
-  - ev-tenant-project-fields
-  - ev-profile-tenant-project
-  assumptions:
-  - op_contact_b 等可能是 JSON 数组，等值 JOIN 只适用于单值字段如 op_contact_a。
-  - 查询范例未在目标库逐条执行。
-  conflicts: []
-  confidence: 0.91
-- unit_id: person-user
-  revision: 1
-  title: 企业联系人与管理员
-  aliases:
-  - 企业用户
-  - 管理员
-  - 经办人
-  domain: enterprise
-  applicability: 已生效联系人、企业管理员；不要用仅 1 行的 cust_user_rel 当事实表，也不要统计建档企业数
-  description: 联系人在 cust_person_info，企业角色在 cust_role_info，都通过企业 code 连接。
-  content:
-    concepts:
-    - concept_id: cust-person
-      name: 企业联系人
-      aliases:
-      - 用户
-      - 管理员
-      definition: 企业下的联系人账号。状态 ADD/EFFECT/WRITEOFF；类型 accountAdmin/accountNormal/accountGuest。
-      dictionary:
-        ADD: 新增
-        EFFECT: 生效
-        WRITEOFF: 注销
-        accountAdmin: 管理员
-        accountNormal: 经办人
-        accountGuest: 游客
-      evidence_refs:
-      - ev-person-fields
-      - ev-person-status-dict
-      - ev-user-type-dict
-    processes:
-    - stage_id: query-admin
-      name: 查询企业管理员
-      trigger: POST /cust-web/custPerson/getAdminByCurCompanyInfo
-      enter_conditions:
-      - 企业 code 已知
-      exit_conditions:
-      - 返回 status=EFFECT 且 user_type=accountAdmin 的联系人
-      data_effects:
-      - operation: read
-        dataset: person
-        fields:
-        - status
-        - user_type
-        - company_code
-        - enable
-        evidence_refs:
-        - ev-person-endpoint
-      evidence_refs:
-      - ev-person-endpoint
-    datasets:
-    - dataset_id: company
-      name: cust_company_info
-      database: lowcode_pplatform
-      description: 企业主数据。本单元通过 id 或 code 连接，统计建档成功数应回到 enterprise-onboarding。
-      fields:
-      - field_id: id
-        name: id
-        data_type: bigint
-        evidence_refs:
-        - ev-company-fields
-      - field_id: code
-        name: code
-        data_type: varchar
-        evidence_refs:
-        - ev-company-fields
-        description: 企业业务键。
-      - field_id: name
-        name: name
-        data_type: varchar
-        evidence_refs:
-        - ev-company-fields
-      - field_id: build_status
-        name: cust_build_status
-        data_type: varchar
-        evidence_refs:
-        - ev-company-fields
-        dictionary:
-          BUILD_SUCCESS: 认证成功
-          CUST_CHANGE: 变更
-          CUST_BUILDING: 审核中
-      - field_id: company_status
-        name: cust_status
-        data_type: varchar
-        evidence_refs:
-        - ev-company-fields
-        dictionary:
-          EFFECT: 生效
-          CHANGE: 变更
-          ADD: 新增
-      - field_id: enabled
-        name: enable
-        data_type: varchar
-        evidence_refs:
-        - ev-company-fields
-        dictionary:
-          'Y': 启用
-          'N': 停用
-      - field_id: data_type
-        name: data_type
-        data_type: varchar
-        evidence_refs:
-        - ev-company-fields
-        dictionary:
-          '1': 正式企业主数据
-      - field_id: db_tenant_code
-        name: db_tenant_code
-        data_type: varchar
-        evidence_refs:
-        - ev-company-fields
-      evidence_refs:
-      - ev-company-fields
-    - dataset_id: person
-      name: cust_person_info
-      database: lowcode_pplatform
-      description: 企业联系人。ref_cust_company_info 是企业 code。
-      fields:
-      - field_id: id
-        name: id
-        data_type: bigint
-        evidence_refs:
-        - ev-person-fields
-      - field_id: name
-        name: name
-        data_type: varchar
-        evidence_refs:
-        - ev-person-fields
-      - field_id: company_code
-        name: ref_cust_company_info
-        data_type: varchar
-        evidence_refs:
-        - ev-person-fields
-        - ev-person-endpoint
-        description: 企业业务键，连接 cust_company_info.code。
-      - field_id: status
-        name: status
-        data_type: varchar
-        evidence_refs:
-        - ev-person-status-dict
-        - ev-profile-person
-        dictionary:
-          ADD: 新增
-          EFFECT: 生效
-          WRITEOFF: 注销
-      - field_id: user_type
-        name: user_type
-        data_type: varchar
-        evidence_refs:
-        - ev-user-type-dict
-        dictionary:
-          accountAdmin: 管理员
-          accountNormal: 经办人
-          accountGuest: 游客
-      - field_id: enable
-        name: enable
-        data_type: varchar
-        evidence_refs:
-        - ev-person-fields
-        dictionary:
-          'Y': 启用
-          'N': 停用
-      - field_id: user_id
-        name: user_id
-        data_type: bigint
-        evidence_refs:
-        - ev-person-fields
-      - field_id: db_tenant_code
-        name: db_tenant_code
-        data_type: varchar
-        evidence_refs:
-        - ev-person-fields
-      evidence_refs:
-      - ev-person-fields
-    - dataset_id: role
-      name: cust_role_info
-      database: lowcode_pplatform
-      description: 企业在某角色上的记录。JOIN 企业用 code。
-      fields:
-      - field_id: id
-        name: id
-        data_type: bigint
-        evidence_refs:
-        - ev-role-fields
-      - field_id: company_code
-        name: ref_cust_company_info
-        data_type: varchar
-        evidence_refs:
-        - ev-role-fields
-        - ev-role-join-code
-      - field_id: role_type
-        name: role_type
-        data_type: varchar
-        evidence_refs:
-        - ev-role-fields
-      - field_id: status
-        name: status
-        data_type: varchar
-        evidence_refs:
-        - ev-role-status-write
-        - ev-cust-status-dict
-        dictionary:
-          ADD: 新增
-          EFFECT: 生效
-          WRITEOFF: 注销
-          FREEZE: 冻结
-      - field_id: enable
-        name: enable
-        data_type: varchar
-        evidence_refs:
-        - ev-role-fields
-        dictionary:
-          'Y': 启用
-          'N': 停用
-      evidence_refs:
-      - ev-role-fields
-    relationships:
-    - relationship_id: company-person
-      left:
-        dataset: company
-        field: code
-      right:
-        dataset: person
-        field: company_code
-      relationship_type: EQUI_JOIN
-      cardinality: 1:n
-      business_meaning: 一家企业多个联系人
-      status: proposed
-      evidence_refs:
-      - ev-person-endpoint
-      - ev-person-fields
-    - relationship_id: company-role
-      left:
-        dataset: company
-        field: code
-      right:
-        dataset: role
-        field: company_code
-      relationship_type: EQUI_JOIN
-      cardinality: 1:n
-      business_meaning: 一家企业多个角色记录
-      status: proposed
-      evidence_refs:
-      - ev-role-join-code
-    metrics: []
-    calibers:
-    - caliber_id: effect-person
-      label: 已生效联系人
-      description: status=EFFECT 且 enable=Y。
-      contract_fragment:
-        predicates:
-        - field: person.status
-          operator: eq
-          values:
-          - EFFECT
-        - field: person.enable
-          operator: eq
-          values:
-          - 'Y'
-      field_targets:
-      - dataset: person
-        field: status
-      - dataset: person
-        field: enable
-      evidence_refs:
-      - ev-person-status-dict
-      - ev-person-endpoint
-    - caliber_id: effect-admin
-      label: 已生效企业管理员
-      description: 生效联系人且 user_type=accountAdmin。
-      contract_fragment:
-        predicates:
-        - field: person.status
-          operator: eq
-          values:
-          - EFFECT
-        - field: person.user_type
-          operator: eq
-          values:
-          - accountAdmin
-        - field: person.enable
-          operator: eq
-          values:
-          - 'Y'
-      field_targets:
-      - dataset: person
-        field: status
-      - dataset: person
-        field: user_type
-      - dataset: person
-        field: enable
-      evidence_refs:
-      - ev-person-endpoint
-      - ev-user-type-dict
-    domain_rules:
-    - rule_id: person-join-by-code
-      label: 联系人按企业 code 连接
-      content: ref_cust_company_info 连接 cust_company_info.code，禁止按企业 id 臆造 JOIN。
-      applicability: 企业用户、管理员
-      query_impact: JOIN 必须使用 company.code = person.company_code
-      field_targets:
-      - dataset: company
-        field: code
-      - dataset: person
-        field: company_code
-      evidence_refs:
-      - ev-person-fields
-      - ev-person-endpoint
-    - rule_id: do-not-use-user-rel
-      label: 不要用 cust_user_rel 当事实表
-      content: 画像仅 1 行，人员问数以 cust_person_info / cust_role_info 为准。
-      applicability: 企业用户数
-      query_impact: 主表必须是 person，不能 FROM cust_user_rel
-      field_targets:
-      - dataset: person
-        field: id
-      evidence_refs:
-      - ev-profile-person
-    verified_query_patterns:
-    - pattern_id: count-effect-admins
-      question: 已生效企业管理员有多少
-      query: |
-        SELECT COUNT(1) AS effect_admin_count
-        FROM cust_person_info
-        WHERE status = 'EFFECT'
-          AND user_type = 'accountAdmin'
-          AND enable = 'Y'
-      intended_specification:
-        grain: person
-        caliber_id: effect-admin
-      verification:
-        status: PENDING_VALIDATION
-      evidence_refs:
-      - ev-person-endpoint
-      - ev-profile-person
-  evidence_refs:
-  - ev-person-endpoint
-  - ev-person-fields
-  - ev-role-endpoint
-  - ev-role-fields
-  - ev-person-status-dict
-  - ev-user-type-dict
-  - ev-role-status-write
-  - ev-role-join-code
-  - ev-profile-person
-  - ev-company-fields
-  - ev-cust-status-dict
-  assumptions:
-  - 邀请表 cust_invite_info 不作为本单元 grain。
-  - 查询范例未在目标库逐条执行。
-  conflicts: []
-  confidence: 0.9
-- unit_id: company-group
-  revision: 1
-  title: 集团成员关系
-  aliases:
-  - 集团企业
-  - 成员单位
-  domain: enterprise
-  applicability: 已生效集团成员；不要把未生效或拒绝成员算进集团企业数
-  description: 集团树在 cust_group_rel。cust_id 连企业 id；status 为 EFFECTIVE/INEFFECTIVE/REJECTED。
-  content:
-    concepts:
-    - concept_id: group-member
-      name: 集团成员
-      aliases:
-      - 集团关系
-      definition: 一行表示某企业在集团树中的位置与生效状态。
-      dictionary:
-        EFFECTIVE: 已生效
-        INEFFECTIVE: 未生效
-        REJECTED: 已拒绝
-      evidence_refs:
-      - ev-group-fields
-      - ev-profile-group
-    processes:
-    - stage_id: maintain-group
-      name: 维护集团关系
-      trigger: /cust-web/custGroupRel
-      enter_conditions:
-      - 企业已存在
-      exit_conditions:
-      - 写入或更新 cust_group_rel
-      data_effects:
-      - operation: upsert
-        dataset: group_rel
-        fields:
-        - cust_id
-        - status
-        - root_flag
-        evidence_refs:
-        - ev-group-endpoint
-        - ev-group-fields
-      evidence_refs:
-      - ev-group-endpoint
-    datasets:
-    - dataset_id: company
-      name: cust_company_info
-      database: lowcode_pplatform
-      description: 企业主数据。本单元通过 id 或 code 连接，统计建档成功数应回到 enterprise-onboarding。
-      fields:
-      - field_id: id
-        name: id
-        data_type: bigint
-        evidence_refs:
-        - ev-company-fields
-        - ev-group-caliber
-      - field_id: code
-        name: code
-        data_type: varchar
-        evidence_refs:
-        - ev-company-fields
-        - ev-group-caliber
-        description: 企业业务键。
-      - field_id: name
-        name: name
-        data_type: varchar
-        evidence_refs:
-        - ev-company-fields
-        - ev-group-caliber
-      - field_id: build_status
-        name: cust_build_status
-        data_type: varchar
-        evidence_refs:
-        - ev-company-fields
-        - ev-group-caliber
-        dictionary:
-          BUILD_SUCCESS: 认证成功
-          CUST_CHANGE: 变更
-          CUST_BUILDING: 审核中
-      - field_id: company_status
-        name: cust_status
-        data_type: varchar
-        evidence_refs:
-        - ev-company-fields
-        - ev-group-caliber
-        dictionary:
-          EFFECT: 生效
-          CHANGE: 变更
-          ADD: 新增
-      - field_id: enabled
-        name: enable
-        data_type: varchar
-        evidence_refs:
-        - ev-company-fields
-        - ev-group-caliber
-        dictionary:
-          'Y': 启用
-          'N': 停用
-      - field_id: data_type
-        name: data_type
-        data_type: varchar
-        evidence_refs:
-        - ev-company-fields
-        - ev-group-caliber
-        dictionary:
-          '1': 正式企业主数据
-      - field_id: db_tenant_code
-        name: db_tenant_code
-        data_type: varchar
-        evidence_refs:
-        - ev-company-fields
-        - ev-group-caliber
-      evidence_refs:
-      - ev-company-fields
-      - ev-group-caliber
-    - dataset_id: group_rel
-      name: cust_group_rel
-      database: lowcode_pplatform
-      description: 集团成员。cust_id 是企业 id。
-      fields:
-      - field_id: id
-        name: id
-        data_type: bigint
-        evidence_refs:
-        - ev-group-fields
-      - field_id: cust_id
-        name: cust_id
-        data_type: bigint
-        evidence_refs:
-        - ev-group-fields
-      - field_id: parent_cust_id
-        name: parent_cust_id
-        data_type: bigint
-        evidence_refs:
-        - ev-group-fields
-      - field_id: root_cust_id
-        name: root_cust_id
-        data_type: bigint
-        evidence_refs:
-        - ev-group-fields
-      - field_id: root_flag
-        name: root_flag
-        data_type: varchar
-        evidence_refs:
-        - ev-group-fields
-        dictionary:
-          'Y': 集团根企业
-          'N': 非根
-      - field_id: status
-        name: status
-        data_type: varchar
-        evidence_refs:
-        - ev-group-fields
-        - ev-profile-group
-        dictionary:
-          EFFECTIVE: 已生效
-          INEFFECTIVE: 未生效
-          REJECTED: 已拒绝
-      - field_id: enable
-        name: enable
-        data_type: varchar
-        evidence_refs:
-        - ev-group-fields
-        dictionary:
-          'Y': 启用
-          'N': 停用
-      evidence_refs:
-      - ev-group-fields
-    relationships:
-    - relationship_id: group-company
-      left:
-        dataset: group_rel
-        field: cust_id
-      right:
-        dataset: company
-        field: id
-      relationship_type: EQUI_JOIN
-      cardinality: n:1
-      business_meaning: 成员行指向一家企业
-      status: proposed
-      evidence_refs:
-      - ev-group-fields
-    metrics: []
-    calibers:
-    - caliber_id: effective-group-member
-      label: 已生效集团成员
-      description: status=EFFECTIVE 且 enable=Y。
-      contract_fragment:
-        predicates:
-        - field: group_rel.status
-          operator: eq
-          values:
-          - EFFECTIVE
-        - field: group_rel.enable
-          operator: eq
-          values:
-          - 'Y'
-      field_targets:
-      - dataset: group_rel
-        field: status
-      - dataset: group_rel
-        field: enable
-      evidence_refs:
-      - ev-group-fields
-      - ev-profile-group
-    domain_rules:
-    - rule_id: group-row-is-not-company-count
-      label: 集团行去重到企业
-      content: 统计集团企业数必须按 cust_id 去重，并叠加建档口径。
-      applicability: 集团企业数
-      query_impact: grain 是 company；禁止直接 COUNT(cust_group_rel) 当企业数
-      field_targets:
-      - dataset: group_rel
-        field: cust_id
-      - dataset: company
-        field: id
-      evidence_refs:
-      - ev-group-fields
-      - ev-group-caliber
-    verified_query_patterns:
-    - pattern_id: count-effective-group-members
-      question: 已生效集团成员有多少
-      query: |
-        SELECT COUNT(DISTINCT cust_id) AS effective_group_member_count
-        FROM cust_group_rel
-        WHERE status = 'EFFECTIVE'
-          AND enable = 'Y'
-      intended_specification:
-        grain: company
-        caliber_id: effective-group-member
-      verification:
-        status: PENDING_VALIDATION
-      evidence_refs:
-      - ev-group-fields
-      - ev-profile-group
-  evidence_refs:
-  - ev-group-endpoint
-  - ev-group-fields
-  - ev-profile-group
-  - ev-company-fields
-  - ev-group-caliber
-  assumptions:
-  - 查询范例未在目标库逐条执行。
-  conflicts: []
-  confidence: 0.88
-- unit_id: tenant-setting
-  revision: 1
-  title: 租户配置生效
-  aliases:
-  - 租户设置
-  - 已生效租户
-  domain: tenant
-  applicability: 已生效/待生效租户配置；不用于 SSO/DBAss 是否初始化
-  description: 租户配置在 tenant_setting_config。status=Y 已生效，否则待生效。
-  content:
-    concepts:
-    - concept_id: tenant-setting
-      name: 租户配置
-      aliases:
-      - 租户设置
-      definition: 租户品牌、域名、默认项目等配置行。
-      dictionary:
-        'Y': 已生效
-        'N': 待生效
-      evidence_refs:
-      - ev-tenant-setting-fields
-      - ev-tenant-setting-status-dict
-    processes:
-    - stage_id: get-tenant-setting
-      name: 查询租户配置
-      trigger: /tenant-web/setting/getTenantSetting
-      enter_conditions:
-      - 租户标识已知
-      exit_conditions:
-      - 读取 tenant_setting_config
-      data_effects:
-      - operation: read
-        dataset: tenant_setting
-        fields:
-        - status
-        - enable
-        - default_project_id
-        evidence_refs:
-        - ev-tenant-setting-endpoint
-      evidence_refs:
-      - ev-tenant-setting-endpoint
-    datasets:
-    - dataset_id: tenant_setting
-      name: tenant_setting_config
-      database: lowcode_pplatform
-      description: 一行一个租户配置。status 不是 enable。
-      fields:
-      - field_id: id
-        name: id
-        data_type: bigint
-        evidence_refs:
-        - ev-tenant-setting-fields
-      - field_id: name
-        name: name
-        data_type: varchar
-        evidence_refs:
-        - ev-tenant-setting-fields
-      - field_id: status
-        name: status
-        data_type: varchar
-        evidence_refs:
-        - ev-tenant-setting-status-dict
-        - ev-profile-tenant-setting
-        dictionary:
-          'Y': 已生效
-          'N': 待生效
-      - field_id: enable
-        name: enable
-        data_type: varchar
-        evidence_refs:
-        - ev-tenant-setting-fields
-        dictionary:
-          'Y': 启用
-          'N': 停用
-      - field_id: default_project_id
-        name: default_project_id
-        data_type: bigint
-        evidence_refs:
-        - ev-tenant-setting-fields
-      - field_id: db_tenant_code
-        name: db_tenant_code
-        data_type: varchar
-        evidence_refs:
-        - ev-tenant-setting-fields
-      evidence_refs:
-      - ev-tenant-setting-fields
-    - dataset_id: tenant_project
-      name: tenant_project
-      database: lowcode_pplatform
-      description: 默认项目指向 tenant_project.id。
-      fields:
-      - field_id: id
-        name: id
-        data_type: bigint
-        evidence_refs:
-        - ev-tenant-project-fields
-      - field_id: name
-        name: name
-        data_type: varchar
-        evidence_refs:
-        - ev-tenant-project-fields
-      evidence_refs:
-      - ev-tenant-project-fields
-    relationships:
-    - relationship_id: setting-default-project
-      left:
-        dataset: tenant_setting
-        field: default_project_id
-      right:
-        dataset: tenant_project
-        field: id
-      relationship_type: EQUI_JOIN
-      cardinality: n:1
-      business_meaning: 租户默认项目
-      status: proposed
-      evidence_refs:
-      - ev-tenant-setting-fields
-    metrics: []
-    calibers:
-    - caliber_id: effective-tenant-setting
-      label: 已生效租户配置
-      description: status=Y 且 enable=Y。
-      contract_fragment:
-        predicates:
-        - field: tenant_setting.status
-          operator: eq
-          values:
-          - 'Y'
-        - field: tenant_setting.enable
-          operator: eq
-          values:
-          - 'Y'
-      field_targets:
-      - dataset: tenant_setting
-        field: status
-      - dataset: tenant_setting
-        field: enable
-      evidence_refs:
-      - ev-tenant-setting-status-dict
-      - ev-profile-tenant-setting
-    domain_rules:
-    - rule_id: setting-status-not-enable
-      label: 配置生效不是 enable
-      content: enable 是行是否可用；是否已生效看 status。
-      applicability: 已生效租户、待生效租户
-      query_impact: 已生效必须同时过滤 status='Y'，不能只过滤 enable='Y'
-      field_targets:
-      - dataset: tenant_setting
-        field: status
-      - dataset: tenant_setting
-        field: enable
-      evidence_refs:
-      - ev-tenant-setting-status-dict
-      - ev-profile-tenant-setting
-    verified_query_patterns:
-    - pattern_id: count-effective-tenant-settings
-      question: 已生效租户配置有多少
-      query: |
-        SELECT COUNT(1) AS effective_tenant_setting_count
-        FROM tenant_setting_config
-        WHERE status = 'Y'
-          AND enable = 'Y'
-      intended_specification:
-        grain: tenant_setting
-        caliber_id: effective-tenant-setting
-      verification:
-        status: PENDING_VALIDATION
-      evidence_refs:
-      - ev-tenant-setting-status-dict
-      - ev-profile-tenant-setting
-  evidence_refs:
-  - ev-tenant-setting-endpoint
-  - ev-tenant-setting-fields
-  - ev-tenant-setting-status-dict
-  - ev-profile-tenant-setting
-  - ev-tenant-project-fields
-  assumptions:
-  - 查询范例未在目标库逐条执行。
-  conflicts: []
-  confidence: 0.88
-- unit_id: funding-rule
-  revision: 1
-  title: 资金方规则版本
-  aliases:
-  - 资方规则
-  - 资金规则
-  domain: funding
-  applicability: 生效中的资金规则版本；不要用 PENDING/ACTIVE 去过滤 tenant_project
-  description: 资金规则在 funding_rule_info。rule_status 为 ACTIVE/PENDING/INACTIVE。
-  content:
-    concepts:
-    - concept_id: funding-rule
-      name: 资金方规则
-      aliases:
-      - 资方规则
-      definition: 某资金方在某产品上的规则版本。
-      dictionary:
-        ACTIVE: 生效
-        PENDING: 待生效
-        INACTIVE: 失效
-      evidence_refs:
-      - ev-funding-fields
-      - ev-profile-funding
-    processes:
-    - stage_id: query-funding-rule
-      name: 查询资金规则
-      trigger: /fund-web/ruleInfo
-      enter_conditions:
-      - 可选 ruleStatus 精确匹配
-      exit_conditions:
-      - 返回 funding_rule_info
-      data_effects:
-      - operation: read
-        dataset: funding_rule
-        fields:
-        - rule_status
-        - enable
-        evidence_refs:
-        - ev-funding-endpoint
-      evidence_refs:
-      - ev-funding-endpoint
-    datasets:
-    - dataset_id: funding_rule
-      name: funding_rule_info
-      database: lowcode_pplatform
-      description: 资金方规则版本。
-      fields:
-      - field_id: id
-        name: id
-        data_type: bigint
-        evidence_refs:
-        - ev-funding-fields
-      - field_id: funding_party_mark
-        name: funding_party_mark
-        data_type: varchar
-        evidence_refs:
-        - ev-funding-fields
-      - field_id: funding_party_name
-        name: funding_party_name
-        data_type: varchar
-        evidence_refs:
-        - ev-funding-fields
-      - field_id: product_code
-        name: product_code
-        data_type: varchar
-        evidence_refs:
-        - ev-funding-fields
-      - field_id: rule_status
-        name: rule_status
-        data_type: varchar
-        evidence_refs:
-        - ev-funding-fields
-        - ev-profile-funding
-        dictionary:
-          ACTIVE: 生效
-          PENDING: 待生效
-          INACTIVE: 失效
-      - field_id: version
-        name: version
-        data_type: int
-        evidence_refs:
-        - ev-funding-fields
-      - field_id: enable
-        name: enable
-        data_type: varchar
-        evidence_refs:
-        - ev-funding-fields
-        dictionary:
-          'Y': 启用
-          'N': 停用
-      evidence_refs:
-      - ev-funding-fields
-    relationships: []
-    metrics: []
-    calibers:
-    - caliber_id: active-funding-rule
-      label: 生效中的资金规则
-      description: rule_status=ACTIVE 且 enable=Y。
-      contract_fragment:
-        predicates:
-        - field: funding_rule.rule_status
-          operator: eq
-          values:
-          - ACTIVE
-        - field: funding_rule.enable
-          operator: eq
-          values:
-          - 'Y'
-      field_targets:
-      - dataset: funding_rule
-        field: rule_status
-      - dataset: funding_rule
-        field: enable
-      evidence_refs:
-      - ev-funding-endpoint
-      - ev-profile-funding
-    domain_rules:
-    - rule_id: rule-status-not-project-status
-      label: 规则状态不是项目状态
-      content: ACTIVE/PENDING/INACTIVE 只用于 funding_rule_info.rule_status。
-      applicability: 生效规则、待生效规则
-      query_impact: 禁止把这些值写到 tenant_project.project_status
-      field_targets:
-      - dataset: funding_rule
-        field: rule_status
-      evidence_refs:
-      - ev-funding-fields
-      - ev-project-status-dict
-    verified_query_patterns:
-    - pattern_id: count-active-funding-rules
-      question: 生效中的资金规则有多少
-      query: |
-        SELECT COUNT(1) AS active_funding_rule_count
-        FROM funding_rule_info
-        WHERE rule_status = 'ACTIVE'
-          AND enable = 'Y'
-      intended_specification:
-        grain: funding_rule
-        caliber_id: active-funding-rule
-      verification:
-        status: PENDING_VALIDATION
-      evidence_refs:
-      - ev-funding-endpoint
-      - ev-profile-funding
-  evidence_refs:
-  - ev-funding-endpoint
-  - ev-funding-fields
-  - ev-profile-funding
-  - ev-project-status-dict
-  assumptions:
-  - 查询范例未在目标库逐条执行。
-  conflicts: []
-  confidence: 0.9
-- unit_id: ca-fee
-  revision: 1
-  title: CA 服务费
-  aliases:
-  - CA 费
-  - 证书服务费
-  domain: ca_fee
-  applicability: 未缴/已缴 CA 费企业与订单；不用于交e保外部余额
-  description: 企业台账 ca_fee_company.pay_status 为 PAID/UNPAID；订单 order_status 为 PENDING/PAID/CLOSED/EXPIRED。
-  content:
-    concepts:
-    - concept_id: ca-fee-company
-      name: CA 费企业台账
-      aliases:
-      - CA 缴费
-      definition: 按企业维度的缴费与证书快照。
-      dictionary:
-        PAID: 已缴费
-        UNPAID: 未缴费
-      evidence_refs:
-      - ev-ca-fee-company-fields
-      - ev-profile-ca-fee
-    processes:
-    - stage_id: query-ca-fee
-      name: 查询 CA 费
-      trigger: /cust-web/caFee
-      enter_conditions:
-      - 企业或订单条件
-      exit_conditions:
-      - 读取台账或订单
-      data_effects:
-      - operation: read
-        dataset: ca_fee_company
-        fields:
-        - pay_status
-        - ca_status
-        - enable
-        evidence_refs:
-        - ev-ca-fee-endpoint
-      evidence_refs:
-      - ev-ca-fee-endpoint
-    datasets:
-    - dataset_id: ca_fee_company
-      name: ca_fee_company
-      database: lowcode_pplatform
-      description: CA 费企业台账。
-      fields:
-      - field_id: id
-        name: id
-        data_type: bigint
-        evidence_refs:
-        - ev-ca-fee-company-fields
-      - field_id: certification_no
-        name: certification_no
-        data_type: varchar
-        evidence_refs:
-        - ev-ca-fee-company-fields
-      - field_id: company_name
-        name: company_name
-        data_type: varchar
-        evidence_refs:
-        - ev-ca-fee-company-fields
-      - field_id: pay_status
-        name: pay_status
-        data_type: varchar
-        evidence_refs:
-        - ev-ca-fee-company-fields
-        - ev-profile-ca-fee
-        dictionary:
-          PAID: 已缴费
-          UNPAID: 未缴费
-      - field_id: ca_status
-        name: ca_status
-        data_type: varchar
-        evidence_refs:
-        - ev-ca-fee-company-fields
-        dictionary:
-          NORMAL: 有效
-          EXPIRED: 已过期
-          CANCELLED: 已注销
-          UNREGISTERED: 未注册
-          UNKNOWN: 未知
-      - field_id: enable
-        name: enable
-        data_type: varchar
-        evidence_refs:
-        - ev-ca-fee-company-fields
-        dictionary:
-          'Y': 启用
-          'N': 停用
-      - field_id: tenant_id
-        name: tenant_id
-        data_type: bigint
-        evidence_refs:
-        - ev-ca-fee-company-fields
-      evidence_refs:
-      - ev-ca-fee-company-fields
-    - dataset_id: ca_fee_order
-      name: ca_fee_order
-      database: lowcode_pplatform
-      description: CA 费订单。脏值 PAIDING/UNPAID 不纳入正式口径。
-      fields:
-      - field_id: id
-        name: id
-        data_type: bigint
-        evidence_refs:
-        - ev-ca-fee-order-fields
-      - field_id: order_no
-        name: order_no
-        data_type: varchar
-        evidence_refs:
-        - ev-ca-fee-order-fields
-      - field_id: company_id
-        name: company_id
-        data_type: bigint
-        evidence_refs:
-        - ev-ca-fee-order-fields
-      - field_id: order_status
-        name: order_status
-        data_type: varchar
-        evidence_refs:
-        - ev-ca-fee-order-fields
-        - ev-profile-ca-fee
-        dictionary:
-          PENDING: 待支付
-          PAID: 已支付
-          CLOSED: 已关闭
-          EXPIRED: 已过期
-      - field_id: enable
-        name: enable
-        data_type: varchar
-        evidence_refs:
-        - ev-ca-fee-order-fields
-        dictionary:
-          'Y': 启用
-          'N': 停用
-      evidence_refs:
-      - ev-ca-fee-order-fields
-    relationships:
-    - relationship_id: ca-order-company
-      left:
-        dataset: ca_fee_order
-        field: company_id
-      right:
-        dataset: ca_fee_company
-        field: id
-      relationship_type: EQUI_JOIN
-      cardinality: n:1
-      business_meaning: 订单指向台账企业；company_id 与企业主数据 id 的对齐待绑定后确认
-      status: proposed
-      evidence_refs:
-      - ev-ca-fee-order-fields
-      confidence: 0.4
-    metrics: []
-    calibers:
-    - caliber_id: unpaid-ca-fee-company
-      label: 未缴 CA 费企业
-      description: pay_status=UNPAID 且 enable=Y。
-      contract_fragment:
-        predicates:
-        - field: ca_fee_company.pay_status
-          operator: eq
-          values:
-          - UNPAID
-        - field: ca_fee_company.enable
-          operator: eq
-          values:
-          - 'Y'
-      field_targets:
-      - dataset: ca_fee_company
-        field: pay_status
-      - dataset: ca_fee_company
-        field: enable
-      evidence_refs:
-      - ev-ca-fee-company-fields
-      - ev-profile-ca-fee
-    domain_rules:
-    - rule_id: ignore-dirty-ca-order-status
-      label: 忽略订单脏状态
-      content: order_status 存在 PAIDING/UNPAID，问数只认 PENDING/PAID/CLOSED/EXPIRED。
-      applicability: 已支付订单、待支付订单
-      query_impact: 不要把 PAIDING 当成 PAID
-      field_targets:
-      - dataset: ca_fee_order
-        field: order_status
-      evidence_refs:
-      - ev-profile-ca-fee
-      - ev-ca-fee-order-fields
-    verified_query_patterns:
-    - pattern_id: count-unpaid-ca-fee-companies
-      question: 未缴 CA 费的企业有多少
-      query: |
-        SELECT COUNT(1) AS unpaid_ca_fee_company_count
-        FROM ca_fee_company
-        WHERE pay_status = 'UNPAID'
-          AND enable = 'Y'
-      intended_specification:
-        grain: ca_fee_company
-        caliber_id: unpaid-ca-fee-company
-      verification:
-        status: PENDING_VALIDATION
-      evidence_refs:
-      - ev-ca-fee-company-fields
-      - ev-profile-ca-fee
-  evidence_refs:
-  - ev-ca-fee-endpoint
-  - ev-ca-fee-company-fields
-  - ev-ca-fee-order-fields
-  - ev-profile-ca-fee
-  assumptions:
-  - ca_fee_order.company_id 与 cust_company_info.id 的对应关系保持 proposed。
-  - 查询范例未在目标库逐条执行。
-  conflicts: []
-  confidence: 0.86
-- unit_id: company-product-auth
-  revision: 1
-  title: 企业授权协议与产品开通申请
-  aliases:
-  - 授权协议
-  - 产品开通申请
-  domain: product
-  applicability: 企业是否已认证授权协议、企业产品开通申请 OPENED；不要用来统计租户产品 open_status=Y
-  description: 授权协议 authed_status 为 Y/N。企业产品申请 open_status 为 OPENED/OPENING/NOT_OPENED。
-  content:
-    concepts:
-    - concept_id: authorization-agreement
-      name: 授权协议
-      aliases:
-      - 已认证协议
-      definition: 企业在某产品上的授权协议签署记录。
-      dictionary:
-        'Y': 已认证
-        'N': 未认证
-      evidence_refs:
-      - ev-auth-agreement-fields
-      - ev-auth-agreement-signed
-    - concept_id: company-product-application
-      name: 企业产品开通申请
-      aliases:
-      - 开通申请
-      definition: 企业侧产品开通申请，字典与租户产品 Y/P/N 不同。
-      dictionary:
-        OPENED: 已开通
-        OPENING: 开通中
-        NOT_OPENED: 未开通
-      evidence_refs:
-      - ev-auth-application-dict
-      - ev-profile-auth
-    processes:
-    - stage_id: list-signed-agreement
-      name: 查询已签署协议企业
-      trigger: AuthorizationAgreementDaoImpl.listCompanyIdsWithSignedPlatformAgreement
-      enter_conditions:
-      - 企业 id 集合
-      exit_conditions:
-      - authed_status=Y 且 enable=Y
-      data_effects:
-      - operation: read
-        dataset: agreement
-        fields:
-        - authed_status
-        - enable
-        - cust_id
-        evidence_refs:
-        - ev-auth-agreement-signed
-      evidence_refs:
-      - ev-auth-agreement-signed
-    datasets:
-    - dataset_id: company
-      name: cust_company_info
-      database: lowcode_pplatform
-      description: 企业主数据。本单元通过 id 或 code 连接，统计建档成功数应回到 enterprise-onboarding。
-      fields:
-      - field_id: id
-        name: id
-        data_type: bigint
-        evidence_refs:
-        - ev-company-fields
-      - field_id: code
-        name: code
-        data_type: varchar
-        evidence_refs:
-        - ev-company-fields
-        description: 企业业务键。
-      - field_id: name
-        name: name
-        data_type: varchar
-        evidence_refs:
-        - ev-company-fields
-      - field_id: build_status
-        name: cust_build_status
-        data_type: varchar
-        evidence_refs:
-        - ev-company-fields
-        dictionary:
-          BUILD_SUCCESS: 认证成功
-          CUST_CHANGE: 变更
-          CUST_BUILDING: 审核中
-      - field_id: company_status
-        name: cust_status
-        data_type: varchar
-        evidence_refs:
-        - ev-company-fields
-        dictionary:
-          EFFECT: 生效
-          CHANGE: 变更
-          ADD: 新增
-      - field_id: enabled
-        name: enable
-        data_type: varchar
-        evidence_refs:
-        - ev-company-fields
-        dictionary:
-          'Y': 启用
-          'N': 停用
-      - field_id: data_type
-        name: data_type
-        data_type: varchar
-        evidence_refs:
-        - ev-company-fields
-        dictionary:
-          '1': 正式企业主数据
-      - field_id: db_tenant_code
-        name: db_tenant_code
-        data_type: varchar
-        evidence_refs:
-        - ev-company-fields
-      evidence_refs:
-      - ev-company-fields
-    - dataset_id: agreement
-      name: authorization_agreement
-      database: lowcode_pplatform
-      description: 授权协议。cust_id 为企业 id。
-      fields:
-      - field_id: id
-        name: id
-        data_type: bigint
-        evidence_refs:
-        - ev-auth-agreement-fields
-      - field_id: cust_id
-        name: cust_id
-        data_type: bigint
-        evidence_refs:
-        - ev-auth-agreement-fields
-        - ev-auth-agreement-signed
-      - field_id: authed_status
-        name: authed_status
-        data_type: varchar
-        evidence_refs:
-        - ev-auth-agreement-signed
-        - ev-profile-auth
-        dictionary:
-          'Y': 已认证
-          'N': 未认证
-      - field_id: platform_product_code
-        name: platform_product_code
-        data_type: varchar
-        evidence_refs:
-        - ev-auth-agreement-fields
-      - field_id: enable
-        name: enable
-        data_type: varchar
-        evidence_refs:
-        - ev-auth-agreement-fields
-        dictionary:
-          'Y': 启用
-          'N': 停用
-      evidence_refs:
-      - ev-auth-agreement-fields
-    - dataset_id: auth_application
-      name: cust_auth_application
-      database: lowcode_pplatform
-      description: 企业产品开通申请。ref_cust_company_info 为企业 code。
-      fields:
-      - field_id: id
-        name: id
-        data_type: bigint
-        evidence_refs:
-        - ev-auth-application-fields
-      - field_id: company_code
-        name: ref_cust_company_info
-        data_type: varchar
-        evidence_refs:
-        - ev-auth-application-fields
-        - ev-auth-application-query
-      - field_id: open_status
-        name: open_status
-        data_type: varchar
-        evidence_refs:
-        - ev-auth-application-dict
-        - ev-profile-auth
-        dictionary:
-          OPENED: 已开通
-          OPENING: 开通中
-          NOT_OPENED: 未开通
-      - field_id: platform_product_code
-        name: platform_product_code
-        data_type: varchar
-        evidence_refs:
-        - ev-auth-application-fields
-      - field_id: enable
-        name: enable
-        data_type: varchar
-        evidence_refs:
-        - ev-auth-application-fields
-        dictionary:
-          'Y': 启用
-          'N': 停用
-      evidence_refs:
-      - ev-auth-application-fields
-    relationships:
-    - relationship_id: agreement-company
-      left:
-        dataset: agreement
-        field: cust_id
-      right:
-        dataset: company
-        field: id
-      relationship_type: EQUI_JOIN
-      cardinality: n:1
-      business_meaning: 协议行指向企业主键
-      status: proposed
-      evidence_refs:
-      - ev-auth-agreement-signed
-    - relationship_id: application-company
-      left:
-        dataset: auth_application
-        field: company_code
-      right:
-        dataset: company
-        field: code
-      relationship_type: EQUI_JOIN
-      cardinality: n:1
-      business_meaning: 开通申请按企业 code 连接
-      status: proposed
-      evidence_refs:
-      - ev-auth-application-query
-    metrics: []
-    calibers:
-    - caliber_id: signed-agreement
-      label: 已认证授权协议
-      description: authed_status=Y 且 enable=Y。
-      contract_fragment:
-        predicates:
-        - field: agreement.authed_status
-          operator: eq
-          values:
-          - 'Y'
-        - field: agreement.enable
-          operator: eq
-          values:
-          - 'Y'
-      field_targets:
-      - dataset: agreement
-        field: authed_status
-      - dataset: agreement
-        field: enable
-      evidence_refs:
-      - ev-auth-agreement-signed
-      - ev-profile-auth
-    - caliber_id: opened-company-product
-      label: 企业已开通产品申请
-      description: open_status=OPENED 且 enable=Y。
-      contract_fragment:
-        predicates:
-        - field: auth_application.open_status
-          operator: eq
-          values:
-          - OPENED
-        - field: auth_application.enable
-          operator: eq
-          values:
-          - 'Y'
-      field_targets:
-      - dataset: auth_application
-        field: open_status
-      - dataset: auth_application
-        field: enable
-      evidence_refs:
-      - ev-auth-application-dict
-      - ev-profile-auth
-    domain_rules:
-    - rule_id: company-open-not-tenant-open
-      label: 企业开通申请不是租户产品开通
-      content: cust_auth_application 用 OPENED；tenant_product 用 Y。不要互相替代。
-      applicability: 企业已开通产品、租户已开通产品
-      query_impact: 本单元过滤必须使用 OPENED/OPENING/NOT_OPENED
-      field_targets:
-      - dataset: auth_application
-        field: open_status
-      evidence_refs:
-      - ev-auth-application-dict
-      - ev-product-open-ynp
-    verified_query_patterns:
-    - pattern_id: count-opened-company-products
-      question: 企业已开通的产品申请有多少
-      query: |
-        SELECT COUNT(1) AS opened_company_product_count
-        FROM cust_auth_application
-        WHERE open_status = 'OPENED'
-          AND enable = 'Y'
-      intended_specification:
-        grain: auth_application
-        caliber_id: opened-company-product
-      verification:
-        status: PENDING_VALIDATION
-      evidence_refs:
-      - ev-auth-application-dict
-      - ev-profile-auth
-  evidence_refs:
-  - ev-auth-agreement-fields
-  - ev-auth-agreement-signed
-  - ev-auth-application-fields
-  - ev-auth-application-dict
-  - ev-auth-application-query
-  - ev-profile-auth
-  - ev-company-fields
-  - ev-product-open-ynp
-  assumptions:
-  - 查询范例未在目标库逐条执行。
-  conflicts:
-  - topic: 两套开通字典
-    parties:
-    - src-product-active-const
-    - src-product-open-enum
-    summary: 企业申请 OPENED；租户产品 Y。按表选择，禁止混用。
-  confidence: 0.9
-- unit_id: openapi-access
-  revision: 1
-  title: OpenAPI 渠道密钥
-  aliases:
-  - 接入秘钥
-  - 同步失败
-  domain: openapi
-  applicability: 有效渠道密钥；同步失败历史。不要把 enable=N 的失败行当待重试
-  description: 有效密钥是 cust_access_secret.channel + enable=Y。同步失败表当前画像全部 enable=N。
-  content:
-    concepts:
-    - concept_id: access-secret
-      name: 渠道接入密钥
-      aliases:
-      - OpenAPI 密钥
-      definition: 按 channel 落库的接入密钥，enable=Y 才有效。
-      evidence_refs:
-      - ev-access-secret-fields
-      - ev-access-secret-query
-    processes:
-    - stage_id: resolve-channel-secret
-      name: 解析渠道密钥
-      trigger: CustAccessApplication 按 channel 取密钥
-      enter_conditions:
-      - channel 已知
-      exit_conditions:
-      - enable=Y 的 cust_access_secret
-      data_effects:
-      - operation: read
-        dataset: access_secret
-        fields:
-        - channel
-        - enable
-        evidence_refs:
-        - ev-access-secret-query
-      evidence_refs:
-      - ev-access-endpoint
-      - ev-access-secret-query
-    datasets:
-    - dataset_id: access_secret
-      name: cust_access_secret
-      database: lowcode_pplatform
-      description: 渠道密钥。不要把密钥原文写入查询口径。
-      fields:
-      - field_id: id
-        name: id
-        data_type: bigint
-        evidence_refs:
-        - ev-access-secret-fields
-      - field_id: channel
-        name: channel
-        data_type: varchar
-        evidence_refs:
-        - ev-access-secret-fields
-        - ev-access-secret-query
-      - field_id: enable
-        name: enable
-        data_type: varchar
-        evidence_refs:
-        - ev-access-secret-fields
-        dictionary:
-          'Y': 启用
-          'N': 停用
-      - field_id: encry_type
-        name: encry_type
-        data_type: varchar
-        evidence_refs:
-        - ev-access-secret-fields
-      evidence_refs:
-      - ev-access-secret-fields
-    - dataset_id: sync_error
-      name: client_api_sync_error
-      database: lowcode_pplatform
-      description: 同步失败记录。当前画像全部 enable=N，不能当待重试队列。
-      fields:
-      - field_id: id
-        name: id
-        data_type: bigint
-        evidence_refs:
-        - ev-sync-error-fields
-      - field_id: service_class_name
-        name: service_class_name
-        data_type: varchar
-        evidence_refs:
-        - ev-sync-error-fields
-      - field_id: retry_num
-        name: retry_num
-        data_type: int
-        evidence_refs:
-        - ev-sync-error-fields
-      - field_id: enable
-        name: enable
-        data_type: varchar
-        evidence_refs:
-        - ev-sync-error-fields
-        - ev-profile-openapi
-        dictionary:
-          'Y': 启用
-          'N': 停用
-      evidence_refs:
-      - ev-sync-error-fields
-    relationships: []
-    metrics: []
-    calibers:
-    - caliber_id: enabled-access-secret
-      label: 有效渠道密钥
-      description: enable=Y。
-      contract_fragment:
-        predicates:
-        - field: access_secret.enable
-          operator: eq
-          values:
-          - 'Y'
-      field_targets:
-      - dataset: access_secret
-        field: enable
-      evidence_refs:
-      - ev-access-secret-query
-      - ev-profile-openapi
-    domain_rules:
-    - rule_id: sync-error-enable-n-not-retry
-      label: enable=N 不是待重试
-      content: 当前库中 client_api_sync_error 全部 enable=N，不能解释为待重试失败。
-      applicability: 同步失败、待重试
-      query_impact: 若问待重试必须过滤 enable='Y'；当前画像结果应为 0
-      field_targets:
-      - dataset: sync_error
-        field: enable
-      evidence_refs:
-      - ev-profile-openapi
-      - ev-sync-error-fields
-    verified_query_patterns:
-    - pattern_id: count-enabled-access-secrets
-      question: 有效 OpenAPI 渠道密钥有多少
-      query: |
-        SELECT COUNT(1) AS enabled_access_secret_count
-        FROM cust_access_secret
-        WHERE enable = 'Y'
-      intended_specification:
-        grain: access_secret
-        caliber_id: enabled-access-secret
-      verification:
-        status: PENDING_VALIDATION
-      evidence_refs:
-      - ev-access-secret-query
-      - ev-profile-openapi
-  evidence_refs:
-  - ev-access-endpoint
-  - ev-access-secret-fields
-  - ev-access-secret-query
-  - ev-sync-error-fields
-  - ev-profile-openapi
-  assumptions:
-  - 不提取密钥/私钥字段进入问数口径。
-  - 查询范例未在目标库逐条执行。
-  conflicts: []
-  confidence: 0.85
+- evidence_id: ev-approval-fields
+  source_id: src-project-approval-do
+  evidence_kind: database_schema
+  locator: TenantProjectApprovalDO
+  claim: 表 tenant_project_approval；一行一张审批单，含 wf_status、project_type、flow_code、is_latest，ref 列关联项目/流程模板。
+  confidence: 1.0
+- evidence_id: ev-approval-biz-fields
+  source_id: src-approval-biz-do
+  evidence_kind: database_schema
+  locator: TenantProjectApprovalBusinessInfoDO
+  claim: 表 tenant_project_approval_business_info；产品/来源系统/收费方式等业务信息，ref 列关联审批主表。
+  confidence: 1.0
+- evidence_id: ev-approval-flow-fields
+  source_id: src-approval-flow-do
+  evidence_kind: database_schema
+  locator: TenantProjectApprovalFlowDO
+  claim: 表 tenant_project_approval_flow；流程实例节点，node_code/node_name/node_order/node_status 与审批人，ref 列关联审批主表。
+  confidence: 1.0
+- evidence_id: ev-approval-flow-config-fields
+  source_id: src-approval-flow-config-do
+  evidence_kind: database_schema
+  locator: TenantProjectApprovalFlowConfigDO
+  claim: 表 tenant_project_approval_flow_config；审批流程模板，flow_code/node_code/node_order 描述节点顺序。
+  confidence: 1.0
+- evidence_id: ev-approval-flow-credit-fields
+  source_id: src-approval-flow-credit-do
+  evidence_kind: database_schema
+  locator: TenantProjectApprovalFlowCreditDO
+  claim: 表 tenant_project_approval_flow_credit；授信额度/授信企业/额度起止日期，ref 列关联审批单与节点。
+  confidence: 1.0
+- evidence_id: ev-approval-flow-file-fields
+  source_id: src-approval-flow-file-do
+  evidence_kind: database_schema
+  locator: TenantProjectApprovalFlowFileDO
+  claim: 表 tenant_project_approval_flow_file；审批附件，file_id/file_name/file_url，ref 列关联审批单与节点。
+  confidence: 1.0
+- evidence_id: ev-approval-flow-node-fields
+  source_id: src-approval-flow-node-do
+  evidence_kind: database_schema
+  locator: TenantProjectApprovalFlowNodeDO
+  claim: 表 tenant_project_approval_flow_node；审批流转明细，operator/operate_type/approve_comment/operate_time，ref 列关联审批单与流程实例。
+  confidence: 1.0
+- evidence_id: ev-approval-wf-status-dict
+  source_id: src-approval-wf-status-enum
+  evidence_kind: code_path
+  locator: ProjectApprovalWorkflowStatusEnum
+  claim: tenant_project_approval.wf_status 字典：PENDING 待发起 / RUNNING 审批中 / FINISHED 审批通过 / TERMINATED 审批拒绝。
+  confidence: 1.0
+- evidence_id: ev-approval-project-type-dict
+  source_id: src-approval-project-type-enum
+  evidence_kind: code_path
+  locator: ProjectApprovalProjectTypeEnum
+  claim: tenant_project_approval.project_type 字典：STANDARD 标准项目 / REGULAR 常规项目。
+  confidence: 1.0
+- evidence_id: ev-approval-flow-code-dict
+  source_id: src-approval-flow-code-enum
+  evidence_kind: code_path
+  locator: ProjectApprovalFlowCodeEnum
+  claim: tenant_project_approval.flow_code 与 tenant_project_approval_flow_config.flow_code 字典：NO_ONLINE 无需上线审批 / STANDARD 标准项目流程 / REGULAR 常规项目流程。
+  confidence: 1.0
+- evidence_id: ev-cert-info-fields
+  source_id: src-cert-info-do
+  evidence_kind: database_schema
+  locator: CustCertificationInfoDO
+  claim: 表 cust_certification_info；ref_cust_company_info 关联企业 code，certification_type 认证类型，auto_verify_status/auto_verify_msg 自动核查结果，manual_verify_status/manual_verify_msg 人工核查结果，enable 行可用标记。
+  confidence: 1.0
+- evidence_id: ev-account-info-fields
+  source_id: src-account-info-do
+  evidence_kind: database_schema
+  locator: CustAccountInfoDO
+  claim: 表 cust_account_info；ref_cust_company_info 关联企业 code，account_no 账号，account_type 账户类型，receive_payment_type 收付类型，default_account_flag 默认账户标记，status 状态，auth_state 打款认证状态，enable 行可用标记。
+  confidence: 1.0
+- evidence_id: ev-ca-cert-fields
+  source_id: src-ca-cert-info-do
+  evidence_kind: database_schema
+  locator: CaCertificationInfoDO
+  claim: 表 ca_certification_info；cust_id 关联企业，data_date/op_type/batch_no 业务批次，submit_status 提交状态，sign_platform_result 签约平台回执，head_company_data 总公司数据，enable 行可用标记。
+  confidence: 1.0
+- evidence_id: ev-cert-type-dict
+  source_id: src-cert-type-enum
+  evidence_kind: code_path
+  locator: CustCertificationTypeEnum
+  claim: cust_certification_info.certification_type 字典：COMPANY_FOUR_ELEMENTS 企业工商（四要素）/ COMPANY_TWO_ELEMENTS 企业工商（二要素）/ LEGAL_THREE_ELEMENTS 法人三要素 / LEGAL_REAL_NAME 法人实名 / FACE_VERIFY 人脸 / AUTH_THREE_ELEMENTS 客户管理员三要素 / AUTH_REAL_NAME 客户管理员实名 / LEGAL_OCR 法人身份证OCR / AUTH_OCR 客户管理员身份证OCR / LICENSE_OCR 营业执照OCR / LEGAL_MEDIA_OCR 法人证件核查 / AUTH_MEDIA_OCR 客户管理员证件核查。
+  confidence: 1.0
+- evidence_id: ev-cert-result-dict
+  source_id: src-cert-result-enum
+  evidence_kind: code_path
+  locator: CustCertificationResultTypeEnum
+  claim: cust_certification_info.auto_verify_status/manual_verify_status 字典：TO_BE_VERIFIED 待核查 / AUTOMATIC_AUTHENTICATION_PASSED 自动认证通过 / AUTOMATIC_AUTHENTICATION_FAILED 自动认证不通过 / MANUAL_AUTHENTICATION_PASSED 人工认证通过 / MANUAL_AUTHENTICATION__FAILED 人工认证不通过（注意双下划线）/ NO_RECORD 库无记录。
+  confidence: 1.0
+- evidence_id: ev-account-type-dict
+  source_id: src-account-type-enum
+  evidence_kind: code_path
+  locator: AccountTypeEnum
+  claim: cust_account_info.account_type 字典：1 银行 / 2 第三方支付机构 / 3 开票。
+  confidence: 1.0
+- evidence_id: ev-receive-payment-dict
+  source_id: src-receive-payment-enum
+  evidence_kind: code_path
+  locator: ReceivePaymentTypeEnum
+  claim: cust_account_info.receive_payment_type 字典：1 收款 / 2 付款。
+  confidence: 1.0
+- evidence_id: ev-account-auth-state-dict
+  source_id: src-account-auth-state
+  evidence_kind: code_path
+  locator: AccountAuthState
+  claim: cust_account_info.auth_state 字典：APPLY_00 初始化 / APPLY_10 申请受理中 / APPLY_20 受理打款成功 / APPLY_30 受理打款失败 / APPLY_40 成功 / APPLY_50 失败。
+  confidence: 1.0
+- evidence_id: ev-ca-cert-submit-dict
+  source_id: src-ca-submit-status-enum
+  evidence_kind: code_path
+  locator: CaSubmitStatusEnum
+  claim: ca_certification_info.submit_status 字典：PENDING 待提交 / SUCCESS 提交成功 / FAIL 提交失败；以 (cust_id,data_date,head_company_data) 幂等。
+  confidence: 1.0
+- evidence_id: ev-ca-fee-project-config-fields
+  source_id: src-ca-fee-project-config-do
+  evidence_kind: database_schema
+  locator: CaFeeProjectConfigDO
+  claim: 表 ca_fee_project_config；project_id/tenant_id 定位项目与租户，charge_enabled 是否收费，supplier_annual_fee/core_annual_fee 供应商/核心年费，pay_channel 支付渠道，agreement_version 协议版本，enable 行可用标记。
+  confidence: 1.0
+- evidence_id: ev-funding-exception-fields
+  source_id: src-funding-exception-do
+  evidence_kind: database_schema
+  locator: FundingExceptionResolutionDO
+  claim: 表 funding_exception_resolution；exception_no 异常编号，funding_party_code/name 资方，error_keyword/error_reason 异常关键词与原因，suggestion 处理建议，product_code 产品。
+  confidence: 1.0
+- evidence_id: ev-funding-party-cfg-fields
+  source_id: src-funding-party-cfg-do
+  evidence_kind: database_schema
+  locator: FundingPartyRuleCfgDO
+  claim: 表 funding_party_rule_cfg；funding_party_code/name 资方，rule_status 规则状态。
+  confidence: 1.0
+- evidence_id: ev-funding-party-detail-fields
+  source_id: src-funding-party-detail-do
+  evidence_kind: database_schema
+  locator: FundingPartyRuleDetailDO
+  claim: 表 funding_party_rule_detail；cfg_ref_code 关联配置，product_code 产品，rule_layer 规则层级，key_cod_type/rule_value 键类型与值，funding_party_code 资方。
+  confidence: 1.0
+- evidence_id: ev-funding-party-front-fields
+  source_id: src-funding-party-front-do
+  evidence_kind: database_schema
+  locator: FundingPartyRuleFrontDO
+  claim: 表 funding_party_rule_front；rule_type/key_code/key_name/rule_layer/front_value/key_code_type 前台规则项展示配置。
+  confidence: 1.0
+- evidence_id: ev-funding-rule-detail-fields
+  source_id: src-funding-rule-detail-do
+  evidence_kind: database_schema
+  locator: FundingRuleDetailDO
+  claim: 表 funding_rule_detail；rule_value/fund_rule_code_ref/rule_key/rule_layer/version/funding_party_mark/product_code/rule_info_id 规则版本明细。
+  confidence: 1.0
+- evidence_id: ev-funding-rule-front-fields
+  source_id: src-funding-rule-front-do
+  evidence_kind: database_schema
+  locator: FundingRuleFrontCfgDO
+  claim: 表 funding_rule_front_cfg；rule_layer/product_code/front_key/front_field_style/key_name/key_type/rule_key/front_key_name 前台规则字段样式。
+  confidence: 1.0
+- evidence_id: ev-tenant-setting-share-fields
+  source_id: src-tenant-setting-share-do
+  evidence_kind: database_schema
+  locator: TenantSettingConfigShareDO
+  claim: 表 tenant_setting_config_share；source_id/source 来源，sso_sys_channel/sso_tenant_chanel 单点渠道，uni_social_credit_code 统一社会信用代码，status 状态，enable 行可用标记。
+  confidence: 1.0
+- evidence_id: ev-platform-product-client-fields
+  source_id: src-platform-product-client-do
+  evidence_kind: database_schema
+  locator: PlatformProductClientDO
+  claim: 表 platform_product_client；platform_product_id 平台产品，url 入口地址，client_type 客户端类型，status 状态，multiple_type/wx_flag/link_type 入口形态。
+  confidence: 1.0
+- evidence_id: ev-platform-product-cust-role-fields
+  source_id: src-platform-product-cust-role-do
+  evidence_kind: database_schema
+  locator: PlatformProductCustRoleDO
+  claim: 表 platform_product_cust_role；product_code 产品，company_type_code/name 企业类型，enable 行可用标记。
+  confidence: 1.0
+- evidence_id: ev-tenant-product-ext-field-fields
+  source_id: src-tenant-product-ext-field-do
+  evidence_kind: database_schema
+  locator: TenantProductExtFieldDO
+  claim: 表 tenant_product_ext_field；product_id 产品，zh_name/label 显示名，type/value/options/props 字段形态，requried/readonly 约束，ref_tenant_ext_field_tenant_product 关联租户产品，enable 行可用标记。
+  confidence: 1.0
+- evidence_id: ev-tenant-product-ext-field-form-fields
+  source_id: src-tenant-product-ext-field-form-do
+  evidence_kind: database_schema
+  locator: TenantProductExtFieldFormDO
+  claim: 表 tenant_product_ext_field_form；title/sort/type/menu_codes/client_type_flag 表单配置，ref_tenant_ext_field_form_tenant_product 关联租户产品，enable 行可用标记。
+  confidence: 1.0
+- evidence_id: ev-cust-customized-product-fields
+  source_id: src-cust-customized-product-do
+  evidence_kind: database_schema
+  locator: CustCustomizedProductDO
+  claim: 表 cust_customized_product；cust_id 企业，url/logo_icon_url/view_order 定制入口展示，ref_cust_customized_product_cust_company_info 关联企业 code，enable 行可用标记。
+  confidence: 1.0
+- evidence_id: ev-project-file-info-fields
+  source_id: src-project-file-info-do
+  evidence_kind: database_schema
+  locator: ProjectFileInfoDO
+  claim: 表 project_file_info；project_id 项目，title/content/file_type 项目文件，enable 行可用标记。
+  confidence: 1.0
+- evidence_id: ev-wechat-approval-apply-fields
+  source_id: src-wechat-approval-apply-do
+  evidence_kind: database_schema
+  locator: WechatProjectApprovalApplyDO
+  claim: 表 wechat_project_approval_apply；sp_no 审批单号，project_id 项目，project_type 项目类型，project_phase 项目阶段，ka_white_label KA白标，apply_start_time 申请时间，business_center/capital_org_full_name 业务中心与资方机构，enable 行可用标记。
+  confidence: 1.0
+- evidence_id: ev-wechat-approval-field-history-fields
+  source_id: src-wechat-approval-field-history-do
+  evidence_kind: database_schema
+  locator: WechatProjectApprovalFieldHistoryDO
+  claim: 表 wechat_project_approval_field_history；apply_id/sp_no 关联申请单，field_name/field_label 字段名与标签，old_value/new_value 变更前后值，change_source/operator_id/operator_name 变更来源与操作人。
+  confidence: 1.0
+- evidence_id: ev-user-rel-fields
+  source_id: src-user-rel-do
+  evidence_kind: database_schema
+  locator: CustUserRelDO
+  claim: 表 cust_user_rel；user_id/company_id 用户与公司，company_type 公司类型，type_status 关系状态，user_type 用户类型，enable 行可用标记。
+  confidence: 1.0
+- evidence_id: ev-oper-change-fields
+  source_id: src-oper-change-record-do
+  evidence_kind: database_schema
+  locator: CustOperChangeRecordDO
+  claim: 表 cust_oper_change_record；person_id/person_name 人员，company_id/company_name 企业，before_operator_id/name 变更前运营，after_operator_id/name 变更后运营，change_type/change_reason 变更类型与原因，asset_id/asset_no 资产，source_system 来源系统。
+  confidence: 1.0
+- evidence_id: ev-head-company-fields
+  source_id: src-head-company-do
+  evidence_kind: database_schema
+  locator: CustHeadCompanyInfoDO
+  claim: 表 cust_head_company_info；ref_cust_head_company_info_cust_company_info 关联企业 code，head_business_scope 经营范围，certification_no 统一信用代码，registered_address/regist_province_city 注册地址，legal_name/legal_certification_no 法人，enable 行可用标记。
+  confidence: 1.0
+- evidence_id: ev-company-lifecycle-fields
+  source_id: src-company-lifecycle-do
+  evidence_kind: database_schema
+  locator: CustCompanyLifecycleInfoDO
+  claim: 表 cust_company_lifecycle_info；company_id 企业，type 生命周期类型，reason/attach 原因与附件，enable 行可用标记。
+  confidence: 1.0
+- evidence_id: ev-shareholder-fields
+  source_id: src-shareholder-do
+  evidence_kind: database_schema
+  locator: CustShareholderInfoDO
+  claim: 表 cust_shareholder_info；ref_cust_company_info 关联企业 code，certification_type/certification_no 证件，relation_type 关系类型，fund_type/currency/fund_amount_ought/fund_amount_act/fund_scale 出资信息，enable 行可用标记。
+  confidence: 1.0
+- evidence_id: ev-invite-fields
+  source_id: src-invite-do
+  evidence_kind: database_schema
+  locator: CustInviteInfoDO
+  claim: 表 cust_invite_info；progress 邀请进度，invite_time 邀请时间，contact_name/contact_phone 联系人，channel_code/invite_from 渠道与来源，invite_cust_id 被邀请企业，email 邮箱，enable 行可用标记。
+  confidence: 1.0
+- evidence_id: ev-survey-state-fields
+  source_id: src-survey-state-do
+  evidence_kind: database_schema
+  locator: CustCompanySurveyStateDO
+  claim: 表 cust_company_survey_state；company_id 企业，respondent 受访人，first_visitor_user_id/first_visit_time 首次回访人/时间，first_visitor_lottery_shown 首次回访抽奖展示，enable 行可用标记。
+  confidence: 1.0
+- evidence_id: ev-survey-whitelist-fields
+  source_id: src-survey-whitelist-do
+  evidence_kind: database_schema
+  locator: CustCompanySurveyWhitelistDO
+  claim: 表 cust_company_survey_whitelist；company_id/company_name 白名单企业，enable 行可用标记。
+  confidence: 1.0
+- evidence_id: ev-survey-answer-fields
+  source_id: src-survey-answer-do
+  evidence_kind: database_schema
+  locator: CustSurveyAnswerDO
+  claim: 表 cust_survey_answer；survey_code 问卷，company_id/user_id 企业与用户，question_no/answer_value/other_text 题号与答案，submit_time 提交时间。
+  confidence: 1.0
+- evidence_id: ev-config-mapping-fields
+  source_id: src-config-mapping-do
+  evidence_kind: database_schema
+  locator: CustConfigMappingDO
+  claim: 表 cust_config_mapping；outer_channel 外部渠道，inner_code/inner_name 内部编码/名称，outer_code/outer_name 外部编码/名称，type/groups 类型与分组，enable 行可用标记。
+  confidence: 1.0
+- evidence_id: ev-cust-setting-config-fields
+  source_id: src-cust-setting-config-do
+  evidence_kind: database_schema
+  locator: CustSettingConfigDO
+  claim: 表 cust_setting_config；cust_id 企业，key_word/need_verify_no_key 检索与免验证，user_agreement/privacy_policy_agreement 协议，authorization_online/offline/change 授权开关，cfca_agreement CA 协议，need_auth_verify/face_recognition/payment_verification 验证开关，invitation_code_period/sending_interval 邀请码与发送间隔，enable 行可用标记。
+  confidence: 1.0
+- evidence_id: ev-interworking-product-fields
+  source_id: src-interworking-product-do
+  evidence_kind: database_schema
+  locator: CustInterworkingProductDO
+  claim: 表 cust_interworking_product；open_status 开通状态，cust_id 企业，platform_product_code/product_id 平台产品，tenant_id 租户，ref_cust_interworking_product_cust_company_info 关联企业 code，enable 行可用标记。
+  confidence: 1.0
+- evidence_id: ev-tenant-interworking-product-fields
+  source_id: src-tenant-interworking-product-do
+  evidence_kind: database_schema
+  locator: TenantInterworkingProductDO
+  claim: 表 tenant_interworking_product；platform_product_id/platform_product_code 平台产品，product_cate 产品类目，tenant_id 租户，open_status 开通状态，max_financing_amount/period/flag 融资参数，target_sys_channel 目标渠道，enable 行可用标记。
+  confidence: 1.0
+- evidence_id: ev-tenant-interworking-project-fields
+  source_id: src-tenant-interworking-project-do
+  evidence_kind: database_schema
+  locator: TenantInterworkingProjectDO
+  claim: 表 tenant_interworking_project；product_id/platform_product_code 产品，tenant_id 租户，project_id 项目，ref_tenant_interworking_project_tenant_interworking_product 关联互联产品，enable 行可用标记。
+  confidence: 1.0
+- evidence_id: ev-org-manage-fields
+  source_id: src-org-manage-do
+  evidence_kind: database_schema
+  locator: OrgManageDO
+  claim: 表 org_manage；code/org_no/org_name 机构编码/编号/名称，org_level/org_type 机构层级/类型，status 状态，client_type 客户类型，parent_code 父机构，enable 行可用标记。
+  confidence: 1.0
+- evidence_id: ev-project-code-record-fields
+  source_id: src-project-code-record-do
+  evidence_kind: database_schema
+  locator: CustProjectCodeRecordDO
+  claim: 表 cust_project_code_record；company_id 企业，use_id 使用方，channel_code 渠道，status 状态，company_type 企业类型，type 类型，enable 行可用标记。
+  confidence: 1.0
+- evidence_id: ev-project-pushcust-fields
+  source_id: src-project-pushcust-do
+  evidence_kind: database_schema
+  locator: CustProjectPushcustDO
+  claim: 表 cust_project_pushcust；source_sso_channel 来源单点渠道，target_sso_channel 目标单点渠道，project_id 项目，enable 行可用标记。
+  confidence: 1.0
+units:
+- units/enterprise-onboarding.yaml
+- units/project-enterprise-rel.yaml
+- units/enterprise-change.yaml
+- units/tenant-product-lifecycle.yaml
+- units/tenant-project-lifecycle.yaml
+- units/op-user-coverage.yaml
+- units/person-user.yaml
+- units/company-group.yaml
+- units/tenant-setting.yaml
+- units/funding-rule.yaml
+- units/ca-fee.yaml
+- units/company-product-auth.yaml
+- units/openapi-access.yaml
+- units/project-approval.yaml
+- units/enterprise-certification.yaml
+- units/ca-certification.yaml
+- units/enterprise-auxiliary.yaml
+- units/survey.yaml
+- units/customer-config.yaml
+- units/interworking.yaml
+- units/org-manage.yaml
+- units/project-code.yaml

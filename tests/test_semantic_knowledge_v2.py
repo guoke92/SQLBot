@@ -190,6 +190,61 @@ def test_directory_relative_path_finds_nested_manifest() -> None:
     assert package.package.package_id == "enterprise-data"
 
 
+def test_manifest_units_split_assembles_to_same_package() -> None:
+    inline = _package()
+    unit_entry = inline["knowledge_units"][0]
+    manifest = {key: value for key, value in inline.items() if key != "knowledge_units"}
+    manifest["units"] = ["units/onboarding.yaml"]
+
+    package = scan_package_files(
+        [
+            (
+                "pkg/knowledge-package.yaml",
+                yaml.safe_dump(manifest, allow_unicode=True).encode(),
+            ),
+            (
+                "pkg/units/onboarding.yaml",
+                yaml.safe_dump(unit_entry, allow_unicode=True).encode(),
+            ),
+        ]
+    )
+
+    assert package.package.package_id == "enterprise-data"
+    assert len(package.knowledge_units) == 1
+    assert package.knowledge_units[0].unit_id == "enterprise-onboarding"
+
+
+def test_manifest_units_missing_file_raises() -> None:
+    manifest = _package()
+    manifest.pop("knowledge_units")
+    manifest["units"] = ["units/missing.yaml"]
+
+    with pytest.raises(ValueError, match="unit file not found"):
+        scan_package_files(
+            [
+                (
+                    "pkg/knowledge-package.yaml",
+                    yaml.safe_dump(manifest, allow_unicode=True).encode(),
+                )
+            ]
+        )
+
+
+def test_manifest_cannot_mix_units_and_inline() -> None:
+    manifest = _package()
+    manifest["units"] = ["units/onboarding.yaml"]
+
+    with pytest.raises(ValueError, match="cannot define both"):
+        scan_package_files(
+            [
+                (
+                    "pkg/knowledge-package.yaml",
+                    yaml.safe_dump(manifest, allow_unicode=True).encode(),
+                )
+            ]
+        )
+
+
 def test_same_basename_manifests_keep_relative_paths_and_stay_ambiguous() -> None:
     content = yaml.safe_dump(_package(), allow_unicode=True).encode()
 

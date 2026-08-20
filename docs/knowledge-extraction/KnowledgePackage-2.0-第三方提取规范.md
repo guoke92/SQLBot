@@ -46,8 +46,20 @@ DDL / 只读库画像      →  表 / 字段 / 值 / 关系
 
 | 产物 | 是否导入 SQLBot | 内容 |
 |---|---|---|
-| 工作目录 / README / 场景索引 / 待复核清单 | **否** | 域地图、冲突、假设、未提取范围 |
-| **唯一导入物** `knowledge-package.yaml` | **是** | `schema_version: "2.0"` 的完整包 |
+| 工作目录 / README / 场景索引 / 待复核清单 / coverage | **否** | 域地图、冲突、假设、未提取范围、覆盖矩阵 |
+| **唯一导入物**：包目录（manifest + `units/`）或单文件 manifest | **是** | `schema_version: "2.0"` 的完整包 |
+
+磁盘上的知识包**推荐按单元拆分**，一个 `unit_id` 一个文件：
+
+```text
+<pkg>/
+├── knowledge-package.yaml   # manifest：schema_version + package + sources + evidence + units
+└── units/
+    ├── enterprise-onboarding.yaml   # 每个文件顶层就是一个 KnowledgeUnitEntry
+    └── ...
+```
+
+`units` 是**显式清单**（manifest 里的相对路径列表），不是目录 glob。`sources` / `evidence` 只在 manifest 写一次，单元通过 `evidence_refs` 引用；不在每个单元里重复声明。单文件（manifest 内联 `knowledge_units`、无 `units`）仍被接受，是拆分形式的退化形态，组装逻辑同一条。
 
 禁止再产出或当作导入入口：
 
@@ -55,7 +67,26 @@ DDL / 只读库画像      →  表 / 字段 / 值 / 关系
 - `asset-candidates.yaml`、`facts.jsonl`、`relations.jsonl`、`source-catalog.jsonl`
 - 一张表一个单元、K1–K5 候选清单、Staging 条目
 
-导入方式：选择该 YAML（或含它的目录/ZIP）后**直接登记**，没有预检/登记两步。同 `package_id` + `package.revision` 内容变了必须**递增 revision**，否则登记失败。
+导入方式：选择该 manifest（或含它的目录/ZIP）后**直接登记**，没有预检/登记两步。scanner 把 manifest + `units/*.yaml` 组装回唯一的 `KnowledgePackageV2`，`units` 只是磁盘作者/传输格式，不进入语义契约。同 `package_id` + `package.revision` 内容变了必须**递增 revision**，否则登记失败。
+
+### 2.1 coverage.yaml（全量覆盖清单，不入库）
+
+提取侧必须在包目录放一份 `coverage.yaml`，把目标系统**所有**物理表（由 `@TableName` / 数据字典枚举）写进 `tables`，并把明确不做问数的工程/运维表写进 `excluded`。覆盖不由人工声明，而由 lint 自动判定：任一 unit 的 `dataset.name` 命中即 covered。
+
+```yaml
+schema_version: '1.0'
+repository: pplatform-web
+repository_revision: ee434954e
+table_source: pplatform-apaas @TableName
+tables:
+  - cust_company_info
+  - cust_build_record
+  # ... 必须穷举，不允许漏表
+excluded:
+  tenant_migarory_log: 迁移日志，无问数场景
+```
+
+没有 coverage.yaml 时 `scan` 只做结构校验；有 coverage.yaml 时额外输出 QA 报告。`COVERAGE_GAP`（`tables` 中既未覆盖又未排除的表）是**阻断项**，作为「全系统无遗漏」的验收依据；其余为 advisory 质量信号。覆盖判定以 `dataset.name`（物理表名）为准，`dataset.dataset_id` 是逻辑名、不参与覆盖比对。
 
 ---
 
@@ -98,6 +129,8 @@ sources → evidence → datasets（含字段）→ relationships → metrics / 
 ## 4. 包结构（硬约束）
 
 顶层**只允许**四段。`package` / `knowledge_units` / `content` / `SemanticFieldRef` 均为 `extra="forbid"`，多写任何未知字段会直接校验失败。
+
+这四段描述的是**组装后**的 `KnowledgePackageV2`（唯一语义契约）。磁盘 manifest 用 `units: [units/a.yaml, ...]` 声明单元文件时，`units` 是传输字段、组装前会被移除，不能与内联 `knowledge_units` 同时出现；单元文件顶层直接是 `KnowledgeUnitEntry`，不含 `units` / `knowledge_units` 包裹层。
 
 ```yaml
 schema_version: "2.0"
@@ -513,6 +546,24 @@ PY
 5. 按场景聚合 `knowledge_units`。  
 6. 跑 11.1 脚本。  
 7. 未确认项进 README / review-questions，不进规则桶。
+
+### 11.4 QA 自检（覆盖 + 语义质量，必做）
+
+```bash
+backend/venv/bin/python scripts/knowledge-package.py scan <包目录>
+```
+
+`qa.coverage` 给出 total / covered / excluded / gaps / undeclared；`qa.issues` 逐条给 code、severity（`blocking` / `advisory`）、unit、message。验收规则：
+
+- `COVERAGE_GAP`（blocking）：`tables` 里既未覆盖又未排除的物理表，必须清零或补 `excluded` 理由，否则视为「全系统提取有遗漏」。
+- `UNDECLARED_DATASET`（advisory）：unit 用了清单外物理表，改 coverage.yaml 或改正表名。
+- `METRIC_MISSING`（advisory）：unit 没有可复用 `metrics`（聚合 + 粒度），导致「X 有多少」无法直接落到度量。
+- `PROCESS_NOT_SERIALIZED`（advisory）：多阶段 `processes` 没有 `next_stages` 链或引用了未知 stage。
+- `RELATION_UNJUSTIFIED`（advisory）：关系没有 `evidence_refs`。
+- `FAKE_EXECUTED`（advisory）：查询范例标了 `executed/passed` 却无执行证据。
+- `DOC_UNDERUSED`（advisory）：`evidence` 声明后无任何 unit 引用。
+
+这些规则只做评审与验收，不改变 `KnowledgePackageV2` 的语义契约；结构校验仍以 11.1 为准。
 
 ---
 

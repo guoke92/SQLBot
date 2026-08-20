@@ -1,0 +1,655 @@
+unit_id: tenant-product-lifecycle
+revision: 1
+title: 租户产品开通
+aliases:
+- 开通产品
+- 待激活产品
+- 取消产品
+domain: product
+applicability: 租户已开通/开通中/未开通产品数；不用于企业侧 OPENED 申请，也不用于项目生效
+description: 租户在平台产品目录上的开通实例是 tenant_product。开通状态物理值是 Y/P/N。
+content:
+  concepts:
+  - concept_id: tenant-product
+    name: 租户产品
+    aliases:
+    - 开通产品
+    definition: 某租户对平台产品的开通记录，对应表 tenant_product。
+    evidence_refs:
+    - ev-tenant-product-fields
+    - ev-platform-product-fields
+  - concept_id: tenant-product-open
+    name: 租户产品开通状态
+    aliases:
+    - 已开通
+    - 开通中
+    - 未开通
+    definition: tenant_product.open_status，值是 Y/P/N。
+    dictionary:
+      Y: 已开通
+      P: 开通中
+      N: 未开通
+    evidence_refs:
+    - ev-product-open-ynp
+    - ev-profile-tenant-product
+  processes:
+  - stage_id: active-tenant-product
+    name: 开通租户产品
+    trigger: POST /app-web/tenantProduct/cmd/active
+    enter_conditions:
+    - 租户产品行已存在
+    exit_conditions:
+    - open_status 进入开通完成或开通中
+    next_stages:
+    - cancel-tenant-product
+    data_effects:
+    - operation: update
+      dataset: tenant_product
+      fields:
+      - open_status
+      description: 开通完成写 Y；过程中可写 P。
+      evidence_refs:
+      - ev-tenant-product-active-write
+      - ev-tenant-product-endpoint
+    evidence_refs:
+    - ev-tenant-product-endpoint
+    - ev-tenant-product-active-write
+  - stage_id: cancel-tenant-product
+    name: 取消租户产品
+    trigger: POST /app-web/tenantProduct/cmd/cancel
+    enter_conditions:
+    - 租户产品已开通或开通中
+    exit_conditions:
+    - 产品取消开通
+    data_effects:
+    - operation: update
+      dataset: tenant_product
+      fields:
+      - open_status
+      evidence_refs:
+      - ev-tenant-product-endpoint
+    evidence_refs:
+    - ev-tenant-product-endpoint
+  datasets:
+  - dataset_id: tenant_product
+    name: tenant_product
+    database: lowcode_pplatform
+    description: 租户产品开通实例。已开通口径是 open_status='Y' AND enable='Y'。
+    fields:
+    - field_id: id
+      name: id
+      data_type: bigint
+      evidence_refs:
+      - ev-tenant-product-fields
+    - field_id: name
+      name: name
+      data_type: varchar
+      evidence_refs:
+      - ev-tenant-product-fields
+    - field_id: platform_product_id
+      name: platform_product_id
+      data_type: bigint
+      evidence_refs:
+      - ev-tenant-product-fields
+      - ev-platform-product-fields
+    - field_id: platform_product_code
+      name: platform_product_code
+      data_type: varchar
+      evidence_refs:
+      - ev-tenant-product-fields
+    - field_id: open_status
+      name: open_status
+      data_type: varchar
+      evidence_refs:
+      - ev-product-open-ynp
+      - ev-profile-tenant-product
+      dictionary:
+        Y: 已开通
+        P: 开通中
+        N: 未开通
+    - field_id: enable
+      name: enable
+      data_type: varchar
+      evidence_refs:
+      - ev-tenant-product-fields
+      dictionary:
+        Y: 启用
+        N: 停用
+    - field_id: db_tenant_code
+      name: db_tenant_code
+      data_type: varchar
+      evidence_refs:
+      - ev-tenant-product-fields
+    - field_id: code
+      name: code
+      data_type: varchar
+      description: 业务键，关联扩展字段/扩展表单的 ref 列。
+      evidence_refs:
+      - ev-tenant-product-fields
+    - field_id: ref_tenant_product_project_code
+      name: ref_tenant_product_project_code
+      data_type: varchar
+      description: 关联平台产品 code。
+      evidence_refs:
+      - ev-tenant-product-fields
+    - field_id: ref_tenant_product_tenant_setting_config
+      name: ref_tenant_product_tenant_setting_config
+      data_type: varchar
+      description: 关联租户配置 code。
+      evidence_refs:
+      - ev-tenant-product-fields
+    evidence_refs:
+    - ev-tenant-product-fields
+  - dataset_id: platform_product
+    name: platform_product
+    database: lowcode_pplatform
+    description: 平台产品目录，不是租户开通实例。
+    fields:
+    - field_id: id
+      name: id
+      data_type: bigint
+      evidence_refs:
+      - ev-platform-product-fields
+    - field_id: code
+      name: code
+      data_type: varchar
+      evidence_refs:
+      - ev-platform-product-fields
+    - field_id: name
+      name: name
+      data_type: varchar
+      evidence_refs:
+      - ev-platform-product-fields
+    - field_id: product_code
+      name: product_code
+      data_type: varchar
+      evidence_refs:
+      - ev-platform-product-fields
+    evidence_refs:
+    - ev-platform-product-fields
+  - dataset_id: platform_product_client
+    name: platform_product_client
+    database: lowcode_pplatform
+    description: 平台产品客户端入口，url 为入口地址。
+    fields:
+    - field_id: id
+      name: id
+      data_type: bigint
+      evidence_refs:
+      - ev-platform-product-client-fields
+    - field_id: platform_product_id
+      name: platform_product_id
+      data_type: bigint
+      evidence_refs:
+      - ev-platform-product-client-fields
+    - field_id: url
+      name: url
+      data_type: varchar
+      evidence_refs:
+      - ev-platform-product-client-fields
+    - field_id: client_type
+      name: client_type
+      data_type: varchar
+      evidence_refs:
+      - ev-platform-product-client-fields
+    - field_id: status
+      name: status
+      data_type: varchar
+      evidence_refs:
+      - ev-platform-product-client-fields
+    - field_id: multiple_type
+      name: multiple_type
+      data_type: varchar
+      evidence_refs:
+      - ev-platform-product-client-fields
+    - field_id: wx_flag
+      name: wx_flag
+      data_type: varchar
+      evidence_refs:
+      - ev-platform-product-client-fields
+    - field_id: link_type
+      name: link_type
+      data_type: varchar
+      evidence_refs:
+      - ev-platform-product-client-fields
+    - field_id: enable
+      name: enable
+      data_type: varchar
+      evidence_refs:
+      - ev-platform-product-client-fields
+      dictionary:
+        Y: 启用
+        N: 停用
+    evidence_refs:
+    - ev-platform-product-client-fields
+  - dataset_id: platform_product_cust_role
+    name: platform_product_cust_role
+    database: lowcode_pplatform
+    description: 平台产品按企业类型的角色配置。
+    fields:
+    - field_id: id
+      name: id
+      data_type: bigint
+      evidence_refs:
+      - ev-platform-product-cust-role-fields
+    - field_id: product_code
+      name: product_code
+      data_type: varchar
+      evidence_refs:
+      - ev-platform-product-cust-role-fields
+    - field_id: company_type_code
+      name: company_type_code
+      data_type: varchar
+      evidence_refs:
+      - ev-platform-product-cust-role-fields
+    - field_id: company_type_name
+      name: company_type_name
+      data_type: varchar
+      evidence_refs:
+      - ev-platform-product-cust-role-fields
+    - field_id: enable
+      name: enable
+      data_type: varchar
+      evidence_refs:
+      - ev-platform-product-cust-role-fields
+      dictionary:
+        Y: 启用
+        N: 停用
+    evidence_refs:
+    - ev-platform-product-cust-role-fields
+  - dataset_id: tenant_product_ext_field
+    name: tenant_product_ext_field
+    database: lowcode_pplatform
+    description: 租户产品扩展字段定义。
+    fields:
+    - field_id: id
+      name: id
+      data_type: bigint
+      evidence_refs:
+      - ev-tenant-product-ext-field-fields
+    - field_id: product_id
+      name: product_id
+      data_type: bigint
+      evidence_refs:
+      - ev-tenant-product-ext-field-fields
+    - field_id: zh_name
+      name: zh_name
+      data_type: varchar
+      evidence_refs:
+      - ev-tenant-product-ext-field-fields
+    - field_id: label
+      name: label
+      data_type: varchar
+      evidence_refs:
+      - ev-tenant-product-ext-field-fields
+    - field_id: type
+      name: type
+      data_type: varchar
+      evidence_refs:
+      - ev-tenant-product-ext-field-fields
+    - field_id: value
+      name: value
+      data_type: varchar
+      evidence_refs:
+      - ev-tenant-product-ext-field-fields
+    - field_id: options
+      name: options
+      data_type: varchar
+      evidence_refs:
+      - ev-tenant-product-ext-field-fields
+    - field_id: requried
+      name: requried
+      data_type: varchar
+      evidence_refs:
+      - ev-tenant-product-ext-field-fields
+    - field_id: readonly
+      name: readonly
+      data_type: varchar
+      evidence_refs:
+      - ev-tenant-product-ext-field-fields
+    - field_id: enable
+      name: enable
+      data_type: varchar
+      evidence_refs:
+      - ev-tenant-product-ext-field-fields
+      dictionary:
+        Y: 启用
+        N: 停用
+    - field_id: ref_tenant_ext_field_tenant_product
+      name: ref_tenant_ext_field_tenant_product
+      data_type: varchar
+      description: 关联租户产品 code。
+      evidence_refs:
+      - ev-tenant-product-ext-field-fields
+    evidence_refs:
+    - ev-tenant-product-ext-field-fields
+  - dataset_id: tenant_product_ext_field_form
+    name: tenant_product_ext_field_form
+    database: lowcode_pplatform
+    description: 租户产品扩展字段表单分组。
+    fields:
+    - field_id: id
+      name: id
+      data_type: bigint
+      evidence_refs:
+      - ev-tenant-product-ext-field-form-fields
+    - field_id: title
+      name: title
+      data_type: varchar
+      evidence_refs:
+      - ev-tenant-product-ext-field-form-fields
+    - field_id: sort
+      name: sort
+      data_type: int
+      evidence_refs:
+      - ev-tenant-product-ext-field-form-fields
+    - field_id: type
+      name: type
+      data_type: varchar
+      evidence_refs:
+      - ev-tenant-product-ext-field-form-fields
+    - field_id: menu_codes
+      name: menu_codes
+      data_type: varchar
+      evidence_refs:
+      - ev-tenant-product-ext-field-form-fields
+    - field_id: client_type_flag
+      name: client_type_flag
+      data_type: varchar
+      evidence_refs:
+      - ev-tenant-product-ext-field-form-fields
+    - field_id: enable
+      name: enable
+      data_type: varchar
+      evidence_refs:
+      - ev-tenant-product-ext-field-form-fields
+      dictionary:
+        Y: 启用
+        N: 停用
+    - field_id: ref_tenant_ext_field_form_tenant_product
+      name: ref_tenant_ext_field_form_tenant_product
+      data_type: varchar
+      description: 关联租户产品 code。
+      evidence_refs:
+      - ev-tenant-product-ext-field-form-fields
+    evidence_refs:
+    - ev-tenant-product-ext-field-form-fields
+  - dataset_id: cust_customized_product
+    name: cust_customized_product
+    database: lowcode_pplatform
+    description: 企业定制产品入口。
+    fields:
+    - field_id: id
+      name: id
+      data_type: bigint
+      evidence_refs:
+      - ev-cust-customized-product-fields
+    - field_id: cust_id
+      name: cust_id
+      data_type: bigint
+      evidence_refs:
+      - ev-cust-customized-product-fields
+    - field_id: url
+      name: url
+      data_type: varchar
+      evidence_refs:
+      - ev-cust-customized-product-fields
+    - field_id: logo_icon_url
+      name: logo_icon_url
+      data_type: varchar
+      evidence_refs:
+      - ev-cust-customized-product-fields
+    - field_id: view_order
+      name: view_order
+      data_type: int
+      evidence_refs:
+      - ev-cust-customized-product-fields
+    - field_id: enable
+      name: enable
+      data_type: varchar
+      evidence_refs:
+      - ev-cust-customized-product-fields
+      dictionary:
+        Y: 启用
+        N: 停用
+    - field_id: ref_cust_customized_product_cust_company_info
+      name: ref_cust_customized_product_cust_company_info
+      data_type: varchar
+      description: 关联企业 code。
+      evidence_refs:
+      - ev-cust-customized-product-fields
+    evidence_refs:
+    - ev-cust-customized-product-fields
+  - dataset_id: company
+    name: cust_company_info
+    database: lowcode_pplatform
+    description: 企业主数据，本单元作为关联锚点。
+    fields:
+    - field_id: id
+      name: id
+      data_type: bigint
+      evidence_refs:
+      - ev-company-fields
+    - field_id: code
+      name: code
+      data_type: varchar
+      evidence_refs:
+      - ev-company-fields
+    evidence_refs:
+    - ev-company-fields
+  - dataset_id: tenant_setting
+    name: tenant_setting_config
+    database: lowcode_pplatform
+    description: 租户配置，本单元作为关联锚点。
+    fields:
+    - field_id: id
+      name: id
+      data_type: bigint
+      evidence_refs:
+      - ev-tenant-setting-fields
+    - field_id: code
+      name: code
+      data_type: varchar
+      evidence_refs:
+      - ev-tenant-setting-fields
+    evidence_refs:
+    - ev-tenant-setting-fields
+  relationships:
+  - relationship_id: tenant-product-platform
+    left:
+      dataset: tenant_product
+      field: platform_product_id
+    right:
+      dataset: platform_product
+      field: id
+    relationship_type: EQUI_JOIN
+    cardinality: n:1
+    business_meaning: 租户开通实例指向一条平台产品
+    status: proposed
+    evidence_refs:
+    - ev-tenant-product-fields
+    - ev-platform-product-fields
+  - relationship_id: tenant-product-platform-code
+    left:
+      dataset: tenant_product
+      field: platform_product_code
+    right:
+      dataset: platform_product
+      field: product_code
+    relationship_type: EQUI_JOIN
+    cardinality: n:1
+    business_meaning: 租户产品按平台产品编号关联平台产品。
+    status: proposed
+    evidence_refs:
+    - ev-tenant-product-fields
+    - ev-platform-product-fields
+  - relationship_id: tenant-product-ref-platform-product
+    left:
+      dataset: tenant_product
+      field: ref_tenant_product_project_code
+    right:
+      dataset: platform_product
+      field: code
+    relationship_type: EQUI_JOIN
+    cardinality: n:1
+    business_meaning: 租户产品的平台产品引用字段关联平台产品编码。
+    status: proposed
+    evidence_refs:
+    - ev-tenant-product-fields
+    - ev-platform-product-fields
+  - relationship_id: tenant-product-tenant-setting
+    left:
+      dataset: tenant_product
+      field: ref_tenant_product_tenant_setting_config
+    right:
+      dataset: tenant_setting
+      field: code
+    relationship_type: EQUI_JOIN
+    cardinality: n:1
+    business_meaning: 租户产品关联所属租户配置。
+    status: proposed
+    evidence_refs:
+    - ev-tenant-product-fields
+    - ev-tenant-setting-fields
+  - relationship_id: tenant-product-ext-field-product
+    left:
+      dataset: tenant_product_ext_field
+      field: ref_tenant_ext_field_tenant_product
+    right:
+      dataset: tenant_product
+      field: code
+    relationship_type: EQUI_JOIN
+    cardinality: n:1
+    business_meaning: 扩展字段定义关联租户产品编码。
+    status: proposed
+    evidence_refs:
+    - ev-tenant-product-ext-field-fields
+    - ev-tenant-product-fields
+  - relationship_id: tenant-product-ext-form-product
+    left:
+      dataset: tenant_product_ext_field_form
+      field: ref_tenant_ext_field_form_tenant_product
+    right:
+      dataset: tenant_product
+      field: code
+    relationship_type: EQUI_JOIN
+    cardinality: n:1
+    business_meaning: 扩展字段表单分组关联租户产品编码。
+    status: proposed
+    evidence_refs:
+    - ev-tenant-product-ext-field-form-fields
+    - ev-tenant-product-fields
+  - relationship_id: customized-product-company
+    left:
+      dataset: cust_customized_product
+      field: ref_cust_customized_product_cust_company_info
+    right:
+      dataset: company
+      field: code
+    relationship_type: EQUI_JOIN
+    cardinality: n:1
+    business_meaning: 企业定制产品配置关联企业编码。
+    status: proposed
+    evidence_refs:
+    - ev-cust-customized-product-fields
+    - ev-company-fields
+  metrics:
+  - metric_id: opened-tenant-product-count
+    name: 已开通租户产品数
+    description: 启用且开通完成的租户产品实例数，按平台产品统计。
+    aggregation: COUNT_DISTINCT
+    field:
+      dataset: tenant_product
+      field: id
+    grain:
+    - dataset: tenant_product
+      field: platform_product_code
+    evidence_refs:
+    - ev-tenant-product-opened-query
+    - ev-profile-tenant-product
+  - metric_id: tenant-product-count-by-open-status
+    name: 租户产品开通状态分布
+    description: 按 Y/P/N 开通状态统计租户产品实例数。
+    aggregation: COUNT
+    field:
+      dataset: tenant_product
+      field: id
+    grain:
+    - dataset: tenant_product
+      field: open_status
+    evidence_refs:
+    - ev-product-open-ynp
+    - ev-profile-tenant-product
+  calibers:
+  - caliber_id: opened-tenant-product
+    label: 已开通租户产品
+    description: 启用且开通完成的租户产品。
+    contract_fragment:
+      predicates:
+      - field: tenant_product.open_status
+        operator: eq
+        values:
+        - Y
+      - field: tenant_product.enable
+        operator: eq
+        values:
+        - Y
+    field_targets:
+    - dataset: tenant_product
+      field: open_status
+    - dataset: tenant_product
+      field: enable
+    evidence_refs:
+    - ev-tenant-product-opened-query
+    - ev-product-open-ynp
+  domain_rules:
+  - rule_id: tenant-product-open-is-ynp
+    label: 租户产品开通不是 OPENED
+    content: tenant_product.open_status 只用 Y/P/N。企业申请表的 OPENED/OPENING/NOT_OPENED
+      属于另一单元。
+    applicability: 已开通产品、开通中产品
+    query_impact: 过滤必须使用 Y/P/N，禁止 OPENED
+    field_targets:
+    - dataset: tenant_product
+      field: open_status
+    evidence_refs:
+    - ev-product-open-ynp
+    - ev-auth-application-dict
+  verified_query_patterns:
+  - pattern_id: count-opened-tenant-products
+    question: 已开通的租户产品有多少
+    query: "SELECT COUNT(1) AS opened_tenant_product_count\nFROM tenant_product\n\
+      WHERE open_status = 'Y'\n  AND enable = 'Y'\n"
+    intended_specification:
+      grain: tenant_product
+      caliber_id: opened-tenant-product
+    verification:
+      status: PENDING_VALIDATION
+    evidence_refs:
+    - ev-tenant-product-opened-query
+    - ev-profile-tenant-product
+evidence_refs:
+- ev-tenant-product-endpoint
+- ev-tenant-product-fields
+- ev-platform-product-fields
+- ev-product-open-ynp
+- ev-tenant-product-opened-query
+- ev-tenant-product-active-write
+- ev-profile-tenant-product
+- ev-auth-application-dict
+- ev-platform-product-client-fields
+- ev-platform-product-cust-role-fields
+- ev-tenant-product-ext-field-fields
+- ev-tenant-product-ext-field-form-fields
+- ev-cust-customized-product-fields
+- ev-company-fields
+- ev-tenant-setting-fields
+assumptions:
+- 查询范例未在目标库逐条执行。
+conflicts:
+- topic: 两套开通字典
+  parties:
+  - src-product-open-enum
+  - src-product-active-const
+  summary: 租户产品 Y/P/N；企业申请 OPENED/OPENING/NOT_OPENED。按表选字典，不要混用。
+confidence: 0.92

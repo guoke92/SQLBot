@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
-"""Scan, validate and submit AI智能问数 knowledge packages.
+"""Scan, validate and submit KnowledgePackage 2.0 packages.
+
+The offline extraction contract is KnowledgePackageV2. A package is either a
+single ``knowledge-package.yaml`` with inline ``knowledge_units`` or a manifest
+referencing one file per unit under ``units``. Both forms assemble to the same
+``KnowledgePackageV2`` through the semantic scanner, so the CLI has one read
+path and the server has one import path.
 
 Run with the backend virtual environment so the command uses the same Pydantic
 and YAML versions as the server:
@@ -24,41 +30,63 @@ if str(BACKEND) not in sys.path:
 
 import yaml  # noqa: E402
 
-from apps.knowledge.importing.scanner import load_knowledge_package  # noqa: E402
+from apps.knowledge.semantic.lint import lint_package, load_coverage  # noqa: E402
+from apps.knowledge.semantic.scanner import scan_package_files  # noqa: E402
+from apps.knowledge.semantic.schema import KnowledgePackageV2  # noqa: E402
+
+_DOCUMENT_SUFFIXES = {".yaml", ".yml", ".json", ".jsonl"}
+_COVERAGE_NAMES = {"coverage.yaml", "coverage.yml"}
 
 
-def _write_package(value: dict[str, Any], output: str | None) -> None:
-    content = yaml.safe_dump(value, allow_unicode=True, sort_keys=False)
-    if output:
-        Path(output).write_text(content, encoding="utf-8")
-    else:
-        print(content, end="")
+def _load(path: str) -> tuple[KnowledgePackageV2, dict | None]:
+    p = Path(path)
+    if p.is_dir():
+        documents: list[tuple[str, bytes]] = []
+        for file in sorted(p.rglob("*")):
+            if file.is_file() and file.suffix.lower() in _DOCUMENT_SUFFIXES:
+                if file.name in _COVERAGE_NAMES:
+                    continue
+                documents.append((file.relative_to(p).as_posix(), file.read_bytes()))
+        if not documents:
+            raise SystemExit(f"no knowledge documents found under: {path}")
+        return scan_package_files(documents), _load_coverage(p)
+    if p.is_file():
+        return scan_package_files([(p.name, p.read_bytes())]), _load_coverage(p.parent)
+    raise SystemExit(f"not a file or directory: {path}")
 
 
-def _load(path: str) -> dict[str, Any]:
-    return load_knowledge_package(path).model_dump(mode="json", exclude_none=True)
+def _load_coverage(directory: Path) -> dict | None:
+    for name in _COVERAGE_NAMES:
+        candidate = directory / name
+        if candidate.is_file():
+            return load_coverage(candidate)
+    return None
 
 
-def _post(
-    *,
-    base_url: str,
-    action: str,
-    token: str,
-    package: dict[str, Any],
-    datasource_id: int | None,
-    datasource_name: str | None,
-    include_kinds: list[str],
-) -> dict[str, Any]:
-    endpoint = f"{base_url.rstrip('/')}/api/v1/knowledge/import/{action}"
+def _summary(package: KnowledgePackageV2) -> dict[str, Any]:
+    buckets: dict[str, int] = {}
+    for unit in package.knowledge_units:
+        content = unit.content.model_dump(mode="json")
+        for name, value in content.items():
+            if isinstance(value, list):
+                buckets[name] = buckets.get(name, 0) + len(value)
+    return {
+        "valid": True,
+        "schema_version": package.schema_version,
+        "package_id": package.package.package_id,
+        "revision": package.package.revision,
+        "namespace": package.package.namespace,
+        "units": len(package.knowledge_units),
+        "sources": len(package.sources),
+        "evidence": len(package.evidence),
+        "content_buckets": buckets,
+    }
+
+
+def _post(base_url: str, token: str, package: KnowledgePackageV2) -> dict[str, Any]:
+    endpoint = f"{base_url.rstrip('/')}/api/v1/knowledge/packages"
     body = json.dumps(
-        {
-            "package": package,
-            "package_id": package["package_id"],
-            "default_datasource_id": datasource_id,
-            "default_datasource_name": datasource_name,
-            "include_kinds": include_kinds,
-        },
-        ensure_ascii=False,
+        {"package": package.model_dump(mode="json")}, ensure_ascii=False
     ).encode()
     headers = {"Content-Type": "application/json", "Accept": "application/json"}
     if token:
@@ -68,81 +96,54 @@ def _post(
     request = Request(endpoint, data=body, method="POST", headers=headers)
     try:
         with urlopen(request, timeout=300) as response:  # noqa: S310 - operator-selected URL
-            result = json.loads(response.read().decode())
+            return json.loads(response.read().decode())
     except HTTPError as exc:
         detail = exc.read().decode(errors="replace")
         raise SystemExit(f"HTTP {exc.code}: {detail}") from exc
     except URLError as exc:
         raise SystemExit(f"cannot reach {endpoint}: {exc.reason}") from exc
-    return result
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="AI智能问数 knowledge-package tool")
+    parser = argparse.ArgumentParser(description="KnowledgePackage 2.0 tool")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     scan = subparsers.add_parser(
-        "scan", help="scan a file/directory and emit canonical YAML"
+        "scan", help="assemble a file/directory and print a validation summary"
     )
     scan.add_argument("path")
-    scan.add_argument("-o", "--output")
-
-    validate = subparsers.add_parser(
-        "validate", help="validate and summarize a package"
+    scan.add_argument(
+        "-o",
+        "--output",
+        help="optional: write the assembled package as one canonical YAML for inspection",
     )
-    validate.add_argument("path")
 
-    for action in ("preview", "apply"):
-        command = subparsers.add_parser(
-            action, help=f"{action} a package through the API"
-        )
-        command.add_argument("path")
-        command.add_argument("--base-url", default="http://localhost:8000")
-        command.add_argument("--token", default="")
-        command.add_argument("--datasource-id", type=int)
-        command.add_argument("--datasource-name")
-        command.add_argument("--kind", action="append", default=[])
-        if action == "apply":
-            command.add_argument("--yes", action="store_true")
+    submit = subparsers.add_parser(
+        "submit", help="assemble and register a package through the API"
+    )
+    submit.add_argument("path")
+    submit.add_argument("--base-url", default="http://localhost:8000")
+    submit.add_argument("--token", default="")
 
     args = parser.parse_args()
-    package = _load(args.path)
-    if args.command == "scan":
-        _write_package(package, args.output)
-        return
-    if args.command == "validate":
-        counts: dict[str, int] = {}
-        for item in package["items"]:
-            counts[item["kind"]] = counts.get(item["kind"], 0) + 1
-        print(
-            json.dumps(
-                {
-                    "valid": True,
-                    "package_id": package["package_id"],
-                    "total": len(package["items"]),
-                    "counts": counts,
-                    "warnings": package.get("generator", {}).get(
-                        "scanner_warnings", []
-                    ),
-                },
-                ensure_ascii=False,
-                indent=2,
-            )
-        )
-        return
-    if args.command == "apply" and not args.yes:
-        raise SystemExit(
-            "apply changes managed knowledge; pass --yes after reviewing preview"
-        )
-    result = _post(
-        base_url=args.base_url,
-        action=args.command,
-        token=args.token,
-        package=package,
-        datasource_id=args.datasource_id,
-        datasource_name=args.datasource_name,
-        include_kinds=args.kind,
-    )
+    try:
+        package, coverage = _load(args.path)
+        if args.command == "scan":
+            if args.output:
+                content = yaml.safe_dump(
+                    package.model_dump(mode="json", exclude_none=True),
+                    allow_unicode=True,
+                    sort_keys=False,
+                )
+                Path(args.output).write_text(content, encoding="utf-8")
+            summary = _summary(package)
+            if coverage is not None:
+                summary["qa"] = lint_package(package, coverage)
+            print(json.dumps(summary, ensure_ascii=False, indent=2))
+            return
+        result = _post(args.base_url, args.token, package)
+    except ValueError as exc:
+        raise SystemExit(f"invalid knowledge package: {exc}") from exc
     print(json.dumps(result, ensure_ascii=False, indent=2))
 
 

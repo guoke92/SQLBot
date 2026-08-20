@@ -1,0 +1,280 @@
+unit_id: company-group
+revision: 1
+title: 集团成员关系
+aliases:
+- 集团企业
+- 成员单位
+domain: enterprise
+applicability: 已生效集团成员；不要把未生效或拒绝成员算进集团企业数
+description: 集团树在 cust_group_rel。cust_id 连企业 id；status 为 EFFECTIVE/INEFFECTIVE/REJECTED。
+content:
+  concepts:
+  - concept_id: group-member
+    name: 集团成员
+    aliases:
+    - 集团关系
+    definition: 一行表示某企业在集团树中的位置与生效状态。
+    dictionary:
+      EFFECTIVE: 已生效
+      INEFFECTIVE: 未生效
+      REJECTED: 已拒绝
+    evidence_refs:
+    - ev-group-fields
+    - ev-profile-group
+  processes:
+  - stage_id: maintain-group
+    name: 维护集团关系
+    trigger: /cust-web/custGroupRel
+    enter_conditions:
+    - 企业已存在
+    exit_conditions:
+    - 写入或更新 cust_group_rel
+    data_effects:
+    - operation: upsert
+      dataset: group_rel
+      fields:
+      - cust_id
+      - status
+      - root_flag
+      evidence_refs:
+      - ev-group-endpoint
+      - ev-group-fields
+    evidence_refs:
+    - ev-group-endpoint
+  datasets:
+  - dataset_id: company
+    name: cust_company_info
+    database: lowcode_pplatform
+    description: 企业主数据。本单元通过 id 或 code 连接，统计建档成功数应回到 enterprise-onboarding。
+    fields:
+    - field_id: id
+      name: id
+      data_type: bigint
+      evidence_refs:
+      - ev-company-fields
+      - ev-group-caliber
+    - field_id: code
+      name: code
+      data_type: varchar
+      evidence_refs:
+      - ev-company-fields
+      - ev-group-caliber
+      description: 企业业务键。
+    - field_id: name
+      name: name
+      data_type: varchar
+      evidence_refs:
+      - ev-company-fields
+      - ev-group-caliber
+    - field_id: build_status
+      name: cust_build_status
+      data_type: varchar
+      evidence_refs:
+      - ev-company-fields
+      - ev-group-caliber
+      dictionary:
+        BUILD_SUCCESS: 认证成功
+        CUST_CHANGE: 变更
+        CUST_BUILDING: 审核中
+    - field_id: company_status
+      name: cust_status
+      data_type: varchar
+      evidence_refs:
+      - ev-company-fields
+      - ev-group-caliber
+      dictionary:
+        EFFECT: 生效
+        CHANGE: 变更
+        ADD: 新增
+    - field_id: enabled
+      name: enable
+      data_type: varchar
+      evidence_refs:
+      - ev-company-fields
+      - ev-group-caliber
+      dictionary:
+        Y: 启用
+        N: 停用
+    - field_id: data_type
+      name: data_type
+      data_type: varchar
+      evidence_refs:
+      - ev-company-fields
+      - ev-group-caliber
+      dictionary:
+        '1': 正式企业主数据
+    - field_id: db_tenant_code
+      name: db_tenant_code
+      data_type: varchar
+      evidence_refs:
+      - ev-company-fields
+      - ev-group-caliber
+    evidence_refs:
+    - ev-company-fields
+    - ev-group-caliber
+  - dataset_id: group_rel
+    name: cust_group_rel
+    database: lowcode_pplatform
+    description: 集团成员。cust_id 是企业 id。
+    fields:
+    - field_id: id
+      name: id
+      data_type: bigint
+      evidence_refs:
+      - ev-group-fields
+    - field_id: cust_id
+      name: cust_id
+      data_type: bigint
+      evidence_refs:
+      - ev-group-fields
+    - field_id: parent_cust_id
+      name: parent_cust_id
+      data_type: bigint
+      evidence_refs:
+      - ev-group-fields
+    - field_id: root_cust_id
+      name: root_cust_id
+      data_type: bigint
+      evidence_refs:
+      - ev-group-fields
+    - field_id: root_flag
+      name: root_flag
+      data_type: varchar
+      evidence_refs:
+      - ev-group-fields
+      dictionary:
+        Y: 集团根企业
+        N: 非根
+    - field_id: status
+      name: status
+      data_type: varchar
+      evidence_refs:
+      - ev-group-fields
+      - ev-profile-group
+      dictionary:
+        EFFECTIVE: 已生效
+        INEFFECTIVE: 未生效
+        REJECTED: 已拒绝
+    - field_id: enable
+      name: enable
+      data_type: varchar
+      evidence_refs:
+      - ev-group-fields
+      dictionary:
+        Y: 启用
+        N: 停用
+    evidence_refs:
+    - ev-group-fields
+  relationships:
+  - relationship_id: group-company
+    left:
+      dataset: group_rel
+      field: cust_id
+    right:
+      dataset: company
+      field: id
+    relationship_type: EQUI_JOIN
+    cardinality: n:1
+    business_meaning: 成员行指向一家企业
+    status: proposed
+    evidence_refs:
+    - ev-group-fields
+  - relationship_id: group-parent-company
+    left:
+      dataset: group_rel
+      field: parent_cust_id
+    right:
+      dataset: company
+      field: id
+    relationship_type: EQUI_JOIN
+    cardinality: n:1
+    business_meaning: 集团成员的父级企业指向企业主数据，构成集团树层级
+    status: proposed
+    evidence_refs:
+    - ev-group-fields
+  - relationship_id: group-root-company
+    left:
+      dataset: group_rel
+      field: root_cust_id
+    right:
+      dataset: company
+      field: id
+    relationship_type: EQUI_JOIN
+    cardinality: n:1
+    business_meaning: 集团成员的根企业指向企业主数据，归属同一集团
+    status: proposed
+    evidence_refs:
+    - ev-group-fields
+  metrics:
+  - metric_id: effective-group-member-count
+    name: 已生效集团成员数
+    description: 已生效的集团成员关系数，按根集团统计。
+    aggregation: COUNT_DISTINCT
+    field:
+      dataset: group_rel
+      field: id
+    grain:
+    - dataset: group_rel
+      field: root_cust_id
+    evidence_refs:
+    - ev-group-caliber
+    - ev-profile-group
+  calibers:
+  - caliber_id: effective-group-member
+    label: 已生效集团成员
+    description: status=EFFECTIVE 且 enable=Y。
+    contract_fragment:
+      predicates:
+      - field: group_rel.status
+        operator: eq
+        values:
+        - EFFECTIVE
+      - field: group_rel.enable
+        operator: eq
+        values:
+        - Y
+    field_targets:
+    - dataset: group_rel
+      field: status
+    - dataset: group_rel
+      field: enable
+    evidence_refs:
+    - ev-group-fields
+    - ev-profile-group
+  domain_rules:
+  - rule_id: group-row-is-not-company-count
+    label: 集团行去重到企业
+    content: 统计集团企业数必须按 cust_id 去重，并叠加建档口径。
+    applicability: 集团企业数
+    query_impact: grain 是 company；禁止直接 COUNT(cust_group_rel) 当企业数
+    field_targets:
+    - dataset: group_rel
+      field: cust_id
+    - dataset: company
+      field: id
+    evidence_refs:
+    - ev-group-fields
+    - ev-group-caliber
+  verified_query_patterns:
+  - pattern_id: count-effective-group-members
+    question: 已生效集团成员有多少
+    query: "SELECT COUNT(DISTINCT cust_id) AS effective_group_member_count\nFROM cust_group_rel\n\
+      WHERE status = 'EFFECTIVE'\n  AND enable = 'Y'\n"
+    intended_specification:
+      grain: company
+      caliber_id: effective-group-member
+    verification:
+      status: PENDING_VALIDATION
+    evidence_refs:
+    - ev-group-fields
+    - ev-profile-group
+evidence_refs:
+- ev-group-endpoint
+- ev-group-fields
+- ev-profile-group
+- ev-company-fields
+- ev-group-caliber
+assumptions:
+- 查询范例未在目标库逐条执行。
+conflicts: []
+confidence: 0.88
