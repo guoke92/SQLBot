@@ -29,8 +29,8 @@ from apps.knowledge.semantic.schema import (
 )
 from apps.knowledge.semantic.service import (
     _next_step,
-    _projection_embeddings,
     _retire_superseded_revisions,
+    build_embeddings_or_raise,
     bind_and_validate,
     current_package_revisions,
     derive_package_status,
@@ -295,7 +295,7 @@ def test_projection_embeddings_are_atomic_when_enabled(
     monkeypatch.setattr(service.settings, "EMBEDDING_ENABLED", True)
     monkeypatch.setattr(service.EmbeddingModelCache, "get_model", lambda: model)
 
-    assert _projection_embeddings(["企业建档"]) == [[0.1, 0.2]]
+    assert build_embeddings_or_raise(["企业建档"]) == [[0.1, 0.2]]
 
 
 def test_projection_embeddings_reject_partial_runtime_index(
@@ -309,7 +309,7 @@ def test_projection_embeddings_reject_partial_runtime_index(
     monkeypatch.setattr(service.EmbeddingModelCache, "get_model", lambda: model)
 
     with pytest.raises(ValueError, match="embedding build is incomplete"):
-        _projection_embeddings(["企业建档", "建档成功"])
+        build_embeddings_or_raise(["企业建档", "建档成功"])
 
 
 def test_projection_embeddings_abort_provider_errors(
@@ -323,7 +323,7 @@ def test_projection_embeddings_abort_provider_errors(
     monkeypatch.setattr(service.EmbeddingModelCache, "get_model", lambda: model)
 
     with pytest.raises(ValueError, match="embedding build failed"):
-        _projection_embeddings(["企业建档"])
+        build_embeddings_or_raise(["企业建档"])
 
 
 def test_derive_package_status_follows_unit_lifecycle() -> None:

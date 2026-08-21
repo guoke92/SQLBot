@@ -1,0 +1,45 @@
+{
+  "unit_id": "org-manage",
+  "sources": [
+    {
+      "source_id": "src-org-manage",
+      "kind": "source_code",
+      "locator": "pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/OrgManageDO.java",
+      "repository_revision": "ee434954e"
+    }
+  ],
+  "evidence": [
+    {
+      "evidence_id": "ev-org-impl",
+      "source_id": "src-org-manage",
+      "evidence_kind": "code_path",
+      "locator": "pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/OrgManageDO.java",
+      "claim": "阶段 维护机构: 新增、更新或按实体条件删除机构",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-org-model",
+      "source_id": "src-org-manage",
+      "evidence_kind": "database_schema",
+      "locator": "pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/OrgManageDO.java",
+      "claim": "机构: org_manage 中的一条机构节点记录；code 是机构业务编码，parent_code 指向父机构的 code。",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-org-schema",
+      "source_id": "src-org-manage",
+      "evidence_kind": "database_schema",
+      "locator": "pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/OrgManageDO.java",
+      "claim": "启用机构: org_manage.enable = 'Y' 的机构；源码仅确认 enable 字段及默认值，未发现独立状态枚举。",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-org-service",
+      "source_id": "src-org-manage",
+      "evidence_kind": "code_path",
+      "locator": "pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/OrgManageDO.java",
+      "claim": "规则 启用机构过滤: 启用机构使用 enable = 'Y'；数据库定义的默认值为 Y。",
+      "confidence": 0.8
+    }
+  ]
+}

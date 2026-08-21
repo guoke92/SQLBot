@@ -36,27 +36,25 @@
 
 ## 4. 输出结构
 
+包级关系写 `relationships.yaml`，扫描时并入 `package.relationships`（契约见 `schema.py::PackageRelationship`）。端点用**物理表名/字段名**，不是单元内 dataset_id：
+
 ```yaml
 relationships:
-  - left: cust_project_rel.project_id
-    right: tenant_project.id
-    kind: executable_join          # executable_join | derived_copy | external_ref
+  - left_table: cust_project_rel
+    left_field: project_id
+    right_table: tenant_project
+    right_field: id
+    evidence: write-flow:OperCustFacade.java:1082
+    relationship_type: EQUI_JOIN   # EQUI_JOIN（真 FK 连接）| SHARED_KEY（共享键/传递，非 JOIN）
     cardinality: many_to_one
-    cast: long_to_string           # 无则 null
-    derived_from: null             # 反规范化字段时填源字段
-    evidence: { file: OperCustFacade.java, lines: "1082" }
-    status: proposed
-processes:
-  - process: 自主注册建档
-    reads: [cust_company_info, cust_person_info, cust_project_rel, tenant_setting_config, tenant_project, platform_product]
-    writes:                        # 按业务顺序
-      - { action: update, table: cust_person_info, fields: [user_type] }
-      - { action: insert, table: cust_project_rel, fields: [project_id, product_id, ref_cust_project_rel_cust_company_info] }
-      - { action: update, table: cust_company_info, fields: [check_status] }
-      - { action: insert, table: cust_build_record, fields: [cust_id, person_id] }
-    evidence_refs: []
-    status: proposed
 ```
+
+- **EQUI_JOIN**：只有一侧真的一键一行（1:n / 1:1）才标；这类关系生成 relation_endpoint 边，召回时用于合成 JOIN。
+- **SHARED_KEY**：n:n、共享键、传递关系——两侧字段业务含义相同、取值一致，但**不得直接 JOIN 彼此**（各自 JOIN 主表）；生成边时按共享键处理，不参与 JOIN 合成。
+- 端点允许不被任何单元声明（字段级最小声明的自然结果）：运行时生成 stub 节点并在绑定时对活库校验。
+- 反规范化拷贝（`derived_from`）**不是关系**，不写进 relationships.yaml，只在 evidence 里标注源字段。
+
+processes 的读写顺序按业务时序写进单元的 `content.processes[].data_effects`（`read/insert/update/delete/upsert`）。
 
 ## 5. 脚本必然出错的三个反例（为什么 service/dao 必须 AI agent）
 
@@ -76,11 +74,13 @@ processes:
 
 ## 7. KnowledgePackageV2 契约要点
 
-- 顶层仅四段：`package` / `sources` / `evidence` / `knowledge_units`；`schema_version: "2.0"`。
-- 单元槽位：`title/aliases/domain/applicability` + `concepts` + `processes(data_effects)` + `datasets(fields)` + `relationships` + `calibers/metrics` + `domain_rules` + `query_patterns` + `evidence_refs`。
+- 顶层四段 `package` / `sources` / `evidence` / `knowledge_units` + 包级 `relationships`；`schema_version: "2.0"`。
+- 单元槽位：`title/aliases/domain/applicability` + `concepts(field_targets)` + `processes(data_effects,next_stages)` + `datasets(fields)` + `relationships` + `calibers/metrics(field_targets/field+grain)` + `domain_rules(field_targets)` + `query_patterns` + `evidence_refs` + 顶层 `unit_links`。
+- **concept 必须 `field_targets`**：状态类→承载字典的字段（字典跨两个字段时两个都写）；实体类（概念即一张表）→该表 `id` 或业务键。键一致是硬要求，值措辞可有详略。
 - 关系默认 `proposed`；查询范式 `PENDING_VALIDATION`。
-- 跨单元共享表：目标表用最小声明（`dataset_id` + 仅主键字段）+ 证据 `ev-<table>-fields`。
-- `units` 是相对路径清单（非 glob），装配前移除；单文件内联 `knowledge_units` 是退化形态。
+- 跨单元共享表：目标表用最小声明（`dataset_id` + 仅本单元用到的字段），字段 payload（name/data_type/dictionary/description）与权威单元**逐字一致**。
+- `unit_links`（prerequisite/validates）必须带 `via` + `evidence_refs`；数据耦合 shares_data 由运行时推导，**禁止声明**。
+- `units` 是相对路径清单（非 glob）；单文件内联 `knowledge_units` 是退化形态。
 - `coverage.yaml` 不入库、不进 Prompt、不门禁（`COVERAGE_GAP` 只做离线验收阻断）。
 
 ## 8. 维度提取方法（关系之外每类的 HOW）
@@ -96,10 +96,27 @@ processes:
 | **指标** | AI agent | 从 mapper `COUNT(`/`SUM(`/`AVG(` + `GROUP BY` 聚合点归成业务指标；**标注 grain（去重粒度）**——COUNT(企业) 还是 COUNT(企业-项目关系) | `metrics` |
 | **业务规则** | AI agent | 从 service 分支提取：锁/幂等/回滚/默认值/条件写值（如"供应商+ACFLOW→status='1'"） | `domain_rules` |
 | **术语/场景** | AI agent | 从入口方法 + 注释 + 业务文档对齐：canonical term + aliases + 对应表 | `concepts` |
+| **概念锚定** | AI agent | 每个 concept 写 `field_targets`：状态类→承载其 `dictionary` 的字段（字典跨字段时全写）；实体类→表 `id`/业务键；键值与该字段 dictionary 键一致 | `concept.field_targets` → concept_of 边 |
+| **共享表治理** | AI agent | 每个物理表一个权威单元声明完整业务字段；其余单元最小声明且字段 payload 逐字复制 | decompose 零 intra-package 冲突 |
+| **unit_links** | AI agent | 只有代码能证明调用链/状态校验时才声明 prerequisite/validates，`via` + `evidence_refs` 必填 | `unit_links` → precedes/validates 边 |
 | **查询范式** | AI agent | 从 controller 端点 + mapper select 方法提取"按 X 查 Y 列表/数量" | `query_patterns` |
 | **场景发现** | 脚本+AI agent | 脚本枚举 `@RestController`/`@DubboService`/Facade 入口；AI agent 归类成业务场景清单 | 场景清单 |
 
 ## 9. 证据自动生成
 
 关系/口径/枚举/状态机/指标的每条证据都必须能定位到 `文件:行号`。脚本用 grep/ast 产出 locator，AI agent 只补充"为什么"（分支语义），不手工抄行号。枚举脚本已自动带 `path`；关系脚本带 `evidence`。
+
+## 10. 六层八边自检清单（交付前逐项打勾）
+
+| 边 | 来源 | 自检问题 | 空边后果 |
+|---|---|---|---|
+| has_field | dataset.fields | 每个声明字段都进了包？ | 无字段可召回 |
+| concept_of | concept.field_targets | 每个 concept 都有 field_targets？ | 概念孤岛，召回断链 |
+| references_field | caliber/rule.field_targets、metric.field/grain | 每个口径/规则/指标都有字段指向？ | 口径不可执行 |
+| reads/writes | process.data_effects | 每个阶段都有 data_effects？ | 无读写顺序 |
+| precedes | process.next_stages + unit_links(prerequisite) | 多阶段有 next_stages 链？ | 状态机断裂 |
+| relation_endpoint | 单元 relationships + 包级 relationships(EQUI_JOIN) | 真 FK 关系都有 evidence + 类型？ | 无法跨表 JOIN |
+| validates | unit_links(validates) + query_patterns.intended_specification.caliber_id | 跨单元校验/范例可复用？ | 复用断裂 |
+
+交付前用 `scripts/knowledge-package.py scan --strict` + `decompose` 干跑验证：`concept_of` 数 = concept 数、`merge_conflicts` = 0、孤儿字段 = 0、stub 节点仅来自显式 SHARED_KEY/外部引用。
 

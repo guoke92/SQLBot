@@ -131,9 +131,112 @@ def _lint_coverage(
     )
 
 
-def _lint_unit(unit: KnowledgeUnitEntry) -> list[dict[str, Any]]:
+def _referenced_field_keys(
+    unit: KnowledgeUnitEntry,
+    package_relationships: list[Any] | None = None,
+) -> set[tuple[str, str]]:
+    """Every (dataset_id, field_id) an edge source references.
+
+    In-unit sources are concept/relationship/metric/caliber/rule targets and
+    process data_effects. Package-scoped relationships contribute via
+    physical endpoint matching (dataset name + field name, casefolded),
+    because their endpoints are physical names by contract.
+    """
+    content = unit.content
+    referenced: set[tuple[str, str]] = set()
+    for concept in content.concepts:
+        for target in concept.field_targets:
+            referenced.add((target.dataset, target.field))
+    for relationship in content.relationships:
+        referenced.add((relationship.left.dataset, relationship.left.field))
+        referenced.add((relationship.right.dataset, relationship.right.field))
+    for metric in content.metrics:
+        if metric.field is not None:
+            referenced.add((metric.field.dataset, metric.field.field))
+        for grain in metric.grain:
+            referenced.add((grain.dataset, grain.field))
+    for caliber in content.calibers:
+        for target in caliber.field_targets:
+            referenced.add((target.dataset, target.field))
+    for rule in content.domain_rules:
+        for target in rule.field_targets:
+            referenced.add((target.dataset, target.field))
+    for process in content.processes:
+        for effect in process.data_effects:
+            for field_name in effect.fields:
+                referenced.add((effect.dataset, field_name))
+    for relationship in package_relationships or []:
+        endpoint_tables = {
+            str(relationship.left_table).casefold(),
+            str(relationship.right_table).casefold(),
+        }
+        endpoint_fields = {
+            str(relationship.left_field).casefold(),
+            str(relationship.right_field).casefold(),
+        }
+        for dataset in content.datasets:
+            if dataset.name.casefold() not in endpoint_tables:
+                continue
+            for field in dataset.fields:
+                if field.name.casefold() in endpoint_fields:
+                    referenced.add((dataset.dataset_id, field.field_id))
+    return referenced
+
+
+def _lint_unit(
+    unit: KnowledgeUnitEntry,
+    package_relationships: list[Any] | None = None,
+) -> list[dict[str, Any]]:
     issues: list[dict[str, Any]] = []
     content = unit.content
+
+    for concept in content.concepts:
+        if not concept.field_targets:
+            issues.append(
+                {
+                    "code": "CONCEPT_UNANCHORED",
+                    "severity": "advisory",
+                    "unit": unit.unit_id,
+                    "message": (
+                        f"concept {concept.concept_id} ({concept.name}) has no "
+                        "field_targets; anchor it to a declared field so the "
+                        "concept_of edge can be generated"
+                    ),
+                }
+            )
+
+    for link in unit.unit_links:
+        if not link.evidence_refs:
+            issues.append(
+                {
+                    "code": "UNIT_LINK_UNJUSTIFIED",
+                    "severity": "advisory",
+                    "unit": unit.unit_id,
+                    "message": (
+                        f"unit link {link.kind} -> {link.target_unit} has no "
+                        "evidence_refs; cross-scenario links require call-chain "
+                        "evidence"
+                    ),
+                }
+            )
+
+    referenced_fields = _referenced_field_keys(unit, package_relationships)
+    for dataset in content.datasets:
+        for field in dataset.fields:
+            if (dataset.dataset_id, field.field_id) not in referenced_fields:
+                issues.append(
+                    {
+                        "code": "FIELD_DECLARATION_ORPHAN",
+                        "severity": "advisory",
+                        "unit": unit.unit_id,
+                        "message": (
+                            f"declared field {dataset.dataset_id}.{field.field_id} "
+                            "is not referenced by any concept/process/relationship/"
+                            "caliber/rule/metric; either reference it or drop the "
+                            "declaration (declaration-as-edge discipline)"
+                        ),
+                    }
+                )
 
     if not content.metrics:
         issues.append(
@@ -212,21 +315,91 @@ def _lint_unit(unit: KnowledgeUnitEntry) -> list[dict[str, Any]]:
     return issues
 
 
+def _lint_package_relationships(
+    package: KnowledgePackageV2,
+) -> list[dict[str, Any]]:
+    """Advisory checks for package-scoped physical relations.
+
+    v4 evidence shows relations legitimately reference endpoints no unit
+    declares (minimal field declaration), so closure is advisory here;
+    physical existence is enforced at bind time against the live catalog.
+    """
+    issues: list[dict[str, Any]] = []
+    declared_tables: dict[str, set[str]] = {}
+    for unit in package.knowledge_units:
+        for dataset in unit.content.datasets:
+            names = declared_tables.setdefault(dataset.name.casefold(), set())
+            names.update(field.name.casefold() for field in dataset.fields)
+    for relationship in package.relationships:
+        title = f"{relationship.left_table}.{relationship.left_field} -> "
+        title += f"{relationship.right_table}.{relationship.right_field}"
+        if not relationship.evidence:
+            issues.append(
+                {
+                    "code": "RELATION_UNJUSTIFIED",
+                    "severity": "advisory",
+                    "unit": None,
+                    "message": f"package relationship {title} has no evidence",
+                }
+            )
+        for side, table, field_name in (
+            ("left", relationship.left_table, relationship.left_field),
+            ("right", relationship.right_table, relationship.right_field),
+        ):
+            declared = declared_tables.get(table.casefold())
+            if declared is None:
+                issues.append(
+                    {
+                        "code": "RELATION_UNDECLARED_ENDPOINT",
+                        "severity": "advisory",
+                        "unit": None,
+                        "message": (
+                            f"package relationship {side} table {table!r} is not "
+                            "declared by any unit; it will bind as a stub node"
+                        ),
+                    }
+                )
+            elif field_name.casefold() not in declared:
+                issues.append(
+                    {
+                        "code": "RELATION_UNDECLARED_ENDPOINT",
+                        "severity": "advisory",
+                        "unit": None,
+                        "message": (
+                            f"package relationship {side} field "
+                            f"{table}.{field_name} is not declared by any unit; "
+                            "it will bind as a stub node"
+                        ),
+                    }
+                )
+    return issues
+
+
+_STRICT_BLOCKING_CODES = {"CONCEPT_UNANCHORED", "FAKE_EXECUTED"}
+
+
 def lint_package(
     package: KnowledgePackageV2,
     coverage: dict[str, Any] | None = None,
+    strict: bool = False,
 ) -> dict[str, Any]:
-    """Return a structured QA report for a validated package."""
+    """Return a structured QA report for a validated package.
+
+    When ``strict`` is true, CONCEPT_UNANCHORED and FAKE_EXECUTED are promoted
+    from advisory to blocking, so a new extraction fails until every concept
+    is anchored and no pattern fakes an execution.
+    """
     coverage_report: dict[str, Any] = {}
     issues: list[dict[str, Any]] = []
     if coverage is not None:
         coverage_report, coverage_issues = _lint_coverage(package, coverage)
         issues.extend(coverage_issues)
+    issues.extend(_lint_package_relationships(package))
 
     used_evidence: set[str] = set()
     for unit in package.knowledge_units:
         used_evidence.update(collect_evidence_refs(unit))
-        issues.extend(_lint_unit(unit))
+        issues.extend(_lint_unit(unit, package.relationships))
     for evidence in package.evidence:
         if evidence.evidence_id not in used_evidence:
             issues.append(
@@ -240,6 +413,10 @@ def lint_package(
                 }
             )
 
+    if strict:
+        for issue in issues:
+            if issue["code"] in _STRICT_BLOCKING_CODES:
+                issue["severity"] = "blocking"
     blocking = sum(1 for issue in issues if issue["severity"] == "blocking")
     advisory = len(issues) - blocking
     return {

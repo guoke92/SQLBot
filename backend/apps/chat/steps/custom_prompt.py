@@ -28,7 +28,6 @@ def match_custom_prompts(
         operate=OperationEnum.FILTER_CUSTOM_PROMPT,
         record_id=llm_service.record.id,
         local_operation=True,
-        phase="understand",
         graph_node="retrieve_context",
         title_key="chat.log.FILTER_CUSTOM_PROMPT",
     ) as span:

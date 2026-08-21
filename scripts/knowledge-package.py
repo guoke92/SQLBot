@@ -30,6 +30,7 @@ if str(BACKEND) not in sys.path:
 
 import yaml  # noqa: E402
 
+from apps.knowledge.graph.decompose import plan_decomposition  # noqa: E402
 from apps.knowledge.semantic.lint import lint_package, load_coverage  # noqa: E402
 from apps.knowledge.semantic.scanner import scan_package_files  # noqa: E402
 from apps.knowledge.semantic.schema import KnowledgePackageV2  # noqa: E402
@@ -83,6 +84,36 @@ def _summary(package: KnowledgePackageV2) -> dict[str, Any]:
     }
 
 
+def _decompose_report(package: KnowledgePackageV2) -> dict[str, Any]:
+    """Dry-run decomposition: is the package ready for the node/edge plane?"""
+    from collections import Counter
+
+    plan = plan_decomposition(package)
+    concepts = sum(1 for unit in package.knowledge_units for _ in unit.content.concepts)
+    edges_by_kind = dict(Counter(edge.edge_kind for edge in plan.edges))
+    return {
+        "nodes": len(plan.nodes),
+        "nodes_by_kind": dict(Counter(node.node_kind for node in plan.nodes.values())),
+        "edges": len(plan.edges),
+        "edges_by_kind": edges_by_kind,
+        "concept_of": edges_by_kind.get("concept_of", 0),
+        "concepts": concepts,
+        "concepts_anchored": all_concepts_anchored(package),
+        "merge_conflicts": plan.stats.get("merge_conflicts", 0),
+        "stub_nodes": plan.stats.get("stub_nodes", 0),
+    }
+
+
+def all_concepts_anchored(package: KnowledgePackageV2) -> int:
+    """Count concepts that carry at least one field_targets anchor."""
+    return sum(
+        1
+        for unit in package.knowledge_units
+        for concept in unit.content.concepts
+        if concept.field_targets
+    )
+
+
 def _post(base_url: str, token: str, package: KnowledgePackageV2) -> dict[str, Any]:
     endpoint = f"{base_url.rstrip('/')}/api/v1/knowledge/packages"
     body = json.dumps(
@@ -117,6 +148,17 @@ def main() -> None:
         "--output",
         help="optional: write the assembled package as one canonical YAML for inspection",
     )
+    scan.add_argument(
+        "--strict",
+        action="store_true",
+        help="promote CONCEPT_UNANCHORED / FAKE_EXECUTED to blocking and fail on them",
+    )
+
+    decompose = subparsers.add_parser(
+        "decompose",
+        help="dry-run node/edge decomposition to verify six-layer closure",
+    )
+    decompose.add_argument("path")
 
     submit = subparsers.add_parser(
         "submit", help="assemble and register a package through the API"
@@ -138,8 +180,17 @@ def main() -> None:
                 Path(args.output).write_text(content, encoding="utf-8")
             summary = _summary(package)
             if coverage is not None:
-                summary["qa"] = lint_package(package, coverage)
+                qa = lint_package(package, coverage, strict=args.strict)
+                summary["qa"] = qa
+                if args.strict and qa["summary"]["blocking"]:
+                    print(json.dumps(summary, ensure_ascii=False, indent=2))
+                    raise SystemExit(
+                        f"strict scan failed: {qa['summary']['blocking']} blocking issue(s)"
+                    )
             print(json.dumps(summary, ensure_ascii=False, indent=2))
+            return
+        if args.command == "decompose":
+            print(json.dumps(_decompose_report(package), ensure_ascii=False, indent=2))
             return
         result = _post(args.base_url, args.token, package)
     except ValueError as exc:

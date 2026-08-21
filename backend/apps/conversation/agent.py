@@ -58,7 +58,6 @@ def agent_node(state: Mapping[str, Any]) -> dict[str, Any]:
             ai_modal_id=state.get("ai_modal_id"),
             ai_modal_name=state.get("ai_modal_name"),
             local_operation=False,
-            phase="plan",
             graph_node="agent",
             title_key="chat.log.AGENT_STEP",
             brief="finalize" if finalizing else f"round {rounds + 1}",

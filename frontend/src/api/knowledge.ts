@@ -226,12 +226,7 @@ export const knowledgeApi = {
   }) => request.get('/knowledge/units', { params }),
   getUnit: (unitId: number, revision: number) =>
     request.get(`/knowledge/units/${unitId}/revisions/${revision}`),
-  editUnit: (
-    unitId: number,
-    revision: number,
-    content: KnowledgeUnitContent,
-    fork = false
-  ) =>
+  editUnit: (unitId: number, revision: number, content: KnowledgeUnitContent, fork = false) =>
     request.patch(`/knowledge/units/${unitId}/revisions/${revision}`, { content, fork }),
   deleteUnit: (unitId: number) => request.delete(`/knowledge/units/${unitId}`),
   approve: (unitId: number, revision: number, reason = '') =>
@@ -249,4 +244,64 @@ export const knowledgeApi = {
   getDeployments: (params?: { status?: string; page?: number; page_size?: number }) =>
     request.get('/knowledge/deployments', { params }),
   getDeployment: (deploymentId: number) => request.get(`/knowledge/deployments/${deploymentId}`),
+
+  // ---- v3.1 node plane ----
+  getCompositions: (params?: {
+    keyword?: string
+    lifecycle?: string
+    page?: number
+    page_size?: number
+  }) => request.get('/knowledge/compositions', { params }),
+  getComposition: (compositionId: number) =>
+    request.get(`/knowledge/compositions/${compositionId}`),
+  patchComposition: (compositionId: number, patch: Record<string, unknown>) =>
+    request.patch(`/knowledge/compositions/${compositionId}`, patch),
+  bindComposition: (compositionId: number, datasourceId: number) =>
+    request.post(`/knowledge/compositions/${compositionId}/bind`, {
+      datasource_id: datasourceId,
+    }),
+  validateComposition: (compositionId: number) =>
+    request.post(`/knowledge/compositions/${compositionId}/validate`, {}),
+  submitCompositionReview: (compositionId: number) =>
+    request.post(`/knowledge/compositions/${compositionId}/submit-review`, {}),
+  approveComposition: (compositionId: number, reason = '') =>
+    request.post(`/knowledge/compositions/${compositionId}/approve`, { reason }),
+  rejectComposition: (compositionId: number, reason: string) =>
+    request.post(`/knowledge/compositions/${compositionId}/reject`, { reason }),
+  requestCompositionChanges: (compositionId: number, reason: string) =>
+    request.post(`/knowledge/compositions/${compositionId}/request-changes`, {
+      reason,
+    }),
+  publishComposition: (compositionId: number) =>
+    request.post(`/knowledge/compositions/${compositionId}/publish`, {}),
+  unpublishComposition: (compositionId: number) =>
+    request.post(`/knowledge/compositions/${compositionId}/unpublish`, {}),
+  listNodes: (params?: {
+    keyword?: string
+    node_kind?: string
+    page?: number
+    page_size?: number
+  }) => request.get('/knowledge/nodes', { params }),
+  getNode: (nodeId: number) => request.get(`/knowledge/nodes/${nodeId}`),
+  patchNode: (nodeId: number, payload: Record<string, unknown>) =>
+    request.patch(`/knowledge/nodes/${nodeId}`, { payload }),
+  getNodeImpact: (nodeId: number) => request.get(`/knowledge/nodes/${nodeId}/impact`),
+  getMergeConflicts: (params?: { status?: string }) =>
+    request.get('/knowledge/merge-conflicts', { params }),
+  resolveMergeConflict: (
+    conflictId: number,
+    action: 'keep_existing' | 'accept_claim' | 'custom',
+    payload?: Record<string, unknown>
+  ) =>
+    request.post(`/knowledge/merge-conflicts/${conflictId}/resolve`, {
+      action,
+      payload,
+    }),
+  getInbox: (params?: { kind?: string; limit?: number }) =>
+    request.get('/knowledge/inbox', { params }),
+  rejectInbox: (stagingId: number, reason: string) =>
+    request.post(`/knowledge/inbox/${stagingId}/reject`, { reason }),
+  promoteInbox: (stagingId: number) => request.post(`/knowledge/inbox/${stagingId}/promote`, {}),
+  ingestJoinCandidates: (datasourceId: number) =>
+    request.post('/knowledge/ingest-join-candidates', { datasource_id: datasourceId }),
 }

@@ -1,0 +1,333 @@
+unit_id: project-code
+revision: 1
+title: 项目码领取记录
+aliases:
+- 项目码
+- 企业项目码
+- 项目码录入
+domain: project
+applicability: 企业录入项目码、项目码记录状态和重复录入判断；不用于项目审批、项目生效或项目关联结果统计
+description: cust_project_code_record 保存企业、用户、角色与渠道项目码的录入记录，业务服务以企业、用户、角色和 enable
+  判断是否已录入。
+content:
+  concepts:
+  - concept_id: project-code-record
+    name: 项目码领取记录
+    aliases:
+    - 项目码录入记录
+    - 企业项目码输入记录
+    definition: 企业用户录入项目码后形成的一行记录，记录编码、项目名称、渠道码、企业和用户上下文；不是项目主数据或项目生效记录。
+    field_targets:
+    - dataset: project_code_record
+      field: id
+    - dataset: project_code_record
+      field: code
+    - dataset: project_code_record
+      field: company_id
+    - dataset: project_code_record
+      field: use_id
+    - dataset: project_code_record
+      field: channel_code
+    - dataset: project_code_record
+      field: status
+    - dataset: project_code_record
+      field: company_type
+    - dataset: project_code_record
+      field: type
+    - dataset: project_code_record
+      field: enable
+    evidence_refs:
+    - ev-record-do
+    - ev-record-write
+  - concept_id: eligible-project-code-input
+    name: 可录入项目码
+    aliases:
+    - 允许录入项目码
+    definition: 客户端项目码录入资格由企业认证状态、是否变更、企业角色、自主认证方式及既有启用记录共同决定。
+    field_targets:
+    - dataset: company
+      field: id
+    - dataset: company
+      field: cust_build_status
+    - dataset: company
+      field: identify_style
+    - dataset: project_code_record
+      field: company_id
+    - dataset: project_code_record
+      field: use_id
+    - dataset: project_code_record
+      field: company_type
+    - dataset: project_code_record
+      field: enable
+    evidence_refs:
+    - ev-input-eligibility
+  processes:
+  - stage_id: record-project-code
+    name: 写入项目码记录
+    trigger: 项目码录入/项目关联流程创建记录
+    data_effects:
+    - operation: upsert
+      dataset: project_code_record
+      fields:
+      - code
+      - company_id
+      - company_type
+      - name
+      - channel_code
+      - status
+      - type
+      - use_id
+      condition: 由 addRelRecord 组装记录并调用 saveOrUpdate
+      evidence_refs:
+      - ev-record-write
+    next_stages: []
+    evidence_refs:
+    - ev-record-write
+  - stage_id: check-input-eligibility
+    name: 判断是否允许录入
+    trigger: 客户端请求检查项目码录入资格
+    data_effects:
+    - operation: read
+      dataset: company
+      fields:
+      - id
+      - cust_build_status
+      - identify_style
+    - operation: read
+      dataset: project_code_record
+      fields:
+      - company_id
+      - use_id
+      - company_type
+      - enable
+      condition: company_id、use_id、company_type LIKE 且 enable=Y 的记录存在则禁止再次录入
+      evidence_refs:
+      - ev-input-eligibility
+    next_stages:
+    - record-project-code
+    evidence_refs:
+    - ev-input-eligibility
+  datasets:
+  - dataset_id: project_code_record
+    name: cust_project_code_record
+    database: lowcode_pplatform
+    description: 企业项目码输入/领取记录，一行代表一次保存的项目码上下文记录；统计记录数可按 id 计数，不等同于项目生效数。
+    fields:
+    - field_id: id
+      name: id
+      data_type: bigint
+      description: 表主键
+    - field_id: code
+      name: code
+      data_type: varchar
+      description: 记录编码
+    - field_id: name
+      name: name
+      data_type: varchar
+      description: 项目名称
+    - field_id: company_id
+      name: company_id
+      data_type: bigint
+      description: 企业 id，关联 cust_company_info.id
+    - field_id: use_id
+      name: use_id
+      data_type: bigint
+      description: 录入用户 id
+    - field_id: channel_code
+      name: channel_code
+      data_type: varchar
+      description: 渠道码
+    - field_id: status
+      name: status
+      data_type: varchar
+      description: 是否正确状态；写入调用方传入 BooleanEnum 字典键
+    - field_id: company_type
+      name: company_type
+      data_type: varchar
+      description: 企业角色
+    - field_id: type
+      name: type
+      data_type: varchar
+      description: 项目码记录类型
+    - field_id: enable
+      name: enable
+      data_type: varchar
+      description: 启用标记；查询资格时要求 Y
+    evidence_refs:
+    - ev-record-do
+    - ev-record-schema
+  - dataset_id: company
+    name: cust_company_info
+    database: lowcode_pplatform
+    description: 企业主/过程记录，一行一家企业。正式企业主数据需 data_type='1' 且 enable='Y'。
+    fields:
+    - field_id: id
+      name: id
+      data_type: bigint
+      description: 表主键
+    - field_id: cust_build_status
+      name: cust_build_status
+      data_type: varchar
+      description: 认证状态（认证流+审核流两套状态机）
+    - field_id: identify_style
+      name: identify_style
+      data_type: varchar
+      description: 认证方式（SIMPLE/INVITE/SELF）
+    evidence_refs:
+    - ev-input-eligibility
+  relationships:
+  - relationship_id: project-code-company
+    left:
+      dataset: project_code_record
+      field: company_id
+    right:
+      dataset: company
+      field: id
+    relationship_type: EQUI_JOIN
+    cardinality: n:1
+    business_meaning: 项目码记录按 company_id 指向企业主数据 id。
+    status: proposed
+    evidence_refs:
+    - ev-record-write
+    - ev-record-relation
+  calibers:
+  - caliber_id: enabled-project-code-record
+    label: 启用项目码记录
+    description: enable=Y 的项目码记录。
+    contract_fragment:
+      predicates:
+      - field: project_code_record.enable
+        operator: eq
+        values:
+        - Y
+    field_targets:
+    - dataset: project_code_record
+      field: enable
+    evidence_refs:
+    - ev-input-eligibility
+  - caliber_id: eligible-project-code-input
+    label: 可录入项目码企业
+    description: 非认证成功、非变更、允许的企业角色、自主认证且尚无同企业同用户同角色启用记录。
+    contract_fragment:
+      predicates:
+      - field: company.cust_build_status
+        operator: ne
+        values:
+        - BUILD_SUCCESS
+      - field: project_code_record.enable
+        operator: eq
+        values:
+        - Y
+    field_targets:
+    - dataset: company
+      field: cust_build_status
+    - dataset: company
+      field: identify_style
+    - dataset: project_code_record
+      field: company_id
+    - dataset: project_code_record
+      field: use_id
+    - dataset: project_code_record
+      field: company_type
+    - dataset: project_code_record
+      field: enable
+    evidence_refs:
+    - ev-input-eligibility
+  metrics:
+  - metric_id: project-code-record-count
+    name: 项目码记录数
+    description: 项目码记录表中的记录行数；不代表项目生效数或去重企业数。
+    aggregation: COUNT
+    field:
+      dataset: project_code_record
+      field: id
+    grain:
+    - dataset: project_code_record
+      field: id
+    evidence_refs:
+    - ev-record-do
+  domain_rules:
+  - rule_id: enabled-record-blocks-repeat-input
+    label: 启用记录阻止重复录入
+    content: 同一 company_id、use_id、company_type（LIKE）下存在 enable=Y 记录时，canInputProjectCodeWhenBuildNotSuccess
+      返回 false。
+    applicability: 未认证且非变更企业的项目码录入资格检查
+    query_impact: 查询“可录入”时必须按企业、用户、角色匹配并过滤 enable=Y；不能仅按企业判断。
+    field_targets:
+    - dataset: project_code_record
+      field: company_id
+    - dataset: project_code_record
+      field: use_id
+    - dataset: project_code_record
+      field: company_type
+    - dataset: project_code_record
+      field: enable
+    evidence_refs:
+    - ev-input-eligibility
+  - rule_id: success-or-change-forbidden
+    label: 认证成功或变更禁止录入
+    content: cust_build_status=BUILD_SUCCESS 或企业处于变更状态时，项目码录入资格返回 false。
+    applicability: 项目码录入资格检查
+    query_impact: 可录入企业统计必须排除认证成功和变更企业。
+    field_targets:
+    - dataset: company
+      field: cust_build_status
+    evidence_refs:
+    - ev-input-eligibility
+  - rule_id: self-auth-role-gate
+    label: 自主认证与角色限制
+    content: 客户端项目码录入仅允许自主认证，并且企业角色必须通过 canRelProjectFromClient；源码日志明确列出供应商、经销商、项目公司。
+    applicability: 客户端项目码录入资格检查
+    query_impact: 仅凭项目码记录存在与否不能推导可录入资格，还需认证方式和角色条件。
+    field_targets:
+    - dataset: company
+      field: identify_style
+    - dataset: project_code_record
+      field: company_type
+    evidence_refs:
+    - ev-input-eligibility
+  - rule_id: status-dictionary-not-confirmed
+    label: 记录状态不可臆造
+    content: status 的业务含义为是否正确状态，写入值来自调用方 BooleanEnum；当前源码证据未确认项目码专属成功/失败枚举，不能把 status
+      任意值解释为项目生效。
+    applicability: 项目码状态统计
+    query_impact: 成功/失败统计须先确认调用方 BooleanEnum 具体键值；项目码记录数应使用 COUNT(id)。
+    field_targets:
+    - dataset: project_code_record
+      field: status
+    evidence_refs:
+    - ev-record-write
+    - ev-record-schema
+  verified_query_patterns:
+  - pattern_id: count-enabled-project-code-records
+    question: 启用的项目码记录有多少
+    query: 'SELECT COUNT(id) AS project_code_record_count FROM cust_project_code_record
+      WHERE enable = ''Y''
+
+      '
+    intended_specification:
+      grain: project_code_record
+      caliber_id: enabled-project-code-record
+    verification:
+      status: PENDING_VALIDATION
+    evidence_refs:
+    - ev-input-eligibility
+  - pattern_id: list-company-user-project-code-records
+    question: 某企业某用户已启用的项目码记录
+    query: "SELECT id, code, name, channel_code, status, company_type, type FROM cust_project_code_record\
+      \ WHERE company_id = :company_id AND use_id = :user_id\n  AND company_type LIKE\
+      \ :company_type AND enable = 'Y'\n"
+    intended_specification:
+      grain: project_code_record
+      caliber_id: enabled-project-code-record
+    verification:
+      status: PENDING_VALIDATION
+    evidence_refs:
+    - ev-input-eligibility
+evidence_refs:
+- ev-record-do
+- ev-record-write
+- ev-input-eligibility
+assumptions: []
+conflicts: []
+confidence: 0.9

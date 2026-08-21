@@ -98,5 +98,3 @@ def maybe_trigger_query_log_joins(
         return int(result or 0)
     except Exception:  # noqa: BLE001
         return 0
-
-

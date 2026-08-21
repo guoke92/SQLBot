@@ -1,0 +1,543 @@
+unit_id: survey
+revision: 1
+title: 企业调研
+aliases:
+- 调研
+- 问卷星
+- 回访
+- 白名单
+domain: survey
+applicability: 企业调研活动资格、首个访问用户展示状态、问卷完成情况与逐题答案统计；不用于企业建档认证或把白名单当作已答企业
+description: 通过启用白名单限定参与企业，以企业为 respondent 调用问卷星判断完成态，并在本地记录首访用户、展示标记及提交答案。
+content:
+  concepts:
+  - concept_id: survey-whitelist
+    name: 调研白名单
+    aliases:
+    - 参与企业
+    definition: cust_company_survey_whitelist 中 enable=Y 的企业才有资格参加调研活动。
+    dictionary: {}
+    field_targets:
+    - dataset: whitelist
+      field: company_id
+      database: ''
+    - dataset: whitelist
+      field: enable
+      database: ''
+    evidence_refs:
+    - ev-whitelist-dao
+    - ev-whitelist-model
+  - concept_id: first-visitor
+    name: 企业首个访问用户
+    aliases:
+    - 首访用户
+    - 首个进入产融首页用户
+    definition: 每个企业通过并发安全的 claimFirstVisitor 只认领一个 first_visitor_user_id；首次插入时同时记录首次访问时间。
+    dictionary: {}
+    field_targets:
+    - dataset: state
+      field: company_id
+      database: ''
+    - dataset: state
+      field: first_visitor_user_id
+      database: ''
+    - dataset: state
+      field: first_visit_time
+      database: ''
+    evidence_refs:
+    - ev-state-claim
+  - concept_id: survey-answer
+    name: 调研答案
+    aliases:
+    - 问卷答案
+    - 答题记录
+    definition: cust_survey_answer 每行存储一道题的一个选项；多选题每个选项单独一行，survey_code 区分调研轮次。
+    dictionary: {}
+    field_targets:
+    - dataset: answer
+      field: survey_code
+      database: ''
+    - dataset: answer
+      field: company_id
+      database: ''
+    - dataset: answer
+      field: question_no
+      database: ''
+    - dataset: answer
+      field: answer_value
+      database: ''
+    evidence_refs:
+    - ev-answer-model
+    - ev-answer-ddl
+  processes:
+  - stage_id: resolve-display
+    name: 首页调研展示判定
+    description: ''
+    trigger: 登录企业请求产融首页问卷活动展示配置
+    enter_conditions: []
+    exit_conditions: []
+    next_stages:
+    - claim-first-visitor
+    - display-scene
+    data_effects:
+    - operation: read
+      dataset: whitelist
+      fields:
+      - company_id
+      - enable
+      condition: company_id 命中且 enable=Y
+      description: ''
+      evidence_refs: []
+    - operation: read
+      dataset: state
+      fields:
+      - company_id
+      - first_visitor_user_id
+      - first_visitor_lottery_shown
+      condition: ''
+      description: ''
+      evidence_refs: []
+    evidence_refs:
+    - ev-display-flow
+  - stage_id: claim-first-visitor
+    name: 认领首访用户
+    description: ''
+    trigger: 企业通过白名单且活动配置生效
+    enter_conditions: []
+    exit_conditions: []
+    next_stages:
+    - display-scene
+    data_effects:
+    - operation: upsert
+      dataset: state
+      fields:
+      - company_id
+      - respondent
+      - first_visitor_user_id
+      - first_visit_time
+      - first_visitor_lottery_shown
+      - enable
+      condition: 首次访问插入；并发冲突后仅 first_visitor_user_id 为空时更新
+      description: ''
+      evidence_refs: []
+    evidence_refs:
+    - ev-state-claim
+  - stage_id: submit-answer
+    name: 提交调研答案
+    description: ''
+    trigger: 供应商企业在活动有效期内提交答案
+    enter_conditions: []
+    exit_conditions: []
+    next_stages: []
+    data_effects:
+    - operation: read
+      dataset: answer
+      fields:
+      - company_id
+      - survey_code
+      condition: 已有该企业该调研编码记录则直接返回
+      description: ''
+      evidence_refs: []
+    - operation: insert
+      dataset: answer
+      fields:
+      - survey_code
+      - company_id
+      - user_id
+      - question_no
+      - answer_value
+      - other_text
+      - submit_time
+      - create_time
+      condition: 每个非空 answerValues 选项写一行
+      description: ''
+      evidence_refs: []
+    evidence_refs:
+    - ev-submit-flow
+    - ev-answer-model
+  - stage_id: display-scene
+    name: 展示场景决策
+    description: ''
+    trigger: 已完成资格检查和首访认领
+    enter_conditions: []
+    exit_conditions: []
+    next_stages: []
+    data_effects:
+    - operation: update
+      dataset: state
+      fields:
+      - first_visitor_lottery_shown
+      - first_visitor_lottery_shown_time
+      condition: 仅首访用户调用标记接口时异步更新
+      description: ''
+      evidence_refs: []
+    evidence_refs:
+    - ev-display-flow
+    - ev-external-status
+    - ev-lottery-mark
+  datasets:
+  - dataset_id: whitelist
+    name: cust_company_survey_whitelist
+    description: 问卷星活动白名单企业；参与资格按 company_id 且 enable=Y 判断。
+    database: lowcode_pplatform
+    fields:
+    - field_id: company_id
+      name: company_id
+      description: 企业ID
+      data_type: bigint
+      dictionary: {}
+      evidence_refs: []
+    - field_id: enable
+      name: enable
+      description: 启用标记
+      data_type: varchar
+      dictionary:
+        Y: 启用
+        N: 停用
+      evidence_refs: []
+    evidence_refs:
+    - ev-whitelist-model
+    - ev-whitelist-ddl
+  - dataset_id: state
+    name: cust_company_survey_state
+    description: 企业问卷星活动状态；记录首访用户、访问时间和转盘展示标记。
+    database: lowcode_pplatform
+    fields:
+    - field_id: company_id
+      name: company_id
+      description: 企业ID
+      data_type: bigint
+      dictionary: {}
+      evidence_refs: []
+    - field_id: respondent
+      name: respondent
+      description: 问卷星 respondent/source，代码使用企业ID字符串
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: first_visitor_user_id
+      name: first_visitor_user_id
+      description: 企业首个进入产融首页的用户ID
+      data_type: bigint
+      dictionary: {}
+      evidence_refs: []
+    - field_id: first_visit_time
+      name: first_visit_time
+      description: 首个用户首次访问时间
+      data_type: datetime
+      dictionary: {}
+      evidence_refs: []
+    - field_id: first_visitor_lottery_shown
+      name: first_visitor_lottery_shown
+      description: 首访用户转盘是否已展示
+      data_type: varchar
+      dictionary:
+        Y: 已展示
+        N: 未展示
+      evidence_refs: []
+    - field_id: first_visitor_lottery_shown_time
+      name: first_visitor_lottery_shown_time
+      description: 转盘展示时间
+      data_type: datetime
+      dictionary: {}
+      evidence_refs: []
+    - field_id: enable
+      name: enable
+      description: 启用标记
+      data_type: varchar
+      dictionary:
+        Y: 启用
+        N: 停用
+      evidence_refs: []
+    evidence_refs:
+    - ev-state-model
+    - ev-state-ddl
+  - dataset_id: answer
+    name: cust_survey_answer
+    description: 调研答案明细；每行是一道题的一个选项，多选每选项一行。
+    database: lowcode_pplatform
+    fields:
+    - field_id: id
+      name: id
+      description: 雪花主键
+      data_type: bigint
+      dictionary: {}
+      evidence_refs: []
+    - field_id: survey_code
+      name: survey_code
+      description: 调研编码，与 Nacos surveyCode 对应
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: company_id
+      name: company_id
+      description: 当前登录企业ID
+      data_type: bigint
+      dictionary: {}
+      evidence_refs: []
+    - field_id: user_id
+      name: user_id
+      description: 当前登录用户ID
+      data_type: bigint
+      dictionary: {}
+      evidence_refs: []
+    - field_id: question_no
+      name: question_no
+      description: 题号
+      data_type: tinyint
+      dictionary: {}
+      evidence_refs: []
+    - field_id: answer_value
+      name: answer_value
+      description: 选项明文，多选每个选项单独一行
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: other_text
+      name: other_text
+      description: 选项为其他时的文本
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: submit_time
+      name: submit_time
+      description: 提交时间
+      data_type: datetime
+      dictionary: {}
+      evidence_refs: []
+    - field_id: create_time
+      name: create_time
+      description: 创建时间
+      data_type: datetime
+      dictionary: {}
+      evidence_refs: []
+    evidence_refs:
+    - ev-answer-model
+    - ev-answer-ddl
+  relationships:
+  - relationship_id: answer-state
+    left:
+      dataset: answer
+      field: company_id
+      database: ''
+    right:
+      dataset: state
+      field: company_id
+      database: ''
+    relationship_type: EQUI_JOIN
+    cardinality: n:1
+    business_meaning: 答案按企业ID对应企业调研状态。
+    status: proposed
+    evidence_refs:
+    - ev-answer-model
+    - ev-state-model
+    confidence: 0.5
+  - relationship_id: whitelist-state
+    left:
+      dataset: whitelist
+      field: company_id
+      database: ''
+    right:
+      dataset: state
+      field: company_id
+      database: ''
+    relationship_type: SHARED_KEY
+    cardinality: 1:0..1
+    business_meaning: 白名单资格与企业活动状态按企业ID共享键关联，非数据库外键。
+    status: proposed
+    evidence_refs:
+    - ev-whitelist-dao
+    - ev-state-claim
+    confidence: 0.5
+  metrics:
+  - metric_id: participating-company-count
+    name: 参与调研企业数
+    description: 白名单中 enable=Y 的去重企业数。
+    aggregation: COUNT_DISTINCT
+    field:
+      dataset: whitelist
+      field: company_id
+      database: ''
+    filters: []
+    grain:
+    - dataset: whitelist
+      field: company_id
+      database: ''
+    evidence_refs:
+    - ev-whitelist-dao
+  - metric_id: answer-row-count
+    name: 答案明细行数
+    description: cust_survey_answer 行数；多选每选项一行，不能直接等同于企业数或答卷数。
+    aggregation: COUNT
+    field:
+      dataset: answer
+      field: id
+      database: ''
+    filters: []
+    grain:
+    - dataset: answer
+      field: company_id
+      database: ''
+    - dataset: answer
+      field: survey_code
+      database: ''
+    evidence_refs:
+    - ev-answer-model
+    - ev-submit-flow
+  - metric_id: answered-company-count
+    name: 已提交调研企业数
+    description: 指定 survey_code 下存在答案记录的去重 company_id 数；提交服务以此存在性作为幂等判断。
+    aggregation: COUNT_DISTINCT
+    field:
+      dataset: answer
+      field: company_id
+      database: ''
+    filters: []
+    grain:
+    - dataset: answer
+      field: survey_code
+      database: ''
+    - dataset: answer
+      field: company_id
+      database: ''
+    evidence_refs:
+    - ev-answer-dao
+    - ev-submit-flow
+  calibers:
+  - caliber_id: participating-company
+    label: 参与调研企业
+    description: 白名单中 company_id 命中且 enable=Y 的企业。
+    contract_fragment:
+      predicates:
+      - field: whitelist.enable
+        operator: eq
+        values:
+        - Y
+      - field: whitelist.company_id
+        operator: eq
+        values:
+        - <企业ID>
+    field_targets:
+    - dataset: whitelist
+      field: company_id
+      database: ''
+    - dataset: whitelist
+      field: enable
+      database: ''
+    evidence_refs:
+    - ev-whitelist-dao
+  - caliber_id: first-visitor
+    label: 企业首访用户
+    description: state.first_visitor_user_id 等于当前用户ID；并发认领只允许一个用户成功。
+    contract_fragment:
+      predicates:
+      - field: state.company_id
+        operator: eq
+        values:
+        - <企业ID>
+      - field: state.first_visitor_user_id
+        operator: eq
+        values:
+        - <用户ID>
+    field_targets:
+    - dataset: state
+      field: company_id
+      database: ''
+    - dataset: state
+      field: first_visitor_user_id
+      database: ''
+    evidence_refs:
+    - ev-state-claim
+  domain_rules:
+  - rule_id: whitelist-required
+    label: 白名单才可参与
+    content: 活动展示和专属答题链接都要求活动配置有效且 cust_company_survey_whitelist 存在 company_id 且 enable=Y。
+    applicability: 首页展示与获取答题链接
+    query_impact: 参与企业统计必须过滤 enable=Y，不能把所有企业视为活动参与者。
+    field_targets:
+    - dataset: whitelist
+      field: company_id
+      database: ''
+    - dataset: whitelist
+      field: enable
+      database: ''
+    evidence_refs:
+    - ev-display-flow
+    - ev-whitelist-dao
+  - rule_id: first-visitor-only-ui
+    label: 活动UI仅首访用户
+    content: 同企业非首个访问用户不展示抽奖、指引和右下角入口；首访用户依据 first_visitor_user_id 判定。
+    applicability: 产融首页活动展示
+    query_impact: 用户级展示分析必须按 state.first_visitor_user_id 匹配当前用户，不能按企业内任意用户计数。
+    field_targets:
+    - dataset: state
+      field: company_id
+      database: ''
+    - dataset: state
+      field: first_visitor_user_id
+      database: ''
+    evidence_refs:
+    - ev-display-flow
+  - rule_id: answer-idempotency-by-company-survey
+    label: 企业调研提交幂等
+    content: submit 强制使用配置中的 surveyCode；若 company_id+survey_code 已有任意答案记录则整次提交跳过，否则按选项逐行保存。
+    applicability: 调研答案提交
+    query_impact: 已提交企业口径按 company_id+survey_code 存在性判断；明细行数受多选拆行影响。
+    field_targets:
+    - dataset: answer
+      field: company_id
+      database: ''
+    - dataset: answer
+      field: survey_code
+      database: ''
+    - dataset: answer
+      field: answer_value
+      database: ''
+    evidence_refs:
+    - ev-submit-flow
+    - ev-answer-dao
+  verified_query_patterns:
+  - pattern_id: count-participating-companies
+    question: 当前参与调研的企业有多少
+    query: 'SELECT COUNT(DISTINCT company_id) AS participating_company_count
+
+      FROM cust_company_survey_whitelist
+
+      WHERE enable = ''Y''
+
+      '
+    intended_specification:
+      grain: whitelist
+      caliber_id: participating-company
+    verification:
+      status: PENDING_VALIDATION
+    evidence_refs:
+    - ev-whitelist-dao
+  - pattern_id: count-answer-companies
+    question: 某轮调研已提交的企业有多少
+    query: 'SELECT COUNT(DISTINCT company_id) AS answered_company_count
+
+      FROM cust_survey_answer
+
+      WHERE survey_code = ''<survey_code>''
+
+      '
+    intended_specification:
+      grain: answer
+      caliber_id: answered-company-count
+    verification:
+      status: PENDING_VALIDATION
+    evidence_refs:
+    - ev-answer-dao
+    - ev-submit-flow
+evidence_refs:
+- ev-display-flow
+- ev-submit-flow
+- ev-state-claim
+- ev-external-status
+unit_links: []
+assumptions:
+- 问卷星 rspd_list 为外部接口数据集，不是 lowcode_pplatform 本地物理表。
+- 本地答案表提交接口与问卷星外部答卷完成态是两条实现路径，不能据此断言二者必然一一对应。
+conflicts: []
+confidence: 0.91

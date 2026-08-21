@@ -9,9 +9,7 @@ from sqlmodel import Session, select
 
 from apps.knowledge.db_models import KnowledgeEvidence
 
-SUCCESS_OUTCOMES = frozenset(
-    {"success", "degraded", "accepted", "completed", "ok"}
-)
+SUCCESS_OUTCOMES = frozenset({"success", "degraded", "accepted", "completed", "ok"})
 STRONG_APPLY_ACTIONS = frozenset({"bind", "reuse"})
 
 

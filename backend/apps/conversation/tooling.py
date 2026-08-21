@@ -194,7 +194,6 @@ def execute_tools_node(state: Mapping[str, Any]) -> dict[str, Any]:
             operate=OperationEnum.TOOL_CALL,
             record_id=record_id,
             local_operation=True,
-            phase="execute",
             graph_node="execute_tools",
             title_key="chat.log.TOOL_CALL",
             brief=name,

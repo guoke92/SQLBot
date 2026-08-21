@@ -1,0 +1,291 @@
+unit_id: org-manage
+revision: 1
+title: 机构管理
+aliases:
+- 机构
+- 组织
+- 机构层级
+domain: org
+applicability: 机构节点、父子层级、启用状态与机构层级统计；不用于运营人员、客户企业或租户统计
+description: org_manage 保存机构节点及其编码层级关系，机构查询通过 code 精确定位并支持条件列表、计数与删除。
+content:
+  concepts:
+  - concept_id: organization
+    name: 机构
+    aliases:
+    - 组织
+    - 机构节点
+    definition: org_manage 中的一条机构节点记录；code 是机构业务编码，parent_code 指向父机构的 code。
+    field_targets:
+    - dataset: org
+      field: id
+    - dataset: org
+      field: code
+    evidence_refs:
+    - ev-org-model
+  - concept_id: enabled-organization
+    name: 启用机构
+    aliases:
+    - 有效机构
+    definition: org_manage.enable = 'Y' 的机构；源码仅确认 enable 字段及默认值，未发现独立状态枚举。
+    dictionary:
+      Y: 启用
+      N: 停用
+    field_targets:
+    - dataset: org
+      field: enable
+    evidence_refs:
+    - ev-org-schema
+  processes:
+  - stage_id: query-organization
+    name: 查询机构
+    trigger: 按 code 或实体条件查询机构
+    data_effects:
+    - operation: read
+      dataset: org
+      fields:
+      - id
+      - code
+      - name
+      - org_no
+      - org_name
+      - org_level
+      - org_type
+      - status
+      - client_type
+      - parent_code
+      - enable
+      condition: code 精确条件使用 code = 入参；实体条件由 QueryWrapper 生成
+      evidence_refs:
+      - ev-org-service
+    next_stages: []
+    evidence_refs:
+    - ev-org-service
+  - stage_id: count-organization
+    name: 统计机构
+    trigger: 需要机构总数或按条件计数
+    data_effects:
+    - operation: read
+      dataset: org
+      fields:
+      - id
+      - org_level
+      - enable
+      condition: 对实体条件执行 count；按层级统计需按 org_level 分组
+      evidence_refs:
+      - ev-org-service
+      - ev-org-schema
+    next_stages: []
+    evidence_refs:
+    - ev-org-service
+  - stage_id: maintain-organization
+    name: 维护机构
+    trigger: 新增、更新或按实体条件删除机构
+    data_effects:
+    - operation: upsert
+      dataset: org
+      fields:
+      - id
+      - code
+      - name
+      - org_no
+      - org_name
+      - org_level
+      - org_type
+      - status
+      - client_type
+      - parent_code
+      - enable
+      condition: BaseService 提供通用持久化；remove(entity) 按实体条件删除
+      evidence_refs:
+      - ev-org-service
+      - ev-org-impl
+    next_stages: []
+    evidence_refs:
+    - ev-org-service
+    - ev-org-impl
+  datasets:
+  - dataset_id: org
+    name: org_manage
+    description: 机构管理表，一行一个机构节点；id 为表主键，code 为业务编码。
+    database: lowcode_pplatform
+    fields:
+    - field_id: id
+      name: id
+      data_type: bigint
+      description: 表主键
+    - field_id: code
+      name: code
+      data_type: varchar
+      description: 机构业务编码
+    - field_id: name
+      name: name
+      data_type: varchar
+      description: 机构名称通用字段
+    - field_id: org_no
+      name: org_no
+      data_type: varchar
+      description: 机构号
+    - field_id: org_name
+      name: org_name
+      data_type: varchar
+      description: 机构名称
+    - field_id: org_level
+      name: org_level
+      data_type: int
+      description: 机构层级
+    - field_id: org_type
+      name: org_type
+      data_type: varchar
+      description: 机构类型
+    - field_id: status
+      name: status
+      data_type: varchar
+      description: 机构状态；具体取值未在本次源码范围确认
+    - field_id: client_type
+      name: client_type
+      data_type: varchar
+      description: 端类型
+    - field_id: parent_code
+      name: parent_code
+      data_type: varchar
+      description: 父机构编号，按编码指向父机构
+    - field_id: enable
+      name: enable
+      data_type: varchar
+      description: 启用标识，数据库默认值为 Y
+    evidence_refs:
+    - ev-org-model
+    - ev-org-schema
+  relationships:
+  - relationship_id: org-parent
+    left:
+      dataset: org
+      field: parent_code
+    right:
+      dataset: org
+      field: code
+    relationship_type: EQUI_JOIN
+    cardinality: n:1
+    business_meaning: 子机构通过 parent_code 关联父机构的 code；不是通过 id 关联。
+    status: proposed
+    evidence_refs:
+    - ev-org-schema
+  calibers:
+  - caliber_id: enabled-org
+    label: 启用机构
+    description: enable 等于物理值 Y 的机构。
+    contract_fragment:
+      predicates:
+      - field: org.enable
+        operator: eq
+        values:
+        - Y
+    field_targets:
+    - dataset: org
+      field: enable
+    evidence_refs:
+    - ev-org-schema
+  - caliber_id: org-by-level
+    label: 按机构层级统计
+    description: 以 org_level 为分组粒度统计机构记录。
+    contract_fragment:
+      group_by:
+      - org.org_level
+      aggregation: COUNT
+      field: org.id
+    field_targets:
+    - dataset: org
+      field: org_level
+    - dataset: org
+      field: id
+    evidence_refs:
+    - ev-org-schema
+    - ev-org-service
+  metrics:
+  - metric_id: organization-count
+    name: 机构数
+    description: org_manage 记录数；若问题限定启用机构，叠加 enabled-org 口径。
+    aggregation: COUNT
+    field:
+      dataset: org
+      field: id
+    grain:
+    - dataset: org
+      field: id
+    evidence_refs:
+    - ev-org-service
+  - metric_id: organization-count-by-level
+    name: 机构层级分布
+    description: 按 org_level 分组统计机构记录数。
+    aggregation: COUNT
+    field:
+      dataset: org
+      field: id
+    grain:
+    - dataset: org
+      field: org_level
+    evidence_refs:
+    - ev-org-schema
+  domain_rules:
+  - rule_id: org-parent-by-code
+    label: 父子机构按编码关联
+    content: parent_code 的业务语义是父机构编号，层级自连接条件应为 child.parent_code = parent.code。
+    applicability: 查询机构树、父子机构与下级机构
+    query_impact: 不得用 parent_code = parent.id；自连接右端使用 code。
+    field_targets:
+    - dataset: org
+      field: parent_code
+    - dataset: org
+      field: code
+    evidence_refs:
+    - ev-org-schema
+  - rule_id: enabled-org-filter
+    label: 启用机构过滤
+    content: 启用机构使用 enable = 'Y'；数据库定义的默认值为 Y。
+    applicability: 有效/启用机构列表与统计
+    query_impact: 只有用户明确询问启用或有效机构时添加 enable = 'Y'，不能把它默认推断为所有机构查询条件。
+    field_targets:
+    - dataset: org
+      field: enable
+    evidence_refs:
+    - ev-org-schema
+    - ev-org-service
+  verified_query_patterns:
+  - pattern_id: count-enabled-orgs
+    question: 启用的机构有多少
+    query: 'SELECT COUNT(1) AS enabled_org_count
+
+      FROM org_manage
+
+      WHERE enable = ''Y'''
+    intended_specification:
+      grain: org
+      caliber_id: enabled-org
+    verification:
+      status: PENDING_VALIDATION
+    evidence_refs:
+    - ev-org-schema
+  - pattern_id: count-orgs-by-level
+    question: 各机构层级分别有多少机构
+    query: 'SELECT org_level, COUNT(1) AS org_count
+
+      FROM org_manage
+
+      GROUP BY org_level'
+    intended_specification:
+      grain: org_level
+      caliber_id: org-by-level
+    verification:
+      status: PENDING_VALIDATION
+    evidence_refs:
+    - ev-org-schema
+evidence_refs:
+- ev-org-model
+- ev-org-schema
+- ev-org-service
+assumptions:
+- status、org_type、client_type 的具体字典值未在本次源码与目录基线中确认，未用于过滤口径。
+- 查询范例未在目标数据库执行，verification 保持 PENDING_VALIDATION。
+conflicts: []
+confidence: 0.9

@@ -36,7 +36,6 @@ def generate_with_sub_sql(
         operate=OperationEnum.GENERATE_DYNAMIC_QUERY,
         record_id=llm_service.record.id,
         local_operation=False,
-        phase="execute",
         graph_node="execute_queries",
         title_key="chat.log.GENERATE_DYNAMIC_QUERY",
     ) as span:
@@ -97,7 +96,6 @@ def build_table_filter(
         operate=OperationEnum.GENERATE_QUERY_WITH_PERMISSIONS,
         record_id=llm_service.record.id,
         local_operation=False,
-        phase="execute",
         graph_node="execute_queries",
         title_key="chat.log.GENERATE_QUERY_WITH_PERMISSIONS",
     ) as span:

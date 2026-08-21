@@ -52,7 +52,6 @@ def match_knowledge(
         operate=OperationEnum.FILTER_TERMS,
         record_id=llm_service.record.id,
         local_operation=True,
-        phase="understand",
         graph_node="retrieve_context",
         title_key="chat.log.FILTER_TERMS",
     ) as span:
@@ -89,12 +88,26 @@ def match_knowledge(
         apply_payload = compiled.knowledge_apply_payload()
         span.set_detail(
             {
-                "match_count": len(matches),
+                "unit_count": len(compiled.matched_units),
+                "matched_units": [
+                    {
+                        "unit_id": item.get("unit_id"),
+                        "unit_key": item.get("unit_key"),
+                        "title": item.get("title"),
+                        "domain": item.get("domain"),
+                        "revision": item.get("revision"),
+                        "confidence": item.get("confidence"),
+                    }
+                    for item in compiled.matched_units
+                ],
+                "dictionary_count": len(matches),
                 "matches": [*compiled.log_items, *dictionary_items],
                 "knowledge_apply": apply_payload,
             }
         )
-        span.set_summary("chat.audit.knowledge_ready", count=len(matches))
+        span.set_summary(
+            "chat.audit.knowledge_ready", count=len(compiled.matched_units)
+        )
     return matches
 
 

@@ -1,7 +1,14 @@
 <script lang="ts" setup>
 import { computed, reactive, ref } from 'vue'
 import type { KnowledgeUnitPage, KnowledgeUnitSummary } from '@/api/knowledge'
-import { nextStepLabel, statusLabel, statusTagType } from '../presentation'
+import { statusLabel, statusTagType } from '../presentation'
+import {
+  ACTION_LABELS,
+  actionsForLifecycle,
+  batchUnitActions,
+  runUnitAction,
+  type UnitAction,
+} from '../unitActions'
 import KnowledgeUnitDrawer from './KnowledgeUnitDrawer.vue'
 import ValidationIssueList from './ValidationIssueList.vue'
 
@@ -36,6 +43,9 @@ const query = reactive({
 })
 const drawerVisible = ref(false)
 const selected = ref<KnowledgeUnitSummary | null>(null)
+const selection = ref<KnowledgeUnitSummary[]>([])
+const actingKey = ref('')
+const batchLoading = ref(false)
 const groupedItems = computed(() =>
   [...(props.page?.items || [])].sort(
     (left, right) =>
@@ -60,7 +70,7 @@ function domainSpan({
   rowIndex: number
   row: KnowledgeUnitSummary
 }) {
-  if (columnIndex !== 0) return
+  if (columnIndex !== 1) return
   const items = groupedItems.value
   const domain = items[rowIndex]?.domain
   if (rowIndex > 0 && items[rowIndex - 1]?.domain === domain) return [0, 0]
@@ -85,6 +95,69 @@ function selectLifecycle(status: string) {
 function open(item: KnowledgeUnitSummary) {
   selected.value = item
   drawerVisible.value = true
+}
+
+function onRowClick(row: KnowledgeUnitSummary, column: { type?: string }) {
+  if (column.type === 'selection') return
+  open(row)
+}
+
+function rowActions(row: KnowledgeUnitSummary): UnitAction[] {
+  return actionsForLifecycle(row.lifecycle_status)
+}
+
+function actionLabel(row: KnowledgeUnitSummary, action: UnitAction) {
+  if (action === 'publish') {
+    return row.lifecycle_status === 'RETIRED' ? '重新发布' : '发布'
+  }
+  return ACTION_LABELS[action]
+}
+
+async function runRowAction(row: KnowledgeUnitSummary, action: UnitAction) {
+  const key = `${row.unit_id}:${row.revision}`
+  actingKey.value = key
+  try {
+    const ok = await runUnitAction(row.unit_id, row.revision, action)
+    if (ok) load()
+  } finally {
+    actingKey.value = ''
+  }
+}
+
+function onSelectionChange(rows: KnowledgeUnitSummary[]) {
+  selection.value = rows
+}
+
+function rowKey(row: KnowledgeUnitSummary) {
+  return `${row.unit_id}:${row.revision}`
+}
+
+type ElButtonType = 'primary' | 'success' | 'warning' | 'info' | 'danger'
+
+const ACTION_BUTTON_TYPE: Record<UnitAction, ElButtonType> = {
+  approve: 'success',
+  publish: 'primary',
+  unpublish: 'warning',
+  reject: 'danger',
+  request: 'info',
+}
+
+function actionButtonType(action: UnitAction): ElButtonType {
+  return ACTION_BUTTON_TYPE[action]
+}
+
+async function runBatch(action: UnitAction) {
+  if (!selection.value.length) return
+  batchLoading.value = true
+  try {
+    const outcome = await batchUnitActions(selection.value, action)
+    if (outcome.success) {
+      selection.value = []
+      load()
+    }
+  } finally {
+    batchLoading.value = false
+  }
 }
 </script>
 
@@ -129,12 +202,50 @@ function open(item: KnowledgeUnitSummary) {
       </el-select>
     </div>
 
+    <div v-if="selection.length" class="batch-bar">
+      <span class="batch-count">已选 {{ selection.length }} 项</span>
+      <el-button
+        type="primary"
+        plain
+        size="small"
+        :loading="batchLoading"
+        @click="runBatch('approve')"
+      >
+        批量批准
+      </el-button>
+      <el-button type="primary" size="small" :loading="batchLoading" @click="runBatch('publish')">
+        批量发布
+      </el-button>
+      <el-button
+        type="warning"
+        plain
+        size="small"
+        :loading="batchLoading"
+        @click="runBatch('unpublish')"
+      >
+        批量撤销发布
+      </el-button>
+      <el-button
+        type="danger"
+        plain
+        size="small"
+        :loading="batchLoading"
+        @click="runBatch('reject')"
+      >
+        批量拒绝
+      </el-button>
+      <el-button size="small" :disabled="batchLoading" @click="selection = []">清除选择</el-button>
+    </div>
+
     <el-table
       v-loading="loading"
       :data="groupedItems"
+      :row-key="rowKey"
       :span-method="domainSpan"
-      @row-click="open"
+      @row-click="onRowClick"
+      @selection-change="onSelectionChange"
     >
+      <el-table-column type="selection" width="46" />
       <el-table-column label="业务域" width="140">
         <template #default="{ row }">
           <strong>{{ row.domain }}</strong>
@@ -200,11 +311,22 @@ function open(item: KnowledgeUnitSummary) {
       <el-table-column label="数据绑定" width="120">
         <template #default="{ row }">{{ statusLabel(row.binding_status) }}</template>
       </el-table-column>
-      <el-table-column label="操作" min-width="120">
+      <el-table-column label="操作" min-width="280">
         <template #default="{ row }">
-          <el-button type="primary" plain @click.stop="open(row)">{{
-            nextStepLabel(row.next_step)
-          }}</el-button>
+          <div class="row-actions">
+            <el-button
+              v-for="action in rowActions(row)"
+              :key="action"
+              size="small"
+              :type="actionButtonType(action)"
+              :plain="action === 'request' || action === 'unpublish'"
+              :loading="actingKey === rowKey(row)"
+              @click.stop="runRowAction(row, action)"
+            >
+              {{ actionLabel(row, action) }}
+            </el-button>
+            <el-button size="small" @click.stop="open(row)">详情</el-button>
+          </div>
         </template>
       </el-table-column>
       <template #empty><el-empty :description="emptyHint" :image-size="72" /></template>
@@ -222,12 +344,7 @@ function open(item: KnowledgeUnitSummary) {
       @size-change="load(true)"
     />
 
-    <KnowledgeUnitDrawer
-      v-model="drawerVisible"
-      mode="review"
-      :item="selected"
-      @changed="load()"
-    />
+    <KnowledgeUnitDrawer v-model="drawerVisible" mode="review" :item="selected" @changed="load()" />
   </section>
 </template>
 
@@ -300,6 +417,29 @@ function open(item: KnowledgeUnitSummary) {
   margin-top: 14px;
 }
 .validation-tags {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.batch-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  background: var(--el-color-primary-light-9);
+  border: 1px solid var(--el-color-primary-light-7);
+  border-radius: 8px;
+  flex-wrap: wrap;
+}
+.batch-count {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--el-color-primary);
+  margin-right: 4px;
+}
+.row-actions {
   display: flex;
   align-items: center;
   gap: 6px;

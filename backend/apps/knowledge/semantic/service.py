@@ -59,10 +59,18 @@ def register_package(
     oid: int,
     actor_user_id: int | None,
     package: KnowledgePackageV2,
+    mode: str = "append",
 ) -> tuple[SemanticKnowledgePackage, list[KnowledgeUnitRevision], bool]:
-    """Idempotently register immutable evidence and draft unit revisions."""
-    document = package.model_dump(mode="json")
-    content_hash = _json_hash(document)
+    """Register a KnowledgePackage 2.0 import (append or overwrite).
+
+    * ``append`` (default) - repeated imports accumulate. Identical content is
+      an idempotent no-op; changed content auto-assigns the next revision
+      number (no manual bump, keeps every copy).
+    * ``overwrite`` - changed content replaces the existing DRAFT revision in
+      place (keeps one copy). Revisions past DRAFT are immutable and raise.
+    """
+    if mode not in ("append", "overwrite"):
+        raise ValueError("mode must be 'append' or 'overwrite'")
     metadata = package.package
     existing = session.exec(
         select(SemanticKnowledgePackage).where(
@@ -71,11 +79,9 @@ def register_package(
             SemanticKnowledgePackage.revision == metadata.revision,
         )
     ).one_or_none()
-    if existing is not None:
-        if existing.content_hash != content_hash:
-            raise ValueError(
-                "package revision already exists with different content; increment package.revision"
-            )
+    document = package.model_dump(mode="json")
+    content_hash = _json_hash(document)
+    if existing is not None and existing.content_hash == content_hash:
         revisions = session.exec(
             select(KnowledgeUnitRevision).where(
                 KnowledgeUnitRevision.package_id == int(existing.id or 0)
@@ -84,39 +90,85 @@ def register_package(
         return existing, list(revisions), False
 
     now = _now()
-    package_row = SemanticKnowledgePackage(
-        oid=oid,
-        package_id=metadata.package_id,
-        revision=metadata.revision,
-        namespace=metadata.namespace,
-        title=metadata.title,
-        description=metadata.description,
-        content_hash=content_hash,
-        source_document=document,
-        create_by=actor_user_id,
-        create_time=now,
-        update_time=now,
-    )
-    session.add(package_row)
-    session.flush()
-    assert package_row.id is not None
+    created = True
+    if existing is not None and mode == "overwrite":
+        existing.source_document = document
+        existing.content_hash = content_hash
+        existing.namespace = metadata.namespace
+        existing.title = metadata.title
+        existing.description = metadata.description
+        existing.update_time = now
+        session.add(existing)
+        package_row = existing
+        created = False
+    else:
+        if existing is not None:  # append: bump past the collision
+            next_rev = (
+                int(
+                    session.scalar(
+                        select(func.max(SemanticKnowledgePackage.revision)).where(
+                            SemanticKnowledgePackage.oid == oid,
+                            SemanticKnowledgePackage.package_id == metadata.package_id,
+                        )
+                    )
+                    or 0
+                )
+                + 1
+            )
+            metadata.revision = next_rev
+            document = package.model_dump(mode="json")
+            content_hash = _json_hash(document)
+        package_row = SemanticKnowledgePackage(
+            oid=oid,
+            package_id=metadata.package_id,
+            revision=metadata.revision,
+            namespace=metadata.namespace,
+            title=metadata.title,
+            description=metadata.description,
+            content_hash=content_hash,
+            source_document=document,
+            create_by=actor_user_id,
+            create_time=now,
+            update_time=now,
+        )
+        session.add(package_row)
+        session.flush()
+        assert package_row.id is not None
 
     source_by_id = {source.source_id: source for source in package.sources}
+    evidence_rows = {
+        row.evidence_key: row
+        for row in session.exec(
+            select(KnowledgeSourceEvidence).where(
+                KnowledgeSourceEvidence.package_id == int(package_row.id or 0)
+            )
+        ).all()
+    }
     for evidence in package.evidence:
         source = source_by_id[evidence.source_id]
-        session.add(
-            KnowledgeSourceEvidence(
-                oid=oid,
-                package_id=int(package_row.id),
-                evidence_key=evidence.evidence_id,
-                source_id=evidence.source_id,
-                evidence_kind=evidence.evidence_kind,
-                locator=evidence.locator or source.locator,
-                content_hash=evidence.content_hash or source.content_hash,
-                payload=evidence.model_dump(mode="json"),
-                create_time=now,
+        payload = evidence.model_dump(mode="json")
+        row = evidence_rows.get(evidence.evidence_id)
+        if row is None:
+            session.add(
+                KnowledgeSourceEvidence(
+                    oid=oid,
+                    package_id=int(package_row.id or 0),
+                    evidence_key=evidence.evidence_id,
+                    source_id=evidence.source_id,
+                    evidence_kind=evidence.evidence_kind,
+                    locator=evidence.locator or source.locator,
+                    content_hash=evidence.content_hash or source.content_hash,
+                    payload=payload,
+                    create_time=now,
+                )
             )
-        )
+        else:
+            row.source_id = evidence.source_id
+            row.evidence_kind = evidence.evidence_kind
+            row.locator = evidence.locator or source.locator
+            row.content_hash = evidence.content_hash or source.content_hash
+            row.payload = payload
+            session.add(row)
 
     revision_rows: list[KnowledgeUnitRevision] = []
     for entry in package.knowledge_units:
@@ -145,21 +197,48 @@ def register_package(
             unit.update_time = now
             session.add(unit)
         assert unit.id is not None
+        entry_json = entry.model_dump(mode="json")
+        entry_hash = _json_hash(entry_json)
         existing_revision = session.exec(
             select(KnowledgeUnitRevision).where(
                 KnowledgeUnitRevision.unit_id == int(unit.id),
                 KnowledgeUnitRevision.revision == entry.revision,
             )
         ).one_or_none()
-        entry_json = entry.model_dump(mode="json")
-        entry_hash = _json_hash(entry_json)
-        if existing_revision is not None:
-            if existing_revision.content_hash != entry_hash:
-                raise ValueError(
-                    f"unit {entry.unit_id} revision {entry.revision} already exists with different content"
-                )
+        if (
+            existing_revision is not None
+            and existing_revision.content_hash == entry_hash
+        ):
             revision_rows.append(existing_revision)
             continue
+        if existing_revision is not None and mode == "overwrite":
+            if existing_revision.lifecycle_status != "DRAFT":
+                raise ValueError(
+                    f"unit {entry.unit_id} revision {entry.revision} is "
+                    f"{existing_revision.lifecycle_status} and cannot be overwritten"
+                )
+            existing_revision.content = entry_json
+            existing_revision.content_hash = entry_hash
+            existing_revision.confidence = entry.confidence
+            existing_revision.package_id = int(package_row.id or 0)
+            existing_revision.update_time = now
+            session.add(existing_revision)
+            revision_rows.append(existing_revision)
+            continue
+        if existing_revision is not None:  # append: bump past the collision
+            entry.revision = (
+                int(
+                    session.scalar(
+                        select(func.max(KnowledgeUnitRevision.revision)).where(
+                            KnowledgeUnitRevision.unit_id == int(unit.id)
+                        )
+                    )
+                    or 0
+                )
+                + 1
+            )
+            entry_json = entry.model_dump(mode="json")
+            entry_hash = _json_hash(entry_json)
         row = KnowledgeUnitRevision(
             oid=oid,
             unit_id=int(unit.id),
@@ -178,11 +257,32 @@ def register_package(
         )
         session.add(row)
         revision_rows.append(row)
+
+    # v3.1 dual-write: decompose into the node store alongside the legacy
+    # revision path. Transition safety - a decomposition failure must not
+    # block package registration; it is logged for follow-up.
+    try:
+        from apps.knowledge.graph.decompose import decompose_package
+
+        decompose_package(
+            session,
+            oid=oid,
+            package=package,
+            package_row_id=int(package_row.id or 0),
+        )
+    except Exception as exc:  # noqa: BLE001 - transition guard
+        logger.warning(
+            "knowledge decomposition skipped for package %s: %s: %s",
+            metadata.package_id,
+            type(exc).__name__,
+            exc,
+        )
+
     session.commit()
     session.refresh(package_row)
     for row in revision_rows:
         session.refresh(row)
-    return package_row, revision_rows, True
+    return package_row, revision_rows, created
 
 
 def list_packages(
@@ -211,25 +311,11 @@ def list_packages(
 def _next_step(
     revision: KnowledgeUnitRevision, binding: KnowledgeBinding | None
 ) -> str:
-    if binding is None or binding.status == "UNBOUND":
-        return "BIND_DATASOURCE"
-    if binding.status == "STALE":
-        return "REVALIDATE"
-    if revision.validation_status == "FAIL":
-        return "REVIEW_ISSUES"
-    if revision.validation_status == "NOT_RUN":
-        return "VALIDATE"
-    if revision.lifecycle_status == "DRAFT":
-        return "SUBMIT_REVIEW"
-    if revision.lifecycle_status == "IN_REVIEW":
-        return "REVIEW"
-    if revision.lifecycle_status == "APPROVED":
-        return "PUBLISH"
-    if revision.lifecycle_status == "PUBLISHED":
-        return "VIEW_RUNTIME"
-    if revision.lifecycle_status == "RETIRED":
-        return "REPUBLISH"
-    return "NONE"
+    return next_step_for(
+        validation_status=revision.validation_status,
+        lifecycle_status=revision.lifecycle_status,
+        binding_status=binding.status if binding is not None else None,
+    )
 
 
 def validation_preview(summary: dict[str, Any] | None) -> dict[str, Any]:
@@ -1006,7 +1092,7 @@ def bind_and_validate(
     return binding
 
 
-_TRANSITIONS: dict[str, set[str]] = {
+LIFECYCLE_TRANSITIONS: dict[str, set[str]] = {
     "DRAFT": {"IN_REVIEW"},
     "IN_REVIEW": {"APPROVED", "REJECTED", "DRAFT"},
     "APPROVED": {"PUBLISHED", "DRAFT"},
@@ -1014,6 +1100,43 @@ _TRANSITIONS: dict[str, set[str]] = {
     "REJECTED": {"DRAFT"},
     "RETIRED": set(),
 }
+
+NEEDS_REVALIDATE = "NEEDS_REVALIDATE"
+
+
+def next_step_for(
+    *,
+    validation_status: str | None,
+    lifecycle_status: str | None,
+    binding_status: str | None,
+) -> str:
+    """Single decision chain for the next governance action.
+
+    Shared by the revision plane and the node/composition plane.  The
+    NEEDS_REVALIDATE branch is a no-op for the revision plane, which has no
+    such validation status.
+    """
+    if binding_status is None or binding_status == "UNBOUND":
+        return "BIND_DATASOURCE"
+    if binding_status == "STALE":
+        return "REVALIDATE"
+    if validation_status == NEEDS_REVALIDATE:
+        return "REVALIDATE"
+    if validation_status == "FAIL":
+        return "REVIEW_ISSUES"
+    if validation_status == "NOT_RUN":
+        return "VALIDATE"
+    if lifecycle_status == "DRAFT":
+        return "SUBMIT_REVIEW"
+    if lifecycle_status == "IN_REVIEW":
+        return "REVIEW"
+    if lifecycle_status == "APPROVED":
+        return "PUBLISH"
+    if lifecycle_status == "PUBLISHED":
+        return "VIEW_RUNTIME"
+    if lifecycle_status == "RETIRED":
+        return "REPUBLISH"
+    return "NONE"
 
 
 def transition_revision(
@@ -1028,7 +1151,7 @@ def transition_revision(
     row = session.get(KnowledgeUnitRevision, revision_id)
     if row is None or row.oid != oid:
         raise ValueError("knowledge revision not found")
-    if target not in _TRANSITIONS.get(row.lifecycle_status, set()):
+    if target not in LIFECYCLE_TRANSITIONS.get(row.lifecycle_status, set()):
         raise ValueError(
             f"illegal lifecycle transition {row.lifecycle_status} -> {target}"
         )
@@ -1617,14 +1740,10 @@ def unpublish_revision(
     return revision
 
 
-def unpublish_package(
-    session: Session, *, oid: int, package_row_id: int
-) -> list[int]:
+def unpublish_package(session: Session, *, oid: int, package_row_id: int) -> list[int]:
     rows = current_package_revisions(session, package_row_id=package_row_id)
     published = [
-        revision
-        for revision, _unit in rows
-        if revision.lifecycle_status == "PUBLISHED"
+        revision for revision, _unit in rows if revision.lifecycle_status == "PUBLISHED"
     ]
     if not published:
         raise ValueError("package has no published knowledge units to unpublish")
@@ -1680,7 +1799,7 @@ def _build_runtime_projections(
             continue
         seen_words.add(normalised)
         unique_terminology.append((word, description, knowledge_meta))
-    terminology_vectors = _projection_embeddings(
+    terminology_vectors = build_embeddings_or_raise(
         [word for word, _description, _knowledge_meta in unique_terminology]
     )
     for index, (word, description, knowledge_meta) in enumerate(unique_terminology):
@@ -1703,7 +1822,7 @@ def _build_runtime_projections(
     return projection
 
 
-def _projection_embeddings(texts: list[str]) -> list[list[float]] | None:
+def build_embeddings_or_raise(texts: list[str]) -> list[list[float]] | None:
     """Build projection vectors before activation.
 
     Embeddings are part of the deployable runtime index.  When vector recall is
@@ -1720,5 +1839,3 @@ def _projection_embeddings(texts: list[str]) -> list[list[float]] | None:
     if len(vectors) != len(texts) or any(not vector for vector in vectors):
         raise ValueError("runtime projection embedding build is incomplete")
     return vectors
-
-

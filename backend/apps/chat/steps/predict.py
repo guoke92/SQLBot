@@ -46,7 +46,6 @@ def generate_predict(llm_service: Any, session: Session) -> Iterator[Dict[str, A
         operate=OperationEnum.PREDICT_DATA,
         record_id=llm_service.record.id,
         local_operation=False,
-        phase="respond",
         graph_node="stream",
         title_key="chat.log.PREDICT_DATA",
     ) as span:

@@ -8,6 +8,7 @@ import {
   type KnowledgeUnitSummary,
 } from '@/api/knowledge'
 import { statusLabel, statusTagType } from '../presentation'
+import { runUnitAction, type UnitAction } from '../unitActions'
 import ValidationIssueList from './ValidationIssueList.vue'
 import IconOpeDelete from '@/assets/svg/icon_delete.svg'
 import IconOpeEdit from '@/assets/svg/icon_edit_outlined.svg'
@@ -134,24 +135,6 @@ function close() {
   emit('update:modelValue', false)
 }
 
-async function askReason(title: string) {
-  try {
-    const result = await ElMessageBox.prompt(
-      '请说明处理原因，内容会写入该版本的审核记录。',
-      title,
-      {
-        confirmButtonText: '确认',
-        cancelButtonText: '取消',
-        inputType: 'textarea',
-        inputValidator: (value) => Boolean(value.trim()) || '请填写原因',
-      }
-    )
-    return result.value.trim()
-  } catch {
-    return null
-  }
-}
-
 const currentBinding = computed(() => detail.value?.bindings?.[0] || null)
 const lifecycle = computed(
   () => detail.value?.revision.lifecycle_status || props.item?.lifecycle_status || ''
@@ -170,42 +153,20 @@ const validationIssues = computed(() => {
 })
 const validationSummaryText = computed(() => {
   const summary = detail.value?.revision.validation_summary || {}
-  return String(summary.summary || summary.message || currentBinding.value?.validation_result?.summary || '')
+  return String(
+    summary.summary || summary.message || currentBinding.value?.validation_result?.summary || ''
+  )
 })
 
-async function run(action: 'approve' | 'request' | 'reject' | 'publish' | 'unpublish') {
+async function run(action: UnitAction) {
   if (!props.item) return
-  if (action === 'unpublish') {
-    try {
-      await ElMessageBox.confirm(
-        '撤销发布后，该知识单元将不再被问数召回。绑定和内容会保留，可以重新发布。',
-        '撤销发布知识单元',
-        { type: 'warning', confirmButtonText: '撤销发布', cancelButtonText: '取消' }
-      )
-    } catch {
-      return
-    }
-  }
   acting.value = true
   try {
-    if (action === 'approve') await knowledgeApi.approve(props.item.unit_id, props.item.revision)
-    if (action === 'request') {
-      const reason = await askReason('请求补充')
-      if (!reason) return
-      await knowledgeApi.requestChanges(props.item.unit_id, props.item.revision, reason)
+    const ok = await runUnitAction(props.item.unit_id, props.item.revision, action)
+    if (ok) {
+      emit('changed')
+      close()
     }
-    if (action === 'reject') {
-      const reason = await askReason('拒绝知识单元')
-      if (!reason) return
-      await knowledgeApi.reject(props.item.unit_id, props.item.revision, reason)
-    }
-    if (action === 'publish') await knowledgeApi.publish(props.item.unit_id, props.item.revision)
-    if (action === 'unpublish') {
-      await knowledgeApi.unpublish(props.item.unit_id, props.item.revision)
-    }
-    ElMessage.success(action === 'unpublish' ? '已撤销发布' : '操作成功')
-    emit('changed')
-    close()
   } finally {
     acting.value = false
   }
@@ -222,7 +183,11 @@ async function saveRevision(fork = false) {
       parsed,
       fork || !canEditInPlace.value
     )) as { forked?: boolean; revision?: number }
-    ElMessage.success(result.forked ? '已创建新版本，旧版本已废弃。请在知识包上重新绑定并校验。' : '已保存当前版本，请在知识包上重新校验')
+    ElMessage.success(
+      result.forked
+        ? '已创建新版本，旧版本已废弃。请在知识包上重新绑定并校验。'
+        : '已保存当前版本，请在知识包上重新校验'
+    )
     emit('changed')
     if (result.forked) close()
     else {
@@ -240,11 +205,11 @@ async function saveRevision(fork = false) {
 async function deleteCurrent() {
   if (!props.item) return
   try {
-    await ElMessageBox.confirm(
-      '删除后该知识单元的全部版本将被删除，且无法恢复。',
-      '删除知识单元',
-      { type: 'warning', confirmButtonText: '删除', cancelButtonText: '取消' }
-    )
+    await ElMessageBox.confirm('删除后该知识单元的全部版本将被删除，且无法恢复。', '删除知识单元', {
+      type: 'warning',
+      confirmButtonText: '删除',
+      cancelButtonText: '取消',
+    })
   } catch {
     return
   }
@@ -288,7 +253,9 @@ function fieldCount(value: Record<string, unknown>) {
           >
             {{ statusLabel(detail?.revision.lifecycle_status || item?.lifecycle_status) }}
           </el-tag>
-          <el-tag :type="statusTagType(detail?.revision.validation_status || item?.validation_status)">
+          <el-tag
+            :type="statusTagType(detail?.revision.validation_status || item?.validation_status)"
+          >
             {{ statusLabel(detail?.revision.validation_status || item?.validation_status) }}
           </el-tag>
           <el-tag v-if="currentBinding" :type="statusTagType(currentBinding.status)">
@@ -300,10 +267,7 @@ function fieldCount(value: Record<string, unknown>) {
 
     <div v-loading="loading" class="unit-detail">
       <template v-if="content && !editMode">
-        <section
-          v-if="validationStatus && validationStatus !== 'NOT_RUN'"
-          class="overview-card"
-        >
+        <section v-if="validationStatus && validationStatus !== 'NOT_RUN'" class="overview-card">
           <h2>校验结果</h2>
           <ValidationIssueList
             :status="validationStatus"
@@ -536,7 +500,10 @@ function fieldCount(value: Record<string, unknown>) {
       <div class="drawer-actions">
         <el-button @click="close">关闭</el-button>
         <div class="drawer-actions-right">
-          <el-tooltip v-if="packageMode && !editMode && lifecycle !== 'PUBLISHED' && lifecycle !== 'RETIRED'" content="编辑">
+          <el-tooltip
+            v-if="packageMode && !editMode && lifecycle !== 'PUBLISHED' && lifecycle !== 'RETIRED'"
+            content="编辑"
+          >
             <el-button :loading="acting" @click="editMode = true">
               <el-icon><IconOpeEdit /></el-icon>
               编辑

@@ -43,7 +43,6 @@ def generate_analysis(llm_service: Any, session: Session) -> Iterator[Dict[str, 
         operate=OperationEnum.ANALYSIS,
         record_id=llm_service.record.id,
         local_operation=False,
-        phase="respond",
         graph_node="stream",
         title_key="chat.log.ANALYSIS",
     ) as span:

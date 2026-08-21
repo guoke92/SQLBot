@@ -89,7 +89,10 @@ def recall_dictionary(
     if not rows:
         return []
 
-    grouped: dict[tuple[str, int], list[tuple[DictionaryValue, DictionaryFieldConfig, CoreTable, CoreField]]] = defaultdict(list)
+    grouped: dict[
+        tuple[str, int],
+        list[tuple[DictionaryValue, DictionaryFieldConfig, CoreTable, CoreField]],
+    ] = defaultdict(list)
     for value, config, table, field, _similarity in rows:
         matched_phrase = best_matching_span(
             normalized_question,
@@ -109,11 +112,7 @@ def recall_dictionary(
         for value, _config, table, field in ranked:
             rank = _rank(query, value.normalized_value)
             match_type = (
-                "exact"
-                if rank[0] == 0
-                else "suffix"
-                if rank[1] == 0
-                else "contains"
+                "exact" if rank[0] == 0 else "suffix" if rank[1] == 0 else "contains"
             )
             score = (
                 1.0

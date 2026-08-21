@@ -159,6 +159,7 @@ class Settings(BaseSettings):
     QUERY_PLANNING_BUDGET_SEC: int = 180
     BUSINESS_TIMEZONE: str = "Asia/Shanghai"
     KNOWLEDGE_CAPTURE_LEASE_SECONDS: int = 300
+    KNOWLEDGE_RECALL_STRATEGY: str = "unit"  # "unit" | "node" (v3.1 node-plane recall)
 
     # API datasource SSRF protection
     API_SSRF_PROTECTION: bool = True

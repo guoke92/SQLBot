@@ -9,11 +9,7 @@ import icon_database_colorful from '@/assets/svg/icon_database_colorful.svg'
 import icon_alarm_clock_colorful from '@/assets/svg/icon_alarm-clock_colorful.svg'
 import { chatApi, type ChatLogHistory } from '@/api/chat'
 import { isMobile } from '@/utils/utils'
-import {
-  executionNodePhase,
-  executionStepStatus,
-  stepDisplayName,
-} from '@/features/conversation/executionLog'
+import { executionStepStatus, stepDisplayName } from '@/features/conversation/executionLog'
 import ExecutionStepContent from './execution-component/ExecutionStepContent.vue'
 
 const { t, te } = useI18n()
@@ -39,18 +35,6 @@ const waitingText = computed(() =>
 const elapsedText = computed(() =>
   logHistory.value.elapsed_duration == null ? '—' : `${logHistory.value.elapsed_duration}s`
 )
-const phaseOrder = ['prepare', 'understand', 'plan', 'execute', 'review', 'present', 'respond']
-const groupedSteps = computed(() => {
-  const groups = new Map<string, any[]>()
-  for (const step of logHistory.value.steps || []) {
-    const phase = step.phase || 'plan'
-    groups.set(phase, [...(groups.get(phase) || []), step])
-  }
-  return [...groups.entries()]
-    .sort(([left], [right]) => phaseOrder.indexOf(left) - phaseOrder.indexOf(right))
-    .map(([phase, steps]) => ({ phase, steps }))
-})
-
 const titleFor = (item: any) => {
   const key = item.title_key
   return key && te(key) ? t(key, item.title_params || {}) : stepDisplayName(item)
@@ -59,9 +43,7 @@ const runStatusText = computed(() => {
   const key = `chat.audit.run_${logHistory.value.run?.status || 'running'}`
   return te(key) ? t(key) : t('chat.audit.processing')
 })
-const runStageText = computed(() =>
-  t(`chat.audit.phase_${executionNodePhase(logHistory.value.run?.current_node)}`)
-)
+const runStageText = computed(() => logHistory.value.run?.current_node || '')
 const summaryFor = (item: any) => {
   const key = item.summary_key
   return key && te(key) ? t(key, item.summary_params || {}) : ''
@@ -157,13 +139,13 @@ defineExpose({ getLogList })
       <el-icon v-if="!terminal" class="is-loading"><Loading /></el-icon>
       <span>{{ runStatusText }}</span>
       <span v-if="!terminal && logHistory.run?.current_node" class="current-node">
-        {{ t('chat.audit.current_stage') }}：{{ runStageText }}
+        {{ t('chat.audit.current_node') }}：{{ runStageText }}
       </span>
       <span
         v-else-if="logHistory.run?.status === 'failed' && logHistory.run?.current_node"
         class="current-node"
       >
-        {{ t('chat.audit.failed_stage') }}：{{ runStageText }}
+        {{ t('chat.audit.failed_node') }}：{{ runStageText }}
       </span>
       <el-select
         v-if="(logHistory.attempts?.length || 0) > 1"
@@ -203,48 +185,45 @@ defineExpose({ getLogList })
     </div>
     <div class="title">{{ t('parameter.execution_details') }}</div>
     <div class="list">
-      <section v-for="group in groupedSteps" :key="group.phase" class="phase-group">
-        <div class="phase-title">{{ t(`chat.audit.phase_${group.phase}`) }}</div>
-        <div v-for="(item, index) in group.steps" :key="stepKey(item, index)" class="list-item">
-          <div class="header" @click="toggle(stepKey(item, index))">
-            <div class="name">
-              <el-icon
-                class="shrink"
-                :class="expandedIds.includes(stepKey(item, index)) && 'expand'"
-                size="10"
-                ><icon_expand_right_filled
-              /></el-icon>
-              <span>{{ titleFor(item) }}</span>
-              <el-tag v-if="(item.attempt_index || 0) > 0" size="small" type="info">
-                {{ t('chat.audit.attempt', { value: item.attempt_index + 1 }) }}
-              </el-tag>
-              <el-tag v-if="(item.batch_index || 0) > 0" size="small" type="info">
-                {{ t('chat.audit.batch', { value: item.batch_index + 1 }) }}
-              </el-tag>
-              <el-tag v-if="(item.unit_index || 0) > 0" size="small" type="info">
-                {{ t('chat.audit.unit', { value: item.unit_index + 1 }) }}
-              </el-tag>
-            </div>
-            <div class="status">
-              <span v-if="summaryFor(item)" class="summary">{{ summaryFor(item) }}</span>
-              <span v-if="item.total_tokens" class="time">{{ item.total_tokens }} tokens</span>
-              <span class="time">{{ item.duration == null ? '—' : `${item.duration}s` }}</span>
-              <el-icon v-if="executionStepStatus(item) === 'running'" class="is-loading"
-                ><Loading
-              /></el-icon>
-              <el-icon v-else size="16">
-                <icon_error v-if="['failed', 'interrupted'].includes(executionStepStatus(item))" />
-                <WarningFilled
-                  v-else-if="executionStepStatus(item) === 'degraded'"
-                  class="degraded"
-                />
-                <gou_icon v-else />
-              </el-icon>
-            </div>
+      <div v-for="(item, index) in logHistory.steps" :key="stepKey(item, index)" class="list-item">
+        <div class="header" @click="toggle(stepKey(item, index))">
+          <div class="name">
+            <el-icon
+              class="shrink"
+              :class="expandedIds.includes(stepKey(item, index)) && 'expand'"
+              size="10"
+              ><icon_expand_right_filled
+            /></el-icon>
+            <span>{{ titleFor(item) }}</span>
+            <el-tag v-if="(item.attempt_index || 0) > 0" size="small" type="info">
+              {{ t('chat.audit.attempt', { value: item.attempt_index + 1 }) }}
+            </el-tag>
+            <el-tag v-if="(item.batch_index || 0) > 0" size="small" type="info">
+              {{ t('chat.audit.batch', { value: item.batch_index + 1 }) }}
+            </el-tag>
+            <el-tag v-if="(item.unit_index || 0) > 0" size="small" type="info">
+              {{ t('chat.audit.unit', { value: item.unit_index + 1 }) }}
+            </el-tag>
           </div>
-          <ExecutionStepContent v-if="expandedIds.includes(stepKey(item, index))" :item="item" />
+          <div class="status">
+            <span v-if="summaryFor(item)" class="summary">{{ summaryFor(item) }}</span>
+            <span v-if="item.total_tokens" class="time">{{ item.total_tokens }} tokens</span>
+            <span class="time">{{ item.duration == null ? '—' : `${item.duration}s` }}</span>
+            <el-icon v-if="executionStepStatus(item) === 'running'" class="is-loading"
+              ><Loading
+            /></el-icon>
+            <el-icon v-else size="16">
+              <icon_error v-if="['failed', 'interrupted'].includes(executionStepStatus(item))" />
+              <WarningFilled
+                v-else-if="executionStepStatus(item) === 'degraded'"
+                class="degraded"
+              />
+              <gou_icon v-else />
+            </el-icon>
+          </div>
         </div>
-      </section>
+        <ExecutionStepContent v-if="expandedIds.includes(stepKey(item, index))" :item="item" />
+      </div>
     </div>
   </el-drawer>
 </template>
@@ -306,15 +285,6 @@ defineExpose({ getLogList })
     border-radius: 12px;
     margin-bottom: 8px;
     overflow: hidden;
-  }
-  .phase-group {
-    margin-bottom: 18px;
-  }
-  .phase-title {
-    margin: 0 0 8px 4px;
-    color: #646a73;
-    font-size: 13px;
-    font-weight: 500;
   }
   .header {
     display: flex;

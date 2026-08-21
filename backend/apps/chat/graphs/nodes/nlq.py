@@ -1325,7 +1325,6 @@ def ensure_datasource_node(state: NlqState) -> NlqState:
             operate=OperationEnum.CHOOSE_DATASOURCE,
             record_id=llm_service.record.id,
             local_operation=bool(llm_service.ds),
-            phase="prepare",
             graph_node="ensure_datasource",
             title_key="chat.log.CHOOSE_DATASOURCE",
         ) as span:
@@ -1410,7 +1409,6 @@ def resolve_access_scope_node(state: NlqState) -> NlqState:
             operate=OperationEnum.CHOOSE_TABLE,
             record_id=llm_service.record.id,
             local_operation=True,
-            phase="prepare",
             graph_node="resolve_access_scope",
             title_key="chat.log.ACCESS_SCOPE",
             brief="确认数据访问范围",
@@ -1622,7 +1620,6 @@ def turn_router_node(state: NlqState) -> NlqState:
             ai_modal_id=llm_service.chat_question.ai_modal_id,
             ai_modal_name=llm_service.chat_question.ai_modal_name,
             graph_node="turn_router",
-            phase="understand",
             title_key="chat.log.TURN_ROUTE",
             brief="识别当前消息与历史关系",
         ) as span:
@@ -1999,7 +1996,6 @@ def _invoke_semantic_review(
         ai_modal_id=llm_service.chat_question.ai_modal_id,
         ai_modal_name=llm_service.chat_question.ai_modal_name,
         graph_node="semantic_review",
-        phase="plan",
         title_key="chat.log.SEMANTIC_REVIEW",
         brief=brief,
     ) as review_span:
@@ -2110,7 +2106,6 @@ def plan_query_node(state: NlqState) -> NlqState:
             ai_modal_id=llm_service.chat_question.ai_modal_id,
             ai_modal_name=llm_service.chat_question.ai_modal_name,
             graph_node="plan_query",
-            phase="plan",
             title_key="chat.log.PLAN_QUERY",
             brief="理解需求并生成查询",
         ) as span:
@@ -2532,7 +2527,6 @@ def ground_entities_node(state: NlqState) -> NlqState:
         ai_modal_id=getattr(llm_service.chat_question, "ai_modal_id", None),
         ai_modal_name=getattr(llm_service.chat_question, "ai_modal_name", None),
         local_operation=True,
-        phase="understand",
         graph_node="ground_entities",
         title_key="chat.log.GROUND_ENTITIES",
     ) as span:
@@ -2663,7 +2657,6 @@ def generate_queries_node(state: NlqState) -> NlqState:
             ai_modal_id=llm_service.chat_question.ai_modal_id,
             ai_modal_name=llm_service.chat_question.ai_modal_name,
             graph_node="generate_queries",
-            phase="plan",
             title_key="chat.log.REPAIR_QUERY",
             brief="修复查询语句",
             step_index=step_index,
@@ -3101,7 +3094,6 @@ def execute_queries_node(state: NlqState) -> NlqState:
             record_id=record_id,
             run_id=str(state["run_id"]),
             local_operation=True,
-            phase="execute",
             graph_node="execute_queries",
             title_key="chat.log.EXECUTE_QUERY",
             step_index=state.get("step_index", 0),
@@ -3363,7 +3355,6 @@ def generate_charts_node(state: NlqState) -> NlqState:
                     operate=OperationEnum.GENERATE_CHART,
                     record_id=llm_service.record.id,
                     local_operation=True,
-                    phase="present",
                     graph_node="generate_charts",
                     title_key="chat.log.GENERATE_CHART",
                     step_index=state.get("step_index", 0),
@@ -3448,7 +3439,6 @@ def generate_charts_node(state: NlqState) -> NlqState:
                     operate=OperationEnum.GENERATE_CHART,
                     record_id=llm_service.record.id,
                     local_operation=True,
-                    phase="present",
                     graph_node="generate_charts",
                     title_key="chat.log.GENERATE_CHART",
                     step_index=state.get("step_index", 0),
@@ -3612,7 +3602,6 @@ def decide_next_node(state: NlqState) -> NlqState:
         ai_modal_id=getattr(llm_service.chat_question, "ai_modal_id", None),
         ai_modal_name=getattr(llm_service.chat_question, "ai_modal_name", None),
         local_operation=True,
-        phase="execute",
         graph_node="decide_next",
         title_key="chat.log.DECIDE_NEXT",
         step_index=step_index,
@@ -3856,7 +3845,6 @@ def summarize_answer_node(state: NlqState) -> NlqState:
         ai_modal_id=getattr(llm_service.chat_question, "ai_modal_id", None),
         ai_modal_name=getattr(llm_service.chat_question, "ai_modal_name", None),
         local_operation=False,
-        phase="respond",
         graph_node="summarize_answer",
         title_key="chat.log.ANALYSIS",
         brief="结果总结",
@@ -4012,7 +4000,6 @@ def _run_downstream_agent(
             ai_modal_id=llm_service.chat_question.ai_modal_id,
             ai_modal_name=llm_service.chat_question.ai_modal_name,
             local_operation=False,
-            phase="respond",
             graph_node=f"{task_kind}_agent",
             title_key=(
                 "chat.log.ANALYSIS"

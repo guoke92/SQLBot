@@ -988,7 +988,6 @@ def get_chat_log_history(
                 local_operation=log.local_operation,
                 error=log.error,
                 status=projection["status"],
-                phase=projection["phase"],
                 graph_node=projection["graph_node"],
                 title_key=projection["title_key"],
                 title_params=projection["title_params"],

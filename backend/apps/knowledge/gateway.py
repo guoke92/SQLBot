@@ -8,12 +8,14 @@ Three contracts:
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime
 from typing import Any
 
 from pydantic import BaseModel, Field
-from sqlmodel import Session, select
+from sqlmodel import Session, col, select
 
+from apps.datasource.models.datasource import CoreDatasource
 from apps.knowledge.compile.compile import compile_business_data_bundle  # noqa: F401
 from apps.knowledge.db_models import (
     KnowledgeAsset,
@@ -29,6 +31,8 @@ from apps.knowledge.evidence import (
 from apps.knowledge.lineage import append_event
 from apps.knowledge.natural_key import caliber_natural_key, predicate_looks_ephemeral
 from apps.knowledge.staging.service import admit_candidate
+
+logger = logging.getLogger(__name__)
 
 
 class KnowledgeScope(BaseModel):
@@ -302,6 +306,42 @@ def _handle_schema_drift(
         disabled += 1
     if disabled:
         session.flush()
+
+    # v3.1 node plane: the same drift signal marks referencing compositions
+    # NEEDS_REVALIDATE. The signal carries catalog ids; resolve them to
+    # names while the rows still exist (callers delete right after emit).
+    try:
+        from apps.datasource.models.datasource import CoreField, CoreTable
+        from apps.knowledge.graph.governance import (
+            mark_compositions_stale_for_drift,
+        )
+
+        table_names = [
+            row.table_name
+            for row in session.exec(
+                select(CoreTable).where(col(CoreTable.id).in_(sorted(table_set)))
+            ).all()
+        ]
+        field_names = [
+            (row.table_name, row.field_name)
+            for row in session.exec(
+                select(CoreField).where(col(CoreField.id).in_(sorted(field_set)))
+            ).all()
+        ]
+        datasource = session.get(CoreDatasource, int(ds_id))
+        marked = mark_compositions_stale_for_drift(
+            session,
+            oid=int(datasource.oid or 1) if datasource is not None else 1,
+            ds_id=int(ds_id),
+            changed_field_names=field_names,
+            changed_table_names=table_names,
+        )
+        disabled += marked
+    except Exception as _node_exc:  # noqa: BLE001 - never block the legacy path
+        logger.warning(
+            "knowledge node-plane drift marking skipped: %s",
+            type(_node_exc).__name__,
+        )
     return disabled
 
 

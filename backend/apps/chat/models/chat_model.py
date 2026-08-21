@@ -271,7 +271,6 @@ class ChatLogHistoryItem(BaseModel):
     message: Optional[str | dict | list] = None
     error: Optional[bool] = False
     status: str = "success"
-    phase: str = "plan"
     graph_node: Optional[str] = None
     title_key: Optional[str] = None
     title_params: dict[str, Any] = Field(default_factory=dict)

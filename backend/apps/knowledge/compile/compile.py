@@ -20,6 +20,7 @@ from apps.knowledge.providers import DictionaryProvider
 from apps.knowledge.semantic.schema import KnowledgeUnitEntry
 from apps.knowledge.service import recall_knowledge
 from apps.terminology.curd.terminology import select_terminology_by_word
+from common.core.config import settings
 
 SeedPolicy = Literal["none", "reuse", "fallback"]
 
@@ -248,6 +249,102 @@ def _include_process(question: str, entry: KnowledgeUnitEntry) -> bool:
     )
 
 
+def _compile_node_strategy(
+    session: Session,
+    *,
+    stage: CompileStage,
+    question: str,
+    oid: int,
+    ds_id: int,
+    include_matches: bool,
+    policy: KnowledgePolicy,
+) -> BusinessDataBundle:
+    """v3.1 node-plane recall: hybrid seeds + bounded closure + delta slice."""
+    from apps.knowledge.graph.recall import assemble_node_bundle, recall_nodes
+
+    matches: list[Any] = []
+    if include_matches:
+        base = recall_knowledge(
+            session,
+            question=question,
+            oid=oid,
+            ds_id=ds_id,
+            providers=(DictionaryProvider(),),
+        )
+        matches = list(base.matches)
+    try:
+        result = recall_nodes(
+            session,
+            question=question,
+            oid=oid,
+            datasource_id=ds_id,
+            embedding_enabled=settings.EMBEDDING_ENABLED,
+        )
+    except Exception as exc:  # noqa: BLE001 - degrade to schema-only, never block
+        from common.utils.utils import SQLBotLogUtil
+
+        SQLBotLogUtil.warning(f"node-plane recall unavailable: {type(exc).__name__}")
+        return BusinessDataBundle(stage=stage, matches=matches)
+    bundle = assemble_node_bundle(result, stage=stage, matches=matches)
+    # Verified query patterns become certified exemplars and gain a real
+    # similarity score (fixing the VQR short-circuit that could never fire).
+    for example in bundle.verified_examples:
+        example["trust_tier"] = "certified"
+        example["similarity"] = _exemplar_similarity(
+            question, str(example.get("question") or "")
+        )
+    if stage == "generate" and bundle.verified_examples:
+        from apps.knowledge.reuse import try_reuse
+
+        reuse = try_reuse(
+            question=question,
+            examples=bundle.verified_examples,
+            policy=policy,
+        )
+        if reuse is not None:
+            bundle.reuse = reuse.model_dump(mode="json")
+    # Dictionary entity bindings keep their own apply_log semantics.
+    dictionary_log = [
+        ApplyHit(
+            asset_kind="dictionary",
+            apply="bind",
+            trust_tier="trusted",
+            reason="published_dictionary_binding",
+            meta={"query": match.query, "canonical": match.canonical},
+        )
+        for match in matches
+        if "entity_binding" in match.usages
+    ]
+    bundle.apply_log = dictionary_log + list(bundle.apply_log)
+    bundle.structural_ref = {"channel": "node_closure", "ds_id": ds_id}
+    return bundle
+
+
+def _exemplar_similarity(question: str, exemplar_question: str) -> float:
+    """Cosine similarity between the user question and an exemplar question.
+
+    Returns 0.0 when embeddings are disabled or unavailable so VQR degrades
+    to normal generation instead of firing on a fabricated score.
+    """
+    if not exemplar_question.strip() or not settings.EMBEDDING_ENABLED:
+        return 0.0
+    try:
+        from apps.ai_model.embedding import EmbeddingModelCache
+
+        query_vec = EmbeddingModelCache.embed_query(question)
+        exemplar_vec = EmbeddingModelCache.embed_query(exemplar_question)
+    except Exception:  # noqa: BLE001 - lexical/exact channels still cover
+        return 0.0
+    if not query_vec or not exemplar_vec or len(query_vec) != len(exemplar_vec):
+        return 0.0
+    dot = sum(a * b for a, b in zip(query_vec, exemplar_vec, strict=False))
+    norm_a = sum(a * a for a in query_vec) ** 0.5
+    norm_b = sum(b * b for b in exemplar_vec) ** 0.5
+    if not norm_a or not norm_b:
+        return 0.0
+    return dot / (norm_a * norm_b)
+
+
 def compile_business_data_bundle(
     session: Session,
     *,
@@ -270,6 +367,19 @@ def compile_business_data_bundle(
     resolved = (
         policy if isinstance(policy, KnowledgePolicy) else get_knowledge_policy(policy)
     )
+    if (
+        getattr(settings, "KNOWLEDGE_RECALL_STRATEGY", "unit") == "node"
+        and ds_id is not None
+    ):
+        return _compile_node_strategy(
+            session,
+            stage=stage,
+            question=question,
+            oid=oid,
+            ds_id=ds_id,
+            include_matches=include_matches,
+            policy=resolved,
+        )
     base = (
         recall_knowledge(
             session,

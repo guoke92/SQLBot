@@ -24,7 +24,6 @@ from apps.chat.steps.observability import (  # noqa: E402
 
 def test_running_envelope_has_no_false_completion_detail() -> None:
     message = make_span_message(
-        phase="understand",
         graph_node="retrieve_context",
         title_key="chat.log.FILTER_TERMS",
         summary_key="chat.audit.processing",
@@ -33,7 +32,6 @@ def test_running_envelope_has_no_false_completion_detail() -> None:
     assert message == {
         "sqlbot_span": True,
         "version": 1,
-        "phase": "understand",
         "graph_node": "retrieve_context",
         "title_key": "chat.log.FILTER_TERMS",
         "summary_key": "chat.audit.processing",
@@ -61,8 +59,8 @@ def test_first_attempt_batch_and_unit_are_not_tagged() -> None:
 
 
 def test_only_v1_envelope_is_interpreted_semantically() -> None:
-    legacy = {"sqlbot_span": True, "phase": "plan", "payload": {"count": 0}}
-    current = make_span_message(phase="plan", outcome="success")
+    legacy = {"sqlbot_span": True, "payload": {"count": 0}}
+    current = make_span_message(outcome="success")
 
     assert parse_audit_envelope(legacy) is None
     assert parse_audit_envelope(current) == current
@@ -90,13 +88,12 @@ def test_audit_sanitizer_covers_nested_model_and_tool_context() -> None:
 
 
 def test_execution_projection_uses_one_status_contract() -> None:
-    running = make_span_message(phase="execute")
+    running = make_span_message()
     interrupted = make_span_message(
-        phase="execute",
         outcome="failed",
         payload={"interrupted": True},
     )
-    degraded = make_span_message(phase="respond", outcome="degraded")
+    degraded = make_span_message(outcome="degraded")
 
     assert (
         project_audit_message(
@@ -138,7 +135,6 @@ def test_execution_projection_uses_one_status_contract() -> None:
 
 def test_terminal_step_never_keeps_processing_summary() -> None:
     processing = make_span_message(
-        phase="understand",
         summary_key="chat.audit.processing",
         outcome="failed",
     )

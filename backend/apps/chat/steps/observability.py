@@ -20,9 +20,6 @@ from apps.conversation.session import audit_session
 
 SPAN_FLAG = "sqlbot_span"
 AUDIT_VERSION = 1
-AuditPhase = Literal[
-    "prepare", "understand", "plan", "execute", "review", "present", "respond"
-]
 AuditOutcome = Literal["success", "degraded", "failed"]
 
 _SECRET_KEYS = frozenset(
@@ -164,7 +161,6 @@ def serialize_model_calls(
 
 def make_span_message(
     *,
-    phase: AuditPhase = "plan",
     graph_node: str = "",
     step_index: int | None = None,
     gen_attempts: int | None = None,
@@ -185,7 +181,6 @@ def make_span_message(
     message: dict[str, Any] = {
         SPAN_FLAG: True,
         "version": AUDIT_VERSION,
-        "phase": phase,
     }
     if graph_node:
         message["graph_node"] = graph_node
@@ -279,7 +274,6 @@ def project_audit_message(
     model_calls = list((envelope or {}).get("model_calls") or [])
     return {
         "status": status,
-        "phase": str((envelope or {}).get("phase") or "plan"),
         "graph_node": (envelope or {}).get("graph_node"),
         "title_key": (envelope or {}).get("title_key"),
         "title_params": dict((envelope or {}).get("title_params") or {}),
@@ -389,7 +383,6 @@ def log_span(
     ai_modal_id: int | None = None,
     ai_modal_name: str | None = None,
     local_operation: bool = True,
-    phase: AuditPhase = "plan",
     graph_node: str = "",
     step_index: int | None = None,
     gen_attempts: int | None = None,
@@ -427,7 +420,6 @@ def log_span(
         run_id = active_run_id
 
     common = {
-        "phase": phase,
         "graph_node": graph_node,
         "step_index": step_index,
         "gen_attempts": gen_attempts,

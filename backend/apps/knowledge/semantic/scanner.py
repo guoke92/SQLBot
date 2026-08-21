@@ -134,7 +134,36 @@ def scan_package_documents(documents: list[tuple[str, str]]) -> KnowledgePackage
         names = ", ".join(name for name, _payload in manifests)
         raise ValueError(f"multiple package manifests selected: {names}")
     manifest_locator, manifest = manifests[0]
+    manifest = _attach_companion_relationships(
+        manifest_locator, manifest, documents_by_locator
+    )
     return _assemble_package(manifest_locator, manifest, documents_by_locator)
+
+
+def _attach_companion_relationships(
+    manifest_locator: str,
+    manifest: Any,
+    documents_by_locator: dict[str, str],
+) -> Any:
+    """Merge a sibling relationships.yaml into the manifest when present.
+
+    Extraction authors may keep package-scoped physical relations in a
+    standalone companion file next to the manifest (the v4 layout); the
+    scanner folds it into the contract so no second import path exists.
+    """
+    if not isinstance(manifest, dict) or "relationships" in manifest:
+        return manifest
+    base = posixpath.dirname(manifest_locator)
+    for name in ("relationships.yaml", "relationships.yml", "relationships.json"):
+        companion = posixpath.join(base, name) if base else name
+        raw = documents_by_locator.get(companion)
+        if raw is None:
+            continue
+        decoded = decode_document(companion, raw)
+        if isinstance(decoded, dict) and decoded.get("relationships"):
+            return {**manifest, "relationships": decoded["relationships"]}
+        break
+    return manifest
 
 
 def scan_package_files(documents: list[tuple[str, bytes]]) -> KnowledgePackageV2:

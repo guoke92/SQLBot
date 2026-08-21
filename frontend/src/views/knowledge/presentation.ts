@@ -11,6 +11,7 @@ const labels: Record<string, string> = {
   PASS: '校验通过',
   WARNING: '存在警告',
   FAIL: '校验失败',
+  NEEDS_REVALIDATE: '待复验',
   UNBOUND: '未绑定',
   BOUND: '已绑定',
   STALE: '绑定已过期',

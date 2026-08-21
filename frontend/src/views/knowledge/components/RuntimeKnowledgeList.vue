@@ -1,12 +1,14 @@
 <script lang="ts" setup>
 import { reactive, ref } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus-secondary'
 import type {
   KnowledgeDeployment,
   KnowledgeLifecycle,
   KnowledgeUnitSummary,
   PageResult,
 } from '@/api/knowledge'
-import { nextStepLabel, statusLabel, statusTagType } from '../presentation'
+import { statusLabel, statusTagType } from '../presentation'
+import { executeUnitAction, runUnitAction, type UnitAction } from '../unitActions'
 import KnowledgeUnitDrawer from './KnowledgeUnitDrawer.vue'
 
 type RuntimeDeployment = KnowledgeDeployment & {
@@ -25,6 +27,9 @@ const emit = defineEmits<{ load: [query: { status: string; page: number; pageSiz
 const query = reactive({ status: 'ACTIVE', page: 1, pageSize: 15 })
 const drawerVisible = ref(false)
 const selected = ref<KnowledgeUnitSummary | null>(null)
+const selection = ref<RuntimeDeployment[]>([])
+const actingKey = ref('')
+const batchLoading = ref(false)
 
 function load(reset = false) {
   if (reset) query.page = 1
@@ -49,6 +54,83 @@ function openDetail(row: RuntimeDeployment) {
   }
   drawerVisible.value = true
 }
+
+function rowKey(row: RuntimeDeployment) {
+  return `${row.unit_id}:${row.revision}`
+}
+
+function runtimeActions(row: RuntimeDeployment): { action: UnitAction; label: string }[] {
+  if (row.status === 'ACTIVE') return [{ action: 'unpublish', label: '撤销发布' }]
+  if (row.status === 'RETIRED' || row.status === 'ERROR') {
+    return [{ action: 'publish', label: '重新发布' }]
+  }
+  return []
+}
+
+async function runRowAction(row: RuntimeDeployment, action: UnitAction) {
+  actingKey.value = rowKey(row)
+  try {
+    const ok = await runUnitAction(row.unit_id, row.revision, action)
+    if (ok) load()
+  } finally {
+    actingKey.value = ''
+  }
+}
+
+function onSelectionChange(rows: RuntimeDeployment[]) {
+  selection.value = rows
+}
+
+function onRowClick(row: RuntimeDeployment, column: { type?: string }) {
+  if (column.type === 'selection') return
+  openDetail(row)
+}
+
+async function runBatch(action: UnitAction) {
+  const applicable = selection.value.filter((row) =>
+    runtimeActions(row).some((item) => item.action === action)
+  )
+  if (!applicable.length) {
+    ElMessage.warning('所选部署当前状态均不支持该操作')
+    return
+  }
+  if (action === 'unpublish') {
+    try {
+      await ElMessageBox.confirm(
+        '撤销发布后，选中的 ' + applicable.length + ' 个部署将不再被问数召回。',
+        '批量撤销发布',
+        { type: 'warning', confirmButtonText: '撤销发布', cancelButtonText: '取消' }
+      )
+    } catch {
+      return
+    }
+  }
+  batchLoading.value = true
+  let success = 0
+  let failed = 0
+  try {
+    for (const row of applicable) {
+      try {
+        await executeUnitAction(row.unit_id, row.revision, action)
+        success += 1
+      } catch {
+        failed += 1
+      }
+    }
+  } finally {
+    batchLoading.value = false
+  }
+  const label = action === 'publish' ? '重新发布' : '撤销发布'
+  if (failed) {
+    ElMessage.warning('批量' + label + '：成功 ' + success + ' 项，失败 ' + failed + ' 项')
+  } else {
+    ElMessage.success('批量' + label + '完成：' + success + ' 项')
+  }
+  if (success) {
+    selection.value = []
+    load()
+  }
+}
 </script>
 
 <template>
@@ -69,7 +151,31 @@ function openDetail(row: RuntimeDeployment) {
       </el-select>
     </div>
 
-    <el-table v-loading="loading" :data="page?.items || []">
+    <div v-if="selection.length" class="batch-bar">
+      <span class="batch-count">已选 {{ selection.length }} 项</span>
+      <el-button
+        type="warning"
+        plain
+        size="small"
+        :loading="batchLoading"
+        @click="runBatch('unpublish')"
+      >
+        批量撤销发布
+      </el-button>
+      <el-button type="primary" size="small" :loading="batchLoading" @click="runBatch('publish')">
+        批量重新发布
+      </el-button>
+      <el-button size="small" :disabled="batchLoading" @click="selection = []">清除选择</el-button>
+    </div>
+
+    <el-table
+      v-loading="loading"
+      :data="page?.items || []"
+      :row-key="rowKey"
+      @row-click="onRowClick"
+      @selection-change="onSelectionChange"
+    >
+      <el-table-column type="selection" width="46" />
       <el-table-column label="知识单元" min-width="320">
         <template #default="{ row }">
           <div class="unit-cell">
@@ -109,11 +215,22 @@ function openDetail(row: RuntimeDeployment) {
         </template>
       </el-table-column>
       <el-table-column label="错误" min-width="220" show-overflow-tooltip prop="error" />
-      <el-table-column label="操作" width="100" fixed="right">
+      <el-table-column label="操作" min-width="200" fixed="right">
         <template #default="{ row }">
-          <el-button type="primary" link @click="openDetail(row)">{{
-            nextStepLabel(row.binding_status === 'STALE' ? 'REVALIDATE' : 'VIEW_RUNTIME')
-          }}</el-button>
+          <div class="row-actions">
+            <el-button
+              v-for="item in runtimeActions(row)"
+              :key="item.action"
+              size="small"
+              :type="item.action === 'publish' ? 'primary' : 'warning'"
+              plain
+              :loading="actingKey === rowKey(row)"
+              @click.stop="runRowAction(row, item.action)"
+            >
+              {{ item.label }}
+            </el-button>
+            <el-button size="small" @click.stop="openDetail(row)">详情</el-button>
+          </div>
         </template>
       </el-table-column>
       <template #empty><el-empty description="暂无运行时知识部署" :image-size="72" /></template>
@@ -168,6 +285,29 @@ function openDetail(row: RuntimeDeployment) {
 }
 .toolbar .el-select {
   width: 180px;
+}
+.batch-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  background: var(--el-color-success-light-9);
+  border: 1px solid var(--el-color-success-light-8);
+  border-radius: 8px;
+  flex-wrap: wrap;
+}
+.batch-count {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--el-color-success);
+  margin-right: 4px;
+}
+.row-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 .unit-cell {
   display: grid;

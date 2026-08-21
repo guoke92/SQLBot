@@ -6,6 +6,7 @@ import {
   type KnowledgeUnitPage,
   type PageResult,
 } from '@/api/knowledge'
+import KnowledgeGraphAdmin from './components/KnowledgeGraphAdmin.vue'
 import KnowledgePackageWorkbench from './components/KnowledgePackageWorkbench.vue'
 import KnowledgeReviewCenter from './components/KnowledgeReviewCenter.vue'
 import RuntimeKnowledgeList from './components/RuntimeKnowledgeList.vue'
@@ -80,6 +81,9 @@ onMounted(() => void loadReviews())
       </el-tab-pane>
       <el-tab-pane label="知识包" name="packages" lazy>
         <KnowledgePackageWorkbench />
+      </el-tab-pane>
+      <el-tab-pane label="节点与冲突" name="graph" lazy>
+        <KnowledgeGraphAdmin />
       </el-tab-pane>
     </el-tabs>
   </main>

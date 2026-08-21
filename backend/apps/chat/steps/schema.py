@@ -62,7 +62,6 @@ def match_table_schema(
         operate=OperationEnum.CHOOSE_TABLE,
         record_id=llm_service.record.id,
         local_operation=True,
-        phase="prepare",
         graph_node=graph_node,
         brief=brief,
         title_key="chat.log.CHOOSE_TABLE",

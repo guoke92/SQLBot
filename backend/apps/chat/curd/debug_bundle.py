@@ -148,7 +148,6 @@ def _span_brief(message: Any) -> dict[str, Any]:
         key: value
         for key, value in {
             "version": envelope.get("version"),
-            "phase": envelope.get("phase"),
             "graph_node": envelope.get("graph_node"),
             "batch_index": envelope.get("batch_index"),
             "attempt_index": envelope.get("attempt_index"),
@@ -182,7 +181,6 @@ def _build_timeline(log_history: Any) -> list[dict[str, Any]]:
             "start_time": item.get("start_time"),
             "finish_time": item.get("finish_time"),
             "status": item.get("status"),
-            "phase": item.get("phase"),
             "graph_node": item.get("graph_node"),
             "summary_key": item.get("summary_key"),
             "detail": item.get("detail") or {},
@@ -384,7 +382,6 @@ def _log_history_from_raw(
                 local_operation=bool(row.get("local_operation")),
                 error=bool(row.get("error")),
                 status=projection["status"],
-                phase=projection["phase"],
                 graph_node=projection["graph_node"],
                 title_key=projection["title_key"],
                 title_params=projection["title_params"],

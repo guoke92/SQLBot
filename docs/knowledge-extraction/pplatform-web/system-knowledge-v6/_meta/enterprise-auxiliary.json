@@ -1,0 +1,109 @@
+{
+  "unit_id": "enterprise-auxiliary",
+  "sources": [
+    {
+      "source_id": "src-enterprise-auxiliary",
+      "kind": "source_code",
+      "locator": "pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustShareholderInfoDO.java",
+      "repository_revision": "ee434954e"
+    }
+  ],
+  "evidence": [
+    {
+      "evidence_id": "ev-config-fields",
+      "source_id": "src-enterprise-auxiliary",
+      "evidence_kind": "database_schema",
+      "locator": "pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustShareholderInfoDO.java",
+      "claim": "企业辅助信息 相关事实",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-customized-fields",
+      "source_id": "src-enterprise-auxiliary",
+      "evidence_kind": "database_schema",
+      "locator": "pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustShareholderInfoDO.java",
+      "claim": "口径 启用的企业快捷入口: 定制产品记录 enable=Y。",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-head-company-fields",
+      "source_id": "src-enterprise-auxiliary",
+      "evidence_kind": "database_schema",
+      "locator": "pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustShareholderInfoDO.java",
+      "claim": "总公司信息: cust_head_company_info 保存企业总公司工商和法人资料，并以关联企业 code 指向企业主数据。",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-head-company-flow",
+      "source_id": "src-enterprise-auxiliary",
+      "evidence_kind": "code_path",
+      "locator": "pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustShareholderInfoDO.java",
+      "claim": "总公司信息: cust_head_company_info 保存企业总公司工商和法人资料，并以关联企业 code 指向企业主数据。",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-invite-fields",
+      "source_id": "src-enterprise-auxiliary",
+      "evidence_kind": "database_schema",
+      "locator": "pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustShareholderInfoDO.java",
+      "claim": "企业邀请进度: cust_invite_info 的 progress；运营回调会将企业 cust_build_status 写回同名且同租户的邀请记录。",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-invite-progress-sync",
+      "source_id": "src-enterprise-auxiliary",
+      "evidence_kind": "code_path",
+      "locator": "pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustShareholderInfoDO.java",
+      "claim": "企业邀请进度: cust_invite_info 的 progress；运营回调会将企业 cust_build_status 写回同名且同租户的邀请记录。",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-lifecycle-dict",
+      "source_id": "src-enterprise-auxiliary",
+      "evidence_kind": "code_path",
+      "locator": "pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustShareholderInfoDO.java",
+      "claim": "企业生命周期: cust_company_lifecycle_info 以 type 记录冻结或解冻事件；enable 表示记录是否启用。",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-lifecycle-fields",
+      "source_id": "src-enterprise-auxiliary",
+      "evidence_kind": "database_schema",
+      "locator": "pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustShareholderInfoDO.java",
+      "claim": "企业生命周期: cust_company_lifecycle_info 以 type 记录冻结或解冻事件；enable 表示记录是否启用。",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-push-project-lookup",
+      "source_id": "src-enterprise-auxiliary",
+      "evidence_kind": "code_path",
+      "locator": "pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustShareholderInfoDO.java",
+      "claim": "阶段 解析推送默认项目: 需要按来源和目标 SSO 渠道选择推送项目",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-pushcust-fields",
+      "source_id": "src-enterprise-auxiliary",
+      "evidence_kind": "database_schema",
+      "locator": "pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustShareholderInfoDO.java",
+      "claim": "企业辅助信息 相关事实",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-shareholder-copy",
+      "source_id": "src-enterprise-auxiliary",
+      "evidence_kind": "code_path",
+      "locator": "pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustShareholderInfoDO.java",
+      "claim": "股东出资: cust_shareholder_info 中按企业 code 记录的关联方及其应实际出资信息。",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-shareholder-fields",
+      "source_id": "src-enterprise-auxiliary",
+      "evidence_kind": "database_schema",
+      "locator": "pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustShareholderInfoDO.java",
+      "claim": "股东出资: cust_shareholder_info 中按企业 code 记录的关联方及其应实际出资信息。",
+      "confidence": 0.8
+    }
+  ]
+}

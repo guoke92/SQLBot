@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Annotated, Any, Literal
 
-from fastapi import APIRouter, File, HTTPException, Query, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 from pydantic import BaseModel, Field
 from sqlalchemy import func
 from sqlmodel import col, select
@@ -16,6 +16,27 @@ from apps.knowledge.db_models import (
     KnowledgeUnit,
     KnowledgeUnitRevision,
     SemanticKnowledgePackage,
+)
+from apps.knowledge.graph.feedback import (
+    ingest_join_candidates_as_edges,
+    list_inbox_candidates,
+    promote_inbox_candidate,
+    reject_inbox_candidate,
+)
+from apps.knowledge.graph.governance import (
+    bind_and_validate_composition,
+    edit_node,
+    get_composition_detail,
+    list_compositions,
+    list_merge_conflicts,
+    list_nodes,
+    node_detail,
+    node_impact,
+    publish_composition,
+    resolve_merge_conflict,
+    transition_composition,
+    unpublish_composition,
+    update_composition_unit_fields,
 )
 from apps.knowledge.semantic.scanner import (
     scan_package_documents,
@@ -60,6 +81,7 @@ class PackageDocumentIn(BaseModel):
 class PackageImportIn(BaseModel):
     package: dict[str, Any] | str | None = None
     documents: list[PackageDocumentIn] = Field(default_factory=list)
+    mode: str = "append"
 
     def parse(self) -> KnowledgePackageV2:
         if self.package is not None and self.documents:
@@ -141,6 +163,7 @@ async def import_uploaded_package(
     session: SessionDep,
     user: CurrentUser,
     files: Annotated[list[UploadFile], File()],
+    mode: Annotated[str, Form()] = "append",
 ) -> dict[str, Any]:
     package = await _parse_uploads(files)
     try:
@@ -149,6 +172,7 @@ async def import_uploaded_package(
             oid=int(user.oid or 1),
             actor_user_id=int(user.id) if user.id is not None else None,
             package=package,
+            mode=mode,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -171,6 +195,7 @@ async def import_package(
             oid=int(user.oid or 1),
             actor_user_id=int(user.id) if user.id is not None else None,
             package=package,
+            mode=body.mode,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -300,7 +325,9 @@ async def bind_package(
         )
     ]
     if not revisions:
-        raise HTTPException(status_code=400, detail="package has no active knowledge units")
+        raise HTTPException(
+            status_code=400, detail="package has no active knowledge units"
+        )
     entries = current_package_entries(session, package_row_id=int(package.id or 0))
     candidates = recommend_datasources(session, oid=int(user.oid or 1), entries=entries)
     datasource_id = body.datasource_id
@@ -849,3 +876,437 @@ async def deployment_detail(
         "revision": revision.revision,
         "binding": binding.model_dump(mode="json"),
     }
+
+
+# ---------------------------------------------------------------------------
+# v3.1 node-plane governance: compositions, nodes, merge conflicts
+# ---------------------------------------------------------------------------
+
+
+class CompositionBindIn(BaseModel):
+    datasource_id: int
+
+
+class CompositionTransitionIn(BaseModel):
+    reason: str = ""
+
+
+class CompositionPatchIn(BaseModel):
+    title: str | None = None
+    domain: str | None = None
+    applicability: str | None = None
+    description: str | None = None
+    aliases: list[str] | None = None
+    assumptions: list[str] | None = None
+    conflicts: list[dict[str, Any]] | None = None
+
+
+class NodePatchIn(BaseModel):
+    payload: dict[str, Any]
+
+
+class ConflictResolveIn(BaseModel):
+    action: Literal["keep_existing", "accept_claim", "custom"]
+    payload: dict[str, Any] | None = None
+
+
+def _oid(user: Any) -> int:
+    return int(user.oid or 1)
+
+
+@router.get("/compositions", response_model=dict[str, Any])
+@require_permissions(permission=SqlbotPermission(role=["ws_admin"]))
+async def compositions(
+    session: SessionDep,
+    user: CurrentUser,
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=100),
+    keyword: str = Query(default=""),
+    lifecycle: str | None = Query(default=None),
+) -> dict[str, Any]:
+    items, total = list_compositions(
+        session,
+        oid=_oid(user),
+        keyword=keyword,
+        lifecycle=lifecycle,
+        page=page,
+        page_size=page_size,
+    )
+    return {"items": items, "total": total, "page": page, "page_size": page_size}
+
+
+@router.get("/compositions/{composition_id}", response_model=dict[str, Any])
+@require_permissions(permission=SqlbotPermission(role=["ws_admin"]))
+async def composition_detail(
+    session: SessionDep, user: CurrentUser, composition_id: int
+) -> dict[str, Any]:
+    try:
+        return get_composition_detail(
+            session, oid=_oid(user), composition_id=composition_id
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.patch("/compositions/{composition_id}", response_model=dict[str, Any])
+@require_permissions(permission=SqlbotPermission(role=["ws_admin"]))
+async def patch_composition(
+    session: SessionDep,
+    user: CurrentUser,
+    composition_id: int,
+    body: CompositionPatchIn,
+) -> dict[str, Any]:
+    try:
+        row = update_composition_unit_fields(
+            session,
+            oid=_oid(user),
+            composition_id=composition_id,
+            patch=body.model_dump(exclude_none=True),
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return {"id": int(row.id or 0), "content_hash": row.content_hash}
+
+
+@router.post("/compositions/{composition_id}/bind", response_model=dict[str, Any])
+@require_permissions(permission=SqlbotPermission(role=["ws_admin"]))
+async def bind_composition(
+    session: SessionDep,
+    user: CurrentUser,
+    composition_id: int,
+    body: CompositionBindIn,
+) -> dict[str, Any]:
+    try:
+        binding = bind_and_validate_composition(
+            session,
+            oid=_oid(user),
+            composition_id=composition_id,
+            datasource_id=body.datasource_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return binding.model_dump(mode="json")
+
+
+@router.post("/compositions/{composition_id}/validate", response_model=dict[str, Any])
+@require_permissions(permission=SqlbotPermission(role=["ws_admin"]))
+async def validate_composition(
+    session: SessionDep,
+    user: CurrentUser,
+    composition_id: int,
+) -> dict[str, Any]:
+    from apps.knowledge.graph.models import CompositionBinding
+
+    binding = session.exec(
+        select(CompositionBinding).where(
+            CompositionBinding.composition_id == composition_id,
+            CompositionBinding.oid == _oid(user),
+        )
+    ).first()
+    if binding is None:
+        raise HTTPException(status_code=400, detail="composition has no binding")
+    try:
+        result = bind_and_validate_composition(
+            session,
+            oid=_oid(user),
+            composition_id=composition_id,
+            datasource_id=binding.datasource_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return result.model_dump(mode="json")
+
+
+def _composition_transition_call(
+    session: Any,
+    *,
+    oid: int,
+    composition_id: int,
+    target: str,
+    user: Any,
+    reason: str,
+) -> dict[str, Any]:
+    row = transition_composition(
+        session,
+        oid=oid,
+        composition_id=composition_id,
+        target=target,
+        actor_user_id=int(user.id) if user.id is not None else None,
+        reason=reason,
+    )
+    return {"id": int(row.id or 0), "lifecycle_status": row.lifecycle_status}
+
+
+@router.post(
+    "/compositions/{composition_id}/submit-review", response_model=dict[str, Any]
+)
+@require_permissions(permission=SqlbotPermission(role=["ws_admin"]))
+async def submit_composition_review(
+    session: SessionDep, user: CurrentUser, composition_id: int
+) -> dict[str, Any]:
+    try:
+        return _composition_transition_call(
+            session,
+            oid=_oid(user),
+            composition_id=composition_id,
+            target="IN_REVIEW",
+            user=user,
+            reason="",
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/compositions/{composition_id}/approve", response_model=dict[str, Any])
+@require_permissions(permission=SqlbotPermission(role=["ws_admin"]))
+async def approve_composition(
+    session: SessionDep,
+    user: CurrentUser,
+    composition_id: int,
+    body: CompositionTransitionIn | None = None,
+) -> dict[str, Any]:
+    try:
+        return _composition_transition_call(
+            session,
+            oid=_oid(user),
+            composition_id=composition_id,
+            target="APPROVED",
+            user=user,
+            reason=(body.reason if body else ""),
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/compositions/{composition_id}/reject", response_model=dict[str, Any])
+@require_permissions(permission=SqlbotPermission(role=["ws_admin"]))
+async def reject_composition(
+    session: SessionDep,
+    user: CurrentUser,
+    composition_id: int,
+    body: CompositionTransitionIn,
+) -> dict[str, Any]:
+    try:
+        return _composition_transition_call(
+            session,
+            oid=_oid(user),
+            composition_id=composition_id,
+            target="REJECTED",
+            user=user,
+            reason=body.reason,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post(
+    "/compositions/{composition_id}/request-changes", response_model=dict[str, Any]
+)
+@require_permissions(permission=SqlbotPermission(role=["ws_admin"]))
+async def request_composition_changes(
+    session: SessionDep,
+    user: CurrentUser,
+    composition_id: int,
+    body: CompositionTransitionIn,
+) -> dict[str, Any]:
+    try:
+        return _composition_transition_call(
+            session,
+            oid=_oid(user),
+            composition_id=composition_id,
+            target="DRAFT",
+            user=user,
+            reason=body.reason,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/compositions/{composition_id}/publish", response_model=dict[str, Any])
+@require_permissions(permission=SqlbotPermission(role=["ws_admin"]))
+async def publish_composition_api(
+    session: SessionDep, user: CurrentUser, composition_id: int
+) -> dict[str, Any]:
+    try:
+        deployment = publish_composition(
+            session, oid=_oid(user), composition_id=composition_id
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return deployment.model_dump(mode="json")
+
+
+@router.post("/compositions/{composition_id}/unpublish", response_model=dict[str, Any])
+@require_permissions(permission=SqlbotPermission(role=["ws_admin"]))
+async def unpublish_composition_api(
+    session: SessionDep, user: CurrentUser, composition_id: int
+) -> dict[str, Any]:
+    try:
+        row = unpublish_composition(
+            session, oid=_oid(user), composition_id=composition_id
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"id": int(row.id or 0), "lifecycle_status": row.lifecycle_status}
+
+
+@router.get("/nodes", response_model=dict[str, Any])
+@require_permissions(permission=SqlbotPermission(role=["ws_admin"]))
+async def list_nodes_api(
+    session: SessionDep,
+    user: CurrentUser,
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=100),
+    keyword: str = Query(default=""),
+    node_kind: str | None = Query(default=None),
+) -> dict[str, Any]:
+    items, total = list_nodes(
+        session,
+        oid=_oid(user),
+        keyword=keyword,
+        node_kind=node_kind,
+        page=page,
+        page_size=page_size,
+    )
+    return {"items": items, "total": total, "page": page, "page_size": page_size}
+
+
+@router.get("/nodes/{node_id}", response_model=dict[str, Any])
+@require_permissions(permission=SqlbotPermission(role=["ws_admin"]))
+async def get_node(
+    session: SessionDep, user: CurrentUser, node_id: int
+) -> dict[str, Any]:
+    try:
+        return node_detail(session, oid=_oid(user), node_id=node_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.patch("/nodes/{node_id}", response_model=dict[str, Any])
+@require_permissions(permission=SqlbotPermission(role=["ws_admin"]))
+async def patch_node(
+    session: SessionDep,
+    user: CurrentUser,
+    node_id: int,
+    body: NodePatchIn,
+) -> dict[str, Any]:
+    try:
+        return edit_node(
+            session, oid=_oid(user), node_id=node_id, payload_patch=body.payload
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.get("/nodes/{node_id}/impact", response_model=dict[str, Any])
+@require_permissions(permission=SqlbotPermission(role=["ws_admin"]))
+async def get_node_impact(
+    session: SessionDep, user: CurrentUser, node_id: int
+) -> dict[str, Any]:
+    try:
+        return node_impact(session, oid=_oid(user), node_id=node_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.get("/merge-conflicts", response_model=dict[str, Any])
+@require_permissions(permission=SqlbotPermission(role=["ws_admin"]))
+async def merge_conflicts(
+    session: SessionDep,
+    user: CurrentUser,
+    status: str = Query(default="open"),
+) -> dict[str, Any]:
+    return {"items": list_merge_conflicts(session, oid=_oid(user), status=status)}
+
+
+@router.post("/merge-conflicts/{conflict_id}/resolve", response_model=dict[str, Any])
+@require_permissions(permission=SqlbotPermission(role=["ws_admin"]))
+async def resolve_conflict(
+    session: SessionDep,
+    user: CurrentUser,
+    conflict_id: int,
+    body: ConflictResolveIn,
+) -> dict[str, Any]:
+    try:
+        return resolve_merge_conflict(
+            session,
+            oid=_oid(user),
+            conflict_id=conflict_id,
+            action=body.action,
+            payload=body.payload,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+class InboxRejectIn(BaseModel):
+    reason: str
+
+
+class InboxPromoteIn(BaseModel):
+    pass
+
+
+@router.get("/inbox", response_model=dict[str, Any])
+@require_permissions(permission=SqlbotPermission(role=["ws_admin"]))
+async def inbox(
+    session: SessionDep,
+    user: CurrentUser,
+    kind: str | None = Query(default=None),
+    limit: int = Query(default=100, ge=1, le=500),
+) -> dict[str, Any]:
+    return {
+        "items": list_inbox_candidates(session, oid=_oid(user), kind=kind, limit=limit)
+    }
+
+
+@router.post("/inbox/{staging_id}/reject", response_model=dict[str, Any])
+@require_permissions(permission=SqlbotPermission(role=["ws_admin"]))
+async def inbox_reject(
+    session: SessionDep,
+    user: CurrentUser,
+    staging_id: int,
+    body: InboxRejectIn,
+) -> dict[str, Any]:
+    try:
+        return reject_inbox_candidate(
+            session,
+            oid=_oid(user),
+            staging_id=staging_id,
+            actor_user_id=int(user.id) if user.id is not None else None,
+            reason=body.reason,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/inbox/{staging_id}/promote", response_model=dict[str, Any])
+@require_permissions(permission=SqlbotPermission(role=["ws_admin"]))
+async def inbox_promote(
+    session: SessionDep,
+    user: CurrentUser,
+    staging_id: int,
+    _body: InboxPromoteIn | None = None,
+) -> dict[str, Any]:
+    try:
+        return promote_inbox_candidate(
+            session,
+            oid=_oid(user),
+            staging_id=staging_id,
+            actor_user_id=int(user.id) if user.id is not None else None,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/ingest-join-candidates", response_model=dict[str, Any])
+@require_permissions(permission=SqlbotPermission(role=["ws_admin"]))
+async def ingest_joins(
+    session: SessionDep,
+    user: CurrentUser,
+    body: CompositionBindIn,
+) -> dict[str, Any]:
+    created = ingest_join_candidates_as_edges(
+        session, oid=_oid(user), ds_id=body.datasource_id
+    )
+    return {"created_edges": created}

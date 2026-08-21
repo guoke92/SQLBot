@@ -1,0 +1,513 @@
+unit_id: enterprise-change
+revision: 1
+title: 企业变更审核
+aliases:
+- 客户变更
+- 变更中
+- CUST_CHANGE
+domain: enterprise
+applicability: 变更中企业、变更审核单状态与在途量；不用于把变更拒绝计为建档失败，也不替代有效已建档口径
+description: 已建档企业发起资料变更并经运营审核，过程记录在 cust_change_record，回调通过后恢复企业主数据状态。
+content:
+  concepts:
+  - concept_id: enterprise-change
+    name: 企业变更
+    aliases:
+    - 客户变更
+    - 变更审核
+    definition: 企业变更是已存在企业资料的修改审核；主表在途时 cust_build_status=CUST_CHANGE 且 cust_status=CHANGE。
+    dictionary:
+      CUST_CHANGE: 变更
+      CHANGE: 变更
+    field_targets:
+    - dataset: company
+      field: cust_build_status
+      database: ''
+    - dataset: company
+      field: cust_status
+      database: ''
+    evidence_refs:
+    - ev-change-endpoint
+    - ev-change-company-state
+  - concept_id: change-record
+    name: 变更审核单
+    aliases:
+    - 变更记录
+    - 变更单
+    definition: cust_change_record 一行代表一次变更过程，以 cust_id 连接企业主键，不能直接当企业数。
+    dictionary:
+      CUST_CHECK_INIT: 待审核
+      CUST_CHECK_CHECKING: 审核中
+      CUST_CHECK_PASS: 审核通过
+      CUST_CHECK_REJECT: 审核不通过
+      CUST_CHECK_BACKTOCUSTOM: 待客户确认
+      CUST_BACK: 退回
+    field_targets:
+    - dataset: change_record
+      field: status
+      database: ''
+    evidence_refs:
+    - ev-check-status-dict
+    - ev-change-record-fields
+  - concept_id: inflight-change
+    name: 在途变更
+    aliases:
+    - 未完成变更
+    - 变更流程中
+    definition: 变更单 status 不属于 CUST_CHECK_PASS/CUST_CHECK_REJECT；系统重建流程按 cust_id 取最新一条在途记录。
+    dictionary: {}
+    field_targets:
+    - dataset: change_record
+      field: status
+      database: ''
+    - dataset: change_record
+      field: cust_id
+      database: ''
+    evidence_refs:
+    - ev-change-inflight
+    - ev-rebuild-latest
+  processes:
+  - stage_id: submit-change
+    name: 提交变更
+    description: ''
+    trigger: 客户提交变更项并进入本地或运营处理
+    enter_conditions: []
+    exit_conditions: []
+    next_stages:
+    - callback-pass
+    - callback-reject
+    data_effects:
+    - operation: insert
+      dataset: change_record
+      fields:
+      - id
+      - cust_id
+      - cust_type
+      - enable
+      - alter_mode
+      - alter_type
+      - alter_type_id
+      - admin_auth
+      - legal_auth
+      - need_cust_confirm
+      - oper_app_no
+      - oper_cust_id
+      - oper_cust_info
+      - db_tenant_code
+      - status
+      - msg_send
+      - oper_channel
+      - create_time
+      condition: 本地直接处理写 CUST_CHECK_PASS；运营中台处理写 CUST_CHECK_CHECKING
+      description: ''
+      evidence_refs:
+      - ev-save-change-record
+    - operation: update
+      dataset: company
+      fields:
+      - cust_build_status
+      - cust_status
+      condition: 进入变更在途状态 CUST_CHANGE + CHANGE
+      description: ''
+      evidence_refs:
+      - ev-change-company-state
+    evidence_refs:
+    - ev-change-endpoint
+    - ev-save-change-record
+  - stage_id: callback-pass
+    name: 变更审核通过
+    description: ''
+    trigger: CustSyncEventProcessor.changeHandler 收到 CUST_CHECK_PASS
+    enter_conditions: []
+    exit_conditions: []
+    next_stages: []
+    data_effects:
+    - operation: update
+      dataset: company
+      fields:
+      - cust_status
+      - check_status
+      - cust_build_status
+      condition: 分别置 EFFECT、CUST_CHECK_PASS、BUILD_SUCCESS
+      description: ''
+      evidence_refs:
+      - ev-change-pass
+    evidence_refs:
+    - ev-change-handler
+  - stage_id: callback-reject
+    name: 变更审核拒绝
+    description: ''
+    trigger: CustSyncEventProcessor.changeHandler 收到 CUST_CHECK_REJECT 或重建旧流程
+    enter_conditions: []
+    exit_conditions: []
+    next_stages: []
+    data_effects:
+    - operation: update
+      dataset: change_record
+      fields:
+      - status
+      condition: 结束当前在途流程；变更拒绝不等于建档失败
+      description: ''
+      evidence_refs:
+      - ev-change-handler
+      - ev-rebuild-latest
+    evidence_refs:
+    - ev-change-handler
+  - stage_id: rebuild
+    name: 变更流程重建
+    description: ''
+    trigger: POST /cust-web/change/rebuild
+    enter_conditions: []
+    exit_conditions: []
+    next_stages:
+    - submit-change
+    data_effects:
+    - operation: read
+      dataset: change_record
+      fields:
+      - cust_id
+      - status
+      - id
+      - oper_cust_id
+      condition: cust_id 匹配且 status NOT IN CUST_CHECK_PASS/CUST_CHECK_REJECT，按 id
+        倒序取 1
+      description: ''
+      evidence_refs:
+      - ev-rebuild-latest
+    - operation: update
+      dataset: change_record
+      fields:
+      - status
+      condition: 调用运营中台拒绝旧流程后允许重新发起
+      description: ''
+      evidence_refs:
+      - ev-rebuild
+    evidence_refs:
+    - ev-rebuild
+  datasets:
+  - dataset_id: company
+    name: cust_company_info
+    description: 企业主/过程记录，一行一家企业。正式企业主数据需 data_type='1' 且 enable='Y'。
+    database: lowcode_pplatform
+    fields:
+    - field_id: id
+      name: id
+      description: 表主键
+      data_type: bigint
+      evidence_refs: []
+    - field_id: cust_build_status
+      name: cust_build_status
+      description: 认证状态（认证流+审核流两套状态机）
+      data_type: varchar
+      evidence_refs: []
+    - field_id: cust_status
+      name: cust_status
+      description: 客户状态（生效/注销/冻结等）
+      data_type: varchar
+      evidence_refs: []
+    - field_id: check_status
+      name: check_status
+      description: 运营审核状态
+      data_type: varchar
+      evidence_refs: []
+    evidence_refs:
+    - ev-company-fields
+    - ev-change-company-state
+  - dataset_id: change_record
+    name: cust_change_record
+    description: 客户变更审核记录表；一行一次过程，cust_id 连接 cust_company_info.id。
+    database: lowcode_pplatform
+    fields:
+    - field_id: id
+      name: id
+      description: 变更记录主键
+      data_type: bigint
+      dictionary: {}
+      evidence_refs: []
+    - field_id: cust_id
+      name: cust_id
+      description: 企业主键，不是企业 code
+      data_type: bigint
+      dictionary: {}
+      evidence_refs: []
+    - field_id: status
+      name: status
+      description: 变更审核状态
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: enable
+      name: enable
+      description: 记录启用标志
+      data_type: varchar
+      dictionary:
+        Y: 启用
+        N: 停用
+      evidence_refs: []
+    - field_id: alter_type
+      name: alter_type
+      description: 变更类型展示值
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: alter_type_id
+      name: alter_type_id
+      description: 变更项配置 ID 列表
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: oper_app_no
+      name: oper_app_no
+      description: 运营中台流程编号
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: oper_cust_id
+      name: oper_cust_id
+      description: 运营中台客户 ID
+      data_type: bigint
+      dictionary: {}
+      evidence_refs: []
+    - field_id: create_time
+      name: create_time
+      description: 创建时间
+      data_type: datetime
+      dictionary: {}
+      evidence_refs: []
+    - field_id: cust_type
+      name: cust_type
+      description: ''
+      data_type: ''
+      dictionary: {}
+      evidence_refs: []
+    - field_id: alter_mode
+      name: alter_mode
+      description: ''
+      data_type: ''
+      dictionary: {}
+      evidence_refs: []
+    - field_id: admin_auth
+      name: admin_auth
+      description: ''
+      data_type: ''
+      dictionary: {}
+      evidence_refs: []
+    - field_id: legal_auth
+      name: legal_auth
+      description: ''
+      data_type: ''
+      dictionary: {}
+      evidence_refs: []
+    - field_id: need_cust_confirm
+      name: need_cust_confirm
+      description: ''
+      data_type: ''
+      dictionary: {}
+      evidence_refs: []
+    - field_id: oper_cust_info
+      name: oper_cust_info
+      description: ''
+      data_type: ''
+      dictionary: {}
+      evidence_refs: []
+    - field_id: db_tenant_code
+      name: db_tenant_code
+      description: ''
+      data_type: ''
+      dictionary: {}
+      evidence_refs: []
+    - field_id: msg_send
+      name: msg_send
+      description: ''
+      data_type: ''
+      dictionary: {}
+      evidence_refs: []
+    - field_id: oper_channel
+      name: oper_channel
+      description: ''
+      data_type: ''
+      dictionary: {}
+      evidence_refs: []
+    evidence_refs:
+    - ev-change-record-fields
+    - ev-save-change-record
+  relationships:
+  - relationship_id: company-change-record
+    left:
+      dataset: company
+      field: id
+      database: ''
+    right:
+      dataset: change_record
+      field: cust_id
+      database: ''
+    relationship_type: EQUI_JOIN
+    cardinality: 1:n
+    business_meaning: 一家企业可以有多条变更审核记录
+    status: proposed
+    evidence_refs:
+    - ev-change-relation
+    confidence: 0.5
+  metrics:
+  - metric_id: inflight-company-count
+    name: 变更中企业数
+    description: 按企业主键去重统计主表变更中企业。
+    aggregation: COUNT_DISTINCT
+    field:
+      dataset: company
+      field: id
+      database: ''
+    filters: []
+    grain:
+    - dataset: company
+      field: id
+      database: ''
+    evidence_refs:
+    - ev-change-company-state
+  - metric_id: change-record-count
+    name: 变更审核单数
+    description: 按变更记录主键统计审核单，可按 status 分布。
+    aggregation: COUNT
+    field:
+      dataset: change_record
+      field: id
+      database: ''
+    filters: []
+    grain:
+    - dataset: change_record
+      field: status
+      database: ''
+    evidence_refs:
+    - ev-change-record-fields
+  calibers:
+  - caliber_id: inflight-company
+    label: 变更中企业
+    description: 以企业主表为统计粒度的在途变更企业。
+    contract_fragment:
+      predicates:
+      - field: company.cust_build_status
+        operator: eq
+        values:
+        - CUST_CHANGE
+      - field: company.cust_status
+        operator: eq
+        values:
+        - CHANGE
+      field_targets:
+      - dataset: company
+        field: id
+      - dataset: company
+        field: cust_build_status
+      - dataset: company
+        field: cust_status
+    field_targets: []
+    evidence_refs:
+    - ev-change-company-state
+  - caliber_id: inflight-change-record
+    label: 在途变更单
+    description: 启用且未达到通过/拒绝终态的变更审核单。
+    contract_fragment:
+      predicates:
+      - field: change_record.enable
+        operator: eq
+        values:
+        - Y
+      - field: change_record.status
+        operator: not_in
+        values:
+        - CUST_CHECK_PASS
+        - CUST_CHECK_REJECT
+      field_targets:
+      - dataset: change_record
+        field: enable
+      - dataset: change_record
+        field: status
+    field_targets: []
+    evidence_refs:
+    - ev-change-inflight
+  domain_rules:
+  - rule_id: record-not-company
+    label: 变更单不是企业
+    content: 统计变更中企业必须 COUNT_DISTINCT cust_company_info.id，禁止直接 COUNT cust_change_record
+      行数代替企业数。
+    applicability: 变更中企业数
+    query_impact: 查询粒度使用 company.id，变更记录只用于过程过滤或关联
+    field_targets:
+    - dataset: company
+      field: id
+      database: ''
+    - dataset: change_record
+      field: cust_id
+      database: ''
+    evidence_refs:
+    - ev-change-relation
+  - rule_id: inflight-terminal-rule
+    label: 在途排除终态
+    content: 在途判定 status NOT IN CUST_CHECK_PASS/CUST_CHECK_REJECT，并建议叠加 enable=Y。
+    applicability: 在途变更单、重建旧流程
+    query_impact: 必须使用物理枚举值，不将 PASS/REJECT 短名当状态值
+    field_targets:
+    - dataset: change_record
+      field: status
+      database: ''
+    - dataset: change_record
+      field: enable
+      database: ''
+    evidence_refs:
+    - ev-change-inflight
+    - ev-check-status-dict
+  - rule_id: reject-not-build-fail
+    label: 变更拒绝不等于建档失败
+    content: 变更回调拒绝场景不能把企业计入 BUILD_FAIL；建档状态口径需单独判断。
+    applicability: 建档失败与变更驳回对比
+    query_impact: 不得仅凭 change_record.status=CUST_CHECK_REJECT 统计建档失败
+    field_targets:
+    - dataset: company
+      field: cust_build_status
+      database: ''
+    - dataset: change_record
+      field: status
+      database: ''
+    evidence_refs:
+    - ev-change-handler
+  verified_query_patterns:
+  - pattern_id: count-inflight-companies
+    question: 正在变更中的企业有多少
+    query: SELECT COUNT(DISTINCT id) FROM cust_company_info WHERE cust_build_status
+      = 'CUST_CHANGE' AND cust_status = 'CHANGE'
+    intended_specification:
+      grain: company
+      caliber_id: inflight-company
+    verification:
+      status: PENDING_VALIDATION
+    evidence_refs:
+    - ev-change-company-state
+  - pattern_id: count-inflight-records
+    question: 在途变更单有多少
+    query: SELECT COUNT(1) FROM cust_change_record WHERE enable = 'Y' AND status NOT
+      IN ('CUST_CHECK_PASS', 'CUST_CHECK_REJECT')
+    intended_specification:
+      grain: change_record
+      caliber_id: inflight-change-record
+    verification:
+      status: PENDING_VALIDATION
+    evidence_refs:
+    - ev-change-inflight
+evidence_refs:
+- ev-change-endpoint
+- ev-change-company-state
+- ev-check-status-dict
+- ev-change-record-fields
+- ev-change-inflight
+- ev-rebuild-latest
+- ev-save-change-record
+- ev-change-pass
+- ev-change-handler
+- ev-rebuild
+- ev-company-fields
+- ev-change-relation
+unit_links: []
+assumptions:
+- 查询范例未在目标库执行；status 的物理值以代码枚举为准。
+conflicts: []
+confidence: 0.9

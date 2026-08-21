@@ -196,10 +196,16 @@ unit 的 `confidence` 表示整体可信度，不能替代每条 evidence 的 co
     BUILD_SUCCESS: 建档成功
     EFFECT: 有效
     Y: 启用
+  field_targets:                        # 必填：概念锚定的字段
+  - {dataset: company, field: build_status}
+  - {dataset: company, field: status}
+  - {dataset: company, field: enabled}
   evidence_refs: [ev-code-company-active]
 ```
 
 `definition` 必须落到阶段、状态、字段值或数据边界，不能写“指企业建档这个过程”。
+
+**`field_targets` 必填**：状态类概念锚到承载字典的字段（字典跨字段时全写）；实体类概念锚到表 `id`/业务键。无锚定概念会被 lint（`CONCEPT_UNANCHORED`）标记，生成不了 concept_of 边。
 
 #### processes
 
@@ -530,12 +536,21 @@ PY
 
 通过标准：没有 Pydantic 校验异常，所有 `unit_id`、`source_id`、`evidence_id` 唯一，所有 `evidence_refs` 引用闭合。
 
+再做一次 decompose 干跑门禁（六层八边是否闭合）：
+
+```bash
+backend/venv/bin/python scripts/knowledge-package.py scan --strict docs/knowledge-extraction/pplatform-web/system-knowledge-v4
+backend/venv/bin/python scripts/knowledge-package.py decompose docs/knowledge-extraction/pplatform-web/system-knowledge-v4
+```
+
+通过标准：`concept_of` 边数 = concept 数、`merge_conflicts` = 0、孤儿字段 = 0、stub 节点仅来自显式 SHARED_KEY/外部引用。
+
 ### 8.2 业务自检
 
 逐条检查：
 
 - 每个 unit 至少能回答一个“用户话术 → 表/字段/值/关系/口径”的问题；
-- 每个 `concept` 都能落到一个数据形态，不只是中文解释；
+- 每个 `concept` 都有 `field_targets`，且锚定字段的 dictionary 键与概念 dictionary 键一致；
 - 每个 `process` 都有 `data_effects`，且引用的 dataset/field 已声明；
 - 每个 `relationship` 都有代码或数据库画像证据；
 - 每个 `caliber` 都有 `field_targets` 和可解释的 `contract_fragment`；

@@ -18,7 +18,7 @@ description: >-
 |---|---|---|---|
 | `catalog.yaml` | 脚本 | 否 | 全表/全字段目录（物理名/类型/注释/FK 候选），参考基线 |
 | `enums.yaml` | 脚本 | 否 | **全量枚举字典**（dictKey+显示名），参考基线，不进包 |
-| `relationships.yaml` | 脚本 + AI agent | 否 | 代码级关系清单 + 证据 |
+| `relationships.yaml` | 脚本 + AI agent | **是（包级 relationships）** | 代码级关系清单 + 证据，扫描时并入 `package.relationships` |
 | `manifest` + `units/*.yaml` | AI agent | **是（唯一入库物）** | 语义单元包，只含业务匹配的枚举值 |
 | `coverage.yaml` | 人工/脚本 | 否 | 全量表清单，离线验收，`COVERAGE_GAP` 阻断 |
 
@@ -69,14 +69,26 @@ description: >-
 6. **提其余维度**（AI agent）：状态机（`processes.next_stages`）、口径（`calibers`）、指标（`metrics`）、业务规则（`domain_rules`）、术语（`concepts`）、查询范式（`query_patterns`）——每类的 HOW 见 `reference.md` §维度提取方法。
 7. **组装单元**：一个场景一个 `units/<unit_id>.yaml`，共享表用最小声明约定。
 8. **coverage.yaml**：穷举全量物理表，`COVERAGE_GAP` 阻断。
-9. **离线校验**：`scripts/knowledge-package.py scan <dir>`（结构 + QA 自检）。
+9. **离线校验**：`scripts/knowledge-package.py scan --strict <dir>`（结构 + QA 自检）+ `decompose <dir>` 干跑门禁（concept_of / merge_conflicts / orphan / stub 检查）。
 10. **提交**：`scripts/knowledge-package.py submit <dir>`。
 
-## 6. 输出契约（KnowledgePackageV2）
+## 6. 输出契约（KnowledgePackageV2，六层八边）
 
-- `schema_version: "2.0"`；顶层只允许 `package/sources/evidence/knowledge_units` 四段。
-- 单元 = 一个可问数场景闭包：`concepts` + `processes(data_effects)` + `datasets(fields)` + `relationships` + `calibers/metrics` + `domain_rules` + `query_patterns` + `evidence_refs`。
-- `units` 是相对路径清单（不是 glob），装配前移除；单文件内联 `knowledge_units` 是退化形态。
+- `schema_version: "2.0"`；顶层四段 `package/sources/evidence/knowledge_units` + 包级 `relationships`。
+- 单元 = 一个可问数场景闭包，六层必须齐全并各自产出对应边（空边即返工）：
+
+| 层 | 提取物 | 生成边 |
+|---|---|---|
+| L0 | sources + evidence（file:行号） | 无（作为依据） |
+| L1 | datasets（fields 最小声明） | has_field |
+| L2 | concepts（**field_targets**） | concept_of |
+| L3 | processes（data_effects + next_stages） | reads/writes + precedes |
+| L4 | calibers/metrics（field_targets / field+grain）、domain_rules（field_targets） | references_field |
+| L5 | query_patterns（intended_specification.caliber_id） | validates |
+| 跨单元 | 包级 relationships + 单元 unit_links | relation_endpoint + precedes/validates |
+
+- 每个 concept 必须 `field_targets`；每个 caliber/rule 必须 `field_targets`；metric 必须有 `field` 或 `grain`（详见 reference.md §概念锚定）。
+- `units` 是相对路径清单（不是 glob）；单文件内联 `knowledge_units` 是退化形态。
 
 ## 7. 硬约束（违反即返工，详见 reference.md）
 
@@ -88,10 +100,15 @@ description: >-
 6. 租户隔离字段（`db_tenant_code`/`app_tenant_code`/`tenant_id`/`tenant_code`）不是关联。
 7. 同名字段拷贝（`setXxxName(a.getName())`）不是关联。
 8. 读写顺序落到 `processes`，不只出静态对子。
-9. **n:n 或共享键/传递关系不是 JOIN**，保留为 `SHARED_KEY`（标注两侧字段业务含义相同、取值一致，各自 JOIN 主表、不得直接 JOIN 彼此）；只有一侧真的一键一行才标 `EQUI_JOIN`。
+9. **n:n 或共享键/传递关系不是 JOIN**：`relationship_type: SHARED_KEY`（标注业务含义，各自 JOIN 主表、不得直接 JOIN 彼此）；只有一侧真的一键一行才标 `EQUI_JOIN`。
+10. **concept 必须锚定**：每个 concept 声明 `field_targets`，指向本单元已声明字段；无锚定 = 返工（生成不了 concept_of 边，概念成孤岛）。
+11. **共享表单一语义**：同一物理表/字段跨单元只允许一份权威声明，其余单元用最小声明且字段 payload（name/data_type/dictionary/description）逐字复制，否则 decompose 产生 intra-package 冲突。
+12. **包级关系用物理表/字段名**：`left_table/left_field/right_table/right_field + evidence`，不用单元内 dataset_id。
 
 ## 8. 附加资源
 
 - 详细约束 + schema 要点 + evidence kinds：`reference.md`
 - 建档完整示例（关系/流转/维度清单）：`examples.md`
-- 权威文档：`docs/业务系统知识库提取与构建指南-v1.md`、`docs/统一语义知识体系架构-v1.md`
+- 契约权威：`docs/业务系统知识库提取与构建指南-v1.4-增补.md`（本技能的行为权威）
+- 架构 ADR：`docs/知识体系目标架构-v3.1.md`
+- 方法论：`docs/业务系统知识库提取与构建指南-v1.md`

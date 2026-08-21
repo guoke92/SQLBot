@@ -1,0 +1,555 @@
+unit_id: tenant-product-lifecycle
+revision: 1
+title: 租户产品生命周期
+aliases:
+- 租户开通产品
+- 产品开通
+- 产品在途
+- 产品取消
+domain: product
+applicability: 租户产品实例创建、开通、取消、在途校验及企业产品申请关联；不用于项目开通状态或企业申请本身的 OPENED/OPENING/NOT_OPENED
+  口径
+description: 租户产品以 tenant_product 的 Y/P/N 状态承载平台产品开通实例，企业申请另以 cust_auth_application
+  的 OPENED/OPENING/NOT_OPENED 表示。
+content:
+  concepts:
+  - concept_id: tenant-product
+    name: 租户产品
+    aliases:
+    - 开通产品
+    - 租户产品实例
+    definition: 租户对平台产品目录的一条产品配置实例，表 tenant_product；创建时按租户和平台产品复用已有记录。
+    dictionary: {}
+    field_targets:
+    - dataset: tenant_product
+      field: id
+      database: ''
+    - dataset: tenant_product
+      field: tenant_id
+      database: ''
+    - dataset: tenant_product
+      field: platform_product_id
+      database: ''
+    evidence_refs:
+    - ev-tenant-product-do
+    - ev-create-product
+  - concept_id: tenant-product-open-status
+    name: 租户产品开通状态
+    aliases:
+    - 已开通
+    - 开通中
+    - 未开通
+    definition: tenant_product.open_status 的平台租户产品状态。
+    dictionary:
+      Y: 已开通
+      P: 开通中
+      N: 未开通
+    field_targets:
+    - dataset: tenant_product
+      field: open_status
+      database: ''
+    evidence_refs:
+    - ev-product-open-status
+  - concept_id: cust-product-application-status
+    name: 企业产品申请状态
+    aliases:
+    - 企业产品已开通
+    - 企业产品开通中
+    definition: 企业对租户产品的申请/授权状态，存于 cust_auth_application.open_status，与 tenant_product.open_status
+      不是同一字段。
+    dictionary:
+      OPENED: 已开通
+      OPENING: 开通中
+      NOT_OPENED: 未开通
+    field_targets:
+    - dataset: cust_auth_application
+      field: open_status
+      database: ''
+    evidence_refs:
+    - ev-cust-product-constant
+    - ev-cust-auth-do
+  processes:
+  - stage_id: create
+    name: 创建租户产品实例
+    description: ''
+    trigger: POST /app-web/tenantProduct/cmd/create 或 /create
+    enter_conditions: []
+    exit_conditions: []
+    next_stages:
+    - active
+    data_effects:
+    - operation: read
+      dataset: tenant_product
+      fields:
+      - id
+      - code
+      - db_tenant_code
+      condition: ''
+      description: ''
+      evidence_refs: []
+    - operation: read
+      dataset: platform_product
+      fields:
+      - id
+      - code
+      - product_code
+      - name
+      condition: ''
+      description: ''
+      evidence_refs: []
+    - operation: read
+      dataset: tenant_product
+      fields:
+      - tenant_id
+      - platform_product_id
+      - platform_product_code
+      - enable
+      condition: ''
+      description: ''
+      evidence_refs: []
+    - operation: upsert
+      dataset: tenant_product
+      fields:
+      - tenant_id
+      - platform_product_id
+      - platform_product_code
+      - name
+      - ref_tenant_product_project_code
+      - ref_tenant_product_tenant_setting_config
+      - db_tenant_code
+      condition: ''
+      description: ''
+      evidence_refs: []
+    evidence_refs:
+    - ev-controller-create
+    - ev-create-product
+  - stage_id: active
+    name: 开通租户产品
+    description: ''
+    trigger: POST /app-web/tenantProduct/cmd/active 或 /active
+    enter_conditions: []
+    exit_conditions: []
+    next_stages:
+    - cancel
+    data_effects:
+    - operation: read
+      dataset: tenant_product
+      fields:
+      - id
+      - tenant_id
+      - open_status
+      - platform_product_code
+      condition: ''
+      description: ''
+      evidence_refs: []
+    - operation: update
+      dataset: tenant_product
+      fields:
+      - open_status
+      condition: 一般产品写 Y；ACFLOW/ORDER 先写 P 等待多级回调
+      description: ''
+      evidence_refs: []
+    - operation: upsert
+      dataset: tenant_product
+      fields:
+      - id
+      - db_tenant_code
+      condition: 开通前推送 CREATED 事件
+      description: ''
+      evidence_refs: []
+    evidence_refs:
+    - ev-controller-active
+    - ev-active-notify
+    - ev-domain-active
+  - stage_id: cancel
+    name: 取消租户产品
+    description: ''
+    trigger: POST /app-web/tenantProduct/cmd/cancel
+    enter_conditions: []
+    exit_conditions: []
+    next_stages: []
+    data_effects:
+    - operation: read
+      dataset: tenant_project
+      fields:
+      - product_id
+      condition: ''
+      description: ''
+      evidence_refs: []
+    - operation: read
+      dataset: cust_auth_application
+      fields:
+      - ref_cust_auth_application_tenant_product
+      - open_status
+      condition: ''
+      description: ''
+      evidence_refs: []
+    - operation: update
+      dataset: tenant_product
+      fields:
+      - open_status
+      condition: 无有效项目且无企业产品申请时写 N
+      description: ''
+      evidence_refs: []
+    - operation: upsert
+      dataset: tenant_product
+      fields:
+      - id
+      - platform_product_code
+      condition: 发布 PRODUCT_SYNC/INVALID
+      description: ''
+      evidence_refs: []
+    evidence_refs:
+    - ev-cancel-guard
+    - ev-domain-cancel
+    - ev-controller-cancel
+  datasets:
+  - dataset_id: tenant_product
+    name: tenant_product
+    description: 租户产品开通实例；enable=Y 才进入有效查询，open_status 使用 Y/P/N。
+    database: lowcode_pplatform
+    fields:
+    - field_id: id
+      name: id
+      description: 表主键
+      data_type: bigint
+      dictionary: {}
+      evidence_refs: []
+    - field_id: code
+      name: code
+      description: 租户产品业务编码，企业申请及扩展配置按此关联
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: tenant_id
+      name: tenant_id
+      description: 租户主键
+      data_type: bigint
+      dictionary: {}
+      evidence_refs: []
+    - field_id: name
+      name: name
+      description: 租户产品名称
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: platform_product_id
+      name: platform_product_id
+      description: 平台产品主键
+      data_type: bigint
+      dictionary: {}
+      evidence_refs: []
+    - field_id: platform_product_code
+      name: platform_product_code
+      description: 平台产品编号
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: open_status
+      name: open_status
+      description: 租户产品开通状态
+      data_type: varchar
+      dictionary:
+        Y: 已开通
+        P: 开通中
+        N: 未开通
+      evidence_refs: []
+    - field_id: enable
+      name: enable
+      description: 有效标识
+      data_type: varchar
+      dictionary:
+        Y: 启用
+        N: 停用
+      evidence_refs: []
+    - field_id: ref_tenant_product_project_code
+      name: ref_tenant_product_project_code
+      description: 关联平台产品 code
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: ref_tenant_product_tenant_setting_config
+      name: ref_tenant_product_tenant_setting_config
+      description: 关联租户配置 code
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: db_tenant_code
+      name: db_tenant_code
+      description: 数据租户标识
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    evidence_refs:
+    - ev-tenant-product-do
+  - dataset_id: platform_product
+    name: platform_product
+    description: 平台产品目录；不是租户产品开通实例。
+    database: lowcode_pplatform
+    fields:
+    - field_id: id
+      name: id
+      description: 表主键
+      data_type: bigint
+      dictionary: {}
+      evidence_refs: []
+    - field_id: code
+      name: code
+      description: 平台产品关联编码
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: product_code
+      name: product_code
+      description: 平台产品编号
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: name
+      name: name
+      description: 产品名称
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    evidence_refs:
+    - ev-platform-product-do
+  - dataset_id: cust_auth_application
+    name: cust_auth_application
+    description: 客户产品开通表；申请按企业 code 关联企业。
+    database: lowcode_pplatform
+    fields:
+    - field_id: ref_cust_auth_application_tenant_product
+      name: ref_cust_auth_application_tenant_product
+      description: 企业产品开通申请按租户产品 code 关联
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: open_status
+      name: open_status
+      description: 企业产品申请状态
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    evidence_refs:
+    - ev-cust-auth-do
+    - ev-cust-product-constant
+  - dataset_id: tenant_project
+    name: tenant_project
+    description: 租户业务项目实例。
+    database: lowcode_pplatform
+    fields:
+    - field_id: product_id
+      name: product_id
+      description: 所属租户产品主键
+      data_type: bigint
+      dictionary: {}
+      evidence_refs: []
+    evidence_refs:
+    - ev-cancel-flow
+  relationships:
+  - relationship_id: tenant-product-platform-id
+    left:
+      dataset: tenant_product
+      field: platform_product_id
+      database: ''
+    right:
+      dataset: platform_product
+      field: id
+      database: ''
+    relationship_type: EQUI_JOIN
+    cardinality: n:1
+    business_meaning: 租户产品实例指向平台产品
+    status: proposed
+    evidence_refs:
+    - ev-platform-product-rel
+    confidence: 0.5
+  - relationship_id: tenant-product-platform-code
+    left:
+      dataset: tenant_product
+      field: platform_product_code
+      database: ''
+    right:
+      dataset: platform_product
+      field: product_code
+      database: ''
+    relationship_type: EQUI_JOIN
+    cardinality: n:1
+    business_meaning: 租户产品按产品编号关联目录
+    status: proposed
+    evidence_refs:
+    - ev-platform-product-rel
+    confidence: 0.5
+  - relationship_id: tenant-product-auth-application
+    left:
+      dataset: cust_auth_application
+      field: ref_cust_auth_application_tenant_product
+      database: ''
+    right:
+      dataset: tenant_product
+      field: code
+      database: ''
+    relationship_type: EQUI_JOIN
+    cardinality: n:1
+    business_meaning: 企业产品申请按租户产品 code 归属
+    status: proposed
+    evidence_refs:
+    - ev-cust-auth-rel
+    confidence: 0.5
+  metrics:
+  - metric_id: opened-tenant-product-count
+    name: 已开通租户产品数
+    description: 启用且 open_status=Y 的 tenant_product 实例数。
+    aggregation: COUNT_DISTINCT
+    field:
+      dataset: tenant_product
+      field: id
+      database: ''
+    filters: []
+    grain:
+    - dataset: tenant_product
+      field: platform_product_code
+      database: ''
+    evidence_refs:
+    - ev-open-query
+  - metric_id: tenant-product-status-count
+    name: 租户产品状态分布
+    description: 按 tenant_product.open_status 的物理值 Y/P/N 统计实例数。
+    aggregation: COUNT
+    field:
+      dataset: tenant_product
+      field: id
+      database: ''
+    filters: []
+    grain:
+    - dataset: tenant_product
+      field: open_status
+      database: ''
+    evidence_refs:
+    - ev-product-open-status
+  calibers:
+  - caliber_id: opened-tenant-product
+    label: 已开通租户产品
+    description: 启用且平台租户产品状态为 Y 的实例。
+    contract_fragment:
+      predicates:
+      - field: tenant_product.open_status
+        operator: eq
+        values:
+        - Y
+      - field: tenant_product.enable
+        operator: eq
+        values:
+        - Y
+    field_targets:
+    - dataset: tenant_product
+      field: open_status
+      database: ''
+    - dataset: tenant_product
+      field: enable
+      database: ''
+    evidence_refs:
+    - ev-open-query
+  - caliber_id: in-progress-tenant-product
+    label: 开通中租户产品
+    description: 启用且平台租户产品状态为 P 的实例。
+    contract_fragment:
+      predicates:
+      - field: tenant_product.open_status
+        operator: eq
+        values:
+        - P
+      - field: tenant_product.enable
+        operator: eq
+        values:
+        - Y
+    field_targets:
+    - dataset: tenant_product
+      field: open_status
+      database: ''
+    - dataset: tenant_product
+      field: enable
+      database: ''
+    evidence_refs:
+    - ev-product-open-status
+    - ev-dao-status-query
+  domain_rules:
+  - rule_id: product-name-unique-per-tenant
+    label: 租户内产品名称唯一
+    content: 保存租户产品时，同一 tenant_id 下启用记录的 name 不得重复。
+    applicability: 创建或更新租户产品
+    query_impact: 统计实例时不可把同名记录当作同一实例，按 id 计数。
+    field_targets:
+    - dataset: tenant_product
+      field: tenant_id
+      database: ''
+    - dataset: tenant_product
+      field: name
+      database: ''
+    - dataset: tenant_product
+      field: enable
+      database: ''
+    evidence_refs:
+    - ev-name-unique
+  - rule_id: cancel-guard
+    label: 有效业务关联禁止取消
+    content: 存在有效 tenant_project 关联或企业 cust_auth_application 申请时不允许取消；否则 open_status
+      写 N。
+    applicability: 取消租户产品
+    query_impact: N 表示未开通/取消，不等于不存在产品实例。
+    field_targets:
+    - dataset: tenant_product
+      field: open_status
+      database: ''
+    - dataset: tenant_product
+      field: code
+      database: ''
+    - dataset: cust_auth_application
+      field: ref_cust_auth_application_tenant_product
+      database: ''
+    evidence_refs:
+    - ev-cancel-guard
+  - rule_id: separate-status-dictionaries
+    label: 平台与企业申请状态不可混用
+    content: tenant_product.open_status 仅使用 Y/P/N；cust_auth_application.open_status
+      使用 OPENED/OPENING/NOT_OPENED。
+    applicability: 产品生命周期查询和企业产品申请查询
+    query_impact: 按表选择字典，禁止用 OPENED 过滤 tenant_product。
+    field_targets:
+    - dataset: tenant_product
+      field: open_status
+      database: ''
+    - dataset: cust_auth_application
+      field: open_status
+      database: ''
+    evidence_refs:
+    - ev-product-open-status
+    - ev-cust-product-constant
+  verified_query_patterns:
+  - pattern_id: count-opened-tenant-products
+    question: 已开通的租户产品有多少
+    query: SELECT COUNT(DISTINCT id) AS opened_tenant_product_count FROM tenant_product
+      WHERE open_status = 'Y' AND enable = 'Y'
+    intended_specification:
+      grain: tenant_product
+      caliber_id: opened-tenant-product
+    verification:
+      status: PENDING_VALIDATION
+    evidence_refs:
+    - ev-open-query
+evidence_refs:
+- ev-controller-active
+- ev-active-notify
+- ev-product-open-status
+- ev-cancel-guard
+- ev-cust-product-constant
+- ev-open-query
+unit_links: []
+assumptions:
+- 查询范例未在目标库逐条执行。
+conflicts:
+- topic: 两套产品开通状态字典
+  parties:
+  - ev-product-open-status
+  - ev-cust-product-constant
+  summary: tenant_product 使用 Y/P/N，cust_auth_application 使用 OPENED/OPENING/NOT_OPENED，按数据集区分。
+confidence: 0.94

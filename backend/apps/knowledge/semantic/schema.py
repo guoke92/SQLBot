@@ -65,6 +65,7 @@ class ConceptDefinition(BaseModel):
     aliases: list[str] = Field(default_factory=list)
     definition: str
     dictionary: dict[str, str] = Field(default_factory=dict)
+    field_targets: list[SemanticFieldRef] = Field(default_factory=list)
     evidence_refs: list[str] = Field(default_factory=list)
 
 
@@ -127,6 +128,43 @@ class SemanticRelationship(BaseModel):
     status: Literal["proposed", "confirmed"] = "proposed"
     evidence_refs: list[str] = Field(default_factory=list)
     confidence: float = Field(default=0.5, ge=0, le=1)
+
+
+class PackageRelationship(BaseModel):
+    """Package-scoped physical table relation extracted from code evidence.
+
+    Endpoints are physical table/field names, not unit-local dataset ids: a
+    relation may cross two units and may reference fields no unit declares
+    (minimal field declaration). Undeclared endpoints become stub field
+    nodes at decomposition and are physically verified at bind time.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    left_table: str
+    left_field: str
+    right_table: str
+    right_field: str
+    evidence: str = ""
+    relationship_type: str = "EQUI_JOIN"
+    cardinality: str = ""
+
+
+class UnitLink(BaseModel):
+    """Cross-scenario semantic link declared by one unit about another.
+
+    Only semantic direction lives here (prerequisite / validates).
+    Data coupling (shares_data) is derived by the decomposer from shared
+    dataset nodes and must not be declared.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    target_unit: str
+    kind: Literal["prerequisite", "validates"]
+    via: list[SemanticFieldRef] = Field(default_factory=list)
+    evidence_refs: list[str] = Field(default_factory=list)
+    description: str = ""
 
 
 class SemanticMetric(BaseModel):
@@ -221,6 +259,7 @@ class KnowledgeUnitEntry(BaseModel):
     description: str
     content: KnowledgeUnitContent
     evidence_refs: list[str] = Field(default_factory=list)
+    unit_links: list[UnitLink] = Field(default_factory=list)
     assumptions: list[str] = Field(default_factory=list)
     conflicts: list[dict[str, Any]] = Field(default_factory=list)
     confidence: float = Field(default=0.5, ge=0, le=1)
@@ -258,6 +297,7 @@ class KnowledgePackageV2(BaseModel):
     package: PackageMetadata
     sources: list[SourceDescriptor] = Field(default_factory=list)
     evidence: list[EvidenceDescriptor] = Field(default_factory=list)
+    relationships: list[PackageRelationship] = Field(default_factory=list)
     knowledge_units: list[KnowledgeUnitEntry]
 
     @model_validator(mode="after")
@@ -279,7 +319,16 @@ class KnowledgePackageV2(BaseModel):
                     f"evidence {evidence.evidence_id} references unknown source {evidence.source_id}"
                 )
         known_evidence = set(evidence_ids)
+        unit_id_set = set(unit_ids)
         for unit in self.knowledge_units:
+            for link in unit.unit_links:
+                if link.target_unit == unit.unit_id:
+                    raise ValueError(f"unit {unit.unit_id} links to itself")
+                if link.target_unit not in unit_id_set:
+                    raise ValueError(
+                        f"unit {unit.unit_id} links to unknown unit "
+                        f"{link.target_unit!r}"
+                    )
             validate_knowledge_unit(unit, known_evidence)
         return self
 
@@ -309,6 +358,8 @@ def collect_evidence_refs(unit: KnowledgeUnitEntry) -> set[str]:
     for process in unit.content.processes:
         for effect in process.data_effects:
             refs.update(effect.evidence_refs)
+    for link in unit.unit_links:
+        refs.update(link.evidence_refs)
     return refs
 
 
@@ -351,6 +402,12 @@ def validate_knowledge_unit(
     for rule in unit.content.domain_rules:
         for target in rule.field_targets:
             validate_field_ref(target, f"rule {rule.rule_id}")
+    for concept in unit.content.concepts:
+        for target in concept.field_targets:
+            validate_field_ref(target, f"concept {concept.concept_id}")
+    for link in unit.unit_links:
+        for ref in link.via:
+            validate_field_ref(ref, f"unit link {link.target_unit}")
     for process in unit.content.processes:
         for effect in process.data_effects:
             if effect.dataset not in dataset_ids:

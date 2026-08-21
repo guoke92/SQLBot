@@ -29,21 +29,9 @@ def recall_knowledge(
     bundles = [provider.recall(session, context) for provider in providers]
     return KnowledgeBundle(
         prompt_template=next(
-            (
-                bundle.prompt_template
-                for bundle in bundles
-                if bundle.prompt_template
-            ),
+            (bundle.prompt_template for bundle in bundles if bundle.prompt_template),
             "",
         ),
-        log_items=[
-            item
-            for bundle in bundles
-            for item in bundle.log_items
-        ],
-        matches=[
-            match
-            for bundle in bundles
-            for match in bundle.matches
-        ],
+        log_items=[item for bundle in bundles for item in bundle.log_items],
+        matches=[match for bundle in bundles for match in bundle.matches],
     )

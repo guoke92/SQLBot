@@ -50,7 +50,6 @@ def generate_recommend_questions(
         operate=OperationEnum.GENERATE_RECOMMENDED_QUESTIONS,
         record_id=llm_service.record.id,
         local_operation=False,
-        phase="respond",
         graph_node="generate",
         title_key="chat.log.GENERATE_RECOMMENDED_QUESTIONS",
     ) as span:

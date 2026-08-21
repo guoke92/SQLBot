@@ -218,11 +218,27 @@ knowledge_units: []
 
 ### 6.1 concepts
 
-`concept_id`、`name`、`definition` 必填。`definition` 必须落到阶段、状态值、字段或数据边界，禁止「指企业建档这个过程」。
+`concept_id`、`name`、`definition` 必填，**`field_targets` 必填（指向本单元已声明字段）**。`definition` 必须落到阶段、状态值、字段或数据边界，禁止「指企业建档这个过程」。
 
-同一语义只出现一次：用 `aliases` 和 `dictionary`（物理值 → 业务含义），不要把「建档 / 企业建档 / 客户建档」拆成三个概念。
+锚定规则：
 
-展示文案与口语可以不同（例如字典展示「认证成功」、口语「建档成功」），**值以库字段为准**。
+- 状态类概念 → 承载其 `dictionary` 的字段；字典跨两个字段时两个都写。
+- 实体类概念（概念即一张表）→ 该表 `id` 或业务键字段。
+- 概念 dictionary 的键与该字段 dictionary 的键一致（键一致是硬要求，值措辞可有详略）。
+
+```yaml
+- concept_id: build-success
+  name: 建档成功
+  aliases: [认证成功, 有效已建档企业]
+  definition: 主数据建档状态为 BUILD_SUCCESS 且企业生效。
+  dictionary: {BUILD_SUCCESS: 认证成功, EFFECT: 生效}
+  field_targets:
+  - {dataset: company, field: build_status}
+  - {dataset: company, field: status}
+  evidence_refs: [ev-build-status-dict, ev-effect-cust]
+```
+
+同一语义只出现一次：用 `aliases` 和 `dictionary`，不要把「建档 / 企业建档 / 客户建档」拆成三个概念。展示文案与口语可以不同，**值以库字段为准**。
 
 ### 6.2 processes
 
@@ -306,6 +322,41 @@ verification:
 允许使用命名参数（如 `:project_id`），绑定校验会先替换成 `'1'` 再做目录检查。查询解析失败、执行失败、非 SQL 数据源 → **WARNING**，不单独把整包打成 FAIL。
 
 查询必须是只读；示例应能在目标库安全执行（最多探 1 行）。不要写空 SQL、伪 SQL、只有题目。
+
+### 6.9 包级 relationships（跨单元物理关系）
+
+跨单元关系写包级 `relationships`（manifest 顶层或独立 `relationships.yaml`，导入时并入契约）。端点用**物理表名/字段名**，不是单元内 dataset_id：
+
+```yaml
+relationships:
+- left_table: cust_project_rel
+  left_field: project_id
+  right_table: tenant_project
+  right_field: id
+  evidence: write-flow:OperCustFacade.java:1082
+  relationship_type: EQUI_JOIN   # EQUI_JOIN（真 FK 连接）| SHARED_KEY（共享键/传递，非 JOIN）
+  cardinality: many_to_one
+```
+
+- **EQUI_JOIN**：只有一侧真的一键一行（1:n / 1:1）才标；生成 relation_endpoint 边，召回时合成 JOIN。
+- **SHARED_KEY**：n:n / 共享键 / 传递关系——两侧字段业务含义相同、取值一致，但不得直接 JOIN 彼此（各自 JOIN 主表）。
+- 端点允许不被任何单元声明（字段级最小声明的自然结果）：运行时生成 stub 节点并在绑定时对活库校验（lint `RELATION_UNDECLARED_ENDPOINT` 仅提示）。
+- 每条关系必须带 `evidence`（write-flow / read-flow / java-eq / ref-convention）。反规范化拷贝（derived_copy）不是关系，不写进 relationships，只在 evidence 标注源字段。
+
+### 6.10 unit_links（跨场景语义方向）
+
+只有代码能证明调用链/状态校验时才声明（数据耦合 shares_data 由运行时推导，**禁止声明**）：
+
+```yaml
+unit_links:
+- target_unit: enterprise-onboarding
+  kind: prerequisite       # prerequisite（目标单元是前置流程）| validates（本单元校验目标状态）
+  via: [{dataset: company, field: build_status}]
+  evidence_refs: [ev-sign-service-checks-build-status]
+  description: 签署协议前校验企业建档状态为审核通过。
+```
+
+`target_unit` 必须是同包内 unit_id；`via` 必须解析到本单元的 dataset/field；`evidence_refs` 必填且指向包内证据。拿不准就不写——缺一条只损失召回广度，错一条污染扩展。
 
 ---
 

@@ -56,7 +56,6 @@ def test_span_brief_from_envelope() -> None:
     message = {
         "sqlbot_span": True,
         "version": 1,
-        "phase": "execute",
         "graph_node": "execute_queries",
         "detail": {"sql": "select 1", "error": "boom", "row_count": 0},
     }
@@ -70,7 +69,6 @@ def test_span_brief_uses_canonical_envelope() -> None:
     message = {
         "sqlbot_span": True,
         "version": 1,
-        "phase": "plan",
         "graph_node": "generate_queries",
         "detail": {"validation_error": "bad sql"},
     }

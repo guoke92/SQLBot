@@ -103,8 +103,69 @@ OperCustFacade.regSelfOld(companyId, personId)   # 自主注册建档（事务�
 - 无项目码时自动绑定租户默认项目（`tenant_setting_config.default_project_id`）。
 - 供应商 + ACFLOW/ORDER 产品 → `cust_project_rel.status='1'`。
 
+### 4.6 概念锚定（field_targets → concept_of 边）
+
+每个 concept 必须锚定字段：状态类锚到承载其字典的字段，字典跨两个字段时两个都写；实体类锚到表 id/业务键。
+
+| concept | field_targets | 依据 |
+|---|---|---|
+| 建档成功 | company.build_status + company.status | 字典跨两字段（BUILD_SUCCESS + EFFECT） |
+| 建档中 | company.build_status + company.check_status | CUST_BUILDING + CUST_CHECK_* |
+| 待客户确认 | company.build_status | CUST_CONFIRM_AWAIT |
+| 有效企业（实体） | company.id | 概念即企业主数据表 |
+
+```yaml
+concepts:
+- concept_id: build-success
+  name: 建档成功
+  aliases: [认证成功, 有效已建档企业]
+  definition: 主数据建档状态为 BUILD_SUCCESS 且企业生效。
+  dictionary: {BUILD_SUCCESS: 认证成功, EFFECT: 生效}
+  field_targets:
+  - {dataset: company, field: build_status}
+  - {dataset: company, field: status}
+  evidence_refs: [ev-build-status-dict, ev-effect-cust]
+```
+
+### 4.7 共享表治理与 unit_links
+
+**共享表**：每个物理表一个权威单元声明完整业务字段；引用单元用最小声明，且字段 payload 与权威单元逐字一致（否则 decompose 产生 intra-package 冲突）。
+
+权威（enterprise-onboarding）：
+
+```yaml
+- dataset_id: company
+  name: cust_company_info
+  description: 企业主/过程记录，一行一家企业。
+  fields:
+  - {field_id: id, name: id, data_type: bigint, evidence_refs: [ev-company-fields]}
+  - {field_id: build_status, name: cust_build_status, data_type: varchar,
+     dictionary: {BUILD_SUCCESS: 认证成功, CUST_BUILDING: 审核中}, evidence_refs: [ev-build-status-dict]}
+```
+
+引用（project-enterprise-rel，只声明本单元用到的 id）：
+
+```yaml
+- dataset_id: company
+  name: cust_company_info
+  fields:
+  - {field_id: id, name: id, data_type: bigint, evidence_refs: [ev-company-fields]}
+```
+
+**unit_links**：只有代码能证明调用链/状态校验时才声明，`via` + `evidence_refs` 必填。
+
+```yaml
+unit_links:
+- target_unit: enterprise-onboarding
+  kind: prerequisite
+  via: [{dataset: company, field: build_status}]
+  evidence_refs: [ev-sign-service-checks-build-status]
+  description: 签署协议前校验企业建档状态为审核通过。
+```
+
 ## 5. 提炼要点
 
 1. 「建档」不是单一状态字段，而是**认证流 + 审核流两套状态机**。
 2. 「本月建档了多少企业」本身歧义：按创建时间 / 提交认证 / 审核通过 / 认证成功，是四个不同 COUNT——这正是要提取的指标口径差异，也是 SQLBot 澄清的触发点。
-3. 关系要区分「真 FK」「派生拷贝（derived_copy）」「外部引用（external_ref）」，不能一视同仁标直连。
+3. 关系要区分「真 FK（EQUI_JOIN）」「派生拷贝（不写关系，只在 evidence 标注源字段）」「共享键（SHARED_KEY）」，不能一视同仁标直连。
+4. 概念必须锚定字段（field_targets），否则生成不了 concept_of 边、召回断链。

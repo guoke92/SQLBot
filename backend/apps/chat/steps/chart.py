@@ -35,7 +35,6 @@ def generate_chart(
         operate=OperationEnum.GENERATE_CHART,
         record_id=llm_service.record.id,
         local_operation=False,
-        phase="present",
         graph_node=graph_node,
         step_index=step_index,
         unit_index=unit_index,

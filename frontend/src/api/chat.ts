@@ -620,7 +620,6 @@ export class ChatLogHistoryItem {
   error?: boolean | undefined
   message?: any
   status?: 'running' | 'success' | 'degraded' | 'failed' | 'interrupted'
-  phase?: string
   graph_node?: string
   title_key?: string
   title_params?: Record<string, any>
@@ -749,7 +748,6 @@ const toChatLogHistoryItem = (data?: any): any | undefined => {
   ;(item as any).id = data.id
   Object.assign(item, {
     status: data.status,
-    phase: data.phase,
     graph_node: data.graph_node,
     title_key: data.title_key,
     title_params: data.title_params || {},
