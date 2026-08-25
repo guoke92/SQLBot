@@ -1,0 +1,149 @@
+{
+  "unit_id": "interworking",
+  "sources": [
+    {
+      "source_id": "src-interworking",
+      "kind": "source_code",
+      "locator": "pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantInterworkingProductDO.java",
+      "repository_revision": "ee434954e"
+    }
+  ],
+  "evidence": [
+    {
+      "evidence_id": "ev-cip-model",
+      "source_id": "src-interworking",
+      "evidence_kind": "database_schema",
+      "locator": "pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantInterworkingProductDO.java",
+      "claim": "企业互通产品: 企业与租户互通产品之间的开通记录，企业通过 ref_*_cust_company_info 按企业 code 关联。",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-cip-open-status",
+      "source_id": "src-interworking",
+      "evidence_kind": "code_path",
+      "locator": "pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantInterworkingProductDO.java",
+      "claim": "规则 互通产品开通状态使用 Y/P/N: ProductOpenStatusEnum 的物理键为 Y=已开通、P=开通中、N=未开通；企业申请的 OPENED/OPENING 不属于本三表口径。",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-cip-product",
+      "source_id": "src-interworking",
+      "evidence_kind": "code_path",
+      "locator": "pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantInterworkingProductDO.java",
+      "claim": "关系 cust_interworking_product.product_id -> tenant_interworking_product.id",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-company-ref",
+      "source_id": "src-interworking",
+      "evidence_kind": "code_path",
+      "locator": "pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantInterworkingProductDO.java",
+      "claim": "关系 cust_interworking_product.ref_cust_interworking_product_cust_company_info -> company.code",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-controller",
+      "source_id": "src-interworking",
+      "evidence_kind": "code_path",
+      "locator": "pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantInterworkingProductDO.java",
+      "claim": "阶段 保存互通产品项目范围: 保存租户互通产品的 scope 与 scope_project",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-open-status-enum",
+      "source_id": "src-interworking",
+      "evidence_kind": "code_path",
+      "locator": "pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantInterworkingProductDO.java",
+      "claim": "规则 互通产品开通状态使用 Y/P/N: ProductOpenStatusEnum 的物理键为 Y=已开通、P=开通中、N=未开通；企业申请的 OPENED/OPENING 不属于本三表口径。",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-platform-ref",
+      "source_id": "src-interworking",
+      "evidence_kind": "code_path",
+      "locator": "pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantInterworkingProductDO.java",
+      "claim": "关系 tenant_interworking_product.platform_product_code -> platform_product.product_code",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-project-relate",
+      "source_id": "src-interworking",
+      "evidence_kind": "code_path",
+      "locator": "pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantInterworkingProductDO.java",
+      "claim": "互通项目适用范围: 互通产品 scope=ALL 时不落项目明细；否则按 scope_project 中的项目 ID 重建 tenant_interworking_project 明细。",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-ref-relations",
+      "source_id": "src-interworking",
+      "evidence_kind": "code_path",
+      "locator": "pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantInterworkingProductDO.java",
+      "claim": "企业互通产品: 企业与租户互通产品之间的开通记录，企业通过 ref_*_cust_company_info 按企业 code 关联。",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-tip-active",
+      "source_id": "src-interworking",
+      "evidence_kind": "code_path",
+      "locator": "pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantInterworkingProductDO.java",
+      "claim": "阶段 开通或取消租户互通产品: 租户执行 active 或 cancel",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-tip-cancel",
+      "source_id": "src-interworking",
+      "evidence_kind": "code_path",
+      "locator": "pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantInterworkingProductDO.java",
+      "claim": "阶段 开通或取消租户互通产品: 租户执行 active 或 cancel",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-tip-create",
+      "source_id": "src-interworking",
+      "evidence_kind": "code_path",
+      "locator": "pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantInterworkingProductDO.java",
+      "claim": "租户互通产品: 租户从平台互通类产品目录创建的一条产品配置记录；同一平台产品在同一租户下复用已有记录。",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-tip-list",
+      "source_id": "src-interworking",
+      "evidence_kind": "code_path",
+      "locator": "pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantInterworkingProductDO.java",
+      "claim": "口径 已开通互通产品: 互通产品表中 open_status=Y 且 enable=Y。",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-tip-model",
+      "source_id": "src-interworking",
+      "evidence_kind": "database_schema",
+      "locator": "pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantInterworkingProductDO.java",
+      "claim": "租户互通产品: 租户从平台互通类产品目录创建的一条产品配置记录；同一平台产品在同一租户下复用已有记录。",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-tip-open-status",
+      "source_id": "src-interworking",
+      "evidence_kind": "code_path",
+      "locator": "pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantInterworkingProductDO.java",
+      "claim": "口径 已开通互通产品: 互通产品表中 open_status=Y 且 enable=Y。",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-tipj-model",
+      "source_id": "src-interworking",
+      "evidence_kind": "database_schema",
+      "locator": "pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantInterworkingProductDO.java",
+      "claim": "互通产品与项目 相关事实",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-tipj-product",
+      "source_id": "src-interworking",
+      "evidence_kind": "code_path",
+      "locator": "pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantInterworkingProductDO.java",
+      "claim": "关系 tenant_interworking_project.product_id -> tenant_interworking_product.id",
+      "confidence": 0.8
+    }
+  ]
+}

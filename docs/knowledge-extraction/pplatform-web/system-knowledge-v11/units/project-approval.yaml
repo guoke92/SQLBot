@@ -1,0 +1,949 @@
+unit_id: project-approval
+revision: 1
+title: 项目上线审批
+aliases:
+- 项目审批
+- 上线审批
+- 审批流
+- 项目立项审批
+domain: project
+applicability: 项目上线审批、后补合作协议审批、审批流程节点与文件；不用于项目状态本身统计
+description: 按项目发起上线审批或后补合作协议，审批单挂接流程节点、业务信息、授信和文件；工作流状态和节点状态共同表达审批进度。
+content:
+  concepts:
+  - concept_id: approval
+    name: 项目审批单
+    aliases:
+    - 上线审批
+    - 审批编号
+    definition: tenant_project_approval 一行代表一次项目上线审批或后补合作协议审批；approval_no 为业务编号。
+    dictionary: {}
+    field_targets:
+    - dataset: approval
+      field: id
+      database: ''
+    - dataset: approval
+      field: approval_no
+      database: ''
+    - dataset: approval
+      field: project_type
+      database: ''
+    evidence_refs:
+    - ev-approval-schema
+  - concept_id: approval-workflow-status
+    name: 审批工作流状态
+    aliases:
+    - 待发起
+    - 审批中
+    - 审批通过
+    - 审批拒绝
+    definition: tenant_project_approval.wf_status 表示审批单整体工作流状态。
+    dictionary:
+      PENDING: 待发起
+      RUNNING: 审批中
+      FINISHED: 审批通过
+      TERMINATED: 审批拒绝
+    field_targets:
+    - dataset: approval
+      field: wf_status
+      database: ''
+    evidence_refs:
+    - ev-approval-wf-enum
+  - concept_id: approval-node-status
+    name: 审批节点状态
+    aliases:
+    - 待审批
+    - 审批中
+    - 已通过
+    - 已拒绝
+    definition: tenant_project_approval_flow.node_status 表示审批流中每个节点的处理状态。
+    dictionary:
+      PENDING: 待审批
+      APPROVING: 审批中
+      APPROVED: 已通过
+      REJECTED: 已拒绝
+    field_targets:
+    - dataset: flow
+      field: node_status
+      database: ''
+    evidence_refs:
+    - ev-approval-node-enum
+  processes:
+  - stage_id: create-approval
+    name: 创建审批单
+    description: ''
+    trigger: ProjectApprovalController.createApproval / prepareWizardApproval
+    enter_conditions: []
+    exit_conditions: []
+    next_stages:
+    - submit-approval
+    data_effects:
+    - operation: insert
+      dataset: approval
+      fields:
+      - id
+      - code
+      - approval_no
+      - project_type
+      - wf_status
+      - flow_code
+      - ref_tenant_project_approval_tenant_project
+      - ref_tenant_project_approval_tenant_project_approval
+      - enable
+      - is_online_approval
+      - related_approval_no
+      condition: 创建审批单，初始 wf_status=PENDING
+      description: ''
+      evidence_refs: []
+    - operation: insert
+      dataset: business_info
+      fields:
+      - id
+      - code
+      - business_flow_mode
+      - service_fee_quote_type_financing
+      - ref_tenant_project_approval_business_info_project_approval
+      - enable
+      condition: 创建业务信息
+      description: ''
+      evidence_refs: []
+    - operation: insert
+      dataset: flow
+      fields:
+      - id
+      - code
+      - node_code
+      - node_name
+      - node_order
+      - node_status
+      - ref_tenant_project_approval_flow_tenant_project_approval
+      - enable
+      condition: 按 flow_config 初始化流程节点
+      description: ''
+      evidence_refs: []
+    - operation: read
+      dataset: flow_config
+      fields:
+      - id
+      - flow_code
+      - node_code
+      - node_name
+      - node_order
+      - enable
+      condition: 按 flow_code 取流程配置模板
+      description: ''
+      evidence_refs: []
+    evidence_refs:
+    - ev-approval-create
+  - stage_id: submit-approval
+    name: 提交审批/启动工作流
+    description: ''
+    trigger: ProjectApprovalController.submit
+    enter_conditions: []
+    exit_conditions: []
+    next_stages:
+    - handle-workflow
+    data_effects:
+    - operation: update
+      dataset: approval
+      fields:
+      - wf_status
+      - flow_code
+      condition: 提交后 wf_status 进入 RUNNING
+      description: ''
+      evidence_refs: []
+    - operation: update
+      dataset: flow
+      fields:
+      - node_status
+      condition: 首个节点进入 APPROVING
+      description: ''
+      evidence_refs: []
+    evidence_refs:
+    - ev-approval-submit
+  - stage_id: handle-workflow
+    name: 审批节点处理
+    description: ''
+    trigger: 审批通过/拒绝/退回回调
+    enter_conditions: []
+    exit_conditions: []
+    next_stages: []
+    data_effects:
+    - operation: update
+      dataset: approval
+      fields:
+      - wf_status
+      condition: 全部通过置 FINISHED；拒绝/终止置 TERMINATED
+      description: ''
+      evidence_refs: []
+    - operation: update
+      dataset: flow
+      fields:
+      - node_status
+      condition: 节点分别置 APPROVED/REJECTED
+      description: ''
+      evidence_refs: []
+    - operation: update
+      dataset: flow_node
+      fields:
+      - operate_type
+      - approval_type
+      - id
+      - node_code
+      - node_order
+      - enable
+      condition: 记录审批操作类型
+      description: ''
+      evidence_refs: []
+    - operation: update
+      dataset: flow_credit
+      fields:
+      - id
+      - code
+      - ref_tenant_project_approval_flow_credit_project_approval_node
+      - enable
+      condition: 记录审批授信与节点关联
+      description: ''
+      evidence_refs: []
+    - operation: update
+      dataset: flow_file
+      fields:
+      - id
+      - code
+      - enable
+      condition: 记录审批文件处理状态
+      description: ''
+      evidence_refs: []
+    evidence_refs:
+    - ev-approval-workflow
+  - stage_id: query-approval
+    name: 查询审批
+    description: ''
+    trigger: 分页、详情、按项目/审批编号查询
+    enter_conditions: []
+    exit_conditions: []
+    next_stages: []
+    data_effects:
+    - operation: read
+      dataset: approval
+      fields:
+      - id
+      - code
+      - approval_no
+      - project_type
+      - wf_status
+      - flow_code
+      - ref_tenant_project_approval_tenant_project
+      - enable
+      condition: 按项目 code 或审批编号查询
+      description: ''
+      evidence_refs: []
+    - operation: read
+      dataset: flow
+      fields:
+      - node_code
+      - node_name
+      - node_order
+      - node_status
+      - ref_tenant_project_approval_flow_tenant_project_approval
+      - enable
+      condition: 按审批 code 查流程节点
+      description: ''
+      evidence_refs: []
+    - operation: read
+      dataset: tenant_project
+      fields:
+      - id
+      - code
+      - project_approval_id
+      condition: 查询审批时关联项目
+      description: ''
+      evidence_refs: []
+    evidence_refs:
+    - ev-approval-query
+  datasets:
+  - dataset_id: approval
+    name: tenant_project_approval
+    description: 项目上线审批主表。
+    database: lowcode_pplatform
+    fields:
+    - field_id: id
+      name: id
+      description: 表主键
+      data_type: bigint
+      dictionary: {}
+      evidence_refs: []
+    - field_id: code
+      name: code
+      description: 审批业务编码，流程节点通过 code 关联
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: approval_no
+      name: approval_no
+      description: 审批编号
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: project_type
+      name: project_type
+      description: 项目类型
+      data_type: varchar
+      dictionary:
+        STANDARD: 标准项目
+        REGULAR: 常规项目
+      evidence_refs: []
+    - field_id: wf_status
+      name: wf_status
+      description: 工作流状态
+      data_type: varchar
+      dictionary:
+        PENDING: 待发起
+        RUNNING: 审批中
+        FINISHED: 审批通过
+        TERMINATED: 审批拒绝
+      evidence_refs: []
+    - field_id: flow_code
+      name: flow_code
+      description: 流程配置编码
+      data_type: varchar
+      dictionary:
+        NO_ONLINE: 无需上线审批
+        STANDARD: 标准项目流程
+        REGULAR: 常规项目流程
+      evidence_refs: []
+    - field_id: is_online_approval
+      name: is_online_approval
+      description: 是否发起上线审批 Y/N
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: related_approval_no
+      name: related_approval_no
+      description: 关联审批编号
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: ref_tenant_project_approval_tenant_project
+      name: ref_tenant_project_approval_tenant_project
+      description: 关联租户项目 code
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: ref_tenant_project_approval_tenant_project_approval
+      name: ref_tenant_project_approval_tenant_project_approval
+      description: 关联原审批 code
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: enable
+      name: enable
+      description: 启用标记 Y/N
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    evidence_refs:
+    - ev-approval-schema
+  - dataset_id: flow
+    name: tenant_project_approval_flow
+    description: 审批流程实例节点。
+    database: lowcode_pplatform
+    fields:
+    - field_id: id
+      name: id
+      description: 表主键
+      data_type: bigint
+      dictionary: {}
+      evidence_refs: []
+    - field_id: code
+      name: code
+      description: 流程节点实例编码
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: node_code
+      name: node_code
+      description: 节点编码
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: node_name
+      name: node_name
+      description: 节点名称
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: node_order
+      name: node_order
+      description: 节点顺序
+      data_type: int
+      dictionary: {}
+      evidence_refs: []
+    - field_id: node_status
+      name: node_status
+      description: 节点状态
+      data_type: varchar
+      dictionary:
+        PENDING: 待审批
+        APPROVING: 审批中
+        APPROVED: 已通过
+        REJECTED: 已拒绝
+      evidence_refs: []
+    - field_id: ref_tenant_project_approval_flow_tenant_project_approval
+      name: ref_tenant_project_approval_flow_tenant_project_approval
+      description: 关联审批 code
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: enable
+      name: enable
+      description: 启用标记 Y/N
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    evidence_refs:
+    - ev-flow-schema
+  - dataset_id: flow_config
+    name: tenant_project_approval_flow_config
+    description: 审批流程配置模板。
+    database: lowcode_pplatform
+    fields:
+    - field_id: id
+      name: id
+      description: 表主键
+      data_type: bigint
+      dictionary: {}
+      evidence_refs: []
+    - field_id: flow_code
+      name: flow_code
+      description: 流程编码
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: node_code
+      name: node_code
+      description: 节点编码
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: node_name
+      name: node_name
+      description: 节点名称
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: node_order
+      name: node_order
+      description: 节点顺序
+      data_type: int
+      dictionary: {}
+      evidence_refs: []
+    - field_id: enable
+      name: enable
+      description: 启用标记 Y/N
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    evidence_refs:
+    - ev-flow-config-schema
+  - dataset_id: flow_node
+    name: tenant_project_approval_flow_node
+    description: 审批流程节点扩展/操作记录。
+    database: lowcode_pplatform
+    fields:
+    - field_id: id
+      name: id
+      description: 表主键
+      data_type: bigint
+      dictionary: {}
+      evidence_refs: []
+    - field_id: code
+      name: code
+      description: 节点记录编码
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: node_code
+      name: node_code
+      description: 节点编码
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: node_order
+      name: node_order
+      description: 审批顺序
+      data_type: int
+      dictionary: {}
+      evidence_refs: []
+    - field_id: approval_type
+      name: approval_type
+      description: 审批类型
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: operate_type
+      name: operate_type
+      description: 操作类型
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: ref_tenant_project_approval_flow_node_project_approval
+      name: ref_tenant_project_approval_flow_node_project_approval
+      description: 关联审批 code
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: ref_tenant_project_approval_flow_node_project_approval_flow
+      name: ref_tenant_project_approval_flow_node_project_approval_flow
+      description: 关联流程实例 code
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: enable
+      name: enable
+      description: 启用标记 Y/N
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    evidence_refs:
+    - ev-flow-node-schema
+  - dataset_id: business_info
+    name: tenant_project_approval_business_info
+    description: 审批业务信息。
+    database: lowcode_pplatform
+    fields:
+    - field_id: id
+      name: id
+      description: 表主键
+      data_type: bigint
+      dictionary: {}
+      evidence_refs: []
+    - field_id: code
+      name: code
+      description: 业务信息编码
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: business_flow_mode
+      name: business_flow_mode
+      description: 业务流程模式
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: service_fee_quote_type_financing
+      name: service_fee_quote_type_financing
+      description: 服务费报价类型
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: ref_tenant_project_approval_business_info_project_approval
+      name: ref_tenant_project_approval_business_info_project_approval
+      description: 关联审批 code
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: enable
+      name: enable
+      description: 启用标记 Y/N
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    evidence_refs:
+    - ev-business-info-schema
+  - dataset_id: flow_credit
+    name: tenant_project_approval_flow_credit
+    description: 审批授信信息。
+    database: lowcode_pplatform
+    fields:
+    - field_id: id
+      name: id
+      description: 表主键
+      data_type: bigint
+      dictionary: {}
+      evidence_refs: []
+    - field_id: code
+      name: code
+      description: 授信记录编码
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: ref_tenant_project_approval_flow_credit_project_approval
+      name: ref_tenant_project_approval_flow_credit_project_approval
+      description: 关联审批 code
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: ref_tenant_project_approval_flow_credit_project_approval_node
+      name: ref_tenant_project_approval_flow_credit_project_approval_node
+      description: 关联流程节点 code
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: enable
+      name: enable
+      description: 启用标记 Y/N
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    evidence_refs:
+    - ev-flow-credit-schema
+  - dataset_id: flow_file
+    name: tenant_project_approval_flow_file
+    description: 审批文件。
+    database: lowcode_pplatform
+    fields:
+    - field_id: id
+      name: id
+      description: 表主键
+      data_type: bigint
+      dictionary: {}
+      evidence_refs: []
+    - field_id: code
+      name: code
+      description: 文件记录编码
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: ref_tenant_project_approval_flow_file_project_approval
+      name: ref_tenant_project_approval_flow_file_project_approval
+      description: 关联审批 code
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: ref_tenant_project_approval_flow_file_project_approval_flow_node
+      name: ref_tenant_project_approval_flow_file_project_approval_flow_node
+      description: 关联流程节点 code
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: enable
+      name: enable
+      description: 启用标记 Y/N
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    evidence_refs:
+    - ev-flow-file-schema
+  - dataset_id: tenant_project
+    name: tenant_project
+    description: 租户业务项目实例。
+    database: lowcode_pplatform
+    fields:
+    - field_id: id
+      name: id
+      description: 表主键
+      data_type: bigint
+      dictionary: {}
+      evidence_refs: []
+    - field_id: code
+      name: code
+      description: 项目业务编码
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: project_approval_id
+      name: project_approval_id
+      description: 项目上线审批ID
+      data_type: bigint
+      dictionary: {}
+      evidence_refs: []
+    evidence_refs:
+    - ev-approval-schema
+  relationships:
+  - relationship_id: approval-to-project-code
+    left:
+      dataset: approval
+      field: ref_tenant_project_approval_tenant_project
+      database: ''
+    right:
+      dataset: tenant_project
+      field: code
+      database: ''
+    relationship_type: EQUI_JOIN
+    cardinality: n:1
+    business_meaning: 审批单按项目 code 关联租户项目。
+    status: proposed
+    evidence_refs:
+    - ev-approval-query
+    confidence: 0.5
+  - relationship_id: project-to-approval-id
+    left:
+      dataset: tenant_project
+      field: project_approval_id
+      database: ''
+    right:
+      dataset: approval
+      field: id
+      database: ''
+    relationship_type: EQUI_JOIN
+    cardinality: n:1
+    business_meaning: 项目保存最新审批ID。
+    status: proposed
+    evidence_refs:
+    - ev-approval-create
+    confidence: 0.5
+  - relationship_id: flow-to-approval
+    left:
+      dataset: flow
+      field: ref_tenant_project_approval_flow_tenant_project_approval
+      database: ''
+    right:
+      dataset: approval
+      field: code
+      database: ''
+    relationship_type: EQUI_JOIN
+    cardinality: n:1
+    business_meaning: 审批流程节点实例归属审批单。
+    status: proposed
+    evidence_refs:
+    - ev-approval-create
+    confidence: 0.5
+  - relationship_id: flow-node-to-flow
+    left:
+      dataset: flow_node
+      field: ref_tenant_project_approval_flow_node_project_approval_flow
+      database: ''
+    right:
+      dataset: flow
+      field: code
+      database: ''
+    relationship_type: EQUI_JOIN
+    cardinality: n:1
+    business_meaning: 节点扩展记录归属流程实例。
+    status: proposed
+    evidence_refs:
+    - ev-approval-workflow
+    confidence: 0.5
+  - relationship_id: flow-node-to-approval
+    left:
+      dataset: flow_node
+      field: ref_tenant_project_approval_flow_node_project_approval
+      database: ''
+    right:
+      dataset: approval
+      field: code
+      database: ''
+    relationship_type: EQUI_JOIN
+    cardinality: n:1
+    business_meaning: 节点扩展记录归属审批单。
+    status: proposed
+    evidence_refs:
+    - ev-approval-workflow
+    confidence: 0.5
+  - relationship_id: business-info-to-approval
+    left:
+      dataset: business_info
+      field: ref_tenant_project_approval_business_info_project_approval
+      database: ''
+    right:
+      dataset: approval
+      field: code
+      database: ''
+    relationship_type: EQUI_JOIN
+    cardinality: n:1
+    business_meaning: 审批业务信息归属审批单。
+    status: proposed
+    evidence_refs:
+    - ev-approval-create
+    confidence: 0.5
+  - relationship_id: flow-credit-to-approval
+    left:
+      dataset: flow_credit
+      field: ref_tenant_project_approval_flow_credit_project_approval
+      database: ''
+    right:
+      dataset: approval
+      field: code
+      database: ''
+    relationship_type: EQUI_JOIN
+    cardinality: n:1
+    business_meaning: 审批授信归属审批单。
+    status: proposed
+    evidence_refs:
+    - ev-approval-workflow
+    confidence: 0.5
+  - relationship_id: flow-file-to-approval
+    left:
+      dataset: flow_file
+      field: ref_tenant_project_approval_flow_file_project_approval
+      database: ''
+    right:
+      dataset: approval
+      field: code
+      database: ''
+    relationship_type: EQUI_JOIN
+    cardinality: n:1
+    business_meaning: 审批文件归属审批单。
+    status: proposed
+    evidence_refs:
+    - ev-approval-workflow
+    confidence: 0.5
+  - relationship_id: flow-file-to-flow-node
+    left:
+      dataset: flow_file
+      field: ref_tenant_project_approval_flow_file_project_approval_flow_node
+      database: ''
+    right:
+      dataset: flow_node
+      field: code
+      database: ''
+    relationship_type: EQUI_JOIN
+    cardinality: n:1
+    business_meaning: 审批文件归属流程节点。
+    status: proposed
+    evidence_refs:
+    - ev-approval-workflow
+    confidence: 0.5
+  metrics:
+  - metric_id: approval-count
+    name: 项目审批单数
+    description: 按审批单主键计数。
+    aggregation: COUNT
+    field:
+      dataset: approval
+      field: id
+      database: ''
+    filters: []
+    grain:
+    - dataset: approval
+      field: project_type
+      database: ''
+    - dataset: approval
+      field: wf_status
+      database: ''
+    evidence_refs:
+    - ev-approval-query
+  - metric_id: running-approval-count
+    name: 审批中审批单数
+    description: wf_status=RUNNING 的审批单数。
+    aggregation: COUNT
+    field:
+      dataset: approval
+      field: id
+      database: ''
+    filters: []
+    grain:
+    - dataset: approval
+      field: wf_status
+      database: ''
+    evidence_refs:
+    - ev-approval-query
+  calibers:
+  - caliber_id: running-approval
+    label: 审批中项目审批单
+    description: tenant_project_approval.wf_status=RUNNING 且 enable=Y。
+    contract_fragment:
+      predicates:
+      - field: approval.wf_status
+        operator: eq
+        values:
+        - RUNNING
+      - field: approval.enable
+        operator: eq
+        values:
+        - Y
+    field_targets:
+    - dataset: approval
+      field: wf_status
+      database: ''
+    - dataset: approval
+      field: enable
+      database: ''
+    evidence_refs:
+    - ev-approval-query
+  - caliber_id: finished-approval
+    label: 审批通过项目审批单
+    description: tenant_project_approval.wf_status=FINISHED 且 enable=Y。
+    contract_fragment:
+      predicates:
+      - field: approval.wf_status
+        operator: eq
+        values:
+        - FINISHED
+      - field: approval.enable
+        operator: eq
+        values:
+        - Y
+    field_targets:
+    - dataset: approval
+      field: wf_status
+      database: ''
+    - dataset: approval
+      field: enable
+      database: ''
+    evidence_refs:
+    - ev-approval-query
+  domain_rules:
+  - rule_id: workflow-status-transition
+    label: 审批工作流状态受控
+    content: PENDING 提交后进入 RUNNING；全部节点通过置 FINISHED；拒绝/终止置 TERMINATED。
+    applicability: 项目审批
+    query_impact: 统计审批通过需 wf_status=FINISHED
+    field_targets:
+    - dataset: approval
+      field: wf_status
+      database: ''
+    evidence_refs:
+    - ev-approval-workflow
+  - rule_id: node-status-sync
+    label: 节点状态与工作流同步
+    content: tenant_project_approval_flow.node_status 反映各节点处理状态；全部 APPROVED 才能整体 FINISHED。
+    applicability: 项目审批
+    query_impact: 查询某节点审批状态使用 flow.node_status
+    field_targets:
+    - dataset: flow
+      field: node_status
+      database: ''
+    - dataset: approval
+      field: wf_status
+      database: ''
+    evidence_refs:
+    - ev-approval-workflow
+  - rule_id: approval-project-link
+    label: 审批单必须关联项目
+    content: tenant_project_approval.ref_tenant_project_approval_tenant_project 保存项目
+      code，查询审批/统计需关联 tenant_project。
+    applicability: 项目审批查询
+    query_impact: 按项目维度统计需通过 ref_tenant_project_approval_tenant_project=tenant_project.code
+      关联
+    field_targets:
+    - dataset: approval
+      field: ref_tenant_project_approval_tenant_project
+      database: ''
+    - dataset: tenant_project
+      field: code
+      database: ''
+    evidence_refs:
+    - ev-approval-query
+  verified_query_patterns:
+  - pattern_id: count-running-approvals
+    question: 审批中的项目审批有多少
+    query: SELECT COUNT(DISTINCT id) AS running_approval_count FROM tenant_project_approval
+      WHERE wf_status = 'RUNNING' AND enable = 'Y'
+    intended_specification:
+      grain: approval
+      caliber_id: running-approval
+    verification:
+      status: PENDING_VALIDATION
+    evidence_refs:
+    - ev-approval-query
+evidence_refs:
+- ev-approval-schema
+- ev-flow-schema
+- ev-flow-config-schema
+- ev-flow-node-schema
+- ev-business-info-schema
+- ev-flow-credit-schema
+- ev-flow-file-schema
+- ev-approval-wf-enum
+- ev-approval-node-enum
+- ev-approval-create
+- ev-approval-submit
+- ev-approval-workflow
+- ev-approval-query
+unit_links: []
+assumptions:
+- 查询范例未在目标库执行。
+- 企微审批同步相关表 wechat_project_approval_apply/history 暂未在本单元展开。
+conflicts: []
+confidence: 0.88

@@ -1,0 +1,125 @@
+{
+  "unit_id": "company-group",
+  "sources": [
+    {
+      "source_id": "src-company-group",
+      "kind": "source_code",
+      "locator": "lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml",
+      "repository_revision": "ee434954e"
+    }
+  ],
+  "evidence": [
+    {
+      "evidence_id": "ev-controller",
+      "source_id": "src-company-group",
+      "evidence_kind": "code_path",
+      "locator": "lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml",
+      "claim": "阶段 新增或更新集团根节点: POST /cust-web/custGroupRel/addRootGroup",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-finance-query",
+      "source_id": "src-company-group",
+      "evidence_kind": "query_usage",
+      "locator": "lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml",
+      "claim": "规则 集团融资查询包含根企业: listCorporationEffectFinance 的集团成员子查询 UNION 根企业 custId，因此集团根企业自身也进入 CORE 候选集合。",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-group-do",
+      "source_id": "src-company-group",
+      "evidence_kind": "database_schema",
+      "locator": "lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml",
+      "claim": "集团成员: cust_group_rel 中一行企业节点，记录成员、父级、根集团、企业角色和关系状态。",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-group-mapper",
+      "source_id": "src-company-group",
+      "evidence_kind": "query_usage",
+      "locator": "lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml",
+      "claim": "口径 已生效集团成员: 集团关系状态 EFFECTIVE 且关系行启用；成员企业主数据在需要企业名称或有效企业分析时应 additionally enable='Y'。",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-group-rel",
+      "source_id": "src-company-group",
+      "evidence_kind": "code_path",
+      "locator": "lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml",
+      "claim": "关系 group_rel.cust_id -> company.id",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-group-status",
+      "source_id": "src-company-group",
+      "evidence_kind": "code_path",
+      "locator": "lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml",
+      "claim": "集团成员: cust_group_rel 中一行企业节点，记录成员、父级、根集团、企业角色和关系状态。",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-head-do",
+      "source_id": "src-company-group",
+      "evidence_kind": "database_schema",
+      "locator": "lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml",
+      "claim": "总公司信息: cust_head_company_info 保存企业总公司工商和法人资料，并以关联企业 code 指向企业主数据。",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-head-rel",
+      "source_id": "src-company-group",
+      "evidence_kind": "code_path",
+      "locator": "lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml",
+      "claim": "总公司信息: cust_head_company_info 保存企业总公司工商和法人资料，并以关联企业 code 指向企业主数据。",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-member-flow",
+      "source_id": "src-company-group",
+      "evidence_kind": "code_path",
+      "locator": "lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml",
+      "claim": "阶段 关联集团子级企业: POST /cust-web/custGroupRel/addSubCustGroupRel",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-remove-flow",
+      "source_id": "src-company-group",
+      "evidence_kind": "code_path",
+      "locator": "lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml",
+      "claim": "规则 删除集团先校验在途业务: 删除根集团前扁平化整棵树并执行 validateBusinessOnWay，通过后才批量删除关系行。",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-root-flow",
+      "source_id": "src-company-group",
+      "evidence_kind": "code_path",
+      "locator": "lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml",
+      "claim": "集团根企业: 集团树根节点；root_flag=Y 表示集团企业，root_cust_id 指向该集团根企业。",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-shareholder-do",
+      "source_id": "src-company-group",
+      "evidence_kind": "database_schema",
+      "locator": "lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml",
+      "claim": "股东关联方: cust_shareholder_info 保存企业关联方及出资信息，通过 ref_cust_company_info 按企业 code 关联客户主表。",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-shareholder-rel",
+      "source_id": "src-company-group",
+      "evidence_kind": "code_path",
+      "locator": "lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml",
+      "claim": "股东关联方: cust_shareholder_info 保存企业关联方及出资信息，通过 ref_cust_company_info 按企业 code 关联客户主表。",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-tree-mapper",
+      "source_id": "src-company-group",
+      "evidence_kind": "query_usage",
+      "locator": "lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml",
+      "claim": "阶段 查询集团树: GET /cust-web/custGroupRel/showCustGroupTree 或 showSingleCustGroupTree",
+      "confidence": 0.8
+    }
+  ]
+}

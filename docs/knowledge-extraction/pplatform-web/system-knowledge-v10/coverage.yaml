@@ -1,0 +1,97 @@
+schema_version: '1.0'
+repository: pplatform-web
+repository_revision: ee434954e
+tables:
+- argeement_migratory_record
+- async_io_task
+- authorization_agreement
+- ca_certification_info
+- ca_fee_company
+- ca_fee_order
+- ca_fee_project_config
+- client_api_sync_error
+- cust_access_secret
+- cust_account_info
+- cust_auth_application
+- cust_build_record
+- cust_certification_info
+- cust_change_cfg
+- cust_change_record
+- cust_company_info
+- cust_company_lifecycle_info
+- cust_company_survey_state
+- cust_company_survey_whitelist
+- cust_config_mapping
+- cust_customized_product
+- cust_group_rel
+- cust_head_company_info
+- cust_interworking_product
+- cust_invite_info
+- cust_oper_change_record
+- cust_person_info
+- cust_project_code_record
+- cust_project_pushcust
+- cust_project_rel
+- cust_role_info
+- cust_setting_config
+- cust_sftp
+- cust_shareholder_info
+- cust_survey_answer
+- cust_user_rel
+- funding_exception_resolution
+- funding_party_rule_cfg
+- funding_party_rule_detail
+- funding_party_rule_front
+- funding_rule_detail
+- funding_rule_front_cfg
+- funding_rule_info
+- gpt_learn_poster_log
+- migratory_user_record
+- operation_user
+- org_manage
+- platform_product
+- platform_product_client
+- platform_product_cust_role
+- project_file_info
+- short_link
+- tenant_interworking_product
+- tenant_interworking_project
+- tenant_migarory_log
+- tenant_product
+- tenant_product_ext_field
+- tenant_product_ext_field_form
+- tenant_product_menu
+- tenant_product_menu_res
+- tenant_project
+- tenant_project_approval
+- tenant_project_approval_business_info
+- tenant_project_approval_flow
+- tenant_project_approval_flow_config
+- tenant_project_approval_flow_credit
+- tenant_project_approval_flow_file
+- tenant_project_approval_flow_node
+- tenant_setting_config
+- tenant_setting_config_share
+- wec_project_cust_operation_rel
+- wec_project_operation_rel
+- wechat_project_approval_apply
+- wechat_project_approval_field_history
+excluded:
+  argeement_migratory_record: 迁移记录，无问数场景
+  async_io_task: 异步任务基建，无问数场景
+  cust_change_cfg: 变更流程配置项，无问数口径
+  cust_sftp: SFTP 传输基建，无问数场景
+  gpt_learn_poster_log: 海报/运营日志，无问数场景
+  migratory_user_record: 迁移记录，无问数场景
+  short_link: 短链工具，无问数场景
+  tenant_migarory_log: 迁移日志，无问数场景
+  tenant_product_menu: 菜单配置，无问数场景
+  tenant_product_menu_res: 菜单资源配置，无问数场景
+  cust_oper_change_record: 运营变更记录，暂无单元覆盖（follow-up）
+inactive:
+  funding_party_rule_cfg: 休眠表：无入口调用链，仅登记不参与问数
+  funding_party_rule_detail: 休眠表：无入口调用链，仅登记不参与问数
+  funding_party_rule_front: 休眠表：无入口调用链，仅登记不参与问数
+  org_manage: 休眠表：无入口调用链，仅登记不参与问数
+  tenant_product_ext_field: 休眠表：无入口调用链，仅登记不参与问数
+  tenant_product_ext_field_form: 休眠表：无入口调用链，仅登记不参与问数

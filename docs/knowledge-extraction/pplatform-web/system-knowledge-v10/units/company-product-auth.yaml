@@ -1,0 +1,331 @@
+unit_id: company-product-auth
+revision: 1
+title: 企业产品授权与开通
+aliases:
+- 企业产品授权
+- 授权协议
+- 产品开通申请
+domain: product
+applicability: 企业授权协议签署、企业产品申请状态、产品角色与客户端配置查询；不用于统计租户产品实际开通状态
+description: 企业按平台产品签署授权协议并形成产品开通申请，平台产品还配置企业角色和客户端入口。
+content:
+  concepts:
+  - concept_id: signed-platform-agreement
+    name: 已签署平台授权协议
+    aliases:
+    - 已认证协议
+    - 授权协议
+    definition: 指指定平台产品的有效授权协议记录，authed_status=Y 且 enable=Y。
+    dictionary:
+      Y: 已认证
+      N: 未认证
+    field_targets:
+    - dataset: agreement
+      field: authed_status
+      database: ''
+    - dataset: agreement
+      field: enable
+      database: ''
+    evidence_refs:
+    - ev-agreement-query
+    - ev-agreement-fields
+  - concept_id: company-product-application
+    name: 企业产品开通申请
+    aliases:
+    - 开通申请
+    - 企业产品状态
+    definition: 企业产品申请记录，open_status 使用企业申请专用三态字典，不等同于租户产品 Y/P/N。
+    dictionary:
+      OPENED: 已开通
+      OPENING: 开通中
+      NOT_OPENED: 未开通
+    field_targets:
+    - dataset: auth_application
+      field: open_status
+      database: ''
+    - dataset: auth_application
+      field: enable
+      database: ''
+    evidence_refs:
+    - ev-auth-application-fields
+    - ev-cust-product-constant
+  processes:
+  - stage_id: query-cust-products
+    name: 查询企业产品申请
+    description: ''
+    trigger: 按企业 id 或企业 code 查询产品列表，可选 open_status 筛选
+    enter_conditions: []
+    exit_conditions: []
+    next_stages: []
+    data_effects:
+    - operation: read
+      dataset: auth_application
+      fields:
+      - ref_cust_company_info
+      - open_status
+      - enable
+      - open_time
+      condition: enable='Y'；传入状态时 open_status IN (OPENED, OPENING, NOT_OPENED)；按 open_time
+        升序
+      description: ''
+      evidence_refs:
+      - ev-auth-application-query
+    evidence_refs:
+    - ev-auth-application-query
+  - stage_id: identify-signed-platform-companies
+    name: 识别已签署平台协议企业
+    description: ''
+    trigger: 给定企业 id 集合，判断是否签署平台产品协议
+    enter_conditions: []
+    exit_conditions: []
+    next_stages: []
+    data_effects:
+    - operation: read
+      dataset: agreement
+      fields:
+      - cust_id
+      - platform_product_code
+      - authed_status
+      - enable
+      condition: platform_product_code=PLATFORM_PRODUCT_TYPE 且 enable='Y' 且 authed_status='Y'
+      description: ''
+      evidence_refs:
+      - ev-agreement-query
+    evidence_refs:
+    - ev-agreement-query
+  datasets:
+  - dataset_id: agreement
+    name: authorization_agreement
+    description: 授权确认书表；一行代表企业与平台产品的一条授权记录。
+    database: lowcode_pplatform
+    fields:
+    - field_id: cust_id
+      name: cust_id
+      description: 企业 id
+      data_type: bigint
+      dictionary: {}
+      evidence_refs: []
+    - field_id: platform_product_code
+      name: platform_product_code
+      description: 平台产品编码
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: authed_status
+      name: authed_status
+      description: 授权书认证状态，Y=已认证，N=未认证
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: enable
+      name: enable
+      description: 有效行标记，Y=启用，N=停用
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    evidence_refs:
+    - ev-agreement-fields
+  - dataset_id: auth_application
+    name: cust_auth_application
+    description: 客户产品开通表；申请按企业 code 关联企业。
+    database: lowcode_pplatform
+    fields:
+    - field_id: id
+      name: id
+      description: 表主键
+      data_type: bigint
+      dictionary: {}
+      evidence_refs: []
+    - field_id: ref_cust_company_info
+      name: ref_cust_company_info
+      description: 客户企业 code
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: open_status
+      name: open_status
+      description: 企业产品申请状态 OPENED/OPENING/NOT_OPENED
+      data_type: varchar
+      dictionary:
+        OPENED: 已开通
+        OPENING: 开通中
+        NOT_OPENED: 未开通
+      evidence_refs: []
+    - field_id: enable
+      name: enable
+      description: 有效行标记
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: open_time
+      name: open_time
+      description: 开通时间，用于列表排序
+      data_type: datetime
+      dictionary: {}
+      evidence_refs: []
+    - field_id: platform_product_code
+      name: platform_product_code
+      description: 平台产品编码
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    evidence_refs:
+    - ev-auth-application-fields
+    - ev-auth-application-query
+  - dataset_id: product_cust_role
+    name: platform_product_cust_role
+    description: 平台产品允许的企业角色配置。
+    database: lowcode_pplatform
+    fields: []
+    evidence_refs:
+    - ev-role-fields
+  - dataset_id: product_client
+    name: platform_product_client
+    description: 平台产品客户端入口配置。
+    database: lowcode_pplatform
+    fields: []
+    evidence_refs:
+    - ev-client-fields
+  relationships: []
+  metrics:
+  - metric_id: opened-company-product-count
+    name: 已开通企业产品申请数
+    description: 有效企业产品申请中 open_status=OPENED 的申请记录数。
+    aggregation: COUNT_DISTINCT
+    field:
+      dataset: auth_application
+      field: id
+      database: ''
+    filters: []
+    grain:
+    - dataset: auth_application
+      field: platform_product_code
+      database: ''
+    evidence_refs:
+    - ev-auth-application-query
+  - metric_id: signed-platform-company-count
+    name: 已签署平台协议企业数
+    description: 指定平台产品有效且已认证协议对应的去重企业数。
+    aggregation: COUNT_DISTINCT
+    field:
+      dataset: agreement
+      field: cust_id
+      database: ''
+    filters: []
+    grain:
+    - dataset: agreement
+      field: platform_product_code
+      database: ''
+    evidence_refs:
+    - ev-agreement-query
+  calibers:
+  - caliber_id: signed-platform-agreement
+    label: 已签署平台授权协议企业
+    description: platform_product_code=PLATFORM_PRODUCT_TYPE 且 authed_status=Y 且 enable=Y。
+    contract_fragment:
+      predicates:
+      - field: agreement.platform_product_code
+        operator: eq
+        values:
+        - PLATFORM_PRODUCT_TYPE
+      - field: agreement.authed_status
+        operator: eq
+        values:
+        - Y
+      - field: agreement.enable
+        operator: eq
+        values:
+        - Y
+    field_targets:
+    - dataset: agreement
+      field: platform_product_code
+      database: ''
+    - dataset: agreement
+      field: authed_status
+      database: ''
+    - dataset: agreement
+      field: enable
+      database: ''
+    evidence_refs:
+    - ev-agreement-query
+  - caliber_id: opened-company-product
+    label: 企业已开通产品申请
+    description: open_status=OPENED 且 enable=Y。
+    contract_fragment:
+      predicates:
+      - field: auth_application.open_status
+        operator: eq
+        values:
+        - OPENED
+      - field: auth_application.enable
+        operator: eq
+        values:
+        - Y
+    field_targets:
+    - dataset: auth_application
+      field: open_status
+      database: ''
+    - dataset: auth_application
+      field: enable
+      database: ''
+    evidence_refs:
+    - ev-auth-application-query
+    - ev-cust-product-constant
+  domain_rules:
+  - rule_id: company-open-not-tenant-open
+    label: 企业申请状态不可替代租户产品状态
+    content: cust_auth_application 使用 OPENED/OPENING/NOT_OPENED；tenant_product 使用
+      Y/P/N，不能混用。
+    applicability: 企业产品申请与租户产品实际开通的口径区分
+    query_impact: 查询企业产品申请必须过滤 OPENED/OPENING/NOT_OPENED；不要用 tenant_product.open_status='Y'
+      代替。
+    field_targets:
+    - dataset: auth_application
+      field: open_status
+      database: ''
+    evidence_refs:
+    - ev-cust-product-constant
+    - ev-tenant-product-enum
+  verified_query_patterns:
+  - pattern_id: count-opened-company-products
+    question: 企业已开通的产品申请有多少
+    query: 'SELECT COUNT(DISTINCT id) AS opened_company_product_count
+
+      FROM cust_auth_application
+
+      WHERE open_status = ''OPENED'' AND enable = ''Y'''
+    intended_specification:
+      grain: auth_application
+      caliber_id: opened-company-product
+    verification:
+      status: PENDING_VALIDATION
+    evidence_refs:
+    - ev-auth-application-query
+  - pattern_id: list-signed-platform-companies
+    question: 哪些企业签署了平台授权协议
+    query: 'SELECT DISTINCT cust_id
+
+      FROM authorization_agreement
+
+      WHERE platform_product_code = ''PLATFORM_PRODUCT_TYPE'' AND authed_status =
+      ''Y'' AND enable = ''Y'''
+    intended_specification:
+      grain: company
+      caliber_id: signed-platform-agreement
+    verification:
+      status: PENDING_VALIDATION
+    evidence_refs:
+    - ev-agreement-query
+evidence_refs:
+- ev-auth-application-query
+- ev-agreement-query
+- ev-auth-application-fields
+- ev-agreement-fields
+- ev-cust-product-constant
+- ev-role-fields
+- ev-client-fields
+- ev-tenant-product-enum
+unit_links: []
+assumptions: []
+conflicts: []
+confidence: 0.9

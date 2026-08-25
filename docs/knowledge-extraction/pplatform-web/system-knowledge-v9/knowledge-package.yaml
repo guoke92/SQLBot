@@ -1,0 +1,171 @@
+schema_version: '2.0'
+package:
+  package_id: pplatform-system-business-data-v9
+  revision: 1
+  title: pplatform 全系统业务数据知识包 v9
+  namespace: pplatform
+  description: 按修复后 skills 从 pplatform-web@ee434954e 源码重提取（休眠登记单元 + 表判定 @TableName
+    + inactive 保留标记）。
+sources:
+- source_id: src-funding-rule
+  kind: source_code
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/FundingRuleInfoDO.java
+  repository_revision: ee434954e
+- source_id: src-org-manage
+  kind: source_code
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/OrgManageDO.java
+  repository_revision: ee434954e
+- source_id: src-tenant-product-lifecycle
+  kind: source_code
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProductDO.java
+  repository_revision: ee434954e
+evidence:
+- evidence_id: ev-rule-status-enum
+  source_id: src-funding-rule
+  evidence_kind: database_schema
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/RuleStatusEnum.java
+  claim: funding-rule 相关事实
+  confidence: 0.8
+- evidence_id: ev-layer-enum
+  source_id: src-funding-rule
+  evidence_kind: database_schema
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/RuleLayerEnum.java
+  claim: funding-rule 相关事实
+  confidence: 0.8
+- evidence_id: ev-info-fields
+  source_id: src-funding-rule
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/FundingRuleInfoDO.java
+  claim: funding-rule 相关事实
+  confidence: 0.8
+- evidence_id: ev-detail-fields
+  source_id: src-funding-rule
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/FundingRuleDetailDO.java
+  claim: funding-rule 相关事实
+  confidence: 0.8
+- evidence_id: ev-front-fields
+  source_id: src-funding-rule
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/FundingRuleFrontCfgDO.java
+  claim: funding-rule 相关事实
+  confidence: 0.8
+- evidence_id: ev-party-cfg-schema
+  source_id: src-funding-rule
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/FundingPartyRuleCfgDO.java
+  claim: funding-rule 相关事实
+  confidence: 0.8
+- evidence_id: ev-party-detail-schema
+  source_id: src-funding-rule
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/FundingPartyRuleDetailDO.java
+  claim: funding-rule 相关事实
+  confidence: 0.8
+- evidence_id: ev-party-front-schema
+  source_id: src-funding-rule
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/FundingPartyRuleFrontDO.java
+  claim: funding-rule 相关事实
+  confidence: 0.8
+- evidence_id: ev-exception-fields
+  source_id: src-funding-rule
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/FundingExceptionResolutionDO.java
+  claim: funding-rule 相关事实
+  confidence: 0.8
+- evidence_id: ev-controller-save
+  source_id: src-funding-rule
+  evidence_kind: database_schema
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/controller/FundingRuleInfoController.java
+  claim: funding-rule 相关事实
+  confidence: 0.8
+- evidence_id: ev-controller-status
+  source_id: src-funding-rule
+  evidence_kind: database_schema
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/controller/FundingRuleInfoController.java
+  claim: funding-rule 相关事实
+  confidence: 0.8
+- evidence_id: ev-provider-query
+  source_id: src-funding-rule
+  evidence_kind: database_schema
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/client/fundingparty/provider/FundingPartyRuleProviderImpl.java
+  claim: funding-rule 相关事实
+  confidence: 0.8
+- evidence_id: ev-exception-controller
+  source_id: src-funding-rule
+  evidence_kind: database_schema
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/controller/FundingPartyExceptionResolutionController.java
+  claim: funding-rule 相关事实
+  confidence: 0.8
+- evidence_id: ev-org-schema
+  source_id: src-org-manage
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/OrgManageDO.java
+  claim: org-manage 相关事实
+  confidence: 0.8
+- evidence_id: ev-tenant-product-do
+  source_id: src-tenant-product-lifecycle
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProductDO.java
+  claim: tenant-product-lifecycle 相关事实
+  confidence: 0.8
+- evidence_id: ev-platform-product-do
+  source_id: src-tenant-product-lifecycle
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/PlatformProductDO.java
+  claim: tenant-product-lifecycle 相关事实
+  confidence: 0.8
+- evidence_id: ev-product-open-status
+  source_id: src-tenant-product-lifecycle
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProductDO.java
+  claim: tenant-product-lifecycle 相关事实
+  confidence: 0.8
+- evidence_id: ev-cancel-guard
+  source_id: src-tenant-product-lifecycle
+  evidence_kind: database_schema
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/controller/TenantProductController.java
+  claim: tenant-product-lifecycle 相关事实
+  confidence: 0.8
+- evidence_id: ev-cust-product-constant
+  source_id: src-tenant-product-lifecycle
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustAuthApplicationDO.java
+  claim: tenant-product-lifecycle 相关事实
+  confidence: 0.8
+- evidence_id: ev-ext-field-schema
+  source_id: src-tenant-product-lifecycle
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProductExtFieldDO.java
+  claim: tenant-product-lifecycle 相关事实
+  confidence: 0.8
+- evidence_id: ev-ext-field-form-schema
+  source_id: src-tenant-product-lifecycle
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProductExtFieldFormDO.java
+  claim: tenant-product-lifecycle 相关事实
+  confidence: 0.8
+- evidence_id: ev-controller-create
+  source_id: src-tenant-product-lifecycle
+  evidence_kind: database_schema
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/controller/TenantProductController.java
+  claim: tenant-product-lifecycle 相关事实
+  confidence: 0.8
+- evidence_id: ev-controller-active
+  source_id: src-tenant-product-lifecycle
+  evidence_kind: database_schema
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/controller/TenantProductController.java
+  claim: tenant-product-lifecycle 相关事实
+  confidence: 0.8
+- evidence_id: ev-save-flow
+  source_id: src-funding-rule
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/FundRuleInfoApplication.java
+  claim: 规则保存：新增 PENDING/version=1 且按 productCode+fundingPartyMark 禁止重复，更新 version
+    加一，ruleMap.key==frontKey 写明细
+  confidence: 0.8
+units:
+- units/funding-rule.yaml
+- units/org-manage.yaml
+- units/tenant-product-lifecycle.yaml

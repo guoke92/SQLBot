@@ -196,13 +196,13 @@ defineExpose({ getLogList })
             /></el-icon>
             <span>{{ titleFor(item) }}</span>
             <el-tag v-if="(item.attempt_index || 0) > 0" size="small" type="info">
-              {{ t('chat.audit.attempt', { value: item.attempt_index + 1 }) }}
+              {{ t('chat.audit.attempt', { value: (item.attempt_index || 0) + 1 }) }}
             </el-tag>
             <el-tag v-if="(item.batch_index || 0) > 0" size="small" type="info">
-              {{ t('chat.audit.batch', { value: item.batch_index + 1 }) }}
+              {{ t('chat.audit.batch', { value: (item.batch_index || 0) + 1 }) }}
             </el-tag>
             <el-tag v-if="(item.unit_index || 0) > 0" size="small" type="info">
-              {{ t('chat.audit.unit', { value: item.unit_index + 1 }) }}
+              {{ t('chat.audit.unit', { value: (item.unit_index || 0) + 1 }) }}
             </el-tag>
           </div>
           <div class="status">

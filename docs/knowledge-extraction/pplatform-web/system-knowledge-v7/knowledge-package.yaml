@@ -1,0 +1,1803 @@
+schema_version: '2.0'
+package:
+  package_id: pplatform-system-business-data-v7
+  revision: 1
+  title: pplatform 全系统业务数据知识包 v7
+  namespace: pplatform
+  description: 按 v3.1 契约从 pplatform-web@ee434954e 全量重提取（concept 锚定 + 最小字段声明 + 单一语义 + 休眠表保留标记，表判定以 @TableName 为准）。
+sources:
+- source_id: src-ca-certification
+  kind: source_code
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CaCertificationInfoDO.java
+  repository_revision: ee434954e
+- source_id: src-ca-fee
+  kind: source_code
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/cafee/model/CaFeeCompanyDO.java
+  repository_revision: ee434954e
+- source_id: src-company-group
+  kind: source_code
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  repository_revision: ee434954e
+- source_id: src-company-product-auth
+  kind: source_code
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/AuthorizationAgreementDO.java
+  repository_revision: ee434954e
+- source_id: src-customer-config
+  kind: source_code
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustConfigMappingDO.java
+  repository_revision: ee434954e
+- source_id: src-enterprise-auxiliary
+  kind: source_code
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustShareholderInfoDO.java
+  repository_revision: ee434954e
+- source_id: src-enterprise-certification
+  kind: source_code
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustCertificationInfoDO.java
+  repository_revision: ee434954e
+- source_id: src-enterprise-change
+  kind: source_code
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  repository_revision: ee434954e
+- source_id: src-enterprise-onboarding
+  kind: source_code
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  repository_revision: ee434954e
+- source_id: src-funding-rule
+  kind: source_code
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/FundingRuleInfoDO.java
+  repository_revision: ee434954e
+- source_id: src-interworking
+  kind: source_code
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantInterworkingProductDO.java
+  repository_revision: ee434954e
+- source_id: src-op-user-coverage
+  kind: source_code
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/OperationUserDO.java
+  repository_revision: ee434954e
+- source_id: src-openapi-access
+  kind: source_code
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustAccessSecretDO.java
+  repository_revision: ee434954e
+- source_id: src-org-manage
+  kind: source_code
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/OrgManageDO.java
+  repository_revision: ee434954e
+- source_id: src-person-user
+  kind: source_code
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  repository_revision: ee434954e
+- source_id: src-project-approval
+  kind: source_code
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProjectApprovalDO.java
+  repository_revision: ee434954e
+- source_id: src-project-code
+  kind: source_code
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustProjectCodeRecordDO.java
+  repository_revision: ee434954e
+- source_id: src-project-enterprise-rel
+  kind: source_code
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  repository_revision: ee434954e
+- source_id: src-survey
+  kind: source_code
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustCompanySurveyWhitelistDO.java
+  repository_revision: ee434954e
+- source_id: src-tenant-product-lifecycle
+  kind: source_code
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProductDO.java
+  repository_revision: ee434954e
+- source_id: src-tenant-product-ext-field
+  kind: source_code
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProductExtFieldDO.java
+  repository_revision: ee434954e
+- source_id: src-tenant-product-ext-field-form
+  kind: source_code
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProductExtFieldFormDO.java
+  repository_revision: ee434954e
+- source_id: src-tenant-project-lifecycle
+  kind: source_code
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  repository_revision: ee434954e
+- source_id: src-tenant-setting
+  kind: source_code
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantSettingConfigDO.java
+  repository_revision: ee434954e
+evidence:
+- evidence_id: ev-ca-cert-schema
+  source_id: src-ca-certification
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CaCertificationInfoDO.java
+  claim: 'CA认证: 企业/个人向 CA 中台提交认证的完整过程，结果以 submit_status 表达。'
+  confidence: 0.8
+- evidence_id: ev-ca-cert-service
+  source_id: src-ca-certification
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CaCertificationInfoDO.java
+  claim: '阶段 提交CA认证: 企业/个人发起 CA 认证'
+  confidence: 0.8
+- evidence_id: ev-company-do
+  source_id: src-ca-fee
+  evidence_kind: database_schema
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/cafee/model/CaFeeCompanyDO.java
+  claim: 'CA费企业台账: 按统一社会信用代码维护企业维度的CA服务费状态与当前服务周期快照。'
+  confidence: 0.8
+- evidence_id: ev-company-period
+  source_id: src-ca-fee
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/cafee/model/CaFeeCompanyDO.java
+  claim: '口径 在期已缴CA费企业: 企业台账pay_status=PAID且服务截止日不早于当前日期。'
+  confidence: 0.8
+- evidence_id: ev-company-status
+  source_id: src-ca-fee
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/cafee/model/CaFeeCompanyDO.java
+  claim: 'CA费企业台账: 按统一社会信用代码维护企业维度的CA服务费状态与当前服务周期快照。'
+  confidence: 0.8
+- evidence_id: ev-config-do
+  source_id: src-ca-fee
+  evidence_kind: database_schema
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/cafee/model/CaFeeCompanyDO.java
+  claim: '项目CA收费: 项目是否开启CA收费及不同企业角色的年费配置。'
+  confidence: 0.8
+- evidence_id: ev-config-save
+  source_id: src-ca-fee
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/cafee/model/CaFeeCompanyDO.java
+  claim: '项目CA收费: 项目是否开启CA收费及不同企业角色的年费配置。'
+  confidence: 0.8
+- evidence_id: ev-controller-check
+  source_id: src-ca-fee
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/cafee/model/CaFeeCompanyDO.java
+  claim: '规则 收费开关决定是否缴费: 项目配置charge_enabled=N时门户校验直接放行，不创建缴费订单；Y时才进入费用评估'
+  confidence: 0.8
+- evidence_id: ev-controller-pay
+  source_id: src-ca-fee
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/cafee/model/CaFeeCompanyDO.java
+  claim: '阶段 协议签署与支付: 订单签署协议后通过交e保完成扣款'
+  confidence: 0.8
+- evidence_id: ev-controller-renewal
+  source_id: src-ca-fee
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/cafee/model/CaFeeCompanyDO.java
+  claim: '阶段 服务期续费提醒: 企业登录或服务期剩余7天内/已过期'
+  confidence: 0.8
+- evidence_id: ev-controller-todo
+  source_id: src-ca-fee
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/cafee/model/CaFeeCompanyDO.java
+  claim: '阶段 创建缴费待办订单: CA认证成功页调用 /todo/ensure 且评估需要缴费'
+  confidence: 0.8
+- evidence_id: ev-order-company-rel
+  source_id: src-ca-fee
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/cafee/model/CaFeeCompanyDO.java
+  claim: 关系 ca_fee_order.company_id -> ca_fee_company.id
+  confidence: 0.8
+- evidence_id: ev-order-do
+  source_id: src-ca-fee
+  evidence_kind: database_schema
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/cafee/model/CaFeeCompanyDO.java
+  claim: 'CA费订单: 企业一次CA服务费缴费申请及其支付、协议和服务周期记录。'
+  confidence: 0.8
+- evidence_id: ev-order-status
+  source_id: src-ca-fee
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/cafee/model/CaFeeCompanyDO.java
+  claim: 'CA费订单: 企业一次CA服务费缴费申请及其支付、协议和服务周期记录。'
+  confidence: 0.8
+- evidence_id: ev-payment-check
+  source_id: src-ca-fee
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/cafee/model/CaFeeCompanyDO.java
+  claim: '阶段 门户缴费校验: 门户跳转或进入缴费页前调用 /cust-web/caFee/dualCheck 或 portalCheck'
+  confidence: 0.8
+- evidence_id: ev-payment-markpaid
+  source_id: src-ca-fee
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/cafee/model/CaFeeCompanyDO.java
+  claim: '规则 支付成功同步台账: 交e保划扣成功后订单标记PAID并更新企业台账pay_status及服务周期'
+  confidence: 0.8
+- evidence_id: ev-project-rel
+  source_id: src-ca-fee
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/cafee/model/CaFeeCompanyDO.java
+  claim: 关系 ca_fee_project_config.project_id -> tenant_project.id
+  confidence: 0.8
+- evidence_id: ev-renewal
+  source_id: src-ca-fee
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/cafee/model/CaFeeCompanyDO.java
+  claim: '规则 服务期到期进入未缴: 续费提醒判定剩余天数小于等于7天或已过期；续费流程将企业缴费状态置为UNPAID并生成续费待办'
+  confidence: 0.8
+- evidence_id: ev-source-project-rel
+  source_id: src-ca-fee
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/cafee/model/CaFeeCompanyDO.java
+  claim: 关系 ca_fee_company.source_project_id -> ca_fee_order.project_id
+  confidence: 0.8
+- evidence_id: ev-todo-ensure
+  source_id: src-ca-fee
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/cafee/model/CaFeeCompanyDO.java
+  claim: '阶段 创建缴费待办订单: CA认证成功页调用 /todo/ensure 且评估需要缴费'
+  confidence: 0.8
+- evidence_id: ev-controller
+  source_id: src-company-group
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: '阶段 新增或更新集团根节点: POST /cust-web/custGroupRel/addRootGroup'
+  confidence: 0.8
+- evidence_id: ev-finance-query
+  source_id: src-company-group
+  evidence_kind: query_usage
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: '规则 集团融资查询包含根企业: listCorporationEffectFinance 的集团成员子查询 UNION 根企业 custId，因此集团根企业自身也进入
+    CORE 候选集合。'
+  confidence: 0.8
+- evidence_id: ev-group-do
+  source_id: src-company-group
+  evidence_kind: database_schema
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: '集团成员: cust_group_rel 中一行企业节点，记录成员、父级、根集团、企业角色和关系状态。'
+  confidence: 0.8
+- evidence_id: ev-group-mapper
+  source_id: src-company-group
+  evidence_kind: query_usage
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: '口径 已生效集团成员: 集团关系状态 EFFECTIVE 且关系行启用；成员企业主数据在需要企业名称或有效企业分析时应 additionally
+    enable=''Y''。'
+  confidence: 0.8
+- evidence_id: ev-group-rel
+  source_id: src-company-group
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: 关系 group_rel.cust_id -> company.id
+  confidence: 0.8
+- evidence_id: ev-group-status
+  source_id: src-company-group
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: '集团成员: cust_group_rel 中一行企业节点，记录成员、父级、根集团、企业角色和关系状态。'
+  confidence: 0.8
+- evidence_id: ev-head-do
+  source_id: src-company-group
+  evidence_kind: database_schema
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: '总公司信息: cust_head_company_info 保存企业总公司工商和法人资料，并以关联企业 code 指向企业主数据。'
+  confidence: 0.8
+- evidence_id: ev-head-rel
+  source_id: src-company-group
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: '总公司信息: cust_head_company_info 保存企业总公司工商和法人资料，并以关联企业 code 指向企业主数据。'
+  confidence: 0.8
+- evidence_id: ev-member-flow
+  source_id: src-company-group
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: '阶段 关联集团子级企业: POST /cust-web/custGroupRel/addSubCustGroupRel'
+  confidence: 0.8
+- evidence_id: ev-remove-flow
+  source_id: src-company-group
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: '规则 删除集团先校验在途业务: 删除根集团前扁平化整棵树并执行 validateBusinessOnWay，通过后才批量删除关系行。'
+  confidence: 0.8
+- evidence_id: ev-root-flow
+  source_id: src-company-group
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: '集团根企业: 集团树根节点；root_flag=Y 表示集团企业，root_cust_id 指向该集团根企业。'
+  confidence: 0.8
+- evidence_id: ev-shareholder-do
+  source_id: src-company-group
+  evidence_kind: database_schema
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: '股东关联方: cust_shareholder_info 保存企业关联方及出资信息，通过 ref_cust_company_info 按企业 code
+    关联客户主表。'
+  confidence: 0.8
+- evidence_id: ev-shareholder-rel
+  source_id: src-company-group
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: '股东关联方: cust_shareholder_info 保存企业关联方及出资信息，通过 ref_cust_company_info 按企业 code
+    关联客户主表。'
+  confidence: 0.8
+- evidence_id: ev-tree-mapper
+  source_id: src-company-group
+  evidence_kind: query_usage
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: '阶段 查询集团树: GET /cust-web/custGroupRel/showCustGroupTree 或 showSingleCustGroupTree'
+  confidence: 0.8
+- evidence_id: ev-agreement-fields
+  source_id: src-company-product-auth
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/AuthorizationAgreementDO.java
+  claim: '已签署平台授权协议: 指指定平台产品的有效授权协议记录，authed_status=Y 且 enable=Y。'
+  confidence: 0.8
+- evidence_id: ev-agreement-query
+  source_id: src-company-product-auth
+  evidence_kind: query_usage
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/AuthorizationAgreementDO.java
+  claim: '已签署平台授权协议: 指指定平台产品的有效授权协议记录，authed_status=Y 且 enable=Y。'
+  confidence: 0.8
+- evidence_id: ev-auth-application-fields
+  source_id: src-company-product-auth
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/AuthorizationAgreementDO.java
+  claim: '企业产品开通申请: 企业产品申请记录，open_status 使用企业申请专用三态字典，不等同于租户产品 Y/P/N。'
+  confidence: 0.8
+- evidence_id: ev-auth-application-query
+  source_id: src-company-product-auth
+  evidence_kind: query_usage
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/AuthorizationAgreementDO.java
+  claim: '口径 企业已开通产品申请: open_status=OPENED 且 enable=Y。'
+  confidence: 0.8
+- evidence_id: ev-client-fields
+  source_id: src-company-product-auth
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/AuthorizationAgreementDO.java
+  claim: 企业产品授权与开通 相关事实
+  confidence: 0.8
+- evidence_id: ev-cust-product-constant
+  source_id: src-company-product-auth
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/AuthorizationAgreementDO.java
+  claim: '企业产品开通申请: 企业产品申请记录，open_status 使用企业申请专用三态字典，不等同于租户产品 Y/P/N。'
+  confidence: 0.8
+- evidence_id: ev-role-fields
+  source_id: src-company-product-auth
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/AuthorizationAgreementDO.java
+  claim: 企业产品授权与开通 相关事实
+  confidence: 0.8
+- evidence_id: ev-tenant-product-enum
+  source_id: src-company-product-auth
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/AuthorizationAgreementDO.java
+  claim: '规则 企业申请状态不可替代租户产品状态: cust_auth_application 使用 OPENED/OPENING/NOT_OPENED；tenant_product
+    使用 Y/P/N，不能混用。'
+  confidence: 0.8
+- evidence_id: ev-account-setting
+  source_id: src-customer-config
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustConfigMappingDO.java
+  claim: 加载客户认证配置 read cust_setting.['need_auth_verify', 'need_verify_no_key', 'key_word',
+    'no_key_word', 'payment_maximum_number', 'cust_id']
+  confidence: 0.8
+- evidence_id: ev-changed-mapping
+  source_id: src-customer-config
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustConfigMappingDO.java
+  claim: '阶段 解析企业变更项: 企业变更产生 outer_channel 与变更项集合'
+  confidence: 0.8
+- evidence_id: ev-enhance-policy
+  source_id: src-customer-config
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustConfigMappingDO.java
+  claim: '规则 字段清单配置按 JSON 数组解释: key_word 与 no_key_word 由 JSON.parseArray 解析为字段名称集合，不应按普通逗号字符串直接统计。'
+  confidence: 0.8
+- evidence_id: ev-face-setting
+  source_id: src-customer-config
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustConfigMappingDO.java
+  claim: 加载客户认证配置 read cust_setting.['need_auth_verify', 'need_verify_no_key', 'key_word',
+    'no_key_word', 'payment_maximum_number', 'cust_id']
+  confidence: 0.8
+- evidence_id: ev-mapping-model
+  source_id: src-customer-config
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustConfigMappingDO.java
+  claim: '渠道配置映射: cust_config_mapping 中按 type、outer_channel、groups 匹配并以 inner_code/inner_name
+    与 outer_code/outer_name 表示内外部编码名称对应关系的启用记录。'
+  confidence: 0.8
+- evidence_id: ev-mapping-query
+  source_id: src-customer-config
+  evidence_kind: query_usage
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustConfigMappingDO.java
+  claim: '渠道配置映射: cust_config_mapping 中按 type、outer_channel、groups 匹配并以 inner_code/inner_name
+    与 outer_code/outer_name 表示内外部编码名称对应关系的启用记录。'
+  confidence: 0.8
+- evidence_id: ev-setting-model
+  source_id: src-customer-config
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustConfigMappingDO.java
+  claim: '客户认证配置: cust_setting_config 的客户认证配置记录，包含关键/非关键企业信息审核、协议地址、认证审核、人脸/打款验证及邀请码期限与发送间隔。'
+  confidence: 0.8
+- evidence_id: ev-setting-read
+  source_id: src-customer-config
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustConfigMappingDO.java
+  claim: '客户认证配置: cust_setting_config 的客户认证配置记录，包含关键/非关键企业信息审核、协议地址、认证审核、人脸/打款验证及邀请码期限与发送间隔。'
+  confidence: 0.8
+- evidence_id: ev-config-fields
+  source_id: src-enterprise-auxiliary
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustShareholderInfoDO.java
+  claim: 企业辅助信息 相关事实
+  confidence: 0.8
+- evidence_id: ev-customized-fields
+  source_id: src-enterprise-auxiliary
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustShareholderInfoDO.java
+  claim: '口径 启用的企业快捷入口: 定制产品记录 enable=Y。'
+  confidence: 0.8
+- evidence_id: ev-head-company-fields
+  source_id: src-enterprise-auxiliary
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustShareholderInfoDO.java
+  claim: '总公司信息: cust_head_company_info 保存企业总公司工商和法人资料，并以关联企业 code 指向企业主数据。'
+  confidence: 0.8
+- evidence_id: ev-head-company-flow
+  source_id: src-enterprise-auxiliary
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustShareholderInfoDO.java
+  claim: '总公司信息: cust_head_company_info 保存企业总公司工商和法人资料，并以关联企业 code 指向企业主数据。'
+  confidence: 0.8
+- evidence_id: ev-invite-fields
+  source_id: src-enterprise-auxiliary
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustShareholderInfoDO.java
+  claim: '企业邀请进度: cust_invite_info 的 progress；运营回调会将企业 cust_build_status 写回同名且同租户的邀请记录。'
+  confidence: 0.8
+- evidence_id: ev-invite-progress-sync
+  source_id: src-enterprise-auxiliary
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustShareholderInfoDO.java
+  claim: '企业邀请进度: cust_invite_info 的 progress；运营回调会将企业 cust_build_status 写回同名且同租户的邀请记录。'
+  confidence: 0.8
+- evidence_id: ev-lifecycle-dict
+  source_id: src-enterprise-auxiliary
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustShareholderInfoDO.java
+  claim: '企业生命周期: cust_company_lifecycle_info 以 type 记录冻结或解冻事件；enable 表示记录是否启用。'
+  confidence: 0.8
+- evidence_id: ev-lifecycle-fields
+  source_id: src-enterprise-auxiliary
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustShareholderInfoDO.java
+  claim: '企业生命周期: cust_company_lifecycle_info 以 type 记录冻结或解冻事件；enable 表示记录是否启用。'
+  confidence: 0.8
+- evidence_id: ev-push-project-lookup
+  source_id: src-enterprise-auxiliary
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustShareholderInfoDO.java
+  claim: '阶段 解析推送默认项目: 需要按来源和目标 SSO 渠道选择推送项目'
+  confidence: 0.8
+- evidence_id: ev-pushcust-fields
+  source_id: src-enterprise-auxiliary
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustShareholderInfoDO.java
+  claim: 企业辅助信息 相关事实
+  confidence: 0.8
+- evidence_id: ev-shareholder-copy
+  source_id: src-enterprise-auxiliary
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustShareholderInfoDO.java
+  claim: '股东出资: cust_shareholder_info 中按企业 code 记录的关联方及其应实际出资信息。'
+  confidence: 0.8
+- evidence_id: ev-shareholder-fields
+  source_id: src-enterprise-auxiliary
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustShareholderInfoDO.java
+  claim: '股东出资: cust_shareholder_info 中按企业 code 记录的关联方及其应实际出资信息。'
+  confidence: 0.8
+- evidence_id: ev-cert-do
+  source_id: src-enterprise-certification
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustCertificationInfoDO.java
+  claim: '企业认证记录: 一行表示一个企业与一种认证类型的认证结果记录；同一类型更新已有记录而不是以结果字段推导企业主状态。'
+  confidence: 0.8
+- evidence_id: ev-cert-pass
+  source_id: src-enterprise-certification
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustCertificationInfoDO.java
+  claim: '认证结果: 自动和人工核查结果分别写入 auto_verify_status 与 manual_verify_status；通过任一通道即可判定该认证记录通过。'
+  confidence: 0.8
+- evidence_id: ev-cert-rel
+  source_id: src-enterprise-certification
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustCertificationInfoDO.java
+  claim: '指标 认证通过企业数: 按企业 code 去重统计存在认证通过记录的企业数量。'
+  confidence: 0.8
+- evidence_id: ev-cert-result
+  source_id: src-enterprise-certification
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustCertificationInfoDO.java
+  claim: '认证结果: 自动和人工核查结果分别写入 auto_verify_status 与 manual_verify_status；通过任一通道即可判定该认证记录通过。'
+  confidence: 0.8
+- evidence_id: ev-cert-save
+  source_id: src-enterprise-certification
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustCertificationInfoDO.java
+  claim: '企业认证记录: 一行表示一个企业与一种认证类型的认证结果记录；同一类型更新已有记录而不是以结果字段推导企业主状态。'
+  confidence: 0.8
+- evidence_id: ev-cert-type
+  source_id: src-enterprise-certification
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustCertificationInfoDO.java
+  claim: '认证类型: certification_type 使用 CustCertificationTypeEnum 的物理键区分企业、法人、客户管理员及证件核查认证方式。'
+  confidence: 0.8
+- evidence_id: ev-check-dict
+  source_id: src-enterprise-certification
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustCertificationInfoDO.java
+  claim: '企业认证进度: 企业级进度由 cust_build_status 与 check_status 共同承载；代码将 INIT 映射待审核、CUST_BUILDING
+    映射审核中、BUILD_SUCCESS 映射审核通过。'
+  confidence: 0.8
+- evidence_id: ev-check-map
+  source_id: src-enterprise-certification
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustCertificationInfoDO.java
+  claim: '企业认证进度: 企业级进度由 cust_build_status 与 check_status 共同承载；代码将 INIT 映射待审核、CUST_BUILDING
+    映射审核中、BUILD_SUCCESS 映射审核通过。'
+  confidence: 0.8
+- evidence_id: ev-company-update
+  source_id: src-enterprise-certification
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustCertificationInfoDO.java
+  claim: '阶段 企业审核状态流转: 运营审核回调或企业审核处理'
+  confidence: 0.8
+- evidence_id: ev-change-company-state
+  source_id: src-enterprise-change
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: '企业变更: 企业变更是已存在企业资料的修改审核；主表在途时 cust_build_status=CUST_CHANGE 且 cust_status=CHANGE。'
+  confidence: 0.8
+- evidence_id: ev-change-endpoint
+  source_id: src-enterprise-change
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: '企业变更: 企业变更是已存在企业资料的修改审核；主表在途时 cust_build_status=CUST_CHANGE 且 cust_status=CHANGE。'
+  confidence: 0.8
+- evidence_id: ev-change-handler
+  source_id: src-enterprise-change
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: '规则 变更拒绝不等于建档失败: 变更回调拒绝场景不能把企业计入 BUILD_FAIL；建档状态口径需单独判断。'
+  confidence: 0.8
+- evidence_id: ev-change-inflight
+  source_id: src-enterprise-change
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: '在途变更: 变更单 status 不属于 CUST_CHECK_PASS/CUST_CHECK_REJECT；系统重建流程按 cust_id 取最新一条在途记录。'
+  confidence: 0.8
+- evidence_id: ev-change-pass
+  source_id: src-enterprise-change
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: 变更审核通过 update company.['cust_status', 'check_status', 'cust_build_status']
+  confidence: 0.8
+- evidence_id: ev-change-record-fields
+  source_id: src-enterprise-change
+  evidence_kind: database_schema
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: '变更审核单: cust_change_record 一行代表一次变更过程，以 cust_id 连接企业主键，不能直接当企业数。'
+  confidence: 0.8
+- evidence_id: ev-change-relation
+  source_id: src-enterprise-change
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: '规则 变更单不是企业: 统计变更中企业必须 COUNT_DISTINCT cust_company_info.id，禁止直接 COUNT cust_change_record
+    行数代替企业数。'
+  confidence: 0.8
+- evidence_id: ev-check-status-dict
+  source_id: src-enterprise-change
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: '变更审核单: cust_change_record 一行代表一次变更过程，以 cust_id 连接企业主键，不能直接当企业数。'
+  confidence: 0.8
+- evidence_id: ev-company-fields
+  source_id: src-enterprise-change
+  evidence_kind: database_schema
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: 企业变更审核 相关事实
+  confidence: 0.8
+- evidence_id: ev-rebuild
+  source_id: src-enterprise-change
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: '阶段 变更流程重建: POST /cust-web/change/rebuild'
+  confidence: 0.8
+- evidence_id: ev-rebuild-latest
+  source_id: src-enterprise-change
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: '在途变更: 变更单 status 不属于 CUST_CHECK_PASS/CUST_CHECK_REJECT；系统重建流程按 cust_id 取最新一条在途记录。'
+  confidence: 0.8
+- evidence_id: ev-save-change-record
+  source_id: src-enterprise-change
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: '阶段 提交变更: 客户提交变更项并进入本地或运营处理'
+  confidence: 0.8
+- evidence_id: ev-active-caliber
+  source_id: src-enterprise-onboarding
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: '建档成功: 主数据建档状态为 BUILD_SUCCESS 且企业生效；口语「建档成功」对应枚举展示名「认证成功」。'
+  confidence: 0.8
+- evidence_id: ev-build-record-person
+  source_id: src-enterprise-onboarding
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: '指标 建档记录数: 建档推送过程记录行数（不是企业数）。'
+  confidence: 0.8
+- evidence_id: ev-build-status-dict
+  source_id: src-enterprise-onboarding
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: '建档成功: 主数据建档状态为 BUILD_SUCCESS 且企业生效；口语「建档成功」对应枚举展示名「认证成功」。'
+  confidence: 0.8
+- evidence_id: ev-change-reject
+  source_id: src-enterprise-onboarding
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: '建档失败: 仅建档审核流程（process=CHECK）被拒绝才写 BUILD_FAIL；企业变更拒绝不等于建档失败。'
+  confidence: 0.8
+- evidence_id: ev-cust-status-dict
+  source_id: src-enterprise-onboarding
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: '变更中: 已建档企业发起变更时的状态组合，仍可能出现在部分「有效企业」查询中。'
+  confidence: 0.8
+- evidence_id: ev-effect-cust
+  source_id: src-enterprise-onboarding
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: '建档成功: 主数据建档状态为 BUILD_SUCCESS 且企业生效；口语「建档成功」对应枚举展示名「认证成功」。'
+  confidence: 0.8
+- evidence_id: ev-first-submit-auth
+  source_id: src-enterprise-onboarding
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: '规则 首次认证时间只写一次: cust_first_submit_auth 仅在为空且 identify_style 为 SELF 或 INVITE
+    时写入当前时间，重放不覆盖。'
+  confidence: 0.8
+- evidence_id: ev-push-ops
+  source_id: src-enterprise-onboarding
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: '规则 推送失败回滚建档状态: 建档推送运营异常时，把 cust_build_status 回滚为 INIT。'
+  confidence: 0.8
+- evidence_id: ev-relate-project
+  source_id: src-enterprise-onboarding
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: '规则 非金融跨租户禁止关联: 非金融机构角色要求企业租户等于项目租户，否则禁止关联项目。'
+  confidence: 0.8
+- evidence_id: ev-reset-status
+  source_id: src-enterprise-onboarding
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: '规则 简易建档直接生效: 简易认证（identify_style=SIMPLE）且非变更流程时，直接写 cust_status=EFFECT 与
+    cust_build_status=BUILD_SUCCESS，不走运营审核。'
+  confidence: 0.8
+- evidence_id: ev-self-reg-flow
+  source_id: src-enterprise-onboarding
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: '口径 有效管理员联系人: 企业下 user_type=accountAdmin 且 enable=Y 的联系人。'
+  confidence: 0.8
+- evidence_id: ev-state-map
+  source_id: src-enterprise-onboarding
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: '建档中: 已推送运营、尚未得到终态回调（认证流 BUILDING 或审核流 CUST_BUILDING）。'
+  confidence: 0.8
+- evidence_id: ev-supplier-acflow
+  source_id: src-enterprise-onboarding
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: '规则 供应商 ACFLOW/ORDER 开通状态: 企业角色为 SUPPLIER 且产品为 ACFLOW 或 ORDER 时，cust_project_rel.status
+    写 ''1''，否则 ''0''。'
+  confidence: 0.8
+- evidence_id: ev-update-build-status
+  source_id: src-enterprise-onboarding
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: 运营回调 update company.['cust_build_status']
+  confidence: 0.8
+- evidence_id: ev-user-type-dict
+  source_id: src-enterprise-onboarding
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: '口径 有效管理员联系人: 企业下 user_type=accountAdmin 且 enable=Y 的联系人。'
+  confidence: 0.8
+- evidence_id: ev-controller-status
+  source_id: src-funding-rule
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/FundingRuleInfoDO.java
+  claim: '阶段 生效失效: 管理端调用 active 或 inActive'
+  confidence: 0.8
+- evidence_id: ev-detail-fields
+  source_id: src-funding-rule
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/FundingRuleInfoDO.java
+  claim: '规则层: 规则明细按业务层分组；UNDERLYING、FINANCING、OTHER 分别为底层、融资、其他规则。'
+  confidence: 0.8
+- evidence_id: ev-detail-link
+  source_id: src-funding-rule
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/FundingRuleInfoDO.java
+  claim: '资金规则版本: 一条 funding_rule_info 记录代表某产品与资金方标识组合的一份规则版本，明细通过 rule_info_id 归属它。'
+  confidence: 0.8
+- evidence_id: ev-exception-controller
+  source_id: src-funding-rule
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/FundingRuleInfoDO.java
+  claim: '口径 启用的异常建议: 异常解析仅取 enable=Y 的记录。'
+  confidence: 0.8
+- evidence_id: ev-exception-do
+  source_id: src-funding-rule
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/FundingRuleInfoDO.java
+  claim: '阶段 解析异常: 按异常编号、报错关键字、产品或资金方查询异常建议'
+  confidence: 0.8
+- evidence_id: ev-exception-fields
+  source_id: src-funding-rule
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/FundingRuleInfoDO.java
+  claim: '资金方异常解析: funding_exception_resolution 一行记录一个异常关键字及其原因、建议，按产品和资金方标识检索。'
+  confidence: 0.8
+- evidence_id: ev-front-fields
+  source_id: src-funding-rule
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/FundingRuleInfoDO.java
+  claim: '规则层: 规则明细按业务层分组；UNDERLYING、FINANCING、OTHER 分别为底层、融资、其他规则。'
+  confidence: 0.8
+- evidence_id: ev-info-fields
+  source_id: src-funding-rule
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/FundingRuleInfoDO.java
+  claim: '规则状态: funding_rule_info 的规则生命周期状态，ACTIVE/PENDING/INACTIVE 分别表示生效、待生效、失效。'
+  confidence: 0.8
+- evidence_id: ev-layer-enum
+  source_id: src-funding-rule
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/FundingRuleInfoDO.java
+  claim: '规则层: 规则明细按业务层分组；UNDERLYING、FINANCING、OTHER 分别为底层、融资、其他规则。'
+  confidence: 0.8
+- evidence_id: ev-party-cfg-fields
+  source_id: src-funding-rule
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/FundingPartyRuleCfgDO.java
+  claim: 资金方规则配置主表（休眠表）：funding_party_rule_cfg 的 @TableName 声明，无入口调用链
+  confidence: 0.8
+- evidence_id: ev-party-detail-fields
+  source_id: src-funding-rule
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/FundingPartyRuleDetailDO.java
+  claim: 资金方规则配置明细（休眠表）：funding_party_rule_detail 的 @TableName 声明，无入口调用链
+  confidence: 0.8
+- evidence_id: ev-party-front-fields
+  source_id: src-funding-rule
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/FundingPartyRuleFrontDO.java
+  claim: 资金方规则前台配置（休眠表）：funding_party_rule_front 的 @TableName 声明，无入口调用链
+  confidence: 0.8
+- evidence_id: ev-provider-query
+  source_id: src-funding-rule
+  evidence_kind: query_usage
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/FundingRuleInfoDO.java
+  claim: '规则 业务只消费生效规则: PENDING 和 INACTIVE 规则不会被资金方规则 Provider 返回。'
+  confidence: 0.8
+- evidence_id: ev-rule-enum
+  source_id: src-funding-rule
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/FundingRuleInfoDO.java
+  claim: '规则状态: funding_rule_info 的规则生命周期状态，ACTIVE/PENDING/INACTIVE 分别表示生效、待生效、失效。'
+  confidence: 0.8
+- evidence_id: ev-save-flow
+  source_id: src-funding-rule
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/FundingRuleInfoDO.java
+  claim: '规则 更新规则递增版本: 保存已有规则时 funding_rule_info.version 加一，新增规则 version=1 且状态 PENDING。'
+  confidence: 0.8
+- evidence_id: ev-status-transition
+  source_id: src-funding-rule
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/FundingRuleInfoDO.java
+  claim: '阶段 生效失效: 管理端调用 active 或 inActive'
+  confidence: 0.8
+- evidence_id: ev-cip-model
+  source_id: src-interworking
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantInterworkingProductDO.java
+  claim: '企业互通产品: 企业与租户互通产品之间的开通记录，企业通过 ref_*_cust_company_info 按企业 code 关联。'
+  confidence: 0.8
+- evidence_id: ev-cip-open-status
+  source_id: src-interworking
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantInterworkingProductDO.java
+  claim: '规则 互通产品开通状态使用 Y/P/N: ProductOpenStatusEnum 的物理键为 Y=已开通、P=开通中、N=未开通；企业申请的
+    OPENED/OPENING 不属于本三表口径。'
+  confidence: 0.8
+- evidence_id: ev-cip-product
+  source_id: src-interworking
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantInterworkingProductDO.java
+  claim: 关系 cust_interworking_product.product_id -> tenant_interworking_product.id
+  confidence: 0.8
+- evidence_id: ev-company-ref
+  source_id: src-interworking
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantInterworkingProductDO.java
+  claim: 关系 cust_interworking_product.ref_cust_interworking_product_cust_company_info
+    -> company.code
+  confidence: 0.8
+- evidence_id: ev-open-status-enum
+  source_id: src-interworking
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantInterworkingProductDO.java
+  claim: '规则 互通产品开通状态使用 Y/P/N: ProductOpenStatusEnum 的物理键为 Y=已开通、P=开通中、N=未开通；企业申请的
+    OPENED/OPENING 不属于本三表口径。'
+  confidence: 0.8
+- evidence_id: ev-platform-ref
+  source_id: src-interworking
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantInterworkingProductDO.java
+  claim: 关系 tenant_interworking_product.platform_product_code -> platform_product.product_code
+  confidence: 0.8
+- evidence_id: ev-project-relate
+  source_id: src-interworking
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantInterworkingProductDO.java
+  claim: '互通项目适用范围: 互通产品 scope=ALL 时不落项目明细；否则按 scope_project 中的项目 ID 重建 tenant_interworking_project
+    明细。'
+  confidence: 0.8
+- evidence_id: ev-ref-relations
+  source_id: src-interworking
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantInterworkingProductDO.java
+  claim: '企业互通产品: 企业与租户互通产品之间的开通记录，企业通过 ref_*_cust_company_info 按企业 code 关联。'
+  confidence: 0.8
+- evidence_id: ev-tip-active
+  source_id: src-interworking
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantInterworkingProductDO.java
+  claim: '阶段 开通或取消租户互通产品: 租户执行 active 或 cancel'
+  confidence: 0.8
+- evidence_id: ev-tip-cancel
+  source_id: src-interworking
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantInterworkingProductDO.java
+  claim: '阶段 开通或取消租户互通产品: 租户执行 active 或 cancel'
+  confidence: 0.8
+- evidence_id: ev-tip-create
+  source_id: src-interworking
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantInterworkingProductDO.java
+  claim: '租户互通产品: 租户从平台互通类产品目录创建的一条产品配置记录；同一平台产品在同一租户下复用已有记录。'
+  confidence: 0.8
+- evidence_id: ev-tip-list
+  source_id: src-interworking
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantInterworkingProductDO.java
+  claim: '口径 已开通互通产品: 互通产品表中 open_status=Y 且 enable=Y。'
+  confidence: 0.8
+- evidence_id: ev-tip-model
+  source_id: src-interworking
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantInterworkingProductDO.java
+  claim: '租户互通产品: 租户从平台互通类产品目录创建的一条产品配置记录；同一平台产品在同一租户下复用已有记录。'
+  confidence: 0.8
+- evidence_id: ev-tip-open-status
+  source_id: src-interworking
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantInterworkingProductDO.java
+  claim: '口径 已开通互通产品: 互通产品表中 open_status=Y 且 enable=Y。'
+  confidence: 0.8
+- evidence_id: ev-tipj-model
+  source_id: src-interworking
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantInterworkingProductDO.java
+  claim: 互通产品与项目 相关事实
+  confidence: 0.8
+- evidence_id: ev-tipj-product
+  source_id: src-interworking
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantInterworkingProductDO.java
+  claim: 关系 tenant_interworking_project.product_id -> tenant_interworking_product.id
+  confidence: 0.8
+- evidence_id: ev-company-catalog
+  source_id: src-op-user-coverage
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/OperationUserDO.java
+  claim: 运营人员覆盖 相关事实
+  confidence: 0.8
+- evidence_id: ev-company-contact
+  source_id: src-op-user-coverage
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/OperationUserDO.java
+  claim: 关系 operation_user.operation_id -> wec_project_cust_operation_rel.op_contact_a
+  confidence: 0.8
+- evidence_id: ev-controller-company
+  source_id: src-op-user-coverage
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/OperationUserDO.java
+  claim: '阶段 更新项目运营覆盖: WecProjectOperationController 更新项目或项目企业运营关系'
+  confidence: 0.8
+- evidence_id: ev-controller-project
+  source_id: src-op-user-coverage
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/OperationUserDO.java
+  claim: '阶段 更新项目运营覆盖: WecProjectOperationController 更新项目或项目企业运营关系'
+  confidence: 0.8
+- evidence_id: ev-deleted-set
+  source_id: src-op-user-coverage
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/OperationUserDO.java
+  claim: '离职运营人员: TopFlag 检查使用 deleted=''Y'' 且 enable=''Y'' 的 operation_id 集合；字段名
+    deleted 是系统删除/离职标记。'
+  confidence: 0.8
+- evidence_id: ev-group-sync
+  source_id: src-op-user-coverage
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/OperationUserDO.java
+  claim: '阶段 同步冗余运营组别: 同步发现 operation_group 变化'
+  confidence: 0.8
+- evidence_id: ev-mark-deleted
+  source_id: src-op-user-coverage
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/OperationUserDO.java
+  claim: '在职运营人员: operation_user.deleted=''N'' 且 enable=''Y'' 的人员；同步任务会把接口未返回且当前启用未删除记录标记
+    deleted=''Y''。'
+  confidence: 0.8
+- evidence_id: ev-project-catalog
+  source_id: src-op-user-coverage
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/OperationUserDO.java
+  claim: '指标 项目运营覆盖记录数: 微企链项目运营关系中按关系记录统计的覆盖记录数，不等同于去重人员数。'
+  confidence: 0.8
+- evidence_id: ev-project-contact
+  source_id: src-op-user-coverage
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/OperationUserDO.java
+  claim: '规则 运营关联必须使用 operation_id: 业务关系的对接人字段与 operation_user.operation_id 比较，不用
+    operation_user.id；A 字段可等值匹配，B 字段可能是 JSON 数组。'
+  confidence: 0.8
+- evidence_id: ev-project-report-top
+  source_id: src-op-user-coverage
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/OperationUserDO.java
+  claim: '口径 置顶微企链项目: 项目关系 top_flag=''1''；是否存在离职运营人员需进一步检查其项目及企业覆盖字段。'
+  confidence: 0.8
+- evidence_id: ev-report-top
+  source_id: src-op-user-coverage
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/OperationUserDO.java
+  claim: '离职置顶: 项目或项目企业关系上的置顶标记；值为 ''1'' 时检查关联运营字段，确认项目及其企业均无离职人员后才清为 ''0''。'
+  confidence: 0.8
+- evidence_id: ev-sync-active
+  source_id: src-op-user-coverage
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/OperationUserDO.java
+  claim: '在职运营人员: operation_user.deleted=''N'' 且 enable=''Y'' 的人员；同步任务会把接口未返回且当前启用未删除记录标记
+    deleted=''Y''。'
+  confidence: 0.8
+- evidence_id: ev-sync-upsert
+  source_id: src-op-user-coverage
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/OperationUserDO.java
+  claim: '运营人员: 运营中台同步到本地的人员主数据；项目/企业关系字段使用 operation_id 作为业务键，不使用 operation_user.id。'
+  confidence: 0.8
+- evidence_id: ev-task-top
+  source_id: src-op-user-coverage
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/OperationUserDO.java
+  claim: '规则 无离职人员才清除置顶: 只有项目自身和其项目企业关系都不含离职运营人员时，原 top_flag=''1'' 才更新为 ''0''；同时清理项目
+    text 提示。'
+  confidence: 0.8
+- evidence_id: ev-top-check
+  source_id: src-op-user-coverage
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/OperationUserDO.java
+  claim: '离职置顶: 项目或项目企业关系上的置顶标记；值为 ''1'' 时检查关联运营字段，确认项目及其企业均无离职人员后才清为 ''0''。'
+  confidence: 0.8
+- evidence_id: ev-user-catalog
+  source_id: src-op-user-coverage
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/OperationUserDO.java
+  claim: '运营人员: 运营中台同步到本地的人员主数据；项目/企业关系字段使用 operation_id 作为业务键，不使用 operation_user.id。'
+  confidence: 0.8
+- evidence_id: ev-access-application
+  source_id: src-openapi-access
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustAccessSecretDO.java
+  claim: '口径 有效 OpenAPI 渠道: 渠道配置存在且 enable=Y；请求 channel 必须命中该配置。'
+  confidence: 0.8
+- evidence_id: ev-channel-resolver
+  source_id: src-openapi-access
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustAccessSecretDO.java
+  claim: '有效渠道接入密钥: cust_access_secret 中 channel 匹配请求且 enable=Y 的渠道配置；密钥原文不作为问数口径。'
+  confidence: 0.8
+- evidence_id: ev-cust-access-controller
+  source_id: src-openapi-access
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustAccessSecretDO.java
+  claim: '阶段 执行客户 OpenAPI 接入: 渠道与租户校验通过'
+  confidence: 0.8
+- evidence_id: ev-secret-do
+  source_id: src-openapi-access
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustAccessSecretDO.java
+  claim: '有效渠道接入密钥: cust_access_secret 中 channel 匹配请求且 enable=Y 的渠道配置；密钥原文不作为问数口径。'
+  confidence: 0.8
+- evidence_id: ev-startup-retry
+  source_id: src-openapi-access
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustAccessSecretDO.java
+  claim: '规则 重试队列按 enable 筛选: 重试扫描只取 enable=Y；处理时若记录已变为 N 则跳过。'
+  confidence: 0.8
+- evidence_id: ev-sync-error-do
+  source_id: src-openapi-access
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustAccessSecretDO.java
+  claim: '客户端接口同步失败记录: 客户端同步调用失败后保存的 service class、参数、重试次数与启用状态记录。'
+  confidence: 0.8
+- evidence_id: ev-sync-error-write
+  source_id: src-openapi-access
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustAccessSecretDO.java
+  claim: '客户端接口同步失败记录: 客户端同步调用失败后保存的 service class、参数、重试次数与启用状态记录。'
+  confidence: 0.8
+- evidence_id: ev-org-impl
+  source_id: src-org-manage
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/OrgManageDO.java
+  claim: '阶段 维护机构: 新增、更新或按实体条件删除机构'
+  confidence: 0.8
+- evidence_id: ev-org-model
+  source_id: src-org-manage
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/OrgManageDO.java
+  claim: '机构: org_manage 中的一条机构节点记录；code 是机构业务编码，parent_code 指向父机构的 code。'
+  confidence: 0.8
+- evidence_id: ev-org-schema
+  source_id: src-org-manage
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/OrgManageDO.java
+  claim: '启用机构: org_manage.enable = ''Y'' 的机构；源码仅确认 enable 字段及默认值，未发现独立状态枚举。'
+  confidence: 0.8
+- evidence_id: ev-org-service
+  source_id: src-org-manage
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/OrgManageDO.java
+  claim: '规则 启用机构过滤: 启用机构使用 enable = ''Y''；数据库定义的默认值为 Y。'
+  confidence: 0.8
+- evidence_id: ev-account-schema
+  source_id: src-person-user
+  evidence_kind: database_schema
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: '企业账户: cust_account_info 中的一条企业银行账户记录，account_no 为账号。'
+  confidence: 0.8
+- evidence_id: ev-person-schema
+  source_id: src-person-user
+  evidence_kind: database_schema
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: '联系人: cust_person_info 中的一条联系人记录，user_type 区分管理员/经办人/游客。'
+  confidence: 0.8
+- evidence_id: ev-role-schema
+  source_id: src-person-user
+  evidence_kind: database_schema
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: '企业角色: cust_role_info 中的一条企业角色记录，role_type 为客户角色。'
+  confidence: 0.8
+- evidence_id: ev-user-rel-schema
+  source_id: src-person-user
+  evidence_kind: database_schema
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: 关系 user_rel.user_id -> person.id
+  confidence: 0.8
+- evidence_id: ev-approval-app
+  source_id: src-project-approval
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProjectApprovalDO.java
+  claim: '阶段 创建审批单: 项目上线申请提交'
+  confidence: 0.8
+- evidence_id: ev-approval-do
+  source_id: src-project-approval
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProjectApprovalDO.java
+  claim: '项目上线审批单: tenant_project_approval 一行表示一张项目上线审批单，wf_status 表示工作流状态。'
+  confidence: 0.8
+- evidence_id: ev-business-do
+  source_id: src-project-approval
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProjectApprovalDO.java
+  claim: 租户项目上线审批 相关事实
+  confidence: 0.8
+- evidence_id: ev-credit
+  source_id: src-project-approval
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProjectApprovalDO.java
+  claim: '指标 审批授信额度合计: 对授信记录 credit_limit 求和，按授信企业或审批单聚合。'
+  confidence: 0.8
+- evidence_id: ev-desk-app
+  source_id: src-project-approval
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProjectApprovalDO.java
+  claim: '阶段 节点审批操作: 审批人通过、拒绝、退回或转审'
+  confidence: 0.8
+- evidence_id: ev-file
+  source_id: src-project-approval
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProjectApprovalDO.java
+  claim: 租户项目上线审批 相关事实
+  confidence: 0.8
+- evidence_id: ev-flow
+  source_id: src-project-approval
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProjectApprovalDO.java
+  claim: '审批流程节点: flow 表记录流程实例节点顺序、状态和审批人，flow_node 记录实际操作。'
+  confidence: 0.8
+- evidence_id: ev-flow-code
+  source_id: src-project-approval
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProjectApprovalDO.java
+  claim: '审批流程模板: flow_config 以 flow_code 标识审批流程模板，审批单通过引用列关联模板。'
+  confidence: 0.8
+- evidence_id: ev-flow-config
+  source_id: src-project-approval
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProjectApprovalDO.java
+  claim: '审批流程模板: flow_config 以 flow_code 标识审批流程模板，审批单通过引用列关联模板。'
+  confidence: 0.8
+- evidence_id: ev-flow-node
+  source_id: src-project-approval
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProjectApprovalDO.java
+  claim: '审批流程节点: flow 表记录流程实例节点顺序、状态和审批人，flow_node 记录实际操作。'
+  confidence: 0.8
+- evidence_id: ev-project-file
+  source_id: src-project-approval
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProjectApprovalDO.java
+  claim: 租户项目上线审批 相关事实
+  confidence: 0.8
+- evidence_id: ev-project-type
+  source_id: src-project-approval
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProjectApprovalDO.java
+  claim: '审批项目类型: 审批单按 project_type 区分标准与常规项目。'
+  confidence: 0.8
+- evidence_id: ev-relations
+  source_id: src-project-approval
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProjectApprovalDO.java
+  claim: 关系 approval.ref_tenant_project_approval_tenant_project -> tenant_project.code
+  confidence: 0.8
+- evidence_id: ev-wechat-apply
+  source_id: src-project-approval
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProjectApprovalDO.java
+  claim: '阶段 微信立项申请与变更留痕: 微信项目立项申请或字段更新'
+  confidence: 0.8
+- evidence_id: ev-wechat-history
+  source_id: src-project-approval
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProjectApprovalDO.java
+  claim: '阶段 微信立项申请与变更留痕: 微信项目立项申请或字段更新'
+  confidence: 0.8
+- evidence_id: ev-wf-status
+  source_id: src-project-approval
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProjectApprovalDO.java
+  claim: '项目上线审批单: tenant_project_approval 一行表示一张项目上线审批单，wf_status 表示工作流状态。'
+  confidence: 0.8
+- evidence_id: ev-workflow-adapter
+  source_id: src-project-approval
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProjectApprovalDO.java
+  claim: '阶段 生成流程实例: 审批单提交后按流程模板生成节点'
+  confidence: 0.8
+- evidence_id: ev-workflow-status
+  source_id: src-project-approval
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProjectApprovalDO.java
+  claim: '阶段 完成审批: 工作流终态回调'
+  confidence: 0.8
+- evidence_id: ev-input-eligibility
+  source_id: src-project-code
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustProjectCodeRecordDO.java
+  claim: '可录入项目码: 客户端项目码录入资格由企业认证状态、是否变更、企业角色、自主认证方式及既有启用记录共同决定。'
+  confidence: 0.8
+- evidence_id: ev-record-do
+  source_id: src-project-code
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustProjectCodeRecordDO.java
+  claim: '项目码领取记录: 企业用户录入项目码后形成的一行记录，记录编码、项目名称、渠道码、企业和用户上下文；不是项目主数据或项目生效记录。'
+  confidence: 0.8
+- evidence_id: ev-record-relation
+  source_id: src-project-code
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustProjectCodeRecordDO.java
+  claim: 关系 project_code_record.company_id -> company.id
+  confidence: 0.8
+- evidence_id: ev-record-schema
+  source_id: src-project-code
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustProjectCodeRecordDO.java
+  claim: '规则 记录状态不可臆造: status 的业务含义为是否正确状态，写入值来自调用方 BooleanEnum；当前源码证据未确认项目码专属成功/失败枚举，不能把
+    status 任意值解释为项目生效。'
+  confidence: 0.8
+- evidence_id: ev-record-write
+  source_id: src-project-code
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustProjectCodeRecordDO.java
+  claim: '项目码领取记录: 企业用户录入项目码后形成的一行记录，记录编码、项目名称、渠道码、企业和用户上下文；不是项目主数据或项目生效记录。'
+  confidence: 0.8
+- evidence_id: ev-auth-open
+  source_id: src-project-enterprise-rel
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: '阶段 无项目码自动绑定: 自主建档且企业尚无项目关系'
+  confidence: 0.8
+- evidence_id: ev-auth-schema
+  source_id: src-project-enterprise-rel
+  evidence_kind: database_schema
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: 项目企业关联 相关事实
+  confidence: 0.8
+- evidence_id: ev-auto-flow
+  source_id: src-project-enterprise-rel
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: '阶段 无项目码自动绑定: 自主建档且企业尚无项目关系'
+  confidence: 0.8
+- evidence_id: ev-auto-rel
+  source_id: src-project-enterprise-rel
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: '关系开通结果: 自动注册落库时，供应商角色且项目平台产品为 ACFLOW 或 ORDER 的关系 status 写 ''1''，其他关系写 ''0''。'
+  confidence: 0.8
+- evidence_id: ev-company-code
+  source_id: src-project-enterprise-rel
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: 关系 project_rel.ref_cust_project_rel_cust_company_info -> company.code
+  confidence: 0.8
+- evidence_id: ev-duplicate
+  source_id: src-project-enterprise-rel
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: '规则 重复绑定按项目与角色判断: relateProject 先按企业 code 与 company_type 查关系，再以 project_id
+    和 company_type 同时匹配；重复请求可返回已存在，否则拒绝重复绑定。'
+  confidence: 0.8
+- evidence_id: ev-open-dict
+  source_id: src-project-enterprise-rel
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: '项目开通: 关系表的 project_open_status 表示项目开通进度，值来自 ProductOpenStatusEnum：Y 已开通、P
+    开通中、N 未开通。'
+  confidence: 0.8
+- evidence_id: ev-platform-product
+  source_id: src-project-enterprise-rel
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: 关系 tenant_project.platform_product_code -> platform_product.product_code
+  confidence: 0.8
+- evidence_id: ev-project-query
+  source_id: src-project-enterprise-rel
+  evidence_kind: query_usage
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: '指标 项目企业数: 指定项目下有效关系对应的去重企业数。'
+  confidence: 0.8
+- evidence_id: ev-rel-fields
+  source_id: src-project-enterprise-rel
+  evidence_kind: database_schema
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: 项目企业关联 相关事实
+  confidence: 0.8
+- evidence_id: ev-relate-read
+  source_id: src-project-enterprise-rel
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: '项目企业绑定: cust_project_rel 中企业 code、项目字符串 ID 和企业角色组成的一条项目企业关系；关系行不是企业实体。'
+  confidence: 0.8
+- evidence_id: ev-relate-write
+  source_id: src-project-enterprise-rel
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: '项目企业绑定: cust_project_rel 中企业 code、项目字符串 ID 和企业角色组成的一条项目企业关系；关系行不是企业实体。'
+  confidence: 0.8
+- evidence_id: ev-role-query
+  source_id: src-project-enterprise-rel
+  evidence_kind: query_usage
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: '项目开通: 关系表的 project_open_status 表示项目开通进度，值来自 ProductOpenStatusEnum：Y 已开通、P
+    开通中、N 未开通。'
+  confidence: 0.8
+- evidence_id: ev-sync
+  source_id: src-project-enterprise-rel
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: '阶段 同步项目关系: 事务内关系保存后'
+  confidence: 0.8
+- evidence_id: ev-tenant-check
+  source_id: src-project-enterprise-rel
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: '规则 跨租户关联受企业角色约束: 非 FINANCE 角色禁止跨租户；FINANCE 只有自营租户可跨租户，非自营仍必须租户一致。'
+  confidence: 0.8
+- evidence_id: ev-tenant-project
+  source_id: src-project-enterprise-rel
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: 关系 project_rel.project_id -> tenant_project.id
+  confidence: 0.8
+- evidence_id: ev-answer-dao
+  source_id: src-survey
+  evidence_kind: query_usage
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustCompanySurveyWhitelistDO.java
+  claim: '规则 企业调研提交幂等: submit 强制使用配置中的 surveyCode；若 company_id+survey_code 已有任意答案记录则整次提交跳过，否则按选项逐行保存。'
+  confidence: 0.8
+- evidence_id: ev-answer-ddl
+  source_id: src-survey
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustCompanySurveyWhitelistDO.java
+  claim: '调研答案: cust_survey_answer 每行存储一道题的一个选项；多选题每个选项单独一行，survey_code 区分调研轮次。'
+  confidence: 0.8
+- evidence_id: ev-answer-model
+  source_id: src-survey
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustCompanySurveyWhitelistDO.java
+  claim: '调研答案: cust_survey_answer 每行存储一道题的一个选项；多选题每个选项单独一行，survey_code 区分调研轮次。'
+  confidence: 0.8
+- evidence_id: ev-display-flow
+  source_id: src-survey
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustCompanySurveyWhitelistDO.java
+  claim: '规则 白名单才可参与: 活动展示和专属答题链接都要求活动配置有效且 cust_company_survey_whitelist 存在 company_id
+    且 enable=Y。'
+  confidence: 0.8
+- evidence_id: ev-external-status
+  source_id: src-survey
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustCompanySurveyWhitelistDO.java
+  claim: '阶段 展示场景决策: 已完成资格检查和首访认领'
+  confidence: 0.8
+- evidence_id: ev-lottery-mark
+  source_id: src-survey
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustCompanySurveyWhitelistDO.java
+  claim: '阶段 展示场景决策: 已完成资格检查和首访认领'
+  confidence: 0.8
+- evidence_id: ev-state-claim
+  source_id: src-survey
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustCompanySurveyWhitelistDO.java
+  claim: '企业首个访问用户: 每个企业通过并发安全的 claimFirstVisitor 只认领一个 first_visitor_user_id；首次插入时同时记录首次访问时间。'
+  confidence: 0.8
+- evidence_id: ev-state-ddl
+  source_id: src-survey
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustCompanySurveyWhitelistDO.java
+  claim: 企业调研 相关事实
+  confidence: 0.8
+- evidence_id: ev-state-model
+  source_id: src-survey
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustCompanySurveyWhitelistDO.java
+  claim: 关系 answer.company_id -> state.company_id
+  confidence: 0.8
+- evidence_id: ev-submit-flow
+  source_id: src-survey
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustCompanySurveyWhitelistDO.java
+  claim: '规则 企业调研提交幂等: submit 强制使用配置中的 surveyCode；若 company_id+survey_code 已有任意答案记录则整次提交跳过，否则按选项逐行保存。'
+  confidence: 0.8
+- evidence_id: ev-whitelist-dao
+  source_id: src-survey
+  evidence_kind: query_usage
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustCompanySurveyWhitelistDO.java
+  claim: '调研白名单: cust_company_survey_whitelist 中 enable=Y 的企业才有资格参加调研活动。'
+  confidence: 0.8
+- evidence_id: ev-whitelist-ddl
+  source_id: src-survey
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustCompanySurveyWhitelistDO.java
+  claim: 企业调研 相关事实
+  confidence: 0.8
+- evidence_id: ev-whitelist-model
+  source_id: src-survey
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustCompanySurveyWhitelistDO.java
+  claim: '调研白名单: cust_company_survey_whitelist 中 enable=Y 的企业才有资格参加调研活动。'
+  confidence: 0.8
+- evidence_id: ev-active-notify
+  source_id: src-tenant-product-lifecycle
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProductDO.java
+  claim: '阶段 开通租户产品: POST /app-web/tenantProduct/cmd/active 或 /active'
+  confidence: 0.8
+- evidence_id: ev-cancel-flow
+  source_id: src-tenant-product-lifecycle
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProductDO.java
+  claim: 租户产品生命周期 相关事实
+  confidence: 0.8
+- evidence_id: ev-cancel-guard
+  source_id: src-tenant-product-lifecycle
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProductDO.java
+  claim: '规则 有效业务关联禁止取消: 存在有效 tenant_project 关联或企业 cust_auth_application 申请时不允许取消；否则
+    open_status 写 N。'
+  confidence: 0.8
+- evidence_id: ev-controller-active
+  source_id: src-tenant-product-lifecycle
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProductDO.java
+  claim: '阶段 开通租户产品: POST /app-web/tenantProduct/cmd/active 或 /active'
+  confidence: 0.8
+- evidence_id: ev-controller-cancel
+  source_id: src-tenant-product-lifecycle
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProductDO.java
+  claim: '阶段 取消租户产品: POST /app-web/tenantProduct/cmd/cancel'
+  confidence: 0.8
+- evidence_id: ev-controller-create
+  source_id: src-tenant-product-lifecycle
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProductDO.java
+  claim: '阶段 创建租户产品实例: POST /app-web/tenantProduct/cmd/create 或 /create'
+  confidence: 0.8
+- evidence_id: ev-create-product
+  source_id: src-tenant-product-lifecycle
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProductDO.java
+  claim: '租户产品: 租户对平台产品目录的一条产品配置实例，表 tenant_product；创建时按租户和平台产品复用已有记录。'
+  confidence: 0.8
+- evidence_id: ev-cust-auth-do
+  source_id: src-tenant-product-lifecycle
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProductDO.java
+  claim: '企业产品申请状态: 企业对租户产品的申请/授权状态，存于 cust_auth_application.open_status，与 tenant_product.open_status
+    不是同一字段。'
+  confidence: 0.8
+- evidence_id: ev-cust-auth-rel
+  source_id: src-tenant-product-lifecycle
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProductDO.java
+  claim: 关系 cust_auth_application.ref_cust_auth_application_tenant_product -> tenant_product.code
+  confidence: 0.8
+- evidence_id: ev-dao-status-query
+  source_id: src-tenant-product-lifecycle
+  evidence_kind: query_usage
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProductDO.java
+  claim: '口径 开通中租户产品: 启用且平台租户产品状态为 P 的实例。'
+  confidence: 0.8
+- evidence_id: ev-domain-active
+  source_id: src-tenant-product-lifecycle
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProductDO.java
+  claim: '阶段 开通租户产品: POST /app-web/tenantProduct/cmd/active 或 /active'
+  confidence: 0.8
+- evidence_id: ev-domain-cancel
+  source_id: src-tenant-product-lifecycle
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProductDO.java
+  claim: '阶段 取消租户产品: POST /app-web/tenantProduct/cmd/cancel'
+  confidence: 0.8
+- evidence_id: ev-name-unique
+  source_id: src-tenant-product-lifecycle
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProductDO.java
+  claim: '规则 租户内产品名称唯一: 保存租户产品时，同一 tenant_id 下启用记录的 name 不得重复。'
+  confidence: 0.8
+- evidence_id: ev-open-query
+  source_id: src-tenant-product-lifecycle
+  evidence_kind: query_usage
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProductDO.java
+  claim: '口径 已开通租户产品: 启用且平台租户产品状态为 Y 的实例。'
+  confidence: 0.8
+- evidence_id: ev-platform-product-do
+  source_id: src-tenant-product-lifecycle
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProductDO.java
+  claim: 租户产品生命周期 相关事实
+  confidence: 0.8
+- evidence_id: ev-platform-product-rel
+  source_id: src-tenant-product-lifecycle
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProductDO.java
+  claim: 关系 tenant_product.platform_product_id -> platform_product.id
+  confidence: 0.8
+- evidence_id: ev-product-open-status
+  source_id: src-tenant-product-lifecycle
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProductDO.java
+  claim: '租户产品开通状态: tenant_product.open_status 的平台租户产品状态。'
+  confidence: 0.8
+- evidence_id: ev-tenant-product-do
+  source_id: src-tenant-product-lifecycle
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProductDO.java
+  claim: '租户产品: 租户对平台产品目录的一条产品配置实例，表 tenant_product；创建时按租户和平台产品复用已有记录。'
+  confidence: 0.8
+- evidence_id: ev-ext-field-do
+  source_id: src-tenant-product-ext-field
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProductExtFieldDO.java
+  claim: '租户产品扩展字段配置（休眠表）：tenant_product_ext_field 的 @TableName 声明，无入口调用链'
+  confidence: 0.8
+- evidence_id: ev-ext-field-form-do
+  source_id: src-tenant-product-ext-field-form
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProductExtFieldFormDO.java
+  claim: '租户产品扩展字段表单（休眠表）：tenant_product_ext_field_form 的 @TableName 声明，无入口调用链'
+  confidence: 0.8
+- evidence_id: ev-approval-business-fields
+  source_id: src-tenant-project-lifecycle
+  evidence_kind: database_schema
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: 租户项目生命周期 相关事实
+  confidence: 0.8
+- evidence_id: ev-approval-controller
+  source_id: src-tenant-project-lifecycle
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: '阶段 发起项目上线审批: ProjectApprovalApplication 保存审批申请并按非暂存请求启动工作流'
+  confidence: 0.8
+- evidence_id: ev-approval-credit-fields
+  source_id: src-tenant-project-lifecycle
+  evidence_kind: database_schema
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: 租户项目生命周期 相关事实
+  confidence: 0.8
+- evidence_id: ev-approval-desk
+  source_id: src-tenant-project-lifecycle
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: '阶段 审批节点处理: ProjectApprovalDeskApplication 或流程回调更新节点'
+  confidence: 0.8
+- evidence_id: ev-approval-fields
+  source_id: src-tenant-project-lifecycle
+  evidence_kind: database_schema
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: 租户项目生命周期 相关事实
+  confidence: 0.8
+- evidence_id: ev-approval-file-fields
+  source_id: src-tenant-project-lifecycle
+  evidence_kind: database_schema
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: 租户项目生命周期 相关事实
+  confidence: 0.8
+- evidence_id: ev-approval-finalize
+  source_id: src-tenant-project-lifecycle
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: '阶段 审批通过: 工作流回调 wfStatus=FINISHED'
+  confidence: 0.8
+- evidence_id: ev-approval-flow-fields
+  source_id: src-tenant-project-lifecycle
+  evidence_kind: database_schema
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: 租户项目生命周期 相关事实
+  confidence: 0.8
+- evidence_id: ev-approval-initialize
+  source_id: src-tenant-project-lifecycle
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: '阶段 发起项目上线审批: ProjectApprovalApplication 保存审批申请并按非暂存请求启动工作流'
+  confidence: 0.8
+- evidence_id: ev-approval-node-fields
+  source_id: src-tenant-project-lifecycle
+  evidence_kind: database_schema
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: 租户项目生命周期 相关事实
+  confidence: 0.8
+- evidence_id: ev-approval-start
+  source_id: src-tenant-project-lifecycle
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: '阶段 发起项目上线审批: ProjectApprovalApplication 保存审批申请并按非暂存请求启动工作流'
+  confidence: 0.8
+- evidence_id: ev-approval-status-flow
+  source_id: src-tenant-project-lifecycle
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: '项目上线审批工作流状态: 审批主表 wf_status 记录审批是否发起、运行、完成或终止，不等同于项目 project_status。'
+  confidence: 0.8
+- evidence_id: ev-effective-query
+  source_id: src-tenant-project-lifecycle
+  evidence_kind: query_usage
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: '规则 已生效口径包含启用条件: 已生效项目统计同时限定 project_status=''1'' 与 enable=''Y''。'
+  confidence: 0.8
+- evidence_id: ev-node-status-enum
+  source_id: src-tenant-project-lifecycle
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: '审批节点状态: 审批流程明细节点的处理状态。'
+  confidence: 0.8
+- evidence_id: ev-node-status-write
+  source_id: src-tenant-project-lifecycle
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: '阶段 审批节点处理: ProjectApprovalDeskApplication 或流程回调更新节点'
+  confidence: 0.8
+- evidence_id: ev-project-create
+  source_id: src-tenant-project-lifecycle
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: '口径 待生效租户项目: 项目状态为待生效且项目启用。'
+  confidence: 0.8
+- evidence_id: ev-project-dao-effective
+  source_id: src-tenant-project-lifecycle
+  evidence_kind: query_usage
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: '规则 已生效口径包含启用条件: 已生效项目统计同时限定 project_status=''1'' 与 enable=''Y''。'
+  confidence: 0.8
+- evidence_id: ev-project-endpoints
+  source_id: src-tenant-project-lifecycle
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: '阶段 创建项目: POST /app-web/tenantProject/create'
+  confidence: 0.8
+- evidence_id: ev-project-fields
+  source_id: src-tenant-project-lifecycle
+  evidence_kind: database_schema
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: 租户项目生命周期 相关事实
+  confidence: 0.8
+- evidence_id: ev-project-status-writes
+  source_id: src-tenant-project-lifecycle
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: '租户项目状态: tenant_project.project_status 的物理状态，创建写入待生效，随后可变为已生效或已失效。'
+  confidence: 0.8
+- evidence_id: ev-rel-approval-flow
+  source_id: src-tenant-project-lifecycle
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: 关系 approval_flow.ref_tenant_project_approval_flow_tenant_project_approval
+    -> approval.ref_tenant_project_approval_tenant_project
+  confidence: 0.8
+- evidence_id: ev-rel-project-approval
+  source_id: src-tenant-project-lifecycle
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: 关系 project.project_approval_id -> approval.id
+  confidence: 0.8
+- evidence_id: ev-rel-project-product
+  source_id: src-tenant-project-lifecycle
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: 关系 project.product_id -> tenant_product.id
+  confidence: 0.8
+- evidence_id: ev-rel-project-tenant
+  source_id: src-tenant-project-lifecycle
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: 关系 project.ref_tenant_project_tenant_code -> tenant_config.code
+  confidence: 0.8
+- evidence_id: ev-status-enum
+  source_id: src-tenant-project-lifecycle
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: '租户项目状态: tenant_project.project_status 的物理状态，创建写入待生效，随后可变为已生效或已失效。'
+  confidence: 0.8
+- evidence_id: ev-tenant-config-fields
+  source_id: src-tenant-project-lifecycle
+  evidence_kind: database_schema
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: 租户项目生命周期 相关事实
+  confidence: 0.8
+- evidence_id: ev-tenant-product-fields
+  source_id: src-tenant-project-lifecycle
+  evidence_kind: database_schema
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: 租户项目生命周期 相关事实
+  confidence: 0.8
+- evidence_id: ev-wf-status-enum
+  source_id: src-tenant-project-lifecycle
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml
+  claim: '项目上线审批工作流状态: 审批主表 wf_status 记录审批是否发起、运行、完成或终止，不等同于项目 project_status。'
+  confidence: 0.8
+- evidence_id: ev-config-model
+  source_id: src-tenant-setting
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantSettingConfigDO.java
+  claim: '租户配置: 租户名称、品牌、域名、运营开关及默认项目等配置的一行记录。'
+  confidence: 0.8
+- evidence_id: ev-default-project-bind
+  source_id: src-tenant-setting
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantSettingConfigDO.java
+  claim: '默认项目: tenant_setting_config.default_project_id 指向租户默认项目；项目码必填时该配置必填。'
+  confidence: 0.8
+- evidence_id: ev-default-project-check
+  source_id: src-tenant-setting
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantSettingConfigDO.java
+  claim: '默认项目: tenant_setting_config.default_project_id 指向租户默认项目；项目码必填时该配置必填。'
+  confidence: 0.8
+- evidence_id: ev-default-project-resolve
+  source_id: src-tenant-setting
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantSettingConfigDO.java
+  claim: '口径 可用且配置默认项目的租户: 租户配置启用且 default_project_id 非空，可解析到 tenant_project。'
+  confidence: 0.8
+- evidence_id: ev-effective-write
+  source_id: src-tenant-setting
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantSettingConfigDO.java
+  claim: '已生效租户配置: tenant_setting_config.status 为 Y 的配置；导出时映射为“已生效”，其他状态映射为“待生效”。status
+    与 enable 语义不同。'
+  confidence: 0.8
+- evidence_id: ev-export-status
+  source_id: src-tenant-setting
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantSettingConfigDO.java
+  claim: '已生效租户配置: tenant_setting_config.status 为 Y 的配置；导出时映射为“已生效”，其他状态映射为“待生效”。status
+    与 enable 语义不同。'
+  confidence: 0.8
+- evidence_id: ev-get-setting
+  source_id: src-tenant-setting
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantSettingConfigDO.java
+  claim: '阶段 查询租户配置: 调用 /tenant-web/setting/getTenantSetting 并传入可选 dbTenantCode'
+  confidence: 0.8
+- evidence_id: ev-import-config
+  source_id: src-tenant-setting
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantSettingConfigDO.java
+  claim: '规则 存量导入仅写入存在的默认项目: Excel 导入解析默认项目ID为数字，并仅在目标配置尚无默认项目且 tenant_project 存在该ID时写入。'
+  confidence: 0.8
+- evidence_id: ev-operation-update
+  source_id: src-tenant-setting
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantSettingConfigDO.java
+  claim: '阶段 保存租户运营配置: 调用 /tenant-web/setting/updateOperationConfigById 或存量 Excel
+    导入'
+  confidence: 0.8
+- evidence_id: ev-share-fallback
+  source_id: src-tenant-setting
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantSettingConfigDO.java
+  claim: '共享租户配置: tenant_setting_config_share 按 tenant_flg_en 查询启用记录；在主租户配置查不到时，可按
+    share 记录的 db_tenant_code 回退获取租户信息。'
+  confidence: 0.8
+- evidence_id: ev-share-list
+  source_id: src-tenant-setting
+  evidence_kind: code_path
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantSettingConfigDO.java
+  claim: '共享租户配置: tenant_setting_config_share 按 tenant_flg_en 查询启用记录；在主租户配置查不到时，可按
+    share 记录的 db_tenant_code 回退获取租户信息。'
+  confidence: 0.8
+- evidence_id: ev-share-model
+  source_id: src-tenant-setting
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantSettingConfigDO.java
+  claim: 租户配置 相关事实
+  confidence: 0.8
+units:
+- units/ca-certification.yaml
+- units/ca-fee.yaml
+- units/company-group.yaml
+- units/company-product-auth.yaml
+- units/customer-config.yaml
+- units/enterprise-auxiliary.yaml
+- units/enterprise-certification.yaml
+- units/enterprise-change.yaml
+- units/enterprise-onboarding.yaml
+- units/funding-rule.yaml
+- units/interworking.yaml
+- units/op-user-coverage.yaml
+- units/openapi-access.yaml
+- units/org-manage.yaml
+- units/person-user.yaml
+- units/project-approval.yaml
+- units/project-code.yaml
+- units/project-enterprise-rel.yaml
+- units/survey.yaml
+- units/tenant-product-lifecycle.yaml
+- units/tenant-project-lifecycle.yaml
+- units/tenant-setting.yaml

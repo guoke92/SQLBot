@@ -1,0 +1,269 @@
+unit_id: wechat-project-approval
+revision: 1
+title: 企微项目审批
+aliases:
+- 企微审批
+domain: project
+applicability: 企微审批同步数据
+description: 企微项目审批申请及字段历史。
+content:
+  concepts:
+  - concept_id: wechat-approval
+    name: 企微项目审批
+    aliases:
+    - 企微审批
+    definition: wechat_project_approval_apply 记录企微审批申请。
+    dictionary: {}
+    field_targets:
+    - dataset: wechat_project_approval_apply
+      field: id
+      database: ''
+    evidence_refs:
+    - ev-wechat-apply-schema
+  processes:
+  - stage_id: maintain
+    name: 维护数据
+    description: ''
+    trigger: 业务管理端或同步入口
+    enter_conditions: []
+    exit_conditions: []
+    next_stages:
+    - query
+    data_effects:
+    - &id003
+      operation: read
+      dataset: wechat_project_approval_apply
+      fields: &id001
+      - id
+      - sp_no
+      - sp_type
+      - product_type
+      - project_id
+      - project_type
+      - code
+      - enable
+      condition: 查询/导出
+      description: ''
+      evidence_refs: []
+    - operation: upsert
+      dataset: wechat_project_approval_apply
+      fields: *id001
+      condition: 新增或更新
+      description: ''
+      evidence_refs: []
+    - &id004
+      operation: read
+      dataset: wechat_project_approval_field_history
+      fields: &id002
+      - id
+      - apply_id
+      - sp_no
+      - operator_id
+      - code
+      - enable
+      condition: 查询/导出
+      description: ''
+      evidence_refs: []
+    - operation: upsert
+      dataset: wechat_project_approval_field_history
+      fields: *id002
+      condition: 新增或更新
+      description: ''
+      evidence_refs: []
+    evidence_refs: []
+  - stage_id: query
+    name: 查询数据
+    description: ''
+    trigger: 列表/详情/统计查询
+    enter_conditions: []
+    exit_conditions: []
+    next_stages: []
+    data_effects:
+    - *id003
+    - *id004
+    evidence_refs: []
+  datasets:
+  - dataset_id: wechat_project_approval_apply
+    name: wechat_project_approval_apply
+    description: wechat_project_approval_apply
+    database: lowcode_pplatform
+    fields:
+    - field_id: id
+      name: id
+      description: id
+      data_type: varchar
+      dictionary: {}
+    - field_id: sp_no
+      name: sp_no
+      description: sp_no
+      data_type: varchar
+      dictionary: {}
+    - field_id: sp_type
+      name: sp_type
+      description: sp_type
+      data_type: varchar
+      dictionary: {}
+    - field_id: product_type
+      name: product_type
+      description: product_type
+      data_type: varchar
+      dictionary: {}
+    - field_id: project_id
+      name: project_id
+      description: project_id
+      data_type: varchar
+      dictionary: {}
+    - field_id: project_type
+      name: project_type
+      description: project_type
+      data_type: varchar
+      dictionary: {}
+    - field_id: code
+      name: code
+      description: code
+      data_type: varchar
+      dictionary: {}
+    - field_id: enable
+      name: enable
+      description: enable
+      data_type: varchar
+      dictionary: {}
+    evidence_refs: []
+  - dataset_id: wechat_project_approval_field_history
+    name: wechat_project_approval_field_history
+    description: wechat_project_approval_field_history
+    database: lowcode_pplatform
+    fields:
+    - field_id: id
+      name: id
+      description: id
+      data_type: varchar
+      dictionary: {}
+    - field_id: apply_id
+      name: apply_id
+      description: apply_id
+      data_type: varchar
+      dictionary: {}
+    - field_id: sp_no
+      name: sp_no
+      description: sp_no
+      data_type: varchar
+      dictionary: {}
+    - field_id: operator_id
+      name: operator_id
+      description: operator_id
+      data_type: varchar
+      dictionary: {}
+    - field_id: code
+      name: code
+      description: code
+      data_type: varchar
+      dictionary: {}
+    - field_id: enable
+      name: enable
+      description: enable
+      data_type: varchar
+      dictionary: {}
+    evidence_refs: []
+  - dataset_id: tenant_project
+    name: tenant_project
+    description: 租户业务项目实例。
+    database: lowcode_pplatform
+    fields:
+    - field_id: id
+      name: id
+      description: 表主键
+      data_type: bigint
+      dictionary: {}
+    evidence_refs: []
+  relationships:
+  - relationship_id: wechat-approval-to-project
+    left:
+      dataset: wechat_project_approval_apply
+      field: project_id
+      database: ''
+    right:
+      dataset: tenant_project
+      field: id
+      database: ''
+    relationship_type: EQUI_JOIN
+    cardinality: n:1
+    business_meaning: 企微审批关联项目。
+    status: proposed
+    evidence_refs:
+    - ev-wechat-apply-schema
+    confidence: 0.5
+  - relationship_id: wechat-history-to-apply
+    left:
+      dataset: wechat_project_approval_field_history
+      field: apply_id
+      database: ''
+    right:
+      dataset: wechat_project_approval_apply
+      field: id
+      database: ''
+    relationship_type: EQUI_JOIN
+    cardinality: n:1
+    business_meaning: 字段历史关联审批申请。
+    status: proposed
+    evidence_refs:
+    - ev-wechat-apply-schema
+    confidence: 0.5
+  metrics:
+  - metric_id: wechat-project-approval-count
+    name: 企微项目审批记录数
+    description: 按主键计数。
+    aggregation: COUNT
+    field:
+      dataset: wechat_project_approval_apply
+      field: id
+      database: ''
+    filters: []
+    grain: []
+    evidence_refs: []
+  calibers:
+  - caliber_id: wechat-project-approval-enabled
+    label: 启用的企微项目审批
+    description: enable=Y 的记录。
+    contract_fragment:
+      predicates:
+      - field: wechat_project_approval_apply.enable
+        operator: eq
+        values:
+        - Y
+    field_targets:
+    - dataset: wechat_project_approval_apply
+      field: enable
+      database: ''
+    evidence_refs: []
+  domain_rules:
+  - rule_id: wechat-project-approval-enable-filter
+    label: 仅启用数据参与查询
+    content: 查询/统计默认过滤 enable=Y。
+    applicability: 企微项目审批查询
+    query_impact: 过滤 enable=Y
+    field_targets:
+    - dataset: wechat_project_approval_apply
+      field: enable
+      database: ''
+    evidence_refs: []
+  verified_query_patterns:
+  - pattern_id: count-wechat-project-approval
+    question: 企微项目审批有多少
+    query: SELECT COUNT(DISTINCT id) AS cnt FROM wechat_project_approval_apply WHERE
+      enable = 'Y'
+    intended_specification:
+      grain: wechat_project_approval_apply
+      caliber_id: wechat-project-approval-enabled
+    verification:
+      status: PENDING_VALIDATION
+    evidence_refs: []
+evidence_refs:
+- ev-wechat-apply-schema
+- ev-wechat-history-schema
+- ev-project-schema
+unit_links: []
+assumptions:
+- 查询范例未在目标库执行。
+conflicts: []
+confidence: 0.85

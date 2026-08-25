@@ -112,6 +112,7 @@ class SemanticDataset(BaseModel):
     name: str
     description: str = ""
     database: str = ""
+    inactive: bool = False
     fields: list[SemanticField] = Field(default_factory=list)
     evidence_refs: list[str] = Field(default_factory=list)
 
@@ -283,9 +284,18 @@ class KnowledgeUnitEntry(BaseModel):
             or self.content.domain_rules
             or self.content.verified_query_patterns
         )
-        if not actionable:
+        all_inactive = bool(self.content.datasets) and all(
+            dataset.inactive for dataset in self.content.datasets
+        )
+        if not actionable and not all_inactive:
             raise ValueError(
-                "knowledge unit must describe a process, metric, caliber, rule or verified query"
+                "knowledge unit must describe a process, metric, caliber, rule or verified query "
+                "unless every declared dataset is inactive (dormant-registration unit)"
+            )
+        if actionable and all_inactive:
+            raise ValueError(
+                "inactive-registration unit must not declare processes/metrics/calibers/rules/patterns; "
+                "dormant tables carry no business semantics"
             )
         return self
 

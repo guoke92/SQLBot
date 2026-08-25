@@ -311,7 +311,12 @@ class _PlanBuilder:
         self.plan.edges.append(draft)
 
     def declare_dataset(
-        self, database: str, name: str, description: str, evidence: list[str]
+        self,
+        database: str,
+        name: str,
+        description: str,
+        evidence: list[str],
+        inactive: bool = False,
     ) -> str:
         table = norm(name)
         key = dataset_key(database, name)
@@ -332,6 +337,7 @@ class _PlanBuilder:
                     "name": name,
                     "database": database,
                     "description": description,
+                    "inactive": inactive,
                     "evidence_refs": list(evidence),
                 },
                 evidence_refs=list(evidence),
@@ -422,6 +428,7 @@ class _PlanBuilder:
                 dataset.name,
                 dataset.description,
                 list(dataset.evidence_refs),
+                inactive=dataset.inactive,
             )
             ref = DatasetRefDraft(
                 unit_dataset_id=dataset.dataset_id, dataset_key=ds_key

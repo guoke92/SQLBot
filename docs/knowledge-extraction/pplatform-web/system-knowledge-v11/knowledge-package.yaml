@@ -1,0 +1,753 @@
+schema_version: '2.0'
+package:
+  package_id: pplatform-system-business-data-v11
+  revision: 1
+  title: pplatform 全系统业务数据知识包 v11
+  namespace: pplatform
+  description: 按 knowledge-extraction skills 从 pplatform-web@ee434954e 源码及源码项目文档全新提取；本次覆盖
+    3 个关键模块：资金方规则配置、CA服务费、资金方异常解析建议维护。
+sources:
+- source_id: src-funding-rule
+  kind: source_code
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/FundingRuleInfoDO.java
+  repository_revision: ee434954e
+- source_id: src-ca-fee
+  kind: source_code
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CaFeeOrderDO.java
+  repository_revision: ee434954e
+- source_id: src-exception
+  kind: source_code
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/FundingExceptionResolutionDO.java
+  repository_revision: ee434954e
+- source_id: src-enterprise
+  kind: source_code
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustCompanyInfoDO.java
+  repository_revision: ee434954e
+- source_id: src-tenant-product
+  kind: source_code
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProductDO.java
+  repository_revision: ee434954e
+- source_id: src-project-approval
+  kind: source_code
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProjectApprovalDO.java
+  repository_revision: ee434954e
+- source_id: src-tenant-project
+  kind: source_code
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProjectDO.java
+  repository_revision: ee434954e
+- source_id: src-ca-certification
+  kind: source_code
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CaCertificationInfoDO.java
+  repository_revision: ee434954e
+- source_id: src-enterprise-certification
+  kind: source_code
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustCertificationInfoDO.java
+  repository_revision: ee434954e
+- source_id: src-enterprise-change
+  kind: source_code
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustChangeRecordDO.java
+  repository_revision: ee434954e
+- source_id: src-company-group
+  kind: source_code
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustGroupRelDO.java
+  repository_revision: ee434954e
+- source_id: src-enterprise-auxiliary
+  kind: source_code
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustShareholderInfoDO.java
+  repository_revision: ee434954e
+- source_id: src-survey
+  kind: source_code
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustSurveyAnswerDO.java
+  repository_revision: ee434954e
+- source_id: src-customer-config
+  kind: source_code
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustConfigMappingDO.java
+  repository_revision: ee434954e
+- source_id: src-company-product-auth
+  kind: source_code
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/AuthorizationAgreementDO.java
+  repository_revision: ee434954e
+- source_id: src-interworking
+  kind: source_code
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantInterworkingProductDO.java
+  repository_revision: ee434954e
+- source_id: src-openapi-access
+  kind: source_code
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustAccessSecretDO.java
+  repository_revision: ee434954e
+- source_id: src-user-account
+  kind: source_code
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustUserRelDO.java
+  repository_revision: ee434954e
+- source_id: src-op-user-coverage
+  kind: source_code
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/OperationUserDO.java
+  repository_revision: ee434954e
+- source_id: src-tenant-setting
+  kind: source_code
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantSettingConfigDO.java
+  repository_revision: ee434954e
+- source_id: src-project-file
+  kind: source_code
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/ProjectFileInfoDO.java
+  repository_revision: ee434954e
+- source_id: src-wechat-project-approval
+  kind: source_code
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/WechatProjectApprovalApplyDO.java
+  repository_revision: ee434954e
+- source_id: src-project-code
+  kind: source_code
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustProjectCodeRecordDO.java
+  repository_revision: ee434954e
+- source_id: src-org-manage
+  kind: source_code
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/OrgManageDO.java
+  repository_revision: ee434954e
+evidence:
+- evidence_id: ev-rule-status-enum
+  source_id: src-funding-rule
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/RuleStatusEnum.java:17
+  claim: 资金规则状态枚举 PENDING/ACTIVE/INACTIVE 及显示名。
+  confidence: 0.95
+- evidence_id: ev-layer-enum
+  source_id: src-funding-rule
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/RuleLayerEnum.java:17
+  claim: 资金规则层枚举 UNDERLYING/FINANCING/OTHER。
+  confidence: 0.95
+- evidence_id: ev-info-fields
+  source_id: src-funding-rule
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/FundingRuleInfoDO.java
+  claim: funding_rule_info DO 字段定义。
+  confidence: 0.95
+- evidence_id: ev-detail-fields
+  source_id: src-funding-rule
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/FundingRuleDetailDO.java
+  claim: funding_rule_detail DO 字段定义。
+  confidence: 0.95
+- evidence_id: ev-front-fields
+  source_id: src-funding-rule
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/FundingRuleFrontCfgDO.java
+  claim: funding_rule_front_cfg DO 字段定义。
+  confidence: 0.95
+- evidence_id: ev-party-cfg-schema
+  source_id: src-funding-rule
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/FundingPartyRuleCfgDO.java
+  claim: funding_party_rule_cfg DO 字段定义，休眠候选。
+  confidence: 0.9
+- evidence_id: ev-party-detail-schema
+  source_id: src-funding-rule
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/FundingPartyRuleDetailDO.java
+  claim: funding_party_rule_detail DO 字段定义，休眠候选。
+  confidence: 0.9
+- evidence_id: ev-party-front-schema
+  source_id: src-funding-rule
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/FundingPartyRuleFrontDO.java
+  claim: funding_party_rule_front DO 字段定义，休眠候选。
+  confidence: 0.9
+- evidence_id: ev-save-flow
+  source_id: src-funding-rule
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/FundRuleInfoApplication.java:415
+  claim: 保存/更新资金规则：新增 PENDING/version=1，按 productCode+fundingPartyMark 查重；更新 version+1；ruleMap.key
+    匹配 front_key 才写明细。
+  confidence: 0.95
+- evidence_id: ev-controller-status
+  source_id: src-funding-rule
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/controller/FundingRuleInfoController.java:97
+  claim: 管理端生效/失效资金规则接口 active/inActive。
+  confidence: 0.95
+- evidence_id: ev-provider-query
+  source_id: src-funding-rule
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/client/fundingparty/provider/FundingPartyRuleProviderImpl.java:88
+  claim: 业务 Provider 按 fundingPartyMark+productCode+ACTIVE 查规则头，按 ruleInfoId 查明细，按
+    productCode 查前台配置。
+  confidence: 0.95
+- evidence_id: ev-cafee-company-schema
+  source_id: src-ca-fee
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CaFeeCompanyDO.java
+  claim: ca_fee_company DO 字段定义。
+  confidence: 0.95
+- evidence_id: ev-cafee-order-schema
+  source_id: src-ca-fee
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CaFeeOrderDO.java
+  claim: ca_fee_order DO 字段定义。
+  confidence: 0.95
+- evidence_id: ev-cafee-project-config-schema
+  source_id: src-ca-fee
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CaFeeProjectConfigDO.java
+  claim: ca_fee_project_config DO 字段定义。
+  confidence: 0.95
+- evidence_id: ev-cafee-order-service
+  source_id: src-ca-fee
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/cafee/CaFeeOrderService.java:404
+  claim: 订单缴费成功或详情查询时按 certification_no 关联 ca_fee_company，并更新企业服务期/缴费状态。
+  confidence: 0.9
+- evidence_id: ev-cafee-payment
+  source_id: src-ca-fee
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/cafee/CaFeePaymentApplication.java
+  claim: 交e保开户/查户/确认打款/缴费成功页，订单状态 PAID 后更新 ca_fee_company 服务期。
+  confidence: 0.9
+- evidence_id: ev-cafee-admin-config
+  source_id: src-ca-fee
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/controller/cafee/CaFeeAdminController.java:55
+  claim: 运营后台保存/切换项目 CA 收费配置，开启收费后触发存量扫描建单或关单完结待办。
+  confidence: 0.9
+- evidence_id: ev-cafee-dual-check
+  source_id: src-ca-fee
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/cafee/CaFeePaymentCheckApplication.java
+  claim: 门户/业务跳转前双条件校验：仅核企/供应商需校验，CA 有效且服务费在期内/豁免才放行。
+  confidence: 0.9
+- evidence_id: ev-cafee-todo-ensure
+  source_id: src-ca-fee
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/cafee/CaFeeTodoEnsureApplication.java
+  claim: CA 认证成功后确保生成/复用 PENDING 订单并广播缴费待办。
+  confidence: 0.9
+- evidence_id: ev-exception-do
+  source_id: src-exception
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/FundingExceptionResolutionDO.java
+  claim: funding_exception_resolution DO 字段定义。
+  confidence: 0.95
+- evidence_id: ev-exception-controller
+  source_id: src-exception
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/controller/FundingPartyExceptionResolutionController.java:144
+  claim: 异常解析维护入口：checkBeforeSave/afterSave/import/export/batchDel。
+  confidence: 0.95
+- evidence_id: ev-exception-save
+  source_id: src-exception
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/ExceptionResolutionApplication.java:522
+  claim: 保存前按 productCode+fundingPartyCode+errorKeyword 校验唯一；afterSave 新增时生成 exceptionNo，然后
+    saveOrUpdate。
+  confidence: 0.95
+- evidence_id: ev-exception-import
+  source_id: src-exception
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/ExceptionResolutionApplication.java:103
+  claim: Excel 导入全量校验通过后单事务 upsert，唯一键 productCode+fundingPartyCode+errorKeyword。
+  confidence: 0.95
+- evidence_id: ev-exception-export
+  source_id: src-exception
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/ExceptionResolutionApplication.java:356
+  claim: 异常解析导出仅 enable=Y，支持异常编号/对接方/资金方/关键字/操作人/更新时间条件。
+  confidence: 0.9
+- evidence_id: ev-company-schema
+  source_id: src-enterprise
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustCompanyInfoDO.java
+  claim: cust_company_info DO 字段定义。
+  confidence: 0.95
+- evidence_id: ev-person-schema
+  source_id: src-enterprise
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustPersonInfoDO.java
+  claim: cust_person_info DO 字段定义。
+  confidence: 0.95
+- evidence_id: ev-build-record-schema
+  source_id: src-enterprise
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustBuildRecordDO.java
+  claim: cust_build_record DO 字段定义。
+  confidence: 0.95
+- evidence_id: ev-project-rel-schema
+  source_id: src-enterprise
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustProjectRelDO.java
+  claim: cust_project_rel DO 字段定义。
+  confidence: 0.95
+- evidence_id: ev-role-schema
+  source_id: src-enterprise
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustRoleInfoDO.java
+  claim: cust_role_info DO 字段定义。
+  confidence: 0.95
+- evidence_id: ev-build-status-enum
+  source_id: src-enterprise
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/CustBuildStatusEnum.java:14
+  claim: 企业建档状态枚举，含认证流与审核流。
+  confidence: 0.95
+- evidence_id: ev-cust-status-enum
+  source_id: src-enterprise
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/CustStatusEnum.java:14
+  claim: 企业状态枚举 ADD/EFFECT/FAILURE/WRITEOFF/FREEZE/CHANGE。
+  confidence: 0.95
+- evidence_id: ev-company-create
+  source_id: src-enterprise
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustCompanyInfoApplication.java:1364
+  claim: createCustCompany 写企业/联系人/项目关系/角色；批量导入硬校验失败整批不落库。
+  confidence: 0.9
+- evidence_id: ev-submit-flow
+  source_id: src-enterprise
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustCompanyInfoApplication.java:1559
+  claim: submitCust 将建档状态提交到 CUST_CONFIRM_AWAIT 并触发推送/待办。
+  confidence: 0.9
+- evidence_id: ev-build-record
+  source_id: src-enterprise
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/oper/facade/cust/OperCustFacade.java:889
+  claim: saveCustBuildRecord 按 companyId/personId 插入建档推送记录。
+  confidence: 0.9
+- evidence_id: ev-tenant-product-do
+  source_id: src-tenant-product
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProductDO.java
+  claim: tenant_product DO 字段定义。
+  confidence: 0.95
+- evidence_id: ev-platform-product-do
+  source_id: src-tenant-product
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/PlatformProductDO.java
+  claim: platform_product DO 字段定义。
+  confidence: 0.95
+- evidence_id: ev-product-open-status
+  source_id: src-tenant-product
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/producttype/TenantProductApplication.java:324
+  claim: ACFLOW/ORDER 先写 P，其他产品 active 写 Y；open_status 使用 Y/P/N。
+  confidence: 0.95
+- evidence_id: ev-cust-auth-open-status
+  source_id: src-tenant-product
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustAuthApplicationDO.java
+  claim: cust_auth_application.open_status 使用 OPENED/OPENING/NOT_OPENED。
+  confidence: 0.95
+- evidence_id: ev-controller-create
+  source_id: src-tenant-product
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/controller/TenantProductController.java:122
+  claim: 租户产品创建入口 /cmd/create 与 /create。
+  confidence: 0.95
+- evidence_id: ev-controller-active
+  source_id: src-tenant-product
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/controller/TenantProductController.java:133
+  claim: 租户产品开通入口 /cmd/active 与 /active。
+  confidence: 0.95
+- evidence_id: ev-domain-create
+  source_id: src-tenant-product
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/domain/TenantProductDomainService.java:133
+  claim: TenantProductDomainService.create 写入平台产品关联及租户产品字段。
+  confidence: 0.95
+- evidence_id: ev-domain-active
+  source_id: src-tenant-product
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/producttype/TenantProductApplication.java:334
+  claim: ACFLOW/ORDER 开通写 P，其他产品走 DomainService.active 写 Y。
+  confidence: 0.95
+- evidence_id: ev-cancel-guard
+  source_id: src-tenant-product
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/domain/TenantProductDomainService.java:100
+  claim: 取消前 checkOnTheWay 检查有效项目和企业申请。
+  confidence: 0.95
+- evidence_id: ev-tenant-project-link
+  source_id: src-tenant-product
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/domain/TenantProductDomainService.java:118
+  claim: 通过 tenant_project.product_id 查有效项目。
+  confidence: 0.95
+- evidence_id: ev-cust-auth-link
+  source_id: src-tenant-product
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/infrastructure/dao/CustAuthApplicationDaoImpl.java:113
+  claim: hasCustOpenProduct 按 ref_cust_auth_application_tenant_product=tenant_product.code
+    判断企业是否已开通。
+  confidence: 0.95
+- evidence_id: ev-ext-field-schema
+  source_id: src-tenant-product
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProductExtFieldDO.java
+  claim: tenant_product_ext_field DO 字段定义，休眠候选。
+  confidence: 0.9
+- evidence_id: ev-ext-field-form-schema
+  source_id: src-tenant-product
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProductExtFieldFormDO.java
+  claim: tenant_product_ext_field_form DO 字段定义，休眠候选。
+  confidence: 0.9
+- evidence_id: ev-approval-schema
+  source_id: src-project-approval
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProjectApprovalDO.java
+  claim: tenant_project_approval DO 字段定义。
+  confidence: 0.95
+- evidence_id: ev-flow-schema
+  source_id: src-project-approval
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProjectApprovalFlowDO.java
+  claim: tenant_project_approval_flow DO 字段定义。
+  confidence: 0.95
+- evidence_id: ev-flow-config-schema
+  source_id: src-project-approval
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProjectApprovalFlowConfigDO.java
+  claim: tenant_project_approval_flow_config DO 字段定义。
+  confidence: 0.95
+- evidence_id: ev-flow-node-schema
+  source_id: src-project-approval
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProjectApprovalFlowNodeDO.java
+  claim: tenant_project_approval_flow_node DO 字段定义。
+  confidence: 0.95
+- evidence_id: ev-business-info-schema
+  source_id: src-project-approval
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProjectApprovalBusinessInfoDO.java
+  claim: tenant_project_approval_business_info DO 字段定义。
+  confidence: 0.95
+- evidence_id: ev-flow-credit-schema
+  source_id: src-project-approval
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProjectApprovalFlowCreditDO.java
+  claim: tenant_project_approval_flow_credit DO 字段定义。
+  confidence: 0.95
+- evidence_id: ev-flow-file-schema
+  source_id: src-project-approval
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProjectApprovalFlowFileDO.java
+  claim: tenant_project_approval_flow_file DO 字段定义。
+  confidence: 0.95
+- evidence_id: ev-approval-wf-enum
+  source_id: src-project-approval
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/domain/enums/ProjectApprovalWorkflowStatusEnum.java:15
+  claim: 审批工作流状态枚举 PENDING/RUNNING/FINISHED/TERMINATED。
+  confidence: 0.95
+- evidence_id: ev-approval-node-enum
+  source_id: src-project-approval
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/domain/enums/ProjectApprovalNodeStatusEnum.java:15
+  claim: 审批节点状态枚举 PENDING/APPROVING/APPROVED/REJECTED。
+  confidence: 0.95
+- evidence_id: ev-approval-create
+  source_id: src-project-approval
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/approval/ProjectApprovalApplication.java:973
+  claim: createApproval/doCreateApproval 创建审批单、业务信息、流程节点。
+  confidence: 0.9
+- evidence_id: ev-approval-submit
+  source_id: src-project-approval
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/approval/ProjectApprovalApplication.java:549
+  claim: submit 提交审批并启动工作流。
+  confidence: 0.9
+- evidence_id: ev-approval-workflow
+  source_id: src-project-approval
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/approval/ProjectApprovalApplication.java:695
+  claim: startWorkflowAndUpdateStatus/handleFlowAndNodeStatus 更新工作流与节点状态。
+  confidence: 0.9
+- evidence_id: ev-approval-query
+  source_id: src-project-approval
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/approval/ProjectApprovalApplication.java:412
+  claim: 审批分页/详情/按项目查询。
+  confidence: 0.9
+- evidence_id: ev-project-schema
+  source_id: src-tenant-project
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProjectDO.java
+  claim: tenant_project DO 字段定义。
+  confidence: 0.95
+- evidence_id: ev-project-status-enum
+  source_id: src-tenant-project
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/domain/enums/ProjectStatusEnum.java:15
+  claim: 项目状态枚举 0 待生效/1 已生效/2 已失效。
+  confidence: 0.95
+- evidence_id: ev-project-create
+  source_id: src-tenant-project
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/TenantProjectApplication.java:213
+  claim: 创建/复制项目并初始化项目状态与产品关联。
+  confidence: 0.9
+- evidence_id: ev-project-effective
+  source_id: src-tenant-project
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/TenantProjectApplication.java:872
+  claim: 项目生效置 project_status=1。
+  confidence: 0.9
+- evidence_id: ev-project-invalid
+  source_id: src-tenant-project
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/TenantProjectApplication.java:951
+  claim: 项目失效置 2，删除逻辑 enable=N。
+  confidence: 0.9
+- evidence_id: ev-project-query
+  source_id: src-tenant-project
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/TenantProjectApplication.java:986
+  claim: 项目列表/有效项目/详情查询。
+  confidence: 0.9
+- evidence_id: ev-access-secret-schema
+  source_id: src-openapi-access
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustAccessSecretDO.java
+  claim: cust_access_secret DO 字段定义。
+  confidence: 0.9
+- evidence_id: ev-account-schema
+  source_id: src-user-account
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustAccountInfoDO.java
+  claim: cust_account_info DO 字段定义。
+  confidence: 0.9
+- evidence_id: ev-auth-agreement-schema
+  source_id: src-company-product-auth
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/AuthorizationAgreementDO.java
+  claim: authorization_agreement DO 字段定义。
+  confidence: 0.9
+- evidence_id: ev-ca-cert-schema
+  source_id: src-ca-certification
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CaCertificationInfoDO.java
+  claim: ca_certification_info DO 字段定义。
+  confidence: 0.9
+- evidence_id: ev-change-cfg-schema
+  source_id: src-enterprise-change
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustChangeCfgDO.java
+  claim: cust_change_cfg DO 字段定义。
+  confidence: 0.9
+- evidence_id: ev-change-record-schema
+  source_id: src-enterprise-change
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustChangeRecordDO.java
+  claim: cust_change_record DO 字段定义。
+  confidence: 0.9
+- evidence_id: ev-config-mapping-schema
+  source_id: src-customer-config
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustConfigMappingDO.java
+  claim: cust_config_mapping DO 字段定义。
+  confidence: 0.9
+- evidence_id: ev-cust-cert-schema
+  source_id: src-enterprise-certification
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustCertificationInfoDO.java
+  claim: cust_certification_info DO 字段定义。
+  confidence: 0.9
+- evidence_id: ev-cust-interworking-schema
+  source_id: src-interworking
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustInterworkingProductDO.java
+  claim: cust_interworking_product DO 字段定义。
+  confidence: 0.9
+- evidence_id: ev-customized-product-schema
+  source_id: src-company-product-auth
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustCustomizedProductDO.java
+  claim: cust_customized_product DO 字段定义。
+  confidence: 0.9
+- evidence_id: ev-group-schema
+  source_id: src-company-group
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustGroupRelDO.java
+  claim: cust_group_rel DO 字段定义。
+  confidence: 0.9
+- evidence_id: ev-head-company-schema
+  source_id: src-company-group
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustHeadCompanyInfoDO.java
+  claim: cust_head_company_info DO 字段定义。
+  confidence: 0.9
+- evidence_id: ev-invite-schema
+  source_id: src-project-code
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustInviteInfoDO.java
+  claim: cust_invite_info DO 字段定义。
+  confidence: 0.9
+- evidence_id: ev-lifecycle-schema
+  source_id: src-enterprise-auxiliary
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustCompanyLifecycleInfoDO.java
+  claim: cust_company_lifecycle_info DO 字段定义。
+  confidence: 0.9
+- evidence_id: ev-oper-change-schema
+  source_id: src-op-user-coverage
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustOperChangeRecordDO.java
+  claim: cust_oper_change_record DO 字段定义。
+  confidence: 0.9
+- evidence_id: ev-operation-user-schema
+  source_id: src-op-user-coverage
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/OperationUserDO.java
+  claim: operation_user DO 字段定义。
+  confidence: 0.9
+- evidence_id: ev-org-schema
+  source_id: src-org-manage
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/OrgManageDO.java
+  claim: org_manage DO 字段定义。
+  confidence: 0.9
+- evidence_id: ev-platform-client-schema
+  source_id: src-company-product-auth
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/PlatformProductClientDO.java
+  claim: platform_product_client DO 字段定义。
+  confidence: 0.9
+- evidence_id: ev-platform-role-schema
+  source_id: src-company-product-auth
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/PlatformProductCustRoleDO.java
+  claim: platform_product_cust_role DO 字段定义。
+  confidence: 0.9
+- evidence_id: ev-project-code-schema
+  source_id: src-project-code
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustProjectCodeRecordDO.java
+  claim: cust_project_code_record DO 字段定义。
+  confidence: 0.9
+- evidence_id: ev-project-file-schema
+  source_id: src-project-file
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/ProjectFileInfoDO.java
+  claim: project_file_info DO 字段定义。
+  confidence: 0.9
+- evidence_id: ev-pushcust-schema
+  source_id: src-project-code
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustProjectPushcustDO.java
+  claim: cust_project_pushcust DO 字段定义。
+  confidence: 0.9
+- evidence_id: ev-setting-schema
+  source_id: src-customer-config
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustSettingConfigDO.java
+  claim: cust_setting_config DO 字段定义。
+  confidence: 0.9
+- evidence_id: ev-shareholder-schema
+  source_id: src-enterprise-auxiliary
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustShareholderInfoDO.java
+  claim: cust_shareholder_info DO 字段定义。
+  confidence: 0.9
+- evidence_id: ev-survey-answer-schema
+  source_id: src-survey
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustSurveyAnswerDO.java
+  claim: cust_survey_answer DO 字段定义。
+  confidence: 0.9
+- evidence_id: ev-survey-state-schema
+  source_id: src-survey
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustCompanySurveyStateDO.java
+  claim: cust_company_survey_state DO 字段定义。
+  confidence: 0.9
+- evidence_id: ev-survey-whitelist-schema
+  source_id: src-survey
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustCompanySurveyWhitelistDO.java
+  claim: cust_company_survey_whitelist DO 字段定义。
+  confidence: 0.9
+- evidence_id: ev-sync-error-schema
+  source_id: src-openapi-access
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/ClientApiSyncErrorDO.java
+  claim: client_api_sync_error DO 字段定义。
+  confidence: 0.9
+- evidence_id: ev-tenant-interworking-product-schema
+  source_id: src-interworking
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantInterworkingProductDO.java
+  claim: tenant_interworking_product DO 字段定义。
+  confidence: 0.9
+- evidence_id: ev-tenant-interworking-project-schema
+  source_id: src-interworking
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantInterworkingProjectDO.java
+  claim: tenant_interworking_project DO 字段定义。
+  confidence: 0.9
+- evidence_id: ev-tenant-setting-schema
+  source_id: src-tenant-setting
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantSettingConfigDO.java
+  claim: tenant_setting_config DO 字段定义。
+  confidence: 0.9
+- evidence_id: ev-tenant-setting-share-schema
+  source_id: src-tenant-setting
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantSettingConfigShareDO.java
+  claim: tenant_setting_config_share DO 字段定义。
+  confidence: 0.9
+- evidence_id: ev-user-rel-schema
+  source_id: src-user-account
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustUserRelDO.java
+  claim: cust_user_rel DO 字段定义。
+  confidence: 0.9
+- evidence_id: ev-wec-cust-rel-schema
+  source_id: src-interworking
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/WecProjectCustOperationRelDO.java
+  claim: wec_project_cust_operation_rel DO 字段定义。
+  confidence: 0.9
+- evidence_id: ev-wec-project-rel-schema
+  source_id: src-interworking
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/WecProjectOperationRelDO.java
+  claim: wec_project_operation_rel DO 字段定义。
+  confidence: 0.9
+- evidence_id: ev-wechat-apply-schema
+  source_id: src-wechat-project-approval
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/WechatProjectApprovalApplyDO.java
+  claim: wechat_project_approval_apply DO 字段定义。
+  confidence: 0.9
+- evidence_id: ev-wechat-history-schema
+  source_id: src-wechat-project-approval
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/WechatProjectApprovalFieldHistoryDO.java
+  claim: wechat_project_approval_field_history DO 字段定义。
+  confidence: 0.9
+units:
+- units/funding-rule.yaml
+- units/ca-fee.yaml
+- units/exception-resolution.yaml
+- units/enterprise-onboarding.yaml
+- units/tenant-product-lifecycle.yaml
+- units/project-approval.yaml
+- units/tenant-project-lifecycle.yaml
+- units/ca-certification.yaml
+- units/company-group.yaml
+- units/company-product-auth.yaml
+- units/customer-config.yaml
+- units/enterprise-auxiliary.yaml
+- units/enterprise-certification.yaml
+- units/enterprise-change.yaml
+- units/interworking.yaml
+- units/op-user-coverage.yaml
+- units/openapi-access.yaml
+- units/org-manage.yaml
+- units/project-code.yaml
+- units/project-file.yaml
+- units/survey.yaml
+- units/tenant-setting.yaml
+- units/user-account.yaml
+- units/wechat-project-approval.yaml

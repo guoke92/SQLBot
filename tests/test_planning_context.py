@@ -12,10 +12,12 @@ if str(_BACKEND) not in sys.path:
     sys.path.insert(0, str(_BACKEND))
 
 from apps.chat.planning_context import (  # noqa: E402
+    _split_knowledge_payload,
     capture_planning_context,
     execution_schema_resources,
     restore_planning_context,
 )
+from apps.knowledge.compile import knowledge_prompt_payload  # noqa: E402
 from apps.knowledge.compile.bundle import ApplyHit, BusinessDataBundle  # noqa: E402
 from apps.knowledge.models import KnowledgeMatch  # noqa: E402
 from apps.knowledge.policy import CompileBudgets, get_knowledge_policy  # noqa: E402
@@ -137,6 +139,159 @@ def test_compile_budgets_have_no_repair_hints() -> None:
     assert not hasattr(budgets, "repair_hints")
     policy = get_knowledge_policy({"compile_budgets": {"repair_hints": 9}})
     assert not hasattr(policy.compile_budgets, "repair_hints")
+
+
+
+
+def test_knowledge_payload_is_compact() -> None:
+    bundle = BusinessDataBundle(
+        stage="generate",
+        matched_units=[
+            {
+                "unit_id": 26,
+                "unit_key": "pplatform:survey",
+                "revision_id": 53,
+                "revision": 2,
+                "title": "企业调研",
+                "domain": "survey",
+                "description": "desc",
+                "applicability": "applies",
+                "confidence": 0.91,
+            }
+        ],
+        datasets=[
+            {
+                "name": "cust_company_survey_whitelist",
+                "dataset_id": "whitelist",
+                "database": "lowcode_pplatform",
+                "description": "白名单",
+                "evidence_refs": ["ev-whitelist-model"],
+                "fields": [
+                    {"name": "company_id", "field_id": "company_id"}
+                ],
+            }
+        ],
+        fields=[
+            {
+                "name": "company_id",
+                "field_id": "company_id",
+                "data_type": "bigint",
+                "dataset_id": "whitelist",
+                "description": "企业ID",
+                "dictionary": {},
+                "evidence_refs": [],
+            },
+            {
+                "name": "enable",
+                "field_id": "enable",
+                "data_type": "varchar",
+                "dataset_id": "whitelist",
+                "description": "启用标记",
+                "dictionary": {"Y": "启用", "N": "停用"},
+                "evidence_refs": ["ev-x"],
+            },
+        ],
+        verified_examples=[
+            {
+                "id": "count-participating-companies",
+                "question": "q",
+                "sql": "SELECT 1",
+                "description": "SELECT 1",
+                "knowledge_meta": {"unit_revision_id": 53},
+            }
+        ],
+        calibers=[{"caliber_id": "c", "label": "l", "evidence_refs": ["ev"]}],
+    )
+    payload = knowledge_prompt_payload(bundle)
+
+    # datasets: no nested fields, no evidence_refs
+    assert "fields" not in payload["datasets"][0]
+    assert "evidence_refs" not in payload["datasets"][0]
+    # fields: no field_id/data_type/evidence_refs; empty dictionary dropped
+    company = next(f for f in payload["fields"] if f["name"] == "company_id")
+    assert company == {
+        "name": "company_id",
+        "dataset_id": "whitelist",
+        "description": "企业ID",
+    }
+    enable = next(f for f in payload["fields"] if f["name"] == "enable")
+    assert enable["dictionary"] == {"Y": "启用", "N": "停用"}
+    assert "data_type" not in enable and "evidence_refs" not in enable
+    # matched_units: no server-side ids
+    unit = payload["matched_units"][0]
+    assert "unit_id" not in unit and "revision_id" not in unit and "revision" not in unit
+    assert unit["unit_key"] == "pplatform:survey"
+    # verified_examples: description + knowledge_meta dropped, sql kept
+    assert payload["verified_examples"][0] == {
+        "id": "count-participating-companies",
+        "question": "q",
+        "sql": "SELECT 1",
+    }
+    # calibers: evidence_refs stripped
+    assert "evidence_refs" not in payload["calibers"][0]
+
+
+def test_split_knowledge_payload_orders_by_value() -> None:
+    compact = {
+        "calibers": [{"caliber_id": "c"}],
+        "matched_units": [{"title": "t"}],
+        "processes": [{"stage_id": "s"}],
+        "fields": [{"name": "f"}],
+    }
+    groups = _split_knowledge_payload(compact)
+    names = [name for name, _content in groups]
+    assert names.index("core") < names.index("context")
+    assert names.index("context") < names.index("meta")
+    assert names.index("meta") < names.index("process")
+    by_name = {name: content for name, content in groups}
+    assert by_name["core"]["calibers"] == [{"caliber_id": "c"}]
+    assert by_name["context"]["fields"] == [{"name": "f"}]
+    assert by_name["meta"]["matched_units"] == [{"title": "t"}]
+    assert by_name["process"]["processes"] == [{"stage_id": "s"}]
+
+
+
+
+
+def test_knowledge_payload_flattens_data_effects() -> None:
+    bundle = BusinessDataBundle(
+        stage="generate",
+        scenarios=[
+            {
+                "stage_id": "approved",
+                "name": "审核通过",
+                "data_effects": [
+                    {
+                        "operation": "update",
+                        "dataset": "cust_company_info",
+                        "fields": ["status"],
+                        "evidence_refs": ["ev"],
+                    }
+                ],
+                "evidence_refs": ["ev-stage"],
+            }
+        ],
+        data_effects=[
+            {
+                "operation": "update",
+                "dataset": "cust_company_info",
+                "fields": ["status"],
+                "stage_id": "approved",
+                "unit_revision_id": 53,
+                "evidence_refs": ["ev"],
+            }
+        ],
+    )
+    payload = knowledge_prompt_payload(bundle)
+    process = payload["processes"][0]
+    assert "data_effects" not in process
+    assert "evidence_refs" not in process
+    assert process["stage_id"] == "approved"
+    effect = payload["data_effects"][0]
+    assert effect["stage_id"] == "approved"
+    assert "unit_revision_id" not in effect
+    assert "evidence_refs" not in effect
+
 
 
 def test_execution_schema_keeps_planned_projection() -> None:

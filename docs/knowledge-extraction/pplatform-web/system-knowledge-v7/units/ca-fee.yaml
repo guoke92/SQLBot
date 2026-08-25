@@ -1,0 +1,649 @@
+unit_id: ca-fee
+revision: 1
+title: CA服务费
+aliases:
+- CA费
+- 证书服务费
+- CA缴费
+domain: ca_fee
+applicability: 企业CA服务费缴费状态、订单、项目收费配置与服务期查询；不用于交e保账户余额或CA证书开通状态
+description: 企业CA服务费由企业台账、订单和项目收费配置共同记录；缴费成功会更新订单与企业服务周期。
+content:
+  concepts:
+  - concept_id: ca-fee-company
+    name: CA费企业台账
+    aliases:
+    - CA缴费企业
+    - 企业缴费状态
+    definition: 按统一社会信用代码维护企业维度的CA服务费状态与当前服务周期快照。
+    dictionary:
+      PAID: 已缴费
+      UNPAID: 未缴费
+    field_targets:
+    - dataset: ca_fee_company
+      field: certification_no
+      database: ''
+    - dataset: ca_fee_company
+      field: pay_status
+      database: ''
+    evidence_refs:
+    - ev-company-do
+    - ev-company-status
+  - concept_id: ca-fee-order
+    name: CA费订单
+    aliases:
+    - 缴费订单
+    - CA服务费订单
+    definition: 企业一次CA服务费缴费申请及其支付、协议和服务周期记录。
+    dictionary:
+      PENDING: 待支付
+      PAID: 已支付
+      CLOSED: 已关闭
+      EXPIRED: 已过期
+    field_targets:
+    - dataset: ca_fee_order
+      field: order_no
+      database: ''
+    - dataset: ca_fee_order
+      field: order_status
+      database: ''
+    evidence_refs:
+    - ev-order-do
+    - ev-order-status
+  - concept_id: ca-fee-charging
+    name: 项目CA收费
+    aliases:
+    - CA收费开关
+    - 项目收费配置
+    definition: 项目是否开启CA收费及不同企业角色的年费配置。
+    dictionary:
+      Y: 收费
+      N: 不收费
+    field_targets:
+    - dataset: ca_fee_project_config
+      field: project_id
+      database: ''
+    - dataset: ca_fee_project_config
+      field: charge_enabled
+      database: ''
+    evidence_refs:
+    - ev-config-do
+    - ev-config-save
+  processes:
+  - stage_id: portal-check
+    name: 门户缴费校验
+    description: ''
+    trigger: 门户跳转或进入缴费页前调用 /cust-web/caFee/dualCheck 或 portalCheck
+    enter_conditions: []
+    exit_conditions: []
+    next_stages:
+    - ensure-order
+    data_effects:
+    - operation: read
+      dataset: ca_fee_company
+      fields:
+      - certification_no
+      - pay_status
+      - ca_status
+      condition: ''
+      description: ''
+      evidence_refs: []
+    - operation: read
+      dataset: ca_fee_project_config
+      fields:
+      - project_id
+      - charge_enabled
+      condition: ''
+      description: ''
+      evidence_refs: []
+    evidence_refs:
+    - ev-controller-check
+    - ev-payment-check
+  - stage_id: ensure-order
+    name: 创建缴费待办订单
+    description: ''
+    trigger: CA认证成功页调用 /todo/ensure 且评估需要缴费
+    enter_conditions: []
+    exit_conditions: []
+    next_stages:
+    - pay
+    data_effects:
+    - operation: read
+      dataset: ca_fee_company
+      fields:
+      - certification_no
+      - pay_status
+      - tenant_id
+      condition: ''
+      description: ''
+      evidence_refs: []
+    - operation: insert
+      dataset: ca_fee_order
+      fields:
+      - order_no
+      - company_id
+      - project_id
+      - order_status
+      - annual_fee
+      condition: ''
+      description: ''
+      evidence_refs: []
+    evidence_refs:
+    - ev-controller-todo
+    - ev-todo-ensure
+  - stage_id: pay
+    name: 协议签署与支付
+    description: ''
+    trigger: 订单签署协议后通过交e保完成扣款
+    enter_conditions: []
+    exit_conditions: []
+    next_stages:
+    - renewal
+    data_effects:
+    - operation: update
+      dataset: ca_fee_order
+      fields:
+      - agreement_signed
+      - agreement_version
+      - order_status
+      - pay_amount
+      - pay_time
+      - service_start
+      - service_end
+      condition: ''
+      description: ''
+      evidence_refs: []
+    - operation: update
+      dataset: ca_fee_company
+      fields:
+      - pay_status
+      - locked_annual_fee
+      - service_start
+      - service_end
+      condition: ''
+      description: ''
+      evidence_refs: []
+    evidence_refs:
+    - ev-controller-pay
+    - ev-payment-markpaid
+  - stage_id: renewal
+    name: 服务期续费提醒
+    description: ''
+    trigger: 企业登录或服务期剩余7天内/已过期
+    enter_conditions: []
+    exit_conditions: []
+    next_stages: []
+    data_effects:
+    - operation: update
+      dataset: ca_fee_company
+      fields:
+      - pay_status
+      - renew_remind_sent
+      condition: ''
+      description: ''
+      evidence_refs: []
+    evidence_refs:
+    - ev-controller-renewal
+    - ev-renewal
+  datasets:
+  - dataset_id: ca_fee_company
+    name: ca_fee_company
+    description: CA服务费企业主数据，一行一个统一社会信用代码的企业台账快照。
+    database: lowcode_pplatform
+    fields:
+    - field_id: id
+      name: id
+      description: 表主键
+      data_type: bigint
+      dictionary: {}
+      evidence_refs: []
+    - field_id: certification_no
+      name: certification_no
+      description: 统一社会信用代码
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: tenant_id
+      name: tenant_id
+      description: 首次锁定来源租户
+      data_type: bigint
+      dictionary: {}
+      evidence_refs: []
+    - field_id: locked_annual_fee
+      name: locked_annual_fee
+      description: 首次缴费成功后锁定的年费标准
+      data_type: int
+      dictionary: {}
+      evidence_refs: []
+    - field_id: pay_status
+      name: pay_status
+      description: 缴费状态；PAID已缴费、UNPAID未缴费
+      data_type: varchar
+      dictionary:
+        PAID: 已缴费
+        UNPAID: 未缴费
+      evidence_refs: []
+    - field_id: service_start
+      name: service_start
+      description: 当前服务周期起始日（含）
+      data_type: date
+      dictionary: {}
+      evidence_refs: []
+    - field_id: service_end
+      name: service_end
+      description: 当前服务周期截止日（含）
+      data_type: date
+      dictionary: {}
+      evidence_refs: []
+    - field_id: source_project_id
+      name: source_project_id
+      description: 首次锁定来源项目ID
+      data_type: bigint
+      dictionary: {}
+      evidence_refs: []
+    - field_id: renew_remind_sent
+      name: renew_remind_sent
+      description: 本期续费待办是否已生成
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: ca_status
+      name: ca_status
+      description: CA签章状态；NORMAL/EXPIRED/CANCELLED/UNREGISTERED/UNKNOWN
+      data_type: varchar
+      dictionary:
+        NORMAL: 有效
+        EXPIRED: 已过期
+        CANCELLED: 已注销
+        UNREGISTERED: 未注册
+        UNKNOWN: 未知
+      evidence_refs: []
+    - field_id: enable
+      name: enable
+      description: 启用标记
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    evidence_refs:
+    - ev-company-do
+  - dataset_id: ca_fee_order
+    name: ca_fee_order
+    description: CA服务费订单，一行一笔订单；正式订单状态为PENDING/PAID/CLOSED/EXPIRED。
+    database: lowcode_pplatform
+    fields:
+    - field_id: id
+      name: id
+      description: 表主键
+      data_type: bigint
+      dictionary: {}
+      evidence_refs: []
+    - field_id: order_no
+      name: order_no
+      description: 唯一订单号
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: company_id
+      name: company_id
+      description: 企业ID，指向CA费企业台账
+      data_type: bigint
+      dictionary: {}
+      evidence_refs: []
+    - field_id: project_id
+      name: project_id
+      description: 触发项目ID
+      data_type: bigint
+      dictionary: {}
+      evidence_refs: []
+    - field_id: order_status
+      name: order_status
+      description: 订单状态
+      data_type: varchar
+      dictionary:
+        PENDING: 待支付
+        PAID: 已支付
+        CLOSED: 已关闭
+        EXPIRED: 已过期
+      evidence_refs: []
+    - field_id: annual_fee
+      name: annual_fee
+      description: 应缴年费
+      data_type: int
+      dictionary: {}
+      evidence_refs: []
+    - field_id: pay_amount
+      name: pay_amount
+      description: 实缴金额
+      data_type: int
+      dictionary: {}
+      evidence_refs: []
+    - field_id: pay_time
+      name: pay_time
+      description: 缴费成功时间
+      data_type: datetime
+      dictionary: {}
+      evidence_refs: []
+    - field_id: service_start
+      name: service_start
+      description: 本单服务周期起始日
+      data_type: date
+      dictionary: {}
+      evidence_refs: []
+    - field_id: service_end
+      name: service_end
+      description: 本单服务周期截止日
+      data_type: date
+      dictionary: {}
+      evidence_refs: []
+    - field_id: agreement_version
+      name: agreement_version
+      description: 签署时收费协议版本
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: agreement_signed
+      name: agreement_signed
+      description: 是否已签署收费协议
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    evidence_refs:
+    - ev-order-do
+  - dataset_id: ca_fee_project_config
+    name: ca_fee_project_config
+    description: 项目级CA服务费配置；charge_enabled决定是否收费。
+    database: lowcode_pplatform
+    fields:
+    - field_id: project_id
+      name: project_id
+      description: 项目ID
+      data_type: bigint
+      dictionary: {}
+      evidence_refs: []
+    - field_id: charge_enabled
+      name: charge_enabled
+      description: 是否开启CA收费
+      data_type: varchar
+      dictionary:
+        Y: 收费
+        N: 不收费
+      evidence_refs: []
+    - field_id: enable
+      name: enable
+      description: 启用标记
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    evidence_refs:
+    - ev-config-do
+  - dataset_id: tenant_project
+    name: tenant_project
+    description: 租户业务项目实例。
+    database: lowcode_pplatform
+    fields:
+    - field_id: id
+      name: id
+      description: 表主键
+      data_type: bigint
+      dictionary: {}
+      evidence_refs: []
+    evidence_refs:
+    - ev-project-rel
+  relationships:
+  - relationship_id: ca-order-company
+    left:
+      dataset: ca_fee_order
+      field: company_id
+      database: ''
+    right:
+      dataset: ca_fee_company
+      field: id
+      database: ''
+    relationship_type: EQUI_JOIN
+    cardinality: n:1
+    business_meaning: 订单指向CA费企业台账
+    status: proposed
+    evidence_refs:
+    - ev-order-company-rel
+    confidence: 0.5
+  - relationship_id: ca-fee-company-source-project-order
+    left:
+      dataset: ca_fee_company
+      field: source_project_id
+      database: ''
+    right:
+      dataset: ca_fee_order
+      field: project_id
+      database: ''
+    relationship_type: SHARED_KEY
+    cardinality: n:n
+    business_meaning: 台账来源项目与订单触发项目共享项目维度，不应直接互连造成笛卡尔积
+    status: proposed
+    evidence_refs:
+    - ev-source-project-rel
+    confidence: 0.5
+  - relationship_id: ca-fee-project-config-project
+    left:
+      dataset: ca_fee_project_config
+      field: project_id
+      database: ''
+    right:
+      dataset: tenant_project
+      field: id
+      database: ''
+    relationship_type: EQUI_JOIN
+    cardinality: n:1
+    business_meaning: 项目配置按项目ID指向租户项目
+    status: proposed
+    evidence_refs:
+    - ev-project-rel
+    confidence: 0.5
+  metrics:
+  - metric_id: unpaid-ca-fee-company-count
+    name: 未缴CA费企业数
+    description: 按企业台账主键去重统计未缴企业
+    aggregation: COUNT_DISTINCT
+    field:
+      dataset: ca_fee_company
+      field: id
+      database: ''
+    filters: []
+    grain:
+    - dataset: ca_fee_company
+      field: id
+      database: ''
+    evidence_refs:
+    - ev-company-status
+  - metric_id: ca-fee-order-count-by-status
+    name: CA费订单数
+    description: 按订单状态统计订单行数
+    aggregation: COUNT
+    field:
+      dataset: ca_fee_order
+      field: id
+      database: ''
+    filters: []
+    grain:
+    - dataset: ca_fee_order
+      field: order_status
+      database: ''
+    evidence_refs:
+    - ev-order-status
+  - metric_id: ca-fee-paid-amount
+    name: CA费实缴金额
+    description: 已支付订单的实缴金额合计
+    aggregation: SUM
+    field:
+      dataset: ca_fee_order
+      field: pay_amount
+      database: ''
+    filters: []
+    grain:
+    - dataset: ca_fee_order
+      field: order_status
+      database: ''
+    evidence_refs:
+    - ev-order-do
+  calibers:
+  - caliber_id: unpaid-ca-fee-company
+    label: 未缴CA费企业
+    description: 企业台账pay_status=UNPAID且启用。
+    contract_fragment:
+      predicates:
+      - field: ca_fee_company.pay_status
+        operator: eq
+        values:
+        - UNPAID
+      - field: ca_fee_company.enable
+        operator: eq
+        values:
+        - Y
+    field_targets:
+    - dataset: ca_fee_company
+      field: pay_status
+      database: ''
+    - dataset: ca_fee_company
+      field: enable
+      database: ''
+    evidence_refs:
+    - ev-company-status
+  - caliber_id: active-ca-fee-company
+    label: 在期已缴CA费企业
+    description: 企业台账pay_status=PAID且服务截止日不早于当前日期。
+    contract_fragment:
+      predicates:
+      - field: ca_fee_company.pay_status
+        operator: eq
+        values:
+        - PAID
+      - field: ca_fee_company.service_end
+        operator: gte
+        values:
+        - CURRENT_DATE
+    field_targets:
+    - dataset: ca_fee_company
+      field: pay_status
+      database: ''
+    - dataset: ca_fee_company
+      field: service_end
+      database: ''
+    evidence_refs:
+    - ev-company-status
+    - ev-company-period
+  - caliber_id: enabled-ca-fee-project
+    label: 开启CA收费项目
+    description: 项目配置charge_enabled=Y且启用。
+    contract_fragment:
+      predicates:
+      - field: ca_fee_project_config.charge_enabled
+        operator: eq
+        values:
+        - Y
+      - field: ca_fee_project_config.enable
+        operator: eq
+        values:
+        - Y
+    field_targets:
+    - dataset: ca_fee_project_config
+      field: charge_enabled
+      database: ''
+    - dataset: ca_fee_project_config
+      field: enable
+      database: ''
+    evidence_refs:
+    - ev-config-do
+  domain_rules:
+  - rule_id: charge-switch-gates-payment
+    label: 收费开关决定是否缴费
+    content: 项目配置charge_enabled=N时门户校验直接放行，不创建缴费订单；Y时才进入费用评估
+    applicability: 门户缴费校验
+    query_impact: 统计应收费项目必须过滤charge_enabled=Y
+    field_targets:
+    - dataset: ca_fee_project_config
+      field: charge_enabled
+      database: ''
+    evidence_refs:
+    - ev-controller-check
+    - ev-config-save
+  - rule_id: paid-order-updates-ledger
+    label: 支付成功同步台账
+    content: 交e保划扣成功后订单标记PAID并更新企业台账pay_status及服务周期
+    applicability: 支付收尾
+    query_impact: 企业缴费口径以台账pay_status为主，订单状态用于订单口径
+    field_targets:
+    - dataset: ca_fee_order
+      field: order_status
+      database: ''
+    - dataset: ca_fee_company
+      field: pay_status
+      database: ''
+    - dataset: ca_fee_company
+      field: service_start
+      database: ''
+    - dataset: ca_fee_company
+      field: service_end
+      database: ''
+    evidence_refs:
+    - ev-payment-markpaid
+  - rule_id: order-status-dictionary
+    label: 订单状态仅认正式枚举
+    content: 订单状态口径只认PENDING、PAID、CLOSED、EXPIRED；代码中不存在的状态不能映射为已支付
+    applicability: 订单统计
+    query_impact: 订单状态分布使用上述四值过滤或分组
+    field_targets:
+    - dataset: ca_fee_order
+      field: order_status
+      database: ''
+    evidence_refs:
+    - ev-order-status
+  - rule_id: renewal-unpaid
+    label: 服务期到期进入未缴
+    content: 续费提醒判定剩余天数小于等于7天或已过期；续费流程将企业缴费状态置为UNPAID并生成续费待办
+    applicability: 到期续费
+    query_impact: 到期企业不应继续计入在期已缴
+    field_targets:
+    - dataset: ca_fee_company
+      field: service_end
+      database: ''
+    - dataset: ca_fee_company
+      field: pay_status
+      database: ''
+    evidence_refs:
+    - ev-renewal
+  verified_query_patterns:
+  - pattern_id: count-unpaid-ca-fee-companies
+    question: 未缴CA费的企业有多少
+    query: 'SELECT COUNT(DISTINCT id) AS unpaid_ca_fee_company_count
+
+      FROM ca_fee_company WHERE pay_status = ''UNPAID'' AND enable = ''Y'''
+    intended_specification:
+      grain: ca_fee_company
+      caliber_id: unpaid-ca-fee-company
+    verification:
+      status: PENDING_VALIDATION
+    evidence_refs:
+    - ev-company-status
+  - pattern_id: order-status-distribution
+    question: 各订单状态的CA费订单数
+    query: 'SELECT order_status, COUNT(*) AS order_count FROM ca_fee_order
+
+      WHERE enable = ''Y'' GROUP BY order_status'
+    intended_specification:
+      grain: ca_fee_order
+      caliber_id: unpaid-ca-fee-company
+    verification:
+      status: PENDING_VALIDATION
+    evidence_refs:
+    - ev-order-status
+evidence_refs:
+- ev-controller-check
+- ev-company-do
+- ev-order-do
+- ev-config-do
+- ev-payment-markpaid
+- ev-renewal
+unit_links: []
+assumptions:
+- 查询范例未在目标数据库逐条执行
+conflicts: []
+confidence: 0.9

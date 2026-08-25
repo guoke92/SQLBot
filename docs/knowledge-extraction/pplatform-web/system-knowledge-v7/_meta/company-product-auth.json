@@ -1,0 +1,77 @@
+{
+  "unit_id": "company-product-auth",
+  "sources": [
+    {
+      "source_id": "src-company-product-auth",
+      "kind": "source_code",
+      "locator": "pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/AuthorizationAgreementDO.java",
+      "repository_revision": "ee434954e"
+    }
+  ],
+  "evidence": [
+    {
+      "evidence_id": "ev-agreement-fields",
+      "source_id": "src-company-product-auth",
+      "evidence_kind": "database_schema",
+      "locator": "pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/AuthorizationAgreementDO.java",
+      "claim": "已签署平台授权协议: 指指定平台产品的有效授权协议记录，authed_status=Y 且 enable=Y。",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-agreement-query",
+      "source_id": "src-company-product-auth",
+      "evidence_kind": "query_usage",
+      "locator": "pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/AuthorizationAgreementDO.java",
+      "claim": "已签署平台授权协议: 指指定平台产品的有效授权协议记录，authed_status=Y 且 enable=Y。",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-auth-application-fields",
+      "source_id": "src-company-product-auth",
+      "evidence_kind": "database_schema",
+      "locator": "pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/AuthorizationAgreementDO.java",
+      "claim": "企业产品开通申请: 企业产品申请记录，open_status 使用企业申请专用三态字典，不等同于租户产品 Y/P/N。",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-auth-application-query",
+      "source_id": "src-company-product-auth",
+      "evidence_kind": "query_usage",
+      "locator": "pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/AuthorizationAgreementDO.java",
+      "claim": "口径 企业已开通产品申请: open_status=OPENED 且 enable=Y。",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-client-fields",
+      "source_id": "src-company-product-auth",
+      "evidence_kind": "database_schema",
+      "locator": "pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/AuthorizationAgreementDO.java",
+      "claim": "企业产品授权与开通 相关事实",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-cust-product-constant",
+      "source_id": "src-company-product-auth",
+      "evidence_kind": "code_path",
+      "locator": "pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/AuthorizationAgreementDO.java",
+      "claim": "企业产品开通申请: 企业产品申请记录，open_status 使用企业申请专用三态字典，不等同于租户产品 Y/P/N。",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-role-fields",
+      "source_id": "src-company-product-auth",
+      "evidence_kind": "database_schema",
+      "locator": "pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/AuthorizationAgreementDO.java",
+      "claim": "企业产品授权与开通 相关事实",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-tenant-product-enum",
+      "source_id": "src-company-product-auth",
+      "evidence_kind": "code_path",
+      "locator": "pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/AuthorizationAgreementDO.java",
+      "claim": "规则 企业申请状态不可替代租户产品状态: cust_auth_application 使用 OPENED/OPENING/NOT_OPENED；tenant_product 使用 Y/P/N，不能混用。",
+      "confidence": 0.8
+    }
+  ]
+}

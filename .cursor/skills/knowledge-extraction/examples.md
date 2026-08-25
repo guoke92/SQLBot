@@ -169,3 +169,16 @@ unit_links:
 2. 「本月建档了多少企业」本身歧义：按创建时间 / 提交认证 / 审核通过 / 认证成功，是四个不同 COUNT——这正是要提取的指标口径差异，也是 SQLBot 澄清的触发点。
 3. 关系要区分「真 FK（EQUI_JOIN）」「派生拷贝（不写关系，只在 evidence 标注源字段）」「共享键（SHARED_KEY）」，不能一视同仁标直连。
 4. 概念必须锚定字段（field_targets），否则生成不了 concept_of 边、召回断链。
+5. 表判定以 `@TableName` 为准：`name`（物理列）来自 `extract-catalog.py`、`field_id` 是逻辑 id；外部接口不是表，只写 `assumptions`。休眠表不删除，保留为表级声明（`inactive: true` + `fields: []`，不进维度引用），在 `coverage.yaml.inactive` 标注「无调用链证据」，绑定时未匹配自动失效（软失效）。
+
+休眠表声明示例（仅登记、字段留在 catalog）：
+
+```yaml
+- dataset_id: funding_party_rule_cfg
+  name: funding_party_rule_cfg
+  description: 资金方规则配置主表（休眠表：无入口调用链，仅登记不参与问数）。
+  database: lowcode_pplatform
+  inactive: true
+  fields: []
+  evidence_refs: [ev-party-cfg-fields]   # 仅 database_schema 证据
+```

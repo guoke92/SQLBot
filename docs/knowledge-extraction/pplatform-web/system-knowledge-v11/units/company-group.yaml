@@ -1,0 +1,267 @@
+unit_id: company-group
+revision: 1
+title: 企业集团/关联关系
+aliases:
+- 企业集团
+domain: enterprise
+applicability: 企业集团层级与总公司信息
+description: 企业集团关系与总公司信息维护。
+content:
+  concepts:
+  - concept_id: company-group
+    name: 企业集团关系
+    aliases:
+    - 集团
+    definition: cust_group_rel 记录企业之间的集团/父子/根关系。
+    dictionary: {}
+    field_targets:
+    - dataset: cust_group_rel
+      field: id
+      database: ''
+    evidence_refs:
+    - ev-group-schema
+  processes:
+  - stage_id: maintain
+    name: 维护数据
+    description: ''
+    trigger: 业务管理端或同步入口
+    enter_conditions: []
+    exit_conditions: []
+    next_stages:
+    - query
+    data_effects:
+    - &id003
+      operation: read
+      dataset: cust_group_rel
+      fields: &id001
+      - id
+      - cust_id
+      - parent_cust_id
+      - root_cust_id
+      - root_flag
+      - status
+      - enable
+      condition: 查询/导出
+      description: ''
+      evidence_refs: []
+    - operation: upsert
+      dataset: cust_group_rel
+      fields: *id001
+      condition: 新增或更新
+      description: ''
+      evidence_refs: []
+    - &id004
+      operation: read
+      dataset: cust_head_company_info
+      fields: &id002
+      - id
+      - code
+      - name
+      - certification_no
+      - ref_cust_head_company_info_cust_company_info
+      - enable
+      condition: 查询/导出
+      description: ''
+      evidence_refs: []
+    - operation: upsert
+      dataset: cust_head_company_info
+      fields: *id002
+      condition: 新增或更新
+      description: ''
+      evidence_refs: []
+    evidence_refs: []
+  - stage_id: query
+    name: 查询数据
+    description: ''
+    trigger: 列表/详情/统计查询
+    enter_conditions: []
+    exit_conditions: []
+    next_stages: []
+    data_effects:
+    - *id003
+    - *id004
+    evidence_refs: []
+  datasets:
+  - dataset_id: cust_group_rel
+    name: cust_group_rel
+    description: cust_group_rel
+    database: lowcode_pplatform
+    fields:
+    - field_id: id
+      name: id
+      description: id
+      data_type: varchar
+      dictionary: {}
+    - field_id: cust_id
+      name: cust_id
+      description: cust_id
+      data_type: varchar
+      dictionary: {}
+    - field_id: parent_cust_id
+      name: parent_cust_id
+      description: parent_cust_id
+      data_type: varchar
+      dictionary: {}
+    - field_id: root_cust_id
+      name: root_cust_id
+      description: root_cust_id
+      data_type: varchar
+      dictionary: {}
+    - field_id: root_flag
+      name: root_flag
+      description: root_flag
+      data_type: varchar
+      dictionary: {}
+    - field_id: status
+      name: status
+      description: status
+      data_type: varchar
+      dictionary: {}
+    - field_id: enable
+      name: enable
+      description: enable
+      data_type: varchar
+      dictionary: {}
+    evidence_refs: []
+  - dataset_id: cust_head_company_info
+    name: cust_head_company_info
+    description: cust_head_company_info
+    database: lowcode_pplatform
+    fields:
+    - field_id: id
+      name: id
+      description: id
+      data_type: varchar
+      dictionary: {}
+    - field_id: code
+      name: code
+      description: code
+      data_type: varchar
+      dictionary: {}
+    - field_id: name
+      name: name
+      description: name
+      data_type: varchar
+      dictionary: {}
+    - field_id: certification_no
+      name: certification_no
+      description: certification_no
+      data_type: varchar
+      dictionary: {}
+    - field_id: ref_cust_head_company_info_cust_company_info
+      name: ref_cust_head_company_info_cust_company_info
+      description: ref_cust_head_company_info_cust_company_info
+      data_type: varchar
+      dictionary: {}
+    - field_id: enable
+      name: enable
+      description: enable
+      data_type: varchar
+      dictionary: {}
+    evidence_refs: []
+  - dataset_id: cust_company_info
+    name: cust_company_info
+    description: 企业主数据/过程记录。
+    database: lowcode_pplatform
+    fields:
+    - field_id: id
+      name: id
+      description: 表主键
+      data_type: bigint
+      dictionary: {}
+    - field_id: code
+      name: code
+      description: 企业业务编码
+      data_type: varchar
+      dictionary: {}
+    evidence_refs: []
+  relationships:
+  - relationship_id: group-to-company
+    left:
+      dataset: cust_group_rel
+      field: cust_id
+      database: ''
+    right:
+      dataset: cust_company_info
+      field: id
+      database: ''
+    relationship_type: EQUI_JOIN
+    cardinality: n:1
+    business_meaning: 集团关系关联企业。
+    status: proposed
+    evidence_refs:
+    - ev-group-schema
+    confidence: 0.5
+  - relationship_id: head-company-to-company
+    left:
+      dataset: cust_head_company_info
+      field: ref_cust_head_company_info_cust_company_info
+      database: ''
+    right:
+      dataset: cust_company_info
+      field: code
+      database: ''
+    relationship_type: EQUI_JOIN
+    cardinality: n:1
+    business_meaning: 总公司信息关联企业。
+    status: proposed
+    evidence_refs:
+    - ev-group-schema
+    confidence: 0.5
+  metrics:
+  - metric_id: company-group-count
+    name: 企业集团/关联关系记录数
+    description: 按主键计数。
+    aggregation: COUNT
+    field:
+      dataset: cust_group_rel
+      field: id
+      database: ''
+    filters: []
+    grain: []
+    evidence_refs: []
+  calibers:
+  - caliber_id: company-group-enabled
+    label: 启用的企业集团/关联关系
+    description: enable=Y 的记录。
+    contract_fragment:
+      predicates:
+      - field: cust_group_rel.enable
+        operator: eq
+        values:
+        - Y
+    field_targets:
+    - dataset: cust_group_rel
+      field: enable
+      database: ''
+    evidence_refs: []
+  domain_rules:
+  - rule_id: company-group-enable-filter
+    label: 仅启用数据参与查询
+    content: 查询/统计默认过滤 enable=Y。
+    applicability: 企业集团/关联关系查询
+    query_impact: 过滤 enable=Y
+    field_targets:
+    - dataset: cust_group_rel
+      field: enable
+      database: ''
+    evidence_refs: []
+  verified_query_patterns:
+  - pattern_id: count-company-group
+    question: 企业集团/关联关系有多少
+    query: SELECT COUNT(DISTINCT id) AS cnt FROM cust_group_rel WHERE enable = 'Y'
+    intended_specification:
+      grain: cust_group_rel
+      caliber_id: company-group-enabled
+    verification:
+      status: PENDING_VALIDATION
+    evidence_refs: []
+evidence_refs:
+- ev-group-schema
+- ev-head-company-schema
+- ev-company-schema
+unit_links: []
+assumptions:
+- 查询范例未在目标库执行。
+conflicts: []
+confidence: 0.85

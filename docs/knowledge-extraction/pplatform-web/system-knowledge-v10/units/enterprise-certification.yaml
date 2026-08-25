@@ -1,0 +1,466 @@
+unit_id: enterprise-certification
+revision: 1
+title: 企业认证
+aliases:
+- 企业实名认证
+- 实名认证
+- 四要素认证
+- 人脸认证
+domain: enterprise
+applicability: 企业工商、法人、管理员及人脸认证结果与认证进度查询；不用于企业账户打款验证、CA签约或项目成员统计
+description: cust_certification_info 按企业 code 记录不同认证类型的自动和人工核查结果，并由 cust_company_info
+  的建档审核状态反映企业认证流程进度。
+content:
+  concepts:
+  - concept_id: certification-record
+    name: 企业认证记录
+    aliases:
+    - 认证记录
+    - 核查记录
+    definition: 一行表示一个企业与一种认证类型的认证结果记录；同一类型更新已有记录而不是以结果字段推导企业主状态。
+    dictionary: {}
+    field_targets:
+    - dataset: certification
+      field: id
+      database: ''
+    - dataset: certification
+      field: ref_cust_company_info
+      database: ''
+    - dataset: certification
+      field: certification_type
+      database: ''
+    evidence_refs:
+    - ev-cert-do
+    - ev-cert-save
+  - concept_id: certification-type
+    name: 认证类型
+    aliases:
+    - 四要素
+    - 二要素
+    - 法人认证
+    - 人脸识别
+    - OCR
+    definition: certification_type 使用 CustCertificationTypeEnum 的物理键区分企业、法人、客户管理员及证件核查认证方式。
+    dictionary:
+      COMPANY_FOUR_ELEMENTS: 企业工商（四要素）认证
+      COMPANY_TWO_ELEMENTS: 企业工商（二要素）认证
+      LEGAL_THREE_ELEMENTS: 法人三要素认证
+      LEGAL_REAL_NAME: 法人实名认证
+      FACE_VERIFY: 人脸识别认证
+      AUTH_THREE_ELEMENTS: 客户管理员三要素认证
+      AUTH_REAL_NAME: 客户管理员实名认证
+      LEGAL_OCR: 法人身份证OCR比对
+      AUTH_OCR: 客户管理员身份证OCR比对
+      LICENSE_OCR: 营业执照OCR比对
+      LEGAL_MEDIA_OCR: 法人证件核查比对
+      AUTH_MEDIA_OCR: 客户管理员证件核查比对
+    field_targets:
+    - dataset: certification
+      field: certification_type
+      database: ''
+    evidence_refs:
+    - ev-cert-type
+  - concept_id: certification-result
+    name: 认证结果
+    aliases:
+    - 自动认证结果
+    - 人工认证结果
+    definition: 自动和人工核查结果分别写入 auto_verify_status 与 manual_verify_status；通过任一通道即可判定该认证记录通过。
+    dictionary:
+      TO_BE_VERIFIED: 待核查
+      AUTOMATIC_AUTHENTICATION_PASSED: 自动认证通过
+      AUTOMATIC_AUTHENTICATION_FAILED: 自动认证不通过
+      MANUAL_AUTHENTICATION_PASSED: 人工认证通过
+      MANUAL_AUTHENTICATION__FAILED: 人工认证不通过
+      NO_RECORD: 库无记录
+    field_targets:
+    - dataset: certification
+      field: auto_verify_status
+      database: ''
+    - dataset: certification
+      field: manual_verify_status
+      database: ''
+    evidence_refs:
+    - ev-cert-result
+    - ev-cert-pass
+  - concept_id: build-check-status
+    name: 企业认证进度
+    aliases:
+    - 审核状态
+    - 建档状态
+    definition: 企业级进度由 cust_build_status 与 check_status 共同承载；代码将 INIT 映射待审核、CUST_BUILDING
+      映射审核中、BUILD_SUCCESS 映射审核通过。
+    dictionary:
+      INIT: 待审核
+      CUST_BUILDING: 审核中
+      BUILD_SUCCESS: 审核通过
+      CUST_CHECK_INIT: 待审核
+      CUST_CHECK_CHECKING: 审核中
+      CUST_CHECK_PASS: 审核通过
+      CUST_CHECK_REJECT: 审核不通过
+      CUST_CHECK_BACKTOCUSTOM: 待客户确认
+      CUST_BACK: 退回
+    field_targets:
+    - dataset: company
+      field: cust_build_status
+      database: ''
+    - dataset: company
+      field: check_status
+      database: ''
+    evidence_refs:
+    - ev-check-dict
+    - ev-check-map
+  processes:
+  - stage_id: auto-or-manual-verify
+    name: 自动或人工核查
+    description: ''
+    trigger: 按企业 code 和认证类型查找或新建认证记录并写入核查结果
+    enter_conditions: []
+    exit_conditions: []
+    next_stages:
+    - evaluate-certification
+    data_effects:
+    - operation: read
+      dataset: certification
+      fields:
+      - ref_cust_company_info
+      - certification_type
+      condition: 以企业 code + certification_type 定位记录
+      description: ''
+      evidence_refs:
+      - ev-cert-save
+    - operation: upsert
+      dataset: certification
+      fields:
+      - ref_cust_company_info
+      - certification_type
+      - enable
+      - auto_verify_status
+      - auto_verify_msg
+      - auto_verify_time
+      - auto_verify_count
+      - manual_verify_status
+      - manual_verify_msg
+      - manual_verify_time
+      - manual_verify_count
+      - auto_verify_data
+      condition: 自动结果非空时更新自动字段并递增次数；人工结果非空时更新人工字段并递增次数；缺记录时新建并 enable=Y
+      description: ''
+      evidence_refs:
+      - ev-cert-save
+    evidence_refs:
+    - ev-cert-save
+  - stage_id: evaluate-certification
+    name: 判定认证通过
+    description: ''
+    trigger: 读取认证记录结果
+    enter_conditions: []
+    exit_conditions: []
+    next_stages: []
+    data_effects:
+    - operation: read
+      dataset: certification
+      fields:
+      - auto_verify_status
+      - manual_verify_status
+      condition: 任一状态分别等于 AUTOMATIC_AUTHENTICATION_PASSED 或 MANUAL_AUTHENTICATION_PASSED
+      description: ''
+      evidence_refs:
+      - ev-cert-pass
+    evidence_refs:
+    - ev-cert-pass
+  - stage_id: company-check-callback
+    name: 企业审核状态流转
+    description: ''
+    trigger: 运营审核回调或企业审核处理
+    enter_conditions: []
+    exit_conditions: []
+    next_stages: []
+    data_effects:
+    - operation: update
+      dataset: company
+      fields:
+      - cust_build_status
+      - check_status
+      - cust_status
+      condition: CHECK 状态为 CUST_CHECK_PASS 时置 cust_build_status=BUILD_SUCCESS；建档成功后企业状态可置
+        EFFECT；退回客户使用 CUST_CHECK_BACKTOCUSTOM
+      description: ''
+      evidence_refs:
+      - ev-check-map
+      - ev-company-update
+    evidence_refs:
+    - ev-company-update
+  datasets:
+  - dataset_id: certification
+    name: cust_certification_info
+    description: 企业核查认证记录，按企业 code 与认证类型存储自动和人工结果。
+    database: lowcode_pplatform
+    fields:
+    - field_id: id
+      name: id
+      description: 认证记录主键
+      data_type: bigint
+      dictionary: {}
+      evidence_refs:
+      - ev-cert-do
+    - field_id: ref_cust_company_info
+      name: ref_cust_company_info
+      description: 关联 cust_company_info.code 的企业业务键
+      data_type: varchar
+      dictionary: {}
+      evidence_refs:
+      - ev-cert-do
+      - ev-cert-rel
+    - field_id: certification_type
+      name: certification_type
+      description: 认证类型物理键
+      data_type: varchar
+      dictionary:
+        COMPANY_FOUR_ELEMENTS: 企业工商（四要素）认证
+        COMPANY_TWO_ELEMENTS: 企业工商（二要素）认证
+        LEGAL_THREE_ELEMENTS: 法人三要素认证
+        LEGAL_REAL_NAME: 法人实名认证
+        FACE_VERIFY: 人脸识别认证
+        AUTH_THREE_ELEMENTS: 客户管理员三要素认证
+        AUTH_REAL_NAME: 客户管理员实名认证
+        LEGAL_OCR: 法人身份证OCR比对
+        AUTH_OCR: 客户管理员身份证OCR比对
+        LICENSE_OCR: 营业执照OCR比对
+        LEGAL_MEDIA_OCR: 法人证件核查比对
+        AUTH_MEDIA_OCR: 客户管理员证件核查比对
+      evidence_refs:
+      - ev-cert-do
+      - ev-cert-type
+    - field_id: enable
+      name: enable
+      description: 认证记录是否启用，不代表认证通过
+      data_type: varchar
+      dictionary:
+        Y: 启用
+        N: 停用
+      evidence_refs:
+      - ev-cert-do
+      - ev-cert-save
+    - field_id: auto_verify_status
+      name: auto_verify_status
+      description: 自动核查结果
+      data_type: varchar
+      dictionary:
+        TO_BE_VERIFIED: 待核查
+        AUTOMATIC_AUTHENTICATION_PASSED: 自动认证通过
+        AUTOMATIC_AUTHENTICATION_FAILED: 自动认证不通过
+        MANUAL_AUTHENTICATION_PASSED: 人工认证通过
+        MANUAL_AUTHENTICATION__FAILED: 人工认证不通过
+        NO_RECORD: 库无记录
+      evidence_refs:
+      - ev-cert-do
+      - ev-cert-result
+    - field_id: manual_verify_status
+      name: manual_verify_status
+      description: 人工核查结果
+      data_type: varchar
+      dictionary:
+        TO_BE_VERIFIED: 待核查
+        AUTOMATIC_AUTHENTICATION_PASSED: 自动认证通过
+        AUTOMATIC_AUTHENTICATION_FAILED: 自动认证不通过
+        MANUAL_AUTHENTICATION_PASSED: 人工认证通过
+        MANUAL_AUTHENTICATION__FAILED: 人工认证不通过
+        NO_RECORD: 库无记录
+      evidence_refs:
+      - ev-cert-do
+      - ev-cert-result
+    - field_id: auto_verify_msg
+      name: auto_verify_msg
+      description: ''
+      data_type: ''
+      dictionary: {}
+      evidence_refs: []
+    - field_id: auto_verify_time
+      name: auto_verify_time
+      description: ''
+      data_type: ''
+      dictionary: {}
+      evidence_refs: []
+    - field_id: auto_verify_count
+      name: auto_verify_count
+      description: ''
+      data_type: ''
+      dictionary: {}
+      evidence_refs: []
+    - field_id: manual_verify_msg
+      name: manual_verify_msg
+      description: ''
+      data_type: ''
+      dictionary: {}
+      evidence_refs: []
+    - field_id: manual_verify_time
+      name: manual_verify_time
+      description: ''
+      data_type: ''
+      dictionary: {}
+      evidence_refs: []
+    - field_id: manual_verify_count
+      name: manual_verify_count
+      description: ''
+      data_type: ''
+      dictionary: {}
+      evidence_refs: []
+    - field_id: auto_verify_data
+      name: auto_verify_data
+      description: ''
+      data_type: ''
+      dictionary: {}
+      evidence_refs: []
+    evidence_refs: []
+  - dataset_id: company
+    name: cust_company_info
+    description: 企业主/过程记录，一行一家企业。正式企业主数据需 data_type='1' 且 enable='Y'。
+    database: lowcode_pplatform
+    fields:
+    - field_id: code
+      name: code
+      description: 企业业务键，联系人/项目关联/角色均按 code 关联
+      data_type: varchar
+      evidence_refs:
+      - ev-company-do
+      - ev-cert-rel
+    - field_id: cust_build_status
+      name: cust_build_status
+      description: 认证状态（认证流+审核流两套状态机）
+      data_type: varchar
+      evidence_refs:
+      - ev-company-update
+      - ev-check-map
+    - field_id: check_status
+      name: check_status
+      description: 运营审核状态
+      data_type: varchar
+      evidence_refs:
+      - ev-check-dict
+      - ev-check-map
+    - field_id: cust_status
+      name: cust_status
+      description: 客户状态（生效/注销/冻结等）
+      data_type: varchar
+      evidence_refs:
+      - ev-company-update
+    evidence_refs: []
+  relationships:
+  - relationship_id: certification-company
+    left:
+      dataset: certification
+      field: ref_cust_company_info
+      database: ''
+    right:
+      dataset: company
+      field: code
+      database: ''
+    relationship_type: EQUI_JOIN
+    cardinality: n:1
+    business_meaning: 认证记录以 ref_cust_company_info 企业 code 关联企业主表 code
+    status: proposed
+    evidence_refs:
+    - ev-cert-rel
+    confidence: 0.5
+  metrics:
+  - metric_id: passed-certification-count
+    name: 认证通过记录数
+    description: 按认证记录粒度统计自动或人工认证通过的记录数量。
+    aggregation: COUNT
+    field:
+      dataset: certification
+      field: id
+      database: ''
+    filters: []
+    grain:
+    - dataset: certification
+      field: certification_type
+      database: ''
+    evidence_refs:
+    - ev-cert-pass
+  - metric_id: certified-company-count
+    name: 认证通过企业数
+    description: 按企业 code 去重统计存在认证通过记录的企业数量。
+    aggregation: COUNT_DISTINCT
+    field:
+      dataset: certification
+      field: ref_cust_company_info
+      database: ''
+    filters: []
+    grain: []
+    evidence_refs:
+    - ev-cert-pass
+    - ev-cert-rel
+  calibers:
+  - caliber_id: passed-certification-record
+    label: 认证通过记录
+    description: 自动核查或人工核查结果至少一个为通过的认证记录。
+    contract_fragment:
+      predicates:
+      - field: certification.auto_verify_status
+        operator: eq
+        values:
+        - AUTOMATIC_AUTHENTICATION_PASSED
+      - field: certification.manual_verify_status
+        operator: eq
+        values:
+        - MANUAL_AUTHENTICATION_PASSED
+      field_targets:
+      - dataset: certification
+        field: auto_verify_status
+      - dataset: certification
+        field: manual_verify_status
+    field_targets: []
+    evidence_refs:
+    - ev-cert-pass
+  domain_rules:
+  - rule_id: enable-is-not-pass
+    label: enable 不是认证结果
+    content: enable 仅表示认证记录是否启用，认证是否通过必须看自动或人工结果字段。
+    applicability: 认证通过、认证失败及待核查统计
+    query_impact: 不得仅用 enable=Y 统计认证通过；应使用两个结果字段的 OR 条件。
+    field_targets:
+    - dataset: certification
+      field: enable
+      database: ''
+    - dataset: certification
+      field: auto_verify_status
+      database: ''
+    - dataset: certification
+      field: manual_verify_status
+      database: ''
+    evidence_refs:
+    - ev-cert-save
+    - ev-cert-pass
+  verified_query_patterns:
+  - pattern_id: count-certified-companies
+    question: 有多少企业认证通过
+    query: SELECT COUNT(DISTINCT ref_cust_company_info) AS certified_company_count
+      FROM cust_certification_info WHERE auto_verify_status = 'AUTOMATIC_AUTHENTICATION_PASSED'
+      OR manual_verify_status = 'MANUAL_AUTHENTICATION_PASSED'
+    intended_specification:
+      grain: certification
+      caliber_id: passed-certification-record
+    verification:
+      status: PENDING_VALIDATION
+    evidence_refs:
+    - ev-cert-pass
+    - ev-cert-rel
+evidence_refs:
+- ev-cert-do
+- ev-cert-type
+- ev-cert-result
+- ev-cert-save
+- ev-cert-pass
+- ev-cert-rel
+- ev-company-do
+- ev-check-dict
+- ev-check-map
+- ev-company-update
+unit_links: []
+assumptions:
+- 认证记录与企业主表的 JOIN 使用 code，未连接目标数据库验证实际约束。
+- verified_query_patterns 仅为待验证 SQL，不宣称已执行通过。
+conflicts: []
+confidence: 0.9

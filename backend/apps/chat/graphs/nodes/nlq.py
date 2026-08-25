@@ -247,8 +247,9 @@ class NlqState(RunState, total=False):
     knowledge_matches: list[dict[str, Any]]
     compiled_knowledge: dict[str, Any]  # BusinessDataBundle dump; Bind/apply_log
     temporal_parse: TemporalParse  # deterministic evidence; never executable truth
-    planning_decision: Literal["pending", "clarify", "ready", "replan"]
+    planning_decision: Literal["pending", "clarify", "ready", "replan", "unsupported"]
     ambiguity_payload: dict[str, Any]
+    unsupported_payload: dict[str, Any]
     outcome: RunOutcome
 
 
@@ -977,6 +978,8 @@ def _record_snapshot_values(
     finish: bool = False,
     outcome: RunOutcome | None = None,
     public_error: str | None = None,
+    failure_code: str | None = None,
+    failure_retryable: bool = True,
     execution_mode: Literal["verified", "unverified"] = "verified",
 ) -> dict[str, Any]:
     """Build the ChatRecord projection committed by ``finalize_run``."""
@@ -1080,9 +1083,11 @@ def _record_snapshot_values(
         except (TypeError, ValueError):
             parsed_error = {"type": "QUERY_FAILED", "message": error}
         answer_error = {
-            "code": str(parsed_error.get("type") or "QUERY_FAILED").upper(),
+            "code": str(
+                failure_code or parsed_error.get("type") or "QUERY_FAILED"
+            ).upper(),
             "message": str(parsed_error.get("message") or "Query failed"),
-            "retryable": True,
+            "retryable": failure_retryable,
         }
     return {
         "terminal": finish,
@@ -1240,6 +1245,7 @@ def prepare_record_node(state: NlqState) -> NlqState:
             "temporal_parse": {},
             "planning_decision": "pending",
             "ambiguity_payload": {},
+            "unsupported_payload": {},
             "turn_route": {},
             "source_datasets": [],
             "data_strategy": "direct_query",
@@ -2177,7 +2183,24 @@ def plan_query_node(state: NlqState) -> NlqState:
                 ),
             }
         if isinstance(result.decision, QueryUnsupported):
-            raise SingleMessageError(result.decision.message)
+            with session_scope() as session:
+                persist_query_decision(
+                    session,
+                    run_id=run_id,
+                    decision=result.decision.model_dump(mode="json"),
+                    plans=[],
+                    hard_gate_report={},
+                    risk_assessment={},
+                    plan_facts=[],
+                    planning_status="unsupported",
+                )
+            return {
+                **state,
+                "planning_decision": "unsupported",
+                "unsupported_payload": result.decision.model_dump(mode="json"),
+                "active_candidate": {},
+                "planning_model_elapsed_sec": planning_elapsed,
+            }
         if not isinstance(result.decision, Ready) or not result.plans:
             raise SingleMessageError("Query Agent did not produce an executable plan")
 
@@ -2292,6 +2315,76 @@ def plan_query_node(state: NlqState) -> NlqState:
         )
     except Exception as exc:
         return _fail(state, record_id, exc)
+
+
+def _persist_query_terminal_failure(
+    state: NlqState,
+    *,
+    error_summary: str,
+    public_error: str | None,
+    current_node: str | None = None,
+    failure_code: str | None = None,
+    failure_retryable: bool = True,
+    outcome: RunOutcome | None = None,
+) -> RunOutcome:
+    """Persist one canonical failed query answer at every terminal boundary.
+
+    The graph owns *why* a query cannot proceed; this helper owns the durable
+    query-answer projection, quality fallback, and lifecycle finalization.  A
+    caller providing ``public_error`` has already crossed the user-facing
+    error boundary, so ``finalize_run`` must not sanitize it a second time.
+    """
+    terminal_outcome = outcome or failed_outcome(error_summary)
+    if "quality" not in terminal_outcome:
+        terminal_outcome["quality"] = build_overall_quality([])
+    try:
+        with session_scope() as session:
+            finalize_run(
+                session,
+                run_id=str(state["run_id"]),
+                status="failed",
+                current_node=current_node,
+                result_quality=terminal_outcome.get("quality"),
+                record_snapshot=_record_snapshot_values(
+                    [],
+                    "",
+                    finish=True,
+                    outcome=terminal_outcome,
+                    public_error=public_error,
+                    failure_code=failure_code,
+                    failure_retryable=failure_retryable,
+                    execution_mode=cast(
+                        Literal["verified", "unverified"],
+                        state.get("execution_mode") or "verified",
+                    ),
+                ),
+                error_summary=error_summary,
+                error_visibility="public" if public_error is not None else "sanitize",
+            )
+    except Exception as exc:
+        SQLBotLogUtil.error(f"persist NLQ failure snapshot failed: {exc}")
+    return terminal_outcome
+
+
+def unsupported_query_node(state: NlqState) -> NlqState:
+    """Publish a first-class terminal answer when Query Agent reports unsupported."""
+    payload = dict(state.get("unsupported_payload") or {})
+    message = str(payload.get("message") or "当前问题无法由已选择的数据源回答。")
+    reason_code = str(
+        payload.get("reason_code") or "QUERY_NOT_SUPPORTED"
+    ).strip().upper() or "QUERY_NOT_SUPPORTED"
+    outcome = _persist_query_terminal_failure(
+        state,
+        error_summary=message,
+        public_error=message,
+        current_node="unsupported_query",
+        failure_code=reason_code,
+        failure_retryable=True,
+    )
+    sink = StreamSink.from_state(state)
+    sink.error(message)
+    sink.event({"type": "finish", "id": state.get("record_id")})
+    return {**state, "outcome": outcome}
 
 
 def review_query_node(state: NlqState) -> NlqState:
@@ -4337,37 +4430,15 @@ def fail_node(state: NlqState) -> NlqState:
     outcome = (
         cast(RunOutcome, dict(current_outcome))
         if current_outcome and current_outcome.get("status") != "running"
-        else failed_outcome(error)
+        else None
     )
-    if "quality" not in outcome:
-        outcome["quality"] = build_overall_quality([])
-    sink = StreamSink.from_state(state)
-    try:
-        with session_scope() as session:
-            finalize_run(
-                session,
-                run_id=str(state["run_id"]),
-                status="failed",
-                current_node=None,
-                result_quality=outcome.get("quality"),
-                record_snapshot=_record_snapshot_values(
-                    [],
-                    "",
-                    finish=True,
-                    outcome=outcome,
-                    public_error=public_error,
-                    execution_mode=cast(
-                        Literal["verified", "unverified"],
-                        state.get("execution_mode") or "verified",
-                    ),
-                ),
-                error_summary=error,
-            )
-    except Exception as exc:
-        # Failure reporting must still reach the client when persistence itself
-        # is unavailable; the shared terminal node remains the single emitter.
-        SQLBotLogUtil.error(f"persist NLQ failure snapshot failed: {exc}")
-    sink.error(public_error)
+    outcome = _persist_query_terminal_failure(
+        state,
+        error_summary=error,
+        public_error=public_error,
+        outcome=outcome,
+    )
+    StreamSink.from_state(state).error(public_error)
     return {**state, "error": error, "outcome": outcome}
 
 
@@ -4376,11 +4447,13 @@ def fail_node(state: NlqState) -> NlqState:
 
 def route_after_planning(
     state: NlqState,
-) -> Literal["await_clarification", "review_query", "generate_queries", "fail"]:
+) -> Literal["await_clarification", "unsupported", "review_query", "generate_queries", "fail"]:
     if state.get("error"):
         return "fail"
     if state.get("planning_decision") == "clarify":
         return "await_clarification"
+    if state.get("planning_decision") == "unsupported":
+        return "unsupported"
     if state.get("planning_decision") != "ready":
         return "fail"
     if (state.get("repair_hint") or "").strip():

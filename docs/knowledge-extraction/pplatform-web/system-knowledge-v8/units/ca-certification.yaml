@@ -1,0 +1,568 @@
+unit_id: ca-certification
+revision: 1
+title: CA认证
+aliases:
+- 一证四步
+- CFCA认证
+- CA证书开通
+domain: certification
+applicability: CA 认证提交与结果查询（PENDING/SUCCESS/FAIL）；不用于 CA 服务费缴费、证书到期快照或企业建档状态
+description: ca_certification_info 按企业记录 CA 认证提交与结果，先幂等建 PENDING 行，再分块落协议/实名/意愿/附件 JSON，最后上送签章中台并以 submit_status 表达 PENDING/SUCCESS/FAIL；开通成功回写企业主数据 ca_register_status=Y。
+content:
+  concepts:
+  - concept_id: ca-submit-status
+    name: CA认证提交状态
+    aliases:
+    - 认证结果
+    - 一证四步状态
+    definition: ca_certification_info.submit_status 的 CA 认证生命周期状态；PENDING 待提交/认证中，SUCCESS 已成功，FAIL 已失败。
+    dictionary:
+      PENDING: 认证中
+      SUCCESS: 认证成功
+      FAIL: 认证失败
+    field_targets:
+    - dataset: ca_cert
+      field: submit_status
+      database: ''
+    evidence_refs:
+    - ev-ca-status-enum
+    - ev-ca-do
+  - concept_id: ca-realname-method
+    name: CA实名核验方式
+    aliases:
+    - 实名方式
+    - 公安二要素
+    - 企业三要素
+    definition: 实名认证按核验方式落不同 JSON 列；POLICE_TWO 落 police_two_json，ENTERPRISE_THREE/ENTERPRISE_FOUR 落 enterprise_four_json。
+    dictionary:
+      POLICE_TWO: 公安二要素
+      ENTERPRISE_THREE: 企业三要素
+      ENTERPRISE_FOUR: 企业四要素
+    field_targets:
+    - dataset: ca_cert
+      field: police_two_json
+      database: ''
+    - dataset: ca_cert
+      field: enterprise_four_json
+      database: ''
+    evidence_refs:
+    - ev-realname-method
+    - ev-ca-app
+  - concept_id: ca-intent-type
+    name: CA意愿认证方式
+    aliases:
+    - 意愿方式
+    - 短信意愿
+    - H5人脸意愿
+    definition: 意愿认证按认证类型落不同 JSON 列；SMS_CODE 落 intent_sms_json，H5_FACE 落 intent_h_face_json。
+    dictionary:
+      SMS_CODE: 短信验证码意愿
+      H5_FACE: H5人脸意愿
+    field_targets:
+    - dataset: ca_cert
+      field: intent_sms_json
+      database: ''
+    - dataset: ca_cert
+      field: intent_h_face_json
+      database: ''
+    evidence_refs:
+    - ev-intent-type
+    - ev-ca-app
+  - concept_id: ca-head-company
+    name: CA总公司标识
+    aliases:
+    - 总公司
+    - 分公司
+    definition: head_company_data 区分总公司(Y)与分公司(N)；分公司场景同一企业有 N+Y 两行，各自独立 batch_no。
+    dictionary:
+      Y: 总公司
+      N: 分公司
+    field_targets:
+    - dataset: ca_cert
+      field: head_company_data
+      database: ''
+    evidence_refs:
+    - ev-ca-app
+  processes:
+  - stage_id: create-ca-row
+    name: 幂等创建认证行
+    description: ''
+    trigger: 按 (custId, dataDate, headCompanyData, submitStatus=PENDING) 幂等建 ca_certification_info 行，生成唯一 batch_no
+    enter_conditions: []
+    exit_conditions: []
+    next_stages:
+    - update-ca-fragments
+    data_effects:
+    - operation: read
+      dataset: ca_cert
+      fields:
+      - cust_id
+      - data_date
+      - head_company_data
+      - submit_status
+      condition: lambdaQuery eq(custId,dataDate,headCompanyData,submitStatus=PENDING) LIMIT 1
+      description: 幂等查询已有 PENDING 行
+      evidence_refs: []
+    - operation: insert
+      dataset: ca_cert
+      fields:
+      - id
+      - cust_id
+      - cust_type
+      - data_date
+      - op_type
+      - batch_no
+      - data_source
+      - head_company_data
+      - submit_status
+      - enable
+      condition: 新建行 submitStatus=PENDING、enable=Y、batchNo=INC_<毫秒时间戳>_<hex>
+      description: 插入认证行
+      evidence_refs: []
+    evidence_refs:
+    - ev-ca-app
+  - stage_id: update-ca-fragments
+    name: 分块更新认证数据
+    description: ''
+    trigger: 协议告知、实名核验、意愿认证、附件上传各接口分别落对应 JSON 列
+    enter_conditions: []
+    exit_conditions: []
+    next_stages:
+    - submit-to-sign-center
+    data_effects:
+    - operation: update
+      dataset: ca_cert
+      fields:
+      - notify_agreement_json
+      condition: 整列覆盖写 JSONArray（企业授权确认书/CFCA证书服务协议/CA升级授权书）
+      description: ''
+      evidence_refs: []
+    - operation: update
+      dataset: ca_cert
+      fields:
+      - enterprise_four_json
+      - police_two_json
+      condition: 实名按 verifyMethod 落 enterprise_four_json(ENTERPRISE_THREE/FOUR) 或 police_two_json(POLICE_TWO)
+      description: ''
+      evidence_refs: []
+    - operation: update
+      dataset: ca_cert
+      fields:
+      - intent_sms_json
+      - intent_h_face_json
+      condition: 意愿按 authType 落 intent_sms_json(SMS_CODE) 或 intent_h_face_json(H5_FACE)
+      description: ''
+      evidence_refs: []
+    - operation: update
+      dataset: ca_cert
+      fields:
+      - file_refs_json
+      condition: 附件路径 upsert 到 embeddedFiles 列表
+      description: ''
+      evidence_refs: []
+    evidence_refs:
+    - ev-ca-app
+    - ev-controller
+  - stage_id: submit-to-sign-center
+    name: 提交签章中台
+    description: ''
+    trigger: 一证四步协议确认后上送 cbsSubmitBizData
+    enter_conditions:
+    - 协议 JSON 非空
+    - 至少一项实名 JSON（enterprise_four_json 或 police_two_json）
+    - 非 CHANNEL_OPENAPI 渠道时至少一项意愿 JSON
+    - file_refs_json 非空（增量必填）
+    exit_conditions: []
+    next_stages:
+    - report-ca-result
+    data_effects:
+    - operation: update
+      dataset: ca_cert
+      fields:
+      - submit_status
+      - sign_platform_result
+      condition: DBaaS code=0/200 且 biz status=SAVED 写 SUCCESS，否则 FAIL；sign_platform_result 保存请求+响应原文
+      description: 外部签章中台结果回写
+      evidence_refs: []
+    evidence_refs:
+    - ev-ca-app
+    - ev-sign-center
+  - stage_id: report-ca-result
+    name: 结果回写与再上送
+    description: ''
+    trigger: 提交成功/失败后供查询与重上送
+    enter_conditions: []
+    exit_conditions: []
+    next_stages: []
+    data_effects:
+    - operation: read
+      dataset: ca_cert
+      fields:
+      - cust_id
+      - submit_status
+      - enable
+      - submit_time
+      condition: findLatestSuccessRow 按 custId + submitStatus=SUCCESS + enable=Y 取最新
+      description: 查询最新成功记录用于重上送
+      evidence_refs: []
+    evidence_refs:
+    - ev-ca-app
+  - stage_id: precheck-ca
+    name: 一证四步预检
+    description: ''
+    trigger: POST /cust-web/ca/pre4Step 管理员校验 + 中台 CA 状态查询
+    enter_conditions: []
+    exit_conditions: []
+    next_stages: []
+    data_effects:
+    - operation: read
+      dataset: cust_company
+      fields:
+      - ca_register_status
+      condition: 中台 CA 状态已失效(CANCELLED/EXPIRED/FAIL)时回写 ca_register_status=N
+      description: 失效引导重新开通
+      evidence_refs: []
+    - operation: update
+      dataset: cust_company
+      fields:
+      - ca_register_status
+      condition: 失效时置 N，引导前端重新开通
+      description: ''
+      evidence_refs: []
+    evidence_refs:
+    - ev-controller
+  datasets:
+  - dataset_id: ca_cert
+    name: ca_certification_info
+    description: CA 认证信息，一行一个企业一次认证提交（总公司/分公司各一行）。
+    database: lowcode_pplatform
+    fields:
+    - field_id: id
+      name: id
+      description: 表主键
+      data_type: bigint
+      dictionary: {}
+      evidence_refs: []
+    - field_id: cust_id
+      name: cust_id
+      description: 企业Id，关联企业主数据
+      data_type: bigint
+      dictionary: {}
+      evidence_refs: []
+    - field_id: cust_type
+      name: cust_type
+      description: PERSON / COMPANY
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: data_date
+      name: data_date
+      description: 数据时间 yyyyMMdd
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: op_type
+      name: op_type
+      description: INSERT / UPDATE
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: batch_no
+      name: batch_no
+      description: 唯一流水号 INC_<时间戳>_<hex>
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: data_source
+      name: data_source
+      description: 数据来源（INCREMENT/CHANNEL_OPENAPI 等）
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: notify_agreement_json
+      name: notify_agreement_json
+      description: 协议通知 JSON 列表
+      data_type: text
+      dictionary: {}
+      evidence_refs: []
+    - field_id: enterprise_four_json
+      name: enterprise_four_json
+      description: 企业四要素/三要素实名核验 JSON
+      data_type: text
+      dictionary: {}
+      evidence_refs: []
+    - field_id: police_two_json
+      name: police_two_json
+      description: 公安二要素实名核验 JSON
+      data_type: text
+      dictionary: {}
+      evidence_refs: []
+    - field_id: intent_sms_json
+      name: intent_sms_json
+      description: 意愿认证-短信 JSON
+      data_type: text
+      dictionary: {}
+      evidence_refs: []
+    - field_id: intent_h_face_json
+      name: intent_h_face_json
+      description: 意愿认证-H5人脸 JSON
+      data_type: text
+      dictionary: {}
+      evidence_refs: []
+    - field_id: file_refs_json
+      name: file_refs_json
+      description: 附件 JSON（embeddedFiles 路径列表）
+      data_type: text
+      dictionary: {}
+      evidence_refs: []
+    - field_id: submit_status
+      name: submit_status
+      description: 提交状态 PENDING/SUCCESS/FAIL
+      data_type: varchar
+      dictionary:
+        PENDING: 认证中
+        SUCCESS: 认证成功
+        FAIL: 认证失败
+      evidence_refs: []
+    - field_id: sign_platform_result
+      name: sign_platform_result
+      description: 签章中台返回结果原文（请求+响应）
+      data_type: text
+      dictionary: {}
+      evidence_refs: []
+    - field_id: submit_time
+      name: submit_time
+      description: 提交时间
+      data_type: datetime
+      dictionary: {}
+      evidence_refs: []
+    - field_id: head_company_data
+      name: head_company_data
+      description: 是否总公司 Y/N
+      data_type: varchar
+      dictionary:
+        Y: 总公司
+        N: 分公司
+      evidence_refs: []
+    - field_id: code
+      name: code
+      description: 编码
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: name
+      name: name
+      description: 名称
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: enable
+      name: enable
+      description: 启用标记 Y/N
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    evidence_refs:
+    - ev-ca-do
+  - dataset_id: cust_company
+    name: cust_company_info
+    description: 企业主数据（最小声明：仅 CA 开通状态回写字段）。
+    database: lowcode_pplatform
+    fields:
+    - field_id: id
+      name: id
+      description: 表主键（关系端点）
+      data_type: bigint
+      dictionary: {}
+      evidence_refs: []
+    - field_id: ca_register_status
+      name: ca_register_status
+      description: CA 注册状态 Y/N；认证成功回写 Y，中台失效回写 N
+      data_type: varchar
+      dictionary:
+        Y: 已开通
+        N: 未开通
+      evidence_refs: []
+    evidence_refs:
+    - ev-controller
+  relationships:
+  - relationship_id: ca-cert-to-company
+    left:
+      dataset: ca_cert
+      field: cust_id
+      database: ''
+    right:
+      dataset: cust_company
+      field: id
+      database: ''
+    relationship_type: EQUI_JOIN
+    cardinality: n:1
+    business_meaning: CA 认证行按企业Id归属企业主数据；开通状态回写企业主数据 ca_register_status。
+    status: proposed
+    evidence_refs:
+    - ev-ca-app
+    confidence: 0.5
+  metrics:
+  - metric_id: ca-success-count
+    name: CA认证成功企业数
+    description: submit_status=SUCCESS 且 enable=Y 的 CA 认证记录数（按企业去重前为记录数）。
+    aggregation: COUNT
+    field:
+      dataset: ca_cert
+      field: id
+      database: ''
+    filters: []
+    grain:
+    - dataset: ca_cert
+      field: submit_status
+      database: ''
+    evidence_refs:
+    - ev-ca-app
+  - metric_id: ca-pending-count
+    name: CA认证中记录数
+    description: submit_status=PENDING 的 CA 认证记录数。
+    aggregation: COUNT
+    field:
+      dataset: ca_cert
+      field: id
+      database: ''
+    filters: []
+    grain:
+    - dataset: ca_cert
+      field: submit_status
+      database: ''
+    evidence_refs:
+    - ev-ca-app
+  calibers:
+  - caliber_id: ca-success
+    label: CA认证成功
+    description: submit_status 等于物理值 SUCCESS 的记录。
+    contract_fragment:
+      predicates:
+      - field: ca_cert.submit_status
+        operator: eq
+        values:
+        - SUCCESS
+    field_targets:
+    - dataset: ca_cert
+      field: submit_status
+      database: ''
+    evidence_refs:
+    - ev-ca-app
+  - caliber_id: ca-pending
+    label: CA认证中
+    description: submit_status 等于物理值 PENDING 的记录。
+    contract_fragment:
+      predicates:
+      - field: ca_cert.submit_status
+        operator: eq
+        values:
+        - PENDING
+    field_targets:
+    - dataset: ca_cert
+      field: submit_status
+      database: ''
+    evidence_refs:
+    - ev-ca-app
+  domain_rules:
+  - rule_id: ca-idempotent-create
+    label: CA认证行幂等创建
+    content: 以 (custId, dataDate, headCompanyData, submitStatus=PENDING) 为幂等键，命中则返回已有行，不重复建行。
+    applicability: 初始化或重试 CA 认证
+    query_impact: 查询认证中记录时需组合 cust_id/data_date/head_company_data/submit_status=PENDING，不能用 batch_no 当幂等键。
+    field_targets:
+    - dataset: ca_cert
+      field: cust_id
+      database: ''
+    - dataset: ca_cert
+      field: data_date
+      database: ''
+    - dataset: ca_cert
+      field: head_company_data
+      database: ''
+    - dataset: ca_cert
+      field: submit_status
+      database: ''
+    evidence_refs:
+    - ev-ca-app
+  - rule_id: ca-submit-completeness
+    label: 提交前完整性校验
+    content: 上送签章中台前必须协议 JSON 非空、至少一项实名（enterprise_four_json 或 police_two_json）、非 CHANNEL_OPENAPI 渠道时至少一项意愿、file_refs_json 非空。
+    applicability: 一证四步聚合提交
+    query_impact: 统计可提交/已提交记录时以 submit_status 为准，不把缺少意愿 JSON 的 CHANNEL_OPENAPI 渠道记录当异常。
+    field_targets:
+    - dataset: ca_cert
+      field: notify_agreement_json
+      database: ''
+    - dataset: ca_cert
+      field: enterprise_four_json
+      database: ''
+    - dataset: ca_cert
+      field: police_two_json
+      database: ''
+    - dataset: ca_cert
+      field: intent_sms_json
+      database: ''
+    - dataset: ca_cert
+      field: intent_h_face_json
+      database: ''
+    - dataset: ca_cert
+      field: data_source
+      database: ''
+    evidence_refs:
+    - ev-ca-app
+  - rule_id: ca-success-immutable
+    label: 已成功记录禁止重复提交或标记失败
+    content: submit_status=SUCCESS 的记录跳过重复上送，且禁止 markFailed。
+    applicability: 提交与失败标记
+    query_impact: 按 submit_status 过滤时 SUCCESS 记录是终态，不参与重试。
+    field_targets:
+    - dataset: ca_cert
+      field: submit_status
+      database: ''
+    evidence_refs:
+    - ev-ca-app
+  verified_query_patterns:
+  - pattern_id: count-ca-success
+    question: CA认证成功的企业有多少
+    query: 'SELECT COUNT(*) AS ca_success_count
+
+      FROM ca_certification_info
+
+      WHERE submit_status = ''SUCCESS'' AND enable = ''Y'''
+    intended_specification:
+      grain: ca_cert
+      caliber_id: ca-success
+    verification:
+      status: PENDING_VALIDATION
+    evidence_refs:
+    - ev-ca-app
+  - pattern_id: count-ca-pending
+    question: CA认证中的记录有多少
+    query: 'SELECT COUNT(*) AS ca_pending_count
+
+      FROM ca_certification_info
+
+      WHERE submit_status = ''PENDING'''
+    intended_specification:
+      grain: ca_cert
+      caliber_id: ca-pending
+    verification:
+      status: PENDING_VALIDATION
+    evidence_refs:
+    - ev-ca-app
+evidence_refs:
+- ev-ca-do
+- ev-ca-status-enum
+- ev-realname-method
+- ev-intent-type
+- ev-ca-app
+- ev-controller
+- ev-sign-center
+unit_links: []
+assumptions:
+- 签章中台 cbsSubmitBizData/cbsCompanyRegister 为外部服务，仅把请求响应原文写入 sign_platform_result，非本地物理表。
+- cust_company_info.ca_register_status 在本单元仅作为回写目标，企业主档权威语义见 enterprise-onboarding。
+- 查询范例未在目标数据库执行，verification 保持 PENDING_VALIDATION。
+conflicts: []
+confidence: 0.9

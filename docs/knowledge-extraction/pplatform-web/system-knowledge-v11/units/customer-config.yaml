@@ -1,0 +1,241 @@
+unit_id: customer-config
+revision: 1
+title: 客户配置
+aliases:
+- 客户配置
+domain: enterprise
+applicability: 客户配置映射与设置
+description: 客户配置映射及企业设置维护。
+content:
+  concepts:
+  - concept_id: cust-config
+    name: 客户配置
+    aliases:
+    - 配置
+    definition: cust_config_mapping 维护外部渠道与内部编码映射。
+    dictionary: {}
+    field_targets:
+    - dataset: cust_config_mapping
+      field: id
+      database: ''
+    evidence_refs:
+    - ev-config-mapping-schema
+  processes:
+  - stage_id: maintain
+    name: 维护数据
+    description: ''
+    trigger: 业务管理端或同步入口
+    enter_conditions: []
+    exit_conditions: []
+    next_stages:
+    - query
+    data_effects:
+    - &id003
+      operation: read
+      dataset: cust_config_mapping
+      fields: &id001
+      - id
+      - code
+      - outer_channel
+      - inner_code
+      - outer_code
+      - type
+      - enable
+      condition: 查询/导出
+      description: ''
+      evidence_refs: []
+    - operation: upsert
+      dataset: cust_config_mapping
+      fields: *id001
+      condition: 新增或更新
+      description: ''
+      evidence_refs: []
+    - &id004
+      operation: read
+      dataset: cust_setting_config
+      fields: &id002
+      - id
+      - code
+      - name
+      - cust_id
+      - enable
+      condition: 查询/导出
+      description: ''
+      evidence_refs: []
+    - operation: upsert
+      dataset: cust_setting_config
+      fields: *id002
+      condition: 新增或更新
+      description: ''
+      evidence_refs: []
+    evidence_refs: []
+  - stage_id: query
+    name: 查询数据
+    description: ''
+    trigger: 列表/详情/统计查询
+    enter_conditions: []
+    exit_conditions: []
+    next_stages: []
+    data_effects:
+    - *id003
+    - *id004
+    evidence_refs: []
+  datasets:
+  - dataset_id: cust_config_mapping
+    name: cust_config_mapping
+    description: cust_config_mapping
+    database: lowcode_pplatform
+    fields:
+    - field_id: id
+      name: id
+      description: id
+      data_type: varchar
+      dictionary: {}
+    - field_id: code
+      name: code
+      description: code
+      data_type: varchar
+      dictionary: {}
+    - field_id: outer_channel
+      name: outer_channel
+      description: outer_channel
+      data_type: varchar
+      dictionary: {}
+    - field_id: inner_code
+      name: inner_code
+      description: inner_code
+      data_type: varchar
+      dictionary: {}
+    - field_id: outer_code
+      name: outer_code
+      description: outer_code
+      data_type: varchar
+      dictionary: {}
+    - field_id: type
+      name: type
+      description: type
+      data_type: varchar
+      dictionary: {}
+    - field_id: enable
+      name: enable
+      description: enable
+      data_type: varchar
+      dictionary: {}
+    evidence_refs: []
+  - dataset_id: cust_setting_config
+    name: cust_setting_config
+    description: cust_setting_config
+    database: lowcode_pplatform
+    fields:
+    - field_id: id
+      name: id
+      description: id
+      data_type: varchar
+      dictionary: {}
+    - field_id: code
+      name: code
+      description: code
+      data_type: varchar
+      dictionary: {}
+    - field_id: name
+      name: name
+      description: name
+      data_type: varchar
+      dictionary: {}
+    - field_id: cust_id
+      name: cust_id
+      description: cust_id
+      data_type: varchar
+      dictionary: {}
+    - field_id: enable
+      name: enable
+      description: enable
+      data_type: varchar
+      dictionary: {}
+    evidence_refs: []
+  - dataset_id: cust_company_info
+    name: cust_company_info
+    description: 企业主数据/过程记录。
+    database: lowcode_pplatform
+    fields:
+    - field_id: id
+      name: id
+      description: 表主键
+      data_type: bigint
+      dictionary: {}
+    evidence_refs: []
+  relationships:
+  - relationship_id: cust-setting-to-company
+    left:
+      dataset: cust_setting_config
+      field: cust_id
+      database: ''
+    right:
+      dataset: cust_company_info
+      field: id
+      database: ''
+    relationship_type: EQUI_JOIN
+    cardinality: n:1
+    business_meaning: 企业设置关联企业。
+    status: proposed
+    evidence_refs:
+    - ev-config-mapping-schema
+    confidence: 0.5
+  metrics:
+  - metric_id: customer-config-count
+    name: 客户配置记录数
+    description: 按主键计数。
+    aggregation: COUNT
+    field:
+      dataset: cust_config_mapping
+      field: id
+      database: ''
+    filters: []
+    grain: []
+    evidence_refs: []
+  calibers:
+  - caliber_id: customer-config-enabled
+    label: 启用的客户配置
+    description: enable=Y 的记录。
+    contract_fragment:
+      predicates:
+      - field: cust_config_mapping.enable
+        operator: eq
+        values:
+        - Y
+    field_targets:
+    - dataset: cust_config_mapping
+      field: enable
+      database: ''
+    evidence_refs: []
+  domain_rules:
+  - rule_id: customer-config-enable-filter
+    label: 仅启用数据参与查询
+    content: 查询/统计默认过滤 enable=Y。
+    applicability: 客户配置查询
+    query_impact: 过滤 enable=Y
+    field_targets:
+    - dataset: cust_config_mapping
+      field: enable
+      database: ''
+    evidence_refs: []
+  verified_query_patterns:
+  - pattern_id: count-customer-config
+    question: 客户配置有多少
+    query: SELECT COUNT(DISTINCT id) AS cnt FROM cust_config_mapping WHERE enable
+      = 'Y'
+    intended_specification:
+      grain: cust_config_mapping
+      caliber_id: customer-config-enabled
+    verification:
+      status: PENDING_VALIDATION
+    evidence_refs: []
+evidence_refs:
+- ev-config-mapping-schema
+- ev-setting-schema
+- ev-company-schema
+unit_links: []
+assumptions:
+- 查询范例未在目标库执行。
+conflicts: []
+confidence: 0.85

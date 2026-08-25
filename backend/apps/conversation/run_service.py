@@ -1161,11 +1161,15 @@ def finalize_run(
     result_quality: dict[str, Any] | None = None,
     record_snapshot: dict[str, Any],
     error_summary: str | None = None,
+    error_visibility: Literal["sanitize", "public"] = "sanitize",
 ) -> ConversationRun:
     """Atomically publish the record, domain result, and run terminal state.
 
     This is the sole conversation terminal write boundary. Transport delivery and
     checkpoint bookkeeping happen only after this transaction commits.
+    ``error_visibility="public"`` is reserved for terminal nodes that have
+    already constructed a safe business-facing error; all other failures are
+    sanitized into the stable public envelope here.
     """
     run = _entity_one(
         session.exec(
@@ -1195,7 +1199,7 @@ def finalize_run(
         )
     )
     published_snapshot = dict(record_snapshot)
-    if status == "failed":
+    if status == "failed" and error_visibility == "sanitize":
         from apps.conversation.outcome import public_error_message
 
         published_snapshot["error"] = public_error_message(
@@ -1261,7 +1265,10 @@ def finalize_run(
     terminal_node = current_node or run.current_node
     if query_run is not None:
         if status == "failed":
-            if getattr(query_run, "planning_status", "pending") != "ready":
+            if getattr(query_run, "planning_status", "pending") not in {
+                "ready",
+                "unsupported",
+            }:
                 query_run.planning_status = "failed"
             query_run.execution_status = (
                 "failed"

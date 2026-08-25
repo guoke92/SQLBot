@@ -1,0 +1,701 @@
+unit_id: tenant-project-lifecycle
+revision: 1
+title: 租户项目生命周期
+aliases:
+- 待生效项目
+- 已生效项目
+- 已失效项目
+- 项目上线审批
+domain: project
+applicability: 租户项目创建、生效/失效、上线审批状态及租户项目数量；不用于资金规则 rule_status、企业成员数或产品开通数量
+description: 租户项目从创建待生效，经手工生效或上线审批流，到已生效或已失效的业务过程。
+content:
+  concepts:
+  - concept_id: project-lifecycle-status
+    name: 租户项目状态
+    aliases:
+    - 项目生效状态
+    definition: tenant_project.project_status 的物理状态，创建写入待生效，随后可变为已生效或已失效。
+    dictionary:
+      '0': 待生效
+      '1': 已生效
+      '2': 已失效
+    field_targets:
+    - dataset: project
+      field: project_status
+      database: ''
+    evidence_refs:
+    - ev-status-enum
+    - ev-project-status-writes
+  - concept_id: approval-workflow-status
+    name: 项目上线审批工作流状态
+    aliases:
+    - 上线审批状态
+    definition: 审批主表 wf_status 记录审批是否发起、运行、完成或终止，不等同于项目 project_status。
+    dictionary:
+      PENDING: 待发起
+      RUNNING: 审批中
+      FINISHED: 审批通过
+      TERMINATED: 审批拒绝
+    field_targets:
+    - dataset: approval
+      field: wf_status
+      database: ''
+    evidence_refs:
+    - ev-wf-status-enum
+    - ev-approval-status-flow
+  - concept_id: approval-node-status
+    name: 审批节点状态
+    aliases:
+    - 节点审批状态
+    definition: 审批流程明细节点的处理状态。
+    dictionary:
+      PENDING: 待审批
+      APPROVING: 审批中
+      APPROVED: 已通过
+      REJECTED: 已拒绝
+    field_targets:
+    - dataset: approval_flow
+      field: node_status
+      database: ''
+    evidence_refs:
+    - ev-node-status-enum
+  processes:
+  - stage_id: create-project
+    name: 创建项目
+    description: ''
+    trigger: POST /app-web/tenantProject/create
+    enter_conditions:
+    - 租户产品存在
+    exit_conditions:
+    - tenant_project 已插入且 project_status='0'
+    next_stages:
+    - effective-project
+    - online-approval
+    data_effects:
+    - operation: insert
+      dataset: project
+      fields:
+      - id
+      - product_id
+      - project_status
+      - tenant_id
+      - db_tenant_code
+      - app_tenant_code
+      - ref_tenant_project_tenant_code
+      condition: 从 tenant_setting_config 与 tenant_product 带入租户/产品关联信息，并将 project_status
+        置为 '0'
+      description: ''
+      evidence_refs:
+      - ev-project-create
+    evidence_refs:
+    - ev-project-endpoints
+    - ev-project-create
+  - stage_id: effective-project
+    name: 生效项目
+    description: ''
+    trigger: POST /app-web/tenantProject/effective
+    enter_conditions:
+    - 项目已创建
+    exit_conditions:
+    - project_status='1'
+    next_stages:
+    - invalid-project
+    data_effects:
+    - operation: update
+      dataset: project
+      fields:
+      - project_status
+      condition: 设置为 ProjectStatusEnum.EFFECTIVE 的物理值 '1'
+      description: ''
+      evidence_refs:
+      - ev-project-status-writes
+    evidence_refs:
+    - ev-project-endpoints
+    - ev-project-status-writes
+  - stage_id: invalid-project
+    name: 失效项目
+    description: ''
+    trigger: POST /app-web/tenantProject/invalid
+    enter_conditions:
+    - 项目已创建
+    exit_conditions:
+    - project_status='2'
+    next_stages: []
+    data_effects:
+    - operation: update
+      dataset: project
+      fields:
+      - project_status
+      condition: 设置为 ProjectStatusEnum.INVLIAD 的物理值 '2'
+      description: ''
+      evidence_refs:
+      - ev-project-status-writes
+    evidence_refs:
+    - ev-project-endpoints
+    - ev-project-status-writes
+  - stage_id: online-approval
+    name: 发起项目上线审批
+    description: ''
+    trigger: ProjectApprovalApplication 保存审批申请并按非暂存请求启动工作流
+    enter_conditions:
+    - 项目上线审批开启且审批数据可保存
+    exit_conditions:
+    - approval.wf_status='RUNNING' 或启动失败保持 'PENDING'
+    next_stages:
+    - approval-node-review
+    data_effects:
+    - operation: insert
+      dataset: approval
+      fields:
+      - id
+      - approval_no
+      - project_type
+      - is_add
+      - is_online_approval
+      - wf_status
+      - flow_code
+      - ref_tenant_project_approval_tenant_project
+      condition: 保存审批主表时 wf_status 初始化为 PENDING
+      description: ''
+      evidence_refs:
+      - ev-approval-initialize
+    - operation: update
+      dataset: approval
+      fields:
+      - wf_status
+      condition: 工作流启动成功更新为 RUNNING；启动失败不抛异常并保持 PENDING
+      description: ''
+      evidence_refs:
+      - ev-approval-start
+    evidence_refs:
+    - ev-approval-controller
+    - ev-approval-initialize
+    - ev-approval-start
+  - stage_id: approval-node-review
+    name: 审批节点处理
+    description: ''
+    trigger: ProjectApprovalDeskApplication 或流程回调更新节点
+    enter_conditions:
+    - 审批主表已建立流程节点
+    exit_conditions:
+    - approval_flow.node_status 为 APPROVED 或 REJECTED
+    next_stages:
+    - approval-finished
+    - approval-terminated
+    data_effects:
+    - operation: update
+      dataset: approval_flow
+      fields:
+      - node_status
+      condition: 节点状态按回调写入 PENDING/APPROVING/APPROVED/REJECTED
+      description: ''
+      evidence_refs:
+      - ev-node-status-write
+    evidence_refs:
+    - ev-node-status-write
+    - ev-approval-desk
+  - stage_id: approval-finished
+    name: 审批通过
+    description: ''
+    trigger: 工作流回调 wfStatus=FINISHED
+    enter_conditions:
+    - 审批节点处理完成
+    exit_conditions:
+    - approval.wf_status='FINISHED' 且 complete_time 写入
+    next_stages: []
+    data_effects:
+    - operation: update
+      dataset: approval
+      fields:
+      - wf_status
+      - wf_last_operate_time
+      - complete_time
+      condition: FINISHED 或 TERMINATED 都写终态与完成时间；FINISHED 触发后续推送逻辑
+      description: ''
+      evidence_refs:
+      - ev-approval-finalize
+    evidence_refs:
+    - ev-approval-finalize
+  - stage_id: approval-terminated
+    name: 审批拒绝
+    description: ''
+    trigger: 工作流回调 wfStatus=TERMINATED
+    enter_conditions:
+    - 节点被拒绝或流程终止
+    exit_conditions:
+    - approval.wf_status='TERMINATED'
+    next_stages: []
+    data_effects:
+    - operation: update
+      dataset: approval
+      fields:
+      - wf_status
+      - wf_last_operate_time
+      - complete_time
+      condition: 写入 TERMINATED 及完成时间
+      description: ''
+      evidence_refs:
+      - ev-approval-finalize
+    evidence_refs:
+    - ev-approval-finalize
+  datasets:
+  - dataset_id: project
+    name: tenant_project
+    description: 租户业务项目实例。
+    database: lowcode_pplatform
+    fields:
+    - field_id: id
+      name: id
+      description: 表主键
+      data_type: bigint
+      dictionary: {}
+      evidence_refs:
+      - ev-project-fields
+    - field_id: product_id
+      name: product_id
+      description: 所属租户产品主键
+      data_type: bigint
+      dictionary: {}
+      evidence_refs:
+      - ev-project-fields
+    - field_id: tenant_id
+      name: tenant_id
+      description: 所属租户主键
+      data_type: bigint
+      dictionary: {}
+      evidence_refs:
+      - ev-project-fields
+    - field_id: project_status
+      name: project_status
+      description: ''
+      data_type: varchar
+      dictionary:
+        '0': 待生效
+        '1': 已生效
+        '2': 已失效
+      evidence_refs:
+      - ev-project-fields
+      - ev-status-enum
+    - field_id: enable
+      name: enable
+      description: ''
+      data_type: varchar
+      dictionary:
+        Y: 启用
+        N: 停用
+      evidence_refs:
+      - ev-project-fields
+    - field_id: project_approval_id
+      name: project_approval_id
+      description: 关联上线审批主键
+      data_type: bigint
+      dictionary: {}
+      evidence_refs:
+      - ev-project-fields
+    - field_id: db_tenant_code
+      name: db_tenant_code
+      description: ''
+      data_type: varchar
+      dictionary: {}
+      evidence_refs:
+      - ev-project-fields
+    - field_id: app_tenant_code
+      name: app_tenant_code
+      description: ''
+      data_type: varchar
+      dictionary: {}
+      evidence_refs:
+      - ev-project-fields
+    - field_id: ref_tenant_project_tenant_code
+      name: ref_tenant_project_tenant_code
+      description: ''
+      data_type: varchar
+      dictionary: {}
+      evidence_refs:
+      - ev-project-fields
+    evidence_refs: []
+  - dataset_id: tenant_product
+    name: tenant_product
+    description: 租户产品开通实例；enable=Y 才进入有效查询，open_status 使用 Y/P/N。
+    database: lowcode_pplatform
+    fields:
+    - field_id: id
+      name: id
+      description: 表主键
+      data_type: bigint
+      dictionary: {}
+      evidence_refs:
+      - ev-tenant-product-fields
+    evidence_refs: []
+  - dataset_id: tenant_config
+    name: tenant_setting_config
+    description: 租户基础及运营配置，一行一个配置记录。
+    database: lowcode_pplatform
+    fields:
+    - field_id: code
+      name: code
+      description: ''
+      data_type: varchar
+      dictionary: {}
+      evidence_refs:
+      - ev-tenant-config-fields
+    evidence_refs: []
+  - dataset_id: approval
+    name: tenant_project_approval
+    description: 项目上线审批主表；一行一张审批单。
+    database: lowcode_pplatform
+    fields:
+    - field_id: id
+      name: id
+      description: 表主键
+      data_type: bigint
+      dictionary: {}
+      evidence_refs:
+      - ev-approval-fields
+    - field_id: approval_no
+      name: approval_no
+      description: 审批编号
+      data_type: varchar
+      dictionary: {}
+      evidence_refs:
+      - ev-approval-fields
+    - field_id: wf_status
+      name: wf_status
+      description: 工作流状态
+      data_type: varchar
+      dictionary:
+        PENDING: 待发起
+        RUNNING: 审批中
+        FINISHED: 审批通过
+        TERMINATED: 审批拒绝
+      evidence_refs:
+      - ev-approval-fields
+      - ev-wf-status-enum
+    - field_id: project_type
+      name: project_type
+      description: 项目类型
+      data_type: varchar
+      dictionary:
+        STANDARD: 标准
+        REGULAR: 常规
+      evidence_refs:
+      - ev-approval-fields
+    - field_id: is_add
+      name: is_add
+      description: ''
+      data_type: varchar
+      dictionary:
+        Y: 是
+        N: 否
+      evidence_refs:
+      - ev-approval-fields
+    - field_id: is_online_approval
+      name: is_online_approval
+      description: ''
+      data_type: varchar
+      dictionary:
+        Y: 是
+        N: 否
+      evidence_refs:
+      - ev-approval-fields
+    - field_id: flow_code
+      name: flow_code
+      description: 流程配置编码
+      data_type: varchar
+      dictionary:
+        NO_ONLINE: 无需上线审批
+        STANDARD: 标准
+        REGULAR: 常规
+      evidence_refs:
+      - ev-approval-fields
+    - field_id: complete_time
+      name: complete_time
+      description: 完成时间
+      data_type: datetime
+      dictionary: {}
+      evidence_refs:
+      - ev-approval-fields
+    - field_id: wf_last_operate_time
+      name: wf_last_operate_time
+      description: 最近操作时间
+      data_type: datetime
+      dictionary: {}
+      evidence_refs:
+      - ev-approval-fields
+    - field_id: ref_tenant_project_approval_tenant_project
+      name: ref_tenant_project_approval_tenant_project
+      description: 引用 tenant_project.code
+      data_type: varchar
+      dictionary: {}
+      evidence_refs:
+      - ev-approval-fields
+    evidence_refs: []
+  - dataset_id: approval_flow
+    name: tenant_project_approval_flow
+    description: 审批流程实例节点。
+    database: lowcode_pplatform
+    fields:
+    - field_id: node_status
+      name: node_status
+      description: 节点状态
+      data_type: varchar
+      dictionary:
+        PENDING: 待审批
+        APPROVING: 审批中
+        APPROVED: 已通过
+        REJECTED: 已拒绝
+      evidence_refs:
+      - ev-approval-flow-fields
+      - ev-node-status-enum
+    - field_id: ref_tenant_project_approval_flow_tenant_project_approval
+      name: ref_tenant_project_approval_flow_tenant_project_approval
+      description: 引用 approval.code
+      data_type: varchar
+      dictionary: {}
+      evidence_refs:
+      - ev-approval-flow-fields
+    evidence_refs: []
+  - dataset_id: approval_node
+    name: tenant_project_approval_flow_node
+    description: 审批实际流转明细。
+    database: lowcode_pplatform
+    fields: []
+    evidence_refs: []
+  - dataset_id: approval_business
+    name: tenant_project_approval_business_info
+    description: 审批单业务信息。
+    database: lowcode_pplatform
+    fields: []
+    evidence_refs: []
+  - dataset_id: approval_credit
+    name: tenant_project_approval_flow_credit
+    description: 审批产生的授信额度记录。
+    database: lowcode_pplatform
+    fields: []
+    evidence_refs: []
+  - dataset_id: approval_file
+    name: tenant_project_approval_flow_file
+    description: 审批流程附件。
+    database: lowcode_pplatform
+    fields: []
+    evidence_refs: []
+  relationships:
+  - relationship_id: project-product
+    left:
+      dataset: project
+      field: product_id
+      database: ''
+    right:
+      dataset: tenant_product
+      field: id
+      database: ''
+    relationship_type: EQUI_JOIN
+    cardinality: n:1
+    business_meaning: 项目属于租户产品
+    status: proposed
+    evidence_refs:
+    - ev-rel-project-product
+    confidence: 0.5
+  - relationship_id: project-approval
+    left:
+      dataset: project
+      field: project_approval_id
+      database: ''
+    right:
+      dataset: approval
+      field: id
+      database: ''
+    relationship_type: EQUI_JOIN
+    cardinality: n:1
+    business_meaning: 项目关联上线审批单
+    status: proposed
+    evidence_refs:
+    - ev-rel-project-approval
+    confidence: 0.5
+  - relationship_id: project-tenant
+    left:
+      dataset: project
+      field: ref_tenant_project_tenant_code
+      database: ''
+    right:
+      dataset: tenant_config
+      field: code
+      database: ''
+    relationship_type: SHARED_KEY
+    cardinality: n:1
+    business_meaning: 项目通过租户配置编码归属租户
+    status: proposed
+    evidence_refs:
+    - ev-rel-project-tenant
+    confidence: 0.5
+  - relationship_id: approval-flow
+    left:
+      dataset: approval_flow
+      field: ref_tenant_project_approval_flow_tenant_project_approval
+      database: ''
+    right:
+      dataset: approval
+      field: ref_tenant_project_approval_tenant_project
+      database: ''
+    relationship_type: SHARED_KEY
+    cardinality: n:1
+    business_meaning: 审批流程节点归属审批主单
+    status: proposed
+    evidence_refs:
+    - ev-rel-approval-flow
+    confidence: 0.5
+  metrics:
+  - metric_id: project-count-by-status
+    name: 租户项目状态分布
+    description: 按 project_status 统计项目数。
+    aggregation: COUNT
+    field:
+      dataset: project
+      field: id
+      database: ''
+    filters: []
+    grain:
+    - dataset: project
+      field: project_status
+      database: ''
+    evidence_refs:
+    - ev-status-enum
+  - metric_id: effective-project-count-by-tenant
+    name: 每租户已生效项目数
+    description: 按租户标识统计 project_status='1' 且 enable='Y' 的项目数。
+    aggregation: COUNT
+    field:
+      dataset: project
+      field: id
+      database: ''
+    filters: []
+    grain:
+    - dataset: project
+      field: db_tenant_code
+      database: ''
+    evidence_refs:
+    - ev-effective-query
+  calibers:
+  - caliber_id: effective-tenant-project
+    label: 已生效租户项目
+    description: 项目状态为已生效且项目启用。
+    contract_fragment:
+      predicates:
+      - field: tenant_project.project_status
+        operator: eq
+        values:
+        - '1'
+      - field: tenant_project.enable
+        operator: eq
+        values:
+        - Y
+    field_targets:
+    - dataset: project
+      field: project_status
+      database: ''
+    - dataset: project
+      field: enable
+      database: ''
+    evidence_refs:
+    - ev-effective-query
+    - ev-status-enum
+  - caliber_id: pending-tenant-project
+    label: 待生效租户项目
+    description: 项目状态为待生效且项目启用。
+    contract_fragment:
+      predicates:
+      - field: tenant_project.project_status
+        operator: eq
+        values:
+        - '0'
+      - field: tenant_project.enable
+        operator: eq
+        values:
+        - Y
+    field_targets:
+    - dataset: project
+      field: project_status
+      database: ''
+    - dataset: project
+      field: enable
+      database: ''
+    evidence_refs:
+    - ev-project-create
+    - ev-status-enum
+  domain_rules:
+  - rule_id: project-status-not-wf-status
+    label: 项目状态与审批工作流状态分开
+    content: tenant_project.project_status 只使用 0/1/2；审批主表 wf_status 使用 PENDING/RUNNING/FINISHED/TERMINATED。
+    applicability: 项目生命周期与上线审批联合查询
+    query_impact: 不得用 wf_status 或 rule_status 替代 project_status 过滤；联合查询需分别按各自字典过滤。
+    field_targets:
+    - dataset: project
+      field: project_status
+      database: ''
+    - dataset: approval
+      field: wf_status
+      database: ''
+    evidence_refs:
+    - ev-status-enum
+    - ev-wf-status-enum
+  - rule_id: enabled-effective-caliber
+    label: 已生效口径包含启用条件
+    content: 已生效项目统计同时限定 project_status='1' 与 enable='Y'。
+    applicability: 已生效项目数、按租户统计
+    query_impact: 统计已生效项目必须追加 enable='Y'。
+    field_targets:
+    - dataset: project
+      field: project_status
+      database: ''
+    - dataset: project
+      field: enable
+      database: ''
+    evidence_refs:
+    - ev-effective-query
+    - ev-project-dao-effective
+  verified_query_patterns:
+  - pattern_id: count-effective-projects
+    question: 已生效的租户项目有多少
+    query: SELECT COUNT(1) AS effective_project_count FROM tenant_project WHERE project_status
+      = '1' AND enable = 'Y'
+    intended_specification:
+      grain: tenant_project
+      caliber_id: effective-tenant-project
+    verification:
+      status: PENDING_VALIDATION
+    evidence_refs:
+    - ev-effective-query
+evidence_refs:
+- ev-status-enum
+- ev-project-status-writes
+- ev-project-endpoints
+- ev-project-create
+- ev-project-fields
+- ev-tenant-product-fields
+- ev-tenant-config-fields
+- ev-approval-fields
+- ev-approval-flow-fields
+- ev-approval-node-fields
+- ev-approval-business-fields
+- ev-approval-credit-fields
+- ev-approval-file-fields
+- ev-wf-status-enum
+- ev-node-status-enum
+- ev-approval-controller
+- ev-approval-initialize
+- ev-approval-start
+- ev-node-status-write
+- ev-approval-desk
+- ev-approval-finalize
+- ev-rel-project-product
+- ev-rel-project-approval
+- ev-rel-project-tenant
+- ev-rel-approval-flow
+- ev-effective-query
+- ev-project-dao-effective
+unit_links: []
+assumptions:
+- verified_query_patterns 仅按源码口径构造，未在目标数据库执行。
+conflicts: []
+confidence: 0.91

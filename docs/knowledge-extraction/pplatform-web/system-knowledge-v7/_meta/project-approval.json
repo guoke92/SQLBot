@@ -1,0 +1,157 @@
+{
+  "unit_id": "project-approval",
+  "sources": [
+    {
+      "source_id": "src-project-approval",
+      "kind": "source_code",
+      "locator": "pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProjectApprovalDO.java",
+      "repository_revision": "ee434954e"
+    }
+  ],
+  "evidence": [
+    {
+      "evidence_id": "ev-approval-app",
+      "source_id": "src-project-approval",
+      "evidence_kind": "code_path",
+      "locator": "pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProjectApprovalDO.java",
+      "claim": "阶段 创建审批单: 项目上线申请提交",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-approval-do",
+      "source_id": "src-project-approval",
+      "evidence_kind": "database_schema",
+      "locator": "pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProjectApprovalDO.java",
+      "claim": "项目上线审批单: tenant_project_approval 一行表示一张项目上线审批单，wf_status 表示工作流状态。",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-business-do",
+      "source_id": "src-project-approval",
+      "evidence_kind": "database_schema",
+      "locator": "pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProjectApprovalDO.java",
+      "claim": "租户项目上线审批 相关事实",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-credit",
+      "source_id": "src-project-approval",
+      "evidence_kind": "code_path",
+      "locator": "pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProjectApprovalDO.java",
+      "claim": "指标 审批授信额度合计: 对授信记录 credit_limit 求和，按授信企业或审批单聚合。",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-desk-app",
+      "source_id": "src-project-approval",
+      "evidence_kind": "code_path",
+      "locator": "pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProjectApprovalDO.java",
+      "claim": "阶段 节点审批操作: 审批人通过、拒绝、退回或转审",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-file",
+      "source_id": "src-project-approval",
+      "evidence_kind": "code_path",
+      "locator": "pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProjectApprovalDO.java",
+      "claim": "租户项目上线审批 相关事实",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-flow",
+      "source_id": "src-project-approval",
+      "evidence_kind": "code_path",
+      "locator": "pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProjectApprovalDO.java",
+      "claim": "审批流程节点: flow 表记录流程实例节点顺序、状态和审批人，flow_node 记录实际操作。",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-flow-code",
+      "source_id": "src-project-approval",
+      "evidence_kind": "code_path",
+      "locator": "pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProjectApprovalDO.java",
+      "claim": "审批流程模板: flow_config 以 flow_code 标识审批流程模板，审批单通过引用列关联模板。",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-flow-config",
+      "source_id": "src-project-approval",
+      "evidence_kind": "code_path",
+      "locator": "pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProjectApprovalDO.java",
+      "claim": "审批流程模板: flow_config 以 flow_code 标识审批流程模板，审批单通过引用列关联模板。",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-flow-node",
+      "source_id": "src-project-approval",
+      "evidence_kind": "code_path",
+      "locator": "pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProjectApprovalDO.java",
+      "claim": "审批流程节点: flow 表记录流程实例节点顺序、状态和审批人，flow_node 记录实际操作。",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-project-file",
+      "source_id": "src-project-approval",
+      "evidence_kind": "code_path",
+      "locator": "pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProjectApprovalDO.java",
+      "claim": "租户项目上线审批 相关事实",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-project-type",
+      "source_id": "src-project-approval",
+      "evidence_kind": "code_path",
+      "locator": "pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProjectApprovalDO.java",
+      "claim": "审批项目类型: 审批单按 project_type 区分标准与常规项目。",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-relations",
+      "source_id": "src-project-approval",
+      "evidence_kind": "code_path",
+      "locator": "pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProjectApprovalDO.java",
+      "claim": "关系 approval.ref_tenant_project_approval_tenant_project -> tenant_project.code",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-wechat-apply",
+      "source_id": "src-project-approval",
+      "evidence_kind": "code_path",
+      "locator": "pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProjectApprovalDO.java",
+      "claim": "阶段 微信立项申请与变更留痕: 微信项目立项申请或字段更新",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-wechat-history",
+      "source_id": "src-project-approval",
+      "evidence_kind": "code_path",
+      "locator": "pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProjectApprovalDO.java",
+      "claim": "阶段 微信立项申请与变更留痕: 微信项目立项申请或字段更新",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-wf-status",
+      "source_id": "src-project-approval",
+      "evidence_kind": "code_path",
+      "locator": "pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProjectApprovalDO.java",
+      "claim": "项目上线审批单: tenant_project_approval 一行表示一张项目上线审批单，wf_status 表示工作流状态。",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-workflow-adapter",
+      "source_id": "src-project-approval",
+      "evidence_kind": "code_path",
+      "locator": "pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProjectApprovalDO.java",
+      "claim": "阶段 生成流程实例: 审批单提交后按流程模板生成节点",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-workflow-status",
+      "source_id": "src-project-approval",
+      "evidence_kind": "code_path",
+      "locator": "pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProjectApprovalDO.java",
+      "claim": "阶段 完成审批: 工作流终态回调",
+      "confidence": 0.8
+    }
+  ]
+}

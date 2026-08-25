@@ -1,0 +1,77 @@
+{
+  "unit_id": "customer-config",
+  "sources": [
+    {
+      "source_id": "src-customer-config",
+      "kind": "source_code",
+      "locator": "pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustConfigMappingDO.java",
+      "repository_revision": "ee434954e"
+    }
+  ],
+  "evidence": [
+    {
+      "evidence_id": "ev-account-setting",
+      "source_id": "src-customer-config",
+      "evidence_kind": "code_path",
+      "locator": "pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustConfigMappingDO.java",
+      "claim": "加载客户认证配置 read cust_setting.['need_auth_verify', 'need_verify_no_key', 'key_word', 'no_key_word', 'payment_maximum_number', 'cust_id']",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-changed-mapping",
+      "source_id": "src-customer-config",
+      "evidence_kind": "code_path",
+      "locator": "pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustConfigMappingDO.java",
+      "claim": "阶段 解析企业变更项: 企业变更产生 outer_channel 与变更项集合",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-enhance-policy",
+      "source_id": "src-customer-config",
+      "evidence_kind": "code_path",
+      "locator": "pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustConfigMappingDO.java",
+      "claim": "规则 字段清单配置按 JSON 数组解释: key_word 与 no_key_word 由 JSON.parseArray 解析为字段名称集合，不应按普通逗号字符串直接统计。",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-face-setting",
+      "source_id": "src-customer-config",
+      "evidence_kind": "code_path",
+      "locator": "pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustConfigMappingDO.java",
+      "claim": "加载客户认证配置 read cust_setting.['need_auth_verify', 'need_verify_no_key', 'key_word', 'no_key_word', 'payment_maximum_number', 'cust_id']",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-mapping-model",
+      "source_id": "src-customer-config",
+      "evidence_kind": "database_schema",
+      "locator": "pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustConfigMappingDO.java",
+      "claim": "渠道配置映射: cust_config_mapping 中按 type、outer_channel、groups 匹配并以 inner_code/inner_name 与 outer_code/outer_name 表示内外部编码名称对应关系的启用记录。",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-mapping-query",
+      "source_id": "src-customer-config",
+      "evidence_kind": "query_usage",
+      "locator": "pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustConfigMappingDO.java",
+      "claim": "渠道配置映射: cust_config_mapping 中按 type、outer_channel、groups 匹配并以 inner_code/inner_name 与 outer_code/outer_name 表示内外部编码名称对应关系的启用记录。",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-setting-model",
+      "source_id": "src-customer-config",
+      "evidence_kind": "database_schema",
+      "locator": "pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustConfigMappingDO.java",
+      "claim": "客户认证配置: cust_setting_config 的客户认证配置记录，包含关键/非关键企业信息审核、协议地址、认证审核、人脸/打款验证及邀请码期限与发送间隔。",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-setting-read",
+      "source_id": "src-customer-config",
+      "evidence_kind": "code_path",
+      "locator": "pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustConfigMappingDO.java",
+      "claim": "客户认证配置: cust_setting_config 的客户认证配置记录，包含关键/非关键企业信息审核、协议地址、认证审核、人脸/打款验证及邀请码期限与发送间隔。",
+      "confidence": 0.8
+    }
+  ]
+}

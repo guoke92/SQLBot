@@ -41,7 +41,7 @@ alembic upgrade head
 From repo root for focused tests:
 
 ```bash
-pytest tests/test_semantic_intent.py -v
+pytest tests/test_query_intent_v6.py -v
 pytest -k name_substring
 ```
 
@@ -62,19 +62,20 @@ pnpm build && pnpm lint
 
 **Do not treat `apps/chat/task/llm.py` as the sole pipeline.** Production Q&A runs through LangGraph:
 
-1. `apps/api.py` calls `bootstrap_graphs()` at import time.
+1. `apps/api.py` calls `bootstrap_graphs()` (defined in `apps/conversation/graph_loader.py`) at import time.
 2. YAML under `backend/graphs/current/` (override via `GRAPH_SPEC_DIR`) is the **sole topology source**.
 3. Callers use `submit_graph(graph_key, state)` from `apps.conversation.runtime`.
-4. Node bodies live in `apps/chat/graphs/nodes/{nlq,analysis,predict,recommend}.py`.
+4. Node bodies live in `apps/chat/graphs/nodes/{nlq,recommend}.py`; the `metadata` graph's nodes live in `apps/datasource/profiling/graphs/nodes/`.
 5. Domain steps / observability live in `apps/chat/steps/` (prefer existing steps + `log_span`).
 
 | graph_key   | YAML                         | Purpose                          |
 |-------------|------------------------------|----------------------------------|
-| `chat`      | `graphs/current/chat.yaml`   | NLQ: plan → execute → chart → summarize |
-| `analysis`  | `graphs/current/analysis.yaml` | Follow-up analysis             |
-| `predict`   | `graphs/current/predict.yaml`  | Prediction                     |
-| `recommend` | `graphs/current/recommend.yaml`| Recommended questions          |
+| `chat`      | `graphs/current/chat.yaml`   | Unified topology for query, analysis, and prediction turns (plan → execute → chart → summarize) |
+| `recommend` | `graphs/current/recommend.yaml` | Recommended questions          |
 | `config`    | `graphs/current/config.yaml`   | Config assistant               |
+| `metadata`  | `graphs/current/metadata.yaml` | Agent-only metadata cognition mining: discovers candidate relations via ReAct tools; facts bootstrap is owned by the profiling worker |
+
+Query, analysis, and prediction turns share the single `chat.yaml` (v6 unified architecture, `docs/对话路由与查询执行统一架构-v6.md`). Do not re-submit old `analysis`/`predict` graph keys — those YAMLs no longer exist.
 
 Graph docs: `backend/graphs/README.md`. Deeper backend notes: `CLAUDE.md` (may lag graphs — prefer this file + YAML for the chat path).
 
@@ -84,12 +85,23 @@ Graph docs: `backend/graphs/README.md`. Deeper backend notes: `CLAUDE.md` (may l
 |------|------|
 | `apps/conversation/` | Graph loader, runtime, sinks, session, tooling |
 | `apps/chat/api/chat.py` | HTTP/SSE entry; dispatches `submit_graph` |
-| `apps/chat/semantic_intent.py` / `query_contract.py` / `plan_context.py` | Intent & plan contracts |
-| `apps/chat/contract/` | `ContractIssue` model + the single `validate_contract` entry point |
+| `apps/chat/turn_contracts.py` | `TurnRoute` + terminal answer payload contracts (single validation home) |
+| `apps/chat/turn_router.py` | Cheap turn routing; never performs semantic query planning |
+| `apps/chat/query_intent.py` | Compact business intent — what the user wants, not physical tables/joins |
+| `apps/chat/semantic_planning.py` | Planning decisions + the single clarification-card contract |
+| `apps/chat/planning_context.py` | Durable, replayable retrieval boundary persisted on the `nlq_run` row |
 | `apps/chat/plan_policy.py` / `planning.py` | Batch planning limits & policy |
 | `apps/chat/steps/` | Schema/SQL/chart/knowledge steps + `observability.log_span` |
-| `apps/dictionary/` / `apps/knowledge/` | Dictionary & knowledge recall |
+| `apps/dictionary/` | Dictionary domain |
+| `apps/knowledge/` | Knowledge Architecture v3.1 (see below) |
 | `apps/terminology/` / `apps/data_training/` | RAG terminology + Q→SQL training |
+
+### Knowledge subsystem (Architecture v3.1)
+
+- ADR: `docs/知识体系目标架构-v3.1.md`; 提取技能（唯一权威，含类型族/绑定校验码表/坏样本/成功标准）: `.cursor/skills/knowledge-extraction/`（`SKILL.md` + `reference.md` + `examples.md`）。
+- `graph/` — unit node store (assembly, decompose, feedback); `semantic/` — authoritative semantic layer (runtime K1–K5 assets are projections of approved unit revisions; `lint.py` / `schema.py` / `service.py`); `compile/` — seed policy + business-data bundle application; `capture/` + `staging/` — capture jobs and candidate admission; `lineage/` — promotion audit events; `gateway.py` — recall gateway.
+- Extracting business knowledge from a business system's source code follows the `.cursor/skills/knowledge-extraction/` skill (produces KnowledgePackageV2 unit packages).
+- `apps/knowledge/retrieval/` and `importing/` hold only stale `__pycache__` (no source) — do not import from them.
 
 ## Backend Architecture (summary)
 
@@ -105,13 +117,14 @@ Graph docs: `backend/graphs/README.md`. Deeper backend notes: `CLAUDE.md` (may l
 
 | Module | Purpose |
 |--------|---------|
-| `datasource/` | Datasources, metadata, embeddings, row/col permissions |
+| `datasource/` | Datasources, metadata, embeddings, row/col permissions, `profiling/` (mining worker + `metadata` graph nodes) |
 | `system/` | Users, workspaces, login, assistants, API keys |
 | `template/` | Prompt generators from `templates/template.yaml` |
 | `db/` | Connections, dialect metadata SQL, engine factory |
 | `dashboard/` | Dashboard/chart endpoints |
 | `config_assistant/` | Config-chat graph entry |
 | `settings/` / `swagger/` | App settings, OpenAPI i18n |
+| `protocol/` | Protocol base + registry with `rest/` and `sql/` implementations |
 
 ## Frontend Architecture
 
@@ -130,31 +143,24 @@ Graph docs: `backend/graphs/README.md`. Deeper backend notes: `CLAUDE.md` (may l
 - Mutating routes: `@system_log(...)` + `@require_permissions` where applicable
 - New settings: extend `Settings` in `common/core/config.py`
 - Graph topology changes → edit YAML in `backend/graphs/`; node logic → Python under `apps/chat/graphs/nodes/`
-- Prefer contracts in `query_contract` / `semantic_intent` / `plan_context` over ad-hoc dicts
+- Prefer contracts in `turn_contracts` / `query_intent` / `planning_context` over ad-hoc dicts
 
-### Query contract layering
+### Turn routing & planning contracts
 
-A frozen contract is not uniformly permanent, and this is what keeps a bad
-inference from dead-ending a turn:
-
-- A clause is **confirmed** only when `evidence_refs` cites `user:question` or
-  `user:answer:<id>`; `RequirementBase` demotes any other `source="user"` claim
-  to `"model"`. Everything else is a revocable inference.
-- Every expected contract problem is a `ContractIssue` from
-  `apps/chat/contract/validation.py::validate_contract` — never a bespoke
-  `ValueError` in a caller. Severity follows the layer: an issue caused only by
-  inferences is `advisory` and is cleared by dropping them.
-- `ContractDraft.minimal_executable()` is the escape hatch. When the assessor
-  or a validator cannot complete, the turn runs on the confirmed core and every
-  dropped clause becomes a `ContractAssumption` shown to the user.
-- Model-output defects (invented fields, missing relation slots) still raise:
-  they drive the repair turn and must not be routed to the user.
-- SQL-vs-contract disagreement at plan time is **advisory**: the plans are kept
-  and executed; quality reads `contract_status`. Joins are not judged against
-  the contract (schema bridges are never named by the assessor); a
-  user-confirmed `relation` slot is still verified in `_slot_state`.
-  Dialect-certain refusals (e.g. Hive `ORDER BY t.col`) are rejected in
-  `validate_plan` before execution.
+- `apps/chat/turn_contracts.py` is the single validation home for turn routing
+  and terminal answers. `TurnRoute.task_kind` is one of
+  `query | analysis | prediction | unsupported`; `relation` is
+  `independent | continue | revise`. Cross-field rules (analysis requires
+  referenced datasets, continuation/revision require references, unsupported
+  turns cannot reference records) live in the model validator — extend it
+  instead of re-checking in callers.
+- `apps/chat/planning_context.py` is the durable, replayable input boundary for
+  semantic planning: LangGraph checkpoints carry IDs and orchestration state
+  only; retrieval snapshots persist on the `nlq_run` row (`planning_context`
+  column) and are restored on resume.
+- `apps/chat/query_intent.py` describes what the user wants — never physical
+  tables, joins, or expressions; `semantic_planning.py` owns planning decisions
+  and the single clarification-card contract.
 
 ### TypeScript / Vue
 

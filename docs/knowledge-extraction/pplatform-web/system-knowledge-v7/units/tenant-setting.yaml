@@ -1,0 +1,513 @@
+unit_id: tenant-setting
+revision: 1
+title: 租户配置
+aliases:
+- 租户设置
+- 租户运营配置
+- 已生效租户
+- 默认项目
+domain: tenant
+applicability: 租户配置查询、配置生效、运营配置与默认项目绑定；不用于 SSO/DBAss 初始化结果或项目成员统计
+description: tenant_setting_config 承载租户基础与运营配置，配置生效由 status 表示，enable 表示行可用；tenant_setting_config_share
+  提供按项目标识查找的共享/假贴牌配置。
+content:
+  concepts:
+  - concept_id: tenant-config
+    name: 租户配置
+    aliases:
+    - 租户设置
+    - 租户运营配置
+    definition: 租户名称、品牌、域名、运营开关及默认项目等配置的一行记录。
+    dictionary: {}
+    field_targets:
+    - dataset: tenant_setting
+      field: id
+      database: ''
+    evidence_refs:
+    - ev-config-model
+  - concept_id: effective-config
+    name: 已生效租户配置
+    aliases:
+    - 已生效租户
+    definition: tenant_setting_config.status 为 Y 的配置；导出时映射为“已生效”，其他状态映射为“待生效”。status
+      与 enable 语义不同。
+    dictionary:
+      Y: 已生效
+      N: 待生效
+    field_targets:
+    - dataset: tenant_setting
+      field: status
+      database: ''
+    - dataset: tenant_setting
+      field: enable
+      database: ''
+    evidence_refs:
+    - ev-export-status
+    - ev-effective-write
+  - concept_id: default-project
+    name: 默认项目
+    aliases:
+    - 默认关联项目
+    definition: tenant_setting_config.default_project_id 指向租户默认项目；项目码必填时该配置必填。
+    dictionary: {}
+    field_targets:
+    - dataset: tenant_setting
+      field: default_project_id
+      database: ''
+    - dataset: tenant_project
+      field: id
+      database: ''
+    evidence_refs:
+    - ev-default-project-check
+    - ev-default-project-bind
+  - concept_id: shared-tenant-config
+    name: 共享租户配置
+    aliases:
+    - 假贴牌配置
+    - 自营租户配置
+    definition: tenant_setting_config_share 按 tenant_flg_en 查询启用记录；在主租户配置查不到时，可按 share
+      记录的 db_tenant_code 回退获取租户信息。
+    dictionary: {}
+    field_targets:
+    - dataset: tenant_setting_share
+      field: tenant_flg_en
+      database: ''
+    - dataset: tenant_setting_share
+      field: enable
+      database: ''
+    evidence_refs:
+    - ev-share-list
+    - ev-share-fallback
+  processes:
+  - stage_id: query-setting
+    name: 查询租户配置
+    description: ''
+    trigger: 调用 /tenant-web/setting/getTenantSetting 并传入可选 dbTenantCode
+    enter_conditions: []
+    exit_conditions: []
+    next_stages: []
+    data_effects:
+    - operation: read
+      dataset: tenant_setting
+      fields:
+      - db_tenant_code
+      - id
+      - default_project_id
+      - status
+      - enable
+      condition: ''
+      description: ''
+      evidence_refs:
+      - ev-get-setting
+    evidence_refs:
+    - ev-get-setting
+  - stage_id: save-operation-config
+    name: 保存租户运营配置
+    description: ''
+    trigger: 调用 /tenant-web/setting/updateOperationConfigById 或存量 Excel 导入
+    enter_conditions: []
+    exit_conditions: []
+    next_stages: []
+    data_effects:
+    - operation: update
+      dataset: tenant_setting
+      fields:
+      - project_code_required
+      - default_project_id
+      - operator_ai_customer
+      - send_email
+      - operator_name
+      - operator_email
+      condition: 按 id 更新；空白字符串转 NULL；Excel 按 tenant_flg_en 定位租户
+      description: ''
+      evidence_refs:
+      - ev-operation-update
+      - ev-import-config
+    evidence_refs:
+    - ev-operation-update
+    - ev-import-config
+  - stage_id: effective-setting
+    name: 租户配置生效
+    description: ''
+    trigger: 调用 /tenant-web/setting/effective
+    enter_conditions: []
+    exit_conditions: []
+    next_stages: []
+    data_effects:
+    - operation: update
+      dataset: tenant_setting
+      fields:
+      - status
+      condition: 所有基础配置检查通过后写 status=Y，并更新 update_time；检查失败不写生效状态
+      description: ''
+      evidence_refs:
+      - ev-effective-write
+    evidence_refs:
+    - ev-effective-write
+  - stage_id: resolve-default-project
+    name: 解析默认项目
+    description: ''
+    trigger: 未提供项目码且需要为租户解析项目
+    enter_conditions: []
+    exit_conditions: []
+    next_stages: []
+    data_effects:
+    - operation: read
+      dataset: tenant_setting
+      fields:
+      - db_tenant_code
+      - enable
+      - default_project_id
+      condition: db_tenant_code 匹配且 enable=Y
+      description: ''
+      evidence_refs:
+      - ev-default-project-resolve
+    - operation: read
+      dataset: tenant_project
+      fields:
+      - id
+      condition: 以 default_project_id 查询
+      description: ''
+      evidence_refs:
+      - ev-default-project-resolve
+    evidence_refs:
+    - ev-default-project-resolve
+  - stage_id: resolve-shared-config
+    name: 解析共享配置
+    description: ''
+    trigger: 按 tenant_flg_en 获取租户信息
+    enter_conditions: []
+    exit_conditions: []
+    next_stages: []
+    data_effects:
+    - operation: read
+      dataset: tenant_setting_share
+      fields:
+      - tenant_flg_en
+      - enable
+      - tenant_flag_zh
+      - db_tenant_code
+      condition: tenant_flg_en 匹配且 enable=Y；主租户不存在时回退
+      description: ''
+      evidence_refs:
+      - ev-share-list
+      - ev-share-fallback
+    - operation: read
+      dataset: tenant_setting
+      fields:
+      - db_tenant_code
+      - tenant_flg_en
+      condition: 用 share.db_tenant_code 获取基础租户
+      description: ''
+      evidence_refs:
+      - ev-share-fallback
+    evidence_refs:
+    - ev-share-list
+    - ev-share-fallback
+  datasets:
+  - dataset_id: tenant_setting
+    name: tenant_setting_config
+    description: 租户基础及运营配置，一行一个配置记录。
+    database: lowcode_pplatform
+    fields:
+    - field_id: id
+      name: id
+      description: 表主键
+      data_type: bigint
+      dictionary: {}
+      evidence_refs: []
+    - field_id: db_tenant_code
+      name: db_tenant_code
+      description: 数据租户标识
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: tenant_flg_en
+      name: tenant_flg_en
+      description: 项目标识（英文）
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: status
+      name: status
+      description: 配置生效状态；Y=已生效，N=待生效
+      data_type: varchar
+      dictionary:
+        Y: 已生效
+        N: 待生效
+      evidence_refs: []
+    - field_id: enable
+      name: enable
+      description: 行可用标识；Y=启用，N=停用
+      data_type: varchar
+      dictionary:
+        Y: 启用
+        N: 停用
+      evidence_refs: []
+    - field_id: project_code_required
+      name: project_code_required
+      description: 项目码是否必填
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: default_project_id
+      name: default_project_id
+      description: 默认关联项目ID
+      data_type: bigint
+      dictionary: {}
+      evidence_refs: []
+    - field_id: operator_ai_customer
+      name: operator_ai_customer
+      description: 是否开启智能客服
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: send_email
+      name: send_email
+      description: 是否发送邮件
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: operator_name
+      name: operator_name
+      description: 运营人员名称
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: operator_email
+      name: operator_email
+      description: 运营人员邮箱
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    evidence_refs:
+    - ev-config-model
+    - ev-operation-update
+  - dataset_id: tenant_setting_share
+    name: tenant_setting_config_share
+    description: 共享/假贴牌租户配置，按项目标识和启用状态查询。
+    database: lowcode_pplatform
+    fields:
+    - field_id: tenant_flg_en
+      name: tenant_flg_en
+      description: 项目标识（英文）
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: tenant_flag_zh
+      name: tenant_flag_zh
+      description: 项目标识（中文）
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: db_tenant_code
+      name: db_tenant_code
+      description: 数据租户标识
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: enable
+      name: enable
+      description: 行可用标识；Y=启用，N=停用
+      data_type: varchar
+      dictionary:
+        Y: 启用
+        N: 停用
+      evidence_refs: []
+    evidence_refs:
+    - ev-share-model
+    - ev-share-list
+  - dataset_id: tenant_project
+    name: tenant_project
+    description: 租户业务项目实例。
+    database: lowcode_pplatform
+    fields:
+    - field_id: id
+      name: id
+      description: 表主键
+      data_type: bigint
+      dictionary: {}
+      evidence_refs: []
+    evidence_refs:
+    - ev-default-project-resolve
+  relationships:
+  - relationship_id: setting-default-project
+    left:
+      dataset: tenant_setting
+      field: default_project_id
+      database: ''
+    right:
+      dataset: tenant_project
+      field: id
+      database: ''
+    relationship_type: EQUI_JOIN
+    cardinality: n:1
+    business_meaning: 租户配置指向默认项目
+    status: proposed
+    evidence_refs:
+    - ev-default-project-resolve
+    confidence: 0.5
+  - relationship_id: share-by-tenant-flag
+    left:
+      dataset: tenant_setting_share
+      field: tenant_flg_en
+      database: ''
+    right:
+      dataset: tenant_setting
+      field: tenant_flg_en
+      database: ''
+    relationship_type: SHARED_KEY
+    cardinality: n:1
+    business_meaning: 共享配置按项目标识与主租户配置对照/查找
+    status: proposed
+    evidence_refs:
+    - ev-share-list
+    - ev-share-fallback
+    confidence: 0.5
+  metrics:
+  - metric_id: effective-tenant-setting-count
+    name: 已生效租户配置数
+    description: 满足指定生效口径的配置记录数；需要按租户去重时使用 db_tenant_code。
+    aggregation: COUNT_DISTINCT
+    field:
+      dataset: tenant_setting
+      field: id
+      database: ''
+    filters: []
+    grain:
+    - dataset: tenant_setting
+      field: db_tenant_code
+      database: ''
+    evidence_refs:
+    - ev-export-status
+    - ev-effective-write
+  calibers:
+  - caliber_id: effective-tenant-setting
+    label: 已生效租户配置
+    description: 配置生效状态为 Y；若业务要求可用行，再额外过滤 enable=Y。
+    contract_fragment:
+      predicates:
+      - field: tenant_setting.status
+        operator: eq
+        values:
+        - Y
+      optional_predicates:
+      - field: tenant_setting.enable
+        operator: eq
+        values:
+        - Y
+    field_targets:
+    - dataset: tenant_setting
+      field: status
+      database: ''
+    - dataset: tenant_setting
+      field: enable
+      database: ''
+    evidence_refs:
+    - ev-export-status
+    - ev-effective-write
+  - caliber_id: enabled-default-project-setting
+    label: 可用且配置默认项目的租户
+    description: 租户配置启用且 default_project_id 非空，可解析到 tenant_project。
+    contract_fragment:
+      predicates:
+      - field: tenant_setting.enable
+        operator: eq
+        values:
+        - Y
+      - field: tenant_setting.default_project_id
+        operator: is_not_null
+    field_targets:
+    - dataset: tenant_setting
+      field: enable
+      database: ''
+    - dataset: tenant_setting
+      field: default_project_id
+      database: ''
+    evidence_refs:
+    - ev-default-project-resolve
+  domain_rules:
+  - rule_id: status-separate-from-enable
+    label: 生效状态与行可用状态分离
+    content: status=Y 才表示已生效；enable 只表示配置行启用，不能用 enable 单独代替生效判断。
+    applicability: 已生效/待生效配置统计
+    query_impact: 已生效口径必须过滤 status='Y'；若要求当前可用，再加 enable='Y'
+    field_targets:
+    - dataset: tenant_setting
+      field: status
+      database: ''
+    - dataset: tenant_setting
+      field: enable
+      database: ''
+    evidence_refs:
+    - ev-export-status
+    - ev-effective-write
+  - rule_id: required-project-needs-default
+    label: 项目码必填时必须配置默认项目
+    content: project_code_required=Y 时 default_project_id 不能为空；保存前校验失败则拒绝保存。
+    applicability: 租户配置保存校验
+    query_impact: 识别项目码必填租户时，应检查 default_project_id 非空
+    field_targets:
+    - dataset: tenant_setting
+      field: project_code_required
+      database: ''
+    - dataset: tenant_setting
+      field: default_project_id
+      database: ''
+    evidence_refs:
+    - ev-default-project-check
+  - rule_id: default-project-only-valid-id-on-import
+    label: 存量导入仅写入存在的默认项目
+    content: Excel 导入解析默认项目ID为数字，并仅在目标配置尚无默认项目且 tenant_project 存在该ID时写入。
+    applicability: 存量租户运营配置导入
+    query_impact: 导入结果中的默认项目值需能匹配 tenant_project.id
+    field_targets:
+    - dataset: tenant_setting
+      field: default_project_id
+      database: ''
+    - dataset: tenant_project
+      field: id
+      database: ''
+    evidence_refs:
+    - ev-import-config
+  - rule_id: shared-config-enabled-only
+    label: 共享配置只取启用行
+    content: 共享配置按 tenant_flg_en 查询时附带 enable=Y；假贴牌回退也只使用 enable=Y 的 share 记录。
+    applicability: 共享租户/假贴牌租户信息查询
+    query_impact: 必须过滤 tenant_setting_config_share.enable='Y'
+    field_targets:
+    - dataset: tenant_setting_share
+      field: tenant_flg_en
+      database: ''
+    - dataset: tenant_setting_share
+      field: enable
+      database: ''
+    evidence_refs:
+    - ev-share-list
+    - ev-share-fallback
+  verified_query_patterns:
+  - pattern_id: count-effective-settings
+    question: 已生效租户配置有多少
+    query: 'SELECT COUNT(DISTINCT id) AS effective_tenant_setting_count FROM tenant_setting_config
+      WHERE status = ''Y'' AND enable = ''Y''
+
+      '
+    intended_specification:
+      grain: tenant_setting
+      caliber_id: effective-tenant-setting
+    verification:
+      status: PENDING_VALIDATION
+    evidence_refs:
+    - ev-export-status
+    - ev-effective-write
+evidence_refs:
+- ev-get-setting
+- ev-export-status
+- ev-effective-write
+- ev-default-project-check
+- ev-share-fallback
+unit_links: []
+assumptions:
+- 查询范例未在目标库执行。
+conflicts: []
+confidence: 0.9

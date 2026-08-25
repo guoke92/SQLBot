@@ -1,0 +1,35 @@
+unit_id: org-manage
+revision: 1
+title: 机构管理（休眠登记）
+aliases:
+- 机构
+- 组织
+- 机构层级
+domain: org
+applicability: 本单元仅为休眠表 org_manage 的域内登记，不参与问数召回；机构查询、层级统计等无真实业务入口支撑
+description: org_manage 有 @TableName 但无入口调用链（OrgManageService 全仓无引用，仅生成式 CRUD），按新 skill §7.14 保留为休眠表，仅作表级声明、不参与维度引用。
+content:
+  concepts: []
+  processes: []
+  datasets:
+  - dataset_id: org_manage
+    name: org_manage
+    description: 机构管理表，一行一个机构节点；休眠表（无入口调用链），仅登记不参与问数，绑定时未匹配软失效。
+    database: lowcode_pplatform
+    inactive: true
+    fields: []
+    evidence_refs:
+    - ev-org-schema
+  relationships: []
+  metrics: []
+  calibers: []
+  domain_rules: []
+  verified_query_patterns: []
+evidence_refs:
+- ev-org-schema
+unit_links: []
+assumptions:
+- org_manage 为休眠表：有 @TableName("org_manage") 与 OrgManageDO/Mapper/Service，但 OrgManageService 接口与实现除自身外无任何 Java 引用（无 Controller/Facade/@DubboService 入口），service-routing-index 中路由列为空；仅登记不参与问数，绑定未匹配时软失效（WARNING）。
+- 字段（code/name/org_no/org_name/org_level/org_type/status/client_type/parent_code/enable 等）留在 catalog 目录基线，不进包。
+conflicts: []
+confidence: 0.85

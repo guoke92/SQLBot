@@ -170,3 +170,62 @@ class TestStrategyWiring:
 
         monkeypatch.setattr(compile_mod.settings, "EMBEDDING_ENABLED", False)
         assert compile_mod._exemplar_similarity("建档", "已建档") == 0.0
+
+def test_enrich_node_bundle_fills_unit_slots() -> None:
+    from unittest.mock import MagicMock
+
+    from apps.knowledge.compile.compile import _enrich_node_bundle
+
+    index_by_node = {
+        1: type(
+            "R",
+            (),
+            {
+                "node_kind": "dataset",
+                "deployment_id": 7,
+                "content": {"name": "cust_company_survey_whitelist"},
+            },
+        )(),
+        2: type(
+            "R",
+            (),
+            {"node_kind": "field", "deployment_id": 7, "content": {"name": "company_id"}},
+        )(),
+    }
+    result = NodeRecallResult(
+        seeds=[], reached={1: 0, 2: 0}, index_by_node=index_by_node, used_edges=[]
+    )
+    deployment = type(
+        "D",
+        (),
+        {
+            "pinned_snapshot": {
+                "entry": {
+                    "unit_id": "pplatform:survey",
+                    "title": "企业调研",
+                    "domain": "survey",
+                    "description": "desc",
+                    "applicability": "applies",
+                    "confidence": 0.91,
+                    "assumptions": ["问卷星为外部接口"],
+                    "conflicts": [{"topic": "x"}],
+                },
+                "meta": {"unit_key": "pplatform:survey"},
+            }
+        },
+    )()
+    session = MagicMock()
+    session.exec.return_value.all.return_value = [deployment]
+
+    bundle = BusinessDataBundle(stage="generate")
+    _enrich_node_bundle(session, bundle, result, question="平台调研问卷数据")
+
+    assert bundle.bound_resources == ["cust_company_survey_whitelist"]
+    assert len(bundle.matched_units) == 1
+    unit = bundle.matched_units[0]
+    assert unit["unit_key"] == "pplatform:survey"
+    assert unit["title"] == "企业调研"
+    assert unit["confidence"] == 0.91
+    assert bundle.assumptions == ["问卷星为外部接口"]
+    assert bundle.ambiguities == [{"topic": "x"}]
+

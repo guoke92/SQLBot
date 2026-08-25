@@ -1,0 +1,704 @@
+unit_id: project-enterprise-rel
+revision: 1
+title: 项目企业关联
+aliases:
+- 企业绑定项目
+- 项目成员企业
+- 项目关联
+- 企业开通项目
+domain: project-enterprise
+applicability: 查询企业与租户项目关联、企业角色、项目开通及资金方；不用于企业建档状态机或产品目录全量管理
+description: 企业按角色绑定租户项目，校验重复与租户边界后写入关系并触发产品开通、同步及资金方查询。
+content:
+  concepts:
+  - concept_id: project-company-binding
+    name: 项目企业绑定
+    aliases:
+    - 企业关联项目
+    - 项目成员
+    definition: cust_project_rel 中企业 code、项目字符串 ID 和企业角色组成的一条项目企业关系；关系行不是企业实体。
+    dictionary: {}
+    field_targets:
+    - dataset: project_rel
+      field: ref_cust_project_rel_cust_company_info
+      database: ''
+    - dataset: project_rel
+      field: project_id
+      database: ''
+    - dataset: project_rel
+      field: company_type
+      database: ''
+    evidence_refs:
+    - ev-relate-read
+    - ev-relate-write
+  - concept_id: project-opening
+    name: 项目开通
+    aliases:
+    - 已开通项目
+    - 项目开通状态
+    definition: 关系表的 project_open_status 表示项目开通进度，值来自 ProductOpenStatusEnum：Y 已开通、P
+      开通中、N 未开通。
+    dictionary:
+      Y: 已开通
+      P: 开通中
+      N: 未开通
+    field_targets:
+    - dataset: project_rel
+      field: project_open_status
+      database: ''
+    evidence_refs:
+    - ev-open-dict
+    - ev-role-query
+  - concept_id: relation-open-status
+    name: 关系开通结果
+    aliases:
+    - 产品开通结果
+    definition: 自动注册落库时，供应商角色且项目平台产品为 ACFLOW 或 ORDER 的关系 status 写 '1'，其他关系写 '0'。
+    dictionary:
+      '1': 已开通
+      '0': 未开通
+    field_targets:
+    - dataset: project_rel
+      field: status
+      database: ''
+    evidence_refs:
+    - ev-auto-rel
+  processes:
+  - stage_id: relate-project
+    name: 关联项目
+    description: ''
+    trigger: 企业认证成功或用户提交项目关联请求
+    enter_conditions: []
+    exit_conditions: []
+    next_stages:
+    - open-product
+    - sync-project-rel
+    data_effects:
+    - operation: read
+      dataset: company
+      fields:
+      - id
+      - code
+      - cust_company_type
+      - db_tenant_code
+      condition: ''
+      description: ''
+      evidence_refs: []
+    - operation: read
+      dataset: project_rel
+      fields:
+      - project_id
+      - company_type
+      - ref_cust_project_rel_cust_company_info
+      condition: ''
+      description: ''
+      evidence_refs: []
+    - operation: read
+      dataset: tenant_project
+      fields:
+      - id
+      - name
+      - db_tenant_code
+      - tenant_flg_en
+      - platform_product_code
+      - ref_tenant_project_platform_product
+      condition: ''
+      description: ''
+      evidence_refs: []
+    - operation: upsert
+      dataset: project_rel
+      fields:
+      - project_id
+      - product_id
+      - company_type
+      - ref_cust_project_rel_cust_company_info
+      - db_tenant_code
+      - tenant_code
+      - enable
+      - status
+      - tenant_flg_en
+      condition: ''
+      description: ''
+      evidence_refs: []
+    evidence_refs:
+    - ev-relate-read
+    - ev-relate-write
+    - ev-tenant-check
+  - stage_id: auto-default-project
+    name: 无项目码自动绑定
+    description: ''
+    trigger: 自主建档且企业尚无项目关系
+    enter_conditions: []
+    exit_conditions: []
+    next_stages:
+    - open-product
+    data_effects:
+    - operation: read
+      dataset: tenant_project
+      fields:
+      - id
+      - product_id
+      - platform_product_code
+      condition: ''
+      description: ''
+      evidence_refs: []
+    - operation: insert
+      dataset: project_rel
+      fields:
+      - project_id
+      - product_id
+      - company_type
+      - ref_cust_project_rel_cust_company_info
+      - status
+      condition: ''
+      description: ''
+      evidence_refs: []
+    - operation: upsert
+      dataset: auth_application
+      fields:
+      - ref_cust_company_info
+      - platform_product_code
+      - open_status
+      condition: ''
+      description: ''
+      evidence_refs: []
+    evidence_refs:
+    - ev-auto-flow
+    - ev-auto-rel
+    - ev-auth-open
+  - stage_id: open-product
+    name: 开通产品
+    description: ''
+    trigger: 关系保存成功
+    enter_conditions: []
+    exit_conditions: []
+    next_stages:
+    - sync-project-rel
+    data_effects:
+    - operation: upsert
+      dataset: auth_application
+      fields:
+      - ref_cust_company_info
+      - platform_product_code
+      - open_status
+      - ref_cust_auth_application_tenant_product
+      condition: ''
+      description: ''
+      evidence_refs: []
+    evidence_refs:
+    - ev-auth-open
+  - stage_id: sync-project-rel
+    name: 同步项目关系
+    description: ''
+    trigger: 事务内关系保存后
+    enter_conditions: []
+    exit_conditions: []
+    next_stages: []
+    data_effects:
+    - operation: read
+      dataset: project_rel
+      fields:
+      - project_id
+      - product_id
+      - company_type
+      condition: ''
+      description: ''
+      evidence_refs: []
+    evidence_refs:
+    - ev-sync
+  datasets:
+  - dataset_id: company
+    name: cust_company_info
+    description: 企业主/过程记录，一行一家企业。正式企业主数据需 data_type='1' 且 enable='Y'。
+    database: lowcode_pplatform
+    fields:
+    - field_id: id
+      name: id
+      description: 表主键
+      data_type: bigint
+      evidence_refs: []
+    - field_id: code
+      name: code
+      description: 企业业务键，联系人/项目关联/角色均按 code 关联
+      data_type: varchar
+      evidence_refs: []
+    - field_id: cust_company_type
+      name: cust_company_type
+      description: 企业角色集合
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: db_tenant_code
+      name: db_tenant_code
+      description: 数据租户标识
+      data_type: varchar
+      evidence_refs: []
+    evidence_refs:
+    - ev-company-code
+  - dataset_id: project_rel
+    name: cust_project_rel
+    description: 企业与租户项目关联表，一行表示一个企业角色项目关系。
+    database: lowcode_pplatform
+    fields:
+    - field_id: project_id
+      name: project_id
+      description: 租户项目 ID 的字符串值
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: product_id
+      name: product_id
+      description: 租户产品 ID
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: company_type
+      name: company_type
+      description: 企业在项目中的角色
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: ref_cust_project_rel_cust_company_info
+      name: ref_cust_project_rel_cust_company_info
+      description: 企业 code 引用
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: db_tenant_code
+      name: db_tenant_code
+      description: 关系数据租户标识
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: tenant_code
+      name: tenant_code
+      description: 关系租户编码
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: enable
+      name: enable
+      description: 有效行标记
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: status
+      name: status
+      description: 自动注册时的产品开通结果标识
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: project_open_status
+      name: project_open_status
+      description: 项目开通状态
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: tenant_flg_en
+      name: tenant_flg_en
+      description: 项目租户开通标记
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    evidence_refs:
+    - ev-rel-fields
+    - ev-relate-write
+  - dataset_id: tenant_project
+    name: tenant_project
+    description: 租户业务项目实例。
+    database: lowcode_pplatform
+    fields:
+    - field_id: id
+      name: id
+      description: 表主键
+      data_type: bigint
+      dictionary: {}
+      evidence_refs: []
+    - field_id: name
+      name: name
+      description: 项目名称
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: product_id
+      name: product_id
+      description: 所属租户产品主键
+      data_type: bigint
+      dictionary: {}
+      evidence_refs: []
+    - field_id: db_tenant_code
+      name: db_tenant_code
+      description: ''
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: tenant_flg_en
+      name: tenant_flg_en
+      description: 租户开通标记
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: platform_product_code
+      name: platform_product_code
+      description: 平台产品编码
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: ref_tenant_project_platform_product
+      name: ref_tenant_project_platform_product
+      description: 平台产品业务键引用
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    evidence_refs:
+    - ev-tenant-project
+  - dataset_id: platform_product
+    name: platform_product
+    description: 平台产品目录；不是租户产品开通实例。
+    database: lowcode_pplatform
+    fields:
+    - field_id: product_code
+      name: product_code
+      description: 平台产品编号
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    evidence_refs:
+    - ev-platform-product
+  - dataset_id: auth_application
+    name: cust_auth_application
+    description: 客户产品开通表；申请按企业 code 关联企业。
+    database: lowcode_pplatform
+    fields:
+    - field_id: ref_cust_company_info
+      name: ref_cust_company_info
+      description: 客户企业 code
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: platform_product_code
+      name: platform_product_code
+      description: 平台产品编码
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: open_status
+      name: open_status
+      description: 企业产品申请状态 OPENED/OPENING/NOT_OPENED
+      data_type: varchar
+      dictionary:
+        OPENED: 已开通
+        OPENING: 开通中
+        NOT_OPENED: 未开通
+      evidence_refs: []
+    - field_id: ref_cust_auth_application_tenant_product
+      name: ref_cust_auth_application_tenant_product
+      description: 企业产品开通申请按租户产品 code 关联
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    evidence_refs:
+    - ev-auth-schema
+    - ev-auth-open
+  relationships:
+  - relationship_id: project-rel-company
+    left:
+      dataset: project_rel
+      field: ref_cust_project_rel_cust_company_info
+      database: ''
+    right:
+      dataset: company
+      field: code
+      database: ''
+    relationship_type: EQUI_JOIN
+    cardinality: n:1
+    business_meaning: 项目关系通过企业 code 连接企业主数据
+    status: proposed
+    evidence_refs:
+    - ev-relate-read
+    - ev-company-code
+    confidence: 0.5
+  - relationship_id: project-rel-tenant-project
+    left:
+      dataset: project_rel
+      field: project_id
+      database: ''
+    right:
+      dataset: tenant_project
+      field: id
+      database: ''
+    relationship_type: EQUI_JOIN
+    cardinality: n:1
+    business_meaning: 关系 project_id 是项目主键的字符串值，连接时需处理类型转换
+    status: proposed
+    evidence_refs:
+    - ev-relate-read
+    - ev-tenant-project
+    confidence: 0.5
+  - relationship_id: tenant-project-platform-product
+    left:
+      dataset: tenant_project
+      field: platform_product_code
+      database: ''
+    right:
+      dataset: platform_product
+      field: product_code
+      database: ''
+    relationship_type: EQUI_JOIN
+    cardinality: n:1
+    business_meaning: 租户项目通过平台产品编码连接平台产品目录
+    status: proposed
+    evidence_refs:
+    - ev-platform-product
+    confidence: 0.5
+  metrics:
+  - metric_id: project-company-count
+    name: 项目企业数
+    description: 指定项目下有效关系对应的去重企业数。
+    aggregation: COUNT_DISTINCT
+    field:
+      dataset: company
+      field: id
+      database: ''
+    filters: []
+    grain:
+    - dataset: project_rel
+      field: project_id
+      database: ''
+    evidence_refs:
+    - ev-project-query
+  - metric_id: opened-project-count
+    name: 企业已开通项目数
+    description: 指定企业下 project_open_status='Y' 的有效关系数，建议按 project_id 去重。
+    aggregation: COUNT_DISTINCT
+    field:
+      dataset: project_rel
+      field: project_id
+      database: ''
+    filters: []
+    grain:
+    - dataset: project_rel
+      field: ref_cust_project_rel_cust_company_info
+      database: ''
+    evidence_refs:
+    - ev-open-dict
+    - ev-role-query
+  calibers:
+  - caliber_id: active-project-member
+    label: 有效项目企业关联
+    description: 项目查询只纳入启用关系、启用项目和正式企业主数据；企业数按企业 id 去重。
+    contract_fragment:
+      predicates:
+      - field: project_rel.enable
+        operator: eq
+        values:
+        - Y
+      - field: company.enable
+        operator: eq
+        values:
+        - Y
+      - field: company.data_type
+        operator: eq
+        values:
+        - '1'
+      field_targets:
+      - dataset: project_rel
+        field: enable
+      - dataset: project_rel
+        field: ref_cust_project_rel_cust_company_info
+      - dataset: company
+        field: id
+      evidence_refs:
+      - ev-project-query
+    field_targets: []
+    evidence_refs: []
+  - caliber_id: opened-project
+    label: 已开通项目关系
+    description: 已开通必须使用 project_open_status='Y'，不能将关系 status='1' 当作同一字段。
+    contract_fragment:
+      predicates:
+      - field: project_rel.project_open_status
+        operator: eq
+        values:
+        - Y
+      field_targets:
+      - dataset: project_rel
+        field: project_open_status
+      evidence_refs:
+      - ev-open-dict
+    field_targets: []
+    evidence_refs: []
+  - caliber_id: effective-finance-company
+    label: 项目资金方企业
+    description: 先找企业所在的启用项目关系，再找同项目 company_type='FINANCE' 的启用关系，并对资金方企业套用 BUILD_SUCCESS/EFFECT/data_type='1'/enable='Y'。
+    contract_fragment:
+      predicates:
+      - field: project_rel.enable
+        operator: eq
+        values:
+        - Y
+      - field: project_rel.company_type
+        operator: eq
+        values:
+        - FINANCE
+      - field: company.cust_build_status
+        operator: eq
+        values:
+        - BUILD_SUCCESS
+      - field: company.cust_status
+        operator: eq
+        values:
+        - EFFECT
+      - field: company.data_type
+        operator: eq
+        values:
+        - '1'
+      - field: company.enable
+        operator: eq
+        values:
+        - Y
+      field_targets:
+      - dataset: project_rel
+        field: project_id
+      - dataset: project_rel
+        field: company_type
+      - dataset: company
+        field: cust_build_status
+      - dataset: company
+        field: cust_status
+      - dataset: company
+        field: data_type
+      - dataset: company
+        field: enable
+      evidence_refs:
+      - ev-finance-query
+    field_targets: []
+    evidence_refs: []
+  domain_rules:
+  - rule_id: binding-duplicate-key
+    label: 重复绑定按项目与角色判断
+    content: relateProject 先按企业 code 与 company_type 查关系，再以 project_id 和 company_type
+      同时匹配；重复请求可返回已存在，否则拒绝重复绑定。
+    applicability: 关联项目写入、项目企业数查询
+    query_impact: 统计企业而非关系行时必须按 company.id 去重；写入判重不能只按企业或只按项目。
+    field_targets:
+    - dataset: project_rel
+      field: ref_cust_project_rel_cust_company_info
+      database: ''
+    - dataset: project_rel
+      field: project_id
+      database: ''
+    - dataset: project_rel
+      field: company_type
+      database: ''
+    evidence_refs:
+    - ev-duplicate
+  - rule_id: tenant-boundary
+    label: 跨租户关联受企业角色约束
+    content: 非 FINANCE 角色禁止跨租户；FINANCE 只有自营租户可跨租户，非自营仍必须租户一致。
+    applicability: 关联项目写入
+    query_impact: 分析关联数据时按实际关系 db_tenant_code 过滤，不能把写入例外推断成普遍跨租户关系。
+    field_targets:
+    - dataset: company
+      field: db_tenant_code
+      database: ''
+    - dataset: tenant_project
+      field: db_tenant_code
+      database: ''
+    - dataset: project_rel
+      field: db_tenant_code
+      database: ''
+    - dataset: project_rel
+      field: company_type
+      database: ''
+    evidence_refs:
+    - ev-tenant-check
+  - rule_id: supplier-product-status
+    label: 供应商 ACFLOW/ORDER 关系初始状态
+    content: 自动注册保存关系时，company_type=SUPPLIER 且 platform_product_code 为 ACFLOW 或 ORDER
+      才写 status='1'，否则写 '0'。
+    applicability: 自主注册无项目码自动绑定、关系状态统计
+    query_impact: 过滤 status 时必须同时限定供应商角色与产品编码，不能把 status='1' 解释为所有项目已开通。
+    field_targets:
+    - dataset: project_rel
+      field: company_type
+      database: ''
+    - dataset: project_rel
+      field: status
+      database: ''
+    - dataset: tenant_project
+      field: platform_product_code
+      database: ''
+    evidence_refs:
+    - ev-auto-rel
+  - rule_id: finance-join
+    label: 资金方按同项目连接
+    content: listEffectFinance 通过企业 code 找企业关系，再用同一 project_id 找 company_type='FINANCE'
+      的启用关系，最后连接资金方企业 code。
+    applicability: 资金方企业查询
+    query_impact: 必须按 project_rel.project_id 连接两组关系并过滤 FINANCE，不能直接按企业或产品连接资金方。
+    field_targets:
+    - dataset: project_rel
+      field: project_id
+      database: ''
+    - dataset: project_rel
+      field: company_type
+      database: ''
+    - dataset: project_rel
+      field: ref_cust_project_rel_cust_company_info
+      database: ''
+    evidence_refs:
+    - ev-finance-query
+  verified_query_patterns:
+  - pattern_id: active-companies-in-project
+    question: 某项目下有哪些有效企业
+    query: SELECT DISTINCT cci.id, cci.name FROM tenant_project tp JOIN cust_project_rel
+      cpl ON cpl.project_id=tp.id AND cpl.enable='Y' JOIN cust_company_info cci ON
+      cci.code=cpl.ref_cust_project_rel_cust_company_info AND cci.enable='Y' AND cci.data_type='1'
+      WHERE tp.id=:project_id AND tp.enable='Y'
+    intended_specification:
+      grain: company
+      caliber_id: active-project-member
+    verification:
+      status: PENDING_VALIDATION
+    evidence_refs:
+    - ev-project-query
+  - pattern_id: finance-of-company
+    question: 某企业对应的有效资金方有哪些
+    query: SELECT DISTINCT c4.* FROM cust_company_info c1 JOIN cust_project_rel c2
+      ON c1.code=c2.ref_cust_project_rel_cust_company_info AND c2.enable='Y' JOIN
+      cust_project_rel c3 ON c2.project_id=c3.project_id AND c3.company_type='FINANCE'
+      AND c3.enable='Y' JOIN cust_company_info c4 ON c3.ref_cust_project_rel_cust_company_info=c4.code
+      AND c4.cust_build_status='BUILD_SUCCESS' AND c4.cust_status='EFFECT' AND c4.data_type='1'
+      AND c4.enable='Y' WHERE c1.id=:company_id
+    intended_specification:
+      grain: company
+      caliber_id: effective-finance-company
+    verification:
+      status: PENDING_VALIDATION
+    evidence_refs:
+    - ev-finance-query
+evidence_refs:
+- ev-relate-read
+- ev-relate-write
+- ev-duplicate
+- ev-tenant-check
+- ev-auto-flow
+- ev-auto-rel
+- ev-auth-open
+- ev-sync
+- ev-project-query
+- ev-role-query
+- ev-finance-query
+- ev-open-dict
+- ev-company-code
+- ev-rel-fields
+- ev-tenant-project
+- ev-platform-product
+- ev-auth-schema
+unit_links: []
+assumptions:
+- project_rel.project_id 为 tenant_project.id 的字符串形式，具体 CAST 方言由数据源确认。
+- status='1' 是自动注册关系的初始开通结果，不等同于 project_open_status='Y'。
+conflicts: []
+confidence: 0.91

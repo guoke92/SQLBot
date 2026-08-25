@@ -1,0 +1,29 @@
+{
+  "unit_id": "ca-certification",
+  "sources": [
+    {
+      "source_id": "src-ca-certification",
+      "kind": "source_code",
+      "locator": "pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CaCertificationInfoDO.java",
+      "repository_revision": "ee434954e"
+    }
+  ],
+  "evidence": [
+    {
+      "evidence_id": "ev-ca-cert-schema",
+      "source_id": "src-ca-certification",
+      "evidence_kind": "database_schema",
+      "locator": "pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CaCertificationInfoDO.java",
+      "claim": "CA认证: 企业/个人向 CA 中台提交认证的完整过程，结果以 submit_status 表达。",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-ca-cert-service",
+      "source_id": "src-ca-certification",
+      "evidence_kind": "code_path",
+      "locator": "pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CaCertificationInfoDO.java",
+      "claim": "阶段 提交CA认证: 企业/个人发起 CA 认证",
+      "confidence": 0.8
+    }
+  ]
+}

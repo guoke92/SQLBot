@@ -492,6 +492,77 @@ def test_missing_dataset_keeps_binding_bound(monkeypatch: pytest.MonkeyPatch) ->
     )
 
 
+
+
+def test_non_referenced_missing_dataset_degrades_to_warning(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from apps.knowledge.semantic import service as svc
+    from apps.knowledge.semantic.schema import KnowledgeUnitEntry
+
+    entry = KnowledgeUnitEntry.model_validate(
+        {
+            "unit_id": "dormant-unit",
+            "title": "休眠单元",
+            "domain": "test",
+            "description": "只声明休眠表，无维度引用",
+            "content": {
+                "datasets": [
+                    {
+                        "dataset_id": "dormant",
+                        "name": "dormant_table",
+                        "description": "休眠表",
+                        "fields": [
+                            {"field_id": "id", "name": "id", "data_type": "bigint"}
+                        ],
+                    }
+                ],
+                "processes": [{"stage_id": "s1", "name": "阶段1"}],
+            },
+        }
+    )
+    revision = SimpleNamespace(
+        id=1,
+        oid=1,
+        content=entry.model_dump(mode="json"),
+        validation_status="NOT_RUN",
+        validation_summary={},
+        update_time=None,
+    )
+    datasource = SimpleNamespace(id=8, oid=1)
+
+    class _Result:
+        def all(self) -> list[Any]:
+            return []
+
+        def one_or_none(self) -> None:
+            return None
+
+        def first(self) -> None:
+            return None
+
+    session = MagicMock()
+    session.get.side_effect = (
+        lambda model, _ident: revision if model is KnowledgeUnitRevision else datasource
+    )
+    session.exec.return_value = _Result()
+    monkeypatch.setattr(
+        svc,
+        "get_protocol_for_ds",
+        lambda _ds: SimpleNamespace(supports=lambda *_args, **_kwargs: False),
+    )
+
+    binding = bind_and_validate(session, oid=1, revision_id=1, datasource_id=8)
+
+    assert binding.status == "BOUND"
+    assert revision.validation_status == "WARNING"
+    issue = next(
+        i for i in binding.validation_result["issues"] if i["code"] == "DATASET_NOT_FOUND"
+    )
+    assert issue["severity"] == "warning"
+
+
+
 def test_active_units_keep_stale_bindings() -> None:
     entry = _fixture_package().knowledge_units[0]
     onboarding = MagicMock(id=1, unit_key="enterprise-onboarding", oid=1)

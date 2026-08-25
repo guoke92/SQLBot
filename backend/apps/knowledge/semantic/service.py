@@ -822,6 +822,41 @@ def bind_and_validate(
     issues: list[dict[str, Any]] = []
     mapping: dict[str, Any] = {"datasets": {}, "fields": {}, "relationships": {}}
     datasets_by_id = {dataset.dataset_id: dataset for dataset in entry.content.datasets}
+    # Dimension-referenced tables/fields are "core": a missing core reference is a
+    # hard error; a missing non-referenced (dormant/peripheral) table or field
+    # auto-invalidates and degrades to a soft warning (no publish block).
+    referenced_datasets: set[str] = set()
+    referenced_fields: set[tuple[str, str]] = set()
+
+    def _mark_ref(ref: Any) -> None:
+        if getattr(ref, "dataset", ""):
+            referenced_datasets.add(ref.dataset)
+        if getattr(ref, "dataset", "") and getattr(ref, "field", ""):
+            referenced_fields.add((ref.dataset, ref.field))
+
+    for relationship in entry.content.relationships:
+        _mark_ref(relationship.left)
+        _mark_ref(relationship.right)
+    for metric in entry.content.metrics:
+        if metric.field is not None:
+            _mark_ref(metric.field)
+        for grain in metric.grain:
+            _mark_ref(grain)
+    for caliber in entry.content.calibers:
+        for target in caliber.field_targets:
+            _mark_ref(target)
+    for rule in entry.content.domain_rules:
+        for target in rule.field_targets:
+            _mark_ref(target)
+    for concept in entry.content.concepts:
+        for target in concept.field_targets:
+            _mark_ref(target)
+    for process in entry.content.processes:
+        for effect in process.data_effects:
+            if effect.dataset:
+                referenced_datasets.add(effect.dataset)
+            for field_id in effect.fields:
+                referenced_fields.add((effect.dataset, field_id))
     for dataset in entry.content.datasets:
         table = match_catalog_table(
             tables, table_name=dataset.name, database_name=dataset.database
@@ -830,7 +865,12 @@ def bind_and_validate(
             issues.append(
                 _issue(
                     code="DATASET_NOT_FOUND",
-                    severity="error",
+                    severity=(
+                        "error"
+                        if dataset.dataset_id in referenced_datasets
+                        and not dataset.inactive
+                        else "warning"
+                    ),
                     knowledge_kind="dataset",
                     knowledge_id=dataset.dataset_id,
                     title=dataset.description or dataset.name,
@@ -850,7 +890,13 @@ def bind_and_validate(
                 issues.append(
                     _issue(
                         code="FIELD_NOT_FOUND",
-                        severity="error",
+                        severity=(
+                            "error"
+                            if (dataset.dataset_id, semantic_field.field_id)
+                            in referenced_fields
+                            and not dataset.inactive
+                            else "warning"
+                        ),
                         knowledge_kind="field",
                         knowledge_id=semantic_field.field_id,
                         title=semantic_field.description or semantic_field.name,

@@ -1,6 +1,6 @@
 # pplatform-web 业务数据知识提取执行规范 v4
 
-> **完整提取合同（所有项目通用）**：[`../KnowledgePackage-2.0-第三方提取规范.md`](../KnowledgePackage-2.0-第三方提取规范.md)。第三方 Agent 应先遵守该文档；本文只补充 pplatform-web 的输入路径与建议输出目录。  
+> **完整提取合同（所有项目通用）**：`.cursor/skills/knowledge-extraction/`（`SKILL.md` + `reference.md` + `examples.md`）。第三方 Agent 应先遵守该技能；本文只补充 pplatform-web 的输入路径与建议输出目录。  
 > 目标输入：`/Users/fanjunwei/IdeaProjects/pplatform-web`。  
 > 目标输出：一份能被 SQLBot 当前 `KnowledgePackageV2` 校验通过的 YAML 知识包，不直接导入系统。  
 > 唯一权威 Schema：`backend/apps/knowledge/semantic/schema.py`。  

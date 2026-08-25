@@ -1,0 +1,645 @@
+unit_id: interworking
+revision: 1
+title: 互通产品与项目
+aliases:
+- 互联产品
+- 互通项目
+- 企业互通产品
+domain: interworking
+applicability: 租户互通产品开通、互通产品适用项目、企业互通产品记录及开通状态查询；不用于企业认证申请中的 OPENED/OPENING 口径
+description: 租户配置互通产品并限定项目范围，企业侧形成互通产品记录的业务域。
+content:
+  concepts:
+  - concept_id: tenant-interworking-product
+    name: 租户互通产品
+    aliases:
+    - 租户互联产品
+    definition: 租户从平台互通类产品目录创建的一条产品配置记录；同一平台产品在同一租户下复用已有记录。
+    dictionary: {}
+    field_targets:
+    - dataset: tenant_interworking_product
+      field: id
+      database: ''
+    - dataset: tenant_interworking_product
+      field: tenant_id
+      database: ''
+    - dataset: tenant_interworking_product
+      field: platform_product_id
+      database: ''
+    evidence_refs:
+    - ev-tip-model
+    - ev-tip-create
+  - concept_id: interworking-project-scope
+    name: 互通项目适用范围
+    aliases:
+    - 产品适用项目
+    definition: 互通产品 scope=ALL 时不落项目明细；否则按 scope_project 中的项目 ID 重建 tenant_interworking_project
+      明细。
+    dictionary:
+      ALL: 全部项目
+    field_targets:
+    - dataset: tenant_interworking_product
+      field: scope
+      database: ''
+    - dataset: tenant_interworking_product
+      field: scope_project
+      database: ''
+    - dataset: tenant_interworking_project
+      field: project_id
+      database: ''
+    evidence_refs:
+    - ev-project-relate
+  - concept_id: customer-interworking-product
+    name: 企业互通产品
+    aliases:
+    - 企业互联产品
+    definition: 企业与租户互通产品之间的开通记录，企业通过 ref_*_cust_company_info 按企业 code 关联。
+    dictionary: {}
+    field_targets:
+    - dataset: cust_interworking_product
+      field: id
+      database: ''
+    - dataset: cust_interworking_product
+      field: cust_id
+      database: ''
+    - dataset: cust_interworking_product
+      field: ref_cust_interworking_product_cust_company_info
+      database: ''
+    evidence_refs:
+    - ev-cip-model
+    - ev-ref-relations
+  processes:
+  - stage_id: tenant-product-create
+    name: 创建租户互通产品
+    description: ''
+    trigger: 租户选择平台互通产品目录创建产品
+    enter_conditions: []
+    exit_conditions: []
+    next_stages:
+    - project-scope
+    data_effects:
+    - operation: read
+      dataset: platform_product
+      fields:
+      - id
+      - code
+      - product_code
+      - name
+      - product_cate
+      condition: ''
+      description: ''
+      evidence_refs: []
+    - operation: read
+      dataset: tenant_interworking_product
+      fields:
+      - tenant_id
+      - platform_product_id
+      - id
+      condition: ''
+      description: ''
+      evidence_refs: []
+    - operation: insert
+      dataset: tenant_interworking_product
+      fields:
+      - tenant_id
+      - platform_product_id
+      - platform_product_code
+      - name
+      - product_cate
+      - ref_tenant_interworking_product_platform_product
+      - ref_tenant_interworking_product_tenant_setting_config
+      - open_status
+      condition: ''
+      description: ''
+      evidence_refs: []
+    - operation: update
+      dataset: tenant_interworking_product
+      fields:
+      - logo_icon_url
+      - transaction_structure
+      condition: ''
+      description: ''
+      evidence_refs: []
+    evidence_refs:
+    - ev-tip-create
+    - ev-tip-list
+    condition: 已存在同租户同平台产品时返回已有记录；新记录默认 open_status=N，并拒绝同租户启用产品重名
+  - stage_id: project-scope
+    name: 保存互通产品项目范围
+    description: ''
+    trigger: 保存租户互通产品的 scope 与 scope_project
+    enter_conditions: []
+    exit_conditions: []
+    next_stages:
+    - activate-or-cancel
+    data_effects:
+    - operation: delete
+      dataset: tenant_interworking_project
+      fields:
+      - product_id
+      condition: 先删除该互通产品既有项目明细
+      description: ''
+      evidence_refs: []
+    - operation: insert
+      dataset: tenant_interworking_project
+      fields:
+      - name
+      - tenant_id
+      - product_id
+      - platform_product_code
+      - project_id
+      - ref_tenant_interworking_project_tenant_interworking_product
+      - ref_tenant_interworking_project_tenant_setting_config
+      condition: ''
+      description: ''
+      evidence_refs: []
+    evidence_refs:
+    - ev-project-relate
+    - ev-controller
+  - stage_id: activate-or-cancel
+    name: 开通或取消租户互通产品
+    description: ''
+    trigger: 租户执行 active 或 cancel
+    enter_conditions: []
+    exit_conditions: []
+    next_stages: []
+    data_effects:
+    - operation: update
+      dataset: tenant_interworking_product
+      fields:
+      - open_status
+      condition: active 将 N/P 置 Y；cancel 置 N
+      description: ''
+      evidence_refs: []
+    evidence_refs:
+    - ev-tip-active
+    - ev-tip-cancel
+  datasets:
+  - dataset_id: tenant_interworking_product
+    name: tenant_interworking_product
+    description: 租户互通产品配置；一条记录代表一个租户对一个平台互通产品的配置。
+    database: lowcode_pplatform
+    fields:
+    - field_id: id
+      name: id
+      description: 表主键
+      data_type: bigint
+      dictionary: {}
+      evidence_refs: []
+    - field_id: code
+      name: code
+      description: 业务编码，供 ref 列引用
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: name
+      name: name
+      description: 产品名称
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: platform_product_id
+      name: platform_product_id
+      description: 平台产品主键
+      data_type: bigint
+      dictionary: {}
+      evidence_refs: []
+    - field_id: platform_product_code
+      name: platform_product_code
+      description: 平台产品编号
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: product_cate
+      name: product_cate
+      description: 产品类型
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: tenant_id
+      name: tenant_id
+      description: 租户主键
+      data_type: bigint
+      dictionary: {}
+      evidence_refs: []
+    - field_id: open_status
+      name: open_status
+      description: 产品开通状态，Y/P/N
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: enable
+      name: enable
+      description: 启用标记，Y/N
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: scope
+      name: scope
+      description: 适用范围标识，ALL 表示全部
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: scope_project
+      name: scope_project
+      description: 适用项目 ID JSON 数组
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: ref_tenant_interworking_product_platform_product
+      name: ref_tenant_interworking_product_platform_product
+      description: 平台产品 code 引用
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: ref_tenant_interworking_product_tenant_setting_config
+      name: ref_tenant_interworking_product_tenant_setting_config
+      description: 租户配置 code 引用
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: logo_icon_url
+      name: logo_icon_url
+      description: ''
+      data_type: ''
+      dictionary: {}
+      evidence_refs: []
+    - field_id: transaction_structure
+      name: transaction_structure
+      description: ''
+      data_type: ''
+      dictionary: {}
+      evidence_refs: []
+    evidence_refs:
+    - ev-tip-model
+  - dataset_id: tenant_interworking_project
+    name: tenant_interworking_project
+    description: 租户互通产品与租户项目的适用范围明细。
+    database: lowcode_pplatform
+    fields:
+    - field_id: product_id
+      name: product_id
+      description: 租户互通产品 ID
+      data_type: bigint
+      dictionary: {}
+      evidence_refs: []
+    - field_id: tenant_id
+      name: tenant_id
+      description: 租户 ID
+      data_type: bigint
+      dictionary: {}
+      evidence_refs: []
+    - field_id: platform_product_code
+      name: platform_product_code
+      description: 平台产品编号
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: project_id
+      name: project_id
+      description: 租户项目 ID
+      data_type: bigint
+      dictionary: {}
+      evidence_refs: []
+    - field_id: ref_tenant_interworking_project_tenant_interworking_product
+      name: ref_tenant_interworking_project_tenant_interworking_product
+      description: 租户互通产品 code 引用
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: ref_tenant_interworking_project_tenant_setting_config
+      name: ref_tenant_interworking_project_tenant_setting_config
+      description: 租户配置 code 引用
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: name
+      name: name
+      description: ''
+      data_type: ''
+      dictionary: {}
+      evidence_refs: []
+    evidence_refs:
+    - ev-tipj-model
+  - dataset_id: cust_interworking_product
+    name: cust_interworking_product
+    description: 企业互通产品开通记录。
+    database: lowcode_pplatform
+    fields:
+    - field_id: id
+      name: id
+      description: 表主键
+      data_type: bigint
+      dictionary: {}
+      evidence_refs: []
+    - field_id: cust_id
+      name: cust_id
+      description: 企业 ID
+      data_type: bigint
+      dictionary: {}
+      evidence_refs: []
+    - field_id: product_id
+      name: product_id
+      description: 租户互通产品 ID
+      data_type: bigint
+      dictionary: {}
+      evidence_refs: []
+    - field_id: open_status
+      name: open_status
+      description: 企业产品开通状态，Y/P/N
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: enable
+      name: enable
+      description: 启用标记，Y/N
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: ref_cust_interworking_product_cust_company_info
+      name: ref_cust_interworking_product_cust_company_info
+      description: 企业 code 引用
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: ref_cust_interworking_product_tenant_interworking_product
+      name: ref_cust_interworking_product_tenant_interworking_product
+      description: 租户互通产品 code 引用
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    evidence_refs:
+    - ev-cip-model
+  - dataset_id: company
+    name: cust_company_info
+    description: 企业主/过程记录，一行一家企业。正式企业主数据需 data_type='1' 且 enable='Y'。
+    database: lowcode_pplatform
+    fields:
+    - field_id: code
+      name: code
+      description: 企业业务键，联系人/项目关联/角色均按 code 关联
+      data_type: varchar
+      evidence_refs: []
+    evidence_refs:
+    - ev-company-ref
+  - dataset_id: platform_product
+    name: platform_product
+    description: 平台产品目录；不是租户产品开通实例。
+    database: lowcode_pplatform
+    fields:
+    - field_id: id
+      name: id
+      description: 表主键
+      data_type: bigint
+      dictionary: {}
+      evidence_refs: []
+    - field_id: code
+      name: code
+      description: 平台产品关联编码
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: product_code
+      name: product_code
+      description: 平台产品编号
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: name
+      name: name
+      description: 产品名称
+      data_type: varchar
+      dictionary: {}
+      evidence_refs: []
+    - field_id: product_cate
+      name: product_cate
+      description: ''
+      data_type: ''
+      dictionary: {}
+      evidence_refs: []
+    evidence_refs:
+    - ev-platform-ref
+  relationships:
+  - relationship_id: project-product
+    left:
+      dataset: tenant_interworking_project
+      field: product_id
+      database: ''
+    right:
+      dataset: tenant_interworking_product
+      field: id
+      database: ''
+    relationship_type: EQUI_JOIN
+    cardinality: n:1
+    business_meaning: 互通项目归属租户互通产品
+    status: proposed
+    evidence_refs:
+    - ev-tipj-product
+    confidence: 0.5
+  - relationship_id: cust-product
+    left:
+      dataset: cust_interworking_product
+      field: product_id
+      database: ''
+    right:
+      dataset: tenant_interworking_product
+      field: id
+      database: ''
+    relationship_type: EQUI_JOIN
+    cardinality: n:1
+    business_meaning: 企业互通产品指向租户互通产品
+    status: proposed
+    evidence_refs:
+    - ev-cip-product
+    confidence: 0.5
+  - relationship_id: cust-company
+    left:
+      dataset: cust_interworking_product
+      field: ref_cust_interworking_product_cust_company_info
+      database: ''
+    right:
+      dataset: company
+      field: code
+      database: ''
+    relationship_type: EQUI_JOIN
+    cardinality: n:1
+    business_meaning: 企业互通产品按企业 code 关联企业
+    status: proposed
+    evidence_refs:
+    - ev-company-ref
+    confidence: 0.5
+  - relationship_id: tenant-product-code
+    left:
+      dataset: tenant_interworking_product
+      field: platform_product_code
+      database: ''
+    right:
+      dataset: platform_product
+      field: product_code
+      database: ''
+    relationship_type: EQUI_JOIN
+    cardinality: n:1
+    business_meaning: 租户互通产品按平台产品编号关联产品目录
+    status: proposed
+    evidence_refs:
+    - ev-platform-ref
+    confidence: 0.5
+  - relationship_id: cust-product-code
+    left:
+      dataset: cust_interworking_product
+      field: ref_cust_interworking_product_tenant_interworking_product
+      database: ''
+    right:
+      dataset: tenant_interworking_product
+      field: code
+      database: ''
+    relationship_type: EQUI_JOIN
+    cardinality: n:1
+    business_meaning: 企业互通产品按 code 关联租户互通产品
+    status: proposed
+    evidence_refs:
+    - ev-ref-relations
+    confidence: 0.5
+  metrics:
+  - metric_id: opened-interworking-product-count
+    name: 已开通互通产品数
+    description: 按产品记录去重统计 open_status=Y 且 enable=Y 的互通产品。
+    aggregation: COUNT_DISTINCT
+    field:
+      dataset: tenant_interworking_product
+      field: id
+      database: ''
+    filters: []
+    grain:
+    - dataset: tenant_interworking_product
+      field: platform_product_code
+      database: ''
+    evidence_refs:
+    - ev-tip-open-status
+  - metric_id: opened-customer-interworking-product-count
+    name: 已开通企业互通产品数
+    description: 按企业互通产品记录去重统计 open_status=Y 且 enable=Y 的记录。
+    aggregation: COUNT_DISTINCT
+    field:
+      dataset: cust_interworking_product
+      field: id
+      database: ''
+    filters: []
+    grain:
+    - dataset: cust_interworking_product
+      field: ref_cust_interworking_product_cust_company_info
+      database: ''
+    evidence_refs:
+    - ev-cip-model
+  calibers:
+  - caliber_id: opened-interworking-product
+    label: 已开通互通产品
+    description: 互通产品表中 open_status=Y 且 enable=Y。
+    contract_fragment:
+      predicates:
+      - field: tenant_interworking_product.open_status
+        operator: eq
+        values:
+        - Y
+      - field: tenant_interworking_product.enable
+        operator: eq
+        values:
+        - Y
+    field_targets:
+    - dataset: tenant_interworking_product
+      field: open_status
+      database: ''
+    - dataset: tenant_interworking_product
+      field: enable
+      database: ''
+    evidence_refs:
+    - ev-tip-open-status
+    - ev-tip-list
+  - caliber_id: opened-customer-interworking-product
+    label: 已开通企业互通产品
+    description: 企业互通产品记录中 open_status=Y 且 enable=Y。
+    contract_fragment:
+      predicates:
+      - field: cust_interworking_product.open_status
+        operator: eq
+        values:
+        - Y
+      - field: cust_interworking_product.enable
+        operator: eq
+        values:
+        - Y
+    field_targets:
+    - dataset: cust_interworking_product
+      field: open_status
+      database: ''
+    - dataset: cust_interworking_product
+      field: enable
+      database: ''
+    evidence_refs:
+    - ev-cip-model
+    - ev-open-status-enum
+  domain_rules:
+  - rule_id: interworking-status-ynp
+    label: 互通产品开通状态使用 Y/P/N
+    content: ProductOpenStatusEnum 的物理键为 Y=已开通、P=开通中、N=未开通；企业申请的 OPENED/OPENING 不属于本三表口径。
+    applicability: 互通产品和企业互通产品开通查询
+    query_impact: 过滤本域 open_status 必须使用 Y/P/N，并按需要叠加 enable=Y。
+    field_targets:
+    - dataset: tenant_interworking_product
+      field: open_status
+      database: ''
+    - dataset: cust_interworking_product
+      field: open_status
+      database: ''
+    evidence_refs:
+    - ev-open-status-enum
+    - ev-cip-open-status
+  - rule_id: interworking-project-all-scope
+    label: 全部项目不落明细
+    content: 保存项目范围时先删除产品旧明细；scope=ALL 直接返回，否则只为存在的 tenant_project 创建明细。
+    applicability: 互通产品适用项目查询
+    query_impact: scope=ALL 的产品不能通过 tenant_interworking_project 行数判断适用项目数。
+    field_targets:
+    - dataset: tenant_interworking_product
+      field: scope
+      database: ''
+    - dataset: tenant_interworking_project
+      field: product_id
+      database: ''
+    evidence_refs:
+    - ev-project-relate
+  verified_query_patterns:
+  - pattern_id: count-opened-interworking-products
+    question: 已开通的互通产品有多少
+    query: SELECT COUNT(DISTINCT id) AS opened_interworking_product_count FROM tenant_interworking_product
+      WHERE open_status = 'Y' AND enable = 'Y'
+    intended_specification:
+      grain: tenant_interworking_product
+      caliber_id: opened-interworking-product
+    verification:
+      status: PENDING_VALIDATION
+    evidence_refs:
+    - ev-tip-open-status
+evidence_refs:
+- ev-tip-model
+- ev-tip-create
+- ev-tip-list
+- ev-tip-active
+- ev-tip-cancel
+- ev-project-relate
+- ev-controller
+- ev-tipj-model
+- ev-cip-model
+- ev-open-status-enum
+- ev-cip-open-status
+- ev-ref-relations
+- ev-company-ref
+- ev-platform-ref
+- ev-tipj-product
+- ev-cip-product
+unit_links: []
+assumptions:
+- 企业互通产品的新增/更新服务未在本次核心入口代码中定位，状态字段与关联字段按 DO 和静态关系提取。
+- 关联关系标记 proposed，未连接目标数据库验证。
+conflicts: []
+confidence: 0.88

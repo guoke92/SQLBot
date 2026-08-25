@@ -1,0 +1,109 @@
+{
+  "unit_id": "enterprise-change",
+  "sources": [
+    {
+      "source_id": "src-enterprise-change",
+      "kind": "source_code",
+      "locator": "lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml",
+      "repository_revision": "ee434954e"
+    }
+  ],
+  "evidence": [
+    {
+      "evidence_id": "ev-change-company-state",
+      "source_id": "src-enterprise-change",
+      "evidence_kind": "code_path",
+      "locator": "lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml",
+      "claim": "企业变更: 企业变更是已存在企业资料的修改审核；主表在途时 cust_build_status=CUST_CHANGE 且 cust_status=CHANGE。",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-change-endpoint",
+      "source_id": "src-enterprise-change",
+      "evidence_kind": "code_path",
+      "locator": "lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml",
+      "claim": "企业变更: 企业变更是已存在企业资料的修改审核；主表在途时 cust_build_status=CUST_CHANGE 且 cust_status=CHANGE。",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-change-handler",
+      "source_id": "src-enterprise-change",
+      "evidence_kind": "code_path",
+      "locator": "lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml",
+      "claim": "规则 变更拒绝不等于建档失败: 变更回调拒绝场景不能把企业计入 BUILD_FAIL；建档状态口径需单独判断。",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-change-inflight",
+      "source_id": "src-enterprise-change",
+      "evidence_kind": "code_path",
+      "locator": "lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml",
+      "claim": "在途变更: 变更单 status 不属于 CUST_CHECK_PASS/CUST_CHECK_REJECT；系统重建流程按 cust_id 取最新一条在途记录。",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-change-pass",
+      "source_id": "src-enterprise-change",
+      "evidence_kind": "code_path",
+      "locator": "lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml",
+      "claim": "变更审核通过 update company.['cust_status', 'check_status', 'cust_build_status']",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-change-record-fields",
+      "source_id": "src-enterprise-change",
+      "evidence_kind": "database_schema",
+      "locator": "lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml",
+      "claim": "变更审核单: cust_change_record 一行代表一次变更过程，以 cust_id 连接企业主键，不能直接当企业数。",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-change-relation",
+      "source_id": "src-enterprise-change",
+      "evidence_kind": "code_path",
+      "locator": "lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml",
+      "claim": "规则 变更单不是企业: 统计变更中企业必须 COUNT_DISTINCT cust_company_info.id，禁止直接 COUNT cust_change_record 行数代替企业数。",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-check-status-dict",
+      "source_id": "src-enterprise-change",
+      "evidence_kind": "code_path",
+      "locator": "lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml",
+      "claim": "变更审核单: cust_change_record 一行代表一次变更过程，以 cust_id 连接企业主键，不能直接当企业数。",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-company-fields",
+      "source_id": "src-enterprise-change",
+      "evidence_kind": "database_schema",
+      "locator": "lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml",
+      "claim": "企业变更审核 相关事实",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-rebuild",
+      "source_id": "src-enterprise-change",
+      "evidence_kind": "code_path",
+      "locator": "lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml",
+      "claim": "阶段 变更流程重建: POST /cust-web/change/rebuild",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-rebuild-latest",
+      "source_id": "src-enterprise-change",
+      "evidence_kind": "code_path",
+      "locator": "lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml",
+      "claim": "在途变更: 变更单 status 不属于 CUST_CHECK_PASS/CUST_CHECK_REJECT；系统重建流程按 cust_id 取最新一条在途记录。",
+      "confidence": 0.8
+    },
+    {
+      "evidence_id": "ev-save-change-record",
+      "source_id": "src-enterprise-change",
+      "evidence_kind": "code_path",
+      "locator": "lowcode-pplatform-customer-management/src/main/resources/mappers/CustCompanyQueryMapper.xml",
+      "claim": "阶段 提交变更: 客户提交变更项并进入本地或运营处理",
+      "confidence": 0.8
+    }
+  ]
+}

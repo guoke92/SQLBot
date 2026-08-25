@@ -1,0 +1,201 @@
+unit_id: openapi-access
+revision: 1
+title: OpenAPI访问
+aliases:
+- OpenAPI
+domain: openapi
+applicability: 外部访问密钥与同步错误
+description: 外部 OpenAPI 访问密钥和同步错误记录。
+content:
+  concepts:
+  - concept_id: openapi-access
+    name: OpenAPI访问
+    aliases:
+    - 访问密钥
+    definition: cust_access_secret 管理外部访问密钥。
+    dictionary: {}
+    field_targets:
+    - dataset: cust_access_secret
+      field: id
+      database: ''
+    evidence_refs:
+    - ev-access-secret-schema
+  processes:
+  - stage_id: maintain
+    name: 维护数据
+    description: ''
+    trigger: 业务管理端或同步入口
+    enter_conditions: []
+    exit_conditions: []
+    next_stages:
+    - query
+    data_effects:
+    - &id003
+      operation: read
+      dataset: cust_access_secret
+      fields: &id001
+      - id
+      - code
+      - name
+      - encry_type
+      - rel_lls_secret_id
+      - enable
+      condition: 查询/导出
+      description: ''
+      evidence_refs: []
+    - operation: upsert
+      dataset: cust_access_secret
+      fields: *id001
+      condition: 新增或更新
+      description: ''
+      evidence_refs: []
+    - &id004
+      operation: read
+      dataset: client_api_sync_error
+      fields: &id002
+      - id
+      - code
+      - name
+      - enable
+      condition: 查询/导出
+      description: ''
+      evidence_refs: []
+    - operation: upsert
+      dataset: client_api_sync_error
+      fields: *id002
+      condition: 新增或更新
+      description: ''
+      evidence_refs: []
+    evidence_refs: []
+  - stage_id: query
+    name: 查询数据
+    description: ''
+    trigger: 列表/详情/统计查询
+    enter_conditions: []
+    exit_conditions: []
+    next_stages: []
+    data_effects:
+    - *id003
+    - *id004
+    evidence_refs: []
+  datasets:
+  - dataset_id: cust_access_secret
+    name: cust_access_secret
+    description: cust_access_secret
+    database: lowcode_pplatform
+    fields:
+    - field_id: id
+      name: id
+      description: id
+      data_type: varchar
+      dictionary: {}
+    - field_id: code
+      name: code
+      description: code
+      data_type: varchar
+      dictionary: {}
+    - field_id: name
+      name: name
+      description: name
+      data_type: varchar
+      dictionary: {}
+    - field_id: encry_type
+      name: encry_type
+      description: encry_type
+      data_type: varchar
+      dictionary: {}
+    - field_id: rel_lls_secret_id
+      name: rel_lls_secret_id
+      description: rel_lls_secret_id
+      data_type: varchar
+      dictionary: {}
+    - field_id: enable
+      name: enable
+      description: enable
+      data_type: varchar
+      dictionary: {}
+    evidence_refs: []
+  - dataset_id: client_api_sync_error
+    name: client_api_sync_error
+    description: client_api_sync_error
+    database: lowcode_pplatform
+    fields:
+    - field_id: id
+      name: id
+      description: id
+      data_type: varchar
+      dictionary: {}
+    - field_id: code
+      name: code
+      description: code
+      data_type: varchar
+      dictionary: {}
+    - field_id: name
+      name: name
+      description: name
+      data_type: varchar
+      dictionary: {}
+    - field_id: enable
+      name: enable
+      description: enable
+      data_type: varchar
+      dictionary: {}
+    evidence_refs: []
+  relationships: []
+  metrics:
+  - metric_id: openapi-access-count
+    name: OpenAPI访问记录数
+    description: 按主键计数。
+    aggregation: COUNT
+    field:
+      dataset: cust_access_secret
+      field: id
+      database: ''
+    filters: []
+    grain: []
+    evidence_refs: []
+  calibers:
+  - caliber_id: openapi-access-enabled
+    label: 启用的OpenAPI访问
+    description: enable=Y 的记录。
+    contract_fragment:
+      predicates:
+      - field: cust_access_secret.enable
+        operator: eq
+        values:
+        - Y
+    field_targets:
+    - dataset: cust_access_secret
+      field: enable
+      database: ''
+    evidence_refs: []
+  domain_rules:
+  - rule_id: openapi-access-enable-filter
+    label: 仅启用数据参与查询
+    content: 查询/统计默认过滤 enable=Y。
+    applicability: OpenAPI访问查询
+    query_impact: 过滤 enable=Y
+    field_targets:
+    - dataset: cust_access_secret
+      field: enable
+      database: ''
+    evidence_refs: []
+  verified_query_patterns:
+  - pattern_id: count-openapi-access
+    question: OpenAPI访问有多少
+    query: SELECT COUNT(DISTINCT id) AS cnt FROM cust_access_secret WHERE enable =
+      'Y'
+    intended_specification:
+      grain: cust_access_secret
+      caliber_id: openapi-access-enabled
+    verification:
+      status: PENDING_VALIDATION
+    evidence_refs: []
+evidence_refs:
+- ev-access-secret-schema
+- ev-sync-error-schema
+unit_links: []
+assumptions:
+- 查询范例未在目标库执行。
+conflicts: []
+confidence: 0.85

@@ -249,6 +249,83 @@ def _include_process(question: str, entry: KnowledgeUnitEntry) -> bool:
     )
 
 
+def _enrich_node_bundle(
+    session: Session,
+    bundle: BusinessDataBundle,
+    result: Any,
+    *,
+    question: str,
+) -> BusinessDataBundle:
+    """Fill unit-level slots that node-plane closure does not carry.
+
+    The pinned deployment snapshot holds the full entry view, so unit metadata,
+    assumptions, conflicts and processes come from it directly instead of a
+    second join to KnowledgeUnit/Revision. ``bound_resources`` comes from the
+    reached dataset nodes' physical names (the same projection the unit path
+    derives from its binding mapping).
+    """
+    from apps.knowledge.graph.models import CompositionDeployment
+
+    deployment_ids = {
+        int(row.deployment_id or 0)
+        for node_id in result.reached
+        if (row := result.index_by_node.get(node_id)) is not None and row.deployment_id
+    }
+    seen_units: set[str] = set()
+    if deployment_ids:
+        rows = session.exec(
+            select(CompositionDeployment).where(
+                col(CompositionDeployment.id).in_(deployment_ids)
+            )
+        ).all()
+        for deployment in rows:
+            snapshot = dict(deployment.pinned_snapshot or {})
+            entry = snapshot.get("entry") or {}
+            meta = snapshot.get("meta") or {}
+            unit_key = str(meta.get("unit_key") or entry.get("unit_key") or "")
+            if not unit_key or unit_key in seen_units:
+                continue
+            seen_units.add(unit_key)
+            bundle.matched_units.append(
+                {
+                    "unit_key": unit_key,
+                    "title": entry.get("title") or "",
+                    "domain": entry.get("domain") or "",
+                    "description": entry.get("description") or "",
+                    "applicability": entry.get("applicability") or "",
+                    "confidence": entry.get("confidence"),
+                }
+            )
+            bundle.assumptions.extend(entry.get("assumptions") or [])
+            bundle.ambiguities.extend(entry.get("conflicts") or [])
+            entry_obj: KnowledgeUnitEntry | None = None
+            if entry:
+                try:
+                    entry_obj = KnowledgeUnitEntry.model_validate(entry)
+                except Exception:  # noqa: BLE001 - malformed snapshot degrades
+                    entry_obj = None
+            if entry_obj is not None and _include_process(question, entry_obj):
+                bundle.scenarios.extend(
+                    item.model_dump(mode="json") for item in entry_obj.content.processes
+                )
+                bundle.data_effects.extend(
+                    {**effect.model_dump(mode="json"), "stage_id": process.stage_id}
+                    for process in entry_obj.content.processes
+                    for effect in process.data_effects
+                )
+    # Physical table projection from the reached dataset nodes.
+    bound: list[str] = []
+    for node_id in result.reached:
+        row = result.index_by_node.get(node_id)
+        if row is None or row.node_kind != "dataset":
+            continue
+        name = str((dict(row.content or {})).get("name") or "").strip()
+        if name and name not in bound:
+            bound.append(name)
+    bundle.bound_resources = bound
+    return bundle
+
+
 def _compile_node_strategy(
     session: Session,
     *,
@@ -286,6 +363,7 @@ def _compile_node_strategy(
         SQLBotLogUtil.warning(f"node-plane recall unavailable: {type(exc).__name__}")
         return BusinessDataBundle(stage=stage, matches=matches)
     bundle = assemble_node_bundle(result, stage=stage, matches=matches)
+    _enrich_node_bundle(session, bundle, result, question=question)
     # Verified query patterns become certified exemplars and gain a real
     # similarity score (fixing the VQR short-circuit that could never fire).
     for example in bundle.verified_examples:
@@ -500,7 +578,6 @@ def compile_business_data_bundle(
                     "id": item.pattern_id,
                     "question": item.question,
                     "sql": item.query,
-                    "description": item.query,
                     # selected 仅含 bind 时对目标库实际执行通过（passed:true）的
                     # 范例，属执行验证后的 certified；try_reuse 要求 certified 才
                     # 允许短路复用，二者必须一致，否则 VQR 复用永远命中不了。
@@ -534,27 +611,107 @@ def compile_business_data_bundle(
 
 
 def knowledge_prompt_payload(bundle: BusinessDataBundle) -> dict[str, Any]:
-    """Compact Query Agent knowledge slots. Keys match the prompt contract."""
+    """Compact Query Agent knowledge slots. Keys match the prompt contract.
+
+    Field entries collapse to a single representation (name + dataset_id +
+    description + dictionary). Datasets carry no nested fields and no server-
+    side evidence ids: the schema block already supplies column structure, so
+    knowledge keeps only the semantic delta over raw schema.
+    """
     payload: dict[str, Any] = {}
-    mapping = (
-        ("matched_units", "matched_units"),
-        ("concepts", "concepts"),
-        ("scenarios", "processes"),
-        ("data_effects", "data_effects"),
-        ("datasets", "datasets"),
-        ("fields", "fields"),
-        ("relationships", "relationships"),
-        ("metrics", "metrics"),
-        ("calibers", "calibers"),
-        ("rules", "rules"),
-        ("verified_examples", "verified_examples"),
-        ("ambiguities", "conflicts"),
-        ("assumptions", "assumptions"),
-    )
-    for source, target in mapping:
-        value = getattr(bundle, source)
-        if value:
-            payload[target] = value
+
+    _SERVER_KEYS = {"evidence_refs", "unit_revision_id"}
+
+    def _no_refs(items: list[Any]) -> list[dict[str, Any]]:
+        return [
+            {k: v for k, v in item.items() if k not in _SERVER_KEYS}
+            for item in items
+            if isinstance(item, dict)
+        ]
+
+    def _process(item: Any) -> dict[str, Any]:
+        # data_effects are flattened into their own slot with a stage_id link,
+        # so the nested copy is dropped here (avoids double-serializing them).
+        data = item if isinstance(item, dict) else {}
+        return {
+            k: v
+            for k, v in data.items()
+            if k not in _SERVER_KEYS and k != "data_effects"
+        }
+
+    def _field(item: Any) -> dict[str, Any] | None:
+        data = item if isinstance(item, dict) else {}
+        if not data.get("name"):
+            return None
+        out: dict[str, Any] = {"name": data["name"]}
+        if data.get("dataset_id"):
+            out["dataset_id"] = data["dataset_id"]
+        if data.get("description"):
+            out["description"] = data["description"]
+        dictionary = data.get("dictionary")
+        if isinstance(dictionary, dict) and dictionary:
+            out["dictionary"] = dictionary
+        return out
+
+    def _dataset(item: Any) -> dict[str, Any]:
+        data = item if isinstance(item, dict) else {}
+        return {
+            key: data[key]
+            for key in ("name", "dataset_id", "database", "description")
+            if data.get(key)
+        }
+
+    def _unit(item: Any) -> dict[str, Any]:
+        data = item if isinstance(item, dict) else {}
+        out: dict[str, Any] = {
+            key: data[key]
+            for key in ("unit_key", "title", "domain", "description", "applicability")
+            if data.get(key)
+        }
+        if data.get("confidence") is not None:
+            out["confidence"] = data["confidence"]
+        return out
+
+    def _example(item: Any) -> dict[str, Any]:
+        data = item if isinstance(item, dict) else {}
+        out: dict[str, Any] = {}
+        sql = data.get("sql") or data.get("query")
+        if sql:
+            out["sql"] = sql
+        for key in ("id", "question", "trust_tier"):
+            if data.get(key):
+                out[key] = data[key]
+        return out
+
+    if bundle.matched_units:
+        payload["matched_units"] = [_unit(item) for item in bundle.matched_units]
+    if bundle.concepts:
+        payload["concepts"] = _no_refs(bundle.concepts)
+    if bundle.scenarios:
+        payload["processes"] = [_process(item) for item in bundle.scenarios]
+    if bundle.data_effects:
+        payload["data_effects"] = _no_refs(bundle.data_effects)
+    if bundle.datasets:
+        payload["datasets"] = [_dataset(item) for item in bundle.datasets]
+    if bundle.fields:
+        compact = [_field(item) for item in bundle.fields]
+        payload["fields"] = [item for item in compact if item is not None]
+    if bundle.relationships:
+        payload["relationships"] = _no_refs(bundle.relationships)
+    if bundle.metrics:
+        payload["metrics"] = _no_refs(bundle.metrics)
+    if bundle.calibers:
+        payload["calibers"] = _no_refs(bundle.calibers)
+    if bundle.rules:
+        payload["rules"] = _no_refs(bundle.rules)
+    if bundle.verified_examples:
+        payload["verified_examples"] = [
+            _example(item) for item in bundle.verified_examples
+        ]
+    if bundle.ambiguities:
+        payload["conflicts"] = _no_refs(bundle.ambiguities)
+    if bundle.assumptions:
+        payload["assumptions"] = bundle.assumptions
     if bundle.reuse:
         payload["reuse"] = bundle.reuse
     return payload

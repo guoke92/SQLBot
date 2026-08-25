@@ -63,12 +63,35 @@ def load_coverage(path: str | Path) -> dict[str, Any]:
         raise ValueError(
             f"coverage excludes unknown tables: {', '.join(sorted(unknown))}"
         )
+    inactive = raw.get("inactive") or {}
+    if not isinstance(inactive, dict) or not all(
+        isinstance(reason, str) for reason in inactive.values()
+    ):
+        raise ValueError("coverage `inactive` must be a table-name to reason mapping")
+    unknown_inactive = set(inactive) - set(tables)
+    if unknown_inactive:
+        raise ValueError(
+            f"coverage marks unknown tables inactive: {', '.join(sorted(unknown_inactive))}"
+        )
+    overlap = set(inactive) & set(excluded)
+    if overlap:
+        raise ValueError(
+            "coverage tables cannot be both inactive and excluded: "
+            f"{', '.join(sorted(overlap))}"
+        )
     return {
         "repository": raw.get("repository", ""),
         "repository_revision": raw.get("repository_revision", ""),
         "tables": list(dict.fromkeys(tables)),
         "excluded": dict(excluded),
+        "inactive": dict(inactive),
     }
+
+
+def _is_inactive_registration(unit: KnowledgeUnitEntry) -> bool:
+    """True when a unit is a pure dormant-registration (all datasets inactive)."""
+    datasets = unit.content.datasets
+    return bool(datasets) and all(dataset.inactive for dataset in datasets)
 
 
 def _dataset_tables(package: KnowledgePackageV2) -> dict[str, set[str]]:
@@ -87,12 +110,20 @@ def _lint_coverage(
 ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     tables = set(coverage["tables"])
     excluded = set(coverage["excluded"])
+    inactive = set(coverage.get("inactive") or {})
     unit_tables = _dataset_tables(package)
     referenced = {name for names in unit_tables.values() for name in names}
 
     covered = sorted(referenced & tables)
     undeclared = sorted(referenced - tables)
     gaps = sorted(tables - referenced - excluded)
+
+    flagged = {
+        dataset.name.casefold(): dataset.inactive
+        for unit in package.knowledge_units
+        for dataset in unit.content.datasets
+        if dataset.name.strip()
+    }
 
     issues: list[dict[str, Any]] = []
     for table in gaps:
@@ -119,11 +150,38 @@ def _lint_coverage(
                 ),
             }
         )
+    for table in sorted(inactive):
+        if table.casefold() in flagged and not flagged[table.casefold()]:
+            issues.append(
+                {
+                    "code": "INACTIVE_FLAG_MISSING",
+                    "severity": "advisory",
+                    "unit": None,
+                    "message": (
+                        f"coverage marks table {table!r} inactive but the declaring "
+                        "dataset is not flagged inactive: true"
+                    ),
+                }
+            )
+    for name, is_inactive in flagged.items():
+        if is_inactive and name not in inactive and name in {t.casefold() for t in tables}:
+            issues.append(
+                {
+                    "code": "INACTIVE_FLAG_UNLISTED",
+                    "severity": "advisory",
+                    "unit": None,
+                    "message": (
+                        f"dataset {name!r} is flagged inactive: true but coverage.yaml "
+                        "does not list it under inactive"
+                    ),
+                }
+            )
     return (
         {
             "total": len(tables),
             "covered": covered,
             "excluded": dict(sorted(coverage["excluded"].items())),
+            "inactive": sorted(inactive),
             "gaps": gaps,
             "undeclared": undeclared,
         },
@@ -222,6 +280,21 @@ def _lint_unit(
 
     referenced_fields = _referenced_field_keys(unit, package_relationships)
     for dataset in content.datasets:
+        if dataset.inactive:
+            if dataset.fields:
+                issues.append(
+                    {
+                        "code": "INACTIVE_DATASET_FIELDS",
+                        "severity": "advisory",
+                        "unit": unit.unit_id,
+                        "message": (
+                            f"inactive dataset {dataset.dataset_id} ({dataset.name}) "
+                            "declares fields; dormant tables are table-level only "
+                            "(fields: []) — fields stay in the catalog"
+                        ),
+                    }
+                )
+            continue
         for field in dataset.fields:
             if (dataset.dataset_id, field.field_id) not in referenced_fields:
                 issues.append(
@@ -238,7 +311,7 @@ def _lint_unit(
                     }
                 )
 
-    if not content.metrics:
+    if not content.metrics and not _is_inactive_registration(unit):
         issues.append(
             {
                 "code": "METRIC_MISSING",

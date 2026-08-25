@@ -1,0 +1,274 @@
+unit_id: op-user-coverage
+revision: 1
+title: 运营用户覆盖
+aliases:
+- 运营用户
+domain: operation
+applicability: 运营人员与变更轨迹
+description: 运营用户同步与运营变更轨迹。
+content:
+  concepts:
+  - concept_id: op-user
+    name: 运营用户
+    aliases:
+    - 运营人员
+    definition: operation_user 表示运营中台用户。
+    dictionary: {}
+    field_targets:
+    - dataset: operation_user
+      field: id
+      database: ''
+    evidence_refs:
+    - ev-operation-user-schema
+  processes:
+  - stage_id: maintain
+    name: 维护数据
+    description: ''
+    trigger: 业务管理端或同步入口
+    enter_conditions: []
+    exit_conditions: []
+    next_stages:
+    - query
+    data_effects:
+    - &id003
+      operation: read
+      dataset: operation_user
+      fields: &id001
+      - id
+      - operation_id
+      - status
+      - code
+      - name
+      - enable
+      condition: 查询/导出
+      description: ''
+      evidence_refs: []
+    - operation: upsert
+      dataset: operation_user
+      fields: *id001
+      condition: 新增或更新
+      description: ''
+      evidence_refs: []
+    - &id004
+      operation: read
+      dataset: cust_oper_change_record
+      fields: &id002
+      - id
+      - person_id
+      - company_id
+      - before_operator_id
+      - after_operator_id
+      - change_type
+      - enable
+      condition: 查询/导出
+      description: ''
+      evidence_refs: []
+    - operation: upsert
+      dataset: cust_oper_change_record
+      fields: *id002
+      condition: 新增或更新
+      description: ''
+      evidence_refs: []
+    evidence_refs: []
+  - stage_id: query
+    name: 查询数据
+    description: ''
+    trigger: 列表/详情/统计查询
+    enter_conditions: []
+    exit_conditions: []
+    next_stages: []
+    data_effects:
+    - *id003
+    - *id004
+    evidence_refs: []
+  datasets:
+  - dataset_id: operation_user
+    name: operation_user
+    description: operation_user
+    database: lowcode_pplatform
+    fields:
+    - field_id: id
+      name: id
+      description: id
+      data_type: varchar
+      dictionary: {}
+    - field_id: operation_id
+      name: operation_id
+      description: operation_id
+      data_type: varchar
+      dictionary: {}
+    - field_id: status
+      name: status
+      description: status
+      data_type: varchar
+      dictionary: {}
+    - field_id: code
+      name: code
+      description: code
+      data_type: varchar
+      dictionary: {}
+    - field_id: name
+      name: name
+      description: name
+      data_type: varchar
+      dictionary: {}
+    - field_id: enable
+      name: enable
+      description: enable
+      data_type: varchar
+      dictionary: {}
+    evidence_refs: []
+  - dataset_id: cust_oper_change_record
+    name: cust_oper_change_record
+    description: cust_oper_change_record
+    database: lowcode_pplatform
+    fields:
+    - field_id: id
+      name: id
+      description: id
+      data_type: varchar
+      dictionary: {}
+    - field_id: person_id
+      name: person_id
+      description: person_id
+      data_type: varchar
+      dictionary: {}
+    - field_id: company_id
+      name: company_id
+      description: company_id
+      data_type: varchar
+      dictionary: {}
+    - field_id: before_operator_id
+      name: before_operator_id
+      description: before_operator_id
+      data_type: varchar
+      dictionary: {}
+    - field_id: after_operator_id
+      name: after_operator_id
+      description: after_operator_id
+      data_type: varchar
+      dictionary: {}
+    - field_id: change_type
+      name: change_type
+      description: change_type
+      data_type: varchar
+      dictionary: {}
+    - field_id: enable
+      name: enable
+      description: enable
+      data_type: varchar
+      dictionary: {}
+    evidence_refs: []
+  - dataset_id: cust_company_info
+    name: cust_company_info
+    description: 企业主数据/过程记录。
+    database: lowcode_pplatform
+    fields:
+    - field_id: id
+      name: id
+      description: 表主键
+      data_type: bigint
+      dictionary: {}
+    evidence_refs: []
+  - dataset_id: cust_person_info
+    name: cust_person_info
+    description: 企业联系人/管理员。
+    database: lowcode_pplatform
+    fields:
+    - field_id: id
+      name: id
+      description: 表主键
+      data_type: bigint
+      dictionary: {}
+    evidence_refs: []
+  relationships:
+  - relationship_id: oper-change-to-company
+    left:
+      dataset: cust_oper_change_record
+      field: company_id
+      database: ''
+    right:
+      dataset: cust_company_info
+      field: id
+      database: ''
+    relationship_type: EQUI_JOIN
+    cardinality: n:1
+    business_meaning: 运营变更记录关联企业。
+    status: proposed
+    evidence_refs:
+    - ev-operation-user-schema
+    confidence: 0.5
+  - relationship_id: oper-change-to-person
+    left:
+      dataset: cust_oper_change_record
+      field: person_id
+      database: ''
+    right:
+      dataset: cust_person_info
+      field: id
+      database: ''
+    relationship_type: EQUI_JOIN
+    cardinality: n:1
+    business_meaning: 运营变更记录关联联系人。
+    status: proposed
+    evidence_refs:
+    - ev-operation-user-schema
+    confidence: 0.5
+  metrics:
+  - metric_id: op-user-coverage-count
+    name: 运营用户覆盖记录数
+    description: 按主键计数。
+    aggregation: COUNT
+    field:
+      dataset: operation_user
+      field: id
+      database: ''
+    filters: []
+    grain: []
+    evidence_refs: []
+  calibers:
+  - caliber_id: op-user-coverage-enabled
+    label: 启用的运营用户覆盖
+    description: enable=Y 的记录。
+    contract_fragment:
+      predicates:
+      - field: operation_user.enable
+        operator: eq
+        values:
+        - Y
+    field_targets:
+    - dataset: operation_user
+      field: enable
+      database: ''
+    evidence_refs: []
+  domain_rules:
+  - rule_id: op-user-coverage-enable-filter
+    label: 仅启用数据参与查询
+    content: 查询/统计默认过滤 enable=Y。
+    applicability: 运营用户覆盖查询
+    query_impact: 过滤 enable=Y
+    field_targets:
+    - dataset: operation_user
+      field: enable
+      database: ''
+    evidence_refs: []
+  verified_query_patterns:
+  - pattern_id: count-op-user-coverage
+    question: 运营用户覆盖有多少
+    query: SELECT COUNT(DISTINCT id) AS cnt FROM operation_user WHERE enable = 'Y'
+    intended_specification:
+      grain: operation_user
+      caliber_id: op-user-coverage-enabled
+    verification:
+      status: PENDING_VALIDATION
+    evidence_refs: []
+evidence_refs:
+- ev-operation-user-schema
+- ev-oper-change-schema
+- ev-company-schema
+- ev-person-schema
+unit_links: []
+assumptions:
+- 查询范例未在目标库执行。
+conflicts: []
+confidence: 0.85

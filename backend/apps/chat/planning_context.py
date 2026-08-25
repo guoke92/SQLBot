@@ -20,37 +20,31 @@ from apps.chat.context_bundle import ContextSection, budget_context_sections
 from apps.knowledge.compile import BusinessDataBundle, knowledge_prompt_payload
 
 _PLANNER_CONTEXT_BUDGET = 24_000
-_KNOWLEDGE_FLOOR_KEYS = (
-    "matched_units",
-    "concepts",
-    "datasets",
-    "fields",
-    "relationships",
-    "metrics",
-    "calibers",
-    "rules",
-    "verified_examples",
-    "conflicts",
+# Knowledge slots grouped by prompt value, high -> low. ``budget_context_sections``
+# keeps sections in order, so the highest-value group survives a tight budget.
+_KNOWLEDGE_GROUPS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("core", ("calibers", "rules", "relationships", "metrics")),
+    ("context", ("concepts", "datasets", "fields", "verified_examples", "conflicts")),
+    ("meta", ("matched_units",)),
+    ("process", ("processes", "data_effects", "assumptions")),
 )
-_KNOWLEDGE_PROCESS_KEYS = ("processes", "data_effects", "assumptions")
 
 
 def _split_knowledge_payload(
     compact: dict[str, Any],
-) -> tuple[dict[str, Any], dict[str, Any]]:
-    floor = {
-        key: compact[key] for key in _KNOWLEDGE_FLOOR_KEYS if compact.get(key)
-    }
-    process = {
-        key: compact[key] for key in _KNOWLEDGE_PROCESS_KEYS if compact.get(key)
-    }
-    leftover = {
-        key: value
-        for key, value in compact.items()
-        if key not in _KNOWLEDGE_FLOOR_KEYS and key not in _KNOWLEDGE_PROCESS_KEYS
-    }
-    floor.update(leftover)
-    return floor, process
+) -> list[tuple[str, dict[str, Any]]]:
+    """Split the compact payload into value-ordered groups for budgeting."""
+    groups: list[tuple[str, dict[str, Any]]] = []
+    seen: set[str] = set()
+    for name, keys in _KNOWLEDGE_GROUPS:
+        group = {key: compact[key] for key in keys if compact.get(key)}
+        if group:
+            groups.append((name, group))
+        seen.update(keys)
+    leftover = {key: value for key, value in compact.items() if key not in seen}
+    if leftover:
+        groups.append(("extra", leftover))
+    return groups
 
 
 def _bundle_from_prompt_payload(payload: dict[str, Any]) -> BusinessDataBundle:
@@ -95,23 +89,18 @@ def capture_planning_context(
 ) -> PlanningContextSnapshot:
     question = llm_service.chat_question
     compiled = getattr(llm_service, "compiled_knowledge", None)
-    compiled_payload: dict[str, Any] = {}
-    process_payload: dict[str, Any] = {}
+    knowledge_groups: list[tuple[str, dict[str, Any]]] = []
     if isinstance(compiled, BusinessDataBundle):
-        compiled_payload, process_payload = _split_knowledge_payload(
-            knowledge_prompt_payload(compiled)
-        )
+        knowledge_groups = _split_knowledge_payload(knowledge_prompt_payload(compiled))
     sections, truncation = budget_context_sections(
         [
             ContextSection(
                 name="schema_text", content=str(question.db_schema or ""), trusted=True
             ),
-            ContextSection(
-                name="compiled_knowledge",
-                content=compiled_payload,
-                trusted=True,
-            ),
-            ContextSection(name="compiled_knowledge_process", content=process_payload),
+            *[
+                ContextSection(name=f"knowledge_{name}", content=content)
+                for name, content in knowledge_groups
+            ],
             ContextSection(
                 name="custom_rules", content=str(question.custom_prompt or "")
             ),
@@ -119,8 +108,9 @@ def capture_planning_context(
         ],
         max_tokens=_PLANNER_CONTEXT_BUDGET,
     )
-    knowledge = dict(sections.get("compiled_knowledge") or {})
-    knowledge.update(sections.get("compiled_knowledge_process") or {})
+    knowledge: dict[str, Any] = {}
+    for name, _content in knowledge_groups:
+        knowledge.update(sections.get(f"knowledge_{name}") or {})
     payload: dict[str, Any] = {
         "version": 2,
         "schema_text": sections.get("schema_text", ""),
