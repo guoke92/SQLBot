@@ -65,6 +65,66 @@ def _apply_display_defaults(
     return plans
 
 
+_TECHNICAL_ANNOTATION_MARKERS = (
+    "兼容",
+    "写法",
+    "cte",
+    "子查询",
+    "方言",
+    "修复",
+    "改写",
+    "重写",
+    "不使用",
+    "未使用",
+    "不含",
+    "mysql",
+    "starrocks",
+    "版本",
+)
+
+
+def _strip_technical_annotations(title: str) -> str:
+    """Drop trailing（…）/(…) groups that document the implementation.
+
+    Repairer-written descriptions often append notes like
+    "（MySQL兼容写法，不使用CTE）" — real information for the fix, noise for
+    a tab title. Business parentheticals (conditions, scope) are kept.
+    """
+    text = title.strip()
+    changed = True
+    while changed:
+        changed = False
+        for open_mark, close_mark in (("（", "）"), ("(", ")")):
+            if not text.endswith(close_mark):
+                continue
+            open_index = text.rfind(open_mark)
+            if open_index < 0:
+                continue
+            inner = text[open_index + 1 : -1]
+            if any(marker in inner.lower() for marker in _TECHNICAL_ANNOTATION_MARKERS):
+                text = text[:open_index].rstrip(" ，,；;-—")
+                changed = True
+    return text or title
+
+
+def apply_batch_display_defaults(
+    plans: list[dict[str, Any]], question: str
+) -> list[dict[str, Any]]:
+    """Batch-boundary display defaults: per-dataset description → tab title.
+
+    Per-query parsing applies defaults with a single-plan view, so the batch
+    numbering（1）（2）never fires there. The batch caller (decision parse,
+    revalidation, repair acceptance) owns the authoritative titles: reset each
+    plan's brief from its ``description`` (with technical annotations
+    stripped) and apply the defaults once here.
+    """
+    for plan in plans:
+        description = str(plan.get("description") or "").strip()
+        if description:
+            plan["brief"] = _strip_technical_annotations(description)
+    return _apply_display_defaults(plans, question)
+
+
 def _accept_plan(
     llm_service: Any, plan: QueryPlan
 ) -> tuple[dict[str, Any] | None, str | None]:

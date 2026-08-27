@@ -27,7 +27,7 @@ import traceback
 from collections.abc import Mapping
 from concurrent.futures import as_completed
 from copy import deepcopy
-from typing import Any, Literal, TypedDict, cast
+from typing import Any, Literal, NamedTuple, TypedDict, cast
 
 import orjson
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
@@ -60,7 +60,7 @@ from apps.chat.plan_policy import (
     MAX_QUERIES_PER_BATCH,
     ROW_LIMIT,
 )
-from apps.chat.planning import parse_query_generation
+from apps.chat.planning import apply_batch_display_defaults, parse_query_generation
 from apps.chat.planning_context import (
     capture_planning_context,
     execution_schema_resources,
@@ -99,6 +99,14 @@ from apps.chat.semantic_planning import (
     question_id_of,
 )
 from apps.chat.steps.chart import generate_chart
+from apps.chat.steps.chat_scope import (
+    cached_access_scope,
+    connection_fresh,
+    invalidate_connection,
+    is_missing,
+    remember_access_scope,
+    remember_connection,
+)
 from apps.chat.steps.custom_prompt import match_custom_prompts
 from apps.chat.steps.datasource import select_datasource, validate_history_ds
 from apps.chat.steps.knowledge import get_compiled_knowledge, match_knowledge
@@ -113,8 +121,21 @@ from apps.chat.steps.query_agent import (
     QueryAgentError,
     plan_body_fingerprint,
     repair_physical_plans,
+    revalidate_query_plans,
     review_query_semantics,
     run_query_agent,
+)
+from apps.chat.steps.recall_map import render_knowledge_map, render_schema_map
+from apps.chat.steps.recall_topup import (
+    TopupManifest,
+    TopupSignals,
+    apply_knowledge_topup,
+    fulfill_recall_topup,
+    record_topup_event,
+    resolve_recall_topup,
+    signals_from_evidence,
+    tables_from_clarify_card,
+    topup_enabled_for,
 )
 from apps.chat.steps.schema import match_table_schema
 from apps.chat.steps.stream import consume_llm
@@ -168,6 +189,7 @@ from apps.knowledge.compile import matched_revision_ids, seed_revisions_for_turn
 from apps.knowledge.compile.bundle import ApplyHit
 from apps.protocol import QueryPlan
 from apps.protocol.base import CAP_ROW_PERMISSION
+from apps.protocol.sql.identifier_validation import collect_sql_identifier_usage
 from common.core.config import settings
 from common.error import SingleMessageError, SQLBotDBConnectionError
 from common.utils.data_format import DataFormat
@@ -227,6 +249,11 @@ class NlqState(RunState, total=False):
     plan_facts: list[dict[str, Any]]
     planning_model_elapsed_sec: float
     json_result: dict[str, Any]
+
+    # recall top-up (deterministic evidence-driven working-set expansion)
+    recall_topup_notice: dict[str, Any]
+    topup_bounce_count: int
+    plan_gate_route: str
 
     # batch loop
     step_index: int  # current batch iteration (0-based)
@@ -1273,12 +1300,20 @@ def prepare_record_node(state: NlqState) -> NlqState:
 
 
 def ensure_datasource_node(state: NlqState) -> NlqState:
-    """Select/validate datasource + connection."""
+    """Select/validate datasource + connection (chat-scoped connection cache).
+
+    The first turn of a conversation validates connectivity against the
+    target DB and emits the audit span; later turns within the TTL reuse the
+    cached verdict silently — the datasource bound to a chat does not change
+    between turns, and connection failures invalidate the entry immediately.
+    """
     llm_service = _llm_service(state)
     sink = StreamSink.from_state(state)
 
     try:
-        silent = state.get("planning_decision") == "replan"
+        connection_cached = bool(llm_service.ds) and connection_fresh(
+            getattr(llm_service.ds, "id", None)
+        )
 
         def _bind_datasource(span: Any) -> None:
             with session_scope() as session:
@@ -1303,9 +1338,13 @@ def ensure_datasource_node(state: NlqState) -> NlqState:
                 else:
                     validate_history_ds(llm_service, session)
 
+                if connection_cached:
+                    return
                 connected = llm_service.protocol.check_connection(ds=llm_service.ds)
                 if not connected:
+                    invalidate_connection(getattr(llm_service.ds, "id", None))
                     raise SQLBotDBConnectionError("Datasource connection failed")
+                remember_connection(getattr(llm_service.ds, "id", None))
                 if span is None:
                     return
                 span.set_input(
@@ -1324,7 +1363,9 @@ def ensure_datasource_node(state: NlqState) -> NlqState:
                 )
                 span.set_summary("chat.audit.datasource_selected")
 
-        if silent and llm_service.ds:
+        if (connection_cached or state.get("planning_decision") == "replan") and (
+            llm_service.ds
+        ):
             _bind_datasource(None)
             return state
         with log_span(
@@ -1386,9 +1427,24 @@ def parse_temporal_evidence_node(state: NlqState) -> NlqState:
 
 
 def resolve_access_scope_node(state: NlqState) -> NlqState:
-    """Resolve datasource visibility once for every downstream NLQ stage."""
+    """Resolve datasource visibility once per (user, ds), reused across turns.
+
+    The scope depends on the user and the datasource — never on the chat — so
+    the first turn of any conversation resolves and emits the audit span, and
+    later turns within the TTL reuse the cached scope silently. The snapshot
+    write-back contract is unaffected: ``attach_runtime`` still binds the
+    scope for every run.
+    """
     llm_service = _llm_service(state)
     try:
+        run_id = str(state["run_id"])
+        oid, ds_id = _ds_scope(llm_service)
+        user_id = getattr(llm_service.current_user, "id", None)
+        if ds_id is not None:
+            cached = cached_access_scope(int(oid or 1), int(ds_id), user_id)
+            if not is_missing(cached):
+                attach_runtime(run_id, access_scope=cached)
+                return state
 
         def _bind_access_scope(span: Any) -> None:
             with session_scope() as session:
@@ -1397,7 +1453,11 @@ def resolve_access_scope_node(state: NlqState) -> NlqState:
                     current_user=llm_service.current_user,
                     ds=llm_service.ds,
                 )
-                attach_runtime(str(state["run_id"]), access_scope=access_scope)
+                if ds_id is not None:
+                    remember_access_scope(
+                        int(oid or 1), int(ds_id), user_id, access_scope
+                    )
+                attach_runtime(run_id, access_scope=access_scope)
                 if span is None:
                     return
                 span.set_detail(
@@ -1465,6 +1525,204 @@ def retrieve_schema_node(state: NlqState) -> NlqState:
             return _fail(state, llm_service.record.id, e)
 
 
+class _TopupRun(NamedTuple):
+    changed: bool
+    manifest: TopupManifest
+    notice: dict[str, Any]
+
+
+def _run_topup(
+    state: NlqState,
+    llm_service: LLMService,
+    *,
+    signals: TopupSignals,
+    source: str,
+    graph_node: str,
+    audit: bool = True,
+    persist: bool = True,
+    extra_event: dict[str, Any] | None = None,
+) -> _TopupRun:
+    """Single top-up orchestration shared by every trigger source.
+
+    resolve → knowledge recompile (+1 unit) → fulfill → telemetry → snapshot
+    write-back. The write-back is not optional plumbing: plan_query restores
+    ``QueryRun.planning_context`` on every entry, so a changed working set
+    that is not persisted would be silently discarded by the next node.
+    ``persist=False`` is only for the pre-capture question pass, whose caller
+    captures the same snapshot immediately afterwards.
+    """
+    with session_scope() as session:
+        oid, _ds_id = _ds_scope(llm_service)
+        manifest = resolve_recall_topup(
+            session,
+            llm_service,
+            signals,
+            oid=int(oid or 1),
+            access_scope=_access_scope(state),
+        )
+        if not manifest.has_additions:
+            return _TopupRun(False, manifest, {})
+        knowledge_changed = apply_knowledge_topup(
+            session, llm_service, manifest, oid=int(oid or 1)
+        )
+        result = fulfill_recall_topup(
+            session,
+            llm_service,
+            manifest,
+            access_scope=_access_scope(state),
+            graph_node=graph_node,
+            audit=audit,
+        )
+        if not (result.changed or knowledge_changed):
+            return _TopupRun(False, manifest, {})
+        notice: dict[str, Any] = {
+            "source": source,
+            "added_tables": list(result.added_tables),
+            "value_hits": [dict(item) for item in manifest.value_hits],
+            "knowledge_units": [dict(item) for item in manifest.knowledge_units],
+        }
+        record_topup_event(
+            session, str(state["run_id"]), {**notice, **(extra_event or {})}
+        )
+        if persist:
+            fresh = capture_planning_context(
+                llm_service,
+                entity_bindings=dict(state.get("entity_bindings") or {}),
+                temporal_parse=dict(state.get("temporal_parse") or {}),
+            )
+            nlq_run = session.get(QueryRun, str(state["run_id"]))
+            if nlq_run is not None:
+                nlq_run.planning_context = fresh.model_dump(mode="json")
+                session.add(nlq_run)
+                session.commit()
+    return _TopupRun(True, manifest, notice)
+
+
+def _topup_after_clarify(state: NlqState, llm_service: LLMService) -> NlqState:
+    """Evidence-driven working-set top-up on clarify resume (deterministic).
+
+    Clarification answers are the strongest recall signal: option targets name
+    tables structurally and custom text carries business values. The restored
+    snapshot keeps the expensive deterministic fetches; this pass only unions
+    evidence-driven additions in and persists a fresh snapshot via
+    ``_run_topup``. State carries the restored ``entity_bindings`` /
+    ``temporal_parse``, so the unified write-back captures the same values.
+    """
+    if not topup_enabled_for(getattr(llm_service.ds, "id", None)):
+        return state
+    with session_scope() as session:
+        evidence = active_evidence(session, str(state["run_id"]))
+    signals = signals_from_evidence(list(evidence))
+    if not signals.evidence_tables and not signals.evidence_texts:
+        return state
+    run = _run_topup(
+        state,
+        llm_service,
+        signals=signals,
+        source="clarify_resume",
+        graph_node="retrieve_context",
+    )
+    if not run.changed:
+        return state
+    return {**state, "recall_topup_notice": run.notice}
+
+
+def _topup_on_question(
+    state: NlqState, llm_service: LLMService
+) -> dict[str, Any] | None:
+    """First-pass value-index top-up on the question text (deterministic).
+
+    Runs after the standard recall steps and before the planning-context
+    snapshot is captured, so additions land in the same snapshot
+    (``persist=False``) with no separate write-back. ``audit=False``: this
+    graph node already emitted its CHOOSE_TABLE span for this execution.
+    """
+    if not topup_enabled_for(getattr(llm_service.ds, "id", None)):
+        return None
+    question = str(llm_service.retrieval_question or "").strip()
+    if not question:
+        return None
+    run = _run_topup(
+        state,
+        llm_service,
+        signals=TopupSignals(question_text=question),
+        source="question",
+        graph_node="retrieve_context",
+        audit=False,
+        persist=False,
+    )
+    return run.notice if run.changed else None
+
+
+class _GateExpansion(NamedTuple):
+    """Hard-gate adjudication facts for the fatal policy in plan_query_node.
+
+    ``uncovered`` are SQL-referenced tables still outside the working set after
+    evidence-driven expansion — an ACCESS_POLICY_VIOLATION over them is a real
+    permission breach. ``undetermined`` marks a violation whose references
+    cannot be parsed (non-SQL plan / unparsable SQL); those stay fatal.
+    ``expanded`` says the working set grew, which invalidates the recorded
+    gate errors and obliges the caller to re-validate the decision.
+    """
+
+    uncovered: frozenset[str]
+    undetermined: bool
+    expanded: bool
+
+
+def _topup_on_failed_gates(
+    state: NlqState, llm_service: LLMService, plans: list[dict[str, Any]]
+) -> _GateExpansion:
+    """Expand rejected-SQL table references into the working set and adjudicate.
+
+    A hard-gate rejection for an out-of-working-set table is usually a recall
+    gap, not a model defect: the table exists in the catalog and inside the
+    user's AccessScope (it is map-visible), so the deterministic resolver
+    pulls it in and the repair loop gets a complete schema window. Tables the
+    resolver cannot admit — hallucinated or genuinely out of scope — are
+    returned as ``uncovered`` so the caller keeps the fatal policy for real
+    violations.
+    """
+    dialect = _sql_dialect(llm_service)
+    working = {str(name) for name in (llm_service.table_name_list or [])}
+    outside: set[str] = set()
+    undetermined = False
+    for plan in plans:
+        if plan.get("hard_gate_status") != "failed":
+            continue
+        sql = str(plan.get("sql") or "")
+        if not sql:
+            if plan.get("hard_gate_code") == "ACCESS_POLICY_VIOLATION":
+                undetermined = True
+            continue
+        try:
+            usage = collect_sql_identifier_usage(sql, dialect)
+        except Exception:  # noqa: BLE001
+            undetermined = True
+            continue
+        outside.update(name for name in usage.physical_tables if name not in working)
+    if not topup_enabled_for(getattr(llm_service.ds, "id", None)):
+        # Legacy policy: no evidence expansion, every outside table stays fatal.
+        return _GateExpansion(frozenset(outside), undetermined, expanded=False)
+    if outside:
+        _run_topup(
+            state,
+            llm_service,
+            signals=TopupSignals(unauthorized_tables=tuple(sorted(outside))),
+            source="failed_gates",
+            graph_node="plan_query",
+            extra_event={"referenced": sorted(outside)},
+        )
+    remaining = {
+        name for name in outside if name not in set(llm_service.table_name_list or [])
+    }
+    return _GateExpansion(
+        frozenset(remaining),
+        undetermined,
+        expanded=bool(outside - remaining),
+    )
+
+
 def retrieve_context_node(state: NlqState) -> NlqState:
     """Build planner context as one checkpointed stage.
 
@@ -1484,12 +1742,13 @@ def retrieve_context_node(state: NlqState) -> NlqState:
         if persisted:
             try:
                 snapshot = restore_planning_context(llm_service, persisted)
-                return {
+                restored_state = {
                     **state,
                     "entity_bindings": snapshot.entity_bindings,
                     "temporal_parse": snapshot.temporal_parse,
                     "compiled_knowledge": snapshot.compiled_knowledge,
                 }
+                return _topup_after_clarify(restored_state, llm_service)
             except ValueError:
                 # A malformed/incomplete snapshot is rebuilt through the sole
                 # retrieval path below; planning is never allowed to consume it.
@@ -1508,6 +1767,9 @@ def retrieve_context_node(state: NlqState) -> NlqState:
             break
     if not current.get("error"):
         llm_service = _llm_service(current)
+        notice = _topup_on_question(current, llm_service)
+        if notice:
+            current = {**current, "recall_topup_notice": notice}
         snapshot = capture_planning_context(
             llm_service,
             entity_bindings=current.get("entity_bindings") or {},
@@ -1609,6 +1871,9 @@ def turn_router_node(state: NlqState) -> NlqState:
             raw = call.content or message_content_text(
                 getattr(call.message, "content", "")
             )
+            # Observability: keep the raw model output so a validation failure
+            # (swallowed by route_turn's fallback) stays diagnosable.
+            route_call_holder["raw_text"] = str(raw)[:1000]
             nested = extract_nested_json(raw)
             if not nested:
                 raise ValueError("Turn router response is not JSON")
@@ -1618,6 +1883,7 @@ def turn_router_node(state: NlqState) -> NlqState:
             result["source"] = "model"
             result.setdefault("confidence", 0.7)
             route_call_holder["call"] = call
+            route_call_holder["raw_payload"] = result
             return result
 
         with log_span(
@@ -1635,6 +1901,9 @@ def turn_router_node(state: NlqState) -> NlqState:
                 else route_turn(
                     question_text,
                     reference_record_ids=references,
+                    candidate_record_ids=tuple(
+                        int(item["record_id"]) for item in history_payload
+                    ),
                     route_hint=state.get("route_hint") or persisted_hint,
                     has_history=bool(history_payload),
                     model_router=model_router,
@@ -1646,13 +1915,19 @@ def turn_router_node(state: NlqState) -> NlqState:
                 }
                 if not set(route.reference_record_ids).issubset(allowed_references):
                     # A router may select only the compact candidate set it
-                    # received. Hallucinated IDs must never broaden context.
-                    route = TurnRoute(
-                        task_kind="query",
-                        relation="independent",
-                        source="fallback",
-                        confidence=0.35,
+                    # received. Hallucinated IDs must never broaden context —
+                    # re-route through the ladder (conservative rescue keeps
+                    # anaphoric messages attached to the latest turn instead
+                    # of degrading them to independent).
+                    route = route_turn(
+                        question_text,
+                        reference_record_ids=references,
+                        candidate_record_ids=tuple(
+                            int(item["record_id"]) for item in history_payload
+                        ),
+                        has_history=bool(history_payload),
                     )
+                    route_call_holder["hallucinated_references"] = True
             route_call = route_call_holder.get("call")
             if route_call is not None:
                 span.set_usage(route_call.usage)
@@ -1673,6 +1948,20 @@ def turn_router_node(state: NlqState) -> NlqState:
                 }
             )
             span.set_output(route.model_dump(mode="json"))
+            if route.source == "fallback" or route_call_holder.get(
+                "hallucinated_references"
+            ):
+                # Diagnosability: what the model actually said before the
+                # fallback/repair path replaced it.
+                span.set_detail(
+                    {
+                        "router_raw_payload": route_call_holder.get("raw_payload"),
+                        "router_raw_text": route_call_holder.get("raw_text"),
+                        "hallucinated_references": bool(
+                            route_call_holder.get("hallucinated_references")
+                        ),
+                    }
+                )
             span.set_summary("chat.audit.turn_routed")
 
         with session_scope() as session:
@@ -1715,6 +2004,47 @@ def unsupported_turn_node(state: NlqState) -> NlqState:
     sink.text(content)
     sink.event({"type": "finish", "id": state.get("record_id")})
     return {**state, "outcome": successful_outcome()}
+
+
+_REFERENCED_FIELD_LIMIT = 20
+_REFERENCED_ROW_LIMIT = 3
+_REFERENCED_CELL_WIDTH = 24
+
+
+def _referenced_dataset_outline(dataset: dict[str, Any]) -> dict[str, Any]:
+    """Planner-facing shape of one referenced dataset.
+
+    A continuation/revision turn plans against the previous result — the
+    final SQL (the authoritative semantics the user saw), the field list, and
+    a couple of sample rows let the planner reason about shape and grain
+    without guessing from the prose summary. Rows are clipped hard: this is
+    an outline, not data transport.
+    """
+
+    def _clip_cell(value: Any) -> Any:
+        text = str(value)
+        return (
+            text[:_REFERENCED_CELL_WIDTH]
+            if len(text) > _REFERENCED_CELL_WIDTH
+            else value
+        )
+
+    fields = [str(item) for item in dataset.get("fields") or []][
+        :_REFERENCED_FIELD_LIMIT
+    ]
+    sample_rows = [
+        {key: _clip_cell(value) for key, value in row.items() if key in fields}
+        for row in (dataset.get("rows") or [])[:_REFERENCED_ROW_LIMIT]
+        if isinstance(row, dict)
+    ]
+    return {
+        "dataset_id": dataset.get("dataset_id"),
+        "title": dataset.get("title") or "",
+        "fields": fields,
+        "row_count": dataset.get("row_count"),
+        "sql": str(dataset.get("sql") or "")[:1200],
+        "sample_rows": sample_rows,
+    }
 
 
 def _dataset_capabilities(dataset: dict[str, Any]) -> dict[str, Any]:
@@ -1835,7 +2165,9 @@ def assemble_turn_context_node(state: NlqState) -> NlqState:
                             if latest_query is not None
                             else None
                         ),
-                        "dataset_ids": [item.get("dataset_id") for item in datasets],
+                        "datasets": [
+                            _referenced_dataset_outline(item) for item in datasets
+                        ],
                         "revision_ids": matched_revision_ids(
                             planning.get("compiled_knowledge")
                             if isinstance(planning.get("compiled_knowledge"), dict)
@@ -2106,6 +2438,22 @@ def plan_query_node(state: NlqState) -> NlqState:
             )
             business_now_text = run.business_now.isoformat()
             business_timezone = run.timezone
+            schema_map_text = ""
+            knowledge_map_text = ""
+            if topup_enabled_for(getattr(llm_service.ds, "id", None)):
+                # Window complement only: tables already in the schema window
+                # are noise here.
+                schema_map_text = render_schema_map(
+                    session,
+                    ds=llm_service.ds,
+                    access_scope=_access_scope(state),
+                    exclude=frozenset(planning_context.resources or []),
+                )
+                oid, _map_ds_id = _ds_scope(llm_service)
+                if oid is not None:
+                    knowledge_map_text = render_knowledge_map(
+                        session, oid=int(oid), ds_id=int(_map_ds_id or 0)
+                    )
         with log_span(
             operate=OperationEnum.CLARIFY_INTENT,
             record_id=record_id,
@@ -2133,6 +2481,9 @@ def plan_query_node(state: NlqState) -> NlqState:
                         "prior_user_evidence": state.get("prior_user_evidence") or [],
                         "context_truncation": list(planning_context.truncation or []),
                         "certified_knowledge": planning_context.compiled_knowledge,
+                        "schema_map": schema_map_text,
+                        "knowledge_map": knowledge_map_text,
+                        "recall_topup_notice": state.get("recall_topup_notice") or {},
                     },
                     resolved_question_ids=_resolved_question_ids(evidence),
                     max_batch_size=state.get("max_batch_size") or _MAX_BATCH_SIZE,
@@ -2176,7 +2527,12 @@ def plan_query_node(state: NlqState) -> NlqState:
             return {
                 **state,
                 "planning_decision": "clarify",
-                "ambiguity_payload": result.decision.as_card().model_dump(mode="json"),
+                "ambiguity_payload": {
+                    **result.decision.as_card().model_dump(mode="json"),
+                    # The plan gate resolves these concepts (knowledge units /
+                    # catalog) before the interrupt reaches the user.
+                    "missing_concepts": list(result.decision.missing_concepts),
+                },
                 "active_candidate": {},
                 "planning_model_elapsed_sec": _planning_elapsed_for_state(
                     interrupt=True, elapsed=planning_elapsed
@@ -2204,85 +2560,140 @@ def plan_query_node(state: NlqState) -> NlqState:
         if not isinstance(result.decision, Ready) or not result.plans:
             raise SingleMessageError("Query Agent did not produce an executable plan")
 
-        fact_models = _plan_fact_models(result.plans, dialect=_sql_dialect(llm_service))
+        # Hard-gate evaluation loop: an evidence-driven working-set expansion
+        # invalidates the recorded gate errors (the rejected table is now in
+        # the window), so the same decision is re-validated against the
+        # expanded schema once before any error text reaches the repair turn.
+        plans = result.plans
+        fact_models = _plan_fact_models(plans, dialect=_sql_dialect(llm_service))
         fact_payloads = [item.model_dump(mode="json") for item in fact_models]
-        failed_gates = [
-            {
-                "plan_id": plan.get("plan_id"),
-                "code": str(plan.get("hard_gate_code") or "PLAN_VALIDATION_FAILED"),
-                "errors": list(plan.get("hard_gate_errors") or []),
-            }
-            for plan in result.plans
-            if plan.get("hard_gate_status") == "failed"
-        ]
+        failed_gates: list[dict[str, Any]] = []
+        for _gate_round in range(2):
+            failed_gates = [
+                {
+                    "plan_id": plan.get("plan_id"),
+                    "code": str(plan.get("hard_gate_code") or "PLAN_VALIDATION_FAILED"),
+                    "errors": list(plan.get("hard_gate_errors") or []),
+                }
+                for plan in plans
+                if plan.get("hard_gate_status") == "failed"
+            ]
+            if not failed_gates:
+                break
+            # ACCESS_POLICY_VIOLATION is fatal only for tables the resolver
+            # cannot admit (hallucinated / out of scope): a map-visible table
+            # outside the working set is a recall gap — expand, then re-run
+            # the gates on the expanded window. Unconditionally-fatal codes
+            # skip the expansion entirely (the run is dying; no schema writes).
+            hard_fatal = any(
+                item["code"] in {"NON_READ_ONLY_PLAN", "PROTOCOL_UNSUPPORTED"}
+                for item in failed_gates
+            )
+            expansion = (
+                _GateExpansion(frozenset(), False, False)
+                if hard_fatal
+                else _topup_on_failed_gates(state, llm_service, plans)
+            )
+            if hard_fatal or expansion.uncovered or expansion.undetermined:
+                with session_scope() as session:
+                    persist_query_decision(
+                        session,
+                        run_id=run_id,
+                        decision=result.decision.model_dump(mode="json"),
+                        plans=plans,
+                        hard_gate_report={"status": "failed", "plans": failed_gates},
+                        risk_assessment={},
+                        plan_facts=fact_payloads,
+                        planning_status="rejected",
+                        repair_record={
+                            "attempt": 0,
+                            "reason": "hard_gate_failed",
+                            "status": "failed",
+                            "plan_ids": [item.get("plan_id") for item in plans],
+                            "sql": [str(item.get("sql") or "") for item in plans],
+                        },
+                    )
+                raise SingleMessageError("查询未通过安全、权限或协议门禁，已停止执行。")
+            if not expansion.expanded:
+                break
+            # The window grew: restore the fresh snapshot for its fingerprint,
+            # then re-validate the same decision against the expanded schema.
+            fresh_context = planning_context
+            with session_scope() as session:
+                nlq_run = session.get(QueryRun, run_id)
+                if nlq_run is not None:
+                    try:
+                        fresh_context = restore_planning_context(
+                            llm_service, dict(nlq_run.planning_context or {})
+                        )
+                    except ValueError:
+                        fresh_context = planning_context
+            plans = revalidate_query_plans(
+                llm_service,
+                decision=result.decision,
+                schema_fingerprint=str(fresh_context.schema_fingerprint or ""),
+                max_batch_size=state.get("max_batch_size") or _MAX_BATCH_SIZE,
+            )
+            fact_models = _plan_fact_models(plans, dialect=_sql_dialect(llm_service))
+            fact_payloads = [item.model_dump(mode="json") for item in fact_models]
+
         if failed_gates:
-            gate_report = {"status": "failed", "plans": failed_gates}
             with session_scope() as session:
                 persist_query_decision(
                     session,
                     run_id=run_id,
                     decision=result.decision.model_dump(mode="json"),
-                    plans=result.plans,
-                    hard_gate_report=gate_report,
+                    plans=plans,
+                    hard_gate_report={"status": "failed", "plans": failed_gates},
                     risk_assessment={},
                     plan_facts=fact_payloads,
-                    planning_status="rejected"
-                    if any(
-                        item["code"]
-                        in {
-                            "NON_READ_ONLY_PLAN",
-                            "ACCESS_POLICY_VIOLATION",
-                            "PROTOCOL_UNSUPPORTED",
-                        }
-                        for item in failed_gates
-                    )
-                    else "repairing",
+                    planning_status="repairing",
                     repair_record={
                         "attempt": 0,
                         "reason": "hard_gate_failed",
                         "status": "failed",
-                        "plan_ids": [item.get("plan_id") for item in result.plans],
-                        "sql": [str(item.get("sql") or "") for item in result.plans],
+                        "plan_ids": [item.get("plan_id") for item in plans],
+                        "sql": [str(item.get("sql") or "") for item in plans],
                     },
                 )
-            fatal_codes = {
-                item["code"]
-                for item in failed_gates
-                if item["code"]
-                in {
-                    "NON_READ_ONLY_PLAN",
-                    "ACCESS_POLICY_VIOLATION",
-                    "PROTOCOL_UNSUPPORTED",
-                }
-            }
-            if fatal_codes:
-                raise SingleMessageError("查询未通过安全、权限或协议门禁，已停止执行。")
             repair_errors = [
                 message for item in failed_gates for message in item.get("errors") or []
             ]
+            # The rejection→repair transition is a real planning decision;
+            # surface it as its own audit step instead of letting the panel
+            # jump from "生成查询" to "修复查询语句" with no visible cause.
+            with log_span(
+                operate=OperationEnum.CLARIFY_INTENT,
+                record_id=record_id,
+                local_operation=True,
+                graph_node="plan_query",
+                title_key="chat.log.PLAN_REJECTED",
+                brief="物理校验未通过，转入修复",
+            ) as gate_span:
+                gate_span.set_detail({"failures": failed_gates})
             return {
                 **state,
                 "planning_decision": "ready",
                 "active_candidate": {},
-                "repair_source_plans": result.plans,
+                "repair_source_plans": plans,
                 "repair_hint": _plan_repair_message("\n".join(repair_errors)),
                 "gen_attempts": 0,
                 "plan_facts": fact_payloads,
                 "planning_model_elapsed_sec": planning_elapsed,
             }
         dialect = _sql_dialect(llm_service)
-        if apply_grouped_metric_order(result.plans, dialect=dialect):
-            fact_models = _plan_fact_models(result.plans, dialect=dialect)
+        if apply_grouped_metric_order(plans, dialect=dialect):
+            fact_models = _plan_fact_models(plans, dialect=dialect)
             fact_payloads = [item.model_dump(mode="json") for item in fact_models]
         with session_scope() as session:
             persist_query_decision(
                 session,
                 run_id=run_id,
                 decision=result.decision.model_dump(mode="json"),
-                plans=result.plans,
+                plans=plans,
                 hard_gate_report={
                     "status": "passed",
-                    "plan_count": len(result.plans),
+                    "plan_count": len(plans),
                 },
                 risk_assessment={},
                 plan_facts=fact_payloads,
@@ -2292,7 +2703,7 @@ def plan_query_node(state: NlqState) -> NlqState:
             **state,
             "planning_decision": "ready",
             "active_candidate": {
-                "plans": result.plans,
+                "plans": plans,
                 "plan_validated": True,
                 "semantic_status": "partial",
             },
@@ -2370,9 +2781,10 @@ def unsupported_query_node(state: NlqState) -> NlqState:
     """Publish a first-class terminal answer when Query Agent reports unsupported."""
     payload = dict(state.get("unsupported_payload") or {})
     message = str(payload.get("message") or "当前问题无法由已选择的数据源回答。")
-    reason_code = str(
-        payload.get("reason_code") or "QUERY_NOT_SUPPORTED"
-    ).strip().upper() or "QUERY_NOT_SUPPORTED"
+    reason_code = (
+        str(payload.get("reason_code") or "QUERY_NOT_SUPPORTED").strip().upper()
+        or "QUERY_NOT_SUPPORTED"
+    )
     outcome = _persist_query_terminal_failure(
         state,
         error_summary=message,
@@ -2756,12 +3168,22 @@ def generate_queries_node(state: NlqState) -> NlqState:
             gen_attempts=gen_attempts,
         ) as span:
             consumed_budget = float(state.get("planning_model_elapsed_sec") or 0.0)
+            repair_evidence: list[Any] = []
+            try:
+                with session_scope() as session:
+                    repair_evidence = list(
+                        active_evidence(session, str(state["run_id"]))
+                    )
+            except Exception:  # noqa: BLE001
+                repair_evidence = []
             physical = repair_physical_plans(
                 llm_service,
                 previous_plans=previous_plans,
                 validation_error=repair,
                 timeout_seconds=_planning_call_timeout_sec(),
                 attempt=gen_attempts + 1,
+                evidence=repair_evidence,
+                prior_user_evidence=state.get("prior_user_evidence") or [],
             )
             span["token_usage"] = physical.usage
             span["reasoning_content"] = physical.reasoning
@@ -2770,6 +3192,9 @@ def generate_queries_node(state: NlqState) -> NlqState:
                 "status": ("valid" if physical.plans else "needs_repair"),
                 "attempt": gen_attempts + 1,
                 "error": None if physical.plans else "No safe repaired plan",
+                # Why this repair round exists — the rejection cause from the
+                # physical gates (kept concise; full text stays in repair_hint).
+                "reason": (repair or "")[:300],
             }
         planning_elapsed = consumed_budget + sum(
             float(item.get("elapsed_ms") or 0) / 1000 for item in physical.model_calls
@@ -2783,6 +3208,14 @@ def generate_queries_node(state: NlqState) -> NlqState:
             )
         plans = list(physical.plans)
         refusal = None if plans else "No safe repaired query plan"
+        plans = apply_batch_display_defaults(
+            plans,
+            str(
+                llm_service.generation_question
+                or llm_service.chat_question.question
+                or ""
+            ),
+        )
         dialect = _sql_dialect(llm_service)
         apply_grouped_metric_order(plans, dialect=dialect)
         fact_models = _plan_fact_models(plans, dialect=dialect)
@@ -3303,11 +3736,17 @@ def execute_queries_node(state: NlqState) -> NlqState:
             except ConversationRunCancelled:
                 raise
             except Exception as e:
+                failure = prepared[0].get("prep_failure") or classify_failure(
+                    e, step_index=0
+                )
+                if failure.get("kind") == "connection":
+                    # A dead connection invalidates the chat-scoped verdict so
+                    # the next turn re-checks instead of trusting the TTL.
+                    invalidate_connection(getattr(llm_service.ds, "id", None))
                 results[0] = {
                     "index": 0,
                     "error": format_error_message(e),
-                    "failure": prepared[0].get("prep_failure")
-                    or classify_failure(e, step_index=0),
+                    "failure": failure,
                     "plan": prepared[0],
                 }
         else:
@@ -3321,11 +3760,15 @@ def execute_queries_node(state: NlqState) -> NlqState:
                 except ConversationRunCancelled:
                     raise
                 except Exception as e:
+                    failure = prepared[idx].get("prep_failure") or classify_failure(
+                        e, step_index=idx
+                    )
+                    if failure.get("kind") == "connection":
+                        invalidate_connection(getattr(llm_service.ds, "id", None))
                     results[idx] = {
                         "index": idx,
                         "error": format_error_message(e),
-                        "failure": prepared[idx].get("prep_failure")
-                        or classify_failure(e, step_index=idx),
+                        "failure": failure,
                         "plan": prepared[idx],
                     }
 
@@ -3939,7 +4382,7 @@ def summarize_answer_node(state: NlqState) -> NlqState:
         ai_modal_name=getattr(llm_service.chat_question, "ai_modal_name", None),
         local_operation=False,
         graph_node="summarize_answer",
-        title_key="chat.log.ANALYSIS",
+        title_key="chat.log.SUMMARIZE",
         brief="结果总结",
         step_index=state.get("step_index"),
     ) as span:
@@ -4445,9 +4888,186 @@ def fail_node(state: NlqState) -> NlqState:
 # ── Routers ──────────────────────────────────────────────────────────────────
 
 
+def _ready_entity_coverage_lint(state: NlqState) -> dict[str, Any] | None:
+    """Advisory lint: value-index hits whose tables the plans never touch."""
+    notice = state.get("recall_topup_notice") or {}
+    hits = notice.get("value_hits") or []
+    if not hits:
+        return None
+    hit_tables = {str(item.get("table")) for item in hits if item.get("table")}
+    plan_tables: set[str] = set()
+    candidate = state.get("active_candidate") or {}
+    for plan in candidate.get("plans") or []:
+        for name in plan.get("tables") or []:
+            plan_tables.add(str(name))
+    uncovered = sorted(hit_tables - plan_tables)
+    if not uncovered:
+        return None
+    return {
+        "lint": "entity_coverage",
+        "severity": "advisory",
+        "uncovered_tables": uncovered,
+        "value_hits": hits,
+    }
+
+
+def plan_gate_node(state: NlqState) -> NlqState:
+    """Deterministic gate on terminal planning decisions (no LLM).
+
+    A terminal negative (unsupported) is only allowed to stand when every
+    claimed missing concept was searched — map lexicon, value index, knowledge
+    index — and found nowhere. A resolvable concept means the negative was
+    premature: expand the working set, persist the snapshot (plan_query
+    restores from it on every entry), and bounce once into plan_query. Clarify
+    cards whose options name tables outside the working set expand the same
+    way. ``ready`` gets an advisory entity-coverage lint only. When the gate
+    passes through, routing semantics are exactly the legacy router's.
+    """
+    state = {**state, "plan_gate_route": ""}
+    decision = state.get("planning_decision")
+    if state.get("error") or decision not in {"clarify", "unsupported", "ready"}:
+        return state
+    bounce_count = int(state.get("topup_bounce_count") or 0)
+    llm_service = _llm_service(state)
+    if not topup_enabled_for(getattr(llm_service.ds, "id", None)):
+        return state
+
+    if decision == "ready":
+        # Repair-path ready states carry no accepted plans yet — the entity
+        # coverage lint only makes sense against an accepted candidate.
+        if not (state.get("repair_hint") or "").strip():
+            lint = _ready_entity_coverage_lint(state)
+            if lint is not None:
+                with session_scope() as session:
+                    record_topup_event(session, str(state["run_id"]), lint)
+                SQLBotLogUtil.info(
+                    "plan gate advisory lint (entity coverage): %s",
+                    lint["uncovered_tables"],
+                )
+        return state
+    if bounce_count > 0:
+        return state
+
+    signals = TopupSignals(question_text=str(llm_service.retrieval_question or ""))
+    force_bounce_hint = ""
+    if decision == "unsupported":
+        payload = dict(state.get("unsupported_payload") or {})
+        concepts = tuple(
+            str(item).strip()
+            for item in payload.get("missing_concepts") or []
+            if str(item).strip()
+        )
+        if not concepts:
+            # Protocol gap: a first-attempt unsupported must name its missing
+            # concepts, otherwise the negative is unverifiable.
+            force_bounce_hint = (
+                "上一次 unsupported 未列出缺失概念。必须在 missing_concepts 中"
+                "用业务语言列出你认定数据源缺失的每个概念后再下结论。"
+            )
+        else:
+            signals = TopupSignals(
+                question_text=str(llm_service.retrieval_question or ""),
+                missing_concepts=concepts,
+            )
+    else:
+        card = state.get("ambiguity_payload") or {}
+        working = {str(name) for name in (llm_service.table_name_list or [])}
+        outside = tuple(
+            name for name in tables_from_clarify_card(card) if name not in working
+        )
+        concepts = tuple(
+            str(item).strip()
+            for item in (card.get("missing_concepts") or [])
+            if str(item).strip()
+        )
+        if not outside and not concepts:
+            return state
+        signals = TopupSignals(
+            question_text=str(llm_service.retrieval_question or ""),
+            evidence_tables=outside,
+            missing_concepts=concepts,
+        )
+
+    run_id = str(state["run_id"])
+    if force_bounce_hint:
+        notice: dict[str, Any] = {
+            "source": "plan_gate",
+            "reason": "missing_concepts_empty",
+            "hint": force_bounce_hint,
+        }
+        with session_scope() as session:
+            record_topup_event(
+                session,
+                run_id,
+                {"source": "plan_gate", "reason": "missing_concepts_empty"},
+            )
+    else:
+        run = _run_topup(
+            state,
+            llm_service,
+            signals=signals,
+            source="plan_gate",
+            graph_node="plan_gate",
+        )
+        if not run.changed:
+            if decision == "unsupported":
+                # Legitimate negative: attach the verified misses so the
+                # terminal answer is evidence-backed.
+                payload = dict(state.get("unsupported_payload") or {})
+                payload["verified_missing"] = list(run.manifest.misses)
+                with session_scope() as session:
+                    record_topup_event(
+                        session,
+                        run_id,
+                        {
+                            "source": "plan_gate",
+                            "reason": "verified_negative",
+                            "verified_missing": list(run.manifest.misses),
+                        },
+                    )
+                return {**state, "unsupported_payload": payload}
+            return state
+        notice = {
+            **run.notice,
+            "reason": "premature_negative_expanded"
+            if decision == "unsupported"
+            else "clarify_expanded",
+            "hint": (
+                "系统已按你声明的缺失概念扩展了 schema 检索窗口"
+                "（见新增表/知识单元与值证据），请基于完整上下文重新决策。"
+            ),
+        }
+    return {
+        **state,
+        "topup_bounce_count": bounce_count + 1,
+        "recall_topup_notice": notice,
+        "plan_gate_route": "plan_query",
+    }
+
+
+def route_after_plan_gate(
+    state: NlqState,
+) -> Literal[
+    "await_clarification",
+    "unsupported",
+    "review_query",
+    "generate_queries",
+    "plan_query",
+    "fail",
+]:
+    if state.get("error"):
+        return "fail"
+    override = str(state.get("plan_gate_route") or "")
+    if override:
+        return cast(Literal["plan_query"], override)
+    return route_after_planning(state)
+
+
 def route_after_planning(
     state: NlqState,
-) -> Literal["await_clarification", "unsupported", "review_query", "generate_queries", "fail"]:
+) -> Literal[
+    "await_clarification", "unsupported", "review_query", "generate_queries", "fail"
+]:
     if state.get("error"):
         return "fail"
     if state.get("planning_decision") == "clarify":

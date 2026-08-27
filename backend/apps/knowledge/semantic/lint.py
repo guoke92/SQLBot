@@ -399,6 +399,7 @@ def _lint_package_relationships(
     """
     issues: list[dict[str, Any]] = []
     declared_tables: dict[str, set[str]] = {}
+    unit_tables = _dataset_tables(package)
     for unit in package.knowledge_units:
         for dataset in unit.content.datasets:
             names = declared_tables.setdefault(dataset.name.casefold(), set())
@@ -406,6 +407,26 @@ def _lint_package_relationships(
     for relationship in package.relationships:
         title = f"{relationship.left_table}.{relationship.left_field} -> "
         title += f"{relationship.right_table}.{relationship.right_field}"
+        shared_units = sorted(
+            unit_id
+            for unit_id, names in unit_tables.items()
+            if relationship.left_table.casefold() in {n.casefold() for n in names}
+            and relationship.right_table.casefold() in {n.casefold() for n in names}
+        )
+        if shared_units:
+            issues.append(
+                {
+                    "code": "RELATION_SHOULD_BE_IN_UNIT",
+                    "severity": "advisory",
+                    "unit": shared_units[0] if len(shared_units) == 1 else None,
+                    "message": (
+                        f"package relationship {title} joins tables that both "
+                        f"belong to unit {', '.join(shared_units)}; move it into "
+                        "that unit's content.relationships (package-level "
+                        "relationships.yaml is for cross-unit relations only)"
+                    ),
+                }
+            )
         if not relationship.evidence:
             issues.append(
                 {
@@ -448,6 +469,24 @@ def _lint_package_relationships(
     return issues
 
 
+def _lint_package_baseline(package: KnowledgePackageV2) -> list[dict[str, Any]]:
+    """The package must declare its source git baseline revision."""
+    issues: list[dict[str, Any]] = []
+    if not package.package.repository_revision.strip():
+        issues.append(
+            {
+                "code": "BASELINE_MISSING",
+                "severity": "advisory",
+                "unit": None,
+                "message": (
+                    "package does not declare repository_revision (source git "
+                    "baseline); set package.repository_revision to the source commit"
+                ),
+            }
+        )
+    return issues
+
+
 _STRICT_BLOCKING_CODES = {"CONCEPT_UNANCHORED", "FAKE_EXECUTED"}
 
 
@@ -468,6 +507,7 @@ def lint_package(
         coverage_report, coverage_issues = _lint_coverage(package, coverage)
         issues.extend(coverage_issues)
     issues.extend(_lint_package_relationships(package))
+    issues.extend(_lint_package_baseline(package))
 
     used_evidence: set[str] = set()
     for unit in package.knowledge_units:

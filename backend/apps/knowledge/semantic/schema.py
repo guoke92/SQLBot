@@ -15,6 +15,8 @@ class PackageMetadata(BaseModel):
     title: str
     namespace: str
     description: str = ""
+    repository: str = ""
+    repository_revision: str = ""
 
     @field_validator("package_id", "title", "namespace")
     @classmethod

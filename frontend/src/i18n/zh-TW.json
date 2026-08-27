@@ -921,9 +921,11 @@
     "log": {
       "GENERATE_QUERY": "產生查詢",
       "REPAIR_QUERY": "修復查詢語句",
+      "PLAN_REJECTED": "物理校驗未通過",
       "PLAN_QUERY": "理解需求並產生查詢",
       "GENERATE_CHART": "產生圖表結構",
       "ANALYSIS": "分析",
+      "SUMMARIZE": "結果總結",
       "PREDICT_DATA": "預測",
       "GENERATE_QUERY_WITH_PERMISSIONS": "拼接查詢行權限",
       "CHOOSE_DATASOURCE": "匹配資料來源",
@@ -963,7 +965,6 @@
       "run_attempt": "第 {value} 次執行",
       "batch": "第 {value} 批",
       "unit": "第 {value} 項",
-
       "step_failed": "處理失敗",
       "step_interrupted": "處理已中斷",
       "step_degraded": "處理完成，但存在降級",

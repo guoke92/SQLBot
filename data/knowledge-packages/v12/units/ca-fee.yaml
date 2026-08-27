@@ -1,0 +1,466 @@
+unit_id: ca-fee
+revision: 1
+title: CA 费用管理
+aliases: []
+domain: ca-fee
+applicability: CA 服务费企业锁定、收费订单创建/支付/开票、项目收费配置场景
+description: 穿透 CaFeeCompanyCaStatusApplication、CaFeeOrderApplication、CaFeeProjectConfigApplication：企业 CA 状态查询/更新、订单全生命周期、项目收费开关与年费标准。
+content:
+  concepts:
+  - concept_id: ca-fee-company
+    name: CA 费用企业
+    aliases: []
+    definition: CA 服务费企业 ca_fee_company
+    dictionary: {}
+    field_targets:
+    - dataset: ca_fee_company
+      field: id
+    evidence_refs:
+    - ev-ca-fee-company-schema
+  - concept_id: ca-fee-order
+    name: CA 收费订单
+    aliases: []
+    definition: CA 收费订单 ca_fee_order
+    dictionary: {}
+    field_targets:
+    - dataset: ca_fee_order
+      field: id
+    evidence_refs:
+    - ev-ca-fee-order-schema
+  - concept_id: ca-fee-project-config
+    name: 项目 CA 收费配置
+    aliases: []
+    definition: 项目 CA 收费配置 ca_fee_project_config
+    dictionary: {}
+    field_targets:
+    - dataset: ca_fee_project_config
+      field: id
+    evidence_refs:
+    - ev-ca-fee-project-config-schema
+  processes:
+  - stage_id: fee-company-status
+    name: 企业 CA 状态维护
+    description: 按统一信用代码查询/更新企业 CA 签章状态与缴费状态
+    trigger: CaFeeCompanyCaStatusApplication
+    enter_conditions: []
+    exit_conditions: []
+    next_stages:
+    - fee-order-manage
+    data_effects:
+    - operation: read
+      dataset: ca_fee_company
+      fields:
+      - id
+      - certification_no
+      - company_name
+      - pay_status
+      - fee_locked
+      - ca_status
+      - locked_annual_fee
+      - enable
+      condition: certification_no=:certificationNo
+      description: 读企业 CA 费用状态
+      evidence_refs:
+      - ev-ca-fee-company-status
+    - operation: update
+      dataset: ca_fee_company
+      fields:
+      - pay_status
+      - ca_status
+      - fee_locked
+      - locked_annual_fee
+      condition: 按业务更新
+      description: 更新企业缴费/签章/锁价状态
+      evidence_refs:
+      - ev-ca-fee-company-status
+    evidence_refs:
+    - ev-ca-fee-company-status
+  - stage_id: fee-order-manage
+    name: 收费订单管理
+    description: 创建/关闭/支付/签署 CA 收费订单，记录支付与发票状态
+    trigger: CaFeeOrderApplication
+    enter_conditions: []
+    exit_conditions: []
+    next_stages:
+    - fee-project-config
+    data_effects:
+    - operation: read
+      dataset: ca_fee_order
+      fields:
+      - id
+      - order_no
+      - company_id
+      - project_id
+      - order_type
+      - order_status
+      - annual_fee
+      - pay_amount
+      - pay_method
+      - invoice_status
+      - enable
+      condition: order_no=:orderNo
+      description: 读订单
+      evidence_refs:
+      - ev-ca-fee-order-create
+    - operation: upsert
+      dataset: ca_fee_order
+      fields:
+      - order_no
+      - company_id
+      - project_id
+      - order_type
+      - order_status
+      - annual_fee
+      - pay_amount
+      - pay_method
+      - invoice_status
+      - enable
+      condition: 创建/更新订单
+      description: 保存 CA 收费订单
+      evidence_refs:
+      - ev-ca-fee-order-create
+    evidence_refs:
+    - ev-ca-fee-order-create
+  - stage_id: fee-project-config
+    name: 项目收费配置
+    description: 查询/保存项目 CA 收费配置，切换收费开关并记录时间
+    trigger: CaFeeProjectConfigApplication
+    enter_conditions: []
+    exit_conditions: []
+    next_stages: []
+    data_effects:
+    - operation: read
+      dataset: ca_fee_project_config
+      fields:
+      - id
+      - project_id
+      - tenant_id
+      - charge_enabled
+      - supplier_annual_fee
+      - core_annual_fee
+      - agreement_version
+      - enable
+      condition: project_id=:projectId
+      description: 读项目收费配置
+      evidence_refs:
+      - ev-ca-fee-project-config
+    - operation: upsert
+      dataset: ca_fee_project_config
+      fields:
+      - project_id
+      - tenant_id
+      - charge_enabled
+      - supplier_annual_fee
+      - core_annual_fee
+      - agreement_version
+      - enable
+      condition: 保存配置
+      description: 保存项目 CA 收费配置
+      evidence_refs:
+      - ev-ca-fee-project-config
+    evidence_refs:
+    - ev-ca-fee-project-config
+  datasets:
+  - dataset_id: ca_fee_company
+    name: ca_fee_company
+    description: CA 服务费企业
+    database: lowcode_pplatform
+    inactive: false
+    fields:
+    - field_id: id
+      name: id
+      data_type: bigint
+      description: 表主键
+      evidence_refs:
+      - ev-ca-fee-company-schema
+    - field_id: certification_no
+      name: certification_no
+      data_type: varchar
+      description: 统一社会信用代码
+      evidence_refs:
+      - ev-ca-fee-company-schema
+    - field_id: company_name
+      name: company_name
+      data_type: varchar
+      description: 企业名称
+      evidence_refs:
+      - ev-ca-fee-company-schema
+    - field_id: pay_status
+      name: pay_status
+      data_type: varchar
+      description: 缴费状态
+      dictionary:
+        PAID: 已缴费
+        UNPAID: 未缴费
+      evidence_refs:
+      - ev-ca-fee-company-schema
+    - field_id: fee_locked
+      name: fee_locked
+      data_type: varchar
+      description: 是否已锁定年费标准
+      dictionary:
+        Y: 是
+        N: 否
+      evidence_refs:
+      - ev-ca-fee-company-schema
+    - field_id: ca_status
+      name: ca_status
+      data_type: varchar
+      description: CA签章状态
+      evidence_refs:
+      - ev-ca-fee-company-schema
+    - field_id: locked_annual_fee
+      name: locked_annual_fee
+      data_type: int
+      description: 锁定的年费标准（元）
+      evidence_refs:
+      - ev-ca-fee-company-schema
+    - field_id: enable
+      name: enable
+      data_type: varchar
+      description: enable
+      evidence_refs:
+      - ev-ca-fee-company-schema
+    evidence_refs:
+    - ev-ca-fee-company-schema
+    - ev-ca-fee-company-status
+    - ev-ca-fee-order-create
+    - ev-ca-fee-project-config
+  - dataset_id: ca_fee_order
+    name: ca_fee_order
+    description: CA 收费订单
+    database: lowcode_pplatform
+    inactive: false
+    fields:
+    - field_id: id
+      name: id
+      data_type: bigint
+      description: 表主键
+      evidence_refs:
+      - ev-ca-fee-order-schema
+    - field_id: order_no
+      name: order_no
+      data_type: varchar
+      description: 订单号，唯一键
+      evidence_refs:
+      - ev-ca-fee-order-schema
+    - field_id: company_id
+      name: company_id
+      data_type: bigint
+      description: 企业 ID
+      evidence_refs:
+      - ev-ca-fee-order-schema
+    - field_id: project_id
+      name: project_id
+      data_type: bigint
+      description: 触发项目 ID（FK：ca_fee_order.project_id -> tenant_project.id）
+      evidence_refs:
+      - ev-ca-fee-order-schema
+    - field_id: order_type
+      name: order_type
+      data_type: varchar
+      description: 订单类型
+      evidence_refs:
+      - ev-ca-fee-order-schema
+    - field_id: order_status
+      name: order_status
+      data_type: varchar
+      description: 订单状态
+      evidence_refs:
+      - ev-ca-fee-order-schema
+    - field_id: annual_fee
+      name: annual_fee
+      data_type: int
+      description: 应缴年费（元）
+      evidence_refs:
+      - ev-ca-fee-order-schema
+    - field_id: pay_amount
+      name: pay_amount
+      data_type: int
+      description: 实缴金额（元）
+      evidence_refs:
+      - ev-ca-fee-order-schema
+    - field_id: pay_method
+      name: pay_method
+      data_type: varchar
+      description: 支付方式
+      evidence_refs:
+      - ev-ca-fee-order-schema
+    - field_id: invoice_status
+      name: invoice_status
+      data_type: varchar
+      description: 发票状态
+      evidence_refs:
+      - ev-ca-fee-order-schema
+    - field_id: enable
+      name: enable
+      data_type: varchar
+      description: enable
+      evidence_refs:
+      - ev-ca-fee-order-schema
+    evidence_refs:
+    - ev-ca-fee-company-status
+    - ev-ca-fee-order-create
+    - ev-ca-fee-order-schema
+    - ev-ca-fee-project-config
+  - dataset_id: ca_fee_project_config
+    name: ca_fee_project_config
+    description: 项目 CA 收费配置
+    database: lowcode_pplatform
+    inactive: false
+    fields:
+    - field_id: id
+      name: id
+      data_type: bigint
+      description: 表主键
+      evidence_refs:
+      - ev-ca-fee-project-config-schema
+    - field_id: project_id
+      name: project_id
+      data_type: bigint
+      description: 项目ID
+      evidence_refs:
+      - ev-ca-fee-project-config-schema
+    - field_id: tenant_id
+      name: tenant_id
+      data_type: bigint
+      description: 所属租户（租户隔离字段，非关联）
+      evidence_refs:
+      - ev-ca-fee-project-config-schema
+    - field_id: charge_enabled
+      name: charge_enabled
+      data_type: varchar
+      description: 是否开启CA收费
+      dictionary:
+        Y: 是
+        N: 否
+      evidence_refs:
+      - ev-ca-fee-project-config-schema
+    - field_id: supplier_annual_fee
+      name: supplier_annual_fee
+      data_type: decimal
+      description: 供应商角色年费（元）
+      evidence_refs:
+      - ev-ca-fee-project-config-schema
+    - field_id: core_annual_fee
+      name: core_annual_fee
+      data_type: decimal
+      description: 核心企业角色年费（元）
+      evidence_refs:
+      - ev-ca-fee-project-config-schema
+    - field_id: agreement_version
+      name: agreement_version
+      data_type: varchar
+      description: 当前绑定收费协议版本号
+      evidence_refs:
+      - ev-ca-fee-project-config-schema
+    - field_id: enable
+      name: enable
+      data_type: varchar
+      description: enable
+      evidence_refs:
+      - ev-ca-fee-project-config-schema
+    evidence_refs:
+    - ev-ca-fee-company-status
+    - ev-ca-fee-order-create
+    - ev-ca-fee-project-config
+    - ev-ca-fee-project-config-schema
+  relationships: []
+  metrics:
+  - metric_id: metric-ca-fee-company-count
+    name: CA 费用企业数
+    description: CA 服务费企业数
+    aggregation: COUNT
+    field:
+      dataset: ca_fee_company
+      field: id
+    grain:
+    - dataset: ca_fee_company
+      field: id
+    filters: []
+    evidence_refs:
+    - ev-ca-fee-company-status
+  - metric_id: metric-ca-fee-order-count
+    name: CA 收费订单数
+    description: CA 收费订单数
+    aggregation: COUNT
+    field:
+      dataset: ca_fee_order
+      field: id
+    grain:
+    - dataset: ca_fee_order
+      field: id
+    filters: []
+    evidence_refs:
+    - ev-ca-fee-order-create
+  calibers:
+  - caliber_id: cal-ca-fee-unpaid
+    label: 未缴费企业
+    description: pay_status=UNPAID 的 CA 服务费企业
+    contract_fragment:
+      predicate: pay_status = 'UNPAID'
+      scope: pay_status=UNPAID 的 CA 服务费企业
+    field_targets:
+    - dataset: ca_fee_company
+      field: pay_status
+    evidence_refs:
+    - ev-ca-fee-company-status
+  - caliber_id: cal-ca-fee-charge-enabled
+    label: 开启收费项目
+    description: charge_enabled=Y 的项目 CA 收费配置
+    contract_fragment:
+      predicate: charge_enabled = 'Y'
+      scope: charge_enabled=Y 的项目 CA 收费配置
+    field_targets:
+    - dataset: ca_fee_project_config
+      field: charge_enabled
+    evidence_refs:
+    - ev-ca-fee-project-config
+  domain_rules:
+  - rule_id: rule-ca-fee-lock-annual
+    label: 首次缴费成功后锁定年费标准
+    content: 企业首次缴费成功后锁定 locked_annual_fee 与 fee_locked=Y，后续续费按锁定标准执行。
+    applicability: CaFeeCompanyCaStatusApplication
+    query_impact: 查询企业年费标准时应优先取 locked_annual_fee，且仅在 fee_locked=Y 时生效。
+    field_targets:
+    - dataset: ca_fee_company
+      field: fee_locked
+    - dataset: ca_fee_company
+      field: locked_annual_fee
+    evidence_refs:
+    - ev-ca-fee-company-status
+  - rule_id: rule-ca-fee-project-charge-toggle
+    label: 项目收费开关切换
+    content: 项目收费配置支持开启/关闭 CA 收费，并记录 last_toggle_time 与当前协议版本号。
+    applicability: CaFeeProjectConfigApplication
+    query_impact: 按项目查询是否收费时以 charge_enabled 为准。
+    field_targets:
+    - dataset: ca_fee_project_config
+      field: charge_enabled
+    evidence_refs:
+    - ev-ca-fee-project-config
+  verified_query_patterns:
+  - pattern_id: pat-ca-fee-unpaid-company
+    question: 查未缴费 CA 费用企业
+    query: SELECT * FROM ca_fee_company WHERE pay_status='UNPAID' AND enable='Y'
+    intended_specification:
+      caliber_id: cal-ca-fee-unpaid
+    verification:
+      status: PENDING_VALIDATION
+    evidence_refs:
+    - ev-ca-fee-company-status
+  - pattern_id: pat-ca-fee-order-by-company
+    question: 查企业 CA 收费订单
+    query: SELECT * FROM ca_fee_order WHERE company_id=:companyId AND enable='Y'
+    intended_specification:
+      metric_id: metric-ca-fee-order-count
+    verification:
+      status: PENDING_VALIDATION
+    evidence_refs:
+    - ev-ca-fee-order-create
+evidence_refs: []
+unit_links: []
+assumptions:
+- 交e保支付渠道为外部支付服务，支付状态通过回调/查询同步
+conflicts: []
+confidence: 0.7

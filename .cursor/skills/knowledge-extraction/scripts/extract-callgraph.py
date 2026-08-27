@@ -13,21 +13,16 @@ the call chain — never a final verdict.
 
 Usage::
 
-    backend/venv/bin/python scripts/extract-callgraph.py <repo> [-o callgraph.yaml]
+    backend/venv/bin/python .cursor/skills/knowledge-extraction/scripts/extract-callgraph.py <repo> [-o callgraph.yaml]
 """
 
 from __future__ import annotations
 
 import argparse
 import re
-import sys
 from pathlib import Path
 
-BACKEND = Path(__file__).resolve().parent.parent / "backend"
-if str(BACKEND) not in sys.path:
-    sys.path.insert(0, str(BACKEND))
-
-import yaml  # noqa: E402
+import yaml
 
 _ENTRY_ANNOTATIONS = ("@RestController", "@Controller", "@RequestMapping", "@DubboService")
 _ENTRY_SUFFIXES = (

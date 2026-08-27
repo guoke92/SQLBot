@@ -921,9 +921,11 @@
     "log": {
       "GENERATE_QUERY": "쿼리 생성",
       "REPAIR_QUERY": "쿼리 수정",
+      "PLAN_REJECTED": "물리 검증 실패",
       "PLAN_QUERY": "요청을 이해하고 쿼리 생성",
       "GENERATE_CHART": "차트 구조 생성",
       "ANALYSIS": "분석",
+      "SUMMARIZE": "결과 요약",
       "PREDICT_DATA": "예측",
       "GENERATE_QUERY_WITH_PERMISSIONS": "쿼리에 행 권한 적용",
       "CHOOSE_DATASOURCE": "데이터 소스 매칭",
@@ -963,7 +965,6 @@
       "run_attempt": "{value}번째 실행",
       "batch": "{value}번째 배치",
       "unit": "{value}번째 항목",
-
       "step_failed": "처리 실패",
       "step_interrupted": "처리가 중단됨",
       "step_degraded": "일부 저하 상태로 완료",

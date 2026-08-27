@@ -1,6 +1,7 @@
 from apps.knowledge.compile.bundle import ApplyHit, BusinessDataBundle
 from apps.knowledge.compile.compile import (
     SeedPolicy,
+    active_published_units,
     compile_business_data_bundle,
     knowledge_prompt_payload,
     matched_revision_ids,
@@ -12,6 +13,7 @@ __all__ = [
     "ApplyHit",
     "BusinessDataBundle",
     "SeedPolicy",
+    "active_published_units",
     "compile_business_data_bundle",
     "knowledge_prompt_payload",
     "matched_revision_ids",

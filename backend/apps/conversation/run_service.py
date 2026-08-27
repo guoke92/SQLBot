@@ -762,6 +762,22 @@ def persist_query_clarification(
     session.commit()
 
 
+# Keys on ``query_run.agent_decision`` owned by the server rather than the
+# planner decision payload. Decision persistence replaces model-owned content
+# wholesale; these survive so telemetry history is never erased.
+_SERVER_OWNED_DECISION_KEYS = frozenset({"topup"})
+
+
+def _merged_agent_decision(
+    previous: dict[str, Any] | None, decision: dict[str, Any]
+) -> dict[str, Any]:
+    merged = dict(decision)
+    for key in _SERVER_OWNED_DECISION_KEYS:
+        if key in (previous or {}):
+            merged[key] = previous[key]
+    return merged
+
+
 def persist_query_decision(
     session: Session,
     *,
@@ -782,7 +798,9 @@ def persist_query_decision(
             select(QueryRun).where(QueryRun.run_id == run_id).with_for_update()
         )
     )
-    query_run.agent_decision = decision
+    query_run.agent_decision = _merged_agent_decision(
+        query_run.agent_decision, decision
+    )
     query_run.hard_gate_report = hard_gate_report
     query_run.risk_assessment = risk_assessment
     query_run.plan_facts = plan_facts

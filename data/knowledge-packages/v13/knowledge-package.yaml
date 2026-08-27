@@ -1,0 +1,553 @@
+schema_version: '2.0'
+package:
+  package_id: system-knowledge-v13
+  revision: 1
+  title: pplatform-web 系统知识包 v13（首批 3 个关键模块）
+  namespace: pplatform-web
+  description: 从 pplatform-web @ ee434954e 提取的 KnowledgePackageV2 知识包。本版首批覆盖企业自主注册建档、资方规则配置、项目上线审批三个关键模块，并登记
+    6 张休眠表；其余活跃表留 COVERAGE_GAP 待后续批次覆盖。
+sources:
+- source_id: src-pplatform-web
+  kind: git
+  locator: /Users/fanjunwei/IdeaProjects/pplatform-web
+  repository_revision: ee434954e465713176e5bd52119eedde5ebe531b
+  content_hash: ''
+  metadata:
+    repository: pplatform-web
+    branch: dev-v1.33.0
+evidence:
+- evidence_id: ev-do-company
+  source_id: src-pplatform-web
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustCompanyInfoDO.java:48
+  content_hash: ''
+  claim: cust_company_info 表由 @TableName 声明
+  payload: {}
+  confidence: 0.85
+- evidence_id: ev-do-person
+  source_id: src-pplatform-web
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustPersonInfoDO.java:47
+  content_hash: ''
+  claim: cust_person_info 表由 @TableName 声明
+  payload: {}
+  confidence: 0.85
+- evidence_id: ev-do-project-rel
+  source_id: src-pplatform-web
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustProjectRelDO.java:33
+  content_hash: ''
+  claim: cust_project_rel 表由 @TableName 声明
+  payload: {}
+  confidence: 0.85
+- evidence_id: ev-do-build-record
+  source_id: src-pplatform-web
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/CustBuildRecordDO.java:33
+  content_hash: ''
+  claim: cust_build_record 表由 @TableName 声明
+  payload: {}
+  confidence: 0.85
+- evidence_id: ev-do-tenant-project
+  source_id: src-pplatform-web
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProjectDO.java:33
+  content_hash: ''
+  claim: tenant_project 表由 @TableName 声明
+  payload: {}
+  confidence: 0.85
+- evidence_id: ev-do-platform-product
+  source_id: src-pplatform-web
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/PlatformProductDO.java:46
+  content_hash: ''
+  claim: platform_product 表由 @TableName 声明
+  payload: {}
+  confidence: 0.85
+- evidence_id: ev-get-company
+  source_id: src-pplatform-web
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/oper/BaseAccessOperProcess.java:176
+  content_hash: ''
+  claim: getCustCompany(id) 按主键读 cust_company_info
+  payload: {}
+  confidence: 0.9
+- evidence_id: ev-get-person
+  source_id: src-pplatform-web
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/oper/BaseAccessOperProcess.java:185
+  content_hash: ''
+  claim: getCustPerson(companyCode,personId) 按 id + ref_cust_company_info 读 cust_person_info
+  payload: {}
+  confidence: 0.9
+- evidence_id: ev-update-company
+  source_id: src-pplatform-web
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/oper/BaseAccessOperProcess.java:199
+  content_hash: ''
+  claim: updateCustCompany 按 id 更新 cust_company_info
+  payload: {}
+  confidence: 0.9
+- evidence_id: ev-update-user
+  source_id: src-pplatform-web
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/oper/BaseAccessOperProcess.java:208
+  content_hash: ''
+  claim: updateCustUser 按 id 更新 cust_person_info
+  payload: {}
+  confidence: 0.9
+- evidence_id: ev-reg-self-old
+  source_id: src-pplatform-web
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/oper/facade/cust/OperCustFacade.java:959
+  content_hash: ''
+  claim: regSelfOld 自主注册建档入口：读企业/联系人 -> 锁与在途校验 -> 绑定项目 -> 推送 -> 回写状态 -> 保存申请记录
+  payload: {}
+  confidence: 0.9
+- evidence_id: ev-lock-check
+  source_id: src-pplatform-web
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/oper/facade/cust/OperCustFacade.java:970
+  content_hash: ''
+  claim: 建档前 Redis 分布式锁 + check_status 非空且非 CUST_CHECK_REJECT 视为在途重复
+  payload: {}
+  confidence: 0.9
+- evidence_id: ev-person-type-admin
+  source_id: src-pplatform-web
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/oper/facade/cust/OperCustFacade.java:988
+  content_hash: ''
+  claim: 联系人非 admin 时更新 cust_person_info.user_type=accountAdmin
+  payload: {}
+  confidence: 0.9
+- evidence_id: ev-set-project-info
+  source_id: src-pplatform-web
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/oper/facade/cust/OperCustFacade.java:1043
+  content_hash: ''
+  claim: setCustProjectInfo：按 ref_cust_project_rel_cust_company_info 读项目关系，无关系时绑定默认项目
+  payload: {}
+  confidence: 0.9
+- evidence_id: ev-save-project-rel
+  source_id: src-pplatform-web
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/oper/facade/cust/OperCustFacade.java:1075
+  content_hash: ''
+  claim: saveCustProjectRelDO：project_id 取 tenant_project，ref 回写企业 code，供应商+ACFLOW/ORDER
+    置 status=1
+  payload: {}
+  confidence: 0.9
+- evidence_id: ev-project-rel-product-derived
+  source_id: src-pplatform-web
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/oper/facade/cust/OperCustFacade.java:1086
+  content_hash: ''
+  claim: cust_project_rel.product_id 是 tenant_project.product_id 的反规范化副本，保存时拷贝，不标直连；真
+    FK 是 tenant_project.product_id -> tenant_product.id
+  payload: {}
+  confidence: 0.9
+- evidence_id: ev-build-record-plat-ids-external
+  source_id: src-pplatform-web
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/oper/facade/cust/OperCustFacade.java:893
+  content_hash: ''
+  claim: cust_build_record.plat_cust_id/plat_person_id 来自运营中台返回，非本地表外键
+  payload: {}
+  confidence: 0.9
+- evidence_id: ev-check-status-init
+  source_id: src-pplatform-web
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/oper/facade/cust/OperCustFacade.java:1016
+  content_hash: ''
+  claim: 推送成功后 check_status=CUST_CHECK_INIT 并 updateCustCompany
+  payload: {}
+  confidence: 0.9
+- evidence_id: ev-save-build-record
+  source_id: src-pplatform-web
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/oper/facade/cust/OperCustFacade.java:889
+  content_hash: ''
+  claim: saveCustBuildRecord 写 cust_build_record：cust_id=companyId, person_id=personId
+  payload: {}
+  confidence: 0.9
+- evidence_id: ev-fail-rollback
+  source_id: src-pplatform-web
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/oper/facade/cust/OperCustFacade.java:1025
+  content_hash: ''
+  claim: 建档推送异常时 cust_build_status 回滚为 INIT
+  payload: {}
+  confidence: 0.9
+- evidence_id: ev-enum-build-status
+  source_id: src-pplatform-web
+  evidence_kind: code_path
+  locator: lowcode-pplatform-common/lowcode-pplatform-common-api/src/main/java/com/lls/lowcode/pplatform/common/enums/CustBuildStatusEnum.java:16
+  content_hash: ''
+  claim: cust_build_status 字典
+  payload: {}
+  confidence: 0.9
+- evidence_id: ev-enum-cust-status
+  source_id: src-pplatform-web
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/CustStatusEnum.java:19
+  content_hash: ''
+  claim: cust_status 字典
+  payload: {}
+  confidence: 0.9
+- evidence_id: ev-enum-check-status
+  source_id: src-pplatform-web
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/constants/OperApiConstants.java:202
+  content_hash: ''
+  claim: check_status 字典
+  payload: {}
+  confidence: 0.9
+- evidence_id: ev-enum-user-type
+  source_id: src-pplatform-web
+  evidence_kind: code_path
+  locator: lowcode-pplatform-common/lowcode-pplatform-common-api/src/main/java/com/lls/lowcode/pplatform/common/enums/UserTypeEnum.java:15
+  content_hash: ''
+  claim: cust_person_info.user_type 字典
+  payload: {}
+  confidence: 0.9
+- evidence_id: ev-enum-company-type
+  source_id: src-pplatform-web
+  evidence_kind: code_path
+  locator: lowcode-pplatform-common/lowcode-pplatform-common-api/src/main/java/com/lls/lowcode/pplatform/common/enums/CustCompanyTypeEnum.java:15
+  content_hash: ''
+  claim: cust_company_type 字典
+  payload: {}
+  confidence: 0.9
+- evidence_id: ev-do-rule-info
+  source_id: src-pplatform-web
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/FundingRuleInfoDO.java:33
+  content_hash: ''
+  claim: funding_rule_info 表由 @TableName 声明
+  payload: {}
+  confidence: 0.85
+- evidence_id: ev-do-rule-detail
+  source_id: src-pplatform-web
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/FundingRuleDetailDO.java:33
+  content_hash: ''
+  claim: funding_rule_detail 表由 @TableName 声明
+  payload: {}
+  confidence: 0.85
+- evidence_id: ev-do-rule-front-cfg
+  source_id: src-pplatform-web
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/FundingRuleFrontCfgDO.java:33
+  content_hash: ''
+  claim: funding_rule_front_cfg 表由 @TableName 声明
+  payload: {}
+  confidence: 0.85
+- evidence_id: ev-rule-save
+  source_id: src-pplatform-web
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/FundRuleInfoApplication.java:415
+  content_hash: ''
+  claim: saveRuleInfo：新增查重后插入 funding_rule_info，更新则 version 累加并重写 funding_rule_detail
+  payload: {}
+  confidence: 0.9
+- evidence_id: ev-rule-active
+  source_id: src-pplatform-web
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/FundRuleInfoApplication.java:287
+  content_hash: ''
+  claim: activeRule：按 id 读 funding_rule_info 并更新 rule_status=ACTIVE
+  payload: {}
+  confidence: 0.9
+- evidence_id: ev-rule-inactive
+  source_id: src-pplatform-web
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/FundRuleInfoApplication.java:308
+  content_hash: ''
+  claim: inActiveRule：按 id 读 funding_rule_info 并更新 rule_status=INACTIVE
+  payload: {}
+  confidence: 0.9
+- evidence_id: ev-rule-detail-read
+  source_id: src-pplatform-web
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/FundRuleInfoApplication.java:359
+  content_hash: ''
+  claim: getRuleInfoById：按 rule_info_id + enable=Y 读 funding_rule_detail
+  payload: {}
+  confidence: 0.9
+- evidence_id: ev-rule-front-read
+  source_id: src-pplatform-web
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/FundRuleInfoApplication.java:483
+  content_hash: ''
+  claim: 保存规则前按 product_code 读 funding_rule_front_cfg
+  payload: {}
+  confidence: 0.9
+- evidence_id: ev-rule-detail-upsert
+  source_id: src-pplatform-web
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/FundRuleInfoApplication.java:502
+  content_hash: ''
+  claim: 按 rule_info_id + rule_key 查存量 funding_rule_detail
+  payload: {}
+  confidence: 0.9
+- evidence_id: ev-rule-detail-write
+  source_id: src-pplatform-web
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/FundRuleInfoApplication.java:512
+  content_hash: ''
+  claim: 写入 funding_rule_detail
+  payload: {}
+  confidence: 0.9
+- evidence_id: ev-rule-enum-status
+  source_id: src-pplatform-web
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/RuleStatusEnum.java:17
+  content_hash: ''
+  claim: rule_status 字典
+  payload: {}
+  confidence: 0.9
+- evidence_id: ev-rule-enum-layer
+  source_id: src-pplatform-web
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/RuleLayerEnum.java:17
+  content_hash: ''
+  claim: rule_layer 字典
+  payload: {}
+  confidence: 0.9
+- evidence_id: ev-do-approval
+  source_id: src-pplatform-web
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProjectApprovalDO.java:33
+  content_hash: ''
+  claim: tenant_project_approval 表由 @TableName 声明
+  payload: {}
+  confidence: 0.85
+- evidence_id: ev-do-approval-flow
+  source_id: src-pplatform-web
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProjectApprovalFlowDO.java:33
+  content_hash: ''
+  claim: tenant_project_approval_flow 表由 @TableName 声明
+  payload: {}
+  confidence: 0.85
+- evidence_id: ev-do-approval-node
+  source_id: src-pplatform-web
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProjectApprovalFlowNodeDO.java:33
+  content_hash: ''
+  claim: tenant_project_approval_flow_node 表由 @TableName 声明
+  payload: {}
+  confidence: 0.85
+- evidence_id: ev-do-approval-credit
+  source_id: src-pplatform-web
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProjectApprovalFlowCreditDO.java:35
+  content_hash: ''
+  claim: tenant_project_approval_flow_credit 表由 @TableName 声明
+  payload: {}
+  confidence: 0.85
+- evidence_id: ev-do-approval-flow-config
+  source_id: src-pplatform-web
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProjectApprovalFlowConfigDO.java:33
+  content_hash: ''
+  claim: tenant_project_approval_flow_config 表由 @TableName 声明
+  payload: {}
+  confidence: 0.85
+- evidence_id: ev-approval-submit
+  source_id: src-pplatform-web
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/approval/ProjectApprovalApplication.java:549
+  content_hash: ''
+  claim: submit：校验 PENDING，先删后增 flow，生成工作流定义
+  payload: {}
+  confidence: 0.9
+- evidence_id: ev-approval-start-wf
+  source_id: src-pplatform-web
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/approval/ProjectApprovalApplication.java:695
+  content_hash: ''
+  claim: startWorkflowAndUpdateStatus：wfStatus=RUNNING 并回写 actProcinstId
+  payload: {}
+  confidence: 0.9
+- evidence_id: ev-approval-handle-status
+  source_id: src-pplatform-web
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/approval/ProjectApprovalApplication.java:716
+  content_hash: ''
+  claim: handleFlowAndNodeStatus：终态更新 wf_status/complete_time 并更新 flow.node_status
+  payload: {}
+  confidence: 0.9
+- evidence_id: ev-approval-effective
+  source_id: src-pplatform-web
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/approval/ProjectApprovalApplication.java:777
+  content_hash: ''
+  claim: effectiveProjectOnApprovalFinished：FINISHED 时项目置已生效
+  payload: {}
+  confidence: 0.9
+- evidence_id: ev-approval-backfill-spno
+  source_id: src-pplatform-web
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/approval/ProjectApprovalApplication.java:612
+  content_hash: ''
+  claim: backfillProjectSpNoOnSubmit：首次正式提交回写 tenant_project.wechat_audit_no
+  payload: {}
+  confidence: 0.9
+- evidence_id: ev-approval-desk-agree
+  source_id: src-pplatform-web
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/approval/ProjectApprovalDeskApplication.java:94
+  content_hash: ''
+  claim: agree：按 nodeCode 写 flow_node 并更新 flow.node_status
+  payload: {}
+  confidence: 0.9
+- evidence_id: ev-approval-desk-back
+  source_id: src-pplatform-web
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/approval/ProjectApprovalDeskApplication.java:198
+  content_hash: ''
+  claim: back：退回写 flow_node(BACK) 并更新 flow.node_status=APPROVING
+  payload: {}
+  confidence: 0.9
+- evidence_id: ev-approval-desk-reject
+  source_id: src-pplatform-web
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/approval/ProjectApprovalDeskApplication.java:236
+  content_hash: ''
+  claim: reject：驳回写 flow_node(REJECT) 并更新 flow.node_status=REJECTED
+  payload: {}
+  confidence: 0.9
+- evidence_id: ev-approval-desk-transfer
+  source_id: src-pplatform-web
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/approval/ProjectApprovalDeskApplication.java:273
+  content_hash: ''
+  claim: transfer：转审写 flow_node(DELEGATE) 并更新 flow.node_status=APPROVING
+  payload: {}
+  confidence: 0.9
+- evidence_id: ev-approval-legal-lowrisk
+  source_id: src-pplatform-web
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/approval/ProjectApprovalDeskApplication.java:138
+  content_hash: ''
+  claim: 法务经办同意校验 is_low_risk 并同步主表
+  payload: {}
+  confidence: 0.9
+- evidence_id: ev-approval-credit-save
+  source_id: src-pplatform-web
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/approval/ProjectApprovalDeskApplication.java:485
+  content_hash: ''
+  claim: 业务经理同意保存授信信息
+  payload: {}
+  confidence: 0.9
+- evidence_id: ev-approval-flow-config-read
+  source_id: src-pplatform-web
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/approval/ProjectApprovalApplication.java:500
+  content_hash: ''
+  claim: listFlowConfig：按 flow_code 读流程配置
+  payload: {}
+  confidence: 0.9
+- evidence_id: ev-approval-detail
+  source_id: src-pplatform-web
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/approval/ProjectApprovalApplication.java:1130
+  content_hash: ''
+  claim: detail：读审批主表并组装流程/节点/授信
+  payload: {}
+  confidence: 0.9
+- evidence_id: ev-approval-enum-wf
+  source_id: src-pplatform-web
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/domain/enums/ProjectApprovalWorkflowStatusEnum.java:16
+  content_hash: ''
+  claim: wf_status 字典
+  payload: {}
+  confidence: 0.9
+- evidence_id: ev-approval-enum-node-status
+  source_id: src-pplatform-web
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/domain/enums/ProjectApprovalNodeStatusEnum.java:16
+  content_hash: ''
+  claim: node_status 字典
+  payload: {}
+  confidence: 0.9
+- evidence_id: ev-approval-enum-node-code
+  source_id: src-pplatform-web
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/domain/enums/ProjectApprovalNodeCodeEnum.java:16
+  content_hash: ''
+  claim: node_code 字典
+  payload: {}
+  confidence: 0.9
+- evidence_id: ev-approval-enum-operate
+  source_id: src-pplatform-web
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/domain/enums/ProjectApprovalOperateTypeEnum.java:16
+  content_hash: ''
+  claim: operate_type 字典
+  payload: {}
+  confidence: 0.9
+- evidence_id: ev-approval-enum-project-status
+  source_id: src-pplatform-web
+  evidence_kind: code_path
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/domain/enums/ProjectStatusEnum.java:16
+  content_hash: ''
+  claim: project_status 字典
+  payload: {}
+  confidence: 0.9
+- evidence_id: ev-do-funding_party_rule_cfg
+  source_id: src-pplatform-web
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/FundingPartyRuleCfgDO.java:33
+  content_hash: ''
+  claim: funding_party_rule_cfg 表由 @TableName 声明（休眠候选）
+  payload: {}
+  confidence: 0.85
+- evidence_id: ev-do-funding_party_rule_detail
+  source_id: src-pplatform-web
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/FundingPartyRuleDetailDO.java:33
+  content_hash: ''
+  claim: funding_party_rule_detail 表由 @TableName 声明（休眠候选）
+  payload: {}
+  confidence: 0.85
+- evidence_id: ev-do-funding_party_rule_front
+  source_id: src-pplatform-web
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/FundingPartyRuleFrontDO.java:33
+  content_hash: ''
+  claim: funding_party_rule_front 表由 @TableName 声明（休眠候选）
+  payload: {}
+  confidence: 0.85
+- evidence_id: ev-do-org_manage
+  source_id: src-pplatform-web
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/OrgManageDO.java:33
+  content_hash: ''
+  claim: org_manage 表由 @TableName 声明（休眠候选）
+  payload: {}
+  confidence: 0.85
+- evidence_id: ev-do-tenant_product_ext_field
+  source_id: src-pplatform-web
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProductExtFieldDO.java:33
+  content_hash: ''
+  claim: tenant_product_ext_field 表由 @TableName 声明（休眠候选）
+  payload: {}
+  confidence: 0.85
+- evidence_id: ev-do-tenant_product_ext_field_form
+  source_id: src-pplatform-web
+  evidence_kind: database_schema
+  locator: pplatform-apaas/pplatform-apaas-service-api/src/main/java/com/lls/lowcode/pplatform/pplatform/apaas/service/api/model/TenantProductExtFieldFormDO.java:33
+  content_hash: ''
+  claim: tenant_product_ext_field_form 表由 @TableName 声明（休眠候选）
+  payload: {}
+  confidence: 0.85
+units:
+- units/enterprise-onboarding.yaml
+- units/funding-rule.yaml
+- units/project-approval.yaml
+- units/dormant-registration.yaml

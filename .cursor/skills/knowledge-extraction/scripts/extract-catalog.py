@@ -9,7 +9,7 @@ import and not recalled at runtime.
 
 Usage::
 
-    backend/venv/bin/python scripts/extract-catalog.py <repo> [-o catalog.yaml]
+    backend/venv/bin/python .cursor/skills/knowledge-extraction/scripts/extract-catalog.py <repo> [-o catalog.yaml]
 """
 from __future__ import annotations
 
@@ -19,11 +19,7 @@ import re
 import sys
 from pathlib import Path
 
-BACKEND = Path(__file__).resolve().parent.parent / "backend"
-if str(BACKEND) not in sys.path:
-    sys.path.insert(0, str(BACKEND))
-
-import yaml  # noqa: E402
+import yaml
 
 _TYPE_MAP = {
     "String": "varchar",
@@ -60,8 +56,8 @@ _BOILERPLATE = {
     "organization_id",
 }
 
-# FK 候选：字段名以这些后缀结尾且非样板
-_FK_SUFFIXES = ("_id", "_code", "_ref", "_mark", "_no", "_type", "_channel", "_flag")
+# FK 候选：外键字段后缀（*_id / *_code，对应 reference.md §3.2/§3.3 的 FK 判定）
+_FK_SUFFIXES = ("_id", "_code")
 
 
 def snake(name: str) -> str:

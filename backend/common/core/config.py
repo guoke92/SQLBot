@@ -161,6 +161,14 @@ class Settings(BaseSettings):
     KNOWLEDGE_CAPTURE_LEASE_SECONDS: int = 300
     KNOWLEDGE_RECALL_STRATEGY: str = "unit"  # "unit" | "node" (v3.1 node-plane recall)
 
+    # Recall top-up: deterministic value index ("value ⊂ question" containment)
+    # plus evidence-driven working-set expansion. Any layer off = legacy recall.
+    RECALL_VALUE_INDEX_ENABLED: bool = True
+    RECALL_VALUE_INDEX_MAX_DISTINCT_RATIO: float = 0.2
+    RECALL_VALUE_INDEX_TOP_K: int = 20
+    RECALL_TOUP_ENABLED: bool = True
+    RECALL_TOUP_DS_ALLOWLIST: str = ""  # comma-separated ds ids; empty = all
+
     # API datasource SSRF protection
     API_SSRF_PROTECTION: bool = True
     # Allow private/reserved IPs when SSRF protection is enabled (for internal deployments)
@@ -174,6 +182,8 @@ class Settings(BaseSettings):
         "PARSE_REASONING_BLOCK_ENABLED",
         "PG_POOL_PRE_PING",
         "TABLE_EMBEDDING_ENABLED",
+        "RECALL_VALUE_INDEX_ENABLED",
+        "RECALL_TOUP_ENABLED",
         mode="before",
     )
     @classmethod

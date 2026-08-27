@@ -6,7 +6,9 @@ from apps.knowledge.semantic.lint import lint_package, load_coverage
 from apps.knowledge.semantic.schema import KnowledgePackageV2
 
 
-def _package(*, metrics: int = 0, serialize: bool = False) -> KnowledgePackageV2:
+def _package(
+    *, metrics: int = 0, serialize: bool = False, repository_revision: str = ""
+) -> KnowledgePackageV2:
     processes = [
         {
             "stage_id": "submitted",
@@ -35,6 +37,7 @@ def _package(*, metrics: int = 0, serialize: bool = False) -> KnowledgePackageV2
                 "revision": 1,
                 "title": "QA demo",
                 "namespace": "demo",
+                "repository_revision": repository_revision,
             },
             "sources": [{"source_id": "src", "kind": "source_code"}],
             "evidence": [
@@ -212,3 +215,88 @@ def test_coverage_inactive_excluded_overlap_rejected(tmp_path) -> None:
     )
     with pytest.raises(ValueError):
         load_coverage(cov)
+
+
+def _rel_package(*, cross_unit: bool) -> KnowledgePackageV2:
+    def ds(dataset_id: str, name: str, field_id: str) -> dict:
+        return {
+            "dataset_id": dataset_id,
+            "name": name,
+            "fields": [{"field_id": field_id, "name": field_id, "evidence_refs": ["ev"]}],
+        }
+
+    if cross_unit:
+        units = [
+            {
+                "unit_id": "u1", "revision": 1, "title": "单元一", "domain": "d",
+                "description": "d",
+                "content": {
+                    "datasets": [ds("a", "table_a", "id")],
+                    "metrics": [{"metric_id": "m1", "name": "计数", "aggregation": "COUNT",
+                                  "field": {"dataset": "a", "field": "id"}}],
+                },
+                "evidence_refs": ["ev"],
+            },
+            {
+                "unit_id": "u2", "revision": 1, "title": "单元二", "domain": "d",
+                "description": "d",
+                "content": {
+                    "datasets": [ds("b", "table_b", "fk")],
+                    "metrics": [{"metric_id": "m2", "name": "计数", "aggregation": "COUNT",
+                                  "field": {"dataset": "b", "field": "fk"}}],
+                },
+                "evidence_refs": ["ev"],
+            },
+        ]
+    else:
+        units = [
+            {
+                "unit_id": "u1", "revision": 1, "title": "单单元", "domain": "d",
+                "description": "d",
+                "content": {
+                    "datasets": [ds("a", "table_a", "id"), ds("b", "table_b", "fk")],
+                    "metrics": [{"metric_id": "m1", "name": "计数", "aggregation": "COUNT",
+                                  "field": {"dataset": "a", "field": "id"}}],
+                },
+                "evidence_refs": ["ev"],
+            }
+        ]
+    return KnowledgePackageV2.model_validate(
+        {
+            "schema_version": "2.0",
+            "package": {"package_id": "rel-demo", "revision": 1, "title": "rel demo", "namespace": "demo"},
+            "sources": [{"source_id": "src", "kind": "source_code"}],
+            "evidence": [{"evidence_id": "ev", "source_id": "src", "evidence_kind": "code_path"}],
+            "relationships": [
+                {"left_table": "table_b", "left_field": "fk", "right_table": "table_a",
+                 "right_field": "id", "evidence": "write-flow:X.java:1"}
+            ],
+            "knowledge_units": units,
+        }
+    )
+
+
+def test_package_relationship_same_unit_is_flagged() -> None:
+    report = lint_package(_rel_package(cross_unit=False))
+    assert any(
+        issue["code"] == "RELATION_SHOULD_BE_IN_UNIT" for issue in report["issues"]
+    )
+
+
+def test_package_relationship_cross_unit_is_ok() -> None:
+    report = lint_package(_rel_package(cross_unit=True))
+    assert not any(
+        issue["code"] == "RELATION_SHOULD_BE_IN_UNIT" for issue in report["issues"]
+    )
+
+
+def test_baseline_missing_is_advisory() -> None:
+    report = lint_package(_package(metrics=1))
+    assert any(issue["code"] == "BASELINE_MISSING" for issue in report["issues"])
+
+
+def test_baseline_present_no_warning() -> None:
+    report = lint_package(_package(metrics=1, repository_revision="abc123"))
+    assert not any(
+        issue["code"] == "BASELINE_MISSING" for issue in report["issues"]
+    )

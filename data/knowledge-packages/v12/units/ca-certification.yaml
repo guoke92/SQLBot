@@ -1,0 +1,362 @@
+unit_id: ca-certification
+revision: 1
+title: CA 认证/实名认证
+aliases: []
+domain: customer
+applicability: CA 认证记录提交签章中心、失败标记；企业实名/人脸认证快照查询场景
+description: 穿透 CaCertificationInfoAppServiceImpl 的 CA 认证记录创建、提交、失败标记；FaceVerifyController 查询企业认证快照。
+content:
+  concepts:
+  - concept_id: ca-certification-record
+    name: CA 认证记录
+    aliases: []
+    definition: CA 认证记录 ca_certification_info
+    dictionary: {}
+    field_targets:
+    - dataset: ca_certification_info
+      field: id
+    evidence_refs:
+    - ev-ca-cert-info-schema
+  - concept_id: cust-certification-snapshot
+    name: 企业认证快照
+    aliases: []
+    definition: 企业实名/人脸认证快照 cust_certification_info
+    dictionary: {}
+    field_targets:
+    - dataset: cust_certification_info
+      field: id
+    evidence_refs:
+    - ev-cust-cert-info-schema
+  - concept_id: ca-cert-failed
+    name: CA 认证失败
+    aliases: []
+    definition: submit_status=FAIL 的 CA 认证记录
+    dictionary:
+      FAIL: 失败
+    field_targets:
+    - dataset: ca_certification_info
+      field: submit_status
+    evidence_refs:
+    - ev-ca-cert-mark-failed
+  processes:
+  - stage_id: ca-cert-create
+    name: CA 认证记录创建
+    description: 创建或按 key 查询 CA 认证记录，更新协议通知/实名/意愿/附件信息
+    trigger: CaCertificationInfoAppServiceImpl.createOrGetByKey
+    enter_conditions: []
+    exit_conditions: []
+    next_stages:
+    - ca-cert-submit
+    data_effects:
+    - operation: read
+      dataset: ca_certification_info
+      fields:
+      - id
+      - cust_id
+      - cust_type
+      - submit_status
+      - data_source
+      - enable
+      condition: cust_id=:custId AND cust_type=:custType
+      description: 按企业+类型查认证记录
+      evidence_refs:
+      - ev-ca-cert-create
+    - operation: upsert
+      dataset: ca_certification_info
+      fields:
+      - cust_id
+      - cust_type
+      - submit_status
+      - data_source
+      - enable
+      condition: 不存在则创建
+      description: 创建 CA 认证记录
+      evidence_refs:
+      - ev-ca-cert-create
+    evidence_refs:
+    - ev-ca-cert-create
+  - stage_id: ca-cert-submit
+    name: 提交签章中心
+    description: 提交认证数据到签章中心，更新 submit_status 与中台结果
+    trigger: CaCertificationInfoAppServiceImpl.submitToSignCenter
+    enter_conditions: []
+    exit_conditions: []
+    next_stages:
+    - cust-cert-query
+    data_effects:
+    - operation: read
+      dataset: ca_certification_info
+      fields:
+      - id
+      - cust_id
+      - submit_status
+      condition: id=:id
+      description: 读认证记录
+      evidence_refs:
+      - ev-ca-cert-submit
+    - operation: update
+      dataset: ca_certification_info
+      fields:
+      - submit_status
+      - sign_platform_result
+      - submit_time
+      condition: 提交后回写
+      description: 更新提交状态与中台结果
+      evidence_refs:
+      - ev-ca-cert-submit
+    - operation: update
+      dataset: ca_certification_info
+      fields:
+      - submit_status
+      condition: 失败时
+      description: 标记 submit_status=FAIL
+      evidence_refs:
+      - ev-ca-cert-mark-failed
+    evidence_refs:
+    - ev-ca-cert-submit
+  - stage_id: cust-cert-query
+    name: 企业认证快照查询
+    description: 按企业 id 查询实名/人脸认证快照
+    trigger: FaceVerifyController.faceVerifyQuery
+    enter_conditions: []
+    exit_conditions: []
+    next_stages: []
+    data_effects:
+    - operation: read
+      dataset: cust_certification_info
+      fields:
+      - id
+      - ref_cust_company_info
+      - certification_type
+      - auto_verify_status
+      - auto_verify_msg
+      - manual_verify_status
+      - face_business_no
+      - enable
+      condition: custId=:custId
+      description: 读企业认证快照
+      evidence_refs:
+      - ev-cust-cert-face-query
+    evidence_refs:
+    - ev-cust-cert-face-query
+  datasets:
+  - dataset_id: ca_certification_info
+    name: ca_certification_info
+    description: CA 认证记录
+    database: lowcode_pplatform
+    inactive: false
+    fields:
+    - field_id: id
+      name: id
+      data_type: bigint
+      description: 表主键
+      evidence_refs:
+      - ev-ca-cert-info-schema
+    - field_id: cust_id
+      name: cust_id
+      data_type: bigint
+      description: 企业Id
+      evidence_refs:
+      - ev-ca-cert-info-schema
+    - field_id: cust_type
+      name: cust_type
+      data_type: varchar
+      description: PERSON / COMPANY
+      evidence_refs:
+      - ev-ca-cert-info-schema
+    - field_id: submit_status
+      name: submit_status
+      data_type: varchar
+      description: PENDING / SUCCESS / FAIL
+      dictionary:
+        PENDING: 待提交
+        SUCCESS: 成功
+        FAIL: 失败
+      evidence_refs:
+      - ev-ca-cert-info-schema
+    - field_id: sign_platform_result
+      name: sign_platform_result
+      data_type: varchar
+      description: 中台返回结果
+      evidence_refs:
+      - ev-ca-cert-info-schema
+    - field_id: submit_time
+      name: submit_time
+      data_type: datetime
+      description: 提交时间
+      evidence_refs:
+      - ev-ca-cert-info-schema
+    - field_id: data_source
+      name: data_source
+      data_type: varchar
+      description: 数据来源
+      evidence_refs:
+      - ev-ca-cert-info-schema
+    - field_id: enable
+      name: enable
+      data_type: varchar
+      description: enable
+      evidence_refs:
+      - ev-ca-cert-info-schema
+    evidence_refs:
+    - ev-ca-cert-create
+    - ev-ca-cert-info-schema
+    - ev-ca-cert-mark-failed
+    - ev-ca-cert-submit
+    - ev-cust-cert-face-query
+  - dataset_id: cust_certification_info
+    name: cust_certification_info
+    description: 企业实名/人脸认证快照
+    database: lowcode_pplatform
+    inactive: false
+    fields:
+    - field_id: id
+      name: id
+      data_type: bigint
+      description: 表主键
+      evidence_refs:
+      - ev-cust-cert-info-schema
+    - field_id: ref_cust_company_info
+      name: ref_cust_company_info
+      data_type: varchar
+      description: 关联企业
+      evidence_refs:
+      - ev-cust-cert-info-schema
+    - field_id: certification_type
+      name: certification_type
+      data_type: varchar
+      description: 认证类型
+      evidence_refs:
+      - ev-cust-cert-info-schema
+    - field_id: auto_verify_status
+      name: auto_verify_status
+      data_type: varchar
+      description: 自动核查状态
+      evidence_refs:
+      - ev-cust-cert-info-schema
+    - field_id: auto_verify_msg
+      name: auto_verify_msg
+      data_type: varchar
+      description: 自动核查结果
+      evidence_refs:
+      - ev-cust-cert-info-schema
+    - field_id: manual_verify_status
+      name: manual_verify_status
+      data_type: varchar
+      description: 人工核查状态
+      evidence_refs:
+      - ev-cust-cert-info-schema
+    - field_id: face_business_no
+      name: face_business_no
+      data_type: varchar
+      description: 人脸业务号
+      evidence_refs:
+      - ev-cust-cert-info-schema
+    - field_id: enable
+      name: enable
+      data_type: varchar
+      description: enable
+      evidence_refs:
+      - ev-cust-cert-info-schema
+    evidence_refs:
+    - ev-ca-cert-create
+    - ev-ca-cert-submit
+    - ev-cust-cert-face-query
+    - ev-cust-cert-info-schema
+  relationships: []
+  metrics:
+  - metric_id: metric-ca-cert-record-count
+    name: CA 认证记录数
+    description: CA 认证记录数
+    aggregation: COUNT
+    field:
+      dataset: ca_certification_info
+      field: id
+    grain:
+    - dataset: ca_certification_info
+      field: id
+    filters: []
+    evidence_refs:
+    - ev-ca-cert-create
+  - metric_id: metric-cust-cert-snapshot-count
+    name: 企业认证快照数
+    description: 企业实名/人脸认证快照数
+    aggregation: COUNT
+    field:
+      dataset: cust_certification_info
+      field: id
+    grain:
+    - dataset: cust_certification_info
+      field: id
+    filters: []
+    evidence_refs:
+    - ev-cust-cert-face-query
+  calibers:
+  - caliber_id: cal-ca-cert-failed
+    label: CA 认证失败
+    description: submit_status=FAIL 的 CA 认证记录
+    contract_fragment:
+      predicate: submit_status = 'FAIL'
+      scope: submit_status=FAIL 的 CA 认证记录
+    field_targets:
+    - dataset: ca_certification_info
+      field: submit_status
+    evidence_refs:
+    - ev-ca-cert-mark-failed
+  - caliber_id: cal-ca-cert-success
+    label: CA 认证成功
+    description: submit_status=SUCCESS 的 CA 认证记录
+    contract_fragment:
+      predicate: submit_status = 'SUCCESS'
+      scope: submit_status=SUCCESS 的 CA 认证记录
+    field_targets:
+    - dataset: ca_certification_info
+      field: submit_status
+    evidence_refs:
+    - ev-ca-cert-submit
+  domain_rules:
+  - rule_id: rule-ca-cert-fail-mark
+    label: CA 提交失败标记
+    content: 签章中心提交失败时标记 submit_status=FAIL 并记录错误信息。
+    applicability: CaCertificationInfoAppServiceImpl.markFailed
+    query_impact: 查询认证失败记录时按 submit_status=FAIL 过滤。
+    field_targets:
+    - dataset: ca_certification_info
+      field: submit_status
+    evidence_refs:
+    - ev-ca-cert-mark-failed
+  - rule_id: rule-cust-cert-snapshot-query
+    label: 企业认证快照按企业查询
+    content: 人脸认证结果按 custId 查询当前认证快照。
+    applicability: FaceVerifyController.faceVerifyQuery
+    query_impact: 查询企业认证结果时关联 cust_certification_info 而非仅 CA 认证表。
+    field_targets:
+    - dataset: cust_certification_info
+      field: ref_cust_company_info
+    evidence_refs:
+    - ev-cust-cert-face-query
+  verified_query_patterns:
+  - pattern_id: pat-ca-cert-failed-list
+    question: 查 CA 认证失败记录
+    query: SELECT * FROM ca_certification_info WHERE submit_status='FAIL' AND enable='Y'
+    intended_specification:
+      caliber_id: cal-ca-cert-failed
+    verification:
+      status: PENDING_VALIDATION
+    evidence_refs:
+    - ev-ca-cert-mark-failed
+  - pattern_id: pat-cust-cert-by-company
+    question: 查企业认证快照
+    query: SELECT * FROM cust_certification_info WHERE ref_cust_company_info=:companyCode AND enable='Y'
+    intended_specification:
+      metric_id: metric-cust-cert-snapshot-count
+    verification:
+      status: PENDING_VALIDATION
+    evidence_refs:
+    - ev-cust-cert-face-query
+evidence_refs: []
+unit_links: []
+assumptions:
+- 签章中心/CFCA 为外部服务，不落本地知识表
+conflicts: []
+confidence: 0.7

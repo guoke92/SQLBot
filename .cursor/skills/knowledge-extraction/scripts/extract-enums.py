@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 """Extract enum dictionaries from Java enum classes.
 
-pplatform-web uses ``XxxEnum`` classes with the ``NAME("dictKey", "显示名")``
+The target codebase uses ``XxxEnum`` classes with the ``NAME("dictKey", "显示名")``
 pattern. This is deterministic (like the catalog), so it belongs to the script
 side, not the AI-agent side.
 
 The enum class name maps to its DB field by convention:
-``CustBuildStatusEnum`` -> ``cust_build_status``.
+``XxxEnum`` -> ``xxx``（去 Enum 后缀 + camelCase 转 snake）。
 
 Usage::
 
-    backend/venv/bin/python scripts/extract-enums.py <repo> [-o enums.yaml]
+    backend/venv/bin/python .cursor/skills/knowledge-extraction/scripts/extract-enums.py <repo> [-o enums.yaml]
 """
 from __future__ import annotations
 
@@ -19,15 +19,11 @@ import re
 import sys
 from pathlib import Path
 
-BACKEND = Path(__file__).resolve().parent.parent / "backend"
-if str(BACKEND) not in sys.path:
-    sys.path.insert(0, str(BACKEND))
-
-import yaml  # noqa: E402
+import yaml
 
 
 def snake(name: str) -> str:
-    # IDType -> id_type（处理连续大写缩写）；CustBuildStatus -> cust_build_status
+    # XxxEnum -> xxx（去 Enum 后缀；处理连续大写缩写，如 IDType -> id_type）
     return re.sub(r"(?<=[A-Z])(?=[A-Z][a-z])|(?<=[a-z0-9])(?=[A-Z])", "_", name).lower()
 
 

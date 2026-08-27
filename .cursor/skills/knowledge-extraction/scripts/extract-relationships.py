@@ -3,9 +3,9 @@
 
 Three code facts (authority order 代码读写 > 文档主张):
 
-1. ``ref_<target>`` FK convention — this codebase names its foreign-key columns
-   ``ref_cust_company_info`` / ``ref_tenant_project_approval_tenant_project``,
-   so the target table is embedded in the column name.
+1. ``ref_<target_table>`` FK convention — the codebase names its foreign-key
+   columns ``ref_<target_table>``, embedding the target table name in the column
+   name.
 2. Mapper XML ``JOIN ... ON a.col = b.col`` clauses.
 3. Service/DAO MyBatis-Plus FK usage ``.eq(XxxDO::getFkField, var.getKey())``
    for the ``*_id`` / ``*_code`` FKs that do NOT follow the ``ref_*`` convention.
@@ -14,7 +14,7 @@ Noise (tenant isolation, enum matching, id-copy sync) is filtered out.
 
 Usage::
 
-    backend/venv/bin/python scripts/extract-relationships.py <repo> [-o relationships.yaml]
+    backend/venv/bin/python .cursor/skills/knowledge-extraction/scripts/extract-relationships.py <repo> [-o relationships.yaml]
 """
 from __future__ import annotations
 
@@ -23,11 +23,7 @@ import re
 import sys
 from pathlib import Path
 
-BACKEND = Path(__file__).resolve().parent.parent / "backend"
-if str(BACKEND) not in sys.path:
-    sys.path.insert(0, str(BACKEND))
-
-import yaml  # noqa: E402
+import yaml
 
 # 租户/流程样板字段：作为关联键时一律跳过
 _TENANT = {
@@ -69,7 +65,7 @@ def _is_fk(field: str) -> bool:
 
 
 def extract_ref_convention(repo: Path, tables: set[str]) -> list[dict]:
-    """ref_<target> 列名内嵌目标表：ref_cust_company_info -> cust_company_info.code."""
+    """ref_<target_table> 列名内嵌目标表，目标字段默认为 code。"""
     rels: list[dict] = []
     for path in repo.rglob("*.java"):
         text = path.read_text(encoding="utf-8", errors="ignore")
@@ -202,7 +198,7 @@ def extract_read_flow(repo: Path, do_table: dict[str, str]) -> list[dict]:
             src_f = snake(src_field)
             if src_f in _TENANT or src_f in ("tenant_id", "tenant_code"):
                 continue
-            # callee 变量名以实体为前缀：custCompanyInfoService/companyMapper -> cust_company_info
+            # callee 变量名以实体为前缀（如 xxxService/xxxMapper -> xxx_xxx）
             cand = [do_table[c] for c in do_table if do_table[c].replace("_", "").startswith(
                 callee.lower().replace("service", "").replace("mapper", "").replace("query", "").replace("_", ""))]
             if len(cand) == 1 and cand[0] != src_table and src_f in ("id", "code") or (

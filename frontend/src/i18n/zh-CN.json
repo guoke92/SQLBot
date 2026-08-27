@@ -921,9 +921,11 @@
     "log": {
       "GENERATE_QUERY": "生成查询",
       "REPAIR_QUERY": "修复查询语句",
+      "PLAN_REJECTED": "物理校验未通过",
       "PLAN_QUERY": "理解需求并生成查询",
       "GENERATE_CHART": "生成图表结构",
       "ANALYSIS": "分析",
+      "SUMMARIZE": "结果总结",
       "PREDICT_DATA": "预测",
       "GENERATE_QUERY_WITH_PERMISSIONS": "拼接查询行权限",
       "CHOOSE_DATASOURCE": "匹配数据源",
@@ -963,7 +965,6 @@
       "run_attempt": "第 {value} 次运行",
       "batch": "第 {value} 批",
       "unit": "第 {value} 项",
-
       "step_failed": "处理失败",
       "step_interrupted": "处理已中断",
       "step_degraded": "处理完成，但存在降级",

@@ -1,0 +1,613 @@
+unit_id: customer-account-role
+revision: 1
+title: 客户银行账户与角色关系
+aliases:
+- 企业账户
+- 客户角色
+- 企业用户关系
+domain: customer
+applicability: 企业银行账户维护、客户角色新增/冻结/解冻/注销、企业用户关系生成与查询场景
+description: 穿透 CustAccountApplication / CustRoleApplication / SubmitCustInfoEnhanceService：账户查重与默认账户切换、角色批量新增与状态变更、按企业角色生成
+  cust_user_rel。
+content:
+  concepts:
+  - concept_id: cust-bank-account
+    name: 企业银行账户
+    aliases:
+    - 银行账户
+    - 还款账户
+    definition: 企业银行账户表 cust_account_info，以主键 id 锚定。
+    field_targets:
+    - dataset: cust_account
+      field: id
+    evidence_refs:
+    - ev-account-schema
+  - concept_id: default-account
+    name: 默认账户
+    aliases:
+    - 默认还款账户
+    definition: default_account_flag=1 的企业银行账户。
+    dictionary:
+      '1': 默认
+    field_targets:
+    - dataset: cust_account
+      field: default_account_flag
+    evidence_refs:
+    - ev-account-set-default
+  - concept_id: cust-role
+    name: 客户角色
+    aliases:
+    - 企业角色
+    definition: 客户角色表 cust_role_info，以主键 id 锚定。
+    field_targets:
+    - dataset: cust_role
+      field: id
+    evidence_refs:
+    - ev-role-schema
+  - concept_id: cust-user-rel
+    name: 企业用户关系
+    aliases:
+    - 用户企业关系
+    definition: 企业用户关系表 cust_user_rel，以主键 id 锚定。
+    field_targets:
+    - dataset: cust_user_rel
+      field: id
+    evidence_refs:
+    - ev-user-rel-schema
+  processes:
+  - stage_id: account-save
+    name: 银行账户保存
+    description: 保存账户前按 account_no + ref_cust_company_info 查重；保存后无默认账户时自动将当前账户置为默认。
+    trigger: CustAccountApplication.checkBefore / afterSave
+    enter_conditions:
+    - account_no 非空
+    - 企业存在
+    exit_conditions:
+    - 账户已保存且存在默认账户
+    next_stages:
+    - account-default
+    data_effects:
+    - operation: read
+      dataset: cust_account
+      fields:
+      - id
+      - account_no
+      - ref_cust_company_info
+      condition: account_no = :accountNo AND ref_cust_company_info = :companyCode
+      description: 保存前查重
+      evidence_refs:
+      - ev-account-check-before
+    - operation: read
+      dataset: cust_account
+      fields:
+      - id
+      - default_account_flag
+      - ref_cust_company_info
+      condition: default_account_flag = '1' AND ref_cust_company_info = :companyCode
+      description: 检查是否已有默认账户
+      evidence_refs:
+      - ev-account-after-save
+    - operation: insert
+      dataset: cust_account
+      fields:
+      - account_no
+      - account_type
+      - account_name
+      - bank_no
+      - bank_branch_name
+      - status
+      - ref_cust_company_info
+      - db_tenant_code
+      - enable
+      condition: 查重通过后插入
+      description: 新增企业银行账户
+      evidence_refs:
+      - ev-account-check-before
+    - operation: update
+      dataset: cust_account
+      fields:
+      - default_account_flag
+      condition: 无默认账户时
+      description: 将当前账户置为默认
+      evidence_refs:
+      - ev-account-after-save
+    evidence_refs:
+    - ev-account-check-before
+  - stage_id: account-default
+    name: 设置默认账户
+    description: 将指定账户置为默认，原默认账户取消默认。
+    trigger: CustAccountApplication.setDefaultFlag
+    enter_conditions:
+    - 指定账户存在
+    exit_conditions:
+    - 指定账户 default_account_flag=1
+    next_stages: []
+    data_effects:
+    - operation: read
+      dataset: cust_account
+      fields:
+      - id
+      - default_account_flag
+      - ref_cust_company_info
+      condition: default_account_flag = '1' AND ref_cust_company_info = :companyCode
+      description: 查旧默认账户
+      evidence_refs:
+      - ev-account-set-default
+    - operation: update
+      dataset: cust_account
+      fields:
+      - default_account_flag
+      condition: 旧默认账户 id = :oldId
+      description: 取消旧默认账户
+      evidence_refs:
+      - ev-account-set-default
+    - operation: update
+      dataset: cust_account
+      fields:
+      - default_account_flag
+      condition: id = :accountId
+      description: 将新账户置为默认
+      evidence_refs:
+      - ev-account-set-default
+    evidence_refs:
+    - ev-account-set-default
+  - stage_id: role-manage
+    name: 客户角色维护
+    description: 角色新增：先删旧角色再批量插入并回写项目关联 company_type；状态变更：冻结/解冻/注销，或按企业批量更新非注销角色状态。
+    trigger: CustRoleApplication.addRoleInfo / freeze / unFreeze / logout
+    enter_conditions:
+    - 企业存在
+    exit_conditions:
+    - 角色已保存或状态已更新
+    next_stages:
+    - user-rel-rebuild
+    data_effects:
+    - operation: read
+      dataset: cust_role
+      fields:
+      - id
+      - status
+      - ref_cust_company_info
+      - role_type
+      condition: ref_cust_company_info = :companyCode
+      description: 读企业现有角色
+      evidence_refs:
+      - ev-role-add-role-info
+      - ev-role-update-status-by-company
+    - operation: delete
+      dataset: cust_role
+      fields:
+      - id
+      - ref_cust_company_info
+      condition: ref_cust_company_info = :companyCode
+      description: 新增前先删除旧角色
+      evidence_refs:
+      - ev-role-add-role-info
+    - operation: insert
+      dataset: cust_role
+      fields:
+      - status
+      - platform_cust_id
+      - ref_cust_company_info
+      - role_type
+      - db_tenant_code
+      - enable
+      condition: 按 roleTypes 批量插入
+      description: 批量保存企业角色
+      evidence_refs:
+      - ev-role-add-role-info
+    - operation: update
+      dataset: cust_role
+      fields:
+      - status
+      condition: id = :roleId 或 ref_cust_company_info = :companyCode 且 status != WRITEOFF
+      description: 冻结/解冻/注销/批量状态更新
+      evidence_refs:
+      - ev-role-status-change
+      - ev-role-update-status-by-company
+    evidence_refs:
+    - ev-role-add-role-info
+  - stage_id: user-rel-rebuild
+    name: 企业用户关系生成/查询
+    description: 按企业角色列表和联系人列表生成 cust_user_rel；也支持按 userId+companyId+companyType 查询当前用户企业关系。
+    trigger: SubmitCustInfoEnhanceService.custUserRel / CustCompanyIfoEnchanceService.getCustUserRel
+    enter_conditions:
+    - 企业角色列表非空
+    - 联系人列表非空
+    exit_conditions:
+    - cust_user_rel 已生成/可查询
+    next_stages: []
+    data_effects:
+    - operation: read
+      dataset: cust_user_rel
+      fields:
+      - id
+      - user_id
+      - company_id
+      - company_type
+      - enable
+      condition: user_id = :userId AND company_id = :companyId AND company_type = :companyType AND enable='Y'
+      description: 查询当前用户企业关系
+      evidence_refs:
+      - ev-user-rel-get
+    - operation: insert
+      dataset: cust_user_rel
+      fields:
+      - user_id
+      - company_id
+      - company_name
+      - company_type
+      - type_status
+      - user_type
+      - enable
+      condition: 按企业角色 x 联系人生成
+      description: 批量生成企业用户关系
+      evidence_refs:
+      - ev-user-rel-save
+    evidence_refs:
+    - ev-user-rel-save
+  datasets:
+  - dataset_id: cust_account
+    name: cust_account_info
+    description: 企业银行账户
+    database: lowcode_pplatform
+    inactive: false
+    fields:
+    - field_id: id
+      name: id
+      data_type: bigint
+      description: 表主键
+      evidence_refs:
+      - ev-account-schema
+    - field_id: account_no
+      name: account_no
+      data_type: varchar
+      description: 账户账号
+      evidence_refs:
+      - ev-account-schema
+    - field_id: default_account_flag
+      name: default_account_flag
+      data_type: varchar
+      description: 是否为默认账户
+      dictionary:
+        '0': 非默认
+        '1': 默认
+      evidence_refs:
+      - ev-account-schema
+    - field_id: account_type
+      name: account_type
+      data_type: varchar
+      description: 账户类型
+      evidence_refs:
+      - ev-account-schema
+    - field_id: account_name
+      name: account_name
+      data_type: varchar
+      description: 账户名称
+      evidence_refs:
+      - ev-account-schema
+    - field_id: bank_no
+      name: bank_no
+      data_type: varchar
+      description: 联行号
+      evidence_refs:
+      - ev-account-schema
+    - field_id: bank_branch_name
+      name: bank_branch_name
+      data_type: varchar
+      description: 账户开户行
+      evidence_refs:
+      - ev-account-schema
+    - field_id: status
+      name: status
+      data_type: varchar
+      description: 账户状态
+      evidence_refs:
+      - ev-account-schema
+    - field_id: ref_cust_company_info
+      name: ref_cust_company_info
+      data_type: varchar
+      description: 客户账号信息
+      evidence_refs:
+      - ev-account-schema
+    - field_id: db_tenant_code
+      name: db_tenant_code
+      data_type: varchar
+      description: 数据租户标识
+      evidence_refs:
+      - ev-account-schema
+    - field_id: enable
+      name: enable
+      data_type: varchar
+      description: enable
+      evidence_refs:
+      - ev-account-schema
+    evidence_refs:
+    - ev-account-after-save
+    - ev-account-check-before
+    - ev-account-schema
+    - ev-account-set-default
+    - ev-role-add-role-info
+    - ev-user-rel-save
+  - dataset_id: cust_role
+    name: cust_role_info
+    description: 客户角色
+    database: lowcode_pplatform
+    inactive: false
+    fields:
+    - field_id: id
+      name: id
+      data_type: bigint
+      description: 表主键
+      evidence_refs:
+      - ev-role-schema
+    - field_id: status
+      name: status
+      data_type: varchar
+      description: 状态
+      dictionary:
+        ADD: 新增
+        EFFECT: 生效
+        FREEZE: 冻结
+        WRITEOFF: 注销
+      evidence_refs:
+      - ev-role-schema
+    - field_id: platform_cust_id
+      name: platform_cust_id
+      data_type: bigint
+      description: 关联平台企业ID（外部运营中台企业标识，非本库外键）
+      evidence_refs:
+      - ev-role-schema
+    - field_id: ref_cust_company_info
+      name: ref_cust_company_info
+      data_type: varchar
+      description: 客户类型
+      evidence_refs:
+      - ev-role-schema
+    - field_id: role_type
+      name: role_type
+      data_type: varchar
+      description: 角色类型
+      evidence_refs:
+      - ev-role-schema
+    - field_id: db_tenant_code
+      name: db_tenant_code
+      data_type: varchar
+      description: 数据租户标识
+      evidence_refs:
+      - ev-role-schema
+    - field_id: enable
+      name: enable
+      data_type: varchar
+      description: enable
+      evidence_refs:
+      - ev-role-schema
+    evidence_refs:
+    - ev-account-check-before
+    - ev-account-set-default
+    - ev-role-add-role-info
+    - ev-role-schema
+    - ev-role-status-change
+    - ev-role-update-status-by-company
+    - ev-user-rel-save
+  - dataset_id: cust_user_rel
+    name: cust_user_rel
+    description: 企业用户关系
+    database: lowcode_pplatform
+    inactive: false
+    fields:
+    - field_id: id
+      name: id
+      data_type: bigint
+      description: 表主键
+      evidence_refs:
+      - ev-user-rel-schema
+    - field_id: user_id
+      name: user_id
+      data_type: bigint
+      description: 用户id（外部用户系统标识，非本库外键）
+      evidence_refs:
+      - ev-user-rel-schema
+    - field_id: company_id
+      name: company_id
+      data_type: bigint
+      description: 企业id
+      evidence_refs:
+      - ev-user-rel-schema
+    - field_id: company_name
+      name: company_name
+      data_type: varchar
+      description: 企业名称
+      evidence_refs:
+      - ev-user-rel-schema
+    - field_id: company_type
+      name: company_type
+      data_type: varchar
+      description: 企业类型
+      evidence_refs:
+      - ev-user-rel-schema
+    - field_id: type_status
+      name: type_status
+      data_type: varchar
+      description: 客户角色
+      evidence_refs:
+      - ev-user-rel-schema
+    - field_id: user_type
+      name: user_type
+      data_type: varchar
+      description: 联系人类型
+      evidence_refs:
+      - ev-user-rel-schema
+    - field_id: enable
+      name: enable
+      data_type: varchar
+      description: enable
+      evidence_refs:
+      - ev-user-rel-schema
+    evidence_refs:
+    - ev-account-check-before
+    - ev-account-set-default
+    - ev-role-add-role-info
+    - ev-user-rel-get
+    - ev-user-rel-save
+    - ev-user-rel-schema
+  relationships: []
+  metrics:
+  - metric_id: metric-cust-account-count
+    name: 企业银行账户数
+    description: 企业银行账户记录数。
+    aggregation: COUNT
+    field:
+      dataset: cust_account
+      field: id
+    grain:
+    - dataset: cust_account
+      field: id
+    filters: []
+    evidence_refs:
+    - ev-account-get-by-cust
+  - metric_id: metric-cust-role-count
+    name: 客户角色数
+    description: 客户角色记录数。
+    aggregation: COUNT
+    field:
+      dataset: cust_role
+      field: id
+    grain:
+    - dataset: cust_role
+      field: id
+    filters: []
+    evidence_refs:
+    - ev-role-add-role-info
+  - metric_id: metric-cust-user-rel-count
+    name: 企业用户关系数
+    description: 企业用户关系记录数。
+    aggregation: COUNT
+    field:
+      dataset: cust_user_rel
+      field: id
+    grain:
+    - dataset: cust_user_rel
+      field: id
+    filters: []
+    evidence_refs:
+    - ev-user-rel-save
+  calibers:
+  - caliber_id: cal-default-account
+    label: 默认账户
+    description: default_account_flag=1 的企业银行账户。
+    contract_fragment:
+      predicate: default_account_flag = '1'
+      scope: cust_account_info 全局定义
+    field_targets:
+    - dataset: cust_account
+      field: default_account_flag
+    evidence_refs:
+    - ev-account-set-default
+  - caliber_id: cal-active-role
+    label: 非注销客户角色
+    description: status != WRITEOFF 且 enable=Y 的客户角色。
+    contract_fragment:
+      predicate: status != 'WRITEOFF' AND enable = 'Y'
+      scope: cust_role_info 全局定义
+    field_targets:
+    - dataset: cust_role
+      field: status
+    - dataset: cust_role
+      field: enable
+    evidence_refs:
+    - ev-role-update-status-by-company
+  - caliber_id: cal-user-rel-scope
+    label: 企业用户关系范围
+    description: 按 userId + companyId + companyType 唯一定位企业用户关系。
+    contract_fragment:
+      predicate: user_id = :userId AND company_id = :companyId AND company_type = :companyType
+      scope: getCustUserRel 查询范围
+    field_targets:
+    - dataset: cust_user_rel
+      field: user_id
+    - dataset: cust_user_rel
+      field: company_id
+    - dataset: cust_user_rel
+      field: company_type
+    evidence_refs:
+    - ev-user-rel-get
+  domain_rules:
+  - rule_id: rule-account-unique
+    label: 企业账户不能重复添加
+    content: 同一 account_no + ref_cust_company_info 已存在时禁止重复添加。
+    applicability: CustAccountApplication.checkBefore
+    query_impact: 查询企业账户时 account_no 在企业内唯一，可按 account_no 定位唯一账户。
+    field_targets:
+    - dataset: cust_account
+      field: account_no
+    - dataset: cust_account
+      field: ref_cust_company_info
+    evidence_refs:
+    - ev-account-check-before
+  - rule_id: rule-default-account-switch
+    label: 默认账户唯一切换
+    content: 设置默认账户时先将原默认账户 default_account_flag 置 0，再将目标账户置 1。
+    applicability: CustAccountApplication.setDefaultFlag
+    query_impact: 同一企业下默认账户始终唯一；查询默认账户时加 default_account_flag='1' 即可。
+    field_targets:
+    - dataset: cust_account
+      field: default_account_flag
+    evidence_refs:
+    - ev-account-set-default
+  - rule_id: rule-role-add-delete-first
+    label: 新增角色先删旧角色
+    content: 新增客户角色时先按 ref_cust_company_info 删除旧角色，再批量插入新角色，并同步回写 cust_project_rel.company_type 与项目联系人。
+    applicability: CustRoleApplication.addRoleInfo
+    query_impact: 企业当前角色以最新一次保存为准；角色变更会联动客户项目关系 company_type。
+    field_targets:
+    - dataset: cust_role
+      field: ref_cust_company_info
+    evidence_refs:
+    - ev-role-add-role-info
+  - rule_id: rule-account-delete-by-primary-key
+    label: 删除其他账户使用主键批量删除
+    content: 先按企业 code 查询需删除账户的 id 列表，再按主键 removeBatchByIds，避免非主键条件删除导致死锁。
+    applicability: CustAccountApplication.deleteOtherCustAccount
+    query_impact: 删除其他账户后企业只保留指定账户；查询时不会出现死锁导致的中间态。
+    field_targets:
+    - dataset: cust_account
+      field: id
+    evidence_refs:
+    - ev-account-delete-other
+  verified_query_patterns:
+  - pattern_id: pat-account-by-company
+    question: 按企业查银行账户
+    query: SELECT * FROM cust_account_info WHERE ref_cust_company_info = :companyCode AND enable = 'Y'
+    intended_specification:
+      metric_id: metric-cust-account-count
+    verification:
+      status: PENDING_VALIDATION
+    evidence_refs:
+    - ev-account-get-by-cust
+  - pattern_id: pat-role-by-company
+    question: 按企业查客户角色
+    query: SELECT * FROM cust_role_info WHERE ref_cust_company_info = :companyCode AND enable = 'Y'
+    intended_specification:
+      caliber_id: cal-active-role
+    verification:
+      status: PENDING_VALIDATION
+    evidence_refs:
+    - ev-role-add-role-info
+  - pattern_id: pat-user-rel-current
+    question: 查当前用户的企业关系
+    query: SELECT * FROM cust_user_rel WHERE user_id = :userId AND company_id = :companyId AND company_type = :companyType
+      AND enable = 'Y'
+    intended_specification:
+      caliber_id: cal-user-rel-scope
+    verification:
+      status: PENDING_VALIDATION
+    evidence_refs:
+    - ev-user-rel-get
+evidence_refs:
+- ev-account-check-before
+unit_links: []
+assumptions:
+- 用户系统侧角色关系（SysCustUserRelDO）在外部系统，本地 cust_user_rel 为业务侧冗余关系
+conflicts: []
+confidence: 0.7

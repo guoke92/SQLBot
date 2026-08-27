@@ -542,14 +542,22 @@ class TestGraphLoader:
         assert "fail" in spec.nodes
         # At least one edge from START
         assert any((hasattr(e, "source") and e.source == "START") for e in spec.edges)
-        review_edges = [
+        # plan_query hands off to the deterministic plan gate (plain edge);
+        # the conditional routing (incl. the bounded plan_query bounce) lives
+        # on the gate.
+        plan_query_edges = [
+            e for e in spec.edges if getattr(e, "source", None) == "plan_query"
+        ]
+        assert plan_query_edges
+        assert all(getattr(e, "target", None) == "plan_gate" for e in plan_query_edges)
+        gate_edges = [
             e
             for e in spec.edges
-            if getattr(e, "source", None) == "plan_query"
-            and hasattr(e, "paths")
+            if getattr(e, "source", None) == "plan_gate" and hasattr(e, "paths")
         ]
-        assert review_edges
-        assert "review_query" in review_edges[0].paths
+        assert gate_edges
+        assert "review_query" in gate_edges[0].paths
+        assert "plan_query" in gate_edges[0].paths
 
     def test_chat_yaml_contains_analysis_and_prediction_agents(self) -> None:
         spec = self._parse_current_yaml("chat.yaml")

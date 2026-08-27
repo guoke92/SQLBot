@@ -66,7 +66,8 @@ pnpm build && pnpm lint
 2. YAML under `backend/graphs/current/` (override via `GRAPH_SPEC_DIR`) is the **sole topology source**.
 3. Callers use `submit_graph(graph_key, state)` from `apps.conversation.runtime`.
 4. Node bodies live in `apps/chat/graphs/nodes/{nlq,recommend}.py`; the `metadata` graph's nodes live in `apps/datasource/profiling/graphs/nodes/`.
-5. Domain steps / observability live in `apps/chat/steps/` (prefer existing steps + `log_span`).
+5. `plan_query → plan_gate` (deterministic): the gate verifies terminal negatives — `unsupported.missing_concepts` are looked up against the catalog map / value index (`apps/chat/steps/recall_topup.py` + `apps/datasource/recall/value_index.py`); a resolvable concept bounces once back into `plan_query` with an expanded working set (snapshot write-back to `query_run.planning_context` is mandatory — plan_query restores from it on every entry). `ready` gets an advisory entity-coverage lint only. Gate off (`RECALL_TOUP_ENABLED=false`) = exact legacy routing via `route_after_planning`. A hard-gate `ACCESS_POLICY_VIOLATION` for a map-visible table is a recall gap: `_topup_on_failed_gates` expands it and the decision is re-validated against the expanded window (stale gate errors are never sent to the repairer); only hallucinated/out-of-scope tables (or non-SQL violations) stay fatal.
+6. Domain steps / observability live in `apps/chat/steps/` (prefer existing steps + `log_span`).
 
 | graph_key   | YAML                         | Purpose                          |
 |-------------|------------------------------|----------------------------------|
@@ -91,7 +92,8 @@ Graph docs: `backend/graphs/README.md`. Deeper backend notes: `CLAUDE.md` (may l
 | `apps/chat/semantic_planning.py` | Planning decisions + the single clarification-card contract |
 | `apps/chat/planning_context.py` | Durable, replayable retrieval boundary persisted on the `nlq_run` row |
 | `apps/chat/plan_policy.py` / `planning.py` | Batch planning limits & policy |
-| `apps/chat/steps/` | Schema/SQL/chart/knowledge steps + `observability.log_span` |
+| `apps/chat/steps/` | Schema/SQL/chart/knowledge steps + `observability.log_span`; recall top-up resolver+fulfiller in `recall_topup.py`, planner maps in `recall_map.py` |
+| `apps/datasource/recall/` | Value index: per-DS process-local index (published dictionary values ∪ profiling low-cardinality `top_values`), "value ⊂ text" containment matching, generation-stamped invalidation |
 | `apps/dictionary/` | Dictionary domain |
 | `apps/knowledge/` | Knowledge Architecture v3.1 (see below) |
 | `apps/terminology/` / `apps/data_training/` | RAG terminology + Q→SQL training |

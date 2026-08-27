@@ -921,9 +921,11 @@
     "log": {
       "GENERATE_QUERY": "Generate Query",
       "REPAIR_QUERY": "Repair Query",
+      "PLAN_REJECTED": "Physical validation failed",
       "PLAN_QUERY": "Understand the request and generate a query",
       "GENERATE_CHART": "Generate Chart Structure",
       "ANALYSIS": "Analyze",
+      "SUMMARIZE": "Summarize result",
       "PREDICT_DATA": "Predict",
       "GENERATE_QUERY_WITH_PERMISSIONS": "Apply Row Permissions to Query",
       "CHOOSE_DATASOURCE": "Match Datasource",
@@ -963,7 +965,6 @@
       "run_attempt": "Run {value}",
       "batch": "Batch {value}",
       "unit": "Item {value}",
-
       "step_failed": "Processing failed",
       "step_interrupted": "Processing was interrupted",
       "step_degraded": "Completed with degradation",

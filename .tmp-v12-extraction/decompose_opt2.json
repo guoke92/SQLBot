@@ -1,0 +1,28 @@
+{
+  "nodes": 777,
+  "nodes_by_kind": {
+    "dataset": 61,
+    "field": 443,
+    "concept": 57,
+    "stage": 54,
+    "caliber": 42,
+    "rule": 43,
+    "metric": 39,
+    "pattern": 38
+  },
+  "edges": 1482,
+  "edges_by_kind": {
+    "has_field": 443,
+    "concept_of": 58,
+    "reads": 445,
+    "writes": 279,
+    "precedes": 32,
+    "relation_endpoint": 72,
+    "references_field": 153
+  },
+  "concept_of": 58,
+  "concepts": 57,
+  "concepts_anchored": 57,
+  "merge_conflicts": 0,
+  "stub_nodes": 0
+}

@@ -1,0 +1,651 @@
+unit_id: funding-rule
+revision: 1
+title: 资金方规则
+aliases:
+- 资方规则
+- 资金规则
+domain: funding
+applicability: 资金方规则维护（保存/生效/失效）与资金方规则对客查询场景
+description: 穿透 FundRuleInfoApplication.saveRuleInfo/activeRule/inActiveRule 与 FundingPartyRuleProviderImpl.queryFundingPartyRules：覆盖规则新增查重、版本累加、front_cfg
+  匹配明细、ACTIVE 查询口径；休眠资金方旧规则表仅登记。
+content:
+  concepts:
+  - concept_id: funding-rule
+    name: 资金方规则
+    aliases:
+    - 资方规则
+    - 资金规则
+    definition: 资金方规则主表 funding_rule_info，以主键 id 锚定。
+    field_targets:
+    - dataset: funding_rule_info
+      field: id
+    evidence_refs:
+    - ev-fund-info-schema
+  - concept_id: funding-rule-active
+    name: 生效中规则
+    aliases:
+    - 生效规则
+    definition: 资金方规则状态为 ACTIVE。
+    dictionary:
+      ACTIVE: 生效中
+    field_targets:
+    - dataset: funding_rule_info
+      field: rule_status
+    evidence_refs:
+    - ev-fund-rule-status-dict
+  - concept_id: funding-rule-layer
+    name: 规则分层
+    aliases:
+    - 底层规则
+    - 融资规则
+    definition: 资金方规则明细按 rule_layer 分为底层规则/融资规则/其他规则。
+    dictionary: &id001
+      UNDERLYING: 底层规则
+      FINANCING: 融资规则
+      OTHER: 其他规则
+    field_targets:
+    - dataset: funding_rule_detail
+      field: rule_layer
+    evidence_refs:
+    - ev-fund-rule-layer-dict
+  processes:
+  - stage_id: rule-maintain
+    name: 保存/更新资金方规则
+    description: 新增时查重并插入 funding_rule_info（rule_status=PENDING, version=1）；更新时 version 累加 1；按 front_key 匹配 front_cfg 后 saveOrUpdate
+      明细。
+    trigger: FundRuleInfoApplication.saveRuleInfo
+    enter_conditions:
+    - productCode 非空
+    - fundingPartyMark 非空
+    exit_conditions:
+    - funding_rule_info 已保存/版本已递增
+    - funding_rule_detail 已按 front_cfg 匹配保存
+    next_stages:
+    - rule-effect
+    data_effects:
+    - operation: read
+      dataset: funding_rule_info
+      fields:
+      - id
+      - code
+      - funding_party_mark
+      - product_code
+      - rule_status
+      - version
+      condition: product_code = :productCode AND funding_party_mark = :fundingPartyMark
+      description: 新增分支查重
+      evidence_refs:
+      - ev-fund-save-rule
+    - operation: insert
+      dataset: funding_rule_info
+      fields:
+      - code
+      - funding_party_mark
+      - funding_party_name
+      - product_code
+      - rule_status
+      - version
+      - enable
+      condition: ruleInfoId 为空时插入
+      description: 新增规则主记录，rule_status=PENDING, version=1
+      evidence_refs:
+      - ev-fund-save-rule
+    - operation: update
+      dataset: funding_rule_info
+      fields:
+      - version
+      - funding_party_name
+      condition: ruleInfoId 非空时更新
+      description: 更新分支 version 累加 1
+      evidence_refs:
+      - ev-fund-save-rule
+    - operation: read
+      dataset: funding_rule_front_cfg
+      fields:
+      - id
+      - product_code
+      - front_key
+      - key_name
+      - key_type
+      - rule_key
+      - rule_layer
+      - enable
+      condition: product_code = :productCode
+      description: 查询前端规则页面配置
+      evidence_refs:
+      - ev-fund-save-rule
+    - operation: read
+      dataset: funding_rule_detail
+      fields:
+      - id
+      - rule_info_id
+      - rule_key
+      - rule_value
+      - fund_rule_code_ref
+      - rule_layer
+      - version
+      - funding_party_mark
+      - product_code
+      - enable
+      condition: rule_info_id = :ruleInfoId AND rule_key = :frontKey AND enable='Y'
+      description: 匹配已有明细以便 update
+      evidence_refs:
+      - ev-fund-save-rule
+    - operation: upsert
+      dataset: funding_rule_detail
+      fields:
+      - rule_info_id
+      - rule_key
+      - rule_value
+      - fund_rule_code_ref
+      - rule_layer
+      - version
+      - funding_party_mark
+      - product_code
+      - enable
+      condition: front_key 命中 front_cfg 的 ruleMap entry
+      description: 保存/更新规则明细；未命中 front_key 的 entry 跳过
+      evidence_refs:
+      - ev-fund-save-rule
+    evidence_refs:
+    - ev-fund-save-rule
+  - stage_id: rule-effect
+    name: 生效/失效规则
+    description: 运营端将资金方规则状态在 ACTIVE/INACTIVE 之间切换。
+    trigger: FundRuleInfoApplication.activeRule / inActiveRule
+    enter_conditions:
+    - 规则记录存在
+    exit_conditions:
+    - rule_status=ACTIVE 或 INACTIVE
+    next_stages: []
+    data_effects:
+    - operation: read
+      dataset: funding_rule_info
+      fields:
+      - id
+      - rule_status
+      condition: id = :id
+      description: 读规则主记录
+      evidence_refs:
+      - ev-fund-active-rule
+    - operation: update
+      dataset: funding_rule_info
+      fields:
+      - rule_status
+      condition: id = :id
+      description: 更新规则状态为 ACTIVE/INACTIVE
+      evidence_refs:
+      - ev-fund-active-rule
+      - ev-fund-inactive-rule
+    evidence_refs:
+    - ev-fund-active-rule
+    - ev-fund-inactive-rule
+  - stage_id: rule-query
+    name: 资金方规则查询
+    description: Dubbo 提供者按 fundingPartyMark + productCode + ACTIVE 查询规则主记录，再读 front_cfg 和 detail 组装分层规则结果。
+    trigger: FundingPartyRuleProviderImpl.queryFundingPartyRules
+    enter_conditions:
+    - fundingPartyId 与 productCode 非空
+    exit_conditions:
+    - 返回分层规则明细；无 ACTIVE 规则返回 null
+    next_stages: []
+    data_effects:
+    - operation: read
+      dataset: funding_rule_info
+      fields:
+      - id
+      - code
+      - funding_party_mark
+      - funding_party_name
+      - product_code
+      - rule_status
+      - version
+      condition: funding_party_mark = :fundingPartyId AND product_code = :productCode AND rule_status='ACTIVE'
+      description: 查生效规则主记录
+      evidence_refs:
+      - ev-fund-provider-query
+    - operation: read
+      dataset: funding_rule_front_cfg
+      fields:
+      - id
+      - product_code
+      - front_key
+      - key_name
+      - key_type
+      - rule_key
+      - rule_layer
+      - enable
+      condition: product_code = :productCode AND enable='Y'
+      description: 查前端规则页面配置
+      evidence_refs:
+      - ev-fund-provider-query
+    - operation: read
+      dataset: funding_rule_detail
+      fields:
+      - id
+      - rule_info_id
+      - rule_key
+      - rule_value
+      - fund_rule_code_ref
+      - rule_layer
+      - version
+      - funding_party_mark
+      - product_code
+      - enable
+      condition: rule_info_id = ruleInfo.id AND enable='Y'
+      description: 查规则明细并按 rule_layer 分组
+      evidence_refs:
+      - ev-fund-provider-query
+    evidence_refs:
+    - ev-fund-provider-query
+    - ev-fund-query-front
+  datasets:
+  - dataset_id: funding_rule_info
+    name: funding_rule_info
+    description: 资金方规则主表
+    database: lowcode_pplatform
+    inactive: false
+    fields:
+    - field_id: id
+      name: id
+      data_type: bigint
+      description: 表主键
+      evidence_refs:
+      - ev-fund-info-schema
+    - field_id: code
+      name: code
+      data_type: varchar
+      description: 编码
+      evidence_refs:
+      - ev-fund-info-schema
+    - field_id: funding_party_mark
+      name: funding_party_mark
+      data_type: varchar
+      description: 资金方标识
+      evidence_refs:
+      - ev-fund-info-schema
+    - field_id: funding_party_name
+      name: funding_party_name
+      data_type: varchar
+      description: 资方名称
+      evidence_refs:
+      - ev-fund-info-schema
+    - field_id: product_code
+      name: product_code
+      data_type: varchar
+      description: 产品code（业务键，关联 platform_product.product_code）
+      evidence_refs:
+      - ev-fund-info-schema
+    - field_id: rule_status
+      name: rule_status
+      data_type: varchar
+      description: 规则状态 ACTIVE/INACTIVE/PENDING
+      dictionary:
+        PENDING: 待生效
+        ACTIVE: 生效中
+        INACTIVE: 已失效
+      evidence_refs:
+      - ev-fund-info-schema
+      - ev-fund-rule-status-dict
+    - field_id: version
+      name: version
+      data_type: int
+      description: 版本号
+      evidence_refs:
+      - ev-fund-info-schema
+    - field_id: enable
+      name: enable
+      data_type: varchar
+      description: enable
+      evidence_refs:
+      - ev-fund-info-schema
+    evidence_refs:
+    - ev-fund-active-rule
+    - ev-fund-inactive-rule
+    - ev-fund-info-schema
+    - ev-fund-provider-query
+    - ev-fund-query-front
+    - ev-fund-save-rule
+  - dataset_id: funding_rule_detail
+    name: funding_rule_detail
+    description: 资金方规则明细表
+    database: lowcode_pplatform
+    inactive: false
+    fields:
+    - field_id: id
+      name: id
+      data_type: bigint
+      description: 表主键
+      evidence_refs:
+      - ev-fund-detail-schema
+    - field_id: rule_info_id
+      name: rule_info_id
+      data_type: bigint
+      description: 关系规则信息ID
+      evidence_refs:
+      - ev-fund-detail-schema
+    - field_id: rule_key
+      name: rule_key
+      data_type: varchar
+      description: 字段key 对应front_key
+      evidence_refs:
+      - ev-fund-detail-schema
+    - field_id: rule_value
+      name: rule_value
+      data_type: varchar
+      description: 规则值
+      evidence_refs:
+      - ev-fund-detail-schema
+    - field_id: fund_rule_code_ref
+      name: fund_rule_code_ref
+      data_type: varchar
+      description: 关联规则信息code（冗余副本，derived_from funding_rule_info.code）
+      evidence_refs:
+      - ev-fund-detail-schema
+    - field_id: rule_layer
+      name: rule_layer
+      data_type: varchar
+      description: 规则层
+      dictionary: *id001
+      evidence_refs:
+      - ev-fund-detail-schema
+      - ev-fund-rule-layer-dict
+    - field_id: version
+      name: version
+      data_type: int
+      description: 版本
+      evidence_refs:
+      - ev-fund-detail-schema
+    - field_id: funding_party_mark
+      name: funding_party_mark
+      data_type: varchar
+      description: 资方标识
+      evidence_refs:
+      - ev-fund-detail-schema
+    - field_id: product_code
+      name: product_code
+      data_type: varchar
+      description: 产品code（业务键，关联 platform_product.product_code）
+      evidence_refs:
+      - ev-fund-detail-schema
+    - field_id: enable
+      name: enable
+      data_type: varchar
+      description: enable
+      evidence_refs:
+      - ev-fund-detail-schema
+    evidence_refs:
+    - ev-fund-active-rule
+    - ev-fund-detail-schema
+    - ev-fund-inactive-rule
+    - ev-fund-provider-query
+    - ev-fund-query-front
+    - ev-fund-save-rule
+  - dataset_id: funding_rule_front_cfg
+    name: funding_rule_front_cfg
+    description: 资金方规则前端页面配置
+    database: lowcode_pplatform
+    inactive: false
+    fields:
+    - field_id: id
+      name: id
+      data_type: bigint
+      description: 表主键
+      evidence_refs:
+      - ev-fund-front-schema
+    - field_id: product_code
+      name: product_code
+      data_type: varchar
+      description: 产品code（业务键，关联 platform_product.product_code）
+      evidence_refs:
+      - ev-fund-front-schema
+    - field_id: front_key
+      name: front_key
+      data_type: varchar
+      description: 前端字段key
+      evidence_refs:
+      - ev-fund-front-schema
+    - field_id: key_name
+      name: key_name
+      data_type: varchar
+      description: 字段名称描述
+      evidence_refs:
+      - ev-fund-front-schema
+    - field_id: key_type
+      name: key_type
+      data_type: varchar
+      description: 字段业务规则类型
+      evidence_refs:
+      - ev-fund-front-schema
+    - field_id: rule_key
+      name: rule_key
+      data_type: varchar
+      description: 规则字段key
+      evidence_refs:
+      - ev-fund-front-schema
+    - field_id: rule_layer
+      name: rule_layer
+      data_type: varchar
+      description: 规则层 UNDERLYING/FINANCING
+      dictionary: *id001
+      evidence_refs:
+      - ev-fund-front-schema
+      - ev-fund-rule-layer-dict
+    - field_id: enable
+      name: enable
+      data_type: varchar
+      description: enable
+      evidence_refs:
+      - ev-fund-front-schema
+    evidence_refs:
+    - ev-fund-active-rule
+    - ev-fund-front-schema
+    - ev-fund-inactive-rule
+    - ev-fund-provider-query
+    - ev-fund-query-front
+    - ev-fund-save-rule
+  - dataset_id: funding_party_rule_cfg
+    name: funding_party_rule_cfg
+    description: 资金方规则配置主表（休眠表：无入口调用链，仅登记）
+    database: lowcode_pplatform
+    inactive: true
+    fields: []
+    evidence_refs:
+    - ev-party-cfg-schema
+  - dataset_id: funding_party_rule_detail
+    name: funding_party_rule_detail
+    description: 资金方规则明细表（休眠表：无入口调用链，仅登记）
+    database: lowcode_pplatform
+    inactive: true
+    fields: []
+    evidence_refs:
+    - ev-party-detail-schema
+  - dataset_id: funding_party_rule_front
+    name: funding_party_rule_front
+    description: 资金方规则前端表（休眠表：无入口调用链，仅登记）
+    database: lowcode_pplatform
+    inactive: true
+    fields: []
+    evidence_refs:
+    - ev-party-front-schema
+  relationships:
+  - relationship_id: rel-fund-detail-info
+    left:
+      dataset: funding_rule_detail
+      field: rule_info_id
+    right:
+      dataset: funding_rule_info
+      field: id
+    relationship_type: EQUI_JOIN
+    cardinality: many_to_one
+    business_meaning: 规则明细通过 rule_info_id 关联规则主记录
+    status: proposed
+    evidence_refs:
+    - ev-fund-query-detail
+  metrics:
+  - metric_id: metric-fund-rule-count
+    name: 资金方规则数
+    description: 资金方规则主记录数。
+    aggregation: COUNT
+    field:
+      dataset: funding_rule_info
+      field: id
+    grain:
+    - dataset: funding_rule_info
+      field: id
+    filters: []
+    evidence_refs:
+    - ev-fund-save-rule
+  - metric_id: metric-fund-rule-active-count
+    name: 生效中规则数
+    description: rule_status=ACTIVE 的资金方规则数。
+    aggregation: COUNT
+    field:
+      dataset: funding_rule_info
+      field: id
+    grain:
+    - dataset: funding_rule_info
+      field: id
+    filters:
+    - field: rule_status
+      op: '='
+      value: ACTIVE
+    evidence_refs:
+    - ev-fund-active-rule
+  - metric_id: metric-fund-rule-detail-count
+    name: 资金方规则明细数
+    description: 资金方规则明细记录数。
+    aggregation: COUNT
+    field:
+      dataset: funding_rule_detail
+      field: id
+    grain:
+    - dataset: funding_rule_detail
+      field: id
+    filters: []
+    evidence_refs:
+    - ev-fund-save-rule
+  calibers:
+  - caliber_id: cal-fund-rule-active
+    label: 生效中规则
+    description: rule_status=ACTIVE 的资金方规则。
+    contract_fragment:
+      predicate: rule_status = 'ACTIVE'
+      scope: funding_rule_info 全局定义
+    field_targets:
+    - dataset: funding_rule_info
+      field: rule_status
+    evidence_refs:
+    - ev-fund-rule-status-dict
+  - caliber_id: cal-fund-rule-pending
+    label: 待生效规则
+    description: rule_status=PENDING 的资金方规则。
+    contract_fragment:
+      predicate: rule_status = 'PENDING'
+      scope: funding_rule_info 全局定义
+    field_targets:
+    - dataset: funding_rule_info
+      field: rule_status
+    evidence_refs:
+    - ev-fund-rule-status-dict
+  - caliber_id: cal-fund-rule-product-party
+    label: 产品+资方规则范围
+    description: 查询资金方规则的标准范围：product_code + funding_party_mark + rule_status=ACTIVE。
+    contract_fragment:
+      predicate: product_code = :productCode AND funding_party_mark = :fundingPartyMark AND rule_status = 'ACTIVE'
+      scope: FundingPartyRuleProviderImpl.queryFundingPartyRules
+    field_targets:
+    - dataset: funding_rule_info
+      field: product_code
+    - dataset: funding_rule_info
+      field: funding_party_mark
+    - dataset: funding_rule_info
+      field: rule_status
+    evidence_refs:
+    - ev-fund-provider-query
+  domain_rules:
+  - rule_id: rule-fund-unique-product-party
+    label: 同一产品下同一资方规则唯一
+    content: 新增规则时按 productCode + fundingPartyMark 查重，已存在则禁止新增。
+    applicability: FundRuleInfoApplication.saveRuleInfo 新增分支
+    query_impact: 查询产品-资方规则时不会出现重复主记录，但历史版本可能有多条 detail（enable=Y 为当前有效）。
+    field_targets:
+    - dataset: funding_rule_info
+      field: product_code
+    - dataset: funding_rule_info
+      field: funding_party_mark
+    evidence_refs:
+    - ev-fund-save-rule
+  - rule_id: rule-fund-version-increment
+    label: 更新规则版本累加 1
+    content: 更新资金方规则时 version 在原值上累加 1，并将新值写入 funding_rule_info 与 funding_rule_detail。
+    applicability: FundRuleInfoApplication.saveRuleInfo 更新分支
+    query_impact: 版本字段用于识别规则更新次数；查询最新规则应按 rule_status 和 enable=Y 明细，而非只按 version。
+    field_targets:
+    - dataset: funding_rule_info
+      field: version
+    - dataset: funding_rule_detail
+      field: version
+    evidence_refs:
+    - ev-fund-save-rule
+  - rule_id: rule-fund-detail-skip-unknown-front-key
+    label: 未知 front_key 明细跳过
+    content: 保存规则明细时，只有 front_key 命中该产品 funding_rule_front_cfg 的 entry 才入库，未知 key 跳过不中断。
+    applicability: FundRuleInfoApplication.saveRuleInfo 明细保存循环
+    query_impact: 规则明细的 rule_key 集合受 front_cfg 约束，查询时以 front_cfg 为目录。
+    field_targets:
+    - dataset: funding_rule_detail
+      field: rule_key
+    evidence_refs:
+    - ev-fund-save-rule
+  - rule_id: rule-fund-provider-active-only
+    label: 资金方规则查询只返回 ACTIVE
+    content: 资金方规则查询接口只返回 rule_status=ACTIVE 的规则，无生效规则返回 null。
+    applicability: FundingPartyRuleProviderImpl.queryFundingPartyRules
+    query_impact: 对客查询资金规则时默认只取生效中规则，PENDING/INACTIVE 不出现在结果中。
+    field_targets:
+    - dataset: funding_rule_info
+      field: rule_status
+    evidence_refs:
+    - ev-fund-provider-query
+  verified_query_patterns:
+  - pattern_id: pat-fund-rule-by-product
+    question: 查某产品下资金方规则列表
+    query: SELECT id, funding_party_mark, funding_party_name, product_code, rule_status, version FROM funding_rule_info WHERE
+      product_code = :productCode AND enable = 'Y'
+    intended_specification:
+      entity: funding_rule_info
+      query_type: list_by_product
+    verification:
+      status: PENDING_VALIDATION
+    evidence_refs:
+    - ev-fund-save-rule
+  - pattern_id: pat-fund-active-rule-detail
+    question: 查某产品+资方生效规则明细
+    query: SELECT d.rule_key, d.rule_value, d.rule_layer FROM funding_rule_detail d JOIN funding_rule_info i ON i.id = d.rule_info_id
+      WHERE i.funding_party_mark = :fundingPartyMark AND i.product_code = :productCode AND i.rule_status = 'ACTIVE' AND d.enable
+      = 'Y'
+    intended_specification:
+      caliber_id: cal-fund-rule-product-party
+      metric_id: metric-fund-rule-detail-count
+    verification:
+      status: PENDING_VALIDATION
+    evidence_refs:
+    - ev-fund-provider-query
+  - pattern_id: pat-fund-active-rule-count
+    question: 生效中的资金方规则有多少
+    query: SELECT COUNT(*) FROM funding_rule_info WHERE rule_status = 'ACTIVE' AND enable = 'Y'
+    intended_specification:
+      caliber_id: cal-fund-rule-active
+      metric_id: metric-fund-rule-active-count
+    verification:
+      status: PENDING_VALIDATION
+    evidence_refs:
+    - ev-fund-active-rule
+evidence_refs:
+- ev-fund-save-rule
+unit_links: []
+assumptions:
+- funding_party_rule_cfg/detail/front 为休眠表，按技能要求保留为 inactive 表级声明，不进维度引用
+conflicts: []
+confidence: 0.75

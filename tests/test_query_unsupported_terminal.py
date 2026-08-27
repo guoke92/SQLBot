@@ -25,6 +25,55 @@ def test_route_after_planning_routes_unsupported_to_terminal_node() -> None:
     assert nlq.route_after_planning({"planning_decision": "unsupported"}) == "unsupported"
 
 
+def test_route_after_plan_gate_keeps_unsupported_terminal_semantics() -> None:
+    """经 plan_gate 的 unsupported 路由仍指向终局节点（gate 放行时不改写语义）."""
+    assert (
+        nlq.route_after_plan_gate({"planning_decision": "unsupported"}) == "unsupported"
+    )
+
+
+def test_missing_concepts_survive_decision_parsing() -> None:
+    from apps.chat.semantic_planning import PLANNING_DECISION_ADAPTER
+
+    unsupported = PLANNING_DECISION_ADAPTER.validate_python(
+        {
+            "decision": "unsupported",
+            "message": "当前数据源缺少组织维度。",
+            "reason_code": "SCHEMA_NOT_SUPPORTED",
+            "missing_concepts": ["组织/部门表", "部门名称字段"],
+        }
+    )
+    assert unsupported.missing_concepts == ["组织/部门表", "部门名称字段"]
+
+    clarify = PLANNING_DECISION_ADAPTER.validate_python(
+        {
+            "decision": "clarify",
+            "questions": [
+                {
+                    "question": "按哪个日期归月",
+                    "why": "口径影响结果",
+                    "options": [
+                        {"label": "创建时间", "fields": [{"table": "d_task", "name": "create_time"}]},
+                        {"label": "关闭时间", "fields": [{"table": "d_task", "name": "close_time"}]},
+                    ],
+                }
+            ],
+            "missing_concepts": ["交付时效口径"],
+        }
+    )
+    # NeedClarification 的 coerce_payload 重建 dict — 必须保留新字段
+    assert clarify.missing_concepts == ["交付时效口径"]
+
+    legacy = PLANNING_DECISION_ADAPTER.validate_python(
+        {
+            "decision": "unsupported",
+            "message": "不支持",
+            "reason_code": "SCHEMA_NOT_SUPPORTED",
+        }
+    )
+    assert legacy.missing_concepts == []
+
+
 def test_unsupported_query_node_persists_public_business_error(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

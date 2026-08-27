@@ -1,0 +1,150 @@
+### AuthorizationAgreementDO
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/infrastructure/dao/AuthorizationAgreementDaoImpl.java:6:import com.lls.lowcode.pplatform.pplatform.apaas.service.api.model.AuthorizationAgreementDO;
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/infrastructure/dao/AuthorizationAgreementDaoImpl.java:28:public class AuthorizationAgreementDaoImpl extends BaseServiceImpl<AuthorizationAgreementDO> implements AuthorizationAgreementDao {
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/infrastructure/dao/AuthorizationAgreementDaoImpl.java:32:    public List<AuthorizationAgreementDO> listAuthorizationAgreement(String actProcinstId) {
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/infrastructure/dao/AuthorizationAgreementDaoImpl.java:33:        List<AuthorizationAgreementDO> list = this.lambdaQuery()
+### CaCertificationInfoDO
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/cfca/dto/CaCertificationSubmitResult.java:16: * <p>字段集严格对齐 {@code CaCertificationInfoDO} 已有列；
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/cfca/dto/CaCertificationInfoDto.java:18: * <p>字段集严格对齐 {@code CaCertificationInfoDO} 已有列；
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/cfca/dto/CaCertificationInitDto.java:17: * <p>本 DTO <b>仅保留 {@code CaCertificationInfoDO} 已有列对应字段</b>。
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/cfca/dto/CaCertificationInitDto.java:35:    @ApiModelProperty(value = "对应 CaCertificationInfoDO.custId：分公司行 = cust_company_info.id；"
+### CaFeeCompanyDO
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/job/CaFeeScheduledJobHandler.java:16:import com.lls.lowcode.pplatform.cust.service.cafee.model.CaFeeCompanyDO;
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/job/CaFeeScheduledJobHandler.java:111:                List<CaFeeCompanyDO> batch = caFeeCompanyDao.lambdaQuery()
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/job/CaFeeScheduledJobHandler.java:112:                        .gt(CaFeeCompanyDO::getId, lastId)
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/job/CaFeeScheduledJobHandler.java:113:                        .eq(CaFeeCompanyDO::getEnable, CaFeeConstants.ENABLE_Y)
+### CaFeeOrderDO
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/job/CaFeeScheduledJobHandler.java:17:import com.lls.lowcode.pplatform.cust.service.cafee.model.CaFeeOrderDO;
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/job/CaFeeScheduledJobHandler.java:177:        CaFeeOrderDO order = caFeeRenewalService.ensureRenewPendingOrder(companyInfo.getId(), feeCompany,
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/cafee/CaFeeInvoiceApplication.java:6:import com.lls.lowcode.pplatform.cust.service.cafee.model.CaFeeOrderDO;
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/cafee/CaFeeInvoiceApplication.java:38:        CaFeeOrderDO order = caFeeOrderDao.getByOrderNo(orderNo);
+### CaFeeProjectConfigDO
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/cafee/CaFeeLedgerOperateService.java:20:import com.lls.lowcode.pplatform.cust.service.cafee.model.CaFeeProjectConfigDO;
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/cafee/CaFeeLedgerOperateService.java:176:        CaFeeProjectConfigDO config = caFeeProjectConfigDao.getByProjectId(req.getProjectId());
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/cafee/CaFeeRuleEngineService.java:16:import com.lls.lowcode.pplatform.cust.service.cafee.model.CaFeeProjectConfigDO;
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/cafee/CaFeeRuleEngineService.java:81:        CaFeeProjectConfigDO projectConfig = caFeeProjectConfigDao.getByProjectId(command.getProjectId());
+### CustAuthApplicationDO
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/migratory/appliaction/PlatFormMigratoryApplication.java:2099:        List<CustAuthApplicationDO> authApps = custProductDomainService.listCustAllProduct(id);
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/infrastructure/dao/CustAuthApplicationDao.java:10:import com.lls.lowcode.pplatform.pplatform.apaas.service.api.model.CustAuthApplicationDO;
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/infrastructure/dao/CustAuthApplicationDao.java:22:public interface CustAuthApplicationDao extends BaseService<CustAuthApplicationDO> {
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/infrastructure/dao/CustAuthApplicationDao.java:30:    default boolean remove(CustAuthApplicationDO entity) {
+### CustCertificationInfoDO
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/controller/FaceVerifyController.java:32:import com.lls.lowcode.pplatform.pplatform.apaas.service.api.model.CustCertificationInfoDO;
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/controller/FaceVerifyController.java:124:    public ResultDTO<CustCertificationInfoDO> faceVerifyQuery(@RequestParam String custId,
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/controller/FaceVerifyController.java:135:        CustCertificationInfoDO custCertificationInfoDO = miniFaceService.queryResult(custId, snapshot);
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/controller/FaceVerifyController.java:152:                                             CustCertificationInfoDO faceResult,
+### CustChangeCfgDO
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/migratory/appliaction/PlatFormMigratoryApplication.java:408:                            CustChangeCfgDO one = custChangeCfgService.getOne(CustChangeCfgDO.builder().itemCode(CustUpdateItemCodeConstants.UN0009).enable("Y")
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustCompanyInfoApplication.java:3586:                    CustChangeCfgDO one = custChangeCfgService.getOne(CustChangeCfgDO.builder().itemCode(CustUpdateItemCodeConstants.UN0009).enable("Y")
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustCompanyInfoApplication.java:4319:        LambdaQueryWrapper<CustChangeCfgDO> qw = new LambdaQueryWrapper<CustChangeCfgDO>()
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustCompanyInfoApplication.java:4320:                .eq(CustChangeCfgDO::getCustType, custType).eq(CustChangeCfgDO::getEnable, "Y");
+### CustChangeRecordDO
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/db/CustChangeRecordDao.java:4:import com.lls.lowcode.pplatform.pplatform.apaas.service.api.model.CustChangeRecordDO;
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/db/CustChangeRecordDao.java:8:public class CustChangeRecordDao extends BaseServiceImpl<CustChangeRecordDO> {
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/db/CustChangeRecordDao.java:10:    public CustChangeRecordDO getByCustIdAndOpsCustId(Long custId, Long opssCustId) {
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/db/CustChangeRecordDao.java:12:                .eq(CustChangeRecordDO::getCustId,custId)
+### CustCompanyLifecycleInfoDO
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustCompanyInfoApplication.java:7070:        CustCompanyLifecycleInfoDO f = custCompanyLifecycleInfoService.getById(id);
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustCompanyInfoApplication.java:7108:        CustCompanyLifecycleInfoDO f = custCompanyLifecycleInfoService.getById(id);
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustCompanyInfoApplication.java:7136:        List<CustCompanyLifecycleInfoDO> lists = custCompanyLifecycleInfoService.list(new LambdaQueryWrapper<CustCompanyLifecycleInfoDO>()
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustCompanyInfoApplication.java:7137:                .eq(CustCompanyLifecycleInfoDO::getEnable, EnableEnum.N.name())
+### CustCompanySurveyStateDO
+### CustCompanySurveyWhitelistDO
+### CustCustomizedProductDO
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/controller/client/ClientAppController.java:31:import com.lls.lowcode.pplatform.pplatform.apaas.service.api.model.CustCustomizedProductDO;
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/controller/client/ClientAppController.java:372:    public ResultDTO<Boolean> create(@RequestBody CustCustomizedProductDO custCustomizedProductDO) {
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/controller/client/ClientAppController.java:381:    public ResultDTO<Boolean> change(@RequestBody CustCustomizedProductDO custCustomizedProductDO) {
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/custproduct/CustGeneralProductApplication.java:21:import com.lls.lowcode.pplatform.pplatform.apaas.service.api.model.CustCustomizedProductDO;
+### CustGroupRelDO
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/custproduct/CustProductApplicationService.java:15:import com.lls.lowcode.pplatform.pplatform.apaas.service.api.model.CustGroupRelDO;
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/custproduct/CustProductApplicationService.java:218:        CustGroupRelDO rootGroup = custGroupRelService.getOne(new LambdaQueryWrapper<CustGroupRelDO>()
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/custproduct/CustProductApplicationService.java:219:                .eq(CustGroupRelDO::getCustId, companyId)
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/custproduct/CustProductApplicationService.java:220:                .eq(CustGroupRelDO::getEnable, BooleanEnum.Y.getDictKey())
+### CustHeadCompanyInfoDO
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/migratory/appliaction/PlatFormMigratoryApplication.java:499:            CustHeadCompanyInfoDO headCompany = setHeadCompany(custInfo, company);
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/migratory/appliaction/PlatFormMigratoryApplication.java:1755:    private CustHeadCompanyInfoDO setHeadCompany(MigratoryCustInfo cust, CustCompanyInfoDO company) {
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/migratory/appliaction/PlatFormMigratoryApplication.java:1759:        CustHeadCompanyInfoDO head = null;
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/migratory/appliaction/PlatFormMigratoryApplication.java:1765:        LambdaQueryWrapper<CustHeadCompanyInfoDO> qw = new LambdaQueryWrapper<CustHeadCompanyInfoDO>();
+### CustInterworkingProductDO
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/infrastructure/dao/CustInterworkingProductDao.java:10:import com.lls.lowcode.pplatform.pplatform.apaas.service.api.model.CustInterworkingProductDO;
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/infrastructure/dao/CustInterworkingProductDao.java:22:public interface CustInterworkingProductDao extends BaseService<CustInterworkingProductDO> {
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/infrastructure/dao/CustInterworkingProductDao.java:30:    default boolean remove(CustInterworkingProductDO entity) {
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/infrastructure/dao/CustInterworkingProductDao.java:31:        QueryWrapper<CustInterworkingProductDO> queryWrapper = new QueryWrapper(entity);
+### CustInviteInfoDO
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/controller/CustCompanyInfoController.java:1584:    public ResultDTO<Boolean> inviteCheck(@ApiParam @RequestBody CustInviteInfoDO custInviteInfoDO) {
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/controller/CustCompanyInfoController.java:1593:    public ResultDTO<Boolean> inviteSave(@ApiParam @RequestBody CustInviteInfoDO custInviteInfoDO) {
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/controller/CustCompanyInfoController.java:1600:    public ResultDTO<Boolean> h5InviteSave(@ApiParam @RequestBody CustInviteInfoDO custInviteInfoDO) {
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/controller/CustCompanyInfoController.java:1610:    public ResultDTO<Boolean> createCust(@ApiParam @RequestBody CustInviteInfoDO custInviteInfoDO) {
+### CustOperChangeRecordDO
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/OperChangeRecordApplication.java:5:import com.lls.lowcode.pplatform.pplatform.apaas.service.api.model.CustOperChangeRecordDO;
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/OperChangeRecordApplication.java:45:        LambdaQueryWrapper<CustOperChangeRecordDO> qw = new LambdaQueryWrapper<>();
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/OperChangeRecordApplication.java:46:        qw.eq(CustOperChangeRecordDO::getPersonId, personId)
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/OperChangeRecordApplication.java:47:                .eq(CustOperChangeRecordDO::getEnable, "Y")
+### CustProjectCodeRecordDO
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/CustProjectRelEnhanceService.java:51:import com.lls.lowcode.pplatform.pplatform.apaas.service.api.model.CustProjectCodeRecordDO;
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/CustProjectRelEnhanceService.java:362:        CustProjectCodeRecordDO relRecordDO = new CustProjectCodeRecordDO();
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/CustProjectRelEnhanceService.java:406:        List<CustProjectCodeRecordDO> list = custProjectCodeRecordService.lambdaQuery()
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/CustProjectRelEnhanceService.java:407:                .eq(CustProjectCodeRecordDO::getCompanyId, companyId)
+### CustProjectPushcustDO
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustProjectCustpushApplication.java:3:import com.lls.lowcode.pplatform.pplatform.apaas.service.api.model.CustProjectPushcustDO;
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustProjectCustpushApplication.java:22:    public CustProjectPushcustDO getDOBySourceTargetChannel(String source, String target) {
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustProjectCustpushApplication.java:23:        return custProjectCustpushService.getOne(CustProjectPushcustDO.builder().sourceSsoChannel(source).targetSsoChannel(target).build(), false);
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/oper/callback/cust/CustSyncEventProvider.java:556:                CustProjectPushcustDO pushcustDO = custProjectCustpushApplication.getDOBySourceTargetChannel(operatorUserDTO.getSourceSysChannel(), entityByParam.getSsoTenantChanel());
+### CustSettingConfigDO
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/dto/CustSettingConfigDTO.java:26: * @type CustSettingConfigDO
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/controller/CustSettingConfigController.java:7:import com.lls.lowcode.pplatform.pplatform.apaas.service.api.model.CustSettingConfigDO;
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/controller/CustSettingConfigController.java:43:    public ResultDTO<CustSettingConfigDO> getConfig() {
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustAccountApplication.java:21:import com.lls.lowcode.pplatform.pplatform.apaas.service.api.model.CustSettingConfigDO;
+### CustShareholderInfoDO
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/ApplyCompanyInfoApplication.java:34:import com.lls.lowcode.pplatform.pplatform.apaas.service.api.model.CustShareholderInfoDO;
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/ApplyCompanyInfoApplication.java:189:        CustShareholderInfoDO custShareholderInfoPrm = CustShareholderInfoDO.builder().build();
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/ApplyCompanyInfoApplication.java:191:        List<CustShareholderInfoDO> shareholderInfoDOList = custShareholderInfoService.list(custShareholderInfoPrm);
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/ApplyCompanyInfoApplication.java:192:        List<CustShareholderInfoDO> shareholderInfoNewList = new ArrayList<>();
+### CustSurveyAnswerDO
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/survey/CustSurveyAnswerService.java:9:import com.lls.lowcode.pplatform.pplatform.apaas.service.api.model.CustSurveyAnswerDO;
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/survey/CustSurveyAnswerService.java:86:        List<CustSurveyAnswerDO> records = buildRecords(req, companyId, userId);
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/survey/CustSurveyAnswerService.java:95:    private List<CustSurveyAnswerDO> buildRecords(SurveySubmitReqDTO req, Long companyId, Long userId) {
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/survey/CustSurveyAnswerService.java:96:        List<CustSurveyAnswerDO> records = new ArrayList<>();
+### OperationUserDO
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/approval/ProjectApprovalApplication.java:1375:            OperationUserDO operationUserDO = operationUserService.getOne(OperationUserDO.builder().operationId(apply.getOpContact()).build(), false);
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/controller/ProjectReportController.java:30:import com.lls.lowcode.pplatform.pplatform.apaas.service.api.model.OperationUserDO;
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/controller/ProjectReportController.java:1477:            LambdaQueryWrapper<OperationUserDO> queryWrapper = new LambdaQueryWrapper<>();
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/controller/ProjectReportController.java:1478:            queryWrapper.eq(OperationUserDO::getDeleted, "Y");
+### PlatformProductClientDO
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/CustNoticeService.java:28:import com.lls.lowcode.pplatform.pplatform.apaas.service.api.model.PlatformProductClientDO;
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/CustNoticeService.java:91:				PlatformProductClientDO platformProductClientDO = new PlatformProductClientDO();
+### ProjectFileInfoDO
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/controller/ProjectFileController.java:11:import com.lls.lowcode.pplatform.pplatform.apaas.service.api.model.ProjectFileInfoDO;
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/controller/ProjectFileController.java:46:    public ResultDTO<Boolean> saveOrUpdate(@RequestBody ProjectFileInfoDO projectFileInfoDO) {
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/controller/ProjectFileController.java:51:        ProjectFileInfoDO projetfile = projectFileInfoService.getById(projectFileInfoDO.getId());
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/controller/ProjectFileController.java:73:    public ResultDTO<ProjectFileInfoDO> detail( @RequestParam("id") Long id) {
+### TenantInterworkingProductDO
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/controller/TenantInterworkingProductController.java:15:import com.lls.lowcode.pplatform.pplatform.apaas.service.api.model.TenantInterworkingProductDO;
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/controller/TenantInterworkingProductController.java:77:    public ResultDTO<TenantInterworkingProductDO> create(@RequestBody  @Validated TenantProductOpenDTO tenantProductOpenDTO) {
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/controller/TenantInterworkingProductController.java:78:        TenantInterworkingProductDO TenantInterworkingProductDO = applicationService.create(tenantProductOpenDTO.getTenantId(),tenantProductOpenDTO.getPlatformProductId());
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/controller/TenantInterworkingProductController.java:79:        return ResultDTO.ok(TenantInterworkingProductDO);
+### TenantInterworkingProjectDO
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/controller/TenantInterworkingProductController.java:16:import com.lls.lowcode.pplatform.pplatform.apaas.service.api.model.TenantInterworkingProjectDO;
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/controller/TenantInterworkingProductController.java:142:    public ResultDTO<List<TenantInterworkingProjectDO>> initChannelCode(@RequestParam Long productId) {
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/controller/TenantInterworkingProductController.java:143:        List<TenantInterworkingProjectDO> rlt = tenantInterworkingProjectDao.listByProduct(productId);
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/TenantInterworkingProjectApplicationService.java:6:import com.lls.lowcode.pplatform.pplatform.apaas.service.api.model.TenantInterworkingProjectDO;
+### WecProjectCustOperationRelDO
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/controller/ProjectReportController.java:1810:            List<com.lls.lowcode.pplatform.pplatform.apaas.service.api.model.WecProjectCustOperationRelDO> wecCompanyRels = null;
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/controller/ProjectReportController.java:1827:                    com.lls.lowcode.pplatform.pplatform.apaas.service.api.model.WecProjectCustOperationRelDO> queryWrapper = 
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/controller/ProjectReportController.java:1829:                queryWrapper.eq(com.lls.lowcode.pplatform.pplatform.apaas.service.api.model.WecProjectCustOperationRelDO::getProjectId, 
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/controller/ProjectReportController.java:1831:                queryWrapper.eq(com.lls.lowcode.pplatform.pplatform.apaas.service.api.model.WecProjectCustOperationRelDO::getTopFlag, "1");
+### WecProjectOperationRelDO
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/controller/ProjectReportController.java:1552:                    com.lls.lowcode.pplatform.pplatform.apaas.service.api.model.WecProjectOperationRelDO> queryWrapper = 
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/controller/ProjectReportController.java:1554:                queryWrapper.eq(com.lls.lowcode.pplatform.pplatform.apaas.service.api.model.WecProjectOperationRelDO::getWecProjectId, 
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/controller/ProjectReportController.java:1556:                com.lls.lowcode.pplatform.pplatform.apaas.service.api.model.WecProjectOperationRelDO project = 
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/controller/ProjectReportController.java:2065:                    com.lls.lowcode.pplatform.pplatform.apaas.service.api.model.WecProjectOperationRelDO> queryWrapper = 
+### WechatProjectApprovalApplyDO
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/approval/ProjectApprovalApplication.java:1332:        List<WechatProjectApprovalApplyDO> list = wechatProjectApprovalApplyService.list(Wrappers.lambdaQuery(WechatProjectApprovalApplyDO.class).eq(WechatProjectApprovalApplyDO::getEnable, BooleanEnum.Y.getDictKey()).eq(WechatProjectApprovalApplyDO::getActProcinstStatus, WechatProjectApprovalApplication.EXPORT_REQUIRED_ACT_PROCINST_STATUS).orderByDesc(WechatProjectApprovalApplyDO::getSpPassTime));
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/approval/ProjectApprovalApplication.java:1347:        WechatProjectApprovalApplyDO apply = wechatProjectApprovalApplyService.getOne(Wrappers.lambdaQuery(WechatProjectApprovalApplyDO.class).eq(WechatProjectApprovalApplyDO::getSpNo, spNo).eq(WechatProjectApprovalApplyDO::getEnable, BooleanEnum.Y.getDictKey()).last("limit 1"), false);
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/approval/ProjectApprovalApplication.java:1355:    private TenantProjectApprovalDTO toProjectSpNoDto(WechatProjectApprovalApplyDO apply) {
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/approval/ProjectApprovalApplication.java:1362:    private TenantProjectApprovalProposerDTO buildApprovalProposerDto(WechatProjectApprovalApplyDO apply) {
+### WechatProjectApprovalFieldHistoryDO
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/ProjectStatisticsApplication.java:42:import com.lls.lowcode.pplatform.pplatform.apaas.service.api.model.WechatProjectApprovalFieldHistoryDO;
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/ProjectStatisticsApplication.java:713:        LambdaQueryWrapper<WechatProjectApprovalFieldHistoryDO> w = new LambdaQueryWrapper<>();
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/ProjectStatisticsApplication.java:714:        w.eq(WechatProjectApprovalFieldHistoryDO::getApplyId, applyId)
+lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/ProjectStatisticsApplication.java:715:                .eq(WechatProjectApprovalFieldHistoryDO::getFieldName, "solution_manager")

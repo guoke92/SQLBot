@@ -1,0 +1,426 @@
+unit_id: customer-auth-product
+revision: 1
+title: 客户产品授权与快捷入口
+aliases: []
+domain: product
+applicability: 企业产品授权应用开通、客户端快捷入口定制、客户互通产品查询场景
+description: 穿透 SubmitCustInfoEnhanceService.custAuthApplication、ClientAppController 定制产品、CustCompanyUtilApplication 查询互通产品。
+content:
+  concepts:
+  - concept_id: cust-auth-application
+    name: 产品授权应用
+    aliases: []
+    definition: 企业产品授权应用 cust_auth_application
+    dictionary: {}
+    field_targets:
+    - dataset: cust_auth_application
+      field: id
+    evidence_refs:
+    - ev-cust-auth-app-schema
+  - concept_id: cust-customized-product
+    name: 快捷入口产品
+    aliases: []
+    definition: 客户端快捷入口产品 cust_customized_product
+    dictionary: {}
+    field_targets:
+    - dataset: cust_customized_product
+      field: id
+    evidence_refs:
+    - ev-cust-customized-product-schema
+  - concept_id: cust-interworking-product
+    name: 客户互通产品
+    aliases: []
+    definition: 客户开通的互通产品 cust_interworking_product
+    dictionary: {}
+    field_targets:
+    - dataset: cust_interworking_product
+      field: id
+    evidence_refs:
+    - ev-cust-interworking-product-schema
+  processes:
+  - stage_id: auth-app-save
+    name: 产品授权应用保存
+    description: 按企业可开通产品列表保存授权应用，已存在则跳过
+    trigger: SubmitCustInfoEnhanceService.custAuthApplication
+    enter_conditions: []
+    exit_conditions: []
+    next_stages:
+    - customized-product-save
+    data_effects:
+    - operation: read
+      dataset: cust_auth_application
+      fields:
+      - id
+      - application
+      - ref_cust_company_info
+      - platform_product_code
+      - ref_cust_auth_application_tenant_product
+      - enable
+      condition: ref_cust_company_info=:companyCode AND ref_cust_auth_application_tenant_product=:tenantProductCode
+      description: 查重
+      evidence_refs:
+      - ev-cust-auth-app-save
+    - operation: insert
+      dataset: cust_auth_application
+      fields:
+      - application
+      - open_status
+      - ref_cust_company_info
+      - platform_product_code
+      - ref_cust_auth_application_tenant_product
+      - enable
+      condition: 不存在时插入
+      description: 保存产品授权应用
+      evidence_refs:
+      - ev-cust-auth-app-save
+    evidence_refs:
+    - ev-cust-auth-app-save
+  - stage_id: customized-product-save
+    name: 快捷入口产品定制
+    description: 新增/更新客户端快捷入口产品
+    trigger: ClientAppController.create/change
+    enter_conditions: []
+    exit_conditions: []
+    next_stages:
+    - interworking-product-query
+    data_effects:
+    - operation: read
+      dataset: cust_customized_product
+      fields:
+      - id
+      - name
+      - cust_id
+      - url
+      - logo_icon_url
+      - view_order
+      - ref_cust_customized_product_cust_company_info
+      - enable
+      condition: cust_id=:custId
+      description: 读现有快捷入口配置
+      evidence_refs:
+      - ev-cust-customized-product-save
+    - operation: upsert
+      dataset: cust_customized_product
+      fields:
+      - name
+      - cust_id
+      - url
+      - logo_icon_url
+      - view_order
+      - ref_cust_customized_product_cust_company_info
+      - enable
+      condition: 保存快捷入口产品
+      description: 新增/更新快捷入口产品
+      evidence_refs:
+      - ev-cust-customized-product-save
+    evidence_refs:
+    - ev-cust-customized-product-save
+  - stage_id: interworking-product-query
+    name: 客户互通产品查询
+    description: 按企业 code 查询客户开通的互通产品
+    trigger: CustCompanyUtilApplication 查询
+    enter_conditions: []
+    exit_conditions: []
+    next_stages: []
+    data_effects:
+    - operation: read
+      dataset: cust_interworking_product
+      fields:
+      - id
+      - open_status
+      - cust_id
+      - platform_product_code
+      - product_id
+      - ref_cust_interworking_product_cust_company_info
+      - ref_cust_interworking_product_tenant_interworking_product
+      - enable
+      condition: ref_cust_interworking_product_cust_company_info=:companyCode AND enable='Y'
+      description: 读客户互通产品
+      evidence_refs:
+      - ev-cust-interworking-product-query
+    evidence_refs:
+    - ev-cust-interworking-product-query
+  datasets:
+  - dataset_id: cust_auth_application
+    name: cust_auth_application
+    description: 企业产品授权应用
+    database: lowcode_pplatform
+    inactive: false
+    fields:
+    - field_id: id
+      name: id
+      data_type: bigint
+      description: 表主键
+      evidence_refs:
+      - ev-cust-auth-app-schema
+    - field_id: application
+      name: application
+      data_type: varchar
+      description: 产品应用
+      evidence_refs:
+      - ev-cust-auth-app-schema
+    - field_id: open_status
+      name: open_status
+      data_type: varchar
+      description: 开通状态
+      evidence_refs:
+      - ev-cust-auth-app-schema
+    - field_id: ref_cust_company_info
+      name: ref_cust_company_info
+      data_type: varchar
+      description: 客户应用
+      evidence_refs:
+      - ev-cust-auth-app-schema
+    - field_id: platform_product_code
+      name: platform_product_code
+      data_type: varchar
+      description: 平台产品编码（冗余副本，derived_from tenant_product.platform_product_code）
+      evidence_refs:
+      - ev-cust-auth-app-schema
+    - field_id: ref_cust_auth_application_tenant_product
+      name: ref_cust_auth_application_tenant_product
+      data_type: varchar
+      description: 关联应用（FK：-> tenant_product.code）
+      evidence_refs:
+      - ev-cust-auth-app-schema
+    - field_id: enable
+      name: enable
+      data_type: varchar
+      description: enable
+      evidence_refs:
+      - ev-cust-auth-app-schema
+    evidence_refs:
+    - ev-cust-auth-app-save
+    - ev-cust-auth-app-schema
+    - ev-cust-customized-product-save
+    - ev-cust-interworking-product-query
+  - dataset_id: cust_customized_product
+    name: cust_customized_product
+    description: 客户端快捷入口产品
+    database: lowcode_pplatform
+    inactive: false
+    fields:
+    - field_id: id
+      name: id
+      data_type: bigint
+      description: 表主键
+      evidence_refs:
+      - ev-cust-customized-product-schema
+    - field_id: name
+      name: name
+      data_type: varchar
+      description: 产品名称
+      evidence_refs:
+      - ev-cust-customized-product-schema
+    - field_id: cust_id
+      name: cust_id
+      data_type: bigint
+      description: 企业id（FK：-> cust_company_info.id）
+      evidence_refs:
+      - ev-cust-customized-product-schema
+    - field_id: url
+      name: url
+      data_type: varchar
+      description: 跳转链接
+      evidence_refs:
+      - ev-cust-customized-product-schema
+    - field_id: logo_icon_url
+      name: logo_icon_url
+      data_type: varchar
+      description: 图标
+      evidence_refs:
+      - ev-cust-customized-product-schema
+    - field_id: view_order
+      name: view_order
+      data_type: int
+      description: 显示顺序
+      evidence_refs:
+      - ev-cust-customized-product-schema
+    - field_id: ref_cust_customized_product_cust_company_info
+      name: ref_cust_customized_product_cust_company_info
+      data_type: varchar
+      description: 客户关联自定义产品配置（FK：-> cust_company_info.code）
+      evidence_refs:
+      - ev-cust-customized-product-schema
+    - field_id: enable
+      name: enable
+      data_type: varchar
+      description: enable
+      evidence_refs:
+      - ev-cust-customized-product-schema
+    evidence_refs:
+    - ev-cust-auth-app-save
+    - ev-cust-customized-product-save
+    - ev-cust-customized-product-schema
+    - ev-cust-interworking-product-query
+  - dataset_id: cust_interworking_product
+    name: cust_interworking_product
+    description: 客户互通产品
+    database: lowcode_pplatform
+    inactive: false
+    fields:
+    - field_id: id
+      name: id
+      data_type: bigint
+      description: 表主键
+      evidence_refs:
+      - ev-cust-interworking-product-schema
+    - field_id: open_status
+      name: open_status
+      data_type: varchar
+      description: 开通状态
+      evidence_refs:
+      - ev-cust-interworking-product-schema
+    - field_id: cust_id
+      name: cust_id
+      data_type: bigint
+      description: 企业id（FK：-> cust_company_info.id）
+      evidence_refs:
+      - ev-cust-interworking-product-schema
+    - field_id: platform_product_code
+      name: platform_product_code
+      data_type: varchar
+      description: 平台产品编码（冗余副本，derived_from platform_product.product_code）
+      evidence_refs:
+      - ev-cust-interworking-product-schema
+    - field_id: product_id
+      name: product_id
+      data_type: bigint
+      description: 互通产品id（FK：-> tenant_interworking_product.id）
+      evidence_refs:
+      - ev-cust-interworking-product-schema
+    - field_id: ref_cust_interworking_product_cust_company_info
+      name: ref_cust_interworking_product_cust_company_info
+      data_type: varchar
+      description: 关联企业
+      evidence_refs:
+      - ev-cust-interworking-product-schema
+    - field_id: ref_cust_interworking_product_tenant_interworking_product
+      name: ref_cust_interworking_product_tenant_interworking_product
+      data_type: varchar
+      description: 关联互通产品（FK：-> tenant_interworking_product.code）
+      evidence_refs:
+      - ev-cust-interworking-product-schema
+    - field_id: enable
+      name: enable
+      data_type: varchar
+      description: enable
+      evidence_refs:
+      - ev-cust-interworking-product-schema
+    evidence_refs:
+    - ev-cust-auth-app-save
+    - ev-cust-customized-product-save
+    - ev-cust-interworking-product-query
+    - ev-cust-interworking-product-schema
+  relationships: []
+  metrics:
+  - metric_id: metric-auth-app-count
+    name: 产品授权应用数
+    description: 企业产品授权应用数
+    aggregation: COUNT
+    field:
+      dataset: cust_auth_application
+      field: id
+    grain:
+    - dataset: cust_auth_application
+      field: id
+    filters: []
+    evidence_refs:
+    - ev-cust-auth-app-save
+  - metric_id: metric-customized-product-count
+    name: 快捷入口产品数
+    description: 客户端快捷入口产品数
+    aggregation: COUNT
+    field:
+      dataset: cust_customized_product
+      field: id
+    grain:
+    - dataset: cust_customized_product
+      field: id
+    filters: []
+    evidence_refs:
+    - ev-cust-customized-product-save
+  - metric_id: metric-interworking-product-count
+    name: 客户互通产品数
+    description: 客户互通产品数
+    aggregation: COUNT
+    field:
+      dataset: cust_interworking_product
+      field: id
+    grain:
+    - dataset: cust_interworking_product
+      field: id
+    filters: []
+    evidence_refs:
+    - ev-cust-interworking-product-query
+  calibers:
+  - caliber_id: cal-auth-app-open
+    label: 已开通授权应用
+    description: open_status=Y 的产品授权应用
+    contract_fragment:
+      predicate: open_status = 'Y'
+      scope: open_status=Y 的产品授权应用
+    field_targets:
+    - dataset: cust_auth_application
+      field: open_status
+    evidence_refs:
+    - ev-cust-auth-app-save
+  - caliber_id: cal-interworking-product-open
+    label: 已开通互通产品
+    description: open_status=Y 的客户互通产品
+    contract_fragment:
+      predicate: open_status = 'Y'
+      scope: open_status=Y 的客户互通产品
+    field_targets:
+    - dataset: cust_interworking_product
+      field: open_status
+    evidence_refs:
+    - ev-cust-interworking-product-query
+  domain_rules:
+  - rule_id: rule-auth-app-no-duplicate
+    label: 产品授权应用不重复开通
+    content: 按 ref_cust_company_info + ref_cust_auth_application_tenant_product 查重，已存在不重复插入。
+    applicability: SubmitCustInfoEnhanceService.custAuthApplication
+    query_impact: 查询企业授权应用时同一租户产品最多一条。
+    field_targets:
+    - dataset: cust_auth_application
+      field: ref_cust_company_info
+    - dataset: cust_auth_application
+      field: ref_cust_auth_application_tenant_product
+    evidence_refs:
+    - ev-cust-auth-app-save
+  - rule_id: rule-customized-product-by-cust
+    label: 快捷入口按企业隔离
+    content: 客户端快捷入口产品按 cust_id 隔离，查询时按当前企业过滤。
+    applicability: ClientAppController.listMyCustomizedProduct
+    query_impact: 查询快捷入口产品必须带 cust_id。
+    field_targets:
+    - dataset: cust_customized_product
+      field: cust_id
+    evidence_refs:
+    - ev-cust-customized-product-save
+  verified_query_patterns:
+  - pattern_id: pat-auth-app-by-company
+    question: 查企业产品授权应用
+    query: SELECT * FROM cust_auth_application WHERE ref_cust_company_info=:companyCode AND enable='Y'
+    intended_specification:
+      caliber_id: cal-auth-app-open
+    verification:
+      status: PENDING_VALIDATION
+    evidence_refs:
+    - ev-cust-auth-app-save
+  - pattern_id: pat-interworking-product-by-company
+    question: 查企业互通产品
+    query: SELECT * FROM cust_interworking_product WHERE ref_cust_interworking_product_cust_company_info=:companyCode AND
+      enable='Y'
+    intended_specification:
+      caliber_id: cal-interworking-product-open
+    verification:
+      status: PENDING_VALIDATION
+    evidence_refs:
+    - ev-cust-interworking-product-query
+evidence_refs: []
+unit_links: []
+assumptions: []
+conflicts: []
+confidence: 0.7

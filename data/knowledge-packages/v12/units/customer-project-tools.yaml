@@ -1,0 +1,373 @@
+unit_id: customer-project-tools
+revision: 1
+title: 项目码与项目文件
+aliases: []
+domain: product
+applicability: 企业项目码校验记录、项目跳转渠道配置、项目文件保存/详情场景
+description: 穿透 CustProjectRelEnhanceService 项目码记录、CustProjectCustpushApplication 渠道配置、ProjectFileController 文件保存/详情。
+content:
+  concepts:
+  - concept_id: project-code-record
+    name: 项目码记录
+    aliases: []
+    definition: 企业项目码校验记录 cust_project_code_record
+    dictionary: {}
+    field_targets:
+    - dataset: cust_project_code_record
+      field: id
+    evidence_refs:
+    - ev-cust-project-code-record-schema
+  - concept_id: project-pushcust
+    name: 项目跳转配置
+    aliases: []
+    definition: 项目客户跳转渠道配置 cust_project_pushcust
+    dictionary: {}
+    field_targets:
+    - dataset: cust_project_pushcust
+      field: id
+    evidence_refs:
+    - ev-cust-project-pushcust-schema
+  - concept_id: project-file
+    name: 项目文件
+    aliases: []
+    definition: 项目文件信息 project_file_info
+    dictionary: {}
+    field_targets:
+    - dataset: project_file_info
+      field: id
+    evidence_refs:
+    - ev-project-file-info-schema
+  processes:
+  - stage_id: project-code-save
+    name: 项目码记录保存
+    description: 企业提交项目码时保存校验记录
+    trigger: CustProjectRelEnhanceService
+    enter_conditions: []
+    exit_conditions: []
+    next_stages:
+    - project-push-query
+    data_effects:
+    - operation: read
+      dataset: cust_project_code_record
+      fields:
+      - id
+      - company_id
+      - channel_code
+      - status
+      - company_type
+      - type
+      - enable
+      condition: company_id=:companyId AND channel_code=:channelCode
+      description: 查项目码记录
+      evidence_refs:
+      - ev-cust-project-code-query
+    - operation: upsert
+      dataset: cust_project_code_record
+      fields:
+      - company_id
+      - channel_code
+      - status
+      - company_type
+      - type
+      - enable
+      condition: 保存项目码记录
+      description: 保存项目码校验记录
+      evidence_refs:
+      - ev-cust-project-code-save
+    evidence_refs:
+    - ev-cust-project-code-save
+  - stage_id: project-push-query
+    name: 项目跳转配置查询
+    description: 按来源/目标 SSO 渠道查询项目跳转配置
+    trigger: CustProjectCustpushApplication.getDOBySourceTargetChannel
+    enter_conditions: []
+    exit_conditions: []
+    next_stages:
+    - project-file-save
+    data_effects:
+    - operation: read
+      dataset: cust_project_pushcust
+      fields:
+      - id
+      - source_sso_channel
+      - target_sso_channel
+      - enable
+      condition: source_sso_channel=:source AND target_sso_channel=:target
+      description: 读跳转配置
+      evidence_refs:
+      - ev-cust-project-push-query
+    evidence_refs:
+    - ev-cust-project-push-query
+  - stage_id: project-file-save
+    name: 项目文件保存/详情
+    description: 保存/更新项目文件，按 id 查询详情
+    trigger: ProjectFileController.saveOrUpdate/detail
+    enter_conditions: []
+    exit_conditions: []
+    next_stages: []
+    data_effects:
+    - operation: read
+      dataset: project_file_info
+      fields:
+      - id
+      - title
+      - content
+      - file_type
+      - project_id
+      - enable
+      condition: id=:id
+      description: 读项目文件
+      evidence_refs:
+      - ev-project-file-detail
+    - operation: upsert
+      dataset: project_file_info
+      fields:
+      - title
+      - content
+      - file_type
+      - project_id
+      - enable
+      condition: 保存/更新项目文件
+      description: 保存项目文件
+      evidence_refs:
+      - ev-project-file-save
+    evidence_refs:
+    - ev-project-file-save
+  datasets:
+  - dataset_id: cust_project_code_record
+    name: cust_project_code_record
+    description: 企业项目码记录
+    database: lowcode_pplatform
+    inactive: false
+    fields:
+    - field_id: id
+      name: id
+      data_type: bigint
+      description: 表主键
+      evidence_refs:
+      - ev-cust-project-code-record-schema
+    - field_id: company_id
+      name: company_id
+      data_type: bigint
+      description: 企业id（FK：-> cust_company_info.id）
+      evidence_refs:
+      - ev-cust-project-code-record-schema
+    - field_id: channel_code
+      name: channel_code
+      data_type: varchar
+      description: 渠道码（渠道业务编码，非外键）
+      evidence_refs:
+      - ev-cust-project-code-record-schema
+    - field_id: status
+      name: status
+      data_type: varchar
+      description: 是否正确状态
+      evidence_refs:
+      - ev-cust-project-code-record-schema
+    - field_id: company_type
+      name: company_type
+      data_type: varchar
+      description: 企业角色
+      evidence_refs:
+      - ev-cust-project-code-record-schema
+    - field_id: type
+      name: type
+      data_type: varchar
+      description: 类型
+      evidence_refs:
+      - ev-cust-project-code-record-schema
+    - field_id: enable
+      name: enable
+      data_type: varchar
+      description: enable
+      evidence_refs:
+      - ev-cust-project-code-record-schema
+    evidence_refs:
+    - ev-cust-project-code-query
+    - ev-cust-project-code-record-schema
+    - ev-cust-project-code-save
+    - ev-cust-project-push-query
+    - ev-project-file-save
+  - dataset_id: cust_project_pushcust
+    name: cust_project_pushcust
+    description: 项目客户跳转配置
+    database: lowcode_pplatform
+    inactive: false
+    fields:
+    - field_id: id
+      name: id
+      data_type: bigint
+      description: 表主键
+      evidence_refs:
+      - ev-cust-project-pushcust-schema
+    - field_id: source_sso_channel
+      name: source_sso_channel
+      data_type: varchar
+      description: 起始系统的SSO渠道
+      evidence_refs:
+      - ev-cust-project-pushcust-schema
+    - field_id: target_sso_channel
+      name: target_sso_channel
+      data_type: varchar
+      description: 跳转系统的SSO渠道
+      evidence_refs:
+      - ev-cust-project-pushcust-schema
+    - field_id: enable
+      name: enable
+      data_type: varchar
+      description: enable
+      evidence_refs:
+      - ev-cust-project-pushcust-schema
+    evidence_refs:
+    - ev-cust-project-code-save
+    - ev-cust-project-push-query
+    - ev-cust-project-pushcust-schema
+    - ev-project-file-save
+  - dataset_id: project_file_info
+    name: project_file_info
+    description: 项目文件信息
+    database: lowcode_pplatform
+    inactive: false
+    fields:
+    - field_id: id
+      name: id
+      data_type: bigint
+      description: 表主键
+      evidence_refs:
+      - ev-project-file-info-schema
+    - field_id: title
+      name: title
+      data_type: varchar
+      description: 标题
+      evidence_refs:
+      - ev-project-file-info-schema
+    - field_id: content
+      name: content
+      data_type: varchar
+      description: 描述
+      evidence_refs:
+      - ev-project-file-info-schema
+    - field_id: file_type
+      name: file_type
+      data_type: varchar
+      description: 文件模块类型
+      evidence_refs:
+      - ev-project-file-info-schema
+    - field_id: project_id
+      name: project_id
+      data_type: bigint
+      description: 关联项目ID
+      evidence_refs:
+      - ev-project-file-info-schema
+    - field_id: enable
+      name: enable
+      data_type: varchar
+      description: enable
+      evidence_refs:
+      - ev-project-file-info-schema
+    evidence_refs:
+    - ev-cust-project-code-save
+    - ev-cust-project-push-query
+    - ev-project-file-detail
+    - ev-project-file-info-schema
+    - ev-project-file-save
+  relationships: []
+  metrics:
+  - metric_id: metric-project-code-record-count
+    name: 项目码记录数
+    description: 项目码校验记录数
+    aggregation: COUNT
+    field:
+      dataset: cust_project_code_record
+      field: id
+    grain:
+    - dataset: cust_project_code_record
+      field: id
+    filters: []
+    evidence_refs:
+    - ev-cust-project-code-save
+  - metric_id: metric-project-file-count
+    name: 项目文件数
+    description: 项目文件记录数
+    aggregation: COUNT
+    field:
+      dataset: project_file_info
+      field: id
+    grain:
+    - dataset: project_file_info
+      field: id
+    filters: []
+    evidence_refs:
+    - ev-project-file-save
+  calibers:
+  - caliber_id: cal-project-code-by-channel
+    label: 项目码渠道范围
+    description: 按 channel_code + company_id 定位项目码记录
+    contract_fragment:
+      predicate: channel_code = :channelCode AND company_id = :companyId
+      scope: 按 channel_code + company_id 定位项目码记录
+    field_targets:
+    - dataset: cust_project_code_record
+      field: channel_code
+    - dataset: cust_project_code_record
+      field: company_id
+    evidence_refs:
+    - ev-cust-project-code-query
+  - caliber_id: cal-project-file-by-project
+    label: 项目文件范围
+    description: 按 project_id 查询项目文件
+    contract_fragment:
+      predicate: project_id = :projectId
+      scope: 按 project_id 查询项目文件
+    field_targets:
+    - dataset: project_file_info
+      field: project_id
+    evidence_refs:
+    - ev-project-file-save
+  domain_rules:
+  - rule_id: rule-project-code-validate
+    label: 项目码校验结果留痕
+    content: 企业提交项目码时按渠道码校验并保存 status 与类型，查询时按渠道码+企业过滤。
+    applicability: CustProjectRelEnhanceService
+    query_impact: 查询项目码提交记录时按 channel_code+company_id 过滤。
+    field_targets:
+    - dataset: cust_project_code_record
+      field: status
+    evidence_refs:
+    - ev-cust-project-code-save
+  - rule_id: rule-project-push-channel
+    label: 项目跳转按 SSO 渠道路由
+    content: 项目客户推送按 source_sso_channel + target_sso_channel 定位唯一跳转配置。
+    applicability: CustProjectCustpushApplication.getDOBySourceTargetChannel
+    query_impact: 查询项目跳转目标时按来源+目标渠道匹配。
+    field_targets:
+    - dataset: cust_project_pushcust
+      field: source_sso_channel
+    - dataset: cust_project_pushcust
+      field: target_sso_channel
+    evidence_refs:
+    - ev-cust-project-push-query
+  verified_query_patterns:
+  - pattern_id: pat-project-code-by-company
+    question: 查企业项目码记录
+    query: SELECT * FROM cust_project_code_record WHERE company_id=:companyId AND enable='Y'
+    intended_specification:
+      caliber_id: cal-project-code-by-channel
+    verification:
+      status: PENDING_VALIDATION
+    evidence_refs:
+    - ev-cust-project-code-query
+  - pattern_id: pat-project-file-by-project
+    question: 查项目文件
+    query: SELECT * FROM project_file_info WHERE project_id=:projectId AND enable='Y'
+    intended_specification:
+      caliber_id: cal-project-file-by-project
+    verification:
+      status: PENDING_VALIDATION
+    evidence_refs:
+    - ev-project-file-save
+evidence_refs: []
+unit_links: []
+assumptions: []
+conflicts: []
+confidence: 0.7

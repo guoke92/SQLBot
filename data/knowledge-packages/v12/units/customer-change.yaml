@@ -1,0 +1,409 @@
+unit_id: customer-change
+revision: 1
+title: 客户变更
+aliases: []
+domain: customer
+applicability: 企业关键/非关键信息变更配置、变更记录与运营人员变更记录场景
+description: 穿透 CustChangeApplication 查询变更配置，CustCompanyInfoApplication 创建/更新变更记录，OperChangeRecordApplication 查询运营变更记录。
+content:
+  concepts:
+  - concept_id: cust-change-cfg
+    name: 客户变更配置
+    aliases: []
+    definition: 企业变更项配置 cust_change_cfg
+    dictionary: {}
+    field_targets:
+    - dataset: cust_change_cfg
+      field: id
+    evidence_refs:
+    - ev-cust-change-cfg-schema
+  - concept_id: cust-change-record
+    name: 客户变更记录
+    aliases: []
+    definition: 企业变更记录 cust_change_record
+    dictionary: {}
+    field_targets:
+    - dataset: cust_change_record
+      field: id
+    evidence_refs:
+    - ev-cust-change-record-schema
+  - concept_id: cust-oper-change-record
+    name: 运营变更记录
+    aliases: []
+    definition: 企业联系人运营人员变更记录 cust_oper_change_record
+    dictionary: {}
+    field_targets:
+    - dataset: cust_oper_change_record
+      field: id
+    evidence_refs:
+    - ev-cust-oper-change-record-schema
+  processes:
+  - stage_id: change-config-query
+    name: 变更配置查询
+    description: 按端类型/认证方式/客户类型/是否总公司查询变更项配置
+    trigger: CustChangeApplication.list
+    enter_conditions: []
+    exit_conditions: []
+    next_stages:
+    - change-record-write
+    data_effects:
+    - operation: read
+      dataset: cust_change_cfg
+      fields:
+      - id
+      - item_code
+      - plat_item
+      - oper_item
+      - cust_type
+      - identify_style
+      - client_type
+      - enable
+      condition: client_type=:clientType AND identify_style=:identifyStyle AND cust_type=:custType AND enable='Y'
+      description: 读变更项配置
+      evidence_refs:
+      - ev-cust-change-cfg-list
+    evidence_refs:
+    - ev-cust-change-cfg-list
+  - stage_id: change-record-write
+    name: 变更记录写入
+    description: 创建/更新企业变更记录并同步运营中台
+    trigger: CustCompanyInfoApplication 变更流程
+    enter_conditions: []
+    exit_conditions: []
+    next_stages:
+    - oper-change-query
+    data_effects:
+    - operation: read
+      dataset: cust_change_record
+      fields:
+      - id
+      - cust_id
+      - alter_type
+      - status
+      - enable
+      condition: cust_id=:companyId AND status != 'CUST_CHECK_PASS'
+      description: 查在途变更记录
+      evidence_refs:
+      - ev-cust-change-record-write
+    - operation: upsert
+      dataset: cust_change_record
+      fields:
+      - cust_id
+      - alter_type
+      - status
+      - alter_mode
+      - oper_app_no
+      - need_cust_confirm
+      - enable
+      condition: 变更流程创建/更新
+      description: 保存企业变更记录
+      evidence_refs:
+      - ev-cust-change-record-write
+    evidence_refs:
+    - ev-cust-change-record-write
+  - stage_id: oper-change-query
+    name: 运营人员变更记录查询
+    description: 按联系人 id 查询运营人员变更记录
+    trigger: OperChangeRecordApplication.queryByPersonId
+    enter_conditions: []
+    exit_conditions: []
+    next_stages: []
+    data_effects:
+    - operation: read
+      dataset: cust_oper_change_record
+      fields:
+      - id
+      - person_id
+      - company_id
+      - before_operator_id
+      - after_operator_id
+      - change_type
+      - change_reason
+      - enable
+      condition: person_id=:personId AND enable='Y' ORDER BY create_time DESC
+      description: 读运营人员变更记录
+      evidence_refs:
+      - ev-cust-oper-change-record-query
+    evidence_refs:
+    - ev-cust-oper-change-record-query
+  datasets:
+  - dataset_id: cust_change_cfg
+    name: cust_change_cfg
+    description: 客户变更项配置
+    database: lowcode_pplatform
+    inactive: false
+    fields:
+    - field_id: id
+      name: id
+      data_type: bigint
+      description: 表主键
+      evidence_refs:
+      - ev-cust-change-cfg-schema
+    - field_id: item_code
+      name: item_code
+      data_type: varchar
+      description: 变更项编码
+      evidence_refs:
+      - ev-cust-change-cfg-schema
+    - field_id: plat_item
+      name: plat_item
+      data_type: varchar
+      description: 平台变更项
+      evidence_refs:
+      - ev-cust-change-cfg-schema
+    - field_id: oper_item
+      name: oper_item
+      data_type: varchar
+      description: 运营中台变更项
+      evidence_refs:
+      - ev-cust-change-cfg-schema
+    - field_id: cust_type
+      name: cust_type
+      data_type: varchar
+      description: 客户类型
+      evidence_refs:
+      - ev-cust-change-cfg-schema
+    - field_id: identify_style
+      name: identify_style
+      data_type: varchar
+      description: 认证方式
+      evidence_refs:
+      - ev-cust-change-cfg-schema
+    - field_id: client_type
+      name: client_type
+      data_type: varchar
+      description: 端类型
+      evidence_refs:
+      - ev-cust-change-cfg-schema
+    - field_id: enable
+      name: enable
+      data_type: varchar
+      description: enable
+      evidence_refs:
+      - ev-cust-change-cfg-schema
+    evidence_refs:
+    - ev-cust-change-cfg-list
+    - ev-cust-change-cfg-schema
+    - ev-cust-change-record-write
+    - ev-cust-oper-change-record-query
+  - dataset_id: cust_change_record
+    name: cust_change_record
+    description: 客户变更记录
+    database: lowcode_pplatform
+    inactive: false
+    fields:
+    - field_id: id
+      name: id
+      data_type: bigint
+      description: 表主键
+      evidence_refs:
+      - ev-cust-change-record-schema
+    - field_id: cust_id
+      name: cust_id
+      data_type: bigint
+      description: 客户记录id
+      evidence_refs:
+      - ev-cust-change-record-schema
+    - field_id: alter_type
+      name: alter_type
+      data_type: varchar
+      description: 变更类型
+      evidence_refs:
+      - ev-cust-change-record-schema
+    - field_id: status
+      name: status
+      data_type: varchar
+      description: 变更状态
+      evidence_refs:
+      - ev-cust-change-record-schema
+    - field_id: alter_mode
+      name: alter_mode
+      data_type: varchar
+      description: 变更方式
+      evidence_refs:
+      - ev-cust-change-record-schema
+    - field_id: oper_app_no
+      name: oper_app_no
+      data_type: varchar
+      description: 运营中台流程编号
+      evidence_refs:
+      - ev-cust-change-record-schema
+    - field_id: need_cust_confirm
+      name: need_cust_confirm
+      data_type: varchar
+      description: 是否需要客户确认
+      evidence_refs:
+      - ev-cust-change-record-schema
+    - field_id: enable
+      name: enable
+      data_type: varchar
+      description: enable
+      evidence_refs:
+      - ev-cust-change-record-schema
+    evidence_refs:
+    - ev-cust-change-cfg-list
+    - ev-cust-change-record-schema
+    - ev-cust-change-record-write
+    - ev-cust-oper-change-record-query
+  - dataset_id: cust_oper_change_record
+    name: cust_oper_change_record
+    description: 运营人员变更记录
+    database: lowcode_pplatform
+    inactive: false
+    fields:
+    - field_id: id
+      name: id
+      data_type: bigint
+      description: 表主键
+      evidence_refs:
+      - ev-cust-oper-change-record-schema
+    - field_id: person_id
+      name: person_id
+      data_type: bigint
+      description: 企业联系人id（FK：cust_oper_change_record.person_id -> cust_person_info.id）
+      evidence_refs:
+      - ev-cust-oper-change-record-schema
+    - field_id: company_id
+      name: company_id
+      data_type: bigint
+      description: 企业ID
+      evidence_refs:
+      - ev-cust-oper-change-record-schema
+    - field_id: before_operator_id
+      name: before_operator_id
+      data_type: varchar
+      description: 变更前运营人员ID（外部运营中台人员标识，非本库外键）
+      evidence_refs:
+      - ev-cust-oper-change-record-schema
+    - field_id: after_operator_id
+      name: after_operator_id
+      data_type: varchar
+      description: 变更后运营人员ID（外部运营中台人员标识，非本库外键）
+      evidence_refs:
+      - ev-cust-oper-change-record-schema
+    - field_id: change_type
+      name: change_type
+      data_type: varchar
+      description: 变更类型
+      evidence_refs:
+      - ev-cust-oper-change-record-schema
+    - field_id: change_reason
+      name: change_reason
+      data_type: varchar
+      description: 变更原因
+      evidence_refs:
+      - ev-cust-oper-change-record-schema
+    - field_id: enable
+      name: enable
+      data_type: varchar
+      description: enable
+      evidence_refs:
+      - ev-cust-oper-change-record-schema
+    evidence_refs:
+    - ev-cust-change-cfg-list
+    - ev-cust-change-record-write
+    - ev-cust-oper-change-record-query
+    - ev-cust-oper-change-record-schema
+  relationships: []
+  metrics:
+  - metric_id: metric-cust-change-record-count
+    name: 客户变更记录数
+    description: 企业变更记录数
+    aggregation: COUNT
+    field:
+      dataset: cust_change_record
+      field: id
+    grain:
+    - dataset: cust_change_record
+      field: id
+    filters: []
+    evidence_refs:
+    - ev-cust-change-record-write
+  - metric_id: metric-cust-oper-change-record-count
+    name: 运营人员变更记录数
+    description: 联系人运营人员变更记录数
+    aggregation: COUNT
+    field:
+      dataset: cust_oper_change_record
+      field: id
+    grain:
+    - dataset: cust_oper_change_record
+      field: id
+    filters: []
+    evidence_refs:
+    - ev-cust-oper-change-record-query
+  calibers:
+  - caliber_id: cal-cust-change-inflight
+    label: 在途变更
+    description: status 非 CUST_CHECK_PASS/REJECT 的变更记录视为在途
+    contract_fragment:
+      predicate: status NOT IN ('CUST_CHECK_PASS','CUST_CHECK_REJECT')
+      scope: status 非 CUST_CHECK_PASS/REJECT 的变更记录视为在途
+    field_targets:
+    - dataset: cust_change_record
+      field: status
+    evidence_refs:
+    - ev-cust-change-record-write
+  - caliber_id: cal-cust-change-active-config
+    label: 生效变更配置
+    description: enable=Y 的变更项配置
+    contract_fragment:
+      predicate: enable = 'Y'
+      scope: enable=Y 的变更项配置
+    field_targets:
+    - dataset: cust_change_cfg
+      field: enable
+    evidence_refs:
+    - ev-cust-change-cfg-list
+  domain_rules:
+  - rule_id: rule-change-config-match
+    label: 变更配置按客户维度精确匹配
+    content: 变更配置按 clientType + identifyStyle + custType + headCompany 维度匹配，headCompany 为空时也回退查询非总公司配置。
+    applicability: CustChangeApplication.list
+    query_impact: 查询企业可变更项时必须带上端类型、认证方式、客户类型和是否总公司四个维度。
+    field_targets:
+    - dataset: cust_change_cfg
+      field: client_type
+    - dataset: cust_change_cfg
+      field: cust_type
+    - dataset: cust_change_cfg
+      field: identify_style
+    evidence_refs:
+    - ev-cust-change-cfg-list
+  - rule_id: rule-change-record-status
+    label: 变更记录审核状态流转
+    content: 变更记录 status 在 CUST_CHECK_* 审核状态间流转，查询增加企业角色时只统计 status=CUST_CHECK_PASS 的记录。
+    applicability: CustCompanyInfoApplication 变更记录写入
+    query_impact: 查询已生效变更时按 status=CUST_CHECK_PASS 过滤。
+    field_targets:
+    - dataset: cust_change_record
+      field: status
+    evidence_refs:
+    - ev-cust-change-record-write
+  verified_query_patterns:
+  - pattern_id: pat-change-config-list
+    question: 查企业可变更项配置
+    query: SELECT * FROM cust_change_cfg WHERE client_type=:clientType AND identify_style=:identifyStyle AND cust_type=:custType
+      AND enable='Y'
+    intended_specification:
+      caliber_id: cal-cust-change-active-config
+    verification:
+      status: PENDING_VALIDATION
+    evidence_refs:
+    - ev-cust-change-cfg-list
+  - pattern_id: pat-change-record-by-cust
+    question: 查企业变更记录
+    query: SELECT * FROM cust_change_record WHERE cust_id=:custId AND enable='Y'
+    intended_specification:
+      caliber_id: cal-cust-change-inflight
+    verification:
+      status: PENDING_VALIDATION
+    evidence_refs:
+    - ev-cust-change-record-query
+    - ev-cust-change-record-write
+evidence_refs: []
+unit_links: []
+assumptions:
+- 变更配置项通过运营中台同步，本地只读配置
+conflicts: []
+confidence: 0.7

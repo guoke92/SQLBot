@@ -1,0 +1,288 @@
+unit_id: funding-exception-resolution
+revision: 1
+title: 资金方异常解决
+aliases:
+- 资方异常解析
+- 异常处理建议
+domain: funding
+applicability: 资金方异常报错关键字与处理建议的导入/保存/查询/导出场景
+description: 穿透 ExceptionResolutionApplication：Excel 导入校验（产品编码+对接方标识 RPC）→ 单事务 upsert → 按 id 批量删除/分页导出；保存前校验同产品+资方+报错关键字唯一。
+content:
+  concepts:
+  - concept_id: funding-exception-resolution
+    name: 资金方异常解决记录
+    aliases:
+    - 异常解析
+    - 异常处理建议
+    definition: 资金方异常解决表 funding_exception_resolution，以主键 id 锚定。
+    field_targets:
+    - dataset: funding_exception_resolution
+      field: id
+    evidence_refs:
+    - ev-fund-exception-schema
+  - concept_id: error-keyword
+    name: 报错关键字
+    aliases:
+    - 异常关键字
+    definition: 资金方异常解决记录的报错关键字，同产品+资方下唯一。
+    dictionary: {}
+    field_targets:
+    - dataset: funding_exception_resolution
+      field: error_keyword
+    evidence_refs:
+    - ev-fund-exception-check
+  processes:
+  - stage_id: exception-import
+    name: 异常解决导入/保存
+    description: Excel 导入逐行校验（必填、productCode 枚举、对接方标识 RPC）全部通过后单事务 upsert；单条保存前校验关键字唯一。
+    trigger: ExceptionResolutionApplication.importRecords / checkBeforeSave + afterSave
+    enter_conditions:
+    - Excel 内容非空
+    - productCode 合法
+    - 对接方标识存在
+    exit_conditions:
+    - 全部错误返回或 upsert 完成
+    next_stages:
+    - exception-query
+    data_effects:
+    - operation: read
+      dataset: funding_exception_resolution
+      fields:
+      - id
+      - product_code
+      - funding_party_code
+      - error_keyword
+      condition: product_code = :productCode AND funding_party_code = :fundingPartyCode AND error_keyword = :errorKeyword
+        AND id != :id
+      description: 保存前查重，报错关键字已存在则拒绝
+      evidence_refs:
+      - ev-fund-exception-check
+    - operation: upsert
+      dataset: funding_exception_resolution
+      fields:
+      - exception_no
+      - product_code
+      - funding_party_code
+      - funding_party_name
+      - error_keyword
+      - error_reason
+      - suggestion
+      - enable
+      condition: 校验通过后按行 upsert
+      description: 导入/保存异常解决记录，enable=Y
+      evidence_refs:
+      - ev-fund-exception-import
+      - ev-fund-exception-upsert
+    evidence_refs:
+    - ev-fund-exception-import
+  - stage_id: exception-query
+    name: 异常解决查询/导出
+    description: 按查询条件分页读取 enable=Y 记录并导出 Excel，单次导出上限 50000 行。
+    trigger: ExceptionResolutionApplication.exportRecords / Controller 查询
+    enter_conditions:
+    - 查询条件合法
+    exit_conditions:
+    - 分页导出完成
+    next_stages: []
+    data_effects:
+    - operation: read
+      dataset: funding_exception_resolution
+      fields:
+      - id
+      - exception_no
+      - product_code
+      - funding_party_code
+      - funding_party_name
+      - error_keyword
+      - error_reason
+      - suggestion
+      - enable
+      condition: enable='Y' + 查询条件
+      description: 分页读取异常解决记录
+      evidence_refs:
+      - ev-fund-exception-export
+    evidence_refs:
+    - ev-fund-exception-export
+  - stage_id: exception-delete
+    name: 异常解决删除
+    description: 按 id 列表批量删除异常解决记录。
+    trigger: FundingPartyExceptionResolutionController.batchDel -> ExceptionResolutionApplication.batchDelete
+    enter_conditions:
+    - ids 非空
+    exit_conditions:
+    - 记录已删除
+    next_stages: []
+    data_effects:
+    - operation: delete
+      dataset: funding_exception_resolution
+      fields:
+      - id
+      condition: id IN :ids
+      description: 按主键批量删除
+      evidence_refs:
+      - ev-fund-exception-delete
+    evidence_refs:
+    - ev-fund-exception-delete
+  datasets:
+  - dataset_id: funding_exception_resolution
+    name: funding_exception_resolution
+    description: 资金方异常解析及建议
+    database: lowcode_pplatform
+    inactive: false
+    fields:
+    - field_id: id
+      name: id
+      data_type: bigint
+      description: 表主键
+      evidence_refs:
+      - ev-fund-exception-schema
+    - field_id: exception_no
+      name: exception_no
+      data_type: varchar
+      description: 异常编号
+      evidence_refs:
+      - ev-fund-exception-schema
+    - field_id: funding_party_code
+      name: funding_party_code
+      data_type: varchar
+      description: 对接方标识（外部资金方系统业务标识，非本库外键）
+      evidence_refs:
+      - ev-fund-exception-schema
+    - field_id: funding_party_name
+      name: funding_party_name
+      data_type: varchar
+      description: 资金方名称
+      evidence_refs:
+      - ev-fund-exception-schema
+    - field_id: error_keyword
+      name: error_keyword
+      data_type: varchar
+      description: 报错关键字
+      evidence_refs:
+      - ev-fund-exception-schema
+    - field_id: error_reason
+      name: error_reason
+      data_type: varchar
+      description: 报错原因
+      evidence_refs:
+      - ev-fund-exception-schema
+    - field_id: suggestion
+      name: suggestion
+      data_type: varchar
+      description: 建议处理方案
+      evidence_refs:
+      - ev-fund-exception-schema
+    - field_id: product_code
+      name: product_code
+      data_type: varchar
+      description: 产品code（业务键，关联 platform_product.product_code）
+      evidence_refs:
+      - ev-fund-exception-schema
+    - field_id: enable
+      name: enable
+      data_type: varchar
+      description: enable
+      evidence_refs:
+      - ev-fund-exception-schema
+    evidence_refs:
+    - ev-fund-exception-check
+    - ev-fund-exception-delete
+    - ev-fund-exception-export
+    - ev-fund-exception-import
+    - ev-fund-exception-schema
+    - ev-fund-exception-upsert
+  relationships: []
+  metrics:
+  - metric_id: metric-exception-count
+    name: 资金方异常解决记录数
+    description: 异常解析及建议记录数。
+    aggregation: COUNT
+    field:
+      dataset: funding_exception_resolution
+      field: id
+    grain:
+    - dataset: funding_exception_resolution
+      field: id
+    filters: []
+    evidence_refs:
+    - ev-fund-exception-export
+  calibers:
+  - caliber_id: cal-exception-active
+    label: 有效异常解决记录
+    description: enable=Y 的资金方异常解决记录。
+    contract_fragment:
+      predicate: enable = 'Y'
+      scope: funding_exception_resolution 全局定义
+    field_targets:
+    - dataset: funding_exception_resolution
+      field: enable
+    evidence_refs:
+    - ev-fund-exception-export
+  - caliber_id: cal-exception-unique
+    label: 同产品+资方+报错关键字唯一范围
+    description: 同一 product_code + funding_party_code + error_keyword 下仅允许一条 enable=Y 记录。
+    contract_fragment:
+      predicate: product_code = :productCode AND funding_party_code = :fundingPartyCode AND error_keyword = :errorKeyword
+        AND enable = 'Y'
+      scope: checkBeforeSave 与导入 upsert 共同遵守
+    field_targets:
+    - dataset: funding_exception_resolution
+      field: product_code
+    - dataset: funding_exception_resolution
+      field: funding_party_code
+    - dataset: funding_exception_resolution
+      field: error_keyword
+    evidence_refs:
+    - ev-fund-exception-check
+    - ev-fund-exception-upsert
+  domain_rules:
+  - rule_id: rule-exception-import-all-or-nothing
+    label: 导入校验全部通过才保存
+    content: Excel 导入存在任一必填/产品编码/对接方标识错误时直接返回全部错误，不执行保存；全部通过后单事务 upsert，任一条失败整体回滚。
+    applicability: ExceptionResolutionApplication.importRecords
+    query_impact: 异常解决表不会出现导入失败的半批数据；查询时无需区分导入成功/失败状态。
+    field_targets:
+    - dataset: funding_exception_resolution
+      field: product_code
+    - dataset: funding_exception_resolution
+      field: funding_party_code
+    evidence_refs:
+    - ev-fund-exception-import
+  - rule_id: rule-exception-export-max
+    label: 异常解决导出上限 50000 行
+    content: 单次导出最多 50000 行，超过上限抛出业务异常要求缩小查询范围。
+    applicability: ExceptionResolutionApplication.exportRecords
+    query_impact: 导出/查询超过 50000 行时应提示缩小范围，不应尝试一次取全量。
+    field_targets:
+    - dataset: funding_exception_resolution
+      field: id
+    evidence_refs:
+    - ev-fund-exception-export
+  verified_query_patterns:
+  - pattern_id: pat-exception-by-product-party
+    question: 查某产品+资金方的异常处理建议
+    query: SELECT * FROM funding_exception_resolution WHERE product_code = :productCode AND funding_party_code = :fundingPartyCode
+      AND enable = 'Y'
+    intended_specification:
+      caliber_id: cal-exception-active
+      metric_id: metric-exception-count
+    verification:
+      status: PENDING_VALIDATION
+    evidence_refs:
+    - ev-fund-exception-export
+  - pattern_id: pat-exception-by-keyword
+    question: 按报错关键字查异常处理建议
+    query: SELECT * FROM funding_exception_resolution WHERE error_keyword LIKE CONCAT('%', :keyword, '%') AND enable = 'Y'
+    intended_specification:
+      caliber_id: cal-exception-active
+    verification:
+      status: PENDING_VALIDATION
+    evidence_refs:
+    - ev-fund-exception-export
+evidence_refs:
+- ev-fund-exception-import
+unit_links: []
+assumptions:
+- 对接方列表来自 clientQueryFunderCodeService RPC，不落本地知识表
+conflicts: []
+confidence: 0.7

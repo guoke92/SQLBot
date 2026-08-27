@@ -398,6 +398,7 @@ class NeedClarification(BaseModel):
     questions: list[ClarificationQuestion] = Field(
         min_length=1, max_length=MAX_CLARIFICATION_QUESTIONS
     )
+    missing_concepts: list[str] = Field(default_factory=list, max_length=8)
 
     @model_validator(mode="before")
     @classmethod
@@ -409,6 +410,7 @@ class NeedClarification(BaseModel):
             "questions": unsigned_clarification_questions(
                 coerce_clarification_questions(value)
             ),
+            "missing_concepts": value.get("missing_concepts") or [],
         }
 
     def as_card(self) -> ClarificationCard:
@@ -428,6 +430,11 @@ class QueryUnsupported(BaseModel):
     decision: Literal["unsupported"] = "unsupported"
     message: str
     reason_code: str = "QUERY_NOT_SUPPORTED"
+    # Concepts the planner claims are missing (e.g. "组织/部门表"). The plan
+    # gate verifies each against the catalog map / value index before the
+    # terminal negative is allowed to stand; empty on a first attempt is a
+    # protocol gap and bounces once.
+    missing_concepts: list[str] = Field(default_factory=list, max_length=8)
 
     @model_validator(mode="after")
     def validate_message(self) -> Self:

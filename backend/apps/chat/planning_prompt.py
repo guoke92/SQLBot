@@ -44,9 +44,7 @@ def _planner_dialect_rules(
     if type_key:
         parts.append(f"目标协议: {type_key}")
     if identifier_quote:
-        parts.append(
-            f"标识符必须使用 {identifier_quote} 包裹，禁止混用其他引号。"
-        )
+        parts.append(f"标识符必须使用 {identifier_quote} 包裹，禁止混用其他引号。")
     try:
         if type_key and type_key not in {"rest", "api"}:
             from apps.template.generate_sql.generator import get_sql_example_template
@@ -67,7 +65,9 @@ def _planner_dialect_rules(
         )
     else:
         parts.append("不要因为展示需要自行添加 LIMIT。")
-    parts.append("candidates.payload 必须是目标协议原生查询 JSON，不要 Markdown，不要解释。")
+    parts.append(
+        "candidates.payload 必须是目标协议原生查询 JSON，不要 Markdown，不要解释。"
+    )
     return "\n".join(parts)
 
 
@@ -81,9 +81,7 @@ def protocol_prompt_bits(llm_service: Any) -> ProtocolPromptBits:
         rules=_planner_dialect_rules(
             type_key=type_key,
             identifier_quote=quote_prefix,
-            enable_query_limit=bool(
-                getattr(llm_service, "enable_sql_row_limit", True)
-            ),
+            enable_query_limit=bool(getattr(llm_service, "enable_sql_row_limit", True)),
         ),
     )
 
@@ -111,37 +109,36 @@ def _json_section(tag: str, value: Any) -> str | None:
 def render_planner_input(
     *,
     schema: str = "",
+    schema_map: str = "",
+    knowledge_map: str = "",
     sample_data: str = "",
-    terminology: str = "",
-    query_examples: str = "",
     custom_rules: str = "",
+    truncation_notice: str = "",
     protocol: ProtocolPromptBits | None = None,
     structured: Mapping[str, Any] | None = None,
 ) -> str:
-    """Assemble one HumanMessage body for semantic planning or physical repair."""
+    """Assemble one HumanMessage body for semantic planning or physical repair.
+
+    ``schema_map`` / ``knowledge_map`` / ``truncation_notice`` are multi-line
+    prose — XML sections keep newlines readable, never JSON string values.
+    ``truncation_notice`` renders only when the persisted context was actually
+    truncated: the model must know what it cannot see.
+    """
     bits = protocol or ProtocolPromptBits()
     sections: list[str] = []
 
     for tag, body in (
+        ("truncation_notice", truncation_notice),
         ("schema", schema),
+        ("schema_map", schema_map),
+        ("knowledge_map", knowledge_map),
         ("sample_data", sample_data),
-        ("terminology", terminology),
-        ("query_examples", query_examples),
         ("custom_rules", custom_rules),
         ("protocol_rules", bits.rules),
     ):
         section = _xml_section(tag, body)
         if section is not None:
             sections.append(section)
-
-    protocol_meta: dict[str, str] = {}
-    if bits.type_key:
-        protocol_meta["protocol_type"] = bits.type_key
-    if bits.identifier_quote:
-        protocol_meta["identifier_quote"] = bits.identifier_quote
-    meta_section = _json_section("protocol", protocol_meta)
-    if meta_section is not None:
-        sections.append(meta_section)
 
     for key, value in (structured or {}).items():
         section = _json_section(str(key), value)

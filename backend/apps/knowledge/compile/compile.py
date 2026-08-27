@@ -163,6 +163,41 @@ def _semantic_unit_matches(
     return matches
 
 
+def active_published_units(
+    session: Session,
+    *,
+    oid: int,
+    datasource_id: int,
+) -> list[tuple[KnowledgeUnit, KnowledgeUnitRevision]]:
+    """All active published units bound to one datasource (identity rows).
+
+    Shared read model for consumers that need the unit inventory rather than
+    the expansion pipeline: the planner knowledge map and the recall-top-up
+    knowledge index. Deployment must be ACTIVE and the binding BOUND/STALE —
+    the same lifecycle fence ``_active_units`` applies.
+    """
+    statement = (
+        select(KnowledgeUnit, KnowledgeUnitRevision)
+        .join(
+            KnowledgeUnitRevision,
+            KnowledgeUnitRevision.id == KnowledgeUnit.active_revision_id,
+        )
+        .join(
+            KnowledgeDeployment,
+            KnowledgeDeployment.revision_id == KnowledgeUnitRevision.id,
+        )
+        .join(KnowledgeBinding, KnowledgeBinding.id == KnowledgeDeployment.binding_id)
+        .where(
+            KnowledgeUnit.oid == oid,
+            KnowledgeUnitRevision.lifecycle_status == "PUBLISHED",
+            KnowledgeDeployment.status == "ACTIVE",
+            col(KnowledgeBinding.status).in_(["BOUND", "STALE"]),
+            KnowledgeBinding.datasource_id == datasource_id,
+        )
+    )
+    return list(session.exec(statement).all())
+
+
 def _active_units(
     session: Session,
     *,
@@ -173,6 +208,7 @@ def _active_units(
     seed_revision_ids: Sequence[int] = (),
     seed_policy: SeedPolicy = "none",
     limit: int = 2,
+    extra_revision_ids: Sequence[int] = (),
 ) -> list[_UnitHit]:
     statement = (
         select(
@@ -232,12 +268,29 @@ def _active_units(
     if seed_policy == "reuse":
         seeded = from_seeds()
         if seeded:
-            return seeded
-    if question_hits:
-        return question_hits
-    if seed_policy in {"reuse", "fallback"}:
-        return from_seeds()
-    return []
+            selected = seeded
+        elif question_hits:
+            selected = question_hits
+        else:
+            selected = from_seeds()
+    elif question_hits:
+        selected = question_hits
+    elif seed_policy in {"reuse", "fallback"}:
+        selected = from_seeds()
+    else:
+        selected = []
+    # Evidence-driven top-up: one extra unit beyond the limit, only when the
+    # planner/gate named it (e.g. a missing caliber concept).
+    for raw in extra_revision_ids:
+        try:
+            revision_id = int(raw)
+        except (TypeError, ValueError):
+            continue
+        hit = catalog.get(revision_id)
+        if hit is not None and hit not in selected and len(selected) <= limit:
+            selected.append(hit)
+            break
+    return selected
 
 
 def _include_process(question: str, entry: KnowledgeUnitEntry) -> bool:
@@ -435,9 +488,13 @@ def compile_business_data_bundle(
     include_examples: bool = False,
     seed_revision_ids: Sequence[int] = (),
     seed_policy: SeedPolicy = "none",
+    extra_revision_ids: Sequence[int] = (),
 ) -> BusinessDataBundle:
-    """Expand at most two active units. Draft/staging knowledge never enters NLQ.
+    """Expand at most two active units (plus one evidence-driven top-up).
 
+    ``extra_revision_ids`` lets the plan gate add a single unit beyond the
+    limit when the planner named a missing concept that maps to it. Draft and
+    staging knowledge never enters NLQ.
     Once a unit is selected, datasets/fields/relationships/calibers/metrics/rules
     are floor slots. Processes follow the question; verified examples stay
     mapping-gated and capped.
@@ -505,6 +562,7 @@ def compile_business_data_bundle(
         semantic_matches=semantic_matches,
         seed_revision_ids=seed_revision_ids,
         seed_policy=seed_policy,
+        extra_revision_ids=extra_revision_ids,
     ):
         revision_id = int(revision.id or 0)
         bundle.matched_units.append(
