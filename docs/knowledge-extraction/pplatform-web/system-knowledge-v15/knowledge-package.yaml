@@ -1,0 +1,1263 @@
+schema_version: '2.0'
+package:
+  package_id: pplatform-web-system-knowledge
+  revision: 15
+  title: 产融平台系统知识 v15（关键三域首批）
+  namespace: pplatform-web
+  description: 基于 pplatform-web @ ee434954e 的代码校准提取：客户与建档、CA认证与服务费、 项目审批三个关键域的首批场景单元（v15 为分批提取的第一批，其余域留 COVERAGE_GAP 待覆盖）。
+  repository: pplatform-web
+  repository_revision: ee434954e465713176e5bd52119eedde5ebe531b
+  domains:
+  - name: 客户与建档
+    description: 企业主数据建档/认证/联系人/项目关系/状态运营（customer-management cust 包）
+    calibration: unchanged
+  - name: CA认证与服务费
+    description: CFCA 电子签认证与 CA 服务费收缴台账/拦截（customer-management cafee+cfca 包）
+    calibration: added
+  - name: 项目审批
+    description: 项目上线审批工作流（customer-management product/approval 包）
+    calibration: added
+  - name: 问卷调研
+    calibration: added
+    description: ''
+    split_from: ''
+    renamed_from: ''
+  - name: 产品与配置
+    calibration: added
+    description: ''
+    split_from: ''
+    renamed_from: ''
+  - name: 资金方规则
+    calibration: added
+    description: ''
+    split_from: ''
+    renamed_from: ''
+sources:
+- source_id: src-cia
+  kind: java_source
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustCompanyInfoApplication.java
+- source_id: src-caa
+  kind: java_source
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustAccessApplication.java
+- source_id: src-csp
+  kind: java_source
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/oper/callback/cust/CustSyncEventProcessor.java
+- source_id: src-ocf
+  kind: java_source
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/oper/facade/cust/OperCustFacade.java
+- source_id: src-mpp
+  kind: java_source
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/db/mapper/PplatformCustCompanyInfoMapper.java
+- source_id: src-aia
+  kind: java_source
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/ApplyCompanyInfoApplication.java
+- source_id: src-identify
+  kind: java_source
+  locator: lowcode-pplatform-common/lowcode-pplatform-common-api/src/main/java/com/lls/lowcode/pplatform/common/constant/cust/IdentifyTypeConstant.java
+- source_id: src-buildtype
+  kind: java_source
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/config/CustBuildTypeConstant.java
+- source_id: src-buildstatus
+  kind: java_source
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/CustBuildStatusEnum.java
+- source_id: src-custstatus
+  kind: java_source
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/CustStatusEnum.java
+- source_id: src-operapi
+  kind: java_source
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/constants/OperApiConstants.java
+- source_id: src-datatype
+  kind: java_source
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/config/CustDataTypeConstant.java
+- source_id: src-cfo
+  kind: java_source
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/cafee/CaFeeOrderService.java
+- source_id: src-cfr
+  kind: java_source
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/cafee/CaFeeRuleEngineService.java
+- source_id: src-cflq
+  kind: java_source
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/cafee/CaFeeLedgerQueryService.java
+- source_id: src-cflo
+  kind: java_source
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/cafee/CaFeeLedgerOperateService.java
+- source_id: src-cft
+  kind: java_source
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/cafee/CaFeeTodoTriggerService.java
+- source_id: src-cfre
+  kind: java_source
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/cafee/CaFeeRenewalService.java
+- source_id: src-cfbs
+  kind: java_source
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/cafee/support/CaFeeBlockSceneSupport.java
+- source_id: src-cfcs
+  kind: java_source
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/cafee/support/CaFeeCompanyCaStatusSupport.java
+- source_id: src-cfpc
+  kind: java_source
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/cafee/CaFeeProjectConfigService.java
+- source_id: src-paa
+  kind: java_source
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/approval/ProjectApprovalApplication.java
+- source_id: src-pada
+  kind: java_source
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/approval/ProjectApprovalDeskApplication.java
+- source_id: src-pol
+  kind: java_source
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/workflow/callback/ProjectOnlineProcessOperateListener.java
+- source_id: src-tpa
+  kind: java_source
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/TenantProjectApplication.java
+- source_id: src-pbca
+  kind: java_source
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/approval/ProjectBusinessConfigApplication.java
+- source_id: src-pqmx
+  kind: xml_mapper
+  locator: lowcode-pplatform-customer-management/src/main/resources/mappers/ProjectApprovalQueryMapper.xml
+- source_id: src-wse
+  kind: java_source
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/domain/enums/ProjectApprovalWorkflowStatusEnum.java
+- source_id: src-nse
+  kind: java_source
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/domain/enums/ProjectApprovalNodeStatusEnum.java
+- source_id: src-nce
+  kind: java_source
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/domain/enums/ProjectApprovalNodeCodeEnum.java
+- source_id: src-fce
+  kind: java_source
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/domain/enums/ProjectApprovalFlowCodeEnum.java
+- source_id: src-csc
+  kind: java_source
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/controller/CustSurveyController.java
+- source_id: src-wjc
+  kind: java_source
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/controller/WenjuanController.java
+- source_id: src-sas
+  kind: java_source
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/survey/CustSurveyAnswerService.java
+- source_id: src-cssd
+  kind: java_source
+  locator: lowcode-pplatform-common/lowcode-pplatform-common-dao/src/main/java/com/lls/lowcode/pplatform/common/db/dao/cust/CustCompanySurveyStateDao.java
+- source_id: src-woc
+  kind: java_source
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/wenjuan/WenjuanOpenApiClient.java
+- source_id: src-cpds
+  kind: java_source
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/domain/CustProductDomainService.java
+- source_id: src-caa2
+  kind: java_source
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustAccountApplication.java
+- source_id: src-crs
+  kind: java_source
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/ChangeRecordService.java
+- source_id: src-cies
+  kind: java_source
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/CustCompanyIfoEnchanceService.java
+- source_id: src-tpds
+  kind: java_source
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/domain/TenantProductDomainService.java
+- source_id: src-ppd
+  kind: java_source
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/domain/PlatformProductDomainService.java
+- source_id: src-tds
+  kind: java_source
+  locator: lowcode-pplatform-tenant-management/src/main/java/com/lls/lowcode/pplatform/tenant/service/TenantDomainService.java
+- source_id: src-ccia
+  kind: java_source
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/cfca/impl/CaCertificationInfoAppServiceImpl.java
+- source_id: src-mfs
+  kind: java_source
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/face/impl/MiniFaceServiceImpl.java
+- source_id: src-caag
+  kind: java_source
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/domain/CustAuthAgreementDomainService.java
+- source_id: src-swat
+  kind: java_source
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/job/SyncWechatApprovalTask.java
+- source_id: src-wpaa
+  kind: java_source
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/WechatProjectApprovalApplication.java
+- source_id: src-fria
+  kind: java_source
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/FundRuleInfoApplication.java
+- source_id: src-era
+  kind: java_source
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/ExceptionResolutionApplication.java
+- source_id: src-cipd
+  kind: java_source
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/domain/CustInterworkingProductDomainService.java
+- source_id: src-tipd
+  kind: java_source
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/domain/TenantInterworkingProductDomainService.java
+- source_id: src-ccswd
+  kind: java_source
+  locator: lowcode-pplatform-common/lowcode-pplatform-common-dao/src/main/java/com/lls/lowcode/pplatform/common/db/dao/cust/CustCompanySurveyWhitelistDao.java
+- source_id: src-wds
+  kind: java_source
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/wenjuan/WenjuanDisplayService.java
+- source_id: src-sp
+  kind: java_source
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/config/SurveyProperties.java
+- source_id: src-csad
+  kind: java_source
+  locator: lowcode-pplatform-common/lowcode-pplatform-common-dao/src/main/java/com/lls/lowcode/pplatform/common/db/dao/cust/CustSurveyAnswerDao.java
+- source_id: src-ciees
+  kind: java_source
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/CustCompanyIfoEnchanceService.java
+- source_id: src-ppe
+  kind: java_source
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/domain/enums/ProductStatusEnum.java
+- source_id: src-pose
+  kind: java_source
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/domain/enums/ProductOpenStatusEnum.java
+- source_id: src-aas
+  kind: java_source
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/AccountAuthState.java
+- source_id: src-oac
+  kind: java_source
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/constants/OperApiConstants.java
+- source_id: src-tpj
+  kind: java_source
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/infrastructure/dao/TenantProjectDaoImpl.java
+- source_id: src-prse
+  kind: java_source
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/domain/enums/ProjectStatusEnum.java
+- source_id: src-caadi
+  kind: java_source
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/infrastructure/dao/CustAuthApplicationDaoImpl.java
+- source_id: src-cciaimpl
+  kind: java_source
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/cfca/impl/CaCertificationInfoAppServiceImpl.java
+- source_id: src-cse
+  kind: java_source
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/cfca/enums/CaSubmitStatusEnum.java
+- source_id: src-cdse
+  kind: java_source
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/cfca/enums/CaDataSourceEnum.java
+- source_id: src-ccte
+  kind: java_source
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/CustCertificationTypeEnum.java
+- source_id: src-ccrte
+  kind: java_source
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/CustCertificationResultTypeEnum.java
+- source_id: src-fvc
+  kind: java_source
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/controller/FaceVerifyController.java
+- source_id: src-cdf
+  kind: java_source
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/oper/facade/doc/CustDocFacade.java
+- source_id: src-ccpa
+  kind: java_source
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/cfca/CaCertificationPreCheckApplication.java
+- source_id: src-psa
+  kind: java_source
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/ProjectStatisticsApplication.java
+- source_id: src-cse2
+  kind: java_source
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/projectstatistics/history/ChangeSourceEnum.java
+- source_id: src-rse
+  kind: java_source
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/RuleStatusEnum.java
+- source_id: src-rle
+  kind: java_source
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/RuleLayerEnum.java
+- source_id: src-tipa
+  kind: java_source
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/TenantInterworkingProjectApplicationService.java
+- source_id: src-era2
+  kind: java_source
+  locator: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/controller/FundingPartyExceptionResolutionController.java
+evidence:
+- evidence_id: ev-ebc-enum-identify
+  source_id: src-identify
+  evidence_kind: code_path
+  locator: IdentifyTypeConstant.java:8-25
+  claim: 认证方式四值常量 INVITE/INVITE_AGW/SIMPLE/SELF 及显示名
+- evidence_id: ev-ebc-write-identify
+  source_id: src-caa
+  evidence_kind: code_path
+  locator: CustAccessApplication.java:741-746
+  claim: identify_style 按 isIndependent 写 INVITE/INVITE_AGW；怡亚通租户强制 INVITE
+- evidence_id: ev-ebc-enum-buildtype
+  source_id: src-buildtype
+  evidence_kind: code_path
+  locator: CustBuildTypeConstant.java:3-13
+  claim: 录入方式两值 PC_BUILD=客户录入 / AGW_BUILD=平台录入
+- evidence_id: ev-ebc-write-buildtype
+  source_id: src-cia
+  evidence_kind: code_path
+  locator: CustCompanyInfoApplication.java:1368-1378
+  claim: cust_build_type 按导入入口写 PC_BUILD/AGW_BUILD，identify_style 三元联动
+- evidence_id: ev-ebc-boundary-linkage
+  source_id: src-cia
+  evidence_kind: code_path
+  locator: CustCompanyInfoApplication.java:1370
+  claim: AGW_BUILD→INVITE_AGW、否则 INVITE 的固定联动（两字段边界证据）
+- evidence_id: ev-ebc-enum-buildstatus
+  source_id: src-buildstatus
+  evidence_kind: code_path
+  locator: CustBuildStatusEnum.java:13-32
+  claim: 认证状态 14 值字典（dictCode em.cust.CustBuildStatusEnum）
+- evidence_id: ev-ebc-write-init
+  source_id: src-caa
+  evidence_kind: code_path
+  locator: CustAccessApplication.java:723-724
+  claim: 建档初始化写 cust_status=ADD、cust_build_status=INIT
+- evidence_id: ev-ebc-callback-pass
+  source_id: src-csp
+  evidence_kind: code_path
+  locator: CustSyncEventProcessor.java:1194-1196
+  claim: 审核通过回调三值成对写 EFFECT+CUST_CHECK_PASS+BUILD_SUCCESS
+- evidence_id: ev-ebc-enum-custstatus
+  source_id: src-custstatus
+  evidence_kind: code_path
+  locator: CustStatusEnum.java:17-25
+  claim: 客户状态六值 ADD/EFFECT/FAILURE/WRITEOFF/FREEZE/CHANGE
+- evidence_id: ev-ebc-write-add
+  source_id: src-cia
+  evidence_kind: code_path
+  locator: CustCompanyInfoApplication.java:7254
+  claim: 邀请导入初始化写 cust_status=ADD
+- evidence_id: ev-ebc-enum-operapi
+  source_id: src-operapi
+  evidence_kind: code_path
+  locator: OperApiConstants.java:202-235
+  claim: check_status 六值 + 与 cust_build_status 双向官方映射表
+- evidence_id: ev-ebc-write-source
+  source_id: src-csp
+  evidence_kind: code_path
+  locator: CustSyncEventProcessor.java:3016-3018
+  claim: 平台推送建档写 identify_style=INVITE + cust_source=PLATFORM_PUSH
+- evidence_id: ev-ebc-enum-datatype
+  source_id: src-datatype
+  evidence_kind: code_path
+  locator: CustDataTypeConstant.java:9-17
+  claim: data_type 三值 1 主数据/0 流程数据/2 编辑暂存
+- evidence_id: ev-ebc-person-admin
+  source_id: src-cia
+  evidence_kind: code_path
+  locator: CustCompanyInfoApplication.java:4023-4029
+  claim: 联系人 main_data_id=0 主记录标记、user_type admin/guest 分支、source=AMS
+- evidence_id: ev-ebc-flow-company-code
+  source_id: src-cia
+  evidence_kind: code_path
+  locator: CustCompanyInfoApplication.java:1382-1418
+  claim: 建档先建企业取 code 再建 role/person/project_rel（写流转四表联写）
+- evidence_id: ev-ebc-push-record
+  source_id: src-ocf
+  evidence_kind: code_path
+  locator: OperCustFacade.java:889-902
+  claim: 推送运营中台落 cust_build_record（cust_id/person_id/中台返回 id/channel）
+- evidence_id: ev-ebc-rollback-init
+  source_id: src-ocf
+  evidence_kind: code_path
+  locator: OperCustFacade.java:867-880
+  claim: 推送运营中台异常时 cust_build_status 回滚 INIT
+- evidence_id: ev-ebc-simple-auth
+  source_id: src-cia
+  evidence_kind: code_path
+  locator: CustCompanyInfoApplication.java:2028-2031
+  claim: 简易认证提交写 AWAIT_CUST_CONFIRM，确认后 BUILD_SUCCESS+EFFECT
+- evidence_id: ev-ebc-change-copy
+  source_id: src-aia
+  evidence_kind: code_path
+  locator: ApplyCompanyInfoApplication.java:147-256
+  claim: 变更复制主数据行为流程行（data_type=0/2、main_data_id 指主行、build_status=INIT）
+- evidence_id: ev-ebc-change-restore
+  source_id: src-csp
+  evidence_kind: code_path
+  locator: CustSyncEventProcessor.java:1455-1464
+  claim: 变更安全拒绝乐观恢复 EFFECT/BUILD_SUCCESS（eq(custStatus,CHANGE)+在途单存在）
+- evidence_id: ev-ebc-idempotent
+  source_id: src-caa
+  evidence_kind: code_path
+  locator: CustAccessApplication.java:829-835
+  claim: 建档幂等：统码+租户排除 BUILD_FAIL 计数为 0；复用旧行条件 BUILD_FAIL 或 WRITEOFF
+- evidence_id: ev-ebc-caliber-valid
+  source_id: src-mpp
+  evidence_kind: code_path
+  locator: PplatformCustCompanyInfoMapper.java:19-22
+  claim: 有效企业口径 SQL 原文 build_status=BUILD_SUCCESS AND enable=Y
+- evidence_id: ev-ebc-rel-status
+  source_id: src-cia
+  evidence_kind: code_path
+  locator: CustCompanyInfoApplication.java:3976-3982
+  claim: SUPPLIER+ACFLOW/ORDER 产品时项目关系 status='1' 条件写值
+- evidence_id: ev-ebc-pattern-query
+  source_id: src-caa
+  evidence_kind: code_path
+  locator: CustAccessApplication.java:989-1062
+  claim: Dubbo 建档状态查询范式（name+统码+租户+enable，check_status 优先回退）
+- evidence_id: ev-ebc-pattern-mapper
+  source_id: src-mpp
+  evidence_kind: code_path
+  locator: PplatformCustCompanyInfoMapper.java:19-22
+  claim: 按管理员手机+统码查跨企业 JOIN 范式（phone+user_type=admin+enable）
+- evidence_id: ev-eso-freeze
+  source_id: src-cia
+  evidence_kind: code_path
+  locator: CustCompanyInfoApplication.java:7076-7090
+  claim: 冻结确认：lifecycle enable=Y 落 reason/attach + 企业 cust_status=FREEZE + 冻结全部用户
+- evidence_id: ev-eso-unfreeze
+  source_id: src-cia
+  evidence_kind: code_path
+  locator: CustCompanyInfoApplication.java:7112-7126
+  claim: 解冻确认：UNFRZ 台账生效 + cust_status 回 EFFECT
+- evidence_id: ev-eso-guard
+  source_id: src-cia
+  evidence_kind: code_path
+  locator: CustCompanyInfoApplication.java:676-705,1063-1088
+  claim: custStatusOperator 配置化守卫（allowStatusList + 在途校验 + 注销级联冻结用户）
+- evidence_id: ev-cfc-order-pending
+  source_id: src-cfo
+  evidence_kind: code_path
+  locator: CaFeeOrderService.java:486
+  claim: 建单写 order_status=PENDING + annualFee + agreement_signed=N；建单锁与同键复用 :239-273
+- evidence_id: ev-cfc-order-paid
+  source_id: src-cfo
+  evidence_kind: code_path
+  locator: CaFeeOrderService.java:295-304,426
+  claim: 缴费闭环 markPaid PENDING→PAID + 划扣 CAS bocom_txn_sts 占位 :199-213
+- evidence_id: ev-cfc-order-close
+  source_id: src-cfo
+  evidence_kind: code_path
+  locator: CaFeeOrderService.java:312,561-582
+  claim: 关单 PENDING→CLOSED（关开关/白名单/到期）含 close_reason
+- evidence_id: ev-cfc-write-paid
+  source_id: src-cfo
+  evidence_kind: code_path
+  locator: CaFeeOrderService.java:450
+  claim: 缴费成功同步企业台账 pay_status=PAID
+- evidence_id: ev-cfc-write-unpaid
+  source_id: src-cfo
+  evidence_kind: code_path
+  locator: CaFeeOrderService.java:699
+  claim: 建单时企业台账行不存在则建 UNPAID
+- evidence_id: ev-cfc-lock
+  source_id: src-cfo
+  evidence_kind: code_path
+  locator: CaFeeOrderService.java:453-461
+  claim: 首缴成功锁价 fee_locked=Y + locked_annual_fee + 来源三键
+- evidence_id: ev-cfc-trigger
+  source_id: src-cft
+  evidence_kind: code_path
+  locator: CaFeeTodoTriggerService.java:89-197
+  claim: 四触发源（CA_AUTH_SUCCESS/BUILD_APPROVED/PROJECT_RELATE/MANUAL）+ orderType 决策
+- evidence_id: ev-cfc-whitelist
+  source_id: src-cflo
+  evidence_kind: code_path
+  locator: CaFeeLedgerOperateService.java:123-195
+  claim: 批量白名单：special_company_list upsert → 企业快照 → 关 PENDING → 0 元 PAID 单(2099 哨兵)
+- evidence_id: ev-cfc-expire
+  source_id: src-cfre
+  evidence_kind: code_path
+  locator: CaFeeRenewalService.java:147-176
+  claim: 到期任务 service_end<today 翻 UNPAID + 续费提醒 7 天窗口跳过 2099 哨兵
+- evidence_id: ev-cfc-rule-engine
+  source_id: src-cfr
+  evidence_kind: code_path
+  locator: CaFeeRuleEngineService.java:97-206
+  claim: 六场景判定 + 定价 resolveAnnualFee（特殊价>锁定价>角色价）
+- evidence_id: ev-cfc-block
+  source_id: src-cfbs
+  evidence_kind: code_path
+  locator: CaFeeBlockSceneSupport.java:43-76,153-166
+  claim: 四拦截场景判定 + block_scene_list 序列化 + 空列表不拦截
+- evidence_id: ev-cfc-ca-status
+  source_id: src-cfcs
+  evidence_kind: code_path
+  locator: CaFeeCompanyCaStatusSupport.java:41,67
+  claim: ca_status 来自签章中台实时值（与 pay_status 同名不同义）
+- evidence_id: ev-cfc-config
+  source_id: src-cfpc
+  evidence_kind: code_path
+  locator: CaFeeProjectConfigService.java:70-123
+  claim: 项目收费配置保存（开关/角色年费/拦截场景；新建默认 N + 100 元）
+- evidence_id: ev-cfc-stats
+  source_id: src-cflq
+  evidence_kind: code_path
+  locator: CaFeeLedgerQueryService.java:100-119,197-243
+  claim: 台账统计（总数/已缴/缴费率/本月实缴 SUM 原生 SQL）
+- evidence_id: ev-cfc-pattern-certno
+  source_id: src-cfo
+  evidence_kind: code_path
+  locator: CaFeeOrderService.java:440-443
+  claim: 统码锚定查询范式（getByCertificationNo→无则用 order 冗余建行）
+- evidence_id: ev-poa-enum-wfstatus
+  source_id: src-wse
+  evidence_kind: code_path
+  locator: ProjectApprovalWorkflowStatusEnum.java:17-21
+  claim: wf_status 四值 PENDING/RUNNING/FINISHED/TERMINATED
+- evidence_id: ev-poa-enum-nodestatus
+  source_id: src-nse
+  evidence_kind: code_path
+  locator: ProjectApprovalNodeStatusEnum.java:16-20
+  claim: 节点状态四值 PENDING/APPROVING/APPROVED/REJECTED
+- evidence_id: ev-poa-enum-nodecode
+  source_id: src-nce
+  evidence_kind: code_path
+  locator: ProjectApprovalNodeCodeEnum.java:15-24
+  claim: 八节点编码（方案配置/方案经理/法务经办/法务复核/业务经理/运营/其他/补充协议）
+- evidence_id: ev-poa-enum-flowcode
+  source_id: src-fce
+  evidence_kind: code_path
+  locator: ProjectApprovalFlowCodeEnum.java:15-19
+  claim: 流程编码三值 NO_ONLINE/STANDARD/REGULAR
+- evidence_id: ev-poa-create
+  source_id: src-tpa
+  evidence_kind: code_path
+  locator: TenantProjectApplication.java:186-205 + ProjectApprovalApplication.java:387-393
+  claim: 新增项目自动建 PENDING 草稿（is_latest=Y、SX 编号、ref 指 project.code）
+- evidence_id: ev-poa-submit
+  source_id: src-paa
+  evidence_kind: code_path
+  locator: ProjectApprovalApplication.java:549-607,695-705
+  claim: 两段式提交：事务内重建节点+重置 PENDING；事务外引擎启动成功→RUNNING/initiate_time/act_procinst_id；sp_no 回写 :615-644
+- evidence_id: ev-poa-desk
+  source_id: src-pada
+  evidence_kind: code_path
+  locator: ProjectApprovalDeskApplication.java:93-104,448-483
+  claim: 工作台操作两段式 + flow_node 流水 INSERT（operate_type/approvalType 分域 nodeOrder）
+- evidence_id: ev-poa-callback
+  source_id: src-pol
+  evidence_kind: code_path
+  locator: ProjectOnlineProcessOperateListener.java:210-234 + ProjectApprovalApplication.java:716-786
+  claim: 引擎回调状态映射（结束 pass→FINISHED+complete_time+项目生效；reject/back→TERMINATED）
+- evidence_id: ev-poa-recreate
+  source_id: src-paa
+  evidence_kind: code_path
+  locator: ProjectApprovalApplication.java:973-1082
+  claim: 重发起：原单 is_latest=N 不改写，新单复制（PENDING/Y/指原 code），同项目 PENDING/RUNNING 禁再发 :341-353
+- evidence_id: ev-poa-bizinfo
+  source_id: src-pbca
+  evidence_kind: code_path
+  locator: ProjectBusinessConfigApplication.java:68-120,150-179
+  claim: 业务配置仅在 RUNNING+方案节点 APPROVING 窗口落库
+- evidence_id: ev-poa-page
+  source_id: src-pqmx
+  evidence_kind: code_path
+  locator: ProjectApprovalQueryMapper.xml:5-78
+  claim: 列表 XML：tpa LEFT JOIN tenant_project ON code、固定 enable+is_latest='Y'、initiate_time 排序
+- evidence_id: ev-poa-latest
+  source_id: src-paa
+  evidence_kind: code_path
+  locator: ProjectApprovalApplication.java:248-259
+  claim: findLatestApprovalByProjectCode：enable+is_latest+initiate_time desc limit 1
+- evidence_id: ev-poa-finished
+  source_id: src-paa
+  evidence_kind: code_path
+  locator: ProjectApprovalApplication.java:797-808
+  claim: FINISHED 后推 AMS 条件（STANDARD 或 REGULAR+低风险）
+- evidence_id: ev-srv-whitelist-read
+  source_id: src-wjc
+  evidence_kind: code_path
+  locator: CustCompanySurveyWhitelistDao.isParticipating:14-21
+  claim: 白名单参与判定 enable='Y' + company_id
+- evidence_id: ev-srv-claim
+  source_id: src-cssd
+  evidence_kind: code_path
+  locator: CustCompanySurveyStateDao.claimFirstVisitor:26-59
+  claim: 首访认领 INSERT/guarded UPDATE + respondent=String(companyId)
+- evidence_id: ev-srv-lottery
+  source_id: src-cssd
+  evidence_kind: code_path
+  locator: CustCompanySurveyStateDao.markFirstVisitorLotteryShownIfMatch:89-99
+  claim: 转盘 N→Y 单向翻转，仅首访本人
+- evidence_id: ev-srv-submit
+  source_id: src-sas
+  evidence_kind: code_path
+  locator: CustSurveyAnswerService.submit:72-90
+  claim: 答题幂等 (company_id,survey_code) + 批量 INSERT + survey_code 服务端覆盖
+- evidence_id: ev-srv-answer-grain
+  source_id: src-sas
+  evidence_kind: code_path
+  locator: CustSurveyAnswerService.buildRecords:95-118
+  claim: 一行=一题一选项（多选双层 for 展开），db_tenant_code=all
+- evidence_id: ev-srv-external-api
+  source_id: src-woc
+  evidence_kind: code_path
+  locator: WenjuanOpenApiClient.isSurveyCompleted:59-78
+  claim: 问卷星答卷在外部 open.wenjuan.com（get_rspd_list），本地不落完成态
+- evidence_id: ev-srv-two-systems
+  source_id: src-wjc
+  evidence_kind: code_path
+  locator: WenjuanDisplayService 类注释:16
+  claim: 两套问卷体系：问卷星活动（白名单+状态）与讯易链调研（答题明细）互不相通
+- evidence_id: ev-epa-open-activated
+  source_id: src-cpds
+  evidence_kind: code_path
+  locator: CustProductDomainService.doActiveProduct:220-269
+  claim: open_status OPENED 幂等写入 + DuplicateKeyException 吞 + initProduct OPENING :876-915
+- evidence_id: ev-epa-change-init
+  source_id: src-crs
+  evidence_kind: code_path
+  locator: ChangeRecordService.init/update:42-121
+  claim: 变更单骨架+状态基线（自处理→PASS / 中台→CHECKING）+ msg_send=Y
+- evidence_id: ev-epa-change-onway
+  source_id: src-csp
+  evidence_kind: code_path
+  locator: CustSyncEventProcessor.findLatestOnWayChangeRecord:1348-1356
+  claim: 在途判定 status IS NULL OR NOT IN (PASS,REJECT)；EXISTS 串 :1461-1463
+- evidence_id: ev-epa-change-callback
+  source_id: src-csp
+  evidence_kind: code_path
+  locator: CustSyncEventProcessor/CustAuditMsgService:372-438
+  claim: 回调终态映射 PASS/REJECT/BACKTOCUSTOM + isMsgNotify 幂等闸门
+- evidence_id: ev-epa-auth-state
+  source_id: src-caa2
+  evidence_kind: code_path
+  locator: CustAccountApplication.cnapsPaymentApply/paymentResult/cnapsPaymentConfirm:157-303
+  claim: 账户小额打款 auth_state 状态机 + 默认账户唯一 + 打款次数限制
+- evidence_id: ev-epa-invite-progress
+  source_id: src-csp
+  evidence_kind: code_path
+  locator: CustSyncEventProcessor.updateInviteCustProcess:1121-1131
+  claim: progress ← cust_build_status 直接拷贝（按企业名+租户匹配写入）
+- evidence_id: ev-pcf-tp-create
+  source_id: src-tpds
+  evidence_kind: code_path
+  locator: TenantProductDomainService.create/active:133-199
+  claim: 开通幂等+属性拷贝12字段+ref锚+open_status Y/N；ACFLOW/ORDER→P（TenantProductApplication:331-337）
+- evidence_id: ev-pcf-tp-cancel
+  source_id: src-tpds
+  evidence_kind: code_path
+  locator: TenantProductDomainService.cancel/checkOnTheWay:88-128
+  claim: 取消在途保护（生效项目或企业开通存在则拒绝）
+- evidence_id: ev-pcf-pp-effective
+  source_id: src-ppd
+  evidence_kind: code_path
+  locator: PlatformProductDomainService/PlatformProduct.effective:75-101
+  claim: 平台产品 product_status 0→1 单向生效；列表只取 EFFECTIVE
+- evidence_id: ev-pcf-default-project
+  source_id: src-tds
+  evidence_kind: code_path
+  locator: TenantDomainService.updateOperationConfigById:486-519
+  claim: 运营配置按列更新 default_project_id/project_code_required；空串转NULL；导入仅原值空才写 :448-452
+- evidence_id: ev-ca-four-step
+  source_id: src-ccia
+  evidence_kind: code_path
+  locator: CaCertificationConfirmApplication.confirm:134-182
+  claim: 一证四步聚合提交→submitToSignCenter→openCa→ca_register_status=Y
+- evidence_id: ev-ca-submit
+  source_id: src-ccia
+  evidence_kind: code_path
+  locator: CaCertificationInfoAppServiceImpl.submitToSignCenter:440-520
+  claim: submit_status PENDING→SUCCESS/FAIL；SUCCESS=code∈{0,200}+status=SAVED；幂等键=(cust_id,data_date,head_company_data,PENDING)
+- evidence_id: ev-ca-register
+  source_id: src-ccia
+  evidence_kind: code_path
+  locator: CustDocFacade.openCa:835-917 + CaCertificationPreCheckApplication:519-525
+  claim: ca_register_status N→Y(成功)/Y→N(失效重置)
+- evidence_id: ev-ca-dual-row
+  source_id: src-ccia
+  evidence_kind: code_path
+  locator: CaCertificationHeadCompanySupport.resolveHeadCompanyCustId
+  claim: 分公司双行：N行cust_id=分公司id；Y行=cust_head_company_info.id
+- evidence_id: ev-ca-cross-link
+  source_id: src-mfs
+  evidence_kind: code_path
+  locator: MiniFaceServiceImpl:260,275
+  claim: CFCA人脸行organization_id=ca_certification_info.id（跨表暗链）
+- evidence_id: ev-ca-cert-type
+  source_id: src-mfs
+  evidence_kind: code_path
+  locator: CustCertificationInfoDao + CustCertificationTypeEnum
+  claim: 12种认证类型+CFCA场景organization_id绑定
+- evidence_id: ev-ca-auth-agreement
+  source_id: src-caag
+  evidence_kind: code_path
+  locator: CustAuthAgreementDomainService:305-450
+  claim: 授权书N→Y状态机+管理员变更重建+按人维度
+- evidence_id: ev-wcp-sp-status
+  source_id: src-wpaa
+  evidence_kind: code_path
+  locator: WechatProjectApprovalApplication:56,111 + SyncWechatApprovalTask:708
+  claim: act_procinst_status=企微sp_status原码；EXPORT_REQUIRED='2'+data_source='WECHAT'；sp_no唯一键
+- evidence_id: ev-wcp-sync
+  source_id: src-swat
+  evidence_kind: code_path
+  locator: SyncWechatApprovalTask:656-679,1226-1451
+  claim: 同步排除终态+首填不覆盖+field_history人工保护（source≠SYNC跳过）
+- evidence_id: ev-fpr-rule-status
+  source_id: src-fria
+  evidence_kind: code_path
+  locator: FundRuleInfoApplication:saveRuleInfo/active/inActive
+  claim: 规则三表体系+PENDING/ACTIVE/INACTIVE+KV明细版本快照+funding_party_rule_*是废弃骨架
+- evidence_id: ev-fpr-exception
+  source_id: src-era
+  evidence_kind: code_path
+  locator: ExceptionResolutionApplication.importForExceptInput
+  claim: 异常按errorKeyword子串匹配+唯一键(product+party+keyword)
+- evidence_id: ev-iwp-cust-open
+  source_id: src-cipd
+  evidence_kind: code_path
+  locator: CustInterworkingProductDomainService.listTenantProductWithOpenedCustProduct/activeProduct
+  claim: 查询即开通+统一授权OPENED+scopeRole过滤+全局共享表
+- evidence_id: ev-iwp-scope
+  source_id: src-tipd
+  evidence_kind: code_path
+  locator: TenantInterworkingProductDomainService.relTenantProject/saveOrUpdateScope
+  claim: scope=ALL/SOME+scopeProject/scopeRole JSON+先清后插
+- evidence_id: ev-srv-whitelist-def
+  source_id: src-ccswd
+  evidence_kind: code_path
+  locator: CustCompanySurveyWhitelistDao.isParticipating:14-28
+  claim: 白名单参与判定谓词：company_id 相等 AND enable='Y'（exists）；null companyId 直接 false
+- evidence_id: ev-srv-whitelist-no-writer
+  source_id: src-ccswd
+  evidence_kind: code_path
+  locator: CustCompanySurveyWhitelistDao 全类:1-28
+  claim: 全仓唯一读写入口为 isParticipating 只读查询；无业务写入口，运营经 DML/lowcode CRUD 维护
+- evidence_id: ev-srv-survey-config
+  source_id: src-sp
+  evidence_kind: code_path
+  locator: SurveyProperties.surveyCode/isExpired:26-60
+  claim: survey_code 由 Nacos survey.xyl.code 管理（默认 XYL_2024_Q1），改配置=发新一轮；到期时间过期后不弹不收
+- evidence_id: ev-srv-popup-guard
+  source_id: src-sas
+  evidence_kind: code_path
+  locator: CustSurveyAnswerService.checkPopup:37-62
+  claim: 弹窗三条件：未过期 AND companyType=SUPPLIER AND (company_id,survey_code) 无记录
+- evidence_id: ev-srv-submit-batch
+  source_id: src-sas
+  evidence_kind: code_path
+  locator: CustSurveyAnswerService.buildRecords:95-120
+  claim: 双层 for 展开：外层题、内层选项，每选项一行；other_text 每行冗余写入
+- evidence_id: ev-srv-answer-exists
+  source_id: src-csad
+  evidence_kind: code_path
+  locator: CustSurveyAnswerDao.existsByCompanyAndSurvey:13-23
+  claim: 幂等判定谓词：eq(company_id) AND eq(survey_code) LIMIT 1 count>0
+- evidence_id: ev-srv-claim-insert
+  source_id: src-cssd
+  evidence_kind: code_path
+  locator: CustCompanySurveyStateDao.claimFirstVisitor:29-43
+  claim: 无行 INSERT：respondent=String(companyId)、first_visitor_lottery_shown=N、enable=Y；DuplicateKeyException 回读重试
+- evidence_id: ev-srv-claim-guard
+  source_id: src-cssd
+  evidence_kind: code_path
+  locator: CustCompanySurveyStateDao.claimFirstVisitor:45-58
+  claim: guarded UPDATE：isNull(first_visitor_user_id) 条件认领，失败回读；并发仅一人成功
+- evidence_id: ev-srv-lottery-guard
+  source_id: src-cssd
+  evidence_kind: code_path
+  locator: CustCompanySurveyStateDao.markFirstVisitorLotteryShownIfMatch:89-99
+  claim: 双条件翻转：eq(company_id) AND eq(first_visitor_user_id,当前用户) 才置 Y+时间
+- evidence_id: ev-srv-display-scene
+  source_id: src-wds
+  evidence_kind: code_path
+  locator: WenjuanDisplayService.resolveHomeDisplay:31-78
+  claim: 展示决策序：白名单→首访认领→问卷星完成态（实时API）→转盘/指引场景分支；非首访用户全不展示
+- evidence_id: ev-srv-external-effective
+  source_id: src-woc
+  evidence_kind: code_path
+  locator: WenjuanOpenApiClient.isEffectiveCompletedRespondentStatus:120-136
+  claim: 问卷星有效已答判定：respondent_status 严格等于 1（数字或字符串'1'）；缺失/null/其他值均未答
+- evidence_id: ev-srv-goto-product
+  source_id: src-wds
+  evidence_kind: code_path
+  locator: WenjuanDisplayService.shouldStayOnHomeForGotoProduct:109-128
+  claim: gotoProduct 留首页判定同样触发首访认领（隐式写 first_visitor_user_id）
+- evidence_id: ev-epa-open-write
+  source_id: src-cpds
+  evidence_kind: code_path
+  locator: CustProductDomainService.doActiveProduct:234-259
+  claim: 开通写值：新建行 ref_cust_company_info=code、ref_cust_auth_application_tenant_product=tenantProduct.code、open_status=OPENED、open_time=now；并发 DuplicateKeyException 吞掉
+- evidence_id: ev-epa-open-init-opening
+  source_id: src-cpds
+  evidence_kind: code_path
+  locator: CustProductDomainService.initProduct:883-914
+  claim: initProduct 预置 OPENING（签署前待客户确认）；已存在（任意状态）直接 return
+- evidence_id: ev-epa-open-enum
+  source_id: src-cpds
+  evidence_kind: code_path
+  locator: CustProductActiveConstant:11-15
+  claim: 企业侧 open_status 值域 NOT_OPENED/OPENING/OPENED（区别于租户侧 tenant_product 的 Y/P/N）
+- evidence_id: ev-epa-open-read-both
+  source_id: src-cpds
+  evidence_kind: code_path
+  locator: CustProductDomainService.getCustAuthApplications:1138-1148
+  claim: 已开通产品读取口径：open_status IN ('OPENED','OPENING')——OPENING 也算已开通（与租户侧只有 Y 不同）
+- evidence_id: ev-epa-auth-apply
+  source_id: src-caa2
+  evidence_kind: code_path
+  locator: CustAccountApplication.cnapsPaymentApply:157-196
+  claim: 打款申请写值：payment_remaining_count-1、trans_id=originalTxSN、auth_state=APPLY_10（dictParam 写法）、trace_no
+- evidence_id: ev-epa-auth-result
+  source_id: src-caa2
+  evidence_kind: code_path
+  locator: CustAccountApplication.paymentResult:203-235
+  claim: 银行查询状态映射：'10'→APPLY_10、'20'→APPLY_20、'30'→APPLY_30
+- evidence_id: ev-epa-auth-confirm
+  source_id: src-caa2
+  evidence_kind: code_path
+  locator: CustAccountApplication.cnapsPaymentConfirm:237-303
+  claim: 验证确认：result=0→APPLY_40；result=1/2→APPLY_40 且 error_try_count+1+error_try_time=now；前置 APPLY_10/30 拦截
+- evidence_id: ev-epa-auth-enum
+  source_id: src-aas
+  evidence_kind: code_path
+  locator: AccountAuthState:13-20
+  claim: auth_state 六值枚举（APPLY_00~50）；APPLY_00/APPLY_50 无写点（死值），APPLY_40 兼容成功与失败终态
+- evidence_id: ev-epa-auth-init
+  source_id: src-caa2
+  evidence_kind: code_path
+  locator: CustAccountApplication.checkBefore/afterSave:65-150
+  claim: 账户唯一性：accountNo+companyCode 重复即拒绝；首账户自动默认 default_account_flag=1；已有默认则不覆盖
+- evidence_id: ev-epa-auth-default
+  source_id: src-caa2
+  evidence_kind: code_path
+  locator: CustAccountApplication.setDefaultFlag:85-106
+  claim: 切换默认账户：先把现默认置 0 再把目标置 1（两步非原子）
+- evidence_id: ev-epa-change-write
+  source_id: src-crs
+  evidence_kind: code_path
+  locator: ChangeRecordService.update:54-121
+  claim: 变更单写值骨架：alter_type=逗号拼接 platItem、admin_auth/legal_auth 由 auths 派生 Y/N、status=自处理PASS/中台CHECKING
+- evidence_id: ev-epa-change-init-insert
+  source_id: src-crs
+  evidence_kind: code_path
+  locator: ChangeRecordService.init:38-51
+  claim: 变更单初始 INSERT：msg_send=Y、oper_cust_id、status 为空（在途）
+- evidence_id: ev-epa-change-checking-guard
+  source_id: src-crs
+  evidence_kind: code_path
+  locator: CustChangeApplication.changeEnable:110-121
+  claim: 变更可用性闸门：check_status=CUST_CHECK_CHECKING 时禁止再发起
+- evidence_id: ev-epa-change-safety-reject
+  source_id: src-csp
+  evidence_kind: code_path
+  locator: CustSyncEventProcessor 安全拒绝:1442-1487
+  claim: 变更拒绝安全更新：EXISTS cust_change_record(在途) 谓词 + eq(custStatus,CHANGE) 乐观锁；主表回 EFFECT/BUILD_SUCCESS/CHECK_PASS
+- evidence_id: ev-epa-check-enum
+  source_id: src-oac
+  evidence_kind: code_path
+  locator: OperApiConstants.CheckStatus:202-215
+  claim: CheckStatus 六值枚举：INIT/CHECKING/PASS/REJECT/BACKTOCUSTOM/BACK
+- evidence_id: ev-epa-invite-write
+  source_id: src-ciees
+  evidence_kind: code_path
+  locator: CustCompanyIfoEnchanceService.inviteSave/setCustInviteInfo:1443-1592
+  claim: 邀请写值：invite_time=now、progress=INIT、invite_from=平台邀请(AGW)/邀请企业名、invite_cust_id=邀请方
+- evidence_id: ev-epa-invite-cascade
+  source_id: src-ciees
+  evidence_kind: code_path
+  locator: CustCompanyIfoEnchanceService.setCustCompany:1468-1545
+  claim: 邀请级联建档：identify_style=INVITE(AGW_BUILD→INVITE_AGW)、need_register_ca=Y、role/person/channelCode→cust_project_rel、submitCust 推审核
+- evidence_id: ev-epa-invite-progress-copy
+  source_id: src-csp
+  evidence_kind: code_path
+  locator: CustSyncEventProcessor.updateInviteCustProcess:1121-1131
+  claim: progress 派生拷贝：按企业名+db_tenant_code 匹配（非 code/id），重名企业有写错行风险
+- evidence_id: ev-pcf-tp-create-idem
+  source_id: src-tpds
+  evidence_kind: code_path
+  locator: TenantProductDomainService.create:133-177
+  claim: 开通幂等：先按 (tenantId, platformProductCode) 查，存在直接返回；新建拷贝 12 属性字段+ref 锚
+- evidence_id: ev-pcf-tp-active-y
+  source_id: src-tpds
+  evidence_kind: code_path
+  locator: TenantProductDomainService.active:184-199
+  claim: active 写值：open_status=Y + increment(product_ref_num=listOpen count)
+- evidence_id: ev-pcf-tp-cancel-n
+  source_id: src-tpds
+  evidence_kind: code_path
+  locator: TenantProductDomainService.cancel:88-108
+  claim: cancel 写值：checkOnTheWay 前置→open_status=N + decrement
+- evidence_id: ev-pcf-tp-acflow-order-p
+  source_id: src-tpa
+  evidence_kind: code_path
+  locator: TenantProductApplication.activeAndNotify:325-343
+  claim: ACFLOW/ORDER 特殊：activate 后置 P（等外部多级回调再置 Y）；其余产品直接 Y
+- evidence_id: ev-pcf-tp-onway-guard
+  source_id: src-tpds
+  evidence_kind: code_path
+  locator: TenantProductDomainService.checkOnTheWay:115-128
+  claim: 取消在途保护谓词：生效项目(project_status=1 AND product_id=本产品)或企业开通(cust_auth_application.ref=tenant_product.code)存在
+- evidence_id: ev-pcf-tp-onway-project
+  source_id: src-tpj
+  evidence_kind: code_path
+  locator: TenantProjectDaoImpl.listEffectiveProjectByProduct:32-40
+  claim: 生效项目判定谓词：eq(productId) AND eq(project_status,EFFECTIVE='1') AND eq(enable,'Y')
+- evidence_id: ev-pcf-tp-enum
+  source_id: src-pose
+  evidence_kind: code_path
+  locator: ProductOpenStatusEnum:17-21
+  claim: 租户侧 open_status 值域 Y/P/N（三态，与企业侧 NOT_OPENED/OPENING/OPENED 不同体系）
+- evidence_id: ev-pcf-pp-enum
+  source_id: src-ppe
+  evidence_kind: code_path
+  locator: ProductStatusEnum:20-24
+  claim: 平台产品 product_status 枚举：0=TO_BE_EFFECTIVE、1=EFFECTIVE
+- evidence_id: ev-pcf-pp-effective-write
+  source_id: src-ppd
+  evidence_kind: code_path
+  locator: PlatformProduct.effective:100
+  claim: 生效写值：entity.setProductStatus(EFFECTIVE('1')) 单向
+- evidence_id: ev-pcf-pp-refnum
+  source_id: src-tpds
+  evidence_kind: code_path
+  locator: PlatformProductDaoImpl.increment/decrement:82-104
+  claim: product_ref_num 冗余计数：开通/取消时按 listOpen 全量重算 setProductRefNum(n)；注释自认并发不精确
+- evidence_id: ev-pcf-project-enum
+  source_id: src-prse
+  evidence_kind: code_path
+  locator: ProjectStatusEnum:20-23
+  claim: 项目状态枚举：0=待生效、1=已生效、2=已失效（INVLIAD 拼写）
+- evidence_id: ev-pcf-cust-open-check
+  source_id: src-caadi
+  evidence_kind: code_path
+  locator: CustAuthApplicationDaoImpl.hasCustOpenProduct:113-122
+  claim: 企业开通存在性谓词：eq(ref_cust_auth_application_tenant_product, code) AND eq(enable,'Y') exists
+- evidence_id: ev-pcf-config-import
+  source_id: src-tds
+  evidence_kind: code_path
+  locator: TenantDomainService.updateOperationConfigById:486-519
+  claim: 运营配置按列 UpdateWrapper 写 15 字段；空串转 NULL；旧值归档 op_update_*；事务后 TENANT_SYNC 推送
+- evidence_id: ev-ca-submit-idem
+  source_id: src-cciaimpl
+  evidence_kind: code_path
+  locator: CaCertificationInfoAppServiceImpl.submitToSignCenter:425-431
+  claim: submitToSignCenter 幂等：已 SUCCESS 短路返回（CA_CERT_SUBMIT_ALREADY_SUCCESS），不重复上送
+- evidence_id: ev-ca-submit-complete
+  source_id: src-cciaimpl
+  evidence_kind: code_path
+  locator: CaCertificationInfoAppServiceImpl.assertCompleteForSubmit:708-736
+  claim: 提交完整性校验：notify_agreement_json 必填 + 实名（enterprise_four_json 或 police_two_json 至少一项）+ 意愿（intent_sms_json 或 intent_h5_face_json 至少一项；CHANNEL_OPENAPI 源豁免）+ file_refs_json 必填
+- evidence_id: ev-ca-submit-success-code
+  source_id: src-cciaimpl
+  evidence_kind: code_path
+  locator: CaCertificationInfoAppServiceImpl.isDbassSuccessCode:703-707 + submitToSignCenter:459-467
+  claim: SUCCESS 判定：DBaaS code ∈ {'0','200'} AND biz.status=SAVED 双条件；否则 FAIL
+- evidence_id: ev-ca-submit-write
+  source_id: src-cciaimpl
+  evidence_kind: code_path
+  locator: CaCertificationInfoAppServiceImpl.writeSubmitResult:492-500
+  claim: 回写三字段：submit_status + sign_platform_result（请求+响应全文不截断）+ submit_time；单语句 update 无事务（中台调用刻意在事务外）
+- evidence_id: ev-ca-submit-markfailed
+  source_id: src-cciaimpl
+  evidence_kind: code_path
+  locator: CaCertificationInfoAppServiceImpl.markFailed:522-536
+  claim: markFailed：已 SUCCESS 禁止置 FAIL；FAIL 时 sign_platform_result 追加 [markFailed] 原文
+- evidence_id: ev-ca-create-idem
+  source_id: src-cciaimpl
+  evidence_kind: code_path
+  locator: CaCertificationInfoAppServiceImpl.createOrGetByKey:147-190
+  claim: 行创建幂等键：(custId, dataDate, headCompanyData, submitStatus=PENDING)；batchNo 每次唯一生成（INC_时间戳_UUID6）不进幂等键；新建行 submit_status=PENDING
+- evidence_id: ev-ca-realname-branch
+  source_id: src-cciaimpl
+  evidence_kind: code_path
+  locator: CaCertificationInfoAppServiceImpl.updateRealNameByType:260-291
+  claim: 实名核验分键落列：ENTERPRISE_THREE/ENTERPRISE_FOUR→enterprise_four_json；POLICE_TWO→police_two_json；其他方式抛不支持
+- evidence_id: ev-ca-submit-enum
+  source_id: src-cse
+  evidence_kind: code_path
+  locator: CaSubmitStatusEnum:10-20
+  claim: submit_status 三值枚举：PENDING 采集未提交 / SUCCESS cbsSubmitBizData 成功 / FAIL
+- evidence_id: ev-ca-source-enum
+  source_id: src-cdse
+  evidence_kind: code_path
+  locator: CaDataSourceEnum:17-21
+  claim: data_source 三值枚举：OPERATION_PLATFORM / FBP_PORTAL / CHANNEL_OPENAPI（仅 CHANNEL_OPENAPI 豁免意愿认证）
+- evidence_id: ev-ca-open-write
+  source_id: src-cdf
+  evidence_kind: code_path
+  locator: CustDocFacade.openCa:875-890
+  claim: openCa 成功回写：ca_register_status=Y + need_register_ca=Y（+AMS 产品时 need_register_bs=Y）；分公司场景主企业+总公司两笔注册并行
+- evidence_id: ev-ca-open-guard
+  source_id: src-cdf
+  evidence_kind: code_path
+  locator: CustDocFacade.openCa:828-833
+  claim: openCa 前置闸门：need_register_ca=N 直接 return 不开通
+- evidence_id: ev-ca-reset-n
+  source_id: src-ccpa
+  evidence_kind: code_path
+  locator: CaCertificationPreCheckApplication.resetCaRegisterStatusToN:519-531
+  claim: pre4Step 失效重置：证书状态失效或登记企业名与 DB 企业名不匹配 → ca_register_status=N（按主键 update）
+- evidence_id: ev-ca-precheck-block
+  source_id: src-ccpa
+  evidence_kind: code_path
+  locator: CaCertificationPreCheckApplication:455-463
+  claim: 变更流程阻断：custStatus=CHANGE 或 custBuildStatus=CUST_CHANGE 时禁止 CA 开通（先走完变更流程）
+- evidence_id: ev-ca-agreement-create-n
+  source_id: src-caag
+  evidence_kind: code_path
+  locator: CustAuthAgreementDomainService.createAuthorizationAgreement:305-350
+  claim: 建档流程启动建行：authed_status=N + creation_type + platform_product_code=PLATFORM
+- evidence_id: ev-ca-agreement-pass
+  source_id: src-caag
+  evidence_kind: code_path
+  locator: CustAuthAgreementDomainService.passAuthorizationAgreementDirectly:223-292
+  claim: 审批通过回调：管理员维度置 Y；非管理员置 N（remark=异常:不是客户管理员）；无行则新建直接 Y
+- evidence_id: ev-ca-agreement-manager-change
+  source_id: src-caag
+  evidence_kind: code_path
+  locator: CustAuthAgreementDomainService.changeCompanyAuthorizationAgreement:378-438
+  claim: 管理员变更：旧管理员全部授权 enable=N+authed_status=N；新管理员新建行 authed_status=Y（CHANGE_COMPANY_MANAGER）
+- evidence_id: ev-ca-agreement-read
+  source_id: src-caag
+  evidence_kind: code_path
+  locator: CustAuthAgreementDomainService.hasCompanySignedAuthAggrement:477-494
+  claim: 已签署判定谓词：platform_product_code=PLATFORM AND authed_status='Y' 存在；外部企业（custSourceFrom=PLATFORM_PUSH）恒真豁免
+- evidence_id: ev-ca-cert-face
+  source_id: src-mfs
+  evidence_kind: code_path
+  locator: MiniFaceServiceImpl.queryResult:250-330
+  claim: 人脸认证记录写 cust_certification_info：organizationId=String(certificationId)（CFCA 一证四步时指向 ca_certification_info.id 形成跨表暗链）+ auto_verify_status/auto_verify_count
+- evidence_id: ev-ca-cert-face-controller
+  source_id: src-fvc
+  evidence_kind: code_path
+  locator: FaceVerifyController.faceVerifyQuery:126-140
+  claim: faceVerifyQuery 可选传 certificationId（=ca_certification_info.id）；人脸通过时把 DBaaS 请求+响应原文回填该行 intent_h5_face_json（弱失败不阻断）
+- evidence_id: ev-ca-cert-verify-enum
+  source_id: src-ccrte
+  evidence_kind: code_path
+  locator: CustCertificationResultTypeEnum:10-18
+  claim: auto_verify_status 六值：TO_BE_VERIFIED/AUTOMATIC_AUTHENTICATION_PASSED/AUTOMATIC_AUTHENTICATION_FAILED/MANUAL_AUTHENTICATION_PASSED/MANUAL_AUTHENTICATION__FAILED(双下划线)/NO_RECORD
+- evidence_id: ev-ca-cert-type-enum
+  source_id: src-ccte
+  evidence_kind: code_path
+  locator: CustCertificationTypeEnum:10-25
+  claim: certification_type 12 值枚举：COMPANY_FOUR_ELEMENTS/COMPANY_TWO_ELEMENTS/LEGAL_THREE_ELEMENTS/LEGAL_REAL_NAME/FACE_VERIFY/AUTH_THREE_ELEMENTS/AUTH_REAL_NAME/LEGAL_OCR/AUTH_OCR/LICENSE_OCR/LEGAL_MEDIA_OCR/AUTH_MEDIA_OCR
+- evidence_id: ev-ca-confirm-orchestrate
+  source_id: src-ccia
+  evidence_kind: code_path
+  locator: CaCertificationConfirmApplication.confirm:134-181 + 类注释:51-89
+  claim: confirm 编排顺序：反查主行→分公司定位总公司行（先总后分）→submitToSignCenter→openCa→openCA 广播；无事务（长 IO 刻意事务外）；多次点击安全
+- evidence_id: ev-wcp-status-enum
+  source_id: src-wpaa
+  evidence_kind: code_path
+  locator: WechatProjectApprovalApplication:55-56 + WechatProjectApprovalApplyDO.act_procinst_status
+  claim: act_procinst_status 即企微 sp_status 原码：1 审批中 / 2 已通过 / 3 已拒绝 / 4 已撤销 / 6 通过后撤销 / 7 已删除；导出固定过滤 =2
+- evidence_id: ev-wcp-phase-map
+  source_id: src-swat
+  evidence_kind: code_path
+  locator: SyncWechatApprovalTask.mapSpStatusToProjectPhase:805-822
+  claim: project_phase 初值映射：1→INITIATION、2→IMPLEMENTATION、3/4/6/7→HANG、其他默认 IMPLEMENTATION（仅三态+默认）
+- evidence_id: ev-wcp-phase-settlement
+  source_id: src-swat
+  evidence_kind: code_path
+  locator: SyncWechatApprovalTask.applyProjectPhaseByFirstSettlementTime:826-841
+  claim: 洞察回写阶段升级：仅 sp_status=2 处理；HANG 不覆盖；无首笔落地时间→IMPLEMENTATION、有→OPERATION
+- evidence_id: ev-wcp-sync-exclude
+  source_id: src-swat
+  evidence_kind: code_path
+  locator: SyncWechatApprovalTask.getExistingSpNos:655-679
+  claim: 增量同步排除：已存在且 act_procinst_status≠'1'（非审批中）的 spNo 不再拉详情重同步
+- evidence_id: ev-wcp-sync-firstfill
+  source_id: src-swat
+  evidence_kind: code_path
+  locator: SyncWechatApprovalTask.saveApprovalData:1226-1345
+  claim: 首填不覆盖字段集：立项名称/主项目名称/项目类型/产品类型/方案经理/业务经理/业务中心/项目阶段/发起立项时间/资方与企业等——DB 已有值则同步不写
+- evidence_id: ev-wcp-sync-protect
+  source_id: src-psa
+  evidence_kind: code_path
+  locator: ProjectStatisticsApplication.SYNC_PROTECTED_FIELDS:234-262
+  claim: 同步保护字段集（26 字段）：字段历史存在 source≠SYNC 记录时企微同步跳过覆盖；状态类字段（act_procinst_*/sp_pass_time）在 SYNC_OVERRIDE_WHITELIST 永远以企微为准
+- evidence_id: ev-wcp-manual-create
+  source_id: src-psa
+  evidence_kind: code_path
+  locator: ProjectStatisticsApplication.manualCreate:983-1030
+  claim: 模拟立项写值：dataSource 强制 MANUAL、spType 固定'金融科技业务'、systemDelivery='SaaS'、projectPhase='IMPLEMENTATION'、spNo=MN-yyyyMMdd-XXXX 后端生成、方案经理=当前登录用户（忽略前端传值）
+- evidence_id: ev-wcp-history-source
+  source_id: src-cse2
+  evidence_kind: code_path
+  locator: ChangeSourceEnum:13-31
+  claim: field_history.change_source 五值：EDIT 详情编辑 / BATCH 批量变更 / IMPORT 异步导入 / MANUAL_CREATE 模拟立项初始写入（保护后续不被同步覆盖）/ SYNC 企微同步（不参与保护判定）
+- evidence_id: ev-wcp-export-filter
+  source_id: src-wpaa
+  evidence_kind: code_path
+  locator: WechatProjectApprovalApplication:55-91
+  claim: 导出双固定过滤：act_procinst_status='2'（已通过）AND data_source='WECHAT'（剔除 MANUAL 模拟立项）
+- evidence_id: ev-fpr-rule-status-enum
+  source_id: src-rse
+  evidence_kind: code_path
+  locator: RuleStatusEnum:8-12
+  claim: rule_status 三值：PENDING 待生效 / ACTIVE 生效中 / INACTIVE 已失效
+- evidence_id: ev-fpr-rule-save-new
+  source_id: src-fria
+  evidence_kind: code_path
+  locator: FundRuleInfoApplication.saveRuleInfo:415-462
+  claim: 新增写值：查重(productCode+fundingPartyMark 唯一)→insert funding_rule_info(rule_status=PENDING, version=1, code=uuid, enable=Y)
+- evidence_id: ev-fpr-rule-save-update
+  source_id: src-fria
+  evidence_kind: code_path
+  locator: FundRuleInfoApplication.saveRuleInfo:464-483
+  claim: 更新写值：version 累加+1（不新建主行）；ruleMap 空则直接返回不动明细
+- evidence_id: ev-fpr-detail-upsert
+  source_id: src-fria
+  evidence_kind: code_path
+  locator: FundRuleInfoApplication.saveRuleInfo:488-530
+  claim: 明细 upsert：按 frontKey 匹配 funding_rule_front_cfg；已存在(ruleInfoId+ruleKey+enable=Y)则更新值，否则新建；版本快照 version=主行当前版本；fund_rule_code_ref=主行 code
+- evidence_id: ev-fpr-rule-active
+  source_id: src-fria
+  evidence_kind: code_path
+  locator: FundRuleInfoApplication.activeRule:287-306
+  claim: activeRule 写值：rule_status=PENDING→ACTIVE（生效中）
+- evidence_id: ev-fpr-rule-inactive
+  source_id: src-fria
+  evidence_kind: code_path
+  locator: FundRuleInfoApplication.inActiveRule:308-320
+  claim: inActiveRule 写值：rule_status→INACTIVE（已失效）
+- evidence_id: ev-fpr-layer-enum
+  source_id: src-rle
+  evidence_kind: code_path
+  locator: RuleLayerEnum:8-11
+  claim: rule_layer 三值：UNDERLYING 底层规则 / FINANCING 融资规则 / OTHER 其他规则（detail 从 front_cfg 继承）
+- evidence_id: ev-fpr-exception-upsert
+  source_id: src-era
+  evidence_kind: code_path
+  locator: ExceptionResolutionApplication.doUpsertAll:291-317
+  claim: 异常解析导入 upsert：单事务批量 saveOrUpdateBatch，任一失败整体回滚；exception_no=资方code-#S4# 序列生成
+- evidence_id: ev-fpr-exception-unique
+  source_id: src-era
+  evidence_kind: code_path
+  locator: ExceptionResolutionApplication 类注释:55-71 + upsertRow:325-331
+  claim: 异常唯一键 (productCode, fundingPartyCode, errorKeyword, enable=Y)；运行时按 errorKeyword 子串匹配报错文本
+- evidence_id: ev-fpr-exception-query
+  source_id: src-era
+  evidence_kind: code_path
+  locator: ExceptionResolutionApplication.exportRecords:356-470
+  claim: 查询条件：异常编号(eq)/对接方标识(eq)/资金方名称(like)/报错关键字(like)/更新时间区间/操作人(like)；只导 enable='Y'；上限 50000 行分页导出
+- evidence_id: ev-iwp-activate-query-first
+  source_id: src-cipd
+  evidence_kind: code_path
+  locator: CustInterworkingProductDomainService.listTenantProductWithOpenedCustProduct:175-227
+  claim: 查询即开通：企业查产品列表时对每个租户互通产品调 activeProduct——已 OPENED 幂等返回；未开通则远程拉统一授权，授权通过即 insert open_status=OPENED（无 OPENING 中间态）
+- evidence_id: ev-iwp-scope-role-filter
+  source_id: src-cipd
+  evidence_kind: code_path
+  locator: CustInterworkingProductDomainService.activeProduct:107-112
+  claim: scopeRole 过滤：tenant_product.scope_role 非空且不含当前企业类型时不开通不展示（return null）
+- evidence_id: ev-iwp-tenant-create
+  source_id: src-tipd
+  evidence_kind: code_path
+  locator: TenantInterworkingProductDomainService.create:186-237
+  claim: 租户开通互通产品：幂等(tenantId+platformProductCode)；从 platform_product 拷贝属性+ref锚(platform_product.code、tenant.code)；新建时 open_status 默认 N
+- evidence_id: ev-iwp-tenant-active-cancel
+  source_id: src-tipd
+  evidence_kind: code_path
+  locator: TenantInterworkingProductDomainService.active/cancel:164-177,239-257
+  claim: active：open_status→Y + product_ref_num 增量重算；cancel：open_status→N + decrement（与 tenant_product 同构）
+- evidence_id: ev-iwp-scope-clear-insert
+  source_id: src-tipa
+  evidence_kind: code_path
+  locator: TenantInterworkingProjectApplicationService.relTenantProject:42-84
+  claim: 范围先清后插：先删 tenant_interworking_project 该产品全部行；scope=ALL 直接返回（不插）；scope=SOME 解析 scopeProject JSON 数组逐项目插行（name=产品名-项目名）
+relationships:
+- left_table: cust_project_rel
+  left_field: project_id
+  right_table: tenant_project
+  right_field: id
+  evidence: write-flow:CustCompanyInfoApplication.java:1407-1408（""+Long String←Long CAST；读取 Long.valueOf :215 / in(List<String>) :5121）
+  relationship_type: EQUI_JOIN
+  cardinality: many_to_one
+- left_table: cust_project_rel
+  left_field: product_id
+  right_table: tenant_product
+  right_field: id
+  evidence: write-flow:CustCompanyInfoApplication.java:1412-1413（String←Long CAST）
+  relationship_type: EQUI_JOIN
+  cardinality: many_to_one
+- left_table: ca_fee_order
+  left_field: company_id
+  right_table: cust_company_info
+  right_field: id
+  evidence: write-flow:CaFeeTodoTriggerService.java:215-216（companyId=company.getId()）
+  relationship_type: EQUI_JOIN
+  cardinality: many_to_one
+- left_table: ca_fee_company
+  left_field: certification_no
+  right_table: cust_company_info
+  right_field: certification_no
+  evidence: code-anchor:CaFeeOrderService.java:440-443;CaFeeBizNodeCheckApplication.java:96-110（统码下多企业行归一）
+  relationship_type: EQUI_JOIN
+  cardinality: many_to_one
+- left_table: ca_fee_project_config
+  left_field: project_id
+  right_table: tenant_project
+  right_field: id
+  evidence: uk-anchor:CaFeeProjectConfigService.java:233-238（uk_project_id）
+  relationship_type: EQUI_JOIN
+  cardinality: one_to_one
+- left_table: tenant_project_approval
+  left_field: sp_no
+  right_table: wechat_project_approval_apply
+  right_field: sp_no
+  evidence: read:ProjectApprovalApplication.java:1332,1347
+  relationship_type: EQUI_JOIN
+  cardinality: many_to_one
+- left_table: cust_company_survey_whitelist
+  left_field: company_id
+  right_table: cust_company_info
+  right_field: id
+  evidence: code-anchor:CustCompanySurveyWhitelistDao.isParticipating:14-21
+  relationship_type: EQUI_JOIN
+  cardinality: many_to_one
+- left_table: cust_company_survey_state
+  left_field: company_id
+  right_table: cust_company_info
+  right_field: id
+  evidence: code-anchor:CustCompanySurveyStateDao.claimFirstVisitor:26-59
+  relationship_type: EQUI_JOIN
+  cardinality: one_to_one
+- left_table: cust_survey_answer
+  left_field: company_id
+  right_table: cust_company_info
+  right_field: id
+  evidence: code-anchor:CustSurveyAnswerService.buildRecords:107-108
+  relationship_type: EQUI_JOIN
+  cardinality: many_to_one
+- left_table: cust_auth_application
+  left_field: ref_cust_company_info
+  right_table: cust_company_info
+  right_field: code
+  evidence: write-flow:CustProductDomainService.doActiveProduct:241-243
+  relationship_type: EQUI_JOIN
+  cardinality: many_to_one
+- left_table: cust_change_record
+  left_field: cust_id
+  right_table: cust_company_info
+  right_field: id
+  evidence: code-anchor:CustSyncEventProcessor.findLatestOnWayChangeRecord:1352
+  relationship_type: EQUI_JOIN
+  cardinality: many_to_one
+- left_table: cust_account_info
+  left_field: ref_cust_company_info
+  right_table: cust_company_info
+  right_field: code
+  evidence: write-flow:CustAccountApplication.getAccountInfoByCustId:306-310
+  relationship_type: EQUI_JOIN
+  cardinality: many_to_one
+- left_table: cust_invite_info
+  left_field: invite_cust_id
+  right_table: cust_company_info
+  right_field: id
+  evidence: write-flow:CustCompanyIfoEnchanceService.inviteSave:1587
+  relationship_type: EQUI_JOIN
+  cardinality: many_to_one
+- left_table: cust_auth_application
+  left_field: ref_cust_auth_application_tenant_product
+  right_table: tenant_product
+  right_field: code
+  evidence: code-anchor:CustAuthApplicationDaoImpl:113-118
+  relationship_type: EQUI_JOIN
+  cardinality: many_to_one
+- left_table: tenant_setting_config
+  left_field: default_project_id
+  right_table: tenant_project
+  right_field: id
+  evidence: code-anchor:TenantProjectApplication.resolveProjectForInvite:503-520
+  relationship_type: EQUI_JOIN
+  cardinality: many_to_one
+units:
+- units/enterprise-build-certification.yaml
+- units/enterprise-status-operations.yaml
+- units/ca-fee-collection.yaml
+- units/project-online-approval.yaml
+- units/survey-research.yaml
+- units/enterprise-product-activation.yaml
+- units/product-config.yaml
+- units/ca-certification.yaml
+- units/wechat-project-initiation.yaml
+- units/funding-party-rules.yaml
+- units/interworking-products.yaml

@@ -12,6 +12,7 @@ evidence block to the schema text (same convention as confirmed relations).
 from __future__ import annotations
 
 import datetime
+import re
 import threading
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -31,6 +32,41 @@ from apps.dictionary.matching import normalize_dictionary_value
 from apps.knowledge.compile import active_published_units
 from common.core.config import settings
 from common.utils.utils import SQLBotLogUtil
+
+
+def _split_topup_schema_sections(
+    schema_text: str, added_tables: list[str]
+) -> list[dict[str, Any]]:
+    """扩窗后的 schema 全文按 `## 注释 (表名)` 分节（与 retrieve_context 同构）。
+
+    added_tables 中的表标 origin="topup"，其余标 "embedding"——详情卡片
+    区分"本轮新拉入"与"原有工作集"。"""
+    matches = list(re.finditer(r"^## .+? \((\w+)\)", schema_text, re.M))
+    sections: list[dict[str, Any]] = []
+    for index, match in enumerate(matches):
+        start = match.start()
+        end = matches[index + 1].start() if index + 1 < len(matches) else len(schema_text)
+        table = match.group(1)
+        sections.append(
+            {
+                "table": table,
+                "origin": "topup" if table in set(added_tables) else "embedding",
+                "chars": end - start,
+                "text": schema_text[start:end].strip("\n"),
+            }
+        )
+    return sections
+
+
+def _wiki_backend(ds_id: int | str | None) -> bool:
+    """wiki 知识后端判定（复用 wiki_recall 单一实现；判定失败保守 False）。"""
+    try:
+        from apps.chat.steps.wiki_recall import wiki_backend_active
+
+        return wiki_backend_active(int(ds_id) if ds_id is not None else None)
+    except Exception:  # noqa: BLE001
+        return False
+
 
 _EVIDENCE_TABLE_KINDS = frozenset({"clarification_option", "user_correction"})
 _EVIDENCE_TEXT_KINDS = frozenset({"clarification_custom", "user_correction"})
@@ -398,9 +434,13 @@ def resolve_recall_topup(
         if table_name not in working_set:
             _claim(table_name)
 
-    knowledge_hits = _match_knowledge_units(
-        session, oid=oid, ds_id=ds_id, terms=signals.missing_concepts
-    )
+    # wiki 后端：unit 术语匹配跳过（wiki 语义由 nlq 的 wiki_physical_text 段
+    # 并入反弹上下文）；表目录/值索引/关系邻接不受影响（物理层与知识后端无关）。
+    knowledge_hits: list[dict[str, Any]] = []
+    if not _wiki_backend(ds_id):
+        knowledge_hits = _match_knowledge_units(
+            session, oid=oid, ds_id=ds_id, terms=signals.missing_concepts
+        )
 
     anchor_ids = [
         catalog[name].table_id
@@ -466,6 +506,25 @@ def value_evidence_block(
             f"({item.get('source')})"
         )
     return "\n".join(lines) + "\n"
+
+
+def _rerender_schema_if_wiki_backend(llm_service: Any) -> None:
+    """wiki 后端下用表页重渲（与 nlq.topup 的重渲同源，提前到 span 内）。
+
+    protocol 直渲的 `# Table:` 格式没有 wiki 的 `## 注释 (表名)` 分节头，
+    span 的 schema_sections 解析需要 wiki 版本文本；同时提前重渲让
+    planner 与执行期指纹一致（nlq.topup:135 的重渲幂等，结果不变）。"""
+    try:
+        from apps.chat.graphs.nodes.nlq.topup import _wiki_render_schema_text
+        from apps.chat.steps.wiki_recall import wiki_backend_active
+
+        ds = getattr(llm_service, "ds", None)
+        ds_id = getattr(ds, "id", None)
+        if not wiki_backend_active(int(ds_id) if ds_id is not None else None):
+            return
+        _wiki_render_schema_text({}, llm_service, list(llm_service.table_name_list or []))
+    except Exception as exc:  # noqa: BLE001 — 重渲失败保持 protocol 直渲
+        SQLBotLogUtil.warning("topup wiki re-render degraded: %s", exc)
 
 
 def fulfill_recall_topup(
@@ -536,6 +595,7 @@ def fulfill_recall_topup(
         except Exception as exc:  # noqa: BLE001
             SQLBotLogUtil.warning("recall top-up fulfill failed: %s", exc)
             return TopupResult(changed=False, resources=tuple(current))
+        _rerender_schema_if_wiki_backend(llm_service)
         return TopupResult(
             changed=True, added_tables=tuple(additions), resources=tuple(resources)
         )
@@ -554,15 +614,25 @@ def fulfill_recall_topup(
             SQLBotLogUtil.warning("recall top-up fulfill failed: %s", exc)
             span.mark_degraded(f"recall top-up fulfill failed: {exc}")
             return TopupResult(changed=False, resources=tuple(current))
-        span.set_detail(
-            {
-                "added_tables": additions,
-                "resources": resources,
-                "value_hits": [dict(item) for item in manifest.value_hits],
-                "advisory_tables": [dict(item) for item in manifest.advisory_tables],
-                "knowledge_units": [dict(item) for item in manifest.knowledge_units],
-            }
-        )
+        _rerender_schema_if_wiki_backend(llm_service)
+        detail = {
+            "added_tables": additions,
+            "resources": resources,
+            "value_hits": [dict(item) for item in manifest.value_hits],
+            "advisory_tables": [dict(item) for item in manifest.advisory_tables],
+            "knowledge_units": [dict(item) for item in manifest.knowledge_units],
+        }
+        # 扩窗后的 schema 原文随 span 透出（chat 172 问题 2）：这是第二次
+        # "检索数据上下文"卡片的数据源，缺了它前端只剩原始 JSON、无 per-table
+        # schema 卡。与 retrieve_context 的检索 span 同构（结构化分节 + 全文）。
+        schema_full = str(getattr(llm_service.chat_question, "db_schema", "") or "")
+        if schema_full:
+            detail["schema_text"] = schema_full
+            detail["schema_chars"] = len(schema_full)
+            detail["schema_sections"] = _split_topup_schema_sections(
+                schema_full, additions
+            )
+        span.set_detail(detail)
         span.set_summary("chat.audit.schema_ready", count=len(resources))
     return TopupResult(
         changed=True,

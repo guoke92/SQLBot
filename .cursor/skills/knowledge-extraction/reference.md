@@ -108,19 +108,20 @@ processes 的读写顺序按业务时序写进单元的 `content.processes[].dat
 
 | 维度 | 谁 | 方法 | 落点 |
 |---|---|---|---|
-| **枚举字典值** | 脚本 | `extract-enums.py` 扫 `*Enum.java` 的 `NAME("dictKey","显示名")`，确定性产出 dictKey+显示名；**全量进 `enums.yaml`，不进包** | `enums.yaml` |
-| **枚举进包筛选** | AI agent | 枚举名 `XxxEnum` → 字段 `xxx`（蛇形候选）先在 catalog 核对；**只有字段已在包内 + 值有业务语义 + 值有使用场景**才写 `field.dictionary`（判据见 SKILL.md §3.1）；系统实现枚举留在 `enums.yaml` 参考，不进包 | `field.dictionary` |
-| **状态机** | AI agent | 收集 `setXxxStatus(Enum.Y.getDictKey())` 写值点，串成 `from→event→to`；**区分多套状态机**（同一业务对象可能有多套状态流，各自独立成链，不混用）；event=业务动作（如提交/通过/拒绝） | `processes.next_stages` |
+| **枚举字典值 + 绑定证据** | 脚本 | `extract-enums.py` 扫 `*Enum.java` 的 `NAME("dictKey","显示名")`，确定性产出 dictKey+显示名；**同时扫全仓 Java 的 `setXxx(XxxEnum.Y…)` setter 调用点产出证据绑定**：每枚举带 `setter_fields`（被哪些字段实际写入）、`convention_mismatch`（命名约定候选 ≠ setter 实际字段，绑定存疑须 agent 裁决）、全局 `bindings`（字段→枚举类）与 `ambiguous_fields`（一字段绑多个枚举类——近似语义边界信号，见「近似语义边界澄清」行）；**全量进 `enums.yaml`，不进包** | `enums.yaml` |
+| **枚举进包筛选** | AI agent | 绑定以**证据为准**：`enums.yaml` 的 setter 绑定与穿透写值点清单（`setXxx(Enum.Y.getDictKey())` 即枚举类写值点）交叉确证；命名约定候选仅在无 setter 证据时使用且须在穿透中补证。**只有字段已在包内 + 值有业务语义 + 值有使用场景**才写 `field.dictionary`（判据见 SKILL.md §3.1）；显示名抄 enums.yaml，**业务别名（用户嘴里的说法）不丢——落 concept 术语桥（见「近似语义边界澄清」行）**；系统实现枚举留在 `enums.yaml` 参考，不进包 | `field.dictionary` |
+| **写值语义** | AI agent | **从穿透收集的写值点清单推导**（清单在场景穿透时逐点记录：`字段 + 值类型（常量/枚举/参数传播）+ 条件（无条件/分支）+ 所属流程`；先过 §6 噪声清单，`deleted`/`version`/审计字段的固定写值是技术噪声不是语义）：**固定写值**=无条件+常量——创建时硬编码的初始枚举是状态机初始状态（from: ∅），非状态字段的默认常量是默认值规则；**条件写值**=有分支（分支写不同枚举）→条件规则；**状态递进**=同一状态字段被多个流程链写不同枚举值，按写值点串 `from→event→to`；**分阶段写入**=同一张主档表被多个流程链写**不同字段集合**，对比各流程 `data_effects` 的字段集合即识别——两类递进同属生命周期信息，检测信号不同（前者跟 `setXxxStatus` 写值点，后者跟同表多流程的 `data_effects` 对比） | 初始状态/状态递进→`processes.next_stages`；默认值/条件写值→`domain_rules`；分阶段写入→`next_stages` 链 + 各流程 `data_effects` 字段集合 |
+| **状态机** | AI agent | 收集 `setXxxStatus(Enum.Y.getDictKey())` 写值点（写值点清单的枚举类条目），串成 `from→event→to`；**区分多套状态机**（同一业务对象可能有多套状态流，各自独立成链，不混用）；event=业务动作（如提交/通过/拒绝）；初始状态即写值语义的"创建时固定写值"（见上一行） | `processes.next_stages` |
 | **口径** | AI agent | 从 mapper WHERE + service 分支提取状态谓词组合，成 `名称 = 可执行谓词`；**标注 scope**（是全局定义还是某接口语境）；语义相近口径显式标注边界 | `calibers` |
 | **指标** | AI agent | 从 mapper `COUNT(`/`SUM(`/`AVG(` + `GROUP BY` 聚合点归成业务指标；**标注 grain（去重粒度）**——COUNT(企业) 还是 COUNT(企业-项目关系) | `metrics` |
-| **业务规则** | AI agent | 从 service 分支提取：锁/幂等/回滚/默认值/条件写值（如"某产品类型+某渠道→status='1'"） | `domain_rules` |
-| **字段/枚举边界澄清** | AI agent | 语义相近的字段/枚举（如两套状态字段、两套编码字段）逐一澄清各自字典、各自使用场景与查询边界，避免混用；写成 domain_rule（状态字典分离/字段语义边界）或字段 `description` 的边界说明 | `domain_rules` / 字段 `description` |
+| **业务规则** | AI agent | 从 service 分支提取：锁/幂等/回滚；默认值与条件写值规则从写值点清单推导（方法见 §8「写值语义」行，此处不重复罗列判据） | `domain_rules` |
+| **近似语义边界澄清** | AI agent | **检测是结构触发的，不靠扫词**，三个信号必查：(a) 同一张表内≥2 个带 `dictionary` 的字段且取值/显示名语义空间重叠（如"认证方式 vs 录入方式"都回答"企业怎么进来的"）；(b) `enums.yaml` 的 `ambiguous_fields`（一字段绑多个枚举类）与 `convention_mismatch`；(c) 同域跨表的近似编码/状态字段。**每个命中必须裁决为两种之一**：① 边界规则（不同语义）——domain_rule 写清各自回答什么问题、各自字典、混用后果（例：`identify_style` 是**认证渠道**（谁邀请），`cust_build_type` 是**建档途径**（从哪录入）；用户说"平台录入"指后者）；② 同义/派生说明（相同语义或冗余副本）——写明关系与取值对应。**术语桥**：裁决后的字段值若有业务别名（用户自然语言说法），落 concept（`aliases` 收业务说法 + `dictionary` 收值→业务名 + `field_targets` 锚字段）——运行时澄清卡与召回消费的就是这个桥，别名丢失=运行时歧义 | 边界规则→`domain_rules`；同义说明→字段 `description`；术语桥→`concepts` |
 | **术语/场景** | AI agent | 从入口方法 + 注释 + 业务文档对齐：canonical term + aliases + 对应表 | `concepts` |
 | **概念锚定** | AI agent | 每个 concept 写 `field_targets`：状态类→承载其 `dictionary` 的字段（字典跨字段时全写）；实体类→表 `id`/业务键；键值与该字段 dictionary 键一致 | `concept.field_targets` → concept_of 边 |
 | **共享表治理** | AI agent | 每个物理表一个权威单元声明完整业务字段；其余单元最小声明且字段 payload 逐字复制 | decompose 零 intra-package 冲突 |
 | **unit_links** | AI agent | 只有代码能证明调用链/状态校验时才声明 prerequisite/validates，`via` + `evidence_refs` 必填 | `unit_links` → precedes/validates 边 |
 | **查询范式** | AI agent | 从 controller 端点 + mapper select 方法提取"按 X 查 Y 列表/数量" | `query_patterns` |
-| **场景发现** | 脚本+AI agent | 脚本枚举 `@RestController`/`@DubboService`/Facade 入口；AI agent 归类成业务场景清单 | 场景清单 |
+| **场景发现** | 脚本+AI agent | 脚本枚举入口（入口判据以 `extract-callgraph.py` 实现为权威，文档不复制罗列）；AI agent 归类成业务场景清单。业务域清单的**代码校准**（补漏/拆分/修正/死域登记）是 SKILL.md §5 步骤 2 的职责，产物入 `package.domains`，与本行场景归类是两回事 | 场景清单 |
 
 ## 9. 证据自动生成
 
@@ -141,7 +142,7 @@ processes 的读写顺序按业务时序写进单元的 `content.processes[].dat
 交付前用 `.cursor/skills/knowledge-extraction/scripts/knowledge-package.py scan --strict` + `decompose` 干跑验证：`concept_of` 数 = concept 数、`merge_conflicts` = 0、孤儿字段 = 0、stub 节点仅来自显式 SHARED_KEY/外部引用。
 
 **全量单元提取完成后，做一次完备校验（完整性 + 关联性）**：
-- **完整性**：`coverage` 无 `COVERAGE_GAP`（表全覆盖）、字段无 orphan、业务枚举闭环——进包的每个枚举值都有使用点（写值点/过滤谓词/状态概念），`enums.yaml` 里有业务语义的枚举不遗漏；
+- **完整性**：`coverage` 无 `COVERAGE_GAP`（表全覆盖）、字段无 orphan、业务枚举闭环——进包的每个枚举值都有使用点（写值点/过滤谓词/状态概念）、每个进包字段的枚举绑定有 setter/写值点证据（不用无证据的命名约定候选）、`enums.yaml` 里有业务语义的枚举不遗漏、近似语义命中全部裁决（§8「近似语义边界澄清」三信号无遗留）且业务别名已落术语桥 concept；
 - **关联性**：关系落位正确（单元内关系在单元内、跨单元在包级，无 `RELATION_SHOULD_BE_IN_UNIT`）、`ref_*`/`*_id`/`*_code` 无裸声明、跨单元共享表字段 payload 逐字一致（decompose 零 merge_conflicts）、unit_links 有证据（细项见 §12 语义完整度门槛）。
 
 ## 11. 类型族与绑定校验码表（避免 FAIL）
@@ -199,5 +200,5 @@ processes 的读写顺序按业务时序写进单元的 `content.processes[].dat
 2. **能绑定目标数据源**：每个 `dataset.name` 命中物理表、每个 `field.name` 命中物理列；缺表/缺字段/类型族冲突 → FAIL，包无法提交审核。
 3. **场景可问数**：每个单元能回答「用户说某句业务话术时落到哪些表/字段/值/关系/过滤/口径」。
 4. **不伪造**：未执行 SQL 不得写 executed/passed；关系默认 proposed。
-5. **语义完整度门槛（防模板填充）**：机械校验全绿 ≠ 语义提取到位。每个**活跃数据集**同时满足——(a) 字段 payload 真实（`description`/`data_type`/`dictionary` 来自 catalog/enums.yaml，无退化）；(b) 至少 1 条 `code_path` 证据（读/写/枚举的 `文件:行号`），非仅 `database_schema`；(c) concept/metric/caliber/rule/pattern 业务特异（真实入口、真实状态机、真实口径与指标），非 `count`/`enabled`/`enable-filter` 模板；(d) 范式 SQL 与 metric/caliber 自洽；(e) 关系完整——每个进包的 `ref_*`/`*_id`/`*_code` 字段三分类落位（EQUI_JOIN/SHARED_KEY 关系、`derived_from` 冗余、无引用剔除），不得裸声明；落位载体是 `content.relationships`（或字段级 `derived_from`），`description` 不承载关系；单元内关系写单元内、跨单元关系写包级（分工见 §4）。
+5. **语义完整度门槛（防模板填充）**：机械校验全绿 ≠ 语义提取到位。每个**活跃数据集**同时满足——(a) 字段 payload 真实（`description`/`data_type`/`dictionary` 来自 catalog/enums.yaml，无退化）；(b) 至少 1 条 `code_path` 证据（读/写/枚举的 `文件:行号`），非仅 `database_schema`；(c) concept/metric/caliber/rule/pattern 业务特异（真实入口、真实状态机、真实口径与指标），非 `count`/`enabled`/`enable-filter` 模板；(d) 范式 SQL 与 metric/caliber 自洽；(e) 关系完整——每个进包的 `ref_*`/`*_id`/`*_code` 字段三分类落位（EQUI_JOIN/SHARED_KEY 关系、`derived_from` 冗余、无引用剔除），不得裸声明；落位载体是 `content.relationships`（或字段级 `derived_from`），`description` 不承载关系；单元内关系写单元内、跨单元关系写包级（分工见 §4）；(f) **写值语义已排查**——该数据集涉及的固定写值/条件写值/状态递进/分阶段写入已按 §8「写值语义」行分类落位（写值点清单里属于本数据集字段的条目不得未处理）；(g) **近似语义边界已澄清**——该数据集命中的近似语义信号（同表多字典字段语义重叠/`ambiguous_fields`/跨表近似编码）已按 §8「近似语义边界澄清」行裁决为边界规则或同义说明，业务别名已落术语桥。
 

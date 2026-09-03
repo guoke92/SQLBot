@@ -84,8 +84,12 @@ def test_unsupported_query_node_persists_public_business_error(
     def fake_session_scope():
         yield object()
 
-    monkeypatch.setattr(nlq, "session_scope", fake_session_scope)
-    monkeypatch.setattr(nlq, "finalize_run", finalize)
+    for _patch_target in (nlq, nlq.context, nlq.topup, nlq.routing, nlq.planning, nlq.execution, nlq.presentation, nlq.analysis, nlq.audit):
+        monkeypatch.setattr(_patch_target, "session_scope",
+fake_session_scope)
+    for _patch_target in (nlq, nlq.routing, nlq.presentation, nlq.analysis, nlq.planning):
+        monkeypatch.setattr(_patch_target, "finalize_run",
+finalize)
     monkeypatch.setattr(
         nlq.StreamSink,
         "from_state",

@@ -1,0 +1,426 @@
+unit_id: wechat-project-initiation
+revision: 1
+title: 企微项目立项
+aliases:
+- 企微审批
+- 立项审批
+- sp_no
+- 项目立项
+- 微信审批
+domain: 项目审批
+applicability: 用户问"已通过立项的项目""企微审批编号""立项通过时间""方案经理""项目阶段" 等企微立项类问题时使用。
+description: 企微项目立项审批数据（wechat_project_approval_apply，sp_no 唯一键，XXL-Job 从企微 API 同步 + 洞察平台回写 + 人工编辑）。act_procinst_status=1 审批中/2 已通过/3/4/6/7 终态挂起。field_history 记录字段修改历史，同步对人工已改字段有保护机制。 sp_no 是与 tenant_project_approval（上线审批）的关联键。
+content:
+  concepts:
+  - concept_id: sp-status
+    name: 企微审批状态
+    aliases:
+    - 审批中
+    - 已通过
+    - 已撤销
+    - 挂起
+    - 企微审批原码
+    - sp_status
+    - 审批状态原码
+    definition: act_procinst_status 即企微 sp_status 原码（无转换直存）：1 审批中、2 已通过、3 已拒绝、4 已撤销、6 通过后撤销、7 已删除。统计页默认可见 {1,2}；导出固定过滤 ='2' AND data_source='WECHAT'。增量同步排除非审批中（≠1）的已有记录。
+    dictionary:
+      '1': 审批中
+      '2': 已通过
+      '3': 已拒绝
+      '4': 已撤销
+      '6': 通过后撤销
+      '7': 已删除
+    field_targets:
+    - dataset: wechat_apply
+      field: act_procinst_status
+    evidence_refs:
+    - ev-wcp-status-enum
+    - ev-wcp-sp-status
+    - ev-wcp-export-filter
+    - ev-wcp-sync-exclude
+  - concept_id: project-phase
+    name: 项目阶段
+    aliases:
+    - 立项阶段
+    - 实施
+    - 运营
+    - 挂起
+    - 项目阶段初值
+    - 持续运营
+    - 阶段升级
+    definition: project_phase 由 sp_status 派生初值（1→INITIATION、2→IMPLEMENTATION、3/4/6/7→HANG、其他默认 IMPLEMENTATION）；洞察回写时升级：仅 sp_status=2 处理，HANG 不覆盖，无首笔落地时间→IMPLEMENTATION、有→OPERATION。仅状态=2 处理洞察回写。
+    dictionary:
+      INITIATION: 立项阶段
+      IMPLEMENTATION: 实施阶段
+      OPERATION: 运营阶段
+      HANG: 挂起
+    field_targets:
+    - dataset: wechat_apply
+      field: project_phase
+    evidence_refs:
+    - ev-wcp-phase-map
+    - ev-wcp-phase-settlement
+    - ev-wcp-sp-status
+  - concept_id: data-source
+    name: 立项数据来源
+    aliases:
+    - 企微同步
+    - 手工创建
+    - 模拟立项
+    - 模拟立项
+    - 数据来源标记
+    - MN-前缀
+    definition: WECHAT=企微 API 同步（小时级 Job）；MANUAL=手工模拟立项（spNo=MN-yyyyMMdd-XXXX 后端生成，dataSource 强制 MANUAL、spType 固定'金融科技业务'、systemDelivery='SaaS'、projectPhase='IMPLEMENTATION'、方案经理=当前登录用户）。导出仅含 WECHAT。
+    dictionary:
+      WECHAT: 企微同步
+      MANUAL: 手工创建
+    field_targets:
+    - dataset: wechat_apply
+      field: data_source
+    evidence_refs:
+    - ev-wcp-manual-create
+    - ev-wcp-export-filter
+    - ev-wcp-sp-status
+  - concept_id: change-source
+    name: 字段变更来源
+    aliases:
+    - 人工编辑
+    - 同步写入
+    - 批量变更
+    - 导入覆盖
+    - 模拟立项初始写入
+    definition: wechat_project_approval_field_history.change_source 五值：EDIT 详情页编辑 / BATCH 批量变更（如批量变更方案经理）/ IMPORT 异步导入覆盖 / MANUAL_CREATE 模拟立项初始写入（保证后续不被同步覆盖）/ SYNC 企微同步写入。同步保护判定：字段存在 source≠SYNC 历史时企微同步跳过覆盖。
+    dictionary:
+      EDIT: 详情页编辑保存
+      BATCH: 批量变更
+      IMPORT: 异步导入覆盖
+      MANUAL_CREATE: 模拟立项初始写入
+      SYNC: 企微同步Job写入
+    field_targets:
+    - dataset: field_history
+      field: change_source
+    evidence_refs:
+    - ev-wcp-history-source
+    - ev-wcp-sync-protect
+  processes:
+  - stage_id: sync-from-wechat
+    name: 企微同步
+    description: 企微小时级同步：增量拉取（已存在且 act_procinst_status≠'1' 的 spNo 跳过）→ saveApprovalData 落库（首填不覆盖：立项名称/主项目名称/项目类型/产品类型/方案经理/业务经理/业务中心/项目阶段/发起立项时间/资方与企业等 DB 已有值不写）→ project_phase 按 sp_status 映射初值。dataSource='WECHAT'。
+    trigger: XXL-Job syncWechatApprovalTask
+    next_stages: []
+    data_effects:
+    - operation: upsert
+      dataset: wechat_apply
+      fields:
+      - sp_no
+      - sp_type
+      - project_approval_name
+      - act_procinst_status
+      - sp_pass_time
+      - bussiness_manager
+      - op_contact
+      - solution_manager
+      - data_source
+      condition: 首填不覆盖+人工保护
+    evidence_refs:
+    - ev-wcp-sync
+    - ev-wcp-sync-exclude
+    - ev-wcp-sync-firstfill
+    - ev-wcp-phase-map
+  - stage_id: insight-writeback
+    name: 洞察平台回写
+    description: 洞察平台回写：仅 sp_status=2 处理；写 project_online_name（逗号多值）、first_settlement_time、prd（按 N→Y 重置）；project_phase 升级：HANG 不覆盖、无首笔落地时间→IMPLEMENTATION、有→OPERATION。
+    trigger: 洞察平台
+    next_stages: []
+    data_effects:
+    - operation: update
+      dataset: wechat_apply
+      fields:
+      - project_online_name
+      - first_settlement_time
+      - project_phase
+      - prd
+      condition: 仅 sp_status=2
+    evidence_refs:
+    - ev-wcp-phase-settlement
+    - ev-wcp-sp-status
+  - stage_id: manual-create
+    name: 模拟立项
+    description: 模拟立项：dataSource 强制 MANUAL、spType='金融科技业务'、systemDelivery='SaaS'、projectPhase='IMPLEMENTATION'、spNo=MN-yyyyMMdd-XXXX 后端生成、方案经理=当前登录用户（忽略前端传值，且必须能解析企微 id 否则拒绝保存）；落库后写入 MANUAL_CREATE 字段历史（保护后续不被同步覆盖）。
+    trigger: 管理端手工创建
+    next_stages: []
+    data_effects:
+    - operation: insert
+      dataset: wechat_apply
+      fields:
+      - sp_no
+      - act_procinst_status
+      - data_source
+      condition: MN-前缀+强制状态2
+    evidence_refs:
+    - ev-wcp-manual-create
+    - ev-wcp-history-source
+  datasets:
+  - dataset_id: wechat_apply
+    name: wechat_project_approval_apply
+    description: 企微项目立项审批主表（sp_no 唯一键；45 业务字段；企微 API 同步+洞察回写+人工编辑三源）。
+    database: lowcode_pplatform
+    fields:
+    - field_id: id
+      name: id
+      data_type: bigint
+      description: 表主键
+    - field_id: enable
+      name: enable
+      data_type: varchar
+      description: enable
+    - field_id: sp_no
+      name: sp_no
+      data_type: varchar
+      description: 企微审批编号（唯一键）
+    - field_id: sp_type
+      name: sp_type
+      data_type: varchar
+      description: 审批类型（金融科技业务/投行产品类业务）
+    - field_id: project_approval_name
+      name: project_approval_name
+      data_type: varchar
+      description: 立项名称
+    - field_id: act_procinst_status
+      name: act_procinst_status
+      data_type: varchar
+      description: '企微审批状态, dictionary: {"1": 审批中, "2": 已通过, "3": 已拒绝, "4": 已撤销, "6": 通过后撤销, "7": 已删除}, evidence_refs: [ev-wcp-sp-status]'
+    - field_id: sp_pass_time
+      name: sp_pass_time
+      data_type: datetime
+      description: 企微审批通过时间
+    - field_id: project_phase
+      name: project_phase
+      data_type: varchar
+      description: '项目阶段（由sp_status派生）, dictionary: {INITIATION: 立项, IMPLEMENTATION: 实施, OPERATION: 运营, HANG: 挂起}'
+    - field_id: data_source
+      name: data_source
+      data_type: varchar
+      description: '数据来源, dictionary: {WECHAT: 企微同步, MANUAL: 手工创建}'
+    - field_id: bussiness_manager
+      name: bussiness_manager
+      data_type: varchar
+      description: 业务经理（中文名）
+    - field_id: op_contact
+      name: op_contact
+      data_type: varchar
+      description: 运营对接人
+    - field_id: solution_manager
+      name: solution_manager
+      data_type: varchar
+      description: 方案经理（中文名）
+    - field_id: solution_manager_wxid
+      name: solution_manager_wxid
+      data_type: varchar
+      description: 方案经理企微id（JSON数组）
+    - field_id: project_online_name
+      name: project_online_name
+      data_type: varchar
+      description: 项目上线名（洞察回写，逗号多值）
+    - field_id: first_settlement_time
+      name: first_settlement_time
+      data_type: datetime
+      description: 首笔落地时间（洞察回写）
+    - field_id: prd
+      name: prd
+      data_type: varchar
+      description: 是否有PRD（洞察回写 Y/N）
+    - field_id: project_id
+      name: project_id
+      data_type: bigint
+      description: 关联项目id（弱关联）
+    evidence_refs:
+    - ev-wcp-status-enum
+    - ev-wcp-phase-map
+    - ev-wcp-manual-create
+    - ev-wcp-sync-firstfill
+  - dataset_id: field_history
+    name: wechat_project_approval_field_history
+    description: 立项字段修改历史（一行=一次字段变更；同步保护机制的依据）。
+    database: lowcode_pplatform
+    fields:
+    - field_id: id
+      name: id
+      data_type: bigint
+      description: 表主键
+    - field_id: apply_id
+      name: apply_id
+      data_type: bigint
+      description: 立项ID（=wechat_apply.id）
+    - field_id: sp_no
+      name: sp_no
+      data_type: varchar
+      description: 企微审批编号
+    - field_id: field_name
+      name: field_name
+      data_type: varchar
+      description: 数据库列名
+    - field_id: field_label
+      name: field_label
+      data_type: varchar
+      description: 中文标签
+    - field_id: old_value
+      name: old_value
+      data_type: varchar
+      description: 旧值
+    - field_id: new_value
+      name: new_value
+      data_type: varchar
+      description: 新值
+    - field_id: change_source
+      name: change_source
+      data_type: varchar
+      description: '变更来源, dictionary: {SYNC: 系统同步, EDIT: 人工编辑, BATCH: 批量, IMPORT: 导入, MANUAL_CREATE: 手工创建}'
+    evidence_refs:
+    - ev-wcp-history-source
+    - ev-wcp-sync-protect
+  relationships: []
+  calibers:
+  - caliber_id: approved-initiation
+    label: 已通过立项
+    description: 企微审批已通过（含 MANUAL 模拟）
+    contract_fragment:
+      where:
+      - act_procinst_status = '2'
+      - enable = 'Y'
+    field_targets:
+    - dataset: wechat_apply
+      field: act_procinst_status
+    evidence_refs:
+    - ev-wcp-sp-status
+  - caliber_id: approved-wechat-only
+    label: 已通过立项（仅企微来源）
+    description: 导出硬约束（排除 MANUAL 模拟）
+    contract_fragment:
+      where:
+      - act_procinst_status = '2'
+      - data_source = 'WECHAT'
+      - enable = 'Y'
+    field_targets:
+    - dataset: wechat_apply
+      field: act_procinst_status
+    - dataset: wechat_apply
+      field: data_source
+    evidence_refs:
+    - ev-wcp-sp-status
+  metrics:
+  - metric_id: initiation-count
+    name: 立项审批量
+    description: 按状态/类型分组
+    aggregation: COUNT
+    field:
+      dataset: wechat_apply
+      field: id
+    filters:
+    - enable: Y
+    grain:
+    - dataset: wechat_apply
+      field: act_procinst_status
+    - dataset: wechat_apply
+      field: sp_type
+    evidence_refs:
+    - ev-wcp-sp-status
+  - metric_id: initiation-pass-rate
+    name: 立项通过率
+    description: 状态2 / (状态2+终态3/4/6/7)
+    aggregation: COUNT
+    field:
+      dataset: wechat_apply
+      field: id
+    grain:
+    - dataset: wechat_apply
+      field: act_procinst_status
+    evidence_refs:
+    - ev-wcp-sp-status
+  domain_rules:
+  - rule_id: sp-status-meaning
+    label: act_procinst_status 是企微原码
+    content: act_procinst_status 存企微 sp_status 原始码值（1/2/3/4/6/7），不是中文。 "审批通过"=act_procinst_status='2'（EXPORT_REQUIRED_ACT_PROCINST_STATUS 常量）。
+    applicability: 按立项状态过滤/统计
+    query_impact: 筛"已通过"用 ='2'；统计页默认只显示 1 和 2。
+    field_targets:
+    - dataset: wechat_apply
+      field: act_procinst_status
+    evidence_refs:
+    - ev-wcp-sp-status
+  - rule_id: manual-vs-wechat
+    label: 模拟立项混入审批下拉
+    content: MANUAL 模拟立项（MN-前缀）强制状态=2，导出硬约束排除（data_source=WECHAT） 但审批域 sp_no 下拉（listProjectSpNo）未过滤 data_source——MN- 编号会混入 上线审批的立项编号选择器。
+    applicability: 立项审批编号引用（上线审批 sp_no 选择）
+    query_impact: 精确"企微真实立项"须加 data_source='WECHAT'。
+    field_targets:
+    - dataset: wechat_apply
+      field: data_source
+    evidence_refs:
+    - ev-wcp-sp-status
+  - rule_id: sync-protection
+    label: 同步人工保护
+    content: field_history 存在 (applyId, fieldName, source≠SYNC) 即视为人工写过，企微同步 跳过该字段并还原旧值。5 个覆盖白名单字段（状态/时间/id/no）永远以企微为准。
+    applicability: 立项数据可信度解释
+    query_impact: 人工改过的字段不会因同步回写被覆盖（白名单除外）。
+    field_targets:
+    - dataset: field_history
+      field: change_source
+    evidence_refs:
+    - ev-wcp-sync
+  - rule_id: sync-protect-vs-override
+    label: 同步保护与覆盖白名单
+    content: SYNC_PROTECTED_FIELDS（26 字段，含 project_approval_name/solution_manager/bussiness_manager/project_phase 等）：字段历史存在 source≠SYNC 记录时企微同步跳过覆盖（人工编辑优先）。SYNC_OVERRIDE_WHITELIST（act_procinst_status/date/id/no、sp_pass_time 5 字段）永远以企微为准——即使有人工历史也覆盖（状态必须跟随企微）。
+    applicability: 解释字段值与企微不一致、同步未生效
+    query_impact: 非状态字段可能滞后于企微（人工锁定）；状态字段与企微实时一致。
+    field_targets:
+    - dataset: field_history
+      field: change_source
+    - dataset: wechat_apply
+      field: act_procinst_status
+    evidence_refs:
+    - ev-wcp-sync-protect
+    - ev-wcp-history-source
+  - rule_id: export-double-filter
+    label: 导出双固定过滤
+    content: 导出接口固定过滤 act_procinst_status='2'（已通过）AND data_source='WECHAT'（剔除 MANUAL 模拟立项等其它来源）——导出口径不等于全表口径。
+    applicability: 导出数据与查询数据对不上
+    query_impact: 对账'导出的行数'必须加同样两个条件。
+    field_targets:
+    - dataset: wechat_apply
+      field: act_procinst_status
+    - dataset: wechat_apply
+      field: data_source
+    evidence_refs:
+    - ev-wcp-export-filter
+  - rule_id: sync-incremental-exclusion
+    label: 增量同步排除终态
+    content: 增量同步排除已存在且 act_procinst_status≠'1' 的 spNo（审批中以外的状态不再重拉详情）——状态一旦离开 1 就冻结在企微侧最后快照。
+    applicability: 状态回退场景、同步缺失排查
+    query_impact: 企微侧后续撤销/删除可能不回传（已离开审批中）；本地状态是企微侧最后已知状态。
+    field_targets:
+    - dataset: wechat_apply
+      field: act_procinst_status
+    evidence_refs:
+    - ev-wcp-sync-exclude
+  verified_query_patterns:
+  - pattern_id: approved-initiation-list
+    question: 已通过立项的项目清单
+    query: SELECT sp_no, project_approval_name, sp_pass_time, bussiness_manager FROM wechat_project_approval_apply WHERE act_procinst_status = '2' AND enable = 'Y' ORDER BY sp_pass_time DESC
+    intended_specification:
+      caliber_id: approved-initiation
+    verification:
+      status: PENDING_VALIDATION
+    evidence_refs:
+    - ev-wcp-sp-status
+unit_links:
+- target_unit: project-online-approval
+  kind: prerequisite
+  via:
+  - dataset: wechat_apply
+    field: sp_no
+  evidence_refs:
+  - ev-wcp-sp-status
+  description: tenant_project_approval.sp_no 引用 wechat_apply.sp_no（立项编号下拉来源，仅取状态=2）。
+assumptions: []
+confidence: 0.8

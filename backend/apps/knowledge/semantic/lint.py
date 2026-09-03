@@ -164,7 +164,11 @@ def _lint_coverage(
                 }
             )
     for name, is_inactive in flagged.items():
-        if is_inactive and name not in inactive and name in {t.casefold() for t in tables}:
+        if (
+            is_inactive
+            and name not in inactive
+            and name in {t.casefold() for t in tables}
+        ):
             issues.append(
                 {
                     "code": "INACTIVE_FLAG_UNLISTED",
@@ -487,6 +491,55 @@ def _lint_package_baseline(package: KnowledgePackageV2) -> list[dict[str, Any]]:
     return issues
 
 
+def _lint_package_domains(package: KnowledgePackageV2) -> list[dict[str, Any]]:
+    """Declared domains and unit domains must reference the same taxonomy.
+
+    Domains are recall keys: a unit whose ``domain`` matches no declared
+    package domain is a taxonomy drift (usually a renamed/split domain whose
+    mapping was not carried into the units) — it silently breaks domain-grouped
+    recall. ``doc_only`` domains with units attached contradict the claim that
+    no entry point supports them.
+    """
+    if not package.package.domains:
+        return []
+    declared = {domain.name.casefold(): domain for domain in package.package.domains}
+    issues: list[dict[str, Any]] = []
+    seen_unit_domains: set[str] = set()
+    for unit in package.knowledge_units:
+        unit_domain = str(unit.domain or "").strip()
+        if not unit_domain:
+            continue
+        seen_unit_domains.add(unit_domain.casefold())
+        if unit_domain.casefold() not in declared:
+            issues.append(
+                {
+                    "code": "DOMAIN_UNDECLARED",
+                    "severity": "advisory",
+                    "unit": unit.unit_id,
+                    "message": (
+                        f"unit domain {unit_domain!r} is not declared in "
+                        "package.domains; declare it or carry the rename mapping "
+                        "(renamed_from) so domain-grouped recall stays stable"
+                    ),
+                }
+            )
+    for key, domain in declared.items():
+        if domain.calibration == "doc_only" and key in seen_unit_domains:
+            issues.append(
+                {
+                    "code": "DOMAIN_DOC_ONLY_HAS_UNITS",
+                    "severity": "advisory",
+                    "unit": None,
+                    "message": (
+                        f"domain {domain.name!r} is declared doc_only but units "
+                        "reference it; either fix the calibration or move the "
+                        "units to a code-supported domain"
+                    ),
+                }
+            )
+    return issues
+
+
 _STRICT_BLOCKING_CODES = {"CONCEPT_UNANCHORED", "FAKE_EXECUTED"}
 
 
@@ -508,6 +561,7 @@ def lint_package(
         issues.extend(coverage_issues)
     issues.extend(_lint_package_relationships(package))
     issues.extend(_lint_package_baseline(package))
+    issues.extend(_lint_package_domains(package))
 
     used_evidence: set[str] = set()
     for unit in package.knowledge_units:

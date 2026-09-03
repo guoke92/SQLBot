@@ -1,0 +1,3 @@
+- code: PAGE_CONTRACT_FAILED
+  message: page_key 'rule/create_project_validate_tenant_product' 不符合 rule 页的 业务 slug（CJK
+    保留）

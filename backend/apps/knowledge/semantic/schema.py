@@ -7,6 +7,47 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
+class PackageDomain(BaseModel):
+    """A code-calibrated business domain in the source repository.
+
+    Domains are recall keys (knowledge map groups units by domain), so the
+    calibrated taxonomy is part of the package contract — not a throwaway
+    worksheet. ``calibration`` records how the code baseline shaped the
+    document-derived taxonomy: ``added`` (code-only domain the docs missed),
+    ``split_from`` (too-coarse doc domain split along unit-sealed-boundary
+    lines), ``corrected`` (doc description lagged the code), ``doc_only``
+    (domain the docs claim but no entry point supports — registered so the
+    dead claim stays auditable). ``renamed_from`` carries the previous name
+    across incremental re-extractions so domain-keyed recall stays stable.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str
+    description: str = ""
+    calibration: Literal[
+        "added", "split_from", "corrected", "doc_only", "unchanged"
+    ] = "unchanged"
+    split_from: str = ""
+    renamed_from: str = ""
+
+    @field_validator("name")
+    @classmethod
+    def required_name(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("domain name is required")
+        return value
+
+    @model_validator(mode="after")
+    def calibration_payload(self) -> PackageDomain:
+        if self.calibration == "split_from" and not self.split_from.strip():
+            raise ValueError("split_from requires the parent domain name")
+        if self.calibration != "split_from" and self.split_from.strip():
+            raise ValueError("split_from is only valid with calibration=split_from")
+        return self
+
+
 class PackageMetadata(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -17,6 +58,7 @@ class PackageMetadata(BaseModel):
     description: str = ""
     repository: str = ""
     repository_revision: str = ""
+    domains: list[PackageDomain] = Field(default_factory=list)
 
     @field_validator("package_id", "title", "namespace")
     @classmethod
@@ -25,6 +67,14 @@ class PackageMetadata(BaseModel):
         if not value:
             raise ValueError("value is required")
         return value
+
+    @model_validator(mode="after")
+    def unique_domains(self) -> PackageMetadata:
+        names = [domain.name for domain in self.domains]
+        duplicated = sorted({name for name in names if names.count(name) > 1})
+        if duplicated:
+            raise ValueError(f"duplicate domain names: {duplicated}")
+        return self
 
 
 class SourceDescriptor(BaseModel):

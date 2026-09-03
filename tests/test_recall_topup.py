@@ -163,6 +163,8 @@ def test_fulfill_expands_working_set_via_exact_projection(monkeypatch) -> None:
             __exit__=lambda *a: False,
         ),
     )
+    # 单测无 wiki 语料上下文：关闭 wiki 重渲（生产由 allowlist/store 判定）
+    monkeypatch.setattr(rt, "_rerender_schema_if_wiki_backend", lambda *a, **k: None)
     protocol_calls: list[list[str]] = []
 
     def fake_retrieve_schema(**kwargs):

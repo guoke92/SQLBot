@@ -259,19 +259,26 @@ class LLMService:
         ).strip()
 
     def init_record(self, session: Session, *, commit: bool = True) -> ChatRecord:
-        self.record = save_question(
+        # save_question returns a detached copy; keep the ORM instance away
+        # from long-lived state so request-session commits cannot expire it.
+        record = save_question(
             session=session,
             current_user=self.current_user,
             question=self.chat_question,
             commit=commit,
         )
+        self.record = ChatRecord(**record.model_dump())
         return self.record
 
     def get_record(self) -> ChatRecord:
         return self.record
 
     def set_record(self, record: ChatRecord) -> None:
-        self.record = record
+        # Graph workers outlive the request session: a session-bound record
+        # expires on the API teardown commit and detaches on close, so node
+        # attribute reads raise DetachedInstanceError. Bind a detached,
+        # fully materialized copy (same discipline as recovery rehydration).
+        self.record = ChatRecord(**record.model_dump())
 
     def set_articles_number(self, articles_number: int) -> None:
         self.articles_number = articles_number

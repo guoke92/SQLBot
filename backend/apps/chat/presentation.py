@@ -27,7 +27,11 @@ def _bare_identifier(value: str) -> str:
 
 
 def schema_field_labels(schema_text: str) -> dict[str, str]:
-    """Return only unambiguous physical-field comments from prompt schema."""
+    """Return only unambiguous physical-field comments from prompt schema.
+
+    label 取首个顶层逗号后的**第一段**（到下一个顶层逗号/结尾为止）——
+    旧实现把整段 remainder（含 topk=...）当作 label，topk 段会混进前端
+    列名；枚举内联后 topk 变长，污染可见。topk 属于值集信息，不属于列名。"""
     candidates: dict[str, set[str]] = {}
     for match in _SCHEMA_FIELD_RE.finditer(schema_text or ""):
         name_part, separator, remainder = str(match.group("body") or "").partition(":")
@@ -41,7 +45,20 @@ def schema_field_labels(schema_text: str) -> dict[str, str]:
             elif char == ")" and depth:
                 depth -= 1
             elif char == "," and depth == 0:
-                label = remainder[index + 1 :].strip()
+                # label 只取首个顶层逗号后的**第一段**（到下一个顶层逗号/
+                # 结尾为止），感知括号深度——comment 自身含括号内逗号时
+                # （如 "主键(id, name)"）不被截断；后续段（topk=...）不进列名
+                segment: list[str] = []
+                inner = 0
+                for ch in remainder[index + 1 :]:
+                    if ch == "(":
+                        inner += 1
+                    elif ch == ")":
+                        inner -= 1
+                    elif ch == "," and inner == 0:
+                        break
+                    segment.append(ch)
+                label = "".join(segment).strip()
                 break
         name = _bare_identifier(name_part)
         if name and label:

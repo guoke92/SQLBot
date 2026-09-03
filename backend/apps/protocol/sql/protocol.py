@@ -128,6 +128,7 @@ class SqlProtocol(BaseProtocol):
         resource_names: Sequence[str] | None = None,
         required_resource_names: Sequence[str] = (),
         access_scope: Any = None,
+        table_limit: int | None = None,
     ) -> SchemaSnapshot:
         from apps.datasource.access import project_schema_resources
         from apps.datasource.crud.datasource import (
@@ -156,6 +157,7 @@ class SqlProtocol(BaseProtocol):
                 embedding=embedding,
                 table_list=table_list,
                 required_table_list=list(required_resource_names),
+                table_limit=table_limit,
             )
             sample_data = get_tables_sample_data(
                 session=session,

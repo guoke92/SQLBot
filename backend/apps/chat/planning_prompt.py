@@ -141,7 +141,13 @@ def render_planner_input(
             sections.append(section)
 
     for key, value in (structured or {}).items():
-        section = _json_section(str(key), value)
+        # str 是 prose（模块契约"Prose is pasted verbatim"）：走 XML 纯文本段，
+        # 换行/引号原样粘贴；只有已结构化对象才 JSON 序列化。字符串经
+        # orjson.dumps 会整体转义成 "\n\..." 单串——token 膨胀且伤模型理解。
+        if isinstance(value, str):
+            section = _xml_section(str(key), value)
+        else:
+            section = _json_section(str(key), value)
         if section is not None:
             sections.append(section)
 

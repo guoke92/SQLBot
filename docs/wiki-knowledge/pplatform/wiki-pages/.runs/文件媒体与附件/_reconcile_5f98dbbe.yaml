@@ -1,0 +1,2 @@
+- code: PAGE_CONTRACT_FAILED
+  message: page_key 'rule.影像事件按类型分发处理' 不符合 rule 页的 业务 slug（CJK 保留）

@@ -1499,7 +1499,10 @@ def consume_interrupt(
                     "field": option.field,
                     "field_comment": option.field_comment,
                     "table": option.table,
+                    # 值级选项：fields[].value（用户确认的枚举字面量）必须
+                    # 投影进 evidence，否则 replan/repair 拿不到已确认值
                     "fields": [item.model_dump(mode="json") for item in option.fields],
+                    "value": option.fields[0].value if option.fields else "",
                 },
             )
         else:

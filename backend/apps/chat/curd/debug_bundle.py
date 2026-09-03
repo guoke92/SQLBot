@@ -613,6 +613,11 @@ def build_chat_debug_bundle(
                 "run_events": run_events,
                 "interrupts": interrupts,
                 "query_agent_decision": nlq_run.agent_decision if nlq_run else {},
+                "wiki_context": (
+                    (nlq_run.planning_context or {}).get("wiki_context", {})
+                    if nlq_run
+                    else {}
+                ),
                 "hard_gate_report": nlq_run.hard_gate_report if nlq_run else {},
                 "plan_facts": nlq_run.plan_facts if nlq_run else [],
                 "risk_assessment": nlq_run.risk_assessment if nlq_run else {},

@@ -1,0 +1,3 @@
+body: 字段 `status` 与 `companyUserStatus` 指出其具体值未在代码中定义，语义需结合归档编排器或 DB 分布确认。
+title: ChannelArchiveRespDto
+type: table

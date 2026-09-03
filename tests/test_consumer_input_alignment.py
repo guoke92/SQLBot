@@ -56,7 +56,8 @@ def test_confirmed_semantics_projects_option_answers() -> None:
     assert option["content"] == "项目名称"
     assert option["meaning"] == "以 d_project.project_name 作为系统维度"
     assert option["fields"] == [
-        {"table": "d_project", "name": "project_name"},
+        # comment 随行：修复轮需要列语义才能保住确认口径
+        {"table": "d_project", "name": "project_name", "comment": "项目名称"},
         {"table": "d_task", "name": "create_time"},
     ]
     assert "why" not in option and "option_id" not in option  # 低信噪字段剔除

@@ -930,7 +930,7 @@
       "GENERATE_QUERY_WITH_PERMISSIONS": "拼接查詢行權限",
       "CHOOSE_DATASOURCE": "匹配資料來源",
       "GENERATE_DYNAMIC_QUERY": "產生動態查詢",
-      "CHOOSE_TABLE": "召回相關資料表",
+      "CHOOSE_TABLE": "檢索數據上下文",
       "ACCESS_SCOPE": "確認資料存取範圍",
       "FILTER_TERMS": "召回業務知識",
       "FILTER_QUERY_EXAMPLE": "匹配查詢範例",
@@ -943,7 +943,8 @@
       "TURN_ROUTE": "識別本輪任務",
       "CLARIFY_INTENT": "確認查詢口徑",
       "SEMANTIC_REVIEW": "覆核查詢語句",
-      "DECIDE_NEXT": "檢查執行結果"
+      "DECIDE_NEXT": "檢查執行結果",
+      "WAIT_CLARIFICATION": "等待澄清答覆"
     },
     "audit": {
       "processing": "處理中",
@@ -993,7 +994,14 @@
       "response_ready": "回答已生成",
       "execution_accepted": "查詢結果可用，進入展示",
       "execution_needs_repair": "查詢結果未通過檢查，將修復查詢",
-      "execution_finished": "本輪處理結束"
+      "execution_finished": "本輪處理結束",
+      "retrieval_ready": "檢索 {count} 張表 · wiki 命中 {wiki_hits} 頁",
+      "recall_tab_hits": "召回內容",
+      "recall_tab_raw": "原始值",
+      "recall_filtered": "未進提示詞",
+      "recall_trace": "召回過程",
+      "trace_visible": "圍欄內可見 {count} 頁",
+      "trace_window": "頁融合視窗 {count} 頁"
     },
     "log_system": "對話範本",
     "log_question": "本次提問",

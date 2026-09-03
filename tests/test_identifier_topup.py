@@ -147,9 +147,15 @@ def _wire_failed_gates(
         protocol=None,
         chat_question=SimpleNamespace(db_schema="s", sample_data=""),
     )
-    monkeypatch.setattr(nlq, "topup_enabled_for", lambda ds_id: enabled)
-    monkeypatch.setattr(nlq, "_sql_dialect", lambda svc: "mysql")
-    monkeypatch.setattr(nlq, "session_scope", lambda: contextlib.nullcontext(session))
+    for _patch_target in (nlq, nlq.topup, nlq.context, nlq.planning, nlq.routing):
+        monkeypatch.setattr(_patch_target, "topup_enabled_for",
+lambda ds_id: enabled)
+    for _patch_target in (nlq, nlq.quality, nlq.topup, nlq.planning, nlq.execution):
+        monkeypatch.setattr(_patch_target, "_sql_dialect",
+lambda svc: "mysql")
+    for _patch_target in (nlq, nlq.context, nlq.topup, nlq.routing, nlq.planning, nlq.execution, nlq.presentation, nlq.analysis, nlq.audit):
+        monkeypatch.setattr(_patch_target, "session_scope",
+lambda: contextlib.nullcontext(session))
 
     calls: list[tuple[str, ...]] = []
 
@@ -162,9 +168,12 @@ def _wire_failed_gates(
             changed=bool(expandable & set(signals.unauthorized_tables)),
             manifest=None,
             notice={},
+            wiki_context={},
         )
 
-    monkeypatch.setattr(nlq, "_run_topup", fake_run_topup)
+    for _patch_target in (nlq, nlq.topup, nlq.context, nlq.planning):
+        monkeypatch.setattr(_patch_target, "_run_topup",
+fake_run_topup)
     return nlq, service, calls
 
 
@@ -273,6 +282,9 @@ class _ChainedExec:
     def scalars(self):
         return self
 
+    def one_or_none(self):
+        return None
+
 
 def _wire_plan_query(monkeypatch, *, revalidated_plans):
     import datetime
@@ -311,36 +323,58 @@ def _wire_plan_query(monkeypatch, *, revalidated_plans):
     session.runs["r1"] = SimpleNamespace(planning_context={"v": 2})
     persisted: list[dict] = []
 
-    monkeypatch.setattr(nlq, "_llm_service", lambda state: service)
+    for _patch_target in (nlq, nlq.context, nlq.topup, nlq.routing, nlq.planning, nlq.execution, nlq.presentation, nlq.analysis):
+        monkeypatch.setattr(_patch_target, "_llm_service",
+lambda state: service)
     monkeypatch.setattr(
         nlq.StreamSink, "from_state", classmethod(lambda _c, _s: Mock())
     )
-    monkeypatch.setattr(nlq, "session_scope", lambda: contextlib.nullcontext(session))
-    monkeypatch.setattr(
-        nlq,
-        "require_active_run",
-        lambda s, rid: SimpleNamespace(
+    for _patch_target in (nlq, nlq.context, nlq.topup, nlq.routing, nlq.planning, nlq.execution, nlq.presentation, nlq.analysis, nlq.audit):
+        monkeypatch.setattr(_patch_target, "session_scope",
+lambda: contextlib.nullcontext(session))
+    for _patch_target in (nlq, nlq.context, nlq.routing, nlq.planning, nlq.execution, nlq.presentation):
+        monkeypatch.setattr(_patch_target, "require_active_run",
+lambda s, rid: SimpleNamespace(
             business_now=datetime.datetime(2026, 8, 25, 12), timezone="Asia/Shanghai"
         ),
     )
-    monkeypatch.setattr(nlq, "active_evidence", lambda s, rid: [])
-    monkeypatch.setattr(nlq, "restore_planning_context", lambda svc, payload: snapshot)
+    for _patch_target in (nlq, nlq.planning):
+        monkeypatch.setattr(_patch_target, "active_evidence",
+lambda s, rid: [])
+    for _patch_target in (nlq, nlq.context, nlq.planning):
+        monkeypatch.setattr(_patch_target, "restore_planning_context",
+lambda svc, payload: snapshot)
     span_titles: list[str] = []
 
     def fake_log_span(**kw):
         span_titles.append(str(kw.get("title_key") or ""))
         return contextlib.nullcontext(_SpanStub())
 
-    monkeypatch.setattr(nlq, "log_span", fake_log_span)
-    monkeypatch.setattr(nlq, "topup_enabled_for", lambda ds_id: True)
-    monkeypatch.setattr(nlq, "render_schema_map", lambda *a, **k: "")
-    monkeypatch.setattr(nlq, "render_knowledge_map", lambda *a, **k: "")
-    monkeypatch.setattr(nlq, "_ds_scope", lambda svc: (1, 8))
-    monkeypatch.setattr(nlq, "_access_scope", lambda state: None)
-    monkeypatch.setattr(nlq, "_sql_dialect", lambda svc: "mysql")
-    monkeypatch.setattr(
-        nlq, "persist_query_decision", lambda sess, **kw: persisted.append(kw)
-    )
+    for _patch_target in (nlq, nlq.context, nlq.topup, nlq.routing, nlq.planning, nlq.execution, nlq.presentation, nlq.analysis):
+        monkeypatch.setattr(_patch_target, "log_span",
+fake_log_span)
+    for _patch_target in (nlq, nlq.topup, nlq.context, nlq.planning, nlq.routing):
+        monkeypatch.setattr(_patch_target, "topup_enabled_for",
+lambda ds_id: True)
+    for _patch_target in (nlq, nlq.context, nlq.planning):
+        monkeypatch.setattr(_patch_target, "render_schema_map",
+lambda *a, **k: "")
+    for _patch_target in (nlq, nlq.context):
+        monkeypatch.setattr(_patch_target, "render_knowledge_map",
+lambda *a, **k: "")
+    for _patch_target in (nlq, nlq.context, nlq.topup, nlq.planning, nlq.presentation, nlq.audit):
+        monkeypatch.setattr(_patch_target, "_ds_scope",
+lambda svc: (1, 8))
+    for _patch_target in (nlq, nlq.context, nlq.topup, nlq.planning, nlq.execution):
+        monkeypatch.setattr(_patch_target, "_access_scope",
+lambda state: None)
+    for _patch_target in (nlq, nlq.quality, nlq.topup, nlq.planning, nlq.execution):
+        monkeypatch.setattr(_patch_target, "_sql_dialect",
+lambda svc: "mysql")
+    for _patch_target in (nlq, nlq.execution, nlq.planning):
+        monkeypatch.setattr(_patch_target, "persist_query_decision",
+lambda sess, **kw: persisted.append(kw)
+        )
 
     decision = Ready(queries=[QueryDescription(description="d", sql=_SQL)])
     stale_plan = {
@@ -360,7 +394,9 @@ def _wire_plan_query(monkeypatch, *, revalidated_plans):
             model_calls=[{"elapsed_ms": 100}],
         )
 
-    monkeypatch.setattr(nlq, "run_query_agent", fake_agent)
+    for _patch_target in (nlq, nlq.planning, nlq.execution):
+        monkeypatch.setattr(_patch_target, "run_query_agent",
+fake_agent)
 
     def fake_topup(_state, llm_service, _plans):
         # 忠实模拟：表已在窗口内时第二轮扩表无事可做（expanded=False → 收敛）
@@ -369,7 +405,9 @@ def _wire_plan_query(monkeypatch, *, revalidated_plans):
         llm_service.table_name_list.append("d_organization")
         return nlq._GateExpansion(frozenset(), False, True)
 
-    monkeypatch.setattr(nlq, "_topup_on_failed_gates", fake_topup)
+    for _patch_target in (nlq, nlq.topup, nlq.planning):
+        monkeypatch.setattr(_patch_target, "_topup_on_failed_gates",
+fake_topup)
 
     fingerprints: list[str] = []
 
@@ -377,7 +415,9 @@ def _wire_plan_query(monkeypatch, *, revalidated_plans):
         fingerprints.append(kwargs["schema_fingerprint"])
         return [dict(item) for item in revalidated_plans]
 
-    monkeypatch.setattr(nlq, "revalidate_query_plans", fake_revalidate)
+    for _patch_target in (nlq, nlq.execution, nlq.planning):
+        monkeypatch.setattr(_patch_target, "revalidate_query_plans",
+fake_revalidate)
     return nlq, persisted, fingerprints, span_titles
 
 
@@ -437,27 +477,32 @@ def test_hard_fatal_codes_skip_expansion_entirely(monkeypatch) -> None:
         topup_calls.append(plans)
         return original_topup(state, llm_service, plans)
 
-    monkeypatch.setattr(nlq, "_topup_on_failed_gates", counting_topup)
+    for _patch_target in (nlq, nlq.topup, nlq.planning):
+        monkeypatch.setattr(_patch_target, "_topup_on_failed_gates",
+counting_topup)
     # 覆写 agent 产物为非只读违规
     from apps.chat.semantic_planning import QueryDescription, Ready
 
-    nlq.run_query_agent = lambda *a, **k: SimpleNamespace(  # type: ignore[method-assign]
-        decision=Ready(
-            queries=[QueryDescription(description="d", sql="DELETE FROM d_task")]
-        ),
-        plans=[
-            {
-                "plan_id": "p1",
-                "sql": "DELETE FROM d_task",
-                "hard_gate_status": "failed",
-                "hard_gate_code": "NON_READ_ONLY_PLAN",
-                "hard_gate_errors": ["non read-only statement"],
-            }
-        ],
-        usage={},
-        reasoning="",
-        model_calls=[{"elapsed_ms": 1}],
-    )
+    def _patched_value_481(*a, **k):
+            return SimpleNamespace(
+            decision=Ready(
+                queries=[QueryDescription(description="d", sql="DELETE FROM d_task")]
+            ),
+            plans=[
+                {
+                    "plan_id": "p1",
+                    "sql": "DELETE FROM d_task",
+                    "hard_gate_status": "failed",
+                    "hard_gate_code": "NON_READ_ONLY_PLAN",
+                    "hard_gate_errors": ["non read-only statement"],
+                }
+            ],
+            usage={},
+            reasoning="",
+            model_calls=[{"elapsed_ms": 1}],
+        )
+    for _patch_target in (nlq, nlq.planning, nlq.execution):
+        monkeypatch.setattr(_patch_target, "run_query_agent", _patched_value_481)
 
     result = nlq.plan_query_node(
         {"run_id": "r1", "entity_bindings": {}, "temporal_parse": {}}

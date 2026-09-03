@@ -930,7 +930,7 @@
       "GENERATE_QUERY_WITH_PERMISSIONS": "拼接查询行权限",
       "CHOOSE_DATASOURCE": "匹配数据源",
       "GENERATE_DYNAMIC_QUERY": "生成动态查询",
-      "CHOOSE_TABLE": "召回相关数据表",
+      "CHOOSE_TABLE": "检索数据上下文",
       "ACCESS_SCOPE": "确认数据访问范围",
       "FILTER_TERMS": "召回业务知识",
       "FILTER_QUERY_EXAMPLE": "匹配查询示例",
@@ -943,7 +943,8 @@
       "TURN_ROUTE": "识别本轮任务",
       "CLARIFY_INTENT": "确认查询口径",
       "SEMANTIC_REVIEW": "复核查询语句",
-      "DECIDE_NEXT": "检查执行结果"
+      "DECIDE_NEXT": "检查执行结果",
+      "WAIT_CLARIFICATION": "等待澄清答复"
     },
     "audit": {
       "processing": "处理中",
@@ -993,7 +994,14 @@
       "response_ready": "回答已生成",
       "execution_accepted": "查询结果可用，进入展示",
       "execution_needs_repair": "查询结果未通过检查，将修复查询",
-      "execution_finished": "本轮处理结束"
+      "execution_finished": "本轮处理结束",
+      "retrieval_ready": "检索 {count} 张表 · wiki 命中 {wiki_hits} 页",
+      "recall_tab_hits": "召回内容",
+      "recall_tab_raw": "原始值",
+      "recall_filtered": "未进提示词",
+      "recall_trace": "召回过程",
+      "trace_visible": "围栏内可见 {count} 页",
+      "trace_window": "页融合窗口 {count} 页"
     },
     "log_system": "对话模板",
     "log_question": "本次提问",

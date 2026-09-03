@@ -930,7 +930,7 @@
       "GENERATE_QUERY_WITH_PERMISSIONS": "Apply Row Permissions to Query",
       "CHOOSE_DATASOURCE": "Match Datasource",
       "GENERATE_DYNAMIC_QUERY": "Generate Dynamic Query",
-      "CHOOSE_TABLE": "Recall related tables",
+      "CHOOSE_TABLE": "Retrieve Data Context",
       "ACCESS_SCOPE": "Confirm data access scope",
       "FILTER_TERMS": "Recall business knowledge",
       "FILTER_QUERY_EXAMPLE": "Match Query Examples",
@@ -943,7 +943,8 @@
       "TURN_ROUTE": "Identify this turn's task",
       "CLARIFY_INTENT": "Clarify Query Intent",
       "SEMANTIC_REVIEW": "Review the query",
-      "DECIDE_NEXT": "Check execution result"
+      "DECIDE_NEXT": "Check execution result",
+      "WAIT_CLARIFICATION": "Waiting for Clarification"
     },
     "audit": {
       "processing": "Processing",
@@ -993,7 +994,14 @@
       "response_ready": "Response generated",
       "execution_accepted": "Query result is usable; continue to presentation",
       "execution_needs_repair": "Query result failed checks; the query will be repaired",
-      "execution_finished": "This turn is finished"
+      "execution_finished": "This turn is finished",
+      "retrieval_ready": "Retrieved {count} tables · {wiki_hits} wiki pages",
+      "recall_tab_hits": "Recall Detail",
+      "recall_tab_raw": "Raw",
+      "recall_filtered": "filtered out",
+      "recall_trace": "Recall Trace",
+      "trace_visible": "{count} visible pages in fence",
+      "trace_window": "fused window: {count} pages"
     },
     "log_system": "Conversation Template",
     "log_question": "Current Question",

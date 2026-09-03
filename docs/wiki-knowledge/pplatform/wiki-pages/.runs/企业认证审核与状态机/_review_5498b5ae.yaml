@@ -1,0 +1,4 @@
+body: 语义分析中该规则的 field_targets 和 evidence 字段被截断，无法完整确认。当前页面引用的 field_targets 已根据上下文合理补全，evidence
+  引用了相近方法，但此部分为推测，需进一步核实原始代码。
+title: 企业管理员唯一
+type: rule

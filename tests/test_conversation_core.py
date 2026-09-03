@@ -460,7 +460,9 @@ class TestEmbeddingRecallContract:
         )
 
     def test_nlq_chart_uses_resource_filter_not_embedding_override(self) -> None:
-        text = (_BACKEND / "apps/chat/graphs/nodes/nlq.py").read_text(encoding="utf-8")
+        text = (
+            _BACKEND / "apps/chat/graphs/nodes/nlq/presentation.py"
+        ).read_text(encoding="utf-8")
         assert "embedding=False" not in text
         # Agentic batch loop uses table_list for resource filtering in chart generation
         assert "table_list=" in text
@@ -473,7 +475,9 @@ class TestEmbeddingRecallContract:
         assert "table_name_list" in text
 
     def test_retrieve_context_has_single_compile_path(self) -> None:
-        text = (_BACKEND / "apps/chat/graphs/nodes/nlq.py").read_text(encoding="utf-8")
+        text = (
+            _BACKEND / "apps/chat/graphs/nodes/nlq/context.py"
+        ).read_text(encoding="utf-8")
         assert "match_training" not in text
         assert "retrieve_prompt_schema" not in text
         assert "def retrieve_context_node" in text
@@ -503,7 +507,7 @@ class TestCreateChatConfigContract:
         for rel in (
             "apps/chat/curd/chat.py",
             "apps/chat/task/llm.py",
-            "apps/chat/graphs/nodes/nlq.py",
+            "apps/chat/graphs/nodes/nlq/audit.py",
             "apps/chat/steps/datasource.py",
         ):
             text = (_BACKEND / rel).read_text(encoding="utf-8")

@@ -1,0 +1,3 @@
+- code: PAGE_CONTRACT_FAILED
+  message: page_key 'caliber/approval_running_config_receivable' 不符合 caliber 页的 业务
+    slug（CJK 保留）

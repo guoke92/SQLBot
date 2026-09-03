@@ -1,0 +1,5 @@
+body: claim 声称 SsoSysChannelInitService.initDbassAndSsoConfig 调用 DbassAppIdTenantExtendServiceImpl
+  写入 dbass appId，PlatformTenantLineServiceImpl 同步平台线路，PlatformComponentFacade 调用 SSO
+  通道初始化，但当前代码仅见 PlatformComponentFacade 校验登录前配置项，完整实现缺失。建议补充代码或标记为未证实。
+title: SSO/DBAss 通道初始化流程
+type: process

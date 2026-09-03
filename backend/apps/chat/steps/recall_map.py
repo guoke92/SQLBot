@@ -107,8 +107,24 @@ def render_schema_map(
     return header + "\n" + body + "\n"
 
 
-def render_knowledge_map(session: Session, *, oid: int, ds_id: int) -> str:
-    """One line per active published knowledge unit bound to this datasource."""
+def render_knowledge_map(
+    session: Session,
+    *,
+    oid: int,
+    ds_id: int,
+    hit_keys: list[str] | None = None,
+    databases: list[str] | None = None,
+) -> str:
+    """One line per active published knowledge unit bound to this datasource.
+
+    wiki 后端（G6）：渲染 wiki 页面清单（tables/enums/concepts/… 子目录的
+    published 页），规划器看到的"知识地图"与召回语料同源。
+    ``databases`` = 当前数据源物理库名（scope.databases 围栏，与召回围栏同源）。
+    ``hit_keys`` 非空时（wiki 后端）只渲染召回命中页——prompt 瘦身；
+    plan gate 的 missing_concepts 校验走完整目录，不受此影响。
+    """
+    if _wiki_backend_active(ds_id):
+        return _wiki_knowledge_map(ds_id, hit_keys=hit_keys, databases=databases or [])
     rows = active_published_units(session, oid=oid, datasource_id=ds_id)
     rows = sorted(
         rows, key=lambda row: (str(row[0].domain or ""), str(row[0].title or ""))
@@ -130,3 +146,56 @@ def render_knowledge_map(session: Session, *, oid: int, ds_id: int) -> str:
         lines.append(f"…(+{hidden} more)")
     header = "【Knowledge map】(已发布知识单元 — 口径/指标/规则以单元定义为准)"
     return header + "\n" + "\n".join(lines) + "\n"
+
+
+def _wiki_backend_active(ds_id: int) -> bool:
+    """KNOWLEDGE_BACKEND=wiki 且该 DS 已灰度——复用 wiki_recall 的单一判定。"""
+    from apps.chat.steps.wiki_recall import wiki_backend_active
+
+    return wiki_backend_active(ds_id)
+
+
+def _wiki_knowledge_map(
+    ds_id: int,  # noqa: ARG001 — 仅 allowlist判定经 _wiki_backend_active 使用
+    hit_keys: list[str] | None = None,
+    databases: list[str] | None = None,
+) -> str:
+    """wiki 页面清单（type|page_key|title 一行一页，封顶 _KNOWLEDGE_MAP_MAX）。
+
+    ``hit_keys``：本轮召回命中的页。提供时只渲染命中页（chat 167：560 页
+    目录里 32 行 + "(+527 more)" 对规划器是纯噪音——召回明细已由
+    business_knowledge 段承载，地图只回答"还有哪些可用"）。
+    ``databases``：物理库名围栏（scope.databases），与召回围栏同源。"""
+    try:
+        from apps.chat.steps.wiki_recall import _store
+
+        store = _store()
+        if store is None:
+            return ""
+        db_names = {str(name).strip().lower() for name in (databases or [])}
+        if hit_keys:
+            pages = [
+                store.pages[key]
+                for key in dict.fromkeys(hit_keys)
+                if key in store.pages and store.pages[key].status == "published"
+            ]
+        else:
+            pages = [
+                page
+                for page in store.pages.values()
+                if page.status == "published"
+                and (not page.databases or db_names & set(page.databases))
+            ]
+        pages.sort(key=lambda p: (p.type, p.page_key))
+        if not pages:
+            return ""
+        lines = [
+            f"{p.type} | {p.page_key} | {p.title}" for p in pages[:_KNOWLEDGE_MAP_MAX]
+        ]
+        hidden = len(pages) - len(lines)
+        if hidden > 0:
+            lines.append(f"…(+{hidden} more)")
+        header = "【Knowledge map】(wiki 页面 — 口径/枚举/关系以页面锚点块为准)"
+        return header + "\n" + "\n".join(lines) + "\n"
+    except Exception:  # noqa: BLE001 — wiki 层零影响约定
+        return ""

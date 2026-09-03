@@ -1,0 +1,223 @@
+{
+  "main": {
+    "id": "559093191b8f95ab",
+    "type": "split",
+    "children": [
+      {
+        "id": "cdff7c7183cf36df",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "ed14b52b0e686b84",
+            "type": "leaf",
+            "state": {
+              "type": "empty",
+              "state": {},
+              "icon": "lucide-file",
+              "title": "新标签页"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "324009d0e7883f80",
+    "type": "split",
+    "children": [
+      {
+        "id": "d0f9b9d3ed47b807",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "a0edd651b7a93693",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-folder-closed",
+              "title": "文件列表"
+            }
+          },
+          {
+            "id": "1197efa9bd3b8f29",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "datasources",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "搜索"
+            }
+          },
+          {
+            "id": "2b3f3580d21dc998",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-bookmark",
+              "title": "书签"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "13287a708ba80a26",
+    "type": "split",
+    "children": [
+      {
+        "id": "beb2e21a2b34aa37",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "ec06e360e3c1be94",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "反向链接"
+            }
+          },
+          {
+            "id": "fa4cca05b2aed4d3",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "出链"
+            }
+          },
+          {
+            "id": "17009c05bcac6fc1",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "标签"
+            }
+          },
+          {
+            "id": "b6cd9a7b375f1f24",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "添加笔记属性"
+            }
+          },
+          {
+            "id": "0da327dffe3adbc6",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "大纲"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:打开快速切换": false,
+      "graph:查看关系图谱": false,
+      "canvas:新建白板": false,
+      "daily-notes:打开/创建今天的日记": false,
+      "templates:插入模板": false,
+      "command-palette:打开命令面板": false,
+      "bases:新建数据库": false
+    }
+  },
+  "active": "ed14b52b0e686b84",
+  "lastOpenFiles": [
+    "tables/ProjectAlipayClearingConfigRespDTO.md",
+    "tables/AlipayAntArchiveResp.md",
+    "tables",
+    "wiki-pages/tables/cust_access_secret.md",
+    "wiki-pages/tables/client_api_sync_error.md",
+    "wiki-pages/tables/lc_sql_init_log.md",
+    "wiki-pages/tables/gpt_learn_poster_log.md",
+    "wiki-pages/tables/cust_project_code_record.md",
+    "wiki-pages/tables/cust_company_lifecycle_info.md",
+    "wiki-pages/tables/cust_certification_info.md",
+    "wiki-pages/tables/cust_build_record.md",
+    "wiki-pages/tables/cust_auth_application_config.md",
+    "wiki-pages/tables/cust_auth_application.md",
+    "wiki-pages/tables/cust_account_info.md",
+    "wiki-pages/rules/背景色生效时间窗口校验.md",
+    "comparison-report.md",
+    "wiki-pages/tables/cust_company_info.md",
+    "wiki-pages/tables/cust_change_cfg.md",
+    "embeddings-cache/tmpkqt62z3h.tmp",
+    "wiki-pages/concepts/client_type.md",
+    "embeddings-cache/tmps2e07vbe.tmp",
+    "wiki-pages/tables/ca_certification_info.md",
+    "embeddings-cache/tmpjytm09fk.tmp",
+    "embeddings-cache/tmprl_9zjpf.tmp",
+    "wiki-pages/_index.md",
+    "embeddings-cache/tmpo67t4g0o.tmp",
+    "wiki-pages/enums/wf_status.md",
+    "wiki-pages/enums/tenant_project__source.md",
+    "wiki-pages/enums/tenant_interworking_product__open_status.md",
+    "wiki-pages/enums/sign_mode.md",
+    "wiki-pages/enums/rule_status.md",
+    "wiki-pages/enums/rule_layer.md",
+    "wiki-pages/enums",
+    "wiki-pages/tables",
+    "substrate/tmp/enum-unbound.yaml",
+    "embeddings-cache/tmpenv5k4b2.tmp"
+  ]
+}

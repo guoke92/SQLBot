@@ -275,6 +275,7 @@ class BaseProtocol(ABC):
         resource_names: Optional[Sequence[str]] = None,
         required_resource_names: Sequence[str] = (),
         access_scope: Any = None,
+        table_limit: int | None = None,
     ) -> SchemaSnapshot:
         """Return schema text for prompt / chart context.
 
@@ -284,6 +285,8 @@ class BaseProtocol(ABC):
         or a prior plan). ``required_resource_names`` augments ranking and is
         never dropped. ``access_scope`` only intersects a chosen subset; it is
         never itself a projection. No exact subset means rank inside the fence.
+        ``table_limit`` caps the working set after ranking (required tables
+        always kept; wiki-led selection caps embedding supplements).
         Assistant out-DS ignores embedding (no table vector rank).
         """
         ...

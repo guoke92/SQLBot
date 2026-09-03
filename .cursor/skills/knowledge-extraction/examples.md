@@ -76,6 +76,44 @@ OperCustFacade.regSelfOld(companyId, personId)   # 自主注册建档（事务�
 
 > 判定口诀：**字段在不在包内 + 用户会不会用自然语言指代这个值**。两者都满足才写 `field.dictionary`，否则留在 `enums.yaml` 当参考。
 
+### 4.1b 近似语义边界澄清 + 术语桥（真实失败案例）
+
+`cust_company_info` 上有一对近似字段——用户说"**认证方式是平台录入**"时，规划曾在两者间摇摆（同题两次提问得到 54 行 vs 1000 行两个结果）。这就是「近似语义边界」必须裁决的典型形态：
+
+| 字段 | 语义 | 字典（节选） |
+|---|---|---|
+| `identify_style` | **认证渠道**：企业由谁邀请进来 | INVITE(平台邀请认证)/INVITE_AGW(网关邀请认证)/SIMPLE(自主认证) |
+| `cust_build_type` | **建档途径**：企业从哪端录入 | PC_BUILD(PC端平台录入)/AGW_BUILD(网关录入) |
+
+两字段显示名语义空间重叠（都回答"企业怎么进来的"），但回答的是**不同问题**——裁决为边界规则 + 术语桥：
+
+```yaml
+domain_rules:
+- rule_id: entry-style-boundary
+  name: 认证渠道与建档途径边界
+  definition: >-
+    identify_style 回答"企业由谁邀请/认证进来"（渠道维度）；
+    cust_build_type 回答"企业从哪个端录入建档"（途径维度）。
+    用户说"平台录入/PC端录入"指 cust_build_type=PC_BUILD；
+    说"平台邀请认证"指 identify_style=INVITE。两者混用会得到完全不同的企业集合。
+  field_targets:
+  - {dataset: company, field: identify_style}
+  - {dataset: company, field: cust_build_type}
+  evidence_refs: [ev-identify-style-setters, ev-build-type-setters]
+
+concepts:
+- concept_id: platform-entry
+  name: 平台录入
+  aliases: [PC端录入, 平台端录入, 网关录入]      # 用户嘴里的说法——运行时澄清卡消费的桥
+  definition: 企业经由 PC 平台端录入建档（cust_build_type=PC_BUILD），与认证渠道无关。
+  dictionary: {PC_BUILD: PC端平台录入, AGW_BUILD: 网关录入}
+  field_targets:
+  - {dataset: company, field: cust_build_type}   # 术语桥锚到唯一正确字段
+  evidence_refs: [ev-build-type-setters]
+```
+
+> 检测信号是结构性的（同表多字典字段语义重叠 / `enums.yaml` 的 `ambiguous_fields`），裁决只有两种出口（边界规则 / 同义说明），**业务别名必须落 concept**——别名丢失 = 运行时歧义。完整方法见 reference.md §8「近似语义边界澄清」。
+
 ### 4.2 状态机（processes.next_stages）
 
 建档有**两套 build 语义，必须区分**：

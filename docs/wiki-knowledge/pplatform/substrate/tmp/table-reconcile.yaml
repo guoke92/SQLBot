@@ -1,0 +1,41 @@
+note: E1×E2×E3 三方对账 — 表级差异（tmp 中间产物）
+db_only:
+  tables:
+  - ca_cfca_upgrade_report
+  - ca_fee_special_config
+  - cust_auth_application_config
+  - lc_sql_init_log
+  - tenant_migarory_log_bak
+  - tenant_project_approval_flow_comment
+  hint: 代码扫描漏掉（动态表名/SQL建表/另一服务建的表）→ Step D 重点确认
+code_only:
+  tables:
+  - funding_party_rule_cfg
+  - funding_party_rule_detail
+  - funding_party_rule_front
+  - tenant_product_ext_field
+  - tenant_product_ext_field_form
+  hint: 代码有 DO 但库无表 → 死代码/未部署迁移，进 REVIEW
+dormant_confirmed:
+- table: funding_party_rule_cfg
+  in_db: false
+  rows: null
+- table: funding_party_rule_detail
+  in_db: false
+  rows: null
+- table: funding_party_rule_front
+  in_db: false
+  rows: null
+- table: org_manage
+  in_db: true
+  rows: 0
+- table: tenant_product_ext_field
+  in_db: false
+  rows: null
+- table: tenant_product_ext_field_form
+  in_db: false
+  rows: null
+summary:
+  db: 75
+  code: 74
+  common: 69

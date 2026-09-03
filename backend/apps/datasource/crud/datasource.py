@@ -260,7 +260,9 @@ def getTablesByDs(session: SessionDep, ds: CoreDatasource):
     return proto.get_tables(ds)
 
 
-def getFields(session: SessionDep, id: int, table_name: str, database_name: str | None = None):
+def getFields(
+    session: SessionDep, id: int, table_name: str, database_name: str | None = None
+):
     ds = session.exec(select(CoreDatasource).where(CoreDatasource.id == id)).first()
     proto = get_protocol_for_ds(ds)
     return proto.get_fields(ds, table_name, database_name=database_name)
@@ -385,7 +387,9 @@ def sync_catalog(session: SessionDep, ds: CoreDatasource, tables: list[CoreTable
                 session.flush()
             else:
                 record.table_comment = item.table_comment
-                record.database_name = getattr(item, "database_name", None) or record.database_name
+                record.database_name = (
+                    getattr(item, "database_name", None) or record.database_name
+                )
                 session.add(record)
             item.id = record.id
             _reconcile_fields(
@@ -779,7 +783,12 @@ def get_table_schema(
     table_list: list[str] = None,
     required_table_list: list[str] = None,
     table_objs: list[TableAndFields] | None = None,
+    table_limit: int | None = None,
 ) -> tuple[str, list]:
+    """``table_limit``：embedding 召回后的工作集上限（必选表不计入预算）。
+
+    wiki 主导表选择用：wiki 命中的闭包表走 required_table_list 保证入选，
+    embedding 召回只补 (limit − 必选数) 张；None = 现状不裁。"""
     schema_str = ""
     if table_objs is None:
         table_objs = get_table_obj_by_ds(
@@ -846,6 +855,26 @@ def get_table_schema(
             if item.get("table_name") in required_names
             and item.get("table_name") not in selected_names
         )
+    if table_limit is not None and table_limit > 0 and len(tables) > table_limit:
+        # 必选表（wiki 闭包/实体绑定）全保；补充表须过相似度下限——
+        # chat 169：limit 只限数量不限质量，tenant_setting_config 这类低分
+        # 运营配置表被预算凑数拉进 prompt。不足预算不凑数（宁少勿滥）。
+        # wiki 主导模式（table_limit 来自闭包+预算注入）用更严的独立阈值：
+        # 表级 embedding 分区分度低（业务/运营表同分带），0.4 线拦不住噪音。
+        supplement_floor = (
+            float(settings.WIKI_TABLE_SUPPLEMENT_SIMILARITY)
+            if required_names
+            else float(settings.EMBEDDING_TABLE_SIMILARITY)
+        )
+        required_first = [t for t in tables if t.get("table_name") in required_names]
+        supplement_all = [
+            t
+            for t in tables
+            if t.get("table_name") not in required_names
+            and float(t.get("cosine_similarity") or 0.0) >= supplement_floor
+        ]
+        budget = max(0, table_limit - len(required_first))
+        tables = [*required_first, *supplement_all[:budget]]
     # splice schema
     if tables:
         for s in tables:
@@ -871,20 +900,24 @@ def get_table_schema(
             if r.kind in (RelationKind.EQUI_JOIN.value, RelationKind.HIERARCHY.value)
         ]
         if equi:
-            field_ids = {
-                int(r.source_field_id) for r in equi
-            } | {int(r.target_field_id) for r in equi}
-            table_ids = {
-                int(r.source_table_id) for r in equi
-            } | {int(r.target_table_id) for r in equi}
+            field_ids = {int(r.source_field_id) for r in equi} | {
+                int(r.target_field_id) for r in equi
+            }
+            table_ids = {int(r.source_table_id) for r in equi} | {
+                int(r.target_table_id) for r in equi
+            }
             field_map = {
                 int(f.id): f.field_name
-                for f in session.query(CoreField).filter(CoreField.id.in_(list(field_ids))).all()
+                for f in session.query(CoreField)
+                .filter(CoreField.id.in_(list(field_ids)))
+                .all()
                 if f.id is not None
             }
             table_map = {
                 int(t.id): t.table_name
-                for t in session.query(CoreTable).filter(CoreTable.id.in_(list(table_ids))).all()
+                for t in session.query(CoreTable)
+                .filter(CoreTable.id.in_(list(table_ids)))
+                .all()
                 if t.id is not None
             }
             # Pull missing endpoint tables into schema text.

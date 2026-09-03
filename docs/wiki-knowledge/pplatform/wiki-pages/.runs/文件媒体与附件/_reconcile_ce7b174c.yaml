@@ -1,0 +1,2 @@
+- code: PAGE_CONTRACT_FAILED
+  message: page_key 'caliber.项目运营文件模块类型' 不符合 caliber 页的 业务 slug（CJK 保留）

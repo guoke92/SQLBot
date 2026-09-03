@@ -1,0 +1,3 @@
+- code: PAGE_CONTRACT_FAILED
+  message: page_key 'concept/project_approval_no_wechat' 不符合 concept 页的 业务 slug（CJK
+    保留）

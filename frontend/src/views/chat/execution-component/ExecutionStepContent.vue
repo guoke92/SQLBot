@@ -37,9 +37,26 @@ function messageRole(item: Record<string, any>): string {
   return ROLE_LABELS[raw] || raw
 }
 
+// LLM 出参 content 是 JSON 字符串但缩进不稳定（紧凑/缩进取决于模型输出），
+// 统一尝试 parse 后 pretty-print；非 JSON 文本原样返回（chat 172 问题 3）
+function prettyJsonText(text: string): string {
+  const trimmed = text.trim()
+  if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) return text
+  try {
+    return JSON.stringify(JSON.parse(trimmed), null, 2)
+  } catch {
+    return text
+  }
+}
+
 function messageText(item: Record<string, any>): string {
   const content = item.content
-  if (typeof content === 'string') return content
+  if (typeof content === 'string') {
+    return String(item.type || item.role || '').toLowerCase() === 'ai' ||
+      String(item.role || '').toLowerCase() === 'assistant'
+      ? prettyJsonText(content)
+      : content
+  }
   if (Array.isArray(content)) {
     return content
       .map((part) => {
@@ -107,6 +124,76 @@ const processDetail = computed(() => {
   if (detail.error) detail.error = compactError(detail.error)
   return detail
 })
+
+// ── 检索上下文卡片化（chat 169：平铺卡片还原真实返回，不做折叠/摘要）────
+const wikiRecall = computed(() => (props.item.detail as any)?.wiki)
+// schema 分节卡片（每表一卡，含来源标注）
+const schemaSections = computed<Record<string, any>[]>(() => {
+  const sections = (props.item.detail as any)?.schema_sections
+  return Array.isArray(sections) ? sections : []
+})
+// 检索视图门控：wiki 命中块（第一次检索 span）或 schema 分节（topup 扩窗 span，
+// chat 172 问题 2 —— 两种 CHOOSE_TABLE 卡片统一走美化渲染）
+const hasRecallView = computed(
+  () =>
+    (isRecord(wikiRecall.value) && Array.isArray(wikiRecall.value.hits)) ||
+    schemaSections.value.length > 0
+)
+const recallHits = computed(() =>
+  isRecord(wikiRecall.value) && Array.isArray(wikiRecall.value.hits)
+    ? (wikiRecall.value.hits as Record<string, any>[])
+    : []
+)
+// 命中页完整渲染文本（page_key → text）；卡片 body 直接显示原文
+const recallPassages = computed<Record<string, string>>(() => {
+  const passages = (wikiRecall.value as any)?.passages
+  return isRecord(passages) ? (passages as Record<string, string>) : {}
+})
+const recallTraceLines = computed<string[]>(() => {
+  const trace = (wikiRecall.value as any)?.trace
+  if (!isRecord(trace)) return []
+  const lines: string[] = []
+  lines.push(t('chat.audit.trace_visible', { count: trace.visible_pages ?? 0 }))
+  const channels = trace.channels as Record<string, any> | undefined
+  if (channels) {
+    for (const [name, ch] of Object.entries(channels)) {
+      if (!isRecord(ch)) continue
+      lines.push(
+        `${name}: ${ch.chunks ?? 0} chunks` +
+          (Array.isArray(ch.top) && ch.top.length
+            ? ` · top: ${ch.top.map((x: any) => x.page_key).join(', ')}`
+            : '')
+      )
+    }
+  }
+  if (Array.isArray(trace.window) && trace.window.length) {
+    lines.push(
+      t('chat.audit.trace_window', { count: trace.window.length }) +
+        `: ${trace.window.map((x: any) => x.page_key).join(', ')}`
+    )
+  }
+  if (Array.isArray(trace.graph_neighbors) && trace.graph_neighbors.length) {
+    lines.push(
+      `graph expansion (quota ${trace.graph_quota ?? 0}): ` +
+        trace.graph_neighbors.map((x: any) => x.page_key).join(', ')
+    )
+  }
+  return lines
+})
+const anchorAttribution = computed<Record<string, any>>(
+  () => ((wikiRecall.value as any)?.anchor_attribution as Record<string, any>) || {}
+)
+// 原始完整 detail（原始值卡片，无截断）
+const rawDetail = computed(() => props.item.detail)
+
+const SOURCE_TAG_TYPES: Record<string, string> = {
+  lexical: 'primary',
+  vector: 'success',
+  graph: 'warning',
+}
+
+const sourceTagType = (source: string) => SOURCE_TAG_TYPES[source] || 'info'
+const originTagType = (origin: string) => (origin === 'closure' ? 'success' : 'info')
 </script>
 
 <template>
@@ -156,22 +243,92 @@ const processDetail = computed(() => {
       </div>
     </div>
     <div v-else-if="hasRawIo || hasDetail" class="call-body direct-tabs">
-      <section v-if="item.input != null" class="io-block">
-        <h5>{{ t('chat.audit.raw_input') }}</h5>
-        <pre class="raw-value">{{ displayValue(item.input) }}</pre>
-      </section>
-      <section v-if="item.output != null" class="io-block">
-        <h5>{{ t('chat.audit.raw_output') }}</h5>
-        <pre class="raw-value sql-output">{{ displayValue(item.output) }}</pre>
-      </section>
-      <section v-if="item.reasoning_content" class="io-block">
-        <h5>{{ t('chat.audit.reasoning') }}</h5>
-        <pre class="raw-value">{{ item.reasoning_content }}</pre>
-      </section>
-      <section v-if="hasDetail" class="io-block">
-        <h5>{{ t('chat.audit.process_detail') }}</h5>
-        <pre class="raw-value">{{ displayValue(item.detail) }}</pre>
-      </section>
+      <!-- 检索上下文：平铺卡片（schema 卡 / wiki 页卡 / 召回过程卡 / 原始值卡），
+           不折叠不摘要，还原真实返回数据（chat 169 问题 3） -->
+      <template v-if="hasRecallView">
+        <section v-if="recallTraceLines.length" class="model-call recall-card">
+          <div class="model-call-header">
+            <strong>{{ t('chat.audit.recall_trace') }}</strong>
+            <span>{{ wikiRecall.elapsed_ms }}ms</span>
+            <el-tag v-if="wikiRecall.embedding_built" size="small" type="warning">
+              embedding built
+            </el-tag>
+          </div>
+          <pre class="raw-value">{{ recallTraceLines.join('\n') }}</pre>
+          <pre v-if="Object.keys(anchorAttribution).length" class="raw-value">{{
+            Object.entries(anchorAttribution)
+              .map(
+                ([table, refs]) =>
+                  `${table} ← ${(refs as any[]).map((r) => `${r.page_key}(${r.field})`).join(', ')}`
+              )
+              .join('\n')
+          }}</pre>
+        </section>
+        <section
+          v-for="section in schemaSections"
+          :key="`schema-${section.table}`"
+          class="model-call recall-card"
+        >
+          <div class="model-call-header">
+            <strong>{{ section.table }}</strong>
+            <el-tag size="small" :type="originTagType(section.origin)">
+              {{ section.origin }}
+            </el-tag>
+            <span>{{ section.chars }} chars</span>
+          </div>
+          <pre class="raw-value">{{ section.text }}</pre>
+        </section>
+        <section
+          v-for="(hit, hitIndex) in recallHits"
+          :key="`wiki-${hit.page_key}-${hitIndex}`"
+          class="model-call recall-card"
+          :class="{ 'recall-card-filtered': hit.filtered }"
+        >
+          <div class="model-call-header">
+            <strong>{{ hit.title }}</strong>
+            <code class="recall-key">{{ hit.page_key }}</code>
+            <el-tag size="small" :type="sourceTagType(hit.source)">
+              {{ hit.source }}
+            </el-tag>
+            <el-tag v-if="hit.filtered" size="small" type="info">
+              {{ t('chat.audit.recall_filtered') }}
+            </el-tag>
+            <span
+              class="recall-score"
+              :title="`vector ${hit.vector_score ?? '—'} · lexical ${hit.lexical_score ?? '—'}`"
+            >
+              {{ Number(hit.score || 0).toFixed(3) }}
+            </span>
+          </div>
+          <pre v-if="recallPassages[hit.page_key]" class="raw-value">{{
+            recallPassages[hit.page_key]
+          }}</pre>
+        </section>
+        <section class="model-call recall-card">
+          <div class="model-call-header">
+            <strong>{{ t('chat.audit.recall_tab_raw') }}</strong>
+          </div>
+          <pre class="raw-value">{{ displayValue(rawDetail) }}</pre>
+        </section>
+      </template>
+      <template v-else>
+        <section v-if="item.input != null" class="io-block">
+          <h5>{{ t('chat.audit.raw_input') }}</h5>
+          <pre class="raw-value">{{ displayValue(item.input) }}</pre>
+        </section>
+        <section v-if="item.output != null" class="io-block">
+          <h5>{{ t('chat.audit.raw_output') }}</h5>
+          <pre class="raw-value sql-output">{{ displayValue(item.output) }}</pre>
+        </section>
+        <section v-if="item.reasoning_content" class="io-block">
+          <h5>{{ t('chat.audit.reasoning') }}</h5>
+          <pre class="raw-value">{{ item.reasoning_content }}</pre>
+        </section>
+        <section v-if="hasDetail" class="io-block">
+          <h5>{{ t('chat.audit.process_detail') }}</h5>
+          <pre class="raw-value">{{ displayValue(processDetail) }}</pre>
+        </section>
+      </template>
     </div>
     <details v-else-if="!running && item.message" class="legacy-detail">
       <summary>{{ t('chat.audit.raw_record') }}</summary>
@@ -202,6 +359,60 @@ const processDetail = computed(() => {
 }
 .raw-tabs :deep(.ed-tabs__header) {
   margin-bottom: 8px;
+}
+.recall-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.recall-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.recall-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: default;
+}
+.recall-row.filtered {
+  opacity: 0.55;
+}
+.recall-passage {
+  margin-left: 26px;
+  max-height: 320px;
+}
+.recall-index {
+  width: 18px;
+  color: #646a73;
+  text-align: right;
+}
+.recall-title {
+  min-width: 120px;
+  color: #1f2329;
+}
+.recall-key {
+  padding: 0 6px;
+  border-radius: 4px;
+  background: #f5f6f7;
+  color: #4e5059;
+  font-size: 12px;
+}
+.recall-scores {
+  margin-left: auto;
+}
+.recall-score {
+  color: #8f959e;
+  font-size: 12px;
+}
+.resource-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.resource-chip {
+  font-family: monospace;
 }
 .direct-tabs {
   margin-top: 2px;

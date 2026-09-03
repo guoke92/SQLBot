@@ -1,5 +1,6 @@
 import secrets
 import urllib.parse
+from pathlib import Path
 from typing import Annotated, Any, Literal
 
 from pydantic import (
@@ -13,6 +14,11 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from common.core.branding import APP_DISPLAY_NAME
 
+# .env 固定在仓库根（backend/ 上一级）——相对 cwd 解析会让从其它目录
+# 启动的脚本（提取管线/评测）拿到 /opt/sqlbot 类部署默认值。
+_REPO_ROOT = Path(__file__).resolve().parents[3]
+_ENV_FILE = _REPO_ROOT / ".env"
+
 
 def parse_cors(v: Any) -> list[str] | str:
     if isinstance(v, str) and not v.startswith("["):
@@ -25,7 +31,7 @@ def parse_cors(v: Any) -> list[str] | str:
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         # Use top level .env file (one level above ./backend/)
-        env_file="../.env",
+        env_file=str(_ENV_FILE),
         env_ignore_empty=True,
         extra="ignore",
     )
@@ -160,6 +166,35 @@ class Settings(BaseSettings):
     BUSINESS_TIMEZONE: str = "Asia/Shanghai"
     KNOWLEDGE_CAPTURE_LEASE_SECONDS: int = 300
     KNOWLEDGE_RECALL_STRATEGY: str = "unit"  # "unit" | "node" (v3.1 node-plane recall)
+    # wiki 知识体系召回切换（v0 契约）：wiki=默认全量（allowlist 空或 * ），unit=回退
+    KNOWLEDGE_BACKEND: str = "wiki"
+    KNOWLEDGE_WIKI_DS_ALLOWLIST: str = "*"  # 逗号分隔 ds_id；* 或空 = 全量启用 wiki
+    KNOWLEDGE_WIKI_PAGES_DIRS: str = "docs/wiki-knowledge/pplatform/wiki-pages"
+
+    @computed_field  # type: ignore[misc]
+    @property
+    def knowledge_wiki_pages_dirs_abs(self) -> str:
+        """PAGES_DIRS 的仓库根绝对形态——运行时从任意 cwd（uvicorn/脚本）加载一致。"""
+        return ":".join(
+            str((_REPO_ROOT / part).resolve()) if not Path(part).is_absolute() else part
+            for part in self.KNOWLEDGE_WIKI_PAGES_DIRS.split(":")
+            if part.strip()
+        )
+
+    KNOWLEDGE_WIKI_RECALL_TOP_K: int = 8
+    KNOWLEDGE_WIKI_EMBEDDING_ENABLED: bool = True
+    # wiki 主导表选择：wiki 命中时闭包表必选，embedding 召回补充 N 张
+    # （0 = 不补充，仅闭包表；wiki 无命中时不裁剪走现状）
+    WIKI_TABLE_SUPPLEMENT_COUNT: int = 4
+    # wiki 主导模式下 embedding 补充表的相关性下限（独立于 WIKI_TABLE_SUPPLEMENT_COUNT
+    # 的数量预算：分数不过线的表不进 prompt，不足预算不凑数）。默认对齐 wiki
+    # 页级向量过滤强度（chat 169：0.4 的表级线拦不住 tenant_setting_config 类
+    # 运营配置表，实际通过分 ~0.43-0.46 与业务表无区分度）
+    WIKI_TABLE_SUPPLEMENT_SIMILARITY: float = 0.5
+    # business 模式单页正文摘要上限（剔除 ground 围栏后的散文；0 = 不截断）
+    KNOWLEDGE_WIKI_PROSE_CHARS: int = 400
+    # 提取面：Test-wiki（需求文档 wiki）目录，E0.5 证据源；空=不用需求文档补充
+    KNOWLEDGE_WIKI_REQDOC_DIR: str = ""
 
     # Recall top-up: deterministic value index ("value ⊂ question" containment)
     # plus evidence-driven working-set expansion. Any layer off = legacy recall.
@@ -184,6 +219,7 @@ class Settings(BaseSettings):
         "TABLE_EMBEDDING_ENABLED",
         "RECALL_VALUE_INDEX_ENABLED",
         "RECALL_TOUP_ENABLED",
+        "KNOWLEDGE_WIKI_EMBEDDING_ENABLED",
         mode="before",
     )
     @classmethod

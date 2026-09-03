@@ -1,0 +1,3 @@
+body: 该概念存在语义不确定：`status` 与 `companyUserStatus` 具体值未在代码中定义，需结合归档编排器或 DB 分布确认，当前仅能标记为边界待定。
+title: status / companyUserStatus
+type: concept

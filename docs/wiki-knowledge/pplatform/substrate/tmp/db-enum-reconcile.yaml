@@ -1,0 +1,209 @@
+schema_version: '1.0'
+note: E2(db 分布) vs E3(代码枚举) 对账 — 值超出代码基线的字段，进 REVIEW/语义摄取重点
+mismatches:
+- table: argeement_migratory_record
+  column: status
+  db_values_outside_code_baseline:
+  - '0'
+  - '1'
+  distribution:
+    '0': 7974
+    '1': 29536
+- table: async_io_task
+  column: status
+  db_values_outside_code_baseline:
+  - FAILED
+  - RUNNING
+  - SUCCESS
+  distribution:
+    FAILED: 106
+    RUNNING: 3
+    SUCCESS: 203
+- table: ca_certification_info
+  column: cust_type
+  db_values_outside_code_baseline:
+  - COMPANY
+  distribution:
+    COMPANY: 1257
+- table: cust_account_info
+  column: account_type
+  db_values_outside_code_baseline:
+  - BANK
+  - OPERATION_FEE_ACCOUNT
+  distribution:
+    '1': 5
+    BANK: 48341
+    OPERATION_FEE_ACCOUNT: 30
+    received: 1
+- table: cust_account_info
+  column: status
+  db_values_outside_code_baseline:
+  - INIT
+  distribution:
+    INIT: 46538
+- table: cust_change_record
+  column: status
+  db_values_outside_code_baseline:
+  - '1'
+  - CUST_CHECK_BACKTOCUSTOM
+  - CUST_CHECK_CHECKING
+  - CUST_CHECK_PASS
+  - CUST_CHECK_REJECT
+  - returnCust-2024-07-17 10:10
+  - returnCust-2024-09-10 14:10
+  - returnCust-2024-11-01 14:16
+  - returnCust-2024-11-05 10:03
+  - returnCust-2024-11-12 10:05
+  - returnCust-2025-01-17 14:38
+  - returnCust-2025-07-22 12:03
+  - returnCust-2026-05-22 20:22
+  - returnCust-2026-05-25 14:55
+  - returnCust-2026-07-03 10:24
+  - returnCust-2026-07-15 17:30
+  - returnCust-2026-07-22 14:55
+  distribution:
+    '1': 375
+    CUST_CHECK_BACKTOCUSTOM: 167
+    CUST_CHECK_CHECKING: 634
+    CUST_CHECK_PASS: 3006
+    CUST_CHECK_REJECT: 1026
+    returnCust-2024-07-17 10:10: 1
+    returnCust-2024-09-10 14:10: 1
+    returnCust-2024-11-01 14:16: 1
+    returnCust-2024-11-05 10:03: 1
+    returnCust-2024-11-12 10:05: 1
+    returnCust-2025-01-17 14:38: 1
+    returnCust-2025-07-22 12:03: 1
+    returnCust-2026-05-22 20:22: 1
+    returnCust-2026-05-25 14:55: 1
+    returnCust-2026-07-03 10:24: 1
+    returnCust-2026-07-15 17:30: 1
+    returnCust-2026-07-22 14:55: 1
+- table: cust_company_info
+  column: cust_scale
+  db_values_outside_code_baseline:
+  - qw
+  distribution:
+    ? ''
+    : 2
+    qw: 1
+- table: cust_company_info
+  column: cust_source
+  db_values_outside_code_baseline:
+  - PLATFORM
+  distribution:
+    MIGRATORY: 5481
+    PLATFORM: 1
+    PLATFORM_PUSH: 156
+    PPLATFORM: 88534
+- table: cust_company_info
+  column: sign_mode
+  db_values_outside_code_baseline:
+  - ONLINE
+  distribution:
+    ONLINE: 94172
+- table: cust_group_rel
+  column: status
+  db_values_outside_code_baseline:
+  - INEFFECTIVE
+  - REJECTED
+  distribution:
+    EFFECTIVE: 396
+    INEFFECTIVE: 273
+    REJECTED: 5
+- table: cust_person_info
+  column: status
+  db_values_outside_code_baseline:
+  - ADD
+  - EFFECT
+  - FREEZE
+  - N
+  distribution:
+    ADD: 33066
+    EFFECT: 26178
+    FREEZE: 1167
+    N: 1
+- table: cust_project_code_record
+  column: status
+  db_values_outside_code_baseline:
+  - N
+  - Y
+  distribution:
+    N: 63
+    Y: 283
+- table: cust_project_rel
+  column: status
+  db_values_outside_code_baseline:
+  - ' 1 '
+  - '0'
+  - '1'
+  distribution:
+    ' 1 ': 2
+    '0': 29655
+    '1': 29202
+- table: cust_role_info
+  column: status
+  db_values_outside_code_baseline:
+  - ADD
+  - EFFECT
+  - FREEZE
+  - WRITEOFF
+  distribution:
+    ADD: 34829
+    EFFECT: 19708
+    FREEZE: 11
+    WRITEOFF: 44
+- table: platform_product_client
+  column: status
+  db_values_outside_code_baseline:
+  - Y
+  distribution:
+    Y: 26
+- table: tenant_migarory_log
+  column: status
+  db_values_outside_code_baseline:
+  - N
+  - Y
+  distribution:
+    N: 7362
+    Y: 144694
+- table: tenant_migarory_log_bak
+  column: status
+  db_values_outside_code_baseline:
+  - N
+  - Y
+  distribution:
+    N: 439
+    Y: 4171
+- table: tenant_setting_config
+  column: platform_operator
+  db_values_outside_code_baseline:
+  - '["platform","tenant"]'
+  - '["platform"]'
+  - '["tenant","platform"]'
+  - '["tenant"]'
+  distribution:
+    '["platform","tenant"]': 8
+    '["platform"]': 107
+    '["tenant","platform"]': 15
+    '["tenant"]': 46
+- table: tenant_setting_config
+  column: status
+  db_values_outside_code_baseline:
+  - N
+  - Y
+  distribution:
+    N: 239
+    Y: 123
+- table: tenant_setting_config_share
+  column: platform_operator
+  db_values_outside_code_baseline:
+  - '["platform"]'
+  distribution:
+    '["platform"]': 24
+- table: tenant_setting_config_share
+  column: status
+  db_values_outside_code_baseline:
+  - N
+  distribution:
+    N: 29

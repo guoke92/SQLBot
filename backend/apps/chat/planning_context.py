@@ -59,7 +59,7 @@ def _bundle_from_prompt_payload(payload: dict[str, Any]) -> BusinessDataBundle:
 class PlanningContextSnapshot(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    version: Literal[2] = 2
+    version: Literal[3] = 3
     schema_text: str
     resources: list[str] = Field(default_factory=list)
     sample_data: str = ""
@@ -69,6 +69,7 @@ class PlanningContextSnapshot(BaseModel):
     entity_bindings: dict[str, Any] = Field(default_factory=dict)
     temporal_parse: dict[str, Any] = Field(default_factory=dict)
     compiled_knowledge: dict[str, Any] = Field(default_factory=dict)
+    wiki_context: dict[str, Any] = Field(default_factory=dict)
     schema_fingerprint: str = ""
     truncation: list[dict[str, Any]] = Field(default_factory=list)
     fingerprint: str = ""
@@ -86,6 +87,7 @@ def capture_planning_context(
     *,
     entity_bindings: dict[str, Any],
     temporal_parse: dict[str, Any],
+    wiki_context: dict[str, Any] | None = None,
 ) -> PlanningContextSnapshot:
     question = llm_service.chat_question
     compiled = getattr(llm_service, "compiled_knowledge", None)
@@ -112,7 +114,7 @@ def capture_planning_context(
     for name, _content in knowledge_groups:
         knowledge.update(sections.get(f"knowledge_{name}") or {})
     payload: dict[str, Any] = {
-        "version": 2,
+        "version": 3,
         "schema_text": sections.get("schema_text", ""),
         "resources": [str(item) for item in (llm_service.table_name_list or [])],
         "sample_data": sections.get("sample_data", ""),
@@ -122,6 +124,7 @@ def capture_planning_context(
         "entity_bindings": dict(entity_bindings or {}),
         "temporal_parse": dict(temporal_parse or {}),
         "compiled_knowledge": knowledge,
+        "wiki_context": dict(wiki_context or {}),
         "truncation": list(truncation),
     }
     schema_material = orjson.dumps(
@@ -164,7 +167,11 @@ def restore_planning_context(
     llm_service: Any,
     payload: dict[str, Any],
 ) -> PlanningContextSnapshot:
-    snapshot = PlanningContextSnapshot.model_validate(payload)
+    legacy_payload = dict(payload)
+    legacy_payload["version"] = 3
+    if "wiki_context" not in legacy_payload:
+        legacy_payload["wiki_context"] = {}
+    snapshot = PlanningContextSnapshot.model_validate(legacy_payload)
     if not snapshot.usable:
         raise ValueError("Persisted planning context does not contain a usable schema")
     question = llm_service.chat_question

@@ -290,6 +290,7 @@ class RestProtocol(BaseProtocol):
         resource_names: Optional[Sequence[str]] = None,
         required_resource_names: Sequence[str] = (),
         access_scope: Any = None,
+        table_limit: int | None = None,
     ) -> SchemaSnapshot:
         conf = _parse_conf(ds)
 
@@ -330,6 +331,7 @@ class RestProtocol(BaseProtocol):
             embedding=embedding,
             table_list=None,
             required_table_list=list(required_resource_names),
+            table_limit=table_limit,
         )
         if not names:
             # Fall back to all conf endpoints when projections not yet synced.

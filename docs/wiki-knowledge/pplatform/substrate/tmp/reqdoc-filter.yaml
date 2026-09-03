@@ -1,0 +1,13 @@
+# 需求文档 wiki（Test-wiki）侧过滤清单（plan §0.2）——include_only 白名单模式（默认，比黑名单枚举噪声更稳）。
+# 路径相对 Test-wiki 的 wiki/ 目录。人物/部门/供应商公司/研究型页（queries/findings/sources）全部隔离。
+include_only:
+  - "concepts/**"          # 业务概念/规则/流程主张（E0.5 主通道）
+  - "entities/*表.md"      # 表类实体页
+  - "entities/sso*.md"     # SSO/登录域系统实体
+  - "entities/cfca.md"
+  - "entities/ams.md"
+  - "entities/dbass.md"
+  - "entities/ka.md"
+  - "entities/rpa.md"
+  - "entities/微盘.md"
+  - "entities/极验验证码.md"

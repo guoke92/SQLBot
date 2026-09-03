@@ -1,0 +1,264 @@
+unit_id: enterprise-status-operations
+revision: 1
+title: 企业状态运营（冻结/解冻/注销）
+aliases:
+- 冻结企业
+- 解冻
+- 注销企业
+- 企业生命周期
+domain: 客户与建档
+applicability: 用户问"冻结企业清单""解冻记录""注销企业""冻结原因"等企业台账状态运营类问题时使用。
+description: 企业客户台账状态（cust_status）的运营流转：冻结/解冻经预生成草稿→确认生效两步落 cust_company_lifecycle_info 台账并驱动 cust_status（FREEZE↔EFFECT）；注销 WRITEOFF 级联冻结全部用户；状态操作受配置化守卫（allowStatusList）约束。与认证状态机 （见 enterprise-build-certification
+  单元）为不同维度。
+content:
+  concepts:
+  - concept_id: freeze-status
+    name: 冻结企业
+    aliases:
+    - 冻结
+    - 解冻
+    - 企业生命周期操作
+    definition: cust_status=FREEZE 的企业；每次冻结/解冻在 cust_company_lifecycle_info 落一条 台账（type=FRZ/UNFRZ，确认后 enable=Y）。
+    dictionary:
+      FREEZE: 冻结
+      EFFECT: 生效
+      WRITEOFF: 注销
+    field_targets:
+    - dataset: company
+      field: cust_status
+    evidence_refs:
+    - ev-eso-freeze
+  - concept_id: lifecycle-type
+    name: 生命周期操作类型
+    aliases:
+    - 冻结记录
+    - 解冻记录
+    definition: cust_company_lifecycle_info.type 记录操作类型。
+    dictionary:
+      FRZ: 冻结
+      UNFRZ: 解冻
+    field_targets:
+    - dataset: lifecycle
+      field: type
+    evidence_refs:
+    - ev-eso-freeze
+  processes:
+  - stage_id: freeze-confirm
+    name: 冻结确认
+    description: 两步式：先预生成草稿（type=FRZ、enable=N），确认时 enable=Y 落 reason/attach， 同时企业 cust_status=FREEZE 并冻结该企业全部用户。
+    trigger: 管理端冻结操作确认
+    enter_conditions:
+    - cust_status 在 allowStatusList（EFFECT/ADD 可冻结）
+    - 无在途业务
+    next_stages: []
+    data_effects:
+    - operation: insert
+      dataset: lifecycle
+      fields:
+      - company_id
+      - type
+      - reason
+      - attach
+      - enable
+      condition: 预生成 enable=N；确认后置 Y
+    - operation: update
+      dataset: company
+      fields:
+      - cust_status
+      condition: 确认生效 → FREEZE
+    evidence_refs:
+    - ev-eso-freeze
+  - stage_id: unfreeze-confirm
+    name: 解冻确认
+    description: 预生成 UNFRZ 草稿→确认生效→cust_status 回 EFFECT。
+    trigger: 管理端解冻操作确认
+    enter_conditions:
+    - cust_status=FREEZE
+    next_stages: []
+    data_effects:
+    - operation: insert
+      dataset: lifecycle
+      fields:
+      - company_id
+      - type
+      - reason
+      - enable
+      condition: type=UNFRZ
+    - operation: update
+      dataset: company
+      fields:
+      - cust_status
+      condition: → EFFECT
+    evidence_refs:
+    - ev-eso-unfreeze
+  datasets:
+  - dataset_id: company
+    name: cust_company_info
+    description: 企业主数据/过程记录，一行一家企业（data_type 区分主数据/流程行/暂存行）。
+    database: lowcode_pplatform
+    fields:
+    - field_id: id
+      name: id
+      data_type: bigint
+      description: 表主键
+    - field_id: code
+      name: code
+      data_type: varchar
+      description: 企业编码（uuid，子表外键锚点）
+    - field_id: cust_status
+      name: cust_status
+      data_type: varchar
+      description: 客户状态
+      dictionary:
+        ADD: 新增
+        EFFECT: 生效
+        FAILURE: 失效
+        WRITEOFF: 注销
+        FREEZE: 冻结
+        CHANGE: 变更
+      evidence_refs:
+      - ev-ebc-enum-custstatus
+  - dataset_id: lifecycle
+    name: cust_company_lifecycle_info
+    description: 企业冻结/解冻生命周期台账（预生成草稿 enable=N，确认后 Y）。
+    database: lowcode_pplatform
+    fields:
+    - field_id: id
+      name: id
+      data_type: bigint
+      description: 表主键
+    - field_id: company_id
+      name: company_id
+      data_type: bigint
+      description: 企业id（=cust_company_info.id）
+    - field_id: type
+      name: type
+      data_type: varchar
+      description: 类型
+      dictionary:
+        FRZ: 冻结
+        UNFRZ: 解冻
+      evidence_refs:
+      - ev-eso-freeze
+    - field_id: reason
+      name: reason
+      data_type: varchar
+      description: 冻结原因
+    - field_id: attach
+      name: attach
+      data_type: varchar
+      description: 冻结附件路径集合
+    - field_id: enable
+      name: enable
+      data_type: varchar
+      description: enable（N=预生成草稿，Y=已生效）
+    evidence_refs:
+    - ev-eso-freeze
+  relationships:
+  - relationship_id: lifecycle-company
+    left:
+      dataset: lifecycle
+      field: company_id
+    right:
+      dataset: company
+      field: id
+    relationship_type: EQUI_JOIN
+    cardinality: many_to_one
+    business_meaning: 生命周期台账归属企业
+    status: proposed
+    evidence_refs:
+    - ev-eso-freeze
+    confidence: 0.95
+  calibers:
+  - caliber_id: frozen-company
+    label: 冻结企业
+    description: 客户台账状态为冻结
+    contract_fragment:
+      where:
+      - cust_status = 'FREEZE'
+    field_targets:
+    - dataset: company
+      field: cust_status
+    evidence_refs:
+    - ev-eso-freeze
+  - caliber_id: effective-lifecycle-record
+    label: 已生效生命周期记录
+    description: 确认生效的冻结/解冻台账（统计口径）
+    contract_fragment:
+      where:
+      - enable = 'Y'
+    field_targets:
+    - dataset: lifecycle
+      field: enable
+    evidence_refs:
+    - ev-eso-freeze
+  metrics:
+  - metric_id: freeze-frequency
+    name: 冻结/解冻频次
+    description: 按企业统计冻结/解冻操作次数
+    aggregation: COUNT
+    field:
+      dataset: lifecycle
+      field: id
+    filters:
+    - enable: Y
+    grain:
+    - dataset: lifecycle
+      field: company_id
+    - dataset: lifecycle
+      field: type
+    evidence_refs:
+    - ev-eso-freeze
+  domain_rules:
+  - rule_id: status-operator-guard
+    label: 状态操作配置化守卫
+    content: cust_status 变更走 custStatusOperator：每类操作（ENABLE/FREEZE/UNFREEZE/DISABLE） 配置允许的前置状态列表（allowStatusList）与是否需查在途业务；不满足抛"当前操作不允许"。 例如仅 EFFECT/ADD 可冻结、FREEZE 可解冻、注销需查在途。
+    applicability: 解释/校验企业状态变更合法性；按状态统计时理解状态可达性
+    query_impact: 状态组合过滤（如"冻结且注销"）不可能存在，避免无效组合查询。
+    field_targets:
+    - dataset: company
+      field: cust_status
+    evidence_refs:
+    - ev-eso-guard
+  - rule_id: logout-cascade-freeze-users
+    label: 注销级联冻结用户
+    content: 注销企业（cust_status=WRITEOFF）时级联冻结该企业全部用户账号。
+    applicability: 注销企业的用户/联系人可用性判断
+    query_impact: 注销企业下联系人账号状态全部冻结，联系人查询需关联企业状态。
+    field_targets:
+    - dataset: company
+      field: cust_status
+    evidence_refs:
+    - ev-eso-guard
+  - rule_id: lifecycle-draft-two-phase
+    label: 生命周期两步确认
+    content: 冻结/解冻先预生成草稿（enable=N），确认后生效（enable=Y）；重复预生成会物理删除 未生效记录及其附件。
+    applicability: 冻结/解冻台账统计（必须过滤 enable='Y'，草稿不是事实）
+    query_impact: 不过滤 enable 会把未确认草稿计入冻结统计。
+    field_targets:
+    - dataset: lifecycle
+      field: enable
+    evidence_refs:
+    - ev-eso-freeze
+  verified_query_patterns:
+  - pattern_id: list-frozen-companies
+    question: 冻结企业清单及冻结原因
+    query: SELECT c.id, c.name, c.certification_no, l.type, l.reason, l.enable FROM cust_company_lifecycle_info l JOIN cust_company_info c ON c.id = l.company_id WHERE l.type = 'FRZ' AND l.enable = 'Y'
+      AND c.cust_status = 'FREEZE'
+    intended_specification:
+      caliber_id: frozen-company
+    verification:
+      status: PENDING_VALIDATION
+    evidence_refs:
+    - ev-eso-freeze
+unit_links:
+- target_unit: enterprise-build-certification
+  kind: prerequisite
+  via:
+  - dataset: company
+    field: cust_status
+  evidence_refs:
+  - ev-eso-freeze
+  description: 状态运营作用于建档单元建立的客户台账（cust_status 联动写）。
+assumptions: []
+confidence: 0.8

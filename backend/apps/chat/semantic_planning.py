@@ -51,6 +51,11 @@ def _option_meaning(option: dict[str, Any]) -> str:
     return _text(option.get("meaning"), option.get("label"), option.get("description"))
 
 
+# 模型会把选项写成 A/B/C/… 占位——占位 label 用 meaning 替换。
+# 选项上限 6（枚举全覆盖场景），占位集合同步到 f。
+_PLACEHOLDER_LABELS = {"a", "b", "c", "d", "e", "f"}
+
+
 def _coerce_field_ref(item: Any) -> dict[str, Any] | None:
     if isinstance(item, str):
         name = _text(item)
@@ -65,13 +70,14 @@ def _coerce_field_ref(item: Any) -> dict[str, Any] | None:
         "name": name,
         "comment": _text(payload.get("comment"), payload.get("field_comment")),
         "table": _text(payload.get("table"), payload.get("table_name")),
+        "value": _text(payload.get("value"), payload.get("enum_value")),
     }
 
 
 def _coerce_option(option: dict[str, Any], *, recommended: bool) -> dict[str, Any]:
     meaning = _option_meaning(option)
     label = _text(option.get("label"))
-    if not label or label.casefold() in {"a", "b", "c"}:
+    if not label or label.casefold() in _PLACEHOLDER_LABELS:
         label = meaning
     fields: list[dict[str, Any]] = []
     raw_fields = option.get("fields")
@@ -181,19 +187,24 @@ class ClarificationFieldRef(BaseModel):
     """One schema field cited by a clarification option.
 
     Composite caliber (e.g. signed amount by sign_date and financed amount by
-    apply_date) uses several refs on the same option.
+    apply_date) uses several refs on the same option. ``value`` carries the
+    enum literal when the option fixes a specific enum value (字段+值一次确认,
+    e.g. identify_style=SIMPLE); planner prompts must also spell it into
+    ``meaning`` so the frontend renders it without changes.
     """
 
     model_config = ConfigDict(extra="ignore")
     name: str = ""
     comment: str = ""
     table: str = ""
+    value: str = ""
 
     @model_validator(mode="after")
     def normalize(self) -> Self:
         self.name = _text(self.name)
         self.comment = _text(self.comment)
         self.table = _text(self.table)
+        self.value = _text(self.value)
         if not self.name:
             raise ValueError("Clarification field requires a name")
         return self
@@ -228,7 +239,7 @@ class ClarificationOption(BaseModel):
             self.field = first.name
             self.field_comment = first.comment
             self.table = first.table
-        if self.label.casefold() in {"a", "b", "c"} and self.meaning:
+        if self.label.casefold() in _PLACEHOLDER_LABELS and self.meaning:
             self.label = self.meaning
         if not self.meaning:
             raise ValueError("Clarification option requires a business meaning")
@@ -240,7 +251,9 @@ class ClarificationQuestion(BaseModel):
     question_id: str = ""
     question: str
     why: str = ""
-    options: list[ClarificationOption] = Field(min_length=2, max_length=3)
+    # 上限 6：枚举类选项常成组出现（identify_style 4 值），3 项会截断掉
+    # 用户想要的那个——reviewer 输出曾因此被 ValidationError 静默降级
+    options: list[ClarificationOption] = Field(min_length=2, max_length=6)
 
     @model_validator(mode="after")
     def assign_ids(self) -> Self:
@@ -362,9 +375,7 @@ def constrain_clarification_by_rules(
     for question in card.questions:
         options: list[ClarificationOption] = []
         for option in question.options:
-            field_names = {
-                ref.name.casefold() for ref in option.fields if ref.name
-            }
+            field_names = {ref.name.casefold() for ref in option.fields if ref.name}
             if option.field:
                 field_names.add(option.field.casefold())
             if option.recommended and field_names & forbidden:

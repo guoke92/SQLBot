@@ -1,0 +1,2 @@
+- code: PAGE_CONTRACT_FAILED
+  message: page_key 'rule/one_cert_four_step_deep_copy' 不符合 rule 页的 业务 slug（CJK 保留）

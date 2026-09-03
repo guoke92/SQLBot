@@ -1,0 +1,3 @@
+- code: PAGE_CONTRACT_FAILED
+  message: page_key 'process/project_online_approval_node_status' 不符合 process 页的 业务
+    slug（CJK 保留）

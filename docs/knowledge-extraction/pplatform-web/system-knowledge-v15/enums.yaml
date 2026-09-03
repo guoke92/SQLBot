@@ -1,0 +1,1439 @@
+schema_version: '1.1'
+repository: pplatform-web
+enums:
+- enum: CaFeeAgreementNextActionEnum
+  field: ca_fee_agreement_next_action
+  path: lowcode-pplatform-client/src/main/java/com/lls/lowcode/pplatform/client/cafee/enums/CaFeeAgreementNextActionEnum.java
+  values:
+  - value: BOCOM_PAY_PAGE
+    display: 进入交e保打款页
+  setter_fields: []
+  convention_mismatch: false
+- enum: CaFeeBizNodeEnum
+  field: ca_fee_biz_node
+  path: lowcode-pplatform-client/src/main/java/com/lls/lowcode/pplatform/client/cafee/enums/CaFeeBizNodeEnum.java
+  values:
+  - value: FINANCE_APPLY
+    display: 融资申请
+  - value: TRANSFER_SIGN
+    display: 转让签收
+  - value: RIGHTS_CONFIRM
+    display: 确权
+  setter_fields:
+  - biz_node
+  convention_mismatch: true
+- enum: CaFeeBlockCodeEnum
+  field: ca_fee_block_code
+  path: lowcode-pplatform-client/src/main/java/com/lls/lowcode/pplatform/client/cafee/enums/CaFeeBlockCodeEnum.java
+  values:
+  - value: FEE_UNPAID
+    display: 服务费未缴纳
+  - value: FEE_EXPIRED
+    display: 服务费已过期
+  - value: CA_INVALID
+    display: CA证书无效
+  - value: CA_AND_FEE
+    display: CA证书与服务费均不满足
+  setter_fields: []
+  convention_mismatch: false
+- enum: CaFeeCertStatusEnum
+  field: ca_fee_cert_status
+  path: lowcode-pplatform-client/src/main/java/com/lls/lowcode/pplatform/client/cafee/enums/CaFeeCertStatusEnum.java
+  values:
+  - value: NORMAL
+    display: 有效
+  - value: EXPIRED
+    display: 已过期
+  - value: CANCELLED
+    display: 已注销
+  - value: UNREGISTERED
+    display: 未注册
+  - value: UNKNOWN
+    display: 未注册
+  setter_fields: []
+  convention_mismatch: false
+- enum: CaFeeCompanyPayStatusEnum
+  field: ca_fee_company_pay_status
+  path: lowcode-pplatform-client/src/main/java/com/lls/lowcode/pplatform/client/cafee/enums/CaFeeCompanyPayStatusEnum.java
+  values:
+  - value: PAID
+    display: 已缴费
+  - value: UNPAID
+    display: 未缴费
+  setter_fields:
+  - pay_status
+  convention_mismatch: true
+- enum: CaFeeDualCheckSceneEnum
+  field: ca_fee_dual_check_scene
+  path: lowcode-pplatform-client/src/main/java/com/lls/lowcode/pplatform/client/cafee/enums/CaFeeDualCheckSceneEnum.java
+  values:
+  - value: GOTO_PRODUCT
+    display: 门户跳转业务产品
+  - value: SIGN
+    display: 签章前校验
+  - value: PAY_ENTRY
+    display: 进入缴费页前
+  setter_fields: []
+  convention_mismatch: false
+- enum: CaFeeFeeStatusEnum
+  field: ca_fee_fee_status
+  path: lowcode-pplatform-client/src/main/java/com/lls/lowcode/pplatform/client/cafee/enums/CaFeeFeeStatusEnum.java
+  values:
+  - value: PAID
+    display: 已缴费/在期内
+  - value: UNPAID
+    display: 未缴费
+  - value: EXPIRED
+    display: 已过期
+  - value: EXEMPT
+    display: 豁免
+  setter_fields: []
+  convention_mismatch: false
+- enum: CaFeeInterceptSceneGroupEnum
+  field: ca_fee_intercept_scene_group
+  path: lowcode-pplatform-client/src/main/java/com/lls/lowcode/pplatform/client/cafee/enums/CaFeeInterceptSceneGroupEnum.java
+  values:
+  - value: PORTAL
+    display: 产融门户平台
+  - value: MULTI_LEVEL
+    display: 多级流转产品
+  setter_fields: []
+  convention_mismatch: false
+- enum: CaFeeInvoiceStatusEnum
+  field: ca_fee_invoice_status
+  path: lowcode-pplatform-client/src/main/java/com/lls/lowcode/pplatform/client/cafee/enums/CaFeeInvoiceStatusEnum.java
+  values:
+  - value: PENDING
+    display: 开票中
+  - value: ISSUED
+    display: 已开票
+  - value: FAILED
+    display: 开票失败
+  - value: NONE
+    display: 无需开票
+  setter_fields:
+  - invoice_status
+  convention_mismatch: true
+- enum: CaFeeOperateTypeEnum
+  field: ca_fee_operate_type
+  path: lowcode-pplatform-client/src/main/java/com/lls/lowcode/pplatform/client/cafee/enums/CaFeeOperateTypeEnum.java
+  values:
+  - value: AGREEMENT_SIGN
+    display: 签署收费协议
+  - value: PAY
+    display: 缴费成功
+  - value: CLOSE
+    display: 关闭订单
+  - value: ZERO_EXEMPT
+    display: 0元豁免入账
+  - value: EDIT
+    display: 台账编辑
+  - value: BATCH_DEFER
+    display: 批量延期支付
+  - value: BATCH_WHITELIST
+    display: 批量加白名单
+  setter_fields: []
+  convention_mismatch: false
+- enum: CaFeeOrderStatusEnum
+  field: ca_fee_order_status
+  path: lowcode-pplatform-client/src/main/java/com/lls/lowcode/pplatform/client/cafee/enums/CaFeeOrderStatusEnum.java
+  values:
+  - value: PENDING
+    display: 未缴费
+  - value: PAID
+    display: 已缴费
+  - value: CLOSED
+    display: 已关闭
+  - value: EXPIRED
+    display: 已过期
+  setter_fields:
+  - order_status
+  convention_mismatch: true
+- enum: CaFeeOrderTypeEnum
+  field: ca_fee_order_type
+  path: lowcode-pplatform-client/src/main/java/com/lls/lowcode/pplatform/client/cafee/enums/CaFeeOrderTypeEnum.java
+  values:
+  - value: FIRST
+    display: 首次缴费
+  - value: RENEW
+    display: 即将到期续费
+  - value: RENEW_EXPIRED
+    display: 已到期续费
+  - value: STOCK
+    display: 存量补录
+  setter_fields: []
+  convention_mismatch: false
+- enum: CaFeePayMethodEnum
+  field: ca_fee_pay_method
+  path: lowcode-pplatform-client/src/main/java/com/lls/lowcode/pplatform/client/cafee/enums/CaFeePayMethodEnum.java
+  values:
+  - value: BOCOM
+    display: 交e保对公打款
+  setter_fields: []
+  convention_mismatch: false
+- enum: CaFeePayQueryResultEnum
+  field: ca_fee_pay_query_result
+  path: lowcode-pplatform-client/src/main/java/com/lls/lowcode/pplatform/client/cafee/enums/CaFeePayQueryResultEnum.java
+  values:
+  - value: SUCCESS
+    display: 缴费成功
+  - value: INSUFFICIENT_BALANCE
+    display: 您的账户余额不足，请完成充值后重试
+  - value: NOT_ARRIVED
+    display: 暂未查询到您的打款记录，银行处理可能需要一些时间，请您稍后查询。
+  - value: QUERY_FAILED
+    display: 查询失败，请稍后重试
+  setter_fields: []
+  convention_mismatch: false
+- enum: CaFeeRedirectTypeEnum
+  field: ca_fee_redirect_type
+  path: lowcode-pplatform-client/src/main/java/com/lls/lowcode/pplatform/client/cafee/enums/CaFeeRedirectTypeEnum.java
+  values:
+  - value: CA_FEE_PAY
+    display: 跳转缴费
+  - value: CA_RENEW
+    display: 跳转续费
+  - value: CA_REGISTER
+    display: 跳转CA认证
+  - value: NONE
+    display: 无需跳转
+  setter_fields: []
+  convention_mismatch: false
+- enum: CaFeeSpecialConfigTypeEnum
+  field: ca_fee_special_config_type
+  path: lowcode-pplatform-client/src/main/java/com/lls/lowcode/pplatform/client/cafee/enums/CaFeeSpecialConfigTypeEnum.java
+  values:
+  - value: WHITELIST
+    display: 白名单豁免
+  - value: SPECIAL_PRICE
+    display: 定向减免
+  - value: DEFER_PAY
+    display: 延期支付
+  setter_fields:
+  - config_type
+  convention_mismatch: true
+- enum: CaFeeTodoEnsureTriggerEnum
+  field: ca_fee_todo_ensure_trigger
+  path: lowcode-pplatform-client/src/main/java/com/lls/lowcode/pplatform/client/cafee/enums/CaFeeTodoEnsureTriggerEnum.java
+  values:
+  - value: CA_AUTH_SUCCESS
+    display: CA认证成功
+  - value: BUILD_APPROVED
+    display: 建档审批通过
+  - value: PROJECT_RELATE
+    display: 关联项目
+  - value: MANUAL
+    display: 手动触发
+  setter_fields:
+  - trigger_source
+  convention_mismatch: true
+- enum: CaFeeTodoSceneEnum
+  field: ca_fee_todo_scene
+  path: lowcode-pplatform-client/src/main/java/com/lls/lowcode/pplatform/client/cafee/enums/CaFeeTodoSceneEnum.java
+  values:
+  - value: NEW_PAY
+    display: 【待缴费/新缴费场景】
+  - value: ABOUT_TO_EXPIRE
+    display: 【即将到期场景】
+  - value: EXPIRED
+    display: 【已到期场景】
+  setter_fields: []
+  convention_mismatch: false
+- enum: AccountBelongEnum
+  field: account_belong
+  path: lowcode-pplatform-client/src/main/java/com/lls/lowcode/pplatform/client/cust/enums/AccountBelongEnum.java
+  values:
+  - value: SELF
+    display: 企业自身
+  - value: THIRD
+    display: 三方
+  setter_fields: []
+  convention_mismatch: false
+- enum: AccountTypeEnum
+  field: account_type
+  path: lowcode-pplatform-client/src/main/java/com/lls/lowcode/pplatform/client/cust/enums/AccountTypeEnum.java
+  values:
+  - value: SELF
+    display: 企业自身
+  - value: THIRD
+    display: 三方
+  setter_fields:
+  - account_type
+  convention_mismatch: false
+- enum: AuthStatusEnum
+  field: auth_status
+  path: lowcode-pplatform-client/src/main/java/com/lls/lowcode/pplatform/client/cust/enums/AuthStatusEnum.java
+  values:
+  - value: no_confirm
+    display: 未认证
+  - value: confirm_applying
+    display: 申请中
+  - value: wait_confirm
+    display: 待确认
+  - value: manual_confirmed
+    display: 手动认证成功
+  - value: auto_confirmed
+    display: 自动认证成功
+  - value: confirmed
+    display: 已认证
+  setter_fields: []
+  convention_mismatch: false
+- enum: CustBankAccountTypeEnum
+  field: cust_bank_account_type
+  path: lowcode-pplatform-client/src/main/java/com/lls/lowcode/pplatform/client/cust/enums/CustBankAccountTypeEnum.java
+  values:
+  - value: RECEIVED_ACCOUNT
+    display: 收款账户
+  - value: ORDER_RETURN_ACCOUNT
+    display: 订单回款账户
+  - value: PAYMENT_ACCOUNT
+    display: 付款账户
+  - value: INTEREST_PAYMENT_ACCOUNT
+    display: 付息账户
+  - value: CORE_RETURN_ACCOUNT
+    display: 核心企业回款账户
+  - value: SUPPLIER_RETURN_ACCOUNT
+    display: 供应商回款账户
+  - value: RETURN_ACCOUNT
+    display: 回款账户
+  setter_fields: []
+  convention_mismatch: false
+- enum: ProjectAssetListModeEnum
+  field: project_asset_list_mode
+  path: lowcode-pplatform-client/src/main/java/com/lls/lowcode/pplatform/client/project/enums/ProjectAssetListModeEnum.java
+  values:
+  - value: STANDARD_LIST
+    display: 标准清单
+  - value: SIMPLE_LIST
+    display: 简易清单
+  setter_fields: []
+  convention_mismatch: false
+- enum: ProjectBizConfigPayerEnum
+  field: project_biz_config_payer
+  path: lowcode-pplatform-client/src/main/java/com/lls/lowcode/pplatform/client/project/enums/ProjectBizConfigPayerEnum.java
+  values:
+  - value: SUPPLIER
+    display: 供应商
+  - value: CORE
+    display: 核心企业
+  - value: APPLICANT
+    display: 融资申请人
+  - value: FUNDER
+    display: 资金方
+  setter_fields: []
+  convention_mismatch: false
+- enum: ProjectBusinessFlowModeEnum
+  field: project_business_flow_mode
+  path: lowcode-pplatform-client/src/main/java/com/lls/lowcode/pplatform/client/project/enums/ProjectBusinessFlowModeEnum.java
+  values:
+  - value: CONFIRM_RIGHT_FIRST
+    display: 先确权
+  - value: CONFIRM_RIGHT_AFTER
+    display: 后确权
+  setter_fields: []
+  convention_mismatch: false
+- enum: ProjectRedemptionMethodEnum
+  field: project_redemption_method
+  path: lowcode-pplatform-client/src/main/java/com/lls/lowcode/pplatform/client/project/enums/ProjectRedemptionMethodEnum.java
+  values:
+  - value: ALIPAY_CLEARING
+    display: 支付宝清分
+  setter_fields: []
+  convention_mismatch: false
+- enum: ProjectServiceFeeCollectMethodEnum
+  field: project_service_fee_collect_method
+  path: lowcode-pplatform-client/src/main/java/com/lls/lowcode/pplatform/client/project/enums/ProjectServiceFeeCollectMethodEnum.java
+  values:
+  - value: ONLINE
+    display: 线上收取
+  - value: OFFLINE
+    display: 线下收取
+  - value: BOCOM_PAY
+    display: 交e保
+  - value: FREE
+    display: 免费
+  setter_fields: []
+  convention_mismatch: false
+- enum: ProjectServiceFeeCollectorEnum
+  field: project_service_fee_collector
+  path: lowcode-pplatform-client/src/main/java/com/lls/lowcode/pplatform/client/project/enums/ProjectServiceFeeCollectorEnum.java
+  values:
+  - value: PLATFORM
+    display: 平台方
+  - value: OPERATOR
+    display: 运营方
+  setter_fields: []
+  convention_mismatch: false
+- enum: ProjectServiceFeeQuoteTypeEnum
+  field: project_service_fee_quote_type
+  path: lowcode-pplatform-client/src/main/java/com/lls/lowcode/pplatform/client/project/enums/ProjectServiceFeeQuoteTypeEnum.java
+  values:
+  - value: PLATFORM_SERVICE_RATE
+    display: 平台服务费率
+  - value: TOTAL_RATE
+    display: 总费率
+  - value: FIXED
+    display: 固定年化利率
+  - value: PAY_PER_VIEW
+    display: 非年化利率
+  setter_fields: []
+  convention_mismatch: false
+- enum: ProjectSourceSystemEnum
+  field: project_source_system
+  path: lowcode-pplatform-client/src/main/java/com/lls/lowcode/pplatform/client/project/enums/ProjectSourceSystemEnum.java
+  values:
+  - value: ACFLOW
+    display: 讯易链
+  - value: RVSFACTOR_PC
+    display: 线上保理
+  - value: ORDER
+    display: 订单融资
+  setter_fields: []
+  convention_mismatch: false
+- enum: ProjectZhongdengModeEnum
+  field: project_zhongdeng_mode
+  path: lowcode-pplatform-client/src/main/java/com/lls/lowcode/pplatform/client/project/enums/ProjectZhongdengModeEnum.java
+  values:
+  - value: BEFORE_REGISTER
+    display: 交易前中登登记
+  - value: AFTER_REGISTER
+    display: 转让时中登查询、中登登记
+  - value: FINANCE_REGISTER
+    display: 融资时中登查询、中登登记
+  setter_fields: []
+  convention_mismatch: false
+- enum: CustBuildStatusEnum
+  field: cust_build_status
+  path: lowcode-pplatform-common/lowcode-pplatform-common-api/src/main/java/com/lls/lowcode/pplatform/common/enums/CustBuildStatusEnum.java
+  values:
+  - value: INIT
+    display: 初始化
+  - value: TO_BE_BUILD
+    display: 未建档
+  - value: BUILDING
+    display: 建档中
+  - value: BUILD_SUCCESS
+    display: 认证成功
+  - value: BUILD_FAIL
+    display: 认证失败
+  - value: BUILD_BACK
+    display: 退回
+  - value: BUILD_ACTIVATE
+    display: 待激活
+  - value: CUST_CONFIRM_AWAIT
+    display: 待客户认证
+  - value: CUST_AUDIT_AWAIT
+    display: 待审核
+  - value: CUST_BUILDING
+    display: 审批中
+  - value: CUST_BUILD_SUCCESS
+    display: 审核通过
+  - value: CUST_BUILD_FAIL
+    display: 审核拒绝
+  - value: CUST_CHANGE
+    display: 变更
+  - value: AWAIT_CUST_CONFIRM
+    display: 待客户确认
+  setter_fields:
+  - check_status
+  - cust_build_status
+  - has_build_success
+  - progress
+  convention_mismatch: false
+- enum: CustPersonInfoSourceEnum
+  field: cust_person_info_source
+  path: lowcode-pplatform-common/lowcode-pplatform-common-api/src/main/java/com/lls/lowcode/pplatform/common/enums/CustPersonInfoSourceEnum.java
+  values:
+  - value: AMS
+    display: 管理员
+  setter_fields:
+  - source
+  convention_mismatch: true
+- enum: IDTypeEnum
+  field: id_type
+  path: lowcode-pplatform-common/lowcode-pplatform-common-api/src/main/java/com/lls/lowcode/pplatform/common/enums/IDTypeEnum.java
+  values:
+  - value: CRET_ID
+    display: 二代居民身份证
+  - value: CERT_MAINLAND_PASS
+    display: 港澳居民来往内地通行证
+  - value: CERT_TAIWAN
+    display: 台胞证
+  - value: CERT_GREEN_CARD
+    display: 外国人永久居留证
+  - value: CERT_PASSPORT
+    display: 护照
+  - value: BUSI_LICENCE_NO
+    display: 营业执照号码
+  - value: CRET_ID_HK
+    display: 香港身份证
+  - value: CERT_HK_AND_MACAU_PASS
+    display: 港澳通行证
+  - value: CERT_TAIWAN_PASS
+    display: 台湾通行证
+  - value: CERT_RESIDENT_PERMIT
+    display: 港澳台居民居住证
+  - value: SOCIAL_ORG_CERTIFICATE
+    display: 社会团体登记证书
+  - value: SOCIAL_UNIFIED_CODE
+    display: 企业统一社会信用代码
+  - value: LEGAL_CERTIFICATE
+    display: 事业单位法人证书
+  - value: CERT_OTHER
+    display: 其他
+  setter_fields:
+  - certificate_type
+  - certification_type
+  - first_auth_certificate_type
+  - legal_certification_type
+  convention_mismatch: true
+- enum: PlatformOperatorEnum
+  field: platform_operator
+  path: lowcode-pplatform-common/lowcode-pplatform-common-api/src/main/java/com/lls/lowcode/pplatform/common/enums/PlatformOperatorEnum.java
+  values:
+  - value: TENANT
+    display: 租户自身
+  - value: PLATFORM
+    display: 联易融
+  setter_fields: []
+  convention_mismatch: false
+- enum: SignModeEnum
+  field: sign_mode
+  path: lowcode-pplatform-common/lowcode-pplatform-common-api/src/main/java/com/lls/lowcode/pplatform/common/enums/SignModeEnum.java
+  values:
+  - value: '01'
+    display: 线上
+  - value: '02'
+    display: 线下
+  - value: '03'
+    display: 无需签署
+  setter_fields:
+  - sign_mode
+  convention_mismatch: false
+- enum: TimeUnitEnum
+  field: time_unit
+  path: lowcode-pplatform-common/lowcode-pplatform-common-api/src/main/java/com/lls/lowcode/pplatform/common/enums/TimeUnitEnum.java
+  values:
+  - value: year
+    display: 年
+  - value: month
+    display: 月
+  - value: day
+    display: 日
+  - value: hour
+    display: 时
+  - value: minute
+    display: 分
+  - value: second
+    display: 秒
+  setter_fields: []
+  convention_mismatch: false
+- enum: UserFreezeEnum
+  field: user_freeze
+  path: lowcode-pplatform-common/lowcode-pplatform-common-api/src/main/java/com/lls/lowcode/pplatform/common/enums/UserFreezeEnum.java
+  values:
+  - value: Y
+    display: 冻结状态标记
+  - value: N
+    display: 非冻结状态标记
+  setter_fields:
+  - is_freeze
+  convention_mismatch: true
+- enum: CfcaBizIdentityVerifyMethodEnum
+  field: cfca_biz_identity_verify_method
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/cfca/enums/CfcaBizIdentityVerifyMethodEnum.java
+  values:
+  - value: POLICE_TWO
+    display: 公安二要素
+  - value: ENTERPRISE_THREE
+    display: 企业三要素
+  - value: ENTERPRISE_FOUR
+    display: 企业四要素
+  setter_fields: []
+  convention_mismatch: false
+- enum: CfcaIntentAuthTypeEnum
+  field: cfca_intent_auth_type
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/cfca/enums/CfcaIntentAuthTypeEnum.java
+  values:
+  - value: SMS_CODE
+    display: 短信验证码
+  - value: H5_FACE
+    display: H5刷脸
+  setter_fields: []
+  convention_mismatch: false
+- enum: AsyncIoMenuEnum
+  field: async_io_menu
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/asyncio/enums/AsyncIoMenuEnum.java
+  values:
+  - value: TENANT_PROJECT_CONFIG
+    display: 项目运营配置
+  - value: WECHAT_PROJECT_APPROVAL
+    display: 企微立项审批
+  - value: PROJECT_REPORT_STATISTICS
+    display: 项目立项统计
+  - value: CUST_PROJECT_REL_BATCH
+    display: 企业批量关联项目
+  - value: CUST_INPUT_BATCH
+    display: 客户录入批量导入
+  setter_fields: []
+  convention_mismatch: false
+- enum: AccountTypeEnum
+  field: account_type
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/AccountTypeEnum.java
+  values:
+  - value: '1'
+    display: 银行
+  - value: '2'
+    display: 第三方支付机构
+  - value: '3'
+    display: 开票
+  - value: received
+    display: 收款
+  - value: payment
+    display: 付款
+  setter_fields:
+  - account_type
+  convention_mismatch: false
+- enum: AlterModeEnum
+  field: alter_mode
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/AlterModeEnum.java
+  values:
+  - value: '1'
+    display: 平台变更
+  - value: '2'
+    display: 企业自行变更
+  setter_fields:
+  - alter_mode
+  convention_mismatch: false
+- enum: AssetSignUploaderEnum
+  field: asset_sign_uploader
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/AssetSignUploaderEnum.java
+  values:
+  - value: core
+    display: 核心企业
+  - value: supplier
+    display: 供应商
+  - value: agw
+    display: 内管端
+  - value: empty
+    display: 空
+  setter_fields: []
+  convention_mismatch: false
+- enum: AuthTypeEnum
+  field: auth_type
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/AuthTypeEnum.java
+  values:
+  - value: A
+    display: 企业管理员授权
+  - value: L
+    display: 法人代表人授权
+  setter_fields: []
+  convention_mismatch: false
+- enum: BusiStatusEnum
+  field: busi_status
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/BusiStatusEnum.java
+  values:
+  - value: '01'
+    display: 存续
+  - value: '02'
+    display: 在业
+  - value: '03'
+    display: 吊销
+  - value: '04'
+    display: 注销
+  - value: '05'
+    display: 迁入
+  - value: '06'
+    display: 迁出
+  - value: '07'
+    display: 停业
+  - value: 08
+    display: 清算
+  setter_fields: []
+  convention_mismatch: false
+- enum: BusinessLicenseEffectiveEnum
+  field: business_license_effective
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/BusinessLicenseEffectiveEnum.java
+  values:
+  - value: '0'
+    display: 永久
+  - value: '1'
+    display: 有效期限
+  setter_fields: []
+  convention_mismatch: false
+- enum: ConfirmationModeEnum
+  field: confirmation_mode
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/ConfirmationModeEnum.java
+  values:
+  - value: '00'
+    display: 线上模式
+  - value: '01'
+    display: 线下模式
+  setter_fields: []
+  convention_mismatch: false
+- enum: CustAutoCheckTypeEnum
+  field: cust_auto_check_type
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/CustAutoCheckTypeEnum.java
+  values:
+  - value: info
+    display: 信息核查
+  - value: media
+    display: 影像核查
+  setter_fields: []
+  convention_mismatch: false
+- enum: CustBuildModelEnum
+  field: cust_build_model
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/CustBuildModelEnum.java
+  values:
+  - value: auto_build
+    display: 自主建档
+  - value: manual_build
+    display: 非自主建档
+  setter_fields: []
+  convention_mismatch: false
+- enum: CustBuildStatusEnum
+  field: cust_build_status
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/CustBuildStatusEnum.java
+  values:
+  - value: INIT
+    display: 初始化
+  - value: TO_BE_BUILD
+    display: 未建档
+  - value: BUILDING
+    display: 建档中
+  - value: BUILD_SUCCESS
+    display: 认证成功
+  - value: BUILD_FAIL
+    display: 认证失败
+  - value: BUILD_BACK
+    display: 退回
+  - value: BUILD_ACTIVATE
+    display: 待激活
+  - value: CUST_CONFIRM_AWAIT
+    display: 待客户认证
+  - value: CUST_AUDIT_AWAIT
+    display: 待审核
+  - value: CUST_BUILDING
+    display: 审核中
+  - value: CUST_BUILD_SUCCESS
+    display: 审核通过
+  - value: CUST_BUILD_FAIL
+    display: 审核拒绝
+  - value: CUST_CHANGE
+    display: 变更
+  - value: AWAIT_CUST_CONFIRM
+    display: 待客户确认
+  setter_fields:
+  - check_status
+  - cust_build_status
+  - has_build_success
+  - progress
+  convention_mismatch: false
+- enum: CustCertificationEnum
+  field: cust_certification
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/CustCertificationEnum.java
+  values:
+  - value: '01'
+    display: 企业四要素认证
+  - value: '02'
+    display: 法人三要素认证
+  - value: '03'
+    display: 企业四要素，法人三要素
+  setter_fields: []
+  convention_mismatch: false
+- enum: CustCertificationResultTypeEnum
+  field: cust_certification_result_type
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/CustCertificationResultTypeEnum.java
+  values:
+  - value: TO_BE_VERIFIED
+    display: 待核查
+  - value: AUTOMATIC_AUTHENTICATION_PASSED
+    display: 自动认证通过
+  - value: AUTOMATIC_AUTHENTICATION_FAILED
+    display: 自动认证不通过
+  - value: MANUAL_AUTHENTICATION_PASSED
+    display: 人工认证通过
+  - value: MANUAL_AUTHENTICATION__FAILED
+    display: 人工认证不通过
+  - value: NO_RECORD
+    display: 库无记录
+  setter_fields:
+  - auto_check_msg
+  - auto_check_result
+  - auto_verify_status
+  - face_status
+  - phone_realname_status
+  convention_mismatch: true
+- enum: CustCertificationTypeEnum
+  field: cust_certification_type
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/CustCertificationTypeEnum.java
+  values:
+  - value: COMPANY_FOUR_ELEMENTS
+    display: 企业工商（四要素）认证
+  - value: COMPANY_TWO_ELEMENTS
+    display: 企业工商（二要素）认证
+  - value: LEGAL_THREE_ELEMENTS
+    display: 法人三要素认证
+  - value: LEGAL_REAL_NAME
+    display: 法人实名认证
+  - value: FACE_VERIFY
+    display: 人脸识别认证
+  - value: AUTH_THREE_ELEMENTS
+    display: 客户管理员三要素认证
+  - value: AUTH_REAL_NAME
+    display: 客户管理员实名认证
+  - value: LEGAL_OCR
+    display: 法人身份证OCR比对
+  - value: AUTH_OCR
+    display: 客户管理员身份证OCR比对
+  - value: LICENSE_OCR
+    display: 营业执照OCR比对
+  - value: LEGAL_MEDIA_OCR
+    display: 法人证件核查比对
+  - value: AUTH_MEDIA_OCR
+    display: 客户管理员证件核查比对
+  setter_fields:
+  - certification_type
+  - check_type
+  convention_mismatch: true
+- enum: CustGroupEnum
+  field: cust_group
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/CustGroupEnum.java
+  values:
+  - value: '01'
+    display: 集团内企业
+  - value: '02'
+    display: 集团外企业
+  - value: '03'
+    display: 所有
+  setter_fields: []
+  convention_mismatch: false
+- enum: CustGroupRelStatusEnum
+  field: cust_group_rel_status
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/CustGroupRelStatusEnum.java
+  values:
+  - value: INEFFECTIVE
+    display: 未生效
+  - value: EFFECTIVE
+    display: 已生效
+  - value: REJECTED
+    display: 已拒绝
+  setter_fields:
+  - status
+  convention_mismatch: true
+- enum: CustIndustryEnum
+  field: cust_industry
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/CustIndustryEnum.java
+  values:
+  - value: AHAAHF
+    display: 农、林、牧、渔业
+  - value: MINING_INDUSTRY
+    display: 采矿业
+  - value: MANUFACTURING_INDUSTRY
+    display: 制造业
+  - value: PSHGW
+    display: 电力、热力、燃气及水生产和供应业
+  - value: BUILDING_INDUSTRY
+    display: 建筑业
+  - value: WHOLESALES_RETAIL_TRADE
+    display: 批发和零售业
+  - value: 'TRANSPORTATION_WAREHOUSING_POSTAL '
+    display: 交通运输、仓储和邮政业
+  - value: HOTEL_CATERING_SECTORS
+    display: 住宿和餐饮业
+  - value: ITSITS
+    display: 信息传输、软件和信息技术服务业
+  - value: FINANCIAL_INDUSTRY
+    display: 金融业
+  - value: REAL_ESTATE
+    display: 房地产业
+  - value: LEASING_AND_BUSINESS
+    display: 租赁和商务服务业
+  - value: SRTS
+    display: 科学研究和技术服务业
+  - value: WCEPFM
+    display: 水利、环境和公共设施管理业
+  - value: RSROS
+    display: 居民服务、修理和其他服务业
+  - value: EDUCATE
+    display: 教育
+  - value: HEALTH_AND_SOCIAL_WORK
+    display: 卫生和社会工作
+  - value: CULTURE_SPORTS_AND_ENTERTAINMENT
+    display: 文化、体育和娱乐业
+  - value: PASSASO
+    display: 公共管理、社会保障和社会组织
+  setter_fields: []
+  convention_mismatch: false
+- enum: CustOcrTypeEnum
+  field: cust_ocr_type
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/CustOcrTypeEnum.java
+  values:
+  - value: BIZ_LICENSE
+    display: 营业执照
+  - value: ENTER_AUTH_LETTER
+    display: 企业授权书
+  - value: LEGAL_FRONT
+    display: 法定代表人身份证人像面
+  - value: LEGAL_BACK
+    display: 法定代表人身份证国徽面
+  - value: AUTH_FRONT
+    display: 被授权人身份证人像面
+  - value: AUTH_BACK
+    display: 被授权人身份证国徽面
+  setter_fields: []
+  convention_mismatch: false
+- enum: CustScaleEnum
+  field: cust_scale
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/CustScaleEnum.java
+  values:
+  - value: LARGE
+    display: 大型企业
+  - value: MIDDLE
+    display: 中型企业
+  - value: SMALL
+    display: 小型企业
+  - value: MINIATURE
+    display: 微型企业
+  setter_fields: []
+  convention_mismatch: false
+- enum: CustSourceEnum
+  field: cust_source
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/CustSourceEnum.java
+  values:
+  - value: PLATFORM_PUSH
+    display: 运营中台推送
+  - value: MIGRATORY
+    display: 存量迁移企业
+  - value: PPLATFORM
+    display: 产融自建企业
+  setter_fields:
+  - cust_source
+  convention_mismatch: false
+- enum: CustStatusEnum
+  field: cust_status
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/CustStatusEnum.java
+  values:
+  - value: ADD
+    display: 新增
+  - value: EFFECT
+    display: 生效
+  - value: FAILURE
+    display: 失效
+  - value: WRITEOFF
+    display: 注销
+  - value: FREEZE
+    display: 冻结
+  - value: CHANGE
+    display: 变更
+  setter_fields:
+  - cust_status
+  - status
+  - type_status
+  convention_mismatch: false
+- enum: CustTypeEnum
+  field: cust_type
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/CustTypeEnum.java
+  values:
+  - value: '1'
+    display: 个人客户
+  - value: '2'
+    display: 企业客户
+  - value: '3'
+    display: 运营方企业客户
+  - value: '4'
+    display: 企业客户
+  setter_fields:
+  - cust_type
+  convention_mismatch: false
+- enum: DigitalCertificateModelEnum
+  field: digital_certificate_model
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/DigitalCertificateModelEnum.java
+  values:
+  - value: '00'
+    display: U-key
+  - value: '01'
+    display: 场景模式证书
+  setter_fields: []
+  convention_mismatch: false
+- enum: IndustryTypeEnum
+  field: industry_type
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/IndustryTypeEnum.java
+  values:
+  - value: A0000
+    display: 农、林、牧、渔业
+  - value: B0000
+    display: 采矿业
+  - value: C0000
+    display: 制造业
+  - value: C0000
+    display: 电力、热力、燃气及水生产和供应业
+  - value: C0000
+    display: 建筑业
+  - value: C0000
+    display: 批发和零售业
+  - value: C0000
+    display: 交通运输、仓储和邮政业
+  - value: H0000
+    display: 住宿和餐饮业
+  - value: I0000
+    display: 信息传输、软件和信息技术服务业
+  - value: J0000
+    display: 金融业
+  - value: K0000
+    display: 房地产业
+  - value: L0000
+    display: 租赁和商务服务业
+  - value: M0000
+    display: 科学研究和技术服务业
+  - value: N0000
+    display: 水利、环境和公共设施管理业
+  - value: O0000
+    display: 居民服务、修理和其他服务业
+  - value: P0000
+    display: 教育
+  - value: Q0000
+    display: 卫生和社会工作
+  - value: R0000
+    display: 文化、体育和娱乐业
+  - value: S0000
+    display: 公共管理、社会保障和社会组织
+  - value: T0000
+    display: 国际组织
+  setter_fields: []
+  convention_mismatch: false
+- enum: PaymentChannelEnum
+  field: payment_channel
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/PaymentChannelEnum.java
+  values:
+  - value: '00'
+    display: 线上放款
+  - value: '01'
+    display: 线下放款
+  setter_fields: []
+  convention_mismatch: false
+- enum: ProductServiceEnum
+  field: product_service
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/ProductServiceEnum.java
+  values:
+  - value: ACFLOW
+    display: 多级流转
+  - value: FACTOR
+    display: 保理
+  - value: ABS
+    display: ABS
+  - value: COMMON
+    display: 公共
+  setter_fields: []
+  convention_mismatch: false
+- enum: RealNameResultEnum
+  field: real_name_result
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/RealNameResultEnum.java
+  values:
+  - value: INIT
+    display: 未认证
+  - value: VERIFIED_SUCCESS
+    display: 认证成功
+  - value: VERIFIED_FAILED
+    display: 认证失败
+  setter_fields:
+  - real_name_result
+  convention_mismatch: false
+- enum: ReceivePaymentTypeEnum
+  field: receive_payment_type
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/ReceivePaymentTypeEnum.java
+  values:
+  - value: '1'
+    display: 收款
+  - value: '2'
+    display: 付款
+  setter_fields: []
+  convention_mismatch: false
+- enum: RuleLayerEnum
+  field: rule_layer
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/RuleLayerEnum.java
+  values:
+  - value: UNDERLYING
+    display: 底层规则
+  - value: FINANCING
+    display: 融资规则
+  - value: OTHER
+    display: 其他规则
+  setter_fields: []
+  convention_mismatch: false
+- enum: RuleStatusEnum
+  field: rule_status
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/RuleStatusEnum.java
+  values:
+  - value: PENDING
+    display: 待生效
+  - value: ACTIVE
+    display: 生效中
+  - value: INACTIVE
+    display: 已失效
+  setter_fields:
+  - rule_status
+  convention_mismatch: false
+- enum: StatusEnum
+  field: status
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/StatusEnum.java
+  values:
+  - value: EFFECTIVE
+    display: 有效
+  - value: INVALID
+    display: 无效
+  setter_fields: []
+  convention_mismatch: false
+- enum: UserCompanyStatusEnum
+  field: user_company_status
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/UserCompanyStatusEnum.java
+  values:
+  - value: UN_AUTH
+    display: 未认证
+  - value: AUTHING
+    display: 认证中
+  - value: AUTH_FAIL
+    display: 认证失败
+  - value: AUTH_SUCCESS
+    display: 已认证
+  setter_fields:
+  - user_company_status
+  convention_mismatch: false
+- enum: WechatProductTypeEnum
+  field: wechat_product_type
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/WechatProductTypeEnum.java
+  values:
+  - value: '1'
+    display: 凭证-直保
+  - value: '2'
+    display: 凭证-再保
+  - value: '3'
+    display: 凭证-质押
+  - value: '4'
+    display: 线上保理-直保
+  - value: '5'
+    display: 线上保理-再保
+  - value: '6'
+    display: 线上保理-质押
+  - value: '7'
+    display: 跨境保理
+  - value: '8'
+    display: 供应链票据
+  - value: '9'
+    display: 国内信用证
+  - value: '10'
+    display: 订单融资
+  - value: '11'
+    display: 经销商融资
+  - value: '12'
+    display: 其他（具体在项目描述中说明）
+  setter_fields: []
+  convention_mismatch: false
+- enum: PlatformClientViewFilterTypeEnum
+  field: platform_client_view_filter_type
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/domain/enums/PlatformClientViewFilterTypeEnum.java
+  values:
+  - value: default
+    display: 按产品展示
+  - value: CompanyType
+    display: 按企业角色展示
+  setter_fields: []
+  convention_mismatch: false
+- enum: PlatformProductTypeEnum
+  field: platform_product_type
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/domain/enums/PlatformProductTypeEnum.java
+  values:
+  - value: GENERAL
+    display: 通用产品
+  - value: INTERWORKING
+    display: 互通产品
+  - value: '2'
+    display: 全部产品
+  setter_fields:
+  - product_type
+  convention_mismatch: true
+- enum: ProductAggrementCreationTypeEnum
+  field: product_aggrement_creation_type
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/domain/enums/ProductAggrementCreationTypeEnum.java
+  values:
+  - value: '0'
+    display: 无需签署
+  - value: '1'
+    display: 需阅读
+  - value: '2'
+    display: 需签署
+  setter_fields: []
+  convention_mismatch: false
+- enum: ProductOpenStatusEnum
+  field: product_open_status
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/domain/enums/ProductOpenStatusEnum.java
+  values:
+  - value: Y
+    display: 已开通
+  - value: P
+    display: 开通中
+  - value: N
+    display: 未开通
+  setter_fields:
+  - open_status
+  convention_mismatch: true
+- enum: ProductScopeEnum
+  field: product_scope
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/domain/enums/ProductScopeEnum.java
+  values:
+  - value: ALL
+    display: 全部
+  - value: SOME
+    display: 特定范围
+  setter_fields: []
+  convention_mismatch: false
+- enum: ProductStatusEnum
+  field: product_status
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/domain/enums/ProductStatusEnum.java
+  values:
+  - value: '0'
+    display: 待生效
+  - value: '1'
+    display: 已生效
+  setter_fields:
+  - product_status
+  convention_mismatch: false
+- enum: ProjectApprovalFlowCodeEnum
+  field: project_approval_flow_code
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/domain/enums/ProjectApprovalFlowCodeEnum.java
+  values:
+  - value: NO_ONLINE
+    display: 无需上线审批
+  - value: STANDARD
+    display: 标准项目流程
+  - value: REGULAR
+    display: 常规项目流程
+  setter_fields: []
+  convention_mismatch: false
+- enum: ProjectApprovalMediaCatgEnum
+  field: project_approval_media_catg
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/domain/enums/ProjectApprovalMediaCatgEnum.java
+  values:
+  - value: FBP_PROJECT_CONFIG
+    display: 项目配置文件
+  - value: FBP_AGREEMENT
+    display: 合作协议文件
+  - value: FBP_ONLINE_APPROVAL
+    display: 项目上线审批文件
+  - value: FBP_OA_PROJECT
+    display: 项目配置表
+  - value: FBP_OA_LEGAL_TEXT
+    display: 法律文本/文本清单
+  - value: FBP_OA_BUSI_PRICE
+    display: 商务批复报价
+  - value: FBP_OA_WHITE
+    display: 白名单/批复截图
+  - value: FBP_OA_LOAN
+    display: 自有资金放款模式要素
+  setter_fields:
+  - catg_id
+  convention_mismatch: true
+- enum: ProjectApprovalNodeCodeEnum
+  field: project_approval_node_code
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/domain/enums/ProjectApprovalNodeCodeEnum.java
+  values:
+  - value: PROJECT_CONFIG
+    display: 方案配置
+  - value: PROJECT_MANAGER
+    display: 方案经理
+  - value: LEGAL_PROCESS
+    display: 法务经办
+  - value: LEGAL_REVIEW
+    display: 法务复核
+  - value: BUSINESS_MANAGER
+    display: 业务经理审批
+  - value: OPERATION
+    display: 运营审批
+  - value: OTHER
+    display: 其他
+  - value: SUPPLEMENT_AGREEMENT
+    display: 补充协议
+  setter_fields: []
+  convention_mismatch: false
+- enum: ProjectApprovalNodeStatusEnum
+  field: project_approval_node_status
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/domain/enums/ProjectApprovalNodeStatusEnum.java
+  values:
+  - value: PENDING
+    display: 待审批
+  - value: APPROVING
+    display: 审批中
+  - value: APPROVED
+    display: 已通过
+  - value: REJECTED
+    display: 已拒绝
+  setter_fields:
+  - node_status
+  convention_mismatch: true
+- enum: ProjectApprovalOperateTypeEnum
+  field: project_approval_operate_type
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/domain/enums/ProjectApprovalOperateTypeEnum.java
+  values:
+  - value: pass
+    display: 同意
+  - value: reject
+    display: 驳回
+  - value: back
+    display: 退回
+  - value: delegate
+    display: 转审
+  setter_fields: []
+  convention_mismatch: false
+- enum: ProjectApprovalProjectTypeEnum
+  field: project_approval_project_type
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/domain/enums/ProjectApprovalProjectTypeEnum.java
+  values:
+  - value: STANDARD
+    display: 标准项目
+  - value: REGULAR
+    display: 常规项目
+  setter_fields:
+  - project_type_name
+  convention_mismatch: true
+- enum: ProjectApprovalTypeEnum
+  field: project_approval_type
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/domain/enums/ProjectApprovalTypeEnum.java
+  values:
+  - value: ONLINE_APPROVAL
+    display: 项目上线审批
+  - value: BACK_AGREEMENT
+    display: 后补合作协议
+  setter_fields: []
+  convention_mismatch: false
+- enum: ProjectApprovalWorkflowStatusEnum
+  field: project_approval_workflow_status
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/domain/enums/ProjectApprovalWorkflowStatusEnum.java
+  values:
+  - value: PENDING
+    display: 待发起
+  - value: RUNNING
+    display: 审批中
+  - value: FINISHED
+    display: 审批通过
+  - value: TERMINATED
+    display: 审批拒绝
+  setter_fields:
+  - wf_status
+  convention_mismatch: true
+- enum: ProjectStatusEnum
+  field: project_status
+  path: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/domain/enums/ProjectStatusEnum.java
+  values:
+  - value: '0'
+    display: 待生效
+  - value: '1'
+    display: 已生效
+  - value: '2'
+    display: 已失效
+  setter_fields:
+  - project_status
+  convention_mismatch: false
+- enum: SyncOperationOperatorTypeEnum
+  field: sync_operation_operator_type
+  path: lowcode-pplatform-customer-provider/src/main/java/com/lls/lowcode/pplatform/cust/provider/cust/enums/SyncOperationOperatorTypeEnum.java
+  values:
+  - value: INSERT
+    display: 新增
+  - value: UPDATE
+    display: 修改
+  - value: DELETE
+    display: 删除
+  - value: FREEZE
+    display: 冻结
+  - value: THAW
+    display: 解冻
+  setter_fields: []
+  convention_mismatch: false
+bindings:
+  account_type:
+  - AccountTypeEnum
+  alter_mode:
+  - AlterModeEnum
+  auto_check_msg:
+  - CustCertificationResultTypeEnum
+  auto_check_result:
+  - CustCertificationResultTypeEnum
+  auto_verify_status:
+  - CustCertificationResultTypeEnum
+  biz_node:
+  - CaFeeBizNodeEnum
+  catg_id:
+  - ProjectApprovalMediaCatgEnum
+  certificate_type:
+  - IDTypeEnum
+  certification_type: &id001
+  - CustCertificationTypeEnum
+  - IDTypeEnum
+  check_status:
+  - CustBuildStatusEnum
+  check_type:
+  - CustCertificationTypeEnum
+  config_type:
+  - CaFeeSpecialConfigTypeEnum
+  cust_build_status:
+  - CustBuildStatusEnum
+  cust_source:
+  - CustSourceEnum
+  cust_status:
+  - CustStatusEnum
+  cust_type:
+  - CustTypeEnum
+  face_status:
+  - CustCertificationResultTypeEnum
+  first_auth_certificate_type:
+  - IDTypeEnum
+  has_build_success:
+  - CustBuildStatusEnum
+  invoice_status:
+  - CaFeeInvoiceStatusEnum
+  is_freeze:
+  - UserFreezeEnum
+  legal_certification_type:
+  - IDTypeEnum
+  node_status:
+  - ProjectApprovalNodeStatusEnum
+  open_status:
+  - ProductOpenStatusEnum
+  order_status:
+  - CaFeeOrderStatusEnum
+  pay_status:
+  - CaFeeCompanyPayStatusEnum
+  phone_realname_status:
+  - CustCertificationResultTypeEnum
+  product_status:
+  - ProductStatusEnum
+  product_type:
+  - PlatformProductTypeEnum
+  progress:
+  - CustBuildStatusEnum
+  project_status:
+  - ProjectStatusEnum
+  project_type_name:
+  - ProjectApprovalProjectTypeEnum
+  real_name_result:
+  - RealNameResultEnum
+  rule_status:
+  - RuleStatusEnum
+  sign_mode:
+  - SignModeEnum
+  source:
+  - CustPersonInfoSourceEnum
+  status: &id002
+  - CustGroupRelStatusEnum
+  - CustStatusEnum
+  trigger_source:
+  - CaFeeTodoEnsureTriggerEnum
+  type_status:
+  - CustStatusEnum
+  user_company_status:
+  - UserCompanyStatusEnum
+  wf_status:
+  - ProjectApprovalWorkflowStatusEnum
+ambiguous_fields:
+  certification_type: *id001
+  status: *id002

@@ -88,7 +88,10 @@ def test_schema_map_empty_catalog() -> None:
     assert rmap.render_schema_map(_FakeSession([[]]), ds=SimpleNamespace(id=0)) == ""
 
 
-def test_knowledge_map_lists_units_and_caps_lines() -> None:
+def test_knowledge_map_lists_units_and_caps_lines(monkeypatch) -> None:
+    from common.core.config import settings
+
+    monkeypatch.setattr(settings, "KNOWLEDGE_BACKEND", "unit")  # 本测试验证 unit 分支
     rows = [
         (
             SimpleNamespace(title=f"单元{i}", domain="研发效能", unit_key=f"u{i}"),
@@ -102,5 +105,42 @@ def test_knowledge_map_lists_units_and_caps_lines() -> None:
     assert "…(+5 more)" in text  # 35 - 30 行封顶
 
 
-def test_knowledge_map_empty() -> None:
+def test_knowledge_map_empty(monkeypatch) -> None:
+    from common.core.config import settings
+
+    monkeypatch.setattr(settings, "KNOWLEDGE_BACKEND", "unit")
     assert rmap.render_knowledge_map(_FakeSession([[]]), oid=1, ds_id=8) == ""
+
+
+def test_knowledge_map_wiki_backend_renders_pages(monkeypatch, tmp_path) -> None:
+    """wiki 后端：页面清单渲染（published 页一行一条，封顶+more）。"""
+    from common.core.config import settings
+
+    monkeypatch.setattr(settings, "KNOWLEDGE_BACKEND", "wiki")
+    monkeypatch.setattr(settings, "KNOWLEDGE_WIKI_DS_ALLOWLIST", "*")
+    pages = "\n\n".join(
+        f"---\ntype: rule\ntitle: 规则{i}\npage_key: rule_{i}\nstatus: published\n"
+        f"oid: 1\nscope:\n  databases: [db_x]\n---\n- [[x]]\n规则{i}正文"
+        for i in range(3)
+    )
+    (tmp_path / "r0.md").write_text(pages.split("\n\n")[0])
+    for i, part in enumerate(pages.split("\n\n")):
+        (tmp_path / f"r{i}.md").write_text(part)
+    monkeypatch.setattr(settings, "KNOWLEDGE_WIKI_PAGES_DIRS", str(tmp_path))
+    from apps.chat.steps import wiki_recall as wr
+
+    wr._STORE = None
+    wr._STORE_DIRS = ()
+    wr._STORE_STAMP = ()
+    text = rmap.render_knowledge_map(
+        _FakeSession([[]]), oid=1, ds_id=8, databases=["db_x"]
+    )
+    assert "wiki 页面" in text
+    assert "r0" in text and "规则0" in text
+    # scope.databases 围栏是严格交集：库名不相交/未传库名 → 声明围栏的页不可见
+    fenced = rmap.render_knowledge_map(
+        _FakeSession([[]]), oid=1, ds_id=8, databases=["other_db"]
+    )
+    assert fenced == ""
+    no_db = rmap.render_knowledge_map(_FakeSession([[]]), oid=1, ds_id=8)
+    assert no_db == ""

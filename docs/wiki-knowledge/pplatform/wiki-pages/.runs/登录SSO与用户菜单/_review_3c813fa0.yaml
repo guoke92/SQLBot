@@ -1,0 +1,4 @@
+body: claim 声称灰度颜色缓存通过 RedisClient 按 RedisKeyConstants 缓存 BgColorCacheDto，Redis 异常降级直读
+  DB，但 code_status=uncovered，当前代码中未检索到相关实现。建议补充代码证据或调整需求文档状态。
+title: BR-003 灰度颜色缓存
+type: process

@@ -1,0 +1,538 @@
+unit_id: survey-research
+revision: 1
+title: 问卷调研（问卷星活动 + 讯易链调研）
+aliases:
+- 问卷
+- 调研问卷
+- 问卷星
+- 转盘抽奖
+- 答题
+- 白名单企业
+domain: 问卷调研
+applicability: 用户问"参与问卷的企业""答题明细""问卷星白名单""转盘展示""讯易链调研" 等问卷调研类问题时使用。
+description: 两套独立问卷体系：(1) 问卷星活动（cust_company_survey_whitelist 白名单资格 + cust_company_survey_state 首访/转盘状态；答卷数据在外部问卷星 open.wenjuan.com， 本地不落答卷完成态）；(2) 讯易链调研（cust_survey_answer 本地答题明细， 一行=一道题的一个选项，多选每选项一行）。三表关联键统一为 company_id（=cust_company_info.id）。 本域所有入口强制 db_tenant_code=all 跨租户读写。
+content:
+  concepts:
+  - concept_id: survey-whitelist
+    name: 问卷白名单企业
+    aliases:
+    - 参与问卷的企业
+    - 白名单企业
+    - 问卷星活动企业
+    - 参与活动企业
+    - 活动资格
+    - 首页活动企业
+    definition: cust_company_survey_whitelist WHERE enable='Y' 的企业，参与首页问卷星活动。
+    field_targets:
+    - dataset: survey_whitelist
+      field: enable
+    evidence_refs:
+    - ev-srv-whitelist-def
+    - ev-srv-whitelist-read
+    - ev-srv-whitelist-no-writer
+  - concept_id: survey-answer-grain
+    name: 答题明细粒度
+    aliases:
+    - 答题记录
+    - 答卷
+    - 问卷答案
+    - 选项分布
+    - 多选题
+    - 答题统计
+    - 问卷结果
+    definition: cust_survey_answer 一行=一道题的一个选项（多选题每选项一行）。任何"答题企业数/ 答卷数"必须 COUNT(DISTINCT company_id)，按行 COUNT 会因多选题膨胀。
+    field_targets:
+    - dataset: survey_answer
+      field: question_no
+    - dataset: survey_answer
+      field: answer_value
+    evidence_refs:
+    - ev-srv-answer-grain
+    - ev-srv-submit-batch
+  - concept_id: first-visitor
+    name: 企业首访用户
+    aliases:
+    - 首访
+    - 首次访问
+    - 第一个访问的用户
+    - 首个用户
+    - 首访认领
+    definition: cust_company_survey_state.first_visitor_user_id（每企业至多一个，并发下仅一人成功认领）。
+    field_targets:
+    - dataset: survey_state
+      field: first_visitor_user_id
+    evidence_refs:
+    - ev-srv-claim
+    - ev-srv-claim-insert
+    - ev-srv-claim-guard
+    - ev-srv-goto-product
+  - concept_id: lottery-shown
+    name: 转盘已展示
+    aliases:
+    - 抽奖
+    - 转盘
+    - 抽奖转盘
+    - 转盘抽奖已展示
+    - 中奖弹窗
+    definition: first_visitor_lottery_shown N→Y 一次性单向翻转，仅首访用户本人可标记。
+    dictionary:
+      Y: 已展示
+      N: 未展示
+    field_targets:
+    - dataset: survey_state
+      field: first_visitor_lottery_shown
+    evidence_refs:
+    - ev-srv-lottery
+    - ev-srv-lottery-guard
+    - ev-srv-display-scene
+  processes:
+  - stage_id: submit-survey
+    name: 提交讯易链答题
+    description: (company_id, survey_code) 幂等，一对多展开为多行（题×选项）批量 INSERT。 survey_code 服务端强制取 Nacos 配置（默认 XYL_2024_Q1），入参被忽略。
+    trigger: 企业端 POST /cust-web/survey/submit
+    enter_conditions:
+    - 调研未过期
+    - companyType=SUPPLIER
+    - (company_id, survey_code) 不存在
+    next_stages: []
+    data_effects:
+    - operation: insert
+      dataset: survey_answer
+      fields:
+      - survey_code
+      - company_id
+      - user_id
+      - question_no
+      - answer_value
+      - other_text
+      - submit_time
+    evidence_refs:
+    - ev-srv-submit
+    - ev-srv-submit-batch
+    - ev-srv-popup-guard
+    - ev-srv-answer-exists
+    - ev-srv-survey-config
+  - stage_id: claim-first-visitor
+    name: 首访认领
+    description: 无行则 INSERT（respondent=String(companyId)，first_visitor_lottery_shown=N，enable=Y）； 有行且 first_visitor_user_id IS NULL 则 guarded UPDATE 认领。并发安全靠 DuplicateKeyException 回读 + isNull 条件双保险。
+    trigger: 首页展示配置 / gotoProduct 跳转决策（隐式写）
+    next_stages:
+    - mark-lottery
+    data_effects:
+    - operation: insert
+      dataset: survey_state
+      fields:
+      - company_id
+      - respondent
+      - first_visitor_user_id
+      - first_visit_time
+      - first_visitor_lottery_shown
+      - enable
+      condition: 无行时 INSERT
+    - operation: update
+      dataset: survey_state
+      fields:
+      - first_visitor_user_id
+      - first_visit_time
+      condition: 有行且 first_visitor_user_id IS NULL
+    evidence_refs:
+    - ev-srv-claim
+    - ev-srv-claim-insert
+    - ev-srv-claim-guard
+    - ev-srv-goto-product
+    - ev-srv-display-scene
+  - stage_id: mark-lottery
+    name: 标记转盘已展示
+    description: 仅 first_visitor_user_id 本人可把自己企业的 N 翻成 Y（异步执行）。 company_id 匹配 + first_visitor_user_id=当前用户 双条件。
+    trigger: 企业端 POST /cust-web/wenjuan/mark-lottery-shown
+    next_stages: []
+    data_effects:
+    - operation: update
+      dataset: survey_state
+      fields:
+      - first_visitor_lottery_shown
+      - first_visitor_lottery_shown_time
+      condition: company_id=? AND first_visitor_user_id=?
+    evidence_refs:
+    - ev-srv-lottery
+    - ev-srv-lottery-guard
+    - ev-srv-display-scene
+  - stage_id: home-display-decision
+    name: 首页问卷活动展示决策
+    description: 白名单参与→首访认领（隐式写）→问卷星完成态实时查询→场景分支：首访且未展示→转盘+中奖弹窗+右下角入口；已展示未完成→指引+入口；已完成→仅入口；非首访→全部不展示。答卷完成态不落库。
+    trigger: 企业端 POST /cust-web/wenjuan/home-display-config
+    enter_conditions:
+    - wenjuan 配置有效
+    - userId/companyId 非空
+    - 企业在白名单(enable=Y)
+    next_stages: []
+    data_effects: []
+    evidence_refs:
+    - ev-srv-display-scene
+    - ev-srv-external-api
+  - stage_id: check-popup
+    name: 调研弹窗判定
+    description: 三条件闸门：调研未过期（Nacos expire.time）AND 当前企业类型=SUPPLIER AND (company_id,survey_code) 无答题记录。任一不满足不弹。
+    trigger: 企业端 POST /cust-web/survey/check-popup
+    enter_conditions:
+    - 调研未过期
+    - companyType=SUPPLIER
+    - 未答本轮
+    next_stages:
+    - submit-survey
+    data_effects: []
+    evidence_refs:
+    - ev-srv-popup-guard
+    - ev-srv-survey-config
+  datasets:
+  - dataset_id: survey_whitelist
+    name: cust_company_survey_whitelist
+    description: 问卷星活动白名单（参与企业资格表；仓库内无业务写入口，运营经 DML/lowcode CRUD 维护）。
+    database: lowcode_pplatform
+    fields:
+    - field_id: id
+      name: id
+      data_type: bigint
+      description: 表主键
+    - field_id: company_id
+      name: company_id
+      data_type: bigint
+      description: 企业ID（=cust_company_info.id）
+    - field_id: enable
+      name: enable
+      data_type: varchar
+      description: enable
+      dictionary:
+        Y: 参与活动
+        N: 退出
+    evidence_refs:
+    - ev-srv-whitelist-def
+    - ev-srv-whitelist-no-writer
+  - dataset_id: survey_state
+    name: cust_company_survey_state
+    description: 问卷星活动运行时状态（首访认领 + 转盘展示；不存答卷完成态——答卷在外部问卷星）。
+    database: lowcode_pplatform
+    fields:
+    - field_id: id
+      name: id
+      data_type: bigint
+      description: 表主键
+    - field_id: company_id
+      name: company_id
+      data_type: bigint
+      description: 企业ID（=cust_company_info.id）
+    - field_id: respondent
+      name: respondent
+      data_type: varchar
+      description: 答卷人标识（=String(companyId)，与外部问卷星 source 映射）
+    - field_id: first_visitor_user_id
+      name: first_visitor_user_id
+      data_type: varchar
+      description: 首访用户id（每企业至多一个）
+    - field_id: first_visit_time
+      name: first_visit_time
+      data_type: datetime
+      description: 首次访问时间
+    - field_id: first_visitor_lottery_shown
+      name: first_visitor_lottery_shown
+      data_type: varchar
+      description: 首访用户转盘是否已展示
+      dictionary:
+        Y: 已展示
+        N: 未展示
+      evidence_refs:
+      - ev-srv-lottery
+    - field_id: first_visitor_lottery_shown_time
+      name: first_visitor_lottery_shown_time
+      data_type: datetime
+      description: 转盘展示时间
+    - field_id: enable
+      name: enable
+      data_type: varchar
+      description: enable
+    evidence_refs:
+    - ev-srv-claim-insert
+    - ev-srv-claim-guard
+    - ev-srv-lottery-guard
+  - dataset_id: survey_answer
+    name: cust_survey_answer
+    description: 讯易链调研答题明细（一行=一道题的一个选项，多选每选项一行）。 统计答题企业数必须 COUNT(DISTINCT company_id)。
+    database: lowcode_pplatform
+    fields:
+    - field_id: id
+      name: id
+      data_type: bigint
+      description: 表主键
+    - field_id: survey_code
+      name: survey_code
+      data_type: varchar
+      description: 调研轮次编码（Nacos survey.xyl.code，默认 XYL_2024_Q1）
+    - field_id: company_id
+      name: company_id
+      data_type: bigint
+      description: 企业ID（=cust_company_info.id）
+    - field_id: user_id
+      name: user_id
+      data_type: bigint
+      description: 答题用户ID
+    - field_id: question_no
+      name: question_no
+      data_type: varchar
+      description: 题号（1~N）
+    - field_id: answer_value
+      name: answer_value
+      data_type: varchar
+      description: 选项明文（多选每选项一行）
+    - field_id: other_text
+      name: other_text
+      data_type: varchar
+      description: 其他选项时的文本
+    - field_id: submit_time
+      name: submit_time
+      data_type: datetime
+      description: 提交时间
+    evidence_refs:
+    - ev-srv-submit-batch
+    - ev-srv-answer-exists
+    - ev-srv-popup-guard
+  relationships:
+  - relationship_id: whitelist-state-company
+    left:
+      dataset: survey_whitelist
+      field: company_id
+    right:
+      dataset: survey_state
+      field: company_id
+    relationship_type: SHARED_KEY
+    cardinality: one_to_one
+    business_meaning: 白名单（资格）与状态（运行时）同键不同生命周期；whitelist 可先于 state 存在
+    status: proposed
+    evidence_refs:
+    - ev-srv-claim
+    confidence: 0.8
+  - relationship_id: answer-company-id
+    left:
+      dataset: survey_answer
+      field: company_id
+    right:
+      dataset: survey_state
+      field: company_id
+    relationship_type: SHARED_KEY
+    cardinality: many_to_one
+    business_meaning: 答题明细与活动状态同键（但属两套问卷体系，不构成流程链）
+    status: proposed
+    evidence_refs:
+    - ev-srv-answer-grain
+    confidence: 0.7
+  calibers:
+  - caliber_id: participating-companies
+    label: 参与问卷活动企业
+    description: 白名单启用（问卷星活动）
+    contract_fragment:
+      where:
+      - enable = 'Y'
+    field_targets:
+    - dataset: survey_whitelist
+      field: enable
+    evidence_refs:
+    - ev-srv-whitelist-read
+  - caliber_id: answered-companies
+    label: 已答题企业（讯易链）
+    description: 本轮调研已提交答案的企业
+    contract_fragment:
+      exists: SELECT 1 FROM cust_survey_answer a WHERE a.company_id = c.id AND a.survey_code = ?
+    field_targets:
+    - dataset: survey_answer
+      field: company_id
+    - dataset: survey_answer
+      field: survey_code
+    evidence_refs:
+    - ev-srv-submit
+  - caliber_id: popup-eligible
+    label: 弹窗资格
+    description: Nacos 未过期 AND companyType=SUPPLIER AND 未答本轮
+    contract_fragment:
+      where:
+      - companyType = 'SUPPLIER'
+      - NOT EXISTS answered
+    field_targets:
+    - dataset: survey_answer
+      field: company_id
+    evidence_refs:
+    - ev-srv-submit
+  - caliber_id: lottery-pending-companies
+    label: 转盘待展示企业
+    description: 有首访记录但转盘未展示的企业
+    contract_fragment:
+      where:
+      - first_visitor_user_id IS NOT NULL
+      - first_visitor_lottery_shown = 'N'
+    field_targets:
+    - dataset: survey_state
+      field: first_visitor_lottery_shown
+    evidence_refs:
+    - ev-srv-lottery-guard
+    - ev-srv-display-scene
+  metrics:
+  - metric_id: answered-company-count
+    name: 已答题企业数
+    description: 本轮调研已提交的企业数（必须 DISTINCT company_id，多选题多行）
+    aggregation: COUNT
+    field:
+      dataset: survey_answer
+      field: company_id
+    filters:
+    - survey_code: XYL_2024_Q1
+    grain:
+    - dataset: survey_answer
+      field: survey_code
+    evidence_refs:
+    - ev-srv-answer-grain
+  - metric_id: answer-detail-rows
+    name: 答题明细行数
+    description: 答题明细总行数（题×选项粒度，多选膨胀）
+    aggregation: COUNT
+    field:
+      dataset: survey_answer
+      field: id
+    grain:
+    - dataset: survey_answer
+      field: question_no
+    evidence_refs:
+    - ev-srv-answer-grain
+  - metric_id: lottery-shown-count
+    name: 已展示转盘企业数
+    description: 首访用户已完成转盘展示的企业数
+    aggregation: COUNT
+    field:
+      dataset: survey_state
+      field: id
+    filters:
+    - first_visitor_lottery_shown: Y
+    evidence_refs:
+    - ev-srv-lottery
+  - metric_id: option-distribution
+    name: 某题选项分布
+    description: 某题各选项的答题企业数（DISTINCT company_id 防多选膨胀）
+    aggregation: COUNT
+    field:
+      dataset: survey_answer
+      field: company_id
+    filters:
+    - question_no: '?'
+      answer_value: '?'
+    grain:
+    - dataset: survey_answer
+      field: answer_value
+    evidence_refs:
+    - ev-srv-answer-grain
+  domain_rules:
+  - rule_id: answer-grain-distinct
+    label: 答题粒度规则
+    content: cust_survey_answer 一行=一道题的一个选项（多选每选项一行，buildRecords 双层 for 展开）。 "答题企业数/答卷数"必须 COUNT(DISTINCT company_id)；按行 COUNT 会因多选题膨胀； "某题选某项的企业数"也要 DISTINCT（同企业同题不同选项会重复计企业）。
+    applicability: 所有答题/问卷统计类查询
+    query_impact: 按行 COUNT 的"答题数"不是企业数也不是答卷数，是选项行数。
+    field_targets:
+    - dataset: survey_answer
+      field: company_id
+    - dataset: survey_answer
+      field: question_no
+    evidence_refs:
+    - ev-srv-answer-grain
+    - ev-srv-submit-batch
+  - rule_id: wenjuan-external-not-local
+    label: 问卷星答卷不在本地
+    content: 问卷星活动的答卷数据在外部 open.wenjuan.com（get_rspd_list，source=String(companyId)、 respondent_status=1 为有效已答）；cust_company_survey_state 不存完成态。 "问卷星已答企业"本地库查不到，需实时调外部 API。
+    applicability: 问卷星活动已答/完成类查询
+    query_impact: 本地表无法回答"问卷星已答企业清单"；只能查白名单（参与资格）和首访/转盘状态。
+    field_targets:
+    - dataset: survey_state
+      field: company_id
+    evidence_refs:
+    - ev-srv-external-api
+    - ev-srv-external-effective
+  - rule_id: two-survey-systems
+    label: 两套问卷体系边界
+    content: 问卷星活动（whitelist+state）与讯易链调研（answer）是两套独立体系： 白名单/转盘属首页活动；答题明细属讯易链弹窗调研。survey_code 是 Nacos 配置 非外键。两者仅通过 company_id 同键，不构成流程链。
+    applicability: 所有问卷类查询
+    query_impact: 白名单企业与答题企业是两个不同集合，不可混用。
+    field_targets:
+    - dataset: survey_whitelist
+      field: company_id
+    - dataset: survey_answer
+      field: company_id
+    evidence_refs:
+    - ev-srv-two-systems
+    - ev-srv-display-scene
+  - rule_id: submit-idempotent
+    label: 答题幂等
+    content: (company_id, survey_code) 已存在则整单跳过；DB 有配套索引 cust_survey_answer_company_id_IDX。
+    applicability: 答题重复提交排查
+    query_impact: 同企业同轮次至多一份答卷（多行）。
+    field_targets:
+    - dataset: survey_answer
+      field: company_id
+    - dataset: survey_answer
+      field: survey_code
+    evidence_refs:
+    - ev-srv-submit
+    - ev-srv-answer-exists
+  - rule_id: whitelist-dml-maintained
+    label: 白名单仅运营维护
+    content: cust_company_survey_whitelist 全仓唯一代码入口是只读 isParticipating（company_id+enable='Y' exists）；无业务写入口，数据由运营经 DML/lowcode CRUD 维护。
+    applicability: 白名单数据来源解释、数据变更排查
+    query_impact: 白名单变更不在应用日志/审计流里；问数只反映当前快照。
+    field_targets:
+    - dataset: survey_whitelist
+      field: enable
+    evidence_refs:
+    - ev-srv-whitelist-no-writer
+    - ev-srv-whitelist-def
+  - rule_id: survey-code-round-switch
+    label: 轮次切换语义
+    content: survey_code 由 Nacos survey.xyl.code 管理（默认 XYL_2024_Q1），修改配置=发布新一轮调研；旧轮已答企业对新轮重新弹窗。到期时间 expire.time 过期后弹窗与提交全关。
+    applicability: 按轮次统计答题、跨轮对比
+    query_impact: 跨轮统计必须按 survey_code 分组；'全部已答企业'是跨轮并集不是单轮口径。
+    field_targets:
+    - dataset: survey_answer
+      field: survey_code
+    evidence_refs:
+    - ev-srv-survey-config
+    - ev-srv-popup-guard
+  - rule_id: wenjuan-effective-answer
+    label: 问卷星有效答卷判定
+    content: 问卷星侧'有效已答'=答卷列表存在 respondent_status 严格等于 1 的记录（数字 1 或字符串 '1'）；字段缺失/null/其他值均视为未答。
+    applicability: 问卷星完成率、已答企业核对
+    query_impact: 本地无此数据；需实时调外部 API（get_rspd_list）核对。
+    field_targets:
+    - dataset: survey_state
+      field: company_id
+    evidence_refs:
+    - ev-srv-external-effective
+    - ev-srv-external-api
+  verified_query_patterns:
+  - pattern_id: list-answered-companies
+    question: 本轮调研已答题企业清单
+    query: SELECT DISTINCT company_id FROM cust_survey_answer WHERE survey_code = 'XYL_2024_Q1' AND enable = 'Y'
+    intended_specification:
+      caliber_id: answered-companies
+    verification:
+      status: PENDING_VALIDATION
+    evidence_refs:
+    - ev-srv-submit
+  - pattern_id: option-distribution-query
+    question: 某题各选项的答题企业数
+    query: SELECT answer_value, COUNT(DISTINCT company_id) AS company_count FROM cust_survey_answer WHERE survey_code = 'XYL_2024_Q1' AND question_no = ? GROUP BY answer_value
+    intended_specification:
+      caliber_id: answered-companies
+      note: DISTINCT 防多选膨胀
+    verification:
+      status: PENDING_VALIDATION
+    evidence_refs:
+    - ev-srv-answer-grain
+unit_links: []
+assumptions:
+- 问卷星答卷数据在外部 open.wenjuan.com（非本地表），本包不声明外部数据集。
+- survey_code 值域由 Nacos 管理，改配置=发新一轮调研。
+- 本域所有入口强制 db_tenant_code=all 跨租户（tenant 列是样板不是关联）。
+confidence: 0.8

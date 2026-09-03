@@ -51,14 +51,39 @@ def _wire(
 ) -> _FakeSession:
     session = _FakeSession()
     service = service or _service()
-    monkeypatch.setattr(nlq, "_llm_service", lambda state: service)
-    monkeypatch.setattr(nlq, "topup_enabled_for", lambda ds_id: True)
-    monkeypatch.setattr(nlq, "session_scope", lambda: contextlib.nullcontext(session))
-    monkeypatch.setattr(
+    for _patch_target in (
         nlq,
-        "resolve_recall_topup",
-        lambda *a, **k: manifest if manifest is not None else _manifest(),
-    )
+        nlq.context,
+        nlq.topup,
+        nlq.routing,
+        nlq.planning,
+        nlq.execution,
+        nlq.presentation,
+        nlq.analysis,
+    ):
+        monkeypatch.setattr(_patch_target, "_llm_service", lambda state: service)
+    for _patch_target in (nlq, nlq.topup, nlq.context, nlq.planning, nlq.routing):
+        monkeypatch.setattr(_patch_target, "topup_enabled_for", lambda ds_id: True)
+    for _patch_target in (
+        nlq,
+        nlq.context,
+        nlq.topup,
+        nlq.routing,
+        nlq.planning,
+        nlq.execution,
+        nlq.presentation,
+        nlq.analysis,
+        nlq.audit,
+    ):
+        monkeypatch.setattr(
+            _patch_target, "session_scope", lambda: contextlib.nullcontext(session)
+        )
+    for _patch_target in (nlq, nlq.topup):
+        monkeypatch.setattr(
+            _patch_target,
+            "resolve_recall_topup",
+            lambda *a, **k: manifest if manifest is not None else _manifest(),
+        )
 
     def fake_fulfill(*_args, **_kwargs):
         return SimpleNamespace(
@@ -68,20 +93,35 @@ def _wire(
             + (list(manifest.tables) if manifest else []),
         )
 
-    monkeypatch.setattr(nlq, "fulfill_recall_topup", fake_fulfill)
-    monkeypatch.setattr(
+    for _patch_target in (nlq, nlq.topup):
+        monkeypatch.setattr(_patch_target, "fulfill_recall_topup", fake_fulfill)
+    for _patch_target in (nlq, nlq.topup, nlq.context, nlq.presentation):
+        monkeypatch.setattr(
+            _patch_target,
+            "capture_planning_context",
+            lambda *a, **k: SimpleNamespace(model_dump=lambda **kw: {"v": 2}),
+        )
+    for _patch_target in (nlq, nlq.topup, nlq.planning):
+        monkeypatch.setattr(
+            _patch_target,
+            "record_topup_event",
+            lambda sess, run_id, event: sess.events.append(event),
+        )
+    for _patch_target in (nlq, nlq.topup):
+        monkeypatch.setattr(
+            _patch_target, "apply_knowledge_topup", lambda *a, **k: knowledge_changed
+        )
+    for _patch_target in (nlq, nlq.context, nlq.topup, nlq.planning, nlq.execution):
+        monkeypatch.setattr(_patch_target, "_access_scope", lambda state: None)
+    for _patch_target in (
         nlq,
-        "capture_planning_context",
-        lambda *a, **k: SimpleNamespace(model_dump=lambda **kw: {"v": 2}),
-    )
-    monkeypatch.setattr(
-        nlq,
-        "record_topup_event",
-        lambda sess, run_id, event: sess.events.append(event),
-    )
-    monkeypatch.setattr(nlq, "apply_knowledge_topup", lambda *a, **k: knowledge_changed)
-    monkeypatch.setattr(nlq, "_access_scope", lambda state: None)
-    monkeypatch.setattr(nlq, "_ds_scope", lambda svc: (1, 8))
+        nlq.context,
+        nlq.topup,
+        nlq.planning,
+        nlq.presentation,
+        nlq.audit,
+    ):
+        monkeypatch.setattr(_patch_target, "_ds_scope", lambda svc: (1, 8))
     return session
 
 
@@ -270,8 +310,19 @@ def test_ready_entity_coverage_is_advisory_only(monkeypatch) -> None:
 
 def test_gate_disabled_passes_through(monkeypatch) -> None:
     service = _service()
-    monkeypatch.setattr(nlq, "_llm_service", lambda state: service)
-    monkeypatch.setattr(nlq, "topup_enabled_for", lambda ds_id: False)
+    for _patch_target in (
+        nlq,
+        nlq.context,
+        nlq.topup,
+        nlq.routing,
+        nlq.planning,
+        nlq.execution,
+        nlq.presentation,
+        nlq.analysis,
+    ):
+        monkeypatch.setattr(_patch_target, "_llm_service", lambda state: service)
+    for _patch_target in (nlq, nlq.topup, nlq.context, nlq.planning, nlq.routing):
+        monkeypatch.setattr(_patch_target, "topup_enabled_for", lambda ds_id: False)
     state = {
         "run_id": "r1",
         "planning_decision": "unsupported",
@@ -403,36 +454,76 @@ def test_run_topup_persists_snapshot_writeback(monkeypatch) -> None:
     """生死线：changed 必须写回 QueryRun.planning_context，否则下个节点 restore 旧快照."""
     session = _PersistSession()
     service = _service()
-    monkeypatch.setattr(nlq, "_llm_service", lambda state: service)
-    monkeypatch.setattr(nlq, "topup_enabled_for", lambda ds_id: True)
-    monkeypatch.setattr(nlq, "session_scope", lambda: contextlib.nullcontext(session))
-    monkeypatch.setattr(
+    for _patch_target in (
         nlq,
-        "resolve_recall_topup",
-        lambda *a, **k: _manifest(tables=("d_organization",)),
-    )
-    monkeypatch.setattr(
+        nlq.context,
+        nlq.topup,
+        nlq.routing,
+        nlq.planning,
+        nlq.execution,
+        nlq.presentation,
+        nlq.analysis,
+    ):
+        monkeypatch.setattr(_patch_target, "_llm_service", lambda state: service)
+    for _patch_target in (nlq, nlq.topup, nlq.context, nlq.planning, nlq.routing):
+        monkeypatch.setattr(_patch_target, "topup_enabled_for", lambda ds_id: True)
+    for _patch_target in (
         nlq,
-        "fulfill_recall_topup",
-        lambda *a, **k: SimpleNamespace(
-            changed=True,
-            added_tables=["d_organization"],
-            resources=["d_task", "d_organization"],
-        ),
-    )
-    monkeypatch.setattr(nlq, "apply_knowledge_topup", lambda *a, **k: False)
-    monkeypatch.setattr(
+        nlq.context,
+        nlq.topup,
+        nlq.routing,
+        nlq.planning,
+        nlq.execution,
+        nlq.presentation,
+        nlq.analysis,
+        nlq.audit,
+    ):
+        monkeypatch.setattr(
+            _patch_target, "session_scope", lambda: contextlib.nullcontext(session)
+        )
+    for _patch_target in (nlq, nlq.topup):
+        monkeypatch.setattr(
+            _patch_target,
+            "resolve_recall_topup",
+            lambda *a, **k: _manifest(tables=("d_organization",)),
+        )
+    for _patch_target in (nlq, nlq.topup):
+        monkeypatch.setattr(
+            _patch_target,
+            "fulfill_recall_topup",
+            lambda *a, **k: SimpleNamespace(
+                changed=True,
+                added_tables=["d_organization"],
+                resources=["d_task", "d_organization"],
+            ),
+        )
+    for _patch_target in (nlq, nlq.topup):
+        monkeypatch.setattr(
+            _patch_target, "apply_knowledge_topup", lambda *a, **k: False
+        )
+    for _patch_target in (nlq, nlq.topup, nlq.planning):
+        monkeypatch.setattr(
+            _patch_target,
+            "record_topup_event",
+            lambda sess, run_id, event: sess.events.append(event),
+        )
+    for _patch_target in (nlq, nlq.topup, nlq.context, nlq.presentation):
+        monkeypatch.setattr(
+            _patch_target,
+            "capture_planning_context",
+            lambda *a, **k: SimpleNamespace(model_dump=lambda **kw: {"v": 2}),
+        )
+    for _patch_target in (nlq, nlq.context, nlq.topup, nlq.planning, nlq.execution):
+        monkeypatch.setattr(_patch_target, "_access_scope", lambda state: None)
+    for _patch_target in (
         nlq,
-        "record_topup_event",
-        lambda sess, run_id, event: sess.events.append(event),
-    )
-    monkeypatch.setattr(
-        nlq,
-        "capture_planning_context",
-        lambda *a, **k: SimpleNamespace(model_dump=lambda **kw: {"v": 2}),
-    )
-    monkeypatch.setattr(nlq, "_access_scope", lambda state: None)
-    monkeypatch.setattr(nlq, "_ds_scope", lambda svc: (1, 8))
+        nlq.context,
+        nlq.topup,
+        nlq.planning,
+        nlq.presentation,
+        nlq.audit,
+    ):
+        monkeypatch.setattr(_patch_target, "_ds_scope", lambda svc: (1, 8))
 
     run = nlq._run_topup(
         {"run_id": "r1", "entity_bindings": {}, "temporal_parse": {}},
@@ -452,29 +543,68 @@ def test_run_topup_no_persist_for_question_pass(monkeypatch) -> None:
     """首轮问题 pass（persist=False）不写回 — caller 随后统一 capture."""
     session = _PersistSession()
     service = _service()
-    monkeypatch.setattr(nlq, "_llm_service", lambda state: service)
-    monkeypatch.setattr(nlq, "topup_enabled_for", lambda ds_id: True)
-    monkeypatch.setattr(nlq, "session_scope", lambda: contextlib.nullcontext(session))
-    monkeypatch.setattr(
+    for _patch_target in (
         nlq,
-        "resolve_recall_topup",
-        lambda *a, **k: _manifest(tables=("d_organization",)),
-    )
-    monkeypatch.setattr(
+        nlq.context,
+        nlq.topup,
+        nlq.routing,
+        nlq.planning,
+        nlq.execution,
+        nlq.presentation,
+        nlq.analysis,
+    ):
+        monkeypatch.setattr(_patch_target, "_llm_service", lambda state: service)
+    for _patch_target in (nlq, nlq.topup, nlq.context, nlq.planning, nlq.routing):
+        monkeypatch.setattr(_patch_target, "topup_enabled_for", lambda ds_id: True)
+    for _patch_target in (
         nlq,
-        "fulfill_recall_topup",
-        lambda *a, **k: SimpleNamespace(
-            changed=True, added_tables=["d_organization"], resources=[]
-        ),
-    )
-    monkeypatch.setattr(nlq, "apply_knowledge_topup", lambda *a, **k: False)
-    monkeypatch.setattr(
+        nlq.context,
+        nlq.topup,
+        nlq.routing,
+        nlq.planning,
+        nlq.execution,
+        nlq.presentation,
+        nlq.analysis,
+        nlq.audit,
+    ):
+        monkeypatch.setattr(
+            _patch_target, "session_scope", lambda: contextlib.nullcontext(session)
+        )
+    for _patch_target in (nlq, nlq.topup):
+        monkeypatch.setattr(
+            _patch_target,
+            "resolve_recall_topup",
+            lambda *a, **k: _manifest(tables=("d_organization",)),
+        )
+    for _patch_target in (nlq, nlq.topup):
+        monkeypatch.setattr(
+            _patch_target,
+            "fulfill_recall_topup",
+            lambda *a, **k: SimpleNamespace(
+                changed=True, added_tables=["d_organization"], resources=[]
+            ),
+        )
+    for _patch_target in (nlq, nlq.topup):
+        monkeypatch.setattr(
+            _patch_target, "apply_knowledge_topup", lambda *a, **k: False
+        )
+    for _patch_target in (nlq, nlq.topup, nlq.planning):
+        monkeypatch.setattr(
+            _patch_target,
+            "record_topup_event",
+            lambda sess, run_id, event: sess.events.append(event),
+        )
+    for _patch_target in (nlq, nlq.context, nlq.topup, nlq.planning, nlq.execution):
+        monkeypatch.setattr(_patch_target, "_access_scope", lambda state: None)
+    for _patch_target in (
         nlq,
-        "record_topup_event",
-        lambda sess, run_id, event: sess.events.append(event),
-    )
-    monkeypatch.setattr(nlq, "_access_scope", lambda state: None)
-    monkeypatch.setattr(nlq, "_ds_scope", lambda svc: (1, 8))
+        nlq.context,
+        nlq.topup,
+        nlq.planning,
+        nlq.presentation,
+        nlq.audit,
+    ):
+        monkeypatch.setattr(_patch_target, "_ds_scope", lambda svc: (1, 8))
 
     run = nlq._run_topup(
         {"run_id": "r1", "entity_bindings": {}, "temporal_parse": {}},

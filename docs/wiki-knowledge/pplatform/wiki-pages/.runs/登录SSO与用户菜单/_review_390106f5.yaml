@@ -1,0 +1,9 @@
+body: '- claim: "灰度颜色缓存：通过 Redis 缓存 BgColorCacheDto，过期由 BgColorGrayTtlDto 控制"
+
+  - code_status: uncovered
+
+  - action: review
+
+  - note: 未证实，暂不生成 ground 块。'
+title: 灰度颜色缓存
+type: reqdoc_claim

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { type ChatMessage } from '@/api/chat.ts'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import MdComponent from '@/views/chat/component/MdComponent.vue'
 import icon_up_outlined from '@/assets/svg/icon_up_outlined.svg'
 import icon_down_outlined from '@/assets/svg/icon_down_outlined.svg'
@@ -51,6 +51,19 @@ onMounted(() => {
     }
   }
 })
+
+// 思考区首包前死区修复（chat 167 问题 3）：isTyping 期间组件可能在
+// 首个 reasoning chunk 到达前才挂载/才开始本轮——按配置自动展开，
+// 空内容时显示加载占位而不是空白。
+watch(
+  () => props.message.isTyping,
+  (typing) => {
+    if (typing && !show.value && chatConfig.getExpandThinkingBlock) {
+      show.value = true
+      emit('reasoningToggle', true)
+    }
+  }
+)
 </script>
 
 <template>
@@ -70,9 +83,12 @@ onMounted(() => {
       </div>
     </el-button>
     <div
-      v-if="hasReasoning && show && reasoningContent.length"
+      v-if="hasReasoning && show && (reasoningContent.length || message.isTyping)"
       class="reasoning-content flex-gap-fallback flex-col"
     >
+      <div v-if="!reasoningContent.length" class="reasoning reasoning-pending">
+        <el-icon class="is-loading"><Loading /></el-icon>
+      </div>
       <div v-for="(reason, _index) in reasoningContent" :key="_index" class="reasoning">
         <MdComponent :message="reason" />
       </div>

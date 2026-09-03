@@ -1,0 +1,2 @@
+- code: TABLE_NOT_IN_DB
+  message: sys_cust_org 不在 db catalog

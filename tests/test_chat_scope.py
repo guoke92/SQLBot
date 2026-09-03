@@ -87,15 +87,22 @@ def _wire_scope_node(monkeypatch, resolved_scope):
     attached: dict[str, Any] = {}
     resolve_calls: list[int] = []
 
-    monkeypatch.setattr(nlq, "_llm_service", lambda state: service)
-    monkeypatch.setattr(
-        nlq,
-        "resolve_access_scope",
-        lambda *a, **k: (resolve_calls.append(1), resolved_scope)[1],
+    for _patch_target in (nlq, nlq.context, nlq.topup, nlq.routing, nlq.planning, nlq.execution, nlq.presentation, nlq.analysis):
+        monkeypatch.setattr(_patch_target, "_llm_service",
+lambda state: service)
+    for _patch_target in (nlq, nlq.context):
+        monkeypatch.setattr(_patch_target, "resolve_access_scope",
+lambda *a, **k: (resolve_calls.append(1), resolved_scope)[1],
     )
-    monkeypatch.setattr(nlq, "attach_runtime", lambda run_id, **kw: attached.update(kw))
-    monkeypatch.setattr(nlq, "_ds_scope", lambda svc: (1, 8))
-    monkeypatch.setattr(nlq, "session_scope", _FakeSession)
+    for _patch_target in (nlq, nlq.context, nlq.planning, nlq.execution, nlq.presentation, nlq.analysis, nlq.routing):
+        monkeypatch.setattr(_patch_target, "attach_runtime",
+lambda run_id, **kw: attached.update(kw))
+    for _patch_target in (nlq, nlq.context, nlq.topup, nlq.planning, nlq.presentation, nlq.audit):
+        monkeypatch.setattr(_patch_target, "_ds_scope",
+lambda svc: (1, 8))
+    for _patch_target in (nlq, nlq.context, nlq.topup, nlq.routing, nlq.planning, nlq.execution, nlq.presentation, nlq.analysis, nlq.audit):
+        monkeypatch.setattr(_patch_target, "session_scope",
+_FakeSession)
     return service, resolve_calls, attached
 
 
@@ -128,10 +135,16 @@ def _wire_datasource_node(monkeypatch, *, connected=True):
             check_connection=lambda *, ds: (checks.append(1), connected)[1],
         ),
     )
-    monkeypatch.setattr(nlq, "_llm_service", lambda state: service)
-    monkeypatch.setattr(nlq, "validate_history_ds", lambda *a, **k: None)
+    for _patch_target in (nlq, nlq.context, nlq.topup, nlq.routing, nlq.planning, nlq.execution, nlq.presentation, nlq.analysis):
+        monkeypatch.setattr(_patch_target, "_llm_service",
+lambda state: service)
+    for _patch_target in (nlq, nlq.context):
+        monkeypatch.setattr(_patch_target, "validate_history_ds",
+lambda *a, **k: None)
     monkeypatch.setattr(nlq.StreamSink, "from_state", classmethod(lambda c, s: None))
-    monkeypatch.setattr(nlq, "session_scope", _FakeSession)
+    for _patch_target in (nlq, nlq.context, nlq.topup, nlq.routing, nlq.planning, nlq.execution, nlq.presentation, nlq.analysis, nlq.audit):
+        monkeypatch.setattr(_patch_target, "session_scope",
+_FakeSession)
     return service, checks
 
 

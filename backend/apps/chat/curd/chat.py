@@ -75,6 +75,46 @@ def _run_duration_breakdown(
     return elapsed, waiting, processing
 
 
+def _clarification_wait_items(
+    interrupts: list[ConversationInterrupt],
+    *,
+    run_end: datetime.datetime | None,
+    fallback_end: datetime.datetime | None,
+) -> list[ChatLogHistoryItem]:
+    """澄清卡的 create_time→consumed_at 用户响应窗口投影成时间线 item。
+
+    该窗口没有任何 chat_log span 承载；不投影则执行详情的 span 耗时总和对
+    不上总时长（chat 165：106s spans vs 277s total）。未消费的澄清卡等待
+    延伸到 run 结束，让"挂起中"也可对账。"""
+    items: list[ChatLogHistoryItem] = []
+    for interrupt in interrupts:
+        if interrupt.create_time is None:
+            continue
+        wait_end = interrupt.consumed_at or run_end or fallback_end
+        if wait_end is None or wait_end < interrupt.create_time:
+            continue
+        items.append(
+            ChatLogHistoryItem(
+                id=None,
+                run_id=interrupt.run_id,
+                start_time=interrupt.create_time,
+                finish_time=wait_end,
+                duration=round((wait_end - interrupt.create_time).total_seconds(), 2),
+                operate=None,
+                local_operation=True,
+                error=False,
+                status="interrupted",
+                graph_node="await_clarification",
+                title_key="chat.log.WAIT_CLARIFICATION",
+                detail={
+                    "interrupt_id": interrupt.interrupt_id,
+                    "user_wait": True,
+                },
+            )
+        )
+    return items
+
+
 def get_chat_record_by_id(session: SessionDep, record_id: int):
     record: ChatRecord | None = None
 
@@ -718,7 +758,10 @@ def get_chat_with_records(
                 serialize_interrupt(active_interrupt) if active_interrupt else None
             ),
             interrupts=(
-                [serialize_interrupt(item) for item in interrupts_by_run.get(run.run_id, [])]
+                [
+                    serialize_interrupt(item)
+                    for item in interrupts_by_run.get(run.run_id, [])
+                ]
                 if run
                 else []
             ),
@@ -1063,6 +1106,18 @@ def get_chat_log_history(
         }
         for item in runs
     ]
+
+    # 4.5 澄清等待 interval → 时间线 item：span 总和 + 等待 + 系统活动 = 对账
+    # （run_interrupts 的 create_time→consumed_at 是用户响应窗口，无 chat_log
+    # span 承载——时间线不显示会让 106s spans vs 277s 总时长对不上账。）
+    steps.extend(
+        _clarification_wait_items(
+            run_interrupts,
+            run_end=run.completed_at if run is not None else chat_record.finish_time,
+            fallback_end=chat_record.finish_time,
+        )
+    )
+    steps.sort(key=lambda item: item.start_time or datetime.datetime.min)
 
     # 5. 创建并返回统一的 ExecutionDetails 读取模型
     chat_log_history = ChatLogHistory(

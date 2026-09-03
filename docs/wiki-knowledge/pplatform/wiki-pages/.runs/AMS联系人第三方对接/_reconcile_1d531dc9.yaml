@@ -1,0 +1,3 @@
+- anchor: table:TenantInterworkingProductDO
+  code: TABLE_NOT_IN_DB
+  message: TenantInterworkingProductDO 不在 db catalog

@@ -1,0 +1,3 @@
+- code: PAGE_CONTRACT_FAILED
+  message: page_key 'rule.platform_input_import_admin_email_required' 不符合 rule 页的
+    业务 slug（CJK 保留）

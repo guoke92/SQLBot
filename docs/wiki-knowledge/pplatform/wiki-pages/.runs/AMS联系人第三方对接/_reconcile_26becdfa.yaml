@@ -1,0 +1,3 @@
+- anchor: table:CustPersonInfoDO
+  code: TABLE_NOT_IN_DB
+  message: CustPersonInfoDO 不在 db catalog

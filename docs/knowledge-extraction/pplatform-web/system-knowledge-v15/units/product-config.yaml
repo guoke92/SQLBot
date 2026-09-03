@@ -1,0 +1,490 @@
+unit_id: product-config
+revision: 1
+title: 产品与租户配置
+aliases:
+- 平台产品
+- 租户产品
+- 产品开通
+- 默认项目
+- 租户配置
+- 产品目录
+domain: 产品与配置
+applicability: 用户问"平台产品清单""租户开通了哪些产品""默认项目""项目码必填""产品被多少租户开通" 等产品/租户配置类问题时使用。
+description: 两级产品体系：platform_product 全局产品目录（product_status 生效状态、product_type 通用/互通、product_ref_num 被开通租户数冗余计数）→ tenant_product 租户开通实例 （open_status Y/P/N 状态机、max_financing_amount 限额）。tenant_setting_config 承载 租户运营配置（default_project_id 建档回退默认项目、project_code_required 联动校验）。 platform_product_cust_role 是产品-角色准入矩阵。
+content:
+  concepts:
+  - concept_id: tenant-product-open
+    name: 租户产品开通状态
+    aliases:
+    - 已开通产品
+    - 开通中
+    - 未开通
+    - 租户产品状态
+    - 产品开通状态
+    - 开通产品
+    definition: tenant_product.open_status 三态（租户侧，与企业侧 cust_auth_application 的 NOT_OPENED/OPENING/OPENED 是不同体系）：Y 已开通 / P 开通中（仅 ACFLOW/ORDER 产品 activate 后出现，等外部多级回调置 Y）/ N 未开通（含取消）。取消前置 checkOnTheWay：存在生效项目（tenant_project.project_status='1' AND product_id=本产品）或企业开通（cust_auth_application.ref=tenant_product.code）则拒绝。
+    dictionary:
+      Y: 已开通
+      P: 开通中
+      N: 未开通
+    field_targets:
+    - dataset: tenant_product
+      field: open_status
+    evidence_refs:
+    - ev-pcf-tp-enum
+    - ev-pcf-tp-active-y
+    - ev-pcf-tp-cancel-n
+    - ev-pcf-tp-acflow-order-p
+    - ev-pcf-tp-onway-guard
+    - ev-pcf-tp-create
+  - concept_id: platform-product-status
+    name: 平台产品生效状态
+    aliases:
+    - 产品生效
+    - 待生效产品
+    - 产品上架
+    - 产品状态
+    definition: platform_product.product_status 0=待生效 → 1=已生效（单向 effective，列表只取已生效）。
+    dictionary:
+      '0': 待生效
+      '1': 已生效
+    field_targets:
+    - dataset: platform_product
+      field: product_status
+    evidence_refs:
+    - ev-pcf-pp-enum
+    - ev-pcf-pp-effective-write
+    - ev-pcf-pp-effective
+  - concept_id: default-project
+    name: 默认项目
+    aliases:
+    - 默认关联项目
+    - 建档默认项目
+    - 租户默认项目
+    - 无项目码回退项目
+    definition: tenant_setting_config.default_project_id 指向 tenant_project.id；建档/邀请在 "无项目码"时回退此项目；绑定校验默认项目与企业 dbTenantCode 一致。
+    field_targets:
+    - dataset: tenant_setting_config
+      field: default_project_id
+    evidence_refs:
+    - ev-pcf-default-project
+    - ev-pcf-config-import
+  - concept_id: product-type
+    name: 平台产品类型
+    aliases:
+    - 通用产品
+    - 互通产品
+    - 产品大类
+    definition: GENERAL=通用产品 / INTERWORKING=互通产品（互通走独立 TenantInterworkingProduct 域）。
+    dictionary:
+      GENERAL: 通用产品
+      INTERWORKING: 互通产品
+    field_targets:
+    - dataset: platform_product
+      field: product_type
+    evidence_refs:
+    - ev-pcf-pp-effective
+  processes:
+  - stage_id: tenant-product-create
+    name: 租户开通产品
+    description: 幂等（同 tenantId+platformProductCode 已存在直接返回）；新建从 platform_product 拷贝 12 属性字段（name/productCate/productSummary/productDescription/customerGroup/maxFinancingPeriod/maxFinancingAmount/creditMeasures/maxFinancingAmountFlag 等）+ ref 锚（ref_tenant_product_project_code=platform_product.code、ref_tenant_product_tenant_setting_config=tenant.code）。activate 置 open_status=Y 且 platform_product.product_ref_num 全量重算（increment）。ACFLOW/ORDER 特殊：activate 后置 P 等外部多级回调置 Y。
+    trigger: 管理端 /tenantProduct/cmd/create → active
+    next_stages:
+    - tenant-product-cancel
+    data_effects:
+    - operation: insert
+      dataset: tenant_product
+      fields:
+      - tenant_id
+      - platform_product_id
+      - platform_product_code
+      - name
+      - ref_tenant_product_project_code
+      - ref_tenant_product_tenant_setting_config
+      - open_status
+      condition: 幂等新建；activate→Y 或 ACFLOW/ORDER→P
+    - operation: update
+      dataset: platform_product
+      fields:
+      - product_ref_num
+      condition: 开通/取消时全量重算（并发不保证精确）
+    evidence_refs:
+    - ev-pcf-tp-create-idem
+    - ev-pcf-tp-active-y
+    - ev-pcf-tp-acflow-order-p
+    - ev-pcf-pp-refnum
+  - stage_id: tenant-product-cancel
+    name: 取消开通
+    description: 前置 checkOnTheWay：生效项目谓词（tenant_project.project_status='1' AND enable='Y' AND product_id=本产品 id）或企业开通谓词（cust_auth_application.ref_cust_auth_application_tenant_product=tenant_product.code AND enable='Y'）存在则拒绝取消。通过则 open_status=N + product_ref_num 减量重算（并发不精确）。
+    trigger: 管理端 /tenantProduct/cmd/cancel
+    next_stages: []
+    data_effects:
+    - operation: update
+      dataset: tenant_product
+      fields:
+      - open_status
+      condition: →N
+    - operation: update
+      dataset: platform_product
+      fields:
+      - product_ref_num
+      condition: 减量重算
+    evidence_refs:
+    - ev-pcf-tp-cancel-n
+    - ev-pcf-tp-onway-guard
+    - ev-pcf-tp-onway-project
+    - ev-pcf-cust-open-check
+    - ev-pcf-pp-refnum
+    - ev-pcf-tp-cancel
+  - stage_id: platform-product-effective
+    name: 平台产品生效
+    description: 新建平台产品默认 product_status='0' 待生效（TO_BE_EFFECTIVE），人工提交 effective 后置 '1'（EFFECTIVE，单向）；列表只取已生效。
+    trigger: 管理端 /platformProduct/effective
+    next_stages: []
+    data_effects:
+    - operation: update
+      dataset: platform_product
+      fields:
+      - product_status
+      condition: 0→1 单向
+    evidence_refs:
+    - ev-pcf-pp-effective-write
+    - ev-pcf-pp-enum
+    - ev-pcf-pp-effective
+  - stage_id: update-operation-config
+    name: 更新租户运营配置
+    description: 按列 UpdateWrapper 写 default_project_id、project_code_required 等 15 个运营字段；字符串空串转 NULL；旧值归档 op_update_time/op_update_user（不动 update_by/update_time）；事务后清对接系统元数据缓存 + TENANT_SYNC 推送。project_code_required=Y 时 default_project_id 必填；导入时默认项目仅原值为空才写。
+    trigger: 管理端 /setting/updateOperationConfigById 或 Excel 导入
+    next_stages: []
+    data_effects:
+    - operation: update
+      dataset: tenant_setting_config
+      fields:
+      - default_project_id
+      - project_code_required
+      condition: 导入时默认项目仅原值为空才写
+    evidence_refs:
+    - ev-pcf-config-import
+    - ev-pcf-default-project
+  datasets:
+  - dataset_id: platform_product
+    name: platform_product
+    description: 全局产品目录（一行一类产品；product_ref_num 为被开通租户数冗余计数）。
+    database: lowcode_pplatform
+    fields:
+    - field_id: id
+      name: id
+      data_type: bigint
+      description: 表主键
+    - field_id: product_type
+      name: product_type
+      data_type: varchar
+      description: 产品类型
+      dictionary:
+        GENERAL: 通用产品
+        INTERWORKING: 互通产品
+      evidence_refs:
+      - ev-pcf-pp-effective
+    - field_id: product_status
+      name: product_status
+      data_type: varchar
+      description: 产品状态
+      dictionary:
+        '0': 待生效
+        '1': 已生效
+      evidence_refs:
+      - ev-pcf-pp-effective
+    - field_id: product_ref_num
+      name: product_ref_num
+      data_type: int
+      description: 被开通租户数（冗余计数，开通/取消全量重算，并发不保证精确）
+    evidence_refs:
+    - ev-pcf-pp-effective-write
+    - ev-pcf-pp-enum
+    - ev-pcf-pp-refnum
+  - dataset_id: tenant_product
+    name: tenant_product
+    description: 租户开通的产品实例（每租户每产品至多一条；属性从 platform_product 拷贝）。
+    database: lowcode_pplatform
+    fields:
+    - field_id: id
+      name: id
+      data_type: bigint
+      description: 表主键
+    - field_id: code
+      name: code
+      data_type: varchar
+      description: 编码
+    - field_id: tenant_id
+      name: tenant_id
+      data_type: bigint
+      description: 租户编码
+    - field_id: platform_product_id
+      name: platform_product_id
+      data_type: bigint
+      description: 平台产品ID（=platform_product.id）
+    - field_id: platform_product_code
+      name: platform_product_code
+      data_type: varchar
+      description: 平台产品编码（冗余）
+    - field_id: open_status
+      name: open_status
+      data_type: varchar
+      description: 开通状态
+      dictionary:
+        Y: 已开通
+        P: 开通中
+        N: 未开通
+      evidence_refs:
+      - ev-pcf-tp-create
+    - field_id: name
+      name: name
+      data_type: varchar
+      description: 产品名称（同租户内唯一）
+    - field_id: ref_tenant_product_project_code
+      name: ref_tenant_product_project_code
+      data_type: varchar
+      description: 平台产品code（=platform_product.code）
+    - field_id: ref_tenant_product_tenant_setting_config
+      name: ref_tenant_product_tenant_setting_config
+      data_type: varchar
+      description: 租户code（=tenant_setting_config.code）
+    evidence_refs:
+    - ev-pcf-tp-create-idem
+    - ev-pcf-tp-active-y
+    - ev-pcf-tp-enum
+    - ev-pcf-tp-cancel-n
+  - dataset_id: tenant_setting_config
+    name: tenant_setting_config
+    description: 租户运营配置（含 default_project_id 建档默认项目、project_code_required 项目码必填联动）。
+    database: lowcode_pplatform
+    fields:
+    - field_id: id
+      name: id
+      data_type: bigint
+      description: 表主键
+    - field_id: code
+      name: code
+      data_type: varchar
+      description: 编码
+    - field_id: default_project_id
+      name: default_project_id
+      data_type: bigint
+      description: 默认关联项目ID（→tenant_project.id；建档无项目码时回退）
+    - field_id: project_code_required
+      name: project_code_required
+      data_type: varchar
+      description: 项目码必填（Y 时 default_project_id 必填）
+    evidence_refs:
+    - ev-pcf-config-import
+    - ev-pcf-default-project
+  relationships:
+  - relationship_id: platform-tenant-product
+    left:
+      dataset: tenant_product
+      field: platform_product_id
+    right:
+      dataset: platform_product
+      field: id
+    relationship_type: EQUI_JOIN
+    cardinality: many_to_one
+    business_meaning: 租户实例指向全局目录（每租户每产品至多一条）
+    status: proposed
+    evidence_refs:
+    - ev-pcf-tp-create
+    confidence: 0.95
+  - relationship_id: tenant-config-product
+    left:
+      dataset: tenant_product
+      field: ref_tenant_product_tenant_setting_config
+    right:
+      dataset: tenant_setting_config
+      field: code
+    relationship_type: EQUI_JOIN
+    cardinality: many_to_one
+    business_meaning: 开通产品归属租户
+    status: proposed
+    evidence_refs:
+    - ev-pcf-tp-create
+    confidence: 0.9
+  calibers:
+  - caliber_id: opened-tenant-product
+    label: 已开通租户产品
+    description: open_status=Y 且启用
+    contract_fragment:
+      where:
+      - open_status = 'Y'
+      - enable = 'Y'
+    field_targets:
+    - dataset: tenant_product
+      field: open_status
+    evidence_refs:
+    - ev-pcf-tp-create
+  - caliber_id: effective-platform-product
+    label: 已生效平台产品
+    description: product_status=1 且启用（列表只取已生效）
+    contract_fragment:
+      where:
+      - product_status = '1'
+      - enable = 'Y'
+    field_targets:
+    - dataset: platform_product
+      field: product_status
+    evidence_refs:
+    - ev-pcf-pp-effective
+  - caliber_id: has-default-project
+    label: 已配置默认项目租户
+    description: default_project_id 非空
+    contract_fragment:
+      where:
+      - default_project_id IS NOT NULL
+    field_targets:
+    - dataset: tenant_setting_config
+      field: default_project_id
+    evidence_refs:
+    - ev-pcf-default-project
+  metrics:
+  - metric_id: tenant-product-count
+    name: 租户开通产品数
+    description: 按租户统计已开通产品数
+    aggregation: COUNT
+    field:
+      dataset: tenant_product
+      field: id
+    filters:
+    - open_status: Y
+      enable: Y
+    grain:
+    - dataset: tenant_product
+      field: tenant_id
+    evidence_refs:
+    - ev-pcf-tp-create
+  - metric_id: platform-product-ref-count
+    name: 平台产品被开通租户数
+    description: product_ref_num 冗余计数（代码在开通/取消时全量重算，注释自认并发不精确； 精确统计应 COUNT(tenant_product WHERE open_status=Y AND platform_product_id=?)
+    aggregation: COUNT
+    field:
+      dataset: tenant_product
+      field: id
+    filters:
+    - open_status: Y
+    grain:
+    - dataset: tenant_product
+      field: platform_product_id
+    evidence_refs:
+    - ev-pcf-tp-create
+  - metric_id: default-project-configured
+    name: 已配置默认项目租户数
+    description: default_project_id 非空的租户数
+    aggregation: COUNT
+    field:
+      dataset: tenant_setting_config
+      field: id
+    filters:
+    - default_project_id: NOT_NULL
+    evidence_refs:
+    - ev-pcf-default-project
+  domain_rules:
+  - rule_id: cancel-onway-guard
+    label: 取消开通在途保护
+    content: 取消前 checkOnTheWay：存在生效项目（tenant_project.project_status=EFFECTIVE 且 product_id=本产品）或存在企业开通（cust_auth_application 引用 tenant_product.code） 则拒绝取消。
+    applicability: 产品取消操作、在途业务解释
+    query_impact: 已有生效项目或企业开通的产品不可取消——open_status=N 的产品必然无在途。
+    field_targets:
+    - dataset: tenant_product
+      field: open_status
+    evidence_refs:
+    - ev-pcf-tp-onway-guard
+    - ev-pcf-tp-onway-project
+    - ev-pcf-cust-open-check
+  - rule_id: default-project-code-required
+    label: 项目码必填联动
+    content: project_code_required=Y 时 default_project_id 必填；导入时默认项目仅原值为空才写（防覆盖）。
+    applicability: 租户配置校验
+    query_impact: project_code_required=Y 的租户必有默认项目（配置校验保证）。
+    field_targets:
+    - dataset: tenant_setting_config
+      field: project_code_required
+    - dataset: tenant_setting_config
+      field: default_project_id
+    evidence_refs:
+    - ev-pcf-config-import
+    - ev-pcf-default-project
+  - rule_id: acflow-order-p-status
+    label: ACFLOW/ORDER 产品 P 状态
+    content: ACFLOW/ORDER 产品 activate 后先置 open_status=P（开通中），等外部多级回调才置 Y。 查询"已开通"时 P 不算——只有 Y 是终态开通。
+    applicability: 按开通状态过滤产品/租户
+    query_impact: open_status='Y' 才是完整开通；P 是过渡态（仅 ACFLOW/ORDER 出现）。
+    field_targets:
+    - dataset: tenant_product
+      field: open_status
+    evidence_refs:
+    - ev-pcf-tp-acflow-order-p
+    - ev-pcf-tp-enum
+  - rule_id: product-ref-num-imprecise
+    label: 被开通计数冗余不精确
+    content: platform_product.product_ref_num 在开通/取消时全量重算（代码注释"并发统计不准确"）。 精确统计应实时 COUNT(tenant_product) 而非读冗余列。
+    applicability: 多少租户开通了某产品统计
+    query_impact: product_ref_num 可能偏差；精确值用 COUNT 查 tenant_product。
+    field_targets:
+    - dataset: platform_product
+      field: product_ref_num
+    evidence_refs:
+    - ev-pcf-pp-refnum
+  - rule_id: project-status-enum
+    label: 项目状态枚举
+    content: tenant_project.project_status：0=待生效、1=已生效、2=已失效（代码枚举名 INVLIAD 拼写如此）；在途项目判定（取消保护）只算 project_status='1' AND enable='Y'。
+    applicability: 按项目状态过滤、生效项目统计
+    query_impact: '''生效项目''的准确谓词是 project_status=''1'' AND enable=''Y''，不是 project_status!=0。'
+    field_targets:
+    - dataset: tenant_product
+      field: open_status
+    evidence_refs:
+    - ev-pcf-project-enum
+    - ev-pcf-tp-onway-project
+  - rule_id: two-open-status-systems
+    label: 两套 open_status 不可混用
+    content: tenant_product.open_status（Y/P/N）与 cust_auth_application.open_status（NOT_OPENED/OPENING/OPENED）是两套独立枚举体系；同名不同值域。租户侧查询'已开通'只有 Y；企业侧 OPENED 与 OPENING 都算。
+    applicability: 按开通状态过滤产品/租户/企业
+    query_impact: 跨两表统计开通必须分别按各自值域过滤，禁止统一 IN ('Y','OPENED')。
+    field_targets:
+    - dataset: tenant_product
+      field: open_status
+    evidence_refs:
+    - ev-pcf-tp-enum
+    - ev-epa-open-enum
+    - ev-epa-open-read-both
+  verified_query_patterns:
+  - pattern_id: list-open-tenant-products
+    question: 某租户已开通产品清单
+    query: SELECT tp.*, pp.name AS platform_product_name FROM tenant_product tp JOIN platform_product pp ON pp.id = tp.platform_product_id WHERE tp.tenant_id = ? AND tp.open_status = 'Y' AND tp.enable = 'Y'
+    intended_specification:
+      caliber_id: opened-tenant-product
+    verification:
+      status: PENDING_VALIDATION
+    evidence_refs:
+    - ev-pcf-tp-create
+  - pattern_id: platform-product-ref-count-exact
+    question: 某平台产品被多少租户开通（精确值）
+    query: SELECT pp.product_code, COUNT(tp.id) AS tenant_count FROM platform_product pp LEFT JOIN tenant_product tp ON tp.platform_product_id = pp.id AND tp.open_status = 'Y' WHERE pp.enable = 'Y' AND pp.product_status = '1' GROUP BY pp.product_code
+    intended_specification:
+      caliber_id: effective-platform-product
+      note: 实时 COUNT 替代 product_ref_num 冗余列
+    verification:
+      status: PENDING_VALIDATION
+    evidence_refs:
+    - ev-pcf-tp-create
+unit_links:
+- target_unit: enterprise-build-certification
+  kind: prerequisite
+  via:
+  - dataset: tenant_setting_config
+    field: default_project_id
+  evidence_refs:
+  - ev-pcf-default-project
+  description: 建档链路消费 tenant_setting_config.default_project_id 做"无项目码自动绑定默认项目"。
+assumptions:
+- tenant_setting_config_share 是"联易融自营假租户"共享副本（同 db_tenant_code 跨贴牌平台），本包未声明。
+- tenant_product_menu*（菜单配置族）与互通产品域（TenantInterworkingProduct*）不在本单元范围。
+- 产品扩展配置不落库，运行时从 Nacos nacosFacade.listProductApp() 按 productCode 匹配。
+confidence: 0.8

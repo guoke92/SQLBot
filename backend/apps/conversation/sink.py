@@ -11,6 +11,7 @@ Nodes emit domain payloads through StreamSink; they must not branch on
 
 from __future__ import annotations
 
+import time
 from collections.abc import Iterable, Iterator, Mapping
 from typing import Any, Literal
 
@@ -130,7 +131,9 @@ class StreamSink:
         if self.mode == "json":
             self._raw(dict(payload))
 
-    def record_header(self, *, record_id: int, question: str | None, prefix: str) -> None:
+    def record_header(
+        self, *, record_id: int, question: str | None, prefix: str
+    ) -> None:
         """MCP preface lines; no-op for sse; for json only stamps record_id externally."""
         if self.mode == "markdown":
             self._raw(f"> {prefix}{record_id}\n")
@@ -144,7 +147,11 @@ class StreamSink:
         event_type: str,
         metadata: Mapping[str, Any] | None = None,
     ) -> None:
-        """Stream one LLM token chunk."""
+        """Stream one LLM token chunk.
+
+        攒批阈值按事件类型分流（chat 167：512 字符合批让 reasoning 每 2~4s
+        才跳一帧）——``*-reasoning`` 事件 96 字符或距首包 500ms 即 flush
+        （惰性时间检查，无线程），content 事件保持 512。"""
         if self.mode == "sse":
             metadata = dict(metadata or {})
             buffer_key = event_type + ":" + repr(sorted(metadata.items()))
@@ -155,11 +162,19 @@ class StreamSink:
                     **metadata,
                     "content": "",
                     "reasoning_content": "",
+                    "first_ts": time.monotonic(),
                 },
             )
             current["content"] += content or ""
             current["reasoning_content"] += reasoning_content or ""
-            if len(current["content"]) + len(current["reasoning_content"]) >= 512:
+            total_chars = len(current["content"]) + len(current["reasoning_content"])
+            is_reasoning = event_type.endswith("-reasoning")
+            if is_reasoning:
+                elapsed = time.monotonic() - float(current.get("first_ts") or 0.0)
+                should_flush = total_chars >= 96 or elapsed >= 0.5
+            else:
+                should_flush = total_chars >= 512
+            if should_flush:
                 event = self._token_buffers.pop(buffer_key)
                 self._emit_event(event)
         elif self.mode == "markdown":

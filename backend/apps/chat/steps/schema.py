@@ -28,12 +28,15 @@ def match_table_schema(
     graph_node: str = "retrieve_context",
     brief: str = "",
     audit: bool = True,
+    table_limit: int | None = None,
 ) -> list[Any]:
     """Retrieve schema via protocol; set ``db_schema`` / ``sample_data`` on question.
 
     ``resource_names`` is an exact projection (binding or prior plan).
     Does not pass ``embedding`` — protocol default + ``TABLE_EMBEDDING_ENABLED``
     own ranking. Returns resource (table) names chosen for the prompt.
+    ``table_limit`` caps the ranked working set (required tables always kept) —
+    wiki-led selection passes closure count + supplement budget.
     Execution-time refresh keeps the same retrieve but must not emit another
     user-visible ``CHOOSE_TABLE`` span.
     """
@@ -48,6 +51,7 @@ def match_table_schema(
             resource_names=resource_names,
             required_resource_names=required_resource_names,
             access_scope=access_scope,
+            table_limit=table_limit,
         )
         llm_service.chat_question.db_schema = snapshot.schema_text
         tables = list(snapshot.resource_names)
@@ -67,11 +71,12 @@ def match_table_schema(
         title_key="chat.log.CHOOSE_TABLE",
     ) as span:
         tables = _retrieve()
+        # schema 全文不再入 detail（52KB 级转义串不可读且快照已有同份数据）
         span.set_detail(
             {
                 "resource_count": len(tables),
                 "resources": list(tables),
-                "schema": llm_service.chat_question.db_schema,
+                "schema_chars": len(llm_service.chat_question.db_schema or ""),
                 "access_scope_applied": access_scope is not None,
             }
         )

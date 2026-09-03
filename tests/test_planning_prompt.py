@@ -76,7 +76,8 @@ def test_query_agent_reuses_confirmed_calibers_on_continue() -> None:
 
 def test_accept_does_not_advance_batch_index() -> None:
     source = (
-        _ROOT / "backend" / "apps" / "chat" / "graphs" / "nodes" / "nlq.py"
+        _ROOT / "backend" / "apps" / "chat" / "graphs" / "nodes" / "nlq"
+        / "execution.py"
     ).read_text()
     assert source.count('"step_index": step_index + 1') == 1
     repair_idx = source.index('"decision": "repair"')
@@ -87,7 +88,8 @@ def test_accept_does_not_advance_batch_index() -> None:
 
 def test_execution_schema_refresh_is_not_user_visible() -> None:
     source = (
-        _ROOT / "backend" / "apps" / "chat" / "graphs" / "nodes" / "nlq.py"
+        _ROOT / "backend" / "apps" / "chat" / "graphs" / "nodes" / "nlq"
+        / "execution.py"
     ).read_text()
     schema = (_ROOT / "backend" / "apps" / "chat" / "steps" / "schema.py").read_text()
     assert 'brief="refresh schema"' in source
@@ -96,7 +98,8 @@ def test_execution_schema_refresh_is_not_user_visible() -> None:
     assert "if not audit:" in schema
     assert "user-visible" in schema
     node = (
-        _ROOT / "backend" / "apps" / "chat" / "graphs" / "nodes" / "nlq.py"
+        _ROOT / "backend" / "apps" / "chat" / "graphs" / "nodes" / "nlq"
+        / "execution.py"
     ).read_text()
     assert "execution_schema_resources(" in node
     assert (
@@ -109,7 +112,8 @@ def test_execution_schema_refresh_is_not_user_visible() -> None:
 
 def test_planning_does_not_skip_review_on_wall_clock_budget() -> None:
     source = (
-        _ROOT / "backend" / "apps" / "chat" / "graphs" / "nodes" / "nlq.py"
+        _ROOT / "backend" / "apps" / "chat" / "graphs" / "nodes" / "nlq"
+        / "planning.py"
     ).read_text()
     assert "REVIEW_BUDGET_EXHAUSTED" not in source
     assert "planning budget leaves no time" not in source

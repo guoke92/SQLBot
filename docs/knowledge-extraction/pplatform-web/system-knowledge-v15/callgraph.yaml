@@ -1,0 +1,1092 @@
+schema_version: '1.0'
+repository: pplatform-web
+entry_points:
+- AccessCustController
+- AcessOperController
+- AlarmFacade
+- AlipayAntArchiveController
+- AlipayAntArchiveEventListener
+- AlipayClearingFacade
+- AmsContactProvider
+- ApiMockController
+- ApplyCompanyInfoApplication
+- ApplyCompanyInfoController
+- AssetOperatorSyncApplication
+- AsyncIoTaskController
+- AttachMentFacade
+- AutoVerifyController
+- BackAgreementProcessOperateListener
+- BackAgreementProcessStartListener
+- BankProvider
+- BocomFacade
+- BocomProvider
+- CaActivationApplication
+- CaCertificationConfirmApplication
+- CaCertificationController
+- CaCertificationIntentProvider
+- CaCertificationIntentProviderImpl
+- CaCertificationIntentSmsApplication
+- CaCertificationPreCheckApplication
+- CaCertificationRealNameApplication
+- CaFeeAdminController
+- CaFeeAgreementApplication
+- CaFeeBizNodeCheckApplication
+- CaFeeCompanyCaStatusApplication
+- CaFeeController
+- CaFeeDualCheckProvider
+- CaFeeDualCheckProviderImpl
+- CaFeeInvoiceApplication
+- CaFeeLedgerApplication
+- CaFeeOrderApplication
+- CaFeeOrderDetailApplication
+- CaFeePaymentApplication
+- CaFeePaymentCheckApplication
+- CaFeePortalCheckApplication
+- CaFeeProjectConfigApplication
+- CaFeeRenewalReminderApplication
+- CaFeeRuleEngineApplication
+- CaFeeStockBatchApplication
+- CaFeeSwaggerApplication
+- CaFeeSwaggerController
+- CaFeeTodoEnsureApplication
+- CaOpenCaApplication
+- CaOpenCaProvider
+- CaOpenCaProviderImpl
+- CaUpgradeAuthApplication
+- CfcaOneCertFourStepPackageApplication
+- ChannelArchiveProvider
+- ChannelArchiveProviderImpl
+- ClientAppController
+- CpcnBankProviderImpl
+- CustAccessApplication
+- CustAccessAsyncApplication
+- CustAccessController
+- CustAccessProvider
+- CustAccessProviderImpl
+- CustAccountApplication
+- CustAccountInfoController
+- CustAgreementOutController
+- CustAuthSignOrchestrationApplication
+- CustAuthValidatorProcessor
+- CustAuthValidatorProvider
+- CustBankAccountController
+- CustBankAccountTypeQueryApplication
+- CustBankInfoPageQueryApplication
+- CustCaEventListener
+- CustChangeApplication
+- CustChangeController
+- CustCommitValidatorPrcessor
+- CustCommitValidatorProvider
+- CustCompanyFacade
+- CustCompanyInfoApplication
+- CustCompanyInfoController
+- CustCompanyInfoOutController
+- CustCompanyInfoProvider
+- CustCompanyInfoProviderImpl
+- CustCompanyInfoProviderQueryImpl
+- CustCompanyInfoQueryProvider
+- CustCompanyInfoResultHandlerController
+- CustCompanyOperateProvider
+- CustCompanyOperateProviderImpl
+- CustCompanyOperationApplication
+- CustCompanyQueryApplication
+- CustCompanyUserRelApplication
+- CustCompanyUtilApplication
+- CustDocFacade
+- CustDocProvider
+- CustFacade
+- CustFundingCodeEventListener
+- CustFundingMarkEventListener
+- CustGeneralProductApplication
+- CustGroupLicenseApplication
+- CustGroupLicenseController
+- CustGroupRelApplication
+- CustGroupRelController
+- CustInterworkingProductApplication
+- CustMediaFacade
+- CustMenuAuditEventListener
+- CustMigratoryController
+- CustMsgFacade
+- CustNoticeController
+- CustOrgController
+- CustPersonApplication
+- CustPersonController
+- CustPersonSyncApplication
+- CustProjectController
+- CustProjectCustpushApplication
+- CustQueryProvider
+- CustRoleApplication
+- CustRoleInfoController
+- CustRuleProvider
+- CustServiceFacade
+- CustSettingConfigController
+- CustStatusCommitProcessor
+- CustStdChangeController
+- CustSurveyController
+- CustSyncEventProvider
+- CustSysOrgApplication
+- CustSysOrgController
+- CustValidatorProcessor
+- CustValidatorProvider
+- CustVerifyCodeApplication
+- CustVerifyCodeController
+- CustWorkflowAuditCommitProcessor
+- CustomerQueryProvider
+- CustomerQueryProviderImpl
+- DataPermissionApplication
+- DataPermissionController
+- DbassProvider
+- DbassProviderImpl
+- DecryptionRequestBodyAdvice
+- DocProvider
+- EasyexcelEventListener
+- EasyexcelExceptionListener
+- ElectronicAuthLetterApplication
+- ElectronicAuthProvider
+- EncryptionResponseBodyAdvice
+- ExceptionResolutionApplication
+- ExceptionResolutionImportListener
+- FaceVerifyController
+- FbpSideBarQueryProcessor
+- FileProvider
+- FileProviderImpl
+- FundRuleImportListener
+- FundRuleInfoApplication
+- FundingPartyExceptionResolutionController
+- FundingPartyExceptionResolutionProvider
+- FundingPartyExceptionResolutionProviderImpl
+- FundingPartyRuleProvider
+- FundingPartyRuleProviderImpl
+- FundingRuleInfoController
+- GeneralConfigController
+- GotoProductApplication
+- GptLearnApplication
+- GptLearnController
+- IAlipayAntArchiveEventListener
+- IPlatListener
+- IRoleSyncProvider
+- ISysProvider
+- ITmCustEventListener
+- LimitFacade
+- LocalTypeRoleController
+- LocalTypeUserController
+- MediaEventSyncProvider
+- MediaFacade
+- MediaSyncProvider
+- MessageFacade
+- MessageProvider
+- MessageProviderImpl
+- MiddleCustFacade
+- MiniProgramController
+- NacosFacade
+- NoticeFacade
+- NoticeIndentifyProvider
+- NoticeIndentifyProviderImpl
+- OpenApiCustControllerExceptionAdvice
+- OperAuthFacade
+- OperChangeRecordApplication
+- OperChangeRecordController
+- OperCustFacade
+- OpsFacade
+- OrgFacade
+- PlatAgreementController
+- PlatFormAgreementEventListener
+- PlatFormAgreementProvider
+- PlatFormAgreementProviderImpl
+- PlatFormAmsCaProvider
+- PlatFormAmsCaProviderImpl
+- PlatFormAmsProvider
+- PlatFormAmsProviderImpl
+- PlatFormCustEventListener
+- PlatFormCustProvider
+- PlatFormCustProviderImpl
+- PlatFormMediaApplication
+- PlatFormMediaEventListener
+- PlatFormMediaOperateProvider
+- PlatFormMediaOperateProviderImpl
+- PlatFormMigratoryApplication
+- PlatFormMigratoryCustDocApplication
+- PlatFormMigratoryProvider
+- PlatFormMigratoryProviderImpl
+- PlatFormNoticeEventListener
+- PlatFormOperateEventListener
+- PlatFormOperateProvider
+- PlatFormOperateProviderImpl
+- PlatFormOrgProvider
+- PlatFormOrgProviderImpl
+- PlatFormProductProvierImpl
+- PlatFormRoleEventListener
+- PlatFormRvsApplication
+- PlatFormRvsProvider
+- PlatFormRvsProviderImpl
+- PlatFormTenantProvider
+- PlatFormTenantProviderImpl
+- PlatFormUserApplication
+- PlatFormUserProvider
+- PlatFormUserProviderImpl
+- PlatMessageApplication
+- PlatMessageController
+- PlatMessageProvider
+- PlatMessageProviderImpl
+- PlatProductEventListener
+- PlatProjectEventListener
+- PlatTenantEventListener
+- PlatformComponentFacade
+- PlatformCustNonStandardProvider
+- PlatformProductApplication
+- PlatformProductController
+- PlatformProductProviderImpl
+- ProfileController
+- ProjectAlipayClearingConfigApplication
+- ProjectApprovalApplication
+- ProjectApprovalController
+- ProjectApprovalDeskApplication
+- ProjectApprovalDeskController
+- ProjectApprovalRemindApplication
+- ProjectApprovalWedriveApplication
+- ProjectApprovalWedriveController
+- ProjectApprovePushApplication
+- ProjectBusinessConfigApplication
+- ProjectConfigProvider
+- ProjectConfigProviderImpl
+- ProjectFileController
+- ProjectMediaFacade
+- ProjectOnlineProcessOperateListener
+- ProjectOnlineProcessStartListener
+- ProjectOpenStatusProvider
+- ProjectOpenStatusProviderImpl
+- ProjectProvider
+- ProjectProviderImpl
+- ProjectReportApplication
+- ProjectReportController
+- ProjectStatisticsApplication
+- ProjectStatisticsController
+- ProjectStatisticsDevImportApplication
+- ProjectStatisticsRemindApplication
+- RoleFacade
+- RoleSyncProviderImpl
+- SaaSAuthController
+- ShortLinkController
+- SideBarQueryProcessorProvider
+- SsoFacade
+- StandardEncryptionResponseBodyAdvice
+- SysCustOrgUserPermissionFacade
+- SysFacade
+- SysMenuFacade
+- SysOrgFacade
+- SysProviderImpl
+- SysRoleFacade
+- SysUserController
+- SysUserFacade
+- SystemLinkFacade
+- TenantFacade
+- TenantInterworkingProductApplication
+- TenantInterworkingProductController
+- TenantInterworkingProjectController
+- TenantOperaConfigPushApplication
+- TenantProductApplication
+- TenantProductController
+- TenantProductProvider
+- TenantProductQueryAggregateApplication
+- TenantProfileController
+- TenantProjectApplication
+- TenantProjectController
+- TenantProjectOperPushApplication
+- TenantProjectProvider
+- TenantProjectProviderImpl
+- TenantSettingConfigController
+- TianmaConsumer
+- TianmaController
+- TmCustEventListener
+- UserFacade
+- UserInfoFacade
+- WecProjectOperationController
+- WechatContactController
+- WechatContactFacade
+- WechatNotifyFacade
+- WechatProjectApprovalApplication
+- WechatProjectApprovalController
+- WechatWorkIntegrationTestController
+- WenjuanController
+- WorkFlowFacade
+- WxUserInfoFacade
+dormant_candidates:
+- funding_party_rule_cfg
+- funding_party_rule_detail
+- funding_party_rule_front
+- org_manage
+- tenant_product_ext_field
+- tenant_product_ext_field_form
+tables:
+  argeement_migratory_record:
+    do: ArgeementMigratoryRecordDO
+    mapper: ArgeementMigratoryRecordMapper
+    reachable: true
+    entry_points:
+    - PlatFormMigratoryApplication
+  async_io_task:
+    do: AsyncIoTaskDO
+    mapper: AsyncIoTaskMapper
+    reachable: true
+    entry_points:
+    - AsyncIoTaskController
+  authorization_agreement:
+    do: AuthorizationAgreementDO
+    mapper: AuthorizationAgreementMapper
+    reachable: true
+    entry_points:
+    - CustCompanyInfoApplication
+  ca_certification_info:
+    do: CaCertificationInfoDO
+    mapper: CaCertificationInfoMapper
+    reachable: true
+    entry_points:
+    - CaCertificationConfirmApplication
+    - CaCertificationIntentSmsApplication
+  ca_fee_company:
+    do: CaFeeCompanyDO
+    mapper: CaFeeCompanyMapper
+    reachable: true
+    entry_points:
+    - CaFeeCompanyCaStatusApplication
+    - CaFeeOrderDetailApplication
+    - CaFeePortalCheckApplication
+    - CaFeeRenewalReminderApplication
+    - CaFeeSwaggerApplication
+  ca_fee_order:
+    do: CaFeeOrderDO
+    mapper: CaFeeOrderMapper
+    reachable: true
+    entry_points:
+    - CaFeeAgreementApplication
+    - CaFeeInvoiceApplication
+    - CaFeeOrderApplication
+    - CaFeeOrderDetailApplication
+    - CaFeePaymentApplication
+    - CaFeePaymentCheckApplication
+    - CaFeePortalCheckApplication
+    - CaFeeRenewalReminderApplication
+    - CaFeeSwaggerApplication
+  ca_fee_project_config:
+    do: CaFeeProjectConfigDO
+    mapper: CaFeeProjectConfigMapper
+    reachable: true
+    entry_points: []
+  client_api_sync_error:
+    do: ClientApiSyncErrorDO
+    mapper: ClientApiSyncErrorMapper
+    reachable: true
+    entry_points: []
+  cust_access_secret:
+    do: CustAccessSecretDO
+    mapper: CustAccessSecretMapper
+    reachable: true
+    entry_points:
+    - CustAccessApplication
+    - DecryptionRequestBodyAdvice
+  cust_account_info:
+    do: CustAccountInfoDO
+    mapper: CustAccountInfoMapper
+    reachable: true
+    entry_points:
+    - ApplyCompanyInfoApplication
+    - CustAccessApplication
+    - CustAccountApplication
+    - CustAccountInfoController
+    - CustBankAccountController
+    - CustCompanyInfoApplication
+    - CustCompanyInfoProviderQueryImpl
+    - CustCompanyOperationApplication
+    - CustPersonController
+    - OperCustFacade
+    - PlatFormMigratoryApplication
+  cust_auth_application:
+    do: CustAuthApplicationDO
+    mapper: CustAuthApplicationMapper
+    reachable: true
+    entry_points:
+    - AlarmFacade
+    - ApplyCompanyInfoApplication
+    - CustCompanyInfoApplication
+    - CustCompanyInfoController
+    - CustCompanyOperationApplication
+    - CustCompanyQueryApplication
+    - CustCompanyUserRelApplication
+    - CustDocFacade
+    - PlatFormMigratoryApplication
+    - PlatFormProductProvierImpl
+    - UserFacade
+  cust_build_record:
+    do: CustBuildRecordDO
+    mapper: CustBuildRecordMapper
+    reachable: true
+    entry_points:
+    - CustAccessApplication
+    - CustMediaFacade
+    - OperCustFacade
+  cust_certification_info:
+    do: CustCertificationInfoDO
+    mapper: CustCertificationInfoMapper
+    reachable: true
+    entry_points:
+    - AutoVerifyController
+    - CfcaOneCertFourStepPackageApplication
+    - CustCompanyInfoController
+    - CustPersonApplication
+    - FaceVerifyController
+  cust_change_cfg:
+    do: CustChangeCfgDO
+    mapper: CustChangeCfgMapper
+    reachable: true
+    entry_points:
+    - CustAccessApplication
+    - CustAuthSignOrchestrationApplication
+    - CustChangeApplication
+    - CustCompanyInfoApplication
+    - CustDocFacade
+    - CustPersonApplication
+    - OperCustFacade
+    - PlatFormMigratoryApplication
+  cust_change_record:
+    do: CustChangeRecordDO
+    mapper: CustChangeRecordMapper
+    reachable: true
+    entry_points:
+    - CustAuthSignOrchestrationApplication
+    - CustChangeApplication
+    - CustCommitValidatorPrcessor
+    - CustCompanyInfoApplication
+    - CustDocFacade
+    - CustMediaFacade
+    - CustStatusCommitProcessor
+    - OperAuthFacade
+    - OperCustFacade
+    - SystemLinkFacade
+  cust_company_info:
+    do: CustCompanyInfoDO
+    mapper: CustCompanyInfoMapper
+    reachable: true
+    entry_points:
+    - AccessCustController
+    - ApplyCompanyInfoApplication
+    - ApplyCompanyInfoController
+    - AssetOperatorSyncApplication
+    - BocomFacade
+    - CaActivationApplication
+    - CaCertificationConfirmApplication
+    - CaCertificationPreCheckApplication
+    - CaCertificationRealNameApplication
+    - CaFeeBizNodeCheckApplication
+    - CaFeeCompanyCaStatusApplication
+    - CaFeePaymentCheckApplication
+    - CaFeePortalCheckApplication
+    - CaFeeRenewalReminderApplication
+    - CaFeeRuleEngineApplication
+    - CaFeeSwaggerApplication
+    - CaOpenCaApplication
+    - CaUpgradeAuthApplication
+    - CfcaOneCertFourStepPackageApplication
+    - CustAccessApplication
+    - CustAccessAsyncApplication
+    - CustAccountApplication
+    - CustAuthSignOrchestrationApplication
+    - CustAuthValidatorProcessor
+    - CustChangeApplication
+    - CustCommitValidatorPrcessor
+    - CustCompanyInfoApplication
+    - CustCompanyInfoController
+    - CustCompanyInfoOutController
+    - CustCompanyInfoProviderImpl
+    - CustCompanyInfoProviderQueryImpl
+    - CustCompanyInfoResultHandlerController
+    - CustCompanyOperationApplication
+    - CustCompanyQueryApplication
+    - CustCompanyUserRelApplication
+    - CustCompanyUtilApplication
+    - CustDocFacade
+    - CustFacade
+    - CustGeneralProductApplication
+    - CustGroupLicenseApplication
+    - CustGroupRelApplication
+    - CustGroupRelController
+    - CustInterworkingProductApplication
+    - CustMediaFacade
+    - CustMsgFacade
+    - CustPersonApplication
+    - CustPersonController
+    - CustPersonSyncApplication
+    - CustProjectController
+    - CustQueryProvider
+    - CustRoleApplication
+    - CustServiceFacade
+    - CustStatusCommitProcessor
+    - CustSyncEventProvider
+    - CustSysOrgApplication
+    - CustValidatorProcessor
+    - CustWorkflowAuditCommitProcessor
+    - DataPermissionApplication
+    - ElectronicAuthLetterApplication
+    - FaceVerifyController
+    - LocalTypeUserController
+    - MediaFacade
+    - OperAuthFacade
+    - OperCustFacade
+    - OpsFacade
+    - OrgFacade
+    - PlatFormAmsCaProviderImpl
+    - PlatFormCustProviderImpl
+    - PlatFormMediaApplication
+    - PlatFormMigratoryApplication
+    - PlatFormRvsApplication
+    - PlatFormUserApplication
+    - PlatformProductApplication
+    - ProfileController
+    - ProjectReportApplication
+    - SaaSAuthController
+    - SysUserController
+    - SystemLinkFacade
+    - TenantFacade
+    - TenantProductApplication
+    - TenantProfileController
+    - TenantProjectApplication
+    - UserFacade
+    - UserInfoFacade
+  cust_company_lifecycle_info:
+    do: CustCompanyLifecycleInfoDO
+    mapper: CustCompanyLifecycleInfoMapper
+    reachable: true
+    entry_points:
+    - CustCompanyInfoApplication
+  cust_company_survey_state:
+    do: CustCompanySurveyStateDO
+    mapper: CustCompanySurveyStateMapper
+    reachable: true
+    entry_points: []
+  cust_company_survey_whitelist:
+    do: CustCompanySurveyWhitelistDO
+    mapper: CustCompanySurveyWhitelistMapper
+    reachable: true
+    entry_points: []
+  cust_config_mapping:
+    do: CustConfigMappingDO
+    mapper: CustConfigMappingMapper
+    reachable: true
+    entry_points:
+    - CustGeneralProductApplication
+    - PlatformProductApplication
+    - PlatformProductController
+  cust_customized_product:
+    do: CustCustomizedProductDO
+    mapper: CustCustomizedProductMapper
+    reachable: true
+    entry_points:
+    - ClientAppController
+    - CustGeneralProductApplication
+  cust_group_rel:
+    do: CustGroupRelDO
+    mapper: CustGroupRelMapper
+    reachable: true
+    entry_points:
+    - CustGroupLicenseApplication
+    - CustGroupRelApplication
+  cust_head_company_info:
+    do: CustHeadCompanyInfoDO
+    mapper: CustHeadCompanyInfoMapper
+    reachable: true
+    entry_points:
+    - CustCompanyInfoApplication
+    - CustCompanyInfoController
+    - CustCompanyInfoProviderQueryImpl
+    - CustCompanyQueryApplication
+    - CustDocFacade
+    - OperCustFacade
+    - PlatFormMigratoryApplication
+  cust_interworking_product:
+    do: CustInterworkingProductDO
+    mapper: CustInterworkingProductMapper
+    reachable: true
+    entry_points:
+    - CustCompanyInfoApplication
+    - CustCompanyQueryApplication
+    - CustCompanyUtilApplication
+  cust_invite_info:
+    do: CustInviteInfoDO
+    mapper: CustInviteInfoMapper
+    reachable: true
+    entry_points:
+    - CustCompanyInfoController
+  cust_oper_change_record:
+    do: CustOperChangeRecordDO
+    mapper: CustOperChangeRecordMapper
+    reachable: true
+    entry_points:
+    - OperChangeRecordApplication
+  cust_person_info:
+    do: CustPersonInfoDO
+    mapper: CustPersonInfoMapper
+    reachable: true
+    entry_points:
+    - ApplyCompanyInfoApplication
+    - AssetOperatorSyncApplication
+    - CaActivationApplication
+    - CaCertificationConfirmApplication
+    - CaCertificationPreCheckApplication
+    - CaCertificationRealNameApplication
+    - CaUpgradeAuthApplication
+    - CfcaOneCertFourStepPackageApplication
+    - CustAccessApplication
+    - CustAccessAsyncApplication
+    - CustAuthValidatorProcessor
+    - CustChangeApplication
+    - CustCommitValidatorPrcessor
+    - CustCompanyInfoApplication
+    - CustCompanyInfoController
+    - CustCompanyInfoOutController
+    - CustCompanyOperationApplication
+    - CustCompanyQueryApplication
+    - CustCompanyUserRelApplication
+    - CustDocFacade
+    - CustFacade
+    - CustGeneralProductApplication
+    - CustGroupLicenseApplication
+    - CustGroupRelApplication
+    - CustMediaFacade
+    - CustMsgFacade
+    - CustPersonApplication
+    - CustPersonController
+    - CustPersonSyncApplication
+    - CustQueryProvider
+    - CustStatusCommitProcessor
+    - CustSyncEventProvider
+    - CustSysOrgApplication
+    - DataPermissionApplication
+    - FaceVerifyController
+    - FundingPartyExceptionResolutionController
+    - LocalTypeRoleController
+    - MediaFacade
+    - OperCustFacade
+    - PlatFormMediaApplication
+    - PlatFormMigratoryApplication
+    - PlatFormUserApplication
+    - SaaSAuthController
+    - SysUserController
+    - SystemLinkFacade
+    - UserFacade
+    - UserInfoFacade
+  cust_project_code_record:
+    do: CustProjectCodeRecordDO
+    mapper: CustProjectCodeRecordMapper
+    reachable: true
+    entry_points: []
+  cust_project_pushcust:
+    do: CustProjectPushcustDO
+    mapper: CustProjectPushcustMapper
+    reachable: true
+    entry_points:
+    - CustProjectCustpushApplication
+    - CustSyncEventProvider
+  cust_project_rel:
+    do: CustProjectRelDO
+    mapper: CustProjectRelMapper
+    reachable: true
+    entry_points:
+    - CustAccessApplication
+    - CustCompanyInfoApplication
+    - CustCompanyInfoController
+    - CustPersonApplication
+    - CustProjectController
+    - CustRoleApplication
+    - OperCustFacade
+    - PlatFormMigratoryApplication
+    - ProjectReportApplication
+    - ProjectReportController
+    - SaaSAuthController
+    - TenantProductApplication
+    - TenantProjectApplication
+  cust_role_info:
+    do: CustRoleInfoDO
+    mapper: CustRoleInfoMapper
+    reachable: true
+    entry_points:
+    - ApplyCompanyInfoApplication
+    - CaActivationApplication
+    - CaCertificationConfirmApplication
+    - CaCertificationRealNameApplication
+    - CustAccessApplication
+    - CustCommitValidatorPrcessor
+    - CustCompanyInfoApplication
+    - CustCompanyInfoController
+    - CustCompanyQueryApplication
+    - CustFacade
+    - CustGeneralProductApplication
+    - CustPersonApplication
+    - CustPersonSyncApplication
+    - CustQueryProvider
+    - CustRoleApplication
+    - CustRoleInfoController
+    - CustSyncEventProvider
+    - CustSysOrgApplication
+    - CustomerQueryProviderImpl
+    - OperCustFacade
+    - OpsFacade
+    - PlatFormMediaApplication
+    - PlatFormMigratoryApplication
+    - SystemLinkFacade
+  cust_setting_config:
+    do: CustSettingConfigDO
+    mapper: CustSettingConfigMapper
+    reachable: true
+    entry_points:
+    - CustAccountApplication
+    - CustSettingConfigController
+  cust_sftp:
+    do: CustSftpDO
+    mapper: CustSftpMapper
+    reachable: true
+    entry_points:
+    - CustAccessApplication
+  cust_shareholder_info:
+    do: CustShareholderInfoDO
+    mapper: CustShareholderInfoMapper
+    reachable: true
+    entry_points:
+    - ApplyCompanyInfoApplication
+  cust_survey_answer:
+    do: CustSurveyAnswerDO
+    mapper: CustSurveyAnswerMapper
+    reachable: true
+    entry_points: []
+  cust_user_rel:
+    do: CustUserRelDO
+    mapper: CustUserRelMapper
+    reachable: true
+    entry_points:
+    - CustCompanyInfoController
+  funding_exception_resolution:
+    do: FundingExceptionResolutionDO
+    mapper: FundingExceptionResolutionMapper
+    reachable: true
+    entry_points:
+    - ExceptionResolutionApplication
+    - FundingPartyExceptionResolutionController
+    - FundingPartyExceptionResolutionProviderImpl
+  funding_party_rule_cfg:
+    do: FundingPartyRuleCfgDO
+    mapper: FundingPartyRuleCfgMapper
+    reachable: false
+    entry_points: []
+  funding_party_rule_detail:
+    do: FundingPartyRuleDetailDO
+    mapper: FundingPartyRuleDetailMapper
+    reachable: false
+    entry_points: []
+  funding_party_rule_front:
+    do: FundingPartyRuleFrontDO
+    mapper: FundingPartyRuleFrontMapper
+    reachable: false
+    entry_points: []
+  funding_rule_detail:
+    do: FundingRuleDetailDO
+    mapper: FundingRuleDetailMapper
+    reachable: true
+    entry_points:
+    - FundRuleInfoApplication
+    - FundingPartyRuleProviderImpl
+  funding_rule_front_cfg:
+    do: FundingRuleFrontCfgDO
+    mapper: FundingRuleFrontCfgMapper
+    reachable: true
+    entry_points:
+    - FundRuleInfoApplication
+    - FundingPartyRuleProviderImpl
+  funding_rule_info:
+    do: FundingRuleInfoDO
+    mapper: FundingRuleInfoMapper
+    reachable: true
+    entry_points:
+    - FundRuleInfoApplication
+    - FundingPartyRuleProviderImpl
+    - FundingRuleInfoController
+  gpt_learn_poster_log:
+    do: GptLearnPosterLogDO
+    mapper: GptLearnPosterLogMapper
+    reachable: true
+    entry_points: []
+  migratory_user_record:
+    do: MigratoryUserRecordDO
+    mapper: MigratoryUserRecordMapper
+    reachable: true
+    entry_points:
+    - PlatFormMigratoryApplication
+  operation_user:
+    do: OperationUserDO
+    mapper: OperationUserMapper
+    reachable: true
+    entry_points:
+    - CustProjectController
+    - OperCustFacade
+    - ProjectApprovalApplication
+    - ProjectReportApplication
+    - ProjectReportController
+  org_manage:
+    do: OrgManageDO
+    mapper: OrgManageMapper
+    reachable: false
+    entry_points: []
+  platform_product_client:
+    do: PlatformProductClientDO
+    mapper: PlatformProductClientMapper
+    reachable: true
+    entry_points: []
+  platform_product_cust_role:
+    do: PlatformProductCustRoleDO
+    mapper: PlatformProductCustRoleMapper
+    reachable: true
+    entry_points:
+    - TenantProductApplication
+  platform_product:
+    do: PlatformProductDO
+    mapper: PlatformProductMapper
+    reachable: true
+    entry_points:
+    - CustAccessApplication
+    - CustCompanyInfoApplication
+    - CustCompanyUtilApplication
+    - CustGeneralProductApplication
+    - CustRuleProvider
+    - OperCustFacade
+    - PlatformProductApplication
+    - PlatformProductController
+    - ProjectApprovalApplication
+    - TenantInterworkingProductApplication
+    - TenantProductApplication
+    - TenantProjectApplication
+  project_file_info:
+    do: ProjectFileInfoDO
+    mapper: ProjectFileInfoMapper
+    reachable: true
+    entry_points:
+    - ProjectFileController
+  short_link:
+    do: ShortLinkDO
+    mapper: ShortLinkMapper
+    reachable: true
+    entry_points:
+    - ShortLinkController
+  tenant_interworking_product:
+    do: TenantInterworkingProductDO
+    mapper: TenantInterworkingProductMapper
+    reachable: true
+    entry_points:
+    - CustCompanyInfoApplication
+    - CustCompanyQueryApplication
+    - CustCompanyUtilApplication
+    - OpsFacade
+    - TenantInterworkingProductApplication
+    - TenantInterworkingProductController
+  tenant_interworking_project:
+    do: TenantInterworkingProjectDO
+    mapper: TenantInterworkingProjectMapper
+    reachable: true
+    entry_points:
+    - TenantInterworkingProductController
+  tenant_migarory_log:
+    do: TenantMigaroryLogDO
+    mapper: TenantMigaroryLogMapper
+    reachable: true
+    entry_points: []
+  tenant_product:
+    do: TenantProductDO
+    mapper: TenantProductMapper
+    reachable: true
+    entry_points:
+    - CustAccessApplication
+    - CustCompanyInfoApplication
+    - CustCompanyInfoController
+    - CustCompanyQueryApplication
+    - CustDocFacade
+    - CustGeneralProductApplication
+    - CustPersonApplication
+    - CustProjectController
+    - FbpSideBarQueryProcessor
+    - PlatFormMigratoryApplication
+    - PlatFormTenantProviderImpl
+    - TenantProductApplication
+    - TenantProductController
+    - TenantProjectApplication
+    - UserFacade
+  tenant_product_ext_field:
+    do: TenantProductExtFieldDO
+    mapper: TenantProductExtFieldMapper
+    reachable: false
+    entry_points: []
+  tenant_product_ext_field_form:
+    do: TenantProductExtFieldFormDO
+    mapper: TenantProductExtFieldFormMapper
+    reachable: false
+    entry_points: []
+  tenant_product_menu:
+    do: TenantProductMenuDO
+    mapper: TenantProductMenuMapper
+    reachable: true
+    entry_points: []
+  tenant_product_menu_res:
+    do: TenantProductMenuResDO
+    mapper: TenantProductMenuResMapper
+    reachable: true
+    entry_points: []
+  tenant_project_approval_business_info:
+    do: TenantProjectApprovalBusinessInfoDO
+    mapper: TenantProjectApprovalBusinessInfoMapper
+    reachable: true
+    entry_points:
+    - ProjectApprovalApplication
+    - ProjectBusinessConfigApplication
+  tenant_project_approval:
+    do: TenantProjectApprovalDO
+    mapper: TenantProjectApprovalMapper
+    reachable: true
+    entry_points:
+    - ProjectApprovalApplication
+    - ProjectApprovalController
+    - ProjectApprovalDeskApplication
+    - ProjectApprovalWedriveApplication
+    - ProjectApprovePushApplication
+    - ProjectBusinessConfigApplication
+  tenant_project_approval_flow_config:
+    do: TenantProjectApprovalFlowConfigDO
+    mapper: TenantProjectApprovalFlowConfigMapper
+    reachable: true
+    entry_points:
+    - ProjectApprovalApplication
+  tenant_project_approval_flow_credit:
+    do: TenantProjectApprovalFlowCreditDO
+    mapper: TenantProjectApprovalFlowCreditMapper
+    reachable: true
+    entry_points:
+    - ProjectApprovalApplication
+    - ProjectApprovalDeskApplication
+  tenant_project_approval_flow:
+    do: TenantProjectApprovalFlowDO
+    mapper: TenantProjectApprovalFlowMapper
+    reachable: true
+    entry_points:
+    - ProjectApprovalApplication
+    - ProjectApprovalDeskApplication
+    - ProjectBusinessConfigApplication
+    - WechatNotifyFacade
+  tenant_project_approval_flow_file:
+    do: TenantProjectApprovalFlowFileDO
+    mapper: TenantProjectApprovalFlowFileMapper
+    reachable: true
+    entry_points:
+    - ProjectApprovalDeskApplication
+  tenant_project_approval_flow_node:
+    do: TenantProjectApprovalFlowNodeDO
+    mapper: TenantProjectApprovalFlowNodeMapper
+    reachable: true
+    entry_points:
+    - ProjectApprovalApplication
+    - ProjectApprovalDeskApplication
+    - ProjectApprovalWedriveApplication
+    - ProjectOnlineProcessOperateListener
+  tenant_project:
+    do: TenantProjectDO
+    mapper: TenantProjectMapper
+    reachable: true
+    entry_points:
+    - CustAccessApplication
+    - CustCompanyInfoApplication
+    - CustCompanyInfoController
+    - CustCompanyInfoOutController
+    - CustCompanyInfoProviderQueryImpl
+    - CustPersonApplication
+    - CustProjectController
+    - CustRuleProvider
+    - CustSyncEventProvider
+    - OperCustFacade
+    - PlatFormMigratoryApplication
+    - PlatformProductApplication
+    - ProjectApprovalApplication
+    - ProjectApprovalController
+    - ProjectApprovalDeskApplication
+    - ProjectBusinessConfigApplication
+    - ProjectProviderImpl
+    - ProjectReportApplication
+    - ProjectReportController
+    - SaaSAuthController
+    - TenantProjectApplication
+    - TenantProjectController
+    - TenantProjectProviderImpl
+  tenant_setting_config:
+    do: TenantSettingConfigDO
+    mapper: TenantSettingConfigMapper
+    reachable: true
+    entry_points:
+    - CustAccessApplication
+    - CustCompanyInfoApplication
+    - CustCompanyInfoController
+    - CustCompanyQueryApplication
+    - CustGroupRelApplication
+    - CustOrgController
+    - CustPersonApplication
+    - CustProjectController
+    - CustRuleProvider
+    - CustSyncEventProvider
+    - CustomerQueryProviderImpl
+    - ElectronicAuthLetterApplication
+    - MessageFacade
+    - OperCustFacade
+    - OrgFacade
+    - PlatFormAmsCaProviderImpl
+    - PlatFormMigratoryApplication
+    - PlatFormTenantProviderImpl
+    - PlatFormUserApplication
+    - PlatformComponentFacade
+    - PlatformProductApplication
+    - SaaSAuthController
+    - SystemLinkFacade
+    - TenantProfileController
+    - TenantProjectApplication
+    - TenantSettingConfigController
+    - UserFacade
+  tenant_setting_config_share:
+    do: TenantSettingConfigShareDO
+    mapper: TenantSettingConfigShareMapper
+    reachable: true
+    entry_points:
+    - PlatFormTenantProviderImpl
+    - TenantSettingConfigController
+  wec_project_cust_operation_rel:
+    do: WecProjectCustOperationRelDO
+    mapper: WecProjectCustOperationRelMapper
+    reachable: true
+    entry_points:
+    - ProjectReportApplication
+    - ProjectReportController
+    - WecProjectOperationController
+  wec_project_operation_rel:
+    do: WecProjectOperationRelDO
+    mapper: WecProjectOperationRelMapper
+    reachable: true
+    entry_points:
+    - ProjectReportApplication
+    - ProjectReportController
+    - WecProjectOperationController
+  wechat_project_approval_apply:
+    do: WechatProjectApprovalApplyDO
+    mapper: WechatProjectApprovalApplyMapper
+    reachable: true
+    entry_points:
+    - ProjectApprovalApplication
+    - ProjectStatisticsApplication
+    - ProjectStatisticsDevImportApplication
+    - ProjectStatisticsRemindApplication
+    - WechatProjectApprovalApplication
+    - WechatProjectApprovalController
+  wechat_project_approval_field_history:
+    do: WechatProjectApprovalFieldHistoryDO
+    mapper: WechatProjectApprovalFieldHistoryMapper
+    reachable: true
+    entry_points:
+    - ProjectStatisticsApplication

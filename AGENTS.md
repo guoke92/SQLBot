@@ -104,6 +104,7 @@ Graph docs: `backend/graphs/README.md`. Deeper backend notes: `CLAUDE.md` (may l
 - `graph/` — unit node store (assembly, decompose, feedback); `semantic/` — authoritative semantic layer (runtime K1–K5 assets are projections of approved unit revisions; `lint.py` / `schema.py` / `service.py`); `compile/` — seed policy + business-data bundle application; `capture/` + `staging/` — capture jobs and candidate admission; `lineage/` — promotion audit events; `gateway.py` — recall gateway.
 - Extracting business knowledge from a business system's source code follows the `.cursor/skills/knowledge-extraction/` skill (produces KnowledgePackageV2 unit packages).
 - `apps/knowledge/retrieval/` and `importing/` hold only stale `__pycache__` (no source) — do not import from them.
+- `apps/knowledge/wiki/` — 新一代 wiki 知识体系（prototype，独立于 unit 知识包）：页面契约/切块/RRF+图扩展召回（权威契约 `docs/wiki页面契约-spec-v0.md`，运行面文本直拼 prompt，切换见 `docs/wiki-knowledge/wiki召回接口-v1.md`；产品化/证据基座/锚点闭包/关系通道完整方案见 `docs/wiki-knowledge/wiki知识体系完整方案-v1.md`）
 
 ## Backend Architecture (summary)
 

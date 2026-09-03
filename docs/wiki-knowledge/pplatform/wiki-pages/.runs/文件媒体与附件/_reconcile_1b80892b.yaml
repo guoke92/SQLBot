@@ -1,0 +1,2 @@
+- code: PAGE_CONTRACT_FAILED
+  message: page_key 'rule.CA升级授权书双端上传' 不符合 rule 页的 业务 slug（CJK 保留）

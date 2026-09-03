@@ -196,3 +196,13 @@ sqlbot-xpack
 dist-pack/
 sqlbot-server-*.tar.gz
 .debug-data/
+
+# Obsidian 编辑器私有配置（docs/ 笔记目录内）
+docs/.obsidian/
+
+# ZCode tool session data
+.zcode/
+
+# Runtime artifacts
+data/run/*.pid
+data/logs/

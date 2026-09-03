@@ -930,7 +930,7 @@
       "GENERATE_QUERY_WITH_PERMISSIONS": "쿼리에 행 권한 적용",
       "CHOOSE_DATASOURCE": "데이터 소스 매칭",
       "GENERATE_DYNAMIC_QUERY": "동적 쿼리 생성",
-      "CHOOSE_TABLE": "관련 테이블 검색",
+      "CHOOSE_TABLE": "데이터 컨텍스트 조회",
       "ACCESS_SCOPE": "데이터 접근 범위 확인",
       "FILTER_TERMS": "업무 지식 검색",
       "FILTER_QUERY_EXAMPLE": "쿼리 예시 매칭",
@@ -943,7 +943,8 @@
       "TURN_ROUTE": "이번 요청 식별",
       "CLARIFY_INTENT": "쿼리 기준 확인",
       "SEMANTIC_REVIEW": "쿼리 검토",
-      "DECIDE_NEXT": "실행 결과 확인"
+      "DECIDE_NEXT": "실행 결과 확인",
+      "WAIT_CLARIFICATION": "명확화 응답 대기"
     },
     "audit": {
       "processing": "처리 중",
@@ -993,7 +994,14 @@
       "response_ready": "응답 생성됨",
       "execution_accepted": "쿼리 결과를 사용할 수 있어 표시로 진행합니다",
       "execution_needs_repair": "쿼리 결과가 검사를 통과하지 못해 쿼리를 수정합니다",
-      "execution_finished": "이번 처리가 끝났습니다"
+      "execution_finished": "이번 처리가 끝났습니다",
+      "retrieval_ready": "{count}개 테이블 조회 · wiki {wiki_hits}페이지",
+      "recall_tab_hits": "검색 상세",
+      "recall_tab_raw": "원본",
+      "recall_filtered": "프롬프트 제외",
+      "recall_trace": "검색 과정",
+      "trace_visible": "펜스 내 {count}개 페이지",
+      "trace_window": "융합 창 {count}개 페이지"
     },
     "log_system": "대화 템플릿",
     "log_question": "현재 질문",
