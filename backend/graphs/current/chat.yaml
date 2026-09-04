@@ -2,180 +2,54 @@ version: 1
 graph_key: chat
 state: apps.chat.graphs.nodes.nlq.NlqState
 description: >
-  Unified conversation flow: route the turn once, assemble the selected
-  context, produce compact protocol plans, pass the deterministic plan gate
-  (verifies terminal negatives against recall indexes; bounces at most once
-  with an expanded working set), apply deterministic hard gates and risk
-  review, then repair/execute and publish one durable answer.
+  Unified Autonomous Data Agent runtime.
+  prepare_turn -> agent_loop <-> execute_tools -> finalize_turn;
+  clarifications pause durably at await_clarification; errors route to fail.
 
 nodes:
-  prepare_record: apps.chat.graphs.nodes.nlq.prepare_record_node
-  turn_router: apps.chat.graphs.nodes.nlq.turn_router_node
-  assemble_context: apps.chat.graphs.nodes.nlq.assemble_turn_context_node
-  unsupported: apps.chat.graphs.nodes.nlq.unsupported_turn_node
-  unavailable: apps.chat.graphs.nodes.nlq.unavailable_context_node
-  analysis_agent: apps.chat.graphs.nodes.nlq.analysis_agent_node
-  prediction_agent: apps.chat.graphs.nodes.nlq.prediction_agent_node
-  ensure_datasource: apps.chat.graphs.nodes.nlq.ensure_datasource_node
-  resolve_access_scope: apps.chat.graphs.nodes.nlq.resolve_access_scope_node
-  retrieve_context: apps.chat.graphs.nodes.nlq.retrieve_context_node
-  plan_query: apps.chat.graphs.nodes.nlq.plan_query_node
-  plan_gate: apps.chat.graphs.nodes.nlq.plan_gate_node
-  unsupported_query: apps.chat.graphs.nodes.nlq.unsupported_query_node
-  review_query: apps.chat.graphs.nodes.nlq.review_query_node
-  await_clarification: apps.chat.graphs.nodes.nlq.await_clarification_node
-  generate_queries: apps.chat.graphs.nodes.nlq.generate_queries_node
-  execute_queries: apps.chat.graphs.nodes.nlq.execute_queries_node
-  generate_charts: apps.chat.graphs.nodes.nlq.generate_charts_node
-  decide_next: apps.chat.graphs.nodes.nlq.decide_next_node
-  summarize_answer: apps.chat.graphs.nodes.nlq.summarize_answer_node
-  complete: apps.chat.graphs.nodes.nlq.complete_node
+  prepare_turn: apps.chat.graphs.nodes.unified_agent.prepare_agent_turn_node
+  agent_loop: apps.chat.graphs.nodes.unified_agent.agent_loop_node
+  execute_tools: apps.conversation.tooling.execute_tools_node
+  await_clarification: apps.chat.graphs.nodes.agent_clarify.await_agent_clarification_node
+  finalize_turn: apps.chat.graphs.nodes.agent_finalize.finalize_agent_turn_node
   fail: apps.chat.graphs.nodes.nlq.fail_node
 
 edges:
   - from: START
-    to: prepare_record
+    to: prepare_turn
 
-  - from: prepare_record
+  - from: prepare_turn
     router:
       type: ok_or_fail
-      next: turn_router
+      next: agent_loop
     paths:
-      turn_router: turn_router
+      agent_loop: agent_loop
       fail: fail
 
-  - from: turn_router
-    router: apps.chat.graphs.nodes.nlq.route_after_turn_router
+  - from: agent_loop
+    router: apps.chat.graphs.nodes.unified_agent.route_after_agent_loop
     paths:
-      unsupported: unsupported
-      assemble_context: assemble_context
+      execute_tools: execute_tools
+      finalize_turn: finalize_turn
       fail: fail
 
-  - from: assemble_context
-    router: apps.chat.graphs.nodes.nlq.route_after_context
+  - from: execute_tools
+    router: apps.chat.graphs.nodes.unified_agent.route_after_tools_execution
     paths:
-      unsupported: unsupported
-      ensure_datasource: ensure_datasource
-      analysis_agent: analysis_agent
-      prediction_agent: prediction_agent
-      unavailable: unavailable
-      fail: fail
-
-  - from: unsupported
-    to: END
-
-  - from: unsupported_query
-    to: END
-
-  - from: unavailable
-    to: fail
-
-  - from: analysis_agent
-    router:
-      type: ok_or_fail
-      next: complete
-    paths:
-      complete: complete
-      fail: fail
-
-  - from: prediction_agent
-    router:
-      type: ok_or_fail
-      next: complete
-    paths:
-      complete: complete
-      fail: fail
-
-  - from: ensure_datasource
-    router:
-      type: ok_or_fail
-      next: resolve_access_scope
-    paths:
-      resolve_access_scope: resolve_access_scope
-      fail: fail
-
-  - from: resolve_access_scope
-    router:
-      type: ok_or_fail
-      next: retrieve_context
-    paths:
-      retrieve_context: retrieve_context
-      fail: fail
-
-  - from: retrieve_context
-    router:
-      type: ok_or_fail
-      next: plan_query
-    paths:
-      plan_query: plan_query
-      fail: fail
-
-  - from: plan_query
-    to: plan_gate
-
-  - from: plan_gate
-    router: apps.chat.graphs.nodes.nlq.route_after_plan_gate
-    paths:
+      agent_loop: agent_loop
       await_clarification: await_clarification
-      unsupported: unsupported_query
-      review_query: review_query
-      generate_queries: generate_queries
-      plan_query: plan_query
-      fail: fail
-
-  - from: review_query
-    router: apps.chat.graphs.nodes.nlq.route_after_review
-    paths:
-      await_clarification: await_clarification
-      generate_queries: generate_queries
       fail: fail
 
   - from: await_clarification
-    to: assemble_context
+    to: agent_loop
 
-  - from: generate_queries
-    router: apps.chat.graphs.nodes.nlq.route_after_queries
-    paths:
-      await_clarification: await_clarification
-      generate_queries: generate_queries
-      execute_queries: execute_queries
-      complete: complete
-      fail: fail
-
-  - from: execute_queries
-    router: apps.chat.graphs.nodes.nlq.route_after_execute
-    paths:
-      decide_next: decide_next
-      fail: fail
-
-  - from: decide_next
-    router: apps.chat.graphs.nodes.nlq.route_after_decision
-    paths:
-      generate_queries: generate_queries
-      generate_charts: generate_charts
-      analysis_agent: analysis_agent
-      prediction_agent: prediction_agent
-      complete: complete
-      fail: fail
-
-  - from: generate_charts
-    router: apps.chat.graphs.nodes.nlq.route_after_presentation
-    paths:
-      summarize_answer: summarize_answer
-      analysis_agent: analysis_agent
-      prediction_agent: prediction_agent
-      fail: fail
-
-  - from: summarize_answer
+  - from: finalize_turn
     router:
       type: ok_or_fail
-      next: complete
+      next: END
     paths:
-      complete: complete
+      END: END
       fail: fail
-
-  - from: complete
-    to: END
 
   - from: fail
     to: END

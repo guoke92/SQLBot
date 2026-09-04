@@ -549,6 +549,73 @@ def _latest_reasoning_by_record(
     return out
 
 
+
+def _agent_stages_by_record(
+    session: SessionDep,
+    record_ids: List[int],
+) -> Dict[int, List[Dict[str, Any]]]:
+    stages_map: Dict[int, List[Dict[str, Any]]] = {rid: [] for rid in record_ids}
+    if not record_ids:
+        return stages_map
+    stmt = (
+        select(ChatLog.pid, ChatLog.operate, ChatLog.reasoning_content, ChatLog.messages)
+        .where(
+            and_(
+                ChatLog.pid.in_(record_ids),
+                ChatLog.operate.in_([OperationEnum.AGENT_STEP, OperationEnum.TOOL_CALL]),
+            )
+        )
+        .order_by(ChatLog.pid.asc(), ChatLog.start_time.asc(), ChatLog.id.asc())
+    )
+    tool_map = {
+        "execute_sql_sandbox": "执行查询 (execute_sql_sandbox)",
+        "patch_and_compile_sql": "增量补丁 (patch_and_compile_sql)",
+        "compare_results": "数据对比 (compare_results)",
+        "search_schema": "结构检索 (search_schema)",
+        "search_wiki": "查阅知识 (search_wiki)",
+        "request_clarification": "请求澄清 (request_clarification)",
+    }
+    counters: Dict[int, int] = {}
+    for pid, operate, reasoning, messages in session.execute(stmt).all():
+        if pid is None or operate is None:
+            continue
+        pid_int = int(pid)
+        msg = messages if isinstance(messages, dict) else {}
+        op_str = str(operate)
+        if "AGENT_STEP" in op_str:
+            thought = reasoning or ""
+            out = msg.get("output")
+            if isinstance(out, dict) and out.get("content"):
+                if out.get("tool_calls"):
+                    thought = thought or out.get("content")
+            elif isinstance(out, str) and "round" in str(msg.get("brief")):
+                thought = thought or out
+            if thought and str(thought).strip():
+                counters[pid_int] = counters.get(pid_int, 0) + 1
+                stages_map[pid_int].append({
+                    "id": f"thought-{counters[pid_int]}",
+                    "type": "thought",
+                    "title": "思考",
+                    "content": str(thought).strip(),
+                    "status": "completed",
+                })
+        elif "TOOL_CALL" in op_str:
+            inp = msg.get("input") or {}
+            t_name = inp.get("tool") or "tool"
+            args = inp.get("arguments") or {}
+            counters[pid_int] = counters.get(pid_int, 0) + 1
+            stages_map[pid_int].append({
+                "id": f"tool-{counters[pid_int]}",
+                "type": "tool",
+                "title": tool_map.get(t_name, f"工具调用 ({t_name})"),
+                "toolName": t_name,
+                "toolArgs": args,
+                "sql": args.get("sql") if isinstance(args, dict) else None,
+                "status": "completed",
+            })
+    return stages_map
+
+
 def _token_usage_by_record(
     session: SessionDep, record_ids: List[int]
 ) -> Dict[int, int]:
@@ -688,6 +755,7 @@ def get_chat_with_records(
         items.sort(key=lambda item: item.version)
 
     token_usage_map = _token_usage_by_record(session, record_ids)
+    agent_stages_map = _agent_stages_by_record(session, record_ids)
     # Reasoning is for history hydrate when payload omits or prefers log reasoning;
     # with_data path historically skipped joins — keep that behavior (maps empty unused).
     reasoning_map = (
@@ -724,6 +792,7 @@ def get_chat_with_records(
             finish_time=row.finish_time,
             duration=duration,
             total_tokens=token_usage_map.get(rid, 0),
+            agent_stages=agent_stages_map.get(rid, []),
             question=row.question,
             turn_kind=getattr(row, "turn_kind", "query"),
             relation=getattr(row, "relation", "independent"),
@@ -945,7 +1014,7 @@ def get_chat_log_history(
     )
     if run is not None:
         log_query = log_query.filter(ChatLog.run_id == run.run_id)
-    chat_logs = log_query.order_by(ChatLog.start_time).all()
+    chat_logs = log_query.order_by(ChatLog.start_time.asc(), ChatLog.id.asc()).all()
 
     # 3. 计算总的时间和token信息
     total_tokens = 0
@@ -1648,20 +1717,5 @@ def submit_record_feedback(
     record.feedback = feedback
     record.feedback_revision = int(record.feedback_revision or 0) + 1
     session.add(record)
-    from apps.knowledge.gateway import KnowledgeSignal, emit_signal
-
-    emit_signal(
-        session,
-        KnowledgeSignal(
-            kind="turn_feedback",
-            fact={
-                "record_id": chat_record_id,
-                "feedback": feedback,
-                "revision": record.feedback_revision,
-                "user_id": user_id,
-            },
-        ),
-    )
-
     session.commit()
     return {"feedback": feedback, "revision": record.feedback_revision}

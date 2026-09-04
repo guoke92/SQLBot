@@ -215,7 +215,7 @@ build_frontend() {
     fi
 
     cd "${FRONTEND_DIR}"
-    pnpm build
+    CI=true pnpm build
     [[ -f "${FRONTEND_DIR}/dist/index.html" ]] || die "前端构建失败，未生成 dist/index.html"
     frontend_build_fingerprint > "${BUILD_STAMP}"
     info "前端构建完成"

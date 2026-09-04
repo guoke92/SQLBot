@@ -938,7 +938,7 @@
       "EXECUTE_QUERY": "执行查询",
       "GENERATE_PICTURE": "生成图片",
       "TOOL_CALL": "工具调用",
-      "AGENT_STEP": "智能体决策",
+      "AGENT_STEP": "思考",
       "GROUND_ENTITIES": "识别业务实体",
       "TURN_ROUTE": "识别本轮任务",
       "CLARIFY_INTENT": "确认查询口径",

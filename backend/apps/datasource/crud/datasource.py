@@ -407,20 +407,6 @@ def sync_catalog(session: SessionDep, ds: CoreDatasource, tables: list[CoreTable
             if table.id is not None and table.id not in keep_ids
         ]
         if stale_ids:
-            try:
-                from apps.knowledge.gateway import KnowledgeSignal, emit_signal
-
-                emit_signal(
-                    session,
-                    KnowledgeSignal(
-                        kind="schema_drift",
-                        refs={"ds_id": int(ds.id), "changed_table_ids": stale_ids},
-                    ),
-                )
-            except Exception as _knowledge_exc:  # noqa: BLE001
-                SQLBotLogUtil.warning(
-                    f"knowledge L-1 disable on table delete: {_knowledge_exc}"
-                )
             session.query(CoreField).filter(CoreField.table_id.in_(stale_ids)).delete(
                 synchronize_session=False
             )
@@ -515,20 +501,6 @@ def _reconcile_fields(
         if field.id is not None and field.id not in id_list
     ]
     if stale_ids:
-        try:
-            from apps.knowledge.gateway import KnowledgeSignal, emit_signal
-
-            emit_signal(
-                session,
-                KnowledgeSignal(
-                    kind="schema_drift",
-                    refs={"ds_id": int(ds.id), "changed_field_ids": stale_ids},
-                ),
-            )
-        except Exception as _knowledge_exc:  # noqa: BLE001
-            SQLBotLogUtil.warning(
-                f"knowledge L-1 disable on field delete: {_knowledge_exc}"
-            )
         session.query(CoreField).filter(CoreField.id.in_(stale_ids)).delete(
             synchronize_session=False
         )

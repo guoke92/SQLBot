@@ -88,7 +88,6 @@ from apps.conversation.run_service import (
 from apps.conversation.runtime_context import attach_runtime  # noqa: F401
 from apps.conversation.session import session_scope
 from apps.conversation.sink import StreamSink
-from apps.knowledge.compile import matched_revision_ids  # noqa: F401
 from common.core.config import settings
 from common.error import SingleMessageError
 from common.utils.utils import SQLBotLogUtil

@@ -119,6 +119,12 @@ class NlqState(RunState, total=False):
     ambiguity_payload: dict[str, Any]
     unsupported_payload: dict[str, Any]
     outcome: RunOutcome
+    tool_steps: list[dict[str, Any]]
+    tool_rounds: int
+    tool_round_limit: int
+    memory_slots: dict[str, Any]
+    bound_tools: list[Any]
+    final_text: str
 
 
 def _llm_service(state: NlqState) -> LLMService:

@@ -158,10 +158,16 @@ def execute_tools_node(state: Mapping[str, Any]) -> dict[str, Any]:
     if ai_message is None:
         return {**state, "error": "Tool execution requested without tool calls"}
 
+    bound_tools = state.get("bound_tools")
+    if not bound_tools:
+        try:
+            bound_tools = runtime_value(state, "bound_tools")
+        except Exception:
+            bound_tools = []
     tools = {
         tool.name: tool
-        for tool in (runtime_value(state, "bound_tools") or [])
-        if isinstance(tool, BaseTool) and tool.name
+        for tool in (bound_tools or [])
+        if hasattr(tool, "name") and tool.name
     }
     record_id = state.get("record_id")
     tool_messages: list[ToolMessage] = []
@@ -190,13 +196,24 @@ def execute_tools_node(state: Mapping[str, Any]) -> dict[str, Any]:
             "status": "running",
         }
 
+        tool_display_map = {
+            "execute_sql_sandbox": "执行查询 (execute_sql_sandbox)",
+            "patch_and_compile_sql": "增量补丁 (patch_and_compile_sql)",
+            "compare_results": "数据对比 (compare_results)",
+            "search_schema": "结构检索 (search_schema)",
+            "search_wiki": "查阅知识 (search_wiki)",
+            "request_clarification": "请求澄清 (request_clarification)",
+        }
+        tool_brief = tool_display_map.get(name, f"工具调用 ({name})")
+
         with log_span(
             operate=OperationEnum.TOOL_CALL,
             record_id=record_id,
             local_operation=True,
             graph_node="execute_tools",
             title_key="chat.log.TOOL_CALL",
-            brief=name,
+            title_params={"tool": name, "displayName": tool_brief},
+            brief=tool_brief,
             initial_payload=initial,
         ) as span:
             span.set_input({"tool": name, "arguments": safe_args})
@@ -231,7 +248,12 @@ def execute_tools_node(state: Mapping[str, Any]) -> dict[str, Any]:
                 )
             )
             if result["ok"]:
-                tool_steps.append({"result": {"tool": name}})
+                tool_steps.append({
+                    "tool": name,
+                    "name": name,
+                    "result": safe_result,
+                    "ok": True,
+                })
                 previous_failure = ""
                 consecutive_failures = 0
             else:

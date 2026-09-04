@@ -8,7 +8,6 @@ import re
 from starlette.middleware.base import BaseHTTPMiddleware
 from sqlmodel import Session, select
 from apps.chat.models.chat_model import Chat
-from apps.datasource.crud.datasource import get_ws_ds
 from apps.datasource.models.datasource import CoreDatasource
 from common.core.db import engine
 from apps.system.schemas.system_schema import UserInfoDTO
@@ -25,6 +24,7 @@ async def get_ws_resource(oid, type) -> list:
     with Session(engine) as session:
         stmt = None
         if type == 'ds' or type == 'datasource':
+            from apps.datasource.crud.datasource import get_ws_ds
             return await get_ws_ds(session, oid)
         if type == 'chat':
             stmt = select(Chat.id).where(Chat.oid == oid) 

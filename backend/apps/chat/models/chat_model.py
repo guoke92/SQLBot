@@ -224,6 +224,7 @@ class ChatRecordResult(BaseModel):
     run_completed_at: Optional[datetime] = None
     active_interrupt: Optional[dict[str, Any]] = None
     interrupts: List[dict[str, Any]] = Field(default_factory=list)
+    agent_stages: List[dict[str, Any]] = Field(default_factory=list)
 
 
 class CreateChat(BaseModel):

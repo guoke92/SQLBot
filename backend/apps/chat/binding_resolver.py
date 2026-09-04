@@ -6,21 +6,16 @@ from collections import defaultdict
 from collections.abc import Iterable
 from typing import Any
 
-from apps.knowledge.models import KnowledgeMatch
 
 
 def resolve_entity_bindings(
-    matches: Iterable[KnowledgeMatch | dict[str, Any]],
+    matches: Iterable[Any],
 ) -> dict[str, Any]:
-    grouped: dict[str, list[KnowledgeMatch]] = defaultdict(list)
+    grouped: dict[str, list[Any]] = defaultdict(list)
     for item in matches:
-        match = (
-            item
-            if isinstance(item, KnowledgeMatch)
-            else KnowledgeMatch.model_validate(item)
-        )
-        if "entity_binding" in match.usages and match.targets:
-            grouped[match.query].append(match)
+        if isinstance(item, dict):
+            if "entity_binding" in (item.get("usages") or []) and item.get("targets"):
+                grouped[item.get("query", "")].append(item)
 
     resolved: dict[str, Any] = {}
     ambiguous: dict[str, Any] = {}

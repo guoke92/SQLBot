@@ -77,8 +77,16 @@ const addViewRef = ref(null)
 const emits = defineEmits(['exitFullScreen', 'update:thousandsSeparatorList', 'update:showLabel'])
 
 const dataObject = computed<AnswerDataset & { sql?: string }>(() => {
-  if (props.message?.record?.data) {
-    return props.message.record.data
+  const raw = props.message?.record?.data
+  if (raw) {
+    if (typeof raw === 'string') {
+      try {
+        return JSON.parse(raw)
+      } catch {
+        return {}
+      }
+    }
+    return raw as any
   }
   return {}
 })

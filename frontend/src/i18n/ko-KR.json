@@ -938,7 +938,7 @@
       "EXECUTE_QUERY": "쿼리 실행",
       "GENERATE_PICTURE": "이미지 생성",
       "TOOL_CALL": "도구 호출",
-      "AGENT_STEP": "에이전트 결정",
+      "AGENT_STEP": "생각",
       "GROUND_ENTITIES": "업무 엔티티 식별",
       "TURN_ROUTE": "이번 요청 식별",
       "CLARIFY_INTENT": "쿼리 기준 확인",

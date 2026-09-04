@@ -36,6 +36,10 @@ const elapsedText = computed(() =>
   logHistory.value.elapsed_duration == null ? '—' : `${logHistory.value.elapsed_duration}s`
 )
 const titleFor = (item: any) => {
+  // If this is a tool call, display specific tool name + description
+  if (item.title_params?.tool || item.brief?.includes('execute_sql') || item.brief?.includes('patch_and_compile') || item.operate === 'TOOL_CALL' || item.operate === '14') {
+    return stepDisplayName(item)
+  }
   const key = item.title_key
   return key && te(key) ? t(key, item.title_params || {}) : stepDisplayName(item)
 }

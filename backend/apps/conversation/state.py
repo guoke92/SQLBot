@@ -36,4 +36,5 @@ class RunState(TypedDict, total=False):
     error: str
     public_error: str
     outcome: RunOutcome
+    tool_steps: List[Dict[str, Any]]
     extras: Dict[str, Any]

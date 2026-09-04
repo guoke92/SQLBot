@@ -86,7 +86,6 @@ from apps.conversation.sink import StreamSink
 from apps.datasource.access import (
     resolve_access_scope,
 )
-from apps.knowledge.compile import matched_revision_ids, seed_revisions_for_turn
 from common.error import SingleMessageError, SQLBotDBConnectionError
 from common.utils.utils import SQLBotLogUtil
 
@@ -247,61 +246,17 @@ def ensure_datasource_node(state: NlqState) -> NlqState:
 def recall_knowledge_node(state: NlqState) -> NlqState:
     llm_service = _llm_service(state)
     oid, ds_id = _ds_scope(llm_service)
-    # wiki 后端：unit bundle 编译整体短路（语义由 wiki_business_text 段承载，
-    # retrieve_context 稍后注入）。短路前先探 store：语料目录缺失的部署
-    # 回退 unit 路径，业务知识不能静默消失。
-    try:
-        from apps.chat.steps.wiki_recall import (
-            _store,
-            store_error,
-            wiki_backend_active,
-        )
-
-        if wiki_backend_active(ds_id) and _store() is not None:
-            return {
-                **state,
-                "knowledge_matches": [],
-                "compiled_knowledge": {},
-                "wiki_context": {
-                    **(state.get("wiki_context") or {}),
-                    "backend": "wiki",
-                    "unit_bundle": "disabled",
-                },
-            }
-        if wiki_backend_active(ds_id):
-            SQLBotLogUtil.warning(
-                "KNOWLEDGE_BACKEND=wiki 但 wiki store 不可用（%s）—— 本轮回退 unit 知识路径",
-                store_error() or "unknown",
-            )
-    except Exception:  # noqa: BLE001 — 判定失败按 unit 走（保守）
-        pass
-    seed_revision_ids, seed_policy = seed_revisions_for_turn(
-        str((state.get("turn_route") or {}).get("relation") or "independent"),
-        state.get("referenced_turns") or [],
-    )
-    with session_scope() as session:
-        try:
-            matches = match_knowledge(
-                llm_service,
-                session,
-                oid,
-                ds_id,
-                access_scope=_access_scope(state),
-                stage="generate",
-                include_examples=True,
-                seed_revision_ids=seed_revision_ids,
-                seed_policy=seed_policy,
-            )
-            compiled = get_compiled_knowledge(llm_service)
-            return {
-                **state,
-                "knowledge_matches": [match.model_dump() for match in matches],
-                "compiled_knowledge": (
-                    compiled.model_dump(mode="json") if compiled else {}
-                ),
-            }
-        except Exception as e:
-            return _fail(state, llm_service.record.id, e)
+    # Wiki 体系为唯一知识后端，返回干净的 wiki 上下文，不再编译旧 unit bundle
+    return {
+        **state,
+        "knowledge_matches": [],
+        "compiled_knowledge": {},
+        "wiki_context": {
+            **(state.get("wiki_context") or {}),
+            "backend": "wiki",
+            "unit_bundle": "disabled",
+        },
+    }
 
 
 def parse_temporal_evidence_node(state: NlqState) -> NlqState:

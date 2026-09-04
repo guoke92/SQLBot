@@ -31,7 +31,6 @@ from apps.conversation.models import (
     QueryRun,
 )
 from apps.datasource.models.datasource import CoreDatasource, CoreField, CoreTable
-from apps.knowledge.db_models import KnowledgeCaptureJob, KnowledgeEvidence
 from apps.system.models.system_model import AiModelDetail
 from common.core.deps import CurrentUser
 
@@ -514,19 +513,8 @@ def build_chat_debug_bundle(
             if run
             else []
         )
-        capture_job = session.exec(
-            select(KnowledgeCaptureJob).where(
-                KnowledgeCaptureJob.record_id == int(record.id)
-            )
-        ).first()
-        knowledge_evidence = [
-            item.model_dump(mode="json")
-            for item in session.exec(
-                select(KnowledgeEvidence)
-                .where(KnowledgeEvidence.record_id == int(record.id))
-                .order_by(KnowledgeEvidence.create_time, KnowledgeEvidence.id)
-            ).all()
-        ]
+        capture_job = None
+        knowledge_evidence = []
 
         raw_logs = _raw_logs_for_record(session, int(record.id))
         log_history = _log_history_from_raw(record, raw_logs, run)

@@ -241,7 +241,8 @@ export interface TurnAnswerV1 {
 export const parseTurnAnswer = (value: unknown): TurnAnswerV1 | undefined => {
   if (!value || typeof value !== 'object') return undefined
   const candidate = value as Partial<TurnAnswerV1>
-  if (candidate.version !== 1 || !candidate.kind || !candidate.status) return undefined
+  // Robust check: accept standard V1 or valid query/analysis payload missing version wrapper
+  if (!candidate.kind || !candidate.status) return undefined
   return candidate as TurnAnswerV1
 }
 
@@ -363,6 +364,7 @@ export class ChatRecord {
   run_completed_at?: Date | string
   active_interrupt?: ConversationInterrupt
   interrupts: ConversationInterrupt[] = []
+  agent_stages?: Array<any> = []
   intent_reasoning_content?: string
   feedback?: string | null
 
@@ -595,6 +597,7 @@ const toChatRecord = (data?: any): ChatRecord | undefined => {
   record.active_interrupt = data.active_interrupt
   record.interrupts = data.interrupts || []
   record.intent_reasoning_content = data.intent_reasoning_content
+  record.agent_stages = data.agent_stages || []
   return record
 }
 const toChatRecordList = (list: any = []): ChatRecord[] => {

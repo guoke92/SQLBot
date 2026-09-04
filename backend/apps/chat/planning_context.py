@@ -17,7 +17,6 @@ import orjson
 from pydantic import BaseModel, ConfigDict, Field
 
 from apps.chat.context_bundle import ContextSection, budget_context_sections
-from apps.knowledge.compile import BusinessDataBundle, knowledge_prompt_payload
 
 _PLANNER_CONTEXT_BUDGET = 24_000
 # Knowledge slots grouped by prompt value, high -> low. ``budget_context_sections``
@@ -47,13 +46,8 @@ def _split_knowledge_payload(
     return groups
 
 
-def _bundle_from_prompt_payload(payload: dict[str, Any]) -> BusinessDataBundle:
-    data = dict(payload)
-    if "processes" in data and "scenarios" not in data:
-        data["scenarios"] = data.pop("processes")
-    if "conflicts" in data and "ambiguities" not in data:
-        data["ambiguities"] = data.pop("conflicts")
-    return BusinessDataBundle.model_validate(data)
+def _bundle_from_prompt_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    return dict(payload)
 
 
 class PlanningContextSnapshot(BaseModel):
@@ -92,8 +86,8 @@ def capture_planning_context(
     question = llm_service.chat_question
     compiled = getattr(llm_service, "compiled_knowledge", None)
     knowledge_groups: list[tuple[str, dict[str, Any]]] = []
-    if isinstance(compiled, BusinessDataBundle):
-        knowledge_groups = _split_knowledge_payload(knowledge_prompt_payload(compiled))
+    if isinstance(compiled, dict) and compiled:
+        knowledge_groups = _split_knowledge_payload(compiled)
     sections, truncation = budget_context_sections(
         [
             ContextSection(

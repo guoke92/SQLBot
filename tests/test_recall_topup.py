@@ -262,32 +262,6 @@ def test_tables_from_clarify_card_extracts_option_refs() -> None:
 
 
 def test_apply_knowledge_topup_recompiles_with_extras(monkeypatch) -> None:
-    from apps.knowledge import compile as compile_pkg
-
-    calls: dict = {}
-
-    def fake_compile(_session, **kwargs):
-        calls["extra"] = tuple(kwargs["extra_revision_ids"])
-        calls["ds_id"] = kwargs["ds_id"]
-        return "BUNDLE"
-
-    monkeypatch.setattr(compile_pkg, "compile_business_data_bundle", fake_compile)
+    # 历史 unit compile 已退役，apply_knowledge_topup 确定性短路返回 False
     service = _service(["d_task"])
-
-    ok = rt.apply_knowledge_topup(
-        object(),
-        service,
-        rt.TopupManifest(knowledge_units=({"unit_key": "u", "revision_id": 77},)),
-        oid=1,
-    )
-    assert ok is True
-    assert service.compiled_knowledge == "BUNDLE"
-    assert calls["extra"] == (77,)
-    assert calls["ds_id"] == 8
-
-    # 无知识命中 → False, 不重编译
-    service.compiled_knowledge = None
-    assert (
-        rt.apply_knowledge_topup(object(), service, rt.TopupManifest(), oid=1) is False
-    )
-    assert service.compiled_knowledge is None
+    assert rt.apply_knowledge_topup(object(), service, rt.TopupManifest(), oid=1) is False

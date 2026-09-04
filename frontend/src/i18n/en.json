@@ -938,7 +938,7 @@
       "EXECUTE_QUERY": "Execute Query",
       "GENERATE_PICTURE": "Generate Picture",
       "TOOL_CALL": "Tool Call",
-      "AGENT_STEP": "Agent Decision",
+      "AGENT_STEP": "Thought",
       "GROUND_ENTITIES": "Identify business entities",
       "TURN_ROUTE": "Identify this turn's task",
       "CLARIFY_INTENT": "Clarify Query Intent",

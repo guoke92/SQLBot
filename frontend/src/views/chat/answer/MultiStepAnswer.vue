@@ -21,6 +21,7 @@ import { useI18n } from 'vue-i18n'
 import icon_sql_outlined from '@/assets/svg/icon_sql_outlined.svg'
 import ClarificationCard from '@/features/conversation/ClarificationCard.vue'
 import QualityStamp from '@/features/conversation/QualityStamp.vue'
+import AgentStagesView, { type AgentStageItem } from './AgentStagesView.vue'
 import { conversationStageKey } from '@/features/conversation/executionLog'
 
 // ---------------------------------------------------------------------------
@@ -137,6 +138,7 @@ const _loading = computed({
 // ---------------------------------------------------------------------------
 
 const steps: Ref<Array<StepState>> = ref([])
+const agentStages: Ref<Array<AgentStageItem>> = ref([])
 const analysisText = ref('')
 const analysisThinking = ref('')
 const overallQuality = ref<ResultQuality>()
@@ -249,7 +251,13 @@ function applyFullPayload(payload: AnswerPayload, recordId?: number, authoritati
     steps.value = []
     analysisText.value = payload.analysis || ''
     overallQuality.value = publishedQuality
+    if (Array.isArray((payload as any).stages)) {
+      agentStages.value = (payload as any).stages
+    }
   } else {
+    if (Array.isArray((payload as any).stages)) {
+      agentStages.value = (payload as any).stages
+    }
     if (payload.analysis) analysisText.value = payload.analysis
     overallQuality.value = publishedQuality
   }
@@ -311,6 +319,7 @@ function hydrateHistory(record: ChatRecord) {
   analysisThinking.value = ''
   overallQuality.value = undefined
   steps.value = []
+  agentStages.value = []
 
   if (record.run_status === 'awaiting_input') {
     return
@@ -318,6 +327,9 @@ function hydrateHistory(record: ChatRecord) {
 
   if (record.answer) {
     applyFullPayload(record.answer, record.id, true)
+    if (agentStages.value.length === 0 && Array.isArray((record as any).agent_stages) && (record as any).agent_stages.length > 0) {
+      agentStages.value = (record as any).agent_stages
+    }
     hydratedTerminalRecordId = record.id
     return
   }
@@ -395,7 +407,48 @@ function turnHandlers(currentRecord: ChatRecord) {
           appendReasoningToRecord('chart_answer', data.reasoning_content ?? '')
           break
         }
+        case 'agent-thought': {
+          const thought = data.content ?? ''
+          const lastStage = agentStages.value[agentStages.value.length - 1]
+          if (lastStage && lastStage.type === 'thought' && lastStage.status === 'running') {
+            lastStage.content = (lastStage.content || '') + thought
+          } else {
+            if (lastStage && lastStage.status === 'running') {
+              lastStage.status = 'completed'
+            }
+            agentStages.value.push({
+              id: `thought-${Date.now()}-${agentStages.value.length}`,
+              type: 'thought',
+              title: t('chat.log.AGENT_STEP') || '思考',
+              content: thought,
+              status: 'running',
+            })
+          }
+          break
+        }
+        case 'agent-tool-call': {
+          const lastStage = agentStages.value[agentStages.value.length - 1]
+          if (lastStage && lastStage.status === 'running') {
+            lastStage.status = 'completed'
+          }
+          const tName = data.tool || ''
+          const tLabel = data.displayName || `工具调用 (${tName})`
+          agentStages.value.push({
+            id: `tool-${Date.now()}-${agentStages.value.length}`,
+            type: 'tool',
+            title: tLabel,
+            toolName: tName,
+            toolArgs: data.args || {},
+            sql: data.args?.sql || undefined,
+            status: 'running',
+          })
+          break
+        }
         case 'analysis': {
+          const lastStage = agentStages.value[agentStages.value.length - 1]
+          if (lastStage && lastStage.status === 'running') {
+            lastStage.status = 'completed'
+          }
           analysisText.value += data.content ?? ''
           const reasoning = data.reasoning_content ?? ''
           analysisThinking.value += reasoning
@@ -419,6 +472,9 @@ function turnHandlers(currentRecord: ChatRecord) {
     },
     onError: (record: ChatRecord) => emits('error', record.id),
     onFinish: async (record: ChatRecord) => {
+      agentStages.value.forEach((s) => {
+        if (s.status === 'running') s.status = 'completed'
+      })
       if (analysisText.value) currentRecord.analysis = analysisText.value
       if (record.id && record.run_status !== 'awaiting_input') {
         if (hydrateRecordData(record, true)) hydratedTerminalRecordId = record.id
@@ -446,6 +502,7 @@ const sendMessage = async () => {
   }
 
   steps.value = []
+  agentStages.value = []
   analysisText.value = ''
   analysisThinking.value = ''
   overallQuality.value = undefined
@@ -598,6 +655,12 @@ defineExpose({ sendMessage, regenerate, index: () => index.value, stop })
     <div v-if="_loading && steps.length === 0 && !isAwaitingInput" class="multi-step-loading">
       <span>{{ runStageText }}</span>
     </div>
+
+    <AgentStagesView
+      v-if="agentStages.length > 0"
+      :stages="agentStages"
+      :is-typing="message?.isTyping"
+    />
 
     <ClarificationCard
       v-for="interrupt in visibleInterrupts"

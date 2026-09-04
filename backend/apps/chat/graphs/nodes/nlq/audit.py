@@ -32,7 +32,6 @@ from apps.datasource.access import (
     AccessScope,
 )
 from apps.datasource.crud.permission import is_normal_user
-from apps.knowledge.compile.bundle import ApplyHit
 from apps.protocol import QueryPlan
 from apps.protocol.base import CAP_ROW_PERMISSION
 
@@ -40,29 +39,8 @@ from apps.protocol.base import CAP_ROW_PERMISSION
 from common.utils.utils import SQLBotLogUtil
 
 
-def _merge_compiled_apply_log(
-    llm_service: LLMService,
-    additions: list[ApplyHit],
-) -> dict[str, Any]:
-    compiled = get_compiled_knowledge(llm_service)
-    if compiled is None:
-        return {}
-    merged = list(compiled.apply_log)
-    identities = {
-        orjson.dumps(item.model_dump(mode="json"), option=orjson.OPT_SORT_KEYS)
-        for item in merged
-    }
-    for item in additions:
-        identity = orjson.dumps(
-            item.model_dump(mode="json"),
-            option=orjson.OPT_SORT_KEYS,
-        )
-        if identity not in identities:
-            identities.add(identity)
-            merged.append(item)
-    compiled = compiled.model_copy(update={"apply_log": merged})
-    llm_service.compiled_knowledge = compiled
-    return compiled.model_dump(mode="json")
+def _merge_compiled_apply_log(llm_service: Any, additions: Any) -> dict[str, Any]:
+    return {}
 
 
 def _record_intent_default_application(
@@ -71,30 +49,7 @@ def _record_intent_default_application(
     *,
     unverified: bool = False,
 ) -> dict[str, Any]:
-    """Turn recalled calibers into truthful Bind/Drop audit facts."""
-    compiled = get_compiled_knowledge(llm_service)
-    if compiled is None:
-        return {}
-    applied = set(applied_ids)
-    additions = [
-        ApplyHit(
-            asset_kind="caliber",
-            asset_id=str(item.get("caliber_id") or "") or None,
-            lineage_id=str(item.get("caliber_id") or None),
-            trust_tier="published",
-            apply="bind" if item.get("caliber_id") in applied else "drop",
-            reason=(
-                "intent_default_applied"
-                if item.get("caliber_id") in applied
-                else "intent_unverified"
-                if unverified
-                else "intent_default_not_applicable"
-            ),
-        )
-        for item in compiled.calibers
-        if isinstance(item, dict)
-    ]
-    return _merge_compiled_apply_log(llm_service, additions)
+    return {}
 
 
 def _query_plan(plan_dict: dict[str, Any]) -> QueryPlan:
@@ -128,70 +83,7 @@ def _enqueue_knowledge_capture(
     outcome: RunOutcome,
     steps: list[dict[str, Any]],
 ) -> None:
-    """Persist a capture job; the process worker drains it asynchronously."""
-    risk = dict(state.get("risk_assessment") or {})
-    review = dict(state.get("semantic_review") or {})
-    verified = risk.get("level") == "low" or review.get("verdict") == "pass"
-    if state.get("execution_mode") == "unverified" or not verified:
-        return
-    from apps.chat.steps.scope import match_scope
-    from apps.knowledge.capture import (
-        build_turn_snapshot,
-        enqueue_capture_job,
-        schedule_capture_worker_kick,
-    )
-
-    # Same scope as Compile — do not force oid=1 / drop assistant via _ds_scope alone.
-    calculate_oid, calculate_ds_id, assistant_id = match_scope(
-        llm_service, *_ds_scope(llm_service)
-    )
-    compiled = state.get("compiled_knowledge") or {}
-    apply_log = []
-    if isinstance(compiled, dict):
-        apply_log = list(compiled.get("apply_log") or [])
-    sql_list = [
-        str(step.get("sql") or "")
-        for step in steps
-        if step.get("sql") and not step.get("error")
-    ]
-    with session_scope() as evidence_session:
-        evidence = active_evidence(evidence_session, str(state["run_id"]))
-    resolutions = [
-        {
-            "evidence_id": item.evidence_id,
-            "question": str(
-                (item.structured_value or {}).get("question")
-                or (item.structured_value or {}).get("business_question")
-                or ""
-            ),
-            "meaning": str((item.structured_value or {}).get("meaning") or ""),
-            "resolution": item.structured_value or {},
-            "answer": item.content,
-        }
-        for item in evidence
-        if item.kind
-        in {"clarification_option", "clarification_custom", "user_correction"}
-    ]
-    snapshot = build_turn_snapshot(
-        record_id=int(llm_service.record.id),
-        oid=int(calculate_oid or 1),
-        ds_id=calculate_ds_id if assistant_id is None else None,
-        question=_generation_question(llm_service),
-        risk_assessment=risk,
-        semantic_review=review,
-        plan_facts=list(state.get("plan_facts") or []),
-        clarification_resolutions=resolutions,
-        outcome=str(outcome.get("status") or "success"),
-        knowledge_apply=apply_log,
-        sql_list=sql_list,
-        chat_id=getattr(llm_service.record, "chat_id", None),
-        entity_bindings=state.get("entity_bindings") or {},
-        assistant_id=assistant_id,
-    )
-    with session_scope() as session:
-        enqueue_capture_job(session, snapshot=snapshot)
-        session.commit()
-    schedule_capture_worker_kick()
+    return
 
 
 def _sql_alias_columns(sql: str, dialect: str) -> list[dict[str, str]]:
@@ -209,16 +101,26 @@ def _sql_alias_columns(sql: str, dialect: str) -> list[dict[str, str]]:
         for statement in sqlglot.parse(sql, dialect=dialect):
             if statement is None:
                 continue
+            table_alias_map: dict[str, str] = {}
+            for tbl in statement.find_all(exp.Table):
+                t_name = str(tbl.name).strip()
+                t_alias = str(tbl.alias).strip() if tbl.alias else ""
+                if t_alias:
+                    table_alias_map[t_alias] = t_name
+                table_alias_map[t_name] = t_name
+
             for select in statement.find_all(exp.Select):
                 for proj in select.expressions:
                     inner = proj.this
                     if not isinstance(inner, exp.Column):
                         continue
+                    qualifier = str(inner.table or "").strip()
+                    real_table = table_alias_map.get(qualifier, qualifier)
                     projections.append(
                         {
                             "alias": str(proj.alias_or_name or inner.name),
                             "column": str(inner.name),
-                            "table": str(inner.table or ""),
+                            "table": real_table,
                         }
                     )
     except Exception:  # noqa: BLE001 — 解析失败走兜底
@@ -246,6 +148,21 @@ def _enum_refs_for_step(
     refs: list[str] = []
     alias_to_ref: dict[str, str] = {}
     tables = [str(t) for t in (step.get("tables") or step.get("resources") or [])]
+    sql = str(step.get("format_statement") or step.get("sql") or "")
+    if not tables and sql:
+        try:
+            import sqlglot
+            from sqlglot import exp
+
+            for statement in sqlglot.parse(sql, dialect=dialect):
+                if statement is None:
+                    continue
+                for tbl in statement.find_all(exp.Table):
+                    t_name = str(tbl.name).strip()
+                    if t_name and t_name not in tables:
+                        tables.append(t_name)
+        except Exception:
+            pass
     fields = [str(f) for f in (result_fields or [])]
     if not fields:
         return refs, alias_to_ref

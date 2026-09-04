@@ -97,12 +97,6 @@ async def lifespan(app: FastAPI):
     except Exception as _prof_exc:  # pragma: no cover
         SQLBotLogUtil.warning(f"profiling worker kick on startup skipped: {_prof_exc}")
     try:
-        from apps.knowledge.capture.runner import schedule_capture_worker_kick
-
-        schedule_capture_worker_kick(max_jobs=20)
-    except Exception as _cap_exc:  # pragma: no cover
-        SQLBotLogUtil.warning(f"knowledge capture drain on startup skipped: {_cap_exc}")
-    try:
         from apps.conversation.runtime import (
             recover_incomplete_runs,
             start_run_reconciler,

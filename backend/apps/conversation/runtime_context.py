@@ -75,6 +75,20 @@ def _rehydrate_chat_access_scope(
     of being retained in memory or serialized as stale permission data.
     """
     if service.ds is None:
+        from apps.chat.models.chat_model import ChatRecord, Chat
+        from apps.datasource.models.datasource import CoreDatasource
+        rec = service.get_record() if hasattr(service, 'get_record') else getattr(service, 'record', None)
+        ds_id = getattr(rec, 'datasource', None) if rec else None
+        if not ds_id and rec and getattr(rec, 'chat_id', None):
+            chat = session.get(Chat, rec.chat_id)
+            if chat:
+                ds_id = chat.datasource
+        if ds_id:
+            ds = session.get(CoreDatasource, ds_id)
+            if ds:
+                service.ds = ds
+
+    if service.ds is None:
         return None
 
     # Lazy imports avoid coupling runtime bootstrap to graph module order while
@@ -112,7 +126,11 @@ def _hydrate_chat(run: ConversationRun) -> dict[str, Any]:
         service.set_record(ChatRecord(**record.model_dump()))
         values: dict[str, Any] = {"llm_service": service}
         if run.graph_key == "chat":
-            values["access_scope"] = _rehydrate_chat_access_scope(session, service)
+            scope = _rehydrate_chat_access_scope(session, service)
+            values["access_scope"] = scope
+            values["llm"] = service.llm
+            from apps.chat.tools.registry import build_agent_tools
+            values["bound_tools"] = build_agent_tools(service, access_scope=scope)
         return values
 
 

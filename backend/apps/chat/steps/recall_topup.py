@@ -29,7 +29,6 @@ from apps.datasource.profiling.models import RelationKind, RelationStatus
 from apps.datasource.profiling.service import get_published_relations
 from apps.datasource.recall.value_index import match_values
 from apps.dictionary.matching import normalize_dictionary_value
-from apps.knowledge.compile import active_published_units
 from common.core.config import settings
 from common.utils.utils import SQLBotLogUtil
 
@@ -209,35 +208,7 @@ def apply_knowledge_topup(
     *,
     oid: int,
 ) -> bool:
-    """Recompile the bundle with one extra unit (+1 beyond the limit-2 cap).
-
-    Returns True when ``llm_service.compiled_knowledge`` was replaced — the
-    caller treats that as a working-set change (snapshot write-back / bounce)
-    even when no tables were added.
-    """
-    if not manifest.knowledge_units:
-        return False
-    try:
-        from apps.knowledge.compile import compile_business_data_bundle
-
-        ds_id = getattr(llm_service.ds, "id", None)
-        llm_service.compiled_knowledge = compile_business_data_bundle(
-            session,
-            stage="generate",
-            question=str(llm_service.retrieval_question or ""),
-            oid=int(oid),
-            ds_id=int(ds_id) if ds_id else None,
-            include_matches=False,
-            extra_revision_ids=tuple(
-                int(item["revision_id"])
-                for item in manifest.knowledge_units
-                if item.get("revision_id")
-            ),
-        )
-        return True
-    except Exception as exc:  # noqa: BLE001
-        SQLBotLogUtil.warning("knowledge top-up recompile failed: %s", exc)
-        return False
+    return False
 
 
 def _catalog(session: Session, *, ds_id: int) -> dict[str, _CatalogTable]:
@@ -288,36 +259,7 @@ def _match_knowledge_units(
     ds_id: int,
     terms: tuple[str, ...],
 ) -> list[dict[str, Any]]:
-    """Lexical match between missing concepts and active unit identity."""
-    normalized_terms = [
-        normalize_dictionary_value(term)
-        for term in terms
-        if len(normalize_dictionary_value(term)) >= _MIN_TERM_LENGTH
-    ]
-    if not normalized_terms:
-        return []
-    hits: list[dict[str, Any]] = []
-    for unit, revision in active_published_units(session, oid=oid, datasource_id=ds_id):
-        identity = normalize_dictionary_value(
-            " ".join(part for part in (unit.title, unit.domain, unit.unit_key) if part)
-        )
-        if not identity:
-            continue
-        for term in normalized_terms:
-            if term in identity:
-                hits.append(
-                    {
-                        "unit_key": unit.unit_key,
-                        "title": unit.title,
-                        "domain": unit.domain,
-                        "revision_id": int(revision.id or 0),
-                        "matched_concept": term,
-                    }
-                )
-                break
-        if len(hits) >= _MAX_KNOWLEDGE_HITS:
-            break
-    return hits
+    return []
 
 
 def _relation_neighbors(

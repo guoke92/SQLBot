@@ -15,7 +15,6 @@ from typing import Any
 from sqlmodel import Session, select
 
 from apps.datasource.models.datasource import CoreTable
-from apps.knowledge.compile import active_published_units
 
 _FULL_TIER_MAX = 40
 _GROUP_TIER_MAX = 300
@@ -115,37 +114,8 @@ def render_knowledge_map(
     hit_keys: list[str] | None = None,
     databases: list[str] | None = None,
 ) -> str:
-    """One line per active published knowledge unit bound to this datasource.
-
-    wiki 后端（G6）：渲染 wiki 页面清单（tables/enums/concepts/… 子目录的
-    published 页），规划器看到的"知识地图"与召回语料同源。
-    ``databases`` = 当前数据源物理库名（scope.databases 围栏，与召回围栏同源）。
-    ``hit_keys`` 非空时（wiki 后端）只渲染召回命中页——prompt 瘦身；
-    plan gate 的 missing_concepts 校验走完整目录，不受此影响。
-    """
-    if _wiki_backend_active(ds_id):
-        return _wiki_knowledge_map(ds_id, hit_keys=hit_keys, databases=databases or [])
-    rows = active_published_units(session, oid=oid, datasource_id=ds_id)
-    rows = sorted(
-        rows, key=lambda row: (str(row[0].domain or ""), str(row[0].title or ""))
-    )
-    if not rows:
-        return ""
-    lines: list[str] = []
-    for unit, revision in rows[:_KNOWLEDGE_MAP_MAX]:
-        description = ""
-        content = revision.content
-        if isinstance(content, dict):
-            description = _clip(content.get("description"), _DESCRIPTION_WIDTH)
-        bits = [str(unit.title or unit.unit_key), str(unit.domain or "")]
-        if description:
-            bits.append(description)
-        lines.append(" | ".join(bit for bit in bits if bit))
-    hidden = len(rows) - len(lines)
-    if hidden > 0:
-        lines.append(f"…(+{hidden} more)")
-    header = "【Knowledge map】(已发布知识单元 — 口径/指标/规则以单元定义为准)"
-    return header + "\n" + "\n".join(lines) + "\n"
+    """Render the active knowledge map from wiki pages."""
+    return _wiki_knowledge_map(ds_id, hit_keys=hit_keys, databases=databases or [])
 
 
 def _wiki_backend_active(ds_id: int) -> bool:
