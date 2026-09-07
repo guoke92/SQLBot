@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any, Mapping
+from typing import Any
+
 from apps.chat.tools.base import failure_result, success_result
 from apps.conversation.tooling import ToolResult
 
@@ -18,13 +19,21 @@ def compare_query_results(
     """Execute both base_sql and new_sql, compare their metrics and return differential analysis."""
     from apps.chat.tools.execute_sql import execute_sql_sandbox
 
-    base_res = execute_sql_sandbox(llm_service, base_sql, access_scope=access_scope, limit=100)
+    base_res = execute_sql_sandbox(
+        llm_service, base_sql, access_scope=access_scope, limit=100, required=False
+    )
     if not base_res["ok"]:
-        return failure_result(f"Base query failed during comparison: {base_res['error']}", retryable=True)
+        return failure_result(
+            f"Base query failed during comparison: {base_res['error']}", retryable=True
+        )
 
-    new_res = execute_sql_sandbox(llm_service, new_sql, access_scope=access_scope, limit=100)
+    new_res = execute_sql_sandbox(
+        llm_service, new_sql, access_scope=access_scope, limit=100, required=False
+    )
     if not new_res["ok"]:
-        return failure_result(f"New query failed during comparison: {new_res['error']}", retryable=True)
+        return failure_result(
+            f"New query failed during comparison: {new_res['error']}", retryable=True
+        )
 
     base_data = base_res["data"] or {}
     new_data = new_res["data"] or {}
@@ -49,9 +58,7 @@ def compare_query_results(
                 "ratio": round(n_sum / b_sum, 4) if b_sum != 0 else None,
             }
 
-    diff_summary = (
-        f"Comparison complete. Row count changed from {base_rows} to {new_rows} (diff: {row_diff:+d}). "
-    )
+    diff_summary = f"Comparison complete. Row count changed from {base_rows} to {new_rows} (diff: {row_diff:+d}). "
     if metric_diffs:
         diff_summary += f"Metric differences: {metric_diffs}."
     if hypothesis:

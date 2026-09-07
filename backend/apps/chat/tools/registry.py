@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import Any
+
 from langchain_core.tools import StructuredTool
 from pydantic import BaseModel, Field
 
@@ -15,14 +16,21 @@ from apps.chat.tools.wiki_search import search_wiki_knowledge
 
 class ClarificationOptionSchema(BaseModel):
     label: str = Field(description="Display label of this candidate option.")
-    description: str = Field(default="", description="Business explanation, field name, or condition meaning of this option.")
+    description: str = Field(
+        default="",
+        description="Business explanation, field name, or condition meaning of this option.",
+    )
     option_id: str = Field(default="", description="Unique identifier for this option.")
 
 
 class ClarificationQuestionSchema(BaseModel):
     question: str = Field(description="The concrete business question to ask the user.")
-    options: list[ClarificationOptionSchema] = Field(description="List of mutually exclusive candidate options.")
-    question_id: str = Field(default="", description="Unique identifier for this question.")
+    options: list[ClarificationOptionSchema] = Field(
+        description="List of mutually exclusive candidate options."
+    )
+    question_id: str = Field(
+        default="", description="Unique identifier for this question."
+    )
 
 
 class RequestClarificationInput(BaseModel):
@@ -32,13 +40,19 @@ class RequestClarificationInput(BaseModel):
 
 
 class SearchWikiInput(BaseModel):
-    query: str = Field(description="Business concept, table name, caliber, or keyword to search authoritative Wiki knowledge for.")
+    query: str = Field(
+        description="Business concept, table name, caliber, or keyword to search authoritative Wiki knowledge for."
+    )
 
 
 class PatchSqlInput(BaseModel):
     base_sql: str = Field(description="The existing valid base SQL to be modified.")
-    action: str = Field(description="Action: add_dimension, add_filter, replace_filter, change_limit, change_order.")
-    payload: dict[str, Any] = Field(description="Payload specific to the action, e.g. {'fields': ['dept']} or {'condition': 'status != 0'}.")
+    action: str = Field(
+        description="Action: add_dimension, add_filter, replace_filter, change_limit, change_order."
+    )
+    payload: dict[str, Any] = Field(
+        description="Payload specific to the action, e.g. {'fields': ['dept']} or {'condition': 'status != 0'}."
+    )
 
 
 class ExecuteSqlInput(BaseModel):
@@ -50,32 +64,74 @@ class ExecuteSqlInput(BaseModel):
             "If SQL already contains LIMIT N, that N is respected (up to system max)."
         ),
     )
+    required: bool = Field(
+        default=True,
+        description=(
+            "True for datasets that should appear in the final answer. "
+            "False for exploratory / verification queries (GROUP BY probes, compare_results)."
+        ),
+    )
+    result_title: str = Field(
+        default="",
+        description="Short Chinese title for a delivery result, e.g. 企业清单. Empty for probes.",
+    )
 
 
 class CompareResultsInput(BaseModel):
-    base_sql: str = Field(description="Original base SQL representing prior caliber or result.")
-    new_sql: str = Field(description="New SQL representing the challenged or revised caliber.")
-    hypothesis: str = Field(default="", description="The hypothesis being tested, e.g. 'Exclude cancelled orders'.")
+    base_sql: str = Field(
+        description="Original base SQL representing prior caliber or result."
+    )
+    new_sql: str = Field(
+        description="New SQL representing the challenged or revised caliber."
+    )
+    hypothesis: str = Field(
+        default="",
+        description="The hypothesis being tested, e.g. 'Exclude cancelled orders'.",
+    )
 
 
-def build_agent_tools(llm_service: Any, access_scope: Any = None) -> list[StructuredTool]:
+def build_agent_tools(
+    llm_service: Any, access_scope: Any = None
+) -> list[StructuredTool]:
     """Construct bound LangChain tools scoped to current LLMService and access permissions."""
 
     def _search_wiki(query: str) -> dict[str, Any]:
         res = search_wiki_knowledge(llm_service, query, access_scope=access_scope)
         return dict(res)
 
-    def _patch_sql(base_sql: str, action: str, payload: dict[str, Any]) -> dict[str, Any]:
+    def _patch_sql(
+        base_sql: str, action: str, payload: dict[str, Any]
+    ) -> dict[str, Any]:
         dialect = getattr(getattr(llm_service, "datasource", None), "type", None)
         res = patch_and_compile_sql(base_sql, action, payload, dialect=dialect)
         return dict(res)
 
-    def _execute_sql(sql: str, limit: int = 1000) -> dict[str, Any]:
-        res = execute_sql_sandbox(llm_service, sql, access_scope=access_scope, limit=limit)
+    def _execute_sql(
+        sql: str,
+        limit: int = 1000,
+        required: bool = True,
+        result_title: str = "",
+    ) -> dict[str, Any]:
+        res = execute_sql_sandbox(
+            llm_service,
+            sql,
+            access_scope=access_scope,
+            limit=limit,
+            required=required,
+            result_title=result_title,
+        )
         return dict(res)
 
-    def _compare_results(base_sql: str, new_sql: str, hypothesis: str = "") -> dict[str, Any]:
-        res = compare_query_results(llm_service, base_sql, new_sql, hypothesis=hypothesis, access_scope=access_scope)
+    def _compare_results(
+        base_sql: str, new_sql: str, hypothesis: str = ""
+    ) -> dict[str, Any]:
+        res = compare_query_results(
+            llm_service,
+            base_sql,
+            new_sql,
+            hypothesis=hypothesis,
+            access_scope=access_scope,
+        )
         return dict(res)
 
     def _request_clarification(questions: list[Any]) -> dict[str, Any]:

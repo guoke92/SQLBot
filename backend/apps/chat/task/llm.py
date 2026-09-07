@@ -320,7 +320,7 @@ def request_picture(chat_id: int, record_id: int, chart: dict, data: dict):
                 if y_item.get("value") in multi_quota_fields:
                     y_obj["multi-quota"] = True
                 axis.append(y_obj)
-    if series:
+    if series and series.get("value"):
         axis.append({"name": series.get("name"), "value": series.get("value"), "type": "series"})
     if multi_quota_name:
         axis.append({"name": multi_quota_name, "value": multi_quota_name, "type": "other-info"})

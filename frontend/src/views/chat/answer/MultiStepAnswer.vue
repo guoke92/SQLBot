@@ -170,7 +170,7 @@ const isMultiStep = computed(
   () => steps.value.filter((s) => s.sql || s.chart || s.error).length > 1
 )
 
-const visibleInterrupts = computed<ConversationInterrupt[]>(() => {
+const allInterrupts = computed<ConversationInterrupt[]>(() => {
   const record = props.message?.record
   const interrupts = (record?.interrupts || []).filter((item) => item.status !== 'cancelled')
   if (
@@ -180,6 +180,32 @@ const visibleInterrupts = computed<ConversationInterrupt[]>(() => {
     interrupts.push(record.active_interrupt)
   }
   return interrupts
+})
+
+/** Fallback cards only when the timeline cannot own the interrupt. */
+const visibleInterrupts = computed<ConversationInterrupt[]>(() => {
+  const interrupts = allInterrupts.value
+  const clarifications = timelineItems.value.filter((item) => item.kind === 'clarification')
+  if (!clarifications.length) return interrupts
+
+  const byId = new Set<string>()
+  let hasCardPayload = false
+  for (const item of clarifications) {
+    const interruptId = item.meta?.interrupt_id
+    if (typeof interruptId === 'string' && interruptId) byId.add(interruptId)
+    if (item.meta?.clarification_card && typeof item.meta.clarification_card === 'object') {
+      hasCardPayload = true
+    }
+  }
+
+  return interrupts.filter((interrupt) => {
+    if (byId.has(interrupt.interrupt_id)) return false
+    // AgentStagesView legacy bind: one clarification block + one interrupt.
+    if (interrupts.length === 1) return false
+    // Card body already lives on the timeline span meta.
+    if (hasCardPayload) return false
+    return true
+  })
 })
 
 const isAwaitingInput = computed(() => props.message?.record?.run_status === 'awaiting_input')
@@ -375,6 +401,7 @@ function hydrateHistory(record: ChatRecord) {
 
   if (record.answer) {
     applyFullPayload(record.answer, record.id, true)
+    assumptions.value = record.turn_answer?.assumptions || []
     hydratedTerminalRecordId = record.id
     return
   }
@@ -613,10 +640,15 @@ defineExpose({ sendMessage, regenerate, index: () => index.value, stop })
     <AgentStagesView
       v-if="timelineItems.length > 0"
       :items="timelineItems"
+      :interrupts="allInterrupts"
       :is-typing="message?.isTyping"
+      :loading="_loading"
+      :awaiting-input="isAwaitingInput"
       :record-id="message?.record?.id"
       :duration="message?.record?.duration"
       :total-tokens="message?.record?.total_tokens"
+      @submit-clarification="resumeClarification"
+      @correct-clarification="correctClarification"
     />
 
     <ClarificationCard

@@ -50,12 +50,56 @@ def test_hydrate_memory_slots_from_prior_turn() -> None:
                         "source": "clarification",
                         "question": "认证方式口径",
                         "label": "邀请认证-内管录入",
-                    }
+                    },
+                    {
+                        "source": "declared",
+                        "question": "默认过滤",
+                        "label": "排除已注销",
+                    },
                 ],
             }
         ],
     )
     assert "LIMIT 1000" in slots.active_baseline_sql
     assert slots.active_dataset_outline["row_count"] == 1000
-    assert slots.confirmed_calibers["认证方式口径"] == "邀请认证-内管录入"
+    caliber = slots.confirmed_calibers["认证方式口径"]
+    assert isinstance(caliber, dict)
+    assert caliber["label"] == "邀请认证-内管录入"
     assert len(slots.assumptions) == 1
+    assert slots.assumptions[0]["label"] == "排除已注销"
+
+
+def test_hydrate_confirmed_calibers_from_answer_list() -> None:
+    slots = MemorySlots()
+    hydrate_memory_slots_from_referenced_turns(
+        slots,
+        [
+            {
+                "record_id": 552,
+                "datasets": [{"sql": "SELECT 1", "fields": ["x"], "row_count": 1}],
+                "confirmed_calibers": [
+                    {
+                        "question": "时间口径",
+                        "label": "按创建时间",
+                        "meaning": "按创建时间",
+                        "source": "clarification",
+                    }
+                ],
+                "assumptions": [
+                    {
+                        "source": "declared",
+                        "question": "默认过滤",
+                        "label": "排除已注销",
+                    },
+                    {
+                        "source": "clarification",
+                        "question": "残留澄清",
+                        "label": "不应留在假设",
+                    },
+                ],
+            }
+        ],
+    )
+    assert slots.confirmed_calibers["时间口径"]["label"] == "按创建时间"
+    assert len(slots.assumptions) == 1
+    assert slots.assumptions[0]["label"] == "排除已注销"

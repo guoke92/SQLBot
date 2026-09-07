@@ -23,6 +23,10 @@ AGENT_TOOLS_METADATA: dict[str, dict[str, str]] = {
         "title_key": "chat.timeline.tool.search_wiki",
         "icon": "book",
     },
+    "prepare_wiki": {
+        "title_key": "chat.timeline.tool.prepare_wiki",
+        "icon": "book",
+    },
     "request_clarification": {
         "title_key": "chat.timeline.tool.request_clarification",
         "icon": "question",

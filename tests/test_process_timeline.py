@@ -92,6 +92,7 @@ def test_chart_inference_uses_value_kinds_not_column_names() -> None:
         [{"month_label": "alpha", "qty": 1}, {"month_label": "beta", "qty": 2}],
     )
     assert chart["type"] in {"bar", "table"}
+    assert "series" not in (chart.get("axis") or {})
     temporal = infer_chart_for_presentation(
         presentation,  # type: ignore[arg-type]
         ["month_label", "qty"],
@@ -101,6 +102,21 @@ def test_chart_inference_uses_value_kinds_not_column_names() -> None:
         ],
     )
     assert temporal["type"] == "line"
+    assert "series" not in (temporal.get("axis") or {})
+
+
+def test_select_delivery_datasets_skips_probes_and_keeps_multi() -> None:
+    from apps.chat.graphs.nodes.agent_finalize import select_delivery_datasets
+
+    probe = SimpleNamespace(dataset_id="p", required=False, status="succeeded")
+    first = SimpleNamespace(dataset_id="a", required=True, status="succeeded")
+    second = SimpleNamespace(dataset_id="b", required=True, status="succeeded")
+    failed = SimpleNamespace(dataset_id="f", required=True, status="failed")
+    picked = select_delivery_datasets([probe, first, failed, second])
+    assert [item.dataset_id for item in picked] == ["a", "b"]
+
+    only_probe = select_delivery_datasets([probe])
+    assert only_probe == [probe]
 
 
 def test_execute_sql_truncation_uses_protocol_max_rows(monkeypatch) -> None:
@@ -133,6 +149,8 @@ def test_execute_sql_truncation_uses_protocol_max_rows(monkeypatch) -> None:
     )
     res = execute_sql_sandbox(fake_service, "SELECT 1", limit=5)
     assert res["ok"] is True
+    assert stored["required"] is True
+    assert stored["result_title"] == ""
     assert res["data"]["truncated"] is True
     assert res["data"]["row_count"] == 5
     assert res["data"]["limit"] == 5
@@ -144,6 +162,45 @@ def test_execute_sql_truncation_uses_protocol_max_rows(monkeypatch) -> None:
     assert res["data"]["value_labels"] == {"id": {"0": "zero"}}
     fake_service.protocol.execute.assert_called()
     assert fake_service.protocol.execute.call_args.kwargs.get("max_rows") == 5
+
+
+def test_execute_sql_probe_marks_not_required(monkeypatch) -> None:
+    fake_service = MagicMock()
+    fake_service.protocol.parse_candidate_payload.return_value = MagicMock(
+        success=True,
+        statement="SELECT 1",
+        message="",
+    )
+    fake_service.protocol.validate_plan.return_value = MagicMock(success=True, message="")
+    fake_service.protocol.execute.return_value = MagicMock(
+        data=[{"id": 1}],
+        fields=["id"],
+        truncated=False,
+    )
+    stored: dict = {}
+    monkeypatch.setattr(
+        "apps.chat.tools.execute_sql.upsert_result_dataset",
+        lambda **kwargs: stored.update(kwargs),
+    )
+    monkeypatch.setattr(
+        "apps.chat.tools.execute_sql.current_worker_identity",
+        lambda: ("run-1", "tok"),
+    )
+    monkeypatch.setattr("apps.chat.tools.execute_sql.current_tool_call_id", lambda: "call-1")
+    monkeypatch.setattr(
+        "apps.chat.tools.execute_sql.apply_wiki_enum_labels",
+        lambda **kwargs: (list(kwargs["rows"]), {}),
+    )
+    res = execute_sql_sandbox(
+        fake_service,
+        "SELECT 1",
+        required=False,
+        result_title="探查",
+    )
+    assert res["ok"] is True
+    assert res["data"]["required"] is False
+    assert stored["required"] is False
+    assert stored["result_title"] == "探查"
 
 
 def test_execute_sql_respects_sql_limit_above_default(monkeypatch) -> None:
@@ -204,6 +261,11 @@ def test_fold_clarification_flow_merges_tool_and_wait_into_one_card() -> None:
                 "started_at": "2026-09-07T03:00:01",
                 "finished_at": "2026-09-07T03:00:40",
                 "summary_key": "chat.audit.step_interrupted",
+                "meta": {
+                    "interrupt_id": "intr-1",
+                    "version": 1,
+                    "clarification_card": {"questions": []},
+                },
             },
             {
                 "id": 3,
@@ -221,7 +283,49 @@ def test_fold_clarification_flow_merges_tool_and_wait_into_one_card() -> None:
     assert folded[0]["status"] == "completed"
     assert folded[0]["summary_key"] == "chat.summary.clarification_confirmed"
     assert folded[0]["started_at"] == "2026-09-07T03:00:00"
+    assert folded[0]["meta"]["interrupt_id"] == "intr-1"
     assert folded[1]["kind"] == "thought"
+
+
+def test_caliber_surface_splits_confirmed_from_assumptions() -> None:
+    from apps.chat.caliber_surface import project_caliber_surface
+
+    surface = project_caliber_surface(
+        {
+            "confirmed_calibers": {
+                "q1": {
+                    "question": "「认证方式是平台录入」应如何理解？",
+                    "label": "按录入方式：平台录入",
+                    "meaning": "按录入方式：平台录入",
+                    "option_id": "q1_b",
+                }
+            },
+            "assumptions": [
+                {
+                    "question": "默认时间口径",
+                    "label": "按创建时间",
+                    "meaning": "按创建时间",
+                    "source": "declared",
+                },
+                {
+                    "question": "旧澄清残留",
+                    "label": "不应出现在假设",
+                    "meaning": "不应出现在假设",
+                    "source": "clarification",
+                },
+            ],
+        }
+    )
+    confirmed = surface["confirmed_calibers"]
+    assumptions = surface["assumptions"]
+    assert len(confirmed) == 2
+    assert confirmed[0]["question"].startswith("「认证方式是平台录入」")
+    assert confirmed[0]["value"] == "按录入方式：平台录入"
+    assert "q1_b" not in confirmed[0]["value"]
+    assert any(item["value"] == "不应出现在假设" for item in confirmed)
+    assert len(assumptions) == 1
+    assert assumptions[0]["value"] == "按创建时间"
+    assert assumptions[0]["source"] == "declared"
 
 
 def test_assumptions_from_slots_are_human_readable() -> None:
@@ -244,6 +348,18 @@ def test_assumptions_from_slots_are_human_readable() -> None:
     assert items[0]["value"] == "按录入方式：平台录入"
     assert "q1_b" not in items[0]["value"]
     assert items[0].get("field") is None
+
+
+def test_bound_llm_io_keeps_small_payloads_and_caps_large() -> None:
+    from apps.conversation.process_timeline import LLM_IO_MAX_CHARS, bound_llm_io
+
+    small = [{"type": "human", "content": "hello"}]
+    assert bound_llm_io(small) == small
+    huge = "x" * (LLM_IO_MAX_CHARS + 10_000)
+    capped = bound_llm_io({"prompt": huge})
+    assert isinstance(capped, dict)
+    assert capped.get("truncated") is True
+    assert capped.get("truncation_reason") == "llm_io_max_chars"
 
 
 def test_langgraph_preserves_open_tool_spans_on_nlq_state() -> None:

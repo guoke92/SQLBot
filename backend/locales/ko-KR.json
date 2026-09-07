@@ -225,6 +225,7 @@
         "patch_and_compile_sql": "SQL 수정",
         "compare_results": "결과 비교",
         "search_wiki": "지식 검색",
+        "prepare_wiki": "지식 준비",
         "request_clarification": "확인 요청"
       }
     },
@@ -235,7 +236,8 @@
       "query_rows": "{count}행 반환",
       "answer_ready": "답변 준비됨",
       "clarification_waiting": "확인 대기",
-      "clarification_confirmed": "기준 확인됨"
+      "clarification_confirmed": "기준 확인됨",
+      "wiki_prepared": "지식 {count}건 준비"
     },
     "audit": {
       "processing": "처리 중",

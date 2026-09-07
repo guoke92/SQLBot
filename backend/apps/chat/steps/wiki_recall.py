@@ -558,8 +558,14 @@ def retrieve_wiki_context(
     """
     clean_query = str(query or "").strip()
     if not clean_query:
-        return {"knowledge_text": "", "tables": [], "schema_text": "", "backend": "none"}
-
+        return {
+            "knowledge_text": "",
+            "tables": [],
+            "schema_text": "",
+            "backend": "none",
+            "page_keys": [],
+            "hit_count": 0,
+        }
     ds = getattr(llm_service, "ds", None)
     ds_id = getattr(ds, "id", None)
 
@@ -596,6 +602,8 @@ def retrieve_wiki_context(
                 "tables": tables,
                 "schema_text": "",
                 "backend": "wiki",
+                "page_keys": list(getattr(res, "page_keys", None) or []) if res else [],
+                "hit_count": len(getattr(res, "hits", None) or []) if res else 0,
             }
         except Exception as exc:
             SQLBotLogUtil.warning(f"retrieve_wiki_context failed in wiki branch: {exc}")
@@ -631,8 +639,16 @@ def retrieve_wiki_context(
             "tables": matched_tables,
             "schema_text": schema_text,
             "backend": "schema_fallback",
+            "page_keys": [],
+            "hit_count": len(matched_tables),
         }
     except Exception as exc:
         SQLBotLogUtil.warning(f"retrieve_wiki_context failed in fallback branch: {exc}")
-        return {"knowledge_text": "", "tables": [], "schema_text": "", "backend": "error"}
-
+        return {
+            "knowledge_text": "",
+            "tables": [],
+            "schema_text": "",
+            "backend": "error",
+            "page_keys": [],
+            "hit_count": 0,
+        }

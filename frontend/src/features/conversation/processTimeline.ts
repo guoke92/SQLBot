@@ -54,6 +54,7 @@ export interface ProcessItem {
   thought?: ProcessThought
   artifact?: ProcessArtifact
   answer?: ProcessAnswer
+  meta?: Record<string, unknown>
   detail?: Record<string, unknown>
 }
 
@@ -134,6 +135,7 @@ export function applyDelta(map: TimelineMap, item: ProcessItem): TimelineMap {
           content: item.answer.content ?? current.answer?.content,
         }
       : current.answer,
+    meta: item.meta ? { ...current.meta, ...item.meta } : current.meta,
   }
   return upsertItem(map, merged)
 }
@@ -205,6 +207,31 @@ export function narrativeDurationMs(blocks: NarrativeBlock[]): number {
   }, 0)
 }
 
+/** Processing time only: skip clarification waits; include in-flight thought/tool spans. */
+export function processingDurationMs(blocks: NarrativeBlock[], nowMs: number): number {
+  let ms = 0
+  const addItem = (item: ProcessItem) => {
+    if (item.duration_ms != null && item.status !== 'running') {
+      ms += Number(item.duration_ms) || 0
+      return
+    }
+    if (!item.started_at) return
+    const start = Date.parse(item.started_at)
+    if (Number.isNaN(start)) return
+    const end = item.finished_at ? Date.parse(item.finished_at) : nowMs
+    if (Number.isNaN(end)) return
+    ms += Math.max(0, end - start)
+  }
+  for (const block of blocks) {
+    if (block.type === 'clarification') continue
+    addItem(block.item)
+    if (block.type === 'tool') {
+      for (const artifact of block.artifacts) addItem(artifact)
+    }
+  }
+  return ms
+}
+
 /** Collapse request_clarification tool + wait/confirm into one clarification card. */
 export function foldClarificationFlow(items: ProcessItem[]): ProcessItem[] {
   const isClarifyTool = (item: ProcessItem) =>
@@ -254,6 +281,13 @@ export function foldClarificationFlow(items: ProcessItem[]): ProcessItem[] {
       preferred.summary_key = 'chat.summary.clarification_confirmed'
     }
     delete preferred.tool
+    for (let i = group.length - 1; i >= 0; i -= 1) {
+      const meta = group[i].meta
+      if (meta && typeof meta.interrupt_id === 'string') {
+        preferred.meta = { ...meta }
+        break
+      }
+    }
     return preferred
   }
 

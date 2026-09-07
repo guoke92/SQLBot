@@ -151,7 +151,7 @@ const chartObject = computed<{
   axis: {
     x: { name: string; value: string }
     y: { name: string; value: string }
-    series: { name: string; value: string }
+    series?: { name: string; value: string }
   }
   columns: Array<{ name: string; value: string }>
 }>(() => {
@@ -319,7 +319,7 @@ function addToDashboard() {
       columns: chartBaseInfo?.columns,
       xAxis: axis?.x ? [axis?.x] : [],
       yAxis: yAxis,
-      series: axis?.series ? [axis?.series] : [],
+      series: axis?.series?.value ? [axis.series] : [],
       multiQuotaName: axis?.['multi-quota']?.name,
     }
   }

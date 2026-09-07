@@ -32,6 +32,8 @@ def execute_sql_sandbox(
     sample_limit: int = PREVIEW_ROW_LIMIT,
     plan_id: str | None = None,
     dataset_id: str | None = None,
+    required: bool = True,
+    result_title: str = "",
 ) -> ToolResult:
     """Safely execute SQL with permission rewrites and token-safe output."""
     clean_sql = (sql or "").strip().rstrip(";")
@@ -40,7 +42,9 @@ def execute_sql_sandbox(
 
     try:
         proto = getattr(llm_service, "protocol", None)
-        ds = getattr(llm_service, "ds", None) or getattr(llm_service, "datasource", None)
+        ds = getattr(llm_service, "ds", None) or getattr(
+            llm_service, "datasource", None
+        )
         if proto is None or ds is None:
             return failure_result("Datasource or protocol not configured on session")
 
@@ -129,8 +133,11 @@ def execute_sql_sandbox(
                 sql=statement,
                 value_labels=value_labels,
                 limit=display_limit if truncated else exec_limit,
+                required=required,
+                result_title=result_title,
             )
 
+        title = str(result_title or "").strip()
         return success_result(
             f"Query executed successfully, returned {row_count} rows.",
             data={
@@ -144,7 +151,13 @@ def execute_sql_sandbox(
                 "column_stats": col_stats,
                 "dataset_id": resolved_dataset_id,
                 "plan_id": resolved_plan_id,
-                **({"limit": display_limit} if truncated and display_limit is not None else {}),
+                "required": bool(required),
+                **({"result_title": title} if title else {}),
+                **(
+                    {"limit": display_limit}
+                    if truncated and display_limit is not None
+                    else {}
+                ),
                 **({"value_labels": value_labels} if value_labels else {}),
             },
         )

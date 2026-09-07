@@ -66,6 +66,9 @@ class AnswerBase(BaseModel):
     status: Literal["succeeded", "degraded", "failed"]
     content: str = ""
     source_record_ids: tuple[int, ...] = ()
+    # User-confirmed clarification answers (not assumptions).
+    confirmed_calibers: tuple[dict[str, Any], ...] = ()
+    # System-chosen constraints the user did not explicitly confirm.
     assumptions: tuple[dict[str, Any], ...] = ()
     quality: dict[str, Any] | None = None
     error: AnswerError | None = None

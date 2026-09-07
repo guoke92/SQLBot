@@ -235,6 +235,7 @@ export interface TurnAnswerV1 {
   source_datasets?: TurnAnswerDataset[]
   forecast_rows?: Array<Record<string, any>>
   assumptions?: Array<Record<string, any>>
+  confirmed_calibers?: Array<Record<string, any>>
   source_record_ids?: number[]
   quality?: ResultQuality
   error?: { code: string; message: string; retryable?: boolean }

@@ -34,6 +34,9 @@ ProcessStatus = Literal["running", "completed", "failed", "interrupted"]
 ProcessView = Literal["compact", "detail"]
 
 PREVIEW_ROW_LIMIT = 3
+# Durable chat_log keeps full LLM prompts up to this serialized-char ceiling.
+# Compact SSE upserts omit heavy input/output; Execution Details uses view=detail.
+LLM_IO_MAX_CHARS = 400_000
 _DELTA_FLUSH_CHARS = 96
 _DELTA_FLUSH_SEC = 0.5
 
@@ -44,6 +47,26 @@ _KIND_OPERATE: dict[ProcessKind, OperationEnum] = {
     "clarification": OperationEnum.CLARIFY_INTENT,
     "answer": OperationEnum.ANALYSIS,
 }
+
+
+def bound_llm_io(value: Any, *, max_chars: int = LLM_IO_MAX_CHARS) -> Any:
+    """Persist full prompts when possible; hard-cap pathological sizes."""
+    sanitized = sanitize_audit_value(value)
+    try:
+        import orjson
+
+        encoded = orjson.dumps(sanitized).decode()
+    except Exception:
+        encoded = str(sanitized)
+    if len(encoded) <= max_chars:
+        return sanitized
+    return {
+        "truncated": True,
+        "truncation_reason": "llm_io_max_chars",
+        "max_chars": max_chars,
+        "preview": encoded[: max(0, max_chars - 128)],
+    }
+
 
 _KIND_TITLE_KEY: dict[ProcessKind, str] = {
     "thought": "chat.timeline.thought",
@@ -142,6 +165,7 @@ def _process_payload(
     thought: Mapping[str, Any] | None = None,
     artifact: Mapping[str, Any] | None = None,
     answer: Mapping[str, Any] | None = None,
+    meta: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     payload: dict[str, Any] = {"process_kind": kind}
     if parent_id is not None:
@@ -154,6 +178,8 @@ def _process_payload(
         payload["artifact"] = sanitize_audit_value(dict(artifact))
     if answer:
         payload["answer"] = dict(answer)
+    if meta:
+        payload["meta"] = sanitize_audit_value(dict(meta))
     return payload
 
 
@@ -214,6 +240,8 @@ def _item_from_log(
         item["artifact"] = dict(detail["artifact"])
     if detail.get("answer"):
         item["answer"] = dict(detail["answer"])
+    if isinstance(detail.get("meta"), Mapping) and detail["meta"]:
+        item["meta"] = dict(detail["meta"])
     if view == "detail":
         item["detail"] = {
             "input": projection.get("input"),
@@ -249,6 +277,7 @@ class ProcessSpan:
         thought: dict[str, Any] | None,
         artifact: dict[str, Any] | None,
         answer: dict[str, Any] | None,
+        meta: dict[str, Any] | None,
         summary_key: str | None,
         summary_params: dict[str, Any],
         local_operation: bool,
@@ -270,6 +299,7 @@ class ProcessSpan:
         self._thought = dict(thought) if thought else None
         self._artifact = dict(artifact) if artifact else None
         self._answer = dict(answer) if answer else None
+        self._meta = dict(meta) if meta else None
         self._summary_key = summary_key
         self._summary_params = dict(summary_params)
         self._local_operation = local_operation
@@ -314,6 +344,8 @@ class ProcessSpan:
             item["artifact"] = dict(self._artifact)
         if self._answer:
             item["answer"] = dict(self._answer)
+        if self._meta:
+            item["meta"] = dict(self._meta)
         return item
 
     def _envelope(
@@ -329,6 +361,7 @@ class ProcessSpan:
             thought=self._thought,
             artifact=self._artifact,
             answer=self._answer,
+            meta=self._meta,
         )
         if extra_detail:
             payload.update(dict(extra_detail))
@@ -368,10 +401,17 @@ class ProcessSpan:
         self._pending_chars = 0
 
     def set_input(self, value: Any) -> None:
-        self._input = sanitize_audit_value(value)
+        self._input = bound_llm_io(value)
 
     def set_output(self, value: Any) -> None:
-        self._output = sanitize_audit_value(value)
+        self._output = bound_llm_io(value)
+
+    def set_meta(self, meta: Mapping[str, Any] | None) -> None:
+        if not meta:
+            return
+        current = dict(self._meta or {})
+        current.update(dict(meta))
+        self._meta = current
 
     def set_model_calls(self, calls: Sequence[Mapping[str, Any]] | None) -> None:
         self._model_calls = [dict(item) for item in calls or []]
@@ -423,7 +463,11 @@ class ProcessSpan:
         self._pending_chars += added
         _emit_process_event(self.sink, event_type="process_delta", item=self.snapshot())
         elapsed = time.monotonic() - self._last_flush
-        if flush or self._pending_chars >= _DELTA_FLUSH_CHARS or elapsed >= _DELTA_FLUSH_SEC:
+        if (
+            flush
+            or self._pending_chars >= _DELTA_FLUSH_CHARS
+            or elapsed >= _DELTA_FLUSH_SEC
+        ):
             self._flush_log()
 
     def close(
@@ -450,11 +494,7 @@ class ProcessSpan:
             merged_art.update(dict(artifact))
             self._artifact = merged_art
         self._status = status
-        outcome = (
-            "failed"
-            if status in {"failed", "interrupted"}
-            else "success"
-        )
+        outcome = "failed" if status in {"failed", "interrupted"} else "success"
         extra = dict(extra_detail or {})
         if status == "interrupted":
             extra["interrupted"] = True
@@ -517,6 +557,7 @@ def open_process_span(
     thought: Mapping[str, Any] | None = None,
     artifact: Mapping[str, Any] | None = None,
     answer: Mapping[str, Any] | None = None,
+    meta: Mapping[str, Any] | None = None,
     local_operation: bool = True,
     ai_modal_id: int | None = None,
     ai_modal_name: str | None = None,
@@ -542,6 +583,7 @@ def open_process_span(
         thought=thought,
         artifact=artifact,
         answer=answer,
+        meta=meta,
     )
     envelope = make_span_message(
         graph_node=graph_node,
@@ -577,6 +619,7 @@ def open_process_span(
         thought=dict(thought) if thought else None,
         artifact=dict(artifact) if artifact else None,
         answer=dict(answer) if answer else None,
+        meta=dict(meta) if meta else None,
         summary_key=summary_key or "chat.audit.processing",
         summary_params=dict(summary_params or {}),
         local_operation=local_operation,
@@ -617,6 +660,9 @@ def attach_process_span(
             thought=detail.get("thought"),
             artifact=detail.get("artifact"),
             answer=detail.get("answer"),
+            meta=detail.get("meta")
+            if isinstance(detail.get("meta"), Mapping)
+            else None,
             summary_key=envelope.get("summary_key"),
             summary_params=dict(envelope.get("summary_params") or {}),
             local_operation=bool(log.local_operation),
@@ -658,7 +704,9 @@ def project_process_timeline(
     if run is not None:
         log_query = log_query.where(ChatLog.run_id == run.run_id)
     logs = list(
-        session.exec(log_query.order_by(ChatLog.start_time.asc(), ChatLog.id.asc())).scalars()
+        session.exec(
+            log_query.order_by(ChatLog.start_time.asc(), ChatLog.id.asc())
+        ).scalars()
     )
     run_terminal = bool(
         run is not None
@@ -752,7 +800,11 @@ def preview_rows(
     *,
     limit: int = PREVIEW_ROW_LIMIT,
 ) -> list[dict[str, Any]]:
-    return [dict(row) for row in list(rows or [])[: max(0, limit)] if isinstance(row, Mapping)]
+    return [
+        dict(row)
+        for row in list(rows or [])[: max(0, limit)]
+        if isinstance(row, Mapping)
+    ]
 
 
 def new_dataset_id() -> str:
@@ -772,26 +824,35 @@ def upsert_result_dataset(
     status: str = "succeeded",
     value_labels: Mapping[str, Mapping[str, str]] | None = None,
     limit: int | None = None,
+    required: bool = True,
+    result_title: str = "",
 ) -> None:
     """Persist the row store without requiring a query_run planning row."""
     if not run_id:
         return
     safe_rows = [dict(item) for item in rows if isinstance(item, Mapping)]
     with session_scope() as session:
-        existing = session.exec(
-            select(ResultDataset)
-            .where(
-                ResultDataset.run_id == run_id,
-                ResultDataset.dataset_id == dataset_id,
-                ResultDataset.plan_id == plan_id,
+        existing = (
+            session.exec(
+                select(ResultDataset)
+                .where(
+                    ResultDataset.run_id == run_id,
+                    ResultDataset.dataset_id == dataset_id,
+                    ResultDataset.plan_id == plan_id,
+                )
+                .with_for_update()
             )
-            .with_for_update()
-        ).scalars().one_or_none()
+            .scalars()
+            .one_or_none()
+        )
         snapshot: dict[str, Any] = {}
         if sql:
             snapshot["sql"] = sql
         if limit is not None:
             snapshot["limit"] = int(limit)
+        title = str(result_title or "").strip()
+        if title:
+            snapshot["result_title"] = title
         if value_labels:
             snapshot["value_labels"] = {
                 str(field): {str(raw): str(label) for raw, label in mapping.items()}
@@ -805,7 +866,7 @@ def upsert_result_dataset(
                     dataset_id=dataset_id,
                     plan_id=plan_id,
                     status=status,
-                    required=True,
+                    required=bool(required),
                     fields=[str(item) for item in fields],
                     rows=safe_rows,
                     row_count=row_count,
@@ -815,6 +876,7 @@ def upsert_result_dataset(
             )
         else:
             existing.status = status
+            existing.required = bool(required)
             existing.fields = [str(item) for item in fields]
             existing.rows = safe_rows
             existing.row_count = row_count
@@ -849,11 +911,18 @@ def _process_span_from_log(
         graph_node=str(envelope.get("graph_node") or ""),
         parent_id=detail.get("parent_id"),
         tool=detail.get("tool") if isinstance(detail.get("tool"), Mapping) else None,
-        thought=detail.get("thought") if isinstance(detail.get("thought"), Mapping) else None,
+        thought=detail.get("thought")
+        if isinstance(detail.get("thought"), Mapping)
+        else None,
         artifact=(
-            detail.get("artifact") if isinstance(detail.get("artifact"), Mapping) else None
+            detail.get("artifact")
+            if isinstance(detail.get("artifact"), Mapping)
+            else None
         ),
-        answer=detail.get("answer") if isinstance(detail.get("answer"), Mapping) else None,
+        answer=detail.get("answer")
+        if isinstance(detail.get("answer"), Mapping)
+        else None,
+        meta=detail.get("meta") if isinstance(detail.get("meta"), Mapping) else None,
         summary_key=envelope.get("summary_key"),
         summary_params=dict(envelope.get("summary_params") or {}),
         local_operation=bool(log.local_operation),
@@ -941,7 +1010,10 @@ def fold_clarification_flow(items: Sequence[Mapping[str, Any]]) -> list[dict[str
 
     def _is_clarify_tool(item: Mapping[str, Any]) -> bool:
         tool = item.get("tool") if isinstance(item.get("tool"), Mapping) else {}
-        return item.get("kind") == "tool" and str(tool.get("name") or "") == "request_clarification"
+        return (
+            item.get("kind") == "tool"
+            and str(tool.get("name") or "") == "request_clarification"
+        )
 
     def _duration_ms_iso(start: Any, end: Any) -> int | None:
         if not start or not end:
@@ -980,14 +1052,20 @@ def fold_clarification_flow(items: Sequence[Mapping[str, Any]]) -> list[dict[str
         if preferred is None:
             preferred = dict(group[-1])
             preferred["kind"] = "clarification"
-            preferred["title_key"] = preferred.get("title_key") or _KIND_TITLE_KEY["clarification"]
+            preferred["title_key"] = (
+                preferred.get("title_key") or _KIND_TITLE_KEY["clarification"]
+            )
         starts = [item.get("started_at") for item in group if item.get("started_at")]
-        finishes = [item.get("finished_at") for item in group if item.get("finished_at")]
+        finishes = [
+            item.get("finished_at") for item in group if item.get("finished_at")
+        ]
         if starts:
             preferred["started_at"] = starts[0]
         if finishes:
             preferred["finished_at"] = finishes[-1]
-        duration = _duration_ms_iso(preferred.get("started_at"), preferred.get("finished_at"))
+        duration = _duration_ms_iso(
+            preferred.get("started_at"), preferred.get("finished_at")
+        )
         if duration is not None:
             preferred["duration_ms"] = duration
         if preferred.get("status") == "interrupted":
@@ -996,7 +1074,9 @@ def fold_clarification_flow(items: Sequence[Mapping[str, Any]]) -> list[dict[str
             preferred["summary_key"] = "chat.summary.clarification_confirmed"
         if preferred.get("status") == "running":
             preferred["summary_key"] = "chat.summary.clarification_waiting"
-        elif preferred.get("status") == "completed" and preferred.get("summary_key") in {
+        elif preferred.get("status") == "completed" and preferred.get(
+            "summary_key"
+        ) in {
             None,
             "chat.audit.processing",
             "chat.audit.step_interrupted",
@@ -1004,6 +1084,12 @@ def fold_clarification_flow(items: Sequence[Mapping[str, Any]]) -> list[dict[str
         }:
             preferred["summary_key"] = "chat.summary.clarification_confirmed"
         preferred.pop("tool", None)
+        # Prefer interrupt linkage / card payload from any clarification row.
+        for item in reversed(group):
+            meta = item.get("meta")
+            if isinstance(meta, Mapping) and meta.get("interrupt_id"):
+                preferred["meta"] = dict(meta)
+                break
         return preferred
 
     out: list[dict[str, Any]] = []
@@ -1024,6 +1110,7 @@ def fold_clarification_flow(items: Sequence[Mapping[str, Any]]) -> list[dict[str
         out.append(item)
     _flush()
     return out
+
 
 def load_result_datasets(session: Session, run_id: str) -> list[ResultDataset]:
     return list(
@@ -1054,19 +1141,25 @@ def load_dataset_rows(
     run_id = record.active_run_id
     if not run_id:
         raise LookupError("No active run for this record")
-    row = session.exec(
-        select(ResultDataset).where(
-            ResultDataset.run_id == run_id,
-            ResultDataset.dataset_id == dataset_id,
+    row = (
+        session.exec(
+            select(ResultDataset).where(
+                ResultDataset.run_id == run_id,
+                ResultDataset.dataset_id == dataset_id,
+            )
         )
-    ).scalars().first()
+        .scalars()
+        .first()
+    )
     if row is None:
         raise LookupError(f"dataset {dataset_id} not found")
     start = max(0, offset)
     end = start + max(1, min(int(limit), ROW_LIMIT_MAX))
     all_rows = list(row.rows or [])
     snapshot = row.schema_snapshot if isinstance(row.schema_snapshot, Mapping) else {}
-    value_labels = snapshot.get("value_labels") if isinstance(snapshot, Mapping) else None
+    value_labels = (
+        snapshot.get("value_labels") if isinstance(snapshot, Mapping) else None
+    )
     payload: dict[str, Any] = {
         "dataset_id": row.dataset_id,
         "fields": list(row.fields or []),

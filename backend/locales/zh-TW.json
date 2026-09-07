@@ -225,6 +225,7 @@
         "patch_and_compile_sql": "增量修改",
         "compare_results": "資料對比",
         "search_wiki": "查閱知識",
+        "prepare_wiki": "準備知識",
         "request_clarification": "請求澄清"
       }
     },
@@ -235,7 +236,8 @@
       "query_rows": "返回 {count} 行",
       "answer_ready": "回答已產生",
       "clarification_waiting": "等待確認",
-      "clarification_confirmed": "口徑已確認"
+      "clarification_confirmed": "口徑已確認",
+      "wiki_prepared": "召回 {count} 條知識"
     },
     "audit": {
       "processing": "處理中",

@@ -956,8 +956,10 @@
       "step_count": "{count} steps",
       "truncated": "Results truncated",
       "assumptions": "Assumptions",
+      "confirmed_calibers": "Confirmed criteria",
       "process": "Process",
       "processing": "Working",
+      "working_for": "Working for {seconds}s",
       "worked_for": "Worked for {seconds}s",
       "worked_for_with_tokens": "Worked for {seconds}s · {tokens} tokens",
       "tokens_only": "{tokens} tokens",
@@ -971,6 +973,7 @@
         "patch_and_compile_sql": "Patch SQL",
         "compare_results": "Compare results",
         "search_wiki": "Search knowledge",
+        "prepare_wiki": "Prepare knowledge",
         "request_clarification": "Ask for clarification"
       }
     },
@@ -981,7 +984,8 @@
       "query_rows": "Returned {count} rows",
       "answer_ready": "Answer ready",
       "clarification_waiting": "Waiting for confirmation",
-      "clarification_confirmed": "Criteria confirmed"
+      "clarification_confirmed": "Criteria confirmed",
+      "wiki_prepared": "Prepared {count} knowledge hits"
     },
     "audit": {
       "processing": "Processing",

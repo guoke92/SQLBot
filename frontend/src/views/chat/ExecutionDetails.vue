@@ -209,8 +209,8 @@ defineExpose({ getLogList })
               ><icon_expand_right_filled
             /></el-icon>
             <span>{{ titleFor(item) }}</span>
-            <el-tag v-if="(item.attempt_index || 0) > 0" size="small" type="info">
-              {{ t('chat.audit.attempt', { value: (item.attempt_index || 0) + 1 }) }}
+            <el-tag v-if="(item.attempt_index || 0) > 1" size="small" type="info">
+              {{ t('chat.audit.attempt', { value: item.attempt_index }) }}
             </el-tag>
           </div>
           <div class="status">

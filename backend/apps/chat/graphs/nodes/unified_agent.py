@@ -36,6 +36,27 @@ from apps.datasource.access import resolve_access_scope
 from common.utils.utils import SQLBotLogUtil
 
 
+def _messages_for_audit(messages: Sequence[Any]) -> list[dict[str, Any]]:
+    """Full prompt payload for durable thought spans (bounded later by bound_llm_io)."""
+    rows: list[dict[str, Any]] = []
+    for message in messages:
+        row: dict[str, Any] = {
+            "type": str(getattr(message, "type", "") or ""),
+            "content": str(getattr(message, "content", "") or ""),
+        }
+        name = getattr(message, "name", None)
+        if name:
+            row["name"] = str(name)
+        tool_call_id = getattr(message, "tool_call_id", None)
+        if tool_call_id:
+            row["tool_call_id"] = str(tool_call_id)
+        tool_calls = getattr(message, "tool_calls", None)
+        if tool_calls:
+            row["tool_calls"] = tool_calls
+        rows.append(row)
+    return rows
+
+
 def resolve_continue_reference_ids(
     *,
     chat_id: int | None,
@@ -195,26 +216,49 @@ def prepare_agent_turn_node(state: Mapping[str, Any]) -> dict[str, Any]:
     raw_slots = base_state.get("memory_slots") or {}
     memory_slots = MemorySlots.model_validate(raw_slots) if raw_slots else MemorySlots()
     referenced = list(base_state.get("referenced_turns") or [])
-    # Prefer full answer assumptions from the referenced ChatRecord when outline lacks them.
+    # Prefer full answer calibers from the referenced ChatRecord when outline lacks them.
     if referenced:
         try:
             with session_scope() as session:
                 latest_id = referenced[-1].get("record_id")
                 prior = session.get(ChatRecord, int(latest_id)) if latest_id else None
                 answer = prior.answer if prior is not None and isinstance(prior.answer, dict) else {}
+                patch: dict[str, Any] = {}
                 if answer.get("assumptions") and "assumptions" not in referenced[-1]:
-                    referenced[-1] = {
-                        **referenced[-1],
-                        "assumptions": list(answer.get("assumptions") or []),
-                    }
+                    patch["assumptions"] = list(answer.get("assumptions") or [])
+                if (
+                    answer.get("confirmed_calibers")
+                    and "confirmed_calibers" not in referenced[-1]
+                ):
+                    patch["confirmed_calibers"] = list(
+                        answer.get("confirmed_calibers") or []
+                    )
+                if patch:
+                    referenced[-1] = {**referenced[-1], **patch}
         except Exception as exc:
-            SQLBotLogUtil.warning(f"Failed to load prior assumptions: {exc}")
+            SQLBotLogUtil.warning(f"Failed to load prior calibers: {exc}")
     memory_slots = hydrate_memory_slots_from_referenced_turns(memory_slots, referenced)
 
     from apps.chat.steps.wiki_recall import retrieve_wiki_context
 
     wiki_text = ""
     schema_summary = ""
+    sink = StreamSink.from_state(base_state)
+    wiki_span = open_process_span(
+        kind="tool",
+        record_id=record_id,
+        sink=sink,
+        run_id=run_id,
+        graph_node="prepare_agent_turn",
+        title_key="chat.timeline.tool.prepare_wiki",
+        tool={
+            "call_id": f"prepare-wiki-{record_id or run_id}",
+            "name": "prepare_wiki",
+            "args": {"query": question_text[:240]},
+        },
+        summary_key="chat.audit.processing",
+        local_operation=True,
+    )
     try:
         wiki_ctx = retrieve_wiki_context(
             llm_service,
@@ -224,8 +268,39 @@ def prepare_agent_turn_node(state: Mapping[str, Any]) -> dict[str, Any]:
         )
         wiki_text = str(wiki_ctx.get("knowledge_text") or "")
         schema_summary = str(wiki_ctx.get("schema_text") or "")
+        page_keys = (
+            wiki_ctx.get("page_keys")
+            if isinstance(wiki_ctx.get("page_keys"), list)
+            else []
+        )
+        hit_count = int(wiki_ctx.get("hit_count") or len(page_keys) or 0)
+        if wiki_span is not None:
+            wiki_span.set_input(
+                {
+                    "query": question_text,
+                    "top_k": 5,
+                    "backend": wiki_ctx.get("backend"),
+                }
+            )
+            wiki_span.set_output(
+                {
+                    "backend": wiki_ctx.get("backend"),
+                    "hit_count": hit_count,
+                    "page_keys": page_keys[:20],
+                    "tables": list(wiki_ctx.get("tables") or [])[:20],
+                    "knowledge_chars": len(wiki_text),
+                    "schema_chars": len(schema_summary),
+                }
+            )
+            wiki_span.close(
+                status="completed",
+                summary_key="chat.summary.wiki_prepared",
+                summary_params={"count": hit_count},
+            )
     except Exception as exc:
         SQLBotLogUtil.warning(f"Failed to retrieve context in prepare_agent_turn: {exc}")
+        if wiki_span is not None:
+            wiki_span.close(status="failed", summary_key="chat.audit.step_failed")
 
     tools = build_agent_tools(llm_service, access_scope=access_scope)
     attach_runtime(
@@ -285,6 +360,7 @@ def agent_loop_node(state: Mapping[str, Any]) -> dict[str, Any]:
     response: AIMessage | None = None
     calls: list[dict[str, Any]] = []
     text = ""
+    usage: Mapping[str, Any] = {}
 
     def _ensure_thought_span():
         nonlocal thought_span
@@ -342,6 +418,7 @@ def agent_loop_node(state: Mapping[str, Any]) -> dict[str, Any]:
         response = call.message
         calls = tool_calls_from_message(response)
         text = call.content
+        usage = call.usage or {}
         if calls and held_content:
             span = _ensure_thought_span()
             if span is not None:
@@ -353,18 +430,10 @@ def agent_loop_node(state: Mapping[str, Any]) -> dict[str, Any]:
         if thought_span is not None:
             thought_body = str((thought_span.snapshot().get("thought") or {}).get("content") or "").strip()
             if thought_body:
-                thought_span.set_usage(call.usage or {})
-                thought_span.set_input(
-                    [
-                        {
-                            "type": getattr(m, "type", ""),
-                            "content": str(getattr(m, "content", ""))[:500],
-                        }
-                        for m in model_messages[-4:]
-                    ]
-                )
+                thought_span.set_usage(usage)
+                thought_span.set_input(_messages_for_audit(model_messages))
                 thought_span.set_output(
-                    {"type": "ai", "content": text[:2000], "tool_calls": calls}
+                    {"type": "ai", "content": text, "tool_calls": calls}
                 )
                 thought_span.close(
                     status="completed",
@@ -431,6 +500,13 @@ def agent_loop_node(state: Mapping[str, Any]) -> dict[str, Any]:
         ai_modal_name=state.get("ai_modal_name"),
     )
     if answer_span is not None:
+        # When the thought span was discarded (no reasoning channel), keep the
+        # full model I/O on the answer span for Execution Details.
+        if thought_span is None:
+            answer_span.set_input(_messages_for_audit(model_messages))
+            answer_span.set_output({"type": "ai", "content": text, "tool_calls": calls})
+            if usage:
+                answer_span.set_usage(usage)
         answer_span.close(status="completed", summary_key="chat.summary.answer_ready")
     return {
         **state,

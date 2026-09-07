@@ -956,8 +956,10 @@
       "step_count": "{count} 个步骤",
       "truncated": "结果已截断",
       "assumptions": "查询假设",
+      "confirmed_calibers": "已确认口径",
       "process": "处理过程",
       "processing": "处理中",
+      "working_for": "处理中 {seconds}s",
       "worked_for": "处理了 {seconds}s",
       "worked_for_with_tokens": "处理了 {seconds}s，消耗了 {tokens} token",
       "tokens_only": "消耗了 {tokens} token",
@@ -971,6 +973,7 @@
         "patch_and_compile_sql": "增量修改",
         "compare_results": "数据对比",
         "search_wiki": "查阅知识",
+        "prepare_wiki": "准备知识",
         "request_clarification": "请求澄清"
       }
     },
@@ -981,7 +984,8 @@
       "query_rows": "返回 {count} 行",
       "answer_ready": "回答已生成",
       "clarification_waiting": "等待确认",
-      "clarification_confirmed": "口径已确认"
+      "clarification_confirmed": "口径已确认",
+      "wiki_prepared": "召回 {count} 条知识"
     },
     "audit": {
       "processing": "处理中",

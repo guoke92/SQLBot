@@ -7,6 +7,12 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from apps.chat.caliber_surface import (
+    ingest_confirmed_calibers,
+    lift_confirmed_from_assumptions,
+    project_query_assumptions,
+)
+
 
 class MemorySlots(BaseModel):
     """Structured slots maintained across turns in a conversation."""
@@ -93,23 +99,29 @@ def hydrate_memory_slots_from_referenced_turns(
             }
             break
 
-    if not memory_slots.assumptions:
-        raw_assumptions = latest.get("assumptions")
-        if isinstance(raw_assumptions, list):
-            memory_slots.assumptions = [
-                dict(item) for item in raw_assumptions if isinstance(item, Mapping)
-            ]
+    raw_assumptions = latest.get("assumptions")
+    if not memory_slots.assumptions and isinstance(raw_assumptions, list):
+        memory_slots.assumptions = [
+            dict(item) for item in raw_assumptions if isinstance(item, Mapping)
+        ]
 
     if not memory_slots.confirmed_calibers:
-        for item in memory_slots.assumptions:
-            if not isinstance(item, Mapping):
-                continue
-            if str(item.get("source") or "") not in {"clarification", "confirmed"}:
-                continue
-            label = str(item.get("label") or "").strip()
-            if not label:
-                continue
-            key = str(item.get("question") or label)[:120]
-            memory_slots.confirmed_calibers[key] = label
+        ingest_confirmed_calibers(
+            memory_slots.confirmed_calibers,
+            latest.get("confirmed_calibers"),
+        )
+        if not memory_slots.confirmed_calibers:
+            memory_slots.assumptions = lift_confirmed_from_assumptions(
+                memory_slots.confirmed_calibers,
+                memory_slots.assumptions,
+            )
+        else:
+            # Keep slot assumptions = undeclared only (single surface rule).
+            memory_slots.assumptions = project_query_assumptions(
+                {"assumptions": memory_slots.assumptions}
+            )
+    elif memory_slots.assumptions:
+        memory_slots.assumptions = project_query_assumptions(
+            {"assumptions": memory_slots.assumptions}
+        )
     return memory_slots
-

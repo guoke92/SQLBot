@@ -127,6 +127,7 @@ def _record_snapshot_values(
     failure_retryable: bool = True,
     execution_mode: Literal["verified", "unverified", "agent"] = "verified",
     assumptions: list[dict[str, Any]] | None = None,
+    confirmed_calibers: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Build the ChatRecord projection committed by ``finalize_run``."""
     if outcome is None:
@@ -277,6 +278,7 @@ def _record_snapshot_values(
             "datasets": answer_datasets,
             "intent_summary": "",
             "source_record_ids": [],
+            "confirmed_calibers": list(confirmed_calibers or []),
             "assumptions": list(assumptions or []),
             "quality": published_outcome.get("quality"),
             "error": answer_error,

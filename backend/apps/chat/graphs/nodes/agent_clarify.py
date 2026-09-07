@@ -53,6 +53,11 @@ def await_agent_clarification_node(state: Mapping[str, Any]) -> dict[str, Any]:
         **card_payload,
     }
     sink = StreamSink.from_state(state)
+    clarify_meta = {
+        "interrupt_id": pending.interrupt_id,
+        "version": pending.version,
+        "clarification_card": card_payload,
+    }
     # One lifecycle span across interrupt → resume (do not open a duplicate).
     clarify_span = attach_running_clarification_span(
         record_id=int(record_id) if record_id is not None else None,
@@ -68,9 +73,11 @@ def await_agent_clarification_node(state: Mapping[str, Any]) -> dict[str, Any]:
             graph_node="await_clarification",
             title_key="chat.timeline.clarification",
             summary_key="chat.summary.clarification_waiting",
+            meta=clarify_meta,
             local_operation=True,
         )
     else:
+        clarify_span.set_meta(clarify_meta)
         clarify_span.delta(
             summary_key="chat.summary.clarification_waiting",
             flush=True,
@@ -82,6 +89,7 @@ def await_agent_clarification_node(state: Mapping[str, Any]) -> dict[str, Any]:
     # Durable interrupt: returns answers upon resume
     answers = interrupt(public)
     if clarify_span is not None:
+        clarify_span.set_output({"answers": answers, "interrupt_id": pending.interrupt_id})
         clarify_span.close(
             status="completed",
             summary_key="chat.summary.clarification_confirmed",

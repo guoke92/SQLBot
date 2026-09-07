@@ -260,7 +260,7 @@
                     >
                       <ErrorInfo :error="message.record?.error" class="error-container" />
                       <template #tool>
-                        <ChatToolBar v-if="!message.isTyping" :message="message">
+                        <ChatToolBar v-if="!message.isTyping && message.record?.run_status !== 'awaiting_input'" :message="message">
                           <div class="tool-btns">
                             <el-tooltip
                               effect="dark"

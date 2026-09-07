@@ -6,10 +6,18 @@ from collections.abc import Mapping, Sequence
 from datetime import date, datetime
 from typing import Any, cast
 
+from apps.chat.caliber_surface import project_caliber_surface
 from apps.chat.graphs.nodes.nlq.audit import _record_snapshot_values
-from apps.chat.graphs.nodes.nlq.presentation import _table_chart
+from apps.chat.graphs.nodes.nlq.presentation import (
+    _maybe_update_chat_brief,
+    _table_chart,
+)
 from apps.chat.graphs.nodes.nlq.state import _llm_service
-from apps.chat.presentation import ResultPresentation, build_result_presentation, chart_columns
+from apps.chat.presentation import (
+    ResultPresentation,
+    build_result_presentation,
+    chart_columns,
+)
 from apps.conversation.outcome import successful_outcome
 from apps.conversation.process_timeline import (
     PREVIEW_ROW_LIMIT,
@@ -80,6 +88,31 @@ def _column_kinds(
     return temporal, numeric, categorical
 
 
+def _chart_axis(x_col: Mapping[str, Any], y_col: Mapping[str, Any]) -> dict[str, Any]:
+    """Axis contract: omit series unless a real series column exists."""
+    return {
+        "x": {"name": x_col["name"], "value": x_col["value"]},
+        "y": {"name": y_col["name"], "value": y_col["value"]},
+    }
+
+
+def select_delivery_datasets(datasets: Sequence[Any]) -> list[Any]:
+    """Publish required datasets; allow multiple. Fallback to last success."""
+    succeeded = [
+        item
+        for item in datasets
+        if str(getattr(item, "status", None) or "succeeded") != "failed"
+    ]
+    delivery = [
+        item for item in succeeded if getattr(item, "required", True) is not False
+    ]
+    if delivery:
+        return list(delivery)
+    if succeeded:
+        return [succeeded[-1]]
+    return []
+
+
 def infer_chart_for_presentation(
     presentation: ResultPresentation,
     fields: list[str],
@@ -106,11 +139,7 @@ def infer_chart_for_presentation(
             "columns": cols,
             "xAxis": x_col["value"],
             "yAxis": y_col["value"],
-            "axis": {
-                "x": {"name": x_col["name"], "value": x_col["value"]},
-                "y": {"name": y_col["name"], "value": y_col["value"]},
-                "series": {"name": "", "value": ""},
-            },
+            "axis": _chart_axis(x_col, y_col),
             "config": {
                 "xField": x_col["value"],
                 "yField": y_col["value"],
@@ -128,11 +157,7 @@ def infer_chart_for_presentation(
             "columns": cols,
             "xAxis": x_col["value"],
             "yAxis": y_col["value"],
-            "axis": {
-                "x": {"name": x_col["name"], "value": x_col["value"]},
-                "y": {"name": y_col["name"], "value": y_col["value"]},
-                "series": {"name": "", "value": ""},
-            },
+            "axis": _chart_axis(x_col, y_col),
             "config": {
                 "xField": x_col["value"],
                 "yField": y_col["value"],
@@ -146,61 +171,9 @@ def infer_chart_for_presentation(
 
 
 def _assumptions_from_slots(memory_slots: Mapping[str, Any]) -> list[dict[str, Any]]:
-    """Surface confirmed calibers as human-readable assumptions for the answer UI."""
-    items: list[dict[str, Any]] = []
-    confirmed = memory_slots.get("confirmed_calibers")
-    if isinstance(confirmed, Mapping):
-        for _key, value in confirmed.items():
-            if isinstance(value, Mapping):
-                question = str(value.get("question") or "").strip()
-                label = str(value.get("label") or "").strip()
-                meaning = str(value.get("meaning") or label).strip()
-                text = meaning or label
-                if not text and not question:
-                    continue
-                items.append(
-                    {
-                        "question": question,
-                        "label": label or text,
-                        "meaning": meaning or text,
-                        "value": meaning or text,
-                        "source": "clarification",
-                    }
-                )
-            elif value not in (None, ""):
-                text = str(value).strip()
-                if text:
-                    items.append(
-                        {
-                            "question": "",
-                            "label": text,
-                            "meaning": text,
-                            "value": text,
-                            "source": "clarification",
-                        }
-                    )
-    declared = memory_slots.get("assumptions")
-    if isinstance(declared, list):
-        for item in declared:
-            if not isinstance(item, Mapping) or not item:
-                continue
-            payload = dict(item)
-            meaning = str(
-                payload.get("meaning")
-                or payload.get("label")
-                or payload.get("value")
-                or ""
-            ).strip()
-            question = str(payload.get("question") or "").strip()
-            if not meaning and not question:
-                continue
-            payload["question"] = question
-            payload["meaning"] = meaning
-            payload["label"] = str(payload.get("label") or meaning).strip()
-            payload["value"] = meaning
-            payload.setdefault("source", "declared")
-            items.append(payload)
-    return items
+    """Deprecated combined projection — prefer project_caliber_surface."""
+    surface = project_caliber_surface(memory_slots)
+    return [*surface["confirmed_calibers"], *surface["assumptions"]]
 
 
 def finalize_agent_turn_node(state: Mapping[str, Any]) -> dict[str, Any]:
@@ -212,8 +185,9 @@ def finalize_agent_turn_node(state: Mapping[str, Any]) -> dict[str, Any]:
     sink = StreamSink.from_state(state)
     final_text = str(state.get("final_text") or "")
     run_id = str(state.get("run_id") or "")
-    record_id = state.get("record_id")
-    schema_txt = str(getattr(getattr(llm_service, "chat_question", None), "db_schema", "") or "")
+    schema_txt = str(
+        getattr(getattr(llm_service, "chat_question", None), "db_schema", "") or ""
+    )
 
     all_steps: list[dict[str, Any]] = []
     latest_sql = ""
@@ -229,21 +203,27 @@ def finalize_agent_turn_node(state: Mapping[str, Any]) -> dict[str, Any]:
             SQLBotLogUtil.warning(f"load result_dataset failed: {exc}")
 
     seen: set[str] = set()
-    for index, dataset in enumerate(datasets):
+    for index, dataset in enumerate(select_delivery_datasets(datasets)):
         ds_id = str(dataset.dataset_id)
         if ds_id in seen:
             continue
         seen.add(ds_id)
         fields = list(dataset.fields or [])
-        rows = [dict(item) for item in (dataset.rows or []) if isinstance(item, Mapping)]
-        sql = str((dataset.schema_snapshot or {}).get("sql") or "")
-        pres = build_result_presentation(fields, title="", schema_text=schema_txt)
+        rows = [
+            dict(item) for item in (dataset.rows or []) if isinstance(item, Mapping)
+        ]
+        snapshot = dict(dataset.schema_snapshot or {})
+        sql = str(snapshot.get("sql") or "")
+        result_title = str(snapshot.get("result_title") or "").strip()
+        pres = build_result_presentation(
+            fields, title=result_title, schema_text=schema_txt
+        )
         chart = infer_chart_for_presentation(
             cast(ResultPresentation, pres), fields, rows, instance_id=index
         )
         samples = preview_rows(rows, limit=PREVIEW_ROW_LIMIT)
-        value_labels = (dataset.schema_snapshot or {}).get("value_labels") or {}
-        snapshot_limit = (dataset.schema_snapshot or {}).get("limit")
+        value_labels = snapshot.get("value_labels") or {}
+        snapshot_limit = snapshot.get("limit")
         result_payload = {
             "fields": fields,
             "data": samples,
@@ -264,6 +244,8 @@ def finalize_agent_turn_node(state: Mapping[str, Any]) -> dict[str, Any]:
                 "index": index,
                 "dataset_id": ds_id,
                 "status": dataset.status or "succeeded",
+                "required": getattr(dataset, "required", True) is not False,
+                "brief": result_title,
                 "sql": sql,
                 "format_statement": sql,
                 "fields": fields,
@@ -284,6 +266,8 @@ def finalize_agent_turn_node(state: Mapping[str, Any]) -> dict[str, Any]:
             data = (step.get("result") or {}).get("data") or {}
             if not isinstance(data, Mapping) or not data.get("sql"):
                 continue
+            if data.get("required") is False:
+                continue
             sql = str(data.get("sql") or "")
             if sql in seen:
                 continue
@@ -294,12 +278,19 @@ def finalize_agent_turn_node(state: Mapping[str, Any]) -> dict[str, Any]:
                 limit=PREVIEW_ROW_LIMIT,
             )
             idx = len(all_steps)
-            pres = build_result_presentation(fields, title="", schema_text=schema_txt)
+            result_title = str(data.get("result_title") or "").strip()
+            pres = build_result_presentation(
+                fields, title=result_title, schema_text=schema_txt
+            )
             chart = infer_chart_for_presentation(
                 cast(ResultPresentation, pres), fields, samples, instance_id=idx
             )
             truncated = bool(data.get("truncated"))
-            value_labels = data.get("value_labels") if isinstance(data.get("value_labels"), Mapping) else {}
+            value_labels = (
+                data.get("value_labels")
+                if isinstance(data.get("value_labels"), Mapping)
+                else {}
+            )
             result_payload = {
                 "fields": fields,
                 "data": samples,
@@ -315,6 +306,8 @@ def finalize_agent_turn_node(state: Mapping[str, Any]) -> dict[str, Any]:
                     "index": idx,
                     "dataset_id": str(data.get("dataset_id") or f"dataset_{idx + 1}"),
                     "status": "succeeded",
+                    "required": data.get("required") is not False,
+                    "brief": result_title,
                     "sql": sql,
                     "format_statement": sql,
                     "fields": fields,
@@ -329,7 +322,7 @@ def finalize_agent_turn_node(state: Mapping[str, Any]) -> dict[str, Any]:
             latest_row_count = int(data.get("row_count") or data.get("total_rows") or 0)
 
     raw_slots = dict(state.get("memory_slots") or {})
-    assumptions = _assumptions_from_slots(raw_slots)
+    surface = project_caliber_surface(raw_slots)
     outcome = successful_outcome()
     snapshot_vals = _record_snapshot_values(
         all_steps,
@@ -338,7 +331,8 @@ def finalize_agent_turn_node(state: Mapping[str, Any]) -> dict[str, Any]:
         outcome=outcome,
         llm_service=llm_service,
         execution_mode="agent",
-        assumptions=assumptions,
+        confirmed_calibers=surface["confirmed_calibers"],
+        assumptions=surface["assumptions"],
     )
     answer = snapshot_vals.get("answer") or {}
 
@@ -348,6 +342,25 @@ def finalize_agent_turn_node(state: Mapping[str, Any]) -> dict[str, Any]:
             "fields": latest_fields,
             "row_count": latest_row_count,
         }
+
+    if llm_service is not None:
+        title = next(
+            (
+                str(step.get("brief") or "").strip()
+                for step in all_steps
+                if str(step.get("brief") or "").strip()
+            ),
+            "",
+        )
+        if not title:
+            title = str(
+                getattr(getattr(llm_service, "chat_question", None), "question", "")
+                or ""
+            )
+        try:
+            _maybe_update_chat_brief(llm_service, sink, title)
+        except Exception as exc:
+            SQLBotLogUtil.warning(f"chat brief update skipped: {exc}")
 
     try:
         with session_scope() as session:
@@ -368,7 +381,9 @@ def finalize_agent_turn_node(state: Mapping[str, Any]) -> dict[str, Any]:
         elif sink.mode == "json":
             sink.json_result({"success": True, "content": final_text, "answer": answer})
     except Exception as stream_exc:
-        SQLBotLogUtil.warning(f"Stream output skipped outside of runnable context: {stream_exc}")
+        SQLBotLogUtil.warning(
+            f"Stream output skipped outside of runnable context: {stream_exc}"
+        )
 
     return {
         **state,

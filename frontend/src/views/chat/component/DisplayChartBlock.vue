@@ -29,7 +29,7 @@ const chartObject = computed<{
   axis: {
     x: { name: string; value: string }
     y: { name: string; value: string } | Array<{ name: string; value: string }>
-    series: { name: string; value: string }
+    series?: { name: string; value: string }
     'multi-quota': {
       name: string
       value: Array<string>
@@ -69,9 +69,9 @@ const yAxis = computed(() => {
   }))
 })
 const series = computed(() => {
-  const axis = chartObject.value?.axis
-  if (axis?.series) {
-    return [axis.series]
+  const seriesAxis = chartObject.value?.axis?.series
+  if (seriesAxis?.value) {
+    return [seriesAxis]
   }
   return []
 })

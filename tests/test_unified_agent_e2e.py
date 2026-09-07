@@ -76,29 +76,62 @@ def test_route_after_tools_clarification_interrupt():
 from apps.chat.graphs.nodes.agent_finalize import finalize_agent_turn_node
 
 
-def test_finalize_agent_turn_synthesizes_comparison_datasets():
-    """验证场景5：质疑对比工具执行后的多结果集打包与 TurnAnswerV1 适配."""
+def test_finalize_agent_turn_publishes_delivery_datasets_only():
+    """Probe SQL stays out of the answer; multiple delivery datasets are kept."""
     state = {
         "run_id": "test_run_123",
         "record_id": 999,
-        "final_text": "经复核，排除了取消订单后，销售额从 1000 降为 850。",
+        "final_text": "以下为企业清单。",
         "tool_steps": [
             {
-                "name": "compare_results",
+                "ok": True,
+                "name": "execute_sql_sandbox",
                 "result": {
                     "ok": True,
                     "data": {
-                        "base": {"sql": "SELECT 1000", "sample_rows": [{"amount": 1000}], "row_count": 1},
-                        "new": {"sql": "SELECT 850", "sample_rows": [{"amount": 850}], "row_count": 1},
+                        "sql": "SELECT identify_style, COUNT(*) FROM t GROUP BY 1",
+                        "fields": ["identify_style", "cnt"],
+                        "preview_rows": [{"identify_style": "INVITE", "cnt": 10}],
+                        "row_count": 1,
+                        "required": False,
                     },
                 },
-            }
+            },
+            {
+                "ok": True,
+                "name": "execute_sql_sandbox",
+                "result": {
+                    "ok": True,
+                    "data": {
+                        "sql": "SELECT code FROM t WHERE identify_style = 'INVITE_AGW'",
+                        "fields": ["code"],
+                        "preview_rows": [{"code": "c1"}],
+                        "row_count": 1,
+                        "required": True,
+                        "result_title": "企业清单",
+                    },
+                },
+            },
+            {
+                "ok": True,
+                "name": "execute_sql_sandbox",
+                "result": {
+                    "ok": True,
+                    "data": {
+                        "sql": "SELECT city, COUNT(*) FROM t GROUP BY city",
+                        "fields": ["city", "cnt"],
+                        "preview_rows": [{"city": "SZ", "cnt": 3}],
+                        "row_count": 1,
+                        "required": True,
+                        "result_title": "城市分布",
+                    },
+                },
+            },
         ],
     }
     out = finalize_agent_turn_node(state)
     ans = out["terminal_answer"]
     assert ans["status"] == "succeeded"
-    assert len(ans["datasets"]) == 2
-    assert ans["datasets"][0]["dataset_id"] == "dataset_base"
-    assert ans["datasets"][1]["dataset_id"] == "dataset_revised"
-    assert ans["content"].startswith("经复核")
+    assert [item["title"] for item in ans["datasets"]] == ["企业清单", "城市分布"]
+    assert "COUNT(*) FROM t GROUP BY 1" not in ans["datasets"][0]["sql"]
+    assert ans["content"].startswith("以下为企业清单")

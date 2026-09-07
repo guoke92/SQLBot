@@ -956,8 +956,10 @@
       "step_count": "{count} 個步驟",
       "truncated": "結果已截斷",
       "assumptions": "查詢假設",
+      "confirmed_calibers": "已確認口徑",
       "process": "處理過程",
       "processing": "處理中",
+      "working_for": "處理中 {seconds}s",
       "worked_for": "處理了 {seconds}s",
       "worked_for_with_tokens": "處理了 {seconds}s，消耗了 {tokens} token",
       "tokens_only": "消耗了 {tokens} token",
@@ -971,6 +973,7 @@
         "patch_and_compile_sql": "增量修改",
         "compare_results": "資料對比",
         "search_wiki": "查閱知識",
+        "prepare_wiki": "準備知識",
         "request_clarification": "請求澄清"
       }
     },
@@ -981,7 +984,8 @@
       "query_rows": "返回 {count} 行",
       "answer_ready": "回答已產生",
       "clarification_waiting": "等待確認",
-      "clarification_confirmed": "口徑已確認"
+      "clarification_confirmed": "口徑已確認",
+      "wiki_prepared": "召回 {count} 條知識"
     },
     "audit": {
       "processing": "處理中",

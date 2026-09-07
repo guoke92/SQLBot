@@ -112,6 +112,8 @@ def test_wiki_primary_prompt_assembly():
     assert "<fallback_schema_summary>" not in prompt_with_wiki  # 严禁物理 Schema 冗余混合
     assert "名实冲突" in prompt_with_wiki
     assert "request_clarification" in prompt_with_wiki
+    assert "展示标签" in prompt_with_wiki
+    assert "required=false" in prompt_with_wiki
 
     # 场景 B: Wiki 不存在，降级兜底
     prompt_fallback = build_agent_system_prompt(

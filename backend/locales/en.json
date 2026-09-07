@@ -225,6 +225,7 @@
         "patch_and_compile_sql": "Patch SQL",
         "compare_results": "Compare results",
         "search_wiki": "Search knowledge",
+        "prepare_wiki": "Prepare knowledge",
         "request_clarification": "Ask for clarification"
       }
     },
@@ -235,7 +236,8 @@
       "query_rows": "Returned {count} rows",
       "answer_ready": "Answer ready",
       "clarification_waiting": "Waiting for confirmation",
-      "clarification_confirmed": "Criteria confirmed"
+      "clarification_confirmed": "Criteria confirmed",
+      "wiki_prepared": "Prepared {count} knowledge hits"
     },
     "audit": {
       "processing": "Processing",
