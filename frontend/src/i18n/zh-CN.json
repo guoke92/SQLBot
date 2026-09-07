@@ -946,6 +946,43 @@
       "DECIDE_NEXT": "检查执行结果",
       "WAIT_CLARIFICATION": "等待澄清答复"
     },
+    "timeline": {
+      "thought": "思考",
+      "artifact": "查询结果",
+      "clarification": "澄清",
+      "answer": "回答",
+      "expand_all": "展开全部",
+      "collapse_all": "收起全部",
+      "step_count": "{count} 个步骤",
+      "truncated": "结果已截断",
+      "assumptions": "查询假设",
+      "process": "处理过程",
+      "processing": "处理中",
+      "worked_for": "处理了 {seconds}s",
+      "worked_for_with_tokens": "处理了 {seconds}s，消耗了 {tokens} token",
+      "tokens_only": "消耗了 {tokens} token",
+      "thinking": "思考中",
+      "thought_for": "思考了 {seconds}s",
+      "show_process": "展开",
+      "hide_process": "收起",
+      "tool": {
+        "generic": "工具调用",
+        "execute_sql_sandbox": "执行查询",
+        "patch_and_compile_sql": "增量修改",
+        "compare_results": "数据对比",
+        "search_wiki": "查阅知识",
+        "request_clarification": "请求澄清"
+      }
+    },
+    "summary": {
+      "thought_done": "思考完成",
+      "tool_ok": "执行成功",
+      "tool_failed": "执行失败",
+      "query_rows": "返回 {count} 行",
+      "answer_ready": "回答已生成",
+      "clarification_waiting": "等待确认",
+      "clarification_confirmed": "口径已确认"
+    },
     "audit": {
       "processing": "处理中",
       "raw_input": "原始入参",

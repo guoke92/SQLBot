@@ -336,8 +336,25 @@ _GENERIC_COLUMNS = {
     "channel",
     "state",
 }
-# 业务前缀白名单：dictKey == 前缀 + 列名 视为专有列匹配（cust_identify_style → identify_style）
-_BUSINESS_PREFIXES = ("cust_", "tenant_", "platform_")
+def _column_prefixes(substrate_dir: Path | None = None) -> tuple[str, ...]:
+    """Column-name prefixes from settings or substrate config; never hardcoded."""
+    from common.core.config import settings
+
+    configured = [
+        part.strip()
+        for part in str(getattr(settings, "WIKI_COLUMN_PREFIXES", "") or "").split(",")
+        if part.strip()
+    ]
+    if configured:
+        return tuple(configured)
+    if substrate_dir is None:
+        return ()
+    path = substrate_dir / "extract-enums.yaml"
+    if not path.exists():
+        return ()
+    data = yaml.safe_load(path.read_text()) or {}
+    raw = data.get("column_prefixes") or []
+    return tuple(str(item) for item in raw if str(item).strip())
 
 
 def _clean_display(raw: str) -> str:
@@ -394,6 +411,7 @@ def _carrier_for_factory(
     real_columns: dict[str, set[str]],
     table_bindings: dict[str, list[dict]],
     entries: list[dict],
+    prefixes: tuple[str, ...] = (),
 ) -> Any:
     """可测试的承载列判定器（build_enum_pages 内部逻辑的纯函数提取）。"""
 
@@ -411,7 +429,7 @@ def _carrier_for_factory(
             return sorted(strong.keys()), "setter-evidence"
         if field not in _GENERIC_COLUMNS and column_index.get(field):
             return column_index[field], "exact-name"
-        for prefix in _BUSINESS_PREFIXES:
+        for prefix in prefixes:
             if field.startswith(prefix):
                 stripped = field[len(prefix) :]
                 if (
@@ -457,7 +475,11 @@ def build_enum_pages(
             column_index.setdefault(col, []).append(f"{table}.{col}")
 
     _carrier_for = _carrier_for_factory(
-        column_index, real_columns, table_bindings, entries
+        column_index,
+        real_columns,
+        table_bindings,
+        entries,
+        prefixes=_column_prefixes(substrate_dir),
     )
 
     # 同物理列归并：anchor = 完整 表.列（主 carrier）——不同表的 .status 列是

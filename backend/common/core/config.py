@@ -194,7 +194,7 @@ class Settings(BaseSettings):
     # business 模式单页正文摘要上限（剔除 ground 围栏后的散文；0 = 不截断）
     KNOWLEDGE_WIKI_PROSE_CHARS: int = 400
     # 提取面：Test-wiki（需求文档 wiki）目录，E0.5 证据源；空=不用需求文档补充
-    KNOWLEDGE_WIKI_REQDOC_DIR: str = ""
+    WIKI_COLUMN_PREFIXES: str = ""
 
     # Recall top-up: deterministic value index ("value ⊂ question" containment)
     # plus evidence-driven working-set expansion. Any layer off = legacy recall.

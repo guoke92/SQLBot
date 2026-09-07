@@ -37,4 +37,6 @@ class RunState(TypedDict, total=False):
     public_error: str
     outcome: RunOutcome
     tool_steps: List[Dict[str, Any]]
+    # call_id → open ChatLog id; LangGraph drops undeclared keys across nodes
+    open_tool_spans: Dict[str, int]
     extras: Dict[str, Any]

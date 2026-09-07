@@ -47,8 +47,11 @@ class AnswerDataset(BaseModel):
     sql: str = ""
     fields: tuple[str, ...] = ()
     rows: tuple[dict[str, Any], ...] = ()
+    preview_rows: tuple[dict[str, Any], ...] = ()
     row_count: int | None = None
     truncated: bool = False
+    limit: int | None = None
+    truncation_reason: str | None = None
     presentation: dict[str, Any] | None = None
     chart: dict[str, Any] | None = None
     error: AnswerError | None = None
@@ -70,7 +73,7 @@ class AnswerBase(BaseModel):
 
 class QueryTurnAnswer(AnswerBase):
     kind: Literal["query"] = "query"
-    execution_mode: Literal["verified", "unverified"] = "verified"
+    execution_mode: Literal["verified", "unverified", "agent"] = "verified"
     datasets: tuple[AnswerDataset, ...] = ()
     intent_summary: str = ""
 

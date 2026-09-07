@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from collections.abc import Mapping
 from typing import Any, Literal, cast
 
 import orjson
@@ -87,45 +88,9 @@ def _enqueue_knowledge_capture(
 
 
 def _sql_alias_columns(sql: str, dialect: str) -> list[dict[str, str]]:
-    """SELECT 投影的 别名→物理列 回解（sqlglot，与 identifier_validation 同依赖）。
+    from apps.chat.steps.enum_display import _sql_alias_columns as _impl
 
-    只取 ``col AS alias`` / 裸列投影：``alias`` = 结果列名（用户看到的），
-    ``column`` = 物理列名，``table`` 限定符经表别名归一（多表同列消歧）。
-    表达式/聚合投影无单一物理列，跳过。解析失败返回空——调用方走列集
-    匹配兜底。"""
-    projections: list[dict[str, str]] = []
-    try:
-        import sqlglot
-        from sqlglot import exp
-
-        for statement in sqlglot.parse(sql, dialect=dialect):
-            if statement is None:
-                continue
-            table_alias_map: dict[str, str] = {}
-            for tbl in statement.find_all(exp.Table):
-                t_name = str(tbl.name).strip()
-                t_alias = str(tbl.alias).strip() if tbl.alias else ""
-                if t_alias:
-                    table_alias_map[t_alias] = t_name
-                table_alias_map[t_name] = t_name
-
-            for select in statement.find_all(exp.Select):
-                for proj in select.expressions:
-                    inner = proj.this
-                    if not isinstance(inner, exp.Column):
-                        continue
-                    qualifier = str(inner.table or "").strip()
-                    real_table = table_alias_map.get(qualifier, qualifier)
-                    projections.append(
-                        {
-                            "alias": str(proj.alias_or_name or inner.name),
-                            "column": str(inner.name),
-                            "table": real_table,
-                        }
-                    )
-    except Exception:  # noqa: BLE001 — 解析失败走兜底
-        return []
-    return projections
+    return _impl(sql, dialect)
 
 
 def _enum_refs_for_step(
@@ -134,106 +99,20 @@ def _enum_refs_for_step(
     *,
     dialect: str = "mysql",
 ) -> tuple[list[str], dict[str, str]]:
-    """从 plan 的表引用+结果列提取 表.列 物理键（枚举翻译的输入）。
+    from apps.chat.steps.enum_display import enum_refs_for_query
 
-    返回 ``(refs, alias_to_ref)``：``refs`` = 命中枚举映射候选的 ``表.列``
-    物理键；``alias_to_ref`` = SQL 别名回解出的精确对应（结果列名 →
-    ``表.列``）——translate 层据此精确重挂，不再按字典序猜（chat 171：
-    双枚举列场景插入序兜底会把 录入方式 错挂到 认证状态 的映射）。
-
-    主路径 = SQL 别名回解：结果列常是中文别名（``identify_style AS 认证方式``），
-    先用 sqlglot 把投影列回解成物理列（表限定符消歧），再与 wiki 列集求交。
-    解析失败/无别名列时走列集匹配兜底（refs 语义不变，alias_to_ref 为空）——
-    列集从 wiki 表页 ground:table 取（与 enum_maps_for 同源单一真相）。"""
-    refs: list[str] = []
-    alias_to_ref: dict[str, str] = {}
-    tables = [str(t) for t in (step.get("tables") or step.get("resources") or [])]
-    sql = str(step.get("format_statement") or step.get("sql") or "")
-    if not tables and sql:
-        try:
-            import sqlglot
-            from sqlglot import exp
-
-            for statement in sqlglot.parse(sql, dialect=dialect):
-                if statement is None:
-                    continue
-                for tbl in statement.find_all(exp.Table):
-                    t_name = str(tbl.name).strip()
-                    if t_name and t_name not in tables:
-                        tables.append(t_name)
-        except Exception:
-            pass
-    fields = [str(f) for f in (result_fields or [])]
-    if not fields:
-        return refs, alias_to_ref
-    sql = str(step.get("format_statement") or step.get("sql") or "")
-    projections = _sql_alias_columns(sql, dialect) if sql else []
-    alias_map = {p["alias"]: p for p in projections}
-
-    table_columns: dict[str, set[str]] = {}
-    for table in tables:
-        table_columns[table] = _wiki_table_columns(table)
-    known = {col for cols in table_columns.values() for col in cols}
-
-    resolved: list[tuple[str, str, str]] = []  # (结果列名, 物理列名, 表限定)
-    seen: set[str] = set()
-    for f in fields:
-        proj = alias_map.get(f)
-        if proj is not None and proj["column"] not in seen:
-            seen.add(proj["column"])
-            resolved.append((f, proj["column"], proj["table"]))
-    if resolved:
-        for result_field, column, table_qualifier in resolved:
-            candidates = (
-                [table_qualifier]
-                if table_qualifier and table_qualifier in table_columns
-                else [t for t, cols in table_columns.items() if column in cols]
-                or list(table_columns)
-            )
-            for t in candidates:
-                if not known or column in (table_columns.get(t) or set()):
-                    ref = f"{t}.{column}"
-                    if ref not in refs:
-                        refs.append(ref)
-                    # 别名 = 结果列名本身（无 AS 时 alias_or_name 回落列名）
-                    alias_to_ref.setdefault(result_field, ref)
-                    break
-        return refs, alias_to_ref
-
-    # 兜底：结果列名即物理列名（无别名/解析失败）——refs 旧路径行为不变
-    for t in tables:
-        cols = table_columns.get(t) or set()
-        for f in fields:
-            if known and f not in cols:
-                continue
-            ref = f"{t}.{f}"
-            if ref not in refs:
-                refs.append(ref)
-    return refs, alias_to_ref
+    return enum_refs_for_query(
+        sql=str(step.get("format_statement") or step.get("sql") or ""),
+        fields=[str(f) for f in (result_fields or [])],
+        tables=[str(t) for t in (step.get("tables") or step.get("resources") or [])],
+        dialect=dialect,
+    )
 
 
 def _wiki_table_columns(table: str) -> set[str]:
-    """wiki 表页 ground:table 的列名集合（store 不可用/页缺失返回空集）。"""
-    try:
-        from apps.chat.steps.wiki_recall import _store
+    from apps.chat.steps.enum_display import wiki_table_columns
 
-        store = _store()
-        if store is None:
-            return set()
-        page = store.pages.get(table)
-        if page is None:
-            return set()
-        for anchor in getattr(page, "ground_blocks", ()) or ():
-            if anchor.kind != "table":
-                continue
-            return {
-                str(f.get("name") or "")
-                for f in anchor.data.get("fields") or []
-                if isinstance(f, dict) and f.get("name")
-            }
-        return set()
-    except Exception:  # noqa: BLE001 — 列集缺失不影响翻译主路径
-        return set()
+    return wiki_table_columns(table)
 
 
 def _record_snapshot_values(
@@ -246,7 +125,8 @@ def _record_snapshot_values(
     llm_service: Any = None,
     failure_code: str | None = None,
     failure_retryable: bool = True,
-    execution_mode: Literal["verified", "unverified"] = "verified",
+    execution_mode: Literal["verified", "unverified", "agent"] = "verified",
+    assumptions: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Build the ChatRecord projection committed by ``finalize_run``."""
     if outcome is None:
@@ -316,44 +196,35 @@ def _record_snapshot_values(
             if isinstance(step.get("data"), dict)
             else {}
         )
-        rows = list(result.get("data") or [])
-        # 枚举值→描述翻译（P3）：查询引用字段 ∩ 权威枚举页承载字段。
-        # 纯函数双调（datasets 组装与 replay 同源），失败=原样展示。
-        # 翻译作用于用户看到的结果列（可能是中文别名）；value_labels 的
-        # 键同步用结果列名，前端悬停与表格列一致。
-        step_value_labels: dict[str, dict[str, str]] = {}
-        try:
-            _dialect = (
-                getattr(getattr(llm_service, "protocol", None), "type_key", None)
-                if llm_service is not None
-                else None
-            ) or "mysql"
-            _enum_refs, _alias_to_ref = _enum_refs_for_step(
-                step,
-                [str(f) for f in (result.get("fields") or [])],
-                dialect=str(_dialect),
-            )
-            if _enum_refs and rows:
-                from apps.chat.steps.wiki_recall import (
-                    enum_maps_for,
-                    translate_enum_cells,
-                )
+        rows = list(result.get("preview_rows") or result.get("data") or [])
+        preview = list(result.get("preview_rows") or rows[:3])
+        # Prefer labels already projected at row-store write (single source of truth).
+        existing_labels = result.get("value_labels")
+        step_value_labels: dict[str, dict[str, str]] = (
+            {
+                str(field): {str(raw): str(label) for raw, label in mapping.items()}
+                for field, mapping in existing_labels.items()
+                if isinstance(mapping, Mapping)
+            }
+            if isinstance(existing_labels, Mapping)
+            else {}
+        )
+        if not step_value_labels:
+            try:
+                from apps.chat.steps.enum_display import apply_wiki_enum_labels
 
-                _ds_id_enum = (
-                    getattr(getattr(llm_service, "ds", None), "id", None)
-                    if llm_service is not None
-                    else None
+                preview, step_value_labels = apply_wiki_enum_labels(
+                    sql=str(step.get("format_statement") or step.get("sql") or ""),
+                    fields=[str(f) for f in (result.get("fields") or [])],
+                    rows=preview,
+                    llm_service=llm_service,
+                    tables=[str(t) for t in (step.get("tables") or step.get("resources") or [])],
                 )
-                _maps = enum_maps_for(_enum_refs, ds_id=_ds_id_enum)
-                if _maps:
-                    rows, step_value_labels = translate_enum_cells(
-                        list(result.get("fields") or []),
-                        rows,
-                        _maps,
-                        alias_to_ref=_alias_to_ref,
-                    )
-        except Exception as _enum_exc:  # noqa: BLE001 — 翻译失败零影响
-            SQLBotLogUtil.warning("enum translate degraded: %s", _enum_exc)
+            except Exception as _enum_exc:  # noqa: BLE001 — translation must not fail the turn
+                SQLBotLogUtil.warning("enum translate degraded: %s", _enum_exc)
+        row_count = result.get("row_count")
+        if row_count is None:
+            row_count = len(result.get("data") or preview)
         answer_datasets.append(
             {
                 "dataset_id": str(step.get("dataset_id") or f"dataset_{index + 1}"),
@@ -364,8 +235,9 @@ def _record_snapshot_values(
                 "title": str(step.get("brief") or ""),
                 "sql": str(step.get("format_statement") or step.get("sql") or ""),
                 "fields": list(result.get("fields") or []),
-                "rows": rows,
-                "row_count": len(result.get("data") or []),
+                "rows": [],
+                "preview_rows": preview,
+                "row_count": row_count,
                 **({"value_labels": step_value_labels} if step_value_labels else {}),
                 "truncated": bool(result.get("truncated")),
                 "limit": result.get("limit"),
@@ -405,7 +277,7 @@ def _record_snapshot_values(
             "datasets": answer_datasets,
             "intent_summary": "",
             "source_record_ids": [],
-            "assumptions": [],
+            "assumptions": list(assumptions or []),
             "quality": published_outcome.get("quality"),
             "error": answer_error,
         },

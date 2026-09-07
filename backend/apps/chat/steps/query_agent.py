@@ -535,7 +535,7 @@ def run_query_agent(
     )
     try:
         fallback = " ".join(
-            str(llm_service.chat_question.question or "查询结果").split()
+            str(llm_service.chat_question.question or "").split()
         )[:120]
         decision = _parse_decision(raw, fallback_description=fallback)
         if isinstance(decision, NeedClarification):
@@ -745,7 +745,7 @@ def bind_repaired_plan(
         "dataset_index": int(prior.get("dataset_index", index)),
         "required": bool(prior.get("required", True)),
         "description": description
-        or str(parsed.get("description") or prior.get("description") or "查询结果"),
+        or str(parsed.get("description") or prior.get("description") or ""),
         "payload": native,
         "schema_fingerprint": str(prior.get("schema_fingerprint") or ""),
         "hard_gate_status": "passed",

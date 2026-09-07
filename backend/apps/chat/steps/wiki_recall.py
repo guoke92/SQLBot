@@ -352,24 +352,27 @@ def wiki_business_text(
     return result.text or None
 
 
-def wiki_business_recall(
+def wiki_recall(
     question: str,
     *,
     ds_id: int | None,
     databases: list[str] | None = None,
     top_k: int | None = None,
 ) -> WikiRecallResult | None:
-    """business 召回（结构化结果：text/hits/page_keys/观测）。
+    """Wiki 召回（结构化结果：text/hits/page_keys/观测）。
 
     消费方需要命中页元数据（闭包的 anchors/field_targets/maps_to、
-    遥测的 hits、span 的耗时），纯文本接口会丢掉它们——新消费方一律走
-    本接口；``wiki_business_text`` 保持纯文本形状兼容既有调用点。
+    遥测的 hits、span 的耗时）。
     ``databases`` = 当前数据源物理库名（scope.databases 围栏）。"""
     if not _ds_allowlisted(ds_id):
         return None
     return _recall_result(
         question, ds_id=ds_id, databases=databases, mode="business", top_k=top_k
     )
+
+
+# 保持兼容别名
+wiki_business_recall = wiki_recall
 
 
 def _strong_alias_hit(concept: str, store: Any) -> bool:
@@ -535,3 +538,101 @@ def translate_enum_cells(
 
 def store_error() -> str:
     return _STORE_ERROR
+
+
+# ── Unified Wiki Context Retrieval Service ─────────────────────────────────
+
+def retrieve_wiki_context(
+    llm_service: Any,
+    query: str,
+    *,
+    access_scope: Any = None,
+    top_k: int = 5,
+) -> dict[str, Any]:
+    """Unified service for retrieving Wiki knowledge and authoritative schema.
+
+    Single entrypoint for both initialization (prepare_turn) and runtime tools (search_wiki):
+    1. If Wiki is active for datasource: recalls wiki knowledge + anchor closure schema.
+    2. Fallback only if Wiki is inactive: transparently retrieves schema without exposing
+       schema tool to LLM.
+    """
+    clean_query = str(query or "").strip()
+    if not clean_query:
+        return {"knowledge_text": "", "tables": [], "schema_text": "", "backend": "none"}
+
+    ds = getattr(llm_service, "ds", None)
+    ds_id = getattr(ds, "id", None)
+
+    # 1. Wiki Active Branch (Primary SSOT)
+    if wiki_backend_active(ds_id):
+        try:
+            databases = datasource_databases(ds)
+            res = wiki_recall(clean_query, ds_id=ds_id, databases=databases, top_k=top_k)
+            wiki_text = (res.text if res else "") or ""
+            tables: list[str] = []
+
+            store = _store()
+            if store is not None and res and getattr(res, "page_keys", None):
+                from apps.knowledge.wiki.anchors import closure_tables
+                from apps.chat.steps.wiki_schema import WikiSchemaRenderer
+
+                closure, _ = closure_tables(store, res.page_keys)
+                if closure:
+                    tables = list(closure)
+                    renderer = WikiSchemaRenderer.from_store(store)
+                    if renderer:
+                        raw_schema = renderer.render(tables)
+                        compact_lines = [
+                            line for line in raw_schema.splitlines()
+                            if line.startswith("## ") or "topk=" in line or any(
+                                k in line for k in ["Id", "时间", "状态", "名称", "类型", "方式", "来源", "编码", "金额", "部门", "日期"]
+                            )
+                        ]
+                        header = "\n\n### 【权威表结构与字段定义（已完整提供，严禁重复查表结构）】：\n"
+                        wiki_text += header + "\n".join(compact_lines)
+
+            return {
+                "knowledge_text": wiki_text,
+                "tables": tables,
+                "schema_text": "",
+                "backend": "wiki",
+            }
+        except Exception as exc:
+            SQLBotLogUtil.warning(f"retrieve_wiki_context failed in wiki branch: {exc}")
+
+    # 2. Transparent Fallback (Only when Wiki is inactive or unconfigured for datasource)
+    try:
+        from apps.chat.steps.schema import match_table_schema
+        from apps.conversation.session import session_scope
+
+        schema_text = ""
+        matched_tables: list[str] = []
+        with session_scope() as session:
+            # Temporarily set retrieval_question to user query if needed
+            orig_q = getattr(llm_service, "retrieval_question", None)
+            setattr(llm_service, "retrieval_question", clean_query)
+            try:
+                matched_tables = list(
+                    match_table_schema(
+                        llm_service,
+                        session,
+                        access_scope=access_scope,
+                        table_limit=4,
+                        audit=False,
+                    ) or []
+                )
+                schema_text = str(getattr(llm_service.chat_question, "db_schema", "") or "")
+            finally:
+                if orig_q is not None:
+                    setattr(llm_service, "retrieval_question", orig_q)
+
+        return {
+            "knowledge_text": "",
+            "tables": matched_tables,
+            "schema_text": schema_text,
+            "backend": "schema_fallback",
+        }
+    except Exception as exc:
+        SQLBotLogUtil.warning(f"retrieve_wiki_context failed in fallback branch: {exc}")
+        return {"knowledge_text": "", "tables": [], "schema_text": "", "backend": "error"}
+

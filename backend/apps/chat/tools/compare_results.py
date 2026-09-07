@@ -64,12 +64,18 @@ def compare_query_results(
             "base": {
                 "sql": base_sql,
                 "row_count": base_rows,
+                "dataset_id": base_data.get("dataset_id"),
+                "truncated": bool(base_data.get("truncated")),
                 "sample_rows": base_data.get("sample_rows"),
+                "preview_rows": base_data.get("preview_rows"),
             },
             "new": {
                 "sql": new_sql,
                 "row_count": new_rows,
+                "dataset_id": new_data.get("dataset_id"),
+                "truncated": bool(new_data.get("truncated")),
                 "sample_rows": new_data.get("sample_rows"),
+                "preview_rows": new_data.get("preview_rows"),
             },
             "row_diff": row_diff,
             "metric_diffs": metric_diffs,

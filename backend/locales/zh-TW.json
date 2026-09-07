@@ -212,5 +212,36 @@
     "name": "姓名",
     "account": "帳號",
     "email": "郵箱"
+  },
+  "chat": {
+    "timeline": {
+      "thought": "思考",
+      "artifact": "查詢結果",
+      "clarification": "澄清",
+      "answer": "回答",
+      "tool": {
+        "generic": "工具呼叫",
+        "execute_sql_sandbox": "執行查詢",
+        "patch_and_compile_sql": "增量修改",
+        "compare_results": "資料對比",
+        "search_wiki": "查閱知識",
+        "request_clarification": "請求澄清"
+      }
+    },
+    "summary": {
+      "thought_done": "思考完成",
+      "tool_ok": "執行成功",
+      "tool_failed": "執行失敗",
+      "query_rows": "返回 {count} 行",
+      "answer_ready": "回答已產生",
+      "clarification_waiting": "等待確認",
+      "clarification_confirmed": "口徑已確認"
+    },
+    "audit": {
+      "processing": "處理中",
+      "step_failed": "處理失敗",
+      "step_interrupted": "處理已中斷",
+      "step_degraded": "處理完成，但存在降級"
+    }
   }
 }

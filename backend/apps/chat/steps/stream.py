@@ -162,7 +162,21 @@ def consume_llm(
         token_usage: dict[str, Any] = {}
         content_parts: list[str] = []
         reasoning_parts: list[str] = []
-        for chunk in process_stream(stream_fn(messages), token_usage):
+        gathered_box: list[Any] = [None]
+
+        def _raw_stream() -> Iterator[Any]:
+            for raw in stream_fn(messages):
+                current = gathered_box[0]
+                if current is None:
+                    gathered_box[0] = raw
+                else:
+                    try:
+                        gathered_box[0] = current + raw
+                    except Exception:
+                        gathered_box[0] = raw
+                yield raw
+
+        for chunk in process_stream(_raw_stream(), token_usage):
             _maybe_renew()
             content = str(chunk.get("content") or "")
             reasoning = str(chunk.get("reasoning_content") or "")
@@ -171,15 +185,37 @@ def consume_llm(
             if reasoning:
                 reasoning_parts.append(reasoning)
             if on_chunk and (content or reasoning):
-                on_chunk({"content": content, "reasoning_content": reasoning})
+                gathered = gathered_box[0]
+                has_tool_calls = bool(
+                    getattr(gathered, "tool_calls", None)
+                    or getattr(gathered, "tool_call_chunks", None)
+                )
+                on_chunk(
+                    {
+                        "content": content,
+                        "reasoning_content": reasoning,
+                        "has_tool_calls": has_tool_calls,
+                    }
+                )
         content = "".join(content_parts)
         reasoning = "".join(reasoning_parts)
         extra = {"reasoning_content": reasoning} if reasoning else {}
-        message = AIMessage(
-            content=content,
-            additional_kwargs=extra,
-            usage_metadata=token_usage or None,
-        )
+        gathered = gathered_box[0]
+        tool_calls = list(getattr(gathered, "tool_calls", None) or [])
+        invalid_tool_calls = list(getattr(gathered, "invalid_tool_calls", None) or [])
+        message_kwargs: dict[str, Any] = {
+            "content": content,
+            "additional_kwargs": {
+                **dict(getattr(gathered, "additional_kwargs", None) or {}),
+                **extra,
+            },
+            "usage_metadata": token_usage or getattr(gathered, "usage_metadata", None),
+        }
+        if tool_calls:
+            message_kwargs["tool_calls"] = tool_calls
+        if invalid_tool_calls:
+            message_kwargs["invalid_tool_calls"] = invalid_tool_calls
+        message = AIMessage(**message_kwargs)
         return LlmCallResult(
             message=message,
             content=content,
@@ -191,7 +227,13 @@ def consume_llm(
     content = message_content_text(getattr(response, "content", response))
     reasoning = _reasoning_from(response)
     if on_chunk and (content or reasoning):
-        on_chunk({"content": content, "reasoning_content": reasoning})
+        on_chunk(
+            {
+                "content": content,
+                "reasoning_content": reasoning,
+                "has_tool_calls": bool(getattr(response, "tool_calls", None)),
+            }
+        )
     _maybe_renew()
     return LlmCallResult(
         message=response,

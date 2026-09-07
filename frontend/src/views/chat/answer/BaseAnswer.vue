@@ -12,10 +12,13 @@ const props = withDefaults(
     message: ChatMessage
     reasoningItems?: string[]
     reasoningAvailable?: boolean
+    /** When true, hide legacy thinking toggle (process timeline owns the UX). */
+    hideThinkingToggle?: boolean
   }>(),
   {
     reasoningItems: () => [],
     reasoningAvailable: false,
+    hideThinkingToggle: false,
   }
 )
 
@@ -68,7 +71,11 @@ watch(
 
 <template>
   <div class="base-answer-block">
-    <el-button v-if="message.isTyping || hasReasoning" class="thinking-btn" @click="clickShow">
+    <el-button
+      v-if="!hideThinkingToggle && (message.isTyping || hasReasoning)"
+      class="thinking-btn"
+      @click="clickShow"
+    >
       <div class="thinking-btn-inner">
         <span v-if="message.isTyping">{{ t('qa.thinking') }}</span>
         <span v-else>{{ t('qa.thinking_step') }}</span>
@@ -95,7 +102,13 @@ watch(
     </div>
     <div class="answer-container">
       <slot></slot>
-      <el-button v-if="message.isTyping" style="min-width: unset" type="primary" link loading />
+      <el-button
+        v-if="message.isTyping && !hideThinkingToggle"
+        style="min-width: unset"
+        type="primary"
+        link
+        loading
+      />
       <slot name="tool"></slot>
       <slot name="footer"></slot>
     </div>

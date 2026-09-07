@@ -727,7 +727,9 @@ def _referenced_dataset_outline(dataset: dict[str, Any]) -> dict[str, Any]:
     ]
     sample_rows = [
         {key: _clip_cell(value) for key, value in row.items() if key in fields}
-        for row in (dataset.get("rows") or [])[:_REFERENCED_ROW_LIMIT]
+        for row in (dataset.get("preview_rows") or dataset.get("rows") or [])[
+            :_REFERENCED_ROW_LIMIT
+        ]
         if isinstance(row, dict)
     ]
     return {
@@ -748,7 +750,8 @@ def _record_answer_datasets(record: ChatRecord) -> list[dict[str, Any]]:
             {
                 **dict(item),
                 "source_record_id": int(record.id or 0),
-                "rows": list(item.get("rows") or []),
+                "rows": list(item.get("preview_rows") or item.get("rows") or []),
+                "preview_rows": list(item.get("preview_rows") or item.get("rows") or []),
             }
         )
         for item in raw
@@ -837,10 +840,10 @@ def assemble_turn_context_node(state: NlqState) -> NlqState:
                         "datasets": [
                             _referenced_dataset_outline(item) for item in datasets
                         ],
-                        "revision_ids": matched_revision_ids(
-                            planning.get("compiled_knowledge")
+                        "revision_ids": list(
+                            (planning.get("compiled_knowledge") or {}).get("revision_ids") or []
                             if isinstance(planning.get("compiled_knowledge"), dict)
-                            else {}
+                            else []
                         ),
                     }
                 )

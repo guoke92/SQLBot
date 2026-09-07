@@ -242,7 +242,6 @@ def create_run(
         payload={"type": "run_started", "status": "queued"},
     )
     if graph_key == "chat":
-        session.add(QueryRun(run_id=run.run_id, update_time=now))
         if not _record_has_user_question(session, int(record.id)):
             append_evidence(
                 session,
@@ -1106,6 +1105,15 @@ def append_run_event(
     # a node after that commit are stale transport echoes and must not reopen
     # the persisted timeline.
     if run.status in TERMINAL_STATUSES:
+        log_lifecycle(
+            "run_event_rejected",
+            level="warning",
+            run_id=run.run_id,
+            record_id=run.chat_record_id,
+            graph_key=run.graph_key,
+            status=run.status,
+            reason=str(payload.get("type") or "unknown"),
+        )
         return -int(run.event_cursor or 0)
     # ``create_interrupt`` persists the clarification together with the state
     # transition. The subsequent sink write is live transport only.

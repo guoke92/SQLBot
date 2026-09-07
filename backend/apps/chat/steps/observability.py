@@ -307,9 +307,23 @@ def close_open_audit_spans(session: Session, record_id: int) -> int:
     for row in rows:
         envelope = parse_audit_envelope(row.messages) or make_span_message()
         detail = dict(envelope.get("detail") or {})
+        # Clarification wait is an expected pause; never mark it as a crash.
+        if detail.get("process_kind") == "clarification":
+            envelope["detail"] = detail
+            envelope["outcome"] = "success"
+            envelope["summary_key"] = "chat.summary.clarification_confirmed"
+            envelope["summary_params"] = {}
+            session.execute(
+                update(ChatLog)
+                .where(ChatLog.id == row.id)
+                .values(messages=envelope, finish_time=now, error=False)
+            )
+            continue
         detail.update({"interrupted": True, "error_code": "RUN_INTERRUPTED"})
         envelope["detail"] = detail
         envelope["outcome"] = "failed"
+        envelope["summary_key"] = "chat.audit.step_interrupted"
+        envelope["summary_params"] = {}
         session.execute(
             update(ChatLog)
             .where(ChatLog.id == row.id)

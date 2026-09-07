@@ -66,6 +66,11 @@ from apps.conversation.run_service import (
     run_events_after,
     run_snapshot,
 )
+from apps.conversation.process_timeline import (
+    load_dataset_rows,
+    localize_process_event,
+    project_process_timeline,
+)
 from apps.conversation.runtime import submit_graph
 from apps.conversation.runtime_context import attach_runtime
 from apps.conversation.session import session_scope
@@ -140,6 +145,8 @@ async def _launch_run(
         else:
             service.init_record(session=session, commit=False)
             service.record.reference_record_ids = request.reference_record_ids
+            if request.reference_record_ids:
+                service.record.relation = "continue"
         run = create_run(
             session,
             record=service.record,
@@ -154,6 +161,33 @@ async def _launch_run(
             ),
         )
         attach_runtime(run.run_id, llm_service=service)
+        explicit_refs = (
+            list(regenerate_record.reference_record_ids or [])
+            if regenerate_record is not None
+            else list(request.reference_record_ids or [])
+        )
+        route_hint = (
+            regenerate_record.turn_kind
+            if regenerate_record is not None
+            else request.route_hint
+        )
+        preset_route = None
+        if regenerate_record is not None:
+            preset_route = {
+                "task_kind": regenerate_record.turn_kind or "query",
+                "relation": regenerate_record.relation or "independent",
+                "reference_record_ids": explicit_refs,
+                "source": "hint",
+                "confidence": 1.0,
+            }
+        elif explicit_refs:
+            preset_route = {
+                "task_kind": route_hint or "query",
+                "relation": "continue",
+                "reference_record_ids": explicit_refs,
+                "source": "hint",
+                "confidence": 1.0,
+            }
         state = {
             "run_id": run.run_id,
             "record_id": service.record.id,
@@ -161,29 +195,10 @@ async def _launch_run(
             "sink": "sse",
             "graph_key": "chat",
             "mode": "primary",
-            "route_hint": (
-                regenerate_record.turn_kind
-                if regenerate_record is not None
-                else request.route_hint
-            ),
-            "reference_record_ids": (
-                list(regenerate_record.reference_record_ids or [])
-                if regenerate_record is not None
-                else request.reference_record_ids
-            ),
-            "preset_route": (
-                {
-                    "task_kind": regenerate_record.turn_kind or "query",
-                    "relation": regenerate_record.relation or "independent",
-                    "reference_record_ids": list(
-                        regenerate_record.reference_record_ids or []
-                    ),
-                    "source": "hint",
-                    "confidence": 1.0,
-                }
-                if regenerate_record is not None
-                else None
-            ),
+            "route_hint": route_hint,
+            "reference_record_ids": explicit_refs,
+            "preset_route": preset_route,
+            "turn_route": preset_route or {},
             "finish_step": request.finish_step
             or int(ChatFinishStep.GENERATE_CHART.value),
             "return_img": request.return_img,
@@ -270,6 +285,7 @@ async def get_conversation_run(
 async def conversation_run_events(
     session: SessionDep,
     current_user: CurrentUser,
+    trans: Trans,
     run_id: str,
     cursor: int = 0,
 ):
@@ -302,7 +318,7 @@ async def conversation_run_events(
                 }
             for item in events:
                 cursor = int(item.get("cursor") or cursor)
-                yield emit(item)
+                yield emit(localize_process_event(item, trans))
             if cursor < latest_cursor:
                 continue
             now = monotonic()
@@ -535,6 +551,62 @@ async def chat_record_log(
         )
 
     return await asyncio.to_thread(inner)
+
+
+@router.get(
+    "/record/{chat_record_id}/timeline",
+    summary="Process timeline (compact or detail view)",
+)
+async def chat_record_timeline(
+    session: SessionDep,
+    current_user: CurrentUser,
+    trans: Trans,
+    chat_record_id: int,
+    view: str = "compact",
+    run_id: str | None = None,
+):
+    record = session.get(ChatRecord, chat_record_id)
+    if record is None or int(record.create_by) != _user_id(current_user):
+        raise HTTPException(status_code=404, detail="Turn not found")
+    resolved_view = "detail" if view == "detail" else "compact"
+
+    def inner():
+        return project_process_timeline(
+            session,
+            record_id=chat_record_id,
+            run_id=run_id,
+            view=resolved_view,  # type: ignore[arg-type]
+            trans=trans,
+        )
+
+    return await asyncio.to_thread(inner)
+
+
+@router.get(
+    "/record/{chat_record_id}/datasets/{dataset_id}/rows",
+    summary="Paginated result_dataset rows",
+)
+async def chat_record_dataset_rows(
+    session: SessionDep,
+    current_user: CurrentUser,
+    chat_record_id: int,
+    dataset_id: str,
+    offset: int = 0,
+    limit: int = 1000,
+):
+    try:
+        return load_dataset_rows(
+            session,
+            record_id=chat_record_id,
+            dataset_id=dataset_id,
+            offset=offset,
+            limit=limit,
+            user_id=_user_id(current_user),
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
 
 
 @router.get(

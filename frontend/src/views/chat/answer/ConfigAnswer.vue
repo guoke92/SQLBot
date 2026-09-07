@@ -4,8 +4,19 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import MdComponent from '@/views/chat/component/MdComponent.vue'
 import type { ChatStreamEvent } from '@/hooks/useChatStream'
 import { useConversationTurn } from '@/features/conversation/useConversationTurn'
-import { executionStepSummary } from '@/features/conversation/executionLog'
+import AgentStagesView from './AgentStagesView.vue'
 import BaseAnswer from './BaseAnswer.vue'
+import ChatTokenTime from '@/views/chat/ChatTokenTime.vue'
+import {
+  applyDelta,
+  extractProcessItem,
+  removeItem,
+  replaceItems,
+  sortedItems,
+  upsertItem,
+  type ProcessItem,
+  type TimelineMap,
+} from '@/features/conversation/processTimeline'
 
 const props = withDefaults(
   defineProps<{
@@ -33,60 +44,35 @@ const index = computed(() => {
 })
 
 const turn = useConversationTurn()
-const executionSteps = ref<string[]>([])
-const reasoningExpanded = ref(false)
-let executionTimer: ReturnType<typeof setInterval> | undefined
-let executionLoading = false
+const timelineMap = ref<TimelineMap>(new Map())
+const timelineItems = computed(() => sortedItems(timelineMap.value))
 
 const displayBody = computed(() => {
   const record = props.message?.record as ChatRecord | undefined
   if (!record) {
     return ''
   }
-  // Live session writes pure assistant text on `message`.
   const live = (record as any).message
   if (typeof live === 'string' && live.length > 0) {
     return live
   }
+  const answerItem = [...timelineItems.value].reverse().find((item) => item.kind === 'answer')
+  if (answerItem?.answer?.content) {
+    return answerItem.answer.content
+  }
   return record.sql_answer || ''
 })
 
-async function refreshExecutionSteps() {
-  const recordId = props.message?.record?.id
-  if (!recordId || executionLoading) return
-
-  executionLoading = true
-  try {
-    const history = await chatApi.get_chart_log_history(recordId, { silent: true })
-    executionSteps.value = (history?.steps || []).map(executionStepSummary)
-  } catch (error) {
-    stopExecutionPolling()
-    console.warn('Failed to load conversation execution steps', error)
-  } finally {
-    executionLoading = false
+async function hydrateTimeline(record: ChatRecord) {
+  if (!record.id) return
+  const snapshot = await chatApi.get_timeline(record.id, {
+    silent: true,
+    runId: record.run_id,
+    view: 'compact',
+  })
+  if (snapshot?.items) {
+    timelineMap.value = replaceItems(snapshot.items as ProcessItem[])
   }
-}
-
-function stopExecutionPolling() {
-  if (executionTimer) {
-    clearInterval(executionTimer)
-    executionTimer = undefined
-  }
-}
-
-function syncExecutionPolling() {
-  stopExecutionPolling()
-  if (!reasoningExpanded.value) return
-
-  void refreshExecutionSteps()
-  if (props.message?.isTyping) {
-    executionTimer = setInterval(() => void refreshExecutionSteps(), 1500)
-  }
-}
-
-function onReasoningToggle(expanded: boolean) {
-  reasoningExpanded.value = expanded
-  syncExecutionPolling()
 }
 
 const sendMessage = async () => {
@@ -105,6 +91,7 @@ const sendMessage = async () => {
 
   ;(currentRecord as any).message = ''
   currentRecord.sql_answer = ''
+  timelineMap.value = new Map()
 
   await turn.run(props.currentChatId, currentRecord, turnHandlers(currentRecord))
 }
@@ -117,18 +104,29 @@ function turnHandlers(currentRecord: ChatRecord) {
           ((currentRecord as any).message || '') + (data.content || '')
         currentRecord.sql_answer = (currentRecord as any).message
       }
+      if (data.type === 'process_upsert') {
+        const item = extractProcessItem(data as Record<string, unknown>)
+        if (item) timelineMap.value = upsertItem(timelineMap.value, item)
+      }
+      if (data.type === 'process_delta') {
+        const item = extractProcessItem(data as Record<string, unknown>)
+        if (item) timelineMap.value = applyDelta(timelineMap.value, item)
+      }
+      if (data.type === 'process_remove') {
+        const removeId = (data as Record<string, unknown>).id
+        if (removeId != null) {
+          timelineMap.value = removeItem(timelineMap.value, removeId as number | string)
+        }
+      }
     },
     onError: (record: ChatRecord) => {
-      stopExecutionPolling()
-      void refreshExecutionSteps()
       emits('error', record.id)
     },
     onFinish: async (record: ChatRecord) => {
       if ((record as any).message) {
         record.sql_answer = (record as any).message
       }
-      stopExecutionPolling()
-      await refreshExecutionSteps()
+      await hydrateTimeline(record)
       emits('finish', record.id)
     },
   }
@@ -136,7 +134,6 @@ function turnHandlers(currentRecord: ChatRecord) {
 
 function stop() {
   turn.detach()
-  stopExecutionPolling()
   emits('stop')
 }
 
@@ -146,42 +143,55 @@ watch(
     const record = props.message?.record
     if (!record || !runId) return
     if (status === 'awaiting_input') {
-      void turn.attach(record, turnHandlers(record))
+      void hydrateTimeline(record).then(() => turn.attach(record, turnHandlers(record)))
       return
     }
     if (!['queued', 'running'].includes(status || '')) return
     if (turn.owned.value || turn.running.value) return
     ;(record as any).message = ''
     record.sql_answer = ''
-    void turn.attach(record, turnHandlers(record))
+    void hydrateTimeline(record).then(() => turn.attach(record, turnHandlers(record)))
   },
   { immediate: true }
 )
 
 watch(
-  () => [props.message?.record?.id, props.message?.isTyping],
-  () => syncExecutionPolling()
+  () => [props.message?.record?.id, props.message?.record?.finish] as const,
+  ([recordId, finish]) => {
+    const record = props.message?.record
+    if (recordId && finish && record && !props.message?.isTyping) {
+      void hydrateTimeline(record)
+    }
+  },
+  { immediate: true }
 )
 
 onBeforeUnmount(() => {
   turn.detach()
-  stopExecutionPolling()
 })
 
 defineExpose({ sendMessage, index: () => index.value, stop })
 </script>
 
 <template>
-  <BaseAnswer
-    v-if="message"
-    :message="message"
-    :reasoning-items="executionSteps"
-    :reasoning-available="!!message.record?.id"
-    @reasoning-toggle="onReasoningToggle"
-  >
+  <BaseAnswer v-if="message" :message="message" :hide-thinking-toggle="true">
+    <AgentStagesView
+      v-if="timelineItems.length > 0"
+      :items="timelineItems"
+      :is-typing="message?.isTyping"
+      :record-id="message?.record?.id"
+      :duration="message?.record?.duration"
+      :total-tokens="message?.record?.total_tokens"
+    />
     <MdComponent v-if="displayBody" :message="displayBody" style="margin-top: 12px" />
     <slot></slot>
     <template #tool>
+      <ChatTokenTime
+        v-if="!message?.isTyping && timelineItems.length === 0"
+        :record-id="message?.record?.id"
+        :duration="message?.record?.duration"
+        :total-tokens="message?.record?.total_tokens"
+      />
       <slot name="tool"></slot>
     </template>
     <template #footer>

@@ -10,11 +10,19 @@ import orjson
 from langchain_core.messages import AIMessage, BaseMessage, ToolMessage
 from langchain_core.tools import BaseTool
 
-from apps.chat.models.chat_model import OperationEnum
-from apps.chat.steps.observability import log_span, sanitize_audit_value
+from apps.chat.steps.observability import sanitize_audit_value
+from apps.chat.tools.metadata import get_tool_title_key
 from apps.conversation.messages import deserialize_messages, serialize_messages
 from apps.conversation.outcome import FailureInfo, FailureKind, classify_failure
-from apps.conversation.runtime_context import runtime_value
+from apps.conversation.process_timeline import (
+    PREVIEW_ROW_LIMIT,
+    attach_process_span,
+    attach_running_tool_span,
+    open_process_span,
+    preview_rows,
+)
+from apps.conversation.runtime_context import runtime_value, tool_call_scope
+from apps.conversation.sink import StreamSink
 
 _LOG_RESULT_LIMIT = 4000
 class ToolResult(TypedDict):
@@ -169,6 +177,7 @@ def execute_tools_node(state: Mapping[str, Any]) -> dict[str, Any]:
         for tool in (bound_tools or [])
         if hasattr(tool, "name") and tool.name
     }
+    sink = StreamSink.from_state(state)
     record_id = state.get("record_id")
     tool_messages: list[ToolMessage] = []
     # State owns the normalized cross-round outcome; chat_log remains the
@@ -196,89 +205,159 @@ def execute_tools_node(state: Mapping[str, Any]) -> dict[str, Any]:
             "status": "running",
         }
 
-        tool_display_map = {
-            "execute_sql_sandbox": "执行查询 (execute_sql_sandbox)",
-            "patch_and_compile_sql": "增量补丁 (patch_and_compile_sql)",
-            "compare_results": "数据对比 (compare_results)",
-            "search_schema": "结构检索 (search_schema)",
-            "search_wiki": "查阅知识 (search_wiki)",
-            "request_clarification": "请求澄清 (request_clarification)",
-        }
-        tool_brief = tool_display_map.get(name, f"工具调用 ({name})")
-
-        with log_span(
-            operate=OperationEnum.TOOL_CALL,
-            record_id=record_id,
-            local_operation=True,
-            graph_node="execute_tools",
-            title_key="chat.log.TOOL_CALL",
-            title_params={"tool": name, "displayName": tool_brief},
-            brief=tool_brief,
-            initial_payload=initial,
-        ) as span:
-            span.set_input({"tool": name, "arguments": safe_args})
-            tool = tools.get(name)
-            try:
-                if tool is None:
-                    result: ToolResult = tool_failure(
-                        f"Unknown tool: {name}",
-                        f"Unknown tool: {name}",
-                    )
-                else:
-                    result = normalize_tool_result(tool.invoke(args))
-            except Exception as exc:
-                result = tool_failure(f"{name} failed", str(exc))
-
-            safe_result = sanitize_audit_value(result)
-            span.set_output(safe_result)
-            model_content = serialize_tool_result(safe_result)
-            if not result["ok"]:
-                span.mark_failed(str(result.get("error") or result["summary"]))
-            span["payload"] = {
-                **initial,
-                "status": "completed",
-                "result": _truncate_for_log(safe_result),
-                "ok": result["ok"],
-            }
-            tool_messages.append(
-                ToolMessage(
-                    content=model_content,
-                    tool_call_id=call_id,
-                    name=name or None,
-                )
+        open_ids = dict(state.get("open_tool_spans") or {})
+        run_id = str(state.get("run_id") or "") or None
+        span = None
+        if call_id in open_ids:
+            span = attach_process_span(int(open_ids[call_id]), sink=sink)
+        if span is None and record_id:
+            # Fallback when LangGraph dropped open_tool_spans or state was lost
+            span = attach_running_tool_span(
+                record_id=int(record_id),
+                call_id=call_id,
+                run_id=run_id,
+                sink=sink,
             )
-            if result["ok"]:
-                tool_steps.append({
-                    "tool": name,
-                    "name": name,
-                    "result": safe_result,
-                    "ok": True,
-                })
-                previous_failure = ""
-                consecutive_failures = 0
-            else:
-                tool_steps.append(
-                    {
-                        "error": result["error"],
-                        "failure": result["failure"],
-                        "tool": name,
-                    }
-                )
-                signature = _tool_call_signature(name, args)
-                if signature == previous_failure:
-                    consecutive_failures += 1
-                else:
-                    previous_failure = signature
-                    consecutive_failures = 1
+        if span is None and record_id:
+            span = open_process_span(
+                kind="tool",
+                record_id=record_id,
+                sink=sink,
+                run_id=run_id,
+                graph_node="execute_tools",
+                title_key=get_tool_title_key(name),
+                tool={"call_id": call_id, "name": name, "args": safe_args},
+                local_operation=True,
+            )
+        if span is not None:
+            span.set_input({"tool": name, "arguments": safe_args, **initial})
 
-                failure = result["failure"] or {}
-                if not bool(failure.get("retryable")):
-                    stop_reason = (
-                        f"{name} failed with a non-retryable "
-                        f"{failure.get('kind') or 'execution'} error"
+        tool = tools.get(name)
+        try:
+            if tool is None:
+                result: ToolResult = tool_failure(
+                    f"Unknown tool: {name}",
+                    f"Unknown tool: {name}",
+                )
+            else:
+                with tool_call_scope(call_id):
+                    result = normalize_tool_result(tool.invoke(args))
+        except Exception as exc:
+            result = tool_failure(f"{name} failed", str(exc))
+
+        safe_result = sanitize_audit_value(result)
+        model_content = serialize_tool_result(safe_result)
+        if span is not None:
+            span.set_output(_truncate_for_log(safe_result))
+            span.close(
+                status="completed" if result["ok"] else "failed",
+                summary_key=(
+                    "chat.summary.tool_ok" if result["ok"] else "chat.summary.tool_failed"
+                ),
+                summary_params={"tool": name},
+                tool={"call_id": call_id, "name": name, "args": safe_args},
+            )
+            data = result.get("data") if isinstance(result.get("data"), Mapping) else {}
+            if result["ok"] and isinstance(data, Mapping) and data.get("dataset_id"):
+                art = open_process_span(
+                    kind="artifact",
+                    record_id=record_id,
+                    sink=sink,
+                    run_id=str(state.get("run_id") or "") or None,
+                    parent_id=span.id,
+                    graph_node="execute_tools",
+                    title_key="chat.timeline.artifact",
+                    artifact={
+                        "dataset_id": data.get("dataset_id"),
+                        "sql": data.get("sql") or (args.get("sql") if isinstance(args, Mapping) else ""),
+                        "fields": list(data.get("fields") or []),
+                        "row_count": data.get("row_count") or data.get("total_rows"),
+                        "truncated": bool(data.get("truncated")),
+                        "limit": data.get("limit"),
+                        "preview_rows": preview_rows(
+                            data.get("preview_rows") or data.get("sample_rows") or [],
+                            limit=PREVIEW_ROW_LIMIT,
+                        ),
+                    },
+                    local_operation=True,
+                )
+                if art is not None:
+                    art.close(
+                        status="completed",
+                        summary_key="chat.summary.query_rows",
+                        summary_params={
+                            "count": int(data.get("row_count") or data.get("total_rows") or 0)
+                        },
                     )
-                elif consecutive_failures >= 2:
-                    stop_reason = f"{name} repeated the same failed call"
+            if (
+                result["ok"]
+                and isinstance(data, Mapping)
+                and name == "compare_results"
+            ):
+                for side, side_data in (("base", data.get("base")), ("new", data.get("new"))):
+                    if not isinstance(side_data, Mapping) or not side_data.get("sql"):
+                        continue
+                    art = open_process_span(
+                        kind="artifact",
+                        record_id=record_id,
+                        sink=sink,
+                        run_id=str(state.get("run_id") or "") or None,
+                        parent_id=span.id,
+                        graph_node="execute_tools",
+                        title_key="chat.timeline.artifact",
+                        title_params={"side": side},
+                        artifact={
+                            "dataset_id": side_data.get("dataset_id") or f"{call_id}_{side}",
+                            "sql": side_data.get("sql"),
+                            "row_count": side_data.get("row_count"),
+                            "preview_rows": preview_rows(
+                                side_data.get("sample_rows") or [],
+                                limit=PREVIEW_ROW_LIMIT,
+                            ),
+                        },
+                        local_operation=True,
+                    )
+                    if art is not None:
+                        art.close(status="completed", summary_key="chat.summary.tool_ok")
+
+        tool_messages.append(
+            ToolMessage(
+                content=model_content,
+                tool_call_id=call_id,
+                name=name or None,
+            )
+        )
+        if result["ok"]:
+            tool_steps.append({
+                "tool": name,
+                "name": name,
+                "result": safe_result,
+                "ok": True,
+            })
+            previous_failure = ""
+            consecutive_failures = 0
+        else:
+            tool_steps.append(
+                {
+                    "error": result["error"],
+                    "failure": result["failure"],
+                    "tool": name,
+                }
+            )
+            signature = _tool_call_signature(name, args)
+            if signature == previous_failure:
+                consecutive_failures += 1
+            else:
+                previous_failure = signature
+                consecutive_failures = 1
+            failure = result["failure"] or {}
+            if not bool(failure.get("retryable")):
+                stop_reason = (
+                    f"{name} failed with a non-retryable "
+                    f"{failure.get('kind') or 'execution'} error"
+                )
+            elif consecutive_failures >= 2:
+                stop_reason = f"{name} repeated the same failed call"
 
     return {
         **state,

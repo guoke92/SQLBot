@@ -212,5 +212,36 @@
     "name": "이름",
     "account": "계정",
     "email": "이메일"
+  },
+  "chat": {
+    "timeline": {
+      "thought": "생각",
+      "artifact": "조회 결과",
+      "clarification": "확인",
+      "answer": "답변",
+      "tool": {
+        "generic": "도구 호출",
+        "execute_sql_sandbox": "쿼리 실행",
+        "patch_and_compile_sql": "SQL 수정",
+        "compare_results": "결과 비교",
+        "search_wiki": "지식 검색",
+        "request_clarification": "확인 요청"
+      }
+    },
+    "summary": {
+      "thought_done": "생각 완료",
+      "tool_ok": "성공",
+      "tool_failed": "실패",
+      "query_rows": "{count}행 반환",
+      "answer_ready": "답변 준비됨",
+      "clarification_waiting": "확인 대기",
+      "clarification_confirmed": "기준 확인됨"
+    },
+    "audit": {
+      "processing": "처리 중",
+      "step_failed": "실패",
+      "step_interrupted": "중단됨",
+      "step_degraded": "완료되었지만 저하됨"
+    }
   }
 }

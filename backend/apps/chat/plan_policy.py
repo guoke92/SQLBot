@@ -16,7 +16,10 @@ MAX_PLAN_REGEN = 1
 DEFAULT_CHART = "table"
 
 # ── result window ────────────────────────────────────────────────────────────
+# Default display/fetch window when the user does not ask for a specific count.
 ROW_LIMIT = 1000
+# Absolute ceiling when the user (or SQL LIMIT) requests more than ROW_LIMIT.
+ROW_LIMIT_MAX = 10000
 
 # ── catalog / cost gate ──────────────────────────────────────────────────────
 # Tables with approx_rows >= this are "large" for fan-out decisions.

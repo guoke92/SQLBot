@@ -660,14 +660,30 @@ def execute_queries_node(state: NlqState) -> NlqState:
                     raise SingleMessageError(plan_dict["prep_error"])
                 qp = _query_plan(plan_dict)
                 span.set_input(plan_dict)
+                sql_for_limit = str(
+                    plan_dict.get("format_statement") or plan_dict.get("sql") or sql_show or ""
+                )
+                from apps.chat.plan_policy import ROW_LIMIT_MAX
+                from apps.chat.result_window import (
+                    annotate_result_window,
+                    resolve_exec_row_limit,
+                )
+
+                default_window = (
+                    _ROW_LIMIT if llm_service.enable_sql_row_limit else ROW_LIMIT_MAX
+                )
+                exec_max_rows = resolve_exec_row_limit(
+                    sql_for_limit,
+                    tool_limit=default_window,
+                    default_limit=default_window,
+                    dialect=getattr(llm_service.ds, "type", None),
+                )
                 with session_scope() as session:
                     _ = session
                     qr = llm_service.protocol.execute(
                         llm_service.ds,
                         qp,
-                        max_rows=(
-                            _ROW_LIMIT if llm_service.enable_sql_row_limit else None
-                        ),
+                        max_rows=exec_max_rows,
                     )
                     result = qr.as_dict()
                     if result.get("is_success") is False:
@@ -680,6 +696,13 @@ def execute_queries_node(state: NlqState) -> NlqState:
                         )
                         raise SingleMessageError(msg)
                     result = _normalize_result_data(result, llm_service)
+                    result = annotate_result_window(
+                        result,
+                        sql=sql_for_limit,
+                        tool_limit=default_window,
+                        default_limit=default_window,
+                        dialect=getattr(llm_service.ds, "type", None),
+                    )
                     result = _attach_aggregation_totals(llm_service, plan_dict, result)
                     span.set_output(result)
                     if plan_id:

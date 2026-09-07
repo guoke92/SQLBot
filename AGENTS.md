@@ -104,7 +104,7 @@ Graph docs: `backend/graphs/README.md`. Deeper backend notes: `CLAUDE.md` (may l
 - `graph/` — unit node store (assembly, decompose, feedback); `semantic/` — authoritative semantic layer (runtime K1–K5 assets are projections of approved unit revisions; `lint.py` / `schema.py` / `service.py`); `compile/` — seed policy + business-data bundle application; `capture/` + `staging/` — capture jobs and candidate admission; `lineage/` — promotion audit events; `gateway.py` — recall gateway.
 - Extracting business knowledge from a business system's source code follows the `.cursor/skills/knowledge-extraction/` skill (produces KnowledgePackageV2 unit packages).
 - `apps/knowledge/retrieval/` and `importing/` hold only stale `__pycache__` (no source) — do not import from them.
-- `apps/knowledge/wiki/` — 新一代 wiki 知识体系（prototype，独立于 unit 知识包）：页面契约/切块/RRF+图扩展召回（权威契约 `docs/wiki页面契约-spec-v0.md`，运行面文本直拼 prompt，切换见 `docs/wiki-knowledge/wiki召回接口-v1.md`；产品化/证据基座/锚点闭包/关系通道完整方案见 `docs/wiki-knowledge/wiki知识体系完整方案-v1.md`）
+- `apps/knowledge/wiki/` — 统一 LLM Wiki 知识体系（旧 unit/semantic 已退役）：页面契约/切块/RRF+图扩展召回（权威契约 `docs/wiki页面契约-spec-v0.md`，运行面文本直拼 prompt，召回接口 `docs/wiki-knowledge/wiki召回接口-v1.md`；**产品化统一方案** `docs/wiki-knowledge/wiki知识体系统一方案-v3.md`）
 
 ## Backend Architecture (summary)
 
@@ -172,12 +172,13 @@ Graph docs: `backend/graphs/README.md`. Deeper backend notes: `CLAUDE.md` (may l
 
 ## Observability (execution details)
 
-Single audit channel: **`chat_log`** → `GET /chat/record/{id}/log` → frontend `ExecutionDetails`.
+Single process timeline: **`chat_log`** is the durable truth. Inline UI and Execution Details both read `GET /chat/record/{id}/timeline?view=compact|detail` (same `ProcessTimelineProjector`).
 
-- Write spans via `apps.chat.steps.observability.log_span` or domain steps (`start_log`/`end_log` + `inject_span_meta`).
-- Do **not** invent a second timeline from SSE or fabricate steps at `complete`.
-- Envelope may include `{sqlbot_span, graph_node, step_index, gen_attempts, unit_index, brief, payload}`.
-- Put batch/attempt identity in span meta — do not explode operate enums per attempt.
+- Write process items only via `apps.conversation.process_timeline.open_process_span` / `delta` / `close`. Domain `log_span` remains for non-agent NLQ steps.
+- SSE events: `process_upsert` | `process_delta` | `clarification` | `finish` | `error` | `run_status`. Do not emit a second stage schema (`agent_stages`, `agent-thought`, `step-*`).
+- Persist `title_key` / `summary_key` only; APIs localize with the request locale. Frontend must not map tool display names.
+- Query rows live in `result_dataset`. `TurnAnswer.datasets` carries `dataset_id` + `preview_rows`, not full row payloads.
+- User-visible copy and business terms (table/field/enum labels, prefixes) must not be hardcoded in production modules; use i18n keys, schema, wiki/dictionary recall, or Settings.
 
 ## Deployment
 

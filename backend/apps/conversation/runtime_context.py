@@ -30,6 +30,9 @@ _worker_run_id: ContextVar[str | None] = ContextVar(
 _worker_token: ContextVar[str | None] = ContextVar(
     "conversation_worker_token", default=None
 )
+_current_tool_call_id: ContextVar[str | None] = ContextVar(
+    "conversation_tool_call_id", default=None
+)
 
 
 @contextmanager
@@ -52,6 +55,19 @@ def worker_scope(run_id: str, token: str) -> Iterator[None]:
 
 def current_worker_identity() -> tuple[str | None, str | None]:
     return _worker_run_id.get(), _worker_token.get()
+
+
+def current_tool_call_id() -> str | None:
+    return _current_tool_call_id.get()
+
+
+@contextmanager
+def tool_call_scope(call_id: str) -> Iterator[None]:
+    handle = _current_tool_call_id.set(call_id)
+    try:
+        yield
+    finally:
+        _current_tool_call_id.reset(handle)
 
 
 def attach_runtime(run_id: str, **values: Any) -> None:

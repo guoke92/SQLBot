@@ -240,11 +240,6 @@
                   >
                     <ErrorInfo :error="message.record?.error" class="error-container" />
                     <template #tool>
-                      <ChatTokenTime
-                        :record-id="message.record?.id"
-                        :duration="message.record?.duration"
-                        :total-tokens="message.record?.total_tokens"
-                      />
                       <ChatToolBar v-if="!message.isTyping" :message="message" />
                     </template>
                   </ConfigAnswer>
@@ -265,11 +260,6 @@
                     >
                       <ErrorInfo :error="message.record?.error" class="error-container" />
                       <template #tool>
-                        <ChatTokenTime
-                          :record-id="message.record?.id"
-                          :duration="message.record?.duration"
-                          :total-tokens="message.record?.total_tokens"
-                        />
                         <ChatToolBar v-if="!message.isTyping" :message="message">
                           <div class="tool-btns">
                             <el-tooltip
@@ -488,7 +478,6 @@ import UserChat from './chat-block/UserChat.vue'
 import RecommendQuestion from './RecommendQuestion.vue'
 import ChatListContainer from './ChatListContainer.vue'
 import ChatCreator from '@/views/chat/ChatCreator.vue'
-import ChatTokenTime from '@/views/chat/ChatTokenTime.vue'
 import ErrorInfo from './ErrorInfo.vue'
 import ChatToolBar from './ChatToolBar.vue'
 import { dsTypeWithImg } from '@/views/ds/js/ds-type'
@@ -828,6 +817,20 @@ const sendMessage = async ($event: any = {}) => {
   currentRecord.sql = ''
   currentRecord.chart_answer = ''
   currentRecord.chart = ''
+
+  // Same-chat follow-ups inherit the latest finished query as continue context.
+  const prior = [...(currentChat.value.records || [])]
+    .reverse()
+    .find((r) => {
+      if (!r?.id || !r.finish) return false
+      if (r.answer?.status === 'succeeded') return true
+      if (r.sql) return true
+      return Boolean(r.answer?.datasets?.length)
+    })
+  if (prior?.id) {
+    currentRecord.relation = 'continue'
+    currentRecord.reference_record_ids = [prior.id]
+  }
 
   currentChat.value.records.push(currentRecord)
   inputMessage.value = ''

@@ -199,8 +199,7 @@ export const useConversationTurn = (options: UseChatStreamOptions = {}) => {
     await withOwnership(async () => {
       const snapshot = await fetchSnapshot(record.run_id!, record)
       if (['queued', 'running'].includes(snapshot.status)) {
-        // Replay from zero so a refresh sees the same durable history as first live.
-        await observe(snapshot, record, handlers, 0)
+        await observe(snapshot, record, handlers, snapshot.event_cursor || 0)
       }
     })
   }

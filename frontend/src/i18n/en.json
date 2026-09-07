@@ -946,6 +946,43 @@
       "DECIDE_NEXT": "Check execution result",
       "WAIT_CLARIFICATION": "Waiting for Clarification"
     },
+    "timeline": {
+      "thought": "Thought",
+      "artifact": "Query result",
+      "clarification": "Clarification",
+      "answer": "Answer",
+      "expand_all": "Expand all",
+      "collapse_all": "Collapse all",
+      "step_count": "{count} steps",
+      "truncated": "Results truncated",
+      "assumptions": "Assumptions",
+      "process": "Process",
+      "processing": "Working",
+      "worked_for": "Worked for {seconds}s",
+      "worked_for_with_tokens": "Worked for {seconds}s · {tokens} tokens",
+      "tokens_only": "{tokens} tokens",
+      "thinking": "Thinking",
+      "thought_for": "Thought for {seconds}s",
+      "show_process": "Show",
+      "hide_process": "Hide",
+      "tool": {
+        "generic": "Tool call",
+        "execute_sql_sandbox": "Run query",
+        "patch_and_compile_sql": "Patch SQL",
+        "compare_results": "Compare results",
+        "search_wiki": "Search knowledge",
+        "request_clarification": "Ask for clarification"
+      }
+    },
+    "summary": {
+      "thought_done": "Thought complete",
+      "tool_ok": "Succeeded",
+      "tool_failed": "Failed",
+      "query_rows": "Returned {count} rows",
+      "answer_ready": "Answer ready",
+      "clarification_waiting": "Waiting for confirmation",
+      "clarification_confirmed": "Criteria confirmed"
+    },
     "audit": {
       "processing": "Processing",
       "raw_input": "Raw input",

@@ -2,18 +2,15 @@
 
 from __future__ import annotations
 
-from typing import Any, Callable
+from typing import Any
 from langchain_core.tools import StructuredTool
 from pydantic import BaseModel, Field
 
-from apps.chat.steps.wiki_recall import wiki_backend_active
 from apps.chat.tools.clarification import request_clarification
 from apps.chat.tools.compare_results import compare_query_results
 from apps.chat.tools.execute_sql import execute_sql_sandbox
 from apps.chat.tools.patch_sql import patch_and_compile_sql
-from apps.chat.tools.schema_search import search_and_inspect_schema
 from apps.chat.tools.wiki_search import search_wiki_knowledge
-from apps.conversation.tooling import ToolResult, normalize_tool_result
 
 
 class ClarificationOptionSchema(BaseModel):
@@ -38,10 +35,6 @@ class SearchWikiInput(BaseModel):
     query: str = Field(description="Business concept, table name, caliber, or keyword to search authoritative Wiki knowledge for.")
 
 
-class SearchSchemaInput(BaseModel):
-    keywords: list[str] = Field(description="List of keywords or entities to search database schema for (used as fallback when Wiki is not configured).")
-
-
 class PatchSqlInput(BaseModel):
     base_sql: str = Field(description="The existing valid base SQL to be modified.")
     action: str = Field(description="Action: add_dimension, add_filter, replace_filter, change_limit, change_order.")
@@ -50,7 +43,13 @@ class PatchSqlInput(BaseModel):
 
 class ExecuteSqlInput(BaseModel):
     sql: str = Field(description="SQL query string to execute safely in the sandbox.")
-    limit: int = Field(default=1000, description="Max rows to retrieve, default 1000.")
+    limit: int = Field(
+        default=1000,
+        description=(
+            "Max rows to retrieve when SQL has no LIMIT. "
+            "If SQL already contains LIMIT N, that N is respected (up to system max)."
+        ),
+    )
 
 
 class CompareResultsInput(BaseModel):
@@ -61,15 +60,9 @@ class CompareResultsInput(BaseModel):
 
 def build_agent_tools(llm_service: Any, access_scope: Any = None) -> list[StructuredTool]:
     """Construct bound LangChain tools scoped to current LLMService and access permissions."""
-    ds_id = getattr(getattr(llm_service, "ds", None), "id", None)
-    has_wiki = wiki_backend_active(ds_id)
 
     def _search_wiki(query: str) -> dict[str, Any]:
-        res = search_wiki_knowledge(llm_service, query)
-        return dict(res)
-
-    def _search_schema(keywords: list[str]) -> dict[str, Any]:
-        res = search_and_inspect_schema(llm_service, keywords, access_scope=access_scope)
+        res = search_wiki_knowledge(llm_service, query, access_scope=access_scope)
         return dict(res)
 
     def _patch_sql(base_sql: str, action: str, payload: dict[str, Any]) -> dict[str, Any]:
@@ -95,30 +88,13 @@ def build_agent_tools(llm_service: Any, access_scope: Any = None) -> list[Struct
         res = request_clarification(raw_list)
         return dict(res)
 
-    tools: list[StructuredTool] = []
-
-    # Wiki is the primary knowledge source containing schema and rules
-    if has_wiki:
-        tools.append(
-            StructuredTool.from_function(
-                func=_search_wiki,
-                name="search_wiki",
-                description="Search authoritative Wiki knowledge containing table structures, field definitions, enum values, and business calibers.",
-                args_schema=SearchWikiInput,
-            )
-        )
-    else:
-        # Fallback to physical schema search only when Wiki is not configured
-        tools.append(
-            StructuredTool.from_function(
-                func=_search_schema,
-                name="search_schema",
-                description="Search table schemas and comments for relevant business entities and fields (fallback mode).",
-                args_schema=SearchSchemaInput,
-            )
-        )
-
-    tools.extend([
+    tools: list[StructuredTool] = [
+        StructuredTool.from_function(
+            func=_search_wiki,
+            name="search_wiki",
+            description="Search authoritative Wiki knowledge containing table structures, field definitions, enum values, and business calibers.",
+            args_schema=SearchWikiInput,
+        ),
         StructuredTool.from_function(
             func=_patch_sql,
             name="patch_and_compile_sql",
@@ -143,6 +119,6 @@ def build_agent_tools(llm_service: Any, access_scope: Any = None) -> list[Struct
             description="Ask the user for clarification when there is significant business ambiguity that alters query results. Provide structured question and options.",
             args_schema=RequestClarificationInput,
         ),
-    ])
+    ]
 
     return tools

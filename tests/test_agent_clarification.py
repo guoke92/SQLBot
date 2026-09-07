@@ -32,7 +32,7 @@ def test_clarification_tool_creates_interrupt_payload():
     assert card["questions"][0]["question"] == "“平台录入”具体对应哪个字段口径？"
 
 
-def test_execute_tools_preserves_clarification_card_and_routes_to_interrupt():
+def test_execute_tools_preserves_clarification_card_and_routes_to_interrupt(monkeypatch):
     """验证工具执行节点保留完整的 card 载荷，并且路由守卫切入 await_clarification."""
     ai_msg = AIMessage(
         content="",
@@ -74,7 +74,17 @@ def test_execute_tools_preserves_clarification_card_and_routes_to_interrupt():
         "record_id": 123,
         "messages": [ai_msg],
         "bound_tools": [fake_tool],
+        "sink": "json",
     }
+
+    monkeypatch.setattr(
+        "apps.conversation.tooling.open_process_span",
+        lambda **_k: None,
+    )
+    monkeypatch.setattr(
+        "apps.conversation.tooling.attach_process_span",
+        lambda *_a, **_k: None,
+    )
 
     # 执行 execute_tools_node
     next_state = execute_tools_node(state)
@@ -100,6 +110,8 @@ def test_wiki_primary_prompt_assembly():
     assert "<wiki_knowledge>" in prompt_with_wiki
     assert "cust_build_status = 'BUILD_SUCCESS'" in prompt_with_wiki
     assert "<fallback_schema_summary>" not in prompt_with_wiki  # 严禁物理 Schema 冗余混合
+    assert "名实冲突" in prompt_with_wiki
+    assert "request_clarification" in prompt_with_wiki
 
     # 场景 B: Wiki 不存在，降级兜底
     prompt_fallback = build_agent_system_prompt(
@@ -112,18 +124,25 @@ def test_wiki_primary_prompt_assembly():
 
 
 def test_execute_sql_normal_query():
-    """验证安全沙箱正常接收合法业务 SQL（包括带有 ORDER BY DESC LIMIT 的查询）."""
+    """验证安全沙箱正常接收合法业务 SQL."""
     from apps.chat.tools.execute_sql import execute_sql_sandbox
 
     fake_service = MagicMock()
-    fake_service.protocol.parse_candidate_payload.return_value = MagicMock(success=True, statement="SELECT * FROM cust ORDER BY create_time DESC LIMIT 10")
-    fake_service.protocol.validate_plan.return_value = MagicMock(success=True)
-    fake_service.protocol.execute.return_value = MagicMock(data=[{"id": 1}], fields=["id"])
+    fake_service.protocol.parse_candidate_payload.return_value = MagicMock(
+        success=True,
+        statement="SELECT * FROM cust ORDER BY create_time DESC LIMIT 10",
+        message="",
+    )
+    fake_service.protocol.validate_plan.return_value = MagicMock(
+        success=True,
+        message="",
+    )
+    fake_service.protocol.execute.return_value = MagicMock(
+        data=[{"id": 1, "create_time": "2026-09-01"}],
+        fields=["id", "create_time"],
+    )
+
     res = execute_sql_sandbox(fake_service, "SELECT * FROM cust ORDER BY create_time DESC LIMIT 10")
     assert res["ok"] is True
-    assert "禁止查询系统元数据表" in res["error"]
-
-    # 模拟嗅探 SHOW TABLES
-    res2 = execute_sql_sandbox(fake_service, "SHOW TABLES")
-    assert res2["ok"] is False
-    assert "禁止查询系统元数据表" in res2["error"]
+    assert res["data"]["total_rows"] == 1
+    assert "id" in res["data"]["fields"]

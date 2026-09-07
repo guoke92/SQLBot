@@ -55,7 +55,7 @@ def _plan_dict_from_query_plan(plan: QueryPlan) -> dict[str, Any]:
 def _apply_display_defaults(
     plans: list[dict[str, Any]], question: str
 ) -> list[dict[str, Any]]:
-    fallback = " ".join((question or "").split()).strip() or "查询结果"
+    fallback = " ".join((question or "").split()).strip()
     multiple = len(plans) > 1
     for index, plan in enumerate(plans):
         title = str(plan.get("brief") or fallback).strip() or fallback

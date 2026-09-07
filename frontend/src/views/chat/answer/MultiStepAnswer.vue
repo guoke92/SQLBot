@@ -2,6 +2,7 @@
 import BaseAnswer from './BaseAnswer.vue'
 import {
   Chat,
+  chatApi,
   ChatInfo,
   type AnswerPayload,
   type AnswerPresentation,
@@ -21,8 +22,19 @@ import { useI18n } from 'vue-i18n'
 import icon_sql_outlined from '@/assets/svg/icon_sql_outlined.svg'
 import ClarificationCard from '@/features/conversation/ClarificationCard.vue'
 import QualityStamp from '@/features/conversation/QualityStamp.vue'
-import AgentStagesView, { type AgentStageItem } from './AgentStagesView.vue'
+import AgentStagesView from './AgentStagesView.vue'
+import ChatTokenTime from '@/views/chat/ChatTokenTime.vue'
 import { conversationStageKey } from '@/features/conversation/executionLog'
+import {
+  applyDelta,
+  extractProcessItem,
+  removeItem,
+  replaceItems,
+  sortedItems,
+  upsertItem,
+  type ProcessItem,
+  type TimelineMap,
+} from '@/features/conversation/processTimeline'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -48,6 +60,7 @@ interface StepState {
       }
     | undefined
   recordId: number | undefined
+  datasetId: string | undefined
   datasource: number | undefined
   engineType: string | undefined
   error: string
@@ -138,19 +151,23 @@ const _loading = computed({
 // ---------------------------------------------------------------------------
 
 const steps: Ref<Array<StepState>> = ref([])
-const agentStages: Ref<Array<AgentStageItem>> = ref([])
+const timelineMap: Ref<TimelineMap> = ref(new Map())
 const analysisText = ref('')
-const analysisThinking = ref('')
 const overallQuality = ref<ResultQuality>()
+const assumptions = ref<Array<Record<string, any>>>([])
 let hydratedTerminalRecordId: number | undefined
-let activeChartReasoningIndex: number | undefined
+
+function formatAssumption(item: Record<string, any>): string {
+  const question = String(item.question || '').trim()
+  const answer = String(item.meaning || item.label || item.value || '').trim()
+  if (question && answer) return `${question}：${answer}`
+  return answer || question
+}
+
+const timelineItems = computed(() => sortedItems(timelineMap.value))
 
 const isMultiStep = computed(
   () => steps.value.filter((s) => s.sql || s.chart || s.error).length > 1
-)
-
-const recordReasoningNames = computed(
-  () => ['intent_reasoning_content', 'sql_answer', 'chart_answer', 'analysis_thinking'] as const
 )
 
 const visibleInterrupts = computed<ConversationInterrupt[]>(() => {
@@ -219,6 +236,7 @@ function ensureStep(stepIndex: number): StepState {
       chart: '',
       data: undefined,
       recordId: undefined,
+      datasetId: undefined,
       datasource: undefined,
       engineType: undefined,
       error: '',
@@ -229,13 +247,48 @@ function ensureStep(stepIndex: number): StepState {
   return steps.value[stepIndex]
 }
 
-function appendReasoningToRecord(
-  kind: 'sql_answer' | 'chart_answer' | 'analysis_thinking',
-  text: string
-) {
-  if (!text || index.value < 0) return
-  const rec = _currentChat.value.records[index.value] as any
-  rec[kind] = (rec[kind] || '') + text
+async function hydrateTimeline(record: ChatRecord, view: 'compact' | 'detail' = 'compact') {
+  if (!record.id) return
+  const snapshot = await chatApi.get_timeline(record.id, {
+    silent: true,
+    runId: record.run_id,
+    view,
+  })
+  if (snapshot?.items) {
+    timelineMap.value = replaceItems(snapshot.items as ProcessItem[])
+  }
+}
+
+async function hydrateDatasetRows(recordId?: number) {
+  if (!recordId) return
+  await Promise.all(
+    steps.value.map(async (step) => {
+      if (!step.datasetId) return
+      const previewCount = step.data?.data?.length || 0
+      const rowCount = step.data?.row_count || 0
+      if (rowCount && previewCount >= rowCount) return
+      try {
+        const want = Math.max(rowCount || 0, step.data?.limit || 0, 1000)
+        const page = await chatApi.get_dataset_rows(recordId, step.datasetId, {
+          limit: want,
+        })
+        step.data = {
+          fields: page.fields || step.data?.fields || [],
+          data: page.rows || [],
+          row_count: page.row_count,
+          truncated: page.truncated,
+          // Keep the answer-window limit; never replace with page size.
+          ...(page.truncated
+            ? { limit: step.data?.limit ?? page.row_count }
+            : step.data?.limit != null
+              ? { limit: step.data.limit }
+              : {}),
+        }
+      } catch {
+        // Keep preview rows when the row store is unavailable.
+      }
+    })
+  )
 }
 
 /**
@@ -244,26 +297,19 @@ function appendReasoningToRecord(
 function applyFullPayload(payload: AnswerPayload, recordId?: number, authoritative = false) {
   if (!payload) return
 
-  // Quality evaluates an actual published result. A planning failure with no
-  // result steps must not be rendered as a misleading zero-score stamp.
   const publishedQuality = payload.steps.length > 0 ? payload.outcome.quality : undefined
   if (authoritative) {
     steps.value = []
     analysisText.value = payload.analysis || ''
     overallQuality.value = publishedQuality
-    if (Array.isArray((payload as any).stages)) {
-      agentStages.value = (payload as any).stages
-    }
   } else {
-    if (Array.isArray((payload as any).stages)) {
-      agentStages.value = (payload as any).stages
-    }
     if (payload.analysis) analysisText.value = payload.analysis
     overallQuality.value = publishedQuality
   }
   payload.steps.forEach((stepPayload, i) => {
     const step = ensureStep(i)
     if (recordId !== undefined) step.recordId = recordId
+    if (stepPayload.dataset_id) step.datasetId = stepPayload.dataset_id
     if (stepPayload.sql) step.sql = stepPayload.sql
     if (stepPayload.presentation) {
       step.presentation = stepPayload.presentation
@@ -288,8 +334,6 @@ function applyFullPayload(payload: AnswerPayload, recordId?: number, authoritati
     if (authoritative) {
       steps.value.splice(payload.steps.length)
     } else {
-      // Progressive snapshots must not erase SQL tokens that arrived over
-      // SSE but have not reached persistence yet.
       while (
         steps.value.length > payload.steps.length &&
         !steps.value[steps.value.length - 1].sql &&
@@ -299,11 +343,13 @@ function applyFullPayload(payload: AnswerPayload, recordId?: number, authoritati
       }
     }
   }
+  void hydrateDatasetRows(recordId)
 }
 
 function hydrateRecordData(record: ChatRecord, authoritative = false): boolean {
   if (!record.id || !record.answer) return false
   applyFullPayload(record.answer, record.id, authoritative)
+  assumptions.value = record.turn_answer?.assumptions || []
   if (steps.value[0]) {
     if (steps.value[0].sql) record.sql = steps.value[0].sql
     if (steps.value[0].chart) record.chart = steps.value[0].chart as any
@@ -316,20 +362,19 @@ function hydrateRecordData(record: ChatRecord, authoritative = false): boolean {
 
 function hydrateHistory(record: ChatRecord) {
   analysisText.value = ''
-  analysisThinking.value = ''
   overallQuality.value = undefined
+  assumptions.value = []
   steps.value = []
-  agentStages.value = []
 
   if (record.run_status === 'awaiting_input') {
+    void hydrateTimeline(record)
     return
   }
 
+  void hydrateTimeline(record)
+
   if (record.answer) {
     applyFullPayload(record.answer, record.id, true)
-    if (agentStages.value.length === 0 && Array.isArray((record as any).agent_stages) && (record as any).agent_stages.length > 0) {
-      agentStages.value = (record as any).agent_stages
-    }
     hydratedTerminalRecordId = record.id
     return
   }
@@ -346,20 +391,6 @@ function hydrateHistory(record: ChatRecord) {
     } catch {
       analysisText.value = raw
     }
-  }
-  if ((record as any).analysis_thinking) {
-    analysisThinking.value = String((record as any).analysis_thinking)
-  }
-
-  // Seed single-record columns while multi payload loads
-  if (record.sql || record.chart) {
-    const step = ensureStep(0)
-    step.sql = record.sql || ''
-    step.chart = toChartJson(record.chart)
-    step.recordId = record.id
-    step.datasource = record.datasource
-    step.engineType = record.engine_type
-    step.loading = true
   }
 
   if (hydrateRecordData(record, true)) hydratedTerminalRecordId = record.id
@@ -390,92 +421,33 @@ function turnHandlers(currentRecord: ChatRecord) {
         case 'datasource':
           if (!_currentChat.value.datasource) _currentChat.value.datasource = data.id
           break
-        case 'batch-start':
-          currentRecord.sql_answer = ''
-          currentRecord.chart_answer = ''
-          activeChartReasoningIndex = undefined
-          break
-        case 'step-sql-result':
-          appendReasoningToRecord('sql_answer', data.reasoning_content ?? '')
-          break
-        case 'step-chart-result': {
-          const chartIndex = Number(data.index ?? 0)
-          if (activeChartReasoningIndex !== chartIndex) {
-            currentRecord.chart_answer = ''
-            activeChartReasoningIndex = chartIndex
-          }
-          appendReasoningToRecord('chart_answer', data.reasoning_content ?? '')
+        case 'process_upsert': {
+          const item = extractProcessItem(data as Record<string, unknown>)
+          if (item) timelineMap.value = upsertItem(timelineMap.value, item)
           break
         }
-        case 'agent-thought': {
-          const thought = data.content ?? ''
-          const lastStage = agentStages.value[agentStages.value.length - 1]
-          if (lastStage && lastStage.type === 'thought' && lastStage.status === 'running') {
-            lastStage.content = (lastStage.content || '') + thought
-          } else {
-            if (lastStage && lastStage.status === 'running') {
-              lastStage.status = 'completed'
-            }
-            agentStages.value.push({
-              id: `thought-${Date.now()}-${agentStages.value.length}`,
-              type: 'thought',
-              title: t('chat.log.AGENT_STEP') || '思考',
-              content: thought,
-              status: 'running',
-            })
-          }
+        case 'process_delta': {
+          const item = extractProcessItem(data as Record<string, unknown>)
+          if (item) timelineMap.value = applyDelta(timelineMap.value, item)
           break
         }
-        case 'agent-tool-call': {
-          const lastStage = agentStages.value[agentStages.value.length - 1]
-          if (lastStage && lastStage.status === 'running') {
-            lastStage.status = 'completed'
-          }
-          const tName = data.tool || ''
-          const tLabel = data.displayName || `工具调用 (${tName})`
-          agentStages.value.push({
-            id: `tool-${Date.now()}-${agentStages.value.length}`,
-            type: 'tool',
-            title: tLabel,
-            toolName: tName,
-            toolArgs: data.args || {},
-            sql: data.args?.sql || undefined,
-            status: 'running',
-          })
+        case 'process_remove': {
+          const removeId = (data as Record<string, unknown>).id
+          if (removeId != null) timelineMap.value = removeItem(timelineMap.value, removeId as number | string)
           break
         }
-        case 'analysis': {
-          const lastStage = agentStages.value[agentStages.value.length - 1]
-          if (lastStage && lastStage.status === 'running') {
-            lastStage.status = 'completed'
-          }
+        case 'analysis':
           analysisText.value += data.content ?? ''
-          const reasoning = data.reasoning_content ?? ''
-          analysisThinking.value += reasoning
-          appendReasoningToRecord('analysis_thinking', reasoning)
-          break
-        }
-        case 'analysis-reasoning':
-        case 'prediction-reasoning': {
-          const reasoning = data.reasoning_content || data.content || ''
-          analysisThinking.value += reasoning
-          appendReasoningToRecord('analysis_thinking', reasoning)
-          break
-        }
-        case 'clarification-reasoning':
-          currentRecord.intent_reasoning_content =
-            (currentRecord.intent_reasoning_content || '') +
-            (data.reasoning_content || data.content || '')
           break
       }
       await nextTick()
     },
     onError: (record: ChatRecord) => emits('error', record.id),
     onFinish: async (record: ChatRecord) => {
-      agentStages.value.forEach((s) => {
-        if (s.status === 'running') s.status = 'completed'
-      })
       if (analysisText.value) currentRecord.analysis = analysisText.value
+      if (record.id) {
+        await hydrateTimeline(record)
+      }
       if (record.id && record.run_status !== 'awaiting_input') {
         if (hydrateRecordData(record, true)) hydratedTerminalRecordId = record.id
       }
@@ -502,11 +474,10 @@ const sendMessage = async () => {
   }
 
   steps.value = []
-  agentStages.value = []
+  timelineMap.value = new Map()
   analysisText.value = ''
-  analysisThinking.value = ''
   overallQuality.value = undefined
-  activeChartReasoningIndex = undefined
+  assumptions.value = []
 
   try {
     await turn.run(_currentChatId.value, currentRecord, turnHandlers(currentRecord))
@@ -579,12 +550,6 @@ function stop() {
 const enableThousandsSeparatorList = ref<Array<string>>([])
 const showLabel = ref<boolean>(false)
 
-const reasoningItems = computed(() =>
-  recordReasoningNames.value
-    .map((name) => props.message?.record?.[name])
-    .filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
-)
-
 onBeforeUnmount(() => {
   turn.detach()
   _loading.value = false
@@ -601,30 +566,19 @@ watch(
     const record = props.message?.record
     if (!record || !runId) return
     if (status === 'awaiting_input') {
-      // Snapshot-only: clarification card already lives on the record.
-      void turn.attach(record, turnHandlers(record))
+      void hydrateTimeline(record).then(() => turn.attach(record, turnHandlers(record)))
       return
     }
     if (!['queued', 'running'].includes(status || '')) return
-    // Live send/resume already owns the subscription — do not wipe buffers.
     if (turn.owned.value || turn.running.value) return
-    // Replay from cursor 0 — clear local stream buffers so append handlers
-    // do not duplicate anything already mirrored onto the record.
-    steps.value = []
-    analysisText.value = ''
-    analysisThinking.value = ''
-    overallQuality.value = undefined
-    activeChartReasoningIndex = undefined
-    record.sql_answer = ''
-    record.chart_answer = ''
-    record.intent_reasoning_content = ''
-    record.analysis_thinking = ''
     _loading.value = true
-    void turn.attach(record, turnHandlers(record)).finally(() => {
-      if (!turn.owned.value && !turn.running.value) {
-        _loading.value = false
-      }
-    })
+    void hydrateTimeline(record)
+      .then(() => turn.attach(record, turnHandlers(record)))
+      .finally(() => {
+        if (!turn.owned.value && !turn.running.value) {
+          _loading.value = false
+        }
+      })
   },
   { immediate: true }
 )
@@ -651,15 +605,18 @@ defineExpose({ sendMessage, regenerate, index: () => index.value, stop })
 </script>
 
 <template>
-  <BaseAnswer v-if="message" :message="message" :reasoning-items="reasoningItems">
-    <div v-if="_loading && steps.length === 0 && !isAwaitingInput" class="multi-step-loading">
+  <BaseAnswer v-if="message" :message="message" :hide-thinking-toggle="true">
+    <div v-if="_loading && steps.length === 0 && !isAwaitingInput && timelineItems.length === 0" class="multi-step-loading">
       <span>{{ runStageText }}</span>
     </div>
 
     <AgentStagesView
-      v-if="agentStages.length > 0"
-      :stages="agentStages"
+      v-if="timelineItems.length > 0"
+      :items="timelineItems"
       :is-typing="message?.isTyping"
+      :record-id="message?.record?.id"
+      :duration="message?.record?.duration"
+      :total-tokens="message?.record?.total_tokens"
     />
 
     <ClarificationCard
@@ -753,6 +710,15 @@ defineExpose({ sendMessage, regenerate, index: () => index.value, stop })
       </div>
     </div>
 
+    <div v-if="assumptions.length" class="multi-step-analysis">
+      <div class="analysis-label">{{ t('chat.timeline.assumptions') }}</div>
+      <ul class="assumption-list">
+        <li v-for="(item, idx) in assumptions" :key="idx">
+          {{ formatAssumption(item) }}
+        </li>
+      </ul>
+    </div>
+
     <div v-if="analysisText" class="multi-step-analysis">
       <div class="analysis-label">{{ t('chat.summary') }}</div>
       <MdComponent :message="analysisText" />
@@ -760,6 +726,12 @@ defineExpose({ sendMessage, regenerate, index: () => index.value, stop })
 
     <slot></slot>
     <template #tool>
+      <ChatTokenTime
+        v-if="!message?.isTyping && timelineItems.length === 0"
+        :record-id="message?.record?.id"
+        :duration="message?.record?.duration"
+        :total-tokens="message?.record?.total_tokens"
+      />
       <slot name="tool"></slot>
     </template>
     <template #footer>
@@ -901,5 +873,13 @@ defineExpose({ sendMessage, regenerate, index: () => index.value, stop })
   line-height: 22px;
   color: rgba(31, 35, 41, 1);
   margin-bottom: 8px;
+}
+
+.assumption-list {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+  line-height: 22px;
+  color: #4e5969;
 }
 </style>

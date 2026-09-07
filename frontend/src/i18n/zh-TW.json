@@ -946,6 +946,43 @@
       "DECIDE_NEXT": "檢查執行結果",
       "WAIT_CLARIFICATION": "等待澄清答覆"
     },
+    "timeline": {
+      "thought": "思考",
+      "artifact": "查詢結果",
+      "clarification": "澄清",
+      "answer": "回答",
+      "expand_all": "展開全部",
+      "collapse_all": "收起全部",
+      "step_count": "{count} 個步驟",
+      "truncated": "結果已截斷",
+      "assumptions": "查詢假設",
+      "process": "處理過程",
+      "processing": "處理中",
+      "worked_for": "處理了 {seconds}s",
+      "worked_for_with_tokens": "處理了 {seconds}s，消耗了 {tokens} token",
+      "tokens_only": "消耗了 {tokens} token",
+      "thinking": "思考中",
+      "thought_for": "思考了 {seconds}s",
+      "show_process": "展開",
+      "hide_process": "收起",
+      "tool": {
+        "generic": "工具呼叫",
+        "execute_sql_sandbox": "執行查詢",
+        "patch_and_compile_sql": "增量修改",
+        "compare_results": "資料對比",
+        "search_wiki": "查閱知識",
+        "request_clarification": "請求澄清"
+      }
+    },
+    "summary": {
+      "thought_done": "思考完成",
+      "tool_ok": "執行成功",
+      "tool_failed": "執行失敗",
+      "query_rows": "返回 {count} 行",
+      "answer_ready": "回答已產生",
+      "clarification_waiting": "等待確認",
+      "clarification_confirmed": "口徑已確認"
+    },
     "audit": {
       "processing": "處理中",
       "raw_input": "原始輸入",

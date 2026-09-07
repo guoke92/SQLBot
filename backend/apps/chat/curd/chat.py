@@ -330,23 +330,6 @@ def get_chat_chart_config(
     return {}
 
 
-def get_chart_data_with_user(
-    session: SessionDep, current_user: CurrentUser, chat_record_id: int
-):
-    stmt = select(ChatRecord.answer, ChatRecord.data).where(
-        and_(ChatRecord.id == chat_record_id, ChatRecord.create_by == current_user.id)
-    )
-    res = session.execute(stmt)
-    for row in res:
-        if isinstance(row.answer, dict):
-            return project_turn_answer(row.answer)
-        try:
-            return orjson.loads(row.data)
-        except Exception:
-            pass
-    return {}
-
-
 def get_chart_data_with_user_live(
     session: SessionDep, current_user: CurrentUser, chat_record_id: int
 ):
@@ -408,24 +391,67 @@ def get_chart_data_ds(session: SessionDep, ds_id, re_exec_json: Optional[str] = 
     return json_result
 
 
-def get_chat_chart_data(session: SessionDep, chat_record_id: int, step_index: int = 0):
-    """Return chart rows for a record.
+def _hydrate_turn_answer_rows(session: SessionDep, record: ChatRecord) -> dict[str, Any]:
+    answer = record.answer if isinstance(record.answer, dict) else {}
+    if not answer or not record.active_run_id:
+        return answer
+    from apps.conversation.process_timeline import load_result_datasets
 
-    For multi-step payloads, returns ``steps[step_index].data`` (default first step)
-    so analysis / predict / legacy single-chart consumers keep working.
-    """
-    stmt = select(ChatRecord.answer, ChatRecord.data).where(
-        and_(ChatRecord.id == chat_record_id)
-    )
-    res = session.execute(stmt)
-    for row in res:
+    stored = {
+        item.dataset_id: item
+        for item in load_result_datasets(session, str(record.active_run_id))
+    }
+    if not stored:
+        return answer
+    datasets = []
+    for item in answer.get("datasets") or answer.get("source_datasets") or []:
+        if not isinstance(item, dict):
+            continue
+        ds = stored.get(str(item.get("dataset_id") or ""))
+        if ds is None:
+            datasets.append(item)
+            continue
+        datasets.append(
+            {
+                **item,
+                "rows": list(ds.rows or []),
+                "fields": list(item.get("fields") or ds.fields or []),
+                "row_count": ds.row_count if ds.row_count is not None else item.get("row_count"),
+                "truncated": bool(ds.truncated),
+            }
+        )
+    key = "datasets" if "datasets" in answer else "source_datasets"
+    return {**answer, key: datasets}
+
+
+def get_chat_chart_data(session: SessionDep, chat_record_id: int, step_index: int = 0):
+    """Return chart rows for a record from result_dataset when present."""
+    record = session.get(ChatRecord, chat_record_id)
+    if record is None:
+        return {}
+    try:
+        answer = _hydrate_turn_answer_rows(session, record)
+        if answer:
+            return get_answer_step_data(project_turn_answer(answer), step_index=step_index)
+        if record.data:
+            return get_answer_step_data(orjson.loads(record.data), step_index=step_index)
+    except Exception:
+        pass
+    return {}
+
+
+def get_chart_data_with_user(
+    session: SessionDep, current_user: CurrentUser, chat_record_id: int
+):
+    record = session.get(ChatRecord, chat_record_id)
+    if record is None or int(record.create_by) != int(current_user.id):
+        return {}
+    answer = _hydrate_turn_answer_rows(session, record)
+    if answer:
+        return project_turn_answer(answer)
+    if record.data:
         try:
-            raw = (
-                project_turn_answer(row.answer)
-                if isinstance(row.answer, dict)
-                else orjson.loads(row.data)
-            )
-            return get_answer_step_data(raw, step_index=step_index)
+            return orjson.loads(record.data)
         except Exception:
             pass
     return {}
@@ -549,71 +575,6 @@ def _latest_reasoning_by_record(
     return out
 
 
-
-def _agent_stages_by_record(
-    session: SessionDep,
-    record_ids: List[int],
-) -> Dict[int, List[Dict[str, Any]]]:
-    stages_map: Dict[int, List[Dict[str, Any]]] = {rid: [] for rid in record_ids}
-    if not record_ids:
-        return stages_map
-    stmt = (
-        select(ChatLog.pid, ChatLog.operate, ChatLog.reasoning_content, ChatLog.messages)
-        .where(
-            and_(
-                ChatLog.pid.in_(record_ids),
-                ChatLog.operate.in_([OperationEnum.AGENT_STEP, OperationEnum.TOOL_CALL]),
-            )
-        )
-        .order_by(ChatLog.pid.asc(), ChatLog.start_time.asc(), ChatLog.id.asc())
-    )
-    tool_map = {
-        "execute_sql_sandbox": "执行查询 (execute_sql_sandbox)",
-        "patch_and_compile_sql": "增量补丁 (patch_and_compile_sql)",
-        "compare_results": "数据对比 (compare_results)",
-        "search_schema": "结构检索 (search_schema)",
-        "search_wiki": "查阅知识 (search_wiki)",
-        "request_clarification": "请求澄清 (request_clarification)",
-    }
-    counters: Dict[int, int] = {}
-    for pid, operate, reasoning, messages in session.execute(stmt).all():
-        if pid is None or operate is None:
-            continue
-        pid_int = int(pid)
-        msg = messages if isinstance(messages, dict) else {}
-        op_str = str(operate)
-        if "AGENT_STEP" in op_str:
-            thought = reasoning or ""
-            out = msg.get("output")
-            if isinstance(out, dict) and out.get("content"):
-                if out.get("tool_calls"):
-                    thought = thought or out.get("content")
-            elif isinstance(out, str) and "round" in str(msg.get("brief")):
-                thought = thought or out
-            if thought and str(thought).strip():
-                counters[pid_int] = counters.get(pid_int, 0) + 1
-                stages_map[pid_int].append({
-                    "id": f"thought-{counters[pid_int]}",
-                    "type": "thought",
-                    "title": "思考",
-                    "content": str(thought).strip(),
-                    "status": "completed",
-                })
-        elif "TOOL_CALL" in op_str:
-            inp = msg.get("input") or {}
-            t_name = inp.get("tool") or "tool"
-            args = inp.get("arguments") or {}
-            counters[pid_int] = counters.get(pid_int, 0) + 1
-            stages_map[pid_int].append({
-                "id": f"tool-{counters[pid_int]}",
-                "type": "tool",
-                "title": tool_map.get(t_name, f"工具调用 ({t_name})"),
-                "toolName": t_name,
-                "toolArgs": args,
-                "sql": args.get("sql") if isinstance(args, dict) else None,
-                "status": "completed",
-            })
-    return stages_map
 
 
 def _token_usage_by_record(
@@ -755,7 +716,6 @@ def get_chat_with_records(
         items.sort(key=lambda item: item.version)
 
     token_usage_map = _token_usage_by_record(session, record_ids)
-    agent_stages_map = _agent_stages_by_record(session, record_ids)
     # Reasoning is for history hydrate when payload omits or prefers log reasoning;
     # with_data path historically skipped joins — keep that behavior (maps empty unused).
     reasoning_map = (
@@ -792,7 +752,6 @@ def get_chat_with_records(
             finish_time=row.finish_time,
             duration=duration,
             total_tokens=token_usage_map.get(rid, 0),
-            agent_stages=agent_stages_map.get(rid, []),
             question=row.question,
             turn_kind=getattr(row, "turn_kind", "query"),
             relation=getattr(row, "relation", "independent"),

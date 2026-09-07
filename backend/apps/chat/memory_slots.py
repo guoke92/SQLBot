@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Any, Mapping
+from collections.abc import Mapping, Sequence
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 
@@ -12,6 +14,10 @@ class MemorySlots(BaseModel):
     confirmed_calibers: dict[str, Any] = Field(
         default_factory=dict,
         description="Explicit user-confirmed metric or date calibers, e.g. {'amount': 'pay_amount', 'date': 'pay_time'}",
+    )
+    assumptions: list[dict[str, Any]] = Field(
+        default_factory=list,
+        description="Declared non-obvious filters or caliber choices awaiting/after user awareness",
     )
     excluded_filters: list[dict[str, Any]] = Field(
         default_factory=list,
@@ -52,3 +58,58 @@ class MemorySlots(BaseModel):
                 "row_count": row_count,
                 "sample_rows": (sample_rows or [])[:3],
             }
+
+
+def answer_has_executable_sql(answer: Mapping[str, Any] | None) -> bool:
+    if not isinstance(answer, Mapping):
+        return False
+    if str(answer.get("status") or "") != "succeeded":
+        return False
+    for item in answer.get("datasets") or []:
+        if isinstance(item, Mapping) and str(item.get("sql") or "").strip():
+            return True
+    return False
+
+
+def hydrate_memory_slots_from_referenced_turns(
+    memory_slots: MemorySlots,
+    referenced_turns: Sequence[Mapping[str, Any]],
+) -> MemorySlots:
+    """Restore baseline SQL and confirmed calibers from prior turn outlines."""
+    if not referenced_turns:
+        return memory_slots
+    latest = referenced_turns[-1]
+    if not memory_slots.active_baseline_sql:
+        for ds in latest.get("datasets") or []:
+            if not isinstance(ds, Mapping):
+                continue
+            sql = str(ds.get("sql") or "").strip()
+            if not sql:
+                continue
+            memory_slots.active_baseline_sql = sql
+            memory_slots.active_dataset_outline = {
+                "fields": list(ds.get("fields") or []),
+                "row_count": ds.get("row_count"),
+            }
+            break
+
+    if not memory_slots.assumptions:
+        raw_assumptions = latest.get("assumptions")
+        if isinstance(raw_assumptions, list):
+            memory_slots.assumptions = [
+                dict(item) for item in raw_assumptions if isinstance(item, Mapping)
+            ]
+
+    if not memory_slots.confirmed_calibers:
+        for item in memory_slots.assumptions:
+            if not isinstance(item, Mapping):
+                continue
+            if str(item.get("source") or "") not in {"clarification", "confirmed"}:
+                continue
+            label = str(item.get("label") or "").strip()
+            if not label:
+                continue
+            key = str(item.get("question") or label)[:120]
+            memory_slots.confirmed_calibers[key] = label
+    return memory_slots
+

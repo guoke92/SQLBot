@@ -2,12 +2,18 @@
 
 from __future__ import annotations
 
+import json
 from collections.abc import Mapping
 from typing import Any
+
 from langchain_core.messages import HumanMessage
 from langgraph.types import interrupt
 
 from apps.conversation.messages import deserialize_messages, serialize_messages
+from apps.conversation.process_timeline import (
+    attach_running_clarification_span,
+    open_process_span,
+)
 from apps.conversation.run_service import create_interrupt
 from apps.conversation.session import session_scope
 from apps.conversation.sink import StreamSink
@@ -16,6 +22,7 @@ from apps.conversation.sink import StreamSink
 def await_agent_clarification_node(state: Mapping[str, Any]) -> dict[str, Any]:
     """Durably interrupt the graph run, publish ClarificationCard, and handle resume."""
     run_id = str(state["run_id"])
+    record_id = state.get("record_id")
     card_payload: dict[str, Any] = {}
 
     for step in reversed(state.get("tool_steps") or []):
@@ -27,10 +34,8 @@ def await_agent_clarification_node(state: Mapping[str, Any]) -> dict[str, Any]:
 
     # Fallback to inspecting messages if tool_steps didn't retain card
     if not card_payload:
-        from apps.chat.semantic_planning import ClarificationCard, coerce_clarification_questions
         for m in reversed(list(state.get("messages") or [])):
             if isinstance(m, Mapping) and m.get("type") == "tool":
-                import json
                 try:
                     c = json.loads(m.get("content", "{}"))
                     if isinstance(c, dict) and c.get("data", {}).get("clarification_card"):
@@ -47,30 +52,118 @@ def await_agent_clarification_node(state: Mapping[str, Any]) -> dict[str, Any]:
         "version": pending.version,
         **card_payload,
     }
+    sink = StreamSink.from_state(state)
+    # One lifecycle span across interrupt → resume (do not open a duplicate).
+    clarify_span = attach_running_clarification_span(
+        record_id=int(record_id) if record_id is not None else None,
+        run_id=run_id,
+        sink=sink,
+    )
+    if clarify_span is None:
+        clarify_span = open_process_span(
+            kind="clarification",
+            record_id=record_id,
+            sink=sink,
+            run_id=run_id,
+            graph_node="await_clarification",
+            title_key="chat.timeline.clarification",
+            summary_key="chat.summary.clarification_waiting",
+            local_operation=True,
+        )
+    else:
+        clarify_span.delta(
+            summary_key="chat.summary.clarification_waiting",
+            flush=True,
+        )
+
     if pending.status == "open":
-        StreamSink.from_state(state).awaiting_input(public)
+        sink.awaiting_input(public)
 
     # Durable interrupt: returns answers upon resume
     answers = interrupt(public)
+    if clarify_span is not None:
+        clarify_span.close(
+            status="completed",
+            summary_key="chat.summary.clarification_confirmed",
+        )
 
-    # When resumed from interrupt, answers are returned to the node.
-    # 1. Update memory slots with confirmed calibers
+    # Build question & option lookup map from card_payload
+    # {question_id: {"question": "...", "options": {opt_id: opt_dict}}}
+    questions_map: dict[str, dict[str, Any]] = {}
+    for q in card_payload.get("questions") or []:
+        if isinstance(q, dict):
+            qid = str(q.get("question_id") or q.get("field") or "")
+            opts_by_id = {}
+            for opt in q.get("options") or []:
+                if isinstance(opt, dict):
+                    opt_id = str(opt.get("option_id") or opt.get("id") or "")
+                    opts_by_id[opt_id] = opt
+            questions_map[qid] = {
+                "question": q.get("question") or q.get("prompt") or "",
+                "options": opts_by_id,
+            }
+
+    # 1. Update memory slots with confirmed calibers and extract human-friendly descriptions
     raw_slots = dict(state.get("memory_slots") or {})
     confirmed = dict(raw_slots.get("confirmed_calibers") or {})
+    clarified_summaries: list[str] = []
+
     if isinstance(answers, list):
         for ans in answers:
-            if isinstance(ans, dict):
-                q_id = ans.get("question_id") or ans.get("field") or "caliber"
-                val = ans.get("option_id") or ans.get("value") or ans.get("text") or str(ans)
-                confirmed[str(q_id)] = val
+            if not isinstance(ans, dict):
+                continue
+            qid = str(ans.get("question_id") or ans.get("field") or "")
+            opt_id = str(ans.get("option_id") or ans.get("value") or ans.get("text") or "")
+
+            q_info = questions_map.get(qid) or {}
+            opt_obj = q_info.get("options", {}).get(opt_id) if q_info else None
+            q_text = str(q_info.get("question") or "").strip()
+
+            if opt_obj:
+                label = str(opt_obj.get("label") or opt_id).strip()
+                meaning = str(
+                    opt_obj.get("meaning") or opt_obj.get("description") or label
+                ).strip()
+                fields = opt_obj.get("fields") or []
+                confirmed[qid] = {
+                    "question": q_text,
+                    "label": label,
+                    "meaning": meaning,
+                    "fields": fields,
+                    "option_id": opt_id,
+                }
+                field_desc = f" (fields: {fields})" if fields else ""
+                clarified_summaries.append(
+                    f"For [{q_text or qid}], the user selected [{label}]{field_desc}"
+                )
+            else:
+                val = opt_id or str(ans)
+                confirmed[qid] = {
+                    "question": q_text,
+                    "label": val,
+                    "meaning": val,
+                    "option_id": opt_id,
+                }
+                clarified_summaries.append(f"User confirmed {q_text or qid} = {val}")
+
     raw_slots["confirmed_calibers"] = confirmed
 
     # 2. Inject user clarification answers into agent conversation messages with explicit directive
     messages = deserialize_messages(list(state.get("messages") or []))
-    if answers:
-        clarify_text = f"用户已确认以下口径选项：{answers}。请严格基于用户已确认的业务口径，结合 Wiki 知识直接完成后续查询，不要重复提出澄清问题。"
+    if clarified_summaries:
+        details_text = "\n- ".join(clarified_summaries)
+        clarify_text = (
+            f"The user finished clarification:\n- {details_text}\n\n"
+            "Follow the confirmed caliber and field rules. Continue the query. "
+            "Do not ask about already confirmed items."
+        )
+    elif answers:
+        clarify_text = (
+            f"The user confirmed: {answers}. Continue the query without repeating "
+            "clarification questions."
+        )
     else:
-        clarify_text = "用户已确认澄清选项，请直接执行查询。"
+        clarify_text = "The user confirmed the clarification options. Continue the query."
 
     messages.append(HumanMessage(content=clarify_text))
 

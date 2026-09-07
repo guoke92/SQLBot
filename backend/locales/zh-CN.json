@@ -216,5 +216,36 @@
     "name": "姓名",
     "account": "账号",
     "email": "邮箱"
+  },
+  "chat": {
+    "timeline": {
+      "thought": "思考",
+      "artifact": "查询结果",
+      "clarification": "澄清",
+      "answer": "回答",
+      "tool": {
+        "generic": "工具调用",
+        "execute_sql_sandbox": "执行查询",
+        "patch_and_compile_sql": "增量修改",
+        "compare_results": "数据对比",
+        "search_wiki": "查阅知识",
+        "request_clarification": "请求澄清"
+      }
+    },
+    "summary": {
+      "thought_done": "思考完成",
+      "tool_ok": "执行成功",
+      "tool_failed": "执行失败",
+      "query_rows": "返回 {count} 行",
+      "answer_ready": "回答已生成",
+      "clarification_waiting": "等待确认",
+      "clarification_confirmed": "口径已确认"
+    },
+    "audit": {
+      "processing": "处理中",
+      "step_failed": "处理失败",
+      "step_interrupted": "处理已中断",
+      "step_degraded": "处理完成，但存在降级"
+    }
   }
 }

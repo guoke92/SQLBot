@@ -122,6 +122,8 @@ class NlqState(RunState, total=False):
     tool_steps: list[dict[str, Any]]
     tool_rounds: int
     tool_round_limit: int
+    # call_id → open ChatLog id (must be declared so LangGraph preserves it)
+    open_tool_spans: dict[str, int]
     memory_slots: dict[str, Any]
     bound_tools: list[Any]
     final_text: str

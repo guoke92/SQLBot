@@ -7,13 +7,13 @@ import gou_icon from '@/assets/svg/gou_icon.svg'
 import icon_error from '@/assets/svg/icon_error.svg'
 import icon_database_colorful from '@/assets/svg/icon_database_colorful.svg'
 import icon_alarm_clock_colorful from '@/assets/svg/icon_alarm-clock_colorful.svg'
-import { chatApi, type ChatLogHistory } from '@/api/chat'
+import { chatApi, type ChatLogHistoryItem } from '@/api/chat'
 import { isMobile } from '@/utils/utils'
-import { executionStepStatus, stepDisplayName } from '@/features/conversation/executionLog'
+import type { ProcessItem, ProcessTimeline } from '@/features/conversation/processTimeline'
 import ExecutionStepContent from './execution-component/ExecutionStepContent.vue'
 
 const { t, te } = useI18n()
-const logHistory = ref<ChatLogHistory>({})
+const timeline = ref<ProcessTimeline>({ record_id: 0, items: [] })
 const dialogFormVisible = ref(false)
 const expandedIds = ref<Array<number | string>>([])
 const drawerSize = ref('600px')
@@ -23,54 +23,64 @@ const loading = ref(false)
 let pollTimer: ReturnType<typeof setTimeout> | undefined
 
 const terminal = computed(() =>
-  ['succeeded', 'degraded', 'failed', 'cancelled'].includes(logHistory.value.run?.status || '')
+  ['succeeded', 'degraded', 'failed', 'cancelled'].includes(timeline.value.run?.status || '')
 )
-const tokenText = computed(() => logHistory.value.total_tokens ?? '—')
+const tokenText = computed(() => timeline.value.total_tokens ?? '—')
 const durationText = computed(() =>
-  logHistory.value.duration == null ? '—' : `${logHistory.value.duration}s`
+  timeline.value.duration == null ? '—' : `${timeline.value.duration}s`
 )
 const waitingText = computed(() =>
-  logHistory.value.waiting_duration == null ? '—' : `${logHistory.value.waiting_duration}s`
+  timeline.value.waiting_duration == null ? '—' : `${timeline.value.waiting_duration}s`
 )
 const elapsedText = computed(() =>
-  logHistory.value.elapsed_duration == null ? '—' : `${logHistory.value.elapsed_duration}s`
+  timeline.value.elapsed_duration == null ? '—' : `${timeline.value.elapsed_duration}s`
 )
-const titleFor = (item: any) => {
-  // If this is a tool call, display specific tool name + description
-  if (item.title_params?.tool || item.brief?.includes('execute_sql') || item.brief?.includes('patch_and_compile') || item.operate === 'TOOL_CALL' || item.operate === '14') {
-    return stepDisplayName(item)
-  }
-  const key = item.title_key
-  return key && te(key) ? t(key, item.title_params || {}) : stepDisplayName(item)
-}
+const titleFor = (item: ProcessItem) => item.title || item.title_key || item.kind
 const runStatusText = computed(() => {
-  const key = `chat.audit.run_${logHistory.value.run?.status || 'running'}`
+  const key = `chat.audit.run_${timeline.value.run?.status || 'running'}`
   return te(key) ? t(key) : t('chat.audit.processing')
 })
-const runStageText = computed(() => logHistory.value.run?.current_node || '')
-const summaryFor = (item: any) => {
-  const key = item.summary_key
-  return key && te(key) ? t(key, item.summary_params || {}) : ''
-}
-const stepKey = (item: any, index: number) => item.id ?? `step-${index}`
+const runStageText = computed(() => timeline.value.run?.current_node || '')
+const summaryFor = (item: ProcessItem) => item.summary || ''
+const stepKey = (item: ProcessItem, index: number) => item.id ?? `step-${index}`
 const toggle = (key: number | string) => {
   expandedIds.value = expandedIds.value.includes(key)
     ? expandedIds.value.filter((id) => id !== key)
     : [...expandedIds.value, key]
 }
 
+function toLogItem(item: ProcessItem): ChatLogHistoryItem {
+  const detail = item.detail || {}
+  const usage = (detail.token_usage || {}) as Record<string, any>
+  return {
+    id: item.id,
+    status: item.status === 'completed' ? 'success' : item.status,
+    title_key: item.title_key,
+    title_params: item.title_params,
+    summary_key: item.summary_key || undefined,
+    summary_params: item.summary_params,
+    duration: item.duration_ms != null ? item.duration_ms / 1000 : undefined,
+    total_tokens: usage.total_tokens,
+    input: detail.input,
+    output: detail.output,
+    model_calls: detail.model_calls as ChatLogHistoryItem['model_calls'],
+    detail,
+  }
+}
+
 async function load(silent = false) {
   if (!activeRecordId.value || loading.value) return
   loading.value = true
   try {
-    logHistory.value =
-      (await chatApi.get_chart_log_history(activeRecordId.value, {
+    timeline.value =
+      (await chatApi.get_timeline(activeRecordId.value, {
         silent,
         runId: selectedRunId.value,
-      })) || {}
-    selectedRunId.value = logHistory.value.run?.run_id
-    const important = (logHistory.value.steps || []).filter((item) =>
-      ['running', 'failed', 'degraded'].includes(executionStepStatus(item))
+        view: 'detail',
+      })) || { record_id: activeRecordId.value, items: [] }
+    selectedRunId.value = timeline.value.run?.run_id
+    const important = (timeline.value.items || []).filter((item) =>
+      ['running', 'failed', 'interrupted'].includes(item.status)
     )
     for (const item of important) {
       if (item.id != null && !expandedIds.value.includes(item.id)) {
@@ -142,24 +152,24 @@ defineExpose({ getLogList })
     <div class="run-state">
       <el-icon v-if="!terminal" class="is-loading"><Loading /></el-icon>
       <span>{{ runStatusText }}</span>
-      <span v-if="!terminal && logHistory.run?.current_node" class="current-node">
+      <span v-if="!terminal && timeline.run?.current_node" class="current-node">
         {{ t('chat.audit.current_node') }}：{{ runStageText }}
       </span>
       <span
-        v-else-if="logHistory.run?.status === 'failed' && logHistory.run?.current_node"
+        v-else-if="timeline.run?.status === 'failed' && timeline.run?.current_node"
         class="current-node"
       >
         {{ t('chat.audit.failed_node') }}：{{ runStageText }}
       </span>
       <el-select
-        v-if="(logHistory.attempts?.length || 0) > 1"
+        v-if="(timeline.attempts?.length || 0) > 1"
         :model-value="selectedRunId"
         class="attempt-select"
         size="small"
         @change="selectRun"
       >
         <el-option
-          v-for="(attempt, index) in logHistory.attempts"
+          v-for="(attempt, index) in timeline.attempts"
           :key="attempt.run_id"
           :label="t('chat.audit.run_attempt', { value: index + 1 })"
           :value="attempt.run_id"
@@ -178,18 +188,18 @@ defineExpose({ getLogList })
         <div class="name">{{ t('parameter.time_execution') }}</div>
         <div class="value">{{ durationText }}</div>
       </div>
-      <div v-if="logHistory.waiting_duration" class="item compact-metric">
+      <div v-if="timeline.waiting_duration" class="item compact-metric">
         <div class="name">{{ t('chat.audit.waiting_time') }}</div>
         <div class="value">{{ waitingText }}</div>
       </div>
-      <div v-if="logHistory.waiting_duration" class="item compact-metric">
+      <div v-if="timeline.waiting_duration" class="item compact-metric">
         <div class="name">{{ t('chat.audit.total_time') }}</div>
         <div class="value">{{ elapsedText }}</div>
       </div>
     </div>
     <div class="title">{{ t('parameter.execution_details') }}</div>
     <div class="list">
-      <div v-for="(item, index) in logHistory.steps" :key="stepKey(item, index)" class="list-item">
+      <div v-for="(item, index) in timeline.items" :key="stepKey(item, index)" class="list-item">
         <div class="header" @click="toggle(stepKey(item, index))">
           <div class="name">
             <el-icon
@@ -202,31 +212,23 @@ defineExpose({ getLogList })
             <el-tag v-if="(item.attempt_index || 0) > 0" size="small" type="info">
               {{ t('chat.audit.attempt', { value: (item.attempt_index || 0) + 1 }) }}
             </el-tag>
-            <el-tag v-if="(item.batch_index || 0) > 0" size="small" type="info">
-              {{ t('chat.audit.batch', { value: (item.batch_index || 0) + 1 }) }}
-            </el-tag>
-            <el-tag v-if="(item.unit_index || 0) > 0" size="small" type="info">
-              {{ t('chat.audit.unit', { value: (item.unit_index || 0) + 1 }) }}
-            </el-tag>
           </div>
           <div class="status">
             <span v-if="summaryFor(item)" class="summary">{{ summaryFor(item) }}</span>
-            <span v-if="item.total_tokens" class="time">{{ item.total_tokens }} tokens</span>
-            <span class="time">{{ item.duration == null ? '—' : `${item.duration}s` }}</span>
-            <el-icon v-if="executionStepStatus(item) === 'running'" class="is-loading"
-              ><Loading
-            /></el-icon>
+            <span class="time">{{ item.duration_ms == null ? '—' : `${(item.duration_ms / 1000).toFixed(2)}s` }}</span>
+            <el-icon v-if="item.status === 'running'" class="is-loading"><Loading /></el-icon>
             <el-icon v-else size="16">
-              <icon_error v-if="['failed', 'interrupted'].includes(executionStepStatus(item))" />
-              <WarningFilled
-                v-else-if="executionStepStatus(item) === 'degraded'"
-                class="degraded"
+              <icon_error
+                v-if="
+                  item.status === 'failed' ||
+                  (item.status === 'interrupted' && item.kind !== 'clarification')
+                "
               />
               <gou_icon v-else />
             </el-icon>
           </div>
         </div>
-        <ExecutionStepContent v-if="expandedIds.includes(stepKey(item, index))" :item="item" />
+        <ExecutionStepContent v-if="expandedIds.includes(stepKey(item, index))" :item="toLogItem(item)" />
       </div>
     </div>
   </el-drawer>

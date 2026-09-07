@@ -192,6 +192,7 @@ export interface AnswerPresentation {
 export interface AnswerStep {
   sql: string
   brief: string
+  dataset_id?: string
   presentation?: AnswerPresentation
   chart?: unknown
   data?: AnswerDataset
@@ -213,6 +214,7 @@ export interface TurnAnswerDataset {
   sql?: string
   fields?: string[]
   rows?: Array<Record<string, any>>
+  preview_rows?: Array<Record<string, any>>
   row_count?: number
   truncated?: boolean
   limit?: number
@@ -256,11 +258,12 @@ export const turnAnswerToPayload = (value: unknown): AnswerPayload | undefined =
     .map((item) => ({
       sql: item.sql || '',
       brief: item.title || '',
+      dataset_id: item.dataset_id,
       presentation: item.presentation,
       chart: item.chart,
       data: {
         fields: item.fields || [],
-        data: item.rows || [],
+        data: item.rows?.length ? item.rows : item.preview_rows || [],
         row_count: item.row_count,
         truncated: item.truncated,
         limit: item.limit,
@@ -364,7 +367,6 @@ export class ChatRecord {
   run_completed_at?: Date | string
   active_interrupt?: ConversationInterrupt
   interrupts: ConversationInterrupt[] = []
-  agent_stages?: Array<any> = []
   intent_reasoning_content?: string
   feedback?: string | null
 
@@ -597,7 +599,6 @@ const toChatRecord = (data?: any): ChatRecord | undefined => {
   record.active_interrupt = data.active_interrupt
   record.interrupts = data.interrupts || []
   record.intent_reasoning_content = data.intent_reasoning_content
-  record.agent_stages = data.agent_stages || []
   return record
 }
 const toChatRecordList = (list: any = []): ChatRecord[] => {
@@ -854,6 +855,42 @@ export const chatApi = {
       options?.silent ? { requestOptions: { silent: true } } : undefined
     )
     return toChatLogHistory(response)
+  },
+  get_timeline: async (
+    record_id?: number,
+    options?: { silent?: boolean; runId?: string; view?: 'compact' | 'detail' }
+  ): Promise<import('@/features/conversation/processTimeline').ProcessTimeline | undefined> => {
+    if (!record_id) return undefined
+    const params = new URLSearchParams()
+    params.set('view', options?.view || 'compact')
+    if (options?.runId) params.set('run_id', options.runId)
+    return request.get(
+      `/chat/record/${record_id}/timeline?${params.toString()}`,
+      options?.silent ? { requestOptions: { silent: true } } : undefined
+    )
+  },
+  get_dataset_rows: (
+    record_id: number,
+    dataset_id: string,
+    options?: { offset?: number; limit?: number }
+  ): Promise<{
+    dataset_id: string
+    fields: string[]
+    rows: Array<Record<string, any>>
+    row_count: number
+    truncated: boolean
+    offset: number
+    limit: number
+  }> => {
+    const params = new URLSearchParams()
+    if (options?.offset != null) params.set('offset', String(options.offset))
+    if (options?.limit != null) params.set('limit', String(options.limit))
+    const query = params.toString()
+    return request.get(
+      `/chat/record/${record_id}/datasets/${encodeURIComponent(dataset_id)}/rows${
+        query ? `?${query}` : ''
+      }`
+    )
   },
   get_chart_usage: (record_id?: number): Promise<any> => {
     return request.get(`/chat/record/${record_id}/usage`)

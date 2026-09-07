@@ -124,7 +124,7 @@ def project_turn_answer(value: Mapping[str, Any]) -> AnswerPayload:
             ),
             "data": {
                 "fields": list(item.get("fields") or []),
-                "data": list(item.get("rows") or []),
+                "data": list(item.get("rows") or item.get("preview_rows") or []),
                 "row_count": item.get("row_count"),
                 "truncated": bool(item.get("truncated")),
                 "limit": item.get("limit"),

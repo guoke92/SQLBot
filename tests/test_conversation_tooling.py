@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 import sys
 import types
-from contextlib import contextmanager
 from pathlib import Path
 
 import pytest
@@ -23,18 +22,13 @@ if "apps.conversation" not in sys.modules:
     sys.modules["apps.conversation"] = conversation_package
 
 
-@contextmanager
-def _log_span(**_kwargs):
-    yield AuditSpanHandle(payload={}, error=False)
-
-
 from langchain_core.messages import AIMessage, SystemMessage, ToolMessage
 from langchain_core.tools import StructuredTool
 
 import sqlbot_xpack  # noqa: F401  # initialize extension imports before app modules
 import apps.conversation.agent as agent_module
 import apps.conversation.tooling as tooling_module
-from apps.chat.steps.observability import AuditSpanHandle, sanitize_audit_value
+from apps.chat.steps.observability import sanitize_audit_value
 from apps.conversation.agent import agent_node, route_after_agent
 from apps.conversation.messages import deserialize_messages, serialize_messages
 from apps.conversation.tooling import (
@@ -46,7 +40,39 @@ from apps.conversation.tooling import (
 
 @pytest.fixture(autouse=True)
 def _stub_tool_spans(monkeypatch):
-    monkeypatch.setattr(tooling_module, "log_span", _log_span)
+    class _Span:
+        id = 1
+
+        def set_input(self, *_a, **_k):
+            return None
+
+        def set_output(self, *_a, **_k):
+            return None
+
+        def set_usage(self, *_a, **_k):
+            return None
+
+        def set_model_calls(self, *_a, **_k):
+            return None
+
+        def delta(self, *_a, **_k):
+            return None
+
+        def close(self, *_a, **_k):
+            return {}
+
+        def snapshot(self):
+            return {}
+
+    def _open_span(**_kwargs):
+        return _Span()
+
+    monkeypatch.setattr(tooling_module, "open_process_span", _open_span)
+    monkeypatch.setattr(tooling_module, "attach_process_span", lambda *_a, **_k: _Span())
+    monkeypatch.setattr(
+        tooling_module, "attach_running_tool_span", lambda **_k: None
+    )
+    monkeypatch.setattr(agent_module, "open_process_span", _open_span)
     # Node unit tests isolate tool/agent behavior from the durable runtime
     # boundary, which is covered separately by run lifecycle tests.
     direct_runtime_value = lambda state, key: state[key]
@@ -241,11 +267,32 @@ def test_route_after_agent_uses_shared_tool_loop() -> None:
 
 
 def test_agent_audit_payload_redacts_tool_credentials(monkeypatch) -> None:
-    captured = AuditSpanHandle()
+    opened: list[dict] = []
 
-    @contextmanager
-    def capture_span(**_kwargs):
-        yield captured
+    class _Span:
+        id = 1
+
+        def set_input(self, *_a, **_k):
+            return None
+
+        def set_output(self, value):
+            opened.append({"output": value})
+
+        def set_usage(self, *_a, **_k):
+            return None
+
+        def set_model_calls(self, *_a, **_k):
+            return None
+
+        def delta(self, *_a, **_k):
+            return None
+
+        def close(self, *_a, **_k):
+            return {}
+
+    def _open(**kwargs):
+        opened.append(kwargs)
+        return _Span()
 
     class FakeModel:
         def bind_tools(self, _tools):
@@ -268,7 +315,7 @@ def test_agent_audit_payload_redacts_tool_credentials(monkeypatch) -> None:
                 ],
             )
 
-    monkeypatch.setattr(agent_module, "log_span", capture_span)
+    monkeypatch.setattr(agent_module, "open_process_span", _open)
     result = agent_node(
         {
             "llm": FakeModel(),
@@ -278,8 +325,14 @@ def test_agent_audit_payload_redacts_tool_credentials(monkeypatch) -> None:
             "tool_round_limit": 2,
         }
     )
-    calls = captured["payload"]["tool_calls"]
+    thought_out = next(item for item in opened if "output" in item)["output"]
+    calls = thought_out["tool_calls"]
     assert calls[0]["args"]["configuration"] == {
+        "host": "db.local",
+        "password": "<redacted>",
+    }
+    tool_open = next(item for item in opened if item.get("kind") == "tool")
+    assert tool_open["tool"]["args"]["configuration"] == {
         "host": "db.local",
         "password": "<redacted>",
     }
@@ -287,15 +340,10 @@ def test_agent_audit_payload_redacts_tool_credentials(monkeypatch) -> None:
 
 
 def test_agent_rejects_empty_terminal_response(monkeypatch) -> None:
-    @contextmanager
-    def capture_span(**_kwargs):
-        yield AuditSpanHandle()
-
     class FakeModel:
         def invoke(self, _messages):
             return AIMessage(content="")
 
-    monkeypatch.setattr(agent_module, "log_span", capture_span)
     result = agent_node(
         {
             "llm": FakeModel(),
@@ -309,10 +357,6 @@ def test_agent_rejects_empty_terminal_response(monkeypatch) -> None:
 
 
 def test_agent_requires_tool_grounding_before_config_completion(monkeypatch) -> None:
-    @contextmanager
-    def capture_span(**_kwargs):
-        yield AuditSpanHandle()
-
     class FakeModel:
         def bind_tools(self, _tools):
             return self
@@ -320,7 +364,6 @@ def test_agent_requires_tool_grounding_before_config_completion(monkeypatch) -> 
         def invoke(self, _messages):
             return AIMessage(content="The relationship was saved.")
 
-    monkeypatch.setattr(agent_module, "log_span", capture_span)
     result = agent_node(
         {
             "llm": FakeModel(),
@@ -337,10 +380,6 @@ def test_agent_requires_tool_grounding_before_config_completion(monkeypatch) -> 
 
 
 def test_agent_accepts_explicit_tool_free_guidance(monkeypatch) -> None:
-    @contextmanager
-    def capture_span(**_kwargs):
-        yield AuditSpanHandle()
-
     class FakeModel:
         def bind_tools(self, _tools):
             return self
@@ -350,7 +389,6 @@ def test_agent_accepts_explicit_tool_free_guidance(monkeypatch) -> None:
                 content="[[NO_SYSTEM_ACTION]] A table relationship joins fields."
             )
 
-    monkeypatch.setattr(agent_module, "log_span", capture_span)
     result = agent_node(
         {
             "llm": FakeModel(),
@@ -366,10 +404,6 @@ def test_agent_accepts_explicit_tool_free_guidance(monkeypatch) -> None:
 
 
 def test_agent_fails_repeated_ungrounded_config_completion(monkeypatch) -> None:
-    @contextmanager
-    def capture_span(**_kwargs):
-        yield AuditSpanHandle()
-
     class FakeModel:
         def bind_tools(self, _tools):
             return self
@@ -377,7 +411,6 @@ def test_agent_fails_repeated_ungrounded_config_completion(monkeypatch) -> None:
         def invoke(self, _messages):
             return AIMessage(content="The relationship was saved.")
 
-    monkeypatch.setattr(agent_module, "log_span", capture_span)
     result = agent_node(
         {
             "llm": FakeModel(),
@@ -394,10 +427,6 @@ def test_agent_fails_repeated_ungrounded_config_completion(monkeypatch) -> None:
 
 
 def test_agent_finalizes_without_tools_at_round_limit(monkeypatch) -> None:
-    @contextmanager
-    def capture_span(**_kwargs):
-        yield AuditSpanHandle()
-
     class FakeModel:
         bind_calls = 0
 
@@ -410,7 +439,6 @@ def test_agent_finalizes_without_tools_at_round_limit(monkeypatch) -> None:
             return AIMessage(content="The operation failed; verify the credentials.")
 
     model = FakeModel()
-    monkeypatch.setattr(agent_module, "log_span", capture_span)
     result = agent_node(
         {
             "llm": model,
@@ -488,4 +516,69 @@ def test_execute_tools_stops_after_non_retryable_failure() -> None:
     )
     assert result["tool_stop_reason"] == (
         "disconnected failed with a non-retryable connection error"
+    )
+
+
+def test_execute_tools_attaches_running_span_by_call_id_when_state_empty(
+    monkeypatch,
+) -> None:
+    """Defense: reuse DB-open tool span even if open_tool_spans was dropped."""
+    attached: list[dict] = []
+    opened: list[dict] = []
+
+    class _Span:
+        id = 3700
+
+        def set_input(self, *_a, **_k):
+            return None
+
+        def set_output(self, *_a, **_k):
+            return None
+
+        def close(self, *_a, **_k):
+            return {}
+
+    def _attach_running(**kwargs):
+        attached.append(kwargs)
+        return _Span()
+
+    def _open(**kwargs):
+        opened.append(kwargs)
+        return _Span()
+
+    monkeypatch.setattr(tooling_module, "attach_running_tool_span", _attach_running)
+    monkeypatch.setattr(tooling_module, "open_process_span", _open)
+    monkeypatch.setattr(tooling_module, "attach_process_span", lambda *_a, **_k: None)
+
+    def echo(value: str) -> dict[str, object]:
+        return {
+            "ok": True,
+            "summary": "echoed",
+            "data": {"value": value},
+            "error": None,
+            "failure": None,
+        }
+
+    tool = StructuredTool.from_function(func=echo, name="echo", description="Echo")
+    result = execute_tools_node(
+        {
+            "messages": [
+                AIMessage(
+                    content="",
+                    tool_calls=[
+                        {"id": "call-dup", "name": "echo", "args": {"value": "x"}}
+                    ],
+                )
+            ],
+            "bound_tools": [tool],
+            "sink": "json",
+            "record_id": 530,
+            "run_id": "run-dup",
+        }
+    )
+    assert attached and attached[0]["call_id"] == "call-dup"
+    assert opened == []
+    messages = deserialize_messages(result["messages"])
+    assert any(
+        isinstance(m, ToolMessage) and m.tool_call_id == "call-dup" for m in messages
     )

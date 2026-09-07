@@ -946,6 +946,43 @@
       "DECIDE_NEXT": "실행 결과 확인",
       "WAIT_CLARIFICATION": "명확화 응답 대기"
     },
+    "timeline": {
+      "thought": "생각",
+      "artifact": "조회 결과",
+      "clarification": "확인",
+      "answer": "답변",
+      "expand_all": "모두 펼치기",
+      "collapse_all": "모두 접기",
+      "step_count": "{count}개 단계",
+      "truncated": "결과가 잘림",
+      "assumptions": "가정",
+      "process": "처리 과정",
+      "processing": "처리 중",
+      "worked_for": "{seconds}초 동안 처리",
+      "worked_for_with_tokens": "{seconds}초 동안 처리 · {tokens} token",
+      "tokens_only": "{tokens} token",
+      "thinking": "생각 중",
+      "thought_for": "{seconds}초 동안 생각",
+      "show_process": "펼치기",
+      "hide_process": "접기",
+      "tool": {
+        "generic": "도구 호출",
+        "execute_sql_sandbox": "쿼리 실행",
+        "patch_and_compile_sql": "SQL 수정",
+        "compare_results": "결과 비교",
+        "search_wiki": "지식 검색",
+        "request_clarification": "확인 요청"
+      }
+    },
+    "summary": {
+      "thought_done": "생각 완료",
+      "tool_ok": "성공",
+      "tool_failed": "실패",
+      "query_rows": "{count}행 반환",
+      "answer_ready": "답변 준비됨",
+      "clarification_waiting": "확인 대기",
+      "clarification_confirmed": "기준 확인됨"
+    },
     "audit": {
       "processing": "처리 중",
       "raw_input": "원시 입력",
