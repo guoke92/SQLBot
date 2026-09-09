@@ -270,10 +270,19 @@ def test_recall_fencing_and_physical_mode() -> None:
     )
     store = InMemoryWikiStore([parse_page(c) for c in corpus] + [draft])
     query = "平台录入"
+    trace: dict = {}
     passages = recall(
-        "cust_company_info", store, oid=1, databases=["lowcode_pplatform"], top_k=8
+        "cust_company_info",
+        store,
+        oid=1,
+        databases=["lowcode_pplatform"],
+        top_k=8,
+        trace_out=trace,
     )
-    assert any(p.page_key == "draft_ghost" for p in passages)  # draft 暂入召回
+    gated_tables = [str(k) for k in (trace.get("gated_table_pages") or [])]
+    assert any(p.page_key == "draft_ghost" for p in passages) or any(
+        "draft_ghost" in key for key in gated_tables
+    )  # draft 暂入召回（表页进候选，不占语义窗）
     retired = parse_page(
         table_src.replace("status: published", "status: retired").replace(
             "page_key: cust_company_info", "page_key: retired_ghost"

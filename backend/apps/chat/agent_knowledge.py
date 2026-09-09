@@ -14,8 +14,11 @@ from typing import Any
 from langchain_core.messages import BaseMessage, SystemMessage
 from pydantic import BaseModel, ConfigDict, Field
 
+from apps.knowledge.recall_kernel.types import RecallBudget
+
 WIKI_SCHEMA_GAP_SEARCH_LIMIT = 2
 PROBE_SQL_LIMIT = 2
+SEARCH_WIKI_ROUND_LIMIT = 2
 
 _TABLE_HEADER_RE = re.compile(r"^# Table:\s*([^,\n]+)", re.MULTILINE)
 _SCHEMA_SPLIT_RE = re.compile(r"(?=^# Table: )", re.MULTILINE)
@@ -46,6 +49,7 @@ class MergeDelta(BaseModel):
 
     added_tables: list[str] = Field(default_factory=list)
     added_pages: list[str] = Field(default_factory=list)
+    added_evidence_pages: list[str] = Field(default_factory=list)
     schema_ready: bool = False
     unchanged: bool = True
 
@@ -63,6 +67,7 @@ class AgentKnowledgePlane(BaseModel):
     backend: str = ""
     store_source: str = ""
     schema_gap_searches: int = 0
+    search_rounds: int = 0
     coverage_fp: str = ""
 
     def to_dump(self) -> dict[str, Any]:
@@ -124,6 +129,7 @@ class AgentKnowledgePlane(BaseModel):
         return MergeDelta(
             added_tables=added_tables,
             added_pages=added_pages,
+            added_evidence_pages=list(added_pages),
             schema_ready=self.schema_ready,
             unchanged=unchanged,
         )
@@ -158,6 +164,21 @@ class AgentKnowledgePlane(BaseModel):
             change_baseline=change_baseline,
         )
 
+    def schema_catalog_text(self) -> str:
+        schema = "\n".join(
+            self.schema_by_table[name]
+            for name in self.tables
+            if self.schema_by_table.get(name)
+        )
+        extra = [
+            body
+            for key, body in self.schema_by_table.items()
+            if key not in self.tables and not str(key).startswith("_") and body.strip()
+        ]
+        if extra:
+            schema = (schema + "\n" + "\n".join(extra)).strip()
+        return schema
+
     def render_system_sections(self) -> str:
         parts: list[str] = []
         wiki = "\n\n".join(
@@ -178,18 +199,7 @@ class AgentKnowledgePlane(BaseModel):
                     "禁止查询 information_schema / SHOW COLUMNS / DESCRIBE，禁止猜测字段写 SQL。\n"
                     "</wiki_schema_gap>"
                 )
-        schema = "\n".join(
-            self.schema_by_table[name]
-            for name in self.tables
-            if self.schema_by_table.get(name)
-        )
-        extra = [
-            body
-            for key, body in self.schema_by_table.items()
-            if key not in self.tables and not str(key).startswith("_") and body.strip()
-        ]
-        if extra:
-            schema = (schema + "\n" + "\n".join(extra)).strip()
+        schema = self.schema_catalog_text()
         if schema:
             parts.append(
                 "<schema_catalog>\n"
@@ -200,12 +210,38 @@ class AgentKnowledgePlane(BaseModel):
         return "\n\n".join(parts)
 
     def apply_search_policy(self, delta: MergeDelta) -> dict[str, Any]:
-        """Gap/stagnate policy owned by the plane, not llm_service attrs."""
+        """Coverage policy: stop on no new evidence / budget / round limit."""
+        budget = RecallBudget.from_settings()
         if self.schema_ready and delta.unchanged:
             return {
                 "recall_status": "stagnant",
                 "stop_search": True,
                 "schema_ready": True,
+                "schema_gap_searches": self.schema_gap_searches,
+            }
+        if len(self.tables) > budget.max_tables_total:
+            overflow = self.tables[budget.max_tables_total :]
+            self.tables = self.tables[: budget.max_tables_total]
+            for name in overflow:
+                self.schema_by_table.pop(name, None)
+            self.schema_ready = any(
+                schema_body_has_fields(body)
+                for key, body in self.schema_by_table.items()
+                if not str(key).startswith("_")
+            )
+            return {
+                "recall_status": "budget_exhausted",
+                "stop_search": True,
+                "schema_ready": self.schema_ready,
+                "schema_gap_searches": self.schema_gap_searches,
+            }
+        if self.search_rounds >= SEARCH_WIKI_ROUND_LIMIT and (
+            delta.added_evidence_pages or (self.schema_ready and not delta.unchanged)
+        ):
+            return {
+                "recall_status": "round_limit",
+                "stop_search": True,
+                "schema_ready": self.schema_ready,
                 "schema_gap_searches": self.schema_gap_searches,
             }
         if self.schema_ready:

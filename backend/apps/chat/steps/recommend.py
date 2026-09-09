@@ -28,11 +28,7 @@ def _recalled_schema_text(llm_service: Any) -> str:
 
     snap = peek_runtime(run_id) or {}
     plane = AgentKnowledgePlane.from_dump(snap.get("knowledge_plane"))
-    return "\n".join(
-        plane.schema_by_table[name]
-        for name in plane.tables
-        if plane.schema_by_table.get(name)
-    ).strip()
+    return plane.schema_catalog_text()
 
 
 def generate_recommend_questions(

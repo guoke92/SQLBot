@@ -186,14 +186,13 @@ class Settings(BaseSettings):
 
     KNOWLEDGE_WIKI_RECALL_TOP_K: int = 8
     KNOWLEDGE_WIKI_EMBEDDING_ENABLED: bool = True
-    # wiki 主导表选择：wiki 命中时闭包表必选，embedding 召回补充 N 张
-    # （0 = 不补充，仅闭包表；wiki 无命中时不裁剪走现状）
-    WIKI_TABLE_SUPPLEMENT_COUNT: int = 4
-    # wiki 主导模式下 embedding 补充表的相关性下限（独立于 WIKI_TABLE_SUPPLEMENT_COUNT
-    # 的数量预算：分数不过线的表不进 prompt，不足预算不凑数）。默认对齐 wiki
-    # 页级向量过滤强度（chat 169：0.4 的表级线拦不住 tenant_setting_config 类
-    # 运营配置表，实际通过分 ~0.43-0.46 与业务表无区分度）
-    WIKI_TABLE_SUPPLEMENT_SIMILARITY: float = 0.5
+    # 统一召回预算（Wiki 闭包 / schema_vector 共用，不再 embedding 补表）
+    KNOWLEDGE_WIKI_RECALL_MAX_TABLES: int = 4
+    KNOWLEDGE_WIKI_RECALL_MAX_TABLES_TOTAL: int = 8
+    KNOWLEDGE_WIKI_RECALL_SCHEMA_CHARS: int = 12000
+    WIKI_MIN_VECTOR_SCORE: float = 0.28
+    WIKI_MIN_LEXICAL_SCORE: float = 0.30
+    WIKI_ALIAS_RRF_WEIGHT: float = 3.0
     # business 模式单页正文摘要上限（剔除 ground 围栏后的散文；0 = 不截断）
     KNOWLEDGE_WIKI_PROSE_CHARS: int = 400
     # 提取面：Test-wiki（需求文档 wiki）目录，E0.5 证据源；空=不用需求文档补充

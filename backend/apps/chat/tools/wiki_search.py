@@ -35,13 +35,55 @@ def _save_plane(plane: AgentKnowledgePlane) -> None:
     attach_runtime(run_id, knowledge_plane=plane.to_dump())
 
 
+def _filter_payload_tables(payload: dict[str, Any], kept: list[str]) -> dict[str, Any]:
+    from apps.chat.agent_knowledge import split_schema_text
+
+    data = dict(payload)
+    allowed = {str(name) for name in kept}
+    data["tables"] = [name for name in (data.get("tables") or []) if str(name) in allowed]
+    bodies = split_schema_text(str(data.get("schema_text") or ""), tables=list(allowed))
+    data["schema_text"] = "\n".join(
+        bodies[name] for name in data["tables"] if bodies.get(name)
+    )
+    evidence = dict(data.get("table_evidence") or {})
+    data["table_evidence"] = {
+        name: evidence.get(name) or [] for name in data["tables"]
+    }
+    return data
+
+
 def apply_wiki_search_policy(
     payload: dict[str, Any],
     plane: AgentKnowledgePlane,
 ) -> tuple[AgentKnowledgePlane, dict[str, Any], Any]:
-    """Merge recall into the plane and apply gap/stagnate policy."""
-    delta = plane.merge_recall(payload)
+    """Merge recall into the plane and apply coverage / stop-search policy."""
+    plane.search_rounds += 1
+    data = dict(payload)
+    incoming_pages = [
+        str(key)
+        for key in (data.get("page_keys") or [])
+        if str(key) and str(key) not in plane.page_keys
+    ]
+    evidence = data.get("table_evidence") or {}
+    incoming_tables = [str(name) for name in (data.get("tables") or []) if str(name)]
+    stripped = False
+    if not incoming_pages and plane.schema_ready:
+        kept = [
+            name
+            for name in incoming_tables
+            if name in plane.tables or evidence.get(name)
+        ]
+        if kept != incoming_tables:
+            data = _filter_payload_tables(data, kept)
+            stripped = True
+    delta = plane.merge_recall(data)
     policy = plane.apply_search_policy(delta)
+    if stripped and delta.unchanged:
+        policy = {
+            **policy,
+            "recall_status": "no_new_evidence",
+            "stop_search": True,
+        }
     return plane, policy, delta
 
 
@@ -50,7 +92,7 @@ def search_wiki_knowledge(
     query: str,
     *,
     access_scope: Any = None,
-    top_k: int = 5,
+    top_k: int | None = None,
 ) -> ToolResult:
     """Retrieve Wiki/schema into the knowledge plane; return a coverage stub."""
     clean_query = str(query or "").strip()
@@ -77,6 +119,24 @@ def search_wiki_knowledge(
         status = str(policy.get("recall_status") or "")
         backend = stub.get("backend") or "none"
 
+        if policy.get("stop_search") and status == "no_new_evidence":
+            return success_result(
+                (
+                    "No new Wiki evidence: extra tables were not merged. "
+                    "stop_search is set. Do not call search_wiki again. "
+                    "Write SQL from the system schema_catalog or request_clarification."
+                ),
+                data=stub,
+            )
+        if policy.get("stop_search") and status in {"round_limit", "budget_exhausted"}:
+            return success_result(
+                (
+                    "Wiki search budget reached. stop_search is set. "
+                    "Do not call search_wiki again. Write SQL or tell the user "
+                    "the knowledge base cannot cover this yet."
+                ),
+                data=stub,
+            )
         if policy.get("stop_search") and status == "stagnant" and plane.schema_ready:
             return success_result(
                 (

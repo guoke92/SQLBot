@@ -175,26 +175,100 @@ def _docs_from_schema_vector(
 def _pick_tables(
     scored: list[dict[str, Any]], *, table_limit: int
 ) -> list[str]:
-    ranked: dict[str, float] = {}
-    for doc in scored:
-        kind = str(doc.get("kind") or "")
-        score = float(doc.get("score") or 0.0)
-        names: list[str] = []
-        if kind == KIND_RELATION:
-            names.extend(
-                [
-                    str(doc.get("table_name") or "").strip(),
-                    str(doc.get("peer_table") or "").strip(),
-                ]
+    from apps.knowledge.recall_kernel.tables import resolve_schema_vector_tables
+
+    return [
+        item.name
+        for item in resolve_schema_vector_tables(scored, table_limit=table_limit)
+    ]
+
+
+def _live_tables_map(
+    session: Session,
+    *,
+    llm_service: Any,
+    table_names: list[str],
+) -> dict[str, Any]:
+    from apps.datasource.crud.datasource import get_table_obj_by_ds
+    from apps.protocol import get_protocol_for_ds
+
+    ds = getattr(llm_service, "ds", None)
+    user = getattr(llm_service, "current_user", None)
+    wanted = {str(name) for name in table_names}
+    projection: dict[str, Any] = {}
+    table_objs: list[Any] = []
+    try:
+        if ds is not None:
+            table_objs = list(
+                get_table_obj_by_ds(session=session, current_user=user, ds=ds) or []
             )
-        else:
-            names.append(str(doc.get("table_name") or "").strip())
-        for name in names:
-            if not name:
-                continue
-            ranked[name] = max(ranked.get(name, 0.0), score)
-    ordered = sorted(ranked.items(), key=lambda item: item[1], reverse=True)
-    return [name for name, _score in ordered[: max(1, int(table_limit))] if name]
+    except Exception as exc:
+        SQLBotLogUtil.warning("schema vector live tables degraded: %s", exc)
+        table_objs = []
+    for obj in table_objs:
+        table = getattr(obj, "table", None)
+        name = str(getattr(table, "table_name", "") or "")
+        if name not in wanted:
+            continue
+        projection[name] = {
+            "comment": getattr(table, "table_comment", None) or "",
+            "fields": [
+                (
+                    str(getattr(f, "field_name", "") or ""),
+                    str(getattr(f, "field_type", "") or "string"),
+                    str(
+                        getattr(f, "custom_comment", None)
+                        or getattr(f, "field_comment", "")
+                        or ""
+                    ),
+                )
+                for f in (getattr(obj, "fields", None) or [])
+            ],
+        }
+    if projection:
+        return projection
+    if ds is None:
+        return {}
+    tables = list(
+        session.exec(
+            select(CoreTable).where(
+                CoreTable.ds_id == int(ds.id),
+                CoreTable.checked == True,  # noqa: E712
+                CoreTable.table_name.in_(list(wanted)),
+            )
+        ).all()
+    )
+    fields = list(
+        session.exec(
+            select(CoreField).where(
+                CoreField.ds_id == int(ds.id),
+                CoreField.checked == True,  # noqa: E712
+                CoreField.table_id.in_([int(t.id) for t in tables if t.id]),
+            )
+        ).all()
+    )
+    by_table: dict[int, list[CoreField]] = {}
+    for field in fields:
+        by_table.setdefault(int(field.table_id), []).append(field)
+    proto = get_protocol_for_ds(ds)
+    for table in tables:
+        name = str(table.table_name or "")
+        if name not in wanted:
+            continue
+        projection[name] = {
+            "comment": getattr(table, "table_comment", None)
+            or proto.table_prompt_label(ds, name)
+            or name,
+            "fields": [
+                (
+                    str(f.field_name or ""),
+                    str(f.field_type or "string"),
+                    str(getattr(f, "custom_comment", None) or f.field_comment or ""),
+                )
+                for f in by_table.get(int(table.id), [])
+            ],
+        }
+    return projection
 
 
 def _render_schema(
@@ -203,81 +277,41 @@ def _render_schema(
     llm_service: Any,
     table_names: list[str],
 ) -> tuple[str, list[str]]:
-    from apps.datasource.crud.datasource import get_table_obj_by_ds
-    from apps.datasource.schema_text import SchemaTextPurpose, render_table_schema_text
-    from apps.protocol import get_protocol_for_ds
+    from apps.knowledge.recall_kernel.render import render_schema
 
     ds = getattr(llm_service, "ds", None)
-    user = getattr(llm_service, "current_user", None)
     if ds is None or not table_names:
         return "", []
-    wanted = {str(name) for name in table_names}
-    proto = get_protocol_for_ds(ds)
-    table_objs = []
-    try:
-        table_objs = list(
-            get_table_obj_by_ds(session=session, current_user=user, ds=ds) or []
-        )
-    except Exception as exc:
-        SQLBotLogUtil.warning("schema vector render: catalog load degraded: %s", exc)
-        table_objs = []
-    if not table_objs:
-        tables = list(session.exec(select(CoreTable).where(
-                    CoreTable.ds_id == int(ds.id),
-                    CoreTable.checked == True,  # noqa: E712
-                    CoreTable.table_name.in_(list(wanted)),
-                )).all())
-        fields = list(session.exec(select(CoreField).where(
-                    CoreField.ds_id == int(ds.id),
-                    CoreField.checked == True,  # noqa: E712
-                    CoreField.table_id.in_([int(t.id) for t in tables if t.id]),
-                )).all())
-        by_table: dict[int, list[CoreField]] = {}
-        for field in fields:
-            by_table.setdefault(int(field.table_id), []).append(field)
-        chunks: list[str] = []
-        kept: list[str] = []
-        for table in tables:
-            name = str(table.table_name or "")
-            if name not in wanted:
-                continue
-            db = getattr(table, "database_name", None) or ""
-            label = proto.table_prompt_label(ds, name, database_name=db or None)
-            chunks.append(
-                render_table_schema_text(
-                    session,
-                    table=table,
-                    fields=list(by_table.get(int(table.id), [])),
-                    table_label=label,
-                    purpose=SchemaTextPurpose.PROMPT,
-                )
-            )
-            kept.append(name)
-        schema = "".join(chunks)
-        schema += _relation_block(session, ds_id=int(ds.id), table_names=kept)
-        return schema, kept
-
-    chunks = []
-    kept = []
-    for obj in table_objs:
-        name = str(getattr(getattr(obj, "table", None), "table_name", "") or "")
-        if name not in wanted:
-            continue
-        db = getattr(obj.table, "database_name", None) or ""
-        label = proto.table_prompt_label(ds, name, database_name=db or None)
-        chunks.append(
-            render_table_schema_text(
-                session,
-                table=obj.table,
-                fields=list(obj.fields or []),
-                table_label=label,
-                purpose=SchemaTextPurpose.PROMPT,
-            )
-        )
-        kept.append(name)
-    schema = "".join(chunks)
-    schema += _relation_block(session, ds_id=int(ds.id), table_names=kept)
+    live = _live_tables_map(session, llm_service=llm_service, table_names=table_names)
+    kept = [name for name in table_names if name in live]
+    if not kept:
+        return "", []
+    relations = _relation_lines(session, ds_id=int(ds.id), table_names=kept)
+    schema = render_schema(
+        kept,
+        live_tables=live,
+        confirmed_relations=relations,
+    )
     return schema, kept
+
+
+def _relation_lines(session: Session, *, ds_id: int, table_names: list[str]) -> list[str]:
+    block = _relation_block(session, ds_id=ds_id, table_names=table_names)
+    lines: list[str] = []
+    for raw in str(block or "").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("【"):
+            continue
+        if "=" in line and "." in line:
+            left, _sep, right = line.partition("=")
+            left = left.strip()
+            right = right.strip()
+            if left and right:
+                lines.append(f"关联: {left} → {right}")
+                continue
+        if line.startswith("关联:"):
+            lines.append(line)
+    return lines
 
 
 def _relation_block(session: Session, *, ds_id: int, table_names: list[str]) -> str:
@@ -411,6 +445,7 @@ def recall_schema_context(
             "backend": "schema_vector",
             "page_keys": [],
             "hit_count": len(kept),
+            "table_evidence": {name: [] for name in kept},
         }
 
     if session is not None:

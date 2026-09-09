@@ -29,8 +29,10 @@ _MIN_TOKEN = 2
 # 信号但噪声高于精确别名命中；eval 达标即停，不做自动调参。
 _LEXICAL_WEIGHT = 1.0
 _VECTOR_WEIGHT = 1.2
-# table 页侧重（P2 schema wiki 化）：business 模式给表页小幅倾斜
-_TABLE_PAGE_BONUS = 0.05
+# alias 作为页级 RRF 通道（不再做绝对加成，避免短别名碾压口径页）
+_DEFAULT_ALIAS_WEIGHT = 3.0
+_DEFAULT_MIN_VECTOR = 0.28
+_DEFAULT_MIN_LEXICAL = 0.30
 # business 模式单页正文摘要上限（剔除围栏后的散文）；0 = 不截断
 _DEFAULT_PROSE_CHARS = 400
 
@@ -214,21 +216,55 @@ def _lexical_channels(
 
 
 def _alias_hits(query: str, store: InMemoryWikiStore) -> dict[str, float]:
-    """别名/值标签 ⊂ 查询 的页级强命中（确定性，"值⊂文本"哲学的页面版）。
+    """别名 ⊂ 查询 的页级通道（进 RRF，不再做绝对加成）。
 
-    枚举值 label（如"平台录入"）作为查询子串出现时，其权威页必须进窗口——
-    这是 F1（枚举映射）失败模式的正解。RRF 是排名融合，稀疏强信号通道
-    在其中与 74 项 coverage 通道等权会被稀释——所以走**页级分数加成**
-    而非通道融合。
-
-    别名最短 3 字符：加成幅度（min(2.0, len/4)）比页级 RRF 主分（≈0.02）
-    大 25~100 倍，2 字别名（"状态"/"编号"）作为查询子串几乎必中，会把
-    无关页无条件顶进窗口挤掉真命中。"""
+    别名最短 3 字符：2 字别名（"状态"/"编号"）作为子串几乎必中，会把
+    无关页顶进窗口。通道权重由 ``WIKI_ALIAS_RRF_WEIGHT`` 控制。"""
     scores: dict[str, float] = {}
     for alias, page_key in store.alias_index.items():
         if len(alias) >= 3 and alias in query:
             scores[page_key] = max(scores.get(page_key, 0.0), float(len(alias)))
     return scores
+
+
+def _page_best_score(channel: Mapping[str, float] | None, page_key: str) -> float:
+    if not channel:
+        return 0.0
+    prefix = f"{page_key}#"
+    return max(
+        (float(score) for cid, score in channel.items() if cid.startswith(prefix)),
+        default=0.0,
+    )
+
+
+def _gate_thresholds() -> tuple[float, float, float]:
+    from common.core.config import settings
+
+    vector = float(
+        getattr(settings, "WIKI_MIN_VECTOR_SCORE", _DEFAULT_MIN_VECTOR) or _DEFAULT_MIN_VECTOR
+    )
+    lexical = float(
+        getattr(settings, "WIKI_MIN_LEXICAL_SCORE", _DEFAULT_MIN_LEXICAL)
+        or _DEFAULT_MIN_LEXICAL
+    )
+    alias_weight = float(
+        getattr(settings, "WIKI_ALIAS_RRF_WEIGHT", _DEFAULT_ALIAS_WEIGHT)
+        or _DEFAULT_ALIAS_WEIGHT
+    )
+    return vector, lexical, alias_weight
+
+
+def _passes_quality_gate(
+    *,
+    vector_score: float,
+    lexical_score: float,
+    has_alias: bool,
+    min_vector: float,
+    min_lexical: float,
+) -> bool:
+    if has_alias:
+        return True
+    return vector_score >= min_vector or lexical_score >= min_lexical
 
 
 def _rrf_chunk_scores(channels: list[dict[str, float]]) -> dict[str, float]:
@@ -452,6 +488,38 @@ def recall(
     vector_page_scores: dict[str, float] = {}
     if vector_scores:
         vector_page_scores = _aggregate_pages(vector_scores)
+    coverage_channel = channels[1] if len(channels) >= 2 else {}
+    alias_page_scores = {
+        key: score
+        for key, score in _alias_hits(query, store).items()
+        if key in visible
+    }
+    min_vector, min_lexical, alias_weight = _gate_thresholds()
+    gate_rejected: list[str] = []
+    gated_table_pages: list[str] = []
+    gated_semantic: set[str] = set()
+    page_vector_raw: dict[str, float] = {}
+    page_lexical_raw: dict[str, float] = {}
+    apply_gate = mode == "business"
+    for page_key, page in visible.items():
+        page_vector_raw[page_key] = _page_best_score(vector_scores, page_key)
+        page_lexical_raw[page_key] = _page_best_score(coverage_channel, page_key)
+        passed = True
+        if apply_gate:
+            passed = _passes_quality_gate(
+                vector_score=page_vector_raw[page_key],
+                lexical_score=page_lexical_raw[page_key],
+                has_alias=page_key in alias_page_scores,
+                min_vector=min_vector,
+                min_lexical=min_lexical,
+            )
+        if not passed:
+            gate_rejected.append(page_key)
+            continue
+        if apply_gate and page.type == "table":
+            gated_table_pages.append(page_key)
+            continue
+        gated_semantic.add(page_key)
     if vector_page_scores:
         lexical_page_scores = {
             k: v for k, v in page_scores.items() if k not in vector_page_scores
@@ -466,22 +534,24 @@ def recall(
             **fused,
             **{k: v for k, v in lexical_page_scores.items() if k not in fused},
         }
-    # alias-exact 页级加成：枚举值 label/别名作为查询子串 = 精确语义锚点，
-    # 强度按命中长度（封顶 2.0），叠在 RRF 聚合分之上。
-    for page_key, alias_score in _alias_hits(query, store).items():
-        if page_key in visible:
-            page_scores[page_key] = page_scores.get(page_key, 0.0) + min(
-                2.0, alias_score / 4.0
-            )
-    # table 页侧重加成（P2）：table 页是 schema 权威承载（phys/topk/dict 齐备），
-    # business 模式下让 working-set 相关的表页更容易进窗口——与 alias 加成同
-    # 机制，幅度小（0.05/RRF 份额）只做同分近似时的倾斜。
-    if mode == "business":
-        for page_key in visible:
-            if visible[page_key].type == "table":
-                page_scores[page_key] = (
-                    page_scores.get(page_key, 0.0) + _TABLE_PAGE_BONUS
-                )
+    semantic_lexical = {k: v for k, v in page_scores.items() if k in gated_semantic}
+    semantic_vector = {
+        k: v for k, v in vector_page_scores.items() if k in gated_semantic
+    }
+    semantic_alias = {k: v for k, v in alias_page_scores.items() if k in gated_semantic}
+    fusion_channels: list[tuple[dict[str, float], float]] = []
+    if semantic_lexical:
+        fusion_channels.append((semantic_lexical, _LEXICAL_WEIGHT))
+    if semantic_vector:
+        fusion_channels.append((semantic_vector, _VECTOR_WEIGHT))
+    if semantic_alias:
+        fusion_channels.append((semantic_alias, alias_weight))
+    if fusion_channels:
+        page_scores = _rrf_page_scores(fusion_channels)
+        for key in gated_semantic:
+            page_scores.setdefault(key, 0.0)
+    else:
+        page_scores = dict.fromkeys(gated_semantic, 0.0)
     ranked = sorted(page_scores.items(), key=lambda item: (-item[1], item[0]))[:top_k]
 
     passages: list[RenderedPassage] = []
@@ -491,39 +561,17 @@ def recall(
         direct_keys.add(page_key)
         seed_ranks[page_key] = rank
         page = visible[page_key]
+        chunks = visible_chunks.get(page_key) or []
+        if not chunks:
+            continue
         page_chunk_ids = [cid for cid in chunk_scores if cid.startswith(f"{page_key}#")]
-        # 表页加成可把零词法命中的表页推进窗口（schema 权威呈现职责）——
-        # 该页可能没有任何 chunk 分，回退首 chunk。
         best_cid = (
             max(page_chunk_ids, key=lambda cid: chunk_scores[cid])
             if page_chunk_ids
             else f"{page_key}#0"
         )
-        best_index = int(best_cid.rsplit("#", 1)[1])
-        # source 标注（边际贡献口径）：词法-only 窗口外的页 = 向量通道带进来的。
+        best_index = min(int(best_cid.rsplit("#", 1)[1]), len(chunks) - 1)
         source = "lexical" if page_key in lexical_window else "vector"
-        # 原始通道信号（绝对阈值过滤用）：向量 cosine 取该页最好 chunk；
-        # 词法取 coverage 通道（channels[1]，exact 命中是稀疏强信号单独透出无意义）
-        page_vector = 0.0
-        if vector_scores:
-            page_vector = max(
-                (
-                    float(s)
-                    for cid, s in vector_scores.items()
-                    if cid.startswith(f"{page_key}#")
-                ),
-                default=0.0,
-            )
-        lexical_raw = 0.0
-        if len(channels) >= 2:
-            lexical_raw = max(
-                (
-                    float(s)
-                    for cid, s in channels[1].items()
-                    if cid.startswith(f"{page_key}#")
-                ),
-                default=0.0,
-            )
         passages.append(
             RenderedPassage(
                 page_key=page.page_key,
@@ -531,14 +579,15 @@ def recall(
                 score=round(score, 6),
                 source=source,
                 related_to=(),
-                text=_render(page, visible_chunks[page_key][best_index], mode=mode),
-                vector_score=round(page_vector, 6),
-                lexical_score=round(lexical_raw, 6),
+                text=_render(page, chunks[best_index], mode=mode),
+                vector_score=round(page_vector_raw.get(page_key, 0.0), 6),
+                lexical_score=round(page_lexical_raw.get(page_key, 0.0), 6),
                 store_key=page.store_key,
                 belong=page.belong,
             )
         )
 
+    closure_extra: list[str] = []
     if mode == "physical" or not store.adjacency:
         _fill_trace(
             trace_out,
@@ -550,6 +599,10 @@ def recall(
             quota=0,
             neighbors=[],
             mode=mode,
+            gate_rejected=gate_rejected,
+            gated_table_pages=gated_table_pages,
+            closure_extra_keys=closure_extra,
+            alias_top=semantic_alias,
         )
         return passages
 
@@ -571,12 +624,21 @@ def recall(
     )
     for page_key, nscore in ordered_neighbors[:quota]:
         page = visible[page_key]
+        if page_key in gate_rejected or (apply_gate and page.type == "table"):
+            if page_key not in closure_extra:
+                closure_extra.append(page_key)
+            if apply_gate and page.type == "table" and page_key not in gated_table_pages:
+                if page_key not in gate_rejected:
+                    gated_table_pages.append(page_key)
+            continue
         seeds = tuple(
             sorted(neighbor_seeds[page_key], key=lambda s: seed_ranks.get(s, 999))
         )
-        # 邻居页被注入是为了它的锚点块（关系/枚举/口径）——取首个含 ground
-        # 围栏的 chunk；无锚点块才回退首块（散文导语）。
         neighbor_chunks = store.chunks[page_key]
+        if not neighbor_chunks:
+            closure_extra.append(page_key)
+            continue
+        # 邻居进 prompt 必须自身过门（已在 gated_semantic）；取首个 ground 块。
         anchor_chunk = next(
             (c for c in neighbor_chunks if "```ground:" in c.text), neighbor_chunks[0]
         )
@@ -594,6 +656,8 @@ def recall(
                     source_note=f"图近邻: {'、'.join(seed_slugs)}",
                     mode=mode,
                 ),
+                vector_score=round(page_vector_raw.get(page_key, 0.0), 6),
+                lexical_score=round(page_lexical_raw.get(page_key, 0.0), 6),
                 store_key=page.store_key,
                 belong=page.belong,
             )
@@ -608,6 +672,10 @@ def recall(
         quota=quota,
         neighbors=[(k, round(v, 4)) for k, v in ordered_neighbors[: quota + 2]],
         mode=mode,
+        gate_rejected=gate_rejected,
+        gated_table_pages=gated_table_pages,
+        closure_extra_keys=closure_extra,
+        alias_top=semantic_alias,
     )
     return passages
 
@@ -623,6 +691,10 @@ def _fill_trace(
     quota: int,
     neighbors: list[tuple[str, float]],
     mode: str,
+    gate_rejected: list[str] | None = None,
+    gated_table_pages: list[str] | None = None,
+    closure_extra_keys: list[str] | None = None,
+    alias_top: Mapping[str, float] | None = None,
 ) -> None:
     """召回各阶段中间量 → trace_out（执行详情"召回过程"卡片的数据源）。
 
@@ -656,6 +728,15 @@ def _fill_trace(
             "chunks": len(vector_scores or {}),
             "top": _channel_top(dict(vector_scores or {})),
         },
+        "alias": {
+            "chunks": len(alias_top or {}),
+            "top": [
+                {"page_key": pk, "score": round(s, 4)}
+                for pk, s in sorted(
+                    (alias_top or {}).items(), key=lambda kv: (-kv[1], kv[0])
+                )[:5]
+            ],
+        },
     }
     trace_out["page_fusion"] = [
         {"page_key": pk, "score": round(s, 4)}
@@ -664,6 +745,12 @@ def _fill_trace(
     trace_out["window"] = [{"page_key": pk, "score": round(s, 4)} for pk, s in ranked]
     trace_out["graph_quota"] = quota
     trace_out["graph_neighbors"] = [{"page_key": pk, "score": s} for pk, s in neighbors]
+    trace_out["gate_rejected"] = list(gate_rejected or [])
+    trace_out["gated_table_pages"] = list(gated_table_pages or [])
+    trace_out["closure_extra_keys"] = list(closure_extra_keys or [])
+    trace_out["page_scores"] = {
+        pk: round(s, 6) for pk, s in page_scores.items()
+    }
 
 
 top_5 = 5  # trace 里每通道/融合只留 top5（可读性优先，完整清单在 hits）

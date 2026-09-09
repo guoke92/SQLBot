@@ -348,8 +348,8 @@ def retrieve_schema_node(state: NlqState) -> NlqState:
     """Project schema from bound knowledge tables; rank only when no unit hit.
 
     ``required_override`` / ``table_limit`` 由 retrieve_context_node 注入
-    （wiki 主导表选择）：闭包表必选 + embedding 召回按预算补充。独立调用
-    （单测/其它路径）时两者为 None，行为与历史一致。
+    （TableResolver 产出的闭包表；limit = 表数，不再 embedding 补表）。
+    独立调用时两者为 None，行为与历史一致。
     """
     llm_service = _llm_service(state)
     compiled = get_compiled_knowledge(llm_service)
@@ -503,19 +503,30 @@ def retrieve_context_node(state: NlqState) -> NlqState:
     if wiki_lead is not None and wiki_lead.page_keys:
         try:
             from apps.chat.steps.wiki_recall import _store
-            from apps.knowledge.wiki.anchors import closure_tables
+            from apps.knowledge.recall_kernel.tables import resolve_wiki_tables
+            from apps.knowledge.recall_kernel.types import RecallBudget
 
             store = _store(_ds_l)
             if store is not None:
-                closure, _truncated = closure_tables(store, wiki_lead.page_keys)
-                if closure:
-                    from common.core.config import settings
-
+                trace = dict(getattr(wiki_lead, "trace", None) or {})
+                budget = RecallBudget.from_settings()
+                candidates, _cut = resolve_wiki_tables(
+                    store,
+                    page_keys=list(wiki_lead.page_keys),
+                    extra_keys=list(trace.get("closure_extra_keys") or []),
+                    table_pages=list(trace.get("gated_table_pages") or []),
+                    scores={
+                        str(k): float(v)
+                        for k, v in dict(trace.get("page_scores") or {}).items()
+                    },
+                    budget=budget,
+                )
+                names = [item.name for item in candidates]
+                if names:
                     current = {
                         **current,
-                        "_wiki_required_tables": closure,
-                        "_wiki_table_limit": len(closure)
-                        + max(0, int(settings.WIKI_TABLE_SUPPLEMENT_COUNT)),
+                        "_wiki_required_tables": names,
+                        "_wiki_table_limit": len(names),
                     }
         except Exception as exc:  # noqa: BLE001 — wiki 层零影响约定
             SQLBotLogUtil.warning("wiki-led table selection degraded: %s", exc)

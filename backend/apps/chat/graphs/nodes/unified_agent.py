@@ -360,14 +360,9 @@ def prepare_agent_turn_node(state: Mapping[str, Any]) -> dict[str, Any]:
             llm_service,
             question_text,
             access_scope=access_scope,
-            top_k=5,
         )
         plane.merge_recall(wiki_ctx)
-        recalled_schema = "\n".join(
-            plane.schema_by_table[name]
-            for name in plane.tables
-            if plane.schema_by_table.get(name)
-        )
+        recalled_schema = plane.schema_catalog_text()
         if recalled_schema:
             llm_service.chat_question.db_schema = recalled_schema
         page_keys = list(plane.page_keys)
@@ -376,7 +371,6 @@ def prepare_agent_turn_node(state: Mapping[str, Any]) -> dict[str, Any]:
             wiki_span.set_input(
                 {
                     "query": question_text,
-                    "top_k": 5,
                     "backend": wiki_ctx.get("backend"),
                     "store_source": wiki_ctx.get("store_source"),
                     "corpus_id": wiki_ctx.get("corpus_id"),

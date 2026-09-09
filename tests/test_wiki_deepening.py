@@ -286,8 +286,8 @@ def test_anchor_tables_dedup_and_missing_filtered() -> None:
 
 
 def test_closure_tables_cap_and_truncated_count() -> None:
-    """闭包上限 6：超出截断并返回截断数（anchor_closure_truncated 遥测）。"""
-    from apps.knowledge.wiki.anchors import ANCHOR_CLOSURE_MAX, closure_tables
+    """闭包上限由 max_tables 决定：超出截断并返回截断数。"""
+    from apps.knowledge.wiki.anchors import closure_tables
 
     tables_in_store = {f"t{i}": _ns_page() for i in range(10)}
 
@@ -299,9 +299,12 @@ def test_closure_tables_cap_and_truncated_count() -> None:
     class _Store:
         pages = {**tables_in_store, "p": _Page()}
 
-    closure, truncated = closure_tables(_Store(), ["p"])
-    assert len(closure) == ANCHOR_CLOSURE_MAX == 6
+    closure, truncated = closure_tables(_Store(), ["p"], max_tables=6)
+    assert len(closure) == 6
     assert truncated == 4
+    default, default_cut = closure_tables(_Store(), ["p"])
+    assert len(default) == 4
+    assert default_cut == 6
 
 
 # ── A5：渲染器关联段（关系通道） ────────────────────────────────────────────

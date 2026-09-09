@@ -828,16 +828,8 @@ def get_table_schema(
             and item.get("table_name") not in selected_names
         )
     if table_limit is not None and table_limit > 0 and len(tables) > table_limit:
-        # 必选表（wiki 闭包/实体绑定）全保；补充表须过相似度下限——
-        # chat 169：limit 只限数量不限质量，tenant_setting_config 这类低分
-        # 运营配置表被预算凑数拉进 prompt。不足预算不凑数（宁少勿滥）。
-        # wiki 主导模式（table_limit 来自闭包+预算注入）用更严的独立阈值：
-        # 表级 embedding 分区分度低（业务/运营表同分带），0.4 线拦不住噪音。
-        supplement_floor = (
-            float(settings.WIKI_TABLE_SUPPLEMENT_SIMILARITY)
-            if required_names
-            else float(settings.EMBEDDING_TABLE_SIMILARITY)
-        )
+        # 必选表全保；补充表须过相似度下限，不足预算不凑数。
+        supplement_floor = float(settings.EMBEDDING_TABLE_SIMILARITY)
         required_first = [t for t in tables if t.get("table_name") in required_names]
         supplement_all = [
             t

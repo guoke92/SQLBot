@@ -16,8 +16,8 @@ from typing import Any
 
 # maps_to 形如 "cust_person_info.source = 'AMS'"；取表段
 _PHYSICAL_KEY_RE = re.compile(r"\b[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*\b")
-# 闭包上限：防语义页引用过宽撑爆 schema_text；超出截断由调用方遥测
-ANCHOR_CLOSURE_MAX = 6
+# 闭包上限由 RecallBudget.max_tables 决定；此处仅作无 budget 调用的兜底
+DEFAULT_CLOSURE_MAX = 4
 
 
 def _table_of(physical_key: str) -> str:
@@ -72,12 +72,15 @@ def anchor_tables(store: Any, page_keys: list[str]) -> list[str]:
     return tables
 
 
-def closure_tables(store: Any, page_keys: list[str]) -> tuple[list[str], int]:
+def closure_tables(
+    store: Any, page_keys: list[str], *, max_tables: int | None = None
+) -> tuple[list[str], int]:
     """闭包表 + 截断数（超出上限丢弃的数量，供 anchor_closure_truncated 遥测）。"""
     tables = anchor_tables(store, page_keys)
-    if len(tables) <= ANCHOR_CLOSURE_MAX:
+    cap = DEFAULT_CLOSURE_MAX if max_tables is None else max(1, int(max_tables))
+    if len(tables) <= cap:
         return tables, 0
-    return tables[:ANCHOR_CLOSURE_MAX], len(tables) - ANCHOR_CLOSURE_MAX
+    return tables[:cap], len(tables) - cap
 
 
 def anchor_tables_missing(store: Any, page_keys: list[str]) -> list[str]:

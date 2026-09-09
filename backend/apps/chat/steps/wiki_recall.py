@@ -57,26 +57,6 @@ class WikiRecallResult:
     vector_channel: bool = False
 
 
-# ── 相关性过滤（chat 168：RRF 分不是相似度，无法表达"相关/无关"）──────────
-# 向量 cosine 绝对下限：与表召回 EMBEDDING_TABLE_SIMILARITY 同数量级；
-# 词法 coverage 下限：稀疏通道，弱命中页只有同时向量也弱才丢弃。
-# graph 邻居（图扩展份额）不再进 prompt 段——它们的价值是锚点闭包（表
-# 并入 schema），正文对规划是噪音（chat 168：0.0008 分邻居页占 prompt）。
-WIKI_MIN_VECTOR_SCORE = 0.28
-WIKI_MIN_LEXICAL_SCORE = 0.30
-
-
-def _relevance_keep(passage: Any, *, source: str) -> bool:
-    """business 模式的相关性下限（physical 不滤——物理修复靠全量锚点）。"""
-    if source == "graph":
-        return False
-    vector_score = float(getattr(passage, "vector_score", 0.0) or 0.0)
-    lexical_score = float(getattr(passage, "lexical_score", 0.0) or 0.0)
-    if vector_score >= WIKI_MIN_VECTOR_SCORE:
-        return True
-    return lexical_score >= WIKI_MIN_LEXICAL_SCORE
-
-
 def _hit_projection(
     passages: list[Any], kept_keys: set[str] | None = None
 ) -> list[dict[str, Any]]:
@@ -314,10 +294,8 @@ def _recall_result(
 
     各消费面（planner 提示词 / wiki_hits 遥测 / 锚点闭包 / retrieval span）
     都从这一个结构取数——杜绝同一召回结果的多处重复解析。
-    business 模式做相关性下限过滤：向量 cosine < WIKI_MIN_VECTOR_SCORE 且
-    词法 coverage < WIKI_MIN_LEXICAL_SCORE 的页不进 prompt（hits 里保留
-    并标 filtered=true，执行详情可见被滤原因）；graph 邻居正文不进 prompt
-    （其锚点仍通过 page_keys 参与闭包）。physical 模式不过滤。
+    business 模式质量门已在 recall() 前置：过门语义页进 prompt，表页只作
+    TableCandidate。physical 模式不过滤。
 
     有运行面 store 但零命中返回空结果（可观测）；无 Wiki runtime 返回 None。
     """
@@ -362,10 +340,7 @@ def _recall_result(
             vector_chunks=int(meta.get("vector_chunks") or 0),
             vector_channel=vector_channel,
         )
-    if mode == "business":
-        kept = [p for p in passages if _relevance_keep(p, source=str(p.source))]
-    else:
-        kept = passages
+    kept = list(passages)
     kept_keys = {str(p.page_key) for p in kept}
     text = "\n\n".join(p.text for p in kept)
     hits = _hit_projection(
@@ -391,7 +366,7 @@ def _recall_result(
     return WikiRecallResult(
         text=text if text.strip() else "",
         hits=hits,
-        page_keys=[str(getattr(p, "store_key", None) or p.page_key) for p in passages],
+        page_keys=[str(getattr(p, "store_key", None) or p.page_key) for p in kept],
         elapsed_ms=elapsed_ms,
         embedding_built=_EMBEDDING_BUILT > built_before,
         passages={str(p.page_key): str(p.text or "") for p in kept},
@@ -664,6 +639,9 @@ def wiki_span_fields(payload: dict[str, Any] | None) -> dict[str, Any]:
         "wiki_trace": data.get("wiki_trace") or {},
         "hits": list(data.get("hits") or [])[:12],
         "recall_status": data.get("recall_status"),
+        "gate_rejected": list(data.get("gate_rejected") or [])[:20],
+        "table_evidence": data.get("table_evidence") or {},
+        "budget_cut": list(data.get("budget_cut") or [])[:20],
         **({"error": data.get("error")} if data.get("error") else {}),
     }
 
@@ -702,11 +680,11 @@ def _schema_fallback_context(
         recall_schema_context,
         schedule_schema_vector_sync,
     )
+    from apps.knowledge.recall_kernel.types import RecallBudget
 
     ds_id = getattr(getattr(llm_service, "ds", None), "id", None)
     schedule_schema_vector_sync(ds_id)
-    # Prefer the caller query for this recall turn. LLMService.retrieval_question
-    # is a read-only @property — write chat_question when present.
+    budget = RecallBudget.from_settings()
     chat_question = getattr(llm_service, "chat_question", None)
     orig_q = ""
     wrote_q = False
@@ -716,7 +694,10 @@ def _schema_fallback_context(
         wrote_q = True
     try:
         return recall_schema_context(
-            llm_service, query, access_scope=access_scope, table_limit=4
+            llm_service,
+            query,
+            access_scope=access_scope,
+            table_limit=budget.max_tables,
         )
     finally:
         if wrote_q and chat_question is not None:
@@ -734,6 +715,9 @@ def _decorate_schema_fallback(payload: dict[str, Any]) -> dict[str, Any]:
     fallback.setdefault("hits", [])
     fallback.setdefault("elapsed_ms", 0)
     fallback.setdefault("embedding_built", False)
+    fallback.setdefault("gate_rejected", [])
+    fallback.setdefault("table_evidence", {})
+    fallback.setdefault("budget_cut", [])
     fallback["schema_chars"] = len(str(fallback.get("schema_text") or ""))
     fallback["schema_ready"] = schema_ready_from_payload(fallback)
     return fallback
@@ -746,33 +730,72 @@ def _wiki_payload_from_recall(
     ds_id: int | None,
     top_k: int,
 ) -> dict[str, Any]:
+    from apps.knowledge.recall_kernel.render import render_schema, split_rendered_tables
+    from apps.knowledge.recall_kernel.tables import (
+        resolve_wiki_tables,
+        trim_schema_chars,
+    )
+    from apps.knowledge.recall_kernel.types import (
+        RecallBudget,
+        RecallBundle,
+        TableCandidate,
+    )
+
+    budget = RecallBudget.from_settings()
     databases = datasource_databases(ds)
     res = wiki_recall(query, ds_id=ds_id, databases=databases, top_k=top_k)
     wiki_text = (res.text if res else "") or ""
-    tables: list[str] = []
-    schema_text = ""
     store = _store(ds_id)
-    if store is not None and res and getattr(res, "page_keys", None):
-        from apps.chat.steps.wiki_schema import WikiSchemaRenderer
-        from apps.knowledge.wiki.anchors import closure_tables
-
-        closure, _ = closure_tables(store, res.page_keys)
-        if closure:
-            tables = list(closure)
-            renderer = WikiSchemaRenderer.from_store(store)
-            if renderer:
-                schema_text = str(renderer.render(tables) or "")
-    payload = {
-        "knowledge_text": wiki_text,
-        "tables": tables,
-        "schema_text": schema_text,
-        "backend": "wiki",
-        "page_keys": list(getattr(res, "page_keys", None) or []) if res else [],
-        "hit_count": len(getattr(res, "hits", None) or []) if res else 0,
-        "schema_chars": len(schema_text),
-        **wiki_context_observability(res),
-    }
-    payload["store_source"] = "db"
+    trace = dict(getattr(res, "trace", None) or {})
+    candidates: list[TableCandidate] = []
+    budget_cut: list[str] = []
+    if store is not None and res is not None:
+        candidates, budget_cut = resolve_wiki_tables(
+            store,
+            page_keys=list(res.page_keys or []),
+            extra_keys=list(trace.get("closure_extra_keys") or []),
+            table_pages=list(trace.get("gated_table_pages") or []),
+            scores={
+                str(key): float(score)
+                for key, score in dict(trace.get("page_scores") or {}).items()
+            },
+            budget=budget,
+        )
+    table_names = [item.name for item in candidates]
+    schema_text = ""
+    if table_names:
+        schema_text = render_schema(table_names, store=store)
+        by_table = split_rendered_tables(schema_text, table_names)
+        candidates, extra_cut = trim_schema_chars(
+            candidates, by_table, schema_chars=budget.schema_chars
+        )
+        budget_cut.extend(extra_cut)
+        table_names = [item.name for item in candidates]
+        schema_text = "\n".join(
+            by_table[name] for name in table_names if by_table.get(name)
+        )
+    bundle = RecallBundle(
+        backend="wiki",
+        tables=tuple(candidates),
+        schema_text=schema_text,
+        budget=budget,
+        trace=trace,
+        knowledge_text=wiki_text,
+        page_keys=tuple(getattr(res, "page_keys", None) or []) if res else (),
+        hits=tuple(getattr(res, "hits", None) or []) if res else (),
+        store_source="db",
+        corpus_id=int(getattr(res, "corpus_id", 0) or 0) if res else 0,
+        generation=int(getattr(res, "generation", 0) or 0) if res else 0,
+        vector_chunks=int(getattr(res, "vector_chunks", 0) or 0) if res else 0,
+        vector_channel=bool(getattr(res, "vector_channel", False)) if res else False,
+        elapsed_ms=int(getattr(res, "elapsed_ms", 0) or 0) if res else 0,
+        embedding_built=bool(getattr(res, "embedding_built", False)) if res else False,
+        schema_chars=len(schema_text),
+        hit_count=len(getattr(res, "hits", None) or []) if res else 0,
+        gate_rejected=tuple(str(k) for k in (trace.get("gate_rejected") or [])),
+        budget_cut=tuple(budget_cut),
+    )
+    payload = bundle.to_agent_payload()
     payload["schema_ready"] = schema_ready_from_payload(payload)
     return payload
 
@@ -782,7 +805,7 @@ def retrieve_wiki_context(
     query: str,
     *,
     access_scope: Any = None,
-    top_k: int = 5,
+    top_k: int | None = None,
 ) -> dict[str, Any]:
     """Wiki (bound DB corpus) or schema_vector — never mixed.
 
@@ -790,11 +813,15 @@ def retrieve_wiki_context(
        + anchor-closure schema. Zero hits stay on this path.
     2. Datasource has no Wiki binding: ``schema_vector`` catalog recall.
     """
+    from apps.knowledge.recall_kernel.types import RecallBudget
+
     clean_query = str(query or "").strip()
     if not clean_query:
         return _empty_wiki_payload()
     ds = getattr(llm_service, "ds", None)
     ds_id = getattr(ds, "id", None)
+    budget = RecallBudget.from_settings()
+    effective_top_k = int(top_k) if top_k is not None else budget.passages
 
     if has_wiki_bound_corpus(ds_id):
         try:
@@ -802,7 +829,7 @@ def retrieve_wiki_context(
                 query=clean_query,
                 ds=ds,
                 ds_id=ds_id,
-                top_k=top_k,
+                top_k=effective_top_k,
             )
         except Exception as exc:
             SQLBotLogUtil.warning(

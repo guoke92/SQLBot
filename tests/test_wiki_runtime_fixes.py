@@ -454,23 +454,20 @@ def test_get_table_schema_supplement_threshold_and_no_padding() -> None:
     from apps.datasource.crud.datasource import get_table_schema
 
     src = inspect.getsource(get_table_schema)
-    assert "EMBEDDING_TABLE_SIMILARITY" in src  # 质量下限存在
-    assert "WIKI_TABLE_SUPPLEMENT_SIMILARITY" in src  # wiki 主导用独立严阈值
-    assert "supplement_all[:budget]" in src  # 只裁不加，不凑满预算
-    # required 表全保（先于补充表、不参与阈值过滤）
+    assert "EMBEDDING_TABLE_SIMILARITY" in src
+    assert "WIKI_TABLE_SUPPLEMENT_SIMILARITY" not in src
+    assert "supplement_all[:budget]" in src
     assert 'if t.get("table_name") in required_names' in src
-    # 独立阈值只作用于 wiki 主导（required_names 非空）路径
-    assert "if required_names" in src
 
 
-def test_wiki_supplement_floor_stricter_than_legacy_table_floor() -> None:
-    """wiki 主导补充阈值 ≥ 旧表级阈值：质量线只升不降。"""
+def test_recall_budget_replaces_wiki_supplement_knobs() -> None:
+    from apps.knowledge.recall_kernel.types import RecallBudget
     from common.core.config import settings
 
-    assert (
-        settings.WIKI_TABLE_SUPPLEMENT_SIMILARITY >= settings.EMBEDDING_TABLE_SIMILARITY
-    )
-    assert settings.WIKI_TABLE_SUPPLEMENT_SIMILARITY >= 0.5  # chat 169 复盘线
+    budget = RecallBudget.from_settings()
+    assert budget.max_tables >= 1
+    assert not hasattr(settings, "WIKI_TABLE_SUPPLEMENT_COUNT")
+    assert not hasattr(settings, "WIKI_TABLE_SUPPLEMENT_SIMILARITY")
 
 
 def test_recall_fills_trace_stages() -> None:
@@ -494,7 +491,7 @@ def test_recall_fills_trace_stages() -> None:
     assert trace["mode"] == "business"
     assert trace["visible_pages"] > 0
     channels = trace["channels"]
-    assert set(channels) == {"lexical_exact", "lexical_coverage", "vector"}
+    assert set(channels) == {"lexical_exact", "lexical_coverage", "vector", "alias"}
     assert channels["lexical_exact"]["chunks"] >= 0  # 结构键稳定
     for channel in channels.values():
         assert "top" in channel and "chunks" in channel

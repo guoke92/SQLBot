@@ -453,29 +453,18 @@ def _wiki_render_schema_text(
     """用 wiki table 页重写 chat_question.db_schema 并记录缺页遥测。"""
     try:
         from apps.chat.steps.wiki_recall import _store
-        from apps.chat.steps.wiki_schema import WikiSchemaRenderer
+        from apps.knowledge.recall_kernel.render import render_schema
 
         ds_id = getattr(getattr(llm_service, "ds", None), "id", None)
         store = _store(ds_id)
         if store is None:
             return
-        renderer = WikiSchemaRenderer.from_store(
-            store, live_tables=_live_tables_projection(llm_service)
+        rendered = render_schema(
+            tables, store=store, live_tables=_live_tables_projection(llm_service)
         )
-        if renderer is None:
-            return
-        rendered = renderer.render(tables)
         wiki_context = state.setdefault("wiki_context", {})
-        missing = renderer.missing
-        if missing:
-            # 缺页表经 db 直渲兜底——遥测进 wiki_context，管理面/审计可发现
-            # （SCHEMA_PAGE_MISSING 不再只是日志）
-            wiki_context["schema_missing_tables"] = missing
-            wiki_context["schema_source"] = "wiki_with_db_fallback"
-            wiki_context["schema_page_missing"] = True
-        elif rendered:
-            wiki_context["schema_source"] = "wiki"
-            wiki_context["schema_page_missing"] = False
+        wiki_context["schema_source"] = "wiki" if rendered else wiki_context.get("schema_source")
+        wiki_context["schema_page_missing"] = False
         if rendered:
             llm_service.chat_question.db_schema = rendered
     except Exception as exc:  # noqa: BLE001 — 渲染失败保持原 schema
@@ -500,15 +489,18 @@ def _apply_anchor_closure(
         return
     try:
         from apps.chat.steps.wiki_recall import _store
-        from apps.knowledge.wiki.anchors import (
-            anchor_tables_missing,
-            closure_tables,
-        )
+        from apps.knowledge.recall_kernel.tables import resolve_wiki_tables
+        from apps.knowledge.recall_kernel.types import RecallBudget
+        from apps.knowledge.wiki.anchors import anchor_tables_missing
 
         store = _store(getattr(getattr(llm_service, "ds", None), "id", None))
         if store is None:
             return
-        closure, truncated = closure_tables(store, page_keys)
+        budget = RecallBudget.from_settings()
+        candidates, truncated = resolve_wiki_tables(
+            store, page_keys=page_keys, budget=budget
+        )
+        closure = [item.name for item in candidates]
         missing = anchor_tables_missing(store, page_keys)
         wiki_context = state.setdefault("wiki_context", {})
         wiki_context["anchor_closure_tables"] = closure
