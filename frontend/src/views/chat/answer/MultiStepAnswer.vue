@@ -137,11 +137,13 @@ const _chatList = computed({
   },
 })
 
+const localBusy = ref(false)
 const _loading = computed({
   get() {
-    return props.loading
+    return props.loading || localBusy.value
   },
   set(v) {
+    localBusy.value = v
     emits('update:loading', v)
   },
 })
@@ -542,6 +544,9 @@ async function resumeClarification(payload: {
       payload.answers,
       turnHandlers(currentRecord)
     )
+  } catch (error) {
+    console.error('resume clarification failed', error)
+    await hydrateTimeline(currentRecord)
   } finally {
     _loading.value = false
   }
@@ -563,6 +568,9 @@ async function correctClarification(payload: {
       payload.supersedesEvidenceId,
       turnHandlers(currentRecord)
     )
+  } catch (error) {
+    console.error('correct clarification failed', error)
+    await hydrateTimeline(currentRecord)
   } finally {
     _loading.value = false
   }
@@ -593,7 +601,8 @@ watch(
     const record = props.message?.record
     if (!record || !runId) return
     if (status === 'awaiting_input') {
-      void hydrateTimeline(record).then(() => turn.attach(record, turnHandlers(record)))
+      // Only refresh the timeline; do not attach/ownership — resume must stay free.
+      void hydrateTimeline(record)
       return
     }
     if (!['queued', 'running'].includes(status || '')) return

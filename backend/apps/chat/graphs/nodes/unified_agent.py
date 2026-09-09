@@ -362,6 +362,11 @@ def prepare_agent_turn_node(state: Mapping[str, Any]) -> dict[str, Any]:
             access_scope=access_scope,
         )
         plane.merge_recall(wiki_ctx)
+        plane.adopt_conflicts(
+            wiki_ctx.get("caliber_conflicts"),
+            memory_slots.confirmed_calibers,
+        )
+        wiki_ctx["caliber_conflicts"] = list(plane.caliber_conflicts)
         recalled_schema = plane.schema_catalog_text()
         if recalled_schema:
             llm_service.chat_question.db_schema = recalled_schema

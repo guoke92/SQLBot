@@ -105,6 +105,69 @@ def test_chart_inference_uses_value_kinds_not_column_names() -> None:
     assert "series" not in (temporal.get("axis") or {})
 
 
+def test_chart_inference_rejects_identifier_as_measure() -> None:
+    """Entity listings with snowflake id + create_time must stay tables."""
+    fields = [
+        "id",
+        "name",
+        "cust_no",
+        "identify_style",
+        "create_time",
+    ]
+    presentation = {
+        "title": "企业清单",
+        "columns": [
+            {"field": f, "label": f, "display": f} for f in fields
+        ],
+    }
+    rows = [
+        {
+            "id": 1946025846161575938,
+            "name": "甲",
+            "cust_no": "C1",
+            "identify_style": "INVITE_AGW",
+            "create_time": "2025-03-05 15:34:30",
+        },
+        {
+            "id": 2100000000000000000,
+            "name": "乙",
+            "cust_no": "C2",
+            "identify_style": "INVITE_AGW",
+            "create_time": "2025-05-29 18:21:04",
+        },
+        {
+            "id": 1750000000000000000,
+            "name": "丙",
+            "cust_no": "C3",
+            "identify_style": "INVITE",
+            "create_time": "2024-07-25 10:05:12",
+        },
+    ]
+    chart = infer_chart_for_presentation(
+        presentation,  # type: ignore[arg-type]
+        fields,
+        rows,
+    )
+    assert chart["type"] == "table"
+
+    credit = infer_chart_for_presentation(
+        {
+            "title": "t",
+            "columns": [
+                {"field": "建档创建时间", "label": "", "display": "建档创建时间"},
+                {"field": "统一信用代码", "label": "", "display": "统一信用代码"},
+            ],
+        },  # type: ignore[arg-type]
+        ["建档创建时间", "统一信用代码"],
+        [
+            {"建档创建时间": "2024-01-01", "统一信用代码": "911100000123456789"},
+            {"建档创建时间": "2024-02-01", "统一信用代码": "911100000765432109"},
+            {"建档创建时间": "2024-03-01", "统一信用代码": "911100000987654321"},
+        ],
+    )
+    assert credit["type"] == "table"
+
+
 def test_select_delivery_datasets_skips_probes_and_keeps_multi() -> None:
     from apps.chat.graphs.nodes.agent_finalize import select_delivery_datasets
 

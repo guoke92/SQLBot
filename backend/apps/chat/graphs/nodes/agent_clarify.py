@@ -187,6 +187,7 @@ def await_agent_clarification_node(state: Mapping[str, Any]) -> dict[str, Any]:
 
     slots_model = MemorySlots.model_validate(raw_slots)
     plane = AgentKnowledgePlane.from_dump(state.get("knowledge_plane"))
+    plane.drop_resolved_conflicts(confirmed)
     messages = plane.apply_to_system_message(
         messages,
         memory_slots=raw_slots,
@@ -197,6 +198,7 @@ def await_agent_clarification_node(state: Mapping[str, Any]) -> dict[str, Any]:
         **state,
         "messages": serialize_messages(messages),
         "memory_slots": raw_slots,
+        "knowledge_plane": plane.to_dump(),
         "tool_steps": [],  # reset tool steps to avoid re-triggering clarify
         "tool_rounds": 0,
         "tool_stop_reason": "",

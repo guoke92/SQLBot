@@ -8,7 +8,10 @@ from typing import Any
 from apps.chat.agent_knowledge import PROBE_SQL_LIMIT, AgentKnowledgePlane
 from apps.chat.plan_policy import ROW_LIMIT
 from apps.chat.result_window import apply_result_window, resolve_exec_row_limit
-from apps.chat.steps.enum_display import apply_wiki_enum_labels
+from apps.chat.steps.enum_display import (
+    apply_wiki_enum_labels,
+    is_wiki_enum_discovery_sql,
+)
 from apps.chat.tools.base import failure_result, success_result
 from apps.conversation.process_timeline import (
     PREVIEW_ROW_LIMIT,
@@ -60,6 +63,29 @@ def _schema_ready() -> bool | None:
     return bool(plane.schema_ready)
 
 
+def _reject_enum_discovery(sql: str, llm_service: Any) -> ToolResult | None:
+    ds = getattr(llm_service, "ds", None) or getattr(llm_service, "datasource", None)
+    ds_id = getattr(ds, "id", None)
+    if ds_id is None:
+        return None
+    try:
+        from apps.chat.steps.wiki_recall import wiki_enum_carriers
+        from apps.db.db import get_sqlglot_dialect
+
+        carriers = wiki_enum_carriers(ds_id=int(ds_id))
+        dialect = get_sqlglot_dialect(getattr(ds, "type", None) or "mysql")
+    except Exception:
+        return None
+    if not is_wiki_enum_discovery_sql(sql, carriers, dialect=str(dialect or "mysql")):
+        return None
+    return failure_result(
+        "Wiki enum pages already define these field values. Do not SELECT "
+        "DISTINCT Wiki enum columns to discover codes. Use the enum page "
+        "in wiki_knowledge / schema_catalog, or search_wiki for the enum.",
+        retryable=False,
+    )
+
+
 def _reject_excess_probe(required: bool) -> ToolResult | None:
     if required is not False:
         return None
@@ -103,6 +129,10 @@ def execute_sql_sandbox(
             "the schema context already in the prompt.",
             retryable=False,
         )
+
+    enum_block = _reject_enum_discovery(clean_sql, llm_service)
+    if enum_block is not None:
+        return enum_block
 
     probe_block = _reject_excess_probe(required)
     if probe_block is not None:

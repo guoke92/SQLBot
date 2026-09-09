@@ -27,7 +27,9 @@ class RecallBudget:
         return cls(
             passages=max(1, int(getattr(settings, "KNOWLEDGE_WIKI_RECALL_TOP_K", 8))),
             prose_chars=prose or 400,
-            max_tables=max(1, int(getattr(settings, "KNOWLEDGE_WIKI_RECALL_MAX_TABLES", 4))),
+            max_tables=max(
+                1, int(getattr(settings, "KNOWLEDGE_WIKI_RECALL_MAX_TABLES", 4))
+            ),
             max_tables_total=max(
                 1, int(getattr(settings, "KNOWLEDGE_WIKI_RECALL_MAX_TABLES_TOTAL", 8))
             ),
@@ -85,6 +87,7 @@ class RecallBundle:
     error: str | None = None
     gate_rejected: tuple[str, ...] = ()
     budget_cut: tuple[str, ...] = ()
+    caliber_conflicts: tuple[dict[str, Any], ...] = ()
 
     def table_names(self) -> list[str]:
         return [item.name for item in self.tables]
@@ -114,6 +117,7 @@ class RecallBundle:
             "gate_rejected": list(self.gate_rejected),
             "table_evidence": self.table_evidence(),
             "budget_cut": list(self.budget_cut),
+            "caliber_conflicts": [dict(item) for item in self.caliber_conflicts],
         }
         if self.error:
             payload["error"] = self.error

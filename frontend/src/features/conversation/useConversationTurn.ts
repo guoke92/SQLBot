@@ -181,11 +181,12 @@ export const useConversationTurn = (options: UseChatStreamOptions = {}) => {
     handlers.onDone?.()
   }
 
-  const withOwnership = async (fn: () => Promise<void>) => {
-    if (owned.value) return
+  const withOwnership = async (fn: () => Promise<void>): Promise<boolean> => {
+    if (owned.value) return false
     owned.value = true
     try {
       await fn()
+      return true
     } finally {
       owned.value = false
     }
@@ -196,11 +197,13 @@ export const useConversationTurn = (options: UseChatStreamOptions = {}) => {
     // Live send/resume/correct already owns the subscription (including the
     // window after applySnapshot but before SSE running flips true).
     if (owned.value || stream.running.value) return
+    // Snapshot refresh must not hold ownership — clarification resume can
+    // race an awaiting_input attach and silently no-op if it does.
+    const snapshot = await fetchSnapshot(record.run_id, record)
+    if (!['queued', 'running'].includes(snapshot.status)) return
+    if (owned.value || stream.running.value) return
     await withOwnership(async () => {
-      const snapshot = await fetchSnapshot(record.run_id!, record)
-      if (['queued', 'running'].includes(snapshot.status)) {
-        await observe(snapshot, record, handlers, snapshot.event_cursor || 0)
-      }
+      await observe(snapshot, record, handlers, snapshot.event_cursor || 0)
     })
   }
 
@@ -210,7 +213,7 @@ export const useConversationTurn = (options: UseChatStreamOptions = {}) => {
     handlers: ConversationTurnHandlers = {},
     options: { regenerate?: boolean } = {}
   ) => {
-    await withOwnership(async () => {
+    const started = await withOwnership(async () => {
       const created = await runApi.create({
         question: record.question || '',
         chat_id: chatId,
@@ -223,6 +226,9 @@ export const useConversationTurn = (options: UseChatStreamOptions = {}) => {
       // so the first live view sees the same durable history as a refresh.
       await observe(snapshot, record, handlers, 0)
     })
+    if (!started) {
+      throw new Error('Conversation turn is already active')
+    }
   }
 
   const resume = async (
@@ -234,16 +240,16 @@ export const useConversationTurn = (options: UseChatStreamOptions = {}) => {
     if (!record.run_id) throw new Error('Conversation run is missing')
     const runId = record.run_id
     const previousCursor = record.run_event_cursor || 0
-    const localInterrupt = record.interrupts.find(
-      (item) => item.interrupt_id === pending.interrupt_id
-    )
-    if (localInterrupt) {
-      localInterrupt.status = 'consumed'
-      localInterrupt.answers = answers
-    }
-    record.active_interrupt = undefined
-    record.run_status = 'running'
-    await withOwnership(async () => {
+    const started = await withOwnership(async () => {
+      const localInterrupt = record.interrupts.find(
+        (item) => item.interrupt_id === pending.interrupt_id
+      )
+      if (localInterrupt) {
+        localInterrupt.status = 'consumed'
+        localInterrupt.answers = answers
+      }
+      record.active_interrupt = undefined
+      record.run_status = 'running'
       try {
         const response = await runApi.resume(runId, pending.interrupt_id, {
           version: pending.version,
@@ -257,6 +263,9 @@ export const useConversationTurn = (options: UseChatStreamOptions = {}) => {
         throw error
       }
     })
+    if (!started) {
+      throw new Error('Conversation turn is already active')
+    }
   }
 
   const correct = async (
@@ -269,9 +278,9 @@ export const useConversationTurn = (options: UseChatStreamOptions = {}) => {
     if (!record.run_id) throw new Error('Conversation run is missing')
     const runId = record.run_id
     const previousCursor = record.run_event_cursor || 0
-    record.active_interrupt = undefined
-    record.run_status = 'running'
-    await withOwnership(async () => {
+    const started = await withOwnership(async () => {
+      record.active_interrupt = undefined
+      record.run_status = 'running'
       try {
         const response = await runApi.correct(runId, source.interrupt_id, {
           version: source.version,
@@ -286,6 +295,9 @@ export const useConversationTurn = (options: UseChatStreamOptions = {}) => {
         throw error
       }
     })
+    if (!started) {
+      throw new Error('Conversation turn is already active')
+    }
   }
 
   const detach = () => {

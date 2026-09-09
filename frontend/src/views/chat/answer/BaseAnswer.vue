@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { type ChatMessage } from '@/api/chat.ts'
+import { Loading } from '@element-plus/icons-vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import MdComponent from '@/views/chat/component/MdComponent.vue'
 import icon_up_outlined from '@/assets/svg/icon_up_outlined.svg'

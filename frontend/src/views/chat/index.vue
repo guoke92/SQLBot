@@ -253,6 +253,7 @@
                       :record-id="message.record?.id"
                       :loading="isTyping"
                       :message="message"
+                      @update:loading="(v: boolean) => (isTyping = v)"
                       @scroll-bottom="maybeScrollToBottom"
                       @finish="onPrimaryAnswerFinish"
                       @error="onPrimaryAnswerError"

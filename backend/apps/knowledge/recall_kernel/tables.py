@@ -7,6 +7,8 @@ from typing import Any
 from apps.knowledge.recall_kernel.types import RecallBudget, TableCandidate
 from apps.knowledge.wiki.anchors import anchor_table_attribution
 
+_MIN_TABLE_MENTION = 3
+
 
 def resolve_wiki_tables(
     store: Any,
@@ -16,10 +18,14 @@ def resolve_wiki_tables(
     table_pages: list[str] | None = None,
     scores: dict[str, float] | None = None,
     budget: RecallBudget | None = None,
+    query: str = "",
 ) -> tuple[list[TableCandidate], list[str]]:
-    """Wiki tables: gated semantic-page anchors ∪ gated table pages.
+    """Wiki tables from semantic/conflict anchors; table pages only if evidenced.
 
     Rank by evidence count, then page score. Budget ``max_tables`` cuts the tail.
+    Gated table pages may enrich an already-attributed table, or become a
+    candidate when the query itself names that table. They do not flood the
+    resolver on their own.
     Returns ``(kept, budget_cut_names)``.
     """
     cap = (budget or RecallBudget()).max_tables
@@ -29,7 +35,11 @@ def resolve_wiki_tables(
     ranked: dict[str, TableCandidate] = {}
     for name, sources in attribution.items():
         evidence = tuple(
-            dict.fromkeys(str(item.get("page_key") or "") for item in sources if item.get("page_key"))
+            dict.fromkeys(
+                str(item.get("page_key") or "")
+                for item in sources
+                if item.get("page_key")
+            )
         )
         score = max((float(page_scores.get(key, 0.0)) for key in evidence), default=0.0)
         ranked[name] = TableCandidate(
@@ -49,9 +59,13 @@ def resolve_wiki_tables(
             ranked[name] = TableCandidate(
                 name=name,
                 evidence=merged,
-                score=max(prior.score, float(page_scores.get(raw, 0.0)) + float(len(merged))),
+                score=max(
+                    prior.score, float(page_scores.get(raw, 0.0)) + float(len(merged))
+                ),
                 source=prior.source,
             )
+            continue
+        if not _table_mentioned(store, raw, name, query):
             continue
         ranked[name] = TableCandidate(
             name=name,
@@ -114,7 +128,9 @@ def trim_schema_chars(
     cut: list[str] = []
     while kept:
         rendered = "\n".join(
-            schema_by_table[item.name] for item in kept if schema_by_table.get(item.name)
+            schema_by_table[item.name]
+            for item in kept
+            if schema_by_table.get(item.name)
         )
         if len(rendered) <= schema_chars:
             break
@@ -123,6 +139,28 @@ def trim_schema_chars(
         dropped = kept.pop()
         cut.append(dropped.name)
     return kept, cut
+
+
+def _table_mentioned(store: Any, raw_key: str, physical: str, query: str) -> bool:
+    text = str(query or "").casefold()
+    if not text:
+        return False
+    tokens = [physical, raw_key.rsplit("/", 1)[-1]]
+    getter = getattr(store, "get_page", None) if store is not None else None
+    page = getter(raw_key) if callable(getter) else None
+    if page is not None:
+        tokens.extend(
+            [
+                str(getattr(page, "page_key", "") or ""),
+                str(getattr(page, "title", "") or ""),
+                *list(getattr(page, "aliases", ()) or ()),
+            ]
+        )
+    for token in tokens:
+        name = str(token or "").strip()
+        if len(name) >= _MIN_TABLE_MENTION and name.casefold() in text:
+            return True
+    return False
 
 
 def _physical_table_name(store: Any, key: str) -> str:

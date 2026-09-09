@@ -167,7 +167,51 @@ def test_table_resolver_ranks_by_evidence() -> None:
     names = [item.name for item in kept]
     assert names[0] == "t_main"
     assert "t_side" in names
-    assert "t_noise" in cut or "t_noise" not in names
+    assert "t_noise" not in names
+    assert "t_noise" not in cut
+
+
+def test_table_page_joins_only_when_query_names_it() -> None:
+    class _Page:
+        def __init__(self, **kwargs: object) -> None:
+            self.anchors = kwargs.get("anchors", ())
+            self.field_targets = kwargs.get("field_targets", ())
+            self.maps_to = kwargs.get("maps_to", "")
+            self.page_key = kwargs.get("page_key", "")
+            self.type = kwargs.get("type", "table")
+            self.title = kwargs.get("title", "")
+            self.aliases = kwargs.get("aliases", ())
+            self.ground_blocks = ()
+
+    class _Store:
+        def __init__(self) -> None:
+            self.pages = {
+                "tables/t_noise": _Page(page_key="t_noise", type="table", title="噪音表"),
+            }
+
+        def get_page(self, key: str):
+            return self.pages.get(key)
+
+        def has_table(self, table: str) -> bool:
+            return table == "t_noise"
+
+    store = _Store()
+    silent, _cut = resolve_wiki_tables(
+        store,
+        page_keys=[],
+        table_pages=["tables/t_noise"],
+        budget=RecallBudget(max_tables=4),
+        query="认证方式是平台录入的企业清单",
+    )
+    assert silent == []
+    named, _cut = resolve_wiki_tables(
+        store,
+        page_keys=[],
+        table_pages=["tables/t_noise"],
+        budget=RecallBudget(max_tables=4),
+        query="t_noise 有多少行",
+    )
+    assert [item.name for item in named] == ["t_noise"]
 
 
 def test_schema_vector_candidates_preserve_field_boost() -> None:
@@ -262,3 +306,100 @@ def test_bundle_payload_round_trip() -> None:
     delta = plane.merge_recall(payload)
     assert delta.added_tables == ["cust_company_info"]
     assert plane.schema_catalog_text().startswith("## 企业")
+
+
+def _conflict_store() -> InMemoryWikiStore:
+    return InMemoryWikiStore.load(
+        [
+            (
+                "---\ntype: table\ntitle: 企业\npage_key: cust_company_info\n"
+                "status: published\n---\n\n"
+                "```ground:table\ntable: cust_company_info\nfields:\n"
+                "  - name: identify_style\n  - name: cust_build_type\n```\n"
+            ),
+            (
+                "---\ntype: concept\ntitle: 认证方式\n"
+                "page_key: concept_identify_style\nstatus: published\n"
+                'maps_to: "cust_company_info.identify_style"\n'
+                "field_targets: [cust_company_info.identify_style]\n"
+                "adjudication: boundary\nalso_confused_with: [cust_build_status]\n"
+                "---\n\n认证方式表示认证产品模式。\n"
+            ),
+            (
+                "---\ntype: enum\ntitle: identify_style\n"
+                "page_key: identify_style\nstatus: published\n---\n\n"
+                "```ground:enum\nenum: identify_style\n"
+                "fields: [cust_company_info.identify_style]\nvalues:\n"
+                "  INVITE:\n    label: 邀请认证\n"
+                "  INVITE_AGW:\n    label: 邀请认证-内管录入\n"
+                "  SIMPLE:\n    label: 简易认证\n"
+                "  SELF:\n    label: 自主认证\n```\n"
+            ),
+            (
+                "---\ntype: enum\ntitle: cust_build_type\n"
+                "page_key: cust_build_type\nstatus: published\n---\n\n"
+                "```ground:enum\nenum: cust_build_type\n"
+                "fields: [cust_company_info.cust_build_type]\nvalues:\n"
+                "  AGW_BUILD:\n    label: 平台录入\n"
+                "  PC_BUILD:\n    label: 客户录入\n```\n"
+            ),
+        ]
+    )
+
+
+def test_attribution_conflict_is_query_conditioned() -> None:
+    from apps.knowledge.recall_kernel.conflicts import detect_caliber_conflicts
+
+    store = _conflict_store()
+    conflicts = detect_caliber_conflicts(
+        store, "提取25年6月之前认证方式是平台录入 建档的企业清单"
+    )
+    assert len(conflicts) == 1
+    fields = {(opt["table"], opt["field"]) for opt in conflicts[0].candidates}
+    assert fields == {
+        ("cust_company_info", "identify_style"),
+        ("cust_company_info", "cust_build_type"),
+    }
+    sayings = {opt["saying"] for opt in conflicts[0].candidates}
+    assert "平台录入" in sayings
+    assert "认证方式" in sayings
+    identify = next(
+        opt for opt in conflicts[0].candidates if opt["field"] == "identify_style"
+    )
+    assert any(
+        item.get("label") == "邀请认证-内管录入"
+        for item in identify.get("enum_values") or []
+    )
+    evidence = conflicts[0].to_evidence()
+    assert "question" not in evidence
+    assert "options" not in evidence
+    assert evidence["kind"] == "attribution"
+    independent = detect_caliber_conflicts(store, "查询企业名称和认证方式")
+    assert independent == ()
+
+
+def test_pin_keys_keep_conflict_pages_in_window() -> None:
+    pages = [
+        _page(
+            key=f"rule-{index}",
+            title=f"企业规则{index}",
+            page_type="rule",
+            body=f"企业清单通用规则{index}。",
+        )
+        for index in range(8)
+    ]
+    pages.append(
+        _page(
+            key="cust_build_type",
+            title="录入方式",
+            page_type="enum",
+            body="平台录入枚举。",
+        )
+    )
+    store = InMemoryWikiStore.load(pages)
+    pin = "enums/cust_build_type"
+    unpinned = recall("企业清单", store, top_k=8, mode="business")
+    assert all(p.page_key != "cust_build_type" for p in unpinned)
+    pinned = recall("企业清单", store, top_k=8, mode="business", pin_keys=[pin])
+    assert any(p.page_key == "cust_build_type" for p in pinned)
+    assert len(pinned) <= 8

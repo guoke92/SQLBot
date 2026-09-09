@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import math
 import re
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
@@ -241,7 +241,8 @@ def _gate_thresholds() -> tuple[float, float, float]:
     from common.core.config import settings
 
     vector = float(
-        getattr(settings, "WIKI_MIN_VECTOR_SCORE", _DEFAULT_MIN_VECTOR) or _DEFAULT_MIN_VECTOR
+        getattr(settings, "WIKI_MIN_VECTOR_SCORE", _DEFAULT_MIN_VECTOR)
+        or _DEFAULT_MIN_VECTOR
     )
     lexical = float(
         getattr(settings, "WIKI_MIN_LEXICAL_SCORE", _DEFAULT_MIN_LEXICAL)
@@ -433,6 +434,7 @@ def recall(
     vector_scores: Mapping[str, float] | None = None,
     embedder: Any = None,
     trace_out: dict[str, Any] | None = None,
+    pin_keys: Sequence[str] | None = None,
 ) -> list[RenderedPassage]:
     """Recall rendered passages (Spec C). Deterministic; no LLM.
 
@@ -490,9 +492,7 @@ def recall(
         vector_page_scores = _aggregate_pages(vector_scores)
     coverage_channel = channels[1] if len(channels) >= 2 else {}
     alias_page_scores = {
-        key: score
-        for key, score in _alias_hits(query, store).items()
-        if key in visible
+        key: score for key, score in _alias_hits(query, store).items() if key in visible
     }
     min_vector, min_lexical, alias_weight = _gate_thresholds()
     gate_rejected: list[str] = []
@@ -553,6 +553,13 @@ def recall(
     else:
         page_scores = dict.fromkeys(gated_semantic, 0.0)
     ranked = sorted(page_scores.items(), key=lambda item: (-item[1], item[0]))[:top_k]
+    ranked = _pin_keys_into_window(
+        ranked,
+        pin_keys or (),
+        visible=visible,
+        page_scores=page_scores,
+        top_k=top_k,
+    )
 
     passages: list[RenderedPassage] = []
     direct_keys: set[str] = set()
@@ -627,7 +634,11 @@ def recall(
         if page_key in gate_rejected or (apply_gate and page.type == "table"):
             if page_key not in closure_extra:
                 closure_extra.append(page_key)
-            if apply_gate and page.type == "table" and page_key not in gated_table_pages:
+            if (
+                apply_gate
+                and page.type == "table"
+                and page_key not in gated_table_pages
+            ):
                 if page_key not in gate_rejected:
                     gated_table_pages.append(page_key)
             continue
@@ -678,6 +689,32 @@ def recall(
         alias_top=semantic_alias,
     )
     return passages
+
+
+def _pin_keys_into_window(
+    ranked: list[tuple[str, float]],
+    pin_keys: Sequence[str],
+    *,
+    visible: Mapping[str, Any],
+    page_scores: Mapping[str, float],
+    top_k: int,
+) -> list[tuple[str, float]]:
+    """Keep query-conditioned pages in the window, dropping the lowest non-pins."""
+    if not pin_keys or top_k <= 0:
+        return ranked
+    pinned: list[tuple[str, float]] = []
+    seen: set[str] = set()
+    for key in pin_keys:
+        store_key = str(key or "")
+        if not store_key or store_key in seen or store_key not in visible:
+            continue
+        seen.add(store_key)
+        pinned.append((store_key, float(page_scores.get(store_key, 0.0))))
+    if not pinned:
+        return ranked
+    rest = [item for item in ranked if item[0] not in seen]
+    room = max(0, top_k - len(pinned))
+    return [*pinned, *rest[:room]]
 
 
 def _fill_trace(
@@ -748,9 +785,7 @@ def _fill_trace(
     trace_out["gate_rejected"] = list(gate_rejected or [])
     trace_out["gated_table_pages"] = list(gated_table_pages or [])
     trace_out["closure_extra_keys"] = list(closure_extra_keys or [])
-    trace_out["page_scores"] = {
-        pk: round(s, 6) for pk, s in page_scores.items()
-    }
+    trace_out["page_scores"] = {pk: round(s, 6) for pk, s in page_scores.items()}
 
 
 top_5 = 5  # trace 里每通道/融合只留 top5（可读性优先，完整清单在 hits）

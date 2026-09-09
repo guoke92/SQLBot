@@ -256,6 +256,11 @@ def _recall_passages(
         )
         return None, None
     try:
+        from apps.knowledge.recall_kernel.conflicts import (
+            conflict_page_keys,
+            conflicts_to_evidence,
+            detect_caliber_conflicts,
+        )
         from apps.knowledge.wiki.recall import recall
 
         effective_top_k = top_k or int(settings.KNOWLEDGE_WIKI_RECALL_TOP_K)
@@ -266,6 +271,13 @@ def _recall_passages(
             # chunk 挤出候选，页级聚合拿不到向量分 → 相关性过滤误杀主表）。
             # 矩阵点积全量 ~600ms/3672 chunk，一次查询无页级损失。
             embedder = lambda store_, query_: index.query_scores(query_)  # noqa: E731
+        pin_keys: list[str] = []
+        if mode == "business":
+            conflicts = detect_caliber_conflicts(store, query)
+            pin_keys = conflict_page_keys(conflicts)
+            if trace_out is not None:
+                trace_out["caliber_conflicts"] = conflicts_to_evidence(conflicts)
+                trace_out["conflict_page_keys"] = list(pin_keys)
         passages = recall(
             query,
             store,
@@ -275,6 +287,7 @@ def _recall_passages(
             mode=mode,
             embedder=embedder,
             trace_out=trace_out,
+            pin_keys=pin_keys,
         )
         return store, passages
     except Exception as exc:
@@ -475,6 +488,34 @@ def wiki_physical_recall(
     )
 
 
+def wiki_enum_carriers(*, ds_id: int | None) -> set[str]:
+    """Physical enum columns published on Wiki enum pages.
+
+    Returns lowercased ``table.column`` and bare ``column`` names so SQL
+    probes can be matched against the same enum pages used for display.
+    """
+    if not wiki_backend_active(ds_id) or ds_id is None:
+        return set()
+    store = _store(int(ds_id))
+    if store is None:
+        return set()
+    names: set[str] = set()
+    for page in getattr(store, "pages", {}).values():
+        if str(getattr(page, "type", "") or "") != "enum":
+            continue
+        for block in getattr(page, "ground_blocks", ()) or ():
+            if getattr(block, "kind", "") != "enum":
+                continue
+            data = getattr(block, "data", {}) or {}
+            for item in data.get("fields") or []:
+                ref = str(item or "").strip()
+                if not ref:
+                    continue
+                names.add(ref.casefold())
+                names.add(ref.rsplit(".", 1)[-1].casefold())
+    return names
+
+
 def enum_maps_for(
     field_refs: list[str], *, ds_id: int | None
 ) -> dict[str, dict[str, str]]:
@@ -642,6 +683,7 @@ def wiki_span_fields(payload: dict[str, Any] | None) -> dict[str, Any]:
         "gate_rejected": list(data.get("gate_rejected") or [])[:20],
         "table_evidence": data.get("table_evidence") or {},
         "budget_cut": list(data.get("budget_cut") or [])[:20],
+        "caliber_conflicts": list(data.get("caliber_conflicts") or [])[:4],
         **({"error": data.get("error")} if data.get("error") else {}),
     }
 
@@ -718,6 +760,7 @@ def _decorate_schema_fallback(payload: dict[str, Any]) -> dict[str, Any]:
     fallback.setdefault("gate_rejected", [])
     fallback.setdefault("table_evidence", {})
     fallback.setdefault("budget_cut", [])
+    fallback.setdefault("caliber_conflicts", [])
     fallback["schema_chars"] = len(str(fallback.get("schema_text") or ""))
     fallback["schema_ready"] = schema_ready_from_payload(fallback)
     return fallback
@@ -750,16 +793,19 @@ def _wiki_payload_from_recall(
     candidates: list[TableCandidate] = []
     budget_cut: list[str] = []
     if store is not None and res is not None:
+        extra_keys = list(trace.get("closure_extra_keys") or [])
+        extra_keys.extend(str(key) for key in (trace.get("conflict_page_keys") or []))
         candidates, budget_cut = resolve_wiki_tables(
             store,
             page_keys=list(res.page_keys or []),
-            extra_keys=list(trace.get("closure_extra_keys") or []),
+            extra_keys=extra_keys,
             table_pages=list(trace.get("gated_table_pages") or []),
             scores={
                 str(key): float(score)
                 for key, score in dict(trace.get("page_scores") or {}).items()
             },
             budget=budget,
+            query=query,
         )
     table_names = [item.name for item in candidates]
     schema_text = ""
@@ -794,6 +840,11 @@ def _wiki_payload_from_recall(
         hit_count=len(getattr(res, "hits", None) or []) if res else 0,
         gate_rejected=tuple(str(k) for k in (trace.get("gate_rejected") or [])),
         budget_cut=tuple(budget_cut),
+        caliber_conflicts=tuple(
+            dict(item)
+            for item in (trace.get("caliber_conflicts") or [])
+            if isinstance(item, dict)
+        ),
     )
     payload = bundle.to_agent_payload()
     payload["schema_ready"] = schema_ready_from_payload(payload)

@@ -679,7 +679,8 @@ export class ChatLogHistoryItem {
     // Enum member names (GENERATE_QUERY / EXECUTE_QUERY / …) are stored by value
     // ('0'/'12'/…); history resolves missing value→name via OperationEnum, so labels
     // always come from current i18n keys. No SQL-era name remap is needed.
-    this.operate = t('chat.log.' + operate)
+    this.operate =
+      operate == null || operate === '' ? '' : t(`chat.log.${String(operate)}`)
     this.local_operation = !!local_operation
     this.error = !!error
     this.message = message

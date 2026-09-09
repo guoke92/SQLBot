@@ -394,3 +394,86 @@ def test_probe_sql_limit_rejects_third_call() -> None:
     assert blocked["ok"] is False
     assert str(PROBE_SQL_LIMIT) in (blocked.get("error") or "")
     assert blocked["failure"]["retryable"] is False
+
+
+def test_kernel_conflicts_are_evidence_not_auto_cards() -> None:
+    plane = AgentKnowledgePlane()
+    evidence = [
+        {
+            "conflict_id": (
+                "caliber:cust_company_info.cust_build_type|"
+                "cust_company_info.identify_style"
+            ),
+            "kind": "attribution",
+            "phrase": "认证方式是平台录入",
+            "candidates": [
+                {
+                    "saying": "认证方式",
+                    "table": "cust_company_info",
+                    "field": "identify_style",
+                    "value": "",
+                    "value_label": "",
+                    "enum_values": [
+                        {"value": "INVITE_AGW", "label": "邀请认证-内管录入"}
+                    ],
+                },
+                {
+                    "saying": "平台录入",
+                    "table": "cust_company_info",
+                    "field": "cust_build_type",
+                    "value": "AGW_BUILD",
+                    "value_label": "平台录入",
+                    "enum_values": [{"value": "AGW_BUILD", "label": "平台录入"}],
+                },
+            ],
+        }
+    ]
+    plane.adopt_conflicts(evidence)
+    assert plane.caliber_conflicts
+    rendered = plane.render_system_sections()
+    assert "<caliber_conflicts>" in rendered
+    assert "不是澄清卡模板" in rendered
+    assert "question_id" not in rendered
+    plane.drop_resolved_conflicts(
+        {
+            evidence[0]["conflict_id"]: {
+                "fields": [{"table": "cust_company_info", "name": "cust_build_type"}]
+            }
+        }
+    )
+    assert plane.caliber_conflicts == []
+
+
+def test_wiki_enum_discovery_sql_rejects_distinct_only() -> None:
+    from apps.chat.steps.enum_display import is_wiki_enum_discovery_sql
+
+    carriers = {
+        "identify_style",
+        "cust_build_type",
+        "cust_company_info.identify_style",
+        "cust_company_info.cust_build_type",
+    }
+    assert is_wiki_enum_discovery_sql(
+        "SELECT DISTINCT identify_style FROM cust_company_info",
+        carriers,
+    )
+    assert is_wiki_enum_discovery_sql(
+        "SELECT DISTINCT identify_style, cust_build_type FROM cust_company_info",
+        carriers,
+    )
+    # Distribution analytics stay allowed — not a dictionary dump.
+    assert not is_wiki_enum_discovery_sql(
+        "SELECT identify_style, cust_build_type, COUNT(*) AS cnt "
+        "FROM cust_company_info GROUP BY identify_style, cust_build_type",
+        carriers,
+    )
+    assert not is_wiki_enum_discovery_sql(
+        "SELECT identify_style, COUNT(*) AS cnt FROM cust_company_info "
+        "WHERE create_time < '2025-06-01' GROUP BY identify_style",
+        carriers,
+    )
+    assert not is_wiki_enum_discovery_sql(
+        "SELECT code, name FROM cust_company_info "
+        "WHERE identify_style = 'INVITE_AGW'",
+        carriers,
+    )

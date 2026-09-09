@@ -1,5 +1,11 @@
 """Unified knowledge recall kernel (Wiki + schema_vector)."""
 
+from apps.knowledge.recall_kernel.conflicts import (
+    conflict_page_keys,
+    conflicts_to_evidence,
+    detect_caliber_conflicts,
+    unresolved_conflicts,
+)
 from apps.knowledge.recall_kernel.tables import (
     resolve_schema_vector_tables,
     resolve_wiki_tables,
@@ -17,7 +23,11 @@ __all__ = [
     "RecallBudget",
     "RecallBundle",
     "TableCandidate",
+    "conflict_page_keys",
+    "conflicts_to_evidence",
+    "detect_caliber_conflicts",
     "resolve_schema_vector_tables",
     "resolve_wiki_tables",
     "trim_schema_chars",
+    "unresolved_conflicts",
 ]

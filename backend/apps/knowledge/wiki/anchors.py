@@ -127,6 +127,18 @@ def anchor_table_attribution(
                 (match.group(0).partition(".")[0], "maps_to")
                 for match in _PHYSICAL_KEY_RE.finditer(maps_to)
             )
+        for block in getattr(page, "ground_blocks", ()) or ():
+            kind = str(getattr(block, "kind", "") or "")
+            data = getattr(block, "data", {}) or {}
+            if not isinstance(data, dict):
+                continue
+            if kind == "enum":
+                for item in data.get("fields") or []:
+                    candidates.append((_table_of(str(item)), "field_targets"))
+            elif kind == "table":
+                name = str(data.get("table") or getattr(page, "page_key", "") or "")
+                if name:
+                    candidates.append((name, "anchors"))
         for table, field in candidates:
             if not table or not _has_table(store, table, pages):
                 continue

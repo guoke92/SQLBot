@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "wiki-pages/rules/运行超时置失败.md",
+                "file": "wiki-pages/enums/cust_type.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "运行超时置失败"
+              "title": "cust_type"
             }
           }
         ]
@@ -55,7 +55,7 @@
             "state": {
               "type": "search",
               "state": {
-                "query": "calibers.activated-tenant",
+                "query": "企业类型",
                 "matchingCase": false,
                 "explainSearch": false,
                 "collapseAll": false,
@@ -99,7 +99,7 @@
             "state": {
               "type": "backlink",
               "state": {
-                "file": "wiki-pages/rules/运行超时置失败.md",
+                "file": "wiki-pages/enums/cust_type.md",
                 "collapseAll": false,
                 "extraContext": false,
                 "sortOrder": "alphabetical",
@@ -118,7 +118,7 @@
             "state": {
               "type": "outgoing-link",
               "state": {
-                "file": "wiki-pages/rules/运行超时置失败.md",
+                "file": "wiki-pages/enums/cust_type.md",
                 "linksCollapsed": false,
                 "unlinkedCollapsed": true
               },
@@ -161,7 +161,7 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "wiki-pages/rules/运行超时置失败.md",
+                "file": "wiki-pages/enums/cust_type.md",
                 "followCursor": false,
                 "showSearch": false,
                 "searchQuery": ""
@@ -190,10 +190,25 @@
   },
   "active": "ed14b52b0e686b84",
   "lastOpenFiles": [
-    "wiki-pages/rules/影像变动同步第三方.md",
-    "wiki-pages/rules/软删除仅本人.md",
-    "wiki-pages/rules/存量运营方推送.md",
+    "wiki-pages/_index.md",
+    "wiki-pages/tables/tenant_product_menu_res.md",
+    "wiki-pages/tables/tenant_interworking_product.md",
+    "wiki-pages/calibers/supplier-company.md",
+    "wiki-pages/concepts/enterprise-role.md",
+    "wiki-pages/concepts/company_type.md",
+    "wiki-pages/calibers/chargeable_company_role.md",
+    "wiki-pages/tables/ca_fee_company.md",
+    "wiki-pages/tables/platform_product_cust_role.md",
+    "wiki-pages/tables/cust_company_info.md",
+    "wiki-pages/concepts/company-role.md",
+    "wiki-pages/processes/租户生效状态.md",
     "wiki-pages/rules/错误回执文件兜底.md",
+    "wiki-pages/rules/菜单扁平化与父子关联.md",
+    "wiki-pages/rules/下载URL生成.md",
+    "wiki-pages/rules/软删除仅本人.md",
+    "wiki-pages/rules/运行超时置失败.md",
+    "wiki-pages/rules/影像变动同步第三方.md",
+    "wiki-pages/rules/存量运营方推送.md",
     "wiki-pages/rules/背景色生效时间窗口校验.md",
     "wiki-pages/enums/legal_certification_type.md",
     "wiki-pages/enums/product_status.md",
@@ -201,21 +216,6 @@
     "wiki-pages/enums/rule_layer.md",
     "wiki-pages/enums/project_status.md",
     "wiki-pages/enums/node_status.md",
-    "wiki-pages/enums/cust_type.md",
-    "wiki-pages/enums/cust_status.md",
-    "wiki-pages/enums/cust_group_rel__status.md",
-    "wiki-pages/enums/account_type.md",
-    "wiki-pages/concepts/projectCodeRequired.md",
-    "wiki-pages/tables/tenant_interworking_product.md",
-    "wiki-pages/concepts/platform_product_code.md",
-    "wiki-pages/concepts/notice_message.md",
-    "wiki-pages/concepts/concept_identify_style.md",
-    "wiki-pages/concepts/任务状态.md",
-    "wiki-pages/concepts/发起人.md",
-    "wiki-pages/concepts/admin.md",
-    "wiki-pages/calibers/queryTenant-平台产品租户全集.md",
-    "wiki-pages/calibers/migratory_log_outbound.md",
-    "wiki-pages/calibers/ineffective-group-member-relation.md",
     "embeddings-cache/embeddings-text-embedding-3-small-1536.json",
     "embeddings-cache/tmp8_gpovly.tmp",
     "embeddings-cache/tmp278e9y5u.tmp",

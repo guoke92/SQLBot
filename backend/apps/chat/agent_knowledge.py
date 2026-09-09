@@ -69,6 +69,7 @@ class AgentKnowledgePlane(BaseModel):
     schema_gap_searches: int = 0
     search_rounds: int = 0
     coverage_fp: str = ""
+    caliber_conflicts: list[dict[str, Any]] = Field(default_factory=list)
 
     def to_dump(self) -> dict[str, Any]:
         return self.model_dump()
@@ -179,6 +180,21 @@ class AgentKnowledgePlane(BaseModel):
             schema = (schema + "\n" + "\n".join(extra)).strip()
         return schema
 
+    def adopt_conflicts(
+        self,
+        questions: Sequence[Mapping[str, Any]] | None,
+        confirmed: Any = None,
+    ) -> list[dict[str, Any]]:
+        """Keep Wiki-grounded conflicts that the user has not confirmed."""
+        from apps.knowledge.recall_kernel.conflicts import unresolved_conflicts
+
+        raw = [dict(item) for item in (questions or []) if isinstance(item, Mapping)]
+        self.caliber_conflicts = unresolved_conflicts(raw, confirmed)
+        return list(self.caliber_conflicts)
+
+    def drop_resolved_conflicts(self, confirmed: Any = None) -> list[dict[str, Any]]:
+        return self.adopt_conflicts(self.caliber_conflicts, confirmed)
+
     def render_system_sections(self) -> str:
         parts: list[str] = []
         wiki = "\n\n".join(
@@ -206,6 +222,18 @@ class AgentKnowledgePlane(BaseModel):
                 "当前会话已召回的物理表结构（同表只保留一份，后续 search_wiki 只补充新表）：\n"
                 f"{schema}\n"
                 "</schema_catalog>"
+            )
+        if self.caliber_conflicts:
+            import orjson
+
+            parts.append(
+                "<caliber_conflicts>\n"
+                "Wiki 术语桥证据：下列说法可能对应不同筛选口径（含候选字段与枚举取值）。"
+                "这不是澄清卡模板。请结合枚举页判断：能唯一落到字段+取值则直接写 SQL；"
+                "只有互斥结果无法从上下文判定时，再用业务语言自行组织 request_clarification"
+                "（选项写清每种口径会筛出什么，不要只问选哪个字段）。\n"
+                f"{orjson.dumps(self.caliber_conflicts, option=orjson.OPT_INDENT_2).decode()}\n"
+                "</caliber_conflicts>"
             )
         return "\n\n".join(parts)
 

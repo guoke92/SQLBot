@@ -517,15 +517,13 @@ watch(
       </div>
       <div class="buttons-bar flex-gap-fallback">
         <div class="chart-select-container flex-gap-fallback">
-          <el-tooltip effect="dark" :offset="8" :content="t('chat.type')" placement="top">
-            <ChartPopover
-              v-if="chartTypeList.length > 0"
-              :chart-type-list="chartTypeList"
-              :chart-type="chartType"
-              :title="t('chat.type')"
-              @type-change="onTypeChange"
-            />
-          </el-tooltip>
+          <ChartPopover
+            v-if="chartTypeList.length > 0"
+            :chart-type-list="chartTypeList"
+            :chart-type="chartType"
+            :title="t('chat.type')"
+            @type-change="onTypeChange"
+          />
 
           <el-tooltip
             effect="dark"

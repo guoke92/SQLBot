@@ -94,7 +94,15 @@ def _coerce_option(option: dict[str, Any], *, recommended: bool) -> dict[str, An
     )
     table = _text(option.get("table"), option.get("table_name"))
     if not fields and field:
-        fields = [{"name": field, "comment": field_comment, "table": table}]
+        value = _text(option.get("value"), option.get("enum_value"))
+        fields = [
+            {
+                "name": field,
+                "comment": field_comment,
+                "table": table,
+                "value": value,
+            }
+        ]
     first = fields[0] if fields else {"name": "", "comment": "", "table": ""}
     return {
         "option_id": _text(option.get("option_id")),

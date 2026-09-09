@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { Loading } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
 import type { ChatLogHistoryItem } from '@/api/chat'
 import { executionStepStatus } from '@/features/conversation/executionLog'

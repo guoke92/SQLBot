@@ -81,6 +81,66 @@ def wiki_table_columns(table: str, *, ds_id: int | None = None) -> set[str]:
         return set()
 
 
+def is_wiki_enum_discovery_sql(
+    sql: str,
+    enum_carriers: set[str],
+    *,
+    dialect: str = "mysql",
+) -> bool:
+    """True when SQL is a DISTINCT dictionary dump over Wiki enum columns.
+
+    Wiki enum pages are the value authority. ``SELECT DISTINCT enum_col …``
+    with no WHERE is a live dictionary probe. GROUP BY distribution queries
+    (e.g. count by status) remain allowed — they are user analytics, not
+    value discovery.
+    """
+    if not sql.strip() or not enum_carriers:
+        return False
+    try:
+        import sqlglot
+        from sqlglot import exp
+
+        statements = [item for item in sqlglot.parse(sql, dialect=dialect) if item]
+    except Exception:
+        return False
+    if len(statements) != 1:
+        return False
+    select = (
+        statements[0]
+        if isinstance(statements[0], exp.Select)
+        else statements[0].find(exp.Select)
+    )
+    if select is None or not select.args.get("distinct"):
+        return False
+    if select.find(exp.Where) is not None:
+        return False
+    if select.args.get("group") is not None:
+        return False
+
+    projected: list[exp.Column] = []
+    for proj in select.expressions:
+        inner = proj.this if isinstance(proj, exp.Alias) else proj
+        if isinstance(inner, exp.Column):
+            projected.append(inner)
+            continue
+        if isinstance(inner, exp.AggFunc):
+            continue
+        return False
+    if not projected:
+        return False
+
+    def _is_enum_column(col: exp.Column) -> bool:
+        name = str(col.name or "").casefold()
+        table = str(col.table or "").casefold()
+        if name in enum_carriers:
+            return True
+        if table and f"{table}.{name}" in enum_carriers:
+            return True
+        return False
+
+    return all(_is_enum_column(col) for col in projected)
+
+
 def enum_refs_for_query(
     *,
     sql: str,

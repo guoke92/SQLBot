@@ -142,7 +142,7 @@ def test_wiki_primary_prompt_assembly():
     )[0]
     assert "# Table:" not in wiki_body
     assert "TABLE ca_certification_info" not in wiki_body
-    assert "重大且无法推断" in prompt_with_wiki
+    assert "禁止用 SQL 摸枚举" in prompt_with_wiki
     assert "request_clarification" in prompt_with_wiki
     assert "展示标签" in prompt_with_wiki
     assert "required=false" in prompt_with_wiki

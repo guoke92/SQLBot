@@ -65,11 +65,56 @@ def _is_temporal(value: Any) -> bool:
         return False
 
 
+def _numeric_samples(values: Sequence[Any]) -> list[float]:
+    out: list[float] = []
+    for item in values:
+        if isinstance(item, bool):
+            continue
+        if isinstance(item, int | float):
+            out.append(float(item))
+            continue
+        if isinstance(item, str):
+            text = item.strip().replace(",", "")
+            if not text:
+                continue
+            try:
+                out.append(float(text))
+            except ValueError:
+                continue
+    return out
+
+
+def _looks_like_identifier(values: Sequence[Any]) -> bool:
+    """True for PK/snowflake/credit-code style numbers — not chart measures.
+
+    Chart Y needs an aggregable measure. A column that is effectively unique per
+    row (entity id) must not drive line/bar charts, even when parseable as float.
+    """
+    nums = _numeric_samples(values)
+    if len(nums) < 2:
+        return False
+    unique_ratio = len({round(item, 12) for item in nums}) / len(nums)
+    if unique_ratio < 0.9:
+        return False
+    all_integral = all(abs(item - round(item)) < 1e-9 for item in nums)
+    if not all_integral:
+        return False
+    # Snowflake / large surrogate keys.
+    if any(abs(item) >= 1e12 for item in nums):
+        return True
+    # Near-unique integer codes in a multi-row sample (e.g. 统一信用代码).
+    return len(nums) >= 3
+
+
 def _column_kinds(
     fields: Sequence[str], rows: Sequence[Mapping[str, Any]]
 ) -> tuple[list[str], list[str], list[str]]:
+    """Classify columns into temporal / measure / categorical.
+
+    ``measure`` excludes identifier-like numerics so entity listings stay tables.
+    """
     temporal: list[str] = []
-    numeric: list[str] = []
+    measures: list[str] = []
     categorical: list[str] = []
     sample = list(rows)[:40]
     for field in fields:
@@ -87,10 +132,13 @@ def _column_kinds(
         if temporal_hits >= max(1, n * 0.6):
             temporal.append(field)
         elif numeric_hits >= max(1, n * 0.6):
-            numeric.append(field)
+            if _looks_like_identifier(values):
+                categorical.append(field)
+            else:
+                measures.append(field)
         else:
             categorical.append(field)
-    return temporal, numeric, categorical
+    return temporal, measures, categorical
 
 
 def _chart_axis(x_col: Mapping[str, Any], y_col: Mapping[str, Any]) -> dict[str, Any]:
@@ -140,7 +188,11 @@ def infer_chart_for_presentation(
     *,
     instance_id: int = 0,
 ) -> dict[str, Any]:
-    """Infer chart type from column value kinds, never from column-name keywords."""
+    """Infer chart type from value kinds; identifiers are not measures.
+
+    Entity / detail listings (time + id + many attributes) stay as ``table``.
+    Line/bar require a real aggregable measure column.
+    """
     if not rows or len(fields) < 2:
         tbl = _table_chart(presentation)
         tbl["instance_id"] = instance_id
@@ -148,11 +200,11 @@ def infer_chart_for_presentation(
 
     cols = chart_columns(presentation)
     col_by_field = {str(col.get("value") or col.get("name")): col for col in cols}
-    temporal_fields, numeric_fields, categorical_fields = _column_kinds(fields, rows)
+    temporal_fields, measure_fields, categorical_fields = _column_kinds(fields, rows)
 
-    if temporal_fields and numeric_fields and len(rows) > 1:
+    if temporal_fields and measure_fields and len(rows) > 1:
         x_col = col_by_field.get(temporal_fields[0]) or cols[0]
-        y_col = col_by_field.get(numeric_fields[0]) or cols[-1]
+        y_col = col_by_field.get(measure_fields[0]) or cols[-1]
         return {
             "type": "line",
             "title": presentation["title"],
@@ -168,9 +220,9 @@ def infer_chart_for_presentation(
             "instance_id": instance_id,
         }
 
-    if numeric_fields and categorical_fields and 1 < len(rows) <= 30:
+    if measure_fields and categorical_fields and 1 < len(rows) <= 30:
         x_col = col_by_field.get(categorical_fields[0]) or cols[0]
-        y_col = col_by_field.get(numeric_fields[0]) or cols[-1]
+        y_col = col_by_field.get(measure_fields[0]) or cols[-1]
         return {
             "type": "bar",
             "title": presentation["title"],

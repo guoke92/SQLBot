@@ -100,7 +100,7 @@ def _clarification_wait_items(
                 start_time=interrupt.create_time,
                 finish_time=wait_end,
                 duration=round((wait_end - interrupt.create_time).total_seconds(), 2),
-                operate=None,
+                operate="WAIT_CLARIFICATION",
                 local_operation=True,
                 error=False,
                 status="interrupted",
