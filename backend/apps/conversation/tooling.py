@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 import hashlib
+import re
 from collections.abc import Mapping, Sequence
 from typing import Any, TypedDict, cast
 
 import orjson
 from langchain_core.messages import AIMessage, BaseMessage, ToolMessage
-from langchain_core.tools import BaseTool
 
+from apps.chat.agent_knowledge import AgentKnowledgePlane, strip_search_wiki_payload
+from apps.chat.memory_slots import MemorySlots
 from apps.chat.steps.observability import sanitize_audit_value
 from apps.chat.tools.metadata import get_tool_title_key
 from apps.conversation.messages import deserialize_messages, serialize_messages
@@ -21,10 +23,115 @@ from apps.conversation.process_timeline import (
     open_process_span,
     preview_rows,
 )
-from apps.conversation.runtime_context import runtime_value, tool_call_scope
+from apps.conversation.runtime_context import (
+    attach_runtime,
+    peek_runtime,
+    runtime_value,
+    tool_call_scope,
+)
 from apps.conversation.sink import StreamSink
 
 _LOG_RESULT_LIMIT = 4000
+_DSML_MARK = r"(?:[|｜]{0,4})"
+_DSML_OPEN = rf"<{_DSML_MARK}DSML{_DSML_MARK}"
+_DSML_INVOKE_RE = re.compile(
+    rf"{_DSML_OPEN}invoke\s+name=\"([^\"]+)\"\s*>(.*?)</{_DSML_MARK}DSML{_DSML_MARK}invoke>",
+    re.DOTALL | re.IGNORECASE,
+)
+_DSML_PARAM_RE = re.compile(
+    rf"{_DSML_OPEN}parameter\s+name=\"([^\"]+)\"[^>]*>(.*?)</{_DSML_MARK}DSML{_DSML_MARK}parameter>",
+    re.DOTALL | re.IGNORECASE,
+)
+_DSML_BLOCK_RE = re.compile(
+    rf"{_DSML_OPEN}tool_calls\s*>(.*?)</{_DSML_MARK}DSML{_DSML_MARK}tool_calls>",
+    re.DOTALL | re.IGNORECASE,
+)
+
+
+def looks_like_tool_markup(text: str) -> bool:
+    body = str(text or "")
+    if not body.strip():
+        return False
+    lowered = body.lower()
+    return "dsml" in lowered and ("tool_calls" in lowered or "invoke" in lowered)
+
+
+def parse_markup_tool_calls(text: str) -> list[dict[str, Any]]:
+    """Parse vendor DSML / XML tool-call markup leaked into message content."""
+    body = str(text or "")
+    if not body.strip():
+        return []
+    calls: list[dict[str, Any]] = []
+    for index, match in enumerate(_DSML_INVOKE_RE.finditer(body)):
+        name = str(match.group(1) or "").strip()
+        inner = match.group(2) or ""
+        args: dict[str, Any] = {}
+        for param in _DSML_PARAM_RE.finditer(inner):
+            key = str(param.group(1) or "").strip()
+            if key:
+                args[key] = str(param.group(2) or "").strip()
+        if name:
+            calls.append(
+                {
+                    "id": f"markup_call_{index}",
+                    "name": name,
+                    "args": args,
+                }
+            )
+    return calls
+
+
+def strip_markup_tool_calls(text: str) -> str:
+    body = str(text or "")
+    if not body:
+        return ""
+    cleaned = _DSML_BLOCK_RE.sub(" ", body)
+    cleaned = _DSML_INVOKE_RE.sub(" ", cleaned)
+    return re.sub(r"\s+", " ", cleaned).strip()
+
+
+def resolve_message_tool_calls(
+    message: AIMessage, text: str
+) -> tuple[list[dict[str, Any]], str]:
+    """Native tool_calls win; otherwise recover DSML markup from content."""
+    calls = tool_calls_from_message(message)
+    raw = text if text is not None else str(getattr(message, "content", "") or "")
+    if calls:
+        return calls, strip_markup_tool_calls(raw) if looks_like_tool_markup(
+            raw
+        ) else raw
+    parsed = parse_markup_tool_calls(raw)
+    if not parsed:
+        if looks_like_tool_markup(raw):
+            return [], strip_markup_tool_calls(raw)
+        return [], raw
+    return parsed, strip_markup_tool_calls(raw)
+
+
+def attach_tool_calls(
+    message: AIMessage, calls: Sequence[Mapping[str, Any]], content: str
+) -> AIMessage:
+    """Return a copy of ``message`` carrying ``calls`` so routing can execute them."""
+    payload = [
+        {
+            "name": str(item.get("name") or ""),
+            "args": dict(item.get("args") or {})
+            if isinstance(item.get("args"), Mapping)
+            else {},
+            "id": str(item.get("id") or f"tool_call_{index}"),
+            "type": "tool_call",
+        }
+        for index, item in enumerate(calls)
+    ]
+    return AIMessage(
+        content=content,
+        tool_calls=payload,
+        id=getattr(message, "id", None),
+        additional_kwargs=dict(getattr(message, "additional_kwargs", None) or {}),
+        response_metadata=dict(getattr(message, "response_metadata", None) or {}),
+    )
+
+
 class ToolResult(TypedDict):
     ok: bool
     summary: str
@@ -242,6 +349,18 @@ def execute_tools_node(state: Mapping[str, Any]) -> dict[str, Any]:
             else:
                 with tool_call_scope(call_id):
                     result = normalize_tool_result(tool.invoke(args))
+            if name == "search_wiki":
+                data = (
+                    result.get("data")
+                    if isinstance(result.get("data"), Mapping)
+                    else {}
+                )
+                result = {
+                    **result,
+                    "data": strip_search_wiki_payload(
+                        data if isinstance(data, Mapping) else {}
+                    ),
+                }
         except Exception as exc:
             result = tool_failure(f"{name} failed", str(exc))
 
@@ -252,7 +371,9 @@ def execute_tools_node(state: Mapping[str, Any]) -> dict[str, Any]:
             span.close(
                 status="completed" if result["ok"] else "failed",
                 summary_key=(
-                    "chat.summary.tool_ok" if result["ok"] else "chat.summary.tool_failed"
+                    "chat.summary.tool_ok"
+                    if result["ok"]
+                    else "chat.summary.tool_failed"
                 ),
                 summary_params={"tool": name},
                 tool={"call_id": call_id, "name": name, "args": safe_args},
@@ -269,7 +390,8 @@ def execute_tools_node(state: Mapping[str, Any]) -> dict[str, Any]:
                     title_key="chat.timeline.artifact",
                     artifact={
                         "dataset_id": data.get("dataset_id"),
-                        "sql": data.get("sql") or (args.get("sql") if isinstance(args, Mapping) else ""),
+                        "sql": data.get("sql")
+                        or (args.get("sql") if isinstance(args, Mapping) else ""),
                         "fields": list(data.get("fields") or []),
                         "row_count": data.get("row_count") or data.get("total_rows"),
                         "truncated": bool(data.get("truncated")),
@@ -286,15 +408,16 @@ def execute_tools_node(state: Mapping[str, Any]) -> dict[str, Any]:
                         status="completed",
                         summary_key="chat.summary.query_rows",
                         summary_params={
-                            "count": int(data.get("row_count") or data.get("total_rows") or 0)
+                            "count": int(
+                                data.get("row_count") or data.get("total_rows") or 0
+                            )
                         },
                     )
-            if (
-                result["ok"]
-                and isinstance(data, Mapping)
-                and name == "compare_results"
-            ):
-                for side, side_data in (("base", data.get("base")), ("new", data.get("new"))):
+            if result["ok"] and isinstance(data, Mapping) and name == "compare_results":
+                for side, side_data in (
+                    ("base", data.get("base")),
+                    ("new", data.get("new")),
+                ):
                     if not isinstance(side_data, Mapping) or not side_data.get("sql"):
                         continue
                     art = open_process_span(
@@ -307,7 +430,8 @@ def execute_tools_node(state: Mapping[str, Any]) -> dict[str, Any]:
                         title_key="chat.timeline.artifact",
                         title_params={"side": side},
                         artifact={
-                            "dataset_id": side_data.get("dataset_id") or f"{call_id}_{side}",
+                            "dataset_id": side_data.get("dataset_id")
+                            or f"{call_id}_{side}",
                             "sql": side_data.get("sql"),
                             "row_count": side_data.get("row_count"),
                             "preview_rows": preview_rows(
@@ -318,7 +442,9 @@ def execute_tools_node(state: Mapping[str, Any]) -> dict[str, Any]:
                         local_operation=True,
                     )
                     if art is not None:
-                        art.close(status="completed", summary_key="chat.summary.tool_ok")
+                        art.close(
+                            status="completed", summary_key="chat.summary.tool_ok"
+                        )
 
         tool_messages.append(
             ToolMessage(
@@ -328,14 +454,23 @@ def execute_tools_node(state: Mapping[str, Any]) -> dict[str, Any]:
             )
         )
         if result["ok"]:
-            tool_steps.append({
-                "tool": name,
-                "name": name,
-                "result": safe_result,
-                "ok": True,
-            })
+            tool_steps.append(
+                {
+                    "tool": name,
+                    "name": name,
+                    "result": safe_result,
+                    "ok": True,
+                }
+            )
             previous_failure = ""
             consecutive_failures = 0
+            data = result.get("data") if isinstance(result.get("data"), Mapping) else {}
+            if (
+                name == "search_wiki"
+                and isinstance(data, Mapping)
+                and data.get("stop_search")
+            ):
+                stop_reason = "Wiki recall stalled without published table/enum schema"
         else:
             tool_steps.append(
                 {
@@ -359,11 +494,44 @@ def execute_tools_node(state: Mapping[str, Any]) -> dict[str, Any]:
             elif consecutive_failures >= 2:
                 stop_reason = f"{name} repeated the same failed call"
 
+    run_id = str(state.get("run_id") or "")
+    snap = peek_runtime(run_id) if run_id else None
+    plane = AgentKnowledgePlane.from_dump(
+        (snap or {}).get("knowledge_plane") or state.get("knowledge_plane")
+    )
+    probe_sql_calls = int(
+        (snap or {}).get("probe_sql_calls")
+        if snap and snap.get("probe_sql_calls") is not None
+        else (state.get("probe_sql_calls") or 0)
+    )
+    if run_id:
+        attach_runtime(
+            run_id,
+            knowledge_plane=plane.to_dump(),
+            probe_sql_calls=probe_sql_calls,
+        )
+
+    outgoing = [*messages, *tool_messages]
+    if any(getattr(item, "name", "") == "search_wiki" for item in tool_messages):
+        slots = dict(state.get("memory_slots") or {})
+        baseline = None
+        try:
+            baseline = MemorySlots.model_validate(slots).extract_change_baseline()
+        except Exception:
+            baseline = None
+        outgoing = plane.apply_to_system_message(
+            outgoing,
+            memory_slots=slots,
+            change_baseline=baseline,
+        )
+
     return {
         **state,
-        "messages": serialize_messages([*messages, *tool_messages]),
+        "messages": serialize_messages(outgoing),
         "tool_steps": tool_steps,
         "last_tool_failure_signature": previous_failure,
         "consecutive_tool_failures": consecutive_failures,
         "tool_stop_reason": stop_reason,
+        "knowledge_plane": plane.to_dump(),
+        "probe_sql_calls": probe_sql_calls,
     }

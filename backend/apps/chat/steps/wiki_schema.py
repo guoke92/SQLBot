@@ -33,6 +33,38 @@ _RELATION_ROW_RE = re.compile(
 _RELATION_HEADING = "## 关联表"
 
 
+def _lookup_store_page(
+    store: Any,
+    slug: str,
+    *,
+    belong: str | None = None,
+    page_type: str | None = None,
+) -> Any | None:
+    if store is None:
+        return None
+    pages = getattr(store, "pages", {}) or {}
+    if belong:
+        prefixed = pages.get(f"{belong}/{slug}")
+        if prefixed is not None:
+            return prefixed
+    page = pages.get(slug)
+    if page is not None:
+        actual = getattr(page, "type", None)
+        if page_type and actual not in (page_type, None, ""):
+            return None
+        return page
+    getter = getattr(store, "get_page", None)
+    if not callable(getter):
+        return None
+    page = getter(slug)
+    if page is None:
+        return None
+    actual = getattr(page, "type", None)
+    if page_type and actual not in (page_type, None, ""):
+        return None
+    return page
+
+
 def _wiki_table_block(page_text: str) -> dict[str, Any] | None:
     """解析 table 页的 ground:table 块（已发布的权威字段清单）。"""
     m = re.search(r"```ground:table\n([\s\S]*?)\n```", page_text)
@@ -96,7 +128,9 @@ class WikiSchemaRenderer:
         """渲染 working set 的 schema 段。"""
         sections: list[str] = []
         for table in tables:
-            page = self._store.pages.get(table) if self._store else None
+            page = _lookup_store_page(
+                self._store, table, belong="tables", page_type="table"
+            )
             block = _wiki_table_block(page.body) if page else None
             if block is not None:
                 sections.append(self._render_wiki_table(table, block, page.body))
@@ -120,7 +154,9 @@ class WikiSchemaRenderer:
         是已进 working set 的表页自带的绑定，锚点块即证据。"""
         if not dict_key or not self._store:
             return {}
-        page = self._store.pages.get(dict_key)
+        page = _lookup_store_page(
+            self._store, dict_key, belong="enums", page_type="enum"
+        )
         if page is None:
             return {}
         for anchor in getattr(page, "ground_blocks", ()) or ():
@@ -249,7 +285,9 @@ class WikiSchemaRenderer:
         lines = [f"## {desc} ({table}) [db]"]
         for name, ftype, comment in entry.get("fields") or []:
             lines.append(
-                _FIELD_LINE.format(field=name, type=ftype, comment=comment or name, topk="")
+                _FIELD_LINE.format(
+                    field=name, type=ftype, comment=comment or name, topk=""
+                )
             )
         lines.extend(self._db_ref_relations(table))
         lines.extend(self._live_fk_relations(table))

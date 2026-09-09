@@ -16,19 +16,37 @@ def fold_key(name: str) -> str:
 def build_graph(pages: dict[str, WikiPage]) -> tuple[Adjacency, AliasMap]:
     """Undirected adjacency over ``[[wikilink]]`` edges + alias resolution map.
 
-    Each page registers its page_key, title and aliases (folded) — the same
-    4-alias registration idea llm-wiki uses for link targets.
+    Bare names (page_key / title / aliases) register only when unique across
+    the store. ``belong/page_key`` always registers so ambiguous slugs can be
+    written as ``[[enums/pay_status]]``.
     """
-    alias_map: AliasMap = {}
+    claims: dict[str, list[str]] = {}
     for key, page in pages.items():
-        for name in page.identity_aliases:
-            alias_map.setdefault(fold_key(name), key)
+        names = [
+            key,
+            page.store_key,
+            f"{page.belong}/{page.page_key}" if page.belong else "",
+            page.page_key,
+            page.title,
+            *page.aliases,
+        ]
+        seen_folded: set[str] = set()
+        for name in names:
+            folded = fold_key(name)
+            if not folded or folded in seen_folded:
+                continue
+            seen_folded.add(folded)
+            bucket = claims.setdefault(folded, [])
+            if key not in bucket:
+                bucket.append(key)
+
+    alias_map: AliasMap = {
+        name: keys[0] for name, keys in claims.items() if len(keys) == 1
+    }
 
     adjacency: Adjacency = {key: set() for key in pages}
     for key, page in pages.items():
         for link in page.links:
-            # 查询与注册同键折叠（snake/kebab 等价）——曾经原样查询导致
-            # snake_case 目标解析失败、图扩展丢边（[[cust_company_info]] 不可达）。
             target = alias_map.get(fold_key(link.target))
             if target is None or target == key:
                 continue

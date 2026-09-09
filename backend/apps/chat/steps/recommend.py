@@ -14,19 +14,34 @@ from apps.chat.steps.observability import log_span
 from apps.chat.steps.stream import process_stream
 
 
+def _recalled_schema_text(llm_service: Any) -> str:
+    """Reuse the turn's knowledge-plane schema. Never dump the full catalog."""
+    existing = str(getattr(llm_service.chat_question, "db_schema", "") or "").strip()
+    if existing:
+        return existing
+    record = getattr(llm_service, "record", None)
+    run_id = str(getattr(record, "active_run_id", "") or "")
+    if not run_id:
+        return ""
+    from apps.chat.agent_knowledge import AgentKnowledgePlane
+    from apps.conversation.runtime_context import peek_runtime
+
+    snap = peek_runtime(run_id) or {}
+    plane = AgentKnowledgePlane.from_dump(snap.get("knowledge_plane"))
+    return "\n".join(
+        plane.schema_by_table[name]
+        for name in plane.tables
+        if plane.schema_by_table.get(name)
+    ).strip()
+
+
 def generate_recommend_questions(
     llm_service: Any, session: Session
 ) -> Iterator[Dict[str, Any]]:
     """Stream recommended-question tokens; yield final list under key recommended_question."""
-    if llm_service.ds and not llm_service.chat_question.db_schema:
-        snapshot = llm_service.protocol.retrieve_schema(
-            session=session,
-            current_user=llm_service.current_user,
-            ds=llm_service.ds,
-            question=llm_service.retrieval_question,
-            out_ds_instance=llm_service.out_ds_instance,
-        )
-        llm_service.chat_question.db_schema = snapshot.schema_text
+    recalled = _recalled_schema_text(llm_service)
+    if recalled:
+        llm_service.chat_question.db_schema = recalled
 
     guess_msg: List[Union[BaseMessage, dict[str, Any]]] = [
         SystemPromptMessage(

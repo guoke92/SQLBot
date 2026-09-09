@@ -9,6 +9,8 @@ from typing import Any
 from langchain_core.messages import HumanMessage
 from langgraph.types import interrupt
 
+from apps.chat.agent_knowledge import AgentKnowledgePlane
+from apps.chat.memory_slots import MemorySlots
 from apps.conversation.messages import deserialize_messages, serialize_messages
 from apps.conversation.process_timeline import (
     attach_running_clarification_span,
@@ -38,7 +40,9 @@ def await_agent_clarification_node(state: Mapping[str, Any]) -> dict[str, Any]:
             if isinstance(m, Mapping) and m.get("type") == "tool":
                 try:
                     c = json.loads(m.get("content", "{}"))
-                    if isinstance(c, dict) and c.get("data", {}).get("clarification_card"):
+                    if isinstance(c, dict) and c.get("data", {}).get(
+                        "clarification_card"
+                    ):
                         card_payload = c["data"]["clarification_card"]
                         break
                 except Exception:
@@ -89,7 +93,9 @@ def await_agent_clarification_node(state: Mapping[str, Any]) -> dict[str, Any]:
     # Durable interrupt: returns answers upon resume
     answers = interrupt(public)
     if clarify_span is not None:
-        clarify_span.set_output({"answers": answers, "interrupt_id": pending.interrupt_id})
+        clarify_span.set_output(
+            {"answers": answers, "interrupt_id": pending.interrupt_id}
+        )
         clarify_span.close(
             status="completed",
             summary_key="chat.summary.clarification_confirmed",
@@ -121,7 +127,9 @@ def await_agent_clarification_node(state: Mapping[str, Any]) -> dict[str, Any]:
             if not isinstance(ans, dict):
                 continue
             qid = str(ans.get("question_id") or ans.get("field") or "")
-            opt_id = str(ans.get("option_id") or ans.get("value") or ans.get("text") or "")
+            opt_id = str(
+                ans.get("option_id") or ans.get("value") or ans.get("text") or ""
+            )
 
             q_info = questions_map.get(qid) or {}
             opt_obj = q_info.get("options", {}).get(opt_id) if q_info else None
@@ -171,13 +179,25 @@ def await_agent_clarification_node(state: Mapping[str, Any]) -> dict[str, Any]:
             "clarification questions."
         )
     else:
-        clarify_text = "The user confirmed the clarification options. Continue the query."
+        clarify_text = (
+            "The user confirmed the clarification options. Continue the query."
+        )
 
     messages.append(HumanMessage(content=clarify_text))
+
+    slots_model = MemorySlots.model_validate(raw_slots)
+    plane = AgentKnowledgePlane.from_dump(state.get("knowledge_plane"))
+    messages = plane.apply_to_system_message(
+        messages,
+        memory_slots=raw_slots,
+        change_baseline=slots_model.extract_change_baseline(),
+    )
 
     return {
         **state,
         "messages": serialize_messages(messages),
         "memory_slots": raw_slots,
         "tool_steps": [],  # reset tool steps to avoid re-triggering clarify
+        "tool_rounds": 0,
+        "tool_stop_reason": "",
     }

@@ -6,6 +6,11 @@ from collections.abc import Mapping, Sequence
 from datetime import date, datetime
 from typing import Any, cast
 
+from apps.chat.agent_copy import (
+    compact_agent_final_text,
+    truncated_display_note,
+    truncation_from_delivery_steps,
+)
 from apps.chat.caliber_surface import project_caliber_surface
 from apps.chat.graphs.nodes.nlq.audit import _record_snapshot_values
 from apps.chat.graphs.nodes.nlq.presentation import (
@@ -18,7 +23,7 @@ from apps.chat.presentation import (
     build_result_presentation,
     chart_columns,
 )
-from apps.conversation.outcome import successful_outcome
+from apps.conversation.outcome import failed_outcome, successful_outcome
 from apps.conversation.process_timeline import (
     PREVIEW_ROW_LIMIT,
     load_result_datasets,
@@ -96,21 +101,36 @@ def _chart_axis(x_col: Mapping[str, Any], y_col: Mapping[str, Any]) -> dict[str,
     }
 
 
+def _dataset_row_count(item: Any) -> int:
+    raw = getattr(item, "row_count", None)
+    if raw is not None:
+        try:
+            return int(raw)
+        except (TypeError, ValueError):
+            pass
+    rows = getattr(item, "rows", None) or []
+    try:
+        return len(rows)
+    except TypeError:
+        return 0
+
+
 def select_delivery_datasets(datasets: Sequence[Any]) -> list[Any]:
-    """Publish required datasets; allow multiple. Fallback to last success."""
-    succeeded = [
+    """Publish required successful datasets; drop superseded empty attempts.
+
+    When a later required query returns rows, earlier 0-row attempts in the
+    same turn are discarded. If every required attempt is empty, keep the
+    last one so the UI can honestly show a 0-row result.
+    """
+    candidates = [
         item
         for item in datasets
         if str(getattr(item, "status", None) or "succeeded") != "failed"
+        and getattr(item, "required", True) is not False
     ]
-    delivery = [
-        item for item in succeeded if getattr(item, "required", True) is not False
-    ]
-    if delivery:
-        return list(delivery)
-    if succeeded:
-        return [succeeded[-1]]
-    return []
+    if any(_dataset_row_count(item) > 0 for item in candidates):
+        return [item for item in candidates if _dataset_row_count(item) > 0]
+    return list(candidates[-1:]) if candidates else []
 
 
 def infer_chart_for_presentation(
@@ -320,6 +340,30 @@ def finalize_agent_turn_node(state: Mapping[str, Any]) -> dict[str, Any]:
             latest_sql = sql
             latest_fields = fields
             latest_row_count = int(data.get("row_count") or data.get("total_rows") or 0)
+
+    route = (
+        state.get("turn_route") if isinstance(state.get("turn_route"), Mapping) else {}
+    )
+    if str(route.get("task_kind") or "query") == "query" and not all_steps:
+        from apps.chat.graphs.nodes.unified_agent import _incomplete_query_message
+
+        text = _incomplete_query_message(state)
+        return {
+            **state,
+            "error": text,
+            "public_error": text,
+            "final_text": text,
+            "outcome": failed_outcome(text, kind="empty_response"),
+        }
+
+    truncated, trunc_limit = truncation_from_delivery_steps(all_steps)
+    trans = getattr(llm_service, "trans", None) if llm_service is not None else None
+    final_text = compact_agent_final_text(
+        final_text,
+        truncated=truncated,
+        limit=trunc_limit,
+        truncation_note=truncated_display_note(trunc_limit, trans=trans),
+    )
 
     raw_slots = dict(state.get("memory_slots") or {})
     surface = project_caliber_surface(raw_slots)

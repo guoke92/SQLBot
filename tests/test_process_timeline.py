@@ -108,15 +108,23 @@ def test_chart_inference_uses_value_kinds_not_column_names() -> None:
 def test_select_delivery_datasets_skips_probes_and_keeps_multi() -> None:
     from apps.chat.graphs.nodes.agent_finalize import select_delivery_datasets
 
-    probe = SimpleNamespace(dataset_id="p", required=False, status="succeeded")
-    first = SimpleNamespace(dataset_id="a", required=True, status="succeeded")
-    second = SimpleNamespace(dataset_id="b", required=True, status="succeeded")
-    failed = SimpleNamespace(dataset_id="f", required=True, status="failed")
+    probe = SimpleNamespace(
+        dataset_id="p", required=False, status="succeeded", row_count=2
+    )
+    first = SimpleNamespace(
+        dataset_id="a", required=True, status="succeeded", row_count=10
+    )
+    second = SimpleNamespace(
+        dataset_id="b", required=True, status="succeeded", row_count=8
+    )
+    failed = SimpleNamespace(
+        dataset_id="f", required=True, status="failed", row_count=0
+    )
     picked = select_delivery_datasets([probe, first, failed, second])
     assert [item.dataset_id for item in picked] == ["a", "b"]
 
     only_probe = select_delivery_datasets([probe])
-    assert only_probe == [probe]
+    assert only_probe == []
 
 
 def test_execute_sql_truncation_uses_protocol_max_rows(monkeypatch) -> None:

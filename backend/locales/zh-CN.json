@@ -71,6 +71,10 @@
       "assumption_auto_omitted": "“{label}”未参与本次查询",
       "assumption_dropped_inference": "“{label}”无法与其余口径合并，已从本次查询中移除",
       "assumption_gate_degraded": "“{label}”未被采纳，本次仅按已确认的口径执行"
+    },
+    "agent": {
+      "incomplete_no_data": "这次没能查出结果。请换个问法试试，或确认数据源表结构已同步。",
+      "display_truncated": "仅展示前 {limit} 条。"
     }
   },
   "i18n_terminology": {

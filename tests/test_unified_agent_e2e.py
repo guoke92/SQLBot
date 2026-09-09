@@ -24,8 +24,8 @@ def test_memory_slots_retention_and_baseline_extraction():
     )
     baseline = slots.extract_change_baseline()
     assert baseline["sql"].startswith("SELECT dept")
-    assert baseline["confirmed_calibers"]["amount"] == "actual_amount"
-    assert len(baseline["excluded_filters"]) == 1
+    assert "confirmed_calibers" not in baseline
+    assert "excluded_filters" not in baseline
 
     prompt = build_agent_system_prompt(
         memory_slots=slots.model_dump(),
@@ -34,6 +34,7 @@ def test_memory_slots_retention_and_baseline_extraction():
     assert "<memory_slots>" in prompt
     assert "<change_baseline>" in prompt
     assert "actual_amount" in prompt
+    assert prompt.count('"confirmed_calibers"') == 1
 
 
 def test_incremental_patch_preserves_confirmed_filters():
@@ -135,3 +136,81 @@ def test_finalize_agent_turn_publishes_delivery_datasets_only():
     assert [item["title"] for item in ans["datasets"]] == ["企业清单", "城市分布"]
     assert "COUNT(*) FROM t GROUP BY 1" not in ans["datasets"][0]["sql"]
     assert ans["content"].startswith("以下为企业清单")
+
+
+def test_finalize_compacts_truncated_copy():
+    state = {
+        "run_id": "test_run_trunc",
+        "record_id": 1001,
+        "final_text": (
+            "查询已完成，企业清单已生成。以下是本次查询的说明与结果概要：\n\n"
+            "口径：认证方式为邀请认证-内管录入。\n\n"
+            "本次查询返回 1000 条，符合条件的记录超过 1000 条，结果集有截断。\n"
+        ),
+        "tool_steps": [
+            {
+                "ok": True,
+                "name": "execute_sql_sandbox",
+                "result": {
+                    "ok": True,
+                    "data": {
+                        "sql": "SELECT code FROM t LIMIT 1000",
+                        "fields": ["code"],
+                        "preview_rows": [{"code": "c1"}],
+                        "row_count": 1000,
+                        "limit": 1000,
+                        "truncated": True,
+                        "required": True,
+                        "result_title": "企业清单",
+                    },
+                },
+            },
+        ],
+    }
+    out = finalize_agent_turn_node(state)
+    content = out["terminal_answer"]["content"]
+    assert "查询已完成" not in content
+    assert "结果概要" not in content
+    assert "结果集有截断" not in content
+    assert "邀请认证-内管录入" in content
+    assert "仅展示前 1000 条。" in content
+
+
+def test_finalize_query_without_data_is_friendly_failure(monkeypatch):
+    from contextlib import contextmanager
+
+    @contextmanager
+    def _scope():
+        yield object()
+
+    monkeypatch.setattr(
+        "apps.chat.graphs.nodes.agent_finalize.session_scope", _scope
+    )
+    monkeypatch.setattr(
+        "apps.chat.graphs.nodes.agent_finalize.load_result_datasets",
+        lambda *_a, **_k: [],
+    )
+    out = finalize_agent_turn_node(
+        {
+            "run_id": "empty_run",
+            "final_text": "我用最宽泛的词汇再探测一次可用数据表。",
+            "turn_route": {"task_kind": "query"},
+            "tool_steps": [],
+        }
+    )
+    assert out["outcome"]["status"] == "failed"
+    assert "error" in out
+    assert "再探测" not in out["final_text"]
+    assert "换个问法" in out["public_error"] or "synced" in out["public_error"]
+
+
+def test_query_without_sql_routes_to_fail():
+    assert (
+        route_after_agent_loop(
+            {
+                "error": "这次没能查出结果。请换个问法试试，或确认数据源表结构已同步。",
+                "messages": [],
+            }
+        )
+        == "fail"
+    )

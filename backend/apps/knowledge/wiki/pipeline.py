@@ -446,11 +446,26 @@ def run_unit(
     for fname, content in result["pages"]:
         content = _normalize_page(content)  # concept 锚点提升（纯代码归一化）
 
+        rel = Path(fname)
+        belong = rel.parts[0] if rel.parts and rel.parts[0] in {
+            "tables",
+            "enums",
+            "concepts",
+            "processes",
+            "calibers",
+            "rules",
+            "metrics",
+            "patterns",
+            "queries",
+            "sources",
+            "scenarios",
+        } else None
         findings = reconcile_page(
             content,
             db_dir=db_dir,
             repo=repo,
-            page_key=Path(fname).stem,
+            page_key=rel.stem,
+            belong=belong,
         )
         page_level = [f for f in findings if "anchor" not in f]
         block_findings = [f for f in findings if "anchor" in f]
@@ -470,7 +485,7 @@ def run_unit(
                 yaml.safe_dump(block_findings, allow_unicode=True)
             )
         try:
-            page = parse_page(content, page_key=Path(fname).stem)
+            page = parse_page(content, page_key=Path(fname).stem, belong=belong)
         except Exception as exc:  # noqa: BLE001 — 丢块后契约仍失败：整页拒绝
             rejected += 1
             print(f"  REJECT {fname}: {str(exc)[:100]}", flush=True)
@@ -489,7 +504,7 @@ def run_unit(
         if dup:
             content = _drop_duplicate_blocks(content)
             dropped_blocks += len(dup)
-            page = parse_page(content, page_key=Path(fname).stem)
+            page = parse_page(content, page_key=Path(fname).stem, belong=belong)
             slug = hashlib.sha1(f"{fname}:dup".encode()).hexdigest()[:8]
             (topic_dir / f"_reconcile_{slug}.yaml").write_text(
                 yaml.safe_dump(

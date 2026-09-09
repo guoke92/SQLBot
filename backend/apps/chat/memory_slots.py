@@ -45,8 +45,6 @@ class MemorySlots(BaseModel):
         return {
             "sql": self.active_baseline_sql,
             "outline": self.active_dataset_outline,
-            "confirmed_calibers": self.confirmed_calibers,
-            "excluded_filters": self.excluded_filters,
         }
 
     def update_from_execution(

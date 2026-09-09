@@ -11,6 +11,44 @@ from common.utils.utils import SQLBotLogUtil
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
+# OpenAI-compatible embedding APIs often apply one 8K context to the whole
+# ``input`` array, not per string. Pack conservatively (CJK ≈ 1 token/char).
+_EMBED_REQUEST_TOKEN_BUDGET = 7000
+
+
+def estimate_embed_tokens(text: str) -> int:
+    """Conservative token estimate for packing embed requests."""
+    cjk = 0
+    for char in text:
+        if "\u4e00" <= char <= "\u9fff":
+            cjk += 1
+    other = max(0, len(text) - cjk)
+    return cjk + (other + 3) // 4
+
+
+def pack_indices_by_tokens(
+    texts: list[str], *, max_tokens: int = _EMBED_REQUEST_TOKEN_BUDGET
+) -> list[list[int]]:
+    """Group text indices so each request stays under ``max_tokens``."""
+    groups: list[list[int]] = []
+    current: list[int] = []
+    used = 0
+    for index, text in enumerate(texts):
+        tokens = max(1, estimate_embed_tokens(text))
+        if current and used + tokens > max_tokens:
+            groups.append(current)
+            current = []
+            used = 0
+        current.append(index)
+        used += tokens
+        if used >= max_tokens:
+            groups.append(current)
+            current = []
+            used = 0
+    if current:
+        groups.append(current)
+    return groups
+
 
 class EmbeddingModelInfo(BaseModel):
     folder: str
@@ -60,11 +98,9 @@ class OllamaOpenAIEmbeddings(BaseModel, Embeddings):
         return vectors
 
     def embed_documents(self, texts: list[str]) -> list[list[float]]:
-        # Batch in chunks to avoid oversized requests
-        batch_size = 32
         out: list[list[float]] = []
-        for i in range(0, len(texts), batch_size):
-            out.extend(self._embed(texts[i : i + batch_size]))
+        for group in pack_indices_by_tokens(texts):
+            out.extend(self._embed([texts[i] for i in group]))
         return out
 
     def embed_query(self, text: str) -> list[float]:
@@ -87,9 +123,7 @@ _dimension_lock = threading.Lock()
 _failure_lock = threading.Lock()
 _unavailable_until: dict[str, float] = {}
 _EMBEDDING_FAILURE_COOLDOWN_SEC = 60.0
-VECTOR_DIMENSION_PREDICATE = (
-    "vector_dims(child.embedding) = :embedding_dimension"
-)
+VECTOR_DIMENSION_PREDICATE = "vector_dims(child.embedding) = :embedding_dimension"
 
 
 def embedding_query_params(vector: list[float]) -> dict[str, object]:
@@ -108,14 +142,11 @@ def has_compatible_dimension(
 ) -> bool:
     """Return whether a persisted vector belongs to the active embedding space."""
     return bool(
-        query_vector
-        and stored_vector
-        and len(query_vector) == len(stored_vector)
+        query_vector and stored_vector and len(query_vector) == len(stored_vector)
     )
 
 
 class EmbeddingModelCache:
-
     @staticmethod
     def _cache_key(key: str) -> str:
         return f"{settings.EMBEDDING_PROVIDER}:{key}"

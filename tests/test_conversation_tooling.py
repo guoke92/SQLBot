@@ -34,6 +34,9 @@ from apps.conversation.messages import deserialize_messages, serialize_messages
 from apps.conversation.tooling import (
     execute_tools_node,
     normalize_tool_result,
+    parse_markup_tool_calls,
+    resolve_message_tool_calls,
+    strip_markup_tool_calls,
     tool_failure,
 )
 
@@ -582,3 +585,31 @@ def test_execute_tools_attaches_running_span_by_call_id_when_state_empty(
     assert any(
         isinstance(m, ToolMessage) and m.tool_call_id == "call-dup" for m in messages
     )
+
+
+_CHAT212_DSML = """<｜｜DSML｜｜tool_calls>
+<｜｜DSML｜｜invoke name="search_wiki">
+<｜｜DSML｜｜parameter name="query" string="true">研发交付 需求工作项 用户故事 任务 类型枚举 状态</｜｜DSML｜｜parameter>
+</｜｜DSML｜｜invoke>
+<｜｜DSML｜｜invoke name="search_wiki">
+<｜｜DSML｜｜parameter name="query" string="true">部门维度表 组织 系统编码</｜｜DSML｜｜parameter>
+</｜｜DSML｜｜invoke>
+</｜｜DSML｜｜tool_calls>"""
+
+
+def test_parse_dsml_markup_recovers_search_wiki_calls() -> None:
+    calls = parse_markup_tool_calls(_CHAT212_DSML)
+    assert [item["name"] for item in calls] == ["search_wiki", "search_wiki"]
+    assert calls[0]["args"]["query"] == "研发交付 需求工作项 用户故事 任务 类型枚举 状态"
+    assert "DSML" not in strip_markup_tool_calls(_CHAT212_DSML)
+    message = AIMessage(content=_CHAT212_DSML)
+    recovered, remainder = resolve_message_tool_calls(message, _CHAT212_DSML)
+    assert len(recovered) == 2
+    assert not remainder
+    native = AIMessage(
+        content="ok",
+        tool_calls=[{"id": "c1", "name": "execute_sql_sandbox", "args": {"sql": "SELECT 1"}}],
+    )
+    native_calls, native_text = resolve_message_tool_calls(native, "ok")
+    assert native_calls[0]["name"] == "execute_sql_sandbox"
+    assert native_text == "ok"

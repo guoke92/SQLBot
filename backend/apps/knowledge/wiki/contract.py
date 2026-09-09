@@ -41,6 +41,22 @@ PAGE_TYPES = {
     "source",
     "scenario",
 }
+TYPE_TO_BELONG = {
+    "table": "tables",
+    "enum": "enums",
+    "concept": "concepts",
+    "process": "processes",
+    "caliber": "calibers",
+    "metric": "metrics",
+    "rule": "rules",
+    "pattern": "patterns",
+    "query": "queries",
+    "source": "sources",
+    "scenario": "scenarios",
+}
+BELONG_TO_TYPE = {value: key for key, value in TYPE_TO_BELONG.items()}
+BELONG_DIRS = frozenset(TYPE_TO_BELONG.values())
+_KEY_PREFIXES = frozenset(PAGE_TYPES) | BELONG_DIRS
 GROUND_KINDS = {
     "table",
     "enum",
@@ -108,6 +124,7 @@ class WikiPage:
     type: str
     status: str
     body: str
+    belong: str = ""
     aliases: tuple[str, ...] = field(default_factory=tuple)
     domain: str = ""
     databases: tuple[str, ...] = field(
@@ -142,12 +159,42 @@ class WikiPage:
             *(a.lower() for a in self.aliases),
         )
 
+    @property
+    def store_key(self) -> str:
+        """Corpus-unique identity: belong/page_key (fall back to type dir)."""
+        belong = self.belong or TYPE_TO_BELONG.get(self.type, "")
+        if belong:
+            return f"{belong}/{self.page_key}"
+        return self.page_key
+
 
 def normalize_link_target(target: str) -> str:
     text = target.strip()
     text = re.sub(r"\.(md|markdown)$", "", text, flags=re.I)
     text = text.split("#", 1)[0]
-    return text.strip().lower()
+    text = text.strip().lower()
+    text = re.sub(r"^wiki/", "", text)
+    return text
+
+
+def normalize_page_key(raw: str) -> str:
+    """Strip accidental type/dir prefixes and spaces from a page_key draft."""
+    text = str(raw or "").strip().strip("'\"")
+    for sep in ("/", "."):
+        if sep not in text:
+            continue
+        prefix, rest = text.split(sep, 1)
+        if prefix in _KEY_PREFIXES and rest.strip():
+            text = rest.strip()
+            break
+    text = re.sub(r"\s+", "-", text)
+    return text
+
+
+def infer_belong(page_type: str, *, directory: str | None = None) -> str:
+    if directory and directory in BELONG_DIRS:
+        return directory
+    return TYPE_TO_BELONG.get(page_type, "")
 
 
 def _slug_valid(page_type: str, slug: str) -> bool:
@@ -225,13 +272,23 @@ def _parse_ground_blocks(
     return tuple(anchors), tuple(unknown), tuple(findings)
 
 
-def parse_page(content: str, *, page_key: str | None = None) -> WikiPage:
+def parse_page(
+    content: str,
+    *,
+    page_key: str | None = None,
+    override_page_key: bool = False,
+    belong: str | None = None,
+) -> WikiPage:
     """Parse one page; structural violations raise PageContractError.
 
-    ``page_key``（文件名 stem）为程序盖章值，提供时覆盖 frontmatter（v0 §2.1）。
+    Identity is ``(belong, page_key)``. Frontmatter ``page_key`` wins over
+    filename stem unless ``override_page_key=True`` (LLM ingest drafts).
+    ``belong`` from the parent directory is authoritative when provided.
+    Illegal drafts like ``caliber/foo`` are normalized to ``foo``.
     """
     meta, body = _parse_frontmatter(content)
-    if page_key is not None:
+    fm_key = str(meta.get("page_key") or "").strip()
+    if page_key is not None and (override_page_key or not fm_key):
         meta = {**meta, "page_key": page_key}
 
     def strings(key: str) -> tuple[str, ...]:
@@ -240,10 +297,31 @@ def parse_page(content: str, *, page_key: str | None = None) -> WikiPage:
         )
 
     errors: list[str] = []
-    page_key = str(meta.get("page_key") or "")
+    raw_key = str(meta.get("page_key") or "")
+    page_key = normalize_page_key(raw_key)
     title = str(meta.get("title") or "").strip()
     page_type = str(meta.get("type") or "")
     status = str(meta.get("status") or "")
+    fm_belong = str(meta.get("belong") or "").strip()
+    dir_belong = str(belong or "").strip()
+    if dir_belong:
+        if fm_belong and fm_belong != dir_belong:
+            errors.append(f"belong {fm_belong!r} 与目录 {dir_belong!r} 不一致")
+        resolved_belong = dir_belong
+    elif fm_belong:
+        resolved_belong = fm_belong
+    else:
+        resolved_belong = infer_belong(page_type)
+    if resolved_belong and resolved_belong not in BELONG_DIRS:
+        errors.append(
+            f"belong must be one of {sorted(BELONG_DIRS)}, got {resolved_belong!r}"
+        )
+    expected_type = BELONG_TO_TYPE.get(resolved_belong)
+    if expected_type and page_type and page_type != expected_type:
+        errors.append(
+            f"type {page_type!r} 与 belong {resolved_belong!r} 不一致"
+            f"（应为 {expected_type}）"
+        )
     if page_type not in PAGE_TYPES:
         errors.append(f"type must be one of {sorted(PAGE_TYPES)}")
     if status not in PAGE_STATUSES:
@@ -314,6 +392,7 @@ def parse_page(content: str, *, page_key: str | None = None) -> WikiPage:
         type=page_type,
         status=status,
         body=body,
+        belong=resolved_belong,
         aliases=strings("aliases"),
         domain=str(meta.get("domain") or ""),
         databases=databases,
@@ -393,11 +472,38 @@ def lint_page(
 
     folded_known = {_fold(k) for k in known_keys}
     folded_known.add(_fold(page.page_key))
+    folded_known.add(_fold(page.store_key))
+    identities = set(folded_known)
+    bare_groups: dict[str, set[str]] = {}
+    for folded in identities:
+        bare = folded.rsplit("/", 1)[-1]
+        if bare:
+            bare_groups.setdefault(bare, set()).add(folded)
+
+    def _bare_unique(bare: str) -> int:
+        group = bare_groups.get(bare) or set()
+        store_keys = {item for item in group if "/" in item}
+        slugs = {item for item in group if "/" not in item}
+        covered = {item.rsplit("/", 1)[-1] for item in store_keys}
+        return len(store_keys) + len(slugs - covered)
+
     for link in page.links:
-        if _fold(link.target) not in folded_known:
+        folded = _fold(link.target)
+        if folded in folded_known:
+            continue
+        bare = folded.rsplit("/", 1)[-1]
+        hits = _bare_unique(bare) if "/" not in folded else 0
+        if hits == 1:
+            continue
+        if hits > 1:
             findings.append(
-                Finding("BROKEN_LINK", f"[[{link.target}]] 无法解析为已知页面")
+                Finding(
+                    "AMBIGUOUS_LINK",
+                    f"[[{link.target}]] 对应多页，请写成 [[belong/{link.target}]]",
+                )
             )
+            continue
+        findings.append(Finding("BROKEN_LINK", f"[[{link.target}]] 无法解析为已知页面"))
     if not page.links:
         findings.append(Finding("NO_OUTLINKS", "页面没有任何出链"))
 

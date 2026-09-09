@@ -76,6 +76,13 @@ def attach_runtime(run_id: str, **values: Any) -> None:
         current.update(values)
 
 
+def peek_runtime(run_id: str) -> dict[str, Any] | None:
+    """Return the in-memory runtime bag without hydrating from the database."""
+    with _lock:
+        cached = _contexts.get(run_id)
+        return dict(cached) if cached is not None else None
+
+
 def detach_runtime(run_id: str) -> None:
     with _lock:
         _contexts.pop(run_id, None)

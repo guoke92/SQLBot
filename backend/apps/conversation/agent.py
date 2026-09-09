@@ -18,7 +18,12 @@ from apps.conversation.outcome import failed_outcome, format_error_message
 from apps.conversation.process_timeline import open_process_span
 from apps.conversation.runtime_context import runtime_value
 from apps.conversation.sink import StreamSink
-from apps.conversation.tooling import tool_calls_from_message
+from apps.conversation.tooling import (
+    attach_tool_calls,
+    looks_like_tool_markup,
+    resolve_message_tool_calls,
+    tool_calls_from_message,
+)
 from apps.conversation.usage import usage_from_response
 from common.utils.utils import SQLBotLogUtil
 
@@ -68,13 +73,20 @@ def agent_node(state: Mapping[str, Any]) -> dict[str, Any]:
     try:
         bound = llm if finalizing or not tools else llm.bind_tools(tools)
         response: AIMessage = bound.invoke(model_messages)
-        calls = tool_calls_from_message(response)
-        safe_calls = sanitize_audit_value(calls)
         text = message_content_text(response.content)
-        rc = (
-            getattr(response, "additional_kwargs", {}).get("reasoning_content")
-            or getattr(response, "reasoning_content", "")
-        )
+        native_calls = tool_calls_from_message(response)
+        calls, text = resolve_message_tool_calls(response, text)
+        if calls and not native_calls and not finalizing:
+            response = attach_tool_calls(response, calls, text)
+        if finalizing and (
+            calls or looks_like_tool_markup(message_content_text(response.content))
+        ):
+            calls = []
+            text = text.strip()
+        safe_calls = sanitize_audit_value(calls)
+        rc = getattr(response, "additional_kwargs", {}).get(
+            "reasoning_content"
+        ) or getattr(response, "reasoning_content", "")
         thought_text = str(rc or (text if calls else "") or "")
         if thought_span is not None:
             if thought_text:

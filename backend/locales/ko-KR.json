@@ -71,6 +71,10 @@
       "assumption_auto_omitted": "\"{label}\"은(는) 이번 쿼리에서 제외되었습니다",
       "assumption_dropped_inference": "\"{label}\"은(는) 다른 기준과 결합할 수 없어 이번 쿼리에서 제거되었습니다",
       "assumption_gate_degraded": "\"{label}\"은(는) 반영되지 않았으며, 이번에는 확인된 기준으로만 실행되었습니다"
+    },
+    "agent": {
+      "incomplete_no_data": "조회를 완료하지 못했습니다. 질문을 바꿔 보거나, 데이터 소스 테이블이 동기화되었는지 확인해 주세요.",
+      "display_truncated": "처음 {limit}건만 표시합니다."
     }
   },
   "i18n_terminology": {

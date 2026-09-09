@@ -34,6 +34,10 @@ _TABLE_PAGE_BONUS = 0.05
 # business 模式单页正文摘要上限（剔除围栏后的散文）；0 = 不截断
 _DEFAULT_PROSE_CHARS = 400
 
+# Temporary: admit draft so unpublished baseline table/enum pages can flow.
+# Retired stays out. Re-tighten to published-only after corpus promotion.
+RUNTIME_PAGE_STATUSES = frozenset({"draft", "published"})
+
 _CJK_RUN_RE = re.compile(r"[\u4e00-\u9fff]+")
 _ASCII_WORD_RE = re.compile(r"[a-zA-Z0-9_]+")
 
@@ -63,15 +67,29 @@ class RenderedPassage:
     # 无法表达"相关/无关"——chat 168：0.10 与 0.07 只差两个排名位）
     vector_score: float = 0.0  # 该页最好 chunk 的向量 cosine（无向量=0）
     lexical_score: float = 0.0  # 词法 coverage 通道原始分
+    store_key: str = ""
+    belong: str = ""
 
 
 class InMemoryWikiStore:
     """Process-local page store: chunks + alias map + adjacency, zero DB."""
 
     def __init__(self, pages: list[WikiPage]) -> None:
-        self.pages: dict[str, WikiPage] = {page.page_key: page for page in pages}
+        self.pages: dict[str, WikiPage] = {}
+        self.by_slug: dict[str, str] = {}
+        self.table_index: dict[str, str] = {}
+        slug_claims: dict[str, list[str]] = {}
+        for page in pages:
+            key = page.store_key
+            self.pages[key] = page
+            slug_claims.setdefault(page.page_key, []).append(key)
+            if page.type == "table":
+                self.table_index[page.page_key] = key
+        self.by_slug = {
+            slug: keys[0] for slug, keys in slug_claims.items() if len(keys) == 1
+        }
         self.chunks: dict[str, list[Chunk]] = {
-            page.page_key: chunk_markdown(page.body) for page in pages
+            key: chunk_markdown(page.body) for key, page in self.pages.items()
         }
         self.adjacency, self.alias_map = build_graph(self.pages)
         # alias-exact 索引：别名/标题（含枚举值 label）作为查询子串的强命中通道
@@ -79,8 +97,13 @@ class InMemoryWikiStore:
         for key, page in self.pages.items():
             for name in page.identity_aliases:
                 cleaned = name.strip()
-                if len(cleaned) >= _MIN_TOKEN and cleaned not in self.alias_index:
+                if len(cleaned) < _MIN_TOKEN:
+                    continue
+                existing = self.alias_index.get(cleaned)
+                if existing is None:
                     self.alias_index[cleaned] = key
+                elif existing != key:
+                    self.alias_index.pop(cleaned, None)
         # chunk token cache + document frequency（coverage 的 IDF 加权底座）：
         # 表页字段注释词汇广，任何查询都能蹭到高频 bigram——不降权会淹没
         # 稀有而精准的枚举值/别名命中。键=chunk_id（与 _lexical_channels 的
@@ -99,6 +122,18 @@ class InMemoryWikiStore:
             tok: math.log(1.0 + total / count) for tok, count in df.items()
         }
 
+    def get_page(self, key: str) -> WikiPage | None:
+        """Lookup by store_key, unique slug, or ``belong/page_key``."""
+        if key in self.pages:
+            return self.pages[key]
+        mapped = self.by_slug.get(key)
+        if mapped:
+            return self.pages.get(mapped)
+        return None
+
+    def has_table(self, table: str) -> bool:
+        return table in self.table_index
+
     @classmethod
     def load(cls, contents: list[str]) -> InMemoryWikiStore:
         return cls([parse_page(content) for content in contents])
@@ -108,19 +143,24 @@ class InMemoryWikiStore:
         """加载页面目录（双面架构接缝：管理面写 git 目录，运行面直接消费）。
         子目录=type 路由（tables/enums/concepts/…），必须 rglob——平面 glob
         在子目录结构下会漏掉全部页面。`_` 前缀文件（_index.md 等）非内容页。"""
-        pages = [
-            parse_page(p.read_text(), page_key=p.stem)
-            for p in sorted(root.rglob("*.md"))
-            if not p.name.startswith("_")
-        ]
+        from apps.knowledge.wiki.contract import BELONG_DIRS
+
+        pages: list[WikiPage] = []
+        for path in sorted(root.rglob("*.md")):
+            if path.name.startswith("_"):
+                continue
+            belong = path.parent.name if path.parent.name in BELONG_DIRS else None
+            pages.append(
+                parse_page(path.read_text(), page_key=path.stem, belong=belong)
+            )
         return cls(pages)
 
     def _fenced(
         self, page: WikiPage, *, databases: list[str] | tuple[str, ...]
     ) -> bool:
-        """围栏：published only + 物理库名交集（scope.databases）。
-        页面未声明（空）= 不限——数据源是知识来源，不是使用限制。"""
-        if page.status != "published":
+        """围栏：draft+published（暂放开 draft）+ 物理库名交集。
+        retired 仍不可见。页面未声明 databases（空）= 不限。"""
+        if page.status not in RUNTIME_PAGE_STATUSES:
             return False
         return not page.databases or bool(
             set(page.databases) & {str(name).strip().lower() for name in databases}
@@ -486,7 +526,7 @@ def recall(
             )
         passages.append(
             RenderedPassage(
-                page_key=page_key,
+                page_key=page.page_key,
                 title=page.title,
                 score=round(score, 6),
                 source=source,
@@ -494,6 +534,8 @@ def recall(
                 text=_render(page, visible_chunks[page_key][best_index], mode=mode),
                 vector_score=round(page_vector, 6),
                 lexical_score=round(lexical_raw, 6),
+                store_key=page.store_key,
+                belong=page.belong,
             )
         )
 
@@ -538,19 +580,22 @@ def recall(
         anchor_chunk = next(
             (c for c in neighbor_chunks if "```ground:" in c.text), neighbor_chunks[0]
         )
+        seed_slugs = tuple(visible[s].page_key if s in visible else s for s in seeds)
         passages.append(
             RenderedPassage(
-                page_key=page_key,
+                page_key=page.page_key,
                 title=page.title,
                 score=round(nscore / (_RRF_K + 1), 6),
                 source="graph",
-                related_to=seeds,
+                related_to=seed_slugs,
                 text=_render(
                     page,
                     anchor_chunk,
-                    source_note=f"图近邻: {'、'.join(seeds)}",
+                    source_note=f"图近邻: {'、'.join(seed_slugs)}",
                     mode=mode,
                 ),
+                store_key=page.store_key,
+                belong=page.belong,
             )
         )
     _fill_trace(

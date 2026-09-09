@@ -49,15 +49,23 @@ def _sql_alias_columns(sql: str, dialect: str) -> list[dict[str, str]]:
     return projections
 
 
-def wiki_table_columns(table: str) -> set[str]:
+def wiki_table_columns(table: str, *, ds_id: int | None = None) -> set[str]:
     """Column names from the wiki ground:table page; empty when unavailable."""
     try:
         from apps.chat.steps.wiki_recall import _store
 
-        store = _store()
+        store = _store(ds_id)
         if store is None:
             return set()
-        page = store.pages.get(table)
+        page = store.pages.get(table) or store.pages.get(f"tables/{table}")
+        if page is None and hasattr(store, "get_page"):
+            page = store.get_page(table)
+            if page is not None and getattr(page, "type", "table") not in (
+                "table",
+                None,
+                "",
+            ):
+                page = store.pages.get(f"tables/{table}")
         if page is None:
             return set()
         for anchor in getattr(page, "ground_blocks", ()) or ():
@@ -79,6 +87,7 @@ def enum_refs_for_query(
     fields: Sequence[str],
     tables: Sequence[str] | None = None,
     dialect: str = "mysql",
+    ds_id: int | None = None,
 ) -> tuple[list[str], dict[str, str]]:
     """Build ``表.列`` refs and result-alias → ref map for enum translation."""
     refs: list[str] = []
@@ -105,7 +114,7 @@ def enum_refs_for_query(
     projections = _sql_alias_columns(sql, dialect) if sql else []
     alias_map = {p["alias"]: p for p in projections}
     table_columns: dict[str, set[str]] = {
-        table: wiki_table_columns(table) for table in table_list
+        table: wiki_table_columns(table, ds_id=ds_id) for table in table_list
     }
     known = {col for cols in table_columns.values() for col in cols}
 
@@ -170,7 +179,9 @@ def apply_wiki_enum_labels(
 
     resolved_ds = ds_id
     if resolved_ds is None and llm_service is not None:
-        ds = getattr(llm_service, "ds", None) or getattr(llm_service, "datasource", None)
+        ds = getattr(llm_service, "ds", None) or getattr(
+            llm_service, "datasource", None
+        )
         resolved_ds = getattr(ds, "id", None)
 
     refs, alias_to_ref = enum_refs_for_query(
@@ -178,6 +189,7 @@ def apply_wiki_enum_labels(
         fields=fields,
         tables=tables,
         dialect=resolved_dialect,
+        ds_id=resolved_ds,
     )
     if not refs:
         return safe_rows, {}

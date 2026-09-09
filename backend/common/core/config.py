@@ -169,12 +169,15 @@ class Settings(BaseSettings):
     # wiki 知识体系召回切换（v0 契约）：wiki=默认全量（allowlist 空或 * ），unit=回退
     KNOWLEDGE_BACKEND: str = "wiki"
     KNOWLEDGE_WIKI_DS_ALLOWLIST: str = "*"  # 逗号分隔 ds_id；* 或空 = 全量启用 wiki
+    # Admin-plane import default only. Runtime recall never scans this
+    # directory; bound datasources use wiki_corpus_binding + DB pages,
+    # unbound datasources fall back to schema_vector.
     KNOWLEDGE_WIKI_PAGES_DIRS: str = "docs/wiki-knowledge/pplatform/wiki-pages"
 
     @computed_field  # type: ignore[misc]
     @property
     def knowledge_wiki_pages_dirs_abs(self) -> str:
-        """PAGES_DIRS 的仓库根绝对形态——运行时从任意 cwd（uvicorn/脚本）加载一致。"""
+        """Admin import default as repo-root absolute paths (any cwd)."""
         return ":".join(
             str((_REPO_ROOT / part).resolve()) if not Path(part).is_absolute() else part
             for part in self.KNOWLEDGE_WIKI_PAGES_DIRS.split(":")

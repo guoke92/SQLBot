@@ -71,6 +71,10 @@
       "assumption_auto_omitted": "\"{label}\" was left out of this query",
       "assumption_dropped_inference": "\"{label}\" could not be combined with the other definitions and was removed from this query",
       "assumption_gate_degraded": "\"{label}\" was not applied; this query ran on the confirmed definitions only"
+    },
+    "agent": {
+      "incomplete_no_data": "This query could not be completed. Try rephrasing, or confirm the datasource tables are synced.",
+      "display_truncated": "Showing the first {limit} rows."
     }
   },
   "i18n_terminology": {

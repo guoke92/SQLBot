@@ -3,7 +3,7 @@
 Visibility precedes gap-signaling: the planner can only declare
 ``missing_concepts`` for concepts it can see exist. The schema map lists the
 AccessScope-fenced catalog one line per table (tiered by catalog size); the
-knowledge map lists active published units one line each. Both are cheap
+knowledge map lists active draft+published wiki pages one line each. Both are cheap
 deterministic queries recomputed per planning attempt — they are prompt
 content, not persisted ``planning_context`` state.
 """
@@ -15,6 +15,7 @@ from typing import Any
 from sqlmodel import Session, select
 
 from apps.datasource.models.datasource import CoreTable
+from apps.knowledge.wiki.recall import RUNTIME_PAGE_STATUSES
 
 _FULL_TIER_MAX = 40
 _GROUP_TIER_MAX = 300
@@ -107,9 +108,9 @@ def render_schema_map(
 
 
 def render_knowledge_map(
-    session: Session,
+    session: Session,  # noqa: ARG001 — signature kept for planner call sites
     *,
-    oid: int,
+    oid: int,  # noqa: ARG001
     ds_id: int,
     hit_keys: list[str] | None = None,
     databases: list[str] | None = None,
@@ -139,21 +140,25 @@ def _wiki_knowledge_map(
     try:
         from apps.chat.steps.wiki_recall import _store
 
-        store = _store()
+        store = _store(ds_id)
         if store is None:
             return ""
         db_names = {str(name).strip().lower() for name in (databases or [])}
         if hit_keys:
-            pages = [
-                store.pages[key]
-                for key in dict.fromkeys(hit_keys)
-                if key in store.pages and store.pages[key].status == "published"
-            ]
+            pages = []
+            for key in dict.fromkeys(hit_keys):
+                page = (
+                    store.get_page(key)
+                    if hasattr(store, "get_page")
+                    else store.pages.get(key)
+                )
+                if page is not None and page.status in RUNTIME_PAGE_STATUSES:
+                    pages.append(page)
         else:
             pages = [
                 page
                 for page in store.pages.values()
-                if page.status == "published"
+                if page.status in RUNTIME_PAGE_STATUSES
                 and (not page.databases or db_names & set(page.databases))
             ]
         pages.sort(key=lambda p: (p.type, p.page_key))

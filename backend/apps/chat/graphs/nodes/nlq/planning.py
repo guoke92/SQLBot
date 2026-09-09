@@ -312,11 +312,12 @@ def _wiki_recall_summary(state: NlqState) -> dict[str, Any] | None:
     """wiki_context 召回遥测 → 执行详情摘要（detail.wiki_recall）。
 
     hits 上限 12 条（完整清单在 planning_context.wiki_context 快照，
-    摘要只服务一眼可读）；无召回（wiki 后端关闭/零命中）返回 None——
-    span detail 不加空块。"""
+    摘要只服务一眼可读）。已绑定但零命中仍返回摘要，便于确认走的是
+    DB 语料而不是旧目录召回。"""
     wiki_context = state.get("wiki_context") or {}
     hits = wiki_context.get("wiki_hits") or []
-    if not hits:
+    store_source = str(wiki_context.get("store_source") or "")
+    if not hits and not store_source:
         return None
     return {
         "hit_count": len(hits),
@@ -324,6 +325,12 @@ def _wiki_recall_summary(state: NlqState) -> dict[str, Any] | None:
         "elapsed_ms": wiki_context.get("wiki_recall_elapsed_ms"),
         "embedding_built": bool(wiki_context.get("wiki_embedding_built")),
         "source": wiki_context.get("wiki_recall_source"),
+        "store_source": store_source,
+        "corpus_id": wiki_context.get("corpus_id"),
+        "generation": wiki_context.get("corpus_generation"),
+        "vector_chunks": wiki_context.get("vector_chunks"),
+        "vector_channel": bool(wiki_context.get("vector_channel")),
+        "trace": wiki_context.get("wiki_trace") or {},
     }
 
 

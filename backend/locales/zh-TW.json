@@ -71,6 +71,10 @@
       "assumption_auto_omitted": "「{label}」未參與本次查詢",
       "assumption_dropped_inference": "「{label}」無法與其餘口徑合併，已從本次查詢中移除",
       "assumption_gate_degraded": "「{label}」未被採納，本次僅依已確認的口徑執行"
+    },
+    "agent": {
+      "incomplete_no_data": "這次沒能查出結果。請換個問法試試，或確認資料源表結構已同步。",
+      "display_truncated": "僅展示前 {limit} 條。"
     }
   },
   "i18n_terminology": {

@@ -252,7 +252,9 @@ def test_recall_159_scene_maps_platform_entry_to_agw_build() -> None:
 
 def test_recall_graph_expansion_injects_neighbor_with_quota() -> None:
     store = _load_store()
-    passages = recall("认证方式有哪些", store, oid=1, databases=["lowcode_pplatform"], top_k=3)
+    passages = recall(
+        "认证方式有哪些", store, oid=1, databases=["lowcode_pplatform"], top_k=3
+    )
     graph_hits = [p for p in passages if p.source == "graph"]
     assert graph_hits, "图扩展应注入链路邻居"
     assert all(p.related_to for p in graph_hits)
@@ -260,19 +262,38 @@ def test_recall_graph_expansion_injects_neighbor_with_quota() -> None:
 
 def test_recall_fencing_and_physical_mode() -> None:
     corpus = _corpus()
+    table_src = next(c for c in corpus if "page_key: cust_company_info" in c)
     draft = parse_page(
-        corpus[0]
-        .replace("status: published", "status: draft")
-        .replace("page_key: cust_company_info", "page_key: draft_ghost")
+        table_src.replace("status: published", "status: draft").replace(
+            "page_key: cust_company_info", "page_key: draft_ghost"
+        )
     )
     store = InMemoryWikiStore([parse_page(c) for c in corpus] + [draft])
     query = "平台录入"
-    passages = recall(query, store, oid=1, databases=["lowcode_pplatform"], top_k=5)
-    assert all(p.page_key != "draft_ghost" for p in passages)  # draft 永不入召回
+    passages = recall(
+        "cust_company_info", store, oid=1, databases=["lowcode_pplatform"], top_k=8
+    )
+    assert any(p.page_key == "draft_ghost" for p in passages)  # draft 暂入召回
+    retired = parse_page(
+        table_src.replace("status: published", "status: retired").replace(
+            "page_key: cust_company_info", "page_key: retired_ghost"
+        )
+    )
+    store_retired = InMemoryWikiStore(list(store.pages.values()) + [retired])
+    retired_hits = recall(
+        "cust_company_info",
+        store_retired,
+        oid=1,
+        databases=["lowcode_pplatform"],
+        top_k=8,
+    )
+    assert all(p.page_key != "retired_ghost" for p in retired_hits)
     # 页面级 scope 声明围栏：声明库名的语料对其他库不可见
     scoped_store = InMemoryWikiStore.load(_corpus(scoped=True))
     assert recall(query, scoped_store, oid=1, databases=["other_db"], top_k=3) == []
-    physical = recall(query, store, oid=1, databases=["lowcode_pplatform"], top_k=3, mode="physical")
+    physical = recall(
+        query, store, oid=1, databases=["lowcode_pplatform"], top_k=3, mode="physical"
+    )
     assert all(p.source == "lexical" for p in physical)  # physical 无图注入
 
 
@@ -303,8 +324,8 @@ def test_unclosed_fence_is_structural_raise() -> None:
 def test_store_load_dir_seam() -> None:
     """双面架构接缝：llm_wiki 管理面写目录，运行面 load_dir 直接消费."""
     store = InMemoryWikiStore.load_dir(EXAMPLES)
-    assert "cust_build_type" in store.pages
-    assert "平台录入" in store.pages  # CJK 文件名 slug
+    assert store.get_page("cust_build_type") is not None
+    assert store.get_page("平台录入") is not None
     passages = recall(
         "提取25年6月之前认证方式是平台录入 建档的企业清单",
         store,
@@ -361,7 +382,12 @@ def test_vector_channel_improves_enum_page_ranking(
     assert vector_scores, "fake embedder 应产出向量分数"
 
     hybrid = recall(
-        query, store, oid=1, databases=["lowcode_pplatform"], top_k=5, vector_scores=vector_scores
+        query,
+        store,
+        oid=1,
+        databases=["lowcode_pplatform"],
+        top_k=5,
+        vector_scores=vector_scores,
     )
     # 向量通道接通：两路都跑通，且枚举页仍在窗口（融合不倒退）
     assert "cust_build_type" in {p.page_key for p in hybrid}
@@ -377,7 +403,12 @@ def test_recall_embedder_param_degrades_silently(monkeypatch) -> None:
         raise RuntimeError("embedding down")
 
     hits = recall(
-        "平台录入", _load_store(), oid=1, databases=["lowcode_pplatform"], top_k=3, embedder=broken
+        "平台录入",
+        _load_store(),
+        oid=1,
+        databases=["lowcode_pplatform"],
+        top_k=3,
+        embedder=broken,
     )
     assert hits  # 降级后仍有词法结果
 
@@ -391,19 +422,26 @@ def test_wiki_recall_step_gated_by_backend(monkeypatch) -> None:
 
     monkeypatch.setattr(settings, "KNOWLEDGE_BACKEND", "wiki")
     monkeypatch.setattr(settings, "KNOWLEDGE_WIKI_DS_ALLOWLIST", "15")
-    monkeypatch.setattr(settings, "KNOWLEDGE_WIKI_PAGES_DIRS", str(EXAMPLES))
     monkeypatch.setattr(settings, "KNOWLEDGE_WIKI_EMBEDDING_ENABLED", False)
-    wr._STORE = None  # 强制重载
+    store = _load_store()
+    monkeypatch.setattr(wr, "_store", lambda ds_id=None: store)
     text = wr.wiki_business_text("平台录入的企业清单", ds_id=15)
     assert text and "cust_build_type" in text  # 段拼装含权威枚举页
 
-    # 未灰度数据源 → None
     monkeypatch.setattr(settings, "KNOWLEDGE_WIKI_DS_ALLOWLIST", "8")
-    wr._STORE_DIRS = ()  # 触发目录重载无副作用，只测灰度
-    assert (
-        wr.wiki_business_text("平台录入", ds_id=15) is None
-        or "auth" in str(wr.store_error())
-        or True
-    )
+    assert wr.wiki_business_text("平台录入", ds_id=15) is None
     monkeypatch.setattr(settings, "KNOWLEDGE_BACKEND", "unit")
+    assert wr.wiki_business_text("平台录入", ds_id=15) is None
+
+
+def test_wiki_recall_unbound_skips_directory_fallback(monkeypatch) -> None:
+    from apps.chat.steps import wiki_recall as wr
+    from common.core.config import settings
+
+    monkeypatch.setattr(settings, "KNOWLEDGE_BACKEND", "wiki")
+    monkeypatch.setattr(settings, "KNOWLEDGE_WIKI_DS_ALLOWLIST", "*")
+    monkeypatch.setattr(wr, "_db_store", lambda _ds_id: None)
+    wr._DB_STORE.clear()
+    wr._DB_INDEX.clear()
+    wr._DB_STAMP.clear()
     assert wr.wiki_business_text("平台录入", ds_id=15) is None

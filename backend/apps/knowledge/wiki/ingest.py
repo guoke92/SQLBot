@@ -434,6 +434,7 @@ def reconcile_page(
     db_dir: Path,
     repo: Path,
     page_key: str | None = None,
+    belong: str | None = None,
 ) -> list[dict[str, str]]:
     """锚点块 vs E2∪E3 底稿对账 + 回证行号验证。返回 findings（丢块决策在上层）。
 
@@ -450,7 +451,12 @@ def reconcile_page(
 
     findings: list[dict[str, str]] = []
     try:
-        page = parse_page(page_content, page_key=page_key)
+        page = parse_page(
+            page_content,
+            page_key=page_key,
+            override_page_key=True,
+            belong=belong,
+        )
     except Exception as exc:  # noqa: BLE001 — 契约失败整页拒绝并报告
         return [{"code": "PAGE_CONTRACT_FAILED", "message": str(exc)[:200]}]
 

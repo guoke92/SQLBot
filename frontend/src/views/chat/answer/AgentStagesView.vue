@@ -294,7 +294,7 @@ function syncThoughtRegions(prevSnapshot?: string) {
     const expanded = isExpanded(block)
     const prevState = prev.get(block.key)
     const justCompleted = prevState?.status === 'running' && !streaming
-    const justOpened = Boolean(prevState) && !prevState.expanded && expanded
+    const justOpened = Boolean(prevState && !prevState.expanded && expanded)
     if (expanded) {
       const el = thoughtBodyRefs.value[block.key]
       if (!el) continue

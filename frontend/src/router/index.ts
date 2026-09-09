@@ -32,6 +32,7 @@ import Datasource from '@/views/ds/Datasource.vue'
 import SetAssistant from '@/views/system/embedded/iframe.vue'
 
 import Knowledge from '@/views/knowledge/index.vue'
+import SchemaVector from '@/views/schema-vector/index.vue'
 import { i18n } from '@/i18n'
 import { watchRouter } from './watch'
 
@@ -192,6 +193,12 @@ export const routes = [
         name: 'knowledge',
         component: Knowledge,
         meta: { title: t('knowledge.title') },
+      },
+      {
+        path: '/set/schema-vector',
+        name: 'schemaVector',
+        component: SchemaVector,
+        meta: { title: t('schema_vector.title') },
       },
       {
         path: '/set/prompt',

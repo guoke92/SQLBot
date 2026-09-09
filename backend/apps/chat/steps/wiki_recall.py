@@ -1,33 +1,30 @@
 """Wiki knowledge passage assembly for the chat runtime (KNOWLEDGE_BACKEND=wiki).
 
-One call per retrieve_context: recall the wiki (lexical + vector + graph) and
-render the passages into one prompt-ready text block. Failures are absorbed —
-the wiki layer must never break the chat path (degrades to no block, planner
-runs exactly as before).
+Runtime recall is DB-only:
 
-Store invalidation: the process-local store rebuilds when the configured
-directory list changes OR any page file's mtime changes — page edits take
-effect without a process restart. Rebuild is parse+index only (milliseconds
-for hundreds of pages); embeddings stay on their own fingerprint cache.
+- bound ``wiki_corpus_binding`` → ``wiki_page`` + ``wiki_chunk_embedding``
+- unbound datasource → ``schema_vector`` (physical catalog fallback)
+
+Zero Wiki hits stay on the Wiki path. Directory markdown is an admin import
+source only — never scanned at query time.
 """
 
 from __future__ import annotations
 
 import time
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Any
 
 from common.core.config import settings
 from common.utils.utils import SQLBotLogUtil
 
-_STORE: Any = None
-_STORE_DIRS: tuple[Path, ...] = ()
-_STORE_STAMP: tuple[int, ...] = ()
 _STORE_ERROR: str = ""
-_STORE_INDEX: Any = None  # WikiEmbeddingIndex —— 随 store 同生命周期缓存（V2）
-_STAMP_CHECKED_AT: float | None = None  # 上次 mtime 探测时刻（单调钟）
 _EMBEDDING_BUILT: int = 0  # ensure() 触发构建的次数（遥测：embedding_built）
+_DB_STORE: dict[int, Any] = {}
+_DB_INDEX: dict[int, Any] = {}
+_DB_STAMP: dict[
+    int, tuple[int, int, str, str, int, str]
+] = {}  # ds_id -> cache stamp (includes runtime status set)
 
 
 @dataclass(frozen=True)
@@ -53,6 +50,11 @@ class WikiRecallResult:
     # 召回各阶段中间量（执行详情"召回过程"卡片：可见页数→通道→页融合→
     # 图扩展；可见页数/chunk 命中数/每通道 top5）
     trace: dict[str, Any] = field(default_factory=dict)
+    store_source: str = ""  # db | unbound
+    corpus_id: int = 0
+    generation: int = 0
+    vector_chunks: int = 0
+    vector_channel: bool = False
 
 
 # ── 相关性过滤（chat 168：RRF 分不是相似度，无法表达"相关/无关"）──────────
@@ -142,101 +144,110 @@ def datasource_databases(ds: Any) -> list[str]:
 _ds_allowlisted = wiki_backend_active
 
 
-def _dirs_stamp(dirs: tuple[Path, ...]) -> tuple[int, ...]:
-    """(mtime_ns, size) per page file, sorted — cheap freshness probe."""
-    stamp: list[tuple[int, int]] = []
-    for directory in dirs:
-        for path in sorted(directory.rglob("*.md")):
-            if path.name.startswith("_"):
-                continue
-            try:
-                stat = path.stat()
-                stamp.append((stat.st_mtime_ns, stat.st_size))
-            except OSError:
-                continue
-    return tuple(sorted(stamp))
-
-
-_STAMP_INTERVAL_SEC = 5.0  # mtime 探测降频：热路径多次 _store() 共享一次探测
-
-
-def _store() -> Any | None:
-    """Lazy process-local store over ``KNOWLEDGE_WIKI_PAGES_DIRS``（冒号分隔，
-    子目录=type 路由）。目录串或任一页面 mtime/size 变化即重建。
-    WikiEmbeddingIndex 随同一生命周期缓存（_STORE_INDEX）：嵌入 ensure() 一次
-    进程内生效，页面编辑经 mtime stamp 失效连带重建——避免每请求重 ensure。
-    语料根目录作为 ``_pages_root`` 附在 store 上（db catalog 推导用）。
-
-    热路径上一次请求会有 3+ 个 ``_store()`` 调用点（recall 短路/表列集/
-    枚举映射），全目录 stat 每次约 10ms——mtime 探测按
-    ``_STAMP_INTERVAL_SEC`` 降频共享，页面编辑最迟一个间隔后生效。"""
-    global _STORE
-    global _STORE_DIRS
-    global _STORE_STAMP
-    global _STORE_ERROR
-    global _STORE_INDEX
-    global _STAMP_CHECKED_AT
-    dirs = tuple(
-        Path(d) for d in settings.knowledge_wiki_pages_dirs_abs.split(":") if d.strip()
-    )
-    if not dirs:
-        return None
-    now = time.monotonic()
-    if _STORE is not None and _STORE_DIRS == dirs:
-        if (
-            _STAMP_CHECKED_AT is not None
-            and now - _STAMP_CHECKED_AT < _STAMP_INTERVAL_SEC
-        ):
-            return _STORE  # 探测窗口内共享上次结果
-        stamp = _dirs_stamp(dirs)
-        _STAMP_CHECKED_AT = now
-        if _STORE_STAMP == stamp:
-            return _STORE
-    else:
-        stamp = _dirs_stamp(dirs)
-        _STAMP_CHECKED_AT = now
+def _datasource_has_binding(ds_id: int) -> bool:
+    """True when this datasource has an enabled wiki corpus binding."""
     try:
-        from apps.knowledge.wiki.contract import parse_page
-        from apps.knowledge.wiki.recall import InMemoryWikiStore
+        from sqlmodel import Session
 
-        pages = []
-        for directory in dirs:
-            for path in sorted(directory.rglob("*.md")):
-                if path.name.startswith("_"):
-                    continue
-                pages.append(parse_page(path.read_text(), page_key=path.stem))
-        _STORE = InMemoryWikiStore(pages)
-        _STORE._pages_root = dirs[0] if dirs else None  # schema 渲染推导 db catalog 用
-        _STORE_DIRS = dirs
-        _STORE_STAMP = stamp
-        _STORE_INDEX = None  # 新 store → 旧 index 向量键失效，强制重建
-        _STORE_ERROR = ""
-        SQLBotLogUtil.info("wiki store loaded: %s pages from %s", len(pages), dirs)
-        return _STORE
-    except Exception as exc:
+        from apps.knowledge.wiki.corpus_runtime import binding_stamp
+        from common.core.db import engine
+
+        with Session(engine) as session:
+            return binding_stamp(session, ds_id) is not None
+    except Exception as exc:  # noqa: BLE001
+        SQLBotLogUtil.warning("wiki binding lookup failed ds_id=%s: %s", ds_id, exc)
+        return False
+
+
+def has_wiki_bound_corpus(ds_id: int | None = None) -> bool:
+    """Runtime Wiki exists only when the datasource has an enabled DB binding."""
+    if ds_id is None or not wiki_backend_active(ds_id):
+        return False
+    return _datasource_has_binding(int(ds_id))
+
+
+def _db_store(ds_id: int) -> Any | None:
+    """Load draft+published pages for the corpus bound to ``ds_id``. None = no binding."""
+    global _STORE_ERROR
+    stamp = None
+    loaded = None
+    try:
+        from sqlmodel import Session
+
+        from apps.knowledge.wiki.corpus_runtime import binding_stamp, load_bound_corpus
+        from common.core.db import engine
+
+        with Session(engine) as session:
+            stamp = binding_stamp(session, ds_id)
+            if stamp is None:
+                _DB_STORE.pop(ds_id, None)
+                _DB_INDEX.pop(ds_id, None)
+                _DB_STAMP.pop(ds_id, None)
+                return None
+            if _DB_STAMP.get(ds_id) == stamp and ds_id in _DB_STORE:
+                return _DB_STORE[ds_id]
+            loaded = load_bound_corpus(session, ds_id)
+    except Exception as exc:  # noqa: BLE001
+        SQLBotLogUtil.warning("wiki db store load failed ds_id=%s: %s", ds_id, exc)
         _STORE_ERROR = str(exc)
-        SQLBotLogUtil.warning("wiki store load failed: %s", exc)
         return None
-
-
-def _embedding_index(store: Any) -> Any | None:
-    """进程内复用 WikiEmbeddingIndex（store 生命周期一致）。不可用/关闭 → None。
-
-    ensure 的构建计数经模块级 _EMBEDDING_BUILT 透出（遥测采集点）。"""
-    global _STORE_INDEX, _EMBEDDING_BUILT
-    if not settings.KNOWLEDGE_WIKI_EMBEDDING_ENABLED:
+    if loaded is None or stamp is None:
+        _DB_STORE.pop(ds_id, None)
+        _DB_INDEX.pop(ds_id, None)
+        _DB_STAMP.pop(ds_id, None)
         return None
-    if _STORE_INDEX is None and _STORE is not None:
-        from apps.knowledge.wiki.embeddings import WikiEmbeddingIndex
+    from apps.knowledge.wiki.embeddings import WikiEmbeddingIndex
 
-        _STORE_INDEX = WikiEmbeddingIndex(
-            store, cache_dir=_STORE_DIRS[0].parent if _STORE_DIRS else None
-        )
-    if _STORE_INDEX is not None and not _STORE_INDEX.ensured:
-        before = _STORE_INDEX.build_count
-        if _STORE_INDEX.ensure():
-            _EMBEDDING_BUILT += _STORE_INDEX.build_count - before
-    return _STORE_INDEX
+    store = loaded.store
+    store.runtime_meta = {
+        "source": "db",
+        "corpus_id": loaded.corpus_id,
+        "generation": loaded.generation,
+        "vector_chunks": len(loaded.vectors),
+        "status": loaded.status,
+    }
+    _DB_STORE[ds_id] = store
+    _DB_STAMP[ds_id] = stamp
+    _DB_INDEX[ds_id] = (
+        WikiEmbeddingIndex.from_vectors(store, loaded.vectors)
+        if loaded.vectors
+        else None
+    )
+    SQLBotLogUtil.info(
+        "wiki db store loaded: ds_id=%s corpus_id=%s pages=%s vectors=%s gen=%s",
+        ds_id,
+        loaded.corpus_id,
+        len(store.pages),
+        len(loaded.vectors),
+        loaded.generation,
+    )
+    return store
+
+
+def _store(ds_id: int | None = None) -> Any | None:
+    """Bound DB corpus only. Unbound datasource → None."""
+    if not has_wiki_bound_corpus(ds_id) or ds_id is None:
+        return None
+    return _db_store(int(ds_id))
+
+
+def _embedding_index(store: Any, ds_id: int | None = None) -> Any | None:
+    """Reuse the DB-backed WikiEmbeddingIndex. Never embed on the request path."""
+    if store is None or ds_id is None or not settings.KNOWLEDGE_WIKI_EMBEDDING_ENABLED:
+        return None
+    if _DB_STORE.get(int(ds_id)) is not store:
+        return None
+    index = _DB_INDEX.get(int(ds_id))
+    if index is None or not index.ensured:
+        return None
+    return index
+
+
+def _store_meta(store: Any) -> dict[str, Any]:
+    meta = getattr(store, "runtime_meta", None)
+    if isinstance(meta, dict):
+        return meta
+    return {}
 
 
 def _recall_passages(
@@ -247,29 +258,35 @@ def _recall_passages(
     mode: str,
     top_k: int | None = None,
     trace_out: dict[str, Any] | None = None,
-) -> list[Any] | None:
-    """recall 的公共执行体（返回 RenderedPassage 列表；不可用/失败 = None）。
+) -> tuple[Any | None, list[Any] | None]:
+    """recall 的公共执行体（store + RenderedPassage 列表）。
 
     ``databases`` = 当前数据源的物理库名（scope.databases 围栏输入）；
     ``ds_id`` 仅用于 allowlist 灰度判定。
     ``trace_out`` 透传给 recall 填充各阶段中间量（召回过程可观测）。"""
     if not _ds_allowlisted(ds_id):
-        return None
-    store = _store()
+        SQLBotLogUtil.info("wiki recall skipped: backend inactive ds_id=%s", ds_id)
+        return None, None
+    store = _store(ds_id)
     if store is None:
-        return None
+        SQLBotLogUtil.info(
+            "wiki recall skipped: no bound corpus ds_id=%s mode=%s",
+            ds_id,
+            mode,
+        )
+        return None, None
     try:
         from apps.knowledge.wiki.recall import recall
 
         effective_top_k = top_k or int(settings.KNOWLEDGE_WIKI_RECALL_TOP_K)
-        index = _embedding_index(store)
+        index = _embedding_index(store, ds_id)
         embedder = None
         if index is not None:
             # 向量超采到全量 chunk（chat 168 回归：30 窗口把大表页的全部
             # chunk 挤出候选，页级聚合拿不到向量分 → 相关性过滤误杀主表）。
             # 矩阵点积全量 ~600ms/3672 chunk，一次查询无页级损失。
             embedder = lambda store_, query_: index.query_scores(query_)  # noqa: E731
-        return recall(
+        passages = recall(
             query,
             store,
             oid=1,
@@ -279,9 +296,10 @@ def _recall_passages(
             embedder=embedder,
             trace_out=trace_out,
         )
+        return store, passages
     except Exception as exc:
         SQLBotLogUtil.warning("wiki %s recall failed (degraded): %s", mode, exc)
-        return None
+        return store, None
 
 
 def _recall_result(
@@ -299,11 +317,14 @@ def _recall_result(
     business 模式做相关性下限过滤：向量 cosine < WIKI_MIN_VECTOR_SCORE 且
     词法 coverage < WIKI_MIN_LEXICAL_SCORE 的页不进 prompt（hits 里保留
     并标 filtered=true，执行详情可见被滤原因）；graph 邻居正文不进 prompt
-    （其锚点仍通过 page_keys 参与闭包）。physical 模式不过滤。"""
+    （其锚点仍通过 page_keys 参与闭包）。physical 模式不过滤。
+
+    有运行面 store 但零命中返回空结果（可观测）；无 Wiki runtime 返回 None。
+    """
     started = time.monotonic()
     built_before = _EMBEDDING_BUILT
     trace: dict[str, Any] = {}
-    passages = _recall_passages(
+    store, passages = _recall_passages(
         query,
         ds_id=ds_id,
         databases=databases,
@@ -311,28 +332,75 @@ def _recall_result(
         top_k=top_k,
         trace_out=trace,
     )
-    if not passages:
+    if store is None:
         return None
+    meta = _store_meta(store)
+    vector_channel = bool(_embedding_index(store, ds_id))
+    elapsed_ms = int((time.monotonic() - started) * 1000)
+    if not passages:
+        SQLBotLogUtil.info(
+            "wiki recall empty ds_id=%s source=%s corpus_id=%s gen=%s "
+            "pages=%s vectors=%s vector_channel=%s mode=%s query_chars=%s elapsed_ms=%s",
+            ds_id,
+            meta.get("source") or "db",
+            meta.get("corpus_id"),
+            meta.get("generation"),
+            len(getattr(store, "pages", {}) or {}),
+            meta.get("vector_chunks"),
+            vector_channel,
+            mode,
+            len(query or ""),
+            elapsed_ms,
+        )
+        return WikiRecallResult(
+            elapsed_ms=elapsed_ms,
+            embedding_built=_EMBEDDING_BUILT > built_before,
+            trace=trace,
+            store_source=str(meta.get("source") or "db"),
+            corpus_id=int(meta.get("corpus_id") or 0),
+            generation=int(meta.get("generation") or 0),
+            vector_chunks=int(meta.get("vector_chunks") or 0),
+            vector_channel=vector_channel,
+        )
     if mode == "business":
         kept = [p for p in passages if _relevance_keep(p, source=str(p.source))]
     else:
         kept = passages
     kept_keys = {str(p.page_key) for p in kept}
     text = "\n\n".join(p.text for p in kept)
-    if not text.strip():
-        # 全被滤掉 → 召回视为无产出（与 passages 空同形）
-        return None
+    hits = _hit_projection(
+        passages, kept_keys=kept_keys if mode == "business" else None
+    )
+    SQLBotLogUtil.info(
+        "wiki recall ds_id=%s source=%s corpus_id=%s gen=%s pages=%s vectors=%s "
+        "vector_channel=%s mode=%s query_chars=%s hits=%s kept=%s filtered=%s elapsed_ms=%s",
+        ds_id,
+        meta.get("source") or "db",
+        meta.get("corpus_id"),
+        meta.get("generation"),
+        len(getattr(store, "pages", {}) or {}),
+        meta.get("vector_chunks"),
+        vector_channel,
+        mode,
+        len(query or ""),
+        len(hits),
+        len(kept),
+        sum(1 for h in hits if h.get("filtered")),
+        elapsed_ms,
+    )
     return WikiRecallResult(
-        text=text,
-        hits=_hit_projection(
-            passages, kept_keys=kept_keys if mode == "business" else None
-        ),
-        page_keys=[str(p.page_key) for p in passages],
-        elapsed_ms=int((time.monotonic() - started) * 1000),
+        text=text if text.strip() else "",
+        hits=hits,
+        page_keys=[str(getattr(p, "store_key", None) or p.page_key) for p in passages],
+        elapsed_ms=elapsed_ms,
         embedding_built=_EMBEDDING_BUILT > built_before,
-        # 完整渲染文本按序保留（执行详情展开视图；不进 prompt 的页不含）
         passages={str(p.page_key): str(p.text or "") for p in kept},
         trace=trace,
+        store_source=str(meta.get("source") or "db"),
+        corpus_id=int(meta.get("corpus_id") or 0),
+        generation=int(meta.get("generation") or 0),
+        vector_chunks=int(meta.get("vector_chunks") or 0),
+        vector_channel=vector_channel,
     )
 
 
@@ -422,7 +490,7 @@ def wiki_physical_recall(
     top_k: int = 3,
 ) -> WikiRecallResult | None:
     """physical 召回（强命中质量门），结构化结果（text/hits/page_keys）。"""
-    store = _store()
+    store = _store(ds_id)
     if store is None:
         return None
     if not _strong_alias_hit(concept, store):
@@ -444,7 +512,7 @@ def enum_maps_for(
     WikiSchemaRenderer._enum_label_map 单一真相），不再正则重解析。"""
     if not wiki_backend_active(ds_id):
         return {}
-    store = _store()
+    store = _store(ds_id)
     if store is None or not field_refs:
         return {}
     try:
@@ -540,7 +608,174 @@ def store_error() -> str:
     return _STORE_ERROR
 
 
+def wiki_context_observability(res: WikiRecallResult | None) -> dict[str, Any]:
+    """Telemetry copied onto every Wiki consumer (prepare_wiki / search_wiki)."""
+    if res is None:
+        return {
+            "store_source": "unbound",
+            "corpus_id": 0,
+            "generation": 0,
+            "vector_chunks": 0,
+            "vector_channel": False,
+            "wiki_trace": {},
+            "hits": [],
+            "elapsed_ms": 0,
+            "embedding_built": False,
+        }
+    return {
+        "store_source": str(res.store_source or "") or "db",
+        "corpus_id": int(res.corpus_id or 0),
+        "generation": int(res.generation or 0),
+        "vector_chunks": int(res.vector_chunks or 0),
+        "vector_channel": bool(res.vector_channel),
+        "wiki_trace": dict(res.trace or {}),
+        "hits": list(res.hits or [])[:12],
+        "elapsed_ms": int(res.elapsed_ms or 0),
+        "embedding_built": bool(res.embedding_built),
+    }
+
+
+def schema_ready_from_payload(payload: dict[str, Any] | None) -> bool:
+    """True when recall produced at least one physical table with field rows."""
+    from apps.chat.agent_knowledge import recall_schema_is_ready
+
+    return recall_schema_is_ready(payload)
+
+
+def wiki_span_fields(payload: dict[str, Any] | None) -> dict[str, Any]:
+    """Process-span output shared by prepare_wiki and search_wiki."""
+    data = payload or {}
+    knowledge = str(data.get("knowledge_text") or "")
+    schema = str(data.get("schema_text") or "")
+    return {
+        "backend": data.get("backend"),
+        "hit_count": int(data.get("hit_count") or 0),
+        "page_keys": list(data.get("page_keys") or [])[:20],
+        "tables": list(data.get("tables") or [])[:20],
+        "knowledge_chars": len(knowledge),
+        "schema_chars": int(data.get("schema_chars") or len(schema)),
+        "schema_ready": bool(data.get("schema_ready")),
+        "store_source": data.get("store_source"),
+        "corpus_id": data.get("corpus_id"),
+        "generation": data.get("generation"),
+        "vector_chunks": data.get("vector_chunks"),
+        "vector_channel": bool(data.get("vector_channel")),
+        "elapsed_ms": data.get("elapsed_ms"),
+        "wiki_trace": data.get("wiki_trace") or {},
+        "hits": list(data.get("hits") or [])[:12],
+        "recall_status": data.get("recall_status"),
+        **({"error": data.get("error")} if data.get("error") else {}),
+    }
+
+
+def _empty_wiki_payload(**extra: Any) -> dict[str, Any]:
+    payload = {
+        "knowledge_text": "",
+        "tables": [],
+        "schema_text": "",
+        "backend": "none",
+        "page_keys": [],
+        "hit_count": 0,
+        "schema_ready": False,
+        "schema_chars": 0,
+        **wiki_context_observability(None),
+    }
+    payload.update(extra)
+    return payload
+
+
 # ── Unified Wiki Context Retrieval Service ─────────────────────────────────
+
+
+def _schema_fallback_context(
+    llm_service: Any,
+    query: str,
+    *,
+    access_scope: Any = None,
+) -> dict[str, Any]:
+    """Schema-vector recall when this datasource has no Wiki runtime.
+
+    ``schema_vector`` is the sole fallback store (filled by sync). Renders local
+    catalog text only — never pulls live sample rows from the business datasource.
+    """
+    from apps.datasource.embedding.schema_index import (
+        recall_schema_context,
+        schedule_schema_vector_sync,
+    )
+
+    ds_id = getattr(getattr(llm_service, "ds", None), "id", None)
+    schedule_schema_vector_sync(ds_id)
+    # Prefer the caller query for this recall turn. LLMService.retrieval_question
+    # is a read-only @property — write chat_question when present.
+    chat_question = getattr(llm_service, "chat_question", None)
+    orig_q = ""
+    wrote_q = False
+    if chat_question is not None and hasattr(chat_question, "retrieval_question"):
+        orig_q = str(getattr(chat_question, "retrieval_question", "") or "")
+        chat_question.retrieval_question = str(query or "").strip()
+        wrote_q = True
+    try:
+        return recall_schema_context(
+            llm_service, query, access_scope=access_scope, table_limit=4
+        )
+    finally:
+        if wrote_q and chat_question is not None:
+            chat_question.retrieval_question = orig_q
+
+
+def _decorate_schema_fallback(payload: dict[str, Any]) -> dict[str, Any]:
+    fallback = dict(payload)
+    fallback.setdefault("store_source", str(fallback.get("backend") or "schema_vector"))
+    fallback.setdefault("corpus_id", 0)
+    fallback.setdefault("generation", 0)
+    fallback.setdefault("vector_chunks", 0)
+    fallback.setdefault("vector_channel", False)
+    fallback.setdefault("wiki_trace", {})
+    fallback.setdefault("hits", [])
+    fallback.setdefault("elapsed_ms", 0)
+    fallback.setdefault("embedding_built", False)
+    fallback["schema_chars"] = len(str(fallback.get("schema_text") or ""))
+    fallback["schema_ready"] = schema_ready_from_payload(fallback)
+    return fallback
+
+
+def _wiki_payload_from_recall(
+    *,
+    query: str,
+    ds: Any,
+    ds_id: int | None,
+    top_k: int,
+) -> dict[str, Any]:
+    databases = datasource_databases(ds)
+    res = wiki_recall(query, ds_id=ds_id, databases=databases, top_k=top_k)
+    wiki_text = (res.text if res else "") or ""
+    tables: list[str] = []
+    schema_text = ""
+    store = _store(ds_id)
+    if store is not None and res and getattr(res, "page_keys", None):
+        from apps.chat.steps.wiki_schema import WikiSchemaRenderer
+        from apps.knowledge.wiki.anchors import closure_tables
+
+        closure, _ = closure_tables(store, res.page_keys)
+        if closure:
+            tables = list(closure)
+            renderer = WikiSchemaRenderer.from_store(store)
+            if renderer:
+                schema_text = str(renderer.render(tables) or "")
+    payload = {
+        "knowledge_text": wiki_text,
+        "tables": tables,
+        "schema_text": schema_text,
+        "backend": "wiki",
+        "page_keys": list(getattr(res, "page_keys", None) or []) if res else [],
+        "hit_count": len(getattr(res, "hits", None) or []) if res else 0,
+        "schema_chars": len(schema_text),
+        **wiki_context_observability(res),
+    }
+    payload["store_source"] = "db"
+    payload["schema_ready"] = schema_ready_from_payload(payload)
+    return payload
+
 
 def retrieve_wiki_context(
     llm_service: Any,
@@ -549,106 +784,44 @@ def retrieve_wiki_context(
     access_scope: Any = None,
     top_k: int = 5,
 ) -> dict[str, Any]:
-    """Unified service for retrieving Wiki knowledge and authoritative schema.
+    """Wiki (bound DB corpus) or schema_vector — never mixed.
 
-    Single entrypoint for both initialization (prepare_turn) and runtime tools (search_wiki):
-    1. If Wiki is active for datasource: recalls wiki knowledge + anchor closure schema.
-    2. Fallback only if Wiki is inactive: transparently retrieves schema without exposing
-       schema tool to LLM.
+    1. Datasource has an enabled wiki_corpus_binding: recall Wiki knowledge
+       + anchor-closure schema. Zero hits stay on this path.
+    2. Datasource has no Wiki binding: ``schema_vector`` catalog recall.
     """
     clean_query = str(query or "").strip()
     if not clean_query:
-        return {
-            "knowledge_text": "",
-            "tables": [],
-            "schema_text": "",
-            "backend": "none",
-            "page_keys": [],
-            "hit_count": 0,
-        }
+        return _empty_wiki_payload()
     ds = getattr(llm_service, "ds", None)
     ds_id = getattr(ds, "id", None)
 
-    # 1. Wiki Active Branch (Primary SSOT)
-    if wiki_backend_active(ds_id):
+    if has_wiki_bound_corpus(ds_id):
         try:
-            databases = datasource_databases(ds)
-            res = wiki_recall(clean_query, ds_id=ds_id, databases=databases, top_k=top_k)
-            wiki_text = (res.text if res else "") or ""
-            tables: list[str] = []
-
-            store = _store()
-            if store is not None and res and getattr(res, "page_keys", None):
-                from apps.knowledge.wiki.anchors import closure_tables
-                from apps.chat.steps.wiki_schema import WikiSchemaRenderer
-
-                closure, _ = closure_tables(store, res.page_keys)
-                if closure:
-                    tables = list(closure)
-                    renderer = WikiSchemaRenderer.from_store(store)
-                    if renderer:
-                        raw_schema = renderer.render(tables)
-                        compact_lines = [
-                            line for line in raw_schema.splitlines()
-                            if line.startswith("## ") or "topk=" in line or any(
-                                k in line for k in ["Id", "时间", "状态", "名称", "类型", "方式", "来源", "编码", "金额", "部门", "日期"]
-                            )
-                        ]
-                        header = "\n\n### 【权威表结构与字段定义（已完整提供，严禁重复查表结构）】：\n"
-                        wiki_text += header + "\n".join(compact_lines)
-
-            return {
-                "knowledge_text": wiki_text,
-                "tables": tables,
-                "schema_text": "",
-                "backend": "wiki",
-                "page_keys": list(getattr(res, "page_keys", None) or []) if res else [],
-                "hit_count": len(getattr(res, "hits", None) or []) if res else 0,
-            }
+            return _wiki_payload_from_recall(
+                query=clean_query,
+                ds=ds,
+                ds_id=ds_id,
+                top_k=top_k,
+            )
         except Exception as exc:
-            SQLBotLogUtil.warning(f"retrieve_wiki_context failed in wiki branch: {exc}")
+            SQLBotLogUtil.warning(
+                "retrieve_wiki_context wiki path failed ds_id=%s: %s",
+                ds_id,
+                exc,
+            )
+            return _empty_wiki_payload(backend="wiki", store_source="db")
 
-    # 2. Transparent Fallback (Only when Wiki is inactive or unconfigured for datasource)
     try:
-        from apps.chat.steps.schema import match_table_schema
-        from apps.conversation.session import session_scope
-
-        schema_text = ""
-        matched_tables: list[str] = []
-        with session_scope() as session:
-            # Temporarily set retrieval_question to user query if needed
-            orig_q = getattr(llm_service, "retrieval_question", None)
-            setattr(llm_service, "retrieval_question", clean_query)
-            try:
-                matched_tables = list(
-                    match_table_schema(
-                        llm_service,
-                        session,
-                        access_scope=access_scope,
-                        table_limit=4,
-                        audit=False,
-                    ) or []
-                )
-                schema_text = str(getattr(llm_service.chat_question, "db_schema", "") or "")
-            finally:
-                if orig_q is not None:
-                    setattr(llm_service, "retrieval_question", orig_q)
-
-        return {
-            "knowledge_text": "",
-            "tables": matched_tables,
-            "schema_text": schema_text,
-            "backend": "schema_fallback",
-            "page_keys": [],
-            "hit_count": len(matched_tables),
-        }
+        return _decorate_schema_fallback(
+            _schema_fallback_context(
+                llm_service, clean_query, access_scope=access_scope
+            )
+        )
     except Exception as exc:
-        SQLBotLogUtil.warning(f"retrieve_wiki_context failed in fallback branch: {exc}")
-        return {
-            "knowledge_text": "",
-            "tables": [],
-            "schema_text": "",
-            "backend": "error",
-            "page_keys": [],
-            "hit_count": 0,
-        }
+        SQLBotLogUtil.warning(
+            "retrieve_wiki_context failed in fallback branch: %s",
+            exc,
+            exc_info=True,
+        )
+        return _empty_wiki_payload(backend="error", error=str(exc))

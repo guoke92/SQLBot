@@ -390,6 +390,12 @@ def _record_wiki_recall_telemetry(
         wiki_context["wiki_hits"] = hits
         wiki_context["wiki_recall_source"] = source
         wiki_context["wiki_recall_elapsed_ms"] = int(result.elapsed_ms or 0)
+        wiki_context["store_source"] = getattr(result, "store_source", "") or ""
+        wiki_context["corpus_id"] = int(getattr(result, "corpus_id", 0) or 0)
+        wiki_context["corpus_generation"] = int(getattr(result, "generation", 0) or 0)
+        wiki_context["vector_chunks"] = int(getattr(result, "vector_chunks", 0) or 0)
+        wiki_context["vector_channel"] = bool(getattr(result, "vector_channel", False))
+        wiki_context["wiki_trace"] = dict(result.trace or {})
         if result.embedding_built:
             wiki_context["wiki_embedding_built"] = True
     except Exception:  # noqa: BLE001 — 遥测失败零影响
@@ -449,7 +455,8 @@ def _wiki_render_schema_text(
         from apps.chat.steps.wiki_recall import _store
         from apps.chat.steps.wiki_schema import WikiSchemaRenderer
 
-        store = _store()
+        ds_id = getattr(getattr(llm_service, "ds", None), "id", None)
+        store = _store(ds_id)
         if store is None:
             return
         renderer = WikiSchemaRenderer.from_store(
@@ -498,7 +505,7 @@ def _apply_anchor_closure(
             closure_tables,
         )
 
-        store = _store()
+        store = _store(getattr(getattr(llm_service, "ds", None), "id", None))
         if store is None:
             return
         closure, truncated = closure_tables(store, page_keys)

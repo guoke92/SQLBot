@@ -13,8 +13,11 @@ from dataclasses import dataclass
 _FENCE_RE = re.compile(r"^\s*(```|~~~)")
 _HEADING_RE = re.compile(r"^(#{1,6})\s+(.*)$")
 
-_TARGET_CHARS = 800
-_OVERLAP_CHARS = 100
+# 嵌入 API 常见上限 8192 tokens；CJK 约 1 token/字。单块硬顶 + 请求侧按
+# token 打包，避免整批 input 合计超限。
+_TARGET_CHARS = 600
+_MAX_CHUNK_CHARS = 1800
+_OVERLAP_CHARS = 80
 
 
 @dataclass(frozen=True)
@@ -23,12 +26,24 @@ class Chunk:
     heading_path: str
 
 
+def _explode_long_lines(lines: list[str]) -> list[str]:
+    """A single YAML/prose line can exceed the embed context by itself."""
+    exploded: list[str] = []
+    for line in lines:
+        if len(line) <= _MAX_CHUNK_CHARS:
+            exploded.append(line)
+            continue
+        for start in range(0, len(line), _MAX_CHUNK_CHARS):
+            exploded.append(line[start : start + _MAX_CHUNK_CHARS])
+    return exploded
+
+
 def _split_with_overlap(lines: list[str]) -> list[str]:
     """Window long prose by characters with a trailing-overlap echo."""
     pieces: list[str] = []
     buffer: list[str] = []
     size = 0
-    for line in lines:
+    for line in _explode_long_lines(lines):
         buffer.append(line)
         size += len(line) + 1
         if size >= _TARGET_CHARS:
@@ -55,10 +70,10 @@ def _split_long_fence(
     """llm-wiki ``split_preserving_atomic_blocks``：围栏块超长时内部按行窗口
     再切，每子块保持围栏开/闭配对（渲染仍是合法 ground 块，召回粒度变小）。"""
     total = sum(len(line) + 1 for line in atomic)
-    if total <= _TARGET_CHARS * 2:
+    if total <= _MAX_CHUNK_CHARS:
         return [Chunk(text="\n".join(atomic), heading_path=heading_path)]
     opener, closer = atomic[0], atomic[-1]
-    inner = atomic[1:-1]
+    inner = _explode_long_lines(atomic[1:-1])
     chunks: list[Chunk] = []
     buffer: list[str] = []
     size = 0

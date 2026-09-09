@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 #
 # AI智能问数 —— 本机打包脚本
-# 生成一个含「源码 + 构建产物 + 配置」的 tar.gz。
+# 生成一个含「源码 + 构建产物 + 配置 + wiki 语料」的 tar.gz。
 # 配置通配，不绑定具体 IP/域名。
+# wiki 语料位于 docs/wiki-knowledge/（排除 embeddings-cache / .obsidian 等）。
 #
 # 默认自动判断：
 #   - pnpm-lock.yaml 内容指纹未变 → 跳过 install
@@ -259,6 +260,24 @@ stage_code() {
     info "暂存 deploy 脚本…"
     cp -f "${DEPLOY_DIR}"/*.sh "${PKG_DIR}/"
     chmod +x "${PKG_DIR}"/*.sh
+
+    # Wiki 语料：部署后路径为 /opt/sqlbot/docs/wiki-knowledge/…
+    # （_REPO_ROOT 在包内指向 /opt/sqlbot，与开发态 repo root 对齐）
+    local wiki_src="${ROOT_DIR}/docs/wiki-knowledge"
+    if [[ -d "${wiki_src}" ]]; then
+        info "暂存 wiki 语料（docs/wiki-knowledge）…"
+        mkdir -p "${PKG_DIR}/docs"
+        rsync -a --delete \
+            --exclude='embeddings-cache/' \
+            --exclude='.obsidian/' \
+            --exclude='.archive/' \
+            --exclude='.runs/' \
+            --exclude='tmp/' \
+            --exclude='._*' \
+            "${wiki_src}/" "${PKG_DIR}/docs/wiki-knowledge/"
+    else
+        warn "未找到 ${wiki_src}，跳过 wiki 语料打包"
+    fi
 }
 
 # ── 4. 渲染配置 ──────────────────────────────────────────────────────────────
@@ -329,6 +348,7 @@ verify_stage_for_init() {
         "${PKG_DIR}/deploy/sqlbot.service"
         "${PKG_DIR}/deploy/sqlbot-mcp.service"
         "${PKG_DIR}/deploy/sqlbot.conf"
+        "${PKG_DIR}/docs/wiki-knowledge/pplatform/wiki-pages"
     )
 
     for path in "${required_paths[@]}"; do

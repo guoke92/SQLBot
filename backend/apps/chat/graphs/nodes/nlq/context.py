@@ -62,7 +62,7 @@ from apps.chat.steps.chat_scope import (
 )
 from apps.chat.steps.custom_prompt import match_custom_prompts
 from apps.chat.steps.datasource import select_datasource, validate_history_ds
-from apps.chat.steps.knowledge import get_compiled_knowledge, match_knowledge
+from apps.chat.steps.knowledge import get_compiled_knowledge
 from apps.chat.steps.observability import log_span
 from apps.chat.steps.recall_map import (
     render_knowledge_map,  # noqa: F401
@@ -505,7 +505,7 @@ def retrieve_context_node(state: NlqState) -> NlqState:
             from apps.chat.steps.wiki_recall import _store
             from apps.knowledge.wiki.anchors import closure_tables
 
-            store = _store()
+            store = _store(_ds_l)
             if store is not None:
                 closure, _truncated = closure_tables(store, wiki_lead.page_keys)
                 if closure:
@@ -596,7 +596,7 @@ def retrieve_context_node(state: NlqState) -> NlqState:
                 from apps.chat.steps.wiki_recall import _store as _wiki_store
                 from apps.knowledge.wiki.anchors import anchor_table_attribution
 
-                _store_obj = _wiki_store()
+                _store_obj = _wiki_store(_ds_l)
                 if _store_obj is not None and wiki_result is not None:
                     anchor_attribution = anchor_table_attribution(
                         _store_obj, wiki_result.page_keys
@@ -617,6 +617,12 @@ def retrieve_context_node(state: NlqState) -> NlqState:
                     "hit_count": len(hits),
                     "elapsed_ms": wc.get("wiki_recall_elapsed_ms"),
                     "embedding_built": wc.get("wiki_embedding_built"),
+                    "store_source": wc.get("store_source")
+                    or getattr(wiki_result, "store_source", ""),
+                    "corpus_id": wc.get("corpus_id"),
+                    "generation": wc.get("corpus_generation"),
+                    "vector_chunks": wc.get("vector_chunks"),
+                    "vector_channel": wc.get("vector_channel"),
                     "hits": hits,
                     "passages": (wiki_result.passages if wiki_result else {}),
                     "trace": (wiki_result.trace if wiki_result else {}),

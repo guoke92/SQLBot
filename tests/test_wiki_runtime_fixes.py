@@ -77,11 +77,11 @@ def test_sql_alias_columns_resolves_chinese_alias() -> None:
     assert by_alias["认证方式"]["table"] == ""
     # 聚合投影无单一物理列 → 不在映射里
     assert "total" not in by_alias
-    # 限定列保留 qualifier（多表同列消歧）
+    # 表别名回解到物理表名（枚举翻译挂物理列）
     qualified = nlq_audit._sql_alias_columns(
         "SELECT c.identify_style AS 认证方式 FROM cust_company_info c", "mysql"
     )
-    assert qualified[0]["table"] == "c"
+    assert qualified[0]["table"] == "cust_company_info"
 
 
 def test_enum_refs_resolve_alias_to_physical_column(
@@ -541,8 +541,7 @@ def test_anchor_table_attribution_traces_closure_sources() -> None:
         [p.read_text() for p in sorted(examples.glob("*.md"))]
     )
     attribution = anchor_table_attribution(store, ["cust_build_type", "平台录入"])
-    # cust_build_type 页（enum 契约）的 maps_to 指回表页
-    sources = attribution.get("cust_build_type", [])
+    sources = attribution.get("cust_company_info", [])
     assert sources, "表页应至少被自己的子契约页归因"
     assert all({"page_key", "field"} <= set(s) for s in sources)
     # 未知页键不炸、返回空
@@ -686,3 +685,359 @@ def test_live_table_fk_relations_name_decoded() -> None:
     # 渲染全文包含关联行
     text = renderer.render(["d_task"])
     assert "关联: d_task.project_id → d_project.id" in text
+
+
+def test_has_wiki_bound_corpus_true_when_bound(monkeypatch) -> None:
+    from apps.chat.steps import wiki_recall as wr
+
+    monkeypatch.setattr(wr, "wiki_backend_active", lambda ds_id=None: True)
+    monkeypatch.setattr(wr, "_datasource_has_binding", lambda ds_id: True)
+    assert wr.has_wiki_bound_corpus(15) is True
+
+
+def test_has_wiki_bound_corpus_false_when_unbound(monkeypatch) -> None:
+    from apps.chat.steps import wiki_recall as wr
+
+    monkeypatch.setattr(wr, "wiki_backend_active", lambda ds_id=None: True)
+    monkeypatch.setattr(wr, "_datasource_has_binding", lambda ds_id: False)
+    assert wr.has_wiki_bound_corpus(15) is False
+    assert wr.has_wiki_bound_corpus(None) is False
+
+
+def test_has_wiki_bound_corpus_false_when_inactive(monkeypatch) -> None:
+    from apps.chat.steps import wiki_recall as wr
+
+    monkeypatch.setattr(wr, "wiki_backend_active", lambda ds_id=None: False)
+    monkeypatch.setattr(wr, "_datasource_has_binding", lambda ds_id: True)
+    assert wr.has_wiki_bound_corpus(15) is False
+
+
+def test_retrieve_wiki_context_empty_hits_stay_on_wiki(monkeypatch) -> None:
+    from apps.chat.steps import wiki_recall as wr
+
+    monkeypatch.setattr(wr, "has_wiki_bound_corpus", lambda ds_id=None: True)
+    monkeypatch.setattr(wr, "wiki_recall", lambda *a, **k: wr.WikiRecallResult())
+    monkeypatch.setattr(wr, "datasource_databases", lambda ds: ["aio"])
+    monkeypatch.setattr(wr, "_store", lambda ds_id: None)
+
+    def _fallback(*_a, **_k):
+        raise AssertionError("wiki runtime must not fall back to schema_vector")
+
+    monkeypatch.setattr(wr, "_schema_fallback_context", _fallback)
+    llm = SimpleNamespace(ds=SimpleNamespace(id=15))
+    out = wr.retrieve_wiki_context(llm, "提取认证方式是平台录入的企业清单")
+    assert out["backend"] == "wiki"
+    assert out["store_source"] == "db"
+    assert out["tables"] == []
+    assert out["knowledge_text"] == ""
+    assert out["schema_ready"] is False
+
+
+def test_retrieve_wiki_context_wiki_error_does_not_schema_vector(monkeypatch) -> None:
+    from apps.chat.steps import wiki_recall as wr
+
+    monkeypatch.setattr(wr, "has_wiki_bound_corpus", lambda ds_id=None: True)
+
+    def _boom(*_a: object, **_k: object) -> dict[str, object]:
+        raise RuntimeError("wiki store exploded")
+
+    def _no_schema(*_a: object, **_k: object) -> dict[str, object]:
+        raise AssertionError("wiki failure must not swap to schema_vector")
+
+    monkeypatch.setattr(wr, "_wiki_payload_from_recall", _boom)
+    monkeypatch.setattr(wr, "_schema_fallback_context", _no_schema)
+    llm = SimpleNamespace(ds=SimpleNamespace(id=15))
+    out = wr.retrieve_wiki_context(llm, "认证方式平台录入")
+    assert out["backend"] == "wiki"
+    assert out["store_source"] == "db"
+    assert out["knowledge_text"] == ""
+    assert out["tables"] == []
+
+
+def test_retrieve_wiki_context_no_runtime_uses_schema_vector(monkeypatch) -> None:
+    from apps.chat.steps import wiki_recall as wr
+
+    monkeypatch.setattr(wr, "has_wiki_bound_corpus", lambda ds_id=None: False)
+    fallback_calls = {"n": 0}
+
+    def _fallback(*_a, **_k):
+        fallback_calls["n"] += 1
+        return {
+            "knowledge_text": "",
+            "tables": ["d_task", "d_story"],
+            "schema_text": "TABLE d_task\nTABLE d_story",
+            "backend": "schema_vector",
+            "page_keys": [],
+            "hit_count": 2,
+        }
+
+    monkeypatch.setattr(wr, "_schema_fallback_context", _fallback)
+    llm = SimpleNamespace(ds=SimpleNamespace(id=8))
+    out = wr.retrieve_wiki_context(llm, "研发二部每月 task story")
+    assert fallback_calls["n"] == 1
+    assert out["backend"] == "schema_vector"
+    assert out["tables"] == ["d_task", "d_story"]
+    assert "d_task" in out["schema_text"]
+
+
+def test_retrieve_wiki_context_keeps_usable_wiki_without_schema_mix(monkeypatch) -> None:
+    from apps.chat.steps import wiki_recall as wr
+
+    monkeypatch.setattr(wr, "has_wiki_bound_corpus", lambda ds_id=None: True)
+    monkeypatch.setattr(
+        wr,
+        "wiki_recall",
+        lambda *a, **k: wr.WikiRecallResult(
+            text="# d_task\n任务表", hits=[{"page_key": "d_task"}], page_keys=["d_task"]
+        ),
+    )
+    monkeypatch.setattr(wr, "datasource_databases", lambda ds: ["aio"])
+    monkeypatch.setattr(wr, "_store", lambda ds_id: None)
+
+    def _fallback(*_a, **_k):
+        raise AssertionError("usable wiki must not fall back to physical schema")
+
+    monkeypatch.setattr(wr, "_schema_fallback_context", _fallback)
+    llm = SimpleNamespace(ds=SimpleNamespace(id=8))
+    out = wr.retrieve_wiki_context(llm, "task 数")
+    assert out["backend"] == "wiki"
+    assert "任务表" in out["knowledge_text"]
+    assert out["schema_text"] == ""
+    assert out["schema_ready"] is False
+    assert out["store_source"] == "db"
+    assert "wiki_trace" in out
+    assert out["hits"] == [{"page_key": "d_task"}]
+
+
+def test_select_delivery_datasets_drops_empty_when_later_has_rows() -> None:
+    from apps.chat.graphs.nodes.agent_finalize import select_delivery_datasets
+
+    empty = SimpleNamespace(
+        dataset_id="empty", required=True, status="succeeded", row_count=0, rows=[]
+    )
+    filled = SimpleNamespace(
+        dataset_id="filled",
+        required=True,
+        status="succeeded",
+        row_count=1000,
+        rows=[{"id": 1}],
+    )
+    probe = SimpleNamespace(
+        dataset_id="probe", required=False, status="succeeded", row_count=21
+    )
+    picked = select_delivery_datasets([empty, probe, filled])
+    assert [item.dataset_id for item in picked] == ["filled"]
+
+
+def test_select_delivery_datasets_keeps_last_when_all_empty() -> None:
+    from apps.chat.graphs.nodes.agent_finalize import select_delivery_datasets
+
+    first = SimpleNamespace(
+        dataset_id="a", required=True, status="succeeded", row_count=0
+    )
+    last = SimpleNamespace(
+        dataset_id="b", required=True, status="succeeded", row_count=0
+    )
+    picked = select_delivery_datasets([first, last])
+    assert [item.dataset_id for item in picked] == ["b"]
+
+
+def test_recommend_does_not_dump_protocol_schema() -> None:
+    import inspect
+
+    from apps.chat.steps import recommend as rec
+
+    src = inspect.getsource(rec.generate_recommend_questions)
+    assert "retrieve_schema" not in src
+    assert "_recalled_schema_text" in src
+
+
+def test_recommend_reuses_plane_schema_not_protocol(monkeypatch) -> None:
+    from apps.chat.agent_knowledge import AgentKnowledgePlane
+    from apps.chat.steps import recommend as rec
+    from apps.conversation import runtime_context as rtc
+
+    rtc.attach_runtime(
+        "run-rec-1",
+        knowledge_plane=AgentKnowledgePlane(
+            tables=["d_task"],
+            schema_by_table={"d_task": "# Table: d_task\n(id:bigint, 主键)"},
+        ).to_dump(),
+    )
+    llm = SimpleNamespace(
+        chat_question=SimpleNamespace(db_schema=""),
+        record=SimpleNamespace(active_run_id="run-rec-1"),
+        protocol=SimpleNamespace(
+            retrieve_schema=lambda **_k: (_ for _ in ()).throw(
+                AssertionError("recommend must not dump protocol schema")
+            )
+        ),
+    )
+    try:
+        assert rec._recalled_schema_text(llm) == "# Table: d_task\n(id:bigint, 主键)"
+        llm.chat_question.db_schema = ""
+        llm.record = SimpleNamespace(active_run_id="")
+        assert rec._recalled_schema_text(llm) == ""
+    finally:
+        rtc.detach_runtime("run-rec-1")
+
+
+def test_search_wiki_returns_schema_vector_hits(monkeypatch) -> None:
+    from apps.chat.tools import wiki_search as ws
+
+    monkeypatch.setattr(
+        ws,
+        "retrieve_wiki_context",
+        lambda *_a, **_k: {
+            "knowledge_text": "",
+            "schema_text": "# Table: d_task\n[\n(id:int, 主键)\n]",
+            "tables": ["d_task"],
+            "backend": "schema_vector",
+            "hit_count": 1,
+        },
+    )
+    llm = SimpleNamespace(ds=SimpleNamespace(id=8))
+    out = ws.search_wiki_knowledge(llm, "每月 task 数")
+    assert out["ok"] is True
+    assert out["data"]["tables"] == ["d_task"]
+    assert out["data"]["added_tables"] == ["d_task"]
+    assert "knowledge_text" not in out["data"]
+    assert "schema_text" not in out["data"]
+    assert out["data"]["backend"] == "schema_vector"
+    assert out["data"]["recall_status"] == "hit"
+    assert out["data"]["schema_ready"] is True
+    assert out["data"]["stop_search"] is False
+
+
+def test_wiki_search_policy_stops_after_schema_gap() -> None:
+    from apps.chat.agent_knowledge import AgentKnowledgePlane
+    from apps.chat.tools.wiki_search import apply_wiki_search_policy
+
+    plane = AgentKnowledgePlane(schema_gap_searches=1)
+    payload = {
+        "knowledge_text": "# 认证方式",
+        "schema_text": "",
+        "tables": [],
+        "backend": "wiki",
+        "page_keys": ["identify_style"],
+        "hit_count": 1,
+    }
+    _plane, first, _delta = apply_wiki_search_policy(payload, plane)
+    assert first["recall_status"] == "stagnant"
+    assert first["stop_search"] is True
+    assert plane.schema_gap_searches == 2
+
+
+def test_wiki_search_policy_ready_unchanged_stops() -> None:
+    from apps.chat.agent_knowledge import AgentKnowledgePlane
+    from apps.chat.tools.wiki_search import apply_wiki_search_policy
+
+    plane = AgentKnowledgePlane(
+        schema_ready=True,
+        tables=["d_task"],
+        schema_by_table={
+            "d_task": "# Table: d_task\n[\n(id:int, 主键)\n]"
+        },
+    )
+    _plane, out, delta = apply_wiki_search_policy(
+        {
+            "knowledge_text": "# 认证方式",
+            "schema_text": "",
+            "tables": [],
+            "backend": "wiki",
+        },
+        plane,
+    )
+    assert delta.unchanged is True
+    assert out["recall_status"] == "stagnant"
+    assert out["stop_search"] is True
+
+
+def test_wiki_span_fields_include_observability() -> None:
+    from apps.chat.steps.wiki_recall import wiki_span_fields
+
+    fields = wiki_span_fields(
+        {
+            "backend": "wiki",
+            "hit_count": 2,
+            "page_keys": ["identify_style"],
+            "tables": [],
+            "knowledge_text": "abc",
+            "schema_text": "",
+            "schema_ready": False,
+            "store_source": "db",
+            "corpus_id": 1,
+            "generation": 2,
+            "vector_chunks": 10,
+            "vector_channel": True,
+            "elapsed_ms": 12,
+            "wiki_trace": {"visible_pages": 3},
+            "hits": [{"page_key": "identify_style"}],
+            "recall_status": "schema_missing",
+        }
+    )
+    assert fields["store_source"] == "db"
+    assert fields["corpus_id"] == 1
+    assert fields["wiki_trace"]["visible_pages"] == 3
+    assert fields["schema_ready"] is False
+    assert fields["knowledge_chars"] == 3
+
+
+def test_catalog_probe_sql_is_blocked() -> None:
+    from apps.chat.tools.execute_sql import execute_sql_sandbox, is_catalog_probe_sql
+
+    assert is_catalog_probe_sql(
+        "SELECT column_name FROM information_schema.columns WHERE table_name='t'"
+    )
+    assert is_catalog_probe_sql("SHOW COLUMNS FROM cust_company_info")
+    assert not is_catalog_probe_sql("SELECT * FROM cust_company_info LIMIT 1")
+
+    llm = SimpleNamespace()
+    blocked = execute_sql_sandbox(
+        llm,
+        "SELECT column_name FROM information_schema.columns WHERE table_name='t'",
+    )
+    assert blocked["ok"] is False
+    assert blocked["failure"]["retryable"] is False
+    assert "information_schema" in blocked["error"]
+
+
+def test_execute_sql_blocked_when_wiki_schema_missing() -> None:
+    from apps.chat.agent_knowledge import AgentKnowledgePlane
+    from apps.chat.tools.execute_sql import execute_sql_sandbox
+    from apps.conversation.runtime_context import (
+        attach_runtime,
+        detach_runtime,
+        worker_scope,
+    )
+
+    run_id = "wiki-schema-missing"
+    attach_runtime(run_id, knowledge_plane=AgentKnowledgePlane().to_dump())
+    llm = SimpleNamespace()
+    try:
+        with worker_scope(run_id, "tok"):
+            blocked = execute_sql_sandbox(llm, "SELECT * FROM cust_company_info LIMIT 1")
+    finally:
+        detach_runtime(run_id)
+    assert blocked["ok"] is False
+    assert blocked["failure"]["retryable"] is False
+
+
+def test_prompt_schema_gap_block_when_wiki_has_no_schema() -> None:
+    from apps.chat.agent_knowledge import AgentKnowledgePlane
+    from apps.chat.task.agent_prompt import build_agent_system_prompt
+
+    plane = AgentKnowledgePlane()
+    plane.merge_recall(
+        {
+            "knowledge_text": "# 认证方式",
+            "schema_text": "",
+            "tables": [],
+            "page_keys": ["identify_style"],
+        }
+    )
+    prompt = build_agent_system_prompt(knowledge_plane=plane)
+    assert "<wiki_schema_gap>" in prompt
+    assert "information_schema" in prompt
+    assert "早停" in prompt
+

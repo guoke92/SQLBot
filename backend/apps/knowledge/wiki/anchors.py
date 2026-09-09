@@ -24,6 +24,27 @@ def _table_of(physical_key: str) -> str:
     return physical_key.partition(".")[0].strip()
 
 
+def _resolve_page(store: Any, key: str) -> Any | None:
+    pages = getattr(store, "pages", {}) or {}
+    if key in pages:
+        return pages[key]
+    getter = getattr(store, "get_page", None)
+    if callable(getter):
+        return getter(key)
+    return None
+
+
+def _has_table(store: Any, table: str, pages: dict[str, Any]) -> bool:
+    checker = getattr(store, "has_table", None)
+    if callable(checker):
+        return bool(checker(table))
+    page = pages.get(table) or pages.get(f"tables/{table}")
+    if page is None:
+        return False
+    actual = getattr(page, "type", None)
+    return actual in ("table", None, "")
+
+
 def anchor_tables(store: Any, page_keys: list[str]) -> list[str]:
     """召回命中页 → 引用的物理表名（去重保序，仅保留 store 中的表页）。"""
     if store is None or not page_keys:
@@ -31,7 +52,7 @@ def anchor_tables(store: Any, page_keys: list[str]) -> list[str]:
     pages = getattr(store, "pages", {}) or {}
     tables: list[str] = []
     for key in page_keys:
-        page = pages.get(key)
+        page = _resolve_page(store, key)
         if page is None:
             continue
         candidates: list[str] = []
@@ -46,7 +67,7 @@ def anchor_tables(store: Any, page_keys: list[str]) -> list[str]:
                 for match in _PHYSICAL_KEY_RE.finditer(maps_to)
             )
         for table in candidates:
-            if table and table in pages and table not in tables:
+            if table and _has_table(store, table, pages) and table not in tables:
                 tables.append(table)
     return tables
 
@@ -66,17 +87,19 @@ def anchor_tables_missing(store: Any, page_keys: list[str]) -> list[str]:
     pages = getattr(store, "pages", {}) or {}
     missing: list[str] = []
     for key in page_keys:
-        page = pages.get(key)
+        page = _resolve_page(store, key)
         if page is None:
             continue
         for anchor in getattr(page, "anchors", ()) or ():
             table = _table_of(str(anchor))
-            if table and table not in pages and table not in missing:
+            if table and not _has_table(store, table, pages) and table not in missing:
                 missing.append(table)
     return missing
 
 
-def anchor_table_attribution(store: Any, page_keys: list[str]) -> dict[str, list[dict[str, str]]]:
+def anchor_table_attribution(
+    store: Any, page_keys: list[str]
+) -> dict[str, list[dict[str, str]]]:
     """闭包表 ← 来源归因：每张表由哪个命中页的哪个契约字段拉入。
 
     执行详情"召回过程"卡片用——表选择可解释（chat 169：用户想知道
@@ -87,7 +110,7 @@ def anchor_table_attribution(store: Any, page_keys: list[str]) -> dict[str, list
     pages = getattr(store, "pages", {}) or {}
     attribution: dict[str, list[dict[str, str]]] = {}
     for key in page_keys:
-        page = pages.get(key)
+        page = _resolve_page(store, key)
         if page is None:
             continue
         candidates: list[tuple[str, str]] = []
@@ -102,10 +125,13 @@ def anchor_table_attribution(store: Any, page_keys: list[str]) -> dict[str, list
                 for match in _PHYSICAL_KEY_RE.finditer(maps_to)
             )
         for table, field in candidates:
-            if not table or table not in pages:
+            if not table or not _has_table(store, table, pages):
                 continue
             entry = {"page_key": str(key), "field": field}
             existing = attribution.setdefault(table, [])
-            if not any(e["page_key"] == entry["page_key"] and e["field"] == entry["field"] for e in existing):
+            if not any(
+                e["page_key"] == entry["page_key"] and e["field"] == entry["field"]
+                for e in existing
+            ):
                 existing.append(entry)
     return attribution

@@ -79,6 +79,9 @@ def run_sync_table_and_ds_embeddings(session_maker):
         ]
         SQLBotLogUtil.info("datasource result: " + str(len(ds_results)))
         save_ds_embedding(session_maker, ds_results)
+        from apps.datasource.embedding.schema_index import sync_schema_vectors
+
+        sync_schema_vectors(session_maker, None)
     except Exception as exc:
         SQLBotLogUtil.warning(
             f"schema embedding refresh skipped: {type(exc).__name__}"
@@ -123,10 +126,12 @@ def save_table_embedding(session_maker, ids: list[int]):
         session = session_maker()
         refreshed = 0
         skipped = 0
+        ds_ids: set[int] = set()
         for _id in ids:
             table = session.query(CoreTable).filter(CoreTable.id == _id).first()
             if table is None:
                 continue
+            ds_ids.add(int(table.ds_id))
             fields = _checked_fields(session, int(table.id))
             schema_table = _rank_table_text(session, table, fields)
             fp = content_fingerprint(schema_table)
@@ -155,6 +160,10 @@ def save_table_embedding(session_maker, ids: list[int]):
             + str(end_time - start_time)
             + f" seconds (refreshed={refreshed}, skipped={skipped})"
         )
+        if ds_ids:
+            from apps.datasource.embedding.schema_index import sync_schema_vectors
+
+            sync_schema_vectors(session_maker, list(ds_ids))
     except Exception:
         traceback.print_exc()
     finally:

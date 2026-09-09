@@ -42,7 +42,13 @@ def test_generic_column_blacklist_blocks_exact_and_prefix() -> None:
         "cust_company_info.identify_style": [{"enum": "IdentifyTypeConstant"}]
     }
     entries = [{"field": "identify_type", "enum": "IdentifyTypeConstant", "values": []}]
-    carrier = _carrier_for_factory(column_index, real_columns, table_bindings, entries)
+    carrier = _carrier_for_factory(
+        column_index,
+        real_columns,
+        table_bindings,
+        entries,
+        prefixes=("cust_",),
+    )
     # exact-name 泛列 → unbound
     carriers, binding = carrier("status")
     assert carriers == [] and binding == "unbound"

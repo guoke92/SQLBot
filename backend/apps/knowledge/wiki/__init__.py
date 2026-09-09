@@ -1,10 +1,5 @@
-"""Wiki knowledge subsystem (prototype, spec: docs/wiki-knowledge/).
+"""Wiki knowledge subsystem.
 
-Independent of the legacy unit knowledge system; switches in at the recall
-boundary (`KNOWLEDGE_BACKEND=wiki`). Modules:
-
-- ``contract`` — page parsing/validation/lint (Spec A)
-- ``chunker`` — heading-aware chunking with atomic ground blocks
-- ``graph``   — wikilink adjacency + alias resolution
-- ``recall``  — RRF fusion + page aggregation + graph-expansion quota (Spec C)
+Runtime recall reads draft+published pages from a bound DB corpus (retired
+excluded). Unbound datasources do not fall back to a directory store.
 """

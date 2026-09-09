@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
+from apps.chat.agent_knowledge import PROBE_SQL_LIMIT, AgentKnowledgePlane
 from apps.chat.plan_policy import ROW_LIMIT
 from apps.chat.result_window import apply_result_window, resolve_exec_row_limit
 from apps.chat.steps.enum_display import apply_wiki_enum_labels
@@ -15,12 +17,66 @@ from apps.conversation.process_timeline import (
     upsert_result_dataset,
 )
 from apps.conversation.runtime_context import (
+    attach_runtime,
     current_tool_call_id,
     current_worker_identity,
+    peek_runtime,
 )
 from apps.conversation.tooling import ToolResult
 from apps.datasource.access import AccessScope
 from common.utils.utils import SQLBotLogUtil
+
+_CATALOG_NAME_RE = re.compile(
+    r"\b(?:information_schema|pg_catalog)\b",
+    re.IGNORECASE,
+)
+_CATALOG_COMMANDS = frozenset({"SHOW", "DESCRIBE", "DESC", "EXPLAIN"})
+
+
+def is_catalog_probe_sql(sql: str) -> bool:
+    """True for information_schema / pg_catalog / SHOW COLUMNS style probes."""
+    text = (sql or "").strip()
+    if not text:
+        return False
+    if _CATALOG_NAME_RE.search(text):
+        return True
+    first = text.split(None, 1)[0].upper() if text else ""
+    return first in _CATALOG_COMMANDS
+
+
+def _runtime_snapshot() -> dict[str, Any]:
+    run_id, _token = current_worker_identity()
+    if not run_id:
+        return {}
+    return peek_runtime(run_id) or {}
+
+
+def _schema_ready() -> bool | None:
+    """Session plane gate. None = no agent plane attached (standalone SQL tests)."""
+    snap = _runtime_snapshot()
+    if "knowledge_plane" not in snap:
+        return None
+    plane = AgentKnowledgePlane.from_dump(snap.get("knowledge_plane"))
+    return bool(plane.schema_ready)
+
+
+def _reject_excess_probe(required: bool) -> ToolResult | None:
+    if required is not False:
+        return None
+    used = int(_runtime_snapshot().get("probe_sql_calls") or 0)
+    if used >= PROBE_SQL_LIMIT:
+        return failure_result(
+            (
+                f"Probe SQL limit ({PROBE_SQL_LIMIT}) reached. "
+                "Call execute_sql_sandbox with required=true to deliver, "
+                "or request_clarification if the caliber is still ambiguous."
+            ),
+            retryable=False,
+        )
+    run_id, _token = current_worker_identity()
+    if run_id:
+        attach_runtime(run_id, probe_sql_calls=used + 1)
+    return None
 
 
 def execute_sql_sandbox(
@@ -39,6 +95,26 @@ def execute_sql_sandbox(
     clean_sql = (sql or "").strip().rstrip(";")
     if not clean_sql:
         return failure_result("SQL query cannot be empty")
+
+    if is_catalog_probe_sql(clean_sql):
+        return failure_result(
+            "Catalog probes are not allowed (information_schema / pg_catalog / "
+            "SHOW COLUMNS / DESCRIBE). Table structure must come from Wiki or "
+            "the schema context already in the prompt.",
+            retryable=False,
+        )
+
+    probe_block = _reject_excess_probe(required)
+    if probe_block is not None:
+        return probe_block
+
+    if _schema_ready() is False:
+        return failure_result(
+            "Wiki did not provide table/enum schema. Do not guess columns or "
+            "query information_schema. Stop and tell the user the knowledge "
+            "base cannot answer this yet.",
+            retryable=False,
+        )
 
     try:
         proto = getattr(llm_service, "protocol", None)

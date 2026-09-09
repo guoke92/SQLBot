@@ -17,7 +17,7 @@ from apps.chat.steps.enum_display import apply_wiki_enum_labels, enum_refs_for_q
 def test_enum_refs_for_query_maps_alias_to_physical_column(monkeypatch) -> None:
     monkeypatch.setattr(
         "apps.chat.steps.enum_display.wiki_table_columns",
-        lambda _table: {"cust_build_type", "identify_style"},
+        lambda _table, **_kwargs: {"cust_build_type", "identify_style"},
     )
     sql = (
         "SELECT cust_build_type AS build_type, identify_style AS auth_style "

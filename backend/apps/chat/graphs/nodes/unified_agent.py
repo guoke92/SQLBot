@@ -5,9 +5,16 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from typing import Any, Literal
 
+import orjson
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from sqlalchemy import select
 
+from apps.chat.agent_copy import (
+    compact_agent_final_text,
+    truncated_display_note,
+    truncation_from_tool_steps,
+)
+from apps.chat.agent_knowledge import AgentKnowledgePlane
 from apps.chat.memory_slots import (
     MemorySlots,
     answer_has_executable_sql,
@@ -31,9 +38,19 @@ from apps.conversation.process_timeline import open_process_span
 from apps.conversation.runtime_context import attach_runtime, runtime_value
 from apps.conversation.session import session_scope
 from apps.conversation.sink import StreamSink
-from apps.conversation.tooling import tool_calls_from_message
+from apps.conversation.tooling import (
+    attach_tool_calls,
+    looks_like_tool_markup,
+    resolve_message_tool_calls,
+    tool_calls_from_message,
+)
 from apps.datasource.access import resolve_access_scope
 from common.utils.utils import SQLBotLogUtil
+
+_INCOMPLETE_NO_DATA_KEY = "i18n_chat.agent.incomplete_no_data"
+_INCOMPLETE_NO_DATA_FALLBACK = (
+    "这次没能查出结果。请换个问法试试，或确认数据源表结构已同步。"
+)
 
 
 def _messages_for_audit(messages: Sequence[Any]) -> list[dict[str, Any]]:
@@ -55,6 +72,78 @@ def _messages_for_audit(messages: Sequence[Any]) -> list[dict[str, Any]]:
             row["tool_calls"] = tool_calls
         rows.append(row)
     return rows
+
+
+def _query_requires_data(state: Mapping[str, Any]) -> bool:
+    route = state.get("turn_route") or {}
+    kind = str(route.get("task_kind") or "query")
+    return kind == "query"
+
+
+def _required_sql_payload(data: Mapping[str, Any] | Any) -> bool:
+    if not isinstance(data, Mapping) or not data.get("sql"):
+        return False
+    return data.get("required") is not False
+
+
+def _agent_has_sql_result(state: Mapping[str, Any], messages: Sequence[Any]) -> bool:
+    """True only when a required=true SQL dataset succeeded. Probes do not count."""
+    for step in state.get("tool_steps") or []:
+        if not isinstance(step, Mapping) or not step.get("ok"):
+            continue
+        data = (step.get("result") or {}).get("data") or {}
+        if _required_sql_payload(data):
+            return True
+    for message in messages:
+        if str(getattr(message, "name", "") or "") != "execute_sql_sandbox":
+            continue
+        raw = getattr(message, "content", "") or ""
+        payload: Any = raw
+        if isinstance(raw, str):
+            try:
+                payload = orjson.loads(raw)
+            except Exception:
+                payload = {}
+        if not isinstance(payload, Mapping) or payload.get("ok") is False:
+            continue
+        data = payload.get("data") if isinstance(payload.get("data"), Mapping) else {}
+        if _required_sql_payload(data):
+            return True
+    return False
+
+
+def _clarify_only_tool_calls(calls: Sequence[Mapping[str, Any]]) -> bool:
+    return bool(calls) and all(
+        str(item.get("name") or "") == "request_clarification" for item in calls
+    )
+
+
+def _incomplete_query_state(
+    state: Mapping[str, Any], messages: Sequence[Any]
+) -> dict[str, Any]:
+    text = _incomplete_query_message(state)
+    return {
+        **state,
+        "messages": serialize_messages(list(messages)),
+        "final_text": text,
+        "error": text,
+        "public_error": text,
+        "outcome": failed_outcome(text, kind="empty_response"),
+        "open_tool_spans": {},
+    }
+
+
+def _incomplete_query_message(state: Mapping[str, Any]) -> str:
+    try:
+        llm_service = runtime_value(state, "llm_service")
+        trans = getattr(llm_service, "trans", None)
+        if callable(trans):
+            text = str(trans(_INCOMPLETE_NO_DATA_KEY) or "").strip()
+            if text and text != _INCOMPLETE_NO_DATA_KEY:
+                return text
+    except Exception:
+        pass
+    return _INCOMPLETE_NO_DATA_FALLBACK
 
 
 def resolve_continue_reference_ids(
@@ -104,12 +193,11 @@ def _ensure_agent_turn_route(
 ) -> dict[str, Any]:
     """Build a valid TurnRoute for assemble_turn_context (refs alone are not enough)."""
     refs = tuple(int(item) for item in reference_record_ids[:3] if int(item) > 0)
-    existing = state.get("turn_route") if isinstance(state.get("turn_route"), dict) else {}
+    existing = (
+        state.get("turn_route") if isinstance(state.get("turn_route"), dict) else {}
+    )
     kind = str(
-        existing.get("task_kind")
-        or state.get("route_hint")
-        or task_kind
-        or "query"
+        existing.get("task_kind") or state.get("route_hint") or task_kind or "query"
     )
     if kind not in {"query", "analysis", "prediction", "unsupported"}:
         kind = "query"
@@ -156,7 +244,9 @@ def prepare_agent_turn_node(state: Mapping[str, Any]) -> dict[str, Any]:
         explicit_ids=base_state.get("reference_record_ids") or [],
     )
     turn_route = _ensure_agent_turn_route(base_state, reference_record_ids=ref_ids)
-    base_state["reference_record_ids"] = list(turn_route.get("reference_record_ids") or [])
+    base_state["reference_record_ids"] = list(
+        turn_route.get("reference_record_ids") or []
+    )
     base_state["turn_route"] = turn_route
 
     if base_state["reference_record_ids"]:
@@ -211,7 +301,9 @@ def prepare_agent_turn_node(state: Mapping[str, Any]) -> dict[str, Any]:
                     ds=llm_service.ds,
                 )
     except Exception as exc:
-        SQLBotLogUtil.warning(f"Failed to resolve access_scope in prepare_agent_turn: {exc}")
+        SQLBotLogUtil.warning(
+            f"Failed to resolve access_scope in prepare_agent_turn: {exc}"
+        )
 
     raw_slots = base_state.get("memory_slots") or {}
     memory_slots = MemorySlots.model_validate(raw_slots) if raw_slots else MemorySlots()
@@ -222,7 +314,11 @@ def prepare_agent_turn_node(state: Mapping[str, Any]) -> dict[str, Any]:
             with session_scope() as session:
                 latest_id = referenced[-1].get("record_id")
                 prior = session.get(ChatRecord, int(latest_id)) if latest_id else None
-                answer = prior.answer if prior is not None and isinstance(prior.answer, dict) else {}
+                answer = (
+                    prior.answer
+                    if prior is not None and isinstance(prior.answer, dict)
+                    else {}
+                )
                 patch: dict[str, Any] = {}
                 if answer.get("assumptions") and "assumptions" not in referenced[-1]:
                     patch["assumptions"] = list(answer.get("assumptions") or [])
@@ -239,10 +335,10 @@ def prepare_agent_turn_node(state: Mapping[str, Any]) -> dict[str, Any]:
             SQLBotLogUtil.warning(f"Failed to load prior calibers: {exc}")
     memory_slots = hydrate_memory_slots_from_referenced_turns(memory_slots, referenced)
 
-    from apps.chat.steps.wiki_recall import retrieve_wiki_context
+    from apps.chat.steps.wiki_recall import retrieve_wiki_context, wiki_span_fields
 
-    wiki_text = ""
-    schema_summary = ""
+    wiki_ctx: dict[str, Any] = {}
+    plane = AgentKnowledgePlane.from_dump(base_state.get("knowledge_plane"))
     sink = StreamSink.from_state(base_state)
     wiki_span = open_process_span(
         kind="tool",
@@ -266,13 +362,15 @@ def prepare_agent_turn_node(state: Mapping[str, Any]) -> dict[str, Any]:
             access_scope=access_scope,
             top_k=5,
         )
-        wiki_text = str(wiki_ctx.get("knowledge_text") or "")
-        schema_summary = str(wiki_ctx.get("schema_text") or "")
-        page_keys = (
-            wiki_ctx.get("page_keys")
-            if isinstance(wiki_ctx.get("page_keys"), list)
-            else []
+        plane.merge_recall(wiki_ctx)
+        recalled_schema = "\n".join(
+            plane.schema_by_table[name]
+            for name in plane.tables
+            if plane.schema_by_table.get(name)
         )
+        if recalled_schema:
+            llm_service.chat_question.db_schema = recalled_schema
+        page_keys = list(plane.page_keys)
         hit_count = int(wiki_ctx.get("hit_count") or len(page_keys) or 0)
         if wiki_span is not None:
             wiki_span.set_input(
@@ -280,25 +378,20 @@ def prepare_agent_turn_node(state: Mapping[str, Any]) -> dict[str, Any]:
                     "query": question_text,
                     "top_k": 5,
                     "backend": wiki_ctx.get("backend"),
+                    "store_source": wiki_ctx.get("store_source"),
+                    "corpus_id": wiki_ctx.get("corpus_id"),
                 }
             )
-            wiki_span.set_output(
-                {
-                    "backend": wiki_ctx.get("backend"),
-                    "hit_count": hit_count,
-                    "page_keys": page_keys[:20],
-                    "tables": list(wiki_ctx.get("tables") or [])[:20],
-                    "knowledge_chars": len(wiki_text),
-                    "schema_chars": len(schema_summary),
-                }
-            )
+            wiki_span.set_output(wiki_span_fields(wiki_ctx))
             wiki_span.close(
                 status="completed",
                 summary_key="chat.summary.wiki_prepared",
                 summary_params={"count": hit_count},
             )
     except Exception as exc:
-        SQLBotLogUtil.warning(f"Failed to retrieve context in prepare_agent_turn: {exc}")
+        SQLBotLogUtil.warning(
+            f"Failed to retrieve context in prepare_agent_turn: {exc}"
+        )
         if wiki_span is not None:
             wiki_span.close(status="failed", summary_key="chat.audit.step_failed")
 
@@ -309,13 +402,14 @@ def prepare_agent_turn_node(state: Mapping[str, Any]) -> dict[str, Any]:
         bound_tools=tools,
         access_scope=access_scope,
         llm_service=llm_service,
+        knowledge_plane=plane.to_dump(),
+        probe_sql_calls=0,
     )
 
     system_text = build_agent_system_prompt(
         memory_slots=memory_slots.model_dump(),
         change_baseline=memory_slots.extract_change_baseline(),
-        wiki_knowledge=wiki_text,
-        schema_summary=schema_summary,
+        knowledge_plane=plane,
     )
     initial_messages = [
         SystemMessage(content=system_text),
@@ -327,6 +421,8 @@ def prepare_agent_turn_node(state: Mapping[str, Any]) -> dict[str, Any]:
         "messages": serialize_messages(initial_messages),
         "tool_rounds": 0,
         "tool_round_limit": 5,
+        "knowledge_plane": plane.to_dump(),
+        "probe_sql_calls": 0,
         "memory_slots": memory_slots.model_dump(),
         "outcome": running_outcome(),
     }
@@ -342,16 +438,32 @@ def agent_loop_node(state: Mapping[str, Any]) -> dict[str, Any]:
     record_id = state.get("record_id")
     run_id = str(state.get("run_id") or "") or None
     llm = runtime_value(state, "llm")
+    stop_reason = str(state.get("tool_stop_reason") or "")
+    if run_id:
+        attach_runtime(
+            str(run_id),
+            knowledge_plane=dict(state.get("knowledge_plane") or {}),
+            probe_sql_calls=int(state.get("probe_sql_calls") or 0),
+        )
 
-    finalizing = rounds >= round_limit
+    finalizing = bool(stop_reason) or rounds >= round_limit
+    if (
+        finalizing
+        and _query_requires_data(state)
+        and not _agent_has_sql_result(state, messages)
+    ):
+        return _incomplete_query_state(state, messages)
+
     model_messages = messages
     if finalizing:
+        reason = stop_reason or (f"Tool calling budget reached ({round_limit} rounds)")
         model_messages = [
             *messages,
             SystemMessage(
                 content=(
-                    f"Tool calling budget reached ({round_limit} rounds). "
-                    "Do not request further tool calls. Provide a truthful summary of data obtained so far."
+                    f"Tool execution is now closed because {reason}. "
+                    "Do not request further tool calls. If no query result is available, "
+                    "do not propose another search, catalog SQL, or guessed columns."
                 )
             ),
         ]
@@ -361,6 +473,7 @@ def agent_loop_node(state: Mapping[str, Any]) -> dict[str, Any]:
     calls: list[dict[str, Any]] = []
     text = ""
     usage: Mapping[str, Any] = {}
+    recovered_markup = False
 
     def _ensure_thought_span():
         nonlocal thought_span
@@ -416,9 +529,21 @@ def agent_loop_node(state: Mapping[str, Any]) -> dict[str, Any]:
 
         call = consume_llm(bound, model_messages, on_chunk=_on_chunk)
         response = call.message
-        calls = tool_calls_from_message(response)
         text = call.content
         usage = call.usage or {}
+        native_calls = tool_calls_from_message(response) if response is not None else []
+        calls, text = (
+            resolve_message_tool_calls(response, text)
+            if response is not None
+            else ([], text)
+        )
+        recovered_markup = bool(calls) and not native_calls
+        if finalizing:
+            if recovered_markup or looks_like_tool_markup(call.content):
+                text = text.strip() or _incomplete_query_message(state)
+            calls = []
+        elif recovered_markup and response is not None:
+            response = attach_tool_calls(response, calls, text)
         if calls and held_content:
             span = _ensure_thought_span()
             if span is not None:
@@ -428,7 +553,9 @@ def agent_loop_node(state: Mapping[str, Any]) -> dict[str, Any]:
                     flush=True,
                 )
         if thought_span is not None:
-            thought_body = str((thought_span.snapshot().get("thought") or {}).get("content") or "").strip()
+            thought_body = str(
+                (thought_span.snapshot().get("thought") or {}).get("content") or ""
+            ).strip()
             if thought_body:
                 thought_span.set_usage(usage)
                 thought_span.set_input(_messages_for_audit(model_messages))
@@ -448,13 +575,19 @@ def agent_loop_node(state: Mapping[str, Any]) -> dict[str, Any]:
         SQLBotLogUtil.error(f"agent loop error: {exc}")
         if thought_span is not None:
             thought_span.close(status="failed", summary_key="chat.audit.step_failed")
-        return {**state, "error": format_error_message(exc), "outcome": failed_outcome(exc)}
+        return {
+            **state,
+            "error": format_error_message(exc),
+            "outcome": failed_outcome(exc),
+        }
 
     if response is None:
         return {
             **state,
             "error": "Model returned an empty response",
-            "outcome": failed_outcome("Model returned an empty response", kind="empty_response"),
+            "outcome": failed_outcome(
+                "Model returned an empty response", kind="empty_response"
+            ),
         }
 
     updated_messages = [*messages, response]
@@ -478,13 +611,36 @@ def agent_loop_node(state: Mapping[str, Any]) -> dict[str, Any]:
             )
             if tool_span is not None and call_id:
                 open_tool_spans[call_id] = tool_span.id
-        advanced_rounds = rounds + max(1, len(calls))
+        advanced_rounds = rounds if _clarify_only_tool_calls(calls) else rounds + 1
         return {
             **state,
             "messages": serialize_messages(updated_messages),
             "tool_rounds": advanced_rounds,
             "open_tool_spans": open_tool_spans,
         }
+
+    if looks_like_tool_markup(text) or (
+        recovered_markup and not str(text or "").strip()
+    ):
+        return _incomplete_query_state(state, updated_messages)
+
+    if _query_requires_data(state) and not _agent_has_sql_result(
+        state, updated_messages
+    ):
+        return _incomplete_query_state(state, updated_messages)
+
+    truncated, limit = truncation_from_tool_steps(state.get("tool_steps"))
+    trans = None
+    try:
+        trans = getattr(runtime_value(state, "llm_service"), "trans", None)
+    except Exception:
+        trans = None
+    text = compact_agent_final_text(
+        text,
+        truncated=truncated,
+        limit=limit,
+        truncation_note=truncated_display_note(limit, trans=trans),
+    )
 
     answer_span = open_process_span(
         kind="answer",

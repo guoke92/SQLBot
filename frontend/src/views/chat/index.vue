@@ -823,9 +823,9 @@ const sendMessage = async ($event: any = {}) => {
     .reverse()
     .find((r) => {
       if (!r?.id || !r.finish) return false
-      if (r.answer?.status === 'succeeded') return true
+      if (r.turn_answer?.status === 'succeeded') return true
       if (r.sql) return true
-      return Boolean(r.answer?.datasets?.length)
+      return Boolean(r.turn_answer?.datasets?.length || r.answer?.steps?.length)
     })
   if (prior?.id) {
     currentRecord.relation = 'continue'

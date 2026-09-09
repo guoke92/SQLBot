@@ -124,15 +124,25 @@ class WikiEmbeddingIndex:
         store: InMemoryWikiStore,
         *,
         cache_dir: Path | None = None,
+        vectors: dict[str, list[float]] | None = None,
     ) -> None:
         self.store = store
         self.cache_dir = cache_dir or Path(".")
-        self._vectors: dict[str, list[float]] | None = None
+        self._vectors: dict[str, list[float]] | None = vectors
         self._matrix: Any = None  # 预归一化 numpy 矩阵(chunk 顺序对齐 _vector_ids)
         self._vector_ids: list[str] | None = None
-        self._available: bool | None = None
+        self._available: bool | None = None if vectors is None else bool(vectors)
         self.build_count = 0  # 累计 embed_documents 调用次数（遥测）
         self.built_pages = 0  # 累计触发重嵌的页数（遥测）
+
+    @classmethod
+    def from_vectors(
+        cls,
+        store: InMemoryWikiStore,
+        vectors: dict[str, list[float]],
+    ) -> WikiEmbeddingIndex:
+        """DB-backed vectors: skip the file cache; empty → lexical-only."""
+        return cls(store, vectors=vectors)
 
     @property
     def ensured(self) -> bool:
