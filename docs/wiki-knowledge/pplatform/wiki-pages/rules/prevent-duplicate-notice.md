@@ -2,6 +2,7 @@
 type: rule
 title: "发送待办前校验是否存在未处理待办"
 page_key: prevent-duplicate-notice
+belong: rules
 domain: 集团与关联关系
 status: published
 aliases: []

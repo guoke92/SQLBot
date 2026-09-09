@@ -2,6 +2,7 @@
 type: caliber
 title: 客户迁移成功口径
 page_key: customer_migration_success
+belong: calibers
 domain: 租户迁移
 status: published
 aliases: [客户迁移成功]

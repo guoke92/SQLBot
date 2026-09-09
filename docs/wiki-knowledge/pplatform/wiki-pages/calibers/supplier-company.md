@@ -2,6 +2,7 @@
 type: caliber
 title: 供应商企业
 page_key: supplier-company
+belong: calibers
 domain: 企业建档与准入
 status: published
 aliases: [供应商]

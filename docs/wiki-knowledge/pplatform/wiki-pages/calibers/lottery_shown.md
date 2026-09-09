@@ -1,7 +1,8 @@
 ---
 type: caliber
 title: "转盘已展示"
-page_key: "lottery_shown"
+page_key: lottery_shown
+belong: calibers
 domain: "customer_survey"
 status: published
 aliases: ["转盘已展示"]

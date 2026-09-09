@@ -1,7 +1,8 @@
 ---
 type: rule
 title: reqSn 生成规则
-page_key: rule/reqsn_generation_rule
+page_key: reqsn_generation_rule
+belong: rules
 domain: 支付宝蚂蚁档案与清算
 status: published
 aliases: []

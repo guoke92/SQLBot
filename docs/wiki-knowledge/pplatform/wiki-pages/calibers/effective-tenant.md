@@ -1,7 +1,8 @@
 ---
 type: caliber
 title: 有效租户
-page_key: calibers.effective-tenant
+page_key: effective-tenant
+belong: calibers
 domain: tenant-config-operation-email
 status: published
 aliases: [有效租户, enable有效租户]

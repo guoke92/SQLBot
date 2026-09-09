@@ -2,6 +2,7 @@
 type: table
 title: 运营中台人员数据
 page_key: operation_user
+belong: tables
 domain: 基线
 status: draft
 anchors: [operation_user]

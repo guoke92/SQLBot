@@ -2,6 +2,7 @@
 type: rule
 title: 运营方开通产品推送前强制同步租户
 page_key: force_push_tenant_sync_before_product
+belong: rules
 domain: 租户迁移
 status: published
 aliases: []

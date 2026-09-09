@@ -2,6 +2,7 @@
 type: concept
 title: 认证状态
 page_key: auth-status
+belong: concepts
 domain: 企业建档与准入
 status: published
 aliases: [建档状态, 认证流程状态]

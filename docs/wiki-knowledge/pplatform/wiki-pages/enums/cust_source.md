@@ -2,6 +2,7 @@
 type: enum
 title: cust_source
 page_key: cust_source
+belong: enums
 domain: 基线
 status: draft
 aliases: []

@@ -2,6 +2,7 @@
 type: concept
 title: 收费协议
 page_key: fee_agreement
+belong: concepts
 domain: CA证书收费与订单
 status: published
 aliases: ["协议", "agreement"]

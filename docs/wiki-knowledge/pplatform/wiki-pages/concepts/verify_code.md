@@ -2,6 +2,7 @@
 type: concept
 title: 验证码
 page_key: verify_code
+belong: concepts
 domain: 通知验证码短链与消息
 status: published
 aliases: [verifyCode, indentifyCode, smsCode, 短信验证码, IdentifCode]

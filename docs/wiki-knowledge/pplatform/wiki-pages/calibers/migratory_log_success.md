@@ -2,6 +2,7 @@
 type: caliber
 title: 迁移日志成功
 page_key: migratory_log_success
+belong: calibers
 domain: 租户迁移
 status: published
 aliases: []

@@ -2,6 +2,7 @@
 type: rule
 title: "已生效的成员单位关系不能重复接受/拒绝"
 page_key: effective-relation-no-repeat
+belong: rules
 domain: 集团与关联关系
 status: published
 aliases: []

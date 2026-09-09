@@ -1,7 +1,8 @@
 ---
 type: caliber
 title: 已生效租户
-page_key: calibers.activated-tenant
+page_key: activated-tenant
+belong: calibers
 domain: tenant-config-operation-email
 status: published
 aliases: [已生效租户, status生效租户]

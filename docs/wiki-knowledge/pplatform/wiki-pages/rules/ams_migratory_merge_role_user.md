@@ -2,6 +2,7 @@
 type: rule
 title: AMS迁移企业已存在时合并角色/用户
 page_key: ams_migratory_merge_role_user
+belong: rules
 domain: 租户迁移
 status: published
 aliases: []

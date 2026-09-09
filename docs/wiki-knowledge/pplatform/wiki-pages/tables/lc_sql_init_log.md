@@ -2,6 +2,7 @@
 type: table
 title: 蜂搭插件sql执行记录
 page_key: lc_sql_init_log
+belong: tables
 domain: 基线
 status: draft
 anchors: [lc_sql_init_log]

@@ -2,6 +2,7 @@
 type: process
 title: ca_fee_company.pay_status
 page_key: ca_fee_company_pay_status
+belong: processes
 domain: CA证书收费与订单
 status: published
 aliases: ["企业缴费状态机"]

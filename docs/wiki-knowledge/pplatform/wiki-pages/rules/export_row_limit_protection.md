@@ -2,6 +2,7 @@
 type: rule
 title: 导出数据上限保护
 page_key: export_row_limit_protection
+belong: rules
 domain: 资金方规则与异常解决
 status: published
 aliases:

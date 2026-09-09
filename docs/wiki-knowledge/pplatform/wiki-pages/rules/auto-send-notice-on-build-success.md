@@ -2,6 +2,7 @@
 type: rule
 title: "添加新子级关系时，如果企业认证成功则立即发送待办"
 page_key: auto-send-notice-on-build-success
+belong: rules
 domain: 集团与关联关系
 status: published
 aliases: []

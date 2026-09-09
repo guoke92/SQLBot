@@ -2,6 +2,7 @@
 type: concept
 title: 报错关键字
 page_key: error_keyword
+belong: concepts
 domain: 资金方规则与异常解决
 status: published
 aliases:

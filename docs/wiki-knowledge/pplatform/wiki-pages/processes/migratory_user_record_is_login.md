@@ -2,6 +2,7 @@
 type: process
 title: migratory_user_record.is_login
 page_key: migratory_user_record_is_login
+belong: processes
 domain: 租户迁移
 status: published
 aliases: [迁移用户登录状态]

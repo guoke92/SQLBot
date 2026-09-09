@@ -2,6 +2,7 @@
 type: table
 title: 平台产品端口配置
 page_key: platform_product_client
+belong: tables
 domain: 基线
 status: draft
 anchors: [platform_product_client]

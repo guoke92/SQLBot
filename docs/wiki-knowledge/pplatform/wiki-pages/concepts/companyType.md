@@ -2,6 +2,7 @@
 type: concept
 title: companyType
 page_key: companyType
+belong: concepts
 domain: 门户侧边栏查询
 status: published
 aliases:

@@ -2,6 +2,7 @@
 type: rule
 title: 收费规则优先级链
 page_key: fee_rule_priority_chain
+belong: rules
 domain: CA证书收费与订单
 status: published
 aliases: []

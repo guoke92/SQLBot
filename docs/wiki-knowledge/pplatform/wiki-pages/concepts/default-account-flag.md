@@ -2,6 +2,7 @@
 type: concept
 title: 默认还款账号
 page_key: default-account-flag
+belong: concepts
 domain: 企业银行账户与第三方银行
 status: published
 aliases: ["默认账户", "defaultAccountFlag", "default_account_flag"]

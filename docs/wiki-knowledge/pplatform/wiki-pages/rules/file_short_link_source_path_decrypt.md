@@ -2,6 +2,7 @@
 type: rule
 title: 文件类型短链接源路径解密
 page_key: file_short_link_source_path_decrypt
+belong: rules
 domain: 通知验证码短链与消息
 status: published
 aliases: []

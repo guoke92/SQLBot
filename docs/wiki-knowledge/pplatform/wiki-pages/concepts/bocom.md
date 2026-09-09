@@ -2,6 +2,7 @@
 type: concept
 title: 交e保
 page_key: bocom
+belong: concepts
 domain: CA证书收费与订单
 status: published
 aliases: ["BOCOM", "bocom"]

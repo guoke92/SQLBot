@@ -2,6 +2,7 @@
 type: concept
 title: 上下文 JSON
 page_key: 上下文JSON
+belong: concepts
 domain: 异步任务与数据同步
 status: published
 aliases: ["ctxJson", "ctx_json"]

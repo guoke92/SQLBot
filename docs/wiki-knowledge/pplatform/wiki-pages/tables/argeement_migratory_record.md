@@ -2,6 +2,7 @@
 type: table
 title: 协议迁移记录
 page_key: argeement_migratory_record
+belong: tables
 domain: 基线
 status: draft
 anchors: [argeement_migratory_record]

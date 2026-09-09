@@ -1,7 +1,8 @@
 ---
 type: concept
 title: "审批编号"
-page_key: "concept/approval_no"
+page_key: approval_no
+belong: concepts
 domain: "tenant-project"
 status: published
 aliases: ["approvalNo", "project_approval_no", "审批编号"]

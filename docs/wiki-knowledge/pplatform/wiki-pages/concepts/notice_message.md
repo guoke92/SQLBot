@@ -2,6 +2,7 @@
 type: concept
 title: 通知/消息
 page_key: notice_message
+belong: concepts
 domain: 通知验证码短链与消息
 status: published
 aliases: [通知, 消息, 站内信, Notice, Message, 短信]

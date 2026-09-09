@@ -2,6 +2,7 @@
 type: table
 title: 项目立项字段更新历史
 page_key: wechat_project_approval_field_history
+belong: tables
 domain: 基线
 status: draft
 anchors: [wechat_project_approval_field_history]

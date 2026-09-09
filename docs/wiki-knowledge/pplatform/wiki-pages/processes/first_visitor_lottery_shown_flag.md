@@ -1,7 +1,8 @@
 ---
 type: process
 title: "企业首个访问用户转盘展示标记"
-page_key: "first_visitor_lottery_shown_flag"
+page_key: first_visitor_lottery_shown_flag
+belong: processes
 domain: "customer_survey"
 status: published
 aliases: ["企业首个访问用户转盘展示标记", "first_visitor_lottery_shown"]

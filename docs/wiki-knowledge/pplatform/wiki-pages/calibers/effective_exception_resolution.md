@@ -2,6 +2,7 @@
 type: caliber
 title: 有效异常解析配置
 page_key: effective_exception_resolution
+belong: calibers
 domain: 资金方规则与异常解决
 status: published
 aliases:

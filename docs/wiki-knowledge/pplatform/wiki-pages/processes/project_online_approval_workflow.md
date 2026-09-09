@@ -1,7 +1,8 @@
 ---
 type: process
 title: "项目上线审批工作流"
-page_key: "process/project_online_approval_workflow"
+page_key: project_online_approval_workflow
+belong: processes
 domain: "tenant-project"
 status: published
 aliases: ["审批工作流状态机"]

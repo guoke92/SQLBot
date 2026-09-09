@@ -2,6 +2,7 @@
 type: rule
 title: 第三方银行产品路由
 page_key: third-party-bank-product-routing
+belong: rules
 domain: 企业银行账户与第三方银行
 status: published
 aliases: []

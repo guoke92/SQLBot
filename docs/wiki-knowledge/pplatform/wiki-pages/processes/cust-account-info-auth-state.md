@@ -2,6 +2,7 @@
 type: process
 title: cust_account_info.auth_state 小额打款验证认证状态机
 page_key: cust-account-info-auth-state
+belong: processes
 domain: 企业银行账户与第三方银行
 status: published
 aliases: ["auth_state状态机", "小额打款验证状态机"]

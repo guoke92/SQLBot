@@ -2,6 +2,7 @@
 type: concept
 title: 租户
 page_key: tenant
+belong: concepts
 domain: 客户角色与数据权限组织
 status: published
 aliases:

@@ -2,6 +2,7 @@
 type: rule
 title: "新增子级关系时企业若已是集团公司则不允许作为子级"
 page_key: no-group-nesting
+belong: rules
 domain: 集团与关联关系
 status: published
 aliases: []

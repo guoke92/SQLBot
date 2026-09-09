@@ -2,6 +2,7 @@
 type: caliber
 title: queryTenant-指定产品租户集
 page_key: queryTenant-指定产品租户集
+belong: calibers
 domain: 门户侧边栏查询
 status: published
 aliases: []

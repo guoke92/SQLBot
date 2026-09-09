@@ -2,6 +2,7 @@
 type: table
 title: 租户项目审批业务系统推送信息表
 page_key: tenant_project_approval_business_info
+belong: tables
 domain: 基线
 status: draft
 anchors: [tenant_project_approval_business_info]

@@ -2,6 +2,7 @@
 type: enum
 title: pay_status
 page_key: pay_status
+belong: enums
 domain: 基线
 status: draft
 aliases: []

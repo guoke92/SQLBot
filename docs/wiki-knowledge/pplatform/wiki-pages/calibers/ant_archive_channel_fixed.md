@@ -1,7 +1,8 @@
 ---
 type: caliber
 title: 蚂蚁建档渠道固定
-page_key: caliber/ant_archive_channel_fixed
+page_key: ant_archive_channel_fixed
+belong: calibers
 domain: 支付宝蚂蚁档案与清算
 status: published
 aliases: []

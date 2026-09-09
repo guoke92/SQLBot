@@ -2,6 +2,7 @@
 type: rule
 title: CA/BS开通后同步至业务系统
 page_key: ca_bs_sync_after_open
+belong: rules
 domain: 租户迁移
 status: published
 aliases: []

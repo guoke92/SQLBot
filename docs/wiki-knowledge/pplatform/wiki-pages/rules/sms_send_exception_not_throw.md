@@ -2,6 +2,7 @@
 type: rule
 title: 短信发送异常不抛给调用方
 page_key: sms_send_exception_not_throw
+belong: rules
 domain: 通知验证码短链与消息
 status: published
 aliases: []

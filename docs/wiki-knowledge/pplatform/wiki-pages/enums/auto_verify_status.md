@@ -2,6 +2,7 @@
 type: enum
 title: auto_verify_status
 page_key: auto_verify_status
+belong: enums
 domain: 基线
 status: draft
 aliases: []

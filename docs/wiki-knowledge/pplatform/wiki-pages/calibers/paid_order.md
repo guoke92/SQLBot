@@ -2,6 +2,7 @@
 type: caliber
 title: 已支付订单
 page_key: paid_order
+belong: calibers
 domain: CA证书收费与订单
 status: published
 aliases: []

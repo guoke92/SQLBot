@@ -2,6 +2,7 @@
 type: table
 title: cust_certification_info
 page_key: cust_certification_info
+belong: tables
 domain: 基线
 status: draft
 anchors: [cust_certification_info]

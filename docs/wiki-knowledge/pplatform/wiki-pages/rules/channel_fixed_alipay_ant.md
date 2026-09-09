@@ -1,7 +1,8 @@
 ---
 type: rule
 title: 渠道固定为 ALIPAY_ANT
-page_key: rule/channel_fixed_alipay_ant
+page_key: channel_fixed_alipay_ant
+belong: rules
 domain: 支付宝蚂蚁档案与清算
 status: published
 aliases: []

@@ -2,6 +2,7 @@
 type: rule
 title: 指定组织时必须提供组织列表
 page_key: specified-org-requires-org-list
+belong: rules
 domain: 客户角色与数据权限组织
 status: published
 aliases:

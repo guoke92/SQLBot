@@ -2,6 +2,7 @@
 type: rule
 title: CAS 更新到 RUNNING
 page_key: CAS更新到RUNNING
+belong: rules
 domain: 异步任务与数据同步
 status: published
 aliases: []

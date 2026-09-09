@@ -2,6 +2,7 @@
 type: concept
 title: 客户迁移
 page_key: customer_migration
+belong: concepts
 domain: 租户迁移
 status: published
 aliases: [迁移客户]

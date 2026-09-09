@@ -1,7 +1,8 @@
 ---
 type: caliber
 title: 支付宝清分配置结果缺省值
-page_key: caliber/alipay_clearing_config_result_default
+page_key: alipay_clearing_config_result_default
+belong: calibers
 domain: 支付宝蚂蚁档案与清算
 status: published
 aliases: []

@@ -1,7 +1,8 @@
 ---
 type: concept
 title: 业务流水号
-page_key: concept/serial_no
+page_key: serial_no
+belong: concepts
 domain: 支付宝蚂蚁档案与清算
 status: published
 aliases: ["serialNo", "outerSerialNo", "reqNo"]

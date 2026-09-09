@@ -2,6 +2,7 @@
 type: rule
 title: 续费提醒窗口
 page_key: renewal_reminder_window
+belong: rules
 domain: ca_cert_fee
 status: published
 aliases: []

@@ -1,7 +1,8 @@
 ---
 type: concept
 title: "企业首个访问用户"
-page_key: "first_visitor_user"
+page_key: first_visitor_user
+belong: concepts
 domain: "customer_survey"
 status: published
 aliases: ["企业首个且首次登入用户", "firstVisitor"]

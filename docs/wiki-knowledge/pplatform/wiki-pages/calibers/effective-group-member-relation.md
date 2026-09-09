@@ -2,6 +2,7 @@
 type: caliber
 title: "生效集团成员单位关系"
 page_key: effective-group-member-relation
+belong: calibers
 domain: 集团与关联关系
 status: published
 aliases: []

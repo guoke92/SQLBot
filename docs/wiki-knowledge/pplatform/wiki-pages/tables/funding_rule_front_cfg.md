@@ -2,6 +2,7 @@
 type: table
 title: 资方规则前端配置页面
 page_key: funding_rule_front_cfg
+belong: tables
 domain: 基线
 status: draft
 anchors: [funding_rule_front_cfg]

@@ -1,7 +1,8 @@
 ---
 type: process
 title: "问卷星首页展示场景"
-page_key: "wenjuan_home_display_scenario"
+page_key: wenjuan_home_display_scenario
+belong: processes
 domain: "customer_survey"
 status: published
 aliases: ["问卷星首页展示场景", "WenjuanHomeDisplayConfigDTO.displayScene"]

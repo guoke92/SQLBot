@@ -2,6 +2,7 @@
 type: caliber
 title: 多项目校验放行口径
 page_key: multi_project_pass
+belong: calibers
 domain: ca_cert_fee
 status: published
 aliases: []

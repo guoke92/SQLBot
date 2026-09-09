@@ -2,6 +2,7 @@
 type: table
 title: 客户端接口同步失败记录
 page_key: client_api_sync_error
+belong: tables
 domain: 基线
 status: draft
 anchors:

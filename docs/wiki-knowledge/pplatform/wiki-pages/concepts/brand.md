@@ -1,7 +1,8 @@
 ---
 type: concept
 title: 品牌
-page_key: concepts/brand
+page_key: brand
+belong: concepts
 domain: AMS联系人第三方对接
 status: published
 aliases: [租户, bizLabel]

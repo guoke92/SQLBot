@@ -2,6 +2,7 @@
 type: rule
 title: 打款申请前置校验
 page_key: payment-apply-precheck
+belong: rules
 domain: 企业银行账户与第三方银行
 status: published
 aliases: []

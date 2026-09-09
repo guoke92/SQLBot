@@ -1,7 +1,8 @@
 ---
 type: rule
 title: "白名单决定问卷活动可见性"
-page_key: "whitelist_controls_visibility"
+page_key: whitelist_controls_visibility
+belong: rules
 domain: "customer_survey"
 status: published
 aliases: ["白名单决定问卷活动可见性"]

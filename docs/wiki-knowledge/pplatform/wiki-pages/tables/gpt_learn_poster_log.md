@@ -2,6 +2,7 @@
 type: table
 title: 智能审核引流卡片埋点记录
 page_key: gpt_learn_poster_log
+belong: tables
 domain: 基线
 status: draft
 anchors: [gpt_learn_poster_log]

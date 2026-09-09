@@ -2,6 +2,7 @@
 type: rule
 title: 短链接过期判定
 page_key: short_link_expiration_judgment
+belong: rules
 domain: 通知验证码短链与消息
 status: published
 aliases: []

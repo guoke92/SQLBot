@@ -2,6 +2,7 @@
 type: rule
 title: 项目必须存在才可关联
 page_key: project_must_exist
+belong: rules
 domain: 租户迁移
 status: published
 aliases: []

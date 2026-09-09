@@ -2,6 +2,7 @@
 type: rule
 title: 收费规则引擎豁免链
 page_key: rule_engine_exemption_chain
+belong: rules
 domain: ca_cert_fee
 status: published
 aliases: []

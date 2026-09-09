@@ -2,6 +2,7 @@
 type: rule
 title: 台账编辑限制
 page_key: ledger_edit_restrictions
+belong: rules
 domain: CA证书收费与订单
 status: published
 aliases: []

@@ -2,6 +2,7 @@
 type: table
 title: 客户邀请信息
 page_key: cust_invite_info
+belong: tables
 domain: 基线
 status: draft
 anchors: [cust_invite_info]

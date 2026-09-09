@@ -2,6 +2,7 @@
 type: table
 title: 资方规则信息
 page_key: funding_rule_info
+belong: tables
 domain: 基线
 status: draft
 anchors: [funding_rule_info]

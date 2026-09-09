@@ -2,6 +2,7 @@
 type: rule
 title: "埋点记录创建规则"
 page_key: poster_log_creation_rule
+belong: rules
 domain: gpt_learn
 status: published
 aliases: []

@@ -2,6 +2,7 @@
 type: rule
 title: "弹卡次数上限规则"
 page_key: popup_count_limit_rule
+belong: rules
 domain: gpt_learn
 status: published
 aliases: []

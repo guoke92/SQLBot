@@ -2,6 +2,7 @@
 type: process
 title: 协议迁移拉取状态
 page_key: agreement_migratory_pull_status
+belong: processes
 domain: 租户迁移
 status: published
 aliases: []

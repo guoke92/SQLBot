@@ -2,6 +2,7 @@
 type: process
 title: async_io_task.status 状态机
 page_key: async_io_task_status
+belong: processes
 domain: 异步任务与数据同步
 status: published
 aliases: []

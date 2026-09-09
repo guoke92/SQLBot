@@ -2,6 +2,7 @@
 type: concept
 title: 数据权限
 page_key: data-permission
+belong: concepts
 domain: 客户角色与数据权限组织
 status: published
 aliases:

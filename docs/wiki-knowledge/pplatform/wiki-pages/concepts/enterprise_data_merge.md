@@ -2,6 +2,7 @@
 type: concept
 title: 企业数据合并
 page_key: enterprise_data_merge
+belong: concepts
 domain: 租户迁移
 status: published
 aliases: [存量企业合并]

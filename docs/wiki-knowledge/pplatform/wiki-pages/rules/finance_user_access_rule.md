@@ -2,6 +2,7 @@
 type: rule
 title: "金融机构用户准入规则"
 page_key: finance_user_access_rule
+belong: rules
 domain: gpt_learn
 status: published
 aliases: []

@@ -2,6 +2,7 @@
 type: rule
 title: 集团成员角色一致性
 page_key: group-member-role-consistency
+belong: rules
 domain: 客户角色与数据权限组织
 status: published
 aliases:

@@ -2,6 +2,7 @@
 type: concept
 title: 项目迁移
 page_key: project_migration
+belong: concepts
 domain: 租户迁移
 status: published
 aliases: [迁移项目]

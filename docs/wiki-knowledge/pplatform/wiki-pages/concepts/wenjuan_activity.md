@@ -1,7 +1,8 @@
 ---
 type: concept
 title: "问卷星活动"
-page_key: "wenjuan_activity"
+page_key: wenjuan_activity
+belong: concepts
 domain: "customer_survey"
 status: published
 aliases: ["问卷星", "wenjuan", "问卷活动"]

@@ -1,7 +1,8 @@
 ---
 type: concept
 title: "转盘抽奖已展示"
-page_key: "lottery_shown_flag"
+page_key: lottery_shown_flag
+belong: concepts
 domain: "customer_survey"
 status: published
 aliases: ["first_visitor_lottery_shown"]

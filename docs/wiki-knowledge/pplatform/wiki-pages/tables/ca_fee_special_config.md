@@ -2,6 +2,7 @@
 type: table
 title: CA服务费特殊企业配置
 page_key: ca_fee_special_config
+belong: tables
 domain: 基线
 status: draft
 anchors: [ca_fee_special_config]

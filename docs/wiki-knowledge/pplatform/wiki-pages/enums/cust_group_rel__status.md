@@ -2,6 +2,7 @@
 type: enum
 title: status
 page_key: cust_group_rel__status
+belong: enums
 domain: 基线
 status: draft
 aliases: []

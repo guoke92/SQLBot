@@ -2,6 +2,7 @@
 type: rule
 title: "点击记录幂等规则"
 page_key: click_idempotency_rule
+belong: rules
 domain: gpt_learn
 status: published
 aliases: []

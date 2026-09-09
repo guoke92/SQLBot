@@ -2,6 +2,7 @@
 type: table
 title: 项目运营文件管理
 page_key: project_file_info
+belong: tables
 domain: 基线
 status: draft
 anchors: [project_file_info]

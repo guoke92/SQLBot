@@ -1,7 +1,8 @@
 ---
 type: rule
 title: 蚂蚁建档流水号必填
-page_key: rule/ant_archive_serial_no_required
+page_key: ant_archive_serial_no_required
+belong: rules
 domain: 支付宝蚂蚁档案与清算
 status: published
 aliases: []

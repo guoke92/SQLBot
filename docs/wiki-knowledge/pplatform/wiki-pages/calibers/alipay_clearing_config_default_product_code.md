@@ -1,7 +1,8 @@
 ---
 type: caliber
 title: 支付宝清分配置查询默认产品码
-page_key: caliber/alipay_clearing_config_default_product_code
+page_key: alipay_clearing_config_default_product_code
+belong: calibers
 domain: 支付宝蚂蚁档案与清算
 status: published
 aliases: []

@@ -2,6 +2,7 @@
 type: table
 title: 客户快捷入口配置
 page_key: cust_customized_product
+belong: tables
 domain: 基线
 status: draft
 anchors: [cust_customized_product]

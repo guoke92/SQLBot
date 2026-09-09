@@ -2,6 +2,7 @@
 type: caliber
 title: 小额打款验证完成终态
 page_key: small-payment-verify-final
+belong: calibers
 domain: 企业银行账户与第三方银行
 status: published
 aliases: ["APPLY_40", "验证完成"]

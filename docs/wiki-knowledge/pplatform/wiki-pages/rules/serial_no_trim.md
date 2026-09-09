@@ -1,7 +1,8 @@
 ---
 type: rule
 title: 流水号去除首尾空白
-page_key: rule/serial_no_trim
+page_key: serial_no_trim
+belong: rules
 domain: 支付宝蚂蚁档案与清算
 status: published
 aliases: []

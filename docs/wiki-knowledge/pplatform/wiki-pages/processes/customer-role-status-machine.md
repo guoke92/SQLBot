@@ -2,6 +2,7 @@
 type: process
 title: 客户企业角色状态机
 page_key: customer-role-status-machine
+belong: processes
 domain: 客户角色与数据权限组织
 status: published
 aliases:

@@ -1,7 +1,8 @@
 ---
 type: concept
 title: "项目来源/交易平台"
-page_key: "concept/project_source"
+page_key: project_source
+belong: concepts
 domain: "tenant-project"
 status: published
 aliases: ["source", "项目来源"]

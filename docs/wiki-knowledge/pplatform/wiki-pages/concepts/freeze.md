@@ -2,6 +2,7 @@
 type: concept
 title: 冻结
 page_key: freeze
+belong: concepts
 domain: 企业建档与准入
 status: published
 aliases: [禁用]

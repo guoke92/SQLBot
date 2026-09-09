@@ -2,6 +2,7 @@
 type: rule
 title: "删除集团关系必须校验在途业务"
 page_key: delete-relation-check-business
+belong: rules
 domain: 集团与关联关系
 status: published
 aliases: []

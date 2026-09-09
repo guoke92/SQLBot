@@ -1,7 +1,8 @@
 ---
 type: rule
 title: "创建项目校验租户与产品"
-page_key: "rule/create_project_validate_tenant_product"
+page_key: create_project_validate_tenant_product
+belong: rules
 domain: "tenant-project"
 status: published
 aliases: ["创建项目校验"]

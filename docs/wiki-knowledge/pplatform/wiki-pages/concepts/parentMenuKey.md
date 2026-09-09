@@ -2,6 +2,7 @@
 type: concept
 title: parentMenuKey
 page_key: parentMenuKey
+belong: concepts
 domain: 门户侧边栏查询
 status: published
 aliases:

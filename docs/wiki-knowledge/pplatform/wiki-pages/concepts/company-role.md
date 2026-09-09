@@ -2,6 +2,7 @@
 type: concept
 title: "企业角色"
 page_key: company-role
+belong: concepts
 domain: 集团与关联关系
 status: published
 aliases: ["custType", "companyType"]

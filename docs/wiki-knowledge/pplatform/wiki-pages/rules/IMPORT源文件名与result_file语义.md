@@ -2,6 +2,7 @@
 type: rule
 title: IMPORT 源文件名与 result/file 语义
 page_key: IMPORT源文件名与result_file语义
+belong: rules
 domain: 异步任务与数据同步
 status: published
 aliases: []

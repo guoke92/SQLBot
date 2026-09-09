@@ -2,6 +2,7 @@
 type: process
 title: short_link_type
 page_key: short_link_type
+belong: processes
 domain: 通知验证码短链与消息
 status: published
 aliases: [短链类型]

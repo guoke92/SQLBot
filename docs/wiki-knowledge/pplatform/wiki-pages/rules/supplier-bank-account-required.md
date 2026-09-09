@@ -2,6 +2,7 @@
 type: rule
 title: 供应商银行账户必填
 page_key: supplier-bank-account-required
+belong: rules
 domain: 企业建档与准入
 status: published
 aliases: [供应商银行账户校验]

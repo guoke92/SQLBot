@@ -2,6 +2,7 @@
 type: caliber
 title: 数据入站口径
 page_key: data_inbound
+belong: calibers
 domain: 租户迁移
 status: published
 aliases: [数据入站]

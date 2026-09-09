@@ -2,6 +2,7 @@
 type: rule
 title: 账户唯一性校验
 page_key: account-uniqueness-check
+belong: rules
 domain: 企业银行账户与第三方银行
 status: published
 aliases: []

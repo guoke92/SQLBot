@@ -2,6 +2,7 @@
 type: rule
 title: 企业管理员数据权限固定为 ALL
 page_key: enterprise-admin-data-permission-all
+belong: rules
 domain: 客户角色与数据权限组织
 status: published
 aliases:

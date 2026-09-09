@@ -2,6 +2,7 @@
 type: caliber
 title: "认证成功企业"
 page_key: build-success-company
+belong: calibers
 domain: 集团与关联关系
 status: published
 aliases: []

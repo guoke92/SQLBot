@@ -1,0 +1,95 @@
+---
+type: process
+title: 企业建档状态机
+page_key: proc_cust_company_build_status
+belong: processes
+domain: customer
+status: published
+aliases: ["cust_company_info.cust_build_status"]
+oid: 1
+sources: []
+contract_version: "0.1"
+scope:
+  databases: [lowcode_pplatform]
+---
+
+该状态机描述企业从初始提交到建档成功/失败的状态流转过程，字段为 `cust_company_info.cust_build_status`，状态值包括 INIT、CUST_CONFIRM_AWAIT、CUST_BUILDING、BUILD_SUCCESS、BUILD_FAIL、AWAIT_CUST_CONFIRM、CUST_CHANGE。
+
+## 需求背景
+
+企业建档流程是企业客户认证的核心环节。初始状态为 INIT，提交后进入待客户确认 CUST_CONFIRM_AWAIT，客户提交或管理员确认后进入运营中台审核中 CUST_BUILDING，审核通过后为 BUILD_SUCCESS，拒绝为 BUILD_FAIL，失败后重新提交可回到待客户确认。此外提供简易认证提交路径，从 INIT 进入 AWAIT_CUST_CONFIRM，确认通过直接到 BUILD_SUCCESS。
+
+## 版本演进
+
+文档描述的企业状态流转为“待提交→审核中→已通过/已驳回；已通过→已冻结/已注销”，但代码实际使用 `cust_build_status`（INIT/CUST_CONFIRM_AWAIT/CUST_BUILDING/BUILD_SUCCESS/BUILD_FAIL）和 `cust_status`（ADD/EFFECT/FREEZE/WRITEOFF），文档状态命名与代码不一致，该文档声明以散文形式记录，不产生锚点块。针对企业信息变更流程的文档声明已与代码锚定，见下方 reqdoc_claim 锚点块。
+
+```ground:state_machine
+name: 企业建档状态机
+field: cust_company_info.cust_build_status
+states:
+  - value: INIT
+    label: 初始/待提交
+    source: code_enum
+  - value: CUST_CONFIRM_AWAIT
+    label: 待客户确认
+    source: code_enum
+  - value: CUST_BUILDING
+    label: 运营中台审核中
+    source: code_enum
+  - value: BUILD_SUCCESS
+    label: 认证通过/建档成功
+    source: code_enum
+  - value: BUILD_FAIL
+    label: 认证拒绝
+    source: code_enum
+  - value: AWAIT_CUST_CONFIRM
+    label: 简易认证待客户确认
+    source: code_enum
+  - value: CUST_CHANGE
+    label: 变更中
+    source: code_enum
+transitions:
+  - from: INIT
+    event: 提交
+    to: CUST_CONFIRM_AWAIT
+    evidence: code_path:CustCompanyInfoApplication.submitCust
+  - from: CUST_CONFIRM_AWAIT
+    event: 客户提交/管理员确认
+    to: CUST_BUILDING
+    evidence: code_path:CustCompanyInfoApplication.submitCust
+  - from: CUST_BUILDING
+    event: 审核退回
+    to: CUST_CONFIRM_AWAIT
+    evidence: code_path:CustCompanyInfoApplication.updateCustBuildStatus
+  - from: CUST_BUILDING
+    event: 审核通过
+    to: BUILD_SUCCESS
+    evidence: code_path:CustCompanyInfoApplication.updateCustBuildStatus
+  - from: CUST_BUILDING
+    event: 审核拒绝
+    to: BUILD_FAIL
+    evidence: code_path:CustCompanyInfoApplication.updateCustBuildStatus
+  - from: BUILD_FAIL
+    event: 重新提交
+    to: CUST_CONFIRM_AWAIT
+    evidence: code_path:CustCompanyInfoApplication.updateCustBuildStatus
+  - from: INIT
+    event: 简易认证提交
+    to: AWAIT_CUST_CONFIRM
+    evidence: code_path:CustCompanyInfoApplication.submitForSimpleAuth
+  - from: AWAIT_CUST_CONFIRM
+    event: 确认通过
+    to: BUILD_SUCCESS
+    evidence: code_path:CustCompanyInfoApplication.confirmCustInfoForSimpleAuth
+```
+
+```ground:reqdoc_claim
+claim: "[系统文档]企业信息变更流程：提交变更申请→创建变更记录(待提交)→提交审核→审核通过/驳回→变更生效；同一变更项同时只能有一个待审核变更"
+code_status: confirmed
+code_evidence: "code_path:CustCompanyInfoApplication.doIfNecessaryChange 调用 operCustFacade.change；CustStatusEnum.CHANGE 表示有在途变更流程"
+evidence: "code_path:CustCompanyInfoApplication.doIfNecessaryChange + reqdoc:企业信息变更流程"
+```
+
+---REVIEW: process | 企业建档状态机---
+文档状态命名与代码不一致：文档使用“待提交/审核中/已通过/已驳回/已冻结/已注销”，代码实际使用 `cust_build_status` 与 `cust_status` 枚举值，需确认文档是否应更新为代码枚举。
+---END REVIEW---

@@ -2,6 +2,7 @@
 type: table
 title: 客户联系人表
 page_key: cust_person_info
+belong: tables
 domain: 基线
 status: draft
 anchors: [cust_person_info]

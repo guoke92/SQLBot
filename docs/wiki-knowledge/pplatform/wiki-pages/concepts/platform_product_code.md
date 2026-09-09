@@ -1,7 +1,8 @@
 ---
 type: concept
 title: 平台产品编码
-page_key: concept/platform_product_code
+page_key: platform_product_code
+belong: concepts
 domain: 支付宝蚂蚁档案与清算
 status: published
 aliases: ["productCode", "platformProductCode", "routeProductCode", "productAppId"]

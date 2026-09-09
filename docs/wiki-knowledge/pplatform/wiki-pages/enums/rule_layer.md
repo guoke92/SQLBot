@@ -2,6 +2,7 @@
 type: enum
 title: rule_layer
 page_key: rule_layer
+belong: enums
 domain: 基线
 status: draft
 aliases: []

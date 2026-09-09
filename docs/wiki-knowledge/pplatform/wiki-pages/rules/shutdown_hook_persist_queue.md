@@ -1,7 +1,8 @@
 ---
 type: rule
 title: 关闭钩子保存队列未处理数据
-page_key: rule/shutdown_hook_persist_queue
+page_key: shutdown_hook_persist_queue
+belong: rules
 domain: 支付宝蚂蚁档案与清算
 status: published
 aliases: []

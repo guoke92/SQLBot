@@ -2,6 +2,7 @@
 type: table
 title: 资金方异常解析及建议主表
 page_key: funding_exception_resolution
+belong: tables
 domain: 基线
 status: draft
 anchors: [funding_exception_resolution]

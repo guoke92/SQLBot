@@ -2,6 +2,7 @@
 type: caliber
 title: 小额打款验证申请初始态
 page_key: small-payment-apply-initial
+belong: calibers
 domain: 企业银行账户与第三方银行
 status: published
 aliases: ["APPLY_00", "未申请打款"]

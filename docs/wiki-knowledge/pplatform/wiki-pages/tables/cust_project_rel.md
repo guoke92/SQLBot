@@ -2,6 +2,7 @@
 type: table
 title: 客户项目关联表
 page_key: cust_project_rel
+belong: tables
 domain: 基线
 status: draft
 anchors: [cust_project_rel]

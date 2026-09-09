@@ -2,6 +2,7 @@
 type: rule
 title: 迁移自动开通产品
 page_key: migration_auto_active_product
+belong: rules
 domain: 租户迁移
 status: published
 aliases: []

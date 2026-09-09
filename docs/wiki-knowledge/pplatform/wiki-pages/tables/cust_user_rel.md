@@ -2,6 +2,7 @@
 type: table
 title: 用户企业角色
 page_key: cust_user_rel
+belong: tables
 domain: 基线
 status: draft
 anchors: [cust_user_rel]

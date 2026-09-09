@@ -1,7 +1,8 @@
 ---
 type: rule
 title: "正式提交必须有有效审批节点和文件"
-page_key: "rule/formal_submit_requires_valid_nodes_and_files"
+page_key: formal_submit_requires_valid_nodes_and_files
+belong: rules
 domain: "tenant-project"
 status: published
 aliases: ["提交节点文件校验"]

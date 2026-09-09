@@ -2,6 +2,7 @@
 type: rule
 title: 申请结果查询状态映射
 page_key: payment-result-status-mapping
+belong: rules
 domain: 企业银行账户与第三方银行
 status: published
 aliases: []

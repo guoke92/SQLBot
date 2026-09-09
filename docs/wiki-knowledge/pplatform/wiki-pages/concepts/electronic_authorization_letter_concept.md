@@ -1,0 +1,30 @@
+---
+type: concept
+title: "电子授权书"
+page_key: electronic_authorization_letter_concept
+belong: concepts
+domain: "授权协议与电子授权"
+status: published
+aliases: ["线下授权书电子签约版"]
+oid: 1
+
+sources: ["code:ElectronicAuthLetterApplication", "db:tenant_setting_config", "enrich:wiki-admin"]
+contract_version: "0.1"
+maps_to: "tenant_setting_config.generateElectronicAuthFlag='Y' 触发的签署流程"
+field_targets: []
+adjudication: "boundary"
+also_confused_with: ["电子签章", "CFCA/上上签注册"]
+coverage_note: "电子授权书签署功能"
+scope:
+  databases: [lowcode_pplatform]
+---
+
+“电子授权书”指线下授权书的电子签约版，由租户级开关 `generateElectronicAuthFlag` 控制。它不是底层电子签章能力本身，而是协议文件生成与签署的流程。
+
+## 需求背景
+
+[[租户电子授权书开启口径]] 决定是否生成电子授权书。当开关关闭时，[[电子授权书关闭跳过签署]] 规则生效，保持现网 OFF_AUTH 跳过签署行为。
+
+## 版本演进
+
+暂无。

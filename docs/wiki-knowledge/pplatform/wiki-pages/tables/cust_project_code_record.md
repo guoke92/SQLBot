@@ -2,6 +2,7 @@
 type: table
 title: 企业项目码输入记录
 page_key: cust_project_code_record
+belong: tables
 domain: 基线
 status: draft
 anchors: [cust_project_code_record]

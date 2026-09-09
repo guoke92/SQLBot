@@ -2,6 +2,7 @@
 type: rule
 title: 变更流程互斥
 page_key: change-process-mutex
+belong: rules
 domain: 企业建档与准入
 status: published
 aliases: [变更互斥]

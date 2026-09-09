@@ -1,7 +1,8 @@
 ---
 type: caliber
 title: "审批中且可接收业务配置"
-page_key: "caliber/approval_running_config_receivable"
+page_key: approval_running_config_receivable
+belong: calibers
 domain: "tenant-project"
 status: published
 aliases: ["业务配置接收口径"]

@@ -2,6 +2,7 @@
 type: enum
 title: sign_mode
 page_key: sign_mode
+belong: enums
 domain: 基线
 status: draft
 aliases: []

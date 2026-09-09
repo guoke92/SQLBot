@@ -1,7 +1,8 @@
 ---
 type: concept
 title: 支付宝清分配置标识
-page_key: concept/is_alipay_clearing_configured
+page_key: is_alipay_clearing_configured
+belong: concepts
 domain: 支付宝蚂蚁档案与清算
 status: published
 aliases: ["configured", "isAlipayClearingConfigured"]

@@ -2,6 +2,7 @@
 type: enum
 title: node_status
 page_key: node_status
+belong: enums
 domain: 基线
 status: draft
 aliases: []

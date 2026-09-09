@@ -1,7 +1,8 @@
 ---
 type: rule
 title: "创建项目时自动创建上线审批草稿"
-page_key: "rule/create_project_auto_create_approval_draft"
+page_key: create_project_auto_create_approval_draft
+belong: rules
 domain: "tenant-project"
 status: published
 aliases: ["自动创建审批草稿"]

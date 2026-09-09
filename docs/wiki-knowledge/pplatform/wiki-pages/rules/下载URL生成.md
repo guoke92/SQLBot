@@ -2,6 +2,7 @@
 type: rule
 title: 下载URL生成
 page_key: 下载URL生成
+belong: rules
 domain: 文件媒体与附件
 status: published
 aliases: []

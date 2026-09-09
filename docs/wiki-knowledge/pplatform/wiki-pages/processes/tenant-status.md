@@ -1,7 +1,8 @@
 ---
 type: process
 title: 租户生效状态
-page_key: processes.tenant-status
+page_key: tenant-status
+belong: processes
 domain: tenant-config-operation-email
 status: published
 aliases: [租户生效状态, tenant_setting_config.status]

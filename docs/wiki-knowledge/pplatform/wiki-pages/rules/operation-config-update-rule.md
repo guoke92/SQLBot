@@ -1,7 +1,8 @@
 ---
 type: rule
 title: 运营配置更新规则
-page_key: rules.operation-config-update-rule
+page_key: operation-config-update-rule
+belong: rules
 domain: tenant-config-operation-email
 status: published
 aliases: [运营配置更新规则, updateOperationConfigById]

@@ -2,6 +2,7 @@
 type: concept
 title: 数据租户标识
 page_key: db_tenant_code
+belong: concepts
 domain: 租户迁移
 status: published
 aliases: ["dbTenantCode", "db_tenant_code"]

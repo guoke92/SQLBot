@@ -2,6 +2,7 @@
 type: caliber
 title: 租户迁移失败口径
 page_key: tenant_migration_failure
+belong: calibers
 domain: 租户迁移
 status: published
 aliases: [租户迁移失败]

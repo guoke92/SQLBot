@@ -2,6 +2,7 @@
 type: enum
 title: real_name_result
 page_key: real_name_result
+belong: enums
 domain: 基线
 status: draft
 aliases: []

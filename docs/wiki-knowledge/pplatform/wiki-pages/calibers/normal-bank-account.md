@@ -2,6 +2,7 @@
 type: caliber
 title: 普通银行账户
 page_key: normal-bank-account
+belong: calibers
 domain: 企业银行账户与第三方银行
 status: published
 aliases: ["BANK", "普通账户"]

@@ -1,7 +1,8 @@
 ---
 type: rule
 title: 租户保存前置校验
-page_key: rules.tenant-save-precheck
+page_key: tenant-save-precheck
+belong: rules
 domain: tenant-config-operation-email
 status: published
 aliases: [租户保存前置校验, checkBeforeSave]

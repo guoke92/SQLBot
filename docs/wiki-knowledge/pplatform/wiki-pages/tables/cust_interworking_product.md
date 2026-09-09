@@ -2,6 +2,7 @@
 type: table
 title: 企业互通产品
 page_key: cust_interworking_product
+belong: tables
 domain: 基线
 status: draft
 anchors: [cust_interworking_product]

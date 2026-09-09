@@ -2,6 +2,7 @@
 type: process
 title: 客户生命周期状态机
 page_key: customer-lifecycle-status-machine
+belong: processes
 domain: 企业建档与准入
 status: published
 aliases: [客户状态机, cust_status状态机]

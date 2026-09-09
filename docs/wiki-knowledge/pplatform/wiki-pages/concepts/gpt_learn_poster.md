@@ -2,6 +2,7 @@
 type: concept
 title: "GPT学习海报"
 page_key: gpt_learn_poster
+belong: concepts
 domain: gpt_learn
 status: published
 aliases: ["智能审核引流卡片", "引流卡片", "海报"]

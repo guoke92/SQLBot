@@ -2,6 +2,7 @@
 type: rule
 title: "集团根节点不能执行签署协议操作"
 page_key: root-cannot-sign
+belong: rules
 domain: 集团与关联关系
 status: published
 aliases: []

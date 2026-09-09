@@ -2,6 +2,7 @@
 type: rule
 title: 资方规则新增查重
 page_key: funding_rule_create_duplicate_check
+belong: rules
 domain: 资金方规则与异常解决
 status: published
 aliases:

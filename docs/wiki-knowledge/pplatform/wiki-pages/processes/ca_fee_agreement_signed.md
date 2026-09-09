@@ -2,6 +2,7 @@
 type: process
 title: CA收费协议签署状态机
 page_key: ca_fee_agreement_signed
+belong: processes
 domain: ca_cert_fee
 status: published
 aliases: []

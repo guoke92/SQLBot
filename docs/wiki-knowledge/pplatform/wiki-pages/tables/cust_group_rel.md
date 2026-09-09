@@ -2,6 +2,7 @@
 type: table
 title: 集团成员单位关系表
 page_key: cust_group_rel
+belong: tables
 domain: 基线
 status: draft
 anchors: [cust_group_rel]

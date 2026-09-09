@@ -2,6 +2,7 @@
 type: caliber
 title: 账户初始化状态
 page_key: account-init-status
+belong: calibers
 domain: 企业银行账户与第三方银行
 status: published
 aliases: ["INIT", "初始状态"]

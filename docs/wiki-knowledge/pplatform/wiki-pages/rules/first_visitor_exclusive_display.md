@@ -1,7 +1,8 @@
 ---
 type: rule
 title: "首个访问用户独家展示"
-page_key: "first_visitor_exclusive_display"
+page_key: first_visitor_exclusive_display
+belong: rules
 domain: "customer_survey"
 status: published
 aliases: ["首个访问用户独家展示"]

@@ -1,7 +1,8 @@
 ---
 type: rule
 title: "gotoProduct 留存首页条件"
-page_key: "goto_product_stay_home"
+page_key: goto_product_stay_home
+belong: rules
 domain: "customer_survey"
 status: published
 aliases: ["gotoProduct 留存首页条件"]

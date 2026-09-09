@@ -2,6 +2,7 @@
 type: concept
 title: "租户标识"
 page_key: tenant_code
+belong: concepts
 domain: gpt_learn
 status: published
 aliases: ["tenant code", "租户编码"]

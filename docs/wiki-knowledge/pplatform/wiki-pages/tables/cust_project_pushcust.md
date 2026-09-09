@@ -2,6 +2,7 @@
 type: table
 title: 推送企业的默认项目
 page_key: cust_project_pushcust
+belong: tables
 domain: 基线
 status: draft
 anchors: [cust_project_pushcust]

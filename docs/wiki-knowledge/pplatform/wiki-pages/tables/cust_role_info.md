@@ -2,6 +2,7 @@
 type: table
 title: 客户产品角色关联表
 page_key: cust_role_info
+belong: tables
 domain: 基线
 status: draft
 anchors: [cust_role_info]

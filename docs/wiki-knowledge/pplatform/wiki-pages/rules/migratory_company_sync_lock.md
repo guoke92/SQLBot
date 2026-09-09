@@ -2,6 +2,7 @@
 type: rule
 title: 迁移企业同步加分布式锁防重入
 page_key: migratory_company_sync_lock
+belong: rules
 domain: 租户迁移
 status: published
 aliases: []

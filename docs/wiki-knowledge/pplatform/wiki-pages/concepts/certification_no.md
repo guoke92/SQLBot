@@ -2,6 +2,7 @@
 type: concept
 title: 统码
 page_key: certification_no
+belong: concepts
 domain: ca_cert_fee
 status: published
 aliases: ["统一社会信用代码", "certificationNo"]

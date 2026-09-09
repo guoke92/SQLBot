@@ -1,7 +1,8 @@
 ---
 type: rule
 title: "生效项目前 BEECREDIT 必须完善项目配置"
-page_key: "rule/effective_project_becredit_requires_config"
+page_key: effective_project_becredit_requires_config
+belong: rules
 domain: "tenant-project"
 status: published
 aliases: ["BEECREDIT 配置校验"]

@@ -2,6 +2,7 @@
 type: concept
 title: 短链接
 page_key: short_link
+belong: concepts
 domain: 通知验证码短链与消息
 status: published
 aliases: [短链, short_link, shortLink, sl, ShortLinkDO]

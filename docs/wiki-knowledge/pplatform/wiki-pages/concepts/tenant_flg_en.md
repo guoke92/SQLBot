@@ -1,7 +1,8 @@
 ---
 type: concept
 title: "tenant_flg_en"
-page_key: "tenant_flg_en"
+page_key: tenant_flg_en
+belong: concepts
 domain: "租户配置与运营邮件"
 status: published
 aliases: ["项目标识（产融）", "projectMark", "租户英文标识"]

@@ -2,6 +2,7 @@
 type: caliber
 title: "未点击记录"
 page_key: unclicked_record
+belong: calibers
 domain: gpt_learn
 status: published
 aliases: []

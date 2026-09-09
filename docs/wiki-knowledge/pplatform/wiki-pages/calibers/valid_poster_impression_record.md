@@ -2,6 +2,7 @@
 type: caliber
 title: "有效海报埋点记录"
 page_key: valid_poster_impression_record
+belong: calibers
 domain: gpt_learn
 status: published
 aliases: []

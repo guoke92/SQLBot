@@ -1,7 +1,8 @@
 ---
 type: rule
 title: 支付宝清分配置查询企业ID必填
-page_key: rule/alipay_clearing_config_company_id_required
+page_key: alipay_clearing_config_company_id_required
+belong: rules
 domain: 支付宝蚂蚁档案与清算
 status: published
 aliases: []

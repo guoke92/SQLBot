@@ -1,7 +1,8 @@
 ---
 type: rule
 title: "生效后开通交e保账户"
-page_key: "rule/effective_project_open_payment_account"
+page_key: effective_project_open_payment_account
+belong: rules
 domain: "tenant-project"
 status: published
 aliases: ["交e保开户"]

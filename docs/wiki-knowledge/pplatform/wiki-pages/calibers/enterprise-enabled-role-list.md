@@ -2,6 +2,7 @@
 type: caliber
 title: 企业启用角色列表口径
 page_key: enterprise-enabled-role-list
+belong: calibers
 domain: 客户角色与数据权限组织
 status: published
 aliases:

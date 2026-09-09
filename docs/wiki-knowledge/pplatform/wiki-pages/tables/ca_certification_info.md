@@ -2,6 +2,7 @@
 type: table
 title: CA认证信息
 page_key: ca_certification_info
+belong: tables
 domain: 基线
 status: draft
 anchors: [ca_certification_info]

@@ -1,7 +1,8 @@
 ---
 type: rule
 title: CA 证书错误码显式映射
-page_key: rule/ca_cert_error_code_explicit_mapping
+page_key: ca_cert_error_code_explicit_mapping
+belong: rules
 domain: 支付宝蚂蚁档案与清算
 status: published
 aliases: []

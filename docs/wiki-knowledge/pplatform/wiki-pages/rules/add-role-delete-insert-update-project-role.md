@@ -2,6 +2,7 @@
 type: rule
 title: 添加角色时先删后插并更新项目角色
 page_key: add-role-delete-insert-update-project-role
+belong: rules
 domain: 客户角色与数据权限组织
 status: published
 aliases:

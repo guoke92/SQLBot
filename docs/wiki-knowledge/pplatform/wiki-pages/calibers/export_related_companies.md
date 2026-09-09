@@ -1,7 +1,8 @@
 ---
 type: caliber
 title: "导出关联核心企业/金融机构"
-page_key: "caliber/export_related_companies"
+page_key: export_related_companies
+belong: calibers
 domain: "tenant-project"
 status: published
 aliases: ["关联企业导出口径"]

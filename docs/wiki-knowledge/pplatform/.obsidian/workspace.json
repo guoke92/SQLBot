@@ -11,10 +11,14 @@
             "id": "ed14b52b0e686b84",
             "type": "leaf",
             "state": {
-              "type": "graph",
-              "state": {},
-              "icon": "lucide-git-fork",
-              "title": "关系图谱"
+              "type": "markdown",
+              "state": {
+                "file": "wiki-pages/concepts/影像.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "影像"
             }
           }
         ]
@@ -51,7 +55,7 @@
             "state": {
               "type": "search",
               "state": {
-                "query": "datasources",
+                "query": "calibers.activated-tenant",
                 "matchingCase": false,
                 "explainSearch": false,
                 "collapseAll": false,
@@ -95,6 +99,7 @@
             "state": {
               "type": "backlink",
               "state": {
+                "file": "wiki-pages/concepts/影像.md",
                 "collapseAll": false,
                 "extraContext": false,
                 "sortOrder": "alphabetical",
@@ -113,6 +118,7 @@
             "state": {
               "type": "outgoing-link",
               "state": {
+                "file": "wiki-pages/concepts/影像.md",
                 "linksCollapsed": false,
                 "unlinkedCollapsed": true
               },
@@ -155,6 +161,7 @@
             "state": {
               "type": "outline",
               "state": {
+                "file": "wiki-pages/concepts/影像.md",
                 "followCursor": false,
                 "showSearch": false,
                 "searchQuery": ""
@@ -183,41 +190,41 @@
   },
   "active": "ed14b52b0e686b84",
   "lastOpenFiles": [
-    "tables/ProjectAlipayClearingConfigRespDTO.md",
-    "tables/AlipayAntArchiveResp.md",
+    "embeddings-cache/tmp8_gpovly.tmp",
+    "wiki-pages/rules/rule_non_ams_operator_default_verified.md",
+    "wiki-pages/rules/rule_contact_sync_status.md",
+    "wiki-pages/rules/rule_operator_product_sync.md",
+    "wiki-pages/rules/simple_auth_no_ca_rule.md",
+    "wiki-pages/rules/electronic_auth_skip_when_disabled_rule.md",
+    "wiki-pages/rules/rule_realname_status_sync_ams.md",
+    "wiki-pages/rules/legacy_migratory_auth_supplement_rule.md",
+    "wiki-pages/rules/agreement_migratory_dedup_rule.md",
+    "wiki-pages/rules/rule_internal_sync_ams_contact.md",
+    "wiki-pages/rules/rule_query_user_list_ams_product_filter.md",
+    "wiki-pages/rules/sync-status-display.md",
+    "wiki-pages/rules/rule_simple_change_person_freeze.md",
+    "wiki-pages/rules/reqdoc-ams-update-operator.md",
+    "wiki-pages/rules/reqdoc-ams-sync-contacts.md",
+    "wiki-pages/rules/reqdoc-ams-query-contacts.md",
+    "wiki-pages/rules/reqdoc-ams-add-enterprise-contact.md",
+    "wiki-pages/rules/queryTenant-平台产品分流.md",
+    "wiki-pages/rules/queryMenu-角色转换.md",
+    "wiki-pages/rules/queryCompanyType-固定角色枚举.md",
+    "wiki-pages/rules/rule_oper_change_type_mapping.md",
+    "wiki-pages/rules/enterprise-contact-concurrency-lock.md",
+    "wiki-pages/rules/rule_change_rebuild.md",
+    "wiki-pages/rules/rule_change_enable_check.md",
+    "wiki-pages/rules/rule_change_cfg_query.md",
+    "wiki-pages/rules/rule_batch_change_operator.md",
+    "embeddings-cache/tmp278e9y5u.tmp",
     "tables",
-    "wiki-pages/tables/cust_access_secret.md",
-    "wiki-pages/tables/client_api_sync_error.md",
-    "wiki-pages/tables/lc_sql_init_log.md",
-    "wiki-pages/tables/gpt_learn_poster_log.md",
-    "wiki-pages/tables/cust_project_code_record.md",
-    "wiki-pages/tables/cust_company_lifecycle_info.md",
-    "wiki-pages/tables/cust_certification_info.md",
-    "wiki-pages/tables/cust_build_record.md",
-    "wiki-pages/tables/cust_auth_application_config.md",
-    "wiki-pages/tables/cust_auth_application.md",
-    "wiki-pages/tables/cust_account_info.md",
-    "wiki-pages/rules/背景色生效时间窗口校验.md",
-    "comparison-report.md",
-    "wiki-pages/tables/cust_company_info.md",
-    "wiki-pages/tables/cust_change_cfg.md",
     "embeddings-cache/tmpkqt62z3h.tmp",
-    "wiki-pages/concepts/client_type.md",
     "embeddings-cache/tmps2e07vbe.tmp",
-    "wiki-pages/tables/ca_certification_info.md",
     "embeddings-cache/tmpjytm09fk.tmp",
     "embeddings-cache/tmprl_9zjpf.tmp",
-    "wiki-pages/_index.md",
     "embeddings-cache/tmpo67t4g0o.tmp",
-    "wiki-pages/enums/wf_status.md",
-    "wiki-pages/enums/tenant_project__source.md",
-    "wiki-pages/enums/tenant_interworking_product__open_status.md",
-    "wiki-pages/enums/sign_mode.md",
-    "wiki-pages/enums/rule_status.md",
-    "wiki-pages/enums/rule_layer.md",
     "wiki-pages/enums",
     "wiki-pages/tables",
-    "substrate/tmp/enum-unbound.yaml",
-    "embeddings-cache/tmpenv5k4b2.tmp"
+    "substrate/tmp/enum-unbound.yaml"
   ]
 }

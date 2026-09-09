@@ -2,6 +2,7 @@
 type: table
 title: 客户认证配置
 page_key: cust_setting_config
+belong: tables
 domain: 基线
 status: draft
 anchors: [cust_setting_config]

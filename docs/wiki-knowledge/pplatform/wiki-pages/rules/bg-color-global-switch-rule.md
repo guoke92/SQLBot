@@ -1,7 +1,8 @@
 ---
 type: rule
 title: 背景色全局开关与租户背景色联动
-page_key: rules.bg-color-global-switch-rule
+page_key: bg-color-global-switch-rule
+belong: rules
 domain: tenant-config-operation-email
 status: published
 aliases: [背景色全局开关与租户背景色联动, updateTenantColorGray]

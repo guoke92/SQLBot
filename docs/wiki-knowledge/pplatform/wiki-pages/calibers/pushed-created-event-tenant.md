@@ -1,7 +1,8 @@
 ---
 type: caliber
 title: 已推送创建事件的租户
-page_key: calibers.pushed-created-event-tenant
+page_key: pushed-created-event-tenant
+belong: calibers
 domain: tenant-config-operation-email
 status: published
 aliases: [已推送创建事件的租户, pushing_status=Y]

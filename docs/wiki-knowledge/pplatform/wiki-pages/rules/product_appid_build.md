@@ -1,7 +1,8 @@
 ---
 type: rule
 title: 同步调用点 productAppId 构建
-page_key: rule/product_appid_build
+page_key: product_appid_build
+belong: rules
 domain: 支付宝蚂蚁档案与清算
 status: published
 aliases: []

@@ -2,6 +2,7 @@
 type: rule
 title: 验证码发送后回写短信接收手机号
 page_key: verify_code_send_writeback_phone
+belong: rules
 domain: 通知验证码短链与消息
 status: published
 aliases: []

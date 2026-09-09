@@ -2,6 +2,7 @@
 type: concept
 title: 账户账号
 page_key: account-no
+belong: concepts
 domain: 企业银行账户与第三方银行
 status: published
 aliases: ["accountNo", "account_no", "accountNumber"]

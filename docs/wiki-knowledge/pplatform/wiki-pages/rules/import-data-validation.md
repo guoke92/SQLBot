@@ -2,6 +2,7 @@
 type: rule
 title: "导入时集团公司和成员单位字段校验"
 page_key: import-data-validation
+belong: rules
 domain: 集团与关联关系
 status: published
 aliases: []

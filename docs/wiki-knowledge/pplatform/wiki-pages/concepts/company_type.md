@@ -2,6 +2,7 @@
 type: concept
 title: 企业角色
 page_key: company_type
+belong: concepts
 domain: CA证书收费与订单
 status: published
 aliases: ["companyType"]

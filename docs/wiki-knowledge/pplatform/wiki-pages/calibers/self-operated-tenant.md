@@ -1,7 +1,8 @@
 ---
 type: caliber
 title: 自营租户
-page_key: calibers.self-operated-tenant
+page_key: self-operated-tenant
+belong: calibers
 domain: tenant-config-operation-email
 status: published
 aliases: [自营租户, 自营判定]

@@ -2,6 +2,7 @@
 type: concept
 title: 客户角色状态
 page_key: customer-role-status
+belong: concepts
 domain: 客户角色与数据权限组织
 status: published
 aliases:

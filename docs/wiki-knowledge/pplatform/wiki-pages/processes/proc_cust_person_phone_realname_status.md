@@ -1,0 +1,56 @@
+---
+type: process
+title: 联系人实名认证状态机
+page_key: proc_cust_person_phone_realname_status
+belong: processes
+domain: customer
+status: published
+aliases: ["cust_person_info.phone_realname_status"]
+oid: 1
+sources: []
+contract_version: "0.1"
+scope:
+  databases: [lowcode_pplatform]
+---
+
+该状态机描述联系人手机号/实名认证状态的流转，字段为 `cust_person_info.phone_realname_status`，状态值包括 TO_BE_VERIFIED、AUTOMATIC_AUTHENTICATION_PASSED、MANUAL_AUTHENTICATION_PASSED。
+
+## 需求背景
+
+联系人实名认证是AMS第三方对接的关键环节。新增经办人时状态初始为待验证 TO_BE_VERIFIED；若检测到同租户已有通过认证记录，则自动认证通过 AUTOMATIC_AUTHENTICATION_PASSED；运营人员后台实名认证通过后进入人工认证通过 MANUAL_AUTHENTICATION_PASSED。
+
+## 版本演进
+
+状态及转移均来自代码枚举和调用路径，未发现文档声明冲突。
+
+```ground:state_machine
+name: 联系人实名认证状态机
+field: cust_person_info.phone_realname_status
+states:
+  - value: TO_BE_VERIFIED
+    label: 待验证
+    source: code_enum
+  - value: AUTOMATIC_AUTHENTICATION_PASSED
+    label: 自动认证通过
+    source: code_enum
+  - value: MANUAL_AUTHENTICATION_PASSED
+    label: 人工认证通过
+    source: code_enum
+transitions:
+  - from: NULL
+    event: 新增经办人
+    to: TO_BE_VERIFIED
+    evidence: code_path:CustPersonApplication.insertOrUpdatePerson
+  - from: TO_BE_VERIFIED
+    event: 检测到同租户已有通过认证记录
+    to: AUTOMATIC_AUTHENTICATION_PASSED
+    evidence: code_path:CustPersonApplication.insertOrUpdatePerson
+  - from: TO_BE_VERIFIED
+    event: 运营人员后台实名认证通过
+    to: MANUAL_AUTHENTICATION_PASSED
+    evidence: code_path:CustPersonApplication.updateVerifyNameStatus
+  - from: AUTOMATIC_AUTHENTICATION_PASSED
+    event: 运营人员后台实名认证通过
+    to: MANUAL_AUTHENTICATION_PASSED
+    evidence: code_path:CustPersonApplication.updateVerifyNameStatus
+```

@@ -2,6 +2,7 @@
 type: enum
 title: source
 page_key: tenant_project__source
+belong: enums
 domain: 基线
 status: draft
 aliases: []

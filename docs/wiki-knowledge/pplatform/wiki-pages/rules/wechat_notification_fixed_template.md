@@ -2,6 +2,7 @@
 type: rule
 title: 微信通知固定模板
 page_key: wechat_notification_fixed_template
+belong: rules
 domain: 通知验证码短链与消息
 status: published
 aliases: []

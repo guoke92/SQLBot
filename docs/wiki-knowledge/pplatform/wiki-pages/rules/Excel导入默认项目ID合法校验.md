@@ -1,7 +1,8 @@
 ---
 type: rule
 title: "Excel导入默认项目ID合法校验"
-page_key: "Excel导入默认项目ID合法校验"
+page_key: Excel导入默认项目ID合法校验
+belong: rules
 domain: "租户配置与运营邮件"
 status: published
 aliases: ["Excel导入项目ID校验"]

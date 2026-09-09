@@ -2,6 +2,7 @@
 type: table
 title: 客户变更记录
 page_key: cust_change_record
+belong: tables
 domain: 基线
 status: draft
 anchors: [cust_change_record]

@@ -1,7 +1,8 @@
 ---
 type: concept
 title: "defaultProjectId"
-page_key: "defaultProjectId"
+page_key: defaultProjectId
+belong: concepts
 domain: "租户配置与运营邮件"
 status: published
 aliases: ["默认项目ID", "default_project_id"]

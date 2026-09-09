@@ -2,6 +2,7 @@
 type: rule
 title: 组织初始化要求建档成功且需角色类型
 page_key: org-init-requires-build-success-and-role-type
+belong: rules
 domain: 客户角色与数据权限组织
 status: published
 aliases:

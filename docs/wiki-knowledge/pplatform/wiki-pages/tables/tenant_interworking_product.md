@@ -2,6 +2,7 @@
 type: table
 title: 租户互通产品
 page_key: tenant_interworking_product
+belong: tables
 domain: 基线
 status: draft
 anchors: [tenant_interworking_product]

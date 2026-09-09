@@ -2,6 +2,7 @@
 type: concept
 title: 接收人
 page_key: receiver
+belong: concepts
 domain: 通知验证码短链与消息
 status: published
 aliases: [receiver, receiverList, receiverPhone]

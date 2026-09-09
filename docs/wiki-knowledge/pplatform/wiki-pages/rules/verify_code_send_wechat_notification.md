@@ -2,6 +2,7 @@
 type: rule
 title: 验证码发送后触发微信服务号通知
 page_key: verify_code_send_wechat_notification
+belong: rules
 domain: 通知验证码短链与消息
 status: published
 aliases: []

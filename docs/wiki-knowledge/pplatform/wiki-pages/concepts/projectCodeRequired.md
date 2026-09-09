@@ -1,7 +1,8 @@
 ---
 type: concept
 title: "projectCodeRequired"
-page_key: "projectCodeRequired"
+page_key: projectCodeRequired
+belong: concepts
 domain: "租户配置与运营邮件"
 status: published
 aliases: ["项目码是否必填", "project_code_required"]

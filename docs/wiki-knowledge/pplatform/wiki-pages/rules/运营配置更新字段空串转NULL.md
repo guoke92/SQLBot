@@ -1,7 +1,8 @@
 ---
 type: rule
 title: "运营配置更新字段空串转NULL"
-page_key: "运营配置更新字段空串转NULL"
+page_key: 运营配置更新字段空串转NULL
+belong: rules
 domain: "租户配置与运营邮件"
 status: published
 aliases: ["blankToNull规则"]

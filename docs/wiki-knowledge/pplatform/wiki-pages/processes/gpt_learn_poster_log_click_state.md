@@ -2,6 +2,7 @@
 type: process
 title: "gpt_learn_poster_log.click_state"
 page_key: gpt_learn_poster_log_click_state
+belong: processes
 domain: gpt_learn
 status: published
 aliases: []

@@ -2,6 +2,7 @@
 type: concept
 title: CA签章状态
 page_key: ca_status
+belong: concepts
 domain: CA证书收费与订单
 status: published
 aliases: ["ca_status", "证书状态"]

@@ -2,6 +2,7 @@
 type: rule
 title: 批量白名单操作
 page_key: batch_whitelist
+belong: rules
 domain: ca_cert_fee
 status: published
 aliases: []

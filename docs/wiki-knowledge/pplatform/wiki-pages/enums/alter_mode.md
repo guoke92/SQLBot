@@ -2,6 +2,7 @@
 type: enum
 title: alter_mode
 page_key: alter_mode
+belong: enums
 domain: 基线
 status: draft
 aliases: []

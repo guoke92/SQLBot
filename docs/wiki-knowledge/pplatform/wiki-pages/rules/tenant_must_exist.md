@@ -2,6 +2,7 @@
 type: rule
 title: 迁移租户必须存在
 page_key: tenant_must_exist
+belong: rules
 domain: 租户迁移
 status: published
 aliases: []

@@ -2,6 +2,7 @@
 type: concept
 title: 前端字段key
 page_key: front_field_key
+belong: concepts
 domain: 资金方规则与异常解决
 status: published
 aliases:

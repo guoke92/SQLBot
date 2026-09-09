@@ -2,6 +2,7 @@
 type: table
 title: 租户项目配置
 page_key: tenant_project
+belong: tables
 domain: 基线
 status: draft
 anchors: [tenant_project]

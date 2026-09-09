@@ -2,6 +2,7 @@
 type: rule
 title: 交e保支付确认
 page_key: bocom_payment_confirmation
+belong: rules
 domain: CA证书收费与订单
 status: published
 aliases: []

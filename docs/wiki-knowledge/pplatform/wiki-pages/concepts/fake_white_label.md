@@ -2,6 +2,7 @@
 type: concept
 title: 假贴牌
 page_key: fake_white_label
+belong: concepts
 domain: 租户迁移
 status: published
 aliases: ["假贴牌"]

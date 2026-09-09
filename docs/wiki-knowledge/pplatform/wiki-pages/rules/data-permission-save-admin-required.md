@@ -2,6 +2,7 @@
 type: rule
 title: 数据权限保存需企业管理员
 page_key: data-permission-save-admin-required
+belong: rules
 domain: 客户角色与数据权限组织
 status: published
 aliases:

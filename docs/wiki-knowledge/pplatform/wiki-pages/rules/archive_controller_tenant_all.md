@@ -1,7 +1,8 @@
 ---
 type: rule
 title: 建档控制器设置租户为 all
-page_key: rule/archive_controller_tenant_all
+page_key: archive_controller_tenant_all
+belong: rules
 domain: 支付宝蚂蚁档案与清算
 status: published
 aliases: []

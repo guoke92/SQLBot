@@ -2,6 +2,7 @@
 type: rule
 title: 保存后自动补默认账户
 page_key: auto-set-default-account
+belong: rules
 domain: 企业银行账户与第三方银行
 status: published
 aliases: []

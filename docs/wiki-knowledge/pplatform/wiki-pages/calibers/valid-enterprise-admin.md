@@ -2,6 +2,7 @@
 type: caliber
 title: 有效企业管理员口径
 page_key: valid-enterprise-admin
+belong: calibers
 domain: 客户角色与数据权限组织
 status: published
 aliases:

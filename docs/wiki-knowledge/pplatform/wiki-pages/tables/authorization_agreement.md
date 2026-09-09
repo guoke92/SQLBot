@@ -2,6 +2,7 @@
 type: table
 title: 授权确认书表
 page_key: authorization_agreement
+belong: tables
 domain: 基线
 status: draft
 anchors: [authorization_agreement]

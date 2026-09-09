@@ -2,6 +2,7 @@
 type: concept
 title: 企业客户
 page_key: enterprise-customer
+belong: concepts
 domain: 企业建档与准入
 status: published
 aliases: [企业, 客户公司, 公司]

@@ -2,6 +2,7 @@
 type: rule
 title: 资方规则版本递增
 page_key: funding_rule_version_increment
+belong: rules
 domain: 资金方规则与异常解决
 status: published
 aliases:

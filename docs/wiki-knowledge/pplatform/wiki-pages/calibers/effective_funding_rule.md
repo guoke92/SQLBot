@@ -2,6 +2,7 @@
 type: caliber
 title: 生效资方规则
 page_key: effective_funding_rule
+belong: calibers
 domain: 资金方规则与异常解决
 status: published
 aliases:

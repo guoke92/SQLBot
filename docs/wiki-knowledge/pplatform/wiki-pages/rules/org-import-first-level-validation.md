@@ -2,6 +2,7 @@
 type: rule
 title: 组织导入一级组织校验
 page_key: org-import-first-level-validation
+belong: rules
 domain: 客户角色与数据权限组织
 status: published
 aliases:

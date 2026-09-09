@@ -2,6 +2,7 @@
 type: concept
 title: 交e保
 page_key: bocom-provider
+belong: concepts
 domain: 企业银行账户与第三方银行
 status: published
 aliases: ["Bocom", "清分", "清分会员登记簿"]

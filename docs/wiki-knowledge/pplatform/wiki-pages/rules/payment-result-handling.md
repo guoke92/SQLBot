@@ -2,6 +2,7 @@
 type: rule
 title: 验证结果处理
 page_key: payment-result-handling
+belong: rules
 domain: 企业银行账户与第三方银行
 status: published
 aliases: []

@@ -2,6 +2,7 @@
 type: caliber
 title: 有效规则详情
 page_key: effective_rule_detail
+belong: calibers
 domain: 资金方规则与异常解决
 status: published
 aliases:

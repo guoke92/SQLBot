@@ -2,6 +2,7 @@
 type: caliber
 title: CA升级授权书影像
 page_key: CA升级授权书影像
+belong: calibers
 domain: 文件媒体与附件
 status: published
 aliases: []

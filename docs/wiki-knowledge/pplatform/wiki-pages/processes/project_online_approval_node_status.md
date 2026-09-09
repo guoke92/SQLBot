@@ -1,7 +1,8 @@
 ---
 type: process
 title: "项目上线审批节点状态"
-page_key: "process/project_online_approval_node_status"
+page_key: project_online_approval_node_status
+belong: processes
 domain: "tenant-project"
 status: published
 aliases: ["审批节点状态机"]

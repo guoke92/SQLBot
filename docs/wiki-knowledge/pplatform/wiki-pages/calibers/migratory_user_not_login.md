@@ -2,6 +2,7 @@
 type: caliber
 title: 存量迁移用户未登录口径
 page_key: migratory_user_not_login
+belong: calibers
 domain: 租户迁移
 status: published
 aliases: [存量迁移用户未登录]

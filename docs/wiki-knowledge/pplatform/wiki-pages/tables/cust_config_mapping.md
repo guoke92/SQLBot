@@ -2,6 +2,7 @@
 type: table
 title: 企业信息配置表
 page_key: cust_config_mapping
+belong: tables
 domain: 基线
 status: draft
 anchors: [cust_config_mapping]

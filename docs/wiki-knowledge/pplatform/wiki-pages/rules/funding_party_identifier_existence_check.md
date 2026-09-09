@@ -2,6 +2,7 @@
 type: rule
 title: 对接方标识存在性校验
 page_key: funding_party_identifier_existence_check
+belong: rules
 domain: 资金方规则与异常解决
 status: published
 aliases:

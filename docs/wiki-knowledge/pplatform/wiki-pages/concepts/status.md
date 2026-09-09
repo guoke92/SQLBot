@@ -1,7 +1,8 @@
 ---
 type: concept
 title: status（生效状态）
-page_key: concepts.status
+page_key: status
+belong: concepts
 domain: tenant-config-operation-email
 status: published
 aliases: [生效状态]

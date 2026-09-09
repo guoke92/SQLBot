@@ -1,7 +1,8 @@
 ---
 type: caliber
 title: "问卷活动参与白名单"
-page_key: "survey_whitelist"
+page_key: survey_whitelist
+belong: calibers
 domain: "customer_survey"
 status: published
 aliases: ["问卷活动参与白名单"]

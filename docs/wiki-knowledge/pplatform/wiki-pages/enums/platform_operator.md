@@ -2,6 +2,7 @@
 type: enum
 title: platform_operator
 page_key: platform_operator
+belong: enums
 domain: 基线
 status: draft
 aliases: []

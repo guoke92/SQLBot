@@ -1,7 +1,8 @@
 ---
 type: rule
 title: "转盘仅展示一次"
-page_key: "lottery_shown_once"
+page_key: lottery_shown_once
+belong: rules
 domain: "customer_survey"
 status: published
 aliases: ["转盘仅展示一次"]

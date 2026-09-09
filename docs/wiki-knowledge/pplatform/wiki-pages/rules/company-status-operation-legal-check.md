@@ -2,6 +2,7 @@
 type: rule
 title: 企业状态操作合法性检查
 page_key: company-status-operation-legal-check
+belong: rules
 domain: 企业建档与准入
 status: published
 aliases: [状态操作合法性检查]

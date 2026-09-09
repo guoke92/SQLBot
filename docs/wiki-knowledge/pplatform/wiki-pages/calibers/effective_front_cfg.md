@@ -2,6 +2,7 @@
 type: caliber
 title: 有效前端配置
 page_key: effective_front_cfg
+belong: calibers
 domain: 资金方规则与异常解决
 status: published
 aliases:

@@ -2,6 +2,7 @@
 type: caliber
 title: 延期支付企业
 page_key: defer_pay_company
+belong: calibers
 domain: CA证书收费与订单
 status: published
 aliases: []

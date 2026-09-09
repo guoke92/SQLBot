@@ -1,7 +1,8 @@
 ---
 type: rule
 title: 同步调用失败落库
-page_key: rule/sync_call_failure_persist
+page_key: sync_call_failure_persist
+belong: rules
 domain: 支付宝蚂蚁档案与清算
 status: published
 aliases: []

@@ -2,6 +2,7 @@
 type: process
 title: 企业认证状态机
 page_key: enterprise-auth-status-machine
+belong: processes
 domain: 企业建档与准入
 status: published
 aliases: [认证流程状态机, cust_build_status状态机]

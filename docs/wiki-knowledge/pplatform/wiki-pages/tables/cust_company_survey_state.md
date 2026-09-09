@@ -2,6 +2,7 @@
 type: table
 title: 企业问卷星活动状态
 page_key: cust_company_survey_state
+belong: tables
 domain: 基线
 status: draft
 anchors: [cust_company_survey_state]

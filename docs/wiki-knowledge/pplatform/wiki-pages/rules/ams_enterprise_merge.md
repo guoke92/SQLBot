@@ -2,6 +2,7 @@
 type: rule
 title: AMS存量企业合并迁移
 page_key: ams_enterprise_merge
+belong: rules
 domain: 租户迁移
 status: published
 aliases: []

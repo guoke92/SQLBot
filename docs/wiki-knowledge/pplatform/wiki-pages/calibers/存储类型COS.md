@@ -2,6 +2,7 @@
 type: caliber
 title: 存储类型COS
 page_key: 存储类型COS
+belong: calibers
 domain: 文件媒体与附件
 status: published
 aliases: []

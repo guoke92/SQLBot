@@ -2,6 +2,7 @@
 type: table
 title: 异步导入导出任务
 page_key: async_io_task
+belong: tables
 domain: 基线
 status: draft
 anchors: [async_io_task]

@@ -2,6 +2,7 @@
 type: enum
 title: invoice_status
 page_key: invoice_status
+belong: enums
 domain: 基线
 status: draft
 aliases: []

@@ -2,6 +2,7 @@
 type: enum
 title: order_status
 page_key: order_status
+belong: enums
 domain: 基线
 status: draft
 aliases: []

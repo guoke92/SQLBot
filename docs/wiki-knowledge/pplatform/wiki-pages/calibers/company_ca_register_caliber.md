@@ -1,0 +1,33 @@
+---
+type: caliber
+title: "企业已开通电子签章口径"
+page_key: company_ca_register_caliber
+belong: calibers
+domain: "授权协议与电子授权"
+status: published
+aliases: ["电子签章开通口径", "CFCA/上上签开通口径"]
+oid: 1
+
+sources: ["code:CustAccessAsyncApplication.openCa", "enrich:wiki-admin"]
+contract_version: "0.1"
+coverage_note: "企业级"
+scope:
+  databases: [lowcode_pplatform]
+---
+
+该口径判断企业是否已具备电子签章能力：需要开通电子签章且（CFCA 已开通或上上签已开通）。
+
+## 需求背景
+
+电子授权书签署依赖于电子签章能力。该口径用于判断企业是否具备签署能力，避免未注册签章的企业进入签署流程。
+
+## 版本演进
+
+暂无。
+
+```ground:caliber
+name: 企业已开通电子签章口径
+predicate: "cust_company_info.needRegisterCa = 'Y' AND (cust_company_info.caRegisterStatus = 'Y' OR cust_company_info.bsRegisterStatus = 'Y')"
+scope: "企业级"
+evidence: "code:CustAccessAsyncApplication.openCa"
+```

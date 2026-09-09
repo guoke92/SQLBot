@@ -2,6 +2,7 @@
 type: table
 title: 客户接入秘钥信息
 page_key: cust_access_secret
+belong: tables
 domain: 基线
 status: draft
 anchors: [cust_access_secret]

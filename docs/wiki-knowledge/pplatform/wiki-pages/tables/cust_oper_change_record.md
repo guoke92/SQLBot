@@ -2,6 +2,7 @@
 type: table
 title: 客户操作运营变更记录
 page_key: cust_oper_change_record
+belong: tables
 domain: 基线
 status: draft
 anchors: [cust_oper_change_record]

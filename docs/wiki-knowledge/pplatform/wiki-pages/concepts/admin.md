@@ -1,7 +1,8 @@
 ---
 type: concept
 title: 管理员
-page_key: concepts/admin
+page_key: admin
+belong: concepts
 domain: AMS联系人第三方对接
 status: published
 aliases: [企业管理员, admin]

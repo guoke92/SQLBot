@@ -1,7 +1,8 @@
 ---
 type: rule
 title: 租户生效条件校验
-page_key: rules.tenant-effective-condition-check
+page_key: tenant-effective-condition-check
+belong: rules
 domain: tenant-config-operation-email
 status: published
 aliases: [租户生效条件校验, effective]

@@ -2,6 +2,7 @@
 type: rule
 title: 项目关系重复移除后重插
 page_key: project_rel_duplicate_remove
+belong: rules
 domain: 租户迁移
 status: published
 aliases: []

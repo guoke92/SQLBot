@@ -2,6 +2,7 @@
 type: caliber
 title: 数据权限默认范围口径
 page_key: default-data-permission
+belong: calibers
 domain: 客户角色与数据权限组织
 status: published
 aliases:

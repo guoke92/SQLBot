@@ -1,7 +1,8 @@
 ---
 type: concept
 title: 企业ID
-page_key: concept/company_id
+page_key: company_id
+belong: concepts
 domain: 支付宝蚂蚁档案与清算
 status: published
 aliases: ["companyId", "operator.companyId"]

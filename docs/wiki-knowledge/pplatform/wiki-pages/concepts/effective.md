@@ -1,7 +1,8 @@
 ---
 type: concept
 title: "生效"
-page_key: "concept/effective"
+page_key: effective
+belong: concepts
 domain: "tenant-project"
 status: published
 aliases: ["已生效", "EFFECTIVE", "ACTIVE"]

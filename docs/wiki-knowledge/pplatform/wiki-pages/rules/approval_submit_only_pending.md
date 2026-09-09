@@ -1,7 +1,8 @@
 ---
 type: rule
 title: "上线审批仅 PENDING 可发起/暂存"
-page_key: "rule/approval_submit_only_pending"
+page_key: approval_submit_only_pending
+belong: rules
 domain: "tenant-project"
 status: published
 aliases: ["审批提交状态校验"]

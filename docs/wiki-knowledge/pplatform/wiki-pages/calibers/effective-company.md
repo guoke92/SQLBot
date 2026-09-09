@@ -2,6 +2,7 @@
 type: caliber
 title: 有效企业
 page_key: effective-company
+belong: calibers
 domain: 企业建档与准入
 status: published
 aliases: [未注销企业]

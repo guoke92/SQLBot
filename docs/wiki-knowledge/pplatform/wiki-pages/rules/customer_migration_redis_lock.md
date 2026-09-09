@@ -2,6 +2,7 @@
 type: rule
 title: 企业迁移防重入锁
 page_key: customer_migration_redis_lock
+belong: rules
 domain: 租户迁移
 status: published
 aliases: [Redis锁防重入]

@@ -2,6 +2,7 @@
 type: table
 title: 租户产品配置
 page_key: tenant_product
+belong: tables
 domain: 基线
 status: draft
 anchors: [tenant_product]

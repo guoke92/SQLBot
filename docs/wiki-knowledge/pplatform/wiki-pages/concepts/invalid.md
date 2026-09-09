@@ -1,7 +1,8 @@
 ---
 type: concept
 title: "失效"
-page_key: "concept/invalid"
+page_key: invalid
+belong: concepts
 domain: "tenant-project"
 status: published
 aliases: ["已失效", "INVLIAD", "INVALID", "INACTIVE"]

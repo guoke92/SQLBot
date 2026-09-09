@@ -1,7 +1,8 @@
 ---
 type: caliber
 title: "最新审批记录"
-page_key: "caliber/latest_approval_record"
+page_key: latest_approval_record
+belong: calibers
 domain: "tenant-project"
 status: published
 aliases: ["最新审批口径"]

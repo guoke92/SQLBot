@@ -2,6 +2,7 @@
 type: table
 title: 建档推送运营记录表
 page_key: cust_build_record
+belong: tables
 domain: 基线
 status: draft
 anchors: [cust_build_record]

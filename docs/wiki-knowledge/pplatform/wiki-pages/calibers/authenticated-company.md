@@ -2,6 +2,7 @@
 type: caliber
 title: 认证通过企业
 page_key: authenticated-company
+belong: calibers
 domain: 企业建档与准入
 status: published
 aliases: [已认证企业]

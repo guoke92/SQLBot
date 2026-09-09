@@ -1,7 +1,8 @@
 ---
 type: concept
 title: FBP 接口协议
-page_key: concept/fbp_protocol
+page_key: fbp_protocol
+belong: concepts
 domain: 支付宝蚂蚁档案与清算
 status: published
 aliases: ["FBP", "FbpReq", "FbpResp", "tradeCreditFundloanNotify"]

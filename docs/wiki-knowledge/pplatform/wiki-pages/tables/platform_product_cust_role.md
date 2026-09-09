@@ -2,6 +2,7 @@
 type: table
 title: 平台产品企业角色
 page_key: platform_product_cust_role
+belong: tables
 domain: 基线
 status: draft
 anchors: [platform_product_cust_role]

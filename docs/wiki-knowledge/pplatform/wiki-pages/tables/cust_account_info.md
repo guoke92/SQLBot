@@ -2,6 +2,7 @@
 type: table
 title: 客户银行账号信息主表
 page_key: cust_account_info
+belong: tables
 domain: 基线
 status: draft
 anchors: [cust_account_info]

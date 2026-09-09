@@ -1,7 +1,8 @@
 ---
 type: caliber
 title: "审批进行中"
-page_key: "caliber/approval_in_progress"
+page_key: approval_in_progress
+belong: calibers
 domain: "tenant-project"
 status: published
 aliases: ["审批中口径"]

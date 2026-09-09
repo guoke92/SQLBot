@@ -2,6 +2,7 @@
 type: rule
 title: 角色状态操作跳过已注销
 page_key: role-status-update-skip-writeoff
+belong: rules
 domain: 客户角色与数据权限组织
 status: published
 aliases:

@@ -2,6 +2,7 @@
 type: enum
 title: receive_payment_type
 page_key: receive_payment_type
+belong: enums
 domain: 基线
 status: draft
 aliases: []

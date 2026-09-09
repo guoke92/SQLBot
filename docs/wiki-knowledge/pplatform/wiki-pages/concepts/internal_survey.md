@@ -1,7 +1,8 @@
 ---
 type: concept
 title: "调研问卷"
-page_key: "internal_survey"
+page_key: internal_survey
+belong: concepts
 domain: "customer_survey"
 status: published
 aliases: ["讯易链调研问卷", "survey", "cust_survey_answer"]

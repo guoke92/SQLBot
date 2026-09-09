@@ -2,6 +2,7 @@
 type: rule
 title: 协议签署前置条件
 page_key: agreement_signing_precondition
+belong: rules
 domain: CA证书收费与订单
 status: published
 aliases: []

@@ -2,6 +2,7 @@
 type: rule
 title: 简易认证禁止开通CA
 page_key: simple_auth_disable_ca
+belong: rules
 domain: 租户迁移
 status: published
 aliases: []

@@ -2,6 +2,7 @@
 type: caliber
 title: 组织初始化企业范围口径
 page_key: organization-init-company-scope
+belong: calibers
 domain: 客户角色与数据权限组织
 status: published
 aliases:

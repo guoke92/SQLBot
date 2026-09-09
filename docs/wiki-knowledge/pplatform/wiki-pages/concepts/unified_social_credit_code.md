@@ -2,6 +2,7 @@
 type: concept
 title: 统码
 page_key: unified_social_credit_code
+belong: concepts
 domain: CA证书收费与订单
 status: published
 aliases: ["统一社会信用代码", "certificationNo"]

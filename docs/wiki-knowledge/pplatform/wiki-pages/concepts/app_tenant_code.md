@@ -2,6 +2,7 @@
 type: concept
 title: 逻辑租户标识
 page_key: app_tenant_code
+belong: concepts
 domain: 租户迁移
 status: published
 aliases: ["appTenantCode"]

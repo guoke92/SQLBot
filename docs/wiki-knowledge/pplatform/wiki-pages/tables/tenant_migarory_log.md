@@ -2,6 +2,7 @@
 type: table
 title: 租户项目迁移记录表
 page_key: tenant_migarory_log
+belong: tables
 domain: 基线
 status: draft
 anchors: [tenant_migarory_log]

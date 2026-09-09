@@ -2,6 +2,7 @@
 type: rule
 title: CA升级授权书双端上传
 page_key: CA升级授权书双端上传
+belong: rules
 domain: 文件媒体与附件
 status: published
 aliases: []

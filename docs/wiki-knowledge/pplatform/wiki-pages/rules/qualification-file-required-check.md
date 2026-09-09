@@ -2,6 +2,7 @@
 type: rule
 title: 资质文件必传校验
 page_key: qualification-file-required-check
+belong: rules
 domain: 企业建档与准入
 status: published
 aliases: [资质文件校验]

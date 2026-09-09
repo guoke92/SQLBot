@@ -2,6 +2,7 @@
 type: enum
 title: status
 page_key: cust_role_info__status
+belong: enums
 domain: 基线
 status: draft
 aliases: []

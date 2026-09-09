@@ -2,6 +2,7 @@
 type: enum
 title: open_status
 page_key: tenant_interworking_product__open_status
+belong: enums
 domain: 基线
 status: draft
 aliases: []

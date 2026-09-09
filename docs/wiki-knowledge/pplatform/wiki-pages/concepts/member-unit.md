@@ -2,6 +2,7 @@
 type: concept
 title: "成员单位"
 page_key: member-unit
+belong: concepts
 domain: 集团与关联关系
 status: published
 aliases: ["子公司", "子级企业"]

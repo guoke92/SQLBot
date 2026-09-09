@@ -2,6 +2,7 @@
 type: enum
 title: cust_status
 page_key: cust_status
+belong: enums
 domain: 基线
 status: draft
 aliases: [新增, 注销, 生效]

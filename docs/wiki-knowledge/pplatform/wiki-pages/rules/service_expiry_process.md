@@ -2,6 +2,7 @@
 type: rule
 title: 服务到期处理
 page_key: service_expiry_process
+belong: rules
 domain: ca_cert_fee
 status: published
 aliases: []

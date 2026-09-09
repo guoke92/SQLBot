@@ -1,7 +1,8 @@
 ---
 type: caliber
 title: "有效项目"
-page_key: "caliber/valid_project"
+page_key: valid_project
+belong: calibers
 domain: "tenant-project"
 status: published
 aliases: ["有效项目口径"]

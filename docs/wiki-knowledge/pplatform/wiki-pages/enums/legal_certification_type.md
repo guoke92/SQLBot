@@ -2,6 +2,7 @@
 type: enum
 title: legal_certification_type
 page_key: legal_certification_type
+belong: enums
 domain: 基线
 status: draft
 aliases: []

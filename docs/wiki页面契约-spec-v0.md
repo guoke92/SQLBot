@@ -39,7 +39,9 @@
 ### 1.2 关键身份规则
 
 - **一物理表一页、一 dictKey 一页**（D1 的 wiki 化）：全库唯一权威声明，其余页面只引用。表页 slug 用物理名保证跨包/跨语言增量重提取时身份稳定（等价于 v3.1 的 `norm(db.table)` 归并键）。
-- 概念/流程/口径等业务页 slug 由标题派生（kebab-case / CJK 保留），`page_key` 由程序盖 = 文件名 stem，标题改名校准走重定向（V1：`aliases` 收旧 slug）。
+- 语料内唯一身份是 **`(belong, page_key)`**：`belong` = 上级目录（`tables`/`enums`/`concepts`/…），`page_key` 只在同一目录内唯一。跨目录允许同名（如 `concepts/pay_status` 与 `enums/pay_status`）。
+- 概念/流程/口径等业务页 slug 由标题派生（kebab-case / CJK 保留）；文件名 stem 应对齐 `page_key`。
+- `[[wikilink]]`：裸 `[[pay_status]]` 仅在全库唯一时解析；歧义须写成 `[[enums/pay_status]]`。
 - 休眠表：表页照常存在，frontmatter `inactive: true`，`ground:table` 中 `fields` 为空（字段留 catalog 基线）。
 
 ### 1.3 与 v3.1 决策的映射（本契约"继承"而非"放弃"的证明）
@@ -62,7 +64,8 @@
 |---|---|---|---|---|
 | `type` | §1.1 枚举 | ✓ | LLM 起草，程序校验 | 必须与目录一致，不一致整页拒绝（沿用 llm_wiki 路由校验） |
 | `title` | string | ✓ | LLM | 含冒号须引号 |
-| `page_key` | slug | ✓ | **程序盖章** | = 文件名 stem，模型输出被覆写 |
+| `page_key` | slug | ✓ | **程序盖章** | 目录内唯一；非法草稿（`caliber/foo`、`calibers.foo`）导入时规范化为裸 slug |
+| `belong` | 目录名 | ✓ | **程序盖章** | 上级目录 `tables`/`enums`/…；以磁盘路径为准，frontmatter 冲突则整页拒绝 |
 | `domain` | string | tables/enums/patterns 之外必填 | LLM | 业务域，域名校准沿用 `package.domains` 语义（含 `renamed_from`） |
 | `status` | `draft` \| `published` \| `retired` | ✓ | **人/门禁** | 召回资格 = `published`；lint 全 error 清零才可发布 |
 | `aliases` | string[] | 推荐 | LLM | 业务别名/用户说法；进向量索引词表（chunk 覆盖 frontmatter） |
@@ -254,7 +257,7 @@ cust_build_type.PC_BUILD 回答"从哪录入"；混用后果……
 
 | 通道 | 语法 | 消费方 |
 |---|---|---|
-| 页面链接（图边） | `[[page_key]]`，正文任意处 | llm_wiki 图扩展（邻接、4 信号、配额召回）——**不改动 llm_wiki 图内部** |
+| 页面链接（图边） | `[[page_key]]` 或 `[[belong/page_key]]` | 裸链接仅在唯一时解析；歧义须带 belong |
 | 物理锚点（结构边） | `表.字段`、`dictKey.VALUE`（frontmatter `field_targets/anchors` + 块内字段） | ground 解析器 → 投影结构 |
 | 软关联 | frontmatter `related: [slug]` | 展示/导航 |
 

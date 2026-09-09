@@ -2,6 +2,7 @@
 type: caliber
 title: 异常解析唯一键
 page_key: exception_resolution_unique_key
+belong: calibers
 domain: 资金方规则与异常解决
 status: published
 aliases:

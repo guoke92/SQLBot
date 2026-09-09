@@ -1,7 +1,8 @@
 ---
 type: rule
 title: 外部错误消息脱敏
-page_key: rule/external_error_msg_desensitize
+page_key: external_error_msg_desensitize
+belong: rules
 domain: 支付宝蚂蚁档案与清算
 status: published
 aliases: []

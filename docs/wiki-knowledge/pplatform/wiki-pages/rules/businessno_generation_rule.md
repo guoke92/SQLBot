@@ -1,7 +1,8 @@
 ---
 type: rule
 title: businessNo 生成规则
-page_key: rule/businessno_generation_rule
+page_key: businessno_generation_rule
+belong: rules
 domain: 支付宝蚂蚁档案与清算
 status: published
 aliases: []

@@ -2,6 +2,7 @@
 type: rule
 title: 客户建档供票产品前置校验
 page_key: supply_ticket_precheck
+belong: rules
 domain: 租户迁移
 status: published
 aliases: []

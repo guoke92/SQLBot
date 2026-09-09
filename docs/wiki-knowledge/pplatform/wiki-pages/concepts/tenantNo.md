@@ -2,6 +2,7 @@
 type: concept
 title: tenantNo
 page_key: tenantNo
+belong: concepts
 domain: 门户侧边栏查询
 status: published
 aliases:

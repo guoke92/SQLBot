@@ -2,6 +2,7 @@
 type: rule
 title: "同步登录信息加密与调用规则"
 page_key: sync_login_encryption_rule
+belong: rules
 domain: gpt_learn
 status: published
 aliases: []

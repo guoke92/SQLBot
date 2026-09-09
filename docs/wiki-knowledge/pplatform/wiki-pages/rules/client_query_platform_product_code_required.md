@@ -1,7 +1,8 @@
 ---
 type: rule
 title: 客户端查询平台产品编码必填
-page_key: rule/client_query_platform_product_code_required
+page_key: client_query_platform_product_code_required
+belong: rules
 domain: 支付宝蚂蚁档案与清算
 status: published
 aliases: []

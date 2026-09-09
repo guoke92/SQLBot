@@ -2,6 +2,7 @@
 type: table
 title: 问卷星白名单企业
 page_key: cust_company_survey_whitelist
+belong: tables
 domain: 基线
 status: draft
 anchors: [cust_company_survey_whitelist]

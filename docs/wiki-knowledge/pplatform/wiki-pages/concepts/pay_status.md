@@ -2,6 +2,7 @@
 type: concept
 title: 缴费状态
 page_key: pay_status
+belong: concepts
 domain: ca_cert_fee
 status: published
 aliases: ["支付状态"]

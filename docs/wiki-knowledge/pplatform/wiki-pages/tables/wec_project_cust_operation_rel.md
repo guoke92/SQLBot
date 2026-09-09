@@ -2,6 +2,7 @@
 type: table
 title: 微企链项目企业关联运营
 page_key: wec_project_cust_operation_rel
+belong: tables
 domain: 基线
 status: draft
 anchors: [wec_project_cust_operation_rel]

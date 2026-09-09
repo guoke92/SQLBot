@@ -2,6 +2,7 @@
 type: caliber
 title: 文件短链接
 page_key: file_short_link
+belong: calibers
 domain: 通知验证码短链与消息
 status: published
 aliases: [文件短链]

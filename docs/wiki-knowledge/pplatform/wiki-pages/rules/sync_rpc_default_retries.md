@@ -1,7 +1,8 @@
 ---
 type: rule
 title: 同步 RPC 默认重试次数
-page_key: rule/sync_rpc_default_retries
+page_key: sync_rpc_default_retries
+belong: rules
 domain: 支付宝蚂蚁档案与清算
 status: published
 aliases: []

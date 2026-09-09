@@ -1,7 +1,8 @@
 ---
 type: concept
 title: 经办人
-page_key: concepts/operator
+page_key: operator
+belong: concepts
 domain: AMS联系人第三方对接
 status: published
 aliases: [操作员, operator]

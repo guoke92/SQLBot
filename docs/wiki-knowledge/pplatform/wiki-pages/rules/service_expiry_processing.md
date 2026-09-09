@@ -2,6 +2,7 @@
 type: rule
 title: 服务到期处理
 page_key: service_expiry_processing
+belong: rules
 domain: CA证书收费与订单
 status: published
 aliases: []

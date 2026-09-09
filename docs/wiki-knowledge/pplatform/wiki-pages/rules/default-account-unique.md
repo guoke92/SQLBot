@@ -2,6 +2,7 @@
 type: rule
 title: 默认还款账号唯一
 page_key: default-account-unique
+belong: rules
 domain: 企业银行账户与第三方银行
 status: published
 aliases: []

@@ -1,7 +1,8 @@
 ---
 type: caliber
 title: 建档处理中口径
-page_key: caliber/archive_processing_error
+page_key: archive_processing_error
+belong: calibers
 domain: 支付宝蚂蚁档案与清算
 status: published
 aliases: []

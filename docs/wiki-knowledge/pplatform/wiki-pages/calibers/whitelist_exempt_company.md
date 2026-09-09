@@ -2,6 +2,7 @@
 type: caliber
 title: 白名单豁免企业
 page_key: whitelist_exempt_company
+belong: calibers
 domain: CA证书收费与订单
 status: published
 aliases: []

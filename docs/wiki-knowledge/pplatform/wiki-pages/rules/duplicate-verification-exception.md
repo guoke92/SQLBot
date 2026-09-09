@@ -2,6 +2,7 @@
 type: rule
 title: 重复验证异常兜底
 page_key: duplicate-verification-exception
+belong: rules
 domain: 企业银行账户与第三方银行
 status: published
 aliases: []

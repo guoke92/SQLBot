@@ -2,6 +2,7 @@
 type: concept
 title: 迁移批次
 page_key: migration_batch
+belong: concepts
 domain: 租户迁移
 status: published
 aliases: [批次号]

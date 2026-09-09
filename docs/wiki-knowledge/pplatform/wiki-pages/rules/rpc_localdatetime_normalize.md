@@ -1,7 +1,8 @@
 ---
 type: rule
 title: RPC 响应 LocalDateTime 规范化
-page_key: rule/rpc_localdatetime_normalize
+page_key: rpc_localdatetime_normalize
+belong: rules
 domain: 支付宝蚂蚁档案与清算
 status: published
 aliases: []

@@ -1,7 +1,8 @@
 ---
 type: caliber
 title: CA 证书参数错误码映射
-page_key: caliber/ca_cert_error_code_mapping
+page_key: ca_cert_error_code_mapping
+belong: calibers
 domain: 支付宝蚂蚁档案与清算
 status: published
 aliases: []

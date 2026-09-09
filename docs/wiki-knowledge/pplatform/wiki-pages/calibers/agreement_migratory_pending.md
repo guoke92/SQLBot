@@ -2,6 +2,7 @@
 type: caliber
 title: 协议迁移待拉取
 page_key: agreement_migratory_pending
+belong: calibers
 domain: 租户迁移
 status: published
 aliases: []

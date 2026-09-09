@@ -2,6 +2,7 @@
 type: process
 title: CA收费订单状态机
 page_key: ca_fee_order_status
+belong: processes
 domain: ca_cert_fee
 status: published
 aliases: []

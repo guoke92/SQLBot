@@ -2,6 +2,7 @@
 type: rule
 title: 验证金额范围校验
 page_key: payment-amount-range-check
+belong: rules
 domain: 企业银行账户与第三方银行
 status: published
 aliases: []

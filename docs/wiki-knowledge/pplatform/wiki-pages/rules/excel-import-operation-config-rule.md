@@ -1,7 +1,8 @@
 ---
 type: rule
 title: Excel导入运营配置规则
-page_key: rules.excel-import-operation-config-rule
+page_key: excel-import-operation-config-rule
+belong: rules
 domain: tenant-config-operation-email
 status: published
 aliases: [Excel导入运营配置规则, importTenantOperationConfigByFile]

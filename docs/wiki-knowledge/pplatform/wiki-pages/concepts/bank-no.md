@@ -2,6 +2,7 @@
 type: concept
 title: 联行号
 page_key: bank-no
+belong: concepts
 domain: 企业银行账户与第三方银行
 status: published
 aliases: ["bankNo", "bank_no", "cnapsCode"]

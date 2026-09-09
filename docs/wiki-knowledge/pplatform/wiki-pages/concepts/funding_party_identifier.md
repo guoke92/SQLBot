@@ -2,6 +2,7 @@
 type: concept
 title: 对接方标识
 page_key: funding_party_identifier
+belong: concepts
 domain: 资金方规则与异常解决
 status: published
 aliases:

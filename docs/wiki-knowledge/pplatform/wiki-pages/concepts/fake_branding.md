@@ -2,6 +2,7 @@
 type: concept
 title: 假贴牌
 page_key: fake_branding
+belong: concepts
 domain: 租户迁移
 status: published
 aliases: [二级贴牌]

@@ -2,6 +2,7 @@
 type: table
 title: 平台产品基础配置
 page_key: platform_product
+belong: tables
 domain: 基线
 status: draft
 anchors: [platform_product]

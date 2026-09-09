@@ -2,6 +2,7 @@
 type: concept
 title: authRoleCode
 page_key: authRoleCode
+belong: concepts
 domain: 门户侧边栏查询
 status: published
 aliases:

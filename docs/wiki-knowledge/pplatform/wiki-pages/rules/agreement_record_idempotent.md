@@ -2,6 +2,7 @@
 type: rule
 title: 迁移协议记录幂等
 page_key: agreement_record_idempotent
+belong: rules
 domain: 租户迁移
 status: published
 aliases: []

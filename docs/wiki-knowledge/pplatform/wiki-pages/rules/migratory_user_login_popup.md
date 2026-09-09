@@ -2,6 +2,7 @@
 type: rule
 title: 迁移用户首登弹窗
 page_key: migratory_user_login_popup
+belong: rules
 domain: 租户迁移
 status: published
 aliases: []

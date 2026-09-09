@@ -2,6 +2,7 @@
 type: rule
 title: 短链接ID映射校验
 page_key: short_link_id_mapping_verification
+belong: rules
 domain: 通知验证码短链与消息
 status: published
 aliases: []

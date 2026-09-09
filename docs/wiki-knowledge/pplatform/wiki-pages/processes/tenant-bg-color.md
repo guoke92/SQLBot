@@ -1,7 +1,8 @@
 ---
 type: process
 title: 租户背景颜色
-page_key: processes.tenant-bg-color
+page_key: tenant-bg-color
+belong: processes
 domain: tenant-config-operation-email
 status: published
 aliases: [租户背景颜色, tenant_setting_config.bg_color, 灰度颜色]

@@ -2,6 +2,7 @@
 type: caliber
 title: 手续费账户
 page_key: operation-fee-account
+belong: calibers
 domain: 企业银行账户与第三方银行
 status: published
 aliases: ["OPERATION_FEE_ACCOUNT", "手续费户"]

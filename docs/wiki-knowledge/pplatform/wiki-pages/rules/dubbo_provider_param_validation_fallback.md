@@ -2,6 +2,7 @@
 type: rule
 title: Dubbo Provider 参数校验与异常兜底
 page_key: dubbo_provider_param_validation_fallback
+belong: rules
 domain: 资金方规则与异常解决
 status: published
 aliases:

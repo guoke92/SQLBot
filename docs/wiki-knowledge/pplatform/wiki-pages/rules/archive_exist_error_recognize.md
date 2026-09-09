@@ -1,7 +1,8 @@
 ---
 type: rule
 title: 建档已存在错误识别
-page_key: rule/archive_exist_error_recognize
+page_key: archive_exist_error_recognize
+belong: rules
 domain: 支付宝蚂蚁档案与清算
 status: published
 aliases: []

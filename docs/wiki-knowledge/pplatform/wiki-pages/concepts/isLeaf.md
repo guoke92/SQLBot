@@ -2,6 +2,7 @@
 type: concept
 title: isLeaf
 page_key: isLeaf
+belong: concepts
 domain: 门户侧边栏查询
 status: published
 aliases:

@@ -2,6 +2,7 @@
 type: concept
 title: 认证状态/打款验证状态
 page_key: auth-state
+belong: concepts
 domain: 企业银行账户与第三方银行
 status: published
 aliases: ["authState", "auth_state", "小额打款验证状态"]

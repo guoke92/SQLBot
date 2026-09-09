@@ -2,6 +2,7 @@
 type: table
 title: 企业立项申请表
 page_key: wechat_project_approval_apply
+belong: tables
 domain: 基线
 status: draft
 anchors: [wechat_project_approval_apply]

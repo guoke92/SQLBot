@@ -2,6 +2,7 @@
 type: rule
 title: 验证码有效期配置强制
 page_key: verify_code_validity_config_required
+belong: rules
 domain: 通知验证码短链与消息
 status: published
 aliases: []

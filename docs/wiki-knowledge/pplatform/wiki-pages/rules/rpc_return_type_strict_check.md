@@ -1,7 +1,8 @@
 ---
 type: rule
 title: RPC 返回类型强校验
-page_key: rule/rpc_return_type_strict_check
+page_key: rpc_return_type_strict_check
+belong: rules
 domain: 支付宝蚂蚁档案与清算
 status: published
 aliases: []

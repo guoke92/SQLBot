@@ -1,7 +1,8 @@
 ---
 type: caliber
 title: "首个访问用户"
-page_key: "first_visitor_user"
+page_key: first_visitor_user
+belong: calibers
 domain: "customer_survey"
 status: published
 aliases: ["首个访问用户"]

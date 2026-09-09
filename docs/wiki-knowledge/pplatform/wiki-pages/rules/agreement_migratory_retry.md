@@ -2,6 +2,7 @@
 type: rule
 title: 协议迁移重试机制
 page_key: agreement_migratory_retry
+belong: rules
 domain: 租户迁移
 status: published
 aliases: []

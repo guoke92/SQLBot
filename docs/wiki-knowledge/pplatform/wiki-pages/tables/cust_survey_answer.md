@@ -2,6 +2,7 @@
 type: table
 title: 调研答案表
 page_key: cust_survey_answer
+belong: tables
 domain: 基线
 status: draft
 anchors: [cust_survey_answer]

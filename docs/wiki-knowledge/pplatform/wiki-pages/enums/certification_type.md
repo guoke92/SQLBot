@@ -2,6 +2,7 @@
 type: enum
 title: certification_type
 page_key: certification_type
+belong: enums
 domain: 基线
 status: draft
 aliases: [法人三要素认证]

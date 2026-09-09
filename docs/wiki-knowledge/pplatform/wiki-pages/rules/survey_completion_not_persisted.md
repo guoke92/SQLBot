@@ -1,7 +1,8 @@
 ---
 type: rule
 title: "问卷完成态不落库"
-page_key: "survey_completion_not_persisted"
+page_key: survey_completion_not_persisted
+belong: rules
 domain: "customer_survey"
 status: published
 aliases: ["问卷完成态不落库"]

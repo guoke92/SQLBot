@@ -2,6 +2,7 @@
 type: concept
 title: "认证成功"
 page_key: build-success
+belong: concepts
 domain: 集团与关联关系
 status: published
 aliases: ["BUILD_SUCCESS", "审核通过"]

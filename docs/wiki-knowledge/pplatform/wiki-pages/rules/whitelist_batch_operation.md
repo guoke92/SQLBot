@@ -2,6 +2,7 @@
 type: rule
 title: 白名单批量操作
 page_key: whitelist_batch_operation
+belong: rules
 domain: CA证书收费与订单
 status: published
 aliases: []

@@ -2,6 +2,7 @@
 type: concept
 title: "集团"
 page_key: group
+belong: concepts
 domain: 集团与关联关系
 status: published
 aliases: ["集团公司", "根节点", "root company"]

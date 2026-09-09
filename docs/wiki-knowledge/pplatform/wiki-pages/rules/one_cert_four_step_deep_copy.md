@@ -1,7 +1,8 @@
 ---
 type: rule
 title: 一证四步数据 JSON 深拷贝
-page_key: rule/one_cert_four_step_deep_copy
+page_key: one_cert_four_step_deep_copy
+belong: rules
 domain: 支付宝蚂蚁档案与清算
 status: published
 aliases: []

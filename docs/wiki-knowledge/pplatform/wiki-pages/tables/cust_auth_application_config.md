@@ -2,6 +2,7 @@
 type: table
 title: 客户产品开通配置
 page_key: cust_auth_application_config
+belong: tables
 domain: 基线
 status: draft
 anchors: [cust_auth_application_config]

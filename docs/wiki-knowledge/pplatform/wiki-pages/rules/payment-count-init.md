@@ -2,6 +2,7 @@
 type: rule
 title: 打款次数初始化
 page_key: payment-count-init
+belong: rules
 domain: 企业银行账户与第三方银行
 status: published
 aliases: []

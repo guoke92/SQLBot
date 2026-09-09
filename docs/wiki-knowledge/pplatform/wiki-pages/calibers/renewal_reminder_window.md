@@ -2,6 +2,7 @@
 type: caliber
 title: 续费提醒窗口口径
 page_key: renewal_reminder_window
+belong: calibers
 domain: ca_cert_fee
 status: published
 aliases: []

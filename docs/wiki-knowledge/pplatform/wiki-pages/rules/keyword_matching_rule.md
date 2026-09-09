@@ -2,6 +2,7 @@
 type: rule
 title: 关键字匹配规则
 page_key: keyword_matching_rule
+belong: rules
 domain: 资金方规则与异常解决
 status: published
 aliases:

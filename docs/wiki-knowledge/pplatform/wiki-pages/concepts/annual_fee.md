@@ -2,6 +2,7 @@
 type: concept
 title: 年费
 page_key: annual_fee
+belong: concepts
 domain: ca_cert_fee
 status: published
 aliases: ["应缴年费"]

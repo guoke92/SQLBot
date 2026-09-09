@@ -1,7 +1,8 @@
 ---
 type: concept
 title: 渠道建档
-page_key: concept/channel_archive
+page_key: channel_archive
+belong: concepts
 domain: 支付宝蚂蚁档案与清算
 status: published
 aliases: ["channelArchive", "蚂蚁建档", "支付宝蚂蚁建档"]

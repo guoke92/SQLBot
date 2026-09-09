@@ -1,7 +1,8 @@
 ---
 type: caliber
 title: "可发起历史项目"
-page_key: "caliber/initiable_historical_project"
+page_key: initiable_historical_project
+belong: calibers
 domain: "tenant-project"
 status: published
 aliases: ["历史项目可选口径"]

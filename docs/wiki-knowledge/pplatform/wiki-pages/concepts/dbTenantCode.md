@@ -1,7 +1,8 @@
 ---
 type: concept
 title: "dbTenantCode"
-page_key: "dbTenantCode"
+page_key: dbTenantCode
+belong: concepts
 domain: "租户配置与运营邮件"
 status: published
 aliases: ["db_tenant_code", "数据租户标识", "数据库租户编码"]

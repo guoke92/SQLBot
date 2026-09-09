@@ -2,6 +2,7 @@
 type: rule
 title: 身份证格式校验
 page_key: id-card-format-validation
+belong: rules
 domain: 企业建档与准入
 status: published
 aliases: [身份证校验]

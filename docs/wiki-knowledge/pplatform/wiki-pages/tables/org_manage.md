@@ -2,6 +2,7 @@
 type: table
 title: 机构管理
 page_key: org_manage
+belong: tables
 domain: 基线
 status: draft
 anchors: [org_manage]

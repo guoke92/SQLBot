@@ -2,6 +2,7 @@
 type: caliber
 title: 在途流程
 page_key: in-transit-process
+belong: calibers
 domain: 企业建档与准入
 status: published
 aliases: [在途申请, 未完成流程]

@@ -2,6 +2,7 @@
 type: table
 title: 租户项目审批流程表
 page_key: tenant_project_approval_flow
+belong: tables
 domain: 基线
 status: draft
 anchors: [tenant_project_approval_flow]

@@ -2,6 +2,7 @@
 type: process
 title: "集团成员单位关系状态"
 page_key: group-member-relation-status
+belong: processes
 domain: 集团与关联关系
 status: published
 aliases: []

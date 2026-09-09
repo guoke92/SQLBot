@@ -2,6 +2,7 @@
 type: rule
 title: 批量删除其他账户避免死锁
 page_key: batch-delete-avoid-deadlock
+belong: rules
 domain: 企业银行账户与第三方银行
 status: published
 aliases: []

@@ -2,6 +2,7 @@
 type: enum
 title: product_status
 page_key: product_status
+belong: enums
 domain: 基线
 status: draft
 aliases: []

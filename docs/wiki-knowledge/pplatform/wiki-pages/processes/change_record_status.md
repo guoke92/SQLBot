@@ -2,6 +2,7 @@
 type: process
 title: 变更记录状态机
 page_key: change_record_status
+belong: processes
 domain: 企业变更与运营变更
 status: published
 aliases: ["变更记录状态", "status"]

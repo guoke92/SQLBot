@@ -2,6 +2,7 @@
 type: rule
 title: "弹卡租户白名单规则"
 page_key: tenant_whitelist_rule
+belong: rules
 domain: gpt_learn
 status: published
 aliases: []

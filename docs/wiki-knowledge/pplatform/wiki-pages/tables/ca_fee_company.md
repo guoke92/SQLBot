@@ -2,6 +2,7 @@
 type: table
 title: CA服务费企业主数据
 page_key: ca_fee_company
+belong: tables
 domain: 基线
 status: draft
 anchors: [ca_fee_company]

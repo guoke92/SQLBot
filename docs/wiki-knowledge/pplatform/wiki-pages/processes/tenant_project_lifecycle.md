@@ -1,7 +1,8 @@
 ---
 type: process
 title: "租户项目生命周期"
-page_key: "process/tenant_project_lifecycle"
+page_key: tenant_project_lifecycle
+belong: processes
 domain: "tenant-project"
 status: published
 aliases: ["项目状态机"]

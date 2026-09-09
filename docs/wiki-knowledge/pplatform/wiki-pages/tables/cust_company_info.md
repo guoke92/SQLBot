@@ -2,6 +2,7 @@
 type: table
 title: 客户信息主表
 page_key: cust_company_info
+belong: tables
 domain: 基线
 status: draft
 anchors: [cust_company_info]

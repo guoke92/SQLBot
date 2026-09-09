@@ -2,6 +2,7 @@
 type: rule
 title: 打款申请成功后处理
 page_key: payment-apply-success
+belong: rules
 domain: 企业银行账户与第三方银行
 status: published
 aliases: []

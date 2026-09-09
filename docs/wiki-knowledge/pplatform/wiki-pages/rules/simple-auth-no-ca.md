@@ -2,6 +2,7 @@
 type: rule
 title: 简易认证不支持开通CA
 page_key: simple-auth-no-ca
+belong: rules
 domain: 企业建档与准入
 status: published
 aliases: [简易认证CA限制]

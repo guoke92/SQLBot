@@ -2,6 +2,7 @@
 type: enum
 title: wf_status
 page_key: wf_status
+belong: enums
 domain: 基线
 status: draft
 aliases: []

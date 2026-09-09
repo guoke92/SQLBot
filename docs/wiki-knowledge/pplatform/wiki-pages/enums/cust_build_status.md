@@ -2,6 +2,7 @@
 type: enum
 title: cust_build_status
 page_key: cust_build_status
+belong: enums
 domain: 基线
 status: draft
 aliases: [审核中, 待客户认证]

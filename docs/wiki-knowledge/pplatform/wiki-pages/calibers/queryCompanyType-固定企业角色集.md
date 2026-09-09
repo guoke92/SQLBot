@@ -2,6 +2,7 @@
 type: caliber
 title: queryCompanyType-固定企业角色集
 page_key: queryCompanyType-固定企业角色集
+belong: calibers
 domain: 门户侧边栏查询
 status: published
 aliases: []

@@ -2,6 +2,7 @@
 type: concept
 title: 业务ID
 page_key: business_id
+belong: concepts
 domain: 通知验证码短链与消息
 status: published
 aliases: [businessId, businessType]

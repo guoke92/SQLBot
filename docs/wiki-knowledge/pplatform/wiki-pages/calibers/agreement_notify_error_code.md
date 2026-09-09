@@ -1,7 +1,8 @@
 ---
 type: caliber
 title: 协议告知错误码口径
-page_key: caliber/agreement_notify_error_code
+page_key: agreement_notify_error_code
+belong: calibers
 domain: 支付宝蚂蚁档案与清算
 status: published
 aliases: []

@@ -2,6 +2,7 @@
 type: table
 title: 迁移用户记录表
 page_key: migratory_user_record
+belong: tables
 domain: 基线
 status: draft
 anchors: [migratory_user_record]

@@ -2,6 +2,7 @@
 type: enum
 title: cust_scale
 page_key: cust_scale
+belong: enums
 domain: 基线
 status: draft
 aliases: []

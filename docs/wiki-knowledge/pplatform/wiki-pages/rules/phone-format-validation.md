@@ -2,6 +2,7 @@
 type: rule
 title: 手机号格式校验
 page_key: phone-format-validation
+belong: rules
 domain: 企业建档与准入
 status: published
 aliases: [手机号正则校验]

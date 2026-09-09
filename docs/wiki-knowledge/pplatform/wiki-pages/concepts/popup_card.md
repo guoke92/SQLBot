@@ -2,6 +2,7 @@
 type: concept
 title: "弹卡"
 page_key: popup_card
+belong: concepts
 domain: gpt_learn
 status: published
 aliases: ["弹出引流卡片", "弹出海报"]

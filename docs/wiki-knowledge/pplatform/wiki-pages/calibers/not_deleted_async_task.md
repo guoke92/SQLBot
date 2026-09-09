@@ -2,6 +2,7 @@
 type: caliber
 title: 未软删除异步任务
 page_key: not_deleted_async_task
+belong: calibers
 domain: 通知验证码短链与消息
 status: published
 aliases: []

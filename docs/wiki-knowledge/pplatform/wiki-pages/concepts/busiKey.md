@@ -2,6 +2,7 @@
 type: concept
 title: busiKey
 page_key: busiKey
+belong: concepts
 domain: 文件媒体与附件
 status: published
 aliases: [业务键]

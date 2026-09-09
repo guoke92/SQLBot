@@ -2,6 +2,7 @@
 type: table
 title: 短链接
 page_key: short_link
+belong: tables
 domain: 基线
 status: draft
 anchors: [short_link]

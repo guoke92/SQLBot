@@ -1,7 +1,8 @@
 ---
 type: concept
 title: "立项审批编号"
-page_key: "concept/project_approval_no_wechat"
+page_key: project_approval_no_wechat
+belong: concepts
 domain: "tenant-project"
 status: published
 aliases: ["企微审批编号", "wechat_audit_no", "立项编号"]

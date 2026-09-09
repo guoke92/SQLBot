@@ -2,6 +2,7 @@
 type: table
 title: CFCA证书升级业务上报与触达记录
 page_key: ca_cfca_upgrade_report
+belong: tables
 domain: 基线
 status: draft
 anchors: [ca_cfca_upgrade_report]

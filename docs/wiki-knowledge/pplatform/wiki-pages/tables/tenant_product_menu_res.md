@@ -2,6 +2,7 @@
 type: table
 title: 租户产品菜单按钮表
 page_key: tenant_product_menu_res
+belong: tables
 domain: 基线
 status: draft
 anchors: [tenant_product_menu_res]

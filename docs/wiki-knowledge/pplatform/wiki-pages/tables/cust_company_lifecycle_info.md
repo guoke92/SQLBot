@@ -2,6 +2,7 @@
 type: table
 title: 企业生命周期记录
 page_key: cust_company_lifecycle_info
+belong: tables
 domain: 基线
 status: draft
 anchors: [cust_company_lifecycle_info]

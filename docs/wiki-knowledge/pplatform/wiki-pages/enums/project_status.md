@@ -2,6 +2,7 @@
 type: enum
 title: project_status
 page_key: project_status
+belong: enums
 domain: 基线
 status: draft
 aliases: []

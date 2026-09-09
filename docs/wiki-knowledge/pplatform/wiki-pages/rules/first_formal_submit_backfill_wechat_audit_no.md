@@ -1,7 +1,8 @@
 ---
 type: rule
 title: "新增项目首次正式提交回写立项编号"
-page_key: "rule/first_formal_submit_backfill_wechat_audit_no"
+page_key: first_formal_submit_backfill_wechat_audit_no
+belong: rules
 domain: "tenant-project"
 status: published
 aliases: ["回写立项编号"]

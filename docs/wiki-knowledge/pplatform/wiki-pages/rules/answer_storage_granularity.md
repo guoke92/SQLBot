@@ -1,7 +1,8 @@
 ---
 type: rule
 title: "调研答案存储粒度"
-page_key: "answer_storage_granularity"
+page_key: answer_storage_granularity
+belong: rules
 domain: "customer_survey"
 status: published
 aliases: ["调研答案存储粒度"]

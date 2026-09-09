@@ -2,6 +2,7 @@
 type: process
 title: cust_build_record.retry_status 状态机
 page_key: cust_build_record_retry_status
+belong: processes
 domain: 异步任务与数据同步
 status: published
 aliases: []

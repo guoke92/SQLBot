@@ -2,6 +2,7 @@
 type: concept
 title: 服务周期
 page_key: service_period
+belong: concepts
 domain: CA证书收费与订单
 status: published
 aliases: ["服务期"]

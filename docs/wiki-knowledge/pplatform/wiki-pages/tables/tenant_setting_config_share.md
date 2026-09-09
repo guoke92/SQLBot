@@ -2,6 +2,7 @@
 type: table
 title: 共享租户配置
 page_key: tenant_setting_config_share
+belong: tables
 domain: 基线
 status: draft
 anchors: [tenant_setting_config_share]

@@ -2,6 +2,7 @@
 type: table
 title: CA服务费订单
 page_key: ca_fee_order
+belong: tables
 domain: 基线
 status: draft
 anchors: [ca_fee_order]

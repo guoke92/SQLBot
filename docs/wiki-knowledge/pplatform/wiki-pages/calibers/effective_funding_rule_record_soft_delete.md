@@ -2,6 +2,7 @@
 type: caliber
 title: 有效资方规则记录（软删除）
 page_key: effective_funding_rule_record_soft_delete
+belong: calibers
 domain: 资金方规则与异常解决
 status: published
 aliases:

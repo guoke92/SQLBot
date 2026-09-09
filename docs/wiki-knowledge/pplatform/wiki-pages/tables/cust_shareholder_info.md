@@ -2,6 +2,7 @@
 type: table
 title: 客户关联方信息主表
 page_key: cust_shareholder_info
+belong: tables
 domain: 基线
 status: draft
 anchors: [cust_shareholder_info]

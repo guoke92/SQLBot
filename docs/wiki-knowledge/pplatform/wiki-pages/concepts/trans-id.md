@@ -2,6 +2,7 @@
 type: concept
 title: 交易ID
 page_key: trans-id
+belong: concepts
 domain: 企业银行账户与第三方银行
 status: published
 aliases: ["transId", "trans_id", "originalTxSN"]

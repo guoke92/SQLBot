@@ -2,6 +2,7 @@
 type: concept
 title: 企业角色
 page_key: enterprise-role
+belong: concepts
 domain: 企业建档与准入
 status: published
 aliases: [客户角色, 公司类型]

@@ -2,6 +2,7 @@
 type: rule
 title: 验证码发送必需参数校验
 page_key: verify_code_send_required_params_validation
+belong: rules
 domain: 通知验证码短链与消息
 status: published
 aliases: []

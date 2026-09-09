@@ -2,6 +2,7 @@
 type: rule
 title: 合同签署验证码多笔限制
 page_key: contract_sign_verify_code_multi_limit
+belong: rules
 domain: 通知验证码短链与消息
 status: published
 aliases: []

@@ -2,6 +2,7 @@
 type: caliber
 title: 普通短链接
 page_key: normal_short_link
+belong: calibers
 domain: 通知验证码短链与消息
 status: published
 aliases: [普通短链]

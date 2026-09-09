@@ -2,6 +2,7 @@
 type: process
 title: funding_rule_info.rule_status 状态机
 page_key: funding_rule_info_rule_status
+belong: processes
 domain: 资金方规则与异常解决
 status: published
 aliases:

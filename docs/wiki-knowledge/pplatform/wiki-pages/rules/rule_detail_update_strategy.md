@@ -2,6 +2,7 @@
 type: rule
 title: 规则明细更新策略
 page_key: rule_detail_update_strategy
+belong: rules
 domain: 资金方规则与异常解决
 status: published
 aliases:

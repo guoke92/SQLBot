@@ -1,7 +1,8 @@
 ---
 type: rule
 title: 租户信息推送规则
-page_key: rules.tenant-info-push-rule
+page_key: tenant-info-push-rule
+belong: rules
 domain: tenant-config-operation-email
 status: published
 aliases: [租户信息推送规则, pushTenant]

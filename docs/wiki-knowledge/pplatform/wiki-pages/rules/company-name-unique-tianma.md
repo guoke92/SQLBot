@@ -2,6 +2,7 @@
 type: rule
 title: 企业名称唯一校验（天马渠道）
 page_key: company-name-unique-tianma
+belong: rules
 domain: 企业建档与准入
 status: published
 aliases: [企业名称唯一校验]

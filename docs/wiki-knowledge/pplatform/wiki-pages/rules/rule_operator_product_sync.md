@@ -1,0 +1,34 @@
+---
+type: rule
+title: 经办人产品维度推送
+page_key: rule_operator_product_sync
+belong: rules
+domain: customer
+status: published
+aliases: []
+oid: 1
+sources: []
+contract_version: "0.1"
+scope:
+  databases: [lowcode_pplatform]
+---
+
+该规则规定经办人同步时需根据关联的产品列表逐个推送。
+
+## 需求背景
+
+`syncOperUser` 根据 `sys_cust_user_rel` 记录的产品列表逐个调用 `operatorSyncService.put` 推送经办人信息。一个经办人关联多个业务系统时需逐产品同步。
+
+## 版本演进
+
+规则来自代码路径 `CustPersonApplication.sendProduct`，无文档声明冲突。
+
+```ground:rule
+name: 经办人产品维度推送
+content: "syncOperUser根据sys_cust_user_rel记录的产品列表逐个调用operatorSyncService.put推送经办人信息"
+impact: 一个经办人关联多个业务系统时需逐产品同步
+field_targets:
+  - "cust_person_info"
+  - "sys_cust_user_rel"
+evidence: "code_path:CustPersonApplication.sendProduct"
+```

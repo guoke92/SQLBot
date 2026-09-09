@@ -2,6 +2,7 @@
 type: table
 title: 客戶sftp信息
 page_key: cust_sftp
+belong: tables
 domain: 基线
 status: draft
 anchors: [cust_sftp]

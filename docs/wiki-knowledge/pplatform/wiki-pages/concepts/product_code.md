@@ -2,6 +2,7 @@
 type: concept
 title: 产品 code
 page_key: product_code
+belong: concepts
 domain: 资金方规则与异常解决
 status: published
 aliases:

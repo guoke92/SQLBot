@@ -2,6 +2,7 @@
 type: rule
 title: 每企业每角色类型仅一名管理员
 page_key: one-admin-per-company-role-type
+belong: rules
 domain: 客户角色与数据权限组织
 status: published
 aliases:

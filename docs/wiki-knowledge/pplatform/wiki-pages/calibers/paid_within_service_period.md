@@ -2,6 +2,7 @@
 type: caliber
 title: 服务期内已缴费
 page_key: paid_within_service_period
+belong: calibers
 domain: CA证书收费与订单
 status: published
 aliases: []

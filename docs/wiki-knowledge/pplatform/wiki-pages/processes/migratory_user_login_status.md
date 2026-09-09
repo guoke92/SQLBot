@@ -2,6 +2,7 @@
 type: process
 title: 迁移用户登录状态
 page_key: migratory_user_login_status
+belong: processes
 domain: 租户迁移
 status: published
 aliases: []

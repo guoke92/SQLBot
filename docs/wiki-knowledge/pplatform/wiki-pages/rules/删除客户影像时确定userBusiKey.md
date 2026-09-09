@@ -2,6 +2,7 @@
 type: rule
 title: 删除客户影像时确定userBusiKey
 page_key: 删除客户影像时确定userBusiKey
+belong: rules
 domain: 文件媒体与附件
 status: published
 aliases: []

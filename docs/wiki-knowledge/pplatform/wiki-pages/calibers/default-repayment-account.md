@@ -2,6 +2,7 @@
 type: caliber
 title: 默认还款账户
 page_key: default-repayment-account
+belong: calibers
 domain: 企业银行账户与第三方银行
 status: published
 aliases: ["默认账户", "default_account_flag"]

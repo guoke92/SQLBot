@@ -2,6 +2,7 @@
 type: caliber
 title: 未缴费企业
 page_key: unpaid_company
+belong: calibers
 domain: CA证书收费与订单
 status: published
 aliases: []

@@ -2,6 +2,7 @@
 type: rule
 title: 统一信用代码重复校验
 page_key: unified-credit-code-duplicate-check
+belong: rules
 domain: 企业建档与准入
 status: published
 aliases: [统一社会信用代码重复校验]

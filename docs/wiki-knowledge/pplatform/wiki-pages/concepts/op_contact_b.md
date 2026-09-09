@@ -1,7 +1,8 @@
 ---
 type: concept
 title: "运营对接人B"
-page_key: "concept/op_contact_b"
+page_key: op_contact_b
+belong: concepts
 domain: "tenant-project"
 status: published
 aliases: ["opContactB"]

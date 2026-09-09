@@ -2,6 +2,7 @@
 type: rule
 title: 台账编辑约束
 page_key: ledger_edit_constraint
+belong: rules
 domain: ca_cert_fee
 status: published
 aliases: []

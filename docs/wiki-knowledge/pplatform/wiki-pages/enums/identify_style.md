@@ -2,6 +2,7 @@
 type: enum
 title: identify_style
 page_key: identify_style
+belong: enums
 domain: 基线
 status: draft
 aliases: []

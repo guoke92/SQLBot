@@ -1,7 +1,8 @@
 ---
 type: rule
 title: 建档处理中错误识别
-page_key: rule/archive_processing_error_recognize
+page_key: archive_processing_error_recognize
+belong: rules
 domain: 支付宝蚂蚁档案与清算
 status: published
 aliases: []

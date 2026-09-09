@@ -2,6 +2,7 @@
 type: concept
 title: 参数 JSON
 page_key: 参数JSON
+belong: concepts
 domain: 异步任务与数据同步
 status: published
 aliases: ["bizArgsJson", "biz_args_json"]

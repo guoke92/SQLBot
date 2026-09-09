@@ -2,6 +2,7 @@
 type: enum
 title: rule_status
 page_key: rule_status
+belong: enums
 domain: 基线
 status: draft
 aliases: []

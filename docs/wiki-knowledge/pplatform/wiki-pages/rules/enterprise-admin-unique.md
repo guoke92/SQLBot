@@ -2,6 +2,7 @@
 type: rule
 title: 企业管理员唯一性
 page_key: enterprise-admin-unique
+belong: rules
 domain: 企业建档与准入
 status: published
 aliases: [管理员唯一性校验]

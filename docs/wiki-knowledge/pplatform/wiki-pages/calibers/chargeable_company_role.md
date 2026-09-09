@@ -2,6 +2,7 @@
 type: caliber
 title: 收费企业角色口径
 page_key: chargeable_company_role
+belong: calibers
 domain: ca_cert_fee
 status: published
 aliases: []

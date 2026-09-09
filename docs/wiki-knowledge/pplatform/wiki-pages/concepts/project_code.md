@@ -1,7 +1,8 @@
 ---
 type: concept
 title: "项目码"
-page_key: "concept/project_code"
+page_key: project_code
+belong: concepts
 domain: "tenant-project"
 status: published
 aliases: ["渠道码", "channelCode"]

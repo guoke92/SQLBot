@@ -2,6 +2,7 @@
 type: enum
 title: cust_type
 page_key: cust_type
+belong: enums
 domain: 基线
 status: draft
 aliases: []

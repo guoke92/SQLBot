@@ -2,6 +2,7 @@
 type: process
 title: argeement_migratory_record.status
 page_key: argeement_migratory_record_status
+belong: processes
 domain: 租户迁移
 status: published
 aliases: [协议迁移记录状态]

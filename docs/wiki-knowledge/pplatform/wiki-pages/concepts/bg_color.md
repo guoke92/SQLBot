@@ -1,7 +1,8 @@
 ---
 type: concept
 title: bg_color（背景颜色）
-page_key: concepts.bg_color
+page_key: bg_color
+belong: concepts
 domain: tenant-config-operation-email
 status: published
 aliases: [背景颜色, 灰度颜色]

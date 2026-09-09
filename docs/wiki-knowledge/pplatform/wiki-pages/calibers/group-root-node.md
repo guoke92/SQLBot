@@ -2,6 +2,7 @@
 type: caliber
 title: "集团根节点"
 page_key: group-root-node
+belong: calibers
 domain: 集团与关联关系
 status: published
 aliases: []

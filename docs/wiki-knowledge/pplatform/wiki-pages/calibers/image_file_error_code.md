@@ -1,7 +1,8 @@
 ---
 type: caliber
 title: 影像文件错误码口径
-page_key: caliber/image_file_error_code
+page_key: image_file_error_code
+belong: calibers
 domain: 支付宝蚂蚁档案与清算
 status: published
 aliases: []

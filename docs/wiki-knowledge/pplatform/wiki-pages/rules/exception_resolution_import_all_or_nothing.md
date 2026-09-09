@@ -2,6 +2,7 @@
 type: rule
 title: 异常解析导入全量校验通过才入库
 page_key: exception_resolution_import_all_or_nothing
+belong: rules
 domain: 资金方规则与异常解决
 status: published
 aliases:

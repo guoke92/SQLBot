@@ -2,6 +2,7 @@
 type: caliber
 title: 迁移用户未登录
 page_key: user_not_login
+belong: calibers
 domain: 租户迁移
 status: published
 aliases: []

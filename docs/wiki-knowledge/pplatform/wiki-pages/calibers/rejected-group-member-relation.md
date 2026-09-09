@@ -2,6 +2,7 @@
 type: caliber
 title: "已拒绝集团成员单位关系"
 page_key: rejected-group-member-relation
+belong: calibers
 domain: 集团与关联关系
 status: published
 aliases: []
