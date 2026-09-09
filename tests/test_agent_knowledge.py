@@ -382,7 +382,12 @@ def test_execute_sql_blocked_when_session_schema_missing() -> None:
     )
 
 
-def test_probe_sql_limit_rejects_third_call() -> None:
+def test_probe_sql_limit_soft_warns_instead_of_blocking() -> None:
+    """Over-budget probes still need a protocol/ds to run; budget note alone.
+
+    When schema/runtime cannot execute, the soft budget must not invent a
+    hard probe-limit failure — that was the chat-245 timeline false failure.
+    """
     run_id = "probe-limit"
     attach_runtime(run_id, probe_sql_calls=PROBE_SQL_LIMIT)
     llm = SimpleNamespace()
@@ -392,8 +397,42 @@ def test_probe_sql_limit_rejects_third_call() -> None:
     finally:
         detach_runtime(run_id)
     assert blocked["ok"] is False
-    assert str(PROBE_SQL_LIMIT) in (blocked.get("error") or "")
-    assert blocked["failure"]["retryable"] is False
+    err = blocked.get("error") or ""
+    assert "Probe SQL limit" not in err
+    assert "Datasource or protocol" in err
+    assert "probe_budget_exhausted" in err
+
+
+def test_display_sql_uses_protocol_formatter() -> None:
+    from apps.chat.tools.execute_sql import _display_sql
+
+    plan = SimpleNamespace(
+        payload={"sql": "SELECT 1\nFROM t"}, statement="SELECT 1 FROM t"
+    )
+
+    class _Proto:
+        def format_statement_for_display(self, p):  # noqa: ANN001
+            return "SELECT 1\nFROM t"
+
+    assert "\n" in _display_sql(_Proto(), plan, plan.statement)
+    assert _display_sql(SimpleNamespace(), plan, "fallback") == "fallback"
+
+
+def test_consume_probe_budget_advises_without_blocking() -> None:
+    from apps.chat.tools.execute_sql import _consume_probe_budget
+
+    run_id = "probe-soft"
+    attach_runtime(run_id, probe_sql_calls=0)
+    try:
+        with worker_scope(run_id, "tok"):
+            assert _consume_probe_budget(True) is None
+            assert _consume_probe_budget(False) is None  # 1/2
+            note = _consume_probe_budget(False)  # 2/2
+            assert note and "probe_budget" in note
+            over = _consume_probe_budget(False)  # 3rd
+            assert over and "probe_budget_exhausted" in over
+    finally:
+        detach_runtime(run_id)
 
 
 def test_kernel_conflicts_are_evidence_not_auto_cards() -> None:

@@ -104,6 +104,15 @@ class ExecuteSqlInput(BaseModel):
         default="",
         description="Short Chinese title for a delivery result, e.g. 企业清单. Empty for probes.",
     )
+    chart_type: str = Field(
+        default="",
+        description=(
+            "Required for delivery (required=true): table|line|bar|column|pie. "
+            "Use table for entity lists/detail dumps; line for trends; "
+            "bar/column for category comparison; pie for share-of-total. "
+            "Ignored for probes (required=false)."
+        ),
+    )
 
 
 class CompareResultsInput(BaseModel):
@@ -140,6 +149,7 @@ def build_agent_tools(
         limit: int = 1000,
         required: bool = True,
         result_title: str = "",
+        chart_type: str = "",
     ) -> dict[str, Any]:
         res = execute_sql_sandbox(
             llm_service,
@@ -148,6 +158,7 @@ def build_agent_tools(
             limit=limit,
             required=required,
             result_title=result_title,
+            chart_type=chart_type,
         )
         return dict(res)
 
@@ -199,7 +210,9 @@ def build_agent_tools(
             name="execute_sql_sandbox",
             description=(
                 "Safely execute a business SQL query against the datasource. "
-                "Do not use this to inspect catalogs (information_schema, SHOW COLUMNS, DESCRIBE). "
+                "For delivery (required=true), set chart_type to table|line|bar|column|pie "
+                "and a short result_title. Do not use this to inspect catalogs "
+                "(information_schema, SHOW COLUMNS, DESCRIBE). "
                 "If Wiki has not provided table/enum schema, do not call this tool."
             ),
             args_schema=ExecuteSqlInput,

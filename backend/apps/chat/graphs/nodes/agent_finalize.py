@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from datetime import date, datetime
 from typing import Any, cast
 
 from apps.chat.agent_copy import (
@@ -12,16 +11,16 @@ from apps.chat.agent_copy import (
     truncation_from_delivery_steps,
 )
 from apps.chat.caliber_surface import project_caliber_surface
-from apps.chat.graphs.nodes.nlq.audit import _record_snapshot_values
-from apps.chat.graphs.nodes.nlq.presentation import (
-    _maybe_update_chat_brief,
-    _table_chart,
+from apps.chat.chart_presentation import (
+    infer_chart_for_presentation,
+    resolve_delivery_chart,
 )
+from apps.chat.graphs.nodes.nlq.audit import _record_snapshot_values
+from apps.chat.graphs.nodes.nlq.presentation import _maybe_update_chat_brief
 from apps.chat.graphs.nodes.nlq.state import _llm_service
 from apps.chat.presentation import (
     ResultPresentation,
     build_result_presentation,
-    chart_columns,
 )
 from apps.conversation.outcome import failed_outcome, successful_outcome
 from apps.conversation.process_timeline import (
@@ -34,119 +33,12 @@ from apps.conversation.session import session_scope
 from apps.conversation.sink import StreamSink
 from common.utils.utils import SQLBotLogUtil
 
-
-def _is_numeric(value: Any) -> bool:
-    if isinstance(value, bool):
-        return False
-    if isinstance(value, int | float):
-        return True
-    if isinstance(value, str):
-        text = value.strip().replace(",", "")
-        if not text:
-            return False
-        try:
-            float(text)
-            return True
-        except ValueError:
-            return False
-    return False
-
-
-def _is_temporal(value: Any) -> bool:
-    if isinstance(value, datetime | date):
-        return True
-    if not isinstance(value, str) or len(value) < 8:
-        return False
-    text = value.strip().replace("Z", "+00:00")
-    try:
-        datetime.fromisoformat(text[:32])
-        return True
-    except ValueError:
-        return False
-
-
-def _numeric_samples(values: Sequence[Any]) -> list[float]:
-    out: list[float] = []
-    for item in values:
-        if isinstance(item, bool):
-            continue
-        if isinstance(item, int | float):
-            out.append(float(item))
-            continue
-        if isinstance(item, str):
-            text = item.strip().replace(",", "")
-            if not text:
-                continue
-            try:
-                out.append(float(text))
-            except ValueError:
-                continue
-    return out
-
-
-def _looks_like_identifier(values: Sequence[Any]) -> bool:
-    """True for PK/snowflake/credit-code style numbers — not chart measures.
-
-    Chart Y needs an aggregable measure. A column that is effectively unique per
-    row (entity id) must not drive line/bar charts, even when parseable as float.
-    """
-    nums = _numeric_samples(values)
-    if len(nums) < 2:
-        return False
-    unique_ratio = len({round(item, 12) for item in nums}) / len(nums)
-    if unique_ratio < 0.9:
-        return False
-    all_integral = all(abs(item - round(item)) < 1e-9 for item in nums)
-    if not all_integral:
-        return False
-    # Snowflake / large surrogate keys.
-    if any(abs(item) >= 1e12 for item in nums):
-        return True
-    # Near-unique integer codes in a multi-row sample (e.g. 统一信用代码).
-    return len(nums) >= 3
-
-
-def _column_kinds(
-    fields: Sequence[str], rows: Sequence[Mapping[str, Any]]
-) -> tuple[list[str], list[str], list[str]]:
-    """Classify columns into temporal / measure / categorical.
-
-    ``measure`` excludes identifier-like numerics so entity listings stay tables.
-    """
-    temporal: list[str] = []
-    measures: list[str] = []
-    categorical: list[str] = []
-    sample = list(rows)[:40]
-    for field in fields:
-        values = [
-            row.get(field)
-            for row in sample
-            if isinstance(row, Mapping) and row.get(field) is not None
-        ]
-        if not values:
-            categorical.append(field)
-            continue
-        temporal_hits = sum(1 for item in values if _is_temporal(item))
-        numeric_hits = sum(1 for item in values if _is_numeric(item))
-        n = len(values)
-        if temporal_hits >= max(1, n * 0.6):
-            temporal.append(field)
-        elif numeric_hits >= max(1, n * 0.6):
-            if _looks_like_identifier(values):
-                categorical.append(field)
-            else:
-                measures.append(field)
-        else:
-            categorical.append(field)
-    return temporal, measures, categorical
-
-
-def _chart_axis(x_col: Mapping[str, Any], y_col: Mapping[str, Any]) -> dict[str, Any]:
-    """Axis contract: omit series unless a real series column exists."""
-    return {
-        "x": {"name": x_col["name"], "value": x_col["value"]},
-        "y": {"name": y_col["name"], "value": y_col["value"]},
-    }
+# Re-export for tests / callers that historically imported from here.
+__all__ = [
+    "finalize_agent_turn_node",
+    "infer_chart_for_presentation",
+    "select_delivery_datasets",
+]
 
 
 def _dataset_row_count(item: Any) -> int:
@@ -179,67 +71,6 @@ def select_delivery_datasets(datasets: Sequence[Any]) -> list[Any]:
     if any(_dataset_row_count(item) > 0 for item in candidates):
         return [item for item in candidates if _dataset_row_count(item) > 0]
     return list(candidates[-1:]) if candidates else []
-
-
-def infer_chart_for_presentation(
-    presentation: ResultPresentation,
-    fields: list[str],
-    rows: list[dict[str, Any]],
-    *,
-    instance_id: int = 0,
-) -> dict[str, Any]:
-    """Infer chart type from value kinds; identifiers are not measures.
-
-    Entity / detail listings (time + id + many attributes) stay as ``table``.
-    Line/bar require a real aggregable measure column.
-    """
-    if not rows or len(fields) < 2:
-        tbl = _table_chart(presentation)
-        tbl["instance_id"] = instance_id
-        return tbl
-
-    cols = chart_columns(presentation)
-    col_by_field = {str(col.get("value") or col.get("name")): col for col in cols}
-    temporal_fields, measure_fields, categorical_fields = _column_kinds(fields, rows)
-
-    if temporal_fields and measure_fields and len(rows) > 1:
-        x_col = col_by_field.get(temporal_fields[0]) or cols[0]
-        y_col = col_by_field.get(measure_fields[0]) or cols[-1]
-        return {
-            "type": "line",
-            "title": presentation["title"],
-            "columns": cols,
-            "xAxis": x_col["value"],
-            "yAxis": y_col["value"],
-            "axis": _chart_axis(x_col, y_col),
-            "config": {
-                "xField": x_col["value"],
-                "yField": y_col["value"],
-                "smooth": True,
-            },
-            "instance_id": instance_id,
-        }
-
-    if measure_fields and categorical_fields and 1 < len(rows) <= 30:
-        x_col = col_by_field.get(categorical_fields[0]) or cols[0]
-        y_col = col_by_field.get(measure_fields[0]) or cols[-1]
-        return {
-            "type": "bar",
-            "title": presentation["title"],
-            "columns": cols,
-            "xAxis": x_col["value"],
-            "yAxis": y_col["value"],
-            "axis": _chart_axis(x_col, y_col),
-            "config": {
-                "xField": x_col["value"],
-                "yField": y_col["value"],
-            },
-            "instance_id": instance_id,
-        }
-
-    tbl = _table_chart(presentation)
-    tbl["instance_id"] = instance_id
-    return tbl
 
 
 def _assumptions_from_slots(memory_slots: Mapping[str, Any]) -> list[dict[str, Any]]:
@@ -287,11 +118,18 @@ def finalize_agent_turn_node(state: Mapping[str, Any]) -> dict[str, Any]:
         snapshot = dict(dataset.schema_snapshot or {})
         sql = str(snapshot.get("sql") or "")
         result_title = str(snapshot.get("result_title") or "").strip()
+        suggested = str(snapshot.get("chart_type") or "").strip()
         pres = build_result_presentation(
             fields, title=result_title, schema_text=schema_txt
         )
-        chart = infer_chart_for_presentation(
-            cast(ResultPresentation, pres), fields, rows, instance_id=index
+        chart = resolve_delivery_chart(
+            presentation=cast(ResultPresentation, pres),
+            fields=fields,
+            rows=rows,
+            suggested_type=suggested,
+            sql=sql,
+            llm_service=llm_service,
+            instance_id=index,
         )
         samples = preview_rows(rows, limit=PREVIEW_ROW_LIMIT)
         value_labels = snapshot.get("value_labels") or {}
@@ -351,11 +189,18 @@ def finalize_agent_turn_node(state: Mapping[str, Any]) -> dict[str, Any]:
             )
             idx = len(all_steps)
             result_title = str(data.get("result_title") or "").strip()
+            suggested = str(data.get("chart_type") or "").strip()
             pres = build_result_presentation(
                 fields, title=result_title, schema_text=schema_txt
             )
-            chart = infer_chart_for_presentation(
-                cast(ResultPresentation, pres), fields, samples, instance_id=idx
+            chart = resolve_delivery_chart(
+                presentation=cast(ResultPresentation, pres),
+                fields=fields,
+                rows=[dict(r) for r in samples if isinstance(r, Mapping)],
+                suggested_type=suggested,
+                sql=sql,
+                llm_service=llm_service,
+                instance_id=idx,
             )
             truncated = bool(data.get("truncated"))
             value_labels = (

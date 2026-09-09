@@ -826,6 +826,7 @@ def upsert_result_dataset(
     limit: int | None = None,
     required: bool = True,
     result_title: str = "",
+    chart_type: str = "",
 ) -> None:
     """Persist the row store without requiring a query_run planning row."""
     if not run_id:
@@ -853,6 +854,9 @@ def upsert_result_dataset(
         title = str(result_title or "").strip()
         if title:
             snapshot["result_title"] = title
+        chart = str(chart_type or "").strip().lower()
+        if chart:
+            snapshot["chart_type"] = chart
         if value_labels:
             snapshot["value_labels"] = {
                 str(field): {str(raw): str(label) for raw, label in mapping.items()}

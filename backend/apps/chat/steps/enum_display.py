@@ -1,8 +1,9 @@
 """Single display projection for wiki-backed enum value labels.
 
-Query result cells are translated here once — before they enter result_dataset
-or TurnAnswer preview — so row-store APIs, Excel export, and the chat table
-share one projection. Raw codes stay recoverable via returned value_labels.
+Delivery / UI surfaces (result_dataset rows, TurnAnswer preview, Excel) may
+translate codes → labels here once. Agent-facing tool payloads must keep raw
+codes so the model can write accurate SQL filters; attach ``value_labels`` as
+metadata when a display projection exists, never mutate probe samples.
 """
 
 from __future__ import annotations

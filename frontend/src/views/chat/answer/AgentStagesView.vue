@@ -214,11 +214,15 @@ function thoughtPlain(item: ProcessItem): string {
 }
 
 function toolSql(block: Extract<NarrativeBlock, { type: 'tool' }>): string {
-  const fromArtifact = block.artifacts.find((item) => item.artifact?.sql)?.artifact?.sql
-  if (fromArtifact) return fromArtifact
+  // Prefer tool args (model-authored, usually multi-line) when artifact SQL was
+  // flattened by execution rewrite; otherwise use the artifact display SQL.
   const args = block.item.tool?.args
-  if (args && typeof args.sql === 'string') return args.sql
-  return ''
+  const fromArgs = args && typeof args.sql === 'string' ? args.sql : ''
+  const fromArtifact = block.artifacts.find((item) => item.artifact?.sql)?.artifact?.sql || ''
+  if (fromArgs.includes('\n') && !String(fromArtifact).includes('\n')) {
+    return fromArgs
+  }
+  return fromArtifact || fromArgs
 }
 
 function previewRows(block: Extract<NarrativeBlock, { type: 'tool' }>) {

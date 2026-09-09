@@ -56,3 +56,90 @@ def test_apply_wiki_enum_labels_translates_and_returns_map(monkeypatch) -> None:
     )
     assert rows == [{"status": "平台录入"}]
     assert labels == {"status": {"AGW": "平台录入"}}
+
+
+def test_execute_sql_probe_keeps_raw_enum_codes(monkeypatch) -> None:
+    """Probes must not translate enums in tool samples or result_dataset rows."""
+    from apps.chat.tools import execute_sql as mod
+
+    class _QR:
+        data = [
+            {"pay_status": None, "cnt": 7},
+            {"pay_status": "PAID", "cnt": 14},
+            {"pay_status": "UNPAID", "cnt": 284},
+        ]
+        fields = ["pay_status", "cnt"]
+        truncated = False
+
+    class _Plan:
+        success = True
+        statement = "SELECT pay_status, COUNT(*) AS cnt FROM ca_fee_company GROUP BY pay_status"
+        message = ""
+        payload = {"sql": statement}
+
+    class _Proto:
+        def parse_candidate_payload(self, _payload):  # noqa: ANN001
+            return _Plan()
+
+        def execute(self, *_a, **_k):  # noqa: ANN001
+            return _QR()
+
+        def format_statement_for_display(self, plan):  # noqa: ANN001
+            return plan.statement
+
+    captured: dict = {}
+    label_calls = {"n": 0}
+
+    def _upsert(**kwargs):  # noqa: ANN001
+        captured.update(kwargs)
+
+    def _label(**kwargs):  # noqa: ANN001
+        label_calls["n"] += 1
+        return (
+            [
+                {"pay_status": None, "cnt": 7},
+                {"pay_status": "已缴费", "cnt": 14},
+                {"pay_status": "未缴费", "cnt": 284},
+            ],
+            {"pay_status": {"PAID": "已缴费", "UNPAID": "未缴费"}},
+        )
+
+    monkeypatch.setattr(mod, "upsert_result_dataset", _upsert)
+    monkeypatch.setattr(mod, "current_worker_identity", lambda: ("run-probe-enum", None))
+    monkeypatch.setattr(mod, "_schema_ready", lambda: None)
+    monkeypatch.setattr(mod, "_reject_enum_discovery", lambda *_a, **_k: None)
+    monkeypatch.setattr(mod, "_consume_probe_budget", lambda *_a, **_k: None)
+    monkeypatch.setattr(mod, "apply_wiki_enum_labels", _label)
+    monkeypatch.setattr(mod, "apply_result_window", lambda **_k: (False, None))
+    monkeypatch.setattr(mod, "resolve_exec_row_limit", lambda *_a, **_k: 1000)
+
+    llm = SimpleNamespace(protocol=_Proto(), ds=SimpleNamespace(id=15, type="mysql"))
+    res = mod.execute_sql_sandbox(
+        llm,
+        "SELECT pay_status, COUNT(*) AS cnt FROM ca_fee_company GROUP BY pay_status",
+        required=False,
+    )
+    assert res.get("ok") is True
+    assert label_calls["n"] == 0
+    samples = res["data"]["sample_rows"]
+    assert samples[1]["pay_status"] == "PAID"
+    assert samples[2]["pay_status"] == "UNPAID"
+    assert "value_labels" not in res["data"]
+    assert captured["rows"][1]["pay_status"] == "PAID"
+    assert not captured.get("value_labels")
+
+    # Delivery still projects labels into the row store for UI, but tool samples stay raw.
+    captured.clear()
+    label_calls["n"] = 0
+    res2 = mod.execute_sql_sandbox(
+        llm,
+        "SELECT pay_status, COUNT(*) AS cnt FROM ca_fee_company GROUP BY pay_status",
+        required=True,
+        result_title="缴费分布",
+        chart_type="table",
+    )
+    assert res2.get("ok") is True
+    assert label_calls["n"] == 1
+    assert res2["data"]["sample_rows"][1]["pay_status"] == "PAID"
+    assert res2["data"]["value_labels"]["pay_status"]["PAID"] == "已缴费"
+    assert captured["rows"][1]["pay_status"] == "已缴费"

@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import 'highlight.js/styles/github.min.css'
-import 'github-markdown-css/github-markdown-light.css'
 import hljs from 'highlight.js'
 
 const props = defineProps<{
@@ -28,19 +27,30 @@ const highlighted = computed(() => {
 </script>
 
 <template>
-  <pre class="hljs">
-    <div v-dompurify-html="highlighted"></div>
-  </pre>
+  <!-- Use <code> (not a block <div>) so newlines from the source SQL stay visible. -->
+  <pre class="sql-component hljs"><code v-dompurify-html="highlighted"></code></pre>
 </template>
 
-<style lang="less">
-.hljs {
+<style lang="less" scoped>
+.sql-component.hljs {
   overflow: auto;
   padding: 1rem;
   display: block;
-
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
   background: rgba(245, 246, 247, 1);
   border: 1px solid rgba(222, 224, 227, 1);
   border-radius: 6px;
+  font-size: 13px;
+  line-height: 1.5;
+
+  code {
+    display: block;
+    white-space: inherit;
+    background: transparent;
+    padding: 0;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  }
 }
 </style>
