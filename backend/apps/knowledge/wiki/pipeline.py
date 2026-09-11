@@ -233,7 +233,9 @@ def make_plan(
     return payload
 
 
-# ── Step D/E/F：按单元穿透 + 对账 + 写入 ────────────────────────────────────
+def _run_dir(out_dir: Path, topic: str) -> Path:
+    """Topic 可含 '/'（计划用业务名），落盘必须单层目录否则 _done 断点失效。"""
+    return out_dir / ".runs" / topic.replace("/", "-")
 
 
 def _normalize_page(content: str) -> str:
@@ -440,8 +442,17 @@ def run_unit(
         reqdoc_root=reqdoc_root,
         unit=unit,
     )
-    topic_dir = out_dir / ".runs" / unit["topic"]
+    topic_dir = _run_dir(out_dir, unit["topic"])
     topic_dir.mkdir(parents=True, exist_ok=True)
+    gen_text = str(result.get("generation") or "")
+    if gen_text:
+        (topic_dir / "_generation.md").write_text(gen_text[:80000], encoding="utf-8")
+    analysis = result.get("analysis")
+    if analysis:
+        (topic_dir / "_analysis.yaml").write_text(
+            yaml.safe_dump(analysis, allow_unicode=True, sort_keys=False)[:80000],
+            encoding="utf-8",
+        )
     accepted = rejected = reviews = dropped_blocks = 0
     for fname, content in result["pages"]:
         content = _normalize_page(content)  # concept 锚点提升（纯代码归一化）
@@ -555,7 +566,7 @@ def run_plan(
     todo = [
         u
         for u in units
-        if not (out_dir / ".runs" / u["topic"] / "_done").exists()
+        if not (_run_dir(out_dir, u["topic"]) / "_done").exists()
         or (only and u["topic"] in only)
     ]
     print(f"待穿透单元 {len(todo)}/{len(units)}", flush=True)
@@ -569,7 +580,7 @@ def run_plan(
             out_dir=out_dir,
             unit=unit,
         )
-        (out_dir / ".runs" / unit["topic"] / "_done").write_text("done")
+        (_run_dir(out_dir, unit["topic"]) / "_done").write_text("done")
     from apps.knowledge.wiki.baseline import rebuild_index
 
     rebuild_index(out_dir)

@@ -35,6 +35,10 @@ _DEFAULT_MIN_VECTOR = 0.28
 _DEFAULT_MIN_LEXICAL = 0.30
 # business 模式单页正文摘要上限（剔除围栏后的散文）；0 = 不截断
 _DEFAULT_PROSE_CHARS = 400
+# 对写 SQL 无增益的编辑段：剥掉后再截断，避免演进草稿挤掉业务定义
+_EDITORIAL_H2_TITLES = ("需求背景", "版本演进", "关联表")
+_WIKILINK_RE = re.compile(r"\[\[[^\]]+\]\]")
+_RELATED_JUNK_RE = re.compile(r"[·,，、;；|/\s\-—–]+")
 
 # Temporary: admit draft so unpublished baseline table/enum pages can flow.
 # Retired stays out. Re-tighten to published-only after corpus promotion.
@@ -62,7 +66,7 @@ class RenderedPassage:
     page_key: str
     title: str
     score: float
-    source: Literal["lexical", "graph", "vector"]
+    source: Literal["lexical", "graph", "vector", "pinned"]
     related_to: tuple[str, ...]
     text: str
     # 原始通道信号（过滤决策依据；RRF 融合分 score 不是相似度，
@@ -318,16 +322,36 @@ def _graph_quota(limit: int, vector_hits: int) -> int:
     return max(1, min(int(limit * ratio + 0.999), limit - 1))
 
 
+def _is_editorial_h2(stripped: str) -> bool:
+    if not stripped.startswith("## "):
+        return False
+    title = stripped[3:].strip()
+    return any(
+        title == heading or title.startswith(heading)
+        for heading in _EDITORIAL_H2_TITLES
+    )
+
+
+def _is_related_link_line(stripped: str) -> bool:
+    """尾链 / 相关页：对写 SQL 无增益，business 渲染默认丢掉。"""
+    if stripped.startswith("相关"):
+        return True
+    if "[[" not in stripped:
+        return False
+    leftover = _RELATED_JUNK_RE.sub("", _WIKILINK_RE.sub("", stripped))
+    return not leftover
+
+
 def _prose_summary(page: WikiPage, *, max_chars: int) -> str:
-    """页面正文摘要：剔除 ground 围栏与「关联表」节后的散文（按页封顶）。
+    """页面正文摘要：剔除围栏、编辑段、相关链接与重复 H1 后的散文（按页封顶）。
 
     business 模式的核心变化：表结构由 WikiSchemaRenderer 在 schema 段权威
     渲染（含枚举 label 内联/关系行），passage 不再重复字段清单——这里只
     承载 schema 给不了的「业务表述/口径散文」。枚举 values 块保留（翻译
-    与澄清的依据）。"""
+    与澄清的依据）；口径谓词由 ``_caliber_predicate_block`` 回注。"""
     lines: list[str] = []
     in_fence = False
-    in_relations = False
+    skip_section = False
     for line in page.body.splitlines():
         stripped = line.strip()
         if stripped.startswith("```"):
@@ -335,20 +359,49 @@ def _prose_summary(page: WikiPage, *, max_chars: int) -> str:
             continue
         if in_fence:
             continue
-        if stripped == "## 关联表":
-            in_relations = True
+        if stripped.startswith("## "):
+            skip_section = _is_editorial_h2(stripped)
+            if skip_section:
+                continue
+        if skip_section:
             continue
-        if in_relations and stripped.startswith("## "):
-            in_relations = False
-        if in_relations:
+        if stripped.startswith("# ") and not stripped.startswith("## "):
+            # 标题由 _render header 唯一产出，正文里的重复 H1 不再进 prompt
             continue
-        if not stripped:
+        if not stripped or _is_related_link_line(stripped):
             continue
         lines.append(line)
     text = "\n".join(lines).strip()
-    if len(text) > max_chars:
+    if max_chars > 0 and len(text) > max_chars:
         text = text[:max_chars].rstrip() + "…"
     return text
+
+
+def _caliber_predicate_block(page: WikiPage) -> str:
+    """剥 fence 后回注紧凑 ``ground:caliber``（仅 name + predicate）。"""
+    blocks: list[str] = []
+    for anchor in page.ground_blocks:
+        if anchor.kind != "caliber":
+            continue
+        data = anchor.data or {}
+        name = str(data.get("name") or "").strip()
+        raw_pred = data.get("predicate")
+        if isinstance(raw_pred, list):
+            predicate = " AND ".join(
+                " ".join(str(item).split()) for item in raw_pred if str(item).strip()
+            )
+        else:
+            predicate = " ".join(str(raw_pred or "").split())
+        if not name and not predicate:
+            continue
+        lines = ["```ground:caliber"]
+        if name:
+            lines.append(f"name: {name}")
+        if predicate:
+            lines.append(f"predicate: {predicate}")
+        lines.append("```")
+        blocks.append("\n".join(lines))
+    return "\n\n".join(blocks)
 
 
 def _enum_values_block(page: WikiPage) -> str:
@@ -408,6 +461,9 @@ def _render(  # noqa: PLR0911
         prose = _prose_summary(page, max_chars=effective_prose)
         if prose:
             parts.append(prose)
+        caliber_block = _caliber_predicate_block(page)
+        if caliber_block:
+            parts.append(caliber_block)
         enum_block = _enum_values_block(page)
         if enum_block:
             parts.append(enum_block)
@@ -689,6 +745,42 @@ def recall(
         alias_top=semantic_alias,
     )
     return passages
+
+
+def render_page_passage(
+    store: InMemoryWikiStore,
+    key: str,
+    *,
+    databases: list[str] | None = None,
+    source_note: str = "",
+    mode: Literal["business", "physical"] = "business",
+) -> RenderedPassage | None:
+    """Render one page by key outside the ranked window (pinned passage).
+
+    Same ``_render`` as the recall window — the single business rendering —
+    so rehydrated prior-turn pages and auto-pinned enum pages look identical
+    to recalled ones. Respects the ``databases`` fence; unknown key → None.
+    """
+    page = store.get_page(str(key or ""))
+    if page is None:
+        return None
+    names = [str(name) for name in (databases or []) if str(name).strip()]
+    if not store._fenced(page, databases=names):
+        return None
+    chunks = store.chunks.get(page.store_key) or []
+    if not chunks:
+        return None
+    anchor_chunk = next((c for c in chunks if "```ground:" in c.text), chunks[0])
+    return RenderedPassage(
+        page_key=page.page_key,
+        title=page.title,
+        score=0.0,
+        source="pinned",
+        related_to=(),
+        text=_render(page, anchor_chunk, source_note=source_note, mode=mode),
+        store_key=page.store_key,
+        belong=page.belong,
+    )
 
 
 def _pin_keys_into_window(

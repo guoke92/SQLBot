@@ -70,6 +70,9 @@ class AnswerBase(BaseModel):
     confirmed_calibers: tuple[dict[str, Any], ...] = ()
     # System-chosen constraints the user did not explicitly confirm.
     assumptions: tuple[dict[str, Any], ...] = ()
+    # Knowledge working set of this turn, keys only (``{page_keys, tables}``);
+    # continuation turns rehydrate from the wiki store, never from stored text.
+    knowledge_refs: dict[str, Any] | None = None
     quality: dict[str, Any] | None = None
     error: AnswerError | None = None
 

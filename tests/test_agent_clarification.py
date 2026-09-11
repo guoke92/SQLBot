@@ -126,7 +126,7 @@ def test_wiki_primary_prompt_assembly():
             "knowledge_text": "# 客户信息主表\n判定规则：cust_build_status = 'BUILD_SUCCESS'",
             "schema_text": (
                 "## 认证信息 (ca_certification_info)\n"
-                "(cust_build_status:varchar, 建档状态)"
+                "cust_build_status:varchar, 建档状态"
             ),
             "tables": ["ca_certification_info"],
             "page_keys": ["cust-main"],

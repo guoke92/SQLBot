@@ -173,14 +173,189 @@ def _docs_from_schema_vector(
 
 
 def _pick_tables(
-    scored: list[dict[str, Any]], *, table_limit: int
+    scored: list[dict[str, Any]],
+    *,
+    table_limit: int,
+    pinned_tables: list[str] | None = None,
 ) -> list[str]:
     from apps.knowledge.recall_kernel.tables import resolve_schema_vector_tables
 
     return [
         item.name
-        for item in resolve_schema_vector_tables(scored, table_limit=table_limit)
+        for item in resolve_schema_vector_tables(
+            scored, table_limit=table_limit, pinned_tables=pinned_tables
+        )
     ]
+
+
+def _catalog_table_names(
+    session: Session, *, ds_id: int, allowed: set[str] | None
+) -> list[str]:
+    tables = list(
+        session.exec(
+            select(CoreTable).where(
+                CoreTable.ds_id == ds_id,
+                CoreTable.checked == True,  # noqa: E712
+            )
+        ).all()
+    )
+    names: list[str] = []
+    for table in tables:
+        name = str(table.table_name or "").strip()
+        if not name:
+            continue
+        if allowed is not None and name not in allowed:
+            continue
+        names.append(name)
+    return names
+
+
+def _table_score_map(scored: list[dict[str, Any]]) -> dict[str, float]:
+    ranked: dict[str, float] = {}
+    for doc in scored:
+        kind = str(doc.get("kind") or "")
+        score = float(doc.get("score") or 0.0)
+        names = [
+            str(doc.get("table_name") or "").strip(),
+            str(doc.get("peer_table") or "").strip() if kind == "relation" else "",
+        ]
+        for name in names:
+            if name:
+                ranked[name] = max(ranked.get(name, 0.0), score)
+    return ranked
+
+
+def _confirmed_expand_edges(
+    session: Session, *, ds_id: int, seed_tables: set[str]
+) -> list[tuple[str, str]]:
+    """Undirected confirmed equi/hierarchy edges touching any seed table."""
+    if not seed_tables:
+        return []
+    try:
+        from apps.datasource.profiling.models import RelationKind, RelationStatus
+        from apps.datasource.profiling.service import get_published_relations
+
+        tables = list(
+            session.exec(
+                select(CoreTable).where(
+                    CoreTable.ds_id == ds_id,
+                    CoreTable.checked == True,  # noqa: E712
+                )
+            ).all()
+        )
+        name_by_id = {
+            int(table.id): str(table.table_name)
+            for table in tables
+            if table.id is not None and table.table_name
+        }
+        published = get_published_relations(
+            session,
+            ds_id=ds_id,
+            statuses=[RelationStatus.CONFIRMED.value],
+        )
+        edges: list[tuple[str, str]] = []
+        seen: set[tuple[str, str]] = set()
+        for row in published:
+            if row.kind not in (
+                RelationKind.EQUI_JOIN.value,
+                RelationKind.HIERARCHY.value,
+            ):
+                continue
+            left = name_by_id.get(int(row.source_table_id)) or ""
+            right = name_by_id.get(int(row.target_table_id)) or ""
+            if not left or not right or left == right:
+                continue
+            if left not in seed_tables and right not in seed_tables:
+                continue
+            key = (left, right) if left < right else (right, left)
+            if key in seen:
+                continue
+            seen.add(key)
+            edges.append(key)
+        return edges
+    except Exception as exc:
+        SQLBotLogUtil.warning("schema vector confirmed expand skipped: %s", exc)
+        return []
+
+
+def _naming_expand_edges(
+    session: Session,
+    *,
+    ds_id: int,
+    seed_tables: set[str],
+    catalog_names: set[str],
+    query: str,
+    scores: dict[str, float],
+) -> list[tuple[str, str]]:
+    """1-hop peers from ``*_id`` / ``ref_*`` columns on seed tables.
+
+    Peers must exist in the datasource catalog. When the FK field name/comment
+    hits the query, bump the peer cosine score so dimension tables surface
+    ahead of incidental user/audit FKs (type-driven, no business names).
+    """
+    if not seed_tables or not catalog_names:
+        return []
+    from apps.chat.steps.wiki_schema import _query_hits_field, resolve_fk_peer_table
+
+    tables = list(
+        session.exec(
+            select(CoreTable).where(
+                CoreTable.ds_id == ds_id,
+                CoreTable.checked == True,  # noqa: E712
+                CoreTable.table_name.in_(list(seed_tables)),
+            )
+        ).all()
+    )
+    id_by_name = {
+        str(table.table_name): int(table.id)
+        for table in tables
+        if table.id is not None and table.table_name
+    }
+    if not id_by_name:
+        return []
+    fields = list(
+        session.exec(
+            select(CoreField).where(
+                CoreField.ds_id == ds_id,
+                CoreField.checked == True,  # noqa: E712
+                CoreField.table_id.in_(list(id_by_name.values())),
+            )
+        ).all()
+    )
+    by_table: dict[str, list[CoreField]] = {name: [] for name in id_by_name}
+    name_by_id = {tid: name for name, tid in id_by_name.items()}
+    for field in fields:
+        table_name = name_by_id.get(int(field.table_id))
+        if table_name:
+            by_table[table_name].append(field)
+    edges: list[tuple[str, str]] = []
+    seen: set[tuple[str, str]] = set()
+    queries = [query] if str(query or "").strip() else []
+    for table_name, cols in by_table.items():
+        for field in cols:
+            fname = str(field.field_name or "").strip()
+            peer = resolve_fk_peer_table(fname, catalog_names)
+            if not peer or peer == table_name:
+                continue
+            comment = str(
+                getattr(field, "custom_comment", None) or field.field_comment or ""
+            )
+            query_hit = bool(queries and _query_hits_field(fname, comment, queries))
+            peer_scored = float(scores.get(peer, 0.0)) > 0.0
+            # Naming FKs are plentiful (creator/updater/…). Only expand when
+            # the peer itself has a vector signal or the FK field hits the query.
+            if not peer_scored and not query_hit:
+                continue
+            if query_hit:
+                scores[peer] = max(
+                    scores.get(peer, 0.0), scores.get(table_name, 0.0) + 1.0
+                )
+            key = (table_name, peer) if table_name < peer else (peer, table_name)
+            if key in seen:
+                continue
+            seen.add(key)
+            edges.append(key)
+    return edges
 
 
 def _live_tables_map(
@@ -276,6 +451,7 @@ def _render_schema(
     *,
     llm_service: Any,
     table_names: list[str],
+    peer_catalog: list[str] | None = None,
 ) -> tuple[str, list[str]]:
     from apps.knowledge.recall_kernel.render import render_schema
 
@@ -290,6 +466,7 @@ def _render_schema(
     schema = render_schema(
         kept,
         live_tables=live,
+        peer_catalog=peer_catalog or kept,
         confirmed_relations=relations,
     )
     return schema, kept
@@ -360,6 +537,9 @@ def _relation_block(session: Session, *, ds_id: int, table_names: list[str]) -> 
             dst_f = field_map.get(int(rel.target_field_id)) or ""
             if not (src_t and dst_t and src_f and dst_f):
                 continue
+            # Both ends must be in the working set to emit a confirmed JOIN.
+            if src_t not in id_by_name or dst_t not in id_by_name:
+                continue
             lines.append(f"{src_t}.{src_f}={dst_t}.{dst_f}\n")
         if len(lines) == 1:
             return ""
@@ -375,13 +555,26 @@ def recall_schema_context(
     *,
     access_scope: Any = None,
     table_limit: int = 4,
+    total_limit: int | None = None,
+    pinned_tables: list[str] | None = None,
     session: Session | None = None,
 ) -> dict[str, Any]:
     """Rank ``schema_vector`` docs for ``query`` and render local catalog text.
 
     Sole schema-fallback store — does not read ``CoreTable.embedding``.
     Never queries the business datasource for sample rows.
+
+    After cosine seed pick (``table_limit``), expands one hop via confirmed
+    ``field_relation`` edges and naming-convention FKs up to ``total_limit``
+    so dimension peers (e.g. org tables behind ``*_id``) are not dropped
+    solely because their table cosine ranked below the seed cutoff.
     """
+    from apps.knowledge.recall_kernel.tables import (
+        expand_schema_working_set,
+        resolve_schema_vector_tables,
+    )
+    from apps.knowledge.recall_kernel.types import RecallBudget
+
     empty = {
         "knowledge_text": "",
         "tables": [],
@@ -389,6 +582,8 @@ def recall_schema_context(
         "backend": "schema_vector",
         "page_keys": [],
         "hit_count": 0,
+        "table_evidence": {},
+        "query": str(query or "").strip(),
     }
     ds = getattr(llm_service, "ds", None)
     ds_id = getattr(ds, "id", None)
@@ -397,6 +592,9 @@ def recall_schema_context(
         return empty
     if not settings.TABLE_EMBEDDING_ENABLED:
         return empty
+    budget = RecallBudget.from_settings()
+    seed_limit = max(1, int(table_limit))
+    expand_limit = max(seed_limit, int(total_limit or budget.max_tables_total))
 
     def _run(sess: Session) -> dict[str, Any]:
         allowed = _allowed_tables(access_scope)
@@ -408,11 +606,11 @@ def recall_schema_context(
         if not stored:
             return empty
         query_embedding = EmbeddingModelCache.embed_query(clean)
-        field_budget = max(int(table_limit) * 3, int(settings.TABLE_EMBEDDING_COUNT))
+        field_budget = max(int(seed_limit) * 3, int(settings.TABLE_EMBEDDING_COUNT))
         table_hits = _score_docs(
             [doc for doc in stored if doc.get("kind") == KIND_TABLE],
             query_embedding,
-            top_count=max(int(table_limit), int(settings.TABLE_EMBEDDING_COUNT)),
+            top_count=max(int(seed_limit), int(settings.TABLE_EMBEDDING_COUNT)),
         )
         field_hits = _score_docs(
             [doc for doc in stored if doc.get("kind") == KIND_FIELD],
@@ -422,17 +620,54 @@ def recall_schema_context(
         relation_hits = _score_docs(
             [doc for doc in stored if doc.get("kind") == KIND_RELATION],
             query_embedding,
-            top_count=max(int(table_limit), 4),
+            top_count=max(int(seed_limit), 4),
         )
-        names = _pick_tables(
-            [*table_hits, *field_hits, *relation_hits],
-            table_limit=max(int(table_limit), 4),
+        scored = [*table_hits, *field_hits, *relation_hits]
+        seeds = resolve_schema_vector_tables(
+            scored,
+            table_limit=seed_limit,
+            pinned_tables=pinned_tables,
         )
+        scores = _table_score_map(scored)
+        catalog = _catalog_table_names(sess, ds_id=int(ds_id), allowed=allowed)
+        catalog_set = set(catalog)
+        seed_names = {item.name for item in seeds}
+        edges = [
+            *_confirmed_expand_edges(sess, ds_id=int(ds_id), seed_tables=seed_names),
+            *_naming_expand_edges(
+                sess,
+                ds_id=int(ds_id),
+                seed_tables=seed_names,
+                catalog_names=catalog_set,
+                query=clean,
+                scores=scores,
+            ),
+        ]
+        if allowed is not None:
+            edges = [
+                (left, right)
+                for left, right in edges
+                if left in allowed and right in allowed
+            ]
+        candidates = expand_schema_working_set(
+            seeds,
+            edges=edges,
+            scores=scores,
+            total_limit=expand_limit,
+        )
+        names = [item.name for item in candidates]
         schema_text, kept = _render_schema(
             sess,
             llm_service=llm_service,
             table_names=names,
+            peer_catalog=catalog,
         )
+        kept_set = set(kept)
+        evidence = {
+            item.name: list(item.evidence)
+            for item in candidates
+            if item.name in kept_set
+        }
         chat_question = getattr(llm_service, "chat_question", None)
         if chat_question is not None:
             chat_question.db_schema = schema_text
@@ -445,7 +680,9 @@ def recall_schema_context(
             "backend": "schema_vector",
             "page_keys": [],
             "hit_count": len(kept),
-            "table_evidence": {name: [] for name in kept},
+            "table_evidence": evidence,
+            "query": clean,
+            "pinned_tables": list(pinned_tables or []),
         }
 
     if session is not None:
@@ -454,7 +691,6 @@ def recall_schema_context(
 
     with session_scope() as sess:
         return _run(sess)
-
 
 def catalog_field_index(
     session: Session, *, ds_id: int, access_scope: Any = None

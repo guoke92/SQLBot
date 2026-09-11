@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import Any
 
 from apps.chat.agent_knowledge import (
     WIKI_SCHEMA_GAP_SEARCH_LIMIT,
     AgentKnowledgePlane,
+    MergeDelta,
     search_wiki_stub,
 )
 from apps.chat.steps.wiki_recall import retrieve_wiki_context
@@ -40,15 +42,15 @@ def _filter_payload_tables(payload: dict[str, Any], kept: list[str]) -> dict[str
 
     data = dict(payload)
     allowed = {str(name) for name in kept}
-    data["tables"] = [name for name in (data.get("tables") or []) if str(name) in allowed]
+    data["tables"] = [
+        name for name in (data.get("tables") or []) if str(name) in allowed
+    ]
     bodies = split_schema_text(str(data.get("schema_text") or ""), tables=list(allowed))
     data["schema_text"] = "\n".join(
         bodies[name] for name in data["tables"] if bodies.get(name)
     )
     evidence = dict(data.get("table_evidence") or {})
-    data["table_evidence"] = {
-        name: evidence.get(name) or [] for name in data["tables"]
-    }
+    data["table_evidence"] = {name: evidence.get(name) or [] for name in data["tables"]}
     return data
 
 
@@ -87,27 +89,90 @@ def apply_wiki_search_policy(
     return plane, policy, delta
 
 
+def _continuation_request(plane: AgentKnowledgePlane, query: str) -> Any:
+    """Mid-turn search_wiki keeps the plane's tables/pages/queries in the pin set.
+
+    A bare keyword like「城市」would otherwise cold-recall unrelated pages and
+    lose the baseline working set that the agent already paid for.
+    """
+    from apps.chat.steps.recall_request import RecallRequest
+
+    clean = str(query or "").strip()
+    if not (plane.tables or plane.page_keys or plane.queries):
+        return RecallRequest.simple(clean)
+    priors = [str(q).strip() for q in plane.queries[-2:] if str(q).strip()]
+    retrieval = "\n".join([*(q for q in priors if q != clean), clean])
+    return RecallRequest(
+        query=retrieval,
+        question=clean,
+        pin_tables=tuple(str(name) for name in plane.tables if str(name).strip()),
+        pin_pages=tuple(str(key) for key in plane.page_keys if str(key).strip())[:12],
+        required_fields={
+            str(table): tuple(str(n) for n in names if str(n).strip())
+            for table, names in plane.keep_fields.items()
+            if names
+        },
+    )
+
+
 def search_wiki_knowledge(
     llm_service: Any,
-    query: str,
+    query: str = "",
     *,
+    drop: Sequence[str] | None = None,
     access_scope: Any = None,
     top_k: int | None = None,
 ) -> ToolResult:
-    """Retrieve Wiki/schema into the knowledge plane; return a coverage stub."""
+    """Retrieve Wiki/schema into the knowledge plane; return a coverage stub.
+
+    ``drop`` evicts table names / page_keys from later prompt assembly. A
+    drop-only call (empty query) does not consume a search round.
+    """
     clean_query = str(query or "").strip()
-    if not clean_query:
+    drop_keys = [str(item).strip() for item in (drop or []) if str(item).strip()]
+    if not clean_query and not drop_keys:
         return failure_result("Query cannot be empty for Wiki search", retryable=True)
 
     try:
+        plane = _load_plane()
+        dropped: dict[str, list[str]] = {"tables": [], "pages": []}
+        if drop_keys:
+            dropped = plane.exclude_knowledge(drop_keys)
+            _save_plane(plane)
+        if not clean_query:
+            stub = search_wiki_stub(
+                delta=MergeDelta(unchanged=True, schema_ready=plane.schema_ready),
+                policy={
+                    "schema_ready": plane.schema_ready,
+                    "stop_search": False,
+                    "recall_status": "dropped",
+                    "schema_gap_searches": plane.schema_gap_searches,
+                    "dropped_tables": dropped["tables"],
+                    "dropped_pages": dropped["pages"],
+                },
+                plane=plane,
+            )
+            return success_result(
+                (
+                    f"已从系统提示淘汰：表 {dropped['tables']}，页 {dropped['pages']}。"
+                    "全文见更新后的系统提示；不要淘汰 JOIN 对端或口径仍依赖的表。"
+                ),
+                data=stub,
+            )
+
         res = retrieve_wiki_context(
             llm_service,
-            clean_query,
+            _continuation_request(plane, clean_query),
             access_scope=access_scope,
             top_k=top_k,
         )
-        plane = _load_plane()
         plane, policy, delta = apply_wiki_search_policy(dict(res), plane)
+        if drop_keys:
+            policy = {
+                **policy,
+                "dropped_tables": dropped["tables"],
+                "dropped_pages": dropped["pages"],
+            }
         _save_plane(plane)
 
         stub = search_wiki_stub(
@@ -122,65 +187,62 @@ def search_wiki_knowledge(
         if policy.get("stop_search") and status == "no_new_evidence":
             return success_result(
                 (
-                    "No new Wiki evidence: extra tables were not merged. "
-                    "stop_search is set. Do not call search_wiki again. "
-                    "Write SQL from the system schema_catalog or request_clarification."
+                    "本次检索没有新的 Wiki 证据（无证据的表未并入）。stop_search 已置位，"
+                    "不要再调用 search_wiki；请基于系统提示中的 schema_catalog 写 SQL，"
+                    "或调用 request_clarification。"
                 ),
                 data=stub,
             )
         if policy.get("stop_search") and status in {"round_limit", "budget_exhausted"}:
             return success_result(
                 (
-                    "Wiki search budget reached. stop_search is set. "
-                    "Do not call search_wiki again. Write SQL or tell the user "
-                    "the knowledge base cannot cover this yet."
+                    "Wiki 检索预算已用完，stop_search 已置位，不要再调用 search_wiki。"
+                    "请直接写 SQL，或告知用户知识库暂未覆盖该问题。"
                 ),
                 data=stub,
             )
         if policy.get("stop_search") and status == "stagnant" and plane.schema_ready:
             return success_result(
                 (
-                    "Coverage unchanged: tables already in the system schema_catalog. "
-                    "Do not call search_wiki again for the same tables. "
-                    "Write SQL or request_clarification."
+                    "覆盖面未变化：相关表已在系统提示的 schema_catalog 中，"
+                    "不要再对同一批表调用 search_wiki。请直接写 SQL 或 request_clarification。"
                 ),
                 data=stub,
             )
         if policy.get("stop_search"):
             return success_result(
                 (
-                    "Wiki recall stalled: no published table/enum schema after "
+                    "Wiki 召回停滞："
                     f"{stub.get('schema_gap_searches') or WIKI_SCHEMA_GAP_SEARCH_LIMIT} "
-                    "attempts. Do not call search_wiki again. Do not query "
-                    "information_schema / SHOW COLUMNS. Stop tool use and tell "
-                    "the user the knowledge base cannot answer this yet."
+                    "次检索后仍无已发布的表/枚举页。不要再调用 search_wiki，"
+                    "不要查询 information_schema / SHOW COLUMNS；停止工具调用并告知用户"
+                    "知识库暂无法回答。"
                 ),
                 data=stub,
             )
         if status == "schema_missing":
             return success_result(
                 (
-                    f"Retrieved knowledge (source: {backend}, "
-                    f"added_tables: {delta.added_tables}) "
-                    "but no table/enum schema. One more targeted search_wiki is "
-                    "allowed; do not query information_schema."
+                    f"已检索到知识（来源 {backend}，新增表 {delta.added_tables}），"
+                    "但没有表/枚举结构。允许再做一次针对性 search_wiki；"
+                    "不要查询 information_schema。"
                 ),
                 data=stub,
             )
         if delta.unchanged and not plane.schema_ready:
             return success_result(
                 (
-                    "No matching knowledge for this query. "
-                    "One more targeted search_wiki is allowed if table/enum schema "
-                    "is still missing; otherwise stop."
+                    "没有与该检索词匹配的知识。若表/枚举结构仍缺失，允许再做一次"
+                    "针对性 search_wiki；否则停止检索。"
                 ),
                 data=stub,
             )
         return success_result(
             (
-                f"Merged into system catalog (source: {backend}, "
-                f"added_tables: {delta.added_tables}, "
-                f"added_pages: {delta.added_pages})."
+                f"已并入系统提示的 schema_catalog / wiki_knowledge（来源 {backend}）："
+                f"新增表 {delta.added_tables}，新增页 {delta.added_pages}，"
+                f"新增可见字段 {stub.get('added_fields') or {}}。"
+                "全文见系统提示，勿再重复检索同一对象。"
             ),
             data=stub,
         )

@@ -39,6 +39,39 @@ def test_pick_tables_promotes_field_and_relation_hits() -> None:
     assert "d_qa_case" in names
 
 
+def test_live_fk_emits_peer_missing_when_catalog_has_peer() -> None:
+    """Naming FK must surface even when the peer table is outside the seed set."""
+    from apps.chat.steps.wiki_schema import WikiSchemaRenderer, filter_schema_relations
+
+    live = {
+        "d_project": {
+            "comment": "项目",
+            "fields": [
+                ("id", "bigint", "主键"),
+                ("organization_id", "bigint", "团队"),
+                ("name", "varchar", "名称"),
+            ],
+        }
+    }
+    text = WikiSchemaRenderer(
+        None,
+        live_tables=live,
+        peer_catalog=["d_project", "d_organization", "d_user"],
+    ).render(["d_project"])
+    assert "关联: d_project.organization_id → d_organization.id" in text
+    assert "（对端未入选）" in text
+    projected = filter_schema_relations(text, peer_tables=["d_project"])
+    assert "d_organization" in projected
+    assert "（对端未入选）" in projected
+    both = filter_schema_relations(
+        text.replace("（对端未入选）", ""),
+        peer_tables=["d_project", "d_organization"],
+    )
+    # After expansion the marker is gone and the JOIN stays.
+    assert "关联: d_project.organization_id → d_organization.id" in both
+    assert "（对端未入选）" not in both
+
+
 def test_rank_text_covers_field_and_relation() -> None:
     field = type(
         "F",

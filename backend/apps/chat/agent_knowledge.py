@@ -14,23 +14,39 @@ from typing import Any
 from langchain_core.messages import BaseMessage, SystemMessage
 from pydantic import BaseModel, ConfigDict, Field
 
-from apps.knowledge.recall_kernel.types import RecallBudget
-
 WIKI_SCHEMA_GAP_SEARCH_LIMIT = 2
+# Tool budgets by category (single definition; the system prompt renders them).
 PROBE_SQL_LIMIT = 2
 SEARCH_WIKI_ROUND_LIMIT = 2
+EXECUTION_ROUND_LIMIT = 5
+# Tools with their own budget above do not consume execution rounds.
+UNCOUNTED_TOOLS = frozenset({"request_clarification", "search_wiki"})
+
+
+def tool_calls_advance_round(calls: Sequence[Mapping[str, Any]]) -> bool:
+    """Execution rounds advance only when at least one counted tool is called."""
+    return any(
+        str(item.get("name") or "") not in UNCOUNTED_TOOLS for item in calls or []
+    )
+
 
 _TABLE_HEADER_RE = re.compile(r"^# Table:\s*([^,\n]+)", re.MULTILINE)
 _SCHEMA_SPLIT_RE = re.compile(r"(?=^# Table: )", re.MULTILINE)
+_WIKI_H1_SPLIT_RE = re.compile(r"(?=^# )", re.MULTILINE)
 _WIKI_H2_SPLIT_RE = re.compile(r"(?=^## )", re.MULTILINE)
 _WIKI_TABLE_HEADER_RE = re.compile(
     r"^##\s+.+?\s+\(\s*([A-Za-z_][\w.]*)\s*\)",
 )
-_FIELD_LINE_RE = re.compile(r"^\([^)\n]+:[^)\n]+\)")
+# Field presence (schema_ready): wiki bare rows and PROMPT ``# Table:``
+# blobs that still wrap columns as ``(name:type, …)``. Structured parse
+# in wiki_schema.parse_field_line is bare-only.
+_FIELD_LINE_RE = re.compile(r"^(?:\()?[A-Za-z_]\w*:.+")
+_CONFLICT_CANDIDATE_KEYS = ("saying", "table", "field", "value", "value_label")
 
 _STUB_DATA_KEYS = (
     "added_tables",
     "added_pages",
+    "added_fields",
     "schema_ready",
     "stop_search",
     "recall_status",
@@ -41,7 +57,28 @@ _STUB_DATA_KEYS = (
     "hit_count",
     "schema_gap_searches",
     "store_source",
+    "dropped_tables",
+    "dropped_pages",
+    "excluded",
 )
+
+
+def knowledge_key_variants(raw: str) -> set[str]:
+    """page_key / ``tables/foo`` / physical name all match the same identity."""
+    text = str(raw or "").strip()
+    if not text:
+        return set()
+    variants = {text, text.rsplit("/", 1)[-1]}
+    lowered = text.casefold()
+    if lowered.startswith("tables/"):
+        variants.add(text.split("/", 1)[1])
+    return {item for item in variants if item}
+
+
+def knowledge_key_matches(token: str, candidate: str) -> bool:
+    left = {item.casefold() for item in knowledge_key_variants(token)}
+    right = {item.casefold() for item in knowledge_key_variants(candidate)}
+    return bool(left and right and left & right)
 
 
 class MergeDelta(BaseModel):
@@ -50,12 +87,20 @@ class MergeDelta(BaseModel):
     added_tables: list[str] = Field(default_factory=list)
     added_pages: list[str] = Field(default_factory=list)
     added_evidence_pages: list[str] = Field(default_factory=list)
+    # Fields newly promoted to a full line in the projected catalog (a
+    # search_wiki round can widen relevance without adding a table).
+    added_fields: dict[str, list[str]] = Field(default_factory=dict)
     schema_ready: bool = False
     unchanged: bool = True
 
 
 class AgentKnowledgePlane(BaseModel):
-    """Deduped wiki passages + one schema blob per table."""
+    """Deduped wiki passages + one **full** schema blob per table.
+
+    Schema bodies are stored as rendered by the corpus (all fields); the prompt
+    projection (``project_schema``) runs at render time against the accumulated
+    ``queries`` / ``keep_fields``, so visibility is monotonic across rounds.
+    """
 
     model_config = ConfigDict(extra="forbid")
 
@@ -70,6 +115,12 @@ class AgentKnowledgePlane(BaseModel):
     search_rounds: int = 0
     coverage_fp: str = ""
     caliber_conflicts: list[dict[str, Any]] = Field(default_factory=list)
+    queries: list[str] = Field(default_factory=list)
+    keep_fields: dict[str, list[str]] = Field(default_factory=dict)
+    # LLM-directed eviction: table names and/or wiki page_keys. Sticky until a
+    # later search query explicitly names the key (restore), never auto-trimmed
+    # by char/count budgets.
+    excluded: list[str] = Field(default_factory=list)
 
     def to_dump(self) -> dict[str, Any]:
         return self.model_dump()
@@ -81,25 +132,160 @@ class AgentKnowledgePlane(BaseModel):
         data = {k: v for k, v in dict(raw).items() if k in cls.model_fields}
         return cls.model_validate(data)
 
+    def knowledge_refs(self) -> dict[str, Any]:
+        """Durable, text-free snapshot for the next turn (rehydrated from store)."""
+        return {"page_keys": list(self.page_keys), "tables": list(self.tables)}
+
+    def prompt_stats(self) -> dict[str, Any]:
+        """What the model sees this round (size of each system section)."""
+        from apps.chat.steps.wiki_schema import project_schema
+        from apps.knowledge.recall_kernel.types import RecallBudget
+
+        schema, _visible = self._full_schema_text()
+        projection = (
+            project_schema(
+                schema,
+                budget_chars=RecallBudget.from_settings().schema_chars,
+                queries=self.queries,
+                keep_fields=self.keep_fields,
+                present_pages=self.wiki_passages.keys(),
+            )
+            if schema
+            else None
+        )
+        return {
+            "tables": list(self.tables),
+            "pages": len(self.page_keys),
+            "excluded": list(self.excluded),
+            "wiki_chars": sum(len(text) for text in self._wiki_texts_in_order()),
+            "schema_chars_full": len(schema),
+            "schema_chars": len(projection.text) if projection else 0,
+            "schema_omitted": dict(projection.omitted) if projection else {},
+            "enum_stripped": dict(projection.enum_stripped) if projection else {},
+            "conflicts": len(self.caliber_conflicts),
+            "queries": list(self.queries)[-3:],
+        }
+
+    def is_excluded(self, key: str) -> bool:
+        token = str(key or "").strip()
+        if not token:
+            return False
+        return any(knowledge_key_matches(item, token) for item in self.excluded)
+
+    def _unexclude(self, key: str) -> None:
+        token = str(key or "").strip()
+        if not token:
+            return
+        self.excluded = [
+            item for item in self.excluded if not knowledge_key_matches(item, token)
+        ]
+
+    def _query_restores(self, key: str, query: str) -> bool:
+        text = str(query or "").casefold()
+        if not text:
+            return False
+        tokens = knowledge_key_variants(key)
+        for item in self.excluded:
+            if knowledge_key_matches(item, key):
+                tokens |= knowledge_key_variants(item)
+        return any(len(token) >= 3 and token.casefold() in text for token in tokens)
+
+    def _admit_key(self, key: str, query: str) -> bool:
+        """False when the key is excluded and this query does not restore it."""
+        token = str(key or "").strip()
+        if not token or not self.is_excluded(token):
+            return bool(token)
+        if self._query_restores(token, query):
+            self._unexclude(token)
+            return True
+        return False
+
+    def exclude_knowledge(self, keys: Sequence[str]) -> dict[str, list[str]]:
+        """Drop tables/pages from the prompt; later assembly skips them."""
+        for raw in keys:
+            token = str(raw or "").strip()
+            if not token:
+                continue
+            if not any(knowledge_key_matches(token, item) for item in self.excluded):
+                self.excluded.append(token)
+        dropped_tables: list[str] = []
+        kept_tables: list[str] = []
+        for name in self.tables:
+            if self.is_excluded(name):
+                dropped_tables.append(name)
+                self.schema_by_table.pop(name, None)
+                self.keep_fields.pop(name, None)
+            else:
+                kept_tables.append(name)
+        self.tables = kept_tables
+        dropped_pages: list[str] = []
+        kept_pages: list[str] = []
+        for key in self.page_keys:
+            if self.is_excluded(key):
+                dropped_pages.append(key)
+                self.wiki_passages.pop(key, None)
+            else:
+                kept_pages.append(key)
+        self.page_keys = kept_pages
+        for key in list(self.wiki_passages):
+            if self.is_excluded(key):
+                self.wiki_passages.pop(key, None)
+                if key not in dropped_pages:
+                    dropped_pages.append(key)
+        self.coverage_fp = _coverage_fp(self.page_keys, self.tables)
+        self.schema_ready = any(
+            schema_body_has_fields(body)
+            for key, body in self.schema_by_table.items()
+            if not str(key).startswith("_")
+        )
+        return {"tables": dropped_tables, "pages": dropped_pages}
+
     def merge_recall(self, payload: Mapping[str, Any] | None) -> MergeDelta:
         data = dict(payload or {})
         added_pages: list[str] = []
         added_tables: list[str] = []
+        relevant_before = self._relevant_index()
+
+        query = str(data.get("query") or "").strip()
+        if query and query not in self.queries:
+            self.queries.append(query)
+        for table, names in dict(data.get("evidence_fields") or {}).items():
+            if not self._admit_key(str(table), query):
+                continue
+            bucket = self.keep_fields.setdefault(str(table), [])
+            for name in names or ():
+                text = str(name).strip()
+                if text and text not in bucket:
+                    bucket.append(text)
 
         for key in _page_keys_from(data):
+            if not self._admit_key(key, query):
+                continue
             if key not in self.page_keys:
                 self.page_keys.append(key)
                 added_pages.append(key)
 
+        wiki_passages = {
+            key: text
+            for key, text in _wiki_passages_from(data).items()
+            if self._admit_key(key, query)
+        }
         wiki_text = str(data.get("knowledge_text") or "").strip()
-        if wiki_text:
-            self._store_wiki_blob(_page_keys_from(data), wiki_text)
+        admitted_pages = [
+            key for key in _page_keys_from(data) if self._admit_key(key, query)
+        ]
+        if wiki_passages:
+            self._ingest_wiki_passages(admitted_pages, "", wiki_passages)
+        elif wiki_text and (admitted_pages or not self.excluded):
+            self._ingest_wiki_passages(admitted_pages, wiki_text, None)
 
         for name, body in split_schema_text(
             str(data.get("schema_text") or ""),
             tables=_table_names_from(data),
         ).items():
             if not name or name.startswith("_") or not body.strip():
+                continue
+            if not self._admit_key(name, query):
                 continue
             if not schema_body_has_fields(body):
                 continue
@@ -126,27 +312,96 @@ class AgentKnowledgePlane(BaseModel):
         )
 
         self.coverage_fp = _coverage_fp(self.page_keys, self.tables)
-        unchanged = not added_pages and not added_tables
+        added_fields: dict[str, list[str]] = {}
+        for table, names in self._relevant_index().items():
+            if table in added_tables:
+                continue
+            new_names = sorted(names - relevant_before.get(table, set()))
+            if new_names:
+                added_fields[table] = new_names
+        unchanged = not added_pages and not added_tables and not added_fields
         return MergeDelta(
             added_tables=added_tables,
             added_pages=added_pages,
             added_evidence_pages=list(added_pages),
+            added_fields=added_fields,
             schema_ready=self.schema_ready,
             unchanged=unchanged,
         )
 
-    def _store_wiki_blob(self, page_keys: Sequence[str], wiki_text: str) -> None:
-        """Keep one wiki blob per page-key set; overwrite instead of appending."""
-        blob_key = ",".join(page_keys) if page_keys else "_wiki"
-        incoming = set(page_keys) if page_keys else {"_wiki"}
-        stale = [
-            key
-            for key in list(self.wiki_passages)
-            if key != blob_key and set(str(key).split(",")) <= incoming
+    def _full_schema_text(self) -> tuple[str, list[str]]:
+        """Joined full bodies (tables first, then stray extras) + visible names."""
+        schema = "\n".join(
+            self.schema_by_table[name]
+            for name in self.tables
+            if self.schema_by_table.get(name) and not self.is_excluded(name)
+        )
+        extra = [
+            (key, body)
+            for key, body in self.schema_by_table.items()
+            if key not in self.tables
+            and not str(key).startswith("_")
+            and body.strip()
+            and not self.is_excluded(key)
         ]
-        for key in stale:
-            del self.wiki_passages[key]
-        self.wiki_passages[blob_key] = wiki_text
+        if extra:
+            schema = (schema + "\n" + "\n".join(body for _, body in extra)).strip()
+        visible = [
+            name
+            for name in self.tables
+            if self.schema_by_table.get(name) and not self.is_excluded(name)
+        ]
+        visible.extend(key for key, _body in extra)
+        return schema, visible
+
+    def _relevant_index(self) -> dict[str, set[str]]:
+        from apps.chat.steps.wiki_schema import relevant_fields
+
+        schema, _visible = self._full_schema_text()
+        if not schema:
+            return {}
+        return relevant_fields(
+            schema, queries=self.queries, keep_fields=self.keep_fields
+        )
+
+    def _ingest_wiki_passages(
+        self,
+        page_keys: Sequence[str],
+        wiki_text: str,
+        wiki_passages: Mapping[str, str] | None = None,
+    ) -> None:
+        """One passage per page_key; merge upserts. Blob input is split on H1."""
+        incoming = {
+            str(key).strip(): str(text).strip()
+            for key, text in dict(wiki_passages or {}).items()
+            if str(key).strip() and str(text).strip() and not _is_blob_key(str(key))
+        }
+        if incoming:
+            for key, text in incoming.items():
+                self.wiki_passages[key] = text
+                if key not in self.page_keys:
+                    self.page_keys.append(key)
+            self._drop_blob_passages()
+            return
+
+        chunks = _split_wiki_h1_pages(wiki_text)
+        keys = [str(key).strip() for key in page_keys if str(key).strip()]
+        if keys and len(chunks) == len(keys):
+            for key, chunk in zip(keys, chunks, strict=True):
+                self.wiki_passages[key] = chunk
+            self._drop_blob_passages()
+            return
+        if len(chunks) == 1 and len(keys) == 1:
+            self.wiki_passages[keys[0]] = chunks[0]
+            self._drop_blob_passages()
+            return
+        if wiki_text.strip():
+            self.wiki_passages["_wiki"] = wiki_text.strip()
+
+    def _drop_blob_passages(self) -> None:
+        for key in list(self.wiki_passages):
+            if _is_blob_key(key):
+                del self.wiki_passages[key]
 
     def has_new_coverage(self, delta: MergeDelta) -> bool:
         return not delta.unchanged
@@ -166,19 +421,21 @@ class AgentKnowledgePlane(BaseModel):
         )
 
     def schema_catalog_text(self) -> str:
-        schema = "\n".join(
-            self.schema_by_table[name]
-            for name in self.tables
-            if self.schema_by_table.get(name)
-        )
-        extra = [
-            body
-            for key, body in self.schema_by_table.items()
-            if key not in self.tables and not str(key).startswith("_") and body.strip()
-        ]
-        if extra:
-            schema = (schema + "\n" + "\n".join(extra)).strip()
-        return schema
+        """Prompt view of the catalog: projected fields + working-set relations."""
+        schema, visible = self._full_schema_text()
+        if not schema:
+            return schema
+        from apps.chat.steps.wiki_schema import filter_schema_relations, project_schema
+        from apps.knowledge.recall_kernel.types import RecallBudget
+
+        projected = project_schema(
+            schema,
+            budget_chars=RecallBudget.from_settings().schema_chars,
+            queries=self.queries,
+            keep_fields=self.keep_fields,
+            present_pages=self.wiki_passages.keys(),
+        ).text
+        return filter_schema_relations(projected, peer_tables=visible)
 
     def adopt_conflicts(
         self,
@@ -197,9 +454,10 @@ class AgentKnowledgePlane(BaseModel):
 
     def render_system_sections(self) -> str:
         parts: list[str] = []
-        wiki = "\n\n".join(
-            text.strip() for text in self.wiki_passages.values() if str(text).strip()
-        )
+        index = self._knowledge_index_block()
+        if index:
+            parts.append(index)
+        wiki = "\n\n".join(self._wiki_texts_in_order())
         if wiki:
             parts.append(
                 "<wiki_knowledge>\n"
@@ -219,7 +477,13 @@ class AgentKnowledgePlane(BaseModel):
         if schema:
             parts.append(
                 "<schema_catalog>\n"
-                "当前会话已召回的物理表结构（同表只保留一份，后续 search_wiki 只补充新表）：\n"
+                "当前会话已召回的物理表结构（同表只保留一份，后续 search_wiki 只补充新表/新字段）。"
+                "系统不会因长度上限删除已入选的表；无关项用 search_wiki.drop 按 knowledge_index 的 key 淘汰。"
+                "字段行 `name:type, 注释, topk=库内取值, labels=取值:展示名, enum=页`："
+                "`topk` 是 WHERE 必须使用的库内值；`labels` 只是展示含义，禁止写进 SQL；"
+                "`enum=<页>` 表示取值与含义见 wiki_knowledge 中的同名枚举页。"
+                "关联行尾 `[write-flow]` / `[java-eq]` / `[ref-convention]` / `[db-index]` / `[db-naming]` "
+                "标明该边是怎么被观察到的，不是选用建议；先定要查的实体和表，再在已选表之间选 JOIN。\n"
                 f"{schema}\n"
                 "</schema_catalog>"
             )
@@ -228,39 +492,110 @@ class AgentKnowledgePlane(BaseModel):
 
             parts.append(
                 "<caliber_conflicts>\n"
-                "Wiki 术语桥证据：下列说法可能对应不同筛选口径（含候选字段与枚举取值）。"
-                "这不是澄清卡模板。请结合枚举页判断：能唯一落到字段+取值则直接写 SQL；"
-                "只有互斥结果无法从上下文判定时，再用业务语言自行组织 request_clarification"
-                "（选项写清每种口径会筛出什么，不要只问选哪个字段）。\n"
-                f"{orjson.dumps(self.caliber_conflicts, option=orjson.OPT_INDENT_2).decode()}\n"
+                "系统按 Wiki 术语桥自动检出的候选口径冲突。这是证据，不是澄清卡模板，"
+                "可能误报或漏报，须按系统提示 §2 用枚举页逐个核对："
+                "attribution = 名值错位（没有 value 的候选是用户维度名所绑定的字段）；"
+                "alias_collision / boundary = 一词多落。"
+                "核对成立且上下文无法判定 → 按 §3 调用 request_clarification；"
+                "不成立 → 在思考中写明理由后直接落口径。\n"
+                f"{orjson.dumps(self._slim_conflicts(), option=orjson.OPT_INDENT_2).decode()}\n"
                 "</caliber_conflicts>"
             )
         return "\n\n".join(parts)
 
+    def _knowledge_index_block(self) -> str:
+        if not (self.tables or self.page_keys or self.excluded):
+            return ""
+        tables = ", ".join(self.tables) or "(none)"
+        pages = ", ".join(self.page_keys) or "(none)"
+        dropped = ", ".join(self.excluded) or "(none)"
+        return (
+            "<knowledge_index>\n"
+            f"tables: {tables}\n"
+            f"pages: {pages}\n"
+            f"dropped: {dropped}\n"
+            "淘汰无关知识时把上列 table 名或 page key 填入 search_wiki.drop；"
+            "误淘汰后用该名字再 search_wiki 可重新并入。不要淘汰 JOIN 对端或口径仍依赖的表。\n"
+            "</knowledge_index>"
+        )
+
+    def _wiki_texts_in_order(self) -> list[str]:
+        seen: set[str] = set()
+        texts: list[str] = []
+        for key in self.page_keys:
+            if self.is_excluded(key):
+                continue
+            text = str(self.wiki_passages.get(key) or "").strip()
+            if text:
+                texts.append(text)
+                seen.add(key)
+        for key, raw in self.wiki_passages.items():
+            if key in seen or self.is_excluded(key):
+                continue
+            text = str(raw).strip()
+            if text:
+                texts.append(text)
+        return texts
+
+    def _conflict_enum_covered(self, table: str, field: str) -> bool:
+        """True only when the field's authoritative enum page text is in the prompt.
+
+        Same rule as the catalog projection (``enum_page_present``): the field
+        line's ``enum=`` pointer must resolve to a passage we actually hold —
+        a same-named concept page does not count.
+        """
+        from apps.chat.steps.wiki_schema import (
+            enum_page_present,
+            schema_fields_by_table,
+        )
+
+        body = self.schema_by_table.get(str(table or ""))
+        if not body:
+            return False
+        for item in schema_fields_by_table(body).get(str(table), []):
+            if item.name == str(field or "") and item.enum:
+                return enum_page_present(item.enum, self.wiki_passages.keys())
+        return False
+
+    def _slim_conflicts(self) -> list[dict[str, Any]]:
+        """Prompt dump: table/field/value only; drop nested enums already in wiki."""
+        out: list[dict[str, Any]] = []
+        for item in self.caliber_conflicts:
+            cands: list[dict[str, Any]] = []
+            for raw in item.get("candidates") or []:
+                if not isinstance(raw, Mapping):
+                    continue
+                slim = {
+                    key: raw[key]
+                    for key in _CONFLICT_CANDIDATE_KEYS
+                    if key in raw and raw[key] not in (None, "")
+                }
+                table = str(raw.get("table") or "")
+                field = str(raw.get("field") or "")
+                if raw.get("enum_values") and not self._conflict_enum_covered(
+                    table, field
+                ):
+                    slim["enum_values"] = raw["enum_values"]
+                cands.append(slim)
+            slim_item = {
+                key: value for key, value in item.items() if key != "candidates"
+            }
+            slim_item["candidates"] = cands
+            out.append(slim_item)
+        return out
+
     def apply_search_policy(self, delta: MergeDelta) -> dict[str, Any]:
-        """Coverage policy: stop on no new evidence / budget / round limit."""
-        budget = RecallBudget.from_settings()
+        """Coverage policy: stop on no new evidence / round limit.
+
+        Table-count and char budgets must not drop already-selected tables;
+        SQL accuracy outranks prompt size. The model evicts noise via
+        ``search_wiki.drop``.
+        """
         if self.schema_ready and delta.unchanged:
             return {
                 "recall_status": "stagnant",
                 "stop_search": True,
                 "schema_ready": True,
-                "schema_gap_searches": self.schema_gap_searches,
-            }
-        if len(self.tables) > budget.max_tables_total:
-            overflow = self.tables[budget.max_tables_total :]
-            self.tables = self.tables[: budget.max_tables_total]
-            for name in overflow:
-                self.schema_by_table.pop(name, None)
-            self.schema_ready = any(
-                schema_body_has_fields(body)
-                for key, body in self.schema_by_table.items()
-                if not str(key).startswith("_")
-            )
-            return {
-                "recall_status": "budget_exhausted",
-                "stop_search": True,
-                "schema_ready": self.schema_ready,
                 "schema_gap_searches": self.schema_gap_searches,
             }
         if self.search_rounds >= SEARCH_WIKI_ROUND_LIMIT and (
@@ -374,6 +709,7 @@ def search_wiki_stub(
     return {
         "added_tables": list(delta.added_tables),
         "added_pages": list(delta.added_pages),
+        "added_fields": {k: list(v) for k, v in delta.added_fields.items()},
         "schema_ready": bool(policy.get("schema_ready")),
         "stop_search": bool(policy.get("stop_search")),
         "recall_status": str(policy.get("recall_status") or ""),
@@ -384,6 +720,9 @@ def search_wiki_stub(
         "hit_count": len(delta.added_tables) + len(delta.added_pages),
         "schema_gap_searches": int(policy.get("schema_gap_searches") or 0),
         "store_source": plane.store_source,
+        "dropped_tables": list(policy.get("dropped_tables") or []),
+        "dropped_pages": list(policy.get("dropped_pages") or []),
+        "excluded": list(plane.excluded),
     }
 
 
@@ -422,6 +761,37 @@ def _page_keys_from(data: Mapping[str, Any]) -> list[str]:
         if name and name not in keys:
             keys.append(name)
     return keys
+
+
+def _wiki_passages_from(data: Mapping[str, Any]) -> dict[str, str]:
+    raw = data.get("wiki_passages")
+    if not isinstance(raw, Mapping):
+        raw = data.get("passages")
+    if not isinstance(raw, Mapping):
+        return {}
+    out: dict[str, str] = {}
+    for key, text in raw.items():
+        name = str(key or "").strip()
+        body = str(text or "").strip()
+        if name and body and not _is_blob_key(name):
+            out[name] = body
+    return out
+
+
+def _split_wiki_h1_pages(wiki_text: str) -> list[str]:
+    text = str(wiki_text or "").strip()
+    if not text:
+        return []
+    if not text.startswith("# "):
+        match = re.search(r"(?m)^# ", text)
+        if match is None:
+            return [text]
+        text = text[match.start() :]
+    return [part.strip() for part in _WIKI_H1_SPLIT_RE.split(text) if part.strip()]
+
+
+def _is_blob_key(key: str) -> bool:
+    return key == "_wiki" or "," in key
 
 
 def _table_names_from(data: Mapping[str, Any]) -> list[str]:

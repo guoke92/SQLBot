@@ -115,7 +115,7 @@ def test_schema_renderer_wiki_first_db_fallback(tmp_path: Path) -> None:
         },
     )
     text = renderer.render(["t_wiki", "t_missing"])
-    assert "(state:varchar(64), 状态, topk=A|B)" in text
+    assert "state:varchar, 状态, topk=A|B" in text
     assert "## 维基表 (t_wiki)" in text
     assert "## 缺页表 (t_missing) [db]" in text
     assert renderer._missing == ["t_missing"]
@@ -181,7 +181,7 @@ def test_translate_enum_cells_multi_table_same_column_merges() -> None:
 
 
 def test_schema_renderer_inlines_enum_labels(tmp_path: Path) -> None:
-    """dict 指针指向的枚举页 value→label 内联进 topk（schema_field_labels 兼容）。"""
+    """dict 指针指向的枚举页 value→label 走 labels=，topk 保持库内值。"""
     from types import SimpleNamespace
 
     from apps.chat.presentation import schema_field_labels
@@ -192,8 +192,11 @@ def test_schema_renderer_inlines_enum_labels(tmp_path: Path) -> None:
         ground_blocks=[
             SimpleNamespace(
                 kind="enum",
-                data={"enum": "state", "fields": ["t.state"],
-                      "values": {"A": {"label": "甲类"}, "B": {"label": "乙类"}}},
+                data={
+                    "enum": "state",
+                    "fields": ["t.state"],
+                    "values": {"A": {"label": "甲类"}, "B": {"label": "乙类"}},
+                },
                 raw="",
             )
         ],
@@ -211,9 +214,11 @@ def test_schema_renderer_inlines_enum_labels(tmp_path: Path) -> None:
         pages = {"state": enum_page, "t": table_page}
 
     text_out = WikiSchemaRenderer(_Store(), {}).render(["t"])
-    assert "(state:varchar(64), 状态, topk=A(甲类)|B(乙类))" in text_out
+    assert (
+        "state:varchar, 状态, topk=A|B, labels=A:甲类|B:乙类, enum=state"
+    ) in text_out
     # 无 dict 指针的列保持裸 topk
-    assert "(plain:varchar(64), 普通列, topk=X|Y)" in text_out
+    assert "plain:varchar, 普通列, topk=X|Y" in text_out
     # 前端列 label 不受内联影响
     labels = schema_field_labels(text_out)
     assert labels.get("state") == "状态"
@@ -236,7 +241,7 @@ def test_schema_renderer_enum_page_missing_keeps_raw_topk() -> None:
         pages = {"t": table_page}  # "gone" 页不存在
 
     text_out = WikiSchemaRenderer(_Store(), {}).render(["t"])
-    assert "(state:varchar(64), 状态, topk=A|B)" in text_out
+    assert "state:varchar, 状态, topk=A|B, enum=gone" in text_out
 
 
 # ── A4：锚点闭包（anchors.py） ──────────────────────────────────────────────
@@ -330,20 +335,27 @@ def test_schema_renderer_renders_relation_section() -> None:
     text = WikiSchemaRenderer(_Store(), {}).render(["cust_group_rel"])
     assert (
         "关联: cust_group_rel.cust_id → cust_company_info.id "
-        "(cust_company_info) [write-flow:CustGroupMapper.xml，confirmed]"
+        "(cust_company_info) [write-flow]"
     ) in text
-    assert "关联: cust_group_rel.project_id → tenant_project.id (tenant_project) [ref-convention，suggested]" in text
+    assert (
+        "关联: cust_group_rel.project_id → tenant_project.id "
+        "(tenant_project) [ref-convention]"
+    ) in text
+    assert "suggested" not in text
+    assert "confirmed" not in text
+    assert "CustGroupMapper" not in text
+    assert "evidence" not in text
 
 
 def test_relation_lines_do_not_pollute_schema_field_labels() -> None:
-    """关联行非整行括号形态——不进 presentation.schema_field_labels 候选池。"""
+    """关联行不以字段行形态出现——不进 presentation.schema_field_labels 候选池。"""
     from apps.chat.presentation import schema_field_labels
 
     schema = (
         "## 表 (t)\n"
-        "(id:bigint, 主键)\n"
-        "关联: t.id → r.id (r) [write-flow, confirmed]\n"
-        "(status:varchar(8), 状态)\n"
+        "id:bigint, 主键\n"
+        "关联: t.id → r.id (r) [write-flow]\n"
+        "status:varchar(8), 状态\n"
     )
     labels = schema_field_labels(schema)
     assert labels == {"id": "主键", "status": "状态"}
@@ -371,7 +383,8 @@ def test_db_fallback_renders_ref_index_relations() -> None:
     )
     text = renderer.render(["t"])
     assert (
-        "关联: t.ref_tenant_project → tenant_project.id [db-index, suggested]" in text
+        "关联: t.ref_tenant_project → tenant_project.id (tenant_project) [db-index]"
+        in text
     )
 
 
@@ -385,7 +398,7 @@ def _write_page(path: Path, content: str) -> None:
 
 _TABLE_PAGE = (
     "---\ntype: table\ntitle: 主表\npage_key: t1\nstatus: published\n"
-    'oid: 1\nscope:\n  databases: [db]\n'
+    "oid: 1\nscope:\n  databases: [db]\n"
     'sources: ["db:db-catalog.yaml"]\ncontract_version: "0.1"\n---\n\n'
     "# 主表\n\n（基线页：1 字段，行数估计 0。）\n\n"
     "```ground:table\ntable: t1\ndatabase: db\ndesc: 主表\nfields:\n"
@@ -438,13 +451,16 @@ def test_enrich_adds_relations_links_and_is_idempotent(tmp_path: Path) -> None:
 
     pages = _make_corpus(tmp_path)
     # 指向 tmp 语料的同系统底稿（sys/）
-    substrate = mod._Substrate(pages, substrate_dir=tmp_path / "sys" / "substrate",
-                               db_dir=tmp_path / "sys" / "db")
+    substrate = mod._Substrate(
+        pages,
+        substrate_dir=tmp_path / "sys" / "substrate",
+        db_dir=tmp_path / "sys" / "db",
+    )
 
     # 语义页引用 t1（表页存在）→ 补链
     semantic = (
         "---\ntype: caliber\ntitle: 口径\npage_key: cal-x\nstatus: published\n"
-        "oid: 1\nscope:\n  databases: [db]\ncontract_version: \"0.1\"\n"
+        'oid: 1\nscope:\n  databases: [db]\ncontract_version: "0.1"\n'
         "field_targets: [t1.id]\n---\n\n正文\n"
     )
     _write_page(pages / "calibers" / "cal-x.md", semantic)
@@ -457,9 +473,7 @@ def test_enrich_adds_relations_links_and_is_idempotent(tmp_path: Path) -> None:
     assert "[[t2]]：t1.id → t2.t1_id（mapper:T2Mapper.xml，confirmed）" in updated
     assert "行数估计 42" in updated
 
-    linked = mod.enrich_semantic_page(
-        semantic, {"t1"}
-    )
+    linked = mod.enrich_semantic_page(semantic, {"t1"})
     assert "相关：[[t1]]" in linked
 
     # 幂等：再跑一遍零变化

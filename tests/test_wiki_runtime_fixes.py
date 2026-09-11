@@ -302,6 +302,7 @@ def test_business_render_prose_no_table_field_dump() -> None:
     business = _render(page, chunk, mode="business")
     assert "客户信息主表承载企业建档主数据" in business  # 正文进 prompt
     assert "```ground:table" not in business  # 字段清单不再重复
+    assert business.count("# 客户信息主表") == 1
     physical = _render(page, chunk, mode="physical")
     assert "```ground:table" in physical  # physical 路径不回归
 
@@ -318,6 +319,37 @@ def test_business_render_enum_values_block() -> None:
     rendered = _render(page, chunk, mode="business")
     assert "AGW_BUILD: 平台录入" in rendered  # 枚举 values 保留（翻译/澄清依据）
     assert "PC_BUILD: 客户录入" in rendered
+
+
+def test_business_render_strips_editorial_and_reinjects_caliber() -> None:
+    """business：剥演进/背景/相关链接，回注紧凑 ground:caliber 谓词。"""
+    from apps.knowledge.wiki.recall import _render
+
+    page = parse_page(
+        "---\ntype: caliber\ntitle: 有效租户\npage_key: valid_tenant\n"
+        "status: published\nfield_targets: [tenant_setting_config.enable]\n---\n"
+        "# 有效租户\n\n租户启用口径：仅 enable='Y' 的租户参与统计。\n\n"
+        "## 需求背景\n\n历史需求草稿，不应进 prompt。\n\n"
+        "## 版本演进\n\nv0.1 来自某次代码走读，不应进 prompt。\n\n"
+        "相关：[[tenant_setting_config]] · [[enable]]\n"
+        "[[foo]] [[bar]]\n\n"
+        "```ground:caliber\nname: 有效租户\n"
+        "predicate: \"tenant_setting_config.enable = 'Y'\"\n"
+        "scope: 全库\nevidence: code_path:Foo\n```\n"
+    )
+    chunk = chunk_markdown(page.body)[0]
+    rendered = _render(page, chunk, mode="business")
+    assert "租户启用口径" in rendered
+    assert "需求背景" not in rendered
+    assert "版本演进" not in rendered
+    assert "历史需求草稿" not in rendered
+    assert "相关：" not in rendered
+    assert "```ground:caliber" in rendered
+    assert "name: 有效租户" in rendered
+    assert "tenant_setting_config.enable = 'Y'" in rendered
+    assert "scope:" not in rendered
+    assert "evidence:" not in rendered
+    assert rendered.count("# 有效租户") == 1
 
 
 def test_query_agent_system_knowledge_moves_to_system() -> None:
@@ -521,7 +553,13 @@ def test_recall_trace_physical_mode_no_graph() -> None:
     )
     trace: dict = {}
     recall(
-        "平台录入", store, oid=1, databases=["lowcode_pplatform"], top_k=3, mode="physical", trace_out=trace
+        "平台录入",
+        store,
+        oid=1,
+        databases=["lowcode_pplatform"],
+        top_k=3,
+        mode="physical",
+        trace_out=trace,
     )
     assert trace["mode"] == "physical"
     assert trace["graph_quota"] == 0
@@ -600,9 +638,9 @@ def test_renderer_live_tables_fallback_full_columns() -> None:
     )
     text = renderer.render(["d_task"])
     assert "## task (d_task) [db]" in text
-    assert "(id:bigint, 主键)" in text
-    assert "(title:varchar, 标题)" in text
-    assert "(status:varchar, status)" in text  # 空注释回退列名
+    assert "id:bigint, 主键" in text
+    assert "title:varchar, 标题" in text
+    assert "status:varchar, status" in text  # 空注释回退列名
     assert renderer.missing == ["d_task"]  # 缺页遥测保留
 
 
@@ -676,8 +714,8 @@ def test_live_table_fk_relations_name_decoded() -> None:
         },
     )
     rels = renderer._live_fk_relations("d_task")
-    assert "关联: d_task.project_id → d_project.id [db-naming, suggested]" in rels
-    assert "关联: d_task.sprint_id → d_sprint.id [db-naming, suggested]" in rels
+    assert "关联: d_task.project_id → d_project.id (d_project) [db-naming]" in rels
+    assert "关联: d_task.sprint_id → d_sprint.id (d_sprint) [db-naming]" in rels
     assert len(rels) == 2  # dispatch_to 不是 _id；不存在的右表不产出
     # 渲染全文包含关联行
     text = renderer.render(["d_task"])
@@ -777,7 +815,9 @@ def test_retrieve_wiki_context_no_runtime_uses_schema_vector(monkeypatch) -> Non
     assert "d_task" in out["schema_text"]
 
 
-def test_retrieve_wiki_context_keeps_usable_wiki_without_schema_mix(monkeypatch) -> None:
+def test_retrieve_wiki_context_keeps_usable_wiki_without_schema_mix(
+    monkeypatch,
+) -> None:
     from apps.chat.steps import wiki_recall as wr
 
     monkeypatch.setattr(wr, "has_wiki_bound_corpus", lambda ds_id=None: True)
@@ -932,9 +972,7 @@ def test_wiki_search_policy_ready_unchanged_stops() -> None:
     plane = AgentKnowledgePlane(
         schema_ready=True,
         tables=["d_task"],
-        schema_by_table={
-            "d_task": "# Table: d_task\n[\n(id:int, 主键)\n]"
-        },
+        schema_by_table={"d_task": "# Table: d_task\n[\n(id:int, 主键)\n]"},
     )
     _plane, out, delta = apply_wiki_search_policy(
         {
@@ -1013,7 +1051,9 @@ def test_execute_sql_blocked_when_wiki_schema_missing() -> None:
     llm = SimpleNamespace()
     try:
         with worker_scope(run_id, "tok"):
-            blocked = execute_sql_sandbox(llm, "SELECT * FROM cust_company_info LIMIT 1")
+            blocked = execute_sql_sandbox(
+                llm, "SELECT * FROM cust_company_info LIMIT 1"
+            )
     finally:
         detach_runtime(run_id)
     assert blocked["ok"] is False
@@ -1037,4 +1077,3 @@ def test_prompt_schema_gap_block_when_wiki_has_no_schema() -> None:
     assert "<wiki_schema_gap>" in prompt
     assert "information_schema" in prompt
     assert "早停" in prompt
-

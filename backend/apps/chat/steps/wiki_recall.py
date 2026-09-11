@@ -12,9 +12,11 @@ source only — never scanned at query time.
 from __future__ import annotations
 
 import time
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
+from apps.chat.steps.recall_request import RecallRequest
 from common.core.config import settings
 from common.utils.utils import SQLBotLogUtil
 
@@ -684,6 +686,16 @@ def wiki_span_fields(payload: dict[str, Any] | None) -> dict[str, Any]:
         "table_evidence": data.get("table_evidence") or {},
         "budget_cut": list(data.get("budget_cut") or [])[:20],
         "caliber_conflicts": list(data.get("caliber_conflicts") or [])[:4],
+        # Prompt composition (what the model actually sees) — the direct
+        # evidence when two environments answer the same question differently.
+        "retrieval_query": str(data.get("query") or "")[:400],
+        "pinned_tables": list(data.get("pinned_tables") or [])[:20],
+        "pinned_pages": list(data.get("pinned_pages") or [])[:20],
+        "evidence_fields": {
+            str(table): list(names)[:40]
+            for table, names in dict(data.get("evidence_fields") or {}).items()
+        },
+        "projection": dict(data.get("projection") or {}),
         **({"error": data.get("error")} if data.get("error") else {}),
     }
 
@@ -712,6 +724,7 @@ def _schema_fallback_context(
     query: str,
     *,
     access_scope: Any = None,
+    pin_tables: Sequence[str] | None = None,
 ) -> dict[str, Any]:
     """Schema-vector recall when this datasource has no Wiki runtime.
 
@@ -740,6 +753,12 @@ def _schema_fallback_context(
             query,
             access_scope=access_scope,
             table_limit=budget.max_tables,
+            total_limit=budget.max_tables_total,
+            pinned_tables=[
+                str(name).strip()
+                for name in (pin_tables or ())
+                if str(name).strip()
+            ],
         )
     finally:
         if wrote_q and chat_question is not None:
@@ -758,46 +777,116 @@ def _decorate_schema_fallback(payload: dict[str, Any]) -> dict[str, Any]:
     fallback.setdefault("elapsed_ms", 0)
     fallback.setdefault("embedding_built", False)
     fallback.setdefault("gate_rejected", [])
-    fallback.setdefault("table_evidence", {})
+    evidence = dict(fallback.get("table_evidence") or {})
+    tables = [str(name) for name in (fallback.get("tables") or []) if str(name)]
+    # Preserve non-empty evidence from recall; fill missing keys with the
+    # backend tag so mid-turn search policy does not strip structural peers.
+    fallback["table_evidence"] = {
+        name: list(evidence.get(name) or ["schema_vector"]) for name in tables
+    }
     fallback.setdefault("budget_cut", [])
     fallback.setdefault("caliber_conflicts", [])
+    fallback.setdefault("query", str(fallback.get("query") or ""))
     fallback["schema_chars"] = len(str(fallback.get("schema_text") or ""))
     fallback["schema_ready"] = schema_ready_from_payload(fallback)
     return fallback
 
 
+def _attach_pinned_passages(
+    store: Any,
+    *,
+    keys: Sequence[str],
+    databases: list[str],
+    page_keys: list[str],
+    wiki_passages: dict[str, str],
+    source_note: str,
+) -> list[str]:
+    """Render ``keys`` outside the ranked window and append them (dedup by key).
+
+    One mechanism for both prior-turn rehydration and enum auto-pin; returns
+    the keys actually attached.
+    """
+    from apps.knowledge.wiki.recall import render_page_passage
+
+    attached: list[str] = []
+    for raw in keys:
+        key = str(raw or "").strip()
+        if not key or key in page_keys or key in wiki_passages:
+            continue
+        try:
+            passage = render_page_passage(
+                store, key, databases=databases, source_note=source_note
+            )
+        except Exception as exc:  # noqa: BLE001 — a bad pin must not fail recall
+            SQLBotLogUtil.warning("pinned passage %s skipped: %s", key, exc)
+            continue
+        if passage is None or not passage.text:
+            continue
+        store_key = str(passage.store_key or passage.page_key or key)
+        if store_key in wiki_passages:
+            continue
+        page_keys.append(store_key)
+        wiki_passages[store_key] = passage.text
+        attached.append(store_key)
+    return attached
+
+
 def _wiki_payload_from_recall(
     *,
-    query: str,
+    request: RecallRequest,
     ds: Any,
     ds_id: int | None,
     top_k: int,
 ) -> dict[str, Any]:
-    from apps.knowledge.recall_kernel.render import render_schema, split_rendered_tables
-    from apps.knowledge.recall_kernel.tables import (
-        resolve_wiki_tables,
-        trim_schema_chars,
+    from apps.chat.steps.wiki_schema import (
+        collect_schema_evidence,
+        enum_pins_for,
+        merge_field_sets,
+        project_schema,
     )
+    from apps.knowledge.recall_kernel.render import render_schema
+    from apps.knowledge.recall_kernel.tables import resolve_wiki_tables
     from apps.knowledge.recall_kernel.types import (
         RecallBudget,
         RecallBundle,
         TableCandidate,
     )
 
+    query = request.query
     budget = RecallBudget.from_settings()
     databases = datasource_databases(ds)
     res = wiki_recall(query, ds_id=ds_id, databases=databases, top_k=top_k)
-    wiki_text = (res.text if res else "") or ""
     store = _store(ds_id)
     trace = dict(getattr(res, "trace", None) or {})
     candidates: list[TableCandidate] = []
     budget_cut: list[str] = []
-    if store is not None and res is not None:
+    page_keys = list(getattr(res, "page_keys", None) or []) if res else []
+    raw_passages = dict(getattr(res, "passages", None) or {})
+    wiki_passages: dict[str, str] = {}
+    for store_key in page_keys:
+        slug = store_key.rsplit("/", 1)[-1]
+        text = str(raw_passages.get(store_key) or raw_passages.get(slug) or "").strip()
+        if text:
+            wiki_passages[store_key] = text
+    pinned_pages: list[str] = []
+    if store is not None:
+        # 上轮知识面复水：按 key 从 store 重渲（不存全文，语料更新自动生效）。
+        pinned_pages.extend(
+            _attach_pinned_passages(
+                store,
+                keys=request.pin_pages,
+                databases=databases,
+                page_keys=page_keys,
+                wiki_passages=wiki_passages,
+                source_note="上轮已用",
+            )
+        )
+    if store is not None and (res is not None or request.pin_tables):
         extra_keys = list(trace.get("closure_extra_keys") or [])
         extra_keys.extend(str(key) for key in (trace.get("conflict_page_keys") or []))
         candidates, budget_cut = resolve_wiki_tables(
             store,
-            page_keys=list(res.page_keys or []),
+            page_keys=list(page_keys),
             extra_keys=extra_keys,
             table_pages=list(trace.get("gated_table_pages") or []),
             scores={
@@ -806,20 +895,52 @@ def _wiki_payload_from_recall(
             },
             budget=budget,
             query=query,
+            pinned_tables=request.pin_tables,
         )
     table_names = [item.name for item in candidates]
     schema_text = ""
+    evidence_fields: dict[str, set[str]] = {}
+    projection_stats: dict[str, Any] = {}
     if table_names:
-        schema_text = render_schema(table_names, store=store)
-        by_table = split_rendered_tables(schema_text, table_names)
-        candidates, extra_cut = trim_schema_chars(
-            candidates, by_table, schema_chars=budget.schema_chars
+        evidence_fields = merge_field_sets(
+            collect_schema_evidence(store, page_keys=page_keys, tables=table_names),
+            request.required_fields,
         )
-        budget_cut.extend(extra_cut)
-        table_names = [item.name for item in candidates]
-        schema_text = "\n".join(
-            by_table[name] for name in table_names if by_table.get(name)
-        )
+        schema_text = render_schema(table_names, store=store, project_relations=False)
+        # 枚举页主动 pin：与本轮相关的 dict 字段，其权威枚举页进 prompt，
+        # 投影随后才允许把 topk 换成 enum= 指针。
+        if store is not None:
+            pinned_pages.extend(
+                _attach_pinned_passages(
+                    store,
+                    keys=enum_pins_for(
+                        schema_text, queries=[query], keep_fields=evidence_fields
+                    ),
+                    databases=databases,
+                    page_keys=page_keys,
+                    wiki_passages=wiki_passages,
+                    source_note="字段枚举",
+                )
+            )
+        # Do not drop tables to fit schema_chars — SQL accuracy outranks
+        # prompt size. Field folding still runs at render time.
+        projection_stats = project_schema(
+            schema_text,
+            budget_chars=budget.schema_chars,
+            queries=[query],
+            keep_fields=evidence_fields,
+            present_pages=wiki_passages.keys(),
+        ).as_stats()
+    # Window text as produced by recall, followed by pinned passages (rehydrated
+    # prior pages / enum pages) — same order the plane renders them in.
+    wiki_text = "\n\n".join(
+        part
+        for part in [
+            str(getattr(res, "text", "") or "") if res else "",
+            *(wiki_passages.get(key) or "" for key in pinned_pages),
+        ]
+        if part.strip()
+    )
     bundle = RecallBundle(
         backend="wiki",
         tables=tuple(candidates),
@@ -827,7 +948,7 @@ def _wiki_payload_from_recall(
         budget=budget,
         trace=trace,
         knowledge_text=wiki_text,
-        page_keys=tuple(getattr(res, "page_keys", None) or []) if res else (),
+        page_keys=tuple(page_keys),
         hits=tuple(getattr(res, "hits", None) or []) if res else (),
         store_source="db",
         corpus_id=int(getattr(res, "corpus_id", 0) or 0) if res else 0,
@@ -836,7 +957,7 @@ def _wiki_payload_from_recall(
         vector_channel=bool(getattr(res, "vector_channel", False)) if res else False,
         elapsed_ms=int(getattr(res, "elapsed_ms", 0) or 0) if res else 0,
         embedding_built=bool(getattr(res, "embedding_built", False)) if res else False,
-        schema_chars=len(schema_text),
+        schema_chars=int(projection_stats.get("chars") or len(schema_text)),
         hit_count=len(getattr(res, "hits", None) or []) if res else 0,
         gate_rejected=tuple(str(k) for k in (trace.get("gate_rejected") or [])),
         budget_cut=tuple(budget_cut),
@@ -845,15 +966,24 @@ def _wiki_payload_from_recall(
             for item in (trace.get("caliber_conflicts") or [])
             if isinstance(item, dict)
         ),
+        evidence_fields={
+            table: tuple(sorted(names)) for table, names in evidence_fields.items()
+        },
+        pinned_tables=tuple(request.pin_tables),
+        pinned_pages=tuple(pinned_pages),
+        query=query,
+        projection=projection_stats,
     )
     payload = bundle.to_agent_payload()
+    if wiki_passages:
+        payload["wiki_passages"] = wiki_passages
     payload["schema_ready"] = schema_ready_from_payload(payload)
     return payload
 
 
 def retrieve_wiki_context(
     llm_service: Any,
-    query: str,
+    query: str | RecallRequest,
     *,
     access_scope: Any = None,
     top_k: int | None = None,
@@ -863,10 +993,14 @@ def retrieve_wiki_context(
     1. Datasource has an enabled wiki_corpus_binding: recall Wiki knowledge
        + anchor-closure schema. Zero hits stay on this path.
     2. Datasource has no Wiki binding: ``schema_vector`` catalog recall.
+
+    ``query`` may be a plain string (single turn / search_wiki) or a
+    ``RecallRequest`` carrying continuation pins (baseline tables, prior pages).
     """
     from apps.knowledge.recall_kernel.types import RecallBudget
 
-    clean_query = str(query or "").strip()
+    request = RecallRequest.coerce(query)
+    clean_query = request.query
     if not clean_query:
         return _empty_wiki_payload()
     ds = getattr(llm_service, "ds", None)
@@ -877,7 +1011,7 @@ def retrieve_wiki_context(
     if has_wiki_bound_corpus(ds_id):
         try:
             return _wiki_payload_from_recall(
-                query=clean_query,
+                request=request,
                 ds=ds,
                 ds_id=ds_id,
                 top_k=effective_top_k,
@@ -893,7 +1027,10 @@ def retrieve_wiki_context(
     try:
         return _decorate_schema_fallback(
             _schema_fallback_context(
-                llm_service, clean_query, access_scope=access_scope
+                llm_service,
+                clean_query,
+                access_scope=access_scope,
+                pin_tables=request.pin_tables,
             )
         )
     except Exception as exc:

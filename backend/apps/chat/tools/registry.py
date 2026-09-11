@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from langchain_core.tools import StructuredTool
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from apps.chat.tools.clarification import request_clarification
 from apps.chat.tools.compare_results import compare_query_results
@@ -66,12 +66,31 @@ class RequestClarificationInput(BaseModel):
 
 class SearchWikiInput(BaseModel):
     query: str = Field(
+        default="",
         description=(
             "Business concept, table name, caliber, or keyword to search Wiki for. "
             "Use again when the first recall is incomplete, clarification introduces "
-            "new concepts, or thinking finds a missing table/enum/org mapping."
-        )
+            "new concepts, or thinking finds a missing table/enum/org mapping. "
+            "May be empty when only dropping knowledge via drop."
+        ),
     )
+    drop: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Knowledge keys to evict from the session prompt: physical table names "
+            "and/or wiki page_keys listed in knowledge_index. Dropped items stay "
+            "out of later assembly unless a later search query explicitly names "
+            "them. Do not drop JOIN peers or tables still needed for the SQL."
+        ),
+    )
+
+    @model_validator(mode="after")
+    def _need_query_or_drop(self) -> SearchWikiInput:
+        if not str(self.query or "").strip() and not [
+            item for item in self.drop if str(item).strip()
+        ]:
+            raise ValueError("search_wiki requires query and/or drop")
+        return self
 
 
 class PatchSqlInput(BaseModel):
@@ -89,8 +108,9 @@ class ExecuteSqlInput(BaseModel):
     limit: int = Field(
         default=1000,
         description=(
-            "Max rows to retrieve when SQL has no LIMIT. "
-            "If SQL already contains LIMIT N, that N is respected (up to system max)."
+            "Max rows to retrieve when SQL has no LIMIT (default 1000). "
+            "If SQL already contains LIMIT N, that N is respected (up to system max); "
+            "when the user names a row count, write it into the SQL LIMIT."
         ),
     )
     required: bool = Field(
@@ -133,8 +153,10 @@ def build_agent_tools(
 ) -> list[StructuredTool]:
     """Construct bound LangChain tools scoped to current LLMService and access permissions."""
 
-    def _search_wiki(query: str) -> dict[str, Any]:
-        res = search_wiki_knowledge(llm_service, query, access_scope=access_scope)
+    def _search_wiki(query: str = "", drop: list[str] | None = None) -> dict[str, Any]:
+        res = search_wiki_knowledge(
+            llm_service, query, drop=drop or [], access_scope=access_scope
+        )
         return dict(res)
 
     def _patch_sql(
@@ -193,6 +215,8 @@ def build_agent_tools(
                 "Search Wiki for table structures, field definitions, enums, and calibers. "
                 "Returns a coverage stub (added_tables/pages, schema_ready, stop_search); "
                 "full schema lives only in the system prompt. "
+                "Pass drop=[table or page_key] to evict irrelevant knowledge from later "
+                "prompts; query may be empty when only dropping. "
                 "Call again only for a new gap. If the result is schema_missing, one more "
                 "targeted query is allowed; if it is stagnant/stop_search, stop. Never "
                 "query information_schema to fill schema gaps."

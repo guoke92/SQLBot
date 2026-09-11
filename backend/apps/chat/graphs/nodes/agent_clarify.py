@@ -10,6 +10,7 @@ from langchain_core.messages import HumanMessage
 from langgraph.types import interrupt
 
 from apps.chat.agent_knowledge import AgentKnowledgePlane
+from apps.chat.caliber_surface import render_caliber_lines
 from apps.chat.memory_slots import MemorySlots
 from apps.conversation.messages import deserialize_messages, serialize_messages
 from apps.conversation.process_timeline import (
@@ -117,10 +118,11 @@ def await_agent_clarification_node(state: Mapping[str, Any]) -> dict[str, Any]:
                 "options": opts_by_id,
             }
 
-    # 1. Update memory slots with confirmed calibers and extract human-friendly descriptions
+    # 1. Update memory slots with confirmed calibers; the resume message reuses
+    #    the single caliber renderer (render_caliber_lines) instead of ad-hoc text.
     raw_slots = dict(state.get("memory_slots") or {})
     confirmed = dict(raw_slots.get("confirmed_calibers") or {})
-    clarified_summaries: list[str] = []
+    newly_confirmed: list[dict[str, Any]] = []
 
     if isinstance(answers, list):
         for ans in answers:
@@ -148,40 +150,32 @@ def await_agent_clarification_node(state: Mapping[str, Any]) -> dict[str, Any]:
                     "fields": fields,
                     "option_id": opt_id,
                 }
-                field_desc = f" (fields: {fields})" if fields else ""
-                clarified_summaries.append(
-                    f"For [{q_text or qid}], the user selected [{label}]{field_desc}"
-                )
             else:
                 val = opt_id or str(ans)
                 confirmed[qid] = {
-                    "question": q_text,
+                    "question": q_text or qid,
                     "label": val,
                     "meaning": val,
                     "option_id": opt_id,
                 }
-                clarified_summaries.append(f"User confirmed {q_text or qid} = {val}")
+            newly_confirmed.append(confirmed[qid])
 
     raw_slots["confirmed_calibers"] = confirmed
 
-    # 2. Inject user clarification answers into agent conversation messages with explicit directive
+    # 2. Inject the user's answers as a structured, Chinese resume directive.
     messages = deserialize_messages(list(state.get("messages") or []))
-    if clarified_summaries:
-        details_text = "\n- ".join(clarified_summaries)
+    lines = render_caliber_lines(newly_confirmed)
+    if lines:
         clarify_text = (
-            f"The user finished clarification:\n- {details_text}\n\n"
-            "Follow the confirmed caliber and field rules. Continue the query. "
-            "Do not ask about already confirmed items."
+            "用户已完成澄清，确认口径如下（括号内为绑定的物理字段）：\n"
+            + "\n".join(lines)
+            + "\n\n按已确认口径继续：不要再询问已确认的项；"
+            "若还有其它未确认的冲突条件，合并到一次澄清；否则直接落口径写 SQL 并执行。"
         )
     elif answers:
-        clarify_text = (
-            f"The user confirmed: {answers}. Continue the query without repeating "
-            "clarification questions."
-        )
+        clarify_text = f"用户已确认澄清选项：{answers}。按确认结果继续，不要重复澄清。"
     else:
-        clarify_text = (
-            "The user confirmed the clarification options. Continue the query."
-        )
+        clarify_text = "用户已确认澄清选项。按确认结果继续查询。"
 
     messages.append(HumanMessage(content=clarify_text))
 

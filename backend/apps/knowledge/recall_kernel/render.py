@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from apps.chat.steps.wiki_schema import WikiSchemaRenderer
+from apps.chat.steps.wiki_schema import WikiSchemaRenderer, filter_schema_relations
 
 _RELATION_LINE_RE = re.compile(
     r"关联:\s*([A-Za-z_][\w.]*)\.[A-Za-z_]\w*\s*→\s*([A-Za-z_][\w.]*)\."
@@ -17,20 +17,41 @@ def render_schema(
     *,
     store: Any = None,
     live_tables: dict[str, Any] | None = None,
+    peer_catalog: list[str] | None = None,
     confirmed_relations: list[str] | None = None,
+    project_relations: bool = True,
 ) -> str:
-    """Render physical tables in the wiki ``## 注释 (phys)`` format only."""
+    """Render physical tables (full fields) in the wiki ``## 注释 (phys)`` format.
+
+    ``project_relations=True`` (NLQ 单次 working set) 按当前 ``tables`` 投影关联。
+    Agent 增量召回传 ``False``，把完整紧凑边交给 plane，由累计表集再投影。
+    字段级压缩不在此处——``wiki_schema.project_schema`` 是唯一实现，由
+    消费面（plane / 预算裁表）在需要时调用。
+
+    ``peer_catalog`` is the full datasource table-name set used to resolve
+    naming-convention FKs whose peer is outside the current working set.
+    """
     if not tables:
         return ""
     if store is not None:
-        renderer = WikiSchemaRenderer.from_store(store, live_tables=live_tables)
+        renderer = WikiSchemaRenderer.from_store(
+            store, live_tables=live_tables, peer_catalog=peer_catalog
+        )
         if renderer is None:
-            renderer = WikiSchemaRenderer(store, live_tables=live_tables or {})
+            renderer = WikiSchemaRenderer(
+                store,
+                live_tables=live_tables or {},
+                peer_catalog=peer_catalog,
+            )
     else:
-        renderer = WikiSchemaRenderer(None, live_tables=live_tables or {})
+        renderer = WikiSchemaRenderer(
+            None, live_tables=live_tables or {}, peer_catalog=peer_catalog
+        )
     text = str(renderer.render(list(tables)) or "")
     if confirmed_relations:
         text = _attach_relation_lines(text, list(tables), confirmed_relations)
+    if project_relations:
+        text = filter_schema_relations(text, peer_tables=tables)
     return text.strip()
 
 

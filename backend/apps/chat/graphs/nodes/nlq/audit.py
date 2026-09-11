@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from copy import deepcopy
 from collections.abc import Mapping
+from copy import deepcopy
 from typing import Any, Literal, cast
 
 import orjson
@@ -11,10 +11,7 @@ import orjson
 from apps.chat.constants import DYNAMIC_DS_TYPES
 from apps.chat.graphs.nodes.nlq.state import (
     NlqState,
-    _ds_scope,
-    _generation_question,
 )
-from apps.chat.steps.knowledge import get_compiled_knowledge
 from apps.chat.steps.permissions import (
     DYNAMIC_SUBSQL_PREFIX,
     generate_assistant_dynamic_sql,
@@ -25,10 +22,6 @@ from apps.conversation.outcome import (
     RunOutcome,
     public_error_message,
 )
-from apps.conversation.run_service import (
-    active_evidence,
-)
-from apps.conversation.session import session_scope
 from apps.datasource.access import (
     AccessScope,
 )
@@ -128,6 +121,7 @@ def _record_snapshot_values(
     execution_mode: Literal["verified", "unverified", "agent"] = "verified",
     assumptions: list[dict[str, Any]] | None = None,
     confirmed_calibers: list[dict[str, Any]] | None = None,
+    knowledge_refs: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Build the ChatRecord projection committed by ``finalize_run``."""
     if outcome is None:
@@ -280,6 +274,7 @@ def _record_snapshot_values(
             "source_record_ids": [],
             "confirmed_calibers": list(confirmed_calibers or []),
             "assumptions": list(assumptions or []),
+            "knowledge_refs": dict(knowledge_refs) if knowledge_refs else None,
             "quality": published_outcome.get("quality"),
             "error": answer_error,
         },

@@ -14,7 +14,11 @@ from apps.chat.agent_copy import (
     truncated_display_note,
     truncation_from_tool_steps,
 )
-from apps.chat.agent_knowledge import AgentKnowledgePlane
+from apps.chat.agent_knowledge import (
+    EXECUTION_ROUND_LIMIT,
+    AgentKnowledgePlane,
+    tool_calls_advance_round,
+)
 from apps.chat.memory_slots import (
     MemorySlots,
     answer_has_executable_sql,
@@ -112,10 +116,14 @@ def _agent_has_sql_result(state: Mapping[str, Any], messages: Sequence[Any]) -> 
     return False
 
 
-def _clarify_only_tool_calls(calls: Sequence[Mapping[str, Any]]) -> bool:
-    return bool(calls) and all(
-        str(item.get("name") or "") == "request_clarification" for item in calls
-    )
+def _sqlglot_dialect(llm_service: Any) -> str | None:
+    try:
+        from apps.db.db import get_sqlglot_dialect
+
+        ds_type = str(getattr(getattr(llm_service, "ds", None), "type", "") or "")
+        return get_sqlglot_dialect(ds_type) if ds_type else None
+    except Exception:  # noqa: BLE001 — dialect is a hint only
+        return None
 
 
 def _incomplete_query_state(
@@ -307,35 +315,22 @@ def prepare_agent_turn_node(state: Mapping[str, Any]) -> dict[str, Any]:
 
     raw_slots = base_state.get("memory_slots") or {}
     memory_slots = MemorySlots.model_validate(raw_slots) if raw_slots else MemorySlots()
+    # referenced_turns (assemble_turn_context) already carry the referenced
+    # answer's confirmed_calibers / assumptions / knowledge_refs.
     referenced = list(base_state.get("referenced_turns") or [])
-    # Prefer full answer calibers from the referenced ChatRecord when outline lacks them.
-    if referenced:
-        try:
-            with session_scope() as session:
-                latest_id = referenced[-1].get("record_id")
-                prior = session.get(ChatRecord, int(latest_id)) if latest_id else None
-                answer = (
-                    prior.answer
-                    if prior is not None and isinstance(prior.answer, dict)
-                    else {}
-                )
-                patch: dict[str, Any] = {}
-                if answer.get("assumptions") and "assumptions" not in referenced[-1]:
-                    patch["assumptions"] = list(answer.get("assumptions") or [])
-                if (
-                    answer.get("confirmed_calibers")
-                    and "confirmed_calibers" not in referenced[-1]
-                ):
-                    patch["confirmed_calibers"] = list(
-                        answer.get("confirmed_calibers") or []
-                    )
-                if patch:
-                    referenced[-1] = {**referenced[-1], **patch}
-        except Exception as exc:
-            SQLBotLogUtil.warning(f"Failed to load prior calibers: {exc}")
     memory_slots = hydrate_memory_slots_from_referenced_turns(memory_slots, referenced)
 
+    from apps.chat.steps.recall_request import build_recall_request
     from apps.chat.steps.wiki_recall import retrieve_wiki_context, wiki_span_fields
+
+    recall_request = build_recall_request(
+        question_text,
+        baseline_sql=memory_slots.active_baseline_sql,
+        prior_questions=memory_slots.prior_questions,
+        prior_page_keys=list(memory_slots.knowledge_refs.get("page_keys") or []),
+        prior_tables=list(memory_slots.knowledge_refs.get("tables") or []),
+        dialect=_sqlglot_dialect(llm_service),
+    )
 
     wiki_ctx: dict[str, Any] = {}
     plane = AgentKnowledgePlane.from_dump(base_state.get("knowledge_plane"))
@@ -358,7 +353,7 @@ def prepare_agent_turn_node(state: Mapping[str, Any]) -> dict[str, Any]:
     try:
         wiki_ctx = retrieve_wiki_context(
             llm_service,
-            question_text,
+            recall_request,
             access_scope=access_scope,
         )
         plane.merge_recall(wiki_ctx)
@@ -379,9 +374,12 @@ def prepare_agent_turn_node(state: Mapping[str, Any]) -> dict[str, Any]:
                     "backend": wiki_ctx.get("backend"),
                     "store_source": wiki_ctx.get("store_source"),
                     "corpus_id": wiki_ctx.get("corpus_id"),
+                    **recall_request.as_span_fields(),
                 }
             )
-            wiki_span.set_output(wiki_span_fields(wiki_ctx))
+            wiki_span.set_output(
+                {**wiki_span_fields(wiki_ctx), "prompt": plane.prompt_stats()}
+            )
             wiki_span.close(
                 status="completed",
                 summary_key="chat.summary.wiki_prepared",
@@ -419,7 +417,7 @@ def prepare_agent_turn_node(state: Mapping[str, Any]) -> dict[str, Any]:
         **base_state,
         "messages": serialize_messages(initial_messages),
         "tool_rounds": 0,
-        "tool_round_limit": 5,
+        "tool_round_limit": EXECUTION_ROUND_LIMIT,
         "knowledge_plane": plane.to_dump(),
         "probe_sql_calls": 0,
         "memory_slots": memory_slots.model_dump(),
@@ -433,7 +431,7 @@ def agent_loop_node(state: Mapping[str, Any]) -> dict[str, Any]:
     messages = deserialize_messages(list(state.get("messages") or []))
     tools = list(runtime_value(state, "bound_tools") or [])
     rounds = int(state.get("tool_rounds") or 0)
-    round_limit = int(state.get("tool_round_limit") or 5)
+    round_limit = int(state.get("tool_round_limit") or EXECUTION_ROUND_LIMIT)
     record_id = state.get("record_id")
     run_id = str(state.get("run_id") or "") or None
     llm = runtime_value(state, "llm")
@@ -455,14 +453,14 @@ def agent_loop_node(state: Mapping[str, Any]) -> dict[str, Any]:
 
     model_messages = messages
     if finalizing:
-        reason = stop_reason or (f"Tool calling budget reached ({round_limit} rounds)")
+        reason = stop_reason or f"执行类工具已达 {round_limit} 轮预算"
         model_messages = [
             *messages,
             SystemMessage(
                 content=(
-                    f"Tool execution is now closed because {reason}. "
-                    "Do not request further tool calls. If no query result is available, "
-                    "do not propose another search, catalog SQL, or guessed columns."
+                    f"工具调用已关闭（{reason}）。不要再请求任何工具。"
+                    "若尚无查询结果，直接按 §6 说明本轮未能取得数据，"
+                    "不要再提出补检索、目录 SQL 或猜测字段。"
                 )
             ),
         ]
@@ -610,7 +608,7 @@ def agent_loop_node(state: Mapping[str, Any]) -> dict[str, Any]:
             )
             if tool_span is not None and call_id:
                 open_tool_spans[call_id] = tool_span.id
-        advanced_rounds = rounds if _clarify_only_tool_calls(calls) else rounds + 1
+        advanced_rounds = rounds + 1 if tool_calls_advance_round(calls) else rounds
         return {
             **state,
             "messages": serialize_messages(updated_messages),

@@ -399,24 +399,46 @@ def semantic_ingest_v2(
     )
     analysis = _parse_json(analysis_text)
 
+    gen_human = (
+        f"## 语义分析（唯一事实来源）\n{analysis_text[:16000]}\n\n"
+        f"## 输出要求\n为主题「{topic}」生成页面：涉及表各一个 table 页、"
+        f"每个状态机一个 process 页、每个口径一个 caliber 页、"
+        f"每个术语桥一个 concept 页、每条规则一个 rule 页（只产出分析中有证据支撑的）。\n"
+        f"每个页面必须包在 ---FILE: <目录>/<slug>.md --- 与 ---END FILE--- 之间；"
+        f"目录必须是 tables/enums/concepts/processes/calibers/rules 之一。"
+        f"禁止只输出 REVIEW 而不产出 FILE。"
+    )
     step2 = llm.invoke(
         [
             SystemMessage(content=_GENERATION_SYSTEM),
-            HumanMessage(
-                content=(
-                    f"## 语义分析（唯一事实来源）\n{analysis_text[:16000]}\n\n"
-                    f"## 输出要求\n为主题「{topic}」生成页面：涉及表各一个 table 页、"
-                    f"每个状态机一个 process 页、每个口径一个 caliber 页、"
-                    f"每个术语桥一个 concept 页、每条规则一个 rule 页（只产出分析中有证据支撑的）。"
-                )
-            ),
+            HumanMessage(content=gen_human),
         ]
     )
     generation = step2.content if isinstance(step2.content, str) else str(step2.content)
+    pages = parse_file_blocks(generation)
+    if not pages:
+        # 模型偶发只吐 REVIEW / 用错围栏：重试一次，避免整主题空跑仍写 _done
+        retry = llm.invoke(
+            [
+                SystemMessage(content=_GENERATION_SYSTEM),
+                HumanMessage(
+                    content=(
+                        gen_human
+                        + "\n\n上次输出没有可解析的 ---FILE: ... ---END FILE--- 块。"
+                        "请仅按该协议重新输出全部页面，首字符必须是 '-'。"
+                    )
+                ),
+            ]
+        )
+        generation = (
+            retry.content if isinstance(retry.content, str) else str(retry.content)
+        )
+        pages = parse_file_blocks(generation)
     return {
         "analysis": analysis,
-        "pages": parse_file_blocks(generation),
+        "pages": pages,
         "reviews": parse_review_blocks(generation),
+        "generation": generation,
     }
 
 

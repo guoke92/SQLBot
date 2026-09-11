@@ -10,6 +10,7 @@ from apps.chat.agent_copy import (
     truncated_display_note,
     truncation_from_delivery_steps,
 )
+from apps.chat.agent_knowledge import AgentKnowledgePlane
 from apps.chat.caliber_surface import project_caliber_surface
 from apps.chat.chart_presentation import (
     infer_chart_for_presentation,
@@ -265,6 +266,8 @@ def finalize_agent_turn_node(state: Mapping[str, Any]) -> dict[str, Any]:
     raw_slots = dict(state.get("memory_slots") or {})
     surface = project_caliber_surface(raw_slots)
     outcome = successful_outcome()
+    plane = AgentKnowledgePlane.from_dump(state.get("knowledge_plane"))
+    knowledge_refs = plane.knowledge_refs() if plane.tables or plane.page_keys else None
     snapshot_vals = _record_snapshot_values(
         all_steps,
         analysis_text=final_text,
@@ -274,6 +277,7 @@ def finalize_agent_turn_node(state: Mapping[str, Any]) -> dict[str, Any]:
         execution_mode="agent",
         confirmed_calibers=surface["confirmed_calibers"],
         assumptions=surface["assumptions"],
+        knowledge_refs=knowledge_refs,
     )
     answer = snapshot_vals.get("answer") or {}
 

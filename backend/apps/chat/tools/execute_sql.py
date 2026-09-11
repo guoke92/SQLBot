@@ -112,15 +112,14 @@ def _consume_probe_budget(required: bool) -> str | None:
         return None
     if after == PROBE_SQL_LIMIT:
         return (
-            f"[probe_budget] This was probe {after}/{PROBE_SQL_LIMIT}. "
-            "Do not probe again — next execute_sql_sandbox must use "
-            "required=true to deliver, or call request_clarification."
+            f"[probe_budget] 这是第 {after}/{PROBE_SQL_LIMIT} 次探查。"
+            "不要再探查——下一次 execute_sql_sandbox 必须用 required=true 交付，"
+            "或调用 request_clarification。"
         )
     return (
-        f"[probe_budget_exhausted] Probe limit ({PROBE_SQL_LIMIT}) already "
-        "reached before this call; results above are still valid for reasoning. "
-        "Stop probing — call execute_sql_sandbox with required=true to deliver, "
-        "or request_clarification if the caliber is still ambiguous."
+        f"[probe_budget_exhausted] 探查次数已达上限（{PROBE_SQL_LIMIT}）；"
+        "上方结果仍可用于推理。停止探查——用 required=true 交付，"
+        "或在口径仍不清时调用 request_clarification。"
     )
 
 

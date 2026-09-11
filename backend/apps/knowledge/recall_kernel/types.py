@@ -5,7 +5,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
-TableSource = Literal["anchor", "table_page", "schema_vector"]
+TableSource = Literal[
+    "anchor", "table_page", "schema_vector", "schema_expand", "pinned"
+]
 RecallBackend = Literal["wiki", "schema_vector", "none", "error"]
 
 
@@ -17,7 +19,7 @@ class RecallBudget:
     prose_chars: int = 400
     max_tables: int = 4
     max_tables_total: int = 8
-    schema_chars: int = 12000
+    schema_chars: int = 12000  # field folding only; never drop whole tables
 
     @classmethod
     def from_settings(cls) -> RecallBudget:
@@ -88,6 +90,14 @@ class RecallBundle:
     gate_rejected: tuple[str, ...] = ()
     budget_cut: tuple[str, ...] = ()
     caliber_conflicts: tuple[dict[str, Any], ...] = ()
+    # Turn-scoped projection inputs (single source for plane / NLQ / stub):
+    # field evidence from recalled pages ∪ baseline SQL columns, plus what was
+    # pinned in from the previous turn / enum auto-pin.
+    evidence_fields: dict[str, tuple[str, ...]] = field(default_factory=dict)
+    pinned_tables: tuple[str, ...] = ()
+    pinned_pages: tuple[str, ...] = ()
+    query: str = ""
+    projection: dict[str, Any] = field(default_factory=dict)
 
     def table_names(self) -> list[str]:
         return [item.name for item in self.tables]
@@ -118,6 +128,18 @@ class RecallBundle:
             "table_evidence": self.table_evidence(),
             "budget_cut": list(self.budget_cut),
             "caliber_conflicts": [dict(item) for item in self.caliber_conflicts],
+            "wiki_passages": {
+                str(hit.store_key or hit.page_key): hit.text
+                for hit in self.passages
+                if hit.text
+            },
+            "evidence_fields": {
+                str(table): list(names) for table, names in self.evidence_fields.items()
+            },
+            "pinned_tables": list(self.pinned_tables),
+            "pinned_pages": list(self.pinned_pages),
+            "query": self.query,
+            "projection": dict(self.projection),
         }
         if self.error:
             payload["error"] = self.error
@@ -132,7 +154,11 @@ class RecallBundle:
             page_keys=list(self.page_keys),
             elapsed_ms=self.elapsed_ms,
             embedding_built=self.embedding_built,
-            passages={hit.page_key: hit.text for hit in self.passages if hit.text},
+            passages={
+                str(hit.store_key or hit.page_key): hit.text
+                for hit in self.passages
+                if hit.text
+            },
             trace=dict(self.trace),
             store_source=self.store_source,
             corpus_id=self.corpus_id,

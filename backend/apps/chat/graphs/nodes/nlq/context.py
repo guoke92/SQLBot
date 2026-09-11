@@ -857,6 +857,13 @@ def assemble_turn_context_node(state: NlqState) -> NlqState:
                         "datasets": [
                             _referenced_dataset_outline(item) for item in datasets
                         ],
+                        # Durable caliber/knowledge surface of the referenced turn
+                        # (single hydration point for memory slots + recall pins).
+                        "confirmed_calibers": list(
+                            answer.get("confirmed_calibers") or []
+                        ),
+                        "assumptions": list(answer.get("assumptions") or []),
+                        "knowledge_refs": dict(answer.get("knowledge_refs") or {}),
                         "revision_ids": list(
                             (planning.get("compiled_knowledge") or {}).get("revision_ids") or []
                             if isinstance(planning.get("compiled_knowledge"), dict)

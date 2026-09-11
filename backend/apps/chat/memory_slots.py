@@ -37,15 +37,26 @@ class MemorySlots(BaseModel):
         default_factory=dict,
         description="Metadata outline of the latest result dataset (fields, row_count, sample).",
     )
+    knowledge_refs: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Referenced turn's knowledge working set, keys only: {'page_keys': [...], 'tables': [...]}",
+    )
+    prior_questions: list[str] = Field(
+        default_factory=list,
+        description="Questions of the referenced turns (oldest first) — retrieval context for follow-ups.",
+    )
 
     def extract_change_baseline(self) -> dict[str, Any]:
         """Compact baseline for incremental patching in the current turn."""
         if not self.active_baseline_sql:
             return {}
-        return {
+        baseline: dict[str, Any] = {
             "sql": self.active_baseline_sql,
             "outline": self.active_dataset_outline,
         }
+        if self.prior_questions:
+            baseline["prior_question"] = self.prior_questions[-1]
+        return baseline
 
     def update_from_execution(
         self,
@@ -96,6 +107,19 @@ def hydrate_memory_slots_from_referenced_turns(
                 "row_count": ds.get("row_count"),
             }
             break
+
+    refs = latest.get("knowledge_refs")
+    if not memory_slots.knowledge_refs and isinstance(refs, Mapping):
+        memory_slots.knowledge_refs = {
+            "page_keys": [str(k) for k in (refs.get("page_keys") or []) if str(k)],
+            "tables": [str(t) for t in (refs.get("tables") or []) if str(t)],
+        }
+    if not memory_slots.prior_questions:
+        memory_slots.prior_questions = [
+            str(turn.get("question") or "").strip()
+            for turn in referenced_turns
+            if isinstance(turn, Mapping) and str(turn.get("question") or "").strip()
+        ]
 
     raw_assumptions = latest.get("assumptions")
     if not memory_slots.assumptions and isinstance(raw_assumptions, list):

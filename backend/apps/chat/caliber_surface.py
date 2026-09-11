@@ -13,32 +13,92 @@ from collections.abc import Mapping, MutableMapping, Sequence
 from typing import Any
 
 
+def _caliber_fields(payload: Mapping[str, Any]) -> list[dict[str, str]]:
+    """Physical binding of a caliber (``[{table, field}]``) — kept end to end.
+
+    Clarification options historically used ``name``; memory slots use ``field``.
+    Accept either so bindings survive round-trips.
+    """
+    out: list[dict[str, str]] = []
+    for raw in payload.get("fields") or []:
+        if isinstance(raw, Mapping):
+            table = str(raw.get("table") or "").strip()
+            field = str(raw.get("field") or raw.get("name") or "").strip()
+        else:
+            table, _, field = str(raw or "").strip().rpartition(".")
+        if field and {"table": table, "field": field} not in out:
+            out.append({"table": table, "field": field})
+    return out
+
+
 def _caliber_item(payload: Mapping[str, Any], *, source: str) -> dict[str, Any] | None:
     question = str(payload.get("question") or "").strip()
     meaning = str(
-        payload.get("meaning") or payload.get("label") or payload.get("value") or ""
+        payload.get("meaning") or payload.get("label") or ""
     ).strip()
     label = str(payload.get("label") or meaning).strip()
-    if not meaning and not question:
+    value = str(payload.get("value") or "").strip()
+    if not meaning and not question and not value and not label:
         return None
-    return {
+    item = {
         "question": question,
-        "label": label or meaning,
-        "meaning": meaning or label,
-        "value": meaning or label,
+        "label": label or meaning or value,
+        "meaning": meaning or label or value,
+        "value": value or meaning or label,
         "source": source,
     }
+    fields = _caliber_fields(payload)
+    if fields:
+        item["fields"] = fields
+    return item
 
 
 def _slot_entry(payload: Mapping[str, Any]) -> dict[str, Any] | None:
     item = _caliber_item(payload, source="clarification")
     if item is None:
         return None
-    return {
+    entry = {
         "question": item["question"],
         "label": item["label"],
         "meaning": item["meaning"],
+        "value": item["value"],
     }
+    if item.get("fields"):
+        entry["fields"] = item["fields"]
+    return entry
+
+
+def render_caliber_lines(
+    items: Sequence[Mapping[str, Any]] | Mapping[str, Any],
+) -> list[str]:
+    """Compact prompt lines for confirmed calibers / assumptions.
+
+    ``- 「question」→ label：meaning（table.field, …）`` — one line per item;
+    the single rendering used by the system prompt (no raw JSON dumps).
+    """
+    values = list(items.values()) if isinstance(items, Mapping) else list(items)
+    lines: list[str] = []
+    for raw in values:
+        if not isinstance(raw, Mapping):
+            if raw not in (None, ""):
+                lines.append(f"- {raw}")
+            continue
+        question = str(raw.get("question") or "").strip()
+        label = str(raw.get("label") or raw.get("value") or "").strip()
+        meaning = str(raw.get("meaning") or "").strip()
+        body = label
+        if meaning and meaning != label:
+            body = f"{label}：{meaning}" if label else meaning
+        binding = "、".join(
+            f"{f['table']}.{f['field']}" if f["table"] else f["field"]
+            for f in _caliber_fields(raw)
+        )
+        head = f"「{question}」→ " if question else ""
+        tail = f"（{binding}）" if binding else ""
+        text = f"{head}{body}{tail}".strip()
+        if text:
+            lines.append(f"- {text}")
+    return lines
 
 
 def is_confirmed_source(source: Any) -> bool:
@@ -91,7 +151,9 @@ def project_query_assumptions(memory_slots: Mapping[str, Any]) -> list[dict[str,
     return _dedupe_calibers(items)
 
 
-def project_caliber_surface(memory_slots: Mapping[str, Any]) -> dict[str, list[dict[str, Any]]]:
+def project_caliber_surface(
+    memory_slots: Mapping[str, Any],
+) -> dict[str, list[dict[str, Any]]]:
     return {
         "confirmed_calibers": project_confirmed_calibers(memory_slots),
         "assumptions": project_query_assumptions(memory_slots),

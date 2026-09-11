@@ -8,7 +8,10 @@ from typing import TypedDict
 
 from apps.chat.query_intent import IntentRevision
 
-_SCHEMA_FIELD_RE = re.compile(r"^\s*\((?P<body>.*)\),?\s*$", re.MULTILINE)
+_SCHEMA_FIELD_RE = re.compile(
+    r"^\s*(?P<bare>[A-Za-z_]\w*:.*)\s*$",
+    re.MULTILINE,
+)
 
 
 class ResultColumnPresentation(TypedDict):
@@ -34,7 +37,8 @@ def schema_field_labels(schema_text: str) -> dict[str, str]:
     列名；枚举内联后 topk 变长，污染可见。topk 属于值集信息，不属于列名。"""
     candidates: dict[str, set[str]] = {}
     for match in _SCHEMA_FIELD_RE.finditer(schema_text or ""):
-        name_part, separator, remainder = str(match.group("body") or "").partition(":")
+        blob = str(match.group("bare") or "")
+        name_part, separator, remainder = blob.partition(":")
         if not separator:
             continue
         depth = 0

@@ -18,6 +18,7 @@ if str(_BACKEND) not in sys.path:
 from apps.chat.agent_knowledge import (  # noqa: E402
     PROBE_SQL_LIMIT,
     AgentKnowledgePlane,
+    MergeDelta,
     strip_search_wiki_payload,
 )
 from apps.chat.graphs.nodes.agent_clarify import (  # noqa: E402
@@ -35,6 +36,7 @@ from apps.conversation.messages import deserialize_messages  # noqa: E402
 from apps.conversation.runtime_context import (  # noqa: E402
     attach_runtime,
     detach_runtime,
+    peek_runtime,
     worker_scope,
 )
 from apps.conversation.tooling import execute_tools_node  # noqa: E402
@@ -42,7 +44,7 @@ from apps.conversation.tooling import execute_tools_node  # noqa: E402
 
 def test_plane_same_table_merge_does_not_grow() -> None:
     plane = AgentKnowledgePlane()
-    blob = "## 任务 (d_task)\n(id:int, 主键)\n(name:text, 名称)"
+    blob = "## 任务 (d_task)\nid:int, 主键\nname:text, 名称"
     payload = {
         "knowledge_text": "任务表口径",
         "schema_text": blob,
@@ -71,7 +73,7 @@ def test_search_wiki_stub_and_unchanged_stop(monkeypatch) -> None:
 
     payload = {
         "knowledge_text": "# d_task\n任务表",
-        "schema_text": "## 任务 (d_task)\n(id:int, 主键)\n(name:text, 名称)",
+        "schema_text": "## 任务 (d_task)\nid:int, 主键\nname:text, 名称",
         "tables": ["d_task"],
         "page_keys": ["d_task"],
         "backend": "wiki",
@@ -177,7 +179,7 @@ def test_clarify_resume_resets_tool_rounds_and_refreshes_system(monkeypatch) -> 
     plane.merge_recall(
         {
             "knowledge_text": "口径正文",
-            "schema_text": "## 表 (t1)\n(id:int, 主键)",
+            "schema_text": "## 表 (t1)\nid:int, 主键",
             "tables": ["t1"],
             "page_keys": ["p1"],
         }
@@ -293,19 +295,21 @@ def test_agent_has_sql_result_ignores_probes() -> None:
     assert _agent_has_sql_result(required, []) is True
 
 
-def test_clarify_only_calls_do_not_count_as_work_rounds() -> None:
-    from apps.chat.graphs.nodes.unified_agent import _clarify_only_tool_calls
+def test_self_budgeted_tool_calls_do_not_advance_execution_rounds() -> None:
+    """Categorical budgets: clarification and search_wiki have their own limits,
+    so a round made only of them must not consume the execution round budget."""
+    from apps.chat.agent_knowledge import tool_calls_advance_round
 
-    assert _clarify_only_tool_calls(
+    assert not tool_calls_advance_round(
         [{"name": "request_clarification", "id": "1", "args": {}}]
     )
-    assert not _clarify_only_tool_calls(
-        [
-            {"name": "request_clarification"},
-            {"name": "search_wiki"},
-        ]
+    assert not tool_calls_advance_round(
+        [{"name": "request_clarification"}, {"name": "search_wiki"}]
     )
-    assert not _clarify_only_tool_calls([])
+    assert tool_calls_advance_round(
+        [{"name": "search_wiki"}, {"name": "execute_sql_sandbox"}]
+    )
+    assert not tool_calls_advance_round([])
 
 
 def test_wiki_header_uses_physical_table_name() -> None:
@@ -313,7 +317,7 @@ def test_wiki_header_uses_physical_table_name() -> None:
     delta = plane.merge_recall(
         {
             "knowledge_text": "口径",
-            "schema_text": "## 客户信息 (cust_company_info)\n(id:bigint, 主键)\n(name:varchar, 名称)",
+            "schema_text": "## 客户信息 (cust_company_info)\nid:bigint, 主键\nname:varchar, 名称",
             "tables": ["cust_company_info"],
             "page_keys": ["cust_company_info"],
         }
@@ -428,9 +432,9 @@ def test_consume_probe_budget_advises_without_blocking() -> None:
             assert _consume_probe_budget(True) is None
             assert _consume_probe_budget(False) is None  # 1/2
             note = _consume_probe_budget(False)  # 2/2
-            assert note and "probe_budget" in note
+            assert note and "probe_budget" in note and "探查" in note
             over = _consume_probe_budget(False)  # 3rd
-            assert over and "probe_budget_exhausted" in over
+            assert over and "probe_budget_exhausted" in over and "上限" in over
     finally:
         detach_runtime(run_id)
 
@@ -516,3 +520,107 @@ def test_wiki_enum_discovery_sql_rejects_distinct_only() -> None:
         "WHERE identify_style = 'INVITE_AGW'",
         carriers,
     )
+
+
+def test_plane_does_not_drop_tables_for_count_budget() -> None:
+    plane = AgentKnowledgePlane()
+    for index in range(10):
+        name = f"t_{index}"
+        plane.merge_recall(
+            {
+                "schema_text": f"## x ({name})\nid:int, 主键",
+                "tables": [name],
+            }
+        )
+    policy = plane.apply_search_policy(
+        MergeDelta(
+            added_tables=["t_9"],
+            unchanged=False,
+            schema_ready=True,
+        )
+    )
+    assert plane.tables == [f"t_{index}" for index in range(10)]
+    assert len(plane.schema_by_table) == 10
+    assert policy["recall_status"] != "budget_exhausted"
+
+
+def test_exclude_knowledge_hides_from_prompt_and_blocks_remerge() -> None:
+    plane = AgentKnowledgePlane()
+    plane.merge_recall(
+        {
+            "schema_text": (
+                "## 主档 (cust_company_info)\nid:int, 主键\n"
+                "## 噪声 (cust_change_cfg)\nid:int, 主键"
+            ),
+            "tables": ["cust_company_info", "cust_change_cfg"],
+            "page_keys": ["concepts/menuKey"],
+            "wiki_passages": {"concepts/menuKey": "# 菜单\nmenuKey 说明"},
+            "query": "已缴费企业管理员",
+        }
+    )
+    dropped = plane.exclude_knowledge(["cust_change_cfg", "concepts/menuKey"])
+    assert dropped["tables"] == ["cust_change_cfg"]
+    assert "concepts/menuKey" in dropped["pages"]
+    rendered = plane.render_system_sections()
+    assert "cust_company_info" in rendered
+    assert "## 噪声" not in rendered
+    assert "# 菜单" not in rendered
+    assert "<knowledge_index>" in rendered
+    assert "cust_change_cfg" in plane.excluded
+    assert plane.tables == ["cust_company_info"]
+
+    plane.merge_recall(
+        {
+            "schema_text": "## 噪声 (cust_change_cfg)\nid:int, 主键",
+            "tables": ["cust_change_cfg"],
+            "query": "已缴费企业管理员",
+        }
+    )
+    assert "cust_change_cfg" not in plane.tables
+    assert "## 噪声" not in plane.render_system_sections()
+
+    plane.merge_recall(
+        {
+            "schema_text": "## 噪声 (cust_change_cfg)\nid:int, 主键",
+            "tables": ["cust_change_cfg"],
+            "query": "cust_change_cfg 变更配置",
+        }
+    )
+    assert "cust_change_cfg" in plane.tables
+    assert "## 噪声" in plane.render_system_sections()
+
+
+def test_search_wiki_drop_only_skips_retrieve(monkeypatch) -> None:
+    from apps.chat.tools import wiki_search as ws
+
+    def _boom(*_a, **_k):  # noqa: ANN002
+        raise AssertionError("drop-only must not retrieve")
+
+    monkeypatch.setattr(ws, "retrieve_wiki_context", _boom)
+    plane = AgentKnowledgePlane()
+    plane.merge_recall(
+        {
+            "schema_text": (
+                "## 主档 (cust_company_info)\nid:int, 主键\n"
+                "## 噪声 (cust_change_cfg)\nid:int, 主键"
+            ),
+            "tables": ["cust_company_info", "cust_change_cfg"],
+        }
+    )
+    run_id = "wiki-drop-only"
+    attach_runtime(run_id, knowledge_plane=plane.to_dump())
+    llm = SimpleNamespace(ds=SimpleNamespace(id=1))
+    try:
+        with worker_scope(run_id, "tok"):
+            result = ws.search_wiki_knowledge(llm, "", drop=["cust_change_cfg"])
+            snap = peek_runtime(run_id)
+    finally:
+        detach_runtime(run_id)
+    assert result["ok"] is True
+    assert result["data"]["recall_status"] == "dropped"
+    assert result["data"]["dropped_tables"] == ["cust_change_cfg"]
+    assert result["data"]["tables"] == ["cust_company_info"]
+    assert "cust_change_cfg" in result["data"]["excluded"]
+    restored = AgentKnowledgePlane.from_dump((snap or {}).get("knowledge_plane"))
+    assert restored.tables == ["cust_company_info"]
+    assert restored.search_rounds == 0

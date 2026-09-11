@@ -229,7 +229,35 @@ def test_schema_vector_candidates_preserve_field_boost() -> None:
     names = [item.name for item in candidates]
     assert names[0] == "d_organization"
     assert all(item.source == "schema_vector" for item in candidates)
-    assert all(item.evidence == () for item in candidates)
+    assert all(item.evidence == ("schema_vector",) for item in candidates)
+
+
+def test_expand_schema_working_set_keeps_seeds_and_admits_peers() -> None:
+    from apps.knowledge.recall_kernel.tables import expand_schema_working_set
+
+    seeds = [
+        TableCandidate("d_task", ("schema_vector",), 0.5, "schema_vector"),
+        TableCandidate("d_project", ("schema_vector",), 0.48, "schema_vector"),
+        TableCandidate("d_story", ("schema_vector",), 0.45, "schema_vector"),
+        TableCandidate("d_qa_bug", ("schema_vector",), 0.44, "schema_vector"),
+    ]
+    expanded = expand_schema_working_set(
+        seeds,
+        edges=[
+            ("d_project", "d_organization"),
+            ("d_task", "d_user"),
+            ("d_story", "d_sprint"),
+        ],
+        scores={"d_organization": 0.31, "d_user": 0.12, "d_sprint": 0.2},
+        total_limit=8,
+    )
+    names = [item.name for item in expanded]
+    assert names[:4] == ["d_task", "d_project", "d_story", "d_qa_bug"]
+    assert "d_organization" in names
+    assert names.index("d_organization") < names.index("d_user")
+    org = next(item for item in expanded if item.name == "d_organization")
+    assert org.source == "schema_expand"
+    assert org.evidence == ("schema_expand",)
 
 
 def test_trim_schema_chars_drops_least_evidenced() -> None:
@@ -237,7 +265,7 @@ def test_trim_schema_chars_drops_least_evidenced() -> None:
         TableCandidate("a", ("p1", "p2"), 2.0, "anchor"),
         TableCandidate("b", ("p1",), 1.0, "anchor"),
     ]
-    bodies = {"a": "## A (a)\n" + "(id:int, x)\n" * 2, "b": "## B (b)\n" + "(id:int, y)\n" * 40}
+    bodies = {"a": "## A (a)\n" + "id:int, x\n" * 2, "b": "## B (b)\n" + "id:int, y\n" * 40}
     kept, cut = trim_schema_chars(tables, bodies, schema_chars=80)
     assert [item.name for item in kept] == ["a"]
     assert cut == ["b"]
@@ -249,7 +277,7 @@ def test_coverage_policy_stops_unevidenced_tables() -> None:
     plane = AgentKnowledgePlane()
     first = {
         "knowledge_text": "",
-        "schema_text": "## 任务 (d_task)\n(id:int, 主键)",
+        "schema_text": "## 任务 (d_task)\nid:int, 主键",
         "tables": ["d_task"],
         "page_keys": [],
         "backend": "schema_vector",
@@ -262,7 +290,7 @@ def test_coverage_policy_stops_unevidenced_tables() -> None:
 
     second = {
         "knowledge_text": "",
-        "schema_text": "## 噪音 (noise_table)\n(id:int, 主键)",
+        "schema_text": "## 噪音 (noise_table)\nid:int, 主键",
         "tables": ["noise_table"],
         "page_keys": [],
         "backend": "schema_vector",
@@ -274,13 +302,51 @@ def test_coverage_policy_stops_unevidenced_tables() -> None:
     assert policy["recall_status"] == "no_new_evidence"
 
 
+def test_coverage_policy_keeps_evidenced_schema_expand() -> None:
+    from apps.chat.tools.wiki_search import apply_wiki_search_policy
+
+    plane = AgentKnowledgePlane()
+    plane, _policy, _delta = apply_wiki_search_policy(
+        {
+            "knowledge_text": "",
+            "schema_text": "## 任务 (d_task)\nid:int, 主键",
+            "tables": ["d_task"],
+            "page_keys": [],
+            "backend": "schema_vector",
+            "table_evidence": {"d_task": ["schema_vector"]},
+        },
+        plane,
+    )
+    plane, policy, delta = apply_wiki_search_policy(
+        {
+            "knowledge_text": "",
+            "schema_text": (
+                "## 任务 (d_task)\nid:int, 主键\n"
+                "## 机构 (d_organization)\nid:int, 主键"
+            ),
+            "tables": ["d_task", "d_organization"],
+            "page_keys": [],
+            "backend": "schema_vector",
+            "table_evidence": {
+                "d_task": ["schema_vector"],
+                "d_organization": ["schema_expand"],
+            },
+        },
+        plane,
+    )
+    assert "d_organization" in plane.tables
+    assert delta.added_tables == ["d_organization"]
+    # Second mid-turn search may hit the round limit; the peer must still merge.
+    assert policy["recall_status"] in {"hit", "round_limit"}
+
+
 def test_bundle_payload_round_trip() -> None:
     from apps.knowledge.recall_kernel.types import RecallBundle
 
     bundle = RecallBundle(
         backend="wiki",
         knowledge_text="口径",
-        schema_text="## 企业 (cust_company_info)\n(id:bigint, 主键)",
+        schema_text="## 企业 (cust_company_info)\nid:bigint, 主键",
         page_keys=("calibers/authenticated-company",),
         tables=(
             TableCandidate(
