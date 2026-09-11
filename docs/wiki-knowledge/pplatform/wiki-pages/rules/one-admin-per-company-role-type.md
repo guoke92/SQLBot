@@ -29,7 +29,7 @@ scope:
 
 ```ground:rule
 name: 每企业每角色类型仅一名管理员
-content: 保存/更新经办人或变更管理员时，校验同企业同 companyType 且 enable=Y 且 userType=admin 的记录唯一，若已存在其他管理员则抛异常
+content: 保存/更新经办人或变更管理员时，校验同企业同 companyType 且 enable=Y 且 user_type='accountAdmin' 的记录唯一，若已存在其他管理员则抛异常
 impact: 保证企业+角色维度管理员唯一
 field_targets:
   - cust_person_info.user_type

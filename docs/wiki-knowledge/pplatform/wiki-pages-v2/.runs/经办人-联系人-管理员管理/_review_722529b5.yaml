@@ -1,0 +1,3 @@
+body: '`scope.databases` 的物理库名未在语义分析中给出，本页暂以 `<未提供>` 占位（evidence 仅到 `db` 粒度）。需补充该表所在物理库名后定稿，涉及本主题其余页面同样受影响。'
+title: cust_person_info
+type: table

@@ -1,0 +1,9 @@
+body: '三处需要人工确认的字段语义：
+
+  1. `remark` 被写入 productCode（ACFLOW/RVSFACTOR_PC/BEECREDIT），语义已被复用；是否新建独立列或建立映射表，需产品确认。
+
+  2. `company_type` 存在拼写变体 `PLATFORM_OPREATOR_COMPANY`，是否为可清洗的历史脏数据、清洗窗口与影响面未知。
+
+  3. `status` 出现带首尾空格的 ` 1 `，与 `''1''`、`1` 的读取兼容策略未在证据中给出。'
+title: cust_project_rel
+type: table

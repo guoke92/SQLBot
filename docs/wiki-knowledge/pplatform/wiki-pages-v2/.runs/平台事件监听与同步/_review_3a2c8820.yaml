@@ -1,0 +1,4 @@
+body: '`retry_num` 的语义在被测数据中无法区分「已重试次数」与「重试上限」（恒为 3）；本页按「默认重试上限」口径沉淀，与 [[rules/compensation-max-retry]]
+  的 maxRetryCount=3 是否同一配置项待确认。'
+title: 客户端同步失败默认重试上限
+type: caliber

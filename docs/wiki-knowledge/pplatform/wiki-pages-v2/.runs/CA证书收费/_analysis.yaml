@@ -1,0 +1,475 @@
+field_semantics:
+- table: ca_fee_company
+  field: certification_no
+  meaning: 统一社会信用代码，企业唯一标识（统码）
+  evidence: db
+- table: ca_fee_company
+  field: company_name
+  meaning: 企业名称
+  evidence: db
+- table: ca_fee_company
+  field: ca_status
+  meaning: CA签章状态，来自签章中台（如 NORMAL/CANCELLED/UNKNOWN）
+  evidence: db
+- table: ca_fee_company
+  field: pay_status
+  meaning: 缴费状态：PAID 已缴费 / UNPAID 未缴费
+  evidence: db
+- table: ca_fee_company
+  field: service_start
+  meaning: 当前 CA 服务费服务周期起始日（含）
+  evidence: db
+- table: ca_fee_company
+  field: service_end
+  meaning: 当前 CA 服务费服务周期截止日（含）
+  evidence: db
+- table: ca_fee_company
+  field: locked_annual_fee
+  meaning: 首次缴费成功后锁定的年费标准（元）
+  evidence: db
+- table: ca_fee_company
+  field: special_annual_fee
+  meaning: 特殊配置后应缴年费（元）
+  evidence: db
+- table: ca_fee_company
+  field: special_config_flag
+  meaning: 是否存在生效中的特殊配置快照：Y/N
+  evidence: db
+- table: ca_fee_company
+  field: fee_locked
+  meaning: 是否已锁定年费标准：Y/N
+  evidence: db
+- table: ca_fee_company
+  field: renew_remind_sent
+  meaning: 本期续费待办是否已生成：Y 已生成 / N 未生成
+  evidence: db
+- table: ca_fee_company
+  field: source_company_type
+  meaning: 首次锁定来源企业角色，如 SUPPLIER/CORE
+  evidence: db
+- table: ca_fee_company
+  field: source_project_id
+  meaning: 首次锁定来源项目 ID
+  evidence: db
+- table: ca_fee_company
+  field: enable
+  meaning: 逻辑启用标识：Y 有效 / N 无效
+  evidence: db
+- table: ca_fee_order
+  field: order_status
+  meaning: 订单状态：PENDING 未缴费 / PAID 已缴费 / CLOSED 已关闭 / EXPIRED 已过期（代码枚举）；DB 实际存在 PAIDING、UNPAID
+    等超出枚举的值
+  evidence: db
+- table: ca_fee_order
+  field: order_type
+  meaning: 订单类型：FIRST 首次缴费 / RENEW 即将到期续费 / RENEW_EXPIRED 已到期续费 / STOCK 存量补录
+  evidence: code
+- table: ca_fee_order
+  field: annual_fee
+  meaning: 应缴年费（元）
+  evidence: db
+- table: ca_fee_order
+  field: pay_amount
+  meaning: 实缴金额（元）
+  evidence: code
+- table: ca_fee_order
+  field: pay_method
+  meaning: 支付方式，当前为 BOCOM（交e保）
+  evidence: code
+- table: ca_fee_order
+  field: agreement_signed
+  meaning: 是否已签署收费协议：Y/N
+  evidence: db
+- table: ca_fee_order
+  field: agreement_version
+  meaning: 签署时绑定的收费协议版本号，如 V1.0
+  evidence: db
+- table: ca_fee_order
+  field: agreement_sign_time
+  meaning: 收费协议签署时间
+  evidence: db
+- table: ca_fee_order
+  field: agreement_file_path
+  meaning: 签章后协议文件 COS 路径
+  evidence: db
+- table: ca_fee_order
+  field: bocom_txn_sts
+  meaning: 交e保交易状态：00 成功 / 01 失败 / 02 待查证等
+  evidence: db
+- table: ca_fee_order
+  field: bocom_plfm_ser_no
+  meaning: 交e保平台流水号
+  evidence: db
+- table: ca_fee_order
+  field: bocom_plfm_bsn_id
+  meaning: 平台业务编号
+  evidence: db
+- table: ca_fee_order
+  field: bocom_req_sn
+  meaning: 请求流水号
+  evidence: db
+- table: ca_fee_order
+  field: invoice_status
+  meaning: 发票状态：NONE/PENDING/ISSUED/FAILED
+  evidence: code
+- table: ca_fee_order
+  field: close_reason
+  meaning: 关闭原因（关开关/手动关闭/服务到期等）
+  evidence: db
+- table: ca_fee_order
+  field: company_type
+  meaning: 企业角色：SUPPLIER/CORE/PROJECT_COMPANY
+  evidence: db
+- table: ca_fee_project_config
+  field: charge_enabled
+  meaning: 项目是否开启 CA 收费：Y/N
+  evidence: code
+- table: ca_fee_project_config
+  field: core_annual_fee
+  meaning: 核心企业年费（元）
+  evidence: code
+- table: ca_fee_project_config
+  field: supplier_annual_fee
+  meaning: 供应商年费（元）
+  evidence: code
+- table: ca_fee_project_config
+  field: special_company_list
+  meaning: 特殊企业配置 JSON 列表（白名单/定向减免/延期支付）
+  evidence: code
+- table: ca_fee_project_config
+  field: block_scene_list
+  meaning: 收费拦截场景列表
+  evidence: code
+state_machines:
+- name: CA服务费订单状态机
+  field: ca_fee_order.order_status
+  states:
+  - value: PENDING
+    label: 未缴费
+    source: code_enum
+  - value: PAID
+    label: 已缴费
+    source: code_enum
+  - value: CLOSED
+    label: 已关闭
+    source: code_enum
+  - value: EXPIRED
+    label: 已过期
+    source: code_enum
+  - value: PAIDING
+    label: 支付中（DB实际存在，代码未声明）
+    source: db_dist
+  - value: UNPAID
+    label: 未缴费（DB实际存在，代码未声明）
+    source: db_dist
+  transitions:
+  - from: PENDING
+    event: 缴费成功 markPaid
+    to: PAID
+    evidence: code_path:CaFeePaymentApplication.java:handlePaySuccess
+  - from: PENDING
+    event: 手动/系统关闭订单 closeOrder
+    to: CLOSED
+    evidence: code_path:CaFeeOrderApplication.java:closeOrder
+  - from: PENDING
+    event: 批量加白名单
+    to: CLOSED
+    evidence: code_path:CaFeeLedgerOperateService.java:applyWhitelist
+  - from: PENDING
+    event: 服务到期处理关闭RENEW待缴单
+    to: CLOSED
+    evidence: code_path:CaFeeRenewalService.java:processServiceExpired
+- name: 企业缴费状态机
+  field: ca_fee_company.pay_status
+  states:
+  - value: PAID
+    label: 已缴费
+    source: code_enum
+  - value: UNPAID
+    label: 未缴费
+    source: code_enum
+  transitions:
+  - from: PAID
+    event: 服务到期处理 markServiceExpired
+    to: UNPAID
+    evidence: code_path:CaFeeRenewalService.java:markServiceExpired
+- name: 收费协议签署状态机
+  field: ca_fee_order.agreement_signed
+  states:
+  - value: N
+    label: 未签署
+    source: db_dist
+  - value: Y
+    label: 已签署
+    source: db_dist
+  transitions:
+  - from: N
+    event: 签署收费协议 signAgreement
+    to: Y
+    evidence: code_path:CaFeeAgreementApplication.java:signAgreement
+- name: 续费提醒发送状态机
+  field: ca_fee_company.renew_remind_sent
+  states:
+  - value: N
+    label: 未生成
+    source: db_dist
+  - value: Y
+    label: 已生成
+    source: db_dist
+  transitions:
+  - from: N
+    event: 续费待办生成 markRenewRemindSent
+    to: Y
+    evidence: code_path:CaFeeRenewalService.java:markRenewRemindSent
+  - from: Y
+    event: 服务到期处理 markServiceExpired
+    to: N
+    evidence: code_path:CaFeeRenewalService.java:markServiceExpired
+calibers:
+- name: 已缴费企业
+  predicate: ca_fee_company.pay_status = 'PAID'
+  scope: ca_fee_company
+  evidence: db
+- name: 未缴费企业
+  predicate: ca_fee_company.pay_status = 'UNPAID'
+  scope: ca_fee_company
+  evidence: db
+- name: 已签署协议订单
+  predicate: ca_fee_order.agreement_signed = 'Y'
+  scope: ca_fee_order
+  evidence: db
+- name: 待支付订单
+  predicate: ca_fee_order.order_status = 'PENDING'
+  scope: ca_fee_order
+  evidence: code
+- name: 已支付订单
+  predicate: ca_fee_order.order_status = 'PAID'
+  scope: ca_fee_order
+  evidence: code
+- name: 有效企业
+  predicate: ca_fee_company.enable = 'Y'
+  scope: ca_fee_company
+  evidence: code
+- name: 收费项目
+  predicate: ca_fee_project_config.charge_enabled = 'Y'
+  scope: ca_fee_project_config
+  evidence: code
+- name: 核企/供应商角色
+  predicate: ca_fee_company.source_company_type in ('CORE','SUPPLIER')
+  scope: ca_fee_company
+  evidence: code
+- name: 服务期内
+  predicate: ca_fee_company.service_end >= CURDATE()
+  scope: ca_fee_company
+  evidence: code
+- name: 即将到期
+  predicate: ca_fee_company.service_end <= DATE_ADD(CURDATE(), INTERVAL 7 DAY) AND
+    ca_fee_company.renew_remind_sent = 'N'
+  scope: ca_fee_company
+  evidence: code
+- name: 服务已到期
+  predicate: ca_fee_company.service_end < CURDATE()
+  scope: ca_fee_company
+  evidence: code
+- name: 白名单豁免
+  predicate: ca_fee_company.special_config_flag = 'Y' AND ca_fee_company.special_annual_fee
+    = 0
+  scope: ca_fee_company
+  evidence: code
+- name: 定向减免
+  predicate: ca_fee_company.special_config_flag = 'Y' AND ca_fee_company.special_annual_fee
+    > 0
+  scope: ca_fee_company
+  evidence: code
+- name: 交e保划扣成功
+  predicate: ca_fee_order.bocom_txn_sts = '00'
+  scope: ca_fee_order
+  evidence: db
+- name: 交e保划扣待查证
+  predicate: ca_fee_order.bocom_txn_sts = '02'
+  scope: ca_fee_order
+  evidence: code
+- name: 交e保划扣失败
+  predicate: ca_fee_order.bocom_txn_sts = '01'
+  scope: ca_fee_order
+  evidence: code
+term_bridges:
+- term: CA证书收费
+  aliases:
+  - CA服务费
+  - CA收费
+  - CA证书服务费
+  maps_to: ca_fee_order、ca_fee_company、ca_fee_project_config 等表及 cafee 包
+  also_confused_with:
+  - CFCA认证
+  - CA认证
+  - 电子签章
+  adjudication: synonym
+  boundary: 本模块的CA证书收费指对使用电子认证服务（CA证书）的企业收取服务费；与CFCA一证四步认证、电子签章开通有关联但属于不同功能域。
+- term: 统码
+  aliases:
+  - 统一社会信用代码
+  - certification_no
+  maps_to: ca_fee_company.certification_no、ca_fee_order.certification_no
+  also_confused_with:
+  - 企业ID
+  - companyId
+  adjudication: synonym
+  boundary: 统码是企业的统一社会信用代码，全局唯一，用于关联企业主数据；companyId 是产融平台内部企业主键 ID。
+- term: 核企
+  aliases:
+  - 核心企业
+  - CORE
+  maps_to: company_type / source_company_type = 'CORE'
+  also_confused_with: []
+  adjudication: synonym
+  boundary: CA收费场景下核企为可收费角色之一。
+- term: 供应商
+  aliases:
+  - SUPPLIER
+  maps_to: company_type / source_company_type = 'SUPPLIER'
+  also_confused_with: []
+  adjudication: synonym
+  boundary: CA收费场景下供应商为可收费角色之一。
+- term: 交e保
+  aliases:
+  - BOCOM
+  maps_to: ca_fee_order.pay_method = 'BOCOM'
+  also_confused_with:
+  - 银行转账
+  adjudication: synonym
+  boundary: 交e保是当前CA服务费唯一支付渠道（对公打款），与普通银行转账不同。
+- term: 待办
+  aliases:
+  - todo
+  - notice
+  - 提醒
+  maps_to: CaFeeMessageGateway.sendTodoForOrder / completeNoticeForOrder
+  also_confused_with:
+  - 站内信
+  - 邮件
+  adjudication: synonym
+  boundary: CA服务费待办指通过消息网关发送的缴费、续费、到期等通知任务。
+rules:
+- name: 收费对象规则
+  content: 仅核心企业（CORE）和供应商（SUPPLIER）角色需要校验CA服务费；其他企业角色直接放行，不拦截。
+  impact: 决定门户缴费校验是否拦截。
+  field_targets:
+  - ca_fee_company.source_company_type
+  - ca_fee_order.company_type
+  evidence: code_path:CaFeePaymentCheckApplication.java:checkFeePaymentForPortal:isChargeableCompanyRole
+- name: 多项目豁免规则
+  content: 企业关联多个收费项目时，按关联时间升序遍历项目，任一项目命中白名单豁免（EXEMPT_WHITELIST）、延期支付豁免（EXEMPT_DEFER_PAY）或服务期内已缴费（EXEMPT_ALREADY_PAID），则整体放行（pass=true）。
+  impact: 多项目企业只要有一个豁免项目即不拦截。
+  field_targets:
+  - ca_fee_company.special_config_flag
+  - ca_fee_company.special_annual_fee
+  - ca_fee_company.service_end
+  evidence: code_path:CaFeePaymentCheckApplication.java:shouldPassByEvaluate
+- name: 拦截场景规则
+  content: 需缴费时，仅当项目配置的 block_scene_list 包含当前请求的 interceptScene 才拦截；否则放行。
+  impact: 决定业务节点是否被阻断。
+  field_targets:
+  - ca_fee_project_config.block_scene_list
+  evidence: code_path:CaFeePaymentCheckApplication.java:doCheckFeePayment
+- name: 年费定价规则
+  content: 应缴年费按优先级：生效中的特殊年费（special_annual_fee）→ 已锁定的年费（locked_annual_fee）→ 项目角色价（core_annual_fee
+    / supplier_annual_fee）。
+  impact: 决定订单 annual_fee。
+  field_targets:
+  - ca_fee_company.special_annual_fee
+  - ca_fee_company.locked_annual_fee
+  - ca_fee_project_config.core_annual_fee
+  - ca_fee_project_config.supplier_annual_fee
+  evidence: code_path:CaFeeRuleEngineService.java:resolveAnnualFee
+- name: 规则引擎优先级
+  content: 评估企业是否需要缴费的优先级：项目未开启收费 → 白名单豁免 → 延期支付 → 服务期内已缴费 → 应缴金额为0 → 需缴费（UNPAID/EXPIRED）。
+  impact: 决定 feeStatus 和 needPay。
+  field_targets:
+  - ca_fee_order
+  - ca_fee_company
+  evidence: code_path:CaFeeRuleEngineService.java:evaluate
+- name: 支付前置条件规则
+  content: 订单必须处于 PENDING 且 agreement_signed='Y' 才能发起支付；支付方式为交e保（BOCOM）；划扣成功后标记订单为
+    PAID。
+  impact: 约束支付流程。
+  field_targets:
+  - ca_fee_order.order_status
+  - ca_fee_order.agreement_signed
+  - ca_fee_order.pay_method
+  evidence: code_path:CaFeePaymentApplication.java:requirePendingSignedOrder,confirmBocomPaid
+- name: 续费提醒规则
+  content: 企业 service_end 距今 ≤7 天且 renew_remind_sent='N' 时，生成 RENEW 待缴订单并发送续费待办，随后置
+    renew_remind_sent='Y'。
+  impact: 触发续费订单和提醒。
+  field_targets:
+  - ca_fee_company.service_end
+  - ca_fee_company.renew_remind_sent
+  evidence: code_path:CaFeeScheduledJobHandler.java:caFeeRenewalTodoJob
+- name: 服务到期规则
+  content: 企业 service_end < 当日时，完结即将到期待办，关闭 RENEW 待缴单，将企业 pay_status 置为 UNPAID；按需创建
+    RENEW_EXPIRED 订单并发送已过期待办。
+  impact: 驱动企业缴费状态和订单状态变化。
+  field_targets:
+  - ca_fee_company.service_end
+  - ca_fee_company.pay_status
+  - ca_fee_order.order_status
+  - ca_fee_order.order_type
+  evidence: code_path:CaFeeRenewalService.java:processServiceExpired
+- name: 异步开票规则
+  content: 缴费成功后异步触发开票，先将发票状态置为 PENDING，再调用开票服务；成功后置 ISSUED，失败置 FAILED。
+  impact: 发票状态流转。
+  field_targets:
+  - ca_fee_order.invoice_status
+  evidence: code_path:CaFeeInvoiceApplication.java:requestInvoiceAsync
+- name: 台账编辑规则
+  content: 台账编辑仅支持 order_status 为 PENDING 或 PAID；已缴费不允许改为未缴费；交e保划扣查证中（bocom_txn_sts='02'）不允许手动标记已缴费。
+  impact: 运营端订单编辑约束。
+  field_targets:
+  - ca_fee_order.order_status
+  - ca_fee_order.bocom_txn_sts
+  evidence: code_path:CaFeeLedgerOperateService.java:editOrder,assertEditableOrderStatus,assertCanMarkPaidManually
+- name: 批量白名单规则
+  content: 批量加白名单会为订单企业创建白名单特殊配置，关闭其 PENDING 订单，并创建 0 元已缴费订单（createZeroPaidOrder）。
+  impact: 白名单企业免缴费。
+  field_targets:
+  - ca_fee_project_config.special_company_list
+  - ca_fee_order.order_status
+  evidence: code_path:CaFeeLedgerOperateService.java:applyWhitelist
+- name: 批量延期规则
+  content: 批量延期会为订单企业创建 DEFER_PAY 特殊配置，记录 deferServiceEnd，并追加操作日志。
+  impact: 延期企业豁免缴费。
+  field_targets:
+  - ca_fee_project_config.special_company_list
+  evidence: code_path:CaFeeLedgerOperateService.java:batchDefer
+- name: 交e保查证补偿规则
+  content: 定时扫描 order_status=PENDING 且 bocom_txn_sts='02' 的订单，向银行查证；若成功则补 markPaid，否则跳过等待。
+  impact: 补偿支付状态。
+  field_targets:
+  - ca_fee_order.order_status
+  - ca_fee_order.bocom_txn_sts
+  evidence: code_path:CaFeeBocomPayReconcileService.java:scanPendingBocomPayments
+- name: 存量补偿规则
+  content: 项目开启收费后，定时任务扫描关联企业，对漏生成的 STOCK 订单和待办进行查缺补漏。
+  impact: 存量企业补录。
+  field_targets:
+  - ca_fee_order.order_type
+  - ca_fee_company
+  evidence: code_path:CaFeeScheduledJobHandler.java:caFeeStockCompensateJob
+reqdoc_claims:
+- claim: CA证书收费是产融平台V1.32版本推出的全新商业模式/产品功能点，对使用电子认证服务（CA证书）的用户开通收费模式。
+  code_status: confirmed
+  code_evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/cafee/CaFeePaymentApplication.java
+  action: anchor
+- claim: 具体收费规则、计费页面和维护流程详见外部文档（未提供具体规则）。
+  code_status: uncovered
+  code_evidence: ''
+  action: review
+- claim: 【平台迁移】娃哈哈平台上线对开通CA证书收费功能，本期需进行迁移。
+  code_status: uncovered
+  code_evidence: ''
+  action: review
+- claim: 产品经理张彬伟（Vincent）负责CA收费。
+  code_status: uncovered
+  code_evidence: ''
+  action: prose_only

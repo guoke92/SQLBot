@@ -1,0 +1,6 @@
+body: '语义分析中该规则的 content 在「以 spNo 匹配库中已存在记」处被截断，impact 与 evidence 的方法名均未给出。上页 ground:rule
+  块只能逐字保留已给出的片段，其余字段以「待补证」标注，不得据此推断新增/更新判定细节或参与其它口径。
+
+  建议补证：导入链路的匹配条件、未匹配行的处理方式（跳过/报错/统计）、与开发用导入 `buildManualEntityForInsert` 的边界。'
+title: 导入仅支持更新（正式链路）
+type: rule

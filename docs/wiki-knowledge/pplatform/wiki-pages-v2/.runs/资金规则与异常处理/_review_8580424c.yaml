@@ -1,0 +1,4 @@
+body: '语义分析中所有证据均以表名给出（db:funding_exception_resolution、db:funding_rule_detail 等），**未出现物理库名/模式名**。本批次所有页面的
+  `scope.databases: [funding_rule]` 为占位值，需人工确认真实物理库名后统一替换。'
+title: 全部 table 页的 scope.databases
+type: table

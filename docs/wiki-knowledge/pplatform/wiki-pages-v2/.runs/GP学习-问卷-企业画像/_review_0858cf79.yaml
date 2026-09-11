@@ -1,0 +1,4 @@
+body: 语义分析给出的该规则 evidence 字符串在 `code_path:GptLearnService.` 处被截断（缺少文件名后缀与行号），因此本页
+  `ground:rule` 块中的 `evidence` 只能逐字保留截断值，无法补齐到 `文件:行` 粒度。需要重新提取该规则的代码证据（`GptLearnService.validateFinanceUser`）后更新。
+title: 智能审核引流仅金融机构用户可用
+type: rule

@@ -1,0 +1,419 @@
+field_semantics:
+- table: cust_project_rel
+  field: status
+  meaning: 项目关联记录状态（0=未生效/待生效，1=已生效）；由 updateRelPrjStatus 接口在满足条件时从 0 置 1
+  evidence: db
+- table: cust_project_rel
+  field: project_open_status
+  meaning: 项目开通状态：OPENED=已开通 / NOT_OPEN=未开通
+  evidence: db
+- table: cust_project_rel
+  field: enable
+  meaning: 逻辑删除标识：Y=有效，N=已失效（查询均以 enable='Y' 过滤）
+  evidence: code
+- table: cust_project_rel
+  field: company_type
+  meaning: 客户角色（单值，只取一个）：CORE/FINANCE/SUPPLIER/DEALER/PROJECT_COMPANY/CORE_MANAGER/CORPORATION_COMPANY/PLATFORM_OPERATOR_COMPANY；DB
+    存在拼写变体 PLATFORM_OPREATOR_COMPANY（疑似历史脏数据）
+  evidence: db
+- table: cust_project_rel
+  field: op_contact_a
+  meaning: 运营对接人A：存 operation_id（数字 ID 或 OP00x 编码），展示时经 OperCustFacade 转姓名
+  evidence: code
+- table: cust_project_rel
+  field: op_contact_b
+  meaning: 运营对接人B（多选）：DB 以 JSON 数组字符串存储，如 ["OP002","OP003"]，空为 []；读取时按 JSON 解析
+  evidence: code
+- table: cust_project_rel
+  field: op_contact_a_group
+  meaning: 运营组别（与 op_contact_a 联动的组名/组 ID）
+  evidence: db
+- table: cust_project_rel
+  field: top_flag
+  meaning: 置顶/需关注标识：'1' 时后端检查运营对接人是否为离职人员，生成 text 提示并回写
+  evidence: code
+- table: cust_project_rel
+  field: remark
+  meaning: 备注列；DB 实测被写入 productCode（ACFLOW/RVSFACTOR_PC/BEECREDIT 等），语义被复用为产品编码承载列
+  evidence: db
+- table: cust_project_rel
+  field: ref_cust_project_rel_cust_company_info
+  meaning: '关联企业 code，用于回连 cust_company_info（getCompaniesByProjectId 中以其过滤) '
+  evidence: code
+- table: cust_project_rel
+  field: config_model
+  meaning: 项目配置模式，DB 实测全部为 admin
+  evidence: db
+- table: cust_project_pushcust
+  field: source_sso_channel / target_sso_channel
+  meaning: SSO 起始系统渠道 → 跳转系统渠道，表征「推送企业的默认项目」的跨系统跳转链路
+  evidence: code
+- table: cust_project_code_record
+  field: status
+  meaning: 企业项目码输入记录是否正确状态，Y/N
+  evidence: db
+- table: cust_project_code_record
+  field: type
+  meaning: 企业录入码来源类型：userCompanyRegister / PC_BUILD / 产品中心 / 产品中心-企业认证成功
+  evidence: db
+- table: cust_project_code_record
+  field: company_type
+  meaning: 该记录提交时的企业角色集合（JSON 数组形式，如 ["CORE","SUPPLIER"]）；与 cust_project_rel.company_type
+    单值形态不同
+  evidence: db
+- table: wechat_project_approval_apply
+  field: sp_type
+  meaning: 审批类型；统计页固定过滤 金融科技业务
+  evidence: code
+- table: wechat_project_approval_apply
+  field: system_delivery
+  meaning: 系统交付类型（统计范围：SaaS / Saas+本地化）
+  evidence: code
+- table: wechat_project_approval_apply
+  field: act_procinst_status
+  meaning: 企微审批流程状态：1=审批中，2=审批通过
+  evidence: code
+- table: wechat_project_approval_apply
+  field: project_type
+  meaning: 项目类型：MAIN=主项目 / SUB=子项目
+  evidence: code
+- table: wechat_project_approval_apply
+  field: project_phase
+  meaning: 项目阶段：IMPLEMENTATION=实施阶段 / OPERATION=持续运营 / HANG=挂起；历史值 TERMINATION 归一为
+    HANG；立项阶段仅作展示态不入库
+  evidence: code
+- table: wechat_project_approval_apply
+  field: ka_white_label
+  meaning: KA 是否贴牌：Y=是 / N=否
+  evidence: code
+- table: wechat_project_approval_apply
+  field: data_source
+  meaning: 数据来源：MANUAL=模拟立项（spNo 以 MN 开头） / WECHAT=真实立项
+  evidence: code
+- table: wechat_project_approval_apply
+  field: product_type_arr
+  meaning: 产品类型编码 JSON 数组，如 ["1","9"]；配套 product_type 存中文逗号串（冗余展示列）
+  evidence: code
+- table: wechat_project_approval_apply
+  field: solution_manager
+  meaning: 方案经理姓名（多人以逗号分隔 CSV）；仅在 solution_manager_wxid 联动维护时同步写入
+  evidence: code
+- table: wechat_project_approval_apply
+  field: solution_manager_wxid
+  meaning: 方案经理企微 userId 冗余列（JSON 数组字符串 ["id1","id2"]），用于按 wxid 精确过滤
+  evidence: code
+- table: wechat_project_approval_apply
+  field: old_solution_manager
+  meaning: 前方案经理，姓名 CSV；变更方案经理时由 mergeOldSolutionManager 前置合并旧值
+  evidence: code
+- table: wechat_project_approval_apply
+  field: statics_op_time / statics_op_user
+  meaning: 统计侧最新操作时间/操作人（列表展示用 updateTime/updateUser 取自该两列覆盖）
+  evidence: code
+- table: wechat_project_approval_apply
+  field: first_settlement_time
+  meaning: 首笔落地时间；编辑语义例外——非空覆盖/null 清空（不遵循其他字符串列的 null 跳过约定）
+  evidence: code
+- table: wechat_project_approval_apply
+  field: custom_field_statistics_one
+  meaning: 自定义字段一；本期唯一放开的编辑独占列
+  evidence: code
+- table: wechat_project_approval_apply_field_history
+  field: change_source
+  meaning: 字段历史来源：EDIT=页面编辑 / BATCH=批量变更 / MANUAL_CREATE=模拟立项 / IMPORT=导入
+  evidence: code
+state_machines:
+- name: 项目立项审批状态
+  field: wechat_project_approval_apply.act_procinst_status
+  states:
+  - value: '1'
+    label: 审批中
+    source: code_enum
+  - value: '2'
+    label: 审批通过
+    source: code_enum
+  transitions:
+  - from: '1'
+    event: 企微审批通过（外部同步写入）
+    to: '2'
+    evidence: code_path:ProjectStatisticsApplication.java:applyOperationPhaseWhenFirstSettlementUpdatedUnderApproved（仅消费
+      2 值，非写入点）
+- name: 项目阶段（项目立项统计）
+  field: wechat_project_approval_apply.project_phase
+  states:
+  - value: IMPLEMENTATION
+    label: 实施阶段
+    source: code_enum
+  - value: OPERATION
+    label: 持续运营
+    source: code_enum
+  - value: HANG
+    label: 挂起
+    source: code_enum
+  - value: TERMINATION
+    label: 终止（历史值，读取时归一为 HANG）
+    source: code_enum
+  transitions:
+  - from: IMPLEMENTATION
+    event: 审批通过 + 首笔落地时间被更新为非空 + 当前阶段非 OPERATION
+    to: OPERATION
+    evidence: code_path:ProjectStatisticsApplication.java:applyOperationPhaseWhenFirstSettlementUpdatedUnderApproved
+  - from: HANG
+    event: 同上（任何非 OPERATION 阶段均被覆盖）
+    to: OPERATION
+    evidence: code_path:ProjectStatisticsApplication.java:applyOperationPhaseWhenFirstSettlementUpdatedUnderApproved
+  - from: TERMINATION
+    event: 读取归一化 normalizeLegacyProjectPhaseCode
+    to: HANG
+    evidence: code_path:ProjectStatisticsApplication.java:normalizeLegacyProjectPhaseCode
+- name: 模拟立项/真实立项数据来源
+  field: wechat_project_approval_apply.data_source
+  states:
+  - value: MANUAL
+    label: 模拟立项（spNo 以 MN 开头）
+    source: code_enum
+  - value: WECHAT
+    label: 真实立项
+    source: code_enum
+  transitions:
+  - from: 无
+    event: manualCreate / 开发用导入空白编号行
+    to: MANUAL
+    evidence: code_path:ProjectStatisticsApplication.java:manualCreate + ProjectStatisticsDevImportApplication.java:buildManualEntityForInsert
+- name: 企业项目关联生效状态
+  field: cust_project_rel.status
+  states:
+  - value: '0'
+    label: 未生效
+    source: db_dist
+  - value: '1'
+    label: 已生效
+    source: db_dist
+  - value: ' 1 '
+    label: 已生效（历史脏数据，带首尾空格）
+    source: db_dist
+  transitions:
+  - from: '0'
+    event: 调用 updateRelPrjStatus，且产品为 ACFLOW/ORDER 且该角色下无生效项目时
+    to: '1'
+    evidence: code_path:CustProjectController.java:updateRelPrjStatus（set status =
+      EnableEnum.Y.getDictKey()）
+calibers:
+- name: 产融侧关联企业口径
+  predicate: cust_project_rel.enable = 'Y' AND cust_project_rel.project_id = :projectId
+  scope: 项目台账→关联企业查询（source='产融' 时走本地表，不走洞察平台）
+  evidence: code_path:ProjectReportApplication.java:getCompaniesByProjectId
+- name: 项目立项统计列表基础口径
+  predicate: wechat_project_approval_apply.sp_type = '金融科技业务' AND wechat_project_approval_apply.system_delivery
+    IN ('SaaS','Saas+本地化')
+  scope: 项目立项统计页列表/导出/字典/提醒
+  evidence: code_path:ProjectStatisticsApplication.java:buildPageWrapper + ProjectStatisticsApplication.java:listDistinctMainProjectNamesFinTechSaasApproved
+- name: 项目台账审批通过口径
+  predicate: wechat_project_approval_apply.act_procinst_status = '2'
+  scope: 主项目名称字典；首笔落地时间→项目阶段联动的触发前置
+  evidence: code_path:ProjectStatisticsApplication.java:listDistinctMainProjectNamesFinTechSaasApproved
+    + ProjectStatisticsApplication.java:applyOperationPhaseWhenFirstSettlementUpdatedUnderApproved
+- name: 缺方案经理提醒口径
+  predicate: sp_type='金融科技业务' AND system_delivery IN ('SaaS','Saas+本地化') AND act_procinst_status='2'
+    AND apply_start_time >= 固定起始日 AND enable='Y' AND solution_manager 为空
+  scope: 每日 10:00 企微提醒（可通过 Nacos project.statistics.missing.planmgr.remind.enable
+    关闭）
+  evidence: code_path:ProjectStatisticsApplication.java:listApprovedMissingSolutionManagerForRemind
+    + ProjectStatisticsRemindApplication.java:remindMissingSolutionManager
+- name: 产融项目运营人员离职提示口径
+  predicate: cust_project_rel.project_id = :projectId AND top_flag = '1' AND company_type
+    IN ('CORE','FINANCE') AND enable = 'Y'
+  scope: 项目台账 text 字段生成（产融来源）
+  evidence: code_path:ProjectReportController.java:checkDeletedOperatorsForCompanies
+- name: 已离职运营人员口径
+  predicate: operation_user.deleted = 'Y' AND operation_user.enable = 'Y'
+  scope: 所有运营对接人/查验对接人/风控对接人的离职校验与提示文本生成
+  evidence: code_path:ProjectReportController.java:getDeletedOperatorIds + CustProjectController.java:getDeletedOperatorIds
+- name: 项目台账 source 判定口径
+  predicate: transaction_platform = '产融平台' → source='产融'；否则 source='讯易链'
+  scope: 详情/导出/关联企业查询的本地表 vs 洞察平台分流
+  evidence: code_path:ProjectReportApplication.java:exportProjectReport（source 判定段）
+- name: custBuildStatus 讯易链映射口径
+  predicate: CUSTS003→认证成功；CUSTS005→待客户认证；CUSTS002/CUSTS001/CUSTS006→待审核；CUSTS004→审核拒绝
+  scope: 项目企业报表认证状态中文展示
+  evidence: code_path:ProjectReportApplication.java:convertCustBuildStatusToChinese
+- name: companyType 跨源映射口径
+  predicate: 讯易链：CORE→ce（XycCompanyType.CE），FINANCE→cpt（XycCompanyType.CPT）；产融保持原值
+  scope: 项目企业报表 companyType 查询参数转换
+  evidence: code_path:ProjectReportController.java:processCompanyTypeBySource
+term_bridges:
+- term: 数据来源 / source
+  aliases:
+  - source
+  - dataSource
+  - transaction_platform
+  - data_source
+  maps_to: 项目台账侧 source ∈ {产融, 讯易链}；项目立项统计侧 data_source ∈ {MANUAL, WECHAT}；两者语义不同，同名不同域
+  also_confused_with:
+  - productCode（ACFLOW/RVSFACTOR_PC 等存放在 cust_project_rel.remark）
+  adjudication: boundary
+  boundary: 项目台账 source 决定「读本地表 vs 调洞察平台」；项目立项统计 data_source 决定「是否企微同步生成的立项」。二者不可互换。
+- term: 客户角色 / 企业角色
+  aliases:
+  - companyType
+  - company_type
+  - companyTypeZh
+  maps_to: cust_project_rel.company_type（单值）：CORE/FINANCE/SUPPLIER/DEALER/PROJECT_COMPANY/CORE_MANAGER/CORPORATION_COMPANY/PLATFORM_OPERATOR_COMPANY；跨源映射：产融
+    CORE↔讯易链 ce，产融 FINANCE↔讯易链 cpt
+  also_confused_with:
+  - cust_project_code_record.company_type（JSON 数组，多角色集合）
+  adjudication: boundary
+  boundary: 关联表为单角色（弹窗「客户角色」单选项）；录入码记录表为受限多角色集合；转换只允许 CORE/FINANCE 两值参与跨源映射，其它角色在报表查询中退化为不筛选（置
+    'a'）。
+- term: 项目阶段
+  aliases:
+  - projectPhase
+  - project_phase
+  maps_to: IMPLEMENTATION=实施阶段 / OPERATION=持续运营 / HANG=挂起 /（读时归一）TERMINATION→HANG
+  also_confused_with:
+  - 项目状态 project_status（项目台账：1=已生效，非 1=未生效）
+  adjudication: boundary
+  boundary: project_status 属项目台账维度（tenant_project），project_phase 属立项统计维度（wechat_project_approval_apply）。
+- term: 是否需要验证码（需求文档串入）
+  aliases:
+  - captcha
+  - 行为验证码
+  maps_to: SSO 登录域字段，与项目报表/统计/上报主题无关
+  also_confused_with: []
+  adjudication: boundary
+  boundary: 需求文档 reqdoc:SSO验证码登录改造技术设计 对本主题无结构性贡献，仅在 cust_project_rel / tenant_project
+    表字段附录处与本主题交叉，不作为字段值来源。
+rules:
+- name: 首笔落地时间变更联动项目阶段为持续运营
+  content: 当 act_procinst_status='2' 且首笔落地时间发生变化且新值非空且当前项目阶段非 OPERATION 时，自动将 project_phase
+    置为 OPERATION。首笔落地时间清空（null）场景不触发。
+  impact: 编辑保存 / 导入 / 开发用导入 三条写入路径均生效
+  field_targets:
+  - wechat_project_approval_apply.project_phase
+  - wechat_project_approval_apply.first_settlement_time
+  evidence: code_path:ProjectStatisticsApplication.java:applyOperationPhaseWhenFirstSettlementUpdatedUnderApproved
+    + ProjectStatisticsDevImportApplication.java:applyOperationPhaseWhenFirstSettlementUpdatedUnderApproved
+- name: 编辑白名单与字段历史保护
+  content: 编辑保存只对 EDITABLE_JAVA_FIELDS 白名单中的列做 diff 写库，并写入 wechat_project_approval_field_history（source=EDIT/BATCH/MANUAL_CREATE/IMPORT）；已被人工写入的「同步保护字段集」对应列，企微同步
+    Job 在写库前需过滤跳过。
+  impact: 保护人工修改不被企微同步覆盖；未命中差异的列不落库不写历史
+  field_targets:
+  - wechat_project_approval_apply.*（白名单列）
+  - wechat_project_approval_field_history.*
+  evidence: code_path:ProjectStatisticsApplication.java:update + writeChangedColumns
+- name: 方案经理/业务经理企微身份校验
+  content: 方案经理姓名须在企微通讯录存在且属于「Saas方案部」（Nacos wechat.org.dept.name.saas.solution）；业务经理姓名须属于「客户营销」部（wechat.org.dept.name.customer.marketing）。落库时由企微
+    userId 反查姓名 CSV，并同步维护 solution_manager_wxid 冗余列。
+  impact: 编辑保存、批量变更方案经理、导入、模拟立项
+  field_targets:
+  - wechat_project_approval_apply.solution_manager
+  - wechat_project_approval_apply.solution_manager_wxid
+  - wechat_project_approval_apply.bussiness_manager
+  - wechat_project_approval_apply.business_center
+  evidence: code_path:ProjectStatisticsApplication.java:validateImportManagerDeptMembership
+    + ProjectStatisticsApplication.java:changeOnePlanMgr
+- name: 前方案经理联动合并
+  content: 方案经理变更时，将「既不在 existingOld、也不在 curr」的姓名前置合并入 old_solution_manager；导入路径下，若前方案经理列有值且与库中不一致，则直接以导入值为准。
+  impact: 编辑保存、批量变更、导入、开发用导入
+  field_targets:
+  - wechat_project_approval_apply.old_solution_manager
+  evidence: code_path:ProjectStatisticsApplication.java:update（oldSmInput 三段处理段）+
+    SysWxOrgCacheService.mergeOldSolutionManager
+- name: 模拟立项编号规则
+  content: spNo 由后端生成，编号表达式 MN-%T{yyyyMMdd}#S4#（MN-yyyyMMdd-XXXX）；入参若已以 MN 开头则视为模拟立项编号；data_source
+    强制 MANUAL；列表与导出按 spNo 前缀 MN 识别。
+  impact: 模拟立项手工新增与开发用导入
+  field_targets:
+  - wechat_project_approval_apply.sp_no
+  - wechat_project_approval_apply.data_source
+  evidence: code_path:ProjectStatisticsApplication.java:generateManualSpNo + ProjectStatisticsDevImportApplication.java:isManualSpNo
+- name: 导入仅支持更新（正式链路）
+  content: 项目立项统计正式导入以 spNo 匹配库中已存在记录做更新，不存在直接报错；审批中（act_procinst_status=1）的记录整条跳过（skipCount），项目阶段值仅允许中文（立项阶段仅审批中可填且不落库）。
+  impact: importAsync / validateAndApply
+  field_targets:
+  - wechat_project_approval_apply.*
+  evidence: code_path:ProjectStatisticsApplication.java:validateAndApply
+- name: 单元格清空标记
+  content: Excel 单元格值字面为 "/" 表示清空该列；空白单元格视为不修改（null 跳过）——与编辑保存接口的 null/空串语义区分。
+  impact: 导入、开发用导入
+  field_targets:
+  - wechat_project_approval_apply.*
+  evidence: code_path:ProjectStatisticsApplication.java:decideStringCell（CLEAR_FLAG="/"）
+- name: 批量变更方案经理上限与原子性
+  content: 单次批量变更上限 5000 条；阶段一全量校验（不落库），任一行不通过则整批不执行变更；阶段二逐条执行，单行异常记入错误明细不影响其它成功条目。
+  impact: batchChangePlanMgr
+  field_targets:
+  - wechat_project_approval_apply.solution_manager
+  - wechat_project_approval_apply.solution_manager_wxid
+  - wechat_project_approval_apply.old_solution_manager
+  evidence: code_path:ProjectStatisticsApplication.java:batchChangePlanMgr + validateBatchChangePlanMgrRows
+    + changeOnePlanMgr
+- name: 项目台账双源分流
+  content: source='产融' 时关联企业查询走本地 cust_project_rel + cust_company_info（enable='Y'），否则走洞察平台分页接口（pageSize=500
+    循环遍历 totalPages 终止）。
+  impact: 项目台账列表/详情/导出/导入的项目与企业数据来源
+  field_targets:
+  - cust_project_rel.*
+  - cust_company_info.*
+  evidence: code_path:ProjectReportApplication.java:getCompaniesByProjectId
+- name: 运营对接人 ID↔姓名双向转换
+  content: 写入时按运营人员列表把姓名转 operation_id 并联动 op_contact_a_group / op_contact_group；展示时把
+    operation_id 转姓名，多个以逗号连接。对 opContactB 类多选列按 JSON 数组解析逐个转换。
+  impact: 项目台账、项目立项统计、关联企业列表
+  field_targets:
+  - cust_project_rel.op_contact_a
+  - cust_project_rel.op_contact_b
+  - wechat_project_approval_apply.op_contact
+  - wechat_project_approval_apply.op_contact_group
+  evidence: code_path:ProjectStatisticsApplication.java:operatorIdToName / operatorNameToId
+    + ProjectReportController.java:convertOperatorIdToName
+- name: 离职运营人员提示回写
+  content: 列表/详情在 top_flag='1' 时遍历项目及关联企业的运营对接人/查验/风控对接人，命中已删除且启用的 operation_user
+    则拼装「字段名@姓名已离职，请修改」文本，写入 tenant_project.text 或 wec_project_operation_rel.text；数据库中已有
+    text 值时优先返回，无离职人员时清空将 top_flag 归 0。
+  impact: 项目台账与关联企业列表展示
+  field_targets:
+  - tenant_project.text
+  - wec_project_operation_rel.text
+  - tenant_project.top_flag
+  evidence: code_path:ProjectReportController.java:generateTextForProjectReport +
+    updateTextToDatabase + updateTopFlagToZero
+- name: 项目关联状态生效触发
+  content: cust_project_rel.status 置为生效，仅在产品 code ∈ {ACFLOW, ORDER} 且该企业当前角色下无生效项目时触发。
+  impact: updateRelPrjStatus
+  field_targets:
+  - cust_project_rel.status
+  evidence: code_path:CustProjectController.java:updateRelPrjStatus
+reqdoc_claims:
+- claim: cust_project_rel 是项目企业关联表，含 op_contact_a / op_contact_b / op_contact_a_group
+    / verification_contact / risk_control_contact_a / risk_control_contact_b 等运营对接人字段
+  code_status: confirmed
+  code_evidence: ProjectReportApplication.java:getCompaniesByProjectId（读取 rel.getOpContactA()/getOpContactB()/getOpContactAGroup()/getVerificationContact()/getRiskControlContactA()/getRiskControlContactB()）
+  action: anchor
+- claim: 存在基于 cust_project_rel 的项目关联企业分页查询接口
+  code_status: confirmed
+  code_evidence: CustProjectController.java:queryCompanyByProjectId + ProjectReportController.java:pageCompanyInfoReport
+  action: anchor
+- claim: 项目信息导入时对 cust_project_rel 做更新
+  code_status: confirmed
+  code_evidence: ProjectReportApplication.java:importProjectAndCompanyInfo→updateCompanyDataFromImport（企业行按
+    projectId+companyId+companyType 定位更新）
+  action: anchor
+- claim: tenant_project 是项目运营配置相关数据表，含 op_contact_a / op_contact_b / verification_contact
+    / risk_control_contact_a / risk_control_contact_b / solution_manager / business_group
+    / custom_field_one~three / project_tag / bussiness_project_relation 字段
+  code_status: confirmed
+  code_evidence: CustProjectController.java:convertToTenantProjectDO（setOpContactA/setOpContactB/setVerificationContact/setRiskControlContactA/setRiskControlContactB）+
+    ProjectReportApplication.java:convertToExportProjectDTO（solution_manager/business_group/custom_field_*/project_tag/bussiness_project_relation）
+  action: anchor
+- claim: 存在基于 tenant_project 的项目信息导出/导入/分页查询接口
+  code_status: confirmed
+  code_evidence: CustProjectController.java:exportProjectInfo / importProjectInfo
+    / pageDataHandle；ProjectReportController.java:exportProjectReport / importProjectReport
+    / pageProjectReport
+  action: anchor
+- claim: SSO 验证码登录改造技术设计中的行为验证码校验流程（validateCaptcha、Redis 缓存 key sso:behavior_captcha:{loginName}#{sysChannel}
+    等）
+  code_status: uncovered
+  code_evidence: 本次提供的代码层片段中未包含 SsoCodeProvider / LoginCaptchaCk 实现，无法定位分支与写值点
+  action: review

@@ -1,0 +1,5 @@
+body: 所有页面的 frontmatter scope.databases 暂填 [base]。该值取自 db 证据中 operation_user.db_tenant_code「实测仅出现
+  'base'（7 条）」的观察结果，属数据租户标识，并非已确认的物理库名。需要确认：(1) 本主题涉及表（operation_user、org_manage、cust_company_info、cust_person_info、cust_role_info、cust_user_rel、sys_user、sys_cust_org_user_permission、cust_group_rel）实际落在哪些物理库/数据源；(2)
+  db_tenant_code 与物理库名之间的映射关系。确认后统一回填各页 frontmatter。
+title: 物理库名归属待确认
+type: table

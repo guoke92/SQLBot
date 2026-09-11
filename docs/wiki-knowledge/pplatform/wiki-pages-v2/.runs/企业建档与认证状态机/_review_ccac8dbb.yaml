@@ -1,0 +1,4 @@
+body: '`cust_build_status` 取值为 `BUILD_ACTIVATE`（待激活）、`CUST_CHANGE`（变更中）两个状态在语义分析中给出，但状态机
+  `transitions` 中没有对应的入边或出边，未确认其触发条件与关联流程（变更流程？激活流程？）。'
+title: 认证状态
+type: concept

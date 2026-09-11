@@ -1,0 +1,10 @@
+body: '语义分析中该规则的 evidence 字符串被截断为 `code_path:ElectronicAuthLetterApplication.java#isGenerateElectronicA`，方法名不完整；但
+  content / impact / field_targets 三项内容完整且相互一致，故仍按原样登记，不做补全。
+
+  待确认项：
+
+  1. `isGenerateElectronicA…` 的完整方法名（推测为 `isGenerateElectronicAuth` 一类，未证实）。
+
+  2. 该「非 Y 一律按关闭」逻辑是否也覆盖 `cust_company_info` 侧的读取路径。'
+title: 租户开关关闭时保持现网行为
+type: rule

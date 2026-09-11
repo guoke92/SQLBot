@@ -268,6 +268,7 @@ usage() {
 }
 
 dispatch() {
+    info "当前系统时间: $(date '+%Y-%m-%d %H:%M:%S')"
     case "${ACTION}" in
         setup-env|setup_env)
             setup_env ;;

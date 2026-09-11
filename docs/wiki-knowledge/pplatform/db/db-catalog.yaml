@@ -1,5 +1,5 @@
 database: lowcode_pplatform
-generated_at: '2026-08-31'
+generated_at: '2026-09-10'
 host: 172.16.111.194
 note: columns/indexes/comments — machine truth for lint 对账
 port: 23306
@@ -2931,6 +2931,148 @@ tables:
       - id
       name: PRIMARY
       unique: true
+  cust_app_channel_config:
+    columns:
+      act_procinst_date:
+        comment: 审批结束时间
+        default: null
+        extra: ''
+        key: ''
+        nullable: true
+        type: datetime
+      act_procinst_id:
+        comment: 流程实例ID
+        default: null
+        extra: ''
+        key: ''
+        nullable: true
+        type: varchar(64)
+      act_procinst_no:
+        comment: 流程申请编号
+        default: null
+        extra: ''
+        key: ''
+        nullable: true
+        type: varchar(255)
+      act_procinst_status:
+        comment: 当前审批状态
+        default: null
+        extra: ''
+        key: ''
+        nullable: true
+        type: varchar(64)
+      app_id:
+        comment: 应用id
+        default: null
+        extra: ''
+        key: ''
+        nullable: true
+        type: varchar(64)
+      app_tenant_code:
+        comment: 逻辑租户标识
+        default: null
+        extra: ''
+        key: ''
+        nullable: true
+        type: varchar(100)
+      code:
+        comment: 编码
+        default: null
+        extra: ''
+        key: ''
+        nullable: true
+        type: varchar(64)
+      create_by:
+        comment: 创建人id
+        default: null
+        extra: ''
+        key: ''
+        nullable: true
+        type: varchar(100)
+      create_time:
+        comment: 创建时间
+        default: CURRENT_TIMESTAMP
+        extra: ''
+        key: ''
+        nullable: false
+        type: datetime
+      create_user:
+        comment: 创建人名称
+        default: null
+        extra: ''
+        key: ''
+        nullable: true
+        type: varchar(100)
+      db_tenant_code:
+        comment: 数据租户标识
+        default: null
+        extra: ''
+        key: ''
+        nullable: true
+        type: varchar(100)
+      enable:
+        comment: enable
+        default: Y
+        extra: ''
+        key: ''
+        nullable: true
+        type: varchar(4)
+      id:
+        comment: 表主键
+        default: null
+        extra: ''
+        key: PRI
+        nullable: false
+        type: bigint(22)
+      name:
+        comment: 名称
+        default: null
+        extra: ''
+        key: ''
+        nullable: true
+        type: varchar(64)
+      organization_id:
+        comment: 机构编号
+        default: null
+        extra: ''
+        key: ''
+        nullable: true
+        type: varchar(30)
+      remark:
+        comment: remark
+        default: null
+        extra: ''
+        key: ''
+        nullable: true
+        type: varchar(1024)
+      update_by:
+        comment: 更新人id
+        default: null
+        extra: ''
+        key: ''
+        nullable: true
+        type: varchar(100)
+      update_time:
+        comment: 更新时间
+        default: CURRENT_TIMESTAMP
+        extra: on update CURRENT_TIMESTAMP
+        key: ''
+        nullable: false
+        type: datetime
+      update_user:
+        comment: 更新人名称
+        default: null
+        extra: ''
+        key: ''
+        nullable: true
+        type: varchar(100)
+    comment: 客户应用渠道关系
+    engine: InnoDB
+    indexes:
+    - columns:
+      - id
+      name: PRIMARY
+      unique: true
   cust_auth_application:
     columns:
       act_procinst_date:
@@ -4135,6 +4277,13 @@ tables:
         key: ''
         nullable: true
         type: varchar(512)
+      need_resign_auth:
+        comment: 是否需要重签授权书：Y-是，N-否。直推在识别变更项时写入，后续只读
+        default: null
+        extra: ''
+        key: ''
+        nullable: true
+        type: varchar(1)
       oper_app_no:
         comment: 运营中台流程编号
         default: null
@@ -4431,6 +4580,13 @@ tables:
         key: MUL
         nullable: true
         type: varchar(128)
+      channel_code:
+        comment: 开放平台channelcode
+        default: null
+        extra: ''
+        key: ''
+        nullable: true
+        type: varchar(64)
       check_status:
         comment: ''
         default: null
@@ -6992,6 +7148,162 @@ tables:
       - name
       name: name_IDX
       unique: false
+    - columns:
+      - id
+      name: PRIMARY
+      unique: true
+  cust_message_send_policy:
+    columns:
+      act_procinst_date:
+        comment: 审批结束时间
+        default: null
+        extra: ''
+        key: ''
+        nullable: true
+        type: datetime
+      act_procinst_id:
+        comment: 流程实例ID
+        default: null
+        extra: ''
+        key: ''
+        nullable: true
+        type: varchar(64)
+      act_procinst_no:
+        comment: 流程申请编号
+        default: null
+        extra: ''
+        key: ''
+        nullable: true
+        type: varchar(255)
+      act_procinst_status:
+        comment: 当前审批状态
+        default: null
+        extra: ''
+        key: ''
+        nullable: true
+        type: varchar(64)
+      app_tenant_code:
+        comment: 逻辑租户标识
+        default: null
+        extra: ''
+        key: ''
+        nullable: true
+        type: varchar(100)
+      code:
+        comment: 编码
+        default: null
+        extra: ''
+        key: ''
+        nullable: true
+        type: varchar(64)
+      create_by:
+        comment: 创建人id
+        default: null
+        extra: ''
+        key: ''
+        nullable: true
+        type: varchar(100)
+      create_time:
+        comment: 创建时间
+        default: CURRENT_TIMESTAMP
+        extra: ''
+        key: ''
+        nullable: false
+        type: datetime
+      create_user:
+        comment: 创建人名称
+        default: null
+        extra: ''
+        key: ''
+        nullable: true
+        type: varchar(100)
+      db_tenant_code:
+        comment: 数据租户标识
+        default: null
+        extra: ''
+        key: ''
+        nullable: true
+        type: varchar(100)
+      enable:
+        comment: enable
+        default: Y
+        extra: ''
+        key: ''
+        nullable: true
+        type: varchar(4)
+      id:
+        comment: 表主键
+        default: null
+        extra: ''
+        key: PRI
+        nullable: false
+        type: bigint(22)
+      msg_kind:
+        comment: 消息类型
+        default: null
+        extra: ''
+        key: ''
+        nullable: true
+        type: varchar(60)
+      name:
+        comment: 名称
+        default: null
+        extra: ''
+        key: ''
+        nullable: true
+        type: varchar(64)
+      organization_id:
+        comment: 机构编号
+        default: null
+        extra: ''
+        key: ''
+        nullable: true
+        type: varchar(30)
+      remark:
+        comment: remark
+        default: null
+        extra: ''
+        key: ''
+        nullable: true
+        type: varchar(1024)
+      scenes_type:
+        comment: 场景码
+        default: null
+        extra: ''
+        key: ''
+        nullable: true
+        type: varchar(60)
+      send_enable:
+        comment: 发送标识
+        default: Y
+        extra: ''
+        key: ''
+        nullable: true
+        type: varchar(2)
+      update_by:
+        comment: 更新人id
+        default: null
+        extra: ''
+        key: ''
+        nullable: true
+        type: varchar(100)
+      update_time:
+        comment: 更新时间
+        default: CURRENT_TIMESTAMP
+        extra: on update CURRENT_TIMESTAMP
+        key: ''
+        nullable: false
+        type: datetime
+      update_user:
+        comment: 更新人名称
+        default: null
+        extra: ''
+        key: ''
+        nullable: true
+        type: varchar(100)
+    comment: 客户消息发送策略
+    engine: InnoDB
+    indexes:
     - columns:
       - id
       name: PRIMARY
@@ -10624,6 +10936,246 @@ tables:
         nullable: true
         type: bigint(20)
     comment: 迁移用户记录表
+    engine: InnoDB
+    indexes:
+    - columns:
+      - id
+      name: PRIMARY
+      unique: true
+  open_sso_channel:
+    columns:
+      act_procinst_date:
+        comment: 审批结束时间
+        default: null
+        extra: ''
+        key: ''
+        nullable: true
+        type: datetime
+      act_procinst_id:
+        comment: 流程实例ID
+        default: null
+        extra: ''
+        key: ''
+        nullable: true
+        type: varchar(64)
+      act_procinst_no:
+        comment: 流程申请编号
+        default: null
+        extra: ''
+        key: ''
+        nullable: true
+        type: varchar(255)
+      act_procinst_status:
+        comment: 当前审批状态
+        default: null
+        extra: ''
+        key: ''
+        nullable: true
+        type: varchar(64)
+      app_id:
+        comment: 开放平台 appId
+        default: null
+        extra: ''
+        key: ''
+        nullable: true
+        type: varchar(128)
+      app_tenant_code:
+        comment: 逻辑租户标识
+        default: null
+        extra: ''
+        key: ''
+        nullable: true
+        type: varchar(100)
+      channel_code:
+        comment: 业务/OpenAPI渠道码
+        default: null
+        extra: ''
+        key: ''
+        nullable: true
+        type: varchar(128)
+      channel_kind:
+        comment: 渠道类型
+        default: null
+        extra: ''
+        key: ''
+        nullable: true
+        type: varchar(64)
+      channel_name:
+        comment: 渠道名称
+        default: null
+        extra: ''
+        key: ''
+        nullable: true
+        type: varchar(128)
+      code:
+        comment: 编码
+        default: null
+        extra: ''
+        key: ''
+        nullable: true
+        type: varchar(64)
+      create_by:
+        comment: 创建人id
+        default: null
+        extra: ''
+        key: ''
+        nullable: true
+        type: varchar(100)
+      create_time:
+        comment: 创建时间
+        default: CURRENT_TIMESTAMP
+        extra: ''
+        key: ''
+        nullable: false
+        type: datetime
+      create_user:
+        comment: 创建人名称
+        default: null
+        extra: ''
+        key: ''
+        nullable: true
+        type: varchar(100)
+      db_tenant_code:
+        comment: 数据租户标识
+        default: null
+        extra: ''
+        key: ''
+        nullable: true
+        type: varchar(100)
+      default_session_expire_minute:
+        comment: 默认会话过期时间
+        default: null
+        extra: ''
+        key: ''
+        nullable: true
+        type: int(10)
+      enable:
+        comment: enable
+        default: Y
+        extra: ''
+        key: ''
+        nullable: true
+        type: varchar(4)
+      id:
+        comment: 表主键
+        default: null
+        extra: ''
+        key: PRI
+        nullable: false
+        type: bigint(22)
+      max_session_expire_minute:
+        comment: 最长会话过期时间
+        default: null
+        extra: ''
+        key: ''
+        nullable: true
+        type: int(10)
+      name:
+        comment: 名称
+        default: null
+        extra: ''
+        key: ''
+        nullable: true
+        type: varchar(64)
+      open_mode_default:
+        comment: 默认打开形态 EMBED/TOP
+        default: EMBED
+        extra: ''
+        key: ''
+        nullable: true
+        type: varchar(128)
+      org_code:
+        comment: 同步 SSO 机构编码
+        default: null
+        extra: ''
+        key: ''
+        nullable: true
+        type: varchar(128)
+      organization_id:
+        comment: 机构编号
+        default: null
+        extra: ''
+        key: ''
+        nullable: true
+        type: varchar(30)
+      remark:
+        comment: remark
+        default: null
+        extra: ''
+        key: ''
+        nullable: true
+        type: varchar(1024)
+      sso_client_id:
+        comment: SSO clientId（每渠道独立）
+        default: null
+        extra: ''
+        key: ''
+        nullable: true
+        type: varchar(128)
+      sso_client_secret:
+        comment: SSO密钥
+        default: null
+        extra: ''
+        key: ''
+        nullable: true
+        type: varchar(256)
+      sso_sync_msg:
+        comment: SSO同步描述
+        default: null
+        extra: ''
+        key: ''
+        nullable: true
+        type: varchar(256)
+      sso_sync_status:
+        comment: ssoSyncStatus
+        default: null
+        extra: ''
+        key: ''
+        nullable: true
+        type: varchar(64)
+      sso_synced_at:
+        comment: 同步时间
+        default: null
+        extra: ''
+        key: ''
+        nullable: true
+        type: datetime
+      sys_channel:
+        comment: SSO sysChannel
+        default: null
+        extra: ''
+        key: ''
+        nullable: true
+        type: varchar(128)
+      sys_type:
+        comment: SSO sysType
+        default: null
+        extra: ''
+        key: ''
+        nullable: true
+        type: varchar(64)
+      update_by:
+        comment: 更新人id
+        default: null
+        extra: ''
+        key: ''
+        nullable: true
+        type: varchar(100)
+      update_time:
+        comment: 更新时间
+        default: CURRENT_TIMESTAMP
+        extra: on update CURRENT_TIMESTAMP
+        key: ''
+        nullable: false
+        type: datetime
+      update_user:
+        comment: 更新人名称
+        default: null
+        extra: ''
+        key: ''
+        nullable: true
+        type: varchar(100)
+    comment: 开放登录SSO渠道
     engine: InnoDB
     indexes:
     - columns:
@@ -16034,6 +16586,13 @@ tables:
       unique: true
   tenant_setting_config:
     columns:
+      access_mode:
+        comment: 接入模式
+        default: null
+        extra: ''
+        key: ''
+        nullable: true
+        type: varchar(64)
       act_procinst_date:
         comment: 审批结束时间
         default: null
@@ -16062,6 +16621,13 @@ tables:
         key: ''
         nullable: true
         type: varchar(64)
+      adapt_colour:
+        comment: 适配背景颜色
+        default: null
+        extra: ''
+        key: ''
+        nullable: true
+        type: varchar(32)
       ai_resource_color:
         comment: 智能客服按钮颜色
         default: null
@@ -16867,6 +17433,13 @@ tables:
         key: ''
         nullable: true
         type: varchar(100)
+      use_theme_after_login:
+        comment: 登录后是否使用该色调：Y-是，N-否
+        default: N
+        extra: ''
+        key: ''
+        nullable: true
+        type: varchar(1)
       user_protocol_agreement:
         comment: 用户协议
         default: null

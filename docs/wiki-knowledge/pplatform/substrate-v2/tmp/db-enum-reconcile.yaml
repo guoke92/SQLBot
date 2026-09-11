@@ -1,0 +1,313 @@
+schema_version: '1.0'
+note: E2(db 分布) vs E3(代码枚举) 对账 — 值超出代码基线的字段
+mismatches:
+- table: argeement_migratory_record
+  column: status
+  db_values_outside_code_baseline:
+  - '0'
+  - '1'
+  distribution:
+    '0': 7974
+    '1': 29586
+- table: async_io_task
+  column: status
+  db_values_outside_code_baseline:
+  - FAILED
+  - RUNNING
+  - SUCCESS
+  distribution:
+    FAILED: 110
+    RUNNING: 3
+    SUCCESS: 214
+- table: ca_certification_info
+  column: cust_type
+  db_values_outside_code_baseline:
+  - COMPANY
+  distribution:
+    COMPANY: 1367
+- table: ca_fee_order
+  column: order_status
+  db_values_outside_code_baseline:
+  - PAIDING
+  - UNPAID
+  distribution:
+    PAIDING: 1
+    UNPAID: 1
+- table: cust_account_info
+  column: account_type
+  db_values_outside_code_baseline:
+  - BANK
+  - OPERATION_FEE_ACCOUNT
+  distribution:
+    BANK: 48428
+    OPERATION_FEE_ACCOUNT: 30
+- table: cust_account_info
+  column: status
+  db_values_outside_code_baseline:
+  - INIT
+  distribution:
+    INIT: 46630
+- table: cust_auth_application
+  column: open_status
+  db_values_outside_code_baseline:
+  - NOT_OPENED
+  - OPENED
+  - OPENING
+  distribution:
+    NOT_OPENED: 55
+    OPENED: 9025
+    OPENING: 22777
+- table: cust_change_record
+  column: status
+  db_values_outside_code_baseline:
+  - '1'
+  - CUSTS003
+  - CUST_CHECK_BACKTOCUSTOM
+  - CUST_CHECK_CHECKING
+  - CUST_CHECK_PASS
+  - CUST_CHECK_REJECT
+  - returnCust-2024-07-17 10:10
+  - returnCust-2024-09-10 14:10
+  - returnCust-2024-11-01 14:16
+  - returnCust-2024-11-05 10:03
+  - returnCust-2024-11-12 10:05
+  - returnCust-2025-01-17 14:38
+  - returnCust-2025-07-22 12:03
+  - returnCust-2026-05-22 20:22
+  - returnCust-2026-05-25 14:55
+  - returnCust-2026-07-03 10:24
+  - returnCust-2026-07-15 17:30
+  - returnCust-2026-07-22 14:55
+  distribution:
+    '1': 377
+    CUSTS003: 1
+    CUST_CHECK_BACKTOCUSTOM: 166
+    CUST_CHECK_CHECKING: 637
+    CUST_CHECK_PASS: 3016
+    CUST_CHECK_REJECT: 1031
+    returnCust-2024-07-17 10:10: 1
+    returnCust-2024-09-10 14:10: 1
+    returnCust-2024-11-01 14:16: 1
+    returnCust-2024-11-05 10:03: 1
+    returnCust-2024-11-12 10:05: 1
+    returnCust-2025-01-17 14:38: 1
+    returnCust-2025-07-22 12:03: 1
+    returnCust-2026-05-22 20:22: 1
+    returnCust-2026-05-25 14:55: 1
+    returnCust-2026-07-03 10:24: 1
+    returnCust-2026-07-15 17:30: 1
+    returnCust-2026-07-22 14:55: 1
+- table: cust_company_info
+  column: check_status
+  db_values_outside_code_baseline:
+  - CUST_CHECK_BACKTOCUSTOM
+  - CUST_CHECK_CHECKING
+  - CUST_CHECK_INIT
+  - CUST_CHECK_PASS
+  - CUST_CHECK_REJECT
+  - EFFECT
+  distribution:
+    CUST_CHECK_BACKTOCUSTOM: 7440
+    CUST_CHECK_CHECKING: 2900
+    CUST_CHECK_INIT: 1999
+    CUST_CHECK_PASS: 9175
+    CUST_CHECK_REJECT: 6161
+    EFFECT: 1
+- table: cust_company_info
+  column: cust_scale
+  db_values_outside_code_baseline:
+  - ''
+  - qw
+  distribution:
+    ? ''
+    : 2
+    qw: 1
+- table: cust_company_info
+  column: cust_source
+  db_values_outside_code_baseline:
+  - PLATFORM
+  distribution:
+    PLATFORM: 1
+- table: cust_company_info
+  column: legal_certification_type
+  db_values_outside_code_baseline:
+  - ''
+  - CREDENTIALS_ID
+  - 身份证
+  distribution:
+    ? ''
+    : 3
+    CREDENTIALS_ID: 2
+    身份证: 5
+- table: cust_company_info
+  column: sign_mode
+  db_values_outside_code_baseline:
+  - ONLINE
+  distribution:
+    ONLINE: 94276
+- table: cust_head_company_info
+  column: legal_certification_type
+  db_values_outside_code_baseline:
+  - ''
+  - 身份证
+  distribution:
+    ? ''
+    : 2
+    身份证: 3
+- table: cust_interworking_product
+  column: open_status
+  db_values_outside_code_baseline:
+  - OPENED
+  distribution:
+    OPENED: 304
+- table: cust_person_info
+  column: certification_type
+  db_values_outside_code_baseline:
+  - CREDENTIALS_ID
+  distribution:
+    CREDENTIALS_ID: 95
+- table: cust_person_info
+  column: face_status
+  db_values_outside_code_baseline:
+  - ''
+  distribution:
+    ? ''
+    : 1
+- table: cust_person_info
+  column: real_name_result
+  db_values_outside_code_baseline:
+  - ''
+  distribution:
+    ? ''
+    : 1
+- table: cust_person_info
+  column: source
+  db_values_outside_code_baseline:
+  - longteng
+  distribution:
+    longteng: 69
+- table: cust_person_info
+  column: status
+  db_values_outside_code_baseline:
+  - N
+  distribution:
+    N: 1
+- table: cust_project_code_record
+  column: status
+  db_values_outside_code_baseline:
+  - N
+  - Y
+  distribution:
+    N: 63
+    Y: 285
+- table: cust_project_rel
+  column: status
+  db_values_outside_code_baseline:
+  - ' 1 '
+  - '0'
+  - '1'
+  distribution:
+    ' 1 ': 2
+    '0': 29698
+    '1': 29405
+- table: platform_product_client
+  column: status
+  db_values_outside_code_baseline:
+  - Y
+  distribution:
+    Y: 26
+- table: tenant_migarory_log
+  column: status
+  db_values_outside_code_baseline:
+  - N
+  - Y
+  distribution:
+    N: 7426
+    Y: 145743
+- table: tenant_migarory_log_bak
+  column: status
+  db_values_outside_code_baseline:
+  - N
+  - Y
+  distribution:
+    N: 439
+    Y: 4171
+- table: tenant_project
+  column: source
+  db_values_outside_code_baseline:
+  - ACFLOW
+  - ORDER
+  - RVSFACTOR_PC
+  - STORAGE
+  - pplatform
+  distribution:
+    ACFLOW: 1255
+    ORDER: 226
+    RVSFACTOR_PC: 480
+    STORAGE: 8
+    pplatform: 1532
+- table: tenant_project_approval
+  column: wf_status
+  db_values_outside_code_baseline:
+  - REVOKED
+  distribution:
+    REVOKED: 18
+- table: tenant_project_approval_flow_file
+  column: catg_id
+  db_values_outside_code_baseline:
+  - FBP_OA_ATTACHMENT
+  - FBP_OA_COMMENT_FILE
+  distribution:
+    FBP_OA_ATTACHMENT: 31
+    FBP_OA_COMMENT_FILE: 83
+- table: tenant_setting_config
+  column: platform_operator
+  db_values_outside_code_baseline:
+  - '["platform","tenant"]'
+  - '["platform"]'
+  - '["tenant","platform"]'
+  - '["tenant"]'
+  distribution:
+    '["platform","tenant"]': 8
+    '["platform"]': 109
+    '["tenant","platform"]': 15
+    '["tenant"]': 46
+- table: tenant_setting_config
+  column: source
+  db_values_outside_code_baseline:
+  - ''
+  - ACFLOW
+  - pplatform
+  distribution:
+    ? ''
+    : 1
+    ACFLOW: 198
+    pplatform: 150
+- table: tenant_setting_config
+  column: status
+  db_values_outside_code_baseline:
+  - N
+  - Y
+  distribution:
+    N: 240
+    Y: 124
+- table: tenant_setting_config_share
+  column: platform_operator
+  db_values_outside_code_baseline:
+  - '["platform"]'
+  distribution:
+    '["platform"]': 24
+- table: tenant_setting_config_share
+  column: source
+  db_values_outside_code_baseline:
+  - ACFLOW
+  distribution:
+    ACFLOW: 29
+- table: tenant_setting_config_share
+  column: status
+  db_values_outside_code_baseline:
+  - N
+  distribution:
+    N: 29
+summary:
+  mismatch_fields: 34

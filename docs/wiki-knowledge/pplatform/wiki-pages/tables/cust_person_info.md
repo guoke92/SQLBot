@@ -58,6 +58,7 @@ fields:
     type: string
     phys: varchar(512)
     desc: 联系人类型
+    dict: user_type
     topk: accountAdmin|accountGuest|accountNormal
     roles: [query]
   - name: certification_type

@@ -1,0 +1,5 @@
+body: 所有页面 frontmatter 的 `scope.databases` 暂填 `dbass`（依据语义分析中出现的 Nacos `dbass.appId`），语义分析未给出物理库名证据，无法逐字确认。涉及表（ca_certification_info
+  / cust_certification_info / cust_person_info / cust_company_info / wx_work_user）的实际物理库名需补充
+  [DB] 证据后修订。
+title: table/ca_certification_info
+type: table

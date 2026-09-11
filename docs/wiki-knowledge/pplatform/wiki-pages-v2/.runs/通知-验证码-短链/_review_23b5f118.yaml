@@ -1,0 +1,4 @@
+body: '状态机 transitions 中 NORMAL 与 FILE 两条迁移的 evidence 均指向 ShortLinkController.java#orderCategory，但
+  FILE 分支的实际执行点在语义分析的另一处证据中被描述为 #shortLink。两处方法锚点是否指同一段分支逻辑尚未确认，本页按原文保留 orderCategory，未做合并。'
+title: 短链类型路由
+type: process

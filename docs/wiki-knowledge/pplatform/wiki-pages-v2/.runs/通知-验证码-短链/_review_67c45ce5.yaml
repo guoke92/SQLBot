@@ -1,0 +1,4 @@
+body: 语义分析给出的 evidence 字符串在中途被截断（"code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplat"），无法还原完整类路径与行号锚点。本页按"字段值逐字来源"的约束保留了截断原文，未自行补全。待语义分析重新给出完整
+  code_path 后需回填 evidence。
+title: 签约验证码接收人手机号回写合同签署表
+type: rule

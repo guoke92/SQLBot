@@ -1,0 +1,4 @@
+body: '`wechat_project_approval_apply.act_procinst_status` 的 `''1''`/`''3''`/`''4''`
+  仅出现在 DB 分布中，本层代码未声明其含义（代码只用字面 `''2''`＝审批通过）。这些取值的业务标签属待确认语义，不应据 DB 分布反推。'
+title: act_procinst_status 的 1/3/4 无代码标签
+type: 字段语义

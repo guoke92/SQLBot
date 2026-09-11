@@ -1,0 +1,9 @@
+body: '语义分析未给出任何物理库名，本批页面 `scope.databases` 统一填 `UNSPECIFIED`。请维护者补充 `cust_company_info`
+  / `cust_change_record` / `cust_certification_info` / `cust_person_info` 所在物理库名后统一回填（涉及全部
+  tables/processes/calibers/rules/concepts 页面）。
+
+
+  追加待确认：`cust_change_cfg`（`cust_change_record.alter_type_id` 关联目标）与 `cust_auth_application`（产品开通，[[concepts/admission]]
+  的 also_confused_with 提及）未在 field_semantics 中定义，本次未建表页，是否需要补页请确认。'
+title: scope.databases 物理库名未提供
+type: caliber

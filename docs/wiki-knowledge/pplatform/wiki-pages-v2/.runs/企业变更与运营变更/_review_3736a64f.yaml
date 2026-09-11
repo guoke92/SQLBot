@@ -1,0 +1,7 @@
+body: '1. alter_mode 仅有 DB 取值 1/2，代码切片未含 AlterModeEnum 定义，1/2 的业务标签未在证据内确认。
+
+  2. cust_type 的 DB 实测四值（1/2/3/4）与代码切片中仅有的 ENTERPRISE / INDIVIDUALS 两分支不一致，第 3、4 值归属未确认。
+
+  3. cust_company_type 存在历史 JSON 数组写法 `["CORE"]`，是否为遗留数据需确认。'
+title: 客户变更记录表 cust_change_record
+type: table

@@ -1,0 +1,21 @@
+- anchor: table:cust_role_info
+  code: FIELD_MALFORMED
+  message: 'cust_role_info: 字段行非映射 role_type'
+- anchor: table:cust_role_info
+  code: FIELD_MALFORMED
+  message: 'cust_role_info: 字段行非映射 status'
+- anchor: table:cust_role_info
+  code: FIELD_MALFORMED
+  message: 'cust_role_info: 字段行非映射 ref_cust_company_info'
+- anchor: table:cust_role_info
+  code: FIELD_MALFORMED
+  message: 'cust_role_info: 字段行非映射 enable'
+- anchor: table:cust_role_info
+  code: FIELD_MALFORMED
+  message: 'cust_role_info: 字段行非映射 code'
+- anchor: table:cust_role_info
+  code: FIELD_MALFORMED
+  message: 'cust_role_info: 字段行非映射 db_tenant_code'
+- anchor: table:cust_role_info
+  code: FIELD_MALFORMED
+  message: 'cust_role_info: 字段行非映射 platform_cust_id'

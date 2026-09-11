@@ -1,0 +1,17 @@
+body: '诉求（document_claim）：用户角色规则为平台管理员/企业管理员/普通用户，一个用户可拥有多个角色，角色权限取并集。
+
+
+  状态：code_status = uncovered。给定代码中 UserInfoFacade 使用 sys 侧固定角色 accountGuest/accountNormal，未见『一用户多角色并集』的并集计算实现。
+
+
+  待确认：
+
+  1) 多角色并集是在权限服务侧计算还是在下游各自判断；
+
+  2) accountGuest/accountNormal 与文档三类用户（平台管理员/企业管理员/普通用户）的映射关系；
+
+  3) 该规则与 [[concepts/company-role]]（企业身份）是否在同一鉴权链路中参与判定。
+
+  在确证前不得据此页产出 concept 页面锚点（concept 无锚点块，仅登记待确认语义）。'
+title: 用户角色与权限并集
+type: concept

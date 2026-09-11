@@ -1,0 +1,6 @@
+- anchor: table:cust_user_rel
+  code: FIELD_NOT_IN_DB
+  message: cust_user_rel.is_freeze
+- anchor: table:cust_user_rel
+  code: FIELD_NOT_IN_DB
+  message: cust_user_rel.product_id

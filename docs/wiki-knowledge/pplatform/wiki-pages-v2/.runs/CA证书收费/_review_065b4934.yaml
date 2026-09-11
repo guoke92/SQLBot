@@ -1,0 +1,10 @@
+body: '本次语义分析的 `field_semantics` / `state_machines` / `calibers` 仅以 `[DB]`、`[代码]`
+  标注证据来源，**未给出任何物理库名（database/schema）**。因此全部 36 个页面的 frontmatter `scope.databases`
+  统一写为占位符 `["<物理库名>"]`，未做任何猜测性填写。
+
+
+  - 待确认：承载 `ca_fee_company` / `ca_fee_order` / `ca_fee_project_config` 的物理库名（若涉及多库或分库，请给出完整清单）。
+
+  - 影响：`ground:columns` 等锚点块中的 `evidence: db` 目前无法回溯到具体库实例；补齐库名后可提升锚点可核验性。'
+title: 物理库名（scope.databases）
+type: meta

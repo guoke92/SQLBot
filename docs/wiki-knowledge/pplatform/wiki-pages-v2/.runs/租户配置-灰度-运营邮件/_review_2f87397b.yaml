@@ -1,0 +1,4 @@
+body: '[[calibers/lls_self_tenant]] 的 predicate 依赖 `${tenantProperties.platformTenantDbTenantCode}`
+  与 `${tenantProperties.llsTenantFlgEn}`，语义分析未给出这两个配置项的实际取值或环境差异。锚点块按原文保留占位符，未做替换；需补证后确认是否存在多环境不同判定结果。'
+title: 配置项占位符取值未知
+type: caliber

@@ -10,10 +10,10 @@ oid: 1
 
 sources: ["db:cust_person_info", "code:CustAuthAgreementDomainService", "enrich:wiki-admin"]
 contract_version: "0.1"
-maps_to: "cust_person_info.user_type='admin'"
-field_targets: []
+maps_to: "cust_person_info.user_type='accountAdmin'"
+field_targets: ["cust_person_info.user_type"]
 adjudication: "boundary"
-also_confused_with: ["经办人(operator)", "AMS 经办人"]
+also_confused_with: ["经办人", "AMS 经办人"]
 coverage_note: "用户角色"
 scope:
   databases: [lowcode_pplatform]
@@ -29,4 +29,4 @@ scope:
 
 暂无。
 
-相关：[[cust_person_info]]
+相关：[[cust_person_info]] [[user_type]]

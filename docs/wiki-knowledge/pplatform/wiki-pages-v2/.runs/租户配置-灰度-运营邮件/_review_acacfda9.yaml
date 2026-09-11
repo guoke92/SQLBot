@@ -1,0 +1,5 @@
+body: 语义分析中该规则的 `field_targets` 在 `"tenant_setting_config.defau` 处被截断，第二项无法逐字确认。当前锚点块只登记了完整可见的
+  `tenant_setting_config.project_code_required`；补全后需回填 `default_project_id`（或实际字段）并复核
+  content 与 impact 是否完整。
+title: 项目码必填联动默认项目
+type: rule

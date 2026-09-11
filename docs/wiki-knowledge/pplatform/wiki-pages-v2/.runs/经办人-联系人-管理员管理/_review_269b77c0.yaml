@@ -1,0 +1,4 @@
+body: 文档主张「管理员角色不能自我删除」（code_status=uncovered，无代码证据）尚未证实，需确认是否存在管理员自删保护逻辑及其校验位置；确认前不得写成约束，仅可在
+  [[rules/admin-uniqueness]] 的《版本演进》中以 document_claim 形式保留。
+title: 管理员唯一性
+type: rule

@@ -1,0 +1,3 @@
+body: 该规则的 evidence 字符串在语义分析结果中被截断（原文止于 "...CustGroupRelApplication.java:removeRo"），本页按逐字原则保留原样。校准后的方法名锚点需在下一轮语义分析中确认后再更新。
+title: 集团删除前在途业务校验
+type: rule

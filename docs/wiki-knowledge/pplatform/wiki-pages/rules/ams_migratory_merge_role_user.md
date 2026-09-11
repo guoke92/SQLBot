@@ -30,8 +30,8 @@ name: AMS迁移企业已存在时合并角色/用户
 content: AMS 产品下若企业已存在，按手机号+公司类型+用户类型过滤新增管理员/经办人，复制角色并保存
 impact: AMS 迁移幂等，避免重复建企和重复建用户
 field_targets:
-  - CustPersonInfoDO.phone
-  - CustPersonInfoDO.companyType
-  - CustPersonInfoDO.userType
+  - cust_person_info.phone
+  - cust_person_info.company_type
+  - cust_person_info.user_type
 evidence: code_path:PlatFormMigratoryApplication.java:migratoryCust AMS分支
 ```

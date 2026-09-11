@@ -1,0 +1,653 @@
+field_semantics:
+- table: tenant_setting_config
+  field: db_tenant_code
+  meaning: 数据租户标识/数据库租户编码，租户查询与多租户隔离的主键（唯一键 UNI）
+  evidence: db
+- table: tenant_setting_config
+  field: tenant_flg_en
+  meaning: 项目标识（英文），租户在产融侧的项目级英文标识；初始化时被写为 dbTenantCode
+  evidence: code
+- table: tenant_setting_config
+  field: enable
+  meaning: 启用标记，查询统一以 enable='Y' 过滤（存量全部为 Y）
+  evidence: db
+- table: tenant_setting_config
+  field: status
+  meaning: 生效状态：Y=已生效，N=待生效（未生效占多数）
+  evidence: db
+- table: tenant_setting_config
+  field: bg_color
+  meaning: 背景颜色：L=彩色（ColorConstants.LIGHT）、G=灰色（ColorConstants.GRAY）、null=未设置
+  evidence: db
+- table: tenant_setting_config
+  field: project_code_required
+  meaning: 项目码是否必填 Y/N，为 Y 时要求同时配置 default_project_id
+  evidence: code
+- table: tenant_setting_config
+  field: default_project_id
+  meaning: 默认关联项目ID，指向 tenant_project.id
+  evidence: code
+- table: tenant_setting_config
+  field: share_flag
+  meaning: 租户共享标识，用于联易融自营「假租户」（同 dbTenantCode 多 tenantFlgEn）判定
+  evidence: code
+- table: tenant_setting_config
+  field: pushing_status
+  meaning: 租户推送状态，非 CREATED 事件推送的前置开关（Y 表示已推过创建）
+  evidence: code
+- table: tenant_setting_config
+  field: op_update_user
+  meaning: 租户运营配置更新人（独立于标准 update_user 记录）
+  evidence: code
+- table: tenant_setting_config
+  field: op_update_time
+  meaning: 租户运营配置更新时间
+  evidence: code
+- table: tenant_setting_config
+  field: operator_id
+  meaning: 租户级运营人员ID
+  evidence: code
+- table: tenant_setting_config
+  field: operator_name
+  meaning: 租户级运营人员名称
+  evidence: code
+- table: tenant_setting_config
+  field: operator_email
+  meaning: 租户级运营人员邮箱（运营邮件收件人）
+  evidence: code
+- table: tenant_setting_config
+  field: send_email
+  meaning: 是否发送邮件（运营邮件触达开关）
+  evidence: code
+- table: tenant_setting_config
+  field: operator_ai_customer
+  meaning: 是否开启智能客服，取值 '0'/'1'
+  evidence: db
+- table: tenant_setting_config
+  field: customer_card_type
+  meaning: 客服名片类型：WX=微信名片，WX_WORK=企微名片
+  evidence: db
+- table: tenant_setting_config
+  field: platform_operator
+  meaning: 平台运营方配置，JSON 数组，元素取值 platform / tenant
+  evidence: db
+- table: tenant_setting_config
+  field: source
+  meaning: 租户来源，实测值 ACFLOW / pplatform
+  evidence: db
+- table: tenant_setting_config
+  field: is_stack
+  meaning: 是否存量数据 Y/N
+  evidence: db
+- table: tenant_setting_config
+  field: main_tenant_flg_en
+  meaning: 主定制项目标识（共享/主定制租户归属）
+  evidence: db
+- table: tenant_setting_config
+  field: access_mode
+  meaning: 接入模式，实测值 DIRECT_INIT
+  evidence: db
+- table: tenant_setting_config
+  field: uni_social_credit_code
+  meaning: 统一社会信用证编码，SSO/DBAss 初始化与保存校验的必填/合法性字段
+  evidence: code
+- table: tenant_setting_config
+  field: generate_electronic_auth_flag
+  meaning: 是否生成电子版授权书：Y/N
+  evidence: db
+- table: tenant_setting_config
+  field: ai_resource_color
+  meaning: 智能客服按钮颜色（颜色值字符串）
+  evidence: db
+- table: async_io_task
+  field: status
+  meaning: 异步导入导出任务状态，代码枚举 PENDING/RUNNING/SUCCESS/FAILED，实测含 SUCCESS/RUNNING/FAILED
+  evidence: code
+- table: async_io_task
+  field: task_type
+  meaning: 任务类型 IMPORT/EXPORT
+  evidence: code
+- table: async_io_task
+  field: is_deleted
+  meaning: 软删除标记：0=否 1=是
+  evidence: code
+- table: async_io_task
+  field: file_url
+  meaning: 成功=结果文件下载地址；失败=错误文件下载地址
+  evidence: code
+- table: async_io_task
+  field: task_no
+  meaning: 任务号，DB 自增，用于分片 MOD(task_no, shardTotal)=shardIndex
+  evidence: code
+- table: tenant_project
+  field: top_flag
+  meaning: 置顶标识，0/1，1 表示存在离职运营人员需关注
+  evidence: code
+- table: tenant_project
+  field: text
+  meaning: 备注/离职提示文本，前端 topFlag=1 时实时生成
+  evidence: code
+- table: tenant_project
+  field: op_contact_a
+  meaning: 运营对接人A（单个运营人员ID）
+  evidence: code
+- table: tenant_project
+  field: op_contact_b
+  meaning: 运营对接人B（多个运营人员ID）
+  evidence: code
+- table: tenant_project
+  field: verification_contact
+  meaning: 查验对接人
+  evidence: code
+- table: tenant_project
+  field: risk_control_contact_a
+  meaning: 风控对接人A
+  evidence: code
+- table: tenant_project
+  field: risk_control_contact_b
+  meaning: 风控对接人B
+  evidence: code
+- table: tenant_project
+  field: solution_manager
+  meaning: 方案经理
+  evidence: code
+- table: tenant_project
+  field: business_manager
+  meaning: 业务经理
+  evidence: code
+- table: tenant_project
+  field: business_group
+  meaning: 关联业务部门
+  evidence: code
+- table: tenant_project
+  field: send_email
+  meaning: 项目级是否发送运营邮件
+  evidence: code
+- table: tenant_project
+  field: operator_email
+  meaning: 项目级运营对接人邮箱
+  evidence: code
+- table: tenant_project
+  field: project_status
+  meaning: 项目状态，生效值由 ProjectStatusEnum.EFFECTIVE 判定
+  evidence: code
+- table: cust_person_info
+  field: operator_id
+  meaning: 联系人上的运营人ID（企业联系人级，区别于租户级 operator_id）
+  evidence: code
+- table: cust_person_info
+  field: operator_realname
+  meaning: 联系人上的运营人姓名
+  evidence: code
+- table: cust_person_info
+  field: operator
+  meaning: 联系人上的运营人账号（userName）
+  evidence: code
+state_machines:
+- name: 租户生效状态
+  field: tenant_setting_config.status
+  states:
+  - value: N
+    label: 待生效/未生效
+    source: db_dist
+  - value: Y
+    label: 已生效
+    source: db_dist
+  transitions:
+  - from: N
+    event: effective 必填项校验全部通过
+    to: Y
+    evidence: code_path:lowcode-pplatform-tenant-management/src/main/java/com/lls/lowcode/pplatform/tenant/service/TenantDomainService.java:effective
+- name: 租户背景颜色/灰度
+  field: tenant_setting_config.bg_color
+  states:
+  - value: L
+    label: 彩色
+    source: code_enum
+  - value: G
+    label: 灰色
+    source: code_enum
+  - value: 'null'
+    label: 未设置（按彩色处理）
+    source: db_dist
+  transitions:
+  - from: 'null'
+    event: 全局灰度窗口生效且租户未设颜色
+    to: G
+    evidence: code_path:lowcode-pplatform-tenant-management/src/main/java/com/lls/lowcode/pplatform/tenant/application/TenantAppliactionService.java:updateTenantColorGray
+  - from: L
+    event: 全局灰度窗口生效
+    to: G
+    evidence: code_path:lowcode-pplatform-tenant-management/src/main/java/com/lls/lowcode/pplatform/tenant/application/TenantAppliactionService.java:updateTenantColorGray
+  - from: G
+    event: 客户端恢复彩色(bgcolor/reset/light)
+    to: 'null'
+    evidence: code_path:lowcode-pplatform-tenant-management/src/main/java/com/lls/lowcode/pplatform/tenant/application/TenantAppliactionService.java:updateTenantColorNull
+  - from: 'null'
+    event: setColorlight 设为彩色
+    to: L
+    evidence: code_path:lowcode-pplatform-tenant-management/src/main/java/com/lls/lowcode/pplatform/tenant/application/TenantAppliactionService.java:setColorlight
+- name: 全局背景灰度开关（Redis 缓存）
+  field: RedisKeyConstants.BGCOLOR_SWITCH_TTL(BgColorCacheDto)
+  states:
+  - value: 'ON'
+    label: 灰度窗口生效中
+    source: code_enum
+  - value: 'OFF'
+    label: 灰度窗口未生效/已过期
+    source: code_enum
+  transitions:
+  - from: 'OFF'
+    event: bgcolor/set 写入 startDate~endDate
+    to: 'ON'
+    evidence: code_path:lowcode-pplatform-tenant-management/src/main/java/com/lls/lowcode/pplatform/tenant/controller/TenantSettingConfigController.java:setBgColor
+  - from: 'ON'
+    event: now 超出 endTime（读取时判定过期）
+    to: 'OFF'
+    evidence: code_path:lowcode-pplatform-tenant-management/src/main/java/com/lls/lowcode/pplatform/tenant/controller/TenantSettingConfigController.java:getBgColor
+  - from: 'ON'
+    event: bgcolor/reset/light 删除缓存
+    to: 'OFF'
+    evidence: code_path:lowcode-pplatform-tenant-management/src/main/java/com/lls/lowcode/pplatform/tenant/controller/TenantSettingConfigController.java:bgColorClear
+- name: 异步导入导出任务状态
+  field: async_io_task.status
+  states:
+  - value: PENDING
+    label: 待执行
+    source: code_enum
+  - value: RUNNING
+    label: 执行中
+    source: code_enum
+  - value: SUCCESS
+    label: 成功
+    source: code_enum
+  - value: FAILED
+    label: 失败
+    source: code_enum
+  transitions:
+  - from: PENDING
+    event: 调度抢到任务 markRunning(CAS)
+    to: RUNNING
+    evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/asyncio/service/AsyncIoTaskManager.java:markRunning
+  - from: RUNNING
+    event: 执行成功（下载流/结果落库）
+    to: SUCCESS
+    evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/asyncio/service/AsyncIoTaskManager.java:markSuccessWithFile
+  - from: RUNNING
+    event: 执行成功（结果 JSON）
+    to: SUCCESS
+    evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/asyncio/service/AsyncIoTaskManager.java:markSuccessWithResult
+  - from: RUNNING
+    event: 执行抛异常
+    to: FAILED
+    evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/asyncio/service/AsyncIoTaskManager.java:markFailed
+  - from: RUNNING
+    event: 导入部分失败（业务正常返回但含失败行）
+    to: FAILED
+    evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/asyncio/job/AsyncIoTaskXxlJobHandler.java:handleNonStreamResult
+  - from: RUNNING
+    event: 超时清理（超过 timeoutMinutes）
+    to: FAILED
+    evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/asyncio/service/AsyncIoTaskManager.java:markRunningTimeout
+- name: 租户推送状态
+  field: tenant_setting_config.pushing_status
+  states:
+  - value: Y
+    label: 已推送创建事件
+    source: code_enum
+  transitions:
+  - from: 'null'
+    event: 推送 CREATED 租户事件前
+    to: Y
+    evidence: code_path:lowcode-pplatform-tenant-management/src/main/java/com/lls/lowcode/pplatform/tenant/service/TenantDomainService.java:pushing
+calibers:
+- name: 启用租户
+  predicate: tenant_setting_config.enable = 'Y'
+  scope: 所有租户查询（getFirstByDbTenantCode / getById / listActicveAll 等）
+  evidence: db + code:TenantDomainService.java
+- name: 已生效租户
+  predicate: tenant_setting_config.status = 'Y' AND tenant_setting_config.enable =
+    'Y'
+  scope: activeList 生效租户列表 / 租户生效校验
+  evidence: code:TenantDomainService.java:listActicveAll
+- name: 灰色背景租户
+  predicate: tenant_setting_config.bg_color = 'G'
+  scope: 客户端背景色展示（灰度窗口内）
+  evidence: code:TenantAppliactionService.java:getTentantColorSet
+- name: 存量租户数据
+  predicate: tenant_setting_config.is_stack = 'Y'
+  scope: 租户数据来源区分
+  evidence: db
+- name: 联易融自营租户
+  predicate: tenant_setting_config.db_tenant_code = ${tenantProperties.platformTenantDbTenantCode}
+    OR tenant_setting_config.tenant_flg_en = ${tenantProperties.llsTenantFlgEn}
+  scope: 非自营租户才做 SSO/DBAss 初始化
+  evidence: code:TenantAppliactionService.java:isLlsTenant
+- name: 共享假租户
+  predicate: tenant_setting_config.share_flag = 'Y' AND tenant_flg_en <> 请求 tenantFlgEn
+  scope: syncTenant 时写入 tenant_setting_config_share 而非 tenant_setting_config
+  evidence: code:TenantDomainService.java:existEarlyLLsTenant
+- name: 未删除异步任务
+  predicate: async_io_task.is_deleted = '0'
+  scope: 任务分页/查询/软删
+  evidence: code:AsyncIoTaskManager.java
+- name: 供应商企业
+  predicate: cust_company_info.cust_company_type = 'SUPPLIER'
+  scope: 资产审核运营人员同步仅对供应商生效
+  evidence: code:AssetOperatorSyncApplication.java:syncAssetOperator
+- name: 项目码必填租户
+  predicate: tenant_setting_config.project_code_required = 'Y'
+  scope: 保存前置校验要求 default_project_id 非空
+  evidence: code:TenantDomainService.java:checkBeforeSave
+- name: 配置了平台运营方
+  predicate: tenant_setting_config.platform_operator 包含 'platform'
+  scope: 租户生效必填校验是否需要校验平台运营方企业
+  evidence: code:PlatformComponentFacade.java:needPlatformOperatorCompany
+- name: 待执行任务分片
+  predicate: async_io_task.status = 'PENDING' AND MOD(task_no, shardTotal) = shardIndex
+    AND is_deleted <> '1'
+  scope: XXL-Job 分片广播拉取
+  evidence: code:AsyncIoTaskManager.java:listPendingByShard
+term_bridges:
+- term: dbTenantCode
+  aliases:
+  - db_tenant_code
+  - 数据租户标识
+  - 数据库租户编码
+  - 租户编码
+  maps_to: tenant_setting_config.db_tenant_code
+  also_confused_with:
+  - tenantFlgEn
+  adjudication: boundary
+  boundary: dbTenantCode 是多租户数据隔离主键；tenantFlgEn 是项目/品牌英文标识，二者在 init 时被写成相等但后续语义分叉（共享假租户下同
+    dbTenantCode 可有多 tenantFlgEn）
+- term: tenantFlgEn
+  aliases:
+  - tenant_flg_en
+  - 项目标识（英文）
+  - 租户英文标识
+  - projectMark
+  maps_to: tenant_setting_config.tenant_flg_en
+  also_confused_with:
+  - dbTenantCode
+  adjudication: boundary
+  boundary: Excel 导入列名「项目标识(产融 tenant_flg_en)」即此字段；它既被用于租户查询也被当作项目标识，与 dbTenantCode
+    不可互换
+- term: bgColor
+  aliases:
+  - 背景颜色
+  - 灰度颜色
+  - bg_color
+  maps_to: tenant_setting_config.bg_color
+  also_confused_with:
+  - main_theme_color
+  - ai_resource_color
+  adjudication: boundary
+  boundary: bgColor 只承载灰度开关语义，取值 L/G/null；主题色与智能客服按钮色各自独立字段
+- term: 灰度背景
+  aliases:
+  - 灰色背景
+  - G
+  - ColorConstants.GRAY
+  maps_to: tenant_setting_config.bg_color = 'G'
+  also_confused_with: []
+  adjudication: synonym
+  boundary: ''
+- term: enable
+  aliases:
+  - 启用标记
+  - enable
+  maps_to: tenant_setting_config.enable
+  also_confused_with:
+  - status
+  adjudication: boundary
+  boundary: enable 是记录启用态（实测全 Y），status 是租户业务生效态（N/Y 并存），查询生效租户需两个条件并列
+- term: 运营人员(租户级)
+  aliases:
+  - operator_id
+  - operator_name
+  - operator_email
+  - 运营人
+  maps_to: tenant_setting_config.operator_id / operator_name / operator_email
+  also_confused_with:
+  - opContactA
+  - cust_person_info.operator_id
+  adjudication: boundary
+  boundary: 租户级运营人员用于运营邮件触达；项目级运营对接人是 op_contact_a/b，企业联系人级是 cust_person_info.operator_id，三者不同层级
+- term: 运营对接人A
+  aliases:
+  - op_contact_a
+  - opContactA
+  maps_to: tenant_project.op_contact_a / cust_project_rel.op_contact_a / wec_project_operation_rel.op_contact_a
+  also_confused_with:
+  - operator_id
+  adjudication: boundary
+  boundary: opContactA 为单个运营人员ID，更新时需联动 op_contact_a_group；operator_id 属于租户或联系人维度
+- term: 平台运营方
+  aliases:
+  - platform_operator
+  - platformOperator
+  maps_to: tenant_setting_config.platform_operator(JSON数组)
+  also_confused_with: []
+  adjudication: boundary
+  boundary: 取值 platform / tenant 可组合，仅当含 platform 时才要求运营方企业存在
+- term: 租户来源
+  aliases:
+  - source
+  - 租户来源id
+  maps_to: tenant_setting_config.source / source_id
+  also_confused_with: []
+  adjudication: boundary
+  boundary: source 实测 ACFLOW/pplatform，标记租户由哪一个上游系统创建；source_id 是对应上游ID
+- term: 软删除标记
+  aliases:
+  - is_deleted
+  - 删除标识
+  maps_to: async_io_task.is_deleted / operation_user.deleted
+  also_confused_with: []
+  adjudication: boundary
+  boundary: 字符串 0/1（非布尔、非 Y/N），查询未删除需显式写 '0'
+rules:
+- name: 项目码必填联动默认项目
+  content: projectCodeRequired='Y' 时 defaultProjectId 必须非空，否则抛「项目码为必填时，请先配置默认关联项目」
+  impact: 阻断租户保存
+  field_targets:
+  - tenant_setting_config.project_code_required
+  - tenant_setting_config.default_project_id
+  evidence: code:TenantDomainService.java:checkBeforeSave
+- name: 保存唯一性校验集合
+  content: 保存前对 uniSocialCreditCode、code、name、dbTenantCode、tenantFlgEn、dev/sit/uat/prdDomain（needHfive='Y'
+    时含 H5 四域名）做唯一性校验，重复即阻断；并校验统一社会信用代码合法性
+  impact: 阻断租户保存
+  field_targets:
+  - tenant_setting_config
+  evidence: code:TenantDomainService.java:checkUnique
+- name: 运营配置更新空串写 NULL
+  content: updateOperationConfigById 对运营字段做 blankToNull 处理，空/空白字符串一律写 NULL；defaultProjectId
+    与 generateElectronicAuthFlag 直传
+  impact: 运营字段清空语义
+  field_targets:
+  - tenant_setting_config.operator_name
+  - tenant_setting_config.operator_email
+  - tenant_setting_config.send_email
+  - tenant_setting_config.project_code_required
+  - tenant_setting_config.default_project_id
+  evidence: code:TenantDomainService.java:updateOperationConfigById
+- name: 运营配置更新保留标准更新人/时间
+  content: 更新运营配置时不修改 update_user/update_time/update_by，并将更新前的 update_time/update_user(无则
+    update_by) 写入 op_update_time/op_update_user
+  impact: 审计字段分离
+  field_targets:
+  - tenant_setting_config.op_update_user
+  - tenant_setting_config.op_update_time
+  evidence: code:TenantDomainService.java:updateOperationConfigById
+- name: 运营配置更新后同步推送
+  content: updateOperationConfigById 结束后调用 afterSaveOrUpdateBaseInfoAndPushTenant
+    清各环境域名元数据缓存并推 TENANT_SYNC 变更事件（reason='租户运营配置'）
+  impact: 变更同步到各业务系统
+  field_targets: []
+  evidence: code:TenantDomainService.java:updateOperationConfigById
+- name: 租户推送前置创建事件
+  content: pushTenant 对非 CREATED 事件要求 pushingStatus='Y'，否则记录日志并跳过推送
+  impact: 防止变更事件先于创建事件送达
+  field_targets:
+  - tenant_setting_config.pushing_status
+  evidence: code:TenantAppliactionService.java:pushTenant
+- name: 灰度窗口生效期不可改
+  content: bgcolor/set 时若已存在缓存且当前日期落在 start~end 区间，抛「背景颜色设置已经生效，不支持修改!」
+  impact: 灰度配置互斥
+  field_targets:
+  - RedisKeyConstants.BGCOLOR_SWITCH_TTL
+  evidence: code:TenantSettingConfigController.java:setBgColor
+- name: 灰度缓存 TTL 取窗口末点
+  content: setCache 将 start 归一为当日 00:00:00、end 归一为 23:59:59，TTL 取当前时间到 endOfDay 的秒数
+  impact: 灰度自动失效
+  field_targets:
+  - RedisKeyConstants.BGCOLOR_SWITCH_TTL
+  evidence: code:TenantSettingConfigController.java:setCache
+- name: 灰度窗口失效即重置颜色
+  content: 读取背景色发现缓存为空或已超出 endTime 时，写 bg_color=NULL 并删除缓存
+  impact: 灰度结束后回落彩色
+  field_targets:
+  - tenant_setting_config.bg_color
+  evidence: code:TenantSettingConfigController.java:getBgColor
+- name: SSO/DBAss 初始化前置信用码校验
+  content: initDbassAndSsoConfig 要求 uniSocialCreditCode 非空且为合法统一社会信用码；PC/小程序四通道任一为空才请求
+    tenantAndAppIdAuth 回填 channel
+  impact: 租户基础设施初始化
+  field_targets:
+  - tenant_setting_config.uni_social_credit_code
+  - tenant_setting_config.sso_sys_channel
+  - tenant_setting_config.sso_tenant_chanel
+  - tenant_setting_config.mp_sso_sys_channel
+  - tenant_setting_config.mp_sso_tenant_chanel
+  evidence: code:SsoSysChannelInitService.java:initDbassAndSsoConfig
+- name: 所有租户共用产融 dbass AppId
+  content: dbassAppId/dbassPrivateKey 为空时统一写入 Nacos 的 dbass.appId/dbass.privateKey，再以
+    authSmsMsg（幂等）授权
+  impact: 与需求描述「写入各租户 dbass appId」不一致，以代码为准
+  field_targets:
+  - tenant_setting_config.dbass_app_id
+  - tenant_setting_config.dbass_private_key
+  evidence: code:SsoSysChannelInitService.java:initDbassAndSsoConfig
+- name: Excel 导入逐行容错
+  content: importTenantOperationConfigByFile 逐行 try/catch，失败行累加 errors 与 failCount，成功行累加
+    successCount，不影响其它行
+  impact: 部分成功语义
+  field_targets: []
+  evidence: code:TenantAppliactionService.java:importTenantOperationConfigByFile
+- name: 存量导入默认项目只在原值为空时写入
+  content: importTenantOperationConfig 中 defaultProjectId 非空且当前 config.defaultProjectId
+    为 null 时才校验存在并写入，已有值不覆盖
+  impact: 避免覆盖已配置默认项目
+  field_targets:
+  - tenant_setting_config.default_project_id
+  evidence: code:TenantAppliactionService.java:importTenantOperationConfig
+- name: 异步任务分片与超时兜底
+  content: PENDING 任务按 MOD(task_no, shardTotal)=shardIndex 分片广播；RUNNING 超时任务由独立单机任务置
+    FAILED
+  impact: 任务调度可靠性
+  field_targets:
+  - async_io_task.status
+  - async_io_task.task_no
+  evidence: code:AsyncIoTaskXxlJobHandler.java:shardingExecute
+- name: 异步任务行内脱敏
+  content: 任务分页/详情返回前将 bizArgsJson、ctxJson 置空，fileUrl/resultText 中路径改写为签名直链
+  impact: 前端不感知内部参数
+  field_targets:
+  - async_io_task.biz_args_json
+  - async_io_task.ctx_json
+  - async_io_task.file_url
+  evidence: code:AsyncIoTaskController.java:page
+- name: 资产审核运营人员同步条件
+  content: 仅企业角色为 SUPPLIER 时生效；仅对空白或已离职联系人的 operatorId 更新为新运营人员，其余跳过；成功后异步推送
+  impact: 运营人员同步
+  field_targets:
+  - cust_person_info.operator_id
+  - cust_person_info.operator_realname
+  - cust_person_info.operator
+  evidence: code:AssetOperatorSyncApplication.java:syncAssetOperator
+- name: 运营人员变更留痕
+  content: 变更写入 cust_oper_change_record（前后运营人、changeType='ASSET_AUDIT_SYNC'、changeReason='资产审核同步'），失败仅告警不影响主流程
+  impact: 审计追溯
+  field_targets: []
+  evidence: code:OperChangeRecordHelper.java:recordAssetSyncChange
+reqdoc_claims:
+- claim: BR-001 保存前置校验：dbTenantCode 合法、关键字段非空、配置间约束（如默认项目 ID 必须为该租户下已生效项目），失败抛 BaseException
+  code_status: refuted
+  code_evidence: lowcode-pplatform-tenant-management/.../TenantDomainService.java:checkBeforeSave
+    —— 实际只做统一社会信用码合法性、唯一性检查与「项目码必填→默认项目非空」联动；未见「默认项目必须为该租户下已生效项目」的校验，且校验失败抛 PlatformEnumsExceptionEnum
+    而非文档所述 BaseException
+  action: prose_only
+- claim: BR-002 租户配置查询不走事务：以 enable='Y' 为条件调用 getOne(..., false) 跳过事务路径
+  code_status: confirmed
+  code_evidence: lowcode-pplatform-tenant-management/.../controller/TenantProfileController.java:getFirstByDbTenantCodeWithoutTransactional
+  action: anchor
+- claim: BR-003 灰度颜色缓存：通过 RedisClient 按 RedisKeyConstants key 缓存 BgColorCacheDto，过期由
+    BgColorGrayTtlDto 控制，Redis 异常降级直读 DB
+  code_status: refuted
+  code_evidence: lowcode-pplatform-tenant-management/.../controller/TenantSettingConfigController.java:getBgColor
+    / setBgColor —— 缓存与 TTL 逻辑确认存在，但读取路径无 try/catch 降级，Redis 为 null/过期时是重置租户背景色并删缓存，并非「降级直读
+    DB」
+  action: prose_only
+- claim: BR-010 Excel 模板列校验：表头必须按顺序包含项目标识、项目码是否必填、默认项目ID，列名错位则整体失败并抛 BaseException('Excel
+    模板列名不匹配')
+  code_status: refuted
+  code_evidence: lowcode-pplatform-tenant-management/.../TenantAppliactionService.java:importTenantOperationConfigByFile
+    —— 仅 EasyExcel.headRowNumber(1) 按 DTO 映射解析，无表头列名顺序校验，也无该异常；解析异常统一抛 RuntimeException('文件解析失败，请检查Excel格式是否正确')
+  action: prose_only
+- claim: BR-011 项目标识存在性校验：以 tenant_flg_en 在 tenant_project 中查询，未命中视为非法行
+  code_status: refuted
+  code_evidence: lowcode-pplatform-tenant-management/.../TenantAppliactionService.java:importTenantOperationConfig
+    调用 TenantDomainService.getFirstByTenantFlgEn，实际查询的是 tenant_setting_config（租户配置表）而非
+    tenant_project；未命中抛「租户不存在」
+  action: prose_only
+- claim: BR-012 默认项目 ID 合法性校验：必须为当前租户下已存在且 rule_status=A（生效）的项目
+  code_status: refuted
+  code_evidence: lowcode-pplatform-tenant-management/.../TenantAppliactionService.java:importTenantOperationConfig
+    —— 仅在 config.defaultProjectId==null 时用 tenantProjectService.getById 判断项目存在，不校验租户归属、不校验项目生效状态
+  action: prose_only
+- claim: 2.1 租户配置保存流程：checkBeforeSave → 前端二次提交 saveConfig → TenantSettingConfigService
+    持久化 → 刷新 Redis 灰度缓存
+  code_status: uncovered
+  code_evidence: 已给链路仅见 checkBeforeSave / updateOperationConfigById / afterSaveOrUpdate*，未见名为
+    saveConfig 且串联刷新灰度缓存的入口
+  action: review
+- claim: 2.3 SSO/DBAss 初始化流程：DbassAppIdTenantExtendServiceImpl 写入 dbass appId；PlatformTenantLineServiceImpl
+    同步平台线路；PlatformComponentFacade 调用 SSO 通道初始化；失败记录日志支持重试
+  code_status: confirmed
+  code_evidence: lowcode-pplatform-tenant-management/.../service/SsoSysChannelInitService.java:initDbassAndSsoConfig
+    —— 通道初始化与 dbassAppId 写入确认；但实现为「所有租户统一使用产融 appId/privateKey」而非逐租户写入，失败即抛异常随事务回滚，未见显式重试入口
+  action: anchor
+- claim: 2.4 流程变量：bgColor 灰度颜色典型值 '#FFFFFF'；enable 启用标记 Y/N
+  code_status: refuted
+  code_evidence: 'db: tenant_setting_config.bg_color comment 为 L:彩色 G：灰色，代码 ColorConstants.LIGHT/GRAY；''#FFFFFF''
+    语义更接近 main_theme_color/ai_resource_color 等颜色字段，非 bgColor'
+  action: prose_only
+- claim: 3.3 TopFlag 管理规则：tenant_project / wec_project_operation_rel / cust_project_rel
+    的 topFlag 按「本项目运营人员或关联企业存在离职人员」置 1，否则置 0；text 在 topFlag=1 时生成、=0 时为 null
+  code_status: uncovered
+  code_evidence: 已给链路仅包含 TenantProjectDO.topFlag/text 字段定义与 WecProjectOperationRelDO
+    等同名字段，未提供离职检测与置位的实现代码；相关实现疑在未全文给出的 SyncOperationalRiskUserTask / CustProjectRelEnhanceService
+    / ProjectReportService
+  action: review
+- claim: 3.4 运营人员数据同步规则（定时任务从中台同步、恢复删除标记、合并重复、重置 text、记录同步结果）
+  code_status: uncovered
+  code_evidence: 需求段落在输入中被截断；链路未提供对应同步实现全文
+  action: review
+- claim: 3.2.1 ID 转姓名 / 3.2.2 姓名转 ID / 3.2.3 运营组别自动更新规则（更新运营对接人时自动刷新对应组别字段，失败保持原值或置
+    null）
+  code_status: uncovered
+  code_evidence: 已给链路未见运营对接人更新与组别联动实现（可能在未全文给出的 CustProjectRelEnhanceService / SyncOperationalRiskUserTask）
+  action: review
+- claim: 运营邮件触达：按租户/项目配置的 operator_email、send_email 向运营人员发送邮件（OperatorSendEmailTenantTask
+    / OperatorSendEmailProjectTask）
+  code_status: uncovered
+  code_evidence: 链路文件清单列出 lowcode-pplatform-tenant-management/.../jobs/OperatorSendEmailTenantTask.java、OperatorSendEmailProjectTask.java、OperatorSendEmailAbstract.java，但未提供全文；已给代码仅见
+    send_email / operator_email 字段的写入（TenantDomainService.updateOperationConfigById）
+  action: review
+- claim: 运营配置管理模块通过定时任务从运营中台同步运营人员数据，自动检测离职人员并更新项目置顶标识；运营配置更新时若原记录不存在则抛异常
+  code_status: uncovered
+  code_evidence: 已给链路仅有 OperationUserDO/OperationUserService 声明与 tenant_project/cust_project_rel
+    字段定义，未见同步与离职检测实现
+  action: review

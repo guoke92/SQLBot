@@ -1,0 +1,314 @@
+field_semantics:
+- table: platform_product
+  field: product_code
+  meaning: 平台产品编码，唯一标识一个平台产品
+  evidence: db
+- table: platform_product
+  field: name
+  meaning: 平台产品名称
+  evidence: db
+- table: platform_product
+  field: product_type
+  meaning: 产品类型，GENERAL=通用产品，INTERWORKING=互通产品
+  evidence: db
+- table: platform_product
+  field: platform_code
+  meaning: 平台编码
+  evidence: db
+- table: platform_product
+  field: platform_flag
+  meaning: 是否平台标识，Y/N
+  evidence: db
+- table: platform_product
+  field: multiple_cust_role_flag
+  meaning: 是否有多企业角色，Y/N
+  evidence: db
+- table: platform_product
+  field: multiple_project_flag
+  meaning: 是否有多项目，Y/N
+  evidence: db
+- table: platform_product
+  field: cust_role_combine
+  meaning: 支持的企业角色组合，文本格式解析为 Set<Set<String>>
+  evidence: code
+- table: platform_product
+  field: product_status
+  meaning: 产品状态，DB 值 '1' 表示生效
+  evidence: db
+- table: platform_product
+  field: enable
+  meaning: 启用标识，Y/N
+  evidence: db
+- table: platform_product
+  field: general_flag
+  meaning: 通用产品标识，Y/N
+  evidence: db
+- table: platform_product
+  field: product_construction_status
+  meaning: 产品建设情况，Y/N
+  evidence: db
+- table: platform_product
+  field: default_menu_code
+  meaning: 默认菜单编号
+  evidence: db
+- table: platform_product
+  field: logo_icon_url
+  meaning: 产品 logo 地址
+  evidence: db
+- table: platform_product
+  field: transaction_structure
+  meaning: 交易结构 JSON 字符串
+  evidence: db
+- table: platform_product
+  field: project_config
+  meaning: 项目配置 JSON 字符串
+  evidence: db
+- table: platform_product
+  field: wkfl_flag
+  meaning: 产品工作流启用开关，Y/N
+  evidence: db
+- table: platform_product
+  field: db_tenant_code
+  meaning: 数据租户标识
+  evidence: db
+- table: platform_product
+  field: app_tenant_code
+  meaning: 逻辑租户标识
+  evidence: db
+- table: platform_product_client
+  field: client_type
+  meaning: 客户端类型
+  evidence: db
+- table: platform_product_client
+  field: link_type
+  meaning: 链接类型(iframe/redirect/forward)
+  evidence: db
+- table: platform_product_client
+  field: multiple_type
+  meaning: 过滤类型
+  evidence: db
+- table: platform_product_client
+  field: ext_config
+  meaning: 扩展配置信息
+  evidence: db
+- table: tenant_product
+  field: open_status
+  meaning: 租户产品开通状态，Y=已开通/P=开通中/N=未开通或取消
+  evidence: code
+- table: tenant_product
+  field: platform_product_code
+  meaning: 平台产品编码
+  evidence: code
+- table: tenant_product
+  field: tenant_id
+  meaning: 租户ID
+  evidence: code
+- table: cust_auth_application
+  field: open_status
+  meaning: 客户产品开通状态，OPENED=已开通/OPENING=开通中/NOT_OPENED=未开通
+  evidence: code
+- table: cust_auth_application
+  field: platform_product_code
+  meaning: 平台产品编码
+  evidence: code
+- table: cust_auth_application
+  field: ref_cust_company_info
+  meaning: 客户企业编码
+  evidence: code
+- table: cust_auth_application
+  field: ref_cust_auth_application_tenant_product
+  meaning: 关联的租户产品编码
+  evidence: code
+- table: cust_company_info
+  field: cust_company_type
+  meaning: 企业角色类型，如 CORE/SUPPLIER/DEALER/FINANCE 等
+  evidence: code
+- table: cust_company_info
+  field: db_tenant_code
+  meaning: 数据租户标识
+  evidence: code
+- table: cust_company_info
+  field: need_register_ca
+  meaning: 是否需要开通电子签章，Y/N
+  evidence: code
+- table: cust_person_info
+  field: user_type
+  meaning: 用户类型，admin=管理员/operator=经办人
+  evidence: code
+- table: cust_person_info
+  field: company_type
+  meaning: 企业角色类型
+  evidence: code
+- table: cust_project_rel
+  field: company_type
+  meaning: 企业角色类型
+  evidence: code
+- table: cust_project_rel
+  field: product_id
+  meaning: 产品ID
+  evidence: code
+- table: cust_project_rel
+  field: project_id
+  meaning: 项目ID
+  evidence: code
+state_machines:
+- name: 租户产品开通状态
+  field: tenant_product.open_status
+  states:
+  - value: Y
+    label: 已开通
+    source: code_enum
+  - value: P
+    label: 开通中
+    source: code_enum
+  - value: N
+    label: 未开通/取消
+    source: code_enum
+  transitions:
+  - from: P
+    event: activeAndNotify
+    to: Y
+    evidence: TenantProductApplication.activeAndNotify
+  - from: Y
+    event: cancel
+    to: N
+    evidence: TenantProductApplication.cancel
+- name: 客户产品开通状态
+  field: cust_auth_application.open_status
+  states:
+  - value: OPENED
+    label: 已开通
+    source: code_enum
+  - value: OPENING
+    label: 开通中
+    source: code_enum
+  - value: NOT_OPENED
+    label: 未开通
+    source: code_enum
+  transitions:
+  - from: NOT_OPENED
+    event: initProduct
+    to: OPENING
+    evidence: CustProductDomainService.initProduct
+  - from: OPENING
+    event: activeProduct
+    to: OPENED
+    evidence: CustProductDomainService.doActiveProduct
+  - from: NOT_OPENED
+    event: activeProduct
+    to: OPENED
+    evidence: CustProductDomainService.doActiveProduct
+calibers:
+- name: 通用产品范围
+  predicate: platform_product.product_type = 'GENERAL'
+  scope: 查询平台产品列表
+  evidence: PlatformProductController.listPlatformProduct
+- name: 平台产品白名单过滤
+  predicate: platformLimitProductSupport.contains(productCode)
+  scope: 租户产品列表、已开通产品列表
+  evidence: PlatformProductController.filterLimitProduct, ClientAppController.listOpenProductByCompanyId
+- name: 客户已开通产品
+  predicate: cust_auth_application.open_status = 'OPENED'
+  scope: 查询企业已开通产品
+  evidence: CustProductDomainService.doActiveProduct, CustGeneralProductApplication.listOpenProduct
+- name: 租户已开通产品
+  predicate: tenant_product.open_status = 'Y'
+  scope: 查询租户已开通产品
+  evidence: TenantProductApplication.listOpenByTenant, TenantProductDao.listOpenByTenant
+- name: 角色组合校验条件
+  predicate: custRoleCombine 解析后包含当前角色集合
+  scope: 校验企业角色组合
+  evidence: TenantProductApplication.checkCustRoleCombine
+term_bridges:
+- term: productCode
+  aliases:
+  - platformProductCode
+  - 平台产品编码
+  maps_to: platform_product.product_code
+  also_confused_with:
+  - code
+  adjudication: synonym
+  boundary: productCode 与 platformProductCode 在代码中常混用，均指平台产品编码；platform_product.code
+    是内部编码，不对外使用。
+- term: companyType
+  aliases:
+  - custCompanyType
+  - 企业角色
+  maps_to: cust_company_info.cust_company_type
+  also_confused_with: []
+  adjudication: synonym
+  boundary: companyType 是枚举值，如 CORE、SUPPLIER、DEALER、FINANCE 等。
+- term: tenantCode
+  aliases:
+  - dbTenantCode
+  - 数据租户标识
+  maps_to: platform_product.db_tenant_code
+  also_confused_with:
+  - appTenantCode
+  adjudication: boundary
+  boundary: dbTenantCode 是数据租户标识，用于数据隔离；appTenantCode 是逻辑租户标识，用于应用层。
+- term: openStatus
+  aliases:
+  - productOpenStatus
+  - 开通状态
+  maps_to: tenant_product.open_status
+  also_confused_with:
+  - cust_auth_application.open_status
+  adjudication: boundary
+  boundary: 租户产品开通状态与客户产品开通状态枚举值不同，租户产品用 Y/P/N，客户产品用 OPENED/OPENING/NOT_OPENED。
+- term: custRoleCombine
+  aliases:
+  - 企业角色组合
+  - cust_role_combine
+  maps_to: platform_product.cust_role_combine
+  also_confused_with: []
+  adjudication: synonym
+  boundary: 文本格式，解析为 Set<Set<String>>。
+rules:
+- name: 平台产品保存前置校验
+  content: 保存或更新平台产品前，校验产品基本信息合法性、产品 code 唯一性、产品类型枚举有效性等。
+  impact: 校验失败抛出 BaseException 阻断保存。
+  field_targets:
+  - platform_product.product_code
+  - platform_product.product_type
+  evidence: PlatformProductApplication.checkBeforeSave -> PlatformProductDomainService.checkBeforeSave
+- name: 租户产品在途校验
+  content: 检查租户产品是否存在在途变更，如有则抛出异常，禁止激活。
+  impact: 阻止激活操作。
+  field_targets:
+  - tenant_product.open_status
+  evidence: TenantProductApplication.checkOnTheWay -> TenantProductDomainService.checkOnTheWay
+- name: 企业角色组合校验
+  content: 同一企业在同一产品下拥有多个角色时，校验角色组合是否在平台产品配置的 custRoleCombine 中，不在则抛出异常。
+  impact: 阻止不合法的角色组合。
+  field_targets:
+  - platform_product.cust_role_combine
+  - cust_project_rel.company_type
+  evidence: TenantProductApplication.checkCustRoleCombine
+- name: 进入产品前项目状态检查
+  content: 多项目产品且产品为通用产品时，检查企业关联项目是否生效，未生效则禁止进入。
+  impact: 阻止进入产品。
+  field_targets:
+  - tenant_project.project_status
+  - cust_project_rel
+  evidence: PlatformProductApplication.gotoProductSupplierFirstRelatedProject
+- name: 进入产品前企业角色检查
+  content: 多角色产品且产品为通用产品时，检查企业是否完成认证，平台运营方不检查项目状态。
+  impact: 阻止进入产品。
+  field_targets:
+  - cust_company_info.cust_build_status
+  evidence: PlatformProductApplication.gotoProductSupplierByCompanyType
+- name: 平台产品列表过滤
+  content: 非 AGW 端调用时，按当前租户已开通产品列表过滤，并通过 Nacos 配置 platform.limit.product.support 白名单过滤。
+  impact: 返回过滤后的产品列表。
+  field_targets:
+  - tenant_product
+  - platform_product.product_code
+  evidence: PlatformProductController.listTenantProduct
+- name: 产品协议签署后激活
+  content: 根据产品协议配置，无需签署则直接激活；需要签署则创建合同，签署成功后激活。
+  impact: 激活客户产品。
+  field_targets:
+  - cust_auth_application.open_status
+  evidence: CustProductDomainService.createProductAggrement, activeProduct
+reqdoc_claims: []

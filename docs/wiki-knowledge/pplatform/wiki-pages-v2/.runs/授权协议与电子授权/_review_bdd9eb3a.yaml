@@ -1,0 +1,11 @@
+body: '语义分析未提供任何表所属的物理库名（仅给出逻辑表名），因此所有 table 页的 `scope.databases` 暂填 `unknown`。若契约流水线要求真实物理库名，需要在语义分析阶段补充
+  `db: <物理库名>` 证据后再回填，避免凭业务命名推断。
+
+  待确认项：
+
+  1. `argeement_migratory_record` / `authorization_agreement` / `cust_company_info`
+  / `tenant_setting_config` / `cust_change_record` / `cust_change_cfg` 的物理库名与是否同库。
+
+  2. `cust_change_record`、`cust_change_cfg` 是否与 `cust_company_info` 同库（影响跨库 JOIN 的可行性描述）。'
+title: scope.databases 物理库名
+type: table

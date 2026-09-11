@@ -1,0 +1,366 @@
+field_semantics:
+- table: funding_exception_resolution
+  field: exception_no
+  meaning: 异常编号，新增/导入时由 PlatFormOperateAppliaction.getBussinessNo 按 fundingPartyCode
+    生成（前缀 EXCEPTION_NO_<fundingPartyCode>）
+  evidence: code
+- table: funding_exception_resolution
+  field: funding_party_code
+  meaning: 对接方标识，取资方 RPC 返回的 fundingKey；导入时支持填写「资金方名称-fundingKey」组合串再映射
+  evidence: code
+- table: funding_exception_resolution
+  field: funding_party_name
+  meaning: 资金方名称；导出时由 funding_party_code 反查映射为「名称(code)」
+  evidence: code
+- table: funding_exception_resolution
+  field: error_keyword
+  meaning: 报错关键字；对外查询时用 errorMessage.contains(error_keyword) 内存匹配命中度
+  evidence: code
+- table: funding_exception_resolution
+  field: error_reason
+  meaning: 报错原因（选填，导入不校验）
+  evidence: code
+- table: funding_exception_resolution
+  field: suggestion
+  meaning: 建议处理方案（导入必填列）
+  evidence: code
+- table: funding_exception_resolution
+  field: file_path
+  meaning: 附件 JSON 串，结构 {"files":[{"filePath":...}]}，对外查询时逐条 filePathEncrypt 成 URL
+  evidence: code
+- table: funding_exception_resolution
+  field: product_code
+  meaning: 产品code（值来自 ProductCodeEnum），DB 实测为 ACFLOW / RVSFACTOR_PC
+  evidence: db+code
+- table: funding_exception_resolution
+  field: enable
+  meaning: 有效标识，Y=有效；查询/导出均过滤 enable='Y'
+  evidence: db+code
+- table: funding_rule_info
+  field: funding_party_mark
+  meaning: 资金方标识（资方标识），取资方 RPC 返回的 fundingKey，与异常解析的 funding_party_code 同源
+  evidence: code
+- table: funding_rule_info
+  field: funding_party_name
+  meaning: 资方名称，更新/导入时回写
+  evidence: code
+- table: funding_rule_info
+  field: product_code
+  meaning: 产品code（DB 实测 ACFLOW / RVSFACTOR_PC）
+  evidence: db+code
+- table: funding_rule_info
+  field: rule_status
+  meaning: 规则状态，枚举 ACTIVE/INACTIVE/PENDING
+  evidence: code
+- table: funding_rule_info
+  field: version
+  meaning: 版本号，新增=1，每次更新累加1
+  evidence: code
+- table: funding_rule_info
+  field: code
+  meaning: 规则信息唯一编码（DataModelUtils.getUniqueKey），被 funding_rule_detail.fund_rule_code_ref
+    引用
+  evidence: code
+- table: funding_rule_info
+  field: enable
+  meaning: 有效标识，Y=有效
+  evidence: db+code
+- table: funding_rule_detail
+  field: rule_key
+  meaning: 字段key，对应 funding_rule_front_cfg.front_key
+  evidence: db+code
+- table: funding_rule_detail
+  field: rule_value
+  meaning: 规则值
+  evidence: db+code
+- table: funding_rule_detail
+  field: rule_layer
+  meaning: 规则层，枚举 UNDERLYING/FINANCING/OTHER
+  evidence: db+code
+- table: funding_rule_detail
+  field: rule_info_id
+  meaning: 关联 funding_rule_info.id
+  evidence: db+code
+- table: funding_rule_detail
+  field: fund_rule_code_ref
+  meaning: 关联规则信息 code（funding_rule_info.code）
+  evidence: db+code
+- table: funding_rule_detail
+  field: version
+  meaning: 版本，跟随 ruleInfo.version；DB 实测分布 1/2/3/4/6/8/9/13/17/23/25
+  evidence: db
+- table: funding_rule_detail
+  field: funding_party_mark
+  meaning: 资方标识（冗余）
+  evidence: db+code
+- table: funding_rule_detail
+  field: check_scene
+  meaning: 校验场景，DB 实测值为 SUBMIT_VALIDATE
+  evidence: db
+- table: funding_rule_detail
+  field: enable
+  meaning: 有效标识，Y=有效；查询 detail 均加 enable='Y'
+  evidence: db+code
+- table: funding_rule_front_cfg
+  field: front_key
+  meaning: 前端字段key，被 detail.rule_key 关联
+  evidence: db+code
+- table: funding_rule_front_cfg
+  field: key_name
+  meaning: 字段名称描述（导入模板「规则名称」按此匹配）
+  evidence: db+code
+- table: funding_rule_front_cfg
+  field: key_type
+  meaning: 字段业务规则类型，DB 实测枚举：FIELD_REQUIRED/FIELD_LENGTH_LIMIT/FILE_TYPE_LIMIT/FILE_SIZE_SINGLE_LIMIT/FILE_SIZE_TOTAL_LIMIT/FILE_SIZE_PACKAGE_LIMIT/FILE_COUNT_LIMIT/FILE_NAME_SYMBOL/INVOICE_COUNT_LIMIT/YEARS_CHECK/DATE_CHECK_NATURAL/DATE_CHECK_WORKDAY
+  evidence: db
+- table: funding_rule_front_cfg
+  field: rule_key
+  meaning: 规则字段key
+  evidence: db+code
+- table: funding_rule_front_cfg
+  field: rule_layer
+  meaning: 规则层 UNDERLYING/FINANCING/OTHER；页面配置按此分组
+  evidence: db+code
+- table: funding_rule_front_cfg
+  field: front_key_name
+  meaning: 前端展示字段名称
+  evidence: db
+- table: funding_rule_front_cfg
+  field: check_scene
+  meaning: 校验场景，DB 实测 SUBMIT_VALIDATE
+  evidence: db
+- table: funding_rule_front_cfg
+  field: enable
+  meaning: 有效标识，Y=有效；导入匹配前端配置时过滤 enable='Y'
+  evidence: db+code
+state_machines:
+- name: 资方规则状态机
+  field: funding_rule_info.rule_status
+  states:
+  - value: PENDING
+    label: 待生效
+    source: code_enum
+  - value: ACTIVE
+    label: 已生效
+    source: code_enum
+  - value: INACTIVE
+    label: 已失效
+    source: code_enum
+  transitions:
+  - from: (无)
+    event: saveRuleInfo 新增（ruleInfoId 为空）
+    to: PENDING
+    evidence: code_path:FundRuleInfoApplication.java#saveRuleInfo
+  - from: PENDING
+    event: activeRule 生效
+    to: ACTIVE
+    evidence: code_path:FundRuleInfoApplication.java#activeRule
+  - from: INACTIVE
+    event: activeRule 生效
+    to: ACTIVE
+    evidence: code_path:FundRuleInfoApplication.java#activeRule
+  - from: ACTIVE
+    event: inActiveRule 失效
+    to: INACTIVE
+    evidence: code_path:FundRuleInfoApplication.java#inActiveRule
+  - from: PENDING
+    event: inActiveRule 失效
+    to: INACTIVE
+    evidence: code_path:FundRuleInfoApplication.java#inActiveRule
+calibers:
+- name: 异常解析-有效数据
+  predicate: funding_exception_resolution.enable = 'Y'
+  scope: 导出/列表查询/对外Provider查询
+  evidence: code:ExceptionResolutionApplication#exportRecords; FundingPartyExceptionResolutionProviderImpl#doQuery
+- name: 异常解析-唯一配置
+  predicate: funding_exception_resolution.product_code + funding_party_code + error_keyword
+    唯一
+  scope: 导入去重/保存前校验/upsert
+  evidence: db:funding_exception_resolution_un; code:ExceptionResolutionApplication#checkBeforeSave
+- name: 资方规则-有效信息
+  predicate: funding_rule_info.enable = 'Y'
+  scope: 导出/查询
+  evidence: code:FundRuleInfoApplication#exportRecords
+- name: 资方规则-生效规则
+  predicate: funding_rule_info.rule_status = 'ACTIVE'
+  scope: Dubbo 对外查询资金方规则
+  evidence: code:FundingPartyRuleProviderImpl#doQuery
+- name: 资方规则详情-有效
+  predicate: funding_rule_detail.enable = 'Y'
+  scope: 规则详情/对外查询
+  evidence: code:FundingPartyRuleProviderImpl#doQuery; FundRuleInfoApplication#getRuleInfoById
+- name: 前端规则配置-有效
+  predicate: funding_rule_front_cfg.enable = 'Y'
+  scope: 页面配置/导入匹配/对外查询
+  evidence: code:FundRuleInfoApplication#validateRuleLayerAndFrontCfg; FundingPartyRuleProviderImpl#doQuery
+term_bridges:
+- term: 对接方标识
+  aliases:
+  - fundingPartyCode
+  - funding_party_code
+  maps_to: funding_exception_resolution.funding_party_code = 资方RPC 返回的 fundingKey
+  also_confused_with:
+  - 资金方标识(fundingPartyMark)
+  - 资金方名称(fundingPartyName)
+  adjudication: boundary
+  boundary: 异常解析表用 funding_party_code 承载资方 fundingKey；规则表用 funding_party_mark 承载同一
+    fundingKey，命名不同但语义同源，禁止跨表混用字段名。异常解析导入还允许填「资金方名称-fundingKey」组合串再映射为 fundingKey
+- term: 资金方/资方
+  aliases:
+  - fundingParty
+  - 资方
+  - 对接方
+  maps_to: 资方RPC（ClientQueryFunderCodeService / ClientQueryFunderMarkService）返回的 fundingKey
+    + fundingPartyName
+  also_confused_with:
+  - 金融机构
+  - 产品
+  adjudication: synonym
+  boundary: 资金方=资方=对接方，均指某产品下对接的金融/资金机构；仅在字段命名（code/mark）上区分，业务含义一致
+- term: fundingKey
+  aliases:
+  - fundingPartyCode
+  - fundingPartyMark
+  maps_to: CustFundingPartyResultDto.fundingKey（资方唯一键）
+  also_confused_with:
+  - fundingPartyName
+  adjudication: synonym
+  boundary: 同一资方键：异常解析场景作为 funding_party_code 使用（需先经名称-键组合映射），规则场景作为 funding_party_mark
+    直接使用；不可与 fundingPartyName 混淆
+- term: 产品code
+  aliases:
+  - productCode
+  - product_code
+  maps_to: ProductCodeEnum 常量（如 ACFLOW / RVSFACTOR_PC）
+  also_confused_with:
+  - productName
+  - platformProductCode
+  adjudication: boundary
+  boundary: 异常解析导入先按 platformProduct.listPlatformProduct 构建 productName→productCode
+    映射再校验（模板「产品code」列实际可填产品名称）；规则导入直接以 productCode 与 ProductCodeEnum 比对，无名称转换，两者口径不同
+- term: 规则层
+  aliases:
+  - ruleLayer
+  - rule_layer
+  maps_to: UNDERLYING / FINANCING / OTHER（RuleLayerEnum）
+  also_confused_with:
+  - 规则层级显示名(底层规则/融资规则/其他规则)
+  adjudication: boundary
+  boundary: 导入模板填显示名，经 RuleLayerEnum.getDisplayName 反查 dictKey；存储与查询使用 dictKey
+- term: 规则键
+  aliases:
+  - ruleKey
+  - front_key
+  - rule_key
+  - key_name
+  maps_to: funding_rule_front_cfg.front_key = funding_rule_detail.rule_key
+  also_confused_with:
+  - key_name
+  - front_key_name
+  adjudication: boundary
+  boundary: detail.rule_key 存 front_cfg.front_key（机器键）；key_name/front_key_name 为展示名，导入匹配用
+    key_name（product+rule_layer+key_name 三元组）
+rules:
+- name: 异常解析导入-全量校验通过才入库
+  content: 导入依次执行行级必填、productCode 枚举、对接方标识存在性、唯一键重复校验；任一阶段产生错误则返回错误列表且不写库（all-or-nothing）
+  impact: 保证批量导入原子性，避免半量写入
+  field_targets:
+  - funding_exception_resolution.product_code
+  - funding_exception_resolution.funding_party_code
+  - funding_exception_resolution.error_keyword
+  evidence: code:ExceptionResolutionApplication#importRecords
+- name: 异常解析导入-按产品分组RPC
+  content: 对接方标识校验按 productCode 分组，每组一次 RPC，禁止循环调用
+  impact: 限制远程调用次数，避免性能问题
+  field_targets:
+  - funding_exception_resolution.funding_party_code
+  evidence: code:ExceptionResolutionApplication#collectFundingPartyCodeErrors
+- name: 异常解析-唯一键去重
+  content: (product_code, funding_party_code, error_keyword) 命中原有记录时报「异常解析配置信息已存在」
+  impact: 防止重复配置
+  field_targets:
+  - funding_exception_resolution.product_code
+  - funding_exception_resolution.funding_party_code
+  - funding_exception_resolution.error_keyword
+  evidence: db:funding_exception_resolution_un; code:ExceptionResolutionApplication#checkBeforeSave
+- name: 异常解析-upsert写入
+  content: 全部校验通过后在单事务内 saveOrUpdateBatch，置 enable='Y'，并生成 exceptionNo、回填创建/更新人
+  impact: 保证写入一致性
+  field_targets:
+  - funding_exception_resolution.enable
+  - funding_exception_resolution.exception_no
+  evidence: code:ExceptionResolutionApplication#doUpsertAll
+- name: 异常解析-导出上限50000
+  content: 单次导出累计行数超过 50000 抛 BaseException，提示缩小查询范围
+  impact: 防 OOM/超时
+  field_targets: []
+  evidence: code:ExceptionResolutionApplication#exportRecords
+- name: 异常解析导入-行数上限5000
+  content: 单次导入数据行超过 5000 抛「导入行数超过上限」
+  impact: 控制单批导入规模
+  field_targets: []
+  evidence: code:ExceptionResolutionImportListener
+- name: 异常解析-导出资金方名称映射固定ACFLOW
+  content: 导出时使用 mapFundingPartyCode(ProductCodeEnum.ACFLOW) 将 funding_party_code
+    映射为「名称(code)」；非 ACFLOW 产品（如 RVSFACTOR_PC）记录映射结果可能为空
+  impact: 跨产品导出时资金方名称展示可能缺失
+  field_targets:
+  - funding_exception_resolution.funding_party_code
+  - funding_exception_resolution.funding_party_name
+  evidence: code:ExceptionResolutionApplication#exportRecords
+- name: 资方规则-新增查重
+  content: ruleInfoId 为空时按 productCode + fundingPartyMark 查重，已存在则抛「不允许重复新增」
+  impact: 同产品下同一资方唯一规则
+  field_targets:
+  - funding_rule_info.product_code
+  - funding_rule_info.funding_party_mark
+  evidence: code:FundRuleInfoApplication#saveRuleInfo
+- name: 资方规则-更新version+1
+  content: ruleInfoId 不为空时 version 累加 1，并回写 funding_party_name
+  impact: 规则版本可追溯，明细携带版本
+  field_targets:
+  - funding_rule_info.version
+  - funding_rule_detail.version
+  evidence: code:FundRuleInfoApplication#saveRuleInfo
+- name: 资方规则-新增初始PENDING
+  content: 新增时 rule_status=PENDING、version=1、enable='Y'、code=DataModelUtils.getUniqueKey()
+  impact: 新增规则默认未生效，需显式生效
+  field_targets:
+  - funding_rule_info.rule_status
+  - funding_rule_info.version
+  - funding_rule_info.enable
+  evidence: code:FundRuleInfoApplication#saveRuleInfo
+- name: 资方规则-对外仅返回ACTIVE
+  content: Dubbo 查询按 fundingPartyMark + productCode + rule_status=ACTIVE 取规则，否则返回
+    null
+  impact: 外部只能消费已生效规则
+  field_targets:
+  - funding_rule_info.rule_status
+  evidence: code:FundingPartyRuleProviderImpl#doQuery
+- name: 异常解析对外查询-关键字包含匹配
+  content: 按 fundingPartyCode + productCode + enable='Y' 拉取后，内存过滤 errorMessage.contains(error_keyword)，可命中多条全部返回
+  impact: 对外按报错信息匹配异常解析
+  field_targets:
+  - funding_exception_resolution.error_keyword
+  - funding_exception_resolution.enable
+  evidence: code:FundingPartyExceptionResolutionProviderImpl#doQuery
+- name: 异常解析对外查询-异常兜底
+  content: 参数校验失败或系统异常均记日志并返回空列表，不向 Dubbo 上游抛异常
+  impact: 保证对外接口稳定
+  field_targets: []
+  evidence: code:FundingPartyExceptionResolutionProviderImpl#queryByFundingPartyId
+- name: 资方规则导入-产品校验直接比对productCode
+  content: 规则导入 productCode 直接与 ProductCodeEnum 枚举比对（无名称转换），与异常解析导入的名称映射口径不同
+  impact: 规则导入模板产品列必须填产品code
+  field_targets:
+  - funding_rule_info.product_code
+  evidence: code:FundRuleInfoApplication#collectFundRuleProductCodeErrors
+- name: 资方规则详情保存-幂等更新
+  content: 按 ruleInfoId + ruleKey + enable='Y' 命中则更新，否则新增；ruleMap 中不存在的 frontKey 跳过（不中断）
+  impact: 明细按 key 幂等落库
+  field_targets:
+  - funding_rule_detail.rule_key
+  - funding_rule_detail.rule_value
+  - funding_rule_detail.enable
+  evidence: code:FundRuleInfoApplication#saveRuleInfo
+reqdoc_claims: []

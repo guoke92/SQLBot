@@ -1,0 +1,5 @@
+body: '`cust_change_record.status` 的取值 `''1''`（表默认值）、`CUSTS003`、`returnCust-<时间戳>`（13
+  条）均来自库表分布，代码层未见对应枚举声明。当前按「历史值/脏值」标注于 states 中（source=db_dist）。若这些取值承载未登记的业务语义（例如早期版本的退回标记），需补充来源后调整状态机与终态口径
+  [[caliber.change-record-terminal-status]] 的判定范围。'
+title: 客户变更单状态机（cust_change_record.status）
+type: process

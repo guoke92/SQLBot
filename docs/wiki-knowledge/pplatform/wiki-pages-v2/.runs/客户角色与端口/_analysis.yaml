@@ -1,0 +1,209 @@
+field_semantics:
+- table: cust_role_info
+  field: role_type
+  meaning: 企业在客户下的业务角色类型，存储枚举名（非JSON数组）；写入前由 addRoleInfo 去除引号 role.replace("\"","")，故正常值为
+    CORE/SUPPLIER/DEALER/FINANCE/PLATFORM_OPERATOR_COMPANY/PROJECT_COMPANY/CORPORATION_COMPANY/FACTOR_COMPANY/CORE_MANAGER
+    等。DB 中仍残留 '"CORE"'、'"SUPPLIER"' 带引号的历史脏值。
+  evidence: code
+- table: cust_role_info
+  field: status
+  meaning: 角色关联状态；DB 默认值 ADD，可能值 ADD(新增/待生效)、EFFECT(生效)、FREEZE(冻结)、WRITEOFF(注销)，由
+    CustRoleStatusConstant 提供的 FREEZE/EFFECT/WRITEOFF 常量驱动。
+  evidence: db
+- table: cust_role_info
+  field: ref_cust_company_info
+  meaning: 关联的企业编码，取值来自 cust_company_info.code（addRoleInfo 中 relateCompany.getCode()）；字段注释标注为『客户类型』属注释与实现不符，实际是外键引用而非类型枚举。
+  evidence: code
+- table: cust_role_info
+  field: enable
+  meaning: 逻辑启用标志，有效角色查询口径依赖 enable='Y'。
+  evidence: db
+- table: cust_role_info
+  field: code
+  meaning: 角色记录业务编码，新增时由 DataModelUtils.uuid() 生成。
+  evidence: code
+- table: cust_role_info
+  field: db_tenant_code
+  meaning: 数据租户标识，新增时取企业 cust_company_info.db_tenant_code。
+  evidence: code
+- table: cust_role_info
+  field: platform_cust_id
+  meaning: 关联的运营中台企业ID，企业被拒后重新提交流程时会被清空（updateCustRolePlatCustId）。
+  evidence: code
+- table: platform_product_cust_role
+  field: company_type_code
+  meaning: 平台产品下的企业角色编码，业务上也称『端口』；作为菜单/资源权限配置的维度。
+  evidence: db
+- table: platform_product_cust_role
+  field: company_type_name
+  meaning: 企业角色中文名（供应商/核心企业/金融机构/平台运营方/集团企业/项目公司等）。
+  evidence: db
+- table: platform_product_cust_role
+  field: product_code
+  meaning: 所属平台产品编码（ACCOUNT_PRODUCT/AMS/DRAFT/ORDER/CROSSBORDER/STORAGE/VOUCHER/ACFLOW/RVSFACTOR_PC
+    等）。
+  evidence: db
+- table: platform_product_cust_role
+  field: name
+  meaning: 产品名称（产融平台/国内信用证/应收易融/融易单等），用于展示。
+  evidence: db
+- table: platform_product_cust_role
+  field: enable
+  meaning: 启用标志 Y/N，配置菜单端口时用于过滤有效端口。
+  evidence: db
+state_machines:
+- name: 客户角色状态机
+  field: cust_role_info.status
+  states:
+  - value: ADD
+    label: 新增/待生效
+    source: db_dist
+  - value: EFFECT
+    label: 生效
+    source: code_enum
+  - value: FREEZE
+    label: 冻结
+    source: code_enum
+  - value: WRITEOFF
+    label: 注销
+    source: code_enum
+  transitions:
+  - from: '*'
+    event: freeze()
+    to: FREEZE
+    evidence: code_path:CustRoleInfoController.java#freeze → CustRoleApplication.java#freeze/#operatorCustRoleStatus
+  - from: FREEZE
+    event: unFreeze()
+    to: EFFECT
+    evidence: code_path:CustRoleInfoController.java#unFreeze → CustRoleApplication.java#unFreeze/#operatorCustRoleStatus
+  - from: ADD|EFFECT|FREEZE
+    event: logout()
+    to: WRITEOFF
+    evidence: code_path:CustRoleInfoController.java#logout → CustRoleApplication.java#logout/#operatorCustRoleStatus
+  - from: 非WRITEOFF
+    event: 企业状态变更联动(冻结/解冻/注销)
+    to: FREEZE|EFFECT|WRITEOFF
+    evidence: code_path:CustCompanyInfoApplication.java#custStatusOperator → CustRoleApplication.java#updateStatusByCustCompany（跳过已是
+      WRITEOFF 的角色）
+calibers:
+- name: 有效企业角色口径
+  predicate: cust_role_info.enable = 'Y'
+  scope: CustRoleApplication#getCompanyTypeByCompanyCode / getCompanyTypeByCompanyCodeAndType
+    查询该企业角色时附加的过滤条件
+  evidence: code_path:CustRoleApplication.java#getCompanyTypeByCompanyCode
+- name: 未注销角色口径
+  predicate: cust_role_info.status <> 'WRITEOFF'
+  scope: CustRoleApplication#updateStatusByCustCompany 批量更新企业下角色状态时对 WRITEOFF 角色跳过
+  evidence: code_path:CustRoleApplication.java#updateStatusByCustCompany
+- name: 有效产品端口口径
+  predicate: platform_product_cust_role.enable = 'Y'
+  scope: LocalTypeMenuService#listTenantProductMenuConfig 按 product_code 取该产品全部端口（企业角色）用于菜单配置
+  evidence: code_path:LocalTypeMenuService.java#listTenantProductMenuConfig
+term_bridges:
+- term: 端口
+  aliases:
+  - 产品端口
+  - 企业角色端口
+  maps_to: platform_product_cust_role 记录，即 product_code + company_type_code 组合（如 AMS+SUPPLIER、DRAFT+CORE）
+  also_confused_with:
+  - cust_role_info.role_type
+  - platform_product_cust_role.company_type_code
+  adjudication: boundary
+  boundary: 『端口』是产品配置维度（某产品下允许某企业角色接入），落在 platform_product_cust_role；cust_role_info.role_type
+    是某具体企业在租户下已获得的角色，二者是模板定义与实例授权的关系。
+- term: 企业角色
+  aliases:
+  - 客户角色
+  - companyType
+  - custCompanyType
+  - roleType
+  maps_to: 企业业务角色枚举 CORE/SUPPLIER/DEALER/FINANCE/PLATFORM_OPERATOR_COMPANY/PROJECT_COMPANY/CORPORATION_COMPANY/FACTOR_COMPANY/CORE_MANAGER
+    等
+  also_confused_with:
+  - sys_role(系统权限角色，如 accountNormal/accountGuest)
+  - userType(admin/operator/guest，用户在企业内的身份)
+  adjudication: boundary
+  boundary: 企业角色=企业身份维度；用户类型=企业内用户身份维度；sys_role=权限维度角色，三者不可混用。
+- term: roleClass
+  aliases:
+  - SysRoleDO.roleClass
+  maps_to: 格式 '{custType}_{custId}'，由 RoleFacade#generateRoleClass 拼接
+  also_confused_with:
+  - cust_role_info.role_type
+  adjudication: boundary
+  boundary: roleClass 是权限角色的归属标识（企业类型+企业ID），ClientCustRoleSyncService 按最后一个下划线拆分出
+    companyType 与 companyId 后再同步；不等同于 cust_role_info 角色记录。
+rules:
+- name: 角色操作仅更新状态字段
+  content: 冻结/解冻/注销均先按 id 回查角色，再用 CustRoleInfoDO.builder().id(x).status(y) 走 updateById
+    单字段更新，不做物理删除。
+  impact: 角色只有逻辑状态变化，无覆盖/删除动作
+  field_targets:
+  - cust_role_info.status
+  evidence: code_path:CustRoleApplication.java#operatorCustRoleStatus
+- name: 企业状态变更联动角色状态
+  content: 企业冻结/解冻/注销时，custStatusOperator 调用 updateStatusByCustCompany，把该企业下所有非 WRITEOFF
+    角色 status 批量置为与企业 cust_status 同值（FREEZE/EFFECT/WRITEOFF）。
+  impact: 角色状态与企业状态保持一致，注销企业会连带把角色置为 WRITEOFF
+  field_targets:
+  - cust_role_info.status
+  - cust_company_info.cust_status
+  evidence: code_path:CustCompanyInfoApplication.java#custStatusOperator + CustRoleApplication.java#updateStatusByCustCompany
+- name: 角色为覆盖式新增
+  content: addRoleInfo 先按 ref_cust_company_info 删除该企业已有角色，再按传入 roleType 的 JSON 数组逐项
+    saveBatch 重建；新记录 code 由 uuid 生成，db_tenant_code 取企业租户。
+  impact: 同一企业重复调用会整体重建角色集合，不做增量合并
+  field_targets:
+  - cust_role_info.role_type
+  - cust_role_info.code
+  - cust_role_info.db_tenant_code
+  evidence: code_path:CustRoleApplication.java#addRoleInfo
+- name: 拒绝态企业清角色关联
+  content: 当企业 cust_build_status=BUILD_FAIL（拒绝）时，addRoleInfo 会调用 userInfoFacade.delCustUserRole
+    清掉该企业的用户-角色绑定。
+  impact: 被拒企业重新提交时会清理历史角色授权
+  field_targets:
+  - cust_role_info.role_type
+  evidence: code_path:CustRoleApplication.java#addRoleInfo（CustBuildStatusEnum.BUILD_FAIL
+    分支）
+- name: 菜单端口配置按企业角色维护
+  content: listTenantProductMenuConfig 以 platform_product_cust_role 的 company_type_code
+    为维度，为每个端口列出可配置菜单(listProductCustMenu)与按钮资源(listProductCustMenuResource)，保存时先删除该租户该产品下已配菜单与资源再批量重建。
+  impact: 『端口』是菜单权限配置的粒度，配置为覆盖式
+  field_targets:
+  - platform_product_cust_role.company_type_code
+  - platform_product_cust_role.product_code
+  evidence: code_path:LocalTypeMenuService.java#listTenantProductMenuConfig/#saveTenantProductMenuConfig
+reqdoc_claims:
+- claim: 客户加入产品项目时进行企业角色组合校验：企业在同一产品下存在2+角色时读取 PlatformProductDO.custRoleCombine 合法组合，非法组合抛
+    BaseException『系统暂不支持该角色组合』
+  code_status: uncovered
+  code_evidence: 未在给定代码片段中找到 TenantProductApplication#checkProjectProductByCustType
+    / checkCustRoleCombine 的实现体
+  action: review
+- claim: companyType 企业角色典型值为 CORE / SUPPLIER / DEALER / FINANCE
+  code_status: confirmed
+  code_evidence: CustCompanyIfoEnchanceService.java 中 CustCompanyTypeEnum.CORE/SUPPLIER/DEALER/FINANCE
+    使用点；db dist cust_role_info.role_type 实测含 CORE/SUPPLIER/DEALER/FINANCE
+  action: anchor
+- claim: 菜单 code='0891344a3a4442179e98819cbe926ced' 的记录在列表中自动过滤
+  code_status: confirmed
+  code_evidence: 'LocalTypeRoleController.java#listResourceAuthByProductCode（filterMenuByCode
+    实际剔除 3 个 code: 0891344a3a4442179e98819cbe926ced、81b9d705e8a14d6088bcf341884e70d8、16bcb2ed1daf4b739a5aad6e791aefa4，文档仅列出
+    1 个）'
+  action: anchor
+- claim: productCode 典型值 SCF / AMS / RVSFACTOR
+  code_status: uncovered
+  code_evidence: db dist platform_product_cust_role.product_code 实测为 ACCOUNT_PRODUCT/AMS/BEECREDIT/CROSSBORDER/DEALER/DRAFT/DRAFTQA/ORDER/RVSFACTOR_PC/STORAGE/VOUCHER，未见
+    SCF；RVSFACTOR 实际以 RVSFACTOR_PC 出现
+  action: prose_only：文档枚举与代码/DB 实际产品编码不一致，以代码 ProductCodeEnum 与 DB 实测为准
+  action_note: SCF 未证实，RVSFACTOR 应为 RVSFACTOR_PC
+- claim: 用户角色规则：平台管理员/企业管理员/普通用户，一个用户可拥有多个角色，角色权限取并集
+  code_status: uncovered
+  code_evidence: 给定代码中 UserInfoFacade 使用 sys 侧固定角色 accountGuest/accountNormal，未见『一用户多角色并集』的并集计算实现
+  action: review
+- claim: 企业状态流转：已通过→已冻结(违规冻结)→正常(解冻)；不支持物理删除，只支持逻辑删除（冻结/注销）
+  code_status: confirmed
+  code_evidence: CustCompanyInfoApplication.java#custStatusOperator + CustRoleApplication.java#updateStatusByCustCompany（角色状态随企业状态联动为
+    FREEZE/EFFECT/WRITEOFF）
+  action: anchor

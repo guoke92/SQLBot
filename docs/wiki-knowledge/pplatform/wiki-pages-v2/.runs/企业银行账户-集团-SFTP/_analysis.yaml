@@ -1,0 +1,474 @@
+field_semantics:
+- table: cust_account_info
+  field: account_no
+  meaning: 企业银行账户账号（打款验证/默认还款账号载体）
+  evidence: db
+- table: cust_account_info
+  field: account_name
+  meaning: 账户名称（户名），打款申请上送 accountName
+  evidence: db
+- table: cust_account_info
+  field: account_type
+  meaning: 账户类型，DB 默认 BANK；实测另有 OPERATION_FEE_ACCOUNT（运营费账户），为代码枚举基线外的真实取值
+  evidence: db
+- table: cust_account_info
+  field: bank_no
+  meaning: 联行号；代码中同时作为 bankID 与 cnapsCode 上送人行小额打款接口（bankNo 一值两用）
+  evidence: code
+- table: cust_account_info
+  field: bank_code / bank_code_name
+  meaning: 银行(总行)代码/名称；申请打款时 bank_code_name 被当作请求 bankName 上送
+  evidence: code
+- table: cust_account_info
+  field: bank_branch_name
+  meaning: 开户行网点名称，打款申请链路未使用
+  evidence: db
+- table: cust_account_info
+  field: default_account_flag
+  meaning: 是否默认账户，'1'=默认，'0'=非默认；同企业下默认账号需唯一
+  evidence: db
+- table: cust_account_info
+  field: auth_state
+  meaning: 小额打款认证状态，DB 默认 APPLY_00，代码取值 APPLY_00/10/20/30/40
+  evidence: code
+- table: cust_account_info
+  field: trans_id
+  meaning: 打款申请交易ID（发起时写入银行返回的 OriginalTxSN，查询/验证均以它为准）
+  evidence: code
+- table: cust_account_info
+  field: trace_no
+  meaning: 银行系统跟踪号（申请打款返回）
+  evidence: code
+- table: cust_account_info
+  field: payment_remaining_count
+  meaning: 剩余打款次数，初始取 cust_setting_config.payment_maximum_number，每次申请 -1
+  evidence: code
+- table: cust_account_info
+  field: error_try_count
+  meaning: 打款金额验证失败次数，失败时累加
+  evidence: code
+- table: cust_account_info
+  field: error_try_time
+  meaning: 最后一次验证失败时间
+  evidence: code
+- table: cust_account_info
+  field: ref_cust_company_info
+  meaning: 账户归属企业标识，存的是 cust_company_info.code（企业编码），不是企业主键 id
+  evidence: code
+- table: cust_account_info
+  field: status
+  meaning: 账户状态，实测仅 INIT
+  evidence: db
+- table: cust_group_rel
+  field: cust_id
+  meaning: 成员单位企业id（cust_company_info.id）
+  evidence: db
+- table: cust_group_rel
+  field: parent_group_id / root_group_id
+  meaning: 父/根 关系记录主键（cust_group_rel.id），树形结构靠它组织
+  evidence: code
+- table: cust_group_rel
+  field: parent_cust_id / root_cust_id
+  meaning: 父/根 企业id（cust_company_info.id）
+  evidence: code
+- table: cust_group_rel
+  field: root_flag
+  meaning: 是否集团根节点，Y=集团本身，N=成员单位
+  evidence: db
+- table: cust_group_rel
+  field: level
+  meaning: 层级，实测仅 1（根节点）
+  evidence: db
+- table: cust_group_rel
+  field: cust_type
+  meaning: 企业角色，实际存 JSON 数组字符串（如 ["SUPPLIER"]），支持追加多角色
+  evidence: code
+- table: cust_group_rel
+  field: status
+  meaning: 成员单位关系状态 EFFECTIVE/INEFFECTIVE/REJECTED
+  evidence: db
+- table: cust_sftp
+  field: channel
+  meaning: SFTP 对接渠道编码（如 bgy/tianma/meituan/sny）
+  evidence: db
+- table: cust_sftp
+  field: user_name
+  meaning: SFTP 登录账号，命名形如 app_<渠道>_<日期/编号>
+  evidence: db
+- table: cust_sftp
+  field: host / port
+  meaning: SFTP 服务器地址与端口，实测 qa.sftp.lls.com:22 为主、个别 uat.sftp.lls.com
+  evidence: db
+- table: cust_sftp
+  field: db_tenant_code
+  meaning: 所属数据租户标识
+  evidence: db
+state_machines:
+- name: 银行账户小额打款认证状态机
+  field: cust_account_info.auth_state
+  states:
+  - value: APPLY_00
+    label: 初始/未发起打款
+    source: code_enum
+  - value: APPLY_10
+    label: 打款申请已提交，银行受理中
+    source: code_enum
+  - value: APPLY_20
+    label: 银行受理成功，可进行金额验证
+    source: code_enum
+  - value: APPLY_30
+    label: 申请打款受理失败，需重新申请
+    source: code_enum
+  - value: APPLY_40
+    label: 已完成打款验证（金额一致，或验证不匹配/库无记录时也落该值）
+    source: code_enum
+  transitions:
+  - from: APPLY_00
+    event: 申请打款 cnapsPaymentApply()
+    to: APPLY_10
+    evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustAccountApplication.java:cnapsPaymentApply
+  - from: APPLY_10
+    event: 查询打款结果 paymentResult() 返回 status=20
+    to: APPLY_20
+    evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustAccountApplication.java:paymentResult
+  - from: APPLY_10
+    event: 查询打款结果 paymentResult() 返回 status=30
+    to: APPLY_30
+    evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustAccountApplication.java:paymentResult
+  - from: APPLY_20
+    event: 打款验证 cnapsPaymentConfirm() 金额一致 result=0
+    to: APPLY_40
+    evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustAccountApplication.java:cnapsPaymentConfirm
+  - from: APPLY_20
+    event: 打款验证 cnapsPaymentConfirm() 金额不匹配/库无记录 result=1|2（同时 error_try_count+1、error_try_time=now
+      后抛业务异常）
+    to: APPLY_40
+    evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustAccountApplication.java:cnapsPaymentConfirm
+  - from: APPLY_30
+    event: 重新申请打款 cnapsPaymentApply()（无前置状态校验，直接覆盖）
+    to: APPLY_10
+    evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustAccountApplication.java:cnapsPaymentApply
+- name: 集团成员单位关系状态机
+  field: cust_group_rel.status
+  states:
+  - value: INEFFECTIVE
+    label: 未生效（待成员单位签署/处理待办）
+    source: code_enum
+  - value: EFFECTIVE
+    label: 已生效
+    source: code_enum
+  - value: REJECTED
+    label: 已拒绝
+    source: code_enum
+  transitions:
+  - from: （新建）
+    event: 新增成员单位子级且企业认证成功，发送待办 sendCustGroupRelNotice(groupId)
+    to: INEFFECTIVE
+    evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustGroupLicenseApplication.java:sendCustGroupRelNotice
+  - from: （新建）
+    event: 运营端新增集团根节点 addExistRootGroupRel()：企业 cust_build_status=BUILD_SUCCESS 时直接置
+      EFFECTIVE，否则 INEFFECTIVE
+    to: EFFECTIVE | INEFFECTIVE
+    evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustGroupRelApplication.java:addExistRootGroupRel
+  - from: INEFFECTIVE
+    event: 签署协议 accept()（校验非 EFFECTIVE、rootFlag!=Y）
+    to: EFFECTIVE
+    evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustGroupLicenseApplication.java:accept
+  - from: INEFFECTIVE
+    event: 拒绝协议 reject()
+    to: REJECTED
+    evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustGroupLicenseApplication.java:reject
+  - from: INEFFECTIVE
+    event: effectGroupRel(custId,custType) 直接生效
+    to: EFFECTIVE
+    evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustGroupRelApplication.java:effectGroupRel
+calibers:
+- name: 默认还款账户
+  predicate: cust_account_info.default_account_flag = '1'
+  scope: 同一 ref_cust_company_info 企业下唯一
+  evidence: code_path:CustAccountApplication.java:setDefaultFlag/afterSave
+- name: 账户打款认证通过
+  predicate: cust_account_info.auth_state = 'APPLY_40'
+  scope: 账户维度
+  evidence: code_path:CustAccountApplication.java:cnapsPaymentConfirm
+- name: 有效账户/有效记录
+  predicate: cust_account_info.enable = 'Y'
+  scope: 全表通用逻辑删除口径
+  evidence: db
+- name: 已生效集团成员单位
+  predicate: cust_group_rel.status = 'EFFECTIVE'
+  scope: 平铺/子级列表 listSubCust 过滤口径
+  evidence: code_path:CustGroupRelApplication.java:listSubCust
+- name: 集团根节点
+  predicate: cust_group_rel.root_flag = 'Y'
+  scope: 根节点识别；root_flag=Y 的企业不可签成员单位协议
+  evidence: code_path:CustGroupLicenseApplication.java:checkCustGroup
+- name: 企业建档成功
+  predicate: cust_company_info.cust_build_status = 'BUILD_SUCCESS'
+  scope: 发送集团待办、CA 开通、集团操作的前置条件
+  evidence: code_path:CustGroupLicenseApplication.java:checkCustGroup / CustGroupRelApplication.java:addExistSubCustGroupRel
+- name: 主数据企业
+  predicate: cust_company_info.data_type = DATA_TYPE_MAIN
+  scope: 企业主数据与记录数据区分
+  evidence: code_path:CustCompanyIfoEnchanceService.java:listEffectCompany
+- name: 真实运营方（排除测试数据）
+  predicate: cust_company_info.test_data != 'Y'
+  scope: 租户存在多个 PLATFORM_OPERATOR_COMPANY 时仅保留非测试运营方
+  evidence: code_path:CustGroupRelApplication.java:queryTenantOperatorCompany
+- name: 启用的 SFTP 渠道
+  predicate: cust_sftp.enable = 'Y'
+  scope: SFTP 渠道配置表（实测全部为 Y，无代码写值证据）
+  evidence: db
+term_bridges:
+- term: 账户归属企业
+  aliases:
+  - ref_cust_company_info
+  - 客户账号信息
+  maps_to: cust_account_info.ref_cust_company_info = cust_company_info.code
+  also_confused_with:
+  - cust_company_info.id
+  - cust_id
+  adjudication: boundary
+  boundary: 字段名与注释像“账号信息”，实际存企业编码；代码统一用 company.getCode() 赋值/查询，用企业主键 id 过滤会查不到数据。
+- term: 联行号
+  aliases:
+  - bank_no
+  - bankID
+  - cnapsCode
+  maps_to: cust_account_info.bank_no
+  also_confused_with:
+  - bank_code（银行总行代码）
+  - bank_id（银行ID）
+  - bank_code_name（上送 bankName）
+  adjudication: boundary
+  boundary: 代码把 bank_no 同时当作 bankID 与 cnapsCode 上送人行接口，bankName 取的是 bank_code_name（总行名称）而非开户行
+    branch 名称。
+- term: 企业角色
+  aliases:
+  - cust_type
+  - 公司类型
+  - companyType
+  maps_to: cust_group_rel.cust_type = JSON 数组字符串（如 ["SUPPLIER"]）
+  also_confused_with:
+  - DB 注释“多企业角色用逗号分隔”
+  - CustCompanyInfoDO.cust_company_type
+  adjudication: boundary
+  boundary: 库注释写逗号分隔，代码实际统一 JSONArray.toJSONString() 存取与 like '%"FINANCE"%' 精确匹配；多角色通过
+    addRoleToRoot 追加数组元素，不能按逗号切分解析。
+- term: 集团根标识
+  aliases:
+  - root_flag
+  - rootFlag
+  maps_to: cust_group_rel.root_flag = 'Y'（集团本身）/ 'N'（成员单位）
+  also_confused_with:
+  - root_group_id（根关系记录主键）
+  - root_cust_id（根企业id）
+  adjudication: boundary
+  boundary: root_flag=Y 的节点不允许再作为子级关联、也不允许签署成员单位协议；root_group_id/root_cust_id 是树定位字段，与布尔标识无关。
+- term: 打款交易标识
+  aliases:
+  - trans_id
+  - trace_no
+  maps_to: trans_id=我方发起打款后写入的银行 OriginalTxSN；trace_no=银行返回的系统跟踪号
+  also_confused_with:
+  - 两者互相混用
+  adjudication: boundary
+  boundary: 查询打款结果与打款验证都以 trans_id（OriginalTxSN）为入参；trace_no 仅落库留痕，不参与后续调用。
+- term: 账户类型
+  aliases:
+  - account_type
+  - BANK
+  - OPERATION_FEE_ACCOUNT
+  maps_to: 账户类型值（代码枚举基线缺失，取自 DB 实测）
+  also_confused_with:
+  - '''1''、''received'' 等脏值'
+  adjudication: boundary
+  boundary: DB 默认值 BANK；OPERATION_FEE_ACCOUNT 为代码中未声明的真实类型，另存在 '1'/'received' 低量异常值，统计口径需排除或归并。
+- term: SFTP 渠道
+  aliases:
+  - channel
+  - name
+  - user_name
+  maps_to: cust_sftp.channel = 渠道编码（英文），cust_sftp.name = 渠道中文名，cust_sftp.user_name
+    = 登录账号
+  also_confused_with:
+  - db_tenant_code（租户标识）
+  adjudication: boundary
+  boundary: channel 与 db_tenant_code 不同源（如 ZTSJ 既是 channel 也是 tenant，但多数渠道的 tenant
+    是域名形式）；同名渠道存在 -test 后缀的测试配置，统计需排除。
+rules:
+- name: 企业账户不可重复
+  content: 同一企业（ref_cust_company_info）下 account_no 已存在时抛“账户不能重复添加”，阻断新增。
+  impact: 新增账户前置校验
+  field_targets:
+  - cust_account_info.account_no
+  - cust_account_info.ref_cust_company_info
+  evidence: code_path:CustAccountApplication.java:checkBefore
+- name: 默认账户唯一
+  content: 设置默认账号时先查询该企业下 default_account_flag='1' 的记录并置为 '0'，再把目标账户置 '1'；保存后 afterSave
+    会在企业无默认账户时自动把首个账户置为默认。
+  impact: 企业默认还款账号口径
+  field_targets:
+  - cust_account_info.default_account_flag
+  - cust_account_info.ref_cust_company_info
+  evidence: code_path:CustAccountApplication.java:setDefaultFlag / afterSave
+- name: 打款次数配额
+  content: 剩余打款次数初始值取自 cust_setting_config.payment_maximum_number（updatePayCount）；每次申请打款成功后
+    -1；为 0 时抛“今天打款次数已用完，请明天再试”。
+  impact: 限制账户验证频率
+  field_targets:
+  - cust_account_info.payment_remaining_count
+  - cust_setting_config.payment_maximum_number
+  evidence: code_path:CustAccountApplication.java:cnapsPaymentApply / updatePayCount
+- name: 打款验证金额范围与单位
+  content: 控制器校验金额为空/格式错误即抛错，且必须 0 < amount < 1（提示“输入验证金额需要在0.01～0.99”）；上送银行前金额 *100
+    转为“分”。
+  impact: 小额打款验证输入口径
+  field_targets:
+  - cust_account_info.auth_state
+  evidence: code_path:CustAccountController.java:checkAmount / cnapsPaymentConfirm
+- name: 验证前置状态约束
+  content: 无 trans_id 抛“请先发起申请打款”；auth_state=APPLY_10 抛“还未受理成功，请在账户收到打款金额后再验证”；auth_state=APPLY_30
+    抛“申请打款受理失败，请重新申请打款”。
+  impact: 打款验证时序约束
+  field_targets:
+  - cust_account_info.trans_id
+  - cust_account_info.auth_state
+  evidence: code_path:CustAccountApplication.java:cnapsPaymentConfirm
+- name: 验证失败计数口径
+  content: 金额不匹配（result=1）或银行库无记录（result=2）时，先置 auth_state=APPLY_40，再 error_try_count+1、error_try_time=now，然后抛业务异常——失败请求也会留下
+    APPLY_40 状态。
+  impact: auth_state=APPLY_40 不能单独作为“验证通过”口径，需结合 error_try_count 判断
+  field_targets:
+  - cust_account_info.auth_state
+  - cust_account_info.error_try_count
+  - cust_account_info.error_try_time
+  evidence: code_path:CustAccountApplication.java:cnapsPaymentConfirm
+- name: 集团成员单位关联唯一性
+  content: 按 cust_id + db_tenant_code + parent_cust_id + root_cust_id + cust_type
+    计数，>=1 即抛“该企业{名称} - {角色}已存在”。
+  impact: 重复关联拦截
+  field_targets:
+  - cust_group_rel.cust_id
+  - cust_group_rel.cust_type
+  - cust_group_rel.parent_cust_id
+  - cust_group_rel.root_cust_id
+  evidence: code_path:CustGroupRelApplication.java:addExistSubCustGroupRel / addNewSubCustGroupRel
+- name: 集团公司不可作为子级
+  content: 目标企业 cust_company_type 含 CORPORATION_COMPANY 时抛“该企业已是集团公司，无法设置为其他公司的子级企业”；导入时根企业必须是集团角色，否则提示联系运营添加。
+  impact: 集团角色互斥
+  field_targets:
+  - cust_company_info.cust_company_type
+  - cust_group_rel.cust_type
+  evidence: code_path:CustGroupRelApplication.java:addExistSubCustGroupRel / processCompany
+- name: 已生效成员单位不可重复操作
+  content: checkCustGroup：groupId 对应记录 status=EFFECTIVE 时抛“集团成员单位已生效，不支持该操作”；root_flag=Y
+    时抛“集团公司不支持该操作”；非 AGW 端登录企业 cust_build_status 非 BUILD_SUCCESS 时抛“企业未认证成功，不能执行当前操作”。
+  impact: 成员单位协议签署准入
+  field_targets:
+  - cust_group_rel.status
+  - cust_group_rel.root_flag
+  - cust_company_info.cust_build_status
+  evidence: code_path:CustGroupLicenseApplication.java:checkCustGroup
+- name: 新增子级仅认证成功才发待办
+  content: addExistSubCustGroupRel 中仅当企业 cust_build_status=BUILD_SUCCESS 才 sendCustGroupRelNotice；导入场景同样只对
+    BUILD_SUCCESS 的节点加入 needSends。
+  impact: 待办发送范围
+  field_targets:
+  - cust_company_info.cust_build_status
+  - cust_group_rel.status
+  evidence: code_path:CustGroupRelApplication.java:addExistSubCustGroupRel / processChildCompany
+- name: 集团删除前在途业务校验
+  content: removeRootGroup 先扁平化整棵集团树，调用 CheckGroupMemberDeleteService：额度模块 custWithActiveLimit
+    非空即抛 HAS_BUSINESS_PROCESS(有在途业务不允许删除)，再批量按主键删除关系并调用 limitFacade.cancelCustLimit；未生效且认证成功的子节点同时消除待办。
+  impact: 集团解散/成员移除约束
+  field_targets:
+  - cust_group_rel.id
+  - cust_group_rel.status
+  - cust_company_info.cust_build_status
+  evidence: code_path:CustGroupRelApplication.java:removeRootGroup / validateBusinessOnWay；CheckGroupMemberDeleteService.java:getAppId
+- name: 企业账号清理按主键批删
+  content: deleteOtherCustAccount 先按 ref_cust_company_info 查出待删 id 列表，再按主键 removeBatchByIds，避免非主键条件删除导致死锁。
+  impact: 账号替换/清理实现约束
+  field_targets:
+  - cust_account_info.id
+  - cust_account_info.ref_cust_company_info
+  evidence: code_path:CustAccountApplication.java:deleteOtherCustAccount
+- name: 集团导入校验口径
+  content: 集团导入依次校验：必填（反射校验所有字段）、统一社会信用代码格式（Validator.isCreditCode）、租户必须存在且 enable/status
+    生效、企业名与统码互查一致、企业角色必须属于 COMPANY_TYPE_MAP、成员单位角色需与已存在或同批上级企业角色一致。
+  impact: Excel 批量导入拦截规则
+  field_targets:
+  - cust_company_info.certification_no
+  - cust_company_info.name
+  - cust_company_info.cust_company_type
+  - cust_group_rel.cust_type
+  - tenant_setting_config.db_tenant_code
+  evidence: code_path:CustGroupRelApplication.java:importForCustGroupRel / checkExcelData
+    / checkBusinessExcelData / checkRoleExcelData
+- name: 电子签章默认开通范围
+  content: 新建/导入企业角色含 SUPPLIER、CORE、PROJECT_COMPANY 时默认 need_register_ca='Y'；开通 CA
+    时按 needRegisterCa/caRegisterStatus 与 needRegisterBs/bsRegisterStatus 的 Y/N/P 组合生成
+    CFCA、上上签授权书。
+  impact: 签章开通范围与协议生成
+  field_targets:
+  - cust_company_info.need_register_ca
+  - cust_company_info.ca_register_status
+  - cust_company_info.need_register_bs
+  - cust_company_info.bs_register_status
+  evidence: code_path:CustGroupRelApplication.java:addNewSubCustGroupRel；CustCompanyIfoEnchanceService.java:setSignRegister
+    / createCaDoc
+- name: 集团查询显式跨租户
+  content: 集团树、集团分页、导入、在途校验等入口显式调用 MetaDataThreadLocalConfig.setDbTenantCode("all")
+    后再查询/写入，逐条记录自身携带 db_tenant_code 做租户归属。
+  impact: 集团数据统计必须按 db_tenant_code 分组，不能依赖默认租户过滤
+  field_targets:
+  - cust_group_rel.db_tenant_code
+  evidence: code_path:CustGroupRelApplication.java:buildAllTree / pageCustGroupRelTree
+    / importForCustGroupRel / businessOnWayCheck
+reqdoc_claims:
+- claim: 企业认证状态：审核中 → 已通过 / 已驳回（待提交、审核中、已通过、已驳回）
+  code_status: confirmed
+  code_evidence: CustCompanyIfoEnchanceService.java:userCompanyStatus（BUILD_SUCCESS→AUTH_SUCCESS、CUST_BUILDING→AUTHING、BUILD_FAIL→AUTH_FAIL、CUST_CHANGE→AUTH_SUCCESS）
+  action: anchor
+- claim: 已通过 → 已冻结(违规冻结) → 已注销(主动注销)
+  code_status: uncovered
+  code_evidence: CustCompanyIfoEnchanceService.java:inviteCheck（仅见 CustStatusEnum.WRITEOFF/FAILURE
+    常量引用与 CustStatusEnum.ADD/EFFECT 过滤，未见冻结/注销的状态写值点）
+  action: review
+- claim: 企业准入自动审核规则：企业征信评分 >= 60 分、法人无不良信用记录、行业不在黑名单内即自动通过
+  code_status: uncovered
+  code_evidence: AutoVerifyService 全文未在证据层给出，无法定位实现分支
+  action: review
+- claim: 企业变更规则：所有变更需审核、审核通过后变更生效、保留完整变更历史
+  code_status: uncovered
+  code_evidence: ChangeRecordService / CustChangeRecordService 未在证据层给出全文
+  action: review
+- claim: 变更限制：同一变更项同时只能有一个待审核申请；企业状态为已冻结或已注销时不允许变更
+  code_status: uncovered
+  code_evidence: 无对应校验代码可见
+  action: review
+- claim: 用户邀请：邀请码随机生成 8 位字符串、30 天内有效
+  code_status: refuted
+  code_evidence: UserFacade.java:addSsoUser（getInvitationCode(mobile,userName,6,60*100,...)
+    即 6 位、100 分钟）；UserFacade.java:buildMessageEmailLogDTO（6 位、60*60*24*30*3 秒≈90 天）
+  action: prose_only
+- claim: 邮件通知：异步发送，不阻塞主流程，发送失败记录日志不抛异常
+  code_status: confirmed
+  code_evidence: UserFacade.java:sendInviteEmail（委托 EmailAsyncService#sendInviteEmailAsync）；UserFacade.java:sendInviteCodeToOperator（try/catch
+    仅 log.error）
+  action: anchor
+- claim: 邀请后创建待激活用户记录并异步发送邀请邮件/短信
+  code_status: confirmed
+  code_evidence: UserFacade.java:add → addCustPersInfo / sendInviteCodeToOperator
+    / sendInviteEmail（仅首次添加 isInitialAdd 且 source!=AMS 时发送）
+  action: anchor
+- claim: 跨租户访问严格禁止（租户维度数据库级隔离，通过 db_tenant_code 区分）
+  code_status: refuted
+  code_evidence: CustGroupRelApplication.java:buildAllTree / importForCustGroupRel
+    / pageCustGroupRelTree 显式 MetaDataThreadLocalConfig.setDbTenantCode("all") 后跨租户查询与写入
+  action: prose_only
+- claim: 菜单权限：code='0891344a3a4442179e98819cbe926ced' 的菜单记录在列表中自动过滤
+  code_status: uncovered
+  code_evidence: 证据层未给出菜单查询/过滤代码
+  action: review

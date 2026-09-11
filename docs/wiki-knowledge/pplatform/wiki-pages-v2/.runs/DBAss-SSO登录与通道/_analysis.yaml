@@ -1,0 +1,568 @@
+field_semantics:
+- table: open_sso_channel
+  field: sys_channel
+  meaning: SSO 系统渠道标识，一条记录对应一个登录渠道（如 scpr-pplatform-pc、scpr-pplatform-pc_org...）
+  evidence: db
+- table: open_sso_channel
+  field: sys_type
+  meaning: SSO 系统类型标识，值与部分 sys_channel（含 org 后缀）一致，用作 SSO 侧系统分类
+  evidence: db
+- table: open_sso_channel
+  field: sso_client_id
+  meaning: 每渠道独立的 SSO clientId
+  evidence: db
+- table: open_sso_channel
+  field: sso_client_secret
+  meaning: SSO 密钥（渠道维度）
+  evidence: db
+- table: open_sso_channel
+  field: channel_code
+  meaning: 业务/OpenAPI 渠道码（实测值 longteng，非 SSO sysChannel）
+  evidence: db
+- table: open_sso_channel
+  field: channel_kind
+  meaning: 渠道类型（实测 LOCAL_SYS）
+  evidence: db
+- table: open_sso_channel
+  field: app_id
+  meaning: 开放平台 appId
+  evidence: db
+- table: open_sso_channel
+  field: open_mode_default
+  meaning: 默认打开形态 EMBED/TOP（实测 EMBED）
+  evidence: db
+- table: open_sso_channel
+  field: org_code
+  meaning: 同步到 SSO 的机构编码；查询用户 SSO 数据时作为 RpcContext orgCode 透传
+  evidence: code
+- table: open_sso_channel
+  field: sso_sync_status
+  meaning: SSO 同步状态（实测 SYNCED）
+  evidence: db
+- table: open_sso_channel
+  field: sso_sync_msg
+  meaning: SSO 同步描述/失败原因
+  evidence: db
+- table: open_sso_channel
+  field: enable
+  meaning: 启用标记 Y/N
+  evidence: db
+- table: operation_user
+  field: operation_id
+  meaning: 运营中台人员 id（外部系统主键）
+  evidence: db
+- table: operation_user
+  field: operation_name
+  meaning: 运营人员姓名
+  evidence: db
+- table: operation_user
+  field: operation_group
+  meaning: 运营组别
+  evidence: db
+- table: operation_user
+  field: status
+  meaning: 运营中台用户状态标识
+  evidence: db
+- table: operation_user
+  field: deleted
+  meaning: 逻辑删除标识 N/Y（N=未删除）
+  evidence: db
+- table: operation_user
+  field: enable
+  meaning: 启用标记 Y/N
+  evidence: db
+- table: tenant_setting_config
+  field: ssoTenantChanel
+  meaning: 租户级 SSO 渠道（拼写为 chanel）；登录、发邀请码、同步用户时作为 sysChannel 使用
+  evidence: code
+- table: tenant_setting_config
+  field: ssoSysChannel
+  meaning: 租户绑定的 SSO 系统渠道；注销、登录验证码开关、渠道判优时使用
+  evidence: code
+- table: tenant_setting_config
+  field: dbassAppId
+  meaning: DBAss 应用标识；对外返回租户配置时被置空（敏感）
+  evidence: code
+- table: tenant_setting_config
+  field: dbassPrivateKey
+  meaning: DBAss 私钥；对外返回租户配置时被置空（敏感）
+  evidence: code
+- table: sys_cust_user_rel
+  field: is_freeze
+  meaning: 企业-用户关系维度的冻结标记，N=激活、Y=冻结（注释：冻结标记,N表示激活,Y表示冻结）
+  evidence: code
+- table: sys_user
+  field: user_status
+  meaning: 全局用户状态（NORMAL/INIT/FREEZE），由 UserStatusEnum 承载
+  evidence: code
+- table: sys_user
+  field: sso_user_id
+  meaning: sys_user 关联的 SSO 用户 id，用于查登录历史、同步邮箱
+  evidence: code
+- table: sys_user
+  field: tenant_code
+  meaning: sys_user 所属数据租户；跨租户取 sso_user/企业联系人时用 dbTenantCode 过滤
+  evidence: code
+- table: cust_person_info
+  field: status
+  meaning: 企业联系人（经办人）状态，实测代码中仅见 ADD→EFFECT
+  evidence: code
+- table: cust_person_info
+  field: user_type
+  meaning: 用户在企业的类型：admin/operator/guest，按 admin>operator>guest 取优先级最高一条展示
+  evidence: code
+- table: cust_person_info
+  field: enable
+  meaning: 是否有效 Y/N，查询经办人/管理员时以 Y 为条件
+  evidence: code
+- table: cust_person_info
+  field: operator_push_system
+  meaning: 该经办人需要推送的系统渠道（逗号分隔），用于向其他系统同步经办人
+  evidence: code
+- table: cust_company_info
+  field: cust_build_status
+  meaning: 企业建档/认证状态（CustBuildStatusEnum），决定是否可初始化组织、赋管理员
+  evidence: code
+- table: cust_company_info
+  field: identify_style
+  meaning: 认证方式：INVITE/INVITE_AGW/SELF/SIMPLE，决定状态流转与消息模板
+  evidence: code
+- table: cust_company_info
+  field: needRegisterCa
+  meaning: 是否需要开通电子签章 Y/N；简单认证下强制校正为不开通
+  evidence: code
+- table: sso_user
+  field: login_name
+  meaning: SSO 登录名，实际存放手机号；按 loginName+sysChannel 唯一
+  evidence: code
+- table: sso_system
+  field: sysChannel
+  meaning: SSO 系统渠道，用于查 captcha 开关与 orgCode
+  evidence: code
+state_machines:
+- name: 用户冻结状态
+  field: sys_cust_user_rel.is_freeze
+  states:
+  - value: N
+    label: 激活/未冻结
+    source: code_enum
+  - value: Y
+    label: 冻结
+    source: code_enum
+  transitions:
+  - from: N
+    event: freeze
+    to: Y
+    evidence: code_path:LocalTypeUserController.java#freeze + UserFacade.java#updateListFreezeFlag(UserFreezeEnum.FREEZE)
+  - from: Y
+    event: active
+    to: N
+    evidence: code_path:LocalTypeUserController.java#active + UserFacade.java#updateListFreezeFlag(UserFreezeEnum.UN_FROZEN)
+  - from: Y/N
+    event: addDefaultCustUserRel 幂等重置
+    to: N
+    evidence: code_path:UserFacade.java#addDefaultCustUserRel(if !"N".equals(isFreeze)
+      则 setIsFreeze("N"))
+  - from: N
+    event: freezeOrThawOperatorUser(FREEZE)
+    to: Y
+    evidence: code_path:PlatFormUserApplication.java#freezeOrThawOperatorUser(setIsFreeze("Y"))
+  - from: Y
+    event: freezeOrThawOperatorUser(THAW)
+    to: N
+    evidence: code_path:PlatFormUserApplication.java#freezeOrThawOperatorUser(setIsFreeze("N"))
+- name: 全局用户状态
+  field: sys_user.user_status
+  states:
+  - value: NORMAL
+    label: 正常
+    source: code_enum
+  - value: INIT
+    label: 初始/未知
+    source: code_enum
+  - value: FREEZE
+    label: 冻结
+    source: code_enum
+  transitions:
+  - from: INIT
+    event: SSO 登录成功初始化
+    to: NORMAL
+    evidence: code_path:SaaSAuthController.java#init(ssoFacade.updateSysUserStatus(userId,
+      UserStatusEnum.NORMAL))
+  - from: NORMAL
+    event: 冻结用户
+    to: FREEZE
+    evidence: code_path:UserFacade.java#getUserStatusEnum(isFreeze=Y → FREEZE)
+  - from: 任何
+    event: isFreeze 为空/异常标记
+    to: INIT
+    evidence: code_path:UserFacade.java#getUserStatusEnum(默认返回 INIT)
+- name: 企业联系人状态
+  field: cust_person_info.status
+  states:
+  - value: ADD
+    label: 新增待生效
+    source: code_enum
+  - value: EFFECT
+    label: 生效
+    source: code_enum
+  transitions:
+  - from: ADD
+    event: 登录后联系人转生效
+    to: EFFECT
+    evidence: code_path:SaaSAuthController.java#makePersonEffect(if "ADD".equals(one.getStatus())
+      setStatus("EFFECT"))
+  - from: ADD
+    event: 切换公司后转生效
+    to: EFFECT
+    evidence: code_path:SaaSAuthController.java#changeCompany(调用 makePersonEffect)
+- name: 企业认证/建档状态
+  field: cust_company_info.cust_build_status
+  states:
+  - value: INIT
+    label: 初始
+    source: code_enum
+  - value: CUST_CONFIRM_AWAIT
+    label: 待客户确认
+    source: code_enum
+  - value: CUST_BUILDING
+    label: 审核中
+    source: code_enum
+  - value: BUILD_SUCCESS
+    label: 建档成功
+    source: code_enum
+  - value: BUILD_FAIL
+    label: 建档失败/拒绝
+    source: code_enum
+  - value: AWAIT_CUST_CONFIRM
+    label: 待客户确认(简易)
+    source: code_enum
+  transitions:
+  - from: 任何
+    event: INVITE_AGW 提交
+    to: CUST_BUILDING
+    evidence: code_path:CustCompanyInfoApplication.java#getCustBuildStatus(INVITE_AGW
+      → CUST_BUILDING)
+  - from: 任何
+    event: INVITE/SELF 提交
+    to: CUST_CONFIRM_AWAIT
+    evidence: code_path:CustCompanyInfoApplication.java#getCustBuildStatus(INVITE/SELF
+      → CUST_CONFIRM_AWAIT)
+  - from: CUST_CONFIRM_AWAIT
+    event: 客户确认提交
+    to: CUST_BUILDING
+    evidence: code_path:CustCompanyInfoApplication.java#updateCustBuildStatus(before=CUST_CONFIRM_AWAIT
+      && after=CUST_BUILDING)
+  - from: CUST_BUILDING
+    event: 运营中台审核退回
+    to: CUST_CONFIRM_AWAIT
+    evidence: code_path:CustCompanyInfoApplication.java#updateCustBuildStatus(before=CUST_BUILDING
+      && after=CUST_CONFIRM_AWAIT)
+  - from: CUST_BUILDING
+    event: 审核通过
+    to: BUILD_SUCCESS
+    evidence: code_path:CustCompanyInfoApplication.java#updateCustBuildStatus(after=BUILD_SUCCESS)
+  - from: CUST_BUILDING
+    event: 审核拒绝
+    to: BUILD_FAIL
+    evidence: code_path:CustCompanyInfoApplication.java#updateCustBuildStatus(after=BUILD_FAIL)
+  - from: INIT
+    event: 简易认证提交
+    to: AWAIT_CUST_CONFIRM
+    evidence: code_path:CustCompanyInfoApplication.java#submitForSimpleAuth(setCustBuildStatus(AWAIT_CUST_CONFIRM))
+- name: SSO 渠道同步状态
+  field: open_sso_channel.sso_sync_status
+  states:
+  - value: SYNCED
+    label: 已同步
+    source: db_dist
+  transitions:
+  - from: unknown
+    event: 渠道同步 SSO 完成
+    to: SYNCED
+    evidence: code_path:open_sso_channel 表实测分布（无对应 service 代码可见）
+calibers:
+- name: 有效 SSO 渠道
+  predicate: open_sso_channel.enable = 'Y'
+  scope: SSO 渠道启停
+  evidence: db:open_sso_channel.enable(Y/N)
+- name: 渠道同步成功
+  predicate: open_sso_channel.sso_sync_status = 'SYNCED'
+  scope: 渠道同步状态判定
+  evidence: db:open_sso_channel.sso_sync_status(SYNCED)
+- name: 未删除运营人员
+  predicate: operation_user.deleted = 'N' AND operation_user.enable = 'Y'
+  scope: 运营中台人员查询
+  evidence: db:operation_user.deleted(N/Y),enable(N/Y)
+- name: 有效租户配置
+  predicate: tenant_setting_config.enable = 'Y'
+  scope: 登录、注销、租户配置查询
+  evidence: code:SaaSAuthController.java#getTenantSetting(TenantSettingConfigDO.enable=BooleanEnum.Y)
+- name: 有效企业联系人
+  predicate: cust_person_info.enable = 'Y'
+  scope: 经办人/管理员/登录用户列表查询
+  evidence: code:UserFacade.java#handUserList(eq(enable, YesOrNoEnum.YES))
+- name: 未冻结企业-用户关系
+  predicate: sys_cust_user_rel.is_freeze = 'N'
+  scope: 判断用户在产品/企业下是否可登录可用
+  evidence: code:UserFacade.java#querySysCustUserList(filter "N".equals(isFreeze))
+- name: 删除用户前判定
+  predicate: sys_cust_user_rel.is_freeze = 'N' 的关系为空
+  scope: 企业删除后是否级联删除 sys_user
+  evidence: code:CustCompanyInfoApplication.java#deleteCustInfo
+- name: 主数据企业
+  predicate: cust_company_info.data_type = 'MAIN' AND enable = 'Y'
+  scope: 企业认证状态条件更新
+  evidence: code:CustCompanyInfoApplication.java#appendUpdateCustBuildStatus
+- name: 建档成功企业
+  predicate: cust_company_info.cust_build_status = 'BUILD_SUCCESS' AND enable = 'Y'
+  scope: 组织架构初始化/批量初始化根组织
+  evidence: code:CustSysOrgApplication.java#listBuildSuccessCusts
+- name: AGW 客户端
+  predicate: header clientType = 'AGW'
+  scope: 租户配置兜底、简易认证返回
+  evidence: code:SaaSAuthController.java#getTenantSetting("AGW".equals(clientType))
+term_bridges:
+- term: SSO 渠道标识
+  aliases:
+  - sysChannel
+  - ssoSysChannel
+  - ssoTenantChanel
+  - sys_channel
+  - SsoSysChannel
+  maps_to: open_sso_channel.sys_channel / sso_system.sysChannel / tenant_setting_config.ssoSysChannel
+    / ssoTenantChanel
+  also_confused_with:
+  - channel_code
+  - sys_type
+  - app_id
+  - sysChannelList
+  adjudication: boundary
+  boundary: sysChannel/ssoSysChannel 指 SSO 系统渠道（SsoSystemDO.sysChannel，如 scpr-pplatform-pc），ssoTenantChanel
+    指租户绑定的 SSO 渠道（TenantDTO/ TenantSettingConfigDO，注意拼写少一个 n），二者在 SaaSAuthController#getTenantSetting
+    中对 AGW 客户端被赋同一值 scpr-pplatform-agw；channel_code 是业务/OpenAPI 渠道码（实测 longteng），sys_type（scpr-pplatform-pc_org...）是
+    SSO 系统类型，均不等同于 sysChannel。
+- term: 租户标识
+  aliases:
+  - dbTenantCode
+  - db_tenant_code
+  - tenantCode
+  maps_to: sys_user.tenant_code / cust_person_info.db_tenant_code / MetaDataThreadLocalConfig.getDbTenantCode()
+    / cookie dbtenantCode
+  also_confused_with:
+  - appTenantCode
+  - app_tenant_code
+  - tenantCode(RPC)
+  adjudication: boundary
+  boundary: dbTenantCode 是数据租户标识，用于数据隔离、RPC 头 RPC_TENANT_KEY 与登录 cookie dbtenantCode；appTenantCode（app_tenant_code）是逻辑租户标识，两者在
+    SaaSAuthController#register 中分别取 MetaDataThreadLocalConfig.getDbTenantCode() 与
+    getAppTenantCode() 后一并写入注册请求。
+- term: 公司/企业切换
+  aliases:
+  - changeCompany
+  - companyId
+  - custId
+  - fbpccid
+  maps_to: 当前登录用户在多企业间切换上下文（cookie dbtenantCode/fbpccid/fbpcctype/fbpccname/fbpcccode
+    + 重写 redis 用户信息）
+  also_confused_with:
+  - companyType
+  - changeDefaultCompany
+  adjudication: synonym
+  boundary: changeCompany 切换当前企业并刷新菜单（写 cookie + setReisUserInfo），changeDefaultCompany
+    只把某企业设为默认（default_flag=Y），两者都需 (companyId, companyType) 二元组定位企业。
+- term: 用户冻结标记
+  aliases:
+  - isFreeze
+  - is_freeze
+  - freezeFlag
+  - FREEZE
+  - UN_FROZEN
+  maps_to: sys_cust_user_rel.is_freeze（Y=冻结，N=激活）
+  also_confused_with:
+  - sys_user.user_status
+  - UserStatusEnum.FREEZE
+  - cust_status
+  adjudication: boundary
+  boundary: is_freeze 是『企业-用户关系』维度的冻结，可只冻结某产品下的关联而不冻结登录；user_status 是全局用户状态；UserFacade#getUserStatusEnum
+    用 is_freeze + user_status 合成对外展示状态（N+FREEZE→INIT，Y→FREEZE）。
+- term: 产融默认角色
+  aliases:
+  - accountNormal
+  - ROLE_CODE_NORMAL
+  - 产融客户端普通用户
+  - accountGuest
+  - ROLE_CODE_VISITOR
+  - 产融客户端游客
+  maps_to: sys_role 中的角色编码（ACCOUNT_PRODUCT 系统下）
+  also_confused_with:
+  - authRoleCode
+  - ROLE_CODE_NORMAL 常量在多处重复定义
+  adjudication: boundary
+  boundary: 通过客户端/接口新增用户默认绑定普通用户角色 accountNormal；通过注册（register/SsoFacade.addUser）默认绑定游客角色
+    accountGuest；UserInfoFacade 与 UserFacade/UserRoleConstant 各自持有 ROLE_CODE_VISITOR/ROLE_CODE_NORMAL
+    常量。
+- term: 企业角色 companyType
+  aliases:
+  - companyType
+  - custCompanyType
+  - custType
+  - CustCompanyTypeEnum
+  maps_to: cust_company_info.cust_company_type（JSON 数组字符串）/ cust_role_info.role_type
+  also_confused_with:
+  - CustCompanyTypeEnum（SUPPLIER/FINANCE/DEALER/PLATFORM_OPERATOR_COMPANY/CORPORATION_COMPANY
+    等）
+  adjudication: boundary
+  boundary: cust_company_type 存的是 JSON 数组（代码中 "/[\"...\"]" 形式），单个企业可有多个企业角色，查组织/管理员时需按
+    companyType 逐类处理。
+rules:
+- name: 登录初始化流程
+  content: SSO 登录成功后调用 /sys-web/user/init：取当前 LoginUser → 初始化默认企业 → 取默认企业（getDefaultCompany）→
+    写 cookie(fbpccid/fbpcctype/fbpccname/dbtenantCode/fbpcccode) → 刷新登录用户信息到 Redis(setReisUserInfo)
+    → 将 sys_user 状态置 NORMAL 并把联系人 ADD 置 EFFECT。userId 为空抛『用户未开通此系统!』。
+  impact: 决定登录后可见的企业上下文、菜单权限与用户状态
+  field_targets:
+  - sys_user.user_status
+  - cust_person_info.status
+  evidence: code_path:SaaSAuthController.java#init
+- name: 冻结/解冻用户
+  content: 冻结先调 saaSAuthService.freezePerson 冻结 SSO 侧，再 updateListFreezeFlag(...,
+    FREEZE) 更新关系表；解冻先 activePerson 再 UN_FROZEN。freeze/active 时若清空某产品下所有关系则把 cust_person_info.enable
+    置 N，解冻时恢复为 Y。
+  impact: 影响用户能否登录及在某产品下的可用性
+  field_targets:
+  - sys_cust_user_rel.is_freeze
+  - cust_person_info.enable
+  - sys_user.user_status
+  evidence: code_path:LocalTypeUserController.java#freeze/#active + UserFacade.java#updateListFreezeFlag
+    + PlatFormUserApplication.java#freezeOrThawOperatorUser
+- name: 默认企业-角色绑定
+  content: 通过客户端新增用户时默认绑定产融客户端普通用户角色 accountNormal；若已存在关系则把 is_freeze 重置为 N。注册路径（SsoFacade.addUser
+    / UserInfoFacade）默认绑定游客角色 accountGuest 并绑定 ACCOUNT_PRODUCT 系统关系。
+  impact: 决定新用户初始菜单/待办可见性
+  field_targets:
+  - sys_cust_user_rel.role_id
+  - sys_user_role.role_id
+  evidence: code_path:UserFacade.java#addDefaultCustUserRel + SsoFacade.java#addUser
+    + UserInfoFacade.java#initAddUserToSsoAndSys
+- name: 一个租户一个手机号可关联多企业
+  content: 同一租户下手机号唯一（sys_user 唯一定位），但可关联多个企业；新增用户时若 sys_user 已存在则新增企业-用户关联关系，若该企业下已存在且非游客则报错。
+  impact: 决定新增经办人分支走向
+  field_targets:
+  - sys_user.user_name
+  - sys_cust_user_rel.cust_id
+  evidence: code_path:UserFacade.java#addUser（注释：一个租户下面只有一个用户(电话号码),但可以关联多个企业）
+- name: 注册并发锁
+  content: 注册使用 Redis 锁名 saas:register:{tenantCode}:{cellphone}，获取不到锁抛『注册处理中，请勿重复提交』；密码用
+    SSO 私钥 RSA 解密后再存。
+  impact: 防注册重复提交；密码传输加密
+  field_targets: []
+  evidence: code_path:SaaSAuthController.java#register
+- name: 验证码发送限频与场景路由
+  content: 发送验证码先用 RedisSmsLock.tryLock(scenesType+businessId)，拿不到锁抛『调用频率过快,请稍后再试』；VERIFY_CODE_SCENES
+    场景走 messageFacade.sendVerifyCode 并触发微信通知，其余走 sendMessage；无手机号时 LANDED_PHONE→LANDED_EMAIL、resetpassword→resetpasswordemail。
+  impact: 控制短信/邮件/微信发送频率与渠道
+  field_targets: []
+  evidence: code_path:SaaSAuthController.java#sendLoginCode
+- name: 登录图形验证码开关
+  content: 仅 qa/qa2 环境可跳过图形验证码；按 sysChannel 查 SSO 系统配置 captcha，captcha==0 返回 false（可不加验证码），否则
+    true；异常/系统不存在时返回 true。
+  impact: 决定前端是否强制图形验证码
+  field_targets:
+  - sso_system.captcha
+  evidence: code_path:SaaSAuthController.java#resolveNeedLoginCaptcha
+- name: 企业切换通道与用户同步
+  content: changeCompany 按 (userId, companyId, companyType) 定位企业并重写登录 cookie 与 Redis
+    用户信息、刷新菜单与服务号角色；AGW 端租户配置查不到时兜底渠道 setSsoTenantChanel/ssoSysChannel = 'scpr-pplatform-agw'。
+  impact: 影响多企业用户切换后的上下文一致性
+  field_targets:
+  - tenant_setting_config.ssoSysChannel
+  - tenant_setting_config.ssoTenantChanel
+  evidence: 'code_path:SaaSAuthController.java#changeCompany + #getTenantSetting'
+- name: 用户类型优先级
+  content: 同一用户在同一企业下多条联系人记录时，取优先级最高的 userType 展示：admin(1) > operator(2) > guest(3)，未知为
+    999。
+  impact: 影响用户列表展示的用户类型/数据权限（admin 固定 ALL）
+  field_targets:
+  - cust_person_info.user_type
+  - UserDTO.dataPermissionType
+  evidence: 'code_path:UserFacade.java#getHigherPriorityPersonInfo + #setUserDTOsDataPermission'
+- name: 登录后跳转产品决策
+  content: 按序判断：新用户→产融；问卷星命中→产融；产融有待办→产融；无开通产品→产融；无指定 productCode 时多业务有待办→产融+提醒、唯一业务→进该业务、均无待办且仅开通
+    1 个业务→进该产品否则回产融；指定 productCode 且已开通→进该产品否则回产融。
+  impact: 决定用户登录落地页
+  field_targets:
+  - cust_auth_application.open_status
+  - plat_client_notice.notice_type=TODO
+  evidence: code_path:GotoProductApplication.java#determineProduct
+- name: 企业状态驱动的用户状态同步
+  content: 企业冻结→冻结企业管理员并发消息同步；解冻→解冻管理员；注销→冻结企业下所有用户；营运状态通过 clientCustStatusSyncService/
+    clientUserStatusSyncService 回写下游。
+  impact: 企业级状态对企业用户可用性的级联
+  field_targets:
+  - sys_user.user_status
+  - cust_person_info.enable
+  evidence: 'code_path:CustCompanyInfoApplication.java#performOperation + #custStatusSync
+    + #userStatusSync'
+- name: 异步邮件
+  content: 用户相关邮件统一委托 EmailAsyncService（emailAsyncService.sendInviteEmailAsync）异步发送，失败仅记日志不影响主流程；模板参数按
+    active 环境选 dev/sit/uat/prd 域名，passWord 字段承载邀请码。
+  impact: 降低发放邀请码/通知对主流程的阻塞
+  field_targets: []
+  evidence: 'code_path:UserFacade.java#sendInviteEmail + #buildMessageEmailLogDTO'
+reqdoc_claims:
+- claim: SSO/DBAss 通道初始化：前端/内部 RPC 调用 /initDbassAndSsoConfig(configId)，由 DbassAppIdTenantExtendServiceImpl
+    写 dbass appId、PlatformTenantLineServiceImpl 同步平台线路、PlatformComponentFacade 调用
+    SSO 通道初始化
+  code_status: uncovered
+  code_evidence: ''
+  action: review
+- claim: SSO 组件负责 SaaS 登录，登录入口为 SaaSAuthController.login / SaaSAuthService.login
+  code_status: refuted
+  code_evidence: SaaSAuthController.java 仅见 POST /sys-web/user/init（sso 登录成功后初始化）与
+    /user/initRedirect，无 login 方法
+  action: review
+- claim: 登录时经黑白名单校验（SsoBlackWhiteListService）
+  code_status: confirmed
+  code_evidence: SaaSAuthController.java#isLogin 调用 saaSAuthService.verifyWhiteListURL，命中白名单直接透传
+    X-Auth-User 与 dbtenantcode
+  action: anchor
+- claim: 多公司切换：SaaSAuthController.changeCompany + SaaSAuthService.change(ChangeCompanyDTO)
+    + SsoFacade 切换租户上下文 + 刷新缓存
+  code_status: confirmed
+  code_evidence: SaaSAuthController.java#changeCompany(ChangeCompanyDTO)，内部写 cookie
+    + roleFacade.getAuthUrls + saaSAuthService.setReisUserInfo，未见 SsoFacade 参与切换
+  action: anchor
+- claim: 登录后经 UserFacade 加载用户信息、LocalTypeMenuService 加载菜单，返回 LoginMenuDTO / UserInfoDTO
+    / TenantProductMenuDTO
+  code_status: confirmed
+  code_evidence: SaaSAuthController.java#getUserMenuPermList 取 LoginMenuDTO 并委托 saaSAuthService.getUserMenuPermList；UserFacade
+    负责用户信息；代码中未见 LocalTypeMenuService，菜单实际走 RoleFacade/SaaSAuthService
+  action: prose_only
+- claim: 异步邮件：业务调用 EmailAsyncService.send*，Spring @Async 提交到 EmailAsyncConfig 线程池，失败捕获+日志告警
+  code_status: confirmed
+  code_evidence: UserFacade.java#sendInviteEmail → emailAsyncService.sendInviteEmailAsync（注释说明降低耦合、可
+    Mock）
+  action: anchor
+- claim: SSO 组件业务范围含『微信通知』（验证码/通知）
+  code_status: confirmed
+  code_evidence: SaaSAuthController.java#sendLoginCode 在 VERIFY_CODE_SCENES 场景调用 wechatNotificationService.sendVerificationCodeNotification
+  action: anchor
+- claim: SSO 通道使用租户配置中的 ssoTenantChanel（系统文档：租户级 SSO 渠道）
+  code_status: confirmed
+  code_evidence: UserFacade.java#getSsoTenantChannel(tenantService.getSimpleFirstByDbTenantCode(tenantCode).getSsoTenantChanel())
+  action: anchor
+- claim: DBAss 为 SSO/DBAss 通道的基础设施之一（系统文档 2.3）
+  code_status: refuted
+  code_evidence: 代码中 DbassProvider/DbassProviderImpl 仅提供 ocrBizLicense 与 getCompanyIndustry（OCR/企业行业查询），与登录/通道初始化无关；tenant_setting_config.dbassAppId
+    仅在租户配置返回时被置空隐藏
+  action: prose_only
+- claim: DBAss 通道初始化失败记录日志并支持重试
+  code_status: uncovered
+  code_evidence: ''
+  action: review
+- claim: 登录态通过 dbtenantCode cookie + Redis 用户信息维护，并作为后续请求租户上下文
+  code_status: confirmed
+  code_evidence: SaaSAuthController.java#init/#isGetDbTenantCode(writeDbTenantcode)
+    + MetaDataThreadLocalConfig.getDbTenantCode()
+  action: anchor

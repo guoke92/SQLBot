@@ -29,11 +29,11 @@ scope:
 
 ```ground:caliber
 name: 有效企业管理员
-predicate: cust_person_info.user_type = 'admin' AND cust_person_info.enable = 'Y' AND cust_person_info.ref_cust_company_info = {companyCode} AND cust_person_info.company_type = {companyType}
+predicate: cust_person_info.user_type = 'accountAdmin' AND cust_person_info.enable = 'Y' AND cust_person_info.ref_cust_company_info = {companyCode} AND cust_person_info.company_type = {companyType}
 scope: 判定某用户是否为企业下指定角色类型的启用管理员
 evidence: code_path:DataPermissionApplication.java:isEnterpriseAdmin()
 ```
 
-相关页面：[[联系人_客户人员]] [[admin]] [[data-permission-save-admin-required]]
+相关页面：[[联系人_客户人员]] [[admin]] [[data-permission-save-admin-required]] [[user_type]]
 
 相关：[[cust_person_info]]

@@ -1,0 +1,3 @@
+- anchor: table:sys_cust_org_user_permission
+  code: TABLE_NOT_IN_DB
+  message: sys_cust_org_user_permission 不在 db catalog

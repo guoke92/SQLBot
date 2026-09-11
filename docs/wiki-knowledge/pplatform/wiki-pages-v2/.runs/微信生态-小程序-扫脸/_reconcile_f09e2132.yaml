@@ -1,0 +1,3 @@
+- anchor: table:cust_certification_info
+  code: FIELD_NOT_IN_DB
+  message: cust_certification_info.auto_verify_count / manual_verify_count

@@ -1,0 +1,236 @@
+field_semantics:
+- table: cust_access_secret
+  field: id
+  meaning: 表主键
+  evidence: db
+- table: cust_access_secret
+  field: code
+  meaning: 编码
+  evidence: db
+- table: cust_access_secret
+  field: name
+  meaning: 名称
+  evidence: db
+- table: cust_access_secret
+  field: channel
+  meaning: 应用id/渠道标识，用于唯一标识接入渠道
+  evidence: db
+- table: cust_access_secret
+  field: encry_type
+  meaning: 加密类型
+  evidence: db
+- table: cust_access_secret
+  field: pub_key
+  meaning: 公钥
+  evidence: db
+- table: cust_access_secret
+  field: pri_key
+  meaning: 私钥
+  evidence: db
+- table: cust_access_secret
+  field: password
+  meaning: 密码
+  evidence: db
+- table: cust_access_secret
+  field: key_num
+  meaning: 密钥对数量
+  evidence: db
+- table: cust_access_secret
+  field: rel_lls_secret_id
+  meaning: 关联平台密钥记录id
+  evidence: db
+- table: cust_access_secret
+  field: enable
+  meaning: 启用标识，Y=启用，N=禁用
+  evidence: db
+- table: cust_access_secret
+  field: remark
+  meaning: 备注
+  evidence: db
+- table: cust_access_secret
+  field: create_by
+  meaning: 创建人id
+  evidence: db
+- table: cust_access_secret
+  field: create_user
+  meaning: 创建人名称
+  evidence: db
+- table: cust_access_secret
+  field: create_time
+  meaning: 创建时间
+  evidence: db
+- table: cust_access_secret
+  field: update_by
+  meaning: 更新人id
+  evidence: db
+- table: cust_access_secret
+  field: update_user
+  meaning: 更新人名称
+  evidence: db
+- table: cust_access_secret
+  field: update_time
+  meaning: 更新时间
+  evidence: db
+- table: cust_access_secret
+  field: act_procinst_id
+  meaning: 流程实例ID
+  evidence: db
+- table: cust_access_secret
+  field: app_tenant_code
+  meaning: 逻辑租户标识
+  evidence: db
+- table: cust_access_secret
+  field: db_tenant_code
+  meaning: 数据租户标识，用于多租户隔离；代码中通过渠道查询接入密钥后，用此字段设置租户上下文
+  evidence: db
+- table: cust_access_secret
+  field: act_procinst_no
+  meaning: 流程申请编号
+  evidence: db
+- table: cust_access_secret
+  field: act_procinst_status
+  meaning: 当前审批状态
+  evidence: db
+- table: cust_access_secret
+  field: act_procinst_date
+  meaning: 审批结束时间
+  evidence: db
+- table: cust_access_secret
+  field: organization_id
+  meaning: 机构编号
+  evidence: db
+- table: cust_access_secret
+  field: status_query_license_enabled
+  meaning: 建档状态查询是否返回营业执照并同步SFTP：Y-是 N-否
+  evidence: db
+state_machines:
+- name: 企业建档状态机
+  field: cust_company_info.cust_build_status
+  states:
+  - value: INIT
+    label: 初始化/待提交
+    source: code_enum
+  - value: BUILD_FAIL
+    label: 建档失败
+    source: code_enum
+  - value: CUST_CONFIRM_AWAIT
+    label: 待客户确认
+    source: code_enum
+  - value: CUST_BUILDING
+    label: 客户提交后运营审核中
+    source: code_enum
+  - value: BUILD_SUCCESS
+    label: 建档成功
+    source: code_enum
+  - value: BUILDING
+    label: 建档中
+    source: code_enum
+  - value: AWAIT_CUST_CONFIRM
+    label: 等待客户确认（简易认证场景）
+    source: code_enum
+  transitions:
+  - from: INIT
+    event: 信息提交（邀请认证-客户录入/自主认证）
+    to: CUST_CONFIRM_AWAIT
+    evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustCompanyInfoApplication.java:getCustBuildStatus
+  - from: BUILD_FAIL
+    event: 信息提交（邀请认证-客户录入/自主认证）
+    to: CUST_CONFIRM_AWAIT
+    evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/msg/CustAuditMsgService.java:checkMsg
+  - from: CUST_CONFIRM_AWAIT
+    event: 客户提交
+    to: CUST_BUILDING
+    evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/msg/CustAuditMsgService.java:checkMsg
+  - from: CUST_BUILDING
+    event: 运营中台审核退回
+    to: CUST_CONFIRM_AWAIT
+    evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/msg/CustAuditMsgService.java:checkMsg
+  - from: CUST_BUILDING
+    event: 运营中台审核通过（邀请认证-平台录入）
+    to: CUST_CONFIRM_AWAIT
+    evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/msg/CustAuditMsgService.java:checkMsg
+  - from: CUST_CONFIRM_AWAIT
+    event: 平台录入客户点击确认提交
+    to: BUILD_SUCCESS
+    evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/msg/CustAuditMsgService.java:checkMsg
+  - from: '*'
+    event: 运营中台审核通过
+    to: BUILD_SUCCESS
+    evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/msg/CustAuditMsgService.java:checkMsg
+  - from: '*'
+    event: 运营中台审核拒绝
+    to: BUILD_FAIL
+    evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/msg/CustAuditMsgService.java:checkMsg
+calibers:
+- name: 接入密钥有效性
+  predicate: cust_access_secret.enable = 'Y'
+  scope: 接入密钥查询
+  evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustAccessApplication.java:validateSetValue
+- name: 渠道查询
+  predicate: cust_access_secret.channel = '渠道值'
+  scope: 根据渠道获取租户编码
+  evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustAccessApplication.java:getDbTenantCode
+- name: 企业重复建档排除条件
+  predicate: cust_company_info.cust_build_status != 'BUILD_FAIL'
+  scope: 企业重复建档校验
+  evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustAccessApplication.java:validateSetValue
+term_bridges:
+- term: 渠道
+  aliases:
+  - channel
+  - 应用id
+  maps_to: cust_access_secret.channel
+  also_confused_with: []
+  adjudication: synonym
+  boundary: 渠道指接入方标识，存储在channel字段
+- term: 接入密钥
+  aliases:
+  - 密钥
+  - cust_access_secret
+  maps_to: cust_access_secret
+  also_confused_with:
+  - 接入密钥信息
+  adjudication: synonym
+  boundary: 接入密钥信息表，包含公私钥等
+- term: 启用
+  aliases:
+  - enable
+  - 有效
+  maps_to: cust_access_secret.enable = 'Y'
+  also_confused_with: []
+  adjudication: synonym
+  boundary: Y表示启用，N表示禁用
+rules:
+- name: 渠道存在且启用校验
+  content: 根据请求中的channel查询cust_access_secret，必须存在且enable='Y'，否则抛出'渠道不存在'异常
+  impact: 阻止非法渠道接入
+  field_targets:
+  - cust_access_secret.channel
+  - cust_access_secret.enable
+  evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustAccessApplication.java:validateSetValue
+- name: 渠道所属租户存在校验
+  content: 根据渠道获取db_tenant_code后，查询TenantSettingConfig，必须存在且enable='Y'，否则抛出'渠道所属租户不存在'
+  impact: 确保租户配置完整
+  field_targets:
+  - cust_access_secret.db_tenant_code
+  - tenant_setting_config.db_tenant_code
+  - tenant_setting_config.enable
+  evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustAccessApplication.java:validateSetValue
+- name: 企业重复建档校验
+  content: 同一租户下，统一社会信用代码已存在且cust_build_status != 'BUILD_FAIL'时，抛出'企业已建档！'
+  impact: 防止重复建档
+  field_targets:
+  - cust_company_info.certification_no
+  - cust_company_info.db_tenant_code
+  - cust_company_info.cust_build_status
+  evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustAccessApplication.java:validateSetValue
+- name: 天马渠道企业重复建档校验
+  content: 对于天马渠道，校验企业名称和统一社会信用代码，如果已存在且非BUILD_FAIL，则根据cust_build_status抛出不同异常（BUILD_SUCCESS：已通过其他方式完成建档；其他：正在通过其他方式建档）
+  impact: 防止重复建档
+  field_targets:
+  - cust_company_info.name
+  - cust_company_info.certification_no
+  - cust_company_info.db_tenant_code
+  - cust_company_info.cust_build_status
+  evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustAccessApplication.java:validateSetValueOfTianma
+reqdoc_claims: []

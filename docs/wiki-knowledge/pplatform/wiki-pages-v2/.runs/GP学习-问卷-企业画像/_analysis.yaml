@@ -1,0 +1,601 @@
+field_semantics:
+- table: gpt_learn_poster_log
+  field: id
+  meaning: 表主键
+  evidence: db
+- table: gpt_learn_poster_log
+  field: code
+  meaning: 编码
+  evidence: db
+- table: gpt_learn_poster_log
+  field: name
+  meaning: 名称
+  evidence: db
+- table: gpt_learn_poster_log
+  field: company_id
+  meaning: 企业ID
+  evidence: db
+- table: gpt_learn_poster_log
+  field: company_name
+  meaning: 企业名称
+  evidence: db
+- table: gpt_learn_poster_log
+  field: user_id
+  meaning: 用户ID
+  evidence: db
+- table: gpt_learn_poster_log
+  field: user_name
+  meaning: 用户名
+  evidence: db
+- table: gpt_learn_poster_log
+  field: popup_time
+  meaning: 卡片弹出时间；checkPosterStatus 创建弹出记录时写入
+  evidence: db
+- table: gpt_learn_poster_log
+  field: click_time
+  meaning: 卡片点击时间；recordPosterClick 记录点击时写入
+  evidence: db
+- table: gpt_learn_poster_log
+  field: db_tenant_code
+  meaning: 数据租户标识
+  evidence: db
+- table: gpt_learn_poster_log
+  field: app_tenant_code
+  meaning: 逻辑租户标识
+  evidence: db
+- table: gpt_learn_poster_log
+  field: enable
+  meaning: 逻辑有效标识；DB 实测均为 Y
+  evidence: db
+- table: cust_survey_answer
+  field: id
+  meaning: 表主键
+  evidence: db
+- table: cust_survey_answer
+  field: code
+  meaning: 编码
+  evidence: db
+- table: cust_survey_answer
+  field: name
+  meaning: 名称
+  evidence: db
+- table: cust_survey_answer
+  field: company_id
+  meaning: 当前登录企业ID
+  evidence: db
+- table: cust_survey_answer
+  field: user_id
+  meaning: 当前登录用户ID
+  evidence: db
+- table: cust_survey_answer
+  field: survey_code
+  meaning: 问卷code；DB 实测为 XYL_2024_Q1
+  evidence: db
+- table: cust_survey_answer
+  field: question_no
+  meaning: 题号（1~N）；DB 实测分布为 1~6
+  evidence: db
+- table: cust_survey_answer
+  field: answer_value
+  meaning: 选项明文；多选每个选项单独一行
+  evidence: db
+- table: cust_survey_answer
+  field: other_text
+  meaning: 当选项为“其他”时填写的文本内容
+  evidence: db
+- table: cust_survey_answer
+  field: submit_time
+  meaning: 提交时间
+  evidence: db
+- table: cust_survey_answer
+  field: db_tenant_code
+  meaning: 数据租户标识；DB 实测为 all
+  evidence: db
+- table: cust_survey_answer
+  field: app_tenant_code
+  meaning: 逻辑租户标识；DB 实测为 base
+  evidence: db
+- table: cust_survey_answer
+  field: enable
+  meaning: 逻辑有效标识；DB 实测均为 Y
+  evidence: db
+- table: cust_company_survey_state
+  field: id
+  meaning: 表主键
+  evidence: db
+- table: cust_company_survey_state
+  field: company_id
+  meaning: 企业ID
+  evidence: db
+- table: cust_company_survey_state
+  field: first_visit_time
+  meaning: 首个用户首次访问时间
+  evidence: db
+- table: cust_company_survey_state
+  field: first_visitor_lottery_shown
+  meaning: 首个用户转盘抽奖是否已展示 Y/N；DB 实测均为 Y
+  evidence: db
+- table: cust_company_survey_state
+  field: first_visitor_lottery_shown_time
+  meaning: 首个用户转盘抽奖展示时间
+  evidence: db
+- table: cust_company_survey_state
+  field: respondent
+  meaning: 问卷星答卷标识；代码取 String.valueOf(companyId)
+  evidence: code
+- table: cust_company_survey_state
+  field: db_tenant_code
+  meaning: 数据租户标识；DB 实测为 LN1/all
+  evidence: db
+- table: cust_company_survey_state
+  field: enable
+  meaning: 逻辑有效标识；DB 实测均为 Y
+  evidence: db
+- table: cust_company_survey_whitelist
+  field: company_name
+  meaning: 企业名称
+  evidence: db
+- table: cust_company_survey_whitelist
+  field: enable
+  meaning: 逻辑有效标识；DB 实测均为 Y
+  evidence: db
+- table: cust_company_survey_whitelist
+  field: db_tenant_code
+  meaning: 数据租户标识；DB 实测为 LN1
+  evidence: db
+- table: cust_company_info
+  field: id
+  meaning: 表主键
+  evidence: code
+- table: cust_company_info
+  field: code
+  meaning: 编码
+  evidence: code
+- table: cust_company_info
+  field: name
+  meaning: 客户名称
+  evidence: code
+- table: cust_company_info
+  field: custCompanyType
+  meaning: 企业角色；代码按 JSON 数组字符串处理，如 ["FINANCE"]
+  evidence: code
+- table: cust_company_info
+  field: certificationNo
+  meaning: 统一信用代码
+  evidence: code
+- table: cust_company_info
+  field: custBuildStatus
+  meaning: 认证状态；对应 CustBuildStatusEnum
+  evidence: code
+- table: cust_company_info
+  field: custStatus
+  meaning: 客户状态；对应 CustStatusEnum
+  evidence: code
+- table: cust_company_info
+  field: identifyStyle
+  meaning: 认证方式；SELF/INVITE/INVITE_AGW/SIMPLE 等
+  evidence: code
+- table: cust_company_info
+  field: needRegisterCa
+  meaning: 开通电子签章；Y/N/P
+  evidence: code
+- table: cust_company_info
+  field: caRegisterStatus
+  meaning: CA开通状态；Y/N/P
+  evidence: code
+- table: cust_company_info
+  field: needRegisterBs
+  meaning: 是否需要开通上上签；Y/N
+  evidence: code
+- table: cust_company_info
+  field: bsRegisterStatus
+  meaning: 上上签开通状态；Y/N/P
+  evidence: code
+- table: cust_company_info
+  field: dataType
+  meaning: 数据类型：主数据/记录数据；常量 DATA_TYPE_MAIN
+  evidence: code
+- table: cust_company_info
+  field: mainDataId
+  meaning: 主数据id
+  evidence: code
+- table: cust_company_info
+  field: dbTenantCode
+  meaning: 数据租户标识
+  evidence: code
+- table: cust_company_info
+  field: enable
+  meaning: 逻辑有效标识；Y/N
+  evidence: code
+- table: cust_company_info
+  field: custFrom
+  meaning: 客户来源；如“平台邀请”
+  evidence: code
+- table: cust_company_info
+  field: custSource
+  meaning: 建档数据来源
+  evidence: code
+- table: cust_company_info
+  field: custBuildType
+  meaning: 录入方式；AGW_BUILD/PC_BUILD 等
+  evidence: code
+- table: cust_company_info
+  field: legalName
+  meaning: 法人姓名
+  evidence: code
+- table: cust_company_info
+  field: legalPhone
+  meaning: 法人手机号
+  evidence: code
+- table: cust_company_info
+  field: legalCertificationNo
+  meaning: 法人证件号
+  evidence: code
+- table: cust_company_info
+  field: legalCertificationType
+  meaning: 法人证件类型
+  evidence: code
+- table: cust_company_info
+  field: headCompany
+  meaning: 是否总公司；Y/N
+  evidence: code
+- table: cust_company_info
+  field: abroadCust
+  meaning: 是否境外；Y/N
+  evidence: code
+- table: cust_company_info
+  field: outsideOrg
+  meaning: 外部机构；Y/N
+  evidence: code
+state_machines:
+- name: 企业认证状态
+  field: cust_company_info.cust_build_status
+  states:
+  - value: INIT
+    label: 初始/待提交
+    source: code_enum
+  - value: CUST_CONFIRM_AWAIT
+    label: 待客户确认
+    source: code_enum
+  - value: CUST_BUILDING
+    label: 审核中
+    source: code_enum
+  - value: AWAIT_CUST_CONFIRM
+    label: 待客户确认（简易认证）
+    source: code_enum
+  - value: BUILD_SUCCESS
+    label: 认证成功
+    source: code_enum
+  - value: BUILD_FAIL
+    label: 认证失败/驳回
+    source: code_enum
+  - value: CUST_CHANGE
+    label: 企业变更中
+    source: code_enum
+  transitions:
+  - from: INIT
+    event: 邀请认证-客户录入/注册认证提交
+    to: CUST_CONFIRM_AWAIT
+    evidence: code_path:CustCompanyInfoApplication.java:getCustBuildStatus
+  - from: INIT
+    event: 邀请认证-平台录入提交
+    to: CUST_BUILDING
+    evidence: code_path:CustCompanyInfoApplication.java:getCustBuildStatus
+  - from: BUILD_FAIL
+    event: 修改后重新提交
+    to: CUST_CONFIRM_AWAIT
+    evidence: code_path:CustCompanyInfoApplication.java:updateCustBuildStatus
+  - from: CUST_CONFIRM_AWAIT
+    event: 客户提交运营中台审核
+    to: CUST_BUILDING
+    evidence: code_path:CustCompanyInfoApplication.java:messageNotify
+  - from: CUST_BUILDING
+    event: 运营中台审核退回
+    to: CUST_CONFIRM_AWAIT
+    evidence: code_path:CustCompanyInfoApplication.java:messageNotify
+  - from: CUST_BUILDING
+    event: 审核通过
+    to: BUILD_SUCCESS
+    evidence: code_path:CustCompanyInfoApplication.java:updateCustBuildStatus
+  - from: CUST_BUILDING
+    event: 审核拒绝
+    to: BUILD_FAIL
+    evidence: code_path:CustCompanyInfoApplication.java:messageNotify
+  - from: AWAIT_CUST_CONFIRM
+    event: 简易认证确认
+    to: BUILD_SUCCESS
+    evidence: code_path:CustCompanyInfoApplication.java:confirmCustInfoForSimpleAuth
+  - from: BUILD_SUCCESS
+    event: 企业发起变更
+    to: CUST_CHANGE
+    evidence: code_path:CustCompanyIfoEnchanceService.java:isNeedMiniAuth
+- name: 企业客户状态
+  field: cust_company_info.cust_status
+  states:
+  - value: ADD
+    label: 新增
+    source: code_enum
+  - value: EFFECT
+    label: 生效
+    source: code_enum
+  - value: FREEZE
+    label: 冻结
+    source: code_enum
+  - value: WRITEOFF
+    label: 注销
+    source: code_enum
+  - value: FAILURE
+    label: 失败
+    source: code_enum
+  transitions:
+  - from: ADD
+    event: 建档认证成功
+    to: EFFECT
+    evidence: code_path:CustCompanyInfoApplication.java:updateCustBuildStatus
+  - from: EFFECT
+    event: 冻结企业
+    to: FREEZE
+    evidence: code_path:CustCompanyInfoApplication.java:freeze
+  - from: FREEZE
+    event: 解冻企业
+    to: EFFECT
+    evidence: code_path:CustCompanyInfoApplication.java:unfreeze
+  - from: EFFECT
+    event: 注销企业
+    to: WRITEOFF
+    evidence: code_path:CustCompanyInfoApplication.java:diable
+  - from: WRITEOFF
+    event: 注销时冻结企业下所有用户
+    to: WRITEOFF
+    evidence: code_path:CustCompanyInfoApplication.java:custStatusOperator
+- name: 问卷星首页展示场景
+  field: WenjuanHomeDisplayConfigDTO.displayScene
+  states:
+  - value: NONE
+    label: 不展示活动UI
+    source: code_enum
+  - value: FIRST_VISITOR_LOTTERY
+    label: 首个用户首次登入：转盘+中奖弹窗+右下角入口
+    source: code_enum
+  - value: GUIDE_ONLY
+    label: 仅指引弹窗/右下角入口
+    source: code_enum
+  transitions:
+  - from: NONE
+    event: 白名单企业、首个访问用户、抽奖未展示
+    to: FIRST_VISITOR_LOTTERY
+    evidence: code_path:WenjuanDisplayService.java:resolveHomeDisplay
+  - from: FIRST_VISITOR_LOTTERY
+    event: 抽奖已展示且问卷未完成
+    to: GUIDE_ONLY
+    evidence: code_path:WenjuanDisplayService.java:resolveHomeDisplay
+  - from: GUIDE_ONLY
+    event: 问卷已完成
+    to: GUIDE_ONLY
+    evidence: code_path:WenjuanDisplayService.java:resolveHomeDisplay
+  - from: FIRST_VISITOR_LOTTERY
+    event: 非企业首个访问用户
+    to: NONE
+    evidence: code_path:WenjuanDisplayService.java:resolveHomeDisplay
+calibers:
+- name: 智能审核引流-金融机构用户口径
+  predicate: 当前登录用户.companyType = 'FINANCE'
+  scope: GptLearnService 全部接口：syncLoginInfo、checkPosterStatus、recordPosterClick
+  evidence: code_path:GptLearnService.java:validateFinanceUser
+- name: 智能审核引流-租户白名单口径
+  predicate: cust_company_info.db_tenant_code 属于 gptLearnProperties.posterAllowedTenant
+  scope: checkPosterStatus 引流卡片弹出校验
+  evidence: code_path:GptLearnService.java:checkPosterStatus
+- name: 智能审核引流-弹出次数上限口径
+  predicate: count(gpt_learn_poster_log.user_id, gpt_learn_poster_log.company_id)
+    < gptLearnProperties.maxPosterCount
+  scope: checkPosterStatus 引流卡片弹出校验
+  evidence: code_path:GptLearnService.java:checkPosterStatus
+- name: 问卷星活动-白名单企业口径
+  predicate: cust_company_survey_whitelist.enable = 'Y' 且 isParticipating(company_id)
+    为真
+  scope: WenjuanDisplayService.resolveHomeDisplay / getSurveyUrl / shouldStayOnHomeForGotoProduct
+  evidence: db + code_path:WenjuanDisplayService.java:resolveHomeDisplay
+- name: 问卷星活动-完成态不落库口径
+  predicate: 不写 cust_survey_answer；每次调 WenjuanOpenApiClient.isSurveyCompleted(respondent)
+  scope: syncAndDisplayConfig / resolveHomeDisplay
+  evidence: code_path:WenjuanDisplayService.java:syncAndResolve
+- name: 调研问卷-答案归属口径
+  predicate: cust_survey_answer.survey_code = 'XYL_2024_Q1' AND cust_survey_answer.db_tenant_code
+    = 'all' AND cust_survey_answer.enable = 'Y'
+  scope: 讯易链调研问卷答案数据
+  evidence: db
+- name: 企业生效口径
+  predicate: cust_company_info.cust_build_status = 'BUILD_SUCCESS' AND cust_company_info.cust_status
+    = 'EFFECT' AND cust_company_info.data_type = 'MAIN' AND cust_company_info.enable
+    = 'Y'
+  scope: listEffectCompany/listEffectCompanyByTenantAndType 等企业生效查询
+  evidence: code_path:CustCompanyIfoEnchanceService.java:listEffectCompany
+- name: 平台运营方唯一口径
+  predicate: cust_company_info.cust_company_type LIKE '%PLATFORM_OPERATOR_COMPANY%'
+    AND cust_company_info.enable = 'Y' AND cust_company_info.db_tenant_code = 当前租户
+  scope: 企业建档保存前校验
+  evidence: code_path:CustCompanyIfoEnchanceService.java:checkCustInfoBeforeSave
+- name: 主数据信用代码唯一口径
+  predicate: cust_company_info.certification_no = 信用代码 AND cust_company_info.db_tenant_code
+    = 当前租户 AND cust_company_info.data_type = 'MAIN'
+  scope: 企业统一社会信用代码重复校验
+  evidence: code_path:CustCompanyIfoEnchanceService.java:getMainDataByCertification
+term_bridges:
+- term: 智能审核引流
+  aliases:
+  - GP学习
+  - gptlearn
+  - 引流卡片
+  - 智能审核引流卡片
+  maps_to: GptLearnService + gpt_learn_poster_log + /app-web/gptlearn
+  also_confused_with: []
+  adjudication: synonym
+  boundary: 代码、表、接口统一使用 gptlearn；业务/前端称智能审核引流或 GP 学习。
+- term: 调研问卷
+  aliases:
+  - 讯易链调研问卷
+  - CustSurvey
+  - survey
+  maps_to: CustSurveyController + CustSurveyAnswerService + cust_survey_answer
+  also_confused_with:
+  - 问卷星活动
+  adjudication: boundary
+  boundary: 调研问卷会提交并持久化答案到 cust_survey_answer，入口 /cust-web/survey，DB 中 survey_code
+    为 XYL_2024_Q1。
+- term: 问卷星活动
+  aliases:
+  - Wenjuan
+  - 产融首页问卷活动
+  - 抽奖问卷
+  maps_to: WenjuanController + WenjuanDisplayService + cust_company_survey_state +
+    cust_company_survey_whitelist
+  also_confused_with:
+  - 调研问卷
+  adjudication: boundary
+  boundary: 问卷星活动不落答卷状态，完成态每次实时调问卷星；仅白名单企业和企业首个访问用户展示 UI，入口 /cust-web/wenjuan。
+- term: 企业画像
+  aliases:
+  - 客户信息
+  - 企业信息主表
+  - CustCompanyInfo
+  maps_to: cust_company_info / CustCompanyInfoDO
+  also_confused_with:
+  - 企业认证状态
+  - 企业客户状态
+  adjudication: synonym
+  boundary: 企业画像在代码层主要映射客户信息主表 cust_company_info 及其认证/客户状态字段。
+- term: 问卷完成态
+  aliases:
+  - 答卷状态
+  - surveyCompleted
+  maps_to: WenjuanOpenApiClient.isSurveyCompleted(respondent)
+  also_confused_with:
+  - cust_survey_answer 提交答案
+  adjudication: boundary
+  boundary: 问卷星完成态不落库；调研问卷的提交答案才写入 cust_survey_answer。
+- term: 首个访问用户
+  aliases:
+  - firstVisitor
+  - first_visitor
+  maps_to: cust_company_survey_state.claimFirstVisitor / first_visitor_lottery_shown
+  also_confused_with: []
+  adjudication: synonym
+  boundary: 以企业为单位判定，只有该用户可看到抽奖、指引和右下角问卷入口。
+rules:
+- name: 智能审核引流仅金融机构用户可用
+  content: validateFinanceUser 校验当前登录用户非空、companyType 为 FINANCE、企业信息存在，否则抛异常。
+  impact: 非金融机构用户无法调用 /app-web/gptlearn/** 下同步登录、检查卡片、记录点击接口。
+  field_targets:
+  - cust_company_info.custCompanyType
+  evidence: code_path:GptLearnService.java:validateFinanceUser
+- name: 智能审核引流卡片弹出次数上限
+  content: 按 userId+companyId 统计 gpt_learn_poster_log 弹出记录数，达到 maxPosterCount 后不再弹出。
+  impact: 控制同一用户在同一企业下引流卡片展示次数。
+  field_targets:
+  - gpt_learn_poster_log.user_id
+  - gpt_learn_poster_log.company_id
+  evidence: code_path:GptLearnService.java:checkPosterStatus
+- name: 智能审核引流点击幂等
+  content: recordPosterClick 要求 recordId 非空，并校验记录属于当前用户和企业且未记录点击，否则抛“埋点记录不存在或已记录点击”。
+  impact: 防止同一埋点记录重复记录点击时间。
+  field_targets:
+  - gpt_learn_poster_log.click_time
+  - gpt_learn_poster_log.user_id
+  - gpt_learn_poster_log.company_id
+  evidence: code_path:GptLearnService.java:recordPosterClick
+- name: 问卷星活动仅白名单企业参与
+  content: resolveHomeDisplay/getSurveyUrl/shouldStayOnHomeForGotoProduct 均先校验 companySurveyWhitelistDao.isParticipating(companyId)。
+  impact: 非白名单企业不展示活动 UI，获取答题链接直接失败。
+  field_targets:
+  - cust_company_survey_whitelist.company_name
+  - cust_company_survey_whitelist.enable
+  evidence: code_path:WenjuanDisplayService.java:resolveHomeDisplay
+- name: 问卷星活动仅首个访问用户展示
+  content: claimFirstVisitor 判定企业首个访问用户；非首个访问用户 displayScene=NONE，不展示抽奖、指引、右下角入口。
+  impact: 同一企业仅首个访问用户看到活动 UI。
+  field_targets:
+  - cust_company_survey_state.first_visit_time
+  - cust_company_survey_state.first_visitor_lottery_shown
+  evidence: code_path:WenjuanDisplayService.java:resolveHomeDisplay
+- name: 问卷星完成态不落库
+  content: syncAndResolve 直接调用 resolveHomeDisplay，每次通过问卷星开放接口实时判断完成态，不写答卷状态。
+  impact: 问卷星完成态不进入本地表；本地只维护白名单、首个访问用户和抽奖展示标记。
+  field_targets:
+  - cust_company_survey_state.first_visitor_lottery_shown
+  evidence: code_path:WenjuanDisplayService.java:syncAndResolve
+- name: 抽奖展示标记异步执行
+  content: markLotteryShown 通过 ThreadPoolUtils.executeWithoutDbTenantCode 异步执行 markFirstVisitorLotteryShownIfMatch(userId,
+    companyId)，防刷新重复展示抽奖。
+  impact: 前端动效结束后标记抽奖已展示。
+  field_targets:
+  - cust_company_survey_state.first_visitor_lottery_shown
+  evidence: code_path:WenjuanDisplayService.java:markLotteryShown
+- name: 获取问卷星答题链接需白名单
+  content: getSurveyUrl 先校验活动配置和 companyId，再校验白名单，不在白名单则抛出 BaseException。
+  impact: 非白名单企业无法获取专属答题链接。
+  field_targets:
+  - cust_company_survey_whitelist.company_name
+  - cust_company_survey_whitelist.enable
+  evidence: code_path:WenjuanDisplayService.java:getSurveyUrl
+- name: 调研问卷提交落库
+  content: CustSurveyController.submit 解析当前 companyId、userId，调用 custSurveyAnswerService.submit
+    写入调研答案。
+  impact: 调研问卷答案持久化到 cust_survey_answer。
+  field_targets:
+  - cust_survey_answer.company_id
+  - cust_survey_answer.user_id
+  - cust_survey_answer.survey_code
+  - cust_survey_answer.question_no
+  - cust_survey_answer.answer_value
+  - cust_survey_answer.other_text
+  evidence: code_path:CustSurveyController.java:submit
+- name: 企业统一社会信用代码唯一与格式校验
+  content: checkCertificationRepeat 校验 isCreditCode，查询同租户主数据中相同 certification_no，冲突则抛“已存在该企业，统一社会信用代码冲突”。
+  impact: 同一租户主数据下统一社会信用代码不可重复。
+  field_targets:
+  - cust_company_info.certificationNo
+  - cust_company_info.dbTenantCode
+  - cust_company_info.dataType
+  evidence: code_path:CustCompanyIfoEnchanceService.java:checkCertificationRepeat
+- name: 一个租户只能有一个平台运营方
+  content: 企业角色包含 PLATFORM_OPERATOR_COMPANY 时，统计同租户 enable=Y 且排除当前 id 的记录，count>0
+    则抛“一个租户只能有一个平台运营方”。
+  impact: 平台运营方在租户内唯一。
+  field_targets:
+  - cust_company_info.custCompanyType
+  - cust_company_info.dbTenantCode
+  - cust_company_info.enable
+  evidence: code_path:CustCompanyIfoEnchanceService.java:checkCustInfoBeforeSave
+- name: 供票产品开通限制
+  content: 企业建档选择供票产品时，必须非简易认证、已开通电子签章、总公司，否则依次抛对应错误。
+  impact: 简易认证、未开通电子签章、非总公司不能开通供票产品。
+  field_targets:
+  - cust_company_info.identifyStyle
+  - cust_company_info.needRegisterCa
+  - cust_company_info.headCompany
+  evidence: code_path:CustCompanyIfoEnchanceService.java:checkCustInfoBeforeSaveForDraft
+- name: 企业状态操作允许状态校验
+  content: custStatusOperator 检查 config.allowStatusList 是否包含当前 custStatus，不包含则抛“当前操作不允许”。
+  impact: 冻结、解冻、注销等操作受当前企业状态约束。
+  field_targets:
+  - cust_company_info.custStatus
+  evidence: code_path:CustCompanyInfoApplication.java:custStatusOperator
+- name: 同一企业同一客户角色仅一个管理员
+  content: checkBeforeSave/updateAuthorAndApply 统计同 refCustCompanyInfo、companyType、enable=Y、userType=admin
+    且排除当前 id 的记录，count>0 则抛“当前企业已经存在该客户角色的管理员”。
+  impact: 管理员在客户角色维度唯一。
+  field_targets:
+  - cust_person_info.refCustCompanyInfo
+  - cust_person_info.companyType
+  - cust_person_info.userType
+  - cust_person_info.enable
+  evidence: code_path:CustPersonApplication.java:checkBeforeSave
+- name: 企业类型按 JSON 数组字符串存储
+  content: custCompanyType 字段存储格式为 JSON 数组，如 ["FINANCE"] 或 ["CORE","FINANCE"]；查询时使用
+    like 匹配 "FINANCE" 精确匹配类型值。
+  impact: 企业角色查询、平台运营方判断、供票校验均需按 JSON 数组解析或 like 匹配。
+  field_targets:
+  - cust_company_info.custCompanyType
+  evidence: code_path:CustCompanyIfoEnchanceService.java:listEffectCompanyByTenantAndType
+reqdoc_claims: []

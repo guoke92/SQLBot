@@ -1,0 +1,338 @@
+field_semantics:
+- table: cust_company_info
+  field: cust_build_status
+  meaning: 企业建档/认证状态，表示企业从初始化到认证成功/失败的全流程状态
+  evidence: db
+- table: cust_company_info
+  field: cust_status
+  meaning: 客户生命周期状态，表示企业生效、冻结、注销等经营状态
+  evidence: db
+- table: cust_company_info
+  field: identify_style
+  meaning: 认证方式，取值如 INVITE（邀请认证-客户录入）、INVITE_AGW（邀请认证-平台录入）、SELF（自主认证）、SIMPLE（简易认证）
+  evidence: db
+- table: cust_company_info
+  field: cust_build_type
+  meaning: 录入方式，取值如 AGW_BUILD（平台录入）、PC_BUILD（客户端录入）、SIMPLE（简易录入）
+  evidence: db
+- table: cust_company_info
+  field: check_status
+  meaning: 运营中台审核状态，取值如 CUST_CHECK_INIT、CUST_CHECK_CHECKING、CUST_CHECK_PASS、CUST_CHECK_REJECT、CUST_CHECK_BACKTOCUSTOM、EFFECT
+  evidence: db
+- table: cust_company_info
+  field: data_type
+  meaning: 数据类型：1-主数据，0-记录数据（暂存/变更过程数据），2-申请数据（认证流程数据）
+  evidence: code
+- table: cust_company_info
+  field: apply_type
+  meaning: 流程类型：add-新增建档流程，update-变更流程
+  evidence: code
+- table: cust_company_info
+  field: cust_source
+  meaning: 建档数据来源，取值如 MIGRATORY（迁移）、PLATFORM、PLATFORM_PUSH、PPLATFORM
+  evidence: db
+- table: cust_company_info
+  field: cust_company_type
+  meaning: 企业角色，JSON数组字符串，如 ["SUPPLIER"]、["CORE"] 等
+  evidence: db
+- table: cust_company_info
+  field: act_procinst_status
+  meaning: 流程实例当前审批状态，取值如 待客户确认、审批中、认证失败、退回、变更成功
+  evidence: db
+- table: cust_company_info
+  field: audit_back_flag
+  meaning: 审核退回标记，Y/N
+  evidence: db
+- table: cust_company_info
+  field: back_reason
+  meaning: 退回原因
+  evidence: db
+- table: cust_company_info
+  field: main_data_id
+  meaning: 主数据ID，记录/申请数据指向所属主数据
+  evidence: code
+- table: cust_company_info
+  field: apply_data_id
+  meaning: 认证流程数据ID，主数据指向最近一次流程数据
+  evidence: db
+- table: cust_company_info
+  field: ca_register_status
+  meaning: CA开通状态，N-未开通，Y-已开通，P-开通中
+  evidence: db
+- table: cust_company_info
+  field: need_register_ca
+  meaning: 是否需要开通电子签章（CA），Y/N
+  evidence: db
+- table: cust_company_info
+  field: bs_register_status
+  meaning: 上上签开通状态，N-未开通，Y-已开通
+  evidence: db
+- table: cust_company_info
+  field: need_register_bs
+  meaning: 是否需要开通上上签，Y/N
+  evidence: db
+- table: cust_company_info
+  field: enable
+  meaning: 数据启用状态，Y-启用，N-停用
+  evidence: db
+state_machines:
+- name: 企业认证状态机
+  field: cust_build_status
+  states:
+  - value: INIT
+    label: 初始化
+    source: code_enum
+  - value: CUST_CONFIRM_AWAIT
+    label: 待客户确认
+    source: code_enum
+  - value: CUST_BUILDING
+    label: 认证中
+    source: code_enum
+  - value: BUILD_SUCCESS
+    label: 认证成功
+    source: code_enum
+  - value: BUILD_FAIL
+    label: 认证失败
+    source: code_enum
+  - value: BUILD_BACK
+    label: 退回
+    source: code_enum
+  - value: BUILD_ACTIVATE
+    label: 待激活
+    source: code_enum
+  - value: CUST_CHANGE
+    label: 变更中
+    source: code_enum
+  - value: AWAIT_CUST_CONFIRM
+    label: 待客户确认（简易认证）
+    source: code_enum
+  - value: CUST_AUDIT_AWAIT
+    label: 审核等待
+    source: db_dist
+  - value: BUILDING
+    label: 建档中
+    source: db_dist
+  - value: CUST_BUILD_SUCCESS
+    label: 认证成功（历史值）
+    source: db_dist
+  transitions:
+  - from: INIT
+    event: 提交建档（认证方式=INVITE或SELF）
+    to: CUST_CONFIRM_AWAIT
+    evidence: code_path:CustCompanyInfoApplication.java:submitCust
+  - from: INIT
+    event: 提交建档（认证方式=INVITE_AGW）
+    to: CUST_BUILDING
+    evidence: code_path:CustCompanyInfoApplication.java:submitCust
+  - from: CUST_CONFIRM_AWAIT
+    event: 客户提交审核
+    to: CUST_BUILDING
+    evidence: code_path:CustCompanyInfoApplication.java:messageNotify
+  - from: CUST_BUILDING
+    event: 运营审核退回
+    to: CUST_CONFIRM_AWAIT
+    evidence: code_path:CustCompanyInfoApplication.java:messageNotify
+  - from: CUST_BUILDING
+    event: 运营审核通过
+    to: BUILD_SUCCESS
+    evidence: code_path:CustCompanyInfoApplication.java:messageNotify
+  - from: CUST_CONFIRM_AWAIT
+    event: 简易认证确认
+    to: BUILD_SUCCESS
+    evidence: code_path:CustCompanyInfoApplication.java:confirmCustInfoForSimpleAuth
+  - from: BUILD_FAIL
+    event: 重新提交
+    to: CUST_CONFIRM_AWAIT
+    evidence: code_path:ApplyCompanyInfoApplication.java:addCustApplyWorkFlow
+  - from: CUST_CONFIRM_AWAIT
+    event: 重新认证
+    to: INIT
+    evidence: code_path:CustCompanyOperationApplication.java:reAuthentication
+- name: 客户状态机
+  field: cust_status
+  states:
+  - value: ADD
+    label: 新增
+    source: code_enum
+  - value: EFFECT
+    label: 生效
+    source: code_enum
+  - value: FREEZE
+    label: 冻结
+    source: code_enum
+  - value: WRITEOFF
+    label: 注销
+    source: code_enum
+  - value: CHANGE
+    label: 变更中
+    source: db_dist
+  transitions:
+  - from: ADD
+    event: 认证成功
+    to: EFFECT
+    evidence: code_path:CustCompanyInfoApplication.java:updateCustBuildStatus
+  - from: EFFECT
+    event: 冻结
+    to: FREEZE
+    evidence: code_path:CustCompanyInfoApplication.java:freeze
+  - from: FREEZE
+    event: 解冻
+    to: EFFECT
+    evidence: code_path:CustCompanyInfoApplication.java:unfreeze
+  - from: EFFECT
+    event: 注销
+    to: WRITEOFF
+    evidence: code_path:CustCompanyInfoApplication.java:diable
+- name: 运营审核状态机
+  field: check_status
+  states:
+  - value: CUST_CHECK_INIT
+    label: 初始化
+    source: code_enum
+  - value: CUST_CHECK_CHECKING
+    label: 审核中
+    source: db_dist
+  - value: CUST_CHECK_PASS
+    label: 审核通过
+    source: code_enum
+  - value: CUST_CHECK_REJECT
+    label: 审核拒绝
+    source: code_enum
+  - value: CUST_CHECK_BACKTOCUSTOM
+    label: 退回客户
+    source: code_enum
+  - value: EFFECT
+    label: 生效
+    source: db_dist
+  transitions:
+  - from: CUST_CHECK_INIT
+    event: 提交运营中台审核
+    to: CUST_CHECK_CHECKING
+    evidence: code_path:CustCompanyInfoApplication.java:submitCust
+  - from: CUST_CHECK_CHECKING
+    event: 运营审核通过
+    to: CUST_CHECK_PASS
+    evidence: code_path:CustCompanyInfoApplication.java:messageNotify
+  - from: CUST_CHECK_CHECKING
+    event: 运营审核退回
+    to: CUST_CHECK_BACKTOCUSTOM
+    evidence: code_path:CustCompanyInfoApplication.java:messageNotify
+  - from: CUST_CHECK_BACKTOCUSTOM
+    event: 客户重新提交
+    to: CUST_CHECK_CHECKING
+    evidence: code_path:CustCompanyInfoApplication.java:reSubmit
+calibers:
+- name: 生效企业
+  predicate: cust_company_info.cust_build_status = 'BUILD_SUCCESS' AND cust_company_info.cust_status
+    = 'EFFECT' AND cust_company_info.data_type = '1' AND cust_company_info.enable
+    = 'Y'
+  scope: 企业查询、租户有生效企业判断
+  evidence: code_path:CustCompanyUtilApplication.java:getTenantCodesWithEffectCompany
+- name: 主数据
+  predicate: cust_company_info.data_type = '1'
+  scope: 企业主数据查询与更新
+  evidence: code_path:CustDataTypeConstant.DATA_TYPE_MAIN
+- name: 流程/申请数据
+  predicate: cust_company_info.data_type IN ('0','2')
+  scope: 认证流程、变更流程数据
+  evidence: code_path:CustDataTypeConstant.DATA_TYPE_RECORD/DATA_TYPE_APPLY
+- name: 待客户确认
+  predicate: cust_company_info.cust_build_status = 'CUST_CONFIRM_AWAIT'
+  scope: 认证流程状态
+  evidence: code_path:CustBuildStatusConstant.CUST_CONFIRM_AWAIT
+- name: 认证中
+  predicate: cust_company_info.cust_build_status = 'CUST_BUILDING'
+  scope: 认证流程状态
+  evidence: code_path:CustBuildStatusConstant.CUST_BUILDING
+term_bridges:
+- term: 认证状态
+  aliases:
+  - 建档状态
+  - cust_build_status
+  maps_to: cust_company_info.cust_build_status
+  also_confused_with:
+  - 客户状态
+  - 审核状态
+  adjudication: boundary
+  boundary: 认证状态描述企业建档审核的进度；客户状态描述企业生命周期状态；审核状态描述运营中台单次审核结果。
+- term: 客户状态
+  aliases:
+  - cust_status
+  maps_to: cust_company_info.cust_status
+  also_confused_with:
+  - 认证状态
+  adjudication: boundary
+  boundary: 客户状态包括生效、冻结、注销等，与认证状态独立。
+- term: 认证方式
+  aliases:
+  - identify_style
+  maps_to: cust_company_info.identify_style
+  also_confused_with:
+  - 录入方式
+  adjudication: boundary
+  boundary: 认证方式指 INVITE、INVITE_AGW、SELF、SIMPLE；录入方式指 AGW_BUILD、PC_BUILD、SIMPLE。
+- term: 录入方式
+  aliases:
+  - cust_build_type
+  maps_to: cust_company_info.cust_build_type
+  also_confused_with:
+  - 认证方式
+  adjudication: boundary
+  boundary: 录入方式表示数据由谁录入（平台/客户端/简易）；认证方式表示认证流程类型。
+- term: 企业类型
+  aliases:
+  - 企业角色
+  - cust_company_type
+  - 客户角色
+  maps_to: cust_company_info.cust_company_type
+  also_confused_with: []
+  adjudication: synonym
+  boundary: 企业类型、企业角色、客户角色均指同一概念，存储为JSON数组字符串。
+- term: 审核状态
+  aliases:
+  - check_status
+  maps_to: cust_company_info.check_status
+  also_confused_with:
+  - 认证状态
+  adjudication: boundary
+  boundary: 审核状态是运营中台对单次提交的审核结果；认证状态是企业建档的整体状态。
+rules:
+- name: 认证成功置客户生效
+  content: 当企业认证状态变更为 BUILD_SUCCESS 时，同步将客户状态 cust_status 置为 EFFECT。
+  impact: 企业正式生效，可开展业务。
+  field_targets:
+  - cust_build_status
+  - cust_status
+  evidence: code_path:CustCompanyInfoApplication.java:updateCustBuildStatus
+- name: 冻结企业同时冻结管理员
+  content: 冻结企业时，同时冻结该企业下的管理员用户。
+  impact: 管理员无法登录。
+  field_targets:
+  - cust_status
+  evidence: code_path:CustCompanyInfoApplication.java:freeze
+- name: 注销企业同时冻结所有用户
+  content: 注销企业时，先冻结该企业下所有用户。
+  impact: 所有用户无法登录。
+  field_targets:
+  - cust_status
+  evidence: code_path:CustCompanyInfoApplication.java:custStatusOperator
+- name: 认证状态条件更新
+  content: 更新认证状态时需匹配原状态且 enable='Y' 且 data_type='1'（主数据），防止并发错误。
+  impact: 保证状态迁移的原子性。
+  field_targets:
+  - cust_build_status
+  evidence: code_path:CustCompanyInfoApplication.java:appenUpdateCustBulidStatus
+- name: 重新认证限制
+  content: 仅当认证状态为 CUST_CONFIRM_AWAIT 时，允许重置为 INIT 重新认证。
+  impact: 状态不符时抛异常。
+  field_targets:
+  - cust_build_status
+  evidence: code_path:CustCompanyOperationApplication.java:reAuthentication
+- name: 变更前置校验
+  content: 企业存在在途变更流程（data_type='2' 且 cust_build_status 不在 BUILD_SUCCESS/BUILD_FAIL）时，不允许发起新的变更。
+  impact: 防止并发变更。
+  field_targets:
+  - data_type
+  - cust_build_status
+  evidence: code_path:ApplyCompanyInfoApplication.java:judgeHaveApplyingRecord
+reqdoc_claims: []

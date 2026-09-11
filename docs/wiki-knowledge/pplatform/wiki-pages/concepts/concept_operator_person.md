@@ -9,17 +9,17 @@ aliases: ["operator", "operator person"]
 oid: 1
 sources: ["enrich:wiki-admin"]
 contract_version: "0.1"
-maps_to: "cust_person_info.user_type = 'operator'"
-field_targets: []
+maps_to: "cust_person_info.user_type = 'accountNormal'"
+field_targets: ["cust_person_info.user_type"]
 adjudication: boundary
 also_confused_with:
   - "管理员"
-boundary: "user_type区分：admin管理员、operator经办人、guest游客"
+boundary: "user_type区分：accountAdmin 管理员、accountNormal 经办人、accountGuest 游客"
 scope:
   databases: [lowcode_pplatform]
 ---
 
-经办人是企业联系人的一种类型，属于 `cust_person_info` 表中 `user_type = 'operator'` 的记录，用于处理企业事务。
+经办人是企业联系人的一种类型，属于 `cust_person_info` 表中 `user_type = 'accountNormal'` 的记录，用于处理企业事务。
 
 ## 需求背景
 
@@ -27,6 +27,6 @@ scope:
 
 ## 版本演进
 
-术语定义来自代码字段枚举，无文档声明冲突。
+术语定义无文档声明冲突。
 
-相关：[[cust_person_info]]
+相关：[[cust_person_info]] [[user_type]]

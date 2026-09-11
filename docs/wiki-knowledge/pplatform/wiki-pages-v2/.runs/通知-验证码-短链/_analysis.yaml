@@ -1,0 +1,434 @@
+field_semantics:
+- table: short_link
+  field: id
+  meaning: 短链主键；/sl/{number} 映射式短链中，number 去掉末位校验字符后经 LongBase64Utils.decode 还原为该
+    id 用于查询
+  evidence: code
+- table: short_link
+  field: number
+  meaning: 短链编码，是 /cust-web/sl/{number} 的唯一查询键；在 /sl/{number} 中 number 末位字符为校验位（LongBase64Utils.generateVerifyCode(link.getNumber())）
+  evidence: code
+- table: short_link
+  field: code
+  meaning: 通用编码字段（框架级），与业务访问用的 number 不是同一口径，勿混用
+  evidence: db
+- table: short_link
+  field: source_url
+  meaning: 短链跳转的源链接；type=FILE 时该值需经 fileService.filePathEncrypt 换取可访问地址后再 redirect
+  evidence: db
+- table: short_link
+  field: type
+  meaning: 短链类型：NORMAL=普通链接直接跳转；FILE=文件类链接需加密换链后跳转（DB 实测分布 FILE=605 / NORMAL=4750）
+  evidence: db
+- table: short_link
+  field: is_forever
+  meaning: 是否永久有效；=Y 时跳过 expire_time 过期校验，=N 时按到期时间判过期（DB 实测当前存量全为 Y，5355 条）
+  evidence: db
+- table: short_link
+  field: expire_time
+  meaning: 短链到期时间，仅在 is_forever=N 时参与校验
+  evidence: db
+- table: short_link
+  field: enable
+  meaning: 逻辑有效标识（DB 实测全为 Y）
+  evidence: db
+- table: short_link
+  field: db_tenant_code
+  meaning: 数据租户标识（DB 实测当前存量仅 base 一个租户）
+  evidence: db
+- table: cust_message_send_policy
+  field: scenes_type
+  meaning: 消息场景码，对应代码中的 SmsTemplateConstant / NoticeTemplateConstant / EmailTemplateConstansts
+    常量值，用于定位消息模板与场景实现类
+  evidence: db
+- table: cust_message_send_policy
+  field: msg_kind
+  meaning: 消息类型（短信/邮件/站内信等渠道维度的策略分类）
+  evidence: db
+- table: cust_message_send_policy
+  field: send_enable
+  meaning: 发送标识（默认 Y），控制该场景消息是否实际发送
+  evidence: db
+- table: cust_message_send_policy
+  field: name
+  meaning: 策略名称
+  evidence: db
+- table: cust_setting_config
+  field: invitation_code_period
+  meaning: 邀请码有效期数值（DB 实测=1），需与 invitation_code_period_unit 组合使用
+  evidence: db
+- table: cust_setting_config
+  field: invitation_code_period_unit
+  meaning: 邀请码有效期单位
+  evidence: db
+- table: cust_setting_config
+  field: sending_interval
+  meaning: 邀请码重复发送时间间隔数值（DB 实测=1）
+  evidence: db
+- table: cust_setting_config
+  field: sending_interval_unti
+  meaning: 邀请码重复发送时间间隔单位（列名 unti 为库表既有拼写，非笔误）
+  evidence: db
+- table: cust_setting_config
+  field: key_word
+  meaning: 企业关键信息字段清单（JSON 数组字符串），变更审核判定用；DB 实测值含 name/custCompanyType/legalName/legalPhone/legalCertificationNo/legalCertificationType/legalEmail/registProvinceCity/timePermanent/phone/certificationNo/certificationType
+  evidence: db
+- table: cust_setting_config
+  field: no_key_word
+  meaning: 企业非关键信息字段清单（JSON 数组字符串）；DB 实测 contactTel/custEmail/paidInCapital
+  evidence: db
+- table: cust_setting_config
+  field: need_auth_verify
+  meaning: 企业认证是否需审核：no=直接免审（custChangeInfoNeedApply 首判），否则进入关键信息比对
+  evidence: db
+- table: cust_setting_config
+  field: need_verify_no_key
+  meaning: 非关键信息变更是否需审核：no=非关键信息变更不触发审核
+  evidence: db
+- table: cust_setting_config
+  field: face_recognition
+  meaning: 人脸识别开关（DB 实测 no）
+  evidence: db
+- table: cust_setting_config
+  field: payment_verification
+  meaning: 打款验证开关（DB 实测 yes）
+  evidence: db
+- table: cust_setting_config
+  field: payment_maximum_number
+  meaning: 最多申请打款次数（DB 实测 3）
+  evidence: db
+- table: cust_setting_config
+  field: user_agreement
+  meaning: 用户协议模板编号（DB 实测 CT-202404031806394575219）
+  evidence: db
+- table: cust_setting_config
+  field: privacy_policy_agreement
+  meaning: 隐私政策协议模板编号（DB 实测 CT-202404031807156758507）
+  evidence: db
+- table: cust_setting_config
+  field: authorization_offline
+  meaning: 授权确认书-线下签署模板编号（DB 实测 CT-202404081721209495040）
+  evidence: db
+- table: cust_setting_config
+  field: cust_id
+  meaning: 配置所属企业 id
+  evidence: db
+state_machines:
+- name: 短链类型路由
+  field: short_link.type
+  states:
+  - value: NORMAL
+    label: 普通短链：直接 302 到 source_url
+    source: code_enum
+  - value: FILE
+    label: 文件短链：source_url 需 filePathEncrypt 换链后 302
+    source: db_dist
+  transitions:
+  - from: NORMAL
+    event: GET /cust-web/sl/{number} 命中且未过期
+    to: NORMAL
+    evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/controller/shortlink/ShortLinkController.java#orderCategory
+  - from: FILE
+    event: type != NORMAL 时走 else 分支执行 filePathEncrypt(sourceUrl,false)
+    to: FILE
+    evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/controller/shortlink/ShortLinkController.java#orderCategory
+- name: 短链有效期标志
+  field: short_link.is_forever
+  states:
+  - value: Y
+    label: 永久有效，跳过 expire_time 校验
+    source: db_dist
+  - value: N
+    label: 非永久，访问时比对 expire_time
+    source: code_enum
+  transitions: []
+- name: 消息渠道（MessageTypeEnum）
+  field: messageContext.messageType
+  states:
+  - value: PHONE
+    label: 短信渠道
+    source: code_enum
+  - value: EMAIL
+    label: 邮件渠道
+    source: code_enum
+  - value: NOTICE
+    label: 站内信渠道
+    source: code_enum
+  transitions:
+  - from: EMAIL
+    event: getMessageService(scenesType).messageType()=EMAIL → new EmailMessageContext()
+    to: EMAIL
+    evidence: code_path:lowcode-pplatform-components/lowcode-pplatform-sso-component/src/main/java/com/lls/lowcode/pplatform/facade/MessageFacade.java#getMessageContext
+  - from: NOTICE
+    event: messageType()=NOTICE → new NoticeMessageContext() 并回填 noticeTemplate 的
+      templateNo/system/systemName
+    to: NOTICE
+    evidence: code_path:lowcode-pplatform-components/lowcode-pplatform-sso-component/src/main/java/com/lls/lowcode/pplatform/facade/MessageFacade.java#getDefaultTemplateNo
+  - from: PHONE
+    event: messageType() 非 EMAIL/NOTICE → 构造基础 MessageContext，按 messageSmsTemplate
+      回填 templateNo
+    to: PHONE
+    evidence: code_path:lowcode-pplatform-components/lowcode-pplatform-sso-component/src/main/java/com/lls/lowcode/pplatform/facade/MessageFacade.java#getMessageContext
+  - from: PHONE
+    event: 验证码场景（@MessageSpi.sendVerifyCode()=true）生成验证码并写入 params.smsCode/timeLimit
+    to: PHONE
+    evidence: code_path:lowcode-pplatform-components/lowcode-pplatform-sso-component/src/main/java/com/lls/lowcode/pplatform/facade/MessageFacade.java#sendVerifyCode
+calibers:
+- name: 短链已过期
+  predicate: short_link.is_forever = 'N' AND short_link.expire_time <= NOW()
+  scope: 'ShortLinkController#orderCategory / #shortLink 跳转前置校验，命中即抛 CommonException("不好意思，您访问的文件链接已过期！")'
+  evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/controller/shortlink/ShortLinkController.java#orderCategory
+    + db:short_link.is_forever/expire_time
+- name: 永久短链
+  predicate: short_link.is_forever = 'Y'
+  scope: 跳过 expire_time 校验，直接解析跳转
+  evidence: db:short_link 值分布 is_forever(Y:5355) + code_path:ShortLinkController.java#shortLink
+- name: 普通短链
+  predicate: short_link.type = 'NORMAL'
+  scope: sourceUrl 直接 resp.sendRedirect
+  evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/controller/shortlink/ShortLinkController.java#orderCategory
+- name: 文件短链
+  predicate: short_link.type = 'FILE'（即非 NORMAL）
+  scope: sourceUrl 经 fileService.getDefaultFileService().filePathEncrypt(sourceUrl,false)
+    后再 redirect
+  evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/controller/shortlink/ShortLinkController.java#shortLink
+    + db:short_link.type(FILE:605)
+- name: 未完成待办
+  predicate: notice.notice_status = '0'
+  scope: NoticeFacade#pageTodoCount 与 CustNoticeService#pageTodo 均以 noticeStatus='0'
+    统计个人待办数
+  evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/facade/NoticeFacade.java#pageTodoCount
+- name: 产融本库待办
+  predicate: productAppId = 'ACCOUNT_PRODUCT' → system='pplatform'；productAppId =
+    'BEECREDIT' → system='BEECREDIT'
+  scope: CustNoticeService#resolveLocalNoticeSystem，命中则走 NoticeProvider 本库查询，不调下游
+    Dubbo
+  evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/CustNoticeService.java#resolveLocalNoticeSystem
+- name: AMS 待办按联系人 id 查询
+  predicate: productAppId = 'AMS' → userId = cust_person_info.id（getPersonId）
+  scope: CustNoticeService#pageTodo / CustNoticeController#getProductNoticeCount
+  evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/CustNoticeService.java#pageTodo
+- name: 短信发送默认参数
+  predicate: scenesType 为空 → SMS_CUST_LIMIT_REMINDER；businessType 为空 → 'cust_company_info'；system
+    为空 → pplatform
+  scope: PlatMessageApplication#sendSmsMessage
+  evidence: code_path:lowcode-pplatform-components/lowcode-pplatform-notice-component/src/main/java/com/lls/lowcode/pplatform/notices/application/PlatMessageApplication.java#sendSmsMessage
+- name: 签约验证码固定场景
+  predicate: scenesType = SmsTemplateConstant.SMS_BATCH_SIGN_CONTRACT
+  scope: MessageFacade#sendVerifyCode(serviceKey,businessId,businessType,system,signatoryId)
+    强制覆盖场景码
+  evidence: code_path:lowcode-pplatform-components/lowcode-pplatform-sso-component/src/main/java/com/lls/lowcode/pplatform/facade/MessageFacade.java#sendVerifyCode
+- name: 验证码校验口径
+  predicate: indentifyWay = PHONE 或 EMAIL AND indentifyChannel = 手机号或邮箱
+  scope: NoticeIndentifyProvider#checkIndentifyCode 透传 IndentifycodeInfoProvider
+  evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/message/NoticeIndentifyProviderImpl.java#checkIndentifyCode
+- name: 验证码场景白名单
+  predicate: scenesType ∈ {SMS_BATCH_SIGN_CONTRACT, LANDED_PHONE, RESET_PASSWORD,
+    REGISTER_PHONE, SMS_LEDGAL_AUTHORIZE, SMS_CUST_BUILD_AUTH, SMS_CA_INTENT_CONFIRM}
+  scope: MessageFacade.VERIFY_CODE_SCENES 常量集合（直接调用 sendVerifyCode 的场景）
+  evidence: code_path:lowcode-pplatform-components/lowcode-pplatform-sso-component/src/main/java/com/lls/lowcode/pplatform/facade/MessageFacade.java#VERIFY_CODE_SCENES
+- name: 验证码有效期参数
+  predicate: params.timeLimit = indentifycodeCofig.codeDuration + codeDurationUnit.getDisplayName()
+  scope: MessageFacade#sendVerifyCode，配置缺失抛 CommonException("缺少验证码有效期配置！")
+  evidence: code_path:lowcode-pplatform-components/lowcode-pplatform-sso-component/src/main/java/com/lls/lowcode/pplatform/facade/MessageFacade.java#sendVerifyCode
+- name: 邀请码有效期
+  predicate: cust_setting_config.invitation_code_period + invitation_code_period_unit
+  scope: 邀请码有效期由配置驱动（DB 实测 invitation_code_period=1），非固定常数
+  evidence: db:cust_setting_config.invitation_code_period/invitation_code_period_unit
+- name: 消息模板缺失
+  predicate: 站内信/短信/邮件模板按 dbTenantCode + scenesType 均查不到
+  scope: MessageFacade#getDefaultTemplateNo 抛 CommonException("消息模板查找失败！租户【x】场景【y】")
+  evidence: code_path:lowcode-pplatform-components/lowcode-pplatform-sso-component/src/main/java/com/lls/lowcode/pplatform/facade/MessageFacade.java#getDefaultTemplateNo
+term_bridges:
+- term: 短链
+  aliases:
+  - 短链接
+  - shortLink
+  - short_link
+  maps_to: short_link 表（number 为访问键，source_url 为目标链接，type 决定是否需要换链）
+  also_confused_with:
+  - /sl/{number} 的 id 映射方式
+  - short_link.code 通用编码字段
+  adjudication: boundary
+  boundary: /cust-web/sl/{number} 按 short_link.number 查询；/sl/{number} 则把 number 去掉末位校验字符后
+    Base64 解码为 short_link.id 查询，并校验末位字符 = LongBase64Utils.generateVerifyCode(link.number)；两者均可能因链接不存在/过期/校验失败抛同一文案异常
+- term: 验证码
+  aliases:
+  - verifyCode
+  - indentifyCode
+  - smsCode
+  maps_to: 验证码生成与校验：IndentifycodeFacade#getIndentifyCode / IndentifycodeInfoProvider#checkIndentifyCode，回填
+    MessageContext.verifyCode 与模板参数 smsCode
+  also_confused_with:
+  - 邀请码 invitationCode
+  - 签约签约码 serviceKey
+  adjudication: boundary
+  boundary: 验证码为短时校验凭证（有效期取 indentifycodeCofig.codeDuration+单位），随消息下发；邀请码是邀请认证场景的长期凭证，有效期由
+    cust_setting_config.invitation_code_period/unit 控制，两者存储与校验链路不同
+- term: 站内信
+  aliases:
+  - 消息盒子
+  - notice
+  - NOTICE
+  maps_to: MessageTypeEnum.NOTICE 渠道 + noticeFacade.getNoticeTemplate(dbTenantCode,
+    sceneType) 模板 + NoticeProvider
+  also_confused_with:
+  - 待办（noticeStatus=0）
+  - 待办任务 notice_task_* 场景
+  adjudication: boundary
+  boundary: 站内信按 NOTICE 模板渲染消息内容；待办是站内信中 noticeStatus='0' 未完成态的子集，通过 completeBySceneType(sceneType)
+    关闭待办，二者共用表但统计口径不同
+- term: 场景码
+  aliases:
+  - scenesType
+  - sceneType
+  - 场景类型
+  maps_to: cust_message_send_policy.scenes_type 及 SmsTemplateConstant/NoticeTemplateConstant/EmailTemplateConstansts
+    常量
+  also_confused_with:
+  - businessType
+  - msg_kind
+  adjudication: boundary
+  boundary: scenesType 决定消息模板与场景实现类（@MessageSpi.scenesType）；businessType 决定业务数据来源表（如
+    cust_company_info / cust_person_info），二者在 SendMessageReq 中同级且都必传
+- term: 通知失败不阻断业务
+  aliases:
+  - 发送失败仅记录日志
+  maps_to: PlatMessageApplication#sendSmsMessage / CustMessageSendService#sendSms
+    / WechatNotificationService#sendVerificationCodeNotification 的 catch 分支
+  also_confused_with:
+  - MessageFacade#getDefaultTemplateNo 抛出的模板缺失异常（该场景会抛出）
+  adjudication: boundary
+  boundary: 发送动作本身失败被吞掉并返回 fail/false；但模板查找失败、验证码有效期配置缺失等前置校验异常会向上抛出，不属"静默失败"范围
+rules:
+- name: 通知发送失败不阻断主流程
+  content: 短信发送在 PlatMessageApplication#sendSmsMessage 中 try/catch，异常时返回 PlatMessageRespDto.fail(e.getMessage())；CustMessageSendService
+    各 sendSms/sendEmail/sendMessage 方法 catch 后仅记录日志；微信通知在 WechatNotificationService
+    中 catch 后返回 true。
+  impact: 建档、变更、签约等主流程不因通知渠道不可用而回滚或失败
+  field_targets:
+  - cust_message_send_policy.send_enable
+  evidence: code_path:lowcode-pplatform-components/lowcode-pplatform-notice-component/src/main/java/com/lls/lowcode/pplatform/notices/application/PlatMessageApplication.java#sendSmsMessage
+    + code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/CustMessageSendService.java#sendSms
+- name: 前置校验异常不受静默策略保护
+  content: receiver/dbTenantCode/paramMap 为空分别抛 BaseException；模板查找失败抛 CommonException("消息模板查找失败！...")；验证码有效期配置缺失抛
+    CommonException("缺少验证码有效期配置！")。
+  impact: 配置缺失会直接暴露给调用方，需在接入场景前确保模板与验证码配置就绪
+  field_targets:
+  - cust_message_send_policy.scenes_type
+  evidence: code_path:lowcode-pplatform-components/lowcode-pplatform-sso-component/src/main/java/com/lls/lowcode/pplatform/facade/MessageFacade.java#sendVerifyCode
+- name: 验证码接收渠道取值
+  content: receiver 为 String 时直接作为 indentifyChannel；为 List 时取第 0 个（注释明确"邮箱默认第一个"）；其他类型落
+    error 日志并抛 BaseException("系统消息通知暂不支持验证码!")。
+  impact: 多接收人场景只有第一个接收人参与验证码生成与校验
+  field_targets: []
+  evidence: code_path:lowcode-pplatform-components/lowcode-pplatform-sso-component/src/main/java/com/lls/lowcode/pplatform/facade/MessageFacade.java#sendVerifyCode
+- name: 签约验证码接收人手机号回写合同签署表
+  content: CustVerifyCodeApplication#sendVerifyCode 中，当 messageType=PHONE 时，按 serviceKey
+    与 businessId 的笛卡尔积调用 contractSignInfoProvider.setVerifyContractPhone(id, businessType,
+    key, phone, companyId)。
+  impact: 合同签署记录保存验证码接收手机号，供后续签署校验
+  field_targets: []
+  evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustVerifyCodeApplication.java#sendVerifyCode
+- name: 场景Key与业务id不能同时多笔
+  content: CustVerifyCodeController#sendVerifyCode 校验 keys.length>1 && businessIds.length>1
+    时抛 CommonException("场景Key和业务id不能同时为多笔!")。
+  impact: 限制批量验证码的入参组合，避免手机号回写产生歧义
+  field_targets: []
+  evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/controller/CustVerifyCodeController.java#sendVerifyCode
+- name: 签约主体默认取当前登录客户
+  content: signatoryId 为空时回填 WebUserUtil.getCurrentCustId()（发送与校验两个接口一致）。
+  impact: 未显式指定签署主体时以登录态兜底
+  field_targets: []
+  evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/controller/CustVerifyCodeController.java#checkVerifyCode
+- name: 短链异常统一文案
+  content: number 为空、链接不存在、已过期、id 解码失败、末位校验码不匹配、redirect 异常，均抛出同一提示“不好意思，您访问的文件链接已过期！”，不区分原因。
+  impact: 调用方无法从错误信息区分失效原因，排查需依赖日志（log.info("短链接访问:{}") / "短链接超时" / "短链接格式不对" / "短链接校验不通过"）
+  field_targets:
+  - short_link.number
+  - short_link.expire_time
+  evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/controller/shortlink/ShortLinkController.java#shortLink
+- name: 微信服务号发送参数
+  content: WechatNotificationService 通过 DBASS POST /wechat/sendMsgByPhone 发送，固定 sysCode='beehive'、templateNo='1000001'（TemplateNo.VERIFICATION_CODE），系统名缺省为“【讯易链】”，签名使用
+    Nacos 注入的 dbass.privateKey 做 rsaSign。
+  impact: 微信验证码通知的模板与系统代码为代码常量而非 Nacos 配置
+  field_targets: []
+  evidence: code_path:lowcode-pplatform-components/lowcode-pplatform-sso-component/src/main/java/com/lls/lowcode/pplatform/service/WechatNotificationService.java#sendVerificationCodeNotification
+- name: 运营中台回调短信分支（建档/变更授权）
+  content: CustMsgFacade#phoneCodeSend：authModel='off_auth' → 发 SMS_INVITE_AUTH_CUST_INPUT_AUTHORIZE_OFFLINE；否则若
+    custEnt.legalAuthType='LEGAL_FACE' → 以 SMS_LEDGAL_AUTHORIZE 场景发验证码并调微信通知；其余 →
+    发 SMS_INVITE_AUTH_CUST_INPUT_AUTHORIZE_ONLINE。
+  impact: 线下授权/法人人脸/线上授权三类走不同模板与渠道
+  field_targets:
+  - cust_message_send_policy.scenes_type
+  evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/oper/facade/msg/CustMsgFacade.java#phoneCodeSend
+- name: 提交建档后批量发消息
+  content: CustMessageSendService#sendAllMessageForSubmit 依次发站内信（invite→CLIENT_INVITE_AUTH_CUST_INPUT_REMIND、simple→CLIENT_SIMPLE_AUTH_PASS）、待办（invite_agw→NOTICE_TASK_INVITE_AUTH_SYS_INPUT、simple→NOTICE_TASK_SIMPLE_AUTH）、短信（simple→SMS_SIMPLE_AUTH_PASS；invite→SMS_INVITE_AUTH_CUST_INPUT_REMIND
+    + 邮件 EMAIL_IVITEAUTH_CUSTINPUT_REMIND），整体 try/catch。
+  impact: 一个提交动作触发站内信+待办+短信+邮件的组合触达，且失败整体吞掉
+  field_targets:
+  - cust_message_send_policy.scenes_type
+  evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/CustMessageSendService.java#sendAllMessageForSubmit
+- name: 邀请认证短信发送
+  content: CustPersonApplication#sendHaveInvitationCodeForInviteToSign 以 businessType='cust_person_info'、scenesType='invite'
+    构造 SendMessageReq 调用 messageProvider.sendMessage。
+  impact: 邀请类短信的场景码为字面量 invite
+  field_targets: []
+  evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustPersonApplication.java#sendHaveInvitationCodeForInviteToSign
+reqdoc_claims:
+- claim: 通知组件以邮件/短信/微信三类抽象承载客户邀请、改密、批量签约等触达场景
+  code_status: refuted
+  code_evidence: lowcode-pplatform-components/lowcode-pplatform-sso-component/src/main/java/com/lls/lowcode/pplatform/facade/MessageFacade.java#getMessageContext
+  action: prose_only
+- claim: 短信在需要幂等时通过 RedisSmsLock 检查/加锁
+  code_status: uncovered
+  code_evidence: 未在本次链路出现（RedisSmsLock 仅出现在未全文给出的文件清单 lowcode-pplatform-components/lowcode-pplatform-sso-component/src/main/java/com/lls/lowcode/pplatform/util/RedisSmsLock.java）
+  action: review
+- claim: 需要短链时由 ShortLinkAppication 生成短链
+  code_status: uncovered
+  code_evidence: 本次链路只有消费侧 ShortLinkController.java#orderCategory/#shortLink，未见生成入口
+  action: review
+- claim: 通知发送失败记录日志、不抛异常给业务（异步不阻塞主流程）
+  code_status: confirmed
+  code_evidence: lowcode-pplatform-components/lowcode-pplatform-notice-component/src/main/java/com/lls/lowcode/pplatform/notices/application/PlatMessageApplication.java#sendSmsMessage
+  action: anchor
+- claim: 邀请失败不影响主流程
+  code_status: confirmed
+  code_evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/CustMessageSendService.java#sendSms
+  action: anchor
+- claim: 微信通知通过 DBASS 接口发送微信服务号消息，失败仅记录日志、不影响主流程
+  code_status: confirmed
+  code_evidence: lowcode-pplatform-components/lowcode-pplatform-sso-component/src/main/java/com/lls/lowcode/pplatform/service/WechatNotificationService.java#sendVerificationCodeNotification
+  action: anchor
+- claim: 邮件异步发送（@Async + EmailAsyncConfig 线程池）
+  code_status: refuted
+  code_evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/message/MessageProviderImpl.java#sendMail
+    与 lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/oper/facade/msg/CustMsgFacade.java#sendEmailMessage
+    均为同步调用 directSendSingleEmail 并用 try/catch 兜底
+  action: prose_only
+- claim: 所有通知同步发送站内信
+  code_status: refuted
+  code_evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/CustMessageSendService.java#sendNoticeMessageForSubmit
+  action: prose_only
+- claim: 邀请码随机生成 8 位字符串、30 天内有效
+  code_status: refuted
+  code_evidence: 代码链路未见邀请码生成逻辑；有效期取自 cust_setting_config.invitation_code_period /
+    invitation_code_period_unit（DB 实测 invitation_code_period=1）
+  action: prose_only
+- claim: 微信模板 ID（wechatTemplateId）来自 Nacos 配置
+  code_status: refuted
+  code_evidence: lowcode-pplatform-components/lowcode-pplatform-sso-component/src/main/java/com/lls/lowcode/pplatform/service/WechatNotificationService.java#TemplateNo
+    中 templateNo 固定为常量 1000001，仅 dbass.url/privateKey/appId 走 @NacosValue
+  action: prose_only
+- claim: 支持邮件发送重试
+  code_status: uncovered
+  code_evidence: no_evidence
+  action: review
+- claim: 站内信保留、用户登录后可查看
+  code_status: uncovered
+  code_evidence: 本次链路仅见查询/已读接口（CustNoticeController#noticePage/#noticeRead、ClientNoticeReadSyncService），未见留存策略实现
+  action: review
+- claim: 短链接访问失败提示已过期（链接不可用统一文案）
+  code_status: confirmed
+  code_evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/controller/shortlink/ShortLinkController.java#shortLink
+  action: anchor

@@ -1,0 +1,5 @@
+body: '`mapFundingPartyCode(ProductCodeEnum.ACFLOW)` 在导出时被硬编码为单一产品，而 `product_code`
+  实测存在 `RVSFACTOR_PC`，二者组合会导致非 ACFLOW 记录的资金方名称映射为空。此处仅按代码证据记录现状，**是否为已知缺陷、是否已有修正计划，分析中无证据**，需业务确认预期行为（是按记录所属产品动态映射，还是明确只支持
+  ACFLOW 导出）。'
+title: 异常解析-导出资金方名称映射固定ACFLOW
+type: rule

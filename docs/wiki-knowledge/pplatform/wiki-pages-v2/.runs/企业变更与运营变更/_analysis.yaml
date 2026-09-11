@@ -1,0 +1,454 @@
+field_semantics:
+- table: cust_change_record
+  field: status
+  meaning: 变更单审核状态。代码引用 OperApiConstants.CheckStatus：CUST_CHECK_CHECKING=审核中、CUST_CHECK_PASS=审核通过（终态）、CUST_CHECK_REJECT=审核拒绝（终态）、CUST_CHECK_BACKTOCUSTOM=退回客户；DB
+    另存有 '1'（表默认值）及 CUSTS003、returnCust-<时间戳> 等历史/脏值
+  evidence: db
+- table: cust_change_record
+  field: alter_type_id
+  meaning: 变更项记录 id 列表，存 cust_change_cfg.id 的逗号分隔串（代码 split(",") 后按 id IN 查配置还原 item_code）
+  evidence: code
+- table: cust_change_record
+  field: alter_data
+  meaning: 变更数据，变更项编码的 JSON 数组，如 ["UN0001","UN0002","UN0014"]
+  evidence: db
+- table: cust_change_record
+  field: alter_mode
+  meaning: 变更方式，DB 实测取值 1/2（对应 AlterModeEnum，枚举定义未在本次代码层给出）
+  evidence: db
+- table: cust_change_record
+  field: alter_type
+  meaning: 变更类型
+  evidence: db
+- table: cust_change_record
+  field: admin_auth
+  meaning: 企业管理授权（Y/N）
+  evidence: db
+- table: cust_change_record
+  field: legal_auth
+  meaning: 法人代表授权（Y/N）
+  evidence: db
+- table: cust_change_record
+  field: oper_channel
+  meaning: 运营中台变更渠道，DB 实测：operation-pplatform-common-new、operation-pplatform-not-edit-new、DIRECT_INIT
+  evidence: db
+- table: cust_change_record
+  field: oper_cust_id
+  meaning: 运营中台客户 id，changeRebuild 用它调运营中台查流程信息
+  evidence: code
+- table: cust_change_record
+  field: oper_cust_info
+  meaning: 运营中台客户信息 JSON，含 oldPersonId（旧管理员）与 personId（新管理员），用于变更前后对比与跳转判定
+  evidence: code
+- table: cust_change_record
+  field: pp_cust_info
+  meaning: 产融客户信息快照
+  evidence: code
+- table: cust_change_record
+  field: need_cust_confirm
+  meaning: 是否需要客户确认（Y/N）
+  evidence: db
+- table: cust_change_record
+  field: need_resign_auth
+  meaning: 是否需要重签授权书（Y/N），直推识别变更项时写入，后续只读
+  evidence: db
+- table: cust_change_record
+  field: electronic_auth_sign_status
+  meaning: 电子授权书签署状态，DB 实测 PENDING/SIGNED
+  evidence: db
+- table: cust_change_record
+  field: msg_send
+  meaning: 消息发送标记（Y/N）
+  evidence: db
+- table: cust_change_record
+  field: cust_type
+  meaning: 客户类型（DB 实测 1/2/3/4；代码按 CustTypeEnum.ENTERPRISE / INDIVIDUALS 分支处理）
+  evidence: db
+- table: cust_change_record
+  field: cust_company_type
+  meaning: 客户企业角色，DB 实测 CORE/SUPPLIER/DEALER/FINANCE/PROJECT_COMPANY/CORPORATION_COMPANY/PLATFORM_OPERATOR_COMPANY/CORE_MANAGER
+  evidence: db
+- table: cust_change_record
+  field: enable
+  meaning: 逻辑有效标记（Y）
+  evidence: db
+- table: cust_change_cfg
+  field: item_code
+  meaning: 变更项编码，DB 实测 UN0001–UN0016
+  evidence: db
+- table: cust_change_cfg
+  field: plat_item
+  meaning: 平台侧变更项名称（如 企业管理员手机号变更、法定代表人变更）
+  evidence: db
+- table: cust_change_cfg
+  field: oper_item
+  meaning: 运营中台侧变更项名称
+  evidence: db
+- table: cust_change_cfg
+  field: data_desc
+  meaning: 变更需要材料说明（如 营业执照、法定代表人身份证正反面、企业授权书、人脸识别）
+  evidence: db
+- table: cust_change_cfg
+  field: client_type
+  meaning: 端类型，DB 实测 ACCOUNT_PRODUCT / AGW
+  evidence: db
+- table: cust_change_cfg
+  field: cust_type
+  meaning: 适用客户类型（DB 实测 1/2/3）
+  evidence: db
+- table: cust_change_cfg
+  field: identify_style
+  meaning: 适用认证方式，DB 实测 INVITE / INVITE_AGW / SELF / SIMPLE
+  evidence: db
+- table: cust_change_cfg
+  field: head_company
+  meaning: 是否总公司（Y/N），企业类型配置再按此维度细分
+  evidence: db
+- table: cust_change_cfg
+  field: enable
+  meaning: 配置有效标记，查询恒带 ='Y'
+  evidence: code
+- table: cust_change_cfg
+  field: open_process
+  meaning: 是否开启流程（Y/N）
+  evidence: db
+- table: cust_oper_change_record
+  field: change_type
+  meaning: 运营人员变更类型，代码字典 CHANGE_TYPE_DESC：MANUAL=手动变更、BATCH=批量变更、AUTO_ASSIGN=自动分配、AUTO_UPDATE=自动更新、ASSET_AUDIT_SYNC=资产审核同步、CUST_CHANGE_CALLBACK=企业变更回调
+  evidence: code
+- table: cust_oper_change_record
+  field: change_reason
+  meaning: 变更原因，DB 实测：手动变更运营人员 / 批量变更运营人员 / 资产审核同步 / 企业变更回调运营人员变更
+  evidence: db
+- table: cust_oper_change_record
+  field: person_id
+  meaning: 企业联系人 id（cust_person_info.id），查询入口参数
+  evidence: code
+- table: cust_oper_change_record
+  field: before_operator_name
+  meaning: 变更前运营人员姓名
+  evidence: code
+- table: cust_oper_change_record
+  field: after_operator_name
+  meaning: 变更后运营人员姓名
+  evidence: code
+- table: cust_oper_change_record
+  field: asset_id
+  meaning: 资产 id（资产审核同步场景来源）
+  evidence: code
+- table: cust_oper_change_record
+  field: source_system
+  meaning: 来源系统
+  evidence: code
+- table: cust_oper_change_record
+  field: enable
+  meaning: 逻辑有效标记，查询恒带 ='Y'
+  evidence: code
+- table: cust_company_info
+  field: cust_status
+  meaning: 企业生命周期状态，代码枚举 CustStatusEnum：ADD=新增/待提交、CHANGE=变更中、EFFECT=已生效、FREEZE=已冻结、WRITEOFF=已注销
+  evidence: code
+- table: cust_company_info
+  field: check_status
+  meaning: 企业准入审核状态（OperApiConstants.CheckStatus），changeEnable 以 CUST_CHECK_CHECKING
+    判定不可发起变更
+  evidence: code
+- table: cust_company_info
+  field: cust_build_status
+  meaning: 企业建档/认证状态（CustBuildStatusEnum：INIT/BUILD_FAIL/BUILD_SUCCESS/CUST_CONFIRM_AWAIT/CUST_BUILDING
+    等）
+  evidence: code
+- table: cust_company_info
+  field: data_type
+  meaning: 数据类型：1=主数据、0=记录数据；状态流转更新条件限定为 '1'
+  evidence: code
+- table: cust_person_info
+  field: user_type
+  meaning: 联系人类型（UserTypeEnum：admin=管理员、operator=经办人）
+  evidence: code
+- table: cust_person_info
+  field: phone
+  meaning: 手机号；管理员手机号变更判定中与登录用户名（getUserName 返回手机号）比较
+  evidence: code
+state_machines:
+- name: 客户变更单状态
+  field: cust_change_record.status
+  states:
+  - value: '1'
+    label: 待提交/初始（表默认值，代码层未见枚举声明）
+    source: db_dist
+  - value: CUST_CHECK_CHECKING
+    label: 审核中
+    source: code_enum
+  - value: CUST_CHECK_BACKTOCUSTOM
+    label: 退回客户
+    source: db_dist
+  - value: CUST_CHECK_PASS
+    label: 审核通过（终态）
+    source: code_enum
+  - value: CUST_CHECK_REJECT
+    label: 审核拒绝（终态）
+    source: code_enum
+  - value: CUSTS003
+    label: 未识别的历史值（1 条）
+    source: db_dist
+  - value: returnCust-<时间戳>
+    label: 历史退回标记，非标准枚举（13 条）
+    source: db_dist
+  transitions:
+  - from: CUST_CHECK_CHECKING
+    event: 运营中台审核通过回调
+    to: CUST_CHECK_PASS
+    evidence: code_path:CustSyncEventProvider.java:onEvent（CUST_CHECK_PASS 由 CustWorkflowAuditCommitProcessor
+      处理，onEvent 直接跳过）
+  - from: CUST_CHECK_CHECKING
+    event: 运营中台审核拒绝回调
+    to: CUST_CHECK_REJECT
+    evidence: code_path:CustSyncEventProvider.java:onEvent（CUST_CHECK_REJECT 同上，交由工作流审核执行器）
+  - from: CUST_CHECK_CHECKING
+    event: 客户操作重新发起/流程重建（拒绝旧流程，发起新流程）
+    to: CUST_CHECK_REJECT
+    evidence: code_path:CustChangeApplication.java:changeRebuild（取最新非终态记录，调 operCustFacade.changeRejectProcess
+      结束旧流程）
+- name: 企业生命周期状态
+  field: cust_company_info.cust_status
+  states:
+  - value: ADD
+    label: 新增/待提交
+    source: code_enum
+  - value: CHANGE
+    label: 变更中（存在在途变更）
+    source: code_enum
+  - value: EFFECT
+    label: 已生效
+    source: code_enum
+  - value: FREEZE
+    label: 已冻结
+    source: code_enum
+  - value: WRITEOFF
+    label: 已注销
+    source: code_enum
+  transitions:
+  - from: EFFECT
+    event: freeze
+    to: FREEZE
+    evidence: code_path:CustCompanyInfoApplication.java:freeze + custStatusSync(FREEZE->CustStatusEnum.FREEZE)
+  - from: FREEZE
+    event: unfreeze
+    to: EFFECT
+    evidence: code_path:CustCompanyInfoApplication.java:unfreeze + custStatusSync(UNFREEZE->CustStatusEnum.EFFECT)
+  - from: EFFECT
+    event: diable（注销）
+    to: WRITEOFF
+    evidence: code_path:CustCompanyInfoApplication.java:diable + custStatusSync(DISABLE->CustStatusEnum.WRITEOFF)
+- name: 运营人员变更类型
+  field: cust_oper_change_record.change_type
+  states:
+  - value: MANUAL
+    label: 手动变更
+    source: code_enum
+  - value: BATCH
+    label: 批量变更
+    source: code_enum
+  - value: AUTO_ASSIGN
+    label: 自动分配
+    source: code_enum
+  - value: AUTO_UPDATE
+    label: 自动更新
+    source: code_enum
+  - value: ASSET_AUDIT_SYNC
+    label: 资产审核同步
+    source: code_enum
+  - value: CUST_CHANGE_CALLBACK
+    label: 企业变更回调
+    source: code_enum
+  transitions: []
+calibers:
+- name: 变更单终态
+  predicate: cust_change_record.status IN ('CUST_CHECK_PASS','CUST_CHECK_REJECT')
+  scope: 识别企业是否存在未完结变更流程
+  evidence: code_path:CustChangeApplication.java:changeRebuild（notIn PASS/REJECT 取最新一条）
+- name: 企业可发起变更
+  predicate: cust_company_info.check_status <> 'CUST_CHECK_CHECKING'
+  scope: 变更入口可用性校验
+  evidence: code_path:CustChangeApplication.java:changeEnable
+- name: 企业在途变更
+  predicate: cust_company_info.cust_status = 'CHANGE'
+  scope: 变更在途判定与页面跳转
+  evidence: code_path:CustChangeApplication.java:changeHasBusiOnWay / getRedirectPage
+- name: 生效变更配置
+  predicate: cust_change_cfg.enable = 'Y'
+  scope: 变更项配置查询
+  evidence: code_path:CustChangeApplication.java:list（EnableEnum.Y.name()）
+- name: 企业变更配置匹配维度
+  predicate: cust_change_cfg.client_type = ? AND cust_change_cfg.identify_style =
+    ? AND cust_change_cfg.cust_type = ? AND cust_change_cfg.head_company = ? AND cust_change_cfg.enable
+    = 'Y'
+  scope: 企业类型按 head_company 细分；个人类型不叠加 head_company
+  evidence: code_path:CustChangeApplication.java:list
+- name: 管理员手机号变更项
+  predicate: cust_change_cfg.item_code IN ('UN0012','UN0013')
+  scope: 变更单跳转页判定
+  evidence: code_path:CustChangeApplication.java:getRedirectPage（CustUpdateItemCodeConstants.UN0012/UN0013）
+- name: 有效运营人员变更记录
+  predicate: cust_oper_change_record.enable = 'Y'
+  scope: 按联系人查询运营人员变更流水
+  evidence: code_path:OperChangeRecordApplication.java:queryByPersonId
+- name: 主数据企业
+  predicate: cust_company_info.data_type = '1'
+  scope: 建档/认证状态流转更新的过滤条件
+  evidence: code_path:CustCompanyInfoApplication.java:appenUpdateCustBulidStatus
+term_bridges:
+- term: 变更项编码
+  aliases:
+  - item_code
+  - 变更项
+  maps_to: cust_change_cfg.item_code
+  also_confused_with:
+  - cust_change_record.alter_type_id
+  - cust_change_record.alter_data
+  adjudication: boundary
+  boundary: item_code 是稳定的 UN00xx 业务编码；alter_type_id 存的是 cust_change_cfg.id 主键的逗号分隔串，需
+    join 配置表才能还原为 item_code；alter_data 存的是 item_code 的 JSON 数组快照
+- term: 变更状态/审核状态
+  aliases:
+  - status
+  - checkStatus
+  maps_to: cust_change_record.status
+  also_confused_with:
+  - cust_company_info.check_status
+  - cust_company_info.act_procinst_status
+  - cust_company_info.cust_status
+  adjudication: boundary
+  boundary: cust_change_record.status 是变更单维度的审批状态（CheckStatus 枚举）；cust_company_info.check_status
+    是企业准入审核状态；act_procinst_status 是工作流引擎侧审批状态；cust_status 是企业生命周期状态（CustStatusEnum）
+- term: 运营人员变更记录
+  aliases:
+  - 操作运营变更
+  - cust_oper_change_record
+  maps_to: cust_oper_change_record
+  also_confused_with:
+  - cust_change_record
+  adjudication: boundary
+  boundary: cust_oper_change_record 记录企业联系人（经办人）运营人员的前后变更流水（change_type 手动/批量/资产审核同步/企业变更回调）；cust_change_record
+    是企业信息变更申请单及其审批状态
+- term: 运营人员/经办人
+  aliases:
+  - operator
+  - person_id
+  maps_to: cust_oper_change_record.before_operator_id / after_operator_id
+  also_confused_with:
+  - cust_oper_change_record.person_id
+  - cust_person_info.operator_id
+  adjudication: boundary
+  boundary: before_operator_*/after_operator_* 指平台运营人员（被变更对象）；person_id/person_name
+    指企业联系人（变更主体，即经办人）；cust_person_info.operator_id 是该联系人当前绑定的运营人冗余
+rules:
+- name: 变更在途判定（企业维度）
+  content: 企业 cust_status='CHANGE' 即视为存在在途变更业务，changeHasBusiOnWay 返回 true
+  impact: 决定变更入口是否可用、页面跳转是否走运营中台变更待办页
+  field_targets:
+  - cust_company_info.cust_status
+  evidence: code_path:CustChangeApplication.java:changeHasBusiOnWay
+- name: 变更申请准入校验
+  content: 企业 check_status='CUST_CHECK_CHECKING' 时 changeEnable 返回 false，不允许发起变更
+  impact: 变更提交前置校验；企业不存在时同样返回 false
+  field_targets:
+  - cust_company_info.check_status
+  evidence: code_path:CustChangeApplication.java:changeEnable
+- name: 变更配置按身份维度匹配
+  content: 企业类型按 client_type + identify_style + cust_type + head_company + enable='Y'
+    匹配；个人类型不叠加 head_company
+  impact: 决定不同端/认证方式/客户类型下可选的变更项清单
+  field_targets:
+  - cust_change_cfg.client_type
+  - cust_change_cfg.identify_style
+  - cust_change_cfg.cust_type
+  - cust_change_cfg.head_company
+  - cust_change_cfg.enable
+  evidence: code_path:CustChangeApplication.java:list
+- name: 变更单终态过滤
+  content: CUST_CHECK_PASS / CUST_CHECK_REJECT 视为终态，取在途变更单时用 notIn 排除
+  impact: 流程重建与在途判断的基础口径
+  field_targets:
+  - cust_change_record.status
+  evidence: code_path:CustChangeApplication.java:changeRebuild
+- name: 流程重建（重新发起变更）
+  content: 取该企业最新一条非终态变更记录，通过运营中台接口结束旧流程（备注：客户操作重新发起，拒绝旧流程），随后允许发起新流程；操作人须为当前企业，否则抛无权限
+  impact: 同一企业可存在多次变更发起，旧单被拒结
+  field_targets:
+  - cust_change_record.status
+  - cust_change_record.oper_cust_id
+  - cust_change_record.cust_id
+  evidence: code_path:CustChangeApplication.java:changeRebuild
+- name: 管理员手机号变更跳转判定
+  content: 变更单含 UN0012/UN0013 且 oper_cust_info 中 oldPersonId 与 personId 对应手机号不同、且登录手机号≠新管理员手机号时，跳转变更提交成功页并回填新管理员手机/姓名；否则跳运营中台变更待办页
+  impact: 变更管理员后旧管理员登录不再进入待办，新管理员看到提交成功页
+  field_targets:
+  - cust_change_record.alter_type_id
+  - cust_change_record.oper_cust_info
+  - cust_person_info.phone
+  evidence: code_path:CustChangeApplication.java:getRedirectPage
+- name: 运营中台审核回调分工
+  content: CUST_CHECK_PASS / CUST_CHECK_REJECT 回调由工作流审核执行器 CustWorkflowAuditCommitProcessor
+    处理，CustSyncEventProvider.onEvent 直接跳过（isChangeBroadcast=true 的变更广播除外）
+  impact: 避免审批终态被重复处理，变更广播走独立通道
+  field_targets:
+  - cust_change_record.status
+  - cust_company_info.check_status
+  evidence: code_path:CustSyncEventProvider.java:onEvent
+- name: 运营人员变更类型字典
+  content: change_type 取值 MANUAL/BATCH/AUTO_ASSIGN/AUTO_UPDATE/ASSET_AUDIT_SYNC/CUST_CHANGE_CALLBACK，前端展示名由
+    CHANGE_TYPE_DESC 映射，未命中时回显原值
+  impact: 运营人员变更流水的分类展示
+  field_targets:
+  - cust_oper_change_record.change_type
+  evidence: code_path:OperChangeRecordApplication.java:CHANGE_TYPE_DESC / toVO
+- name: 运营人员变更记录查询口径
+  content: 按 person_id 精确匹配、enable='Y'，按 create_time 倒序返回；personId 为空直接返回空列表
+  impact: 联系人详情页的运营变更历史列表
+  field_targets:
+  - cust_oper_change_record.person_id
+  - cust_oper_change_record.enable
+  - cust_oper_change_record.create_time
+  evidence: code_path:OperChangeRecordApplication.java:queryByPersonId
+- name: 企微待办通知按节点与通知类型分发
+  content: 后补合作协议流程仅在 taskNoticeType=2（待办通知）时向 taskNoticeUsers 反查企微 userId 并发送 textcard
+    待办；其它通知类型忽略
+  impact: 运营审批待办的企微触达；反查不到企微用户时静默返回
+  field_targets:
+  - sys_wx_user.user_id
+  - tenant_project_approval.id
+  evidence: code_path:BackAgreementProcessOperateListener.java:notice / dispatchWechatNotify
+reqdoc_claims:
+- claim: 企业提交变更申请→审核人员审核→通过则更新企业信息、变更记录状态变为已生效；驳回则变更记录状态变为已驳回（业务规则文档 2.3 企业信息变更流程）
+  code_status: confirmed
+  code_evidence: CustChangeApplication.java:changeRebuild；CustSyncEventProvider.java:onEvent（CUST_CHECK_PASS/CUST_CHECK_REJECT）
+  action: anchor
+- claim: 变更需保留变更前后信息对比记录、完整变更历史（业务规则文档 3.4.2）
+  code_status: confirmed
+  code_evidence: CustChangeApplication.java:getRedirectPage（解析 operCustInfo 的 oldPersonId
+    与 personId 做前后对比）；cust_change_record 存 alter_data / oper_cust_info / pp_cust_info
+  action: anchor
+- claim: 同一变更项同时只能有一个待审核的变更申请（业务规则文档 3.4.3）
+  code_status: refuted
+  code_evidence: CustChangeApplication.java:changeRebuild（逻辑为结束旧流程后允许发起新流程，且查询仅取最新一条，未按变更项做去重/唯一性校验）
+  action: prose_only
+- claim: 企业状态为"已冻结"或"已注销"时不允许变更（业务规则文档 3.4.3）
+  code_status: uncovered
+  code_evidence: CustChangeApplication.java:changeEnable 仅校验 check_status <> 'CUST_CHECK_CHECKING'，未见
+    cust_status 冻结/注销判定
+  action: review
+- claim: 部分核心字段变更需额外审批流程（业务规则文档 3.4.3）
+  code_status: uncovered
+  code_evidence: 本次给定代码中未见按变更项分级审批的实现，cust_change_cfg 仅有 open_process 字段
+  action: review
+- claim: 企业变更生效时发送通知（业务规则文档 3.5.1 邮件/站内信通知规则）
+  code_status: uncovered
+  code_evidence: WechatNotifyFacade 仅有项目上线审批/后补合作协议相关 sendApprovalTodo/Pass/Reject，变更记录相关的
+    msg_send 置位与发送实现未在给定代码中出现
+  action: review
+- claim: 变更记录创建时为"待提交"状态，提交后进入审核（业务规则文档 2.3）
+  code_status: uncovered
+  code_evidence: 代码层 CheckStatus 未见"待提交"枚举；DB 实测 status 存在默认值 '1'（377 条），无法确证其业务含义
+  action: review

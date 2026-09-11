@@ -1,0 +1,3 @@
+- anchor: table:cust_person_info
+  code: FIELD_NOT_IN_DB
+  message: cust_person_info.userType

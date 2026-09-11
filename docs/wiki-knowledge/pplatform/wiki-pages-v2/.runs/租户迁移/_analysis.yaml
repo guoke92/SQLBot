@@ -1,0 +1,210 @@
+field_semantics:
+- table: tenant_migarory_log
+  field: status
+  meaning: 迁移状态，N 表示未完成或失败，Y 表示成功
+  evidence: db
+- table: tenant_migarory_log
+  field: direction
+  meaning: 数据方向，IN 表示入向，OUT 表示出向
+  evidence: db
+- table: tenant_migarory_log
+  field: name
+  meaning: 事件名称，如迁移租户、迁移项目、迁移客户、同步产品等
+  evidence: db
+- table: tenant_migarory_log
+  field: type
+  meaning: 操作类型，如 migratoryTenant、migratoryProject、migratoryCust、TENANT_SYNC、PROJECT_SYNC
+    等
+  evidence: db
+- table: tenant_migarory_log
+  field: req_no
+  meaning: 请求编号，唯一标识一次迁移请求
+  evidence: db
+- table: tenant_migarory_log
+  field: req_sn
+  meaning: 请求流水编码
+  evidence: db
+- table: tenant_migarory_log
+  field: platform_product_code
+  meaning: 产品编码
+  evidence: db
+- table: tenant_migarory_log
+  field: app_tenant_code
+  meaning: 逻辑租户标识
+  evidence: db
+- table: tenant_migarory_log
+  field: db_tenant_code
+  meaning: 数据租户标识
+  evidence: db
+- table: tenant_migarory_log
+  field: data
+  meaning: 迁移数据内容
+  evidence: db
+- table: tenant_migarory_log
+  field: request
+  meaning: 请求数据
+  evidence: db
+- table: tenant_migarory_log
+  field: response
+  meaning: 返回数据
+  evidence: db
+- table: tenant_migarory_log
+  field: success_number
+  meaning: 成功数量
+  evidence: db
+- table: tenant_migarory_log
+  field: falied_number
+  meaning: 失败数量
+  evidence: db
+- table: tenant_migarory_log
+  field: total_number
+  meaning: 总数量
+  evidence: db
+- table: migratory_user_record
+  field: user_id
+  meaning: 用户ID（关联企业人员）
+  evidence: code
+- table: migratory_user_record
+  field: db_tenant_code
+  meaning: 数据租户标识
+  evidence: code
+- table: migratory_user_record
+  field: is_login
+  meaning: 是否已登录，N 未登录，Y 已登录
+  evidence: db
+- table: migratory_user_record
+  field: enable
+  meaning: 启用标记，Y 有效
+  evidence: db
+state_machines:
+- name: 迁移用户登录状态
+  field: migratory_user_record.is_login
+  states:
+  - value: N
+    label: 未登录
+    source: db_dist
+  - value: Y
+    label: 已登录
+    source: db_dist
+  transitions:
+  - from: N
+    event: 用户登录后调用 /cust-web/migratory/isEjectMsg
+    to: Y
+    evidence: code_path:CustMigratoryService.java:loginAfterEjectMsg
+calibers:
+- name: 未登录的迁移用户
+  predicate: migratory_user_record.is_login = 'N' AND migratory_user_record.enable
+    = 'Y'
+  scope: 迁移用户登录弹出消息判断
+  evidence: code:CustMigratoryService.loginAfterEjectMsg
+- name: 迁移日志成功
+  predicate: tenant_migarory_log.status = 'Y'
+  scope: 迁移操作结果统计
+  evidence: db:值分布
+- name: 迁移租户类型日志
+  predicate: tenant_migarory_log.type = 'migratoryTenant' OR tenant_migarory_log.name
+    = '迁移租户'
+  scope: 租户迁移监控
+  evidence: db:值分布
+- name: 迁移项目类型日志
+  predicate: tenant_migarory_log.type = 'migratoryProject' OR tenant_migarory_log.name
+    = '迁移项目'
+  scope: 项目迁移监控
+  evidence: db:值分布
+- name: 迁移客户类型日志
+  predicate: tenant_migarory_log.type = 'migratoryCust' OR tenant_migarory_log.name
+    = '迁移客户'
+  scope: 客户迁移监控
+  evidence: db:值分布
+term_bridges:
+- term: 迁移租户
+  aliases:
+  - migratoryTenant
+  maps_to: tenant_migarory_log.type = 'migratoryTenant' 或 name = '迁移租户'
+  also_confused_with: []
+  adjudication: synonym
+- term: 迁移项目
+  aliases:
+  - migratoryProject
+  maps_to: tenant_migarory_log.type = 'migratoryProject' 或 name = '迁移项目'
+  also_confused_with: []
+  adjudication: synonym
+- term: 迁移客户
+  aliases:
+  - migratoryCust
+  maps_to: tenant_migarory_log.type = 'migratoryCust' 或 name = '迁移客户'
+  also_confused_with: []
+  adjudication: synonym
+- term: 假贴牌
+  aliases: []
+  maps_to: 无直接代码/DB对应，需求文档提及
+  also_confused_with:
+  - 自营贴牌
+  adjudication: boundary
+  boundary: 假贴牌是自营下的二级贴牌，数据未隔离，代码中未找到租户配置表单不可见等实现
+- term: 存量用户
+  aliases:
+  - 迁移用户
+  maps_to: migratory_user_record 中记录的用户
+  also_confused_with:
+  - 新用户
+  adjudication: boundary
+  boundary: 存量用户指迁移前已存在的用户，登录后弹出升级消息；新用户无此记录
+rules:
+- name: 迁移用户登录后仅弹出一次升级消息
+  content: 迁移用户（存在于 migratory_user_record 且 is_login='N'）登录后，调用 /cust-web/migratory/isEjectMsg
+    接口，返回弹出标志，并将 is_login 更新为 'Y'，确保仅弹出一次。
+  impact: 用户触达
+  field_targets:
+  - migratory_user_record.is_login
+  evidence: code_path:CustMigratoryService.java:loginAfterEjectMsg
+- name: 迁移企业防重复同步锁
+  content: 迁移企业信息时，使用 Redis 锁，锁 key 由 dbTenantCode + companyName + socialUnifiedCode
+    拼接，若获取锁失败则抛出重复同步异常。
+  impact: 数据一致性
+  field_targets:
+  - redis:lockName
+  evidence: code_path:PlatFormMigratoryApplication.java:migratoryCust
+- name: AMS 企业合并迁移
+  content: 当产品为 AMS 且企业已存在时，执行合并逻辑：补充新增的管理员、操作员、角色，并处理协议和影像迁移。
+  impact: 企业数据合并
+  field_targets:
+  - cust_company_info
+  - cust_person_info
+  - cust_role_info
+  - cust_project_rel
+  evidence: code_path:PlatFormMigratoryApplication.java:migratoryCust
+- name: 迁移人员记录初始化
+  content: 迁移客户时，对保存的人员，若 migratory_user_record 中不存在该用户在该租户下的记录，则创建记录，is_login 初始化为
+    'N'。
+  impact: 迁移用户跟踪
+  field_targets:
+  - migratory_user_record
+  evidence: code_path:PlatFormMigratoryApplication.java:migratoryCust
+reqdoc_claims:
+- claim: 登录后弹出提示“【贴牌名称】平台已升级，新增【产品中心】，期待为您提供更好的服务。”（通过公告配置实现即可，一个用户仅弹出一次即可）
+  code_status: confirmed
+  code_evidence: CustMigratoryService.java:loginAfterEjectMsg + reqdoc:产融平台数据迁移涉及的改造需求V1.2
+  action: anchor
+- claim: 假贴牌迁移至产融平台后，在“租户配置”表单内不可见（仅存在于后台），作为自营贴牌的二级贴牌，内管端可正常创建该二级贴牌下的项目。
+  code_status: uncovered
+  code_evidence: ''
+  action: review
+- claim: 产融新建租户和定制项目映射表；新增项目时，选择产品后需选择定制项目标识；租户迁移接口需调整，自营租户存储映射关系；项目迁移存储定制项目标志；项目同步接口添加项目标志；运营方多项目测试数据的打标处理。
+  code_status: uncovered
+  code_evidence: ''
+  action: review
+- claim: 数据合并策略：先导出存在多条建档数据的企业，通过RPA抓取最新的企业关键字段，对比定位建档数据中最准确的一条，如对比后发现所有的建档数据关键字段都一致，那就取用建档时间最晚/变更时间最晚的那一条，影像件也留用对应的那一套影像件。
+  code_status: prose_only
+  code_evidence: PlatFormMigratoryApplication.java:migratoryCust + reqdoc:产融平台数据迁移涉及的改造需求V1.2
+  action: prose_only
+  difference: 代码中对于 AMS 产品且企业已存在时，有合并逻辑（补充管理员、操作员、角色等），但未实现通过RPA抓取最新企业字段并对比选择最准确一条的策略；合并规则以代码为准。
+- claim: 注册/登录入口统一到产融平台。
+  code_status: uncovered
+  code_evidence: ''
+  action: review
+- claim: 存量用户点击【登录】，输入用户、密码/短信验证码后可登录成功，进入到产融平台内页可以看到企业状态为“已认证”，产品中心处至少已经开通了一个产品。
+  code_status: confirmed
+  code_evidence: PlatFormMigratoryApplication.java:migratoryCust + reqdoc:产融平台数据迁移涉及的改造需求V1.2
+  action: anchor
+  difference: 代码中迁移客户时自动开通产品（autoActiveProduct），并设置企业状态，与需求一致。

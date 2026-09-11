@@ -1,0 +1,5 @@
+body: 本次语义分析未给出 `project_file_info`、`MediaFile` 的物理库名：`project_file_info` 仅有 [DB]
+  证据（无库/schema 信息），`MediaFile` 只有“lls.media 影像平台模型”这一模型级描述。因此各页 `scope.databases`
+  暂分别取 `project_file_info` 与 `lls.media` 作为库位标识，属占位性质。待确认物理库/schema 命名后需统一回填。
+title: 各页 frontmatter 的 scope.databases 取值
+type: scope

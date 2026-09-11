@@ -1,0 +1,3 @@
+- anchor: table:sys_user / sso_user
+  code: TABLE_NOT_IN_DB
+  message: sys_user / sso_user 不在 db catalog

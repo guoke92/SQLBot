@@ -1,0 +1,7 @@
+body: '1) scope.databases 为空：语义分析未给出物理库名，仅能确认存在该表；落库前需补物理库名。
+
+  2) open_status 的数据值域（N/P/Y）宽于代码枚举（Y/P），N 的含义「未开通/默认」来自注释与推断，需业务确认。
+
+  3) platform_product_code 的 DRAFT/DRAFTQA/STORAGE/VOUCHER 未出现在 ProductCodeEnum 证据中，是否为测试/未上线产品需确认。'
+title: 租户产品表（tenant_product）
+type: table

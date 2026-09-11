@@ -1,0 +1,15 @@
+# 源码侧忽略清单（plan §0.2）——gitignore 语义：repo 根相对 glob，! 前缀反选（最后匹配生效），
+# default_excludes=true 时叠加引擎内置集（build/test/gen/docs 等）。
+# 消费点：Step A 入口枚举 / Step B callgraph 扫描 / Step D 文件读取，统一走 filters.CodeIgnore.should_scan。
+exclude:
+  - "*/target/*"
+  - "*/src/test/*"
+  - "*/dto/*"                 # DTO 样板：作叶子类型可见，但不整文件进穿透上下文
+  - "*/vo/*"
+  - "*/request/*"
+  - "*/response/*"
+  - "*/aspect/*"
+  - "*/interceptor/*"
+  - "!*/dto/*Invite*.java"    # 邀请类 DTO 载有业务字段语义，反选保留
+  # 不忽略 */enums/* 与 */constant/*：注释与 dictKey 是 label 权威
+default_excludes: true

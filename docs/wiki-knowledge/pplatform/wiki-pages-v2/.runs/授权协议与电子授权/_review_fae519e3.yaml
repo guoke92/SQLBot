@@ -1,0 +1,12 @@
+body: '语义分析只给出「`sign_mode` 语义对应 `SignModeEnum` 三态（NO_SIGN / OFF_LINE / ON_LINE）」与「DB
+  实存 `''01''`/`''02''`/`''03''`」，未给出数值与枚举成员的显式映射。当前页面仅登记取值分布，未建立 01→? 的确定结论。
+
+  待确认项：
+
+  1. `''01''` / `''02''` / `''03''` 分别对应 NO_SIGN / OFF_LINE / ON_LINE 的哪一项（需代码中的映射常量或字典配置证据）。
+
+  2. 该字段与企业维度 `cust_company_info.sign_mode` 是否使用同一枚举、取值域是否一致。
+
+  3. 是否存在 `''00''` 或其他历史取值（当前证据只覆盖 db_dist 的三个值）。'
+title: 协议签署模式（argeement_migratory_record.sign_mode）
+type: process

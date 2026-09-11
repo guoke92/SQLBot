@@ -13,15 +13,26 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "wiki-pages/enums/cust_type.md",
+                "file": "wiki-pages/_index.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "cust_type"
+              "title": "_index"
+            }
+          },
+          {
+            "id": "492c59341ea9a430",
+            "type": "leaf",
+            "state": {
+              "type": "graph",
+              "state": {},
+              "icon": "lucide-git-fork",
+              "title": "关系图谱"
             }
           }
-        ]
+        ],
+        "currentTab": 1
       }
     ],
     "direction": "vertical"
@@ -55,7 +66,7 @@
             "state": {
               "type": "search",
               "state": {
-                "query": "企业类型",
+                "query": "guest",
                 "matchingCase": false,
                 "explainSearch": false,
                 "collapseAll": false,
@@ -83,7 +94,7 @@
       }
     ],
     "direction": "horizontal",
-    "width": 300
+    "width": 388.00152587890625
   },
   "right": {
     "id": "13287a708ba80a26",
@@ -99,7 +110,6 @@
             "state": {
               "type": "backlink",
               "state": {
-                "file": "wiki-pages/enums/cust_type.md",
                 "collapseAll": false,
                 "extraContext": false,
                 "sortOrder": "alphabetical",
@@ -118,7 +128,6 @@
             "state": {
               "type": "outgoing-link",
               "state": {
-                "file": "wiki-pages/enums/cust_type.md",
                 "linksCollapsed": false,
                 "unlinkedCollapsed": true
               },
@@ -161,7 +170,6 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "wiki-pages/enums/cust_type.md",
                 "followCursor": false,
                 "showSearch": false,
                 "searchQuery": ""
@@ -188,43 +196,43 @@
       "bases:新建数据库": false
     }
   },
-  "active": "ed14b52b0e686b84",
+  "active": "a0edd651b7a93693",
   "lastOpenFiles": [
-    "wiki-pages/_index.md",
-    "wiki-pages/tables/tenant_product_menu_res.md",
-    "wiki-pages/tables/tenant_interworking_product.md",
-    "wiki-pages/calibers/supplier-company.md",
-    "wiki-pages/concepts/enterprise-role.md",
-    "wiki-pages/concepts/company_type.md",
-    "wiki-pages/calibers/chargeable_company_role.md",
-    "wiki-pages/tables/ca_fee_company.md",
-    "wiki-pages/tables/platform_product_cust_role.md",
-    "wiki-pages/tables/cust_company_info.md",
-    "wiki-pages/concepts/company-role.md",
-    "wiki-pages/processes/租户生效状态.md",
-    "wiki-pages/rules/错误回执文件兜底.md",
-    "wiki-pages/rules/菜单扁平化与父子关联.md",
-    "wiki-pages/rules/下载URL生成.md",
-    "wiki-pages/rules/软删除仅本人.md",
-    "wiki-pages/rules/运行超时置失败.md",
-    "wiki-pages/rules/影像变动同步第三方.md",
-    "wiki-pages/rules/存量运营方推送.md",
-    "wiki-pages/rules/背景色生效时间窗口校验.md",
-    "wiki-pages/enums/legal_certification_type.md",
-    "wiki-pages/enums/product_status.md",
-    "wiki-pages/enums/sign_mode.md",
-    "wiki-pages/enums/rule_layer.md",
-    "wiki-pages/enums/project_status.md",
-    "wiki-pages/enums/node_status.md",
-    "embeddings-cache/embeddings-text-embedding-3-small-1536.json",
-    "embeddings-cache/tmp8_gpovly.tmp",
-    "embeddings-cache/tmp278e9y5u.tmp",
-    "tables",
-    "embeddings-cache/tmpkqt62z3h.tmp",
-    "embeddings-cache/tmps2e07vbe.tmp",
-    "embeddings-cache/tmpjytm09fk.tmp",
-    "embeddings-cache/tmprl_9zjpf.tmp",
-    "embeddings-cache/tmpo67t4g0o.tmp",
-    "wiki-pages/enums"
+    "wiki-pages-v2/未命名.canvas",
+    "wiki-pages/concepts/concept_operator_person.md",
+    "wiki-v2-vs-v1-comparison.md",
+    "wiki-pages-v2/rules/certification_no_cross_system_align.md",
+    "wiki-pages-v2/rules/oper_auth_agreement_fallback.md",
+    "wiki-pages-v2/rules/role_status_follow_company.md",
+    "wiki-pages-v2/rules/person_info_source_of_truth.md",
+    "wiki-pages-v2/rules/person_phone_encrypted_query.md",
+    "wiki-pages-v2/rules/token_sign_md5.md",
+    "wiki-pages-v2/rules/change_status_token_source.md",
+    "wiki-pages-v2/rules/cust_change_record_latest_effective.md",
+    "wiki-pages-v2/rules/simple_auth_ca_forbidden.md",
+    "wiki-pages-v2/rules/submit_cust_field_reset.md",
+    "wiki-pages-v2/rules/operator_permission_disable.md",
+    "wiki-pages-v2/rules/cross_tenant_query_all.md",
+    "wiki-pages-v2/rules/status_update_main_data_type.md",
+    "wiki-pages-v2/rules/company_query_enable_y.md",
+    "wiki-pages-v2/concepts/user_type_bridge.md",
+    "wiki-pages-v2/concepts/identify_style_bridge.md",
+    "wiki-pages-v2/concepts/product_code_bridge.md",
+    "wiki-pages-v2/concepts/platform_cust_id_bridge.md",
+    "wiki-pages-v2/concepts/company_role_bridge.md",
+    "wiki-pages-v2/concepts/db_tenant_code_bridge.md",
+    "wiki-pages-v2/concepts/company_code_bridge.md",
+    "wiki-pages-v2/concepts/company_id_bridge.md",
+    "wiki-pages-v2/calibers/tenant_stack_migratory.md",
+    "wiki-pages-v2/rules",
+    "wiki-pages-v2/concepts",
+    "wiki-pages-v2/calibers",
+    "wiki-pages-v2/processes",
+    "substrate-v2/tmp/page-plan.yaml",
+    "substrate-v2/tmp/enum-unbound.yaml",
+    "wiki-pages-v2/enums",
+    "wiki-pages-v2/tables",
+    "substrate-v2/tmp/db-enum-reconcile.yaml",
+    "substrate-v2/tmp/table-reconcile.yaml"
   ]
 }

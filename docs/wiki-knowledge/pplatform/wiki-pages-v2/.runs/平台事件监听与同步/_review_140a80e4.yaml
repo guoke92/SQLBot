@@ -1,0 +1,8 @@
+body: '1. 本表未出现在 `field_semantics` 中，字段（enable / role_type）仅由 `calibers` 与 `rules`
+  的 field_targets 推断，证据等级为 code，缺 DB 实测；字段完整清单与主键待补。
+
+  2. `role_type` 的枚举取值集合未在语义分析中给出，暂不落枚举页。
+
+  3. `scope.databases` 同主题其余页，填 `unknown` 待确认。'
+title: cust_role_info
+type: table

@@ -1,0 +1,3 @@
+body: 本规则的证据跨两处：补偿侧 `updateRetryCount`（code）与 `client_api_sync_error.retry_num`（db）。后者属另一张表、另一条链路，语义分析以「默认上限一致」将二者关联；该等价性未经直接证据确认，标记待确认。
+title: 补偿重试上限
+type: rule

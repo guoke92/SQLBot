@@ -1,0 +1,6 @@
+body: '`processes/project-approval-node-status` 引用的 `tenant_project_approval_flow.node_status`、以及
+  `processes/tenant-project-status` 引用的 `tenant_project.project_status` 只有状态枚举与代码路径证据，没有字段级
+  field_semantics。因此本次未为这两张表产出 table 页，仅在对应 process 页按状态机登记；其中 `tenant_project` 的表名字面在
+  DB 实测中也未出现，其状态机按 DO `TenantProjectDO`/系统文档标注。'
+title: tenant_project_approval_flow 与 tenant_project 缺字段级证据
+type: table

@@ -1,0 +1,4 @@
+body: open_status 的 DB 值（OPENED）与代码常量 CustProductActiveConstant.OPENED 的对应关系只在语义分析中以「未在代码枚举基线上覆盖」描述，OPENING
+  是否实际落库、以及是否存在其它取值，均无直接证据，需补充字段级对账。
+title: 客户互通产品表（cust_interworking_product）
+type: table

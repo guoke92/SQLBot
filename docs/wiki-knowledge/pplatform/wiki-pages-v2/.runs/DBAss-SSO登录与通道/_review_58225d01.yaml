@@ -1,0 +1,12 @@
+body: '本次语义分析的所有 table 页 field_semantics 证据仅标注 `db` / `code`，未给出物理库名，因此全部页面的 `scope.databases`
+  暂置为空列表，未做任何推断填充。
+
+
+  待确认事项：
+
+  1. DBAss/SSO 登录与通道主题涉及的物理库名（open_sso_channel、sso_system、sso_user、sys_user、sys_cust_user_rel、cust_person_info、cust_company_info、tenant_setting_config、operation_user
+  分属哪个库）；
+
+  2. 上述表是否跨库（若跨库，各页 scope.databases 需分别补齐）。'
+title: scope.databases 物理库名缺失
+type: table

@@ -1,0 +1,693 @@
+# Wiki 页面目录（程序生成，勿手改）
+
+## calibers (187)
+- [[AMS待办按联系人id查询]] — AMS 待办按联系人 id 查询
+- [[access_secret_enable_valid]] — 接入密钥有效性
+- [[account-payment-auth-passed]] — 账户打款认证通过口径
+- [[admin-contact-person]] — 管理员联系人
+- [[admin-phone-change-item]] — 管理员手机号变更项
+- [[agreement_signed_order]] — 已签署协议订单
+- [[alipay_clearing_default_product]] — 支付宝清分默认产品口径
+- [[all_tenant_context]] — 全租户上下文口径
+- [[allowed_company_types]] — 可触发电子授权签署的企业类型
+- [[ams_bs_channel]] — AMS 走 BS/上上签通道
+- [[archived-media-busikey]] — 建档影像企业主键口径
+- [[auth-media-a0004]] — 授权书影像（A0004）
+- [[auto_verify_type_branch]] — 自动核查类型分支
+- [[batch_query_limit]] — 批量查询条数上限口径
+- [[bocom_account_existence]] — 交e保账户存在性口径
+- [[bocom_clearing_product]] — 交e保清分产品口径
+- [[bocom_failure]] — 交e保划扣失败
+- [[bocom_pending_investigation]] — 交e保划扣待查证
+- [[bocom_success]] — 交e保划扣成功
+- [[build-compensation-pending-records]] — 建档异步补偿待处理记录
+- [[build-success-company]] — 建档成功企业
+- [[build_fail_reusable]] — 建档失败可复用口径
+- [[build_scope_identify_styles]] — 建档类签署仅限邀请/自主录入
+- [[build_success_cust]] — 建档成功企业
+- [[ca-upgrade-auth-media-a0049]] — CA升级授权书影像（A0049）
+- [[ca_idempotent_row]] — CA 幂等行
+- [[ca_register_status_output]] — 电子签章开通状态对外口径（ca_register_status + caRegisterStatusY）
+- [[ca_row_idempotent_key]] — CA认证行幂等创建
+- [[callback_audit_track_fetch]] — 回调审核轨迹取数
+- [[callback_msg_idempotent]] — 回调消息幂等去重
+- [[certifying]] — 认证中
+- [[change-cfg-enable]] — 生效变更配置
+- [[change-cfg-match-dimensions]] — 企业变更配置匹配维度
+- [[change-record-terminal-status]] — 变更单终态
+- [[change_in_flight_block]] — 变更在途阻断
+- [[change_record_polling]] — 变更记录回查等待
+- [[change_scope_self_alter_items]] — 变更类签署仅限企业自行变更且变更项命中
+- [[channel_lookup]] — 渠道查询
+- [[channel_tenant_mapping]] — 渠道-租户映射口径
+- [[chanyong-related-company]] — 产融侧关联企业口径
+- [[charge_enabled_project]] — 收费项目
+- [[chargeable_company_role]] — 核企/供应商角色
+- [[client-sync-error-all-disabled]] — 客户端同步失败记录（全部停用态）
+- [[client-sync-error-retry-num-3]] — 客户端同步失败默认重试上限
+- [[company-build-success]] — 企业建档成功口径
+- [[company-change-enable]] — 企业可发起变更
+- [[company-change-on-way]] — 企业在途变更
+- [[company-master-data]] — 主数据企业
+- [[company-type-cross-source-mapping]] — companyType 跨源映射口径
+- [[company_admin]] — 企业管理员
+- [[company_admin_unique_check]] — 企业管理员唯一校验
+- [[company_build_dedup_exclude]] — 企业重复建档排除条件
+- [[company_effect]] — 企业生效口径
+- [[company_type]] — 企业角色口径（company_type）
+- [[cust-build-status-xyc-mapping]] — custBuildStatus 讯易链映射口径
+- [[cust-open-product]] — 客户已开通产品
+- [[cust-role-combine-check]] — 角色组合校验条件
+- [[cust_company_info_enable_active]] — 企业有效口径
+- [[cust_from_platform_invite]] — 客户来源空值口径（邀请类认证写「平台邀请」）
+- [[default-repayment-account]] — 默认还款账户口径
+- [[deleted-operator]] — 已离职运营人员口径
+- [[deleted-operator-hint-for-chanyong]] — 产融项目运营人员离职提示口径
+- [[effect_company]] — 已生效企业口径
+- [[effective-company-role]] — 有效企业角色口径
+- [[effective-group-member]] — 已生效集团成员单位口径
+- [[effective-product-port]] — 有效产品端口口径
+- [[effective_company]] — 生效企业
+- [[effective_group_member]] — 集团有效成员
+- [[effective_tenant]] — 已生效租户
+- [[electronic-auth-media-a0050]] — 电子签约版授权书影像（A0050）
+- [[enable_valid_flag]] — 有效标志口径（enable='Y'）
+- [[enabled-sftp-channel]] — 启用的 SFTP 渠道口径
+- [[enabled_company]] — 有效企业
+- [[enabled_tenant]] — 启用租户
+- [[exception_resolution_unique_config]] — 异常解析-唯一配置口径
+- [[exception_resolution_valid_enable_y]] — 异常解析-有效数据口径
+- [[expiring_soon]] — 即将到期
+- [[face_intent_subject]] — 刷脸意愿主体（客户管理员）
+- [[face_verify_passed]] — 人脸核查通过
+- [[financing_amount_cap]] — 融资金额上限口径（max_financing_amount）
+- [[financing_limit_flag]] — 限额融资资金口径（max_financing_amount_flag）
+- [[financing_period_cap]] — 融资期限上限口径（max_financing_period）
+- [[funding_rule_detail_valid_enable_y]] — 资方规则详情-有效口径
+- [[funding_rule_front_cfg_valid_enable_y]] — 前端规则配置-有效口径
+- [[funding_rule_info_active_rule]] — 资方规则-生效规则口径
+- [[funding_rule_info_valid_enable_y]] — 资方规则-有效信息口径
+- [[general-product-scope]] — 通用产品范围
+- [[gptlearn_finance_user]] — 智能审核引流-金融机构用户口径
+- [[gptlearn_poster_count_limit]] — 智能审核引流-弹出次数上限口径
+- [[gptlearn_tenant_whitelist]] — 智能审核引流-租户白名单口径
+- [[gray_bg_tenant]] — 灰色背景租户
+- [[group-root-node]] — 集团根节点口径
+- [[in_service_period]] — 服务期内
+- [[latest-approval-lookup]] — 项目最新有效上线审批
+- [[latest_success_report]] — 最新成功上报数据
+- [[latest_success_submit]] — 企业最新成功上送记录
+- [[legacy_package_company_scope]] — 存量CA数据打包企业范围
+- [[legal-person-cert-media-a0007-a0008]] — 法人证件影像（A0007/A0008）
+- [[lls_self_tenant]] — 联易融自营租户
+- [[main_data]] — 主数据
+- [[main_data_certification_unique]] — 主数据信用代码唯一口径
+- [[main_data_type]] — 主数据判定口径（data_type = DATA_TYPE_MAIN）
+- [[master-data-company]] — 主数据企业口径
+- [[migration_cust_log]] — 迁移客户类型日志
+- [[migration_log_success]] — 迁移日志成功
+- [[migration_project_log]] — 迁移项目类型日志
+- [[migration_tenant_log]] — 迁移租户类型日志
+- [[migratory_init_five_agreements]] — 迁移初始化五类协议
+- [[migratory_no_supplement]] — 存量迁移企业免补签授权书
+- [[migratory_user_not_login]] — 未登录的迁移用户
+- [[missing-solution-manager-remind]] — 缺方案经理提醒口径
+- [[non-writeoff-role]] — 未注销角色口径
+- [[non_guest_user]] — 非游客用户
+- [[non_writeoff]] — 非注销企业口径
+- [[not_deleted_async_task]] — 未删除异步任务
+- [[offline_electronic_auth_trigger]] — 线下电子授权书签署触发条件
+- [[oper-change-record-valid]] — 有效运营人员变更记录
+- [[operator-auth-cert-media-a0011-a0012]] — 操作人/授权类证件影像（A0011/A0012）
+- [[operator-role-rel-not-frozen]] — 经办人角色关联未冻结
+- [[org_bound_legal_user]] — 二级组织绑定合法用户
+- [[paid_company]] — 已缴费企业
+- [[paid_order]] — 已支付订单
+- [[pending_customer_confirm]] — 待客户确认
+- [[pending_order]] — 待支付订单
+- [[pending_pull_agreement_records]] — 待拉取协议记录
+- [[pending_task_shard]] — 待执行任务分片
+- [[person_admin]] — 管理员
+- [[person_effective_status]] — 有效联系人状态口径（status ∈ {ADD, EFFECT}）
+- [[person_guest]] — 游客
+- [[person_operator]] — 经办人
+- [[platform-product-whitelist]] — 平台产品白名单过滤
+- [[platform_level_authed]] — 平台级授权已完成
+- [[platform_operator_company]] — 运营方企业
+- [[platform_operator_configured]] — 配置了平台运营方
+- [[platform_operator_unique]] — 平台运营方唯一口径
+- [[platform_operator_value]] — 平台运营方取值口径（PLATFORM / TENANT）
+- [[platform_push_no_supplement]] — 外部推送企业免补签授权书
+- [[process_apply_data]] — 流程/申请数据
+- [[product_enable_flag]] — 产品启用标记口径（enable）
+- [[project-config-media]] — 项目配置影像
+- [[project-ledger-approved]] — 项目台账审批通过口径
+- [[project-ledger-source]] — 项目台账 source 判定口径
+- [[project-sp-no-options]] — 立项审批编号下拉范围
+- [[project-sp-no-proposers]] — 立项审批编号取关联人员
+- [[project-statistics-list-base]] — 项目立项统计列表基础口径
+- [[project_code_required_tenant]] — 项目码必填租户
+- [[project_effective]] — 租户项目有效口径
+- [[real-operator-exclude-test-data]] — 真实运营方（排除测试数据）口径
+- [[real_operator]] — 真实运营方
+- [[realname_passed]] — 已实名认证
+- [[realname_pending]] — 待实名认证
+- [[realname_skip]] — 跳过实名认证
+- [[service_expired]] — 服务已到期
+- [[shared_fake_tenant]] — 共享假租户
+- [[stack_tenant_data]] — 存量租户数据
+- [[standard_api_registered]] — 标准接口已建档口径
+- [[submit_data_length_limit]] — 上送 data 字段长度上限
+- [[supplier_company]] — 供应商企业
+- [[survey_answer_attribution]] — 调研问卷-答案归属口径
+- [[targeted_reduction]] — 定向减免
+- [[tenant-open-product]] — 租户已开通产品
+- [[tenant_active_list]] — 生效租户口径（activeList / enable 与 status 双判定）
+- [[tenant_stack_migratory]] — 堆栈/迁移标识口径（is_stack → migratory/stock）
+- [[unpaid_company]] — 未缴费企业
+- [[valid-contact-person]] — 有效联系人
+- [[valid-cust-role]] — 有效客户角色
+- [[valid-record-enable-y]] — 有效账户/有效记录口径
+- [[valid_contact]] — 有效联系人（可展示）
+- [[valid_person]] — 有效联系人
+- [[wechat-approval-export-scope]] — 企微立项审批导出范围
+- [[wecom_active_member]] — 企微有效成员
+- [[wenjuan_no_persist_completion]] — 问卷星活动-完成态不落库口径
+- [[wenjuan_whitelist_company]] — 问卷星活动-白名单企业口径
+- [[whitelist_exempt]] — 白名单豁免
+- [[产融本库待办]] — 产融本库待办
+- [[文件短链]] — 文件短链
+- [[普通短链]] — 普通短链
+- [[未完成待办]] — 未完成待办
+- [[永久短链]] — 永久短链
+- [[消息模板缺失]] — 消息模板缺失
+- [[短信发送默认参数]] — 短信发送默认参数
+- [[短链已过期]] — 短链已过期
+- [[签约验证码固定场景]] — 签约验证码固定场景
+- [[邀请码有效期]] — 邀请码有效期
+- [[验证码场景白名单]] — 验证码场景白名单
+- [[验证码有效期参数]] — 验证码有效期参数
+- [[验证码校验口径]] — 验证码校验口径
+
+## concepts (128)
+- [[access_token]] — accessToken（小程序 / 企微 / SSO）
+- [[account-owner-company]] — 账户归属企业（ref_cust_company_info）
+- [[account-type]] — 账户类型（account_type）
+- [[admin]] — 管理员
+- [[admission]] — 准入
+- [[agreement]] — 协议
+- [[auth_status]] — 认证状态
+- [[authorization_agreement]] — 授权书
+- [[auto_verify]] — 自动审核
+- [[bank-no]] — 联行号（bank_no）
+- [[bg_color]] — bgColor
+- [[bocom]] — 交e保
+- [[build_status]] — 建档状态
+- [[build_type]] — 录入方式
+- [[busi-key]] — busiKey 业务主键
+- [[ca]] — CA
+- [[ca_certificate_fee]] — CA证书收费
+- [[ca_cfca]] — CA / CFCA
+- [[captcha]] — 是否需要验证码（需求文档串入）
+- [[catg-id]] — catgId 影像分类ID
+- [[certification_id]] — certificationId
+- [[change-status]] — 变更状态/审核状态
+- [[channel]] — 渠道（channel）
+- [[check_status]] — 审核状态
+- [[company-role]] — 企业角色
+- [[company-type]] — 客户角色 / 企业角色（companyType）
+- [[companyType]] — companyType 企业角色类型
+- [[company_business_code]] — 企业业务编码桥（code ↔ ref_cust_company_info）
+- [[company_code_bridge]] — ref_cust_company_info → 企业业务编码（cust_company_info.code）
+- [[company_id_bridge]] — companyId / custId → 企业主键（cust_company_info.id）
+- [[company_profile]] — 企业画像
+- [[company_role_bridge]] — 企业角色术语桥（cust_company_type / company_type / role_type / cust_type）
+- [[company_role_type]] — 企业角色类型同域（cust_company_type / company_type / role_type）
+- [[company_status_fields]] — 企业状态三字段
+- [[company_type]] — 企业类型
+- [[compensation]] — 补偿
+- [[contact_person]] — 联系人
+- [[core_enterprise]] — 核企
+- [[cust-build]] — 建档
+- [[cust-type]] — 企业角色（cust_type）
+- [[custRoleCombine]] — custRoleCombine 企业角色组合
+- [[cust_survey]] — 调研问卷
+- [[customer_status]] — 客户状态
+- [[data-source]] — 数据来源 / source
+- [[data-source-real-vs-manual]] — 真实立项与模拟立项（data_source）
+- [[data_permission_triple]] — 数据权限三维（user_id + company_id + company_type）
+- [[data_source]] — data_source
+- [[db_tenant_code]] — dbTenantCode
+- [[db_tenant_code_bridge]] — 租户编码术语桥（db_tenant_code / tenant_code / sysChannel）
+- [[event-listener-onevent]] — 事件监听 / onEvent
+- [[existing_user]] — 存量用户
+- [[face_business_no]] — faceBusinessNo / businessNo / busiSeqNo（业务流水号）
+- [[face_scan]] — 扫脸 / 人脸识别
+- [[fake_oem]] — 假贴牌
+- [[first_visitor]] — 首个访问用户
+- [[funding_key]] — fundingKey（资方唯一键）
+- [[funding_party]] — 资金方 / 资方（fundingParty）
+- [[funding_party_code]] — 对接方标识（fundingPartyCode）
+- [[gptlearn]] — 智能审核引流
+- [[gray_background]] — 灰度背景
+- [[guest]] — 游客
+- [[handler]] — 经办人
+- [[head_company_data]] — headCompanyData
+- [[identify_style]] — 认证方式
+- [[identify_style_bridge]] — 认证方式术语桥（identify_style 与 IdentifyTypeConstant）
+- [[is_deleted]] — 软删除标记
+- [[item-code]] — 变更项编码
+- [[logical_vs_db_tenant_code]] — 逻辑租户标识与数据租户标识
+- [[manual_verify]] — 人工审核
+- [[media-image]] — 影像（媒体/文件/附件）
+- [[migratory_cust]] — 迁移客户
+- [[migratory_project]] — 迁移项目
+- [[migratory_tenant]] — 迁移租户
+- [[miniprogram_qrcode]] — 小程序二维码
+- [[off_auth]] — 线下授权（off_auth）
+- [[offline_electronic_auth]] — 线下电子授权书
+- [[one_cert_four_steps]] — 一证四步
+- [[op_contact]] — 运营对接人与组别（op_contact）
+- [[op_contact_a]] — 运营对接人A
+- [[openStatus]] — openStatus 开通状态
+- [[oper-change-record]] — 运营人员变更记录
+- [[operation-id-contact-reference]] — 对接人引用体系（operation_id）
+- [[operator]] — 运营人员/经办人
+- [[operator_identity_bridge]] — 运营人员标识桥（operation_user ↔ cust_person_info）
+- [[org_identity_bridge]] — 机构标识桥（org_manage ↔ operation_user）
+- [[platform_cust_id_bridge]] — 运营中台企业 id 术语桥（custEnterpriseId / platform_cust_id）
+- [[platform_operator]] — 平台运营方
+- [[platform_product_code]] — 平台产品编码 PLATFORM
+- [[platform_product_vs_tenant_product]] — 平台产品与租户产品
+- [[port]] — 端口
+- [[product-type-coding]] — 产品类型双表示（编码数组与中文 CSV）
+- [[productCode]] — productCode 平台产品编码
+- [[product_code]] — 产品编码 productCode
+- [[product_code_bridge]] — 产品/项目编码术语桥（product_code / platform_product_code / product_id / project_id）
+- [[product_open_status]] — 开通状态（产品开通）
+- [[project-phase]] — 项目阶段（projectPhase）
+- [[project-type-domain-split]] — project_type 同名异域
+- [[project_tag]] — 项目标签（project_tag）
+- [[reg_archive]] — 建档
+- [[role-class]] — roleClass
+- [[root-flag]] — 集团根标识（root_flag）
+- [[rule_key]] — 规则键（ruleKey）
+- [[rule_layer]] — 规则层（ruleLayer）
+- [[sftp-channel]] — SFTP 渠道（channel）
+- [[solution-manager-identity]] — 方案经理身份联动（姓名 CSV / 企微 userId / 历史值）
+- [[sp-no-bridge]] — sp_no 立项—上线审批桥接键
+- [[specify-file-name]] — specifyFileName 指定文件名
+- [[supplier]] — 供应商
+- [[survey_completed]] — 问卷完成态
+- [[sync-error-record]] — 同步失败记录
+- [[system-delivery-reuse]] — system_delivery 复用列
+- [[tenantCode]] — tenantCode 租户标识
+- [[tenant_code_layers]] — 数据租户与逻辑租户（db_tenant_code / app_tenant_code）
+- [[tenant_flg_en]] — tenantFlgEn
+- [[tenant_operator]] — 运营人员(租户级)
+- [[tenant_source]] — 租户来源
+- [[tianma_inbound_outbound]] — 天马入站 / 天马出站
+- [[todo]] — 待办
+- [[trans-id-vs-trace-no]] — 打款交易标识（trans_id 与 trace_no）
+- [[unified_social_credit_code]] — 统码
+- [[user_type_bridge]] — 联系人用户类型术语桥（admin / operator / guest）
+- [[wechat]] — 微信（企微 / 服务号 / 小程序分流）
+- [[wenjuan]] — 问卷星活动
+- [[场景码]] — 场景码
+- [[短链]] — 短链
+- [[站内信]] — 站内信
+- [[通知失败不阻断业务]] — 通知失败不阻断业务
+- [[验证码]] — 验证码
+
+## enums (32)
+- [[account_type]] — account_type
+- [[alter_mode]] — alter_mode
+- [[auto_verify_status]] — auto_verify_status
+- [[certification_type]] — certification_type
+- [[cust_auth_application__open_status]] — open_status
+- [[cust_build_status]] — cust_build_status
+- [[cust_build_type]] — cust_build_type
+- [[cust_group_rel__status]] — status
+- [[cust_person_info__source]] — source
+- [[cust_role_info__status]] — status
+- [[cust_scale]] — cust_scale
+- [[cust_source]] — cust_source
+- [[cust_status]] — cust_status
+- [[cust_type]] — cust_type
+- [[data_type]] — data_type
+- [[identify_style]] — identify_style
+- [[invoice_status]] — invoice_status
+- [[legal_certification_type]] — legal_certification_type
+- [[node_status]] — node_status
+- [[order_status]] — order_status
+- [[pay_status]] — pay_status
+- [[platform_operator]] — platform_operator
+- [[product_status]] — product_status
+- [[project_status]] — project_status
+- [[real_name_result]] — real_name_result
+- [[receive_payment_type]] — receive_payment_type
+- [[rule_layer]] — rule_layer
+- [[rule_status]] — rule_status
+- [[sign_mode]] — sign_mode
+- [[tenant_interworking_product__open_status]] — open_status
+- [[tenant_project__source]] — source
+- [[wf_status]] — wf_status
+
+## processes (65)
+- [[account-cnaps-payment-auth-state]] — 银行账户小额打款认证状态机
+- [[async_io_task_status]] — 异步导入导出任务状态（async_io_task.status）
+- [[bg_color_gray]] — 租户背景颜色/灰度（tenant_setting_config.bg_color）
+- [[build-async-compensation-retry]] — 建档异步流程补偿重试状态机
+- [[ca_certification_submit_status]] — CA认证提交状态机
+- [[ca_fee_agreement_sign]] — 收费协议签署状态机
+- [[ca_fee_company_pay_status]] — 企业缴费状态机
+- [[ca_fee_order_state]] — CA服务费订单状态机
+- [[ca_fee_renew_remind]] — 续费提醒发送状态机
+- [[ca_submit_state_machine]] — CA 一证四步上送状态机
+- [[certification_verify_machine]] — 核查/实名认证状态机
+- [[change_record_check_machine]] — 变更记录审核状态机
+- [[client-media-event-routing]] — 影像同步事件路由（客户影像）
+- [[company_build_status_machine]] — 企业建档认证状态机
+- [[cust-change-record-status]] — 客户变更单状态机（cust_change_record.status）
+- [[cust-company-build-status]] — 企业建档状态机
+- [[cust-company-info-status]] — 企业生命周期状态机（cust_company_info.cust_status）
+- [[cust-group-rel-status-state]] — 集团成员单位关系状态机
+- [[cust-product-open-status]] — 客户产品开通状态
+- [[cust-project-rel-status]] — 企业项目关联生效状态
+- [[cust-role-status]] — 客户角色状态流转
+- [[cust_build_status]] — 企业建档/认证状态机（cust_company_info.cust_build_status）
+- [[cust_build_status_fsm]] — 企业认证/建档状态机（cust_build_status）
+- [[cust_check_status_machine]] — 客户审核状态机
+- [[cust_company_info_cust_build_status]] — 企业认证状态机（cust_company_info.cust_build_status）
+- [[cust_company_info_cust_status]] — 企业客户状态机（cust_company_info.cust_status）
+- [[cust_group_rel_status_fsm]] — 集团关系生效状态机（cust_group_rel.status）
+- [[cust_person_user_type_fsm]] — 企业联系人类型机（user_type）
+- [[cust_status]] — 客户生命周期状态机（cust_company_info.cust_status）
+- [[cust_status_fsm]] — 企业经营状态机（cust_status）
+- [[customer_status_machine]] — 客户状态机（cust_status）
+- [[data_permission_type_fsm]] — 数据权限类型机（permission_type）
+- [[enterprise_auth_status_machine]] — 企业认证状态机（cust_build_status）
+- [[funding_rule_status_machine]] — 资方规则状态机
+- [[global_bg_gray_switch]] — 全局背景灰度开关（Redis 缓存 BgColorCacheDto）
+- [[interworking_product_open_status]] — 客户互通产品开通状态流转
+- [[media-busi-type-routing]] — 影像业务类型
+- [[migratory_user_login_state]] — 迁移用户登录状态（is_login N→Y）
+- [[oper-change-type]] — 运营人员变更类型（cust_oper_change_record.change_type）
+- [[operation_check_status_machine]] — 运营审核状态机（check_status）
+- [[operator_freeze]] — 经办人产品关联冻结状态机（sys_cust_user_rel.is_freeze）
+- [[operator_freeze_state]] — 经办人冻结状态（SysCustUserRel）
+- [[person_account_status]] — 联系人账号状态
+- [[person_build_status]] — 联系人建档状态
+- [[person_realname_status]] — 实名认证状态
+- [[project-approval-status]] — 项目立项审批状态
+- [[project-data-source]] — 模拟立项/真实立项数据来源
+- [[project-phase]] — 项目阶段（立项统计）
+- [[project_approval_node_status]] — 项目上线审批节点状态流转
+- [[project_approval_workflow_status]] — 项目上线审批工作流状态流转
+- [[realname_face_verify_state]] — 实名/人脸核查结果状态
+- [[tenant-product-open-status]] — 租户产品开通状态
+- [[tenant_product_open_status]] — 租户产品开通状态流转
+- [[tenant_project_approval_flow_node_status]] — 上线审批节点状态机
+- [[tenant_project_approval_wf_status]] — 项目上线审批工作流状态机
+- [[tenant_project_project_status]] — 租户项目状态机
+- [[tenant_project_status]] — 租户项目启停流转
+- [[tenant_pushing_status]] — 租户推送状态（tenant_setting_config.pushing_status）
+- [[tenant_status_effective]] — 租户生效状态（tenant_setting_config.status）
+- [[wechat_project_approval_apply_act_procinst_status]] — 企微立项审批实例状态
+- [[wenjuan_home_display_scene]] — 问卷星首页展示场景（WenjuanHomeDisplayConfigDTO.displayScene）
+- [[workflow_check_status_machine]] — 工作流审核状态机
+- [[消息渠道]] — 消息渠道（MessageTypeEnum）
+- [[短链有效期标志]] — 短链有效期标志
+- [[短链类型路由]] — 短链类型路由
+
+## rules (180)
+- [[account-no-unique-per-company]] — 企业账户不可重复
+- [[activation_idempotency]] — 租户产品开通幂等
+- [[admin-phone-change-redirect]] — 管理员手机号变更跳转判定
+- [[admin_change_freeze]] — 管理员变更冻结旧管理员
+- [[admin_check]] — 管理员校验规则
+- [[admin_unique_check_reject_exemption]] — 管理员唯一校验的退回豁免
+- [[admin_uniqueness]] — 管理员唯一性
+- [[ams_company_merge]] — AMS 企业合并迁移
+- [[annual_fee_pricing_rule]] — 年费定价规则
+- [[approval-no-writeback-on-submit]] — 正式首次提交回写 wechat_audit_no
+- [[archived-media-isdo]] — 建档影像仅在建档流程实时处理
+- [[audit-callback-dispatch]] — 运营中台审核回调分工
+- [[audit_track_fetch]] — 审核轨迹取数规则
+- [[auth-media-default-file-name]] — 授权书默认文件名
+- [[auth_status_conditional_update]] — 认证状态条件更新
+- [[auth_success_sets_customer_effective]] — 认证成功置客户生效
+- [[back_agreement_check]] — 后补合作协议判断触发条件
+- [[block_ca_on_change_status]] — 变更态拦截CA开通
+- [[branch_dual_row]] — 分公司双行处理规则
+- [[ca_invalidate_writeback]] — CA失效回写ca_register_status=N
+- [[ca_row_idempotent]] — CA认证行创建幂等规则
+- [[ca_submit_completeness_check]] — CA 上送完整性校验
+- [[cert_no_uniqueness]] — 身份证号唯一性
+- [[certification_no_cross_system_align]] — 统一社会信用代码跨系统一致性对齐
+- [[change-application-admission]] — 变更申请准入校验
+- [[change-cfg-identity-match]] — 变更配置按身份维度匹配
+- [[change-on-way-company]] — 变更在途判定（企业维度）
+- [[change-rebuild]] — 流程重建（重新发起变更）
+- [[change-record-terminal-filter]] — 变更单终态过滤
+- [[change_precondition_check]] — 变更前置校验
+- [[change_status_token_source]] — 变更态下运营中台企业 id 取自变更记录
+- [[channel_archive_unified_entry]] — 渠道建档统一入站入口
+- [[channel_exists_and_enabled]] — 渠道存在且启用校验
+- [[channel_tenant_exists]] — 渠道所属租户存在校验
+- [[chargeable_company_role_rule]] — 收费对象规则
+- [[company_build_duplicate_check]] — 企业重复建档校验
+- [[company_query_enable_y]] — 企业查询一律附加 enable='Y'
+- [[company_sync_lock]] — 迁移企业防重复同步锁
+- [[compensation-max-retry]] — 补偿重试上限
+- [[compensation-tenant-context-all]] — 补偿任务租户上下文全量查询
+- [[corp-company-cannot-be-child]] — 集团公司不可作为子级
+- [[cross_tenant_query_all]] — 跨租户查询需显式设置 dbTenantCode="all"
+- [[cust-role-combine-check]] — 企业角色组合校验
+- [[cust-status-role-cascade]] — 企业状态变更联动角色状态
+- [[cust_change_record_latest_effective]] — 变更记录取 status=CUST_CHECK_PASS 的最新有效记录
+- [[data_field_truncate]] — data字段超长截断规则
+- [[data_permission_default_same_as_user_org]] — 数据权限缺省按 SAME_AS_USER_ORG 处理
+- [[data_permission_triple_unique]] — 数据权限按用户+企业+角色三维唯一
+- [[default-account-unique]] — 默认账户唯一
+- [[edit-whitelist-and-field-history]] — 编辑白名单与字段历史保护
+- [[effective-member-no-op]] — 已生效成员单位不可重复操作
+- [[effective_on_approval_finished]] — 上线审批通过后自动生效项目
+- [[eject_msg_once]] — 迁移用户登录后仅弹出一次升级消息
+- [[electronic-auth-media-idempotent]] — 电子签约版授权书幂等
+- [[electronic_auth_sign_preconditions]] — 电子授权书签署编排前置条件（全满足才签署）
+- [[exception_export_funding_party_name_acflow]] — 异常解析-导出资金方名称映射固定ACFLOW
+- [[exception_export_limit_50000]] — 异常解析-导出上限50000
+- [[exception_import_all_or_nothing]] — 异常解析导入-全量校验通过才入库
+- [[exception_import_row_limit_5000]] — 异常解析导入-行数上限5000
+- [[exception_import_rpc_group_by_product]] — 异常解析导入-按产品分组RPC
+- [[exception_provider_exception_fallback]] — 异常解析对外查询-异常兜底
+- [[exception_provider_keyword_contains]] — 异常解析对外查询-关键字包含匹配
+- [[exception_unique_key_dedup]] — 异常解析-唯一键去重
+- [[exception_upsert_write]] — 异常解析-upsert写入
+- [[export-system-delivery-overwrite]] — 导出时 system_delivery 被产品类型覆盖
+- [[first-settlement-to-operation-phase]] — 首笔落地时间变更联动项目阶段为持续运营
+- [[freeze_company_freezes_admin]] — 冻结企业同时冻结管理员
+- [[goto-product-company-type-check]] — 进入产品前企业角色检查
+- [[goto-product-project-status-check]] — 进入产品前项目状态检查
+- [[gptlearn_finance_user_only]] — 智能审核引流仅金融机构用户可用
+- [[group-rel-uniqueness]] — 集团成员单位关联唯一性
+- [[h5_face_persist_soft_fail]] — H5 刷脸落库弱失败
+- [[import-length-limits]] — 文本字段长度上限
+- [[import-update-only]] — 导入仅支持更新（正式链路）
+- [[import_length_limits]] — 项目导入字段长度限制
+- [[intercept_scene_rule]] — 拦截场景规则
+- [[interworking_product_cancel_guard]] — 互通产品取消开通前置约束
+- [[is-latest-uniqueness]] — is_latest 唯一最新维护
+- [[is-low-risk-writeback]] — 低风险标记由法务节点填写并回写
+- [[legacy-termination-normalize]] — TERMINATION 读时归一为挂起
+- [[legacy_package_query]] — 存量打包查询规则
+- [[legacy_status_processor_deprecated]] — 旧状态处理器已废弃
+- [[manager-wechat-identity-validation]] — 方案经理/业务经理企微身份校验
+- [[manual-project-spno]] — 模拟立项编号规则
+- [[media-download-url]] — 影像下载URL生成
+- [[menu-port-config]] — 菜单端口配置按企业角色维护
+- [[menu-resource-code-filter]] — 菜单资源列表自动过滤指定 code
+- [[message_send_weak_failure_dedup]] — 消息发送弱失败与去重
+- [[migratory_user_record_init]] — 迁移人员记录初始化
+- [[miniprogram_access_token_cache]] — 小程序 accessToken 缓存与重试
+- [[miniprogram_scheme_retry]] — 小程序 Scheme 生成失败重试一次
+- [[multi-role-media-copy]] — 多角色建档影像复制
+- [[multi_project_exemption_rule]] — 多项目豁免规则
+- [[new_person_default_build_success]] — 经办人新增来源默认认证通过
+- [[nonstandard_inbound_all_tenant]] — 非标入站强制全租户上下文
+- [[notice-only-build-success]] — 新增子级仅认证成功才发待办
+- [[old-solution-manager-merge]] — 前方案经理联动合并
+- [[online-approval-clears-related-no]] — 上线审批清空关联审批编号
+- [[op-contact-group-refresh]] — 对接人组别随 operation_id 反查刷新
+- [[oper-change-record-query]] — 运营人员变更记录查询口径
+- [[oper-change-type-dict]] — 运营人员变更类型字典
+- [[oper_auth_agreement_fallback]] — 子账号授权书模板未配置时回落 Nacos 值
+- [[operation_user_deleted_filter]] — 运营人员查询必须带 deleted 过滤
+- [[operator-delete-freeze-only]] — 经办人DELETE仅冻结经办人角色
+- [[operator_assignment_prerequisite]] — 运营人员分配前提
+- [[operator_permission_disable]] — 经办人无产品权限时 enable 置 'N'，解冻恢复 'Y'
+- [[org_agw_skip_tenant_filter]] — client_type=AGW 跳过机构租户过滤
+- [[payment-amount-range]] — 打款验证金额范围与单位
+- [[payment-confirm-precondition]] — 验证前置状态约束
+- [[payment-count-quota]] — 打款次数配额
+- [[payment-fail-count]] — 验证失败计数口径
+- [[payment_precondition_rule]] — 支付前置条件规则
+- [[person_info_source_of_truth]] — 经办人信息以 sys_user + sso_user 为准
+- [[person_phone_encrypted_query]] — 联系人手机号加密存储，查询需传密文
+- [[phase-auto-operation-on-first-settlement]] — 首笔落地时间首次写入联动项目阶段
+- [[phone_encrypted_base64]] — 联系人手机号加密后 Base64 存储
+- [[phone_uniqueness]] — 手机号唯一性
+- [[platform-product-list-filter]] — 平台产品列表过滤
+- [[platform-product-save-check]] — 平台产品保存前置校验
+- [[product-agreement-activate]] — 产品协议签署后激活
+- [[product-type-arr-like-filter]] — 产品类型编码数组的 LIKE 筛选与白名单校验
+- [[project-file-page-query]] — 项目运营文件分页查询规则
+- [[project-file-save-or-update]] — 项目运营文件保存/更新规则
+- [[project-phase-import-restriction]] — 立项阶段不落库且审批通过后不可导入
+- [[project-type-drives-flow-and-ams]] — 上线审批项目类型决定流程与 AMS 推送
+- [[project_code_required_default_project]] — 项目码必填联动默认项目
+- [[project_effective_requires_config_check]] — 项目生效前的配置校验
+- [[reauthentication_restriction]] — 重新认证限制
+- [[reject-notify-initiator]] — 拒绝与退回通知只发发起人
+- [[reject-pass-callback-workflow]] — 拒绝/通过回调由工作流处理
+- [[rejected-cust-clear-role]] — 拒绝态企业清角色关联
+- [[renew_remind_rule]] — 续费提醒规则
+- [[role-overwrite-add]] — 角色为覆盖式新增
+- [[role-status-only-update]] — 角色操作仅更新状态字段
+- [[role_status_follow_company]] — 企业角色状态随企业状态联动更新
+- [[root-group-delete-check]] — 集团删除前在途业务校验
+- [[rule_detail_save_idempotent]] — 资方规则详情保存-幂等更新
+- [[rule_engine_priority]] — 规则引擎优先级
+- [[rule_import_product_code_direct_match]] — 资方规则导入-产品校验直接比对productCode
+- [[rule_info_create_duplicate_check]] — 资方规则-新增查重
+- [[rule_info_create_initial_pending]] — 资方规则-新增初始PENDING
+- [[rule_info_provider_active_only]] — 资方规则-对外仅返回ACTIVE
+- [[rule_info_update_version_increment]] — 资方规则-更新version+1
+- [[sign_idempotency_and_lock]] — 签署幂等与并发控制
+- [[simple_auth_ca_forbidden]] — 简易建档强制不开通电子签章，head_company 为空置 'Y'
+- [[simple_auth_force_no_ca]] — 简易认证强制不开通CA
+- [[simple_auth_no_ca]] — 简易认证强制不开通电子签章 CA
+- [[skip_realname_limit]] — 跳过实名认证限制
+- [[social_unified_code_check]] — 统一社会信用代码一致性校验
+- [[sp-type-fintech-scope]] — 统计口径固定金融科技业务
+- [[specified_requires_org_id_list]] — SPECIFIED 权限必须填写 org_id_list
+- [[statics-op-display-override]] — 展示用统计操作时间覆盖更新时间
+- [[statistics-only-editable-field]] — 统计页唯一可编辑列
+- [[status_update_main_data_type]] — 企业状态更新必须限定主数据（data_type）
+- [[submit_cust_field_reset]] — 提交建档时的字段重置（check_status 置 null、audit_back_flag 置 'N'）
+- [[submit_sign_center_completeness]] — 提交签章中台完整性校验
+- [[sync-by-role]] — 按角色维度同步
+- [[sync-exception-retain-context]] — 同步异常保留上下文不吞
+- [[sys_user_delete_all_products_frozen]] — 删除 sys 用户前须全部产品关系已冻结
+- [[tenant-product-on-the-way-check]] — 租户产品在途校验
+- [[tenant_product_unique_key]] — 租户产品唯一键约束
+- [[tenant_project_enable_filter]] — 租户项目仅取有效记录
+- [[tenant_switch_off_legacy_behavior]] — 租户开关关闭时保持现网行为
+- [[tianma_channel_key]] — 天马渠道键写入
+- [[tianma_company_build_duplicate_check]] — 天马渠道企业重复建档校验
+- [[tianma_default_company_type]] — 天马建档默认企业角色为供应商
+- [[tianma_inbound_validation]] — 天马入站参数强校验
+- [[token_sign_md5]] — 运营中台鉴权签名 md5(secret + sysChannel + loginName)
+- [[upgrade_auth_online_seal]] — 升级授权书在线盖章条件
+- [[wechat-import-match-by-sp-no]] — 企微导入按 sp_no 匹配既有记录
+- [[wechat-todo-notify]] — 企微待办通知按节点与通知类型分发
+- [[workflow-start-failure-degrade]] — 工作流启动失败降级停留在待发起
+- [[workflow_callback_routing]] — 工作流回调路由规则
+- [[workflow_processor_scope_comment_mismatch]] — 工作流执行器实际处理范围与注释不一致
+- [[writeoff_company_freezes_all_users]] — 注销企业同时冻结所有用户
+- [[writeoff_freeze_all_users]] — 注销企业前先冻结企业下全部用户
+- [[前置校验异常不受静默策略保护]] — 前置校验异常不受静默策略保护
+- [[签约验证码接收人手机号回写合同签署表]] — 签约验证码接收人手机号回写合同签署表
+- [[通知发送失败不阻断主流程]] — 通知发送失败不阻断主流程
+- [[验证码接收渠道取值]] — 验证码接收渠道取值
+
+## tables (86)
+- [[argeement_migratory_record]] — argeement_migratory_record（协议迁移记录表）
+- [[async_io_task]] — async_io_task（异步导入导出任务表）
+- [[authorization_agreement]] — authorization_agreement（授权确认书表）
+- [[ca_certification_info]] — ca_certification_info
+- [[ca_cfca_upgrade_report]] — ca_cfca_upgrade_report
+- [[ca_fee_company]] — ca_fee_company CA服务费企业台账
+- [[ca_fee_order]] — ca_fee_order CA服务费订单表
+- [[ca_fee_project_config]] — ca_fee_project_config CA收费项目配置表
+- [[ca_fee_special_config]] — CA服务费特殊企业配置
+- [[client_api_sync_error]] — client_api_sync_error 客户端同步失败记录表
+- [[cust_access_secret]] — 客户接入密钥表
+- [[cust_account_info]] — cust_account_info 企业银行账户表
+- [[cust_app_channel_config]] — 客户应用渠道关系
+- [[cust_auth_application]] — cust_auth_application 客户产品开通申请表
+- [[cust_auth_application_config]] — 客户产品开通配置
+- [[cust_build_record]] — cust_build_record 企业建档异步流程补偿记录表
+- [[cust_certification_info]] — cust_certification_info（客户核查记录表）
+- [[cust_change_cfg]] — cust_change_cfg（客户变更项配置表）
+- [[cust_change_record]] — cust_change_record（客户变更记录表）
+- [[cust_company_info]] — cust_company_info（企业主数据表）
+- [[cust_company_lifecycle_info]] — 企业生命周期记录
+- [[cust_company_survey_state]] — cust_company_survey_state（企业问卷星活动状态）
+- [[cust_company_survey_whitelist]] — cust_company_survey_whitelist（问卷星活动白名单企业）
+- [[cust_config_mapping]] — 企业信息配置表
+- [[cust_customized_product]] — 客户快捷入口配置
+- [[cust_group_rel]] — cust_group_rel（集团/企业树关系表）
+- [[cust_head_company_info]] — 客户总公司信息
+- [[cust_interworking_product]] — 客户互通产品表（cust_interworking_product）
+- [[cust_invite_info]] — 客户邀请信息
+- [[cust_message_send_policy]] — cust_message_send_policy 消息发送策略表
+- [[cust_oper_change_record]] — cust_oper_change_record（运营人员变更记录）
+- [[cust_person_info]] — cust_person_info（企业联系人表）
+- [[cust_project_code_record]] — 企业项目码录入记录表（cust_project_code_record）
+- [[cust_project_pushcust]] — 推送企业表（cust_project_pushcust）
+- [[cust_project_rel]] — cust_project_rel（企业—项目/产品关联表）
+- [[cust_role_info]] — cust_role_info（企业角色授权表）
+- [[cust_setting_config]] — cust_setting_config 企业配置表
+- [[cust_sftp]] — cust_sftp SFTP 渠道配置表
+- [[cust_shareholder_info]] — 客户关联方信息主表
+- [[cust_survey_answer]] — cust_survey_answer（调研问卷答案）
+- [[cust_user_rel]] — 用户产品关系表 cust_user_rel
+- [[funding_exception_resolution]] — 资金异常解析表（funding_exception_resolution）
+- [[funding_rule_detail]] — 资方规则明细表（funding_rule_detail）
+- [[funding_rule_front_cfg]] — 前端规则配置表（funding_rule_front_cfg）
+- [[funding_rule_info]] — 资方规则信息表（funding_rule_info）
+- [[gpt_learn_poster_log]] — gpt_learn_poster_log（智能审核引流卡片弹出/点击日志）
+- [[lc_sql_init_log]] — lc_sql_init_log（插件 SQL 执行日志表）
+- [[media_file]] — MediaFile 影像文件模型
+- [[migratory_user_record]] — migratory_user_record（迁移用户记录表）
+- [[open_sso_channel]] — 开放登录SSO渠道
+- [[operation_user]] — 运营人员表 operation_user
+- [[org_manage]] — 机构管理表 org_manage
+- [[platform_product]] — platform_product（平台产品表）
+- [[platform_product_client]] — platform_product_client 平台产品客户端配置表
+- [[platform_product_cust_role]] — platform_product_cust_role（产品企业角色/端口表）
+- [[project_file_info]] — project_file_info 项目运营文件表
+- [[short_link]] — short_link 短链表
+- [[sys_cust_org_user_permission]] — 客户组织数据权限表 sys_cust_org_user_permission
+- [[sys_cust_user_rel]] — sys_cust_user_rel（企业—用户—角色—产品授权表）
+- [[sys_user]] — 登录用户表 sys_user
+- [[sys_user_sso_user]] — sys_user / sso_user（用户中心与 SSO 用户表）
+- [[tenant_interworking_product]] — 租户互通产品表（tenant_interworking_product）
+- [[tenant_interworking_project]] — 租户互通产品项目
+- [[tenant_migarory_log]] — tenant_migarory_log（租户迁移日志表）
+- [[tenant_migarory_log_bak]] — 租户项目迁移记录表
+- [[tenant_product]] — tenant_product（租户产品开通表）
+- [[tenant_product_menu]] — 租户产品菜单表（tenant_product_menu）
+- [[tenant_product_menu_res]] — 租户产品菜单资源表（tenant_product_menu_res）
+- [[tenant_project]] — tenant_project（租户项目表）
+- [[tenant_project_approval]] — 项目上线审批表（tenant_project_approval）
+- [[tenant_project_approval_business_info]] — 租户项目审批业务系统推送信息表
+- [[tenant_project_approval_flow]] — 项目上线审批节点表（tenant_project_approval_flow）
+- [[tenant_project_approval_flow_comment]] — 租户项目审批备注信息
+- [[tenant_project_approval_flow_config]] — 租户项目审批流程配置表
+- [[tenant_project_approval_flow_credit]] — 租户项目审批流程授信表
+- [[tenant_project_approval_flow_file]] — 租户项目审批流程文件表
+- [[tenant_project_approval_flow_node]] — 租户项目审批流程节点表
+- [[tenant_setting_config]] — tenant_setting_config（租户配置表）
+- [[tenant_setting_config_share]] — 共享租户配置
+- [[wec_project_cust_operation_rel]] — 微企链项目企业关联运营
+- [[wec_project_operation_rel]] — 微企链项目关联运营
+- [[wechat_project_approval_apply]] — 立项审批申请表（wechat_project_approval_apply）
+- [[wechat_project_approval_apply_field_history]] — 立项审批字段变更历史表（wechat_project_approval_apply_field_history）
+- [[wechat_project_approval_field_history]] — 项目立项字段更新历史
+- [[wechat_project_approval_flow_file]] — 企微立项审批流程附件表
+- [[wx_work_user]] — wx_work_user（企微成员表）
+
+共 678 页。
