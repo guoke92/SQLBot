@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 已生效成员单位不可重复操作
-page_key: rules/effective-member-no-op
+page_key: effective-member-no-op
 domain: 企业集团关系
 status: draft
 aliases: [checkCustGroup, 成员单位准入校验]
@@ -11,6 +11,7 @@ scope:
 sources:
   - code_path:CustGroupLicenseApplication.java:checkCustGroup
 contract_version: "0.1"
+belong: rules
 ---
 
 成员单位协议操作的准入规则：已生效记录、根节点、未认证成功企业三类情形均被拒。口径见 [[calibers/effective-group-member]]、[[calibers/group-root-node]]、[[calibers/company-build-success]]。

@@ -1,0 +1,8 @@
+body: 'reqdoc_claims 第三条原文截断（"讯易链与 AMS 都建过档的存量企业需做数据合并，保…"），`code_status` 与 `action`
+  缺失，无法判定为 anchor 还是 uncovered。当前处理：页面首行标注 (document_claim，未证实)，主张原文进 ## 版本演进；本页 ground:rule
+  仅承载代码证据。
+
+  另：前两条 anchor 主张的 `reqdoc:slug` 在语义分析中未给出，页内 evidence 中的 `reqdoc:migratory-first-login-eject-msg`、`reqdoc:migratory-agreement-init`
+  系按主张内容推导的占位 slug，需以需求库真实标识替换。'
+title: AMS 迁移去重（企业已存在则只补人员）
+type: rule

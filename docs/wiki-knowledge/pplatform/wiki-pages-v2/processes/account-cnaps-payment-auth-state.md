@@ -1,7 +1,7 @@
 ---
 type: process
 title: 银行账户小额打款认证状态机
-page_key: processes/account-cnaps-payment-auth-state
+page_key: account-cnaps-payment-auth-state
 domain: 企业银行账户
 status: draft
 aliases: [CNAPS 打款认证流程, auth_state 状态机]
@@ -11,6 +11,7 @@ scope:
 sources:
   - code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustAccountApplication.java
 contract_version: "0.1"
+belong: processes
 ---
 
 本流程描述企业银行账户（[[tables/cust_account_info]]）通过人行小额打款完成真实性认证的完整状态流转：申请打款 → 银行受理 → 金额验证。字段 `auth_state` 的五态取值与迁移条件是账户认证能力的核心契约，被 [[calibers/account-payment-auth-passed]]、[[rules/payment-confirm-precondition]]、[[rules/payment-fail-count]] 直接引用。

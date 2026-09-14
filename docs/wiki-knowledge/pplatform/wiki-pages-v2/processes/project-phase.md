@@ -1,7 +1,7 @@
 ---
 type: process
 title: 项目阶段（立项统计）
-page_key: process.project-phase
+page_key: project-phase
 domain: 项目报表/统计/上报
 status: draft
 aliases:
@@ -16,6 +16,7 @@ sources:
   - code:ProjectStatisticsApplication.java
   - code:ProjectStatisticsDevImportApplication.java
 contract_version: "0.1"
+belong: processes
 ---
 
 # 项目阶段（立项统计）

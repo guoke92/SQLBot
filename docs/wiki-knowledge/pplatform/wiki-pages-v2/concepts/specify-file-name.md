@@ -1,7 +1,7 @@
 ---
 type: concept
 title: specifyFileName 指定文件名
-page_key: concepts/specify-file-name
+page_key: specify-file-name
 domain: 文件/附件/媒体
 status: draft
 aliases: [specifyFileName, 指定文件名]
@@ -16,6 +16,7 @@ also_confused_with: [fileRename, fileName]
 adjudication: boundary
 boundary: "specifyFileName 为业务指定名（常不带后缀），fileRename 为展示名，fileName 为原始文件名。"
 contract_version: "0.1"
+belong: concepts
 ---
 
 # specifyFileName 指定文件名

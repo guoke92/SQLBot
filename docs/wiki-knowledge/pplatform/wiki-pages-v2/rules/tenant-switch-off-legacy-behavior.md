@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 租户开关关闭时保持现网行为
-page_key: rule.tenant_switch_off_legacy_behavior
+page_key: tenant-switch-off-legacy-behavior
 domain: 授权协议与电子授权
 status: draft
 aliases:
@@ -14,6 +14,7 @@ sources:
   - code:ElectronicAuthLetterApplication.java
   - db:tenant_setting_config
 contract_version: "0.1"
+belong: rules
 ---
 
 当租户开关 `generate_electronic_auth_flag` 非 `Y`——包括配置不存在、值为空、以及查询异常——`signOfflineElectronicAuthOnLine` 直接返回 `true`，既不做 CFCA 校验也不发起签署，从而保持现网线下纸质授权行为。该规则是 [[concepts/offline-electronic-auth]] 的失败安全设计，同时构成 [[calibers/offline-electronic-auth-trigger]] 的一部分。

@@ -1,211 +1,123 @@
 field_semantics:
 - table: cust_company_info
-  field: id
-  meaning: 表主键，雪花ID（@TableId IdType.ASSIGN_ID）
-  evidence: code
-- table: cust_company_info
-  field: code
-  meaning: 客户业务编码；子表（person/role/account/projectRel）通过 refCustCompanyInfo 关联此编码
-  evidence: code
-- table: cust_company_info
-  field: name
-  meaning: 客户名称（企业全称），建档重复校验的第一匹配键
+  field: db_tenant_code
+  meaning: 数据租户标识；入站渠道建档期间 ThreadLocal 被置为 'all' 以跨租户查询，业务租户由 cust_access_secret.channel
+    反查得到
   evidence: code
 - table: cust_company_info
   field: certification_no
-  meaning: 统一社会信用代码，法人/企业唯一标识，建档重复校验与银行账户查询的主键之一
+  meaning: 统一社会信用代码，渠道建档/查重/查询的主匹配键（socialUnifiedCode → certificationNo）
   evidence: code
 - table: cust_company_info
   field: cust_company_type
-  meaning: 企业角色，JSON 数组字符串（如 ["SUPPLIER"]），查询时用 like 模糊匹配（query/batchQuery/changeCompanyInfo）
-  evidence: code
-- table: cust_company_info
-  field: cust_status
-  meaning: 客户状态：ADD / CHANGE / WRITEOFF（CustStatusConstant、CustStatusEnum）
+  meaning: 企业角色，JSON 数组字符串（如 ["SUPPLIER"]）；查询用 like 模糊匹配，故单值比对不可靠
   evidence: code
 - table: cust_company_info
   field: cust_build_status
-  meaning: 建档/认证状态（DO 注解为『认证状态』），值取自 CustBuildStatusEnum/CustBuildStatusConstant：INIT
-    / BUILDING / CUST_CONFIRM_AWAIT / BUILD_SUCCESS / BUILD_FAIL
+  meaning: 建档（认证）状态，落库键取自 CustBuildStatusEnum.getDictKey()/CustBuildStatusConstant，如
+    INIT/BUILDING/CUST_CONFIRM_AWAIT/BUILD_SUCCESS/BUILD_FAIL
   evidence: code
 - table: cust_company_info
   field: check_status
-  meaning: 审核状态，值取自 OperApiConstants.CheckStatus：CUST_CHECK_INIT / CUST_CHECK_CHECKING
-    / CUST_CHECK_PASS / CUST_CHECK_REJECT / CUST_BACK / CUST_CHECK_BACKTOCUSTOM
+  meaning: 审核状态，落库为 OperApiConstants.CheckStatus 的 .name()（CUST_CHECK_INIT/CHECKING/PASS/REJECT/BACKTOCUSTOM/CUST_BACK），读取用
+    CheckStatus.getByName
   evidence: code
 - table: cust_company_info
-  field: db_tenant_code
-  meaning: 数据租户标识（多租户隔离键）；渠道入站/开放接口建档时被强制置为 'all' 或由渠道密钥决定
-  evidence: code
-- table: cust_company_info
-  field: app_tenant_code
-  meaning: 逻辑租户标识
-  evidence: code
-- table: cust_company_info
-  field: remark
-  meaning: 备注；开放接口查询建档状态时作为 checkDesc（退回原因）回传
-  evidence: code
-- table: cust_company_info
-  field: enable
-  meaning: 启用标识 Y/N（EnableEnum），所有查询均带 enable='Y'
+  field: cust_status
+  meaning: 客户状态：ADD(新增)/CHANGE(变更中)/WRITEOFF(作废)；变更流程仅在 CHANGE 态才允许终止
   evidence: code
 - table: cust_company_info
   field: identify_style
-  meaning: 认证方式/录入方式：IdentifyTypeConstant.INVITE（企业录入）、INVITE_AGW（系统录入）；自主建档为 INVITE，挂靠建档为
-    INVITE_AGW
-  evidence: code
-- table: cust_company_info
-  field: third_auth_status
-  meaning: 第三方认证状态，建档时取自入参 authStatus
-  evidence: code
-- table: cust_company_info
-  field: ca_register_status
-  meaning: CA 开通状态，建档初始化固定写 EnableEnum.N
-  evidence: code
-- table: cust_company_info
-  field: bs_register_status
-  meaning: 上上签开通状态
-  evidence: code
-- table: cust_company_info
-  field: need_register_ca
-  meaning: 是否开通电子签章，建档初始化固定写 EnableEnum.Y
-  evidence: code
-- table: cust_company_info
-  field: need_register_bs
-  meaning: 是否需要开通上上签
+  meaning: 认证方式：INVITE(自主认证) / INVITE_AGW(自主建档-渠道)；怡亚通等特定租户被强制改写为 INVITE
   evidence: code
 - table: cust_company_info
   field: time_permanent
-  meaning: 营业执照有效期 JSON：{"start":null,"end":yyyy-MM-dd,"status":"YES|NO"}；end 以 9999
-    开头视为长期，status=YES
+  meaning: 营业执照有效期 JSON {start,end,status}；end 以 9999 开头时 status=YES 表示长期
   evidence: code
 - table: cust_company_info
   field: legal_time_permanent
-  meaning: 法人证件有效期 JSON，结构同 time_permanent（end/status 语义一致）
-  evidence: code
-- table: cust_company_info
-  field: business_license_start_time
-  meaning: 企业营业执照开始时间（结构化列，与 time_permanent 同步写）
-  evidence: code
-- table: cust_company_info
-  field: business_license_end_time
-  meaning: 企业营业执照结束时间
-  evidence: code
-- table: cust_company_info
-  field: legal_certification_start_time
-  meaning: 法人证件开始日期
-  evidence: code
-- table: cust_company_info
-  field: legal_certification_end_time
-  meaning: 法人证件结束日期
-  evidence: code
-- table: cust_company_info
-  field: legal_name
-  meaning: 法人姓名
-  evidence: code
-- table: cust_company_info
-  field: legal_certification_no
-  meaning: 法人证件号
-  evidence: code
-- table: cust_company_info
-  field: legal_certification_type
-  meaning: 法人证件类型，由 IDTypeEnum 映射（默认 CRET_ID）
-  evidence: code
-- table: cust_company_info
-  field: legal_phone
-  meaning: 法人手机号；变更场景未传/空白时不覆盖库中值
+  meaning: 法人身份证有效期 JSON {start,end,status}，规则同上
   evidence: code
 - table: cust_company_info
   field: company_ext_data
-  meaning: 企业拓展字段 JSON；天马建档写入 interestRate（CompantExtConstants.INTEREST_RATE，综合利率），怡亚通租户写入
-    BUILD_STYPE=INVITE_AGW
+  meaning: 企业扩展 JSON：天马写入 INTEREST_RATE(综合利率)，怡亚通写入 BUILD_STYPE=INVITE_AGW
   evidence: code
 - table: cust_company_info
-  field: head_company
-  meaning: 是否总公司，建档初始化固定写 Y
+  field: ca_register_status
+  meaning: CA 开通状态，建档初始化固定为 EnableEnum.N.name()（未开通）
   evidence: code
 - table: cust_company_info
+  field: legal_phone
+  meaning: 法人手机号；企业变更时若入参为空/空白则不覆盖库中值，防止在途建档推运营为空
+  evidence: code
+- table: cust_access_secret
+  field: channel
+  meaning: 渠道标识（天马 CloudChannel.TIANMA.getDictKey() 等），与 enable 联查后决定该渠道的 dbTenantCode，是渠道鉴权+租户定位的唯一依据
+  evidence: code
+- table: cust_sftp
+  field: channel
+  meaning: 渠道影像 SFTP 通道配置（host/port/userName/password），按 channel+enable 联查，用于影像下载/回传
+  evidence: code
+- table: cust_person_info
+  field: ref_cust_company_info
+  meaning: 归属企业 code（非主键 id），企业-人员为 code 级软关联
+  evidence: code
+- table: cust_account_info
+  field: ref_cust_company_info
+  meaning: 归属企业 code；供应商建档时按联行号查银行信息回填 bank_branch_name/bank_code/bank_no
+  evidence: code
+- table: cust_account_info
+  field: bank_no
+  meaning: 联行号(unitedBankNumber)，建档必填校验项之一
+  evidence: code
+- table: cust_role_info
   field: platform_cust_id
-  meaning: 运营中台客户 ID（另可由 cust_build_record.plat_cust_id、cust_role_info.platform_cust_id
-    解析）
+  meaning: 运营中台企业 ID；与 cust_build_record.plat_cust_id 冲突时以本表为准
   evidence: code
-- table: cust_company_info
-  field: cust_source
-  meaning: 建档数据来源
-  evidence: code
-- table: cust_company_info
-  field: cust_from
-  meaning: 客户来源
-  evidence: code
-- table: cust_company_info
-  field: data_type
-  meaning: 数据类型：'1' 主数据、'0' 记录数据
-  evidence: code
-- table: cust_company_info
-  field: main_data_id
-  meaning: 主数据 id
-  evidence: code
-- table: cust_company_info
-  field: regist_city
-  meaning: 注册市名称；city_code/parent_code 由 address 表（AddressDO.fullName）反查填充
-  evidence: code
-- table: cust_company_info
-  field: regist_city_code
-  meaning: 注册城市代码
-  evidence: code
-- table: cust_company_info
-  field: regist_province
-  meaning: 注册省份
-  evidence: code
-- table: cust_company_info
-  field: regist_province_code
-  meaning: 注册省份代码
-  evidence: code
-- table: cust_company_info
-  field: regist_province_city
-  meaning: 注册省市 JSON（province/provinceName/city/cityName）
-  evidence: code
-- table: cust_company_info
-  field: registered_address
-  meaning: 注册地址
-  evidence: code
-- table: cust_company_info
-  field: cust_short_name
-  meaning: 企业简称
-  evidence: code
-- table: cust_company_info
-  field: cust_english_name
-  meaning: 客户英文名称
-  evidence: code
-- table: cust_company_info
-  field: cust_former_name
-  meaning: 曾用名
+- table: cust_project_rel
+  field: ref_cust_project_rel_cust_company_info
+  meaning: 企业与租户项目的关联（code 级），天马建档时 projectId 由外部项目校验服务返回
   evidence: code
 state_machines:
-- name: 客户建档/认证状态机
+- name: 企业建档(认证)状态
   field: cust_company_info.cust_build_status
   states:
   - value: INIT
-    label: 建档初始化
-    source: code_enum
+    label: 初始化
+    source: code_const
   - value: BUILDING
     label: 建档中
     source: code_enum
   - value: CUST_CONFIRM_AWAIT
-    label: 待企业确认
+    label: 待客户确认
     source: code_enum
   - value: BUILD_SUCCESS
     label: 建档成功
     source: code_enum
   - value: BUILD_FAIL
-    label: 建档失败（可重新建档）
+    label: 建档失败
     source: code_enum
   transitions:
-  - from: BUILDING|CUST_CONFIRM_AWAIT
-    event: 标准接口重新建档时终止旧流程（hasOperFlow 分支调用运营中台 completeRejectProcess，随后本地落状态）
+  - from: '*'
+    event: 建档初始化(自主/非自主/天马)
+    to: INIT
+    evidence: code_path:CustAccessApplication.setCustCompany / initCustOfTianma →
+      company.setCustBuildStatus(CustBuildStatusConstant.INIT)
+  - from: BUILD_FAIL
+    event: 同企业重新建档(复用旧 id/code)
+    to: INIT
+    evidence: code_path:CustAccessApplication.initCust / initCustOfTianma → query
+      custBuildStatus=BUILD_FAIL or custStatus=WRITEOFF 后复用
+  - from: BUILDING
+    event: 对外查询状态
+    to: CUSTS002(对外建档中)
+    evidence: code_path:CustAccessApplication.query → CustBuildStatusEnum.BUILDING.getDictKey()
+      分支
+  - from: '*'
+    event: 运营/标准接口终止建档流程 terminateBuildingFlow
     to: BUILD_FAIL
-    evidence: code_path:lowcode-pplatform-customer-management/.../cust/application/CustAccessApplication.java#terminateBuildingFlow
-- name: 客户审核状态机
+    evidence: code_path:CustAccessApplication.terminateBuildingFlow → update.setCustBuildStatus(CustBuildStatusEnum.BUILD_FAIL.getDictKey())
+- name: 企业审核状态
   field: cust_company_info.check_status
   states:
   - value: CUST_CHECK_INIT
@@ -218,309 +130,509 @@ state_machines:
     label: 审核通过
     source: code_enum
   - value: CUST_CHECK_REJECT
-    label: 审核拒绝/退回
+    label: 审核拒绝
+    source: code_enum
+  - value: CUST_CHECK_BACKTOCUSTOM
+    label: 退回客户补件
     source: code_enum
   - value: CUST_BACK
     label: 退回
     source: code_enum
-  - value: CUST_CHECK_BACKTOCUSTOM
-    label: 退回客户补充
-    source: code_enum
   transitions:
-  - from: CUST_CHECK_CHECKING
-    event: 标准接口终止旧建档流程
+  - from: '*'
+    event: 终止建档流程
     to: CUST_CHECK_REJECT
-    evidence: code_path:lowcode-pplatform-customer-management/.../cust/application/CustAccessApplication.java#terminateBuildingFlow
+    evidence: code_path:CustAccessApplication.terminateBuildingFlow → update.setCheckStatus(CheckStatus.CUST_CHECK_REJECT.name())
+  - from: CUST_CHECK_PASS
+    event: 对外状态映射
+    to: CUSTS003 + AUTH0003
+    evidence: code_path:CustAccessApplication.getCheckStatus → case CUST_CHECK_PASS
   - from: CUST_CHECK_CHECKING
-    event: 标准接口终止运营变更流程（changeRejectProcess 落库）
-    to: CUST_CHECK_REJECT
-    evidence: code_path:lowcode-pplatform-customer-management/.../cust/application/CustAccessApplication.java#terminateChangingFlow（方法内注释：changeRejectProcess
-      已在库中落 CUST_CHECK_REJECT）
-- name: 客户状态机
+    event: 对外状态映射
+    to: CUSTS002 + AUTH0001
+    evidence: code_path:CustAccessApplication.getCheckStatus → case CUST_CHECK_CHECKING
+  - from: CUST_CHECK_REJECT
+    event: 对外状态映射
+    to: CUSTS004 + AUTH0001
+    evidence: code_path:CustAccessApplication.getCheckStatus → case CUST_CHECK_REJECT
+- name: 客户状态
   field: cust_company_info.cust_status
   states:
   - value: ADD
-    label: 新增/建档态
-    source: code_enum
+    label: 新增/在库
+    source: code_const
   - value: CHANGE
-    label: 变更态
+    label: 变更中
     source: code_enum
   - value: WRITEOFF
-    label: 注销态
-    source: code_enum
-  transitions: []
+    label: 作废
+    source: code_const
+  transitions:
+  - from: '*'
+    event: 建档落库
+    to: ADD
+    evidence: code_path:CustAccessApplication.setCustCompany → company.setCustStatus(CustStatusConstant.ADD)
+  - from: ADD
+    event: 标准 OpenAPI 发起企业变更
+    to: CHANGE(经运营变更流程)
+    evidence: code_path:CustAccessApplication.terminateChangingFlow 前置判断 CustStatusEnum.CHANGE.getDictKey().equals(company.getCustStatus())
 calibers:
-- name: 企业有效口径
+- name: 渠道启用过滤
+  predicate: cust_access_secret.enable = 'Y'
+  scope: 渠道鉴权、渠道→租户(dbTenantCode)定位、变更渠道校验
+  evidence: code:CustAccessApplication.validateSetValue / validateChangeChannelAndTenant
+- name: 客户主表启用过滤
   predicate: cust_company_info.enable = 'Y'
-  scope: 所有标准开放接口查询/变更/重复校验
-  evidence: 'code:CustAccessApplication#query / #batchQuery / #changeCompanyInfo（eq(CustCompanyInfoDO::getEnable,
-    EnableEnum.Y.name())）'
-- name: 非注销企业口径
-  predicate: cust_company_info.cust_status <> 'WRITEOFF'
-  scope: 天马建档重复校验（notIn CustStatusConstant.WRITEOFF）
-  evidence: code:CustAccessApplication#validateSetValueOfTianma
+  scope: 企业查询/变更/批量查询均排除停用企业
+  evidence: code:CustAccessApplication.query / batchQuery / changeCompanyInfo
 - name: 建档失败可复用口径
   predicate: cust_company_info.cust_build_status = 'BUILD_FAIL'
-  scope: initCust/initCustOfTianma 允许复用旧企业记录（BUILD_FAIL 或 WRITEOFF）覆盖写；天马重复校验对 BUILD_FAIL
-    放行
-  evidence: 'code:CustAccessApplication#initCust / #initCustOfTianma / #validateSetValueOfTianma'
-- name: 标准接口已建档口径
-  predicate: count(cust_company_info.certification_no = ? AND cust_company_info.db_tenant_code
-    = ? AND cust_company_info.cust_build_status <> 'BUILD_FAIL') <> 0
-  scope: independentReg/dependentReg 前置校验，命中抛 REG_EXIST_EXCEPTION『企业已建档！』
-  evidence: code:CustAccessApplication#validateSetValue
-- name: 渠道-租户映射口径
-  predicate: cust_access_secret.channel = ? AND cust_access_secret.enable = 'Y' →
-    db_tenant_code
-  scope: 渠道入站建档、查询、变更均以渠道密钥表反查租户；查不到抛『渠道不存在』
-  evidence: 'code:CustAccessApplication#validateSetValue / #getDbTenantCode / #validateChangeChannelAndTenant'
-- name: 全租户上下文口径
-  predicate: dbTenantCode = 'all'
-  scope: MethDataThreadLocalConfig.setDbTenantCode("all")，用于渠道入站与开放接口跨租户检索；changeCompanyInfo
-    在 finally 中还原原租户
-  evidence: code:TianmaController#companyArchive / AlipayAntArchiveController#channelArchive
-    / CustAccessApplication#reg、#query、#batchQuery、#changeCompanyInfo
-- name: 批量查询条数上限口径
-  predicate: size(queryReqs) <= 100
-  scope: batchQuery 入参校验
-  evidence: code:CustAccessApplication#batchQuery
-- name: 交e保清分产品口径
-  predicate: productCode IN ${bocom.clearing.allowedProductCodes:ACFLOW,RVSFACTOR_PC}
-  scope: CpcnBankProviderImpl.listXylCustAccountBanks 遍历该集合逐产品查清分银行卡
-  evidence: code:CpcnBankProviderImpl（@NacosValue bocom.clearing.allowedProductCodes）
-- name: 支付宝清分默认产品口径
-  predicate: productCode = 'ACFLOW'（入参为空时兜底）
-  scope: ProjectAlipayClearingConfigApplication.isAlipayClearingConfigured；ClientProjectAlipayClearingConfigSyncService.getAppId
-    同口径
-  evidence: code:ProjectAlipayClearingConfigApplication#isAlipayClearingConfigured
-- name: 交e保账户存在性口径
-  predicate: certificationNos = [cust_company_info.certification_no] AND dbTenantCode
-    = cust_company_info.db_tenant_code AND platformCode='pplatform' AND productCode='ACFLOW'
-    AND readLocalFlag=true
-  scope: BocomFacade.existBocomAccount
-  evidence: code:BocomFacade#existBocomAccount
+  scope: 查重时豁免：已建档判定为 count(cust_build_status != BUILD_FAIL) != 0，失败件允许重建
+  evidence: code:CustAccessApplication.validateSetValue / initCust
+- name: 作废客户排除
+  predicate: cust_company_info.cust_status = 'WRITEOFF'
+  scope: 天马撞库校验 notIn(WRITEOFF)，作废件允许重新建档
+  evidence: code:CustAccessApplication.validateSetValueOfTianma
+- name: 企业+信用代码+租户三元匹配
+  predicate: cust_company_info.certification_no = '<socialUnifiedCode>'
+  scope: 渠道查询/变更定位企业的核心条件（叠加 db_tenant_code 与 cust_company_type like）
+  evidence: code:CustAccessApplication.query / changeCompanyInfo
+- name: SFTP 渠道启用
+  predicate: cust_sftp.enable = 'Y'
+  scope: 影像 SFTP 通道初始化，匹配不到直接抛 SERVER_BUSY
+  evidence: code:CustAccessApplication.initSftp
+- name: 人员启用过滤
+  predicate: cust_person_info.enable = 'Y'
+  scope: 定位企业管理员（user_type=admin、按 create_time 倒序 limit 1）
+  evidence: code:CustAccessApplication.getCurrentAdmin
+- name: 运营企业ID一致性口径
+  predicate: cust_build_record.plat_cust_id = cust_role_info.platform_cust_id
+  scope: 不一致时以 cust_role_info 为准并告警
+  evidence: code:CustAccessApplication.resolveBuildPlatformCustIdForOper
 term_bridges:
-- term: 渠道（channel）
+- term: 渠道
   aliases:
   - channel
   - CloudChannel
   - AlipayAntCloudChannel
-  - cust_access_secret.channel
-  maps_to: 渠道字典键：代码中可见 CloudChannel.TIANMA.getDictKey()（天马）与 AlipayAntCloudChannel.ALIPAY_ANT（支付宝蚂蚁）；同时用作
-    cust_access_secret 的渠道键与 SFTP 配置（cust_sftp.channel）的键
+  maps_to: cust_access_secret.channel
   also_confused_with:
-  - HTTP 路径（/tianma、/cloud/std/cust/channelArchive）
+  - cust_company_info.cust_from
+  - cust_company_info.cust_source
   adjudication: boundary
-  boundary: 渠道 ≠ URL 路径：AlipayAntArchiveController 注释明确『路径与 channel 无关，channel 完全由请求体决定』，而天马走独立
-    /tianma 路径。判定渠道应以渠道密钥表/请求体 channel 字段为准
+  boundary: channel 是接入方标识，决定租户(dbTenantCode)与 SFTP 通道；cust_from/cust_source 是企业来源展示字段，不可用作渠道路由
+- term: 租户
+  aliases:
+  - dbTenantCode
+  - db_tenant_code
+  - appTenantCode
+  maps_to: cust_company_info.db_tenant_code
+  also_confused_with:
+  - cust_company_info.app_tenant_code
+  adjudication: boundary
+  boundary: 入站渠道建档先置 ThreadLocal='all' 做跨租户检索，落库租户须取 cust_access_secret.db_tenant_code；app_tenant_code
+    为逻辑租户，与数据租户不同
+- term: 企业类型/企业角色
+  aliases:
+  - companyType
+  - custCompanyType
+  - CompanyType
+  - SPY
+  - CE
+  - CPT
+  - OPE
+  maps_to: cust_company_info.cust_company_type
+  also_confused_with:
+  - cust_person_info.company_type
+  - cust_role_info.role_type
+  adjudication: boundary
+  boundary: 对外协议码(SPY/CE/CPT/OPE)与内部 dictKey(SUPPLIER/CORE/FINANCE/PLATFORM_OPERATOR_COMPANY)
+    需经 getCompanyType 转换；主表存 JSON 数组且查询用 like
+- term: 统一社会信用代码
+  aliases:
+  - socialUnifiedCode
+  - certificationNo
+  - certification_no
+  maps_to: cust_company_info.certification_no
+  also_confused_with:
+  - cust_company_info.invoicing_taxpayer_no
+  adjudication: synonym
+  boundary: 对外字段名 socialUnifiedCode，落库列 certification_no；开票纳税人识别号是另一字段
 - term: 建档
   aliases:
+  - companyArchive
   - reg
-  - independentReg
-  - dependentReg
-  - companyArchiveOfTianma
   - channelArchive
-  maps_to: cust_company_info 建档流程：CustAccessApplication#reg(isIndependent=true/false)、#companyArchiveOfTianma、以及
-    ChannelArchiveProvider#execute→ChannelCustArchiveOrchestrator
+  - 非自主建档
+  maps_to: cust_company_info.cust_build_status
   also_confused_with:
-  - 渠道建档（channelArchive）
-  - 天马建档（companyArchiveOfTianma）
-  - 运营中台建档（submitCust）
+  - cust_company_info.check_status
   adjudication: boundary
-  boundary: ChannelArchiveProvider 注释明确『Orchestrator 编排，不经过 reg / companyArchiveOfTianma』，是与标准建档并列的第三条入口；天马入站走
-    companyArchiveOfTianma，蚂蚁入站走 ChannelArchiveProvider
-- term: 企业状态三字段
+  boundary: 建档是本地初始化+状态机(cust_build_status)，审核是运营流程状态(check_status)；对外查询 status 由
+    check_status 优先映射，无 check_status 时才按 cust_build_status 兜底
+- term: 审核状态
   aliases:
-  - custStatus
-  - custBuildStatus
   - checkStatus
-  maps_to: cust_company_info 的三个独立状态列：cust_status（客户状态 ADD/CHANGE/WRITEOFF）、cust_build_status（建档/认证状态
-    INIT/BUILDING/BUILD_SUCCESS/BUILD_FAIL/CUST_CONFIRM_AWAIT）、check_status（审核状态 CUST_CHECK_*）
+  - CheckStatus
+  - CUST_CHECK_*
+  maps_to: cust_company_info.check_status
   also_confused_with:
-  - RegStatus（对外编码 CUSTS001~CUSTS005/CUST404）
-  - CompanyUserStatus（AUTH0001/AUTH0003）
+  - cust_company_info.cust_build_status
   adjudication: boundary
-  boundary: 对外查询接口不直接回传库内枚举，而是 CheckStatus→RegStatus 映射后再返回；CUSTS001~CUSTS005 属于开放接口协议值，不能当库存值使用
-- term: 产品编码 productCode
+  boundary: check_status 落库为 .name()，读取用 CheckStatus.getByName；为空时对外状态回落到 cust_build_status
+    判断
+- term: 清分
   aliases:
-  - productCode
-  - platformProductCode
-  - ProductCodeEnum.ACFLOW
-  - refPlatformProductCode
-  maps_to: 平台产品编码；RPC 路由（RpcAppVo.productAppId）与清分默认产品均以此为键，代码中默认值恒为 ACFLOW
+  - clearing
+  - 交e保
+  - 中金CFCA
+  - 支付宝清分
+  - 清分会员登记簿
+  maps_to: cust_account_info.account_no
   also_confused_with:
-  - tenantProductId（租户产品主键）
-  - platformProductId（平台产品主键）
-  adjudication: synonym
-  boundary: productCode 是编码字符串，platformProductId 是主键 ID；validateSetValue 中由 project→TenantProductDO→PlatformProductDO→pp.getCode()/getProductCode()
-    逐级解析，两者不可混用
-- term: 天马入站 / 天马出站
-  aliases:
-  - TianmaService.companyArchive
-  - TianmaService.companyArchiveDetail
-  maps_to: companyArchive = 天马→产融入站建档；companyArchiveDetail = 产融→天马出站推送建档结果（baseUrl
-    + TianmaConst.COMPANY_ARCHIVE_DETAIL）
-  also_confused_with:
-  - TianmaConsumer.platformCompanyAuditPassNotice（整类被注释）
-  adjudication: boundary
-  boundary: 入站方法在 TianmaController 链路中真实生效；出站方法体存在，但其唯一调用方 TianmaConsumer 全类处于注释状态，出站链路当前不可用
-rules:
-- name: 渠道建档统一入站入口
-  content: 渠道建档使用与渠道无关的固定路径 POST /cloud/std/cust/channelArchive，channel 由请求体决定（AlipayAntArchiveService
-    强制 setChannel(AlipayAntCloudChannel.ALIPAY_ANT)），便于后续渠道复用同一 URL；刻意避开 /cloud/std/cust/importNonIndependentCompanyInfo
-  impact: 新增渠道只需新增 Request/Service 层解析，网关与路径不需变更
-  field_targets:
-  - cust_company_info.db_tenant_code
-  evidence: code:AlipayAntArchiveController（类注释 + @RequestMapping("/cloud/std/cust")
-    + @PostMapping("/channelArchive")）, AlipayAntArchiveService#channelArchive
-- name: 非标入站强制全租户上下文
-  content: TianmaController 与 AlipayAntArchiveController 在处理前调用 MetaDataThreadLocalConfig.setDbTenantCode("all")，使跨租户建档/查询可行；标准接口
-    reg/query/batchQuery 同样置 all，changeCompanyInfo 使用 try/finally 还原原租户
-  impact: 渠道数据不落在单一租户上下文，需由企业记录自身 db_tenant_code 决定后续操作租户
-  field_targets:
-  - cust_company_info.db_tenant_code
-  evidence: code:TianmaController#companyArchive, AlipayAntArchiveController#channelArchive,
-    CustAccessApplication#changeCompanyInfo（finally 还原）
-- name: 天马入站参数强校验
-  content: 必填：specifityCptSocialUnifiedCode（资金方统一社会信用证）、coreSocialUnifiedCode（核心企业）、companyName、socialUnifiedCode（且长度必须为18）、authorizerPersonName、authorizerPersonCellphone、interestRate（综合利率）；缺失分别抛
-    CloudPcExceptionEnum.PARAM_NULL / PARAM_ERROR
-  impact: 天马侧字段缺失或不合法会在入站即被拒绝，不进建档流程
-  field_targets:
-  - cust_company_info.name
-  - cust_company_info.certification_no
   - cust_company_info.company_ext_data
-  evidence: code:TianmaService#companyArchive（Assert 串）
-- name: 天马建档默认企业角色为供应商
-  content: req.getCompanyType() 为空时写入 CompanyType.SPY.name()，否则取入参枚举名；随后 getCompanyType
-    将 SPY 映射为 CustCompanyTypeEnum.SUPPLIER
-  impact: 天马入站默认识别为供应商角色
+  adjudication: boundary
+  boundary: 本主题为银行/清分渠道对接：支付宝清分走 AlipayClearingProvider（registry=alipay），交e保走 PayProvider/ClearingProvider（registry=clearing），中金走
+    ICpcnApi；三者账户数据不落产融库，仅回填 cust_account_info
+- term: 建档结果出站
+  aliases:
+  - archiveCallback
+  - notifyArchiveResult
+  - ITmCustEventListener
+  - IAlipayAntArchiveEventListener
+  maps_to: cust_company_info.cust_build_status
+  also_confused_with:
+  - cust_company_info.check_status
+  adjudication: boundary
+  boundary: 蚂蚁为 Dubbo 事件→FBP 通知（有效）；天马出站逻辑仅存在于已整体注释的 TianmaConsumer，实际未生效
+rules:
+- name: 入站渠道全租户上下文
+  content: 天马/蚂蚁渠道入站控制器入口先执行 MetaDataThreadLocalConfig.setDbTenantCode("all")，随后由渠道秘钥(cust_access_secret)定位真实租户
+  impact: 跨租户检索与落库租户归属
+  field_targets:
+  - cust_company_info.db_tenant_code
+  - cust_access_secret.channel
+  evidence: code:TianmaController.companyArchive; AlipayAntArchiveController.channelArchive;
+    CustAccessApplication.validateSetValue
+- name: 天马默认企业类型为供应商
+  content: 天马建档请求 companyType 为空时按 CompanyType.SPY 落库（内部映射 CustCompanyTypeEnum.SUPPLIER）
+  impact: cust_company_info.cust_company_type 取值
   field_targets:
   - cust_company_info.cust_company_type
-  evidence: code:TianmaService#companyArchive, CustAccessApplication#getCompanyType
-- name: 天马渠道键写入
-  content: custDependentReqDto.setChannel(CloudChannel.TIANMA.getDictKey())，由 validateSetValueOfTianma
-    用该渠道反查 cust_access_secret 得到 dbTenantCode
-  impact: 天马入站租户由渠道密钥表决定，而非请求参数
+  evidence: code:TianmaService.companyArchive; CustAccessApplication.getCompanyType
+- name: 自主/非自主建档校验分档
+  content: 自主建档(isIndependent=true)对联系人/法人证件与手机号做非空后校验；非自主建档强制校验且必须提交授权书+法人正反面+经办人正反面+营业执照影像及供应商银行三要素
+  impact: 建档准入与影像完整性
   field_targets:
-  - cust_company_info.db_tenant_code
-  evidence: code:TianmaService#companyArchive, CustAccessApplication#validateSetValueOfTianma
-- name: 天马重复建档三分支拦截
-  content: ①同企业名（非注销）且非 BUILD_FAIL → REG_EXIST_EXCEPTION『已存在相同的企业名称！』；②同统一社会信用代码（非注销）且非
-    BUILD_FAIL → REG_EXIST_EXCEPTION『企业已建档！』；③同名+同码均命中时：custBuildStatus=BUILD_SUCCESS
-    → COMPANY_EXIST『已经通过其他方式完成建档』，否则 → COMPANY_PROCESS『正在通过其他方式进行建档』
-  impact: 天马渠道无法覆盖已在产融以其它方式在建或已建档成功的企业
-  field_targets:
-  - cust_company_info.name
   - cust_company_info.certification_no
-  - cust_company_info.cust_build_status
-  - cust_company_info.cust_status
-  evidence: code:CustAccessApplication#validateSetValueOfTianma
-- name: 蚂蚁渠道错误码映射
-  content: Throwable→AlipayAntArchiveResp.code 映射：message 含『企业已建档』→REG_EXIST_EXCEPTION；含『建档处理中』→COMMON_EXCEPTION；CA_CERT_PARAM_INVALID→201110；CA_CERT_INIT_PARAM_MISSING→201111；CA_CERT_INFO_INCOMPLETE→201112；CA_CERT_REALNAME_METHOD_MISMATCH/CA_CERT_REALNAME_UNSUPPORTED→201113；CA_CERT_INTENT_UNSUPPORTED→201114；含
-    sftp/SFTP/影像文件→201120；含『协议告知与影像』/notifyAgreement→201121；其余 CommonException/BaseException→COMMON_EXCEPTION；非受控异常→SERVER_BUSY。对外
-    msg 对 CA_CERT_ 前缀做『冒号后截断』出参
-  impact: 蚂蚁侧可按固定错误码分流重试/补件，避免内部异常串号外泄
-  field_targets: []
-  evidence: 'code:AntArchiveErrorMapper#toResponse / #mapCaOrBusinessCode / #extractOutwardMsg'
-- name: 蚂蚁入站流水号必填
-  content: outerSerialNo 为空抛 COMMON_EXCEPTION『流水号不能为空』；非空时 trim 后透传为 ChannelArchiveReqDto.serialNo
-  impact: 渠道侧必须提供可对账的外部流水号
-  field_targets: []
-  evidence: code:AlipayAntArchiveService#channelArchive
-- name: 影像件 SFTP 拉取与安全解压
-  content: 按渠道（channel）取 cust_sftp 配置（enable='Y'）建 SftpUtil 并缓存于 SFTPS；支持 zip 解压后逐文件上传影像，解压前做规范化路径防穿越（resolveZipEntry
-    校验 startsWith(destDir)），总解压体积超 512MB 抛 IOException 中止（防 zip 炸弹）
-  impact: 渠道影像接入有边界保护，异常统一转『sftp文件下载异常』业务错误
-  field_targets: []
-  evidence: 'code:CustAccessApplication#initMeida / #unzipSafely / #resolveZipEntry
-    / #initSftp'
-- name: 标准开放接口审核状态→对外编码映射
-  content: CheckStatus→(RegStatus, CompanyUserStatus)：CUST_BACK/CUST_CHECK_INIT→CUSTS001+AUTH0001；CUST_CHECK_BACKTOCUSTOM→CUSTS005+AUTH0001；CUST_CHECK_CHECKING→CUSTS002+AUTH0001；CUST_CHECK_REJECT→CUSTS004+AUTH0001；CUST_CHECK_PASS→CUSTS003+AUTH0003。checkStatus
-    为空时按 custBuildStatus 兜底：BUILDING→CUSTS002；非 CUST_CONFIRM_AWAIT→CUSTS001；CUST_CONFIRM_AWAIT→CUSTS005；查无企业→CUST404
-  impact: 对外建档状态口径以 checkStatus 优先、custBuildStatus 兜底，且 companyUserStatus 仅在审核通过时为
-    AUTH0003
+  - cust_account_info.bank_no
+  evidence: code:CustAccessApplication.validateSetValue / validateMedia / validateBank
+- name: 证件有效期 9999 视为长期
+  content: 到期日以 9999 开头时 JSON status=YES，否则 NO；同时写 business_license_end_time / legal_certification_end_time
+  impact: 营业执照与法人证件有效期表达
   field_targets:
-  - cust_company_info.check_status
-  - cust_company_info.cust_build_status
-  - cust_company_info.remark
-  evidence: 'code:CustAccessApplication#getCheckStatus / #query / #batchQuery'
-- name: 标准开放接口变更权限分配
-  content: 变更项含 UN0012 → auths=[ADMIN_AUTH, LEGAL_AUTH]；否则含 UN0013 或 UN0015 → [LEGAL_AUTH]；其余缺省
-    → [ADMIN_AUTH, LEGAL_AUTH]；变更单据以 alterMode=SELF_ALTER、clientType=ACCOUNT_PRODUCT、createBy='0'、createUser='openapi'
-    拉起
-  impact: 外部渠道发起的变更走自助变更模式并标记来源 openapi
-  field_targets: []
-  evidence: 'code:CustAccessApplication#buildStdOpenApiChangeAuths / #startChangeFlow'
-- name: 变更流程可复用性判定
-  content: resolveBuildPlatformCustIdForOper 先取 cust_build_record 中最新 plat_cust_id，再取
-    cust_role_info.platform_cust_id；两者不一致时以 cust_role_info 为准（记 warn），决定 hasOperFlow
-    是否调用运营中台终止流程
-  impact: 存在中台流程的企业才能走中台终止，否则仅本地置状态并消除待办
+  - cust_company_info.time_permanent
+  - cust_company_info.legal_time_permanent
+  evidence: code:CustAccessApplication.setCustCompany / initCustOfTianma
+- name: 变更时法人手机空值不覆盖
+  content: updateSystemData 中法人手机号为空/空白时保留库中旧值，避免在途建档推运营为空
+  impact: cust_company_info.legal_phone 不被清空
   field_targets:
-  - cust_company_info.platform_cust_id
-  evidence: 'code:CustAccessApplication#resolveBuildPlatformCustIdForOper / #queryLatestPlatCustIdFromBuildRecord
-    / #terminateBuildingFlow'
-- name: 支付宝清分配置查询兜底
-  content: companyId 为空抛 BaseException『企业ID不能为空』；productCode 空则以 ACFLOW 路由；下游返回 null
-    或 companyId/configured 为空时统一补 companyId + configured=false
-  impact: 客户端查询不会因下游缺省而返回空对象
+  - cust_company_info.legal_phone
+  evidence: code:CustAccessApplication.updateSystemData
+- name: 产品路由默认 ACFLOW
+  content: 支付宝清分配置查询 productCode 为空时默认 ACFLOW；交e保清分银行卡查询的允许产品为 Nacos 配置 bocom.clearing.allowedProductCodes(默认
+    ACFLOW,RVSFACTOR_PC)
+  impact: 渠道请求的产品维度与 RpcAppVo 路由
   field_targets: []
-  evidence: 'code:ProjectAlipayClearingConfigApplication#isAlipayClearingConfigured
-    / #queryForClient'
-- name: 渠道建档 Dubbo 返回码透传
-  content: ChannelArchiveProviderImpl 将 ChannelArchiveResult 的 code/msg/companyName/socialUnifiedCode/serialNo/status/checkDesc/companyUserStatus
-    原样拷贝为 ChannelArchiveRespDto，不做二次加工
-  impact: 渠道侧错误码语义完全由编排层（ChannelCustArchiveOrchestrator）决定
+  evidence: code:ProjectAlipayClearingConfigApplication.isAlipayClearingConfigured;
+    ClientProjectAlipayClearingConfigSyncService.getAppId; BocomQueryAccountByXylClientService.getAppId;
+    CpcnBankProviderImpl.allowedProductCodes
+- name: 蚂蚁建档错误码映射
+  content: 消息前缀 CA_CERT_PARAM_INVALID/INIT_PARAM_MISSING/INFO_INCOMPLETE/REALNAME_*/INTENT_UNSUPPORTED
+    依次映射 201110~201114，sftp/影像→201120，协议告知与影像→201121；含"企业已建档"→REG_EXIST_EXCEPTION；非业务异常→SERVER_BUSY
+  impact: 渠道方错误语义可读性
   field_targets: []
-  evidence: code:ChannelArchiveProviderImpl#execute
+  evidence: code:AntArchiveErrorMapper.toResponse / mapCaOrBusinessCode
+- name: 影像 zip 解压安全阈值
+  content: 解压总字节超过 512MB 主动中断；entry 归一化后必须落在目标目录内，防 zip 炸弹与路径穿越
+  impact: 渠道影像入库安全性
+  field_targets: []
+  evidence: code:CustAccessApplication.unzipSafely / resolveZipEntry
+- name: 运营企业ID冲突以 cust_role_info 为准
+  content: cust_build_record.plat_cust_id 与 cust_role_info.platform_cust_id 不一致时告警并取
+    role 值
+  impact: 是否拉起/终止中台流程的判定
+  field_targets:
+  - cust_build_record.plat_cust_id
+  - cust_role_info.platform_cust_id
+  evidence: code:CustAccessApplication.resolveBuildPlatformCustIdForOper
+- name: 未拉起中台流程时的待办补偿
+  content: 终止建档且 hasOperFlow=false 时按 identify_style 映射待办场景（INVITE→NOTICE_TASK_INVITE_AUTH_CUST_INPUT，INVITE_AGW→NOTICE_TASK_INVITE_AUTH_SYS_INPUT，其余→NOTICE_COMPANY_BUILD_AUTH）主动关单
+  impact: 渠道建档终止后的待办一致性
+  field_targets:
+  - cust_company_info.identify_style
+  evidence: code:CustAccessApplication.completeBuildTerminatedWithoutOperTodos
 reqdoc_claims:
-- claim: 【系统文档 2.2】天马供应商建档入站：TianmaController.companyArchive → setDbTenantCode("all")
-    → request.getBusiData(PlatformTianmaCompanyInfoReq.class) → TianmaService.companyArchive
-    → 返回 PlatformCompanyInfoRes，失败返回错误码+业务错误信息
+- claim: 天马供应商建档入站 POST /tianma/companyArchive，入口设置 dbTenantCode="all" 后由 TianmaService
+    处理
   code_status: confirmed
-  code_evidence: TianmaController.java#companyArchive + TianmaService.java#companyArchive
+  code_evidence: lowcode-pplatform-openapi/lowcode-pplatform-openapi-non-standard-tianma/.../controller/TianmaController.java#companyArchive
   action: anchor
-- claim: 【系统文档 2.3】天马客户信息同步出站由 Dubbo Event（ITmCustEventListener / TmCustEventListener.onEvent）触发，FbpReq.data
-    为空抛 SyncException("同步信息为空")，再做 BeanUtils.copyProperties → CompanyArchivePushReq
-    与日期格式化后推送
+- claim: 天马客户信息同步出站：产融内部事件 → TmCustEventListener → BeanUtils.copyProperties 至 CompanyArchivePushReq
+    → 日期格式化为 yyyy-MM-dd → TianmaService.companyArchiveDetail → HTTP POST
   code_status: refuted
-  code_evidence: TianmaConsumer.java（整类字段与方法体均处于块注释内，@Component/@RabbitListener 被注释）；TianmaService.java#companyArchiveDetail（方法本身存在）
+  code_evidence: lowcode-pplatform-openapi/lowcode-pplatform-openapi-non-standard-tianma/.../consumer/TianmaConsumer.java（整文件被块注释，@RabbitListener/@Component/@Autowired
+    均被注释）
   action: prose_only
-  note: 差异说明：代码中仅保留 TianmaService.companyArchiveDetail 这一出站 HTTP 发送方法体，其唯一调用点 TianmaConsumer.platformCompanyAuditPassNotice
-    整类被注释，且代码清单中未见 ITmCustEventListener / TmCustEventListener / CompanyArchivePushReq
-    的日期格式化实现。以代码为准：天马出站推送链路当前未启用；文档所述『FbpReq.data 为空抛 SyncException』在本链路无对应实现（该写法实际出现在支付宝蚂蚁链路
-    AlipayAntArchiveEventListener#onEvent，抛 SyncException("建档结果通知数据为空")，属不同渠道，不可相互替代）。
-- claim: 【系统文档 2.4】HSCC 蜂巢出站：WhhimService 组装 DTO → Md5Utils 计算签名 → WhhimHttpClientOpenApiClient
-    发起 HTTP，失败抛 WhhimOpenApiException
+- claim: 非标渠道建档复用统一入站 URL，channel 完全由请求体决定（首期支付宝蚂蚁）
+  code_status: confirmed
+  code_evidence: lowcode-pplatform-openapi/lowcode-pplatform-openapi-non-standard-alipay-ant/.../controller/AlipayAntArchiveController.java#channelArchive（/cloud/std/cust/channelArchive）
+  action: anchor
+- claim: HSCC 蜂巢出站：WhhimService 组装 → Md5Utils 签名 → WhhimHttpClientOpenApiClient →
+    失败抛 WhhimOpenApiException
   code_status: uncovered
-  code_evidence: ''
+  code_evidence: 无对应类出现于本次链路（未提供 WhhimService/WhhimOpenApiException）
   action: review
-- claim: 【系统文档 3.1 BR-001/BR-002/BR-003】OpenAPI 安全层：RequestBodyCryptoFilter 请求体解密、EncryptionResponseBodyAdvice
-    响应体加密、签名按参数名升序拼接 + app_secret 后 MD5(32位小写) 比对
+- claim: BR-003 签名校验：参数排序拼接 + app_secret + MD5 32 位小写，由 CryptoService 统一实现，各渠道复用 Md5Utils/TianmaUtil
   code_status: uncovered
-  code_evidence: ''
+  code_evidence: 本次链路仅有 TianmaUtil.post 的调用点（TianmaService.companyArchiveDetail），未见
+    CryptoService/Md5Utils 实现
   action: review
-- claim: 【系统文档 2.2 / 2.3】云渠道枚举 CloudChannel 典型值为 TIANMA / HSCC / YHKJ
-  code_status: refuted
-  code_evidence: TianmaService.java（CloudChannel.TIANMA.getDictKey()）；AlipayAntArchiveService.java（AlipayAntCloudChannel.ALIPAY_ANT）
-  action: prose_only
-  note: 差异说明：代码证据中仅出现 TIANMA 与 ALIPAY_ANT 两个渠道枚举来源，HSCC / YHKJ 在本次代码清单内无任何出现（对应的 Whhim/蜂巢、YHKJ
-    模块亦未给出）。以代码为准，可确认的渠道值为 TIANMA、ALIPAY_ANT；HSCC/YHKJ 待补充代码证据。
-- claim: 【系统文档 2.5】流程变量 dbTenantCode 典型值为 t1001 / all，天马入站设全租户
-  code_status: refuted
-  code_evidence: 'TianmaController.java#companyArchive（setDbTenantCode("all")）、AlipayAntArchiveController.java#channelArchive（setDbTenantCode("all")）、CustAccessApplication.java#setEsassAuthFlag
-    / #setCustCompany（eascs.beehive-scf.qhhrly.cn、eascs.beehive-scf.hrlyit.com、eascs.xyc.llschain.com）'
-  action: prose_only
-  note: 差异说明：代码中可实测的 dbTenantCode 字面值有 "all" 与三个 eascs.* 域名式租户码，未出现 "t1001"。以代码为准：全租户口径为
-    'all'；具体租户码由 cust_access_secret.db_tenant_code 决定，不在代码中硬编码。
-- claim: 【系统文档 BR-010】独立企业注册接口 POST /openapi/cust/reg/independent → CustAccessFacde.independentReg，内部
-    RPC 异常由 OpenApiCustControllerExceptionAdvice 统一转 ResponseDto.error
-  code_status: uncovered
-  code_evidence: CustAccessProvider.java#independentReg（仅见 Provider 接口方法，未见 CustAccessController
-    路由与 OpenApiCustControllerExceptionAdvice）
-  action: review
-- claim: 【系统文档 2.2 天马出站】推送字段需将 busiLicenseExpireDate、legalPersonIdentifyExpireDate
-    格式化为 yyyy-MM-dd
-  code_status: uncovered
-  code_evidence: ''
-  action: review
+- claim: 渠道通过 CloudChannel 枚举（TIANMA/HSCC/YHKJ）路由分发
+  code_status: confirmed
+  code_evidence: TianmaService#companyArchive → custDependentReqDto.setChannel(CloudChannel.TIANMA.getDictKey())；AlipayAntArchiveService#channelArchive
+    → AlipayAntCloudChannel.ALIPAY_ANT
+  action: anchor
+- claim: 支付宝清分能力由清分插件负责，产融侧仅做 Dubbo 薄封装（查询状态/生成签署链接/刷新状态）
+  code_status: confirmed
+  code_evidence: lowcode-pplatform-customer-management/.../cust/facade/AlipayClearingFacade.java（@DubboReference(registry="alipay")
+    AlipayClearingProvider）
+  action: anchor
+- claim: 企业信息变更由 CustAccessFacde / 标准 OpenAPI 触发，并依据场景策略执行
+  code_status: confirmed
+  code_evidence: CustAccessApplication#changeCompanyInfo（changeCompanySceneResolver.resolve
+    → changeCompanySceneStrategyFactory.get(sceneType).execute）
+  action: anchor
+enum_audit:
+- field: cust_access_secret.channel
+  value: TIANMA
+  java_name: CloudChannel.TIANMA
+  stored_as: getDictKey()
+  label: 天马渠道
+  verdict: confirm
+  evidence: code:TianmaService#companyArchive
+  note: 写值点为 custDependentReqDto.setChannel(CloudChannel.TIANMA.getDictKey())；dictKey
+    字面量未在片段中给出，需与 cust_access_secret 实际值核对
+- field: ChannelArchiveReqDto.channel
+  value: ALIPAY_ANT
+  java_name: AlipayAntCloudChannel.ALIPAY_ANT
+  stored_as: 枚举对象直传（未 .name()/getDictKey）
+  label: 支付宝蚂蚁渠道
+  verdict: correct
+  evidence: code:AlipayAntArchiveService#channelArchive
+  note: 与天马 getDictKey 写法不一致，DTO 层未做落库键标准化，落库键需确认
+- field: cust_company_info.cust_build_status
+  value: BUILD_FAIL
+  java_name: CustBuildStatusEnum.BUILD_FAIL
+  stored_as: getDictKey()（写）/ 混用 .name() 与 getDictKey()（读）
+  label: 建档失败
+  verdict: correct
+  evidence: code:CustAccessApplication.terminateBuildingFlow（setCustBuildStatus(BUILD_FAIL.getDictKey())）vs
+    validateSetValueOfTianma（CustBuildStatusConstant.BUILD_FAIL.equals(...)）
+  note: 同一语义存在枚举对象、Enum.getDictKey()、Constant 三种写法（如 .ne(CustCompanyInfoDO::getCustBuildStatus,
+    CustBuildStatusEnum.BUILD_FAIL)），存在比对/落库口径不一致风险
+- field: cust_company_info.cust_build_status
+  value: INIT
+  java_name: CustBuildStatusConstant.INIT
+  stored_as: 常量字面量
+  label: 初始化
+  verdict: confirm
+  evidence: code:CustAccessApplication.setCustCompany / initCustOfTianma
+- field: cust_company_info.cust_build_status
+  value: BUILDING
+  java_name: CustBuildStatusEnum.BUILDING
+  stored_as: getDictKey()（读取比对）
+  label: 建档中
+  verdict: confirm
+  evidence: code:CustAccessApplication.query
+- field: cust_company_info.cust_build_status
+  value: CUST_CONFIRM_AWAIT
+  java_name: CustBuildStatusEnum.CUST_CONFIRM_AWAIT
+  stored_as: getDictKey()（读取比对）
+  label: 待客户确认
+  verdict: confirm
+  evidence: code:CustAccessApplication.query / batchQuery
+- field: cust_company_info.cust_build_status
+  value: BUILD_SUCCESS
+  java_name: CustBuildStatusEnum.BUILD_SUCCESS
+  stored_as: getDictKey()（读取比对）
+  label: 建档成功
+  verdict: confirm
+  evidence: code:CustAccessApplication.validateSetValueOfTianma（COMPANY_EXIST 分支）
+- field: cust_company_info.check_status
+  value: CUST_CHECK_REJECT
+  java_name: OperApiConstants.CheckStatus.CUST_CHECK_REJECT
+  stored_as: .name()
+  label: 审核拒绝
+  verdict: confirm
+  evidence: code:CustAccessApplication.terminateBuildingFlow（setCheckStatus(...name())）；读取
+    getByName
+- field: cust_company_info.cust_status
+  value: ADD
+  java_name: CustStatusConstant.ADD
+  stored_as: 常量字面量
+  label: 新增/在库
+  verdict: confirm
+  evidence: code:CustAccessApplication.setCustCompany
+- field: cust_company_info.cust_status
+  value: WRITEOFF
+  java_name: CustStatusConstant.WRITEOFF
+  stored_as: 常量字面量（notIn 过滤）
+  label: 作废
+  verdict: confirm
+  evidence: code:CustAccessApplication.validateSetValueOfTianma
+- field: cust_company_info.cust_status
+  value: CHANGE
+  java_name: CustStatusEnum.CHANGE
+  stored_as: getDictKey()
+  label: 变更中
+  verdict: confirm
+  evidence: code:CustAccessApplication.terminateChangingFlow
+- field: cust_company_info.cust_company_type
+  value: SUPPLIER
+  java_name: CustCompanyTypeEnum.SUPPLIER
+  stored_as: getDictKey()（JSON 数组字符串）
+  label: 供应商
+  verdict: confirm
+  evidence: code:CustAccessApplication.getCompanyType / initAccount（SUPPLIER 才初始化银行账户）
+- field: cust_person_info.user_type
+  value: admin
+  java_name: UserTypeEnum.admin
+  stored_as: getDictKey()
+  label: 企业管理员
+  verdict: confirm
+  evidence: code:CustAccessApplication.initPerson / getCurrentAdmin
+- field: cust_company_info.legal_certification_type
+  value: CRET_ID
+  java_name: IDTypeEnum.CRET_ID
+  stored_as: .name()
+  label: 身份证
+  verdict: confirm
+  evidence: code:CustAccessApplication.getIdType / validateSetValue（缺省回落 CRET_ID）
+- field: cust_company_info.enable / 通用启用位
+  value: Y
+  java_name: EnableEnum.Y
+  stored_as: .name()
+  label: 启用
+  verdict: confirm
+  evidence: code:CustAccessApplication.setCustCompany / initSftp / getCurrentAdmin
+- field: cust_company_info.ca_register_status
+  value: N
+  java_name: EnableEnum.N
+  stored_as: .name()
+  label: CA 未开通（建档初始）
+  verdict: confirm
+  evidence: code:CustAccessApplication.setCustCompany / initCustOfTianma
+- field: 对外建档状态(响应 status)
+  value: CUST404/CUSTS001~CUSTS005
+  java_name: ApiValueObject.RegStatus
+  stored_as: code 字段（非库表）
+  label: 查无记录/待补件/建档中/已建档/审核拒绝/待客户确认
+  verdict: confirm
+  evidence: code:CustAccessApplication.query / getCheckStatus
+- field: 对外企业用户状态(响应 companyUserStatus)
+  value: AUTH0001/AUTH0003
+  java_name: ApiValueObject.CompanyUserStatus
+  stored_as: .name()（非库表）
+  label: 待认证/已认证
+  verdict: confirm
+  evidence: code:CustAccessApplication.getCheckStatus
+- field: 渠道公司类型(天马入参)
+  value: SPY
+  java_name: CompanyType.SPY（tianma 模块）
+  stored_as: .name()
+  label: 供应商
+  verdict: correct
+  evidence: code:TianmaService.companyArchive（req.getCompanyType().name() / 缺省 SPY）
+  note: 与 ApiValueObject.CompanyType(SPY/CE/CPT/OPE) 属不同包的同类枚举，存在同名不同源风险
+relation_audit:
+- left: cust_company_info
+  right: cust_person_info
+  kind: code 软关联
+  verdict: confirm
+  evidence: code:CustAccessApplication.initPerson（person.setRefCustCompanyInfo(code)）；getCurrentAdmin（.eq(refCustCompanyInfo,
+    company.getCode())）
+  note: 关联键是 business code 而非 company.id，非外键
+- left: cust_company_info
+  right: cust_account_info
+  kind: code 软关联
+  verdict: confirm
+  evidence: code:CustAccessApplication.initAccount（acct.setRefCustCompanyInfo(code)；先按同
+    code remove 再 save）
+  note: 仅供应商(SUPPLIER)且银行三要素齐全时才建立
+- left: cust_company_info
+  right: cust_role_info
+  kind: code 软关联
+  verdict: confirm
+  evidence: code:CustAccessApplication.initRole / resolveBuildPlatformCustIdForOper（.eq(refCustCompanyInfo,
+    company.getCode())）
+- left: cust_company_info
+  right: cust_project_rel
+  kind: code 软关联
+  verdict: confirm
+  evidence: code:CustAccessApplication.initProRel（pr.setRefCustProjectRelCustCompanyInfo(code)）
+  note: 项目名称为空则跳过关联
+- left: cust_company_info
+  right: cust_build_record
+  kind: id + 租户关联
+  verdict: confirm
+  evidence: code:CustAccessApplication.queryLatestPlatCustIdFromBuildRecord（.eq(custId,
+    companyId).eq(dbTenantCode, ...)）
+- left: cust_access_secret
+  right: cust_company_info
+  kind: 渠道→租户派生关联
+  verdict: derived
+  evidence: code:CustAccessApplication.validateSetValue（secret.getDbTenantCode() →
+    cv.setDbtenantCode(...)）
+  note: 无 SQL JOIN，仅为租户上下文推导；查询侧靠 ThreadLocal 分库
+- left: cust_sftp
+  right: 渠道
+  kind: channel 字符串关联
+  verdict: derived
+  evidence: code:CustAccessApplication.initSftp（.eq(CustSftpDO::getChannel, channel).eq(EnableEnum.Y.name())）
+  note: 无外键，channel 值来源与 cust_access_secret.channel 需保持同名
+- left: cust_company_info
+  right: media_file
+  kind: busiKey 关联
+  verdict: derived
+  evidence: code:CustAccessApplication.initMeida（busiKey = companyId+""，catgId 由 FileType
+    映射 MeidaConstants.CATGID_A0002/A0004/A0007/A0008/A0011/A0012）
+- left: ChannelArchiveResult
+  right: ChannelArchiveRespDto
+  kind: DTO 字段拷贝
+  verdict: reject
+  evidence: code:ChannelArchiveProviderImpl.execute（builder 逐字段复制）
+  note: 展示/传输拷贝，不构成表关联
+- left: ChannelArchiveRespDto
+  right: AlipayAntArchiveResp
+  kind: DTO 字段拷贝
+  verdict: reject
+  evidence: code:AntArchiveErrorMapper.toSuccess
+- left: AlipayAntCompanyArchiveReq
+  right: ChannelArchiveReqDto
+  kind: BeanUtils 同名拷贝
+  verdict: reject
+  evidence: code:AlipayAntArchiveService.channelArchive
+  note: oneCertFourStepData 单独 JSON 转换，其余同名属性拷贝，非查询派生
+- left: PlatformTianmaCompanyInfoReq
+  right: CustDependentReqDto
+  kind: BeanUtils 同名拷贝 + 逐字段 set
+  verdict: reject
+  evidence: code:TianmaService.companyArchive
+- left: BocomCompanyAccountInfoDTO
+  right: CustAccountBankInfoDTO
+  kind: DTO 展示拷贝
+  verdict: reject
+  evidence: code:CpcnBankProviderImpl.listXylCustAccountBanks（逐字段 set + 去重）
+  note: SHARED_KEY 同名拷贝，源为银行侧返回值，未落产融库

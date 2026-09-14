@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 产融侧关联企业口径
-page_key: caliber.chanyong-related-company
+page_key: chanyong-related-company
 domain: 项目报表/统计/上报
 status: draft
 aliases:
@@ -14,6 +14,7 @@ scope:
 sources:
   - code:ProjectReportApplication.java
 contract_version: "0.1"
+belong: calibers
 ---
 
 # 产融侧关联企业口径

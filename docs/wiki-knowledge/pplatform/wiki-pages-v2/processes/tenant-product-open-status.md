@@ -1,7 +1,7 @@
 ---
 type: process
 title: 租户产品开通状态
-page_key: processes/tenant-product-open-status
+page_key: tenant-product-open-status
 domain: 平台产品配置
 status: draft
 aliases: [租户产品开通状态机, tenant_product.open_status]
@@ -12,6 +12,7 @@ sources:
   - code:TenantProductApplication.activeAndNotify
   - code:TenantProductApplication.cancel
 contract_version: "0.1"
+belong: processes
 ---
 
 租户产品开通状态描述 [[tables/tenant_product]] 中 `open_status` 的生命周期，取值为 Y/P/N 三态。租户产品从「开通中」经激活动作进入「已开通」，已开通产品可被取消回到「未开通/取消」。该状态是租户侧产品可见性的判定基础，也是 [[calibers/tenant-open-product]] 口径的过滤字段。

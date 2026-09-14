@@ -1,0 +1,5 @@
+body: '- 各字段物理类型与物理库名未在语义分析证据中出现，`type` 暂填 `unknown`，`scope.databases` 暂填 `platform`（待确认物理库名）。
+
+  - `platform_product_client.status` 在 DB 实测有值（Y:26），但代码枚举基线未声明且语义分析证据在此截断，取值域与含义未定。'
+title: 平台产品定义表
+type: table

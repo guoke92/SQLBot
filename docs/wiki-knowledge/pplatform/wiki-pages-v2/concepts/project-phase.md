@@ -1,7 +1,7 @@
 ---
 type: concept
 title: 项目阶段（projectPhase）
-page_key: concept.project-phase
+page_key: project-phase
 domain: 项目报表/统计/上报
 status: draft
 aliases:
@@ -19,6 +19,7 @@ also_confused_with:
   - "项目状态 project_status（项目台账：1=已生效，非 1=未生效）"
 adjudication: boundary
 boundary: "project_status 属项目台账维度（tenant_project），project_phase 属立项统计维度（wechat_project_approval_apply）。"
+belong: concepts
 ---
 
 # 项目阶段（projectPhase）

@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 企业角色组合校验
-page_key: rules/cust-role-combine-check
+page_key: cust-role-combine-check
 domain: 平台产品配置
 status: draft
 aliases: [角色组合校验, checkCustRoleCombine]
@@ -11,6 +11,7 @@ scope:
 sources:
   - code:TenantProductApplication.checkCustRoleCombine
 contract_version: "0.1"
+belong: rules
 ---
 
 同一企业在同一产品下拥有多个角色时，系统校验该角色组合是否在平台产品配置的 `custRoleCombine` 允许范围内，不在范围内则抛出异常，阻止不合法的角色组合。

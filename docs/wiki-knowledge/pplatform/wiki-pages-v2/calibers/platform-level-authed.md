@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 平台级授权已完成
-page_key: caliber.platform_level_authed
+page_key: platform-level-authed
 domain: 授权协议与电子授权
 status: draft
 aliases:
@@ -14,6 +14,7 @@ sources:
   - code:CustAuthAgreementDomainService.java
   - db:authorization_agreement
 contract_version: "0.1"
+belong: calibers
 ---
 
 判定企业/管理员是否已签署平台授权书时，只取 `platform_product_code='PLATFORM'` 且 `authed_status='Y'` 的行；由于授权按自然人（`cust_manager_id`）维度记录，同一人在多家企业任职时只需一份平台级授权即全部免签。具体产品行（ACFLOW/AMS/ORDER/RVSFACTOR_PC…）的 `Y` 表示存量系统已授权，不参与该口径。

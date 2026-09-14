@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 游客
-page_key: caliber.person_guest
+page_key: person-guest
 domain: 客户联系人管理
 status: draft
 aliases:
@@ -12,6 +12,7 @@ scope:
 sources:
   - "code:CustPersonApplication.pagePerson"
 contract_version: "0.1"
+belong: calibers
 ---
 
 游客口径即按 [[tables/cust_person_info]] 的 `user_type = 'accountGuest'` 过滤。

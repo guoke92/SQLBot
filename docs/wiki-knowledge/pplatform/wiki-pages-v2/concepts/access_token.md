@@ -1,7 +1,7 @@
 ---
 type: concept
 title: accessToken（小程序 / 企微 / SSO）
-page_key: concept/access_token
+page_key: access_token
 domain: 微信生态/小程序/扫脸
 status: draft
 aliases: [小程序 accessToken, 微信 token]
@@ -19,6 +19,7 @@ also_confused_with:
   - SSO token
 boundary: "小程序 accessToken 由 appid+secret 换取并缓存（expires_in-300 秒）；企微消息走 WechatWorkApiClient 的另一套凭证，缓存 key 与刷新逻辑不同。"
 contract_version: "0.1"
+belong: concepts
 ---
 
 # accessToken（小程序 / 企微 / SSO）

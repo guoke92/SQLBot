@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: AMS 走 BS/上上签通道
-page_key: caliber.ams_bs_channel
+page_key: ams-bs-channel
 domain: 授权协议与电子授权
 status: draft
 aliases:
@@ -15,6 +15,7 @@ sources:
   - db:argeement_migratory_record
   - db:cust_company_info
 contract_version: "0.1"
+belong: calibers
 ---
 
 协议类型与签署机构按产品分流：`platform_product_code='AMS'` 时 `agreement_type='BS_Auth'`、签署机构取 `BEST_SIGN`；其他产品取 `CFCA_Auth`，签署机构为 `PAPER_LESS`。这与开通状态字段相呼应——AMS 用 `need_register_bs`/`bs_register_status`，其余产品用 `need_register_ca`/`ca_register_status`，两者在 `openCa` 中互斥判断，术语边界见 [[concepts/ca-cfca]]。

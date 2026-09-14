@@ -10,8 +10,10 @@ from pydantic import BaseModel, Field
 from apps.knowledge.wiki.binding_service import (
     BindingError,
     bind_corpus,
+    collect_bind_ids,
     list_bindings,
     suggested_remap_for,
+    sync_corpus_bindings,
     unbind_datasource,
 )
 from apps.knowledge.wiki.corpus_store import (
@@ -37,8 +39,10 @@ class ImportCorpusBody(BaseModel):
 
 class BindCorpusBody(BaseModel):
     corpus_key: str = Field(min_length=1, max_length=64)
-    datasource_id: int
+    datasource_id: int | None = None
+    datasource_ids: list[int] = Field(default_factory=list)
     remap_databases: dict[str, str] | None = None
+    remaps_by_datasource: dict[str, dict[str, str]] = Field(default_factory=dict)
 
 
 def _oid(user: UserInfoDTO) -> int:
@@ -228,22 +232,47 @@ async def suggest_wiki_remap(
 async def put_wiki_binding(
     session: SessionDep, current_user: CurrentUser, body: BindCorpusBody
 ) -> dict[str, Any]:
+    ids = collect_bind_ids(body.datasource_id, body.datasource_ids)
+    if not ids:
+        raise HTTPException(status_code=400, detail="select at least one datasource")
     try:
-        view = bind_corpus(
-            session,
-            oid=_oid(current_user),
-            corpus_key=body.corpus_key,
-            datasource_id=body.datasource_id,
-            remap_databases=body.remap_databases,
-        )
+        if body.datasource_ids:
+            views = sync_corpus_bindings(
+                session,
+                oid=_oid(current_user),
+                corpus_key=body.corpus_key,
+                datasource_ids=ids,
+                remap_databases=body.remap_databases,
+                remaps_by_datasource=body.remaps_by_datasource or None,
+            )
+        else:
+            views = [
+                bind_corpus(
+                    session,
+                    oid=_oid(current_user),
+                    corpus_key=body.corpus_key,
+                    datasource_id=ids[0],
+                    remap_databases=body.remap_databases,
+                )
+            ]
     except BindingError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    first = views[0] if views else None
     return {
-        "datasource_id": view.datasource_id,
-        "datasource_name": view.datasource_name,
-        "corpus_key": view.corpus_key,
-        "remap_databases": view.remap_databases,
-        "enabled": view.enabled,
+        "corpus_key": body.corpus_key,
+        "datasource_id": first.datasource_id if first else None,
+        "datasource_name": first.datasource_name if first else None,
+        "remap_databases": first.remap_databases if first else {},
+        "enabled": first.enabled if first else False,
+        "bindings": [
+            {
+                "datasource_id": item.datasource_id,
+                "datasource_name": item.datasource_name,
+                "remap_databases": item.remap_databases,
+                "enabled": item.enabled,
+            }
+            for item in views
+        ],
     }
 
 

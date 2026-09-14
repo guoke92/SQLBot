@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 按角色维度同步
-page_key: rules/sync-by-role
+page_key: sync-by-role
 domain: 平台事件监听与同步
 status: draft
 aliases:
@@ -14,6 +14,7 @@ scope:
 sources:
   - code:CustSyncService.java:getRoles/syncByRole
 contract_version: "0.1"
+belong: rules
 ---
 
 同步维度规则：同步前按 `dbTenantCode + companyCode + (companyType)` 查有效 CustRoleInfoDO，逐角色调用 custClientSyncService；`syncByRoleOn` 开关决定是否忽略 companyType 做全角色同步。

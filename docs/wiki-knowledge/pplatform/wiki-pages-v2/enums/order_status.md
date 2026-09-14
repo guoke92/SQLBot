@@ -9,10 +9,22 @@ oid: 1
 scope:
   databases: [lowcode_pplatform]
 sources: ["code:extract-enums.yaml", "db:db-profile.yaml"]
-created: '2026-09-10'
-updated: '2026-09-10'
+created: '2026-09-14'
+updated: '2026-09-14'
 contract_version: "0.1"
+belong: enums
 ---
+
+
+
+
+
+
+
+
+
+
+
 
 # order_status
 
@@ -22,18 +34,18 @@ contract_version: "0.1"
 enum: order_status
 fields: [ca_fee_order.order_status]
 values:
-  PENDING:
-    label: 未缴费
-  PAID:
-    label: 已缴费
-  CLOSED:
-    label: 已关闭
-  EXPIRED:
-    label: 已过期
-  PAIDING:
+  "PENDING":
+    label: "未缴费"
+  "PAID":
+    label: "已缴费"
+  "CLOSED":
+    label: "已关闭"
+  "EXPIRED":
+    label: "已过期"
+  "PAIDING":
     label: "PAIDING"
-    note: db 分布存在但代码枚举未声明（REVIEW）
-  UNPAID:
+    note: "db 分布存在但代码枚举未声明（REVIEW）"
+  "UNPAID":
     label: "UNPAID"
-    note: db 分布存在但代码枚举未声明（REVIEW）
+    note: "db 分布存在但代码枚举未声明（REVIEW）"
 ```

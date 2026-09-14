@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 限额融资资金口径（max_financing_amount_flag）
-page_key: calibers/financing_limit_flag
+page_key: financing_limit_flag
 domain: 租户产品
 status: draft
 aliases: [是否限额融资资金上线, max_financing_amount_flag, 限额口径]
@@ -12,6 +12,7 @@ sources:
   - db:tenant_product
   - db:tenant_interworking_product
 contract_version: "0.1"
+belong: calibers
 ---
 
 本口径回答「某租户产品/互通产品是否对融资金额设上限」。[[tables/tenant_product]] 中该列 DB 实测为 Y/N/0/1 四种值，属布尔语义被多种写法混用；[[tables/tenant_interworking_product]] 中实测只有 N/Y 两值，形态更规范。

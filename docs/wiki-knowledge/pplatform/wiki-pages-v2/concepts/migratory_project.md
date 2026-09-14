@@ -18,6 +18,7 @@ field_targets:
 adjudication: synonym
 also_confused_with: []
 contract_version: "0.1"
+belong: concepts
 ---
 
 “迁移项目”是业务侧对项目级迁移动作的称呼，库中以类型码 `migratoryProject` 出现，二者同义（adjudication: synonym），在 [[tenant_migarory_log]] 上分列 type 与 name，取数口径见 [[migration_project_log]]。

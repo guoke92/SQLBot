@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 正式首次提交回写 wechat_audit_no
-page_key: rule/approval-no-writeback-on-submit
+page_key: approval-no-writeback-on-submit
 domain: 微企链立项与项目审批
 status: draft
 aliases:
@@ -14,6 +14,7 @@ sources:
   - code_path:ProjectApprovalApplication.java
   - db:tenant_project_approval
 contract_version: "0.1"
+belong: rules
 ---
 
 上线审批单据上填写的 `sp_no` 会在「正式首次提交」时被回写到 `tenant_project.wechat_audit_no`，把项目与企微立项审批正式绑定。触发条件是首次提交且非草稿，草稿保存不会产生回写。

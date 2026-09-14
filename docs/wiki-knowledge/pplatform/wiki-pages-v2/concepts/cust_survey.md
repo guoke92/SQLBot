@@ -1,7 +1,7 @@
 ---
 type: concept
 title: 调研问卷
-page_key: concepts/cust_survey
+page_key: cust_survey
 domain: 问卷
 status: draft
 aliases:
@@ -24,6 +24,7 @@ field_targets:
 adjudication: boundary
 also_confused_with:
   - 问卷星活动
+belong: concepts
 ---
 
 # 调研问卷

@@ -2,17 +2,32 @@
 type: table
 title: 客户产品开通配置
 page_key: cust_auth_application_config
-domain: 基线
+domain: 自动审核与工作流审核
 status: draft
 anchors: [cust_auth_application_config]
 oid: 1
 scope:
   databases: [lowcode_pplatform]
-sources: ["db:db-catalog.yaml", "code:extract-catalog.yaml", "enrich:wiki-admin"]
-created: '2026-09-10'
-updated: '2026-09-10'
+sources: ["db:db-catalog.yaml", "code:extract-catalog.yaml"]
+created: '2026-09-14'
+updated: '2026-09-14'
 contract_version: "0.1"
+belong: tables
 ---
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # 客户产品开通配置
 
@@ -22,7 +37,6 @@ contract_version: "0.1"
 table: cust_auth_application_config
 database: lowcode_pplatform
 desc: 客户产品开通配置
-inactive: false
 fields:
   - name: id
     type: number
@@ -60,7 +74,6 @@ fields:
     type: temporal
     phys: datetime
     desc: 创建时间
-    group: create_time_group, project_create_time_group, update_time_group
   - name: create_user
     type: string
     phys: varchar(100)
@@ -117,7 +130,6 @@ fields:
     type: temporal
     phys: datetime
     desc: 更新时间
-    group: create_time_group, project_effective_time_group, update_time_group
   - name: update_user
     type: string
     phys: varchar(100)

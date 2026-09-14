@@ -228,6 +228,12 @@ def main() -> None:
             p.add_argument(
                 "--force", action="store_true", help="已有关联节的表页也重建"
             )
+            p.add_argument(
+                "--substrate",
+                default="",
+                help="底稿目录（wiki-pages-v2 默认 sibling substrate-v2）",
+            )
+            p.add_argument("--db-dir", default="", help="db-catalog/profile 目录")
         p.set_defaults(fn=fn)
     args = parser.parse_args()
     raise SystemExit(args.fn(args))

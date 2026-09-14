@@ -1,39 +1,36 @@
 ---
 type: process
 title: 企业缴费状态机
-page_key: processes/ca_fee_company_pay_status
+page_key: ca_fee_company_pay_status
 domain: CA证书收费
 status: draft
-aliases: [pay_status 状态机, 企业缴费状态流转]
+aliases:
+  - 企业缴费状态
+  - pay_status
 oid: 1
 scope:
-  databases: ["<物理库名>"]
+  databases:
+    - unknown
 sources:
-  - db:ca_fee_company
-  - code:CaFeeRenewalService.java
+  - code
 contract_version: "0.1"
+belong: processes
 ---
 
-# 企业缴费状态机
+企业缴费状态机作用于 [[ca_fee_company]] 的 `pay_status`，是**企业维度汇总状态**，必须与订单维度 `ca_fee_order.order_status` 区分：订单级未缴是 `PENDING`，企业级未缴汇总是 `UNPAID`（见 [[pending_payment]]、[[paid_payment]]）。
 
-## 业务定位
-
-本页描述[[tables/ca_fee_company]]中 `pay_status` 的两态模型：`PAID`（已缴费）与 `UNPAID`（未缴费），是"企业当前是否欠费"的**最直接判据**，也是[[calibers/paid_company]]、[[calibers/unpaid_company]]两个统计口径的字段来源。
-
-已证实的流转只有一条：**服务到期处理 `markServiceExpired` 将 `PAID` 置为 `UNPAID`**。反向的 `UNPAID → PAID`（即缴费成功回写）在本次语义分析中未见状态机条目，但其业务结果由[[processes/ca_fee_order_state]]中订单转 `PAID` 承载，请勿仅凭本页断言企业状态与订单状态必然同刻同步。
-
-该状态不随时间自动回退：企业不欠费不等于服务仍在有效期内，判断"服务期内"须用[[calibers/in_service_period]]（`service_end >= CURDATE()`）。
+迁移只有两条：订单缴费成功时回写为 `PAID`；服务到期处理（`markServiceExpired`）时回落为 `UNPAID`，后者由续费与到期规则驱动，见 [[renewal_remind_expire]]。`UNPAID` 并不等价于「立刻需要缴费」——多项目放行与豁免规则（[[multi_project_pass]]、[[whitelist_exempt]]、[[defer_pay_exempt]]、[[already_paid_in_service]]）会先于收费结论生效。
 
 ## 需求背景
 
-本页为代码侧状态流转的事实归档，本次语义分析未提供需求文档主张（reqdoc 锚点）。到期置为 `UNPAID` 与续费待办复位（[[processes/ca_fee_renew_remind]]）通常在同一次到期处理中被触发。
+企业级状态的引入使台账统计与「已缴费／未缴费企业筛选」可直接基于一行完成，无需对订单表做聚合；同时作为规则引擎的快速判断依据。
 
 ## 版本演进
 
-- 本次语义分析未提供与本状态机相关的需求文档变更主张（uncovered），无 `(document_claim，未证实)` 条目。
+- v0（本页）：依据语义分析中的状态与迁移证据建立首版状态机。
 
-```ground:state_machine
-name: 企业缴费状态机
+```ground:process
+name: 企业缴费状态
 field: ca_fee_company.pay_status
 states:
   - value: PAID
@@ -43,8 +40,12 @@ states:
     label: 未缴费
     source: code_enum
 transitions:
+  - from: UNPAID
+    event: 订单缴费成功回写企业缴费状态
+    to: PAID
+    evidence: code_path:CaFeeOrderService.java:450
   - from: PAID
     event: 服务到期处理 markServiceExpired
     to: UNPAID
-    evidence: "code_path:CaFeeRenewalService.java:markServiceExpired"
+    evidence: code_path:CaFeeRenewalService.java
 ```

@@ -2,17 +2,32 @@
 type: table
 title: 客户邀请信息
 page_key: cust_invite_info
-domain: 基线
+domain: 经办人/联系人/管理员管理
 status: draft
 anchors: [cust_invite_info]
 oid: 1
 scope:
   databases: [lowcode_pplatform]
-sources: ["db:db-catalog.yaml", "code:extract-catalog.yaml", "enrich:wiki-admin"]
-created: '2026-09-10'
-updated: '2026-09-10'
+sources: ["db:db-catalog.yaml", "code:extract-catalog.yaml"]
+created: '2026-09-14'
+updated: '2026-09-14'
 contract_version: "0.1"
+belong: tables
 ---
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # 客户邀请信息
 
@@ -22,18 +37,18 @@ contract_version: "0.1"
 table: cust_invite_info
 database: lowcode_pplatform
 desc: 客户邀请信息
-inactive: false
 fields:
+  - name: enable
+    type: string
+    phys: varchar(4)
+    desc: enable
+    dict: enable
+    topk: "Y"
+    labels: "Y:是"
   - name: id
     type: number
     phys: bigint(22)
     desc: 表主键
-  - name: progress
-    type: string
-    phys: varchar(64)
-    desc: 进度
-    dict: cust_build_status
-    topk: AWAIT_CUST_CONFIRM|BUILD_FAIL|BUILD_SUCCESS|CUST_BUILDING
   - name: act_procinst_date
     type: temporal
     phys: datetime
@@ -54,7 +69,7 @@ fields:
     type: string
     phys: varchar(100)
     desc: 逻辑租户标识
-    topk: base
+    topk: "base"
   - name: channel_code
     type: string
     phys: varchar(64)
@@ -79,7 +94,6 @@ fields:
     type: temporal
     phys: datetime
     desc: 创建时间
-    group: create_time_group, project_create_time_group, update_time_group
   - name: create_user
     type: string
     phys: varchar(100)
@@ -88,16 +102,11 @@ fields:
     type: string
     phys: varchar(100)
     desc: 数据租户标识
-    topk: ISOLATE_TAG_hscc|LN1|LN2|beehive-scf.qhhrly.cn
+    topk: "ISOLATE_TAG_hscc|LN1|LN2|beehive-scf.qhhrly.cn|jiuersanzuhu|ning"
   - name: email
     type: string
     phys: varchar(128)
     desc: 邮箱
-  - name: enable
-    type: string
-    phys: varchar(4)
-    desc: enable
-    topk: Y
   - name: invite_cust_id
     type: number
     phys: bigint(22)
@@ -118,6 +127,11 @@ fields:
     type: string
     phys: varchar(30)
     desc: 机构编号
+  - name: progress
+    type: string
+    phys: varchar(64)
+    desc: 进度
+    topk: "AWAIT_CUST_CONFIRM|BUILD_FAIL|BUILD_SUCCESS|CUST_BUILDING|CUST_CHANGE|CUST_CONFIRM_AWAIT|INIT"
   - name: remark
     type: string
     phys: varchar(1024)
@@ -130,7 +144,6 @@ fields:
     type: temporal
     phys: datetime
     desc: 更新时间
-    group: create_time_group, project_effective_time_group, update_time_group
   - name: update_user
     type: string
     phys: varchar(100)

@@ -1,7 +1,7 @@
 ---
 type: concept
 title: 端口
-page_key: concept.port
+page_key: port
 domain: 客户角色与端口
 status: draft
 aliases:
@@ -10,37 +10,27 @@ aliases:
 oid: 1
 scope:
   databases:
-    - db_dist
+    - db
 sources:
-  - db_dist: platform_product_cust_role
-  - code_path:LocalTypeMenuService.java#listTenantProductMenuConfig
-maps_to: platform_product_cust_role 记录，即 product_code + company_type_code 组合（如 AMS+SUPPLIER、DRAFT+CORE）
-also_confused_with:
-  - cust_role_info.role_type
-  - platform_product_cust_role.company_type_code
-adjudication: boundary
-boundary: 『端口』是产品配置维度（某产品下允许某企业角色接入），落在 platform_product_cust_role；cust_role_info.role_type 是某具体企业在租户下已获得的角色，二者是模板定义与实例授权的关系。
-field_targets:
-  - platform_product_cust_role.company_type_code
-  - platform_product_cust_role.product_code
+  - db_dist:platform_product_cust_role
+  - code_path:LocalTypeMenuService.java
 contract_version: "0.1"
+maps_to:
+  - platform_product_cust_role.company_type_code
+also_confused_with:
+  - 菜单端口
+  - 系统接入端口
+adjudication: synonym
+boundary: "在客户角色与菜单配置语境中，'端口'指 platform_product_cust_role 表中定义的产品下可支持的企业角色（company_type_code），每个端口对应一个企业角色。"
+belong: concepts
 ---
 
-# 端口
-
-「端口」（又称产品端口、企业角色端口）是业务口语，其落点是 [[tables/platform_product_cust_role]] 的一行记录，键为 product_code + company_type_code 组合，例如 AMS+SUPPLIER、DRAFT+CORE。它的语义是**某产品下允许某类企业角色接入**，因此天然是菜单/资源权限的配置粒度——[[calibers/effective-product-port]] 用它来枚举可配端口，[[rules/menu-port-config]] 以它为维度维护菜单配置。
+“端口”在客户角色与菜单配置语境下是“平台产品支持的企业角色”的口语表述，落点见 [[platform_product_cust_role]].company_type_code，与 [[company_role]] 属于同义表述的不同视角：企业角色强调客户侧身份，端口强调产品侧可选项。
 
 ## 需求背景
 
-需求与界面语言统一使用「端口」一词描述产品下的角色配置项；该词在数据模型中没有独立表，需要折算为产品编码与企业角色编码的组合。使用文档时，凡见「端口」应理解为配置维度而非某企业的实际角色。
+菜单配置以端口为最小勾选单位：先取产品下的有效端口（口径见 [[valid_product_cust_role]]），再匹配租户已配置菜单，形成 tenant_product_menu 记录，规则见 [[menu_port_filter]]。因此“端口”易与菜单端口、系统接入端口混淆，需按表定锚。
 
 ## 版本演进
 
-- 「端口」一词逐渐从界面文案沉淀为配置模型口径：配置对象由菜单树转向 product_code + company_type_code 组合，保存方式为覆盖式重建。
-
-## 关联
-
-- [[tables/platform_product_cust_role]]
-- [[concepts/company-role]]
-- [[calibers/effective-product-port]]
-- [[rules/menu-port-config]]
+- v0（draft）：依据 term_bridges 与菜单配置代码路径首次成页。

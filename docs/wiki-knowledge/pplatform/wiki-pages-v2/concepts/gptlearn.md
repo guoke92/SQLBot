@@ -1,7 +1,7 @@
 ---
 type: concept
 title: 智能审核引流
-page_key: concepts/gptlearn
+page_key: gptlearn
 domain: GP学习
 status: draft
 aliases:
@@ -22,6 +22,7 @@ field_targets:
   - gpt_learn_poster_log.click_time
 adjudication: synonym
 also_confused_with: []
+belong: concepts
 ---
 
 # 智能审核引流

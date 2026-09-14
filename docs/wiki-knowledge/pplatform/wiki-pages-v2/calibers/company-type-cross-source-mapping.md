@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: companyType 跨源映射口径
-page_key: caliber.company-type-cross-source-mapping
+page_key: company-type-cross-source-mapping
 domain: 项目报表/统计/上报
 status: draft
 aliases:
@@ -14,6 +14,7 @@ scope:
 sources:
   - code:ProjectReportController.java
 contract_version: "0.1"
+belong: calibers
 ---
 
 # companyType 跨源映射口径

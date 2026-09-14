@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 进入产品前企业角色检查
-page_key: rules/goto-product-company-type-check
+page_key: goto-product-company-type-check
 domain: 平台产品配置
 status: draft
 aliases: [企业角色检查, gotoProductSupplierByCompanyType]
@@ -11,6 +11,7 @@ scope:
 sources:
   - code:PlatformProductApplication.gotoProductSupplierByCompanyType
 contract_version: "0.1"
+belong: rules
 ---
 
 多角色产品且产品为通用产品时，进入产品前检查企业是否完成认证，未完成则禁止进入；平台运营方不检查项目状态。字段落点为 [[tables/cust_company_info]] 的 `cust_build_status`，角色语义见 [[concepts/companyType]]，通用产品前提见 [[calibers/general-product-scope]]。

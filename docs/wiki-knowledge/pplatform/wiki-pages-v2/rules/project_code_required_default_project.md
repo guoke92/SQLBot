@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 项目码必填联动默认项目
-page_key: rule.project_code_required_default_project
+page_key: project_code_required_default_project
 domain: 租户配置
 status: draft
 aliases:
@@ -15,6 +15,7 @@ scope:
 sources:
   - code:lowcode-pplatform-tenant-management/src/main/java/com/lls/lowcode/pplatform/tenant/service/TenantDomainService.java:checkBeforeSave
 contract_version: "0.1"
+belong: rules
 ---
 
 当租户配置了 `projectCodeRequired='Y'`（即 [[calibers/project_code_required_tenant]]），保存前必须同时提供 `defaultProjectId`，否则直接抛错阻断保存。`defaultProjectId` 指向 [[tables/tenant_project]]，因此该规则把「项目码必填」的租户与一个默认项目强绑定，避免出现要求项目码却没有默认项目可回的悬空配置。

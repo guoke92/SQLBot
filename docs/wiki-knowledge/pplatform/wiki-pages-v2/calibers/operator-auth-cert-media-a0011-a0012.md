@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 操作人/授权类证件影像（A0011/A0012）
-page_key: calibers/operator-auth-cert-media-a0011-a0012
+page_key: operator-auth-cert-media-a0011-a0012
 domain: 文件/附件/媒体
 status: draft
 aliases: [A0011, A0012, 操作人证件影像, 授权类证件影像]
@@ -12,6 +12,7 @@ sources:
   - code:MediaFile.catgId
   - code_path:CustMediaFacade.java:uploadMultiRole
 contract_version: "0.1"
+belong: calibers
 ---
 
 # 操作人/授权类证件影像（A0011/A0012）

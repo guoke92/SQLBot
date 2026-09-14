@@ -1,7 +1,7 @@
 ---
 type: concept
 title: faceBusinessNo / businessNo / busiSeqNo（业务流水号）
-page_key: concept/face_business_no
+page_key: face_business_no
 domain: 微信生态/小程序/扫脸
 status: draft
 aliases: [业务流水号]
@@ -20,6 +20,7 @@ also_confused_with:
 boundary: "busiSeqNo 是生成二维码时组装的查询键（custId/certificationId + 日期）；faceBusinessNo 是人脸服务返回的流水号，回写时 busiSeqNo 优先取 faceResult.getFaceBusinessNo()，其次取 snapshot.getBusinessNo()；batch_no 是签章中台上送流水号，三者不同源。"
 contract_version: "0.1"
 sources: ["enrich:wiki-admin"]
+belong: concepts
 ---
 
 # faceBusinessNo / businessNo / busiSeqNo（业务流水号）

@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 生效租户口径（activeList / enable 与 status 双判定）
-page_key: caliber.tenant_active_list
+page_key: tenant_active_list
 domain: 平台内部服务对接
 status: draft
 aliases:
@@ -13,6 +13,7 @@ scope:
 sources:
   - semantic:field_semantics[tenant_setting_config.enable / status]
 contract_version: "0.1"
+belong: calibers
 ---
 
 租户配置的生效判定需同时满足有效标志与生效标志，查询生效租户时以 activeList 形式取用。

@@ -1,7 +1,7 @@
 ---
 type: concept
 title: system_delivery 复用列
-page_key: concept/system-delivery-reuse
+page_key: system-delivery-reuse
 domain: 微企链立项与项目审批
 status: draft
 aliases:
@@ -24,6 +24,7 @@ adjudication: 该列 DB 注释为『系统交付方式』，但在统计页被�
 also_confused_with:
   - wechat_project_approval_apply.product_type（产品类型中文 CSV，导出会写到 system_delivery）
 sources: ["enrich:wiki-admin"]
+belong: concepts
 ---
 
 这是一条典型的「列语义漂移」：注释、统计过滤、导出写入三者说法不一致。因为导出会覆盖写入，所以从导出文件里看到的 `system_delivery` 未必是统计页过滤所依据的那个值。

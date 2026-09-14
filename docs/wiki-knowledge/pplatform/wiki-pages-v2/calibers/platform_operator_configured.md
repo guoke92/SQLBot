@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 配置了平台运营方
-page_key: caliber.platform_operator_configured
+page_key: platform_operator_configured
 domain: 租户配置
 status: draft
 aliases:
@@ -15,6 +15,7 @@ sources:
   - db:tenant_setting_config.platform_operator
   - code:lowcode-pplatform-tenant-management/src/main/java/com/lls/lowcode/pplatform/tenant/component/PlatformComponentFacade.java:needPlatformOperatorCompany
 contract_version: "0.1"
+belong: calibers
 ---
 
 `platform_operator` 是 JSON 数组，元素取值 `platform` / `tenant` 可组合。仅当数组包含 `platform` 时，租户生效校验才要求平台运营方企业存在；因此「配了运营方」与「需要运营方企业」不是等价条件，见 [[concepts/platform_operator]]。

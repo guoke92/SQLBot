@@ -1,7 +1,7 @@
 ---
 type: concept
 title: 运营人员标识桥（operation_user ↔ cust_person_info）
-page_key: concept.operator_identity_bridge
+page_key: operator_identity_bridge
 domain: 数据权限与组织
 status: draft
 aliases: [运营人员标识桥, operator_id, operator_realname, operator]
@@ -37,6 +37,7 @@ field_targets:
     evidence: code
 adjudication: 产融侧只存 operation_id（非 operation_user.id），operator_realname 是姓名冗余；引用运营人员必须走 operation_id 而非主键 id。
 also_confused_with: [operation_user.id, organization_id]
+belong: concepts
 ---
 
 术语桥：运营人员归属跨两个域——运营中台侧的 [[tables/operation_user]] 与产融侧的 [[tables/cust_person_info]]。产融侧 cust_person_info.operator_id 存放的是 operation_user.operation_id，而不是该表主键 id；operator_realname 则是 operation_name 的冗余快照。这意味着在 operation_user 上做关联时必须避开 id 主键，否则会连到错误的运营人员。

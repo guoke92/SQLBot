@@ -1,7 +1,7 @@
 ---
 type: process
 title: 联系人建档状态
-page_key: process.person_build_status
+page_key: person-build-status
 domain: 客户联系人管理
 status: draft
 aliases:
@@ -14,6 +14,7 @@ sources:
   - "code_path:CustCompanyInfoApplication.java:getCustBuildStatus"
   - "code_path:CustCompanyInfoApplication.java:messageNotify"
 contract_version: "0.1"
+belong: processes
 ---
 
 建档状态描述联系人（随企业建档）从初始化到审核通过或失败的流转，落在 [[tables/cust_person_info]] 的 `cust_build_status` 字段。不同录入来源决定首次进入的是「待客户确认」还是「建档中」。

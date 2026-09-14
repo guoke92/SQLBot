@@ -1,7 +1,7 @@
 ---
 type: process
 title: 全局背景灰度开关（Redis 缓存 BgColorCacheDto）
-page_key: process.global_bg_gray_switch
+page_key: global_bg_gray_switch
 domain: 租户配置
 status: draft
 aliases:
@@ -16,6 +16,7 @@ sources:
   - code:lowcode-pplatform-tenant-management/src/main/java/com/lls/lowcode/pplatform/tenant/controller/TenantSettingConfigController.java:getBgColor
   - code:lowcode-pplatform-tenant-management/src/main/java/com/lls/lowcode/pplatform/tenant/controller/TenantSettingConfigController.java:bgColorClear
 contract_version: "0.1"
+belong: processes
 ---
 
 全局灰度窗口不落库，而是以 `RedisKeyConstants.BGCOLOR_SWITCH_TTL` 对应的 `BgColorCacheDto` 缓存承载，缓存内记录 `startDate~endDate`。写入窗口即进入 ON；读取时若 `now` 超过 `endTime` 即判定过期，等效 OFF；调用清理接口直接删除缓存回到 OFF。该开关驱动 [[processes/bg_color_gray]] 中租户颜色的变更。

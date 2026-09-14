@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 变更类签署仅限企业自行变更且变更项命中
-page_key: caliber.change_scope_self_alter_items
+page_key: change-scope-self-alter-items
 domain: 授权协议与电子授权
 status: draft
 aliases:
@@ -15,6 +15,7 @@ sources:
   - db:cust_change_record
   - db:cust_change_cfg
 contract_version: "0.1"
+belong: calibers
 ---
 
 `processType=CHANGE` 分支要求变更方式为企业自行变更（`alter_mode='SELF_ALTER'`），且 `alter_type_id` 反查 [[tables/cust_change_cfg|item_code]] 命中 `UN0016`/`UN0012`/`UN0013`/`UN0008`/`UN0015` 之一。平台代变更（`PLAT_ALTER`）与未命中的变更项不触发签署，见 [[calibers/offline-electronic-auth-trigger]]。

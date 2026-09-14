@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 智能审核引流-租户白名单口径
-page_key: calibers/gptlearn_tenant_whitelist
+page_key: gptlearn_tenant_whitelist
 domain: GP学习
 status: draft
 aliases:
@@ -14,6 +14,7 @@ scope:
 sources:
   - code:GptLearnService.java
 contract_version: "0.1"
+belong: calibers
 ---
 
 # 智能审核引流-租户白名单口径

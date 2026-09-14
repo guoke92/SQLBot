@@ -370,6 +370,7 @@ export class ChatRecord {
   interrupts: ConversationInterrupt[] = []
   intent_reasoning_content?: string
   feedback?: string | null
+  feedback_comment?: string | null
 
   constructor()
   constructor(
@@ -600,6 +601,8 @@ const toChatRecord = (data?: any): ChatRecord | undefined => {
   record.active_interrupt = data.active_interrupt
   record.interrupts = data.interrupts || []
   record.intent_reasoning_content = data.intent_reasoning_content
+  record.feedback = data.feedback ?? null
+  record.feedback_comment = data.feedback_comment ?? null
   return record
 }
 const toChatRecordList = (list: any = []): ChatRecord[] => {
@@ -897,8 +900,12 @@ export const chatApi = {
   get_chart_usage: (record_id?: number): Promise<any> => {
     return request.get(`/chat/record/${record_id}/usage`)
   },
-  submitFeedback: (record_id: number, feedback: string | null): Promise<any> => {
-    return request.post(`/chat/record/${record_id}/feedback`, { feedback })
+  submitFeedback: (
+    record_id: number,
+    feedback: string | null,
+    comment?: string | null
+  ): Promise<any> => {
+    return request.post(`/chat/record/${record_id}/feedback`, { feedback, comment })
   },
   startChat: (data: any): Promise<ChatInfo> => {
     return request.post('/chat/start', data)

@@ -1,7 +1,7 @@
 ---
 type: process
 title: "企业建档认证状态机"
-page_key: "processes/company_build_status_machine"
+page_key: company_build_status_machine
 domain: "customer-onboarding"
 status: draft
 aliases:
@@ -13,6 +13,7 @@ scope:
 sources:
   - "code_path:CustStatusCommitProcessor.java:checkMessage"
 contract_version: "0.1"
+belong: processes
 ---
 
 企业建档认证状态机描述 `cust_company_info.cust_build_status` 的取值与流转：从初始待提交，到客户确认、中台审核中，最终落到建档成功或失败；已生效企业的后续变更则进入「变更中」。该字段与单次工作流审核结论 `check_status` 不是同一维度，边界见 [[concepts/build_status]] 与 [[concepts/check_status]]。

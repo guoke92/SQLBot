@@ -2,17 +2,32 @@
 type: table
 title: 租户项目审批备注信息
 page_key: tenant_project_approval_flow_comment
-domain: 基线
+domain: 微企链立项与项目审批
 status: draft
 anchors: [tenant_project_approval_flow_comment]
 oid: 1
 scope:
   databases: [lowcode_pplatform]
-sources: ["db:db-catalog.yaml", "code:extract-catalog.yaml", "enrich:wiki-admin"]
-created: '2026-09-10'
-updated: '2026-09-10'
+sources: ["db:db-catalog.yaml", "code:extract-catalog.yaml"]
+created: '2026-09-14'
+updated: '2026-09-14'
 contract_version: "0.1"
+belong: tables
 ---
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # 租户项目审批备注信息
 
@@ -22,8 +37,14 @@ contract_version: "0.1"
 table: tenant_project_approval_flow_comment
 database: lowcode_pplatform
 desc: 租户项目审批备注信息
-inactive: false
 fields:
+  - name: enable
+    type: string
+    phys: varchar(4)
+    desc: enable
+    dict: enable
+    topk: "Y"
+    labels: "Y:是"
   - name: id
     type: number
     phys: bigint(22)
@@ -48,7 +69,7 @@ fields:
     type: string
     phys: varchar(100)
     desc: 逻辑租户标识
-    topk: base
+    topk: "base"
   - name: cc_user_id
     type: string
     phys: varchar(500)
@@ -65,27 +86,19 @@ fields:
     type: string
     phys: varchar(100)
     desc: 创建人id
-    topk: 1534087161817419777|1761948088379621378|1801438863791919106|1998571949021429761
   - name: create_time
     type: temporal
     phys: datetime
     desc: 创建时间
-    group: create_time_group, project_create_time_group, update_time_group
   - name: create_user
     type: string
     phys: varchar(100)
     desc: 创建人名称
-    topk: 刘倍材|刘宁|林彦湘|陈凯文
   - name: db_tenant_code
     type: string
     phys: varchar(100)
     desc: 数据租户标识
-    topk: ISOLATE_TAG_szbank|LN1|LN2|beehive-scf.qhhrly.cn
-  - name: enable
-    type: string
-    phys: varchar(4)
-    desc: enable
-    topk: Y
+    topk: "ISOLATE_TAG_szbank|LN1|LN2|beehive-scf.qhhrly.cn"
   - name: name
     type: string
     phys: varchar(64)
@@ -98,7 +111,6 @@ fields:
     type: string
     phys: varchar(128)
     desc: 关联项目审批
-    topk: 049c5778d6384fa783a2acef5d70ce25|0b913987d10e416c83bbc4810153db74
   - name: remark
     type: string
     phys: varchar(1024)
@@ -107,15 +119,12 @@ fields:
     type: string
     phys: varchar(100)
     desc: 更新人id
-    topk: 1534087161817419777|1761948088379621378|1801438863791919106|1998571949021429761
   - name: update_time
     type: temporal
     phys: datetime
     desc: 更新时间
-    group: create_time_group, project_effective_time_group, update_time_group
   - name: update_user
     type: string
     phys: varchar(100)
     desc: 更新人名称
-    topk: 刘倍材|刘宁|林彦湘|陈凯文
 ```

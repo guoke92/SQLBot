@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 平台产品列表过滤
-page_key: rules/platform-product-list-filter
+page_key: platform-product-list-filter
 domain: 平台产品配置
 status: draft
 aliases: [产品列表过滤, listTenantProduct 过滤]
@@ -11,6 +11,7 @@ scope:
 sources:
   - code:PlatformProductController.listTenantProduct
 contract_version: "0.1"
+belong: rules
 ---
 
 非 AGW 端调用时，产品列表按当前租户已开通产品列表过滤，并通过 Nacos 配置 `platform.limit.product.support` 白名单进一步过滤，返回过滤后的产品列表。

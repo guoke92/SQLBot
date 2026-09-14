@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 经办人信息以 sys_user + sso_user 为准
-page_key: rule.person_info_source_of_truth
+page_key: person_info_source_of_truth
 domain: 平台内部服务对接
 status: draft
 aliases:
@@ -13,6 +13,7 @@ sources:
   - semantic:field_semantics[cust_person_info.name / user_name / email]
   - semantic:field_semantics[sys_user / sso_user]
 contract_version: "0.1"
+belong: rules
 ---
 
 联系人姓名、登录名、业务邮箱的权威来源是 sys_user + sso_user；仅当联系人侧自身为空时才由经办人新增流程补全，业务邮箱变更时按条件回写登录邮箱。

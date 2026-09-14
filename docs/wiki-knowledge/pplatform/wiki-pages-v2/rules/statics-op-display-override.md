@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 展示用统计操作时间覆盖更新时间
-page_key: rule/statics-op-display-override
+page_key: statics-op-display-override
 domain: 微企链立项与项目审批
 status: draft
 aliases:
@@ -13,6 +13,7 @@ scope:
 sources:
   - code_path:ProjectStatisticsApplication.java
 contract_version: "0.1"
+belong: rules
 ---
 
 列表与详情展示的「更新时间/更新人」并非直接取 `update_time` / `update_user`，而是被 `statics_op_time` / `statics_op_user`（项目统计更新时间与更新用户）覆盖。因此界面上的更新时间反映的是统计操作，而不是记录行级变更。

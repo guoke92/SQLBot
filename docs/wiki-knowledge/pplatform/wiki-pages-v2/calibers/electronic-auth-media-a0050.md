@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 电子签约版授权书影像（A0050）
-page_key: calibers/electronic-auth-media-a0050
+page_key: electronic-auth-media-a0050
 domain: 文件/附件/媒体
 status: draft
 aliases: [A0050, 电子签约版授权书, 电子授权书影像]
@@ -12,6 +12,7 @@ sources:
   - code:MediaFile.catgId
   - code_path:CustMediaFacade.java:uploadElectronicAuthMediaFile
 contract_version: "0.1"
+belong: calibers
 ---
 
 # 电子签约版授权书影像（A0050）

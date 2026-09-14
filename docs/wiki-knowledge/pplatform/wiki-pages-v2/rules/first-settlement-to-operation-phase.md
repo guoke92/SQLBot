@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 首笔落地时间变更联动项目阶段为持续运营
-page_key: rule.first-settlement-to-operation-phase
+page_key: first-settlement-to-operation-phase
 domain: 项目报表/统计/上报
 status: draft
 aliases:
@@ -15,6 +15,7 @@ sources:
   - code:ProjectStatisticsApplication.java
   - code:ProjectStatisticsDevImportApplication.java
 contract_version: "0.1"
+belong: rules
 ---
 
 # 首笔落地时间变更联动项目阶段为持续运营

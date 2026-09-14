@@ -1,7 +1,7 @@
 ---
 type: concept
 title: catgId 影像分类ID
-page_key: concepts/catg-id
+page_key: catg-id
 domain: 文件/附件/媒体
 status: draft
 aliases: [catgId, 影像分类ID, 影像分类]
@@ -16,6 +16,7 @@ also_confused_with: [modelCode, fileType]
 adjudication: boundary
 boundary: "catgId 是影像分类维度，modelCode 是模型维度（建档固定 MA001），project_file_info.file_type 是另一套文件模块类型（cust/approve/check/collate/other）。"
 contract_version: "0.1"
+belong: concepts
 ---
 
 # catgId 影像分类ID

@@ -1,7 +1,7 @@
 ---
 type: concept
 title: 游客
-page_key: concept.guest
+page_key: guest
 domain: 客户联系人管理
 status: draft
 aliases:
@@ -18,6 +18,7 @@ also_confused_with:
   - 经办人
 contract_version: "0.1"
 sources: ["enrich:wiki-admin"]
+belong: concepts
 ---
 
 游客是 [[tables/cust_person_info]] 中 `user_type = 'accountGuest'` 的临时角色记录，取数口径见 [[calibers/person-guest]]。

@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: custBuildStatus 讯易链映射口径
-page_key: caliber.cust-build-status-xyc-mapping
+page_key: cust-build-status-xyc-mapping
 domain: 项目报表/统计/上报
 status: draft
 aliases:
@@ -14,6 +14,7 @@ scope:
 sources:
   - code:ProjectReportApplication.java
 contract_version: "0.1"
+belong: calibers
 ---
 
 # custBuildStatus 讯易链映射口径

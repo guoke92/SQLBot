@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 规则引擎优先级
-page_key: rules/rule_engine_priority
+page_key: rule_engine_priority
 domain: CA证书收费
 status: draft
 aliases: [evaluate 判定顺序, 缴费判定优先级]
@@ -11,6 +11,7 @@ scope:
 sources:
   - code:CaFeeRuleEngineService.java:evaluate
 contract_version: "0.1"
+belong: rules
 ---
 
 # 规则引擎优先级

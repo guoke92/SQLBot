@@ -1,9 +1,9 @@
 - anchor: table:cust_build_record
   code: FIELD_NOT_IN_DB
-  message: cust_build_record.retryStatus
-- anchor: table:cust_build_record
-  code: FIELD_NOT_IN_DB
   message: cust_build_record.pushData
 - anchor: table:cust_build_record
   code: FIELD_NOT_IN_DB
   message: cust_build_record.returnData
+- anchor: table:cust_build_record
+  code: FIELD_NOT_IN_DB
+  message: cust_build_record.dbTenantCode

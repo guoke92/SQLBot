@@ -11,6 +11,7 @@ scope:
 sources:
   - "code: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustAccessApplication.java:getDbTenantCode"
 contract_version: "0.1"
+belong: calibers
 ---
 
 「渠道查询」定义准入接入时如何由渠道定位租户：以 `cust_access_secret.channel = '渠道值'` 检索 [[tables/cust_access_secret]]，命中记录的 `db_tenant_code` 即为后续请求需要设置的租户上下文。

@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 共享假租户
-page_key: caliber.shared_fake_tenant
+page_key: shared_fake_tenant
 domain: 租户配置
 status: draft
 aliases:
@@ -16,6 +16,7 @@ sources:
   - db:tenant_setting_config.share_flag
   - code:lowcode-pplatform-tenant-management/src/main/java/com/lls/lowcode/pplatform/tenant/service/TenantDomainService.java:existEarlyLLsTenant
 contract_version: "0.1"
+belong: calibers
 ---
 
 共享假租户判定条件是 `share_flag='Y'` 且本次请求的 `tenant_flg_en` 与配置行不一致：此时 `syncTenant` 不写 `tenant_setting_config`，而改写 `tenant_setting_config_share`。该口径解释了为什么同一个 [[concepts/db_tenant_code]] 下可能存在多个 [[concepts/tenant_flg_en]]——共享租户复用同一数据租户，但以不同项目标识对外。

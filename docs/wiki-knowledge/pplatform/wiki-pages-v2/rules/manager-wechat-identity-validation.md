@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 方案经理/业务经理企微身份校验
-page_key: rule.manager-wechat-identity-validation
+page_key: manager-wechat-identity-validation
 domain: 项目报表/统计/上报
 status: draft
 aliases:
@@ -15,6 +15,7 @@ scope:
 sources:
   - code:ProjectStatisticsApplication.java
 contract_version: "0.1"
+belong: rules
 ---
 
 # 方案经理/业务经理企微身份校验

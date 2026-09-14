@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 客户端同步失败默认重试上限
-page_key: calibers/client-sync-error-retry-num-3
+page_key: client-sync-error-retry-num-3
 domain: 平台事件监听与同步
 status: draft
 aliases:
@@ -13,6 +13,7 @@ scope:
 sources:
   - db:client_api_sync_error
 contract_version: "0.1"
+belong: calibers
 ---
 
 该口径描述客户端同步失败记录的重试次数取值特征：DB 实测全部为 3，与补偿链路的默认重试上限（默认 3，见 [[rules/compensation-max-retry]]）数值一致。

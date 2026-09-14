@@ -2,17 +2,32 @@
 type: table
 title: 租户项目审批流程配置表
 page_key: tenant_project_approval_flow_config
-domain: 基线
+domain: 微企链立项与项目审批
 status: draft
 anchors: [tenant_project_approval_flow_config]
 oid: 1
 scope:
   databases: [lowcode_pplatform]
-sources: ["db:db-catalog.yaml", "code:extract-catalog.yaml", "enrich:wiki-admin"]
-created: '2026-09-10'
-updated: '2026-09-10'
+sources: ["db:db-catalog.yaml", "code:extract-catalog.yaml"]
+created: '2026-09-14'
+updated: '2026-09-14'
 contract_version: "0.1"
+belong: tables
 ---
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # 租户项目审批流程配置表
 
@@ -22,12 +37,32 @@ contract_version: "0.1"
 table: tenant_project_approval_flow_config
 database: lowcode_pplatform
 desc: 租户项目审批流程配置表
-inactive: false
 fields:
+  - name: enable
+    type: string
+    phys: varchar(4)
+    desc: enable
+    dict: enable
+    topk: "N|Y"
+    labels: "N:否|Y:是"
   - name: id
     type: number
     phys: bigint(22)
     desc: 表主键
+  - name: is_operate
+    type: string
+    phys: varchar(64)
+    desc: 是否可操作
+    dict: enable
+    topk: "N|Y"
+    labels: "N:否|Y:是"
+  - name: is_optional
+    type: string
+    phys: varchar(64)
+    desc: 是否可选节点：Y/N
+    dict: enable
+    topk: "N|Y"
+    labels: "N:否|Y:是"
   - name: act_procinst_date
     type: temporal
     phys: datetime
@@ -60,7 +95,6 @@ fields:
     type: temporal
     phys: datetime
     desc: 创建时间
-    group: create_time_group, project_create_time_group, update_time_group
   - name: create_user
     type: string
     phys: varchar(100)
@@ -69,26 +103,11 @@ fields:
     type: string
     phys: varchar(100)
     desc: 数据租户标识
-  - name: enable
-    type: string
-    phys: varchar(4)
-    desc: enable
-    topk: N|Y
   - name: flow_code
     type: string
     phys: varchar(64)
     desc: 流程编码：NO_ONLINE，STANDARD，REGULAR
-    topk: NO_ONLINE|REGULAR|STANDARD
-  - name: is_operate
-    type: string
-    phys: varchar(64)
-    desc: 是否可操作
-    topk: N|Y
-  - name: is_optional
-    type: string
-    phys: varchar(64)
-    desc: 是否可选节点：Y/N
-    topk: N|Y
+    topk: "NO_ONLINE|REGULAR|STANDARD"
   - name: name
     type: string
     phys: varchar(64)
@@ -97,17 +116,15 @@ fields:
     type: string
     phys: varchar(64)
     desc: 节点编码字典
-    topk: BUSINESS_MANAGER|LEGAL_PROCESS|LEGAL_REVIEW|OPERATION
+    topk: "BUSINESS_MANAGER|LEGAL_PROCESS|LEGAL_REVIEW|OPERATION|OTHER|PROJECT_CONFIG|PROJECT_MANAGER"
   - name: node_name
     type: string
     phys: varchar(64)
     desc: 节点名称（中文）
-    topk: 业务经理审批|其他|方案经理|方案配置
   - name: node_order
     type: number
     phys: int(10)
     desc: 节点顺序
-    topk: 1|2|3|4
   - name: organization_id
     type: string
     phys: varchar(30)
@@ -116,7 +133,6 @@ fields:
     type: string
     phys: varchar(1024)
     desc: remark
-    topk: 固定杨英|如有|如需
   - name: update_by
     type: string
     phys: varchar(100)
@@ -125,7 +141,6 @@ fields:
     type: temporal
     phys: datetime
     desc: 更新时间
-    group: create_time_group, project_effective_time_group, update_time_group
   - name: update_user
     type: string
     phys: varchar(100)

@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 全租户上下文口径
-page_key: calibers/all_tenant_context
+page_key: all_tenant_context
 domain: 外部渠道与银行对接
 status: draft
 aliases:
@@ -20,6 +20,7 @@ sources:
   - code:CustAccessApplication#batchQuery
   - code:CustAccessApplication#changeCompanyInfo
 contract_version: "0.1"
+belong: calibers
 ---
 
 # 全租户上下文口径

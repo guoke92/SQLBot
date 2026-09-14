@@ -15,6 +15,7 @@ maps_to: "无直接代码/DB对应，需求文档提及"
 adjudication: boundary
 also_confused_with: [自营贴牌]
 contract_version: "0.1"
+belong: concepts
 ---
 
 (document_claim，未证实)

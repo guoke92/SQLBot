@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 启用租户
-page_key: caliber.enabled_tenant
+page_key: enabled_tenant
 domain: 租户配置
 status: draft
 aliases:
@@ -15,6 +15,7 @@ sources:
   - db:tenant_setting_config.enable
   - code:lowcode-pplatform-tenant-management/src/main/java/com/lls/lowcode/pplatform/tenant/service/TenantDomainService.java
 contract_version: "0.1"
+belong: calibers
 ---
 
 「启用租户」是所有租户查询的默认底座口径：`getFirstByDbTenantCode`、`getById`、`listActicveAll` 等入口都在 SQL 上拼接 `enable='Y'`。注意它与「生效」不是同一件事——`enable` 是记录启用态（存量数据实测全部为 Y），`status` 才是租户业务生效态，见 [[calibers/effective_tenant]]。

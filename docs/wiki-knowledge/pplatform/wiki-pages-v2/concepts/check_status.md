@@ -1,41 +1,36 @@
 ---
 type: concept
-title: "审核状态"
-page_key: "concepts/check_status"
-domain: "customer-onboarding"
+title: 审核状态
+page_key: check_status
+domain: 外部渠道与银行对接
 status: draft
 aliases:
-  - "check_status"
+  - checkStatus
+  - CheckStatus
+  - CUST_CHECK_*
 oid: 1
 scope:
-  databases: [UNSPECIFIED]
+  databases:
+    - cust
 sources:
-  - "code_path:CustWorkflowAuditCommitProcessor.java:process(setCheckStatus=rtfs.getCheckStaus().name())"
-  - "code_path:CustStatusCommitProcessor.java:changeMessage"
+  - code:CustAccessApplication.getCheckStatus
+  - code:CustAccessApplication.terminateBuildingFlow
 contract_version: "0.1"
-maps_to: "OperApiConstants.RtfState.getCheckStaus().name() → OperApiConstants.CheckStatus"
-field_targets:
-  - "cust_company_info.check_status"
-  - "cust_change_record.status"
-adjudication: "synonym"
+maps_to: cust_company_info.check_status
 also_confused_with:
-  - "变更记录 cust_change_record.status"
-boundary: "回调解读用 RtfState（中文描述，如 通过/拒绝/退回客户），落库前统一转 CheckStatus 枚举名；cust_change_record.status 在退回场景还会写入 returnCust-时间 的非枚举值。"
+  - cust_company_info.cust_build_status
+adjudication: boundary
+belong: concepts
+field_targets: [cust_company_info.check_status]
+sources: ["enrich:wiki-admin"]
 ---
 
-「审核状态」指工作流审核的结论枚举。回调报文里的状态是运营中台的 `RtfState`（中文描述），落库前统一转换为 `CheckStatus` 枚举名，因此同一结论在链路上有两套表述。主表落点见 [[tables/cust_company_info]]，状态机见 [[processes/workflow_check_status_machine]]。
-
-## 边界
-
-`boundary`：回调解读用 `RtfState`（中文描述，如 通过/拒绝/退回客户），落库前统一转 `CheckStatus` 枚举名；`cust_change_record.status` 在退回场景还会写入 `returnCust-时间` 的非枚举值。
-
-因此对变更记录做枚举统计时，必须显式处理动态退回值，见 [[processes/change_record_check_machine]] 与 [[tables/cust_change_record]]。本概念与 [[concepts/build_status]] 是不同维度，两者通过流转联动。
+审核状态是运营流程状态，落库为枚举 `.name()`，读取用 `CheckStatus.getByName`。
 
 ## 需求背景
-
-需求文档中的「审核中 / 已通过 / 已驳回」在本域对应的落库值分别是 `CUST_CHECK_CHECKING`、`CUST_CHECK_PASS`、`CUST_CHECK_REJECT`；「退回」对应 `CUST_CHECK_BACKTOCUSTOM`。
+对外状态映射以本字段优先（PASS→CUSTS003+AUTH0003、CHECKING→CUSTS002+AUTH0001、REJECT→CUSTS004+AUTH0001），为空时回落到建档状态；终止建档会把审核置为 CUST_CHECK_REJECT。状态机见 [[cust_check_status]]，与建档的边界见 [[company_archive]]。
 
 ## 版本演进
+暂无版本演进记录。
 
-- 通过/拒绝与中间状态分属两条落库通道，见 [[rules/workflow_callback_routing]]。
-- 执行器对该状态的处理范围与注释不一致，见 [[rules/workflow_processor_scope_comment_mismatch]]。
+相关：[[cust_company_info]]

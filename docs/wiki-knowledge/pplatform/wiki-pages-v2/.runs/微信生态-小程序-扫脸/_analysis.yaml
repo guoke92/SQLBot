@@ -1,112 +1,189 @@
 field_semantics:
 - table: ca_certification_info
-  field: intent_h5_face_json
-  meaning: CFCA 一证四步『意愿认证 - H5 刷脸』落库块。存 CfcaIntentItemDto JSON：authType=H5_FACE、sysId（Nacos
-    dbass.appId）、custId、custType=COMPANY、dataDate(yyyyMMdd)、opType=INSERT、authTime(yyyyMMddHHmmss)、result、similarity（人脸相似度）、videoPath（刷脸视频
-    COS path）、busiSeqNo、noticeId、requestData（DBaaS 原始请求 JSON）、data（DBaaS 原始响应 JSON）、name、idNo、idTypeCode=01、bodyCheckResult。Java
-    属性名 intentHFaceJson。
+  field: id
+  meaning: CFCA 一证四步认证主键，落库后用于回填 intent_h5_face_json / file_refs_json 等 JSON 块
   evidence: code
 - table: ca_certification_info
-  field: submit_status
-  meaning: 签章中台上送状态。落库初始 PENDING；submitToSignCenter 成功后 SUCCESS、失败 FAIL；markFailed
-    强制 FAIL（已 SUCCESS 行拒绝改）。
+  field: cust_id
+  meaning: 产融企业 id；总公司/分公司行按同一 custId 但 headCompanyData 区分
   evidence: code
 - table: ca_certification_info
-  field: sign_platform_result
-  meaning: 签章中台 cbsSubmitBizData 的完整『[requestId]+[payload]+[resp]』原文，失败时含异常信息或 markFailed
-    追加段，不截断。
+  field: cust_type
+  meaning: 客户类型，默认 COMPANY（企业）
+  evidence: code
+- table: ca_certification_info
+  field: data_date
+  meaning: 数据日期 yyyyMMdd，幂等键之一
+  evidence: code
+- table: ca_certification_info
+  field: op_type
+  meaning: 上报操作类型，首次落库固定 INSERT
   evidence: code
 - table: ca_certification_info
   field: batch_no
-  meaning: 上送流水号，格式 INC_<yyyyMMddHHmmssSSS>_<UUID前6位hex>；总公司行与分公司行各自独立生成，不要求一致。
-  evidence: code
-- table: ca_certification_info
-  field: head_company_data
-  meaning: 是否总公司数据：Y/N，仅接受 Y（大小写不敏感），其余/空回退 N；参与 (custId,dataDate,headCompanyData,submitStatus=PENDING)
-    幂等键。
+  meaning: 上报流水号，INC_yyyyMMddHHmmssSSS_6位hex，总分公司各自独立
   evidence: code
 - table: ca_certification_info
   field: data_source
-  meaning: CA 数据来源，CaDataSourceEnum；CHANNEL_OPENAPI 时豁免『至少一项意愿认证』的完整性校验。
+  meaning: CFCA 认证数据来源，路由不同业务场景
+  evidence: code
+- table: ca_certification_info
+  field: head_company_data
+  meaning: 是否总公司数据，Y/N；分公司双行场景用于幂等键
+  evidence: code
+- table: ca_certification_info
+  field: submit_status
+  meaning: 上送签章中台状态：PENDING/SUCCESS/FAIL（CaSubmitStatusEnum.name()）
   evidence: code
 - table: ca_certification_info
   field: notify_agreement_json
-  meaning: 协议告知块。新格式存 JSONArray，上送时包装为 {notifyAgreementList:[...], notifyTextList:[]}；老格式单
-    JSONObject 兼容包成单元素数组。
+  meaning: 协议告知 JSON 列，上送时包装为 notifyAgreementList + notifyTextList
   evidence: code
 - table: ca_certification_info
   field: enterprise_four_json
-  meaning: 企业工商核验块；按 verifyMethod 分键上送：ENTERPRISE_THREE → authEnterpriseThree，ENTERPRISE_FOUR（含解析失败兜底）→
-    authEnterpriseFour。
+  meaning: 企业工商核验 JSON 列；按 verifyMethod 在 enterprise_four_json 与 enterprise_three_json
+    上送键间路由
   evidence: code
 - table: ca_certification_info
   field: police_two_json
-  meaning: 公安二要素（姓名+身份证）实名核验块，上送键 authPersonPoliceTwo。
+  meaning: 法人/人员公安二要素核验 JSON 列
   evidence: code
 - table: ca_certification_info
   field: intent_sms_json
-  meaning: 短信验证码意愿认证块，上送键 intentJson.checkCode。
+  meaning: 短信验证码意愿认证 JSON 列
+  evidence: code
+- table: ca_certification_info
+  field: intent_h5_face_json
+  meaning: H5 刷脸意愿认证 JSON 列；FaceVerifyController 在人脸通过时回填 DBaaS 请求/响应原文
   evidence: code
 - table: ca_certification_info
   field: file_refs_json
-  meaning: 附件清单块，内含 embeddedFiles[{multipartField,path}]；path 落库为 COS key，上送前转带签名
-    HTTP 下载链。
+  meaning: 附件清单 JSON 列；embeddedFiles.path 存 COS key，上送前转 HTTP 下载链
+  evidence: code
+- table: ca_certification_info
+  field: sign_platform_result
+  meaning: 签章中台请求+响应原文，异常/markFailed 追加
+  evidence: code
+- table: cust_certification_info
+  field: ref_cust_company_info
+  meaning: 关联企业 code；与企业主表 code 对应
   evidence: code
 - table: cust_certification_info
   field: certification_type
-  meaning: 核查项类型，CustCertificationTypeEnum.getDictParam()；出现值：COMPANY_FOUR_ELEMENTS、COMPANY_TWO_ELEMENTS、LEGAL_THREE_ELEMENTS、AUTH_THREE_ELEMENTS、LEGAL_OCR、AUTH_OCR、LICENSE_OCR、LEGAL_MEDIA_OCR、AUTH_MEDIA_OCR、FACE_VERIFY。
+  meaning: 认证类型（COMPANY_FOUR_ELEMENTS / FACE_VERIFY 等），写入用 CustCertificationTypeEnum.getDictParam()
   evidence: code
 - table: cust_certification_info
   field: auto_verify_status
-  meaning: 自动核查结果，取 CustCertificationResultTypeEnum 的 dictParam（自动通过/自动不通过等）。
+  meaning: 自动核查结果；写入用 getDictParam()，人脸通过判断用 getDictKey()，存在读写键不一致风险
   evidence: code
 - table: cust_certification_info
   field: manual_verify_status
-  meaning: 人工核查结果；与 auto_verify_status 任一为『通过』即视为人脸/核查通过（FaceVerifyController.isFaceVerifyPassed）。
+  meaning: 人工核查结果；写入用 getDictParam()，人脸通过判断用 getDictKey()
+  evidence: code
+- table: cust_certification_info
+  field: auto_verify_count
+  meaning: 自动核查次数，saveOrUpdate 每次 +1
   evidence: code
 - table: cust_certification_info
   field: face_business_no
-  meaning: 人脸识别业务流水号，用于按流水号拉取人脸影像文件（A0024）并回溯刷脸结果。
-  evidence: code
-- table: cust_certification_info
-  field: auto_verify_count / manual_verify_count
-  meaning: 自动/人工核查累计次数，每次 write 自增 1；实名三要素链路有 >=3 次的注释校验位（当前被注释掉，未生效）。
+  meaning: 人脸识别业务流水号，用于影像查询
   evidence: code
 - table: cust_person_info
   field: face_status
-  meaning: 该联系人的人脸认证结果，取 CustCertificationResultTypeEnum dictKey。
+  meaning: 人脸认证结果；finishedVerifyFace 写入 CustCertificationResultTypeEnum.getDictKey()
   evidence: code
 - table: cust_person_info
   field: phone_realname_status
-  meaning: 手机号实名认证状态（三要素/人脸回写），与 face_status 合成 real_name_result。
+  meaning: 手机号实名状态；verifyThree/finishedVerifyFace 写入 getDictKey()
   evidence: code
 - table: cust_person_info
   field: real_name_result
-  meaning: RealNameResultEnum.computeRealNameResult(faceStatus, phoneRealnameStatus)
-    的合成实名结果。
-  evidence: code
-- table: cust_person_info
-  field: user_type
-  meaning: 联系人类型：admin（客户管理员，刷脸意愿主体）/ operator（经办人）/ guest（游客，查询时被剔除）。
-  evidence: code
-- table: cust_person_info
-  field: status
-  meaning: 联系人账号状态；查询有效联系人时限定 ADD、EFFECT（CustPersonStatusConstant）。
+  meaning: 综合实名结果；由 face_status + phone_realname_status 计算 getDictKey()
   evidence: code
 - table: cust_person_info
   field: operator_push_system
-  meaning: 经办人已推送系统列表（逗号分隔 sysChannel），修改后按此列表逐个推送运营中台。
+  meaning: 经办人需推送的系统列表，逗号分隔
+  evidence: code
+- table: cust_person_info
+  field: ref_cust_company_info
+  meaning: 关联企业 code
+  evidence: code
+- table: cust_person_info
+  field: company_type
+  meaning: 客户角色，与企业类型匹配
+  evidence: code
+- table: cust_person_info
+  field: user_type
+  meaning: 联系人类型：admin/operator/guest 等（UserTypeEnum.getDictKey()）
+  evidence: code
+- table: cust_person_info
+  field: enable
+  meaning: 逻辑 enable：Y/N
+  evidence: code
+- table: cust_person_info
+  field: status
+  meaning: 联系人账号状态，listCompanyUser 过滤 ADD/EFFECT
   evidence: code
 - table: cust_company_info
-  field: need_register_ca / ca_register_status / bs_register_status
-  meaning: 分别表示是否需要开通签章、CA 开通状态、上上签开通状态；need_register_ca=Y 时签署子账号授权书前要做 CA 状态预检。
+  field: code
+  meaning: 企业编码，被 cust_person_info.ref_cust_company_info / cust_certification_info.ref_cust_company_info
+    引用
   evidence: code
-- table: tenant_project_approval_flow
-  field: node_status / node_code / node_order / is_optional / approver_user_id
-  meaning: 租户项目审批流程节点定义：节点状态、节点编码、从 1 开始的顺序、是否可选节点(Y/N)、审批人企微 userId。
+- table: cust_company_info
+  field: certification_no
+  meaning: 统一社会信用代码
+  evidence: code
+- table: cust_company_info
+  field: ca_register_status
+  meaning: CA 开通状态，Y 时签署经办人授权书走在线签署
+  evidence: code
+- table: cust_company_info
+  field: need_register_ca
+  meaning: 是否需要开通签章，Y 时签署前做 CA 状态前置校验
+  evidence: code
+- table: cust_company_info
+  field: db_tenant_code
+  meaning: 数据租户标识，用于租户隔离和 sso channel 解析
+  evidence: code
+- table: cust_company_info
+  field: main_data_id
+  meaning: 主数据 id，同步人脸影像时从主数据企业复制到当前企业
+  evidence: code
+- table: sys_cust_user_rel
+  field: is_freeze
+  meaning: 产品-用户关系冻结标记，Y/N
   evidence: code
 state_machines:
-- name: CA 一证四步上送状态机
+- name: 人脸/实名认证结果状态
+  field: cust_certification_info.auto_verify_status / cust_certification_info.manual_verify_status
+  states:
+  - value: AUTOMATIC_AUTHENTICATION_PASSED
+    label: 自动认证通过
+    source: code_enum
+  - value: AUTOMATIC_AUTHENTICATION_FAILED
+    label: 自动认证失败
+    source: code_enum
+  - value: MANUAL_AUTHENTICATION_PASSED
+    label: 人工认证通过
+    source: code_enum
+  transitions:
+  - from: AUTOMATIC_AUTHENTICATION_FAILED
+    event: 自动核查再次通过
+    to: AUTOMATIC_AUTHENTICATION_PASSED
+    evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/verify/impl/AutoVerifyServiceImpl.java:saveOrUpdate
+  - from: AUTOMATIC_AUTHENTICATION_FAILED
+    event: 人工核查通过
+    to: MANUAL_AUTHENTICATION_PASSED
+    evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/verify/impl/AutoVerifyServiceImpl.java:saveManual
+  - from: 未通过
+    event: 人脸查询结果自动或人工任一通过
+    to: 人脸认证通过
+    evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/controller/FaceVerifyController.java:isFaceVerifyPassed
+  - from: 未通过
+    event: 人工认证已通过时短路返回
+    to: MANUAL_AUTHENTICATION_PASSED
+    evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/verify/impl/AutoVerifyServiceImpl.java:verifyThree
+- name: CFCA 上送状态
   field: ca_certification_info.submit_status
   states:
   - value: PENDING
@@ -119,310 +196,490 @@ state_machines:
     label: 上送失败
     source: code_enum
   transitions:
-  - from: (新建)
-    event: createOrGetByKey 建行
+  - from: 无
+    event: createOrGetByKey 新建行
     to: PENDING
-    evidence: code_path:CaCertificationInfoAppServiceImpl.java#createOrGetByKey
+    evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/cfca/impl/CaCertificationInfoAppServiceImpl.java:createOrGetByKey
   - from: PENDING
-    event: submitToSignCenter 中台返回 DBaaS code∈{0,200} 且 biz.status=SAVED
+    event: cbsSubmitBizData 成功，DBaaS code=0/200 且 biz.status=SAVED
     to: SUCCESS
-    evidence: code_path:CaCertificationInfoAppServiceImpl.java#submitToSignCenter
+    evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/cfca/impl/CaCertificationInfoAppServiceImpl.java:submitToSignCenter
   - from: PENDING
-    event: submitToSignCenter 抛异常 / DBaaS code 不成功 / biz.status≠SAVED
+    event: cbsSubmitBizData 异常或失败
     to: FAIL
-    evidence: code_path:CaCertificationInfoAppServiceImpl.java#submitToSignCenter
+    evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/cfca/impl/CaCertificationInfoAppServiceImpl.java:writeSubmitResult
+  - from: SUCCESS
+    event: 再次 submitToSignCenter
+    to: SUCCESS
+    evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/cfca/impl/CaCertificationInfoAppServiceImpl.java:submitToSignCenter
   - from: FAIL
-    event: markFailed 人工补录强制置失败
+    event: markFailed 追加上送失败原因
     to: FAIL
-    evidence: code_path:CaCertificationInfoAppServiceImpl.java#markFailed
-  - from: SUCCESS
-    event: submitToSignCenter 重复调用（幂等短路）
-    to: SUCCESS
-    evidence: code_path:CaCertificationInfoAppServiceImpl.java#submitToSignCenter
-  - from: SUCCESS
-    event: markFailed（被拒绝，抛 CA_CERT_SUBMIT_ALREADY_SUCCESS）
-    to: SUCCESS
-    evidence: code_path:CaCertificationInfoAppServiceImpl.java#markFailed
-- name: 实名/人脸核查结果状态
-  field: cust_certification_info.auto_verify_status / manual_verify_status / cust_person_info.face_status
-    / cust_person_info.phone_realname_status
-  states:
-  - value: AUTOMATIC_AUTHENTICATION_PASSED
-    label: 自动核查通过
-    source: code_enum
-  - value: AUTOMATIC_AUTHENTICATION_FAILED
-    label: 自动核查不通过
-    source: code_enum
-  - value: MANUAL_AUTHENTICATION_PASSED
-    label: 人工核查通过
-    source: code_enum
-  transitions:
-  - from: (新建)
-    event: verifyThree 落实名三要素结果
-    to: AUTOMATIC_AUTHENTICATION_PASSED / FAILED
-    evidence: code_path:AutoVerifyServiceImpl.java#verifyThree
-  - from: (新建)
-    event: finishedVerifyFace 拉小程序人脸结果回写 face_status + phone_realname_status
-    to: AUTOMATIC_AUTHENTICATION_PASSED / FAILED
-    evidence: code_path:AutoVerifyServiceImpl.java#finishedVerifyFace
-  - from: AUTOMATIC_AUTHENTICATION_FAILED
-    event: saveManual 人工核查
-    to: MANUAL_AUTHENTICATION_PASSED
-    evidence: code_path:AutoVerifyServiceImpl.java#saveManual
-  - from: 任意
-    event: verifyFlag=YES 且自动失败 → 提前 return，不继续走三要素
-    to: AUTOMATIC_AUTHENTICATION_FAILED
-    evidence: code_path:AutoVerifyServiceImpl.java#verifyThree
-- name: 经办人冻结状态（SysCustUserRel）
-  field: sys_cust_user_rel.is_freeze
-  states:
-  - value: N
-    label: 解冻/正常
-    source: code_enum
-  - value: Y
-    label: 已冻结
-    source: code_enum
-  transitions:
-  - from: N
-    event: freezeOrThawOperatorUser operationType=FREEZE
-    to: Y
-    evidence: code_path:PlatFormUserApplication.java#freezeOrThawOperatorUser
-  - from: Y
-    event: freezeOrThawOperatorUser operationType=THAW
-    to: N
-    evidence: code_path:PlatFormUserApplication.java#freezeOrThawOperatorUser
-  - from: N
-    event: 运营中台 syncOperatorUser OperatorType=DELETE（同手机号兼管理员时只冻经办人角色）
-    to: Y
-    evidence: code_path:CustSyncEventProvider.java#syncOperatorUser
+    evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/cfca/impl/CaCertificationInfoAppServiceImpl.java:markFailed
 calibers:
-- name: 人脸核查通过
+- name: 人脸认证通过
   predicate: cust_certification_info.auto_verify_status = 'AUTOMATIC_AUTHENTICATION_PASSED'
     OR cust_certification_info.manual_verify_status = 'MANUAL_AUTHENTICATION_PASSED'
-  scope: FaceVerifyController#persistH5FaceIntentIfPassed 决定是否回填 intent_h5_face_json；两者任一通过即视为通过。
-  evidence: code_path:FaceVerifyController.java#isFaceVerifyPassed
-- name: 有效联系人（可展示）
+  scope: faceVerifyQuery 回填 CFCA H5_FACE 意愿数据前的人脸通过判断
+  evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/controller/FaceVerifyController.java:isFaceVerifyPassed
+- name: 人工认证通过
+  predicate: cust_certification_info.manual_verify_status = 'MANUAL_AUTHENTICATION_PASSED'
+  scope: 人工核查与实名短路返回
+  evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/verify/impl/AutoVerifyServiceImpl.java:saveManual
+- name: 企业联系人有效
   predicate: cust_person_info.enable = 'Y' AND cust_person_info.status IN ('ADD','EFFECT')
-  scope: listCompanyUser 按企业 id 查联系人；再按 productTypes 过滤 is_freeze='N' 的 SysCustUserRel。
-  evidence: code_path:PlatFormUserApplication.java#listCompanyUser
-- name: 刷脸意愿主体（客户管理员）
-  predicate: cust_person_info.user_type = 'admin' AND cust_person_info.enable = 'Y'
-    AND cust_person_info.ref_cust_company_info = <企业 code> AND cust_person_info.user_id
-    = <当前登录用户>
-  scope: getFaceQrCode / resolveFaceIntentPerson 取当前登录用户在本企业的管理员作为刷脸主体。
-  evidence: code_path:FaceVerifyController.java#resolveFaceIntentPerson
-- name: CA 幂等行
-  predicate: ca_certification_info.cust_id = ? AND data_date = ? AND head_company_data
-    = ? AND submit_status = 'PENDING'
-  scope: createOrGetByKey 命中则直接返回既有 id，不新建；batch_no 不进幂等键。
-  evidence: code_path:CaCertificationInfoAppServiceImpl.java#createOrGetByKey
-- name: 企业最新成功上送记录
-  predicate: ca_certification_info.cust_id = ? AND submit_status = 'SUCCESS' AND enable
-    = 'Y' ORDER BY submit_time DESC, id DESC LIMIT 1
-  scope: assembleLatestSuccessBizRequest / submitLatestSuccessBizRequest 取基准行。
-  evidence: code_path:CaCertificationInfoAppServiceImpl.java#findLatestSuccessRow
-- name: 企微有效成员
-  predicate: wx_work_user.status IS NULL OR wx_work_user.status = MEMBER_STATUS_ACTIVATED
-  scope: WechatContactService.pullContactList 全量拉取通讯录时过滤停用/未激活成员。
-  evidence: code_path:WechatContactService.java#isActiveMember
-- name: 上送 data 字段长度上限
-  predicate: LENGTH(authRealNameJson.*.data / intentJson.*.data) <= 1000
-  scope: 仅裁剪 authPersonPoliceTwo / authEnterpriseThree / authEnterpriseFour / checkCode
-    / h5Face 五处 data，超长按 JSON 叶子从长到短剔除，最后硬截断兜底。
-  evidence: code_path:CaCertificationInfoAppServiceImpl.java#truncateOversizedDataFieldsInSubmitPayload
+  scope: listCompanyUser 查询企业联系人"
+  evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/PlatFormUserApplication.java:listCompanyUser
+- name: 产品关系未冻结
+  predicate: sys_cust_user_rel.is_freeze = 'N'
+  scope: 企业联系人按产品过滤有效用户"
+  evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/PlatFormUserApplication.java:listCompanyUser
+- name: CA 上送成功
+  predicate: ca_certification_info.submit_status = 'SUCCESS'
+  scope: 取企业最新成功上报数据、幂等跳过重复上送"
+  evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/cfca/impl/CaCertificationInfoAppServiceImpl.java:findLatestSuccessRow
+- name: CA 待上送
+  predicate: ca_certification_info.submit_status = 'PENDING'
+  scope: createOrGetByKey 幂等命中"
+  evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/cfca/impl/CaCertificationInfoAppServiceImpl.java:createOrGetByKey
+- name: 总公司数据
+  predicate: ca_certification_info.head_company_data = 'Y'
+  scope: 分公司双行场景总公司行"
+  evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/cfca/impl/CaCertificationInfoAppServiceImpl.java:normalizeHeadCompanyData
+- name: 分公司数据
+  predicate: ca_certification_info.head_company_data = 'N'
+  scope: 分公司双行场景分公司行"
+  evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/cfca/impl/CaCertificationInfoAppServiceImpl.java:normalizeHeadCompanyData
 term_bridges:
-- term: 扫脸 / 人脸识别
+- term: 扫脸
   aliases:
-  - H5_FACE
+  - 人脸认证
+  - 人脸识别
   - H5刷脸
-  - 意愿认证
-  - faceVerify
-  - 刷脸
-  maps_to: cust_certification_info.certification_type = 'FACE_VERIFY' 与 ca_certification_info.intent_h5_face_json（authType=H5_FACE）
+  - CFCA H5_FACE
+  - 意愿认证H5_FACE
+  maps_to: cust_certification_info.certification_type='FACE_VERIFY'
   also_confused_with:
-  - OCR 身份证核查（LEGAL_OCR/AUTH_OCR）
-  - 三要素手机号实名（LEGAL_THREE_ELEMENTS/AUTH_THREE_ELEMENTS）
+  - cust_certification_info.auto_verify_status
+  - ca_certification_info.intent_h5_face_json
   adjudication: boundary
-  boundary: 扫脸=人脸比对（FaceVerifyController + miniFaceService），走小程序二维码；OCR/三要素属于证照识别与实名比对，同一张
-    cust_certification_info 表不同 certification_type 行，不可互相替代。
-- term: 微信
+  boundary: 扫脸是意愿认证/活体人脸链路；auto_verify_status 是核查结果状态，intent_h5_face_json 是 CFCA 上报意愿块，不等同于实名认证。
+- term: H5刷脸意愿
   aliases:
-  - 微信通知
-  - WechatNotificationService
-  - 企微
-  maps_to: 需拆分：WechatNotifyFacade/WechatWorkMessageService 直连『企业微信 message/send』；WechatNotificationService（sso
-    组件）为另一路微信触达抽象。
+  - CFCA 一证四步意愿认证
+  - intent_h5_face_json
+  - authType=H5_FACE
+  maps_to: ca_certification_info.intent_h5_face_json
   also_confused_with:
-  - 企业微信（企微）
-  - 微信服务号
-  - 小程序
+  - ca_certification_info.intent_sms_json
+  - cust_certification_info.auto_verify_status
   adjudication: boundary
-  boundary: 企微消息面向内部审批人（touser=企微 userId，textcard）；小程序链路（MiniProgramController）面向
-    C 端小程序，用 api.weixin.qq.com accessToken。二者接入主体与 token 体系不同。
-- term: 小程序二维码
+  boundary: H5_FACE 是 CFCA 签章中台意愿认证块；短信意愿写 intent_sms_json，人脸核查结果写 cust_certification_info。
+- term: 人脸认证通过
   aliases:
-  - getFaceQrCode
-  - getCustBuildQrCode
-  - 二维码
-  maps_to: MiniFaceService.getFaceQrCode（扫脸/建档场景）与 MiniFaceService.getCustBuildQrCode（建档场景）
+  - 核查通过
+  - automatic passed
+  - manual passed
+  maps_to: cust_certification_info.auto_verify_status
   also_confused_with:
-  - CA 关联的 certificationId 生成的二维码
+  - cust_certification_info.manual_verify_status
+  - cust_person_info.phone_realname_status
   adjudication: boundary
-  boundary: 当传 certificationId 时 busiSeqNo=certificationId+LocalDate.now()，否则 busiSeqNo=custId+LocalDate.now()；busiSeqNo
-    语义随入参改变，是同一接口内的分支语义，不是同一个业务标识。
-- term: accessToken
+  boundary: 自动通过写 auto_verify_status，人工通过写 manual_verify_status；联系人手机实名写 phone_realname_status。
+- term: 企微人员
   aliases:
-  - 小程序 accessToken
-  - 微信 token
-  maps_to: MiniProgramController.getOrigAccessToken：api.weixin.qq.com/cgi-bin/token，Redis
-    key = FBP_WECHAT_TOKEN_PREFIX + appid + secret
+  - 企微通讯录
+  - WechatUserDTO
+  - 审批人下拉
+  maps_to: tenant_project_approval_flow.approver_user_id
   also_confused_with:
-  - 企业微信 access_token（WechatWorkApiClient 内部，未在本层给出）
-  - SSO token
+  - sys_user.id
   adjudication: boundary
-  boundary: 小程序 accessToken 由 appid+secret 换取并缓存（expires_in-300 秒）；企微消息走 WechatWorkApiClient
-    的另一套凭证，缓存 key 与刷新逻辑不同。
-- term: faceBusinessNo / businessNo / busiSeqNo
+  boundary: approver_user_id 是企微 userId，经 WechatContactFacade.existsUser 到企微通讯录校验；不是平台
+    sys_user.id。
+- term: 企微消息
   aliases:
-  - 业务流水号
-  maps_to: cust_certification_info.face_business_no；MiniFaceService.queryResult(businessNo)；GetFaceQrCodeReqDTO.busiSeqNo
+  - 企业微信消息
+  - textcard
+  - 待办提醒
+  maps_to: tenant_project_approval_flow.approver_user_id
   also_confused_with:
-  - ca_certification_info.batch_no
+  - 微信服务号消息
+  - DBASS 微信通知 WechatNotificationService
   adjudication: boundary
-  boundary: busiSeqNo 是生成二维码时组装的查询键（custId/certificationId + 日期）；faceBusinessNo 是人脸服务返回的流水号，回写时
-    busiSeqNo 优先取 faceResult.getFaceBusinessNo()，其次取 snapshot.getBusinessNo()；batch_no
-    是签章中台上送流水号，三者不同源。
-- term: certificationId
+  boundary: 项目审批消息直连企业微信 message/send；服务号通知与 DBASS IWeiXinApi 是另一链路，不可混用。
+- term: 总公司数据
   aliases:
-  - 认证 id
-  maps_to: 在 FaceVerifyController.faceVerifyQuery / getFaceQrCode 中为 ca_certification_info.id（Long，CFCA
-    一证四步链路）
+  - headCompanyData=Y
+  - 总公司行
+  maps_to: ca_certification_info.head_company_data='Y'
   also_confused_with:
-  - cust_certification_info.id（低代码核查记录主键）
+  - ca_certification_info.head_company_data='N'
   adjudication: boundary
-  boundary: 凡 FaceVerifyController 入参 certificationId 均指 ca_certification_info.id，用于
-    updateIntentByType/mergeEmbeddedFilePath 定位行；cust_certification_info 表行通过 certification_type
-    + ref_cust_company_info 定位，无 certificationId 入参。
+  boundary: Y 表示总公司行，N 表示分公司行；分公司场景两行共用幂等键但 headCompanyData 不同。
+- term: 上送成功
+  aliases:
+  - SUCCESS
+  - cbsSubmitBizData 成功
+  maps_to: ca_certification_info.submit_status='SUCCESS'
+  also_confused_with:
+  - ca_certification_info.submit_status='PENDING'
+  - ca_certification_info.submit_status='FAIL'
+  adjudication: boundary
+  boundary: SUCCESS 需要 DBaaS code 0/200 且业务 status=SAVED；仅 HTTP 成功不等于业务成功。
 rules:
+- name: 人脸通过才回填 CFCA H5_FACE 意愿
+  content: faceVerifyQuery 仅在 certificationId 非空、人脸结果为自动或人工通过、DBaaS 请求/响应快照已捕获时，回填
+    ca_certification_info.intent_h5_face_json；写入异常弱失败，不阻断查询主流程。
+  impact: CFCA 一证四步 H5 刷脸意愿数据的落库时机与容错边界
+  field_targets:
+  - ca_certification_info.intent_h5_face_json
+  - ca_certification_info.file_refs_json
+  - cust_certification_info.auto_verify_status
+  - cust_certification_info.manual_verify_status
+  evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/controller/FaceVerifyController.java:persistH5FaceIntentIfPassed
+- name: H5_FACE 上送必填补全
+  content: H5_FACE 意愿上送前补全 bodyCheckResult=1、idTypeCode=01、从 police_two_json 补姓名/证件号，并校验
+    name/idNo/bodyCheckResult/similarity 必填。
+  impact: CFCA 签章中台 intentJson.h5Face 的必填字段完整性
+  field_targets:
+  - ca_certification_info.intent_h5_face_json
+  - ca_certification_info.police_two_json
+  evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/cfca/util/CfcaH5FaceIntentHelper.java:prepareForPersist
 - name: 小程序 accessToken 缓存与重试
-  content: 以 appid+secret 为 key 查 Redis；未命中则调 api.weixin.qq.com/cgi-bin/token，失败最多重试
-    5 次（间隔 200ms），成功按 expires_in-300 秒缓存；未取到 access_token 时直接返回微信原始报文，5 次后抛 IOException。
-  impact: 并发下多实例可能同时刷新；缓存过期窗口留 300 秒冗余。
-  field_targets:
-  - FBP_WECHAT_TOKEN_PREFIX+appid+secret
-  evidence: code_path:MiniProgramController.java#getOrigAccessToken
-- name: 小程序 Scheme 生成失败重试一次
-  content: generateMiniProgramScheme 首次失败（errcode≠0）且 reTry=false 时，删除 Redis accessToken
-    缓存后以 reTry=true 重试一次；仍失败抛 IOException。expire_type=1、expire_interval=1（有效期 1 天）。
-  impact: 避免 token 失效导致的 Scheme 生成失败；重试仅一次。
-  field_targets:
-  - FBP_WECHAT_TOKEN_PREFIX+appid+secret
-  evidence: code_path:MiniProgramController.java#generateMiniProgramScheme
-- name: H5 刷脸落库弱失败
-  content: persistH5FaceIntentIfPassed 中 updateIntentByType / mergeEmbeddedFilePath
-    异常仅 error 日志，不抛出，不阻断 faceVerifyQuery 返回人脸结果；未传 certificationId、人脸未通过、快照缺失（snapshot
-    为空或 !isCaptured）均直接跳过回填。
-  impact: 主链路可用性优先；代价是落库可能静默缺失，需靠日志审计。
-  field_targets:
-  - ca_certification_info.intent_h5_face_json
-  - ca_certification_info.file_refs_json
-  evidence: code_path:FaceVerifyController.java#persistH5FaceIntentIfPassed
-- name: CA 上送完整性校验
-  content: submitToSignCenter 前校验：notify_agreement_json 非空；enterprise_four_json 或
-    police_two_json 至少一项非空；intent_sms_json 或 intent_h5_face_json 至少一项非空（dataSource=CHANNEL_OPENAPI
-    豁免）；file_refs_json 非空。任一不满足抛 CA_CERT_INFO_INCOMPLETE。
-  impact: 缺块直接拒发中台，不允许部分上送。
-  field_targets:
-  - ca_certification_info.notify_agreement_json
-  - ca_certification_info.enterprise_four_json
-  - ca_certification_info.police_two_json
-  - ca_certification_info.intent_sms_json
-  - ca_certification_info.intent_h5_face_json
-  - ca_certification_info.file_refs_json
-  evidence: code_path:CaCertificationInfoAppServiceImpl.java#assertCompleteForSubmit
-- name: 上送报文 data 超长裁剪
-  content: 上送前对 authRealNameJson.authPersonPoliceTwo.data、authEnterpriseThree.data、authEnterpriseFour.data、intentJson.checkCode.data、intentJson.h5Face.data
-    做 1000 字符校验；超长在 data JSON 内按叶子属性值长度从大到小剔除（不删 request/response 中间节点），失败则硬截断前 1000
-    字符。
-  impact: 保护签章中台 1000 字符限制，代价是部分原文被丢弃（库内保留完整原文）。
-  field_targets:
-  - ca_certification_info.enterprise_four_json
-  - ca_certification_info.police_two_json
-  - ca_certification_info.intent_sms_json
-  - ca_certification_info.intent_h5_face_json
-  evidence: code_path:CaCertificationInfoAppServiceImpl.java#truncateOversizedDataFieldsInSubmitPayload
-- name: 企微通讯录 Redis 缓存 30 分钟
-  content: 全量拉取 department/list → 各部门 user/list，按 userId 去重、过滤停用成员后写 Redis（CACHE_TTL_MINUTES）；读取失败返回
-    null 并回退实时拉取；查询关键词长度超过 KEYWORD_MAX_LENGTH 抛异常。
-  impact: 30 分钟内通讯录变更不可见；查询接口不支持分页，命中全量返回。
-  field_targets:
-  - WechatContactConstants.REDIS_KEY_CONTACT_USER_LIST
-  evidence: code_path:WechatContactService.java#pullContactList, WechatContactFacade.java#listUser
-- name: 企微通知异步 + 弱失败
-  content: sendApprovalTodo / sendApprovalPass / sendApprovalReject / sendApprovalTodoBatchRemind
-    / sendMissingSolutionManagerRemind 均为 @Async("emailSendExecutor")，内部 try-catch
-    只打日志不抛出；textcard 需 url（无 url 会报 41010），无跳转场景改用 text。
-  impact: 通知失败不影响审批主流程；无 url 场景误用 textcard 会静默 41010。
-  field_targets:
-  - tenant_project_approval_flow.approver_user_id
-  evidence: code_path:WechatNotifyFacade.java#sendApprovalTodo, WechatWorkMessageService.java#sendTextCard
-- name: 小程序测试接口用户名白名单
-  content: invokeWithTypes / invokeRpcEnhanced / invokeRpcMultiParams 三个反射/RPC 调试接口，仅
-    allowUser={ouyangpengfei, wudongyang, pengshaobin} 允许调用，否则返回 error(10001,"拒绝访问")。
-  impact: 安全边界：白名单硬编码在类中，不可配置。
+  content: 获取微信 accessToken 时，缓存 key 为 FBP_WECHAT_TOKEN_PREFIX+appid+secret；失败最多重试
+    5 次；获取成功后按 expires_in-300 秒缓存；未取到 access_token 返回微信原始报文。
+  impact: 小程序 Scheme 生成、微信接口调用频控与 token 复用
   field_targets: []
-  evidence: code_path:MiniProgramController.java#invokeMethodWithTypes / invokeRpcEnhanced
-    / invokeRpcMultiParams
-- name: 企微用户姓名/部门解析降级
-  content: WxUserInfoFacade 走 ISysWxUserProvider；姓名取 SysWxUserDO.name（空则回退 wxUserid），部门优先
-    mainDepartment，否则取 department 逗号串首个非空并 listWxDepartmentById 转名；任何远程异常返回 fallback，不抛给调用方。进程内
-    ConcurrentHashMap 无 TTL 无上限全量缓存。
-  impact: 远程失败时调用方拿到 wxUserid 兜底值而非空；改名后必须显式 invalidate 才生效。
+  evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/controller/MiniProgramController.java:getOrigAccessToken
+- name: 小程序 Scheme 失败清缓存重试一次
+  content: generateMiniProgramScheme 遇到微信 errcode 非 0 且未重试时，删除缓存 accessToken 后递归重试一次；再失败抛
+    IOException。
+  impact: 小程序跳转链接生成的可用性
+  field_targets: []
+  evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/controller/MiniProgramController.java:generateMiniProgramScheme
+- name: 企微通讯录缓存 30 分钟
+  content: 企微通讯录通过 department/list 与各部门 user/list 全量拉取，过滤 status 为空或 MEMBER_STATUS_ACTIVATED
+    的成员，写入 Redis，TTL 30 分钟。
+  impact: 审批人下拉与转审校验的数据来源与缓存时效
+  field_targets: []
+  evidence: lowcode-pplatform-components/lowcode-pplatform-sso-component/src/main/java/com/lls/lowcode/pplatform/service/WechatContactService.java:pullContactList
+- name: 企微人员模糊查询
+  content: listUser 不传 keyword 返回全量；传 keyword 时按 userId/userName/mobile 忽略大小写模糊匹配，keyword
+    超过 KEYWORD_MAX_LENGTH 抛异常。
+  impact: 审批人下拉检索行为
+  field_targets: []
+  evidence: lowcode-pplatform-components/lowcode-pplatform-sso-component/src/main/java/com/lls/lowcode/pplatform/facade/WechatContactFacade.java:listUser
+- name: 企微审批消息异步且失败不阻断
+  content: 待办、通过、拒绝消息使用 textcard，缺方案经理提醒使用 text；均异步提交到 emailSendExecutor，异常只记日志，不抛给业务。
+  impact: 项目上线审批消息触达的可靠性与主流程隔离
+  field_targets: []
+  evidence: lowcode-pplatform-components/lowcode-pplatform-sso-component/src/main/java/com/lls/lowcode/pplatform/facade/WechatNotifyFacade.java:sendApprovalTodo
+- name: 人脸二维码要求管理员证件号已录入
+  content: getFaceQrCode 查询当前登录用户在本企业的管理员联系人，若 certificationNo 为空抛 BaseException 客户管理员证件号未录入。
+  impact: 人脸识别小程序二维码生成前置条件
   field_targets:
-  - sys_wx_user.main_department
-  - sys_wx_user.department
-  evidence: code_path:WxUserInfoFacade.java#loadRemote / resolveDeptName
+  - cust_person_info.certification_no
+  - cust_person_info.user_type
+  - cust_person_info.enable
+  evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/controller/FaceVerifyController.java:getFaceQrCode
+- name: 空字段跨表补齐不阻断
+  content: handleEmptyFieldsUpdate 在 cust_person_info、sys_user、sso_user 中仅当 name/user_name/email
+    为空时补齐，异常只 warn 不抛。
+  impact: 经办人新增/修改时多系统用户资料一致性
+  field_targets:
+  - cust_person_info.name
+  - cust_person_info.user_name
+  - cust_person_info.email
+  evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/PlatFormUserApplication.java:handleEmptyFieldsUpdate
+- name: CA 上送幂等
+  content: submitToSignCenter 若行已 SUCCESS 直接返回原结果；markFailed 禁止对 SUCCESS 行操作；上送成功条件为
+    DBaaS code 0/200 且业务 status=SAVED。
+  impact: CFCA 签章中台上送幂等与失败保护
+  field_targets:
+  - ca_certification_info.submit_status
+  - ca_certification_info.sign_platform_result
+  - ca_certification_info.submit_time
+  evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/cfca/impl/CaCertificationInfoAppServiceImpl.java:submitToSignCenter
+- name: 上送 data 字段 1000 字符裁剪
+  content: 组装签章中台请求体时，对 authRealNameJson 与 intentJson 下指定子项的 data 字段做 1000 字符校验，超长按
+    JSON 叶子从长到短剔除，再做硬截断兜底。
+  impact: 避免签章中台 data 超长拒绝
+  field_targets:
+  - ca_certification_info.police_two_json
+  - ca_certification_info.enterprise_four_json
+  - ca_certification_info.intent_sms_json
+  - ca_certification_info.intent_h5_face_json
+  evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/cfca/impl/CaCertificationInfoAppServiceImpl.java:truncateOversizedDataFieldsInSubmitPayload
+- name: 附件 COS path 转下载链
+  content: 上送签章中台前将 file_refs_json.embeddedFiles.path 中的 COS key 转为带签名的 HTTP 下载链，库内仍保留
+    COS path。
+  impact: 签章中台附件可访问性
+  field_targets:
+  - ca_certification_info.file_refs_json
+  evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/cfca/impl/CaCertificationInfoAppServiceImpl.java:resolveFileRefsJsonForSubmit
 reqdoc_claims:
-- claim: 微信通知通过 DBASS 接口发送微信服务号消息，失败记录日志、不影响主流程。
+- claim: 企微人员查询（TASK-0011），供项目上线审批审批人下拉使用。
+  code_status: confirmed
+  code_evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/controller/WechatContactController.java:listUsers
+    + lowcode-pplatform-components/lowcode-pplatform-sso-component/src/main/java/com/lls/lowcode/pplatform/facade/WechatContactFacade.java:listUser
+  action: anchor
+- claim: 项目上线审批企微消息直连企业微信 message/send（TASK-0013）。
+  code_status: confirmed
+  code_evidence: lowcode-pplatform-components/lowcode-pplatform-sso-component/src/main/java/com/lls/lowcode/pplatform/facade/WechatNotifyFacade.java:sendApprovalTodo
+  action: anchor
+- claim: 待办汇总提醒企微消息使用 textcard，异步发送（TASK-0020）。
+  code_status: confirmed
+  code_evidence: lowcode-pplatform-components/lowcode-pplatform-sso-component/src/main/java/com/lls/lowcode/pplatform/facade/WechatNotifyFacade.java:sendApprovalTodoBatchRemind
+  action: anchor
+- claim: 立项统计缺方案经理汇总提醒使用 text 文本消息，异步发送（TASK-0002）。
+  code_status: confirmed
+  code_evidence: lowcode-pplatform-components/lowcode-pplatform-sso-component/src/main/java/com/lls/lowcode/pplatform/facade/WechatNotifyFacade.java:sendMissingSolutionManagerRemind
+  action: anchor
+- claim: 微信通知规则：通过 DBASS 接口发送微信服务号消息。
   code_status: refuted
-  code_evidence: WechatNotifyFacade.java#sendApprovalTodo（注释：直连企业微信 message/send）/
-    WechatWorkMessageService.java#sendTextCard
-  action: prose_only
-  差异: 代码中批准待办/通过/拒绝类消息由 WechatNotifyFacade 直连企业微信 message/send 发送 textcard/text，并非经
-    DBASS 接口，也不是微信服务号通道；『失败仅记日志』与实现一致（@Async + try-catch）。系统文档『微信服务号』表述与企微通道现实不符，以代码为准。
-- claim: 通知组件以邮件/短信/微信三类抽象承载触达，微信为 WechatNotificationService。
-  code_status: confirmed
-  code_evidence: WechatNotificationService.java（未全文给出，见链路清单）
-  action: anchor
-  差异: 该服务在 sso 组件中存在并被列为本主题链路文件；但当次提供的代码全文内未展开其实现，故仅锚定类存在，不锚定行为。
-- claim: 用户状态流转：待激活(邀请后) → 正常(注册完成) → 已冻结 → 正常(解冻) → 已注销。
-  code_status: uncovered
-  code_evidence: ''
+  code_evidence: lowcode-pplatform-components/lowcode-pplatform-sso-component/src/main/java/com/lls/lowcode/pplatform/facade/WechatNotifyFacade.java:sendApprovalTodo
+    直连企业微信 message/send；MiniProgramController.java:getApprovalInfo 才使用 IWeiXinApi
   action: review
-  差异: 本次提供的微信/小程序/扫脸链路代码中仅见 cust_person_info.enable(Y/N)、user_type、face_status、phone_realname_status、SysCustUserRel.is_freeze(Y/N)，未见『待激活/正常/已注销』这套状态字段的写值点，需在邀请/注册链路代码中另行确认。
-- claim: 企业准入流程：待提交 → 审核中 → 已通过 / 已驳回 → 待提交（修改后重提）；已通过 → 已冻结 / 已注销。
+- claim: 通知组件以邮件/短信/微信三类抽象，微信通知由 WechatNotificationService 承载。
   code_status: uncovered
-  code_evidence: ''
+  code_evidence: 当前证据中可见 WechatNotifyFacade/WechatWorkMessageService，但未给出 WechatNotificationService
+    全文，无法确认其与企微直连链路的边界
   action: review
-  差异: Provision 见到的企业侧状态字段是 cust_company_info.check_status（代码中出现的取值 CUST_CHECK_PASS
-    / CUST_CHECK_REJECT）与 cust_build_status（CustBuildStatusEnum.BUILD_SUCCESS / BUILD_FAIL）、cust_status（CustStatusEnum），与文档的『待提交/审核中/已通过/已驳回/已冻结/已注销』命名不对齐，本次链路未给出完整状态迁移写值点。
-- claim: 企微人员模糊查询供项目上线审批审批人下拉使用，支持按姓名/userId/手机号匹配。
+- claim: 小程序接口用于获取微信 accessToken、生成 Scheme、获取审批信息/审批详情/用户信息。
   code_status: confirmed
-  code_evidence: WechatContactController.java#listUsers / WechatContactFacade.java#listUser（matchesKeyword
-    命中 userId/userName/mobile）
+  code_evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/controller/MiniProgramController.java:getOrigAccessToken/generateMiniProgramScheme/getApprovalInfo/getApprovalDetail/getUserInfo
   action: anchor
-  差异: 实现额外约束：带 keyword 时全量返回不截断；查全量前先 MetaDataThreadLocalConfig.setDbTenantCode("all")
-    跨租户；全量拉取失败抛 BaseException（不返回空列表）。
-- claim: 扫脸（小程序人脸识别）二维码由后端生成并返回图片地址。
-  code_status: confirmed
-  code_evidence: FaceVerifyController.java#getFaceQrCode / getCustBuildQrCode → MiniFaceService.getFaceQrCode
-    / getCustBuildQrCode
-  action: anchor
-  差异: getFaceQrCode 要求客户管理员的 certification_no 已录入，否则抛 BaseException('客户管理员证件号未录入，请先录入')；busiSeqNo
-    在传入 certificationId 时改用 certificationId+日期。
-- claim: CFCA 一证四步刷脸结果需要将 DBaaS 请求/响应原文回填落库。
-  code_status: confirmed
-  code_evidence: FaceVerifyController.java#faceVerifyQuery / persistH5FaceIntentIfPassed
-    → CaCertificationInfoAppServiceImpl.java#updateIntentByType(H5_FACE) + mergeEmbeddedFilePath(FACE_PHOTO_FILE_1)
-  action: anchor
-  差异: 回填为弱失败（异常只打 error 日志，不阻断接口返回）；且仅当认证通过且 DbassFaceQuerySnapshot 已捕获时才回填。
+enum_audit:
+- field: cust_certification_info.certification_type
+  value: COMPANY_FOUR_ELEMENTS
+  java_name: COMPANY_FOUR_ELEMENTS
+  stored_as: getDictParam()
+  label: 企业四要素
+  verdict: confirm
+  evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/verify/impl/AutoVerifyServiceImpl.java:verifyCompanyFour/saveOrUpdate
+  note: 企业工商四要素核查类型
+- field: cust_certification_info.certification_type
+  value: COMPANY_TWO_ELEMENTS
+  java_name: COMPANY_TWO_ELEMENTS
+  stored_as: getDictParam()
+  label: 企业二要素
+  verdict: confirm
+  evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/verify/impl/AutoVerifyServiceImpl.java:verifyCompanyTwo/saveOrUpdate
+  note: 企业名称+统一社会信用代码核查
+- field: cust_certification_info.certification_type
+  value: LEGAL_THREE_ELEMENTS
+  java_name: LEGAL_THREE_ELEMENTS
+  stored_as: getDictParam()
+  label: 法人三要素
+  verdict: confirm
+  evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/verify/impl/AutoVerifyServiceImpl.java:verifyLegalPersonThree/saveOrUpdate
+  note: 法人手机号+身份证实名
+- field: cust_certification_info.certification_type
+  value: AUTH_THREE_ELEMENTS
+  java_name: AUTH_THREE_ELEMENTS
+  stored_as: getDictParam()
+  label: 客户管理员三要素
+  verdict: confirm
+  evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/verify/impl/AutoVerifyServiceImpl.java:verifyAuthPersonThree/saveOrUpdate
+  note: 客户管理员手机号+身份证实名
+- field: cust_certification_info.certification_type
+  value: LEGAL_OCR
+  java_name: LEGAL_OCR
+  stored_as: getDictParam()
+  label: 法人身份证OCR
+  verdict: confirm
+  evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/verify/impl/AutoVerifyServiceImpl.java:verifyLegalPersonOCR
+  note: 用于实时 OCR 和影像 OCR 复用
+- field: cust_certification_info.certification_type
+  value: AUTH_OCR
+  java_name: AUTH_OCR
+  stored_as: getDictParam()
+  label: 客户管理员身份证OCR
+  verdict: confirm
+  evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/verify/impl/AutoVerifyServiceImpl.java:verifyAuthPersonOCR
+  note: 客户管理员身份证 OCR
+- field: cust_certification_info.certification_type
+  value: LEGAL_MEDIA_OCR
+  java_name: LEGAL_MEDIA_OCR
+  stored_as: getDictParam()
+  label: 法人影像OCR
+  verdict: confirm
+  evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/verify/impl/AutoVerifyServiceImpl.java:autoMediaVerify/verifyLegalPersonOCR
+  note: 影像件 OCR 核查
+- field: cust_certification_info.certification_type
+  value: AUTH_MEDIA_OCR
+  java_name: AUTH_MEDIA_OCR
+  stored_as: getDictParam()
+  label: 客户管理员影像OCR
+  verdict: confirm
+  evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/verify/impl/AutoVerifyServiceImpl.java:autoMediaVerify/verifyAuthPersonOCR
+  note: 影像件 OCR 核查
+- field: cust_certification_info.certification_type
+  value: LICENSE_OCR
+  java_name: LICENSE_OCR
+  stored_as: getDictParam()
+  label: 营业执照OCR
+  verdict: confirm
+  evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/verify/impl/AutoVerifyServiceImpl.java:verifyLicenseOCR
+  note: 营业执照 OCR 核查
+- field: cust_certification_info.certification_type
+  value: FACE_VERIFY
+  java_name: FACE_VERIFY
+  stored_as: getDictParam()
+  label: 人脸认证
+  verdict: confirm
+  evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/verify/impl/AutoVerifyServiceImpl.java:verifyAuthFaceOCR
+  note: 与人脸查询/扫脸链路对应
+- field: cust_certification_info.auto_verify_status
+  value: AUTOMATIC_AUTHENTICATION_PASSED
+  java_name: AUTOMATIC_AUTHENTICATION_PASSED
+  stored_as: 写入 getDictParam()，读取 getDictKey()
+  label: 自动认证通过
+  verdict: reject
+  evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/verify/impl/AutoVerifyServiceImpl.java:saveOrUpdate
+    + lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/controller/FaceVerifyController.java:isFaceVerifyPassed
+  note: 同一字段写用 getDictParam、读用 getDictKey；若两值不同，人脸通过判断可能永远为 false，需核对枚举实现。
+- field: cust_certification_info.auto_verify_status
+  value: AUTOMATIC_AUTHENTICATION_FAILED
+  java_name: AUTOMATIC_AUTHENTICATION_FAILED
+  stored_as: getDictParam()
+  label: 自动认证失败
+  verdict: confirm
+  evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/verify/impl/AutoVerifyServiceImpl.java:saveOrUpdate
+  note: 自动核查失败写入
+- field: cust_certification_info.manual_verify_status
+  value: MANUAL_AUTHENTICATION_PASSED
+  java_name: MANUAL_AUTHENTICATION_PASSED
+  stored_as: 写入 getDictParam()，读取 getDictKey()
+  label: 人工认证通过
+  verdict: reject
+  evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/verify/impl/AutoVerifyServiceImpl.java:saveOrUpdate
+    + lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/controller/FaceVerifyController.java:isFaceVerifyPassed
+  note: 同一字段写读键不一致，人工通过短路判断可能失效，需核对枚举实现。
+- field: cust_person_info.face_status
+  value: AUTOMATIC_AUTHENTICATION_PASSED
+  java_name: AUTOMATIC_AUTHENTICATION_PASSED
+  stored_as: getDictKey()
+  label: 人脸自动通过
+  verdict: confirm
+  evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/verify/impl/AutoVerifyServiceImpl.java:finishedVerifyFace
+  note: 联系人表使用 getDictKey()
+- field: cust_person_info.phone_realname_status
+  value: MANUAL_AUTHENTICATION_PASSED
+  java_name: MANUAL_AUTHENTICATION_PASSED
+  stored_as: getDictKey()
+  label: 手机实名人工通过
+  verdict: confirm
+  evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/verify/impl/AutoVerifyServiceImpl.java:verifyThree
+  note: verifyThree 用 getDictKey() 比较并短路
+- field: ca_certification_info.submit_status
+  value: PENDING
+  java_name: PENDING
+  stored_as: name()
+  label: 待上送
+  verdict: confirm
+  evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/cfca/impl/CaCertificationInfoAppServiceImpl.java:createOrGetByKey
+  note: 新建行固定 PENDING
+- field: ca_certification_info.submit_status
+  value: SUCCESS
+  java_name: SUCCESS
+  stored_as: name()
+  label: 上送成功
+  verdict: confirm
+  evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/cfca/impl/CaCertificationInfoAppServiceImpl.java:writeSubmitResult
+  note: 幂等跳过再次上送
+- field: ca_certification_info.submit_status
+  value: FAIL
+  java_name: FAIL
+  stored_as: name()
+  label: 上送失败
+  verdict: confirm
+  evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/cfca/impl/CaCertificationInfoAppServiceImpl.java:writeSubmitResult
+  note: 异常或业务失败
+- field: ca_certification_info.head_company_data
+  value: Y
+  java_name: null
+  stored_as: 字面量
+  label: 总公司行
+  verdict: confirm
+  evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/cfca/impl/CaCertificationInfoAppServiceImpl.java:normalizeHeadCompanyData
+  note: 仅 Y/N，空或其他值回退 N
+- field: ca_certification_info.op_type
+  value: INSERT
+  java_name: null
+  stored_as: 字面量
+  label: 首次上报
+  verdict: confirm
+  evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/controller/FaceVerifyController.java:CFCA_OP_TYPE_INSERT
+    + CaCertificationInfoAppServiceImpl.java:DEFAULT_OP_TYPE_INSERT
+  note: CFCA 首次落库固定 INSERT
+- field: ca_certification_info.intent_h5_face_json.authType
+  value: H5_FACE
+  java_name: H5_FACE
+  stored_as: getCode()
+  label: CFCA H5刷脸意愿
+  verdict: confirm
+  evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/cfca/impl/CaCertificationInfoAppServiceImpl.java:updateIntentByType
+  note: 写入 intent_h5_face_json 时 authType 使用 CfcaIntentAuthTypeEnum.getCode()
+relation_audit:
+- left: cust_person_info.ref_cust_company_info
+  right: cust_company_info.code
+  kind: JOIN
+  verdict: confirm
+  evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/controller/FaceVerifyController.java:getFaceQrCode/resolveFaceIntentPerson
+  note: 按 custCompanyInfoService.getById 得到企业 code，再查 cust_person_info.refCustCompanyInfo=code。
+- left: cust_certification_info.ref_cust_company_info
+  right: cust_company_info.code
+  kind: JOIN
+  verdict: confirm
+  evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/verify/impl/AutoVerifyServiceImpl.java:getCertificationInfoDO/saveOrUpdate
+  note: 认证记录按 refCustCompanyInfo=企业 code 查询。
+- left: cust_role_info.ref_cust_company_info
+  right: cust_company_info.code
+  kind: JOIN
+  verdict: confirm
+  evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/CustSyncService.java:getRoles
+  note: 按 dbTenantCode + refCustCompanyInfo + enable 查询角色。
+- left: cust_person_info.user_id
+  right: sys_user.id
+  kind: derived
+  verdict: derived
+  evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/PlatFormUserApplication.java:pushToSysLink
+  note: 通过 userId 查询/更新 sys_user，跨服务调用，不是 SQL JOIN。
+- left: sys_cust_user_rel.user_id
+  right: cust_person_info.user_id
+  kind: derived
+  verdict: confirm
+  evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/PlatFormUserApplication.java:listCompanyUser
+  note: 先查产品-用户关系，再按 userIdList 过滤联系人。
+- left: ca_certification_info.cust_id
+  right: cust_company_info.id
+  kind: derived
+  verdict: derived
+  evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/cfca/impl/CaCertificationInfoAppServiceImpl.java:findLatestSuccessRow
+  note: 应用层按 companyId 查 ca_certification_info.cust_id，不是 mapper JOIN。
+- left: cust_company_info.main_data_id
+  right: cust_company_info.id
+  kind: self-join
+  verdict: confirm
+  evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/verify/impl/AutoVerifyServiceImpl.java:synCustFaceMEdia2ApplyCust
+  note: 用 mainDataId 指向主数据企业，再复制人脸影像到当前企业。
+- left: cust_certification_info.face_business_no
+  right: media_file.busiKey
+  kind: external
+  verdict: derived
+  evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/verify/impl/AutoVerifyServiceImpl.java:verifyAuthFaceOCR
+  note: 通过 faceBusinessNo 到媒体服务按 busiKey 查人脸影像，不是 DB JOIN。
+- left: tenant_project_approval_flow.approver_user_id
+  right: 企微通讯录.userId
+  kind: external
+  verdict: derived
+  evidence: lowcode-pplatform-components/lowcode-pplatform-sso-component/src/main/java/com/lls/lowcode/pplatform/facade/WechatContactFacade.java:existsUser
+  note: 审批人 userId 是企微 userId，通过 WechatContactFacade 校验，不是平台 sys_user。
+- left: cust_person_info.phone
+  right: sys_user.user_name
+  kind: derived
+  verdict: derived
+  evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/PlatFormUserApplication.java:handleEmptyFieldsUpdate
+  note: 通过手机号跨 cust_person_info、sys_user、sso_user 补齐空字段，非 SQL JOIN。

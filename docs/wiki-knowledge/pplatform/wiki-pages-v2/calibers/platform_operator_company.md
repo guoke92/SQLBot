@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 运营方企业
-page_key: caliber.platform_operator_company
+page_key: platform_operator_company
 domain: 数据权限与组织
 status: draft
 aliases: [运营方企业, PLATFORM_OPERATOR_COMPANY]
@@ -10,6 +10,7 @@ scope:
   databases: [base]
 sources: [code]
 contract_version: "0.1"
+belong: calibers
 ---
 
 「运营方企业」口径要求 [[tables/cust_company_info]].cust_company_type 这个 JSON 数组字符串中包含 PLATFORM_OPERATOR_COMPANY，且企业处于启用状态。由于 cust_company_type 是数组字符串（可多角色，见 [[concepts/company_role_type]]），判定时是「包含」而非「等于」。

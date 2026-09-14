@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 验证前置状态约束
-page_key: rules/payment-confirm-precondition
+page_key: payment-confirm-precondition
 domain: 企业银行账户
 status: draft
 aliases: [打款验证时序约束, cnapsPaymentConfirm 前置校验]
@@ -11,6 +11,7 @@ scope:
 sources:
   - code_path:CustAccountApplication.java:cnapsPaymentConfirm
 contract_version: "0.1"
+belong: rules
 ---
 
 金额验证动作的时序约束规则：必须先申请打款、必须等银行受理成功，受理失败则需重新申请。状态取值见 [[processes/account-cnaps-payment-auth-state]]，交易标识要求见 [[concepts/trans-id-vs-trace-no]]。

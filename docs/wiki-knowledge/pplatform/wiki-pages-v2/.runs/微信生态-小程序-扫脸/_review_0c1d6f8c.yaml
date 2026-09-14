@@ -1,0 +1,9 @@
+body: '1) 物理库名：语义分析只给出代码模块路径 `lowcode-pplatform-customer-management`，未给出物理库名，`scope.databases`
+  按模块名推断为 `lowcode_pplatform_cust`，待 DBA/DDL 确认。
+
+  2) 字段类型：语义分析未提供 DDL，`type` 列按字段命名与用法推断（主键/外键 bigint、JSON 列 text、Y/N 标记 char(1)），需以实际
+  DDL 校准后覆盖。
+
+  3) `cust_type` 默认 COMPANY、`data_source` 取值域未在本次分析中枚举，保持描述性文字，不新增字典键。'
+title: ca_certification_info
+type: table

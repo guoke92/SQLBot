@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 拒绝/通过回调由工作流处理
-page_key: rules/reject-pass-callback-workflow
+page_key: reject-pass-callback-workflow
 domain: 平台事件监听与同步
 status: draft
 aliases:
@@ -13,6 +13,7 @@ scope:
 sources:
   - code:CustSyncEventProvider.java:onEvent
 contract_version: "0.1"
+belong: rules
 ---
 
 回调路由去重规则：`onEvent` 非变更广播时，checkStatus 为 CUST_CHECK_PASS 或 CUST_CHECK_REJECT 的记录直接跳过，仅处理审核中，避免与 CustWorkflowAuditCommitProcessor 重复处理。

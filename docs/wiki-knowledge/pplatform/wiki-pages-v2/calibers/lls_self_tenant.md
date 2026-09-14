@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 联易融自营租户
-page_key: caliber.lls_self_tenant
+page_key: lls_self_tenant
 domain: 租户配置
 status: draft
 aliases:
@@ -14,6 +14,7 @@ scope:
 sources:
   - code:lowcode-pplatform-tenant-management/src/main/java/com/lls/lowcode/pplatform/tenant/application/TenantAppliactionService.java:isLlsTenant
 contract_version: "0.1"
+belong: calibers
 ---
 
 自营租户由两个可配置常量界定：`db_tenant_code` 等于平台租户配置值，或 `tenant_flg_en` 等于联易融租户标识值。该口径是 SSO/DBAss 初始化的前置判断——非自营租户才执行初始化流程。判定依据同时落在 [[concepts/db_tenant_code]] 与 [[concepts/tenant_flg_en]] 两个术语上，体现了两字段在业务上的分叉。

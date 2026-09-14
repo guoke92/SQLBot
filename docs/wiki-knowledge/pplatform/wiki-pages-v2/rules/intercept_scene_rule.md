@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 拦截场景规则
-page_key: rules/intercept_scene_rule
+page_key: intercept_scene_rule
 domain: CA证书收费
 status: draft
 aliases: [block_scene_list 规则, doCheckFeePayment]
@@ -11,6 +11,7 @@ scope:
 sources:
   - code:CaFeePaymentCheckApplication.java:doCheckFeePayment
 contract_version: "0.1"
+belong: rules
 ---
 
 # 拦截场景规则

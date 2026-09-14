@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 企业最新成功上送记录
-page_key: caliber/latest_success_submit
+page_key: latest_success_submit
 domain: 微信生态/小程序/扫脸
 status: draft
 aliases: [最新成功上送, 基准行]
@@ -11,6 +11,7 @@ scope:
 sources:
   - code:CaCertificationInfoAppServiceImpl.java
 contract_version: "0.1"
+belong: calibers
 ---
 
 # 企业最新成功上送记录

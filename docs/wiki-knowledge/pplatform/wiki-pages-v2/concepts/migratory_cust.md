@@ -18,6 +18,7 @@ field_targets:
 adjudication: synonym
 also_confused_with: []
 contract_version: "0.1"
+belong: concepts
 ---
 
 “迁移客户”是业务侧对客户（企业）级迁移动作的称呼，库中以类型码 `migratoryCust` 出现，二者同义（adjudication: synonym），取数口径见 [[migration_cust_log]]。该术语同时对应代码入口 `PlatFormMigratoryApplication.java:migratoryCust`，是同一动作在库与代码两侧的命名。

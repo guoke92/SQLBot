@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 数据权限缺省按 SAME_AS_USER_ORG 处理
-page_key: rule.data_permission_default_same_as_user_org
+page_key: data_permission_default_same_as_user_org
 domain: 数据权限与组织
 status: draft
 aliases: [数据权限缺省规则, 无记录默认同用户组织]
@@ -10,6 +10,7 @@ scope:
   databases: [base]
 sources: [code]
 contract_version: "0.1"
+belong: rules
 ---
 
 当 [[tables/sys_cust_org_user_permission]] 中没有对应三元组的记录，或查出的 permission_type 为空时，系统不报错也不放行全量，而是按 SAME_AS_USER_ORG（同用户所属组织）处理。这是一条「空值即缺省」的隐式流转，见 [[processes/data_permission_type_fsm]]。

@@ -1,0 +1,4 @@
+body: 状态集合中同时存在 `CUST_CONFIRM_AWAIT`（待客户确认）与 `AWAIT_CUST_CONFIRM`（待客户确认，简易认证），两者是否为同一状态的不同拼写、抑或分属标准链路与简易认证链路，语义分析未给出判定；转移动线未覆盖
+  `AWAIT_CUST_CONFIRM` 的出边，暂按原文保留，待确认。
+title: 企业认证/建档状态流转
+type: process

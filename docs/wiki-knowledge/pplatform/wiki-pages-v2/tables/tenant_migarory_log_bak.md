@@ -2,17 +2,32 @@
 type: table
 title: 租户项目迁移记录表
 page_key: tenant_migarory_log_bak
-domain: 基线
+domain: 租户迁移
 status: draft
 anchors: [tenant_migarory_log_bak]
 oid: 1
 scope:
   databases: [lowcode_pplatform]
-sources: ["db:db-catalog.yaml", "code:extract-catalog.yaml", "enrich:wiki-admin"]
-created: '2026-09-10'
-updated: '2026-09-10'
+sources: ["db:db-catalog.yaml", "code:extract-catalog.yaml"]
+created: '2026-09-14'
+updated: '2026-09-14'
 contract_version: "0.1"
+belong: tables
 ---
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # 租户项目迁移记录表
 
@@ -22,12 +37,31 @@ contract_version: "0.1"
 table: tenant_migarory_log_bak
 database: lowcode_pplatform
 desc: 租户项目迁移记录表
-inactive: false
 fields:
+  - name: enable
+    type: string
+    phys: varchar(4)
+    desc: enable
+    dict: enable
+    topk: "Y"
+    labels: "Y:是"
   - name: id
     type: number
     phys: bigint(22)
     desc: 表主键
+  - name: status
+    type: string
+    phys: varchar(128)
+    desc: 迁移状态
+    dict: enable
+    topk: "N|Y"
+    labels: "N:否|Y:是"
+  - name: type
+    type: string
+    phys: varchar(64)
+    desc: 类型
+    dict: tenant_migarory_log_bak__type
+    topk: "CREATED|CUST_PRODUCT_SYNC|DELETED|EFFECTED|PRODUCT_SYNC|PROJECT_SYNC|PROJECT_SYNC_VALIDATE|TENANT_SYNC|TENANT_SYNC_VALIDATE|migratoryCust|migratoryProject|migratoryTenant|syncProduct|syncProject"
   - name: act_procinst_date
     type: temporal
     phys: datetime
@@ -48,7 +82,7 @@ fields:
     type: string
     phys: varchar(100)
     desc: 逻辑租户标识
-    topk: base|common
+    topk: "base|common"
   - name: batch_no
     type: string
     phys: varchar(32)
@@ -65,7 +99,6 @@ fields:
     type: temporal
     phys: datetime
     desc: 创建时间
-    group: create_time_group, project_create_time_group, update_time_group
   - name: create_user
     type: string
     phys: varchar(100)
@@ -82,12 +115,7 @@ fields:
     type: string
     phys: varchar(16)
     desc: 数据方向
-    topk: IN|OUT
-  - name: enable
-    type: string
-    phys: varchar(4)
-    desc: enable
-    topk: Y
+    topk: "IN|OUT"
   - name: error
     type: string
     phys: text
@@ -100,7 +128,6 @@ fields:
     type: string
     phys: varchar(64)
     desc: 名称
-    topk: ACTIVE_CFCA_SIGN|CHANGED|CREATED|DELETED
   - name: organization_id
     type: string
     phys: varchar(30)
@@ -129,11 +156,6 @@ fields:
     type: string
     phys: text
     desc: 返回数据
-  - name: status
-    type: string
-    phys: varchar(128)
-    desc: 迁移状态
-    topk: N|Y
   - name: success_number
     type: number
     phys: bigint(20)
@@ -146,11 +168,6 @@ fields:
     type: string
     phys: varchar(128)
     desc: trace_id
-  - name: type
-    type: string
-    phys: varchar(64)
-    desc: 类型
-    topk: CREATED|CUST_PRODUCT_SYNC|DELETED|EFFECTED
   - name: update_by
     type: string
     phys: varchar(100)
@@ -159,7 +176,6 @@ fields:
     type: temporal
     phys: datetime
     desc: 更新时间
-    group: create_time_group, project_effective_time_group, update_time_group
   - name: update_user
     type: string
     phys: varchar(100)

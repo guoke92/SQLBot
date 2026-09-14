@@ -1,7 +1,7 @@
 ---
 type: concept
 title: SFTP 渠道（channel）
-page_key: concepts/sftp-channel
+page_key: sftp-channel
 domain: SFTP渠道对接
 status: draft
 aliases: [channel, name, user_name]
@@ -22,6 +22,7 @@ also_confused_with:
   - db_tenant_code（租户标识）
 boundary: channel 与 db_tenant_code 不同源（如 ZTSJ 既是 channel 也是 tenant，但多数渠道的 tenant 是域名形式）；同名渠道存在 -test 后缀的测试配置，统计需排除。
 sources: ["enrich:wiki-admin"]
+belong: concepts
 ---
 
 SFTP 渠道指文件交互的对接方，表 [[tables/cust_sftp]] 中用 `channel` 存渠道编码、`name` 存渠道中文名、`user_name` 存登录账号。

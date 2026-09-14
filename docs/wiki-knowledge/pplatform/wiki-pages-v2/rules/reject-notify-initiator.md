@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 拒绝与退回通知只发发起人
-page_key: rule/reject-notify-initiator
+page_key: reject-notify-initiator
 domain: 微企链立项与项目审批
 status: draft
 aliases:
@@ -14,6 +14,7 @@ sources:
   - code_path:ProjectApprovalDeskApplication.java#doReject
   - code_path:ProjectApprovalDeskApplication.java#doBack
 contract_version: "0.1"
+belong: rules
 ---
 
 审批被拒绝或退回时，通知的接收人是单据上的审批发起人（`initiator_user_id`，存的是 sys_user id），不包含方案经理、也不包含当前处理人。若发起人已离职或 id 失效，通知会静默丢失，排查「审批被退了但没人收到通知」时应先看这一列。

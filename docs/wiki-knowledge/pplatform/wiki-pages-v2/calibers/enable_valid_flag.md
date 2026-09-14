@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 有效标志口径（enable='Y'）
-page_key: caliber.enable_valid_flag
+page_key: enable_valid_flag
 domain: 平台内部服务对接
 status: draft
 aliases:
@@ -16,6 +16,7 @@ sources:
   - semantic:field_semantics[cust_project_rel.enable]
   - semantic:field_semantics[tenant_setting_config.enable / status]
 contract_version: "0.1"
+belong: calibers
 ---
 
 「有效」在多数业务表中的表达方式为字符标志位，取值 'Y'/'N'。

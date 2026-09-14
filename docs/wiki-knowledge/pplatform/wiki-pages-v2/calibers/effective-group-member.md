@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 已生效集团成员单位口径
-page_key: calibers/effective-group-member
+page_key: effective-group-member
 domain: 企业集团关系
 status: draft
 aliases: [生效成员单位, status=EFFECTIVE]
@@ -11,6 +11,7 @@ scope:
 sources:
   - code_path:CustGroupRelApplication.java:listSubCust
 contract_version: "0.1"
+belong: calibers
 ---
 
 已生效集团成员单位指成员关系已完成确认的节点，判定条件为 `cust_group_rel.status = 'EFFECTIVE'`，作用域为平铺列表 / 子级列表（listSubCust）的过滤口径。

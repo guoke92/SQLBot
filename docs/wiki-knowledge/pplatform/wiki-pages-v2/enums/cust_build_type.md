@@ -9,10 +9,22 @@ oid: 1
 scope:
   databases: [lowcode_pplatform]
 sources: ["code:extract-enums.yaml", "db:db-profile.yaml"]
-created: '2026-09-10'
-updated: '2026-09-10'
+created: '2026-09-14'
+updated: '2026-09-14'
 contract_version: "0.1"
+belong: enums
 ---
+
+
+
+
+
+
+
+
+
+
+
 
 # cust_build_type
 
@@ -22,11 +34,11 @@ contract_version: "0.1"
 enum: cust_build_type
 fields: [cust_company_info.cust_build_type]
 values:
-  PC_BUILD:
-    label: 客户录入
-  AGW_BUILD:
-    label: 平台录入
-  SIMPLE:
+  "PC_BUILD":
+    label: "客户录入"
+  "AGW_BUILD":
+    label: "平台录入"
+  "SIMPLE":
     label: "SIMPLE"
-    note: db 分布存在但代码枚举未声明（REVIEW）
+    note: "db 分布存在但代码枚举未声明（REVIEW）"
 ```

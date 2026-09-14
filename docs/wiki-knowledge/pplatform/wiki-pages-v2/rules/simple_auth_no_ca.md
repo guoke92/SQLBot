@@ -1,31 +1,37 @@
 ---
 type: rule
-title: 简易认证强制不开通电子签章 CA
-page_key: rule.simple_auth_no_ca
-domain: 数据权限与组织
+title: 简易认证不支持开通电子签章规则
+page_key: simple_auth_no_ca
+domain: 平台事件监听与同步
 status: draft
-aliases: [简易认证 CA 校正, need_register_ca]
+aliases:
+  - enforceMustNotOpenCa
+  - 简易认证 CA 校正
 oid: 1
 scope:
-  databases: [base]
-sources: [code]
+  databases: ["未确认"]
+sources:
+  - code:CustCompanyInfoApplication.java:submitForSimpleAuth
 contract_version: "0.1"
+belong: rules
 ---
 
-当企业走简易认证（identify_style=SIMPLE，见 [[tables/cust_company_info]]）时，need_register_ca 会被强制校正为「不开通」，即便上游传入了开通意图也会被覆盖。该校正与简易认证支线的建档状态流转（AWAIT_CUST_CONFIRM → BUILD_SUCCESS，见 [[processes/cust_build_status_fsm]]）配套。
+简易认证路径提交时，即使入参 `need_register_ca=Y`，也会被强制校正为不开通并落库。
 
 ## 需求背景
 
-语义分析中未出现 reqdoc_claims 条目；本规则由字段语义「简易认证时被强制校正为不开通」得出。
+由 `CustCompanyCaPolicy.enforceMustNotOpenCa` 执行校正，字段落点为 [[cust_company_info]].`need_register_ca` 与 `ca_register_status`。业务意图是阻断简易认证走电子签章开通流程。该分支与建档状态机的 `AWAIT_CUST_CONFIRM` 状态配套，见 [[cust_build_status]]。
 
 ## 版本演进
 
-v0：依据 code 证据成文。
+- 校正发生在提交时而非登记时，失败重试路径（[[compensation_fail_type]]）是否会再次校正需结合重放上下文判断。
 
 ```ground:rule
-name: 简易认证 CA 校正
-statement: 简易认证场景 need_register_ca 强制为不开通
-condition: identify_style = SIMPLE
-action: 覆盖 need_register_ca 为 N
-evidence: code_path:cust_company_info.need_register_ca（简易认证时被强制校正为不开通）
+name: 简易认证不支持开通电子签章
+content: 简易认证提交时若 needRegisterCa=Y，强制校正为不开通并落库（CustCompanyCaPolicy.enforceMustNotOpenCa）
+impact: 阻断简易认证走 CA 开通
+field_targets:
+  - cust_company_info.need_register_ca
+  - cust_company_info.ca_register_status
+evidence: "code:CustCompanyInfoApplication.java:submitForSimpleAuth"
 ```

@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 提交签章中台完整性校验
-page_key: rule/submit_sign_center_completeness
+page_key: submit_sign_center_completeness
 domain: CA证书认证
 status: draft
 aliases: [assertCompleteForSubmit 规则, CA_CERT_INFO_INCOMPLETE]
@@ -10,6 +10,7 @@ scope:
   databases: [unknown]
 sources: ["code_path:CaCertificationInfoAppServiceImpl.java:assertCompleteForSubmit"]
 contract_version: "0.1"
+belong: rules
 ---
 
 规则要求：上送签章中台前，[[tables/ca_certification_info]] 行必须满足——notify_agreement_json 非空；至少一项实名 JSON（enterprise_four_json 或 police_two_json）；至少一项意愿 JSON（intent_sms_json 或 intent_h_face_json），除非 data_source=CHANNEL_OPENAPI；file_refs_json 非空。不满足时抛出 CA_CERT_INFO_INCOMPLETE 异常，阻止上送。

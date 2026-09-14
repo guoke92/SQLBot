@@ -9,10 +9,22 @@ oid: 1
 scope:
   databases: [lowcode_pplatform]
 sources: ["code:extract-enums.yaml", "db:db-profile.yaml"]
-created: '2026-09-10'
-updated: '2026-09-10'
+created: '2026-09-14'
+updated: '2026-09-14'
 contract_version: "0.1"
+belong: enums
 ---
+
+
+
+
+
+
+
+
+
+
+
 
 # auto_verify_status
 
@@ -22,16 +34,16 @@ contract_version: "0.1"
 enum: auto_verify_status
 fields: [cust_certification_info.auto_verify_status, cust_person_info.face_status, cust_person_info.phone_realname_status]
 values:
-  TO_BE_VERIFIED:
-    label: 待核查
-  AUTOMATIC_AUTHENTICATION_PASSED:
-    label: 自动认证通过
-  AUTOMATIC_AUTHENTICATION_FAILED:
-    label: 自动认证不通过
-  MANUAL_AUTHENTICATION_PASSED:
-    label: 人工认证通过
-  MANUAL_AUTHENTICATION__FAILED:
-    label: 人工认证不通过
-  NO_RECORD:
-    label: 库无记录
+  "TO_BE_VERIFIED":
+    label: "待核查"
+  "AUTOMATIC_AUTHENTICATION_PASSED":
+    label: "自动认证通过"
+  "AUTOMATIC_AUTHENTICATION_FAILED":
+    label: "自动认证不通过"
+  "MANUAL_AUTHENTICATION_PASSED":
+    label: "人工认证通过"
+  "MANUAL_AUTHENTICATION__FAILED":
+    label: "人工认证不通过"
+  "NO_RECORD":
+    label: "库无记录"
 ```

@@ -11,6 +11,7 @@ scope:
 sources:
   - db
 contract_version: "0.1"
+belong: calibers
 ---
 
 “迁移日志成功”把 [[tenant_migarory_log]] 的 status 取值收敛为可统计的成功集合，是迁移成功率、失败排查类指标的基数来源。

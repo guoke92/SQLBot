@@ -1,7 +1,7 @@
 ---
 type: process
 title: 实名认证状态
-page_key: process.person_realname_status
+page_key: person-realname-status
 domain: 客户联系人管理
 status: draft
 aliases:
@@ -14,6 +14,7 @@ sources:
   - "code_path:CustPersonApplication.java:insertOrUpdatePerson"
   - "code_path:CustPersonApplication.java:updateVerifyNameStatus"
 contract_version: "0.1"
+belong: processes
 ---
 
 实名认证状态落在 [[tables/cust_person_info]] 的 `phone_realname_status` 字段，描述经办人手机实名认证的进展。自动认证与人工认证是两条通过路径，均以 `TO_BE_VERIFIED` 为起点。

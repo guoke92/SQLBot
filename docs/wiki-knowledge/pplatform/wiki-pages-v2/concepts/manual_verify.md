@@ -1,7 +1,7 @@
 ---
 type: concept
 title: "人工审核"
-page_key: "concepts/manual_verify"
+page_key: manual_verify
 domain: "customer-onboarding"
 status: draft
 aliases:
@@ -21,6 +21,7 @@ also_confused_with:
   - "运营中台工作流审批人审核"
 boundary: "人工核查作用于单条认证影像/实名的核查结论；运营中台工作流审核作用于企业建档/变更流程结论，前者不改变 cust_build_status。"
 sources: ["enrich:wiki-admin"]
+belong: concepts
 ---
 
 > (document_claim，未证实) 本页版本演进包含需求文档主张，尚未在代码中得到证实。

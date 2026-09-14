@@ -1,7 +1,7 @@
 ---
 type: table
 title: 立项审批字段变更历史表（wechat_project_approval_apply_field_history）
-page_key: table.wechat_project_approval_apply_field_history
+page_key: wechat_project_approval_apply_field_history
 domain: 项目报表/统计/上报
 status: draft
 aliases:
@@ -10,10 +10,11 @@ aliases:
 oid: 1
 scope:
   databases:
-    - unknown
+    - lowcode_pplatform
 sources:
   - code:ProjectStatisticsApplication.java
 contract_version: "0.1"
+belong: tables
 ---
 
 # 立项审批字段变更历史表（wechat_project_approval_apply_field_history）
@@ -28,10 +29,9 @@ contract_version: "0.1"
 
 `change_source` 当前已有 EDIT / BATCH / MANUAL_CREATE / IMPORT 四种取值，反映写入入口由单一页面编辑扩展为批量、模拟立项与导入并存；未观察到该列的更早取值形态。
 
-```ground:fields
+```ground:table
 table: wechat_project_approval_apply_field_history
 fields:
   - name: change_source
-    meaning: "字段历史来源：EDIT=页面编辑 / BATCH=批量变更 / MANUAL_CREATE=模拟立项 / IMPORT=导入"
-    evidence: code
+    desc: 字段历史来源：EDIT=页面编辑 / BATCH=批量变更 / MANUAL_CREATE=模拟立项 / IMPORT=导入
 ```

@@ -1,0 +1,4 @@
+body: 状态取值 `'1'` 仅有 DB 分布证据，代码常量 `OperApiConstants.CheckStatus` 中不存在该值，且现有迁移均不产生该状态。需确认是历史版本遗留、初始化默认值，还是存在未覆盖的写入点；在确认前，任何按
+  `status` 过滤的口径都应显式排除或解释 `'1'`。
+title: 企业变更记录审核状态机 (cust_change_record.status)
+type: process

@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 企业角色状态随企业状态联动更新
-page_key: rule.role_status_follow_company
+page_key: role_status_follow_company
 domain: 平台内部服务对接
 status: draft
 aliases:
@@ -13,6 +13,7 @@ sources:
   - semantic:field_semantics[cust_role_info.status]
   - semantic:state_machines[客户生命周期状态]
 contract_version: "0.1"
+belong: rules
 ---
 
 cust_role_info.status 不独立演进，通过 updateStatusByCustCompany 随企业状态同步更新。

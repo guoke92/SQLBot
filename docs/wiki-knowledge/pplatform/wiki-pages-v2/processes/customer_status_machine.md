@@ -17,6 +17,7 @@ sources:
   - code:CustCompanyInfoApplication.java:diable
   - db:cust_company_info.cust_status
 contract_version: "0.1"
+belong: processes
 ---
 
 本流程描述 `cust_company_info.cust_status`（见 [[customer_status]]）的流转，表达企业作为客户实体的经营状态：新增（`ADD`）、生效（`EFFECT`）、冻结（`FREEZE`）、注销（`WRITEOFF`），另有一个数据库分布值“变更中”（`CHANGE`）。

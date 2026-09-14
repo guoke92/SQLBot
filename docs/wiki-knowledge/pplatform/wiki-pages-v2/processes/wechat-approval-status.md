@@ -1,7 +1,7 @@
 ---
 type: process
 title: 企微立项审批实例状态
-page_key: process/wechat_project_approval_apply_act_procinst_status
+page_key: wechat-approval-status
 domain: 微企链立项与项目审批
 status: draft
 aliases:
@@ -16,6 +16,7 @@ sources:
   - code_path:WechatProjectApprovalApplication.java#exportWechatApprovalInfo
   - code_path:ProjectApprovalApplication.java#listProjectSpNo
 contract_version: "0.1"
+belong: processes
 ---
 
 严格来说这不是一个由本系统驱动的状态机，而是对企微侧审批实例状态的镜像登记：[[tables/wechat_project_approval_apply]] 的 `act_procinst_status` 保存的是从企微同步过来的实例状态。本系统代码只声明并使用了其中一个字面值——`'2'` 表示审批通过，导出链路与立项审批编号下拉都固定过滤 `'2'`（见 [[calibers/wechat-approval-export-scope]]、[[calibers/project-sp-no-options]]）。

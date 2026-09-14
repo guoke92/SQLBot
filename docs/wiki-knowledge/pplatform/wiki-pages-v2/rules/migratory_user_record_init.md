@@ -11,6 +11,7 @@ scope:
 sources:
   - code_path:PlatFormMigratoryApplication.java:migratoryCust
 contract_version: "0.1"
+belong: rules
 ---
 
 本规则保证每一位被迁移过来的人员都有一条可追踪的迁移用户记录，且初始状态一定是“未登录”，为后续登录弹窗的一次性判断提供入口。

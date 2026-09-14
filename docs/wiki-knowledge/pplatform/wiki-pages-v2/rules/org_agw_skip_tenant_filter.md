@@ -1,7 +1,7 @@
 ---
 type: rule
 title: client_type=AGW 跳过机构租户过滤
-page_key: rule.org_agw_skip_tenant_filter
+page_key: org_agw_skip_tenant_filter
 domain: 数据权限与组织
 status: draft
 aliases: [AGW 跳过租户过滤, org_manage.client_type]
@@ -10,6 +10,7 @@ scope:
   databases: [base]
 sources: [code]
 contract_version: "0.1"
+belong: rules
 ---
 
 [[tables/org_manage]] 的 client_type 用于区分端来源；OrgFacade 中以 clientType=='AGW' 判断是否跳过租户过滤。即来自 AGW 端调用时，机构数据不走租户维度裁剪，这是跨租户可见性的一个显式例外，与 [[concepts/tenant_code_layers]] 的租户层次直接相关。

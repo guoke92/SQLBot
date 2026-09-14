@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 工作流启动失败降级停留在待发起
-page_key: rule/workflow-start-failure-degrade
+page_key: workflow-start-failure-degrade
 domain: 微企链立项与项目审批
 status: draft
 aliases:
@@ -13,6 +13,7 @@ scope:
 sources:
   - code_path:ProjectApprovalApplication.java#startWorkflowAndUpdateStatus
 contract_version: "0.1"
+belong: rules
 ---
 
 业务落库与工作流引擎启动是两步：先落库（此时状态为待发起），再启动工作流并把状态改为审批中。若引擎启动抛异常，系统只记 ERROR 日志并保持待发起，不阻塞业务代码，也不回滚业务落库——结果就是一条「看起来提交成功但流程没走起来」的单据。

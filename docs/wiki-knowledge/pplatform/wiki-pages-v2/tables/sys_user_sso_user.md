@@ -1,7 +1,7 @@
 ---
 type: table
 title: sys_user / sso_user（用户中心与 SSO 用户表）
-page_key: table.sys_user_sso_user
+page_key: sys_user_sso_user
 domain: 平台内部服务对接
 status: draft
 aliases:
@@ -10,10 +10,11 @@ aliases:
   - 用户中心表
 oid: 1
 scope:
-  databases: []
+  databases: [lowcode_pplatform]
 sources:
   - semantic:field_semantics[sys_user / sso_user]
 contract_version: "0.1"
+belong: tables
 ---
 
 用户中心（sys_user）与 SSO（sso_user）两张表在语义分析中作为同一组用户身份字段来源给出，是经办人信息的事实基准。

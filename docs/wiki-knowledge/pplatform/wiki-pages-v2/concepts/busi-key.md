@@ -1,7 +1,7 @@
 ---
 type: concept
 title: busiKey 业务主键
-page_key: concepts/busi-key
+page_key: busi-key
 domain: 文件/附件/媒体
 status: draft
 aliases: [busiKey, 业务主键, 影像业务主键]
@@ -16,6 +16,7 @@ also_confused_with: [userBusiKey]
 adjudication: boundary
 boundary: "busiKey 一般为产融企业id/项目id；userBusiKey 为联系人id，用于特定分类按人隔离。"
 contract_version: "0.1"
+belong: concepts
 ---
 
 # busiKey 业务主键

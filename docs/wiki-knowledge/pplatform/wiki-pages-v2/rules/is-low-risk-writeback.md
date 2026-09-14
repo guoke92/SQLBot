@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 低风险标记由法务节点填写并回写
-page_key: rule/is-low-risk-writeback
+page_key: is-low-risk-writeback
 domain: 微企链立项与项目审批
 status: draft
 aliases:
@@ -13,6 +13,7 @@ scope:
 sources:
   - code_path:ProjectApprovalApplication.java
 contract_version: "0.1"
+belong: rules
 ---
 
 `is_low_risk` 不是发起时填写的字段，而是在法务经办节点上产生，并回写到主表供 AMS 推送判定使用。也就是说该值存在「填写前未知」的中间态，AMS 推送逻辑必须能容忍它尚未确定的情况。

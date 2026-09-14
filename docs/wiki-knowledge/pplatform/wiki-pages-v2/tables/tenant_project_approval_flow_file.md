@@ -2,28 +2,44 @@
 type: table
 title: 租户项目审批流程文件表
 page_key: tenant_project_approval_flow_file
-domain: 基线
+domain: 微企链立项与项目审批
 status: draft
 anchors: [tenant_project_approval_flow_file]
 oid: 1
 scope:
   databases: [lowcode_pplatform]
-sources: ["db:db-catalog.yaml", "code:extract-catalog.yaml", "enrich:wiki-admin"]
-created: '2026-09-10'
-updated: '2026-09-10'
+sources: ["db:db-catalog.yaml", "code:extract-catalog.yaml"]
+created: '2026-09-14'
+updated: '2026-09-14'
 contract_version: "0.1"
+belong: tables
 ---
 
-# 租户项目审批流程文件表
 
-（基线页：28 字段，行数估计 382。行语义/常用过滤待语义摄取增强。）
+
+
+
+
+
+
+
+
+
+
+上线审批流程中的影像/附件记录表，按影像分类挂载在审批流程上；重新发起审批时影像文件会随主记录一并复制，见 [[rules/reinitiate_online_approval_copy]]。
 
 ```ground:table
 table: tenant_project_approval_flow_file
 database: lowcode_pplatform
 desc: 租户项目审批流程文件表
-inactive: false
 fields:
+  - name: enable
+    type: string
+    phys: varchar(4)
+    desc: enable
+    dict: enable
+    topk: "Y"
+    labels: "Y:是"
   - name: id
     type: number
     phys: bigint(22)
@@ -48,7 +64,7 @@ fields:
     type: string
     phys: varchar(100)
     desc: 逻辑租户标识
-    topk: base
+    topk: "base"
   - name: busi_key
     type: string
     phys: varchar(64)
@@ -57,12 +73,10 @@ fields:
     type: string
     phys: varchar(64)
     desc: 影像分类编码
-    topk: FBP_AGREEMENT|FBP_OA_ATTACHMENT|FBP_OA_COMMENT_FILE
   - name: catg_name
     type: string
     phys: varchar(64)
     desc: 影像分类名称
-    topk: 审批备注追加文件|审批附件
   - name: code
     type: string
     phys: varchar(64)
@@ -71,27 +85,19 @@ fields:
     type: string
     phys: varchar(100)
     desc: 创建人id
-    topk: 114|1447805269378883586|1480444461854887938|1525044710953656322
   - name: create_time
     type: temporal
     phys: datetime
     desc: 创建时间
-    group: create_time_group, project_create_time_group, update_time_group
   - name: create_user
     type: string
     phys: varchar(100)
     desc: 创建人名称
-    topk: 1004|caiweicheng|chenkaiwen|chenzerong
   - name: db_tenant_code
     type: string
     phys: varchar(100)
     desc: 数据租户标识
-    topk: ISOLATE_TAG_gy|ISOLATE_TAG_szbank|LN1|LN2
-  - name: enable
-    type: string
-    phys: varchar(4)
-    desc: enable
-    topk: Y
+    topk: "ISOLATE_TAG_gy|ISOLATE_TAG_szbank|LN1|LN2|beehive-scf.qhhrly.cn|ning|spsi.beehive-scf.qhhrly.cn|xib.qhhrly.cn"
   - name: file_id
     type: string
     phys: varchar(64)
@@ -136,19 +142,24 @@ fields:
     type: string
     phys: varchar(100)
     desc: 更新人id
-    topk: 114|1447805269378883586|1480444461854887938|1525044710953656322
   - name: update_time
     type: temporal
     phys: datetime
     desc: 更新时间
-    group: create_time_group, project_effective_time_group, update_time_group
   - name: update_user
     type: string
     phys: varchar(100)
     desc: 更新人名称
-    topk: 1004|caiweicheng|chenkaiwen|chenzerong
 ```
 
 ## 关联表
 
 - [[tenant_project_approval_flow_node]]：tenant_project_approval_flow_file.ref_tenant_project_approval_flow_file_project_approval_flow_node → tenant_project_approval_flow_node.code（write-flow:ProjectApprovalDeskApplication.java，confirmed）
+- [[tenant_project_approval_flow_node]]：tenant_project_approval_flow_file.ref_tenant_project_approval_flow_file_project_approval → tenant_project_approval_flow_node.ref_tenant_project_approval_flow_node_project_approval（write-flow:ProjectApprovalDeskApplication.java，confirmed）
+## 需求背景
+
+影像分类用于区分商务批复报价文件、项目配置附件与 OA 附件等不同用途的文件；提交上线审批时要求必须上传商务批复报价文件，见 [[rules/online_approval_submit]]。
+
+## 版本演进
+
+影像分类取值呈现「代码枚举 < DB 实际分布」的缺口：`FBP_OA_ATTACHMENT`、`FBP_OA_COMMENT_FILE` 出现在数据中但未在代码枚举声明，分类枚举的完整基线待补齐。

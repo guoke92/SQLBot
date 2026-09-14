@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 电子签约版授权书幂等
-page_key: rules/electronic-auth-media-idempotent
+page_key: electronic-auth-media-idempotent
 domain: 文件/附件/媒体
 status: draft
 aliases: [A0050 幂等, 电子授权书去重, skipIfSameProcessExists]
@@ -11,6 +11,7 @@ scope:
 sources:
   - code_path:CustMediaFacade.java:uploadElectronicAuthMediaFile
 contract_version: "0.1"
+belong: rules
 ---
 
 # 电子签约版授权书幂等

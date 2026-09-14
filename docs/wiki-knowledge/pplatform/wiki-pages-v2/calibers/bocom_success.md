@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 交e保划扣成功
-page_key: calibers/bocom_success
+page_key: bocom_success
 domain: CA证书收费
 status: draft
 aliases: [bocom_txn_sts=00, 划扣成功]
@@ -11,6 +11,7 @@ scope:
 sources:
   - db:ca_fee_order
 contract_version: "0.1"
+belong: calibers
 ---
 
 # 交e保划扣成功

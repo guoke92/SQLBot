@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 企业状态更新必须限定主数据（data_type）
-page_key: rule.status_update_main_data_type
+page_key: status_update_main_data_type
 domain: 平台内部服务对接
 status: draft
 aliases:
@@ -13,6 +13,7 @@ sources:
   - semantic:field_semantics[cust_company_info.data_type]
   - semantic:state_machines[客户生命周期状态]
 contract_version: "0.1"
+belong: rules
 ---
 
 对企业表做状态更新时，必须带 data_type = CustDataTypeConstant.DATA_TYPE_MAIN 条件。

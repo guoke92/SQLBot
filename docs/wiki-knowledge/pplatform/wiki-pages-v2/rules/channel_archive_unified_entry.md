@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 渠道建档统一入站入口
-page_key: rules/channel_archive_unified_entry
+page_key: channel_archive_unified_entry
 domain: 外部渠道与银行对接
 status: draft
 aliases:
@@ -15,6 +15,7 @@ sources:
   - code:AlipayAntArchiveController
   - code:AlipayAntArchiveService#channelArchive
 contract_version: "0.1"
+belong: rules
 ---
 
 # 渠道建档统一入站入口

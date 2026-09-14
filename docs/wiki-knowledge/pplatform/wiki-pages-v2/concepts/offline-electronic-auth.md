@@ -1,7 +1,7 @@
 ---
 type: concept
 title: 线下电子授权书
-page_key: concept.offline_electronic_auth
+page_key: offline-electronic-auth
 domain: 授权协议与电子授权
 status: draft
 aliases:
@@ -24,6 +24,7 @@ also_confused_with:
   - 线下纸质授权书（现网 OFF_AUTH 直接跳过签署）
 boundary: "开关为 N 时该方法直接返回 true（保持现网线下纸质行为），不会产生电子合同"
 sources: ["enrich:wiki-admin"]
+belong: concepts
 ---
 
 「线下电子授权书」指线下授权场景中由系统生成、电子签章并上传影像的那份文件（`OfflineElectronicAuth`，`ON_LINE` 合同）。启用前提是租户开关 `generate_electronic_auth_flag='Y'`，见 [[rules/tenant-switch-off-legacy-behavior]]；触发条件见 [[calibers/offline-electronic-auth-trigger]]，幂等控制见 [[rules/sign-idempotency-and-lock]]。

@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 产品协议签署后激活
-page_key: rules/product-agreement-activate
+page_key: product-agreement-activate
 domain: 平台产品配置
 status: draft
 aliases: [协议签署激活, createProductAggrement]
@@ -12,6 +12,7 @@ sources:
   - code:CustProductDomainService.createProductAggrement
   - code:CustProductDomainService.activeProduct
 contract_version: "0.1"
+belong: rules
 ---
 
 根据产品协议配置决定激活路径：无需签署则直接激活；需要签署则先创建合同，签署成功后激活。激活最终将 [[tables/cust_auth_application]] 的 `open_status` 推进到已开通，对应 [[processes/cust-product-open-status]] 中 `activeProduct` 的迁移。企业是否需要电子签章由 [[tables/cust_company_info]] 的 `need_register_ca` 标识。

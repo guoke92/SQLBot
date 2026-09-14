@@ -1,7 +1,7 @@
 ---
 type: concept
 title: 待办
-page_key: concepts/todo
+page_key: todo
 domain: CA证书收费
 status: draft
 aliases: [todo, notice, 提醒]
@@ -15,6 +15,7 @@ maps_to: CaFeeMessageGateway.sendTodoForOrder / completeNoticeForOrder
 field_targets: []
 adjudication: synonym
 also_confused_with: [站内信, 邮件]
+belong: concepts
 ---
 
 # 待办

@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 项目码必填租户
-page_key: caliber.project_code_required_tenant
+page_key: project_code_required_tenant
 domain: 租户配置
 status: draft
 aliases:
@@ -15,6 +15,7 @@ sources:
   - db:tenant_setting_config.project_code_required
   - code:lowcode-pplatform-tenant-management/src/main/java/com/lls/lowcode/pplatform/tenant/service/TenantDomainService.java:checkBeforeSave
 contract_version: "0.1"
+belong: calibers
 ---
 
 `project_code_required='Y'` 的租户在保存前会进入更严格的校验分支：要求 `default_project_id` 非空，否则阻断保存（见 [[rules/project_code_required_default_project]]）。该口径与租户生效流程共同决定租户能否进入可用状态。

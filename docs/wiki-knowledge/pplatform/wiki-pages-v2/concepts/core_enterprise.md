@@ -1,7 +1,7 @@
 ---
 type: concept
 title: 核企
-page_key: concepts/core_enterprise
+page_key: core_enterprise
 domain: CA证书收费
 status: draft
 aliases: [核心企业, CORE]
@@ -19,6 +19,7 @@ field_targets:
   - ca_fee_order.company_type
 adjudication: synonym
 also_confused_with: []
+belong: concepts
 ---
 
 # 核企

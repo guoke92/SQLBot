@@ -1,7 +1,7 @@
 ---
 type: process
 title: 租户背景颜色/灰度（tenant_setting_config.bg_color）
-page_key: process.bg_color_gray
+page_key: bg_color_gray
 domain: 租户配置
 status: draft
 aliases:
@@ -18,6 +18,7 @@ sources:
   - code:lowcode-pplatform-tenant-management/src/main/java/com/lls/lowcode/pplatform/tenant/application/TenantAppliactionService.java:updateTenantColorNull
   - code:lowcode-pplatform-tenant-management/src/main/java/com/lls/lowcode/pplatform/tenant/application/TenantAppliactionService.java:setColorlight
 contract_version: "0.1"
+belong: processes
 ---
 
 租户端的背景色由 `bg_color` 单一字段表达三种取值：`L`（彩色）、`G`（灰色）、`null`（未设置，按彩色处理）。灰度是全局窗口行为：当全局灰度窗口生效时，已设彩色的租户被打成灰色、未设颜色的租户也按灰色展示；客户端主动恢复彩色时字段回到 `null`，运营显式设为彩色时写入 `L`。全局窗口本身的状态见 [[processes/global_bg_gray_switch]]，灰色租户的筛选口径见 [[calibers/gray_bg_tenant]]。

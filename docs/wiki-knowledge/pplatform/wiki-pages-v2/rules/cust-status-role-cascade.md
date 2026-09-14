@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 企业状态变更联动角色状态
-page_key: rule.cust-status-role-cascade
+page_key: cust-status-role-cascade
 domain: 客户角色与端口
 status: draft
 aliases:
@@ -16,6 +16,7 @@ sources:
   - code_path:CustRoleApplication.java#updateStatusByCustCompany
   - reqdoc:cust-role-port
 contract_version: "0.1"
+belong: rules
 ---
 
 # 企业状态变更联动角色状态

@@ -1,7 +1,7 @@
 ---
 type: process
 title: 项目上线审批节点状态流转
-page_key: processes/project_approval_node_status
+page_key: project_approval_node_status
 domain: 租户项目
 status: draft
 aliases: [项目上线审批节点状态, tenant_project_approval_flow.node_status, node_status]
@@ -11,6 +11,7 @@ scope:
 sources:
   - code:ProjectApprovalApplication
 contract_version: "0.1"
+belong: processes
 ---
 
 项目上线审批节点状态记录在 [[tables/tenant_project_approval_flow]] 的 node_status 列，随工作流推进由待处理变为审批中，节点通过后置为已通过。该状态同时是后补合作协议判断的前置条件，见 [[rules/back_agreement_check]]。

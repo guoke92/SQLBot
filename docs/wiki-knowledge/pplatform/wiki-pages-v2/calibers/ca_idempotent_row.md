@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: CA 幂等行
-page_key: caliber/ca_idempotent_row
+page_key: ca_idempotent_row
 domain: 微信生态/小程序/扫脸
 status: draft
 aliases: [CA幂等键, 幂等行]
@@ -11,6 +11,7 @@ scope:
 sources:
   - code:CaCertificationInfoAppServiceImpl.java
 contract_version: "0.1"
+belong: calibers
 ---
 
 # CA 幂等行

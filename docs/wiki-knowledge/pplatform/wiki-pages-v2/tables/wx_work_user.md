@@ -1,16 +1,17 @@
 ---
 type: table
 title: wx_work_user（企微成员表）
-page_key: table/wx_work_user
+page_key: wx_work_user
 domain: 微信生态/小程序/扫脸
 status: draft
 aliases: [企微成员, 企业微信成员表]
 oid: 1
 scope:
-  databases: [dbass]
+  databases: [lowcode_pplatform]
 sources:
   - code:WechatContactService.java
 contract_version: "0.1"
+belong: tables
 ---
 
 # wx_work_user

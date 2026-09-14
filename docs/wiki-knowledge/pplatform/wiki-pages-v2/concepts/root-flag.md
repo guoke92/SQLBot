@@ -1,7 +1,7 @@
 ---
 type: concept
 title: 集团根标识（root_flag）
-page_key: concepts/root-flag
+page_key: root-flag
 domain: 企业集团关系
 status: draft
 aliases: [root_flag, rootFlag]
@@ -22,6 +22,7 @@ also_confused_with:
   - root_cust_id（根企业id）
 boundary: root_flag=Y 的节点不允许再作为子级关联、也不允许签署成员单位协议；root_group_id/root_cust_id 是树定位字段，与布尔标识无关。
 sources: ["enrich:wiki-admin"]
+belong: concepts
 ---
 
 集团根标识用于区分一行关系记录代表的是集团本身（Y）还是成员单位（N），是权限与树结构的判定基础，口径见 [[calibers/group-root-node]]，表见 [[tables/cust_group_rel]]。

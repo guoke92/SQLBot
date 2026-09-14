@@ -1,7 +1,7 @@
 ---
 type: concept
 title: 事件监听 / onEvent
-page_key: concepts/event-listener-onevent
+page_key: event-listener-onevent
 domain: 平台事件监听与同步
 status: draft
 aliases:
@@ -31,6 +31,7 @@ adjudication:
   boundary: "两者方向相反：IPlatListener/PlatFormCustEventListener 是产融侧对外提供的回调接口（@Api 信息变动事件），由业务系统实现；CustSyncEventProvider.onEvent 是产融侧实现运营中台 CustEventListener 的入站回调，同名字段但属对立方向。"
 also_confused_with:
   - CustSyncEventProvider.onEvent（运营中台→产融平台的回调入口）
+belong: concepts
 ---
 
 > 本页 ## 版本演进 收录了未在代码层证实的文档主张（document_claim，未证实）。

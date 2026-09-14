@@ -1,2161 +1,1269 @@
 ---FILE: tables/cust_company_info.md ---
 ---
 type: table
-title: cust_company_info（企业主数据表）
-page_key: table.cust_company_info
+title: cust_company_info 企业信息表
+page_key: cust_company_info
 domain: 平台内部服务对接
 status: draft
 aliases:
-  - cust_company_info
+  - 企业信息表
   - 企业主数据表
-  - 客户企业表
-  - CustCompanyInfoDO
 oid: 1
 scope:
-  databases: []
+  databases:
+    - unknown
 sources:
-  - semantic:field_semantics[cust_company_info]
-  - semantic:state_machines[企业建档/认证状态, 客户生命周期状态]
+  - code
 contract_version: "0.1"
 ---
 
-企业主数据表，平台内部服务对接中「客户」这一实体的唯一权威载体。对外 Provider 暴露的 companyId / custId 即本表主键，各关系表（[[tables/cust_person_info]]、[[tables/cust_role_info]]、[[tables/cust_project_rel]]、[[tables/cust_group_rel]]）通过业务编码 code 挂接本表。
+cust_company_info 是平台内部服务对接的企业（客户）主数据表。平台侧的企业建档、认证、审核、冻结与注销都以本表记录为锚点，企业下的联系人、项目、角色与授权申请则通过企业业务编码 `code` 联结，因此它同时是客户服务端与运营端两侧服务共用的读写对象。
+
+企业在平台上的两个生命周期维度分别落在两个字段上：`cust_build_status` 描述建档与认证过程（见 [[cust_build_status_flow]]），`cust_status` 描述企业本身的生效状态（见 [[cust_status_flow]]）。企业下的人员在 [[cust_person_info]]，二者通过 [[ref_cust_company_info]] 约定的关联企业编码字段联结；产品与项目侧关联见 [[cust_project_rel]]、[[cust_role_info]]、[[cust_auth_application]]。
 
 ## 需求背景
-
-企业信息需要在「客户中心—运营中台—业务系统」之间来回同步：建档与认证状态由 [[processes/cust_build_status_machine]] 驱动，生命周期状态由 [[processes/cust_status_machine]] 驱动，两者字段分离、互不覆盖。有效数据一律以 enable='Y' 为前提（见 [[rules/company_query_enable_y]]），状态类更新必须限定主数据（见 [[rules/status_update_main_data_type]]）。
+内部服务在企业维度上需要一份稳定的主数据：客户侧服务负责企业信息录入与确认，运营侧服务负责审核、冻结与注销，两侧读写同一张表。因此字段语义必须明确划分——哪些由客户填写（法人姓名、法人手机号、法人证件），哪些由平台维护（各类状态、租户编码、审核退回标志），哪些是跨表关联的键（`code`）。表中还保存统一社会信用代码与法人证件信息，用于认证类服务比对。
 
 ## 版本演进
-
-v0：按语义分析给出的字段语义与状态机证据首次成页；仅收录有证据的字段含义，未收录的列不做推断。
+- v0.1（本页）：字段清单来自代码语义分析，作为契约初稿；字段物理类型与字典绑定尚未在证据中出现，暂留空。企业建档状态流转见 [[cust_build_status_flow]]，企业生效状态流转见 [[cust_status_flow]]。
 
 ```ground:table
 table: cust_company_info
-columns:
-  - field: id
-    meaning: "企业主键，对外 Provider 的 companyId/custId 即此值（DO: CustCompanyInfoDO）"
-    evidence: code
-  - field: code
-    meaning: "企业业务编码，新建时由 DataModelUtils.uuid() 生成，作为各关系表 ref_cust_company_info 的关联键"
-    evidence: code
-  - field: name
-    meaning: "企业名称"
-    evidence: code
-  - field: certification_no
-    meaning: "统一社会信用代码，跨系统一致性对齐字段"
-    evidence: code
-  - field: enable
-    meaning: "有效标志，查询一律 .eq(enable, 'Y')"
-    evidence: code
-  - field: db_tenant_code
-    meaning: "数据租户编码，数据隔离键；Provider 层常用 MetaDataThreadLocalConfig.setDbTenantCode(\"all\") 跨租户查询"
-    evidence: code
-  - field: cust_build_status
-    meaning: "建档/认证状态（见状态机）"
-    evidence: code
-  - field: cust_status
-    meaning: "客户生命周期状态（见状态机），与建档状态分离"
-    evidence: code
-  - field: cust_company_type
-    meaning: "企业角色，JSON 数组字符串，如 \"[\\\"CORE\\\"]\"，创建时由 JSONArray/字符串拼接写入"
-    evidence: code
-  - field: identify_style
-    meaning: "认证方式（自主/邀请-客户录入/邀请-平台录入/简易）"
-    evidence: code
-  - field: cust_build_type
-    meaning: "建档渠道类型（PC_BUILD / AGW_BUILD）"
-    evidence: code
-  - field: cust_from
-    meaning: "客户来源，邀请类认证为空时写 \"平台邀请\""
-    evidence: code
-  - field: data_type
-    meaning: "数据类型，主数据为 CustDataTypeConstant.DATA_TYPE_MAIN；状态更新均带此条件"
-    evidence: code
-  - field: check_status
-    meaning: "审核状态，提交建档时被置 null"
-    evidence: code
-  - field: audit_back_flag
-    meaning: "审核退回标记 'Y'/'N'，非自主录入提交时置 'N'"
-    evidence: code
-  - field: need_register_ca
-    meaning: "是否需要开通电子签章 'Y'/'N'；简易建档政策上强制为不开通"
-    evidence: code
-  - field: ca_register_status
-    meaning: "电子签章开通状态 'Y'/'N'（对外返回还需叠加 caRegisterStatusY 校验）"
-    evidence: code
-  - field: need_register_bs
-    meaning: "是否需要开通上上签 'Y'/'N'"
-    evidence: code
-  - field: bs_register_status
-    meaning: "上上签开通状态 'Y'/'N'"
-    evidence: code
-  - field: legal_name / legal_phone / legal_email / legal_certification_type / legal_certification_no
-    meaning: "法人姓名/电话/邮箱/证件类型/证件号，用于开通 CA 请求体"
-    evidence: code
-  - field: cust_email
-    meaning: "企业邮箱"
-    evidence: code
-  - field: contact_address
-    meaning: "联系地址"
-    evidence: code
-  - field: head_company
-    meaning: "总部/集团企业标识，为空时（简易认证）置为 'Y'"
-    evidence: code
-  - field: ext
-    meaning: "扩展 JSON，含 isChange/alterMode/alterTypes 等变更指令"
-    evidence: code
-  - field: cust_source
-    meaning: "客户来源渠道标识（如 PLATFORM_PUSH）"
-    evidence: code
+fields:
+  - name: id
+    type: ""
+    desc: 企业主键ID
+    dict: ""
+  - name: code
+    type: ""
+    desc: 企业业务编码，用于跨表关联
+    dict: ""
+  - name: name
+    type: ""
+    desc: 企业名称
+    dict: ""
+  - name: certification_no
+    type: ""
+    desc: 统一社会信用代码
+    dict: ""
+  - name: enable
+    type: ""
+    desc: 启用状态，Y/N
+    dict: ""
+  - name: db_tenant_code
+    type: ""
+    desc: 租户编码
+    dict: ""
+  - name: cust_build_status
+    type: ""
+    desc: 企业建档状态
+    dict: ""
+  - name: cust_status
+    type: ""
+    desc: 企业状态
+    dict: ""
+  - name: cust_company_type
+    type: ""
+    desc: 企业角色，JSON数组字符串
+    dict: ""
+  - name: identify_style
+    type: ""
+    desc: 认证方式
+    dict: ""
+  - name: need_register_ca
+    type: ""
+    desc: 是否需要开通电子签章，Y/N
+    dict: ""
+  - name: ca_register_status
+    type: ""
+    desc: CA注册状态，Y/N
+    dict: ""
+  - name: legal_name
+    type: ""
+    desc: 法人姓名
+    dict: ""
+  - name: legal_phone
+    type: ""
+    desc: 法人手机号
+    dict: ""
+  - name: legal_email
+    type: ""
+    desc: 法人邮箱
+    dict: ""
+  - name: legal_certification_type
+    type: ""
+    desc: 法人证件类型
+    dict: ""
+  - name: legal_certification_no
+    type: ""
+    desc: 法人证件号
+    dict: ""
+  - name: head_company
+    type: ""
+    desc: 总公司标识
+    dict: ""
+  - name: cust_build_type
+    type: ""
+    desc: 建档类型
+    dict: ""
+  - name: cust_from
+    type: ""
+    desc: 客户来源
+    dict: ""
+  - name: audit_back_flag
+    type: ""
+    desc: 审核退回标志，Y/N
+    dict: ""
+  - name: check_status
+    type: ""
+    desc: 审核状态
+    dict: ""
+  - name: data_type
+    type: ""
+    desc: 数据类型
+    dict: ""
 ```
 ---END FILE---
 
 ---FILE: tables/cust_person_info.md ---
 ---
 type: table
-title: cust_person_info（企业联系人表）
-page_key: table.cust_person_info
+title: cust_person_info 企业联系人表
+page_key: cust_person_info
 domain: 平台内部服务对接
 status: draft
 aliases:
-  - cust_person_info
   - 企业联系人表
-  - 经办人表
+  - 客户人员表
 oid: 1
 scope:
-  databases: []
+  databases:
+    - unknown
 sources:
-  - semantic:field_semantics[cust_person_info]
+  - code
 contract_version: "0.1"
 ---
 
-企业联系人（含客户管理员、经办人、游客）明细表。联系人既挂在企业 code 上，也通过 user_id 串联用户中心（[[tables/sys_user_sso_user]]），是内部服务对接中「人—企业—产品」链路的中间节点。
+cust_person_info 保存企业下的联系人（人员）记录，是平台内部服务把「企业」与「系统用户」连接起来的一层：每条记录通过 `ref_cust_company_info` 归属到一家企业，通过 `user_id` 关联到系统用户 [[sys_user]]，并通过 `user_type` 区分该联系人在企业中的角色（admin / operator / guest）。企业角色维度另由 `company_type` 表达，与主表中的 [[company_type_role]] 同义。
+
+人员记录带有自己的建档状态 `cust_build_status`、启用状态 `enable` 与状态 `status`（取值见 CustPersonStatusConstant），因此联系人列表类服务在查询时需要同时施加启用与状态的过滤条件，见口径 [[valid_person]]。运营人员信息（`operator_id`、`operator_realname`、`operator`）也随人员记录一起保存，用于运营侧服务回溯经办关系。
 
 ## 需求背景
-
-联系人的有效性与企业侧口径不同：企业看 enable，联系人查询有效数据时取 status ∈ {ADD, EFFECT}（见 [[calibers/person_effective_status]]）。经办人无产品权限时会被置 enable='N'，解冻后恢复（见 [[rules/operator_permission_disable]]）。手机号加密存储，查询需传密文（见 [[rules/person_phone_encrypted_query]]）。
+企业被创建后，客户侧服务需要为企业登记联系人并为其分配系统账号；运营侧服务需要按企业、按用户类型查询这些联系人，并在冻结等场景下排除失效数据。手机号以加密方式存储，因此读取该字段的服务需要具备解密能力，不能直接按明文比对。用户类型与管理口径（管理员、经办人）见 [[user_type_role]]、[[admin_user]]、[[operator_user]]。
 
 ## 版本演进
-
-v0：首次成页，收录语义分析中给出含义的联系人字段。
+- v0.1（本页）：字段清单来自代码语义分析，字段物理类型与字典绑定尚未在证据中出现，暂留空。
 
 ```ground:table
 table: cust_person_info
-columns:
-  - field: ref_cust_company_info
-    meaning: "所属企业 code，联系人查询主关联键"
-    evidence: code
-  - field: cust_company_id
-    meaning: "所属企业 id"
-    evidence: code
-  - field: phone
-    meaning: "手机号，加密存储（metaDataEncryptionService.encryptAndBase64Str），查询需传密文"
-    evidence: code
-  - field: user_id
-    meaning: "对应 sys_user 主键，用于按用户维度串联企业联系人"
-    evidence: code
-  - field: user_type
-    meaning: "用户类型：admin（客户管理员）/ operator（经办人）/ guest（游客）"
-    evidence: code
-  - field: company_type
-    meaning: "企业角色（单值，对应 cust_company_type 数组中的一项）"
-    evidence: code
-  - field: status
-    meaning: "联系人状态，查询有效联系人时取 ADD 或 EFFECT（CustPersonStatusConstant）"
-    evidence: code
-  - field: enable
-    meaning: "有效标志 'Y'/'N'；经办人无产品权限时被置 'N'，解冻时恢复 'Y'"
-    evidence: code
-  - field: name / user_name / email
-    meaning: "姓名/登录名/业务邮箱；仅本身为空时才由经办人新增流程补全"
-    evidence: code
-  - field: operator_id / operator_realname / operator
-    meaning: "运营人员 id/姓名/登录名，由资产审核运营人员同步写入"
-    evidence: code
-  - field: operator_push_system
-    meaning: "需要推送的运营中台渠道集合，逗号分隔，用于 systemLinkFacade.syncOperation"
-    evidence: code
-  - field: cust_build_status
-    meaning: "联系人侧冗余的建档状态"
-    evidence: code
+fields:
+  - name: id
+    type: ""
+    desc: 联系人主键ID
+    dict: ""
+  - name: ref_cust_company_info
+    type: ""
+    desc: 关联的企业编码
+    dict: ""
+  - name: company_type
+    type: ""
+    desc: 企业角色
+    dict: ""
+  - name: enable
+    type: ""
+    desc: 启用状态，Y/N
+    dict: ""
+  - name: user_type
+    type: ""
+    desc: 用户类型：admin/operator/guest
+    dict: ""
+  - name: user_id
+    type: ""
+    desc: 关联的系统用户ID
+    dict: ""
+  - name: phone
+    type: ""
+    desc: 手机号（加密存储）
+    dict: ""
+  - name: name
+    type: ""
+    desc: 姓名
+    dict: ""
+  - name: user_name
+    type: ""
+    desc: 用户名
+    dict: ""
+  - name: email
+    type: ""
+    desc: 邮箱
+    dict: ""
+  - name: status
+    type: ""
+    desc: 联系人状态，取值见 CustPersonStatusConstant
+    dict: CustPersonStatusConstant
+  - name: operator_id
+    type: ""
+    desc: 运营人员ID
+    dict: ""
+  - name: operator_realname
+    type: ""
+    desc: 运营人员姓名
+    dict: ""
+  - name: operator
+    type: ""
+    desc: 运营人员账号
+    dict: ""
+  - name: certification_type
+    type: ""
+    desc: 证件类型
+    dict: ""
+  - name: certification_no
+    type: ""
+    desc: 证件号
+    dict: ""
+  - name: cust_build_status
+    type: ""
+    desc: 建档状态
+    dict: ""
+  - name: db_tenant_code
+    type: ""
+    desc: 租户编码
+    dict: ""
 ```
 ---END FILE---
 
----FILE: tables/cust_role_info.md ---
+---FILE: tables/sys_user.md ---
 ---
 type: table
-title: cust_role_info（企业角色授权表）
-page_key: table.cust_role_info
+title: sys_user 系统用户表
+page_key: sys_user
 domain: 平台内部服务对接
 status: draft
 aliases:
-  - cust_role_info
-  - 企业角色表
+  - 系统用户表
+  - 用户账号表
 oid: 1
 scope:
-  databases: []
+  databases:
+    - unknown
 sources:
-  - semantic:field_semantics[cust_role_info]
+  - code
 contract_version: "0.1"
 ---
 
-企业角色维度表，一个「企业 code + 角色」一行，用于承接运营中台企业 id（platform_cust_id）并参与换取 token / 授权。
+sys_user 保存平台内部的系统用户账号，主键 `id` 被 [[cust_person_info]] 的 `user_id` 引用，用于把企业联系人挂到具体的登录账号上；`user_name` 与 `name` 区分账号标识与姓名，`mobile`、`email`、`certificate_type`、`certificate_no` 提供联系方式与证件信息。
+
+在内部服务对接中，本表是「账号—企业」关系的账号侧端点：企业侧关系由 [[cust_person_info]] 与 [[sys_cust_user_rel]] 表达，账号本身的信息只在用户服务内维护。
 
 ## 需求背景
-
-企业角色在 [[tables/cust_company_info]] 中以 JSON 数组存放，在关系表中拆成单值记录（见 [[concepts/company_role_bridge]]）。角色状态不独立演进，而是随企业状态联动更新（见 [[rules/role_status_follow_company]]）。
+企业建档过程中会为联系人分配系统账号，运营侧又会按账号冻结/解冻经办关系（见 [[operator_freeze_flow]]），因此账号标识与联系方式需要稳定可读；证件类字段用于实名与认证类服务的核对。
 
 ## 版本演进
-
-v0：首次成页。
+- v0.1（本页）：字段清单来自代码语义分析，字段物理类型与字典绑定尚未在证据中出现，暂留空。
 
 ```ground:table
-table: cust_role_info
-columns:
-  - field: ref_cust_company_info
-    meaning: "所属企业 code"
-    evidence: code
-  - field: role_type
-    meaning: "企业角色类型（CustCompanyTypeEnum.name()/dictKey），一个企业 code + 角色一条记录"
-    evidence: code
-  - field: status
-    meaning: "角色状态，随企业状态更新（updateStatusByCustCompany）"
-    evidence: code
-  - field: platform_cust_id
-    meaning: "运营中台企业 id（custEnterpriseId），用于换取 token/授权"
-    evidence: code
-  - field: enable / db_tenant_code
-    meaning: "有效标志与租户编码"
-    evidence: code
+table: sys_user
+fields:
+  - name: id
+    type: ""
+    desc: 系统用户ID
+    dict: ""
+  - name: user_name
+    type: ""
+    desc: 用户名
+    dict: ""
+  - name: name
+    type: ""
+    desc: 姓名
+    dict: ""
+  - name: mobile
+    type: ""
+    desc: 手机号
+    dict: ""
+  - name: email
+    type: ""
+    desc: 邮箱
+    dict: ""
+  - name: certificate_type
+    type: ""
+    desc: 证件类型
+    dict: ""
+  - name: certificate_no
+    type: ""
+    desc: 证件号
+    dict: ""
 ```
 ---END FILE---
 
----FILE: tables/cust_project_rel.md ---
+---FILE: tables/sso_user.md ---
 ---
 type: table
-title: cust_project_rel（企业—项目/产品关联表）
-page_key: table.cust_project_rel
+title: sso_user 单点登录用户表
+page_key: sso_user
 domain: 平台内部服务对接
 status: draft
 aliases:
-  - cust_project_rel
-  - 企业项目关联表
+  - SSO用户表
+  - 单点登录用户映射
 oid: 1
 scope:
-  databases: []
+  databases:
+    - unknown
 sources:
-  - semantic:field_semantics[cust_project_rel]
+  - code
 contract_version: "0.1"
 ---
 
-企业与租户项目/产品的关联关系表，承载「哪个企业以什么角色开通了哪个产品」这一对接事实。
+sso_user 保存单点登录侧的账号映射：`sso_id` 为 SSO 用户标识，`login_name`、`user_name` 为登录名与用户名，`sys_channel` 记录系统渠道。内部服务在接入 SSO 时需要把平台账号与外部登录身份对应起来，本表是这一映射的落点；租户侧的 SSO 渠道配置见 [[tenant_setting_config]] 的 `sso_tenant_chanel`。
 
 ## 需求背景
-
-项目与产品 id 以字符串形式存储，并与 [[tables/tenant_project]] 的 project_id、[[tables/platform_product]] 的 product_code 对齐（见 [[concepts/product_code_bridge]]）。tenant_code 与 db_tenant_code 同值写入，是租户隔离在关系表上的落点。
-
-## 版本演进
-
-v0：首次成页。
-
-```ground:table
-table: cust_project_rel
-columns:
-  - field: ref_cust_project_rel_cust_company_info
-    meaning: "关联企业 code"
-    evidence: code
-  - field: project_id / product_id
-    meaning: "关联租户项目 id / 产品 id（字符串存储）"
-    evidence: code
-  - field: tenant_code / db_tenant_code
-    meaning: "租户编码（两者同值写入）"
-    evidence: code
-  - field: company_type
-    meaning: "关联关系对应的企业角色"
-    evidence: code
-  - field: show_flag
-    meaning: "是否展示 'Y'/'N'"
-    evidence: code
-  - field: enable
-    meaning: "有效标志 'Y'/'N'"
-    evidence: code
-  - field: ref_cust_project_rel_platform_product / op_contact_a / op_contact_a_group
-    meaning: "平台产品编码 / 运营对接人 / 运营对接人组"
-    evidence: code
-```
----END FILE---
-
----FILE: tables/cust_group_rel.md ---
----
-type: table
-title: cust_group_rel（集团/企业树关系表）
-page_key: table.cust_group_rel
-domain: 平台内部服务对接
-status: draft
-aliases:
-  - cust_group_rel
-  - 集团关系表
-oid: 1
-scope:
-  databases: []
-sources:
-  - semantic:field_semantics[cust_group_rel]
-contract_version: "0.1"
----
-
-描述企业之间的集团树形结构：当前企业、直接父企业、根企业的 id 与集团节点 id 双轨记录，并给出层级与根标识。
-
-## 需求背景
-
-总部/集团标识在 [[tables/cust_company_info]] 中以 head_company 表达，树形结构则落在本表；成员角色 cust_type 与企业的角色数组同源（见 [[concepts/company_role_bridge]]）。根节点 level 为 1，root_flag='Y'。
+平台按租户提供不同渠道的登录入口，登录侧服务需要按渠道解析 SSO 身份并映射为平台用户，因此渠道（`sys_channel`）与租户渠道配置需要保持一致。
 
 ## 版本演进
-
-v0：首次成页。
-
-```ground:table
-table: cust_group_rel
-columns:
-  - field: cust_id / parent_cust_id / root_cust_id
-    meaning: "当前企业 / 直接父企业 / 集团根企业 id"
-    evidence: code
-  - field: parent_group_id / root_group_id
-    meaning: "直接父集团节点 / 根集团节点 id（树形结构键）"
-    evidence: code
-  - field: cust_type
-    meaning: "成员角色，JSON 数组字符串"
-    evidence: code
-  - field: status
-    meaning: "生效状态 INEFFECTIVE/EFFECTIVE"
-    evidence: code
-  - field: root_flag
-    meaning: "是否根节点 'Y'"
-    evidence: code
-  - field: level
-    meaning: "层级，根节点为 1"
-    evidence: code
-```
----END FILE---
-
----FILE: tables/sys_cust_user_rel.md ---
----
-type: table
-title: sys_cust_user_rel（企业—用户—角色—产品授权表）
-page_key: table.sys_cust_user_rel
-domain: 平台内部服务对接
-status: draft
-aliases:
-  - sys_cust_user_rel
-  - 授权关系表
-oid: 1
-scope:
-  databases: []
-sources:
-  - semantic:field_semantics[sys_cust_user_rel]
-  - semantic:state_machines[经办人产品关联冻结状态]
-contract_version: "0.1"
----
-
-sys 服务侧的授权关系表，记录企业、用户、角色、产品四元关系及其冻结状态，是平台内部服务鉴权对接的落地表。
-
-## 需求背景
-
-冻结状态由 [[processes/operator_freeze_machine]] 描述：冻结经办人置 'Y'，解冻置 'N'。冻结同时会影响 [[tables/cust_person_info]] 的 enable 取值（见 [[rules/operator_permission_disable]]）。
-
-## 版本演进
-
-v0：首次成页。
+- v0.1（本页）：字段清单来自代码语义分析，字段物理类型与字典绑定尚未在证据中出现，暂留空。
 
 ```ground:table
-table: sys_cust_user_rel
-columns:
-  - field: cust_id / cust_type / user_id / role_id / product_id
-    meaning: "企业-用户-角色-产品的授权关系（sys 服务表）"
-    evidence: code
-  - field: is_freeze
-    meaning: "关联是否冻结 'Y'/'N'（UserFreezeEnum.FREEZE/UN_FROZEN）"
-    evidence: code
+table: sso_user
+fields:
+  - name: login_name
+    type: ""
+    desc: 登录名
+    dict: ""
+  - name: user_name
+    type: ""
+    desc: 用户名
+    dict: ""
+  - name: sso_id
+    type: ""
+    desc: SSO用户ID
+    dict: ""
+  - name: sys_channel
+    type: ""
+    desc: 系统渠道
+    dict: ""
 ```
 ---END FILE---
 
 ---FILE: tables/tenant_setting_config.md ---
 ---
 type: table
-title: tenant_setting_config（租户配置表）
-page_key: table.tenant_setting_config
+title: tenant_setting_config 租户设置配置表
+page_key: tenant_setting_config
 domain: 平台内部服务对接
 status: draft
 aliases:
-  - tenant_setting_config
   - 租户配置表
+  - 租户设置表
 oid: 1
 scope:
-  databases: []
+  databases:
+    - unknown
 sources:
-  - semantic:field_semantics[tenant_setting_config]
+  - code
 contract_version: "0.1"
 ---
 
-租户级配置表，是平台内部服务对接的「参数中枢」：运营中台鉴权秘钥、SSO 渠道、门户与小程序配置、子账号授权书模板等均由此表驱动。
+tenant_setting_config 以 `db_tenant_code` 为主键维度保存租户级设置：`sso_tenant_chanel` 指定 SSO 租户渠道，`platform_secret_key` 保存平台密钥，`band_name` 为品牌名称，`platform_operator` 以 JSON 数组保存平台运营方配置。租户编码同时出现在 [[cust_company_info]]、[[cust_person_info]]、[[tenant_product]] 等表上，是内部服务跨表判定租户归属的公共维度。
 
 ## 需求背景
-
-对接运营中台时，sysChannel 取 sso_tenant_chanel，鉴权秘钥取 platform_secret_key，二者共同参与签名计算（见 [[rules/token_sign_md5]]）。生效租户的判定口径见 [[calibers/tenant_active_list]]，平台运营方取值口径见 [[calibers/platform_operator_value]]。运营中台企业 id 的对接字段见 [[concepts/platform_cust_id_bridge]]。
+同一套内部服务要为多个租户提供服务，登录渠道、品牌展示与密钥必须按租户隔离；平台运营方以 JSON 数组形式配置，意味着读取该字段的服务需按数组结构解析。
 
 ## 版本演进
-
-v0：首次成页；仅收录语义分析中明确给出含义的配置项。
+- v0.1（本页）：字段清单来自代码语义分析，字段物理类型与字典绑定尚未在证据中出现，暂留空。
 
 ```ground:table
 table: tenant_setting_config
-columns:
-  - field: db_tenant_code
-    meaning: "租户数据编码，全局隔离键"
-    evidence: code
-  - field: enable / status
-    meaning: "有效标志 / 生效标志（查询生效租户 activeList、'Y' 判定）"
-    evidence: code
-  - field: sso_tenant_chanel
-    meaning: "SSO 渠道标识，作为 sysChannel 用于请求运营中台 token 与拉取互通系统列表"
-    evidence: code
-  - field: platform_secret_key
-    meaning: "运营中台鉴权秘钥，参与 md5(secret+sysChannel+loginName)"
-    evidence: code
-  - field: platform_operator
-    meaning: "平台运营方配置，JSON 数组，取值 PLATFORM（联易融）/TENANT（租户自身）"
-    evidence: code
-  - field: band_name
-    meaning: "品牌名，用于同步给运营中台的 bizLabel"
-    evidence: code
-  - field: oper_auth_agreement
-    meaning: "子账号授权书模板 id，未配置时回落 Nacos 值 operAuthAgreement"
-    evidence: code
-  - field: source / portal_flag / need_hfive / need_mp_wx
-    meaning: "租户来源（PPLATFORM_SYSTEM）/ 门户开关 / 是否需要 H5 / 是否需要小程序微信配置，用于配置完备性校验"
-    evidence: code
-  - field: prd_mp_app_id / uat_mp_app_id / hfive_dev_domain / hfive_test_domain / hfive_uat_domain / hfive_prd_domain
-    meaning: "小程序 appid 与环境域名，按 spring.profiles.active 取值"
-    evidence: code
-  - field: is_stack
-    meaning: "是否堆栈/迁移标识 'Y'/'N'，决定 PlatMiniProgramTenantInfoDto 的 migratory/stock"
-    evidence: code
+fields:
+  - name: db_tenant_code
+    type: ""
+    desc: 租户编码
+    dict: ""
+  - name: sso_tenant_chanel
+    type: ""
+    desc: SSO租户渠道
+    dict: ""
+  - name: platform_secret_key
+    type: ""
+    desc: 平台密钥
+    dict: ""
+  - name: band_name
+    type: ""
+    desc: 品牌名称
+    dict: ""
+  - name: platform_operator
+    type: ""
+    desc: 平台运营方配置，JSON数组
+    dict: ""
 ```
 ---END FILE---
 
 ---FILE: tables/tenant_product.md ---
 ---
 type: table
-title: tenant_product（租户产品开通表）
-page_key: table.tenant_product
+title: tenant_product 租户产品表
+page_key: tenant_product
 domain: 平台内部服务对接
 status: draft
 aliases:
-  - tenant_product
-  - 租户产品表
+  - 租户产品关系表
 oid: 1
 scope:
-  databases: []
+  databases:
+    - unknown
 sources:
-  - semantic:field_semantics[tenant_product]
+  - code
 contract_version: "0.1"
 ---
 
-记录某租户开通了哪些平台产品，以及这些产品是否已完成迁移。
+tenant_product 保存租户与平台产品的开通关系：`db_tenant_code` 标识租户，`platform_product_code` 标识平台产品编码。产品编码是内部服务判定「某租户/某企业是否接入某产品」的关键值，同时出现在 [[tenant_project]]、[[cust_auth_application]] 以及 [[sys_cust_user_rel]] 的 `product_id` 语义域中。
 
 ## 需求背景
-
-产品编码与 [[tables/platform_product]] 的 product_code 对齐（见 [[concepts/product_code_bridge]]），项目层实体见 [[tables/tenant_project]]；迁移标识与租户级 is_stack 的语义相关（见 [[calibers/tenant_stack_migratory]]）。
+企业接入产品需要与租户已开通的产品范围对齐，因此产品编码必须在租户侧与客户侧使用同一取值；判断用户是否已关联指定产品的口径见 [[current_product_rel]]。
 
 ## 版本演进
-
-v0：首次成页。
+- v0.1（本页）：字段清单来自代码语义分析，字段物理类型与字典绑定尚未在证据中出现，暂留空。
 
 ```ground:table
 table: tenant_product
-columns:
-  - field: platform_product_code / db_tenant_code
-    meaning: "租户开通的平台产品编码 / 租户编码"
-    evidence: code
-  - field: is_migratory
-    meaning: "租户产品是否已迁移 'Y'/'N'"
-    evidence: code
+fields:
+  - name: platform_product_code
+    type: ""
+    desc: 平台产品编码
+    dict: ""
+  - name: db_tenant_code
+    type: ""
+    desc: 租户编码
+    dict: ""
 ```
 ---END FILE---
 
 ---FILE: tables/tenant_project.md ---
 ---
 type: table
-title: tenant_project（租户项目表）
-page_key: table.tenant_project
+title: tenant_project 项目表
+page_key: tenant_project
 domain: 平台内部服务对接
 status: draft
 aliases:
-  - tenant_project
   - 租户项目表
 oid: 1
 scope:
-  databases: []
+  databases:
+    - unknown
 sources:
-  - semantic:field_semantics[tenant_project]
+  - code
 contract_version: "0.1"
 ---
 
-租户下的项目实体，承接产品编码与项目状态，是企业—项目关联（[[tables/cust_project_rel]]）的另一端。
+tenant_project 保存平台项目主数据：`id` 为项目 ID，`name` 为项目名称，`project_status` 为项目状态，`platform_product_code` 关联产品维度。企业侧与项目的关系不在本表，而落在 [[cust_project_rel]]，后者以 `project_id`（字符串）引用项目。
 
 ## 需求背景
-
-项目列表展示时需要回带产品名称，名称来源为 [[tables/platform_product]]。项目状态生效值为 EFFECTIVE。
+项目与产品共同构成企业接入的业务范围；企业在客户服务侧可见的项目由其与企业的关联记录决定，因此项目主数据与关联表需要成对读取。
 
 ## 版本演进
-
-v0：首次成页。
+- v0.1（本页）：字段清单来自代码语义分析，字段物理类型与字典绑定尚未在证据中出现，暂留空。
 
 ```ground:table
 table: tenant_project
-columns:
-  - field: tenant_id / platform_product_code / product_id / name
-    meaning: "所属租户 id / 平台产品编码 / 产品 id / 项目名"
-    evidence: code
-  - field: project_status / enable / db_tenant_code
-    meaning: "项目状态（EFFECTIVE 生效）/ 有效标志 / 租户编码"
-    evidence: code
+fields:
+  - name: id
+    type: ""
+    desc: 项目ID
+    dict: ""
+  - name: name
+    type: ""
+    desc: 项目名称
+    dict: ""
+  - name: project_status
+    type: ""
+    desc: 项目状态
+    dict: ""
+  - name: platform_product_code
+    type: ""
+    desc: 平台产品编码
+    dict: ""
 ```
 ---END FILE---
 
----FILE: tables/platform_product.md ---
+---FILE: tables/cust_project_rel.md ---
 ---
 type: table
-title: platform_product（平台产品表）
-page_key: table.platform_product
+title: cust_project_rel 企业项目关系表
+page_key: cust_project_rel
 domain: 平台内部服务对接
 status: draft
 aliases:
-  - platform_product
-  - 平台产品表
+  - 企业项目关联表
 oid: 1
 scope:
-  databases: []
+  databases:
+    - unknown
 sources:
-  - semantic:field_semantics[platform_product]
+  - code
 contract_version: "0.1"
 ---
 
-平台侧产品字典表，提供产品编码与名称，是项目列表展示与租户产品开通的对照基准。
+cust_project_rel 描述企业与其可见项目之间的关系：`ref_cust_project_rel_cust_company_info` 按 [[ref_cust_company_info]] 约定存放关联企业编码，`project_id` 与 `product_id` 均为字符串形式的外部标识，`company_type` 表达企业角色（见 [[company_type_role]]），`show_flag` 为 Y/N 的显示标志（见 [[yn_flag_convention]]）。
 
 ## 需求背景
-
-产品编码在多个关系表中以不同列名出现（platform_product_code、ref_cust_project_rel_platform_product），统一口径见 [[concepts/product_code_bridge]]。
+企业接入多个产品与项目时，客户侧服务只应展示与其相关且允许展示的项目，因此关联记录既要表达归属，也要表达可见性（`show_flag`），并按企业角色区分。
 
 ## 版本演进
-
-v0：首次成页。
+- v0.1（本页）：字段清单来自代码语义分析，字段物理类型与字典绑定尚未在证据中出现，暂留空。`project_id`、`product_id` 在语义上为字符串标识，与 [[tenant_project]] 的数值主键并非同一取值形态。
 
 ```ground:table
-table: platform_product
-columns:
-  - field: product_code / name
-    meaning: "平台产品编码与名称（用于项目列表展示 product 名）"
-    evidence: code
+table: cust_project_rel
+fields:
+  - name: project_id
+    type: ""
+    desc: 项目ID（字符串）
+    dict: ""
+  - name: ref_cust_project_rel_cust_company_info
+    type: ""
+    desc: 关联企业编码
+    dict: ""
+  - name: company_type
+    type: ""
+    desc: 企业角色
+    dict: ""
+  - name: product_id
+    type: ""
+    desc: 产品ID（字符串）
+    dict: ""
+  - name: show_flag
+    type: ""
+    desc: 显示标志，Y/N
+    dict: ""
 ```
 ---END FILE---
 
----FILE: tables/sys_user_sso_user.md ---
+---FILE: tables/cust_role_info.md ---
 ---
 type: table
-title: sys_user / sso_user（用户中心与 SSO 用户表）
-page_key: table.sys_user_sso_user
+title: cust_role_info 企业角色表
+page_key: cust_role_info
 domain: 平台内部服务对接
 status: draft
 aliases:
-  - sys_user
-  - sso_user
-  - 用户中心表
+  - 企业角色信息表
 oid: 1
 scope:
-  databases: []
+  databases:
+    - unknown
 sources:
-  - semantic:field_semantics[sys_user / sso_user]
+  - code
 contract_version: "0.1"
 ---
 
-用户中心（sys_user）与 SSO（sso_user）两张表在语义分析中作为同一组用户身份字段来源给出，是经办人信息的事实基准。
+cust_role_info 保存企业维度的角色记录：`ref_cust_company_info` 按 [[ref_cust_company_info]] 约定关联企业编码，`role_type` 为角色类型，`platform_cust_id` 为平台客户 ID，`status` 为状态。它区别于人员表上的 `company_type`（企业角色语义，见 [[company_type_role]]）：前者是企业在平台中被授予的角色，后者是人员/关联记录上标注的角色取值。
 
 ## 需求背景
-
-[[tables/cust_person_info]] 的姓名/登录名/业务邮箱仅在自身为空时才由经办人新增流程补全，其权威来源是本组表（见 [[rules/person_info_source_of_truth]]）。user_id 与 [[tables/cust_person_info]] 的 user_id 指向 sys_user 主键。
+企业内部不同角色（如管理员与经办人）在平台侧拥有不同权限，授权类服务需要按企业、按角色类型检索；平台客户 ID 是企业在本表的另一种标识，与业务编码 `code` 的取值需分别判定，不应混用。
 
 ## 版本演进
-
-v0：首次成页；按语义分析给出的合并条目收录字段，未拆分为两页。
+- v0.1（本页）：字段清单来自代码语义分析，字段物理类型与字典绑定尚未在证据中出现，暂留空。
 
 ```ground:table
-table: sys_user / sso_user
-columns:
-  - field: id / login_name / user_name / name / email / mobile / certificate_type / certificate_no / certification_start_time / certification_end_time
-    meaning: "用户中心与 SSO 用户字段，经办人信息以 sys_user+sso_user 为准，业务邮箱变更时按条件回写登录邮箱"
-    evidence: code
+table: cust_role_info
+fields:
+  - name: ref_cust_company_info
+    type: ""
+    desc: 关联企业编码
+    dict: ""
+  - name: role_type
+    type: ""
+    desc: 角色类型
+    dict: ""
+  - name: platform_cust_id
+    type: ""
+    desc: 平台客户ID
+    dict: ""
+  - name: status
+    type: ""
+    desc: 状态
+    dict: ""
 ```
 ---END FILE---
 
----FILE: tables/cust_change_record.md ---
+---FILE: tables/cust_auth_application.md ---
 ---
 type: table
-title: cust_change_record（客户变更记录表）
-page_key: table.cust_change_record
+title: cust_auth_application 企业授权申请表
+page_key: cust_auth_application
 domain: 平台内部服务对接
 status: draft
 aliases:
-  - cust_change_record
-  - 客户变更记录表
+  - 企业授权申请表
+  - 客户授权申请
 oid: 1
 scope:
-  databases: []
+  databases:
+    - unknown
 sources:
-  - semantic:field_semantics[cust_change_record]
+  - code
 contract_version: "0.1"
 ---
 
-客户信息变更流程的记录表，保存变更前后内容、操作渠道与状态，并在变更态下提供运营中台企业 id。
+cust_auth_application 保存企业对平台产品的授权申请：`ref_cust_company_info` 按 [[ref_cust_company_info]] 约定关联企业编码，`platform_product_code` 标识申请的产品。企业的认证与建档过程见 [[cust_build_status_flow]]，授权申请是该过程在服务侧的业务结果之一。
 
 ## 需求背景
-
-当企业处于变更中（cust_status=CHANGE）时，换取 token 所需的运营中台企业 id 取自本表记录中的 custEnterpriseId 而非 [[tables/cust_role_info]]（见 [[rules/change_status_token_source]]）。有效记录的取用口径见 [[rules/cust_change_record_latest_effective]]。
+内部服务在产品开通链路上需要记录「哪家企业申请了哪个产品」，产品编码取值须与 [[tenant_product]] 保持一致；企业维度的关联一律以企业编码而非主键进行。
 
 ## 版本演进
-
-v0：首次成页。
+- v0.1（本页）：字段清单来自代码语义分析，字段物理类型与字典绑定尚未在证据中出现，暂留空。
 
 ```ground:table
-table: cust_change_record
-columns:
-  - field: cust_id / status / oper_cust_info / oper_channel / create_time
-    meaning: "客户变更记录；status 取 CUST_CHECK_PASS 时作为取值最新有效记录；oper_cust_info JSON 中的 custEnterpriseId 用于运营中台 id"
-    evidence: code
+table: cust_auth_application
+fields:
+  - name: ref_cust_company_info
+    type: ""
+    desc: 关联企业编码
+    dict: ""
+  - name: platform_product_code
+    type: ""
+    desc: 平台产品编码
+    dict: ""
 ```
 ---END FILE---
 
----FILE: tables/lc_sql_init_log.md ---
+---FILE: tables/sys_cust_user_rel.md ---
 ---
 type: table
-title: lc_sql_init_log（插件 SQL 执行日志表）
-page_key: table.lc_sql_init_log
+title: sys_cust_user_rel 客户用户关系表
+page_key: sys_cust_user_rel
 domain: 平台内部服务对接
 status: draft
 aliases:
-  - lc_sql_init_log
-  - 插件SQL日志表
+  - 客户用户关联表
+  - 经办人关系表
 oid: 1
 scope:
-  databases: []
+  databases:
+    - unknown
 sources:
-  - semantic:field_semantics[lc_sql_init_log]
+  - code
 contract_version: "0.1"
 ---
 
-记录插件（低代码扩展）执行 SQL 文本的日志表，用于排查内部服务对接过程中由插件代执行的 DDL/DML。
+sys_cust_user_rel 描述客户（`cust_id`、`cust_type`）与系统用户（`user_id`）之间的授权关系，并记录角色 `role_id`、产品 `product_id` 以及冻结状态 `is_freeze`。在内部服务对接中，它是用户能否以某企业身份操作某产品的主要判据：查询侧使用未冻结口径 [[not_frozen_user_rel]]，产品维度使用 [[current_product_rel]]，冻结/解冻的流转见 [[operator_freeze_flow]]。
 
 ## 需求背景
-
-本表 name 列虽命名为「插件名称」，但实测取值为 '2'/'3'/'a'/'b' 等测试脏数据，不能作为业务枚举口径使用；description 列才是真正承载 SQL 文本的字段（varchar(1024)）。任何按 name 做插件分类统计的尝试都缺乏证据支撑。
+运营侧需要对经办人执行冻结与解冻，冻结后该用户与该客户/产品的关联不应再参与权限判定；同时同一用户可能关联多个产品，判断「是否已关联指定产品」必须带上产品条件，不能只看关系是否存在。
 
 ## 版本演进
-
-v0：首次成页；name 的「插件名称」语义仅来自 DDL 注释，实测数据不支持该口径，故不产出对应枚举页。
+- v0.1（本页）：字段清单来自代码语义分析，字段物理类型与字典绑定尚未在证据中出现，暂留空。
 
 ```ground:table
-table: lc_sql_init_log
-columns:
-  - field: id
-    meaning: "自增主键"
-    evidence: db
-  - field: name
-    meaning: "插件名称（DDL 注释如此，但实测值为 '2'/'3'/'a'/'b'，属测试脏数据，不可作为业务枚举口径）"
-    evidence: db
-  - field: description
-    meaning: "插件执行的 sql 文本（varchar(1024)）"
-    evidence: db
+table: sys_cust_user_rel
+fields:
+  - name: cust_type
+    type: ""
+    desc: 客户类型
+    dict: ""
+  - name: cust_id
+    type: ""
+    desc: 客户ID
+    dict: ""
+  - name: user_id
+    type: ""
+    desc: 用户ID
+    dict: ""
+  - name: role_id
+    type: ""
+    desc: 角色ID
+    dict: ""
+  - name: product_id
+    type: ""
+    desc: 产品ID
+    dict: ""
+  - name: is_freeze
+    type: ""
+    desc: 冻结状态，Y/N
+    dict: ""
 ```
 ---END FILE---
 
----FILE: processes/cust_build_status_machine.md ---
+---FILE: processes/cust_build_status_flow.md ---
 ---
 type: process
-title: 企业建档/认证状态机（cust_company_info.cust_build_status）
-page_key: process.cust_build_status
+title: 企业认证状态机
+page_key: cust_build_status_flow
 domain: 平台内部服务对接
 status: draft
 aliases:
-  - 建档状态
-  - 认证状态机
-  - cust_build_status
+  - 企业建档状态流转
+  - cust_company_info.cust_build_status 状态机
 oid: 1
 scope:
-  databases: []
+  databases:
+    - unknown
 sources:
-  - semantic:state_machines[企业建档/认证状态]
-  - semantic:field_semantics[cust_company_info.cust_build_status]
+  - code
 contract_version: "0.1"
 ---
 
-企业从临时创建到建档成功的完整流转，由 RVS 创建、客户提交、运营中台审核三类事件驱动，并区分自主/邀请录入与简易认证两条支路。
+企业认证状态机描述 [[cust_company_info]] 上 `cust_build_status` 字段的取值与流转，是平台内部服务对接中「客户录入 / 平台录入 → 客户确认 → 运营审核 → 建档成功或失败」这条链路的契约表达。字段本身仍是表 [[cust_company_info]] 的一部分，本页只描述其状态语义。
+
+流转的关键分叉在于提交建档的入口：邀请认证模式下若由客户录入或客户自行注册认证，企业先进入待客户确认；若由平台录入，则直接进入客户建档中。之后由客户提交审核推动到建档中，运营中台审核通过或拒绝分别到达建档成功与建档失败，审核退回则回到待客户确认；建档失败后可重新提交并回到待客户确认。相关状态展示于企业的启用与审核字段旁，见 [[cust_status_flow]]。
 
 ## 需求背景
-
-建档状态与生命周期状态分离：审核通过时除置 BUILD_SUCCESS 外还会把 cust_status 置为 EFFECT（见 [[processes/cust_status_machine]]）。不同认证方式决定提交后的落点状态与是否需要退回标记（见 [[rules/submit_cust_field_reset]]）；简易认证路径额外受 CA 开通政策约束（见 [[rules/simple_auth_ca_forbidden]]）。
+客户侧与运营侧服务读写同一状态字段，任何一侧都需要知道「当前轮到谁处理」。因此状态取值必须是稳定的枚举字符串，而不是可自由拼写的文案；审核退回与重新提交也必须回到确定的节点，避免出现两侧都无法处理的中间态。
 
 ## 版本演进
-
-v0：按语义分析给出的状态与转换证据首次成页，未收录无证据的转换。
+- v0.1（本页）：状态与流转来自代码语义分析，`AWAIT_CUST_CONFIRM`（待客户确认（简易））在证据中只有状态定义，未给出迁移边，暂按孤立状态记录。
 
 ```ground:process
-name: 企业建档/认证状态
+name: 企业认证状态机
 field: cust_company_info.cust_build_status
 states:
   - value: INIT
-    label: 初始化（新建临时企业）
+    label: 初始化
     source: code_enum
   - value: CUST_CONFIRM_AWAIT
     label: 待客户确认
     source: code_enum
-  - value: AWAIT_CUST_CONFIRM
-    label: 待客户确认（简易认证路径）
-    source: code_enum
   - value: CUST_BUILDING
-    label: 客户已提交/运营中台审核中
+    label: 客户建档中
     source: code_enum
   - value: BUILD_SUCCESS
     label: 建档成功
     source: code_enum
   - value: BUILD_FAIL
-    label: 建档失败/被拒
+    label: 建档失败
+    source: code_enum
+  - value: AWAIT_CUST_CONFIRM
+    label: 待客户确认（简易）
     source: code_enum
 transitions:
   - from: INIT
-    event: "RVS 调 getAndCreateTempCompany 创建临时企业"
-    to: INIT
-    evidence: "code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/PlatFormRvsApplication.java#getAndCreateTempCompany"
-  - from: INIT
-    event: "邀请认证-客户录入/注册认证提交"
+    event: 提交建档（邀请认证-客户录入/注册认证）
     to: CUST_CONFIRM_AWAIT
-    evidence: "code_path:CustCompanyInfoApplication.java#submitCust + #getCustBuildStatus(IdentifyTypeConstant.INVITE/SELF)"
+    evidence: "code_path:CustCompanyInfoApplication.java:getCustBuildStatus"
   - from: INIT
-    event: "邀请认证-平台录入提交"
+    event: 提交建档（邀请认证-平台录入）
     to: CUST_BUILDING
-    evidence: "code_path:CustCompanyInfoApplication.java#submitCust + #getCustBuildStatus(IdentifyTypeConstant.INVITE_AGW)"
+    evidence: "code_path:CustCompanyInfoApplication.java:getCustBuildStatus"
+  - from: CUST_CONFIRM_AWAIT
+    event: 客户提交审核
+    to: CUST_BUILDING
+    evidence: "code_path:CustCompanyInfoApplication.java:messageNotify"
+  - from: CUST_BUILDING
+    event: 运营中台审核退回
+    to: CUST_CONFIRM_AWAIT
+    evidence: "code_path:CustCompanyInfoApplication.java:messageNotify"
+  - from: CUST_BUILDING
+    event: 审核通过
+    to: BUILD_SUCCESS
+    evidence: "code_path:CustCompanyInfoApplication.java:messageNotify"
+  - from: CUST_BUILDING
+    event: 审核拒绝
+    to: BUILD_FAIL
+    evidence: "code_path:CustCompanyInfoApplication.java:messageNotify"
   - from: BUILD_FAIL
-    event: "被拒后重新提交"
+    event: 重新提交（客户录入）
     to: CUST_CONFIRM_AWAIT
-    evidence: "code_path:CustCompanyInfoApplication.java#messageNotify(条件 before==INIT||before==BUILD_FAIL && after==CUST_CONFIRM_AWAIT)"
-  - from: CUST_CONFIRM_AWAIT
-    event: "客户提交进入运营中台审核"
-    to: CUST_BUILDING
-    evidence: "code_path:CustCompanyInfoApplication.java#messageNotify(#updateCustBuildStatus 分支 before==CUST_CONFIRM_AWAIT && after==CUST_BUILDING)"
-  - from: CUST_BUILDING
-    event: "运营中台审核退回"
-    to: CUST_CONFIRM_AWAIT
-    evidence: "code_path:CustCompanyInfoApplication.java#messageNotify(分支 before==CUST_BUILDING && after==CUST_CONFIRM_AWAIT)"
-  - from: CUST_BUILDING
-    event: "审核通过（同时置 cust_status=EFFECT）"
-    to: BUILD_SUCCESS
-    evidence: "code_path:CustCompanyInfoApplication.java#updateCustBuildStatus(after==BUILD_SUCCESS → custCompanyInfoService.updateById(custStatus=EFFECT))"
-  - from: CUST_CONFIRM_AWAIT
-    event: "平台录入客户点击确认提交"
-    to: BUILD_SUCCESS
-    evidence: "code_path:CustCompanyInfoApplication.java#messageNotify(IdentifyTypeConstant.INVITE_AGW 且 after==BUILD_SUCCESS)"
-  - from: CUST_BUILDING
-    event: "运营中台审核拒绝"
-    to: BUILD_FAIL
-    evidence: "code_path:CustCompanyInfoApplication.java#messageNotify(after==BUILD_FAIL 发送拒绝通知/短信)"
-  - from: CUST_CONFIRM_AWAIT
-    event: "审核拒绝"
-    to: BUILD_FAIL
-    evidence: "code_path:CustCompanyInfoApplication.java#messageNotify(after==BUILD_FAIL)"
-  - from: INIT
-    event: "简易认证提交"
-    to: AWAIT_CUST_CONFIRM
-    evidence: "code_path:CustCompanyInfoApplication.java#submitForSimpleAuth(companyInfoDO.setCustBuildStatus(AWAIT_CUST_CONFIRM))"
-  - from: AWAIT_CUST_CONFIRM
-    event: "客户确认（简易认证）"
-    to: BUILD_SUCCESS
-    evidence: "code_path:CustCompanyInfoApplication.java#confirmCustInfoForSimpleAuth(custCompanyInfoDao.updateStatus(custId, BUILD_SUCCESS, CustStatusEnum.EFFECT))"
+    evidence: "code_path:CustCompanyInfoApplication.java:messageNotify"
 ```
 ---END FILE---
 
----FILE: processes/cust_status_machine.md ---
+---FILE: processes/cust_status_flow.md ---
 ---
 type: process
-title: 客户生命周期状态机（cust_company_info.cust_status）
-page_key: process.cust_status
+title: 企业状态机
+page_key: cust_status_flow
 domain: 平台内部服务对接
 status: draft
 aliases:
-  - 客户生命周期状态
-  - cust_status
-  - 企业状态机
+  - 企业生效状态流转
+  - cust_company_info.cust_status 状态机
 oid: 1
 scope:
-  databases: []
+  databases:
+    - unknown
 sources:
-  - semantic:state_machines[客户生命周期状态]
-  - semantic:field_semantics[cust_company_info.cust_status]
+  - code
 contract_version: "0.1"
 ---
 
-企业作为「客户」的生命周期状态：新增、变更中、生效、冻结、注销。它独立于建档状态，但在建档成功时被同步推进为 EFFECT。
+企业状态机描述 [[cust_company_info]] 上 `cust_status` 字段的取值与流转，覆盖企业从新增到生效、冻结、注销的生命周期。它与建档状态（见 [[cust_build_status_flow]]）是两条独立的轨道：建档成功推动企业进入生效，而冻结/解冻与注销只在本状态机上发生。
+
+冻结用于临时停用企业（如风险控制），解冻恢复到生效；注销是不可逆的终态，对应平台侧的注销操作。企业的启用标记 `enable` 与状态口径的关系见 [[valid_company]]，避免出现「已注销但被当作有效企业查出」的情形。
 
 ## 需求背景
-
-冻结/解冻/注销均由客户中心发起并同步（custStatusSync）。进入 CHANGE 后，换取运营中台 token 的企业 id 来源发生变化（见 [[rules/change_status_token_source]]）。状态类更新一律限定主数据（见 [[rules/status_update_main_data_type]]）。
+运营侧服务需要在企业维度执行冻结、解冻与注销，客户侧与其它内部服务则需要按生效状态判断企业是否可用。状态语义必须集中在单一字段上，冻结/解冻成对出现，注销作为终态不再回到生效。
 
 ## 版本演进
-
-v0：按语义分析给出的状态与转换证据首次成页。
+- v0.1（本页）：状态与流转来自代码语义分析；`ADD → CHANGE` 等变更类流转在证据中未出现，暂不记录。企业有效性的查询口径见 [[valid_company]]。
 
 ```ground:process
-name: 客户生命周期状态
+name: 企业状态机
 field: cust_company_info.cust_status
 states:
   - value: ADD
-    label: 新增/待处理（新建企业与自主注册初始态）
-    source: code_enum
-  - value: CHANGE
-    label: 变更中（走变更流程，token 取变更记录上的运营中台 id）
+    label: 新增
     source: code_enum
   - value: EFFECT
-    label: 已生效
+    label: 生效
+    source: code_enum
+  - value: CHANGE
+    label: 变更中
     source: code_enum
   - value: FREEZE
-    label: 已冻结
+    label: 冻结
     source: code_enum
   - value: WRITEOFF
-    label: 已注销
+    label: 注销
     source: code_enum
 transitions:
   - from: ADD
-    event: "建档成功"
+    event: 建档成功
     to: EFFECT
-    evidence: "code_path:CustCompanyInfoApplication.java#updateCustBuildStatus(custStatus=EFFECT) / #confirmCustInfoForSimpleAuth"
+    evidence: "code_path:CustCompanyInfoApplication.java:confirmCustInfoForSimpleAuth"
   - from: EFFECT
-    event: "冻结企业"
+    event: 冻结企业
     to: FREEZE
-    evidence: "code_path:CustCompanyInfoApplication.java#freeze → #custStatusOperator + #custStatusSync(CustStatusEnum.FREEZE)"
+    evidence: "code_path:CustCompanyInfoApplication.java:freeze"
   - from: FREEZE
-    event: "解冻企业"
+    event: 解冻企业
     to: EFFECT
-    evidence: "code_path:CustCompanyInfoApplication.java#unfreeze → #custStatusSync(CustStatusEnum.EFFECT)"
+    evidence: "code_path:CustCompanyInfoApplication.java:unfreeze"
   - from: EFFECT
-    event: "注销/停用企业"
+    event: 注销企业
     to: WRITEOFF
-    evidence: "code_path:CustCompanyInfoApplication.java#diable → #custStatusOperator(WRITEOFF) + #custStatusSync(CustStatusEnum.WRITEOFF)"
-  - from: ADD
-    event: "发起变更流程"
-    to: CHANGE
-    evidence: "code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/oper/facade/cust/OperCustFacade.java#queryCustAutoCheck(process!=CHECK → CustStatusEnum.CHANGE)"
+    evidence: "code_path:CustCompanyInfoApplication.java:diable"
 ```
 ---END FILE---
 
----FILE: processes/operator_freeze_machine.md ---
+---FILE: processes/operator_freeze_flow.md ---
 ---
 type: process
-title: 经办人产品关联冻结状态机（sys_cust_user_rel.is_freeze）
-page_key: process.operator_freeze
+title: 经办人冻结状态机
+page_key: operator_freeze_flow
 domain: 平台内部服务对接
 status: draft
 aliases:
-  - 经办人冻结
-  - is_freeze
-  - 授权冻结状态
+  - 经办人冻结流转
+  - sys_cust_user_rel.is_freeze 状态机
 oid: 1
 scope:
-  databases: []
+  databases:
+    - unknown
 sources:
-  - semantic:state_machines[经办人产品关联冻结状态]
-  - semantic:field_semantics[sys_cust_user_rel.is_freeze]
+  - code
 contract_version: "0.1"
 ---
 
-经办人与产品之间授权关系的冻结状态，只有「未冻结 / 已冻结」两态，由运营侧的冻结与解冻操作驱动。
+经办人冻结状态机描述 [[sys_cust_user_rel]] 上 `is_freeze` 字段的两个取值与冻结/解冻两个操作的对应关系。该字段是 Y/N 形布尔约定在关系表上的实例（见 [[yn_flag_convention]]），冻结与解冻由同一个操作入口按目标状态切换。
+
+在权限判定链路上，未冻结状态是有效关联的必要条件，查询口径见 [[not_frozen_user_rel]]；同一用户可能持有多条关联（不同客户、不同产品），冻结只作用于被操作的那条关系，产品维度的判定见 [[current_product_rel]]。
 
 ## 需求背景
-
-冻结影响下游联系人可用性：经办人无产品权限时 [[tables/cust_person_info]].enable 被置 'N'，解冻时恢复 'Y'（见 [[rules/operator_permission_disable]]）。冻结状态取值语义与 UserFreezeEnum 对齐。
+运营侧需要在不删除关系数据的前提下停用某个经办人，因此用冻结标志代替物理删除；权限类服务在检索关系时必须显式带上未冻结条件，否则被冻结的经办人仍会通过校验。
 
 ## 版本演进
-
-v0：按语义分析给出的状态与转换证据首次成页；语义分析中该状态机的转换列表末尾存在截断，仅收录完整可读的转换（见文末 REVIEW）。
+- v0.1（本页）：状态取值与流转来自代码语义分析，取值来源为常量而非枚举类。
 
 ```ground:process
-name: 经办人产品关联冻结状态
+name: 经办人冻结状态机
 field: sys_cust_user_rel.is_freeze
 states:
   - value: N
     label: 未冻结
-    source: code_enum
+    source: code_const
   - value: Y
     label: 已冻结
-    source: code_enum
+    source: code_const
 transitions:
   - from: N
-    event: "冻结经办人（operationType=FREEZE）"
+    event: 冻结经办人
     to: Y
-    evidence: "code_path:CustCompanyInfoApplication 同仓 PlatFormUserApplication.java#freezeOrThawOperatorUser(sysCustUserRelDO.setIsFreeze(\"Y\"))"
+    evidence: "code_path:PlatFormUserApplication.java:freezeOrThawOperatorUser"
   - from: Y
-    event: "解冻经办人（operationType=THAW）"
+    event: 解冻经办人
     to: N
-    evidence: "code_path:PlatFormUserApplication.java#freezeOrThawOperatorUser(THAW 分支 setIsFreeze(\"N\"))"
+    evidence: "code_path:PlatFormUserApplication.java:freezeOrThawOperatorUser"
 ```
 ---END FILE---
 
----FILE: calibers/enable_valid_flag.md ---
+---FILE: calibers/valid_company.md ---
 ---
 type: caliber
-title: 有效标志口径（enable='Y'）
-page_key: caliber.enable_valid_flag
+title: 有效企业
+page_key: valid_company
 domain: 平台内部服务对接
 status: draft
 aliases:
-  - 有效标志
-  - enable 口径
+  - 有效企业口径
+  - 企业启用过滤
 oid: 1
 scope:
-  databases: []
+  databases:
+    - unknown
 sources:
-  - semantic:field_semantics[cust_company_info.enable]
-  - semantic:field_semantics[cust_person_info.enable]
-  - semantic:field_semantics[cust_project_rel.enable]
-  - semantic:field_semantics[tenant_setting_config.enable / status]
+  - code
 contract_version: "0.1"
 ---
 
-「有效」在多数业务表中的表达方式为字符标志位，取值 'Y'/'N'。
+「有效企业」是查询 [[cust_company_info]] 时的默认过滤条件：启用状态为 Y。内部服务在按编码或名称取企业主数据时，若不附加该条件，可能取到已停用的企业记录，因此新建或临时企业的流程也沿用同一口径。该口径只表达启用与否，与企业状态机（见 [[cust_status_flow]]）中的冻结、注销是两个维度，组合使用时需要分别判断。
 
 ## 需求背景
-
-企业查询一律附加 .eq(enable, 'Y')（见 [[rules/company_query_enable_y]]）；联系人侧的 enable 会因经办人权限被逻辑改写，因此不能等同于企业侧口径，二者同时参与有效数据判定时需分别处理（见 [[rules/operator_permission_disable]]）。租户侧的生效判定还要叠加 status（见 [[calibers/tenant_active_list]]）。
+企业可能被停用但历史数据仍需保留，因此不能通过删除记录来屏蔽；把「有效」固化为一个可复用的过滤条件，能让客户侧与运营侧服务得到一致的企业可见范围。
 
 ## 版本演进
-
-v0：首次成页。
+- v0.1（本页）：口径谓词来自代码语义分析。
 
 ```ground:caliber
-name: 有效标志口径
-field: enable
-values:
-  - "'Y'"
-  - "'N'"
-criterion: "查询有效数据一律 .eq(enable, 'Y')"
-applies_to:
-  - cust_company_info.enable
-  - cust_person_info.enable
-  - cust_project_rel.enable
-evidence: code
+name: 有效企业
+predicate: "cust_company_info.enable = 'Y'"
+scope: 查询企业主数据时默认过滤条件
+evidence: "code_path:PlatFormRvsApplication.java:getAndCreateTempCompany"
 ```
 ---END FILE---
 
----FILE: calibers/person_effective_status.md ---
+---FILE: calibers/valid_person.md ---
 ---
 type: caliber
-title: 有效联系人状态口径（status ∈ {ADD, EFFECT}）
-page_key: caliber.person_effective_status
+title: 有效联系人
+page_key: valid_person
 domain: 平台内部服务对接
 status: draft
 aliases:
-  - 有效联系人
-  - CustPersonStatusConstant
+  - 有效联系人口径
+  - 企业联系人过滤
 oid: 1
 scope:
-  databases: []
+  databases:
+    - unknown
 sources:
-  - semantic:field_semantics[cust_person_info.status]
+  - code
 contract_version: "0.1"
 ---
 
-联系人没有沿用 enable 作为有效性判据，而是以状态枚举判定：查询有效联系人时取 ADD 或 EFFECT。
+「有效联系人」用于查询 [[cust_person_info]] 中的企业联系人列表，同时施加两个条件：启用状态为 Y，且联系人状态属于 ADD 或 EFFECT。两个条件的语义不同——前者是记录级启用（见 [[yn_flag_convention]]），后者是人员状态机上的可用节点（取值见 CustPersonStatusConstant），因此只过滤其中之一都会产生偏差。
 
 ## 需求背景
-
-该口径与企业的建档/生命周期状态机（[[processes/cust_build_status_machine]]、[[processes/cust_status_machine]]）不是同一套枚举，跨表统计时不可混用。联系人侧另有 cust_build_status 冗余字段，两者需区分。
+企业用户列表是客户侧与运营侧共用的高频查询，需要稳定地排除停用与失效人员；把该组合固化为口径后，人员表的 `status` 字典变更不应悄悄放宽查询结果。
 
 ## 版本演进
-
-v0：首次成页。
+- v0.1（本页）：口径谓词来自代码语义分析，`status` 的完整枚举取值未在证据中出现，当前仅记录参与判定的两个取值。
 
 ```ground:caliber
-name: 有效联系人状态口径
-field: cust_person_info.status
-values:
-  - ADD
-  - EFFECT
-criterion: "查询有效联系人时取 ADD 或 EFFECT（CustPersonStatusConstant）"
-evidence: code
+name: 有效联系人
+predicate: "cust_person_info.enable = 'Y' AND cust_person_info.status IN ('ADD','EFFECT')"
+scope: 查询企业联系人列表
+evidence: "code_path:PlatFormUserApplication.java:listCompanyUser"
 ```
 ---END FILE---
 
----FILE: calibers/ca_register_status_output.md ---
+---FILE: calibers/not_frozen_user_rel.md ---
 ---
 type: caliber
-title: 电子签章开通状态对外口径（ca_register_status + caRegisterStatusY）
-page_key: caliber.ca_register_status_output
+title: 未冻结用户关联
+page_key: not_frozen_user_rel
 domain: 平台内部服务对接
 status: draft
 aliases:
-  - 签章开通口径
-  - caRegisterStatusY
+  - 未冻结关联口径
+  - 权限关系过滤
 oid: 1
 scope:
-  databases: []
+  databases:
+    - unknown
 sources:
-  - semantic:field_semantics[cust_company_info.ca_register_status]
-  - semantic:field_semantics[cust_company_info.need_register_ca]
+  - code
 contract_version: "0.1"
 ---
 
-对外返回企业是否已开通电子签章时，不能只看 ca_register_status，还需叠加 caRegisterStatusY 校验。
+「未冻结用户关联」是查询 [[sys_cust_user_rel]] 关系时的过滤条件：`is_freeze = 'N'`。它把经办人冻结状态机（见 [[operator_freeze_flow]]）的当前取值翻译成查询语义——被冻结的关系仍然保留在表中，但不应参与用户列表与权限判定。该口径通常与联系人口径 [[valid_person]] 一起使用。
 
 ## 需求背景
-
-是否「需要」开通与是否「已」开通是两个字段：need_register_ca 表达诉求，ca_register_status 表达结果，对外输出需两者与校验标记共同决定。简易认证路径下 need_register_ca 被政策强制为不开通（见 [[rules/simple_auth_ca_forbidden]]）。
+冻结是运营侧的临时处置手段，关系数据需要保留以便解冻；如果把冻结实现为删除，将无法恢复且会丢失角色与产品配置，因此在读取侧统一附加未冻结条件更安全。
 
 ## 版本演进
-
-v0：首次成页。
+- v0.1（本页）：口径谓词来自代码语义分析。
 
 ```ground:caliber
-name: 电子签章开通状态对外口径
-field: cust_company_info.ca_register_status
-values:
-  - "'Y'"
-  - "'N'"
-criterion: "对外返回还需叠加 caRegisterStatusY 校验"
-related_fields:
-  - cust_company_info.need_register_ca
-evidence: code
+name: 未冻结用户关联
+predicate: "sys_cust_user_rel.is_freeze = 'N'"
+scope: 查询有效用户关联关系
+evidence: "code_path:PlatFormUserApplication.java:listCompanyUser"
 ```
 ---END FILE---
 
----FILE: calibers/cust_from_platform_invite.md ---
+---FILE: calibers/current_product_rel.md ---
 ---
 type: caliber
-title: 客户来源空值口径（邀请类认证写「平台邀请」）
-page_key: caliber.cust_from_platform_invite
+title: 当前产品关联
+page_key: current_product_rel
 domain: 平台内部服务对接
 status: draft
 aliases:
-  - 平台邀请
-  - cust_from 口径
+  - 指定产品关联口径
 oid: 1
 scope:
-  databases: []
+  databases:
+    - unknown
 sources:
-  - semantic:field_semantics[cust_company_info.cust_from]
-  - semantic:field_semantics[cust_company_info.cust_source]
+  - code
 contract_version: "0.1"
 ---
 
-客户来源在邀请类认证（客户录入/平台录入）且原值为空时，统一补写为「平台邀请」。
+「当前产品关联」是在 [[sys_cust_user_rel]] 上判断用户是否已关联指定产品时使用的条件：`product_id` 等于入参 productId。产品维度不能省略——同一用户对不同产品可能各有一条关系记录，只按用户判定会误认为已开通全部产品。产品编码的来源见 [[tenant_product]]，企业侧产品授权见 [[cust_auth_application]]。
 
 ## 需求背景
-
-cust_from 与 cust_source 语义不同：前者是业务来源描述（可为「平台邀请」），后者是渠道标识（如 PLATFORM_PUSH）。统计来源分布时应先明确取哪一列。
+新增或更新经办人时需要先确认该用户在产品维度上是否已有关系，以决定插入还是更新；产品取值必须来自调用方传入的产品上下文，而不是从关系记录中猜测。
 
 ## 版本演进
-
-v0：首次成页。
+- v0.1（本页）：口径谓词来自代码语义分析，参数形式以证据中的写法为准。
 
 ```ground:caliber
-name: 客户来源空值口径
-field: cust_company_info.cust_from
-values:
-  - "平台邀请"
-criterion: "邀请类认证为空时写 \"平台邀请\""
-related_fields:
-  - cust_company_info.cust_source
-evidence: code
+name: 当前产品关联
+predicate: "sys_cust_user_rel.product_id = :productId"
+scope: 判断用户是否已关联指定产品
+evidence: "code_path:PlatFormUserApplication.java:addOrUpdateOperatorUser"
 ```
 ---END FILE---
 
----FILE: calibers/main_data_type.md ---
+---FILE: calibers/admin_user.md ---
 ---
 type: caliber
-title: 主数据判定口径（data_type = DATA_TYPE_MAIN）
-page_key: caliber.main_data_type
+title: 管理员用户
+page_key: admin_user
 domain: 平台内部服务对接
 status: draft
 aliases:
-  - 主数据
-  - DATA_TYPE_MAIN
+  - 企业管理员口径
 oid: 1
 scope:
-  databases: []
+  databases:
+    - unknown
 sources:
-  - semantic:field_semantics[cust_company_info.data_type]
+  - code
 contract_version: "0.1"
 ---
 
-企业表同一物理表内混放多类数据，主数据以 CustDataTypeConstant.DATA_TYPE_MAIN 标识。
+「管理员用户」以 [[cust_person_info]] 的 `user_type = 'admin'` 识别企业管理员。用户类型取值见 [[user_type_role]]；与之并列的经办人判定见 [[operator_user]]。该口径通常与联系人有效性口径 [[valid_person]] 组合使用，避免把已停用的管理员纳入判定。
 
 ## 需求背景
-
-所有状态更新均带此条件限定（见 [[rules/status_update_main_data_type]]），否则会误改非主数据行。这是企业侧最基础的一致性口径，跨服务写企业状态时必须遵守。
+企业管理员在平台上承担确认、提交审核等动作，服务侧需要稳定识别该角色；角色信息落在人员表上而非独立角色表，角色表 [[cust_role_info]] 表达的是另一维度的企业角色，两者不可互相替代。
 
 ## 版本演进
-
-v0：首次成页。
+- v0.1（本页）：口径谓词来自代码语义分析。
 
 ```ground:caliber
-name: 主数据判定口径
-field: cust_company_info.data_type
-values:
-  - CustDataTypeConstant.DATA_TYPE_MAIN
-criterion: "状态更新均带此条件"
-evidence: code
+name: 管理员用户
+predicate: "cust_person_info.user_type = 'admin'"
+scope: 识别企业管理员
+evidence: "code_path:CustFacade.java:getCustPerson"
 ```
 ---END FILE---
 
----FILE: calibers/tenant_active_list.md ---
+---FILE: calibers/operator_user.md ---
 ---
 type: caliber
-title: 生效租户口径（activeList / enable 与 status 双判定）
-page_key: caliber.tenant_active_list
+title: 经办人用户
+page_key: operator_user
 domain: 平台内部服务对接
 status: draft
 aliases:
-  - 生效租户
-  - activeList
+  - 经办人口径
 oid: 1
 scope:
-  databases: []
+  databases:
+    - unknown
 sources:
-  - semantic:field_semantics[tenant_setting_config.enable / status]
+  - code
 contract_version: "0.1"
 ---
 
-租户配置的生效判定需同时满足有效标志与生效标志，查询生效租户时以 activeList 形式取用。
+「经办人用户」以 [[cust_person_info]] 的 `user_type = 'operator'` 识别企业经办人，与管理口径 [[admin_user]] 对称，取值域见 [[user_type_role]]。经办人在关系表上的冻结状态见 [[sys_cust_user_rel]] 与状态机 [[operator_freeze_flow]]。
 
 ## 需求背景
-
-租户配置项（[[tables/tenant_setting_config]]）是平台内部服务对接的前置条件，未生效租户不应参与 token 换取与互通系统拉取。
+经办人是被运营侧冻结/解冻的直接对象，因此人员角色与关系冻结两个维度需要分别判定：前者决定「他是不是经办人」，后者决定「这条关系当前是否可用」。
 
 ## 版本演进
-
-v0：首次成页。
+- v0.1（本页）：本口径在语义分析中被截断，当前仅确认名称与谓词，适用范围与代码出处待补（见页面末尾 REVIEW 记录）。
 
 ```ground:caliber
-name: 生效租户口径
-field: tenant_setting_config.enable / status
-values:
-  - "'Y'"
-criterion: "查询生效租户 activeList、'Y' 判定"
-evidence: code
+name: 经办人用户
+predicate: "cust_person_info.user_type = 'operator'"
 ```
 ---END FILE---
 
----FILE: calibers/platform_operator_value.md ---
----
-type: caliber
-title: 平台运营方取值口径（PLATFORM / TENANT）
-page_key: caliber.platform_operator_value
-domain: 平台内部服务对接
-status: draft
-aliases:
-  - 平台运营方
-  - platform_operator
-oid: 1
-scope:
-  databases: []
-sources:
-  - semantic:field_semantics[tenant_setting_config.platform_operator]
-contract_version: "0.1"
----
-
-tenant_setting_config.platform_operator 以 JSON 数组存放平台运营方，取值 PLATFORM（联易融）或 TENANT（租户自身）。
-
-## 需求背景
-
-该字段决定运营主体归属，影响对接链路上由谁提供运营能力。它是数组结构而非单值，判定时需按集合语义处理。
-
-## 版本演进
-
-v0：首次成页。
-
-```ground:caliber
-name: 平台运营方取值口径
-field: tenant_setting_config.platform_operator
-values:
-  - PLATFORM
-  - TENANT
-criterion: "JSON 数组，取值 PLATFORM（联易融）/TENANT（租户自身）"
-evidence: code
-```
----END FILE---
-
----FILE: calibers/tenant_stack_migratory.md ---
----
-type: caliber
-title: 堆栈/迁移标识口径（is_stack → migratory/stock）
-page_key: caliber.tenant_stack_migratory
-domain: 平台内部服务对接
-status: draft
-aliases:
-  - is_stack
-  - 迁移标识
-oid: 1
-scope:
-  databases: []
-sources:
-  - semantic:field_semantics[tenant_setting_config.is_stack]
-  - semantic:field_semantics[tenant_product.is_migratory]
-contract_version: "0.1"
----
-
-租户级 is_stack 决定小程序租户信息 DTO 中 migratory/stock 的取值，产品级另有 is_migratory 表示产品迁移状态。
-
-## 需求背景
-
-两者分属租户层与产品层：租户级标识影响小程序信息输出（PlatMiniProgramTenantInfoDto），产品级标识表达 [[tables/tenant_product]] 的开通产品是否已迁移，不可互相替代。
-
-## 版本演进
-
-v0：首次成页。
-
-```ground:caliber
-name: 堆栈/迁移标识口径
-field: tenant_setting_config.is_stack
-values:
-  - "'Y'"
-  - "'N'"
-criterion: "决定 PlatMiniProgramTenantInfoDto 的 migratory/stock"
-related_fields:
-  - tenant_product.is_migratory
-evidence: code
-```
----END FILE---
-
----FILE: concepts/company_id_bridge.md ---
+---FILE: concepts/ref_cust_company_info.md ---
 ---
 type: concept
-title: companyId / custId → 企业主键（cust_company_info.id）
-page_key: concept.company_id_bridge
+title: 关联企业编码
+page_key: ref_cust_company_info
 domain: 平台内部服务对接
 status: draft
 aliases:
-  - companyId
-  - custId
-  - cust_id
-  - custCompanyId
-  - 企业主键
+  - ref_cust_company_info 字段族
+  - 关联企业编码约定
 oid: 1
 scope:
-  databases: []
+  databases:
+    - unknown
 sources:
-  - semantic:field_semantics[cust_company_info.id]
-  - semantic:field_semantics[cust_person_info.cust_company_id]
-  - semantic:field_semantics[cust_group_rel.cust_id / parent_cust_id / root_cust_id]
+  - code
 contract_version: "0.1"
 maps_to:
-  - term: companyId
-    target: cust_company_info.id
-    evidence: code
-  - term: custId
-    target: cust_company_info.id
-    evidence: code
-  - term: cust_company_id
-    target: cust_company_info.id
-    evidence: code
-  - term: cust_id
-    target: cust_company_info.id
-    evidence: code
-field_targets:
-  - cust_company_info.id
-  - cust_person_info.cust_company_id
-  - cust_group_rel.cust_id
-  - cust_group_rel.parent_cust_id
-  - cust_group_rel.root_cust_id
-also_confused_with:
   - cust_company_info.code
----
-
-对外 Provider 暴露的 companyId / custId 与库内的 cust_company_id、cust_id 指向同一实体主键，即 [[tables/cust_company_info]].id。
-
-## 需求背景
-
-跨服务传参时同一个企业会以 companyId、custId、cust_company_id 三种写法出现；与之极易混淆的是业务编码 code，后者才是各关系表 ref_cust_company_info 系列列的关联键（见 [[concepts/company_code_bridge]]）。集团树中的 cust_id / parent_cust_id / root_cust_id 同样指向企业主键。
-
-## 版本演进
-
-v0：首次成页；仅登记有证据的术语映射，未对未出现的别名做外推。
----END FILE---
-
----FILE: concepts/company_code_bridge.md ---
----
-type: concept
-title: ref_cust_company_info → 企业业务编码（cust_company_info.code）
-page_key: concept.company_code_bridge
-domain: 平台内部服务对接
-status: draft
-aliases:
-  - ref_cust_company_info
-  - 企业业务编码
-  - cust_company_code
-oid: 1
-scope:
-  databases: []
-sources:
-  - semantic:field_semantics[cust_company_info.code]
-  - semantic:field_semantics[cust_person_info.ref_cust_company_info]
-  - semantic:field_semantics[cust_role_info.ref_cust_company_info]
-  - semantic:field_semantics[cust_project_rel.ref_cust_project_rel_cust_company_info]
-contract_version: "0.1"
-maps_to:
-  - term: ref_cust_company_info
-    target: cust_company_info.code
-    evidence: code
-  - term: ref_cust_project_rel_cust_company_info
-    target: cust_company_info.code
-    evidence: code
 field_targets:
-  - cust_company_info.code
   - cust_person_info.ref_cust_company_info
-  - cust_role_info.ref_cust_company_info
   - cust_project_rel.ref_cust_project_rel_cust_company_info
+  - cust_role_info.ref_cust_company_info
+  - cust_auth_application.ref_cust_company_info
+adjudication: >
+  各关联表上的 ref_cust_company_info 系列字段存放企业业务编码，指向
+  cust_company_info.code；跨表关联以企业编码取值，而不是以企业主键 id 取值。
 also_confused_with:
-  - cust_company_info.id
----
-
-各关系表中以 ref_cust_company_info（或带前缀的变体）命名的列，关联的不是企业主键而是业务编码，即 [[tables/cust_company_info]].code。
-
-## 需求背景
-
-该编码在新建企业时由 DataModelUtils.uuid() 生成，是关系表拼接的稳定锚点；联系人查询的主关联键即 ref_cust_company_info。做 join 时若误用 id 关联会漏数据。
-
-## 版本演进
-
-v0：首次成页。
----END FILE---
-
----FILE: concepts/db_tenant_code_bridge.md ---
----
-type: concept
-title: 租户编码术语桥（db_tenant_code / tenant_code / sysChannel）
-page_key: concept.db_tenant_code_bridge
-domain: 平台内部服务对接
-status: draft
-aliases:
-  - db_tenant_code
-  - tenant_code
-  - 租户编码
-  - sysChannel
-oid: 1
-scope:
-  databases: []
-sources:
-  - semantic:field_semantics[cust_company_info.db_tenant_code]
-  - semantic:field_semantics[cust_project_rel.tenant_code / db_tenant_code]
-  - semantic:field_semantics[tenant_setting_config.db_tenant_code]
-  - semantic:field_semantics[tenant_setting_config.sso_tenant_chanel]
-contract_version: "0.1"
-maps_to:
-  - term: db_tenant_code
-    target: tenant_setting_config.db_tenant_code
-    evidence: code
-  - term: tenant_code
-    target: tenant_setting_config.db_tenant_code
-    evidence: code
-  - term: sysChannel
-    target: tenant_setting_config.sso_tenant_chanel
-    evidence: code
-field_targets:
-  - cust_company_info.db_tenant_code
-  - cust_project_rel.tenant_code
-  - cust_project_rel.db_tenant_code
-  - tenant_setting_config.db_tenant_code
-  - tenant_setting_config.sso_tenant_chanel
----
-
-数据隔离键的统一术语：db_tenant_code 是全局隔离键，cust_project_rel 中 tenant_code 与 db_tenant_code 同值写入；对接运营中台时，sysChannel 取 tenant_setting_config.sso_tenant_chanel。
-
-## 需求背景
-
-Provider 层默认按当前租户隔离，跨租户查询需显式设置（见 [[rules/cross_tenant_query_all]]）。sysChannel 参与鉴权签名（见 [[rules/token_sign_md5]]），与 db_tenant_code 不是同一字段，但都源自租户配置（[[tables/tenant_setting_config]]）。
-
-## 版本演进
-
-v0：首次成页。
----END FILE---
-
----FILE: concepts/company_role_bridge.md ---
----
-type: concept
-title: 企业角色术语桥（cust_company_type / company_type / role_type / cust_type）
-page_key: concept.company_role_bridge
-domain: 平台内部服务对接
-status: draft
-aliases:
-  - 企业角色
-  - cust_company_type
-  - company_type
-  - role_type
-  - cust_type
-oid: 1
-scope:
-  databases: []
-sources:
-  - semantic:field_semantics[cust_company_info.cust_company_type]
-  - semantic:field_semantics[cust_person_info.company_type]
-  - semantic:field_semantics[cust_role_info.role_type]
-  - semantic:field_semantics[cust_group_rel.cust_type]
-  - semantic:field_semantics[cust_project_rel.company_type]
-contract_version: "0.1"
-maps_to:
-  - term: cust_company_type
-    target: cust_company_info.cust_company_type
-    evidence: code
-  - term: company_type
-    target: cust_person_info.company_type
-    evidence: code
-  - term: role_type
-    target: cust_role_info.role_type
-    evidence: code
-  - term: cust_type
-    target: cust_group_rel.cust_type
-    evidence: code
-field_targets:
-  - cust_company_info.cust_company_type
-  - cust_person_info.company_type
-  - cust_role_info.role_type
-  - cust_group_rel.cust_type
-  - cust_project_rel.company_type
----
-
-「企业角色」在企业主表以 JSON 数组字符串存放，在关系表中拆成单值：联系人的 company_type 是数组中的一项，cust_role_info.role_type 一企业一角色一行，集团成员用 cust_type 表达，项目关联用 company_type 表达。
-
-## 需求背景
-
-同一角色概念在不同表以数组、单值、枚举名三种形态出现，跨表比对前需先做形态归一（数组展开 → 单值）。role_type 取值来自 CustCompanyTypeEnum.name()/dictKey，是这套术语的枚举基准。相关状态联动见 [[rules/role_status_follow_company]]。
-
-## 版本演进
-
-v0：首次成页；数组元素的具体取值范围在语义分析中仅以示例形式出现，未做穷举。
----END FILE---
-
----FILE: concepts/platform_cust_id_bridge.md ---
----
-type: concept
-title: 运营中台企业 id 术语桥（custEnterpriseId / platform_cust_id）
-page_key: concept.platform_cust_id_bridge
-domain: 平台内部服务对接
-status: draft
-aliases:
-  - custEnterpriseId
-  - platform_cust_id
-  - 运营中台企业id
-oid: 1
-scope:
-  databases: []
-sources:
-  - semantic:field_semantics[cust_role_info.platform_cust_id]
-  - semantic:field_semantics[cust_change_record.cust_id / status / oper_cust_info / oper_channel / create_time]
-contract_version: "0.1"
-maps_to:
-  - term: custEnterpriseId
-    target: cust_role_info.platform_cust_id
-    evidence: code
-  - term: oper_cust_info.custEnterpriseId
-    target: cust_role_info.platform_cust_id
-    evidence: code
-field_targets:
   - cust_role_info.platform_cust_id
-  - cust_change_record.oper_cust_info
----
-
-运营中台侧的企业 id（custEnterpriseId）在平台库内落在 cust_role_info.platform_cust_id，用于换取 token / 授权；客户变更记录把同一 id 存进 oper_cust_info JSON。
-
-## 需求背景
-
-两个来源并非随时可互换：企业处于变更流程时，token 所需的运营中台 id 取自变更记录（见 [[rules/change_status_token_source]]）；常态下取角色表字段。
-
-## 版本演进
-
-v0：首次成页。
----END FILE---
-
----FILE: concepts/product_code_bridge.md ---
----
-type: concept
-title: 产品/项目编码术语桥（product_code / platform_product_code / product_id / project_id）
-page_key: concept.product_code_bridge
-domain: 平台内部服务对接
-status: draft
-aliases:
-  - product_code
-  - platform_product_code
-  - product_id
-  - project_id
-oid: 1
-scope:
-  databases: []
-sources:
-  - semantic:field_semantics[platform_product.product_code / name]
-  - semantic:field_semantics[tenant_product.platform_product_code / db_tenant_code]
-  - semantic:field_semantics[tenant_project.tenant_id / platform_product_code / product_id / name]
-  - semantic:field_semantics[cust_project_rel.project_id / product_id]
-contract_version: "0.1"
-maps_to:
-  - term: product_code
-    target: platform_product.product_code
-    evidence: code
-  - term: platform_product_code
-    target: platform_product.product_code
-    evidence: code
-  - term: product_id
-    target: tenant_project.product_id
-    evidence: code
-  - term: project_id
-    target: tenant_project.project_id
-    evidence: code
-field_targets:
-  - platform_product.product_code
-  - tenant_product.platform_product_code
-  - tenant_project.platform_product_code
-  - tenant_project.product_id
   - cust_project_rel.project_id
-  - cust_project_rel.product_id
-  - cust_project_rel.ref_cust_project_rel_platform_product
+---
+
+「关联企业编码」是平台内部服务对接中的一条字段命名约定：凡是需要指向企业主体的关联表，都使用 `ref_cust_company_info`（或在被外键命名规则改造后形如 `ref_cust_project_rel_cust_company_info`）这类字段存放**企业业务编码**，与 [[cust_company_info]] 的 `code` 对应。
+
+这条约定使得多个服务可以在不了解对方表结构的情况下按同一取值联结——[[cust_person_info]] 用它把人员挂到企业，[[cust_project_rel]] 用它表达企业与项目的关系，[[cust_role_info]]、[[cust_auth_application]] 同样如此。相关页面：[[cust_company_info]]、[[cust_person_info]]、[[cust_project_rel]]。
+
+## 需求背景
+企业主键 `id` 是数据库内部标识，业务侧服务在接口与消息中流动的是企业编码。若部分表按主键关联、部分表按编码关联，内部服务对接时会出现「传了编码查不到」的错配，因此把关联取值统一到企业编码上是必要的契约约束。
+
+## 版本演进
+- v0.1（本页）：约定来自代码语义分析中各关联表字段释义的一致性归纳。容易混淆的标识：`cust_role_info.platform_cust_id`（平台客户ID）与 `cust_project_rel.project_id`（项目ID），它们与关联企业编码不是同一取值域。
+---END FILE---
+
+---FILE: concepts/yn_flag_convention.md ---
+---
+type: concept
+title: Y/N 布尔约定
+page_key: yn_flag_convention
+domain: 平台内部服务对接
+status: draft
+aliases:
+  - Y/N 标志位
+  - 布尔字符约定
+oid: 1
+scope:
+  databases:
+    - unknown
+sources:
+  - code
+contract_version: "0.1"
+field_targets:
+  - cust_company_info.enable
+  - cust_company_info.need_register_ca
+  - cust_company_info.ca_register_status
+  - cust_company_info.audit_back_flag
+  - cust_person_info.enable
+  - cust_project_rel.show_flag
+  - sys_cust_user_rel.is_freeze
+adjudication: >
+  上述字段以字符 Y / N 表达布尔语义，Y 表示是、启用、需要或已冻结状态成立；
+  服务侧读取与写入均应使用单字符取值，不写入 1/0 或 true/false。
 also_confused_with:
-  - tenant_project.name
+  - cust_person_info.status
+  - cust_company_info.cust_status
 ---
 
-产品编码（字典表 [[tables/platform_product]].product_code）在租户产品、租户项目、企业项目关联三处分别以 platform_product_code、ref_cust_project_rel_platform_product 等形式出现；项目与产品 id 在关系表中以字符串存储。
+「Y/N 布尔约定」描述平台内部服务对接中一组以字符 `Y` / `N` 存储的布尔字段。它们语义各异——启用（`enable`）、是否需要开通电子签章（`need_register_ca`）、CA 注册状态（`ca_register_status`）、审核退回标志（`audit_back_flag`）、关联显示标志（`show_flag`）、经办人冻结状态（`is_freeze`）——但取值形态一致，因此查询与写入可以按同一约定处理。
+
+这类字段是查询口径的常见组成：企业有效性口径 [[valid_company]] 使用 `enable = 'Y'`，未冻结口径 [[not_frozen_user_rel]] 使用 `is_freeze = 'N'`，冻结状态机见 [[operator_freeze_flow]]。
 
 ## 需求背景
-
-编码与 id 并存：product_code 是业务编码，product_id / project_id 是实体 id，列表展示需要的产品名称来自平台产品表，三者不可互替。
+布尔语义在不同表上以字符存储，如果某些服务按 1/0 处理，就会出现过滤条件永远为假或永远为真的隐性缺陷；把取值形态固化为一条约定，可以让人工与代码审查都按同一标准检查。
 
 ## 版本演进
-
-v0：首次成页。
+- v0.1（本页）：约定来自代码语义分析中各字段释义中「Y/N」描述的一致性归纳。注意区分同为「状态」但取值是枚举字符串的字段，例如 `cust_person_info.status`、`cust_company_info.cust_status`，它们不属于本约定。
 ---END FILE---
 
----FILE: concepts/identify_style_bridge.md ---
+---FILE: concepts/company_type_role.md ---
 ---
 type: concept
-title: 认证方式术语桥（identify_style 与 IdentifyTypeConstant）
-page_key: concept.identify_style_bridge
+title: 企业角色 company_type
+page_key: company_type_role
 domain: 平台内部服务对接
 status: draft
 aliases:
-  - identify_style
-  - 认证方式
-  - IdentifyTypeConstant
+  - 企业角色术语桥
+  - company_type 字段族
 oid: 1
 scope:
-  databases: []
+  databases:
+    - unknown
 sources:
-  - semantic:field_semantics[cust_company_info.identify_style]
-  - semantic:state_machines[企业建档/认证状态]
+  - code
 contract_version: "0.1"
 maps_to:
-  - term: identify_style
-    target: cust_company_info.identify_style
-    evidence: code
-  - term: IdentifyTypeConstant.INVITE
-    target: cust_company_info.identify_style
-    evidence: code
-  - term: IdentifyTypeConstant.SELF
-    target: cust_company_info.identify_style
-    evidence: code
-  - term: IdentifyTypeConstant.INVITE_AGW
-    target: cust_company_info.identify_style
-    evidence: code
+  - cust_company_info.cust_company_type
 field_targets:
-  - cust_company_info.identify_style
----
-
-认证方式在库内为 identify_style（自主 / 邀请-客户录入 / 邀请-平台录入 / 简易），在提交逻辑中体现为 IdentifyTypeConstant 的 INVITE、SELF、INVITE_AGW 分支。
-
-## 需求背景
-
-认证方式决定提交后落到的建档状态（见 [[processes/cust_build_status_machine]]），也决定退回标记与来源补写的处理分支（[[rules/submit_cust_field_reset]]、[[calibers/cust_from_platform_invite]]）。
-
-## 版本演进
-
-v0：首次成页；「简易」对应的常量名在语义分析中未给出，不做推测。
----END FILE---
-
----FILE: concepts/user_type_bridge.md ---
----
-type: concept
-title: 联系人用户类型术语桥（admin / operator / guest）
-page_key: concept.user_type_bridge
-domain: 平台内部服务对接
-status: draft
-aliases:
-  - user_type
-  - admin
-  - operator
-  - guest
-  - 客户管理员
-  - 经办人
-oid: 1
-scope:
-  databases: []
-sources:
-  - semantic:field_semantics[cust_person_info.user_type]
-  - semantic:field_semantics[cust_person_info.operator_id / operator_realname / operator]
-contract_version: "0.1"
-maps_to:
-  - term: admin
-    target: cust_person_info.user_type
-    evidence: code
-  - term: operator
-    target: cust_person_info.user_type
-    evidence: code
-  - term: guest
-    target: cust_person_info.user_type
-    evidence: code
-field_targets:
+  - cust_person_info.company_type
+  - cust_project_rel.company_type
+adjudication: >
+  企业主表以 cust_company_info.cust_company_type 承载企业角色，且以 JSON 数组字符串
+  存储多个角色；cust_person_info.company_type 与 cust_project_rel.company_type 是
+  同一术语在关联表上的落点，取值需与主表角色集合保持一致。
+also_confused_with:
   - cust_person_info.user_type
-  - cust_person_info.operator_id
-  - cust_person_info.operator_realname
-  - cust_person_info.operator
+  - sys_cust_user_rel.cust_type
+---
+
+「企业角色」是同一业务术语在多个表上的桥接点：主表 [[cust_company_info]] 用 `cust_company_type` 以 JSON 数组字符串保存企业当前承担的角色，人员表 [[cust_person_info]] 与关系表 [[cust_project_rel]] 分别在记录上标注 `company_type`。服务对接时，主表回答「这家企业是什么」，关联表回答「这条记录属于哪种角色语境」。
+
+## 需求背景
+企业可能同时具备多个角色，因此主表选择用 JSON 数组字符串承载；下游服务若按单值解析，会出现角色判断遗漏。关联表上的 `company_type` 需要能回落到主表的角色集合中，否则会出现不一致的角色标注。
+
+## 版本演进
+- v0.1（本页）：术语桥来自代码语义分析中三处同名字段的释义归纳。易混淆项：`cust_person_info.user_type`（人员用户类型）与 `sys_cust_user_rel.cust_type`（客户类型）属于不同维度。
+---END FILE---
+
+---FILE: concepts/user_type_role.md ---
+---
+type: concept
+title: 用户类型 user_type
+page_key: user_type_role
+domain: 平台内部服务对接
+status: draft
+aliases:
+  - 用户类型术语桥
+  - 人员角色 admin/operator/guest
+oid: 1
+scope:
+  databases:
+    - unknown
+sources:
+  - code
+contract_version: "0.1"
+maps_to:
+  - cust_person_info.user_type
+field_targets:
+  - cust_person_info.user_id
+adjudication: >
+  联系人记录通过 cust_person_info.user_type 区分 admin / operator / guest 三类
+  用户，并通过 cust_person_info.user_id 关联系统用户；识别管理员与经办人分别使用
+  cust_person_info.user_type = 'admin' 与 cust_person_info.user_type = 'operator'。
 also_confused_with:
-  - cust_person_info.operator
+  - cust_person_info.company_type
+  - sys_cust_user_rel.cust_type
 ---
 
-联系人 user_type 三值：admin（客户管理员）、operator（经办人）、guest（游客）。注意它与运营人员字段 operator（运营登录名）同名不同义。
+「用户类型」把企业下的人员区分为 admin（管理员）、operator（经办人）、guest（访客）三类，落在 [[cust_person_info]] 的 `user_type` 上，并与 `user_id` 一起构成「企业联系人 → 系统用户」的桥。它是 [[admin_user]] 与 [[operator_user]] 两个口径的共同取值域。
 
 ## 需求背景
-
-「经办人」既可作为 user_type 的取值，也可指联系人在产品权限语境下的角色，其可用性由 enable 与冻结状态共同决定（[[processes/operator_freeze_machine]]）。运营人员信息（operator_id / operator_realname / operator）来自资产审核侧同步，不参与用户身份判定。
-
-## 版本演进
-
-v0：首次成页。
----END FILE---
-
----FILE: rules/company_query_enable_y.md ---
----
-type: rule
-title: 企业查询一律附加 enable='Y'
-page_key: rule.company_query_enable_y
-domain: 平台内部服务对接
-status: draft
-aliases:
-  - 企业查询有效标志规则
-oid: 1
-scope:
-  databases: []
-sources:
-  - semantic:field_semantics[cust_company_info.enable]
-contract_version: "0.1"
----
-
-查询企业数据时必须附加 enable='Y' 条件，否则会取到逻辑删除或失效的企业行。
-
-## 需求背景
-
-该约束是企业表（[[tables/cust_company_info]]）的基础过滤条件，各服务读取企业信息时均应遵守；与之配套的主数据过滤见 [[rules/status_update_main_data_type]]。
+平台侧需要按用户类型裁剪可见功能与可执行动作：管理员承担企业确认等管理动作，经办人被纳入关系冻结管理。因此类型字段必须在建档时确定，并在人员列表查询中与有效性口径 [[valid_person]] 一起使用。
 
 ## 版本演进
-
-v0：首次成页。
-
-```ground:rule
-name: 企业查询一律附加 enable='Y'
-field: cust_company_info.enable
-condition: "查询一律 .eq(enable, 'Y')"
-effect: "过滤掉非有效企业行"
-evidence: code
-```
+- v0.1（本页）：术语桥来自代码语义分析中该字段的取值说明与两条口径谓词。易混淆项：`cust_person_info.company_type` 与 `sys_cust_user_rel.cust_type` 描述的是企业/客户维度，不是用户维度。
 ---END FILE---
 
----FILE: rules/status_update_main_data_type.md ---
----
-type: rule
-title: 企业状态更新必须限定主数据（data_type）
-page_key: rule.status_update_main_data_type
-domain: 平台内部服务对接
-status: draft
-aliases:
-  - 状态更新主数据条件
-oid: 1
-scope:
-  databases: []
-sources:
-  - semantic:field_semantics[cust_company_info.data_type]
-  - semantic:state_machines[客户生命周期状态]
-contract_version: "0.1"
----
-
-对企业表做状态更新时，必须带 data_type = CustDataTypeConstant.DATA_TYPE_MAIN 条件。
-
-## 需求背景
-
-企业表在同一张物理表内混合了多种数据类型，缺少该条件会误更新非主数据行。冻结、解冻、注销、建档状态推进等路径（见 [[processes/cust_status_machine]]）都依赖此约束。
-
-## 版本演进
-
-v0：首次成页。
-
-```ground:rule
-name: 企业状态更新必须限定主数据
-field: cust_company_info.data_type
-condition: "data_type = CustDataTypeConstant.DATA_TYPE_MAIN"
-effect: "所有状态更新均带此条件，避免误改非主数据行"
-evidence: code
-```
----END FILE---
-
----FILE: rules/cross_tenant_query_all.md ---
----
-type: rule
-title: 跨租户查询需显式设置 dbTenantCode="all"
-page_key: rule.cross_tenant_query_all
-domain: 平台内部服务对接
-status: draft
-aliases:
-  - 跨租户查询
-  - dbTenantCode all
-oid: 1
-scope:
-  databases: []
-sources:
-  - semantic:field_semantics[cust_company_info.db_tenant_code]
-contract_version: "0.1"
----
-
-Provider 层默认按当前租户隔离数据，需要跨租户读取时必须通过 MetaDataThreadLocalConfig.setDbTenantCode("all") 显式放宽。
-
-## 需求背景
-
-该开关作用于 [[tables/cust_company_info]] 等带 db_tenant_code 的表（见 [[concepts/db_tenant_code_bridge]]）。跨租户查询属于越权边界，仅在平台侧内部对接场景使用。
-
-## 版本演进
-
-v0：首次成页。
-
-```ground:rule
-name: 跨租户查询需显式设置 dbTenantCode="all"
-field: cust_company_info.db_tenant_code
-condition: "MetaDataThreadLocalConfig.setDbTenantCode(\"all\")"
-effect: "Provider 层跨租户查询"
-evidence: code
-```
----END FILE---
-
----FILE: rules/operator_permission_disable.md ---
----
-type: rule
-title: 经办人无产品权限时 enable 置 'N'，解冻恢复 'Y'
-page_key: rule.operator_permission_disable
-domain: 平台内部服务对接
-status: draft
-aliases:
-  - 经办人权限置无效
-oid: 1
-scope:
-  databases: []
-sources:
-  - semantic:field_semantics[cust_person_info.enable]
-  - semantic:state_machines[经办人产品关联冻结状态]
-contract_version: "0.1"
----
-
-当经办人失去产品权限时，联系人记录的 enable 被置为 'N'；解冻后恢复为 'Y'。
-
-## 需求背景
-
-这是联系人侧 enable 与产品授权冻结状态（[[processes/operator_freeze_machine]]、[[tables/sys_cust_user_rel]]）的联动点。因此在联系人有效性判定中，enable 与 status 需一并考虑（[[calibers/person_effective_status]]）。
-
-## 版本演进
-
-v0：首次成页。
-
-```ground:rule
-name: 经办人无产品权限时 enable 置 'N'，解冻恢复 'Y'
-field: cust_person_info.enable
-condition: "经办人无产品权限"
-effect: "置 'N'；解冻时恢复 'Y'"
-evidence: code
-```
----END FILE---
-
----FILE: rules/submit_cust_field_reset.md ---
----
-type: rule
-title: 提交建档时的字段重置（check_status 置 null、audit_back_flag 置 'N'）
-page_key: rule.submit_cust_field_reset
-domain: 平台内部服务对接
-status: draft
-aliases:
-  - 提交建档字段重置
-oid: 1
-scope:
-  databases: []
-sources:
-  - semantic:field_semantics[cust_company_info.check_status]
-  - semantic:field_semantics[cust_company_info.audit_back_flag]
-contract_version: "0.1"
----
-
-提交建档时把 check_status 置为 null；非自主录入的提交路径把 audit_back_flag 置为 'N'。
-
-## 需求背景
-
-这两步是进入审核前的状态清理，配合建档状态机（[[processes/cust_build_status_machine]]）的提交分支生效。判定分支取决于认证方式（[[concepts/identify_style_bridge]]）。
-
-## 版本演进
-
-v0：首次成页。
-
-```ground:rule
-name: 提交建档时的字段重置
-field: cust_company_info.check_status / cust_company_info.audit_back_flag
-condition: "提交建档；非自主录入提交"
-effect: "check_status 置 null；audit_back_flag 置 'N'"
-evidence: code
-```
----END FILE---
-
----FILE: rules/simple_auth_ca_forbidden.md ---
----
-type: rule
-title: 简易建档强制不开通电子签章，head_company 为空置 'Y'
-page_key: rule.simple_auth_ca_forbidden
-domain: 平台内部服务对接
-status: draft
-aliases:
-  - 简易认证签章政策
-oid: 1
-scope:
-  databases: []
-sources:
-  - semantic:field_semantics[cust_company_info.need_register_ca]
-  - semantic:field_semantics[cust_company_info.head_company]
-contract_version: "0.1"
----
-
-简易建档路径下，need_register_ca 政策上强制为不开通；head_company 为空时（简易认证）置为 'Y'。
-
-## 需求背景
-
-这条政策决定简易认证企业不会走 CA 开通流程，因而对外签章状态口径（[[calibers/ca_register_status_output]]）在这类企业上恒为未开通。简易认证的状态流转见 [[processes/cust_build_status_machine]]。
-
-## 版本演进
-
-v0：首次成页。
-
-```ground:rule
-name: 简易建档强制不开通电子签章，head_company 为空置 'Y'
-field: cust_company_info.need_register_ca / cust_company_info.head_company
-condition: "简易建档；head_company 为空（简易认证）"
-effect: "need_register_ca 强制不开通；head_company 置 'Y'"
-evidence: code
-```
----END FILE---
-
----FILE: rules/cust_change_record_latest_effective.md ---
----
-type: rule
-title: 变更记录取 status=CUST_CHECK_PASS 的最新有效记录
-page_key: rule.cust_change_record_latest_effective
-domain: 平台内部服务对接
-status: draft
-aliases:
-  - 变更记录取值规则
-oid: 1
-scope:
-  databases: []
-sources:
-  - semantic:field_semantics[cust_change_record.cust_id / status / oper_cust_info / oper_channel / create_time]
-contract_version: "0.1"
----
-
-读取客户变更记录时，以 status 为 CUST_CHECK_PASS 作为有效判据，并取最新的那条记录。
-
-## 需求背景
-
-该记录承载变更态下的运营中台企业 id（见 [[rules/change_status_token_source]]、[[concepts/platform_cust_id_bridge]]），取值错误会直接导致换 token 失败。
-
-## 版本演进
-
-v0：首次成页。
-
-```ground:rule
-name: 变更记录取 status=CUST_CHECK_PASS 的最新有效记录
-field: cust_change_record.status
-condition: "status = CUST_CHECK_PASS"
-effect: "作为取值最新有效记录"
-evidence: code
-```
----END FILE---
-
----FILE: rules/change_status_token_source.md ---
----
-type: rule
-title: 变更态下运营中台企业 id 取自变更记录
-page_key: rule.change_status_token_source
-domain: 平台内部服务对接
-status: draft
-aliases:
-  - 变更态token来源
-oid: 1
-scope:
-  databases: []
-sources:
-  - semantic:state_machines[客户生命周期状态]
-  - semantic:field_semantics[cust_change_record.cust_id / status / oper_cust_info / oper_channel / create_time]
-contract_version: "0.1"
----
-
-当企业进入变更态（cust_status=CHANGE）时，换取 token 使用的运营中台企业 id 取自客户变更记录，而非角色表常态字段。
-
-## 需求背景
-
-进入 CHANGE 的触发条件见 [[processes/cust_status_machine]]（queryCustAutoCheck 中 process!=CHECK 分支）；有效变更记录的取用规则见 [[rules/cust_change_record_latest_effective]]，术语映射见 [[concepts/platform_cust_id_bridge]]。
-
-## 版本演进
-
-v0：首次成页。
-
-```ground:rule
-name: 变更态下运营中台企业 id 取自变更记录
-field: cust_company_info.cust_status
-condition: "cust_status = CHANGE"
-effect: "token 取变更记录上的运营中台 id"
-evidence: code
-```
----END FILE---
-
----FILE: rules/token_sign_md5.md ---
----
-type: rule
-title: 运营中台鉴权签名 md5(secret + sysChannel + loginName)
-page_key: rule.token_sign_md5
-domain: 平台内部服务对接
-status: draft
-aliases:
-  - 鉴权签名规则
-  - token 签名
-oid: 1
-scope:
-  databases: []
-sources:
-  - semantic:field_semantics[tenant_setting_config.platform_secret_key]
-  - semantic:field_semantics[tenant_setting_config.sso_tenant_chanel]
-contract_version: "0.1"
----
-
-请求运营中台 token 时，签名由 platform_secret_key、sysChannel、loginName 三者拼接后做 md5 得到。
-
-## 需求背景
-
-三个入参分属不同来源：secret 与 sysChannel 来自租户配置（[[tables/tenant_setting_config]]，见 [[concepts/db_tenant_code_bridge]]），loginName 来自用户身份（[[tables/sys_user_sso_user]]）。任一取值不正确都会导致鉴权失败。
-
-## 版本演进
-
-v0：首次成页。
-
-```ground:rule
-name: 运营中台鉴权签名 md5(secret + sysChannel + loginName)
-field: tenant_setting_config.platform_secret_key
-condition: "请求运营中台 token"
-effect: "md5(secret+sysChannel+loginName)"
-evidence: code
-```
----END FILE---
-
----FILE: rules/person_phone_encrypted_query.md ---
----
-type: rule
-title: 联系人手机号加密存储，查询需传密文
-page_key: rule.person_phone_encrypted_query
-domain: 平台内部服务对接
-status: draft
-aliases:
-  - 手机号密文查询
-oid: 1
-scope:
-  databases: []
-sources:
-  - semantic:field_semantics[cust_person_info.phone]
-contract_version: "0.1"
----
-
-cust_person_info.phone 以密文落库（metaDataEncryptionService.encryptAndBase64Str），按手机号检索时必须传入加密后的密文，明文匹配不会命中。
-
-## 需求背景
-
-这是联系人查询（含按手机号定位经办人）的前置条件，属于内部服务对接中的敏感字段处理约定。
-
-## 版本演进
-
-v0：首次成页。
-
-```ground:rule
-name: 联系人手机号加密存储，查询需传密文
-field: cust_person_info.phone
-condition: "按手机号查询联系人"
-effect: "查询需传密文（encryptAndBase64Str）"
-evidence: code
-```
----END FILE---
-
----FILE: rules/person_info_source_of_truth.md ---
----
-type: rule
-title: 经办人信息以 sys_user + sso_user 为准
-page_key: rule.person_info_source_of_truth
-domain: 平台内部服务对接
-status: draft
-aliases:
-  - 经办人信息基准
-oid: 1
-scope:
-  databases: []
-sources:
-  - semantic:field_semantics[cust_person_info.name / user_name / email]
-  - semantic:field_semantics[sys_user / sso_user]
-contract_version: "0.1"
----
-
-联系人姓名、登录名、业务邮箱的权威来源是 sys_user + sso_user；仅当联系人侧自身为空时才由经办人新增流程补全，业务邮箱变更时按条件回写登录邮箱。
-
-## 需求背景
-
-这条规则决定了 [[tables/cust_person_info]] 与 [[tables/sys_user_sso_user]] 的主从关系，避免两边都有值时互相覆盖。
-
-## 版本演进
-
-v0：首次成页。
-
-```ground:rule
-name: 经办人信息以 sys_user + sso_user 为准
-field: cust_person_info.name / user_name / email
-condition: "a) 仅本身为空时 b) 业务邮箱变更时"
-effect: "由经办人新增流程补全 / 按条件回写登录邮箱，基准为用户中心与 SSO"
-evidence: code
-```
----END FILE---
-
----FILE: rules/role_status_follow_company.md ---
----
-type: rule
-title: 企业角色状态随企业状态联动更新
-page_key: rule.role_status_follow_company
-domain: 平台内部服务对接
-status: draft
-aliases:
-  - 角色状态联动
-oid: 1
-scope:
-  databases: []
-sources:
-  - semantic:field_semantics[cust_role_info.status]
-  - semantic:state_machines[客户生命周期状态]
-contract_version: "0.1"
----
-
-cust_role_info.status 不独立演进，通过 updateStatusByCustCompany 随企业状态同步更新。
-
-## 需求背景
-
-企业在冻结、解冻、注销时（[[processes/cust_status_machine]]），其在 [[tables/cust_role_info]] 中的角色记录必须同步，否则授权与 token 换取会与企业实际状态不一致。
-
-## 版本演进
-
-v0：首次成页。
-
-```ground:rule
-name: 企业角色状态随企业状态联动更新
-field: cust_role_info.status
-condition: "企业状态变更"
-effect: "updateStatusByCustCompany 同步角色状态"
-evidence: code
-```
----END FILE---
-
----FILE: rules/oper_auth_agreement_fallback.md ---
----
-type: rule
-title: 子账号授权书模板未配置时回落 Nacos 值
-page_key: rule.oper_auth_agreement_fallback
-domain: 平台内部服务对接
-status: draft
-aliases:
-  - 授权书模板回落
-oid: 1
-scope:
-  databases: []
-sources:
-  - semantic:field_semantics[tenant_setting_config.oper_auth_agreement]
-contract_version: "0.1"
----
-
-租户未配置 oper_auth_agreement 时，使用 Nacos 中的 operAuthAgreement 值作为授权书模板 id。
-
-## 需求背景
-
-这是租户配置（[[tables/tenant_setting_config]]）与配置中心之间的兜底约定，属于内部服务对接中「配置缺失不应阻断流程」的处理方式。
-
-## 版本演进
-
-v0：首次成页。
-
-```ground:rule
-name: 子账号授权书模板未配置时回落 Nacos 值
-field: tenant_setting_config.oper_auth_agreement
-condition: "未配置时"
-effect: "回落 Nacos 值 operAuthAgreement"
-evidence: code
-```
----END FILE---
-
----FILE: rules/certification_no_cross_system_align.md ---
----
-type: rule
-title: 统一社会信用代码跨系统一致性对齐
-page_key: rule.certification_no_cross_system_align
-domain: 平台内部服务对接
-status: draft
-aliases:
-  - 统一社会信用代码对齐
-  - certification_no 对齐
-oid: 1
-scope:
-  databases: []
-sources:
-  - semantic:field_semantics[cust_company_info.certification_no]
-contract_version: "0.1"
----
-
-certification_no（统一社会信用代码）被定义为跨系统一致性对齐字段：企业主数据与运营中台等外部系统之间以此字段对齐同一法人主体。
-
-## 需求背景
-
-在企业建档与认证流转（[[processes/cust_build_status_machine]]）中，该字段是识别同一主体的业务键，与内部主键 id、业务编码 code 的用途不同（见 [[concepts/company_id_bridge]]、[[concepts/company_code_bridge]]）。
-
-## 版本演进
-
-v0：首次成页。
-
-```ground:rule
-name: 统一社会信用代码跨系统一致性对齐
-field: cust_company_info.certification_no
-condition: "跨系统企业主体比对"
-effect: "作为一致性对齐字段"
-evidence: code
-```
----END FILE---
-
----REVIEW: frontmatter | 全部页面 scope.databases 待补---
-语义分析未给出任何物理库名（field_semantics 的 evidence 仅标注 db / code，state_machines 仅给出 code_path 与类名）。因此所有页面的 scope.databases 暂为空数组，待补充物理库名后再回填。不属于可推断项，未做猜测。
+---REVIEW: caliber | 经办人用户---
+语义分析在 calibers 数组的「经办人用户」条目处被截断，仅取到 `name` 与 `predicate` 两个字段，`scope` 与 `evidence` 缺失。因此 calibers/operator_user.md 的 ground:caliber 块只写入这两个逐字值，未补写 scope/evidence；适用范围与代码出处需回溯原始分析后补齐。
 ---END REVIEW---
 
----REVIEW: process | 经办人产品关联冻结状态（证据截断）---
-语义分析的第三台状态机在 transitions 末尾被截断，最后一条可见片段为「from N / event 冻结企业」，其后 to 值与 evidence 缺失。本页仅收录两条完整转换（FREEZE / THAW）。若「冻结企业」应触发关联冻结，需要补充完整证据后再追加转换。
+---REVIEW: rule | 规则页缺失---
+本次语义分析（已截断）中未出现 rules 类条目，也没有带 reqdoc 双源证据的规则主张，因此未产出 rules/ 目录页面。若规则清单存在但被截断，请在补全后按「一条规则一页」重建；在补全前不应由表字段释义推导规则，以免产生无证据锚点。
 ---END REVIEW---
 
----REVIEW: caliber | 有效标志口径的证据范围---
-calibers/enable_valid_flag 将 enable 的 'Y' 判定收敛为统一口径，但语义分析中「查询一律 .eq(enable, 'Y')」的原句只出现在 cust_company_info.enable 条目下；其余表（cust_person_info、cust_project_rel、tenant_setting_config）的 enable 语义为「有效标志 'Y'/'N'」。若下游需要严格区分「强制过滤条件」与「字段取值域」，应把本页拆分为企业侧强制口径与通用标志域两页。
+---REVIEW: table | 物理库名与字段类型---
+全部表页的 `scope.databases` 暂记为 `unknown`：语义分析未给出物理库名，仅给出表名、字段名与中文释义（evidence=code）。同理，ground:table 中 `fields[].type` 一律留空、`dict` 仅在 `cust_person_info.status`（释义中明示 CustPersonStatusConstant）处填写。需要 DBA 或代码侧补充物理库名、字段类型与字典绑定后回填，方可从 draft 升级。
 ---END REVIEW---

@@ -9,10 +9,22 @@ oid: 1
 scope:
   databases: [lowcode_pplatform]
 sources: ["code:extract-enums.yaml", "db:db-profile.yaml"]
-created: '2026-09-10'
-updated: '2026-09-10'
+created: '2026-09-14'
+updated: '2026-09-14'
 contract_version: "0.1"
+belong: enums
 ---
+
+
+
+
+
+
+
+
+
+
+
 
 # platform_operator
 
@@ -20,22 +32,10 @@ contract_version: "0.1"
 
 ```ground:enum
 enum: platform_operator
-fields: [tenant_setting_config.platform_operator, tenant_setting_config_share.platform_operator]
+fields: []
 values:
-  TENANT:
-    label: 租户自身
-  PLATFORM:
-    label: 联易融
-  "[\"platform\",\"tenant\"]":
-    label: "[\"platform\",\"tenant\"]"
-    note: db 分布存在但代码枚举未声明（REVIEW）
-  "[\"platform\"]":
-    label: "[\"platform\"]"
-    note: db 分布存在但代码枚举未声明（REVIEW）
-  "[\"tenant\",\"platform\"]":
-    label: "[\"tenant\",\"platform\"]"
-    note: db 分布存在但代码枚举未声明（REVIEW）
-  "[\"tenant\"]":
-    label: "[\"tenant\"]"
-    note: db 分布存在但代码枚举未声明（REVIEW）
+  "TENANT":
+    label: "租户自身"
+  "PLATFORM":
+    label: "联易融"
 ```

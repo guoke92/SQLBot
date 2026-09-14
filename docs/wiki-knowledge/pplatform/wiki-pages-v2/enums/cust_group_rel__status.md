@@ -9,10 +9,22 @@ oid: 1
 scope:
   databases: [lowcode_pplatform]
 sources: ["code:extract-enums.yaml", "db:db-profile.yaml"]
-created: '2026-09-10'
-updated: '2026-09-10'
+created: '2026-09-14'
+updated: '2026-09-14'
 contract_version: "0.1"
+belong: enums
 ---
+
+
+
+
+
+
+
+
+
+
+
 
 # status
 
@@ -22,10 +34,10 @@ contract_version: "0.1"
 enum: cust_group_rel__status
 fields: [cust_group_rel.status]
 values:
-  INEFFECTIVE:
-    label: 未生效
-  EFFECTIVE:
-    label: 已生效
-  REJECTED:
-    label: 已拒绝
+  "INEFFECTIVE":
+    label: "未生效"
+  "EFFECTIVE":
+    label: "已生效"
+  "REJECTED":
+    label: "已拒绝"
 ```

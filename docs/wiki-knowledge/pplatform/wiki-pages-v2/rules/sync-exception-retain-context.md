@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 同步异常保留上下文不吞
-page_key: rules/sync-exception-retain-context
+page_key: sync-exception-retain-context
 domain: 平台事件监听与同步
 status: draft
 aliases:
@@ -15,6 +15,7 @@ sources:
   - db:client_api_sync_error
   - "reqdoc:失败数据写入 ClientApiSyncErrorDO，调用异常 → error(...) → 落库"
 contract_version: "0.1"
+belong: rules
 ---
 
 异常处理规则：同步失败经 `custClientSyncService.error(e, rpcSync)` 落库 [[tables/client_api_sync_error]] 后抛出，保留上下文用于后续重放与排查。

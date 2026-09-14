@@ -1,1745 +1,1363 @@
 ---FILE: tables/funding_exception_resolution.md ---
 ---
 type: table
-title: 资金异常解析表（funding_exception_resolution）
-page_key: tables/funding_exception_resolution
-domain: funding
+title: 资金方异常解析表
+page_key: funding_exception_resolution
+domain: 资金规则与异常处理
 status: draft
 aliases:
-  - funding_exception_resolution
   - 异常解析表
-  - 资金异常解析配置表
+  - funding_exception_resolution
+  - 异常处理配置表
 oid: 1
 scope:
   databases:
-    - funding_rule
+    - lowcode_pplatform_customer_management
 sources:
-  - "db:funding_exception_resolution"
-  - "db:funding_exception_resolution_un"
-  - "code:ExceptionResolutionApplication"
-  - "code:ExceptionResolutionImportListener"
-  - "code:FundingPartyExceptionResolutionProviderImpl"
-  - "code:PlatFormOperateAppliaction#getBussinessNo"
+  - db:funding_exception_resolution
+  - code:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/ExceptionResolutionApplication.java
+  - code:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/client/fundingparty/provider/FundingPartyExceptionResolutionProviderImpl.java
 contract_version: "0.1"
 ---
 
-# 资金异常解析表（funding_exception_resolution）
-
-## 业务定位
-
-该表是运营侧维护、外部系统消费的**异常解析配置字典**：把「某产品 + 某对接方」下出现的**报错关键字**映射到**报错原因**与**建议处理方案**，并允许挂附件。一条配置的业务主语由 `product_code + funding_party_code + error_keyword` 三元组确定，对外查询时并不直接按关键字等值取数，而是把该资方该产品下所有 `enable='Y'` 的配置拉回内存，用 `errorMessage.contains(error_keyword)` 做包含匹配，因此一次报错可以命中多条配置并全部返回。
-
-`funding_party_code` 承载的是资方 RPC 返回的 fundingKey，而本表新建主键 `exception_no` 由 `PlatFormOperateAppliaction.getBussinessNo` 按 `fundingPartyCode` 生成，前缀为 `EXCEPTION_NO_<fundingPartyCode>`，即**异常编号与资方绑定**。
+本表沉淀资方侧报错的处理知识：以「产品 code + 对接方标识 + 报错关键字」三元组构成业务唯一键，向上游返回报错原因与建议处理方案。表内同时存在页面手工维护链路与 Excel 导入链路，两条链路共用同一唯一性约束 [[exception_check_before_save_unique]]。资方标识与产品 code 的跨域命名差异见 [[funding_party_mark]]；产品维度的取值分布见 [[exception_resolution_product_scope]]。
 
 ## 需求背景
 
-本次语义分析中 `reqdoc_claims` 为空，没有任何需求文档锚点挂载到本表，因此上面的业务定位全部由代码与 DB 证据反推，不含文档声明。
+- 导入是全量前置校验型：5 个必填列（产品 code / 对接方标识 / 资金方名称 / 报错关键字 / 建议处理方案）任一不通过即整批不落库，见 [[exception_import_all_or_nothing]] 与 [[exception_import_name_code_translation]]。
+- 上游调用场景只按报错关键字做 contains 命中，不做模糊度控制，见 [[exception_provider_contains_match]]。
+- 数据可见性统一由 `enable` 口径约束，见 [[exception_resolution_enable_y]]。
 
 ## 版本演进
 
-本表未出现 `action=uncovered` 的需求主张，故无 (document_claim，未证实) 条目。字段层面的可见演进事实：`file_path` 以 JSON 串 `{"files":[{"filePath":...}]}` 形式存储多附件，属后期扩展的结构；`product_code` 在 DB 实测仅出现 `ACFLOW` / `RVSFACTOR_PC` 两个值，说明该表最初可能只服务单一产品，随后扩展到多产品——但这属于推断，未被文档或迁移脚本证实。
+v0 首次建立：字段语义取自语义分析 field_semantics（exception_no / funding_party_code / funding_party_name / error_keyword / error_reason / suggestion / file_path / product_code / enable）。语义分析未提供列类型，type 暂记为 `unknown`，待 v1 从 DDL 校准。删除行为为物理删除，`enable` 不承担软删职责，见 [[batch_delete_physical]]。
 
 ```ground:table
 table: funding_exception_resolution
 fields:
   - name: exception_no
-    meaning: "异常编号，新增/导入时由 PlatFormOperateAppliaction.getBussinessNo 按 fundingPartyCode 生成（前缀 EXCEPTION_NO_<fundingPartyCode>）"
-    evidence: code
+    type: unknown
+    desc: 异常编号，系统按 fundingPartyCode 生成的业务流水号，非用户录入
+    dict: ""
   - name: funding_party_code
-    meaning: "对接方标识，取资方 RPC 返回的 fundingKey；导入时支持填写「资金方名称-fundingKey」组合串再映射"
-    evidence: code
+    type: unknown
+    desc: 对接方标识（资方标识 code），导入时经 ClientQueryFunderCodeService RPC 校验存在性后可写入；唯一键成员
+    dict: ""
   - name: funding_party_name
-    meaning: "资金方名称；导出时由 funding_party_code 反查映射为「名称(code)」"
-    evidence: code
+    type: unknown
+    desc: 资金方名称，展示/模糊查询用，非关联键
+    dict: ""
   - name: error_keyword
-    meaning: "报错关键字；对外查询时用 errorMessage.contains(error_keyword) 内存匹配命中度"
-    evidence: code
+    type: unknown
+    desc: 报错关键字，与 errorMessage 做 contains 匹配的命中词；唯一键成员
+    dict: ""
   - name: error_reason
-    meaning: "报错原因（选填，导入不校验）"
-    evidence: code
+    type: unknown
+    desc: 报错原因（选填，导入不校验）
+    dict: ""
   - name: suggestion
-    meaning: "建议处理方案（导入必填列）"
-    evidence: code
+    type: unknown
+    desc: 建议处理方案（导入必填列）
+    dict: ""
   - name: file_path
-    meaning: "附件 JSON 串，结构 {\"files\":[{\"filePath\":...}]}，对外查询时逐条 filePathEncrypt 成 URL"
-    evidence: code
+    type: unknown
+    desc: 附件，存 JSON（files[].filePath），Provider 侧解密为 fileUrl 返回
+    dict: ""
   - name: product_code
-    meaning: "产品code（值来自 ProductCodeEnum），DB 实测为 ACFLOW / RVSFACTOR_PC"
-    evidence: db+code
+    type: unknown
+    desc: 产品 code，导入时可由产品名称反查映射为 code；唯一键成员
+    dict: ""
   - name: enable
-    meaning: "有效标识，Y=有效；查询/导出均过滤 enable='Y'"
-    evidence: db+code
+    type: unknown
+    desc: 有效标识，导入/保存固定写 'Y'，查询固定过滤 'Y'
+    dict: ""
 ```
 
-## 关联
-
-- 口径：[[calibers/exception_resolution_valid_enable_y]]、[[calibers/exception_resolution_unique_config]]
-- 规则：[[rules/exception_import_all_or_nothing]]、[[rules/exception_unique_key_dedup]]、[[rules/exception_upsert_write]]、[[rules/exception_export_limit_50000]]、[[rules/exception_import_row_limit_5000]]、[[rules/exception_export_funding_party_name_acflow]]、[[rules/exception_provider_keyword_contains]]、[[rules/exception_provider_exception_fallback]]
-- 概念：[[concepts/funding_party_code]]、[[concepts/funding_key]]、[[concepts/product_code]]
 ---END FILE---
 
 ---FILE: tables/funding_rule_info.md ---
 ---
 type: table
-title: 资方规则信息表（funding_rule_info）
-page_key: tables/funding_rule_info
-domain: funding
+title: 资方规则信息表
+page_key: funding_rule_info
+domain: 资金规则与异常处理
 status: draft
 aliases:
+  - 资方规则表
   - funding_rule_info
-  - 资方规则主表
-  - 资金方规则信息
+  - 资金规则主表
 oid: 1
 scope:
   databases:
-    - funding_rule
+    - lowcode_pplatform_customer_management
 sources:
-  - "db:funding_rule_info"
-  - "code:FundRuleInfoApplication#saveRuleInfo"
-  - "code:FundRuleInfoApplication#activeRule"
-  - "code:FundRuleInfoApplication#inActiveRule"
-  - "code:FundRuleInfoApplication#exportRecords"
-  - "code:FundingPartyRuleProviderImpl#doQuery"
+  - db:funding_rule_info
+  - code:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/FundRuleInfoApplication.java
+  - code:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/client/fundingparty/provider/FundingPartyRuleProviderImpl.java
 contract_version: "0.1"
 ---
 
-# 资方规则信息表（funding_rule_info）
-
-## 业务定位
-
-本表是**资方规则的版本化主表**：一个「产品 + 资方」组合对应一条主记录（由 `code` 唯一标识，`DataModelUtils.getUniqueKey()` 生成），其下挂载若干明细（见 [[tables/funding_rule_detail]]）。主表承载三类信息：身份（`product_code` + `funding_party_mark` + `funding_party_name`）、生命周期（`rule_status` + `version`）、有效标识（`enable`）。
-
-规则的**生命周期**是本表的语义核心：新增即落 `PENDING`，需显式生效才变 `ACTIVE`，外部（Dubbo）只能消费 `ACTIVE` 规则；每次更新 `version` 累加 1，明细随之携带同版本。详见 [[processes/funding_rule_status_machine]]。
+本表是资方规则的头表：以「产品 code + 资方标识」定位一条规则，承载规则状态、版本号与规则编码 `code`，明细行由 [[funding_rule_detail]] 通过 rule_info_id / fund_rule_code_ref 挂靠。资方标识在本域的表达见 [[funding_party_mark]]。
 
 ## 需求背景
 
-语义分析未挂载任何 `reqdoc_claims`，本页背景描述均来自代码证据：`saveRuleInfo` 的新增查重（`productCode + fundingPartyMark`）、`activeRule` / `inActiveRule` 的状态迁移、`FundingPartyRuleProviderImpl#doQuery` 的 `rule_status=ACTIVE` 过滤，共同构成了「先建后生效、外部只见生效版」的设计意图。
+- 新增规则默认待生效、更新时版本自增，随后与明细联动，见 [[rule_save_version_detail_sync]]。
+- 对外只暴露已生效规则，见 [[rule_provider_active_only]]。
+- 规则导入的资方合法性校验目前硬编码按 ACFLOW 产品名单执行，与落库产品并存存在语义张力，见 [[rule_import_funding_party_hardcoded]]。
+- 列表/导出宣称支持时间区间，实际条件被注释掉，见 [[rule_export_ignore_time_range]]。
 
 ## 版本演进
 
-无 `action=uncovered` 的主张，故无 (document_claim，未证实) 条目。字段级演进事实：`version` 从新增时的 1 开始逐次累加，明细表 `funding_rule_detail.version` 会跟随主表版本，DB 实测分布为 1/2/3/4/6/8/9/13/17/23/25，说明同一主记录已被反复更新（非连续值属正常，因为并非每次更新都落明细）。
+v0 首次建立：核心字段语义取自 field_semantics（funding_party_mark / rule_status / version / code），`enable`、`product_code`、`funding_party_name` 的语义取自 calibers 与 rules 的证据，一并纳入本页。状态取值与流转见 [[funding_rule_status_machine]]，状态枚举审计口径见 [[funding_rule_info_enable_y]]。语义分析未提供列类型，type 暂记为 `unknown`。
 
 ```ground:table
 table: funding_rule_info
 fields:
   - name: funding_party_mark
-    meaning: "资金方标识（资方标识），取资方 RPC 返回的 fundingKey，与异常解析的 funding_party_code 同源"
-    evidence: code
+    type: unknown
+    desc: 资方标识（规则域的表达，与异常域 funding_party_code 同源不同名）
+    dict: ""
   - name: funding_party_name
-    meaning: "资方名称，更新/导入时回写"
-    evidence: code
+    type: unknown
+    desc: 资金方名称，导入时由资方 RPC 的 mark→name 映射回填，更新时被覆盖写
+    dict: ""
   - name: product_code
-    meaning: "产品code（DB 实测 ACFLOW / RVSFACTOR_PC）"
-    evidence: db+code
+    type: unknown
+    desc: 产品 code，规则导入按产品维度校验并按 (productCode,fundingPartyMark) 分组写入
+    dict: ""
   - name: rule_status
-    meaning: "规则状态，枚举 ACTIVE/INACTIVE/PENDING"
-    evidence: code
+    type: unknown
+    desc: 规则状态：PENDING(待生效)/ACTIVE(生效中)/INACTIVE(已失效)
+    dict: RuleStatusEnum
   - name: version
-    meaning: "版本号，新增=1，每次更新累加1"
-    evidence: code
+    type: unknown
+    desc: 版本号，新增=1，每次更新明细自增 1
+    dict: ""
   - name: code
-    meaning: "规则信息唯一编码（DataModelUtils.getUniqueKey），被 funding_rule_detail.fund_rule_code_ref 引用"
-    evidence: code
+    type: unknown
+    desc: 规则信息唯一编码，DataModelUtils.getUniqueKey() 生成，被 funding_rule_detail.fund_rule_code_ref 引用
+    dict: ""
   - name: enable
-    meaning: "有效标识，Y=有效"
-    evidence: db+code
+    type: unknown
+    desc: 有效标识，导出查询过滤 'Y'，saveRuleInfo 新增固定写 'Y'
+    dict: ""
 ```
 
-## 关联
-
-- 口径：[[calibers/funding_rule_info_valid_enable_y]]、[[calibers/funding_rule_info_active_rule]]
-- 流程：[[processes/funding_rule_status_machine]]
-- 规则：[[rules/rule_info_create_duplicate_check]]、[[rules/rule_info_update_version_increment]]、[[rules/rule_info_create_initial_pending]]、[[rules/rule_info_provider_active_only]]、[[rules/rule_import_product_code_direct_match]]
-- 概念：[[concepts/rule_layer]]、[[concepts/product_code]]、[[concepts/funding_key]]
 ---END FILE---
 
 ---FILE: tables/funding_rule_detail.md ---
 ---
 type: table
-title: 资方规则明细表（funding_rule_detail）
-page_key: tables/funding_rule_detail
-domain: funding
+title: 资方规则明细表
+page_key: funding_rule_detail
+domain: 资金规则与异常处理
 status: draft
 aliases:
-  - funding_rule_detail
   - 资方规则明细
-  - 规则明细表
+  - funding_rule_detail
+  - 资金规则明细表
 oid: 1
 scope:
   databases:
-    - funding_rule
+    - lowcode_pplatform_customer_management
 sources:
-  - "db:funding_rule_detail"
-  - "code:FundRuleInfoApplication#saveRuleInfo"
-  - "code:FundRuleInfoApplication#getRuleInfoById"
-  - "code:FundingPartyRuleProviderImpl#doQuery"
+  - db:funding_rule_detail
+  - code:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/FundRuleInfoApplication.java
+  - code:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/client/fundingparty/provider/FundingPartyRuleProviderImpl.java
 contract_version: "0.1"
 ---
 
-# 资方规则明细表（funding_rule_detail）
-
-## 业务定位
-
-本表以「键值对 + 规则层」的形式承载资方规则的具体内容：一行即一条 **规则项**，`rule_key` 是机器键（对应前端配置 [[tables/funding_rule_front_cfg]] 的 `front_key`），`rule_value` 是规则值，`rule_layer`（`UNDERLYING` / `FINANCING` / `OTHER`）决定这条规则归属底层/融资/其他哪一层。业务上通过 `rule_info_id` / `fund_rule_code_ref` 双通道回指主表 [[tables/funding_rule_info]]，并冗余 `funding_party_mark` 与 `version` 以便独立查询。
-
-所有明细查询都带 `enable='Y'`（见 [[calibers/funding_rule_detail_valid_enable_y]]）；保存采用「按 `ruleInfoId + ruleKey + enable='Y'` 命中即更新、否则新增」的幂等写法。
+明细表以「字段 key → 字段值」的 KV 形式存储一条资方规则的具体条目，归属 [[funding_rule_info]]（rule_info_id / fund_rule_code_ref 双挂靠）。字段 key 的跨表匹配语义见 [[rule_key]]，层级语义见 [[rule_layer]]。
 
 ## 需求背景
 
-无语义分析挂载的需求文档锚点。当前理解来自 `FundRuleInfoApplication#saveRuleInfo` 与 `FundingPartyRuleProviderImpl#doQuery`：明细以 `ruleKey` 为幂等粒度落库，未在 `ruleMap` 中出现的 `frontKey` 直接跳过而不中断保存。
+- 明细写入由 saveRuleInfo 与规则导入共同完成：命中已有 enable='Y' 的明细即更新，否则新增，见 [[rule_save_version_detail_sync]] 与 [[rule_import_four_stage_validation]]。
+- 对外查询按 ruleLayer 分组为 UNDERLYING / FINANCING / OTHER，见 [[rule_provider_active_only]]。
+- 产品维度与层级维度的实际落库分布见 [[funding_rule_detail_product_scope]]、[[funding_rule_detail_rule_layer_scope]]；check_scene 取值分布见 [[funding_rule_detail_check_scene_scope]]。
 
 ## 版本演进
 
-无 `action=uncovered` 的主张。DB 实测 `version` 值为 1/2/3/4/6/8/9/13/17/23/25，说明明细跟随主表版本写入但并非逐版留痕；`check_scene` 实测仅 `SUBMIT_VALIDATE`，表明当前明细规则只服务「提交校验」这一场景。
+v0 首次建立：字段语义取自 field_semantics（rule_key / rule_value / rule_layer / rule_info_id / fund_rule_code_ref / check_scene），`product_code`、`enable` 取自 calibers 证据。check_scene 在本主题 Application / Provider 均未见写值点，来源存疑，见 REVIEW 记录。语义分析未提供列类型，type 暂记为 `unknown`。
 
 ```ground:table
 table: funding_rule_detail
 fields:
   - name: rule_key
-    meaning: "字段key，对应 funding_rule_front_cfg.front_key"
-    evidence: db+code
+    type: unknown
+    desc: 规则字段 key，语义等于 funding_rule_front_cfg.front_key（应用层匹配，非 SQL JOIN）
+    dict: ""
   - name: rule_value
-    meaning: "规则值"
-    evidence: db+code
+    type: unknown
+    desc: 规则值（字符串）
+    dict: ""
   - name: rule_layer
-    meaning: "规则层，枚举 UNDERLYING/FINANCING/OTHER"
-    evidence: db+code
+    type: unknown
+    desc: 规则层，保存时取自 frontCfg.rule_layer，取值为 UNDERLYING/FINANCING/OTHER
+    dict: ""
   - name: rule_info_id
-    meaning: "关联 funding_rule_info.id"
-    evidence: db+code
+    type: unknown
+    desc: 关联 funding_rule_info.id
+    dict: ""
   - name: fund_rule_code_ref
-    meaning: "关联规则信息 code（funding_rule_info.code）"
-    evidence: db+code
-  - name: version
-    meaning: "版本，跟随 ruleInfo.version；DB 实测分布 1/2/3/4/6/8/9/13/17/23/25"
-    evidence: db
-  - name: funding_party_mark
-    meaning: "资方标识（冗余）"
-    evidence: db+code
+    type: unknown
+    desc: 关联 funding_rule_info.code
+    dict: ""
   - name: check_scene
-    meaning: "校验场景，DB 实测值为 SUBMIT_VALIDATE"
-    evidence: db
+    type: unknown
+    desc: 校验场景（DB 实测仅 SUBMIT_VALIDATE，本主题 Application/Provider 写值点均未 setCheckScene，来源在其他链路）
+    dict: ""
+  - name: product_code
+    type: unknown
+    desc: 产品 code，DB 实测存在 ACFLOW 与 RVSFACTOR_PC 两值
+    dict: ""
   - name: enable
-    meaning: "有效标识，Y=有效；查询 detail 均加 enable='Y'"
-    evidence: db+code
+    type: unknown
+    desc: 有效标识，详情/Provider 查询过滤 'Y'，saveRuleInfo 固定写 'Y'
+    dict: ""
 ```
 
-## 关联
-
-- 口径：[[calibers/funding_rule_detail_valid_enable_y]]
-- 规则：[[rules/rule_detail_save_idempotent]]
-- 概念：[[concepts/rule_key]]、[[concepts/rule_layer]]
-- 表：[[tables/funding_rule_info]]、[[tables/funding_rule_front_cfg]]
 ---END FILE---
 
 ---FILE: tables/funding_rule_front_cfg.md ---
 ---
 type: table
-title: 前端规则配置表（funding_rule_front_cfg）
-page_key: tables/funding_rule_front_cfg
-domain: funding
+title: 资方规则前端字段配置表
+page_key: funding_rule_front_cfg
+domain: 资金规则与异常处理
 status: draft
 aliases:
-  - funding_rule_front_cfg
-  - 前端字段配置
   - 规则前端配置表
+  - funding_rule_front_cfg
+  - frontCfg
 oid: 1
 scope:
   databases:
-    - funding_rule
+    - lowcode_pplatform_customer_management
 sources:
-  - "db:funding_rule_front_cfg"
-  - "code:FundRuleInfoApplication#validateRuleLayerAndFrontCfg"
-  - "code:FundingPartyRuleProviderImpl#doQuery"
+  - db:funding_rule_front_cfg
+  - code:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/FundRuleInfoApplication.java
 contract_version: "0.1"
 ---
 
-# 前端规则配置表（funding_rule_front_cfg）
-
-## 业务定位
-
-本表是**规则字段的元数据字典**，定义「页面上有哪些可配置字段、字段显示成什么名字、属于哪类业务规则、归在哪个规则层」。它决定了 [[tables/funding_rule_detail]] 中 `rule_key` 的合法取值域（`front_key`），也决定导入模板中「规则名称」列如何匹配（按 `key_name`，配合 `product + rule_layer + key_name` 三元组）。
-
-`key_type` 描述字段受哪一类业务规则约束，DB 实测枚举为 `FIELD_REQUIRED` / `FIELD_LENGTH_LIMIT` / `FILE_TYPE_LIMIT` / `FILE_SIZE_SINGLE_LIMIT` / `FILE_SIZE_TOTAL_LIMIT` / `FILE_SIZE_PACKAGE_LIMIT` / `FILE_COUNT_LIMIT` / `FILE_NAME_SYMBOL` / `INVOICE_COUNT_LIMIT` / `YEARS_CHECK` / `DATE_CHECK_NATURAL` / `DATE_CHECK_WORKDAY`，覆盖必填、长度、附件类型/大小/数量、发票份数、年限与日期（自然日/工作日）校验。
+本表是规则字段的配置字典：定义前端字段 key、字段名称、字段业务规则类型与所属层级，是导入与详情回显时定位字段的权威来源。导入按 (product, rule_layer, key_name) 三元组反查 front_key，规则保存时以 ruleMap.key 匹配 frontKey，见 [[rule_import_four_stage_validation]]、[[rule_save_version_detail_sync]]。
 
 ## 需求背景
 
-无语义分析挂载的需求文档锚点。当前理解来自 `FundRuleInfoApplication#validateRuleLayerAndFrontCfg`（校验规则层与前端配置一致性）与 `FundingPartyRuleProviderImpl#doQuery`（对外查询需带 `enable='Y'` 的前端配置）。
+- 导入阶段 4 需要把规则层级的 displayName 翻译为 dictKey，并借本表拿到 frontKey；产品无前端配置时保存直接抛异常（见 [[rule_save_version_detail_sync]]）。
+- 本表的 rule_layer 与明细的 rule_layer 同值但非外键，见 [[rule_layer]]；front_key / rule_key 的三种用法差异见 [[rule_key]]。
 
 ## 版本演进
 
-无 `action=uncovered` 的主张。字段级事实：`check_scene` 实测仅 `SUBMIT_VALIDATE`，表明本表配置目前只驱动提交环节校验；`front_key_name` 与 `key_name` 并存，说明展示名存在「名称描述」与「前端展示名」两套，导入匹配使用 `key_name`。
+v0 首次建立：字段语义取自 field_semantics（front_key / key_name / key_type / rule_key），`rule_layer` 取自 term_bridges 的边界描述，`enable` 取自 calibers 证据 [[funding_rule_front_cfg_enable_y]]。语义分析未提供列类型，type 暂记为 `unknown`。
 
 ```ground:table
 table: funding_rule_front_cfg
 fields:
   - name: front_key
-    meaning: "前端字段key，被 detail.rule_key 关联"
-    evidence: db+code
+    type: unknown
+    desc: 前端字段 key，detail.rule_key 的匹配目标
+    dict: ""
   - name: key_name
-    meaning: "字段名称描述（导入模板「规则名称」按此匹配）"
-    evidence: db+code
+    type: unknown
+    desc: 字段名称描述，对外展示为 desc；导入按 (product, rule_layer, key_name) 三元组定位 front_key
+    dict: ""
   - name: key_type
-    meaning: "字段业务规则类型，DB 实测枚举：FIELD_REQUIRED/FIELD_LENGTH_LIMIT/FILE_TYPE_LIMIT/FILE_SIZE_SINGLE_LIMIT/FILE_SIZE_TOTAL_LIMIT/FILE_SIZE_PACKAGE_LIMIT/FILE_COUNT_LIMIT/FILE_NAME_SYMBOL/INVOICE_COUNT_LIMIT/YEARS_CHECK/DATE_CHECK_NATURAL/DATE_CHECK_WORKDAY"
-    evidence: db
+    type: unknown
+    desc: 字段业务规则类型（FIELD_REQUIRED/FILE_TYPE_LIMIT/DATE_CHECK_WORKDAY 等），对外展示为 type
+    dict: ""
   - name: rule_key
-    meaning: "规则字段key"
-    evidence: db+code
+    type: unknown
+    desc: 规则字段 key，对外输出 item.key
+    dict: ""
   - name: rule_layer
-    meaning: "规则层 UNDERLYING/FINANCING/OTHER；页面配置按此分组"
-    evidence: db+code
-  - name: front_key_name
-    meaning: "前端展示字段名称"
-    evidence: db
-  - name: check_scene
-    meaning: "校验场景，DB 实测 SUBMIT_VALIDATE"
-    evidence: db
+    type: unknown
+    desc: 配置侧定义的规则层级，保存明细时被复制到 funding_rule_detail.rule_layer
+    dict: ""
   - name: enable
-    meaning: "有效标识，Y=有效；导入匹配前端配置时过滤 enable='Y'"
-    evidence: db+code
+    type: unknown
+    desc: 有效标识，导入校验与 Provider 查询过滤 'Y'
+    dict: ""
 ```
 
-## 关联
-
-- 口径：[[calibers/funding_rule_front_cfg_valid_enable_y]]
-- 概念：[[concepts/rule_key]]、[[concepts/rule_layer]]
-- 表：[[tables/funding_rule_detail]]
 ---END FILE---
 
 ---FILE: processes/funding_rule_status_machine.md ---
 ---
 type: process
 title: 资方规则状态机
-page_key: processes/funding_rule_status_machine
-domain: funding
+page_key: funding_rule_status_machine
+domain: 资金规则与异常处理
 status: draft
 aliases:
-  - rule_status 状态机
   - 规则状态流转
-  - 资方规则生命周期
+  - rule_status 状态机
+  - RuleStatusEnum
 oid: 1
 scope:
   databases:
-    - funding_rule
+    - lowcode_pplatform_customer_management
 sources:
-  - "code:FundRuleInfoApplication#saveRuleInfo"
-  - "code:FundRuleInfoApplication#activeRule"
-  - "code:FundRuleInfoApplication#inActiveRule"
-  - "code:FundingPartyRuleProviderImpl#doQuery"
+  - code:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/FundRuleInfoApplication.java
+  - db:funding_rule_info
 contract_version: "0.1"
 ---
 
-# 资方规则状态机
-
-## 业务定位
-
-资方规则不是一个「保存即生效」的对象，而是带三态的生命周期对象：`PENDING`（待生效）→ `ACTIVE`（已生效）⇄ `INACTIVE`（已失效）。新增入口 `saveRuleInfo` 在 `ruleInfoId` 为空时**强制**落到 `PENDING`，运营必须再调用 `activeRule` 才对外可见；`inActiveRule` 可从 `ACTIVE` 或 `PENDING` 直接落到 `INACTIVE`，但**没有**从 `INACTIVE` 回到 `PENDING` 的路径——`INACTIVE` 只能重新生效为 `ACTIVE`。
-
-外部消费方（Dubbo：[[rules/rule_info_provider_active_only]]）只按 `rule_status='ACTIVE'` 取数，取不到即返回 null，因此「已失效」与「待生效」对外表现一致：都不可见。
+资方规则以 [[funding_rule_info]].rule_status 表达生命周期。新建规则一律落在 PENDING，只有 ACTIVE 才对外可见（[[rule_provider_active_only]]），因此状态流转是「配置完成 → 对外生效」的唯一开关。
 
 ## 需求背景
 
-无语义分析挂载的需求文档锚点。状态取值来自代码枚举，迁移路径来自 `saveRuleInfo` / `activeRule` / `inActiveRule` 三个入口方法的证据。
+状态仅由 saveRuleInfo 的写入与 activeRule / inActiveRule 两个动作驱动，动作本身不校验前置状态：INACTIVE 可被 activeRule 直接拉回 ACTIVE，PENDING 也可被 inActiveRule 直接置为 INACTIVE。这意味着「失效再启用」不产生新的版本语义，版本号只由 saveRuleInfo 更新路径自增（[[rule_save_version_detail_sync]]）。枚举值审计与 DB 权重校验受数据限制，见 REVIEW 记录。
 
 ## 版本演进
 
-无 `action=uncovered` 的主张。状态与版本耦合：每次 `saveRuleInfo`（`ruleInfoId` 非空）使 `version` 累加 1（见 [[rules/rule_info_update_version_increment]]），但状态迁移本身不改 `version`，因此同一 `version` 下规则可能经历 `PENDING→ACTIVE→INACTIVE` 的状态变化，版本号并不等于状态轮次。
+v0 首次建立，状态集合与三条流转证据取自 state_machines；新增态以 NEW 表示「尚未落库」，不作为存储取值。
 
 ```ground:process
-process: 资方规则状态机
+name: 资方规则状态机
 field: funding_rule_info.rule_status
 states:
   - value: PENDING
     label: 待生效
     source: code_enum
   - value: ACTIVE
-    label: 已生效
+    label: 生效中
     source: code_enum
   - value: INACTIVE
     label: 已失效
     source: code_enum
 transitions:
-  - from: "(无)"
+  - from: NEW
     event: saveRuleInfo 新增（ruleInfoId 为空）
     to: PENDING
-    evidence: "code_path:FundRuleInfoApplication.java#saveRuleInfo"
+    evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/FundRuleInfoApplication.java:380
   - from: PENDING
-    event: activeRule 生效
+    event: activeRule
     to: ACTIVE
-    evidence: "code_path:FundRuleInfoApplication.java#activeRule"
-  - from: INACTIVE
-    event: activeRule 生效
-    to: ACTIVE
-    evidence: "code_path:FundRuleInfoApplication.java#activeRule"
+    evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/FundRuleInfoApplication.java:296
   - from: ACTIVE
-    event: inActiveRule 失效
+    event: inActiveRule
     to: INACTIVE
-    evidence: "code_path:FundRuleInfoApplication.java#inActiveRule"
+    evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/FundRuleInfoApplication.java:311
+  - from: INACTIVE
+    event: activeRule（无前置状态校验，可回到生效）
+    to: ACTIVE
+    evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/FundRuleInfoApplication.java:296
   - from: PENDING
-    event: inActiveRule 失效
+    event: inActiveRule（无前置状态校验，可直接置为失效）
     to: INACTIVE
-    evidence: "code_path:FundRuleInfoApplication.java#inActiveRule"
+    evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/FundRuleInfoApplication.java:311
 ```
 
-## 关联
-
-- 表：[[tables/funding_rule_info]]
-- 口径：[[calibers/funding_rule_info_active_rule]]、[[calibers/funding_rule_info_valid_enable_y]]
-- 规则：[[rules/rule_info_create_initial_pending]]、[[rules/rule_info_provider_active_only]]、[[rules/rule_info_update_version_increment]]
 ---END FILE---
 
----FILE: calibers/exception_resolution_valid_enable_y.md ---
+---FILE: calibers/exception_resolution_enable_y.md ---
 ---
 type: caliber
-title: 异常解析-有效数据口径
-page_key: calibers/exception_resolution_valid_enable_y
-domain: funding
+title: 异常解析有效数据口径
+page_key: exception_resolution_enable_y
+domain: 资金规则与异常处理
 status: draft
 aliases:
-  - 异常解析有效数据
-  - exception enable=Y
+  - 异常解析 enable 口径
+  - funding_exception_resolution enable
 oid: 1
 scope:
   databases:
-    - funding_rule
+    - lowcode_pplatform_customer_management
 sources:
-  - "code:ExceptionResolutionApplication#exportRecords"
-  - "code:FundingPartyExceptionResolutionProviderImpl#doQuery"
-  - "db:funding_exception_resolution"
+  - code:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/ExceptionResolutionApplication.java
+  - code:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/client/fundingparty/provider/FundingPartyExceptionResolutionProviderImpl.java
 contract_version: "0.1"
 ---
 
-# 异常解析-有效数据口径
-
-## 业务定位
-
-凡是从 [[tables/funding_exception_resolution]] 取数的出口——运营导出、列表查询、对外 Provider 查询——一律附加 `enable = 'Y'`。这意味着「软删除」的语义在本表完全由 `enable` 承担：一条被置为非 `Y` 的异常解析配置对任何读取方都不存在。
+[[funding_exception_resolution]] 的可见性完全由 enable 决定，列表、导出、Provider 查询三处口径一致，避免口径漂移。
 
 ## 需求背景
 
-无语义分析挂载的需求文档锚点。
+导入与保存固定写 'Y'，查询固定过滤 'Y'，因此本表在业务上不存在「停用但仍保留」的中间态；批量删除走物理删除（[[batch_delete_physical]]），enable 不承担软删职责。
 
 ## 版本演进
 
-无 `action=uncovered` 的主张。该口径在三个读取面上表现一致，未发现例外路径。
+v0 首次建立，口径语句逐字取自 calibers 条目。
 
 ```ground:caliber
-caliber: 异常解析-有效数据
-predicate: "funding_exception_resolution.enable = 'Y'"
-scope: 导出/列表查询/对外Provider查询
-evidence: "code:ExceptionResolutionApplication#exportRecords; FundingPartyExceptionResolutionProviderImpl#doQuery"
+name: 异常解析有效数据
+predicate: funding_exception_resolution.enable = 'Y'
+scope: 列表/导出/Provider 查询统一过滤；导入固定写 Y
+evidence: code
 ```
 
-## 关联
-
-- 表：[[tables/funding_exception_resolution]]
-- 规则：[[rules/exception_upsert_write]]、[[rules/exception_provider_keyword_contains]]
 ---END FILE---
 
----FILE: calibers/exception_resolution_unique_config.md ---
+---FILE: calibers/funding_rule_info_enable_y.md ---
 ---
 type: caliber
-title: 异常解析-唯一配置口径
-page_key: calibers/exception_resolution_unique_config
-domain: funding
+title: 资方规则有效数据口径
+page_key: funding_rule_info_enable_y
+domain: 资金规则与异常处理
 status: draft
 aliases:
-  - 异常解析唯一键
-  - 异常解析三元组唯一
+  - 资方规则 enable 口径
+  - funding_rule_info enable
 oid: 1
 scope:
   databases:
-    - funding_rule
+    - lowcode_pplatform_customer_management
 sources:
-  - "db:funding_exception_resolution_un"
-  - "code:ExceptionResolutionApplication#checkBeforeSave"
+  - code:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/FundRuleInfoApplication.java
 contract_version: "0.1"
 ---
 
-# 异常解析-唯一配置口径
-
-## 业务定位
-
-[[tables/funding_exception_resolution]] 的业务唯一性是三元组 `product_code + funding_party_code + error_keyword`，物理上由唯一约束 `funding_exception_resolution_un` 保证。导入去重、保存前校验、upsert 写入全部以此三元组为准：命中已有记录即报「异常解析配置信息已存在」，而不是插入第二条。
-
-注意该口径**不含 `enable`**：`enable` 只影响可读性，不影响唯一性判定。
+[[funding_rule_info]] 的导出查询以 enable='Y' 为口径，saveRuleInfo 新增时固定写 'Y'。
 
 ## 需求背景
 
-无语义分析挂载的需求文档锚点。
+本口径与状态口径叠加使用：导出看 enable，对外 Provider 看 ruleStatus=ACTIVE（[[rule_provider_active_only]]），两者不可互相替代——规则可能 enable='Y' 但处于 PENDING / INACTIVE（[[funding_rule_status_machine]]）。
 
 ## 版本演进
 
-无 `action=uncovered` 的主张。DB 唯一索引与代码 `checkBeforeSave` 双保险，属同一口径的两处实现。
+v0 首次建立，口径语句逐字取自 calibers 条目。
 
 ```ground:caliber
-caliber: 异常解析-唯一配置
-predicate: "funding_exception_resolution.product_code + funding_party_code + error_keyword 唯一"
-scope: 导入去重/保存前校验/upsert
-evidence: "db:funding_exception_resolution_un; code:ExceptionResolutionApplication#checkBeforeSave"
+name: 资方规则有效数据
+predicate: funding_rule_info.enable = 'Y'
+scope: 导出查询过滤；saveRuleInfo 新增固定写 Y
+evidence: code
 ```
 
-## 关联
-
-- 表：[[tables/funding_exception_resolution]]
-- 规则：[[rules/exception_unique_key_dedup]]、[[rules/exception_import_all_or_nothing]]
 ---END FILE---
 
----FILE: calibers/funding_rule_info_valid_enable_y.md ---
+---FILE: calibers/funding_rule_detail_enable_y.md ---
 ---
 type: caliber
-title: 资方规则-有效信息口径
-page_key: calibers/funding_rule_info_valid_enable_y
-domain: funding
+title: 资方规则明细有效数据口径
+page_key: funding_rule_detail_enable_y
+domain: 资金规则与异常处理
 status: draft
 aliases:
-  - 资方规则有效信息
-  - rule_info enable=Y
+  - 规则明细 enable 口径
+  - funding_rule_detail enable
 oid: 1
 scope:
   databases:
-    - funding_rule
+    - lowcode_pplatform_customer_management
 sources:
-  - "code:FundRuleInfoApplication#exportRecords"
-  - "db:funding_rule_info"
+  - code:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/FundRuleInfoApplication.java
+  - code:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/client/fundingparty/provider/FundingPartyRuleProviderImpl.java
 contract_version: "0.1"
 ---
 
-# 资方规则-有效信息口径
-
-## 业务定位
-
-资方规则主表的读取口径为 `enable = 'Y'`，导出与查询均按此过滤。与异常解析一致，`enable` 是软删除开关，与 `rule_status` 正交：一条 `enable='Y'` 但 `rule_status='INACTIVE'` 的规则对运营可见、对 Dubbo 外部不可见（见 [[calibers/funding_rule_info_active_rule]]）。
+[[funding_rule_detail]] 的详情查询与 Provider 查询均以 enable='Y' 为口径，saveRuleInfo 写明细时固定写 'Y'。
 
 ## 需求背景
 
-无语义分析挂载的需求文档锚点。
+明细更新逻辑依赖本口径判存：命中已有 enable='Y' 明细才更新、否则新增，所以 enable 的写入一致性直接决定明细是否会被重复插入，见 [[rule_save_version_detail_sync]]。
 
 ## 版本演进
 
-无 `action=uncovered` 的主张。
+v0 首次建立，口径语句逐字取自 calibers 条目。
 
 ```ground:caliber
-caliber: 资方规则-有效信息
-predicate: "funding_rule_info.enable = 'Y'"
-scope: 导出/查询
-evidence: "code:FundRuleInfoApplication#exportRecords"
+name: 资方规则明细有效数据
+predicate: funding_rule_detail.enable = 'Y'
+scope: 详情/Provider 查询过滤；saveRuleInfo 固定写 Y
+evidence: code
 ```
 
-## 关联
-
-- 表：[[tables/funding_rule_info]]
-- 口径：[[calibers/funding_rule_info_active_rule]]
 ---END FILE---
 
----FILE: calibers/funding_rule_info_active_rule.md ---
+---FILE: calibers/funding_rule_front_cfg_enable_y.md ---
 ---
 type: caliber
-title: 资方规则-生效规则口径
-page_key: calibers/funding_rule_info_active_rule
-domain: funding
+title: 前端规则配置有效数据口径
+page_key: funding_rule_front_cfg_enable_y
+domain: 资金规则与异常处理
 status: draft
 aliases:
-  - 生效规则口径
-  - rule_status=ACTIVE
+  - frontCfg enable 口径
+  - funding_rule_front_cfg enable
 oid: 1
 scope:
   databases:
-    - funding_rule
+    - lowcode_pplatform_customer_management
 sources:
-  - "code:FundingPartyRuleProviderImpl#doQuery"
-  - "code:FundRuleInfoApplication#activeRule"
+  - code:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/FundRuleInfoApplication.java
 contract_version: "0.1"
 ---
 
-# 资方规则-生效规则口径
-
-## 业务定位
-
-**对外**（Dubbo Provider）查询资方规则时，除 `fundingPartyMark + productCode` 之外必须叠加 `rule_status = 'ACTIVE'`，否则返回 null。这是「内外部可见性分离」的关键口径：运营侧可以查看并维护 `PENDING` / `INACTIVE` 规则，但外部系统永远只能消费已生效版本，从而保证规则变更不会半途泄露给上游。
+[[funding_rule_front_cfg]] 的有效性口径同时作用于导入校验（按 (product, rule_layer, key_name) 反查 frontKey）与 Provider 查询。
 
 ## 需求背景
 
-无语义分析挂载的需求文档锚点。
+导入与保存都依赖本口径拿到可用字段集合；若配置被置为非 'Y'，则该字段无法被导入解析，保存时 ruleMap 中多余的 frontKey 会被静默跳过（[[rule_save_version_detail_sync]]）。
 
 ## 版本演进
 
-无 `action=uncovered` 的主张。该口径与状态机 [[processes/funding_rule_status_machine]] 的 `activeRule` 入口共同构成「生效即可见」的语义闭环。
+v0 首次建立，口径语句逐字取自 calibers 条目。
 
 ```ground:caliber
-caliber: 资方规则-生效规则
-predicate: "funding_rule_info.rule_status = 'ACTIVE'"
-scope: Dubbo 对外查询资金方规则
-evidence: "code:FundingPartyRuleProviderImpl#doQuery"
+name: 前端规则配置有效数据
+predicate: funding_rule_front_cfg.enable = 'Y'
+scope: 导入校验与 Provider 查询过滤
+evidence: code
 ```
 
-## 关联
-
-- 表：[[tables/funding_rule_info]]
-- 流程：[[processes/funding_rule_status_machine]]
-- 规则：[[rules/rule_info_provider_active_only]]
 ---END FILE---
 
----FILE: calibers/funding_rule_detail_valid_enable_y.md ---
+---FILE: calibers/exception_resolution_product_scope.md ---
 ---
 type: caliber
-title: 资方规则详情-有效口径
-page_key: calibers/funding_rule_detail_valid_enable_y
-domain: funding
+title: 异常解析产品范围（DB 实际落库值）
+page_key: exception_resolution_product_scope
+domain: 资金规则与异常处理
 status: draft
 aliases:
-  - 规则详情有效口径
-  - rule_detail enable=Y
+  - 异常解析 product_code 分布
+  - 异常解析 ACFLOW 占比
 oid: 1
 scope:
   databases:
-    - funding_rule
+    - lowcode_pplatform_customer_management
 sources:
-  - "code:FundingPartyRuleProviderImpl#doQuery"
-  - "code:FundRuleInfoApplication#getRuleInfoById"
-  - "db:funding_rule_detail"
+  - db:funding_exception_resolution
 contract_version: "0.1"
 ---
 
-# 资方规则详情-有效口径
-
-## 业务定位
-
-明细的读取一律带 `enable = 'Y'`：无论是对外查询组装规则包，还是运营侧按 id 查看规则详情，都只取有效明细行。保存侧同样以 `enable='Y'` 作为幂等匹配条件（命中即更新、否则新增），因此「失效一条旧明细、新增一条同 `rule_key` 明细」在有 `enable` 过滤的前提下不会互相污染。
+[[funding_exception_resolution]] 的 product_code 在实际库中呈双产品并存：ACFLOW 为主、RVSFACTOR_PC 为次。
 
 ## 需求背景
 
-无语义分析挂载的需求文档锚点。
+该分布是「产品 code 不写死」的实测依据，与资方规则导入中硬编码 ACFLOW 的做法（[[rule_import_funding_party_hardcoded]]）形成对照。产品名 → code 的翻译链见 [[exception_import_name_code_translation]]。本口径是 DB 实测值，不构成校验规则，不能反向用于限制导入取值。
 
 ## 版本演进
 
-无 `action=uncovered` 的主张。
+v0 首次建立，占比取自 calibers 条目 DB 证据，未做时间切片，未区分 enable 状态。
 
 ```ground:caliber
-caliber: 资方规则详情-有效
-predicate: "funding_rule_detail.enable = 'Y'"
-scope: 规则详情/对外查询
-evidence: "code:FundingPartyRuleProviderImpl#doQuery; FundRuleInfoApplication#getRuleInfoById"
+name: 异常解析产品范围（DB 实际落库值）
+predicate: funding_exception_resolution.product_code = 'ACFLOW'
+scope: DB 实测 58/90；另一取值 RVSFACTOR_PC 32/90
+evidence: db
 ```
 
-## 关联
-
-- 表：[[tables/funding_rule_detail]]
-- 规则：[[rules/rule_detail_save_idempotent]]
 ---END FILE---
 
----FILE: calibers/funding_rule_front_cfg_valid_enable_y.md ---
+---FILE: calibers/funding_rule_detail_product_scope.md ---
 ---
 type: caliber
-title: 前端规则配置-有效口径
-page_key: calibers/funding_rule_front_cfg_valid_enable_y
-domain: funding
+title: 资方规则明细产品范围（DB 实际落库值）
+page_key: funding_rule_detail_product_scope
+domain: 资金规则与异常处理
 status: draft
 aliases:
-  - 前端配置有效口径
-  - front_cfg enable=Y
+  - 规则明细 product_code 分布
+  - funding_rule_detail ACFLOW 占比
 oid: 1
 scope:
   databases:
-    - funding_rule
+    - lowcode_pplatform_customer_management
 sources:
-  - "code:FundRuleInfoApplication#validateRuleLayerAndFrontCfg"
-  - "code:FundingPartyRuleProviderImpl#doQuery"
-  - "db:funding_rule_front_cfg"
+  - db:funding_rule_detail
 contract_version: "0.1"
 ---
 
-# 前端规则配置-有效口径
-
-## 业务定位
-
-[[tables/funding_rule_front_cfg]] 的读取统一带 `enable = 'Y'`：页面按 `rule_layer` 分组渲染配置项、导入时按 `product + rule_layer + key_name` 匹配前端字段、对外查询组装规则包，三处都只认有效配置。这意味着下线一个字段的规范做法是把配置置为非 `Y`，而不是删行——历史明细中的 `rule_key` 仍可追溯。
+[[funding_rule_detail]] 的 product_code 同样双产品并存，ACFLOW 约占七成。
 
 ## 需求背景
 
-无语义分析挂载的需求文档锚点。
+实测产品分布与导入时资方校验硬编码 ACFLOW 的实现之间存在语义张力：为 RVSFACTOR_PC 导入的明细能够落库，但其资方合法性判断仍以 ACFLOW 名单为准，见 [[rule_import_funding_party_hardcoded]]。
 
 ## 版本演进
 
-无 `action=uncovered` 的主张。
+v0 首次建立，占比取自 calibers 条目 DB 证据，未做时间切片。
 
 ```ground:caliber
-caliber: 前端规则配置-有效
-predicate: "funding_rule_front_cfg.enable = 'Y'"
-scope: 页面配置/导入匹配/对外查询
-evidence: "code:FundRuleInfoApplication#validateRuleLayerAndFrontCfg; FundingPartyRuleProviderImpl#doQuery"
+name: 资方规则明细产品范围（DB 实际落库值）
+predicate: funding_rule_detail.product_code = 'ACFLOW'
+scope: DB 实测 1062/1530；另一取值 RVSFACTOR_PC 468/1530
+evidence: db
 ```
 
-## 关联
-
-- 表：[[tables/funding_rule_front_cfg]]
-- 概念：[[concepts/rule_key]]、[[concepts/rule_layer]]
 ---END FILE---
 
----FILE: concepts/funding_party_code.md ---
+---FILE: calibers/funding_rule_detail_rule_layer_scope.md ---
+---
+type: caliber
+title: 规则层枚举（DB 实测）
+page_key: funding_rule_detail_rule_layer_scope
+domain: 资金规则与异常处理
+status: draft
+aliases:
+  - rule_layer 分布
+  - 规则层级分布
+oid: 1
+scope:
+  databases:
+    - lowcode_pplatform_customer_management
+sources:
+  - db:funding_rule_detail
+contract_version: "0.1"
+---
+
+[[funding_rule_detail]].rule_layer 的实测取值分布以 FINANCING 为主，UNDERLYING 次之，OTHER 最少。
+
+## 需求背景
+
+该分布印证了 Provider 对外按 ruleLayer 聚合成「底层（UNDERLYING）/融资（FINANCING）/其他（OTHER）」三组的必要性（[[rule_provider_active_only]]）。层级值在保存时由 [[funding_rule_front_cfg]].rule_layer 复制而来，见 [[rule_layer]]。
+
+## 版本演进
+
+v0 首次建立，计数取自 calibers 条目 DB 证据。
+
+```ground:caliber
+name: 规则层枚举（DB 实测）
+predicate: funding_rule_detail.rule_layer = 'FINANCING'
+scope: DB 925/1530；UNDERLYING 499、OTHER 106
+evidence: db
+```
+
+---END FILE---
+
+---FILE: calibers/funding_rule_detail_check_scene_scope.md ---
+---
+type: caliber
+title: 校验场景枚举（DB 实测）
+page_key: funding_rule_detail_check_scene_scope
+domain: 资金规则与异常处理
+status: draft
+aliases:
+  - check_scene 分布
+  - 校验场景 SUBMIT_VALIDATE
+oid: 1
+scope:
+  databases:
+    - lowcode_pplatform_customer_management
+sources:
+  - db:funding_rule_detail
+contract_version: "0.1"
+---
+
+[[funding_rule_detail]].check_scene 在库中只出现 SUBMIT_VALIDATE 一个取值。
+
+## 需求背景
+
+根据字段语义，本主题的 Application / Provider 写值点均未调用 setCheckScene，说明该列的写入方在其他链路（建单/校验链路），本页的取值分布不能推断为「本主题只支持一种场景」。写值点缺失已登记 REVIEW。
+
+## 版本演进
+
+v0 首次建立，计数取自 calibers 条目 DB 证据（实测 50 条）。
+
+```ground:caliber
+name: 校验场景枚举（DB 实测）
+predicate: funding_rule_detail.check_scene = 'SUBMIT_VALIDATE'
+scope: DB 实测 50 条，本主题代码未见写值点
+evidence: db
+```
+
+---END FILE---
+
+---FILE: concepts/funding_party_mark.md ---
 ---
 type: concept
-title: 对接方标识（fundingPartyCode）
-page_key: concepts/funding_party_code
-domain: funding
+title: 资方标识（fundingPartyMark / fundingPartyCode）
+page_key: funding_party_mark
+domain: 资金规则与异常处理
 status: draft
 aliases:
-  - fundingPartyCode
-  - funding_party_code
+  - 资金方标识
   - 对接方标识
+  - fundingPartyMark
+  - fundingPartyCode
+  - fundingPartyId
 oid: 1
 scope:
   databases:
-    - funding_rule
+    - lowcode_pplatform_customer_management
 sources:
-  - "code:ExceptionResolutionApplication"
-  - "code:FundRuleInfoApplication"
-contract_version: "0.1"
-maps_to: "funding_exception_resolution.funding_party_code = 资方RPC 返回的 fundingKey"
+  - code:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/FundRuleInfoApplication.java
+  - code:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/ExceptionResolutionApplication.java
+  - db:funding_rule_info
+  - db:funding_exception_resolution
+maps_to: funding_rule_info.funding_party_mark
 field_targets:
-  - funding_exception_resolution.funding_party_code
+  - funding_rule_info.funding_party_mark
+  - funding_rule_detail.funding_party_mark
 adjudication: boundary
 also_confused_with:
-  - 资金方标识(fundingPartyMark)
-  - 资金方名称(fundingPartyName)
-boundary: "异常解析表用 funding_party_code 承载资方 fundingKey；规则表用 funding_party_mark 承载同一 fundingKey，命名不同但语义同源，禁止跨表混用字段名。异常解析导入还允许填「资金方名称-fundingKey」组合串再映射为 fundingKey"
+  - funding_exception_resolution.funding_party_code
+contract_version: "0.1"
 ---
 
-# 对接方标识（fundingPartyCode）
-
-## 业务定位
-
-「对接方标识」= **资方 RPC 返回的 fundingKey**，是资方在系统中的唯一键。它在两处表结构中用**不同字段名**落地：
-
-- [[tables/funding_exception_resolution]] → `funding_party_code`
-- [[tables/funding_rule_info]] / [[tables/funding_rule_detail]] → `funding_party_mark`
-
-两者语义同源、命名不同，**跨表不可混用字段名**。此外，异常解析的导入模板允许运营填「资金方名称-fundingKey」组合串，系统先做名称映射再落库为 fundingKey；而规则侧是直接使用 fundingKey。
+「资方标识」是同一业务主体在两个域中的两种列名表达：规则域落 funding_party_mark，异常域落 funding_party_code。二者同源于资方 RPC 的 fundingKey，但列名不同、表不同，**不可互换 join**，跨域取数必须经应用层翻译而非 SQL 关联。
 
 ## 需求背景
 
-无语义分析挂载的需求文档锚点。该术语边界由代码证据裁定：异常解析侧存在组合串映射逻辑，规则侧不存在。
+- 规则域的资方合法性由 ClientQueryFunderMarkService 校验，且产品被硬编码为 ACFLOW（[[rule_import_funding_party_hardcoded]]）。
+- 异常域的对接方标识由 ClientQueryFunderCodeService 按 productCode 分组批量校验（[[exception_import_all_or_nothing]]）。
+- 上游 Provider 分别以 fundingPartyMark（规则域，[[rule_provider_active_only]]）与 fundingPartyCode（异常域，[[exception_provider_contains_match]]）作为入口参数。
 
 ## 版本演进
 
-无 `action=uncovered` 的主张。
+v0 首次建立，别名集合与判定类型取自 term_bridges：判定为 boundary，边界即「规则域 funding_party_mark / 异常域 funding_party_code 同源不同列」。本页为概念页，锚点信息仅置于 frontmatter（maps_to / field_targets / adjudication / also_confused_with）。
 
-## 关联
-
-- 概念：[[concepts/funding_key]]、[[concepts/funding_party]]、[[concepts/product_code]]
-- 表：[[tables/funding_exception_resolution]]、[[tables/funding_rule_info]]
 ---END FILE---
 
----FILE: concepts/funding_party.md ---
+---FILE: concepts/funding_party_name.md ---
 ---
 type: concept
-title: 资金方 / 资方（fundingParty）
-page_key: concepts/funding_party
-domain: funding
+title: 资金方名称（fundingPartyName）
+page_key: funding_party_name
+domain: 资金规则与异常处理
 status: draft
 aliases:
-  - fundingParty
-  - 资方
-  - 对接方
-  - 资金方
+  - 资方名称
+  - fundingPartyName
 oid: 1
 scope:
   databases:
-    - funding_rule
+    - lowcode_pplatform_customer_management
 sources:
-  - "code:ClientQueryFunderCodeService"
-  - "code:ClientQueryFunderMarkService"
-contract_version: "0.1"
-maps_to: "资方RPC（ClientQueryFunderCodeService / ClientQueryFunderMarkService）返回的 fundingKey + fundingPartyName"
+  - code:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/FundRuleInfoApplication.java
+  - db:funding_exception_resolution
+  - db:funding_rule_info
+maps_to: funding_exception_resolution.funding_party_name
 field_targets:
   - funding_exception_resolution.funding_party_name
   - funding_rule_info.funding_party_name
 adjudication: synonym
 also_confused_with:
-  - 金融机构
-  - 产品
-boundary: "资金方=资方=对接方，均指某产品下对接的金融/资金机构；仅在字段命名（code/mark）上区分，业务含义一致"
----
-
-# 资金方 / 资方（fundingParty）
-
-## 业务定位
-
-在业务口径上，「资金方」「资方」「对接方」是**同义词**，都指某个产品下对接的金融/资金机构；差异只体现在落字段时的命名（`code` 还是 `mark`），业务含义完全一致。资方信息的来源是资方 RPC（`ClientQueryFunderCodeService` / `ClientQueryFunderMarkService`），返回 `fundingKey`（唯一键）与 `fundingPartyName`（名称）两个值。
-
-资方与「金融机构」不是同一层级概念：资金方是**产品视角**下的合作机构配置，而产品本身（`product_code`，如 `ACFLOW` / `RVSFACTOR_PC`）是更上层的分类维度。
-
-## 需求背景
-
-无语义分析挂载的需求文档锚点。
-
-## 版本演进
-
-无 `action=uncovered` 的主张。
-
-## 关联
-
-- 概念：[[concepts/funding_key]]、[[concepts/funding_party_code]]、[[concepts/product_code]]
----END FILE---
-
----FILE: concepts/funding_key.md ---
----
-type: concept
-title: fundingKey（资方唯一键）
-page_key: concepts/funding_key
-domain: funding
-status: draft
-aliases:
-  - fundingKey
-  - fundingPartyCode
-  - fundingPartyMark
-oid: 1
-scope:
-  databases:
-    - funding_rule
-sources:
-  - "code:CustFundingPartyResultDto"
+  - funding_rule_info.funding_party_name
 contract_version: "0.1"
-maps_to: "CustFundingPartyResultDto.fundingKey（资方唯一键）"
-field_targets:
-  - funding_exception_resolution.funding_party_code
-  - funding_rule_info.funding_party_mark
-adjudication: synonym
-also_confused_with:
-  - fundingPartyName
-boundary: "同一资方键：异常解析场景作为 funding_party_code 使用（需先经名称-键组合映射），规则场景作为 funding_party_mark 直接使用；不可与 fundingPartyName 混淆"
 ---
 
-# fundingKey（资方唯一键）
-
-## 业务定位
-
-`fundingKey` 是 `CustFundingPartyResultDto` 中资方的唯一键，是整个「资金规则与异常处理」主题下**跨表引用资方的唯一锚点**。它有两个使用场景：
-
-| 场景 | 落库字段 | 进入方式 |
-| --- | --- | --- |
-| 异常解析 | `funding_exception_resolution.funding_party_code` | 需先经「名称-键」组合串映射 |
-| 资方规则 | `funding_rule_info.funding_party_mark` | 直接使用 |
-
-**绝不可与 `fundingPartyName` 混淆**：前者是键，后者是展示名。异常解析导出时用 `funding_party_code` 反查映射为「名称(code)」，正是键→名的单向派生。
+资金方名称在两表中各自冗余存储，**均非关联键**，只服务于展示与模糊查询。查询请勿以名称作为 join 条件，关联一律使用资方标识（[[funding_party_mark]]）。
 
 ## 需求背景
 
-无语义分析挂载的需求文档锚点。
+- 异常解析导入必填资金方名称列，并参与「资金方名称-标识」→ fundingKey 的翻译（[[exception_import_name_code_translation]]）。
+- 规则导入时名称来自资方 RPC 的 mark→name 映射；由于校验产品硬编码为 ACFLOW，落库名称可能取自 ACFLOW 映射（[[rule_import_funding_party_hardcoded]]）；更新规则时名称会被覆盖写（[[rule_save_version_detail_sync]]）。
 
 ## 版本演进
 
-无 `action=uncovered` 的主张。
+v0 首次建立，判定类型 synonym：两表同义字段，取值来源可能不同但语义一致。
 
-## 关联
-
-- 概念：[[concepts/funding_party_code]]、[[concepts/funding_party]]
-- 规则：[[rules/exception_export_funding_party_name_acflow]]
----END FILE---
-
----FILE: concepts/product_code.md ---
----
-type: concept
-title: 产品code（productCode）
-page_key: concepts/product_code
-domain: funding
-status: draft
-aliases:
-  - productCode
-  - product_code
-  - 产品code
-  - 产品编码
-oid: 1
-scope:
-  databases:
-    - funding_rule
-sources:
-  - "code:ProductCodeEnum"
-  - "code:ExceptionResolutionApplication#importRecords"
-  - "code:FundRuleInfoApplication#collectFundRuleProductCodeErrors"
-contract_version: "0.1"
-maps_to: "ProductCodeEnum 常量（如 ACFLOW / RVSFACTOR_PC）"
-field_targets:
-  - funding_exception_resolution.product_code
-  - funding_rule_info.product_code
-adjudication: boundary
-also_confused_with:
-  - productName
-  - platformProductCode
-boundary: "异常解析导入先按 platformProduct.listPlatformProduct 构建 productName→productCode 映射再校验（模板「产品code」列实际可填产品名称）；规则导入直接以 productCode 与 ProductCodeEnum 比对，无名称转换，两者口径不同"
----
-
-# 产品code（productCode）
-
-## 业务定位
-
-`product_code` 的取值来自 `ProductCodeEnum`，DB 实测只有 `ACFLOW` 与 `RVSFACTOR_PC` 两个值。它是异常解析配置与资方规则的共同分类维度：配置与规则都按「产品 + 资方」隔离。
-
-**两条导入链路的校验口径不同**，这是本概念最容易踩坑的边界：
-
-- 异常解析导入：先通过 `platformProduct.listPlatformProduct` 构建 `productName → productCode` 映射再校验——模板「产品code」列**实际可以填产品名称**。
-- 资方规则导入：直接拿 `productCode` 与 `ProductCodeEnum` 比对，**没有名称转换**——模板产品列必须填产品 code。
-
-## 需求背景
-
-无语义分析挂载的需求文档锚点。两条链路的口径差异由代码证据裁定。
-
-## 版本演进
-
-无 `action=uncovered` 的主张。
-
-## 关联
-
-- 概念：[[concepts/funding_party]]、[[concepts/funding_key]]
-- 规则：[[rules/rule_import_product_code_direct_match]]、[[rules/exception_export_funding_party_name_acflow]]
 ---END FILE---
 
 ---FILE: concepts/rule_layer.md ---
 ---
 type: concept
-title: 规则层（ruleLayer）
-page_key: concepts/rule_layer
-domain: funding
+title: 规则层级（ruleLayer）
+page_key: rule_layer
+domain: 资金规则与异常处理
 status: draft
 aliases:
-  - ruleLayer
-  - rule_layer
   - 规则层
+  - ruleLayer
 oid: 1
 scope:
   databases:
-    - funding_rule
+    - lowcode_pplatform_customer_management
 sources:
-  - "code:RuleLayerEnum"
-  - "code:FundRuleInfoApplication#validateRuleLayerAndFrontCfg"
-contract_version: "0.1"
-maps_to: "UNDERLYING / FINANCING / OTHER（RuleLayerEnum）"
+  - code:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/FundRuleInfoApplication.java
+  - db:funding_rule_detail
+  - db:funding_rule_front_cfg
+maps_to: funding_rule_detail.rule_layer
 field_targets:
   - funding_rule_detail.rule_layer
   - funding_rule_front_cfg.rule_layer
-adjudication: boundary
+adjudication: synonym
 also_confused_with:
-  - 规则层级显示名(底层规则/融资规则/其他规则)
-boundary: "导入模板填显示名，经 RuleLayerEnum.getDisplayName 反查 dictKey；存储与查询使用 dictKey"
+  - funding_rule_front_cfg.rule_layer
+contract_version: "0.1"
 ---
 
-# 规则层（ruleLayer）
-
-## 业务定位
-
-规则层是资方规则的**分组维度**，枚举为 `UNDERLYING`（底层）/ `FINANCING`（融资）/ `OTHER`（其他）。页面配置（[[tables/funding_rule_front_cfg]]）按此分组渲染，规则明细（[[tables/funding_rule_detail]]）按此归类；保存前还有专门的 `validateRuleLayerAndFrontCfg` 校验规则层与前端配置是否自洽。
-
-**边界**：导入模板里运营填的是**显示名**（「底层规则 / 融资规则 / 其他规则」），系统经 `RuleLayerEnum.getDisplayName` 反查得到 `dictKey`；存储与查询一律使用 `dictKey`。导入时的字段匹配用三元组 `product + rule_layer + key_name`，此处的 `rule_layer` 同样是 `dictKey`。
+规则层级描述一条规则字段属于底层（UNDERLYING）/ 融资（FINANCING）/ 其他（OTHER）哪一层。配置侧在 [[funding_rule_front_cfg]] 定义，明细侧在 [[funding_rule_detail]] 保存时从 frontCfg 复制，**同值但不是外键关系**。
 
 ## 需求背景
 
-无语义分析挂载的需求文档锚点。
+- 导入阶段 4 需把规则层级的 displayName 翻译为 dictKey，并参与 (product, rule_layer, key_name) 三元组定位 frontKey（[[rule_import_four_stage_validation]]）。
+- 对外 Provider 正是按本字段把明细聚合成三组返回（[[rule_provider_active_only]]）；实测取值分布见 [[funding_rule_detail_rule_layer_scope]]。
 
 ## 版本演进
 
-无 `action=uncovered` 的主张。
+v0 首次建立，判定类型 synonym，边界为「配置侧定义、明细侧复制，非外键」。
 
-## 关联
-
-- 概念：[[concepts/rule_key]]
-- 表：[[tables/funding_rule_front_cfg]]、[[tables/funding_rule_detail]]
 ---END FILE---
 
 ---FILE: concepts/rule_key.md ---
 ---
 type: concept
-title: 规则键（ruleKey）
-page_key: concepts/rule_key
-domain: funding
+title: 规则字段 key（ruleKey / frontKey）
+page_key: rule_key
+domain: 资金规则与异常处理
 status: draft
 aliases:
-  - ruleKey
-  - rule_key
+  - frontKey
   - front_key
-  - 规则键
+  - rule_key
 oid: 1
 scope:
   databases:
-    - funding_rule
+    - lowcode_pplatform_customer_management
 sources:
-  - "code:FundRuleInfoApplication#saveRuleInfo"
-  - "db:funding_rule_front_cfg"
-contract_version: "0.1"
-maps_to: "funding_rule_front_cfg.front_key = funding_rule_detail.rule_key"
+  - code:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/FundRuleInfoApplication.java
+  - db:funding_rule_detail
+  - db:funding_rule_front_cfg
+maps_to: funding_rule_detail.rule_key
 field_targets:
-  - funding_rule_front_cfg.front_key
   - funding_rule_detail.rule_key
+  - funding_rule_front_cfg.front_key
+  - funding_rule_front_cfg.rule_key
 adjudication: boundary
 also_confused_with:
-  - key_name
-  - front_key_name
-boundary: "detail.rule_key 存 front_cfg.front_key（机器键）；key_name/front_key_name 为展示名，导入匹配用 key_name（product+rule_layer+key_name 三元组）"
+  - funding_rule_front_cfg.rule_key
+  - funding_rule_front_cfg.front_key
+contract_version: "0.1"
 ---
 
-# 规则键（ruleKey）
-
-## 业务定位
-
-「规则键」串起了资方规则的**定义侧**与**实例侧**：`funding_rule_front_cfg.front_key` 是机器键（定义），`funding_rule_detail.rule_key` 存的就是这个机器键（实例）。明细保存时的幂等粒度正是 `ruleInfoId + ruleKey + enable='Y'`。
-
-**边界**：`key_name` / `front_key_name` 是**展示名**，不是键。导入模板中的「规则名称」列按 `key_name` 匹配，匹配条件为 `product + rule_layer + key_name` 三元组；也就是说，人读的是名称，机器认的是键。
+三处 key 语义必须分清：[[funding_rule_detail]].rule_key 在应用层 Map 中与 [[funding_rule_front_cfg]].front_key 匹配（等价，**非 SQL JOIN**）；而 front_cfg.rule_key 是另一个字段，在 Provider 中被写成对外输出的 item.key。三者不可混用。
 
 ## 需求背景
 
-无语义分析挂载的需求文档锚点。
+- 规则保存：以 ruleMap.key 匹配 frontKey，命中已有 enable='Y' 明细即更新，否则新增；ruleMap 中不存在的 frontKey 静默跳过（[[rule_save_version_detail_sync]]）。
+- 规则导入：按 (product, rule_layer, key_name) 反查 front_cfg 拿到 frontKey 作为明细 key（[[rule_import_four_stage_validation]]）。
+- 对外输出：Provider 以 front_cfg.rule_key 作为 item.key 返回（[[rule_provider_active_only]]）。
 
 ## 版本演进
 
-无 `action=uncovered` 的主张。
+v0 首次建立，判定类型 boundary，边界为「detail.rule_key ↔ front_cfg.front_key 应用层等价；front_cfg.rule_key 是对外输出字段」。
 
-## 关联
+---END FILE---
 
-- 概念：[[concepts/rule_layer]]
-- 表：[[tables/funding_rule_front_cfg]]、[[tables/funding_rule_detail]]
-- 规则：[[rules/rule_detail_save_idempotent]]
+---FILE: concepts/error_keyword.md ---
+---
+type: concept
+title: 报错关键字（errorKeyword）
+page_key: error_keyword
+domain: 资金规则与异常处理
+status: draft
+aliases:
+  - errorKeyword
+  - errorMessage
+oid: 1
+scope:
+  databases:
+    - lowcode_pplatform_customer_management
+sources:
+  - code:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/client/fundingparty/provider/FundingPartyExceptionResolutionProviderImpl.java
+  - db:funding_exception_resolution
+maps_to: funding_exception_resolution.error_keyword
+field_targets:
+  - funding_exception_resolution.error_keyword
+adjudication: synonym
+also_confused_with: []
+contract_version: "0.1"
+---
+
+报错关键字是 [[funding_exception_resolution]] 的命中词：Provider 用它与上游传入的 errorMessage 做 contains 匹配。代码中局部变量命名为 errorMessage，实际取的是 DTO.errorKeyword，**命名混淆但语义同一字段**。
+
+## 需求背景
+
+- 命中为大小写敏感的 contains，且可命中多条全部返回（[[exception_provider_contains_match]]）。
+- 关键字同时是业务唯一键成员，参与导入查重与保存前校验（[[exception_import_all_or_nothing]]、[[exception_check_before_save_unique]]）。
+
+## 版本演进
+
+v0 首次建立，判定类型 synonym，边界即「局部变量名 errorMessage 与字段 errorKeyword 的命名混淆」。
+
 ---END FILE---
 
 ---FILE: rules/exception_import_all_or_nothing.md ---
 ---
 type: rule
-title: 异常解析导入-全量校验通过才入库
-page_key: rules/exception_import_all_or_nothing
-domain: funding
+title: 异常解析导入全量校验通过才入库
+page_key: exception_import_all_or_nothing
+domain: 资金规则与异常处理
 status: draft
 aliases:
-  - 异常解析导入原子性
-  - all-or-nothing 导入
+  - 异常解析导入全量校验
+  - 导入不做部分成功
 oid: 1
 scope:
   databases:
-    - funding_rule
+    - lowcode_pplatform_customer_management
 sources:
-  - "code:ExceptionResolutionApplication#importRecords"
+  - code:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/ExceptionResolutionApplication.java
+  - db:funding_exception_resolution
+  - reqdoc:import-all-validate-before-save
 contract_version: "0.1"
 ---
 
-# 异常解析导入-全量校验通过才入库
-
-## 业务定位
-
-异常解析导入依次执行四阶段校验——行级必填、`productCode` 枚举、对接方标识存在性、唯一键重复；**任一阶段产生错误即返回错误列表且不写库**。这保证批量导入的原子性，避免「一半成功一半失败」导致运营无法判断最终状态。
+导入 [[funding_exception_resolution]] 时，系统先做行级必填校验，再做产品枚举比对，最后按 productCode 分组批量调 RPC 校验对接方标识并做唯一键查重。任一错误直接返回错误列表且不写库，只有全部通过才在单事务内写库。
 
 ## 需求背景
 
-无语义分析挂载的需求文档锚点。
+需求侧主张与实现一致：资源导入遵循「全量校验通过才入库；任一失败直接返回，不做任何保存/更新」（BR 级主张，code_status: confirmed）。因此导入的失败语义是「整批拒绝」而非「行级忽略」，使用方需按错误列表整批修正后重试。单次导入上限 5000 行。
 
 ## 版本演进
 
-无 `action=uncovered` 的主张。与之配套的还有 [[rules/exception_import_row_limit_5000]] 的规模上限。
+v0 首次建立，锚点 evidence 采用双源：代码路径 + 需求文档主张 slug。
 
 ```ground:rule
-rule: 异常解析导入-全量校验通过才入库
-content: "导入依次执行行级必填、productCode 枚举、对接方标识存在性、唯一键重复校验；任一阶段产生错误则返回错误列表且不写库（all-or-nothing）"
-impact: "保证批量导入原子性，避免半量写入"
+name: 异常解析导入全量校验通过才入库
+content: 阶段1 Excel 行级必填校验（产品code/对接方标识/资金方名称/报错关键字/建议处理方案 5 列）→ 阶段2 productCode 枚举比对 → 阶段3 按 productCode 分组各调一次 RPC 校验对接方标识 + 唯一键 (productCode,fundingPartyCode,errorKeyword) 查重；任一错误直接返回错误列表且不写库；全部通过才在单事务内 saveOrUpdateBatch。
+impact: 任何一行错误都会导致整批不落库；单次导入上限 5000 行
 field_targets:
   - funding_exception_resolution.product_code
   - funding_exception_resolution.funding_party_code
   - funding_exception_resolution.error_keyword
-evidence: "code:ExceptionResolutionApplication#importRecords"
+evidence: code_path:ExceptionResolutionApplication.java:importRecords/doUpsertAll + DB:funding_exception_resolution_un(funding_party_code,error_keyword,product_code) + reqdoc:import-all-validate-before-save
 ```
 
-## 关联
-
-- 表：[[tables/funding_exception_resolution]]
-- 规则：[[rules/exception_import_rpc_group_by_product]]、[[rules/exception_unique_key_dedup]]、[[rules/exception_upsert_write]]
 ---END FILE---
 
----FILE: rules/exception_import_rpc_group_by_product.md ---
+---FILE: rules/exception_import_name_code_translation.md ---
 ---
 type: rule
-title: 异常解析导入-按产品分组RPC
-page_key: rules/exception_import_rpc_group_by_product
-domain: funding
+title: 异常解析产品名→code 与资金方名→code 二次翻译
+page_key: exception_import_name_code_translation
+domain: 资金规则与异常处理
 status: draft
 aliases:
-  - 对接方标识校验按产品分组
-  - 分组RPC校验
+  - 导入翻译规则
+  - 产品名转 code
+  - 资金方名转标识
 oid: 1
 scope:
   databases:
-    - funding_rule
+    - lowcode_pplatform_customer_management
 sources:
-  - "code:ExceptionResolutionApplication#collectFundingPartyCodeErrors"
+  - code:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/ExceptionResolutionApplication.java
+  - db:funding_exception_resolution
 contract_version: "0.1"
 ---
 
-# 异常解析导入-按产品分组RPC
-
-## 业务定位
-
-校验导入行中的「对接方标识」是否存在时，**按 `productCode` 分组，每组只发一次 RPC**，禁止逐行循环调用。这是对远程调用次数的硬性约束：一次导入最多产生「产品种类数」次调用，而不是「行数」次，避免批量导入把资方服务打爆。
+导入允许用户填「产品名称」与「资金方名称-标识」，系统负责翻译成 product_code 与 funding_party_code 后回写，再校验回填值是否落在合法集合内。
 
 ## 需求背景
 
-无语义分析挂载的需求文档锚点。该方法名 `collectFundingPartyCodeErrors` 表明校验被拆成独立收集步骤，便于与其他阶段解耦。
+该规则是「全量校验通过才入库」（[[exception_import_all_or_nothing]]）阶段 2 / 阶段 3 的组成部分，翻译失败会以「不在允许范围内 / 不存在」的形式进入错误列表，导致整批拒绝。产品合法集合来自 listPlatformProduct(GENERAL)，与平台产品的维护链路相关。
 
 ## 版本演进
 
-无 `action=uncovered` 的主张。
+v0 首次建立，证据取自异常解析导入链路。
 
 ```ground:rule
-rule: 异常解析导入-按产品分组RPC
-content: "对接方标识校验按 productCode 分组，每组一次 RPC，禁止循环调用"
-impact: "限制远程调用次数，避免性能问题"
+name: 异常解析产品名→code 与资金方名→code 二次翻译
+content: 阶段2 用 listPlatformProduct(GENERAL) 构 productName→productCode 映射回填；阶段3 用 RPC 结果构 "fundingPartyName-fundingKey"→fundingKey 映射回填，再校验回填值是否在合法集合内。
+impact: 导入模板允许填产品名称/资金方名称-标识，系统会翻译；翻译失败则报“不在允许范围内/不存在”
 field_targets:
+  - funding_exception_resolution.product_code
   - funding_exception_resolution.funding_party_code
-evidence: "code:ExceptionResolutionApplication#collectFundingPartyCodeErrors"
+evidence: code_path:ExceptionResolutionApplication.java:collectProductCodeErrors/collectFundingPartyCodeErrors
 ```
 
-## 关联
-
-- 表：[[tables/funding_exception_resolution]]
-- 概念：[[concepts/product_code]]、[[concepts/funding_party_code]]
-- 规则：[[rules/exception_import_all_or_nothing]]
 ---END FILE---
 
----FILE: rules/exception_unique_key_dedup.md ---
+---FILE: rules/exception_check_before_save_unique.md ---
 ---
 type: rule
-title: 异常解析-唯一键去重
-page_key: rules/exception_unique_key_dedup
-domain: funding
+title: 异常解析保存前唯一性校验
+page_key: exception_check_before_save_unique
+domain: 资金规则与异常处理
 status: draft
 aliases:
-  - 异常解析重复校验
-  - 异常解析配置信息已存在
+  - 异常解析唯一键校验
+  - 报错关键字已经存在
 oid: 1
 scope:
   databases:
-    - funding_rule
+    - lowcode_pplatform_customer_management
 sources:
-  - "db:funding_exception_resolution_un"
-  - "code:ExceptionResolutionApplication#checkBeforeSave"
+  - code:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/ExceptionResolutionApplication.java
+  - db:funding_exception_resolution
 contract_version: "0.1"
 ---
 
-# 异常解析-唯一键去重
-
-## 业务定位
-
-当 `(product_code, funding_party_code, error_keyword)` 命中已有记录时，报错「异常解析配置信息已存在」并拒绝写入。该判定与 DB 唯一约束 `funding_exception_resolution_un` 一一对应（口径见 [[calibers/exception_resolution_unique_config]]），代码层提前拦截是为了给出可读的错误提示，而不是把唯一约束异常抛给运营。
+页面手工新增/编辑与导入链路共用同一唯一键三元组 (productCode, fundingPartyCode, errorKeyword)，命中即抛 BaseException('报错关键字已经存在')。
 
 ## 需求背景
 
-无语义分析挂载的需求文档锚点。
+保存前校验是 DB 唯一约束（funding_exception_resolution_un）在应用层的等价实现，并被导入查重复用（[[exception_import_all_or_nothing]]）。校验会排除自身 id，因此编辑同一条记录不会误判冲突。
 
 ## 版本演进
 
-无 `action=uncovered` 的主张。
+v0 首次建立。
 
 ```ground:rule
-rule: 异常解析-唯一键去重
-content: "(product_code, funding_party_code, error_keyword) 命中原有记录时报「异常解析配置信息已存在」"
-impact: "防止重复配置"
+name: 异常解析保存前唯一性校验
+content: checkBeforeSave 按 productCode + fundingPartyCode + errorKeyword（并排除自身 id）查询，命中即抛 BaseException('报错关键字已经存在')。
+impact: 页面手工新增/编辑同样受唯一键约束
 field_targets:
   - funding_exception_resolution.product_code
   - funding_exception_resolution.funding_party_code
   - funding_exception_resolution.error_keyword
-evidence: "db:funding_exception_resolution_un; code:ExceptionResolutionApplication#checkBeforeSave"
+evidence: code_path:ExceptionResolutionApplication.java:checkBeforeSave
 ```
 
-## 关联
-
-- 口径：[[calibers/exception_resolution_unique_config]]
-- 规则：[[rules/exception_import_all_or_nothing]]
 ---END FILE---
 
----FILE: rules/exception_upsert_write.md ---
+---FILE: rules/exception_provider_contains_match.md ---
 ---
 type: rule
-title: 异常解析-upsert写入
-page_key: rules/exception_upsert_write
-domain: funding
+title: 异常解析对上游只按关键字 contains 命中
+page_key: exception_provider_contains_match
+domain: 资金规则与异常处理
 status: draft
 aliases:
-  - 异常解析写入规则
-  - 异常解析 upsert
+  - 异常解析 Provider 匹配规则
+  - errorMessage contains
 oid: 1
 scope:
   databases:
-    - funding_rule
+    - lowcode_pplatform_customer_management
 sources:
-  - "code:ExceptionResolutionApplication#doUpsertAll"
+  - code:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/client/fundingparty/provider/FundingPartyExceptionResolutionProviderImpl.java
+  - db:funding_exception_resolution
 contract_version: "0.1"
 ---
 
-# 异常解析-upsert写入
-
-## 业务定位
-
-全部校验通过后，在**单个事务**内执行 `saveOrUpdateBatch`，统一置 `enable='Y'`，同时生成 `exception_no` 并回填创建人/更新人。三件事必须同事务：有效标识、编号生成、审计字段——否则会出现「有编号但不可见」或「可见但无编号」的脏数据。
+对外查询先按 fundingPartyCode + productCode + enable='Y' 批量取数，再在内存中做 errorMessage.contains(errorKeyword) 过滤；命中多条则全部返回。
 
 ## 需求背景
 
-无语义分析挂载的需求文档锚点。
+上游拿到的结果不带模糊度控制，关键字长度与大小写敏感（实际为大小写敏感 contains），上游需自行处理多命中。参数缺失或系统异常一律返回空列表、不抛错，属于「降级为无结果」的容错约定。调用入口参数即 [[funding_party_mark]] 在异常域的表达 funding_party_code。
 
 ## 版本演进
 
-无 `action=uncovered` 的主张。编号生成规则见 [[tables/funding_exception_resolution]] 的 `exception_no` 字段说明。
+v0 首次建立。
 
 ```ground:rule
-rule: 异常解析-upsert写入
-content: "全部校验通过后在单事务内 saveOrUpdateBatch，置 enable='Y'，并生成 exceptionNo、回填创建/更新人"
-impact: "保证写入一致性"
+name: 异常解析对上游只按关键字 contains 命中
+content: ProviderImpl 先按 fundingPartyCode + productCode + enable='Y' 批量查，再在内存中过滤 errorMessage.contains(errorKeyword)，可命中多条全部返回；参数缺失或系统异常一律返回空列表不抛错。
+impact: 上游拿到的结果不带模糊度控制，关键字长度/大小写敏感（实际为大小写敏感 contains）
 field_targets:
-  - funding_exception_resolution.enable
-  - funding_exception_resolution.exception_no
-evidence: "code:ExceptionResolutionApplication#doUpsertAll"
-```
-
-## 关联
-
-- 表：[[tables/funding_exception_resolution]]
-- 口径：[[calibers/exception_resolution_valid_enable_y]]
-- 规则：[[rules/exception_import_all_or_nothing]]
----END FILE---
-
----FILE: rules/exception_export_limit_50000.md ---
----
-type: rule
-title: 异常解析-导出上限50000
-page_key: rules/exception_export_limit_50000
-domain: funding
-status: draft
-aliases:
-  - 异常解析导出上限
-  - 导出50000行限制
-oid: 1
-scope:
-  databases:
-    - funding_rule
-sources:
-  - "code:ExceptionResolutionApplication#exportRecords"
-contract_version: "0.1"
----
-
-# 异常解析-导出上限50000
-
-## 业务定位
-
-单次导出累计行数超过 **50000** 时抛 `BaseException`，提示用户缩小查询范围。该阈值是防止大批量导出导致 OOM 或超时的硬闸门，属**防护性规则**而非业务规则。
-
-## 需求背景
-
-无语义分析挂载的需求文档锚点。
-
-## 版本演进
-
-无 `action=uncovered` 的主张。与导入侧的行数上限（[[rules/exception_import_row_limit_5000]]）成对出现，读写两侧均有规模约束。
-
-```ground:rule
-rule: 异常解析-导出上限50000
-content: "单次导出累计行数超过 50000 抛 BaseException，提示缩小查询范围"
-impact: "防 OOM/超时"
-field_targets: []
-evidence: "code:ExceptionResolutionApplication#exportRecords"
-```
-
-## 关联
-
-- 表：[[tables/funding_exception_resolution]]
-- 规则：[[rules/exception_import_row_limit_5000]]、[[rules/exception_export_funding_party_name_acflow]]
----END FILE---
-
----FILE: rules/exception_import_row_limit_5000.md ---
----
-type: rule
-title: 异常解析导入-行数上限5000
-page_key: rules/exception_import_row_limit_5000
-domain: funding
-status: draft
-aliases:
-  - 导入行数超过上限
-  - 导入5000行限制
-oid: 1
-scope:
-  databases:
-    - funding_rule
-sources:
-  - "code:ExceptionResolutionImportListener"
-contract_version: "0.1"
----
-
-# 异常解析导入-行数上限5000
-
-## 业务定位
-
-单次导入数据行超过 **5000** 时直接抛「导入行数超过上限」，在文件解析阶段就终止，不进入后续校验。与导出上限一起构成异常解析的规模护栏。
-
-## 需求背景
-
-无语义分析挂载的需求文档锚点。该限制在 `ExceptionResolutionImportListener`（EasyExcel 监听器）中生效，说明是按行累计触发的。
-
-## 版本演进
-
-无 `action=uncovered` 的主张。
-
-```ground:rule
-rule: 异常解析导入-行数上限5000
-content: "单次导入数据行超过 5000 抛「导入行数超过上限」"
-impact: "控制单批导入规模"
-field_targets: []
-evidence: "code:ExceptionResolutionImportListener"
-```
-
-## 关联
-
-- 表：[[tables/funding_exception_resolution]]
-- 规则：[[rules/exception_export_limit_50000]]、[[rules/exception_import_all_or_nothing]]
----END FILE---
-
----FILE: rules/exception_export_funding_party_name_acflow.md ---
----
-type: rule
-title: 异常解析-导出资金方名称映射固定ACFLOW
-page_key: rules/exception_export_funding_party_name_acflow
-domain: funding
-status: draft
-aliases:
-  - 导出资金方名称映射
-  - mapFundingPartyCode ACFLOW
-oid: 1
-scope:
-  databases:
-    - funding_rule
-sources:
-  - "code:ExceptionResolutionApplication#exportRecords"
-contract_version: "0.1"
----
-
-# 异常解析-导出资金方名称映射固定ACFLOW
-
-## 业务定位
-
-导出时使用 `mapFundingPartyCode(ProductCodeEnum.ACFLOW)` 把 `funding_party_code` 反查为「名称(code)」写入 `funding_party_name` 列。**映射被硬编码为 ACFLOW 产品**：当导出的记录属于其他产品（如 `RVSFACTOR_PC`）时，映射结果可能为空，导致跨产品导出时资金方名称展示缺失。
-
-这是本主题下最需要关注的实现约束——它把「按产品维度的资方映射」错误地固定到了单一产品。详见 REVIEW 待确认项。
-
-## 需求背景
-
-无语义分析挂载的需求文档锚点。
-
-## 版本演进
-
-无 `action=uncovered` 的主张。该行为是否为缺陷、是否已有后续修复，分析中无证据。
-
-```ground:rule
-rule: 异常解析-导出资金方名称映射固定ACFLOW
-content: "导出时使用 mapFundingPartyCode(ProductCodeEnum.ACFLOW) 将 funding_party_code 映射为「名称(code)」；非 ACFLOW 产品（如 RVSFACTOR_PC）记录映射结果可能为空"
-impact: "跨产品导出时资金方名称展示可能缺失"
-field_targets:
+  - funding_exception_resolution.error_keyword
   - funding_exception_resolution.funding_party_code
-  - funding_exception_resolution.funding_party_name
-evidence: "code:ExceptionResolutionApplication#exportRecords"
+  - funding_exception_resolution.product_code
+evidence: code_path:FundingPartyExceptionResolutionProviderImpl.java:doQuery/queryByFundingPartyId
 ```
 
-## 关联
-
-- 表：[[tables/funding_exception_resolution]]
-- 概念：[[concepts/product_code]]、[[concepts/funding_party_code]]、[[concepts/funding_key]]
 ---END FILE---
 
----FILE: rules/rule_info_create_duplicate_check.md ---
+---FILE: rules/rule_import_funding_party_hardcoded.md ---
 ---
 type: rule
-title: 资方规则-新增查重
-page_key: rules/rule_info_create_duplicate_check
-domain: funding
+title: 资方规则导入的资方校验产品被硬编码为 ACFLOW
+page_key: rule_import_funding_party_hardcoded
+domain: 资金规则与异常处理
 status: draft
 aliases:
-  - 资方规则重复新增校验
-  - 不允许重复新增
+  - 资方校验硬编码 ACFLOW
+  - collectFundingPartyMarkErrors
 oid: 1
 scope:
   databases:
-    - funding_rule
+    - lowcode_pplatform_customer_management
 sources:
-  - "code:FundRuleInfoApplication#saveRuleInfo"
+  - code:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/FundRuleInfoApplication.java
+  - db:funding_rule_info
 contract_version: "0.1"
 ---
 
-# 资方规则-新增查重
-
-## 业务定位
-
-当 `ruleInfoId` 为空（即新增）时，按 `productCode + fundingPartyMark` 查重，已存在则抛「不允许重复新增」。这确立了「**同一产品下同一资方只有一条规则主记录**」的模型——后续修改必须走更新路径（`ruleInfoId` 非空）以累加版本，而不是新建第二条。
+规则导入校验资方标识时，代码固定使用 ProductCodeEnum.ACFLOW 调 ClientQueryFunderMarkService，合法资方集合与 mark→name 映射均以 ACFLOW 为准，而错误文案中拼的却是行自身的 productCode。
 
 ## 需求背景
 
-无语义分析挂载的需求文档锚点。
+实现与实测数据存在语义张力：DB 中 [[funding_rule_detail]] 与 [[funding_rule_info]] 均存在 RVSFACTOR_PC 产品数据（见 [[funding_rule_detail_product_scope]]、[[exception_resolution_product_scope]]），但为 RVSFACTOR_PC 导入规则时，资方合法性仍按 ACFLOW 名单判断，落库的 fundingPartyName 也可能来自 ACFLOW 映射。这对「名称仅用于展示」的假设（[[funding_party_name]]）构成风险，需业务确认。
 
 ## 版本演进
 
-无 `action=uncovered` 的主张。该查重与 [[rules/rule_info_update_version_increment]] 的版本累加共同构成「一资方一规则、版本留痕」的设计。
+v0 首次建立，按代码现状登记，不做行为修正。
 
 ```ground:rule
-rule: 资方规则-新增查重
-content: "ruleInfoId 为空时按 productCode + fundingPartyMark 查重，已存在则抛「不允许重复新增」"
-impact: "同产品下同一资方唯一规则"
+name: 资方规则导入的资方校验产品被硬编码为 ACFLOW
+content: collectFundingPartyMarkErrors 里 dto.setProductCode(ProductCodeEnum.ACFLOW) 后调 ClientQueryFunderMarkService，合法资方集合与 mark→name 映射均以 ACFLOW 为准，但错误文案中拼的是行自身的 productCode。
+impact: 为 RVSFACTOR_PC 导入规则时，资方合法性仍按 ACFLOW 名单判断，且落库的 fundingPartyName 可能来自 ACFLOW 映射；与 DB 实测两产品并存存在语义张力
 field_targets:
   - funding_rule_info.product_code
   - funding_rule_info.funding_party_mark
-evidence: "code:FundRuleInfoApplication#saveRuleInfo"
+  - funding_rule_info.funding_party_name
+evidence: code_path:FundRuleInfoApplication.java:collectFundingPartyMarkErrors
 ```
 
-## 关联
-
-- 表：[[tables/funding_rule_info]]
-- 规则：[[rules/rule_info_update_version_increment]]、[[rules/rule_info_create_initial_pending]]
 ---END FILE---
 
----FILE: rules/rule_info_update_version_increment.md ---
+---FILE: rules/rule_import_four_stage_validation.md ---
 ---
 type: rule
-title: 资方规则-更新version+1
-page_key: rules/rule_info_update_version_increment
-domain: funding
+title: 资方规则导入四阶段校验
+page_key: rule_import_four_stage_validation
+domain: 资金规则与异常处理
 status: draft
 aliases:
-  - 规则版本累加
-  - version+1
+  - 规则导入四阶段
+  - 规则导入校验链
 oid: 1
 scope:
   databases:
-    - funding_rule
+    - lowcode_pplatform_customer_management
 sources:
-  - "code:FundRuleInfoApplication#saveRuleInfo"
+  - code:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/FundRuleInfoApplication.java
+  - db:funding_rule_detail
+  - db:funding_rule_front_cfg
 contract_version: "0.1"
 ---
 
-# 资方规则-更新version+1
-
-## 业务定位
-
-`ruleInfoId` 不为空时视为更新：`version` 在原有基础上累加 1，并回写 `funding_party_name`。明细行随主表写入同一 `version`（见 [[tables/funding_rule_detail]]），因此版本号是「规则内容快照」的标识，可用于追溯某一版规则的具体取值。
+规则导入依次经过必填校验、产品枚举校验、资方 RPC 校验、规则层级与前端配置反查四个阶段，任一失败不落库；全部通过后按 (productCode, fundingPartyMark) 分组调用 saveRuleInfo。
 
 ## 需求背景
 
-无语义分析挂载的需求文档锚点。
+该链路与异常解析导入共享「全量校验通过才入库」的失败语义（[[exception_import_all_or_nothing]]）。阶段 4 要求规则层级能由 displayName 翻译为 dictKey，并按 (product, rule_layer, key_name) 三元组在 [[funding_rule_front_cfg]] 中反查 frontKey；落库时组内 ruleMap.key = frontKey、value = ruleValue，写入 [[funding_rule_detail]]。资方校验阶段的硬编码问题见 [[rule_import_funding_party_hardcoded]]。
 
 ## 版本演进
 
-无 `action=uncovered` 的主张。DB 实测明细 `version` 分布为 1/2/3/4/6/8/9/13/17/23/25，说明版本累加是连续的，而明细并非每版都写（跳号来自未落明细的更新）。
+v0 首次建立。
 
 ```ground:rule
-rule: 资方规则-更新version+1
-content: "ruleInfoId 不为空时 version 累加 1，并回写 funding_party_name"
-impact: "规则版本可追溯，明细携带版本"
-field_targets:
-  - funding_rule_info.version
-  - funding_rule_detail.version
-evidence: "code:FundRuleInfoApplication#saveRuleInfo"
-```
-
-## 关联
-
-- 表：[[tables/funding_rule_info]]、[[tables/funding_rule_detail]]
-- 规则：[[rules/rule_detail_save_idempotent]]
----END FILE---
-
----FILE: rules/rule_info_create_initial_pending.md ---
----
-type: rule
-title: 资方规则-新增初始PENDING
-page_key: rules/rule_info_create_initial_pending
-domain: funding
-status: draft
-aliases:
-  - 新增规则默认待生效
-  - 初始PENDING
-oid: 1
-scope:
-  databases:
-    - funding_rule
-sources:
-  - "code:FundRuleInfoApplication#saveRuleInfo"
-contract_version: "0.1"
----
-
-# 资方规则-新增初始PENDING
-
-## 业务定位
-
-新增规则时同时落四个初始值：`rule_status=PENDING`、`version=1`、`enable='Y'`、`code=DataModelUtils.getUniqueKey()`。核心语义是「**新增规则默认未生效，必须显式生效**」——新配置不会自动对外可见，给了运营一个检视窗口。参见状态机 [[processes/funding_rule_status_machine]]。
-
-## 需求背景
-
-无语义分析挂载的需求文档锚点。
-
-## 版本演进
-
-无 `action=uncovered` 的主张。
-
-```ground:rule
-rule: 资方规则-新增初始PENDING
-content: "新增时 rule_status=PENDING、version=1、enable='Y'、code=DataModelUtils.getUniqueKey()"
-impact: "新增规则默认未生效，需显式生效"
-field_targets:
-  - funding_rule_info.rule_status
-  - funding_rule_info.version
-  - funding_rule_info.enable
-evidence: "code:FundRuleInfoApplication#saveRuleInfo"
-```
-
-## 关联
-
-- 流程：[[processes/funding_rule_status_machine]]
-- 规则：[[rules/rule_info_create_duplicate_check]]、[[rules/rule_info_provider_active_only]]
----END FILE---
-
----FILE: rules/rule_info_provider_active_only.md ---
----
-type: rule
-title: 资方规则-对外仅返回ACTIVE
-page_key: rules/rule_info_provider_active_only
-domain: funding
-status: draft
-aliases:
-  - 对外只返回生效规则
-  - Dubbo 仅 ACTIVE
-oid: 1
-scope:
-  databases:
-    - funding_rule
-sources:
-  - "code:FundingPartyRuleProviderImpl#doQuery"
-contract_version: "0.1"
----
-
-# 资方规则-对外仅返回ACTIVE
-
-## 业务定位
-
-Dubbo 查询按 `fundingPartyMark + productCode + rule_status='ACTIVE'` 取规则，取不到则**返回 null**（而非空对象或异常）。这是内外可见性的分界线：外部系统只能消费已生效规则，`PENDING` 与 `INACTIVE` 对外均不可见。对应口径 [[calibers/funding_rule_info_active_rule]]。
-
-## 需求背景
-
-无语义分析挂载的需求文档锚点。
-
-## 版本演进
-
-无 `action=uncovered` 的主张。返回 null 的约定要求调用方必须做空值判断。
-
-```ground:rule
-rule: 资方规则-对外仅返回ACTIVE
-content: "Dubbo 查询按 fundingPartyMark + productCode + rule_status=ACTIVE 取规则，否则返回 null"
-impact: "外部只能消费已生效规则"
-field_targets:
-  - funding_rule_info.rule_status
-evidence: "code:FundingPartyRuleProviderImpl#doQuery"
-```
-
-## 关联
-
-- 口径：[[calibers/funding_rule_info_active_rule]]、[[calibers/funding_rule_detail_valid_enable_y]]
-- 流程：[[processes/funding_rule_status_machine]]
----END FILE---
-
----FILE: rules/exception_provider_keyword_contains.md ---
----
-type: rule
-title: 异常解析对外查询-关键字包含匹配
-page_key: rules/exception_provider_keyword_contains
-domain: funding
-status: draft
-aliases:
-  - 报错关键字包含匹配
-  - errorMessage.contains
-oid: 1
-scope:
-  databases:
-    - funding_rule
-sources:
-  - "code:FundingPartyExceptionResolutionProviderImpl#doQuery"
-contract_version: "0.1"
----
-
-# 异常解析对外查询-关键字包含匹配
-
-## 业务定位
-
-对外查询先按 `fundingPartyCode + productCode + enable='Y'` 把候选配置全部拉回，再在**内存中**用 `errorMessage.contains(error_keyword)` 过滤，可命中多条并全部返回。因此 `error_keyword` 不是等值键而是**匹配模式**：一条配置的关键字可以是另一条的父串，两条都可能被命中，调用方需按返回顺序自行取舍。
-
-## 需求背景
-
-无语义分析挂载的需求文档锚点。
-
-## 版本演进
-
-无 `action=uncovered` 的主张。DB 中的三元组唯一约束（见 [[calibers/exception_resolution_unique_config]]）保证了「同一资方同一产品下关键字不重复」，但**不保证关键字之间不互为子串**。
-
-```ground:rule
-rule: 异常解析对外查询-关键字包含匹配
-content: "按 fundingPartyCode + productCode + enable='Y' 拉取后，内存过滤 errorMessage.contains(error_keyword)，可命中多条全部返回"
-impact: "对外按报错信息匹配异常解析"
-field_targets:
-  - funding_exception_resolution.error_keyword
-  - funding_exception_resolution.enable
-evidence: "code:FundingPartyExceptionResolutionProviderImpl#doQuery"
-```
-
-## 关联
-
-- 表：[[tables/funding_exception_resolution]]
-- 口径：[[calibers/exception_resolution_valid_enable_y]]
-- 规则：[[rules/exception_provider_exception_fallback]]
----END FILE---
-
----FILE: rules/exception_provider_exception_fallback.md ---
----
-type: rule
-title: 异常解析对外查询-异常兜底
-page_key: rules/exception_provider_exception_fallback
-domain: funding
-status: draft
-aliases:
-  - 对外接口异常兜底
-  - 返回空列表不抛异常
-oid: 1
-scope:
-  databases:
-    - funding_rule
-sources:
-  - "code:FundingPartyExceptionResolutionProviderImpl#queryByFundingPartyId"
-contract_version: "0.1"
----
-
-# 异常解析对外查询-异常兜底
-
-## 业务定位
-
-对外查询入口 `queryByFundingPartyId` 对**参数校验失败**与**系统异常**一视同仁：记日志后返回空列表，绝不向 Dubbo 上游抛异常。这是可用性优先的取舍——异常解析是辅助性能力，宁可返回「没找到」也不能让主流程因它失败。代价是上游无法区分「无匹配配置」与「查询出错」，需要靠日志排查。
-
-## 需求背景
-
-无语义分析挂载的需求文档锚点。
-
-## 版本演进
-
-无 `action=uncovered` 的主张。
-
-```ground:rule
-rule: 异常解析对外查询-异常兜底
-content: "参数校验失败或系统异常均记日志并返回空列表，不向 Dubbo 上游抛异常"
-impact: "保证对外接口稳定"
-field_targets: []
-evidence: "code:FundingPartyExceptionResolutionProviderImpl#queryByFundingPartyId"
-```
-
-## 关联
-
-- 表：[[tables/funding_exception_resolution]]
-- 规则：[[rules/exception_provider_keyword_contains]]
----END FILE---
-
----FILE: rules/rule_import_product_code_direct_match.md ---
----
-type: rule
-title: 资方规则导入-产品校验直接比对productCode
-page_key: rules/rule_import_product_code_direct_match
-domain: funding
-status: draft
-aliases:
-  - 规则导入产品校验
-  - 无名称转换的产品校验
-oid: 1
-scope:
-  databases:
-    - funding_rule
-sources:
-  - "code:FundRuleInfoApplication#collectFundRuleProductCodeErrors"
-contract_version: "0.1"
----
-
-# 资方规则导入-产品校验直接比对productCode
-
-## 业务定位
-
-资方规则导入时，`productCode` 直接与 `ProductCodeEnum` 枚举比对，**没有名称转换**。这与异常解析导入的口径不同——后者会先用 `platformProduct.listPlatformProduct` 把产品名称映射为 code，因此异常解析模板的「产品code」列实际可以填产品名称，而**规则导入模板的产品列必须填产品 code**。两者的差异详见 [[concepts/product_code]]。
-
-## 需求背景
-
-无语义分析挂载的需求文档锚点。
-
-## 版本演进
-
-无 `action=uncovered` 的主张。两条导入链路口径不一致，是本主题下最容易导致运营填错的边界。
-
-```ground:rule
-rule: 资方规则导入-产品校验直接比对productCode
-content: "规则导入 productCode 直接与 ProductCodeEnum 枚举比对（无名称转换），与异常解析导入的名称映射口径不同"
-impact: "规则导入模板产品列必须填产品code"
-field_targets:
-  - funding_rule_info.product_code
-evidence: "code:FundRuleInfoApplication#collectFundRuleProductCodeErrors"
-```
-
-## 关联
-
-- 概念：[[concepts/product_code]]
-- 表：[[tables/funding_rule_info]]
----END FILE---
-
----FILE: rules/rule_detail_save_idempotent.md ---
----
-type: rule
-title: 资方规则详情保存-幂等更新
-page_key: rules/rule_detail_save_idempotent
-domain: funding
-status: draft
-aliases:
-  - 明细幂等落库
-  - ruleKey 幂等更新
-oid: 1
-scope:
-  databases:
-    - funding_rule
-sources:
-  - "code:FundRuleInfoApplication#saveRuleInfo"
-contract_version: "0.1"
----
-
-# 资方规则详情保存-幂等更新
-
-## 业务定位
-
-明细保存以 `ruleInfoId + ruleKey + enable='Y'` 为幂等键：命中即更新，未命中即新增。**关键细节**：不在 `ruleMap` 中出现的 `frontKey` 直接跳过，不中断保存——即「本次没提交的字段」保持原样，而不是被置空或删除。这让前端可以只提交变更字段。
-
-## 需求背景
-
-无语义分析挂载的需求文档锚点。
-
-## 版本演进
-
-无 `action=uncovered` 的主张。与主表版本累加（[[rules/rule_info_update_version_increment]]）配合：每次保存主表 version+1，明细带新版本写入。
-
-```ground:rule
-rule: 资方规则详情保存-幂等更新
-content: "按 ruleInfoId + ruleKey + enable='Y' 命中则更新，否则新增；ruleMap 中不存在的 frontKey 跳过（不中断）"
-impact: "明细按 key 幂等落库"
+name: 资方规则导入四阶段校验
+content: 阶段1 Excel 必填（产品/资方标识code/规则层级/规则名称/规则值）→ 阶段2 productCode 枚举 → 阶段3 资方标识 RPC 校验 → 阶段4 规则层级 displayName→dictKey 且按 (product,rule_layer,key_name) 反查 funding_rule_front_cfg 拿 frontKey；任一失败不落库；通过后按 (productCode,fundingPartyMark) 分组调 saveRuleInfo。
+impact: 导入按组写入，组内 ruleMap.key=frontKey、value=ruleValue
 field_targets:
   - funding_rule_detail.rule_key
   - funding_rule_detail.rule_value
-  - funding_rule_detail.enable
-evidence: "code:FundRuleInfoApplication#saveRuleInfo"
+  - funding_rule_front_cfg.key_name
+evidence: code_path:FundRuleInfoApplication.java:importRecords/validateRuleLayerAndFrontCfg/persistFundRuleImportGroups
 ```
 
-## 关联
-
-- 表：[[tables/funding_rule_detail]]
-- 概念：[[concepts/rule_key]]
-- 口径：[[calibers/funding_rule_detail_valid_enable_y]]
 ---END FILE---
 
----REVIEW: table | 全部 table 页的 scope.databases ---
-语义分析中所有证据均以表名给出（db:funding_exception_resolution、db:funding_rule_detail 等），**未出现物理库名/模式名**。本批次所有页面的 `scope.databases: [funding_rule]` 为占位值，需人工确认真实物理库名后统一替换。
+---FILE: rules/rule_export_ignore_time_range.md ---
+---
+type: rule
+title: 资方规则列表/导出查询条件实际忽略时间区间
+page_key: rule_export_ignore_time_range
+domain: 资金规则与异常处理
+status: draft
+aliases:
+  - 导出时间区间失效
+  - parseTimeRange 死代码
+oid: 1
+scope:
+  databases:
+    - lowcode_pplatform_customer_management
+sources:
+  - code:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/FundRuleInfoApplication.java
+  - db:funding_rule_info
+contract_version: "0.1"
+---
+
+[[funding_rule_info]] 的导出/列表查询中，create_time / update_time 的 ge / le 条件被注释掉，parseTimeRange 成为死代码，而 Controller 的 ApiOperation 注释仍宣称支持时间区间查询。
+
+## 需求背景
+
+行为表现为「静默忽略条件」而非报错，使用方按时间范围导出会得到全量结果，需以其他条件收敛范围。导出上限 50000 行、分页 500。
+
+## 版本演进
+
+v0 首次建立，登记实现与文档不一致的现状。
+
+```ground:rule
+name: 资方规则列表/导出查询条件实际忽略时间区间
+content: buildExportQueryParam 中 create_time/update_time 的 ge/le 条件被注释掉，parseTimeRange 成为死代码；Controller 的 ApiOperation 注释仍宣称支持时间区间查询。
+impact: 按创建/更新时间范围导出无效，只是忽略条件而非报错；导出上限 50000 行、分页 500
+field_targets:
+  - funding_rule_info.create_time
+  - funding_rule_info.update_time
+evidence: code_path:FundRuleInfoApplication.java:buildExportQueryParam:237
+```
+
+---END FILE---
+
+---FILE: rules/rule_save_version_detail_sync.md ---
+---
+type: rule
+title: 资方规则保存的版本与明细联动
+page_key: rule_save_version_detail_sync
+domain: 资金规则与异常处理
+status: draft
+aliases:
+  - saveRuleInfo 版本联动
+  - 规则明细 upsert
+oid: 1
+scope:
+  databases:
+    - lowcode_pplatform_customer_management
+sources:
+  - code:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/FundRuleInfoApplication.java
+  - db:funding_rule_info
+  - db:funding_rule_detail
+contract_version: "0.1"
+---
+
+保存一条资方规则时，头表 [[funding_rule_info]] 与明细 [[funding_rule_detail]] 在同一动作内联动：新增走 PENDING + version=1 + 唯一 code，更新走 version+1 并覆盖资方名称，随后按 frontKey 匹配增改明细。
+
+## 需求背景
+
+- 新增即待生效，对外不可见，直到 activeRule（[[funding_rule_status_machine]]、[[rule_provider_active_only]]）。
+- 明细匹配依据 frontKey，多出的 frontKey 静默跳过；产品无前端配置则直接抛异常（[[rule_key]]、[[funding_rule_front_cfg]]）。
+- 明细判存依赖 enable='Y' 口径（[[funding_rule_detail_enable_y]]）。
+
+## 版本演进
+
+v0 首次建立。
+
+```ground:rule
+name: 资方规则保存的版本与明细联动
+content: 新增：查重 (productCode,fundingPartyMark) → 插 funding_rule_info(ruleStatus=PENDING,version=1,code=唯一键,enable=Y)；更新：version+1 并覆盖 fundingPartyName；随后按 productCode 查 front_cfg，用 ruleMap.key 匹配 frontKey，命中已有 enable='Y' 明细则更新否则新增。
+impact: ruleMap 中不存在的 frontKey 静默跳过不中断；产品无前端配置直接抛异常
+field_targets:
+  - funding_rule_info.version
+  - funding_rule_info.rule_status
+  - funding_rule_detail.rule_key
+  - funding_rule_detail.rule_value
+evidence: code_path:FundRuleInfoApplication.java:saveRuleInfo
+```
+
+---END FILE---
+
+---FILE: rules/rule_provider_active_only.md ---
+---
+type: rule
+title: 对外规则查询只暴露已生效规则
+page_key: rule_provider_active_only
+domain: 资金规则与异常处理
+status: draft
+aliases:
+  - Provider 只查 ACTIVE
+  - 规则三组聚合
+oid: 1
+scope:
+  databases:
+    - lowcode_pplatform_customer_management
+sources:
+  - code:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/client/fundingparty/provider/FundingPartyRuleProviderImpl.java
+  - db:funding_rule_info
+  - db:funding_rule_detail
+  - reqdoc:funding-rule-active-only-query
+contract_version: "0.1"
+---
+
+对外查询按 fundingPartyMark + productCode + ruleStatus=ACTIVE 取头表，无生效规则返回 null；再按 ruleInfoId + enable='Y' 取明细，按 ruleLayer 分组为 UNDERLYING / FINANCING / OTHER 返回。
+
+## 需求背景
+
+需求侧主张与实现一致：资方规则查询按 fundingPartyMark + productCode 只取 ACTIVE 规则并聚合为底层/融资/其他三组（code_status: confirmed）。因此 PENDING / INACTIVE 规则对外不可见，配置完成到对外生效必须显式调用 activeRule（[[funding_rule_status_machine]]）。
+
+## 版本演进
+
+v0 首次建立，锚点 evidence 采用双源：代码路径 + 需求文档主张 slug。
+
+```ground:rule
+name: 对外规则查询只暴露已生效规则
+content: FundingPartyRuleProviderImpl 按 fundingPartyMark + productCode + ruleStatus=ACTIVE 查询，无生效规则返回 null；再按 ruleInfoId + enable='Y' 查明细，按 ruleLayer 分组为 UNDERLYING/FINANCING/OTHER。
+impact: PENDING/INACTIVE 规则对外不可见
+field_targets:
+  - funding_rule_info.rule_status
+  - funding_rule_detail.rule_layer
+evidence: code_path:FundingPartyRuleProviderImpl.java:doQuery + reqdoc:funding-rule-active-only-query
+```
+
+---END FILE---
+
+---FILE: rules/batch_delete_physical.md ---
+---
+type: rule
+title: 批量删除为物理删除
+page_key: batch_delete_physical
+domain: 资金规则与异常处理
+status: draft
+aliases:
+  - 物理删除
+  - removeByIds / removeBatchByIds
+oid: 1
+scope:
+  databases:
+    - lowcode_pplatform_customer_management
+sources:
+  - code:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/ExceptionResolutionApplication.java
+  - code:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/FundRuleInfoApplication.java
+contract_version: "0.1"
+---
+
+[[funding_exception_resolution]] 与 [[funding_rule_info]] 的批量删除均走 MyBatis-Plus 物理删除（removeByIds / removeBatchByIds），并非 enable='N' 的逻辑删除。
+
+## 需求背景
+
+该行为澄清了 enable 字段的职责边界：enable 只是有效数据口径（[[exception_resolution_enable_y]]、[[funding_rule_info_enable_y]]），不承担软删；删除不可恢复，且删除 `code` 被 [[funding_rule_detail]].fund_rule_code_ref 引用的规则头时需自行评估悬挂引用风险。
+
+## 版本演进
+
+v0 首次建立。
+
+```ground:rule
+name: 批量删除为物理删除
+content: 异常解析 batchDelete 用 removeByIds、规则 batchDelete 用 removeBatchByIds，均非 enable='N' 逻辑删除。
+impact: 删除不可恢复，且 enable 字段并不承担软删职责
+field_targets:
+  - funding_exception_resolution.enable
+  - funding_rule_info.enable
+evidence: code_path:ExceptionResolutionApplication.java:batchDelete / FundRuleInfoApplication.java:batchDelete
+```
+
+---END FILE---
+
+---FILE: rules/platform_product_check_before_save.md ---
+---
+type: rule
+title: 平台产品保存前置校验
+page_key: platform_product_check_before_save
+domain: 资金规则与异常处理
+status: draft
+aliases:
+  - BR-001
+  - PlatformProductApplication.checkBeforeSave
+oid: 1
+scope:
+  databases:
+    - lowcode_pplatform_customer_management
+sources:
+  - code:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/PlatformProductApplication.java
+  - reqdoc:BR-001
+contract_version: "0.1"
+---
+
+平台产品保存前调用 checkBeforeSave，校验产品 code 唯一性与类型枚举等，失败抛 BaseException 阻断保存。该规则是异常解析与规则导入中「产品 code 合法集合」的上游来源（[[exception_import_name_code_translation]]，listPlatformProduct(GENERAL)）。
+
+## 需求背景
+
+本主题需求文档中仅有产品与项目管理文档提及平台产品校验与列表过滤，**未对资金规则与异常处理主题给出独立业务规则章节**（document_claim，未证实）。与产品列表过滤相关的主张（BR-002）在代码中未见实现，见 REVIEW 记录。
+
+## 版本演进
+
+v0 首次建立，来源为需求文档主张 action=anchor（code_status: confirmed），锚点 evidence 写双源。
+
+```ground:rule
+name: 平台产品保存前置校验
+content: 调用 PlatformProductApplication.checkBeforeSave 校验产品 code 唯一性、类型枚举等，失败抛 BaseException 阻断保存（BR-001）。
+impact: 产品 code 重复或类型不合法时保存被阻断；产品合法集合是下游导入校验（异常解析、资方规则）的前置依赖
+field_targets: []
+evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/PlatformProductApplication.java:checkBeforeSave + reqdoc:BR-001
+```
+
+---END FILE---
+
+---REVIEW: rules | 平台产品列表过滤（BR-002，未覆盖主张）---
+主张「非 AGW 端按当前租户已开通 tenant_product 列表过滤，并通过 Nacos 白名单进一步过滤」在代码侧未覆盖：PlatformProductApplication 仅有 listPlatformProduct(type) 直连 domainService，本主题代码中未见 listTenantProduct / filterLimitProduct 实现。当前只在语义分析中标注 action=review，未落为任何页面的 ground:rule 锚点；需确认该过滤逻辑是否在其他模块/其他服务实现，再决定是否升级为规则页。
 ---END REVIEW---
 
----REVIEW: rule | 异常解析-导出资金方名称映射固定ACFLOW ---
-`mapFundingPartyCode(ProductCodeEnum.ACFLOW)` 在导出时被硬编码为单一产品，而 `product_code` 实测存在 `RVSFACTOR_PC`，二者组合会导致非 ACFLOW 记录的资金方名称映射为空。此处仅按代码证据记录现状，**是否为已知缺陷、是否已有修正计划，分析中无证据**，需业务确认预期行为（是按记录所属产品动态映射，还是明确只支持 ACFLOW 导出）。
+---REVIEW: calibers | 校验场景（check_scene）写值点缺失---
+funding_rule_detail.check_scene 在 DB 实测仅 SUBMIT_VALIDATE（50 条），但本主题 Application / Provider 的写值点均未调用 setCheckScene。字段语义明确指向「来源在其他链路」，因此本页只登记取值分布口径（[[funding_rule_detail_check_scene_scope]]），不推断枚举全集，也不据此外推业务含义。需补查建单/校验链路后回填写值点。
+---END REVIEW---
+
+---REVIEW: enums | 资方规则状态枚举（enum_audit 数据被截断）---
+语义分析的 enum_audit 数组在 funding_rule_info.rule_status=PENDING 一条之后被截断，仅可见：value=PENDING、java_name=PENDING、stored_as=same、label=待生效、verdict=confirm、evidence=FundRuleInfoApplication.java:saveRuleInfo 写 setRuleStatus(RuleStatusEnum.PENDING.getDictKey())。ACTIVE / INACTIVE 两条的 java_name、stored_as、note 未获取，故本批次未单独产出 enum 页，状态取值与流转暂由 [[funding_rule_status_machine]] 承载。另附注：DB 未提供 funding_rule_info 的值分布，无法用 TopK 校验权重。待 enum_audit 补全后建立 enums 页并回链。
+---END REVIEW---
+
+---REVIEW: rules | reqdoc 主张 slug 缺失---
+reqdoc_claims 中两条 action=anchor 的主张（「资源导入遵循全量校验通过才入库」「资方规则查询按 fundingPartyMark + productCode 只取 ACTIVE 规则」）在语义分析里只有 claim 文本与 code_evidence，未给出文档 slug。本批次按主张摘要自拟 slug（reqdoc:import-all-validate-before-save、reqdoc:funding-rule-active-only-query），仅 BR-001 为文档原文自带编号。待需求文档编号体系确认后统一替换 slug，并同步 [[exception_import_all_or_nothing]]、[[rule_provider_active_only]] 两页锚点。
+---END REVIEW---
+
+---REVIEW: tables | 物理库名未在语义分析中给出---
+各页 frontmatter 的 scope.databases 暂用模块名推导值 lowcode_pplatform_customer_management，语义分析仅以 [DB] 标注证据来源，未给出物理库（schema）名。表页锚点字段不受影响，但跨库/跨服务引用与 SQL 复现需以真实库名校准，建议 v1 统一回填。
 ---END REVIEW---

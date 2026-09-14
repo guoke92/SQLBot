@@ -1,7 +1,7 @@
 ---
 type: concept
 title: 变更状态/审核状态
-page_key: concept.change-status
+page_key: change-status
 domain: 企业变更与运营变更
 status: draft
 aliases: [status, checkStatus, 审核状态]
@@ -17,6 +17,7 @@ field_targets: [cust_change_record.status]
 adjudication: boundary
 also_confused_with: [cust_company_info.check_status, cust_company_info.act_procinst_status, cust_company_info.cust_status]
 sources: ["enrich:wiki-admin"]
+belong: concepts
 ---
 
 「变更状态 / 审核状态」在本域内指 [[tables.cust_change_record]] 的 `status`，即变更单维度的审批状态（`CheckStatus` 枚举），状态机见 [[processes.cust-change-record-status]]。它与三个字段容易混淆：`cust_company_info.check_status` 是企业准入审核状态（决定能否发起变更，见 [[calibers.company-change-enable]]）；`cust_company_info.act_procinst_status` 是工作流引擎侧审批状态；`cust_company_info.cust_status` 是企业生命周期状态（见 [[processes.cust-company-info-status]]）。

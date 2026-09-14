@@ -31,6 +31,15 @@ from typing import Any
 
 import yaml
 
+from apps.knowledge.wiki.field_vocab import (
+    decide_field_vocab,
+    default_flag_labels,
+    enum_values_compatible,
+    looks_like_enum_dict,
+    parse_comment_labels,
+    shared_flag_page,
+)
+
 _DS_ID = 15  # 兼容旧引用；围栏已切 scope.databases（库名来自 db-catalog.yaml）
 _OID = 1
 _DOMAIN = "基线"
@@ -46,6 +55,7 @@ def _catalog_database(db_dir: Path) -> str:
         return "unknown_db"
     name = str(data.get("database") or "").strip()
     return name or "unknown_db"
+
 
 # MySQL 类型 → v0 类型族（contract §3.1 词表）
 _TYPE_FAMILY = {
@@ -156,18 +166,190 @@ def _field_groups(substrate_dir: Path, table: str) -> dict[str, list[str]]:
 _TABLE_COLUMNS: dict[str, set[str]] = {}
 
 
+def _enum_bind_score(page_key: str, table: str, col: str, *, primary: str) -> int:
+    """跨表同名列：只把 dict 绑到「这列自己的」枚举页，不吃同值集扩绑。
+
+    共享开关页（enable）的 fields 含异名列（fee_locked / renew_remind_sent），
+    那些列仍须指向该页，召回才能钉住枚举/状态机。"""
+    ref = f"{table}.{col}"
+    if page_key == f"{table}__{col}":
+        return 4
+    if ref == primary and page_key in {col, table}:
+        return 3
+    if ref == primary:
+        return 2
+    if page_key == col:
+        return 1
+    if page_key in {"enable", "boolean", "yn"}:
+        return 1
+    return 0
+
+
 def _enum_page_for_column(table: str, col: str, carrier_index: dict[str, str]) -> str:
     """表.列 → 权威枚举页 page_key（无绑定返回空）。"""
     return carrier_index.get(f"{table}.{col}", "")
 
 
+def _profile_keys(profile: dict[str, Any], table: str, col: str) -> list[str]:
+    stats = ((profile.get("tables") or {}).get(table) or {}).get("column_stats") or {}
+    raw = (stats.get(col) or {}).get("values") or {}
+    if not isinstance(raw, dict):
+        return []
+    return [str(k) for k in raw if str(k).strip() != ""]
+
+
+def _column_phys_comment(
+    db_catalog: dict[str, Any], table: str, col: str
+) -> tuple[str, str]:
+    meta = (
+        ((db_catalog.get("tables") or {}).get(table) or {}).get("columns") or {}
+    ).get(col) or {}
+    return str(meta.get("type") or ""), str(meta.get("comment") or "")
+
+
+def _keep_enum_carrier(
+    ref: str,
+    *,
+    page_values: set[str],
+    profile: dict[str, Any],
+    db_catalog: dict[str, Any],
+) -> bool:
+    table, _, col = ref.partition(".")
+    if not table or not col:
+        return False
+    phys, _desc = _column_phys_comment(db_catalog, table, col)
+    family = _family(phys)
+    if family in {"temporal", "structured"}:
+        return False
+    keys = _profile_keys(profile, table, col)
+    if keys:
+        return enum_values_compatible(
+            db_values=keys, enum_values=page_values, family=family
+        )
+    return True
+
+
+def _vocab_labels(desc: str, keys: list[str]) -> dict[str, str]:
+    labels = parse_comment_labels(desc)
+    if labels:
+        return labels
+    flags = default_flag_labels(keys, desc)
+    if flags:
+        return flags
+    return default_flag_labels(keys, "是否")
+
+
+def _fill_inferred_enum_pages(
+    column_pages: dict[str, dict[str, Any]],
+    *,
+    profile: dict[str, Any],
+    db_catalog: dict[str, Any],
+    real_columns: dict[str, set[str]],
+    dormant: set[str],
+) -> None:
+    """无代码枚举（或绑定值集不兼容）的字典列补一页，表字段才能写 dict。"""
+    for _anchor, page in list(column_pages.items()):
+        page_vals = {str(v) for v in (page.get("values") or {}) if str(v)}
+        kept = {
+            ref
+            for ref in set(page.get("carriers") or ())
+            if _keep_enum_carrier(
+                ref, page_values=page_vals, profile=profile, db_catalog=db_catalog
+            )
+        }
+        page["carriers"] = kept
+
+    relocated: dict[str, dict[str, Any]] = {}
+    for anchor, page in column_pages.items():
+        carriers = set(page.get("carriers") or ())
+        page["carriers"] = carriers
+        new_anchor = (
+            anchor if (anchor in carriers or not carriers) else sorted(carriers)[0]
+        )
+        if new_anchor in relocated and relocated[new_anchor] is not page:
+            for candidate in sorted(carriers):
+                if candidate not in relocated:
+                    new_anchor = candidate
+                    break
+        page["field"] = new_anchor
+        relocated[new_anchor] = page
+    column_pages.clear()
+    column_pages.update(relocated)
+
+    bound: set[str] = set()
+    for anchor, page in column_pages.items():
+        bound.update(page.get("carriers") or ())
+        bound.add(anchor)
+
+    enable_anchor = next(
+        (a for a in column_pages if a.partition(".")[2] == "enable"),
+        "",
+    )
+    pending: list[tuple[str, str, list[str], dict[str, str]]] = []
+    for table, cols in sorted(real_columns.items()):
+        if table in dormant:
+            continue
+        for col in sorted(cols):
+            ref = f"{table}.{col}"
+            if ref in bound:
+                continue
+            phys, desc = _column_phys_comment(db_catalog, table, col)
+            family = _family(phys)
+            keys = _profile_keys(profile, table, col)
+            values = dict.fromkeys(keys, 1)
+            if not looks_like_enum_dict(
+                col=col,
+                phys=phys,
+                family=family,
+                distinct=len(keys),
+                values=values,
+                desc=desc,
+            ):
+                continue
+            pending.append((table, col, keys, _vocab_labels(desc, keys)))
+
+    if enable_anchor and enable_anchor in column_pages:
+        home = column_pages[enable_anchor]
+        for table, col, keys, _labels in pending:
+            if shared_flag_page(keys, {"enable"}):
+                home["carriers"].add(f"{table}.{col}")
+                bound.add(f"{table}.{col}")
+        pending = [item for item in pending if f"{item[0]}.{item[1]}" not in bound]
+
+    for table, col, keys, labels in pending:
+        anchor = f"{table}.{col}"
+        existing = column_pages.get(anchor)
+        if existing is not None and anchor in (existing.get("carriers") or ()):
+            continue
+        if existing is not None:
+            orphan = f"_code.{col}"
+            suffix = 1
+            while orphan in column_pages:
+                suffix += 1
+                orphan = f"_code{suffix}.{col}"
+            existing["field"] = orphan
+            column_pages[orphan] = existing
+            del column_pages[anchor]
+        column_pages[anchor] = {
+            "field": anchor,
+            "carriers": {anchor},
+            "values": {k: labels.get(k, k) for k in keys},
+            "aliases": {},
+            "meta": {},
+            "binding": "db-profile",
+        }
+
+
 def build_table_pages(*, substrate_dir: Path, db_dir: Path) -> list[tuple[str, str]]:
     """db-catalog ∪ 代码 catalog → table 页（路径, 内容）列表。
 
-    字段行紧凑键（v0.2 契约）：name/type/phys/desc/dict/topk/roles/group。
+    字段行紧凑键（v0.2 契约）：name/type/phys/desc/dict/topk/labels/roles/group。
     列全集不变式（P2）：字段数 == db 列数，生成时断言，不做运行时回退。
     重要关键字段（查询角色/枚举绑定/主键）前置；强关联字段组（同写值点
-    set 对，如签收金额↔签收日期）标 group，供规划器同时召回同组字段。"""
+    set 对，如签收金额↔签收日期）标 group，供规划器同时召回同组字段。
+    topk/labels 按列裁决：窄值域编码列写出全量 distinct + 注释配对 labels；
+    主键/创建人 id 等标识列不写 topk。字典列必须带 dict 指向枚举页（共享
+    enable 可挂；列级 labels 覆盖「已生成」等展示义，不替代枚举指针）。"""
     db = yaml.safe_load((db_dir / "db-catalog.yaml").read_text()) or {}
     code = yaml.safe_load((substrate_dir / "extract-catalog.yaml").read_text()) or {}
     db_name = _catalog_database(db_dir)
@@ -183,12 +365,32 @@ def build_table_pages(*, substrate_dir: Path, db_dir: Path) -> list[tuple[str, s
     # 枚举承载索引（表.列 → 权威枚举页 page_key）——与 build_enum_pages 同源
     _enum_pages, _unbound = build_enum_pages(substrate_dir=substrate_dir, db_dir=db_dir)
     enum_carrier_index: dict[str, str] = {}
+    enum_bind_score: dict[str, int] = {}
+    enum_page_values: dict[str, set[str]] = {}
     for _rel, content in _enum_pages:
         fm = content.split("\n---\n")[0]
         pk = re.search(r"^page_key: (.+)$", fm, re.M)
-        for m in re.finditer(r"^fields: \[(.+)\]$", content, re.M):
-            for ref in m.group(1).split(","):
-                enum_carrier_index.setdefault(ref.strip(), pk.group(1) if pk else "")
+        page_key = pk.group(1).strip() if pk else ""
+        if page_key:
+            enum_page_values[page_key] = set(
+                re.findall(r'^  "([^"]+)":', content, re.M)
+            )
+        fields_m = re.search(r"^fields: \[(.+)\]$", content, re.M)
+        refs = (
+            [item.strip() for item in fields_m.group(1).split(",")] if fields_m else []
+        )
+        primary = refs[0] if refs else ""
+        for ref in refs:
+            table_name, _, col_name = ref.partition(".")
+            if not table_name or not col_name:
+                continue
+            score = _enum_bind_score(page_key, table_name, col_name, primary=primary)
+            if score <= 0:
+                continue
+            prev = enum_bind_score.get(ref, -1)
+            if score > prev:
+                enum_bind_score[ref] = score
+                enum_carrier_index[ref] = page_key
     # db 优先：库里的表全量建页；code-only 表（库里无）跳过——死代码不建页
     pages: list[tuple[str, str]] = []
     for table, meta in sorted((db.get("tables") or {}).items()):
@@ -258,33 +460,27 @@ def build_table_pages(*, substrate_dir: Path, db_dir: Path) -> list[tuple[str, s
                     if ":" in desc or desc.strip() != desc or not desc:
                         desc = json.dumps(desc, ensure_ascii=False)
                     line += f"\n    desc: {desc}"
-                # 枚举绑定：强证据归并后的权威枚举页 page_key
                 dict_page = _enum_page_for_column(table, col, enum_carrier_index)
-                if dict_page:
-                    line += f"\n    dict: {dict_page}"
-                topk_vals = (profile_stats.get(col) or {}).get("values") or {}
-                if topk_vals:
-                    # 只保留纯标识符值（JSON 数组形/含特殊字符的样本值是脏数据，
-                    # 不是枚举语义）——它们既炸 YAML 也无翻译价值。
-                    # 上限 4 值/单值 32 字符/总值 96 字符（chat 167：8 值上限
-                    # 让 invoicing_name 这类 7-distinct 测试数据列铺满 prompt）
-                    clean_vals: list[str] = []
-                    total = 0
-                    for v in list(topk_vals.keys())[:8]:
-                        text = str(v)
-                        if (
-                            not text
-                            or len(text) > 32
-                            or not re.fullmatch(r"[\w\u4e00-\u9fff@.-]+", text)
-                        ):
-                            continue
-                        if len(clean_vals) >= 4 or total + len(text) + 1 > 96:
-                            break
-                        clean_vals.append(text)
-                        total += len(text) + 1
-                    if clean_vals:
-                        topk = "|".join(clean_vals)
-                        line += f"\n    topk: {topk}"
+                family = _family(phys)
+                vocab = decide_field_vocab(
+                    col=col,
+                    phys=phys,
+                    family=family,
+                    desc=str(cinfo.get("comment") or code_desc.get(col) or ""),
+                    stats=profile_stats.get(col)
+                    if isinstance(profile_stats, dict)
+                    else None,
+                    dict_page=dict_page,
+                    enum_values=enum_page_values.get(dict_page) or set(),
+                )
+                if vocab.get("dict"):
+                    line += f"\n    dict: {vocab['dict']}"
+                if vocab.get("topk"):
+                    line += (
+                        f"\n    topk: {json.dumps(vocab['topk'], ensure_ascii=False)}"
+                    )
+                if vocab.get("labels"):
+                    line += f"\n    labels: {json.dumps(vocab['labels'], ensure_ascii=False)}"
                 r = table_roles.get(col) or []
                 if r:
                     line += f"\n    roles: [{', '.join(r)}]"
@@ -336,6 +532,8 @@ _GENERIC_COLUMNS = {
     "channel",
     "state",
 }
+
+
 def _column_prefixes(substrate_dir: Path | None = None) -> tuple[str, ...]:
     """Column-name prefixes from settings or substrate config; never hardcoded."""
     from common.core.config import settings
@@ -357,6 +555,10 @@ def _column_prefixes(substrate_dir: Path | None = None) -> tuple[str, ...]:
     return tuple(str(item) for item in raw if str(item).strip())
 
 
+def _value_token(text: str) -> str:
+    return re.sub(r"[^a-z0-9]", "", str(text).lower())
+
+
 def _clean_display(raw: str) -> str:
     """枚举 display 清洗：剥 // 残留、取 javadoc 首行、去 YAML 危险字符前导。"""
     text = re.sub(r"^//\s*", "", str(raw)).strip()
@@ -364,6 +566,11 @@ def _clean_display(raw: str) -> str:
     text = re.sub(r"\s*\*\s*", " ", text)  # 前导 * 是 YAML 别名语法，会炸解析
     text = text.replace("{@code ", "(").replace("{@link ", "(").replace("}", ")")
     return text.strip()
+
+
+def _yaml_enum_key(value: str) -> str:
+    """Enum 键一律 JSON 引用，避免 YAML 把 01/Y/true 读成非字符串。"""
+    return json.dumps(str(value), ensure_ascii=False)
 
 
 def _enum_source_entries(substrate_dir: Path) -> list[dict[str, Any]]:
@@ -380,11 +587,13 @@ def _enum_source_entries(substrate_dir: Path) -> list[dict[str, Any]]:
             values = [
                 # display 清洗：剥注释残留 + 去多行 javadoc 粘连（YAML 别名/前导 * 会炸解析）
                 {
-                    "value": v["value"],
+                    "value": str(v["value"]),
                     "display": _clean_display(v.get("display") or v["value"]),
+                    "java_name": str(v.get("java_name") or ""),
+                    "stored_as": str(v.get("stored_as") or "dictKey"),
                 }
                 for v in entry.get("values") or []
-                if isinstance(v, dict)
+                if isinstance(v, dict) and v.get("value") not in (None, "")
             ]
             if entry.get("field") and values:
                 entries.append(
@@ -535,6 +744,7 @@ def build_enum_pages(
                 "carriers": set(),
                 "values": {},
                 "aliases": {},
+                "meta": {},
                 "binding": binding,
             },
         )
@@ -557,25 +767,75 @@ def build_enum_pages(
                 for v, alts in merged["aliases"].items():
                     page["aliases"].setdefault(v, []).extend(alts)
         page["carriers"].update(carriers)
-        is_constant = str(entry.get("enum", "")).endswith("Constant")
+        is_constant = str(entry.get("enum", "")).endswith(("Constant", "Constants"))
         for v in entry["values"]:
             value, display = v["value"], v["display"]
+            java_name = str(v.get("java_name") or "")
+            stored_as = str(v.get("stored_as") or "dictKey")
             if value not in page["values"] or (
                 is_constant and page["values"][value] == value
             ):
                 page["values"][value] = display
             elif display and display != page["values"].get(value):
                 page["aliases"].setdefault(value, []).append(display)
+            meta = page.setdefault("meta", {}).setdefault(value, {})
+            if java_name:
+                meta["java_name"] = java_name
+            # dictKey 条目保持 dictKey；.name() 落库另起 java_name 键
+            if stored_as == "mixed":
+                meta["stored_as"] = "mixed"
+            elif stored_as and stored_as != "name":
+                meta["stored_as"] = stored_as
+            # name()/getDictParam 落库时，Java 常量名也是真实值，必须进 values
+            if java_name and java_name != value and stored_as in {"name", "mixed"}:
+                if java_name not in page["values"]:
+                    page["values"][java_name] = display
+                page.setdefault("meta", {}).setdefault(java_name, {}).update(
+                    {
+                        "java_name": java_name,
+                        "stored_as": "name",
+                        "note": f"与 dictKey {value!s} 同常量；.name()/getDictParam 落库",
+                    }
+                )
+
+    dormant = _dormant_tables(substrate_dir)
+    _fill_inferred_enum_pages(
+        column_pages,
+        profile=profile,
+        db_catalog=db_catalog,
+        real_columns=real_columns,
+        dormant=dormant,
+    )
 
     pages: list[tuple[str, str]] = []
-    # page_key 分配：主列名；同名冲突（不同表同名列各成一页）带表前缀消歧
+    # page_key：代码枚举保住列名（cust_type / sign_mode）；db 推断页若与代码页
+    # 同列名则带表前缀，避免把权威页挤成 table__col。
     used_keys: set[str] = set()
-    for anchor, page in sorted(column_pages.items()):
+    code_col_count: dict[str, int] = {}
+    for anchor, page in column_pages.items():
+        col = anchor.partition(".")[2]
+        if page.get("binding") != "db-profile":
+            code_col_count[col] = code_col_count.get(col, 0) + 1
+    ordered_pages = sorted(
+        column_pages.items(),
+        key=lambda kv: (0 if kv[1].get("binding") != "db-profile" else 1, kv[0]),
+    )
+    for anchor, page in ordered_pages:
         carriers = sorted(page["carriers"])
         values: dict[str, str] = page["values"]
         primary_col = anchor.partition(".")[2]
-        page_key = primary_col
-        if sum(1 for a in column_pages if a.partition(".")[2] == primary_col) > 1:
+        inferred = page.get("binding") == "db-profile"
+        if inferred:
+            page_key = (
+                anchor.replace(".", "__")
+                if code_col_count.get(primary_col, 0) or primary_col in used_keys
+                else primary_col
+            )
+        elif code_col_count.get(primary_col, 0) > 1:
+            page_key = anchor.replace(".", "__")
+        else:
+            page_key = primary_col
+        if page_key in used_keys:
             page_key = anchor.replace(".", "__")
         used_keys.add(page_key)
         # db 分布佐证与基线外值
@@ -587,15 +847,35 @@ def build_enum_pages(
                 or {}
             ).get(col)
             if stats:
-                dist = stats.get("values") or {}
-                break
+                for key, count in (stats.get("values") or {}).items():
+                    dist[str(key)] = count
         extra = {v: (dist.get(v, 0)) for v in map(str, dist) if v and v not in values}
-        # 同值集扩绑（chat 168：legal_certification_type 枚举页只绑了 2 表，
-        # cust_company_info 同名同值集列拿不到 dict 指针 → schema 渲染裸 topk）。
-        # 判据：同名列 + 值集高重合。db 分布是超集（含低频基线外值），用
-        # "候选值被页值覆盖"方向：候选非空值中 ≥0.7 已在页 values → 同义值集。
+        meta = page.get("meta") or {}
+        # DB 实测键可能是 java_name / 去下划线形态（ON_LINE vs ONLINE），不是 dictKey
+        for extra_key in list(extra):
+            token = _value_token(extra_key)
+            if not token:
+                continue
+            for known, label in list(values.items()):
+                java_name = str((meta.get(known) or {}).get("java_name") or "")
+                if token not in {_value_token(java_name), _value_token(known)}:
+                    continue
+                values[extra_key] = label if label and label != known else extra_key
+                page.setdefault("meta", {}).setdefault(extra_key, {}).update(
+                    {
+                        "java_name": java_name or known,
+                        "stored_as": "name",
+                        "note": (
+                            f"DB 实测键 {extra_key}；与 Java {java_name or known}"
+                            f"（dictKey {known}）同常量，该列主路径不落 dictKey"
+                        ),
+                    }
+                )
+                extra.pop(extra_key, None)
+                break
+        # 同值集扩绑（chat 168）：同名列 + 值集高重合 → 扩 carriers
         known = set(values) | set(extra)
-        if known and primary_col:
+        if known and primary_col and page.get("binding") != "db-profile":
             for table_name, cols in real_columns.items():
                 carrier_ref = f"{table_name}.{primary_col}"
                 if carrier_ref in carriers or primary_col not in cols:
@@ -608,8 +888,14 @@ def build_enum_pages(
                 if not cand_vals or not page_vals:
                     continue
                 coverage = len(cand_vals & page_vals) / len(cand_vals)
-                if coverage >= 0.7:
+                if coverage >= 0.7 and _keep_enum_carrier(
+                    carrier_ref,
+                    page_values=set(values),
+                    profile=profile,
+                    db_catalog=db_catalog,
+                ):
                     carriers.append(carrier_ref)
+        meta = page.get("meta") or {}
         rows = [
             "```ground:enum",
             f"enum: {page_key}",
@@ -617,15 +903,27 @@ def build_enum_pages(
             "values:",
         ]
         for value, label in values.items():
-            rows.append(f"  {value}:\n    label: {str(label).strip()}")
+            info = meta.get(value) or {}
+            lines = [
+                f"  {_yaml_enum_key(value)}:",
+                f"    label: {json.dumps(str(label).strip(), ensure_ascii=False)}",
+            ]
+            if info.get("java_name") and str(info["java_name"]) != str(value):
+                lines.append(
+                    f"    java_name: {json.dumps(str(info['java_name']), ensure_ascii=False)}"
+                )
+            if info.get("stored_as") and info["stored_as"] not in {"dictKey", "same"}:
+                lines.append(f"    stored_as: {info['stored_as']}")
+            if info.get("note"):
+                lines.append(
+                    f"    note: {json.dumps(str(info['note']), ensure_ascii=False)}"
+                )
+            rows.append("\n".join(lines))
         for value in sorted(extra):
-            key = (
-                value
-                if value.replace("_", "").replace("-", "").isalnum()
-                else json.dumps(value, ensure_ascii=False)
-            )
             rows.append(
-                f"  {key}:\n    label: {json.dumps(value, ensure_ascii=False)}\n    note: db 分布存在但代码枚举未声明（REVIEW）"
+                f"  {_yaml_enum_key(value)}:\n"
+                f"    label: {json.dumps(value, ensure_ascii=False)}\n"
+                "    note: db 分布存在但代码枚举未声明（REVIEW）"
             )
         alias_labels = sorted(
             {a for alts in page["aliases"].values() for a in alts if 0 < len(a) <= 8}

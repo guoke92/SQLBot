@@ -1,7 +1,7 @@
 ---
 type: concept
 title: 企业状态三字段
-page_key: concepts/company_status_fields
+page_key: company_status_fields
 domain: 外部渠道与银行对接
 status: draft
 aliases:
@@ -28,6 +28,7 @@ boundary: "对外查询接口不直接回传库内枚举，而是 CheckStatus→
 also_confused_with:
   - RegStatus（对外编码 CUSTS001~CUSTS005/CUST404）
   - CompanyUserStatus（AUTH0001/AUTH0003）
+belong: concepts
 ---
 
 # 企业状态三字段

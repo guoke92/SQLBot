@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 导出时 system_delivery 被产品类型覆盖
-page_key: rule/export-system-delivery-overwrite
+page_key: export-system-delivery-overwrite
 domain: 微企链立项与项目审批
 status: draft
 aliases:
@@ -13,6 +13,7 @@ scope:
 sources:
   - code_path:WechatProjectApprovalApplication.java#exportWechatApprovalInfo
 contract_version: "0.1"
+belong: rules
 ---
 
 在导出流程中，`system_delivery` 这一列会被 `product_type_arr` 翻译出的中文覆盖写入。也就是说导出文件里这一列的内容并非库内该列的原值，而是产品类型的中文。

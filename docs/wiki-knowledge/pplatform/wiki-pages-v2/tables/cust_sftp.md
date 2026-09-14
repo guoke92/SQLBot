@@ -1,43 +1,149 @@
 ---
 type: table
-title: cust_sftp SFTP 渠道配置表
-page_key: tables/cust_sftp
-domain: SFTP渠道对接
+title: 客戶sftp信息
+page_key: cust_sftp
+domain: 企业银行账户/集团/SFTP
 status: draft
-aliases: [SFTP 配置, 渠道 SFTP 配置]
+anchors: [cust_sftp]
 oid: 1
 scope:
-  databases: [unknown]
-sources:
-  - db
+  databases: [lowcode_pplatform]
+sources: ["db:db-catalog.yaml", "code:extract-catalog.yaml"]
+created: '2026-09-14'
+updated: '2026-09-14'
 contract_version: "0.1"
+belong: tables
 ---
 
-`cust_sftp` 保存各对接渠道的 SFTP 服务器配置与登录账号，是渠道文件交换的接入元数据表：一行对应一个渠道（或渠道的某套测试配置）的 SFTP 账号。启用口径见 [[calibers/enabled-sftp-channel]]，字段混淆边界见 [[concepts/sftp-channel]]。
+
+
+
+
+
+
+
+
+
+
+
+cust_sftp 保存渠道影像文件传输通道的连接配置，按 channel + enable 联查，用于影像下载/回传。
 
 ## 需求背景
-
-不同渠道（如 bgy / tianma / meituan / sny）的文件交互独立开设 SFTP 账号，账号命名形如 `app_<渠道>_<日期/编号>`，服务器以 qa.sftp.lls.com:22 为主、个别为 uat.sftp.lls.com。渠道编码与数据租户标识是两个不同来源的概念，统计与排障时不可互相替代。
+非自主建档强制要求提交营业执照、法人证件、经办人证件与授权书影像（见 [[independent_archive_validation]]），影像落地依赖本表通道；通道匹配不到时按 [[sftp_channel_enable]] 直接抛 SERVER_BUSY。
 
 ## 版本演进
+暂无版本演进记录。
 
-v0 契约按现状固化。本页字段语义均来自 DB 实测，暂无代码侧写值证据；`enable` 实测全部为 'Y'，是否存在失效配置需后续数据核对后再补充演进说明。
-
-## 字段语义锚点
-
-```ground:fields
+```ground:table
 table: cust_sftp
+database: lowcode_pplatform
+desc: 客戶sftp信息
 fields:
-  - field: channel
-    meaning: SFTP 对接渠道编码（如 bgy/tianma/meituan/sny）
-    evidence: db
-  - field: user_name
-    meaning: SFTP 登录账号，命名形如 app_<渠道>_<日期/编号>
-    evidence: db
-  - field: host / port
-    meaning: SFTP 服务器地址与端口，实测 qa.sftp.lls.com:22 为主、个别 uat.sftp.lls.com
-    evidence: db
-  - field: db_tenant_code
-    meaning: 所属数据租户标识
-    evidence: db
+  - name: enable
+    type: string
+    phys: varchar(4)
+    desc: enable
+    dict: enable
+    topk: "Y"
+    labels: "Y:是"
+  - name: id
+    type: number
+    phys: bigint(22)
+    desc: 表主键
+  - name: act_procinst_date
+    type: temporal
+    phys: datetime
+    desc: 审批结束时间
+  - name: act_procinst_id
+    type: string
+    phys: varchar(64)
+    desc: 流程实例ID
+  - name: act_procinst_no
+    type: string
+    phys: varchar(255)
+    desc: 流程申请编号
+  - name: act_procinst_status
+    type: string
+    phys: varchar(64)
+    desc: 当前审批状态
+  - name: app_tenant_code
+    type: string
+    phys: varchar(100)
+    desc: 逻辑租户标识
+  - name: channel
+    type: string
+    phys: varchar(64)
+    desc: 渠道
+    topk: "ZTSJ|alipayAnt|alipayAnt-test|app_bosc_shtl|app_jkny|bgy|dahua|dahua-test|eascs|hbjg|longteng|meituan|sny|sny_test|tianma|trinasolar"
+  - name: code
+    type: string
+    phys: varchar(64)
+    desc: 编码
+  - name: create_by
+    type: string
+    phys: varchar(100)
+    desc: 创建人id
+  - name: create_time
+    type: temporal
+    phys: datetime
+    desc: 创建时间
+  - name: create_user
+    type: string
+    phys: varchar(100)
+    desc: 创建人名称
+  - name: db_tenant_code
+    type: string
+    phys: varchar(100)
+    desc: 数据租户标识
+    topk: "ISOLATE_TAG_pagoda|ISOLATE_TAG_trinasolar|ISOLATE_TAG_zjsj|ZTSJ|beehive-scf.qhhrly.cn|eascs.beehive-scf.qhhrly.cn|jkny|minmetals|sny|tianma.beehive-scf.qhhrly.cn|xylxchf"
+  - name: host
+    type: string
+    phys: varchar(64)
+    desc: 服务器地址IP地址
+    topk: "qa.sftp.lls.com|uat.sftp.lls.com"
+  - name: name
+    type: string
+    phys: varchar(64)
+    desc: 名称
+  - name: organization_id
+    type: string
+    phys: varchar(30)
+    desc: 机构编号
+  - name: password
+    type: string
+    phys: varchar(64)
+    desc: 登录密码
+  - name: port
+    type: number
+    phys: int(10)
+    desc: 端口
+  - name: private_key
+    type: string
+    phys: varchar(64)
+    desc: 私钥
+  - name: private_key_pwd
+    type: string
+    phys: varchar(256)
+    desc: 私钥的密码
+  - name: remark
+    type: string
+    phys: varchar(1024)
+    desc: remark
+  - name: update_by
+    type: string
+    phys: varchar(100)
+    desc: 更新人id
+  - name: update_time
+    type: temporal
+    phys: datetime
+    desc: 更新时间
+  - name: update_user
+    type: string
+    phys: varchar(100)
+    desc: 更新人名称
+  - name: user_name
+    type: string
+    phys: varchar(64)
+    desc: 登录用户名
+    topk: "app_JingKeNengY926_20240614|app_LongTengYC_609152804|app_alipayAnt_202606301619|app_bgy_20250306|app_bosc_shtl|app_cclocal_601636163|app_dahua2026041601|app_eascs_2022070823|app_ofhbjg_20260409|app_sny_202607235624|app_trinasolar_2023051522|app_ztsj_2026033169|meituan"
 ```

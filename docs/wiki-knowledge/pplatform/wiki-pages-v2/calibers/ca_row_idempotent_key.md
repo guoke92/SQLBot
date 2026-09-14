@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: CA认证行幂等创建
-page_key: caliber/ca_row_idempotent_key
+page_key: ca_row_idempotent_key
 domain: CA证书认证
 status: draft
 aliases: [createOrGetByKey 口径, CA认证行幂等键]
@@ -10,6 +10,7 @@ scope:
   databases: [unknown]
 sources: ["code_path:CaCertificationInfoAppServiceImpl.java:createOrGetByKey"]
 contract_version: "0.1"
+belong: calibers
 ---
 
 口径含义：创建或获取 CA 认证行时，以（cust_id, data_date, head_company_data, submit_status='PENDING'）作为幂等键；若已存在 PENDING 行则复用，否则新建一行。

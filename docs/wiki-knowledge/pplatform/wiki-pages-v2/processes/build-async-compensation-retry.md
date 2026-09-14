@@ -1,7 +1,7 @@
 ---
 type: process
 title: 建档异步流程补偿重试状态机
-page_key: processes/build-async-compensation-retry
+page_key: build-async-compensation-retry
 domain: 平台事件监听与同步
 status: draft
 aliases:
@@ -18,6 +18,7 @@ sources:
   - code:RegAsyncCompensationJobHandler.java:updateRetryCount
   - code:RegAsyncCompensationJobHandler.java:markAsFailed
 contract_version: "0.1"
+belong: processes
 ---
 
 该状态机描述建档异步流程失败记录（[[tables/cust_build_record]]）在补偿任务下的生命周期：新建即 PENDING，被扫描后进入 RETRYING，重放成功转 SUCCESS，失败则视重试次数回置 PENDING 或终态 FAILED。它是 [[concepts/compensation]] 的可执行细化。

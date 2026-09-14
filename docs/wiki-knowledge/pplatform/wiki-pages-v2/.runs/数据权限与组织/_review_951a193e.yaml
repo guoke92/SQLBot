@@ -1,0 +1,7 @@
+body: 语义分析中该规则条目被截断：content 未结束（field_targets 仅到 "cust_company_info.test_data, cus"），且
+  evidence 字段缺失，无法按「逐字来自证据」要求写出 ground:rule 的 evidence 与完整 content，故本次未产出 rules/ 页面。已可确认部分：同一
+  db_tenant_code 下 cust_company_type 含 PLATFORM_OPERATOR_COMPANY 的企业数 >1 时，过滤 test_data='Y'
+  仅保留真实运营方。涉及 [[cust_company_info]] 的 test_data、db_tenant_code，以及 [[company_type]]、[[tenant_isolation_scope]]。待
+  evidence 补全后按 rule 页建页。
+title: 运营方查询过滤测试数据
+type: rules

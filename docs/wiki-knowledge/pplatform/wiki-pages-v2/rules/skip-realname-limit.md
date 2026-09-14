@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 跳过实名认证限制
-page_key: rule.skip_realname_limit
+page_key: skip-realname-limit
 domain: 客户联系人管理
 status: draft
 aliases:
@@ -12,6 +12,7 @@ scope:
 sources:
   - "code:CustPersonController.skipRealNameAuth"
 contract_version: "0.1"
+belong: rules
 ---
 
 仅当租户主标识为 HBLT，或企业角色为核心企业/项目公司时，经办人可跳过实名认证。

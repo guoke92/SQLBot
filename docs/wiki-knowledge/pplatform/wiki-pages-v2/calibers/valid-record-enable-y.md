@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 有效账户/有效记录口径
-page_key: calibers/valid-record-enable-y
+page_key: valid-record-enable-y
 domain: 企业银行账户
 status: draft
 aliases: [逻辑删除口径, enable=Y]
@@ -11,6 +11,7 @@ scope:
 sources:
   - db
 contract_version: "0.1"
+belong: calibers
 ---
 
 有效记录指未被逻辑删除的数据行，判定条件为 `cust_account_info.enable = 'Y'`，作用域为该表通用逻辑删除口径。

@@ -1,7 +1,7 @@
 ---
 type: concept
 title: 企业角色
-page_key: concept.company-role
+page_key: company-role
 domain: 客户角色与端口
 status: draft
 aliases:
@@ -19,20 +19,21 @@ sources:
   - code_path:CustRoleApplication.java#addRoleInfo
 maps_to: 企业业务角色枚举 CORE/SUPPLIER/DEALER/FINANCE/PLATFORM_OPERATOR_COMPANY/PROJECT_COMPANY/CORPORATION_COMPANY/FACTOR_COMPANY/CORE_MANAGER 等
 also_confused_with:
-  - sys_role(系统权限角色，如 accountNormal/accountGuest)
-  - userType(admin/operator/guest，用户在企业内的身份)
+  - sys_role(系统权限角色，编码也常写作 accountNormal/accountGuest)
+  - userType(落库 accountAdmin/accountNormal/accountGuest；Java 名 admin/operator/guest)
 adjudication: boundary
 boundary: 企业角色=企业身份维度；用户类型=企业内用户身份维度；sys_role=权限维度角色，三者不可混用。
 field_targets:
   - cust_role_info.role_type
 contract_version: "0.1"
+belong: concepts
 ---
 
 # 企业角色
 
 「企业角色」（文档与代码中亦称客户角色、companyType、custCompanyType、roleType）描述**企业在业务网络中的身份**，取值是 CORE / SUPPLIER / DEALER / FINANCE / PLATFORM_OPERATOR_COMPANY / PROJECT_COMPANY / CORPORATION_COMPANY / FACTOR_COMPANY / CORE_MANAGER 一类的枚举名，落地在 [[tables/cust_role_info]] 的 role_type。与之相对，[[tables/platform_product_cust_role]] 的 company_type_code 是同一套枚举在**产品配置维度**上的表达（即 [[concepts/port]]）。
 
-三个「角色」概念必须在文档中严格区分：企业角色（企业身份）、userType（用户在企业内的身份：admin/operator/guest）、sys_role（权限角色，如 accountNormal/accountGuest）。三者分属不同维度，不可混用。
+三个「角色」概念必须在文档中严格区分：企业角色（企业身份）、userType（用户在企业内的身份，落库 `accountAdmin`/`accountNormal`/`accountGuest`）、sys_role（权限角色，编码常与 dictKey 撞车）。三者分属不同维度，不可混用。
 
 ## 需求背景
 

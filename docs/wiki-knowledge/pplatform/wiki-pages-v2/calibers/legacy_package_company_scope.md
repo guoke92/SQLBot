@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 存量CA数据打包企业范围
-page_key: caliber/legacy_package_company_scope
+page_key: legacy_package_company_scope
 domain: CA证书认证
 status: draft
 aliases: [queryEligibleCompanies 口径, 存量打包企业范围]
@@ -10,6 +10,7 @@ scope:
   databases: [unknown]
 sources: ["code_path:CfcaOneCertFourStepPackageApplication.java:queryEligibleCompanies"]
 contract_version: "0.1"
+belong: calibers
 ---
 
 口径含义：存量 CFCA 一证四步离线打包任务在 cust_company_info 上筛选符合条件的企业——enable='Y'、ca_register_status='Y'、update_time >= 起始时间、且 identify_style != 'SIMPLE'。

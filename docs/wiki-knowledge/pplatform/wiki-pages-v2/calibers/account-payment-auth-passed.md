@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 账户打款认证通过口径
-page_key: calibers/account-payment-auth-passed
+page_key: account-payment-auth-passed
 domain: 企业银行账户
 status: draft
 aliases: [认证通过账户, APPLY_40]
@@ -11,6 +11,7 @@ scope:
 sources:
   - code_path:CustAccountApplication.java:cnapsPaymentConfirm
 contract_version: "0.1"
+belong: calibers
 ---
 
 账户打款认证通过指该银行账户已走完人行小额打款验证流程，判定条件为 `cust_account_info.auth_state = 'APPLY_40'`，作用域为账户维度。

@@ -1,7 +1,7 @@
 ---
 type: concept
 title: CA证书收费
-page_key: concepts/ca_certificate_fee
+page_key: ca_certificate_fee
 domain: CA证书收费
 status: draft
 aliases: [CA服务费, CA收费, CA证书服务费]
@@ -21,6 +21,7 @@ field_targets:
   - ca_fee_project_config.charge_enabled
 adjudication: synonym
 also_confused_with: [CFCA认证, CA认证, 电子签章]
+belong: concepts
 ---
 
 # CA证书收费

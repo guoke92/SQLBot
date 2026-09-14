@@ -1,7 +1,7 @@
 ---
 type: process
 title: 企业建档状态机
-page_key: processes/cust-company-build-status
+page_key: cust-company-build-status
 domain: 平台事件监听与同步
 status: draft
 aliases:
@@ -18,6 +18,7 @@ sources:
   - code:CustCompanyInfoApplication.java:updateCustBuildStatus
   - code:CustCompanyInfoApplication.java:submitForSimpleAuth
 contract_version: "0.1"
+belong: processes
 ---
 
 企业建档状态机描述 `cust_company_info.cust_build_status` 的推进路径：提交建档进入待客户确认或审核中，客户提交后推送运营中台，审核通过转 BUILD_SUCCESS，退回/拒绝转 CUST_CONFIRM_AWAIT 或 BUILD_FAIL；简易认证另走 AWAIT_CUST_CONFIRM 分支。详见 [[concepts/cust-build]]。

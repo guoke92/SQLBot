@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 有效联系人
-page_key: calibers/valid-contact-person
+page_key: valid-contact-person
 domain: 平台事件监听与同步
 status: draft
 aliases:
@@ -14,6 +14,7 @@ sources:
   - code:CustPersonApplication.java:insertOrUpdatePerson
   - code:CustSyncEventProvider.java:syncOperatorUser
 contract_version: "0.1"
+belong: calibers
 ---
 
 有效联系人口径：[[tables/cust_person_info]] 中 `enable='Y'` 的联系人，为同步与查询经办人/管理员时的默认过滤条件。

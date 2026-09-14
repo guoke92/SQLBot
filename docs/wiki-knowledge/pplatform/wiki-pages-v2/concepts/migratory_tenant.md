@@ -17,6 +17,7 @@ field_targets:
 adjudication: synonym
 also_confused_with: []
 contract_version: "0.1"
+belong: concepts
 ---
 
 “迁移租户”是业务侧对租户级迁移动作的称呼，代码与库中以类型码 `migratoryTenant` 出现，二者为同义关系（adjudication: synonym），在 [[tenant_migarory_log]] 上分别落在 type 与 name 两个字段。取数时不要只匹配其一，口径见 [[migration_tenant_log]]。

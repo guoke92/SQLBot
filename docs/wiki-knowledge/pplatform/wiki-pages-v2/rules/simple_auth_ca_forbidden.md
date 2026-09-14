@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 简易建档强制不开通电子签章，head_company 为空置 'Y'
-page_key: rule.simple_auth_ca_forbidden
+page_key: simple_auth_ca_forbidden
 domain: 平台内部服务对接
 status: draft
 aliases:
@@ -13,6 +13,7 @@ sources:
   - semantic:field_semantics[cust_company_info.need_register_ca]
   - semantic:field_semantics[cust_company_info.head_company]
 contract_version: "0.1"
+belong: rules
 ---
 
 简易建档路径下，need_register_ca 政策上强制为不开通；head_company 为空时（简易认证）置为 'Y'。

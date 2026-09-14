@@ -1,0 +1,4 @@
+body: 各表 fields 的 type（varchar/bigint/text）依据取值形态推断，语义分析未直接给出 DDL 类型；desc/dict 均为证据逐字。类型待
+  DDL 佐证后校正。
+title: 字段类型非逐字证据
+type: table

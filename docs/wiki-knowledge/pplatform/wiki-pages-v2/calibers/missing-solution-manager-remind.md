@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 缺方案经理提醒口径
-page_key: caliber.missing-solution-manager-remind
+page_key: missing-solution-manager-remind
 domain: 项目报表/统计/上报
 status: draft
 aliases:
@@ -15,6 +15,7 @@ sources:
   - code:ProjectStatisticsApplication.java
   - code:ProjectStatisticsRemindApplication.java
 contract_version: "0.1"
+belong: calibers
 ---
 
 # 缺方案经理提醒口径

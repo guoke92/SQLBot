@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 非标入站强制全租户上下文
-page_key: rules/nonstandard_inbound_all_tenant
+page_key: nonstandard_inbound_all_tenant
 domain: 外部渠道与银行对接
 status: draft
 aliases:
@@ -16,6 +16,7 @@ sources:
   - code:AlipayAntArchiveController#channelArchive
   - code:CustAccessApplication#changeCompanyInfo
 contract_version: "0.1"
+belong: rules
 ---
 
 # 非标入站强制全租户上下文

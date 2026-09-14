@@ -1,7 +1,7 @@
 ---
 type: concept
 title: 方案经理身份联动（姓名 CSV / 企微 userId / 历史值）
-page_key: concept/solution-manager-identity
+page_key: solution-manager-identity
 domain: 微企链立项与项目审批
 status: draft
 aliases:
@@ -37,6 +37,7 @@ also_confused_with:
   - wechat_project_approval_apply.op_contact（存 operation_id，另一套标识）
   - tenant_project_approval.initiator_user_id（sys_user id，单值）
 sources: ["enrich:wiki-admin"]
+belong: concepts
 ---
 
 方案经理字段家族体现了「先有 id、后反查姓名」的落库顺序：写库时先确定企微 userId 数组，再由 userId 反查姓名组成 CSV。`old_solution_manager` 保留了历史姓名的合并结果，用于回答「这个人曾经是不是方案经理」。

@@ -1,7 +1,7 @@
 ---
 type: concept
 title: 产品类型双表示（编码数组与中文 CSV）
-page_key: concept/product-type-coding
+page_key: product-type-coding
 domain: 微企链立项与项目审批
 status: draft
 aliases:
@@ -27,6 +27,7 @@ adjudication: 同一份产品类型信息在本表存两份——product_type_ar
 also_confused_with:
   - wechat_project_approval_apply.system_delivery（导出时会被产品类型中文覆盖写入的复用列，见 concepts/system-delivery-reuse）
 sources: ["enrich:wiki-admin"]
+belong: concepts
 ---
 
 筛选走编码、展示走中文，是本主题里「一物两存」的典型。筛选实现用 JSON 字符串的 `LIKE '%"code"%'` 匹配编码数组，并且会先做一次枚举白名单校验再拼条件（见 [[rules/product-type-arr-like-filter]]）。

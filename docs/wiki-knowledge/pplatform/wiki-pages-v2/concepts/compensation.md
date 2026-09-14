@@ -1,7 +1,7 @@
 ---
 type: concept
 title: 补偿
-page_key: concepts/compensation
+page_key: compensation
 domain: 平台事件监听与同步
 status: draft
 aliases:
@@ -26,6 +26,7 @@ adjudication:
   boundary: "补偿以 cust_build_record.remark='COMPENSATION_'+failType 识别，状态为 retry_status；同步失败以 client_api_sync_error.enable='N' 识别。"
 also_confused_with:
   - ClientApiSyncErrorDO 的同步失败重试
+belong: concepts
 ---
 
 「补偿」指建档异步流程（文件推送 / 流程发起）失败后的重放机制：失败时 `RegAsyncService.saveCompensationRecord` 落一条带 `COMPENSATION_` 前缀的 [[tables/cust_build_record]] 记录并序列化重放上下文，补偿任务 `processCompensationRecord` 反序列化后重放整个异步流程。

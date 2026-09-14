@@ -1,7 +1,7 @@
 ---
 type: concept
 title: 统码
-page_key: concepts/unified_social_credit_code
+page_key: unified_social_credit_code
 domain: CA证书收费
 status: draft
 aliases: [统一社会信用代码, certification_no]
@@ -19,6 +19,7 @@ field_targets:
 adjudication: synonym
 also_confused_with: [企业ID, companyId]
 sources: ["enrich:wiki-admin"]
+belong: concepts
 ---
 
 # 统码

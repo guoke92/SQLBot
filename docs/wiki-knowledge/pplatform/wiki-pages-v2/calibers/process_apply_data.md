@@ -13,6 +13,7 @@ scope:
 sources:
   - code:CustDataTypeConstant.DATA_TYPE_RECORD/DATA_TYPE_APPLY
 contract_version: "0.1"
+belong: calibers
 ---
 
 “流程/申请数据”口径覆盖 `cust_company_info` 中 `data_type IN ('0','2')` 的记录：`0` 为记录数据（暂存/变更过程数据），`2` 为申请数据（认证流程数据）。两者合起来代表企业的过程态数据，与主数据（[[main_data]]）相对。

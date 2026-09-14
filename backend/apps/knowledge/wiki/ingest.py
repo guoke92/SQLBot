@@ -59,18 +59,25 @@ _E0_BUDGET = 8_000
 _ANALYSIS_SYSTEM = """你是业务系统代码语义分析师。输入分四层证据（分层标注）：
 [DB 实测]（最强：结构/真实值分布）· [代码]（service/mapper 全文）·
 [需求文档]（业务主张与流程表述，作为业务含义的补充与参考）· [系统文档]（认知参考）。
+[代码] 枚举/关系 YAML 只是机械提取底稿，**不是真值**：实现若与声明不一致
+（未使用的常量、字面量直写、.name() 而非 getDictKey、DTO 拷贝冒充 JOIN），
+以写值点 setXxx / .eq / mapper 与 DB TopK 为准，推翻底稿并 REVIEW。
 输出 JSON（不要 Markdown 围栏）：
 {
   "field_semantics": [{"table","field","meaning","evidence":"db|code"}],
   "state_machines": [{"name","field",
-     "states":[{"value","label","source":"code_enum|db_dist"}],
+     "states":[{"value","label","source":"code_enum|db_dist|code_const"}],
      "transitions":[{"from","event","to","evidence":"code_path:文件:行"}]}],
   "calibers": [{"name","predicate":"表.字段 = '值'","scope","evidence"}],
   "term_bridges": [{"term","aliases":[],"maps_to","also_confused_with":[],
      "adjudication":"boundary|synonym","boundary"}],
   "rules": [{"name","content","impact","field_targets":[],"evidence"}],
   "reqdoc_claims": [{"claim","code_status":"confirmed|refuted|uncovered",
-     "code_evidence":"文件:行","action":"anchor|prose_only|review"}]
+     "code_evidence":"文件:行","action":"anchor|prose_only|review"}],
+  "enum_audit": [{"field","value","java_name","stored_as","label",
+     "verdict":"confirm|correct|reject","evidence":"文件:行","note"}],
+  "relation_audit": [{"left","right","kind","verdict":"confirm|reject|derived",
+     "evidence":"文件:行","note"}]
 }
 铁律：
 1. 值/字段/表名字面只来自 [DB][代码] 层，[需求文档] 不能发明结构数据；
@@ -78,14 +85,20 @@ _ANALYSIS_SYSTEM = """你是业务系统代码语义分析师。输入分四层�
    状态迁移）→ 固化为锚点块，evidence 记双源 "code_path:文件:行 + reqdoc:slug"
    （action=anchor）；表述与实现有出入 → 以代码为准落块、差异写散文说明
    （action=prose_only+差异）；代码无覆盖 → action=review，主张进 REVIEW 不落块；
-3. 状态值优先 db 分布（代码枚举缺失时标 source:db_dist）；
-4. 状态机 transitions 必须标注真实代码位置；拿不准的进 reqdoc_claims 或 review。"""
+3. 状态值优先 db 分布；词汇不一定是 *Enum.java，也可能是 interface /
+   *Constant / *Constants / 其它常量类，label 来自注释；落库键核对
+   .name() vs getDictKey vs 字面量；enum_audit 每主题最多 20 条，优先差异；
+4. SHARED_KEY 同名拷贝可能是 DTO 展示拷贝而非 JOIN；无查询 .eq / mapper
+   JOIN 则 relation_audit=reject 或 derived；最多 20 条；
+5. 状态机 transitions 必须标注真实代码位置；拿不准的进 reqdoc_claims 或 review；
+6. maps_to / field_targets / calibers.predicate 必须是 表.字段 或 表.字段='值'。"""
 
 _GENERATION_SYSTEM = """你是 wiki 维护者。基于语义分析产出 v0 契约页面。每个页面一个
 ---FILE: <路径>.md --- ... ---END FILE--- 块（路径含子目录：tables/enums/concepts/
-processes/calibers/rules/metrics/patterns，子目录=type）。frontmatter 必含
-type/title/page_key/domain/status: draft/aliases/oid: 1/scope.databases: [<物理库名>]/
-sources/contract_version: "0.1"。正文=散文（业务定位/## 需求背景/## 版本演进）+
+processes/calibers/rules/metrics/patterns，子目录=type）。frontmatter 必含 type/title/page_key/domain/status: draft/aliases/oid: 1/
+scope（块式 databases）/sources/contract_version: "0.1"。
+每个 FILE 正文必须以 --- 开、--- 闭合包裹 frontmatter（不要漏写起始 ---）。
+正文=散文（业务定位/## 需求背景/## 版本演进）+
 ```ground:<kind> 锚点块 + [[wikilinks]]。
 规则：
 1. 锚点块字段值逐字来自语义分析的 [DB][代码] 证据；禁止发明；
@@ -97,20 +110,36 @@ sources/contract_version: "0.1"。正文=散文（业务定位/## 需求背景/#
 4. reqdoc_claims action=anchor 的内容：锚点块 evidence 写双源
    "code_path:文件:行 + reqdoc:slug"；业务叙述写进 ## 需求背景；
 5. action=uncovered 的主张只进 ## 版本演进 并页首标注 (document_claim，未证实)；
-6. 语义不确定处输出 ---REVIEW: <type> | <title>--- ... ---END REVIEW--- 块。"""
+6. 语义不确定处输出 ---REVIEW: <type> | <title>--- ... ---END REVIEW--- 块；
+7. **表页 ground:table 必须用 fields: [{name, type, desc, dict}]**，禁止 columns/field/meaning；
+   page_key 写裸 slug（cust_company_info），禁止 table. / tables/ 前缀；
+8. concept 的 maps_to / field_targets 必须是 表.字段 或 dictKey.VALUE，禁止写代码句子；
+9. 枚举页可写 stored_as / java_name / note；不得删基线已有 value 键；
+   若写值点与 extract-enums 不一致，以写值点+DB 为准并 REVIEW；
+10. 词汇页来源可以是 interface/常量类+注释，不只 *Enum。"""
 
 
 def sanitize_llm_page(content: str) -> str:
-    """LLM 输出清洗：剥 markdown 围栏/前置散文，定位 frontmatter 真实起点。"""
+    """LLM 输出清洗：剥 markdown 围栏/前置散文，定位 frontmatter 真实起点。
+
+    常见漏写：FILE 块从 ``type:`` 起笔、只有闭合 ``---``。此时把闭合围栏
+    误当成起始围栏会得到无 frontmatter 的正文，整页 PAGE_CONTRACT_FAILED。
+    """
     text = content.replace("\r\n", "\n").strip()
     fence = re.search(r"```(?:markdown|md)\n([\s\S]*?)\n```", text)
     if fence and "---" in fence.group(1):
         text = fence.group(1).strip()
-    start = text.find("\n---\n")
     if text.startswith("---\n") or text.startswith("--- "):
         return text
+    first = text.split("\n", 1)[0]
+    looks_fm = bool(re.match(r"^[A-Za-z_][\w.]*\s*:", first or ""))
+    if looks_fm and "\n---\n" in text:
+        return "---\n" + text
+    start = text.find("\n---\n")
     if start >= 0:
         return text[start + 1 :]
+    if looks_fm:
+        return f"---\n{text}\n---\n"
     return text
 
 
@@ -288,14 +317,49 @@ def _slice_java(text: str, limit: int) -> str:
     return "\n    // …（方法切片，略）\n".join(out) if len(out) > 1 else text[:limit]
 
 
+def _enum_entries_for_tables(
+    enums_doc: dict[str, Any], tables: list[str], catalog_tables: dict[str, Any]
+) -> list[dict[str, Any]]:
+    """enums + constant_enums 中与主题表相关的底稿（含接口/常量类）。"""
+    table_set = set(tables)
+    columns: set[str] = set()
+    for table in tables:
+        meta = catalog_tables.get(table) or {}
+        columns.update((meta.get("columns") or {}).keys())
+    bindings = enums_doc.get("table_bindings") or {}
+    bound_enums: set[str] = set()
+    for key, items in bindings.items():
+        if str(key).partition(".")[0] in table_set:
+            for item in items or []:
+                if isinstance(item, dict) and item.get("enum"):
+                    bound_enums.add(str(item["enum"]))
+    rows: list[dict[str, Any]] = []
+    for section in ("enums", "constant_enums"):
+        for entry in enums_doc.get(section) or []:
+            if not isinstance(entry, dict):
+                continue
+            field = str(entry.get("field") or "")
+            name = str(entry.get("enum") or "")
+            hit = (
+                field in columns
+                or name in bound_enums
+                or any(table in str(entry) for table in tables)
+            )
+            if hit:
+                rows.append(entry)
+    return rows
+
+
 def _block_substrate(substrate_dir: Path, db_dir: Path, tables: list[str]) -> str:
     """E2/E3：该主题表的 db 结构+分布+样本首行 + 代码枚举 + 对账差异。"""
     parts: list[str] = []
     db_catalog = db_dir / "db-catalog.yaml"
     db_profile = db_dir / "db-profile.yaml"
+    catalog_tables: dict[str, Any] = {}
     if db_catalog.exists():
         data = yaml.safe_load(db_catalog.read_text()) or {}
-        sel = {t: data["tables"][t] for t in tables if t in (data.get("tables") or {})}
+        catalog_tables = data.get("tables") or {}
+        sel = {t: catalog_tables[t] for t in tables if t in catalog_tables}
         if sel:
             parts.append(
                 f"### [DB 实测] 表结构\n{yaml.safe_dump(sel, allow_unicode=True, sort_keys=False)[:9000]}"
@@ -307,18 +371,46 @@ def _block_substrate(substrate_dir: Path, db_dir: Path, tables: list[str]) -> st
             parts.append(
                 f"### [DB 实测] 值分布（真实枚举+权重）\n{yaml.safe_dump(sel, allow_unicode=True, sort_keys=False)[:6000]}"
             )
+    parts.append(
+        "### [代码] 机械提取底稿（可推翻）\n"
+        "extract-enums / extract-relationships 只是扫描基线，不是实现真值。"
+        "词汇可能来自 interface / *Constants / 注释，不一定是 *Enum；"
+        "落库键可能是 .name() 而非 getDictKey；未使用常量或字面量直写会使底稿出错。"
+        "SHARED_KEY 同名拷贝可能是 DTO 展示拷贝。以 setXxx / .eq / mapper 与 DB TopK 为准。"
+    )
     enums_path = substrate_dir / "extract-enums.yaml"
     if enums_path.exists():
         enums = yaml.safe_load(enums_path.read_text()) or {}
-        rows = [
-            e
-            for e in enums.get("enums") or []
-            if isinstance(e, dict)
-            and any(t in str(e.get("field", "")) or t in str(e) for t in tables)
-        ]
+        rows = _enum_entries_for_tables(enums, tables, catalog_tables)
         if rows:
             parts.append(
-                f"### [代码] 枚举基线\n{yaml.safe_dump(rows, allow_unicode=True, sort_keys=False)[:5000]}"
+                f"### [代码] 枚举/常量基线（enums + constant_enums）\n"
+                f"{yaml.safe_dump(rows, allow_unicode=True, sort_keys=False)[:8000]}"
+            )
+        bindings = {
+            k: v
+            for k, v in (enums.get("table_bindings") or {}).items()
+            if str(k).partition(".")[0] in set(tables)
+        }
+        if bindings:
+            parts.append(
+                f"### [代码] 写值绑定 table_bindings\n"
+                f"{yaml.safe_dump(bindings, allow_unicode=True, sort_keys=False)[:3000]}"
+            )
+    rels_path = substrate_dir / "extract-relationships.yaml"
+    if rels_path.exists():
+        rels = yaml.safe_load(rels_path.read_text()) or {}
+        table_set = set(tables)
+        hits = [
+            r
+            for r in rels.get("relationships") or []
+            if isinstance(r, dict)
+            and (r.get("left_table") in table_set or r.get("right_table") in table_set)
+        ]
+        if hits:
+            parts.append(
+                f"### [代码] 关系基线（含 SHARED_KEY，待 relation_audit）\n"
+                f"{yaml.safe_dump(hits, allow_unicode=True, sort_keys=False)[:4000]}"
             )
     reconcile = substrate_dir / "tmp" / "db-enum-reconcile.yaml"
     if reconcile.exists():
@@ -534,7 +626,18 @@ def reconcile_page(
                         }
                     )
         elif block.kind == "enum":
-            values = set((data.get("values") or {}).keys())
+            raw_values = data.get("values") or {}
+            if isinstance(raw_values, dict):
+                values = {str(k) for k in raw_values}
+            elif isinstance(raw_values, list):
+                values = set()
+                for item in raw_values:
+                    if isinstance(item, dict) and item.get("value") is not None:
+                        values.add(str(item["value"]))
+                    elif not isinstance(item, dict) and item is not None:
+                        values.add(str(item))
+            else:
+                values = set()
             profile_path = db_dir / "db-profile.yaml"
             if profile_path.exists():
                 profile = yaml.safe_load(profile_path.read_text()) or {}

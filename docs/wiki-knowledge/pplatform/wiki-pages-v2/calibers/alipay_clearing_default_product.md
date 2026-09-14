@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 支付宝清分默认产品口径
-page_key: calibers/alipay_clearing_default_product
+page_key: alipay_clearing_default_product
 domain: 外部渠道与银行对接
 status: draft
 aliases:
@@ -15,6 +15,7 @@ sources:
   - code:ProjectAlipayClearingConfigApplication#isAlipayClearingConfigured
   - code:ClientProjectAlipayClearingConfigSyncService#getAppId
 contract_version: "0.1"
+belong: calibers
 ---
 
 # 支付宝清分默认产品口径

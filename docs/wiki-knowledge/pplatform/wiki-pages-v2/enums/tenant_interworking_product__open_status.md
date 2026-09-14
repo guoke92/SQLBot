@@ -9,10 +9,22 @@ oid: 1
 scope:
   databases: [lowcode_pplatform]
 sources: ["code:extract-enums.yaml", "db:db-profile.yaml"]
-created: '2026-09-10'
-updated: '2026-09-10'
+created: '2026-09-14'
+updated: '2026-09-14'
 contract_version: "0.1"
+belong: enums
 ---
+
+
+
+
+
+
+
+
+
+
+
 
 # open_status
 
@@ -22,10 +34,10 @@ contract_version: "0.1"
 enum: tenant_interworking_product__open_status
 fields: [tenant_interworking_product.open_status, tenant_product.open_status]
 values:
-  Y:
-    label: 已开通
-  P:
-    label: 开通中
-  N:
-    label: 未开通
+  "Y":
+    label: "已开通"
+  "P":
+    label: "开通中"
+  "N":
+    label: "未开通"
 ```

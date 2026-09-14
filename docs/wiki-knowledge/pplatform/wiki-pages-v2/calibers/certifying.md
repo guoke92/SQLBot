@@ -12,6 +12,7 @@ scope:
 sources:
   - code:CustBuildStatusConstant.CUST_BUILDING
 contract_version: "0.1"
+belong: calibers
 ---
 
 “认证中”是认证状态 `cust_build_status = 'CUST_BUILDING'` 的记录集合（见 [[auth_status]]、[[enterprise_auth_status_machine]]）。处于该状态的企业已提交认证并进入审核环节，等待运营审核通过或退回。

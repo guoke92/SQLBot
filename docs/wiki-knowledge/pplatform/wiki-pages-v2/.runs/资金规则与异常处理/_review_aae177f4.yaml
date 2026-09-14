@@ -1,0 +1,4 @@
+body: 各页 frontmatter 的 scope.databases 暂用模块名推导值 lowcode_pplatform_customer_management，语义分析仅以
+  [DB] 标注证据来源，未给出物理库（schema）名。表页锚点字段不受影响，但跨库/跨服务引用与 SQL 复现需以真实库名校准，建议 v1 统一回填。
+title: 物理库名未在语义分析中给出
+type: tables

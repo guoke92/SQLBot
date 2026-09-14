@@ -1,7 +1,7 @@
 ---
 type: concept
 title: ref_cust_company_info → 企业业务编码（cust_company_info.code）
-page_key: concept.company_code_bridge
+page_key: company_code_bridge
 domain: 平台内部服务对接
 status: draft
 aliases:
@@ -31,6 +31,7 @@ field_targets:
   - cust_project_rel.ref_cust_project_rel_cust_company_info
 also_confused_with:
   - cust_company_info.id
+belong: concepts
 ---
 
 各关系表中以 ref_cust_company_info（或带前缀的变体）命名的列，关联的不是企业主键而是业务编码，即 [[tables/cust_company_info]].code。

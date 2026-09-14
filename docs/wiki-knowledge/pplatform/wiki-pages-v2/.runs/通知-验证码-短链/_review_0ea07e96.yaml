@@ -1,0 +1,10 @@
+body: '类型：process | 标题：短链生成流程
+
+  问题：需求文档主张「需要短链时由 ShortLinkAppication 生成短链」，代码链路仅见访问侧 ShortLinkController，ShortLinkAppication
+  的生成逻辑全文未取得，生成时的字段写入（number、type、is_forever、expire_time）与校验位计算方式均无法锚定。
+
+  证据：ShortLinkController.java:1（仅见访问）+ reqdoc:平台基础组件业务规则文档#2.2
+
+  处理建议：补齐 ShortLinkAppication 源码后，补建 process 页并在 [[short_link]] 页补充生成侧关系。'
+title: 短链生成流程
+type: process

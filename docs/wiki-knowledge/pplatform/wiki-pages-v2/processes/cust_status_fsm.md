@@ -1,7 +1,7 @@
 ---
 type: process
 title: 企业经营状态机（cust_status）
-page_key: process.cust_status_fsm
+page_key: cust_status_fsm
 domain: 数据权限与组织
 status: draft
 aliases: [企业经营状态机, cust_status, CustStatusEnum]
@@ -11,6 +11,7 @@ scope:
 sources: [code]
 contract_version: "0.1"
 state_field: cust_company_info.cust_status
+belong: processes
 ---
 
 企业经营状态机，承载于 [[tables/cust_company_info]].cust_status，取值来自代码枚举 CustStatusEnum：ADD / EFFECT / FREEZE / WRITEOFF / CHANGE。建档成功会把企业从 ADD 推进到 EFFECT（见 [[processes/cust_build_status_fsm]]）；冻结与解冻分别联动冻结/解冻企业管理员（见 [[calibers/company_admin]]）；注销前必须先冻结企业下全部用户，见 [[rules/writeoff_freeze_all_users]]。

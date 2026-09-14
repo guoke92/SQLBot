@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 有效企业角色口径
-page_key: caliber.effective-company-role
+page_key: effective-company-role
 domain: 客户角色与端口
 status: draft
 aliases:
@@ -16,6 +16,7 @@ sources:
   - code_path:CustRoleApplication.java#getCompanyTypeByCompanyCodeAndType
   - db_dist: cust_role_info.enable
 contract_version: "0.1"
+belong: calibers
 ---
 
 # 有效企业角色口径

@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 注销企业前先冻结企业下全部用户
-page_key: rule.writeoff_freeze_all_users
+page_key: writeoff_freeze_all_users
 domain: 数据权限与组织
 status: draft
 aliases: [注销前冻结全部用户, freezeCustAllUsers]
@@ -10,6 +10,7 @@ scope:
   databases: [base]
 sources: [code]
 contract_version: "0.1"
+belong: rules
 ---
 
 企业注销时，先执行 freezeCustAllUsers 把该企业下全部用户冻结，再置企业状态为 WRITEOFF；即注销动作的实际生效依赖「用户先冻结」这一前置步骤。流转见 [[processes/cust_status_fsm]]，用户冻结体现为 [[tables/cust_person_info]].enable/N 与 status/FREEZE。

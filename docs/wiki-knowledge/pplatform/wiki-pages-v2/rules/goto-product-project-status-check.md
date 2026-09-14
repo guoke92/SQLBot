@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 进入产品前项目状态检查
-page_key: rules/goto-product-project-status-check
+page_key: goto-product-project-status-check
 domain: 平台产品配置
 status: draft
 aliases: [项目状态检查, gotoProductSupplierFirstRelatedProject]
@@ -11,6 +11,7 @@ scope:
 sources:
   - code:PlatformProductApplication.gotoProductSupplierFirstRelatedProject
 contract_version: "0.1"
+belong: rules
 ---
 
 多项目产品且产品为通用产品时，进入产品前检查企业关联项目是否生效，未生效则禁止进入。该规则以「多项目 + 通用产品」为前提条件，通用产品的判定见 [[calibers/general-product-scope]]；字段落点为 `tenant_project.project_status` 与 [[tables/cust_project_rel]]。

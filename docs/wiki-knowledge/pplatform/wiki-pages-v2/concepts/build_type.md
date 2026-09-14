@@ -18,6 +18,8 @@ also_confused_with:
   - 认证方式
 boundary: 录入方式表示数据由谁录入（平台/客户端/简易）；认证方式表示认证流程类型。
 sources: ["enrich:wiki-admin"]
+belong: concepts
+field_targets: [cust_company_info.cust_build_type]
 ---
 
 “录入方式”指 `cust_company_info.cust_build_type`，表示企业数据由谁录入：`AGW_BUILD`（平台录入）、`PC_BUILD`（客户端录入）、`SIMPLE`（简易录入）。

@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 服务已到期
-page_key: calibers/service_expired
+page_key: service_expired
 domain: CA证书收费
 status: draft
 aliases: [service_end < 今日, 已过期服务]
@@ -11,6 +11,7 @@ scope:
 sources:
   - db:ca_fee_company
 contract_version: "0.1"
+belong: calibers
 ---
 
 # 服务已到期

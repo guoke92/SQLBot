@@ -11,6 +11,7 @@ scope:
 sources:
   - db
 contract_version: "0.1"
+belong: calibers
 ---
 
 项目迁移监控的取数口径：在 [[tenant_migarory_log]] 中同时接受操作类型 `migratoryProject` 与事件名称“迁移项目”。

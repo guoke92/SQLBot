@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 项目最新有效上线审批
-page_key: caliber/latest-approval-lookup
+page_key: latest-approval-lookup
 domain: 微企链立项与项目审批
 status: draft
 aliases:
@@ -14,6 +14,7 @@ scope:
 sources:
   - code_path:ProjectApprovalApplication.java#findLatestApprovalByProjectCode
 contract_version: "0.1"
+belong: calibers
 ---
 
 按项目查「当前该看哪一次上线审批」时，条件是未逻辑删除且被标记为最新（`is_latest='Y'`）。分页之后还会后置填充 `approvalIsAdd` / `approvalWfStatus`，用于控制列表按钮的显隐——也就是说按钮能不能点，取决于这条口径选出来的那条审批的状态，而不是历史审批的状态。

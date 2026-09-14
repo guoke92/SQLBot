@@ -9,10 +9,22 @@ oid: 1
 scope:
   databases: [lowcode_pplatform]
 sources: ["code:extract-enums.yaml", "db:db-profile.yaml"]
-created: '2026-09-10'
-updated: '2026-09-10'
+created: '2026-09-14'
+updated: '2026-09-14'
 contract_version: "0.1"
+belong: enums
 ---
+
+
+
+
+
+
+
+
+
+
+
 
 # wf_status
 
@@ -22,15 +34,15 @@ contract_version: "0.1"
 enum: wf_status
 fields: [tenant_project_approval.wf_status]
 values:
-  PENDING:
-    label: 待发起
-  RUNNING:
-    label: 审批中
-  FINISHED:
-    label: 审批通过
-  TERMINATED:
-    label: 审批拒绝
-  REVOKED:
+  "PENDING":
+    label: "待发起"
+  "RUNNING":
+    label: "审批中"
+  "FINISHED":
+    label: "审批通过"
+  "TERMINATED":
+    label: "审批拒绝"
+  "REVOKED":
     label: "REVOKED"
-    note: db 分布存在但代码枚举未声明（REVIEW）
+    note: "db 分布存在但代码枚举未声明（REVIEW）"
 ```

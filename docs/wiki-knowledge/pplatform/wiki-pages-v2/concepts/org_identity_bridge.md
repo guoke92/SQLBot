@@ -1,7 +1,7 @@
 ---
 type: concept
 title: 机构标识桥（org_manage ↔ operation_user）
-page_key: concept.org_identity_bridge
+page_key: org_identity_bridge
 domain: 数据权限与组织
 status: draft
 aliases: [机构标识桥, organization_id, 机构编号]
@@ -33,6 +33,7 @@ field_targets:
     evidence: code
 adjudication: 机构域统一以 organization_id 作为跨表引用键；org_manage 内部的树形关系走 parent_code 自引用，不要与 organization_id 混用。
 also_confused_with: [org_manage.id, org_no, org_manage.parent_code]
+belong: concepts
 ---
 
 术语桥：机构编号 organization_id 是 org_manage 与 operation_user 共同使用的跨域引用键，两者同域。注意 org_manage 自身还有三个易混字段：主键 id、机构号 org_no、以及构成机构树的自引用 parent_code——只有 organization_id 是对外引用的那一个。

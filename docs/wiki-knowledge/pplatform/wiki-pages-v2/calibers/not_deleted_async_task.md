@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 未删除异步任务
-page_key: caliber.not_deleted_async_task
+page_key: not_deleted_async_task
 domain: 租户配置
 status: draft
 aliases:
@@ -15,6 +15,7 @@ sources:
   - db:async_io_task.is_deleted
   - code:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/asyncio/service/AsyncIoTaskManager.java
 contract_version: "0.1"
+belong: calibers
 ---
 
 任务分页、查询与软删除都以 `is_deleted='0'` 为未删除判定。该字段是字符串 `0/1`，既不是布尔值也不是 `Y/N`，因此调用方必须显式写字符串，见 [[concepts/is_deleted]] 与 [[processes/async_io_task_status]]。

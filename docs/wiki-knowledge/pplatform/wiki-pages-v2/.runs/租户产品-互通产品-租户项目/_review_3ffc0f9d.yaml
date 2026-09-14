@@ -1,0 +1,5 @@
+body: '1. `wf_status` 的枚举类名与其余字段未在语义分析中给出，本页字段清单不完整（仅一个字段），需补充后回填。
+
+  2. 表名与列名来自代码引用（tenant_project_approval.wf_status），未经 DB 实测确认。'
+title: 项目上线审批表
+type: table

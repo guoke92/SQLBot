@@ -1,7 +1,7 @@
 ---
 type: rule
 title: "旧状态处理器已废弃"
-page_key: "rules/legacy_status_processor_deprecated"
+page_key: legacy_status_processor_deprecated
 domain: "customer-onboarding"
 status: draft
 aliases:
@@ -12,6 +12,7 @@ scope:
 sources:
   - "code_path:CustStatusCommitProcessor.java:类注解"
 contract_version: "0.1"
+belong: rules
 ---
 
 `CustStatusCommitProcessor` 已标注 `@Deprecated`，且其 `@DubboService` 注解被注释掉，变更消息等逻辑已由新处理器替代。因此以该类为证据的状态流转描述只能作为旁证，正式口径应以新链路为准，见 [[rules/workflow_callback_routing]]。

@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 升级授权书在线盖章条件
-page_key: rule/upgrade_auth_online_seal
+page_key: upgrade_auth_online_seal
 domain: CA证书认证
 status: draft
 aliases: [processUpgradeAuthOnOpsNameChange]
@@ -10,6 +10,7 @@ scope:
   databases: [unknown]
 sources: ["code_path:CaUpgradeAuthApplication.java:processUpgradeAuthOnOpsNameChange"]
 contract_version: "0.1"
+belong: rules
 ---
 
 规则要求：当签章中台证书登记名与运营中台企业名不一致且证书状态为 NORMAL 时，在线签署升级授权书，并上传运营中台与产融影像，回写 file_refs_json。影响是企业名称变更后重新开通 CA 需签署升级授权书。

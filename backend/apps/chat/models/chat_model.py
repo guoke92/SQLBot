@@ -172,6 +172,7 @@ class ChatRecord(SQLModel, table=True):
     error: str = Field(sa_column=Column(Text, nullable=True))
     re_exec: Optional[str] = Field(sa_column=Column(Text, nullable=True))
     feedback: Optional[str] = Field(default=None, sa_column=Column(String(8), nullable=True))
+    feedback_comment: Optional[str] = Field(default=None, sa_column=Column(Text, nullable=True))
     feedback_revision: int = Field(
         default=0, sa_column=Column(Integer, nullable=False, default=0)
     )
@@ -213,6 +214,7 @@ class ChatRecordResult(BaseModel):
     total_tokens: Optional[int] = None  # token总消耗
     re_exec: Optional[str] = None
     feedback: Optional[str] = None
+    feedback_comment: Optional[str] = None
     run_id: Optional[str] = None
     run_attempt_index: int = 0
     run_status: Optional[str] = None

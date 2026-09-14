@@ -9,10 +9,22 @@ oid: 1
 scope:
   databases: [lowcode_pplatform]
 sources: ["code:extract-enums.yaml", "db:db-profile.yaml"]
-created: '2026-09-10'
-updated: '2026-09-10'
+created: '2026-09-14'
+updated: '2026-09-14'
 contract_version: "0.1"
+belong: enums
 ---
+
+
+
+
+
+
+
+
+
+
+
 
 # open_status
 
@@ -22,10 +34,10 @@ contract_version: "0.1"
 enum: cust_auth_application__open_status
 fields: [cust_auth_application.open_status, cust_interworking_product.open_status]
 values:
-  NOT_OPENED:
-    label: 未开通
-  OPENING:
-    label: 开通中：带客户确认 forams
-  OPENED:
-    label: 已开通
+  "NOT_OPENED":
+    label: "未开通"
+  "OPENING":
+    label: "开通中：带客户确认 forams"
+  "OPENED":
+    label: "已开通"
 ```

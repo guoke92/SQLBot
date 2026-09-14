@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 运营人员查询必须带 deleted 过滤
-page_key: rule.operation_user_deleted_filter
+page_key: operation_user_deleted_filter
 domain: 数据权限与组织
 status: draft
 aliases: [operation_user 删除过滤]
@@ -10,6 +10,7 @@ scope:
   databases: [base]
 sources: [db]
 contract_version: "0.1"
+belong: rules
 ---
 
 [[tables/operation_user]] 存在已删除数据（db 实测 deleted 分布为 N=119 / Y=22），因此对该表的任何查询都必须显式带 deleted 过滤条件，否则约 15% 的已删除运营人员会进入结果集。这是本表最容易被忽略的查询前置条件。

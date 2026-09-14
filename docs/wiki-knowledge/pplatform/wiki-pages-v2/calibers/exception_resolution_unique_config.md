@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 异常解析-唯一配置口径
-page_key: calibers/exception_resolution_unique_config
+page_key: exception_resolution_unique_config
 domain: funding
 status: draft
 aliases:
@@ -15,6 +15,7 @@ sources:
   - "db:funding_exception_resolution_un"
   - "code:ExceptionResolutionApplication#checkBeforeSave"
 contract_version: "0.1"
+belong: calibers
 ---
 
 # 异常解析-唯一配置口径

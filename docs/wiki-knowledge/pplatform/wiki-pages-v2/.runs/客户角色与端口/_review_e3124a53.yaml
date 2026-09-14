@@ -1,0 +1,15 @@
+body: '以下四条 reqdoc 主张为 uncovered，未在本次分析中获得代码证据，已在相关页 ## 版本演进 处按 (document_claim，未证实)
+  处理，待补充代码证据后再决定是否建页：
+
+  1. 客户加入项目时进行角色组合校验，读取 PlatformProductDO.custRoleCombine 合法组合，否则抛异常——若证实，应新增 rules
+  页。
+
+  2. 租户产品开通状态为 PENDING/ACTIVE/CANCEL——若证实，应新增 enums 页（field 待定）。
+
+  3. 平台产品列表按 tenant_product 已开通列表过滤，并通过 Nacos `platform.limit.product.support` 白名单过滤——若证实，应新增
+  rules 页。
+
+  4. 用户角色类型包括平台管理员、企业管理员、普通用户——代码仅见 ROLE_NAME_VISITOR/ROLE_NAME_NORMAL，未证实，暂不建 enums
+  页。'
+title: 需求文档未证实主张
+type: uncovered

@@ -1,7 +1,7 @@
 ---
 type: process
 title: 联系人账号状态
-page_key: process.person_account_status
+page_key: person-account-status
 domain: 客户联系人管理
 status: draft
 aliases:
@@ -14,6 +14,7 @@ sources:
   - "code_path:CustPersonApplication.java:ifNessaryFrzAdm"
   - "code_path:CustPersonApplication.java:simpleChangePerson"
 contract_version: "0.1"
+belong: processes
 ---
 
 联系人账号状态描述一个联系人记录从「新增/待激活」到「生效」，以及因管理员变更被「冻结」的过程，落在 [[tables/cust_person_info]] 的 `status` 字段上。该状态与逻辑删除标识 `enable` 相互独立：被冻结的记录仍是启用记录，查询需结合 [[calibers/valid-person]] 的判定。

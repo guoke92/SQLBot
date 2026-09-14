@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 产品类型编码数组的 LIKE 筛选与白名单校验
-page_key: rule/product-type-arr-like-filter
+page_key: product-type-arr-like-filter
 domain: 微企链立项与项目审批
 status: draft
 aliases:
@@ -13,6 +13,7 @@ scope:
 sources:
   - code_path:ProjectStatisticsApplication.java
 contract_version: "0.1"
+belong: rules
 ---
 
 由于产品类型以 JSON 数组字符串存放，筛选无法用等值匹配，只能用 `LIKE '%"code"%'` 在数组文本里找编码。为避免注入与脏值，拼接前会先经过枚举白名单校验。

@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 已支付订单
-page_key: calibers/paid_order
+page_key: paid_order
 domain: CA证书收费
 status: draft
 aliases: [PAID 订单, order_status=PAID]
@@ -11,6 +11,7 @@ scope:
 sources:
   - db:ca_fee_order
 contract_version: "0.1"
+belong: calibers
 ---
 
 # 已支付订单

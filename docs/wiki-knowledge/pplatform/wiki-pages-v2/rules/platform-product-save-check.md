@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 平台产品保存前置校验
-page_key: rules/platform-product-save-check
+page_key: platform-product-save-check
 domain: 平台产品配置
 status: draft
 aliases: [产品保存校验, checkBeforeSave]
@@ -12,6 +12,7 @@ sources:
   - code:PlatformProductApplication.checkBeforeSave
   - code:PlatformProductDomainService.checkBeforeSave
 contract_version: "0.1"
+belong: rules
 ---
 
 保存或更新平台产品前，系统执行前置校验：产品基本信息合法性、产品 code 唯一性、产品类型枚举有效性等。校验失败抛出 BaseException 阻断保存。

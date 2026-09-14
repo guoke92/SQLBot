@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: "回调审核轨迹取数"
-page_key: "calibers/callback_audit_track_fetch"
+page_key: callback_audit_track_fetch
 domain: "customer-onboarding"
 status: draft
 aliases:
@@ -12,6 +12,7 @@ scope:
 sources:
   - "code_path:CustWorkflowAuditCommitProcessor.java:process"
 contract_version: "0.1"
+belong: calibers
 ---
 
 回填审核轨迹（审批人与审批人名称）时，取数位置随建档方式而变：平台录入取审批历史第 1 条，其他方式取最后 1 条。落库字段见 [[tables/cust_company_info]]，规则条目见 [[rules/audit_track_fetch]]。

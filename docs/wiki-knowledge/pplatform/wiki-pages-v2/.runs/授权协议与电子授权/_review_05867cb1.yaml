@@ -1,0 +1,3 @@
+body: 语义分析未给出各表所属的物理库名，本批页面 `scope.databases` 统一写 `unknown`，待补充真实物理库名（如多租户分库需按租户标注分片规则）。
+title: authorization_agreement
+type: table

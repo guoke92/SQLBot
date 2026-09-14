@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 非注销企业口径
-page_key: calibers/non_writeoff
+page_key: non_writeoff
 domain: 外部渠道与银行对接
 status: draft
 aliases:
@@ -15,6 +15,7 @@ sources:
   - code:CustAccessApplication#validateSetValueOfTianma
   - code:CustStatusConstant
 contract_version: "0.1"
+belong: calibers
 ---
 
 # 非注销企业口径

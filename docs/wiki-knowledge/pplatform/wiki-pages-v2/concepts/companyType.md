@@ -1,7 +1,7 @@
 ---
 type: concept
 title: companyType 企业角色类型
-page_key: concepts/companyType
+page_key: companyType
 domain: 平台产品配置
 status: draft
 aliases: [companyType, custCompanyType, 企业角色]
@@ -17,6 +17,8 @@ adjudication: synonym
 also_confused_with: []
 contract_version: "0.1"
 sources: ["enrich:wiki-admin"]
+belong: concepts
+field_targets: [cust_company_info.cust_company_type]
 ---
 
 companyType、custCompanyType 与「企业角色」是同一语义，映射到 [[tables/cust_company_info]] 的 `cust_company_type`。

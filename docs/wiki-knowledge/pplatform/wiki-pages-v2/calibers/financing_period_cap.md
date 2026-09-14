@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 融资期限上限口径（max_financing_period）
-page_key: calibers/financing_period_cap
+page_key: financing_period_cap
 domain: 租户产品
 status: draft
 aliases: [融资期限上限, max_financing_period]
@@ -12,6 +12,7 @@ sources:
   - db:tenant_product
   - db:tenant_interworking_product
 contract_version: "0.1"
+belong: calibers
 ---
 
 本口径描述融资期限上限的取值形态。[[tables/tenant_product]] 以月为单位混存纯数字与带「个月」后缀的文本，[[tables/tenant_interworking_product]] 则以「1-3年」区间形式表达，两张表的单位与粒度并不统一。

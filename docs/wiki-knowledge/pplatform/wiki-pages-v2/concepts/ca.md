@@ -1,7 +1,7 @@
 ---
 type: concept
 title: CA
-page_key: concept/ca
+page_key: ca
 domain: CA证书认证
 status: draft
 aliases: [CFCA, 数字证书, 电子签章]
@@ -14,6 +14,7 @@ maps_to: CFCA数字证书认证服务
 adjudication: boundary
 also_confused_with: [电子签名, 上上签]
 field_targets: []
+belong: concepts
 ---
 
 「CA」在本主题中特指 CFCA 数字证书认证，是围绕企业数字证书开通、升级与失效回写的一整套服务，落地在 [[tables/ca_certification_info]]（开通链路）与 [[tables/ca_cfca_upgrade_report]]（升级异常上报）两张表上。

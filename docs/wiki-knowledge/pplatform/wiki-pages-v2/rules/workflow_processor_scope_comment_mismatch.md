@@ -1,7 +1,7 @@
 ---
 type: rule
 title: "工作流执行器实际处理范围与注释不一致"
-page_key: "rules/workflow_processor_scope_comment_mismatch"
+page_key: workflow_processor_scope_comment_mismatch
 domain: "customer-onboarding"
 status: draft
 aliases:
@@ -12,6 +12,7 @@ scope:
 sources:
   - "code_path:CustWorkflowAuditCommitProcessor.java:process"
 contract_version: "0.1"
+belong: rules
 ---
 
 执行器注释写「仅处理拒绝，中间状态不处理」，但代码的实际守卫条件是「既非通过、也非拒绝才 return」，因此通过和拒绝都会进入处理逻辑。阅读与排障时应以代码为准，不要依据注释推断处理范围。相关入口规则见 [[rules/workflow_callback_routing]]。

@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 有效联系人
-page_key: caliber.valid_person
+page_key: valid-person
 domain: 客户联系人管理
 status: draft
 aliases:
@@ -12,6 +12,7 @@ scope:
 sources:
   - "code:CustPersonApplication.listCompanyPerson"
 contract_version: "0.1"
+belong: calibers
 ---
 
 有效联系人是最基础的列表口径：只要 [[tables/cust_person_info]] 的 `enable = 'Y'` 即计入。注意它与 [[processes/person-account-status]] 的 `status` 无关，冻结（`FREEZE`）的联系人仍属有效联系人，只是不可再作为当前管理员使用。

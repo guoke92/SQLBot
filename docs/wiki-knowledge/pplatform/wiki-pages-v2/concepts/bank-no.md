@@ -1,7 +1,7 @@
 ---
 type: concept
 title: 联行号（bank_no）
-page_key: concepts/bank-no
+page_key: bank-no
 domain: 企业银行账户
 status: draft
 aliases: [bank_no, bankID, cnapsCode]
@@ -24,6 +24,8 @@ also_confused_with:
   - bank_code_name（上送 bankName）
 boundary: 代码把 bank_no 同时当作 bankID 与 cnapsCode 上送人行接口，bankName 取的是 bank_code_name（总行名称）而非开户行 branch 名称。
 sources: ["enrich:wiki-admin"]
+belong: concepts
+field_targets: [cust_account_info.bank_no]
 ---
 
 联行号是账户开户行的清算行号，落库字段为 `cust_account_info.bank_no`。在打款申请链路中，代码把该字段同时作为 `bankID` 与 `cnapsCode` 上送人行小额打款接口，即「一值两用」。账户表见 [[tables/cust_account_info]]，流程见 [[processes/account-cnaps-payment-auth-state]]。

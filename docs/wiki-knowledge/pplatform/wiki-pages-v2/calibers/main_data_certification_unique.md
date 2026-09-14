@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 主数据信用代码唯一口径
-page_key: calibers/main_data_certification_unique
+page_key: main_data_certification_unique
 domain: 企业画像
 status: draft
 aliases:
@@ -14,6 +14,7 @@ scope:
 sources:
   - code:CustCompanyIfoEnchanceService.java
 contract_version: "0.1"
+belong: calibers
 ---
 
 # 主数据信用代码唯一口径

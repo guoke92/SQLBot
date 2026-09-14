@@ -68,6 +68,40 @@ def suggested_remap_for(
     )
 
 
+def collect_bind_ids(
+    datasource_id: int | None,
+    datasource_ids: list[int] | None = None,
+) -> list[int]:
+    """Dedupe datasource ids. ``datasource_ids`` is the full set; scalar is legacy."""
+    ordered: list[int] = []
+    seen: set[int] = set()
+    for raw in [*(datasource_ids or []), datasource_id]:
+        if raw is None:
+            continue
+        ds_id = int(raw)
+        if ds_id <= 0 or ds_id in seen:
+            continue
+        seen.add(ds_id)
+        ordered.append(ds_id)
+    return ordered
+
+
+def _remap_for_datasource(
+    ds_id: int,
+    *,
+    ids: list[int],
+    remap_databases: dict[str, str] | None,
+    remaps_by_datasource: dict[str, dict[str, str]] | None,
+) -> dict[str, str] | None:
+    by_ds = remaps_by_datasource or {}
+    per_ds = by_ds.get(str(ds_id))
+    if per_ds is not None:
+        return dict(per_ds)
+    if remap_databases is not None and len(ids) == 1:
+        return dict(remap_databases)
+    return None
+
+
 def effective_remap_databases(
     provided: dict[str, str] | None, suggested: dict[str, str]
 ) -> dict[str, str]:
@@ -94,6 +128,7 @@ def bind_corpus(
     corpus_key: str,
     datasource_id: int,
     remap_databases: dict[str, str] | None = None,
+    commit: bool = True,
 ) -> BindingView:
     corpus = get_corpus(session, oid, corpus_key)
     if corpus is None or corpus.id is None:
@@ -134,7 +169,10 @@ def bind_corpus(
         existing.enabled = True
         existing.update_time = now
     session.add(existing)
-    session.commit()
+    if commit:
+        session.commit()
+    else:
+        session.flush()
     session.refresh(existing)
     SQLBotLogUtil.info(
         "wiki corpus bound: ds=%s corpus=%s remap=%s",
@@ -143,6 +181,59 @@ def bind_corpus(
         existing.remap_databases,
     )
     return _to_view(existing, corpus.corpus_key, ds.name)
+
+
+def sync_corpus_bindings(
+    session: Session,
+    *,
+    oid: int,
+    corpus_key: str,
+    datasource_ids: list[int],
+    datasource_id: int | None = None,
+    remap_databases: dict[str, str] | None = None,
+    remaps_by_datasource: dict[str, dict[str, str]] | None = None,
+) -> list[BindingView]:
+    """Bind ``datasource_ids`` to one corpus and drop this corpus's other bindings.
+
+    Each datasource keeps its own remap (physical DB name). A datasource may
+    still belong to only one corpus; selecting a DS bound elsewhere rebinds it.
+    """
+    ids = collect_bind_ids(datasource_id, datasource_ids)
+    if not ids:
+        raise BindingError("select at least one datasource")
+    corpus = get_corpus(session, oid, corpus_key)
+    if corpus is None or corpus.id is None:
+        raise BindingError(f"corpus not found: {corpus_key}")
+
+    views: list[BindingView] = []
+    for ds_id in ids:
+        views.append(
+            bind_corpus(
+                session,
+                oid=oid,
+                corpus_key=corpus_key,
+                datasource_id=ds_id,
+                remap_databases=_remap_for_datasource(
+                    ds_id,
+                    ids=ids,
+                    remap_databases=remap_databases,
+                    remaps_by_datasource=remaps_by_datasource,
+                ),
+                commit=False,
+            )
+        )
+    keep = set(ids)
+    stale = session.exec(
+        select(WikiCorpusBinding).where(
+            WikiCorpusBinding.oid == oid,
+            WikiCorpusBinding.corpus_id == int(corpus.id),
+        )
+    ).all()
+    for row in stale:
+        if int(row.datasource_id) not in keep:
+            session.delete(row)
+    session.commit()
+    return list_bindings(session, oid, corpus_id=int(corpus.id))
 
 
 def unbind_datasource(session: Session, *, datasource_id: int, oid: int) -> bool:

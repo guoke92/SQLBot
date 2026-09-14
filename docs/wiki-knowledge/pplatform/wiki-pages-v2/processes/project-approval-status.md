@@ -1,7 +1,7 @@
 ---
 type: process
 title: 项目立项审批状态
-page_key: process.project-approval-status
+page_key: project-approval-status
 domain: 项目报表/统计/上报
 status: draft
 aliases:
@@ -14,6 +14,7 @@ scope:
 sources:
   - code:ProjectStatisticsApplication.java
 contract_version: "0.1"
+belong: processes
 ---
 
 # 项目立项审批状态

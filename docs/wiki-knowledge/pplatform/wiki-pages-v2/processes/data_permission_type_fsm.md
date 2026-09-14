@@ -1,7 +1,7 @@
 ---
 type: process
 title: 数据权限类型机（permission_type）
-page_key: process.data_permission_type_fsm
+page_key: data_permission_type_fsm
 domain: 数据权限与组织
 status: draft
 aliases: [数据权限类型机, permission_type, ALL, SPECIFIED, SAME_AS_USER_ORG]
@@ -11,6 +11,7 @@ scope:
 sources: [code]
 contract_version: "0.1"
 state_field: sys_cust_org_user_permission.permission_type
+belong: processes
 ---
 
 数据权限类型机，承载于 [[tables/sys_cust_org_user_permission]].permission_type，取值为 ALL（全部数据）/ SPECIFIED（指定组织）/ SAME_AS_USER_ORG（同用户所属组织）。这是一张「按主体三维惰性推进」的状态机：无记录或值为空时按 SAME_AS_USER_ORG 处理（见 [[rules/data_permission_default_same_as_user_org]]）；一旦判定主体是该企业该角色启用中的管理员，则直接落到 ALL（判定口径见 [[calibers/company_admin]]）。

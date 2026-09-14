@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 集团删除前在途业务校验
-page_key: rules/root-group-delete-check
+page_key: root-group-delete-check
 domain: 企业集团关系
 status: draft
 aliases: [removeRootGroup, 集团解散校验]
@@ -11,6 +11,7 @@ scope:
 sources:
   - code_path:CustGroupRelApplication.java:removeRootGroup
 contract_version: "0.1"
+belong: rules
 ---
 
 集团解散/移除成员前的约束规则：先扁平化整棵集团树做在途业务校验，通过后批量删除关系、释放额度并回收待办。相关表见 [[tables/cust_group_rel]]。

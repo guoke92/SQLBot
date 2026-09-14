@@ -1,35 +1,39 @@
 ---
 type: concept
-title: headCompanyData
-page_key: concept/head_company_data
+title: 总公司行标识（head_company_data）
+page_key: head_company_data
 domain: CA证书认证
 status: draft
-aliases: [是否总公司行]
+aliases: [headCompanyData=Y, 总公司行标识]
 oid: 1
 scope:
   databases: [unknown]
-sources: [code]
+sources:
+  - code:CaCertificationHeadCompanySupport.java
+  - code:CaCertificationConfirmApplication.java
+  - db:ca_certification_info
 contract_version: "0.1"
-maps_to: ca_certification_info行标识
-adjudication: boundary
-also_confused_with: [headCompany]
+maps_to: ca_certification_info.head_company_data
 field_targets:
   - ca_certification_info.head_company_data
+  - ca_certification_info.cust_id
+adjudication: boundary
+also_confused_with:
+  - ca_certification_info.cust_id
+belong: concepts
+field_targets: [ca_certification_info.head_company_data]
 ---
 
-headCompanyData 是 [[tables/ca_certification_info]] 上的行标识，回答「这一行代表的是分公司自身，还是总公司」：Y 表示总公司行，N 表示分公司自身行。它同时是行幂等键的组成部分（[[calibers/ca_row_idempotent_key]]）。
+head_company_data 标记一行认证数据的主体归属：Y=总公司主体行（来源 head_company_info），N=本企业/分公司自身行，用字面量 'Y'/'N' 写入。
 
-## 边界与辨析
-
-- headCompanyData 标识 CA 认证行是分公司自身（N）还是总公司（Y）；headCompany 是 cust_company_info 的字段，表示企业本身是否总公司。两者语义层级不同：前者是「这次认证为谁办」，后者是「这家企业是什么性质」，不能互相替换。
-- 分公司场景下同一企业会同时产生 headCompanyData=N 与 Y 两行并分别上送签章中台，见 [[rules/branch_dual_row]]。
+**边界（boundary）**：Y 行 cust_id 是总公司 id（cust_head_company_info.id），不是分公司 cust_company_info.id；N/Y 两行靠 cust_id+data_date+batch_no+head_company_data 共同定位。因此"cust_id 相同"绝不能作为合并两行的依据，反过来也不能因为 cust_id 不同就认为不是同一笔业务。
 
 ## 需求背景
 
-语义分析中 reqdoc_claims 为空，暂无可引用的需求文档主张。字段取值 Y/N 与双行行为均来自代码证据。
+口径见 [[head_company_row|总公司主体行口径]]；协议确认阶段只有 N 行会被上送（[[confirm_submit_own_row_only]]），而运营推送链路会并行上送两行（[[operation_platform_source]]）。
 
 ## 版本演进
 
-暂无文档化的版本演进证据。
+- v0：首次固化字面量写入方式与 cust_id 语义差异。
 
-相关页面：[[calibers/ca_row_idempotent_key]]、[[rules/branch_dual_row]]、[[tables/ca_certification_info]]。
+关联页面：[[ca_certification_info]]、[[head_company_row]]、[[confirm_submit_own_row_only]]、[[incremental_idempotent_key]]。

@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 供应商企业
-page_key: caliber.supplier_company
+page_key: supplier_company
 domain: 租户配置
 status: draft
 aliases:
@@ -14,6 +14,7 @@ scope:
 sources:
   - code:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/AssetOperatorSyncApplication.java:syncAssetOperator
 contract_version: "0.1"
+belong: calibers
 ---
 
 在企业类型为 `SUPPLIER` 的范围内，资产审核运营人员的同步才生效；非供应商企业不参与该同步。该口径限定运营人员同步的作用域，避免把审核运营人写到不相关的企业上。

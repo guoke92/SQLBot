@@ -1,7 +1,7 @@
 ---
 type: process
 title: 客户变更单状态机（cust_change_record.status）
-page_key: process.cust-change-record-status
+page_key: cust-change-record-status
 domain: 企业变更与运营变更
 status: draft
 aliases: [变更单状态, 变更审批状态, CheckStatus]
@@ -13,6 +13,7 @@ sources:
   - code_path:CustSyncEventProvider.java:onEvent
   - code_path:CustChangeApplication.java:changeRebuild
 contract_version: "0.1"
+belong: processes
 ---
 
 变更单状态挂在 [[tables.cust_change_record]] 的 `status` 上，取值来自 `OperApiConstants.CheckStatus` 枚举：审核中（`CUST_CHECK_CHECKING`）、审核通过（`CUST_CHECK_PASS`，终态）、审核拒绝（`CUST_CHECK_REJECT`，终态）、退回客户（`CUST_CHECK_BACKTOCUSTOM`）。终态口径被流程重建直接使用，见 [[calibers.change-record-terminal-status]] 与 [[rules.change-record-terminal-filter]]。调用方重新发起变更时，会先结束旧流程并把旧单置为拒绝，见 [[rules.change-rebuild]]。

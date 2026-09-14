@@ -12,6 +12,7 @@ sources:
   - db_dist
   - code_path:CustMigratoryService.java:loginAfterEjectMsg
 contract_version: "0.1"
+belong: processes
 ---
 
 本页描述迁移用户的登录状态流转：迁移用户在 [[migratory_user_record]] 中以 `is_login` 标记是否已经过“登录后弹出升级消息”这一动作。状态只有两个取值，迁移客户时记录被初始化为未登录，用户登录并触发弹出接口后翻转为已登录，从而在数据层面实现“仅弹一次”。

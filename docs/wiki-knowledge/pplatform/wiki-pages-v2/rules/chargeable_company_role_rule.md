@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 收费对象规则
-page_key: rules/chargeable_company_role_rule
+page_key: chargeable_company_role_rule
 domain: CA证书收费
 status: draft
 aliases: [收费角色规则, isChargeableCompanyRole]
@@ -11,6 +11,7 @@ scope:
 sources:
   - code:CaFeePaymentCheckApplication.java:checkFeePaymentForPortal:isChargeableCompanyRole
 contract_version: "0.1"
+belong: rules
 ---
 
 # 收费对象规则

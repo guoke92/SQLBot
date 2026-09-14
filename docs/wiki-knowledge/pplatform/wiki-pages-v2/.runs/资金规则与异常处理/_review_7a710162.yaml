@@ -1,0 +1,7 @@
+body: reqdoc_claims 中两条 action=anchor 的主张（「资源导入遵循全量校验通过才入库」「资方规则查询按 fundingPartyMark
+  + productCode 只取 ACTIVE 规则」）在语义分析里只有 claim 文本与 code_evidence，未给出文档 slug。本批次按主张摘要自拟
+  slug（reqdoc:import-all-validate-before-save、reqdoc:funding-rule-active-only-query），仅
+  BR-001 为文档原文自带编号。待需求文档编号体系确认后统一替换 slug，并同步 [[exception_import_all_or_nothing]]、[[rule_provider_active_only]]
+  两页锚点。
+title: reqdoc 主张 slug 缺失
+type: rules

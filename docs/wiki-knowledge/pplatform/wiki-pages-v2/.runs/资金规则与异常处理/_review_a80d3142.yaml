@@ -1,0 +1,5 @@
+body: 主张「非 AGW 端按当前租户已开通 tenant_product 列表过滤，并通过 Nacos 白名单进一步过滤」在代码侧未覆盖：PlatformProductApplication
+  仅有 listPlatformProduct(type) 直连 domainService，本主题代码中未见 listTenantProduct / filterLimitProduct
+  实现。当前只在语义分析中标注 action=review，未落为任何页面的 ground:rule 锚点；需确认该过滤逻辑是否在其他模块/其他服务实现，再决定是否升级为规则页。
+title: 平台产品列表过滤（BR-002，未覆盖主张）
+type: rules

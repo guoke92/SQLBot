@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 提交建档时的字段重置（check_status 置 null、audit_back_flag 置 'N'）
-page_key: rule.submit_cust_field_reset
+page_key: submit_cust_field_reset
 domain: 平台内部服务对接
 status: draft
 aliases:
@@ -13,6 +13,7 @@ sources:
   - semantic:field_semantics[cust_company_info.check_status]
   - semantic:field_semantics[cust_company_info.audit_back_flag]
 contract_version: "0.1"
+belong: rules
 ---
 
 提交建档时把 check_status 置为 null；非自主录入的提交路径把 audit_back_flag 置为 'N'。

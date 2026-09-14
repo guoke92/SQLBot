@@ -1,7 +1,7 @@
 ---
 type: process
 title: 经办人冻结状态（SysCustUserRel）
-page_key: process/operator_freeze_state
+page_key: operator_freeze_state
 domain: 微信生态/小程序/扫脸
 status: draft
 aliases: [经办人冻结, is_freeze 状态]
@@ -12,6 +12,7 @@ sources:
   - code:PlatFormUserApplication.java
   - code:CustSyncEventProvider.java
 contract_version: "0.1"
+belong: processes
 ---
 
 # 经办人冻结状态（SysCustUserRel）

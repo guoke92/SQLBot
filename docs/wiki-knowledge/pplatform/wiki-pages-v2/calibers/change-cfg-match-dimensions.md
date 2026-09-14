@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 企业变更配置匹配维度
-page_key: caliber.change-cfg-match-dimensions
+page_key: change-cfg-match-dimensions
 domain: 企业变更与运营变更
 status: draft
 aliases: [变更项匹配口径, 配置四维匹配]
@@ -11,6 +11,7 @@ scope:
 sources:
   - code_path:CustChangeApplication.java:list
 contract_version: "0.1"
+belong: calibers
 ---
 
 变更项清单按「端类型 + 认证方式 + 客户类型 + 是否总公司 + 有效标记」匹配 [[tables.cust_change_cfg]]；其中企业类型按 `head_company` 细分，个人类型不叠加该维度。落地规则见 [[rules.change-cfg-identity-match]]，有效标记口径见 [[calibers.change-cfg-enable]]，配置字段含义见配置表页。

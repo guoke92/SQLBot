@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 服务期内
-page_key: calibers/in_service_period
+page_key: in_service_period
 domain: CA证书收费
 status: draft
 aliases: [service_end >= 今日, 服务有效期覆盖今日]
@@ -11,6 +11,7 @@ scope:
 sources:
   - db:ca_fee_company
 contract_version: "0.1"
+belong: calibers
 ---
 
 # 服务期内

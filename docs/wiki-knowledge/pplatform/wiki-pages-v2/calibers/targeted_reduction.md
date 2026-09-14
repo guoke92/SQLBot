@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 定向减免
-page_key: calibers/targeted_reduction
+page_key: targeted_reduction
 domain: CA证书收费
 status: draft
 aliases: [特殊年费大于0, 定向减免企业]
@@ -11,6 +11,7 @@ scope:
 sources:
   - db:ca_fee_company
 contract_version: "0.1"
+belong: calibers
 ---
 
 # 定向减免

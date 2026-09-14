@@ -1,209 +1,336 @@
 field_semantics:
 - table: ca_certification_info
-  field: id
-  meaning: 表主键
-  evidence: db
-- table: ca_certification_info
   field: cust_id
-  meaning: 企业ID（产融企业主键）
-  evidence: db
+  meaning: 报数主体企业id（产融 cust_company_info.id）；head_company_data='Y' 行取总公司 cust_head_company_info.id
+  evidence: code
 - table: ca_certification_info
   field: cust_type
-  meaning: 客户类型：COMPANY（企业）/ PERSON（个人）
-  evidence: code
-- table: ca_certification_info
-  field: data_date
-  meaning: 数据日期，格式 yyyyMMdd
-  evidence: code
-- table: ca_certification_info
-  field: op_type
-  meaning: 操作类型：INSERT（新增）/ UPDATE（更新）
-  evidence: code
-- table: ca_certification_info
-  field: batch_no
-  meaning: 批次号/唯一流水号，格式 INC_yyyyMMddHHmmssSSS_6位hex
-  evidence: code
+  meaning: 客户类型，代码落库值恒为字面量 COMPANY（CUST_TYPE_COMPANY），非数字字典键
+  evidence: db
 - table: ca_certification_info
   field: data_source
-  meaning: 数据来源：CHANNEL_OPENAPI（渠道API）/ FBP_PORTAL（产融门户）/ OPERATION_PLATFORM（运营中台）
+  meaning: 数据来源，.name() 落库：OPERATION_PLATFORM（运营中台推送）/ FBP_PORTAL（产融门户一证四步）/ CHANNEL_OPENAPI（开放渠道）
+  evidence: db
+- table: ca_certification_info
+  field: data_date
+  meaning: 数据日期 yyyyMMdd；createOrGetByKey 缺省取当天，CaActivationApplication 的 resolvePersistRowDataDate
+    已定义但无调用点
   evidence: code
 - table: ca_certification_info
   field: head_company_data
-  meaning: 是否总公司行：Y（总公司行）/ N（分公司自身行）
-  evidence: code
-- table: ca_certification_info
-  field: submit_status
-  meaning: 提交状态：PENDING（待提交）/ SUCCESS（提交成功）/ FAIL（提交失败）
-  evidence: code
-- table: ca_certification_info
-  field: enable
-  meaning: 启用标识：Y（有效）/ N（无效）
+  meaning: 是否总公司行：Y=总公司主体行（来源 head_company_info），N=本企业/分公司自身行；用字面量 'Y'/'N' 写入
   evidence: db
 - table: ca_certification_info
+  field: op_type
+  meaning: 操作类型，代码仅写 INSERT（OP_TYPE_INSERT），UPDATE 未使用
+  evidence: db
+- table: ca_certification_info
+  field: submit_status
+  meaning: 上送签章中台（cbsSubmitBizData）状态，.name() 落库 PENDING/SUCCESS/FAIL
+  evidence: db
+- table: ca_certification_info
+  field: batch_no
+  meaning: 批次流水号 INC_<yyyyMMddHHmmssSSS>_<6位hex>；已不再进入幂等键，总/分公司两行各自独立
+  evidence: code
+- table: ca_certification_info
   field: notify_agreement_json
-  meaning: 协议告知 JSON 数组，记录各协议签署留痕
+  meaning: 协议告知留痕：CfcaNotifyAgreementItemDto 列表序列化为 JSONArray（固定数组结构）
   evidence: code
 - table: ca_certification_info
   field: enterprise_four_json
-  meaning: 企业四要素/三要素核验 JSON（verifyMethod=ENTERPRISE_FOUR 或 ENTERPRISE_THREE）
+  meaning: 企业实名核验 JSON；四要素(ENTERPRISE_FOUR)与企业三要素(ENTERPRISE_THREE)共用本列
   evidence: code
 - table: ca_certification_info
   field: police_two_json
-  meaning: 公安二要素核验 JSON（verifyMethod=POLICE_TWO）
+  meaning: 被授权人公安二要素（POLICE_TWO）核验 JSON（含请求/响应快照）
   evidence: code
 - table: ca_certification_info
   field: intent_sms_json
-  meaning: 短信意愿认证 JSON（authType=SMS_CODE）
+  meaning: 短信意愿（SMS_CODE）留痕 JSON
   evidence: code
 - table: ca_certification_info
   field: intent_h_face_json
-  meaning: H5刷脸意愿认证 JSON（authType=H5_FACE）
+  meaning: H5 刷脸意愿（H5_FACE）留痕 JSON，含 similarity / videoPath
   evidence: code
 - table: ca_certification_info
   field: file_refs_json
-  meaning: 附件引用 JSON，包含 embeddedFiles 列表（multipartField + path）
+  meaning: 附件引用：embeddedFiles[{multipartField,path}]，上送前 path 临时转 HTTP 下载链，库内保留 COS
+    key
   evidence: code
 - table: ca_certification_info
   field: sign_platform_result
-  meaning: 签章中台请求与响应原文（含异常信息），完整保留
+  meaning: 签章中台上送的请求+响应（或异常）原文，用于事后回查
   evidence: code
 - table: ca_certification_info
   field: submit_time
-  meaning: 最近一次提交签章中台的时间
+  meaning: 上送签章中台完成时间（writeSubmitResult 写入）
   evidence: code
-- table: ca_cfca_upgrade_report
-  field: biz_module
-  meaning: 所属模块，如 CFCA_CA_UPGRADE / CFCA证书升级
-  evidence: db
-- table: ca_cfca_upgrade_report
-  field: source_system
-  meaning: 来源系统，如 ACFLOW / ORDER / RVSFACTOR_PC / 国内信用证
-  evidence: db
-- table: ca_cfca_upgrade_report
-  field: title
-  meaning: 异常标题，如 CFCA证书升级 / 【CFCA证书升级】
-  evidence: db
-- table: ca_cfca_upgrade_report
-  field: todo_triggered
-  meaning: 是否曾触发待办/消息：Y / N
+- table: ca_certification_info
+  field: enable
+  meaning: 逻辑有效标识，创建恒为 Y
   evidence: db
 - table: ca_cfca_upgrade_report
   field: authorized_user_name
-  meaning: 被授权人姓名
+  meaning: CA 升级授权书被授权人姓名
   evidence: db
 - table: ca_cfca_upgrade_report
-  field: company_id
-  meaning: 企业ID
+  field: company_type
+  meaning: 企业角色（CORE/SUPPLIER/FINANCE/PLATFORM_COMPANY 等）
   evidence: db
 - table: ca_cfca_upgrade_report
-  field: certification_no
-  meaning: 统一社会信用代码
+  field: source_system
+  meaning: 升级授权书影像来源系统（ACFLOW/RVSFACTOR_PC/ORDER/国内信用证）
   evidence: db
 - table: ca_cfca_upgrade_report
-  field: content
-  meaning: 异常内容（单层 JSON）
+  field: biz_module
+  meaning: 业务模块标识，实际存在 CFCA_CA_UPGRADE 与中文 CFCA证书升级 两种写法
   evidence: db
 - table: ca_cfca_upgrade_report
-  field: pass_info
-  meaning: 透传 JSON
+  field: todo_triggered
+  meaning: 是否已触发待办/消息 Y/N
   evidence: db
+- table: cust_company_info
+  field: ca_register_status
+  meaning: CFCA 数字证书注册状态（Y=已注册/N=未注册/P=处理中），签章中台失效时被回写为 N
+  evidence: code
+- table: cust_company_info
+  field: need_register_ca
+  meaning: 是否需要开通 CA 的意愿位，N 时直接判定无需开通
+  evidence: code
 state_machines:
-- name: CA认证提交状态机
+- name: CA 签章中台上送状态
   field: ca_certification_info.submit_status
   states:
   - value: PENDING
-    label: 待提交
+    label: 待上送
     source: code_enum
   - value: SUCCESS
-    label: 提交成功
+    label: 上送成功
     source: code_enum
   - value: FAIL
-    label: 提交失败
+    label: 上送失败
     source: code_enum
   transitions:
   - from: PENDING
-    event: 提交签章中台成功
+    event: cbsSubmitBizData 返回 DBaaS code in {0,200} 且 biz.status=SAVED
     to: SUCCESS
-    evidence: code_path:CaCertificationInfoAppServiceImpl.java:submitToSignCenter
+    evidence: code_path:CaCertificationInfoAppServiceImpl.java#submitToSignCenter/writeSubmitResult
   - from: PENDING
-    event: 提交签章中台失败
+    event: cbsSubmitBizData 抛异常或业务体非 SAVED
     to: FAIL
-    evidence: code_path:CaCertificationInfoAppServiceImpl.java:submitToSignCenter
+    evidence: code_path:CaCertificationInfoAppServiceImpl.java#submitToSignCenter/writeSubmitResult
   - from: PENDING
-    event: 手动标记失败
+    event: markFailed 人工/补偿置失败
     to: FAIL
-    evidence: code_path:CaCertificationInfoAppServiceImpl.java:markFailed
-  - from: FAIL
-    event: 重新提交签章中台成功
+    evidence: code_path:CaCertificationInfoAppServiceImpl.java#markFailed
+  - from: SUCCESS
+    event: 再次 submitToSignCenter（幂等短路，不重复上送）
     to: SUCCESS
-    evidence: code_path:CaCertificationInfoAppServiceImpl.java:submitToSignCenter
+    evidence: code_path:CaCertificationInfoAppServiceImpl.java#submitToSignCenter（CA_CERT_SUBMIT_ALREADY_SUCCESS）
+  - from: SUCCESS
+    event: 短信意愿再次落库（拒绝）
+    to: SUCCESS
+    evidence: code_path:CaCertificationIntentSmsApplication.java#persistIntentSmsAfterVerify
+- name: 企业 CA 注册状态
+  field: cust_company_info.ca_register_status
+  states:
+  - value: Y
+    label: 已注册
+    source: code_enum
+  - value: N
+    label: 未注册
+    source: code_enum
+  - value: P
+    label: 处理中
+    source: code_enum
+  transitions:
+  - from: N
+    event: custDocFacade.openCa / cbsCompanyRegister 注册成功
+    to: Y
+    evidence: code_path:CaActivationApplication.java#activateByOpCompanyId（第 5 步注释）；CaCertificationConfirmApplication.java#confirm
+  - from: P
+    event: 注册成功回写
+    to: Y
+    evidence: code_path:CaCertificationConfirmApplication.java#confirm（读取 caRegisterStatus）
+  - from: Y
+    event: pre4Step 预检发现证书 CANCELLED/EXPIRED/FAIL 或中台登记企业名与库中不一致
+    to: N
+    evidence: code_path:CaCertificationPreCheckApplication.java#resetCaRegisterStatusToN
+  - from: Y
+    event: caEval.isInvalid() 时局部视为未开通（仅内存，不落库）
+    to: N
+    evidence: code_path:CaOpenCaApplication.java#isOpenCa
+- name: 签章中台证书状态（外部态归一化，非落库字段）
+  field: cfca_sign_center.cert_status
+  states:
+  - value: NORMAL
+    label: 正常
+    source: code_const
+  - value: APPLYING
+    label: 申请中
+    source: code_const
+  - value: CANCELLED
+    label: 注销/作废（含未注册记录按失效处理）
+    source: code_const
+  - value: EXPIRED
+    label: 到期失效
+    source: code_const
+  - value: FAIL
+    label: 申请失败
+    source: code_const
+  - value: UNKNOWN
+    label: 未知/查询失败
+    source: code_const
+  transitions: []
+  note: 由 mapSignCenterStatus 把中台 SUCCESS/NEW_APPLY/INVALID/TIME_OUT 等归一到上述集合（CaCertificationPreCheckApplication），不落
+    ca_certification_info 列
 calibers:
-- name: 最新成功上报数据
-  predicate: ca_certification_info.submit_status = 'SUCCESS' 且 ca_certification_info.enable
-    = 'Y'
-  scope: 查询企业最近一次成功上送签章中台的数据，按 submit_time DESC, id DESC 取第一条
-  evidence: code_path:CaCertificationInfoAppServiceImpl.java:findLatestSuccessRow
-- name: CA认证行幂等创建
-  predicate: ca_certification_info.cust_id = ? 且 ca_certification_info.data_date =
-    ? 且 ca_certification_info.head_company_data = ? 且 ca_certification_info.submit_status
-    = 'PENDING'
-  scope: 创建或获取CA认证行时，若存在PENDING行则复用，否则新建
-  evidence: code_path:CaCertificationInfoAppServiceImpl.java:createOrGetByKey
-- name: 存量CA数据打包企业范围
-  predicate: cust_company_info.enable = 'Y' 且 cust_company_info.ca_register_status
-    = 'Y' 且 cust_company_info.update_time >= ? 且 cust_company_info.identify_style
-    != 'SIMPLE'
-  scope: 存量CFCA一证四步离线打包任务查询符合条件的企业
-  evidence: code_path:CfcaOneCertFourStepPackageApplication.java:queryEligibleCompanies
+- name: 运营中台推送来源口径
+  predicate: ca_certification_info.data_source = 'OPERATION_PLATFORM'
+  scope: 运营中台 notifyActivateCa 主动通知触发的 CA 落库行（db 分布 453）
+  evidence: code_path:CaActivationApplication.java#persistActivateData + db_dist:OPERATION_PLATFORM=453
+- name: 产融门户一证四步来源口径
+  predicate: ca_certification_info.data_source = 'FBP_PORTAL'
+  scope: 门户 /cust-web/ca/realName/verify 落库行（db 分布 865）
+  evidence: code_path:CaCertificationRealNameApplication.java#initCertificationRow
+    + db_dist:FBP_PORTAL=865
+- name: 开放渠道来源口径（免意愿校验）
+  predicate: ca_certification_info.data_source = 'CHANNEL_OPENAPI'
+  scope: assertCompleteForSubmit 对本来源跳过 intent_sms_json/intent_h_face_json 必填校验
+  evidence: code_path:CaCertificationInfoAppServiceImpl.java#assertCompleteForSubmit
+    + db_dist:CHANNEL_OPENAPI=49
+- name: 增量落库幂等键
+  predicate: ca_certification_info.submit_status = 'PENDING'
+  scope: 幂等命中条件为 (cust_id, data_date, head_company_data, submit_status=PENDING)；batch_no
+    不参与；因此跨日重发会产生新行
+  evidence: code_path:CaCertificationInfoAppServiceImpl.java#createOrGetByKey
+- name: 总公司主体行口径
+  predicate: ca_certification_info.head_company_data = 'Y'
+  scope: 分公司场景下以总公司四要素落库的独立行（db 分布 101/1367）
+  evidence: code_path:CaCertificationHeadCompanySupport.java + db_dist:Y=101
+- name: 存量打包企业口径
+  predicate: cust_company_info.ca_register_status = 'Y'
+  scope: 同时要求 enable='Y'、update_time >= since、identify_style != 'SIMPLE'（简易认证不打包）；指定
+    custIds 时改为内存过滤
+  evidence: code_path:CfcaOneCertFourStepPackageApplication.java#queryEligibleCompanies
+- name: 需开通 CFCA 判定口径
+  predicate: cust_company_info.need_register_ca = 'Y'
+  scope: 且 ca_register_status in ('N','P') 或签章中台判定 CA 失效；否则 needOpenCa=N
+  evidence: code_path:CaOpenCaApplication.java#isOpenCa
+- name: 上送完成口径
+  predicate: ca_certification_info.submit_status = 'SUCCESS'
+  scope: AMS 复用数据时取最新一条 SUCCESS 行重新组装上报（findLatestSuccessRow）
+  evidence: code_path:CaCertificationInfoAppServiceImpl.java#findLatestSuccessRow
+- name: 一证四步上送完整性口径
+  predicate: ca_certification_info.notify_agreement_json != null
+  scope: 且（enterprise_four_json 或 police_two_json 至少一项）且（intent_sms_json 或 intent_h_face_json
+    至少一项，CHANNEL_OPENAPI 除外）且 file_refs_json 非空
+  evidence: code_path:CaCertificationInfoAppServiceImpl.java#assertCompleteForSubmit
 term_bridges:
-- term: CA
+- term: CA（数字证书）
   aliases:
   - CFCA
-  - 数字证书
-  - 电子签章
-  maps_to: CFCA数字证书认证服务
+  - 一证四步
+  - 电子签章开通
+  maps_to: cust_company_info.ca_register_status
   also_confused_with:
-  - 电子签名
-  - 上上签
+  - cust_company_info.bs_register_status（上上签/BS）
   adjudication: boundary
-  boundary: CA特指CFCA数字证书认证；电子签章指签章中台提供的签章服务；上上签为另一第三方签章机构，代码中通过SignAgency区分。
-- term: 一证四步
+  boundary: need_register_ca/ca_register_status 属 CFCA 数字证书；need_register_bs/bs_register_status
+    属另一签章渠道，二者在 isOpenCa 中分别组装 serviceKeys（DATA_SOURCE_CFCA_AUTH / DATA_SOURCE_BS_AUTH），不可互换
+- term: 协议告知
   aliases:
-  - CFCA一证四步
-  maps_to: 企业四要素/三要素核验 + 公安二要素核验 + 意愿认证（短信/H5刷脸） + 协议签署与上送签章中台
+  - notifyAgreementList
+  - notify_agreement_json
+  maps_to: ca_certification_info.notify_agreement_json
   also_confused_with:
-  - 实名认证
-  adjudication: synonym
-  boundary: 一证四步是CFCA CA开通的完整流程，实名认证仅为其中核验环节。
-- term: data_source
-  aliases:
-  - 数据来源
-  maps_to: CA认证数据来源枚举
-  also_confused_with: []
+  - ca_certification_info.file_refs_json
   adjudication: boundary
-  boundary: CHANNEL_OPENAPI：渠道API；FBP_PORTAL：产融门户；OPERATION_PLATFORM：运营中台。
-- term: headCompanyData
+  boundary: 协议告知是留痕 JSON 数组；同一条协议的文件路径另有 embeddedFiles 映射进 file_refs_json，两者通过 serviceKey/agreementUrl
+    关联但不共列
+- term: 企业实名四要素
   aliases:
-  - 是否总公司行
-  maps_to: ca_certification_info行标识
+  - ENTERPRISE_FOUR
+  - 企业三要素 ENTERPRISE_THREE
+  maps_to: ca_certification_info.enterprise_four_json
   also_confused_with:
-  - headCompany
+  - ca_certification_info.police_two_json
   adjudication: boundary
-  boundary: headCompanyData标识CA认证行是分公司自身（N）还是总公司（Y）；headCompany是cust_company_info字段，表示企业本身是否总公司。
+  boundary: 四要素与三要素在 updateRealNameByMethod 中同样落到 enterprise_four_json（靠 verifyMethod
+    区分），个人侧公安二要素落 police_two_json
+- term: 被授权人
+  aliases:
+  - authPerson
+  - 经办人
+  - 管理员
+  maps_to: cust_person_info.user_type
+  also_confused_with:
+  - 法人 cust_company_info.legal_name
+  adjudication: boundary
+  boundary: 被授权人取 cust_person_info（user_type=admin + enable=Y + companyType=登录角色）；法人为
+    cust_company_info 法人三件套，H5 刷脸意愿优先取法人命中数据，公安二要素取被授权人
+- term: 总公司行
+  aliases:
+  - headCompanyData=Y
+  - head_company_data
+  maps_to: ca_certification_info.head_company_data
+  also_confused_with:
+  - ca_certification_info.cust_id
+  adjudication: boundary
+  boundary: Y 行 cust_id 是总公司 id（cust_head_company_info.id），不是分公司 cust_company_info.id；N/Y
+    两行靠 cust_id+data_date+batch_no+head_company_data 共同定位
+- term: CA 升级授权书
+  aliases:
+  - CaUpgradeAuth
+  - otherAgreementFile1
+  maps_to: ca_certification_info.file_refs_json
+  also_confused_with:
+  - CFCA_Auth（数字证书服务协议，agreementFile1）
+  adjudication: boundary
+  boundary: 两者 serviceKey 不同（CaUpgradeAuth vs CFCA_Auth），在 notify_agreement_json 的
+    data.service_key 与 embeddedFiles.multipartField 上分别落位，filterUpgradeAuthContracts
+    还需排除 CFCA_Auth 文件
+- term: 签章中台证书状态
+  aliases:
+  - certStatus
+  - rawCertStatus
+  maps_to: cust_company_info.ca_register_status
+  also_confused_with:
+  - ca_certification_info.submit_status
+  adjudication: boundary
+  boundary: 中台 NORMAL/APPLYING 视为产融 ca_register_status 有效；CANCELLED/EXPIRED/FAIL 触发回写
+    N；submit_status 只描述本系统到中台的一次上送，不代表证书生命周期
+- term: 批次号
+  aliases:
+  - batch_no
+  - data_date
+  maps_to: ca_certification_info.batch_no
+  also_confused_with:
+  - ca_certification_info.data_date
+  adjudication: boundary
+  boundary: batch_no 是每次新建行的唯一流水号（INC_ 前缀），已从幂等键移除；幂等只依赖 cust_id+data_date+head_company_data+PENDING
 rules:
-- name: CA认证行创建幂等规则
-  content: 以(custId, dataDate, headCompanyData, submitStatus=PENDING)为幂等键，已存在PENDING则复用，否则新建，并生成唯一batchNo。
-  impact: 避免同一企业同一天同一总公司标记下重复创建CA认证行
+- name: 增量幂等建行
+  content: createOrGetByKey 以 (cust_id, data_date, head_company_data, submit_status='PENDING')
+    命中即复用已有行，未命中才新建并生成 batch_no；batchNo 不再进入幂等键
+  impact: 重复触发不产生重复行；跨天重发会产生新行
   field_targets:
   - ca_certification_info.cust_id
   - ca_certification_info.data_date
   - ca_certification_info.head_company_data
   - ca_certification_info.submit_status
   - ca_certification_info.batch_no
-  evidence: code_path:CaCertificationInfoAppServiceImpl.java:createOrGetByKey
-- name: 提交签章中台完整性校验
-  content: 上送签章中台前必须满足：notify_agreement_json非空；至少一项实名JSON（enterprise_four_json或police_two_json）；至少一项意愿JSON（intent_sms_json或intent_h_face_json），除非data_source=CHANNEL_OPENAPI；file_refs_json非空。
-  impact: 不满足则抛出CA_CERT_INFO_INCOMPLETE异常，阻止上送
+  evidence: code_path:CaCertificationInfoAppServiceImpl.java#createOrGetByKey
+- name: 上送幂等短路
+  content: submit_status=SUCCESS 的行再次 submitToSignCenter 直接返回成功，不重复调用 cbsSubmitBizData
+  impact: 协议确认页可重复点击
+  field_targets:
+  - ca_certification_info.submit_status
+  evidence: code_path:CaCertificationInfoAppServiceImpl.java#submitToSignCenter
+- name: 上送前完整性校验
+  content: notify_agreement_json 必填、实名 JSON 至少一项、意愿 JSON 至少一项（CHANNEL_OPENAPI 免）、file_refs_json
+    必填
+  impact: 缺项时抛 CA_CERT_INFO_INCOMPLETE 阻断上送
   field_targets:
   - ca_certification_info.notify_agreement_json
   - ca_certification_info.enterprise_four_json
@@ -211,71 +338,380 @@ rules:
   - ca_certification_info.intent_sms_json
   - ca_certification_info.intent_h_face_json
   - ca_certification_info.file_refs_json
-  - ca_certification_info.data_source
-  evidence: code_path:CaCertificationInfoAppServiceImpl.java:assertCompleteForSubmit
-- name: data字段超长截断规则
-  content: 上送签章中台时，authRealNameJson和intentJson下的data字段若超过1000字符，按叶子节点从长到短删除直至不超长；非JSON则硬截断。
-  impact: 避免签章中台因data超长拒绝，保证上送成功
+  evidence: code_path:CaCertificationInfoAppServiceImpl.java#assertCompleteForSubmit
+- name: 协议确认只上送本企业行
+  content: CaCertificationConfirmApplication.confirm 中总公司行 submitOrThrow 被注释，仅上送 head_company_data='N'
+    主行；与类 Javadoc「先总后分」表述不一致
+  impact: 分公司场景总公司行不会在协议确认阶段上送（仅运营推送链路 CaActivationApplication 并行上送 N/Y 两行）
   field_targets:
-  - ca_certification_info.enterprise_four_json
+  - ca_certification_info.head_company_data
+  - ca_certification_info.submit_status
+  evidence: code_path:CaCertificationConfirmApplication.java#confirm（//submitOrThrow(ctx.headCertId...)
+    被注释）
+- name: 上送 data 字段长度裁剪
+  content: 上送前对 authPersonPoliceTwo/authEnterpriseThree/authEnterpriseFour/checkCode/h5Face
+    的 data 做 1000 字符限制，超长按 JSON 叶子节点从长到短剔除，失败则硬截断
+  impact: 避免签章中台因 data 超长拒收
+  field_targets:
   - ca_certification_info.police_two_json
+  - ca_certification_info.enterprise_four_json
   - ca_certification_info.intent_sms_json
   - ca_certification_info.intent_h_face_json
-  evidence: code_path:CaCertificationInfoAppServiceImpl.java:truncateOversizedDataFieldsInSubmitPayload
-- name: 变更态拦截CA开通
-  content: 企业cust_status=CHANGE或cust_build_status=CUST_CHANGE时，禁止进入一证四步。
-  impact: 抛出异常提示先完成变更流程
+  evidence: code_path:CaCertificationInfoAppServiceImpl.java#truncateOversizedDataFieldsInSubmitPayload
+- name: 中台调用置于事务外
+  content: activateByOpCompanyId 标 @Transactional(NOT_SUPPORTED)，confirm 不加事务，submitToSignCenter/openCa
+    均跨网络调用
+  impact: 避免长 IO 占用数据库事务
   field_targets:
-  - cust_company_info.cust_status
-  - cust_company_info.cust_build_status
-  evidence: code_path:CaCertificationPreCheckApplication.java:assertCompanyNotInChange
-- name: 管理员校验规则
-  content: 当前登录用户必须是企业管理员：cust_person_info.user_type=admin且enable=Y且ref_cust_company_info=当前企业code且company_type=当前登录企业类型且phone=当前登录手机号。
-  impact: 非管理员抛出CA_CERT_NOT_ADMIN异常，无法开通CA
+  - ca_certification_info.submit_status
+  evidence: code_path:CaActivationApplication.java#activateByOpCompanyId
+- name: CA 开通操作人必须是企业管理员
+  content: pre4Step 校验当前登录用户手机号命中 cust_person_info（user_type=admin、enable=Y、company_type=登录角色、ref_cust_company_info=企业
+    code），否则抛 CA_CERT_NOT_ADMIN
+  impact: 非管理员无法进入一证四步
   field_targets:
   - cust_person_info.user_type
   - cust_person_info.enable
-  - cust_person_info.ref_cust_company_info
   - cust_person_info.company_type
-  - cust_person_info.phone
-  evidence: code_path:CaCertificationPreCheckApplication.java:assertCurrentUserIsAdmin
-- name: CA失效回写ca_register_status=N
-  content: 签章中台证书状态归一化为CANCELLED/EXPIRED/FAIL或登记企业名与库中名称不一致时，将cust_company_info.ca_register_status置为N。
-  impact: 前端引导用户重新发起CA开通
+  - cust_person_info.ref_cust_company_info
+  evidence: code_path:CaCertificationPreCheckApplication.java#assertCurrentUserIsAdmin
+- name: 企业变更中禁止开通 CA
+  content: cust_status='CHANGE' 或 cust_build_status='CUST_CHANGE' 时抛异常「先走完变更流程再处理
+    CA 开通」
+  impact: 变更期间阻断 CA 预检与开通
   field_targets:
-  - cust_company_info.ca_register_status
-  evidence: code_path:CaCertificationPreCheckApplication.java:resetCaRegisterStatusToN
-- name: 简易认证强制不开通CA
-  content: 简易认证提交时，若need_register_ca=Y，强制校正为N并落库，同时校正ca_register_status、need_register_bs、bs_register_status。
-  impact: 简易建档不支持开通电子签章
+  - cust_company_info.cust_status
+  - cust_company_info.cust_build_status
+  evidence: code_path:CaCertificationPreCheckApplication.java#assertCompanyNotInChange
+- name: 非 BUILD_SUCCESS 不判定需开通 CA
+  content: cust_build_status != BUILD_SUCCESS 时 needOpenCa=N 并返回变更/未完成提示；升级授权书盖章也要求
+    cust_build_status in (BUILD_SUCCESS, CUST_CHANGE)
+  impact: 未成功建档企业不生成 CFCA/BS 协议
+  field_targets:
+  - cust_company_info.cust_build_status
+  - cust_company_info.need_register_ca
+  evidence: code_path:CaOpenCaApplication.java#isOpenCa；CaUpgradeAuthApplication.java#processUpgradeAuthOnOpsNameChange
+- name: 简易认证禁止开通电子签章
+  content: 简易认证提交时若 need_register_ca='Y'，调用 CustCompanyCaPolicy.enforceMustNotOpenCa
+    校正并落库 need_register_ca/ca_register_status/need_register_bs/bs_register_status
+  impact: 简易认证企业强制不开通 CA
   field_targets:
   - cust_company_info.need_register_ca
   - cust_company_info.ca_register_status
   - cust_company_info.need_register_bs
   - cust_company_info.bs_register_status
-  evidence: code_path:CustCompanyInfoApplication.java:submitForSimpleAuth
-- name: 存量打包查询规则
-  content: 查询enable=Y、ca_register_status=Y、update_time>=since、identify_style!=SIMPLE的企业，可选租户过滤。
-  impact: 确定存量CA数据打包的企业范围
+  evidence: code_path:CustCompanyInfoApplication.java#submitForSimpleAuth
+- name: 证书失效/名称变更回写未开通
+  content: 预检若 certStatus in (CANCELLED, EXPIRED, FAIL) 或中台登记企业名与库名不一致，以 PK id 为条件把
+    ca_register_status 置 N
+  impact: 驱动前端重新发起开通
   field_targets:
-  - cust_company_info.enable
   - cust_company_info.ca_register_status
-  - cust_company_info.update_time
-  - cust_company_info.identify_style
-  evidence: code_path:CfcaOneCertFourStepPackageApplication.java:queryEligibleCompanies
-- name: 升级授权书在线盖章条件
-  content: 签章中台证书登记名与运营中台企业名不一致且证书状态为NORMAL时，在线签署升级授权书，并上传运营中台与产融影像，回写file_refs_json。
-  impact: 企业名称变更后重新开通CA需签署升级授权书
+  evidence: code_path:CaCertificationPreCheckApplication.java#resetCaRegisterStatusToN
+- name: 中台无注册记录按失效处理
+  content: cbsQueryCertInfo 返回/异常含「未注册/UN_REGISTER/没有注册信息」类 token 时：若产融 ca_register_status=Y
+    则按 CANCELLED（失效）处理，否则按 UNKNOWN；不作为 queryFailed
+  impact: 首开场景不误判为查询失败，也不会误生成升级授权书
+  field_targets:
+  - cust_company_info.ca_register_status
+  evidence: code_path:CaCertificationPreCheckApplication.java#queryCertInfo/CertInfoQueryOutcome.noRegistrationAsInvalid
+- name: 升级授权书生成与时点
+  content: 中台已有 CA 记录（needUpAuth/isCertExists）或登记名与运营 enterpriseName 不一致且证书 NORMAL
+    时，在线签署升级授权书，并上传运营中台+产融影像 A0049，回写 file_refs_json 的 otherAgreementFile1/authFile1/agreementFile1
+  impact: 名称变更场景补齐授权书文件
   field_targets:
   - ca_certification_info.file_refs_json
   - ca_certification_info.notify_agreement_json
-  evidence: code_path:CaUpgradeAuthApplication.java:processUpgradeAuthOnOpsNameChange
-- name: 分公司双行处理规则
-  content: 分公司场景下，CaActivationApplication 会创建两行 ca_certification_info：headCompanyData=N（本企业）和
-    headCompanyData=Y（总公司），并分别提交签章中台；openCa 注册时自动双笔注册。
-  impact: 支持分公司代总公司完成CA认证
+  evidence: code_path:CaUpgradeAuthApplication.java#processUpgradeAuthOnOpsNameChange；CaCertificationConfirmApplication.java#processCaUpgradeAuthBeforeRegister
+- name: 被授权人身份证影像定位
+  content: 影像树 modelCode=MA001、catgId=A0011 人像面/A0012 国徽面，busiKey=companyId、userBusiKey=cust_person_info.id；查不到时回退只按
+    busiKey 查询；PLATFORM_PUSH 企业可先触发运营影像同步，仍缺失抛异常
+  impact: idCardVerify OCR 需要正反面
   field_targets:
-  - ca_certification_info.head_company_data
+  - cust_person_info.id
+  evidence: code_path:CaCertificationRealNameApplication.java#lookupLatestIdImage/syncIdImagesFromOperPlatIfNeeded
+- name: H5 刷脸意愿主体优先级
+  content: 法人 PASS 且有认证时间则整套取法人字段；否则被授权人 PASS 且有认证时间取被授权人；两者都不满足则不落 H5 意愿
+  impact: 避免法人与被授权人字段混用
+  field_targets:
+  - ca_certification_info.intent_h_face_json
+  evidence: code_path:CaActivationApplication.java#resolveH5FaceIntentSource
+- name: 短信意愿场景白名单
+  content: 仅 scenesType=RSA 常量 SMS_CA_INTENT_CONFIRM 时才落 intent_sms_json；校验码统一走 indentifycodeInfoProvider.checkIndentifyCode
+  impact: 其他场景只校验不落库
+  field_targets:
+  - ca_certification_info.intent_sms_json
+  evidence: code_path:CaCertificationIntentSmsApplication.java#verifyAndPersist
+- name: AMS 复用最新 SUCCESS 数据
+  content: 按统码+品牌定位租户与企业，取最新 submit_status=SUCCESS 行组装请求，用入参 appId 覆盖 sysId、amsCompanyId
+    覆盖 custId，并重生成 batchNo 后推送中台
+  impact: AMS 推送不新增 ca_certification_info 行，只复刻上送
+  field_targets:
+  - ca_certification_info.submit_status
+  - ca_certification_info.batch_no
   - ca_certification_info.cust_id
-  evidence: code_path:CaActivationApplication.java:persistActivateData
-reqdoc_claims: []
+  evidence: code_path:CaCertificationInfoAppServiceImpl.java#submitLatestSuccessBizRequest；PlatFormAmsCaProviderImpl.java#getCaCertificationInfo
+reqdoc_claims:
+- claim: 协议确认（POST /cust-web/ca/protocol/confirm）按「先总后分」顺序上送签章中台
+  code_status: refuted
+  code_evidence: CaCertificationConfirmApplication.java#confirm（总公司行 submitOrThrow(ctx.headCertId...)
+    已被注释，仅上送 N 行）
+  action: prose_only
+- claim: 分公司场景下 headCompanyData='N'/'Y' 两行可并行上送签章中台以缩短耗时
+  code_status: confirmed
+  code_evidence: CaActivationApplication.java#activateByOpCompanyId（CompletableFuture
+    + docProcessExecutor 并行 N/Y 两行）
+  action: anchor
+- claim: CA 注册完成后回写 cust_company_info.ca_register_status='Y'
+  code_status: confirmed
+  code_evidence: CaActivationApplication.java#activateByOpCompanyId（第 5 步 custDocFacade.openCa
+    内部回写）；CaCertificationConfirmApplication.java#confirm（读取 refreshed.caRegisterStatus）
+  action: anchor
+- claim: 一证四步聚合确认后需异步广播 openCA 事件给业务系统，且该广播失败不阻断主流程
+  code_status: confirmed
+  code_evidence: CaCertificationConfirmApplication.java#notifyBusinessSystems（try/catch
+    返回 false）
+  action: anchor
+- claim: 预检发现企业处于变更流程时禁止开通 CA
+  code_status: confirmed
+  code_evidence: CaCertificationPreCheckApplication.java#assertCompanyNotInChange
+  action: anchor
+- claim: 协议告知 data 为审计留痕必填，需拼装最小快照 JSON（含 cust_id/cust_name/agreement_url/read_time/agree_time/status）
+  code_status: confirmed
+  code_evidence: CaActivationApplication.java#buildAgreementDataPayload；CaCertificationRealNameApplication.java#buildAgreementItem
+  action: anchor
+- claim: 系统文档（客户管理平台业务规则文档 / 运营配置管理业务规则文档）未覆盖 CA 数字证书一证四步的流程与状态规则
+  code_status: uncovered
+  code_evidence: 无对应文档段落，CA 流程仅在代码与代码注释引用的《CFCA整改-产融平台-开发设计文档V2.md》中描述
+  action: review
+enum_audit:
+- field: ca_certification_info.submit_status
+  value: PENDING
+  java_name: CaSubmitStatusEnum.PENDING
+  stored_as: .name()
+  label: 待上送
+  verdict: confirm
+  evidence: CaCertificationInfoAppServiceImpl.java#createOrGetByKey
+  note: 与 db 分布一致
+- field: ca_certification_info.submit_status
+  value: SUCCESS
+  java_name: CaSubmitStatusEnum.SUCCESS
+  stored_as: .name()
+  label: 上送成功
+  verdict: confirm
+  evidence: CaCertificationInfoAppServiceImpl.java#writeSubmitResult
+  note: ''
+- field: ca_certification_info.submit_status
+  value: FAIL
+  java_name: CaSubmitStatusEnum.FAIL
+  stored_as: .name()
+  label: 上送失败
+  verdict: confirm
+  evidence: CaCertificationInfoAppServiceImpl.java#writeSubmitResult/markFailed
+  note: ''
+- field: ca_certification_info.data_source
+  value: OPERATION_PLATFORM
+  java_name: CaDataSourceEnum.OPERATION_PLATFORM
+  stored_as: .name()
+  label: 运营中台
+  verdict: confirm
+  evidence: CaActivationApplication.java#persistActivateData
+  note: db 453 条
+- field: ca_certification_info.data_source
+  value: FBP_PORTAL
+  java_name: CaDataSourceEnum.FBP_PORTAL
+  stored_as: .name()
+  label: 产融门户
+  verdict: confirm
+  evidence: CaCertificationRealNameApplication.java#initCertificationRow
+  note: db 865 条
+- field: ca_certification_info.data_source
+  value: CHANNEL_OPENAPI
+  java_name: CaDataSourceEnum.CHANNEL_OPENAPI
+  stored_as: .name()
+  label: 开放渠道
+  verdict: confirm
+  evidence: CaCertificationInfoAppServiceImpl.java#assertCompleteForSubmit
+  note: db 49 条；免意愿校验
+- field: ca_certification_info.op_type
+  value: INSERT
+  java_name: OP_TYPE_INSERT（字面量常量）
+  stored_as: 字面量
+  label: 新增
+  verdict: confirm
+  evidence: CaActivationApplication.java#persistActivateData；CaCertificationInfoAppServiceImpl.java#DEFAULT_OP_TYPE_INSERT
+  note: UPDATE 未实现，db 分布只有 INSERT
+- field: ca_certification_info.head_company_data
+  value: Y
+  java_name: HEAD_COMPANY_DATA_YES（字面量）
+  stored_as: 字面量
+  label: 总公司行
+  verdict: confirm
+  evidence: CaCertificationConfirmApplication.java#lookupHeadRowId
+  note: 未走 BooleanEnum.getDictKey()
+- field: ca_certification_info.head_company_data
+  value: N
+  java_name: DEFAULT_HEAD_COMPANY_DATA / HEAD_COMPANY_DATA_NO（字面量）
+  stored_as: 字面量
+  label: 本企业/分公司行
+  verdict: confirm
+  evidence: CaCertificationInfoAppServiceImpl.java#normalizeHeadCompanyData
+  note: 空值/非法值统一回退 N
+- field: ca_certification_info.cust_type
+  value: COMPANY
+  java_name: CUST_TYPE_COMPANY（字面量常量）
+  stored_as: 字面量
+  label: 企业主体
+  verdict: correct
+  evidence: CaActivationApplication.java#persistActivateData；CaCertificationIntentSmsApplication.java#CUST_TYPE_COMPANY
+  note: 修正底稿：该列不落数字字典键
+- field: ca_certification_info.cust_type
+  value: 1|2|3|4
+  java_name: CustTypeEnum.INDIVIDUALS/ENTERPRISE/OP_ENTERPRISE/ENTERPRISEALL
+  stored_as: dictKey
+  label: 个人客户/企业客户
+  verdict: reject
+  evidence: extract-enums 基线 vs db 分布 COMPANY=1367
+  note: CustTypeEnum 面向 cust_company_info.cust_type，不适用于 ca_certification_info.cust_type
+- field: ca_certification_info.file_refs_json
+  value: ID_FILE_1
+  java_name: CfcaMultipartFieldEnum.ID_FILE_1
+  stored_as: JSON 内 multipartField（getMultipartField）
+  label: 营业执照
+  verdict: confirm
+  evidence: CaActivationApplication.java#addEmbeddedFile
+  note: 嵌入式文件字段而非表列
+- field: ca_certification_info.file_refs_json
+  value: FACE_PHOTO_FILE_2
+  java_name: CfcaMultipartFieldEnum.FACE_PHOTO_FILE_2
+  stored_as: JSON 内 multipartField
+  label: 被授权人人像面
+  verdict: confirm
+  evidence: CaCertificationRealNameApplication.java#persistEmbeddedFiles
+  note: ''
+- field: ca_certification_info.file_refs_json
+  value: OTHER_AGREEMENT_FILE_1
+  java_name: CfcaMultipartFieldEnum.OTHER_AGREEMENT_FILE_1
+  stored_as: JSON 内 multipartField
+  label: CA 升级授权书
+  verdict: confirm
+  evidence: CaUpgradeAuthApplication.java#syncFileRefsAfterUpgradeAuthMedia
+  note: ''
+- field: ca_certification_info.intent_h_face_json
+  value: H5_FACE
+  java_name: CfcaIntentAuthTypeEnum.H5_FACE
+  stored_as: getCode()
+  label: H5 刷脸意愿
+  verdict: confirm
+  evidence: CaCertificationInfoAppServiceImpl.java#updateIntentByType
+  note: authType 用 getCode 取值
+- field: ca_certification_info.intent_sms_json
+  value: SMS_CODE
+  java_name: CfcaIntentAuthTypeEnum.SMS_CODE
+  stored_as: getCode()
+  label: 短信意愿
+  verdict: confirm
+  evidence: CaCertificationIntentSmsApplication.java#persistIntentSmsAfterVerify
+  note: ''
+- field: ca_certification_info.enterprise_four_json
+  value: ENTERPRISE_THREE
+  java_name: CfcaBizIdentityVerifyMethodEnum.ENTERPRISE_THREE
+  stored_as: getCode()
+  label: 企业三要素
+  verdict: correct
+  evidence: CaCertificationInfoAppServiceImpl.java#updateRealNameByMethod
+  note: 三要素与四要素共用 enterprise_four_json 列
+- field: ca_certification_info.police_two_json
+  value: POLICE_TWO
+  java_name: CfcaBizIdentityVerifyMethodEnum.POLICE_TWO
+  stored_as: getCode()
+  label: 公安二要素
+  verdict: confirm
+  evidence: CaCertificationInfoAppServiceImpl.java#updateRealNameByMethod
+  note: ''
+- field: cust_company_info.ca_register_status
+  value: Y|N|P
+  java_name: OpenStatus.Y/N/P
+  stored_as: getDictKey()
+  label: 已注册/未注册/处理中
+  verdict: confirm
+  evidence: CaOpenCaApplication.java#isOpenCa；CaCertificationPreCheckApplication.java#resetCaRegisterStatusToN
+  note: P 仅在读取判定中使用
+- field: cfca_sign_center.cert_status
+  value: SUCCESS|NEW_APPLY|INVALID|TIME_OUT
+  java_name: mapSignCenterStatus 内部 switch 分支（无枚举类）
+  stored_as: 不落库（中台报文）
+  label: 归一化为 NORMAL/APPLYING/CANCELLED
+  verdict: confirm
+  evidence: CaCertificationPreCheckApplication.java#mapSignCenterStatus
+  note: 底稿若按 *Enum 检索不到，属 interface/常量实现
+relation_audit:
+- left: ca_certification_info.cust_id
+  right: cust_company_info.id
+  kind: logical_fk
+  verdict: confirm
+  evidence: CaCertificationConfirmApplication.java#loadConfirmContext（Long.valueOf(mainRow.getCustId())
+    → custCompanyInfoService.getById）
+  note: N 行企业主键口径
+- left: ca_certification_info.cust_id
+  right: cust_head_company_info.id
+  kind: derived
+  verdict: derived
+  evidence: CaCertificationHeadCompanySupport.java#resolveCaReportCustId（isHeadRow=true
+    时取总公司 id）
+  note: 仅 head_company_data='Y' 行成立，纯派生非物理外键
+- left: ca_certification_info.head_company_data
+  right: cust_company_info.head_company
+  kind: derived
+  verdict: derived
+  evidence: CaCertificationConfirmApplication.java#lookupHeadRowId（以 cust_company_info.head_company='N'
+    判分公司再找 Y 行）
+  note: 通过 head_company 标志间接定位，非列级外键
+- left: ca_certification_info.cust_id
+  right: cust_role_info.platform_cust_id
+  kind: logical_fk
+  verdict: derived
+  evidence: CaActivationApplication.java#activateByOpCompanyId（custRoleInfoService.getOne(platformCustId=opCompanyId)
+    → refCustCompanyInfo → company）
+  note: 运营中台 id 与产融 id 的映射经 cust_role_info 中转
+- left: ca_certification_info.cust_id
+  right: cust_certification_info.ref_cust_company_info
+  kind: derived
+  verdict: derived
+  evidence: CfcaOneCertFourStepPackageApplication.java#loadCustCertPackContext（按 company.code
+    查 cust_certification_info）
+  note: 存量打包时按企业 code 关联历史认证记录，非 ca_certification_info 直接关联
+- left: ca_certification_info.file_refs_json
+  right: cust_person_info.id
+  kind: derived
+  verdict: derived
+  evidence: CaCertificationRealNameApplication.java#lookupLatestIdImage（userBusiKey=cust_person_info.id
+    查影像树）
+  note: 附件路径由人员主键派生定位，JSON 列内不存人员 id
+- left: ca_certification_info.notify_agreement_json
+  right: contract_related_info（合同表）
+  kind: derived
+  verdict: derived
+  evidence: CaCertificationRealNameApplication.java#lookupContractRef（按 serviceKey+companyId
+    反查 filePath/contractNo 写入 agreement_url/agreement_version）
+  note: 通过 RPC 反查而非 SQL JOIN，属展示/留痕拷贝
+- left: ca_certification_info
+  right: ca_cfca_upgrade_report
+  kind: none
+  verdict: reject
+  evidence: 全文链路中无对 ca_cfca_upgrade_report 的写入或 .eq 查询
+  note: 两表存在 company_id/certification_no 语义重叠但无代码级关联证据，本次链路由其它模块写入
+- left: ca_certification_info.cust_id
+  right: cust_company_info.certification_no
+  kind: none
+  verdict: reject
+  evidence: AMS 链路先用 certification_no+brandName+tenantCode 反查企业再取 ca 行（PlatFormAmsCaProviderImpl#getCaCertificationInfo
+    → getByCertNo）
+  note: 关联键是企业主键，统码只是检索入口
+- left: ca_certification_info.submit_status
+  right: cust_company_info.ca_register_status
+  kind: none
+  verdict: derived
+  evidence: CaOpenCaApplication.java#isOpenCa（先看 need_register_ca/ca_register_status，再看中台
+    certStatus）
+  note: 二者分别描述「上送」与「注册」，上游上送成功是注册前置，但无强一致约束

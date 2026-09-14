@@ -1,19 +1,33 @@
 ---
 type: table
-title: lc_sql_init_log（插件 SQL 执行日志表）
-page_key: table.lc_sql_init_log
+title: 蜂搭插件sql执行记录
+page_key: lc_sql_init_log
 domain: 平台内部服务对接
 status: draft
-aliases:
-  - lc_sql_init_log
-  - 插件SQL日志表
+anchors: [lc_sql_init_log]
 oid: 1
 scope:
-  databases: []
-sources:
-  - semantic:field_semantics[lc_sql_init_log]
+  databases: [lowcode_pplatform]
+sources: ["db:db-catalog.yaml", "code:extract-catalog.yaml"]
+created: '2026-09-14'
+updated: '2026-09-14'
 contract_version: "0.1"
+belong: tables
 ---
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 记录插件（低代码扩展）执行 SQL 文本的日志表，用于排查内部服务对接过程中由插件代执行的 DDL/DML。
@@ -33,10 +47,14 @@ desc: 蜂搭插件sql执行记录
 fields:
   - name: id
     type: number
+    phys: bigint(20)
   - name: description
     type: string
+    phys: varchar(1024)
     desc: sql文本
   - name: name
     type: string
+    phys: varchar(100)
     desc: 插件名称
+    topk: "2|3|a|b"
 ```

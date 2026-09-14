@@ -1,0 +1,8 @@
+body: '多处出现"BooleanEnum 字典键"，但语义分析只逐字给出 `BooleanEnum.no` 与 DB 侧 Y/N。字典键的 Java 常量名（no/yes
+  还是 N/Y）与库内实际存储值（Y/N）是否为同一形态未确认。
+
+  表页与状态机页按 DB 实测值 Y/N 写入，`dict: BooleanEnum` 仅表达字典归属，不代表键名。
+
+  另：`argeement_migratory_record.is_new` 用 `isNew.name()` 落库，而 `status` 用 `getDictKey`，同一表内两种写法并存，写入值形态可能不一致，待核对。'
+title: BooleanEnum（写值点与字典键名待核对）
+type: enum

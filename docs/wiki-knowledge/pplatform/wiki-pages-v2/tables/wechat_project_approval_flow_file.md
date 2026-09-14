@@ -1,7 +1,7 @@
 ---
 type: table
 title: 企微立项审批流程附件表
-page_key: table/wechat_project_approval_flow_file
+page_key: wechat_project_approval_flow_file
 domain: 微企链立项与项目审批
 status: draft
 aliases:
@@ -10,10 +10,11 @@ aliases:
 oid: 1
 scope:
   databases:
-    - 未在语义分析中给出物理库名
+    - lowcode_pplatform
 sources:
   - db:wechat_project_approval_flow_file
 contract_version: "0.1"
+belong: tables
 ---
 
 本表存放在企微立项审批各节点上产生的附件。本次语义分析只给出了一个字段的证据，即附件分类 `catg_id`，因此本页仅覆盖该列，不对本表的其余结构做任何推断。

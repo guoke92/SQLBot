@@ -243,12 +243,14 @@ class SchemaField:
     topk: str = ""
     labels: str = ""
     enum: str = ""
+    owned_labels: bool = False
 
-    def render(self, *, with_topk: bool = True) -> str:
+    def render(self, *, with_topk: bool = True, with_labels: bool | None = None) -> str:
+        show_labels = with_topk if with_labels is None else with_labels
         tail = ""
         if self.topk and with_topk:
             tail += f", topk={self.topk}"
-        if self.labels and with_topk:
+        if self.labels and show_labels:
             tail += f", labels={self.labels}"
         if self.enum:
             tail += f", enum={self.enum}"
@@ -261,12 +263,7 @@ class SchemaField:
 
     def render_omitted(self) -> str:
         """Compact prompt token: name plus comment, no type / topk."""
-        comment = (
-            str(self.comment or "")
-            .replace("（", "")
-            .replace("）", "")
-            .strip()
-        )
+        comment = str(self.comment or "").replace("（", "").replace("）", "").strip()
         if comment and comment != self.name:
             return f"{self.name}（{comment}）"
         return self.name
@@ -366,9 +363,7 @@ def _is_fk_like_column(name: str) -> bool:
     return lowered.startswith("ref_") or lowered.endswith("_id")
 
 
-def resolve_fk_peer_table(
-    field_name: str, known_tables: Iterable[str]
-) -> str | None:
+def resolve_fk_peer_table(field_name: str, known_tables: Iterable[str]) -> str | None:
     """Decode a local FK column to a peer table that exists in ``known_tables``.
 
     Conventions (same as live/db renderers — one implementation):
@@ -574,8 +569,10 @@ def project_schema(
 ) -> SchemaProjection:
     """Prompt projection of a full schema blob.
 
-    When the enum page is actually in the prompt, drop ``topk=`` / ``labels=``
-    and keep the ``enum=`` pointer. Field folding by ``budget_chars`` is
+    When the enum page is actually in the prompt, drop ``topk=`` (SQL values
+    live on the enum page) but keep ``labels=`` and the ``enum=`` pointer.
+    Field-owned labels are column-specific overlay; enum pages still carry
+    conversion flows / state machines. Field folding by ``budget_chars`` is
     disabled — JOIN keys must stay as full rows.
     ``budget_chars`` is accepted for call-site compatibility and ignored.
     """
@@ -609,7 +606,12 @@ def project_schema(
         lines = [section.header] if section.header else []
         stripped = set(enum_stripped.get(section.table, ()))
         for item in section.fields:
-            lines.append(item.render(with_topk=item.name not in stripped))
+            lines.append(
+                item.render(
+                    with_topk=item.name not in stripped,
+                    with_labels=True,
+                )
+            )
         lines.extend(section.others)
         blocks.append("\n".join(lines))
     text = "\n".join(blocks).strip()
@@ -804,9 +806,7 @@ class WikiSchemaRenderer:
         # Full datasource table-name set for FK peer resolution (may exceed the
         # current working set). Empty → fall back to live_tables keys only.
         self._peer_catalog = tuple(
-            str(name).strip()
-            for name in (peer_catalog or ())
-            if str(name).strip()
+            str(name).strip() for name in (peer_catalog or ()) if str(name).strip()
         )
 
     @property
@@ -922,6 +922,9 @@ class WikiSchemaRenderer:
     def _render_wiki_table(
         self, table: str, block: dict[str, Any], page_text: str = ""
     ) -> str:
+        from apps.knowledge.wiki.contract import compact_block
+
+        block = compact_block(block)
         desc = str(block.get("desc") or table)
         lines = [f"## {desc} ({table})"]
         for f in block.get("fields") or []:
@@ -932,9 +935,25 @@ class WikiSchemaRenderer:
             ftype = str(f.get("phys") or f.get("type") or "string")
             topk = str(f.get("topk") or "").strip()
             dict_key = str(f.get("dict") or "").strip()
-            label_map = self._enum_label_map(dict_key)
             values = [item for item in topk.split("|") if item]
-            label_tail = format_enum_labels(values, label_map) if label_map else ""
+            raw_labels = f.get("labels")
+            owned = False
+            label_map: dict[str, str] = {}
+            if isinstance(raw_labels, dict):
+                label_map = {
+                    str(k): str(v) for k, v in raw_labels.items() if str(v).strip()
+                }
+                owned = bool(label_map)
+            elif isinstance(raw_labels, str) and raw_labels.strip():
+                label_tail = raw_labels.strip()
+                owned = True
+            else:
+                label_tail = ""
+            if owned and isinstance(raw_labels, dict):
+                label_tail = format_enum_labels(values or list(label_map), label_map)
+            elif not owned:
+                label_map = self._enum_label_map(dict_key) if dict_key else {}
+                label_tail = format_enum_labels(values, label_map) if label_map else ""
             lines.append(
                 SchemaField(
                     name=name,
@@ -943,6 +962,7 @@ class WikiSchemaRenderer:
                     topk=topk,
                     labels=label_tail,
                     enum=dict_key.rsplit("/", 1)[-1] if dict_key else "",
+                    owned_labels=owned,
                 ).render()
             )
         lines.extend(self._wiki_relations(page_text))
@@ -1019,7 +1039,9 @@ class WikiSchemaRenderer:
         注入的 catalog 名」（``_peer_catalog``）。对端未入选时仍保留边并标记，
         避免模型把 FK 列当成普通属性。"""
         entry = self._live_tables.get(table) or {}
-        known = set(self._live_tables.keys()) | set(getattr(self, "_peer_catalog", ()) or ())
+        known = set(self._live_tables.keys()) | set(
+            getattr(self, "_peer_catalog", ()) or ()
+        )
         working = set(self._live_tables.keys())
         relations: list[str] = []
         seen: set[str] = set()

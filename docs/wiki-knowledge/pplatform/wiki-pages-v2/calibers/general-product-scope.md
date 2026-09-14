@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 通用产品范围
-page_key: calibers/general-product-scope
+page_key: general-product-scope
 domain: 平台产品配置
 status: draft
 aliases: [通用产品口径, GENERAL 产品范围]
@@ -11,6 +11,7 @@ scope:
 sources:
   - code:PlatformProductController.listPlatformProduct
 contract_version: "0.1"
+belong: calibers
 ---
 
 「通用产品范围」定义平台产品列表查询中如何界定通用产品。其判定条件为 [[tables/platform_product]] 的 `product_type = 'GENERAL'`，与 INTERWORKING（互通产品）相对。

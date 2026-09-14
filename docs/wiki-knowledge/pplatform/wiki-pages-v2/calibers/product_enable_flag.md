@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 产品启用标记口径（enable）
-page_key: calibers/product_enable_flag
+page_key: product_enable_flag
 domain: 租户产品
 status: draft
 aliases: [启用标记, enable]
@@ -14,6 +14,7 @@ sources:
   - db:tenant_product_menu_res
   - db:tenant_interworking_product
 contract_version: "0.1"
+belong: calibers
 ---
 
 产品族四张表都带 enable 列，DB 实测均为 Y，出现「启用态恒定、关闭态靠删除实现」的口径特征。它与「开通状态」不是同一概念，见 [[concepts/product_open_status]]。

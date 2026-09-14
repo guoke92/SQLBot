@@ -1,0 +1,4 @@
+body: 第 3、4 条流转的 from/to 使用业务标签「未通过 / 人脸认证通过」「MANUAL_AUTHENTICATION_PASSED」，语义分析未给出对应的枚举
+  value（如人脸通过的统一 value），因此按标签原样保留，待枚举口径补充后再对齐 value。
+title: 人脸/实名认证结果状态机
+type: process

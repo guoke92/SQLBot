@@ -1,7 +1,7 @@
 ---
 type: concept
 title: 问卷完成态
-page_key: concepts/survey_completed
+page_key: survey_completed
 domain: 问卷
 status: draft
 aliases:
@@ -19,6 +19,7 @@ field_targets: []
 adjudication: boundary
 also_confused_with:
   - cust_survey_answer 提交答案
+belong: concepts
 ---
 
 # 问卷完成态

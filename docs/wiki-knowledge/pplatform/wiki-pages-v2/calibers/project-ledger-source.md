@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 项目台账 source 判定口径
-page_key: caliber.project-ledger-source
+page_key: project-ledger-source
 domain: 项目报表/统计/上报
 status: draft
 aliases:
@@ -14,6 +14,7 @@ scope:
 sources:
   - code:ProjectReportApplication.java
 contract_version: "0.1"
+belong: calibers
 ---
 
 # 项目台账 source 判定口径

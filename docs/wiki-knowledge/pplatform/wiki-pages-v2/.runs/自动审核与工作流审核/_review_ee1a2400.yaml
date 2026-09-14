@@ -1,0 +1,4 @@
+body: 语义分析未给出各表的物理库名，本批 table/concept 页 frontmatter 的 scope.databases 统一填 `cust` 为占位，尚缺
+  [DB] 证据证实，待确认后统一回改。
+title: scope.databases 物理库名无证据
+type: table

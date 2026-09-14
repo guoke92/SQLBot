@@ -2,17 +2,32 @@
 type: table
 title: 客户应用渠道关系
 page_key: cust_app_channel_config
-domain: 基线
+domain: 平台产品配置
 status: draft
 anchors: [cust_app_channel_config]
 oid: 1
 scope:
   databases: [lowcode_pplatform]
-sources: ["db:db-catalog.yaml", "code:extract-catalog.yaml", "enrich:wiki-admin"]
-created: '2026-09-10'
-updated: '2026-09-10'
+sources: ["db:db-catalog.yaml", "code:extract-catalog.yaml"]
+created: '2026-09-14'
+updated: '2026-09-14'
 contract_version: "0.1"
+belong: tables
 ---
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # 客户应用渠道关系
 
@@ -22,8 +37,14 @@ contract_version: "0.1"
 table: cust_app_channel_config
 database: lowcode_pplatform
 desc: 客户应用渠道关系
-inactive: false
 fields:
+  - name: enable
+    type: string
+    phys: varchar(4)
+    desc: enable
+    dict: enable
+    topk: "Y"
+    labels: "Y:是"
   - name: id
     type: number
     phys: bigint(22)
@@ -48,17 +69,16 @@ fields:
     type: string
     phys: varchar(64)
     desc: 应用id
-    topk: 73d62771729e4ffba7f263cb6012746d
   - name: app_tenant_code
     type: string
     phys: varchar(100)
     desc: 逻辑租户标识
-    topk: longteng
+    topk: "longteng"
   - name: code
     type: string
     phys: varchar(64)
     desc: 编码
-    topk: longteng
+    topk: "longteng"
   - name: create_by
     type: string
     phys: varchar(100)
@@ -67,7 +87,6 @@ fields:
     type: temporal
     phys: datetime
     desc: 创建时间
-    group: create_time_group, project_create_time_group, update_time_group
   - name: create_user
     type: string
     phys: varchar(100)
@@ -76,17 +95,12 @@ fields:
     type: string
     phys: varchar(100)
     desc: 数据租户标识
-    topk: minmetals
-  - name: enable
-    type: string
-    phys: varchar(4)
-    desc: enable
-    topk: Y
+    topk: "minmetals"
   - name: name
     type: string
     phys: varchar(64)
     desc: 名称
-    topk: longteng
+    topk: "longteng"
   - name: organization_id
     type: string
     phys: varchar(30)
@@ -103,7 +117,6 @@ fields:
     type: temporal
     phys: datetime
     desc: 更新时间
-    group: create_time_group, project_effective_time_group, update_time_group
   - name: update_user
     type: string
     phys: varchar(100)

@@ -1,7 +1,7 @@
 ---
 type: process
 title: 企业生命周期状态机（cust_company_info.cust_status）
-page_key: process.cust-company-info-status
+page_key: cust-company-info-status
 domain: 企业变更与运营变更
 status: draft
 aliases: [企业状态, CustStatusEnum, 企业生命周期]
@@ -14,6 +14,7 @@ sources:
   - code_path:CustCompanyInfoApplication.java:unfreeze
   - code_path:CustCompanyInfoApplication.java:diable
 contract_version: "0.1"
+belong: processes
 ---
 
 企业生命周期状态由 `CustStatusEnum` 定义，挂在 [[tables.cust_company_info]] 的 `cust_status` 上：新增/待提交（`ADD`）、变更中（`CHANGE`）、已生效（`EFFECT`）、已冻结（`FREEZE`）、已注销（`WRITEOFF`）。冻结、解冻、注销分别由 `CustCompanyInfoApplication.freeze`、`unfreeze`、`diable` 驱动并调用 `custStatusSync` 落状态。`CHANGE` 是变更在途的判定依据，见 [[calibers.company-change-on-way]] 与 [[rules.change-on-way-company]]。

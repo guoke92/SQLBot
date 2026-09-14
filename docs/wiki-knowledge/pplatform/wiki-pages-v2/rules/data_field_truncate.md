@@ -1,7 +1,7 @@
 ---
 type: rule
 title: data字段超长截断规则
-page_key: rule/data_field_truncate
+page_key: data_field_truncate
 domain: CA证书认证
 status: draft
 aliases: [truncateOversizedDataFieldsInSubmitPayload 规则, data 超长截断]
@@ -10,6 +10,7 @@ scope:
   databases: [unknown]
 sources: ["code_path:CaCertificationInfoAppServiceImpl.java:truncateOversizedDataFieldsInSubmitPayload"]
 contract_version: "0.1"
+belong: rules
 ---
 
 规则要求：上送签章中台时，authRealNameJson 与 intentJson 下的 data 字段若超过 1000 字符，按叶子节点从长到短删除直至不超长；非 JSON 则硬截断。影响是避免签章中台因 data 超长拒绝，保证上送成功。

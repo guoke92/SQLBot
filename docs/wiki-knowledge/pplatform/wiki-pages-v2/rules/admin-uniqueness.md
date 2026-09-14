@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 管理员唯一性
-page_key: rule.admin_uniqueness
+page_key: admin-uniqueness
 domain: 客户联系人管理
 status: draft
 aliases:
@@ -13,6 +13,7 @@ sources:
   - "code:CustPersonApplication.checkBeforeSave"
   - "code:CustPersonApplication.updateAuthorAndApply"
 contract_version: "0.1"
+belong: rules
 ---
 
 > 本页含未证实文档主张（document_claim，未证实），见文末《版本演进》。

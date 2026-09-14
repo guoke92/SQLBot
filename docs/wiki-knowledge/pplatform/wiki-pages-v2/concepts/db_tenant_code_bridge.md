@@ -1,7 +1,7 @@
 ---
 type: concept
 title: 租户编码术语桥（db_tenant_code / tenant_code / sysChannel）
-page_key: concept.db_tenant_code_bridge
+page_key: db_tenant_code_bridge
 domain: 平台内部服务对接
 status: draft
 aliases:
@@ -34,6 +34,7 @@ field_targets:
   - cust_project_rel.db_tenant_code
   - tenant_setting_config.db_tenant_code
   - tenant_setting_config.sso_tenant_chanel
+belong: concepts
 ---
 
 数据隔离键的统一术语：db_tenant_code 是全局隔离键，cust_project_rel 中 tenant_code 与 db_tenant_code 同值写入；对接运营中台时，sysChannel 取 tenant_setting_config.sso_tenant_chanel。

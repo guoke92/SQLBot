@@ -1,7 +1,7 @@
 ---
 type: process
 title: 经办人产品关联冻结状态机（sys_cust_user_rel.is_freeze）
-page_key: process.operator_freeze
+page_key: operator_freeze_machine
 domain: 平台内部服务对接
 status: draft
 aliases:
@@ -15,6 +15,7 @@ sources:
   - semantic:state_machines[经办人产品关联冻结状态]
   - semantic:field_semantics[sys_cust_user_rel.is_freeze]
 contract_version: "0.1"
+belong: processes
 ---
 
 经办人与产品之间授权关系的冻结状态，只有「未冻结 / 已冻结」两态，由运营侧的冻结与解冻操作驱动。

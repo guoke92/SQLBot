@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 已离职运营人员口径
-page_key: caliber.deleted-operator
+page_key: deleted-operator
 domain: 项目报表/统计/上报
 status: draft
 aliases:
@@ -15,6 +15,7 @@ sources:
   - code:ProjectReportController.java
   - code:CustProjectController.java
 contract_version: "0.1"
+belong: calibers
 ---
 
 # 已离职运营人员口径

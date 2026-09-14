@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 管理员
-page_key: caliber.person_admin
+page_key: person-admin
 domain: 客户联系人管理
 status: draft
 aliases:
@@ -12,6 +12,7 @@ scope:
 sources:
   - "code:CustPersonApplication.getAdminByCustCodeCompanyType"
 contract_version: "0.1"
+belong: calibers
 ---
 
 管理员口径即按 [[tables/cust_person_info]] 的 `user_type = 'accountAdmin'` 过滤。取企业管理员时通常还要叠加企业与公司类型条件，见 [[rules/admin-uniqueness]]。

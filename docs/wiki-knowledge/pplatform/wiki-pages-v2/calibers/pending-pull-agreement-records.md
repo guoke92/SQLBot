@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 待拉取协议记录
-page_key: caliber.pending_pull_agreement_records
+page_key: pending-pull-agreement-records
 domain: 授权协议与电子授权
 status: draft
 aliases:
@@ -14,6 +14,7 @@ sources:
   - code:AgreementMigratoryService.java
   - db:argeement_migratory_record
 contract_version: "0.1"
+belong: calibers
 ---
 
 定时任务捞取待拉取记录的条件是「未结束 + 有效 + 未超重试上限」：`status='0'`、`enable='Y'`、`pull_num < 20`（20 为配置 `cust.agreemeent.pull.num` 默认值）。失败一次 `pull_num` 自增 1，因此记录在有限次尝试后自然退出扫描集合。状态语义见 [[processes/agreement-migratory-pull-status]]，字段释义见 [[tables/argeement_migratory_record]]。

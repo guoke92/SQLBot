@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 影像下载URL生成
-page_key: rules/media-download-url
+page_key: media-download-url
 domain: 文件/附件/媒体
 status: draft
 aliases: [fileUrl 生成, getDownloadUrl 规则, 影像 URL 口径]
@@ -12,6 +12,7 @@ sources:
   - code_path:ClientMediaSyncService.java:setInvokeArg
   - code_path:ClientMediaSyncService.java:getRelativePath
 contract_version: "0.1"
+belong: rules
 ---
 
 # 影像下载URL生成

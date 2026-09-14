@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 跳过实名认证
-page_key: caliber.realname_skip
+page_key: realname-skip
 domain: 客户联系人管理
 status: draft
 aliases:
@@ -12,6 +12,7 @@ scope:
 sources:
   - "code:CustPersonController.skipRealNameAuth"
 contract_version: "0.1"
+belong: calibers
 ---
 
 跳过实名认证口径为 [[tables/cust_person_info]] 的 `skip_auth_flag = 'Y'`，标识该联系人被允许豁免实名认证。

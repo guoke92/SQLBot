@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 项目生效前的配置校验
-page_key: rules/project_effective_requires_config_check
+page_key: project_effective_requires_config_check
 domain: 租户项目
 status: draft
 aliases: [config_json 校验, BEECREDIT 生效校验]
@@ -11,6 +11,7 @@ scope:
 sources:
   - code:TenantProjectApplication
 contract_version: "0.1"
+belong: rules
 ---
 
 该规则规定 [[tables/tenant_project]] 的 config_json 在生效链路中的作用：BEECREDIT 类项目在生效前需解析并校验配置状态，ACFLOW/RVSFACTOR 类项目则在生效时用其完成开户或查询业务系统配置。它使「生效」成为带前置校验的动作，见 [[processes/tenant_project_status]]。

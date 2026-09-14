@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: "自动核查类型分支"
-page_key: "calibers/auto_verify_type_branch"
+page_key: auto_verify_type_branch
 domain: "customer-onboarding"
 status: draft
 aliases:
@@ -12,6 +12,7 @@ scope:
 sources:
   - "code_path:AutoVerifyController.java:autoVerify"
 contract_version: "0.1"
+belong: calibers
 ---
 
 本口径决定自动核查走哪条实现：命中 `CustAutoCheckTypeEnum.INFO` 走信息核查，否则走影像核查。它解释了统计「自动核查通过率」时为何必须按 `checkType` 分类，否则两类核查口径会被混算。相关状态机见 [[processes/certification_verify_machine]]，术语见 [[concepts/auto_verify]]。

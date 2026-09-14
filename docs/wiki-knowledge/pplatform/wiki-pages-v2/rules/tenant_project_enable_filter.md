@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 租户项目仅取有效记录
-page_key: rules/tenant_project_enable_filter
+page_key: tenant_project_enable_filter
 domain: 租户项目
 status: draft
 aliases: [enable='Y', 租户项目逻辑删除]
@@ -11,6 +11,7 @@ scope:
 sources:
   - code:TenantProjectApplication
 contract_version: "0.1"
+belong: rules
 ---
 
 该规则规定 [[tables/tenant_project]] 的读取一律限定 enable='Y'，删除走 domainService.delete（逻辑删除）。它决定上游看到的项目集合，是 [[calibers/project_effective]] 的实现依据。

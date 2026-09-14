@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 联系人手机号加密后 Base64 存储
-page_key: rule.phone_encrypted_base64
+page_key: phone_encrypted_base64
 domain: 数据权限与组织
 status: draft
 aliases: [手机号加密, encryptAndBase64Str, decryptStr]
@@ -10,6 +10,7 @@ scope:
   databases: [base]
 sources: [code]
 contract_version: "0.1"
+belong: rules
 ---
 
 [[tables/cust_person_info]].phone 不以明文存储：写入时用 encryptAndBase64Str 加密并转 Base64，展示时用 decryptStr 解密。因此库内直接比对手机号字符串不会命中，任何按手机号的查询/去重都必须先走加密链路。

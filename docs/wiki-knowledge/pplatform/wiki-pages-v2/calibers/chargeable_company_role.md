@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 核企/供应商角色
-page_key: calibers/chargeable_company_role
+page_key: chargeable_company_role
 domain: CA证书收费
 status: draft
 aliases: [source_company_type in CORE,SUPPLIER, 可收费角色]
@@ -11,6 +11,7 @@ scope:
 sources:
   - db:ca_fee_company
 contract_version: "0.1"
+belong: calibers
 ---
 
 # 核企/供应商角色

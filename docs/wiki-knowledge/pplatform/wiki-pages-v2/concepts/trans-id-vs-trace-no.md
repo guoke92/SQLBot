@@ -1,7 +1,7 @@
 ---
 type: concept
 title: 打款交易标识（trans_id 与 trace_no）
-page_key: concepts/trans-id-vs-trace-no
+page_key: trans-id-vs-trace-no
 domain: 企业银行账户
 status: draft
 aliases: [trans_id, trace_no, OriginalTxSN]
@@ -19,6 +19,7 @@ adjudication: boundary
 also_confused_with:
   - 两者互相混用
 boundary: 查询打款结果与打款验证都以 trans_id（OriginalTxSN）为入参；trace_no 仅落库留痕，不参与后续调用。
+belong: concepts
 ---
 
 打款链路中存在两个容易混淆的标识：`trans_id` 是我方发起打款后写入的银行 OriginalTxSN，`trace_no` 是银行返回的系统跟踪号。两者均落库于 [[tables/cust_account_info]]，流程语境见 [[processes/account-cnaps-payment-auth-state]]。

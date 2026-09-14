@@ -292,7 +292,8 @@ def test_projection_never_folds_and_strips_enum_values_when_page_present() -> No
         present_pages=["enums/pay_status"],
     )
     assert "addr_41" in fitted.text and OMITTED_FIELDS_PREFIX not in fitted.text
-    assert "topk=" not in fitted.text and "labels=" not in fitted.text
+    assert "topk=" not in fitted.text
+    assert "labels=PAID:已缴费|UNPAID:未缴费" in fitted.text
     assert "enum=pay_status" in fitted.text
     assert fitted.enum_stripped == {"cust_company_info": ["pay_status"]}
     assert fitted.omitted == {}
@@ -422,11 +423,13 @@ def test_dict_topk_kept_when_enum_page_not_in_prompt() -> None:
     assert (
         "state:varchar, 状态, topk=A|B, labels=A:甲类|B:乙类, enum=state"
     ) in text
-    # Projection with the enum page absent keeps topk+labels; present → pointer only.
+    # Projection with the enum page absent keeps topk+labels; present →
+    # drop topk (values live on the enum page) but keep labels + enum pointer.
     kept = project_schema(text, present_pages=["t"]).text
     assert "topk=A|B" in kept and "labels=A:甲类|B:乙类" in kept
     stripped = project_schema(text, present_pages=["enums/state"]).text
-    assert "topk=" not in stripped and "labels=" not in stripped
+    assert "topk=" not in stripped
+    assert "labels=A:甲类|B:乙类" in stripped
     assert "enum=state" in stripped
 
 

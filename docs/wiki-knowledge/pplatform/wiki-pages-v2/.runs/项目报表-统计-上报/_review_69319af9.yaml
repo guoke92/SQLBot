@@ -1,0 +1,5 @@
+body: enum_audit 对 cust_project_code_record.status 的判定为 reject：DB 值域为 Y/N，而 StatusEnum.EFFECTIVE
+  / INVALID 被记录为 stored_as=same（同值存储），两者不一致。需确认是枚举定义已废弃、还是存在写路径将 EFFECTIVE/INVALID
+  写入该列。在确认前，本页以写值点与 DB 的实际值 Y/N 为准，保留 Y/N 两个 value 键。
+title: 项目编码记录状态值点
+type: enum

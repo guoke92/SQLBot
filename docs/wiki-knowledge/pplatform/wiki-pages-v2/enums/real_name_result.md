@@ -9,10 +9,22 @@ oid: 1
 scope:
   databases: [lowcode_pplatform]
 sources: ["code:extract-enums.yaml", "db:db-profile.yaml"]
-created: '2026-09-10'
-updated: '2026-09-10'
+created: '2026-09-14'
+updated: '2026-09-14'
 contract_version: "0.1"
+belong: enums
 ---
+
+
+
+
+
+
+
+
+
+
+
 
 # real_name_result
 
@@ -22,10 +34,10 @@ contract_version: "0.1"
 enum: real_name_result
 fields: [cust_person_info.real_name_result]
 values:
-  INIT:
-    label: 未认证
-  VERIFIED_SUCCESS:
-    label: 认证成功
-  VERIFIED_FAILED:
-    label: 认证失败
+  "INIT":
+    label: "未认证"
+  "VERIFIED_SUCCESS":
+    label: "认证成功"
+  "VERIFIED_FAILED":
+    label: "认证失败"
 ```

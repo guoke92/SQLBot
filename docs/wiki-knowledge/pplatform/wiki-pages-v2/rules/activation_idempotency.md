@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 租户产品开通幂等
-page_key: rules/activation_idempotency
+page_key: activation_idempotency
 domain: 租户产品
 status: draft
 aliases: [开通幂等, activeAndNotify 幂等]
@@ -11,6 +11,7 @@ scope:
 sources:
   - code:TenantProductApplication
 contract_version: "0.1"
+belong: rules
 ---
 
 该规则规定 [[tables/tenant_product]] 已处于 Y（已开通）时，activeAndNotify 再次被调用直接返回，不重复推进状态、不重复通知。它是 [[processes/tenant_product_open_status]] 中 Y → Y 自环的依据，与唯一键约束 [[rules/tenant_product_unique_key]] 一致。

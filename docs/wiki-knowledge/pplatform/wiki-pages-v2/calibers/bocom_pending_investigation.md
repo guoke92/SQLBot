@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 交e保划扣待查证
-page_key: calibers/bocom_pending_investigation
+page_key: bocom_pending_investigation
 domain: CA证书收费
 status: draft
 aliases: [bocom_txn_sts=02, 划扣待查证]
@@ -11,6 +11,7 @@ scope:
 sources:
   - db:ca_fee_order
 contract_version: "0.1"
+belong: calibers
 ---
 
 # 交e保划扣待查证

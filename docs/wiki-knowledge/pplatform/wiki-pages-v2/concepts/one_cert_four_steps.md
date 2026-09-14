@@ -1,7 +1,7 @@
 ---
 type: concept
 title: 一证四步
-page_key: concept/one_cert_four_steps
+page_key: one_cert_four_steps
 domain: CA证书认证
 status: draft
 aliases: [CFCA一证四步]
@@ -19,6 +19,7 @@ field_targets:
   - ca_certification_info.intent_sms_json
   - ca_certification_info.intent_h_face_json
   - ca_certification_info.notify_agreement_json
+belong: concepts
 ---
 
 「一证四步」是 CFCA CA 开通的完整流程，四个步骤在 [[tables/ca_certification_info]] 上各有留痕字段：企业四要素/三要素核验（enterprise_four_json，verifyMethod=ENTERPRISE_FOUR 或 ENTERPRISE_THREE）、公安二要素核验（police_two_json，verifyMethod=POLICE_TWO）、意愿认证（intent_sms_json，authType=SMS_CODE；intent_h_face_json，authType=H5_FACE）、协议签署与上送签章中台（notify_agreement_json 留痕协议签署，file_refs_json 提供附件引用）。

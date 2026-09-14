@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 平台产品白名单过滤
-page_key: calibers/platform-product-whitelist
+page_key: platform-product-whitelist
 domain: 平台产品配置
 status: draft
 aliases: [白名单过滤口径, platformLimitProductSupport]
@@ -12,6 +12,7 @@ sources:
   - code:PlatformProductController.filterLimitProduct
   - code:ClientAppController.listOpenProductByCompanyId
 contract_version: "0.1"
+belong: calibers
 ---
 
 「平台产品白名单过滤」定义产品列表对外返回时的收口方式：以白名单集合 `platformLimitProductSupport` 判断产品编码是否放行（`platformLimitProductSupport.contains(productCode)`）。该口径作用于租户产品列表与已开通产品列表，属于配置驱动的过滤而非数据状态过滤。

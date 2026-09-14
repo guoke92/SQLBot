@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 最新成功上报数据
-page_key: caliber/latest_success_report
+page_key: latest_success_report
 domain: CA证书认证
 status: draft
 aliases: [最近一次成功上送, findLatestSuccessRow]
@@ -10,6 +10,7 @@ scope:
   databases: [unknown]
 sources: ["code_path:CaCertificationInfoAppServiceImpl.java:findLatestSuccessRow"]
 contract_version: "0.1"
+belong: calibers
 ---
 
 口径含义：查询某企业最近一次成功上送签章中台的 CA 认证数据。过滤条件是 submit_status='SUCCESS' 且 enable='Y'，排序取 submit_time DESC、id DESC 的第一条。

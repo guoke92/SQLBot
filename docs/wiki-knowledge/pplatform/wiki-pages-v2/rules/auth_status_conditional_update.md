@@ -12,6 +12,7 @@ scope:
 sources:
   - code:CustCompanyInfoApplication.java:appenUpdateCustBulidStatus
 contract_version: "0.1"
+belong: rules
 ---
 
 更新认证状态时，系统要求匹配**原状态**、`enable = 'Y'`、`data_type = '1'`（主数据，见 [[main_data]]）三个条件同时成立，才执行更新。这是一条乐观并发控制规则，用于保证认证状态机（[[enterprise_auth_status_machine]]）状态迁移的原子性，避免并发请求造成状态跳变或覆盖。

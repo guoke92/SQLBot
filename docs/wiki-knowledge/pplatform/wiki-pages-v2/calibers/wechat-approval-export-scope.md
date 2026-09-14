@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 企微立项审批导出范围
-page_key: caliber/wechat-approval-export-scope
+page_key: wechat-approval-export-scope
 domain: 微企链立项与项目审批
 status: draft
 aliases:
@@ -14,6 +14,7 @@ scope:
 sources:
   - code_path:WechatProjectApprovalApplication.java#exportWechatApprovalInfo
 contract_version: "0.1"
+belong: calibers
 ---
 
 导出接口的取数范围由两个固定条件决定：审批实例状态必须是通过（`'2'`），数据来源必须是企微同步（`WECHAT`）。这一条同时排除了两类数据——未通过的立项审批，以及人工创建的模拟立项。

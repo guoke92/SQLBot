@@ -12,6 +12,7 @@ scope:
 sources:
   - code:CustCompanyInfoApplication.java:updateCustBuildStatus
 contract_version: "0.1"
+belong: rules
 ---
 
 当企业认证状态变更为 `BUILD_SUCCESS` 时，系统同步将客户状态 `cust_status` 置为 `EFFECT`。这条规则是两个状态机（[[enterprise_auth_status_machine]] 与 [[customer_status_machine]]）之间唯一的联动点，也是企业进入“生效企业”口径（[[effective_company]]）的必要环节。

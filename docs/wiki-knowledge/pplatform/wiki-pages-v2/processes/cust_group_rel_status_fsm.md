@@ -1,7 +1,7 @@
 ---
 type: process
 title: 集团关系生效状态机（cust_group_rel.status）
-page_key: process.cust_group_rel_status_fsm
+page_key: cust_group_rel_status_fsm
 domain: 数据权限与组织
 status: draft
 aliases: [集团关系状态机, 集团关系生效, INEFFECTIVE, EFFECTIVE]
@@ -11,6 +11,7 @@ scope:
 sources: [code]
 contract_version: "0.1"
 state_field: cust_group_rel.status
+belong: processes
 ---
 
 集团关系生效状态机，承载于 [[tables/cust_group_rel]].status，取值 INEFFECTIVE（未生效）/ EFFECTIVE（已生效）。新增根集团关系时，若企业已建档成功则直接生效，否则先落未生效，待集团或成员企业建档成功时由 effectGroupRel 触发生效；删除集团成员前要校验在途业务与额度，随后才删除记录。

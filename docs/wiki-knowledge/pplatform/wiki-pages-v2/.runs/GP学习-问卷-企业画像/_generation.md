@@ -1,1405 +1,1489 @@
 ---FILE: tables/gpt_learn_poster_log.md ---
 ---
 type: table
-title: gpt_learn_poster_log（智能审核引流卡片弹出/点击日志）
-page_key: tables/gpt_learn_poster_log
-domain: GP学习
+title: 智能审核引流卡片埋点记录表
+page_key: gpt_learn_poster_log
+domain: 客户管理
 status: draft
-aliases:
-  - 引流卡片日志
-  - 智能审核引流卡片记录
-  - gptlearn 弹出记录
+aliases: [引流埋点表, GP学习埋点表, poster_log]
 oid: 1
 scope:
-  databases: ["(待确认)"]
+  databases: ["unknown"]
 sources:
+  - code_path:GptLearnService.java:checkPosterStatus
+  - code_path:GptLearnService.java:recordPosterClick
+  - code_path:GptLearnPosterLogDao.countByUserAndCompany
   - db:gpt_learn_poster_log
-  - code:GptLearnService.java
 contract_version: "0.1"
 ---
 
-# gpt_learn_poster_log（智能审核引流卡片弹出/点击日志）
+本表是「智能审核引流卡片」链路的埋点记录表：一次卡片弹出写入一行（`popup_time` 有值），用户点击卡片后回写点击时间（`click_time` 有值）。`id` 会被 `checkPosterStatus` 返回给前端作为 `recordId`，点击时回传，因此它同时承担埋点主键与前端交互令牌两个角色。业务概念见 [[concepts/gpt_learn]]，生命周期见 [[processes/gpt_learn_poster_log_lifecycle]]。
 
-本表是「[[concepts/gptlearn]]」（代码与接口层统一写作 gptlearn、前端与业务口称智能审核引流／GP 学习）的埋点载体。它记录引流卡片对某个企业下的某个用户「是否弹出过」「是否被点击过」两类事实：`popup_time` 由 `checkPosterStatus` 创建弹出记录时写入，`click_time` 由 `recordPosterClick` 记录点击时写入。表同时冗余了企业与用户的名称字段（`company_id`/`company_name`、`user_id`/`user_name`），使投放侧可以在不联表的情况下统计曝光与点击。
-
-该表也是「[[calibers/gptlearn_poster_count_limit]]」的计数依据——弹出次数上限按 `user_id` + `company_id` 聚合本表记录来判定，因此本表的写入时机（而不是卡片实际渲染）决定了限流口径。
-
-表内带有 `db_tenant_code`（数据租户标识）与 `app_tenant_code`（逻辑租户标识）两级租户字段，以及 `enable` 逻辑有效标识（DB 实测均为 Y），与本域其它表保持一致的租户隔离形态。
+写入路径受三条规则约束：[[rules/gpt_learn_finance_only]]（仅金融机构企业）、[[rules/poster_allowed_tenant]]（仅白名单租户）、[[rules/poster_popup_max_count]]（同一用户+企业弹出次数上限）。`user_name` / `company_name` 为弹出时刻的快照字段，其中企业名称来自 [[tables/cust_company_info]]。
 
 ## 需求背景
 
-本分析未提供针对该表的需求文档（reqdoc_claims）证据，页面内容全部以 DB 字段语义与 `GptLearnService` 代码证据为准。需要业务侧补充：卡片投放的目标人群定义、弹出上限的运营预期值（对应 `gptLearnProperties.maxPosterCount`）以及允许投放的租户白名单（对应 `gptLearnProperties.posterAllowedTenant`）来源。
+该卡片并非在线学习业务，而是向外部 SaaS 中登同步登录信息后做引流跳转的埋点链路，因此本表字段口径围绕「是否弹出」「是否点击」「属于哪个用户与企业」「落在哪个租户」四件事展开。需求/系统文档层（客户管理平台业务规则文档、运营配置管理业务规则文档）未出现 GP学习引流相关规则表述，本表当前全部主张为代码 + DB 单源立据（详见 [[concepts/gpt_learn]] 的版本演进）。
 
 ## 版本演进
 
-当前契约版本 0.1，暂无版本演进证据。该表在当前分析中未被标注为 document_claim（未证实）内容。
+- 当前观测：全表 252 行埋点，`enable` 全为 `Y`，`db_tenant_code` 实测仅 `beehive-scf.qhhrly.cn` 一个值，与 `isPosterAllowedTenant` 的灰度口径对应。
+- `click_time` 由 `recordPosterClick` 在校验通过后写入；未匹配时抛「埋点记录不存在或已记录点击」，即点击回写是单次幂等的。
+- 字段物理类型未在语义分析证据中给出，下方锚点块的 `type` 统一记为 `unknown`。
 
 ```ground:table
 table: gpt_learn_poster_log
 fields:
-  - field: id
-    meaning: 表主键
-    evidence: db
-  - field: code
-    meaning: 编码
-    evidence: db
-  - field: name
-    meaning: 名称
-    evidence: db
-  - field: company_id
-    meaning: 企业ID
-    evidence: db
-  - field: company_name
-    meaning: 企业名称
-    evidence: db
-  - field: user_id
-    meaning: 用户ID
-    evidence: db
-  - field: user_name
-    meaning: 用户名
-    evidence: db
-  - field: popup_time
-    meaning: 卡片弹出时间；checkPosterStatus 创建弹出记录时写入
-    evidence: db
-  - field: click_time
-    meaning: 卡片点击时间；recordPosterClick 记录点击时写入
-    evidence: db
-  - field: db_tenant_code
-    meaning: 数据租户标识
-    evidence: db
-  - field: app_tenant_code
-    meaning: 逻辑租户标识
-    evidence: db
-  - field: enable
-    meaning: 逻辑有效标识；DB 实测均为 Y
-    evidence: db
+  - name: id
+    type: unknown
+    desc: "智能审核引流卡片埋点记录主键，checkPosterStatus 返回给前端作为 recordId，点击时回传"
+    dict: "-"
+  - name: user_id
+    type: unknown
+    desc: "埋点归属用户ID（登录用户 userId，Long.valueOf(currentUser.getUserId())）"
+    dict: "-"
+  - name: company_id
+    type: unknown
+    desc: "埋点归属企业ID（登录企业 companyId）"
+    dict: "-"
+  - name: user_name
+    type: unknown
+    desc: "弹出时写入的用户真实姓名（currentUser.getRealName()），非登录账号"
+    dict: "-"
+  - name: company_name
+    type: unknown
+    desc: "弹出时写入的企业名称（cust_company_info.name）"
+    dict: "-"
+  - name: popup_time
+    type: unknown
+    desc: "卡片弹出时间；有值即视为已弹出，弹出次数统计口径"
+    dict: "-"
+  - name: click_time
+    type: unknown
+    desc: "卡片点击时间；recordClick 成功即写入，全表仅 252 行埋点"
+    dict: "-"
+  - name: db_tenant_code
+    type: unknown
+    desc: "数据租户标识；实测仅 beehive-scf.qhhrly.cn 一个值，与 isPosterAllowedTenant 灰度口径对应"
+    dict: "-"
+  - name: enable
+    type: unknown
+    desc: "逻辑有效标记，实测全为 Y"
+    dict: "DB default 'Y'"
 ```
 
-相关页面：[[tables/cust_company_info]]、[[calibers/gptlearn_finance_user]]、[[calibers/gptlearn_tenant_whitelist]]、[[calibers/gptlearn_poster_count_limit]]、[[processes/cust_company_info_cust_build_status]]。
 ---END FILE---
 
 ---FILE: tables/cust_survey_answer.md ---
 ---
 type: table
-title: cust_survey_answer（调研问卷答案）
-page_key: tables/cust_survey_answer
-domain: 问卷
+title: 调研问卷答案表
+page_key: cust_survey_answer
+domain: 客户管理
 status: draft
-aliases:
-  - 调研问卷答案表
-  - 讯易链调研问卷答案
-  - CustSurveyAnswer
+aliases: [调研答案, 问卷答案表, survey_answer]
 oid: 1
 scope:
-  databases: ["(待确认)"]
+  databases: ["unknown"]
 sources:
   - db:cust_survey_answer
-  - code:CustSurveyController
-  - code:CustSurveyAnswerService
+  - code_path:CustSurveyController.java:submit
+  - pplatform-apaas-service/CustSurveyAnswerService.java
+  - db:cust_survey_answer.db_tenant_code
 contract_version: "0.1"
 ---
 
-# cust_survey_answer（调研问卷答案）
-
-本表承载「[[concepts/cust_survey]]」（调研问卷 / 讯易链调研问卷）的答卷持久化结果。它与「[[concepts/wenjuan]]」（问卷星活动）是两套彼此独立的机制：调研问卷会提交并落库答案，而问卷星活动的完成态不落库（见 [[calibers/wenjuan_no_persist_completion]]、[[concepts/survey_completed]]）。
-
-按字段语义，一行代表「某企业某用户对某道题的某个选项」：`survey_code` 标识问卷（DB 实测为 `XYL_2024_Q1`），`question_no` 为题号（DB 实测分布 1~6），`answer_value` 存选项明文，多选题的每个选项单独占一行；当选项为「其他」时，补充文本写入 `other_text`。`company_id`/`user_id` 记录的是当前登录企业与当前登录用户，`submit_time` 为提交时间。
-
-表带 `db_tenant_code`（实测为 `all`）、`app_tenant_code`（实测为 `base`）与 `enable`（实测均为 Y）。这三者的组合构成了本表答案数据的归属口径，见 [[calibers/survey_answer_attribution]]。
+本表存放落库题库问卷的作答明细：一行一个选项，多选时同一 `question_no` 会出现多行。它是「调研问卷」这条链路的答案载体，与外部问卷星的答卷数据互不读写，两者的边界见 [[concepts/wenjuan]]。当前唯一在用的问卷见口径 [[calibers/survey_code_xyl_2024_q1]]，跨租户口径见 [[calibers/survey_answer_all_tenant]]，有效记录口径见 [[calibers/cust_survey_answer_enabled]]。
 
 ## 需求背景
 
-本分析未提供该表的需求文档（reqdoc_claims）证据。以下问题需要业务侧确认：问卷题的题干与选项字典存放位置（本表只存选项明文，不含题目定义）、多选题拆行后如何还原为一次作答、`other_text` 在导出统计中的取值规则。
+答案表按 `company_id + survey_code` 组成普通索引，作答主体是「当前登录企业 + 当前登录用户」，因此同一企业可以有多个用户各自提交多行答案；`other_text` 承载「其他」选项的自由文本，实测存在 '1'、'hjhh'、'饿啊讽德诵功' 等脏数据，说明该列未做输入约束。
+
+落库路径本身未被本链路覆盖：`CustSurveyController.submit` 调用 `custSurveyAnswerService.submit(req, companyId, userId)`，但 apaas 侧 `CustSurveyAnswerService` 仅提供通用 BaseService/查询 helper，无 submit/checkPopup 实现，写值规则不可验证（见 [[rules/survey_answer_write_path_review]]）。
 
 ## 版本演进
 
-当前契约版本 0.1，暂无版本演进证据。DB 实测 `survey_code` 仅出现 `XYL_2024_Q1`，题号 1~6，可作为当前版本的样本快照，但不代表历史版本。
+- 当前观测：338 行，`survey_code` 恒为 `XYL_2024_Q1`，`db_tenant_code` 唯一值 `all`，`enable` 全为 `Y`。
+- 代码链路中未见 `survey_code` 的常量定义，问卷范围属数据驱动。
+- 字段物理类型未在语义分析证据中给出，锚点块 `type` 记为 `unknown`。
 
 ```ground:table
 table: cust_survey_answer
 fields:
-  - field: id
-    meaning: 表主键
-    evidence: db
-  - field: code
-    meaning: 编码
-    evidence: db
-  - field: name
-    meaning: 名称
-    evidence: db
-  - field: company_id
-    meaning: 当前登录企业ID
-    evidence: db
-  - field: user_id
-    meaning: 当前登录用户ID
-    evidence: db
-  - field: survey_code
-    meaning: 问卷code；DB 实测为 XYL_2024_Q1
-    evidence: db
-  - field: question_no
-    meaning: 题号（1~N）；DB 实测分布为 1~6
-    evidence: db
-  - field: answer_value
-    meaning: 选项明文；多选每个选项单独一行
-    evidence: db
-  - field: other_text
-    meaning: 当选项为“其他”时填写的文本内容
-    evidence: db
-  - field: submit_time
-    meaning: 提交时间
-    evidence: db
-  - field: db_tenant_code
-    meaning: 数据租户标识；DB 实测为 all
-    evidence: db
-  - field: app_tenant_code
-    meaning: 逻辑租户标识；DB 实测为 base
-    evidence: db
-  - field: enable
-    meaning: 逻辑有效标识；DB 实测均为 Y
-    evidence: db
+  - name: survey_code
+    type: unknown
+    desc: "问卷编码；实测全表唯一值 XYL_2024_Q1，代码链路中未见常量定义"
+    dict: "-"
+  - name: question_no
+    type: unknown
+    desc: "题号（1~N）；实测 1-6 题各约 56 行"
+    dict: "-"
+  - name: answer_value
+    type: unknown
+    desc: "选项明文，多选时每个选项单独一行"
+    dict: "-"
+  - name: other_text
+    type: unknown
+    desc: "选项为「其他」时填写的自由文本；实测存在 '1'、'hjhh'、'饿啊讽德诵功' 等脏数据"
+    dict: "-"
+  - name: company_id
+    type: unknown
+    desc: "答题企业ID（当前登录企业），与 survey_code 组成普通索引"
+    dict: "-"
+  - name: user_id
+    type: unknown
+    desc: "答题用户ID（当前登录用户）"
+    dict: "-"
+  - name: submit_time
+    type: unknown
+    desc: "问卷提交时间"
+    dict: "-"
+  - name: enable
+    type: unknown
+    desc: "有效记录标记；调研答案有效记录口径为 enable = 'Y'（实测 338 行全 Y）"
+    dict: "-"
 ```
 
-相关页面：[[concepts/cust_survey]]、[[concepts/wenjuan]]、[[calibers/survey_answer_attribution]]、[[tables/cust_company_survey_state]]、[[tables/cust_company_survey_whitelist]]。
 ---END FILE---
 
 ---FILE: tables/cust_company_survey_state.md ---
 ---
 type: table
-title: cust_company_survey_state（企业问卷星活动状态）
-page_key: tables/cust_company_survey_state
-domain: 问卷
+title: 企业级问卷活动状态表
+page_key: cust_company_survey_state
+domain: 客户管理
 status: draft
-aliases:
-  - 问卷星活动状态表
-  - 企业活动状态
-  - first visitor state
+aliases: [问卷活动状态表, survey_state]
 oid: 1
 scope:
-  databases: ["(待确认)"]
+  databases: ["unknown"]
 sources:
   - db:cust_company_survey_state
-  - code:WenjuanDisplayService.java
+  - code_path:WenjuanController.java:markLotteryShown
+  - code_path:WenjuanDisplayService.java:markLotteryShown
+  - code_path:WenjuanDisplayService.java:resolveHomeDisplay
 contract_version: "0.1"
 ---
 
-# cust_company_survey_state（企业问卷星活动状态）
-
-本表以「企业」为单位记录[[concepts/wenjuan]]（问卷星活动，入口 `/cust-web/wenjuan`）的活动状态。核心字段是 `first_visit_time`（首个用户首次访问时间）与 `first_visitor_lottery_shown` / `first_visitor_lottery_shown_time`（首个用户转盘抽奖是否已展示及其时间，实测均为 Y）。这组字段支撑「[[concepts/first_visitor]]」判定：抽奖、指引与右下角问卷入口只对企业的首个访问用户开放。
-
-`respondent` 字段是问卷星答卷标识，来自代码 `String.valueOf(companyId)`，用于调用问卷星开放接口查询完成态。请注意：本表只保存「谁第一个来、抽奖有没有展示过」这类企业级状态，**不保存答卷内容**——完成态是每次实时查询问卷星得到的，见 [[calibers/wenjuan_no_persist_completion]]。
-
-状态字段的取值组合直接决定首页展示场景，其状态机见 [[processes/wenjuan_home_display_scene]]。表内 `db_tenant_code`（实测为 LN1/all）与 `enable`（实测均为 Y）承担租户与逻辑有效标识。
+本表是问卷星活动的企业级状态：以 `company_id` 为键，记录该企业首个用户首次访问时间，以及首个用户转盘抽奖是否已展示。它是「谁是企业首个访问用户」这一判定的落点，但判定结果本身不落用户字段，只落一个展示标记，概念边界见 [[concepts/first_visitor]]。状态机见 [[processes/first_visitor_lottery_shown]]。
 
 ## 需求背景
 
-本分析未提供该表的需求文档（reqdoc_claims）证据。需要业务补充：活动结束后 `cust_company_survey_state` 记录是保留还是清理、抽奖已展示后用户重复登录的展示预期。
+活动的展示对象被收窄到「企业首个访问用户」：同一企业的其他用户首页不展示抽奖、指引与右下角入口（[[rules/first_visitor_only_ui]]）。为防止刷新重复展示转盘，前端动效结束后回调 `mark-lottery-shown`，由服务端把 `first_visitor_lottery_shown` 单向置 `Y`（[[rules/lottery_shown_idempotent]]）。整个链路读写前强制 `MetaDataThreadLocalConfig.setDbTenantCode("all")`（[[rules/wenjuan_all_tenant_fallback]]、[[calibers/wenjuan_all_tenant]]）。
+
+答卷完成态不在本表：`syncAndResolve` 每次实时调问卷星查 `isSurveyCompleted`，接口注释明确「答卷状态不落库」（[[rules/survey_status_not_persisted]]）。
 
 ## 版本演进
 
-当前契约版本 0.1，暂无版本演进证据。
+- 当前观测：`first_visitor_lottery_shown` 11 行全为 `Y`，无 `N` 样本，`N` 仅由代码语义推断（见 [[enums/first_visitor_lottery_shown]]）。
+- `db_tenant_code` 实测 `all`(10) 与 `LN1`(1) 并存，代码在 Wenjuan 链路强制写 `all`，该行属口径外历史/异常数据（[[enums/cust_company_survey_state_db_tenant_code]]）。
+- 字段物理类型未在语义分析证据中给出，锚点块 `type` 记为 `unknown`；表结构证据在 `respondent` 之后出现截断，是否存在独立的「首个访问用户ID」列无法从现有证据确认（见 REVIEW）。
 
 ```ground:table
 table: cust_company_survey_state
 fields:
-  - field: id
-    meaning: 表主键
-    evidence: db
-  - field: company_id
-    meaning: 企业ID
-    evidence: db
-  - field: first_visit_time
-    meaning: 首个用户首次访问时间
-    evidence: db
-  - field: first_visitor_lottery_shown
-    meaning: 首个用户转盘抽奖是否已展示 Y/N；DB 实测均为 Y
-    evidence: db
-  - field: first_visitor_lottery_shown_time
-    meaning: 首个用户转盘抽奖展示时间
-    evidence: db
-  - field: respondent
-    meaning: 问卷星答卷标识；代码取 String.valueOf(companyId)
-    evidence: code
-  - field: db_tenant_code
-    meaning: 数据租户标识；DB 实测为 LN1/all
-    evidence: db
-  - field: enable
-    meaning: 逻辑有效标识；DB 实测均为 Y
-    evidence: db
+  - name: company_id
+    type: unknown
+    desc: "企业ID，问卷活动「首个访问用户」claim 的判定键"
+    dict: "-"
+  - name: respondent
+    type: unknown
+    desc: "问卷星答题人标识；实现写入的是 String.valueOf(companyId)，即企业ID字符串，并非答题人ID"
+    dict: "-"
+  - name: first_visit_time
+    type: unknown
+    desc: "企业首个用户首次访问时间"
+    dict: "-"
+  - name: first_visitor_lottery_shown
+    type: unknown
+    desc: "首个用户转盘抽奖是否已展示（Y/N）；实测 11 行全为 Y，无 N 样本"
+    dict: "字面量 Y/N（无枚举类）"
+  - name: db_tenant_code
+    type: unknown
+    desc: "数据租户标识；实测 all(10) 与 LN1(1) 并存，与代码强制 setDbTenantCode(\"all\") 存在不一致样本"
+    dict: "-"
 ```
 
-相关页面：[[tables/cust_company_survey_whitelist]]、[[concepts/wenjuan]]、[[concepts/first_visitor]]、[[concepts/survey_completed]]、[[processes/wenjuan_home_display_scene]]、[[calibers/wenjuan_whitelist_company]]。
 ---END FILE---
 
 ---FILE: tables/cust_company_survey_whitelist.md ---
 ---
 type: table
-title: cust_company_survey_whitelist（问卷星活动白名单企业）
-page_key: tables/cust_company_survey_whitelist
-domain: 问卷
+title: 问卷活动企业白名单表
+page_key: cust_company_survey_whitelist
+domain: 客户管理
 status: draft
-aliases:
-  - 问卷活动白名单
-  - 白名单企业
-  - wenjuan whitelist
+aliases: [问卷白名单, survey_whitelist]
 oid: 1
 scope:
-  databases: ["(待确认)"]
+  databases: ["unknown"]
 sources:
+  - code_path:WenjuanDisplayService.java:isParticipating
+  - code_path:WenjuanDisplayService.java:getSurveyUrl
   - db:cust_company_survey_whitelist
-  - code:WenjuanDisplayService.java
 contract_version: "0.1"
 ---
 
-# cust_company_survey_whitelist（问卷星活动白名单企业）
-
-本表是[[concepts/wenjuan]]（问卷星活动）的准入名单：只有落在本表中且 `enable = 'Y'`（配合 `isParticipating(company_id)` 判定）的企业，才会在首页看到活动 UI。判定逻辑挂在 `WenjuanDisplayService.resolveHomeDisplay`、`getSurveyUrl`、`shouldStayOnHomeForGotoProduct` 上，口径明细见 [[calibers/wenjuan_whitelist_company]]。
-
-本表字段极简，只有企业名称、逻辑有效标识与数据租户标识（实测为 LN1），说明它是一个运营维护型的名单表，不承载活动过程状态——过程状态在 [[tables/cust_company_survey_state]]。理解两者分工是排查「白名单已加但用户看不到活动」类问题的第一步。
+白名单表决定哪些企业能参与问卷星活动：`isParticipating(companyId)` 以其为判定键，不在名单内时首页直接返回 `NONE`，`getSurveyUrl` 抛「企业不在白名单列表中！」。口径定义见 [[calibers/wenjuan_whitelist_enabled]]，规则见 [[rules/wenjuan_whitelist_participation]]。企业名称快照与 [[tables/cust_company_info]] 的 `name` 同源。
 
 ## 需求背景
 
-本分析未提供该表的需求文档（reqdoc_claims）证据。需要业务确认：白名单维护的操作入口与审批流程、企业名称变更后本表是否同步。
+活动投放采取「名单制 + 首用户可见」两层收窄：先由本表限定企业范围，再由 [[tables/cust_company_survey_state]] 的 claim 判定限定到企业首个访问用户（[[concepts/first_visitor]]）。实测 11 家，含「测试抽奖企业」系列测试数据，说明名单在投产前经历过测试配置。
 
 ## 版本演进
 
-当前契约版本 0.1，暂无版本演进证据。
+- 当前观测：11 行，`enable` 全为 `Y`，尚无失效样例可验证 `enable='N'` 的行为。
+- 字段物理类型未在语义分析证据中给出，锚点块 `type` 记为 `unknown`。
 
 ```ground:table
 table: cust_company_survey_whitelist
 fields:
-  - field: company_name
-    meaning: 企业名称
-    evidence: db
-  - field: enable
-    meaning: 逻辑有效标识；DB 实测均为 Y
-    evidence: db
-  - field: db_tenant_code
-    meaning: 数据租户标识；DB 实测为 LN1
-    evidence: db
+  - name: company_id
+    type: unknown
+    desc: "参与问卷活动白名单的企业ID（isParticipating 判定键）"
+    dict: "-"
+  - name: company_name
+    type: unknown
+    desc: "白名单企业名称；实测 11 家，含「测试抽奖企业」系列测试数据"
+    dict: "-"
+  - name: enable
+    type: unknown
+    desc: "白名单有效标记，实测全为 Y"
+    dict: "-"
 ```
 
-相关页面：[[tables/cust_company_survey_state]]、[[concepts/wenjuan]]、[[calibers/wenjuan_whitelist_company]]、[[processes/wenjuan_home_display_scene]]。
 ---END FILE---
 
 ---FILE: tables/cust_company_info.md ---
 ---
 type: table
-title: cust_company_info（客户信息主表／企业画像）
-page_key: tables/cust_company_info
-domain: 企业画像
+title: 客户企业信息表
+page_key: cust_company_info
+domain: 客户管理
 status: draft
-aliases:
-  - 客户信息主表
-  - 企业信息主表
-  - CustCompanyInfo
-  - CustCompanyInfoDO
+aliases: [企业信息表, company_info]
 oid: 1
 scope:
-  databases: ["(待确认)"]
+  databases: ["unknown"]
 sources:
-  - code:CustCompanyInfoApplication.java
-  - code:CustCompanyIfoEnchanceService.java
+  - code_path:GptLearnService.java:validateFinanceUser
+  - code_path:GptLearnService.java:checkPosterStatus
+  - code_path:ProfileController.java:getAppId
+  - db:cust_company_info
 contract_version: "0.1"
 ---
 
-# cust_company_info（客户信息主表／企业画像）
-
-本表是「[[concepts/company_profile]]」在代码层的落点：客户信息主表 / CustCompanyInfoDO。它同时承担两类语义：
-
-- **认证流程状态**：`custBuildStatus`（对应 `CustBuildStatusEnum`），状态机见 [[processes/cust_company_info_cust_build_status]]；
-- **客户生命周期状态**：`custStatus`（对应 `CustStatusEnum`），状态机见 [[processes/cust_company_info_cust_status]]。
-
-企业「生效」不是单字段判断，而是四个条件的合取：`cust_build_status = 'BUILD_SUCCESS'`、`cust_status = 'EFFECT'`、`data_type = 'MAIN'`、`enable = 'Y'`，见 [[calibers/company_effect]]。因此任何只改其中一个字段的操作都不会让企业进入生效查询结果集。
-
-主数据 / 记录数据由 `dataType`（常量 `DATA_TYPE_MAIN`）与 `mainDataId` 区分，这直接关系到两条唯一性口径：[[calibers/platform_operator_unique]]（平台运营方唯一，按 `custCompanyType` 是否包含 `PLATFORM_OPERATOR_COMPANY` 判定）与 [[calibers/main_data_certification_unique]]（主数据信用代码唯一）。`custCompanyType` 在代码中按 JSON 数组字符串处理（如 `["FINANCE"]`），它同时是[[calibers/gptlearn_finance_user]]（智能审核引流仅金融机构）的判定字段。
-
-其余字段覆盖法人信息（`legalName`/`legalPhone`/`legalCertificationNo`/`legalCertificationType`）、开通状态（`needRegisterCa`/`caRegisterStatus`/`needRegisterBs`/`bsRegisterStatus`）、建档来源与方法（`custFrom`/`custSource`/`custBuildType`）、以及 `headCompany`/`abroadCust`/`outsideOrg` 等属性标记。注意 `enable` 在本表是 Y/N 语义，而部分关联表（如 [[tables/gpt_learn_poster_log]]）的实测值恒为 Y。
+本表是企业的基本信息来源，在本次范围内只被两条链路读取：GP学习引流用它判断企业角色（`cust_company_type` 必须为 FINANCE）并取企业名称与数据租户；问卷/画像链路用它取企业名称与租户。企业角色判定见 [[rules/gpt_learn_finance_only]]，租户灰度见 [[rules/poster_allowed_tenant]]。术语桥见 [[concepts/company_profile]]。
 
 ## 需求背景
 
-本分析未提供该表的需求文档（reqdoc_claims）证据。待业务补充：企业变更（`CUST_CHANGE`）期间的字段可编辑范围、CA 与上上签开通状态 `Y/N/P` 中「P」的确切业务含义。
+引流入口的白名单不是按企业逐个配置，而是按企业角色 + 数据租户两个维度过滤，因此本表的 `cust_company_type` 与 `db_tenant_code` 是两个关键判定位：`cust_company_type` 是 JSON 数组字符串（如 `["FINANCE"]`），代码用 `CustCompanyTypeEnum.FINANCE.getDictKey()` 与之比较；`db_tenant_code` 作为 `isPosterAllowedTenant` 的入参来源。
+
+`name` 被写入 [[tables/gpt_learn_poster_log]] 的 `company_name` 与 [[tables/cust_company_survey_whitelist]] 的 `company_name`，属快照式引用。
 
 ## 版本演进
 
-当前契约版本 0.1，暂无版本演进证据。
+- 本次范围内未见企业画像业务实现：`ProfileController` 的 @Api 标注为「性能测试接口」，路径 `/profile-web/`，仅提供取企业简要信息、按 dbTenantCode 取租户、分页用户、取 token 四个测试能力（见 [[concepts/company_profile]]）。
+- 字段物理类型未在语义分析证据中给出，锚点块 `type` 记为 `unknown`。
 
 ```ground:table
 table: cust_company_info
 fields:
-  - field: id
-    meaning: 表主键
-    evidence: code
-  - field: code
-    meaning: 编码
-    evidence: code
-  - field: name
-    meaning: 客户名称
-    evidence: code
-  - field: custCompanyType
-    meaning: 企业角色；代码按 JSON 数组字符串处理，如 ["FINANCE"]
-    evidence: code
-  - field: certificationNo
-    meaning: 统一信用代码
-    evidence: code
-  - field: custBuildStatus
-    meaning: 认证状态；对应 CustBuildStatusEnum
-    evidence: code
-  - field: custStatus
-    meaning: 客户状态；对应 CustStatusEnum
-    evidence: code
-  - field: identifyStyle
-    meaning: 认证方式；SELF/INVITE/INVITE_AGW/SIMPLE 等
-    evidence: code
-  - field: needRegisterCa
-    meaning: 开通电子签章；Y/N/P
-    evidence: code
-  - field: caRegisterStatus
-    meaning: CA开通状态；Y/N/P
-    evidence: code
-  - field: needRegisterBs
-    meaning: 是否需要开通上上签；Y/N
-    evidence: code
-  - field: bsRegisterStatus
-    meaning: 上上签开通状态；Y/N/P
-    evidence: code
-  - field: dataType
-    meaning: 数据类型：主数据/记录数据；常量 DATA_TYPE_MAIN
-    evidence: code
-  - field: mainDataId
-    meaning: 主数据id
-    evidence: code
-  - field: dbTenantCode
-    meaning: 数据租户标识
-    evidence: code
-  - field: enable
-    meaning: 逻辑有效标识；Y/N
-    evidence: code
-  - field: custFrom
-    meaning: 客户来源；如“平台邀请”
-    evidence: code
-  - field: custSource
-    meaning: 建档数据来源
-    evidence: code
-  - field: custBuildType
-    meaning: 录入方式；AGW_BUILD/PC_BUILD 等
-    evidence: code
-  - field: legalName
-    meaning: 法人姓名
-    evidence: code
-  - field: legalPhone
-    meaning: 法人手机号
-    evidence: code
-  - field: legalCertificationNo
-    meaning: 法人证件号
-    evidence: code
-  - field: legalCertificationType
-    meaning: 法人证件类型
-    evidence: code
-  - field: headCompany
-    meaning: 是否总公司；Y/N
-    evidence: code
-  - field: abroadCust
-    meaning: 是否境外；Y/N
-    evidence: code
-  - field: outsideOrg
-    meaning: 外部机构；Y/N
-    evidence: code
+  - name: id
+    type: unknown
+    desc: "企业主键；「企业画像 / Profile」术语桥以 cust_company_info.id 为锚点字段"
+    dict: "-"
+  - name: cust_company_type
+    type: unknown
+    desc: "企业角色，JSON 数组字符串（如 [\"FINANCE\"]）；GP学习引流要求必须为 FINANCE，代码用 CustCompanyTypeEnum.FINANCE.getDictKey() 比较"
+    dict: "CustCompanyTypeEnum"
+  - name: name
+    type: unknown
+    desc: "企业名称，被写入 gpt_learn_poster_log.company_name 与 cust_company_survey_whitelist.company_name"
+    dict: "-"
+  - name: db_tenant_code
+    type: unknown
+    desc: "企业所属数据租户标识；isPosterAllowedTenant(companyInfo.getDbTenantCode()) 的入参来源"
+    dict: "-"
 ```
 
-相关页面：[[concepts/company_profile]]、[[processes/cust_company_info_cust_build_status]]、[[processes/cust_company_info_cust_status]]、[[calibers/company_effect]]、[[calibers/platform_operator_unique]]、[[calibers/main_data_certification_unique]]、[[calibers/gptlearn_finance_user]]。
----END FILE---
-
----FILE: processes/cust_company_info_cust_build_status.md ---
----
-type: process
-title: 企业认证状态机（cust_company_info.cust_build_status）
-page_key: processes/cust_company_info_cust_build_status
-domain: 企业画像
-status: draft
-aliases:
-  - CustBuildStatusEnum 流程
-  - 企业认证状态流转
-  - cust_build_status
-oid: 1
-scope:
-  databases: ["(待确认)"]
-sources:
-  - code:CustCompanyInfoApplication.java
-  - code:CustCompanyIfoEnchanceService.java
-contract_version: "0.1"
----
-
-# 企业认证状态机（cust_company_info.cust_build_status）
-
-该状态机描述[[tables/cust_company_info]]（企业画像 / 客户信息主表）中 `custBuildStatus` 字段（对应 `CustBuildStatusEnum`）的取值与流转。它是「企业从录档到认证成功」的主干流程，共 7 个状态。
-
-流转的主干有两条入口路径：`INIT` 在「邀请认证-客户录入／注册认证提交」下进入 `CUST_CONFIRM_AWAIT`（待客户确认），在「邀请认证-平台录入提交」下直接进入 `CUST_BUILDING`（审核中）。此后 `CUST_CONFIRM_AWAIT` 与 `CUST_BUILDING` 之间可因「客户提交运营中台审核」与「运营中台审核退回」双向往返；审核通过进入 `BUILD_SUCCESS`，审核拒绝进入 `BUILD_FAIL`。被驳回后的「修改后重新提交」会回到 `CUST_CONFIRM_AWAIT`。
-
-简易认证是独立分支：状态停在 `AWAIT_CUST_CONFIRM`（待客户确认，简易认证）时，由 `confirmCustInfoForSimpleAuth` 一次确认直接进入 `BUILD_SUCCESS`。认证成功之后，企业发起变更会进入 `CUST_CHANGE`（企业变更中），该判定来自 `CustCompanyIfoEnchanceService.isNeedMiniAuth`。
-
-需要注意本状态机与[[processes/cust_company_info_cust_status]]的耦合：认证成功是客户状态从 `ADD` 走向 `EFFECT` 的前提，而两者共同参与[[calibers/company_effect]]的四条件合取。
-
-## 需求背景
-
-本分析未提供该状态机的需求文档（reqdoc_claims）证据，状态与迁移均以 `CustCompanyInfoApplication` / `CustCompanyIfoEnchanceService` 代码证据为准。待业务补充：`CUST_CHANGE` 的退出路径（变更完成／失败后的目标状态）在本分析给出的代码证据中尚未出现。
-
-## 版本演进
-
-当前契约版本 0.1，暂无版本演进证据。
-
-```ground:process
-name: 企业认证状态
-field: cust_company_info.cust_build_status
-states:
-  - value: INIT
-    label: 初始/待提交
-    source: code_enum
-  - value: CUST_CONFIRM_AWAIT
-    label: 待客户确认
-    source: code_enum
-  - value: CUST_BUILDING
-    label: 审核中
-    source: code_enum
-  - value: AWAIT_CUST_CONFIRM
-    label: 待客户确认（简易认证）
-    source: code_enum
-  - value: BUILD_SUCCESS
-    label: 认证成功
-    source: code_enum
-  - value: BUILD_FAIL
-    label: 认证失败/驳回
-    source: code_enum
-  - value: CUST_CHANGE
-    label: 企业变更中
-    source: code_enum
-transitions:
-  - from: INIT
-    event: 邀请认证-客户录入/注册认证提交
-    to: CUST_CONFIRM_AWAIT
-    evidence: code_path:CustCompanyInfoApplication.java:getCustBuildStatus
-  - from: INIT
-    event: 邀请认证-平台录入提交
-    to: CUST_BUILDING
-    evidence: code_path:CustCompanyInfoApplication.java:getCustBuildStatus
-  - from: BUILD_FAIL
-    event: 修改后重新提交
-    to: CUST_CONFIRM_AWAIT
-    evidence: code_path:CustCompanyInfoApplication.java:updateCustBuildStatus
-  - from: CUST_CONFIRM_AWAIT
-    event: 客户提交运营中台审核
-    to: CUST_BUILDING
-    evidence: code_path:CustCompanyInfoApplication.java:messageNotify
-  - from: CUST_BUILDING
-    event: 运营中台审核退回
-    to: CUST_CONFIRM_AWAIT
-    evidence: code_path:CustCompanyInfoApplication.java:messageNotify
-  - from: CUST_BUILDING
-    event: 审核通过
-    to: BUILD_SUCCESS
-    evidence: code_path:CustCompanyInfoApplication.java:updateCustBuildStatus
-  - from: CUST_BUILDING
-    event: 审核拒绝
-    to: BUILD_FAIL
-    evidence: code_path:CustCompanyInfoApplication.java:messageNotify
-  - from: AWAIT_CUST_CONFIRM
-    event: 简易认证确认
-    to: BUILD_SUCCESS
-    evidence: code_path:CustCompanyInfoApplication.java:confirmCustInfoForSimpleAuth
-  - from: BUILD_SUCCESS
-    event: 企业发起变更
-    to: CUST_CHANGE
-    evidence: code_path:CustCompanyIfoEnchanceService.java:isNeedMiniAuth
-```
-
-相关页面：[[tables/cust_company_info]]、[[processes/cust_company_info_cust_status]]、[[concepts/company_profile]]、[[calibers/company_effect]]。
----END FILE---
-
----FILE: processes/cust_company_info_cust_status.md ---
----
-type: process
-title: 企业客户状态机（cust_company_info.cust_status）
-page_key: processes/cust_company_info_cust_status
-domain: 企业画像
-status: draft
-aliases:
-  - CustStatusEnum 流程
-  - 企业客户状态流转
-  - cust_status
-oid: 1
-scope:
-  databases: ["(待确认)"]
-sources:
-  - code:CustCompanyInfoApplication.java
-contract_version: "0.1"
----
-
-# 企业客户状态机（cust_company_info.cust_status）
-
-该状态机描述[[tables/cust_company_info]]中 `custStatus` 字段（对应 `CustStatusEnum`）的取值与流转，刻画企业作为「客户」的生命周期：新增 → 生效 → 冻结／解冻 → 注销。
-
-主干是：建档认证成功后由 `ADD`（新增）进入 `EFFECT`（生效），入口方法为 `updateCustBuildStatus`。生效后的运营动作有三类：冻结（`freeze`）与解冻（`unfreeze`）在 `EFFECT` 与 `FREEZE` 之间往返；注销（`diable`）把 `EFFECT` 推向 `WRITEOFF`。`WRITEOFF` 有一条自环迁移：注销时冻结企业下所有用户（`custStatusOperator`），记录在案但不改变企业自身状态。
-
-本状态机是[[calibers/company_effect]]（企业生效口径）的组成条件之一：只有 `cust_status = 'EFFECT'` 且认证成功、主数据、逻辑有效的企业才进入生效查询集合。它与[[processes/cust_company_info_cust_build_status]]的衔接点即 `ADD → EFFECT` 这一步。
-
-## 需求背景
-
-本分析未提供该状态机的需求文档（reqdoc_claims）证据。待业务补充：`FAILURE`（失败）状态由哪些业务动作写入、达到该状态后能否恢复。
-
-## 版本演进
-
-当前契约版本 0.1，暂无版本演进证据。
-
-```ground:process
-name: 企业客户状态
-field: cust_company_info.cust_status
-states:
-  - value: ADD
-    label: 新增
-    source: code_enum
-  - value: EFFECT
-    label: 生效
-    source: code_enum
-  - value: FREEZE
-    label: 冻结
-    source: code_enum
-  - value: WRITEOFF
-    label: 注销
-    source: code_enum
-  - value: FAILURE
-    label: 失败
-    source: code_enum
-transitions:
-  - from: ADD
-    event: 建档认证成功
-    to: EFFECT
-    evidence: code_path:CustCompanyInfoApplication.java:updateCustBuildStatus
-  - from: EFFECT
-    event: 冻结企业
-    to: FREEZE
-    evidence: code_path:CustCompanyInfoApplication.java:freeze
-  - from: FREEZE
-    event: 解冻企业
-    to: EFFECT
-    evidence: code_path:CustCompanyInfoApplication.java:unfreeze
-  - from: EFFECT
-    event: 注销企业
-    to: WRITEOFF
-    evidence: code_path:CustCompanyInfoApplication.java:diable
-  - from: WRITEOFF
-    event: 注销时冻结企业下所有用户
-    to: WRITEOFF
-    evidence: code_path:CustCompanyInfoApplication.java:custStatusOperator
-```
-
-相关页面：[[tables/cust_company_info]]、[[processes/cust_company_info_cust_build_status]]、[[concepts/company_profile]]、[[calibers/company_effect]]。
 ---END FILE---
 
 ---FILE: processes/wenjuan_home_display_scene.md ---
 ---
 type: process
-title: 问卷星首页展示场景（WenjuanHomeDisplayConfigDTO.displayScene）
-page_key: processes/wenjuan_home_display_scene
-domain: 问卷
+title: 问卷星活动首页展示场景决策
+page_key: wenjuan_home_display_scene
+domain: 客户管理
 status: draft
-aliases:
-  - displayScene
-  - 首页展示场景
-  - 转盘指引展示规则
+aliases: [displayScene, 首页展示场景, 活动UI决策]
 oid: 1
 scope:
-  databases: ["(待确认)"]
+  databases: ["unknown"]
 sources:
-  - code:WenjuanDisplayService.java
+  - code_path:WenjuanDisplayService.java:resolveHomeDisplay
+  - code_path:WenjuanController.java:markLotteryShown
+  - code_path:WenjuanDisplayService.java:markLotteryShown
 contract_version: "0.1"
 ---
 
-# 问卷星首页展示场景（WenjuanHomeDisplayConfigDTO.displayScene）
-
-该状态机描述[[concepts/wenjuan]]（问卷星活动）在首页上「给用户看什么」的三种展示场景，取值承载在 `WenjuanHomeDisplayConfigDTO.displayScene` 上：`NONE`（不展示活动 UI）、`FIRST_VISITOR_LOTTERY`（首个用户首次登入：转盘 + 中奖弹窗 + 右下角入口）、`GUIDE_ONLY`（仅指引弹窗／右下角入口）。
-
-场景解析统一在 `WenjuanDisplayService.resolveHomeDisplay` 中完成。进入 `FIRST_VISITOR_LOTTERY` 的前提是「白名单企业 + 首个访问用户 + 抽奖未展示」，三者缺一不可，其中白名单判定见 [[calibers/wenjuan_whitelist_company]]，首个访问用户定义见 [[concepts/first_visitor]]。抽奖已展示但问卷未完成时降级为 `GUIDE_ONLY`；问卷已完成同样停在 `GUIDE_ONLY`——完成态的判定不落库，而是实时查询问卷星，见 [[calibers/wenjuan_no_persist_completion]] 与 [[concepts/survey_completed]]。企业非首个访问用户时直接落到 `NONE`。
-
-本场景状态与[[tables/cust_company_survey_state]]中的 `first_visitor_lottery_shown` / `first_visitor_lottery_shown_time` 直接对应：抽奖展示一旦被写入，后续访问就不可能再回到 `FIRST_VISITOR_LOTTERY`。
+这是接口返回的展示决策，不落库：`WenjuanHomeDisplayConfigDTO.displayScene` 由 `resolveHomeDisplay` 每次实时计算，取值集合见 [[enums/wenjuan_home_display_scene]]。决策依赖白名单（[[calibers/wenjuan_whitelist_enabled]]）、企业首个访问用户判定（[[concepts/first_visitor]]）以及外部问卷星的完成态（[[rules/survey_status_not_persisted]]）。
 
 ## 需求背景
 
-本分析未提供该状态机的需求文档（reqdoc_claims）证据。待业务补充：`GUIDE_ONLY` 在问卷完成后的保留时长、以及 `NONE` 与「非白名单企业」在埋点上的区分方式。
+首页活动 UI 分三档：完全不出活动（`NONE`）、只出指引弹窗 + 右下角问卷入口（`GUIDE_ONLY`）、抽奖转盘 + 中奖弹窗 + 右下角入口（`FIRST_VISITOR_LOTTERY`）。转盘只在「白名单企业 + 企业首个访问用户 + 转盘未展示」三者同时成立时给出，前端动效结束后回调 `mark-lottery-shown` 降档为 `GUIDE_ONLY`，实现防刷新重复。活动企业的首个访问用户还会被留在产融首页（[[rules/stay_on_home_for_survey]]）。
 
 ## 版本演进
 
-当前契约版本 0.1，暂无版本演进证据。
+- 答题完成态实时向问卷星查询，本地不缓存，因此同一用户在完成后再次进入首页会直接落到 `GUIDE_ONLY`。
+- 状态判定键为 `WenjuanHomeDisplayConfigDTO.displayScene`，无对应落库字段。
 
 ```ground:process
-name: 问卷星首页展示场景
+name: 问卷星活动首页展示场景（非落库，接口返回的展示决策）
 field: WenjuanHomeDisplayConfigDTO.displayScene
 states:
   - value: NONE
-    label: 不展示活动UI
+    label: 不展示任何活动UI
     source: code_enum
   - value: FIRST_VISITOR_LOTTERY
-    label: 首个用户首次登入：转盘+中奖弹窗+右下角入口
+    label: 转盘抽奖+中奖弹窗+右下角问卷入口
     source: code_enum
   - value: GUIDE_ONLY
-    label: 仅指引弹窗/右下角入口
+    label: 指引弹窗+右下角问卷入口
     source: code_enum
 transitions:
   - from: NONE
-    event: 白名单企业、首个访问用户、抽奖未展示
-    to: FIRST_VISITOR_LOTTERY
-    evidence: code_path:WenjuanDisplayService.java:resolveHomeDisplay
-  - from: FIRST_VISITOR_LOTTERY
-    event: 抽奖已展示且问卷未完成
-    to: GUIDE_ONLY
-    evidence: code_path:WenjuanDisplayService.java:resolveHomeDisplay
-  - from: GUIDE_ONLY
-    event: 问卷已完成
-    to: GUIDE_ONLY
-    evidence: code_path:WenjuanDisplayService.java:resolveHomeDisplay
-  - from: FIRST_VISITOR_LOTTERY
-    event: 非企业首个访问用户
+    event: 活动未配置 / userId或companyId为空 / 企业不在白名单
     to: NONE
-    evidence: code_path:WenjuanDisplayService.java:resolveHomeDisplay
+    evidence: "code_path:WenjuanDisplayService.java:resolveHomeDisplay"
+  - from: NONE
+    event: 白名单企业但非企业首个访问用户
+    to: NONE
+    evidence: "code_path:WenjuanDisplayService.java:resolveHomeDisplay"
+  - from: NONE
+    event: 白名单企业 + 首个访问用户 + 转盘未展示
+    to: FIRST_VISITOR_LOTTERY
+    evidence: "code_path:WenjuanDisplayService.java:resolveHomeDisplay"
+  - from: FIRST_VISITOR_LOTTERY
+    event: 前端动效结束调用 /cust-web/wenjuan/mark-lottery-shown
+    to: GUIDE_ONLY
+    evidence: "code_path:WenjuanController.java:markLotteryShown + WenjuanDisplayService.java:markLotteryShown"
+  - from: FIRST_VISITOR_LOTTERY
+    event: 转盘已展示且问卷星 isSurveyCompleted=true（只留右下角入口，不弹指引）
+    to: GUIDE_ONLY
+    evidence: "code_path:WenjuanDisplayService.java:resolveHomeDisplay"
 ```
 
-相关页面：[[tables/cust_company_survey_state]]、[[tables/cust_company_survey_whitelist]]、[[concepts/wenjuan]]、[[concepts/first_visitor]]、[[concepts/survey_completed]]、[[calibers/wenjuan_whitelist_company]]、[[calibers/wenjuan_no_persist_completion]]。
 ---END FILE---
 
----FILE: calibers/gptlearn_finance_user.md ---
+---FILE: processes/first_visitor_lottery_shown.md ---
 ---
-type: caliber
-title: 智能审核引流-金融机构用户口径
-page_key: calibers/gptlearn_finance_user
-domain: GP学习
+type: process
+title: 首个用户转盘抽奖展示标记
+page_key: first_visitor_lottery_shown
+domain: 客户管理
 status: draft
-aliases:
-  - FINANCE 用户口径
-  - validateFinanceUser
-  - 金融机构用户校验
+aliases: [转盘展示标记, lottery_shown, 防刷新标记]
 oid: 1
 scope:
-  databases: ["(待确认)"]
+  databases: ["unknown"]
 sources:
-  - code:GptLearnService.java
+  - code_path:WenjuanController.java:markLotteryShown
+  - code_path:WenjuanDisplayService.java:markLotteryShown
+  - db:cust_company_survey_state.first_visitor_lottery_shown
 contract_version: "0.1"
 ---
 
-# 智能审核引流-金融机构用户口径
-
-本口径规定「谁能用[[concepts/gptlearn]]」。判定条件是当前登录用户的企业角色为金融机构：`companyType = 'FINANCE'`（字段落点见 [[tables/cust_company_info]] 的 `custCompanyType`，代码按 JSON 数组字符串处理）。
-
-适用范围是 `GptLearnService` 的全部接口：`syncLoginInfo`、`checkPosterStatus`、`recordPosterClick`。实现集中在 `validateFinanceUser`。这是一道前置闸门：用户校验不过，后续的白名单租户口径（[[calibers/gptlearn_tenant_whitelist]]）与弹出次数上限口径（[[calibers/gptlearn_poster_count_limit]]）都不会被评估，也不会向 [[tables/gpt_learn_poster_log]] 写入记录。
-
-与之配套的强制规则见 [[rules/gptlearn_finance_user_only]]。
+该状态机描述 `cust_company_survey_state.first_visitor_lottery_shown` 的单向翻转：代码只会把标记置 `Y`，不存在置回 `N` 的路径。取值见 [[enums/first_visitor_lottery_shown]]，规则见 [[rules/lottery_shown_idempotent]]，落点表见 [[tables/cust_company_survey_state]]。
 
 ## 需求背景
 
-本分析未提供该口径的需求文档（reqdoc_claims）证据。待业务补充：企业存在多个角色（`custCompanyType` 为多元素 JSON 数组）时，是否只要包含 `FINANCE` 即通过。
+转盘抽奖是「首个访问用户」独占的权益（[[concepts/first_visitor]]），刷新首页不能重复展示，因此用一个企业级标记做幂等：前端动效播完后调 `POST /cust-web/wenjuan/mark-lottery-shown`，服务端先 `setDbTenantCode("all")`，再异步执行 `markFirstVisitorLotteryShownIfMatch(userId, companyId)`，只对企业首个用户生效。该幂等标记是 `NONE → FIRST_VISITOR_LOTTERY` 之后不回落的关键（见 [[processes/wenjuan_home_display_scene]]）。
 
 ## 版本演进
 
-当前契约版本 0.1，暂无版本演进证据。
+- 当前观测：11 行全为 `Y`，DB 未出现 `N` 样本；`N` 作为初始态仅由代码语义推断。
+- 写入为异步线程，且写前强制跨租户 `all`（[[calibers/wenjuan_all_tenant]]、[[rules/wenjuan_all_tenant_fallback]]）。
 
-```ground:caliber
-name: 智能审核引流-金融机构用户口径
-predicate: "当前登录用户.companyType = 'FINANCE'"
-scope: GptLearnService 全部接口：syncLoginInfo、checkPosterStatus、recordPosterClick
-evidence: code_path:GptLearnService.java:validateFinanceUser
+```ground:process
+name: 首个用户转盘抽奖展示标记
+field: cust_company_survey_state.first_visitor_lottery_shown
+states:
+  - value: Y
+    label: 已展示（防刷新重复）
+    source: db_dist
+  - value: N
+    label: 未展示（初始态，代码仅单向置 Y，DB 未观测到 N 样本）
+    source: code_const
+transitions:
+  - from: N
+    event: POST /cust-web/wenjuan/mark-lottery-shown（异步线程执行，先 setDbTenantCode(all)）
+    to: Y
+    evidence: "code_path:WenjuanController.java:markLotteryShown + WenjuanDisplayService.java:markLotteryShown"
 ```
 
-相关页面：[[concepts/gptlearn]]、[[tables/gpt_learn_poster_log]]、[[tables/cust_company_info]]、[[calibers/gptlearn_tenant_whitelist]]、[[calibers/gptlearn_poster_count_limit]]、[[rules/gptlearn_finance_user_only]]。
 ---END FILE---
 
----FILE: calibers/gptlearn_tenant_whitelist.md ---
+---FILE: processes/gpt_learn_poster_log_lifecycle.md ---
 ---
-type: caliber
-title: 智能审核引流-租户白名单口径
-page_key: calibers/gptlearn_tenant_whitelist
-domain: GP学习
+type: process
+title: 智能审核引流卡片埋点生命周期
+page_key: gpt_learn_poster_log_lifecycle
+domain: 客户管理
 status: draft
-aliases:
-  - posterAllowedTenant
-  - 引流租户白名单
-  - 投放租户口径
+aliases: [引流卡片生命周期, poster lifecycle, 弹窗状态机]
 oid: 1
 scope:
-  databases: ["(待确认)"]
+  databases: ["unknown"]
 sources:
-  - code:GptLearnService.java
-contract_version: "0.1"
----
-
-# 智能审核引流-租户白名单口径
-
-本口径规定哪些租户可以收到[[concepts/gptlearn]]的引流卡片：企业的 `cust_company_info.db_tenant_code` 必须属于 `gptLearnProperties.posterAllowedTenant` 配置的白名单集合。它只作用于 `checkPosterStatus`（引流卡片弹出校验）这一个环节，不覆盖 `syncLoginInfo` 与 `recordPosterClick`。
-
-与它并列的还有两道门：用户侧见 [[calibers/gptlearn_finance_user]]，次数侧见 [[calibers/gptlearn_poster_count_limit]]。三者同时满足时，`checkPosterStatus` 才会创建弹出记录并写入 [[tables/gpt_learn_poster_log]] 的 `popup_time`。
-
-注意本口径使用 `db_tenant_code`（数据租户标识）而非 `app_tenant_code`（逻辑租户标识）；这两个字段在各表中并存，口径选择哪一个直接决定命中范围。
-
-## 需求背景
-
-本分析未提供该口径的需求文档（reqdoc_claims）证据。待业务补充：`posterAllowedTenant` 的配置载体与变更流程。
-
-## 版本演进
-
-当前契约版本 0.1，暂无版本演进证据。
-
-```ground:caliber
-name: 智能审核引流-租户白名单口径
-predicate: cust_company_info.db_tenant_code 属于 gptLearnProperties.posterAllowedTenant
-scope: checkPosterStatus 引流卡片弹出校验
-evidence: code_path:GptLearnService.java:checkPosterStatus
-```
-
-相关页面：[[concepts/gptlearn]]、[[calibers/gptlearn_finance_user]]、[[calibers/gptlearn_poster_count_limit]]、[[tables/gpt_learn_poster_log]]、[[tables/cust_company_info]]。
----END FILE---
-
----FILE: calibers/gptlearn_poster_count_limit.md ---
----
-type: caliber
-title: 智能审核引流-弹出次数上限口径
-page_key: calibers/gptlearn_poster_count_limit
-domain: GP学习
-status: draft
-aliases:
-  - maxPosterCount
-  - 卡片弹出次数上限
-  - 引流限流口径
-oid: 1
-scope:
-  databases: ["(待确认)"]
-sources:
-  - code:GptLearnService.java
-contract_version: "0.1"
----
-
-# 智能审核引流-弹出次数上限口径
-
-本口径限制[[concepts/gptlearn]]的引流卡片对同一「用户 + 企业」组合的弹出次数：按 `gpt_learn_poster_log.user_id` 与 `gpt_learn_poster_log.company_id` 聚合计数，结果必须小于 `gptLearnProperties.maxPosterCount`。作用于 `checkPosterStatus`。
-
-因为计数对象是 [[tables/gpt_learn_poster_log]] 中的弹出记录（`popup_time` 由 `checkPosterStatus` 写入），所以「弹出记录已落库」与「用户真的看见了卡片」在本口径下是等价事件。若前端渲染失败但记录已写，额度会被消耗——这是排查「用户反馈没看到卡片但已达上限」时的关键点。
-
-本口径与 [[calibers/gptlearn_finance_user]]（用户资格）、[[calibers/gptlearn_tenant_whitelist]]（租户白名单）串联生效，是三道门中的最后一道。
-
-## 需求背景
-
-本分析未提供该口径的需求文档（reqdoc_claims）证据。待业务补充：`maxPosterCount` 的产品预期值、是否按自然日或活动周期重置。
-
-## 版本演进
-
-当前契约版本 0.1，暂无版本演进证据。
-
-```ground:caliber
-name: 智能审核引流-弹出次数上限口径
-predicate: count(gpt_learn_poster_log.user_id, gpt_learn_poster_log.company_id) < gptLearnProperties.maxPosterCount
-scope: checkPosterStatus 引流卡片弹出校验
-evidence: code_path:GptLearnService.java:checkPosterStatus
-```
-
-相关页面：[[concepts/gptlearn]]、[[tables/gpt_learn_poster_log]]、[[calibers/gptlearn_finance_user]]、[[calibers/gptlearn_tenant_whitelist]]。
----END FILE---
-
----FILE: calibers/wenjuan_whitelist_company.md ---
----
-type: caliber
-title: 问卷星活动-白名单企业口径
-page_key: calibers/wenjuan_whitelist_company
-domain: 问卷
-status: draft
-aliases:
-  - isParticipating
-  - 问卷活动白名单口径
-  - 参与企业口径
-oid: 1
-scope:
-  databases: ["(待确认)"]
-sources:
-  - db:cust_company_survey_whitelist
-  - code:WenjuanDisplayService.java
-contract_version: "0.1"
----
-
-# 问卷星活动-白名单企业口径
-
-本口径决定[[concepts/wenjuan]]对哪些企业开放：企业必须出现在 [[tables/cust_company_survey_whitelist]] 中且 `enable = 'Y'`，同时 `isParticipating(company_id)` 为真。判定点有三处：`WenjuanDisplayService.resolveHomeDisplay`（首页展示场景）、`getSurveyUrl`（问卷链接获取）、`shouldStayOnHomeForGotoProduct`（跳转商品页时是否留在首页）。
-
-这是[[processes/wenjuan_home_display_scene]]中进入 `FIRST_VISITOR_LOTTERY` 的前置条件之一；不满足时场景直接落到 `NONE`。它与「首个访问用户」（[[concepts/first_visitor]]）是两个正交条件：白名单是「企业级」准入，首个访问用户是「用户在企业的次序」准入。
-
-## 需求背景
-
-本分析未提供该口径的需求文档（reqdoc_claims）证据。待业务补充：`isParticipating` 除白名单外的判定构成（分析中仅给出该调用名，未展开其内部逻辑）。
-
-## 版本演进
-
-当前契约版本 0.1，暂无版本演进证据。
-
-```ground:caliber
-name: 问卷星活动-白名单企业口径
-predicate: cust_company_survey_whitelist.enable = 'Y' 且 isParticipating(company_id) 为真
-scope: WenjuanDisplayService.resolveHomeDisplay / getSurveyUrl / shouldStayOnHomeForGotoProduct
-evidence: db + code_path:WenjuanDisplayService.java:resolveHomeDisplay
-```
-
-相关页面：[[concepts/wenjuan]]、[[concepts/first_visitor]]、[[tables/cust_company_survey_whitelist]]、[[tables/cust_company_survey_state]]、[[processes/wenjuan_home_display_scene]]。
----END FILE---
-
----FILE: calibers/wenjuan_no_persist_completion.md ---
----
-type: caliber
-title: 问卷星活动-完成态不落库口径
-page_key: calibers/wenjuan_no_persist_completion
-domain: 问卷
-status: draft
-aliases:
-  - 完成态实时查询口径
-  - 不落库口径
-  - syncAndResolve
-oid: 1
-scope:
-  databases: ["(待确认)"]
-sources:
-  - code:WenjuanDisplayService.java
-contract_version: "0.1"
----
-
-# 问卷星活动-完成态不落库口径
-
-本口径规定[[concepts/wenjuan]]（问卷星活动）的「问卷是否已完成」不写入本地库：不写 `cust_survey_answer`（那是[[concepts/cust_survey]]调研问卷的表），而是每次调用 `WenjuanOpenApiClient.isSurveyCompleted(respondent)` 实时获取。作用点是 `WenjuanDisplayService.syncAndDisplayConfig` 与 `resolveHomeDisplay`。
-
-这一设计带来两个直接后果：其一，本地无法通过 SQL 直接统计「谁完成了问卷星活动」，只能依赖问卷星侧数据；其二，完成态每次访问都产生一次外部调用，展示结果（[[processes/wenjuan_home_display_scene]] 中的 `GUIDE_ONLY` 分支）依赖外部接口的可用性。
-
-企业级的本地状态只保存在 [[tables/cust_company_survey_state]]（首个访问时间、抽奖是否已展示）。这一点也是「[[concepts/survey_completed]]」与 [[concepts/cust_survey]] 提交答案最容易被混淆的地方。
-
-## 需求背景
-
-本分析未提供该口径的需求文档（reqdoc_claims）证据。待业务补充：问卷星接口不可用时的降级展示策略与超时处理。
-
-## 版本演进
-
-当前契约版本 0.1，暂无版本演进证据。
-
-```ground:caliber
-name: 问卷星活动-完成态不落库口径
-predicate: 不写 cust_survey_answer；每次调 WenjuanOpenApiClient.isSurveyCompleted(respondent)
-scope: syncAndDisplayConfig / resolveHomeDisplay
-evidence: code_path:WenjuanDisplayService.java:syncAndResolve
-```
-
-相关页面：[[concepts/wenjuan]]、[[concepts/survey_completed]]、[[concepts/cust_survey]]、[[tables/cust_company_survey_state]]、[[tables/cust_survey_answer]]、[[processes/wenjuan_home_display_scene]]。
----END FILE---
-
----FILE: calibers/survey_answer_attribution.md ---
----
-type: caliber
-title: 调研问卷-答案归属口径
-page_key: calibers/survey_answer_attribution
-domain: 问卷
-status: draft
-aliases:
-  - XYL_2024_Q1 口径
-  - 答案归属三条件
-  - 调研问卷有效答案口径
-oid: 1
-scope:
-  databases: ["(待确认)"]
-sources:
-  - db:cust_survey_answer
-contract_version: "0.1"
----
-
-# 调研问卷-答案归属口径
-
-本口径界定哪些行构成「[[concepts/cust_survey]]（讯易链调研问卷）的有效答案数据」：`survey_code = 'XYL_2024_Q1'`、`db_tenant_code = 'all'`、`enable = 'Y'` 三者同时成立。三者分别锚定问卷身份、租户归属与逻辑有效性。
-
-在 [[tables/cust_survey_answer]] 中，这三列并非总是这个取值——`app_tenant_code` 实测为 `base`、`db_tenant_code` 实测为 `all`，而其它表的 `db_tenant_code` 实测值各不相同（例如 [[tables/cust_company_survey_state]] 为 LN1/all，[[tables/cust_company_survey_whitelist]] 为 LN1）。因此按本口径取数时不应使用统一的租户过滤条件。
-
-本口径是纯 DB 口径（证据来源为 db，不含代码路径），与「完成态不落库」的问卷星活动（[[calibers/wenjuan_no_persist_completion]]）在数据来源上完全不同。
-
-## 需求背景
-
-本分析未提供本口径的需求文档（reqdoc_claims）证据。待业务补充：`survey_code` 未来新增问卷时的命名规范与历史问卷的并存方式。
-
-## 版本演进
-
-当前契约版本 0.1，暂无版本演进证据。DB 实测样本仅覆盖 `XYL_2024_Q1` 与题号 1~6。
-
-```ground:caliber
-name: 调研问卷-答案归属口径
-predicate: cust_survey_answer.survey_code = 'XYL_2024_Q1' AND cust_survey_answer.db_tenant_code = 'all' AND cust_survey_answer.enable = 'Y'
-scope: 讯易链调研问卷答案数据
-evidence: db
-```
-
-相关页面：[[concepts/cust_survey]]、[[tables/cust_survey_answer]]、[[calibers/wenjuan_no_persist_completion]]、[[concepts/survey_completed]]。
----END FILE---
-
----FILE: calibers/company_effect.md ---
----
-type: caliber
-title: 企业生效口径
-page_key: calibers/company_effect
-domain: 企业画像
-status: draft
-aliases:
-  - 生效企业口径
-  - listEffectCompany
-  - EFFECT 口径
-oid: 1
-scope:
-  databases: ["(待确认)"]
-sources:
-  - code:CustCompanyIfoEnchanceService.java
-contract_version: "0.1"
----
-
-# 企业生效口径
-
-「企业生效」是[[concepts/company_profile]]最常被引用的查询口径，由四个条件合取而成：`cust_build_status = 'BUILD_SUCCESS'`（认证成功，见 [[processes/cust_company_info_cust_build_status]]）、`cust_status = 'EFFECT'`（客户生效，见 [[processes/cust_company_info_cust_status]]）、`data_type = 'MAIN'`（主数据，常量 `DATA_TYPE_MAIN`）、`enable = 'Y'`（逻辑有效）。
-
-适用范围是 `listEffectCompany` / `listEffectCompanyByTenantAndType` 等企业生效查询。因为四条件横跨认证状态、客户状态与数据分层三类字段，任何单字段的运营操作（例如仅冻结企业而不动认证状态）都会即时改变企业是否出现在生效结果集中。
-
-在[[tables/cust_company_info]]中，`data_type` 与 `mainDataId` 一起区分主数据 / 记录数据，这解释了为什么同一家企业在库中可能存在多行而只有主数据行参与生效判定。
-
-## 需求背景
-
-本分析未提供本口径的需求文档（reqdoc_claims）证据。待业务补充：记录数据行（非主数据）在业务上承担的场景。
-
-## 版本演进
-
-当前契约版本 0.1，暂无版本演进证据。
-
-```ground:caliber
-name: 企业生效口径
-predicate: cust_company_info.cust_build_status = 'BUILD_SUCCESS' AND cust_company_info.cust_status = 'EFFECT' AND cust_company_info.data_type = 'MAIN' AND cust_company_info.enable = 'Y'
-scope: listEffectCompany/listEffectCompanyByTenantAndType 等企业生效查询
-evidence: code_path:CustCompanyIfoEnchanceService.java:listEffectCompany
-```
-
-相关页面：[[concepts/company_profile]]、[[tables/cust_company_info]]、[[processes/cust_company_info_cust_build_status]]、[[processes/cust_company_info_cust_status]]、[[calibers/platform_operator_unique]]、[[calibers/main_data_certification_unique]]。
----END FILE---
-
----FILE: calibers/platform_operator_unique.md ---
----
-type: caliber
-title: 平台运营方唯一口径
-page_key: calibers/platform_operator_unique
-domain: 企业画像
-status: draft
-aliases:
-  - PLATFORM_OPERATOR_COMPANY 口径
-  - 平台运营企业唯一性
-  - checkCustInfoBeforeSave
-oid: 1
-scope:
-  databases: ["(待确认)"]
-sources:
-  - code:CustCompanyIfoEnchanceService.java
-contract_version: "0.1"
----
-
-# 平台运营方唯一口径
-
-本口径约束「每个租户最多只能有一个平台运营方企业」：`cust_company_info.cust_company_type LIKE '%PLATFORM_OPERATOR_COMPANY%'`，且 `enable = 'Y'`、`db_tenant_code` 等于当前租户。校验发生在企业建档保存之前（`checkCustInfoBeforeSave`）。
-
-判定使用 `LIKE '%...%'` 而非等值比较，与 [[tables/cust_company_info]] 中 `custCompanyType` 按 JSON 数组字符串处理（如 `["FINANCE"]`）的存储形态一致——同一个字段可以承载多个角色，因此需要子串匹配。
-
-本口径与 [[calibers/main_data_certification_unique]]（主数据信用代码唯一）同属建档保存前的重复校验，但关注对象不同：本口径约束「角色」，后者约束「主体身份」。两者都以当前租户为范围。
-
-## 需求背景
-
-本分析未提供本口径的需求文档（reqdoc_claims）证据。待业务补充：子串匹配是否会误命中其它包含 `PLATFORM_OPERATOR_COMPANY` 字样的角色值。
-
-## 版本演进
-
-当前契约版本 0.1，暂无版本演进证据。
-
-```ground:caliber
-name: 平台运营方唯一口径
-predicate: cust_company_info.cust_company_type LIKE '%PLATFORM_OPERATOR_COMPANY%' AND cust_company_info.enable = 'Y' AND cust_company_info.db_tenant_code = 当前租户
-scope: 企业建档保存前校验
-evidence: code_path:CustCompanyIfoEnchanceService.java:checkCustInfoBeforeSave
-```
-
-相关页面：[[concepts/company_profile]]、[[tables/cust_company_info]]、[[calibers/main_data_certification_unique]]、[[calibers/company_effect]]。
----END FILE---
-
----FILE: calibers/main_data_certification_unique.md ---
----
-type: caliber
-title: 主数据信用代码唯一口径
-page_key: calibers/main_data_certification_unique
-domain: 企业画像
-status: draft
-aliases:
-  - 统一社会信用代码唯一
-  - certificationNo 唯一口径
-  - getMainDataByCertification
-oid: 1
-scope:
-  databases: ["(待确认)"]
-sources:
-  - code:CustCompanyIfoEnchanceService.java
-contract_version: "0.1"
----
-
-# 主数据信用代码唯一口径
-
-本口径用于企业统一社会信用代码的重复校验：`cust_company_info.certification_no` 等于目标信用代码、`db_tenant_code` 等于当前租户、`data_type = 'MAIN'`。实现为 `getMainDataByCertification`。
-
-三个条件缺一不可，其中 `data_type = 'MAIN'` 是本口径与「全局唯一」的差别所在：只有主数据行参与判重，记录数据行可以携带相同信用代码而不冲突。这与 [[calibers/company_effect]] 中对 `data_type = 'MAIN'` 的使用相互印证——主数据行是企业画像的权威行。
-
-字段 `certificationNo`（统一信用代码）在 [[tables/cust_company_info]] 与法人相关字段（`legalCertificationNo`、`legalCertificationType`）并存，取数时注意区分企业主体与法人个人证件。
-
-## 需求背景
-
-本分析未提供本口径的需求文档（reqdoc_claims）证据。待业务补充：跨租户是否存在同一信用代码的合法场景。
-
-## 版本演进
-
-当前契约版本 0.1，暂无版本演进证据。
-
-```ground:caliber
-name: 主数据信用代码唯一口径
-predicate: cust_company_info.certification_no = 信用代码 AND cust_company_info.db_tenant_code = 当前租户 AND cust_company_info.data_type = 'MAIN'
-scope: 企业统一社会信用代码重复校验
-evidence: code_path:CustCompanyIfoEnchanceService.java:getMainDataByCertification
-```
-
-相关页面：[[concepts/company_profile]]、[[tables/cust_company_info]]、[[calibers/platform_operator_unique]]、[[calibers/company_effect]]。
----END FILE---
-
----FILE: concepts/gptlearn.md ---
----
-type: concept
-title: 智能审核引流
-page_key: concepts/gptlearn
-domain: GP学习
-status: draft
-aliases:
-  - GP学习
-  - gptlearn
-  - 引流卡片
-  - 智能审核引流卡片
-oid: 1
-scope:
-  databases: ["(待确认)"]
-sources:
+  - code_path:GptLearnService.java:validateFinanceUser
+  - code_path:GptLearnService.java:checkPosterStatus
+  - code_path:GptLearnService.java:recordPosterClick
   - db:gpt_learn_poster_log
-  - code:GptLearnService.java
 contract_version: "0.1"
-maps_to: GptLearnService + gpt_learn_poster_log + /app-web/gptlearn
-field_targets:
-  - gpt_learn_poster_log.popup_time
-  - gpt_learn_poster_log.click_time
-adjudication: synonym
-also_confused_with: []
 ---
 
-# 智能审核引流
-
-「智能审核引流」是业务与前端对该功能的称呼，代码、表与接口层统一写作 `gptlearn`（接口前缀 `/app-web/gptlearn`）。同类叫法还包括 GP 学习、引流卡片、智能审核引流卡片——这些在本 wiki 中被判定为同义词（synonym），可以互相替换。参见 [[tables/gpt_learn_poster_log]]。
-
-该概念的服务入口是 `GptLearnService`，三个接口分别是 `syncLoginInfo`（同步登录信息）、`checkPosterStatus`（检查卡片状态并写入弹出记录）、`recordPosterClick`（记录点击）。它对用户开放的前置条件是「用户为金融机构」，见 [[calibers/gptlearn_finance_user]] 与 [[rules/gptlearn_finance_user_only]]；卡片弹出还受租户白名单（[[calibers/gptlearn_tenant_whitelist]]）与弹出次数上限（[[calibers/gptlearn_poster_count_limit]]）约束。
-
-注意本概念与问卷域的两个概念（[[concepts/cust_survey]]、[[concepts/wenjuan]]）没有业务交集，不要因为都叫「引流／问卷」而混淆。
+状态机的落点是 [[tables/gpt_learn_poster_log]] 的 `popup_time` / `click_time`：`SHOWN` 等价于新写入一行且 `popup_time` 有值，`CLICKED` 等价于该行 `click_time` 有值。前置校验对应三条规则：[[rules/gpt_learn_finance_only]]、[[rules/poster_allowed_tenant]]、[[rules/poster_popup_max_count]]；术语见 [[concepts/gpt_learn]]。
 
 ## 需求背景
 
-本分析未提供该概念的需求文档（reqdoc_claims）证据。待业务补充：引流卡片指向的具体业务动作与转化目标。
+卡片按「打扰频次可控、投放范围可控」设计：不弹（`NOT_SHOW`）由三类原因造成——企业不是金融机构、租户不在灰度名单、同一用户在该企业的弹出次数已达上限；只有全部通过才落埋点并返回 `recordId`。点击回写要求 `recordId + userId + companyId` 三者匹配，否则抛「埋点记录不存在或已记录点击」，因此 `CLICKED` 是单次可达的终态。
 
 ## 版本演进
 
-当前契约版本 0.1，暂无版本演进证据。
+- 当前观测：全表 252 行，`enable` 全 `Y`，`db_tenant_code` 仅 `beehive-scf.qhhrly.cn`，说明投产投放面很窄。
+- `INIT` / `NOT_SHOW` / `SHOWN` / `CLICKED` 为代码语义状态，字典中无对应落库枚举列，仅 `popup_time`/`click_time` 有无值可判定。
 
-相关页面：[[tables/gpt_learn_poster_log]]、[[tables/cust_company_info]]、[[calibers/gptlearn_finance_user]]、[[calibers/gptlearn_tenant_whitelist]]、[[calibers/gptlearn_poster_count_limit]]、[[rules/gptlearn_finance_user_only]]。
+```ground:process
+name: 智能审核引流卡片埋点生命周期
+field: gpt_learn_poster_log.popup_time / gpt_learn_poster_log.click_time
+states:
+  - value: INIT
+    label: 未评估
+    source: code_const
+  - value: NOT_SHOW
+    label: 不弹出（非金融机构 / 租户不允许 / 已达弹出上限）
+    source: code_const
+  - value: SHOWN
+    label: 已弹出并落埋点（popup_time 有值）
+    source: code_const
+  - value: CLICKED
+    label: 已点击（click_time 有值）
+    source: code_const
+transitions:
+  - from: INIT
+    event: 企业类型非 CustCompanyTypeEnum.FINANCE（validateFinanceUser 抛「仅金融机构用户可使用」）
+    to: NOT_SHOW
+    evidence: "code_path:GptLearnService.java:validateFinanceUser"
+  - from: INIT
+    event: isPosterAllowedTenant(dbTenantCode)=false
+    to: NOT_SHOW
+    evidence: "code_path:GptLearnService.java:checkPosterStatus"
+  - from: INIT
+    event: countByUserAndCompany(userId,companyId) >= maxPosterCount
+    to: NOT_SHOW
+    evidence: "code_path:GptLearnService.java:checkPosterStatus"
+  - from: INIT
+    event: 校验通过，createPopupRecord 写入 gpt_learn_poster_log(popup_time)
+    to: SHOWN
+    evidence: "code_path:GptLearnService.java:checkPosterStatus"
+  - from: SHOWN
+    event: POST /app-web/gptlearn/recordPosterClick(recordId) 且 recordId+userId+companyId 匹配成功
+    to: CLICKED
+    evidence: "code_path:GptLearnService.java:recordPosterClick"
+  - from: SHOWN
+    event: recordClick 未匹配（抛「埋点记录不存在或已记录点击」）
+    to: SHOWN
+    evidence: "code_path:GptLearnService.java:recordPosterClick"
+```
+
 ---END FILE---
 
----FILE: concepts/cust_survey.md ---
+---FILE: calibers/wenjuan_whitelist_enabled.md ---
 ---
-type: concept
-title: 调研问卷
-page_key: concepts/cust_survey
-domain: 问卷
+type: caliber
+title: 问卷活动参与企业白名单口径
+page_key: wenjuan_whitelist_enabled
+domain: 客户管理
 status: draft
-aliases:
-  - 讯易链调研问卷
-  - CustSurvey
-  - survey
+aliases: [白名单口径, isParticipating 口径]
 oid: 1
 scope:
-  databases: ["(待确认)"]
+  databases: ["unknown"]
 sources:
-  - db:cust_survey_answer
-  - code:CustSurveyController
-  - code:CustSurveyAnswerService
+  - code_path:WenjuanDisplayService.java:resolveHomeDisplay
+  - db:cust_company_survey_whitelist.enable
 contract_version: "0.1"
-maps_to: CustSurveyController + CustSurveyAnswerService + cust_survey_answer
+---
+
+活动可见范围的判定口径：企业需同时满足「在 [[tables/cust_company_survey_whitelist]] 中登记」且 `enable = 'Y'`。对应规则 [[rules/wenjuan_whitelist_participation]]，影响首页展示决策 [[processes/wenjuan_home_display_scene]] 与专属答题链接获取。
+
+## 需求背景
+
+白名单是活动投放的第一道闸门：未命中的企业首页返回 `NONE`，直接调 `getSurveyUrl` 也会被拒绝。DB 观测 11 行 `enable` 全为 `Y`，尚无失效样例。
+
+## 版本演进
+
+- 当前观测：`enable` 全 `Y`（11 行），`enable='N'` 的实际行为未被验证。
+
+```ground:caliber
+name: 问卷活动参与企业白名单
+predicate: cust_company_survey_whitelist.enable = 'Y'
+scope: WenjuanDisplayService.isParticipating(companyId) 判定是否展示活动与获取专属答题链接
+evidence: "code_path:WenjuanDisplayService.java:resolveHomeDisplay + db:cust_company_survey_whitelist.enable 全 Y（11 行）"
+```
+
+---END FILE---
+
+---FILE: calibers/gpt_learn_poster_log_enabled.md ---
+---
+type: caliber
+title: 引流卡片埋点有效记录口径
+page_key: gpt_learn_poster_log_enabled
+domain: 客户管理
+status: draft
+aliases: [埋点有效口径, poster enable 口径]
+oid: 1
+scope:
+  databases: ["unknown"]
+sources:
+  - code_path:GptLearnService.java:checkPosterStatus
+  - db:gpt_learn_poster_log.enable
+contract_version: "0.1"
+---
+
+[[tables/gpt_learn_poster_log]] 的有效记录口径为 `enable = 'Y'`：弹出次数统计 `countByUserAndCompany` 与点击记录 `recordClick` 都以此为准，直接影响 [[rules/poster_popup_max_count]] 的计数结果与 [[processes/gpt_learn_poster_log_lifecycle]] 的状态推进。
+
+## 需求背景
+
+弹出上限按「同一用户 + 同一企业」累计，若无效记录被计入会提前触发 `NOT_SHOW`，因此有效标记是计数口径的一部分。当前实测 252 行全为 `Y`，逻辑删除尚未被实际使用。
+
+## 版本演进
+
+- 当前观测：`enable` 全 `Y`（252 行），与 [[enums/gpt_learn_poster_log_enable]] 一致。
+
+```ground:caliber
+name: 引流卡片埋点有效记录
+predicate: gpt_learn_poster_log.enable = 'Y'
+scope: 弹出次数统计 countByUserAndCompany 与点击记录 recordClick
+evidence: "code_path:GptLearnService.java:checkPosterStatus + db:gpt_learn_poster_log.enable 全 Y（252 行）"
+```
+
+---END FILE---
+
+---FILE: calibers/cust_survey_answer_enabled.md ---
+---
+type: caliber
+title: 调研答案有效记录口径
+page_key: cust_survey_answer_enabled
+domain: 客户管理
+status: draft
+aliases: [答案有效口径, answer enable 口径]
+oid: 1
+scope:
+  databases: ["unknown"]
+sources:
+  - db:cust_survey_answer.enable
+contract_version: "0.1"
+---
+
+[[tables/cust_survey_answer]] 的查询口径为 `enable = 'Y'`，用于调研问卷答案范围过滤。
+
+## 需求背景
+
+答案表按企业 + 问卷 + 用户组织，逻辑有效标记用于在不物理删除的前提下剔除历史/作废答案。写值点未在本链路给出（[[rules/survey_answer_write_path_review]]），因此 `enable` 的赋值行为无法核对。
+
+## 版本演进
+
+- 当前观测：338 行全为 `Y`，未见 `N` 样本。
+
+```ground:caliber
+name: 调研答案有效记录
+predicate: cust_survey_answer.enable = 'Y'
+scope: 调研问卷答案查询
+evidence: "db:cust_survey_answer.enable 全 Y（338 行）"
+```
+
+---END FILE---
+
+---FILE: calibers/wenjuan_all_tenant.md ---
+---
+type: caliber
+title: 问卷活动数据跨租户口径（all）
+page_key: wenjuan_all_tenant
+domain: 客户管理
+status: draft
+aliases: [问卷 all 租户口径, setDbTenantCode all]
+oid: 1
+scope:
+  databases: ["unknown"]
+sources:
+  - code_path:WenjuanController.java:markLotteryShown
+  - code_path:WenjuanDisplayService.java:resolveHomeDisplay
+  - db:cust_company_survey_state.db_tenant_code
+contract_version: "0.1"
+---
+
+问卷活动链路的读写口径是「不按租户隔离」：`WenjuanController.markLotteryShown/surveyUrl` 与 `WenjuanDisplayService.resolveHomeDisplay/shouldStayOnHomeForGotoProduct` 均先 `MetaDataThreadLocalConfig.setDbTenantCode("all")`。对应规则 [[rules/wenjuan_all_tenant_fallback]]，落点表 [[tables/cust_company_survey_state]]。
+
+## 需求背景
+
+活动状态与答案被视为全租户统一数据，避免同一企业在不同租户下出现两套活动状态；代价是数据不再按租户隔离，历史遗留行可能落在非 `all` 租户下。
+
+## 版本演进
+
+- 当前观测：`cust_company_survey_state.db_tenant_code` 为 `all`(10) 与 `LN1`(1) 并存，`LN1` 行与代码强制口径不一致，属历史/异常数据，需人工核实（见 [[enums/cust_company_survey_state_db_tenant_code]]）。
+
+```ground:caliber
+name: 问卷活动数据跨租户口径（all）
+predicate: cust_company_survey_state.db_tenant_code = 'all'
+scope: 问卷活动首个访问用户 claim 与抽奖标记读写前强制 MetaDataThreadLocalConfig.setDbTenantCode("all")
+evidence: "code_path:WenjuanController.java:markLotteryShown + WenjuanDisplayService.java:resolveHomeDisplay + db:cust_company_survey_state.db_tenant_code all=10"
+```
+
+---END FILE---
+
+---FILE: calibers/survey_answer_all_tenant.md ---
+---
+type: caliber
+title: 调研答案跨租户口径（all）
+page_key: survey_answer_all_tenant
+domain: 客户管理
+status: draft
+aliases: [答案 all 租户口径]
+oid: 1
+scope:
+  databases: ["unknown"]
+sources:
+  - db:cust_survey_answer.db_tenant_code
+contract_version: "0.1"
+---
+
+[[tables/cust_survey_answer]] 的数据被视为全租户统一，`db_tenant_code` 唯一值为 `all`（338 行）。
+
+## 需求背景
+
+调研答案不参与租户隔离，与 [[calibers/wenjuan_all_tenant]] 属同一设计取向：问卷类数据按「全局一份」管理。该口径由数据分布观察得到，代码侧写值点未在本链路给出（[[rules/survey_answer_write_path_review]]）。
+
+## 版本演进
+
+- 当前观测：`db_tenant_code` 唯一值 `all`，无其他租户样本。
+
+```ground:caliber
+name: 调研答案跨租户口径（all）
+predicate: cust_survey_answer.db_tenant_code = 'all'
+scope: 调研问卷答案为全租户统一数据
+evidence: "db:cust_survey_answer.db_tenant_code 唯一值 all（338 行）"
+```
+
+---END FILE---
+
+---FILE: calibers/survey_code_xyl_2024_q1.md ---
+---
+type: caliber
+title: 当前唯一在用问卷口径
+page_key: survey_code_xyl_2024_q1
+domain: 客户管理
+status: draft
+aliases: [XYL_2024_Q1, 在用问卷口径]
+oid: 1
+scope:
+  databases: ["unknown"]
+sources:
+  - db:cust_survey_answer.survey_code
+contract_version: "0.1"
+---
+
+调研答案的问卷范围口径为 `survey_code = 'XYL_2024_Q1'`：全表唯一值，共 338 行。
+
+## 需求背景
+
+该问卷编码在代码链路中没有常量定义，属数据驱动——问卷的增删改由数据侧决定，代码无需发布即可切换问卷范围。术语边界见 [[concepts/wenjuan]]。
+
+## 版本演进
+
+- 当前观测：`survey_code` 唯一值 `XYL_2024_Q1`，尚无第二份问卷样本。
+
+```ground:caliber
+name: 当前唯一在用问卷
+predicate: cust_survey_answer.survey_code = 'XYL_2024_Q1'
+scope: 调研问卷答案范围（代码中未常量定义，属数据驱动）
+evidence: "db:cust_survey_answer.survey_code 唯一值 XYL_2024_Q1（338 行）"
+```
+
+---END FILE---
+
+---FILE: rules/gpt_learn_finance_only.md ---
+---
+type: rule
+title: GP学习/智能审核引流仅限金融机构用户
+page_key: gpt_learn_finance_only
+domain: 客户管理
+status: draft
+aliases: [仅金融机构可引流, validateFinanceUser]
+oid: 1
+scope:
+  databases: ["unknown"]
+sources:
+  - code_path:GptLearnService.java:validateFinanceUser
+  - code_path:GptLearnService.java:checkPosterStatus
+contract_version: "0.1"
+---
+
+三个入口 `syncLoginInfo` / `checkPosterStatus` / `recordPosterClick` 都先执行 `validateFinanceUser`：`currentUser` 非空且企业角色必须等于 `CustCompanyTypeEnum.FINANCE.getDictKey()`，否则抛「仅金融机构用户可使用」；企业信息不存在抛「企业信息不存在」。判定位来自 [[tables/cust_company_info]] 的 `cust_company_type`，效果是 [[processes/gpt_learn_poster_log_lifecycle]] 中的 `INIT → NOT_SHOW`。
+
+## 需求背景
+
+引流卡片面向金融机构用户投放，因此把企业角色作为最前置的准入条件，非 FINANCE 企业连埋点都不会产生。`cust_company_type` 存的是 JSON 数组字符串（如 `["FINANCE"]`），比较走字典 key。
+
+## 版本演进
+
+- 当前观测：`gpt_learn_poster_log` 仅 252 行且租户单一，与该规则叠加后投放面很窄。
+
+```ground:rule
+name: GP学习/智能审核引流仅限金融机构用户
+content: "syncLoginInfo / checkPosterStatus / recordPosterClick 入口均先执行 validateFinanceUser：currentUser 非空且 companyType 必须等于 CustCompanyTypeEnum.FINANCE.getDictKey()，否则抛「仅金融机构用户可使用」；企业信息不存在抛「企业信息不存在」"
+impact: 非 FINANCE 企业用户调用引流接口直接失败，不产生埋点
+field_targets:
+  - cust_company_info.cust_company_type
+evidence: "code_path:GptLearnService.java:validateFinanceUser + GptLearnService.java:checkPosterStatus"
+```
+
+---END FILE---
+
+---FILE: rules/poster_popup_max_count.md ---
+---
+type: rule
+title: 引流卡片弹出次数上限
+page_key: poster_popup_max_count
+domain: 客户管理
+status: draft
+aliases: [弹出上限, maxPosterCount]
+oid: 1
+scope:
+  databases: ["unknown"]
+sources:
+  - code_path:GptLearnService.java:checkPosterStatus
+  - code_path:GptLearnPosterLogDao.countByUserAndCompany
+contract_version: "0.1"
+---
+
+计数维度是 `user_id + company_id`：累计埋点行数达到 `gptLearnProperties.getMaxPosterCount()` 时返回 `notShow`，不再创建弹出记录。计数口径受 [[calibers/gpt_learn_poster_log_enabled]] 约束（只统计有效记录），状态效果见 [[processes/gpt_learn_poster_log_lifecycle]] 的 `INIT → NOT_SHOW`。
+
+## 需求背景
+
+该上限用来控制打扰频次，是「弹不弹」的最后一个校验点；达到上限是 `NOT_SHOW` 的第三种原因（另两种见 [[rules/gpt_learn_finance_only]] 与 [[rules/poster_allowed_tenant]]）。
+
+## 版本演进
+
+- 上限值由配置项 `gptLearnProperties.getMaxPosterCount()` 提供，语义分析未给出具体数值，不在本页断言。
+
+```ground:rule
+name: 引流卡片弹出次数上限
+content: "同一 user_id + company_id 的埋点记录数 >= gptLearnProperties.getMaxPosterCount() 时返回 notShow，不再创建弹出记录"
+impact: 控制打扰频次，决定是否新增 gpt_learn_poster_log 行
+field_targets:
+  - gpt_learn_poster_log.user_id
+  - gpt_learn_poster_log.company_id
+  - gpt_learn_poster_log.popup_time
+evidence: "code_path:GptLearnService.java:checkPosterStatus + GptLearnPosterLogDao.countByUserAndCompany"
+```
+
+---END FILE---
+
+---FILE: rules/poster_allowed_tenant.md ---
+---
+type: rule
+title: 引流卡片仅白名单租户可弹
+page_key: poster_allowed_tenant
+domain: 客户管理
+status: draft
+aliases: [租户灰度, isPosterAllowedTenant]
+oid: 1
+scope:
+  databases: ["unknown"]
+sources:
+  - code_path:GptLearnService.java:checkPosterStatus
+  - db:gpt_learn_poster_log.db_tenant_code
+contract_version: "0.1"
+---
+
+`isPosterAllowedTenant(companyInfo.getDbTenantCode())` 为 false 时 `checkPosterStatus` 直接返回 `notShow`。租户取自 [[tables/cust_company_info]]，落点字段是 [[tables/gpt_learn_poster_log]] 的 `db_tenant_code`（见 [[enums/gpt_learn_poster_log_db_tenant_code]]）。
+
+## 需求背景
+
+引流卡片按数据租户灰度投放。DB 实测埋点仅落在 `beehive-scf.qhhrly.cn` 一个租户值上，与该白名单机制吻合。
+
+## 版本演进
+
+- 当前观测：`db_tenant_code` 唯一值 `beehive-scf.qhhrly.cn`，白名单范围目前极窄。
+
+```ground:rule
+name: 引流卡片仅白名单租户可弹
+content: isPosterAllowedTenant(companyInfo.getDbTenantCode()) 为 false 时直接 notShow
+impact: 按 db_tenant_code 灰度投放引流卡片；DB 实测埋点仅落在 beehive-scf.qhhrly.cn
+field_targets:
+  - gpt_learn_poster_log.db_tenant_code
+evidence: "code_path:GptLearnService.java:checkPosterStatus + db:gpt_learn_poster_log.db_tenant_code"
+```
+
+---END FILE---
+
+---FILE: rules/wenjuan_whitelist_participation.md ---
+---
+type: rule
+title: 问卷活动仅白名单企业参与
+page_key: wenjuan_whitelist_participation
+domain: 客户管理
+status: draft
+aliases: [问卷白名单规则, getSurveyUrl 拒绝]
+oid: 1
+scope:
+  databases: ["unknown"]
+sources:
+  - code_path:WenjuanDisplayService.java:resolveHomeDisplay
+  - code_path:WenjuanDisplayService.java:getSurveyUrl
+contract_version: "0.1"
+---
+
+`companySurveyWhitelistDao.isParticipating(companyId)` 为 false 时首页返回 `NONE`；`getSurveyUrl` 时抛「企业不在白名单列表中！」。判定位见 [[tables/cust_company_survey_whitelist]]，口径见 [[calibers/wenjuan_whitelist_enabled]]。
+
+## 需求背景
+
+白名单同时控制「看不看得见活动」与「拿不拿得到专属答题链接」两件事，是活动可见范围的第一道闸门；第二个闸门是首个访问用户判定（[[rules/first_visitor_only_ui]]）。
+
+## 版本演进
+
+- 当前观测：白名单 11 行全为有效，含测试数据。
+
+```ground:rule
+name: 问卷活动仅白名单企业参与
+content: "companySurveyWhitelistDao.isParticipating(companyId) 为 false 时首页返回 NONE；getSurveyUrl 时抛「企业不在白名单列表中！」"
+impact: 控制活动可见范围与专属答题链接获取
+field_targets:
+  - cust_company_survey_whitelist.company_id
+  - cust_company_survey_whitelist.enable
+evidence: "code_path:WenjuanDisplayService.java:resolveHomeDisplay + WenjuanDisplayService.java:getSurveyUrl"
+```
+
+---END FILE---
+
+---FILE: rules/first_visitor_only_ui.md ---
+---
+type: rule
+title: 仅企业首个访问用户可见活动UI
+page_key: first_visitor_only_ui
+domain: 客户管理
+status: draft
+aliases: [首访用户可见, claimFirstVisitor 规则]
+oid: 1
+scope:
+  databases: ["unknown"]
+sources:
+  - code_path:WenjuanDisplayService.java:resolveHomeDisplay
+contract_version: "0.1"
+---
+
+`claimFirstVisitor` 判定 `isFirstVisitor`；非首个访问用户时 `displayScene` 固定 `NONE`，抽奖、指引、右下角入口一律不展示。判定与落点见 [[tables/cust_company_survey_state]] 与 [[concepts/first_visitor]]，效果见 [[processes/wenjuan_home_display_scene]]。
+
+## 需求背景
+
+活动权益按企业独占给首个访问用户，避免同企业多人重复领取；该判定同时决定是否把用户留在产融首页（[[rules/stay_on_home_for_survey]]）。
+
+## 版本演进
+
+- 「首个用户」由 `claimFirstVisitor(companyId,userId,respondent,dbTenantCode)` 动态判定，判定结果不落用户字段。
+
+```ground:rule
+name: 仅企业首个访问用户可见活动UI
+content: claimFirstVisitor 判定 isFirstVisitor；非首个访问用户时 displayScene 固定 NONE（不展示抽奖、指引、右下角入口）
+impact: 同企业其他用户不展示任何活动 UI
+field_targets:
+  - cust_company_survey_state.company_id
+evidence: "code_path:WenjuanDisplayService.java:resolveHomeDisplay"
+```
+
+---END FILE---
+
+---FILE: rules/survey_status_not_persisted.md ---
+---
+type: rule
+title: 答卷完成态不落库，实时调问卷星
+page_key: survey_status_not_persisted
+domain: 客户管理
+status: draft
+aliases: [不落完成态, isSurveyCompleted 实时查询]
+oid: 1
+scope:
+  databases: ["unknown"]
+sources:
+  - code_path:WenjuanController.java:syncAndDisplayConfig
+  - code_path:WenjuanDisplayService.java:syncAndResolve
+contract_version: "0.1"
+---
+
+`syncAndResolve` 即 `resolveHomeDisplay`，每次实时调 `wenjuanOpenApiClient.isSurveyCompleted(respondent)`；接口注释明确「答卷状态不落库」。
+
+## 需求背景
+
+答卷数据由外部问卷星持有，本地只保留企业级活动状态（[[tables/cust_company_survey_state]]），因此完成态无法离线判断，接口响应时间受外部依赖影响。`respondent` 实际存的是企业ID字符串，见 [[concepts/respondent]]。
+
+## 版本演进
+
+- 当前观测：`cust_company_survey_state` 中不存在问卷完成态字段，与「不落库」的说法一致。
+
+```ground:rule
+name: 答卷完成态不落库，实时调问卷星
+content: syncAndResolve 即 resolveHomeDisplay，每次实时调 wenjuanOpenApiClient.isSurveyCompleted(respondent)；接口注释明确「答卷状态不落库」
+impact: cust_company_survey_state 中不存在问卷完成态字段，本地无法离线判断完成情况
+field_targets:
+  - cust_company_survey_state.company_id
+evidence: "code_path:WenjuanController.java:syncAndDisplayConfig + WenjuanDisplayService.java:syncAndResolve"
+```
+
+---END FILE---
+
+---FILE: rules/lottery_shown_idempotent.md ---
+---
+type: rule
+title: 转盘抽奖防刷新重复（幂等标记）
+page_key: lottery_shown_idempotent
+domain: 客户管理
+status: draft
+aliases: [防重复展示, mark-lottery-shown 规则]
+oid: 1
+scope:
+  databases: ["unknown"]
+sources:
+  - code_path:WenjuanController.java:markLotteryShown
+  - code_path:WenjuanDisplayService.java:markLotteryShown
+  - db:cust_company_survey_state.first_visitor_lottery_shown
+contract_version: "0.1"
+---
+
+`mark-lottery-shown` 先 `setDbTenantCode(all)`，再异步执行 `markFirstVisitorLotteryShownIfMatch(userId, companyId)`，把 `first_visitor_lottery_shown` 置 `Y`（仅匹配当前企业首个用户）。状态机见 [[processes/first_visitor_lottery_shown]]，取值见 [[enums/first_visitor_lottery_shown]]。
+
+## 需求背景
+
+转盘只对首个访问用户发放（[[concepts/first_visitor]]），刷新首页不能重复播放，因此用一个企业级 `Y/N` 标记做幂等，且只有单向置 `Y` 的路径。
+
+## 版本演进
+
+- 当前观测：该字段 11 行全为 `Y`，无 `N` 样本。
+
+```ground:rule
+name: 转盘抽奖防刷新重复（幂等标记）
+content: mark-lottery-shown 先 setDbTenantCode(all)，再异步执行 markFirstVisitorLotteryShownIfMatch(userId, companyId) 将 first_visitor_lottery_shown 置 Y（仅匹配当前企业首个用户）
+impact: 刷新首页不重复展示转盘；DB 实测该字段 11 行全为 Y
+field_targets:
+  - cust_company_survey_state.first_visitor_lottery_shown
+evidence: "code_path:WenjuanController.java:markLotteryShown + WenjuanDisplayService.java:markLotteryShown + db:cust_company_survey_state.first_visitor_lottery_shown"
+```
+
+---END FILE---
+
+---FILE: rules/stay_on_home_for_survey.md ---
+---
+type: rule
+title: 问卷活动留首页策略
+page_key: stay_on_home_for_survey
+domain: 客户管理
+status: draft
+aliases: [shouldStayOnHomeForGotoProduct, gotoProduct 不跳转]
+oid: 1
+scope:
+  databases: ["unknown"]
+sources:
+  - code_path:WenjuanDisplayService.java:shouldStayOnHomeForGotoProduct
+contract_version: "0.1"
+---
+
+`shouldStayOnHomeForGotoProduct`：活动有效 + 企业在白名单 + 问卷未完成 + 当前用户为企业首个访问用户时，`gotoProduct` 不自动跳转默认业务产品。
+
+## 需求背景
+
+为提高问卷完成率，首个访问用户被刻意留在产融首页（否则登录后会被自动带去默认业务产品）。四个条件分别对应 [[rules/wenjuan_whitelist_participation]]、[[rules/first_visitor_only_ui]]、[[rules/survey_status_not_persisted]] 与活动自身有效性。
+
+## 版本演进
+
+- 该策略与首页展示决策同源，均在 `dbTenantCode='all'` 口径下计算（[[calibers/wenjuan_all_tenant]]）。
+
+```ground:rule
+name: 问卷活动留首页策略
+content: "shouldStayOnHomeForGotoProduct：活动有效 + 企业在白名单 + 问卷未完成 + 当前用户为企业首个访问用户时，gotoProduct 不自动跳转默认业务产品"
+impact: 首个访问用户被停留在产融首页以完成问卷
+field_targets:
+  - cust_company_survey_state.company_id
+  - cust_company_survey_whitelist.company_id
+evidence: "code_path:WenjuanDisplayService.java:shouldStayOnHomeForGotoProduct"
+```
+
+---END FILE---
+
+---FILE: rules/wenjuan_all_tenant_fallback.md ---
+---
+type: rule
+title: 问卷活动数据跨租户兜底（all）
+page_key: wenjuan_all_tenant_fallback
+domain: 客户管理
+status: draft
+aliases: [all 租户兜底, 跨租户读写]
+oid: 1
+scope:
+  databases: ["unknown"]
+sources:
+  - code_path:WenjuanController.java:markLotteryShown
+  - db:cust_company_survey_state.db_tenant_code
+contract_version: "0.1"
+---
+
+`WenjuanController.markLotteryShown/surveyUrl` 与 `WenjuanDisplayService.resolveHomeDisplay/shouldStayOnHomeForGotoProduct` 均先 `MetaDataThreadLocalConfig.setDbTenantCode("all")`。口径见 [[calibers/wenjuan_all_tenant]] 与 [[calibers/survey_answer_all_tenant]]。
+
+## 需求背景
+
+问卷活动状态与答案要做成全租户统一数据，因此链路内主动改写租户上下文；这让数据不再按租户隔离，也让历史遗留行成为口径外样本。
+
+## 版本演进
+
+- 当前观测：`cust_company_survey_state.db_tenant_code` 存在 `all`(10) 与 `LN1`(1) 并存，`LN1` 行与代码强制口径不一致，需人工核实（[[enums/cust_company_survey_state_db_tenant_code]]）。
+
+```ground:rule
+name: 问卷活动数据跨租户兜底(all)
+content: "WenjuanController.markLotteryShown/surveyUrl 与 WenjuanDisplayService.resolveHomeDisplay/shouldStayOnHomeForGotoProduct 均先 MetaDataThreadLocalConfig.setDbTenantCode(\"all\")"
+impact: 问卷活动状态与答案不按租户隔离；DB 实测 cust_company_survey_state 仍有 1 行 db_tenant_code=LN1，存在与代码口径不一致的历史数据
+field_targets:
+  - cust_company_survey_state.db_tenant_code
+  - cust_survey_answer.db_tenant_code
+evidence: "code_path:WenjuanController.java:markLotteryShown + db:cust_company_survey_state.db_tenant_code（all=10, LN1=1）"
+```
+
+---END FILE---
+
+---FILE: rules/survey_answer_write_path_review.md ---
+---
+type: rule
+title: 调研问卷答案落库路径未在本链路给出
+page_key: survey_answer_write_path_review
+domain: 客户管理
+status: draft
+aliases: [答案写值点缺失, submit 未实现]
+oid: 1
+scope:
+  databases: ["unknown"]
+sources:
+  - code_path:CustSurveyController.java:submit
+  - pplatform-apaas-service/CustSurveyAnswerService.java
+  - db:cust_survey_answer
+contract_version: "0.1"
+---
+
+本页记录一条「无法闭环」的规则：`CustSurveyController.submit` 调用 `custSurveyAnswerService.submit(req, companyId, userId)`，`checkPopup` 调用 `checkPopup(companyId, currentCompanyType)`；但 apaas 侧 `CustSurveyAnswerService` 仅提供通用 BaseService/查询 helper，没有 submit / checkPopup 实现，因此写值点与 `answer_value` / `other_text` / `question_no` 的赋值逻辑无法核对。
+
+## 需求背景
+
+这条缺口的直接影响是：[[tables/cust_survey_answer]] 的 338 行数据「字段怎么填」不可验证；`checkPopup` 的「已过期或已填写则不弹」判定逻辑也不可验证。本页作为待核项保留，见页末 REVIEW。
+
+## 版本演进
+
+- 当前观测：答案表 338 行、`survey_code` 恒为 `XYL_2024_Q1`，但写入侧实现未见。
+
+```ground:rule
+name: 调研问卷答案落库路径未在本链路给出（REVIEW）
+content: "CustSurveyController.submit 调用 custSurveyAnswerService.submit(req, companyId, userId)，checkPopup 调用 checkPopup(companyId, currentCompanyType)；apaas 侧 CustSurveyAnswerService 仅提供通用 BaseService/查询 helper，无 submit/checkPopup 实现，写值点与 answer_value/other_text/question_no 的赋值逻辑无法核对"
+impact: cust_survey_answer 338 行数据字段填充规则不可验证，checkPopup 的「已过期或已填写则不弹」判定逻辑不可验证
 field_targets:
   - cust_survey_answer.answer_value
   - cust_survey_answer.other_text
+  - cust_survey_answer.question_no
   - cust_survey_answer.submit_time
-adjudication: boundary
-also_confused_with:
-  - 问卷星活动
----
+evidence: "code_path:CustSurveyController.java:submit + pplatform-apaas-service/CustSurveyAnswerService.java + db:cust_survey_answer 338 行（survey_code 恒 XYL_2024_Q1）"
+```
 
-# 调研问卷
-
-「调研问卷」指讯易链调研问卷（代码层称 `CustSurvey` / `survey`），入口为 `/cust-web/survey`，由 `CustSurveyController` 与 `CustSurveyAnswerService` 提供服务。
-
-它与 [[concepts/wenjuan]]（问卷星活动）的最主要边界是**是否落库**：调研问卷会提交并持久化答案到 [[tables/cust_survey_answer]]，DB 中 `survey_code` 为 `XYL_2024_Q1`；而问卷星活动不落答卷状态。因此在本 wiki 中二者是 boundary 关系而非同义词。
-
-答案取数的归属口径见 [[calibers/survey_answer_attribution]]。答案形态上，一道多选题会拆成多行（`answer_value` 每个选项单独一行），「其他」选项的补充文本进 `other_text`。
-
-## 需求背景
-
-本分析未提供该概念的需求文档（reqdoc_claims）证据。待业务补充：问卷题干的配置位置、调研结果的统计与导出路径。
-
-## 版本演进
-
-当前契约版本 0.1，暂无版本演进证据。
-
-相关页面：[[tables/cust_survey_answer]]、[[concepts/wenjuan]]、[[concepts/survey_completed]]、[[calibers/survey_answer_attribution]]。
 ---END FILE---
 
 ---FILE: concepts/wenjuan.md ---
 ---
 type: concept
-title: 问卷星活动
-page_key: concepts/wenjuan
-domain: 问卷
+title: 问卷（两套并存）
+page_key: wenjuan
+domain: 客户管理
 status: draft
-aliases:
-  - Wenjuan
-  - 产融首页问卷活动
-  - 抽奖问卷
+aliases: [Wenjuan, 问卷星活动, Survey, 调研问卷, 调研答案]
 oid: 1
 scope:
-  databases: ["(待确认)"]
+  databases: ["unknown"]
 sources:
+  - code_path:CustSurveyController.java:submit
+  - code_path:WenjuanController.java:syncAndDisplayConfig
+  - code_path:WenjuanDisplayService.java:resolveHomeDisplay
+  - db:cust_survey_answer
   - db:cust_company_survey_state
-  - db:cust_company_survey_whitelist
-  - code:WenjuanController
-  - code:WenjuanDisplayService.java
 contract_version: "0.1"
-maps_to: WenjuanController + WenjuanDisplayService + cust_company_survey_state + cust_company_survey_whitelist
+maps_to: cust_survey_answer.survey_code
 field_targets:
-  - cust_company_survey_state.first_visitor_lottery_shown
-  - cust_company_survey_state.first_visit_time
-  - cust_company_survey_whitelist.enable
+  - cust_survey_answer.survey_code
+  - cust_company_survey_state.company_id
 adjudication: boundary
 also_confused_with:
-  - 调研问卷
+  - cust_company_survey_state.company_id
+  - cust_company_survey_whitelist.company_id
 ---
 
-# 问卷星活动
+> (document_claim，未证实) 需求/系统文档层（客户管理平台业务规则文档、运营配置管理业务规则文档）通篇未出现 GP学习引流、问卷星活动、企业画像（Profile）的任何业务规则或流程表述，无法形成双源锚点。
 
-「问卷星活动」指产融首页的问卷抽奖活动（代码层称 `Wenjuan`），入口 `/cust-web/wenjuan`，由 `WenjuanController` 与 `WenjuanDisplayService` 承载，本地状态落在 [[tables/cust_company_survey_state]] 与 [[tables/cust_company_survey_whitelist]]。
+「问卷」在本系统中是两套互不相干的实现，页面与接口前缀都会出现 "survey/wenjuan" 字样，极易混用。
 
-与 [[concepts/cust_survey]]（调研问卷）的边界有两条：其一，**问卷星活动不落答卷状态**，完成态每次实时调用问卷星（见 [[calibers/wenjuan_no_persist_completion]]、[[concepts/survey_completed]]）；其二，**展示范围受白名单与首个访问用户双重限制**，仅白名单企业（[[calibers/wenjuan_whitelist_company]]）且企业首个访问用户（[[concepts/first_visitor]]）能看到 UI。首页展示什么由 [[processes/wenjuan_home_display_scene]] 描述。
-
-因此在本 wiki 中二者是 boundary 关系：看到「问卷」字样时必须先确认指的是哪一套机制，再决定去查答案表还是查活动状态表。
+- 落库题库问卷：`CustSurveyController`（`/cust-web/survey`），答案写 [[tables/cust_survey_answer]]，问卷范围见 [[calibers/survey_code_xyl_2024_q1]]，有效记录口径见 [[calibers/cust_survey_answer_enabled]]。
+- 外部问卷星活动：`WenjuanController`（`/cust-web/wenjuan`），答卷完成态不落库（[[rules/survey_status_not_persisted]]），只落企业级活动状态 [[tables/cust_company_survey_state]]，白名单见 [[tables/cust_company_survey_whitelist]]、展示决策见 [[processes/wenjuan_home_display_scene]]。
 
 ## 需求背景
 
-本分析未提供该概念的需求文档（reqdoc_claims）证据。待业务补充：活动的起止时间配置与抽奖奖品的发放链路。
+两套问卷的业务目标不同：前者是站内调研，答案留在本地便于统计；后者是运营活动（转盘抽奖 + 问卷入口），答卷由问卷星持有，本地只关心「谁是企业首个访问用户」与「转盘是否已展示」。因此不能把 `cust_survey_answer` 的行数、题号当作活动参与度，也不能用 `cust_company_survey_state` 判断调研是否完成。
 
 ## 版本演进
 
-当前契约版本 0.1，暂无版本演进证据。
+- 当前观测：落库问卷只有一份（`XYL_2024_Q1`，338 行，题号 1-6），活动侧企业状态 11 行、白名单 11 家。
+- 文档侧无对应业务规则表述（见页首 document_claim，未证实）。
 
-相关页面：[[tables/cust_company_survey_state]]、[[tables/cust_company_survey_whitelist]]、[[concepts/cust_survey]]、[[concepts/first_visitor]]、[[concepts/survey_completed]]、[[processes/wenjuan_home_display_scene]]、[[calibers/wenjuan_whitelist_company]]、[[calibers/wenjuan_no_persist_completion]]。
 ---END FILE---
 
----FILE: concepts/company_profile.md ---
+---FILE: concepts/respondent.md ---
 ---
 type: concept
-title: 企业画像
-page_key: concepts/company_profile
-domain: 企业画像
+title: respondent（受访者）
+page_key: respondent
+domain: 客户管理
 status: draft
-aliases:
-  - 客户信息
-  - 企业信息主表
-  - CustCompanyInfo
+aliases: [答题人, 受访人]
 oid: 1
 scope:
-  databases: ["(待确认)"]
+  databases: ["unknown"]
 sources:
-  - code:CustCompanyInfoApplication.java
-  - code:CustCompanyIfoEnchanceService.java
+  - code_path:WenjuanDisplayService.java:markLotteryShown
+  - db:cust_company_survey_state.respondent
 contract_version: "0.1"
-maps_to: cust_company_info / CustCompanyInfoDO
+maps_to: cust_company_survey_state.respondent
 field_targets:
-  - cust_company_info.custBuildStatus
-  - cust_company_info.custStatus
-  - cust_company_info.custCompanyType
-  - cust_company_info.certificationNo
-  - cust_company_info.dataType
-adjudication: synonym
-also_confused_with:
-  - 企业认证状态
-  - 企业客户状态
----
-
-# 企业画像
-
-「企业画像」在本 wiki 中是同义词集合：企业画像 = 客户信息 = 企业信息主表 = `CustCompanyInfo`，代码层落点为 [[tables/cust_company_info]] / `CustCompanyInfoDO`。同义判定的依据是这些叫法在代码与表中指向同一实体，而非不同的视图或聚合。
-
-需要与之划清界限的是两个**字段级状态**概念：企业认证状态（[[processes/cust_company_info_cust_build_status]]，字段 `custBuildStatus`）与企业客户状态（[[processes/cust_company_info_cust_status]]，字段 `custStatus`）。它们是企业画像上的两个属性，不是企业画像本身。说「企业画像变了」时，应进一步确认变的是哪个属性。
-
-企业画像的常用派生口径有三条：生效企业（[[calibers/company_effect]]）、平台运营方唯一（[[calibers/platform_operator_unique]]）、主数据信用代码唯一（[[calibers/main_data_certification_unique]]）。其中 `custCompanyType` 字段还被 GP 学习域引用，用于判定金融机构用户（[[calibers/gptlearn_finance_user]]）。
-
-## 需求背景
-
-本分析未提供该概念的需求文档（reqdoc_claims）证据。待业务补充：企业画像是否对外提供只读视图、是否存在缓存副本。
-
-## 版本演进
-
-当前契约版本 0.1，暂无版本演进证据。
-
-相关页面：[[tables/cust_company_info]]、[[processes/cust_company_info_cust_build_status]]、[[processes/cust_company_info_cust_status]]、[[calibers/company_effect]]、[[calibers/platform_operator_unique]]、[[calibers/main_data_certification_unique]]、[[calibers/gptlearn_finance_user]]。
----END FILE---
-
----FILE: concepts/survey_completed.md ---
----
-type: concept
-title: 问卷完成态
-page_key: concepts/survey_completed
-domain: 问卷
-status: draft
-aliases:
-  - 答卷状态
-  - surveyCompleted
-oid: 1
-scope:
-  databases: ["(待确认)"]
-sources:
-  - code:WenjuanOpenApiClient
-  - code:WenjuanDisplayService.java
-contract_version: "0.1"
-maps_to: WenjuanOpenApiClient.isSurveyCompleted(respondent)
-field_targets: []
+  - cust_company_survey_state.respondent
 adjudication: boundary
 also_confused_with:
-  - cust_survey_answer 提交答案
+  - cust_company_survey_state.company_id
 ---
 
-# 问卷完成态
-
-「问卷完成态」特指[[concepts/wenjuan]]（问卷星活动）中的「该企业是否已完成问卷」这一实时判定，来源是 `WenjuanOpenApiClient.isSurveyCompleted(respondent)`，其中 `respondent` 是 [[tables/cust_company_survey_state]] 中的问卷星答卷标识（代码取 `String.valueOf(companyId)`）。
-
-它与「[[tables/cust_survey_answer]] 提交答案」是 boundary 关系：后者是[[concepts/cust_survey]]调研问卷的落库行为，前者**不落库**，每次访问都实时查询问卷星（见 [[calibers/wenjuan_no_persist_completion]]）。因此不能用一条 SQL 在本地统计问卷星活动的完成人数。
-
-完成态参与首页展示场景的判定：抽奖已展示且问卷未完成 → `GUIDE_ONLY`；问卷已完成 → 亦停在 `GUIDE_ONLY`，细节见 [[processes/wenjuan_home_display_scene]]。
+字段名像个人，实际写入的是 `String.valueOf(companyId)`，即企业ID字符串。它是传给问卷星开放接口的「答题人」标识，与 [[tables/cust_company_survey_state]] 的 `company_id` 同值，DB 值形如 `1993860367081840641`，与 snowflake 企业ID量级一致。
 
 ## 需求背景
 
-本分析未提供该概念的需求文档（reqdoc_claims）证据。待业务补充：问卷星接口的可用性 SLA 与失败重试策略。
+活动按企业独占给首个访问用户（[[concepts/first_visitor]]），问卷星侧的身份标识也只用企业维度，因此不需要真实答题人ID。使用方的典型误区是按 `respondent` 关联用户画像或做用户级去重——那会得到企业级结果。
 
 ## 版本演进
 
-当前契约版本 0.1，暂无版本演进证据。
+- 当前观测：`cust_company_survey_state` 中 `respondent` 与企业ID同值，无个人标识样本。
+- 完成态查询 `isSurveyCompleted(respondent)` 实时调用外部接口（[[rules/survey_status_not_persisted]]）。
 
-相关页面：[[concepts/wenjuan]]、[[concepts/cust_survey]]、[[tables/cust_company_survey_state]]、[[tables/cust_survey_answer]]、[[calibers/wenjuan_no_persist_completion]]、[[processes/wenjuan_home_display_scene]]。
 ---END FILE---
 
 ---FILE: concepts/first_visitor.md ---
 ---
 type: concept
-title: 首个访问用户
-page_key: concepts/first_visitor
-domain: 问卷
+title: 企业首个访问用户
+page_key: first_visitor
+domain: 客户管理
 status: draft
-aliases:
-  - firstVisitor
-  - first_visitor
+aliases: [firstVisitor, first_visitor_user_id, claimFirstVisitor]
 oid: 1
 scope:
-  databases: ["(待确认)"]
+  databases: ["unknown"]
 sources:
+  - code_path:WenjuanDisplayService.java:resolveHomeDisplay
+  - code_path:WenjuanDisplayService.java:shouldStayOnHomeForGotoProduct
   - db:cust_company_survey_state
-  - code:WenjuanDisplayService.java
 contract_version: "0.1"
-maps_to: cust_company_survey_state.claimFirstVisitor / first_visitor_lottery_shown
+maps_to: cust_company_survey_state.company_id
 field_targets:
-  - cust_company_survey_state.first_visit_time
+  - cust_company_survey_state.company_id
   - cust_company_survey_state.first_visitor_lottery_shown
-  - cust_company_survey_state.first_visitor_lottery_shown_time
-adjudication: synonym
-also_confused_with: []
+adjudication: boundary
+also_confused_with:
+  - cust_survey_answer.user_id
 ---
 
-# 首个访问用户
-
-「首个访问用户」（代码层 `firstVisitor` / `first_visitor`）是[[concepts/wenjuan]]（问卷星活动）的准入角色之一，判定**以企业为单位**：只有该企业的第一名访问用户可以看到转盘抽奖、指引弹窗与右下角问卷入口。同义词 `firstVisitor`、`first_visitor` 与中文叫法在本 wiki 中等价。
-
-状态载体是 [[tables/cust_company_survey_state]] 的 `first_visit_time`（首个用户首次访问时间）与 `first_visitor_lottery_shown` / `first_visitor_lottery_shown_time`（抽奖是否/何时已展示，DB 实测均为 Y）。抽奖一旦展示过，后续访问落在 `GUIDE_ONLY` 或 `NONE` 分支，见 [[processes/wenjuan_home_display_scene]]。
-
-它与白名单口径（[[calibers/wenjuan_whitelist_company]]）是两个正交条件：白名单决定「哪些企业有活动」，本概念决定「企业里的哪个用户看得到」。非首个访问用户直接落到 `NONE`。
+「首个用户」由 `claimFirstVisitor(companyId, userId, respondent, dbTenantCode)` 动态判定，当前可见表结构中未出现独立的 `first_visitor_user_id` 列（表结构证据在该列后截断），判定结果不落用户字段，只落 `first_visitor_lottery_shown`。它与 [[tables/cust_survey_answer]] 的 `user_id`（答题人）不是同一概念。
 
 ## 需求背景
 
-本分析未提供该概念的需求文档（reqdoc_claims）证据。待业务补充：首个访问用户判定是否受企业内用户注销／离职影响。
+活动权益按企业级独占：同企业只有首个访问用户能看到活动 UI（[[rules/first_visitor_only_ui]]）、会被留在首页（[[rules/stay_on_home_for_survey]]）、会触发转盘抽奖与幂等标记（[[processes/first_visitor_lottery_shown]]）。
 
 ## 版本演进
 
-当前契约版本 0.1，暂无版本演进证据。
+- 当前观测：`cust_company_survey_state` 11 行状态记录，`first_visitor_lottery_shown` 全为 `Y`；表结构在该列附近出现截断，是否存在首访用户列待核实（见 REVIEW）。
 
-相关页面：[[tables/cust_company_survey_state]]、[[concepts/wenjuan]]、[[processes/wenjuan_home_display_scene]]、[[calibers/wenjuan_whitelist_company]]。
 ---END FILE---
 
----FILE: rules/gptlearn_finance_user_only.md ---
+---FILE: concepts/gpt_learn.md ---
 ---
-type: rule
-title: 智能审核引流仅金融机构用户可用
-page_key: rules/gptlearn_finance_user_only
-domain: GP学习
+type: concept
+title: GP学习 / 智能审核引流
+page_key: gpt_learn
+domain: 客户管理
 status: draft
-aliases:
-  - validateFinanceUser 规则
-  - FINANCE 前置校验
-  - 引流接口准入规则
+aliases: [GptLearn, 引流卡片, 智能审核, saas中登]
 oid: 1
 scope:
-  databases: ["(待确认)"]
+  databases: ["unknown"]
 sources:
-  - code:GptLearnService.java
+  - code_path:GptLearnService.java:checkPosterStatus
+  - code_path:GptLearnService.java:recordPosterClick
+  - code_path:GptLearnService.java:validateFinanceUser
+  - db:gpt_learn_poster_log
 contract_version: "0.1"
+maps_to: gpt_learn_poster_log.id
+field_targets:
+  - gpt_learn_poster_log.id
+  - gpt_learn_poster_log.popup_time
+  - gpt_learn_poster_log.click_time
+adjudication: boundary
+also_confused_with:
+  - cust_company_survey_state.company_id
 ---
 
-# 智能审核引流仅金融机构用户可用
+> (document_claim，未证实) 需求/系统文档层（客户管理平台业务规则文档、运营配置管理业务规则文档）通篇未出现 GP学习引流、问卷星活动、企业画像（Profile）的任何业务规则或流程表述，无法形成双源锚点。
 
-这是一条强制的接口准入规则：`validateFinanceUser` 校验当前登录用户非空、`companyType` 为 `FINANCE`、且企业信息存在，任一不满足即抛异常。它保护的是 [[concepts/gptlearn]] 的全部三个接口。
-
-规则的影响面是明确的：非金融机构用户无法调用 `/app-web/gptlearn/**` 下的同步登录、检查卡片、记录点击接口，因而也不会在 [[tables/gpt_learn_poster_log]] 中产生任何记录。字段落点为 [[tables/cust_company_info]] 的 `custCompanyType`，口径表述见 [[calibers/gptlearn_finance_user]]。
-
-需要区分「规则」与「口径」：规则描述的是校验行为与失败后果（抛异常、接口不可用），口径描述的是判定谓词本身。两者证据同源，但使用场景不同——排查接口报错看本页，统计投放范围看口径页。
+名称里有「学习」，但它不是在线的学习业务：实为向外部 SaaS 中登同步登录信息并引流跳转的埋点链路，`recordId` 就是 [[tables/gpt_learn_poster_log]] 的 `id`。仅对 FINANCE 企业开放（[[rules/gpt_learn_finance_only]]），并按租户灰度（[[rules/poster_allowed_tenant]]），生命周期见 [[processes/gpt_learn_poster_log_lifecycle]]。
 
 ## 需求背景
 
-本分析未提供本规则的需求文档（reqdoc_claims）证据。待业务补充：异常抛出后的前端提示话术与埋点。
+链路的三个入口——同步登录信息、查询是否弹卡、记录点击——都先做金融机构校验；弹卡还受租户白名单与弹出次数上限约束，点击则以 `recordId + userId + companyId` 匹配保证单次回写。业务目标是让目标企业用户在登录后看到引流卡片并点击跳转，因此埋点表同时是「频次控制表」和「点击回执表」。
 
 ## 版本演进
 
-当前契约版本 0.1，暂无版本演进证据。
+- 当前观测：埋点 252 行，`enable` 全 `Y`，租户仅 `beehive-scf.qhhrly.cn`，投放面很窄。
+- 文档侧无对应业务规则表述（见页首 document_claim，未证实）。
 
-```ground:rule
-name: 智能审核引流仅金融机构用户可用
-content: validateFinanceUser 校验当前登录用户非空、companyType 为 FINANCE、企业信息存在，否则抛异常。
-impact: 非金融机构用户无法调用 /app-web/gptlearn/** 下同步登录、检查卡片、记录点击接口。
+---END FILE---
+
+---FILE: concepts/company_profile.md ---
+---
+type: concept
+title: 企业画像 / Profile
+page_key: company_profile
+domain: 客户管理
+status: draft
+aliases: [profile-web, 性能测试接口]
+oid: 1
+scope:
+  databases: ["unknown"]
+sources:
+  - code_path:ProfileController.java:getAppId
+  - code_path:GptLearnService.java:checkPosterStatus
+  - db:cust_company_info
+contract_version: "0.1"
+maps_to: cust_company_info.id
 field_targets:
-  - cust_company_info.custCompanyType
-evidence: code_path:GptLearnService.
+  - cust_company_info.id
+adjudication: boundary
+also_confused_with:
+  - gpt_learn_poster_log.company_id
+---
+
+> (document_claim，未证实) 需求/系统文档层（客户管理平台业务规则文档、运营配置管理业务规则文档）通篇未出现 GP学习引流、问卷星活动、企业画像（Profile）的任何业务规则或流程表述，无法形成双源锚点。
+
+主题名与实际实现不符：`ProfileController` 的 @Api 标注为「性能测试接口」，路径 `/profile-web/`，仅提供四个能力——取企业简要信息、按 `dbTenantCode` 取租户、分页用户、取 token。代码链路中不存在画像标签、画像表或画像计算实现。
+
+## 需求背景
+
+该主题下的接口是企业信息（[[tables/cust_company_info]]）的调试/测试入口，不应被当作「客户画像」能力引用；与之相邻的企业维度数据读取方还有 GP学习引流（按 `cust_company_info.cust_company_type` 与 `db_tenant_code` 过滤，见 [[rules/gpt_learn_finance_only]]、[[rules/poster_allowed_tenant]]）。
+
+## 版本演进
+
+- 当前观测：仅四个测试能力，无画像相关表与实现。
+- 文档侧无对应业务规则表述（见页首 document_claim，未证实）。
+
+---END FILE---
+
+---FILE: enums/first_visitor_lottery_shown.md ---
+---
+type: enum
+title: 首个用户转盘抽奖展示标记取值
+page_key: first_visitor_lottery_shown
+domain: 客户管理
+status: draft
+aliases: [lottery_shown 取值, 转盘展示 Y/N]
+oid: 1
+scope:
+  databases: ["unknown"]
+sources:
+  - code_path:WenjuanDisplayService.java:markLotteryShown
+  - db:cust_company_survey_state.first_visitor_lottery_shown
+contract_version: "0.1"
+---
+
+[[tables/cust_company_survey_state]] 的展示标记取值。写出点为 `markFirstVisitorLotteryShownIfMatch`，是字面量 `'Y'`，不走 `getDictKey` 统一字典。
+
+## 需求背景
+
+标记用于转盘抽奖防刷新重复（[[rules/lottery_shown_idempotent]]），状态机见 [[processes/first_visitor_lottery_shown]]。
+
+## 版本演进
+
+- 当前观测：DB 11 行全为 `Y`，`N` 仅由代码语义推断。
+
+```ground:enum
+field: cust_company_survey_state.first_visitor_lottery_shown
+values:
+  - value: Y
+    stored_as: 字面量 Y
+    java_name: (字面量 'Y'，无枚举类)
+    label: 首个用户转盘抽奖已展示
+    note: "写出点为 markFirstVisitorLotteryShownIfMatch，非 getDictKey 统一字典"
+  - value: N
+    label: 未展示（初始态）
+    note: DB 无 N 样本，N 仅由代码语义推断
 ```
 
-相关页面：[[concepts/gptlearn]]、[[calibers/gptlearn_finance_user]]、[[tables/cust_company_info]]、[[tables/gpt_learn_poster_log]]、[[calibers/gptlearn_tenant_whitelist]]、[[calibers/gptlearn_poster_count_limit]]。
 ---END FILE---
 
----REVIEW: rule | 智能审核引流仅金融机构用户可用---
-语义分析给出的该规则 evidence 字符串在 `code_path:GptLearnService.` 处被截断（缺少文件名后缀与行号），因此本页 `ground:rule` 块中的 `evidence` 只能逐字保留截断值，无法补齐到 `文件:行` 粒度。需要重新提取该规则的代码证据（`GptLearnService.validateFinanceUser`）后更新。
+---FILE: enums/gpt_learn_poster_log_enable.md ---
+---
+type: enum
+title: 引流埋点逻辑有效标记取值
+page_key: gpt_learn_poster_log_enable
+domain: 客户管理
+status: draft
+aliases: [埋点 enable 取值, poster enable Y]
+oid: 1
+scope:
+  databases: ["unknown"]
+sources:
+  - db:gpt_learn_poster_log.enable
+contract_version: "0.1"
+---
+
+[[tables/gpt_learn_poster_log]] 的逻辑有效标记，DB default `'Y'`，无枚举类。
+
+## 需求背景
+
+该标记进入弹出次数统计口径（[[calibers/gpt_learn_poster_log_enabled]]）与点击记录校验。
+
+## 版本演进
+
+- 当前观测：252 行全为 `Y`。
+- 语义分析的枚举审计条目在本字段处被截断，取值集合是否还存在其他值无法确认（见 REVIEW）。
+
+```ground:enum
+field: gpt_learn_poster_log.enable
+values:
+  - value: Y
+    stored_as: 字面量 Y
+    java_name: (DB default 'Y')
+    label: 有效记录
+    note: 实测 252 行全为 Y，无其他取值样本
+```
+
+---END FILE---
+
+---FILE: enums/cust_company_survey_state_db_tenant_code.md ---
+---
+type: enum
+title: 问卷活动状态表租户取值
+page_key: cust_company_survey_state_db_tenant_code
+domain: 客户管理
+status: draft
+aliases: [survey_state 租户取值, LN1 异常样本]
+oid: 1
+scope:
+  databases: ["unknown"]
+sources:
+  - db:cust_company_survey_state.db_tenant_code
+  - code_path:WenjuanController.java:markLotteryShown
+contract_version: "0.1"
+---
+
+[[tables/cust_company_survey_state]] 的数据租户取值。代码在问卷链路强制 `setDbTenantCode("all")`（[[rules/wenjuan_all_tenant_fallback]]、[[calibers/wenjuan_all_tenant]]），因此 `LN1` 属口径外样本。
+
+## 需求背景
+
+问卷活动数据按全租户统一管理，租户列实际只应出现兜底值 `all`；出现其他值时需人工核实来源。
+
+## 版本演进
+
+- 当前观测：`all`(10) 与 `LN1`(1) 并存，`LN1` 行与代码口径不一致。
+
+```ground:enum
+field: cust_company_survey_state.db_tenant_code
+values:
+  - value: all
+    stored_as: 字面量 all
+    label: 问卷活动兜底租户（代码强制写入）
+    note: 实测 10 行
+  - value: LN1
+    stored_as: 字面量 LN1
+    java_name: (无)
+    label: 非活动兜底租户样本
+    note: 代码在 Wenjuan 链路强制 setDbTenantCode("all")，该行属口径外历史/异常数据，需人工核实；实测 1 行
+```
+
+---END FILE---
+
+---FILE: enums/wenjuan_home_display_scene.md ---
+---
+type: enum
+title: 问卷活动首页展示场景取值
+page_key: wenjuan_home_display_scene
+domain: 客户管理
+status: draft
+aliases: [displayScene 取值, 活动场景枚举]
+oid: 1
+scope:
+  databases: ["unknown"]
+sources:
+  - code_path:WenjuanDisplayService.java:resolveHomeDisplay
+  - code_path:WenjuanController.java:markLotteryShown
+contract_version: "0.1"
+---
+
+`WenjuanHomeDisplayConfigDTO.displayScene` 的取值集合，由 `resolveHomeDisplay` 实时计算，非落库字段。
+
+## 需求背景
+
+三档场景决定首页活动 UI 的组合，状态机与迁移见 [[processes/wenjuan_home_display_scene]]。
+
+## 版本演进
+
+- 该枚举为接口返回语义，DB 中无对应列，无法用数据分布校验。
+
+```ground:enum
+field: WenjuanHomeDisplayConfigDTO.displayScene
+values:
+  - value: NONE
+    label: 不展示任何活动UI
+    note: 非落库字段，接口返回语义
+  - value: FIRST_VISITOR_LOTTERY
+    label: 转盘抽奖+中奖弹窗+右下角问卷入口
+    note: 非落库字段，接口返回语义
+  - value: GUIDE_ONLY
+    label: 指引弹窗+右下角问卷入口
+    note: 非落库字段，接口返回语义
+```
+
+---END FILE---
+
+---REVIEW: table | 物理库名未在语义分析中给出---
+全部页面 frontmatter 的 `scope.databases` 暂记为 `unknown`：语义分析只给出 `db_tenant_code` 取值（`all` / `LN1` / `beehive-scf.qhhrly.cn`）与模块名（如 `pplatform-apaas-service`），未给出物理库名。`beehive-scf.qhhrly.cn` 是租户标识而非库名，未据此回填。
 ---END REVIEW---
 
----REVIEW: table | 全局-物理库名未证实---
-本次语义分析的 `field_semantics` 证据仅标注 `db` / `code`，未给出承载这些表的物理库名。因此所有页面的 `scope.databases` 只能写占位值 `"(待确认)"`，未做任何推断。需要数据源清单（表 → 物理库）后统一回填 5 个 table 页及其引用页。此外，分析输入在 `rules` 第一条处结束，未见 doc_claims / reqdoc_claims 段（anchor 或 uncovered），故本期无 `## 版本演进` 的 document_claim（未证实）内容可写。
+---REVIEW: table | 表字段物理类型未知---
+语义分析未提供任何字段的物理类型，table 页 `ground:table` 的 `type` 统一写 `unknown`，请在取得 DDL 后回填。
+---END REVIEW---
+
+---REVIEW: table | cust_company_survey_state 表结构截断---
+术语桥「企业首个访问用户」指出「表结构在该列（respondent）后截断」，当前可见字段为 company_id / respondent / first_visit_time / first_visitor_lottery_shown / db_tenant_code。是否存在独立的 `first_visitor_user_id` 列无法确认，claimFirstVisitor 的判定结果是否另有落点待核实。
+---END REVIEW---
+
+---REVIEW: enum | gpt_learn_poster_log.enable 审计条目截断---
+枚举审计中 `gpt_learn_poster_log.enable` 条目的 `stored_as` 值被截断（原文止于 "数"），该字段取值集合只保留 `Y`（DB default 'Y'）。是否存在其他取值需重新核对该字段的 DB 分布与代码赋值。
+---END REVIEW---
+
+---REVIEW: caliber | cust_company_survey_state.db_tenant_code 样本与代码口径不一致---
+代码在 Wenjuan 链路强制 `setDbTenantCode("all")`，DB 实测仍有 1 行 `db_tenant_code=LN1`。该行来源（历史数据、其他链路写入、人工修数）未在证据中说明，需人工核实后再决定是否纳入口径。
 ---END REVIEW---

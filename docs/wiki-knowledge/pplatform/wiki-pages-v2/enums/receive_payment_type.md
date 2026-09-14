@@ -9,10 +9,22 @@ oid: 1
 scope:
   databases: [lowcode_pplatform]
 sources: ["code:extract-enums.yaml", "db:db-profile.yaml"]
-created: '2026-09-10'
-updated: '2026-09-10'
+created: '2026-09-14'
+updated: '2026-09-14'
 contract_version: "0.1"
+belong: enums
 ---
+
+
+
+
+
+
+
+
+
+
+
 
 # receive_payment_type
 
@@ -22,8 +34,10 @@ contract_version: "0.1"
 enum: receive_payment_type
 fields: [cust_account_info.receive_payment_type]
 values:
-  1:
-    label: 收款
-  2:
-    label: 付款
+  "1":
+    label: "收款"
+    java_name: "RECEIVE_PAYMENT"
+  "2":
+    label: "付款"
+    java_name: "PAYMENT"
 ```

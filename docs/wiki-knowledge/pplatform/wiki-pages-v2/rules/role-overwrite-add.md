@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 角色为覆盖式新增
-page_key: rule.role-overwrite-add
+page_key: role-overwrite-add
 domain: 客户角色与端口
 status: draft
 aliases:
@@ -13,6 +13,7 @@ scope:
 sources:
   - code_path:CustRoleApplication.java#addRoleInfo
 contract_version: "0.1"
+belong: rules
 ---
 
 # 角色为覆盖式新增

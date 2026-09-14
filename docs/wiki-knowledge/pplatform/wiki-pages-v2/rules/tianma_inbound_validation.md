@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 天马入站参数强校验
-page_key: rules/tianma_inbound_validation
+page_key: tianma_inbound_validation
 domain: 外部渠道与银行对接
 status: draft
 aliases:
@@ -15,6 +15,7 @@ scope:
 sources:
   - code:TianmaService#companyArchive
 contract_version: "0.1"
+belong: rules
 ---
 
 # 天马入站参数强校验

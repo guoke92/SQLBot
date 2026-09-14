@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 变更申请准入校验
-page_key: rule.change-application-admission
+page_key: change-application-admission
 domain: 企业变更与运营变更
 status: draft
 aliases: [changeEnable, 变更准入]
@@ -11,6 +11,7 @@ scope:
 sources:
   - code_path:CustChangeApplication.java:changeEnable
 contract_version: "0.1"
+belong: rules
 ---
 
 企业 [[tables.cust_company_info]] 的 `check_status='CUST_CHECK_CHECKING'` 时 `changeEnable` 返回 false，不允许发起变更；企业不存在时同样返回 false。口径见 [[calibers.company-change-enable]]，与在途判定 [[rules.change-on-way-company]] 共同构成变更入口的两道闸门。

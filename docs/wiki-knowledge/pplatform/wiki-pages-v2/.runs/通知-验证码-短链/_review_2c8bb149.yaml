@@ -1,0 +1,10 @@
+body: '类型：concept | 标题：邀请码生成与有效期
+
+  问题：需求文档主张「邀请码随机生成8位、30天有效」，与 DB cust_setting_config.invitation_code_period=1 存在数量级差异（单位未定），且未找到邀请码生成代码。
+
+  证据：未在代码中见邀请码生成逻辑；DB cust_setting_config.invitation_code_period=1 + reqdoc:客户管理平台业务规则文档#3.2.2
+
+  处理建议：确认 invitation_code_period_unit 的实际取值后再判定「30 天有效」是否成立，必要时在 [[invitation_code_period]]
+  页更新口径。'
+title: 邀请码生成与有效期
+type: concept

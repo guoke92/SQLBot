@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 经办人
-page_key: caliber.person_operator
+page_key: person-operator
 domain: 客户联系人管理
 status: draft
 aliases:
@@ -12,6 +12,7 @@ scope:
 sources:
   - "code:CustPersonApplication.insertOrUpdatePerson"
 contract_version: "0.1"
+belong: calibers
 ---
 
 经办人口径即按 [[tables/cust_person_info]] 的 `user_type = 'accountNormal'` 过滤，是业务办理与实名认证流程的主要对象。

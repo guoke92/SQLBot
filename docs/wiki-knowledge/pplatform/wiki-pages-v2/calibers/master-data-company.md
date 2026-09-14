@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 主数据企业口径
-page_key: calibers/master-data-company
+page_key: master-data-company
 domain: 企业集团关系
 status: draft
 aliases: [主数据企业, data_type=DATA_TYPE_MAIN]
@@ -11,6 +11,7 @@ scope:
 sources:
   - code_path:CustCompanyIfoEnchanceService.java:listEffectCompany
 contract_version: "0.1"
+belong: calibers
 ---
 
 主数据企业指以企业主数据身份存在、可对外参与集团与业务关系的企业记录，判定条件为 `cust_company_info.data_type = DATA_TYPE_MAIN`，用于把企业主数据与记录数据区分开。

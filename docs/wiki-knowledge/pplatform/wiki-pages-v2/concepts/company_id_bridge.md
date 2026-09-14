@@ -1,7 +1,7 @@
 ---
 type: concept
 title: companyId / custId → 企业主键（cust_company_info.id）
-page_key: concept.company_id_bridge
+page_key: company_id_bridge
 domain: 平台内部服务对接
 status: draft
 aliases:
@@ -39,6 +39,7 @@ field_targets:
   - cust_group_rel.root_cust_id
 also_confused_with:
   - cust_company_info.code
+belong: concepts
 ---
 
 对外 Provider 暴露的 companyId / custId 与库内的 cust_company_id、cust_id 指向同一实体主键，即 [[tables/cust_company_info]].id。

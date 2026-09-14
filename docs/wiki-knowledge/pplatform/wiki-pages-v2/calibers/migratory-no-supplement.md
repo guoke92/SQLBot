@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 存量迁移企业免补签授权书
-page_key: caliber.migratory_no_supplement
+page_key: migratory-no-supplement
 domain: 授权协议与电子授权
 status: draft
 aliases:
@@ -14,6 +14,7 @@ sources:
   - code:CustAuthAgreementDomainService.java
   - db:cust_company_info
 contract_version: "0.1"
+belong: calibers
 ---
 
 存量迁移企业只有在 `auth_aggrement_supplement_flag='N'`（走新渠道、不需补签）时才免补签；旧渠道迁移会置 `'Y'` 表示需补签，且该标志可被 `updateAuthAggrementFlag` 人工翻转。因此该口径是「来源 + 标志位」的合取，与来源单一条件的 [[calibers/platform-push-no-supplement]] 不同。

@@ -1,7 +1,7 @@
 ---
 type: concept
 title: 平台产品与租户产品
-page_key: concepts/platform_product_vs_tenant_product
+page_key: platform_product_vs_tenant_product
 domain: 租户产品
 status: draft
 aliases: [平台产品, 租户产品, platform_product_code, 产品两层结构]
@@ -36,6 +36,7 @@ also_confused_with:
   - concepts/product_open_status
 contract_version: "0.1"
 sources: ["enrich:wiki-admin"]
+belong: concepts
 ---
 
 「平台产品—租户产品—项目」是三级结构：平台产品给出产品编号（ACFLOW/BEECREDIT 等），租户产品给出该租户下的实例及其融资口径，项目是实例下的具体业务载体（[[tables/tenant_project]]）。菜单配置（[[tables/tenant_product_menu]]）按产品 code 维度下发，其取值与 platform_product_code 不完全是同一套值。

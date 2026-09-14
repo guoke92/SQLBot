@@ -1,108 +1,133 @@
 ---
 type: table
-title: client_api_sync_error 客户端同步失败记录表
-page_key: tables/client_api_sync_error
+title: 客户端接口同步失败记录
+page_key: client_api_sync_error
 domain: 平台事件监听与同步
 status: draft
-aliases:
-  - ClientApiSyncErrorDO
-  - 客户端同步失败记录
+anchors: [client_api_sync_error]
 oid: 1
 scope:
-  databases:
-    - unknown
-sources:
-  - db:client_api_sync_error
-  - code:CustSyncService.java:syncByRole
-  - "reqdoc:失败数据写入ClientApiSyncErrorDO，调用异常 → error(...) → 落库"
+  databases: [lowcode_pplatform]
+sources: ["db:db-catalog.yaml", "code:extract-catalog.yaml"]
+created: '2026-09-14'
+updated: '2026-09-14'
 contract_version: "0.1"
+belong: tables
 ---
 
 
-> 本页 ## 版本演进 收录了未在代码层证实的文档主张（document_claim，未证实）。
 
-client_api_sync_error 是「平台事件监听与同步」主题下的失败留痕表：平台事件经监听回调进入业务系统后，业务系统向客户域发起的 RPC 同步一旦异常，即以入参原文 + 服务类名 + 重试次数落库，形成可排查、可重放的记录。它与 [[tables/cust_build_record]] 的建档异步补偿是两条独立的失败处理链路，口径见 [[concepts/sync-error-record]]。
+
+
+
+
+
+
+
+
+
+本表是平台向客户端（客户、经办人、影像、产品、租户、项目、KA 等）发起同步调用失败时的登记表。每条记录对应一次失败的 RPC 调用，`service_class_name` 标识具体同步链路，`param` 保留请求参数原文，供重试/排查使用。与 [[cust_build_record]] 的差别在于：本表以「调用失败即登记」为粒度，重试次数有独立列 [[retry_count]]；而建档补偿把重试计数塞进 JSON。
 
 ## 需求背景
-平台侧事件触发后构造 `FbpReq<T>` 并回调 `IPlatListener.onEvent`，业务系统消费该事件时需要把数据变动同步到客户/租户等下游系统。同步失败的诉求不是「静默丢弃」而是「留痕」：失败数据写入 ClientApiSyncErrorDO，调用异常 → `error(...)` → 落库（reqdoc 主张，代码层已证实于 `CustSyncService.java:syncByRole` 中的 `custClientSyncService.error`）。因此本表保存了 `service_class_name`（区分失败来源，DB 实测 12 种）、`param`（入参原文）等重放所必需的信息。
+
+外部同步链路（用户/企业/经办人/影像/产品/租户/项目/KA）在异常时不能让主流程失败，因此统一落到本表，由后台线程池侧（`AbstractQueueThread`）写入并在启用标识为 Y 时继续被重试消费。实测 `name` 与 `remark` 中出现的「直推变更回调连通性」「self-test retry」说明本表同时被用做链路自检的落点。
 
 ## 版本演进
-- v0 契约：本表字段语义与失败态口径按 DB 实测沉淀（见 [[calibers/client-sync-error-all-disabled]]、[[calibers/client-sync-error-retry-num-3]]）。
-- 启动时重试任务扫描失败记录 → 重放同步请求（StartupSyncRetry）（document_claim，未证实）。
-- 服务停止时将队列数据落库，降低消息丢失风险（document_claim，未证实）；现有代码仅见 `CustSyncService.java:shutdownThreadPool` 的 `shutdown/awaitTermination`，未见队列落库实现。
+
+- 存量 2227 行 `enable` 全部为 N、`retry_num` 常驻 3，对应「已登记失败/已终止重试」的保留口径，见 [[sync_error_retained_scope]]。
+- `service_class_name` 的实测 TopK 以 `ClientCustSyncService`(1453) 与 `ClientOperatorSyncService`(555) 为最多，说明本表当前主要承担客户与经办人同步的失败登记。
 
 ```ground:table
 table: client_api_sync_error
 database: lowcode_pplatform
 desc: 客户端接口同步失败记录
 fields:
+  - name: enable
+    type: string
+    phys: varchar(4)
+    desc: enable
+    dict: enable
+    topk: "N"
+    labels: "N:否"
   - name: id
     type: number
+    phys: bigint(22)
     desc: 表主键
   - name: act_procinst_date
     type: temporal
+    phys: datetime
     desc: 审批结束时间
   - name: act_procinst_id
     type: string
+    phys: varchar(64)
     desc: 流程实例ID
   - name: act_procinst_no
     type: string
+    phys: varchar(255)
     desc: 流程申请编号
   - name: act_procinst_status
     type: string
+    phys: varchar(64)
     desc: 当前审批状态
   - name: app_tenant_code
     type: string
+    phys: varchar(100)
     desc: 逻辑租户标识
+    topk: "base"
   - name: code
     type: string
+    phys: varchar(64)
     desc: 编码
   - name: create_by
     type: string
+    phys: varchar(100)
     desc: 创建人id
   - name: create_time
     type: temporal
+    phys: datetime
     desc: 创建时间
   - name: create_user
     type: string
+    phys: varchar(100)
     desc: 创建人名称
   - name: db_tenant_code
     type: string
+    phys: varchar(100)
     desc: 数据租户标识
-  - name: enable
-    type: string
-    desc: enable
   - name: name
     type: string
+    phys: varchar(64)
     desc: 名称
   - name: organization_id
     type: string
+    phys: varchar(30)
     desc: 机构编号
   - name: param
     type: string
+    phys: text
     desc: 参数
   - name: remark
     type: string
+    phys: varchar(1024)
     desc: remark
   - name: retry_num
     type: number
+    phys: int(11)
     desc: 重试次数
   - name: service_class_name
     type: string
+    phys: varchar(256)
     desc: 服务类名称
   - name: update_by
     type: string
+    phys: varchar(100)
     desc: 更新人id
   - name: update_time
     type: temporal
+    phys: datetime
     desc: 更新时间
   - name: update_user
     type: string
+    phys: varchar(100)
     desc: 更新人名称
 ```
-
----REVIEW: table | client_api_sync_error---
-1. `scope.databases` 在语义分析中未给出物理库名，本页（及本主题其他页）统一填 `unknown`，待确认。
-2. `retry_num` 的语义在分析中同时表述为「已重试次数/重试上限」，二者不可同时成立；DB 实测恒为 3，暂按「默认重试上限」理解（见 [[calibers/client-sync-error-retry-num-3]]），需业务确认。
-3. 启动重试（StartupSyncRetry）与服务停止队列落库两条文档主张无代码证据，已在 ## 版本演进 标注。
----END REVIEW---

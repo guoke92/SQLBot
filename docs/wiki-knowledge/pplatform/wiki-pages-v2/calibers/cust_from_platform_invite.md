@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 客户来源空值口径（邀请类认证写「平台邀请」）
-page_key: caliber.cust_from_platform_invite
+page_key: cust_from_platform_invite
 domain: 平台内部服务对接
 status: draft
 aliases:
@@ -14,6 +14,7 @@ sources:
   - semantic:field_semantics[cust_company_info.cust_from]
   - semantic:field_semantics[cust_company_info.cust_source]
 contract_version: "0.1"
+belong: calibers
 ---
 
 客户来源在邀请类认证（客户录入/平台录入）且原值为空时，统一补写为「平台邀请」。

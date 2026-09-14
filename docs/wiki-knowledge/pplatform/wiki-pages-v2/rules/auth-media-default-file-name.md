@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 授权书默认文件名
-page_key: rules/auth-media-default-file-name
+page_key: auth-media-default-file-name
 domain: 文件/附件/媒体
 status: draft
 aliases: [A0004 默认文件名, 授权书.pdf, 授权书默认名]
@@ -11,6 +11,7 @@ scope:
 sources:
   - code_path:CustMediaFacade.java:upload
 contract_version: "0.1"
+belong: rules
 ---
 
 # 授权书默认文件名

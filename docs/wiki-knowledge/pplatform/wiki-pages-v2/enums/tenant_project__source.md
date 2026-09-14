@@ -12,6 +12,7 @@ sources: ["code:extract-enums.yaml", "db:db-profile.yaml"]
 created: '2026-09-10'
 updated: '2026-09-10'
 contract_version: "0.1"
+belong: enums
 ---
 
 # source

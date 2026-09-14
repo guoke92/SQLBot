@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 租户已开通产品
-page_key: calibers/tenant-open-product
+page_key: tenant-open-product
 domain: 平台产品配置
 status: draft
 aliases: [租户已开通产品口径, tenant_product open_status=Y]
@@ -12,6 +12,7 @@ sources:
   - code:TenantProductApplication.listOpenByTenant
   - code:TenantProductDao.listOpenByTenant
 contract_version: "0.1"
+belong: calibers
 ---
 
 「租户已开通产品」定义租户维度「已开通」的判定口径：`tenant_product.open_status = 'Y'`。该口径适用于查询租户已开通产品的场景，是租户产品列表过滤（[[rules/platform-product-list-filter]]）的前置数据范围。

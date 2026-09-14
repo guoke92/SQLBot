@@ -1,7 +1,7 @@
 ---
 type: concept
 title: 认证方式术语桥（identify_style 与 IdentifyTypeConstant）
-page_key: concept.identify_style_bridge
+page_key: identify_style_bridge
 domain: 平台内部服务对接
 status: draft
 aliases:
@@ -30,6 +30,7 @@ maps_to:
     evidence: code
 field_targets:
   - cust_company_info.identify_style
+belong: concepts
 ---
 
 认证方式在库内为 identify_style（自主 / 邀请-客户录入 / 邀请-平台录入 / 简易），在提交逻辑中体现为 IdentifyTypeConstant 的 INVITE、SELF、INVITE_AGW 分支。

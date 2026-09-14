@@ -1,56 +1,40 @@
 ---
 type: concept
-title: 渠道（channel）
-page_key: concepts/channel
+title: 渠道
+page_key: channel
 domain: 外部渠道与银行对接
 status: draft
 aliases:
   - channel
   - CloudChannel
   - AlipayAntCloudChannel
-  - cust_access_secret.channel
 oid: 1
 scope:
   databases:
-    - unknown
+    - cust
 sources:
-  - code:CloudChannel
-  - code:AlipayAntCloudChannel
+  - code:CustAccessApplication.validateSetValue
+  - code:TianmaController
   - code:AlipayAntArchiveController
 contract_version: "0.1"
-maps_to: "渠道字典键：代码中可见 CloudChannel.TIANMA.getDictKey()（天马）与 AlipayAntCloudChannel.ALIPAY_ANT（支付宝蚂蚁）；同时用作 cust_access_secret 的渠道键与 SFTP 配置（cust_sftp.channel）的键"
-field_targets:
-  - cust_company_info.db_tenant_code
-adjudication: boundary
-boundary: "渠道 ≠ URL 路径：AlipayAntArchiveController 注释明确『路径与 channel 无关，channel 完全由请求体决定』，而天马走独立 /tianma 路径。判定渠道应以渠道密钥表/请求体 channel 字段为准"
+maps_to: cust_access_secret.channel
 also_confused_with:
-  - HTTP 路径（/tianma、/cloud/std/cust/channelArchive）
+  - cust_company_info.cust_from
+  - cust_company_info.cust_source
+adjudication: boundary
+belong: concepts
+field_targets: [cust_access_secret.channel]
 sources: ["enrich:wiki-admin"]
 ---
 
-# 渠道（channel）
+> (document_claim，未证实)
 
-## 业务定位
-
-"渠道"指的是外部接入来源的字典键，在代码中表现为 `CloudChannel.TIANMA.getDictKey()` 与 `AlipayAntCloudChannel.ALIPAY_ANT`。它同时是三个地方的键：渠道密钥表 `cust_access_secret` 的渠道键、SFTP 配置 `cust_sftp.channel` 的键，以及入站报文中标识来源的字段。渠道决定企业数据落到哪个租户，落库字段为 `cust_company_info.db_tenant_code`（见 [[calibers/channel_tenant_mapping]]）。
+「渠道」在本文主题中特指接入方标识，它同时决定租户（dbTenantCode）与影像 SFTP 通道，是路由与鉴权的第一维度。
 
 ## 需求背景
-
-平台需要以统一方式承载多个外部渠道（天马、支付宝蚂蚁等）的建档与查询请求。为避免每接一个渠道就改一次网关与路径，渠道被设计为"由请求体携带的字段"而非"由 URL 携带的字段"：统一入站入口见 [[rules/channel_archive_unified_entry]]，租户解析见 [[calibers/channel_tenant_mapping]]。
-
-## 边界澄清
-
-渠道 ≠ HTTP 路径。`AlipayAntArchiveController` 的类注释明确『路径与 channel 无关，channel 完全由请求体决定』，而天马渠道走的是独立 `/tianma` 路径。做渠道判定时应以渠道密钥表或请求体 `channel` 字段为准，不能以 URL 前缀推断。渠道建档与标准建档的入口差异见 [[concepts/reg_archive]]。
+渠道由请求体传入，非标渠道复用统一入站 URL `/cloud/std/cust/channelArchive`，首期只对接支付宝蚂蚁；天马则走独立入口 `/tianma/companyArchive`。渠道有效性、租户映射与影像通道分别由 [[channel_enable_filter]]、[[tenant]]、[[sftp_channel_enable]] 约束。
 
 ## 版本演进
+- (document_claim，未证实) BR-003 签名校验：参数排序拼接 + app_secret + MD5 32 位小写，由 CryptoService 统一实现、各渠道复用 Md5Utils/TianmaUtil。本次链路仅见 TianmaUtil.post 的调用点（TianmaService.companyArchiveDetail），未见 CryptoService/Md5Utils 实现，且该主张在语义分析中记录不完整，保留待确认。
 
-- v0.1（本页首版）：术语映射与边界来自代码语义分析，尚无需求文档或变更单佐证。
-
-## 关联页面
-
-- 口径：[[calibers/channel_tenant_mapping]]、[[calibers/all_tenant_context]]
-- 规则：[[rules/channel_archive_unified_entry]]、[[rules/tianma_channel_key]]
-- 概念：[[concepts/reg_archive]]、[[concepts/tianma_inbound_outbound]]
-- 载体表：[[tables/cust_company_info]]
-
-相关：[[cust_sftp]]
+相关：[[cust_access_secret]]

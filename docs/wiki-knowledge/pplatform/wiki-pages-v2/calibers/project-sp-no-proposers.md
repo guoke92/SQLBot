@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 立项审批编号取关联人员
-page_key: caliber/project-sp-no-proposers
+page_key: project-sp-no-proposers
 domain: 微企链立项与项目审批
 status: draft
 aliases:
@@ -14,6 +14,7 @@ scope:
 sources:
   - code_path:ProjectApprovalApplication.java#getProposerByApprovalNo
 contract_version: "0.1"
+belong: calibers
 ---
 
 当用户在发起页选定了立项审批编号后，系统按该编号反查这条立项上的方案经理、业务经理与运营人，用于带出审批参与人。取数条件是 `sp_no` 等值匹配且记录未逻辑删除。

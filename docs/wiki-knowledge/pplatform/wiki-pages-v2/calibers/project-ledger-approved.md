@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 项目台账审批通过口径
-page_key: caliber.project-ledger-approved
+page_key: project-ledger-approved
 domain: 项目报表/统计/上报
 status: draft
 aliases:
@@ -14,6 +14,7 @@ scope:
 sources:
   - code:ProjectStatisticsApplication.java
 contract_version: "0.1"
+belong: calibers
 ---
 
 # 项目台账审批通过口径

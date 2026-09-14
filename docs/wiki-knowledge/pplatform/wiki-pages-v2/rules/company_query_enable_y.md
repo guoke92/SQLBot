@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 企业查询一律附加 enable='Y'
-page_key: rule.company_query_enable_y
+page_key: company_query_enable_y
 domain: 平台内部服务对接
 status: draft
 aliases:
@@ -12,6 +12,7 @@ scope:
 sources:
   - semantic:field_semantics[cust_company_info.enable]
 contract_version: "0.1"
+belong: rules
 ---
 
 查询企业数据时必须附加 enable='Y' 条件，否则会取到逻辑删除或失效的企业行。

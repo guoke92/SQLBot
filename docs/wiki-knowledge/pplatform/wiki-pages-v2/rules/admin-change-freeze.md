@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 管理员变更冻结旧管理员
-page_key: rule.admin_change_freeze
+page_key: admin-change-freeze
 domain: 客户联系人管理
 status: draft
 aliases:
@@ -13,6 +13,7 @@ sources:
   - "code:CustPersonApplication.ifNessaryFrzAdm"
   - "code:CustPersonApplication.simpleChangePerson"
 contract_version: "0.1"
+belong: rules
 ---
 
 管理员变更时，旧管理员记录被置为冻结状态，并删除其在系统中的角色关联；同时新增一条管理员记录并赋予权限，确保同一时间只有一个有效管理员。

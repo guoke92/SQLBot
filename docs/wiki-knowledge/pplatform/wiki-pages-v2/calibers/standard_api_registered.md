@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 标准接口已建档口径
-page_key: calibers/standard_api_registered
+page_key: standard_api_registered
 domain: 外部渠道与银行对接
 status: draft
 aliases:
@@ -15,6 +15,7 @@ scope:
 sources:
   - code:CustAccessApplication#validateSetValue
 contract_version: "0.1"
+belong: calibers
 ---
 
 # 标准接口已建档口径

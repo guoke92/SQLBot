@@ -1,1094 +1,1953 @@
 ---FILE: tables/project_file_info.md ---
 ---
 type: table
-title: project_file_info 项目运营文件表
-page_key: tables/project_file_info
+title: 项目文件信息表
+page_key: project_file_info
 domain: 文件/附件/媒体
 status: draft
-aliases: [项目运营文件表, 项目文件信息表, 运营文件]
+aliases: [项目运营文件表, 项目文件表]
 oid: 1
 scope:
-  databases: [project_file_info]
-sources:
-  - db:project_file_info
-  - code_path:ProjectFileController.java:saveOrUpdate
-  - code_path:ProjectFileController.java:buildQueryWrapper
+  databases: [unknown]
+sources: ["db:project_file_info 字段语义", "code:ProjectFileController.java:buildQueryWrapper"]
 contract_version: "0.1"
 ---
-
-# project_file_info 项目运营文件表
-
-## 业务定位
-
-`project_file_info` 是项目运营侧的文件元数据表：它只保存“文件在项目里的登记信息”（标题、描述、模块类型、归属项目），不保存影像本体，也不承载影像平台的上传/删除事件。业务上它以项目（`project_id` → `tenant_project`）为聚合根，按 `file_type` 划分到客户资料/审批/核对/核查/其他等模块，供项目运营人员登记与检索资料。
-
-它最容易与影像平台模型 [[tables/media_file]] 混淆：两者都落在“文件”域，但 `project_file_info` 是运营文件登记表（`title`/`content`/`file_type`），[[tables/media_file]] 是影像平台模型（`catgId`/`busiKey`/`modelCode`），二者不同源。术语边界见 [[concepts/media-image]] 与 [[concepts/catg-id]]。
-
-写入与读取语义分别由 [[rules/project-file-save-or-update]] 和 [[rules/project-file-page-query]] 约束。
-
-```ground:fields
-fields:
-  - name: id
-    meaning: 表主键，项目运营文件记录ID（ProjectFileController.saveOrUpdate 时报文 id 不能为空）
-    evidence: db
-  - name: title
-    meaning: 文件标题，列表支持模糊查询
-    evidence: db
-  - name: content
-    meaning: 文件描述/内容，列表支持模糊查询
-    evidence: db
-  - name: file_type
-    meaning: 文件模块类型；实测值域 cust=客户资料、approve=审批、collate=核对/整理、check=核查、other=其他
-    evidence: db
-  - name: project_id
-    meaning: 关联项目ID（指向 tenant_project 项目），分页查询的精确匹配条件
-    evidence: db
-  - name: enable
-    meaning: 逻辑启用标识，默认 Y
-    evidence: db
-  - name: code
-    meaning: 编码
-    evidence: db
-  - name: name
-    meaning: 名称
-    evidence: db
-  - name: create_by
-    meaning: 创建人id
-    evidence: db
-  - name: create_user
-    meaning: 创建人名称
-    evidence: db
-  - name: update_by
-    meaning: 更新人id
-    evidence: db
-  - name: update_user
-    meaning: 更新人名称
-    evidence: db
-```
+project_file_info 是「项目运营文件管理」的元数据主表：登记项目下审批（approve）、审核（check）、整理（collate）、客户（cust）、其他（other）五类文件的标题与描述，文件实体仍存放在对象存储，本表只保留元数据与审批流程关联字段。它与 [[media_file]]（客户影像树）、[[attachment_info]]（表单模板附件）不是同一套存储，边界见 [[project_file]]、[[media]]、[[catg_id]]。
 
 ## 需求背景
-
-（本页暂无 `reqdoc_claims` 类型的需求文档证据，需求侧口径待补充。）
-
-从字段结构可读出的业务意图：`title`/`content` 承担“人读的检索入口”，因此列表检索把二者做成模糊条件；`project_id` 与 `file_type` 承担“机器定位入口”，因此是等值条件。`file_type` 的值域是运营文件自己的模块划分，与影像分类 [[concepts/catg-id]]、影像模型 `modelCode` 都不是同一套枚举，不可互相翻译。
+本期语义分析未提供需求文档主张（reqdoc_claims 为空），业务定位与字段含义均来自库表与代码证据。
 
 ## 版本演进
+v0 初版：字段语义、五个文件类型口径（[[project_file_type_cust]]、[[project_file_type_approve]]、[[project_file_type_check]]、[[project_file_type_collate]]、[[project_file_type_other]]）与分页查询规则 [[project_file_page_query]] 均来自本期证据；无 action=uncovered 的文档主张。
 
-- v0（本页）：仅依据 [DB] 字段语义与代码侧读写规则（[[rules/project-file-save-or-update]]、[[rules/project-file-page-query]]）建立契约草稿。
-- 字段级的中文注释存在较弱的通用字段（`code`/`name`/`enable`/审计字段）含义未细化，属已知留白。
+```ground:table
+table: project_file_info
+fields:
+  - name: id
+    type: unknown
+    desc: 表主键
+    dict: "-"
+  - name: title
+    type: unknown
+    desc: 文件标题
+    dict: "-"
+  - name: content
+    type: unknown
+    desc: 文件描述
+    dict: "-"
+  - name: file_type
+    type: unknown
+    desc: 文件模块类型，取值 approve/check/collate/cust/other
+    dict: "字面量 approve/check/collate/cust/other"
+  - name: project_id
+    type: unknown
+    desc: 关联项目ID，指向 tenant_project.id
+    dict: "-"
+  - name: enable
+    type: unknown
+    desc: 逻辑删除标识，Y 有效
+    dict: "Y/N"
+  - name: db_tenant_code
+    type: unknown
+    desc: 数据租户标识
+    dict: "-"
+  - name: app_tenant_code
+    type: unknown
+    desc: 逻辑租户标识
+    dict: "-"
+  - name: create_by
+    type: unknown
+    desc: 创建人id
+    dict: "-"
+  - name: create_user
+    type: unknown
+    desc: 创建人名称
+    dict: "-"
+  - name: create_time
+    type: unknown
+    desc: 创建时间
+    dict: "-"
+  - name: update_by
+    type: unknown
+    desc: 更新人id
+    dict: "-"
+  - name: update_user
+    type: unknown
+    desc: 更新人名称
+    dict: "-"
+  - name: update_time
+    type: unknown
+    desc: 更新时间，默认按此字段倒序
+    dict: "-"
+  - name: act_procinst_id
+    type: unknown
+    desc: 流程实例ID
+    dict: "-"
+  - name: act_procinst_no
+    type: unknown
+    desc: 流程申请编号
+    dict: "-"
+  - name: act_procinst_status
+    type: unknown
+    desc: 当前审批状态
+    dict: "-"
+  - name: act_procinst_date
+    type: unknown
+    desc: 审批结束时间
+    dict: "-"
+  - name: code
+    type: unknown
+    desc: 编码
+    dict: "-"
+  - name: name
+    type: unknown
+    desc: 名称
+    dict: "-"
+  - name: remark
+    type: unknown
+    desc: 备注
+    dict: "-"
+  - name: organization_id
+    type: unknown
+    desc: 机构编号
+    dict: "-"
+```
+
+关联：[[tenant_project]]、[[project_file]]、[[media_file]]。
+
+---END FILE---
+
+---FILE: tables/cust_company_info.md ---
+---
+type: table
+title: 客户企业信息表
+page_key: cust_company_info
+domain: 文件/附件/媒体
+status: draft
+aliases: [企业信息表, 客户企业表]
+oid: 1
+scope:
+  databases: [unknown]
+sources: ["code:CustCompanyInfoApplication.java:createCustCompany", "code:CustMediaFacade.java:isdo"]
+contract_version: "0.1"
+---
+cust_company_info 是企业建档与认证的主表，也是客户影像（[[media]]）业务的锚点：影像查询规则 [[cust_media_precheck]] 以本表 id 反查企业与管理员，建档影像同步规则 [[build_media_sync_condition]] 依赖本表 cust_source。
+
+## 需求背景
+本期语义分析未提供需求文档主张，字段语义来自代码证据（CustCompanyInfoApplication、CustMediaFacade、CustCompanyInfoDao）。
+
+## 版本演进
+v0 初版：字段语义、状态口径 [[cust_cert_success]]、[[platform_push_source]] 与枚举 [[CustBuildStatusEnum]]、[[CustStatusEnum]]、[[CustSourceEnum]]、[[IDTypeEnum]]、[[OpenStatus]] 来自本期证据；无 action=uncovered 的文档主张。
+
+```ground:table
+table: cust_company_info
+fields:
+  - name: id
+    type: unknown
+    desc: 企业主键
+    dict: "-"
+  - name: code
+    type: unknown
+    desc: 企业编码，被 cust_person_info.ref_cust_company_info 等引用
+    dict: "-"
+  - name: cust_company_type
+    type: unknown
+    desc: 企业角色，存储为 JSON 数组字符串（如 ["SUPPLIER"]）
+    dict: CustCompanyTypeEnum
+  - name: db_tenant_code
+    type: unknown
+    desc: 数据租户标识
+    dict: "-"
+  - name: platform_cust_id
+    type: unknown
+    desc: 运营中台企业id
+    dict: "-"
+  - name: cust_source
+    type: unknown
+    desc: 建档数据来源，PLATFORM_PUSH 表示平台推送
+    dict: CustSourceEnum
+  - name: cust_build_status
+    type: unknown
+    desc: 企业认证/建档状态
+    dict: CustBuildStatusEnum
+  - name: cust_status
+    type: unknown
+    desc: 客户状态
+    dict: CustStatusEnum
+  - name: legal_certification_type
+    type: unknown
+    desc: 法人证件类型，存储 IDTypeEnum.name()
+    dict: IDTypeEnum
+  - name: need_register_ca
+    type: unknown
+    desc: 是否开通电子签章，Y/N
+    dict: OpenStatus
+```
+
+关联：[[cust_person_info]]、[[cust_role_info]]、[[cust_build_record]]、[[cust_change_record]]、[[cust_build_status]]。
+
+---END FILE---
+
+---FILE: tables/cust_person_info.md ---
+---
+type: table
+title: 客户联系人信息表
+page_key: cust_person_info
+domain: 文件/附件/媒体
+status: draft
+aliases: [联系人表, 客户联系人表]
+oid: 1
+scope:
+  databases: [unknown]
+sources: ["code:CustCompanyInfoApplication.java:createCustCompany", "code:PlatFormMediaApplication.java:personInfoService.getOne"]
+contract_version: "0.1"
+---
+cust_person_info 保存企业下的联系人（管理员/操作员）及其证件与角色信息，通过 ref_cust_company_info 逻辑外键指向 [[cust_company_info]].code。客户影像查询前置校验 [[cust_media_precheck]] 与按操作人过滤规则 [[catg_operator_filter]] 都以本表的管理员记录为基准。
+
+## 需求背景
+本期语义分析未提供需求文档主张，字段语义来自代码证据。
+
+## 版本演进
+v0 初版：字段语义与口径 [[admin_person]]、角色口径 [[role_supplier]]、[[role_core]]、[[role_dealer]]、[[role_finance]] 来自本期证据；无 action=uncovered 的文档主张。
+
+```ground:table
+table: cust_person_info
+fields:
+  - name: id
+    type: unknown
+    desc: 联系人主键
+    dict: "-"
+  - name: ref_cust_company_info
+    type: unknown
+    desc: 关联企业 code，逻辑外键指向 cust_company_info.code
+    dict: "-"
+  - name: user_type
+    type: unknown
+    desc: 联系人类型，admin 管理员/operator 操作员
+    dict: UserTypeEnum
+  - name: company_type
+    type: unknown
+    desc: 客户角色，单个角色 dictKey
+    dict: CustCompanyTypeEnum
+  - name: certification_type
+    type: unknown
+    desc: 证件类型，存储 IDTypeEnum.name()
+    dict: IDTypeEnum
+  - name: enable
+    type: unknown
+    desc: 启用标识，Y 有效
+    dict: "Y/N"
+```
+
+关联：[[cust_company_info]]、[[cust_role_info]]、[[busi_key]]。
+
+---END FILE---
+
+---FILE: tables/cust_role_info.md ---
+---
+type: table
+title: 客户角色信息表
+page_key: cust_role_info
+domain: 文件/附件/媒体
+status: draft
+aliases: [角色表, 客户角色表]
+oid: 1
+scope:
+  databases: [unknown]
+sources: ["code:PlatFormMediaApplication.java:listCustMediaFile"]
+contract_version: "0.1"
+---
+cust_role_info 记录企业持有的角色（单个角色 dictKey），与 [[cust_company_info]].cust_company_type 的 JSON 数组多角色形态不同。它是客户影像查询前置校验 [[cust_media_precheck]] 的必需条件之一：角色记录不存在时直接抛异常。
+
+## 需求背景
+本期语义分析未提供需求文档主张，字段语义来自代码证据。
+
+## 版本演进
+v0 初版：字段语义与客户角色口径 [[role_supplier]]、[[role_core]]、[[role_dealer]]、[[role_finance]] 来自本期证据；无 action=uncovered 的文档主张。
+
+```ground:table
+table: cust_role_info
+fields:
+  - name: ref_cust_company_info
+    type: unknown
+    desc: 关联企业 code
+    dict: "-"
+  - name: role_type
+    type: unknown
+    desc: 角色类型，单个角色 dictKey
+    dict: CustCompanyTypeEnum
+  - name: platform_cust_id
+    type: unknown
+    desc: 运营中台企业id
+    dict: "-"
+  - name: db_tenant_code
+    type: unknown
+    desc: 数据租户标识
+    dict: "-"
+```
+
+关联：[[cust_company_info]]、[[cust_person_info]]。
+
+---END FILE---
+
+---FILE: tables/cust_build_record.md ---
+---
+type: table
+title: 企业建档记录表
+page_key: cust_build_record
+domain: 文件/附件/媒体
+status: draft
+aliases: [建档记录表]
+oid: 1
+scope:
+  databases: [unknown]
+sources: ["code:CustCompanyInfoApplication.java", "code:CustMediaFacade.java"]
+contract_version: "0.1"
+---
+cust_build_record 记录运营中台客户与产融联系人之间的建档过程关联，是建档影像同步与 [[cust_build_status]] 状态流转的辅助记录表。
+
+## 需求背景
+本期语义分析未提供需求文档主张，字段语义来自代码证据。
+
+## 版本演进
+v0 初版：字段语义来自本期证据；无 action=uncovered 的文档主张。
+
+```ground:table
+table: cust_build_record
+fields:
+  - name: plat_cust_id
+    type: unknown
+    desc: 运营中台客户id
+    dict: "-"
+  - name: person_id
+    type: unknown
+    desc: 产融联系人id
+    dict: "-"
+```
+
+关联：[[cust_company_info]]、[[cust_person_info]]、[[build_media_sync_condition]]。
+
+---END FILE---
+
+---FILE: tables/cust_change_record.md ---
+---
+type: table
+title: 客户变更记录表
+page_key: cust_change_record
+domain: 文件/附件/媒体
+status: draft
+aliases: [变更记录表]
+oid: 1
+scope:
+  databases: [unknown]
+sources: ["code:CustMediaFacade.java:isdo/doDel/doUpload"]
+contract_version: "0.1"
+---
+cust_change_record 记录运营中台客户与产融企业之间的变更信息；变更过程中的影像不在事件回调里实时同步，而由规则 [[build_media_sync_condition]] 约束在审核通过后统一拉取。
+
+## 需求背景
+本期语义分析未提供需求文档主张，字段语义来自代码证据。
+
+## 版本演进
+v0 初版：字段语义来自本期证据；无 action=uncovered 的文档主张。
+
+```ground:table
+table: cust_change_record
+fields:
+  - name: oper_cust_id
+    type: unknown
+    desc: 运营中台客户id
+    dict: "-"
+  - name: cust_id
+    type: unknown
+    desc: 产融企业id
+    dict: "-"
+  - name: oper_cust_info
+    type: unknown
+    desc: 运营中台客户信息 JSON，包含 personId/oldPersonId 等
+    dict: "-"
+```
+
+关联：[[cust_company_info]]、[[build_media_sync_condition]]。
+
+---END FILE---
+
+---FILE: tables/tenant_project.md ---
+---
+type: table
+title: 租户项目表
+page_key: tenant_project
+domain: 文件/附件/媒体
+status: draft
+aliases: [项目表]
+oid: 1
+scope:
+  databases: [unknown]
+sources: ["code:ProjectFileController.java:buildQueryWrapper"]
+contract_version: "0.1"
+---
+tenant_project 是项目主表，其 id 被 [[project_file_info]].project_id 引用，构成项目运营文件（[[project_file]]）的归属维度。
+
+## 需求背景
+本期语义分析未提供需求文档主张，字段语义来自代码证据。
+
+## 版本演进
+v0 初版：字段语义来自本期证据；无 action=uncovered 的文档主张。
+
+```ground:table
+table: tenant_project
+fields:
+  - name: id
+    type: unknown
+    desc: 租户项目主键，被 project_file_info.project_id 引用
+    dict: "-"
+  - name: project_status
+    type: unknown
+    desc: 项目状态
+    dict: "-"
+```
+
+关联：[[project_file_info]]、[[project_file_page_query]]。
 
 ---END FILE---
 
 ---FILE: tables/media_file.md ---
 ---
 type: table
-title: MediaFile 影像文件模型
-page_key: tables/media_file
+title: 客户影像文件表
+page_key: media_file
 domain: 文件/附件/媒体
 status: draft
-aliases: [MediaFile, 影像平台模型, 媒体文件, lls.media]
+aliases: [media_file, 影像表, 影像树]
 oid: 1
 scope:
-  databases: [lls.media]
-sources:
-  - code:MediaFile
-  - code_path:MediaEventSyncProvider.java
-  - code_path:CustMediaFacade.java
-  - code_path:ClientMediaSyncService.java
+  databases: [unknown]
+sources: ["code:PlatFormMediaApplication.java:listCustMediaFile/lookupCustMedia", "code:CustMediaFacade.java:uploadElectronicAuthMediaFile", "code:ProjectMediaFacade.java:streamApprovalMediaZip"]
 contract_version: "0.1"
 ---
-
-# MediaFile 影像文件模型
-
-## 业务定位
-
-`MediaFile` 是影像平台（lls.media）的影像模型，`modelCode` 在建档场景固定为 `MA001`。它承载“影像本体在存储上的归属关系”：`busiKey`/`userBusiKey` 决定影像挂在谁的树上，`catgId` 决定影像属于哪类业务资料，`path`/`spath`/`destPath`/`storageType` 决定文件存在哪里，`specifyFileName`/`fileRename`/`fileName` 决定它对外叫什么。
-
-与运营文件表 [[tables/project_file_info]] 的边界：`MediaFile` 是影像平台模型，参与上传、删除、复制、信息变更等事件；`project_file_info` 只是项目运营文件的元数据登记。术语映射见 [[concepts/media-image]]、[[concepts/busi-key]]、[[concepts/catg-id]]、[[concepts/specify-file-name]]。
-
-影像的分类口径（`catgId` 取值语义）落在 [[calibers/auth-media-a0004]]、[[calibers/electronic-auth-media-a0050]]、[[calibers/ca-upgrade-auth-media-a0049]]、[[calibers/legal-person-cert-media-a0007-a0008]]、[[calibers/operator-auth-cert-media-a0011-a0012]]、[[calibers/project-config-media]]；归属主键口径见 [[calibers/archived-media-busikey]]。
-
-```ground:fields
-fields:
-  - name: modelCode
-    meaning: 影像模型编码，建档影像固定为 MA001（MeidaConstants.MODEL_CODE）
-    evidence: code
-  - name: catgId
-    meaning: 影像分类ID（A0004=授权书，A0007/A0008=法人证件类，A0011/A0012=操作人/授权书类，A0049=CA升级授权书，A0050=电子签约版授权书；带后缀如 A000701/A001101 按证件类型细分）
-    evidence: code
-  - name: busiKey
-    meaning: 影像归属业务主键：客户影像传产融企业id，项目/审批影像传项目或审批id
-    evidence: code
-  - name: userBusiKey
-    meaning: 影像归属用户业务主键：联系人/操作人id，用于 A0004/A0011/A0012 等分类按人过滤
-    evidence: code
-  - name: specifyFileName
-    meaning: 指定文件名（业务语义名，不带后缀），A0004 默认“授权书”
-    evidence: code
-  - name: fileRename
-    meaning: 文件展示名/重命名后的名称
-    evidence: code
-  - name: fileName
-    meaning: 原始文件名，A0004 缺省时置为“授权书.pdf”
-    evidence: code
-  - name: path
-    meaning: 影像存储相对路径（COS 相对路径或 http 全路径），下载时据此生成 URL
-    evidence: code
-  - name: spath
-    meaning: 影像存储路径（与 path 同源，用于展示/同步）
-    evidence: code
-  - name: destPath
-    meaning: 上传目标存储路径（uploadCosPathMediaFile 入参）
-    evidence: code
-  - name: storageType
-    meaning: 存储类型（COS 等），取自 MediaStorageType
-    evidence: code
-  - name: mediaCheckStatus
-    meaning: 影像审核状态
-    evidence: code
-  - name: fileStatus
-    meaning: 文件状态
-    evidence: code
-  - name: fileType
-    meaning: 文件类型
-    evidence: code
-  - name: fileUrl
-    meaning: 文件下载/浏览 URL（由 path 经 CosFileUtil.getDownloadUrl 生成）
-    evidence: code
-  - name: dataHash
-    meaning: 文件 MD5/哈希，用于影像记录直接入库
-    evidence: code
-```
+media_file 是「影像」（[[media]]）的底层存储表，由 IMediaOperaProvider 维护、经 MediaFacade/CustMediaFacade 访问，按分类编码 catgId（[[catg_id]]）与业务键 busiKey（[[busi_key]]）/userBusiKey 组织。影像分类口径见 [[media_catg_a0004]]、[[media_catg_a0049]]、[[media_catg_a0050]]；上传与查询受 [[cust_media_precheck]]、[[catg_operator_filter]]、[[electronic_auth_incremental_upload]]、[[dual_side_media_upload]]、[[project_config_overwrite_upload]]、[[project_approval_zip_download]] 等规则约束。
 
 ## 需求背景
-
-（本页暂无 `reqdoc_claims` 类型的需求文档证据。）
-
-从字段组合可读出的业务意图：`system` 侧的存储字段（`path`/`spath`/`destPath`/`storageType`）服务于“一次上传、多处同步”——对外同步时统一由 `path` 换取 `fileUrl`（见 [[rules/media-download-url]]）；命名三兄弟（`specifyFileName`/`fileRename`/`fileName`）服务于“业务名与物理名解耦”，其中 A0004 有强默认命名口径（见 [[rules/auth-media-default-file-name]]）。
+本期语义分析未提供需求文档主张；本页业务定位来自术语桥与规则证据（MediaFacade、CustMediaFacade、ProjectMediaFacade、PlatFormMediaApplication）。
 
 ## 版本演进
+v0 初版：本表未获得字段级语义证据，故不产出 ground:table 锚点块；已涉及的字段引用（catg_id、busi_key、user_busi_key、path、specify_file_name）仅出现在规则锚点中，待补充库表证据后补齐（见 REVIEW）。
 
-- v0（本页）：字段语义来自 [代码] 证据；`mediaCheckStatus`、`fileStatus`、`fileType` 的取值枚举未在本次语义分析中给出，属已知留白。
-- 后续版本：待补充 `mediaCheckStatus` 等状态字段的取值集合与状态流转（如与审核流程的对应关系）。
+关联：[[media]]、[[attachment_info]]、[[project_file_info]]、[[catg_id]]、[[busi_key]]、[[media_event_handling]]。
 
 ---END FILE---
 
----FILE: processes/client-media-event-routing.md ---
+---FILE: tables/attachment_info.md ---
 ---
-type: process
-title: 影像同步事件路由（客户影像）
-page_key: processes/client-media-event-routing
+type: table
+title: 附件信息表
+page_key: attachment_info
 domain: 文件/附件/媒体
 status: draft
-aliases: [客户影像事件路由, ClientMediaEvent.eventType 路由, 影像事件分发]
+aliases: [attachment_info, 表单附件表]
 oid: 1
 scope:
-  databases: [lls.media]
-sources:
-  - code:ClientMediaEvent
-  - code_path:MediaEventSyncProvider.java:onCustEvent
+  databases: [unknown]
+sources: ["code:AttachMentFacade/AttachmentInfoProvider（术语桥证据）"]
 contract_version: "0.1"
 ---
+attachment_info 是「附件」（[[attachment]]）的存储表，通过 AttachMentFacade/AttachmentInfoProvider 查询，用于表单模板附件；与影像树 [[media_file]]、项目文件 [[project_file_info]] 属于三套不同存储。
 
-# 影像同步事件路由（客户影像）
+## 需求背景
+本期语义分析未提供需求文档主张；本页业务定位来自术语桥证据。
 
-## 业务定位
+## 版本演进
+v0 初版：本表未获得字段级语义证据，故不产出 ground:table 锚点块（见 REVIEW）。
 
-客户影像在产融与运营中台之间以事件方式同步。事件类型字段 `ClientMediaEvent.eventType` 决定这次回调会让产融影像树发生什么动作：上传、删除、复制还是信息变更。路由入口在 `MediaEventSyncProvider.onCustEvent`，随后分派到 `CustMediaFacade` 的对应方法。
+关联：[[attachment]]、[[media]]、[[project_file]]。
 
-关键语义：`UPLOAD`/`DELETE`/`INFO_CHANGE` 都会真正改动产融影像并向下游同步；`COPY` 只记日志、不落库——因此“复制”在客户影像链路上不可依赖。
+---END FILE---
 
-```ground:states
-field: ClientMediaEvent.eventType
-states:
+---FILE: enums/CustBuildStatusEnum.md ---
+---
+type: enum
+title: 企业建档状态枚举（CustBuildStatusEnum）
+page_key: CustBuildStatusEnum
+domain: 文件/附件/媒体
+status: draft
+aliases: [CustBuildStatusEnum, 建档状态]
+oid: 1
+scope:
+  databases: [unknown]
+sources: ["code:CustCompanyInfoApplication.java:updateCustBuildStatus/getCustBuildStatus/messageNotify"]
+contract_version: "0.1"
+---
+CustBuildStatusEnum 是 [[cust_company_info]].cust_build_status 的取值来源，多处以 getDictKey() 落库更新；完整状态流转见过程页 [[cust_build_status]]，成功态口径见 [[cust_cert_success]]。
+
+## 需求背景
+本期语义分析未提供需求文档主张，取值来自代码枚举证据。
+
+## 版本演进
+v0 初版：枚举名与 BUILD_SUCCESS 取值证据来自 updateCustBuildStatus；其余取值的 java_name 按同枚举命名约定补齐（见 REVIEW）。
+
+```ground:enum
+enum: CustBuildStatusEnum
+field: cust_company_info.cust_build_status
+stored_as: getDictKey()
+values:
+  - value: INIT
+    java_name: CustBuildStatusEnum.INIT
+    label: 初始
+    stored_as: getDictKey()
+  - value: BUILD_FAIL
+    java_name: CustBuildStatusEnum.BUILD_FAIL
+    label: 建档失败/拒绝
+    stored_as: getDictKey()
+  - value: CUST_CONFIRM_AWAIT
+    java_name: CustBuildStatusEnum.CUST_CONFIRM_AWAIT
+    label: 待客户确认
+    stored_as: getDictKey()
+  - value: CUST_BUILDING
+    java_name: CustBuildStatusEnum.CUST_BUILDING
+    label: 客户提交/运营中台审核中
+    stored_as: getDictKey()
+  - value: BUILD_SUCCESS
+    java_name: CustBuildStatusEnum.BUILD_SUCCESS
+    label: 建档成功
+    stored_as: getDictKey()
+    note: updateCustBuildStatus 多处使用 getDictKey() 更新
+  - value: AWAIT_CUST_CONFIRM
+    java_name: CustBuildStatusEnum.AWAIT_CUST_CONFIRM
+    label: 待客户确认（简易认证）
+    stored_as: getDictKey()
+```
+
+关联：[[cust_build_status]]、[[cust_cert_success]]、[[cust_company_info]]。
+
+---END FILE---
+
+---FILE: enums/CustCompanyTypeEnum.md ---
+---
+type: enum
+title: 客户角色枚举（CustCompanyTypeEnum）
+page_key: CustCompanyTypeEnum
+domain: 文件/附件/媒体
+status: draft
+aliases: [CustCompanyTypeEnum, 企业角色]
+oid: 1
+scope:
+  databases: [unknown]
+sources: ["code:CustCompanyInfoApplication.java:createCustCompany", "code:PlatFormMediaApplication.java:listCustMediaFile"]
+contract_version: "0.1"
+---
+CustCompanyTypeEnum 同时服务两处字段：[[cust_company_info]].cust_company_type 以 JSON 数组字符串承载多角色，[[cust_person_info]].company_type 与 [[cust_role_info]].role_type 则存单个 dictKey。角色口径见 [[role_supplier]]、[[role_core]]、[[role_dealer]]、[[role_finance]]。
+
+## 需求背景
+本期语义分析未提供需求文档主张，取值来自代码枚举证据。
+
+## 版本演进
+v0 初版：SUPPLIER 取值与两种落库形态来自 createCustCompany 证据；无 action=uncovered 的文档主张。
+
+```ground:enum
+enum: CustCompanyTypeEnum
+field: cust_company_info.cust_company_type
+stored_as: JSON 数组字符串字面量（["SUPPLIER"]）
+values:
+  - value: SUPPLIER
+    java_name: CustCompanyTypeEnum.SUPPLIER
+    label: 供应商
+    stored_as: JSON 数组字符串字面量（["SUPPLIER"]）
+    note: 企业主表存 JSON 数组以支持多角色；cust_person_info.company_type 存单个 dictKey（getDictKey()）。
+```
+
+关联：[[cust_company_info]]、[[cust_person_info]]、[[cust_role_info]]、[[role_supplier]]。
+
+---END FILE---
+
+---FILE: enums/IDTypeEnum.md ---
+---
+type: enum
+title: 证件类型枚举（IDTypeEnum）
+page_key: IDTypeEnum
+domain: 文件/附件/媒体
+status: draft
+aliases: [IDTypeEnum, 证件类型]
+oid: 1
+scope:
+  databases: [unknown]
+sources: ["code:CustCompanyInfoApplication.java:createCustCompany"]
+contract_version: "0.1"
+---
+IDTypeEnum 用于法人证件类型与联系人证件类型两处字段，以 .name() 落库、以 valueOf 反解。
+
+## 需求背景
+本期语义分析未提供需求文档主张，取值来自代码枚举证据。
+
+## 版本演进
+v0 初版：CRET_ID 取值与 .name() 落库方式来自 createCustCompany 证据；无 action=uncovered 的文档主张。
+
+```ground:enum
+enum: IDTypeEnum
+field: cust_company_info.legal_certification_type
+stored_as: name()
+values:
+  - value: CRET_ID
+    java_name: IDTypeEnum.CRET_ID
+    label: 身份证
+    stored_as: name()
+    note: 使用 .name() 落库，查询时 IDTypeEnum.valueOf(certType)；cust_person_info.certification_type 同样存 IDTypeEnum.name()。
+```
+
+关联：[[cust_company_info]]、[[cust_person_info]]。
+
+---END FILE---
+
+---FILE: enums/CustSourceEnum.md ---
+---
+type: enum
+title: 建档数据来源枚举（CustSourceEnum）
+page_key: CustSourceEnum
+domain: 文件/附件/媒体
+status: draft
+aliases: [CustSourceEnum, 建档来源]
+oid: 1
+scope:
+  databases: [unknown]
+sources: ["code:CustMediaFacade.java:isdo"]
+contract_version: "0.1"
+---
+CustSourceEnum 标识建档数据来源，PLATFORM_PUSH 表示平台推送，并作为建档影像是否实时同步的判断条件（见 [[build_media_sync_condition]] 与口径 [[platform_push_source]]）。
+
+## 需求背景
+本期语义分析未提供需求文档主张，取值来自代码枚举证据。
+
+## 版本演进
+v0 初版：PLATFORM_PUSH 取值来自 CustMediaFacade.isdo 证据；无 action=uncovered 的文档主张。
+
+```ground:enum
+enum: CustSourceEnum
+field: cust_company_info.cust_source
+stored_as: getDictKey()
+values:
+  - value: PLATFORM_PUSH
+    java_name: CustSourceEnum.PLATFORM_PUSH
+    label: 平台推送
+    stored_as: getDictKey()
+    note: 用于判断影像同步是否实时处理。
+```
+
+关联：[[cust_company_info]]、[[platform_push_source]]、[[build_media_sync_condition]]。
+
+---END FILE---
+
+---FILE: enums/CustStatusEnum.md ---
+---
+type: enum
+title: 客户状态枚举（CustStatusEnum）
+page_key: CustStatusEnum
+domain: 文件/附件/媒体
+status: draft
+aliases: [CustStatusEnum, 客户状态]
+oid: 1
+scope:
+  databases: [unknown]
+sources: ["code:CustCompanyInfoDao.java:updateStatus"]
+contract_version: "0.1"
+---
+CustStatusEnum 描述客户状态，与 [[CustBuildStatusEnum]] 配合使用。
+
+## 需求背景
+本期语义分析未提供需求文档主张，取值来自代码枚举证据。
+
+## 版本演进
+v0 初版：EFFECT 取值来自 CustCompanyInfoDao.updateStatus 证据；无 action=uncovered 的文档主张。
+
+```ground:enum
+enum: CustStatusEnum
+field: cust_company_info.cust_status
+stored_as: getDictKey()
+values:
+  - value: EFFECT
+    java_name: CustStatusEnum.EFFECT
+    label: 生效
+    stored_as: getDictKey()
+    note: 与 CustBuildStatusEnum 配合使用。
+```
+
+关联：[[cust_company_info]]、[[CustBuildStatusEnum]]。
+
+---END FILE---
+
+---FILE: enums/OpenStatus.md ---
+---
+type: enum
+title: 开通状态枚举（OpenStatus）
+page_key: OpenStatus
+domain: 文件/附件/媒体
+status: draft
+aliases: [OpenStatus, 开通状态]
+oid: 1
+scope:
+  databases: [unknown]
+sources: ["code:CustCompanyInfoApplication.java:submitForSimpleAuth"]
+contract_version: "0.1"
+---
+OpenStatus 用于企业「是否开通电子签章」标志，语义上等同于 Y/N 开关。
+
+## 需求背景
+本期语义分析未提供需求文档主张，取值来自代码枚举证据。
+
+## 版本演进
+v0 初版：Y 取值来自 submitForSimpleAuth 证据；无 action=uncovered 的文档主张。
+
+```ground:enum
+enum: OpenStatus
+field: cust_company_info.need_register_ca
+stored_as: getDictKey()
+values:
+  - value: Y
+    java_name: OpenStatus.Y
+    label: 开通
+    stored_as: getDictKey()
+    note: 同时存在字面量 "Y" 比较。
+```
+
+关联：[[cust_company_info]]。
+
+---END FILE---
+
+---FILE: enums/UserTypeEnum.md ---
+---
+type: enum
+title: 联系人类型枚举（UserTypeEnum）
+page_key: UserTypeEnum
+domain: 文件/附件/媒体
+status: draft
+aliases: [UserTypeEnum, 联系人类型]
+oid: 1
+scope:
+  databases: [unknown]
+sources: ["code:PlatFormMediaApplication.java:personInfoService.getOne", "code:CustCompanyInfoApplication.java"]
+contract_version: "0.1"
+---
+UserTypeEnum 区分企业下的管理员与操作员。影像查询前置校验 [[cust_media_precheck]] 与按操作人过滤 [[catg_operator_filter]] 都以管理员（admin）联系人为基准，口径见 [[admin_person]]。
+
+## 需求背景
+本期语义分析未提供需求文档主张，取值来自代码枚举证据。
+
+## 版本演进
+v0 初版：admin 取值来自 personInfoService.getOne 查询条件（getDictKey()）；operator 取值来自 cust_person_info.user_type 字段语义证据，其 java_name 按同枚举命名约定补齐（见 REVIEW）。
+
+```ground:enum
+enum: UserTypeEnum
+field: cust_person_info.user_type
+stored_as: getDictKey()
+values:
+  - value: admin
+    java_name: UserTypeEnum.admin
+    label: 管理员
+    stored_as: getDictKey()
+    note: 查询条件使用 getDictKey()。
+  - value: operator
+    java_name: UserTypeEnum.operator
+    label: 操作员
+    stored_as: getDictKey()
+    note: 取值与标签来自 cust_person_info.user_type 字段语义；java_name 为命名约定推定。
+```
+
+关联：[[cust_person_info]]、[[admin_person]]、[[catg_operator_filter]]。
+
+---END FILE---
+
+---FILE: enums/MediaEventType.md ---
+---
+type: enum
+title: 影像事件类型（MediaEventType）
+page_key: MediaEventType
+domain: 文件/附件/媒体
+status: draft
+aliases: [MediaEventType, 影像事件类型]
+oid: 1
+scope:
+  databases: [unknown]
+sources: ["code:CustMediaFacade.java:setDelOrUploadMedia", "code:MediaEventSyncProvider.java:onEvent"]
+contract_version: "0.1"
+---
+MediaEventType 描述运营中台推送的影像事件类型，是影像事件处理规则 [[media_event_handling]] 的取值依据。
+
+## 需求背景
+本期语义分析未提供需求文档主张；事件类型取值来自代码证据。
+
+## 版本演进
+v0 初版：UPLOAD 取值来自 setDelOrUploadMedia 证据；DELETE、INFO_CHANGE 取值来自 MediaEventSyncProvider.onEvent 规则证据，其 java_name 按同枚举命名约定补齐（见 REVIEW）。
+
+```ground:enum
+enum: MediaEventType
+field: PlatClientMediaEvent.eventType
+stored_as: name()
+values:
   - value: UPLOAD
-    label: 影像上传
-    source: code_enum
+    java_name: MediaEventType.UPLOAD
+    label: 上传
+    stored_as: name()
+    note: setDelOrUploadMedia 中使用。
   - value: DELETE
-    label: 影像删除
-    source: code_enum
-  - value: COPY
-    label: 影像复制
-    source: code_enum
+    java_name: MediaEventType.DELETE
+    label: 删除
+    stored_as: name()
+    note: 取值来自 MediaEventSyncProvider 处理 UPLOAD/DELETE/INFO_CHANGE 的规则证据。
   - value: INFO_CHANGE
-    label: 影像信息变更（改分类/重命名）
-    source: code_enum
+    java_name: MediaEventType.INFO_CHANGE
+    label: 信息变更
+    stored_as: name()
+    note: 取值来自 MediaEventSyncProvider 处理 UPLOAD/DELETE/INFO_CHANGE 的规则证据。
 ```
 
-```ground:transitions
-transitions:
-  - from: 任意
-    event: UPLOAD
-    to: 落产融影像树并向下游客户端同步
-    evidence: "code_path:MediaEventSyncProvider.java:onCustEvent -> CustMediaFacade.doUpload/upload"
-  - from: 任意
-    event: DELETE
-    to: 删除产融影像并同步删除事件
-    evidence: "code_path:MediaEventSyncProvider.java:onCustEvent -> CustMediaFacade.doDel/del"
-  - from: 任意
-    event: INFO_CHANGE
-    to: 按 src/dest 判定改分类或重命名并同步
-    evidence: "code_path:MediaEventSyncProvider.java:onCustEvent -> CustMediaFacade.change"
-  - from: 任意
-    event: COPY
-    to: 仅记录日志，不做落库处理
-    evidence: "code_path:MediaEventSyncProvider.java:onCustEvent"
-```
-
-## 需求背景
-
-（本页暂无 `reqdoc_claims` 类型的需求文档证据。）
-
-`INFO_CHANGE` 由 `src`/`dest` 对比推导到底是“改分类”还是“重命名”，说明该事件是一个复合语义事件，落到 [[tables/media_file]] 上会分别命中 `catgId` 与命名三字段（见 [[concepts/catg-id]]、[[concepts/specify-file-name]]）。
-
-## 版本演进
-
-- v0（本页）：事件取值与去向来自 [代码] 证据；`COPY` 不落库属当前实现事实，是否为长期设计意图未在本次分析中给出结论。
+关联：[[media_event_handling]]、[[media_file]]、[[cust_change_record]]。
 
 ---END FILE---
 
----FILE: processes/media-busi-type-routing.md ---
+---FILE: processes/cust_build_status.md ---
 ---
 type: process
-title: 影像业务类型
-page_key: processes/media-busi-type-routing
+title: 企业建档状态流转
+page_key: cust_build_status
 domain: 文件/附件/媒体
 status: draft
-aliases: [ClientMediaEvent.busiType 路由, 影像业务类型分发, 客户影像与资产影像]
+aliases: [建档状态机, 企业建档流程]
 oid: 1
 scope:
-  databases: [lls.media]
-sources:
-  - code:ClientMediaEvent
-  - code_path:MediaEventSyncProvider.java:onEvent
+  databases: [unknown]
+sources: ["code:CustCompanyInfoApplication.java:getCustBuildStatus", "code:CustCompanyInfoApplication.java:messageNotify"]
 contract_version: "0.1"
 ---
+企业建档状态机描述 [[cust_company_info]].cust_build_status 的取值与流转，取值定义见 [[CustBuildStatusEnum]]，成功态口径见 [[cust_cert_success]]。流转由提交、客户提交与运营中台审核结果消息（messageNotify）驱动。建档/变更过程中的影像同步时机取决于来源是否为 [[CustSourceEnum]].PLATFORM_PUSH，见 [[build_media_sync_condition]]。
 
-# 影像业务类型
+## 需求背景
+本期语义分析未提供需求文档主张；状态与事件来自代码证据。
 
-## 业务定位
+## 版本演进
+v0 初版：状态集合与 7 条流转均来自 getCustBuildStatus / messageNotify 证据；无 action=uncovered 的文档主张。
 
-影像回调进入系统后，先按 `ClientMediaEvent.busiType` 判断这是“客户/建档影像”还是“资产影像”，再决定是否进入落库链路。`CUST` 进入客户影像处理分支，`ASSET` 只记日志不落库，其他取值直接抛 `GenericException`（不支持的事件类型）。
-
-这条路由决定了大量客户侧影像能力（授权书、法人证件、操作人证件等口径）只在 `CUST` 分支生效，相关分类口径见 [[calibers/auth-media-a0004]] 与 [[calibers/legal-person-cert-media-a0007-a0008]]。
-
-```ground:states
-field: ClientMediaEvent.busiType
+```ground:process
+name: 企业建档状态
+field: cust_company_info.cust_build_status
 states:
-  - value: CUST
-    label: 客户/建档影像
+  - value: INIT
+    label: 初始
     source: code_enum
-  - value: ASSET
-    label: 资产影像
+  - value: BUILD_FAIL
+    label: 建档失败/拒绝
     source: code_enum
-```
-
-```ground:transitions
+  - value: CUST_CONFIRM_AWAIT
+    label: 待客户确认
+    source: code_enum
+  - value: CUST_BUILDING
+    label: 客户提交/运营中台审核中
+    source: code_enum
+  - value: BUILD_SUCCESS
+    label: 建档成功
+    source: code_enum
+  - value: AWAIT_CUST_CONFIRM
+    label: 待客户确认（简易认证）
+    source: code_enum
 transitions:
-  - from: CUST
-    event: 收到事件回调
-    to: 进入客户影像处理分支
-    evidence: "code_path:MediaEventSyncProvider.java:onEvent"
-  - from: ASSET
-    event: 收到事件回调
-    to: 仅记录日志，不落库
-    evidence: "code_path:MediaEventSyncProvider.java:onAssetEvent"
-  - from: 其他
-    event: 收到事件回调
-    to: 抛 GenericException 不支持的事件类型
-    evidence: "code_path:MediaEventSyncProvider.java:onEvent default"
+  - from: INIT
+    event: submit
+    to: CUST_CONFIRM_AWAIT
+    evidence: CustCompanyInfoApplication.java:getCustBuildStatus
+  - from: INIT
+    event: submit(INVITE_AGW)
+    to: CUST_BUILDING
+    evidence: CustCompanyInfoApplication.java:getCustBuildStatus
+  - from: CUST_CONFIRM_AWAIT
+    event: 客户提交
+    to: CUST_BUILDING
+    evidence: CustCompanyInfoApplication.java:messageNotify
+  - from: CUST_BUILDING
+    event: 审核退回
+    to: CUST_CONFIRM_AWAIT
+    evidence: CustCompanyInfoApplication.java:messageNotify
+  - from: CUST_BUILDING
+    event: 审核通过
+    to: BUILD_SUCCESS
+    evidence: CustCompanyInfoApplication.java:messageNotify
+  - from: CUST_BUILDING
+    event: 审核拒绝
+    to: BUILD_FAIL
+    evidence: CustCompanyInfoApplication.java:messageNotify
+  - from: BUILD_FAIL
+    event: 重新提交
+    to: CUST_CONFIRM_AWAIT
+    evidence: CustCompanyInfoApplication.java:messageNotify
 ```
 
-## 需求背景
-
-（本页暂无 `reqdoc_claims` 类型的需求文档证据。）
-
-`CUST` 分支内部还有“是否实时处理”的前置判断（见 [[rules/archived-media-isdo]]），因此“业务类型路由”只是第一跳，第二跳才是建档/变更流程判定。
-
-## 版本演进
-
-- v0（本页）：业务类型取值与分支去向来自 [代码] 证据；`ASSET` 仅记日志属当前实现事实。
+关联：[[cust_company_info]]、[[CustBuildStatusEnum]]、[[cust_cert_success]]、[[build_media_sync_condition]]。
 
 ---END FILE---
 
----FILE: calibers/auth-media-a0004.md ---
----
-type: caliber
-title: 授权书影像（A0004）
-page_key: calibers/auth-media-a0004
-domain: 文件/附件/媒体
-status: draft
-aliases: [A0004, 授权书影像, catgId=A0004]
-oid: 1
-scope:
-  databases: [lls.media]
-sources:
-  - code:MediaFile.catgId
-  - code_path:CustMediaFacade.java:upload
-contract_version: "0.1"
----
-
-# 授权书影像（A0004）
-
-## 业务定位
-
-企业授权书影像是客户建档场景中最核心的一类影像：`catgId = 'A0004'`，挂在企业 + 管理员/操作人维度，默认文件名“授权书”/“授权书.pdf”。它也是少数带有“强默认命名”的分类（见 [[rules/auth-media-default-file-name]]），并会参与多角色复制（见 [[rules/multi-role-media-copy]]）。
-
-统计与筛选这类影像时，应使用本页谓词而不是按名称模糊匹配；名称在缺省场景下会被系统改写成“授权书”，不具备区分度。
-
-```ground:caliber
-name: 授权书影像
-predicate: "MediaFile.catgId = 'A0004'"
-scope: 企业授权书影像，默认文件名“授权书”/“授权书.pdf”，挂在企业+管理员/操作人维度
-evidence: code
-```
-
-## 需求背景
-
-（本页暂无 `reqdoc_claims` 类型的需求文档证据。）
-
-维度说明：`busiKey`（产融企业id）定位企业，`userBusiKey`（联系人id）在该分类下用于按人过滤，口径参见 [[calibers/archived-media-busikey]]。
-
-## 版本演进
-
-- v0（本页）：口径来自 [代码] 证据。
-
----END FILE---
-
----FILE: calibers/electronic-auth-media-a0050.md ---
----
-type: caliber
-title: 电子签约版授权书影像（A0050）
-page_key: calibers/electronic-auth-media-a0050
-domain: 文件/附件/媒体
-status: draft
-aliases: [A0050, 电子签约版授权书, 电子授权书影像]
-oid: 1
-scope:
-  databases: [lls.media]
-sources:
-  - code:MediaFile.catgId
-  - code_path:CustMediaFacade.java:uploadElectronicAuthMediaFile
-contract_version: "0.1"
----
-
-# 电子签约版授权书影像（A0050）
-
-## 业务定位
-
-`catgId = 'A0050'` 表示电子签约版授权书影像。它与纸质/常规授权书（[[calibers/auth-media-a0004]]）在写入语义上是刻意隔离的：A0050 增量保存、仅新增不删除，禁止写入 A0004、禁止调用 `deleteFileByCatgId`。因此按流程号（`appNo`）追加历史版本是预期行为，不会覆盖既有电子授权书。
-
-```ground:caliber
-name: 电子签约版授权书影像
-predicate: "MediaFile.catgId = 'A0050'"
-scope: 增量保存，仅新增不删除，禁止写入 A0004、禁止调用 deleteFileByCatgId
-evidence: code
-```
-
-## 需求背景
-
-（本页暂无 `reqdoc_claims` 类型的需求文档证据。）
-
-幂等控制细节见 [[rules/electronic-auth-media-idempotent]]：以 `busiKey`/`userBusiKey`/`specifyFileName` 作为命中键。
-
-## 版本演进
-
-- v0（本页）：口径与隔离约束来自 [代码] 证据。
-
----END FILE---
-
----FILE: calibers/ca-upgrade-auth-media-a0049.md ---
----
-type: caliber
-title: CA升级授权书影像（A0049）
-page_key: calibers/ca-upgrade-auth-media-a0049
-domain: 文件/附件/媒体
-status: draft
-aliases: [A0049, CA升级授权书, CA 升级授权书影像]
-oid: 1
-scope:
-  databases: [lls.media]
-sources:
-  - code:MediaFile.catgId
-contract_version: "0.1"
----
-
-# CA升级授权书影像（A0049）
-
-## 业务定位
-
-`catgId = 'A0049'` 是 CA 升级授权书影像。它的关键特征是“双写”：同时写入运营中台与产融影像树。因此排查 A0049 影像缺失时，需要同时看两侧，而不能只看产融侧。
-
-```ground:caliber
-name: CA升级授权书影像
-predicate: "MediaFile.catgId = 'A0049'"
-scope: CA 升级授权书，同时写运营中台与产融影像树
-evidence: code
-```
-
-## 需求背景
-
-（本页暂无 `reqdoc_claims` 类型的需求文档证据。）
-
-与其他授权书类分类（[[calibers/auth-media-a0004]]、[[calibers/electronic-auth-media-a0050]]）的差异在于写入目标是一对多，而不是命名或幂等策略。
-
-## 版本演进
-
-- v0（本页）：口径来自 [代码] 证据。
-
----END FILE---
-
----FILE: calibers/legal-person-cert-media-a0007-a0008.md ---
----
-type: caliber
-title: 法人证件影像（A0007/A0008）
-page_key: calibers/legal-person-cert-media-a0007-a0008
-domain: 文件/附件/媒体
-status: draft
-aliases: [A0007, A0008, 法人证件影像, 法人证件类]
-oid: 1
-scope:
-  databases: [lls.media]
-sources:
-  - code:MediaFile.catgId
-contract_version: "0.1"
----
-
-# 法人证件影像（A0007/A0008）
-
-## 业务定位
-
-法人证件类影像使用 `catgId in ('A0007','A0008')` 这一组分类，并按企业法人证件类型再细分（`A000701`/`702`/`703`/`704`/`705` 等带后缀取值）。因此“法人证件是否齐全”的判断必须按后缀细分后逐类核对，不能只按前缀统计。
-
-```ground:caliber
-name: 法人证件影像
-predicate: "MediaFile.catgId in ('A0007','A0008')"
-scope: 按企业法人证件类型细分（A000701/702/703/704/705 等）
-evidence: code
-```
-
-## 需求背景
-
-（本页暂无 `reqdoc_claims` 类型的需求文档证据。）
-
-后缀细分与 [[concepts/catg-id]] 中“catgId 是分类维度”的说明一致：`catgId` 自身即可承载两级语义，不需要借助 `fileType`。
-
-## 版本演进
-
-- v0（本页）：口径来自 [代码] 证据；具体后缀与证件类型的完整对应表未在本次分析中给出。
-
----END FILE---
-
----FILE: calibers/operator-auth-cert-media-a0011-a0012.md ---
----
-type: caliber
-title: 操作人/授权类证件影像（A0011/A0012）
-page_key: calibers/operator-auth-cert-media-a0011-a0012
-domain: 文件/附件/媒体
-status: draft
-aliases: [A0011, A0012, 操作人证件影像, 授权类证件影像]
-oid: 1
-scope:
-  databases: [lls.media]
-sources:
-  - code:MediaFile.catgId
-  - code_path:CustMediaFacade.java:uploadMultiRole
-contract_version: "0.1"
----
-
-# 操作人/授权类证件影像（A0011/A0012）
-
-## 业务定位
-
-操作人/授权类证件影像使用 `catgId in ('A0011','A0012')`，并按被授权人证件类型细分（`A001101`/`102`/`103`/`104`/`105`、`A001201`/…）。这类影像按人隔离，因此查询时必须带 `userBusiKey`，详见 [[calibers/archived-media-busikey]]；在互通产品的多角色场景下还会按剩余角色重传（[[rules/multi-role-media-copy]]）。
-
-```ground:caliber
-name: 操作人/授权类证件影像
-predicate: "MediaFile.catgId in ('A0011','A0012')"
-scope: 按被授权人证件类型细分（A001101/102/103/104/105、A001201/…）
-evidence: code
-```
-
-## 需求背景
-
-（本页暂无 `reqdoc_claims` 类型的需求文档证据。）
-
-与 [[calibers/auth-media-a0004]] 一样，这两个分类共同出现在“按 `userBusiKey` 过滤”和“多角色复制”两条规则中。
-
-## 版本演进
-
-- v0（本页）：口径来自 [代码] 证据；后缀细分与证件类型的完整对应表未在本次分析中给出。
-
----END FILE---
-
----FILE: calibers/archived-media-busikey.md ---
----
-type: caliber
-title: 建档影像企业主键口径
-page_key: calibers/archived-media-busikey
-domain: 文件/附件/媒体
-status: draft
-aliases: [影像归属主键口径, busiKey 口径, 客户影像归属]
-oid: 1
-scope:
-  databases: [lls.media]
-sources:
-  - code:MediaFile.busiKey
-  - code:MediaFile.userBusiKey
-contract_version: "0.1"
----
-
-# 建档影像企业主键口径
-
-## 业务定位
-
-客户影像以产融企业 id 作为 `busiKey`（即 `cust_company_info.id`），这是“这棵树属于哪家企业”的锚点；对于 `A0004`/`A0011`/`A0012` 这类按人隔离的分类，还需要 `userBusiKey`（联系人 id）二次过滤，才能得到“某企业某人的授权书/证件影像”。
-
-混用这两个键会造成“企业级影像被当成人员影像”或漏取影像，二者边界见 [[concepts/busi-key]]。
-
-```ground:caliber
-name: 建档影像企业主键口径
-predicate: "MediaFile.busiKey = cust_company_info.id"
-scope: 客户影像以产融企业id为 busiKey，A0004/A0011/A0012 另按 userBusiKey（联系人id）过滤
-evidence: code
-```
-
-## 需求背景
-
-（本页暂无 `reqdoc_claims` 类型的需求文档证据。）
-
-项目/审批影像的 `busiKey` 则传项目或审批 id，与客户影像口径不同（对比 [[calibers/project-config-media]]）。
-
-## 版本演进
-
-- v0（本页）：口径来自 [代码] 证据。
-
----END FILE---
-
----FILE: calibers/project-config-media.md ---
----
-type: caliber
-title: 项目配置影像
-page_key: calibers/project-config-media
-domain: 文件/附件/媒体
-status: draft
-aliases: [项目配置影像, PROJECT_CONFIG, 项目上线审批影像]
-oid: 1
-scope:
-  databases: [lls.media]
-sources:
-  - code:MediaFile.busiKey
-  - code:MediaFile.catgId
-contract_version: "0.1"
----
-
-# 项目配置影像
-
-## 业务定位
-
-项目配置影像是项目上线审批影像树中的一类：`busiKey = projectApprovalId` 且 `catgId = ProjectApprovalMediaCatgEnum.PROJECT_CONFIG`。该目录采用“同项目重复推送先清空该目录再写入”的策略，即写入是替换而非追加。
-
-注意它与项目运营文件表 [[tables/project_file_info]] 不是一回事：前者在影像平台上、以审批 id 为归属；后者是运营文件的元数据登记。
-
-```ground:caliber
-name: 项目配置影像
-predicate: "MediaFile.busiKey = projectApprovalId 且 catgId = ProjectApprovalMediaCatgEnum.PROJECT_CONFIG"
-scope: 项目上线审批影像树，同项目重复推送先清空该目录再写入
-evidence: code
-```
-
-## 需求背景
-
-（本页暂无 `reqdoc_claims` 类型的需求文档证据。）
-
-“先清空再写入”与 [[calibers/electronic-auth-media-a0050]] 的“仅新增不删除”形成对照，两者是可被误用的兄弟口径。
-
-## 版本演进
-
-- v0（本页）：口径来自 [代码] 证据。
-
----END FILE---
-
----FILE: concepts/media-image.md ---
+---FILE: concepts/media.md ---
 ---
 type: concept
-title: 影像（媒体/文件/附件）
-page_key: concepts/media-image
+title: 影像
+page_key: media
 domain: 文件/附件/媒体
 status: draft
-aliases: [影像, 媒体, 文件, 附件]
+aliases: [media, 客户影像, 影像文件]
 oid: 1
 scope:
-  databases: [lls.media]
-sources:
-  - code:MediaFile
-maps_to: "MediaFile（lls.media 影像平台模型，modelCode=MA001）"
-field_targets: [MediaFile.modelCode]
-also_confused_with: [project_file_info（项目运营文件管理表）, AttachmentInfoDTO（表单附件）]
+  databases: [unknown]
+sources: ["term_bridge:影像", "code:MediaFacade/CustMediaFacade/IMediaOperaProvider"]
+contract_version: "0.1"
+maps_to: media_file
+adjudication: synonym
+field_targets: [media_file.catg_id, media_file.busi_key, media_file.user_busi_key]
+also_confused_with: [附件, 项目文件]
+---
+影像指通过 MediaFacade/CustMediaFacade 管理的客户文件，底层由 IMediaOperaProvider 维护，分类使用 catgId（[[catg_id]]），业务归属用 busiKey（[[busi_key]]）。影像与 [[attachment]]、[[project_file]] 是三套不同存储，容易混淆，判据见下。
+
+## 需求背景
+本期语义分析未提供需求文档主张；本概念来自术语桥证据。
+
+## 版本演进
+v0 初版：确立「影像」为 media_file 的同义词，并与附件、项目文件做边界切分；无 action=uncovered 的文档主张。
+
+边界：影像走 MediaFacade/CustMediaFacade + IMediaOperaProvider，分类用 catgId；附件走 AttachMentFacade/AttachmentInfoProvider；项目文件是 [[project_file_info]] 的元数据记录。
+
+关联：[[media_file]]、[[attachment]]、[[project_file]]、[[catg_id]]、[[busi_key]]。
+
+---END FILE---
+
+---FILE: concepts/attachment.md ---
+---
+type: concept
+title: 附件
+page_key: attachment
+domain: 文件/附件/媒体
+status: draft
+aliases: [attachment, 附件信息]
+oid: 1
+scope:
+  databases: [unknown]
+sources: ["term_bridge:附件", "code:AttachMentFacade/AttachmentInfoProvider"]
+contract_version: "0.1"
+maps_to: attachment_info
 adjudication: boundary
-boundary: "‘影像’指影像平台 MediaFile（catgId/busiKey/modelCode）；project_file_info 是项目运营文件元数据表，二者不同源，仅业务上都属“文件”域。"
-contract_version: "0.1"
+field_targets: []
+also_confused_with: [影像, 项目文件]
 ---
-
-# 影像（媒体/文件/附件）
-
-## 业务定位
-
-在口语与需求表述中，“影像”“媒体”“文件”“附件”经常被混用。本页给出本域裁决：当说的是“影像”时，指的是影像平台模型 [[tables/media_file]]（`lls.media`），它通过 `catgId`（分类）、`busiKey`（归属）、`modelCode`（模型，建档固定 `MA001`）三件套被定位。
-
-最容易混淆的有两个邻居：`project_file_info`（[[tables/project_file_info]]，项目运营文件管理表）与 `AttachmentInfoDTO`（表单附件）。它们都不在影像平台上，也不参与影像上传/删除/复制/信息变更事件（见 [[processes/client-media-event-routing]]）。
+附件通过 AttachMentFacade/AttachmentInfoProvider 查询，用于表单模板附件；与影像树（[[media]]）、项目文件（[[project_file]]）不是同一套存储。本概念以边界判定为主，不建立同义关系。
 
 ## 需求背景
-
-（本页暂无 `reqdoc_claims` 类型的需求文档证据。）
+本期语义分析未提供需求文档主张；本概念来自术语桥证据。
 
 ## 版本演进
+v0 初版：确立附件＝attachment_info 的边界判定；本期未获得附件字段级证据，故 frontmatter 未列 field_targets；无 action=uncovered 的文档主张。
 
-- v0（本页）：裁决边界来自 [代码] 证据；`AttachmentInfoDTO` 的字段与归属未在本次分析中展开。
+关联：[[attachment_info]]、[[media]]、[[project_file]]。
 
 ---END FILE---
 
----FILE: concepts/busi-key.md ---
+---FILE: concepts/project_file.md ---
 ---
 type: concept
-title: busiKey 业务主键
-page_key: concepts/busi-key
+title: 项目文件
+page_key: project_file
 domain: 文件/附件/媒体
 status: draft
-aliases: [busiKey, 业务主键, 影像业务主键]
+aliases: [project file, 项目运营文件]
 oid: 1
 scope:
-  databases: [lls.media]
-sources:
-  - code:MediaFile.busiKey
-maps_to: "MediaFile.busiKey"
-field_targets: [MediaFile.busiKey]
+  databases: [unknown]
+sources: ["term_bridge:项目文件", "code:ProjectFileController.java:buildQueryWrapper"]
+contract_version: "0.1"
+maps_to: project_file_info
+adjudication: boundary
+field_targets: [project_file_info.project_id, project_file_info.file_type, project_file_info.update_time]
+also_confused_with: [影像, 附件]
+---
+项目文件指 [[project_file_info]] 中登记的项目运营文件元数据（标题、描述、类型、关联项目ID），文件实体仍在对象存储；按 [[project_file_info]].file_type 分五类，口径见 [[project_file_type_cust]]、[[project_file_type_approve]]、[[project_file_type_check]]、[[project_file_type_collate]]、[[project_file_type_other]]。
+
+## 需求背景
+本期语义分析未提供需求文档主张；本概念来自术语桥证据。
+
+## 版本演进
+v0 初版：确立项目文件＝project_file_info 的边界判定，与影像树、附件区分；无 action=uncovered 的文档主张。
+
+关联：[[project_file_info]]、[[media]]、[[attachment]]、[[project_file_page_query]]。
+
+---END FILE---
+
+---FILE: concepts/catg_id.md ---
+---
+type: concept
+title: catgId（影像分类）
+page_key: catg_id
+domain: 文件/附件/媒体
+status: draft
+aliases: [分类ID, 影像分类]
+oid: 1
+scope:
+  databases: [unknown]
+sources: ["term_bridge:catgId", "code:MediaFacade.java:getMediaCategoryDisplayName", "code:CustMediaFacade.java:uploadElectronicAuthMediaFile"]
+contract_version: "0.1"
+maps_to: media_file.catg_id
+adjudication: boundary
+field_targets: [media_file.catg_id]
+also_confused_with: [fileType]
+---
+catgId 是影像分类编码（如 A0004 授权书、A0007 法人证件等），落在 [[media_file]].catg_id 上；按操作人过滤、分类名回退等规则都以此为键，口径见 [[media_catg_a0004]]、[[media_catg_a0049]]、[[media_catg_a0050]]。
+
+## 需求背景
+本期语义分析未提供需求文档主张；本概念来自术语桥证据。
+
+## 版本演进
+v0 初版：确立 catgId 与 fileType 的边界（前者影像分类编码，后者为 [[project_file_info]].file_type 的文件模块类型）；无 action=uncovered 的文档主张。
+
+关联：[[media_file]]、[[media]]、[[catg_operator_filter]]、[[media_category_name_fallback]]。
+
+---END FILE---
+
+---FILE: concepts/busi_key.md ---
+---
+type: concept
+title: busiKey（影像业务键）
+page_key: busi_key
+domain: 文件/附件/媒体
+status: draft
+aliases: [业务键, 业务KEY]
+oid: 1
+scope:
+  databases: [unknown]
+sources: ["term_bridge:busiKey", "code:ProjectMediaFacade.java:uploadProjectConfigFiles", "code:CustMediaFacade.java:hasAuthorizationAgreementMedia"]
+contract_version: "0.1"
+maps_to: media_file.busi_key
+adjudication: boundary
+field_targets: [media_file.busi_key, media_file.user_busi_key]
 also_confused_with: [userBusiKey]
-adjudication: boundary
-boundary: "busiKey 一般为产融企业id/项目id；userBusiKey 为联系人id，用于特定分类按人隔离。"
-contract_version: "0.1"
 ---
-
-# busiKey 业务主键
-
-## 业务定位
-
-`busiKey` 是影像归属的业务主键，决定影像挂在产融的哪棵树上：客户影像传产融企业 id，项目/审批影像传项目或审批 id（客户侧口径见 [[calibers/archived-media-busikey]]，项目侧见 [[calibers/project-config-media]]）。
-
-它与 `userBusiKey` 的边界是本域最易出错之处：`busiKey` 回答“属于哪个主体（企业/项目）”，`userBusiKey` 回答“属于哪个人（联系人/操作人）”。只有 `A0004`/`A0011`/`A0012` 等按人隔离的分类才需要 `userBusiKey` 参与过滤；写成“任何分类都要带 userBusiKey”即为越界。
+busiKey 通常为企业 id 或运营中台客户 id，用于按业务对象组织影像；userBusiKey 为联系人 id，用于区分操作人影像，二者是不同粒度的业务键，勿混用。
 
 ## 需求背景
-
-（本页暂无 `reqdoc_claims` 类型的需求文档证据。）
+本期语义分析未提供需求文档主张；本概念来自术语桥证据。
 
 ## 版本演进
+v0 初版：确立 busiKey 与 userBusiKey 的边界；无 action=uncovered 的文档主张。
 
-- v0（本页）：边界来自 [代码] 证据。
+关联：[[media_file]]、[[media]]、[[catg_operator_filter]]、[[company_auth_media_existence]]。
 
 ---END FILE---
 
----FILE: concepts/catg-id.md ---
+---FILE: calibers/project_file_type_cust.md ---
 ---
-type: concept
-title: catgId 影像分类ID
-page_key: concepts/catg-id
+type: caliber
+title: 项目文件类型-客户
+page_key: project_file_type_cust
 domain: 文件/附件/媒体
 status: draft
-aliases: [catgId, 影像分类ID, 影像分类]
+aliases: [file_type=cust]
 oid: 1
 scope:
-  databases: [lls.media]
-sources:
-  - code:MediaFile.catgId
-maps_to: "MediaFile.catgId（如 A0004/A0049/A0050）"
-field_targets: [MediaFile.catgId]
-also_confused_with: [modelCode, fileType]
-adjudication: boundary
-boundary: "catgId 是影像分类维度，modelCode 是模型维度（建档固定 MA001），project_file_info.file_type 是另一套文件模块类型（cust/approve/check/collate/other）。"
+  databases: [unknown]
+sources: ["db:project_file_info.file_type"]
 contract_version: "0.1"
 ---
-
-# catgId 影像分类ID
-
-## 业务定位
-
-`catgId` 是影像的分类维度，也是绝大多数影像业务口径的谓词载体：授权书 `A0004`（[[calibers/auth-media-a0004]]）、CA 升级授权书 `A0049`（[[calibers/ca-upgrade-auth-media-a0049]]）、电子签约版授权书 `A0050`（[[calibers/electronic-auth-media-a0050]]）、法人证件 `A0007`/`A0008`（[[calibers/legal-person-cert-media-a0007-a0008]]）、操作人/授权类证件 `A0011`/`A0012`（[[calibers/operator-auth-cert-media-a0011-a0012]]）。分类还支持后缀细分（如 `A000701`、`A001101`），即 `catgId` 自带两级语义。
-
-三个概念不可互译：`catgId`（影像分类）、`modelCode`（影像模型，建档固定 `MA001`）、`project_file_info.file_type`（运营文件模块类型 `cust/approve/check/collate/other`）。把 `file_type` 当成 `catgId` 使用会直接落到另一张表 [[tables/project_file_info]]。
+「客户」类项目运营文件口径，用于项目文件列表的精确筛选。
 
 ## 需求背景
-
-（本页暂无 `reqdoc_claims` 类型的需求文档证据。）
-
-## 版本演进
-
-- v0（本页）：边界来自 [代码] 与 [DB] 证据；`catgId` 的完整枚举（含全部后缀）未在本次分析中给出。
-
----END FILE---
-
----FILE: concepts/specify-file-name.md ---
----
-type: concept
-title: specifyFileName 指定文件名
-page_key: concepts/specify-file-name
-domain: 文件/附件/媒体
-status: draft
-aliases: [specifyFileName, 指定文件名]
-oid: 1
-scope:
-  databases: [lls.media]
-sources:
-  - code:MediaFile.specifyFileName
-maps_to: "MediaFile.specifyFileName"
-field_targets: [MediaFile.specifyFileName]
-also_confused_with: [fileRename, fileName]
-adjudication: boundary
-boundary: "specifyFileName 为业务指定名（常不带后缀），fileRename 为展示名，fileName 为原始文件名。"
-contract_version: "0.1"
----
-
-# specifyFileName 指定文件名
-
-## 业务定位
-
-`specifyFileName` 是业务语义名（通常不带后缀），在 [[tables/media_file]] 的命名三兄弟中承担“业务怎么称呼这份影像”。边界：`fileRename` 是展示名/重命名后的名称，`fileName` 是原始文件名（`A0004` 缺省时置为“授权书.pdf”）。
-
-它同时是若干业务规则的参与字段：A0004 的默认命名口径（[[rules/auth-media-default-file-name]]）与 A0050 的幂等命中键（[[rules/electronic-auth-media-idempotent]]，命中组合为 `busiKey`/`userBusiKey`/`specifyFileName`）。
-
-## 需求背景
-
-（本页暂无 `reqdoc_claims` 类型的需求文档证据。）
+本期语义分析未提供需求文档主张；口径来自库表取值证据。
 
 ## 版本演进
+v0 初版：口径来自 project_file_info.file_type 取值证据；无 action=uncovered 的文档主张。
 
-- v0（本页）：边界来自 [代码] 证据。
-
----END FILE---
-
----FILE: rules/project-file-save-or-update.md ---
----
-type: rule
-title: 项目运营文件保存/更新规则
-page_key: rules/project-file-save-or-update
-domain: 文件/附件/媒体
-status: draft
-aliases: [项目运营文件保存规则, saveOrUpdate 规则]
-oid: 1
-scope:
-  databases: [project_file_info]
-sources:
-  - code_path:ProjectFileController.java:saveOrUpdate
-contract_version: "0.1"
----
-
-# 项目运营文件保存/更新规则
-
-## 业务定位
-
-`project_file_info` 的新增与编辑共用一个入口：`saveOrUpdate` 要求入参 `id` 不能为空；按 `id` 查得记录则仅更新 `title`、`content` 及更新人/时间；查不到则按入参新增并写入创建人/时间。
-
-对使用方的直接影响：能否“保存成功”取决于 `id` 是否命中既有记录，而不是内容是否重复——因此该接口不能被当作“按标题去重写入”的手段。
-
-```ground:rule
-name: 项目运营文件保存/更新规则
-content: saveOrUpdate 要求入参 id 不能为空；按 id 查得记录则仅更新 title、content 及更新人/时间；查不到则按入参新增并写入创建人/时间。
-impact: 项目运营文件的新增与编辑语义由是否存在记录决定，不能用于按标题去重。
-field_targets:
-  - project_file_info.id
-  - project_file_info.title
-  - project_file_info.content
-evidence: "code_path:ProjectFileController.java:saveOrUpdate"
+```ground:caliber
+name: 项目文件类型-客户
+predicate: project_file_info.file_type = 'cust'
+scope: 项目运营文件管理
+evidence: db
 ```
 
-## 需求背景
-
-（本页暂无 `reqdoc_claims` 类型的需求文档证据。）
-
-表结构见 [[tables/project_file_info]]；列表读取口径见 [[rules/project-file-page-query]]。
-
-## 版本演进
-
-- v0（本页）：规则来自 [代码] 证据。
+关联：[[project_file_info]]、[[project_file]]、[[project_file_page_query]]。
 
 ---END FILE---
 
----FILE: rules/project-file-page-query.md ---
+---FILE: calibers/project_file_type_approve.md ---
 ---
-type: rule
-title: 项目运营文件分页查询规则
-page_key: rules/project-file-page-query
+type: caliber
+title: 项目文件类型-审批
+page_key: project_file_type_approve
 domain: 文件/附件/媒体
 status: draft
-aliases: [项目运营文件列表口径, buildQueryWrapper 规则, 项目文件检索口径]
+aliases: [file_type=approve]
 oid: 1
 scope:
-  databases: [project_file_info]
-sources:
-  - code_path:ProjectFileController.java:buildQueryWrapper
+  databases: [unknown]
+sources: ["db:project_file_info.file_type"]
 contract_version: "0.1"
 ---
-
-# 项目运营文件分页查询规则
-
-## 业务定位
-
-项目运营文件列表的检索口径是：`projectId`、`fileType` 为等值过滤，`title`、`content` 为模糊过滤，结果按 `updateTime` 倒序。
-
-这决定了使用方式：先用“项目 + 模块类型”精确定位一个范围，再用标题/描述做模糊收窄；因为排序键是 `updateTime`，列表的“最新”语义是“最近被编辑过”，而不是“最近创建”。
-
-```ground:rule
-name: 项目运营文件分页查询规则
-content: projectId、fileType 为等值过滤，title、content 为模糊过滤，按 updateTime 倒序。
-impact: 列表检索口径：项目+模块类型精确定位，标题/描述模糊。
-field_targets:
-  - project_file_info.project_id
-  - project_file_info.file_type
-  - project_file_info.title
-  - project_file_info.content
-evidence: "code_path:ProjectFileController.java:buildQueryWrapper"
-```
+「审批」类项目运营文件口径，用于项目文件列表的精确筛选。
 
 ## 需求背景
-
-（本页暂无 `reqdoc_claims` 类型的需求文档证据。）
-
-字段语义见 [[tables/project_file_info]]；写入语义见 [[rules/project-file-save-or-update]]。
+本期语义分析未提供需求文档主张；口径来自库表取值证据。
 
 ## 版本演进
+v0 初版：口径来自 project_file_info.file_type 取值证据；无 action=uncovered 的文档主张。
 
-- v0（本页）：规则来自 [代码] 证据。
+```ground:caliber
+name: 项目文件类型-审批
+predicate: project_file_info.file_type = 'approve'
+scope: 项目运营文件管理
+evidence: db
+```
+
+关联：[[project_file_info]]、[[project_file]]、[[project_file_page_query]]。
 
 ---END FILE---
 
----FILE: rules/auth-media-default-file-name.md ---
+---FILE: calibers/project_file_type_check.md ---
 ---
-type: rule
-title: 授权书默认文件名
-page_key: rules/auth-media-default-file-name
+type: caliber
+title: 项目文件类型-审核
+page_key: project_file_type_check
 domain: 文件/附件/媒体
 status: draft
-aliases: [A0004 默认文件名, 授权书.pdf, 授权书默认名]
+aliases: [file_type=check]
 oid: 1
 scope:
-  databases: [lls.media]
-sources:
-  - code_path:CustMediaFacade.java:upload
+  databases: [unknown]
+sources: ["db:project_file_info.file_type"]
 contract_version: "0.1"
 ---
-
-# 授权书默认文件名
-
-## 业务定位
-
-当 `catgId = A0004`（[[calibers/auth-media-a0004]]）时，系统对命名做强兜底：`fileName` 缺省置为「授权书.pdf」，`specifyFileName` 缺省置为「授权书」。
-
-因此 A0004 授权书影像的名称在该场景下不具区分度，按名称做筛选或对账会退化为“全选”。区分应回到 `busiKey`/`userBusiKey`（[[calibers/archived-media-busikey]]）与分类本身。
-
-```ground:rule
-name: 授权书默认文件名
-content: catgId=A0004 时，fileName 缺省置为「授权书.pdf」，specifyFileName 缺省置为「授权书」。
-impact: A0004 授权书影像有强默认命名口径。
-field_targets:
-  - MediaFile.fileName
-  - MediaFile.specifyFileName
-evidence: "code_path:CustMediaFacade.java:upload"
-```
+「审核」类项目运营文件口径，用于项目文件列表的精确筛选。
 
 ## 需求背景
-
-（本页暂无 `reqdoc_claims` 类型的需求文档证据。）
-
-命名三字段的边界见 [[concepts/specify-file-name]]。
+本期语义分析未提供需求文档主张；口径来自库表取值证据。
 
 ## 版本演进
+v0 初版：口径来自 project_file_info.file_type 取值证据；无 action=uncovered 的文档主张。
 
-- v0（本页）：规则来自 [代码] 证据。
+```ground:caliber
+name: 项目文件类型-审核
+predicate: project_file_info.file_type = 'check'
+scope: 项目运营文件管理
+evidence: db
+```
+
+关联：[[project_file_info]]、[[project_file]]、[[project_file_page_query]]。
 
 ---END FILE---
 
----FILE: rules/electronic-auth-media-idempotent.md ---
+---FILE: calibers/project_file_type_collate.md ---
 ---
-type: rule
-title: 电子签约版授权书幂等
-page_key: rules/electronic-auth-media-idempotent
+type: caliber
+title: 项目文件类型-整理
+page_key: project_file_type_collate
 domain: 文件/附件/媒体
 status: draft
-aliases: [A0050 幂等, 电子授权书去重, skipIfSameProcessExists]
+aliases: [file_type=collate]
 oid: 1
 scope:
-  databases: [lls.media]
-sources:
-  - code_path:CustMediaFacade.java:uploadElectronicAuthMediaFile
+  databases: [unknown]
+sources: ["db:project_file_info.file_type"]
 contract_version: "0.1"
 ---
-
-# 电子签约版授权书幂等
-
-## 业务定位
-
-电子签约版授权书（[[calibers/electronic-auth-media-a0050]]）的写入是“追加式”的：`A0050` 上传前若 `skipIfSameProcessExists` 且按 `busiKey`/`userBusiKey`/`specifyFileName` 命中既有影像，则跳过；整体策略为仅新增不删除，禁止写入 `A0004`、禁止调用 `deleteFileByCatgId`。
-
-使用方影响：电子授权书按流程号（`appNo`）累积，历史影像不会被覆盖或清除；如果期望“改一份就替换一份”，那是不成立的预期。
-
-```ground:rule
-name: 电子签约版授权书幂等
-content: A0050 上传前若 skipIfSameProcessExists 且按 busiKey/userBusiKey/specifyFileName 命中既有影像，则跳过；仅新增不删除，禁止写入 A0004、禁止 deleteFileByCatgId。
-impact: 电子授权书按流程号（appNo）追加，不覆盖历史。
-field_targets:
-  - MediaFile.catgId
-  - MediaFile.specifyFileName
-  - MediaFile.userBusiKey
-evidence: "code_path:CustMediaFacade.java:uploadElectronicAuthMediaFile"
-```
+「整理」类项目运营文件口径，用于项目文件列表的精确筛选。
 
 ## 需求背景
-
-（本页暂无 `reqdoc_claims` 类型的需求文档证据。）
-
-与项目配置影像的“先清空再写入”策略形成对照，见 [[calibers/project-config-media]]。
+本期语义分析未提供需求文档主张；口径来自库表取值证据。
 
 ## 版本演进
+v0 初版：口径来自 project_file_info.file_type 取值证据；无 action=uncovered 的文档主张。
 
-- v0（本页）：规则来自 [代码] 证据。
+```ground:caliber
+name: 项目文件类型-整理
+predicate: project_file_info.file_type = 'collate'
+scope: 项目运营文件管理
+evidence: db
+```
+
+关联：[[project_file_info]]、[[project_file]]、[[project_file_page_query]]。
 
 ---END FILE---
 
----FILE: rules/archived-media-isdo.md ---
+---FILE: calibers/project_file_type_other.md ---
 ---
-type: rule
-title: 建档影像仅在建档流程实时处理
-page_key: rules/archived-media-isdo
+type: caliber
+title: 项目文件类型-其他
+page_key: project_file_type_other
 domain: 文件/附件/媒体
 status: draft
-aliases: [isdo 判断, 建档影像实时处理, 变更影像延后处理]
+aliases: [file_type=other]
 oid: 1
 scope:
-  databases: [lls.media]
-sources:
-  - code_path:CustMediaFacade.java:isdo
+  databases: [unknown]
+sources: ["db:project_file_info.file_type"]
 contract_version: "0.1"
 ---
-
-# 建档影像仅在建档流程实时处理
-
-## 业务定位
-
-并不是所有客户影像回调都会立刻落库：`isdo()` 判断要求“影像对应企业存在于产融，且非变更流程（`CustSourceEnum.PLATFORM_PUSH` 或非变更）”时才实时处理；变更类影像则在变更审核通过后统一拉取。
-
-这样做的意图是避免变更流程中的影像回调与变更流程自身产生冲突（例如变更未生效就先把影像挂上）。排查“影像为什么没立刻出现”时，应先确认该影像是否属于变更流程，而不是先怀疑同步链路。
-
-```ground:rule
-name: 建档影像仅在建档流程实时处理
-content: isdo() 判断：影像对应企业存在于产融，且非变更流程（CustSourceEnum.PLATFORM_PUSH 或非变更）时才实时处理；变更影像审核通过后统一拉取。
-impact: 变更类影像回调不实时落库，避免与变更流程冲突。
-field_targets:
-  - MediaFile.busiKey
-evidence: "code_path:CustMediaFacade.java:isdo"
-```
+「其他」类项目运营文件口径，用于项目文件列表的精确筛选。
 
 ## 需求背景
-
-（本页暂无 `reqdoc_claims` 类型的需求文档证据。）
-
-前置的业务类型路由见 [[processes/media-busi-type-routing]]。
+本期语义分析未提供需求文档主张；口径来自库表取值证据。
 
 ## 版本演进
+v0 初版：口径来自 project_file_info.file_type 取值证据；无 action=uncovered 的文档主张。
 
-- v0（本页）：规则来自 [代码] 证据。
+```ground:caliber
+name: 项目文件类型-其他
+predicate: project_file_info.file_type = 'other'
+scope: 项目运营文件管理
+evidence: db
+```
+
+关联：[[project_file_info]]、[[project_file]]、[[project_file_page_query]]。
 
 ---END FILE---
 
----FILE: rules/multi-role-media-copy.md ---
+---FILE: calibers/cust_cert_success.md ---
 ---
-type: rule
-title: 多角色建档影像复制
-page_key: rules/multi-role-media-copy
+type: caliber
+title: 客户认证成功
+page_key: cust_cert_success
 domain: 文件/附件/媒体
 status: draft
-aliases: [uploadMultiRole, 多角色影像复制, companyTypes 复制影像]
+aliases: [建档成功口径]
 oid: 1
 scope:
-  databases: [lls.media]
-sources:
-  - code_path:CustMediaFacade.java:uploadMultiRole
+  databases: [unknown]
+sources: ["code:CustCompanyInfoApplication.java:updateCustBuildStatus"]
 contract_version: "0.1"
 ---
-
-# 多角色建档影像复制
-
-## 业务定位
-
-互通产品场景下，运营中台回传的是单角色，而产融目标系统可能存在多角色。为此系统对 `A0004`/`A0011`/`A0012`（[[calibers/auth-media-a0004]]、[[calibers/operator-auth-cert-media-a0011-a0012]]）按 `extText.companyTypes` 的剩余角色重传影像。
-
-结果与影响：同一份授权书/操作人影像会按角色复制多份。做影像去重统计时，不能假设“一份授权书只有一条记录”，应以角色维度聚合。
-
-```ground:rule
-name: 多角色建档影像复制
-content: 互通产品下运营中台回传单角色，产融目标系统可能多角色，对 A0004/A0011/A0012 按 extText.companyTypes 剩余角色重传影像。
-impact: 同一授权书/操作人影像会按角色复制多份。
-field_targets:
-  - MediaFile.catgId
-  - MediaFile.companyType
-evidence: "code_path:CustMediaFacade.java:uploadMultiRole"
-```
+判定企业已完成认证/建档的口径，是 [[cust_build_status]] 状态机的终态之一。
 
 ## 需求背景
-
-（本页暂无 `reqdoc_claims` 类型的需求文档证据。）
+本期语义分析未提供需求文档主张；口径来自代码取值证据。
 
 ## 版本演进
+v0 初版：口径来自 updateCustBuildStatus 证据；无 action=uncovered 的文档主张。
 
-- v0（本页）：规则来自 [代码] 证据；`companyType` 字段未出现在本次字段语义清单中，其取值集合待补充。
+```ground:caliber
+name: 客户认证成功
+predicate: cust_company_info.cust_build_status = 'BUILD_SUCCESS'
+scope: 企业建档
+evidence: code
+```
+
+关联：[[cust_company_info]]、[[CustBuildStatusEnum]]、[[cust_build_status]]。
 
 ---END FILE---
 
----FILE: rules/media-download-url.md ---
+---FILE: calibers/platform_push_source.md ---
+---
+type: caliber
+title: 平台推送来源
+page_key: platform_push_source
+domain: 文件/附件/媒体
+status: draft
+aliases: [PLATFORM_PUSH 口径]
+oid: 1
+scope:
+  databases: [unknown]
+sources: ["code:CustMediaFacade.java:isdo"]
+contract_version: "0.1"
+---
+判定建档数据来自运营中台推送的口径，直接影响影像是否实时同步，见 [[build_media_sync_condition]]。
+
+## 需求背景
+本期语义分析未提供需求文档主张；口径来自代码取值证据。
+
+## 版本演进
+v0 初版：口径来自 CustMediaFacade.isdo 证据；无 action=uncovered 的文档主张。
+
+```ground:caliber
+name: 平台推送来源
+predicate: cust_company_info.cust_source = 'PLATFORM_PUSH'
+scope: 企业建档
+evidence: code
+```
+
+关联：[[cust_company_info]]、[[CustSourceEnum]]、[[build_media_sync_condition]]。
+
+---END FILE---
+
+---FILE: calibers/admin_person.md ---
+---
+type: caliber
+title: 管理员联系人
+page_key: admin_person
+domain: 文件/附件/媒体
+status: draft
+aliases: [user_type=admin]
+oid: 1
+scope:
+  databases: [unknown]
+sources: ["code:PlatFormMediaApplication.java:personInfoService.getOne"]
+contract_version: "0.1"
+---
+判定企业下管理员联系人的口径，是影像查询与按操作人过滤的前置条件，见 [[cust_media_precheck]]、[[catg_operator_filter]]。
+
+## 需求背景
+本期语义分析未提供需求文档主张；口径来自代码取值证据。
+
+## 版本演进
+v0 初版：口径来自 personInfoService.getOne 查询条件证据；无 action=uncovered 的文档主张。
+
+```ground:caliber
+name: 管理员联系人
+predicate: cust_person_info.user_type = 'admin'
+scope: 客户联系人
+evidence: code
+```
+
+关联：[[cust_person_info]]、[[UserTypeEnum]]、[[cust_media_precheck]]。
+
+---END FILE---
+
+---FILE: calibers/role_supplier.md ---
+---
+type: caliber
+title: 供应商角色
+page_key: role_supplier
+domain: 文件/附件/媒体
+status: draft
+aliases: [company_type=SUPPLIER]
+oid: 1
+scope:
+  databases: [unknown]
+sources: ["code:CustCompanyInfoApplication.java:createCustCompany"]
+contract_version: "0.1"
+---
+供应商角色口径，落在联系人的单个角色字段上；企业主表以 JSON 数组承载多角色，见 [[CustCompanyTypeEnum]]。
+
+## 需求背景
+本期语义分析未提供需求文档主张；口径来自代码取值证据。
+
+## 版本演进
+v0 初版：口径来自 createCustCompany 证据；无 action=uncovered 的文档主张。
+
+```ground:caliber
+name: 供应商角色
+predicate: cust_person_info.company_type = 'SUPPLIER'
+scope: 客户角色
+evidence: code
+```
+
+关联：[[cust_person_info]]、[[cust_role_info]]、[[CustCompanyTypeEnum]]。
+
+---END FILE---
+
+---FILE: calibers/role_core.md ---
+---
+type: caliber
+title: 核心企业角色
+page_key: role_core
+domain: 文件/附件/媒体
+status: draft
+aliases: [company_type=CORE]
+oid: 1
+scope:
+  databases: [unknown]
+sources: ["code:CustCompanyInfoApplication.java:createCustCompany"]
+contract_version: "0.1"
+---
+核心企业角色口径，落在联系人的单个角色字段上。
+
+## 需求背景
+本期语义分析未提供需求文档主张；口径来自代码取值证据。
+
+## 版本演进
+v0 初版：口径来自 createCustCompany 证据；无 action=uncovered 的文档主张。
+
+```ground:caliber
+name: 核心企业角色
+predicate: cust_person_info.company_type = 'CORE'
+scope: 客户角色
+evidence: code
+```
+
+关联：[[cust_person_info]]、[[cust_role_info]]、[[CustCompanyTypeEnum]]。
+
+---END FILE---
+
+---FILE: calibers/role_dealer.md ---
+---
+type: caliber
+title: 经销商角色
+page_key: role_dealer
+domain: 文件/附件/媒体
+status: draft
+aliases: [company_type=DEALER]
+oid: 1
+scope:
+  databases: [unknown]
+sources: ["code:CustCompanyInfoApplication.java:createCustCompany"]
+contract_version: "0.1"
+---
+经销商角色口径，落在联系人的单个角色字段上。
+
+## 需求背景
+本期语义分析未提供需求文档主张；口径来自代码取值证据。
+
+## 版本演进
+v0 初版：口径来自 createCustCompany 证据；无 action=uncovered 的文档主张。
+
+```ground:caliber
+name: 经销商角色
+predicate: cust_person_info.company_type = 'DEALER'
+scope: 客户角色
+evidence: code
+```
+
+关联：[[cust_person_info]]、[[cust_role_info]]、[[CustCompanyTypeEnum]]。
+
+---END FILE---
+
+---FILE: calibers/role_finance.md ---
+---
+type: caliber
+title: 金融机构角色
+page_key: role_finance
+domain: 文件/附件/媒体
+status: draft
+aliases: [company_type=FINANCE]
+oid: 1
+scope:
+  databases: [unknown]
+sources: ["code:CustCompanyInfoApplication.java:createCustCompany"]
+contract_version: "0.1"
+---
+金融机构角色口径，落在联系人的单个角色字段上。
+
+## 需求背景
+本期语义分析未提供需求文档主张；口径来自代码取值证据。
+
+## 版本演进
+v0 初版：口径来自 createCustCompany 证据；无 action=uncovered 的文档主张。
+
+```ground:caliber
+name: 金融机构角色
+predicate: cust_person_info.company_type = 'FINANCE'
+scope: 客户角色
+evidence: code
+```
+
+关联：[[cust_person_info]]、[[cust_role_info]]、[[CustCompanyTypeEnum]]。
+
+---END FILE---
+
+---FILE: calibers/media_catg_a0004.md ---
+---
+type: caliber
+title: 授权书影像分类
+page_key: media_catg_a0004
+domain: 文件/附件/媒体
+status: draft
+aliases: [catgId=A0004, 授权书分类]
+oid: 1
+scope:
+  databases: [unknown]
+sources: ["code:CustMediaFacade.java:hasAuthorizationAgreementMedia", "code:PlatFormMediaApplication.java:lookupCustMedia"]
+contract_version: "0.1"
+---
+影像树中企业授权书分类口径。该分类受按操作人过滤规则 [[catg_operator_filter]] 约束，并用于授权书存在性判断 [[company_auth_media_existence]]；规则 [[electronic_auth_incremental_upload]] 明确禁止向本分类写入电子授权书。
+
+## 需求背景
+本期语义分析未提供需求文档主张；口径来自代码取值证据。
+
+## 版本演进
+v0 初版：口径来自 lookupCustMedia、hasAuthorizationAgreementMedia 证据；无 action=uncovered 的文档主张。
+
+```ground:caliber
+name: 授权书影像分类
+predicate: media_file.catg_id = 'A0004'
+scope: 影像树
+evidence: code
+```
+
+关联：[[media_file]]、[[catg_id]]、[[company_auth_media_existence]]、[[catg_operator_filter]]。
+
+---END FILE---
+
+---FILE: calibers/media_catg_a0049.md ---
+---
+type: caliber
+title: CA升级授权书分类
+page_key: media_catg_a0049
+domain: 文件/附件/媒体
+status: draft
+aliases: [catgId=A0049, CA升级授权书]
+oid: 1
+scope:
+  databases: [unknown]
+sources: ["code:CustMediaFacade.java:uploadCaUpgradeAuthMediaFile"]
+contract_version: "0.1"
+---
+影像树中 CA 升级授权书分类口径，上传遵循双端上传规则 [[dual_side_media_upload]]。
+
+## 需求背景
+本期语义分析未提供需求文档主张；口径来自代码取值证据。
+
+## 版本演进
+v0 初版：口径来自 uploadCaUpgradeAuthMediaFile 证据；无 action=uncovered 的文档主张。
+
+```ground:caliber
+name: CA升级授权书分类
+predicate: media_file.catg_id = 'A0049'
+scope: 影像树
+evidence: code
+```
+
+关联：[[media_file]]、[[catg_id]]、[[dual_side_media_upload]]。
+
+---END FILE---
+
+---FILE: calibers/media_catg_a0050.md ---
+---
+type: caliber
+title: 电子授权书分类
+page_key: media_catg_a0050
+domain: 文件/附件/媒体
+status: draft
+aliases: [catgId=A0050, 电子授权书]
+oid: 1
+scope:
+  databases: [unknown]
+sources: ["code:CustMediaFacade.java:uploadElectronicAuthMediaFile"]
+contract_version: "0.1"
+---
+影像树中电子授权书分类口径，仅新增不删除，规则见 [[electronic_auth_incremental_upload]]。
+
+## 需求背景
+本期语义分析未提供需求文档主张；口径来自代码取值证据。
+
+## 版本演进
+v0 初版：口径来自 uploadElectronicAuthMediaFile 证据；无 action=uncovered 的文档主张。
+
+```ground:caliber
+name: 电子授权书分类
+predicate: media_file.catg_id = 'A0050'
+scope: 影像树
+evidence: code
+```
+
+关联：[[media_file]]、[[catg_id]]、[[electronic_auth_incremental_upload]]。
+
+---END FILE---
+
+---FILE: rules/cust_media_precheck.md ---
+---
+type: rule
+title: 客户影像查询前置校验
+page_key: cust_media_precheck
+domain: 文件/附件/媒体
+status: draft
+aliases: [影像查询前置校验]
+oid: 1
+scope:
+  databases: [unknown]
+sources: ["code:PlatFormMediaApplication.java:listCustMediaFile"]
+contract_version: "0.1"
+---
+查询客户影像（[[media]]）时必须传 companyType；随后按 pplatCustId 查企业，再查管理员联系人与角色记录，任一不存在即抛异常。该规则以 [[cust_company_info]]、[[cust_person_info]]、[[cust_role_info]] 三张表为判定依据。
+
+## 需求背景
+本期语义分析未提供需求文档主张；规则来自代码证据。
+
+## 版本演进
+v0 初版：规则来自 listCustMediaFile 证据；无 action=uncovered 的文档主张。
+
+```ground:rule
+name: 客户影像查询前置校验
+content: 查询客户影像时必须传 companyType；根据 pplatCustId 查企业，再查管理员联系人和角色记录，任一不存在抛异常。
+impact: 阻止无角色或管理员的企业查询影像
+field_targets: [cust_company_info.id, cust_person_info.user_type, cust_role_info.role_type]
+evidence: PlatFormMediaApplication.java:listCustMediaFile
+```
+
+关联：[[media]]、[[admin_person]]、[[cust_company_info]]、[[cust_person_info]]、[[cust_role_info]]。
+
+---END FILE---
+
+---FILE: rules/catg_operator_filter.md ---
+---
+type: rule
+title: 特定分类按操作人过滤
+page_key: catg_operator_filter
+domain: 文件/附件/媒体
+status: draft
+aliases: [按操作人过滤影像]
+oid: 1
+scope:
+  databases: [unknown]
+sources: ["code:PlatFormMediaApplication.java:lookupCustMedia"]
+contract_version: "0.1"
+---
+查询影像时，对 A0004/A0011/A0012 分类的文件只保留 userBusiKey 等于当前管理员 id 的记录，确保授权书与操作人证件只返回当前操作人的影像。涉及分类口径 [[media_catg_a0004]] 与业务键 [[busi_key]]。
+
+## 需求背景
+本期语义分析未提供需求文档主张；规则来自代码证据。
+
+## 版本演进
+v0 初版：规则来自 lookupCustMedia 证据；无 action=uncovered 的文档主张。
+
+```ground:rule
+name: 特定分类按操作人过滤
+content: 查询影像时，对 A0004/A0011/A0012 分类的文件，只保留 userBusiKey 等于当前管理员 id 的记录。
+impact: 确保授权书/操作人证件只返回当前操作人的影像
+field_targets: [media_file.catg_id, media_file.user_busi_key]
+evidence: PlatFormMediaApplication.java:lookupCustMedia
+```
+
+关联：[[media_file]]、[[catg_id]]、[[busi_key]]、[[admin_person]]、[[media_catg_a0004]]。
+
+---END FILE---
+
+---FILE: rules/project_config_overwrite_upload.md ---
+---
+type: rule
+title: 项目配置文件覆盖上传
+page_key: project_config_overwrite_upload
+domain: 文件/附件/媒体
+status: draft
+aliases: [项目配置影像覆盖]
+oid: 1
+scope:
+  databases: [unknown]
+sources: ["code:ProjectMediaFacade.java:uploadProjectConfigFiles"]
+contract_version: "0.1"
+---
+上传项目配置文件到影像树前，先删除该 projectApprovalId 下 PROJECT_CONFIG 分类的所有影像，再写入新文件，保证同项目重复推送时配置目录不残留旧文件。与「只增不删」的 [[electronic_auth_incremental_upload]] 形成对照。
+
+## 需求背景
+本期语义分析未提供需求文档主张；规则来自代码证据。
+
+## 版本演进
+v0 初版：规则来自 uploadProjectConfigFiles 证据；无 action=uncovered 的文档主张。
+
+```ground:rule
+name: 项目配置文件覆盖上传
+content: 上传项目配置文件到影像树前，先删除该 projectApprovalId 下 PROJECT_CONFIG 分类的所有影像，再写入新文件。
+impact: 保证同项目重复推送时配置目录不残留旧文件
+field_targets: [media_file.busi_key, media_file.catg_id]
+evidence: ProjectMediaFacade.java:uploadProjectConfigFiles
+```
+
+关联：[[media_file]]、[[busi_key]]、[[catg_id]]、[[electronic_auth_incremental_upload]]。
+
+---END FILE---
+
+---FILE: rules/electronic_auth_incremental_upload.md ---
+---
+type: rule
+title: 电子授权书增量上传
+page_key: electronic_auth_incremental_upload
+domain: 文件/附件/媒体
+status: draft
+aliases: [电子授权书仅新增]
+oid: 1
+scope:
+  databases: [unknown]
+sources: ["code:CustMediaFacade.java:uploadElectronicAuthMediaFile"]
+contract_version: "0.1"
+---
+A0050 电子授权书仅新增不删除，禁止写入 A0004，禁止调用 deleteFileByCatgId；同一流程已存在时跳过，从而保证幂等并避免覆盖历史授权书。相关分类口径见 [[media_catg_a0050]]、[[media_catg_a0004]]。
+
+## 需求背景
+本期语义分析未提供需求文档主张；规则来自代码证据。
+
+## 版本演进
+v0 初版：规则来自 uploadElectronicAuthMediaFile 证据；无 action=uncovered 的文档主张。
+
+```ground:rule
+name: 电子授权书增量上传
+content: A0050 电子授权书仅新增不删除，禁止写入 A0004，禁止调用 deleteFileByCatgId；同流程已存在时跳过。
+impact: 避免覆盖历史授权书，保证幂等
+field_targets: [media_file.catg_id, media_file.specify_file_name]
+evidence: CustMediaFacade.java:uploadElectronicAuthMediaFile
+```
+
+关联：[[media_catg_a0050]]、[[media_catg_a0004]]、[[media_file]]、[[dual_side_media_upload]]。
+
+---END FILE---
+
+---FILE: rules/dual_side_media_upload.md ---
+---
+type: rule
+title: 双端影像上传
+page_key: dual_side_media_upload
+domain: 文件/附件/媒体
+status: draft
+aliases: [运营中台与产融双写]
+oid: 1
+scope:
+  databases: [unknown]
+sources: ["code:CustMediaFacade.java:uploadCustContractFile/uploadCaUpgradeAuthMediaFile/uploadElectronicAuthMediaFile"]
+contract_version: "0.1"
+---
+上传授权书、CA 升级授权书、电子授权书时先上传运营中台，再上传产融影像树，保证两端影像数据一致。分类口径见 [[media_catg_a0004]]、[[media_catg_a0049]]、[[media_catg_a0050]]。
+
+## 需求背景
+本期语义分析未提供需求文档主张；规则来自代码证据。
+
+## 版本演进
+v0 初版：规则来自 uploadCustContractFile / uploadCaUpgradeAuthMediaFile / uploadElectronicAuthMediaFile 证据；无 action=uncovered 的文档主张。
+
+```ground:rule
+name: 双端影像上传
+content: 上传授权书/CA升级授权书/电子授权书时，先上传运营中台，再上传产融影像树。
+impact: 保证运营中台与产融影像数据一致
+field_targets: [media_file.busi_key, media_file.catg_id]
+evidence: CustMediaFacade.java:uploadCustContractFile/uploadCaUpgradeAuthMediaFile/uploadElectronicAuthMediaFile
+```
+
+关联：[[media_file]]、[[busi_key]]、[[catg_id]]、[[media_catg_a0049]]、[[media_catg_a0050]]。
+
+---END FILE---
+
+---FILE: rules/build_media_sync_condition.md ---
+---
+type: rule
+title: 建档影像同步条件
+page_key: build_media_sync_condition
+domain: 文件/附件/媒体
+status: draft
+aliases: [影像同步条件]
+oid: 1
+scope:
+  databases: [unknown]
+sources: ["code:CustMediaFacade.java:isdo/doDel/doUpload"]
+contract_version: "0.1"
+---
+运营中台回调影像事件时，仅当企业存在且非变更流程（或来源非 PLATFORM_PUSH）才处理；变更影像在审核通过后统一拉取，避免变更过程中实时同步导致数据不一致。来源判定口径见 [[platform_push_source]]，状态流转见 [[cust_build_status]]。
+
+## 需求背景
+本期语义分析未提供需求文档主张；规则来自代码证据。
+
+## 版本演进
+v0 初版：规则来自 isdo/doDel/doUpload 证据；无 action=uncovered 的文档主张。
+
+```ground:rule
+name: 建档影像同步条件
+content: 运营中台回调影像事件时，仅当企业存在且非变更流程（或来源非 PLATFORM_PUSH）才处理；变更影像在审核通过后统一拉取。
+impact: 避免变更流程中实时同步影像导致数据不一致
+field_targets: [cust_company_info.cust_source, cust_change_record.oper_cust_id]
+evidence: CustMediaFacade.java:isdo/doDel/doUpload
+```
+
+关联：[[cust_company_info]]、[[cust_change_record]]、[[platform_push_source]]、[[cust_build_status]]。
+
+---END FILE---
+
+---FILE: rules/media_event_handling.md ---
+---
+type: rule
+title: 影像事件处理
+page_key: media_event_handling
+domain: 文件/附件/媒体
+status: draft
+aliases: [MediaEventSyncProvider 事件处理]
+oid: 1
+scope:
+  databases: [unknown]
+sources: ["code:MediaEventSyncProvider.java:onEvent"]
+contract_version: "0.1"
+---
+MediaEventSyncProvider 只处理 CUST 类型事件的 UPLOAD/DELETE/INFO_CHANGE（见 [[MediaEventType]]），ASSET 类型仅打日志，从而区分客户影像与资产影像的同步。
+
+## 需求背景
+本期语义分析未提供需求文档主张；规则来自代码证据。
+
+## 版本演进
+v0 初版：规则来自 MediaEventSyncProvider.onEvent 证据；无 action=uncovered 的文档主张。
+
+```ground:rule
+name: 影像事件处理
+content: MediaEventSyncProvider 处理 CUST 类型的 UPLOAD/DELETE/INFO_CHANGE；ASSET 类型仅日志。
+impact: 区分客户影像与资产影像同步
+field_targets: [PlatClientMediaEvent.busiType, PlatClientMediaEvent.eventType]
+evidence: MediaEventSyncProvider.java:onEvent
+```
+
+关联：[[MediaEventType]]、[[media_file]]、[[build_media_sync_condition]]。
+
+---END FILE---
+
+---FILE: rules/project_file_page_query.md ---
+---
+type: rule
+title: 项目文件分页查询
+page_key: project_file_page_query
+domain: 文件/附件/媒体
+status: draft
+aliases: [项目文件列表查询]
+oid: 1
+scope:
+  databases: [unknown]
+sources: ["code:ProjectFileController.java:buildQueryWrapper"]
+contract_version: "0.1"
+---
+按 projectId、fileType 精确查询，title/content 模糊查询，按 updateTime 倒序，支撑项目运营文件列表页（[[project_file]]）。涉及类型口径见 [[project_file_type_cust]] 等五个文件类型口径。
+
+## 需求背景
+本期语义分析未提供需求文档主张；规则来自代码证据。
+
+## 版本演进
+v0 初版：规则来自 buildQueryWrapper 证据；无 action=uncovered 的文档主张。
+
+```ground:rule
+name: 项目文件分页查询
+content: 按 projectId、fileType 精确查询，title/content 模糊查询，按 updateTime 倒序。
+impact: 支撑项目运营文件列表页
+field_targets: [project_file_info.project_id, project_file_info.file_type, project_file_info.update_time]
+evidence: ProjectFileController.java:buildQueryWrapper
+```
+
+关联：[[project_file_info]]、[[project_file]]、[[tenant_project]]。
+
+---END FILE---
+
+---FILE: rules/media_download_url.md ---
 ---
 type: rule
 title: 影像下载URL生成
-page_key: rules/media-download-url
+page_key: media_download_url
 domain: 文件/附件/媒体
 status: draft
-aliases: [fileUrl 生成, getDownloadUrl 规则, 影像 URL 口径]
+aliases: [影像URL生成]
 oid: 1
 scope:
-  databases: [lls.media]
-sources:
-  - code_path:ClientMediaSyncService.java:setInvokeArg
-  - code_path:ClientMediaSyncService.java:getRelativePath
+  databases: [unknown]
+sources: ["code:ClientMediaSyncService.java:setInvokeArg/getRelativePath"]
 contract_version: "0.1"
 ---
+同步影像到第三方时，对相对路径生成 COS 下载 URL；若 path 含 `?` 则截取并去掉 COS host，保证第三方可下载影像。
 
-# 影像下载URL生成
+## 需求背景
+本期语义分析未提供需求文档主张；规则来自代码证据。
 
-## 业务定位
-
-同步下游前，系统按 `path` 生成 `fileUrl`：若 `path` 含 `?` 则截断，并按 `cosHost` 去前缀后调用 `getDownloadUrl`；非全路径则用 `getBrowsUrl`。
-
-对使用方的影响：对外同步出去的 `fileUrl` 统一由 COS 相对路径换取，而不是直接透传入库的 `path`。因此库里存的 `path`（含 http 全路径或带签名参数的情况）与下游拿到的 URL 可能不同形态，排查时必须看生成后的 `fileUrl`。
+## 版本演进
+v0 初版：规则来自 setInvokeArg / getRelativePath 证据；无 action=uncovered 的文档主张。
 
 ```ground:rule
 name: 影像下载URL生成
-content: 同步下游时按 path 生成 fileUrl：path 含 ? 则截断并按 cosHost 去前缀后 getDownloadUrl；非全路径用 getBrowsUrl。
-impact: 对外同步的 fileUrl 统一由 COS 相对路径换取。
-field_targets:
-  - MediaFile.fileUrl
-  - MediaFile.path
-evidence: "code_path:ClientMediaSyncService.java:setInvokeArg/getRelativePath"
+content: 同步影像到第三方时，对相对路径生成 COS 下载 URL；若 path 含 ? 则截取并去掉 COS host。
+impact: 保证第三方能通过 URL 下载影像
+field_targets: [media_file.path, PlatFormMediaFileDTO.file_url]
+evidence: ClientMediaSyncService.java:setInvokeArg/getRelativePath
 ```
 
-## 需求背景
-
-（本页暂无 `reqdoc_claims` 类型的需求文档证据。）
-
-字段语义见 [[tables/media_file]]。
-
-## 版本演进
-
-- v0（本页）：规则来自 [代码] 证据。
+关联：[[media_file]]、[[media]]。
 
 ---END FILE---
 
----REVIEW: scope | 各页 frontmatter 的 scope.databases 取值---
-本次语义分析未给出 `project_file_info`、`MediaFile` 的物理库名：`project_file_info` 仅有 [DB] 证据（无库/schema 信息），`MediaFile` 只有“lls.media 影像平台模型”这一模型级描述。因此各页 `scope.databases` 暂分别取 `project_file_info` 与 `lls.media` 作为库位标识，属占位性质。待确认物理库/schema 命名后需统一回填。
+---FILE: rules/media_category_name_fallback.md ---
+---
+type: rule
+title: 影像分类名称回退
+page_key: media_category_name_fallback
+domain: 文件/附件/媒体
+status: draft
+aliases: [分类名称回退]
+oid: 1
+scope:
+  databases: [unknown]
+sources: ["code:MediaFacade.java:getMediaCategoryDisplayName"]
+contract_version: "0.1"
+---
+获取影像分类中文名失败或为空时回退返回 catgId 本身（[[catg_id]]），保证打包下载时目录名不丢失。
+
+## 需求背景
+本期语义分析未提供需求文档主张；规则来自代码证据。
+
+## 版本演进
+v0 初版：规则来自 getMediaCategoryDisplayName 证据；无 action=uncovered 的文档主张。
+
+```ground:rule
+name: 影像分类名称回退
+content: 获取影像分类中文名失败或为空时，回退返回 catgId 本身。
+impact: 保证打包下载时目录名不因分类查询失败而丢失
+field_targets: [media_file.catg_id]
+evidence: MediaFacade.java:getMediaCategoryDisplayName
+```
+
+关联：[[media_file]]、[[catg_id]]、[[project_approval_zip_download]]。
+
+---END FILE---
+
+---FILE: rules/project_approval_zip_download.md ---
+---
+type: rule
+title: 项目上线审批打包下载
+page_key: project_approval_zip_download
+domain: 文件/附件/媒体
+status: draft
+aliases: [上线审批附件下载]
+oid: 1
+scope:
+  databases: [unknown]
+sources: ["code:ProjectMediaFacade.java:streamApprovalMediaZip/resolveApprovalZipFileName"]
+contract_version: "0.1"
+---
+流式将 MA003 影像树写入 zip，按分类目录组织，重名文件加序号，zip 命名为「项目名称+上线审批+yyyymmdd.zip」，支持审批附件一键下载。目录命名依赖 [[media_category_name_fallback]]。
+
+## 需求背景
+本期语义分析未提供需求文档主张；规则来自代码证据。
+
+## 版本演进
+v0 初版：规则来自 streamApprovalMediaZip / resolveApprovalZipFileName 证据；无 action=uncovered 的文档主张。
+
+```ground:rule
+name: 项目上线审批打包下载
+content: 流式将 MA003 影像树写入 zip，按分类目录组织，重名文件加序号，zip 命名“项目名称+上线审批+yyyymmdd.zip”。
+impact: 支持审批附件一键下载
+field_targets: [media_file.busi_key, media_file.catg_id]
+evidence: ProjectMediaFacade.java:streamApprovalMediaZip/resolveApprovalZipFileName
+```
+
+关联：[[media_file]]、[[busi_key]]、[[catg_id]]、[[media_category_name_fallback]]。
+
+---END FILE---
+
+---FILE: rules/company_auth_media_existence.md ---
+---
+type: rule
+title: 企业授权书存在性判断
+page_key: company_auth_media_existence
+domain: 文件/附件/媒体
+status: draft
+aliases: [授权书存在性判断]
+oid: 1
+scope:
+  databases: [unknown]
+sources: ["code:CustMediaFacade.java:hasAuthorizationAgreementMedia"]
+contract_version: "0.1"
+---
+检查 A0004 分类下是否存在指定 companyId/personId 的影像，用于判断企业授权书是否已上传。分类口径见 [[media_catg_a0004]]，业务键见 [[busi_key]]。
+
+## 需求背景
+本期语义分析未提供需求文档主张；规则来自代码证据。
+
+## 版本演进
+v0 初版：规则来自 hasAuthorizationAgreementMedia 证据；无 action=uncovered 的文档主张。
+
+```ground:rule
+name: 企业授权书存在性判断
+content: 检查 A0004 分类下是否有指定 companyId/personId 的影像。
+impact: 用于判断是否已上传企业授权书
+field_targets: [media_file.catg_id, media_file.busi_key, media_file.user_busi_key]
+evidence: CustMediaFacade.java:hasAuthorizationAgreementMedia
+```
+
+关联：[[media_catg_a0004]]、[[media_file]]、[[busi_key]]、[[catg_id]]。
+
+---END FILE---
+
+---REVIEW: table | media_file 字段级证据缺失---
+语义分析中 media_file 只作为术语桥 maps_to 与规则 field_targets 出现，未提供字段类型、含义与取值来源，因此本页未产出 ground:table 锚点块。请补充 media_file 的库表字段清单（catg_id、busi_key、user_busi_key、path、specify_file_name 及其它列）后补齐。
+---END REVIEW---
+
+---REVIEW: table | attachment_info 字段级证据缺失---
+语义分析中 attachment_info 仅由术语桥「附件」指向，未提供任何字段证据，本页仅保留边界说明；待补充库表字段后补齐 ground:table。
+---END REVIEW---
+
+---REVIEW: table | 物理库名未在语义分析中给出---
+所有表页 frontmatter 的 scope.databases 暂填 `unknown`：语义分析仅提供字段语义与代码证据，未给出物理库名（分析中出现的是 db_tenant_code/app_tenant_code 等租户列）。请确认物理库名后批量回填。
+---END REVIEW---
+
+---REVIEW: enum | 枚举 java_name 命名约定推定---
+以下取值的 java_name 未在证据中逐字出现，按同枚举命名约定推定，需以写值点/枚举类源码复核：CustBuildStatusEnum 除 BUILD_SUCCESS 外的状态、UserTypeEnum.operator、MediaEventType.DELETE/INFO_CHANGE。
 ---END REVIEW---

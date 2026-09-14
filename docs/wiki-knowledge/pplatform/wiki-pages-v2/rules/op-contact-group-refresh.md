@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 对接人组别随 operation_id 反查刷新
-page_key: rule/op-contact-group-refresh
+page_key: op-contact-group-refresh
 domain: 微企链立项与项目审批
 status: draft
 aliases:
@@ -13,6 +13,7 @@ scope:
 sources:
   - code_path:ProjectStatisticsApplication.java
 contract_version: "0.1"
+belong: rules
 ---
 
 运营/档案/风控三组对接人列各配一个组别列，组别不是独立录入的，而是随对应对接人的 `operation_id` 反查刷新得到。因此组别列是派生数据：只要 contact 改了而 group 没跟着刷新，两者就会不一致。

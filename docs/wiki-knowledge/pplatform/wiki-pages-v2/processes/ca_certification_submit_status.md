@@ -1,7 +1,7 @@
 ---
 type: process
 title: CA认证提交状态机
-page_key: process/ca_certification_submit_status
+page_key: ca_certification_submit_status
 domain: CA证书认证
 status: draft
 aliases: [submit_status 状态流转, CA上送签章中台状态]
@@ -10,6 +10,7 @@ scope:
   databases: [unknown]
 sources: [code]
 contract_version: "0.1"
+belong: processes
 ---
 
 本状态机描述 ca_certification_info 行在「上送签章中台」这条链路上的生命周期。状态字段为 ca_certification_info.submit_status，三个取值 PENDING / SUCCESS / FAIL 均为代码枚举。

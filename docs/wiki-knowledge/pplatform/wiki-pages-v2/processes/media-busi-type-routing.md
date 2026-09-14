@@ -1,7 +1,7 @@
 ---
 type: process
 title: 影像业务类型
-page_key: processes/media-busi-type-routing
+page_key: media-busi-type-routing
 domain: 文件/附件/媒体
 status: draft
 aliases: [ClientMediaEvent.busiType 路由, 影像业务类型分发, 客户影像与资产影像]
@@ -12,6 +12,7 @@ sources:
   - code:ClientMediaEvent
   - code_path:MediaEventSyncProvider.java:onEvent
 contract_version: "0.1"
+belong: processes
 ---
 
 # 影像业务类型

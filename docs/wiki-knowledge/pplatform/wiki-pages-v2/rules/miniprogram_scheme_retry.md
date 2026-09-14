@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 小程序 Scheme 生成失败重试一次
-page_key: rule/miniprogram_scheme_retry
+page_key: miniprogram_scheme_retry
 domain: 微信生态/小程序/扫脸
 status: draft
 aliases: [Scheme重试, 小程序Scheme]
@@ -11,6 +11,7 @@ scope:
 sources:
   - code:MiniProgramController.java
 contract_version: "0.1"
+belong: rules
 ---
 
 # 小程序 Scheme 生成失败重试一次

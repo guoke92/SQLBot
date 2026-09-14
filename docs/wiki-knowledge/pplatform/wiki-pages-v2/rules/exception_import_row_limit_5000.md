@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 异常解析导入-行数上限5000
-page_key: rules/exception_import_row_limit_5000
+page_key: exception_import_row_limit_5000
 domain: funding
 status: draft
 aliases:
@@ -14,6 +14,7 @@ scope:
 sources:
   - "code:ExceptionResolutionImportListener"
 contract_version: "0.1"
+belong: rules
 ---
 
 # 异常解析导入-行数上限5000

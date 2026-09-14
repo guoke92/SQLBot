@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 异常解析-导出资金方名称映射固定ACFLOW
-page_key: rules/exception_export_funding_party_name_acflow
+page_key: exception_export_funding_party_name_acflow
 domain: funding
 status: draft
 aliases:
@@ -14,6 +14,7 @@ scope:
 sources:
   - "code:ExceptionResolutionApplication#exportRecords"
 contract_version: "0.1"
+belong: rules
 ---
 
 # 异常解析-导出资金方名称映射固定ACFLOW

@@ -1,7 +1,7 @@
 ---
 type: concept
 title: 运营人员(租户级)
-page_key: concept.tenant_operator
+page_key: tenant_operator
 domain: 租户配置
 status: draft
 aliases:
@@ -27,6 +27,7 @@ also_confused_with:
   - opContactA
   - cust_person_info.operator_id
 sources: ["enrich:wiki-admin"]
+belong: concepts
 ---
 
 「运营人员」在系统里存在于三个层级，本概念只指租户级：[[tables/tenant_setting_config]] 的 `operator_id` / `operator_name` / `operator_email`，用于运营邮件触达（配合 `send_email`，并由 `op_update_user` / `op_update_time` 记录运营配置的更新轨迹）。项目级对应 [[concepts/op_contact_a]] 等 `tenant_project.op_contact_*`；企业联系人级对应 [[tables/cust_person_info]] 的 `operator_id` / `operator_realname` / `operator`。三者不可混用，运营邮件的最终收件人需按层级叠加判断。

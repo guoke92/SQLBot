@@ -1,7 +1,7 @@
 ---
 type: process
 title: "工作流审核状态机"
-page_key: "processes/workflow_check_status_machine"
+page_key: workflow_check_status_machine
 domain: "customer-onboarding"
 status: draft
 aliases:
@@ -15,6 +15,7 @@ sources:
   - "code_path:CustStatusCommitProcessor.java:process(RtfState.getByDesc->getCheckStaus)"
   - "code_path:CustStatusCommitProcessor.java:checkMessage(CUST_CHECK_CHECKING && CUST_CONFIRM_AWAIT -> CUST_BUILDING)"
 contract_version: "0.1"
+belong: processes
 ---
 
 工作流审核状态机描述 `cust_company_info.check_status` 的四个取值及其流转。回调侧以运营中台的 `RtfState`（中文描述，如通过/拒绝/退回客户）解读事件，落库前统一转成 `CheckStatus` 枚举名，术语映射见 [[concepts/check_status]]。本状态机与 [[processes/company_build_status_machine]] 联动：`check_status` 的结论驱动 `cust_build_status` 进度。

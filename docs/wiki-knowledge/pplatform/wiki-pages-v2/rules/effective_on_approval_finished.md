@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 上线审批通过后自动生效项目
-page_key: rules/effective_on_approval_finished
+page_key: effective_on_approval_finished
 domain: 租户项目
 status: draft
 aliases: [审批完成生效项目, effectiveProjectOnApprovalFinished]
@@ -11,6 +11,7 @@ scope:
 sources:
   - code:ProjectApprovalApplication
 contract_version: "0.1"
+belong: rules
 ---
 
 该规则规定 [[tables/tenant_project_approval]] 的工作流完成通过后，系统调用 effective 将对应项目置为 EFFECTIVE，形成「审批完成 → 项目生效」的自动链路，连接了 [[processes/project_approval_workflow_status]] 与 [[processes/tenant_project_status]]。

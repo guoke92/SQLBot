@@ -660,6 +660,8 @@ def get_chat_with_records(
         ChatRecord.datasource,
         ChatRecord.engine_type,
         ChatRecord.re_exec,
+        ChatRecord.feedback,
+        ChatRecord.feedback_comment,
         ChatRecord.chart_answer,
         ChatRecord.chart,
         ChatRecord.analysis,
@@ -764,6 +766,7 @@ def get_chat_with_records(
             engine_type=getattr(row, "engine_type", None),
             re_exec=getattr(row, "re_exec", None),
             feedback=getattr(row, "feedback", None),
+            feedback_comment=getattr(row, "feedback_comment", None),
             chart_answer=row.chart_answer,
             chart=row.chart,
             analysis=row.analysis,
@@ -1653,14 +1656,45 @@ def get_old_questions(session: SessionDep, datasource: int):
     return records
 
 
+FEEDBACK_COMMENT_MAX_LEN = 500
+
+
+def normalize_record_feedback(
+    feedback: object, comment: object
+) -> tuple[Optional[str], Optional[str]]:
+    """Validate vote + unhelpful comment. Down requires a non-empty description."""
+    from fastapi import HTTPException
+
+    if feedback not in ("up", "down", None):
+        raise HTTPException(
+            status_code=400, detail="feedback must be 'up', 'down' or null"
+        )
+    text = comment.strip() if isinstance(comment, str) else None
+    if not text:
+        text = None
+    if feedback == "down":
+        if text is None:
+            raise HTTPException(
+                status_code=400, detail="comment is required when feedback is down"
+            )
+        if len(text) > FEEDBACK_COMMENT_MAX_LEN:
+            raise HTTPException(status_code=400, detail="comment too long")
+        return "down", text
+    return ("up" if feedback == "up" else None), None
+
+
 def submit_record_feedback(
     session: Any,
     *,
     chat_record_id: int,
     user_id: int,
     feedback: Optional[str],
+    comment: Optional[str] = None,
 ) -> dict:
     """Persist one turn-level feedback fact independent of capture timing."""
+    from fastapi import HTTPException
+
+    vote, text = normalize_record_feedback(feedback, comment)
     record = (
         session.exec(
             select(ChatRecord).where(ChatRecord.id == chat_record_id).with_for_update()
@@ -1669,12 +1703,15 @@ def submit_record_feedback(
         .one_or_none()
     )
     if record is None or record.create_by != user_id:
-        from fastapi import HTTPException
-
         raise HTTPException(status_code=404, detail="record not found")
 
-    record.feedback = feedback
+    record.feedback = vote
+    record.feedback_comment = text
     record.feedback_revision = int(record.feedback_revision or 0) + 1
     session.add(record)
     session.commit()
-    return {"feedback": feedback, "revision": record.feedback_revision}
+    return {
+        "feedback": vote,
+        "comment": text,
+        "revision": record.feedback_revision,
+    }

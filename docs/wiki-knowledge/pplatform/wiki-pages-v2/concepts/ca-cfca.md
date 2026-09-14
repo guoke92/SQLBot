@@ -1,7 +1,7 @@
 ---
 type: concept
 title: CA / CFCA
-page_key: concept.ca_cfca
+page_key: ca-cfca
 domain: 授权协议与电子授权
 status: draft
 aliases:
@@ -25,6 +25,7 @@ also_confused_with:
   - 上上签 / BS（BEST_SIGN）
 boundary: "AMS 产品走 BS：need_register_bs / bs_register_status、协议类型 BS_Auth、签署机构 BEST_SIGN；两者开通过程在 openCa 中互斥判断"
 sources: ["enrich:wiki-admin"]
+belong: concepts
 ---
 
 「CA / CFCA」指产融侧为线下授权书签署准备的电子签章能力：是否需开通由 `need_register_ca` 表达，是否已开通由 `ca_register_status` 表达，二者同时为 `'Y'` 才满足 [[calibers/offline-electronic-auth-trigger]] 的证书前置条件。若企业正在重开 CA，则等开通成功后链式触发签署。

@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 经办人无产品权限时 enable 置 'N'，解冻恢复 'Y'
-page_key: rule.operator_permission_disable
+page_key: operator_permission_disable
 domain: 平台内部服务对接
 status: draft
 aliases:
@@ -13,6 +13,7 @@ sources:
   - semantic:field_semantics[cust_person_info.enable]
   - semantic:state_machines[经办人产品关联冻结状态]
 contract_version: "0.1"
+belong: rules
 ---
 
 当经办人失去产品权限时，联系人记录的 enable 被置为 'N'；解冻后恢复为 'Y'。

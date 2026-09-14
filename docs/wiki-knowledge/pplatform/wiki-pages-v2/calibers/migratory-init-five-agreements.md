@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 迁移初始化五类协议
-page_key: caliber.migratory_init_five_agreements
+page_key: migratory-init-five-agreements
 domain: 授权协议与电子授权
 status: draft
 aliases:
@@ -14,6 +14,7 @@ sources:
   - code:PlatFormMigratoryApplication.java
   - db:argeement_migratory_record
 contract_version: "0.1"
+belong: calibers
 ---
 
 迁移初始化会为每个客户 × 每个产品生成五类待拉取协议记录：认证类协议（`CFCA_Auth` 或 `BS_Auth`，按 [[calibers/ams-bs-channel]] 分流）、产品协议、`CustPersonLicense`、`UserProtocol`、`PrivacyPolicy`。去重以「该 custId + productCode + type 的记录计数为 0」为条件，避免重复插入；写入后进入 [[calibers/pending-pull-agreement-records]] 描述的拉取流程。

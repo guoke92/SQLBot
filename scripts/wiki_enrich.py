@@ -57,19 +57,34 @@ class _Substrate:
     ) -> None:
         repo_root = Path(__file__).resolve().parents[1]
         default_root = repo_root / "docs" / "wiki-knowledge" / "pplatform"
-        # 语料名形如 <system>/wiki-pages → 底稿根 = 同系统目录；找不到则回退默认
-        system_root = (
-            pages_dir.parent
-            if pages_dir.parent.name != "wiki-pages"
+        # wiki-pages-v2 → 优先 sibling substrate-v2；否则 pages 的父目录 / 默认根
+        pages_name = pages_dir.name
+        suffix = ""
+        if pages_name.startswith("wiki-pages") and pages_name != "wiki-pages":
+            suffix = pages_name[len("wiki-pages") :]
+        parent = pages_dir.parent
+        sibling_sub = parent / f"substrate{suffix}"
+        sibling_plain = parent / "substrate"
+        if (
+            pages_dir.parent.name != "wiki-pages"
             or (pages_dir.parent / "substrate").exists()
-            else default_root
-        )
+        ):
+            system_root = parent
+        else:
+            system_root = default_root
         if (
             not (system_root / "substrate").exists()
             and not (system_root / "db").exists()
+            and not sibling_sub.exists()
         ):
             system_root = default_root
-        self.substrate_dir = substrate_dir or system_root / "substrate"
+        if sibling_sub.exists():
+            default_sub = sibling_sub
+        elif sibling_plain.exists():
+            default_sub = sibling_plain
+        else:
+            default_sub = system_root / "substrate"
+        self.substrate_dir = substrate_dir or default_sub
         self.db_dir = db_dir or system_root / "db"
         self.db_catalog: dict[str, Any] = self._load(self.db_dir / "db-catalog.yaml")
         self.db_profile: dict[str, Any] = self._load(self.db_dir / "db-profile.yaml")
@@ -163,7 +178,7 @@ def _relations_for_table(substrate: _Substrate, table: str) -> list[dict[str, st
             if any(evidence.startswith(p) for p in _CONFIRM_EVIDENCE)
             else "suggested"
         )
-        rows[other] = {
+        rows[f"{other}|{mine_ref}|{theirs_ref}"] = {
             "other": other,
             "mine_ref": mine_ref,
             "theirs_ref": theirs_ref,
@@ -173,9 +188,12 @@ def _relations_for_table(substrate: _Substrate, table: str) -> list[dict[str, st
         }
     # db 索引第二通道：ref_* 命名 + 右表存在 → suggested（与代码侧互证）
     for mine_col, right_t in substrate.index_decoded_relations(table):
-        if right_t in rows or mine_col in _TENANT_FIELDS:
+        if mine_col in _TENANT_FIELDS:
             continue
-        rows[right_t] = {
+        key = f"{right_t}|{table}.{mine_col}|{right_t}.id"
+        if key in rows:
+            continue
+        rows[key] = {
             "other": right_t,
             "mine_ref": f"{table}.{mine_col}",
             "theirs_ref": f"{right_t}.id",
@@ -186,7 +204,7 @@ def _relations_for_table(substrate: _Substrate, table: str) -> list[dict[str, st
     return [rows[key] for key in sorted(rows)]
 
 
-def _relation_section(table: str, relations: list[dict[str, str]]) -> str:
+def _relation_section(_table: str, relations: list[dict[str, str]]) -> str:
     lines = [_RELATION_HEADING, ""]
     for rel in relations:
         lines.append(
@@ -201,7 +219,18 @@ def enrich_table_page(
 ) -> str:
     """A 关联节 + D 行数修正（表页）。返回新内容（无变化返回原文）。"""
     updated = content
-    if force or _RELATION_HEADING not in updated:
+    if force:
+        heading_at = updated.find(_RELATION_HEADING)
+        if heading_at >= 0:
+            rest = updated[heading_at + len(_RELATION_HEADING) :]
+            next_h = rest.find("\n## ")
+            end = (
+                heading_at
+                + len(_RELATION_HEADING)
+                + (len(rest) if next_h < 0 else next_h)
+            )
+            updated = (updated[:heading_at] + updated[end:]).rstrip() + "\n"
+    if _RELATION_HEADING not in updated:
         relations = _relations_for_table(substrate, table)
         if relations:
             section = "\n" + _relation_section(table, relations)
@@ -336,10 +365,15 @@ def _bump_source(content: str) -> str:
 
 
 def run_enrich(
-    pages_dir: Path, *, dry_run: bool = False, force: bool = False
+    pages_dir: Path,
+    *,
+    dry_run: bool = False,
+    force: bool = False,
+    substrate_dir: Path | None = None,
+    db_dir: Path | None = None,
 ) -> dict[str, int]:
     """enrich 全流程。返回各类改写计数（供 CLI 报告）。"""
-    substrate = _Substrate(pages_dir)
+    substrate = _Substrate(pages_dir, substrate_dir=substrate_dir, db_dir=db_dir)
     known_tables = {p.stem for p in (pages_dir / "tables").glob("*.md")}
     counts = {"relations": 0, "links": 0, "scope": 0, "rows": 0}
     for path in sorted(pages_dir.rglob("*.md")):
@@ -419,7 +453,13 @@ def run_verify(pages_dir: Path) -> tuple[int, list[str]]:
 
 def cmd_enrich(args) -> int:  # noqa: ANN001 — 与 wiki_admin 样板一致
     pages_dir = Path(args.pages)
-    counts = run_enrich(pages_dir, dry_run=args.dry_run, force=args.force)
+    counts = run_enrich(
+        pages_dir,
+        dry_run=args.dry_run,
+        force=args.force,
+        substrate_dir=Path(args.substrate) if getattr(args, "substrate", "") else None,
+        db_dir=Path(args.db_dir) if getattr(args, "db_dir", "") else None,
+    )
     label = "将改写" if args.dry_run else "已改写"
     print(
         f"{label}: relations={counts['relations']} links={counts['links']} "

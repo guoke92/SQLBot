@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 统一社会信用代码跨系统一致性对齐
-page_key: rule.certification_no_cross_system_align
+page_key: certification_no_cross_system_align
 domain: 平台内部服务对接
 status: draft
 aliases:
@@ -13,6 +13,7 @@ scope:
 sources:
   - semantic:field_semantics[cust_company_info.certification_no]
 contract_version: "0.1"
+belong: rules
 ---
 
 certification_no（统一社会信用代码）被定义为跨系统一致性对齐字段：企业主数据与运营中台等外部系统之间以此字段对齐同一法人主体。

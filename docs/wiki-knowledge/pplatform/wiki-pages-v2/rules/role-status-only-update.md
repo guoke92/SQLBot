@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 角色操作仅更新状态字段
-page_key: rule.role-status-only-update
+page_key: role-status-only-update
 domain: 客户角色与端口
 status: draft
 aliases:
@@ -16,6 +16,7 @@ sources:
   - code_path:CustRoleInfoController.java#unFreeze
   - code_path:CustRoleInfoController.java#logout
 contract_version: "0.1"
+belong: rules
 ---
 
 # 角色操作仅更新状态字段

@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 法人证件影像（A0007/A0008）
-page_key: calibers/legal-person-cert-media-a0007-a0008
+page_key: legal-person-cert-media-a0007-a0008
 domain: 文件/附件/媒体
 status: draft
 aliases: [A0007, A0008, 法人证件影像, 法人证件类]
@@ -11,6 +11,7 @@ scope:
 sources:
   - code:MediaFile.catgId
 contract_version: "0.1"
+belong: calibers
 ---
 
 # 法人证件影像（A0007/A0008）

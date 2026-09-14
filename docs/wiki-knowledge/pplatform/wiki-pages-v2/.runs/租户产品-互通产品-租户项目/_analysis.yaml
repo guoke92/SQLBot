@@ -1,271 +1,350 @@
 field_semantics:
 - table: tenant_product
-  field: open_status
-  meaning: 租户产品开通状态；DB 实测值为 N/P/Y，N 未开通，P 开通中/等待多级回调，Y 已开通；代码 ProductOpenStatusEnum
-    使用 Y/P
+  field: id
+  meaning: 租户产品配置主键
   evidence: db
 - table: tenant_product
-  field: platform_product_code
-  meaning: 平台产品编号；DB 实测 ACFLOW/BEECREDIT/DRAFT/DRAFTQA/ORDER/RVSFACTOR_PC/STORAGE/VOUCHER；代码
-    ProductCodeEnum 使用 ACFLOW/BEECREDIT/ORDER/RVSFACTOR_PC 等
-  evidence: db
-- table: tenant_product
-  field: product_cate
-  meaning: 产品类型；DB 实测 CREDIT/STRONG/WEAKLY
-  evidence: db
-- table: tenant_product
-  field: is_migratory
-  meaning: 是否迁移标识；DB 实测 Y/N，注释 N 未迁移、Y 已迁移
-  evidence: db
-- table: tenant_product
-  field: max_financing_amount_flag
-  meaning: 是否限额融资资金上线；DB 实测 Y/N/0/1 混合值，N 为不限额，Y 为限额
-  evidence: db
-- table: tenant_product
-  field: max_financing_amount
-  meaning: 融资金额上限；DB 实测 0/88888888/不限 等
-  evidence: db
-- table: tenant_product
-  field: max_financing_period
-  meaning: 融资期限上限；DB 实测 12/36/6/12个月/36个月/6个月/6-12个月/0
-  evidence: db
-- table: tenant_product
-  field: multiple
-  meaning: 是否多个；DB 实测均为 0
+  field: code
+  meaning: 租户产品编码，唯一键
   evidence: db
 - table: tenant_product
   field: name
-  meaning: 租户产品名称；DB 实测供票、保理易融、融易单、应收易融、票据易融、国内信用证等
+  meaning: 租户产品名称，如应收易融、订单融资、融易单
   evidence: db
 - table: tenant_product
-  field: enable
-  meaning: 启用标记；DB 实测均为 Y
+  field: open_status
+  meaning: 租户产品开通状态，DB 实测 N/P/Y，对应 ProductOpenStatusEnum 未开通/开通中/已开通
   evidence: db
 - table: tenant_product
-  field: tenant_id
-  meaning: 租户 id；与 platform_product_id 组成唯一键 tenant_product_id
+  field: platform_product_code
+  meaning: 平台产品编号，DB 实测 ACFLOW/ORDER/RVSFACTOR_PC/STORAGE/VOUCHER/BEECREDIT 等
   evidence: db
 - table: tenant_product
   field: platform_product_id
-  meaning: 平台产品 id；普通索引，与 tenant_id 唯一
+  meaning: 平台产品主键，与 tenant_id 组成唯一键 tenant_product_id
   evidence: db
 - table: tenant_product
   field: ref_tenant_product_project_code
-  meaning: 租户产品-平台产品关联编码；DB 有多个业务 code 分布
+  meaning: 租户产品-平台产品关联 code，DB 中为 platform_product 业务 code
   evidence: db
 - table: tenant_product
   field: ref_tenant_product_tenant_setting_config
-  meaning: 租户-产品关联配置；普通索引
+  meaning: 租户-产品关联 tenant_setting_config code
+  evidence: db
+- table: tenant_product
+  field: tenant_id
+  meaning: 租户 id
+  evidence: db
+- table: tenant_product
+  field: product_cate
+  meaning: 产品类型，DB 实测 STRONG/WEAKLY/CREDIT
+  evidence: db
+- table: tenant_product
+  field: is_migratory
+  meaning: 是否迁移标识，DB 实测 Y/N，Y 代表已迁移
+  evidence: db
+- table: tenant_product
+  field: max_financing_amount_flag
+  meaning: 是否限额融资资金上线，DB 实测 N/Y/0/1 混存
+  evidence: db
+- table: tenant_product
+  field: max_financing_period
+  meaning: 融资期限上限，DB 中既有 6/12/36 也有 6个月/12个月 等文本
+  evidence: db
+- table: tenant_product
+  field: enable
+  meaning: 逻辑有效标记，DB 实测全部 Y
   evidence: db
 - table: tenant_product_menu
   field: product_code
-  meaning: 产品 code；DB 实测 ACCOUNT_PRODUCT/BEECREDIT/RVSFACTOR_PC
+  meaning: 产品 code，DB 实测 ACCOUNT_PRODUCT/BEECREDIT/RVSFACTOR_PC
   evidence: db
 - table: tenant_product_menu
   field: company_type
-  meaning: 企业角色；DB 实测 CORE/CORE_MANAGER/CORPORATION_COMPANY/DEALER/FINANCE/PLATFORM_OPERATOR/PLATFORM_OPERATOR_COMPANY/PROJECT_COMPANY/SUPPLIER
+  meaning: 企业角色，DB 实测 CORE/SUPPLIER/DEALER/FINANCE/PLATFORM_OPERATOR/CORPORATION_COMPANY/PROJECT_COMPANY
+    等
   evidence: db
 - table: tenant_product_menu
   field: menu_id
-  meaning: 菜单 id；关联产品菜单
+  meaning: 菜单 id
   evidence: db
-- table: tenant_product_menu
-  field: enable
-  meaning: 启用标记；DB 实测均为 Y
+- table: tenant_project
+  field: id
+  meaning: 租户项目主键
   evidence: db
-- table: tenant_product_menu_res
-  field: product_code
-  meaning: 产品 code；DB 实测 ACCOUNT_PRODUCT/RVSFACTOR_PC
-  evidence: db
-- table: tenant_product_menu_res
-  field: company_type
-  meaning: 企业角色；DB 实测 CORE/CORPORATION_COMPANY/PLATFORM_OPERATOR_COMPANY/SUPPLIER
-  evidence: db
-- table: tenant_product_menu_res
-  field: db_tenant_code
-  meaning: 数据租户标识；DB 实测 LN1/beehive-scf.qhhrly.cn/ning
-  evidence: db
-- table: tenant_product_menu_res
-  field: enable
-  meaning: 启用标记；DB 实测均为 Y
-  evidence: db
-- table: tenant_interworking_product
-  field: app_tenant_code
-  meaning: 逻辑租户标识；DB 实测 GREENTOWNAT/JHYL/base/hylg
-  evidence: db
-- table: tenant_interworking_product
-  field: db_tenant_code
-  meaning: 数据租户标识；DB 实测 ISOLATE_TAG_*/LN1/beehive-scf.qhhrly.cn/mengniu/yunyingzhongtai
-  evidence: db
-- table: tenant_interworking_product
-  field: credit_measures
-  meaning: 增信措施；DB 实测 HTCP15/ddd/共同债务人增信、差额补足
-  evidence: db
-- table: tenant_interworking_product
-  field: customer_group
-  meaning: 客户群体；DB 实测 HTCP15/sdsd/供应商/拥有优质资产并存在融资需求的企业或机构/金融机构/项目公司
-  evidence: db
-- table: tenant_interworking_product
-  field: max_financing_amount_flag
-  meaning: 是否限额融资资金上线；DB 实测 N/Y
-  evidence: db
-- table: tenant_interworking_product
-  field: max_financing_period
-  meaning: 融资期限上限；DB 实测 1-3年 等
-  evidence: db
-- table: tenant_interworking_product
-  field: enable
-  meaning: 启用标记；DB 实测均为 Y
-  evidence: db
-- table: cust_interworking_product
-  field: open_status
-  meaning: 客户互通产品开通状态；DB 对账值 OPENED，代码侧常量 CustProductActiveConstant.OPENED 未在代码枚举基线上覆盖该表值
+- table: tenant_project
+  field: name
+  meaning: 项目名称
   evidence: db
 - table: tenant_project
   field: project_status
-  meaning: 项目状态；代码使用 ProjectStatusEnum.EFFECTIVE 与 ProjectStatusEnum.INVLIAD，分别表示已生效、已失效
-  evidence: code
-- table: tenant_project
-  field: enable
-  meaning: 逻辑删除/有效标记；代码查询与导出普遍限定 enable='Y'，删除操作调用 domainService.delete
+  meaning: 项目状态，代码 ProjectStatusEnum：0 待生效、1 已生效、2 已失效；导出代码按 1 判断已生效
   evidence: code
 - table: tenant_project
   field: source
-  meaning: 项目来源/渠道；DB 对账实测 ACFLOW/ORDER/RVSFACTOR_PC/STORAGE/pplatform，代码未见完整枚举声明
+  meaning: 项目来源/产品来源，DB 实测 pplatform 1532、ACFLOW 1255、RVSFACTOR_PC 480、ORDER 226、STORAGE
+    8；代码存在 PlatformConstant.PPLATFORM_SYSTEM=pplatform 写值
   evidence: db
 - table: tenant_project
-  field: platform_product_code
-  meaning: 平台产品编号；项目所属平台产品
-  evidence: code
-- table: tenant_project
-  field: ref_tenant_project_product_code
-  meaning: 关联租户产品 code；用于按产品查询、生效、失效、同步
-  evidence: code
-- table: tenant_project
-  field: ref_tenant_project_tenant_code
-  meaning: 关联租户 code；创建项目时校验租户存在
-  evidence: code
-- table: tenant_project
-  field: ref_tenant_project_platform_product
-  meaning: 关联平台产品 code；导出时用于查平台产品名称
-  evidence: code
-- table: tenant_project
-  field: config_json
-  meaning: 项目配置 JSON；BEECREDIT 生效前解析校验配置状态，ACFLOW/RVSFACTOR 生效时用于开户/查询业务系统配置
-  evidence: code
-- table: tenant_project
   field: channel_code
-  meaning: 项目码/渠道码；queryByChannelCode 可按渠道码查项目
+  meaning: 项目码/渠道码，依据 queryByChannelCode、导出 setChannelCode(project.getChannelCode())
+  evidence: code
+- table: tenant_project
+  field: project_code
+  meaning: 项目编码，导出查询条件使用 project_code
+  evidence: code
+- table: tenant_project
+  field: enable
+  meaning: 逻辑有效标记，导出只查 enable='Y'，删除方法走逻辑删除
   evidence: code
 - table: tenant_project
   field: is_prd
-  meaning: 是否生产数据；代码导出时 Y 转“是”、N 转“否”
-  evidence: code
-- table: tenant_project
-  field: wechat_audit_no
-  meaning: 企微审批编号/立项审批编号；可由上线审批提交时回填
-  evidence: code
-- table: tenant_project
-  field: op_contact_a
-  meaning: 运营对接人A；导入导出时按运营人员姓名/ID 转换
-  evidence: code
-- table: tenant_project
-  field: op_contact_b
-  meaning: 运营对接人B；数据库以 JSON 数组字符串存储，DTO 转为 List<String>
-  evidence: code
-- table: tenant_project
-  field: op_contact_a_group
-  meaning: 运营组别；导入时按运营对接人A的组别刷新
-  evidence: code
-- table: tenant_project
-  field: verification_contact
-  meaning: 查验对接人；导入导出时按运营人员姓名/ID 转换
-  evidence: code
-- table: tenant_project
-  field: risk_control_contact_a
-  meaning: 风控对接人A；导入导出时按运营人员姓名/ID 转换
-  evidence: code
-- table: tenant_project
-  field: risk_control_contact_b
-  meaning: 风控对接人B；数据库以 JSON 数组字符串存储，DTO 转为 List<String>
-  evidence: code
-- table: tenant_project
-  field: solution_manager
-  meaning: 方案经理；可由洞察平台补全，导入时校验运营人员存在
-  evidence: code
-- table: tenant_project
-  field: business_group
-  meaning: 关联业务部门；可由洞察平台补全
+  meaning: 是否生产数据，导出判断 Y 为是、N 为否；洞察平台导出另有 1/0 兼容逻辑
   evidence: code
 - table: tenant_project
   field: project_tag
-  meaning: 项目标签；中文可选生产项目、测试项目、暂停项目，入库转枚举值
+  meaning: 项目标签，导入校验可选值生产项目/测试项目/暂停项目，存枚举值
+  evidence: code
+- table: tenant_project
+  field: op_contact_a
+  meaning: 运营对接人A，存运营人员 ID，导出转姓名；导入按姓名转 ID
+  evidence: code
+- table: tenant_project
+  field: op_contact_b
+  meaning: 运营对接人B，存 JSON 数组字符串，导出转逗号分隔姓名
+  evidence: code
+- table: tenant_project
+  field: op_contact_a_group
+  meaning: 运营组别，跟随运营对接人A 变化，为空时置空
+  evidence: code
+- table: tenant_project
+  field: verification_contact
+  meaning: 查验对接人，存运营人员 ID
+  evidence: code
+- table: tenant_project
+  field: verification_contact_group
+  meaning: 查验组别
+  evidence: code
+- table: tenant_project
+  field: risk_control_contact_a
+  meaning: 风控对接人A，存运营人员 ID
+  evidence: code
+- table: tenant_project
+  field: risk_control_contact_b
+  meaning: 风控对接人B，存 JSON 数组字符串
+  evidence: code
+- table: tenant_project
+  field: risk_control_contact_a_group
+  meaning: 风控组别
+  evidence: code
+- table: tenant_project
+  field: solution_manager
+  meaning: 方案经理
+  evidence: code
+- table: tenant_project
+  field: business_manager
+  meaning: 业务经理
+  evidence: code
+- table: tenant_project
+  field: business_group
+  meaning: 关联业务部门
+  evidence: code
+- table: tenant_project
+  field: custom_field_one
+  meaning: 自定义字段一，导入限制 500 字
+  evidence: code
+- table: tenant_project
+  field: custom_field_two
+  meaning: 自定义字段二，导入限制 500 字
+  evidence: code
+- table: tenant_project
+  field: custom_field_three
+  meaning: 自定义字段三，导入限制 500 字
   evidence: code
 - table: tenant_project
   field: bussiness_project_relation
-  meaning: 运营项目归属；导入长度限制不超过 50
+  meaning: 运营项目归属，导入限制 50 字
   evidence: code
 - table: tenant_project
-  field: invite_customer_service_words
-  meaning: 邀请信息-客服话术；导入时长度限制不超过 500
+  field: wechat_audit_no
+  meaning: 企微审批编号/立项审批编号，审批提交可回填
   evidence: code
 - table: tenant_project
-  field: project_approval_id
-  meaning: 项目最新上线审批 ID；创建审批后回写项目
+  field: wechat_audit_pass_time
+  meaning: 项目立项审批通过时间
   evidence: code
+- table: tenant_project
+  field: config_json
+  meaning: 项目配置 JSON，信用证生效前校验其中项目配置状态
+  evidence: code
+- table: tenant_project
+  field: project_config_version
+  meaning: 项目配置版本，生效项目查询按版本过滤
+  evidence: code
+- table: tenant_project
+  field: product_id
+  meaning: 关联 tenant_product.id
+  evidence: code
+- table: tenant_project
+  field: tenant_id
+  meaning: 租户 id
+  evidence: code
+- table: tenant_project
+  field: ref_tenant_project_product_code
+  meaning: 关联租户产品 code，创建、失效、有效项目查询使用
+  evidence: code
+- table: tenant_project
+  field: ref_tenant_project_tenant_code
+  meaning: 关联租户 code，创建时查租户信息
+  evidence: code
+- table: tenant_project
+  field: ref_tenant_project_platform_product
+  meaning: 关联平台产品 code，导出产品类型、有效项目查询使用
+  evidence: code
+- table: tenant_project
+  field: platform_product_code
+  meaning: 平台产品 code，审批与项目推送中使用
+  evidence: code
+- table: tenant_project
+  field: db_tenant_code
+  meaning: 数据租户标识
+  evidence: code
+- table: tenant_project
+  field: app_tenant_code
+  meaning: 逻辑租户标识
+  evidence: code
+- table: cust_project_rel
+  field: project_id
+  meaning: 项目 id，String 类型，对应 tenant_project.id
+  evidence: code
+- table: cust_project_rel
+  field: product_id
+  meaning: 租户产品 id，对应 tenant_product.id
+  evidence: code
+- table: cust_project_rel
+  field: company_type
+  meaning: 企业在该项目下的角色，如 CORE/FINANCE
+  evidence: code
+- table: cust_project_rel
+  field: ref_cust_project_rel_cust_company_info
+  meaning: 企业编码，关联 cust_company_info.code
+  evidence: code
+- table: cust_project_rel
+  field: op_contact_a
+  meaning: 项目企业关联维度的运营对接人A
+  evidence: code
+- table: cust_project_rel
+  field: op_contact_b
+  meaning: 项目企业关联维度的运营对接人B
+  evidence: code
+- table: cust_project_rel
+  field: op_contact_a_group
+  meaning: 项目企业关联维度的运营组别
+  evidence: code
+- table: cust_project_rel
+  field: verification_contact
+  meaning: 项目企业关联维度的查验对接人
+  evidence: code
+- table: cust_project_rel
+  field: risk_control_contact_a
+  meaning: 项目企业关联维度的风控对接人A
+  evidence: code
+- table: cust_project_rel
+  field: risk_control_contact_b
+  meaning: 项目企业关联维度的风控对接人B
+  evidence: code
+- table: cust_project_rel
+  field: enable
+  meaning: 逻辑有效标记，查询导出时用 enable='Y'
+  evidence: code
+- table: tenant_interworking_product
+  field: id
+  meaning: 租户互通产品主键
+  evidence: db
+- table: tenant_interworking_product
+  field: open_status
+  meaning: 租户互通产品开通状态，代码写值使用 ProductOpenStatusEnum
+  evidence: code
+- table: tenant_interworking_product
+  field: platform_product_code
+  meaning: 平台产品 code
+  evidence: db
+- table: tenant_interworking_product
+  field: tenant_id
+  meaning: 租户 id
+  evidence: db
+- table: cust_interworking_product
+  field: open_status
+  meaning: 客户互通产品开通状态，DB 实测 OPENED，代码使用 CustProductActiveConstant.OPENED/OPENING/NOT_OPENED
+  evidence: db
 state_machines:
 - name: 租户产品开通状态
   field: tenant_product.open_status
   states:
   - value: N
-    label: 未开通/默认
+    label: 未开通
     source: db_dist
   - value: P
-    label: 开通中/等待多级回调
+    label: 开通中
     source: code_enum
   - value: Y
     label: 已开通
-    source: code_enum
+    source: db_dist
   transitions:
   - from: N
-    event: activeAndNotify 非 ACFLOW/ORDER 产品主动开通
+    event: 开通ACFLOW/ORDER多级产品
+    to: P
+    evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/producttype/TenantProductApplication.java:334
+  - from: P
+    event: 多级回调后置成功
     to: Y
     evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/producttype/TenantProductApplication.java:activeAndNotify
   - from: N
-    event: activeAndNotify 产品为 ACFLOW/ORDER，先置为开通中等待多级回调
-    to: P
-    evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/producttype/TenantProductApplication.java:activeAndNotify
-  - from: Y
-    event: activeAndNotify 幂等命中已开通直接返回
+    event: 非多级产品直接生效
     to: Y
     evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/producttype/TenantProductApplication.java:activeAndNotify
+  - from: Y
+    event: 取消开通产品
+    to: N
+    evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/producttype/TenantProductApplication.java:cancel
 - name: 租户项目状态
   field: tenant_project.project_status
   states:
-  - value: EFFECTIVE
+  - value: '0'
+    label: 待生效
+    source: code_enum
+  - value: '1'
     label: 已生效
     source: code_enum
-  - value: INVLIAD
+  - value: '2'
     label: 已失效
     source: code_enum
   transitions:
-  - from: 未生效
-    event: effective 生效项目
-    to: EFFECTIVE
+  - from: '0'
+    event: 项目生效
+    to: '1'
     evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/TenantProjectApplication.java:effective
-  - from: EFFECTIVE
-    event: invalid 失效项目
-    to: INVLIAD
+  - from: '1'
+    event: 项目失效
+    to: '2'
     evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/TenantProjectApplication.java:invalid
-  - from: INVLIAD
-    event: 上线审批完成通过后 effectiveProjectOnApprovalFinished 调 effective
-    to: EFFECTIVE
+  - from: '1'
+    event: 上线审批终态通过
+    to: '1'
     evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/approval/ProjectApprovalApplication.java:effectiveProjectOnApprovalFinished
+  - from: '2'
+    event: 上线审批终态通过重新生效
+    to: '1'
+    evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/approval/ProjectApprovalApplication.java:effectiveProjectOnApprovalFinished
+  - from: '1'
+    event: 非新增项目正式发起上线审批
+    to: '2'
+    evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/approval/ProjectApprovalApplication.java:663
 - name: 项目上线审批工作流状态
   field: tenant_project_approval.wf_status
   states:
   - value: PENDING
-    label: 待发起/待审批
+    label: 待发起
     source: code_enum
   - value: RUNNING
     label: 审批中
@@ -278,457 +357,684 @@ state_machines:
     source: code_enum
   transitions:
   - from: PENDING
-    event: startWorkflowAndUpdateStatus 启动工作流
+    event: 正式提交并启动工作流
     to: RUNNING
     evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/approval/ProjectApprovalApplication.java:startWorkflowAndUpdateStatus
+  - from: PENDING
+    event: 暂存
+    to: PENDING
+    evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/approval/ProjectApprovalApplication.java:submit
   - from: RUNNING
-    event: handleFlowAndNodeStatus 判断为 FINISHED
+    event: 审批完成
     to: FINISHED
     evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/approval/ProjectApprovalApplication.java:handleFlowAndNodeStatus
   - from: RUNNING
-    event: handleFlowAndNodeStatus 判断为 TERMINATED
+    event: 审批终止
     to: TERMINATED
     evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/approval/ProjectApprovalApplication.java:handleFlowAndNodeStatus
-  - from: PENDING
-    event: submit 暂存 isDraft=Y
-    to: PENDING
-    evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/approval/ProjectApprovalApplication.java:submit
-  - from: FINISHED/TERMINATED
-    event: createApproval/doCreateApproval 复制新审批记录置 PENDING
-    to: PENDING
-    evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/approval/ProjectApprovalApplication.java:doCreateApproval
-- name: 项目上线审批节点状态
-  field: tenant_project_approval_flow.node_status
-  states:
-  - value: PENDING
-    label: 待处理
-    source: code_enum
-  - value: APPROVING
-    label: 审批中
-    source: code_enum
-  - value: APPROVED
-    label: 已通过
-    source: code_enum
-  transitions:
-  - from: PENDING
-    event: handleFlowAndNodeStatus 写入节点状态
-    to: APPROVING
-    evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/approval/ProjectApprovalApplication.java:handleFlowAndNodeStatus
-  - from: APPROVING
-    event: 业务经理节点通过且 is_back_agreement=Y 触发后补合作协议判断
-    to: APPROVED
-    evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/approval/ProjectApprovalApplication.java:isStartBackAgreement
 - name: 客户互通产品开通状态
   field: cust_interworking_product.open_status
   states:
+  - value: NOT_OPENED
+    label: 未开通
+    source: code_enum
+  - value: OPENING
+    label: 开通中：带客户确认 forams
+    source: code_enum
   - value: OPENED
     label: 已开通
     source: db_dist
-  - value: OPENING
-    label: 开通中
-    source: code_enum
-  transitions:
-  - from: 未开通
-    event: TenantInterworkingProductApplication.active 开通互通产品
-    to: OPENED
-    evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/producttype/TenantInterworkingProductApplication.java:active
-  - from: OPENED
-    event: TenantInterworkingProductApplication.cancel 取消开通，关联项目后不允许取消
-    to: 未开通
-    evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/producttype/TenantInterworkingProductApplication.java:cancel
+  transitions: []
 calibers:
 - name: 租户产品已开通
   predicate: tenant_product.open_status = 'Y'
-  scope: 租户产品开通状态口径；代码 CustProductApplication 与 GotoProductApplication 使用 OPENED/Y
-    判断已开通
-  evidence: db_dist:tenant_product.open_status=Y:397；code_path:TenantProductApplication.java:activeAndNotify
+  scope: tenant_product
+  evidence: db+code:ProductOpenStatusEnum.Y 与 DB 分布 Y
 - name: 租户产品开通中
   predicate: tenant_product.open_status = 'P'
-  scope: ACFLOW/ORDER 多级产品开通中间态
-  evidence: db_dist:tenant_product.open_status=P:28；code_path:TenantProductApplication.java:activeAndNotify
+  scope: tenant_product
+  evidence: db+code:ProductOpenStatusEnum.P 与 DB 分布 P
 - name: 租户产品未开通
   predicate: tenant_product.open_status = 'N'
-  scope: 默认未开通状态
-  evidence: db_dist:tenant_product.open_status=N:75；tenant_product.open_status default
-    N
-- name: 租户产品有效
+  scope: tenant_product
+  evidence: db+code:ProductOpenStatusEnum.N 与 DB 分布 N
+- name: 有效租户产品
   predicate: tenant_product.enable = 'Y'
-  scope: 启用中的租户产品
-  evidence: db_dist:tenant_product.enable 全为 Y
-- name: ACFLOW 租户产品
-  predicate: tenant_product.platform_product_code = 'ACFLOW'
-  scope: ACFLOW 产品口径；生效时可能触发交e保开户，跨租户查询项目
-  evidence: db_dist:ACFLOW:231；code_path:TenantProjectApplication.java:effective/listEffectiveProjects
-- name: ORDER 租户产品
-  predicate: tenant_product.platform_product_code = 'ORDER'
-  scope: ORDER 产品口径；activeAndNotify 置于 P 等待多级回调
-  evidence: db_dist:ORDER:75；code_path:TenantProductApplication.java:activeAndNotify
-- name: RVSFACTOR_PC 租户产品
-  predicate: tenant_product.platform_product_code = 'RVSFACTOR_PC'
-  scope: RVSFACTOR_PC 产品口径；生效时可能触发交e保开户
-  evidence: db_dist:RVSFACTOR_PC:108；code_path:TenantProjectApplication.java:effective
+  scope: tenant_product
+  evidence: db:enable 全为 Y
+- name: 项目已生效
+  predicate: tenant_project.project_status = '1'
+  scope: tenant_project
+  evidence: code:ProjectStatusEnum.EFFECTIVE; ProjectReportApplication 按 1 转已生效
+- name: 项目待生效
+  predicate: tenant_project.project_status = '0'
+  scope: tenant_project
+  evidence: code:ProjectStatusEnum.TO_BE_EFFECTIVE
+- name: 项目已失效
+  predicate: tenant_project.project_status = '2'
+  scope: tenant_project
+  evidence: code:ProjectStatusEnum.INVLIAD
+- name: 有效项目
+  predicate: tenant_project.enable = 'Y'
+  scope: tenant_project
+  evidence: code:exportProjectInfo/updateProjectData 均按 enable='Y' 查询
+- name: 项目生产数据
+  predicate: tenant_project.is_prd = 'Y'
+  scope: tenant_project
+  evidence: code:导出判断 Y 为是，N 为否
+- name: 有效项目企业关联
+  predicate: cust_project_rel.enable = 'Y'
+  scope: cust_project_rel
+  evidence: code:queryRelatedCompanies 按 enable='Y' 查询
+- name: 核心企业角色
+  predicate: cust_project_rel.company_type = 'CORE'
+  scope: cust_project_rel
+  evidence: code:CustCompanyTypeEnum.CORE，导出关联企业时过滤 CORE/FINANCE
+- name: 金融机构角色
+  predicate: cust_project_rel.company_type = 'FINANCE'
+  scope: cust_project_rel
+  evidence: code:CustCompanyTypeEnum.FINANCE，导出关联企业时过滤 CORE/FINANCE
+- name: 租户互通产品已开通
+  predicate: tenant_interworking_product.open_status = 'Y'
+  scope: tenant_interworking_product
+  evidence: code:ProductOpenStatusEnum 写值绑定
 - name: 客户互通产品已开通
   predicate: cust_interworking_product.open_status = 'OPENED'
-  scope: 客户互通产品开通口径；代码常量 CustProductActiveConstant.OPENED
-  evidence: db_dist:OPENED:304；code_path:CustInterworkingProductApplication.java:listOpenProduct
-- name: 租户项目有效
-  predicate: tenant_project.enable = 'Y'
-  scope: 项目有效/未删除口径；导出、审批、查询大量使用
-  evidence: code_path:TenantProjectApplication.java:exportProjectInfo；ProjectApprovalApplication.java:listApprovalSelectableProjects
-- name: 租户项目已生效
-  predicate: tenant_project.project_status = ProjectStatusEnum.EFFECTIVE.getDictKey()
-  scope: 已生效项目；上线审批选择项目允许 EFFECTIVE/INVLIAD
-  evidence: code_path:ProjectApprovalApplication.java:listApprovalSelectableProjects；TenantProjectApplication.java:effective
-- name: 租户项目已失效
-  predicate: tenant_project.project_status = ProjectStatusEnum.INVLIAD.getDictKey()
-  scope: 已失效项目；上线审批选择项目允许 EFFECTIVE/INVLIAD
-  evidence: code_path:ProjectApprovalApplication.java:listApprovalSelectableProjects；TenantProjectApplication.java:invalid
-- name: 项目关联企业有效
-  predicate: cust_project_rel.enable = 'Y'
-  scope: 项目-企业关联有效口径
-  evidence: code_path:TenantProjectApplication.java:queryRelatedCompanies；ProjectReportApplication.java:getCompaniesByProjectId
-- name: 项目导出关联企业范围
-  predicate: cust_project_rel.company_type IN ('CORE','FINANCE') AND cust_project_rel.enable
-    = 'Y'
-  scope: 项目运营配置导出 Sheet2 只导出核心企业和金融机构
-  evidence: code_path:TenantProjectApplication.java:queryRelatedCompanies
-- name: 平台产品角色组合配置
-  predicate: PlatformProductDO.custRoleCombine IS NOT NULL AND custRoleCombine !=
-    ''
-  scope: 角色组合校验只处理配置了 cust_role_combine 的平台产品
-  evidence: code_path:TenantProductApplication.java:checkCustRoleCombine
-- name: 产品菜单启用
-  predicate: tenant_product_menu.enable = 'Y'
-  scope: 租户产品菜单启用口径
-  evidence: db_dist:tenant_product_menu.enable 全为 Y
-- name: 产品菜单资源启用
-  predicate: tenant_product_menu_res.enable = 'Y'
-  scope: 租户产品菜单资源启用口径
-  evidence: db_dist:tenant_product_menu_res.enable 全为 Y
-- name: 我的产品口径
-  predicate: CustProductDTO.openStatus IN (CustProductActiveConstant.OPENED, CustProductActiveConstant.OPENING)
-  scope: listMyProduct 返回企业已开通和开通中的产品
-  evidence: code_path:CustGeneralProductApplication.java:listMyProduct；CustInterworkingProductApplication.java:listMyProduct
+  scope: cust_interworking_product
+  evidence: db:CustProductActiveConstant.OPENED；DB 分布 OPENED
+- name: 平台互通产品类型
+  predicate: platform_product.product_type = 'INTERWORKING'
+  scope: platform_product
+  evidence: code:PlatformProductTypeEnum.INTERWORKING 用于互通产品查询
+- name: 平台通用产品类型
+  predicate: platform_product.product_type = 'GENERAL'
+  scope: platform_product
+  evidence: code:PlatformProductTypeEnum.GENERAL 用于通用产品查询
+- name: 项目标签生产项目
+  predicate: tenant_project.project_tag = '生产项目'
+  scope: tenant_project
+  evidence: code:convertProjectTagFromChinese 校验可选值
+- name: 项目标签测试项目
+  predicate: tenant_project.project_tag = '测试项目'
+  scope: tenant_project
+  evidence: code:convertProjectTagFromChinese 校验可选值
+- name: 项目标签暂停项目
+  predicate: tenant_project.project_tag = '暂停项目'
+  scope: tenant_project
+  evidence: code:convertProjectTagFromChinese 校验可选值
+- name: 上线审批中
+  predicate: tenant_project_approval.wf_status = 'RUNNING'
+  scope: tenant_project_approval
+  evidence: code:ProjectBusinessConfigApplication 只处理 RUNNING
 term_bridges:
 - term: 租户产品
   aliases:
-  - tenantProduct
   - tenant_product
-  maps_to: tenant_product：租户维度开通/配置的产品实例
+  - 租户产品配置
+  maps_to: tenant_product
   also_confused_with:
-  - 平台产品 platform_product
-  - 客户产品 cust_product
-  adjudication: boundary
-  boundary: 租户产品是租户开通的产品实例；平台产品是全局产品定义；客户产品是企业维度开通授权，三者不可混用
-- term: 平台产品
-  aliases:
-  - platformProduct
-  - platform_product
-  - platform_product_code
-  maps_to: platform_product：平台级产品定义，如 ACFLOW/BEECREDIT/ORDER/RVSFACTOR_PC
-  also_confused_with:
-  - 租户产品
-  adjudication: boundary
-  boundary: 平台产品用 productCode 标识，租户产品用 tenant_id + platform_product_id 唯一
-- term: 互通产品
-  aliases:
-  - INTERWORKING
   - tenant_interworking_product
   - cust_interworking_product
-  maps_to: 互通产品查询/开通场景，PlatformProductTypeEnum.INTERWORKING
-  also_confused_with:
-  - 通用产品 GENERAL
   adjudication: boundary
-  boundary: 互通产品与通用产品通过 PlatformProductTypeEnum 区分，扩展点场景为 INTERWORKING
+  boundary: tenant_product 是租户级通用产品开通表；tenant_interworking_product/cust_interworking_product
+    是互通产品线，产品查询扩展点 scenario=INTERWORKING/GENERAL 区分。
+- term: 互通产品
+  aliases:
+  - 互联互通产品
+  - tenant_interworking_product
+  - cust_interworking_product
+  maps_to: tenant_interworking_product
+  also_confused_with:
+  - tenant_product
+  adjudication: boundary
+  boundary: 互通产品通过 TenantInterworkingProductApplication/CustInterworkingProductApplication
+    查询；租户产品通过 TenantProductApplication/CustGeneralProductApplication 查询。
 - term: 租户项目
   aliases:
-  - tenantProject
   - tenant_project
-  maps_to: tenant_project：租户下项目实体
+  - 项目运营配置
+  maps_to: tenant_project
   also_confused_with:
-  - 客户项目关联 CustProjectRelDO
-  - 项目上线审批 TenantProjectApprovalDO
+  - cust_project_rel
   adjudication: boundary
-  boundary: tenant_project 是项目主数据；关联企业存 CustProjectRelDO；审批数据存 TenantProjectApprovalDO
-- term: 项目状态
+  boundary: tenant_project 是项目主表；cust_project_rel 是项目与企业关联表，导出分两个 sheet。
+- term: 项目企业关联
   aliases:
-  - projectStatus
-  - project_status
-  - rule_status
-  maps_to: tenant_project.project_status，代码枚举 ProjectStatusEnum.EFFECTIVE/INVLIAD
+  - cust_project_rel
+  - 项目关联企业
+  maps_to: cust_project_rel
   also_confused_with:
-  - 需求文档中的 rule_status
+  - tenant_project
   adjudication: boundary
-  boundary: 代码字段为 project_status；需求文档中 rule_status -> ACTIVE/INACTIVE 与代码不一致，以代码为准
+  boundary: cust_project_rel 承载项目+企业+角色关系，project_id 为 String 指向 tenant_project.id。
 - term: 产品开通状态
   aliases:
-  - openStatus
   - open_status
-  maps_to: tenant_product.open_status 的 N/P/Y；客户产品侧使用 CustProductActiveConstant.OPENED/OPENING
+  - productOpenStatus
+  maps_to: tenant_product.open_status
   also_confused_with:
-  - ProductOpenStatusEnum
-  - CustProductActiveConstant
+  - cust_interworking_product.open_status
+  - tenant_interworking_product.open_status
   adjudication: boundary
-  boundary: 租户产品状态为 N/P/Y；客户产品状态为 OPENED/OPENING；互通产品 DB 对账出现 OPENED
-- term: 上线审批工作流状态
+  boundary: tenant_product.open_status 使用 N/P/Y；cust_interworking_product.open_status
+    使用 NOT_OPENED/OPENING/OPENED；tenant_interworking_product.open_status 代码绑定 ProductOpenStatusEnum。
+- term: 项目状态
   aliases:
-  - wfStatus
-  - wf_status
-  maps_to: ProjectApprovalWorkflowStatusEnum.PENDING/RUNNING/FINISHED/TERMINATED
+  - project_status
+  maps_to: tenant_project.project_status
   also_confused_with:
-  - 节点状态 node_status
+  - tenant_project_approval.wf_status
   adjudication: boundary
-  boundary: wf_status 是审批主记录状态；node_status 是单个流程节点状态
-- term: 项目上线审批
+  boundary: project_status 是项目生命周期 0/1/2；wf_status 是上线审批工作流状态 PENDING/RUNNING/FINISHED/TERMINATED。
+- term: 项目码
   aliases:
-  - tenant_project_approval
-  - ProjectApproval
-  maps_to: TenantProjectApprovalDO/ProjectApprovalApplication：项目上线审批主流程
+  - channel_code
+  - project_code
+  maps_to: tenant_project.channel_code
   also_confused_with:
-  - 项目状态 project_status
+  - tenant_project.project_code
   adjudication: boundary
-  boundary: 审批完成可驱动项目生效，但审批状态不等于项目状态
+  boundary: 代码 queryByChannelCode 使用 channel_code；导出另有 project_code 查询条件，二者并存但项目码生成走
+    initChannelCode。
+- term: 运营对接人A
+  aliases:
+  - op_contact_a
+  maps_to: tenant_project.op_contact_a
+  also_confused_with:
+  - cust_project_rel.op_contact_a
+  adjudication: boundary
+  boundary: tenant_project 是项目级字段；cust_project_rel 是项目企业关联级字段，导出时分别落到不同 sheet。
+- term: 运营对接人B
+  aliases:
+  - op_contact_b
+  maps_to: tenant_project.op_contact_b
+  also_confused_with:
+  - cust_project_rel.op_contact_b
+  adjudication: boundary
+  boundary: tenant_project 与 cust_project_rel 同名字段，代码存在 JSON 数组与展示姓名转换逻辑。
+- term: 运营组别
+  aliases:
+  - op_contact_a_group
+  - verification_contact_group
+  - risk_control_contact_a_group
+  maps_to: tenant_project.op_contact_a_group
+  also_confused_with:
+  - cust_project_rel.op_contact_a_group
+  adjudication: boundary
+  boundary: 组别字段跟随对应联系人，导入更新联系人时同步更新组别，为空则置空。
+- term: 项目标签
+  aliases:
+  - project_tag
+  maps_to: tenant_project.project_tag
+  also_confused_with: []
+  adjudication: synonym
+  boundary: 导入校验可选值生产项目/测试项目/暂停项目，存储为枚举值。
+- term: 运营项目归属
+  aliases:
+  - bussiness_project_relation
+  maps_to: tenant_project.bussiness_project_relation
+  also_confused_with: []
+  adjudication: synonym
+  boundary: 注意拼写为 bussiness 而非 business。
+- term: 产品类型
+  aliases:
+  - product_cate
+  maps_to: tenant_product.product_cate
+  also_confused_with:
+  - platform_product.product_type
+  adjudication: boundary
+  boundary: tenant_product.product_cate 为 STRONG/WEAKLY/CREDIT；platform_product.product_type
+    为 GENERAL/INTERWORKING 等平台产品线维度。
+- term: 平台产品
+  aliases:
+  - platform_product
+  - platformProductCode
+  maps_to: tenant_product.platform_product_code
+  also_confused_with:
+  - tenant_product.ref_tenant_product_project_code
+  adjudication: boundary
+  boundary: platform_product_code 存产品业务 code；ref_tenant_product_project_code 是租户产品到平台产品的关联
+    code。
 rules:
-- name: 租户产品开通幂等与多级产品中间态
-  content: activeAndNotify 先查租户产品；若 open_status 已为 Y 直接返回；ACFLOW/ORDER 设置 open_status=P
-    等待多级回调后置成功；其他产品调用 domainService.active 置为已开通；推送 PlatProductEventType.EFFECTED
-    并同步下游
-  impact: 控制租户产品开通状态与下游事件同步
+- name: 租户项目创建前置校验
+  content: 创建项目时校验租户存在、租户产品已开通，再写 tenant_project 并推送 PROJECT_SYNC/CREATED 事件。
+  impact: 租户或租户产品不存在时项目创建失败。
   field_targets:
-  - tenant_product.open_status
-  - tenant_product.platform_product_code
-  evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/producttype/TenantProductApplication.java:activeAndNotify
-- name: 租户产品取消限制
-  content: cancel 调用 domainService.cancel，并推送 PlatProductEventType.INVALID；注释明确关联项目后不允许取消
-  impact: 租户产品取消开通
+  - tenant_project.ref_tenant_project_tenant_code
+  - tenant_project.ref_tenant_project_product_code
+  evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/TenantProjectApplication.java:create
+- name: 租户项目复制
+  content: 复制项目时按 id 查原项目，再按 refTenantProjectProductCode 查租户产品，推送 PROJECT_SYNC/COPY
+    事件。
+  impact: 项目复制依赖原项目和租户产品存在。
   field_targets:
-  - tenant_product.open_status
-  - tenant_product.id
-  evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/producttype/TenantProductApplication.java:cancel
-- name: 租户产品在途校验
-  content: checkOnTheWay 委托 domainService.checkOnTheWay，用于检查产品在途逻辑；但 activeAndNotify
-    中未直接调用该检查
-  impact: 产品开通/变更在途控制
+  - tenant_project.id
+  - tenant_project.ref_tenant_project_product_code
+  evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/TenantProjectApplication.java:copy
+- name: 租户项目变更
+  content: 变更调用 tenantProjectDomainService.change，成功后推送 PROJECT_SYNC/CHANGED，reason
+    固定为“变更名字”。
+  impact: 项目名称类变更触发下游同步。
   field_targets:
-  - tenant_product.id
-  evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/producttype/TenantProductApplication.java:checkOnTheWay
-- name: 企业角色组合校验
-  content: 同一企业在同一产品下若已有多个 companyType，需命中 PlatformProductDO.custRoleCombine 允许的角色组合集合；不命中时若
-    removeProductList 为空抛 BaseException“系统暂不支持该角色组合”，否则加入 removeProductList 过滤产品
-  impact: 防止同一企业在同一产品下承担多个不合规角色进行欺诈
-  field_targets:
-  - PlatformProductDO.custRoleCombine
-  - CustProjectRelDO.companyType
-  - tenant_product.platform_product_code
-  evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/producttype/TenantProductApplication.java:checkCustRoleCombine/checkProjectProductByCustType
-- name: 运营方添加企业角色校验
-  content: checkProjectProductByCustType 调用 checkCustRoleCombine，校验运营方添加已存在企业角色时是否满足产品角色组合
-  impact: 运营方添加企业到项目/产品前的角色组合校验
-  field_targets:
-  - CustProjectRelDO.companyType
-  - PlatformProductDO.custRoleCombine
-  evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/producttype/TenantProductApplication.java:checkProjectProductByCustType
-- name: 租户项目创建
-  content: create 校验租户信息存在、租户产品存在；调用 TenantProjectDomainService.create 创建项目；满足 isAdd=Y、挡板
-    project.online.approval.enable 开启、平台产品为 ACFLOW/RVSFACTOR/ORDER 时创建初始上线审批；推送 PROJECT_SYNC
-    CREATED
-  impact: 项目创建、审批初始化与下游同步
-  field_targets:
-  - tenant_project.*
-  - tenant_product.platform_product_code
-  - tenant_project.is_add
-  - tenant_project.project_approval_id
-  evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/TenantProjectApplication.java:create/tryCreateInitialApprovalOnProjectCreate
-- name: 租户项目生效
-  content: effective 先查项目与租户产品；BEECREDIT 产品要求 config_json 中项目配置状态为 EFFECTIVE 或 Y，否则抛异常；调用
-    domainService.effective；非 BEECREDIT 推送 EFFECTED；ACFLOW/RVSFACTOR 生效时查询/补全业务系统配置并调用
-    bocomFactory.openPaymentBocomAccount 开户
-  impact: 项目生效、配置校验、下游同步与交e保开户
+  - tenant_project.name
+  evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/TenantProjectApplication.java:change
+- name: 项目生效规则
+  content: 生效时若平台产品为 BEECREDIT，则 config_json 中每个项目配置 statusDictKey 必须为 EFFECTIVE 或
+    Y，否则阻断；非 BEECREDIT 推送 EFFECTED；ACFLOW/RVSFACTOR 会在 configJson 为空时查询项目配置并开户。
+  impact: 信用证项目配置不完整不能生效；交e保产品生效触发开户。
   field_targets:
   - tenant_project.project_status
   - tenant_project.config_json
-  - tenant_product.platform_product_code
   evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/TenantProjectApplication.java:effective
-- name: 租户项目失效/删除/变更/复制事件
-  content: invalid 调 domainService.invalid 并推送 INVALID；delete 调 domainService.delete
-    并推送 DELETED；change 调 domainService.change 成功后推送 CHANGED；copy 推送 COPY；updateIsPrd
-    推送 CHANGED
-  impact: 项目生命周期状态与下游同步
+- name: 项目失效规则
+  content: 失效调用 tenantProjectDomainService.invalid，并推送 PROJECT_SYNC/INVALID。
+  impact: 项目状态变更为已失效并同步下游。
   field_targets:
   - tenant_project.project_status
-  - tenant_project.enable
-  evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/TenantProjectApplication.java:invalid/delete/change/copy/updateIsPrd
-- name: ACFLOW 项目跨租户查询
-  content: listEffectiveProjects 中若 refTenantProjectProductCode 对应平台产品为 ACFLOW，则调用
-    tenantProjectDao.listAcflowAllEffectiveProjects(ACFLOW, projectConfigVersion)
-    跨租户查询有效项目
-  impact: ACFLOW 多级产品允许跨租户查询项目
-  field_targets:
-  - tenant_project.ref_tenant_project_product_code
-  - tenant_project.platform_product_code
-  - tenant_project.project_config_version
-  evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/TenantProjectApplication.java:listEffectiveProjects
-- name: 项目导入校验
-  content: 导入项目和企业信息时校验项目ID非空、不重复、能解析为 Long、项目存在、对接人存在、项目标签合法、自定义字段长度<=500、运营项目归属<=50；有错误则生成错误文件且不更新
-  impact: 保证项目运营配置导入数据质量
-  field_targets:
-  - tenant_project.project_id
-  - tenant_project.op_contact_a
-  - tenant_project.op_contact_b
-  - tenant_project.verification_contact
-  - tenant_project.risk_control_contact_a
-  - tenant_project.risk_control_contact_b
-  - tenant_project.project_tag
-  - tenant_project.custom_field_one/two/three
-  - tenant_project.bussiness_project_relation
-  evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/TenantProjectApplication.java:importProjectAndCompanyInfo/validateProjectData/updateProjectData
-- name: 项目导出范围
-  content: exportProjectInfo 只查询 tenant_project.enable='Y'，按 update_time 降序；Sheet1
-    项目运营配置，Sheet2 关联企业；关联企业只取 cust_project_rel.company_type in (CORE, FINANCE) 且 enable='Y'；企业信息只取
-    data_type='1' 主数据
-  impact: 项目运营配置导出数据范围
+  evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/TenantProjectApplication.java:invalid
+- name: 项目删除规则
+  content: 删除调用 tenantProjectDomainService.delete，并推送 PROJECT_SYNC/DELETED，应为逻辑删除
+    enable=N。
+  impact: 项目逻辑删除并同步下游。
   field_targets:
   - tenant_project.enable
-  - cust_project_rel.company_type
-  - cust_project_rel.enable
-  - CustCompanyInfoDO.dataType
-  evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/TenantProjectApplication.java:exportProjectInfo/queryRelatedCompanies
-- name: 业务系统推送项目配置落库条件
-  content: ProjectBusinessConfigApplication.savePush 要求项目存在、sourceSystem 合法且与项目 platformProductCode
-    匹配；必须存在 wf_status=RUNNING 且 node_status=APPROVING 的上线审批节点；仅当当前节点为 PROJECT_MANAGER
-    或 PROJECT_CONFIG 时落库更新，否则记录日志并返回已有配置ID
-  impact: 控制业务系统推送项目配置是否写入审批业务信息
+  evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/TenantProjectApplication.java:delete
+- name: 创建项目初始上线审批
+  content: isAdd=Y、项目上线审批挡板开启、平台产品为 ACFLOW/RVSFACTOR/ORDER 时，创建初始审批记录；否则跳过。
+  impact: 仅指定产品的新增项目自动生成待发起上线审批。
   field_targets:
+  - tenant_project.id
   - tenant_project.platform_product_code
-  - TenantProjectApprovalDO.wf_status
-  - TenantProjectApprovalFlowDO.node_status
-  - TenantProjectApprovalFlowDO.node_code
-  - TenantProjectApprovalBusinessInfoDO.*
-  evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/approval/ProjectBusinessConfigApplication.java:savePush
-- name: 上线审批发起与暂存
-  content: submit 要求审批记录为 PENDING；isDraft=Y 仅落库不启动工作流；正式提交校验流程节点审批人、影像文件，生成流程定义；首次新增项目正式提交时回填立项审批编号到
-    tenant_project.wechat_audit_no
-  impact: 项目上线审批提交与暂存
+  evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/TenantProjectApplication.java:tryCreateInitialApprovalOnProjectCreate
+- name: 审批回填立项编号
+  content: 新增项目首次正式提交时，若 isAdd=Y、非重新发起、wechat_audit_no 为空，则将 spNo 回写 tenant_project.wechat_audit_no
+    并推送 EFFECTED。
+  impact: 项目立项审批编号自动回填并同步业务系统。
   field_targets:
-  - TenantProjectApprovalDO.wf_status
-  - TenantProjectApprovalDO.is_draft
   - tenant_project.wechat_audit_no
-  evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/approval/ProjectApprovalApplication.java:submit/backfillProjectSpNoOnSubmit
-- name: 上线审批完成驱动项目生效与推送
-  content: handleFlowAndNodeStatus 在 wfStatus=FINISHED 或 TERMINATED 时更新完成时间；FINISHED
-    时调用 effectiveProjectOnApprovalFinished 使项目生效；标准项目或常规项目+低风险推送 AMS；业务经理节点通过且 is_back_agreement=Y
-    启动后补合作协议
-  impact: 审批终态联动项目生效、AMS 推送、后补合作协议
+  evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/approval/ProjectApprovalApplication.java:backfillProjectSpNoOnSubmit
+- name: 上线审批完成置项目生效
+  content: 审批工作流 FINISHED 后调用 tenantProjectApplication.effective，将项目置为已生效。
+  impact: 审批通过与项目生效联动。
   field_targets:
-  - TenantProjectApprovalDO.wf_status
-  - TenantProjectApprovalDO.project_type
-  - TenantProjectApprovalDO.is_low_risk
-  - TenantProjectApprovalFlowDO.is_back_agreement
   - tenant_project.project_status
-  evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/approval/ProjectApprovalApplication.java:handleFlowAndNodeStatus/effectiveProjectOnApprovalFinished/isPushToAms/isStartBackAgreement
-- name: 客户开通产品需租户产品已上架
-  content: CustGeneralProductApplication.activeProduct 校验 tenantProductDTO.openStatus
-    必须为 Y，否则抛“请联系管理员上架产品”；AMS 产品开通后同步企业信息到 client
-  impact: 客户产品开通前置校验
+  evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/approval/ProjectApprovalApplication.java:effectiveProjectOnApprovalFinished
+- name: 企业角色组合校验
+  content: 同一企业在同一平台产品下已有角色集合加上当前角色，若角色数大于1且组合不在 platform_product.cust_role_combine
+    允许集合中，则抛异常或移除该产品。
+  impact: 防止同一企业同一产品多角色诈骗。
+  field_targets:
+  - cust_project_rel.company_type
+  - platform_product.cust_role_combine
+  evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/producttype/TenantProductApplication.java:checkCustRoleCombine
+- name: 租户产品多级开通回调
+  content: activeAndNotify 若已是 Y 直接返回；先推送租户事件；ACFLOW/ORDER 先置 P 等待多级回调，其他产品直接 domainService.active
+    置 Y 并推送 PRODUCT_SYNC/EFFECTED。
+  impact: 多级产品开通状态先开通中再已开通。
   field_targets:
   - tenant_product.open_status
-  - tenant_product.platform_product_code
-  evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/custproduct/CustGeneralProductApplication.java:activeProduct
-- name: 登录后跳转产品决策
-  content: determineProduct 按优先级：新用户回产融；问卷星白名单回产融；产品未开通回产融；产融有待办回产融；产融无待办时按业务待办数量、指定
-    targetProduct 和已开通产品集合决定跳转产品
-  impact: 登录后跳转产品
+  evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/producttype/TenantProductApplication.java:334
+- name: 取消租户产品
+  content: cancel 调用 domainService.cancel 后推送 PRODUCT_SYNC/INVALID，注释说明关联项目后不允许取消。
+  impact: 取消开通产品触发下游失效同步。
   field_targets:
-  - CustProductDTO.openStatus
-  - CustProductDTO.platformProductCode
-  evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/GotoProductApplication.java:determineProduct
-- name: 互通产品租户创建/开通/取消
-  content: TenantInterworkingProductApplication.create 校验 tenantId 与 platformProductId；active
-    调用 domainService.active；cancel 调用 domainService.cancel，注释明确关联项目后不允许取消；afterSaveOrUpdate
-    当前为空实现
-  impact: 租户互通产品生命周期
+  - tenant_product.open_status
+  evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/producttype/TenantProductApplication.java:cancel
+- name: 项目导出有效数据
+  content: exportProjectInfo 只查询 enable='Y'，按 update_time 降序，每页 500 循环导出；第一个 sheet
+    为项目运营配置，第二个 sheet 为关联企业。
+  impact: 导出结果不含逻辑删除项目。
   field_targets:
-  - tenant_interworking_product.open_status
-  - tenant_interworking_product.tenant_id
-  - tenant_interworking_product.platform_product_id
-  evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/producttype/TenantInterworkingProductApplication.java:create/active/cancel
-- name: Nacos 扩展产品类型白名单
-  content: TenantProductQueryAggregateApplication 使用 @NacosValue("${platform.avaliableExtProductType:INTERWORKING}")
-    配置可用的扩展产品类型，默认 INTERWORKING
-  impact: 控制扩展产品类型查询范围
+  - tenant_project.enable
+  evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/TenantProjectApplication.java:exportProjectInfo
+- name: 项目导入校验
+  content: 项目 ID 必填、在导入列表内唯一、在库存在且 enable=Y；对接人姓名必须在运营人员列表；自定义字段一/二/三 ≤500 字，运营项目归属
+    ≤50 字，项目标签只允许生产项目/测试项目/暂停项目。
+  impact: 非法行不入库并回写错误行。
   field_targets:
-  - PlatformProductTypeEnum
-  evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/producttype/TenantProductQueryAggregateApplication.java
+  - tenant_project.id
+  - tenant_project.op_contact_a
+  - tenant_project.project_tag
+  - tenant_project.custom_field_one
+  - tenant_project.bussiness_project_relation
+  evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/TenantProjectApplication.java:validateProjectData
+- name: 项目运营配置导入更新
+  content: updateProjectData 将姓名转 ID 写入 tenant_project，运营对接人A/查验对接人/风控对接人A 为空时同步清空组别，否则按运营人员组别回写。
+  impact: 导入更新联系人及组别。
+  field_targets:
+  - tenant_project.op_contact_a
+  - tenant_project.op_contact_a_group
+  - tenant_project.verification_contact
+  - tenant_project.risk_control_contact_a
+  evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/TenantProjectApplication.java:updateProjectData
+- name: 业务系统推送项目配置落库条件
+  content: savePush 先校验来源系统与项目平台产品匹配；仅当项目存在 wf_status=RUNNING 的最新上线审批且当前节点为 PROJECT_MANAGER
+    或 PROJECT_CONFIG 时落库更新，否则跳过或丢弃。
+  impact: 非方案经理/方案配置节点推送不更新配置。
+  field_targets:
+  - tenant_project_approval_business_info.source_system
+  - tenant_project_approval.wf_status
+  - tenant_project_approval_flow.node_code
+  evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/approval/ProjectBusinessConfigApplication.java:savePush
 reqdoc_claims:
-- claim: reqdoc:tenant_project表 主要字段 op_contact_a/op_contact_b/verification_contact/risk_control_contact_a/risk_control_contact_b/solution_manager/business_group/custom_field_one/two/three/project_tag/bussiness_project_relation
-    存在并有导入导出逻辑
+- claim: tenant_project 表包含 op_contact_a、op_contact_b、verification_contact、risk_control_contact_a、risk_control_contact_b、solution_manager、business_group、custom_field_one/two/three、project_tag、bussiness_project_relation
+    等运营对接配置字段。
   code_status: confirmed
-  code_evidence: TenantProjectApplication.java:saveOrUpdate/convertToExportDTO/updateProjectData
+  code_evidence: TenantProjectApplication.java:saveOrUpdate/updateProjectData/convertToExportDTO
   action: anchor
-- claim: reqdoc:tenant_project表 相关接口包括项目信息导出、导入和分页查询
+- claim: tenant_project 相关接口包括项目信息导出、导入和分页查询。
   code_status: confirmed
-  code_evidence: TenantProjectApplication.java:exportProjectInfo/importProjectAndCompanyInfo/queryRelatedCompanies；ProjectReportApplication.java:pageProjectReport
+  code_evidence: TenantProjectApplication.java:exportProjectInfo/importProjectAndCompanyInfo;
+    ProjectApprovalApplication.java:page
   action: anchor
-- claim: reqdoc:cust_project_rel表 主要字段 op_contact_a/op_contact_b/op_contact_a_group/verification_contact/risk_control_contact_a/risk_control_contact_b
-    存在
+- claim: cust_project_rel 表包含 op_contact_a、op_contact_b、op_contact_a_group、verification_contact、risk_control_contact_a、risk_control_contact_b。
   code_status: confirmed
-  code_evidence: ProjectReportApplication.java:getCompaniesByProjectId；TenantProjectApplication.java:queryRelatedCompanies
+  code_evidence: TenantProjectApplication.java:queryRelatedCompanies; ProjectReportApplication.java:getCompaniesByProjectId
   action: anchor
-- claim: reqdoc:cust_project_rel表 相关接口包括项目关联企业分页查询、项目信息导入时更新该表
+- claim: cust_project_rel 相关接口包括项目关联企业分页查询接口，以及项目信息导入时对此表的更新逻辑。
   code_status: confirmed
-  code_evidence: TenantProjectApplication.java:importProjectAndCompanyInfo/updateCompanyData；ProjectReportApplication.java:pageCompanyInfoReport
+  code_evidence: ProjectReportApplication.java:pageCompanyInfoReport/queryRelatedCompanies;
+    TenantProjectApplication.java:updateCompanyData
   action: anchor
-- claim: reqdoc:SSO验证码登录改造技术设计 文档在附录第4节提及 tenant_project 和 cust_project_rel，与核心验证码功能关联较弱
+- claim: 项目运营配置导出分两个 sheet：项目运营配置、关联企业；关联企业导出取 CORE/FINANCE 角色。
+  code_status: confirmed
+  code_evidence: TenantProjectApplication.java:exportMultipleSheets/queryRelatedCompanies
+  action: anchor
+- claim: 项目导入支持项目运营配置与关联企业两个 sheet，并按行回写错误信息。
+  code_status: confirmed
+  code_evidence: TenantProjectApplication.java:importProjectAndCompanyInfo/validateProjectData/validateCompanyData
+  action: anchor
+- claim: tenant_project 表在 SSO 验证码登录改造技术设计文档附录中提及，与核心验证码功能关联较弱。
   code_status: uncovered
-  code_evidence: 未在提供的代码链路中看到 SSO 验证码与 tenant_project/cust_project_rel 的直接实现绑定
+  code_evidence: 主题内代码未覆盖 SSO 验证码校验链路
   action: review
-- claim: sysdoc:产品与项目管理业务规则文档 2.1 租户产品开通流程：TenantProductApplication.create 生成 tenant_product
-    状态 PENDING；activeAndNotify 状态置为 ACTIVE；checkOnTheWay 在途校验禁止激活
+- claim: SSO 验证码登录改造包含 validateCaptcha、行为验证码缓存、登录验证码校验等流程。
+  code_status: uncovered
+  code_evidence: 主题内代码未出现 SsoCodeProvider.validateCaptcha 及 sso:behavior_captcha 缓存实现
+  action: review
+- claim: 项目默认项目 ID 必须为该租户下已生效项目。
   code_status: refuted
-  code_evidence: TenantProductApplication.java:create/activeAndNotify/checkOnTheWay；DB
-    tenant_product.open_status 实测 N/P/Y；代码 ProductOpenStatusEnum 使用 Y/P
+  code_evidence: TenantProjectApplication.java:resolveProjectForInvite 仅按 default_project_id
+    查 tenant_project，未校验 project_status=1
   action: prose_only
-- claim: sysdoc:产品与项目管理业务规则文档 2.2 租户项目生命周期：effective 将 rule_status 置 ACTIVE；invalid
-    将 rule_status 置 INACTIVE；change version+1；delete enable=N 逻辑删除
-  code_status: refuted
-  code_evidence: TenantProjectApplication.java:effective/invalid/change/delete；代码使用
-    tenant_project.project_status + ProjectStatusEnum.EFFECTIVE/INVLIAD，未出现 rule_status；change
-    未见 version+1；delete 调用 domainService.delete
-  action: prose_only
-- claim: sysdoc:产品与项目管理业务规则文档 2.3 客户加入项目角色组合校验：TenantProductApplication.checkProjectProductByCustType
-    聚合 companyType，读取 PlatformProductDO.custRoleCombine，不合法抛 BaseException“系统暂不支持该角色组合”，写入
-    CustProjectRelDO
+- claim: 导入项目ID时校验项目是否存在。
   code_status: confirmed
-  code_evidence: TenantProductApplication.java:checkProjectProductByCustType/checkCustRoleCombine；异常文本“系统暂不支持该角色组合”存在；写
-    CustProjectRelDO 的写值点未在给定代码片段中直接展示
+  code_evidence: TenantProjectApplication.java:validateProjectData 用 tenantProjectDao.lambdaQuery().in(id).eq(enable,'Y')
   action: anchor
-- claim: sysdoc:产品与项目管理业务规则文档 2.4 流程变量 productOpenStatus 典型值 PENDING/ACTIVE/CANCEL
-  code_status: refuted
-  code_evidence: ProductOpenStatusEnum.Y/P；DB tenant_product.open_status 实测 N/P/Y
-  action: prose_only
-- claim: sysdoc:产品与项目管理业务规则文档 BR-001 平台产品保存前置校验 PlatformProductApplication.checkBeforeSave
-  code_status: uncovered
-  code_evidence: 未提供 PlatformProductApplication 代码
-  action: review
-- claim: sysdoc:产品与项目管理业务规则文档 BR-002 平台产品列表过滤 PlatformProductController.listTenantProduct/filterLimitProduct
-  code_status: uncovered
-  code_evidence: 未提供 PlatformProductController 代码
-  action: review
-- claim: sysdoc:产品与项目管理业务规则文档 BR-003 平台产品扩展配置查询 cust_config_mapping
-  code_status: uncovered
-  code_evidence: 未提供 PlatformProductApplication#getProductExtConfig 代码
-  action: review
-- claim: sysdoc:租户管理业务规则文档 BR-011 项目标识存在性校验：以 tenant_flg_en 在 tenant_project 查询，未命中视为非法行
-  code_status: uncovered
-  code_evidence: 未提供 TenantAppliactionService#importTenantOperationConfigByFile 代码
-  action: review
-- claim: sysdoc:租户管理业务规则文档 BR-012 默认项目 ID 合法性校验
-  code_status: uncovered
-  code_evidence: 未提供 TenantAppliactionService 对应校验代码
-  action: review
-- claim: sysdoc:产品与项目管理业务规则文档 2.1 发布 PlatProductEventType 事件并由 ProductClientSyncService
-    同步下游 client
-  code_status: confirmed
-  code_evidence: TenantProductApplication.java:activeAndNotify 中 migratoryPointService.push(RpcPoint.PRODUCT_SYNC,
-    PlatProductEventType.EFFECTED, ...)
-  action: anchor
+enum_audit:
+- field: tenant_product.open_status
+  value: N
+  java_name: N
+  stored_as: same
+  label: 未开通
+  verdict: confirm
+  evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/domain/enums/ProductOpenStatusEnum.java
+  note: DB 分布 N=75，与枚举一致。
+- field: tenant_product.open_status
+  value: P
+  java_name: P
+  stored_as: same
+  label: 开通中
+  verdict: confirm
+  evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/producttype/TenantProductApplication.java:334
+  note: 多级产品 ACFLOW/ORDER 先置 P，DB 分布 P=28。
+- field: tenant_product.open_status
+  value: Y
+  java_name: Y
+  stored_as: same
+  label: 已开通
+  verdict: confirm
+  evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/domain/enums/ProductOpenStatusEnum.java
+  note: DB 分布 Y=397。
+- field: tenant_project.project_status
+  value: '0'
+  java_name: TO_BE_EFFECTIVE
+  stored_as: dictKey
+  label: 待生效
+  verdict: confirm
+  evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/domain/enums/ProjectStatusEnum.java
+  note: 落库键为 0。
+- field: tenant_project.project_status
+  value: '1'
+  java_name: EFFECTIVE
+  stored_as: dictKey
+  label: 已生效
+  verdict: confirm
+  evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/domain/enums/ProjectStatusEnum.java
+  note: ProjectReportApplication 也按 1 转已生效。
+- field: tenant_project.project_status
+  value: '2'
+  java_name: INVLIAD
+  stored_as: dictKey
+  label: 已失效
+  verdict: confirm
+  evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/domain/enums/ProjectStatusEnum.java
+  note: 代码拼写 INVLIAD，实际含义已失效。
+- field: tenant_project.source
+  value: pplatform
+  java_name: PPLATFORM_SYSTEM
+  stored_as: dictKey
+  label: 平台系统
+  verdict: confirm
+  evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/domain/TenantProjectDomainService.java:159
+  note: DB 中 pplatform=1532，与常量值一致。
+- field: tenant_project.source
+  value: ACFLOW
+  java_name: ''
+  stored_as: literal
+  label: 融易单产品 code
+  verdict: review
+  evidence: db_dist:tenant_project.source
+  note: DB 中 ACFLOW=1255，但枚举基线只声明 pplatform 写值，说明 source 还被其它路径写入产品 code。
+- field: tenant_project.source
+  value: ORDER
+  java_name: ''
+  stored_as: literal
+  label: 订单融资产品 code
+  verdict: review
+  evidence: db_dist:tenant_project.source
+  note: DB 中 ORDER=226，代码枚举基线未覆盖。
+- field: tenant_project.source
+  value: RVSFACTOR_PC
+  java_name: ''
+  stored_as: literal
+  label: RVSFACTOR_PC 产品 code
+  verdict: review
+  evidence: db_dist:tenant_project.source
+  note: DB 中 RVSFACTOR_PC=480，代码枚举基线未覆盖。
+- field: tenant_project.source
+  value: STORAGE
+  java_name: ''
+  stored_as: literal
+  label: 存货产品 code
+  verdict: review
+  evidence: db_dist:tenant_project.source
+  note: DB 中 STORAGE=8，代码枚举基线未覆盖。
+- field: cust_interworking_product.open_status
+  value: OPENED
+  java_name: OPENED
+  stored_as: same
+  label: 已开通
+  verdict: confirm
+  evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/domain/CustInterworkingProductDomainService.java:132
+  note: DB 分布仅 OPENED=304。
+- field: cust_interworking_product.open_status
+  value: OPENING
+  java_name: OPENING
+  stored_as: same
+  label: 开通中：带客户确认 forams
+  verdict: confirm
+  evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/domain/constants/CustProductActiveConstant.java
+  note: 代码筛选使用 OPENING，DB 当前未出现。
+- field: cust_interworking_product.open_status
+  value: NOT_OPENED
+  java_name: NOT_OPENED
+  stored_as: same
+  label: 未开通
+  verdict: confirm
+  evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/domain/constants/CustProductActiveConstant.java
+  note: DB 当前未出现。
+- field: tenant_product.product_cate
+  value: STRONG
+  java_name: ''
+  stored_as: literal
+  label: 强信用/强产品
+  verdict: confirm
+  evidence: db_dist:tenant_product.product_cate
+  note: DB 分布 STRONG=420，无代码枚举基线，按 DB 契约为准。
+- field: tenant_product.product_cate
+  value: WEAKLY
+  java_name: ''
+  stored_as: literal
+  label: 弱信用/弱产品
+  verdict: confirm
+  evidence: db_dist:tenant_product.product_cate
+  note: DB 分布 WEAKLY=74。
+- field: tenant_product.product_cate
+  value: CREDIT
+  java_name: ''
+  stored_as: literal
+  label: 信用类
+  verdict: confirm
+  evidence: db_dist:tenant_product.product_cate
+  note: DB 分布 CREDIT=6。
+- field: tenant_product.max_financing_amount_flag
+  value: N
+  java_name: N
+  stored_as: same
+  label: 不限额
+  verdict: confirm
+  evidence: db_dist:tenant_product.max_financing_amount_flag
+  note: DB N=308，同时存在 0=7。
+- field: tenant_product.max_financing_amount_flag
+  value: Y
+  java_name: Y
+  stored_as: same
+  label: 限额
+  verdict: confirm
+  evidence: db_dist:tenant_product.max_financing_amount_flag
+  note: DB Y=184，同时存在 1=1。
+- field: tenant_product.max_financing_amount_flag
+  value: '0'
+  java_name: ''
+  stored_as: literal
+  label: 历史 0 值
+  verdict: review
+  evidence: db_dist:tenant_product.max_financing_amount_flag
+  note: DB 出现 0/1，与 Y/N 契约混存，疑似历史数据或其它写入路径。
+relation_audit:
+- left: cust_project_rel.project_id
+  right: tenant_project.id
+  kind: ref
+  verdict: confirm
+  evidence: code_path:TenantProjectApplication.java:queryRelatedCompanies
+  note: projectIdStrs 来自 tenant_project.id，cust_project_rel.project_id 用 in 查询，真实关联。
+- left: cust_project_rel.product_id
+  right: tenant_product.id
+  kind: ref
+  verdict: confirm
+  evidence: code_path:TenantProductApplication.java:checkCustRoleCombine
+  note: 通过 tenatProductMap.get(Long.valueOf(custProjectRelDO.getProductId())) 映射到
+    tenant_product.id。
+- left: cust_project_rel.ref_cust_project_rel_platform_product
+  right: tenant_project.platform_product_code
+  kind: derived
+  verdict: derived
+  evidence: code_path:CustCompanyInfoApplication.java:write-flow
+  note: 基线为写流程推断，未见到直接 JOIN 或 .eq；实际通过产品 code 间接关联。
+- left: cust_project_rel.ref_cust_project_rel_platform_product
+  right: tenant_project.ref_tenant_project_platform_product
+  kind: derived
+  verdict: derived
+  evidence: code_path:CustCompanyInfoApplication.java:write-flow
+  note: 同名字段拷贝推断，非 mapper JOIN。
+- left: cust_project_rel.op_contact_a
+  right: tenant_project.op_contact_a
+  kind: SHARED_KEY
+  verdict: derived
+  evidence: copy:TenantProjectApplication.java
+  note: 同名展示/导入拷贝，无直接 JOIN；导出时分别从 cust_project_rel 和 tenant_project 取值。
+- left: cust_project_rel.op_contact_b
+  right: tenant_project.op_contact_b
+  kind: SHARED_KEY
+  verdict: derived
+  evidence: copy:TenantProjectApplication.java
+  note: 同名 JSON 数组字段，可能是同步/导入拷贝，非关联查询。
+- left: cust_project_rel.op_contact_a_group
+  right: tenant_project.op_contact_a_group
+  kind: SHARED_KEY
+  verdict: derived
+  evidence: copy:TenantProjectApplication.java
+  note: 同名运营组别字段，无 JOIN。
+- left: cust_project_rel.verification_contact
+  right: tenant_project.verification_contact
+  kind: SHARED_KEY
+  verdict: derived
+  evidence: copy:TenantProjectApplication.java
+  note: 同名查验对接人字段，无 JOIN。
+- left: cust_project_rel.risk_control_contact_a
+  right: tenant_project.risk_control_contact_a
+  kind: SHARED_KEY
+  verdict: derived
+  evidence: copy:TenantProjectApplication.java
+  note: 同名风控对接人A，无 JOIN。
+- left: cust_project_rel.risk_control_contact_b
+  right: tenant_project.risk_control_contact_b
+  kind: SHARED_KEY
+  verdict: derived
+  evidence: copy:TenantProjectApplication.java
+  note: 同名风控对接人B，无 JOIN。
+- left: cust_project_rel.channel_code
+  right: tenant_project.channel_code
+  kind: SHARED_KEY
+  verdict: derived
+  evidence: copy:CustCompanyInfoApplication.java
+  note: 同名项目码字段，基线为拷贝推断，未见到关联查询。
+- left: cust_project_rel.tenant_flg_en
+  right: tenant_project.tenant_flg_en
+  kind: SHARED_KEY
+  verdict: derived
+  evidence: copy:CustCompanyInfoApplication.java
+  note: 同名项目标识字段，可能为导入拷贝。
+- left: cust_auth_application.platform_product_code
+  right: tenant_product.platform_product_code
+  kind: SHARED_KEY
+  verdict: derived
+  evidence: copy:CustCompanyInfoApplication.java
+  note: 同名产品 code 拷贝，非 JOIN。
+- left: cust_auth_application.ref_cust_auth_application_tenant_product
+  right: tenant_product.code
+  kind: ref
+  verdict: derived
+  evidence: ref-convention:CustAuthApplicationDO.java
+  note: 按 ref 命名约定关联 tenant_product.code，未见 mapper JOIN 证据。
+- left: ca_fee_project_config.project_id
+  right: tenant_project.id
+  kind: ref
+  verdict: derived
+  evidence: write-flow:CaFeeProjectConfigService.java
+  note: 写流程推断，未给出查询链路全文，暂不确认。
+- left: tenant_interworking_product.credit_measures
+  right: platform_product.credit_measures
+  kind: SHARED_KEY
+  verdict: reject
+  evidence: db_dist:tenant_interworking_product.credit_measures
+  note: DB 中为自由文本 HTCP15/ddd/共同债务人增信、差额补足，无 JOIN 或查询证据，不能认定为关联。
+- left: cust_interworking_product.ref_cust_interworking_product_cust_company_info
+  right: cust_company_info.code
+  kind: ref
+  verdict: derived
+  evidence: ref-convention:CustInterworkingProductDO.java
+  note: 按 ref 约定关联企业 code，未见直接 JOIN。
+- left: cust_interworking_product.ref_cust_interworking_product_tenant_interworking_product
+  right: tenant_interworking_product.code
+  kind: ref
+  verdict: derived
+  evidence: ref-convention:CustInterworkingProductDO.java
+  note: 按 ref 约定关联租户互通产品 code。
+- left: cust_project_rel.project_id
+  right: tenant_project.id
+  kind: ref
+  verdict: confirm
+  evidence: code_path:ProjectReportApplication.java:getCompaniesByProjectId
+  note: 产融来源直接查 cust_project_rel.project_id = tenant_project 项目 id。

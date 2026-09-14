@@ -407,6 +407,38 @@ async def chats(session: SessionDep, current_user: CurrentUser):
 
 
 @router.get(
+    "/workspace/export",
+    summary="Export workspace chats and feedback (admin / ws_admin)",
+)
+@require_permissions(permission=SqlbotPermission(role=["ws_admin"]))
+async def export_workspace_chats(
+    session: SessionDep,
+    current_user: CurrentUser,
+    oid: int | None = None,
+    feedback_only: bool = False,
+    include_sql: bool = True,
+):
+    from apps.chat.curd.workspace_export import (
+        build_workspace_chat_export,
+        resolve_export_oid,
+    )
+
+    def inner():
+        try:
+            target_oid = resolve_export_oid(current_user, oid)
+        except PermissionError as exc:
+            raise HTTPException(status_code=403, detail=str(exc)) from exc
+        return build_workspace_chat_export(
+            session,
+            oid=target_oid,
+            feedback_only=feedback_only,
+            include_sql=include_sql,
+        )
+
+    return await asyncio.to_thread(inner)
+
+
+@router.get(
     "/{chart_id}", response_model=ChatInfo, summary=f"{PLACEHOLDER_PREFIX}get_chat"
 )
 async def get_chat(
@@ -634,16 +666,12 @@ async def chat_record_feedback(
     from apps.chat.curd.chat import submit_record_feedback
 
     def inner():
-        feedback = body.get("feedback")
-        if feedback not in ("up", "down", None):
-            raise HTTPException(
-                status_code=400, detail="feedback must be 'up', 'down' or null"
-            )
         return submit_record_feedback(
             session,
             chat_record_id=chat_record_id,
             user_id=current_user.id,
-            feedback=feedback,
+            feedback=body.get("feedback"),
+            comment=body.get("comment") or body.get("feedback_comment"),
         )
 
     return await asyncio.to_thread(inner)

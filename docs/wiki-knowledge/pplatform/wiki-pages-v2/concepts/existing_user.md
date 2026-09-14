@@ -19,6 +19,7 @@ field_targets:
 adjudication: boundary
 also_confused_with: [新用户]
 contract_version: "0.1"
+belong: concepts
 ---
 
 “存量用户”指迁移动作发生前已存在的用户，其判定在数据上是“在 [[migratory_user_record]] 中存在（user_id + db_tenant_code）记录”。与新用户的边界是：新用户没有该记录，因此不会被登录弹窗逻辑覆盖（见 [[migratory_user_not_login]]、[[eject_msg_once]]）。别称“迁移用户”在语料中与存量用户混用，按 boundary 处理：两者在本主题下同指。

@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 租户产品在途校验
-page_key: rules/tenant-product-on-the-way-check
+page_key: tenant-product-on-the-way-check
 domain: 平台产品配置
 status: draft
 aliases: [在途校验, checkOnTheWay]
@@ -12,6 +12,7 @@ sources:
   - code:TenantProductApplication.checkOnTheWay
   - code:TenantProductDomainService.checkOnTheWay
 contract_version: "0.1"
+belong: rules
 ---
 
 检查租户产品是否存在在途变更，如有则抛出异常，禁止激活。该规则是 [[processes/tenant-product-open-status]] 状态迁移（P→Y）的前置约束，字段落点为 [[tables/tenant_product]] 的 `open_status`。

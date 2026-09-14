@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 生效变更配置
-page_key: caliber.change-cfg-enable
+page_key: change-cfg-enable
 domain: 企业变更与运营变更
 status: draft
 aliases: [配置有效标记, 变更配置查询口径]
@@ -11,6 +11,7 @@ scope:
 sources:
   - code_path:CustChangeApplication.java:list
 contract_version: "0.1"
+belong: calibers
 ---
 
 「生效变更配置」是 [[tables.cust_change_cfg]] 查询的基础过滤口径：只取 `enable = 'Y'` 的配置行。该口径是 [[calibers.change-cfg-match-dimensions]] 的组成部分，配置下线的标准做法是改标记而不是删行。

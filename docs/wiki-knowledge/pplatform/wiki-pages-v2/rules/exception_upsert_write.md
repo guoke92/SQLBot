@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 异常解析-upsert写入
-page_key: rules/exception_upsert_write
+page_key: exception_upsert_write
 domain: funding
 status: draft
 aliases:
@@ -14,6 +14,7 @@ scope:
 sources:
   - "code:ExceptionResolutionApplication#doUpsertAll"
 contract_version: "0.1"
+belong: rules
 ---
 
 # 异常解析-upsert写入

@@ -1,7 +1,7 @@
 ---
 type: process
 title: 客户角色状态流转
-page_key: process.cust-role-status
+page_key: cust-role-status
 domain: 客户角色与端口
 status: draft
 aliases:
@@ -20,6 +20,7 @@ sources:
   - code_path:CustCompanyInfoApplication.java#custStatusOperator
   - code_path:CustRoleApplication.java#updateStatusByCustCompany
 contract_version: "0.1"
+belong: processes
 ---
 
 # 客户角色状态流转

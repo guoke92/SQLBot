@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 调研问卷-答案归属口径
-page_key: calibers/survey_answer_attribution
+page_key: survey_answer_attribution
 domain: 问卷
 status: draft
 aliases:
@@ -14,6 +14,7 @@ scope:
 sources:
   - db:cust_survey_answer
 contract_version: "0.1"
+belong: calibers
 ---
 
 # 调研问卷-答案归属口径

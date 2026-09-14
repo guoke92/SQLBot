@@ -1,7 +1,7 @@
 ---
 type: concept
 title: 企业角色（cust_type）
-page_key: concepts/cust-type
+page_key: cust-type
 domain: 企业集团关系
 status: draft
 aliases: [cust_type, 公司类型, companyType]
@@ -21,6 +21,7 @@ also_confused_with:
   - CustCompanyInfoDO.cust_company_type
 boundary: 库注释写逗号分隔，代码实际统一 JSONArray.toJSONString() 存取与 like '%"FINANCE"%' 精确匹配；多角色通过 addRoleToRoot 追加数组元素，不能按逗号切分解析。
 sources: ["enrich:wiki-admin"]
+belong: concepts
 ---
 
 企业角色描述成员单位在集团中承担的身份（如 SUPPLIER、FINANCE），落库字段为 `cust_group_rel.cust_type`，实际以 JSON 数组字符串存储。所属表见 [[tables/cust_group_rel]]，相关唯一性校验见 [[rules/group-rel-uniqueness]]。

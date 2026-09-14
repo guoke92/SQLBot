@@ -1,7 +1,7 @@
 ---
 type: process
 title: 运营人员变更类型（cust_oper_change_record.change_type）
-page_key: process.oper-change-type
+page_key: oper-change-type
 domain: 企业变更与运营变更
 status: draft
 aliases: [change_type, 运营变更类型枚举, CHANGE_TYPE_DESC]
@@ -12,6 +12,7 @@ sources:
   - db:cust_oper_change_record
   - code_path:OperChangeRecordApplication.java:CHANGE_TYPE_DESC
 contract_version: "0.1"
+belong: processes
 ---
 
 `change_type` 是 [[tables.cust_oper_change_record]] 上的分类字段，取值集合由代码字典 `CHANGE_TYPE_DESC` 给出：`MANUAL`=手动变更、`BATCH`=批量变更、`AUTO_ASSIGN`=自动分配、`AUTO_UPDATE`=自动更新、`ASSET_AUDIT_SYNC`=资产审核同步、`CUST_CHANGE_CALLBACK`=企业变更回调。字典映射与未命中回显规则见 [[rules.oper-change-type-dict]]。

@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 默认账户唯一
-page_key: rules/default-account-unique
+page_key: default-account-unique
 domain: 企业银行账户
 status: draft
 aliases: [默认账号唯一, setDefaultFlag]
@@ -12,6 +12,7 @@ sources:
   - code_path:CustAccountApplication.java:setDefaultFlag
   - code_path:CustAccountApplication.java:afterSave
 contract_version: "0.1"
+belong: rules
 ---
 
 设置默认账号时的排他性规则：先把该企业已有默认账户置为非默认，再置目标账户为默认；企业无默认账户时由 afterSave 兜底。对应口径见 [[calibers/default-repayment-account]]。

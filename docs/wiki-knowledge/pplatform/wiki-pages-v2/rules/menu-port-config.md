@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 菜单端口配置按企业角色维护
-page_key: rule.menu-port-config
+page_key: menu-port-config
 domain: 客户角色与端口
 status: draft
 aliases:
@@ -15,6 +15,7 @@ sources:
   - code_path:LocalTypeMenuService.java#listTenantProductMenuConfig
   - code_path:LocalTypeMenuService.java#saveTenantProductMenuConfig
 contract_version: "0.1"
+belong: rules
 ---
 
 # 菜单端口配置按企业角色维护

@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 天马建档默认企业角色为供应商
-page_key: rules/tianma_default_company_type
+page_key: tianma_default_company_type
 domain: 外部渠道与银行对接
 status: draft
 aliases:
@@ -15,6 +15,7 @@ sources:
   - code:TianmaService#companyArchive
   - code:CustAccessApplication#getCompanyType
 contract_version: "0.1"
+belong: rules
 ---
 
 # 天马建档默认企业角色为供应商

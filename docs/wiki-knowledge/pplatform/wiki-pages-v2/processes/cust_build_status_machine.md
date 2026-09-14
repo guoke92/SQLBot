@@ -1,7 +1,7 @@
 ---
 type: process
 title: 企业建档/认证状态机（cust_company_info.cust_build_status）
-page_key: process.cust_build_status
+page_key: cust_build_status_machine
 domain: 平台内部服务对接
 status: draft
 aliases:
@@ -15,6 +15,7 @@ sources:
   - semantic:state_machines[企业建档/认证状态]
   - semantic:field_semantics[cust_company_info.cust_build_status]
 contract_version: "0.1"
+belong: processes
 ---
 
 企业从临时创建到建档成功的完整流转，由 RVS 创建、客户提交、运营中台审核三类事件驱动，并区分自主/邀请录入与简易认证两条支路。

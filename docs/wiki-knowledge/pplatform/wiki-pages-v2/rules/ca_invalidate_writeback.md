@@ -1,7 +1,7 @@
 ---
 type: rule
 title: CA失效回写ca_register_status=N
-page_key: rule/ca_invalidate_writeback
+page_key: ca_invalidate_writeback
 domain: CA证书认证
 status: draft
 aliases: [resetCaRegisterStatusToN, CA 回写失效]
@@ -10,6 +10,7 @@ scope:
   databases: [unknown]
 sources: ["code_path:CaCertificationPreCheckApplication.java:resetCaRegisterStatusToN"]
 contract_version: "0.1"
+belong: rules
 ---
 
 规则要求：当签章中台证书状态归一化为 CANCELLED/EXPIRED/FAIL，或登记企业名与库中名称不一致时，将 cust_company_info.ca_register_status 置为 N。影响是前端据此引导用户重新发起 CA 开通。

@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 企业重复建档校验
-page_key: rule.company_build_duplicate_check
+page_key: company_build_duplicate_check
 domain: 准入接入
 status: draft
 aliases: [重复建档, 企业已建档]
@@ -11,6 +11,7 @@ scope:
 sources:
   - "code: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustAccessApplication.java:validateSetValue"
 contract_version: "0.1"
+belong: rules
 ---
 
 在同一租户下，若统一社会信用代码已存在于 `cust_company_info`，且该企业的建档状态不满足排除条件，则判定为重复建档，抛出“企业已建档！”。

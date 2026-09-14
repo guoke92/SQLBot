@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: CA升级授权书影像（A0049）
-page_key: calibers/ca-upgrade-auth-media-a0049
+page_key: ca-upgrade-auth-media-a0049
 domain: 文件/附件/媒体
 status: draft
 aliases: [A0049, CA升级授权书, CA 升级授权书影像]
@@ -11,6 +11,7 @@ scope:
 sources:
   - code:MediaFile.catgId
 contract_version: "0.1"
+belong: calibers
 ---
 
 # CA升级授权书影像（A0049）

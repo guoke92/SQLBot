@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 有效产品端口口径
-page_key: caliber.effective-product-port
+page_key: effective-product-port
 domain: 客户角色与端口
 status: draft
 aliases:
@@ -15,6 +15,7 @@ sources:
   - code_path:LocalTypeMenuService.java#listTenantProductMenuConfig
   - db_dist: platform_product_cust_role.enable
 contract_version: "0.1"
+belong: calibers
 ---
 
 # 有效产品端口口径

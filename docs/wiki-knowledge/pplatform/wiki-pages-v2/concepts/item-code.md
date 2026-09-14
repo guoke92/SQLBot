@@ -1,7 +1,7 @@
 ---
 type: concept
 title: 变更项编码
-page_key: concept.item-code
+page_key: item-code
 domain: 企业变更与运营变更
 status: draft
 aliases: [item_code, 变更项, UN00xx]
@@ -17,6 +17,7 @@ field_targets: [cust_change_cfg.item_code]
 adjudication: boundary
 also_confused_with: [cust_change_record.alter_type_id, cust_change_record.alter_data]
 sources: ["enrich:wiki-admin"]
+belong: concepts
 ---
 
 「变更项编码」指配置表 [[tables.cust_change_cfg]] 上的 `item_code`（DB 实测 `UN0001`–`UN0016`），是稳定的业务编码，也是对外与跨系统沟通变更项时使用的标识。变更单 [[tables.cust_change_record]] 上另有两个易混字段：`alter_type_id` 存的是配置表主键 `cust_change_cfg.id` 的逗号分隔串，必须 join 配置表才能还原为 `item_code`；`alter_data` 存的是 `item_code` 的 JSON 数组快照。

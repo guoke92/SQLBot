@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 验证失败计数口径
-page_key: rules/payment-fail-count
+page_key: payment-fail-count
 domain: 企业银行账户
 status: draft
 aliases: [error_try_count, 验证失败累加]
@@ -11,6 +11,7 @@ scope:
 sources:
   - code_path:CustAccountApplication.java:cnapsPaymentConfirm
 contract_version: "0.1"
+belong: rules
 ---
 
 打款金额验证失败时的记录规则：金额不匹配或银行库无记录时，先落状态再累加失败次数与时间，最后抛业务异常。直接决定 [[calibers/account-payment-auth-passed]] 的可用性。

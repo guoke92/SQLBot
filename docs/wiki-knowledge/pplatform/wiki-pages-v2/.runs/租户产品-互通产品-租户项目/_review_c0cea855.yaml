@@ -1,0 +1,5 @@
+body: '1. `scope.databases` 暂用代码模块标识 `lowcode-pplatform-customer-management`，语义分析未给出物理库名，需确认后回填。
+
+  2. `max_financing_amount_flag` 混存 N/Y/0/1、`max_financing_period` 混存数值与文本（6个月/12个月），是否为历史写值差异、是否统一口径与迁移，待确认。'
+title: 租户产品表
+type: table

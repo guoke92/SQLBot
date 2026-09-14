@@ -2,17 +2,32 @@
 type: table
 title: 共享租户配置
 page_key: tenant_setting_config_share
-domain: 基线
+domain: 租户配置/灰度/运营邮件
 status: draft
 anchors: [tenant_setting_config_share]
 oid: 1
 scope:
   databases: [lowcode_pplatform]
-sources: ["db:db-catalog.yaml", "code:extract-catalog.yaml", "enrich:wiki-admin"]
-created: '2026-09-10'
-updated: '2026-09-10'
+sources: ["db:db-catalog.yaml", "code:extract-catalog.yaml"]
+created: '2026-09-14'
+updated: '2026-09-14'
 contract_version: "0.1"
+belong: tables
 ---
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # 共享租户配置
 
@@ -22,23 +37,74 @@ contract_version: "0.1"
 table: tenant_setting_config_share
 database: lowcode_pplatform
 desc: 共享租户配置
-inactive: false
 fields:
+  - name: act_procinst_status
+    type: string
+    phys: varchar(64)
+    desc: 当前审批状态
+    dict: enable
+    topk: "N"
+    labels: "N:否"
+  - name: company_share_flag
+    type: string
+    phys: varchar(4)
+    desc: 客户认证数据是否可用于其他贴牌平台
+    dict: enable
+    topk: "Y"
+    labels: "Y:是"
+  - name: enable
+    type: string
+    phys: varchar(4)
+    desc: enable
+    dict: enable
+    topk: "Y"
+    labels: "Y:是"
   - name: id
     type: number
     phys: bigint(22)
     desc: 表主键
-  - name: platform_operator
+  - name: need_hfive
     type: string
-    phys: varchar(32)
-    desc: 平台运营方
-    dict: platform_operator
-  - name: source
+    phys: varchar(4)
+    desc: 是否定制H5
+    dict: enable
+    topk: "Y"
+    labels: "Y:是"
+  - name: need_mp_wx
     type: string
-    phys: varchar(32)
-    desc: 租户来源
-    dict: tenant_project__source
-    topk: ACFLOW
+    phys: varchar(4)
+    desc: 是否定制小程序
+    dict: enable
+    topk: "N|Y"
+    labels: "N:否|Y:是"
+  - name: portal_flag
+    type: string
+    phys: varchar(4)
+    desc: 是否启用门户
+    dict: enable
+    topk: "N|Y"
+    labels: "N:否|Y:是"
+  - name: self_registration_flag
+    type: string
+    phys: varchar(64)
+    desc: 是否放开自主注册
+    dict: enable
+    topk: "Y"
+    labels: "Y:是"
+  - name: share_flag
+    type: string
+    phys: varchar(4)
+    desc: 共享租户
+    dict: enable
+    topk: "N"
+    labels: "N:否"
+  - name: status
+    type: string
+    phys: varchar(4)
+    desc: 生效状态
+    dict: enable
+    topk: "N"
+    labels: "N:否"
   - name: act_procinst_date
     type: temporal
     phys: datetime
@@ -51,11 +117,6 @@ fields:
     type: string
     phys: varchar(255)
     desc: 流程申请编号
-  - name: act_procinst_status
-    type: string
-    phys: varchar(64)
-    desc: 当前审批状态
-    topk: N
   - name: ai_zc_channel
     type: string
     phys: varchar(64)
@@ -76,7 +137,7 @@ fields:
     type: string
     phys: varchar(64)
     desc: 授权书协议
-    topk: CT-202404081721209495040
+    topk: "CT-202404081721209495040"
   - name: band_name
     type: string
     phys: varchar(128)
@@ -85,11 +146,6 @@ fields:
     type: string
     phys: varchar(64)
     desc: 编码
-  - name: company_share_flag
-    type: string
-    phys: varchar(4)
-    desc: 客户认证数据是否可用于其他贴牌平台
-    topk: Y
   - name: create_by
     type: string
     phys: varchar(100)
@@ -98,7 +154,6 @@ fields:
     type: temporal
     phys: datetime
     desc: 创建时间
-    group: create_time_group, project_create_time_group, update_time_group
   - name: create_user
     type: string
     phys: varchar(100)
@@ -107,17 +162,15 @@ fields:
     type: string
     phys: varchar(64)
     desc: 客服电话
-    topk: 0755-86951497
   - name: db_tenant_code
     type: string
     phys: varchar(100)
     desc: 数据租户标识
-    topk: beehive-scf.qhhrly.cn
+    topk: "beehive-scf.qhhrly.cn"
   - name: dbass_app_id
     type: string
     phys: varchar(128)
     desc: dbassAppId
-    topk: app_ChanRongPin336_20240529
   - name: dbass_private_key
     type: string
     phys: varchar(2048)
@@ -126,11 +179,6 @@ fields:
     type: string
     phys: varchar(256)
     desc: 开发环境域名
-  - name: enable
-    type: string
-    phys: varchar(4)
-    desc: enable
-    topk: Y
   - name: hfive_dev_domain
     type: string
     phys: varchar(256)
@@ -183,16 +231,6 @@ fields:
     type: string
     phys: varchar(128)
     desc: 租户名称
-  - name: need_hfive
-    type: string
-    phys: varchar(4)
-    desc: 是否定制H5
-    topk: Y
-  - name: need_mp_wx
-    type: string
-    phys: varchar(4)
-    desc: 是否定制小程序
-    topk: N|Y
   - name: operator_ai_customer
     type: string
     phys: varchar(100)
@@ -257,12 +295,11 @@ fields:
     type: string
     phys: varchar(64)
     desc: 变更联系人授权书
-    topk: CT-202404081721209495040
-  - name: portal_flag
+    topk: "CT-202404081721209495040"
+  - name: platform_operator
     type: string
-    phys: varchar(4)
-    desc: 是否启用门户
-    topk: N|Y
+    phys: varchar(32)
+    desc: 平台运营方
   - name: prd_domain
     type: string
     phys: varchar(256)
@@ -271,48 +308,41 @@ fields:
     type: string
     phys: varchar(128)
     desc: 生产小程序appID
-    topk: 85546|wx0821ca938ea7f8ee|wx2e8254825b33f21e|wxab90faadcc845329
   - name: prd_mp_app_name
     type: string
     phys: varchar(128)
     desc: 生产小程序名称
-    topk: 暗黑风呀呀呀|联赢激光供应链|融e汇|速链云
   - name: prd_mp_wx_login_name
     type: string
     phys: varchar(128)
     desc: 生产公众号登录账号
-    topk: guolil2021@126.com|serxfh
+    topk: "guolil2021@126.com|serxfh"
   - name: prd_mp_wx_login_pwd
     type: string
     phys: varchar(128)
     desc: 生产公众号登录密码
-    topk: Aa11111.|lls16888
+    topk: "Aa11111.|lls16888"
   - name: privacy_policy_agreement
     type: string
     phys: varchar(64)
     desc: 隐私协议
-    topk: CT-202405311653384958102
+    topk: "CT-202405311653384958102"
   - name: remark
     type: string
     phys: varchar(1024)
     desc: remark
-  - name: self_registration_flag
-    type: string
-    phys: varchar(64)
-    desc: 是否放开自主注册
-    topk: Y
   - name: send_email
     type: string
     phys: varchar(100)
-  - name: share_flag
-    type: string
-    phys: varchar(4)
-    desc: 共享租户
-    topk: N
   - name: sit_domain
     type: string
     phys: varchar(256)
     desc: 测试环境域名
+  - name: source
+    type: string
+    phys: varchar(32)
+    desc: 租户来源
+    topk: "ACFLOW"
   - name: source_id
     type: string
     phys: varchar(32)
@@ -325,11 +355,6 @@ fields:
     type: string
     phys: varchar(128)
     desc: ssoTenantChanel
-  - name: status
-    type: string
-    phys: varchar(4)
-    desc: 生效状态
-    topk: N
   - name: tenant_flag_zh
     type: string
     phys: varchar(128)
@@ -346,22 +371,20 @@ fields:
     type: string
     phys: varchar(128)
     desc: UAT小程序appID
-    topk: 5434341|wx3bd724e38dc5df9c|wx5a4621f15abc7462|wxd4e6b0c088fb4355
   - name: uat_mp_app_name
     type: string
     phys: varchar(128)
     desc: UAT小程序名称
-    topk: 暗黑风哟哟哟|联赢激光供应链|融e汇|速链云
   - name: uat_mp_wx_login_name
     type: string
     phys: varchar(128)
     desc: UAT公众登陆账号
-    topk: dshk|guolil2021@126.com
+    topk: "dshk|guolil2021@126.com"
   - name: uat_mp_wx_login_pwd
     type: string
     phys: varchar(128)
     desc: UAT公众号登录密码
-    topk: Aa11111.|Gl920326
+    topk: "Aa11111.|Gl920326"
   - name: uni_social_credit_code
     type: string
     phys: varchar(128)
@@ -374,7 +397,6 @@ fields:
     type: temporal
     phys: datetime
     desc: 更新时间
-    group: create_time_group, project_effective_time_group, update_time_group
   - name: update_user
     type: string
     phys: varchar(100)
@@ -383,7 +405,7 @@ fields:
     type: string
     phys: varchar(64)
     desc: 用户协议
-    topk: CT-202405211357559370074
+    topk: "CT-202405211357559370074"
   - name: web_logo_url
     type: string
     phys: text

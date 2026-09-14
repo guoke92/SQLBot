@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 租户产品唯一键约束
-page_key: rules/tenant_product_unique_key
+page_key: tenant_product_unique_key
 domain: 租户产品
 status: draft
 aliases: [tenant_product_id, 租户产品唯一键]
@@ -11,6 +11,7 @@ scope:
 sources:
   - db:tenant_product
 contract_version: "0.1"
+belong: rules
 ---
 
 该约束规定 [[tables/tenant_product]] 中一个租户对同一平台产品只能有一条记录，是「租户产品」这一概念的建模基础，也是 [[concepts/platform_product_vs_tenant_product]] 中三级结构成立的前提。

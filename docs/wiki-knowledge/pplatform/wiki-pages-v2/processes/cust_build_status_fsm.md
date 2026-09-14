@@ -1,7 +1,7 @@
 ---
 type: process
 title: 企业认证/建档状态机（cust_build_status）
-page_key: process.cust_build_status_fsm
+page_key: cust_build_status_fsm
 domain: 数据权限与组织
 status: draft
 aliases: [企业建档状态机, cust_build_status, CustBuildStatusEnum]
@@ -11,6 +11,7 @@ scope:
 sources: [code]
 contract_version: "0.1"
 state_field: cust_company_info.cust_build_status
+belong: processes
 ---
 
 企业认证/建档状态机，承载于 [[tables/cust_company_info]].cust_build_status。状态取值来自代码枚举 CustBuildStatusEnum。流转的入口取决于认证方式 identify_style：邀请-客户录入（INVITE）与自主认证（SELF）提交后进入 CUST_CONFIRM_AWAIT，邀请-平台录入（INVITE_AGW）提交后直接进入 CUST_BUILDING。简易认证（SIMPLE）走独立的 AWAIT_CUST_CONFIRM 支线。

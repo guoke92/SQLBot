@@ -11,6 +11,8 @@ if str(_BACKEND) not in sys.path:
     sys.path.insert(0, str(_BACKEND))
 
 from apps.knowledge.wiki.binding_service import (  # noqa: E402
+    _remap_for_datasource,
+    collect_bind_ids,
     effective_remap_databases,
     suggest_database_remap,
 )
@@ -179,6 +181,33 @@ def test_resolve_pages_dir_relative_to_repo_root() -> None:
     except CorpusImportError:
         return
     raise AssertionError("expected CorpusImportError for empty pages_dir")
+
+
+def test_collect_bind_ids_dedupes_legacy_and_list() -> None:
+    assert collect_bind_ids(15, [8, 15, 8]) == [8, 15]
+    assert collect_bind_ids(15, None) == [15]
+    assert collect_bind_ids(None, []) == []
+    assert collect_bind_ids(0, [-1, 8]) == [8]
+
+
+def test_remap_for_datasource_is_per_ds_when_batch_binding() -> None:
+    ids = [8, 15]
+    by_ds = {"8": {"src": "db_a"}, "15": {"src": "db_b"}}
+    assert _remap_for_datasource(
+        8, ids=ids, remap_databases={"src": "ignored"}, remaps_by_datasource=by_ds
+    ) == {"src": "db_a"}
+    assert _remap_for_datasource(
+        15, ids=ids, remap_databases={"src": "ignored"}, remaps_by_datasource=by_ds
+    ) == {"src": "db_b"}
+    assert (
+        _remap_for_datasource(
+            8, ids=ids, remap_databases={"src": "ignored"}, remaps_by_datasource=None
+        )
+        is None
+    )
+    assert _remap_for_datasource(
+        8, ids=[8], remap_databases={"src": "legacy"}, remaps_by_datasource=None
+    ) == {"src": "legacy"}
 
 
 def test_empty_remap_from_ui_uses_suggested() -> None:

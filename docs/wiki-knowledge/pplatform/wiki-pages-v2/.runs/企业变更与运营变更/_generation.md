@@ -1,1298 +1,1491 @@
 ---FILE: tables/cust_change_record.md ---
 ---
 type: table
-title: cust_change_record（企业变更单）
+title: 企业变更记录表 (cust_change_record)
 page_key: cust_change_record
 domain: 企业变更与运营变更
 status: draft
-aliases: [变更单, 企业变更申请单, 客户变更记录]
+aliases: [企业变更记录, 变更记录, cust_change_record]
 oid: 1
 scope:
-  databases: [unknown]
+  databases: ["unknown"]
 sources:
   - db:cust_change_record
-  - code_path:CustChangeApplication.java:changeRebuild
-  - code_path:CustChangeApplication.java:getRedirectPage
-  - code_path:CustSyncEventProvider.java:onEvent
+  - code:CustChangeApplication.java
+  - code:CustCompanyInfoApplication.java
 contract_version: "0.1"
 ---
 
-`cust_change_record` 是企业客户信息变更申请单的主表，一条记录代表某企业的一次变更发起。变更单的审核状态 [[concepts.change-status]]（`status`）驱动整条变更链路的生命周期，终态口径见 [[calibers.change-record-terminal-status]]；变更项本身不直接落库为业务编码，而是以 `alter_type_id` 关联 [[tables.cust_change_cfg]]，变更数据快照落在 `alter_data`。运营中台侧的流程与人员信息通过 `oper_cust_id`、`oper_cust_info` 回写到本表，变更管理员场景的跳转判定依赖它们，见 [[rules.admin-phone-change-redirect]]。变更单的发起与准入受 [[tables.cust_company_info]] 的准入审核状态约束，见 [[rules.change-application-admission]]。
+`cust_change_record` 是企业客户「一次变更申请」的流程实例表：企业客户（或运营方代客）发起变更时落一条记录，承载本次变更的变更项集合、审核状态、以及运营中台回传的客户侧信息。它是 [[cust_change_cfg]]（变更项配置）与 [[cust_company_info]]（企业主体）之间的业务过程对象，流程状态见 [[cust_change_record_status]]，与 [[cust_oper_change_record]]（运营人员归属变更）是完全不同的两类「变更」，见 [[customer_change]]。
+
+关键区分：`cust_id` 是本平台侧企业主键（[[cust_id]]），`oper_cust_id` 是运营中台侧客户 ID，两者不可混用；`alter_type_id` 是逗号分隔的配置主键列表，与字典编码 `item_code`（[[change_item_code]]）不是同一物；`alter_data` 是编码的 JSON 快照。
 
 ## 需求背景
 
-平台侧与运营中台侧并行承担变更审批：平台侧记录变更项与材料要求，运营中台侧承载流程实例。因此本表既要保存变更项快照（`alter_data`、`alter_type_id`），也要保存中台客户与流程信息（`oper_cust_id`、`oper_cust_info`、`pp_cust_info`），并记录是否需要客户确认、是否需要重签授权书、电子授权书签署状态、消息发送标记等业务开关字段。管理员手机号变更项（`UN0012`/`UN0013`）的跳转判定见 [[calibers.admin-phone-change-item]]。
+企业信息变更需要同时满足两端的诉求：平台侧要能按变更项维度展示、审核与追踪，运营中台侧要能接收同一次变更并回传审核结果。因此本表以「一条记录 = 一次变更流程」建模，用 `status` 承载审核流转，用 `oper_cust_info` 承载中台返回的变更前后对照信息（[[before_after_comparison]]），用 `need_cust_confirm`/`msg_send`/`*_auth` 承载客户确认、通知与授权材料标记。
 
 ## 版本演进
 
-v0.1：首次登记，字段语义全部来自库表实际取值分布（db）与代码引用（code），未引入需求文档主张。
+v0.1：首次从语义分析抽取字段口径，字段含义与字典来源以锚点块为准；本页暂无历史版本差异记录。
 
 ```ground:table
 table: cust_change_record
 fields:
   - name: status
-    meaning: "变更单审核状态。代码引用 OperApiConstants.CheckStatus：CUST_CHECK_CHECKING=审核中、CUST_CHECK_PASS=审核通过（终态）、CUST_CHECK_REJECT=审核拒绝（终态）、CUST_CHECK_BACKTOCUSTOM=退回客户；DB 另存有 '1'（表默认值）及 CUSTS003、returnCust-<时间戳> 等历史/脏值"
-    evidence: db
-  - name: alter_type_id
-    meaning: "变更项记录 id 列表，存 cust_change_cfg.id 的逗号分隔串（代码 split(\",\") 后按 id IN 查配置还原 item_code）"
-    evidence: code
-  - name: alter_data
-    meaning: "变更数据，变更项编码的 JSON 数组，如 [\"UN0001\",\"UN0002\",\"UN0014\"]"
-    evidence: db
+    type: varchar
+    desc: "变更记录审核状态，取值来自 OperApiConstants.CheckStatus 常量（以 name() 落库）；DB 默认 '1' 为历史初始值"
+    dict: OperApiConstants.CheckStatus
   - name: alter_mode
-    meaning: "变更方式，DB 实测取值 1/2（对应 AlterModeEnum，枚举定义未在本次代码层给出）"
-    evidence: db
+    type: varchar
+    desc: "变更方式：1=平台变更(PLAT_ALTER)，2=企业自行变更(SELF_ALTER)，AlterModeEnum.getDictKey 落库"
+    dict: AlterModeEnum
+  - name: alter_type_id
+    type: varchar
+    desc: "本次变更所选变更项在 cust_change_cfg.id 上的逗号分隔主键列表（非单一外键）"
+    dict: null
+  - name: alter_data
+    type: text
+    desc: "变更项编码(item_code)的 JSON 数组快照"
+    dict: null
   - name: alter_type
-    meaning: 变更类型
-    evidence: db
-  - name: admin_auth
-    meaning: 企业管理授权（Y/N）
-    evidence: db
-  - name: legal_auth
-    meaning: 法人代表授权（Y/N）
-    evidence: db
-  - name: oper_channel
-    meaning: "运营中台变更渠道，DB 实测：operation-pplatform-common-new、operation-pplatform-not-edit-new、DIRECT_INIT"
-    evidence: db
-  - name: oper_cust_id
-    meaning: 运营中台客户 id，changeRebuild 用它调运营中台查流程信息
-    evidence: code
-  - name: oper_cust_info
-    meaning: 运营中台客户信息 JSON，含 oldPersonId（旧管理员）与 personId（新管理员），用于变更前后对比与跳转判定
-    evidence: code
-  - name: pp_cust_info
-    meaning: 产融客户信息快照
-    evidence: code
-  - name: need_cust_confirm
-    meaning: 是否需要客户确认（Y/N）
-    evidence: db
-  - name: need_resign_auth
-    meaning: 是否需要重签授权书（Y/N），直推识别变更项时写入，后续只读
-    evidence: db
-  - name: electronic_auth_sign_status
-    meaning: 电子授权书签署状态，DB 实测 PENDING/SIGNED
-    evidence: db
-  - name: msg_send
-    meaning: 消息发送标记（Y/N）
-    evidence: db
+    type: varchar
+    desc: "变更类型文本描述"
+    dict: null
+  - name: cust_id
+    type: bigint
+    desc: "发起变更的平台企业主键，对应 cust_company_info.id（非 code）"
+    dict: null
   - name: cust_type
-    meaning: 客户类型（DB 实测 1/2/3/4；代码按 CustTypeEnum.ENTERPRISE / INDIVIDUALS 分支处理）
-    evidence: db
+    type: varchar
+    desc: "客户类型：1个人客户/2企业客户/3运营方企业客户/4企业客户(全部)"
+    dict: null
   - name: cust_company_type
-    meaning: 客户企业角色，DB 实测 CORE/SUPPLIER/DEALER/FINANCE/PROJECT_COMPANY/CORPORATION_COMPANY/PLATFORM_OPERATOR_COMPANY/CORE_MANAGER
-    evidence: db
+    type: varchar
+    desc: "客户企业角色（CORE/SUPPLIER/FINANCE/DEALER/...）"
+    dict: null
+  - name: oper_cust_id
+    type: varchar
+    desc: "运营中台侧客户ID（外部系统ID，不能与本平台 cust_id 混用）"
+    dict: null
+  - name: oper_cust_info
+    type: text
+    desc: "运营中台返回的客户信息 JSON，其中 personId=变更后管理员、oldPersonId=变更前管理员"
+    dict: null
+  - name: oper_channel
+    type: varchar
+    desc: "运营中台变更渠道标识（DIRECT_INIT / operation-pplatform-common-new / operation-pplatform-not-edit-new）"
+    dict: null
+  - name: need_cust_confirm
+    type: char(1)
+    desc: "是否需要客户确认 Y/N"
+    dict: null
+  - name: electronic_auth_sign_status
+    type: varchar
+    desc: "电子授权书签署状态（PENDING/SIGNED）"
+    dict: null
+  - name: need_resign_auth
+    type: char(1)
+    desc: "是否需要重签授权书 Y/N（直推识别变更项时写入，后续只读）"
+    dict: null
+  - name: msg_send
+    type: char(1)
+    desc: "变更结果通知是否已发送 Y/N"
+    dict: null
+  - name: admin_auth
+    type: char(1)
+    desc: "企业管理授权材料标记 Y/N"
+    dict: null
+  - name: legal_auth
+    type: char(1)
+    desc: "法人代表授权材料标记 Y/N"
+    dict: null
   - name: enable
-    meaning: 逻辑有效标记（Y）
-    evidence: db
+    type: char(1)
+    desc: "逻辑有效标记，实测仅 Y"
+    dict: null
 ```
+
+相关页面：[[change_status]]、[[alter_mode]]、[[change_item_code]]、[[cust_id]]、[[change_rebuild]]、[[valid_change_record]]、[[company_in_change]]。
+
+---REVIEW: table | 企业变更记录表 (cust_change_record)---
+1) `scope.databases` 无事实来源：语义分析未给出物理库名，本页暂填 `unknown`，需由维护者补全。2) 锚点块 `type` 列无 DDL 证据，为按语义（Y/N 标记、逗号列表、JSON 快照）推断，待 DDL 校准。3) `status` 的 DB 分布值 `'1'` 在代码常量 `OperApiConstants.CheckStatus` 中无对应状态，属历史默认值，语义未声明，见 [[cust_change_record_status]] 的 REVIEW。
+---END REVIEW---
 
 ---END FILE---
 
 ---FILE: tables/cust_change_cfg.md ---
 ---
 type: table
-title: cust_change_cfg（变更项配置）
+title: 客户变更项配置表 (cust_change_cfg)
 page_key: cust_change_cfg
 domain: 企业变更与运营变更
 status: draft
-aliases: [变更配置, 变更项配置表, 变更项字典]
+aliases: [变更项配置, 变更项字典, cust_change_cfg]
 oid: 1
 scope:
-  databases: [unknown]
+  databases: ["unknown"]
 sources:
   - db:cust_change_cfg
-  - code_path:CustChangeApplication.java:list
+  - code:CustChangeApplication.java
 contract_version: "0.1"
 ---
 
-`cust_change_cfg` 是变更项的配置字典：每一行代表一个可发起的变更项（`item_code`，DB 实测 `UN0001`–`UN0016`），并给出平台侧与运营中台侧的名称、所需材料说明，以及该变更项在「端类型 × 认证方式 × 客户类型 × 是否总公司」四维下的适用性。它是 [[concepts.item-code]] 的权威来源，也是变更项清单查询的唯一入口，匹配口径见 [[calibers.change-cfg-match-dimensions]]，查询恒带有效标记，见 [[calibers.change-cfg-enable]]。
+`cust_change_cfg` 是变更项的配置字典：每一行是一个「可变更项」，用 `item_code`（UN0001~UN0016）标识，同时携带平台侧展示名 `plat_item` 与运营中台侧名称 `oper_item`。企业可见的变更项清单由 [[change_cfg_match]] 规则按 `client_type + identify_style + cust_type + head_company + enable` 过滤得到，配置主键 `id` 被 [[cust_change_record]] 的 `alter_type_id` 以逗号分隔引用（[[change_item_contains]]）。
+
+`oper_item` 与 `plat_item` 非一一对应（如平台「法定代表人手机号码变更」对应运营「法人手机号变更」），跨端对齐时必须按 `item_code` 而非名称。
 
 ## 需求背景
 
-不同端（`ACCOUNT_PRODUCT` / `AGW`）、不同认证方式（`INVITE` / `INVITE_AGW` / `SELF` / `SIMPLE`）、不同客户类型下可做的变更项不同；企业类型还要再按是否总公司（`head_company`）细分，个人类型不叠加该维度。配置表因此以多维组合的方式表达「谁能改什么」，并由 `open_process` 决定是否走流程。
+变更能力由配置驱动而非硬编码：不同端（AGW 平台录入端 / ACCOUNT_PRODUCT 账号产品端）、不同认证方式（INVITE/INVITE_AGW/SELF/SIMPLE）、不同客户类型、是否总公司维度，可见的变更项不同；`open_process` 决定该变更项是否走流程。`data_desc` 仅用于前端展示所需材料说明，未参与校验。
 
 ## 版本演进
 
-v0.1：首次登记，字段语义来自库表取值分布与 `CustChangeApplication.list` 的查询条件。
+v0.1：首次抽取配置维度与过滤键；本页暂无历史版本差异记录。
 
 ```ground:table
 table: cust_change_cfg
 fields:
+  - name: id
+    type: bigint
+    desc: "变更项配置主键，被 cust_change_record.alter_type_id 以逗号分隔列表引用"
+    dict: null
   - name: item_code
-    meaning: 变更项编码，DB 实测 UN0001–UN0016
-    evidence: db
+    type: varchar
+    desc: "变更项字典编码 UN0001~UN0016（UN0012=企业管理员变更，UN0013=管理员手机号变更）"
+    dict: null
   - name: plat_item
-    meaning: 平台侧变更项名称（如 企业管理员手机号变更、法定代表人变更）
-    evidence: db
+    type: varchar
+    desc: "平台侧变更项展示名称"
+    dict: null
   - name: oper_item
-    meaning: 运营中台侧变更项名称
-    evidence: db
-  - name: data_desc
-    meaning: 变更需要材料说明（如 营业执照、法定代表人身份证正反面、企业授权书、人脸识别）
-    evidence: db
+    type: varchar
+    desc: "运营中台侧变更项名称，与 plat_item 非一一对应（如平台'法定代表人手机号码变更'对应运营'法人手机号变更'）"
+    dict: null
   - name: client_type
-    meaning: 端类型，DB 实测 ACCOUNT_PRODUCT / AGW
-    evidence: db
-  - name: cust_type
-    meaning: 适用客户类型（DB 实测 1/2/3）
-    evidence: db
+    type: varchar
+    desc: "端类型：AGW=平台录入端，ACCOUNT_PRODUCT=账号产品端"
+    dict: null
   - name: identify_style
-    meaning: 适用认证方式，DB 实测 INVITE / INVITE_AGW / SELF / SIMPLE
-    evidence: db
+    type: varchar
+    desc: "认证方式：INVITE/INVITE_AGW/SELF/SIMPLE，用于匹配可用变更项"
+    dict: null
   - name: head_company
-    meaning: 是否总公司（Y/N），企业类型配置再按此维度细分
-    evidence: db
-  - name: enable
-    meaning: 配置有效标记，查询恒带 ='Y'
-    evidence: code
+    type: char(1)
+    desc: "是否总公司维度配置 Y/N（企业客户需按企业 head_company 过滤）"
+    dict: null
   - name: open_process
-    meaning: 是否开启流程（Y/N）
-    evidence: db
+    type: char(1)
+    desc: "该变更项是否开启流程 Y/N"
+    dict: null
+  - name: cust_type
+    type: varchar
+    desc: "适用客户类型 1/2/3，与 cust_change_record.cust_type 同源"
+    dict: null
+  - name: data_desc
+    type: varchar
+    desc: "变更所需材料说明文案（仅展示，未参与校验）"
+    dict: null
+  - name: enable
+    type: char(1)
+    desc: "有效标记，配置列表查询口径固定为 'Y'（EnableEnum.Y.name()）"
+    dict: EnableEnum
 ```
+
+相关页面：[[change_item_code]]、[[change_cfg_match]]、[[valid_change_cfg]]、[[admin_mobile_change_items]]、[[cust_change_record]]。
 
 ---END FILE---
 
 ---FILE: tables/cust_oper_change_record.md ---
 ---
 type: table
-title: cust_oper_change_record（运营人员变更记录）
+title: 运营人员变更记录表 (cust_oper_change_record)
 page_key: cust_oper_change_record
 domain: 企业变更与运营变更
 status: draft
-aliases: [运营变更流水, 操作运营变更记录]
+aliases: [运营人员变更记录, 运营变更记录, cust_oper_change_record]
 oid: 1
 scope:
-  databases: [unknown]
+  databases: ["unknown"]
 sources:
   - db:cust_oper_change_record
-  - code_path:OperChangeRecordApplication.java:queryByPersonId
-  - code_path:OperChangeRecordApplication.java:CHANGE_TYPE_DESC
+  - code:OperChangeRecordApplication.java
 contract_version: "0.1"
 ---
 
-`cust_oper_change_record` 记录企业联系人（经办人）所绑定运营人员的前后变更流水，是「谁把哪个联系人从哪个运营人员改到了哪个运营人员」的审计轨迹。它与 [[tables.cust_change_record]] 不是一回事，术语边界见 [[concepts.oper-change-record]]；记录按 `person_id`（企业联系人）组织，见 [[concepts.operator]]。变更类型的分类口径见 [[processes.oper-change-type]]，查询口径见 [[rules.oper-change-record-query]]。
+`cust_oper_change_record` 记录企业联系人（运营人员）归属的变更历史：一次变更一条记录，以 `before_operator_id` / `after_operator_id` 结构化保存变更前后运营人员。它与 [[cust_change_record]] 是两类不同业务，见 [[customer_change]]；`person_id` 指向 [[cust_person_info]] 的主键，运营人员维度语义见 [[operator]]。
+
+`change_type` 以字面量落库（非枚举 `name()`），与 [[change_status]] 所描述的枚举式状态字段在落库方式上不同，写入方必须保持一致。
 
 ## 需求背景
 
-运营人员的变更来源多样：人工手动调整、批量分配、资产审核同步、企业变更回调触发的自动调整。因此本表以 `change_type` 区分来源、以 `change_reason` 保存可读原因、以 `source_system` 标注来源系统、以 `asset_id` 关联资产审核场景，从而支撑联系人详情页的变更历史展示。
+运营人员变更来源多样（手动、批量、自动分配、自动更新、资产审核同步、企业变更回调），需要在同一张表中留存可追溯的变更链路，因此把「谁触发（`source_system` / `change_type`）、改了什么（before/after）、为什么（`change_reason`）」拆开保存；资产审核同步场景额外落 `asset_id`。查询口径见 [[valid_oper_change_record]] 与 [[oper_change_query]]。
 
 ## 版本演进
 
-v0.1：首次登记，字段语义来自库表取值分布与 `OperChangeRecordApplication` 的查询与字典映射代码。
+v0.1：首次抽取字段含义与查询口径；本页暂无历史版本差异记录。
 
 ```ground:table
 table: cust_oper_change_record
 fields:
-  - name: change_type
-    meaning: "运营人员变更类型，代码字典 CHANGE_TYPE_DESC：MANUAL=手动变更、BATCH=批量变更、AUTO_ASSIGN=自动分配、AUTO_UPDATE=自动更新、ASSET_AUDIT_SYNC=资产审核同步、CUST_CHANGE_CALLBACK=企业变更回调"
-    evidence: code
-  - name: change_reason
-    meaning: "变更原因，DB 实测：手动变更运营人员 / 批量变更运营人员 / 资产审核同步 / 企业变更回调运营人员变更"
-    evidence: db
   - name: person_id
-    meaning: 企业联系人 id（cust_person_info.id），查询入口参数
-    evidence: code
-  - name: before_operator_name
-    meaning: 变更前运营人员姓名
-    evidence: code
-  - name: after_operator_name
-    meaning: 变更后运营人员姓名
-    evidence: code
-  - name: asset_id
-    meaning: 资产 id（资产审核同步场景来源）
-    evidence: code
+    type: bigint
+    desc: "企业联系人ID，对应 cust_person_info.id"
+    dict: null
+  - name: change_type
+    type: varchar
+    desc: "运营人员变更类型：MANUAL/BATCH/AUTO_ASSIGN/AUTO_UPDATE/ASSET_AUDIT_SYNC/CUST_CHANGE_CALLBACK（字面量落库，非枚举 name）"
+    dict: null
+  - name: before_operator_id
+    type: bigint
+    desc: "变更前运营人员ID"
+    dict: null
+  - name: after_operator_id
+    type: bigint
+    desc: "变更后运营人员ID"
+    dict: null
+  - name: change_reason
+    type: varchar
+    desc: "变更原因文案（手动变更运营人员/批量变更运营人员/资产审核同步/企业变更回调运营人员变更）"
+    dict: null
   - name: source_system
-    meaning: 来源系统
-    evidence: code
+    type: varchar
+    desc: "变更来源系统标识"
+    dict: null
+  - name: asset_id
+    type: bigint
+    desc: "资产审核同步场景关联的资产ID"
+    dict: null
   - name: enable
-    meaning: 逻辑有效标记，查询恒带 ='Y'
-    evidence: code
+    type: char(1)
+    desc: "逻辑有效标记；查询口径固定 enable='Y'（字面量直写，非 EnableEnum）"
+    dict: null
 ```
+
+相关页面：[[cust_person_info]]、[[operator]]、[[valid_oper_change_record]]、[[oper_change_query]]、[[customer_change]]。
 
 ---END FILE---
 
 ---FILE: tables/cust_company_info.md ---
 ---
 type: table
-title: cust_company_info（企业客户信息）
+title: 企业客户信息表 (cust_company_info)
 page_key: cust_company_info
 domain: 企业变更与运营变更
 status: draft
-aliases: [企业信息表, 企业客户主表]
+aliases: [企业客户信息, 企业主体表, cust_company_info]
 oid: 1
 scope:
-  databases: [unknown]
+  databases: ["unknown"]
 sources:
   - db:cust_company_info
-  - code_path:CustChangeApplication.java:changeEnable
-  - code_path:CustChangeApplication.java:changeHasBusiOnWay
-  - code_path:CustCompanyInfoApplication.java:freeze
+  - code:CustCompanyInfoApplication.java
+  - code:CustChangeApplication.java
 contract_version: "0.1"
 ---
 
-`cust_company_info` 是企业客户主体表，在企业变更链路中承担两个关键判定：企业生命周期状态 `cust_status` 决定是否存在在途变更（见 [[calibers.company-change-on-way]]、[[rules.change-on-way-company]]），准入审核状态 `check_status` 决定能否发起变更（见 [[calibers.company-change-enable]]、[[rules.change-application-admission]]）。生命周期状态机见 [[processes.cust-company-info-status]]，其中的 `check_status` 与变更单状态 [[concepts.change-status]] 语义不同，勿混用。
+`cust_company_info` 是企业客户主体表，本主题下它主要作为变更业务的「被改对象」与「准入/生命周期约束来源」：`cust_status` 决定是否已有变更在途（[[cust_company_info_cust_status]]、[[company_in_change]]），`check_status` 决定能否发起变更（[[checking_company_cannot_change]]），`identify_style` + `head_company` 参与变更项配置匹配（[[change_cfg_match]]），`cust_build_status` 支撑「重新建档」类变更项（[[cust_company_info_cust_build_status]]）。
+
+本表的 `id` 是 [[cust_change_record]] 的 `cust_id` 取值来源，与运营中台客户 ID 不可混用（[[cust_id]]）。
 
 ## 需求背景
 
-企业从新建到生效、冻结、注销的流转由平台侧维护，而变更审批在运营中台侧进行，两者通过状态字段实现「在途变更不可重复发起」的约束。建档/认证状态（`cust_build_status`）的流转更新还限定在主数据（`data_type='1'`）上，见 [[calibers.company-master-data]]。
+企业客户在平台上的状态是多条线并行的：准入审核（`check_status`）、生命周期（`cust_status`）、建档（`cust_build_status`）。变更业务必须同时读这三条线——已冻结/已注销/审核中的企业能否变更、变更中企业如何跳转、公司维度如何取配置，都由这几个字段组合判定。
 
 ## 版本演进
 
-v0.1：首次登记，字段语义来自代码枚举与 `CustCompanyInfoApplication`、`CustChangeApplication` 的状态判定逻辑。
+v0.1：首次抽取三个状态字段与两个配置匹配键；本页暂无历史版本差异记录。文档主张「已冻结或已注销不允许变更」在代码中未覆盖，见 [[change_precheck]] 的版本演进说明。
 
 ```ground:table
 table: cust_company_info
 fields:
+  - name: id
+    type: bigint
+    desc: "企业客户主键，对应 cust_change_record.cust_id（非 code）"
+    dict: null
   - name: cust_status
-    meaning: "企业生命周期状态，代码枚举 CustStatusEnum：ADD=新增/待提交、CHANGE=变更中、EFFECT=已生效、FREEZE=已冻结、WRITEOFF=已注销"
-    evidence: code
+    type: varchar
+    desc: "企业客户生命周期状态：ADD/EFFECT/FREEZE/WRITEOFF/CHANGE（CHANGE=变更中）"
+    dict: null
   - name: check_status
-    meaning: 企业准入审核状态（OperApiConstants.CheckStatus），changeEnable 以 CUST_CHECK_CHECKING 判定不可发起变更
-    evidence: code
+    type: varchar
+    desc: "企业准入审核状态，取值同 CheckStatus（CUST_CHECK_CHECKING 等）"
+    dict: OperApiConstants.CheckStatus
   - name: cust_build_status
-    meaning: "企业建档/认证状态（CustBuildStatusEnum：INIT/BUILD_FAIL/BUILD_SUCCESS/CUST_CONFIRM_AWAIT/CUST_BUILDING 等）"
-    evidence: code
-  - name: data_type
-    meaning: 数据类型：1=主数据、0=记录数据；状态流转更新条件限定为 '1'
-    evidence: code
+    type: varchar
+    desc: "企业认证/建档状态（INIT/CUST_CONFIRM_AWAIT/CUST_BUILDING/BUILD_SUCCESS/BUILD_FAIL）"
+    dict: null
+  - name: head_company
+    type: char(1)
+    desc: "是否总公司 Y/N，决定加载哪一套变更项配置"
+    dict: null
+  - name: identify_style
+    type: varchar
+    desc: "企业认证方式，作为变更项配置匹配键之一"
+    dict: null
+  - name: manager_id
+    type: bigint
+    desc: "企业维度业务经理；与 cust_person_info.operator_id 不同表不同粒度"
+    dict: null
 ```
+
+相关页面：[[cust_company_info_cust_status]]、[[cust_company_info_cust_build_status]]、[[company_in_change]]、[[checking_company_cannot_change]]、[[cust_id]]、[[cust_change_record]]。
 
 ---END FILE---
 
 ---FILE: tables/cust_person_info.md ---
 ---
 type: table
-title: cust_person_info（企业联系人信息）
+title: 企业联系人表 (cust_person_info)
 page_key: cust_person_info
 domain: 企业变更与运营变更
 status: draft
-aliases: [联系人表, 企业经办人信息]
+aliases: [企业联系人, 联系人表, cust_person_info]
 oid: 1
 scope:
-  databases: [unknown]
+  databases: ["unknown"]
 sources:
   - db:cust_person_info
-  - code_path:CustChangeApplication.java:getRedirectPage
-  - code_path:OperChangeRecordApplication.java:queryByPersonId
+  - code:CustChangeApplication.java
+  - code:CustSyncEventProvider.java
 contract_version: "0.1"
 ---
 
-`cust_person_info` 存放企业联系人（管理员 / 经办人）信息，是运营人员变更流水 [[tables.cust_oper_change_record]] 的主体来源（`person_id` 即本表主键）。术语「运营人员 / 经办人」的区分见 [[concepts.operator]]。管理员手机号变更场景中，联系人手机号 `phone` 与登录用户名（`getUserName` 返回手机号）及中台新旧管理员手机号三方比对，见 [[rules.admin-phone-change-redirect]]。
+`cust_person_info` 是企业联系人表。在变更链路里它承担两个角色：一是企业管理员（`user_type='admin'`）的定位与手机号对比，用于「管理员手机号变更」类变更项的判定与跳转（[[company_admin_contact]]、[[admin_mobile_redirect]]）；二是运营人员归属的载体，`operator_id` / `operator_realname` 是联系人维度的运营人员，见 [[operator]]。
+
+本表主键被 [[cust_oper_change_record]] 的 `person_id` 引用，运营人员变更历史因此挂到联系人粒度而非企业粒度。
 
 ## 需求背景
 
-联系人的 `user_type` 区分管理员与经办人，决定了变更管理员手机号时的判定对象；`phone` 既是对外联系方式，也是登录标识，因此手机号变更会直接影响旧管理员与新管理员进入变更页面时的跳转结果。
+同一企业下存在多个联系人，变更判定必须先锁定「人」再判断「号」：管理员手机号变更需要拿运营中台回传的新旧管理员信息（[[before_after_comparison]]）与本地 `phone` 对比；运营人员变更则需要按联系人维度留痕。
 
 ## 版本演进
 
-v0.1：首次登记，字段语义来自代码枚举与跳转判定逻辑。
+v0.1：首次抽取联系人与运营人员两个维度的字段；本页暂无历史版本差异记录。
 
 ```ground:table
 table: cust_person_info
 fields:
-  - name: user_type
-    meaning: "联系人类型（UserTypeEnum：admin=管理员、operator=经办人）"
-    evidence: code
+  - name: id
+    type: bigint
+    desc: "联系人主键，被 cust_oper_change_record.person_id 引用"
+    dict: null
   - name: phone
-    meaning: 手机号；管理员手机号变更判定中与登录用户名（getUserName 返回手机号）比较
-    evidence: code
+    type: varchar
+    desc: "联系人手机号；管理员手机号变更判定时用于新旧对比"
+    dict: null
+  - name: user_type
+    type: varchar
+    desc: "联系人类型：admin=企业管理员，operator=经办人"
+    dict: UserTypeEnum
+  - name: operator_id
+    type: bigint
+    desc: "联系人维度的运营人员ID；与 cust_company_info.manager_id 不同粒度"
+    dict: null
+  - name: operator_realname
+    type: varchar
+    desc: "联系人维度的运营人员姓名"
+    dict: null
 ```
+
+相关页面：[[company_admin_contact]]、[[admin_mobile_redirect]]、[[operator]]、[[cust_oper_change_record]]、[[before_after_comparison]]。
 
 ---END FILE---
 
----FILE: processes/cust-change-record-status.md ---
+---FILE: processes/cust_change_record_status.md ---
 ---
 type: process
-title: 客户变更单状态机（cust_change_record.status）
-page_key: process.cust-change-record-status
+title: 企业变更记录审核状态机 (cust_change_record.status)
+page_key: cust_change_record_status
 domain: 企业变更与运营变更
 status: draft
-aliases: [变更单状态, 变更审批状态, CheckStatus]
+aliases: [变更审核状态机, 变更流程状态, CUST_CHECK]
 oid: 1
 scope:
-  databases: [unknown]
+  databases: ["unknown"]
 sources:
+  - code:CustCompanyInfoApplication.java
+  - code:CustChangeApplication.java
   - db:cust_change_record
-  - code_path:CustSyncEventProvider.java:onEvent
-  - code_path:CustChangeApplication.java:changeRebuild
 contract_version: "0.1"
 ---
 
-变更单状态挂在 [[tables.cust_change_record]] 的 `status` 上，取值来自 `OperApiConstants.CheckStatus` 枚举：审核中（`CUST_CHECK_CHECKING`）、审核通过（`CUST_CHECK_PASS`，终态）、审核拒绝（`CUST_CHECK_REJECT`，终态）、退回客户（`CUST_CHECK_BACKTOCUSTOM`）。终态口径被流程重建直接使用，见 [[calibers.change-record-terminal-status]] 与 [[rules.change-record-terminal-filter]]。调用方重新发起变更时，会先结束旧流程并把旧单置为拒绝，见 [[rules.change-rebuild]]。
+本状态机描述单条变更记录（[[cust_change_record]]）从发起到终态的流转，状态值来自 `OperApiConstants.CheckStatus` 并以 `name()` 落库。它与 [[cust_company_info_cust_status]]（企业生命周期）不是同一状态轴：[[change_status]] 页面记录了三者的边界。
+
+终态为 `CUST_CHECK_PASS` / `CUST_CHECK_REJECT`；非终态记录才允许被流程重建（[[change_rebuild]]、[[rebuildable_change_process]]）。DB 中还存在历史默认值 `'1'`，代码常量中无对应语义，见 REVIEW。
 
 ## 需求背景
 
-审核终态由运营中台回调驱动：`CUST_CHECK_PASS` 与 `CUST_CHECK_REJECT` 回调统一交由工作流审核执行器处理，事件提供者 `CustSyncEventProvider.onEvent` 直接跳过，见 [[rules.audit-callback-dispatch]]。因此本状态机的终态写入并不在本模块内完成，本页只登记状态与可观测的流转。
+变更由平台发起、运营中台审核，因此状态机需要表达「发起 → 审核中 → 通过/拒绝」的主干，以及两个非主干分支：中台退回让客户补充（`CUST_CHECK_BACKTOCUSTOM`）与客户重新发起时拒绝旧流程（`CUST_CHECK_REJECT`）。
 
 ## 版本演进
 
-v0.1：首次登记。状态取值中 `1`（表默认值）、`CUSTS003`、`returnCust-<时间戳>` 为库表实测值，代码层未见对应枚举声明，暂按历史/脏值处理。
+v0.1：首次抽取状态取值与四条迁移；`'1'` 历史默认值语义未声明，待与历史数据/旧版本对齐。
 
 ```ground:process
-name: 客户变更单状态
+name: 企业变更记录审核状态机
 field: cust_change_record.status
 states:
-  - value: "1"
-    label: 待提交/初始（表默认值，代码层未见枚举声明）
-    source: db_dist
+  - value: CUST_CHECK_INIT
+    label: 变更发起
+    source: code_const
   - value: CUST_CHECK_CHECKING
     label: 审核中
-    source: code_enum
+    source: code_const
   - value: CUST_CHECK_BACKTOCUSTOM
-    label: 退回客户
-    source: db_dist
+    label: 退回客户补充
+    source: code_const
   - value: CUST_CHECK_PASS
-    label: 审核通过（终态）
-    source: code_enum
+    label: 审核通过
+    source: code_const
   - value: CUST_CHECK_REJECT
-    label: 审核拒绝（终态）
-    source: code_enum
-  - value: CUSTS003
-    label: 未识别的历史值（1 条）
-    source: db_dist
-  - value: "returnCust-<时间戳>"
-    label: 历史退回标记，非标准枚举（13 条）
+    label: 审核拒绝
+    source: code_const
+  - value: "1"
+    label: 历史默认值（语义未声明）
     source: db_dist
 transitions:
+  - from: CUST_CHECK_INIT
+    event: 发起变更同步运营中台
+    to: CUST_CHECK_CHECKING
+    evidence: "code_path:CustCompanyInfoApplication.java#submitCust(CheckStatus.CUST_CHECK_INIT) + OperApiConstants.CheckStatus"
   - from: CUST_CHECK_CHECKING
-    event: 运营中台审核通过回调
-    to: CUST_CHECK_PASS
-    evidence: "code_path:CustSyncEventProvider.java:onEvent（CUST_CHECK_PASS 由 CustWorkflowAuditCommitProcessor 处理，onEvent 直接跳过）"
+    event: 运营中台审核退回
+    to: CUST_CHECK_BACKTOCUSTOM
+    evidence: "code_path:CustCompanyInfoApplication.java#syncClientForSimple(CheckStatus.CUST_CHECK_BACKTOCUSTOM)"
   - from: CUST_CHECK_CHECKING
-    event: 运营中台审核拒绝回调
+    event: 客户操作重新发起/拒绝旧流程
     to: CUST_CHECK_REJECT
-    evidence: "code_path:CustSyncEventProvider.java:onEvent（CUST_CHECK_REJECT 同上，交由工作流审核执行器）"
-  - from: CUST_CHECK_CHECKING
-    event: 客户操作重新发起/流程重建（拒绝旧流程，发起新流程）
+    evidence: "code_path:CustChangeApplication.java#changeRebuild"
+  - from: "*非终态"
+    event: 流程重建
     to: CUST_CHECK_REJECT
-    evidence: "code_path:CustChangeApplication.java:changeRebuild（取最新非终态记录，调 operCustFacade.changeRejectProcess 结束旧流程）"
+    evidence: "code_path:CustChangeApplication.java#changeRebuild(notIn PASS,REJECT 取最新非终态记录后调用 operCustFacade.changeRejectProcess)"
 ```
+
+相关页面：[[cust_change_record]]、[[change_status]]、[[change_rebuild]]、[[rebuildable_change_process]]、[[company_in_change]]。
+
+---REVIEW: process | 企业变更记录审核状态机 (cust_change_record.status)---
+状态取值 `'1'` 仅有 DB 分布证据，代码常量 `OperApiConstants.CheckStatus` 中不存在该值，且现有迁移均不产生该状态。需确认是历史版本遗留、初始化默认值，还是存在未覆盖的写入点；在确认前，任何按 `status` 过滤的口径都应显式排除或解释 `'1'`。
+---END REVIEW---
 
 ---END FILE---
 
----FILE: processes/cust-company-info-status.md ---
+---FILE: processes/cust_company_info_cust_status.md ---
 ---
 type: process
-title: 企业生命周期状态机（cust_company_info.cust_status）
-page_key: process.cust-company-info-status
+title: 企业客户生命周期状态机 (cust_company_info.cust_status)
+page_key: cust_company_info_cust_status
 domain: 企业变更与运营变更
 status: draft
-aliases: [企业状态, CustStatusEnum, 企业生命周期]
+aliases: [企业生命周期状态机, cust_status, 企业状态流转]
 oid: 1
 scope:
-  databases: [unknown]
+  databases: ["unknown"]
 sources:
+  - code:CustCompanyInfoApplication.java
+  - code:CustChangeApplication.java
   - db:cust_company_info
-  - code_path:CustCompanyInfoApplication.java:freeze
-  - code_path:CustCompanyInfoApplication.java:unfreeze
-  - code_path:CustCompanyInfoApplication.java:diable
 contract_version: "0.1"
 ---
 
-企业生命周期状态由 `CustStatusEnum` 定义，挂在 [[tables.cust_company_info]] 的 `cust_status` 上：新增/待提交（`ADD`）、变更中（`CHANGE`）、已生效（`EFFECT`）、已冻结（`FREEZE`）、已注销（`WRITEOFF`）。冻结、解冻、注销分别由 `CustCompanyInfoApplication.freeze`、`unfreeze`、`diable` 驱动并调用 `custStatusSync` 落状态。`CHANGE` 是变更在途的判定依据，见 [[calibers.company-change-on-way]] 与 [[rules.change-on-way-company]]。
+本状态机描述企业客户主体（[[cust_company_info]]）的生命周期流转，其中 `CHANGE`（变更中）是与本主题直接相关的态：企业一旦发起变更，主体被打上 `CHANGE`，变更入口与页面跳转随之变化（[[company_in_change]]、[[change_on_way]]）。
+
+注意本状态机的 `status` 与企业准入审核状态 `check_status` 是两条独立的轴，见 [[change_status]]。
 
 ## 需求背景
 
-变更链路只依赖 `CHANGE` 这一个中间态来判断「企业是否已有在途变更」；冻结与注销属于企业维度的运营动作，与变更单状态 [[concepts.change-status]] 分属不同层面：前者描述企业生命周期，后者描述单次变更申请的审批进度。
+企业既有日常运营态（生效/冻结/注销），也有变更在途态。把「变更中」建模为企业级状态而非仅记录级状态，是为了让入口、待办页、重复发起校验都能用同一字段判定，避免并发发起多次变更。
 
 ## 版本演进
 
-v0.1：首次登记，状态取值与迁移均来自代码枚举与状态同步调用点。
+v0.1：首次抽取五个状态与四条迁移；文档主张「已冻结或已注销不允许变更」未被代码覆盖，见 [[change_precheck]]。
 
 ```ground:process
-name: 企业生命周期状态
+name: 企业客户生命周期状态机
 field: cust_company_info.cust_status
 states:
   - value: ADD
-    label: 新增/待提交
-    source: code_enum
-  - value: CHANGE
-    label: 变更中（存在在途变更）
-    source: code_enum
+    label: 待建档/新增
+    source: code_const
   - value: EFFECT
     label: 已生效
-    source: code_enum
+    source: code_const
   - value: FREEZE
     label: 已冻结
-    source: code_enum
+    source: code_const
   - value: WRITEOFF
     label: 已注销
-    source: code_enum
+    source: code_const
+  - value: CHANGE
+    label: 变更中
+    source: code_const
 transitions:
   - from: EFFECT
-    event: freeze
+    event: 冻结
     to: FREEZE
-    evidence: "code_path:CustCompanyInfoApplication.java:freeze + custStatusSync(FREEZE->CustStatusEnum.FREEZE)"
+    evidence: "code_path:CustCompanyInfoApplication.java#freeze→custStatusOperator(CustStatusOperatorConstant.FREEZE)"
   - from: FREEZE
-    event: unfreeze
+    event: 解冻
     to: EFFECT
-    evidence: "code_path:CustCompanyInfoApplication.java:unfreeze + custStatusSync(UNFREEZE->CustStatusEnum.EFFECT)"
+    evidence: "code_path:CustCompanyInfoApplication.java#unfreeze→custStatusOperator(UNFREEZE)"
   - from: EFFECT
-    event: diable（注销）
+    event: 注销
     to: WRITEOFF
-    evidence: "code_path:CustCompanyInfoApplication.java:diable + custStatusSync(DISABLE->CustStatusEnum.WRITEOFF)"
+    evidence: "code_path:CustCompanyInfoApplication.java#diable→custStatusOperator(DISABLE)"
+  - from: EFFECT
+    event: 发起企业变更（运营中台同步变更状态）
+    to: CHANGE
+    evidence: "code_path:CustChangeApplication.java#getRedirectPage(判定 cust_status=CHANGE) + CustCompanyInfoApplication.java#doIfNecessaryChange(operCustFacade.change)"
 ```
+
+相关页面：[[cust_company_info]]、[[company_in_change]]、[[change_on_way]]、[[change_status]]、[[cust_company_info_cust_build_status]]。
 
 ---END FILE---
 
----FILE: processes/oper-change-type.md ---
+---FILE: processes/cust_company_info_cust_build_status.md ---
 ---
 type: process
-title: 运营人员变更类型（cust_oper_change_record.change_type）
-page_key: process.oper-change-type
+title: 企业认证/建档状态机 (cust_company_info.cust_build_status)
+page_key: cust_company_info_cust_build_status
 domain: 企业变更与运营变更
 status: draft
-aliases: [change_type, 运营变更类型枚举, CHANGE_TYPE_DESC]
+aliases: [建档状态机, cust_build_status, 重新建档状态]
 oid: 1
 scope:
-  databases: [unknown]
+  databases: ["unknown"]
 sources:
-  - db:cust_oper_change_record
-  - code_path:OperChangeRecordApplication.java:CHANGE_TYPE_DESC
+  - code:CustCompanyInfoApplication.java
+  - db:cust_company_info
 contract_version: "0.1"
 ---
 
-`change_type` 是 [[tables.cust_oper_change_record]] 上的分类字段，取值集合由代码字典 `CHANGE_TYPE_DESC` 给出：`MANUAL`=手动变更、`BATCH`=批量变更、`AUTO_ASSIGN`=自动分配、`AUTO_UPDATE`=自动更新、`ASSET_AUDIT_SYNC`=资产审核同步、`CUST_CHANGE_CALLBACK`=企业变更回调。字典映射与未命中回显规则见 [[rules.oper-change-type-dict]]。
+本状态机描述企业客户（[[cust_company_info]]）认证/建档的流转，服务于变更项中的「重新建档」相关场景。建档成功后企业进入 `cust_status=EFFECT`，与 [[cust_company_info_cust_status]] 联动。
 
 ## 需求背景
 
-运营人员变更来源分散在人工操作、批量任务、资产审核同步与企业变更回调等多条链路，本字段是这些链路在流水上的统一归类维度，前端展示名由字典映射；映射未命中时直接回显原值，保证新增来源不丢数据。
+变更项可能要求企业重新提交材料并由运营中台重新审核建档，因此需要一条独立于变更审核（[[cust_change_record_status]]）的建档状态线：客户确认 → 中台审核 → 成功/拒绝，退回时可回到待客户确认。
 
 ## 版本演进
 
-v0.1：首次登记。该状态机当前无状态迁移语义，仅登记取值集合（transitions 为空）。
+v0.1：首次抽取五个状态与五条迁移；本页暂无历史版本差异记录。
 
 ```ground:process
-name: 运营人员变更类型
-field: cust_oper_change_record.change_type
+name: 企业认证/建档状态机（变更项'重新建档'相关）
+field: cust_company_info.cust_build_status
 states:
-  - value: MANUAL
-    label: 手动变更
-    source: code_enum
-  - value: BATCH
-    label: 批量变更
-    source: code_enum
-  - value: AUTO_ASSIGN
-    label: 自动分配
-    source: code_enum
-  - value: AUTO_UPDATE
-    label: 自动更新
-    source: code_enum
-  - value: ASSET_AUDIT_SYNC
-    label: 资产审核同步
-    source: code_enum
-  - value: CUST_CHANGE_CALLBACK
-    label: 企业变更回调
-    source: code_enum
-transitions: []
+  - value: INIT
+    label: 初始
+    source: code_const
+  - value: CUST_CONFIRM_AWAIT
+    label: 待客户确认
+    source: code_const
+  - value: CUST_BUILDING
+    label: 运营中台审核中
+    source: code_const
+  - value: BUILD_SUCCESS
+    label: 建档成功
+    source: code_const
+  - value: BUILD_FAIL
+    label: 建档拒绝
+    source: code_const
+transitions:
+  - from: INIT/BUILD_FAIL
+    event: 客户提交资料
+    to: CUST_CONFIRM_AWAIT
+    evidence: "code_path:CustCompanyInfoApplication.java#messageNotify(before INIT|BUILD_FAIL → after CUST_CONFIRM_AWAIT)"
+  - from: CUST_CONFIRM_AWAIT
+    event: 推运营中台审核
+    to: CUST_BUILDING
+    evidence: "code_path:CustCompanyInfoApplication.java#messageNotify(before CUST_CONFIRM_AWAIT → after CUST_BUILDING)"
+  - from: CUST_BUILDING
+    event: 运营中台退回
+    to: CUST_CONFIRM_AWAIT
+    evidence: "code_path:CustCompanyInfoApplication.java#messageNotify(before CUST_BUILDING → after CUST_CONFIRM_AWAIT)"
+  - from: CUST_BUILDING
+    event: 审核通过
+    to: BUILD_SUCCESS
+    evidence: "code_path:CustCompanyInfoApplication.java#updateCustBuildStatus(after BUILD_SUCCESS → cust_status=EFFECT)"
+  - from: CUST_BUILDING
+    event: 审核拒绝
+    to: BUILD_FAIL
+    evidence: "code_path:CustCompanyInfoApplication.java#messageNotify(after BUILD_FAIL)"
 ```
+
+相关页面：[[cust_company_info]]、[[cust_company_info_cust_status]]、[[cust_change_record_status]]。
 
 ---END FILE---
 
----FILE: calibers/change-record-terminal-status.md ---
+---FILE: calibers/valid_change_cfg.md ---
 ---
 type: caliber
-title: 变更单终态
-page_key: caliber.change-record-terminal-status
+title: 有效变更项配置
+page_key: valid_change_cfg
 domain: 企业变更与运营变更
 status: draft
-aliases: [变更终态口径, 非终态变更单]
+aliases: [变更项配置口径, enable=Y 配置]
 oid: 1
 scope:
-  databases: [unknown]
+  databases: ["unknown"]
 sources:
-  - code_path:CustChangeApplication.java:changeRebuild
+  - code:CustChangeApplication.java
 contract_version: "0.1"
 ---
 
-「变更单终态」是 [[tables.cust_change_record]] 上用于识别企业是否存在未完结变更流程的口径：`CUST_CHECK_PASS` 与 `CUST_CHECK_REJECT` 视为终态，取在途变更单时以 notIn 排除，取最新一条非终态记录用于流程重建。状态取值全集见 [[processes.cust-change-record-status]]，应用规则见 [[rules.change-record-terminal-filter]] 与 [[rules.change-rebuild]]。注意本口径只描述变更单维度，与企业生命周期状态 [[calibers.company-change-on-way]] 不同层。
+口径定义：变更项配置列表只取 `cust_change_cfg.enable = 'Y'` 的行。它是 [[change_cfg_match]] 规则的第一道过滤，与端类型、认证方式、客户类型、是否总公司等条件叠加后得到企业可见的变更项清单（[[cust_change_cfg]]）。
 
 ## 需求背景
 
-流程重建要求「同一企业同一时刻只保留一条在途变更单」，因此必须有一个稳定的终态集合把已完结单据排除在外。终态的写入由运营中台回调链路负责，本地模块只读该口径，见 [[rules.audit-callback-dispatch]]。
+变更项配置需要支持下线而不物理删除，因此所有读取路径统一加 `enable` 条件，避免历史配置重新出现在企业可见清单中。
 
 ## 版本演进
 
-v0.1：首次登记，口径来自 `CustChangeApplication.changeRebuild` 的查询条件。
+v0.1：首次固化该口径。
 
 ```ground:caliber
-name: 变更单终态
-predicate: "cust_change_record.status IN ('CUST_CHECK_PASS','CUST_CHECK_REJECT')"
-scope: 识别企业是否存在未完结变更流程
-evidence: code_path:CustChangeApplication.java:changeRebuild（notIn PASS/REJECT 取最新一条）
-```
-
----END FILE---
-
----FILE: calibers/company-change-enable.md ---
----
-type: caliber
-title: 企业可发起变更
-page_key: caliber.company-change-enable
-domain: 企业变更与运营变更
-status: draft
-aliases: [变更入口可用性, changeEnable]
-oid: 1
-scope:
-  databases: [unknown]
-sources:
-  - code_path:CustChangeApplication.java:changeEnable
-contract_version: "0.1"
----
-
-「企业可发起变更」是变更入口的可用性口径：企业准入审核状态不等于 `CUST_CHECK_CHECKING` 时才允许发起变更。字段语义见 [[tables.cust_company_info]]，与变更单状态 [[concepts.change-status]] 的边界见该概念页；落地规则见 [[rules.change-application-admission]]。
-
-## 需求背景
-
-企业准入审核在途时，企业主体信息本身可能还在变化，此时不允许叠加变更申请，避免同一企业出现两条互相冲突的审批链路。该口径是企业不存在时同样返回不可用的前置校验。
-
-## 版本演进
-
-v0.1：首次登记，口径来自 `CustChangeApplication.changeEnable`。
-
-```ground:caliber
-name: 企业可发起变更
-predicate: "cust_company_info.check_status <> 'CUST_CHECK_CHECKING'"
-scope: 变更入口可用性校验
-evidence: code_path:CustChangeApplication.java:changeEnable
-```
-
----END FILE---
-
----FILE: calibers/company-change-on-way.md ---
----
-type: caliber
-title: 企业在途变更
-page_key: caliber.company-change-on-way
-domain: 企业变更与运营变更
-status: draft
-aliases: [在途变更口径, changeHasBusiOnWay]
-oid: 1
-scope:
-  databases: [unknown]
-sources:
-  - code_path:CustChangeApplication.java:changeHasBusiOnWay
-  - code_path:CustChangeApplication.java:getRedirectPage
-contract_version: "0.1"
----
-
-「企业在途变更」以 [[tables.cust_company_info]] 的 `cust_status = 'CHANGE'` 判定：命中即认为企业存在在途变更业务，`changeHasBusiOnWay` 返回 true。该口径同时影响变更入口可用性与页面跳转（是否进入运营中台变更待办页）。生命周期状态机见 [[processes.cust-company-info-status]]，落地规则见 [[rules.change-on-way-company]]；与单张变更单的终态口径 [[calibers.change-record-terminal-status]] 互补：前者是结果态，后者是单据集合。
-
-## 需求背景
-
-变更审批在运营中台进行，平台侧需要在用户进入时快速判断「是否有事正在办」，因此选择一个单字段的结果态作为在途标识，而不是每次聚合变更单集合。
-
-## 版本演进
-
-v0.1：首次登记，口径来自 `CustChangeApplication.changeHasBusiOnWay` / `getRedirectPage`。
-
-```ground:caliber
-name: 企业在途变更
-predicate: "cust_company_info.cust_status = 'CHANGE'"
-scope: 变更在途判定与页面跳转
-evidence: code_path:CustChangeApplication.java:changeHasBusiOnWay / getRedirectPage
-```
-
----END FILE---
-
----FILE: calibers/change-cfg-enable.md ---
----
-type: caliber
-title: 生效变更配置
-page_key: caliber.change-cfg-enable
-domain: 企业变更与运营变更
-status: draft
-aliases: [配置有效标记, 变更配置查询口径]
-oid: 1
-scope:
-  databases: [unknown]
-sources:
-  - code_path:CustChangeApplication.java:list
-contract_version: "0.1"
----
-
-「生效变更配置」是 [[tables.cust_change_cfg]] 查询的基础过滤口径：只取 `enable = 'Y'` 的配置行。该口径是 [[calibers.change-cfg-match-dimensions]] 的组成部分，配置下线的标准做法是改标记而不是删行。
-
-## 需求背景
-
-变更项配置需要支持上下线而不丢失历史引用，因此以逻辑有效标记控制可见性；查询条件恒定携带该标记，保证任何入口拿到的都是生效配置。
-
-## 版本演进
-
-v0.1：首次登记，口径来自 `CustChangeApplication.list`（`EnableEnum.Y.name()`）。
-
-```ground:caliber
-name: 生效变更配置
+name: 有效变更项配置
 predicate: "cust_change_cfg.enable = 'Y'"
-scope: 变更项配置查询
-evidence: code_path:CustChangeApplication.java:list（EnableEnum.Y.name()）
+scope: 客户变更配置列表查询
+evidence: "code_path:CustChangeApplication.java#list(EnableEnum.Y.name())"
 ```
+
+相关页面：[[cust_change_cfg]]、[[change_cfg_match]]、[[valid_change_record]]、[[valid_oper_change_record]]。
 
 ---END FILE---
 
----FILE: calibers/change-cfg-match-dimensions.md ---
+---FILE: calibers/valid_change_record.md ---
 ---
 type: caliber
-title: 企业变更配置匹配维度
-page_key: caliber.change-cfg-match-dimensions
+title: 有效变更记录
+page_key: valid_change_record
 domain: 企业变更与运营变更
 status: draft
-aliases: [变更项匹配口径, 配置四维匹配]
+aliases: [变更记录有效口径, enable=Y 记录]
 oid: 1
 scope:
-  databases: [unknown]
+  databases: ["unknown"]
 sources:
-  - code_path:CustChangeApplication.java:list
+  - code:CustChangeApplication.java
 contract_version: "0.1"
 ---
 
-变更项清单按「端类型 + 认证方式 + 客户类型 + 是否总公司 + 有效标记」匹配 [[tables.cust_change_cfg]]；其中企业类型按 `head_company` 细分，个人类型不叠加该维度。落地规则见 [[rules.change-cfg-identity-match]]，有效标记口径见 [[calibers.change-cfg-enable]]，配置字段含义见配置表页。
+口径定义：读取或判定变更记录（[[cust_change_record]]）时只认 `enable = 'Y'` 的行，用于变更记录读取与跳转判定。
 
 ## 需求背景
 
-同一次变更在不同端、不同认证方式下的材料要求与可选范围不同，因此配置表以多维组合表达适用性；个人客户没有「是否总公司」概念，匹配时必须去掉该维度，否则会取不到配置。
+变更记录存在作废/失效场景，入口跳转与展示必须基于有效记录，否则会把已失效的在途流程当成真实在途。
 
 ## 版本演进
 
-v0.1：首次登记，口径来自 `CustChangeApplication.list` 的查询条件拼装。
+v0.1：首次固化该口径。
 
 ```ground:caliber
-name: 企业变更配置匹配维度
-predicate: "cust_change_cfg.client_type = ? AND cust_change_cfg.identify_style = ? AND cust_change_cfg.cust_type = ? AND cust_change_cfg.head_company = ? AND cust_change_cfg.enable = 'Y'"
-scope: 企业类型按 head_company 细分；个人类型不叠加 head_company
-evidence: code_path:CustChangeApplication.java:list
+name: 有效变更记录
+predicate: "cust_change_record.enable = 'Y'"
+scope: 变更记录读取/跳转判定
+evidence: "code_path:CustChangeApplication.java#getRedirectPage"
 ```
+
+相关页面：[[cust_change_record]]、[[valid_change_cfg]]、[[valid_oper_change_record]]、[[admin_mobile_redirect]]。
 
 ---END FILE---
 
----FILE: calibers/admin-phone-change-item.md ---
+---FILE: calibers/valid_oper_change_record.md ---
 ---
 type: caliber
-title: 管理员手机号变更项
-page_key: caliber.admin-phone-change-item
+title: 有效运营变更记录
+page_key: valid_oper_change_record
 domain: 企业变更与运营变更
 status: draft
-aliases: [UN0012, UN0013, 管理员手机号变更]
+aliases: [运营人员变更记录口径, 运营变更 enable=Y]
 oid: 1
 scope:
-  databases: [unknown]
+  databases: ["unknown"]
 sources:
-  - code_path:CustChangeApplication.java:getRedirectPage
+  - code:OperChangeRecordApplication.java
 contract_version: "0.1"
 ---
 
-「管理员手机号变更项」是跳转页判定的识别口径：变更项编码落在 `UN0012`/`UN0013`（`CustUpdateItemCodeConstants`）即视为管理员手机号变更。变更单与配置的关联方式见 [[concepts.item-code]]，判定后的跳转逻辑见 [[rules.admin-phone-change-redirect]]。
+口径定义：按联系人查询运营人员变更历史（[[cust_oper_change_record]]）时固定 `enable='Y'`。该条件在代码中以字面量 `'Y'` 直写，未走 `EnableEnum`，与 [[valid_change_cfg]] 的写法不同。
 
 ## 需求背景
 
-管理员手机号变更会改变登录主体与新管理员的可见内容，因此需要单独识别该变更项并走不同的落地页；识别依据是稳定的业务编码而非数据库主键，以兼容配置表主键漂移。
+运营人员变更记录是对外展示的历史列表，需要过滤失效行；字面量写法属于实现差异，口径本身与「有效记录」一致。
 
 ## 版本演进
 
-v0.1：首次登记，口径来自 `CustChangeApplication.getRedirectPage`。
+v0.1：首次固化该口径，并标注字面量直写的实现差异。
 
 ```ground:caliber
-name: 管理员手机号变更项
-predicate: "cust_change_cfg.item_code IN ('UN0012','UN0013')"
-scope: 变更单跳转页判定
-evidence: code_path:CustChangeApplication.java:getRedirectPage（CustUpdateItemCodeConstants.UN0012/UN0013）
-```
-
----END FILE---
-
----FILE: calibers/oper-change-record-valid.md ---
----
-type: caliber
-title: 有效运营人员变更记录
-page_key: caliber.oper-change-record-valid
-domain: 企业变更与运营变更
-status: draft
-aliases: [运营变更流水有效口径, enable=Y 流水]
-oid: 1
-scope:
-  databases: [unknown]
-sources:
-  - code_path:OperChangeRecordApplication.java:queryByPersonId
-contract_version: "0.1"
----
-
-运营人员变更流水的查询口径为 [[tables.cust_oper_change_record]] 上 `enable = 'Y'`，按联系人精确匹配后返回。完整查询行为见 [[rules.oper-change-record-query]]，术语边界见 [[concepts.oper-change-record]]。
-
-## 需求背景
-
-流水表用于对外展示历史，删除行会破坏审计连续性，因此以逻辑有效标记过滤；查询恒带该标记，保证列表与详情一致。
-
-## 版本演进
-
-v0.1：首次登记，口径来自 `OperChangeRecordApplication.queryByPersonId`。
-
-```ground:caliber
-name: 有效运营人员变更记录
+name: 有效运营变更记录
 predicate: "cust_oper_change_record.enable = 'Y'"
-scope: 按联系人查询运营人员变更流水
-evidence: code_path:OperChangeRecordApplication.java:queryByPersonId
+scope: 运营人员变更记录查询（字面量 'Y' 直写）
+evidence: "code_path:OperChangeRecordApplication.java#queryByPersonId"
 ```
+
+相关页面：[[cust_oper_change_record]]、[[oper_change_query]]、[[valid_change_record]]、[[valid_change_cfg]]。
 
 ---END FILE---
 
----FILE: calibers/company-master-data.md ---
+---FILE: calibers/rebuildable_change_process.md ---
 ---
 type: caliber
-title: 主数据企业
-page_key: caliber.company-master-data
+title: 可重建的变更流程
+page_key: rebuildable_change_process
 domain: 企业变更与运营变更
 status: draft
-aliases: [data_type=1, 主数据口径]
+aliases: [非终态变更流程, 可重建流程口径]
 oid: 1
 scope:
-  databases: [unknown]
+  databases: ["unknown"]
 sources:
-  - code_path:CustCompanyInfoApplication.java:appenUpdateCustBulidStatus
+  - code:CustChangeApplication.java
 contract_version: "0.1"
 ---
 
-「主数据企业」是 [[tables.cust_company_info]] 上 `data_type = '1'` 的口径，用于限定建档/认证状态流转更新的作用范围（`1`=主数据、`0`=记录数据）。相关字段语义见企业客户信息表页。
+口径定义：可被流程重建逻辑命中的变更记录，是 `status NOT IN ('CUST_CHECK_PASS','CUST_CHECK_REJECT')` 的记录。命中后取最新一条非终态记录，调用运营中台 `changeRejectProcess` 结束旧流程，由客户重新发起，见 [[change_rebuild]]。
 
 ## 需求背景
 
-同一企业在库中可能存在记录数据行，状态流转只应作用于主数据行，否则会污染历史/记录数据；因此更新条件显式限定 `data_type = '1'`。
+客户在流程未结束时重新发起变更，需要先收敛旧流程，避免同一企业存在多条在途变更；因此以「非终态」而非「审核中」为条件，把退回补充等中间态一并纳入。
 
 ## 版本演进
 
-v0.1：首次登记，口径来自 `CustCompanyInfoApplication.appenUpdateCustBulidStatus`。
+v0.1：首次固化该口径。
 
 ```ground:caliber
-name: 主数据企业
-predicate: "cust_company_info.data_type = '1'"
-scope: 建档/认证状态流转更新的过滤条件
-evidence: code_path:CustCompanyInfoApplication.java:appenUpdateCustBulidStatus
+name: 可重建的变更流程
+predicate: "cust_change_record.status NOT IN ('CUST_CHECK_PASS','CUST_CHECK_REJECT')"
+scope: 变更流程重建前置条件
+evidence: "code_path:CustChangeApplication.java#changeRebuild(notIn CheckStatus.PASS/REJECT)"
 ```
+
+相关页面：[[change_rebuild]]、[[cust_change_record_status]]、[[cust_change_record]]、[[valid_change_record]]。
 
 ---END FILE---
 
----FILE: concepts/item-code.md ---
+---FILE: calibers/company_in_change.md ---
+---
+type: caliber
+title: 变更中企业
+page_key: company_in_change
+domain: 企业变更与运营变更
+status: draft
+aliases: [变更在途企业, CHANGE 状态口径]
+oid: 1
+scope:
+  databases: ["unknown"]
+sources:
+  - code:CustChangeApplication.java
+contract_version: "0.1"
+---
+
+口径定义：`cust_company_info.cust_status = 'CHANGE'` 即视为该企业存在变更在途。该口径用于变更待办页与变更提交成功页的跳转判定，也是 [[change_on_way]] 规则的判定依据。
+
+## 需求背景
+
+变更在途的判定以企业主体状态为唯一入口，避免逐条扫描变更记录；跳转分支因此稳定且可缓存。
+
+## 版本演进
+
+v0.1：首次固化该口径。
+
+```ground:caliber
+name: 变更中企业
+predicate: "cust_company_info.cust_status = 'CHANGE'"
+scope: 变更待办页/变更提交成功页跳转判定
+evidence: "code_path:CustChangeApplication.java#getRedirectPage"
+```
+
+相关页面：[[cust_company_info]]、[[cust_company_info_cust_status]]、[[change_on_way]]、[[admin_mobile_redirect]]。
+
+---END FILE---
+
+---FILE: calibers/checking_company_cannot_change.md ---
+---
+type: caliber
+title: 审核中企业不可发起变更
+page_key: checking_company_cannot_change
+domain: 企业变更与运营变更
+status: draft
+aliases: [准入审核中不可变更, check_status=CUST_CHECK_CHECKING]
+oid: 1
+scope:
+  databases: ["unknown"]
+sources:
+  - code:CustChangeApplication.java
+contract_version: "0.1"
+---
+
+口径定义：`cust_company_info.check_status = 'CUST_CHECK_CHECKING'` 时不允许发起变更，是 [[change_precheck]] 规则的核心判定。
+
+注意该口径只覆盖准入审核中一种情况；文档还主张「已冻结/已注销不允许变更」，代码未覆盖，见 [[change_precheck]] 的版本演进。
+
+## 需求背景
+
+企业准入审核与信息变更会互相改写同一批资质字段，准入审核中再叠加变更会造成两端状态冲突，因此前置拦截。
+
+## 版本演进
+
+v0.1：首次固化该口径，并标注其覆盖范围小于文档主张。
+
+```ground:caliber
+name: 审核中企业不可发起变更
+predicate: "cust_company_info.check_status = 'CUST_CHECK_CHECKING'"
+scope: 是否可变更申请校验
+evidence: "code_path:CustChangeApplication.java#changeEnable"
+```
+
+相关页面：[[change_precheck]]、[[cust_company_info]]、[[change_status]]、[[change_on_way]]。
+
+---END FILE---
+
+---FILE: calibers/company_admin_contact.md ---
+---
+type: caliber
+title: 企业管理员联系人
+page_key: company_admin_contact
+domain: 企业变更与运营变更
+status: draft
+aliases: [管理员联系人口径, user_type=admin]
+oid: 1
+scope:
+  databases: ["unknown"]
+sources:
+  - code:CustChangeApplication.java
+  - code:CustSyncEventProvider.java
+contract_version: "0.1"
+---
+
+口径定义：定位企业管理员时取 [[cust_person_info]] 中 `user_type = 'admin'` 的联系人。管理员变更、管理员手机号变更（[[admin_mobile_change_items]]）都以此为起点。
+
+## 需求背景
+
+同一企业下联系人类型混杂（管理员、经办人），变更判定必须只针对管理员这一类型，否则会把经办人手机号误判为管理员手机号。
+
+## 版本演进
+
+v0.1：首次固化该口径。
+
+```ground:caliber
+name: 企业管理员联系人
+predicate: "cust_person_info.user_type = 'admin'"
+scope: 管理员变更/手机号变更时定位联系人
+evidence: "code_path:CustChangeApplication.java#getRedirectPage + CustSyncEventProvider.java#getAuthChangeCompanyType(UserTypeEnum.admin)"
+```
+
+相关页面：[[cust_person_info]]、[[admin_mobile_change_items]]、[[admin_mobile_redirect]]、[[operator]]。
+
+---END FILE---
+
+---FILE: calibers/admin_mobile_change_items.md ---
+---
+type: caliber
+title: 管理员手机号类变更项
+page_key: admin_mobile_change_items
+domain: 企业变更与运营变更
+status: draft
+aliases: [UN0012/UN0013 变更项, 管理员手机号变更项集合]
+oid: 1
+scope:
+  databases: ["unknown"]
+sources:
+  - code:CustChangeApplication.java
+contract_version: "0.1"
+---
+
+口径定义：变更项编码落在 `UN0012`（企业管理员变更）、`UN0013`（管理员手机号变更）的集合，即为触发变更提交成功页跳转判定的变更项，见 [[admin_mobile_redirect]] 与 [[change_item_contains]]。
+
+## 需求背景
+
+只有会改变管理员手机号的变更项才需要提示登录人重新确认身份，因此把这两个编码作为固定集合维护。
+
+## 版本演进
+
+v0.1：首次固化该口径；编码取自 `CustUpdateItemCodeConstants`。
+
+```ground:caliber
+name: 管理员手机号类变更项
+predicate: "cust_change_cfg.item_code IN ('UN0012','UN0013')"
+scope: 触发变更提交成功页跳转的变更项集合
+evidence: "code_path:CustChangeApplication.java#getRedirectPage(CustUpdateItemCodeConstants.UN0012/UN0013)"
+```
+
+相关页面：[[change_item_code]]、[[change_item_contains]]、[[admin_mobile_redirect]]、[[company_admin_contact]]。
+
+---END FILE---
+
+---FILE: concepts/change_item_code.md ---
 ---
 type: concept
 title: 变更项编码
-page_key: concept.item-code
+page_key: change_item_code
 domain: 企业变更与运营变更
 status: draft
-aliases: [item_code, 变更项, UN00xx]
+aliases: [itemCode, UN编码, 变更项 code]
 oid: 1
 scope:
-  databases: [unknown]
+  databases: ["unknown"]
 sources:
   - db:cust_change_cfg
-  - code_path:CustChangeApplication.java:list
+  - db:cust_change_record
+  - code:CustChangeApplication.java
 contract_version: "0.1"
 maps_to: cust_change_cfg.item_code
-field_targets: [cust_change_cfg.item_code]
+field_targets:
+  - cust_change_cfg.item_code
 adjudication: boundary
-also_confused_with: [cust_change_record.alter_type_id, cust_change_record.alter_data]
+also_confused_with:
+  - cust_change_record.alter_type_id
+  - cust_change_record.alter_data
 ---
 
-「变更项编码」指配置表 [[tables.cust_change_cfg]] 上的 `item_code`（DB 实测 `UN0001`–`UN0016`），是稳定的业务编码，也是对外与跨系统沟通变更项时使用的标识。变更单 [[tables.cust_change_record]] 上另有两个易混字段：`alter_type_id` 存的是配置表主键 `cust_change_cfg.id` 的逗号分隔串，必须 join 配置表才能还原为 `item_code`；`alter_data` 存的是 `item_code` 的 JSON 数组快照。
+「变更项编码」在口语中常被简称为「变更项」，但它特指配置字典编码：`cust_change_cfg.item_code`，取值 UN0001~UN0016（[[cust_change_cfg]]）。判定某个变更是否包含某项能力时，正确链路是 `alter_type_id` → `cust_change_cfg.id` → `item_code`（[[change_item_contains]]），而不是直接比较记录上的字段。
+
+边界：`item_code` 是配置字典编码（UN0001~UN0016）；[[cust_change_record]].`alter_type_id` 是 `cust_change_cfg.id` 的逗号分隔列表；`alter_data` 是编码的 JSON 数组快照。三者不可互换。
 
 ## 需求背景
 
-变更项需要跨平台侧与运营中台侧对齐，因此用业务编码而非自增主键做语义标识；变更单保存主键列表是为了关联配置，保存编码数组是为了留存发起时的快照。识别管理员手机号变更项使用的正是编码，见 [[calibers.admin-phone-change-item]]。
+变更项需要在端、认证方式、客户类型、总公司维度上分别配置，同时又要跨端对齐名称不一致的项（`plat_item` vs `oper_item`），因此引入稳定编码作为唯一语义键。
 
 ## 版本演进
 
-v0.1：首次登记，边界判定来自字段语义分析。
+v0.1：首次建立术语桥；本页暂无历史版本差异记录。
+
+相关页面：[[cust_change_cfg]]、[[change_item_contains]]、[[admin_mobile_change_items]]、[[cust_change_record]]。
 
 ---END FILE---
 
----FILE: concepts/change-status.md ---
+---FILE: concepts/change_status.md ---
 ---
 type: concept
-title: 变更状态/审核状态
-page_key: concept.change-status
+title: 变更状态
+page_key: change_status
 domain: 企业变更与运营变更
 status: draft
-aliases: [status, checkStatus, 审核状态]
+aliases: [status, 审核状态, 变更流程状态]
 oid: 1
 scope:
-  databases: [unknown]
+  databases: ["unknown"]
 sources:
   - db:cust_change_record
   - db:cust_company_info
+  - code:CustChangeApplication.java
 contract_version: "0.1"
 maps_to: cust_change_record.status
-field_targets: [cust_change_record.status]
+field_targets:
+  - cust_change_record.status
 adjudication: boundary
-also_confused_with: [cust_company_info.check_status, cust_company_info.act_procinst_status, cust_company_info.cust_status]
+also_confused_with:
+  - cust_company_info.check_status
+  - cust_company_info.cust_status
 ---
 
-「变更状态 / 审核状态」在本域内指 [[tables.cust_change_record]] 的 `status`，即变更单维度的审批状态（`CheckStatus` 枚举），状态机见 [[processes.cust-change-record-status]]。它与三个字段容易混淆：`cust_company_info.check_status` 是企业准入审核状态（决定能否发起变更，见 [[calibers.company-change-enable]]）；`cust_company_info.act_procinst_status` 是工作流引擎侧审批状态；`cust_company_info.cust_status` 是企业生命周期状态（见 [[processes.cust-company-info-status]]）。
+「变更状态」默认指 `cust_change_record.status`，即单条变更流程的审核状态，取值与流转见 [[cust_change_record_status]]。
+
+边界：`cust_change_record.status` 是单条变更流程状态；`cust_company_info.check_status` 是企业准入审核状态（[[cust_company_info]]）；`cust_company_info.cust_status` 是企业生命周期状态（[[cust_company_info_cust_status]]）。三者分属不同表、不同轴，不可互相替代。
 
 ## 需求背景
 
-同一家企业同时存在「准入审批」「变更审批」「工作流实例状态」「生命周期状态」四条不同粒度的状态线，字段命名相近但归属对象不同；本概念用于在口径与规则页之间固定指代，避免把企业状态当作单据状态使用。
+变更业务同时受「本条变更走到哪」「企业能否变更」「企业是否已在变更」三类判断影响，状态字段被复用时极易串台，本术语桥用于固定默认所指。
 
 ## 版本演进
 
-v0.1：首次登记，边界判定来自字段语义分析。
+v0.1：首次建立术语桥。
+
+相关页面：[[cust_change_record_status]]、[[cust_company_info_cust_status]]、[[checking_company_cannot_change]]、[[company_in_change]]。
 
 ---END FILE---
 
----FILE: concepts/oper-change-record.md ---
+---FILE: concepts/customer_change.md ---
 ---
 type: concept
-title: 运营人员变更记录
-page_key: concept.oper-change-record
+title: 客户变更 / 企业变更
+page_key: customer_change
 domain: 企业变更与运营变更
 status: draft
-aliases: [操作运营变更, cust_oper_change_record]
+aliases: [企业变更, 企业信息变更, 客户变更]
 oid: 1
 scope:
-  databases: [unknown]
+  databases: ["unknown"]
 sources:
+  - db:cust_change_record
   - db:cust_oper_change_record
-  - code_path:OperChangeRecordApplication.java:queryByPersonId
+  - code:CustChangeApplication.java
 contract_version: "0.1"
-maps_to: cust_oper_change_record
-field_targets: [cust_oper_change_record]
+maps_to: null
+field_targets:
+  - cust_change_record.cust_id
+  - cust_oper_change_record.person_id
 adjudication: boundary
-also_confused_with: [cust_change_record]
+also_confused_with:
+  - cust_oper_change_record
 ---
 
-「运营人员变更记录」指 [[tables.cust_oper_change_record]]，记录企业联系人（经办人）所绑定运营人员的前后变更流水，分类维度为 `change_type`（手动/批量/资产审核同步/企业变更回调），见 [[processes.oper-change-type]]。它与 [[tables.cust_change_record]] 容易混淆：后者是企业信息变更申请单及其审批状态，与运营人员归属无关；前者不承载审批，只承载归属变化轨迹。
+「客户变更 / 企业变更」在本域内特指企业客户信息与资质的变更，落 [[cust_change_record]]，走审核状态机 [[cust_change_record_status]]。
+
+边界：`cust_change_record` 是企业客户信息/资质变更；[[cust_oper_change_record]] 是企业联系人（运营人员）归属变更记录。两者表、触发源、状态字段均不同，不能合并统计。
+
+本术语指向的是业务实体而非单个字段，因此不在 `maps_to` 上落字段锚点，改由 `field_targets` 记录两侧的判别字段。
 
 ## 需求背景
 
-企业变更回调会间接触发运营人员调整，两条链路在时间上相邻、在企业维度上相关，因此需要明确区分「企业信息改了什么」与「运营人员换成了谁」，查询口径见 [[rules.oper-change-record-query]]。
+两类「变更」在中文口语中高度重合（都叫「变更」），但一侧影响企业资质、一侧影响服务归属，混淆会导致统计与权限判断出错，故单列术语桥。
 
 ## 版本演进
 
-v0.1：首次登记，边界判定来自字段语义分析。
+v0.1：首次建立术语桥。
+
+相关页面：[[cust_change_record]]、[[cust_oper_change_record]]、[[operator]]、[[alter_mode]]。
+
+---REVIEW: concept | 客户变更 / 企业变更---
+该术语的所指是实体级（表），按 concept 页约定 `maps_to` 必须是「表.字段」或 dictKey.VALUE，故本页暂置 `maps_to: null`，仅以 `field_targets` 记录判别字段。需要维护者决策：是接受实体级 `maps_to: cust_change_record`，还是在本域新增一层聚合概念页。
+---END REVIEW---
+
+---END FILE---
+
+---FILE: concepts/alter_mode.md ---
+---
+type: concept
+title: 变更方式
+page_key: alter_mode
+domain: 企业变更与运营变更
+status: draft
+aliases: [alterMode, 平台变更, 企业自行变更]
+oid: 1
+scope:
+  databases: ["unknown"]
+sources:
+  - db:cust_change_record
+  - code:CustChangeApplication.java
+contract_version: "0.1"
+maps_to: cust_change_record.alter_mode
+field_targets:
+  - cust_change_record.alter_mode
+adjudication: synonym
+also_confused_with: []
+---
+
+「变更方式」即 [[cust_change_record]].`alter_mode`，标识这次变更是谁发起的：1=平台变更（PLAT_ALTER），2=企业自行变更（SELF_ALTER），由 `AlterModeEnum.getDictKey` 落库。
+
+## 需求背景
+
+同一次变更在平台代客操作与企业自助操作下的材料要求、通知对象不同，需要独立字段留存发起方式，且必须落字典键值而非枚举名。
+
+## 版本演进
+
+v0.1：首次建立术语桥。
+
+相关页面：[[cust_change_record]]、[[customer_change]]、[[change_status]]。
+
+---END FILE---
+
+---FILE: concepts/cust_id.md ---
+---
+type: concept
+title: 企业ID / 客户ID
+page_key: cust_id
+domain: 企业变更与运营变更
+status: draft
+aliases: [custId, 企业ID, 客户ID]
+oid: 1
+scope:
+  databases: ["unknown"]
+sources:
+  - db:cust_change_record
+  - code:CustChangeApplication.java
+contract_version: "0.1"
+maps_to: cust_change_record.cust_id
+field_targets:
+  - cust_change_record.cust_id
+adjudication: boundary
+also_confused_with:
+  - cust_change_record.oper_cust_id
+  - cust_change_record.id
+---
+
+「企业ID / 客户ID」在本域默认指 `cust_change_record.cust_id`，其取值是本平台企业主键，对应 [[cust_company_info]].`id`（不是 `code`）。
+
+边界：`cust_id` 是本平台 `cust_company_info.id`；`oper_cust_id` 是运营中台客户 ID（外部系统）；`id` 是变更记录主键。三者不可互换，尤其在流程重建时 `companyId` 必须等于当前登录企业（[[change_rebuild]]）。
+
+## 需求背景
+
+变更业务跨平台与运营中台两侧，两侧对「客户」的编号体系不同，历史上出现过把中台 ID 当本平台 ID 使用的问题，故显式固化边界。
+
+## 版本演进
+
+v0.1：首次建立术语桥。
+
+相关页面：[[cust_change_record]]、[[change_rebuild]]、[[before_after_comparison]]、[[cust_company_info]]。
 
 ---END FILE---
 
 ---FILE: concepts/operator.md ---
 ---
 type: concept
-title: 运营人员/经办人
-page_key: concept.operator
+title: 运营人员
+page_key: operator
 domain: 企业变更与运营变更
 status: draft
-aliases: [operator, person_id, 经办人]
+aliases: [运营人, operator, 归属运营]
 oid: 1
 scope:
-  databases: [unknown]
+  databases: ["unknown"]
 sources:
   - db:cust_person_info
   - db:cust_oper_change_record
+  - code:OperChangeRecordApplication.java
 contract_version: "0.1"
-maps_to: cust_oper_change_record.before_operator_id / after_operator_id
-field_targets: [cust_oper_change_record.before_operator_id, cust_oper_change_record.after_operator_id]
-adjudication: boundary
-also_confused_with: [cust_oper_change_record.person_id, cust_person_info.operator_id]
----
-
-「运营人员」与「经办人」在 [[tables.cust_oper_change_record]] 上是两组不同字段：`before_operator_*` / `after_operator_*` 指平台运营人员（被变更的对象）；`person_id` / `person_name` 指企业联系人（变更主体，即经办人）。[[tables.cust_person_info]] 的 `operator_id` 则是该联系人当前绑定的运营人冗余，属于当前态而非流水。
-
-## 需求背景
-
-一次运营人员调整的主体是联系人、客体是运营人员，字段命名上都带 `operator`/`person`，极易读反变更方向；本概念固定「谁被改、改成谁、由谁触发」的指代关系，配合 [[rules.oper-change-record-query]] 使用。
-
-## 版本演进
-
-v0.1：首次登记，边界判定来自字段语义分析。
-
----END FILE---
-
----FILE: rules/change-on-way-company.md ---
----
-type: rule
-title: 变更在途判定（企业维度）
-page_key: rule.change-on-way-company
-domain: 企业变更与运营变更
-status: draft
-aliases: [在途变更规则, changeHasBusiOnWay]
-oid: 1
-scope:
-  databases: [unknown]
-sources:
-  - code_path:CustChangeApplication.java:changeHasBusiOnWay
-contract_version: "0.1"
----
-
-企业 [[tables.cust_company_info]] 的 `cust_status='CHANGE'` 即视为存在在途变更业务，`changeHasBusiOnWay` 返回 true。该判定决定变更入口是否可用以及页面跳转是否走运营中台变更待办页，口径见 [[calibers.company-change-on-way]]，状态来源见 [[processes.cust-company-info-status]]。
-
-## 需求背景
-
-变更审批在运营中台执行，平台侧需要低成本判断「企业是否有事在办」，因此选择企业生命周期状态这一结果态作为判据，而不是聚合 [[tables.cust_change_record]] 集合。与准入校验 [[rules.change-application-admission]] 互为补充：一个看企业状态，一个看准入审核状态。
-
-## 版本演进
-
-v0.1：首次登记，规则来自 `CustChangeApplication.changeHasBusiOnWay`。
-
-```ground:rule
-name: 变更在途判定（企业维度）
-content: 企业 cust_status='CHANGE' 即视为存在在途变更业务，changeHasBusiOnWay 返回 true
-impact: 决定变更入口是否可用、页面跳转是否走运营中台变更待办页
+maps_to: cust_person_info.operator_id
 field_targets:
-  - cust_company_info.cust_status
-evidence: code_path:CustChangeApplication.java:changeHasBusiOnWay
-```
-
----END FILE---
-
----FILE: rules/change-application-admission.md ---
----
-type: rule
-title: 变更申请准入校验
-page_key: rule.change-application-admission
-domain: 企业变更与运营变更
-status: draft
-aliases: [changeEnable, 变更准入]
-oid: 1
-scope:
-  databases: [unknown]
-sources:
-  - code_path:CustChangeApplication.java:changeEnable
-contract_version: "0.1"
+  - cust_person_info.operator_id
+adjudication: boundary
+also_confused_with:
+  - cust_company_info.manager_id
 ---
 
-企业 [[tables.cust_company_info]] 的 `check_status='CUST_CHECK_CHECKING'` 时 `changeEnable` 返回 false，不允许发起变更；企业不存在时同样返回 false。口径见 [[calibers.company-change-enable]]，与在途判定 [[rules.change-on-way-company]] 共同构成变更入口的两道闸门。
+「运营人员」指联系人维度上绑定的运营人，落 [[cust_person_info]].`operator_id` / `operator_realname`，其变更历史见 [[cust_oper_change_record]]。
+
+边界：`cust_person_info.operator_id` / `operator_realname` 为联系人维度的运营人员；`cust_company_info.manager_id` 为企业维度业务经理，两者不同表不同粒度。
 
 ## 需求背景
 
-企业准入审核在途期间，企业主体信息仍可能被审核结果改写，此时开放变更会产生两条互相冲突的审批链路；因此变更发起前必须做准入前置校验。
+服务归属既可按企业维度指定业务经理，也可按联系人维度指定运营人；变更、通知、权限判断取错粒度会直接影响服务对象。
 
 ## 版本演进
 
-v0.1：首次登记，规则来自 `CustChangeApplication.changeEnable`。
+v0.1：首次建立术语桥。
+
+相关页面：[[cust_person_info]]、[[cust_oper_change_record]]、[[oper_change_query]]、[[cust_company_info]]。
+
+---END FILE---
+
+---FILE: concepts/before_after_comparison.md ---
+---
+type: concept
+title: 变更前后信息对比
+page_key: before_after_comparison
+domain: 企业变更与运营变更
+status: draft
+aliases: [oldPersonId/personId, 变更前后对比, oper_cust_info 对比]
+oid: 1
+scope:
+  databases: ["unknown"]
+sources:
+  - db:cust_change_record
+  - db:cust_oper_change_record
+  - code:CustChangeApplication.java
+contract_version: "0.1"
+maps_to: cust_change_record.oper_cust_info
+field_targets:
+  - cust_change_record.oper_cust_info
+adjudication: boundary
+also_confused_with:
+  - cust_oper_change_record.before_operator_id
+---
+
+「变更前后信息对比」默认指 [[cust_change_record]].`oper_cust_info`——运营中台返回的客户信息 JSON，其中 `personId` 为变更后管理员、`oldPersonId` 为变更前管理员，用于管理员手机号变更的判定与跳转（[[admin_mobile_redirect]]）。
+
+边界：`oper_cust_info` 是运营中台返回的 JSON（含 `personId` / `oldPersonId`）；[[cust_oper_change_record]].`before_operator_id`/`after_operator_id` 是运营人员变更的独立结构化字段。一侧需解析 JSON，一侧可直接比较，不可互换。
+
+## 需求背景
+
+管理员变更发生在运营中台侧，平台需要拿到变更前后的管理员身份才能判断登录人手机号是否失效，因此以 JSON 快照形式留存并本地解析。
+
+## 版本演进
+
+v0.1：首次建立术语桥。
+
+相关页面：[[cust_change_record]]、[[admin_mobile_redirect]]、[[cust_oper_change_record]]、[[operator]]、[[cust_person_info]]。
+
+---END FILE---
+
+---FILE: rules/change_precheck.md ---
+---
+type: rule
+title: 变更申请前置校验
+page_key: change_precheck
+domain: 企业变更与运营变更
+status: draft
+aliases: [changeEnable, 是否可变更校验]
+oid: 1
+scope:
+  databases: ["unknown"]
+sources:
+  - code:CustChangeApplication.java
+contract_version: "0.1"
+---
+
+**(document_claim，未证实)**
+
+规则内容：当企业 `check_status = CUST_CHECK_CHECKING`（准入审核中）时，`changeEnable` 返回 false，不允许发起变更，直接阻断变更申请入口。判定口径见 [[checking_company_cannot_change]]。
+
+## 需求背景
+
+准入审核与信息变更会写同一批企业资质字段，准入审核中再发起变更会造成两端状态互相覆盖，因此在入口处拦截，避免脏数据进入变更流程。
+
+## 版本演进
+
+v0.1：代码侧仅覆盖「准入审核中」一种情形。需求文档 3.4.3 主张「企业状态为『已冻结』或『已注销』时不允许变更」，语义分析判定为 uncovered：`CustChangeApplication.java#changeEnable` 仅校验 `check_status=CUST_CHECK_CHECKING`，未见 `cust_status=FREEZE/WRITEOFF` 拦截。该主张未经证实，暂不进入锚点块，也不作为现有规则的一部分。
 
 ```ground:rule
-name: 变更申请准入校验
-content: 企业 check_status='CUST_CHECK_CHECKING' 时 changeEnable 返回 false，不允许发起变更
-impact: 变更提交前置校验；企业不存在时同样返回 false
+name: 变更申请前置校验
+content: "企业 check_status=CUST_CHECK_CHECKING（准入审核中）时 changeEnable 返回 false，不允许发起变更"
+impact: 阻断变更申请入口
 field_targets:
   - cust_company_info.check_status
-evidence: code_path:CustChangeApplication.java:changeEnable
+evidence: "code_path:CustChangeApplication.java#changeEnable"
 ```
+
+相关页面：[[checking_company_cannot_change]]、[[cust_company_info]]、[[change_on_way]]、[[cust_company_info_cust_status]]。
+
+---REVIEW: rule | 变更申请前置校验---
+需求文档 3.4.3（企业状态为「已冻结」或「已注销」时不允许变更）与代码现状不一致：`changeEnable` 只拦 `CUST_CHECK_CHECKING`，没有冻结/注销拦截。需确认是文档过期、校验落在前端或其他入口，还是确实缺失实现；在确认前，本页不为其生成锚点。
+---END REVIEW---
 
 ---END FILE---
 
----FILE: rules/change-cfg-identity-match.md ---
+---FILE: rules/change_on_way.md ---
 ---
 type: rule
-title: 变更配置按身份维度匹配
-page_key: rule.change-cfg-identity-match
+title: 变更在途判定
+page_key: change_on_way
 domain: 企业变更与运营变更
 status: draft
-aliases: [变更项清单匹配, 配置匹配规则]
+aliases: [changeHasBusiOnWay, 变更在途]
 oid: 1
 scope:
-  databases: [unknown]
+  databases: ["unknown"]
 sources:
-  - code_path:CustChangeApplication.java:list
+  - code:CustChangeApplication.java
 contract_version: "0.1"
 ---
 
-企业类型按 `client_type` + `identify_style` + `cust_type` + `head_company` + `enable='Y'` 匹配 [[tables.cust_change_cfg]]；个人类型不叠加 `head_company`。口径见 [[calibers.change-cfg-match-dimensions]] 与 [[calibers.change-cfg-enable]]，字段语义见配置表页，变更项标识见 [[concepts.item-code]]。
+规则内容：`cust_company_info.cust_status='CHANGE'` 即视为该企业存在变更在途业务（`changeHasBusiOnWay` 返回 true），用于控制变更入口与页面跳转。口径定义见 [[company_in_change]]。
 
 ## 需求背景
 
-不同端与认证方式下可变更的内容和所需材料不同，配置以多维组合表达适用性；个人客户不存在总公司概念，若仍拼入 `head_company` 条件将匹配不到任何配置，因此按客户类型分支处理。
+企业级「变更中」标记让入口无需扫描变更记录即可判断在途，保证重复发起与跳转判定的一致性。
 
 ## 版本演进
 
-v0.1：首次登记，规则来自 `CustChangeApplication.list`。
+v0.1：首次固化。
 
 ```ground:rule
-name: 变更配置按身份维度匹配
-content: 企业类型按 client_type + identify_style + cust_type + head_company + enable='Y' 匹配；个人类型不叠加 head_company
-impact: 决定不同端/认证方式/客户类型下可选的变更项清单
+name: 变更在途判定
+content: "cust_company_info.cust_status='CHANGE' 即视为存在变更在途业务（changeHasBusiOnWay 返回 true）"
+impact: 控制变更入口与页面跳转
+field_targets:
+  - cust_company_info.cust_status
+evidence: "code_path:CustChangeApplication.java#changeHasBusiOnWay(CustStatusEnum.CHANGE.name())"
+```
+
+相关页面：[[company_in_change]]、[[cust_company_info]]、[[cust_company_info_cust_status]]、[[change_rebuild]]。
+
+---END FILE---
+
+---FILE: rules/change_rebuild.md ---
+---
+type: rule
+title: 变更流程重建
+page_key: change_rebuild
+domain: 企业变更与运营变更
+status: draft
+aliases: [changeRebuild, 变更重建/拒绝旧流程]
+oid: 1
+scope:
+  databases: ["unknown"]
+sources:
+  - code:CustChangeApplication.java
+contract_version: "0.1"
+---
+
+规则内容：取该企业最新一条 `status` 非 `CUST_CHECK_PASS`/`CUST_CHECK_REJECT` 的变更记录（[[rebuildable_change_process]]）；不存在则抛「无变更流程，不支持拒绝」；存在则调用运营中台 `changeRejectProcess` 结束旧流程并由客户重新发起；且 `companyId` 必须等于当前登录企业，构成越权校验。
+
+## 需求背景
+
+同一企业只允许存在一条在途变更。客户重新发起时，平台需要先结束旧流程再建新流程，同时防止跨企业操作他人流程。
+
+## 版本演进
+
+v0.1：首次固化，含越权校验要求。
+
+```ground:rule
+name: 变更流程重建
+content: "取该企业最新一条 status 非 CUST_CHECK_PASS/CUST_CHECK_REJECT 的变更记录；不存在则抛'无变更流程，不支持拒绝'；存在则调用运营中台 changeRejectProcess 结束旧流程并由客户重新发起；且 companyId 必须等于当前登录企业"
+impact: 拒绝旧流程、重建新流程；越权校验
+field_targets:
+  - cust_change_record.cust_id
+  - cust_change_record.status
+  - cust_change_record.oper_cust_id
+evidence: "code_path:CustChangeApplication.java#changeRebuild"
+```
+
+相关页面：[[rebuildable_change_process]]、[[cust_change_record_status]]、[[cust_id]]、[[cust_change_record]]。
+
+---END FILE---
+
+---FILE: rules/admin_mobile_redirect.md ---
+---
+type: rule
+title: 管理员手机号变更后的页面跳转
+page_key: admin_mobile_redirect
+domain: 企业变更与运营变更
+status: draft
+aliases: [getRedirectPage, 变更提交成功页跳转]
+oid: 1
+scope:
+  databases: ["unknown"]
+sources:
+  - code:CustChangeApplication.java
+contract_version: "0.1"
+---
+
+规则内容：变更项命中 `UN0012`/`UN0013`（[[admin_mobile_change_items]]）时，解析 `oper_cust_info` 的 `oldPersonId`/`personId` 取新旧管理员手机号（[[before_after_comparison]]、[[company_admin_contact]]）；若新旧手机号不同且与登录手机号不同，跳转变更提交成功页并回带新管理员手机号/姓名，否则跳运营中台变更待办页。
+
+## 需求背景
+
+管理员手机号被改掉后，当前登录人的手机号可能已不是企业管理员手机号，需要引导其确认身份或前往中台待办，避免继续用失效身份操作。
+
+## 版本演进
+
+v0.1：首次固化跳转分支与判定顺序。
+
+```ground:rule
+name: 管理员手机号变更后的页面跳转
+content: "变更项命中 UN0012/UN0013 时解析 oper_cust_info 的 oldPersonId/personId 取新旧管理员手机号；若新旧手机号不同且与登录手机号不同，跳转变更提交成功页并回带新管理员手机号/姓名，否则跳运营中台变更待办页"
+impact: 变更后登录人手机号与管理员不一致时引导重新登录/查看
+field_targets:
+  - cust_change_record.alter_type_id
+  - cust_change_record.oper_cust_info
+  - cust_person_info.phone
+evidence: "code_path:CustChangeApplication.java#getRedirectPage"
+```
+
+相关页面：[[admin_mobile_change_items]]、[[before_after_comparison]]、[[company_admin_contact]]、[[cust_person_info]]、[[valid_change_record]]。
+
+---END FILE---
+
+---FILE: rules/change_cfg_match.md ---
+---
+type: rule
+title: 变更项配置匹配
+page_key: change_cfg_match
+domain: 企业变更与运营变更
+status: draft
+aliases: [配置过滤, 可用变更项匹配]
+oid: 1
+scope:
+  databases: ["unknown"]
+sources:
+  - code:CustChangeApplication.java
+contract_version: "0.1"
+---
+
+规则内容：企业客户按 `client_type + identify_style + cust_type + head_company + enable='Y'` 过滤（[[valid_change_cfg]]）；个人客户（`clientType=INDIVIDUALS`）不按 `head_company` 过滤，`headCompany` 取自当前登录用户 `companyCode` 对应企业。
+
+## 需求背景
+
+同一套变更能力要按端、认证方式、客户类型、公司维度差异化发布；个人客户无总分公司概念，必须走另一条过滤分支。
+
+## 版本演进
+
+v0.1：首次固化过滤键与个人客户分支。
+
+```ground:rule
+name: 变更项配置匹配
+content: "企业客户按 client_type + identify_style + cust_type + head_company + enable='Y' 过滤；个人客户(clientType=INDIVIDUALS)不按 head_company 过滤，headCompany 取自当前登录用户 companyCode 对应企业"
+impact: 决定企业可见的变更项清单
 field_targets:
   - cust_change_cfg.client_type
   - cust_change_cfg.identify_style
   - cust_change_cfg.cust_type
   - cust_change_cfg.head_company
   - cust_change_cfg.enable
-evidence: code_path:CustChangeApplication.java:list
+evidence: "code_path:CustChangeApplication.java#list"
 ```
+
+相关页面：[[cust_change_cfg]]、[[valid_change_cfg]]、[[cust_company_info]]、[[change_item_code]]。
 
 ---END FILE---
 
----FILE: rules/change-record-terminal-filter.md ---
+---FILE: rules/change_item_contains.md ---
 ---
 type: rule
-title: 变更单终态过滤
-page_key: rule.change-record-terminal-filter
+title: 变更项包含性判定
+page_key: change_item_contains
 domain: 企业变更与运营变更
 status: draft
-aliases: [终态过滤, notIn 终态]
+aliases: [checkChangeItems, alter_type_id 解析]
 oid: 1
 scope:
-  databases: [unknown]
+  databases: ["unknown"]
 sources:
-  - code_path:CustChangeApplication.java:changeRebuild
+  - code:CustChangeApplication.java
 contract_version: "0.1"
 ---
 
-`CUST_CHECK_PASS` / `CUST_CHECK_REJECT` 视为终态，取在途变更单时用 notIn 排除。口径见 [[calibers.change-record-terminal-status]]，状态全集见 [[processes.cust-change-record-status]]，该过滤是流程重建 [[rules.change-rebuild]] 的前置步骤。
+规则内容：`alter_type_id` 按逗号拆分后 `in cust_change_cfg.id` 批量查询，再判断命中记录的 `item_code` 是否落在目标编码集合中，作为跳转分支判定依据（[[admin_mobile_redirect]]）。
 
 ## 需求背景
 
-企业可以多次发起变更，历史已完结单据必须与在途单据区分开；以终态集合做反向过滤比枚举在途状态更稳妥，新增中间态时不需要改判据。
+变更记录上存的是配置主键列表而非编码列表，任何按编码的判定都必须经配置表翻译一次，该规则固化翻译链路，避免直接比较 `alter_type_id` 与 `item_code`。
 
 ## 版本演进
 
-v0.1：首次登记，规则来自 `CustChangeApplication.changeRebuild`。
+v0.1：首次固化。
 
 ```ground:rule
-name: 变更单终态过滤
-content: CUST_CHECK_PASS / CUST_CHECK_REJECT 视为终态，取在途变更单时用 notIn 排除
-impact: 流程重建与在途判断的基础口径
-field_targets:
-  - cust_change_record.status
-evidence: code_path:CustChangeApplication.java:changeRebuild
-```
-
----END FILE---
-
----FILE: rules/change-rebuild.md ---
----
-type: rule
-title: 流程重建（重新发起变更）
-page_key: rule.change-rebuild
-domain: 企业变更与运营变更
-status: draft
-aliases: [changeRebuild, 重新发起变更]
-oid: 1
-scope:
-  databases: [unknown]
-sources:
-  - code_path:CustChangeApplication.java:changeRebuild
-contract_version: "0.1"
----
-
-流程重建取该企业最新一条非终态变更记录（过滤口径见 [[rules.change-record-terminal-filter]]），通过运营中台接口结束旧流程（备注：客户操作重新发起，拒绝旧流程），随后允许发起新流程；操作人须为当前企业，否则抛无权限。涉及字段见 [[tables.cust_change_record]]，终态判定见 [[processes.cust-change-record-status]] 中「重新发起」迁移与 [[calibers.change-record-terminal-status]]。
-
-## 需求背景
-
-客户在上一笔变更未走完时再次进入变更入口，需要「以新替旧」而不是并存两条在途流程；因此先结束旧流程，再放行新流程，保证同一企业同一时刻只有一条在途单。
-
-## 版本演进
-
-v0.1：首次登记，规则来自 `CustChangeApplication.changeRebuild`。
-
-```ground:rule
-name: 流程重建（重新发起变更）
-content: 取该企业最新一条非终态变更记录，通过运营中台接口结束旧流程（备注：客户操作重新发起，拒绝旧流程），随后允许发起新流程；操作人须为当前企业，否则抛无权限
-impact: 同一企业可存在多次变更发起，旧单被拒结
-field_targets:
-  - cust_change_record.status
-  - cust_change_record.oper_cust_id
-  - cust_change_record.cust_id
-evidence: code_path:CustChangeApplication.java:changeRebuild
-```
-
----END FILE---
-
----FILE: rules/admin-phone-change-redirect.md ---
----
-type: rule
-title: 管理员手机号变更跳转判定
-page_key: rule.admin-phone-change-redirect
-domain: 企业变更与运营变更
-status: draft
-aliases: [getRedirectPage, 变更提交成功页跳转]
-oid: 1
-scope:
-  databases: [unknown]
-sources:
-  - code_path:CustChangeApplication.java:getRedirectPage
-contract_version: "0.1"
----
-
-变更单含 `UN0012`/`UN0013`（识别口径见 [[calibers.admin-phone-change-item]]）且 `oper_cust_info` 中 `oldPersonId` 与 `personId` 对应手机号不同、且登录手机号 ≠ 新管理员手机号时，跳转变更提交成功页并回填新管理员手机/姓名；否则跳运营中台变更待办页。涉及 [[tables.cust_change_record]]、[[tables.cust_person_info]]，字段边界见 [[concepts.operator]]。
-
-## 需求背景
-
-管理员手机号变更后登录主体发生变化：旧管理员不应再进入变更待办，新管理员则需要看到提交成功结果页。判定必须三方比对（中台旧管理员手机号、中台新管理员手机号、当前登录手机号），避免仅凭变更项就误判。
-
-## 版本演进
-
-v0.1：首次登记，规则来自 `CustChangeApplication.getRedirectPage`。
-
-```ground:rule
-name: 管理员手机号变更跳转判定
-content: 变更单含 UN0012/UN0013 且 oper_cust_info 中 oldPersonId 与 personId 对应手机号不同、且登录手机号≠新管理员手机号时，跳转变更提交成功页并回填新管理员手机/姓名；否则跳运营中台变更待办页
-impact: 变更管理员后旧管理员登录不再进入待办，新管理员看到提交成功页
+name: 变更项包含性判定
+content: "alter_type_id 按逗号拆分后 in cust_change_cfg.id 批量查询，再判断命中记录的 item_code 是否落在目标编码集合中"
+impact: 跳转分支判定依据
 field_targets:
   - cust_change_record.alter_type_id
-  - cust_change_record.oper_cust_info
-  - cust_person_info.phone
-evidence: code_path:CustChangeApplication.java:getRedirectPage
+  - cust_change_cfg.id
+  - cust_change_cfg.item_code
+evidence: "code_path:CustChangeApplication.java#checkChangeItems"
 ```
+
+相关页面：[[change_item_code]]、[[cust_change_cfg]]、[[cust_change_record]]、[[admin_mobile_change_items]]。
 
 ---END FILE---
 
----FILE: rules/audit-callback-dispatch.md ---
+---FILE: rules/oper_change_query.md ---
 ---
 type: rule
-title: 运营中台审核回调分工
-page_key: rule.audit-callback-dispatch
-domain: 企业变更与运营变更
-status: draft
-aliases: [CustSyncEventProvider, isChangeBroadcast]
-oid: 1
-scope:
-  databases: [unknown]
-sources:
-  - code_path:CustSyncEventProvider.java:onEvent
-contract_version: "0.1"
----
-
-`CUST_CHECK_PASS` / `CUST_CHECK_REJECT` 回调由工作流审核执行器 `CustWorkflowAuditCommitProcessor` 处理，`CustSyncEventProvider.onEvent` 直接跳过（`isChangeBroadcast=true` 的变更广播除外）。这解释了 [[processes.cust-change-record-status]] 中两个终态迁移的 evidence 为何指向「跳过」而非写入。
-
-## 需求背景
-
-审批终态需要携带工作流上下文，只有执行器具备处理条件；事件提供者若重复处理会导致状态被写两次或覆盖，因此显式跳过，同时为变更广播保留独立通道。字段影响面见 [[concepts.change-status]]（变更单状态与企业准入状态分属两条线）。
-
-## 版本演进
-
-v0.1：首次登记，规则来自 `CustSyncEventProvider.onEvent`。
-
-```ground:rule
-name: 运营中台审核回调分工
-content: CUST_CHECK_PASS / CUST_CHECK_REJECT 回调由工作流审核执行器 CustWorkflowAuditCommitProcessor 处理，CustSyncEventProvider.onEvent 直接跳过（isChangeBroadcast=true 的变更广播除外）
-impact: 避免审批终态被重复处理，变更广播走独立通道
-field_targets:
-  - cust_change_record.status
-  - cust_company_info.check_status
-evidence: code_path:CustSyncEventProvider.java:onEvent
-```
-
----END FILE---
-
----FILE: rules/oper-change-type-dict.md ---
----
-type: rule
-title: 运营人员变更类型字典
-page_key: rule.oper-change-type-dict
-domain: 企业变更与运营变更
-status: draft
-aliases: [CHANGE_TYPE_DESC, 变更类型映射]
-oid: 1
-scope:
-  databases: [unknown]
-sources:
-  - code_path:OperChangeRecordApplication.java:CHANGE_TYPE_DESC
-  - code_path:OperChangeRecordApplication.java:toVO
-contract_version: "0.1"
----
-
-`change_type` 取值 `MANUAL`/`BATCH`/`AUTO_ASSIGN`/`AUTO_UPDATE`/`ASSET_AUDIT_SYNC`/`CUST_CHANGE_CALLBACK`，前端展示名由 `CHANGE_TYPE_DESC` 映射，未命中时回显原值。取值集合见 [[processes.oper-change-type]]，流水表见 [[tables.cust_oper_change_record]]。
-
-## 需求背景
-
-运营人员变更来源持续增加，字典映射必须对未知值保持降级可读（回显原值），否则新增来源在前端会显示为空；该策略保证流水列表不丢数据。
-
-## 版本演进
-
-v0.1：首次登记，规则来自 `OperChangeRecordApplication.CHANGE_TYPE_DESC` / `toVO`。
-
-```ground:rule
-name: 运营人员变更类型字典
-content: change_type 取值 MANUAL/BATCH/AUTO_ASSIGN/AUTO_UPDATE/ASSET_AUDIT_SYNC/CUST_CHANGE_CALLBACK，前端展示名由 CHANGE_TYPE_DESC 映射，未命中时回显原值
-impact: 运营人员变更流水的分类展示
-field_targets:
-  - cust_oper_change_record.change_type
-evidence: code_path:OperChangeRecordApplication.java:CHANGE_TYPE_DESC / toVO
-```
-
----END FILE---
-
----FILE: rules/oper-change-record-query.md ---
----
-type: rule
-title: 运营人员变更记录查询口径
-page_key: rule.oper-change-record-query
+title: 运营变更记录查询口径
+page_key: oper_change_query
 domain: 企业变更与运营变更
 status: draft
 aliases: [queryByPersonId, 运营变更历史查询]
 oid: 1
 scope:
-  databases: [unknown]
+  databases: ["unknown"]
 sources:
-  - code_path:OperChangeRecordApplication.java:queryByPersonId
+  - code:OperChangeRecordApplication.java
 contract_version: "0.1"
 ---
 
-按 `person_id` 精确匹配、`enable='Y'`（见 [[calibers.oper-change-record-valid]]），按 `create_time` 倒序返回；`personId` 为空直接返回空列表。表见 [[tables.cust_oper_change_record]]，字段指代见 [[concepts.operator]]。
+规则内容：按 `person_id` 查询且 `enable='Y'`（[[valid_oper_change_record]]），按 `create_time` 倒序；`change_type` 经 `CHANGE_TYPE_DESC` 映射为中文描述，`operatorId`/`operatorName` 取自 `createBy`/`createUser`。
 
 ## 需求背景
 
-联系人详情页展示运营变更历史时，只要当前绑定关系的历史轨迹，不要已失效行；空入参直接短路，避免全表扫描。倒序保证最新一次变更置顶。
+运营人员变更历史要求最新的在最前，且对外展示中文字面量与操作者名称，因此查询层固定排序与字段映射。
 
 ## 版本演进
 
-v0.1：首次登记，规则来自 `OperChangeRecordApplication.queryByPersonId`。
+v0.1：首次固化查询与展示映射。
 
 ```ground:rule
-name: 运营人员变更记录查询口径
-content: 按 person_id 精确匹配、enable='Y'，按 create_time 倒序返回；personId 为空直接返回空列表
-impact: 联系人详情页的运营变更历史列表
+name: 运营变更记录查询口径
+content: "按 person_id 查询且 enable='Y'，按 create_time 倒序；change_type 经 CHANGE_TYPE_DESC 映射为中文描述，operatorId/operatorName 取自 createBy/createUser"
+impact: 运营人员变更历史展示
 field_targets:
   - cust_oper_change_record.person_id
   - cust_oper_change_record.enable
-  - cust_oper_change_record.create_time
-evidence: code_path:OperChangeRecordApplication.java:queryByPersonId
+  - cust_oper_change_record.change_type
+evidence: "code_path:OperChangeRecordApplication.java#queryByPersonId/#toVO"
 ```
 
----END FILE---
-
----FILE: rules/wechat-todo-notify.md ---
----
-type: rule
-title: 企微待办通知按节点与通知类型分发
-page_key: rule.wechat-todo-notify
-domain: 企业变更与运营变更
-status: draft
-aliases: [dispatchWechatNotify, 企微待办, 后补合作协议流程通知]
-oid: 1
-scope:
-  databases: [unknown]
-sources:
-  - code_path:BackAgreementProcessOperateListener.java:notice
-  - code_path:BackAgreementProcessOperateListener.java:dispatchWechatNotify
-contract_version: "0.1"
----
-
-后补合作协议流程仅在 `taskNoticeType=2`（待办通知）时向 `taskNoticeUsers` 反查企微 `userId` 并发送 textcard 待办；其它通知类型忽略。反查不到企微用户时静默返回。
-
-## 需求背景
-
-流程审批待办需要触达到运营人员的企微账号，而流程侧只持有平台用户标识，因此需要一次反查；为避免非待办类通知打扰，仅对待办通知类型发送。该规则涉及 `sys_wx_user.user_id`、`tenant_project_approval.id`，与变更单链路无直接状态耦合，归属本域的外围通知能力。
-
-## 版本演进
-
-v0.1：首次登记，规则来自 `BackAgreementProcessOperateListener.notice` / `dispatchWechatNotify`。
-
-```ground:rule
-name: 企微待办通知按节点与通知类型分发
-content: 后补合作协议流程仅在 taskNoticeType=2（待办通知）时向 taskNoticeUsers 反查企微 userId 并发送 textcard 待办；其它通知类型忽略
-impact: 运营审批待办的企微触达；反查不到企微用户时静默返回
-field_targets:
-  - sys_wx_user.user_id
-  - tenant_project_approval.id
-evidence: code_path:BackAgreementProcessOperateListener.java:notice / dispatchWechatNotify
-```
+相关页面：[[cust_oper_change_record]]、[[valid_oper_change_record]]、[[operator]]、[[cust_person_info]]。
 
 ---END FILE---
-
----REVIEW: table | cust_change_record（企业变更单）---
-三个问题需人工确认：
-1. `scope.databases` 的物理库名在本次语义分析中未给出（仅有 `db` 标记），全部页面暂以 `unknown` 占位，需补充真实库名后统一回填。
-2. 本次输入中 `reqdoc_claims` 内容被截断（仅见 `"claim":` 无正文），无法判定 `action=anchor` / `action=uncovered`，因此本批页面未产出任何双源（`code_path` + `reqdoc:slug`）锚点，也未产出 `(document_claim，未证实)` 的版本演进条目；若存在需求文档主张，需重新提供后按规则 4/5 回填。
-3. `cust_change_record.alter_mode`（AlterModeEnum）与 `cust_person_info` 之外的 `act_procinst_status` 等字段仅在术语边界中被提及，未给出取值定义，暂不建页。
----END REVIEW---
-
----REVIEW: process | 客户变更单状态机（cust_change_record.status）---
-`cust_change_record.status` 的取值 `'1'`（表默认值）、`CUSTS003`、`returnCust-<时间戳>`（13 条）均来自库表分布，代码层未见对应枚举声明。当前按「历史值/脏值」标注于 states 中（source=db_dist）。若这些取值承载未登记的业务语义（例如早期版本的退回标记），需补充来源后调整状态机与终态口径 [[caliber.change-record-terminal-status]] 的判定范围。
----END REVIEW---

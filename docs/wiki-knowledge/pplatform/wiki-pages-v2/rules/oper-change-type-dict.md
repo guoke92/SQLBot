@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 运营人员变更类型字典
-page_key: rule.oper-change-type-dict
+page_key: oper-change-type-dict
 domain: 企业变更与运营变更
 status: draft
 aliases: [CHANGE_TYPE_DESC, 变更类型映射]
@@ -12,6 +12,7 @@ sources:
   - code_path:OperChangeRecordApplication.java:CHANGE_TYPE_DESC
   - code_path:OperChangeRecordApplication.java:toVO
 contract_version: "0.1"
+belong: rules
 ---
 
 `change_type` 取值 `MANUAL`/`BATCH`/`AUTO_ASSIGN`/`AUTO_UPDATE`/`ASSET_AUDIT_SYNC`/`CUST_CHANGE_CALLBACK`，前端展示名由 `CHANGE_TYPE_DESC` 映射，未命中时回显原值。取值集合见 [[processes.oper-change-type]]，流水表见 [[tables.cust_oper_change_record]]。

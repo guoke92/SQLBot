@@ -1,0 +1,6 @@
+body: 语义分析在「Dubbo业务节点校验规则」中引用了 `cust_company_info.certification_no` 与 `cust_company_info.cust_company_type`
+  作为 field_targets，但 `field_semantics` 中没有任何 `cust_company_info` 的字段条目，也没有该表的完整字段清单与物理库名。因此未产出
+  tables/cust_company_info.md 的 ground:table 块——缺少字段证据时不应发明。待补：该表字段清单、字段含义与 `cust_company_type`
+  取值域后，再建表页，并把 [[dubbo_biz_node_check]] 的 field_targets 指向该页。
+title: cust_company_info
+type: table

@@ -36,6 +36,38 @@ _TENANT = {
     "act_procinst_date",
 }
 
+# 同名拷贝不是 JOIN 的样板（每表自有业务主键/显示名/开关）
+_SKIP_SAME_COPY = _TENANT | {
+    "id",
+    "tenant_id",
+    "name",
+    "code",
+    "status",
+    "enable",
+    "remark",
+    "ext",
+    "deleted",
+    "is_deleted",
+    "version",
+    "create_time",
+    "update_time",
+    "create_user",
+    "update_user",
+    "create_by",
+    "update_by",
+    "create_date",
+    "update_date",
+    "label",
+}
+
+# 跨属性赋值桥：左边写入字段 ← 右边取值字段
+_ALIAS_PAIRS = {
+    ("certification_no", "social_unified_code"),
+    ("social_unified_code", "certification_no"),
+    ("product_code", "platform_product_code"),
+    ("platform_product_code", "product_code"),
+}
+
 
 def snake(name: str) -> str:
     return re.sub(r"(?<!^)(?=[A-Z])", "_", name).lower()
@@ -210,6 +242,92 @@ def extract_read_flow(repo: Path, do_table: dict[str, str]) -> list[dict]:
     return rels
 
 
+def extract_same_property(repo: Path, do_table: dict[str, str]) -> list[dict]:
+    """同名赋值 / 同名 .eq：跨表同一业务字段（SHARED_KEY）。
+
+    ``setX(y.getX())`` 且 X 非样板 → 等值/包含候选；``eq(DO::getX, y.getX())``
+    是查询期等值。租户/name/code/status/enable 排除。
+    """
+    rels: list[dict] = []
+    copy_re = re.compile(r"(\w+)\.set(\w+)\(\s*(\w+)\.get\2\(\s*\)\s*\)")
+    eq_re = re.compile(r"\.eq\(\s*(\w+)::get(\w+)\s*,\s*(\w+)\.get\2\(\s*\)")
+    alias_re = re.compile(r"(\w+)\.set(\w+)\(\s*(\w+)\.get(\w+)\(\s*\)\s*\)")
+    for path in repo.rglob("*.java"):
+        rel = path.as_posix()
+        if "/src/test/" in rel or "/test/" in rel or rel.endswith("Test.java"):
+            continue
+        text = path.read_text(encoding="utf-8", errors="ignore")
+        if ".set" not in text and ".eq(" not in text:
+            continue
+        var_type = _file_var_types(text, do_table)
+        for m in copy_re.finditer(text):
+            child_var, field, parent_var = m.groups()
+            if child_var not in var_type or parent_var not in var_type:
+                continue
+            child = do_table[var_type[child_var]]
+            parent = do_table[var_type[parent_var]]
+            if child == parent:
+                continue
+            col = snake(field)
+            if col in _SKIP_SAME_COPY:
+                continue
+            rels.append(
+                {
+                    "left_table": child,
+                    "left_field": col,
+                    "right_table": parent,
+                    "right_field": col,
+                    "kind": "SHARED_KEY",
+                    "evidence": f"copy:{path.name}",
+                }
+            )
+        for m in eq_re.finditer(text):
+            target_do, field, src_var = m.groups()
+            if target_do not in do_table or src_var not in var_type:
+                continue
+            t_tbl = do_table[target_do]
+            s_tbl = do_table[var_type[src_var]]
+            if t_tbl == s_tbl:
+                continue
+            col = snake(field)
+            if col in _SKIP_SAME_COPY:
+                continue
+            rels.append(
+                {
+                    "left_table": t_tbl,
+                    "left_field": col,
+                    "right_table": s_tbl,
+                    "right_field": col,
+                    "kind": "SHARED_KEY",
+                    "evidence": f"java-eq-same:{path.name}",
+                }
+            )
+        for m in alias_re.finditer(text):
+            child_var, field, parent_var, parent_field = m.groups()
+            if child_var not in var_type or parent_var not in var_type:
+                continue
+            if field == parent_field:
+                continue
+            pair = (snake(field), snake(parent_field))
+            if pair not in _ALIAS_PAIRS:
+                continue
+            child = do_table[var_type[child_var]]
+            parent = do_table[var_type[parent_var]]
+            if child == parent:
+                continue
+            rels.append(
+                {
+                    "left_table": child,
+                    "left_field": pair[0],
+                    "right_table": parent,
+                    "right_field": pair[1],
+                    "kind": "SHARED_KEY",
+                    "evidence": f"copy-alias:{path.name}",
+                }
+            )
+    return rels
+
+
 def dedup(rels: list[dict]) -> list[dict]:
     seen: dict[tuple, dict] = {}
     for r in rels:
@@ -234,9 +352,10 @@ def main() -> None:
         + extract_java_fk(repo, do_table)
         + extract_write_flow(repo, do_table)
         + extract_read_flow(repo, do_table)
+        + extract_same_property(repo, do_table)
     )
 
-    out = {"schema_version": "1.0", "repository": repo.name, "relationships": rels}
+    out = {"schema_version": "1.1", "repository": repo.name, "relationships": rels}
     if args.output:
         Path(args.output).write_text(
             yaml.safe_dump(out, allow_unicode=True, sort_keys=False), encoding="utf-8"

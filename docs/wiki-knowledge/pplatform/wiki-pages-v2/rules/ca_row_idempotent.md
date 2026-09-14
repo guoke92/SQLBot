@@ -1,7 +1,7 @@
 ---
 type: rule
 title: CA认证行创建幂等规则
-page_key: rule/ca_row_idempotent
+page_key: ca_row_idempotent
 domain: CA证书认证
 status: draft
 aliases: [createOrGetByKey 规则]
@@ -10,6 +10,7 @@ scope:
   databases: [unknown]
 sources: ["code_path:CaCertificationInfoAppServiceImpl.java:createOrGetByKey"]
 contract_version: "0.1"
+belong: rules
 ---
 
 规则要求：以（custId, dataDate, headCompanyData, submitStatus=PENDING）为幂等键创建 [[tables/ca_certification_info]] 行，已存在 PENDING 行则复用，否则新建，并生成唯一 batchNo。影响是避免同一企业同一天同一总公司标记下重复创建 CA 认证行。

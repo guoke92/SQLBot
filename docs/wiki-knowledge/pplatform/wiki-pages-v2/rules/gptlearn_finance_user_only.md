@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 智能审核引流仅金融机构用户可用
-page_key: rules/gptlearn_finance_user_only
+page_key: gptlearn_finance_user_only
 domain: GP学习
 status: draft
 aliases:
@@ -14,6 +14,7 @@ scope:
 sources:
   - code:GptLearnService.java
 contract_version: "0.1"
+belong: rules
 ---
 
 # 智能审核引流仅金融机构用户可用

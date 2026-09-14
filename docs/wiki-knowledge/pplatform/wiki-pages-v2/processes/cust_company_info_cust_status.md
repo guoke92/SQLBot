@@ -1,77 +1,69 @@
 ---
 type: process
-title: 企业客户状态机（cust_company_info.cust_status）
-page_key: processes/cust_company_info_cust_status
-domain: 企业画像
+title: 企业客户生命周期状态机 (cust_company_info.cust_status)
+page_key: cust_company_info_cust_status
+domain: 企业变更与运营变更
 status: draft
-aliases:
-  - CustStatusEnum 流程
-  - 企业客户状态流转
-  - cust_status
+aliases: [企业生命周期状态机, cust_status, 企业状态流转]
 oid: 1
 scope:
-  databases: ["(待确认)"]
+  databases: ["unknown"]
 sources:
   - code:CustCompanyInfoApplication.java
+  - code:CustChangeApplication.java
+  - db:cust_company_info
 contract_version: "0.1"
+belong: processes
 ---
 
-# 企业客户状态机（cust_company_info.cust_status）
+本状态机描述企业客户主体（[[cust_company_info]]）的生命周期流转，其中 `CHANGE`（变更中）是与本主题直接相关的态：企业一旦发起变更，主体被打上 `CHANGE`，变更入口与页面跳转随之变化（[[company_in_change]]、[[change_on_way]]）。
 
-该状态机描述[[tables/cust_company_info]]中 `custStatus` 字段（对应 `CustStatusEnum`）的取值与流转，刻画企业作为「客户」的生命周期：新增 → 生效 → 冻结／解冻 → 注销。
-
-主干是：建档认证成功后由 `ADD`（新增）进入 `EFFECT`（生效），入口方法为 `updateCustBuildStatus`。生效后的运营动作有三类：冻结（`freeze`）与解冻（`unfreeze`）在 `EFFECT` 与 `FREEZE` 之间往返；注销（`diable`）把 `EFFECT` 推向 `WRITEOFF`。`WRITEOFF` 有一条自环迁移：注销时冻结企业下所有用户（`custStatusOperator`），记录在案但不改变企业自身状态。
-
-本状态机是[[calibers/company_effect]]（企业生效口径）的组成条件之一：只有 `cust_status = 'EFFECT'` 且认证成功、主数据、逻辑有效的企业才进入生效查询集合。它与[[processes/cust_company_info_cust_build_status]]的衔接点即 `ADD → EFFECT` 这一步。
+注意本状态机的 `status` 与企业准入审核状态 `check_status` 是两条独立的轴，见 [[change_status]]。
 
 ## 需求背景
 
-本分析未提供该状态机的需求文档（reqdoc_claims）证据。待业务补充：`FAILURE`（失败）状态由哪些业务动作写入、达到该状态后能否恢复。
+企业既有日常运营态（生效/冻结/注销），也有变更在途态。把「变更中」建模为企业级状态而非仅记录级状态，是为了让入口、待办页、重复发起校验都能用同一字段判定，避免并发发起多次变更。
 
 ## 版本演进
 
-当前契约版本 0.1，暂无版本演进证据。
+v0.1：首次抽取五个状态与四条迁移；文档主张「已冻结或已注销不允许变更」未被代码覆盖，见 [[change_precheck]]。
 
 ```ground:process
-name: 企业客户状态
+name: 企业客户生命周期状态机
 field: cust_company_info.cust_status
 states:
   - value: ADD
-    label: 新增
-    source: code_enum
+    label: 待建档/新增
+    source: code_const
   - value: EFFECT
-    label: 生效
-    source: code_enum
+    label: 已生效
+    source: code_const
   - value: FREEZE
-    label: 冻结
-    source: code_enum
+    label: 已冻结
+    source: code_const
   - value: WRITEOFF
-    label: 注销
-    source: code_enum
-  - value: FAILURE
-    label: 失败
-    source: code_enum
+    label: 已注销
+    source: code_const
+  - value: CHANGE
+    label: 变更中
+    source: code_const
 transitions:
-  - from: ADD
-    event: 建档认证成功
-    to: EFFECT
-    evidence: code_path:CustCompanyInfoApplication.java:updateCustBuildStatus
   - from: EFFECT
-    event: 冻结企业
+    event: 冻结
     to: FREEZE
-    evidence: code_path:CustCompanyInfoApplication.java:freeze
+    evidence: "code_path:CustCompanyInfoApplication.java#freeze→custStatusOperator(CustStatusOperatorConstant.FREEZE)"
   - from: FREEZE
-    event: 解冻企业
+    event: 解冻
     to: EFFECT
-    evidence: code_path:CustCompanyInfoApplication.java:unfreeze
+    evidence: "code_path:CustCompanyInfoApplication.java#unfreeze→custStatusOperator(UNFREEZE)"
   - from: EFFECT
-    event: 注销企业
+    event: 注销
     to: WRITEOFF
-    evidence: code_path:CustCompanyInfoApplication.java:diable
-  - from: WRITEOFF
-    event: 注销时冻结企业下所有用户
-    to: WRITEOFF
-    evidence: code_path:CustCompanyInfoApplication.java:custStatusOperator
+    evidence: "code_path:CustCompanyInfoApplication.java#diable→custStatusOperator(DISABLE)"
+  - from: EFFECT
+    event: 发起企业变更（运营中台同步变更状态）
+    to: CHANGE
+    evidence: "code_path:CustChangeApplication.java#getRedirectPage(判定 cust_status=CHANGE) + CustCompanyInfoApplication.java#doIfNecessaryChange(operCustFacade.change)"
 ```
 
-相关页面：[[tables/cust_company_info]]、[[processes/cust_company_info_cust_build_status]]、[[concepts/company_profile]]、[[calibers/company_effect]]。
+相关页面：[[cust_company_info]]、[[company_in_change]]、[[change_on_way]]、[[change_status]]、[[cust_company_info_cust_build_status]]。

@@ -1,7 +1,7 @@
 ---
 type: rule
 title: "消息发送弱失败与去重"
-page_key: "rules/message_send_weak_failure_dedup"
+page_key: message_send_weak_failure_dedup
 domain: "customer-onboarding"
 status: draft
 aliases:
@@ -14,6 +14,7 @@ sources:
   - "code_path:CustMessageSendService.java:sendSms,isSend"
   - "code_path:CustStatusCommitProcessor.java:isMsgNotify"
 contract_version: "0.1"
+belong: rules
 ---
 
 所有短信、站内信、消息发送接口均以 try-catch 包裹并仅记日志、不向上抛出；变更回调在发送前先查最近一次通知的发送标记，已发送则跳过。结果是：消息通道可用性不影响状态落库，且回调可安全重入。去重口径见 [[calibers/callback_msg_idempotent]]，标记字段见 [[tables/cust_change_record]]。

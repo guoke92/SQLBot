@@ -1,7 +1,7 @@
 ---
 type: concept
 title: roleClass
-page_key: concept.role-class
+page_key: role-class
 domain: 客户角色与端口
 status: draft
 aliases:
@@ -19,6 +19,7 @@ also_confused_with:
 adjudication: boundary
 boundary: roleClass 是权限角色的归属标识（企业类型+企业ID），ClientCustRoleSyncService 按最后一个下划线拆分出 companyType 与 companyId 后再同步；不等同于 cust_role_info 角色记录。
 contract_version: "0.1"
+belong: concepts
 ---
 
 # roleClass

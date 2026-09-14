@@ -1,7 +1,7 @@
 ---
 type: process
 title: 集团成员单位关系状态机
-page_key: processes/cust-group-rel-status-state
+page_key: cust-group-rel-status-state
 domain: 企业集团关系
 status: draft
 aliases: [成员单位生效流程, cust_group_rel.status 状态机]
@@ -12,6 +12,7 @@ sources:
   - code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustGroupRelApplication.java
   - code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustGroupLicenseApplication.java
 contract_version: "0.1"
+belong: processes
 ---
 
 本流程描述集团成员单位关系（[[tables/cust_group_rel]]）从新建到生效/拒绝的状态流转：新建即 INEFFECTIVE 并发待办，成员单位签署后 EFFECTIVE，拒绝则 REJECTED，运营端亦可直接生效。生效口径被 [[calibers/effective-group-member]] 与 [[rules/effective-member-no-op]] 引用。

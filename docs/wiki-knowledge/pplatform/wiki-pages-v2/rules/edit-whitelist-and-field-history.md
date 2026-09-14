@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 编辑白名单与字段历史保护
-page_key: rule.edit-whitelist-and-field-history
+page_key: edit-whitelist-and-field-history
 domain: 项目报表/统计/上报
 status: draft
 aliases:
@@ -15,6 +15,7 @@ scope:
 sources:
   - code:ProjectStatisticsApplication.java
 contract_version: "0.1"
+belong: rules
 ---
 
 # 编辑白名单与字段历史保护

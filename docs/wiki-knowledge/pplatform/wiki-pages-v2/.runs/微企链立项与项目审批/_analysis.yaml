@@ -1,301 +1,124 @@
 field_semantics:
 - table: wechat_project_approval_apply
-  field: sp_no
-  meaning: 企微审批编号，表唯一索引（UNI）；企微导入仅按 sp_no 匹配既有记录（只更新不新增），项目上线审批侧按它回写 tenant_project.wechat_audit_no
-  evidence: db
-- table: wechat_project_approval_apply
   field: act_procinst_status
-  meaning: 企微审批实例当前状态；本层代码仅声明字面 '2'＝审批通过（导出与立项编号下拉固定过滤 '2'），'1'/'3'/'4' 无代码标签
-  evidence: code
-- table: wechat_project_approval_apply
-  field: act_procinst_id
-  meaning: 流程实例ID
+  meaning: 企微审批实例状态：1=审批中，2=已通过，3/4 未在代码中显式声明（DB 分布存在）
   evidence: db
-- table: wechat_project_approval_apply
-  field: act_procinst_no
-  meaning: 流程申请编号
-  evidence: db
-- table: wechat_project_approval_apply
-  field: act_procinst_date
-  meaning: 审批结束时间
-  evidence: db
-- table: wechat_project_approval_apply
-  field: sp_pass_time
-  meaning: 立项审批通过时间；立项编号下拉按该列倒序
-  evidence: code
 - table: wechat_project_approval_apply
   field: data_source
-  meaning: 数据来源：WECHAT＝企微同步（真实立项），MANUAL＝模拟立项；导出固定只取 WECHAT
+  meaning: 数据来源：MANUAL=模拟立项，WECHAT=真实立项（企微同步）
   evidence: code
 - table: wechat_project_approval_apply
   field: prd
-  meaning: 是否投产：库内 Y＝已投产、N＝未投产；导出转中文，导入接受『已投产/未投产』或 '/'（写 NULL）
-  evidence: code
-- table: wechat_project_approval_apply
-  field: solution_manager
-  meaning: 方案经理姓名（多人逗号分隔 CSV），由企微 userId 反查得到
-  evidence: code
-- table: wechat_project_approval_apply
-  field: solution_manager_wxid
-  meaning: 方案经理企微 userId 的 JSON 数组字符串（形如 ["340","2742"]），与 solution_manager 联动维护
-  evidence: code
-- table: wechat_project_approval_apply
-  field: old_solution_manager
-  meaning: 前方案经理（历史姓名集合，变更时由 mergeOldSolutionManager 合并前置）
-  evidence: code
-- table: wechat_project_approval_apply
-  field: bussiness_manager
-  meaning: 业务经理姓名（列名拼写为 bussiness）；统计侧由单个企微 userId 反查姓名落库
-  evidence: code
-- table: wechat_project_approval_apply
-  field: project_manager
-  meaning: 项目经理姓名
-  evidence: db
-- table: wechat_project_approval_apply
-  field: op_contact
-  meaning: 运营对接人，存运营人员 operation_id（不是姓名、不是 sys_user id、不是企微 userId）
-  evidence: code
-- table: wechat_project_approval_apply
-  field: op_contact_group
-  meaning: 运营组别，随 op_contact 的 operation_id 反查刷新
-  evidence: code
-- table: wechat_project_approval_apply
-  field: archives_contact
-  meaning: 档案对接人，存 operation_id
-  evidence: code
-- table: wechat_project_approval_apply
-  field: archives_contact_group
-  meaning: 档案组别，随档案对接人 operation_id 刷新
-  evidence: code
-- table: wechat_project_approval_apply
-  field: risk_control_contact
-  meaning: 风控对接人，存 operation_id
-  evidence: code
-- table: wechat_project_approval_apply
-  field: risk_control_contact_group
-  meaning: 风控对接人组别，随风控对接人 operation_id 刷新
-  evidence: code
-- table: wechat_project_approval_apply
-  field: project_type
-  meaning: 本表内为主项目(MAIN)/子项目(SUB)；与 tenant_project_approval.project_type（标准/常规项目）同名不同域
-  evidence: code
-- table: wechat_project_approval_apply
-  field: product_type
-  meaning: 产品类型中文名 CSV（由 product_type_arr 编码翻译）
-  evidence: code
-- table: wechat_project_approval_apply
-  field: product_type_arr
-  meaning: 产品类型编码 JSON 数组，筛选用 LIKE '%"code"%'（先经枚举白名单校验）
-  evidence: code
-- table: wechat_project_approval_apply
-  field: system_delivery
-  meaning: DB 注释为『系统交付方式』，但统计页用它做交付范围过滤（SaaS/Saas+本地化），导出时该列又被 product_type_arr 的中文覆盖写入，属被复用列
-  evidence: code
-- table: wechat_project_approval_apply
-  field: project_phase
-  meaning: 项目阶段：IMPLEMENTATION(实施阶段)/持续运营/挂起；TERMINATION 为历史值读时归一为挂起；『立项阶段』仅用于展示与导入校验、不落库
+  meaning: 是否投产：Y=已投产，N=未投产
   evidence: code
 - table: wechat_project_approval_apply
   field: ka_white_label
-  meaning: KA 是否贴牌：库内 Y/N，展示与导入模板为『是/否』
+  meaning: KA是否贴牌：Y=是，N=否
+  evidence: code
+- table: wechat_project_approval_apply
+  field: project_phase
+  meaning: 项目阶段：INITIATION=立项阶段，IMPLEMENTATION=实施阶段，OPERATION=持续运营，HANG=挂起；历史值 TERMINATION
+    归一为 HANG
+  evidence: code
+- table: wechat_project_approval_apply
+  field: sp_type
+  meaning: 类型，项目统计默认过滤金融科技业务
+  evidence: code
+- table: wechat_project_approval_apply
+  field: system_delivery
+  meaning: 系统交付方式：SaaS、Saas+本地化
+  evidence: code
+- table: wechat_project_approval_apply
+  field: project_type
+  meaning: 项目类型：MAIN=主项目，SUB=子项目
+  evidence: code
+- table: wechat_project_approval_apply
+  field: op_contact
+  meaning: 运营对接人，存储 operation_id，展示时反查姓名
+  evidence: code
+- table: wechat_project_approval_apply
+  field: solution_manager
+  meaning: 方案经理姓名，多个以逗号分隔
+  evidence: code
+- table: wechat_project_approval_apply
+  field: solution_manager_wxid
+  meaning: 方案经理企微 userId 列表的 JSON 数组字符串，如 ["id1","id2"]
+  evidence: code
+- table: wechat_project_approval_apply
+  field: old_solution_manager
+  meaning: 前方案经理，姓名 CSV，由变更入口联动维护
   evidence: code
 - table: wechat_project_approval_apply
   field: first_settlement_time
-  meaning: 首笔落地时间（DB 注释写『首笔放款时间』）；审批通过后由空变非空会联动项目阶段置为持续运营
+  meaning: 首笔落地时间（DB 注释为首笔放款时间），审批通过后更新会联动项目阶段为持续运营
   evidence: code
-- table: wechat_project_approval_apply
-  field: apply_start_time
-  meaning: 发起立项时间；统计页默认排序键，也是方案经理缺失提醒的过滤起点
-  evidence: code
-- table: wechat_project_approval_apply
-  field: statics_op_time
-  meaning: 项目统计更新时间；列表/详情展示时覆盖 update_time
-  evidence: code
-- table: wechat_project_approval_apply
-  field: statics_op_user
-  meaning: 项目统计更新用户；展示时覆盖 update_user
-  evidence: code
-- table: wechat_project_approval_apply
-  field: custom_field_statistics_one
-  meaning: 自定义字段一(统计用)；统计页唯一可编辑列（EDITABLE_FIELDS）
-  evidence: code
-- table: wechat_project_approval_apply
-  field: custom_field_one
-  meaning: 自定义字段一（企微导入可维护，长度校验 500）
-  evidence: code
-- table: wechat_project_approval_apply
-  field: comment
-  meaning: 备注；企微导入上限 200 字，项目立项统计导入上限 500 字
-  evidence: code
-- table: wechat_project_approval_apply
-  field: project_exception_remark
-  meaning: 项目异常备注（统计导入 ≤500 字）
-  evidence: code
-- table: wechat_project_approval_apply
-  field: capital_org_full_name
-  meaning: 资方全称
-  evidence: db
-- table: wechat_project_approval_apply
-  field: capital_branch_name
-  meaning: 资方分支行
-  evidence: db
-- table: wechat_project_approval_apply
-  field: enterprise_full_name
-  meaning: 企业全称
-  evidence: db
-- table: wechat_project_approval_apply
-  field: business_center
-  meaning: 业务中心；统计导入未填时可按业务经理企微部门推导
-  evidence: code
-- table: wechat_project_approval_apply
-  field: project_focus_level
-  meaning: 项目投入关注度
-  evidence: db
-- table: wechat_project_approval_apply
-  field: project_id
-  meaning: 关联的项目 id
-  evidence: db
-- table: wechat_project_approval_apply
-  field: sp_type
-  meaning: 业务类型；统计口径固定 sp_type='金融科技业务'
-  evidence: code
-- table: wechat_project_approval_apply
-  field: enable
-  meaning: 逻辑删除标识（Y/N）
-  evidence: db
 - table: tenant_project_approval
   field: wf_status
-  meaning: 上线审批工作流状态（PENDING/RUNNING/FINISHED/TERMINATED；DB 另有 REVOKED）
+  meaning: 项目上线审批工作流状态：PENDING=待发起，RUNNING=审批中，FINISHED=审批通过，TERMINATED=审批拒绝；DB 另有
+    REVOKED=已撤销（代码枚举未声明）
+  evidence: db
+- table: tenant_project_approval_flow
+  field: node_status
+  meaning: 审批流程节点状态：PENDING=待审批，APPROVING=审批中，APPROVED=已通过，REJECTED=已拒绝
   evidence: code
-- table: tenant_project_approval
-  field: is_latest
-  meaning: 是否该项目当前最新审批；重新发起时把原审批置 N、新审批置 Y
+- table: tenant_project_approval_flow_node
+  field: operate_type
+  meaning: 节点操作类型：PASS=同意，BACK=退回，REJECT=驳回，DELEGATE=转审
   evidence: code
-- table: tenant_project_approval
-  field: is_add
-  meaning: 是否随新增项目创建的审批（Y＝新增项目发起，N＝历史项目发起）
-  evidence: code
-- table: tenant_project_approval
-  field: is_online_approval
-  meaning: 是否发起上线审批；关联审批编号下拉只取 Y
-  evidence: code
-- table: tenant_project_approval
-  field: sp_no
-  meaning: 关联的企微立项审批编号，正式首次提交时回写 tenant_project.wechat_audit_no
-  evidence: code
-- table: tenant_project_approval
-  field: approval_no
-  meaning: 上线审批业务编号（平台业务编号服务生成）
-  evidence: code
-- table: tenant_project_approval
-  field: related_approval_no
-  meaning: 关联审批编号；is_online_approval=Y 时被清空为空串
-  evidence: code
-- table: tenant_project_approval
-  field: is_low_risk
-  meaning: 法务经办节点填写的『是否低风险』，回写主表供 AMS 推送判定
-  evidence: code
-- table: tenant_project_approval
-  field: project_type
-  meaning: 上线审批项目类型：STANDARD(标准项目)/REGULAR(常规项目)，决定 flow_code 与是否推送 AMS
-  evidence: code
-- table: tenant_project_approval
-  field: ref_tenant_project_approval_tenant_project
-  meaning: 关联的租户项目 code（非主键 id）
-  evidence: code
-- table: tenant_project_approval
-  field: ref_tenant_project_approval_tenant_project_approval
-  meaning: 重新发起/历史复制时的源审批 code；为空表示首次发起
-  evidence: code
-- table: tenant_project_approval
-  field: solution_manager_id
-  meaning: 方案经理 id 的 JSON 数组字符串（详情接口解析为 List 返回）
-  evidence: code
-- table: tenant_project_approval
-  field: solution_manager_name
-  meaning: 方案经理姓名 JSON 数组字符串
-  evidence: code
-- table: tenant_project_approval
-  field: initiator_user_id
-  meaning: 审批发起人 sys_user id；拒绝/退回通知只发给该人
-  evidence: code
-- table: tenant_project_approval
-  field: initiate_time
-  meaning: 发起时间；工作流启动成功时写入
-  evidence: code
-- table: tenant_project_approval
-  field: complete_time
-  meaning: 完成时间；wf_status∈{FINISHED,TERMINATED} 时写入
-  evidence: code
-- table: tenant_project_approval
-  field: wf_procdef_key
-  meaning: 工作流流程定义 key
-  evidence: code
-- table: tenant_project_approval
-  field: act_procinst_id
-  meaning: 工作流流程实例 id
-  evidence: code
-- table: wechat_project_approval_flow_file
+- table: tenant_project_approval_flow_file
   field: catg_id
-  meaning: 审批节点附件分类；DB 实际出现 FBP_OA_ATTACHMENT/FBP_OA_COMMENT_FILE（代码基线枚举未覆盖）
+  meaning: 影像分类 ID，代码枚举含 FBP_PROJECT_CONFIG 等，DB 另有 FBP_OA_ATTACHMENT、FBP_OA_COMMENT_FILE
+    未在枚举中
   evidence: db
 state_machines:
-- name: 项目上线审批工作流状态机
+- name: 企微立项审批状态
+  field: wechat_project_approval_apply.act_procinst_status
+  states:
+  - value: '1'
+    label: 审批中
+    source: code_const
+  - value: '2'
+    label: 已通过
+    source: code_const
+  - value: '3'
+    label: 未知
+    source: db_dist
+  - value: '4'
+    label: 未知
+    source: db_dist
+  transitions: []
+- name: 项目上线审批工作流状态
   field: tenant_project_approval.wf_status
   states:
   - value: PENDING
-    label: 待发起/草稿
+    label: 待发起
     source: code_enum
   - value: RUNNING
     label: 审批中
     source: code_enum
   - value: FINISHED
-    label: 审批完成（通过）
+    label: 审批通过
     source: code_enum
   - value: TERMINATED
-    label: 审批终止（驳回/退回结束）
+    label: 审批拒绝
     source: code_enum
   - value: REVOKED
-    label: 已撤销（代码枚举基线未声明，DB 实际存在）
+    label: 已撤销
     source: db_dist
   transitions:
-  - from: —
-    event: 项目创建后生成审批记录（isAdd=Y+挡板开+产品白名单）
-    to: PENDING
-    evidence: code_path:ProjectApprovalApplication.java#createInitialApproval
   - from: PENDING
-    event: submit(isDraft=N) 业务落库
-    to: PENDING
-    evidence: code_path:ProjectApprovalApplication.java#submit（copySubmitFields 中
-      setWfStatus(PENDING)）
-  - from: PENDING
-    event: 工作流启动成功 startWorkflowAndUpdateStatus
+    event: 启动工作流
     to: RUNNING
-    evidence: code_path:ProjectApprovalApplication.java#startWorkflowAndUpdateStatus
-  - from: PENDING
-    event: 工作流启动异常（降级，仅记 ERROR）
-    to: PENDING
-    evidence: code_path:ProjectApprovalApplication.java#startWorkflowAndUpdateStatus（catch
-      分支）
+    evidence: code_path:ProjectApprovalApplication.java:startWorkflowAndUpdateStatus
   - from: RUNNING
-    event: 流程结束通知 approveResult=pass
+    event: 审批通过
     to: FINISHED
-    evidence: code_path:ProjectApprovalApplication.java#handleFlowAndNodeStatus +
-      ProjectOnlineProcessOperateListener.java#resolveFlowNodeStatusUpdate
+    evidence: code_path:ProjectApprovalApplication.java:handleFlowAndNodeStatus
   - from: RUNNING
-    event: 流程结束通知 approveResult=reject/back
+    event: 审批拒绝/驳回
     to: TERMINATED
-    evidence: code_path:ProjectOnlineProcessOperateListener.java#resolveFlowNodeStatusUpdate
-  - from: FINISHED
-    event: 重新发起 createApproval（复制原审批）
-    to: PENDING
-    evidence: code_path:ProjectApprovalApplication.java#doCreateApproval
-  - from: PENDING
-    event: 非最新记录再次重新发起
-    to: PENDING
-    evidence: code_path:ProjectApprovalApplication.java#doCreateApproval（is_latest≠Y
-      抛异常前置校验）
-- name: 上线审批节点状态机
+    evidence: code_path:ProjectApprovalApplication.java:handleFlowAndNodeStatus
+- name: 审批流程节点状态
   field: tenant_project_approval_flow.node_status
   states:
   - value: PENDING
@@ -312,497 +135,361 @@ state_machines:
     source: code_enum
   transitions:
   - from: PENDING
-    event: 待抢/待办通知（taskNoticeType 1/2）
+    event: 节点激活
     to: APPROVING
-    evidence: code_path:ProjectOnlineProcessOperateListener.java#resolveFlowNodeStatusUpdate
+    evidence: code_path:ProjectOnlineProcessOperateListener.java:resolveFlowNodeStatusUpdate
   - from: APPROVING
-    event: 任务办理完成 approveResult=pass
+    event: 同意
     to: APPROVED
-    evidence: code_path:ProjectOnlineProcessOperateListener.java#resolveFlowNodeStatusUpdate
+    evidence: code_path:ProjectOnlineProcessOperateListener.java:resolveFlowNodeStatusUpdate
   - from: APPROVING
-    event: 任务办理完成 approveResult=back
+    event: 退回
     to: PENDING
-    evidence: code_path:ProjectOnlineProcessOperateListener.java#resolveFlowNodeStatusUpdate
+    evidence: code_path:ProjectOnlineProcessOperateListener.java:resolveFlowNodeStatusUpdate
   - from: APPROVING
-    event: 流程结束 approveResult=reject/back
+    event: 驳回
     to: REJECTED
-    evidence: code_path:ProjectOnlineProcessOperateListener.java#resolveFlowNodeStatusUpdate
-  - from: APPROVING
-    event: 工作台退回 back
-    to: APPROVING
-    evidence: code_path:ProjectApprovalDeskApplication.java#doBack（updateFlowNodeStatus
-      APPROVING）
-  - from: APPROVING
-    event: 工作台驳回 reject
-    to: REJECTED
-    evidence: code_path:ProjectApprovalDeskApplication.java#doReject
-  - from: APPROVING
-    event: 工作台转审 transfer（节点名不变）
-    to: APPROVING
-    evidence: code_path:ProjectApprovalDeskApplication.java#doTransfer
+    evidence: code_path:ProjectOnlineProcessOperateListener.java:resolveFlowNodeStatusUpdate
 - name: 项目阶段
   field: wechat_project_approval_apply.project_phase
   states:
+  - value: INITIATION
+    label: 立项阶段
+    source: code_const
   - value: IMPLEMENTATION
-    label: 实施阶段（代码字面）
-    source: code_enum
-  - value: PROJECT_PHASE_OPERATION
-    label: 持续运营（常量，字面值未在本层给出）
-    source: code_enum
-  - value: PROJECT_PHASE_HANG
-    label: 挂起（常量，字面值未在本层给出）
-    source: code_enum
-  - value: TERMINATION
-    label: 历史值，读取时归一为挂起（代码字面）
-    source: code_enum
-  - value: 立项阶段
-    label: 仅展示/导入校验用，不落库（审批通过后不允许导入）
-    source: code_enum
+    label: 实施阶段
+    source: code_const
+  - value: OPERATION
+    label: 持续运营
+    source: code_const
+  - value: HANG
+    label: 挂起
+    source: code_const
   transitions:
-  - from: 任意
-    event: act_procinst_status='2' 且首笔落地时间由空变非空且当前非持续运营
-    to: PROJECT_PHASE_OPERATION
-    evidence: code_path:ProjectStatisticsApplication.java#applyOperationPhaseWhenFirstSettlementUpdatedUnderApproved
+  - from: 任何
+    event: 审批通过后首笔落地时间更新
+    to: OPERATION
+    evidence: code_path:ProjectStatisticsApplication.java:applyOperationPhaseWhenFirstSettlementUpdatedUnderApproved
   - from: TERMINATION
-    event: 读取归一化
-    to: PROJECT_PHASE_HANG
-    evidence: code_path:ProjectStatisticsApplication.java#normalizeLegacyProjectPhaseCode
-  - from: 任意
-    event: 模拟立项创建（固定写 IMPLEMENTATION）
-    to: IMPLEMENTATION
-    evidence: code_path:ProjectStatisticsApplication.java#manualCreate
-- name: 租户项目状态（表名字面未在本层 DB 实测出现，按 DO TenantProjectDO/系统文档标注）
-  field: tenant_project.project_status
-  states:
-  - value: ProjectStatusEnum.EFFECTIVE
-    label: 已生效
-    source: code_enum
-  - value: ProjectStatusEnum.INVLIAD
-    label: 已失效（代码枚举拼写如此）
-    source: code_enum
-  transitions:
-  - from: —
-    event: 上线审批终态通过 effectiveProjectOnApprovalFinished → tenantProjectApplication.effective
-    to: ProjectStatusEnum.EFFECTIVE
-    evidence: code_path:ProjectApprovalApplication.java#effectiveProjectOnApprovalFinished
-  - from: ProjectStatusEnum.EFFECTIVE/ProjectStatusEnum.INVLIAD
-    event: 非新增项目正式发起上线审批 invalidateHistoricalProjectOnSubmit → tenantProjectApplication.invalid
-    to: ProjectStatusEnum.INVLIAD
-    evidence: code_path:ProjectApprovalApplication.java#invalidateHistoricalProjectOnSubmit（注意：该方法在当前给出的代码切片内未见调用点，需核实调用方）
-- name: 企微立项审批状态
-  field: wechat_project_approval_apply.act_procinst_status
-  states:
-  - value: '1'
-    label: 代码未声明（DB 分布值）
-    source: db_dist
-  - value: '2'
-    label: 审批通过（代码固定过滤字面 '2'）
-    source: code_enum
-  - value: '3'
-    label: 代码未声明（DB 分布值）
-    source: db_dist
-  - value: '4'
-    label: 代码未声明（DB 分布值）
-    source: db_dist
-  transitions: []
+    event: 遗留值转换
+    to: HANG
+    evidence: code_path:ProjectStatisticsApplication.java:normalizeLegacyProjectPhaseCode
 calibers:
-- name: 企微立项审批导出范围
+- name: 企微审批导出硬过滤
   predicate: wechat_project_approval_apply.act_procinst_status = '2' AND wechat_project_approval_apply.data_source
     = 'WECHAT'
-  scope: 导出接口 /cust-web/wechatApproval/export，固定过滤写在动态条件之后，前端入参不可改写
-  evidence: code_path:WechatProjectApprovalApplication.java#exportWechatApprovalInfo
-- name: 立项审批编号下拉范围
-  predicate: wechat_project_approval_apply.act_procinst_status = '2' AND wechat_project_approval_apply.enable
-    = 'Y'
-  scope: 上线审批发起页『立项审批编号』下拉
-  evidence: code_path:ProjectApprovalApplication.java#listProjectSpNo
-- name: 立项审批编号取关联人员
-  predicate: wechat_project_approval_apply.sp_no = ? AND enable = 'Y'
-  scope: 按 spNo 反查方案经理/业务经理/运营人
-  evidence: code_path:ProjectApprovalApplication.java#getProposerByApprovalNo
-- name: 项目最新有效上线审批
-  predicate: tenant_project_approval.enable = 'Y' AND tenant_project_approval.is_latest
-    = 'Y'
-  scope: 按项目 code 取最新审批；分页后置填充 approvalIsAdd/approvalWfStatus 控制按钮显隐
-  evidence: code_path:ProjectApprovalApplication.java#findLatestApprovalByProjectCode
-- name: 上线审批在途校验
-  predicate: tenant_project_approval.wf_status IN ('PENDING','RUNNING') AND tenant_project_approval.enable
-    = 'Y'
-  scope: 按项目 code 统计，>0 抛『该项目已有上线审批数据，请勿重复发起』
-  evidence: code_path:ProjectApprovalApplication.java#assertNoApproval
-- name: 历史项目发起可选项目
-  predicate: tenant_project.project_status IN ('EFFECTIVE','INVLIAD') AND tenant_project.enable
-    = 'Y'
-  scope: 历史项目上线审批向导组件1下拉
-  evidence: code_path:ProjectApprovalApplication.java#listApprovalSelectableProjects
-- name: 关联审批编号下拉
-  predicate: tenant_project_approval.is_online_approval = 'Y' AND tenant_project_approval.wf_status
-    IN ('RUNNING','FINISHED') AND tenant_project_approval.enable = 'Y'
-  scope: 排除入参 id 对应记录
-  evidence: code_path:ProjectApprovalApplication.java#listRelatedApprovalNo
-- name: 子流程项目名列表
-  predicate: tenant_project_approval.related_approval_no = ? AND enable = 'Y'
-  scope: 仅当当前审批 wf_status=TERMINATED 时才返回
-  evidence: code_path:ProjectApprovalApplication.java#listRelatedSubProcessProjectNames
-- name: 项目立项统计页范围
+  scope: 导出企微审批申请信息
+  evidence: code_path:WechatProjectApprovalApplication.java:exportWechatApprovalInfo
+- name: 审批中记录
+  predicate: wechat_project_approval_apply.act_procinst_status = '1'
+  scope: 项目立项统计导入跳过审批中记录
+  evidence: code_path:ProjectStatisticsApplication.java:validateAndApply
+- name: 项目统计默认范围
   predicate: wechat_project_approval_apply.sp_type = '金融科技业务' AND wechat_project_approval_apply.system_delivery
     IN ('SaaS','Saas+本地化')
-  scope: 未传 act_procinst_status 时再叠加 ACT_PROCINST_VISIBLE_WECHAT（常量值未在本层给出）
-  evidence: code_path:ProjectStatisticsApplication.java#buildPageWrapper
-- name: 统计页方案经理缺失提醒范围
-  predicate: act_procinst_status = '2' AND apply_start_time >= MISSING_PLAN_MGR_REMIND_APPLY_START_FROM
-    AND enable = 'Y' AND solution_manager 为空
-  scope: 方案经理缺失的已通过立项
-  evidence: code_path:ProjectStatisticsApplication.java#listApprovedMissingSolutionManagerForRemind
-- name: AMS 推送口径
-  predicate: tenant_project_approval.wf_status = 'FINISHED' AND (project_type = 'STANDARD'
-    OR (project_type = 'REGULAR' AND is_low_risk = 'Y'))
-  scope: 审批终态后推送 AMS（appIds=AMS）
-  evidence: code_path:ProjectApprovalApplication.java#isPushToAms + ProjectApprovePushApplication.java#pushByApproveId
-- name: 上线审批适用产品白名单
-  predicate: tenant_project.platform_product_code ∈ {ProductCodeEnum.ACFLOW, RVSFACTOR,
-    ORDER}
-  scope: 项目创建时是否自动生成待发起上线审批；枚举字面值未在本层给出
-  evidence: code_path:TenantProjectApplication.java#isOnlineApprovalSupportedProduct
-- name: 业务系统推送项目配置落库口径
-  predicate: tenant_project_approval.wf_status = 'RUNNING' AND is_latest = 'Y' AND
-    flow.node_status = 'APPROVING' AND flow.node_code IN ('PROJECT_MANAGER','PROJECT_CONFIG')
-  scope: 非上述节点静默跳过（返回已有配置 id 或不落库）
-  evidence: code_path:ProjectBusinessConfigApplication.java#savePush
-- name: 审批待办提醒查询口径
-  predicate: prefixProcdefKeys = ['Flow-' + wfInfoBusinessType] AND procdefKeys =
-    [PROC_DEF_KEY_BACK_AGREEMENT] AND client = CLIENT_DEFAULT AND queryScope = CLIENT
-  scope: 下午场再叠加 arriveDateTimeEnd = 当日 15:30
-  evidence: code_path:ProjectApprovalRemindApplication.java#buildTaskQueryForm
-- name: 项目导入允许更新的记录口径
-  predicate: act_procinst_status ≠ ACT_PROCINST_IN_PROGRESS
-  scope: 审批中记录跳过并计入 skipCount（常量字面值未在本层给出）
-  evidence: code_path:ProjectStatisticsApplication.java#validateAndApply
+  scope: 项目立项统计列表/导出
+  evidence: code_path:ProjectStatisticsApplication.java:buildPageWrapper
+- name: 关联审批编号下拉
+  predicate: tenant_project_approval.wf_status IN ('RUNNING','FINISHED') AND tenant_project_approval.is_online_approval
+    = 'Y' AND tenant_project_approval.enable = 'Y'
+  scope: 关联审批编号下拉
+  evidence: code_path:ProjectApprovalApplication.java:listRelatedApprovalNo
+- name: 可发起上线审批的项目
+  predicate: tenant_project.project_status IN ('EFFECTIVE','INVLIAD') AND tenant_project.enable
+    = 'Y'
+  scope: 历史项目发起上线审批可选项目
+  evidence: code_path:ProjectApprovalApplication.java:listApprovalSelectableProjects
+- name: 正在审批的最新流程
+  predicate: tenant_project_approval.wf_status = 'RUNNING' AND tenant_project_approval.is_latest
+    = 'Y' AND tenant_project_approval.enable = 'Y'
+  scope: 业务系统推送项目配置时定位审批中流程
+  evidence: code_path:ProjectBusinessConfigApplication.java:findRunningApproval
+- name: 正在审批的节点
+  predicate: tenant_project_approval_flow.node_status = 'APPROVING' AND tenant_project_approval_flow.enable
+    = 'Y'
+  scope: 业务系统推送项目配置时定位当前节点
+  evidence: code_path:ProjectBusinessConfigApplication.java:findApprovingFlow
 term_bridges:
-- term: 产品类型（统计/导入语境）
-  aliases:
-  - system_delivery
-  - product_type
-  - product_type_arr
-  - 系统交付方式
-  - 产品类型
-  maps_to: wechat_project_approval_apply.product_type_arr（编码 JSON 数组）与 product_type（中文
-    CSV）
+- term: 微企链立项
+  aliases: []
+  maps_to: wechat_project_approval_apply
   also_confused_with:
-  - system_delivery 列名
+  - tenant_project_approval
   adjudication: boundary
-  boundary: 同一导出/导入链路里，代码把 product_type_arr 的中文汇总写进名为 system_delivery 的列，而列表过滤又把 system_delivery
-    当作 SaaS 交付范围条件——列名语义与业务语义不一致，查询条件与展示列不可互相推断
-- term: 首笔落地时间
-  aliases:
-  - first_settlement_time
-  - 首笔放款时间
-  maps_to: wechat_project_approval_apply.first_settlement_time
-  also_confused_with: []
-  adjudication: synonym
-  boundary: DB 注释为『首笔放款时间』，代码注释与导入模板为『首笔落地时间』，指同一列
-- term: 是否投产
-  aliases:
-  - prd
-  - 已投产
-  - 未投产
-  - Y
-  - N
-  maps_to: wechat_project_approval_apply.prd
-  also_confused_with: []
-  adjudication: synonym
-  boundary: 库内为 Y/N；展示与导入为中文；导入传 '/' 表示清空为 NULL，空字符串表示保持原值
-- term: 项目类型
-  aliases:
-  - project_type
-  maps_to: 同名不同域：wechat_project_approval_apply.project_type = 主项目(MAIN)/子项目(SUB)；tenant_project_approval.project_type
-    = 标准项目(STANDARD)/常规项目(REGULAR)
-  also_confused_with:
-  - ProjectApprovalProjectTypeEnum.STANDARD/REGULAR
-  - PROJECT_TYPE_MAIN/PROJECT_TYPE_SUB
-  adjudication: boundary
-  boundary: 前者决定立项统计展示与 flow_code 无关；后者决定审批流程 flow_code 与 AMS 推送判定，跨表比较 project_type
-    必须先判定域
+  boundary: 微企链立项指企微审批申请，项目上线审批指产融平台工作流审批，两者通过 sp_no 关联但表不同。
 - term: 方案经理
   aliases:
   - solution_manager
   - solution_manager_wxid
-  - old_solution_manager
-  - 前方案经理
-  maps_to: wechat_project_approval_apply.solution_manager（姓名 CSV） / solution_manager_wxid（企微
-    userId JSON 数组） / old_solution_manager（历史姓名集合）
+  maps_to: wechat_project_approval_apply.solution_manager
   also_confused_with:
-  - bussiness_manager
-  adjudication: boundary
-  boundary: 过滤走 wxid、展示走姓名；同名列在统计详情页 VO 里被反转为『企微 userId 列表』，与 DO 同名异型
+  - tenant_project_approval.solution_manager_id
+  adjudication: synonym
+  boundary: 姓名与企微 ID 双存储，姓名列用于展示，wxid 列用于企微通知。
 - term: 运营对接人
   aliases:
   - op_contact
   - operation_id
-  - 运营对接人A
-  maps_to: wechat_project_approval_apply.op_contact = 运营人员表 operation_id
-  also_confused_with:
-  - sys_user.id
-  - 企微 userId
-  - 姓名
-  adjudication: boundary
-  boundary: 导入按姓名解析成 operation_id 落库，导出按 operation_id 反查姓名展示；组别 op_contact_group 与之联动，不是独立维护字段
+  maps_to: wechat_project_approval_apply.op_contact
+  also_confused_with: []
+  adjudication: synonym
+  boundary: 库中存 operation_id，页面显示姓名。
 - term: 数据来源
   aliases:
   - data_source
-  - 模拟立项
-  - 真实立项
-  - MANUAL
-  - WECHAT
   maps_to: wechat_project_approval_apply.data_source
   also_confused_with: []
   adjudication: synonym
-  boundary: WECHAT＝企微同步，MANUAL＝人工模拟立项；导出硬过滤 WECHAT
+  boundary: MANUAL 模拟立项，WECHAT 真实立项。
 - term: 审批状态
   aliases:
   - act_procinst_status
   - wf_status
-  - node_status
-  - sp_status
-  maps_to: 三个不同层级：企微申请实例状态(act_procinst_status)、上线审批流程状态(wf_status)、审批节点状态(node_status)
+  maps_to: wechat_project_approval_apply.act_procinst_status
   also_confused_with:
-  - sp_status（代码注释中作为 act_procinst_status=2 的同义提及，但本表无此列）
+  - tenant_project_approval.wf_status
   adjudication: boundary
-  boundary: 代码注释明确 '2' 与 sp_status=2 含义一致，但落库只有 act_procinst_status，勿按 sp_status 检索
-- term: 立项阶段
-  aliases:
-  - 项目阶段
-  - project_phase
-  maps_to: 导入模板允许值之一，仅用于审批中展示，不写入 project_phase
-  also_confused_with:
-  - IMPLEMENTATION/持续运营/挂起
-  adjudication: boundary
-  boundary: 导入『立项阶段』不落库，且审批通过(act_procinst_status='2')后不允许导入该值；TERMINATION 是历史库值，读时按挂起处理
+  boundary: act_procinst_status 是企微审批实例状态；wf_status 是产融平台项目上线审批工作流状态。
 rules:
-- name: 企微审批导入只更新不新增
-  content: 导入必须命中已存在的 sp_no，否则报『{spNo}不存在，请检查』；不存在新增分支
-  impact: 阻断，新增只能由企微同步产生
+- name: 企微审批导出硬过滤
+  content: 导出企微审批申请时，固定过滤 act_procinst_status=2 且 data_source=WECHAT，前端查询条件不能改写该过滤。
+  impact: 确保只导出已通过的企微同步记录。
+  field_targets:
+  - wechat_project_approval_apply.act_procinst_status
+  - wechat_project_approval_apply.data_source
+  evidence: code_path:WechatProjectApprovalApplication.java:exportWechatApprovalInfo
+- name: 企微审批导入仅更新
+  content: 导入企微审批申请时仅允许更新已存在的审批编号，不允许新增；为空不更新，"/"置空；审批编号重复、不存在、对接人不存在、字段超长等任一校验失败则整批不更新；更新后运营对接人A或风控对接人A至少一列有值则触发下游同步。
+  impact: 保证企微审批数据质量并触发下游项目配置同步。
   field_targets:
   - wechat_project_approval_apply.sp_no
-  evidence: code_path:WechatProjectApprovalApplication.java#validateAndImportData
-- name: 企微审批导入原子性（一错全错）
-  content: errorList 非空则不执行任何 updateWrapper，全部更新延后到校验通过后统一执行
-  impact: 整批回滚，无部分成功
-  field_targets:
-  - wechat_project_approval_apply.*
-  evidence: code_path:WechatProjectApprovalApplication.java#validateAndImportData
-- name: 导入单元格语义：'/'＝清空，空串＝不改
-  content: 字段值 '/' 时 set 为 NULL 并联动清空组别/冗余字段；空字符串保持原值不更新
-  impact: 决定导入后字段是三态（有值/清空/保持）
-  field_targets:
-  - prd
-  - op_contact
-  - op_contact_group
-  - archives_contact
-  - archives_contact_group
-  - risk_control_contact
-  - risk_control_contact_group
-  - comment
-  - project_manager
-  - solution_manager
-  - solution_manager_wxid
-  - custom_field_one
-  - custom_field_two
-  - custom_field_three
-  evidence: code_path:WechatProjectApprovalApplication.java#validateAndImportData
-- name: 组别随对接人联动
-  content: op_contact/archives_contact/risk_control_contact 有值时按 operation_id 反查组别写入对应
-    _group；为空时把 _group 置 NULL
-  impact: 组别不可单独维护
-  field_targets:
-  - wechat_project_approval_apply.op_contact_group
-  - archives_contact_group
-  - risk_control_contact_group
-  evidence: code_path:WechatProjectApprovalApplication.java#updateGroup
-- name: 导入/更新后触发下游同步的条件
-  content: spNo 非空 且（运营对接人A 或 风控对接人A 至少一列非空且非 '/'）→ 调用 syncProjectConfigFromWechatApprovalBySpNo
-  impact: 决定是否推送项目/讯易链对接人
-  field_targets:
+  - wechat_project_approval_apply.prd
   - wechat_project_approval_apply.op_contact
-  - risk_control_contact
-  - sp_no
-  evidence: 'code_path:WechatProjectApprovalApplication.java#updateGroup + #validateAndImportData(needSyncAfterUpdate)'
-- name: 企微导入字段长度约束
-  content: 备注 ≤200 字；自定义字段一/二/三 ≤500 字
-  impact: 超长进入错误列表并触发整批不落库
-  field_targets:
-  - comment
-  - custom_field_one
-  - custom_field_two
-  - custom_field_three
-  evidence: code_path:WechatProjectApprovalApplication.java#validateAndImportData
-- name: 上线审批提交前置校验
-  content: 审批必须处于 PENDING；正式提交（isDraft≠Y）时除 PROJECT_CONFIG 外所有节点审批人必填；至少 1 个有效审批节点；OA
-    必传目录与 OA_BUSI_PRICE 目录下必须有文件
-  impact: 阻断提交
+  - wechat_project_approval_apply.risk_control_contact
+  - wechat_project_approval_apply.comment
+  evidence: code_path:WechatProjectApprovalApplication.java:validateAndImportData
+- name: 项目上线审批提交规则
+  content: isDraft=Y 暂存仅落库不启动工作流；isDraft=N 提交时校验审批流程节点（除方案配置外审批人必填）、必须上传商务批复报价文件，生成审批编号后启动工作流。
+  impact: 保证上线审批数据完整并驱动工作流。
   field_targets:
   - tenant_project_approval.wf_status
-  - tenant_project_approval_flow.approver_user_id
-  evidence: 'code_path:ProjectApprovalApplication.java#submit + #validateSubmitFlowApprovers'
-- name: 立项编号回写项目配置
-  content: 仅 isAdd=Y 且 ref_tenant_project_approval_tenant_project_approval 为空（首次发起）且
-    tenant_project.wechat_audit_no 为空时，把审批 sp_no 回写 tenant_project.wechat_audit_no，并推送
-    PlatProjectEventType.EFFECTED
-  impact: 打通企微立项与租户项目
-  field_targets:
   - tenant_project_approval.sp_no
-  - tenant_project.wechat_audit_no
-  evidence: code_path:ProjectApprovalApplication.java#backfillProjectSpNoOnSubmit
-- name: 审批终态处理
-  content: wf_status∈{FINISHED,TERMINATED} 时写 wf_last_operator/wf_status/complete_time；FINISHED
-    时把项目置为已生效并推送业务系统
-  impact: 项目生效与下游同步
+  evidence: code_path:ProjectApprovalApplication.java:submit
+- name: 重新发起上线审批复制规则
+  content: 重新发起时复制原审批主记录、业务信息、流程配置和影像文件，原审批 is_latest 置 N，新审批 is_latest=Y，wf_status=PENDING。
+  impact: 保留历史审批版本并生成新草稿。
   field_targets:
+  - tenant_project_approval.is_latest
   - tenant_project_approval.wf_status
-  - tenant_project_approval.complete_time
+  - tenant_project_approval.ref_tenant_project_approval_tenant_project_approval
+  evidence: code_path:ProjectApprovalApplication.java:doCreateApproval
+- name: 审批通过生效项目
+  content: 上线审批终态为 FINISHED 时，将审批关联的项目置为已生效（effective），并推送业务系统。
+  impact: 项目生效自动化。
+  field_targets:
   - tenant_project.project_status
-  evidence: 'code_path:ProjectApprovalApplication.java#handleFlowAndNodeStatus + #effectiveProjectOnApprovalFinished'
-- name: 后补合作协议触发
-  content: 仅当业务经理节点(BUSINESS_MANAGER)被审批通过(APPROVED) 且该节点快照 is_back_agreement='Y'
-    时启动后补合作协议工作流；启动失败仅 WARN 不阻断
-  impact: 生成后补合作协议待办
+  - tenant_project_approval.wf_status
+  evidence: code_path:ProjectApprovalApplication.java:effectiveProjectOnApprovalFinished
+- name: 后补合作协议触发规则
+  content: 业务经理节点同意且该节点记录 is_back_agreement=Y 时，启动后补合作协议工作流。
+  impact: 自动发起后补协议流程。
   field_targets:
   - tenant_project_approval_flow_node.is_back_agreement
-  - tenant_project_approval_flow.node_code
-  evidence: code_path:ProjectApprovalApplication.java#isStartBackAgreement
-- name: 法务经办节点低风险必填
-  content: 同意法务经办节点必须传 is_low_risk 且仅允许 Y/N，同时回写 tenant_project_approval.is_low_risk
-  impact: 影响 AMS 推送判定
+  - tenant_project_approval_flow_node.node_code
+  evidence: code_path:ProjectApprovalApplication.java:isStartBackAgreement
+- name: 推送AMS规则
+  content: 审批通过后，若项目类型为标准项目，或项目类型为常规项目且 is_low_risk=Y，则推送审批信息至 AMS。
+  impact: 下游 AMS 系统同步审批结果。
   field_targets:
+  - tenant_project_approval.project_type
   - tenant_project_approval.is_low_risk
-  evidence: code_path:ProjectApprovalDeskApplication.java#doAgreeLegalProcess
-- name: 业务经理节点授信落库
-  content: 业务经理节点同意时插入 tenant_project_approval_flow_credit；后补合作协议（产品为 ACFLOW）时按 credit
-    id 覆盖更新授信
-  impact: 授信信息随节点沉淀
+  evidence: code_path:ProjectApprovalApplication.java:isPushToAms
+- name: 方案经理批量变更部门校验
+  content: 批量变更方案经理时，新方案经理姓名必须在「SaaS方案部」人员名单内，spNo 必须存在，变更写入字段历史（source=BATCH）。
+  impact: 保证方案经理归属正确。
   field_targets:
-  - tenant_project_approval_flow_credit.*
-  evidence: 'code_path:ProjectApprovalDeskApplication.java#doAgreeBusinessManager
-    / #doAgreeAgreement / #overwriteCreditInfo'
-- name: 审批意见长度限制
-  content: 同意/退回/驳回/转审/后补协议的 comment 均 ≤200 字
-  impact: 阻断办理
+  - wechat_project_approval_apply.solution_manager
+  - wechat_project_approval_apply.sp_no
+  evidence: code_path:ProjectStatisticsApplication.java:validateBatchChangePlanMgrRows
+- name: 模拟立项规则
+  content: 模拟立项 spNo 由后端生成（MN-yyyyMMdd-XXXX），dataSource 强制 MANUAL，方案经理固定为当前登录用户，写
+    MANUAL_CREATE 字段历史。
+  impact: 支持手工创建测试或补录立项数据。
   field_targets:
-  - tenant_project_approval_flow_node.approve_comment
-  evidence: 'code_path:ProjectApprovalDeskApplication.java#validateCommon / #validateBackOrReject'
-- name: 办理动作分布式锁
-  content: agree/back/reject/transfer/agreeAgreement 锁 key=project_approval:node:<approvalId>（后补合作协议为
-    project_approval_agreement:node:<approvalId>），submit 为 project_approval:submit:<id>，createApproval
-    为 project_approval:createApproval:<id>，prepareWizard 为 project_approval:prepareWizard:<projectId>
-  impact: 防重复提交
-  field_targets: []
-  evidence: code_path:ProjectApprovalDeskController.java (agree/back/reject/transfer/agreeAgreement)
-    + ProjectApprovalController.java (submit/createApproval/prepareWizardApproval)
-- name: 两段式提交（锁—事务—工作流分离）
-  content: 业务事务落库（doAgree*/doBack/doReject/doTransfer）与工作流调用（submitTask/transferTask）分离，锁由
-    Controller 持有
-  impact: 保证工作流失败不回滚已落库节点
-  field_targets:
-  - tenant_project_approval_flow_node.operate_type
-  evidence: 'code_path:ProjectApprovalDeskApplication.java#agree / #transfer'
-- name: 微盘转存权限与范围
-  content: 仅审批发起人/创建人/最近操作人可从微盘转存；modelCode 仅允许 MA003/MA004；分享 URL 单次最多 50 个文件，仅支持普通文件(type=2)
-  impact: 控制影像写入权限
-  field_targets: []
-  evidence: 'code_path:ProjectApprovalWedriveApplication.java#assertCanOperateApproval
-    / #transferShareUrlToApprovalMedia'
-- name: 统计页字段编辑白名单
-  content: 列表/详情编辑仅允许 EDITABLE_FIELDS（本期 custom_field_statistics_one）；方案经理批量变更走独立入口并写
-    ChangeSourceEnum.BATCH
-  impact: 限制人工覆盖面，保护企微同步字段
-  field_targets:
-  - wechat_project_approval_apply.custom_field_statistics_one
-  - solution_manager
-  evidence: 'code_path:ProjectStatisticsApplication.java#update / #changeOnePlanMgr'
-- name: 前方案经理合并规则
-  content: mergeOldSolutionManager：把 prev 中既不在 existingOld 也不在 curr 的姓名前置到 old_solution_manager
-  impact: 保证历史方案经理可追溯
-  field_targets:
-  - wechat_project_approval_apply.old_solution_manager
-  evidence: 'code_path:ProjectStatisticsApplication.java#changeOnePlanMgr + #update'
-- name: 模拟立项约束
-  content: spNo 由平台业务编号服务生成，data_source 强制 MANUAL，sp_type='金融科技业务'，system_delivery='SaaS'，project_phase='IMPLEMENTATION'，act_procinst_status='2'，project_type='SUB'；方案经理固定取当前登录用户
-  impact: 模拟数据不污染真实口径
-  field_targets:
+  - wechat_project_approval_apply.sp_no
   - wechat_project_approval_apply.data_source
-  - sp_no
-  - project_phase
-  evidence: code_path:ProjectStatisticsApplication.java#manualCreate
-reqdoc_claims:
-- claim: 租户项目创建前必须校验租户信息存在、租户产品已开通（系统文档：租户项目生命周期 create）
-  code_status: confirmed
-  code_evidence: TenantProjectApplication.java#create（Assert『租户信息不存在!』『租户未开通产品!』）
-  action: anchor
-- claim: 租户项目失效写入 rule_status=INACTIVE（系统文档：TenantProjectApplication.invalid）
-  code_status: refuted
-  code_evidence: ProjectApprovalApplication.java#invalidateHistoricalProjectOnSubmit
-    调用 tenantProjectApplication.invalid；状态载体为 ProjectStatusEnum（EFFECTIVE/INVLIAD）而非
-    rule_status→ACTIVE/INACTIVE。差异：字段名与取值均与代码不符，以代码为准
-  action: prose_only
-- claim: 项目变更时 version+1（系统文档：TenantProjectApplication.change）
-  code_status: uncovered
-  code_evidence: 本层代码未给出 change 方法；仅见 tenant_project.project_config_version 被读取用于展示（ProjectApprovalApplication.java#toDto）
-  action: review
-- claim: 项目创建后由 SyncTenantProjectJobHandle（Job）同步项目到下游（系统文档：租户项目生命周期流程）
-  code_status: refuted
-  code_evidence: TenantProjectApplication.java#create 实际以 migratoryPointService.push(RpcPoint.PROJECT_SYNC,
-    PlatProjectEventType.CREATED, …) 事件方式推送，未出现 SyncTenantProjectJobHandle。差异：同步触发方式为事件而非定时
-    Job
-  action: prose_only
-- claim: 上线审批通过后项目置为已生效（系统文档：项目先建、配版本、最后生效）
-  code_status: confirmed
-  code_evidence: ProjectApprovalApplication.java#effectiveProjectOnApprovalFinished
-    → tenantProjectApplication.effective
-  action: anchor
-- claim: 租户项目列表含『项目配置版本』字段 project_config_version（系统文档：项目中心列表字段）
-  code_status: confirmed
-  code_evidence: ProjectApprovalApplication.java#toDto（tenantProjectApprovalDTO.setProjectConfigVersion(project.getProjectConfigVersion())）
-  action: anchor
-- claim: 上线审批功能由 Nacos 挡板控制开/关（系统文档：扩展点/配置驱动）
-  code_status: confirmed
-  code_evidence: 'ProjectApprovalApplication.java#assertWizardEnabled / #getSwitchStatus（productProperties.isProjectOnlineApprovalEnable()）'
-  action: anchor
-- claim: 企业加入项目需做角色组合校验 custRoleCombine，不合法抛『系统暂不支持该角色组合』（系统文档：2.3 角色组合校验 + BR）
-  code_status: uncovered
-  code_evidence: 本层代码未覆盖 TenantProductApplication#checkCustRoleCombine 与 cust_config_mapping，无从核对
-  action: review
-- claim: 租户产品开通状态由 ProductOpenStatusEnum 表达（PENDING/ACTIVE/CANCEL），在途校验 checkOnTheWay
-    阻断激活（系统文档：2.1 租户产品开通流程）
-  code_status: uncovered
-  code_evidence: 本层代码未包含 TenantProductApplication/TenantProductController
-  action: review
-- claim: 企业关联项目入口 POST /custCompanyInfo/relateProject → CustCompanyInfoApplication#relateProject，写
-    cust_project_rel 并做跨租户校验（系统文档：流程 B）
-  code_status: uncovered
-  code_evidence: 本层代码仅出现 CustProjectRelService 引用，未见 relateProject 实现体
-  action: review
-- claim: 租户项目对下拉/业务系统暴露 TenantProjectProvider.listEffetiveProjectByTenant（系统文档：流程
-    A）
-  code_status: uncovered
-  code_evidence: 本层未给出 TenantProjectProviderImpl；仅见 ProjectProviderImpl.java#getProjectOperConfig
-    按 projectId 回读 TenantProjectDO
-  action: review
-- claim: productCode 典型值为 SCF / AMS / RVSFACTOR，全模块使用（系统文档：流程变量表）
-  code_status: uncovered
-  code_evidence: 本层代码仅见 ProductCodeEnum.AMS（推送）、ProductCodeEnum.ACFLOW/RVSFACTOR/ORDER（上线审批产品白名单），未出现
-    SCF 字面
-  action: review
-- claim: 项目创建/生效/失效链路会同步至下游 client 侧（系统文档：事件 + Sync 服务保证最终一致）
-  code_status: confirmed
-  code_evidence: TenantProjectApplication.java#create（migratoryPointService.push PROJECT_SYNC/CREATED）、ProjectApprovalApplication.java#backfillProjectSpNoOnSubmit（PlatProjectEventType.EFFECTED）
-  action: anchor
-- claim: 项目审批含退回/驳回/转审等办理动作（系统文档：项目管理代码地图相关上下文）
-  code_status: confirmed
-  code_evidence: 'ProjectApprovalDeskApplication.java#back / #reject / #transfer /
-    #agree'
-  action: anchor
-- claim: 项目上线审批条件包含『标准项目』与『常规项目』区分（系统文档未明示，代码显式）
-  code_status: confirmed
-  code_evidence: 'ProjectApprovalApplication.java#resolveFlowCode（ProjectApprovalProjectTypeEnum.STANDARD→STANDARD
-    flow；否则 REGULAR）+ #isPushToAms'
-  action: anchor
+  - wechat_project_approval_apply.solution_manager
+  evidence: code_path:ProjectStatisticsApplication.java:manualCreate
+- name: 项目阶段自动流转规则
+  content: 审批通过后，若首笔落地时间被更新且项目阶段不是持续运营，则自动将项目阶段置为 OPERATION（持续运营）。
+  impact: 项目阶段随业务进展自动推进。
+  field_targets:
+  - wechat_project_approval_apply.project_phase
+  - wechat_project_approval_apply.first_settlement_time
+  - wechat_project_approval_apply.act_procinst_status
+  evidence: code_path:ProjectStatisticsApplication.java:applyOperationPhaseWhenFirstSettlementUpdatedUnderApproved
+- name: 业务系统推送项目配置节点校验
+  content: 业务系统推送项目运营配置时，仅当项目存在 wf_status=RUNNING 且 is_latest=Y 的上线审批，且当前节点为方案经理（PROJECT_MANAGER）或项目配置（PROJECT_CONFIG）且
+    node_status=APPROVING 时才落库更新；其他节点静默成功不落库。
+  impact: 控制项目配置推送时机，避免无效更新。
+  field_targets:
+  - tenant_project_approval.wf_status
+  - tenant_project_approval.is_latest
+  - tenant_project_approval_flow.node_code
+  - tenant_project_approval_flow.node_status
+  evidence: code_path:ProjectBusinessConfigApplication.java:savePush
+reqdoc_claims: []
+enum_audit:
+- field: tenant_project_approval.wf_status
+  value: REVOKED
+  java_name: ''
+  stored_as: 字面量
+  label: 已撤销
+  verdict: reject
+  evidence: DB对账 + ProjectApprovalWorkflowStatusEnum.java
+  note: 代码枚举 ProjectApprovalWorkflowStatusEnum 未包含 REVOKED，但 DB 有 18 条记录，可能由工作流撤销操作产生，需补充枚举或映射。
+- field: tenant_project_approval_flow_file.catg_id
+  value: FBP_OA_ATTACHMENT
+  java_name: ''
+  stored_as: 字面量
+  label: 未知
+  verdict: reject
+  evidence: DB对账 + ProjectApprovalMediaCatgEnum.java
+  note: 代码枚举 ProjectApprovalMediaCatgEnum 未声明 FBP_OA_ATTACHMENT，DB 有 31 条，可能来自其他模块或硬编码。
+- field: tenant_project_approval_flow_file.catg_id
+  value: FBP_OA_COMMENT_FILE
+  java_name: ''
+  stored_as: 字面量
+  label: 未知
+  verdict: reject
+  evidence: DB对账 + ProjectApprovalMediaCatgEnum.java
+  note: 代码枚举 ProjectApprovalMediaCatgEnum 未声明 FBP_OA_COMMENT_FILE，DB 有 83 条，可能来自其他模块或硬编码。
+- field: wechat_project_approval_apply.act_procinst_status
+  value: '1'
+  java_name: ACT_PROCINST_IN_PROGRESS
+  stored_as: 字面量
+  label: 审批中
+  verdict: confirm
+  evidence: ProjectStatisticsApplication.java
+  note: 代码常量用于跳过审批中记录，与 DB 分布一致。
+- field: wechat_project_approval_apply.act_procinst_status
+  value: '2'
+  java_name: ACT_PROCINST_APPROVED / EXPORT_REQUIRED_ACT_PROCINST_STATUS
+  stored_as: 字面量
+  label: 已通过
+  verdict: confirm
+  evidence: WechatProjectApprovalApplication.java
+  note: 导出固定过滤值，与 DB 分布一致。
+- field: wechat_project_approval_apply.data_source
+  value: MANUAL
+  java_name: DATA_SOURCE_MANUAL
+  stored_as: 字面量
+  label: 模拟立项
+  verdict: confirm
+  evidence: ProjectStatisticsApplication.java
+  note: 模拟立项数据来源，与 DB 分布一致。
+- field: wechat_project_approval_apply.data_source
+  value: WECHAT
+  java_name: DATA_SOURCE_WECHAT / EXPORT_REQUIRED_DATA_SOURCE
+  stored_as: 字面量
+  label: 真实立项（企微同步）
+  verdict: confirm
+  evidence: WechatProjectApprovalApplication.java
+  note: 企微同步数据来源，与 DB 分布一致。
+- field: tenant_project_approval_flow.node_status
+  value: APPROVING
+  java_name: APPROVING
+  stored_as: getDictKey
+  label: 审批中
+  verdict: confirm
+  evidence: ProjectOnlineProcessOperateListener.java
+  note: 节点激活时写入。
+- field: tenant_project_approval_flow_node.operate_type
+  value: PASS
+  java_name: PASS
+  stored_as: getDictKey
+  label: 同意
+  verdict: confirm
+  evidence: ProjectApprovalDeskApplication.java
+  note: 同意操作写入。
+- field: tenant_project_approval.project_type
+  value: STANDARD
+  java_name: STANDARD
+  stored_as: getDictKey
+  label: 标准项目
+  verdict: confirm
+  evidence: ProjectApprovalApplication.java
+  note: 用于判断是否推送 AMS。
+relation_audit:
+- left: tenant_project_approval
+  right: tenant_project
+  kind: ref
+  verdict: confirm
+  evidence: java-eq:ProjectApprovalApplication.java:findLatestApprovalByProjectCode
+  note: 通过 ref_tenant_project_approval_tenant_project = tenant_project.code 关联查询。
+- left: tenant_project_approval_flow
+  right: tenant_project_approval
+  kind: ref
+  verdict: confirm
+  evidence: java-eq:ProjectApprovalApplication.java:loadFlowDtoList
+  note: 通过 ref_tenant_project_approval_flow_tenant_project_approval = tenant_project_approval.code
+    关联。
+- left: tenant_project_approval_flow_node
+  right: tenant_project_approval_flow
+  kind: ref
+  verdict: confirm
+  evidence: write-flow:ProjectApprovalDeskApplication.java:buildFlowNode
+  note: 通过 ref_tenant_project_approval_flow_node_project_approval_flow = tenant_project_approval_flow.code
+    关联。
+- left: tenant_project_approval_flow_node
+  right: tenant_project_approval
+  kind: ref
+  verdict: confirm
+  evidence: java-eq:ProjectApprovalDeskApplication.java:getFlowByApprovalAndNodeCode
+  note: 通过 ref_tenant_project_approval_flow_node_project_approval = tenant_project_approval.code
+    关联。
+- left: tenant_project_approval_flow_credit
+  right: tenant_project_approval
+  kind: ref
+  verdict: confirm
+  evidence: java-eq:ProjectApprovalApplication.java:loadCreditDto
+  note: 通过 ref_tenant_project_approval_flow_credit_project_approval = tenant_project_approval.code
+    关联。
+- left: tenant_project_approval_flow_credit
+  right: tenant_project_approval_flow_node
+  kind: ref
+  verdict: confirm
+  evidence: write-flow:ProjectApprovalDeskApplication.java:saveCreditInfo
+  note: 通过 ref_tenant_project_approval_flow_credit_project_approval_node = tenant_project_approval_flow_node.code
+    关联。
+- left: tenant_project_approval_flow_file
+  right: tenant_project_approval_flow_node
+  kind: ref
+  verdict: confirm
+  evidence: write-flow:ProjectApprovalDeskApplication.java:doMediaFile
+  note: 通过 ref_tenant_project_approval_flow_file_project_approval_flow_node = tenant_project_approval_flow_node.code
+    关联。
+- left: tenant_project_approval_business_info
+  right: tenant_project
+  kind: SHARED_KEY
+  verdict: derived
+  evidence: copy:ProjectBusinessConfigApplication.java:fillBusinessInfo
+  note: project_config_version 字段拷贝，仅用于展示，非关联查询。
+- left: wechat_project_approval_field_history
+  right: wechat_project_approval_apply
+  kind: SHARED_KEY
+  verdict: derived
+  evidence: copy:ProjectStatisticsApplication.java
+  note: 历史表通过 apply_id 关联，capital_org_full_name 等字段为快照拷贝。
+- left: tenant_project_approval_flow_file
+  right: tenant_project_approval_flow_node
+  kind: SHARED_KEY
+  verdict: derived
+  evidence: copy:ProjectApprovalDeskApplication.java:doMediaFile
+  note: ref_tenant_project_approval_flow_file_project_approval 拷贝自节点父审批 code，非直接外键。
+- left: tenant_project
+  right: tenant_project_approval
+  kind: write-flow
+  verdict: derived
+  evidence: write-flow:ProjectApprovalApplication.java:createInitialApproval
+  note: 代码中 project.setProjectApprovalId(approval.getId()) 但未显式持久化 tenant_project，关系未闭环。

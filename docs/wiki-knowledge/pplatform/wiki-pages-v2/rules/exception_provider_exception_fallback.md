@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 异常解析对外查询-异常兜底
-page_key: rules/exception_provider_exception_fallback
+page_key: exception_provider_exception_fallback
 domain: funding
 status: draft
 aliases:
@@ -14,6 +14,7 @@ scope:
 sources:
   - "code:FundingPartyExceptionResolutionProviderImpl#queryByFundingPartyId"
 contract_version: "0.1"
+belong: rules
 ---
 
 # 异常解析对外查询-异常兜底

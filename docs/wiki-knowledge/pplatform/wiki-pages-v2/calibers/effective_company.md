@@ -12,6 +12,7 @@ scope:
 sources:
   - code:CustCompanyUtilApplication.java:getTenantCodesWithEffectCompany
 contract_version: "0.1"
+belong: calibers
 ---
 
 “生效企业”是跨表查询与租户判定的核心口径：只有同时满足**认证成功**（`cust_build_status = 'BUILD_SUCCESS'`，见 [[auth_status]]）、**客户生效**（`cust_status = 'EFFECT'`，见 [[customer_status]]）、**是主数据**（`data_type = '1'`，见 [[main_data]]）、**数据启用**（`enable = 'Y'`）四个条件的记录，才算作可开展业务的生效企业。

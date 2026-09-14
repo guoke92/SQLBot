@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 存量租户数据
-page_key: caliber.stack_tenant_data
+page_key: stack_tenant_data
 domain: 租户配置
 status: draft
 aliases:
@@ -14,6 +14,7 @@ scope:
 sources:
   - db:tenant_setting_config.is_stack
 contract_version: "0.1"
+belong: calibers
 ---
 
 以 `is_stack='Y'` 标记从历史系统迁移或早期即存在的租户数据，用于区分租户数据的来源批次。该口径常用于判断某租户是否受历史行为约束（例如背景色/灰度、生效流程的差异化处理）。当前证据仅给出该取值的存在，未展开具体分支逻辑。

@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 企微待办通知按节点与通知类型分发
-page_key: rule.wechat-todo-notify
+page_key: wechat-todo-notify
 domain: 企业变更与运营变更
 status: draft
 aliases: [dispatchWechatNotify, 企微待办, 后补合作协议流程通知]
@@ -12,6 +12,7 @@ sources:
   - code_path:BackAgreementProcessOperateListener.java:notice
   - code_path:BackAgreementProcessOperateListener.java:dispatchWechatNotify
 contract_version: "0.1"
+belong: rules
 ---
 
 后补合作协议流程仅在 `taskNoticeType=2`（待办通知）时向 `taskNoticeUsers` 反查企微 `userId` 并发送 textcard 待办；其它通知类型忽略。反查不到企微用户时静默返回。

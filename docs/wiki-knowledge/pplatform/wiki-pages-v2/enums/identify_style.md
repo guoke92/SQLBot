@@ -9,10 +9,21 @@ oid: 1
 scope:
   databases: [lowcode_pplatform]
 sources: ["code:extract-enums.yaml", "db:db-profile.yaml"]
-created: '2026-09-10'
-updated: '2026-09-10'
+created: '2026-09-14'
+updated: '2026-09-14'
 contract_version: "0.1"
+belong: enums
 ---
+
+
+
+
+
+
+
+
+
+
 
 # identify_style
 
@@ -22,12 +33,12 @@ contract_version: "0.1"
 enum: identify_style
 fields: [cust_company_info.identify_style, cust_change_cfg.identify_style]
 values:
-  INVITE:
-    label: 邀请认证-客户录入
-  INVITE_AGW:
-    label: 邀请认证-内管录入
-  SIMPLE:
-    label: 简易认证
-  SELF:
-    label: 自主认证
+  "INVITE":
+    label: "邀请认证-客户录入"
+  "INVITE_AGW":
+    label: "邀请认证-内管录入"
+  "SIMPLE":
+    label: "简易认证"
+  "SELF":
+    label: "自主认证"
 ```

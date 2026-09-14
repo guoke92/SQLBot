@@ -9,10 +9,22 @@ oid: 1
 scope:
   databases: [lowcode_pplatform]
 sources: ["code:extract-enums.yaml", "db:db-profile.yaml"]
-created: '2026-09-10'
-updated: '2026-09-10'
+created: '2026-09-14'
+updated: '2026-09-14'
 contract_version: "0.1"
+belong: enums
 ---
+
+
+
+
+
+
+
+
+
+
+
 
 # rule_layer
 
@@ -22,10 +34,10 @@ contract_version: "0.1"
 enum: rule_layer
 fields: [funding_rule_detail.rule_layer, funding_rule_front_cfg.rule_layer]
 values:
-  UNDERLYING:
-    label: 底层规则
-  FINANCING:
-    label: 融资规则
-  OTHER:
-    label: 其他规则
+  "UNDERLYING":
+    label: "底层规则"
+  "FINANCING":
+    label: "融资规则"
+  "OTHER":
+    label: "其他规则"
 ```

@@ -1,7 +1,7 @@
 ---
 type: process
 title: "变更记录审核状态机"
-page_key: "processes/change_record_check_machine"
+page_key: change_record_check_machine
 domain: "customer-onboarding"
 status: draft
 aliases:
@@ -15,6 +15,7 @@ sources:
   - "code_path:CustStatusCommitProcessor.java:changeMessage"
   - "code_path:CustStatusCommitProcessor.java:changeMessage(checkAdvice.contains(\"退回\") && SELF_ALTER)"
 contract_version: "0.1"
+belong: processes
 ---
 
 变更记录审核状态机描述 `cust_change_record.status` 的流转。与工作流审核状态机不同，本状态机在退回场景会写入 `returnCust-yyyy-MM-dd HH:mm` 这类按分钟动态生成的非枚举值，因此基于枚举的状态口径不能完整覆盖该分支，需以 [[tables/cust_change_record]] 的实际值为准。

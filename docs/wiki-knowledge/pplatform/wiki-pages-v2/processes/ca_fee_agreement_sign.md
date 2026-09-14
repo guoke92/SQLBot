@@ -1,7 +1,7 @@
 ---
 type: process
 title: 收费协议签署状态机
-page_key: processes/ca_fee_agreement_sign
+page_key: ca_fee_agreement_sign
 domain: CA证书收费
 status: draft
 aliases: [agreement_signed 状态机, 协议签署状态流转]
@@ -12,6 +12,7 @@ sources:
   - db:ca_fee_order
   - code:CaFeeAgreementApplication.java
 contract_version: "0.1"
+belong: processes
 ---
 
 # 收费协议签署状态机

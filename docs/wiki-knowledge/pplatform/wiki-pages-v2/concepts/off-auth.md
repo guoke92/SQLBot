@@ -1,7 +1,7 @@
 ---
 type: concept
 title: 线下授权（off_auth）
-page_key: concept.off_auth
+page_key: off-auth
 domain: 授权协议与电子授权
 status: draft
 aliases:
@@ -20,6 +20,7 @@ also_confused_with:
   - 线上签署（on_auth）
   - 邀请认证-平台录入（业务上必然线下签署）
 boundary: "authModel 是企业用户在运营中台的授权模式；与企业建档方式 identify_style 正交"
+belong: concepts
 ---
 
 `off_auth` 是企业用户在运营中台的授权模式取值，作为 [[calibers/offline-electronic-auth-trigger]] 的硬条件之一出现在签署编排中（代码注释与日志字面为 `off_auth`）。

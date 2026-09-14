@@ -1,7 +1,7 @@
 ---
 type: concept
 title: tenantCode 租户标识
-page_key: concepts/tenantCode
+page_key: tenantCode
 domain: 平台产品配置
 status: draft
 aliases: [tenantCode, dbTenantCode, 数据租户标识]
@@ -17,6 +17,8 @@ adjudication: boundary
 also_confused_with: [appTenantCode]
 contract_version: "0.1"
 sources: ["enrich:wiki-admin"]
+belong: concepts
+field_targets: [platform_product.db_tenant_code]
 ---
 
 tenantCode 与 dbTenantCode 指数据租户标识，映射到 [[tables/platform_product]] 的 `db_tenant_code`，[[tables/cust_company_info]] 也以同名 `db_tenant_code` 承载该语义。

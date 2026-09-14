@@ -9,10 +9,22 @@ oid: 1
 scope:
   databases: [lowcode_pplatform]
 sources: ["code:extract-enums.yaml", "db:db-profile.yaml"]
-created: '2026-09-10'
-updated: '2026-09-10'
+created: '2026-09-14'
+updated: '2026-09-14'
 contract_version: "0.1"
+belong: enums
 ---
+
+
+
+
+
+
+
+
+
+
+
 
 # cust_scale
 
@@ -20,17 +32,17 @@ contract_version: "0.1"
 
 ```ground:enum
 enum: cust_scale
-fields: [cust_company_info.cust_scale]
+fields: []
 values:
-  LARGE:
-    label: 大型企业
-  MIDDLE:
-    label: 中型企业
-  SMALL:
-    label: 小型企业
-  MINIATURE:
-    label: 微型企业
-  qw:
+  "LARGE":
+    label: "大型企业"
+  "MIDDLE":
+    label: "中型企业"
+  "SMALL":
+    label: "小型企业"
+  "MINIATURE":
+    label: "微型企业"
+  "qw":
     label: "qw"
-    note: db 分布存在但代码枚举未声明（REVIEW）
+    note: "db 分布存在但代码枚举未声明（REVIEW）"
 ```

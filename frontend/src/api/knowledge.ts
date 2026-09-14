@@ -72,8 +72,10 @@ export const knowledgeApi = {
     }) as Promise<{ remap_databases: Record<string, string> }>,
   bindCorpus: (data: {
     corpus_key: string
-    datasource_id: number
+    datasource_id?: number
+    datasource_ids?: number[]
     remap_databases?: Record<string, string>
+    remaps_by_datasource?: Record<string, Record<string, string>>
   }) => request.put('/wiki/bindings', data),
   unbindDatasource: (datasourceId: number) =>
     request.delete(`/wiki/bindings/${datasourceId}`),

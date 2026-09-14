@@ -1,7 +1,7 @@
 ---
 type: concept
 title: 小程序二维码
-page_key: concept/miniprogram_qrcode
+page_key: miniprogram_qrcode
 domain: 微信生态/小程序/扫脸
 status: draft
 aliases: [getFaceQrCode, getCustBuildQrCode, 二维码]
@@ -17,6 +17,7 @@ also_confused_with:
   - CA 关联的 certificationId 生成的二维码
 boundary: "当传 certificationId 时 busiSeqNo=certificationId+LocalDate.now()，否则 busiSeqNo=custId+LocalDate.now()；busiSeqNo 语义随入参改变，是同一接口内的分支语义，不是同一个业务标识。"
 contract_version: "0.1"
+belong: concepts
 ---
 
 # 小程序二维码

@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 主数据判定口径（data_type = DATA_TYPE_MAIN）
-page_key: caliber.main_data_type
+page_key: main_data_type
 domain: 平台内部服务对接
 status: draft
 aliases:
@@ -13,6 +13,7 @@ scope:
 sources:
   - semantic:field_semantics[cust_company_info.data_type]
 contract_version: "0.1"
+belong: calibers
 ---
 
 企业表同一物理表内混放多类数据，主数据以 CustDataTypeConstant.DATA_TYPE_MAIN 标识。

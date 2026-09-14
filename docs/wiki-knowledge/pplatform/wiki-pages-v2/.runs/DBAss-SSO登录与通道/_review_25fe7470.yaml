@@ -1,0 +1,9 @@
+body: 'enum_audit 中 cust/enums/StatusEnum.java 的 EFFECTIVE/INVALID 两条判定为 reject：
+
+  给定 SSO/登录/用户链路未使用该枚举，cust_person_info.status 实际以字面量 ADD→EFFECT 写入
+
+  （SaaSAuthController.makePersonEffect），与 EFFECTIVE/INVALID 不一致。
+
+  故本主题不产出 enum 页；如需保留 StatusEnum，请确认其真实使用点，否则应从底稿移除。'
+title: StatusEnum 与 cust_person_info.status 写值不一致
+type: enum

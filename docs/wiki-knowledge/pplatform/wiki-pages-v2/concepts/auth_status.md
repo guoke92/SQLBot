@@ -19,6 +19,8 @@ also_confused_with:
   - 客户状态
   - 审核状态
 boundary: 认证状态描述企业建档审核的进度；客户状态描述企业生命周期状态；审核状态描述运营中台单次审核结果。
+belong: concepts
+field_targets: [cust_company_info.cust_build_status]
 ---
 
 “认证状态”（也称建档状态）指 `cust_company_info.cust_build_status`，描述一个企业从初始化（`INIT`）到认证成功（`BUILD_SUCCESS`）/认证失败（`BUILD_FAIL`）的全流程进度。它是建档流程的主状态，流转细节见 [[enterprise_auth_status_machine]]。

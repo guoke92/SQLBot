@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 异常解析-唯一键去重
-page_key: rules/exception_unique_key_dedup
+page_key: exception_unique_key_dedup
 domain: funding
 status: draft
 aliases:
@@ -15,6 +15,7 @@ sources:
   - "db:funding_exception_resolution_un"
   - "code:ExceptionResolutionApplication#checkBeforeSave"
 contract_version: "0.1"
+belong: rules
 ---
 
 # 异常解析-唯一键去重

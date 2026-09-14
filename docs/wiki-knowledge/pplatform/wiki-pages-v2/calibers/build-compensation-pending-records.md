@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 建档异步补偿待处理记录
-page_key: calibers/build-compensation-pending-records
+page_key: build-compensation-pending-records
 domain: 平台事件监听与同步
 status: draft
 aliases:
@@ -14,6 +14,7 @@ scope:
 sources:
   - code:RegAsyncCompensationJobHandler.java:getCompensationRecords
 contract_version: "0.1"
+belong: calibers
 ---
 
 补偿任务的取数口径：仅扫描 remark 以 `COMPENSATION_` 开头且 retry_status 处于 PENDING/RETRYING 的 [[tables/cust_build_record]] 记录。

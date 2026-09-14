@@ -1,7 +1,7 @@
 ---
 type: process
 title: 实名/人脸核查结果状态
-page_key: process/realname_face_verify_state
+page_key: realname_face_verify_state
 domain: 微信生态/小程序/扫脸
 status: draft
 aliases: [核查结果状态, 人脸核查状态]
@@ -11,6 +11,7 @@ scope:
 sources:
   - code:AutoVerifyServiceImpl.java
 contract_version: "0.1"
+belong: processes
 ---
 
 # 实名/人脸核查结果状态

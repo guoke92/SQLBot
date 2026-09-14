@@ -672,10 +672,18 @@ _COMPACT_FIELD_ALIASES = {
 }
 
 
+_PHYSICAL_TARGET_RE = re.compile(r"^[a-z][a-z0-9_]*\.[A-Za-z][A-Za-z0-9_]*$")
+
+
 def compact_block(data: Any) -> Any:
     if not isinstance(data, dict):
         return data
     out = dict(data)
+    # LLM 方言：columns[{field,meaning}] → fields[{name,desc}]
+    if "fields" not in out and isinstance(out.get("columns"), list):
+        out["fields"] = out.pop("columns")
+    elif "columns" in out:
+        out.pop("columns", None)
     for old, new in _COMPACT_FIELD_ALIASES.items():
         if old in out and new not in out:
             out[new] = out.pop(old)
@@ -686,4 +694,51 @@ def compact_block(data: Any) -> Any:
         # enum 块的 fields 是 表.列 字符串（非 dict）——原样保留；
         # table 块的 fields 是字段映射 dict——递归归一。
         out["fields"] = [compact_block(f) if isinstance(f, dict) else f for f in fields]
+    raw_values = out.get("values")
+    if isinstance(raw_values, list):
+        converted: dict[str, Any] = {}
+        for item in raw_values:
+            if isinstance(item, dict) and item.get("value") is not None:
+                key = str(item["value"])
+                info = {k: v for k, v in item.items() if k != "value"}
+                if "label" not in info and info.get("desc"):
+                    info["label"] = info["desc"]
+                converted[key] = info or {"label": key}
+            elif item is not None:
+                converted[str(item)] = {"label": str(item)}
+        out["values"] = converted
     return out
+
+
+def stamp_frontmatter(content: str, *, stem: str, belong: str = "") -> str:
+    """盖章 page_key/belong，并从合法 maps_to 回填 field_targets。
+
+    磁盘页以文件名 stem 为身份；LLM 草稿常写成 ``table.foo`` / ``concepts/foo``，
+    不盖章则渲染器/索引按错误键查找。解析失败时仍做正则盖章，不丢散文。
+    """
+    match = re.match(r"\A(---\n)([\s\S]*?)(\n---\n)", content)
+    if not match:
+        return content
+    front = match.group(2)
+    page_key = normalize_page_key(stem)
+    if re.search(r"^page_key:", front, re.M):
+        front = re.sub(
+            r"^page_key:.*$", f"page_key: {page_key}", front, count=1, flags=re.M
+        )
+    else:
+        front = f"page_key: {page_key}\n{front}"
+    if belong:
+        if re.search(r"^belong:", front, re.M):
+            front = re.sub(
+                r"^belong:.*$", f"belong: {belong}", front, count=1, flags=re.M
+            )
+        else:
+            front = f"{front.rstrip()}\nbelong: {belong}"
+    maps_raw = ""
+    maps_match = re.search(r'^maps_to:\s*"?([^"\n]+)"?\s*$', front, re.M)
+    if maps_match:
+        maps_raw = maps_match.group(1).strip()
+    has_targets = re.search(r"^field_targets:\s*\[", front, re.M)
+    if maps_raw and _PHYSICAL_TARGET_RE.match(maps_raw) and not has_targets:
+        front = f"{front.rstrip()}\nfield_targets: [{maps_raw}]"
+    return f"{match.group(1)}{front}{match.group(3)}{content[match.end() :]}"

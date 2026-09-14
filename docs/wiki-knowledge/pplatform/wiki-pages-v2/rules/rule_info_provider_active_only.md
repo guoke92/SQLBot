@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 资方规则-对外仅返回ACTIVE
-page_key: rules/rule_info_provider_active_only
+page_key: rule_info_provider_active_only
 domain: funding
 status: draft
 aliases:
@@ -14,6 +14,7 @@ scope:
 sources:
   - "code:FundingPartyRuleProviderImpl#doQuery"
 contract_version: "0.1"
+belong: rules
 ---
 
 # 资方规则-对外仅返回ACTIVE

@@ -1,7 +1,7 @@
 ---
 type: process
 title: 续费提醒发送状态机
-page_key: processes/ca_fee_renew_remind
+page_key: ca_fee_renew_remind
 domain: CA证书收费
 status: draft
 aliases: [renew_remind_sent 状态机, 续费待办生成状态]
@@ -12,6 +12,7 @@ sources:
   - db:ca_fee_company
   - code:CaFeeRenewalService.java
 contract_version: "0.1"
+belong: processes
 ---
 
 # 续费提醒发送状态机

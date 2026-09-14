@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 文本字段长度上限
-page_key: rule/import-length-limits
+page_key: import-length-limits
 domain: 微企链立项与项目审批
 status: draft
 aliases:
@@ -14,6 +14,7 @@ sources:
   - code_path:ProjectStatisticsApplication.java
   - code_path:WechatProjectApprovalApplication.java
 contract_version: "0.1"
+belong: rules
 ---
 
 同一列在不同导入路径下的长度上限并不相同：`comment`（备注）企微导入上限 200 字、项目立项统计导入上限 500 字；`custom_field_one` 长度校验 500；`project_exception_remark` 统计导入 ≤500 字。

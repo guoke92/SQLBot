@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 存量打包查询规则
-page_key: rule/legacy_package_query
+page_key: legacy_package_query
 domain: CA证书认证
 status: draft
 aliases: [queryEligibleCompanies 规则]
@@ -10,6 +10,7 @@ scope:
   databases: [unknown]
 sources: ["code_path:CfcaOneCertFourStepPackageApplication.java:queryEligibleCompanies"]
 contract_version: "0.1"
+belong: rules
 ---
 
 规则要求：查询 enable='Y'、ca_register_status='Y'、update_time>=since、identify_style!=SIMPLE 的企业，可选租户过滤。影响是确定存量 CA 数据打包的企业范围。

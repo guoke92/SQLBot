@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 变更配置按身份维度匹配
-page_key: rule.change-cfg-identity-match
+page_key: change-cfg-identity-match
 domain: 企业变更与运营变更
 status: draft
 aliases: [变更项清单匹配, 配置匹配规则]
@@ -11,6 +11,7 @@ scope:
 sources:
   - code_path:CustChangeApplication.java:list
 contract_version: "0.1"
+belong: rules
 ---
 
 企业类型按 `client_type` + `identify_style` + `cust_type` + `head_company` + `enable='Y'` 匹配 [[tables.cust_change_cfg]]；个人类型不叠加 `head_company`。口径见 [[calibers.change-cfg-match-dimensions]] 与 [[calibers.change-cfg-enable]]，字段语义见配置表页，变更项标识见 [[concepts.item-code]]。

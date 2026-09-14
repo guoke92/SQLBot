@@ -1,7 +1,7 @@
 ---
 type: concept
 title: 灰度背景
-page_key: concept.gray_background
+page_key: gray_background
 domain: 租户配置
 status: draft
 aliases:
@@ -22,6 +22,7 @@ field_targets:
 adjudication: synonym
 also_confused_with: []
 sources: ["enrich:wiki-admin"]
+belong: concepts
 ---
 
 「灰度背景」「灰色背景」「G」「ColorConstants.GRAY」指同一件事：[[tables/tenant_setting_config]] 中 `bg_color='G'` 所表达的灰色展示态。它是同义集合，不引入新的字段；筛选口径见 [[calibers/gray_bg_tenant]]，取值流转见 [[processes/bg_color_gray]]。

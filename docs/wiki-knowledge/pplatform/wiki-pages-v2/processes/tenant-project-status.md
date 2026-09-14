@@ -1,7 +1,7 @@
 ---
 type: process
 title: 租户项目状态机
-page_key: process/tenant_project_project_status
+page_key: tenant-project-status
 domain: 微企链立项与项目审批
 status: draft
 aliases:
@@ -15,6 +15,7 @@ sources:
   - code_path:ProjectApprovalApplication.java#effectiveProjectOnApprovalFinished
   - code_path:ProjectApprovalApplication.java#invalidateHistoricalProjectOnSubmit
 contract_version: "0.1"
+belong: processes
 ---
 
 租户项目状态是上线审批的下游结果：审批走到终态通过时，对应租户项目被置为已生效；非新增项目正式发起上线审批时，历史项目被置为已失效。也就是说，同一个项目在「重新走一遍上线审批」的过程中会先失效、通过后再生效。

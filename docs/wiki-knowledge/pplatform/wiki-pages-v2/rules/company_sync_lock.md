@@ -11,6 +11,7 @@ scope:
 sources:
   - code_path:PlatFormMigratoryApplication.java:migratoryCust
 contract_version: "0.1"
+belong: rules
 ---
 
 本规则用于挡住同一次企业信息的重复同步：以数据租户编码、企业名称、统一社会信用代码三者拼接作为锁标识，取锁失败即判定为重复同步并抛错，从而保证企业迁移的幂等性。

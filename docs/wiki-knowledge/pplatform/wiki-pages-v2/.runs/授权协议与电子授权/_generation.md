@@ -1,79 +1,14 @@
----FILE: tables/argeement_migratory_record.md ---
----
-type: table
-title: argeement_migratory_record（协议迁移记录表）
-page_key: table.argeement_migratory_record
-domain: 授权协议与电子授权
-status: draft
-aliases:
-  - 协议迁移记录表
-  - 协议迁移拉取记录
-oid: 1
-scope:
-  databases: [unknown]
-sources:
-  - db:argeement_migratory_record
-  - code:AgreementMigratoryService.java
-  - code:PlatFormMigratoryApplication.java
-contract_version: "0.1"
----
-
-`argeement_migratory_record` 是「协议」主题的落地载体：每个客户 × 每个产品 × 每类协议各生成一条待拉取记录，由迁移初始化写入，再由定时任务消费拉取，直到 `status` 置 `1`（拉取结束）。它同时承载签署模式、协议文件路径与协议编号，因此是 [[concepts/agreement]] 与 [[concepts/authorization-agreement]] 的分界线：本表存协议文本与拉取事实，不记录「谁授过权」的授权关系。
-
-相关的判定口径见 [[calibers/pending-pull-agreement-records]]、[[calibers/migratory-init-five-agreements]]、[[calibers/ams-bs-channel]]；状态流转见 [[processes/agreement-migratory-pull-status]] 与 [[processes/agreement-sign-mode]]。产品维度上，`platform_product_code`（AMS/ACFLOW/BEECREDIT/ORDER/RVSFACTOR_PC/STORAGE/VOUCHER）既决定拉取哪一产品的协议，也决定产品协议类型映射；AMS 走 [[concepts/ca-cfca|上上签 BS 通道]]，其余产品走 CFCA。
-
-## 需求背景
-存量客户的协议分散在旧渠道，需要按客户维度逐产品、逐协议类型向客户端拉取并落库，因此需要一张拉取队列表：既能标记「已结束」避免重复拉取，也能限制失败重试次数（`pull_num` < 配置值 `cust.agreemeent.pull.num`，默认 20）。`is_new` 用于区分新老渠道协议，`agreement_no` 用于合同表判重，避免重复迁移。
-
-## 版本演进
-v0 初稿：仅收录语义分析中已有证据的字段语义；本次分析未提供 document_claim（未证实主张），故无标 (document_claim，未证实) 的条目。
-
-```ground:table
-table: argeement_migratory_record
-evidence: db
-```
-
-```ground:field
-table: argeement_migratory_record
-fields:
-  - field: status
-    meaning: "协议迁移拉取状态：'0'（BooleanEnum.no）=待拉取/未处理；'1'（BooleanEnum.yes）=拉取流程已结束（客户端返回了协议，或确认客户端无该协议后置终态，置 1 后不再进入待拉取队列）"
-    evidence: db
-  - field: pull_num
-    meaning: "已拉取尝试次数；pull() 只捞 pull_num < 配置值（cust.agreemeent.pull.num，默认 20）的记录，失败时 +1"
-    evidence: code
-  - field: is_new
-    meaning: "是否新数据：'yes'/'no'（BooleanEnum.name()）；迁移初始化写 isNew，用于区分新老渠道协议"
-    evidence: db
-  - field: sign_mode
-    meaning: "协议签署模式，语义对应 SignModeEnum 三态（NO_SIGN / OFF_LINE / ON_LINE）；DB 实存 '01' / '02' / '03'，代码未给出数值与枚举的显式映射"
-    evidence: db
-  - field: agreement_type
-    meaning: "协议类型 key（AgreementDocType.getAgreementType()）：BS_Auth（AMS 上上签）/CFCA_Auth/ProductProtocol*/CustPersonLicense/UserProtocol/PrivacyPolicy"
-    evidence: db
-  - field: agreement_path
-    meaning: "协议文件在对象存储（COS，FBP_SYSTEM 桶）的存储路径；为空表示未取到文件，createContractInfo 会过滤掉"
-    evidence: code
-  - field: agreement_no
-    meaning: "协议编号（客户端 contractAgreementNo），agreementExist 用它做合同表判重，避免重复迁移"
-    evidence: code
-  - field: platform_product_code
-    meaning: "产品编码（AMS/ACFLOW/BEECREDIT/ORDER/RVSFACTOR_PC/STORAGE/VOUCHER），决定拉取哪一产品的协议及产品协议类型映射"
-    evidence: db
-```
-
----END FILE---
-
 ---FILE: tables/authorization_agreement.md ---
 ---
 type: table
 title: authorization_agreement（授权确认书表）
-page_key: table.authorization_agreement
+page_key: authorization_agreement
 domain: 授权协议与电子授权
 status: draft
 aliases:
   - 授权确认书表
-  - 授权书记录表
+  - 授权书表
+  - 客户管理员授权确认书
 oid: 1
 scope:
   databases: [unknown]
@@ -83,185 +18,235 @@ sources:
 contract_version: "0.1"
 ---
 
-`authorization_agreement` 存的是「谁授过权」的关系事实：按管理员（`cust_manager_id`，sys/SSO userId）维度记录其对企业（`cust_id`）在各产品上的授权状态。`authed_status='Y'` 即视为已授权，是免补签判定的核心输入（见 [[calibers/platform-level-authed]]）。它与 [[concepts/offline-electronic-auth]] 描述的「授权书这一份文件」生命周期不同，二者通过 `cust_id` 关联。
+`authorization_agreement` 记录“企业管理员 → 产融平台”的授权确认关系，是企业开通业务前的一道准入凭证。每条记录通过 `cust_id` 指向 [[cust_company_info]]，通过 `cust_manager_id` 指向被授权/签署的企业管理员用户；`authed_status` 表示授权是否达成，`enable` 表示该记录当前是否有效。授权书按 `platform_product_code` 区分归属：`PLATFORM` 为平台级管理员授权书，其余为业务线产品码，口径见 [[platform_level_auth_agreement]]。
 
-`platform_product_code='PLATFORM'` 表示平台级授权，是补签判定的唯一依据；具体业务产品行（ACFLOW/AMS/ORDER/RVSFACTOR_PC…）的 `Y` 表示存量系统已授权，用于免补签判定（见 [[concepts/platform-product-code]]）。记录的产生场景由 `creation_type` 承载：`AUTO`、`COMPANY_MANAGER_CHANGE_CODE`（管理员变更）、`CUST_BUILD_INIT`（建档）。`act_procinst_id` 为空时（简易认证无流程实例）不落表。
+必须把它与业务协议文件区分开：产品协议、隐私政策、用户协议、CA 协议等协议实体走 [[argeement_migratory_record]]，二者不可互换，边界见 [[auth_agreement]]。
 
 ## 需求背景
-企业授权按人（userid）维度判定，同一自然人在多家企业任职时只需一份平台级授权；企业管理员变更时，原管理员的全部授权记录需被禁用并同步把 `authed_status` 置 `N`，新管理员重新建/更新平台级授权记录。这要求一张既能表达产品维度、又能表达「授权人—企业」关系的记录表。
+平台在放行企业开通业务前，需要确认“当前企业管理员是否有权代表企业签署”。因此建档初始化、补授权、完善资料会写入/更新授权确认记录，状态判定口径为 [[auth_agreement_authed_y]] 与 [[auth_agreement_authed_n]]；管理员换人后旧授权必须整体作废，见 [[manager_change_invalidate_agreement]]。
 
 ## 版本演进
-v0 初稿：仅收录语义分析中已有证据的字段语义；本次分析未提供 document_claim（未证实主张）。
+`creation_type` 同时存在 `CUST_BUILD_INIT`（建档初始化自动授权）、`AUTO`（自动）与 `COMPANY_MANAGER_CHANGE_CODE`（管理员变更），说明建档链路与管理员变更链路先后接入该表；`original_cust_id` 记录源系统 custId，说明该表承接了存量迁移数据。`company_type` 在 DB 中除标准 dictKey 外还存在 JSON 数组与拼写异常值，属历史写入遗留。
 
 ```ground:table
 table: authorization_agreement
-evidence: db
-```
-
-```ground:field
-table: authorization_agreement
+comment: 授权确认书表
 fields:
-  - field: authed_status
-    meaning: "授权书认证状态：'Y'=已授权，'N'=未授权；DDL 默认 '0'，实测仅 N/Y 两值。平台级（platform_product_code='PLATFORM'）为 Y 即视为企业已完成授权"
-    evidence: db
-  - field: platform_product_code
-    meaning: "授权所属产品编码；'PLATFORM' 为平台级授权书（代码常量 PLATFORM_PRODUCT_TYPE），其余为具体业务产品（ACFLOW/AMS/ORDER/RVSFACTOR_PC…）的存量授权"
-    evidence: db
-  - field: creation_type
-    meaning: "授权书产生场景/创建类型。DB 实测 AUTO、COMPANY_MANAGER_CHANGE_CODE、CUST_BUILD_INIT；代码在管理员变更场景写入 AuthAgreementCreationTypeEnum.CHANGE_COMPANY_MANAGER.getDictKey()，建档场景写 CUST_BUILD_INIT"
-    evidence: db
-  - field: enable
-    meaning: "记录有效标志；企业管理员发生变更时，原管理员的全部授权记录被置为 'N' 并同时把 authed_status 置 N"
-    evidence: db
-  - field: cust_manager_id
-    meaning: "企业管理员用户 id（sys/SSO userId）；授权按人（userid）维度判定，同人多企业角色只需一份平台级授权"
-    evidence: code
-  - field: cust_id
-    meaning: "产融侧企业 id（cust_company_info.id）"
-    evidence: code
-  - field: company_type
-    meaning: "企业角色，一般单值（SUPPLIER/CORE/FINANCE/PROJECT_COMPANY…）；DB 存在 '[\"CORE\"]' 这类 JSON 数组形态异常值"
-    evidence: db
-  - field: original_cust_id
-    meaning: "源系统 custId，仅存量迁移产生的授权记录有值"
-    evidence: db
-  - field: act_procinst_id
-    meaning: "流程实例 ID；简易认证无流程实例，createAuthorizationAgreement 遇到空 actProcinstId 直接返回不落表"
-    evidence: code
+  - name: authed_status
+    type: unknown
+    desc: "授权确认书认证状态：Y=已授权，N=未授权/已禁用；DB 分布 Y=11617 / N=19547"
+    dict: "Y/N"
+  - name: platform_product_code
+    type: unknown
+    desc: "授权书归属平台产品编码；PLATFORM=产融平台级管理员授权书（代码常量 PLATFORM_PRODUCT_TYPE），其余为业务线产品码（ACFLOW/AMS/ORDER/RVSFACTOR_PC/...）"
+    dict: "PLATFORM/ACFLOW/AMS/ORDER/RVSFACTOR_PC"
+  - name: company_type
+    type: unknown
+    desc: "企业角色（CustCompanyTypeEnum.getDictKey()，如 SUPPLIER/CORE/FINANCE/PROJECT_COMPANY）；DB 中另存有 JSON 数组与拼写异常值"
+    dict: "CustCompanyTypeEnum"
+  - name: creation_type
+    type: unknown
+    desc: "授权书创建类型：CUST_BUILD_INIT=建档初始化自动授权，AUTO=自动，COMPANY_MANAGER_CHANGE_CODE=管理员变更"
+    dict: "CUST_BUILD_INIT/AUTO/COMPANY_MANAGER_CHANGE_CODE"
+  - name: cust_id
+    type: unknown
+    desc: "企业ID，指向 cust_company_info.id（逻辑外键，非物理 FK）"
+    dict: ""
+  - name: cust_manager_id
+    type: unknown
+    desc: "签署/被授权企业管理员用户ID（对应 cust_person_info.user_id / sys 用户）"
+    dict: ""
+  - name: enable
+    type: unknown
+    desc: "逻辑启用标识，Y/N；管理员变更时原记录置 N"
+    dict: "Y/N"
+  - name: original_cust_id
+    type: unknown
+    desc: "源系统 custId（迁移来源企业标识）"
+    dict: ""
 ```
+---END FILE---
 
+---FILE: tables/argeement_migratory_record.md ---
+---
+type: table
+title: argeement_migratory_record（协议迁移记录表）
+page_key: argeement_migratory_record
+domain: 授权协议与电子授权
+status: draft
+aliases:
+  - 协议迁移记录
+  - 协议拉取记录表
+oid: 1
+scope:
+  databases: [unknown]
+sources:
+  - db:argeement_migratory_record
+  - code:AgreementMigratoryService.java
+contract_version: "0.1"
+---
+
+`argeement_migratory_record` 承载协议实体从业务系统向产融侧迁移的拉取记录：一条记录 = 一个 `platform_product_code` 产品下的一个 `agreement_type` 协议种类，见 [[agreement_type]]。协议文件本体存在 COS 上（`agreement_path`），记录本身负责“是否已拉取”（`status`）、失败重试次数（`pull_num`）与签署模式（`sign_mode`）。
+
+它与 [[authorization_agreement]]（授权确认记录）语义不同，见 [[auth_agreement]]；状态流转见 [[agreement_migratory_pull_status]]。
+
+## 需求背景
+存量客户在业务系统已签署的协议需要迁移到产融侧留存与展示，因此需要一张表记录每个产品、每种协议的拉取进度，并支持有限次重试，口径见 [[agreement_migratory_pending_pull]]、[[agreement_migratory_pulled]]、[[agreement_migratory_enabled]]；签署方式需可追溯，见 [[agreement_sign_mode_offline]] 与 [[sign_mode_mapping]]。
+
+## 版本演进
+`is_new` 落库存的是 BooleanEnum 的 java name（yes/no）而非 dictKey，`status` 列为 int 却存字符串数字，`sign_mode` 用两位字典码区分线上/线下/无需签署——这些不一致说明该表是在迁移项目推进中逐步演化出来的，字段写入方式未统一。
+
+```ground:table
+table: argeement_migratory_record
+fields:
+  - name: agreement_type
+    type: unknown
+    desc: "协议类型（AgreementDocType.getAgreementType()）：PrivacyPolicy/UserProtocol/CustPersonLicense/CFCA_Auth/BS_Auth/ProductProtocol*"
+    dict: "AgreementDocType"
+  - name: status
+    type: int
+    desc: "协议拉取状态：0=待拉取（BooleanEnum.no），1=已拉取完成（BooleanEnum.yes）；列为 int 但存字符串数字"
+    dict: "0/1"
+  - name: sign_mode
+    type: unknown
+    desc: "协议签署模式：01=线上，02=线下，03=无需签署（SignModeEnum.getDictKey()）"
+    dict: "SignModeEnum"
+  - name: is_new
+    type: unknown
+    desc: "是否新数据，存 BooleanEnum 的 java name（yes/no）而非 dictKey"
+    dict: "BooleanEnum"
+  - name: pull_num
+    type: unknown
+    desc: "拉取次数，用于失败重试上限（pull_num < 配置的 pullNum）"
+    dict: ""
+  - name: agreement_path
+    type: unknown
+    desc: "协议文件在 COS 上的存储路径（协议实体文件）"
+    dict: ""
+  - name: cust_id
+    type: unknown
+    desc: "产融客户ID，指向 cust_company_info.id（逻辑外键）"
+    dict: ""
+```
 ---END FILE---
 
 ---FILE: tables/cust_company_info.md ---
 ---
 type: table
-title: cust_company_info（客户企业信息表）
-page_key: table.cust_company_info
+title: cust_company_info（企业建档信息表）
+page_key: cust_company_info
 domain: 授权协议与电子授权
 status: draft
 aliases:
-  - 客户企业信息表
   - 企业建档信息表
+  - 建档表
 oid: 1
 scope:
   databases: [unknown]
 sources:
   - db:cust_company_info
-  - code:CustCompanyInfoApplication.java
   - code:CustAuthSignOrchestrationApplication.java
+  - code:CustAuthAgreementDomainService.java
 contract_version: "0.1"
 ---
 
-`cust_company_info` 是授权与签署编排的主语表：它同时承载建档/认证状态（见 [[processes/cust-build-status]]）、电子签章开通状态（[[concepts/ca-cfca]]）、数据来源与补签标志位。签署编排的几乎全部硬条件（`check_status`、`need_register_ca`、`ca_register_status`、`identify_style`）都落在这张表上，见 [[calibers/offline-electronic-auth-trigger]] 与 [[rules/electronic-auth-sign-preconditions]]。
-
-免补签判定由 `cust_source` 与 `auth_aggrement_supplement_flag` 决定：`PLATFORM_PUSH` 直接免签（[[calibers/platform-push-no-supplement]]），存量迁移需 `auth_aggrement_supplement_flag='N'` 才免签（[[calibers/migratory-no-supplement]]）。`id` / `app_no` 另被用作签署幂等与分布式锁的键组成部分，见 [[rules/sign-idempotency-and-lock]]。
+`cust_company_info` 是企业建档主表，同时承担授权与签章能力的判定底座：`cust_build_status` 描述建档认证进度（见 [[cust_build_status_flow]]），`need_register_* / *_register_status` 描述电子签章通道的意愿与实际开通情况（见 [[electronic_seal_activation]]），`cust_source / identify_style` 决定该企业走哪条建档与授权链路（见 [[migratory_supplement_exemption]]）。[[authorization_agreement]] 与 [[argeement_migratory_record]] 均以本表 `id` 作为逻辑外键。
 
 ## 需求背景
-企业从建档、认证审核到签署授权书需要一条可追踪的状态链，并需要把「是否需要开证书/电子签章」「数据从哪来」「是否需要补签」这些与签署前置条件相关的标志位就近存放，避免跨系统实时查询。
+线下授权书要改成线上电子签署，前提是“这家企业已开通 CA、且租户允许”，因此签章意愿/结果与授权补签开关都落在企业建档表上，判定口径见 [[need_register_ca]]、[[cfca_registered]]、[[auth_agreement_supplement_flag]]、[[tenant_electronic_auth_flag]]，触发条件见 [[offline_eauth_sign_trigger]]。
 
 ## 版本演进
-v0 初稿：仅收录语义分析中已有证据的字段语义；本次分析未提供 document_claim（未证实主张）。
+`migarory_auth_aggrement_flag`（迁移到授权书新渠道标识）字段名保留了历史拼写 `migarory`，未做重命名；`auth_aggrement_supplement_flag` 与 `cust_source=MIGRATORY` 的组合说明新渠道迁移企业被豁免补签，属迁移后期新增口径；`bs_register_status`（上上签）与 `ca_register_status`（CFCA）并存，说明签章通道由单通道扩展为多通道。
 
 ```ground:table
 table: cust_company_info
-evidence: db
-```
-
-```ground:field
-table: cust_company_info
 fields:
-  - field: need_register_ca
-    meaning: "是否需要开通电子签章（CFCA）：'Y'=需开通；与 ca_register_status 一起构成 isCaRegistered 判定"
-    evidence: code
-  - field: ca_register_status
-    meaning: "CFCA 开通状态：'Y'=已开通；线下电子授权书签署的前置条件（若正在重开 CA，则等开通成功后链式触发签署）"
-    evidence: code
-  - field: need_register_bs
-    meaning: "是否需要开通上上签（BestSign）：AMS 产品走 BS 通道，setSignRegister 中 AMS 会把 needRegisterBs 置 'Y'"
-    evidence: code
-  - field: bs_register_status
-    meaning: "上上签开通状态：'Y'=已开通；AMS 产品线幂等判断依据"
-    evidence: code
-  - field: cust_source
-    meaning: "建档数据来源（CustSourceEnum）：PLATFORM_PUSH=外部平台推送（免补签授权书）、MIGRATORY=存量迁移等"
-    evidence: code
-  - field: migarory_auth_aggrement_flag
-    meaning: "迁移到授权书新渠道标识：存量迁移走新渠道时置 'Y'"
-    evidence: code
-  - field: auth_aggrement_supplement_flag
-    meaning: "是否需展示/允许授权书补签：旧渠道迁移置 'Y'（需补签），新渠道置 'N'（不需补签）；updateAuthAggrementFlag 可人工翻转"
-    evidence: code
-  - field: identify_style
-    meaning: "认证方式（IdentifyTypeConstant）：INVITE=邀请认证客户录入、INVITE_AGW=邀请认证平台录入、SELF=自主注册、SIMPLE=简易认证"
-    evidence: code
-  - field: cust_build_status
-    meaning: "建档/认证状态（CustBuildStatusEnum）：INIT/CUST_CONFIRM_AWAIT/CUST_BUILDING/BUILD_SUCCESS/BUILD_FAIL 等"
-    evidence: code
-  - field: check_status
-    meaning: "审核（运营中台）状态：'CUST_CHECK_PASS'=审核通过，是电子授权书签署编排的硬条件之一"
-    evidence: code
-  - field: sign_mode
-    meaning: "产品协议签署方式（企业维度）"
-    evidence: code
+  - name: need_register_ca
+    type: unknown
+    desc: "是否需要开通电子签章(CFCA)，Y/N"
+    dict: "Y/N"
+  - name: ca_register_status
+    type: unknown
+    desc: "CFCA 开通状态（OpenStatus，Y/N）；仅 need_register_ca=Y 且本字段=Y 才算已开通"
+    dict: "OpenStatus"
+  - name: need_register_bs
+    type: unknown
+    desc: "是否需要开通上上签(BEST_SIGN)，Y/N；AMS 产品签章通道"
+    dict: "Y/N"
+  - name: bs_register_status
+    type: unknown
+    desc: "上上签开通状态 Y/N；迁移开通时与 ca_register_status 同时置 Y"
+    dict: "Y/N"
+  - name: auth_aggrement_supplement_flag
+    type: unknown
+    desc: "是否展示/开启授权书补签：Y=需补签；迁移新渠道企业置 N"
+    dict: "Y/N"
+  - name: migarory_auth_aggrement_flag
+    type: unknown
+    desc: "迁移到授权书新渠道标识（Y/N，注意字段名拼写为 migarory）"
+    dict: "Y/N"
+  - name: cust_source
+    type: unknown
+    desc: "建档数据来源：PLATFORM_PUSH=外部平台推送（无需授权书）、MIGRATORY=存量迁移、其他为产融自建"
+    dict: "PLATFORM_PUSH/MIGRATORY"
+  - name: identify_style
+    type: unknown
+    desc: "认证方式：INVITE=邀请客户录入、INVITE_AGW=邀请平台录入、SELF=自主注册、SIMPLE=简易认证"
+    dict: "INVITE/INVITE_AGW/SELF/SIMPLE"
+  - name: cust_build_status
+    type: unknown
+    desc: "企业认证/建档状态，取 CustBuildStatusEnum 的 name 落库（代码用 CustBuildStatusEnum.valueOf 反解）"
+    dict: "CustBuildStatusEnum"
 ```
-
 ---END FILE---
 
 ---FILE: tables/tenant_setting_config.md ---
 ---
 type: table
-title: tenant_setting_config（租户设置配置表）
-page_key: table.tenant_setting_config
+title: tenant_setting_config（租户配置表）
+page_key: tenant_setting_config
 domain: 授权协议与电子授权
 status: draft
 aliases:
-  - 租户设置配置表
-  - 租户开关表
+  - 租户配置表
+  - 租户设置
 oid: 1
 scope:
   databases: [unknown]
 sources:
   - db:tenant_setting_config
   - code:ElectronicAuthLetterApplication.java
-  - code:CustAuthSignOrchestrationApplication.java
 contract_version: "0.1"
 ---
 
-本表在授权主题中只承担一个职责：提供租户级灰度开关 `generate_electronic_auth_flag`，决定是否启用线下授权书电子签约版能力。开关为 `Y` 才是 [[concepts/offline-electronic-auth]] 的启用前提，也是 [[calibers/offline-electronic-auth-trigger]] 的组成条件之一；非 Y（含配置不存在、为空、查询异常）一律按关闭处理，保持现网跳过签署行为，见 [[rules/tenant-switch-off-legacy-behavior]]。
-
-由于该开关被定义为「灰度/回退的唯一入口」，其取值语义必须是三态的失败安全设计（异常即关闭），而不是简单布尔。
+`tenant_setting_config` 是租户级开关表。在授权场景中，`generate_electronic_auth_flag` 决定该租户是否启用“线下授权书电子签约版”（见 [[electronic_auth_letter]]），它是签署触发链路上的第一道租户级闸门，口径见 [[tenant_electronic_auth_flag]]。
 
 ## 需求背景
-线下授权书电子化需按租户灰度放量，并且要能在出现问题时快速回退到「线下纸质、跳过签署」的现网行为，因此把能力开关放在租户配置表而非代码常量。
+线下授权书的电子化并非所有租户同时切换，需要按租户灰度：租户开关为 Y 时，企业在满足审核通过、授权模式为 off_auth、企业类型与变更项白名单、CA 已开通等条件后，才自动发起电子签署，完整与门见 [[offline_eauth_sign_trigger]]。
 
 ## 版本演进
-v0 初稿：仅收录语义分析中已有证据的字段语义；本次分析未提供 document_claim（未证实主张）。
+该字段的语义注记为“是否生成电子版授权书”，与 [[electronic_auth_letter]] 的“线下授权书电子签约版”表述一致，属电子授权书能力上线时新增的租户级配置；查询时另带 `enable='Y'` 条件。
 
 ```ground:table
 table: tenant_setting_config
-evidence: db
-```
-
-```ground:field
-table: tenant_setting_config
 fields:
-  - field: generate_electronic_auth_flag
-    meaning: "租户是否开启线下授权书电子签约版能力：'Y'=开启；未开启/为空/查询异常一律按关闭处理（保持现网跳过签署行为）"
-    evidence: code
+  - name: generate_electronic_auth_flag
+    type: unknown
+    desc: "租户是否开启线下授权书电子签约版：Y=是（注释「是否生成电子版授权书」）"
+    dict: "Y/N"
 ```
-
 ---END FILE---
 
 ---FILE: tables/cust_change_record.md ---
 ---
 type: table
-title: cust_change_record（客户变更记录表）
-page_key: table.cust_change_record
+title: cust_change_record（企业变更记录表）
+page_key: cust_change_record
 domain: 授权协议与电子授权
 status: draft
 aliases:
-  - 客户变更记录表
-  - 企业变更记录表
+  - 企业变更记录
+  - 变更单
 oid: 1
 scope:
   databases: [unknown]
@@ -271,42 +256,46 @@ sources:
 contract_version: "0.1"
 ---
 
-`cust_change_record` 是变更类签署场景的入口证据表：只有 `alter_mode='SELF_ALTER'`（企业自行变更）且本次变更命中的变更项在允许清单内，才可能触发电子授权书签署，见 [[calibers/change-scope-self-alter-items]] 与 [[calibers/offline-electronic-auth-trigger]]。变更项通过 `alter_type_id`（逗号分隔的 `cust_change_cfg.id` 列表）反查 [[tables/cust_change_cfg]] 的 `item_code`。
+`cust_change_record` 记录企业信息变更单。在授权场景中，它是“变更流程是否需要重签授权书”的判定依据：`alter_mode` 区分企业自行变更（`SELF_ALTER`）与平台发起变更（`PLAT_ALTER`），`alter_type_id` 是逗号分隔的 [[cust_change_cfg]] 主键列表，用于反查 `item_code` 白名单（如 UN0016/UN0012/UN0013/UN0008/UN0015）。
 
 ## 需求背景
-平台代变更（`PLAT_ALTER`）与企业自行变更（`SELF_ALTER`）在责任主体上不同，只有后者允许自动发起电子授权签署；同时并非所有变更项都涉及授权，需要通过变更项配置做白名单过滤。
+企业信息变更可能触发授权书重签或补签：只有企业自行变更、且变更项落在授权书相关白名单内时，才需要走电子授权书签署，见 [[offline_eauth_sign_trigger]] 与 [[manager_change_invalidate_agreement]]。`oper_cust_id` 用于把变更单定位到运营中台客户。
 
 ## 版本演进
-v0 初稿：仅收录语义分析中已有证据的字段语义；本次分析未提供 document_claim（未证实主张）。
+`alter_type_id` 采用逗号分隔 ID 列表而非关联表存多项变更，属早期实现方式；白名单 item_code 的集合随授权书电子化推进而扩充。
 
 ```ground:table
 table: cust_change_record
-evidence: db
-```
-
-```ground:field
-table: cust_change_record
 fields:
-  - field: alter_mode
-    meaning: "变更方式（AlterModeEnum）：SELF_ALTER=企业自行变更（可触发电子授权签署）、PLAT_ALTER=平台代变更"
-    evidence: code
-  - field: alter_type_id
-    meaning: "变更项配置 id 列表（逗号分隔，对应 cust_change_cfg.id），据此反查 item_code 判断变更项是否在允许签署范围"
-    evidence: code
+  - name: alter_mode
+    type: unknown
+    desc: "变更方式：SELF_ALTER=企业自行变更、PLAT_ALTER=平台发起变更"
+    dict: "SELF_ALTER/PLAT_ALTER"
+  - name: alter_type_id
+    type: unknown
+    desc: "变更项配置ID列表（逗号分隔的 cust_change_cfg.id），用于反查 item_code"
+    dict: ""
+  - name: cust_id
+    type: unknown
+    desc: "变更所属企业ID"
+    dict: ""
+  - name: oper_cust_id
+    type: unknown
+    desc: "运营中台客户ID，用于定位对应变更单"
+    dict: ""
 ```
-
 ---END FILE---
 
 ---FILE: tables/cust_change_cfg.md ---
 ---
 type: table
-title: cust_change_cfg（客户变更项配置表）
-page_key: table.cust_change_cfg
+title: cust_change_cfg（变更项配置表）
+page_key: cust_change_cfg
 domain: 授权协议与电子授权
 status: draft
 aliases:
-  - 客户变更项配置表
-  - 变更项字典表
+  - 变更项配置表
+  - 变更项字典
 oid: 1
 scope:
   databases: [unknown]
@@ -316,39 +305,34 @@ sources:
 contract_version: "0.1"
 ---
 
-`cust_change_cfg` 为 [[tables/cust_change_record]] 的 `alter_type_id` 提供语义：`item_code`（如 `UN0008`/`UN0012`/`UN0013`/`UN0015`/`UN0016`）是「变更项是否允许触发电子授权签署」这个白名单口径的比对值，见 [[calibers/change-scope-self-alter-items]]。
+`cust_change_cfg` 是变更项配置表，`item_code` 为变更项编码（UN0008/UN0009/UN0012/UN0013/UN0015/UN0016 等）。它通过 `cust_change_record.alter_type_id` 被反查，是判断“本次变更是否需要重签授权书”的白名单依据。
 
 ## 需求背景
-变更项是配置化字典，授权签署白名单必须以编码而非 id 表达，才能在配置表数据演进时保持判定语义稳定。
+并非所有企业变更都涉及授权主体或授权要素变化，因此用变更项编码白名单收敛签署范围，减少不必要的电子授权书签署，见 [[offline_eauth_sign_trigger]]。
 
 ## 版本演进
-v0 初稿：仅收录语义分析中已有证据的字段语义；本次分析未提供 document_claim（未证实主张）。
+UN 系列编码随变更项扩展而增加；授权书签署白名单（UN0016/UN0012/UN0013/UN0008/UN0015）在该表编码体系内被显式引用，说明白名单是在既有变更项体系上追加的语义。
 
 ```ground:table
 table: cust_change_cfg
-evidence: db
-```
-
-```ground:field
-table: cust_change_cfg
 fields:
-  - field: item_code
-    meaning: "变更项编码，如 UN0008/UN0012/UN0013/UN0015/UN0016"
-    evidence: code
+  - name: item_code
+    type: unknown
+    desc: "变更项编码（UN0008/UN0009/UN0012/UN0013/UN0015/UN0016 等），授权书签署白名单依据"
+    dict: "UN0008/UN0009/UN0012/UN0013/UN0015/UN0016"
 ```
-
 ---END FILE---
 
----FILE: processes/authorization-agreement-authed-status.md ---
+---FILE: processes/authed_status_state_flow.md ---
 ---
 type: process
-title: 授权书认证状态（authorization_agreement.authed_status）
-page_key: process.authorization_agreement.authed_status
+title: 授权确认书认证状态流转
+page_key: authed_status_state_flow
 domain: 授权协议与电子授权
 status: draft
 aliases:
-  - 授权状态机
-  - 授权书认证状态流转
+  - 授权书状态流转
+  - authed_status 状态机
 oid: 1
 scope:
   databases: [unknown]
@@ -358,53 +342,56 @@ sources:
 contract_version: "0.1"
 ---
 
-该状态机描述「企业管理员—企业—产品」这一授权关系记录的有效性：`authed_status` 只有 `N`/`Y` 两态，但 `N` 有两个来源——从未授权，以及管理员变更后被禁用（`enable='N'` 同时把 `authed_status` 置 `N`）。因此读取授权状态时必须同时看 [[tables/authorization_agreement|enable 标志]]，否则会把「已被替换的旧管理员授权」误判为有效。
+该状态机描述 [[authorization_agreement]] 中 `authed_status` 的取值与迁移路径。它决定“这家企业/这个管理员是否已签署授权书”，是 [[auth_agreement_authed_y]] / [[auth_agreement_authed_n]] 两个口径的底层依据。
 
-平台级授权（`platform_product_code='PLATFORM'`）是免补签判定的唯一依据，见 [[calibers/platform-level-authed]]；与「授权书文件」的区分见 [[concepts/authorization-agreement]]。
+关键点在于：**N → Y 只在当前操作人是企业管理员（admin）时成立**；非管理员用户被指定授权时，记录保持 N。**Y → N 出现在管理员变更**：换人时原管理员在该企业下的全部授权记录被置为 `enable=N` 且 `authed_status=N`，再由新管理员重新走授权，见 [[manager_change_invalidate_agreement]] 与 [[auth_agreement]]。
 
 ## 需求背景
-企业授权按管理员自然人维度判定，换人时必须先废止原管理员授权、再为新管理员建立授权，才能保证「一个角色签过即全部免签」的判定既不过严（重复签署）也不过松（离职管理员仍算已授权）。
+企业管理员授权认证通过（新增企业认证、补授权、完善资料）后授权才生效；管理员换人后原授权必须立即失效，避免“旧人授权、新人操作”。因此状态机需要一条双向通路，且 Y→N 只能由管理员变更触发。
 
 ## 版本演进
-v0 初稿：仅收录语义分析中已有证据的状态与迁移；本次分析未提供 document_claim（未证实主张）。
+DB 中 N（19547）显著多于 Y（11617），与“管理员变更即作废、需重新授权”的写入行为一致；`creation_type` 中的 `CUST_BUILD_INIT`（建档初始化自动授权）说明早期授权是在建档时自动产生的。
 
-```ground:state_machine
-name: 授权书认证状态
+```ground:process
+name: 授权确认书认证状态
 field: authorization_agreement.authed_status
 states:
   - value: "N"
-    label: 未授权/待授权
+    label: 未授权/已禁用
     source: db_dist
   - value: "Y"
     label: 已授权
     source: db_dist
 transitions:
   - from: "N"
-    event: 建档通过/完善资料时的管理员认证（含简易认证直接通过）
+    event: 企业管理员授权认证通过（新增企业认证/补授权/完善资料）
     to: "Y"
-    evidence: "code_path:CustAuthAgreementDomainService.java#passAuthorizationAgreementDirectly"
+    evidence: "code_path:CustAuthAgreementDomainService.java:passAuthorizationAgreementDirectly"
   - from: "N"
-    event: 企业管理员变更（换人），为新管理员建/更新平台级授权记录
+    event: 存在未签署记录且当前用户为企业管理员（admin）
     to: "Y"
-    evidence: "code_path:CustAuthAgreementDomainService.java#changeAuthorizationAgreement"
-  - from: "Y"
-    event: 企业管理员变更，原管理员所有授权记录被禁用
+    evidence: "code_path:CustAuthAgreementDomainService.java:passAuthorizationAgreementDirectly"
+  - from: "N"
+    event: 非管理员用户被指定授权
     to: "N"
-    evidence: "code_path:CustAuthAgreementDomainService.java#disabledAllAuthorizationAgreement"
+    evidence: "code_path:CustAuthAgreementDomainService.java:passAuthorizationAgreementDirectly"
+  - from: "Y"
+    event: 企业管理员变更（换人）
+    to: "N"
+    evidence: "code_path:CustAuthAgreementDomainService.java:disabledAllAuthorizationAgreement"
 ```
-
 ---END FILE---
 
----FILE: processes/agreement-migratory-pull-status.md ---
+---FILE: processes/agreement_migratory_pull_status.md ---
 ---
 type: process
-title: 协议迁移拉取状态（argeement_migratory_record.status）
-page_key: process.argeement_migratory_record.status
+title: 协议迁移拉取状态流转
+page_key: agreement_migratory_pull_status
 domain: 授权协议与电子授权
 status: draft
 aliases:
   - 协议拉取状态机
-  - 迁移拉取状态
+  - status 状态流转
 oid: 1
 scope:
   databases: [unknown]
@@ -414,95 +401,50 @@ sources:
 contract_version: "0.1"
 ---
 
-`status` 是布尔语义的终态标志：置 `1` 之后记录不再进入待拉取队列；「客户端确认无该协议」与「成功拉取到协议」在状态上不可区分，都表示拉取流程结束。失败路径不改变状态，而是回置 `no`（`0`）并把 `pull_num + 1`，从而由 [[calibers/pending-pull-agreement-records]] 的重试上限（默认 20）兜底。
-
-判定待拉取记录时还需同时满足 `enable='Y'`，见 [[tables/argeement_migratory_record]]。
+该状态机描述 [[argeement_migratory_record]] 中 `status` 的推进方式：协议迁移任务取出待拉取记录（口径 [[agreement_migratory_pending_pull]]），成功落库后置 1（口径 [[agreement_migratory_pulled]]）；失败时 `pull_num+1` 等待下一轮重试，超过上限不再拉取，见 [[agreement_pull_retry_limit]]。客户端返回空协议集时直接标记完成，属于终态但无协议文件。
 
 ## 需求背景
-存量协议拉取依赖客户端配合，既可能返回协议、也可能明确表示没有，还可能失败；需要一个「结束即不再打扰客户端」的终态语义，以及一个有限重试机制避免死循环拉取。
+存量协议不能一次性可靠拉齐，因此需要“待拉取 / 已拉取完成”两态 + 计数重试的组合，保证最终一致性同时避免无限重试。取数一律过滤 `enable='Y'`，见 [[agreement_migratory_enabled]]。
 
 ## 版本演进
-v0 初稿：仅收录语义分析中已有证据的状态与迁移；本次分析未提供 document_claim（未证实主张）。
+`status` 列定义为 int 但代码写入的是字符串数字（`BooleanEnum.no/yes`），说明状态取值复用了布尔枚举的字典码而非独立枚举，属迁移初期的实现选择。
 
-```ground:state_machine
+```ground:process
 name: 协议迁移拉取状态
 field: argeement_migratory_record.status
 states:
   - value: "0"
-    label: 待拉取（BooleanEnum.no）
-    source: code_enum
+    label: 待拉取
+    source: db_dist
   - value: "1"
-    label: 拉取结束/不再拉取（BooleanEnum.yes；含客户端确认无此协议）
-    source: code_enum
+    label: 已拉取完成
+    source: db_dist
 transitions:
   - from: "0"
-    event: 拉取到协议并落库，或客户端返回该类型协议缺失
+    event: 从业务系统拉取到协议并落库
     to: "1"
-    evidence: "code_path:AgreementMigratoryService.java#setAgreement"
+    evidence: "code_path:AgreementMigratoryService.java:setAgreement"
   - from: "0"
-    event: 拉取失败（异常/返回空），主记录回置 no 且 pullNum+1
+    event: 拉取失败，pull_num+1 后等待重试
     to: "0"
-    evidence: "code_path:AgreementMigratoryService.java#setStatus"
+    evidence: "code_path:AgreementMigratoryService.java:updateAgreementPullNum"
+  - from: "0"
+    event: 客户端返回空协议集，标记为已完成
+    to: "1"
+    evidence: "code_path:AgreementMigratoryService.java:setAgreement（agreementDocs 为空分支）"
 ```
-
 ---END FILE---
 
----FILE: processes/agreement-sign-mode.md ---
+---FILE: processes/cust_build_status_flow.md ---
 ---
 type: process
-title: 协议签署模式（argeement_migratory_record.sign_mode）
-page_key: process.argeement_migratory_record.sign_mode
-domain: 授权协议与电子授权
-status: draft
-aliases:
-  - 签署模式取值
-  - SignModeEnum 取值
-oid: 1
-scope:
-  databases: [unknown]
-sources:
-  - db:argeement_migratory_record
-contract_version: "0.1"
----
-
-`sign_mode` 描述协议以何种方式签署，语义上对应 `SignModeEnum` 的三态（`NO_SIGN` / `OFF_LINE` / `ON_LINE`），DB 实测取值为 `'01'` / `'02'` / `'03'`。语义分析未给出数值与枚举成员的显式映射，因此本页只登记取值分布，不建立「数值→枚举」的确定结论（见文末 REVIEW）。
-
-该字段与企业维度的 [[tables/cust_company_info|sign_mode]]、以及签署编排中的 `authModel=off_auth`（[[concepts/off-auth]]）不是同一层语义：前者是协议迁移记录上的签署方式，后者是企业用户在运营中台的授权模式。
-
-## 需求背景
-存量协议迁移需要保留原协议的签署方式，以便在协议重新展示或补签时区分「无需签署」「线下签署」「线上签署」三类处理路径。
-
-## 版本演进
-v0 初稿：仅收录语义分析中已有证据的取值；数值与枚举映射待确认。本次分析未提供 document_claim（未证实主张）。
-
-```ground:state_machine
-name: 协议签署模式
-field: argeement_migratory_record.sign_mode
-states:
-  - value: "01"
-    label: 签署模式取值之一（对应 SignModeEnum 的 NO_SIGN/OFF_LINE/ON_LINE，数值映射代码未显式给出）
-    source: db_dist
-  - value: "02"
-    label: 签署模式取值之一（同上）
-    source: db_dist
-  - value: "03"
-    label: 签署模式取值之一（同上）
-    source: db_dist
-transitions: []
-```
-
----END FILE---
-
----FILE: processes/cust-build-status.md ---
----
-type: process
-title: 客户建档/认证状态（cust_company_info.cust_build_status）
-page_key: process.cust_company_info.cust_build_status
+title: 企业认证/建档状态流转
+page_key: cust_build_status_flow
 domain: 授权协议与电子授权
 status: draft
 aliases:
   - 建档状态机
-  - 认证状态流转
+  - cust_build_status 状态流转
 oid: 1
 scope:
   databases: [unknown]
@@ -512,146 +454,688 @@ sources:
 contract_version: "0.1"
 ---
 
-建档状态链是授权签署编排的时序前提：`check_status='CUST_CHECK_PASS'`（审核通过）是 [[calibers/offline-electronic-auth-trigger]] 的硬条件，而审核通过即由 `CUST_BUILDING → BUILD_SUCCESS` 这一迁移产生。入口分支与 `identify_style` 强相关：邀请-客户录入/自主注册先落到待客户确认（`CUST_CONFIRM_AWAIT`），邀请-平台录入（`INVITE_AGW`）直接进入审核中（`CUST_BUILDING`）。
+该状态机描述 [[cust_company_info]] 中 `cust_build_status` 的推进：提交建档后进入待客户确认，客户提交后进入审核中，审核通过则 `BUILD_SUCCESS`，退回回到待客户确认，驳回则 `BUILD_FAIL`，驳回后修改可重新提交。状态值以 `CustBuildStatusEnum` 的 name 落库，代码用 `valueOf` 反解。
 
-签署编排只接受 `identify_style ∈ {INVITE, SELF}` 的建档流程，见 [[calibers/build-scope-identify-styles]]；本状态机的状态取值与 [[tables/cust_company_info]] 的字段语义一致。
+这条状态机是电子授权书签署的前置条件之一：只有 `checkStatus=CUST_CHECK_PASS`（审核通过）后才可能触发签署，见 [[offline_eauth_sign_trigger]]；而 `identify_style=SIMPLE`（简易认证）会强制关闭电子签章，见 [[simple_identify_disable_ca]]。
 
 ## 需求背景
-企业认证需要客户与运营中台两段人工动作，状态机必须能表达「等客户确认」与「等中台审核」两种等待态，以及退回与驳回两种非通过分支，才能驱动后续签署与通知。
+企业建档需要人机协同（企业录入 → 运营中台审核），因此必须显式建模退回与驳回回路；同时签署与建档分段解耦——签署只在审核通过后的事务提交后触发，任一前置条件不满足仅记日志跳过，不阻断主流程。
 
 ## 版本演进
-v0 初稿：仅收录语义分析中已有证据的状态与迁移；本次分析未提供 document_claim（未证实主张）。
+状态集合中同时存在 `CUST_CONFIRM_AWAIT`（待客户确认）与 `AWAIT_CUST_CONFIRM`（待客户确认，简易认证），说明简易认证链路是后加的，与标准链路并存。
 
-```ground:state_machine
-name: 客户建档/认证状态
+```ground:process
+name: 企业认证/建档状态
 field: cust_company_info.cust_build_status
 states:
-  - value: INIT
-    label: 待提交/初始化
+  - value: "INIT"
+    label: 待提交
     source: code_enum
-  - value: CUST_CONFIRM_AWAIT
+  - value: "CUST_CONFIRM_AWAIT"
     label: 待客户确认
     source: code_enum
-  - value: CUST_BUILDING
-    label: 认证审核中
+  - value: "AWAIT_CUST_CONFIRM"
+    label: 待客户确认（简易认证）
     source: code_enum
-  - value: BUILD_SUCCESS
-    label: 认证通过
+  - value: "CUST_BUILDING"
+    label: 审核中
     source: code_enum
-  - value: BUILD_FAIL
-    label: 认证驳回
+  - value: "BUILD_SUCCESS"
+    label: 已通过
+    source: code_enum
+  - value: "BUILD_FAIL"
+    label: 已驳回
     source: code_enum
 transitions:
-  - from: INIT
-    event: 提交（邀请-客户录入/自主注册）
-    to: CUST_CONFIRM_AWAIT
-    evidence: "code_path:CustCompanyInfoApplication.java#getCustBuildStatus"
-  - from: INIT
-    event: 提交（邀请-平台录入 INVITE_AGW）
-    to: CUST_BUILDING
-    evidence: "code_path:CustCompanyInfoApplication.java#getCustBuildStatus"
-  - from: CUST_CONFIRM_AWAIT
-    event: 客户在客户端提交，进入运营中台审核
-    to: CUST_BUILDING
-    evidence: "code_path:CustCompanyInfoApplication.java#messageNotify"
-  - from: CUST_BUILDING
+  - from: "INIT"
+    event: 提交建档（邀请客户录入/自主注册）
+    to: "CUST_CONFIRM_AWAIT"
+    evidence: "code_path:CustCompanyInfoApplication.java:getCustBuildStatus"
+  - from: "BUILD_FAIL"
+    event: 驳回后修改重新提交
+    to: "CUST_CONFIRM_AWAIT"
+    evidence: "code_path:CustCompanyInfoApplication.java:appenUpdateCustBulidStatus"
+  - from: "CUST_CONFIRM_AWAIT"
+    event: 客户提交，运营中台审核
+    to: "CUST_BUILDING"
+    evidence: "code_path:CustCompanyInfoApplication.java:messageNotify"
+  - from: "CUST_BUILDING"
     event: 运营中台审核退回
-    to: CUST_CONFIRM_AWAIT
-    evidence: "code_path:CustCompanyInfoApplication.java#messageNotify"
-  - from: CUST_BUILDING
-    event: 运营中台审核通过
-    to: BUILD_SUCCESS
-    evidence: "code_path:CustCompanyInfoApplication.java#updateCustBuildStatus"
-  - from: CUST_BUILDING
-    event: 运营中台审核驳回
-    to: BUILD_FAIL
-    evidence: "code_path:CustCompanyInfoApplication.java#messageNotify"
+    to: "CUST_CONFIRM_AWAIT"
+    evidence: "code_path:CustCompanyInfoApplication.java:messageNotify"
+  - from: "CUST_BUILDING"
+    event: 审核通过（简易/资金方直接生效）
+    to: "BUILD_SUCCESS"
+    evidence: "code_path:CustCompanyInfoApplication.java:updateCustBuildStatus"
+  - from: "CUST_CONFIRM_AWAIT"
+    event: 审核驳回
+    to: "BUILD_FAIL"
+    evidence: "code_path:CustCompanyInfoApplication.java:messageNotify"
 ```
-
 ---END FILE---
 
----FILE: calibers/platform-push-no-supplement.md ---
+---FILE: calibers/platform_level_auth_agreement.md ---
 ---
 type: caliber
-title: 外部推送企业免补签授权书
-page_key: caliber.platform_push_no_supplement
+title: 平台级授权确认书
+page_key: platform_level_auth_agreement
 domain: 授权协议与电子授权
 status: draft
 aliases:
-  - PLATFORM_PUSH 免补签
-  - 平台推送企业免签
+  - PLATFORM 授权书
+  - 平台授权书口径
 oid: 1
 scope:
   databases: [unknown]
 sources:
+  - db:authorization_agreement
   - code:CustAuthAgreementDomainService.java
-  - db:cust_company_info
 contract_version: "0.1"
 ---
 
-数据来源为外部平台推送（`cust_source='PLATFORM_PUSH'`）的企业，视为授权关系已由来源系统保证，判定链路直接返回「不需签约」，不再考察 [[tables/authorization_agreement|平台级授权记录]] 或补签标志位。该口径与 [[calibers/migratory-no-supplement]] 是并列的两条免补签捷径。
+用于把「平台级」授权确认书与业务线产品授权书分开。命中该口径的记录代表企业管理员对产融平台的授权，与 `ACFLOW/AMS/ORDER/RVSFACTOR_PC` 等业务线产品码并列存在于同一张 [[authorization_agreement]] 表中。
 
-## 需求背景
-外部平台推送的企业不允许在产融侧再次提示补签授权书，否则会造成来源系统与产融侧授权状态不一致的重复签署。
-
-## 版本演进
-v0 初稿：仅收录语义分析中已有证据的口径；本次分析未提供 document_claim（未证实主张）。
+补签判定中，平台级授权书与存量产品授权是两条并列的检查项，见 [[migratory_supplement_exemption]]；不要把这里的 `PLATFORM` 与协议迁移里的产品协议 [[product_protocol]] 混为一谈。
 
 ```ground:caliber
-name: 外部推送企业免补签授权书
-predicate: "cust_company_info.cust_source = 'PLATFORM_PUSH'"
-scope: "授权书补签判定（enableCompanyManagerAuthAggrement / hasCompanySignedAuthAggrement 直接返回不需签约）"
-evidence: "code_path:CustAuthAgreementDomainService.java#enableCompanyManagerAuthAggrement"
+name: 平台级授权确认书
+predicate: "authorization_agreement.platform_product_code = 'PLATFORM'"
+scope: "产融平台管理员授权书（PLATFORM_PRODUCT_TYPE），与业务线产品码并列"
+evidence: "code:CustAuthAgreementDomainService.java:PLATFORM_PRODUCT_TYPE + db:PLATFORM=25156"
 ```
-
 ---END FILE---
 
----FILE: calibers/migratory-no-supplement.md ---
+---FILE: calibers/auth_agreement_authed_y.md ---
 ---
 type: caliber
-title: 存量迁移企业免补签授权书
-page_key: caliber.migratory_no_supplement
+title: 授权书已授权
+page_key: auth_agreement_authed_y
 domain: 授权协议与电子授权
 status: draft
 aliases:
-  - MIGRATORY 免补签
-  - 存量迁移免签口径
+  - 已签署授权书
+  - authed_status=Y
 oid: 1
 scope:
   databases: [unknown]
 sources:
+  - db:authorization_agreement
   - code:CustAuthAgreementDomainService.java
+contract_version: "0.1"
+---
+
+判断企业/管理员是否已签署授权书的口径。使用时注意：只有当记录 `enable=Y` 时，`authed_status=Y` 才代表当前有效授权——管理员变更会把原记录置 `enable=N` 并同时置 `authed_status=N`，见 [[manager_change_invalidate_agreement]] 与状态机 [[authed_status_state_flow]]。
+
+```ground:caliber
+name: 授权书已授权
+predicate: "authorization_agreement.authed_status = 'Y'"
+scope: "判断企业/管理员是否已签署授权书（enable=Y 时有效）"
+evidence: "code:CustAuthAgreementDomainService.java:hasCompanySignedAuthAggrement + db"
+```
+---END FILE---
+
+---FILE: calibers/auth_agreement_authed_n.md ---
+---
+type: caliber
+title: 授权书未授权
+page_key: auth_agreement_authed_n
+domain: 授权协议与电子授权
+status: draft
+aliases:
+  - 未签署授权书
+  - authed_status=N
+oid: 1
+scope:
+  databases: [unknown]
+sources:
+  - db:authorization_agreement
+  - code:CustAuthAgreementDomainService.java
+contract_version: "0.1"
+---
+
+需补签授权书的判定口径，与 [[auth_agreement_authed_y]] 互补。DB 中该值占比更高（19547 条），部分来源是管理员变更导致的作废（`enable=N` 且 `authed_status=N`），须结合 `enable` 与 `cust_source` 判断是否真的需要补签，见 [[migratory_supplement_exemption]]、[[auth_agreement_supplement_flag]]。
+
+```ground:caliber
+name: 授权书未授权
+predicate: "authorization_agreement.authed_status = 'N'"
+scope: "需补签授权书的判定口径"
+evidence: "code + db"
+```
+---END FILE---
+
+---FILE: calibers/agreement_migratory_pending_pull.md ---
+---
+type: caliber
+title: 待拉取协议记录
+page_key: agreement_migratory_pending_pull
+domain: 授权协议与电子授权
+status: draft
+aliases:
+  - status=0
+  - 待拉取口径
+oid: 1
+scope:
+  databases: [unknown]
+sources:
+  - db:argeement_migratory_record
+  - code:AgreementMigratoryService.java
+contract_version: "0.1"
+---
+
+协议迁移拉取任务的取数口径。实际取数不是单条件，而是复合条件：`status='0'` 且 `enable='Y'` 且 `pull_num < 配置值`，见 [[agreement_migratory_enabled]] 与 [[agreement_pull_retry_limit]]；状态推进见 [[agreement_migratory_pull_status]]。
+
+```ground:caliber
+name: 待拉取协议记录
+predicate: "argeement_migratory_record.status = '0'"
+scope: "协议迁移拉取任务取数（复合条件 enable='Y' AND pull_num<配置值）"
+evidence: "code:AgreementMigratoryService.java:pull + db"
+```
+---END FILE---
+
+---FILE: calibers/agreement_migratory_pulled.md ---
+---
+type: caliber
+title: 已拉取协议记录
+page_key: agreement_migratory_pulled
+domain: 授权协议与电子授权
+status: draft
+aliases:
+  - status=1
+  - 已拉取口径
+oid: 1
+scope:
+  databases: [unknown]
+sources:
+  - db:argeement_migratory_record
+  - code:AgreementMigratoryService.java
+contract_version: "0.1"
+---
+
+协议迁移的终态口径。注意“已拉取完成”并不必然意味着存在协议文件：客户端返回空协议集时会被标记为已完成，`agreement_path` 可能为空，见 [[agreement_migratory_pull_status]]。
+
+```ground:caliber
+name: 已拉取协议记录
+predicate: "argeement_migratory_record.status = '1'"
+scope: "迁移协议拉取结果终态"
+evidence: "code + db"
+```
+---END FILE---
+
+---FILE: calibers/agreement_migratory_enabled.md ---
+---
+type: caliber
+title: 协议迁移有效记录
+page_key: agreement_migratory_enabled
+domain: 授权协议与电子授权
+status: draft
+aliases:
+  - enable=Y
+  - 协议拉取有效记录
+oid: 1
+scope:
+  databases: [unknown]
+sources:
+  - db:argeement_migratory_record
+  - code:AgreementMigratoryService.java
+contract_version: "0.1"
+---
+
+协议拉取一律附带的有效性过滤条件，与 [[authorization_agreement]] 中的 `enable` 语义一致（逻辑启用标识）。当前 DB 中该表 `enable` 全为 Y、无 N，因此该口径目前不产生过滤效果，但属于取数必经条件，见 [[agreement_migratory_pending_pull]]。
+
+```ground:caliber
+name: 协议迁移有效记录
+predicate: "argeement_migratory_record.enable = 'Y'"
+scope: "协议拉取一律过滤 enable=Y（DB 中全为 Y，无 N）"
+evidence: "code:AgreementMigratoryService.java:pull + db"
+```
+---END FILE---
+
+---FILE: calibers/tenant_electronic_auth_flag.md ---
+---
+type: caliber
+title: 电子授权书租户开关
+page_key: tenant_electronic_auth_flag
+domain: 授权协议与电子授权
+status: draft
+aliases:
+  - 租户电子授权书开关
+  - generate_electronic_auth_flag=Y
+oid: 1
+scope:
+  databases: [unknown]
+sources:
+  - db:tenant_setting_config
+  - code:ElectronicAuthLetterApplication.java
+contract_version: "0.1"
+---
+
+判断某租户是否启用「线下授权书电子签约版」的口径，查询时另带 `enable='Y'`。它是 [[offline_eauth_sign_trigger]] 多重与门中的租户级条件，与 [[electronic_auth_letter]] 概念对应。
+
+```ground:caliber
+name: 电子授权书租户开关
+predicate: "tenant_setting_config.generate_electronic_auth_flag = 'Y'"
+scope: "租户是否开启线下授权书电子签约版；查询另带 enable='Y'"
+evidence: "code:ElectronicAuthLetterApplication.java:isGenerateElectronicAuthEnabled"
+```
+---END FILE---
+
+---FILE: calibers/cfca_registered.md ---
+---
+type: caliber
+title: CFCA 已开通
+page_key: cfca_registered
+domain: 授权协议与电子授权
+status: draft
+aliases:
+  - CA 已开通
+  - ca_register_status=Y
+oid: 1
+scope:
+  databases: [unknown]
+sources:
+  - db:cust_company_info
+  - code:CustAuthSignOrchestrationApplication.java
+contract_version: "0.1"
+---
+
+电子授权书在线签署的前置校验口径：必须同时满足 [[need_register_ca]]（意愿）与本口径（结果）。它与 `bs_register_status`（上上签）是并列的两个签章通道，见 [[electronic_seal_activation]]。若审核通过时本口径未命中则跳过签署，待 CA 重开成功回调后补偿触发，见 [[ca_delayed_compensation_sign]]。
+
+```ground:caliber
+name: CFCA 已开通
+predicate: "cust_company_info.ca_register_status = 'Y'"
+scope: "电子授权书在线签署前置校验（需同时 need_register_ca='Y'）"
+evidence: "code:CustAuthSignOrchestrationApplication.java:isCaRegistered"
+```
+---END FILE---
+
+---FILE: calibers/need_register_ca.md ---
+---
+type: caliber
+title: 需开通电子签章
+page_key: need_register_ca
+domain: 授权协议与电子授权
+status: draft
+aliases:
+  - 需要开通电子签章
+  - need_register_ca=Y
+oid: 1
+scope:
+  databases: [unknown]
+sources:
+  - db:cust_company_info
+  - code:CustAuthSignOrchestrationApplication.java
+contract_version: "0.1"
+---
+
+判断企业是否需要 CFCA 电子签章能力的口径，是「意愿」而非「结果」，必须与 [[cfca_registered]] 同时成立才视为已开通，见 [[electronic_seal_activation]]。简易认证场景下即使该字段为 Y 也会被强制校正为不开通，见 [[simple_identify_disable_ca]]。
+
+```ground:caliber
+name: 需开通电子签章
+predicate: "cust_company_info.need_register_ca = 'Y'"
+scope: "判断企业是否需要 CFCA 电子签章能力"
+evidence: "code:CustAuthSignOrchestrationApplication.java:isCaRegistered"
+```
+---END FILE---
+
+---FILE: calibers/auth_agreement_supplement_flag.md ---
+---
+type: caliber
+title: 授权书补签开关
+page_key: auth_agreement_supplement_flag
+domain: 授权协议与电子授权
+status: draft
+aliases:
+  - 补签开关
+  - auth_aggrement_supplement_flag=Y
+oid: 1
+scope:
+  databases: [unknown]
+sources:
+  - db:cust_company_info
+  - code:CustAuthAgreementDomainService.java
+contract_version: "0.1"
+---
+
+存量迁移企业是否仍需补签平台授权书的口径。它与 `cust_source=MIGRATORY` 组合使用：本字段为 N 且来源为迁移，则视为新渠道迁移企业、免签，见 [[migratory_supplement_exemption]] 与 [[cust_company_info]]。
+
+```ground:caliber
+name: 授权书补签开关
+predicate: "cust_company_info.auth_aggrement_supplement_flag = 'Y'"
+scope: "存量迁移企业是否仍需补签平台授权书；N 且 cust_source=MIGRATORY 则免签"
+evidence: "code:CustAuthAgreementDomainService.java:enableCompanyManagerAuthAggrement"
+```
+---END FILE---
+
+---FILE: calibers/agreement_sign_mode_offline.md ---
+---
+type: caliber
+title: 线下签署协议
+page_key: agreement_sign_mode_offline
+domain: 授权协议与电子授权
+status: draft
+aliases:
+  - sign_mode=02
+  - 线下协议口径
+oid: 1
+scope:
+  databases: [unknown]
+sources:
+  - db:argeement_migratory_record
+  - code:AgreementMigratoryService.java
+contract_version: "0.1"
+---
+
+标识迁移协议在业务系统中的签署模式为线下（`SignModeEnum.OFF_LINE`）。与之并列的是 01 线上、03 无需签署，映射规则见 [[sign_mode_mapping]]。该口径用于迁移后追溯协议签署方式，与 `cust_company_info.need_register_ca` 等签章能力字段不是同一语义（见 [[electronic_seal_activation]]）。
+
+```ground:caliber
+name: 线下签署协议
+predicate: "argeement_migratory_record.sign_mode = '02'"
+scope: "协议签署模式为线下（SignModeEnum.OFF_LINE）"
+evidence: "code:AgreementMigratoryService.java:setMigrateContract + db"
+```
+---END FILE---
+
+---FILE: concepts/auth_agreement.md ---
+---
+type: concept
+title: 授权书（授权确认书）
+page_key: auth_agreement
+domain: 授权协议与电子授权
+status: draft
+aliases:
+  - 客户管理员授权确认书
+  - 平台授权书
+  - 授权协议
+oid: 1
+scope:
+  databases: [unknown]
+sources:
+  - db:authorization_agreement
+  - code:CustAuthAgreementDomainService.java
+contract_version: "0.1"
+maps_to:
+  - authorization_agreement.authed_status
+field_targets:
+  - authorization_agreement.authed_status
+  - authorization_agreement.enable
+  - authorization_agreement.cust_manager_id
+adjudication: boundary
+also_confused_with:
+  - argeement_migratory_record.agreement_type
+  - contract_info
+---
+
+业务上说“授权书”，指的是企业管理员对产融平台的授权确认关系，落在 [[authorization_agreement]] 上，以 `authed_status`、`enable`、`cust_manager_id` 为关键字段，口径见 [[auth_agreement_authed_y]] 与 [[auth_agreement_authed_n]]。
+
+它与业务协议文件是两件事：产品协议/隐私政策/用户协议/CA 协议等文件实体走 [[argeement_migratory_record]]（协议类型见 [[agreement_type]]），底层由协议组件合同表承载。做需求或排查时若把两者互换，会出现“授权书状态为 Y 但协议文件缺失”之类的误判。
+
+## 需求背景
+企业与平台之间的“授权”关系与“协议文件”关系在业务上被反复混用，本页用于固定词汇边界：凡是讨论“企业管理员是否已授权 / 是否需补签”“授权书签署触发条件”的，一律走本概念；凡是讨论“协议文件是否已拉取/存储路径/签署模式”的，一律走协议迁移记录。
+
+## 版本演进
+该词的别名随产品演进增加（客户管理员授权确认书、平台授权书、授权协议）；管理员变更作废、迁移企业免签等新规则都作用在本概念所指的记录上，见 [[manager_change_invalidate_agreement]]、[[migratory_supplement_exemption]]。
+---END FILE---
+
+---FILE: concepts/electronic_auth_letter.md ---
+---
+type: concept
+title: 电子授权书（电子签约版授权书）
+page_key: electronic_auth_letter
+domain: 授权协议与电子授权
+status: draft
+aliases:
+  - 线下电子授权书
+  - off_auth 授权书
+oid: 1
+scope:
+  databases: [unknown]
+sources:
+  - db:cust_company_info
+  - db:tenant_setting_config
+  - code:CustAuthSignOrchestrationApplication.java
+contract_version: "0.1"
+maps_to:
+  - cust_company_info.need_register_ca
+  - cust_company_info.ca_register_status
+  - tenant_setting_config.generate_electronic_auth_flag
+field_targets:
+  - cust_company_info.need_register_ca
+  - cust_company_info.ca_register_status
+  - tenant_setting_config.generate_electronic_auth_flag
+adjudication: boundary
+also_confused_with:
+  - authorization_agreement.authed_status
+---
+
+「电子授权书」指线下授权（off_auth）场景下把纸质授权书改为 CFCA 在线签署的方案，其存在性由租户开关 + 企业签章能力共同定义：[[tenant_electronic_auth_flag]]、[[need_register_ca]]、[[cfca_registered]]。它不是一个独立的授权状态字段，因此**不能**用 `authorization_agreement.authed_status` 来代替描述。
+
+## 需求背景
+线下授权书需要人工签署与回收，效率低且难追溯，因此引入电子签约版：租户开关打开、企业已开通 CA、且本次业务满足审核通过与变更项白名单时，系统自动发起签署，完整触发条件见 [[offline_eauth_sign_trigger]]；签署幂等见 [[auth_sign_idempotent]]。
+
+## 版本演进
+该能力上线时同时引入了租户级开关（[[tenant_setting_config]] 的 `generate_electronic_auth_flag`）与企业级签章字段；后续又加入“CA 未开通时延迟补偿签署”的补签链路，见 [[ca_delayed_compensation_sign]]，以及简易认证强制不开通 CA 的约束，见 [[simple_identify_disable_ca]]。
+---END FILE---
+
+---FILE: concepts/electronic_seal_activation.md ---
+---
+type: concept
+title: 电子签章开通
+page_key: electronic_seal_activation
+domain: 授权协议与电子授权
+status: draft
+aliases:
+  - CA 开通
+  - CFCA 注册
+  - 上上签开通
+oid: 1
+scope:
+  databases: [unknown]
+sources:
+  - db:cust_company_info
+  - code:CustAuthSignOrchestrationApplication.java
+contract_version: "0.1"
+maps_to:
+  - cust_company_info.ca_register_status
+  - cust_company_info.bs_register_status
+field_targets:
+  - cust_company_info.ca_register_status
+  - cust_company_info.bs_register_status
+adjudication: boundary
+also_confused_with:
+  - cust_company_info.need_register_ca
+  - cust_company_info.need_register_bs
+---
+
+必须区分两组字段：`need_register_*` 是“要不要开”的意愿标识，`*_register_status` 是“已经开了”的落库结果；签署判定要求两者同时为 Y（见 [[need_register_ca]]、[[cfca_registered]]）。另外 CFCA（PAPER_LESS）与上上签（BEST_SIGN，AMS 使用）是两个并列的签章通道，不能只检查其中一个。
+
+## 需求背景
+电子授权书签署要求企业具备可用签章能力，因此产品侧先采集意愿（`need_register_ca` / `need_register_bs`），再由签章开通流程回写结果状态；两者不同步是“签署被跳过”的常见原因，对应的补偿逻辑见 [[ca_delayed_compensation_sign]]。
+
+## 版本演进
+上上签字段（`need_register_bs` / `bs_register_status`）说明签章通道由单一 CFCA 扩展为多通道，且迁移开通时会同时把 `bs_register_status` 与 `ca_register_status` 置 Y；简易认证链路则禁止开通 CA，见 [[simple_identify_disable_ca]]。
+---END FILE---
+
+---FILE: concepts/agreement_type.md ---
+---
+type: concept
+title: 协议类型（agreementType）
+page_key: agreement_type
+domain: 授权协议与电子授权
+status: draft
+aliases:
+  - AgreementDocType
+  - serviceKey
+  - 协议 code
+oid: 1
+scope:
+  databases: [unknown]
+sources:
+  - db:argeement_migratory_record
+  - code:AgreementMigratoryService.java
+contract_version: "0.1"
+maps_to:
+  - argeement_migratory_record.agreement_type
+field_targets:
+  - argeement_migratory_record.agreement_type
+adjudication: boundary
+also_confused_with:
+  - authorization_agreement.platform_product_code
+---
+
+协议类型区分“协议的种类”：PrivacyPolicy / UserProtocol / CustPersonLicense / CFCA_Auth / BS_Auth / ProductProtocol*，对应 [[argeement_migratory_record]] 的 `agreement_type`。而 `platform_product_code` 区分“业务线产品”（ACFLOW/AMS/BEECREDIT/ORDER/RVSFACTOR_PC/STORAGE/VOUCHER）。同一协议类型在每个产品码下各有一条迁移记录——两个维度是交叉关系，不是同义。
+
+## 需求背景
+协议拉取需要按“产品 × 协议类型”的粒度记录进度与文件路径，才能支持不同业务线各自回溯，见 [[agreement_migratory_pending_pull]]、[[agreement_migratory_pulled]]，产品协议的具体取值见 [[product_protocol]]。
+
+## 版本演进
+`ProductProtocol*` 是一族按产品码派生的协议类型，说明早期只有平台级协议（隐私政策、用户协议、CA 协议等），后续随业务线接入扩展出按产品的协议类型。
+---END FILE---
+
+---FILE: concepts/product_protocol.md ---
+---
+type: concept
+title: 产品协议
+page_key: product_protocol
+domain: 授权协议与电子授权
+status: draft
+aliases:
+  - ProductProtocol
+oid: 1
+scope:
+  databases: [unknown]
+sources:
+  - db:argeement_migratory_record
+  - code:AgreementMigratoryService.java
+contract_version: "0.1"
+maps_to:
+  - argeement_migratory_record.agreement_type
+field_targets:
+  - argeement_migratory_record.agreement_type
+adjudication: synonym
+also_confused_with:
+  - authorization_agreement.platform_product_code
+---
+
+「产品协议」是 [[agreement_type]] 的一个取值族（`ProductProtocol*`）：按产品码返回不同的协议类型（AMS/BEECREDIT/RVSFACTOR_PC/ACFLOW/ORDER/DEALER/STORAGE/VOUCHER）。它与“平台级协议”并列，但**不同于** `PLATFORM_PRODUCT_TYPE`（平台级管理员授权书）——后者属于 [[authorization_agreement]] 的产品码维度，见 [[platform_level_auth_agreement]]。
+
+## 需求背景
+每个业务线在开通时都需要客户签署对应的产品协议，迁移时按产品码逐条拉取，因此在迁移记录中表现为“同协议类型、不同产品码各一条”。
+
+## 版本演进
+产品协议的类型数量随业务线增加而扩张（AMS/BEECREDIT/RVSFACTOR_PC/ACFLOW/ORDER/DEALER/STORAGE/VOUCHER），是协议迁移需求长期演进的主要驱动之一。
+---END FILE---
+
+---FILE: rules/offline_eauth_sign_trigger.md ---
+---
+type: rule
+title: 线下电子授权书签署触发条件（多重与门）
+page_key: offline_eauth_sign_trigger
+domain: 授权协议与电子授权
+status: draft
+aliases:
+  - 电子授权书触发条件
+  - off_auth 签署与门
+oid: 1
+scope:
+  databases: [unknown]
+sources:
+  - code:CustAuthSignOrchestrationApplication.java
+  - db:cust_company_info
+  - db:cust_change_record
+  - db:tenant_setting_config
+contract_version: "0.1"
+---
+
+这是本主题最核心的规则：电子授权书签署不是单条件触发，而是六个与门同时成立。任一条件不满足时**仅记日志跳过**，不阻断主流程——这一点决定了线上问题往往表现为“没有签”，而不是“报错”。
+
+涉及口径：[[tenant_electronic_auth_flag]]、[[need_register_ca]]、[[cfca_registered]]、[[auth_agreement_supplement_flag]]；相关表 [[cust_company_info]]、[[cust_change_record]]、[[cust_change_cfg]]、[[tenant_setting_config]]。
+
+```ground:rule
+name: 线下电子授权书签署触发条件（多重与门）
+content: "仅当 ①审核通过(checkStatus=CUST_CHECK_PASS) ②授权模式为 off_auth ③租户 generate_electronic_auth_flag=Y ④企业类型∈{供应商,核心企业,金融机构,项目公司} ⑤建档流程且建档方式∈{INVITE客户录入,SELF自主注册} 或 变更流程且 alterMode=SELF_ALTER 且变更项∈{UN0016,UN0012,UN0013,UN0008,UN0015} ⑥need_register_ca=Y 且 ca_register_status=Y 时，才在事务提交后触发签署；任一不满足仅记日志跳过，不阻断主流程"
+impact: "决定线下授权书是否自动发起电子签署"
+field_targets:
+  - cust_company_info.cust_build_status
+  - cust_company_info.identify_style
+  - cust_company_info.need_register_ca
+  - cust_company_info.ca_register_status
+  - cust_change_record.alter_mode
+  - cust_change_record.alter_type_id
+  - tenant_setting_config.generate_electronic_auth_flag
+evidence: "code:CustAuthSignOrchestrationApplication.java:evaluateIneligibilityReason + isCaRegistered"
+```
+---END FILE---
+
+---FILE: rules/ca_delayed_compensation_sign.md ---
+---
+type: rule
+title: CFCA 未开通时的延迟补偿签署
+page_key: ca_delayed_compensation_sign
+domain: 授权协议与电子授权
+status: draft
+aliases:
+  - CA 回调补偿签署
+  - 延迟补签规则
+oid: 1
+scope:
+  databases: [unknown]
+sources:
+  - code:CustAuthSignOrchestrationApplication.java
   - db:cust_company_info
 contract_version: "0.1"
 ---
 
-存量迁移企业只有在 `auth_aggrement_supplement_flag='N'`（走新渠道、不需补签）时才免补签；旧渠道迁移会置 `'Y'` 表示需补签，且该标志可被 `updateAuthAggrementFlag` 人工翻转。因此该口径是「来源 + 标志位」的合取，与来源单一条件的 [[calibers/platform-push-no-supplement]] 不同。
+解决“审核通过时 CA 还没开好”的时序问题：审核通过时若 [[cfca_registered]] 不成立则本轮跳过；待 CA 重开成功回调（`CaActivateResult.activateSuccess=true`）后再链式触发一次签署，此时即便本地状态仍非 Y 也继续尝试，由签章层做二次校验。与 [[offline_eauth_sign_trigger]] 配合，保证不永久漏签。
 
-## 需求背景
-存量迁移分新旧渠道：走新渠道的协议已在迁移中落库，无需补签；走旧渠道的协议未能完整迁移，必须保留补签入口，故用独立标志位而非来源单一判定。
-
-## 版本演进
-v0 初稿：仅收录语义分析中已有证据的口径；本次分析未提供 document_claim（未证实主张）。
-
-```ground:caliber
-name: 存量迁移企业免补签授权书
-predicate: "cust_company_info.cust_source = 'MIGRATORY' AND cust_company_info.auth_aggrement_supplement_flag = 'N'"
-scope: "授权书补签判定"
-evidence: "code_path:CustAuthAgreementDomainService.java#enableCompanyManagerAuthAggrement"
+```ground:rule
+name: CFCA 未开通时的延迟补偿签署
+content: "审核通过时若本地 ca_register_status≠Y 则跳过签署；待 CA 重开成功回调（CaActivateResult.activateSuccess=true）后再链式触发一次签署，此时即使本地状态仍非 Y 也继续尝试（由签章层二次校验）"
+impact: "保证 CA 开通后授权书能补签，避免永久漏签"
+field_targets:
+  - cust_company_info.ca_register_status
+evidence: "code:CustAuthSignOrchestrationApplication.java:tryOfflineElectronicAuthSignAfterCaSuccess"
 ```
-
 ---END FILE---
 
----FILE: calibers/platform-level-authed.md ---
+---FILE: rules/auth_sign_idempotent.md ---
 ---
-type: caliber
-title: 平台级授权已完成
-page_key: caliber.platform_level_authed
+type: rule
+title: 授权书签署幂等（Redis 锁 + 完成标记）
+page_key: auth_sign_idempotent
 domain: 授权协议与电子授权
 status: draft
 aliases:
-  - PLATFORM 授权已完成
-  - 平台授权判定
+  - 签署幂等
+  - 授权书签署防重
+oid: 1
+scope:
+  databases: [unknown]
+sources:
+  - code:CustAuthSignOrchestrationApplication.java
+contract_version: "0.1"
+---
+
+签署动作必须幂等：先用完成标记判重，再用分布式锁抢执行权，成功后写完成标记；签署失败只记日志、不回滚主流程。这让 [[ca_delayed_compensation_sign]] 的补偿触发与正常触发可以安全并存。
+
+```ground:rule
+name: 授权书签署幂等（Redis 锁 + 完成标记）
+content: "签署前用 cust_auth_sign_done:{sourceMainId}:{appNo} 判重，再用 cust_auth_sign_after_audit:{sourceMainId}:{appNo} 抢锁（acquire-timeout 1000ms / lock-timeout 120000ms）执行，成功后写 done 标记；签署失败仅记日志不回滚主流程"
+impact: "避免重复签署与并发重复提交"
+field_targets: []
+evidence: "code:CustAuthSignOrchestrationApplication.java:executeOfflineElectronicAuthSignSafely"
+```
+---END FILE---
+
+---FILE: rules/manager_change_invalidate_agreement.md ---
+---
+type: rule
+title: 企业管理员变更即作废原授权书
+page_key: manager_change_invalidate_agreement
+domain: 授权协议与电子授权
+status: draft
+aliases:
+  - 管理员变更作废授权
+  - 授权主体切换规则
 oid: 1
 scope:
   databases: [unknown]
@@ -661,183 +1145,64 @@ sources:
 contract_version: "0.1"
 ---
 
-判定企业/管理员是否已签署平台授权书时，只取 `platform_product_code='PLATFORM'` 且 `authed_status='Y'` 的行；由于授权按自然人（`cust_manager_id`）维度记录，同一人在多家企业任职时只需一份平台级授权即全部免签。具体产品行（ACFLOW/AMS/ORDER/RVSFACTOR_PC…）的 `Y` 表示存量系统已授权，不参与该口径。
+管理员换人时“先作废、后重建”：先把原管理员在该企业下的全部授权记录置 `enable=N`、`authed_status=N`（remark 记录 to|新管理员|原因），再为新管理员按企业各角色创建/更新 `authed_status=Y` 的授权记录。这是 [[authed_status_state_flow]] 中 Y→N 迁移的唯一来源，也解释了 [[auth_agreement_authed_n]] 记录偏多的现象。
 
-相关术语边界见 [[concepts/platform-product-code]]，状态迁移见 [[processes/authorization-agreement-authed-status]]。
-
-## 需求背景
-若按产品逐条校验授权，同一管理员在同一企业的多个产品上会被要求重复签署；因此把「平台级」授权作为唯一免签依据，产品级记录只作为存量已授权的事实保留。
-
-## 版本演进
-v0 初稿：仅收录语义分析中已有证据的口径；本次分析未提供 document_claim（未证实主张）。
-
-```ground:caliber
-name: 平台级授权已完成
-predicate: "authorization_agreement.platform_product_code = 'PLATFORM' AND authorization_agreement.authed_status = 'Y'"
-scope: "企业/管理员是否已签署平台授权书（按人维度，一个角色签过即全部免签）"
-evidence: "code_path:CustAuthAgreementDomainService.java#hasCompanySignedAuthAggrement"
+```ground:rule
+name: 企业管理员变更即作废原授权书
+content: "管理员换人时先把原管理员在该企业下的全部授权记录 enable=N、authed_status=N（remark 记录 to|新管理员|原因），再为新管理员按企业各角色创建/更新 authed_status=Y 的授权记录"
+impact: "保证授权主体与当前管理员一致"
+field_targets:
+  - authorization_agreement.enable
+  - authorization_agreement.authed_status
+  - authorization_agreement.cust_manager_id
+  - authorization_agreement.creation_type
+evidence: "code:CustAuthAgreementDomainService.java:changeCompanyAuthorizationAgreement + disabledAllAuthorizationAgreement"
 ```
-
 ---END FILE---
 
----FILE: calibers/offline-electronic-auth-trigger.md ---
+---FILE: rules/migratory_supplement_exemption.md ---
 ---
-type: caliber
-title: 线下电子授权书签署触发条件
-page_key: caliber.offline_electronic_auth_trigger
+type: rule
+title: 存量迁移企业授权书补签的豁免
+page_key: migratory_supplement_exemption
 domain: 授权协议与电子授权
 status: draft
 aliases:
-  - 电子签署触发条件
-  - 签署编排准入门槛
+  - 迁移企业免补签
+  - 补签豁免规则
 oid: 1
 scope:
   databases: [unknown]
 sources:
-  - code:CustAuthSignOrchestrationApplication.java
-  - db:cust_company_info
-  - db:tenant_setting_config
-contract_version: "0.1"
----
-
-这是签署编排的准入门槛：审核通过（`check_status='CUST_CHECK_PASS'`）、企业用户授权模式为线下（`auth_model='off_auth'`）、租户开关开启（[[tables/tenant_setting_config|generate_electronic_auth_flag]]='Y'）、且企业已具备 CFCA 电子签章能力（`need_register_ca='Y'` 且 `ca_register_status='Y'`）时必须全满足。企业类型与流程类型还分别有额外口径：[[calibers/allowed-company-types]]、[[calibers/build-scope-identify-styles]]、[[calibers/change-scope-self-alter-items]]。
-
-聚合后的完整规则见 [[rules/electronic-auth-sign-preconditions]]；不满足时仅记日志跳过，不阻断主流程。
-
-## 需求背景
-电子授权书签署属于「可选的增强路径」，必须能安全地在前置条件不满足时静默跳过；同时 CA 未开通的企业需等待重开 CA 成功后链式触发签署，因此判定被设计为可重复求值的条件集合而非一次性开关。
-
-## 版本演进
-v0 初稿：仅收录语义分析中已有证据的口径；本次分析未提供 document_claim（未证实主张）。
-
-```ground:caliber
-name: 线下电子授权书签署触发条件
-predicate: "cust_company_info.check_status = 'CUST_CHECK_PASS' AND <企业用户>.auth_model = 'off_auth' AND tenant_setting_config.generate_electronic_auth_flag = 'Y' AND cust_company_info.need_register_ca = 'Y' AND cust_company_info.ca_register_status = 'Y'"
-scope: "审核回调 afterCommit 编排；不满足仅记日志跳过，不阻断主流程"
-evidence: "code_path:CustAuthSignOrchestrationApplication.java#evaluateIneligibilityReason"
-```
-
----END FILE---
-
----FILE: calibers/allowed-company-types.md ---
----
-type: caliber
-title: 可触发电子授权签署的企业类型
-page_key: caliber.allowed_company_types
-domain: 授权协议与电子授权
-status: draft
-aliases:
-  - 允许签署的企业类型
-  - ALLOWED_COMPANY_TYPE_KEYS
-oid: 1
-scope:
-  databases: [unknown]
-sources:
-  - code:CustAuthSignOrchestrationApplication.java
+  - code:CustAuthAgreementDomainService.java
   - db:cust_company_info
 contract_version: "0.1"
 ---
 
-签署编排只对企业角色为供应商（`SUPPLIER`）、核心企业（`CORE`）、金融机构（`FINANCE`）、项目公司（`PROJECT_COMPANY`）的企业开放。该口径与 [[calibers/offline-electronic-auth-trigger]] 是合取关系，同时使用 [[tables/cust_change_record|company_type]] 相关的角色语义。
+决定迁移/外部企业在开通产品时是否弹补签授权书：`cust_source=PLATFORM_PUSH`（外部平台推送）一律视为已授权；`cust_source=MIGRATORY` 且 [[auth_agreement_supplement_flag]] 为 N（新渠道迁移）无需签署；其余情况仍需检查平台授权（[[platform_level_auth_agreement]]）或存量产品授权。
 
-## 需求背景
-电子授权书目前只覆盖参与授信/融资主链路的四类企业角色，其余角色保持原线下流程，避免一次性扩大灰度范围。
-
-## 版本演进
-v0 初稿：仅收录语义分析中已有证据的口径；本次分析未提供 document_claim（未证实主张）。
-
-```ground:caliber
-name: 可触发电子授权签署的企业类型
-predicate: "cust_company_info.cust_company_type ∈ {'SUPPLIER','CORE','FINANCE','PROJECT_COMPANY'}"
-scope: "电子授权书签署编排"
-evidence: "code_path:CustAuthSignOrchestrationApplication.java#ALLOWED_COMPANY_TYPE_KEYS"
+```ground:rule
+name: 存量迁移企业授权书补签的豁免
+content: "cust_source=PLATFORM_PUSH（外部平台推送）一律视为已授权；cust_source=MIGRATORY 且 auth_aggrement_supplement_flag=N（新渠道迁移）不需要签署；其余情况需检查平台授权(PLATFORM)或存量产品授权"
+impact: "决定迁移/外部企业在开通产品时是否弹补签授权书"
+field_targets:
+  - cust_company_info.cust_source
+  - cust_company_info.auth_aggrement_supplement_flag
+  - cust_company_info.migarory_auth_aggrement_flag
+evidence: "code:CustAuthAgreementDomainService.java:enableCompanyManagerAuthAggrement"
 ```
-
 ---END FILE---
 
----FILE: calibers/build-scope-identify-styles.md ---
+---FILE: rules/agreement_pull_retry_limit.md ---
 ---
-type: caliber
-title: 建档类签署仅限邀请/自主录入
-page_key: caliber.build_scope_identify_styles
+type: rule
+title: 协议迁移拉取的重试与上限
+page_key: agreement_pull_retry_limit
 domain: 授权协议与电子授权
 status: draft
 aliases:
-  - CHECK 分支认证方式白名单
-  - ALLOWED_BUILD_IDENTIFY_STYLES
-oid: 1
-scope:
-  databases: [unknown]
-sources:
-  - code:CustAuthSignOrchestrationApplication.java
-  - db:cust_company_info
-contract_version: "0.1"
----
-
-在 `processType=CHECK`（建档类）分支中，只有认证方式为 `INVITE`（邀请认证-客户录入）或 `SELF`（自主注册）才允许发起电子授权签署；`INVITE_AGW`（平台录入）与 `SIMPLE`（简易认证）不进入该分支。该口径与 [[calibers/offline-electronic-auth-trigger]] 共同作用，状态来源见 [[processes/cust_build_status]]。
-
-## 需求背景
-邀请-平台录入在企业侧天然对应线下签署流程，简易认证则无流程实例（`act_procinst_id` 为空不落授权记录），二者均不适合走线上电子签署编排。
-
-## 版本演进
-v0 初稿：仅收录语义分析中已有证据的口径；本次分析未提供 document_claim（未证实主张）。
-
-```ground:caliber
-name: 建档类签署仅限邀请/自主录入
-predicate: "cust_company_info.identify_style ∈ {'INVITE','SELF'}"
-scope: "processType=CHECK 分支"
-evidence: "code_path:CustAuthSignOrchestrationApplication.java#ALLOWED_BUILD_IDENTIFY_STYLES"
-```
-
----END FILE---
-
----FILE: calibers/change-scope-self-alter-items.md ---
----
-type: caliber
-title: 变更类签署仅限企业自行变更且变更项命中
-page_key: caliber.change_scope_self_alter_items
-domain: 授权协议与电子授权
-status: draft
-aliases:
-  - CHANGE 分支准入
-  - 变更项白名单
-oid: 1
-scope:
-  databases: [unknown]
-sources:
-  - code:CustAuthSignOrchestrationApplication.java
-  - db:cust_change_record
-  - db:cust_change_cfg
-contract_version: "0.1"
----
-
-`processType=CHANGE` 分支要求变更方式为企业自行变更（`alter_mode='SELF_ALTER'`），且 `alter_type_id` 反查 [[tables/cust_change_cfg|item_code]] 命中 `UN0016`/`UN0012`/`UN0013`/`UN0008`/`UN0015` 之一。平台代变更（`PLAT_ALTER`）与未命中的变更项不触发签署，见 [[calibers/offline-electronic-auth-trigger]]。
-
-## 需求背景
-只有企业自行发起的、且涉及授权要件的变更项才需要重新出具电子授权书；平台代变更与不涉及授权的变更项重复签署无业务意义。
-
-## 版本演进
-v0 初稿：仅收录语义分析中已有证据的口径；本次分析未提供 document_claim（未证实主张）。
-
-```ground:caliber
-name: 变更类签署仅限企业自行变更且变更项命中
-predicate: "cust_change_record.alter_mode = 'SELF_ALTER' AND cust_change_cfg.item_code ∈ {'UN0016','UN0012','UN0013','UN0008','UN0015'}"
-scope: "processType=CHANGE 分支"
-evidence: "code_path:CustAuthSignOrchestrationApplication.java#isAllowedChangeScenario"
-```
-
----END FILE---
-
----FILE: calibers/pending-pull-agreement-records.md ---
----
-type: caliber
-title: 待拉取协议记录
-page_key: caliber.pending_pull_agreement_records
-domain: 授权协议与电子授权
-status: draft
-aliases:
-  - 协议拉取扫描口径
-  - pull 捞取条件
+  - 协议拉取重试
+  - pull_num 上限
 oid: 1
 scope:
   databases: [unknown]
@@ -847,478 +1212,91 @@ sources:
 contract_version: "0.1"
 ---
 
-定时任务捞取待拉取记录的条件是「未结束 + 有效 + 未超重试上限」：`status='0'`、`enable='Y'`、`pull_num < 20`（20 为配置 `cust.agreemeent.pull.num` 默认值）。失败一次 `pull_num` 自增 1，因此记录在有限次尝试后自然退出扫描集合。状态语义见 [[processes/agreement-migratory-pull-status]]，字段释义见 [[tables/argeement_migratory_record]]。
+协议迁移任务的调度与重试约束：定时执行 + Redis 锁防重；只取待拉取且有效的记录，失败则 `pull_num+1`，超过配置上限不再拉取。状态含义见 [[agreement_migratory_pending_pull]]、[[agreement_migratory_pulled]]、[[agreement_migratory_pull_status]]。
 
-## 需求背景
-客户端可能长期无法返回某类协议，若无限重试会持续占用定时任务容量；用次数上限把「一直失败」的记录自然淘汰，同时用 `status` 终态区分「已确认无此协议」。
-
-## 版本演进
-v0 初稿：仅收录语义分析中已有证据的口径；本次分析未提供 document_claim（未证实主张）。
-
-```ground:caliber
-name: 待拉取协议记录
-predicate: "argeement_migratory_record.status = '0' AND argeement_migratory_record.enable = 'Y' AND argeement_migratory_record.pull_num < 20"
-scope: "协议拉取定时任务（20 为 cust.agreemeent.pull.num 默认值）"
-evidence: "code_path:AgreementMigratoryService.java#pull"
-```
-
----END FILE---
-
----FILE: calibers/ams-bs-channel.md ---
----
-type: caliber
-title: AMS 走 BS/上上签通道
-page_key: caliber.ams_bs_channel
-domain: 授权协议与电子授权
-status: draft
-aliases:
-  - AMS 走上上签
-  - BS_Auth 与 CFCA_Auth 分流
-oid: 1
-scope:
-  databases: [unknown]
-sources:
-  - code:PlatFormMigratoryApplication.java
-  - db:argeement_migratory_record
-  - db:cust_company_info
-contract_version: "0.1"
----
-
-协议类型与签署机构按产品分流：`platform_product_code='AMS'` 时 `agreement_type='BS_Auth'`、签署机构取 `BEST_SIGN`；其他产品取 `CFCA_Auth`，签署机构为 `PAPER_LESS`。这与开通状态字段相呼应——AMS 用 `need_register_bs`/`bs_register_status`，其余产品用 `need_register_ca`/`ca_register_status`，两者在 `openCa` 中互斥判断，术语边界见 [[concepts/ca-cfca]]。
-
-## 需求背景
-AMS 产品线使用上上签（BestSign）作为签署渠道，其余产品线使用 CFCA，因此协议迁移初始化与签署机构选择必须按产品分派。
-
-## 版本演进
-v0 初稿：仅收录语义分析中已有证据的口径；本次分析未提供 document_claim（未证实主张）。
-
-```ground:caliber
-name: AMS 走 BS/上上签通道
-predicate: "argeement_migratory_record.platform_product_code = 'AMS' → agreement_type = 'BS_Auth'；其他产品 → agreement_type = 'CFCA_Auth'"
-scope: "协议迁移初始化与签署机构选择（BEST_SIGN vs PAPER_LESS）"
-evidence: "code_path:PlatFormMigratoryApplication.java#getCaAgreement"
-```
-
----END FILE---
-
----FILE: calibers/migratory-init-five-agreements.md ---
----
-type: caliber
-title: 迁移初始化五类协议
-page_key: caliber.migratory_init_five_agreements
-domain: 授权协议与电子授权
-status: draft
-aliases:
-  - 迁移初始化协议类型清单
-  - setAgreementMigratory
-oid: 1
-scope:
-  databases: [unknown]
-sources:
-  - code:PlatFormMigratoryApplication.java
-  - db:argeement_migratory_record
-contract_version: "0.1"
----
-
-迁移初始化会为每个客户 × 每个产品生成五类待拉取协议记录：认证类协议（`CFCA_Auth` 或 `BS_Auth`，按 [[calibers/ams-bs-channel]] 分流）、产品协议、`CustPersonLicense`、`UserProtocol`、`PrivacyPolicy`。去重以「该 custId + productCode + type 的记录计数为 0」为条件，避免重复插入；写入后进入 [[calibers/pending-pull-agreement-records]] 描述的拉取流程。
-
-## 需求背景
-协议在客户端侧按类型分散存放，迁移必须按类型逐项拉取才能完整还原客户已签署的协议集合，去重条件保证初始化可重入。
-
-## 版本演进
-v0 初稿：仅收录语义分析中已有证据的口径；本次分析未提供 document_claim（未证实主张）。
-
-```ground:caliber
-name: 迁移初始化五类协议
-predicate: "argeement_migratory_record.agreement_type IN ('CFCA_Auth'|'BS_Auth', 产品协议, 'CustPersonLicense', 'UserProtocol', 'PrivacyPolicy')"
-scope: "每个客户×每个产品各生成一条待拉取记录（按 custId+productCode+type 计数为 0 才插入）"
-evidence: "code_path:PlatFormMigratoryApplication.java#setAgreementMigratory"
-```
-
----END FILE---
-
----FILE: concepts/authorization-agreement.md ---
----
-type: concept
-title: 授权书
-page_key: concept.authorization_agreement
-domain: 授权协议与电子授权
-status: draft
-aliases:
-  - 授权确认书
-  - 授权协议
-  - 客户管理员授权认证
-  - 企业授权书
-oid: 1
-scope:
-  databases: [unknown]
-sources:
-  - code:CustAuthAgreementDomainService.java
-  - db:authorization_agreement
-contract_version: "0.1"
-maps_to: "authorization_agreement（表注释：授权确认书表）——记录企业管理员是否完成平台/产品级授权，authed_status=Y 视为已授权"
+```ground:rule
+name: 协议迁移拉取的重试与上限
+content: "协议迁移任务每 30 秒执行，用 Redis 锁 cust_argeement_pull 防重；取 status=0 且 enable=Y、pull_num<配置值 的记录按产品/客户分组拉取，失败时 pull_num+1 后重试，超过上限不再拉取"
+impact: "保证协议迁移的最终一致性与有限重试"
 field_targets:
-  - authorization_agreement.authed_status
-  - authorization_agreement.platform_product_code
-  - authorization_agreement.cust_manager_id
-adjudication: boundary
-also_confused_with:
-  - 线下电子授权书（OfflineElectronicAuth 协议文件）
-  - 平台协议文本（用户协议/隐私政策）
-boundary: "authorization_agreement 是「谁授过权」的关系记录；线下电子授权书是「授权书这一份文件」的生成与签章，二者通过 cust_id 关联但生命周期不同"
----
-
-「授权书」在业务对话中指关系事实而非文件：它回答「某管理员是否已代表某企业完成授权」，落在 [[tables/authorization_agreement]]，以 `authed_status='Y'` 表达已授权，判定口径见 [[calibers/platform-level-authed]]，状态流转见 [[processes/authorization-agreement-authed-status]]。
-
-最常见的混淆是把「授权书」等同于 [[concepts/offline-electronic-auth]]（一份被签署并上传影像的合同文件），或者等同于 [[concepts/agreement]]（用户协议/隐私政策这类平台协议文本）。二者的边界是：本术语不含文件落库、不含签署模式，只有授权关系与生效标志；文件的生命周期、开关控制与签署动作在电子授权书术语下描述。
-
-## 需求背景
-企业授权按人（userid）维度判定，同一自然人的多企业角色只需一份平台级授权；为避免与「授权书文件」「平台协议文本」混用，需要把关系记录这一层语义单独命名。
-
-## 版本演进
-v0 初稿：仅收录语义分析中已有证据的术语桥接；本次分析未提供 document_claim（未证实主张）。
-
+  - argeement_migratory_record.status
+  - argeement_migratory_record.pull_num
+  - argeement_migratory_record.enable
+evidence: "code:AgreementMigratoryService.java:pull + AreementPullTask"
+```
 ---END FILE---
 
----FILE: concepts/agreement.md ---
+---FILE: rules/sign_mode_mapping.md ---
 ---
-type: concept
-title: 协议
-page_key: concept.agreement
+type: rule
+title: 协议签署模式映射
+page_key: sign_mode_mapping
 domain: 授权协议与电子授权
 status: draft
 aliases:
-  - 用户协议
-  - 隐私政策
-  - 产品协议
-  - CA 协议
-  - BS 协议
+  - signMode 映射
+  - 签署模式落库规则
 oid: 1
 scope:
   databases: [unknown]
 sources:
-  - code:PlatFormMigratoryApplication.java
+  - code:AgreementMigratoryService.java
   - db:argeement_migratory_record
 contract_version: "0.1"
-maps_to: "argeement_migratory_record（协议迁移记录）+ 底层 BaseContractProvider/IContractInfoProvider 维护的合同表；agreement_type 取 AgreementDocType"
+---
+
+迁移时把业务系统的 `signMode` 归一化为产融侧的 [[argeement_migratory_record]] 字典码，并补齐 `sign_type=SIGNED`、`business_type=cust_company_info`，使迁移后协议在产融侧的签署方式可追溯。线下口径见 [[agreement_sign_mode_offline]]。
+
+```ground:rule
+name: 协议签署模式映射
+content: "迁移协议将业务系统 signMode 映射为 SignModeEnum：NO_SIGN=03 无需签署、OFF_LINE=02 线下、ON_LINE=01 线上；并落 sign_type=SIGNED、business_type=cust_company_info"
+impact: "迁移后协议在产融侧的签署方式可追溯"
 field_targets:
-  - argeement_migratory_record.agreement_type
   - argeement_migratory_record.sign_mode
-  - argeement_migratory_record.agreement_path
-  - argeement_migratory_record.agreement_no
-adjudication: boundary
-also_confused_with:
-  - 授权书
-boundary: "协议是文本文件与签署事实（含 sign_mode、agreement_path、agreement_no）；授权书是管理员授权状态记录，不含文件落库"
----
-
-「协议」指客户与平台/机构之间签署的文本及其签署事实：类型由 `AgreementDocType` 给出（`BS_Auth`/`CFCA_Auth`/产品协议/`CustPersonLicense`/`UserProtocol`/`PrivacyPolicy`），迁移记录落在 [[tables/argeement_migratory_record]]，文件路径与编号由 `agreement_path`/`agreement_no` 承载，清单见 [[calibers/migratory_init_five_agreements]]，签署方式取值见 [[processes/agreement_sign_mode]]。
-
-与 [[concepts/authorization-agreement]] 的边界是：协议有文件、有签署模式、有拉取与判重；授权书只有「谁授过权」的关系状态。日常称为「CA 协议」「BS 协议」时指的是签署机构维度上的协议类型，仍属本术语。
-
-## 需求背景
-协议集合按产品与类型分散存放于客户端，迁移与展示都需要一个统一的「协议」概念来承载类型、文件与签署事实，故与授权关系记录分离命名。
-
-## 版本演进
-v0 初稿：仅收录语义分析中已有证据的术语桥接；本次分析未提供 document_claim（未证实主张）。
-
+evidence: "code:AgreementMigratoryService.java:setMigrateContract"
+```
 ---END FILE---
 
----FILE: concepts/offline-electronic-auth.md ---
+---FILE: rules/simple_identify_disable_ca.md ---
 ---
-type: concept
-title: 线下电子授权书
-page_key: concept.offline_electronic_auth
+type: rule
+title: 简易认证强制关闭电子签章
+page_key: simple_identify_disable_ca
 domain: 授权协议与电子授权
 status: draft
 aliases:
-  - 电子签约版授权书
-  - OfflineElectronicAuth
+  - SIMPLE 不开 CA
+  - 简易认证签章约束
 oid: 1
 scope:
   databases: [unknown]
 sources:
-  - code:ElectronicAuthLetterApplication.java
-  - code:CustAuthSignOrchestrationApplication.java
-  - db:tenant_setting_config
-contract_version: "0.1"
-maps_to: "预览接口生成的 OfflineElectronicAuth ON_LINE 合同，由 custDocFacade.signOfflineElectronicAuthAndUpload 签署并上传影像 A0050；是否启用由 tenant_setting_config.generate_electronic_auth_flag 控制"
-field_targets:
-  - tenant_setting_config.generate_electronic_auth_flag
-adjudication: boundary
-also_confused_with:
-  - authorization_agreement 授权记录
-  - 线下纸质授权书（现网 OFF_AUTH 直接跳过签署）
-boundary: "开关为 N 时该方法直接返回 true（保持现网线下纸质行为），不会产生电子合同"
----
-
-「线下电子授权书」指线下授权场景中由系统生成、电子签章并上传影像的那份文件（`OfflineElectronicAuth`，`ON_LINE` 合同）。启用前提是租户开关 `generate_electronic_auth_flag='Y'`，见 [[rules/tenant-switch-off-legacy-behavior]]；触发条件见 [[calibers/offline-electronic-auth-trigger]]，幂等控制见 [[rules/sign-idempotency-and-lock]]。
-
-与 [[concepts/authorization-agreement]] 的边界：本术语关注文件的生成、签署与影像上传；授权记录只表达授权状态。与「线下纸质授权书」的边界在于开关未开启时流程直接返回成功、不产生任何电子合同，即保持现网行为。
-
-## 需求背景
-线下签署的授权书需要电子化，以便留痕与归档；但电子化必须可灰度、可回退，因此文件生成与签署被包裹在租户开关与前置条件判定之后。
-
-## 版本演进
-v0 初稿：仅收录语义分析中已有证据的术语桥接；本次分析未提供 document_claim（未证实主张）。
-
----END FILE---
-
----FILE: concepts/off-auth.md ---
----
-type: concept
-title: 线下授权（off_auth）
-page_key: concept.off_auth
-domain: 授权协议与电子授权
-status: draft
-aliases:
-  - OFF_AUTH
-  - 线下签署模式
-oid: 1
-scope:
-  databases: [unknown]
-sources:
-  - code:CustAuthSignOrchestrationApplication.java
-contract_version: "0.1"
-maps_to: "CustEnterpriseUserDTO.authModel = AuthModel.OFF_AUTH.getCode()（代码注释与日志字面为 off_auth），签署编排的硬条件之一"
-field_targets: []
-adjudication: boundary
-also_confused_with:
-  - 线上签署（on_auth）
-  - 邀请认证-平台录入（业务上必然线下签署）
-boundary: "authModel 是企业用户在运营中台的授权模式；与企业建档方式 identify_style 正交"
----
-
-`off_auth` 是企业用户在运营中台的授权模式取值，作为 [[calibers/offline-electronic-auth-trigger]] 的硬条件之一出现在签署编排中（代码注释与日志字面为 `off_auth`）。
-
-它与 [[tables/cust_company_info|identify_style]]（建档方式）正交：即使业务上「邀请认证-平台录入」往往伴随线下签署，也仍然是两个不同维度，不能互相替代判定；建档分支的白名单见 [[calibers/build-scope-identify-styles]]。
-
-## 需求背景
-只有线下授权模式的企业才需要线下授权书的电子化替代方案，线上签署企业走各自既有通道，故编排以 `authModel` 作为分流条件。
-
-## 版本演进
-v0 初稿：仅收录语义分析中已有证据的术语桥接；本次分析未提供 document_claim（未证实主张）。
-
----END FILE---
-
----FILE: concepts/ca-cfca.md ---
----
-type: concept
-title: CA / CFCA
-page_key: concept.ca_cfca
-domain: 授权协议与电子授权
-status: draft
-aliases:
-  - 电子签章
-  - 数字证书
-  - PAPER_LESS
-oid: 1
-scope:
-  databases: [unknown]
-sources:
-  - code:CustCompanyInfoApplication.java
+  - code:CustCompanyCaPolicy.java
   - db:cust_company_info
-  - db:argeement_migratory_record
-contract_version: "0.1"
-maps_to: "cust_company_info.need_register_ca / ca_register_status；非 AMS 产品走 CFCA（SignAgencyTransferEnum.PAPER_LESS），协议类型 DATA_SOURCE_CFCA_AUTH"
-field_targets:
-  - cust_company_info.need_register_ca
-  - cust_company_info.ca_register_status
-adjudication: boundary
-also_confused_with:
-  - 上上签 / BS（BEST_SIGN）
-boundary: "AMS 产品走 BS：need_register_bs / bs_register_status、协议类型 BS_Auth、签署机构 BEST_SIGN；两者开通过程在 openCa 中互斥判断"
----
-
-「CA / CFCA」指产融侧为线下授权书签署准备的电子签章能力：是否需开通由 `need_register_ca` 表达，是否已开通由 `ca_register_status` 表达，二者同时为 `'Y'` 才满足 [[calibers/offline-electronic-auth-trigger]] 的证书前置条件。若企业正在重开 CA，则等开通成功后链式触发签署。
-
-与「上上签 / BS」的边界见 [[calibers/ams-bs-channel]]：AMS 产品走 `BS_Auth`/`BEST_SIGN`，其余产品走 `CFCA_Auth`/`PAPER_LESS`，开通过程在 `openCa` 中互斥判断，因此两个术语不能混用。
-
-## 需求背景
-不同产品线的签署渠道不同，电子签章能力的开通状态必须逐渠道记录，才能保证签署编排在「渠道开通中」时安全等待而非误判为不具备条件。
-
-## 版本演进
-v0 初稿：仅收录语义分析中已有证据的术语桥接；本次分析未提供 document_claim（未证实主张）。
-
----END FILE---
-
----FILE: concepts/platform-product-code.md ---
----
-type: concept
-title: 平台产品编码 PLATFORM
-page_key: concept.platform_product_code
-domain: 授权协议与电子授权
-status: draft
-aliases:
-  - 平台级授权书
-  - PLATFORM_PRODUCT_TYPE
-oid: 1
-scope:
-  databases: [unknown]
-sources:
-  - code:CustAuthAgreementDomainService.java
-  - db:authorization_agreement
-contract_version: "0.1"
-maps_to: "authorization_agreement.platform_product_code = 'PLATFORM'，表示平台级授权而非某个业务产品的存量授权"
-field_targets:
-  - authorization_agreement.platform_product_code
-adjudication: boundary
-also_confused_with:
-  - 业务产品编码（ACFLOW/AMS/ORDER/RVSFACTOR_PC…）
-boundary: "是否补签只看 PLATFORM 行；具体产品行的 Y 表示存量系统已授权，用于免补签判定"
----
-
-`PLATFORM`（代码常量 `PLATFORM_PRODUCT_TYPE`）是 [[tables/authorization_agreement]] 中 `platform_product_code` 的一个特殊取值，标记该行为平台级授权。是否已授权、是否需要补签只考察该行，见 [[calibers/platform-level-authed]]。
-
-与业务产品编码（ACFLOW/AMS/ORDER/RVSFACTOR_PC…）的边界：产品行的 `authed_status='Y'` 表示存量系统已授权，用于免补签判定，但不代表平台级授权已完成。混用两者会导致对企业重复要求签署。
-
-## 需求背景
-存量系统的授权记录按产品分散，而平台级授权是唯一免签依据，因此需要用同一字段上的特殊取值区分两个层级，避免新增冗余字段。
-
-## 版本演进
-v0 初稿：仅收录语义分析中已有证据的术语桥接；本次分析未提供 document_claim（未证实主张）。
-
----END FILE---
-
----FILE: rules/electronic-auth-sign-preconditions.md ---
----
-type: rule
-title: 电子授权书签署编排前置条件（全满足才签署）
-page_key: rule.electronic_auth_sign_preconditions
-domain: 授权协议与电子授权
-status: draft
-aliases:
-  - 签署准入规则
-  - evaluateIneligibilityReason
-oid: 1
-scope:
-  databases: [unknown]
-sources:
-  - code:CustAuthSignOrchestrationApplication.java
 contract_version: "0.1"
 ---
 
-该规则把分散的准入口径聚合为一次求值：审核通过、线下授权模式、租户开关开启、企业类型在白名单、流程类型命中（建档的邀请/自主录入，或企业自行变更且变更项命中）、且 CFCA 已开通。任一不满足仅记日志跳过，不阻断 `CustSyncEventProcessor` 主流程；CA 未开通时等待重开 CA 成功后链式触发。
-
-引用的口径页：[[calibers/offline-electronic-auth-trigger]]、[[calibers/allowed-company-types]]、[[calibers/build-scope-identify-styles]]、[[calibers/change-scope-self-alter-items]]；幂等与并发见 [[rules/sign-idempotency-and-lock]]。
-
-## 需求背景
-电子签署是增强路径，必须在任何前置条件缺失时安全跳过，并允许在 CA 开通等异步条件补齐后重新求值，因此被设计为「条件集合 + 不阻断主流程」的规则。
-
-## 版本演进
-v0 初稿：仅收录语义分析中已有证据的规则；本次分析未提供 document_claim（未证实主张）。
+简易认证（`identify_style=SIMPLE`）链路不支持开通电子签章：提交时若 [[need_register_ca]] 为 Y，会被策略强制校正为不开通并落库。这直接影响 [[offline_eauth_sign_trigger]] 的第 ⑥ 个与门——简易认证企业不会走电子授权书签署。
 
 ```ground:rule
-name: 电子授权书签署编排前置条件（全满足才签署）
-content: "checkStatus=CUST_CHECK_PASS；企业用户 authModel=off_auth；租户 generate_electronic_auth_flag=Y；企业类型 ∈{SUPPLIER,CORE,FINANCE,PROJECT_COMPANY}；流程为建档（identifyStyle ∈{INVITE,SELF}）或企业自行变更（alterMode=SELF_ALTER 且变更项命中 UN0016/UN0012/UN0013/UN0008/UN0015）；need_register_ca=Y 且 ca_register_status=Y。任一不满足仅记日志跳过。"
-impact: "不阻断 CustSyncEventProcessor 主流程；CA 未开通时等待重开 CA 成功后链式触发"
+name: 简易认证强制关闭电子签章
+content: "简易认证提交时如 need_register_ca=Y 则通过 CustCompanyCaPolicy.enforceMustNotOpenCa 强制校正为不开通并落库"
+impact: "简易建档不支持开通电子签章"
 field_targets:
-  - cust_company_info.check_status
   - cust_company_info.need_register_ca
-  - cust_company_info.ca_register_status
   - cust_company_info.identify_style
-  - cust_change_record.alter_mode
-  - cust_change_cfg.item_code
-  - tenant_setting_config.generate_electronic_auth_flag
-evidence: "code_path:CustAuthSignOrchestrationApplication.java#evaluateIneligibilityReason"
+evidence: "code:CustCompanyCaPolicy.java:enforceMustNotOpenCa"
 ```
-
 ---END FILE---
 
----FILE: rules/sign-idempotency-and-lock.md ---
----
-type: rule
-title: 签署幂等与并发控制
-page_key: rule.sign_idempotency_and_lock
-domain: 授权协议与电子授权
-status: draft
-aliases:
-  - 签署幂等规则
-  - executeOfflineElectronicAuthSignSafely
-oid: 1
-scope:
-  databases: [unknown]
-sources:
-  - code:CustAuthSignOrchestrationApplication.java
-contract_version: "0.1"
----
-
-签署动作以已完成标记 + 分布式锁双重保护：`cust_auth_sign_done:{sourceMainId}:{appNo}` 表示该单据已签署完成，`cust_auth_sign_after_audit:{sourceMainId}:{appNo}` 为审核后签署的 Redis 分布式锁（获取超时默认 1000ms、锁超时默认 120000ms）。签署成功才写 done 标记，失败仅记日志。键来源见 [[tables/cust_company_info]]（`id` / `app_no`）。
-
-## 需求背景
-审核回调可能重复或并发触发，签署是不可逆的对外动作（[[concepts/offline-electronic-auth]]），因此必须幂等；同时签署失败不得回滚审核主流程，故失败只记日志而不抛出。
-
-## 版本演进
-v0 初稿：仅收录语义分析中已有证据的规则；本次分析未提供 document_claim（未证实主张）。
-
-```ground:rule
-name: 签署幂等与并发控制
-content: "以 cust_auth_sign_done:{sourceMainId}:{appNo} 作为已完成标记，以 cust_auth_sign_after_audit:{sourceMainId}:{appNo} 做 Redis 分布式锁（默认获取超时 1000ms、锁超时 120000ms）；签署成功才写 done 标记，失败仅记日志。"
-impact: "重复回调/并发回调不会重复签署；签署失败不回滚审核主流程"
-field_targets:
-  - cust_company_info.id
-  - cust_company_info.app_no
-evidence: "code_path:CustAuthSignOrchestrationApplication.java#executeOfflineElectronicAuthSignSafely"
-```
-
----END FILE---
-
----FILE: rules/tenant-switch-off-legacy-behavior.md ---
----
-type: rule
-title: 租户开关关闭时保持现网行为
-page_key: rule.tenant_switch_off_legacy_behavior
-domain: 授权协议与电子授权
-status: draft
-aliases:
-  - 电子授权开关回退规则
-  - isGenerateElectronicAuth
-oid: 1
-scope:
-  databases: [unknown]
-sources:
-  - code:ElectronicAuthLetterApplication.java
-  - db:tenant_setting_config
-contract_version: "0.1"
----
-
-当租户开关 `generate_electronic_auth_flag` 非 `Y`——包括配置不存在、值为空、以及查询异常——`signOfflineElectronicAuthOnLine` 直接返回 `true`，既不做 CFCA 校验也不发起签署，从而保持现网线下纸质授权行为。该规则是 [[concepts/offline-electronic-auth]] 的失败安全设计，同时构成 [[calibers/offline-electronic-auth-trigger]] 的一部分。
-
-## 需求背景
-电子签署能力需要可灰度、可一键回退；把「配置缺失/查询异常」与「显式关闭」归为同一结果，避免依赖故障导致误发起签署。
-
-## 版本演进
-v0 初稿：仅收录语义分析中已有证据的规则。该条证据在语义分析中被截断（`code_path:ElectronicAuthLetterApplication.java#isGenerateElectronicA`），精确方法名待补全，见文末 REVIEW。
-
-```ground:rule
-name: 租户开关关闭时保持现网行为
-content: "tenant_setting_config.generate_electronic_auth_flag 非 Y（含配置不存在、为空、查询异常）时，signOfflineElectronicAuthOnLine 直接返回 true，不做 CFCA 校验也不发起签署。"
-impact: "开关是灰度/回退的唯一入口"
-field_targets:
-  - tenant_setting_config.generate_electronic_auth_flag
-evidence: "code_path:ElectronicAuthLetterApplication.java#isGenerateElectronicA"
-```
-
----END FILE---
-
----REVIEW: process | 协议签署模式（argeement_migratory_record.sign_mode）---
-语义分析只给出「`sign_mode` 语义对应 `SignModeEnum` 三态（NO_SIGN / OFF_LINE / ON_LINE）」与「DB 实存 `'01'`/`'02'`/`'03'`」，未给出数值与枚举成员的显式映射。当前页面仅登记取值分布，未建立 01→? 的确定结论。
-待确认项：
-1. `'01'` / `'02'` / `'03'` 分别对应 NO_SIGN / OFF_LINE / ON_LINE 的哪一项（需代码中的映射常量或字典配置证据）。
-2. 该字段与企业维度 `cust_company_info.sign_mode` 是否使用同一枚举、取值域是否一致。
-3. 是否存在 `'00'` 或其他历史取值（当前证据只覆盖 db_dist 的三个值）。
+---REVIEW: table | authorization_agreement---
+语义分析未给出各表所属的物理库名，本批页面 `scope.databases` 统一写 `unknown`，待补充真实物理库名（如多租户分库需按租户标注分片规则）。
 ---END REVIEW---
 
----REVIEW: rule | 租户开关关闭时保持现网行为---
-语义分析中该规则的 evidence 字符串被截断为 `code_path:ElectronicAuthLetterApplication.java#isGenerateElectronicA`，方法名不完整；但 content / impact / field_targets 三项内容完整且相互一致，故仍按原样登记，不做补全。
-待确认项：
-1. `isGenerateElectronicA…` 的完整方法名（推测为 `isGenerateElectronicAuth` 一类，未证实）。
-2. 该「非 Y 一律按关闭」逻辑是否也覆盖 `cust_company_info` 侧的读取路径。
+---REVIEW: rule | 简易认证强制关闭电子签章---
+源语义分析在第八条规则处被截断（`field_targets` 与 `evidence` 不完整）。本页 `field_targets` 中的 `cust_company_info.need_register_ca`、`cust_company_info.identify_style` 与 `evidence` 的 `code:CustCompanyCaPolicy.java:enforceMustNotOpenCa` 系依据 rule content 中逐字出现的字段名与类名补全，需与 extract 结果核对确认。
 ---END REVIEW---
 
----REVIEW: table | scope.databases 物理库名---
-语义分析未提供任何表所属的物理库名（仅给出逻辑表名），因此所有 table 页的 `scope.databases` 暂填 `unknown`。若契约流水线要求真实物理库名，需要在语义分析阶段补充 `db: <物理库名>` 证据后再回填，避免凭业务命名推断。
-待确认项：
-1. `argeement_migratory_record` / `authorization_agreement` / `cust_company_info` / `tenant_setting_config` / `cust_change_record` / `cust_change_cfg` 的物理库名与是否同库。
-2. `cust_change_record`、`cust_change_cfg` 是否与 `cust_company_info` 同库（影响跨库 JOIN 的可行性描述）。
+---REVIEW: process | 企业认证/建档状态流转---
+状态集合中同时存在 `CUST_CONFIRM_AWAIT`（待客户确认）与 `AWAIT_CUST_CONFIRM`（待客户确认，简易认证），两者是否为同一状态的不同拼写、抑或分属标准链路与简易认证链路，语义分析未给出判定；转移动线未覆盖 `AWAIT_CUST_CONFIRM` 的出边，暂按原文保留，待确认。
 ---END REVIEW---

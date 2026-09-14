@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 跨租户查询需显式设置 dbTenantCode="all"
-page_key: rule.cross_tenant_query_all
+page_key: cross_tenant_query_all
 domain: 平台内部服务对接
 status: draft
 aliases:
@@ -13,6 +13,7 @@ scope:
 sources:
   - semantic:field_semantics[cust_company_info.db_tenant_code]
 contract_version: "0.1"
+belong: rules
 ---
 
 Provider 层默认按当前租户隔离数据，需要跨租户读取时必须通过 MetaDataThreadLocalConfig.setDbTenantCode("all") 显式放宽。

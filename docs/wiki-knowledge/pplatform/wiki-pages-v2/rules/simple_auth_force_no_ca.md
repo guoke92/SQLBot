@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 简易认证强制不开通CA
-page_key: rule/simple_auth_force_no_ca
+page_key: simple_auth_force_no_ca
 domain: CA证书认证
 status: draft
 aliases: [submitForSimpleAuth 校正规则]
@@ -10,6 +10,7 @@ scope:
   databases: [unknown]
 sources: ["code_path:CustCompanyInfoApplication.java:submitForSimpleAuth"]
 contract_version: "0.1"
+belong: rules
 ---
 
 规则要求：简易认证提交时，若 cust_company_info.need_register_ca=Y，强制校正为 N 并落库，同时校正 ca_register_status、need_register_bs、bs_register_status。影响是简易建档不支持开通电子签章。

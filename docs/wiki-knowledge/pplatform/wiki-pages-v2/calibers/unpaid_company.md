@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 未缴费企业
-page_key: calibers/unpaid_company
+page_key: unpaid_company
 domain: CA证书收费
 status: draft
 aliases: [UNPAID 企业, pay_status=UNPAID]
@@ -11,6 +11,7 @@ scope:
 sources:
   - db:ca_fee_company
 contract_version: "0.1"
+belong: calibers
 ---
 
 # 未缴费企业

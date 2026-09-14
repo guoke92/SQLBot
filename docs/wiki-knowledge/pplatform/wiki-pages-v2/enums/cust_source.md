@@ -9,10 +9,22 @@ oid: 1
 scope:
   databases: [lowcode_pplatform]
 sources: ["code:extract-enums.yaml", "db:db-profile.yaml"]
-created: '2026-09-10'
-updated: '2026-09-10'
+created: '2026-09-14'
+updated: '2026-09-14'
 contract_version: "0.1"
+belong: enums
 ---
+
+
+
+
+
+
+
+
+
+
+
 
 # cust_source
 
@@ -22,13 +34,13 @@ contract_version: "0.1"
 enum: cust_source
 fields: [cust_company_info.cust_source]
 values:
-  PLATFORM_PUSH:
-    label: 运营中台推送
-  MIGRATORY:
-    label: 存量迁移企业
-  PPLATFORM:
-    label: 产融自建企业
-  PLATFORM:
+  "PLATFORM_PUSH":
+    label: "运营中台推送"
+  "MIGRATORY":
+    label: "存量迁移企业"
+  "PPLATFORM":
+    label: "产融自建企业"
+  "PLATFORM":
     label: "PLATFORM"
-    note: db 分布存在但代码枚举未声明（REVIEW）
+    note: "db 分布存在但代码枚举未声明（REVIEW）"
 ```

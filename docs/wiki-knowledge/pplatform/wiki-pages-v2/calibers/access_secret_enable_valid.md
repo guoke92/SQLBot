@@ -11,6 +11,7 @@ scope:
 sources:
   - "code: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustAccessApplication.java:validateSetValue"
 contract_version: "0.1"
+belong: calibers
 ---
 
 「接入密钥有效性」是准入校验的第一道口径：判定一条 [[tables/cust_access_secret]] 记录是否处于可用状态。口径为 `enable = 'Y'`，作用域限定在接入密钥查询环节。

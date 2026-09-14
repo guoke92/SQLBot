@@ -1,0 +1,7 @@
+body: '`reqdoc_claims` 第三条在语义分析中于 `code_evidence` 处被截断（结尾为 "CaFeeRuleEngineS"），其 `action`
+  字段缺失；第二条 `action=review` 且 `code_status=uncovered`（产品经理归属），已在 [[ca_service_fee]]
+  页首与「版本演进」中以 (document_claim，未证实) 标注。此外，`reqdoc` 的 slug 未在语义分析中显式给出，本页暂以需求文档标题推出的
+  `ca-fee-mvp-phase1-20260625` 作为 slug，并把它与 `code_path` 以 " + " 连接写入 sources（双源形式）。待确认：第三条
+  claim 的完整 action 与正式 reqdoc slug。'
+title: CA服务费（reqdoc 双源与截断主张）
+type: concept

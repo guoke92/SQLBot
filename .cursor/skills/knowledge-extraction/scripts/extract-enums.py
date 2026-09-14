@@ -7,12 +7,13 @@ Two deterministic outputs:
 pattern. The enum class name maps to its DB field by *convention*
 (``XxxEnum`` -> ``xxx``), which is only a candidate — see (2).
 
-1b. Constant-class dictionaries: ``XxxConstant`` classes/interfaces holding
-``/** 注释 */ public final static String NAME = "VALUE";`` fields. The class
-name maps to its DB field by convention (``XxxConstant`` -> ``xxx``). These
-carry status/type vocabularies that never became Java enums (e.g.
-``CustBuildTypeConstant``: PC_BUILD=客户端录入, AGW_BUILD=平台录入) — found
-missing by the pplatform P1-B source-extraction pilot.
+1b. Constant / interface dictionaries: not only ``*Enum.java``. Vocabulary
+often lives in ``interface`` / ``class`` holders (``*Constant``, ``*Constants``,
+files under ``constant(s)/``) as ``String NAME = "VALUE"`` (or int), with the
+**label taken from the preceding Javadoc / ``//`` comment**. Uncommented
+constants are still extracted (``unlabeled: true``) so an LLM can fill labels
+from write-sites. This extract is a **baseline only** — actual ``setXxx`` /
+``.eq`` / literals can disagree with the declaration.
 
 2. Setter binding evidence: call sites like
 ``setIdentifyStyle(IdentifyStyleEnum.INVITE.getDictKey())`` bind an enum
@@ -31,6 +32,7 @@ import argparse
 import re
 import sys
 from pathlib import Path
+from typing import Any
 
 import yaml
 
@@ -40,11 +42,19 @@ def snake(name: str) -> str:
     return re.sub(r"(?<=[A-Z])(?=[A-Z][a-z])|(?<=[a-z0-9])(?=[A-Z])", "_", name).lower()
 
 
-# setter 实参以枚举/常量类限定符开头——常量类（*Constant）是 159 病例真源，
-# 只认 *Enum 会漏掉全部常量写值点（setIdentifyStyle(IdentifyTypeConstant.X) 21 处）
-_SETTER_ENUM_USE = re.compile(r"\bset([A-Z]\w*)\(\s*([A-Z]\w*(?:Enum|Constant))\s*\.")
+def _is_prod_java(path: Path) -> bool:
+    rel = path.as_posix()
+    return "/src/test/" not in rel and "/test/" not in rel and not rel.endswith("Test.java")
+
+
+# setter 实参以枚举/常量类限定符开头——常量类（*Constant / *Constants / 接口）
+# 是词汇真源，只认 *Enum 会漏掉写值点（setIdentifyStyle(IdentifyTypeConstant.X)）
+_TYPE_SUFFIX = r"(?:Enum|Constants?)"
+_SETTER_ENUM_USE = re.compile(rf"\bset([A-Z]\w*)\(\s*([A-Z]\w*{_TYPE_SUFFIX})\s*\.")
 # 读点：equals/getDictKey 比较（查询条件/分支判断）
-_READ_ENUM_USE = re.compile(r"\b(?:get(\w+)|(\w+))\s*\(\s*\)?\.equals\(\s*([A-Z]\w*(?:Enum|Constant))\s*\.")
+_READ_ENUM_USE = re.compile(
+    rf"\b(?:get(\w+)|(\w+))\s*\(\s*\)?\.equals\(\s*([A-Z]\w*{_TYPE_SUFFIX})\s*\."
+)
 
 
 def _do_table_index(repo: Path) -> dict[str, str]:
@@ -80,18 +90,15 @@ def _method_owner_do(text: str, match_start: int, do_index: dict[str, str]) -> s
         for dm in reversed(list(re.finditer(rf"\b([A-Z]\w*DO)\s+{re.escape(receiver)}\b", window))):
             if dm.group(1) in do_index:
                 return dm.group(1)
-        # 接收者是 DTO/其他类型 → 查其声明类型，若非 DO 则返回 None（非落库写值）
+        # 接收者已声明且不是 DO → 非落库（DataSource/DTO/Builder 等）
         for dm in reversed(list(re.finditer(rf"\b([A-Z]\w+)\s+{re.escape(receiver)}\b", window))):
             decl_type = dm.group(1)
             if decl_type.endswith("DO"):
                 return decl_type if decl_type in do_index else None
-            if decl_type.endswith(("DTO", "Dto", "VO", "Req", "Res")):
-                return None
-    m_last = None
-    for dm in re.finditer(r"\b([A-Z]\w*DO)\s+\w+\b", window):
-        m_last = dm
-    if m_last and m_last.group(1) in do_index:
-        return m_last.group(1)
+            return None
+    # 无接收者声明时才退化到最近 DO——有接收者但类型不是 DO 时不要误绑
+    if receiver:
+        return None
     return None
 
 
@@ -160,44 +167,112 @@ def setter_table_bindings(repo: Path) -> dict[str, list[dict]]:
     return {key: sorted(items.values(), key=lambda x: x["enum"]) for key, items in sorted(out.items())}
 
 
-_CONST_CLASS_RE = re.compile(r"(?:public\s+)?(?:final\s+)?(?:class|interface)\s+(\w*Constant\w*)")
+_TYPE_DECL_RE = re.compile(
+    r"(?:public\s+)?(?:final\s+)?(?:static\s+)?(?P<kind>class|interface)\s+(?P<name>\w+)"
+)
+# 注释可选：无注释仍提取（unlabeled），描述留给 LLM 从写值点/注释补
 _CONST_FIELD_RE = re.compile(
-    r"(?:/\*\*(?P<jdoc>(?:(?!\*/).)*)\*/|(?P<line>//[^\n]*))\s*"
-    r"(?:public\s+)?(?:final\s+)?(?:static\s+)?String\s+"
-    r"(?P<name>[A-Z][A-Z0-9_]*)\s*=\s*\"(?P<value>[^\"]+)\"",
+    r"(?:/\*\*(?P<jdoc>(?:(?!\*/).){0,400}?)\*/|(?P<line>//[^\n]*))?[ \t]*\n?[ \t]*"
+    r"(?:public\s+)?(?:static\s+)?(?:final\s+)*(?:public\s+)?"
+    r"(?:String|Integer|int|long|Long)\s+"
+    r"(?P<name>[A-Z][A-Z0-9_]*)\s*=\s*"
+    r"(?:\"(?P<svalue>[^\"]+)\"|(?P<ivalue>-?\d+))",
     re.S,
+)
+_SKIP_CONST_NAME = re.compile(
+    r"(Redis|Color|Url|Https?|Template|PageRedirect|ShortLink|Notify|"
+    r"ApiConstants?|KeyConstants?|MeidaConstants|MediaConstants)",
+    re.I,
+)
+_VOCAB_NAME = re.compile(
+    r"(Constant|Constants|Dict|Status|Type|Code|Style|Mode|Kind|"
+    r"Identify|Build|Cert|Role|Scale|Source|Scene|Channel|Action)",
+    re.I,
 )
 
 
-def constant_enums(repo: Path) -> list[dict]:
-    """``XxxConstant`` 类/接口的 public static String 常量 → 枚举字典。
+def _field_from_type(name: str) -> str:
+    for suffix in ("Constants", "Constant", "Enum", "Dict"):
+        if name.endswith(suffix) and len(name) > len(suffix):
+            name = name[: -len(suffix)]
+            break
+    return snake(name)
 
-    值 = 常量字符串本身（无独立 dictKey），display 取前置 Javadoc/行注释。
-    这类常量承载未升级为 Java enum 的状态/类型词汇——159 病例
-    （CustBuildTypeConstant：PC_BUILD=客户端录入，AGW_BUILD=平台录入）的
-    真源。
+
+def _clean_const_comment(raw: str) -> str:
+    comment = re.sub(r"^\*+\s*|\s*\*/$", "", (raw or "").strip()).strip()
+    comment = re.sub(r"^//\s*", "", comment).strip()
+    return comment.splitlines()[0].strip() if comment else ""
+
+
+def _is_vocab_literal(value: str) -> bool:
+    if not value or len(value) > 64:
+        return False
+    if "://" in value:
+        return False
+    if "{" in value or value.count(":") >= 2:
+        return False
+    return True
+
+
+def _is_const_candidate_file(path: Path) -> bool:
+    if not _is_prod_java(path):
+        return False
+    name = path.name
+    parts = {p.lower() for p in path.parts}
+    if name.endswith(("Constant.java", "Constants.java")):
+        return True
+    if "constant" in parts or "constants" in parts:
+        return name.endswith(".java")
+    return False
+
+
+def constant_enums(repo: Path) -> list[dict]:
+    """接口 / 常量类 / *Constants 的字段 → 枚举字典基线。
+
+    值 = 字面量本身（无独立 dictKey 时）；display 取前置 Javadoc/行注释。
+    无注释仍保留（``unlabeled: true``）。机械提取可被写值点推翻。
     """
     out: list[dict] = []
-    for path in sorted(repo.rglob("*Constant.java")):
+    seen: set[str] = set()
+    for path in sorted(p for p in repo.rglob("*.java") if _is_const_candidate_file(p)):
         text = path.read_text(encoding="utf-8", errors="ignore")
-        cls = _CONST_CLASS_RE.search(text)
-        if not cls:
+        decl = _TYPE_DECL_RE.search(text)
+        if not decl:
             continue
-        name = cls.group(1)
+        name = decl.group("name")
+        kind = decl.group("kind")
+        if _SKIP_CONST_NAME.search(name):
+            continue
+        if not _VOCAB_NAME.search(name) and not path.name.endswith(
+            ("Constant.java", "Constants.java")
+        ):
+            continue
         values: list[dict] = []
         for m in _CONST_FIELD_RE.finditer(text):
-            comment = (m.group("jdoc") or m.group("line") or "").strip()
-            comment = re.sub(r"^\*+\s*|\s*\*/$", "", comment).strip()
-            if not comment:
+            raw = m.group("svalue") if m.group("svalue") is not None else m.group("ivalue")
+            if raw is None or not _is_vocab_literal(raw):
                 continue
-            values.append({"value": m.group("value"), "display": comment})
-        if not values:
+            comment = _clean_const_comment(m.group("jdoc") or m.group("line") or "")
+            item: dict[str, Any] = {
+                "value": str(raw),
+                "java_name": m.group("name"),
+                "display": comment or str(raw),
+            }
+            if not comment:
+                item["unlabeled"] = True
+            values.append(item)
+        if len(values) < 2:
             continue
-        field = snake(name[: -len("Constant")] if name.endswith("Constant") else name)
+        key = f"{path}:{name}"
+        if key in seen:
+            continue
+        seen.add(key)
         out.append(
             {
                 "enum": name,
-                "field": field,
+                "kind": kind,
+                "field": _field_from_type(name),
                 "path": str(path.relative_to(repo)),
                 "values": values,
             }
@@ -214,15 +289,29 @@ def extract(repo: Path) -> tuple[list[dict], dict[str, list[str]]]:
             continue
         name = cls.group(1)
         values: list[dict] = []
+        # 常量区止于首个分号或枚举体结束。常量名可以是小写
+        # （UserTypeEnum.admin），不能扫全文件，否则会误吃方法调用。
+        block_m = re.search(r"enum\s+\w+[^{]*\{([\s\S]*?)(?:;|\n\})", text)
+        block = block_m.group(1) if block_m else ""
         # NAME("dictKey", "显示名") — 枚举常量声明（两个字符串实参）
-        for m in re.finditer(r'\b([A-Z][A-Z0-9_]*)\s*\(\s*"([^"]+)"\s*,\s*"([^"]*)"\s*\)', text):
-            values.append({"value": m.group(2), "display": m.group(3)})
+        for m in re.finditer(
+            r'\b([A-Za-z_][A-Za-z0-9_]*)\s*\(\s*"([^"]+)"\s*,\s*"([^"]*)"\s*\)',
+            block,
+        ):
+            values.append(
+                {
+                    "value": m.group(2),
+                    "java_name": m.group(1),
+                    "display": m.group(3),
+                }
+            )
         if not values:
             continue
-        field = snake(name[:-4] if name.endswith("Enum") else name)
+        field = _field_from_type(name)
         enums.append(
             {
                 "enum": name,
+                "kind": "enum",
                 "field": field,
                 "path": str(path.relative_to(repo)),
                 "values": values,
@@ -239,6 +328,83 @@ def extract_full(repo: Path) -> tuple[list[dict], list[dict], dict[str, list[str
     return enums, constants, bindings, table_bindings
 
 
+_ACCESSOR_RE = re.compile(
+    rf"\b([A-Z]\w*{_TYPE_SUFFIX})\s*\.\s*([A-Za-z_][A-Za-z0-9_]*)\s*\.\s*"
+    r"(name|getDictKey|getDictParam|getCode|getValue|getDisplayName)\s*\(\s*\)"
+)
+_DICTKEY_ACCESSORS = frozenset({"getDictKey", "getCode", "getValue"})
+_NAME_ACCESSORS = frozenset({"name", "getDictParam"})
+
+
+def scan_accessors(repo: Path) -> dict[tuple[str, str], dict[str, int]]:
+    """(EnumClass, JAVA_NAME) → {accessor: count}。"""
+    counts: dict[tuple[str, str], dict[str, int]] = {}
+    for path in repo.rglob("*.java"):
+        if not _is_prod_java(path):
+            continue
+        text = path.read_text(encoding="utf-8", errors="ignore")
+        for m in _ACCESSOR_RE.finditer(text):
+            key = (m.group(1), m.group(2))
+            bucket = counts.setdefault(key, {})
+            bucket[m.group(3)] = bucket.get(m.group(3), 0) + 1
+    return counts
+
+
+def _stored_as(accessors: dict[str, int], java_name: str, dict_key: str) -> str:
+    dk = sum(accessors.get(name, 0) for name in _DICTKEY_ACCESSORS)
+    nm = sum(accessors.get(name, 0) for name in _NAME_ACCESSORS)
+    if java_name == dict_key:
+        return "same"
+    if dk == 0 and nm == 0:
+        return "dictKey"
+    if nm and dk and min(nm, dk) * 2 >= max(nm, dk):
+        return "mixed"
+    if nm > dk:
+        return "name"
+    return "dictKey"
+
+
+def attach_accessors(
+    repo: Path, enums: list[dict], constants: list[dict]
+) -> None:
+    """就地写入 values[].accessors / stored_as（name vs getDictKey 分轨）。"""
+    counts = scan_accessors(repo)
+    for entry in (*enums, *constants):
+        enum_name = str(entry.get("enum") or "")
+        for value in entry.get("values") or []:
+            java_name = str(value.get("java_name") or "")
+            dict_key = str(value.get("value") or "")
+            accessors = dict(counts.get((enum_name, java_name)) or {})
+            value["accessors"] = accessors
+            value["stored_as"] = _stored_as(accessors, java_name, dict_key)
+
+
+class _QuotedDumper(yaml.SafeDumper):
+    """数字形态字符串必须带引号，否则 01 会被读成整数 1。"""
+
+
+def _quoted_str(dumper: yaml.SafeDumper, data: str) -> Any:
+    looks_numeric = bool(re.match(r"^[\d.]+$", data)) or (
+        data[:1].isdigit() if data else False
+    )
+    reserved = data.lower() in {
+        "y",
+        "n",
+        "yes",
+        "no",
+        "true",
+        "false",
+        "on",
+        "off",
+        "null",
+    }
+    style = '"' if looks_numeric or reserved or data != data.strip() else None
+    return dumper.represent_scalar("tag:yaml.org,2002:str", data, style=style)
+
+
+_QuotedDumper.add_representer(str, _quoted_str)
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("repo")
@@ -247,6 +413,7 @@ def main() -> None:
     repo = Path(args.repo)
 
     enums, constant_enums_list, bindings, table_bindings = extract_full(repo)
+    attach_accessors(repo, enums, constant_enums_list)
     enum_names = {e["enum"] for e in enums} | {e["enum"] for e in constant_enums_list}
     for entry in enums:
         # 证据绑定：该枚举类被哪些字段的 setter 实际写入
@@ -261,15 +428,23 @@ def main() -> None:
     bindings = {
         field: [cls for cls in classes if cls in enum_names]
         for field, classes in bindings.items()
+        if any(cls in enum_names for cls in classes)
     }
     bindings = {field: classes for field, classes in bindings.items() if classes}
     ambiguous = {
         field: classes for field, classes in bindings.items() if len(classes) > 1
     }
     total_values = sum(len(e["values"]) for e in enums)
+    mixed = sum(
+        1
+        for e in (*enums, *constant_enums_list)
+        for v in e.get("values") or []
+        if v.get("stored_as") in {"name", "mixed"}
+    )
 
     out = {
-        "schema_version": "1.3",
+        "schema_version": "1.5",
+        "extract_role": "baseline",
         "repository": repo.name,
         "enums": enums,
         "constant_enums": constant_enums_list,
@@ -280,14 +455,16 @@ def main() -> None:
     }
     if args.output:
         Path(args.output).write_text(
-            yaml.safe_dump(out, allow_unicode=True, sort_keys=False), encoding="utf-8"
+            yaml.dump(out, Dumper=_QuotedDumper, allow_unicode=True, sort_keys=False),
+            encoding="utf-8",
         )
         print(f"wrote {args.output}")
 
     const_total = sum(len(e["values"]) for e in constant_enums_list)
     print(
         f"enums={len(enums)} values={total_values} constant_enums={len(constant_enums_list)}"
-        f" const_values={const_total} bindings={len(bindings)} table_bindings={len(table_bindings)}",
+        f" const_values={const_total} bindings={len(bindings)} table_bindings={len(table_bindings)}"
+        f" name_or_mixed={mixed}",
         file=sys.stderr,
     )
     for key, items in list(table_bindings.items())[:10]:

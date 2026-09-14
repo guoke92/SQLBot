@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 交e保账户存在性口径
-page_key: calibers/bocom_account_existence
+page_key: bocom_account_existence
 domain: 外部渠道与银行对接
 status: draft
 aliases:
@@ -14,6 +14,7 @@ scope:
 sources:
   - code:BocomFacade#existBocomAccount
 contract_version: "0.1"
+belong: calibers
 ---
 
 # 交e保账户存在性口径

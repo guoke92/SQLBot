@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 上线审批清空关联审批编号
-page_key: rule/online-approval-clears-related-no
+page_key: online-approval-clears-related-no
 domain: 微企链立项与项目审批
 status: draft
 aliases:
@@ -13,6 +13,7 @@ scope:
 sources:
   - code_path:ProjectApprovalApplication.java
 contract_version: "0.1"
+belong: rules
 ---
 
 当单据是上线审批（`is_online_approval='Y'`）时，`related_approval_no` 会被清空为空串，而不是置 NULL。这意味着「没有关联审批」在本表中存在两种可能的物理表达（空串与 NULL），读数据时应按空值统一处理。

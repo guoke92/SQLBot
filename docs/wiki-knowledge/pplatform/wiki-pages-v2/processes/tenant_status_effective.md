@@ -1,47 +1,54 @@
 ---
 type: process
-title: 租户生效状态（tenant_setting_config.status）
-page_key: process.tenant_status_effective
-domain: 租户配置
+title: 租户生效状态机
+page_key: tenant_status_effective
+domain: 租户配置/灰度/运营邮件
 status: draft
-aliases:
-  - 租户生效状态
-  - 待生效转已生效
+aliases: [租户生效状态, status 状态机, effective]
 oid: 1
 scope:
-  databases:
-    - lowcode-pplatform-tenant-management
+  databases: [unknown]
 sources:
-  - db:tenant_setting_config.status
-  - code:lowcode-pplatform-tenant-management/src/main/java/com/lls/lowcode/pplatform/tenant/service/TenantDomainService.java:effective
+  - "code:TenantDomainService.effective / predicateEffective；TenantAppliactionService.syncTenant"
+  - "db:tenant_setting_config.status 分布 Y=124 / N=240"
 contract_version: "0.1"
+belong: processes
 ---
 
-租户配置的「生效」是一条单向人工推进的状态：新租户落在 `N`（待生效/未生效，存量中占多数），只有 `effective` 的必填项校验全部通过后才置为 `Y`。是否算作「生效租户」需要 `status='Y'` 与 `enable='Y'` 两个条件并列，见 [[calibers/effective_tenant]]；其中的必填项之一即项目码与默认项目的联动，见 [[rules/project_code_required_default_project]]。
+租户生效状态机描述 `tenant_setting_config.status` 在「待生效 → 已生效」之间的迁移。生效是一次全量校验：合同模板、通知、待办、短信、平台运营方、门户页、产品、基础信息八项配置全部通过后，才把 `status` 回写为 Y；任一未完成则返回告警并保持原状态。迁移租户落库时不显式设置状态，保持空/待生效。
+
+该状态机与三个口径直接相关：[[enable_tenant_config]]（读取前置）、[[tenant_effective]]（已生效筛选）、[[tenant_pending_effective]]（待生效筛选）。状态字段本身见 [[tenant_setting_config]]。
 
 ## 需求背景
-
-租户创建时往往缺少统一社会信用证编码、默认项目、平台运营方企业等前置信息，因此不能立即对外提供服务，需要「待生效」态承接配置补全，再由运营触发生效。生效门槛由校验项控制，避免未配置完整的租户进入可用列表。
+租户创建后配置项分散在多个模块，需要一次性校验后才允许对外生效，避免半配置租户被业务使用；迁移租户为避免触发新增事件，先以占位状态落库。
 
 ## 版本演进
+v0.1（本页）：首版契约，三态与四条迁移均来自语义分析证据；暂无历史版本记录。
 
-v0.1：登记当前代码中的状态取值与唯一一条 N→Y 迁移（必填项校验通过）。
-
-```yaml
-state_machine: 租户生效状态
+```ground:process
+name: 租户生效状态
 field: tenant_setting_config.status
 states:
   - value: "N"
-    label: 待生效/未生效
+    label: 待生效
     source: db_dist
   - value: "Y"
     label: 已生效
     source: db_dist
+  - value: ""
+    label: 空/未生效（迁移租户初始态，导出展示为『待生效』）
+    source: code_const
 transitions:
   - from: "N"
-    event: effective 必填项校验全部通过
+    event: "effective() 八项配置（合同模板/通知/待办/短信/平台运营方/门户页/产品/基础信息）全部校验通过"
     to: "Y"
-    evidence: "code_path:lowcode-pplatform-tenant-management/src/main/java/com/lls/lowcode/pplatform/tenant/service/TenantDomainService.java:effective"
+    evidence: "code_path:lowcode-pplatform-tenant-management/src/main/java/com/lls/lowcode/pplatform/tenant/service/TenantDomainService.java:effective#L108"
+  - from: "N"
+    event: "任一配置项未完成 → 返回 WindowAlertDTO.alertEnabled=true，状态不变"
+    to: "N"
+    evidence: "code_path:lowcode-pplatform-tenant-management/src/main/java/com/lls/lowcode/pplatform/tenant/service/TenantDomainService.java:predicateEffective"
+  - from: "任意"
+    event: "syncTenant 迁移租户落库（不显式设置 status，保持待生效）"
+    to: ""
+    evidence: "code_path:lowcode-pplatform-tenant-management/src/main/java/com/lls/lowcode/pplatform/tenant/application/TenantAppliactionService.java:syncTenant"
 ```
-
-相关页面：[[tables/tenant_setting_config]]、[[calibers/effective_tenant]]、[[rules/project_code_required_default_project]]。

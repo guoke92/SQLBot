@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 首笔落地时间首次写入联动项目阶段
-page_key: rule/phase-auto-operation-on-first-settlement
+page_key: phase-auto-operation-on-first-settlement
 domain: 微企链立项与项目审批
 status: draft
 aliases:
@@ -13,6 +13,7 @@ scope:
 sources:
   - code_path:ProjectStatisticsApplication.java#applyOperationPhaseWhenFirstSettlementUpdatedUnderApproved
 contract_version: "0.1"
+belong: rules
 ---
 
 当企微审批已通过（`act_procinst_status='2'`）、`first_settlement_time` 由空变非空、且当前阶段不是持续运营时，系统自动把项目阶段置为持续运营。三个条件缺一不可：审批未通过的记录即使填了首笔落地时间也不会推进阶段。

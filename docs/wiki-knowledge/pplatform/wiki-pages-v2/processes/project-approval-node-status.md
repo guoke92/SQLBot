@@ -1,7 +1,7 @@
 ---
 type: process
 title: 上线审批节点状态机
-page_key: process/tenant_project_approval_flow_node_status
+page_key: project-approval-node-status
 domain: 微企链立项与项目审批
 status: draft
 aliases:
@@ -17,6 +17,7 @@ sources:
   - code_path:ProjectApprovalDeskApplication.java#doReject
   - code_path:ProjectApprovalDeskApplication.java#doTransfer
 contract_version: "0.1"
+belong: processes
 ---
 
 节点状态是工作流状态的下钻粒度：单据级状态（[[processes/project-approval-workflow-status]]）表达整条审批走到哪一步，节点状态表达某个人手上的待办被推到什么程度。入库位置为 `tenant_project_approval_flow.node_status`（该表本次未提供字段级语义，见文末 REVIEW）。

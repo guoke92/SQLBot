@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 非游客用户
-page_key: caliber.non_guest_user
+page_key: non_guest_user
 domain: 数据权限与组织
 status: draft
 aliases: [非游客, user_type != guest]
@@ -10,6 +10,7 @@ scope:
   databases: [base]
 sources: [code]
 contract_version: "0.1"
+belong: calibers
 ---
 
 「非游客用户」仅以 [[tables/cust_person_info]].user_type 不等于 guest 为条件，用于联系人分页与运营人员展示。它是比 [[calibers/company_admin]] 更宽的集合，不叠加 enable 过滤，因此其结果集会包含已冻结联系人，展示层需自行注意语义差异。

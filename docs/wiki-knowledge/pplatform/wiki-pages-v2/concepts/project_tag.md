@@ -1,7 +1,7 @@
 ---
 type: concept
 title: 项目标签（project_tag）
-page_key: concepts/project_tag
+page_key: project_tag
 domain: 租户项目
 status: draft
 aliases: [项目标签, project_tag, 生产项目/测试项目/暂停项目]
@@ -24,6 +24,7 @@ also_confused_with:
   - calibers/project_effective
 contract_version: "0.1"
 sources: ["enrich:wiki-admin"]
+belong: concepts
 ---
 
 项目标签在导入侧以中文录入，落库时转成枚举值，导出侧再还原为可读文案。它解决的是「这个项目是生产、测试还是暂停」的分类问题，而 [[tables/tenant_project]] 的 is_prd 只回答数据是否来自生产。

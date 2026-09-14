@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 统计页唯一可编辑列
-page_key: rule/statistics-only-editable-field
+page_key: statistics-only-editable-field
 domain: 微企链立项与项目审批
 status: draft
 aliases:
@@ -14,6 +14,7 @@ scope:
 sources:
   - code_path:ProjectStatisticsApplication.java
 contract_version: "0.1"
+belong: rules
 ---
 
 项目统计页面上只有一列是可编辑的：`custom_field_statistics_one`（自定义字段一(统计用)）。其余列一律只读展示，包括与它名字相近的 `custom_field_one`——后者是企微导入路径维护的字段，不是统计页字段。

@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 签署幂等与并发控制
-page_key: rule.sign_idempotency_and_lock
+page_key: sign-idempotency-and-lock
 domain: 授权协议与电子授权
 status: draft
 aliases:
@@ -13,6 +13,7 @@ scope:
 sources:
   - code:CustAuthSignOrchestrationApplication.java
 contract_version: "0.1"
+belong: rules
 ---
 
 签署动作以已完成标记 + 分布式锁双重保护：`cust_auth_sign_done:{sourceMainId}:{appNo}` 表示该单据已签署完成，`cust_auth_sign_after_audit:{sourceMainId}:{appNo}` 为审核后签署的 Redis 分布式锁（获取超时默认 1000ms、锁超时默认 120000ms）。签署成功才写 done 标记，失败仅记日志。键来源见 [[tables/cust_company_info]]（`id` / `app_no`）。

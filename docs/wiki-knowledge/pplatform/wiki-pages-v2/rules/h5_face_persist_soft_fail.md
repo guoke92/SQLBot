@@ -1,7 +1,7 @@
 ---
 type: rule
 title: H5 刷脸落库弱失败
-page_key: rule/h5_face_persist_soft_fail
+page_key: h5_face_persist_soft_fail
 domain: 微信生态/小程序/扫脸
 status: draft
 aliases: [刷脸落库弱失败, 静默落库]
@@ -11,6 +11,7 @@ scope:
 sources:
   - code:FaceVerifyController.java
 contract_version: "0.1"
+belong: rules
 ---
 
 # H5 刷脸落库弱失败

@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 运营中台审核回调分工
-page_key: rule.audit-callback-dispatch
+page_key: audit-callback-dispatch
 domain: 企业变更与运营变更
 status: draft
 aliases: [CustSyncEventProvider, isChangeBroadcast]
@@ -11,6 +11,7 @@ scope:
 sources:
   - code_path:CustSyncEventProvider.java:onEvent
 contract_version: "0.1"
+belong: rules
 ---
 
 `CUST_CHECK_PASS` / `CUST_CHECK_REJECT` 回调由工作流审核执行器 `CustWorkflowAuditCommitProcessor` 处理，`CustSyncEventProvider.onEvent` 直接跳过（`isChangeBroadcast=true` 的变更广播除外）。这解释了 [[processes.cust-change-record-status]] 中两个终态迁移的 evidence 为何指向「跳过」而非写入。

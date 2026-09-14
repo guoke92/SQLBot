@@ -1,7 +1,7 @@
 ---
 type: concept
 title: 逻辑租户标识与数据租户标识
-page_key: concepts/logical_vs_db_tenant_code
+page_key: logical_vs_db_tenant_code
 domain: 互通产品
 status: draft
 aliases: [app_tenant_code, db_tenant_code, 逻辑租户, 数据租户]
@@ -33,6 +33,7 @@ also_confused_with:
   - concepts/platform_product_vs_tenant_product
 contract_version: "0.1"
 sources: ["enrich:wiki-admin"]
+belong: concepts
 ---
 
 本术语桥用于区分「逻辑租户」与「数据租户」两个在库中形似而语义不同的列。前者对应业务上签约的主体，后者对应数据落库/隔离的归属；测试数据中的 ISOLATE_TAG_* 前缀进一步印证后者是隔离维度的技术标识。

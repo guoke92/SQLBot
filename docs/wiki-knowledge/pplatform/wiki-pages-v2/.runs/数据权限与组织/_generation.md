@@ -1,1703 +1,1376 @@
----FILE: tables/operation_user.md ---
+---FILE: tables/sys_cust_org_user_permission.md ---
 ---
 type: table
-title: 运营人员表 operation_user
-page_key: table.operation_user
-domain: 数据权限与组织
+title: sys_cust_org_user_permission（用户数据权限表）
+page_key: sys_cust_org_user_permission
+domain: cust_org_permission
 status: draft
-aliases: [operation_user, 运营中台人员表, 运营人员]
+aliases: [用户数据权限表, 数据权限表, sys_cust_org_user_permission]
 oid: 1
 scope:
-  databases: [base]
-sources: [db]
+  databases: [unknown]
+sources:
+  - code:DataPermissionApplication.java
 contract_version: "0.1"
 ---
 
-运营中台侧的运营人员主数据表，保存运营人员的业务编码、姓名、运营组别、所属机构编号以及审批流实例信息。本表是「运营人员归属」的源端：产融侧 [[tables/cust_person_info]] 的 operator_id / operator_realname / operator 三个字段分别冗余自本表的 operation_id / operation_name 与登录名，构成 [[concepts/operator_identity_bridge]]。本表 organization_id 与 [[tables/org_manage]] 同域，构成 [[concepts/org_identity_bridge]]。
+sys_cust_org_user_permission 是「数据权限」的落库表：它把某个用户在某企业某角色下可见的组织范围固化成一行记录。读侧由数据权限查询决定返回值，写侧由保存动作校验准入，两侧共用同一张表，因此它同时承载准入口径与默认兜底口径。
 
-本表的审计字段（create_by / create_user / update_by / update_user）实测全部为空串，说明审计值实际未落值，排障时不可将其作为「谁创建了运营人员」的依据。
-
-## 需求背景
-
-语义分析中未出现 reqdoc_claims 条目，本页暂无需求文档主张；现有结论均来自物理库字段语义（db 证据）。
-
-## 版本演进
-
-v0：依据 db 证据建档。其中 enable / deleted / db_tenant_code 附有实测分布，是查询口径的直接依据，删除过滤规则见 [[rules/operation_user_deleted_filter]]。
-
-```ground:table
-table: operation_user
-fields:
-  - name: id
-    meaning: 运营中台人员主键
-    evidence: db
-  - name: code
-    meaning: 编码（运营人员业务编码）
-    evidence: db
-  - name: name
-    meaning: 名称
-    evidence: db
-  - name: operation_id
-    meaning: 运营中台人员ID（对接运营中台的用户标识，产融侧 cust_person_info.operator_id 存放的值）
-    evidence: db
-  - name: operation_name
-    meaning: 运营人员姓名（产融侧 cust_person_info.operator_realname 的来源）
-    evidence: db
-  - name: operation_group
-    meaning: 运营组别
-    evidence: db
-  - name: organization_id
-    meaning: 机构编号（指向机构域 org_manage.organization_id）
-    evidence: db
-  - name: status
-    meaning: 用户状态标识
-    evidence: db
-  - name: enable
-    meaning: 启用标识；实测 Y=132 / N=9
-    evidence: db
-  - name: deleted
-    meaning: 逻辑删除标识；实测 N=119 / Y=22（存在已删除数据，查询必须带 deleted 过滤）
-    evidence: db
-  - name: db_tenant_code
-    meaning: 数据租户标识；实测仅出现 'base'（7 条），说明该表当前仅承载 base 租户运营人员
-    evidence: db
-  - name: app_tenant_code
-    meaning: 逻辑租户标识（与 db_tenant_code 分属逻辑/数据两层）
-    evidence: db
-  - name: act_procinst_id
-    meaning: 流程实例ID（运营人员的审批流实例）
-    evidence: db
-  - name: act_procinst_no
-    meaning: 流程申请编号
-    evidence: db
-  - name: act_procinst_status
-    meaning: 当前审批状态
-    evidence: db
-  - name: act_procinst_date
-    meaning: 审批结束时间
-    evidence: db
-  - name: create_by
-    meaning: 创建人id；实测全部为 ''（空串），该表审计字段实际未落值
-    evidence: db
-  - name: create_user
-    meaning: 创建人名称；实测全部为 ''
-    evidence: db
-  - name: update_by
-    meaning: 更新人id；实测全部为 ''
-    evidence: db
-  - name: update_user
-    meaning: 更新人名称；实测全部为 ''
-    evidence: db
-```
-
----END FILE---
-
----FILE: tables/org_manage.md ---
----
-type: table
-title: 机构管理表 org_manage
-page_key: table.org_manage
-domain: 数据权限与组织
-status: draft
-aliases: [org_manage, 机构表, 机构管理]
-oid: 1
-scope:
-  databases: [base]
-sources: [db, code]
-contract_version: "0.1"
----
-
-机构域主数据表，通过 parent_code 自引用构成机构树。organization_id 与 [[tables/operation_user]].organization_id 属同一机构域主键，二者构成 [[concepts/org_identity_bridge]]；org_type 与代码侧 OrgTypeEnum（ORG 根机构 / SUB 子机构）对应；client_type 用于区分来源端，代码 OrgFacade 中以 clientType=='AGW' 判断是否跳过租户过滤，见 [[rules/org_agw_skip_tenant_filter]]。
-
-org_name 与 name 的区别在于前者面向展示，建档与查询口径应以 org_name 为准。
+本表与 [[cust_person_info]]（判定是否为 [[admin]]）、[[cust_company_info]]（企业与企业角色）、[[permission_type]]、[[org_id_list]] 紧密相关；行为受 [[data_permission_save_admin_only]]、[[specified_requires_org_list]]、[[enterprise_admin_fixed_all]]、[[default_same_as_user_org_backfill]] 约束，值域见流程 [[data_permission_permission_type]]。
 
 ## 需求背景
-
-语义分析中未出现 reqdoc_claims 条目，本页暂无需求文档主张；结论来自 db 字段语义与代码侧（OrgTypeEnum、SysOrgDO.parentId/selectByCode、OrgFacade）证据。
-
-## 版本演进
-
-v0：依据 db + code 证据建档。
-
-```ground:table
-table: org_manage
-fields:
-  - name: id
-    meaning: 机构管理主键
-    evidence: db
-  - name: org_name
-    meaning: 机构名称（面向展示的名称字段，区别于 name）
-    evidence: db
-  - name: org_no
-    meaning: 机构号
-    evidence: db
-  - name: org_level
-    meaning: 机构层级（int，机构树的深度）
-    evidence: db
-  - name: org_type
-    meaning: 机构类型（varchar32，与代码侧 OrgTypeEnum：ORG 根机构 / SUB 子机构 对应）
-    evidence: code
-  - name: parent_code
-    meaning: 父机构编号（自引用，构成机构树；对应代码 SysOrgDO.parentId/selectByCode 链路）
-    evidence: db
-  - name: organization_id
-    meaning: 机构编号（与 operation_user.organization_id 同域的机构主键）
-    evidence: db
-  - name: status
-    meaning: 状态
-    evidence: db
-  - name: client_type
-    meaning: 端类型（区分 AGW/客户端等来源；代码 OrgFacade 中以 clientType=='AGW' 判断是否跳过租户过滤）
-    evidence: code
-  - name: enable
-    meaning: enable（默认 Y）
-    evidence: db
-  - name: db_tenant_code
-    meaning: 数据租户标识
-    evidence: db
-  - name: app_tenant_code
-    meaning: 逻辑租户标识
-    evidence: db
-```
-
----END FILE---
-
----FILE: tables/cust_company_info.md ---
----
-type: table
-title: 企业信息表 cust_company_info
-page_key: table.cust_company_info
-domain: 数据权限与组织
-status: draft
-aliases: [cust_company_info, 企业信息, 企业主数据]
-oid: 1
-scope:
-  databases: [base]
-sources: [code, db]
-contract_version: "0.1"
----
-
-产融侧的企业主数据表，承载企业认证/建档、经营状态、企业角色类型、认证方式与统一社会信用代码等关键字段。本表是 [[concepts/company_business_code]] 的源端：对外引用键是 code 而非 id，子表（cust_person_info / cust_role_info）统一以 ref_cust_company_info 指向它。
-
-两个状态字段分别驱动两条状态机：cust_build_status 见 [[processes/cust_build_status_fsm]]，cust_status 见 [[processes/cust_status_fsm]]。企业查询默认要求 enable='Y'，建档成功口径见 [[calibers/build_success_cust]]。
-
-## 需求背景
-
-语义分析中未出现 reqdoc_claims 条目，本页暂无需求文档主张；结论来自代码侧枚举与查询链路证据（CustBuildStatusEnum、CustStatusEnum、IdentifyTypeConstant、queryTenantOperatorCompany 等）。
+本页仅依据代码证据（DataPermissionApplication）。本次语义分析未包含需求文档（reqdoc）主张，故无双源 evidence。
 
 ## 版本演进
-
-v0：依据 code 证据建档；db_tenant_code 作为跨企业/跨租户查询与写库路由依据，见 [[concepts/tenant_code_layers]]。
+本次语义分析未提供版本变更证据。
 
 ```ground:table
-table: cust_company_info
+table: sys_cust_org_user_permission
+evidence: [code]
 fields:
-  - name: code
-    meaning: 企业业务编码（对外引用键，子表以 ref_cust_company_info 指向它，而非 id）
-    evidence: code
-  - name: cust_build_status
-    meaning: 企业认证/建档状态（CustBuildStatusEnum）
-    evidence: code
-  - name: cust_status
-    meaning: 企业经营状态（CustStatusEnum：ADD/EFFECT/FREEZE/WRITEOFF/CHANGE）
-    evidence: code
-  - name: cust_company_type
-    meaning: 企业角色类型，JSON 数组字符串（如 ["SUPPLIER"]），可多角色
-    evidence: code
-  - name: db_tenant_code
-    meaning: 数据租户标识（跨企业/跨租户查询与写库路由依据）
-    evidence: code
-  - name: identify_style
-    meaning: 认证方式（IdentifyTypeConstant：INVITE 邀请-客户录入 / INVITE_AGW 邀请-平台录入 / SELF 自主认证 / SIMPLE 简易认证）
-    evidence: code
-  - name: certification_no
-    meaning: 统一社会信用代码（同租户内企业唯一键之一）
-    evidence: code
-  - name: enable
-    meaning: 启用标识 Y/N，所有企业查询默认过滤 enable='Y'
-    evidence: code
-  - name: test_data
-    meaning: 测试数据标识（Y 为测试运营方；queryTenantOperatorCompany 在多运营方时过滤 test_data='Y'）
-    evidence: code
-  - name: need_register_ca
-    meaning: 是否需要开通电子签章 CA（Y/N，简易认证时被强制校正为不开通）
-    evidence: code
-  - name: head_company
-    meaning: 是否总部企业（为空时提交登记为 Y）
-    evidence: code
+  - name: permission_type
+    type: unknown
+    desc: 数据权限类型，取值 ALL / SPECIFIED / SAME_AS_USER_ORG（String 字面量常量，非枚举）
+    dict: permission_type
+  - name: user_id
+    type: unknown
+    desc: 数据权限归属的用户 ID（sys_user.id）
+    dict: ""
+  - name: company_id
+    type: unknown
+    desc: 数据权限所属企业 ID（cust_company_info.id），保存时必须等于当前登录企业
+    dict: ""
+  - name: company_type
+    type: unknown
+    desc: 企业角色类型（companyType），与当前登录角色必须一致才可保存
+    dict: company_type
+  - name: org_id_list
+    type: unknown
+    desc: 数据范围组织 ID 列表；SPECIFIED 时来自请求，SAME_AS_USER_ORG 且为空时由用户组织绑定回填
+    dict: ""
 ```
-
 ---END FILE---
 
 ---FILE: tables/cust_person_info.md ---
 ---
 type: table
-title: 企业联系人表 cust_person_info
-page_key: table.cust_person_info
-domain: 数据权限与组织
+title: cust_person_info（企业联系人）
+page_key: cust_person_info
+domain: cust_org_permission
 status: draft
-aliases: [cust_person_info, 联系人, 企业联系人]
+aliases: [企业联系人, 人员联系人表, cust_person_info]
 oid: 1
 scope:
-  databases: [base]
-sources: [code]
+  databases: [unknown]
+sources:
+  - code:DataPermissionApplication.java
+  - code:CustSysOrgApplication.java
 contract_version: "0.1"
 ---
 
-产融侧的企业联系人/用户表，通过 ref_cust_company_info 关联到 [[tables/cust_company_info]].code（见 [[concepts/company_business_code]]）。user_type 决定该联系人是否可参与数据权限与管理动作，其状态机见 [[processes/cust_person_user_type_fsm]]；企业管理员口径见 [[calibers/company_admin]]，非游客口径见 [[calibers/non_guest_user]]。
+cust_person_info 描述「一个用户在某个企业内以什么身份存在」。它是数据权限与组织绑定两条链路的共同入口：能否配置数据权限、能否被挂到组织下，都要回到本表的 user_type、enable、company_type 与 ref_cust_company_info 上判定。
 
-本表同时承载运营人员归属信息：operator_id / operator_realname / operator 冗余自 [[tables/operation_user]]，构成 [[concepts/operator_identity_bridge]]；company_type 与 cust_company_info.cust_company_type、cust_role_info.role_type 同域，见 [[concepts/company_role_type]]。phone 为加密 Base64 存储，见 [[rules/phone_encrypted_base64]]。本表 user_id 参与数据权限三维，见 [[concepts/data_permission_triple]]。
+企业归属通过 ref_cust_company_info（指向 cust_company_info.code）而非主键表达，与 [[cust_id_company_id]] 讨论的 id/code 双轨一致。管理员身份见 concept [[admin]]，角色维度见 [[company_type]]，相关约束见 [[data_permission_save_admin_only]] 与 [[bind_org_user_requires_enabled_contact]]。
 
 ## 需求背景
-
-语义分析中未出现 reqdoc_claims 条目，本页暂无需求文档主张；结论来自代码侧枚举与加密工具链路（UserTypeEnum、CustPersonStatusConstant、CustCertificationResultTypeEnum、RealNameResultEnum、encryptAndBase64Str/decryptStr）。
+本页仅依据代码证据（DataPermissionApplication、CustSysOrgApplication）。本次语义分析未包含需求文档（reqdoc）主张，故无双源 evidence。
 
 ## 版本演进
-
-v0：依据 code 证据建档。
+本次语义分析未提供版本变更证据。
 
 ```ground:table
 table: cust_person_info
+evidence: [code]
 fields:
   - name: user_type
-    meaning: 用户类型（UserTypeEnum：admin 企业管理员 / operator 经办人 / guest 游客），决定是否可参与数据权限与管理动作
-    evidence: code
+    type: unknown
+    desc: 用户在企业内的类型：admin（管理员）/operator（经办人）/guest（游客）；数据权限判定只看 admin
+    dict: user_type
   - name: company_type
-    meaning: 该联系人归属的企业角色类型（与 cust_company_info.cust_company_type 对应）
-    evidence: code
+    type: unknown
+    desc: 该联系人所归属的企业角色类型（companyType），组织绑定与数据权限均按此维度隔离
+    dict: company_type
   - name: ref_cust_company_info
-    meaning: 关联企业业务编码（指向 cust_company_info.code）
-    evidence: code
-  - name: phone
-    meaning: 手机号，加密后以 Base64 存储（写入用 encryptAndBase64Str，展示用 decryptStr）
-    evidence: code
+    type: unknown
+    desc: 所属企业业务编码，指向 cust_company_info.code（非主键 id）
+    dict: ""
   - name: enable
-    meaning: 启用标识 Y/N（冻结用户置 N）
-    evidence: code
-  - name: status
-    meaning: 用户状态（CustPersonStatusConstant：ADD/EFFECT/FREEZE）
-    evidence: code
-  - name: operator_id
-    meaning: 归属运营人员ID（指向 operation_user.operation_id）
-    evidence: code
-  - name: operator_realname
-    meaning: 归属运营人员姓名（冗余自 operation_user.operation_name）
-    evidence: code
-  - name: operator
-    meaning: 归属运营人员登录名
-    evidence: code
-  - name: phone_realname_status
-    meaning: 手机号实名状态（CustCertificationResultTypeEnum：待认证/自动通过/人工通过）
-    evidence: code
-  - name: face_status
-    meaning: 人脸认证状态
-    evidence: code
-  - name: real_name_result
-    meaning: 实名结果（RealNameResultEnum.VERIFIED_SUCCESS）
-    evidence: code
+    type: unknown
+    desc: 联系人启用标识 Y/N；查管理员/绑定用户均要求 Y
+    dict: ""
+  - name: phone
+    type: unknown
+    desc: 手机号（加密存储）；管理员判定用 encryptAndBase64Str(sysUser.userName) 等值比较
+    dict: ""
 ```
-
 ---END FILE---
 
----FILE: tables/cust_role_info.md ---
+---FILE: tables/cust_company_info.md ---
 ---
 type: table
-title: 企业角色表 cust_role_info
-page_key: table.cust_role_info
-domain: 数据权限与组织
+title: cust_company_info（客户企业主数据）
+page_key: cust_company_info
+domain: cust_org_permission
 status: draft
-aliases: [cust_role_info, 企业角色]
+aliases: [客户企业, 企业主数据, cust_company_info]
 oid: 1
 scope:
-  databases: [base]
-sources: [code]
+  databases: [unknown]
+sources:
+  - code:DataPermissionApplication.java
+  - code:CustSysOrgApplication.java
+  - code:CustGroupRelApplication.java
 contract_version: "0.1"
 ---
 
-企业角色表，按角色类型拆分记录企业的角色身份。role_type 与 cust_company_info.cust_company_type、cust_person_info.company_type 同域，见 [[concepts/company_role_type]]；根组织初始化按 role_type 逐角色执行（initRootOrg）。platform_cust_id 表示运营中台企业ID，未同步时置空并作为待补推标记。ref_cust_company_info 关联 [[tables/cust_company_info]].code。
+cust_company_info 是企业侧主数据：它给出企业角色（cust_company_type，JSON 数组，支持多角色）、建档认证状态（cust_build_status）、租户标识（db_tenant_code）以及启用/测试数据标记。组织初始化、集团导入与运营方解析都以本表为过滤起点。
+
+建档状态见流程 [[cust_build_status]] 与口径 [[build_success_cust_scope]]、[[enabled_cust_scope]]；租户维度见 [[tenant_isolation_scope]]；企业角色语义见 [[company_type]]；主键与编码的区别见 [[cust_id_company_id]]。组织导入还要求一级组织名称等于本表 name（见 [[org_import_root_name_equals_company_name]]）。
 
 ## 需求背景
-
-语义分析中未出现 reqdoc_claims 条目，本页暂无需求文档主张；结论来自代码侧 initRootOrg 链路证据。
-
-## 版本演进
-
-v0：依据 code 证据建档。
-
-```ground:table
-table: cust_role_info
-fields:
-  - name: role_type
-    meaning: 企业角色类型（与 cust_company_info.cust_company_type 同域；initRootOrg 按此字段逐角色初始化根组织）
-    evidence: code
-  - name: platform_cust_id
-    meaning: 运营中台企业ID（未同步时置空，作为待补推标记）
-    evidence: code
-  - name: ref_cust_company_info
-    meaning: 关联企业业务编码
-    evidence: code
-  - name: status
-    meaning: 角色状态（随企业状态联动更新）
-    evidence: code
-```
-
----END FILE---
-
----FILE: tables/cust_user_rel.md ---
----
-type: table
-title: 用户产品关系表 cust_user_rel
-page_key: table.cust_user_rel
-domain: 数据权限与组织
-status: draft
-aliases: [cust_user_rel, 用户产品关系]
-oid: 1
-scope:
-  databases: [base]
-sources: [code]
-contract_version: "0.1"
----
-
-用户与产品（业务系统）的关联表，决定经办人需要推送到哪些业务系统。is_freeze 是冻结标识，'N' 表示未冻结；删除 sys 用户前要求全部产品关系均已冻结，见 [[rules/sys_user_delete_all_products_frozen]]。
-
-## 需求背景
-
-语义分析中未出现 reqdoc_claims 条目，本页暂无需求文档主张；结论来自代码侧冻结/删除校验链路。
+本页仅依据代码证据（DataPermissionApplication、CustSysOrgApplication、CustGroupRelApplication）。本次语义分析未包含需求文档（reqdoc）主张，故无双源 evidence。
 
 ## 版本演进
-
-v0：依据 code 证据建档。
-
-```ground:table
-table: cust_user_rel
-fields:
-  - name: is_freeze
-    meaning: 用户-产品关系冻结标识（'N' 表示未冻结；全部冻结才允许删除 sys 用户）
-    evidence: code
-  - name: product_id
-    meaning: 产品（系统）ID，决定经办人推送哪些业务系统
-    evidence: code
-```
-
----END FILE---
-
----FILE: tables/sys_user.md ---
----
-type: table
-title: 登录用户表 sys_user
-page_key: table.sys_user
-domain: 数据权限与组织
-status: draft
-aliases: [sys_user, 登录用户]
-oid: 1
-scope:
-  databases: [base]
-sources: [code]
-contract_version: "0.1"
----
-
-系统登录用户表。组织树在渲染 createUser/updateUser 时，若名称缺失会按 createBy/updateBy 反查本表 name 填充；邮箱在业务邮箱变更时按条件同步更新 email。删除本表用户前需校验 [[tables/cust_user_rel]] 是否全部冻结，见 [[rules/sys_user_delete_all_products_frozen]]。
-
-## 需求背景
-
-语义分析中未出现 reqdoc_claims 条目，本页暂无需求文档主张；结论来自代码侧组织树与邮箱同步链路。
-
-## 版本演进
-
-v0：依据 code 证据建档。
+本次语义分析未提供版本变更证据。
 
 ```ground:table
-table: sys_user
+table: cust_company_info
+evidence: [code]
 fields:
+  - name: cust_build_status
+    type: unknown
+    desc: 企业建档/认证状态，组织初始化与组织操作的前置门槛（BUILD_SUCCESS）
+    dict: cust_build_status
+  - name: cust_company_type
+    type: unknown
+    desc: 企业角色类型，JSON 数组字符串（如 ["SUPPLIER"]），支持多角色
+    dict: company_type
+  - name: db_tenant_code
+    type: unknown
+    desc: 数据租户标识，查 sys 用户、集团关系与运营方范围的隔离键
+    dict: ""
+  - name: enable
+    type: unknown
+    desc: 企业启用标识 Y/N
+    dict: ""
+  - name: test_data
+    type: unknown
+    desc: 测试数据标识 Y；同租户存在多个运营方时过滤该标记保留真实运营方
+    dict: ""
   - name: name
-    meaning: 登录用户姓名（组织树 createUser/updateUser 缺失时按 createBy/updateBy 反查填充）
-    evidence: code
-  - name: email
-    meaning: 登录邮箱（业务邮箱变更时按条件同步更新）
-    evidence: code
+    type: unknown
+    desc: 企业名称，组织导入的一级组织名称必须与之相等
+    dict: ""
 ```
-
----END FILE---
-
----FILE: tables/sys_cust_org_user_permission.md ---
----
-type: table
-title: 客户组织数据权限表 sys_cust_org_user_permission
-page_key: table.sys_cust_org_user_permission
-domain: 数据权限与组织
-status: draft
-aliases: [sys_cust_org_user_permission, 数据权限表]
-oid: 1
-scope:
-  databases: [base]
-sources: [code]
-contract_version: "0.1"
----
-
-数据权限表，主体维度由 user_id + company_id + company_type 构成唯一三维，见 [[concepts/data_permission_triple]]。permission_type 的取值与流转见 [[processes/data_permission_type_fsm]]；缺省处理见 [[rules/data_permission_default_same_as_user_org]]；SPECIFIED 必填 org_id_list 见 [[rules/specified_requires_org_id_list]]。企业管理员在该企业该角色下的判定口径见 [[calibers/company_admin]]。
-
-## 需求背景
-
-语义分析中未出现 reqdoc_claims 条目，本页暂无需求文档主张；结论来自代码侧 DataPermissionApplication 证据。
-
-## 版本演进
-
-v0：依据 code 证据建档。
-
-```ground:table
-table: sys_cust_org_user_permission
-fields:
-  - name: user_id
-    meaning: 数据权限主体用户ID（与 company_id、company_type 构成唯一三维）
-    evidence: code
-  - name: company_id
-    meaning: 数据权限归属企业ID
-    evidence: code
-  - name: company_type
-    meaning: 数据权限归属企业角色类型
-    evidence: code
-  - name: permission_type
-    meaning: 数据权限类型：ALL / SPECIFIED / SAME_AS_USER_ORG；无记录或为空时按 SAME_AS_USER_ORG 处理
-    evidence: code
-  - name: org_id_list
-    meaning: 数据范围组织ID列表（仅 SPECIFIED 必填；SAME_AS_USER_ORG 时由用户组织绑定回填）
-    evidence: code
-```
-
 ---END FILE---
 
 ---FILE: tables/cust_group_rel.md ---
 ---
 type: table
-title: 集团关系表 cust_group_rel
-page_key: table.cust_group_rel
-domain: 数据权限与组织
+title: cust_group_rel（集团关系）
+page_key: cust_group_rel
+domain: cust_org_permission
 status: draft
-aliases: [cust_group_rel, 集团关系]
+aliases: [集团关系表, 集团成员关系, cust_group_rel]
 oid: 1
 scope:
-  databases: [base]
-sources: [code]
+  databases: [unknown]
+sources:
+  - code:CustGroupRelApplication.java
 contract_version: "0.1"
 ---
 
-集团与成员企业之间的关系表，status 驱动集团关系生效状态机（见 [[processes/cust_group_rel_status_fsm]]）。子公司平铺列表以 status='EFFECTIVE' 过滤，见 [[calibers/effective_group_member]]。同一租户存在多个运营方时，运营方企业的判定依赖 [[calibers/real_operator]] 与 [[calibers/platform_operator_company]]。
+cust_group_rel 描述企业之间的集团关系：一条记录把一个企业挂到某个集团节点上，并用 status 表达是否生效、用 level 与 root_flag 表达树形层级。导入建关系时默认 INEFFECTIVE，需要显式生效动作才进入可见范围。
 
-本页字段覆盖不完整：语义分析的 field_semantics 未收录本表，仅能从状态机与口径证据中确认 status 一个字段，其余字段待补。
+状态值域见流程 [[cust_group_rel_status]]；生效范围与根节点范围见 [[effective_group_rel_scope]]、[[root_group_rel_scope]]；树的 id 与企业的 id 不可混用，见 [[group_id]]；父子角色一致性见 [[group_import_parent_child_role_consistency]]。
 
 ## 需求背景
-
-语义分析中未出现 reqdoc_claims 条目，本页暂无需求文档主张。
+本页仅依据代码证据（CustGroupRelApplication）。本次语义分析未包含需求文档（reqdoc）主张，故无双源 evidence。
 
 ## 版本演进
-
-v0：仅依据状态机与口径中的 code 证据建档。
+本次语义分析未提供版本变更证据。
 
 ```ground:table
 table: cust_group_rel
+evidence: [code]
 fields:
   - name: status
-    meaning: 集团关系生效状态（取值 INEFFECTIVE 未生效 / EFFECTIVE 已生效；listSubCust 以 EFFECTIVE 过滤）
-    evidence: code_path:CustGroupRelApplication.java#listSubCust
+    type: unknown
+    desc: 集团关系状态：INEFFECTIVE（未生效）/EFFECTIVE（已生效），导入建关系默认 INEFFECTIVE
+    dict: cust_group_rel_status
+  - name: cust_type
+    type: unknown
+    desc: 该集团关系记录对应的企业角色类型，JSON 数组字符串
+    dict: company_type
+  - name: root_flag
+    type: unknown
+    desc: 根标识，根集团关系写死 "Y"
+    dict: ""
+  - name: level
+    type: unknown
+    desc: 集团层级，根节点 = 1
+    dict: ""
 ```
-
 ---END FILE---
 
----REVIEW: table | cust_group_rel 字段覆盖不完整---
-语义分析的 field_semantics 未收录 cust_group_rel，本页仅能确认 status 字段（证据来自 CustGroupRelApplication#addExistRootGroupRel / #effectGroupRel / #listSubCust）。集团关系的新增、生效、删除链路上还引用了哪些字段（如集团企业编码、成员企业编码、额度相关字段）无法从现有证据判定，需补采字段语义后再扩表。
----END REVIEW---
-
----FILE: processes/cust_build_status_fsm.md ---
+---FILE: tables/operation_user.md ---
 ---
-type: process
-title: 企业认证/建档状态机（cust_build_status）
-page_key: process.cust_build_status_fsm
-domain: 数据权限与组织
+type: table
+title: operation_user（运营中台人员）
+page_key: operation_user
+domain: cust_org_permission
 status: draft
-aliases: [企业建档状态机, cust_build_status, CustBuildStatusEnum]
+aliases: [运营中台人员, 运营人员表, operation_user]
 oid: 1
 scope:
-  databases: [base]
-sources: [code]
+  databases: [unknown]
+sources:
+  - db:operation_user
 contract_version: "0.1"
-state_field: cust_company_info.cust_build_status
 ---
 
-企业认证/建档状态机，承载于 [[tables/cust_company_info]].cust_build_status。状态取值来自代码枚举 CustBuildStatusEnum。流转的入口取决于认证方式 identify_style：邀请-客户录入（INVITE）与自主认证（SELF）提交后进入 CUST_CONFIRM_AWAIT，邀请-平台录入（INVITE_AGW）提交后直接进入 CUST_BUILDING。简易认证（SIMPLE）走独立的 AWAIT_CUST_CONFIRM 支线。
+operation_user 是运营中台侧的人员表。与客户侧联系人不同，它用 deleted 与 enable 两套独立开关控制有效性，主键 operation_id 被 cust_person_info.operator_id 引用，是运营中台身份与客户企业联系人之间的挂接点。
 
-建档成功是组织根节点初始化、机构管理员绑定定时任务与企业查询前置校验的前置口径，见 [[calibers/build_success_cust]]。建档成功同时触发企业经营状态从 ADD 到 EFFECT，见 [[processes/cust_status_fsm]]。
+两套开关的语义不能互相替代：deleted 表达记录是否被删除，enable 表达记录是否启用，取值分布来自库内实测证据。客户侧企业维度见 [[cust_company_info]]，角色维度见 [[company_type]]。
 
 ## 需求背景
-
-语义分析中未出现 reqdoc_claims 条目，本页暂无需求文档主张；全部状态与流转证据来自 CustCompanyInfoApplication 相关方法。
+本页仅依据库内实测数据（db）。本次语义分析未包含需求文档（reqdoc）主张，故无双源 evidence。
 
 ## 版本演进
+本次语义分析未提供版本变更证据。
 
-v0：依据 code 证据建模，覆盖入库、驳回重提、审核退回、审核通过、简易认证确认五类事件。
-
-```ground:process
-name: 企业认证/建档状态机
-field: cust_company_info.cust_build_status
-states:
-  - value: INIT
-    label: 初始/待提交
-    source: code_enum
-  - value: CUST_CONFIRM_AWAIT
-    label: 待客户确认
-    source: code_enum
-  - value: CUST_BUILDING
-    label: 审核中（运营中台）
-    source: code_enum
-  - value: BUILD_SUCCESS
-    label: 建档成功
-    source: code_enum
-  - value: BUILD_FAIL
-    label: 审核驳回/建档失败
-    source: code_enum
-  - value: AWAIT_CUST_CONFIRM
-    label: 简易认证提交后的待确认
-    source: code_enum
-transitions:
-  - from: INIT
-    event: 邀请认证（客户录入）/自主认证提交
-    to: CUST_CONFIRM_AWAIT
-    evidence: code_path:CustCompanyInfoApplication.java#getCustBuildStatus
-  - from: INIT
-    event: 邀请认证-平台录入（INVITE_AGW）提交
-    to: CUST_BUILDING
-    evidence: code_path:CustCompanyInfoApplication.java#getCustBuildStatus
-  - from: BUILD_FAIL
-    event: 驳回后重新提交
-    to: CUST_CONFIRM_AWAIT
-    evidence: code_path:CustCompanyInfoApplication.java#updateCustBuildStatus
-  - from: CUST_CONFIRM_AWAIT
-    event: 客户提交，推送运营中台审核
-    to: CUST_BUILDING
-    evidence: code_path:CustCompanyInfoApplication.java#updateCustBuildStatus
-  - from: CUST_BUILDING
-    event: 运营中台审核退回（客户录入场景）
-    to: CUST_CONFIRM_AWAIT
-    evidence: code_path:CustCompanyInfoApplication.java#updateCustBuildStatus
-  - from: CUST_BUILDING
-    event: 运营中台审核通过，流转到客户确认（平台录入场景）
-    to: CUST_CONFIRM_AWAIT
-    evidence: code_path:CustCompanyInfoApplication.java#updateCustBuildStatus
-  - from: CUST_BUILDING
-    event: 认证审核通过
-    to: BUILD_SUCCESS
-    evidence: code_path:CustCompanyInfoApplication.java#updateCustBuildStatus
-  - from: CUST_CONFIRM_AWAIT
-    event: 平台录入客户点击确认提交
-    to: BUILD_SUCCESS
-    evidence: code_path:CustCompanyInfoApplication.java#updateCustBuildStatus
-  - from: CUST_CONFIRM_AWAIT
-    event: 认证审核拒绝
-    to: BUILD_FAIL
-    evidence: code_path:CustCompanyInfoApplication.java#updateCustBuildStatus
-  - from: INIT
-    event: 简易认证提交（非建档成功、非变更）
-    to: AWAIT_CUST_CONFIRM
-    evidence: code_path:CustCompanyInfoApplication.java#submitForSimpleAuth
-  - from: AWAIT_CUST_CONFIRM
-    event: 简易认证确认（含资金方直接生效）
-    to: BUILD_SUCCESS
-    evidence: code_path:CustCompanyInfoApplication.java#confirmCustInfoForSimpleAuth
+```ground:table
+table: operation_user
+evidence: [db]
+fields:
+  - name: deleted
+    type: unknown
+    desc: 删除标识（实测 N=119 / Y=22），与 enable 为两套独立开关
+    dict: ""
+  - name: enable
+    type: unknown
+    desc: 启用标识（实测 Y=132 / N=9）
+    dict: ""
+  - name: operation_id
+    type: unknown
+    desc: 运营中台人员 ID，被 cust_person_info.operator_id 引用
+    dict: ""
 ```
-
 ---END FILE---
 
----FILE: processes/cust_status_fsm.md ---
+---FILE: tables/org_manage.md ---
 ---
-type: process
-title: 企业经营状态机（cust_status）
-page_key: process.cust_status_fsm
-domain: 数据权限与组织
+type: table
+title: org_manage（租户级机构）
+page_key: org_manage
+domain: cust_org_permission
 status: draft
-aliases: [企业经营状态机, cust_status, CustStatusEnum]
+aliases: [机构表, 租户机构, org_manage]
 oid: 1
 scope:
-  databases: [base]
-sources: [code]
+  databases: [unknown]
+sources:
+  - code:OrgTypeEnum
+  - db:org_manage
 contract_version: "0.1"
-state_field: cust_company_info.cust_status
 ---
 
-企业经营状态机，承载于 [[tables/cust_company_info]].cust_status，取值来自代码枚举 CustStatusEnum：ADD / EFFECT / FREEZE / WRITEOFF / CHANGE。建档成功会把企业从 ADD 推进到 EFFECT（见 [[processes/cust_build_status_fsm]]）；冻结与解冻分别联动冻结/解冻企业管理员（见 [[calibers/company_admin]]）；注销前必须先冻结企业下全部用户，见 [[rules/writeoff_freeze_all_users]]。
-
-企业信息变更会进入 CHANGE（变更在途），由 CustPersonApplication#adminChangeSaveOrUpdate 触发。
+org_manage 是租户级机构表，与客户组织架构（sys_cust_org、sys_cust_org_rel）是两条不同链路，同名「组织/机构」不可互推，判别见 concept [[org]]。其 org_type 写值来自 OrgTypeEnum（ORG 根 / SUB 子），status 为 varchar(10)，本链路未见写值点。
 
 ## 需求背景
-
-语义分析中未出现 reqdoc_claims 条目，本页暂无需求文档主张；全部状态与流转证据来自 CustCompanyInfoApplication 与 CustPersonApplication。
+本页仅依据代码证据（OrgTypeEnum）与库证据（org_manage）。本次语义分析未包含需求文档（reqdoc）主张，故无双源 evidence。
 
 ## 版本演进
+本次语义分析未提供版本变更证据。
 
-v0：依据 code 证据建模。
-
-```ground:process
-name: 企业经营状态机
-field: cust_company_info.cust_status
-states:
-  - value: ADD
-    label: 新增/待生效
-    source: code_enum
-  - value: EFFECT
-    label: 生效
-    source: code_enum
-  - value: FREEZE
-    label: 冻结
-    source: code_enum
-  - value: WRITEOFF
-    label: 注销
-    source: code_enum
-  - value: CHANGE
-    label: 变更在途
-    source: code_enum
-transitions:
-  - from: ADD
-    event: 建档成功生效
-    to: EFFECT
-    evidence: code_path:CustCompanyInfoApplication.java#updateCustBuildStatus
-  - from: EFFECT
-    event: 冻结企业（同时冻结企业管理员）
-    to: FREEZE
-    evidence: code_path:CustCompanyInfoApplication.java#freeze
-  - from: FREEZE
-    event: 解冻企业（同时解冻企业管理员）
-    to: EFFECT
-    evidence: code_path:CustCompanyInfoApplication.java#unfreeze
-  - from: EFFECT
-    event: 注销企业
-    to: WRITEOFF
-    evidence: code_path:CustCompanyInfoApplication.java#custStatusOperator
-  - from: WRITEOFF
-    event: 注销前先冻结企业下全部用户
-    to: WRITEOFF
-    evidence: code_path:CustCompanyInfoApplication.java#custStatusOperator(freezeCustAllUsers)
-  - from: EFFECT
-    event: 发起企业信息变更
-    to: CHANGE
-    evidence: code_path:CustPersonApplication.java#adminChangeSaveOrUpdate
+```ground:table
+table: org_manage
+evidence: [code, db]
+fields:
+  - name: org_type
+    type: unknown
+    desc: 机构类型，写值来自 OrgTypeEnum（ORG 根/SUB 子）
+    dict: org_type
+  - name: status
+    type: varchar(10)
+    desc: 机构状态（varchar(10)），本链路未见写值点
+    dict: ""
 ```
-
 ---END FILE---
 
----FILE: processes/data_permission_type_fsm.md ---
+---FILE: processes/data_permission_permission_type.md ---
 ---
 type: process
-title: 数据权限类型机（permission_type）
-page_key: process.data_permission_type_fsm
-domain: 数据权限与组织
+title: 数据权限类型（permission_type）
+page_key: data_permission_permission_type
+domain: cust_org_permission
 status: draft
-aliases: [数据权限类型机, permission_type, ALL, SPECIFIED, SAME_AS_USER_ORG]
+aliases: [数据权限类型, permission_type, ALL, SPECIFIED, SAME_AS_USER_ORG]
 oid: 1
 scope:
-  databases: [base]
-sources: [code]
+  databases: [unknown]
+sources:
+  - code:DataPermissionApplication.java
 contract_version: "0.1"
-state_field: sys_cust_org_user_permission.permission_type
 ---
 
-数据权限类型机，承载于 [[tables/sys_cust_org_user_permission]].permission_type，取值为 ALL（全部数据）/ SPECIFIED（指定组织）/ SAME_AS_USER_ORG（同用户所属组织）。这是一张「按主体三维惰性推进」的状态机：无记录或值为空时按 SAME_AS_USER_ORG 处理（见 [[rules/data_permission_default_same_as_user_org]]）；一旦判定主体是该企业该角色启用中的管理员，则直接落到 ALL（判定口径见 [[calibers/company_admin]]）。
+数据权限类型是枚举式字符串常量的取值域，落在 [[sys_cust_org_user_permission]].permission_type 上。它描述「能看到多少组织」，与用户身份（user_type）不是一回事，边界见 [[permission_type]]。
 
-SPECIFIED 的保存要求 org_id_list 必填，见 [[rules/specified_requires_org_id_list]]；SAME_AS_USER_ORG 的组织范围由用户组织绑定回填。
+保存路径不产生状态跃迁：传入什么类型就写什么类型，SPECIFIED 另加组织列表非空校验（[[specified_requires_org_list]]）。查询路径则存在两处隐式赋值：管理员固定 ALL（[[enterprise_admin_fixed_all]]），非管理员无记录或类型为空时兜底 SAME_AS_USER_ORG 并回填组织（[[default_same_as_user_org_backfill]]）。相关口径见 [[admin_permission_scope]]、[[specified_permission_scope]]、[[default_permission_scope]]。
 
 ## 需求背景
-
-语义分析中未出现 reqdoc_claims 条目，本页暂无需求文档主张；全部状态与流转证据来自 DataPermissionApplication。
+本页仅依据代码证据（DataPermissionApplication）。本次语义分析未包含需求文档（reqdoc）主张，故无双源 evidence。
 
 ## 版本演进
-
-v0：依据 code 证据建模，含「空值即缺省」这一非显式落库的隐式流转。
+本次语义分析未提供版本变更证据。
 
 ```ground:process
-name: 数据权限类型机
+name: 数据权限类型
 field: sys_cust_org_user_permission.permission_type
 states:
   - value: ALL
-    label: 全部数据
-    source: code_enum
+    label: 全部数据（管理员固定）
+    source: code_const
   - value: SPECIFIED
-    label: 指定组织
-    source: code_enum
+    label: 指定组织范围
+    source: code_const
   - value: SAME_AS_USER_ORG
-    label: 同用户所属组织
-    source: code_enum
+    label: 与用户组织绑定一致（默认兜底）
+    source: code_const
 transitions:
-  - from: 空（无记录）
-    event: 查询且非企业管理员
-    to: SAME_AS_USER_ORG
-    evidence: code_path:DataPermissionApplication.java#getByUserCompanyType
-  - from: 空（permissionType 为空）
-    event: 列表查询补默认值
-    to: SAME_AS_USER_ORG
-    evidence: code_path:DataPermissionApplication.java#listByCompany
-  - from: 任意
-    event: 用户为该企业该角色启用中的管理员
+  - from: ALL
+    event: 保存/批量保存并传入 permissionType
     to: ALL
-    evidence: code_path:DataPermissionApplication.java#isEnterpriseAdmin
-  - from: SAME_AS_USER_ORG
-    event: 保存指定组织（orgIdList 必填）
-    to: SPECIFIED
-    evidence: code_path:DataPermissionApplication.java#saveDataPermission
+    evidence: code_path:DataPermissionApplication.java:saveDataPermission
   - from: SPECIFIED
-    event: 保存为全部
+    event: 保存且 orgIdList 非空
+    to: SPECIFIED
+    evidence: code_path:DataPermissionApplication.java:saveDataPermission
+  - from: SPECIFIED
+    event: 保存但 orgIdList 为空
+    to: SPECIFIED
+    evidence: code_path:DataPermissionApplication.java:saveDataPermission（抛 CommonException 中断）
+  - from: ""
+    event: 查询：无记录或 permissionType 为空（非管理员）
+    to: SAME_AS_USER_ORG
+    evidence: code_path:DataPermissionApplication.java:getByUserCompanyType
+  - from: ALL
+    event: 查询：判断为企业管理员（userType=admin 且 enable=Y）
     to: ALL
-    evidence: code_path:DataPermissionApplication.java#saveDataPermissionBatch
+    evidence: code_path:DataPermissionApplication.java:isEnterpriseAdmin
 ```
-
 ---END FILE---
 
----FILE: processes/cust_person_user_type_fsm.md ---
+---FILE: processes/cust_group_rel_status.md ---
 ---
 type: process
-title: 企业联系人类型机（user_type）
-page_key: process.cust_person_user_type_fsm
-domain: 数据权限与组织
+title: 集团关系状态（cust_group_rel.status）
+page_key: cust_group_rel_status
+domain: cust_org_permission
 status: draft
-aliases: [联系人类型机, user_type, UserTypeEnum]
+aliases: [集团关系状态, INEFFECTIVE, EFFECTIVE, cust_group_rel.status]
 oid: 1
 scope:
-  databases: [base]
-sources: [code]
+  databases: [unknown]
+sources:
+  - code:CustGroupRelApplication.java
+  - code:CustCompanyInfoApplication.java
 contract_version: "0.1"
-state_field: cust_person_info.user_type
 ---
 
-企业联系人类型机，承载于 [[tables/cust_person_info]].user_type，取值 UserTypeEnum：admin（企业管理员）/ operator（经办人）/ guest（游客）。guest → operator 发生在新增/编辑经办人时（AMS 以外来源默认认证通过）；guest → admin 发生在建档成功赋予管理员权限时（endueCompanyAdminUser）。
+集团关系记录在 [[cust_group_rel]] 上以 status 表达是否生效。导入/建关系默认落在 INEFFECTIVE，只有显式生效动作（或建档成功后的集团简易认证确认）才进入 EFFECTIVE；子公司平铺查询只认 EFFECTIVE（[[effective_group_rel_scope]]）。
 
-管理员的变更是「冻结旧记录 + 新建记录」而非原地改字段：旧管理员置 enable=N、status=FREEZE，新管理员另起一条记录。这一模式决定了查询时必须叠加 [[calibers/company_admin]] 的启用过滤，否则会把历史管理员算进来。
+相关：[[group_id]]（group id 与 cust id 不可混用）、[[root_group_rel_scope]]、[[group_import_parent_child_role_consistency]]、[[cust_build_status]]（建档成功是集团确认链路的前置）。
 
 ## 需求背景
-
-语义分析中未出现 reqdoc_claims 条目，本页暂无需求文档主张；全部状态与流转证据来自 CustPersonApplication 与 CustCompanyInfoApplication。
-
-## 版本演进
-
-v0：依据 code 证据建模。
-
-```ground:process
-name: 企业联系人类型机
-field: cust_person_info.user_type
-states:
-  - value: admin
-    label: 企业管理员
-    source: code_enum
-  - value: operator
-    label: 经办人
-    source: code_enum
-  - value: guest
-    label: 游客
-    source: code_enum
-transitions:
-  - from: guest
-    event: 新增/编辑经办人（AMS 以外来源默认认证通过）
-    to: operator
-    evidence: code_path:CustPersonApplication.java#insertOrUpdatePerson
-  - from: guest
-    event: 建档成功赋予管理员权限
-    to: admin
-    evidence: code_path:CustCompanyInfoApplication.java#endueCompanyAdminUser
-  - from: admin
-    event: 管理员变更：旧管理员置 enable=N/status=FREEZE，新建管理员记录
-    to: admin
-    evidence: code_path:CustPersonApplication.java#ifNessaryFrzAdm
-  - from: admin
-    event: 简易认证管理员换手机号：旧记录冻结、新记录生效
-    to: admin
-    evidence: code_path:CustPersonApplication.java#simpleChangePerson
-```
-
----END FILE---
-
----FILE: processes/cust_group_rel_status_fsm.md ---
----
-type: process
-title: 集团关系生效状态机（cust_group_rel.status）
-page_key: process.cust_group_rel_status_fsm
-domain: 数据权限与组织
-status: draft
-aliases: [集团关系状态机, 集团关系生效, INEFFECTIVE, EFFECTIVE]
-oid: 1
-scope:
-  databases: [base]
-sources: [code]
-contract_version: "0.1"
-state_field: cust_group_rel.status
----
-
-集团关系生效状态机，承载于 [[tables/cust_group_rel]].status，取值 INEFFECTIVE（未生效）/ EFFECTIVE（已生效）。新增根集团关系时，若企业已建档成功则直接生效，否则先落未生效，待集团或成员企业建档成功时由 effectGroupRel 触发生效；删除集团成员前要校验在途业务与额度，随后才删除记录。
-
-生效口径是子公司平铺列表的过滤条件，见 [[calibers/effective_group_member]]。
-
-## 需求背景
-
-语义分析中未出现 reqdoc_claims 条目，本页暂无需求文档主张；全部状态与流转证据来自 CustGroupRelApplication。
+本页仅依据代码证据（CustGroupRelApplication、CustCompanyInfoApplication）。本次语义分析未包含需求文档（reqdoc）主张，故无双源 evidence。
 
 ## 版本演进
-
-v0：依据 code 证据建模；本表字段在 field_semantics 中未收录，仅确认 status，详见 [[tables/cust_group_rel]] 的 REVIEW。
+本次语义分析未提供版本变更证据。
 
 ```ground:process
-name: 集团关系生效状态机
+name: 集团关系状态
 field: cust_group_rel.status
 states:
   - value: INEFFECTIVE
     label: 未生效
-    source: code_enum
+    source: code_const
   - value: EFFECTIVE
     label: 已生效
-    source: code_enum
+    source: code_const
 transitions:
-  - from: （新增）
-    event: 新增根集团关系：企业建档成功则直接生效，否则未生效
-    to: EFFECTIVE
-    evidence: code_path:CustGroupRelApplication.java#addExistRootGroupRel
   - from: INEFFECTIVE
-    event: 集团/成员企业建档成功触发生效
+    event: effectGroupRel(custId, custType)
     to: EFFECTIVE
-    evidence: code_path:CustGroupRelApplication.java#effectGroupRel
-  - from: EFFECTIVE
-    event: 删除集团成员前校验在途业务与额度，随后删除
-    to: （删除）
-    evidence: code_path:CustGroupRelApplication.java#removeRootGroup
+    evidence: code_path:CustGroupRelApplication.java:effectGroupRel
+  - from: INEFFECTIVE
+    event: 建档成功集团简易认证确认
+    to: EFFECTIVE
+    evidence: code_path:CustCompanyInfoApplication.java:confirmCustInfoForSimpleAuth
 ```
-
 ---END FILE---
 
----FILE: calibers/build_success_cust.md ---
+---FILE: processes/cust_build_status.md ---
 ---
-type: caliber
-title: 建档成功企业
-page_key: caliber.build_success_cust
-domain: 数据权限与组织
+type: process
+title: 企业建档/认证状态（cust_build_status）
+page_key: cust_build_status
+domain: cust_org_permission
 status: draft
-aliases: [建档成功, BUILD_SUCCESS 企业]
+aliases: [建档状态, 企业认证状态, cust_build_status, BUILD_SUCCESS]
 oid: 1
 scope:
-  databases: [base]
-sources: [code]
+  databases: [unknown]
+sources:
+  - code:CustCompanyInfoApplication.java
 contract_version: "0.1"
 ---
 
-「建档成功企业」是组织域最重要的过滤口径：组织根节点初始化、机构管理员绑定定时任务、企业查询前置校验三处都要求企业同时满足建档成功与启用。它依赖 [[processes/cust_build_status_fsm]] 到达 BUILD_SUCCESS，并叠加 [[tables/cust_company_info]].enable 维度，因此不能只判状态字段。此处引用的档案成功状态也决定 [[processes/cust_group_rel_status_fsm]] 中集团关系能否直接生效。
+[[cust_company_info]].cust_build_status 描述企业从初始到建档成功/驳回的流转。本状态是组织侧动作的前置门槛：只有 BUILD_SUCCESS 的企业才能初始化根组织、增改组织（[[build_success_cust_scope]]、[[org_operate_requires_build_success]]），并配合 enable='Y' 构成「有效企业」（[[enabled_cust_scope]]）。
+
+状态值由 [[cust_company_info]] 的当前值配合提交/审核动作推进；与集团关系链路衔接处见 [[cust_group_rel_status]]。
 
 ## 需求背景
-
-语义分析中未出现 reqdoc_claims 条目，本页暂无需求文档主张。
+本页仅依据代码证据（CustCompanyInfoApplication）。本次语义分析未包含需求文档（reqdoc）主张，故无双源 evidence。
 
 ## 版本演进
+本次语义分析未提供版本变更证据。
 
-v0：依据 code 证据（CustSysOrgApplication）成文。
-
-```ground:caliber
-name: 建档成功企业
-predicate: "cust_company_info.cust_build_status = 'BUILD_SUCCESS' AND cust_company_info.enable = 'Y'"
-scope: 组织根节点初始化、机构管理员绑定定时任务、企业查询前置校验
-evidence: code_path:CustSysOrgApplication.java#listBuildSuccessCusts / #checkCustBuildStatus
+```ground:process
+name: 企业建档/认证状态
+field: cust_company_info.cust_build_status
+states:
+  - value: INIT
+    label: 初始
+    source: code_const
+  - value: CUST_CONFIRM_AWAIT
+    label: 待客户确认
+    source: code_const
+  - value: AWAIT_CUST_CONFIRM
+    label: 待客户确认（简易认证提交态）
+    source: code_const
+  - value: CUST_BUILDING
+    label: 审核中
+    source: code_const
+  - value: BUILD_SUCCESS
+    label: 建档成功
+    source: code_const
+  - value: BUILD_FAIL
+    label: 建档驳回
+    source: code_const
+transitions:
+  - from: ""
+    event: 提交（按 identifyStyle 判定）
+    to: CUST_CONFIRM_AWAIT / CUST_BUILDING
+    evidence: code_path:CustCompanyInfoApplication.java:getCustBuildStatus
+  - from: INIT
+    event: 提交
+    to: CUST_CONFIRM_AWAIT
+    evidence: code_path:CustCompanyInfoApplication.java:messageNotify
+  - from: CUST_CONFIRM_AWAIT
+    event: 客户提交送审
+    to: CUST_BUILDING
+    evidence: code_path:CustCompanyInfoApplication.java:messageNotify
+  - from: CUST_BUILDING
+    event: 运营中台审核退回
+    to: CUST_CONFIRM_AWAIT
+    evidence: code_path:CustCompanyInfoApplication.java:messageNotify
+  - from: CUST_BUILDING
+    event: 审核通过
+    to: BUILD_SUCCESS
+    evidence: code_path:CustCompanyInfoApplication.java:updateCustBuildStatus
+  - from: CUST_BUILDING
+    event: 审核拒绝
+    to: BUILD_FAIL
+    evidence: code_path:CustCompanyInfoApplication.java:messageNotify
 ```
-
 ---END FILE---
 
----FILE: calibers/company_admin.md ---
+---FILE: calibers/enterprise_admin_scope.md ---
 ---
 type: caliber
-title: 企业管理员
-page_key: caliber.company_admin
-domain: 数据权限与组织
+title: 企业管理员判定范围
+page_key: enterprise_admin_scope
+domain: cust_org_permission
 status: draft
-aliases: [企业管理员, admin 口径]
+aliases: [企业管理员判定, user_type=admin, 管理员口径]
 oid: 1
 scope:
-  databases: [base]
-sources: [code]
+  databases: [unknown]
+sources:
+  - code:DataPermissionApplication.java
 contract_version: "0.1"
 ---
 
-「企业管理员」口径由 user_type='admin' 与 enable='Y' 两个条件共同构成。因为管理员的更换是「冻结旧记录 + 新建记录」（见 [[processes/cust_person_user_type_fsm]]），缺少 enable 过滤会把历史管理员当成现任管理员。该口径是数据权限保存鉴权、数据权限查询默认 ALL、组织绑定三处的前置判定，直接决定 [[processes/data_permission_type_fsm]] 是否能落到 ALL。
+本口径回答「谁是管理员」：只看 [[cust_person_info]].user_type='admin'，并叠加以启用与手机号等值匹配为条件的实际判定实现（见 [[admin]]、[[data_permission_save_admin_only]]、[[enabled_contact_scope]]）。它是数据权限编辑准入与管理员固定 ALL（[[enterprise_admin_fixed_all]]）共同依赖的过滤条件。
 
 ## 需求背景
-
-语义分析中未出现 reqdoc_claims 条目，本页暂无需求文档主张。
+本页仅依据代码证据（DataPermissionApplication）。本次语义分析未包含需求文档（reqdoc）主张，故无双源 evidence。
 
 ## 版本演进
-
-v0：依据 code 证据（DataPermissionApplication）成文。
+本次语义分析未提供版本变更证据。
 
 ```ground:caliber
-name: 企业管理员
-predicate: "cust_person_info.user_type = 'admin' AND cust_person_info.enable = 'Y'"
-scope: 数据权限保存鉴权、数据权限查询默认 ALL、组织绑定
-evidence: code_path:DataPermissionApplication.java#assertCurrentUserIsAdminOfTargetCompany / #isEnterpriseAdmin
+name: 企业管理员判定范围
+predicate: "cust_person_info.user_type = 'admin'"
+scope: 数据权限编辑准入、管理员固定 ALL 判定
+evidence: code_path:DataPermissionApplication.java:assertCurrentUserIsAdminOfTargetCompany,isEnterpriseAdmin
 ```
-
 ---END FILE---
 
----FILE: calibers/non_guest_user.md ---
+---FILE: calibers/enabled_contact_scope.md ---
 ---
 type: caliber
-title: 非游客用户
-page_key: caliber.non_guest_user
-domain: 数据权限与组织
+title: 启用联系人范围
+page_key: enabled_contact_scope
+domain: cust_org_permission
 status: draft
-aliases: [非游客, user_type != guest]
+aliases: [启用联系人, enable=Y, 联系人有效口径]
 oid: 1
 scope:
-  databases: [base]
-sources: [code]
+  databases: [unknown]
+sources:
+  - code:DataPermissionApplication.java
+  - code:CustSysOrgApplication.java
 contract_version: "0.1"
 ---
 
-「非游客用户」仅以 [[tables/cust_person_info]].user_type 不等于 guest 为条件，用于联系人分页与运营人员展示。它是比 [[calibers/company_admin]] 更宽的集合，不叠加 enable 过滤，因此其结果集会包含已冻结联系人，展示层需自行注意语义差异。
+本口径把 [[cust_person_info]].enable='Y' 作为联系人「有效」的门槛，供管理员/经办人查询与组织绑定校验复用。禁用联系人既不能被判为管理员，也不能被挂到组织下（见 [[bind_org_user_requires_enabled_contact]]）。
 
 ## 需求背景
-
-语义分析中未出现 reqdoc_claims 条目，本页暂无需求文档主张。
+本页仅依据代码证据（DataPermissionApplication、CustSysOrgApplication）。本次语义分析未包含需求文档（reqdoc）主张，故无双源 evidence。
 
 ## 版本演进
-
-v0：依据 code 证据（CustPersonApplication）成文。
+本次语义分析未提供版本变更证据。
 
 ```ground:caliber
-name: 非游客用户
-predicate: "cust_person_info.user_type != 'guest'"
-scope: 联系人分页、运营人员展示
-evidence: code_path:CustPersonApplication.java#pagePerson / #getOperatorByCompanyCode
+name: 启用联系人范围
+predicate: "cust_person_info.enable = 'Y'"
+scope: 管理员/经办人查询、组织绑定校验
+evidence: code_path:DataPermissionApplication.java:isEnterpriseAdmin
 ```
-
 ---END FILE---
 
----FILE: calibers/platform_operator_company.md ---
+---FILE: calibers/build_success_cust_scope.md ---
 ---
 type: caliber
-title: 运营方企业
-page_key: caliber.platform_operator_company
-domain: 数据权限与组织
+title: 建档成功企业范围
+page_key: build_success_cust_scope
+domain: cust_org_permission
 status: draft
-aliases: [运营方企业, PLATFORM_OPERATOR_COMPANY]
+aliases: [建档成功企业, BUILD_SUCCESS 范围, 建档准入口径]
 oid: 1
 scope:
-  databases: [base]
-sources: [code]
+  databases: [unknown]
+sources:
+  - code:CustSysOrgApplication.java
 contract_version: "0.1"
 ---
 
-「运营方企业」口径要求 [[tables/cust_company_info]].cust_company_type 这个 JSON 数组字符串中包含 PLATFORM_OPERATOR_COMPANY，且企业处于启用状态。由于 cust_company_type 是数组字符串（可多角色，见 [[concepts/company_role_type]]），判定时是「包含」而非「等于」。
-
-同一租户可能存在多个运营方，实际取用时通常还需叠加 [[calibers/real_operator]] 过滤测试数据。
+本口径以 [[cust_company_info]].cust_build_status='BUILD_SUCCESS' 圈定可做组织动作的企业集合，是 [[org_operate_requires_build_success]] 的判定基础。状态流转见 [[cust_build_status]]。
 
 ## 需求背景
-
-语义分析中未出现 reqdoc_claims 条目，本页暂无需求文档主张。
+本页仅依据代码证据（CustSysOrgApplication）。本次语义分析未包含需求文档（reqdoc）主张，故无双源 evidence。
 
 ## 版本演进
-
-v0：依据 code 证据（CustGroupRelApplication）成文。
+本次语义分析未提供版本变更证据。
 
 ```ground:caliber
-name: 运营方企业
-predicate: "cust_company_info.cust_company_type 包含 'PLATFORM_OPERATOR_COMPANY' AND cust_company_info.enable = 'Y'"
-scope: 租户运营方查询
-evidence: code_path:CustGroupRelApplication.java#queryTenantOperatorCompany
+name: 建档成功企业范围
+predicate: "cust_company_info.cust_build_status = 'BUILD_SUCCESS'"
+scope: 初始化根组织、加/改组织的准入条件
+evidence: code_path:CustSysOrgApplication.java:checkCustBuildStatus,listBuildSuccessCusts
 ```
-
 ---END FILE---
 
----FILE: calibers/real_operator.md ---
+---FILE: calibers/enabled_cust_scope.md ---
 ---
 type: caliber
-title: 真实运营方
-page_key: caliber.real_operator
-domain: 数据权限与组织
+title: 有效企业范围
+page_key: enabled_cust_scope
+domain: cust_org_permission
 status: draft
-aliases: [真实运营方, test_data 过滤]
+aliases: [有效企业, enable=Y 企业, 企业启用口径]
 oid: 1
 scope:
-  databases: [base]
-sources: [code]
+  databases: [unknown]
+sources:
+  - code:CustSysOrgApplication.java
 contract_version: "0.1"
 ---
 
-「真实运营方」是 [[calibers/platform_operator_company]] 之上的排除口径：当同一租户存在多个运营方时，排除 test_data='Y' 的测试运营方。判定需要兼容 test_data 为空的情况，即空值不算测试数据。
+本口径以 [[cust_company_info]].enable='Y' 标识企业是否有效。它与建档成功条件是并列的两把尺子：组织初始化批处理通常要求二者同时成立（[[build_success_cust_scope]]），用户绑定查企业也走本口径。
 
 ## 需求背景
-
-语义分析中未出现 reqdoc_claims 条目，本页暂无需求文档主张。
+本页仅依据代码证据（CustSysOrgApplication）。本次语义分析未包含需求文档（reqdoc）主张，故无双源 evidence。
 
 ## 版本演进
-
-v0：依据 code 证据（CustGroupRelApplication#queryTenantOperatorCompany）成文。
+本次语义分析未提供版本变更证据。
 
 ```ground:caliber
-name: 真实运营方
-predicate: "test_data ！= 'Y'"
-scope: 同一租户存在多个运营方时的过滤（兼容 test_data 为空）
-evidence: code_path:CustGroupRelApplication.java#queryTenantOperatorCompany
+name: 有效企业范围
+predicate: "cust_company_info.enable = 'Y'"
+scope: 组织初始化批处理、用户绑定查企业
+evidence: code_path:CustSysOrgApplication.java:listBuildSuccessCusts
 ```
-
 ---END FILE---
 
----FILE: calibers/effective_group_member.md ---
+---FILE: calibers/effective_group_rel_scope.md ---
 ---
 type: caliber
-title: 集团有效成员
-page_key: caliber.effective_group_member
-domain: 数据权限与组织
+title: 集团关系生效范围
+page_key: effective_group_rel_scope
+domain: cust_org_permission
 status: draft
-aliases: [集团有效成员, EFFECTIVE 成员]
+aliases: [集团关系生效范围, EFFECTIVE 过滤, 生效集团口径]
 oid: 1
 scope:
-  databases: [base]
-sources: [code]
+  databases: [unknown]
+sources:
+  - code:CustGroupRelApplication.java
 contract_version: "0.1"
 ---
 
-「集团有效成员」以 [[tables/cust_group_rel]].status = 'EFFECTIVE' 为唯一条件，用于子公司平铺列表过滤。状态到达 EFFECTIVE 的路径见 [[processes/cust_group_rel_status_fsm]]；未生效记录（INEFFECTIVE）不应出现在平铺结果中。
+本口径限定集团树只展示已生效关系：[[cust_group_rel]].status='EFFECTIVE'。状态流转见 [[cust_group_rel_status]]，根节点识别另见 [[root_group_rel_scope]]。
 
 ## 需求背景
-
-语义分析中未出现 reqdoc_claims 条目，本页暂无需求文档主张。
+本页仅依据代码证据（CustGroupRelApplication）。本次语义分析未包含需求文档（reqdoc）主张，故无双源 evidence。
 
 ## 版本演进
-
-v0：依据 code 证据（CustGroupRelApplication#listSubCust）成文。
+本次语义分析未提供版本变更证据。
 
 ```ground:caliber
-name: 集团有效成员
+name: 集团关系生效范围
 predicate: "cust_group_rel.status = 'EFFECTIVE'"
-scope: 子公司平铺列表 listSubCust 过滤
-evidence: code_path:CustGroupRelApplication.java#listSubCust
+scope: listSubCust 子公司平铺结果过滤
+evidence: code_path:CustGroupRelApplication.java:listSubCust
 ```
-
 ---END FILE---
 
----FILE: calibers/org_bound_legal_user.md ---
+---FILE: calibers/root_group_rel_scope.md ---
 ---
 type: caliber
-title: 二级组织绑定合法用户
-page_key: caliber.org_bound_legal_user
-domain: 数据权限与组织
+title: 根集团关系范围
+page_key: root_group_rel_scope
+domain: cust_org_permission
 status: draft
-aliases: [二级组织绑定合法用户]
+aliases: [根集团关系, level=1, 根节点口径]
 oid: 1
 scope:
-  databases: [base]
-sources: [code]
+  databases: [unknown]
+sources:
+  - code:CustGroupRelApplication.java
 contract_version: "0.1"
 ---
 
-本口径在语义分析原文中被截断，predicate 只到 "cust_person_info.user_id = ? AND cust_person_" 为止，scope 与 evidence 也未能取到。从谓词前缀可判定它是「某一用户 + 某联系人侧条件」的联合条件，用于二级组织绑定时校验用户合法性，与 [[tables/cust_person_info]]、[[tables/sys_cust_org_user_permission]] 相关；但完整的第二个条件与适用链路无法从现有证据确定，本页暂不作为可执行口径使用。
+本口径以 [[cust_group_rel]].level=1 识别根节点，与 root_flag（根标识写死 "Y"）互为印证。注意此处用的是集团关系记录自身，而非企业主键，见 [[group_id]]。
 
 ## 需求背景
-
-语义分析中未出现 reqdoc_claims 条目；本口径的语义分析条目本身不完整，需求背景待补。
+本页仅依据代码证据（CustGroupRelApplication）。本次语义分析未包含需求文档（reqdoc）主张，故无双源 evidence。
 
 ## 版本演进
-
-v0：仅登记截断原文，等待语义分析补全后重写。
+本次语义分析未提供版本变更证据。
 
 ```ground:caliber
-name: 二级组织绑定合法用户
-predicate: "cust_person_info.user_id = ? AND cust_person_"
-scope: （语义分析原文在此截断，未给出）
-evidence: （语义分析原文在此截断，未给出）
+name: 根集团关系范围
+predicate: "cust_group_rel.level = 1"
+scope: 根节点识别
+evidence: code_path:CustGroupRelApplication.java:processGroupByParent
 ```
-
 ---END FILE---
 
----REVIEW: caliber | 二级组织绑定合法用户---
-语义分析中该口径条目被截断：predicate 止于 "cust_person_info.user_id = ? AND cust_person_"，scope 与 evidence 缺失。需要确认：(1) 第二个条件的完整字段与取值（疑似 cust_person_info 上的某个状态/启用条件）；(2) 该口径的证据代码路径（疑似组织绑定相关 Application 方法）；(3) 是否与 [[calibers/company_admin]]、[[calibers/non_guest_user]] 存在重叠或互斥关系。补全前本页不得被下游消费。
----END REVIEW---
-
----FILE: concepts/tenant_code_layers.md ---
+---FILE: calibers/specified_permission_scope.md ---
 ---
-type: concept
-title: 数据租户与逻辑租户（db_tenant_code / app_tenant_code）
-page_key: concept.tenant_code_layers
-domain: 数据权限与组织
+type: caliber
+title: 指定组织权限范围
+page_key: specified_permission_scope
+domain: cust_org_permission
 status: draft
-aliases: [数据租户, 逻辑租户, db_tenant_code, app_tenant_code]
+aliases: [指定组织权限, SPECIFIED 口径, 指定范围]
 oid: 1
 scope:
-  databases: [base]
-sources: [db, code]
+  databases: [unknown]
+sources:
+  - code:DataPermissionApplication.java
 contract_version: "0.1"
-maps_to:
-  - db_tenant_code
-  - app_tenant_code
+---
+
+本口径把 [[sys_cust_org_user_permission]].permission_type='SPECIFIED' 与「组织列表必须非空」绑定，构成保存时的硬校验，见 [[specified_requires_org_list]] 与 [[org_id_list]]。
+
+## 需求背景
+本页仅依据代码证据（DataPermissionApplication）。本次语义分析未包含需求文档（reqdoc）主张，故无双源 evidence。
+
+## 版本演进
+本次语义分析未提供版本变更证据。
+
+```ground:caliber
+name: 指定组织权限范围
+predicate: "sys_cust_org_user_permission.permission_type = 'SPECIFIED'"
+scope: 保存时强制校验 orgIdList 非空
+evidence: code_path:DataPermissionApplication.java:saveDataPermission
+```
+---END FILE---
+
+---FILE: calibers/default_permission_scope.md ---
+---
+type: caliber
+title: 默认数据权限范围
+page_key: default_permission_scope
+domain: cust_org_permission
+status: draft
+aliases: [默认数据权限, SAME_AS_USER_ORG 兜底, 兜底口径]
+oid: 1
+scope:
+  databases: [unknown]
+sources:
+  - code:DataPermissionApplication.java
+contract_version: "0.1"
+---
+
+非管理员在查不到记录或类型为空时落到本口径：按 [[sys_cust_org_user_permission]].permission_type='SAME_AS_USER_ORG' 兜底，并用用户组织绑定回填 [[org_id_list]]。语义边界见 [[same_as_user_org]]。
+
+## 需求背景
+本页仅依据代码证据（DataPermissionApplication）。本次语义分析未包含需求文档（reqdoc）主张，故无双源 evidence。
+
+## 版本演进
+本次语义分析未提供版本变更证据。
+
+```ground:caliber
+name: 默认数据权限范围
+predicate: "sys_cust_org_user_permission.permission_type = 'SAME_AS_USER_ORG'"
+scope: 非管理员无记录/类型为空时的兜底
+evidence: code_path:DataPermissionApplication.java:getByUserCompanyType,listByCompany
+```
+---END FILE---
+
+---FILE: calibers/admin_permission_scope.md ---
+---
+type: caliber
+title: 管理员数据权限范围
+page_key: admin_permission_scope
+domain: cust_org_permission
+status: draft
+aliases: [管理员数据权限, ALL 口径, 管理员全量范围]
+oid: 1
+scope:
+  databases: [unknown]
+sources:
+  - code:DataPermissionApplication.java
+contract_version: "0.1"
+---
+
+本口径指管理员查询时固定返回的 permission_type='ALL'，不读权限库，见 [[enterprise_admin_fixed_all]] 与 [[admin]]。
+
+## 需求背景
+本页仅依据代码证据（DataPermissionApplication）。本次语义分析未包含需求文档（reqdoc）主张，故无双源 evidence。
+
+## 版本演进
+本次语义分析未提供版本变更证据。
+
+```ground:caliber
+name: 管理员数据权限范围
+predicate: "sys_cust_org_user_permission.permission_type = 'ALL'"
+scope: 企业管理员查询固定返回值（不读库）
+evidence: code_path:DataPermissionApplication.java:getByUserCompanyType
+```
+---END FILE---
+
+---FILE: calibers/tenant_isolation_scope.md ---
+---
+type: caliber
+title: 租户隔离范围
+page_key: tenant_isolation_scope
+domain: cust_org_permission
+status: draft
+aliases: [租户隔离, db_tenant_code 口径, 租户过滤]
+oid: 1
+scope:
+  databases: [unknown]
+sources:
+  - code:CustSysOrgApplication.java
+  - code:CustGroupRelApplication.java
+contract_version: "0.1"
+---
+
+本口径以 [[cust_company_info]].db_tenant_code = 入参租户为隔离键，作用于组织初始化、集团导入与运营方查询。运营方场景还叠加 test_data 过滤（见 [[cust_company_info]]）。
+
+## 需求背景
+本页仅依据代码证据（CustSysOrgApplication、CustGroupRelApplication）。本次语义分析未包含需求文档（reqdoc）主张，故无双源 evidence。
+
+## 版本演进
+本次语义分析未提供版本变更证据。
+
+```ground:caliber
+name: 租户隔离范围
+predicate: "cust_company_info.db_tenant_code = 入参租户"
+scope: 组织初始化、集团导入、运营方查询
+evidence: code_path:CustSysOrgApplication.java:listBuildSuccessCusts；CustGroupRelApplication.java:queryTenantOperatorCompany
+```
+---END FILE---
+
+---FILE: concepts/org.md ---
+---
+type: concept
+title: org（机构/组织）
+page_key: org
+domain: cust_org_permission
+status: draft
+aliases: [机构, 组织, org_manage, sys_org, SysOrgDO, sys_cust_org, SysCustOrgDO]
+oid: 1
+scope:
+  databases: [unknown]
+sources:
+  - code:OrgFacade
+  - code:CustSysOrgApplication
+  - code:CustSysOrgController
+contract_version: "0.1"
+maps_to: [org_manage.id, sys_cust_org.id]
+field_targets: [org_manage.id, org_manage.org_type, sys_cust_org.id]
+adjudication: boundary
+also_confused_with:
+  - OrgFacade/OrgController 的租户级机构
+  - CustSysOrgApplication/CustSysOrgController 的客户组织架构
+---
+
+「组织/机构」在代码里指向两条完全不同的链路，必须按边界判别，不能互推。一条是租户级机构 org_manage（OrgTypeEnum ORG/SUB、tenant_code/apaaS tenant 维度，入口 CustOrgController /cust-web/org）；另一条是客户组织架构 sys_cust_org + sys_cust_org_rel（custId + companyType 维度，入口 CustSysOrgController /cust-web/sysOrg）。数据权限里的 org_id_list 属于后者，见 [[org_id_list]]；前者见 [[org_manage]]。
+
+## 需求背景
+本页仅依据代码证据（OrgFacade、CustSysOrgApplication、CustSysOrgController）。本次语义分析未包含需求文档（reqdoc）主张，故无双源 evidence。
+
+## 版本演进
+本次语义分析未提供版本变更证据。
+---END FILE---
+
+---FILE: concepts/company_type.md ---
+---
+type: concept
+title: companyType（企业角色类型）
+page_key: company_type
+domain: cust_org_permission
+status: draft
+aliases: [company_type, custType, roleType, 企业角色类型, custCompanyType]
+oid: 1
+scope:
+  databases: [unknown]
+sources:
+  - code:DataPermissionApplication
+  - code:CustSysOrgApplication
+contract_version: "0.1"
+maps_to: [cust_person_info.company_type, cust_company_info.cust_company_type, cust_role_info.role_type]
+field_targets: [cust_person_info.company_type, cust_company_info.cust_company_type, cust_role_info.role_type, cust_group_rel.cust_type]
+adjudication: synonym
+also_confused_with: []
+---
+
+companyType、custType、roleType、custCompanyType 是同一取值域的别名（SUPPLIER/CORE/DEALER/FINANCE/CORPORATION_COMPANY/PLATFORM_OPERATOR_COMPANY 等），差别只在存储形态：[[cust_company_info]].cust_company_type 与 [[cust_group_rel]].cust_type 是 JSON 数组字符串（多角色），[[cust_person_info]].company_type 与 cust_role_info.role_type 是单值。initRootOrgBatchOneCompany 直接把 roleType 当 companyType 使用，是二者同义的直接证据。
+
+## 需求背景
+本页仅依据代码证据（DataPermissionApplication、CustSysOrgApplication）。本次语义分析未包含需求文档（reqdoc）主张，故无双源 evidence。
+
+## 版本演进
+本次语义分析未提供版本变更证据。
+---END FILE---
+
+---FILE: concepts/permission_type.md ---
+---
+type: concept
+title: permissionType（数据权限类型）
+page_key: permission_type
+domain: cust_org_permission
+status: draft
+aliases: [permission_type, ALL, SPECIFIED, SAME_AS_USER_ORG, PERMISSION_ALL, PERMISSION_SPECIFIED, PERMISSION_SAME_AS_USER_ORG]
+oid: 1
+scope:
+  databases: [unknown]
+sources:
+  - code:DataPermissionApplication
+contract_version: "0.1"
+maps_to: sys_cust_org_user_permission.permission_type
+field_targets: [sys_cust_org_user_permission.permission_type, sys_cust_org_user_permission.org_id_list]
+adjudication: boundary
+also_confused_with:
+  - UserTypeEnum（admin/operator/guest）
+  - 菜单权限 code
+  - UserInfoFacade.ROLE_CODE_*
+---
+
+permission_type 描述「数据可见范围」，userType 描述「用户在企业中的身份」，菜单/角色权限（code、ROLE_CODE_*）又是另一套，三者不可互换。DataPermissionApplication 注释明确只支持 ALL、SPECIFIED、SAME_AS_USER_ORG，不做 SAME_AS_ORG 映射。取值域与流转见 [[data_permission_permission_type]]，落库见 [[sys_cust_org_user_permission]]，身份维度见 [[admin]]，兜底语义见 [[same_as_user_org]]。
+
+## 需求背景
+本页仅依据代码证据（DataPermissionApplication）。本次语义分析未包含需求文档（reqdoc）主张，故无双源 evidence。
+
+## 版本演进
+本次语义分析未提供版本变更证据。
+---END FILE---
+
+---FILE: concepts/admin.md ---
+---
+type: concept
+title: 管理员
+page_key: admin
+domain: cust_org_permission
+status: draft
+aliases: [admin, 企业管理员, 平台管理员]
+oid: 1
+scope:
+  databases: [unknown]
+sources:
+  - code:DataPermissionApplication.java
+contract_version: "0.1"
+maps_to: cust_person_info.user_type
+field_targets: [cust_person_info.user_type, cust_person_info.enable, cust_person_info.phone]
+adjudication: boundary
+also_confused_with:
+  - 需求文档中的平台管理员（跨企业）
+---
+
+代码中可判定的只有企业内管理员：[[cust_person_info]].user_type='admin' 且 enable='Y'，且 phone 与登录用户名密文一致。数据权限保存额外要求 companyId 必须等于当前登录企业，即无法跨企业代理配置（[[data_permission_save_admin_only]]）。需求文档中的「平台管理员」是跨企业概念，与代码可判定范围不同，不可据其推断权限行为。
+
+## 需求背景
+本页仅依据代码证据（DataPermissionApplication）。本次语义分析未包含需求文档（reqdoc）主张，故无双源 evidence。
+
+## 版本演进
+本次语义分析未提供版本变更证据。
+---END FILE---
+
+---FILE: concepts/cust_id_company_id.md ---
+---
+type: concept
+title: custId / companyId
+page_key: cust_id_company_id
+domain: cust_org_permission
+status: draft
+aliases: [企业id, cust_company_info.id]
+oid: 1
+scope:
+  databases: [unknown]
+sources:
+  - code:DataPermissionApplication.java
+  - code:CustSysOrgApplication.java
+contract_version: "0.1"
+maps_to: cust_company_info.id
+field_targets: [cust_company_info.id, cust_person_info.ref_cust_company_info, sys_cust_org_user_permission.company_id]
+adjudication: boundary
+also_confused_with:
+  - cust_company_info.code（ref_cust_company_info / custCode）
+---
+
+custId/companyId 指 [[cust_company_info]].id 自增主键；refCustCompanyInfo 与 ref_cust_project_rel_cust_company_info 则是 code 业务编码。[[cust_person_info]] 同时保存 cust_company_id（主键）与 ref_cust_company_info（code），查询条件混用会出现看似「查不到数据」的问题，改条件时必须先确认用的是哪一轨。
+
+## 需求背景
+本页仅依据代码证据（DataPermissionApplication、CustSysOrgApplication）。本次语义分析未包含需求文档（reqdoc）主张，故无双源 evidence。
+
+## 版本演进
+本次语义分析未提供版本变更证据。
+---END FILE---
+
+---FILE: concepts/group_id.md ---
+---
+type: concept
+title: groupId
+page_key: group_id
+domain: cust_org_permission
+status: draft
+aliases: [rootGroupId, parentGroupId, id]
+oid: 1
+scope:
+  databases: [unknown]
+sources:
+  - code:CustGroupRelApplication.java
+contract_version: "0.1"
+maps_to: cust_group_rel.id
+field_targets: [cust_group_rel.id, cust_group_rel.cust_id, cust_group_rel.root_cust_id]
+adjudication: boundary
+also_confused_with:
+  - cust_group_rel.cust_id / root_cust_id
+---
+
+rootGroupId/parentGroupId 指向 [[cust_group_rel]] 自身记录 id，rootCustId/parentCustId 指向 [[cust_company_info]].id。树构建一律用 group id，业务归属一律用 cust id；在集团查询与导入场景里混用会直接改变结果集。相关流程见 [[cust_group_rel_status]]，范围见 [[root_group_rel_scope]]。
+
+## 需求背景
+本页仅依据代码证据（CustGroupRelApplication）。本次语义分析未包含需求文档（reqdoc）主张，故无双源 evidence。
+
+## 版本演进
+本次语义分析未提供版本变更证据。
+---END FILE---
+
+---FILE: concepts/org_id_list.md ---
+---
+type: concept
+title: orgIdList
+page_key: org_id_list
+domain: cust_org_permission
+status: draft
+aliases: [orgIds, org_id_list]
+oid: 1
+scope:
+  databases: [unknown]
+sources:
+  - code:DataPermissionApplication.java
+contract_version: "0.1"
+maps_to: sys_cust_org_user_permission.org_id_list
+field_targets: [sys_cust_org_user_permission.org_id_list, sys_cust_org_user_permission.permission_type]
+adjudication: synonym
+also_confused_with:
+  - PlatCustOrgDTO.orgId
+---
+
+orgIdList / orgIds / org_id_list 都是 sys_cust_org 的 id 集合，属客户组织架构一路（见 [[org]]）。SAME_AS_USER_ORG 回填时经 listCustUserOrgs 得到并按 orgId 去重，来源是用户组织绑定而不是角色默认组织，见 [[same_as_user_org]]；SPECIFIED 下该字段非空是保存硬条件（[[specified_requires_org_list]]）。
+
+## 需求背景
+本页仅依据代码证据（DataPermissionApplication）。本次语义分析未包含需求文档（reqdoc）主张，故无双源 evidence。
+
+## 版本演进
+本次语义分析未提供版本变更证据。
+---END FILE---
+
+---FILE: concepts/same_as_user_org.md ---
+---
+type: concept
+title: SAME_AS_USER_ORG
+page_key: same_as_user_org
+domain: cust_org_permission
+status: draft
+aliases: [SAME_AS_USER_ORG]
+oid: 1
+scope:
+  databases: [unknown]
+sources:
+  - code:DataPermissionApplication.java
+contract_version: "0.1"
+maps_to: permission_type.SAME_AS_USER_ORG
+field_targets: [sys_cust_org_user_permission.permission_type, sys_cust_org_user_permission.org_id_list]
+adjudication: boundary
+also_confused_with:
+  - SAME_AS_ORG
+---
+
+saveDataPermission 注释明确「不做 SAME_AS_ORG 映射」；查询/列表遇到空类型才回填本值，且回填的 [[org_id_list]] 是用户组织绑定而非角色默认组织。它是兜底而非用户可选配置的等价物，见 [[default_permission_scope]] 与 [[data_permission_permission_type]]。
+
+## 需求背景
+本页仅依据代码证据（DataPermissionApplication）。本次语义分析未包含需求文档（reqdoc）主张，故无双源 evidence。
+
+## 版本演进
+本次语义分析未提供版本变更证据。
+---END FILE---
+
+---FILE: rules/data_permission_save_admin_only.md ---
+---
+type: rule
+title: 数据权限仅本企业管理员可保存
+page_key: data_permission_save_admin_only
+domain: cust_org_permission
+status: draft
+aliases: [数据权限保存准入, 本企业管理员校验]
+oid: 1
+scope:
+  databases: [unknown]
+sources:
+  - code:DataPermissionApplication.java
+contract_version: "0.1"
+---
+
+保存/批量保存数据权限前先做三重校验：企业一致、角色一致、人合法。它决定了业务侧无法替其它企业配置权限，也决定 [[enterprise_admin_scope]] 与 [[enabled_contact_scope]] 是保存链路的必经过滤。落库对象见 [[sys_cust_org_user_permission]]，身份语义见 [[admin]]。
+
+## 需求背景
+本页仅依据代码证据（DataPermissionApplication）。本次语义分析未包含需求文档（reqdoc）主张，故无双源 evidence。
+
+## 版本演进
+本次语义分析未提供版本变更证据。
+
+```ground:rule
+name: 数据权限仅本企业管理员可保存
+content: 保存/批量保存前校验：companyId 必须等于当前登录企业、companyType 与当前登录角色一致、当前用户为 cust_person_info.user_type='admin' 且 enable='Y' 且 phone 匹配登录用户名密文。
+impact: 越权配置数据权限被拒绝；业务侧无法替其它企业配置。
 field_targets:
-  - table: operation_user
-    field: db_tenant_code
-    meaning: 数据租户标识；实测仅出现 'base'（7 条），说明该表当前仅承载 base 租户运营人员
-    evidence: db
-  - table: operation_user
-    field: app_tenant_code
-    meaning: 逻辑租户标识（与 db_tenant_code 分属逻辑/数据两层）
-    evidence: db
-  - table: org_manage
-    field: db_tenant_code
-    meaning: 数据租户标识
-    evidence: db
-  - table: org_manage
-    field: app_tenant_code
-    meaning: 逻辑租户标识
-    evidence: db
-  - table: cust_company_info
-    field: db_tenant_code
-    meaning: 数据租户标识（跨企业/跨租户查询与写库路由依据）
-    evidence: code
-adjudication: db_tenant_code 是数据层标识，承担跨企业/跨租户查询与写库路由；app_tenant_code 是逻辑层标识。两者分属逻辑/数据两层，不可互相替代。
-also_confused_with: [organization_id, ref_cust_company_info]
----
-
-术语桥：两张表（operation_user、org_manage）同时存在 db_tenant_code 与 app_tenant_code，二者名称相近但层次不同——前者是数据层、后者是逻辑层。产融侧 cust_company_info.db_tenant_code 被明确标注为「跨企业/跨租户查询与写库路由依据」，是判定该桥走向的关键证据。
-
-实际影响：任何按租户的查询必须明确走哪一层。operation_user 实测仅出现 'base'（7 条），说明该表当前只承载 base 租户运营人员，跨租户场景不能在本表上做租户维度推断。相关规则见 [[rules/org_agw_skip_tenant_filter]]（AGW 来源跳过租户过滤）。
-
----END FILE---
-
----FILE: concepts/operator_identity_bridge.md ---
----
-type: concept
-title: 运营人员标识桥（operation_user ↔ cust_person_info）
-page_key: concept.operator_identity_bridge
-domain: 数据权限与组织
-status: draft
-aliases: [运营人员标识桥, operator_id, operator_realname, operator]
-oid: 1
-scope:
-  databases: [base]
-sources: [db, code]
-contract_version: "0.1"
-maps_to:
-  - operation_user.operation_id
-  - cust_person_info.operator_id
-  - cust_person_info.operator_realname
-field_targets:
-  - table: operation_user
-    field: operation_id
-    meaning: 运营中台人员ID（对接运营中台的用户标识，产融侧 cust_person_info.operator_id 存放的值）
-    evidence: db
-  - table: operation_user
-    field: operation_name
-    meaning: 运营人员姓名（产融侧 cust_person_info.operator_realname 的来源）
-    evidence: db
-  - table: cust_person_info
-    field: operator_id
-    meaning: 归属运营人员ID（指向 operation_user.operation_id）
-    evidence: code
-  - table: cust_person_info
-    field: operator_realname
-    meaning: 归属运营人员姓名（冗余自 operation_user.operation_name）
-    evidence: code
-  - table: cust_person_info
-    field: operator
-    meaning: 归属运营人员登录名
-    evidence: code
-adjudication: 产融侧只存 operation_id（非 operation_user.id），operator_realname 是姓名冗余；引用运营人员必须走 operation_id 而非主键 id。
-also_confused_with: [operation_user.id, organization_id]
----
-
-术语桥：运营人员归属跨两个域——运营中台侧的 [[tables/operation_user]] 与产融侧的 [[tables/cust_person_info]]。产融侧 cust_person_info.operator_id 存放的是 operation_user.operation_id，而不是该表主键 id；operator_realname 则是 operation_name 的冗余快照。这意味着在 operation_user 上做关联时必须避开 id 主键，否则会连到错误的运营人员。
-
-姓名是冗余字段，源端改名后产融侧不会自动跟随，需要以 operation_id 为准反查 [[tables/operation_user]] 的 operation_name。运营人员展示口径见 [[calibers/non_guest_user]]。
-
----END FILE---
-
----FILE: concepts/org_identity_bridge.md ---
----
-type: concept
-title: 机构标识桥（org_manage ↔ operation_user）
-page_key: concept.org_identity_bridge
-domain: 数据权限与组织
-status: draft
-aliases: [机构标识桥, organization_id, 机构编号]
-oid: 1
-scope:
-  databases: [base]
-sources: [db, code]
-contract_version: "0.1"
-maps_to:
-  - org_manage.organization_id
-  - operation_user.organization_id
-  - sys_cust_org_user_permission.org_id_list
-field_targets:
-  - table: operation_user
-    field: organization_id
-    meaning: 机构编号（指向机构域 org_manage.organization_id）
-    evidence: db
-  - table: org_manage
-    field: organization_id
-    meaning: 机构编号（与 operation_user.organization_id 同域的机构主键）
-    evidence: db
-  - table: org_manage
-    field: parent_code
-    meaning: 父机构编号（自引用，构成机构树；对应代码 SysOrgDO.parentId/selectByCode 链路）
-    evidence: db
-  - table: sys_cust_org_user_permission
-    field: org_id_list
-    meaning: 数据范围组织ID列表（仅 SPECIFIED 必填；SAME_AS_USER_ORG 时由用户组织绑定回填）
-    evidence: code
-adjudication: 机构域统一以 organization_id 作为跨表引用键；org_manage 内部的树形关系走 parent_code 自引用，不要与 organization_id 混用。
-also_confused_with: [org_manage.id, org_no, org_manage.parent_code]
----
-
-术语桥：机构编号 organization_id 是 org_manage 与 operation_user 共同使用的跨域引用键，两者同域。注意 org_manage 自身还有三个易混字段：主键 id、机构号 org_no、以及构成机构树的自引用 parent_code——只有 organization_id 是对外引用的那一个。
-
-下游影响：数据权限的 org_id_list 存放的正是这一域的组织ID，SAME_AS_USER_ORG 时由用户组织绑定回填，见 [[processes/data_permission_type_fsm]] 与 [[rules/specified_requires_org_id_list]]。机构类型取值见 org_manage.org_type（ORG 根机构 / SUB 子机构）。
-
----END FILE---
-
----FILE: concepts/company_business_code.md ---
----
-type: concept
-title: 企业业务编码桥（code ↔ ref_cust_company_info）
-page_key: concept.company_business_code
-domain: 数据权限与组织
-status: draft
-aliases: [企业业务编码, ref_cust_company_info, cust_company_info.code]
-oid: 1
-scope:
-  databases: [base]
-sources: [code]
-contract_version: "0.1"
-maps_to:
-  - cust_company_info.code
-  - cust_person_info.ref_cust_company_info
-  - cust_role_info.ref_cust_company_info
-field_targets:
-  - table: cust_company_info
-    field: code
-    meaning: 企业业务编码（对外引用键，子表以 ref_cust_company_info 指向它，而非 id）
-    evidence: code
-  - table: cust_role_info
-    field: ref_cust_company_info
-    meaning: 关联企业业务编码
-    evidence: code
-  - table: cust_company_info
-    field: certification_no
-    meaning: 统一社会信用代码（同租户内企业唯一键之一）
-    evidence: code
-adjudication: 企业侧对外引用一律走 cust_company_info.code（业务编码）；certification_no 是同租户内唯一键之一但不是关系外键，ref_cust_company_info 指向的是 code 而非 id。
-also_confused_with: [cust_company_info.id, certification_no]
----
-
-术语桥：企业业务编码 code 是 [[tables/cust_company_info]] 对外暴露的引用键，引用方式在子表中名为 ref_cust_company_info（[[tables/cust_person_info]]、[[tables/cust_role_info]] 都有该字段）。最容易踩的坑是误用主键 id 关联，语义分析已明确「子表以 ref_cust_company_info 指向它，而非 id」。
-
-另一个易混字段是 certification_no（统一社会信用代码）：它是同租户内的企业唯一键之一，但承担的是去重/识别职责，不是关系外键。
-
----END FILE---
-
----FILE: concepts/company_role_type.md ---
----
-type: concept
-title: 企业角色类型同域（cust_company_type / company_type / role_type）
-page_key: concept.company_role_type
-domain: 数据权限与组织
-status: draft
-aliases: [企业角色类型, cust_company_type, company_type, role_type]
-oid: 1
-scope:
-  databases: [base]
-sources: [code]
-contract_version: "0.1"
-maps_to:
-  - cust_company_info.cust_company_type
-  - cust_person_info.company_type
-  - cust_role_info.role_type
-  - sys_cust_org_user_permission.company_type
-field_targets:
-  - table: cust_company_info
-    field: cust_company_type
-    meaning: 企业角色类型，JSON 数组字符串（如 ["SUPPLIER"]），可多角色
-    evidence: code
-  - table: cust_person_info
-    field: company_type
-    meaning: 该联系人归属的企业角色类型（与 cust_company_info.cust_company_type 对应）
-    evidence: code
-  - table: cust_role_info
-    field: role_type
-    meaning: 企业角色类型（与 cust_company_info.cust_company_type 同域；initRootOrg 按此字段逐角色初始化根组织）
-    evidence: code
-  - table: sys_cust_org_user_permission
-    field: company_type
-    meaning: 数据权限归属企业角色类型
-    evidence: code
-adjudication: 同一语义（企业角色）在四张表上字段名不同：企业侧是 JSON 数组字符串（多角色，判定用"包含"），角色表是按角色拆行，联系人与数据权限表是单值；跨表比较时必须先做展开/对齐。
-also_confused_with: [user_type, identify_style]
----
-
-术语桥：「企业角色类型」在四张表上以四个不同字段名出现——cust_company_info.cust_company_type、cust_person_info.company_type、cust_role_info.role_type、sys_cust_org_user_permission.company_type。语义分析明确后三者与 cust_company_type 同域。
-
-关键差异是形态而非语义：企业主数据上是 JSON 数组字符串（如 ["SUPPLIER"]，可多角色，判定用「包含」，见 [[calibers/platform_operator_company]]），cust_role_info 则按角色逐行拆分（initRootOrg 按此逐角色初始化根组织），联系人与数据权限表是单值。跨表比较前必须先展开成集合再对齐，否则多角色企业会漏判。适用场景见 [[concepts/data_permission_triple]]。
-
----END FILE---
-
----FILE: concepts/data_permission_triple.md ---
----
-type: concept
-title: 数据权限三维（user_id + company_id + company_type）
-page_key: concept.data_permission_triple
-domain: 数据权限与组织
-status: draft
-aliases: [数据权限三维, user_id, company_id, company_type]
-oid: 1
-scope:
-  databases: [base]
-sources: [code]
-contract_version: "0.1"
-maps_to:
-  - sys_cust_org_user_permission.user_id
+  - cust_person_info.user_type
+  - cust_person_info.enable
+  - cust_person_info.phone
   - sys_cust_org_user_permission.company_id
-  - sys_cust_org_user_permission.company_type
+evidence: code_path:DataPermissionApplication.java:assertCurrentUserIsAdminOfTargetCompany
+```
+---END FILE---
+
+---FILE: rules/specified_requires_org_list.md ---
+---
+type: rule
+title: SPECIFIED 必须携带组织列表
+page_key: specified_requires_org_list
+domain: cust_org_permission
+status: draft
+aliases: [指定组织校验, SPECIFIED 非空校验]
+oid: 1
+scope:
+  databases: [unknown]
+sources:
+  - code:DataPermissionApplication.java
+contract_version: "0.1"
+---
+
+该规则阻止「指定组织但范围为空」的悬空权限落库，是 [[specified_permission_scope]] 的强制实现。涉及 [[sys_cust_org_user_permission]] 的 permission_type 与 [[org_id_list]]。
+
+## 需求背景
+本页仅依据代码证据（DataPermissionApplication）。本次语义分析未包含需求文档（reqdoc）主张，故无双源 evidence。
+
+## 版本演进
+本次语义分析未提供版本变更证据。
+
+```ground:rule
+name: SPECIFIED 必须携带组织列表
+content: permissionType=SPECIFIED 且 orgIdList 为空时抛 CommonException('指定组织时，请选择组织列表')。
+impact: 阻止『指定组织但无范围』的悬空权限。
 field_targets:
-  - table: sys_cust_org_user_permission
-    field: user_id
-    meaning: 数据权限主体用户ID（与 company_id、company_type 构成唯一三维）
-    evidence: code
-  - table: sys_cust_org_user_permission
-    field: company_id
-    meaning: 数据权限归属企业ID
-    evidence: code
-  - table: sys_cust_org_user_permission
-    field: company_type
-    meaning: 数据权限归属企业角色类型
-    evidence: code
-  - table: sys_cust_org_user_permission
-    field: permission_type
-    meaning: 数据权限类型：ALL / SPECIFIED / SAME_AS_USER_ORG；无记录或为空时按 SAME_AS_USER_ORG 处理
-    evidence: code
-adjudication: 数据权限的唯一主体是「用户 + 企业 + 企业角色类型」三元组；同一用户在不同企业或不同角色下是独立的权限行，缺任一维度都会串权。
-also_confused_with: [cust_person_info.company_type, cust_company_info.cust_company_type, org_id_list]
----
-
-术语桥：数据权限不是二维的「用户–企业」，而是三元组：user_id + company_id + company_type，三者共同构成唯一键。这意味着同一用户在同一企业但不同角色下可以拥有互相独立的数据权限行；读取权限时必须三个维度齐全。
-
-company_type 与 [[concepts/company_role_type]] 同域（同名同义），不要和 [[tables/cust_person_info]].user_type（admin/operator/guest）混淆——后者是用户身份，前者是企业角色。三元组缺行或缺 permission_type 时的缺省行为见 [[rules/data_permission_default_same_as_user_org]]。
-
+  - sys_cust_org_user_permission.permission_type
+  - sys_cust_org_user_permission.org_id_list
+evidence: code_path:DataPermissionApplication.java:saveDataPermission,saveDataPermissionBatch
+```
 ---END FILE---
 
----FILE: rules/data_permission_triple_unique.md ---
+---FILE: rules/enterprise_admin_fixed_all.md ---
 ---
 type: rule
-title: 数据权限按用户+企业+角色三维唯一
-page_key: rule.data_permission_triple_unique
-domain: 数据权限与组织
+title: 企业管理员数据权限固定 ALL
+page_key: enterprise_admin_fixed_all
+domain: cust_org_permission
 status: draft
-aliases: [数据权限唯一三维]
+aliases: [管理员固定 ALL, 管理员不读权限库]
 oid: 1
 scope:
-  databases: [base]
-sources: [code]
+  databases: [unknown]
+sources:
+  - code:DataPermissionApplication.java
 contract_version: "0.1"
 ---
 
-落到 [[tables/sys_cust_org_user_permission]] 的每一条权限记录，主体是 user_id + company_id + company_type 三元组。同一用户在不同企业、或同一企业不同角色下的权限互不影响，删除/更新权限必须三键齐备，只按 user_id 操作会跨企业串权。语义模型见 [[concepts/data_permission_triple]]。
+管理员不受组织范围限制，且无需预先配置权限记录——这是查询链路的短路分支，先判 [[enterprise_admin_scope]] 再决定是否读 [[sys_cust_org_user_permission]]。对应口径 [[admin_permission_scope]]。
 
 ## 需求背景
-
-语义分析中未出现 reqdoc_claims 条目；本规则由字段语义（「与 company_id、company_type 构成唯一三维」）直接得出。
+本页仅依据代码证据（DataPermissionApplication）。本次语义分析未包含需求文档（reqdoc）主张，故无双源 evidence。
 
 ## 版本演进
-
-v0：依据 code 证据成文。
+本次语义分析未提供版本变更证据。
 
 ```ground:rule
-name: 数据权限三维唯一
-statement: 数据权限的主体键是 user_id + company_id + company_type 三元组
-condition: 读写 sys_cust_org_user_permission
-action: 任何查询与更新都必须同时限定三个维度
-evidence: code_path:DataPermissionApplication.java#getByUserCompanyType / #listByCompany
+name: 企业管理员数据权限固定 ALL
+content: getByUserCompanyType 先判 isEnterpriseAdmin，命中则直接构造 permissionType=ALL、orgIdList=null 返回，不读权限库。
+impact: 管理员不受组织范围限制，且无需预先配置权限记录。
+field_targets:
+  - sys_cust_org_user_permission.permission_type
+evidence: code_path:DataPermissionApplication.java:getByUserCompanyType,isEnterpriseAdmin
 ```
-
 ---END FILE---
 
----FILE: rules/data_permission_default_same_as_user_org.md ---
+---FILE: rules/default_same_as_user_org_backfill.md ---
 ---
 type: rule
-title: 数据权限缺省按 SAME_AS_USER_ORG 处理
-page_key: rule.data_permission_default_same_as_user_org
-domain: 数据权限与组织
+title: 无记录/空类型默认 SAME_AS_USER_ORG 并回填组织
+page_key: default_same_as_user_org_backfill
+domain: cust_org_permission
 status: draft
-aliases: [数据权限缺省规则, 无记录默认同用户组织]
+aliases: [兜底回填组织, 默认 SAME_AS_USER_ORG 规则]
 oid: 1
 scope:
-  databases: [base]
-sources: [code]
+  databases: [unknown]
+sources:
+  - code:DataPermissionApplication.java
 contract_version: "0.1"
 ---
 
-当 [[tables/sys_cust_org_user_permission]] 中没有对应三元组的记录，或查出的 permission_type 为空时，系统不报错也不放行全量，而是按 SAME_AS_USER_ORG（同用户所属组织）处理。这是一条「空值即缺省」的隐式流转，见 [[processes/data_permission_type_fsm]]。
-
-需要与企业管理员的处理区分：如果主体是该企业该角色启用中的管理员，则直接按 ALL（见 [[calibers/company_admin]]），而不是缺省值。
+该规则把「查不到」变成「本人所属组织」而不是「全量可见」，是数据权限的安全兜底。回填来源是用户组织绑定，经 listCustUserOrgs 去重后写入 [[org_id_list]]；异常只告警不抛出，因此回填失败不会中断查询。语义边界见 [[same_as_user_org]]，口径见 [[default_permission_scope]]。
 
 ## 需求背景
-
-语义分析中未出现 reqdoc_claims 条目；本规则由字段语义「无记录或为空时按 SAME_AS_USER_ORG 处理」及 DataPermissionApplication 证据得出。
+本页仅依据代码证据（DataPermissionApplication）。本次语义分析未包含需求文档（reqdoc）主张，故无双源 evidence。
 
 ## 版本演进
-
-v0：依据 code 证据成文。
+本次语义分析未提供版本变更证据。
 
 ```ground:rule
-name: 数据权限缺省
-statement: 无权限记录或 permission_type 为空时按 SAME_AS_USER_ORG 处理，非管理员不放行为全部数据
-condition: 查询权限且主体不是该企业该角色启用中的管理员
-action: 以用户所属组织作为数据范围
-evidence: code_path:DataPermissionApplication.java#getByUserCompanyType / #listByCompany
+name: 无记录/空类型默认 SAME_AS_USER_ORG 并回填组织
+content: 非管理员且未查出记录或 permissionType 为空时置 SAME_AS_USER_ORG，再由该用户在该企业+角色下的组织绑定填充 orgIdList（异常仅告警不抛出）。
+impact: 数据范围兜底为『本人所属组织』，避免默认全量可见。
+field_targets:
+  - sys_cust_org_user_permission.permission_type
+  - sys_cust_org_user_permission.org_id_list
+evidence: code_path:DataPermissionApplication.java:fillOrgIdsIfSameAsUserOrg
 ```
-
 ---END FILE---
 
----FILE: rules/specified_requires_org_id_list.md ---
+---FILE: rules/org_operate_requires_build_success.md ---
 ---
 type: rule
-title: SPECIFIED 权限必须填写 org_id_list
-page_key: rule.specified_requires_org_id_list
-domain: 数据权限与组织
+title: 组织操作前置：企业建档成功
+page_key: org_operate_requires_build_success
+domain: cust_org_permission
 status: draft
-aliases: [SPECIFIED 必填组织]
+aliases: [组织操作前置, 建档成功门槛]
 oid: 1
 scope:
-  databases: [base]
-sources: [code]
+  databases: [unknown]
+sources:
+  - code:CustSysOrgApplication.java
 contract_version: "0.1"
 ---
 
-把 [[tables/sys_cust_org_user_permission]].permission_type 保存为 SPECIFIED 时，org_id_list 必填；而 SAME_AS_USER_ORG 不需要填，其组织范围由用户组织绑定回填。组织ID的取值域见 [[concepts/org_identity_bridge]]，状态流转见 [[processes/data_permission_type_fsm]]。
+未认证企业无法创建或初始化组织。该规则同时出现在单企业动作（addSubOrg、initRootOrg）与批量扫描两个入口，口径见 [[build_success_cust_scope]] 与 [[enabled_cust_scope]]，状态见 [[cust_build_status]]。
 
 ## 需求背景
-
-语义分析中未出现 reqdoc_claims 条目；本规则由字段语义（「仅 SPECIFIED 必填；SAME_AS_USER_ORG 时由用户组织绑定回填」）得出。
+本页仅依据代码证据（CustSysOrgApplication）。本次语义分析未包含需求文档（reqdoc）主张，故无双源 evidence。
 
 ## 版本演进
-
-v0：依据 code 证据成文。
+本次语义分析未提供版本变更证据。
 
 ```ground:rule
-name: SPECIFIED 必填 org_id_list
-statement: permission_type=SPECIFIED 时 org_id_list 必填；SAME_AS_USER_ORG 时由用户组织绑定回填
-condition: 保存数据权限
-action: 校验 org_id_list 非空，否则拒绝落库
-evidence: code_path:DataPermissionApplication.java#saveDataPermission / #saveDataPermissionBatch
+name: 组织操作前置：企业建档成功
+content: addSubOrg 调用 checkCustBuildStatus 校验 cust_build_status=BUILD_SUCCESS；initRootOrg 同样要求建档成功；批量初始化按 enable='Y' + BUILD_SUCCESS 翻页扫描。
+impact: 未认证企业无法创建/初始化组织。
+field_targets:
+  - cust_company_info.cust_build_status
+  - cust_company_info.enable
+evidence: code_path:CustSysOrgApplication.java:checkCustBuildStatus,listBuildSuccessCusts
 ```
-
 ---END FILE---
 
----FILE: rules/operation_user_deleted_filter.md ---
+---FILE: rules/org_import_root_name_equals_company_name.md ---
 ---
 type: rule
-title: 运营人员查询必须带 deleted 过滤
-page_key: rule.operation_user_deleted_filter
-domain: 数据权限与组织
+title: 组织导入一级组织名称必须等于企业名称
+page_key: org_import_root_name_equals_company_name
+domain: cust_org_permission
 status: draft
-aliases: [operation_user 删除过滤]
+aliases: [根组织名称校验, 一级组织名称一致]
 oid: 1
 scope:
-  databases: [base]
-sources: [db]
+  databases: [unknown]
+sources:
+  - code:CustSysOrgApplication.java
 contract_version: "0.1"
 ---
 
-[[tables/operation_user]] 存在已删除数据（db 实测 deleted 分布为 N=119 / Y=22），因此对该表的任何查询都必须显式带 deleted 过滤条件，否则约 15% 的已删除运营人员会进入结果集。这是本表最容易被忽略的查询前置条件。
+导入解析（checkExcelData）阶段即拦截，防止导入产生与主数据不一致的根组织。涉及 [[cust_company_info]].name 与该企业组织树的根行。
 
 ## 需求背景
-
-语义分析中未出现 reqdoc_claims 条目；本规则由 db 字段语义直接得出。注意：语义分析只给出「查询必须带 deleted 过滤」这一要求，未给出保留值的具体约定（Y/N 哪一侧为有效），落地时需与调用方确认。
+本页仅依据代码证据（CustSysOrgApplication）。本次语义分析未包含需求文档（reqdoc）主张，故无双源 evidence。
 
 ## 版本演进
-
-v0：依据 db 证据成文。
+本次语义分析未提供版本变更证据。
 
 ```ground:rule
-name: operation_user 逻辑删除过滤
-statement: 查询 operation_user 必须带 deleted 过滤
-condition: 任意对 operation_user 的读取
-action: 过滤掉已删除记录（实测 N=119 / Y=22，存在已删除数据）
-evidence: db
+name: 组织导入一级组织名称必须等于企业名称
+content: checkExcelData 中 parentOrgName='/' 的根行只能一条且 orgName 必须等于 cust_company_info.name，否则报错。
+impact: 防止导入产生与主数据不一致的根组织。
+field_targets:
+  - cust_company_info.name
+evidence: code_path:CustSysOrgApplication.java:checkExcelData
 ```
-
 ---END FILE---
 
----FILE: rules/sys_user_delete_all_products_frozen.md ---
+---FILE: rules/secondary_org_bind_group_exclusive.md ---
 ---
 type: rule
-title: 删除 sys 用户前须全部产品关系已冻结
-page_key: rule.sys_user_delete_all_products_frozen
-domain: 数据权限与组织
+title: 二级组织绑定不得跨（企业, 角色）分组
+page_key: secondary_org_bind_group_exclusive
+domain: cust_org_permission
 status: draft
-aliases: [删除 sys 用户前置校验, is_freeze]
+aliases: [二级组织唯一归属, 用户绑定分组校验]
 oid: 1
 scope:
-  databases: [base]
-sources: [code]
+  databases: [unknown]
+sources:
+  - code:CustSysOrgApplication.java
 contract_version: "0.1"
 ---
 
-删除 [[tables/sys_user]] 用户之前，必须校验该用户在所有产品上的关系记录是否均已冻结：[[tables/cust_user_rel]].is_freeze 为 'N' 表示未冻结，只有全部产品关系都冻结（无未冻结记录）才允许删除。该规则把「产品维度的冻结状态」作为「用户删除」的闸门，product_id 决定需要检查哪些业务系统。
+该规则保证组织归属唯一、且不落空分组。分组维度是 (custId, companyType)，与 [[company_type]]、[[cust_id_company_id]] 的语义一致；绑定的用户有效性另由 [[bind_org_user_requires_enabled_contact]] 把关。
 
 ## 需求背景
-
-语义分析中未出现 reqdoc_claims 条目；本规则由 cust_user_rel 字段语义（「全部冻结才允许删除 sys 用户」）得出。
+本页仅依据代码证据（CustSysOrgApplication）。本次语义分析未包含需求文档（reqdoc）主张，故无双源 evidence。
 
 ## 版本演进
-
-v0：依据 code 证据成文。
+本次语义分析未提供版本变更证据。
 
 ```ground:rule
-name: sys 用户删除前置校验
-statement: 只有用户全部产品关系均冻结时才允许删除 sys 用户
-condition: 存在 is_freeze='N' 的产品关系
-action: 拒绝删除 sys 用户
-evidence: code_path:cust_user_rel.is_freeze（'N' 表示未冻结）
+name: 二级组织绑定不得跨（企业, 角色）分组
+content: Sheet1 中同一 orgId 只能属于一个 (custId, companyType) 分组，且每组在 Sheet2 中必须至少有一行用户绑定。
+impact: 保证组织归属唯一、避免空分组落库。
+field_targets: []
+evidence: code_path:CustSysOrgApplication.java:importSecondaryOrgUserBind
 ```
-
 ---END FILE---
 
----FILE: rules/writeoff_freeze_all_users.md ---
+---FILE: rules/bind_org_user_requires_enabled_contact.md ---
 ---
 type: rule
-title: 注销企业前先冻结企业下全部用户
-page_key: rule.writeoff_freeze_all_users
-domain: 数据权限与组织
+title: 绑定组织用户要求联系人在该企业角色下启用
+page_key: bind_org_user_requires_enabled_contact
+domain: cust_org_permission
 status: draft
-aliases: [注销前冻结全部用户, freezeCustAllUsers]
+aliases: [绑定用户启用校验, 用户未加入该企业]
 oid: 1
 scope:
-  databases: [base]
-sources: [code]
+  databases: [unknown]
+sources:
+  - code:CustSysOrgApplication.java
 contract_version: "0.1"
 ---
 
-企业注销时，先执行 freezeCustAllUsers 把该企业下全部用户冻结，再置企业状态为 WRITEOFF；即注销动作的实际生效依赖「用户先冻结」这一前置步骤。流转见 [[processes/cust_status_fsm]]，用户冻结体现为 [[tables/cust_person_info]].enable/N 与 status/FREEZE。
+禁用或未加入企业的用户不能被挂到组织下。计数条件同时覆盖用户、企业编码、角色与启用标记，说明 [[cust_person_info]] 的这三列构成绑定校验的最小键；相关口径见 [[enabled_contact_scope]]。
 
 ## 需求背景
-
-语义分析中未出现 reqdoc_claims 条目；本规则由状态机中 custStatusOperator(freezeCustAllUsers) 的证据得出。
+本页仅依据代码证据（CustSysOrgApplication）。本次语义分析未包含需求文档（reqdoc）主张，故无双源 evidence。
 
 ## 版本演进
-
-v0：依据 code 证据成文。
+本次语义分析未提供版本变更证据。
 
 ```ground:rule
-name: 注销前冻结全部用户
-statement: 企业注销前必须先冻结该企业下全部用户
-condition: 企业状态由 EFFECT 走向 WRITEOFF
-action: 调用 freezeCustAllUsers 冻结全部用户后再注销
-evidence: code_path:CustCompanyInfoApplication.java#custStatusOperator(freezeCustAllUsers)
+name: 绑定组织用户要求联系人在该企业角色下启用
+content: 按 userId + refCustCompanyInfo + companyType + enable='Y' 计数，为 0 则报『用户未加入该企业或未启用』。
+impact: 禁用/未加入企业的用户不能被挂到组织下。
+field_targets:
+  - cust_person_info.enable
+  - cust_person_info.company_type
+  - cust_person_info.ref_cust_company_info
+evidence: code_path:CustSysOrgApplication.java:importSecondaryOrgUserBind
 ```
-
 ---END FILE---
 
----FILE: rules/simple_auth_no_ca.md ---
+---FILE: rules/group_import_parent_child_role_consistency.md ---
 ---
 type: rule
-title: 简易认证强制不开通电子签章 CA
-page_key: rule.simple_auth_no_ca
-domain: 数据权限与组织
+title: 集团成员导入父子角色一致性
+page_key: group_import_parent_child_role_consistency
+domain: cust_org_permission
 status: draft
-aliases: [简易认证 CA 校正, need_register_ca]
+aliases: [父子角色一致, 集团导入角色校验]
 oid: 1
 scope:
-  databases: [base]
-sources: [code]
+  databases: [unknown]
+sources:
+  - code:CustGroupRelApplication.java
 contract_version: "0.1"
 ---
 
-当企业走简易认证（identify_style=SIMPLE，见 [[tables/cust_company_info]]）时，need_register_ca 会被强制校正为「不开通」，即便上游传入了开通意图也会被覆盖。该校正与简易认证支线的建档状态流转（AWAIT_CUST_CONFIRM → BUILD_SUCCESS，见 [[processes/cust_build_status_fsm]]）配套。
+该规则阻断同链角色混挂的集团树，判定基于 [[cust_company_info]].cust_company_type（JSON 数组，多角色），语义见 [[company_type]]；关系落库见 [[cust_group_rel]]、[[cust_group_rel_status]]。
 
 ## 需求背景
-
-语义分析中未出现 reqdoc_claims 条目；本规则由字段语义「简易认证时被强制校正为不开通」得出。
-
-## 版本演进
-
-v0：依据 code 证据成文。
-
-```ground:rule
-name: 简易认证 CA 校正
-statement: 简易认证场景 need_register_ca 强制为不开通
-condition: identify_style = SIMPLE
-action: 覆盖 need_register_ca 为 N
-evidence: code_path:cust_company_info.need_register_ca（简易认证时被强制校正为不开通）
-```
-
----END FILE---
-
----FILE: rules/org_agw_skip_tenant_filter.md ---
----
-type: rule
-title: client_type=AGW 跳过机构租户过滤
-page_key: rule.org_agw_skip_tenant_filter
-domain: 数据权限与组织
-status: draft
-aliases: [AGW 跳过租户过滤, org_manage.client_type]
-oid: 1
-scope:
-  databases: [base]
-sources: [code]
-contract_version: "0.1"
----
-
-[[tables/org_manage]] 的 client_type 用于区分端来源；OrgFacade 中以 clientType=='AGW' 判断是否跳过租户过滤。即来自 AGW 端调用时，机构数据不走租户维度裁剪，这是跨租户可见性的一个显式例外，与 [[concepts/tenant_code_layers]] 的租户层次直接相关。
-
-## 需求背景
-
-语义分析中未出现 reqdoc_claims 条目；本规则由 org_manage.client_type 字段语义得出。
+本页仅依据代码证据（CustGroupRelApplication）。本次语义分析未包含需求文档（reqdoc）主张，故无双源 evidence。
 
 ## 版本演进
-
-v0：依据 code 证据成文。
-
-```ground:rule
-name: AGW 端跳过租户过滤
-statement: clientType=='AGW' 时跳过机构数据的租户过滤
-condition: OrgFacade 收到 client_type=AGW 的调用
-action: 不追加租户过滤条件
-evidence: code_path:OrgFacade（clientType=='AGW' 判断）
-```
-
----END FILE---
-
----FILE: rules/phone_encrypted_base64.md ---
----
-type: rule
-title: 联系人手机号加密后 Base64 存储
-page_key: rule.phone_encrypted_base64
-domain: 数据权限与组织
-status: draft
-aliases: [手机号加密, encryptAndBase64Str, decryptStr]
-oid: 1
-scope:
-  databases: [base]
-sources: [code]
-contract_version: "0.1"
----
-
-[[tables/cust_person_info]].phone 不以明文存储：写入时用 encryptAndBase64Str 加密并转 Base64，展示时用 decryptStr 解密。因此库内直接比对手机号字符串不会命中，任何按手机号的查询/去重都必须先走加密链路。
-
-## 需求背景
-
-语义分析中未出现 reqdoc_claims 条目；本规则由 phone 字段语义（「加密后以 Base64 存储」）得出。
-
-## 版本演进
-
-v0：依据 code 证据成文。
+本次语义分析未提供版本变更证据。
 
 ```ground:rule
-name: 手机号加密存储
-statement: cust_person_info.phone 加密后以 Base64 存储
-condition: 写入或展示手机号
-action: 写入用 encryptAndBase64Str，展示用 decryptStr；禁止明文比对
-evidence: code_path:cust_person_info.phone（写入用 encryptAndBase64Str，展示用 decryptStr）
+name: 集团成员导入父子角色一致性
+content: 若父级企业已存在，其 cust_company_type 必须包含子级申报的企业角色；父级尚未存在时，同一父级下所有子级角色必须一致。
+impact: 阻断同链角色混挂的集团树。
+field_targets:
+  - cust_company_info.cust_company_type
+evidence: code_path:CustGroupRelApplication.java:checkRoleExcelData
 ```
-
 ---END FILE---
 
----REVIEW: table | 物理库名归属待确认---
-所有页面的 frontmatter scope.databases 暂填 [base]。该值取自 db 证据中 operation_user.db_tenant_code「实测仅出现 'base'（7 条）」的观察结果，属数据租户标识，并非已确认的物理库名。需要确认：(1) 本主题涉及表（operation_user、org_manage、cust_company_info、cust_person_info、cust_role_info、cust_user_rel、sys_user、sys_cust_org_user_permission、cust_group_rel）实际落在哪些物理库/数据源；(2) db_tenant_code 与物理库名之间的映射关系。确认后统一回填各页 frontmatter。
+---REVIEW: tables | 物理库名与字段类型缺失---
+本批页面 frontmatter 的 scope.databases 一律写 [unknown]：语义分析未给出任何物理库名，且表名跨 sys_* 与 cust_* 两族，无法在无证据情况下断言其所属物理库。同理，ground:table 中除 org_manage.status（varchar(10)，库证据）外的字段类型均写 unknown，原因是本次分析未提供 DDL/类型信息；字段的业务含义（desc）与取值域（dict）保留未改。涉及页面：tables/sys_cust_org_user_permission、tables/cust_person_info、tables/cust_company_info、tables/cust_group_rel、tables/operation_user、tables/org_manage。待补 DB 名称与字段类型证据后回填。
 ---END REVIEW---
 
----REVIEW: caliber | 语义分析 calibers 条目被截断---
-语义分析的 calibers 数组末尾被截断于「二级组织绑定合法用户」一条，且 field_semantics、state_machines 亦无截断标记。存在以下可能：其后还有未纳入本次分析的口径（例如组级/机构级数据范围、运营人员机构绑定相关口径）。本批次已按现有证据产出 7 个 caliber 页；待语义分析补全后需重新比对是否遗漏口径，并检查 [[calibers/org_bound_legal_user]] 的完整定义。
+---REVIEW: rules | 运营方查询过滤测试数据---
+语义分析中该规则条目被截断：content 未结束（field_targets 仅到 "cust_company_info.test_data, cus"），且 evidence 字段缺失，无法按「逐字来自证据」要求写出 ground:rule 的 evidence 与完整 content，故本次未产出 rules/ 页面。已可确认部分：同一 db_tenant_code 下 cust_company_type 含 PLATFORM_OPERATOR_COMPANY 的企业数 >1 时，过滤 test_data='Y' 仅保留真实运营方。涉及 [[cust_company_info]] 的 test_data、db_tenant_code，以及 [[company_type]]、[[tenant_isolation_scope]]。待 evidence 补全后按 rule 页建页。
 ---END REVIEW---

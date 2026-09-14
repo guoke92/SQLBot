@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 电子授权书签署编排前置条件（全满足才签署）
-page_key: rule.electronic_auth_sign_preconditions
+page_key: electronic-auth-sign-preconditions
 domain: 授权协议与电子授权
 status: draft
 aliases:
@@ -13,6 +13,7 @@ scope:
 sources:
   - code:CustAuthSignOrchestrationApplication.java
 contract_version: "0.1"
+belong: rules
 ---
 
 该规则把分散的准入口径聚合为一次求值：审核通过、线下授权模式、租户开关开启、企业类型在白名单、流程类型命中（建档的邀请/自主录入，或企业自行变更且变更项命中）、且 CFCA 已开通。任一不满足仅记日志跳过，不阻断 `CustSyncEventProcessor` 主流程；CA 未开通时等待重开 CA 成功后链式触发。

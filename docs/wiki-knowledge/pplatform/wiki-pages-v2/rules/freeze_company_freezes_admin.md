@@ -12,6 +12,7 @@ scope:
 sources:
   - code:CustCompanyInfoApplication.java:freeze
 contract_version: "0.1"
+belong: rules
 ---
 
 冻结企业（`cust_status` 置为 `FREEZE`，见 [[customer_status_machine]]）时，系统同时冻结该企业下的管理员用户，使管理员无法登录。这是一条**企业状态对用户状态的级联约束**，说明客户状态变更的影响范围不限于企业实体本身。

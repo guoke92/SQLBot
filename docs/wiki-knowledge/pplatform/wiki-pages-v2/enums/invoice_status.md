@@ -9,10 +9,22 @@ oid: 1
 scope:
   databases: [lowcode_pplatform]
 sources: ["code:extract-enums.yaml", "db:db-profile.yaml"]
-created: '2026-09-10'
-updated: '2026-09-10'
+created: '2026-09-14'
+updated: '2026-09-14'
 contract_version: "0.1"
+belong: enums
 ---
+
+
+
+
+
+
+
+
+
+
+
 
 # invoice_status
 
@@ -22,12 +34,12 @@ contract_version: "0.1"
 enum: invoice_status
 fields: [ca_fee_order.invoice_status]
 values:
-  PENDING:
-    label: 开票中
-  ISSUED:
-    label: 已开票
-  FAILED:
-    label: 开票失败
-  NONE:
-    label: 无需开票
+  "PENDING":
+    label: "开票中"
+  "ISSUED":
+    label: "已开票"
+  "FAILED":
+    label: "开票失败"
+  "NONE":
+    label: "无需开票"
 ```

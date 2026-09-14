@@ -9,10 +9,22 @@ oid: 1
 scope:
   databases: [lowcode_pplatform]
 sources: ["code:extract-enums.yaml", "db:db-profile.yaml"]
-created: '2026-09-10'
-updated: '2026-09-10'
+created: '2026-09-14'
+updated: '2026-09-14'
 contract_version: "0.1"
+belong: enums
 ---
+
+
+
+
+
+
+
+
+
+
+
 
 # node_status
 
@@ -22,12 +34,12 @@ contract_version: "0.1"
 enum: node_status
 fields: [tenant_project_approval_flow.node_status]
 values:
-  PENDING:
-    label: 待审批
-  APPROVING:
-    label: 审批中
-  APPROVED:
-    label: 已通过
-  REJECTED:
-    label: 已拒绝
+  "PENDING":
+    label: "待审批"
+  "APPROVING":
+    label: "审批中"
+  "APPROVED":
+    label: "已通过"
+  "REJECTED":
+    label: "已拒绝"
 ```

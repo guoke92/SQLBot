@@ -1,36 +1,41 @@
 ---
 type: concept
-title: 企业类型
+title: 企业类型/企业角色
 page_key: company_type
-domain: 企业建档与认证
+domain: 外部渠道与银行对接
 status: draft
 aliases:
-  - 企业角色
-  - 客户角色
-  - cust_company_type
+  - companyType
+  - custCompanyType
+  - CompanyType
+  - SPY
+  - CE
+  - CPT
+  - OPE
 oid: 1
 scope:
-  databases: []
+  databases:
+    - cust
 sources:
-  - db:cust_company_info.cust_company_type
+  - code:CustAccessApplication.getCompanyType
+  - code:TianmaService.companyArchive
 contract_version: "0.1"
 maps_to: cust_company_info.cust_company_type
-adjudication: synonym
-also_confused_with: []
-boundary: 企业类型、企业角色、客户角色均指同一概念，存储为JSON数组字符串。
+also_confused_with:
+  - cust_person_info.company_type
+  - cust_role_info.role_type
+adjudication: boundary
+belong: concepts
+field_targets: [cust_company_info.cust_company_type]
 sources: ["enrich:wiki-admin"]
 ---
 
-“企业类型”“企业角色”“客户角色”是同一概念的不同叫法，对应字段 `cust_company_info.cust_company_type`。该字段以 **JSON 数组字符串**存储，例如 `["SUPPLIER"]`、`["CORE"]`，说明一个企业可同时承担多个角色。
-
-该概念在语义分析中未发现与其他术语的混淆项（`adjudication: synonym`），是一组纯同义词归一；读取时需按 JSON 数组解析，不能按单值枚举直接比较。
+企业类型承担对外协议码与内部字典值的双向往返，是渠道建档中取值最容易混淆的维度。
 
 ## 需求背景
-
-暂无需求文档主张。
+对外协议码（SPY/CE/CPT/OPE）与内部 dictKey（SUPPLIER/CORE/FINANCE/PLATFORM_OPERATOR_COMPANY）需经 getCompanyType 转换；天马请求 companyType 为空时按默认供应商处理（[[tianma_default_supplier]]）。主表以 JSON 数组存储，查询侧只能 like 模糊匹配（[[company_certification_tenant_match]]），因此不可用等值条件过滤角色。
 
 ## 版本演进
-
-- v0.1：依据语义分析建立 concept 页，归一企业类型 / 企业角色 / 客户角色三个同义叫法。
+暂无版本演进记录。
 
 相关：[[cust_company_info]]

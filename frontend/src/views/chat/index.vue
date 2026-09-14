@@ -325,8 +325,8 @@
                               placement="top"
                             >
                               <el-button
-                                class="tool-btn"
-                                :class="{ 'feedback-active': message.record?.feedback === 'up' }"
+                                class="tool-btn feedback-up"
+                                :class="{ 'is-active': message.record?.feedback === 'up' }"
                                 text
                                 :disabled="isTyping"
                                 @click="submitFeedback(message, 'up')"
@@ -348,8 +348,8 @@
                               placement="top"
                             >
                               <el-button
-                                class="tool-btn"
-                                :class="{ 'feedback-active': message.record?.feedback === 'down' }"
+                                class="tool-btn feedback-down"
+                                :class="{ 'is-active': message.record?.feedback === 'down' }"
                                 text
                                 :disabled="isTyping"
                                 @click="submitFeedback(message, 'down')"
@@ -466,6 +466,29 @@
       @on-chat-created="onChatCreatedQuick"
     />
     <ChatCreator ref="hiddenChatCreatorRef" hidden @on-chat-created="onChatCreatedQuick" />
+    <el-dialog
+      v-model="feedbackDialogVisible"
+      :title="t('qa.feedback_down_title')"
+      width="480px"
+      append-to-body
+      destroy-on-close
+      @closed="resetFeedbackDialog"
+    >
+      <el-input
+        v-model="feedbackCommentDraft"
+        type="textarea"
+        :rows="4"
+        maxlength="500"
+        show-word-limit
+        :placeholder="t('qa.feedback_down_placeholder')"
+      />
+      <template #footer>
+        <el-button @click="feedbackDialogVisible = false">{{ t('common.cancel') }}</el-button>
+        <el-button type="primary" :loading="feedbackSubmitting" @click="confirmDownFeedback">
+          {{ t('common.confirm') }}
+        </el-button>
+      </template>
+    </el-dialog>
   </el-container>
 </template>
 
@@ -869,14 +892,75 @@ const sendMessage = async ($event: any = {}) => {
   })
 }
 
-async function submitFeedback(message: ChatMessage, feedback: 'up' | 'down') {
+const feedbackDialogVisible = ref(false)
+const feedbackCommentDraft = ref('')
+const feedbackSubmitting = ref(false)
+const pendingDownMessage = ref<ChatMessage | null>(null)
+
+function resetFeedbackDialog() {
+  feedbackCommentDraft.value = ''
+  pendingDownMessage.value = null
+  feedbackSubmitting.value = false
+}
+
+async function persistFeedback(
+  message: ChatMessage,
+  feedback: 'up' | 'down' | null,
+  comment?: string | null
+) {
   if (!message.record?.id) return
-  const newFeedback = message.record.feedback === feedback ? null : feedback
+  const result = await chatApi.submitFeedback(message.record.id, feedback, comment)
+  const saved = result?.data ?? result
+  message.record.feedback = saved?.feedback ?? feedback
+  message.record.feedback_comment = saved?.comment ?? (feedback === 'down' ? comment : null) ?? null
+  ElMessage.success(t('qa.feedback_submitted'))
+}
+
+async function submitFeedback(message: ChatMessage, feedback: 'up' | 'down') {
+  if (!message.record?.id || feedbackSubmitting.value) return
+  if (message.record.feedback === feedback) {
+    try {
+      feedbackSubmitting.value = true
+      await persistFeedback(message, null)
+    } catch {
+      // request interceptor already toasts HTTP errors
+    } finally {
+      feedbackSubmitting.value = false
+    }
+    return
+  }
+  if (feedback === 'down') {
+    pendingDownMessage.value = message
+    feedbackCommentDraft.value = message.record.feedback_comment || ''
+    feedbackDialogVisible.value = true
+    return
+  }
   try {
-    await chatApi.submitFeedback(message.record.id, newFeedback)
-    message.record.feedback = newFeedback
+    feedbackSubmitting.value = true
+    await persistFeedback(message, 'up')
   } catch {
-    // silent
+    // request interceptor already toasts HTTP errors
+  } finally {
+    feedbackSubmitting.value = false
+  }
+}
+
+async function confirmDownFeedback() {
+  const message = pendingDownMessage.value
+  const comment = feedbackCommentDraft.value.trim()
+  if (!message?.record?.id) return
+  if (!comment) {
+    ElMessage.warning(t('qa.feedback_down_required'))
+    return
+  }
+  try {
+    feedbackSubmitting.value = true
+    await persistFeedback(message, 'down', comment)
+    feedbackDialogVisible.value = false
+  } catch {
+    // request interceptor already toasts HTTP errors
+  } finally {
+    feedbackSubmitting.value = false
   }
 }
 
@@ -1311,10 +1395,31 @@ onMounted(() => {
     height: 16px;
     border-left: 1px solid rgba(31, 35, 41, 0.15);
   }
+}
 
-  .feedback-active {
-    color: var(--el-color-primary) !important;
-  }
+.tool-btn.feedback-up,
+.tool-btn.feedback-down {
+  color: rgba(100, 106, 115, 1);
+}
+
+.tool-btn.feedback-up.is-active {
+  color: #22a06b !important;
+  background: rgba(34, 160, 107, 0.16);
+}
+
+.tool-btn.feedback-down.is-active {
+  color: #c9372c !important;
+  background: rgba(201, 55, 44, 0.16);
+}
+
+.tool-btn.feedback-up.is-active:hover,
+.tool-btn.feedback-up.is-active:active {
+  background: rgba(34, 160, 107, 0.22);
+}
+
+.tool-btn.feedback-down.is-active:hover,
+.tool-btn.feedback-down.is-active:active {
+  background: rgba(201, 55, 44, 0.22);
 }
 
 .welcome-content-block {

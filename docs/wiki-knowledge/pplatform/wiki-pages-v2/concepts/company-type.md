@@ -1,7 +1,7 @@
 ---
 type: concept
 title: 客户角色 / 企业角色（companyType）
-page_key: concept.company-type
+page_key: company-type
 domain: 项目报表/统计/上报
 status: draft
 aliases:
@@ -23,6 +23,7 @@ also_confused_with:
 adjudication: boundary
 boundary: "关联表为单角色（弹窗「客户角色」单选项）；录入码记录表为受限多角色集合；转换只允许 CORE/FINANCE 两值参与跨源映射，其它角色在报表查询中退化为不筛选（置 'a'）。"
 sources: ["enrich:wiki-admin"]
+belong: concepts
 ---
 
 # 客户角色 / 企业角色（companyType）

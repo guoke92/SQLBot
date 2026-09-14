@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 企业建档成功口径
-page_key: calibers/company-build-success
+page_key: company-build-success
 domain: 企业集团关系
 status: draft
 aliases: [建档成功, BUILD_SUCCESS]
@@ -12,6 +12,7 @@ sources:
   - code_path:CustGroupLicenseApplication.java:checkCustGroup
   - code_path:CustGroupRelApplication.java:addExistSubCustGroupRel
 contract_version: "0.1"
+belong: calibers
 ---
 
 企业建档成功指企业主数据已完成认证建档，判定条件为 `cust_company_info.cust_build_status = 'BUILD_SUCCESS'`，是发送集团待办、CA 开通、集团类操作的前置条件。

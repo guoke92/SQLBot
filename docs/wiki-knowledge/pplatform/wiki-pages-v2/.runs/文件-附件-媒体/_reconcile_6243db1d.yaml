@@ -1,0 +1,2 @@
+- code: PAGE_CONTRACT_FAILED
+  message: page_key 'UserTypeEnum' 不符合 enum 页的 物理名（snake_case）

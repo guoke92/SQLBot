@@ -12,6 +12,7 @@ sources:
   - code_path:PlatFormMigratoryApplication.java:migratoryCust
   - reqdoc:产融平台数据迁移涉及的改造需求V1.2
 contract_version: "0.1"
+belong: rules
 ---
 
 当迁移过来的企业在目标侧已存在时，不能简单新建，而要走合并分支：在产品为 AMS 的前提下，补齐新增的管理员、操作员与角色，并处理协议与影像件迁移。

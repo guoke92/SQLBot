@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 运营中台鉴权签名 md5(secret + sysChannel + loginName)
-page_key: rule.token_sign_md5
+page_key: token_sign_md5
 domain: 平台内部服务对接
 status: draft
 aliases:
@@ -14,6 +14,7 @@ sources:
   - semantic:field_semantics[tenant_setting_config.platform_secret_key]
   - semantic:field_semantics[tenant_setting_config.sso_tenant_chanel]
 contract_version: "0.1"
+belong: rules
 ---
 
 请求运营中台 token 时，签名由 platform_secret_key、sysChannel、loginName 三者拼接后做 md5 得到。

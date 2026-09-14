@@ -1,0 +1,5 @@
+body: 语义分析中 media_file 只作为术语桥 maps_to 与规则 field_targets 出现，未提供字段类型、含义与取值来源，因此本页未产出
+  ground:table 锚点块。请补充 media_file 的库表字段清单（catg_id、busi_key、user_busi_key、path、specify_file_name
+  及其它列）后补齐。
+title: media_file 字段级证据缺失
+type: table

@@ -1,7 +1,7 @@
 ---
 type: concept
 title: 扫脸 / 人脸识别
-page_key: concept/face_scan
+page_key: face_scan
 domain: 微信生态/小程序/扫脸
 status: draft
 aliases: [H5_FACE, H5刷脸, 意愿认证, faceVerify, 刷脸]
@@ -21,6 +21,7 @@ also_confused_with:
 boundary: "扫脸=人脸比对（FaceVerifyController + miniFaceService），走小程序二维码；OCR/三要素属于证照识别与实名比对，同一张 cust_certification_info 表不同 certification_type 行，不可互相替代。"
 contract_version: "0.1"
 sources: ["enrich:wiki-admin"]
+belong: concepts
 ---
 
 # 扫脸 / 人脸识别

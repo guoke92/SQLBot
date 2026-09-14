@@ -174,7 +174,7 @@ $PY -m apps.knowledge.wiki.field_roles --repo "$REPO" --out $SUB/field-roles.yam
 ```
 
 `extract-catalog.py` 使用 `@TableName` + `@ApiModelProperty`（及 `@TableField` 覆盖列名）。  
-`extract-enums.py` 扫 `*Enum` 的 `NAME("dictKey","显示名")` **以及** `*Constant` 常量类 Javadoc（159 病例真源：`CustBuildTypeConstant`）。setter 绑定写入 `bindings` / `ambiguous_fields`。
+`extract-enums.py` 扫 `*Enum` 的 `NAME("dictKey","显示名")`，以及 **interface / `*Constant` / `*Constants` / `constant(s)/` 包** 中的字符串（或 int）常量；label 取前置 Javadoc/`//`，无注释仍提取并标 `unlabeled`。setter 绑定认 `Enum|Constant|Constants`。**这份 YAML 只是基线**：写值点、字面量、`.name()` vs `getDictKey`、未使用常量都可以推翻它——LLM 必须 `enum_audit`。
 
 ### 4.3 产出文件
 
@@ -195,10 +195,10 @@ $PY -m apps.knowledge.wiki.field_roles --repo "$REPO" --out $SUB/field-roles.yam
 | 来源 | 用途 |
 |---|---|
 | `@ApiModelProperty` | 字段业务名 → table 页 `desc`、concept 别名候选 |
-| 枚举第二个参数 / 常量字段 Javadoc | **唯一允许的 enum label** |
+| 枚举第二个参数 / 常量字段 Javadoc/`//` | **enum label 的首选来源**（含 interface 常量）；无注释时机械提取标 unlabeled，由 LLM 按写值点补 |
 | 方法/类 Javadoc、行内 `//` | 业务别名、易混说明 → `term_bridges.aliases` / `boundary`；**物理锚仍来自赋值与 `.eq()`** |
 
-禁止用需求文档或模型推断改写 `PC_BUILD` 等 label（实证：PC_BUILD = 客户录入，不是「平台录入」）。
+机械提取（`extract-*.yaml`）是底稿不是真值：实现若与声明不一致（死常量、字面量直写、`.name()` 而非 `getDictKey`、DTO 拷贝冒充 JOIN），以写值点 + DB TopK 为准，`enum_audit` / `relation_audit` 记录推翻。禁止用需求文档发明 label。
 
 ### 4.6 出门检查
 
@@ -638,10 +638,13 @@ $PY $SK/extract-relationships.py "$REPO" -o $SUB/extract-relationships.yaml
 cd backend && $PY -m apps.knowledge.wiki.field_roles --repo "$REPO" --out ../$SUB/field-roles.yaml
 
 cd backend && $PY -m apps.knowledge.wiki.baseline --substrate ../$SUB --db-dir ../$DB --out ../$OUT
-cd .. && $PY scripts/wiki_admin.py enrich --pages $OUT
+cd .. && $PY scripts/wiki_admin.py enrich --pages $OUT --substrate $SUB --db-dir $DB --force
 
 cd backend && $PY -m apps.knowledge.wiki.pipeline plan --repo "$REPO" --substrate ../$SUB --db-dir ../$DB
 cd backend && $PY -m apps.knowledge.wiki.pipeline run --repo "$REPO" --substrate ../$SUB --db-dir ../$DB --out ../$OUT --reqdoc-root ../$REQ
+# LLM 跑完后：盖章 page_key、回填表基线；枚举页与 LLM 合并（基线键保全，不整页覆盖）
+cd backend && $PY -m apps.knowledge.wiki.pipeline repair --out ../$OUT --substrate ../$SUB --db-dir ../$DB
+cd .. && $PY scripts/wiki_admin.py enrich --pages $OUT --substrate $SUB --db-dir $DB --force
 
 $PY scripts/wiki_admin.py lint --pages $OUT
 $PY scripts/wiki_admin.py reviews --pages $OUT
@@ -649,7 +652,7 @@ $PY scripts/wiki_admin.py verify --pages $OUT
 $PY -m apps.knowledge.wiki.update --repo "$REPO" --substrate ../$SUB --dry-run
 ```
 
-`pipeline` 子命令只有 `plan` 和 `run`。模块 docstring 里的 `update` 在 `wiki.update`。
+`pipeline` 子命令：`plan` / `run` / `repair`。`update` 在 `wiki.update`。`extract-enums` 会写 `java_name`/`stored_as`（`.name()` vs `getDictKey`），并收录 interface/`*Constants`；`extract-relationships` 会写同名拷贝 `SHARED_KEY`。二者都只是基线，LLM `enum_audit`/`relation_audit` 可推翻。`pipeline run` 对已有枚举页做 `merge_enum_page`（键保全 + note/stored_as）。
 
 ---
 

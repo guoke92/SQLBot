@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 客户已开通产品
-page_key: calibers/cust-open-product
+page_key: cust-open-product
 domain: 平台产品配置
 status: draft
 aliases: [客户已开通产品口径, cust_auth_application OPENED]
@@ -12,6 +12,7 @@ sources:
   - code:CustProductDomainService.doActiveProduct
   - code:CustGeneralProductApplication.listOpenProduct
 contract_version: "0.1"
+belong: calibers
 ---
 
 「客户已开通产品」定义客户维度「已开通」的判定口径：`cust_auth_application.open_status = 'OPENED'`。该口径适用于查询企业已开通产品的所有场景，是客户侧产品可见性的统一收口条件。

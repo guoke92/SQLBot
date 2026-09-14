@@ -1,0 +1,4 @@
+- anchor: rule
+  code: EVIDENCE_FILE_MISSING
+  message: TenantProductApplication.java#checkCustRoleCombine;TenantProductApplication.java#checkProjectProductByCustType
+    + reqdoc

@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 建档影像仅在建档流程实时处理
-page_key: rules/archived-media-isdo
+page_key: archived-media-isdo
 domain: 文件/附件/媒体
 status: draft
 aliases: [isdo 判断, 建档影像实时处理, 变更影像延后处理]
@@ -11,6 +11,7 @@ scope:
 sources:
   - code_path:CustMediaFacade.java:isdo
 contract_version: "0.1"
+belong: rules
 ---
 
 # 建档影像仅在建档流程实时处理

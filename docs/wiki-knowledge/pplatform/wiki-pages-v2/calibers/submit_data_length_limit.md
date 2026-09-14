@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 上送 data 字段长度上限
-page_key: caliber/submit_data_length_limit
+page_key: submit_data_length_limit
 domain: 微信生态/小程序/扫脸
 status: draft
 aliases: [data长度上限, 上送裁剪口径]
@@ -11,6 +11,7 @@ scope:
 sources:
   - code:CaCertificationInfoAppServiceImpl.java
 contract_version: "0.1"
+belong: calibers
 ---
 
 # 上送 data 字段长度上限

@@ -1,7 +1,7 @@
 ---
 type: rule
 title: CA 上送完整性校验
-page_key: rule/ca_submit_completeness_check
+page_key: ca_submit_completeness_check
 domain: 微信生态/小程序/扫脸
 status: draft
 aliases: [上送完整性校验, 完整性校验]
@@ -11,6 +11,7 @@ scope:
 sources:
   - code:CaCertificationInfoAppServiceImpl.java
 contract_version: "0.1"
+belong: rules
 ---
 
 # CA 上送完整性校验

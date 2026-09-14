@@ -1,120 +1,154 @@
 ---
 type: table
-title: cust_survey_answer（调研问卷答案）
-page_key: tables/cust_survey_answer
-domain: 问卷
+title: 调研答案表
+page_key: cust_survey_answer
+domain: GP学习/问卷/企业画像
 status: draft
-aliases:
-  - 调研问卷答案表
-  - 讯易链调研问卷答案
-  - CustSurveyAnswer
+anchors: [cust_survey_answer]
 oid: 1
 scope:
-  databases: ["(待确认)"]
-sources:
-  - db:cust_survey_answer
-  - code:CustSurveyController
-  - code:CustSurveyAnswerService
+  databases: [lowcode_pplatform]
+sources: ["db:db-catalog.yaml", "code:extract-catalog.yaml"]
+created: '2026-09-14'
+updated: '2026-09-14'
 contract_version: "0.1"
+belong: tables
 ---
 
 
-# cust_survey_answer（调研问卷答案）
 
-本表承载「[[concepts/cust_survey]]」（调研问卷 / 讯易链调研问卷）的答卷持久化结果。它与「[[concepts/wenjuan]]」（问卷星活动）是两套彼此独立的机制：调研问卷会提交并落库答案，而问卷星活动的完成态不落库（见 [[calibers/wenjuan_no_persist_completion]]、[[concepts/survey_completed]]）。
 
-按字段语义，一行代表「某企业某用户对某道题的某个选项」：`survey_code` 标识问卷（DB 实测为 `XYL_2024_Q1`），`question_no` 为题号（DB 实测分布 1~6），`answer_value` 存选项明文，多选题的每个选项单独占一行；当选项为「其他」时，补充文本写入 `other_text`。`company_id`/`user_id` 记录的是当前登录企业与当前登录用户，`submit_time` 为提交时间。
 
-表带 `db_tenant_code`（实测为 `all`）、`app_tenant_code`（实测为 `base`）与 `enable`（实测均为 Y）。这三者的组合构成了本表答案数据的归属口径，见 [[calibers/survey_answer_attribution]]。
+
+
+
+
+
+
+
+本表存放落库题库问卷的作答明细：一行一个选项，多选时同一 `question_no` 会出现多行。它是「调研问卷」这条链路的答案载体，与外部问卷星的答卷数据互不读写，两者的边界见 [[concepts/wenjuan]]。当前唯一在用的问卷见口径 [[calibers/survey_code_xyl_2024_q1]]，跨租户口径见 [[calibers/survey_answer_all_tenant]]，有效记录口径见 [[calibers/cust_survey_answer_enabled]]。
 
 ## 需求背景
 
-本分析未提供该表的需求文档（reqdoc_claims）证据。以下问题需要业务侧确认：问卷题的题干与选项字典存放位置（本表只存选项明文，不含题目定义）、多选题拆行后如何还原为一次作答、`other_text` 在导出统计中的取值规则。
+答案表按 `company_id + survey_code` 组成普通索引，作答主体是「当前登录企业 + 当前登录用户」，因此同一企业可以有多个用户各自提交多行答案；`other_text` 承载「其他」选项的自由文本，实测存在 '1'、'hjhh'、'饿啊讽德诵功' 等脏数据，说明该列未做输入约束。
+
+落库路径本身未被本链路覆盖：`CustSurveyController.submit` 调用 `custSurveyAnswerService.submit(req, companyId, userId)`，但 apaas 侧 `CustSurveyAnswerService` 仅提供通用 BaseService/查询 helper，无 submit/checkPopup 实现，写值规则不可验证（见 [[rules/survey_answer_write_path_review]]）。
 
 ## 版本演进
 
-当前契约版本 0.1，暂无版本演进证据。DB 实测 `survey_code` 仅出现 `XYL_2024_Q1`，题号 1~6，可作为当前版本的样本快照，但不代表历史版本。
+- 当前观测：338 行，`survey_code` 恒为 `XYL_2024_Q1`，`db_tenant_code` 唯一值 `all`，`enable` 全为 `Y`。
+- 代码链路中未见 `survey_code` 的常量定义，问卷范围属数据驱动。
+- 字段物理类型未在语义分析证据中给出，锚点块 `type` 记为 `unknown`。
 
 ```ground:table
 table: cust_survey_answer
 database: lowcode_pplatform
 desc: 调研答案表
 fields:
+  - name: enable
+    type: string
+    phys: varchar(4)
+    desc: enable
+    dict: enable
+    topk: "Y"
+    labels: "Y:是"
   - name: id
     type: number
+    phys: bigint(22)
     desc: 表主键
   - name: act_procinst_date
     type: temporal
+    phys: datetime
     desc: 审批结束时间
   - name: act_procinst_id
     type: string
+    phys: varchar(64)
     desc: 流程实例ID
   - name: act_procinst_no
     type: string
+    phys: varchar(255)
     desc: 流程申请编号
   - name: act_procinst_status
     type: string
+    phys: varchar(64)
     desc: 当前审批状态
   - name: answer_value
     type: string
+    phys: varchar(512)
     desc: 选项明文，多选每个选项单独一行
   - name: app_tenant_code
     type: string
+    phys: varchar(100)
     desc: 逻辑租户标识
+    topk: "base"
   - name: code
     type: string
+    phys: varchar(64)
     desc: 编码
   - name: company_id
     type: number
+    phys: bigint(20)
     desc: 当前登录企业ID
   - name: create_by
     type: string
+    phys: varchar(100)
     desc: 创建人id
   - name: create_time
     type: temporal
+    phys: datetime
     desc: 创建时间
   - name: create_user
     type: string
+    phys: varchar(100)
     desc: 创建人名称
   - name: db_tenant_code
     type: string
+    phys: varchar(100)
     desc: 数据租户标识
-  - name: enable
-    type: string
-    desc: enable
+    topk: "all"
   - name: name
     type: string
+    phys: varchar(64)
     desc: 名称
   - name: organization_id
     type: string
+    phys: varchar(30)
     desc: 机构编号
   - name: other_text
     type: string
+    phys: varchar(512)
     desc: 当选项为"其他"时，填写的文本内容
   - name: question_no
     type: number
+    phys: int(10)
     desc: 题号（1~N）
   - name: remark
     type: string
+    phys: varchar(1024)
     desc: remark
   - name: submit_time
     type: temporal
+    phys: datetime
     desc: 提交时间
   - name: survey_code
     type: string
+    phys: varchar(64)
     desc: 问卷code
+    topk: "XYL_2024_Q1"
   - name: update_by
     type: string
+    phys: varchar(100)
     desc: 更新人id
   - name: update_time
     type: temporal
+    phys: datetime
     desc: 更新时间
   - name: update_user
     type: string
+    phys: varchar(100)
     desc: 更新人名称
   - name: user_id
     type: number
+    phys: bigint(20)
     desc: 当前登录用户ID
 ```
-
-相关页面：[[concepts/cust_survey]]、[[concepts/wenjuan]]、[[calibers/survey_answer_attribution]]、[[tables/cust_company_survey_state]]、[[tables/cust_company_survey_whitelist]]。

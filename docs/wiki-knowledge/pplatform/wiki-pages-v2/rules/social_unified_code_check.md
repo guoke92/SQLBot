@@ -1,7 +1,7 @@
 ---
 type: rule
 title: "统一社会信用代码一致性校验"
-page_key: "rules/social_unified_code_check"
+page_key: social_unified_code_check
 domain: "customer-onboarding"
 status: draft
 aliases:
@@ -12,6 +12,7 @@ scope:
 sources:
   - "code_path:CustValidatorProcessor.java:validate"
 contract_version: "0.1"
+belong: rules
 ---
 
 回调携带的统一社会信用代码必须与本地企业的 `certification_no` 一致，否则直接抛异常阻断；变更流程与来源 id 缺失的场景被显式放行。这条规则是防止串户的关键闸门，载体表见 [[tables/cust_company_info]]。

@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 资方规则导入-产品校验直接比对productCode
-page_key: rules/rule_import_product_code_direct_match
+page_key: rule_import_product_code_direct_match
 domain: funding
 status: draft
 aliases:
@@ -14,6 +14,7 @@ scope:
 sources:
   - "code:FundRuleInfoApplication#collectFundRuleProductCodeErrors"
 contract_version: "0.1"
+belong: rules
 ---
 
 # 资方规则导入-产品校验直接比对productCode

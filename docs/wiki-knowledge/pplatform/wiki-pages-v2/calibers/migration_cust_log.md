@@ -11,6 +11,7 @@ scope:
 sources:
   - db
 contract_version: "0.1"
+belong: calibers
 ---
 
 客户迁移监控的取数口径：在 [[tenant_migarory_log]] 中同时接受操作类型 `migratoryCust` 与事件名称“迁移客户”。

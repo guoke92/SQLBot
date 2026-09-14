@@ -1,7 +1,7 @@
 ---
 type: process
 title: 模拟立项/真实立项数据来源
-page_key: process.project-data-source
+page_key: project-data-source
 domain: 项目报表/统计/上报
 status: draft
 aliases:
@@ -16,6 +16,7 @@ sources:
   - code:ProjectStatisticsApplication.java
   - code:ProjectStatisticsDevImportApplication.java
 contract_version: "0.1"
+belong: processes
 ---
 
 # 模拟立项/真实立项数据来源

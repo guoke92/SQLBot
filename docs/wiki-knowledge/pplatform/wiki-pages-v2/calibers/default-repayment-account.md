@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 默认还款账户口径
-page_key: calibers/default-repayment-account
+page_key: default-repayment-account
 domain: 企业银行账户
 status: draft
 aliases: [默认账户, default_account_flag=1]
@@ -11,6 +11,7 @@ scope:
 sources:
   - code_path:CustAccountApplication.java:setDefaultFlag/afterSave
 contract_version: "0.1"
+belong: calibers
 ---
 
 默认还款账户指企业名下被标记为默认的资金账户，是代扣/还款类业务的取数入口。判定条件为 `cust_account_info.default_account_flag = '1'`，作用域为同一归属企业；维护规则见 [[rules/default-account-unique]]。

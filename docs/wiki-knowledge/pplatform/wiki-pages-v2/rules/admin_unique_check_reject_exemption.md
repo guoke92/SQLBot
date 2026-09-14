@@ -1,7 +1,7 @@
 ---
 type: rule
 title: "管理员唯一校验的退回豁免"
-page_key: "rules/admin_unique_check_reject_exemption"
+page_key: admin_unique_check_reject_exemption
 domain: "customer-onboarding"
 status: draft
 aliases:
@@ -12,6 +12,7 @@ scope:
 sources:
   - "code_path:CustAuthValidatorProcessor.java:validate"
 contract_version: "0.1"
+belong: rules
 ---
 
 回调校验链中，若 `rtfState` 含「拒绝」「退回」「补充」，校验器直接返回，不再执行管理员信息唯一性校验。这是为了让退回/补充场景的回传不被本地校验阻断，与 [[calibers/company_admin_unique_check]] 的唯一性口径配套。

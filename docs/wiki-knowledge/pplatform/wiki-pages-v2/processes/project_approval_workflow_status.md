@@ -1,7 +1,7 @@
 ---
 type: process
 title: 项目上线审批工作流状态流转
-page_key: processes/project_approval_workflow_status
+page_key: project_approval_workflow_status
 domain: 租户项目
 status: draft
 aliases: [项目上线审批工作流状态, tenant_project_approval.wf_status, wf_status]
@@ -11,6 +11,7 @@ scope:
 sources:
   - code:ProjectApprovalApplication
 contract_version: "0.1"
+belong: processes
 ---
 
 项目上线审批工作流状态位于 [[tables/tenant_project_approval]] 的 wf_status 列，描述审批实例从待发起、审批中到完成或终止的推进过程。审批完成会反向影响项目状态（[[processes/tenant_project_status]]）。节点级的处理进度见 [[processes/project_approval_node_status]]。

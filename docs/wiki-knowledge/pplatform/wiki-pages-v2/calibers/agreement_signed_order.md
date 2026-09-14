@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 已签署协议订单
-page_key: calibers/agreement_signed_order
+page_key: agreement_signed_order
 domain: CA证书收费
 status: draft
 aliases: [agreement_signed=Y, 协议已签订单]
@@ -11,6 +11,7 @@ scope:
 sources:
   - db:ca_fee_order
 contract_version: "0.1"
+belong: calibers
 ---
 
 # 已签署协议订单

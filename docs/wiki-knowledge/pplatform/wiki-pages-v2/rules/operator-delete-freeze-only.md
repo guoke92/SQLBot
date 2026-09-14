@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 经办人DELETE仅冻结经办人角色
-page_key: rules/operator-delete-freeze-only
+page_key: operator-delete-freeze-only
 domain: 平台事件监听与同步
 status: draft
 aliases:
@@ -13,6 +13,7 @@ scope:
 sources:
   - code:CustSyncEventProvider.java:syncOperatorUser
 contract_version: "0.1"
+belong: rules
 ---
 
 删除规则：同一手机号既有经办人又有管理员时，DELETE 仅将经办人记录 `enable` 置 N 并冻结其 accountNormal 角色关联（`is_freeze='Y'`），不动管理员。

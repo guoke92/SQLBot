@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 角色组合校验条件
-page_key: calibers/cust-role-combine-check
+page_key: cust-role-combine-check
 domain: 平台产品配置
 status: draft
 aliases: [角色组合校验口径, checkCustRoleCombine 条件]
@@ -11,6 +11,7 @@ scope:
 sources:
   - code:TenantProductApplication.checkCustRoleCombine
 contract_version: "0.1"
+belong: calibers
 ---
 
 「角色组合校验条件」定义角色组合是否放行的判定方式：将平台产品配置的 `custRoleCombine` 解析为角色集合集合后，判断其是否包含当前角色集合（`custRoleCombine 解析后包含当前角色集合`）。该口径是 [[rules/cust-role-combine-check]] 的判定基准。

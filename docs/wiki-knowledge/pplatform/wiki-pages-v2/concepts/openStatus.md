@@ -1,7 +1,7 @@
 ---
 type: concept
 title: openStatus 开通状态
-page_key: concepts/openStatus
+page_key: openStatus
 domain: 平台产品配置
 status: draft
 aliases: [openStatus, productOpenStatus, 开通状态]
@@ -16,6 +16,8 @@ adjudication: boundary
 also_confused_with: [cust_auth_application.open_status]
 contract_version: "0.1"
 sources: ["enrich:wiki-admin"]
+belong: concepts
+field_targets: [tenant_product.open_status]
 ---
 
 openStatus / productOpenStatus / 开通状态在默认语境下映射到 [[tables/tenant_product]] 的 `open_status`，即租户产品开通状态。

@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 打款验证金额范围与单位
-page_key: rules/payment-amount-range
+page_key: payment-amount-range
 domain: 企业银行账户
 status: draft
 aliases: [验证金额0.01-0.99, checkAmount]
@@ -12,6 +12,7 @@ sources:
   - code_path:CustAccountController.java:checkAmount
   - code_path:CustAccountController.java:cnapsPaymentConfirm
 contract_version: "0.1"
+belong: rules
 ---
 
 打款金额验证的输入口径规则：金额必填、格式合法且严格落在 0 与 1 之间，上送银行前换算为「分」。语境见 [[processes/account-cnaps-payment-auth-state]]。

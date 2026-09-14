@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 渠道存在且启用校验
-page_key: rule.channel_exists_and_enabled
+page_key: channel_exists_and_enabled
 domain: 准入接入
 status: draft
 aliases: [渠道校验, 渠道不存在]
@@ -11,6 +11,7 @@ scope:
 sources:
   - "code: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustAccessApplication.java:validateSetValue"
 contract_version: "0.1"
+belong: rules
 ---
 
 接入请求进入后，系统按请求中的渠道标识检索 [[tables/cust_access_secret]]：记录必须存在，且 `enable = 'Y'`；任一条件不满足即抛出“渠道不存在”异常，请求被拒绝。

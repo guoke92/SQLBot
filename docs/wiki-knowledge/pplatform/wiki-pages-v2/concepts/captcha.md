@@ -1,7 +1,7 @@
 ---
 type: concept
 title: 是否需要验证码（需求文档串入）
-page_key: concept.captcha
+page_key: captcha
 domain: 项目报表/统计/上报
 status: draft
 aliases:
@@ -18,6 +18,7 @@ maps_to: "SSO 登录域字段，与项目报表/统计/上报主题无关"
 also_confused_with: []
 adjudication: boundary
 boundary: "需求文档 reqdoc:SSO验证码登录改造技术设计 对本主题无结构性贡献，仅在 cust_project_rel / tenant_project 表字段附录处与本主题交叉，不作为字段值来源。"
+belong: concepts
 ---
 
 # 是否需要验证码（需求文档串入）

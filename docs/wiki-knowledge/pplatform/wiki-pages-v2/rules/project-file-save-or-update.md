@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 项目运营文件保存/更新规则
-page_key: rules/project-file-save-or-update
+page_key: project-file-save-or-update
 domain: 文件/附件/媒体
 status: draft
 aliases: [项目运营文件保存规则, saveOrUpdate 规则]
@@ -11,6 +11,7 @@ scope:
 sources:
   - code_path:ProjectFileController.java:saveOrUpdate
 contract_version: "0.1"
+belong: rules
 ---
 
 # 项目运营文件保存/更新规则

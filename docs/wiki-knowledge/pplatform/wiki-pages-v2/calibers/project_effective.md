@@ -1,40 +1,31 @@
 ---
 type: caliber
-title: 租户项目有效口径
-page_key: calibers/project_effective
+title: 口径：项目已生效
+page_key: project_effective
 domain: 租户项目
 status: draft
-aliases: [项目有效口径, project_status, enable='Y']
+aliases: [项目已生效, 已生效项目]
 oid: 1
 scope:
-  databases: []
+  databases: [lowcode-pplatform-customer-management]
 sources:
-  - code:TenantProjectApplication
   - code:ProjectStatusEnum
+  - code:ProjectReportApplication
 contract_version: "0.1"
+belong: calibers
 ---
 
-「项目是否有效」在本主题里由两个维度共同决定：[[tables/tenant_project]] 的 enable 表示逻辑删除（查询与导出普遍限定 enable='Y'），project_status 表示业务上的生效/失效。二者独立，判断一个项目能否被业务使用时需同时成立。
+判定 [[tenant_project]] 中已生效的项目，对应 [[ProjectStatusEnum]] 的 1。导出侧按 1 直接转"已生效"，因此该口径同时是报表口径，流转见 [[tenant_project_status]]。
 
 ## 需求背景
-本次语义分析未提供需求文档主张，本节不含 (document_claim，未证实) 条目。该口径支撑项目列表、导出与按产品同步等查询场景，见 [[rules/tenant_project_enable_filter]]。
+语义分析未附带需求文档锚点；只有已生效项目才允许被业务单据引用。
 
 ## 版本演进
-- 删除走 domainService.delete 而非物理删除，enable 承担历史数据过滤职责。
-- project_status 的失效值拼写为 INVLIAD，见 [[processes/tenant_project_status]]。
-- 未提供版本记录；无 (document_claim，未证实) 主张。
+语义分析未记录该口径的版本演进。
 
 ```ground:caliber
-name: 租户项目有效口径
-fields:
-  - table: tenant_project
-    field: enable
-    values: ["Y", "N"]
-    definition: 逻辑删除/有效标记；代码查询与导出普遍限定 enable='Y'，删除操作调用 domainService.delete
-    evidence: code
-  - table: tenant_project
-    field: project_status
-    values: [EFFECTIVE, INVLIAD]
-    definition: 项目状态；代码使用 ProjectStatusEnum.EFFECTIVE 与 ProjectStatusEnum.INVLIAD，分别表示已生效、已失效
-    evidence: code
+name: 项目已生效
+predicate: "tenant_project.project_status = '1'"
+scope: tenant_project
+evidence: "code:ProjectStatusEnum.EFFECTIVE; ProjectReportApplication 按 1 转已生效"
 ```

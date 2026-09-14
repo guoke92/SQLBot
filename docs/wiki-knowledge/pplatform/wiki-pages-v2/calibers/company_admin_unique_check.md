@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: "企业管理员唯一校验"
-page_key: "calibers/company_admin_unique_check"
+page_key: company_admin_unique_check
 domain: "customer-onboarding"
 status: draft
 aliases:
@@ -12,6 +12,7 @@ scope:
 sources:
   - "code_path:CustPersonApplication.java:checkBeforeSave,updateAuthorAndApply"
 contract_version: "0.1"
+belong: calibers
 ---
 
 同一企业、同一客户角色下，只允许一个启用状态的管理员联系人。校验在保存与更新授权/申请两处复用，命中即为冲突。字段载体见 [[tables/cust_person_info]]，退回场景的豁免见 [[rules/admin_unique_check_reject_exemption]]。
@@ -26,7 +27,7 @@ contract_version: "0.1"
 
 ```ground:caliber
 name: "企业管理员唯一校验"
-predicate: "cust_person_info.user_type = 'admin' AND cust_person_info.enable = 'Y' AND ref_cust_company_info = X AND company_type = Y AND id != 当前id"
+predicate: "cust_person_info.user_type = 'accountAdmin' AND cust_person_info.enable = 'Y' AND ref_cust_company_info = X AND company_type = Y AND id != 当前id"
 scope: "checkBeforeSave/updateAuthorAndApply：count 必须为 0"
 evidence: "code_path:CustPersonApplication.java:checkBeforeSave,updateAuthorAndApply"
 ```

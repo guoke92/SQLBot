@@ -1,7 +1,7 @@
 ---
 type: concept
 title: productCode 平台产品编码
-page_key: concepts/productCode
+page_key: productCode
 domain: 平台产品配置
 status: draft
 aliases: [productCode, platformProductCode, 平台产品编码]
@@ -17,6 +17,8 @@ adjudication: synonym
 also_confused_with: [code]
 contract_version: "0.1"
 sources: ["enrich:wiki-admin"]
+belong: concepts
+field_targets: [platform_product.product_code]
 ---
 
 productCode 与 platformProductCode 在代码中常混用，二者均指平台产品编码，映射到 [[tables/platform_product]] 的 `product_code`。

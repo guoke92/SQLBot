@@ -12,6 +12,7 @@ scope:
 sources:
   - code:CustCompanyInfoApplication.java:custStatusOperator
 contract_version: "0.1"
+belong: rules
 ---
 
 注销企业（`cust_status` 置为 `WRITEOFF`，见 [[customer_status_machine]]）时，系统先冻结该企业下的**所有用户**。与 [[freeze_company_freezes_admin]] 相比，注销的级联范围从“管理员”扩大到“全部用户”，说明注销是比冻结更强的终止性动作。

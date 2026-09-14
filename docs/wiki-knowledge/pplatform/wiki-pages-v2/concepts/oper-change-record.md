@@ -1,7 +1,7 @@
 ---
 type: concept
 title: 运营人员变更记录
-page_key: concept.oper-change-record
+page_key: oper-change-record
 domain: 企业变更与运营变更
 status: draft
 aliases: [操作运营变更, cust_oper_change_record]
@@ -16,6 +16,7 @@ maps_to: cust_oper_change_record
 field_targets: [cust_oper_change_record]
 adjudication: boundary
 also_confused_with: [cust_change_record]
+belong: concepts
 ---
 
 「运营人员变更记录」指 [[tables.cust_oper_change_record]]，记录企业联系人（经办人）所绑定运营人员的前后变更流水，分类维度为 `change_type`（手动/批量/资产审核同步/企业变更回调），见 [[processes.oper-change-type]]。它与 [[tables.cust_change_record]] 容易混淆：后者是企业信息变更申请单及其审批状态，与运营人员归属无关；前者不承载审批，只承载归属变化轨迹。

@@ -1,0 +1,5 @@
+body: 全部表页的 `scope.databases` 暂记为 `unknown`：语义分析未给出物理库名，仅给出表名、字段名与中文释义（evidence=code）。同理，ground:table
+  中 `fields[].type` 一律留空、`dict` 仅在 `cust_person_info.status`（释义中明示 CustPersonStatusConstant）处填写。需要
+  DBA 或代码侧补充物理库名、字段类型与字典绑定后回填，方可从 draft 升级。
+title: 物理库名与字段类型
+type: table

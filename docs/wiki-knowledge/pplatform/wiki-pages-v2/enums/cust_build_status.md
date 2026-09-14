@@ -9,10 +9,22 @@ oid: 1
 scope:
   databases: [lowcode_pplatform]
 sources: ["code:extract-enums.yaml", "db:db-profile.yaml"]
-created: '2026-09-10'
-updated: '2026-09-10'
+created: '2026-09-14'
+updated: '2026-09-14'
 contract_version: "0.1"
+belong: enums
 ---
+
+
+
+
+
+
+
+
+
+
+
 
 # cust_build_status
 
@@ -22,34 +34,34 @@ contract_version: "0.1"
 enum: cust_build_status
 fields: [cust_company_info.cust_build_status, cust_invite_info.progress, cust_person_info.cust_build_status]
 values:
-  INIT:
-    label: 初始化
-  CUST_CONFIRM_AWAIT:
-    label: 待客户确认
-  CUST_BUILDING:
-    label: 审批中
-  BUILD_BACK:
-    label: 退回
-  BUILD_FAIL:
-    label: 认证失败
-  BUILD_SUCCESS:
-    label: 认证成功
-  BUILD_ACTIVATE:
-    label: 待激活
-  TO_BE_BUILD:
-    label: 未建档
-  BUILDING:
-    label: 建档中
-  CUST_AUDIT_AWAIT:
-    label: 待审核
-  CUST_BUILD_SUCCESS:
-    label: 审核通过
-  CUST_BUILD_FAIL:
-    label: 审核拒绝
-  CUST_CHANGE:
-    label: 变更
-  AWAIT_CUST_CONFIRM:
-    label: 待客户确认
+  "INIT":
+    label: "初始化"
+  "CUST_CONFIRM_AWAIT":
+    label: "待客户确认"
+  "CUST_BUILDING":
+    label: "审批中"
+  "BUILD_BACK":
+    label: "退回"
+  "BUILD_FAIL":
+    label: "认证失败"
+  "BUILD_SUCCESS":
+    label: "认证成功"
+  "BUILD_ACTIVATE":
+    label: "待激活"
+  "TO_BE_BUILD":
+    label: "未建档"
+  "BUILDING":
+    label: "建档中"
+  "CUST_AUDIT_AWAIT":
+    label: "待审核"
+  "CUST_BUILD_SUCCESS":
+    label: "审核通过"
+  "CUST_BUILD_FAIL":
+    label: "审核拒绝"
+  "CUST_CHANGE":
+    label: "变更"
+  "AWAIT_CUST_CONFIRM":
+    label: "待客户确认"
 ```
 
 ## 表述差异

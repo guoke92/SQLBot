@@ -1,82 +1,338 @@
 ---
 type: table
-title: 立项审批申请表（wechat_project_approval_apply）
-page_key: table.wechat_project_approval_apply
-domain: 项目报表/统计/上报
+title: 企业立项申请表
+page_key: wechat_project_approval_apply
+domain: 微企链立项与项目审批
 status: draft
-aliases:
-  - wechat_project_approval_apply
-  - 企微立项审批申请表
-  - 项目立项统计表
+anchors: [wechat_project_approval_apply]
 oid: 1
 scope:
-  databases:
-    - unknown
-sources:
-  - code:ProjectStatisticsApplication.java
-  - code:ProjectStatisticsDevImportApplication.java
-  - code:ProjectStatisticsRemindApplication.java
+  databases: [lowcode_pplatform]
+sources: ["db:db-catalog.yaml", "code:extract-catalog.yaml"]
+created: '2026-09-14'
+updated: '2026-09-14'
 contract_version: "0.1"
+belong: tables
 ---
 
-# 立项审批申请表（wechat_project_approval_apply）
 
-wechat_project_approval_apply 是「项目立项统计」主题的事实表，承载企微审批同步而来的立项单据，并叠加统计侧维护的展示列与人工可编辑列。项目阶段流转见 [[processes/project-phase]]，审批状态见 [[processes/project-approval-status]]，数据来源见 [[processes/project-data-source]]，列表基础口径见 [[calibers/project-statistics-list-base]]，审批通过口径见 [[calibers/project-ledger-approved]]。
+
+
+
+
+
+
+
+
+
+
+wechat_project_approval_apply 是项目立项统计页的主表，既承载来自企微审批的真实立项数据，也承载手工录入的[[concepts/simulated_project|模拟立项]]数据。列表、导出、提醒 Job 与批量变更都围绕本表展开，字段分为三类：审批来源标识（sp_type、system_delivery、act_procinst_status）、项目属性（project_type、project_phase、data_source、ka_white_label）、以及人员与产品信息（方案经理、运营对接人、产品类型、首笔落地时间）。
 
 ## 需求背景
 
-立项统计页需要按「金融科技业务 + SaaS/SaaS+本地化」范围展示、导出、下拉字典与提醒（见 [[calibers/project-statistics-list-base]]、[[calibers/missing-solution-manager-remind]]），并支持人工编辑方案经理、首笔落地时间等字段。为此本表既保留审批同步字段（sp_type、system_delivery、act_procinst_status、project_phase 等），又扩展出统计侧冗余列（statics_op_time/statics_op_user），并要求方案经理姓名与企微 userId 冗余列联动维护（见 [[rules/manager-wechat-identity-validation]]）、前方案经理前置合并（见 [[rules/old-solution-manager-merge]]）。字段变更需落历史，见 [[tables/wechat_project_approval_apply_field_history]] 与 [[rules/edit-whitelist-and-field-history]]。
+需求文档未就本表单独提出主张；本次分析的全部字段语义均来自代码。项目阶段、企微审批状态、数据来源三个状态机分别见 [[processes/project_phase]]、[[processes/act_procinst_status]]、[[processes/data_source]]。
 
 ## 版本演进
 
-- `project_phase` 历史上存在 `TERMINATION` 取值，读取时归一为 `HANG`；「立项阶段」仅作为展示态，不入库。
-- `data_source` 引入 `MANUAL` 以承载模拟立项（spNo 以 MN 开头），与企微同步的真实立项并存，编号规则见 [[rules/manual-project-spno]]。
-- `first_settlement_time` 的编辑语义为例外：非空覆盖、null 清空，不遵循其他字符串列的 null 跳过约定；该列变更会触发阶段联动（见 [[rules/first-settlement-to-operation-phase]]）。
-- 本期仅放开 `custom_field_statistics_one` 作为编辑独占列，说明自定义字段能力处于逐列开放阶段。
+v0 契约首版。人员字段采用「中文姓名字段 + 企微 userId 列表字段」的双轨存储：solution_manager 为姓名 CSV，solution_manager_wxid 为企微 userId 的 JSON 数组字符串，改人时由 [[rules/solution_manager_change_linkage|方案经理变更联动]] 保证两者一致，并把原值合并进 old_solution_manager。product_type_arr（编码 JSON）与 product_type（中文 CSV）同样成对。
 
-```ground:fields
+```ground:table
 table: wechat_project_approval_apply
+database: lowcode_pplatform
+desc: 企业立项申请表
 fields:
-  - name: sp_type
-    meaning: "审批类型；统计页固定过滤 金融科技业务"
-    evidence: code
-  - name: system_delivery
-    meaning: "系统交付类型（统计范围：SaaS / Saas+本地化）"
-    evidence: code
   - name: act_procinst_status
-    meaning: "企微审批流程状态：1=审批中，2=审批通过"
-    evidence: code
-  - name: project_type
-    meaning: "项目类型：MAIN=主项目 / SUB=子项目"
-    evidence: code
-  - name: project_phase
-    meaning: "项目阶段：IMPLEMENTATION=实施阶段 / OPERATION=持续运营 / HANG=挂起；历史值 TERMINATION 归一为 HANG；立项阶段仅作展示态不入库"
-    evidence: code
+    type: string
+    phys: varchar(64)
+    desc: 当前审批状态
+    dict: wechat_project_approval_apply__act_procinst_status
+    topk: "1|2|3|4"
+  - name: enable
+    type: string
+    phys: varchar(4)
+    desc: enable
+    dict: enable
+    topk: "N|Y"
+    labels: "N:否|Y:是"
+  - name: id
+    type: number
+    phys: bigint(22)
+    desc: 表主键
   - name: ka_white_label
-    meaning: "KA 是否贴牌：Y=是 / N=否"
-    evidence: code
-  - name: data_source
-    meaning: "数据来源：MANUAL=模拟立项（spNo 以 MN 开头） / WECHAT=真实立项"
-    evidence: code
-  - name: product_type_arr
-    meaning: '产品类型编码 JSON 数组，如 ["1","9"]；配套 product_type 存中文逗号串（冗余展示列）'
-    evidence: code
-  - name: solution_manager
-    meaning: "方案经理姓名（多人以逗号分隔 CSV）；仅在 solution_manager_wxid 联动维护时同步写入"
-    evidence: code
-  - name: solution_manager_wxid
-    meaning: '方案经理企微 userId 冗余列（JSON 数组字符串 ["id1","id2"]），用于按 wxid 精确过滤'
-    evidence: code
-  - name: old_solution_manager
-    meaning: "前方案经理，姓名 CSV；变更方案经理时由 mergeOldSolutionManager 前置合并旧值"
-    evidence: code
-  - name: "statics_op_time / statics_op_user"
-    meaning: "统计侧最新操作时间/操作人（列表展示用 updateTime/updateUser 取自该两列覆盖）"
-    evidence: code
-  - name: first_settlement_time
-    meaning: "首笔落地时间；编辑语义例外——非空覆盖/null 清空（不遵循其他字符串列的 null 跳过约定）"
-    evidence: code
+    type: string
+    phys: varchar(64)
+    desc: KA是否贴牌
+    dict: enable
+    topk: "N|Y"
+    labels: "N:否|Y:是"
+  - name: prd
+    type: string
+    phys: varchar(64)
+    desc: 是否投产
+    dict: enable
+    topk: "N|Y"
+    labels: "N:否|Y:是"
+  - name: project_type
+    type: string
+    phys: varchar(64)
+    desc: 项目类型
+    dict: wechat_project_approval_apply__project_type
+    topk: "MAIN|SUB"
+  - name: act_procinst_date
+    type: temporal
+    phys: datetime
+    desc: 审批结束时间
+  - name: act_procinst_id
+    type: string
+    phys: varchar(64)
+    desc: 流程实例ID
+  - name: act_procinst_no
+    type: string
+    phys: varchar(255)
+    desc: 流程申请编号
+  - name: app_tenant_code
+    type: string
+    phys: varchar(100)
+    desc: 逻辑租户标识
+    topk: "base"
+  - name: apply_start_time
+    type: temporal
+    phys: datetime
+    desc: 发起立项时间
+  - name: archives_contact
+    type: string
+    phys: varchar(64)
+    desc: 档案对接人
+    topk: "108|383|463"
+  - name: archives_contact_group
+    type: string
+    phys: varchar(100)
+    desc: 档案组别
+    topk: "A1|审核组2|运营组别0123"
+  - name: bank_quota
+    type: string
+    phys: varchar(30)
+    desc: 银行额度(万元)
+    topk: "100|1000|10000|100000|1000万|100万|1234567890|200000|2000万|222|333|4324324"
+  - name: business_center
+    type: string
+    phys: varchar(128)
+    desc: 业务中心
+  - name: bussiness_manager
+    type: string
+    phys: varchar(64)
+    desc: 业务经理
+  - name: capital_branch_name
+    type: string
+    phys: varchar(255)
+    desc: 资方分支行
+  - name: capital_org_full_name
+    type: string
+    phys: varchar(255)
+    desc: 资方全称
+  - name: code
+    type: string
+    phys: varchar(64)
+    desc: 编码
+  - name: comment
+    type: string
+    phys: varchar(500)
+    desc: 备注
+  - name: core_enterprise
+    type: string
+    phys: varchar(100)
+    desc: 核心企业
+  - name: create_by
+    type: string
+    phys: varchar(100)
+    desc: 创建人id
+  - name: create_time
+    type: temporal
+    phys: datetime
+    desc: 创建时间
+  - name: create_user
+    type: string
+    phys: varchar(100)
+    desc: 创建人名称
+  - name: credit_enhancer
+    type: string
+    phys: varchar(200)
+    desc: 增信主体
+    topk: "111|你容易|增信主体0806|增信主体818|投行增信主体0728|金融科技增信主体0728"
+  - name: custom_field_one
+    type: string
+    phys: varchar(500)
+    desc: 自定义字段一
+    topk: "导入字段一测试-20260814114300"
   - name: custom_field_statistics_one
-    meaning: "自定义字段一；本期唯一放开的编辑独占列"
-    evidence: code
+    type: string
+    phys: varchar(500)
+    desc: 自定义字段一(统计用)
+  - name: custom_field_three
+    type: string
+    phys: varchar(500)
+    desc: 自定义字段三
+    topk: "导入字段三测试-20260814114300"
+  - name: custom_field_two
+    type: string
+    phys: varchar(500)
+    desc: 自定义字段二
+    topk: "导入字段二测试-20260814114300"
+  - name: data_source
+    type: string
+    phys: varchar(64)
+    desc: 数据来源
+    topk: "MANUAL|WECHAT"
+  - name: db_tenant_code
+    type: string
+    phys: varchar(100)
+    desc: 数据租户标识
+    topk: "base"
+  - name: enterprise_full_name
+    type: string
+    phys: varchar(255)
+    desc: 企业全称
+  - name: first_settlement_time
+    type: temporal
+    phys: datetime
+    desc: 首笔放款时间
+  - name: fund_manager
+    type: string
+    phys: varchar(64)
+    desc: 管理人
+  - name: lls_participate_role
+    type: string
+    phys: varchar(200)
+    desc: 联易融参与角色
+  - name: main_project_name
+    type: string
+    phys: varchar(200)
+    desc: 主项目名称
+  - name: name
+    type: string
+    phys: varchar(64)
+    desc: 名称
+  - name: old_solution_manager
+    type: string
+    phys: varchar(1000)
+    desc: 前方案经理
+  - name: op_contact
+    type: string
+    phys: varchar(64)
+    desc: 运营对接人
+    topk: "257|280|333|383|411|412|454|463|466|93"
+  - name: op_contact_group
+    type: string
+    phys: varchar(100)
+    desc: 运营组别
+  - name: organization_id
+    type: string
+    phys: varchar(30)
+    desc: 机构编号
+  - name: product_type
+    type: string
+    phys: varchar(200)
+    desc: 产品类型
+  - name: product_type_arr
+    type: string
+    phys: varchar(200)
+    desc: 产品类型数组
+  - name: project_approval_name
+    type: string
+    phys: varchar(200)
+    desc: 立项名称
+  - name: project_config_time
+    type: temporal
+    phys: datetime
+    desc: 项目配置时间
+  - name: project_exception_remark
+    type: string
+    phys: varchar(500)
+    desc: 项目异常备注
+  - name: project_focus_level
+    type: string
+    phys: varchar(500)
+    desc: 项目投入关注度
+  - name: project_id
+    type: number
+    phys: bigint(20)
+    desc: 关联的项目id
+  - name: project_manager
+    type: string
+    phys: varchar(64)
+    desc: 项目经理
+  - name: project_online_name
+    type: string
+    phys: varchar(200)
+    desc: 项目上线名称
+  - name: project_phase
+    type: string
+    phys: varchar(64)
+    desc: 项目阶段
+    topk: "HANG|IMPLEMENTATION|OPERATION"
+  - name: remark
+    type: string
+    phys: varchar(1024)
+    desc: remark
+  - name: risk_control_contact
+    type: string
+    phys: varchar(64)
+    desc: 风控对接人
+    topk: "271|293|360|383|454|457|97"
+  - name: risk_control_contact_group
+    type: string
+    phys: varchar(100)
+    desc: 风控对接人组别
+  - name: shelf_scale
+    type: string
+    phys: varchar(64)
+    desc: 储架规模(万)
+  - name: solution_manager
+    type: string
+    phys: varchar(64)
+    desc: 方案经理
+  - name: solution_manager_wxid
+    type: string
+    phys: varchar(64)
+    desc: 方案经理企微id
+  - name: sp_no
+    type: string
+    phys: varchar(64)
+    desc: 企微审批编号
+  - name: sp_pass_time
+    type: temporal
+    phys: datetime
+    desc: 立项审批通过时间
+  - name: sp_type
+    type: string
+    phys: varchar(64)
+    desc: 类型
+  - name: statics_op_time
+    type: temporal
+    phys: datetime
+    desc: 项目统计更新时间
+  - name: statics_op_user
+    type: string
+    phys: varchar(100)
+    desc: 项目统计更新用户
+  - name: system_delivery
+    type: string
+    phys: varchar(64)
+    desc: 系统交付方式
+  - name: update_by
+    type: string
+    phys: varchar(100)
+    desc: 更新人id
+  - name: update_time
+    type: temporal
+    phys: datetime
+    desc: 更新时间
+  - name: update_user
+    type: string
+    phys: varchar(100)
+    desc: 更新人名称
 ```
+
+## 关联表
+
+- [[wechat_project_approval_field_history]]：wechat_project_approval_apply.sp_no → wechat_project_approval_field_history.sp_no（copy:ProjectStatisticsApplication.java，suggested）

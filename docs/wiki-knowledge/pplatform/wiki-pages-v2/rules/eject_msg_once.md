@@ -12,6 +12,7 @@ sources:
   - code_path:CustMigratoryService.java:loginAfterEjectMsg
   - reqdoc:产融平台数据迁移涉及的改造需求V1.2
 contract_version: "0.1"
+belong: rules
 ---
 
 本规则决定存量用户登录时的触达行为：命中“未登录的迁移用户”后返回弹出标志，并立刻把登录状态置为已登录，从而保证一个用户只被弹一次。

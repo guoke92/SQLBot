@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 补偿重试上限
-page_key: rules/compensation-max-retry
+page_key: compensation-max-retry
 domain: 平台事件监听与同步
 status: draft
 aliases:
@@ -15,6 +15,7 @@ sources:
   - code:RegAsyncCompensationJobHandler.java:updateRetryCount
   - db:client_api_sync_error
 contract_version: "0.1"
+belong: rules
 ---
 
 补偿重试有硬上限：retryCount 从 `returnData.retryCount` 读取，达到 maxRetryCount（默认 3）时标记 FAILED（remark 追加 `_FAILED_MAX_RETRY_3`），否则重试次数 +1 并回置 PENDING。

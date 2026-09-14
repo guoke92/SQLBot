@@ -1,7 +1,7 @@
 ---
 type: concept
 title: 运营中台企业 id 术语桥（custEnterpriseId / platform_cust_id）
-page_key: concept.platform_cust_id_bridge
+page_key: platform_cust_id_bridge
 domain: 平台内部服务对接
 status: draft
 aliases:
@@ -25,6 +25,7 @@ maps_to:
 field_targets:
   - cust_role_info.platform_cust_id
   - cust_change_record.oper_cust_info
+belong: concepts
 ---
 
 运营中台侧的企业 id（custEnterpriseId）在平台库内落在 cust_role_info.platform_cust_id，用于换取 token / 授权；客户变更记录把同一 id 存进 oper_cust_info JSON。

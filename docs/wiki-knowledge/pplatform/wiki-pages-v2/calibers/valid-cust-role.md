@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 有效客户角色
-page_key: calibers/valid-cust-role
+page_key: valid-cust-role
 domain: 平台事件监听与同步
 status: draft
 aliases:
@@ -13,6 +13,7 @@ scope:
 sources:
   - code:CustSyncService.java:getRoles/syncByRole
 contract_version: "0.1"
+belong: calibers
 ---
 
 有效客户角色口径：按角色同步时仅取 [[tables/cust_role_info]] 中 `enable='Y'` 的角色作为同步维度。

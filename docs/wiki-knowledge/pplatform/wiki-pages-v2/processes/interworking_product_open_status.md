@@ -1,7 +1,7 @@
 ---
 type: process
 title: 客户互通产品开通状态流转
-page_key: processes/interworking_product_open_status
+page_key: interworking_product_open_status
 domain: 互通产品
 status: draft
 aliases: [互通产品开通状态, cust_interworking_product.open_status]
@@ -12,6 +12,7 @@ sources:
   - code:TenantInterworkingProductApplication
   - db:cust_interworking_product
 contract_version: "0.1"
+belong: processes
 ---
 
 客户互通产品开通状态位于 [[tables/cust_interworking_product]] 的 open_status 列，配置侧在 [[tables/tenant_interworking_product]]。开通由 active 完成；取消由 cancel 完成，且一旦关联项目即不允许取消（见 [[rules/interworking_product_cancel_guard]]）。

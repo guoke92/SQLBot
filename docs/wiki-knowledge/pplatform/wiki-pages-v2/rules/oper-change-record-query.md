@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 运营人员变更记录查询口径
-page_key: rule.oper-change-record-query
+page_key: oper-change-record-query
 domain: 企业变更与运营变更
 status: draft
 aliases: [queryByPersonId, 运营变更历史查询]
@@ -11,6 +11,7 @@ scope:
 sources:
   - code_path:OperChangeRecordApplication.java:queryByPersonId
 contract_version: "0.1"
+belong: rules
 ---
 
 按 `person_id` 精确匹配、`enable='Y'`（见 [[calibers.oper-change-record-valid]]），按 `create_time` 倒序返回；`personId` 为空直接返回空列表。表见 [[tables.cust_oper_change_record]]，字段指代见 [[concepts.operator]]。

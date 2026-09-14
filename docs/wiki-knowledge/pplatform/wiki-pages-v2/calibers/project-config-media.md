@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 项目配置影像
-page_key: calibers/project-config-media
+page_key: project-config-media
 domain: 文件/附件/媒体
 status: draft
 aliases: [项目配置影像, PROJECT_CONFIG, 项目上线审批影像]
@@ -12,6 +12,7 @@ sources:
   - code:MediaFile.busiKey
   - code:MediaFile.catgId
 contract_version: "0.1"
+belong: calibers
 ---
 
 # 项目配置影像

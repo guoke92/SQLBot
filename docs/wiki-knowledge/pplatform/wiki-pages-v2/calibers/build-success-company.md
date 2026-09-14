@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 建档成功企业
-page_key: calibers/build-success-company
+page_key: build-success-company
 domain: 平台事件监听与同步
 status: draft
 aliases:
@@ -13,6 +13,7 @@ scope:
 sources:
   - code:CustCompanyInfoApplication.java:updateCustBuildStatus
 contract_version: "0.1"
+belong: calibers
 ---
 
 建档成功企业口径：`cust_company_info.cust_build_status = 'BUILD_SUCCESS'` 的企业，在存量判定中直接跳过推送/变更。

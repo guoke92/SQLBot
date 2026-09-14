@@ -1,7 +1,7 @@
 ---
 type: concept
 title: 账户归属企业（ref_cust_company_info）
-page_key: concepts/account-owner-company
+page_key: account-owner-company
 domain: 企业银行账户
 status: draft
 aliases: [ref_cust_company_info, 客户账号信息]
@@ -21,6 +21,7 @@ also_confused_with:
   - cust_id
 boundary: 字段名与注释像“账号信息”，实际存企业编码；代码统一用 company.getCode() 赋值/查询，用企业主键 id 过滤会查不到数据。
 sources: ["enrich:wiki-admin"]
+belong: concepts
 ---
 
 「账户归属企业」是账户表与企业的关联语义：`cust_account_info.ref_cust_company_info` 存的是 `cust_company_info.code`（企业编码），不是企业主键 id。相关表见 [[tables/cust_account_info]]。

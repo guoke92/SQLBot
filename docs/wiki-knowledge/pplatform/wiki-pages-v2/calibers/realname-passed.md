@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 已实名认证
-page_key: caliber.realname_passed
+page_key: realname-passed
 domain: 客户联系人管理
 status: draft
 aliases:
@@ -12,6 +12,7 @@ scope:
 sources:
   - "code:CustPersonController.getVerifyResult"
 contract_version: "0.1"
+belong: calibers
 ---
 
 已实名认证口径把自动认证通过与人工认证通过合并视为「通过」，即 [[tables/cust_person_info]] 的 `phone_realname_status in ('AUTOMATIC_AUTHENTICATION_PASSED','MANUAL_AUTHENTICATION_PASSED')`。

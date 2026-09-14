@@ -1,0 +1,8 @@
+body: '- 语义分析仅提供字段含义（db/code 证据），未提供建表 DDL，故上方 fields 的 type 一律记为 unknown，待补充建表语句后回填。
+
+  - enum_audit 显示 role_type 存在字面量带引号的历史值（"CORE" 1 条、"SUPPLIER" 1 条），代码 addRoleInfo
+  中的 role.replace("\"","") 可去引号；需确认清洗范围与责任方。
+
+  - ref_cust_auth_application 的关联被 relation_audit 判为 reject（无 .eq / mapper JOIN 证据），字段是否废弃未确认。'
+title: cust_role_info 列类型与 role_type 脏数据待核实
+type: table

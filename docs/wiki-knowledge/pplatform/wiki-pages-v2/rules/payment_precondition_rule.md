@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 支付前置条件规则
-page_key: rules/payment_precondition_rule
+page_key: payment_precondition_rule
 domain: CA证书收费
 status: draft
 aliases: [requirePendingSignedOrder, confirmBocomPaid, 支付准入规则]
@@ -11,6 +11,7 @@ scope:
 sources:
   - code:CaFeePaymentApplication.java:requirePendingSignedOrder,confirmBocomPaid
 contract_version: "0.1"
+belong: rules
 ---
 
 # 支付前置条件规则

@@ -1,7 +1,7 @@
 ---
 type: concept
 title: project_type 同名异域
-page_key: concept/project-type-domain-split
+page_key: project-type-domain-split
 domain: 微企链立项与项目审批
 status: draft
 aliases:
@@ -26,6 +26,7 @@ adjudication: 两表的 project_type 列名相同但取值域完全不同：立�
 also_confused_with:
   - tenant_project_approval.project_type 决定 flow_code 与 AMS 推送，立项表的 project_type 不承担该职责
 sources: ["enrich:wiki-admin"]
+belong: concepts
 ---
 
 这是本主题里最容易写错的同名列：两个核心表都叫 `project_type`，但一个描述项目结构层级（主/子），另一个描述上线审批的流程类型（标准/常规），并且后者还承担了决定工作流定义与是否推送 AMS 的职责（见 [[rules/project-type-drives-flow-and-ams]]）。

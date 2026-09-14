@@ -1,7 +1,7 @@
 ---
 type: concept
 title: 企业角色术语桥（cust_company_type / company_type / role_type / cust_type）
-page_key: concept.company_role_bridge
+page_key: company_role_bridge
 domain: 平台内部服务对接
 status: draft
 aliases:
@@ -39,6 +39,7 @@ field_targets:
   - cust_role_info.role_type
   - cust_group_rel.cust_type
   - cust_project_rel.company_type
+belong: concepts
 ---
 
 「企业角色」在企业主表以 JSON 数组字符串存放，在关系表中拆成单值：联系人的 company_type 是数组中的一项，cust_role_info.role_type 一企业一角色一行，集团成员用 cust_type 表达，项目关联用 company_type 表达。

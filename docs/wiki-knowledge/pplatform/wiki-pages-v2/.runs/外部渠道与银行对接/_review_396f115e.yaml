@@ -1,0 +1,5 @@
+body: 问题：语义分析未提供任何列的数据库物理类型，本页 fields[].type 仅对语义中明确写为 JSON 的字段标注 `json`，其余标注 `unknown`。字段
+  `enable` 的 dict 仅知 `Y`（口径 predicate），未证实是否存在其它取值；`cust_company_type` 的 dict 由 concept
+  [[company_type]] 的内部 dictKey 列表推得，未逐字来自枚举源码。建议补采 DDL 与枚举源码后回填。
+title: cust_company_info
+type: table

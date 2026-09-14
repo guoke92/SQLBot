@@ -1,7 +1,7 @@
 ---
 type: process
 title: "核查/实名认证状态机"
-page_key: "processes/certification_verify_machine"
+page_key: certification_verify_machine
 domain: "customer-onboarding"
 status: draft
 aliases:
@@ -14,6 +14,7 @@ sources:
   - "code_path:AutoVerifyController.java:getFaceQrCodeByCertificationNo(autoCheckResult != AUTOMATIC_AUTHENTICATION_PASSED 抛异常)"
   - "code_path:AutoVerifyController.java:saveManual + FaceVerifyController.java:isFaceVerifyPassed"
 contract_version: "0.1"
+belong: processes
 ---
 
 核查/实名认证状态机描述 `cust_certification_info.auto_verify_status` 的取值流转，覆盖自动核查与人工核查两条通道。这是「自动审核」一词在代码中的实际落点，与运营中台的工作流审核结论不是同一环节，边界见 [[concepts/auto_verify]] 与 [[concepts/manual_verify]]。

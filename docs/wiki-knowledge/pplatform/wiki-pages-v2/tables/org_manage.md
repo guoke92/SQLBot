@@ -1,29 +1,38 @@
 ---
 type: table
-title: 机构管理表 org_manage
-page_key: table.org_manage
+title: 机构管理
+page_key: org_manage
 domain: 数据权限与组织
 status: draft
-aliases: [org_manage, 机构表, 机构管理]
+anchors: [org_manage]
 oid: 1
 scope:
-  databases: [base]
-sources: [db, code]
+  databases: [lowcode_pplatform]
+sources: ["db:db-catalog.yaml", "code:extract-catalog.yaml"]
+created: '2026-09-14'
+updated: '2026-09-14'
 contract_version: "0.1"
+belong: tables
 ---
 
 
-机构域主数据表，通过 parent_code 自引用构成机构树。organization_id 与 [[tables/operation_user]].organization_id 属同一机构域主键，二者构成 [[concepts/org_identity_bridge]]；org_type 与代码侧 OrgTypeEnum（ORG 根机构 / SUB 子机构）对应；client_type 用于区分来源端，代码 OrgFacade 中以 clientType=='AGW' 判断是否跳过租户过滤，见 [[rules/org_agw_skip_tenant_filter]]。
 
-org_name 与 name 的区别在于前者面向展示，建档与查询口径应以 org_name 为准。
+
+
+
+
+
+
+
+
+
+org_manage 是租户级机构表，与客户组织架构（sys_cust_org、sys_cust_org_rel）是两条不同链路，同名「组织/机构」不可互推，判别见 concept [[org]]。其 org_type 写值来自 OrgTypeEnum（ORG 根 / SUB 子），status 为 varchar(10)，本链路未见写值点。
 
 ## 需求背景
-
-语义分析中未出现 reqdoc_claims 条目，本页暂无需求文档主张；结论来自 db 字段语义与代码侧（OrgTypeEnum、SysOrgDO.parentId/selectByCode、OrgFacade）证据。
+本页仅依据代码证据（OrgTypeEnum）与库证据（org_manage）。本次语义分析未包含需求文档（reqdoc）主张，故无双源 evidence。
 
 ## 版本演进
-
-v0：依据 db + code 证据建档。
+本次语义分析未提供版本变更证据。
 
 ```ground:table
 table: org_manage

@@ -1,7 +1,7 @@
 ---
 type: concept
 title: 经办人
-page_key: concept.handler
+page_key: handler
 domain: 客户联系人管理
 status: draft
 aliases:
@@ -20,6 +20,7 @@ also_confused_with:
   - 联系人
 contract_version: "0.1"
 sources: ["enrich:wiki-admin"]
+belong: concepts
 ---
 
 经办人指企业内使用业务功能的用户，是 [[tables/cust_person_info]] 中 `user_type = 'accountNormal'` 的记录。取数口径见 [[calibers/person-operator]]，其认证与建档行为见 [[processes/person-realname-status]]、[[rules/new-person-default-build-success]]。

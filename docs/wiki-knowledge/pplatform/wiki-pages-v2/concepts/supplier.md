@@ -1,7 +1,7 @@
 ---
 type: concept
 title: 供应商
-page_key: concepts/supplier
+page_key: supplier
 domain: CA证书收费
 status: draft
 aliases: [SUPPLIER]
@@ -19,6 +19,7 @@ field_targets:
   - ca_fee_order.company_type
 adjudication: synonym
 also_confused_with: []
+belong: concepts
 ---
 
 # 供应商

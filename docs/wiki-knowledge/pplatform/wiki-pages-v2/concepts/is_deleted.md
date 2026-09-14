@@ -1,7 +1,7 @@
 ---
 type: concept
 title: 软删除标记
-page_key: concept.is_deleted
+page_key: is_deleted
 domain: 租户配置
 status: draft
 aliases:
@@ -22,6 +22,7 @@ field_targets:
 adjudication: boundary
 also_confused_with: []
 sources: ["enrich:wiki-admin"]
+belong: concepts
 ---
 
 软删除标记在各表使用字符串 `0/1`，既不是布尔值也不是 `Y/N`。查询未删除数据必须显式写 `'0'`（见 [[calibers/not_deleted_async_task]]）；若按 `Y/N` 或布尔语义书写条件，会静默返回错误结果集。注意部分表列名为 `deleted`，取值约定相同但列名不同，不可按列名统一拼接。

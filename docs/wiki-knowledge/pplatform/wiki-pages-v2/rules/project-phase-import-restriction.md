@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 立项阶段不落库且审批通过后不可导入
-page_key: rule/project-phase-import-restriction
+page_key: project-phase-import-restriction
 domain: 微企链立项与项目审批
 status: draft
 aliases:
@@ -13,6 +13,7 @@ scope:
 sources:
   - code_path:ProjectStatisticsApplication.java
 contract_version: "0.1"
+belong: rules
 ---
 
 「立项阶段」不是库内状态，它只用于展示与导入校验，落库时会被忽略；并且当企微审批已通过后，导入不允许再写「立项阶段」。也就是说导入模板接受的取值范围与库内实际存储的项目阶段并不是同一个集合。

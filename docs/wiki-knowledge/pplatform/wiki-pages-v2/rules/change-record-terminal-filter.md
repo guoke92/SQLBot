@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 变更单终态过滤
-page_key: rule.change-record-terminal-filter
+page_key: change-record-terminal-filter
 domain: 企业变更与运营变更
 status: draft
 aliases: [终态过滤, notIn 终态]
@@ -11,6 +11,7 @@ scope:
 sources:
   - code_path:CustChangeApplication.java:changeRebuild
 contract_version: "0.1"
+belong: rules
 ---
 
 `CUST_CHECK_PASS` / `CUST_CHECK_REJECT` 视为终态，取在途变更单时用 notIn 排除。口径见 [[calibers.change-record-terminal-status]]，状态全集见 [[processes.cust-change-record-status]]，该过滤是流程重建 [[rules.change-rebuild]] 的前置步骤。

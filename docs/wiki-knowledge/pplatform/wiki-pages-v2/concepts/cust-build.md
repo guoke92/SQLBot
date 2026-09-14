@@ -1,7 +1,7 @@
 ---
 type: concept
 title: 建档
-page_key: concepts/cust-build
+page_key: cust-build
 domain: 平台事件监听与同步
 status: draft
 aliases:
@@ -30,6 +30,7 @@ adjudication:
 also_confused_with:
   - 运营中台建档审核回调
 sources: ["enrich:wiki-admin"]
+belong: concepts
 ---
 
 「建档」在业务口径中指企业认证/准入的完整流程（提交、审核、退回、驳回重提、通过），在数据口径上落为 `cust_company_info.cust_build_status`。它与运营中台的「建档审核」不同源：产融侧用 CustBuildStatusEnum，运营中台用 OperApiConstants.CheckStatus，二者通过回调对齐，不能直接比等。

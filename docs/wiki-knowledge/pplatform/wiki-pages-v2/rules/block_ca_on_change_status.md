@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 变更态拦截CA开通
-page_key: rule/block_ca_on_change_status
+page_key: block_ca_on_change_status
 domain: CA证书认证
 status: draft
 aliases: [assertCompanyNotInChange]
@@ -10,6 +10,7 @@ scope:
   databases: [unknown]
 sources: ["code_path:CaCertificationPreCheckApplication.java:assertCompanyNotInChange"]
 contract_version: "0.1"
+belong: rules
 ---
 
 规则要求：企业在变更态时禁止进入一证四步——cust_company_info.cust_status=CHANGE 或 cust_company_info.cust_build_status=CUST_CHANGE 都会触发拦截，抛出异常提示先完成变更流程。

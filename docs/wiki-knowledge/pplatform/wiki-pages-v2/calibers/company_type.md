@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 企业角色口径（company_type）
-page_key: calibers/company_type
+page_key: company_type
 domain: 租户产品
 status: draft
 aliases: [企业角色, company_type]
@@ -12,6 +12,7 @@ sources:
   - db:tenant_product_menu
   - db:tenant_product_menu_res
 contract_version: "0.1"
+belong: calibers
 ---
 
 企业角色口径描述菜单配置中「角色」维度的可选值。[[tables/tenant_product_menu]] 的实测值域为 9 类，[[tables/tenant_product_menu_res]] 只有其中 4 类，说明后者面向的角色更窄。

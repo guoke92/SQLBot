@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 身份证号唯一性
-page_key: rule.cert_no_uniqueness
+page_key: cert-no-uniqueness
 domain: 客户联系人管理
 status: draft
 aliases:
@@ -12,6 +12,7 @@ scope:
 sources:
   - "code:CustPersonApplication.checkBeforeSave"
 contract_version: "0.1"
+belong: rules
 ---
 
 同一企业下身份证号不能重复：新增或编辑联系人时，系统校验证件号码是否已被本企业其他联系人使用。

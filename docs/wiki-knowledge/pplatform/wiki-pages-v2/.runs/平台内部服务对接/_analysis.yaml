@@ -1,23 +1,11 @@
 field_semantics:
-- table: lc_sql_init_log
-  field: id
-  meaning: 自增主键
-  evidence: db
-- table: lc_sql_init_log
-  field: name
-  meaning: 插件名称（DDL 注释如此，但实测值为 '2'/'3'/'a'/'b'，属测试脏数据，不可作为业务枚举口径）
-  evidence: db
-- table: lc_sql_init_log
-  field: description
-  meaning: 插件执行的 sql 文本（varchar(1024)）
-  evidence: db
 - table: cust_company_info
   field: id
-  meaning: '企业主键，对外 Provider 的 companyId/custId 即此值（DO: CustCompanyInfoDO）'
+  meaning: 企业主键ID
   evidence: code
 - table: cust_company_info
   field: code
-  meaning: 企业业务编码，新建时由 DataModelUtils.uuid() 生成，作为各关系表 ref_cust_company_info 的关联键
+  meaning: 企业业务编码，用于跨表关联
   evidence: code
 - table: cust_company_info
   field: name
@@ -25,883 +13,650 @@ field_semantics:
   evidence: code
 - table: cust_company_info
   field: certification_no
-  meaning: 统一社会信用代码，跨系统一致性对齐字段
+  meaning: 统一社会信用代码
   evidence: code
 - table: cust_company_info
   field: enable
-  meaning: 有效标志，查询一律 .eq(enable, 'Y')
+  meaning: 启用状态，Y/N
   evidence: code
 - table: cust_company_info
   field: db_tenant_code
-  meaning: 数据租户编码，数据隔离键；Provider 层常用 MetaDataThreadLocalConfig.setDbTenantCode("all")
-    跨租户查询
+  meaning: 租户编码
   evidence: code
 - table: cust_company_info
   field: cust_build_status
-  meaning: 建档/认证状态（见状态机）
+  meaning: 企业建档状态
   evidence: code
 - table: cust_company_info
   field: cust_status
-  meaning: 客户生命周期状态（见状态机），与建档状态分离
+  meaning: 企业状态
   evidence: code
 - table: cust_company_info
   field: cust_company_type
-  meaning: 企业角色，JSON 数组字符串，如 "[\"CORE\"]"，创建时由 JSONArray/字符串拼接写入
+  meaning: 企业角色，JSON数组字符串
   evidence: code
 - table: cust_company_info
   field: identify_style
-  meaning: 认证方式（自主/邀请-客户录入/邀请-平台录入/简易）
-  evidence: code
-- table: cust_company_info
-  field: cust_build_type
-  meaning: 建档渠道类型（PC_BUILD / AGW_BUILD）
-  evidence: code
-- table: cust_company_info
-  field: cust_from
-  meaning: 客户来源，邀请类认证为空时写 "平台邀请"
-  evidence: code
-- table: cust_company_info
-  field: data_type
-  meaning: 数据类型，主数据为 CustDataTypeConstant.DATA_TYPE_MAIN；状态更新均带此条件
-  evidence: code
-- table: cust_company_info
-  field: check_status
-  meaning: 审核状态，提交建档时被置 null
-  evidence: code
-- table: cust_company_info
-  field: audit_back_flag
-  meaning: 审核退回标记 'Y'/'N'，非自主录入提交时置 'N'
+  meaning: 认证方式
   evidence: code
 - table: cust_company_info
   field: need_register_ca
-  meaning: 是否需要开通电子签章 'Y'/'N'；简易建档政策上强制为不开通
+  meaning: 是否需要开通电子签章，Y/N
   evidence: code
 - table: cust_company_info
   field: ca_register_status
-  meaning: 电子签章开通状态 'Y'/'N'（对外返回还需叠加 caRegisterStatusY 校验）
+  meaning: CA注册状态，Y/N
   evidence: code
 - table: cust_company_info
-  field: need_register_bs
-  meaning: 是否需要开通上上签 'Y'/'N'
+  field: legal_name
+  meaning: 法人姓名
   evidence: code
 - table: cust_company_info
-  field: bs_register_status
-  meaning: 上上签开通状态 'Y'/'N'
+  field: legal_phone
+  meaning: 法人手机号
   evidence: code
 - table: cust_company_info
-  field: legal_name / legal_phone / legal_email / legal_certification_type / legal_certification_no
-  meaning: 法人姓名/电话/邮箱/证件类型/证件号，用于开通 CA 请求体
+  field: legal_email
+  meaning: 法人邮箱
   evidence: code
 - table: cust_company_info
-  field: cust_email
-  meaning: 企业邮箱
+  field: legal_certification_type
+  meaning: 法人证件类型
   evidence: code
 - table: cust_company_info
-  field: contact_address
-  meaning: 联系地址
+  field: legal_certification_no
+  meaning: 法人证件号
   evidence: code
 - table: cust_company_info
   field: head_company
-  meaning: 总部/集团企业标识，为空时（简易认证）置为 'Y'
+  meaning: 总公司标识
   evidence: code
 - table: cust_company_info
-  field: ext
-  meaning: 扩展 JSON，含 isChange/alterMode/alterTypes 等变更指令
+  field: cust_build_type
+  meaning: 建档类型
   evidence: code
 - table: cust_company_info
-  field: cust_source
-  meaning: 客户来源渠道标识（如 PLATFORM_PUSH）
+  field: cust_from
+  meaning: 客户来源
+  evidence: code
+- table: cust_company_info
+  field: audit_back_flag
+  meaning: 审核退回标志，Y/N
+  evidence: code
+- table: cust_company_info
+  field: check_status
+  meaning: 审核状态
+  evidence: code
+- table: cust_company_info
+  field: data_type
+  meaning: 数据类型
+  evidence: code
+- table: cust_person_info
+  field: id
+  meaning: 联系人主键ID
   evidence: code
 - table: cust_person_info
   field: ref_cust_company_info
-  meaning: 所属企业 code，联系人查询主关联键
+  meaning: 关联的企业编码
   evidence: code
 - table: cust_person_info
-  field: cust_company_id
-  meaning: 所属企业 id
+  field: company_type
+  meaning: 企业角色
   evidence: code
 - table: cust_person_info
-  field: phone
-  meaning: 手机号，加密存储（metaDataEncryptionService.encryptAndBase64Str），查询需传密文
-  evidence: code
-- table: cust_person_info
-  field: user_id
-  meaning: 对应 sys_user 主键，用于按用户维度串联企业联系人
+  field: enable
+  meaning: 启用状态，Y/N
   evidence: code
 - table: cust_person_info
   field: user_type
-  meaning: 用户类型：admin（客户管理员）/ operator（经办人）/ guest（游客）
+  meaning: 用户类型：admin/operator/guest
   evidence: code
 - table: cust_person_info
-  field: company_type
-  meaning: 企业角色（单值，对应 cust_company_type 数组中的一项）
+  field: user_id
+  meaning: 关联的系统用户ID
+  evidence: code
+- table: cust_person_info
+  field: phone
+  meaning: 手机号（加密存储）
+  evidence: code
+- table: cust_person_info
+  field: name
+  meaning: 姓名
+  evidence: code
+- table: cust_person_info
+  field: user_name
+  meaning: 用户名
+  evidence: code
+- table: cust_person_info
+  field: email
+  meaning: 邮箱
   evidence: code
 - table: cust_person_info
   field: status
-  meaning: 联系人状态，查询有效联系人时取 ADD 或 EFFECT（CustPersonStatusConstant）
+  meaning: 联系人状态，取值见 CustPersonStatusConstant
   evidence: code
 - table: cust_person_info
-  field: enable
-  meaning: 有效标志 'Y'/'N'；经办人无产品权限时被置 'N'，解冻时恢复 'Y'
+  field: operator_id
+  meaning: 运营人员ID
   evidence: code
 - table: cust_person_info
-  field: name / user_name / email
-  meaning: 姓名/登录名/业务邮箱；仅本身为空时才由经办人新增流程补全
+  field: operator_realname
+  meaning: 运营人员姓名
   evidence: code
 - table: cust_person_info
-  field: operator_id / operator_realname / operator
-  meaning: 运营人员 id/姓名/登录名，由资产审核运营人员同步写入
+  field: operator
+  meaning: 运营人员账号
   evidence: code
 - table: cust_person_info
-  field: operator_push_system
-  meaning: 需要推送的运营中台渠道集合，逗号分隔，用于 systemLinkFacade.syncOperation
+  field: certification_type
+  meaning: 证件类型
+  evidence: code
+- table: cust_person_info
+  field: certification_no
+  meaning: 证件号
   evidence: code
 - table: cust_person_info
   field: cust_build_status
-  meaning: 联系人侧冗余的建档状态
+  meaning: 建档状态
   evidence: code
-- table: cust_role_info
-  field: ref_cust_company_info
-  meaning: 所属企业 code
+- table: cust_person_info
+  field: db_tenant_code
+  meaning: 租户编码
   evidence: code
-- table: cust_role_info
-  field: role_type
-  meaning: 企业角色类型（CustCompanyTypeEnum.name()/dictKey），一个企业 code + 角色一条记录
+- table: sys_user
+  field: id
+  meaning: 系统用户ID
   evidence: code
-- table: cust_role_info
-  field: status
-  meaning: 角色状态，随企业状态更新（updateStatusByCustCompany）
+- table: sys_user
+  field: user_name
+  meaning: 用户名
   evidence: code
-- table: cust_role_info
-  field: platform_cust_id
-  meaning: 运营中台企业 id（custEnterpriseId），用于换取 token/授权
+- table: sys_user
+  field: name
+  meaning: 姓名
   evidence: code
-- table: cust_role_info
-  field: enable / db_tenant_code
-  meaning: 有效标志与租户编码
+- table: sys_user
+  field: mobile
+  meaning: 手机号
   evidence: code
-- table: cust_project_rel
-  field: ref_cust_project_rel_cust_company_info
-  meaning: 关联企业 code
+- table: sys_user
+  field: email
+  meaning: 邮箱
   evidence: code
-- table: cust_project_rel
-  field: project_id / product_id
-  meaning: 关联租户项目 id / 产品 id（字符串存储）
+- table: sys_user
+  field: certificate_type
+  meaning: 证件类型
   evidence: code
-- table: cust_project_rel
-  field: tenant_code / db_tenant_code
-  meaning: 租户编码（两者同值写入）
+- table: sys_user
+  field: certificate_no
+  meaning: 证件号
   evidence: code
-- table: cust_project_rel
-  field: company_type
-  meaning: 关联关系对应的企业角色
+- table: sso_user
+  field: login_name
+  meaning: 登录名
   evidence: code
-- table: cust_project_rel
-  field: show_flag
-  meaning: 是否展示 'Y'/'N'
+- table: sso_user
+  field: user_name
+  meaning: 用户名
   evidence: code
-- table: cust_project_rel
-  field: enable
-  meaning: 有效标志 'Y'/'N'
+- table: sso_user
+  field: sso_id
+  meaning: SSO用户ID
   evidence: code
-- table: cust_project_rel
-  field: ref_cust_project_rel_platform_product / op_contact_a / op_contact_a_group
-  meaning: 平台产品编码 / 运营对接人 / 运营对接人组
-  evidence: code
-- table: cust_group_rel
-  field: cust_id / parent_cust_id / root_cust_id
-  meaning: 当前企业 / 直接父企业 / 集团根企业 id
-  evidence: code
-- table: cust_group_rel
-  field: parent_group_id / root_group_id
-  meaning: 直接父集团节点 / 根集团节点 id（树形结构键）
-  evidence: code
-- table: cust_group_rel
-  field: cust_type
-  meaning: 成员角色，JSON 数组字符串
-  evidence: code
-- table: cust_group_rel
-  field: status
-  meaning: 生效状态 INEFFECTIVE/EFFECTIVE
-  evidence: code
-- table: cust_group_rel
-  field: root_flag
-  meaning: 是否根节点 'Y'
-  evidence: code
-- table: cust_group_rel
-  field: level
-  meaning: 层级，根节点为 1
-  evidence: code
-- table: sys_cust_user_rel
-  field: cust_id / cust_type / user_id / role_id / product_id
-  meaning: 企业-用户-角色-产品的授权关系（sys 服务表）
-  evidence: code
-- table: sys_cust_user_rel
-  field: is_freeze
-  meaning: 关联是否冻结 'Y'/'N'（UserFreezeEnum.FREEZE/UN_FROZEN）
+- table: sso_user
+  field: sys_channel
+  meaning: 系统渠道
   evidence: code
 - table: tenant_setting_config
   field: db_tenant_code
-  meaning: 租户数据编码，全局隔离键
-  evidence: code
-- table: tenant_setting_config
-  field: enable / status
-  meaning: 有效标志 / 生效标志（查询生效租户 activeList、'Y' 判定）
+  meaning: 租户编码
   evidence: code
 - table: tenant_setting_config
   field: sso_tenant_chanel
-  meaning: SSO 渠道标识，作为 sysChannel 用于请求运营中台 token 与拉取互通系统列表
+  meaning: SSO租户渠道
   evidence: code
 - table: tenant_setting_config
   field: platform_secret_key
-  meaning: 运营中台鉴权秘钥，参与 md5(secret+sysChannel+loginName)
-  evidence: code
-- table: tenant_setting_config
-  field: platform_operator
-  meaning: 平台运营方配置，JSON 数组，取值 PLATFORM（联易融）/TENANT（租户自身）
+  meaning: 平台密钥
   evidence: code
 - table: tenant_setting_config
   field: band_name
-  meaning: 品牌名，用于同步给运营中台的 bizLabel
+  meaning: 品牌名称
   evidence: code
 - table: tenant_setting_config
-  field: oper_auth_agreement
-  meaning: 子账号授权书模板 id，未配置时回落 Nacos 值 operAuthAgreement
-  evidence: code
-- table: tenant_setting_config
-  field: source / portal_flag / need_hfive / need_mp_wx
-  meaning: 租户来源（PPLATFORM_SYSTEM）/ 门户开关 / 是否需要 H5 / 是否需要小程序微信配置，用于配置完备性校验
-  evidence: code
-- table: tenant_setting_config
-  field: prd_mp_app_id / uat_mp_app_id / hfive_dev_domain / hfive_test_domain / hfive_uat_domain
-    / hfive_prd_domain
-  meaning: 小程序 appid 与环境域名，按 spring.profiles.active 取值
-  evidence: code
-- table: tenant_setting_config
-  field: is_stack
-  meaning: 是否堆栈/迁移标识 'Y'/'N'，决定 PlatMiniProgramTenantInfoDto 的 migratory/stock
+  field: platform_operator
+  meaning: 平台运营方配置，JSON数组
   evidence: code
 - table: tenant_product
-  field: platform_product_code / db_tenant_code
-  meaning: 租户开通的平台产品编码 / 租户编码
+  field: platform_product_code
+  meaning: 平台产品编码
   evidence: code
 - table: tenant_product
-  field: is_migratory
-  meaning: 租户产品是否已迁移 'Y'/'N'
+  field: db_tenant_code
+  meaning: 租户编码
   evidence: code
 - table: tenant_project
-  field: tenant_id / platform_product_code / product_id / name
-  meaning: 所属租户 id / 平台产品编码 / 产品 id / 项目名
+  field: id
+  meaning: 项目ID
   evidence: code
 - table: tenant_project
-  field: project_status / enable / db_tenant_code
-  meaning: 项目状态（EFFECTIVE 生效）/ 有效标志 / 租户编码
+  field: name
+  meaning: 项目名称
   evidence: code
-- table: platform_product
-  field: product_code / name
-  meaning: 平台产品编码与名称（用于项目列表展示 product 名）
+- table: tenant_project
+  field: project_status
+  meaning: 项目状态
   evidence: code
-- table: sys_user / sso_user
-  field: id / login_name / user_name / name / email / mobile / certificate_type /
-    certificate_no / certification_start_time / certification_end_time
-  meaning: 用户中心与 SSO 用户字段，经办人信息以 sys_user+sso_user 为准，业务邮箱变更时按条件回写登录邮箱
+- table: tenant_project
+  field: platform_product_code
+  meaning: 平台产品编码
   evidence: code
-- table: cust_change_record
-  field: cust_id / status / oper_cust_info / oper_channel / create_time
-  meaning: 客户变更记录；status 取 CUST_CHECK_PASS 时作为取值最新有效记录；oper_cust_info JSON 中的 custEnterpriseId
-    用于运营中台 id
+- table: cust_project_rel
+  field: project_id
+  meaning: 项目ID（字符串）
+  evidence: code
+- table: cust_project_rel
+  field: ref_cust_project_rel_cust_company_info
+  meaning: 关联企业编码
+  evidence: code
+- table: cust_project_rel
+  field: company_type
+  meaning: 企业角色
+  evidence: code
+- table: cust_project_rel
+  field: product_id
+  meaning: 产品ID（字符串）
+  evidence: code
+- table: cust_project_rel
+  field: show_flag
+  meaning: 显示标志，Y/N
+  evidence: code
+- table: cust_role_info
+  field: ref_cust_company_info
+  meaning: 关联企业编码
+  evidence: code
+- table: cust_role_info
+  field: role_type
+  meaning: 角色类型
+  evidence: code
+- table: cust_role_info
+  field: platform_cust_id
+  meaning: 平台客户ID
+  evidence: code
+- table: cust_role_info
+  field: status
+  meaning: 状态
+  evidence: code
+- table: cust_auth_application
+  field: ref_cust_company_info
+  meaning: 关联企业编码
+  evidence: code
+- table: cust_auth_application
+  field: platform_product_code
+  meaning: 平台产品编码
+  evidence: code
+- table: sys_cust_user_rel
+  field: cust_type
+  meaning: 客户类型
+  evidence: code
+- table: sys_cust_user_rel
+  field: cust_id
+  meaning: 客户ID
+  evidence: code
+- table: sys_cust_user_rel
+  field: user_id
+  meaning: 用户ID
+  evidence: code
+- table: sys_cust_user_rel
+  field: role_id
+  meaning: 角色ID
+  evidence: code
+- table: sys_cust_user_rel
+  field: product_id
+  meaning: 产品ID
+  evidence: code
+- table: sys_cust_user_rel
+  field: is_freeze
+  meaning: 冻结状态，Y/N
   evidence: code
 state_machines:
-- name: 企业建档/认证状态
+- name: 企业认证状态机
   field: cust_company_info.cust_build_status
   states:
   - value: INIT
-    label: 初始化（新建临时企业）
+    label: 初始化
     source: code_enum
   - value: CUST_CONFIRM_AWAIT
     label: 待客户确认
     source: code_enum
-  - value: AWAIT_CUST_CONFIRM
-    label: 待客户确认（简易认证路径）
-    source: code_enum
   - value: CUST_BUILDING
-    label: 客户已提交/运营中台审核中
+    label: 客户建档中
     source: code_enum
   - value: BUILD_SUCCESS
     label: 建档成功
     source: code_enum
   - value: BUILD_FAIL
-    label: 建档失败/被拒
+    label: 建档失败
+    source: code_enum
+  - value: AWAIT_CUST_CONFIRM
+    label: 待客户确认（简易）
     source: code_enum
   transitions:
   - from: INIT
-    event: RVS 调 getAndCreateTempCompany 创建临时企业
-    to: INIT
-    evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/PlatFormRvsApplication.java#getAndCreateTempCompany
-  - from: INIT
-    event: 邀请认证-客户录入/注册认证提交
+    event: 提交建档（邀请认证-客户录入/注册认证）
     to: CUST_CONFIRM_AWAIT
-    evidence: 'code_path:CustCompanyInfoApplication.java#submitCust + #getCustBuildStatus(IdentifyTypeConstant.INVITE/SELF)'
+    evidence: code_path:CustCompanyInfoApplication.java:getCustBuildStatus
   - from: INIT
-    event: 邀请认证-平台录入提交
+    event: 提交建档（邀请认证-平台录入）
     to: CUST_BUILDING
-    evidence: 'code_path:CustCompanyInfoApplication.java#submitCust + #getCustBuildStatus(IdentifyTypeConstant.INVITE_AGW)'
-  - from: BUILD_FAIL
-    event: 被拒后重新提交
-    to: CUST_CONFIRM_AWAIT
-    evidence: code_path:CustCompanyInfoApplication.java#messageNotify(条件 before==INIT||before==BUILD_FAIL
-      && after==CUST_CONFIRM_AWAIT)
+    evidence: code_path:CustCompanyInfoApplication.java:getCustBuildStatus
   - from: CUST_CONFIRM_AWAIT
-    event: 客户提交进入运营中台审核
+    event: 客户提交审核
     to: CUST_BUILDING
-    evidence: code_path:CustCompanyInfoApplication.java#messageNotify(#updateCustBuildStatus
-      分支 before==CUST_CONFIRM_AWAIT && after==CUST_BUILDING)
+    evidence: code_path:CustCompanyInfoApplication.java:messageNotify
   - from: CUST_BUILDING
     event: 运营中台审核退回
     to: CUST_CONFIRM_AWAIT
-    evidence: code_path:CustCompanyInfoApplication.java#messageNotify(分支 before==CUST_BUILDING
-      && after==CUST_CONFIRM_AWAIT)
+    evidence: code_path:CustCompanyInfoApplication.java:messageNotify
   - from: CUST_BUILDING
-    event: 审核通过（同时置 cust_status=EFFECT）
+    event: 审核通过
     to: BUILD_SUCCESS
-    evidence: code_path:CustCompanyInfoApplication.java#updateCustBuildStatus(after==BUILD_SUCCESS
-      → custCompanyInfoService.updateById(custStatus=EFFECT))
-  - from: CUST_CONFIRM_AWAIT
-    event: 平台录入客户点击确认提交
-    to: BUILD_SUCCESS
-    evidence: code_path:CustCompanyInfoApplication.java#messageNotify(IdentifyTypeConstant.INVITE_AGW
-      且 after==BUILD_SUCCESS)
+    evidence: code_path:CustCompanyInfoApplication.java:messageNotify
   - from: CUST_BUILDING
-    event: 运营中台审核拒绝
-    to: BUILD_FAIL
-    evidence: code_path:CustCompanyInfoApplication.java#messageNotify(after==BUILD_FAIL
-      发送拒绝通知/短信)
-  - from: CUST_CONFIRM_AWAIT
     event: 审核拒绝
     to: BUILD_FAIL
-    evidence: code_path:CustCompanyInfoApplication.java#messageNotify(after==BUILD_FAIL)
-  - from: INIT
-    event: 简易认证提交
-    to: AWAIT_CUST_CONFIRM
-    evidence: code_path:CustCompanyInfoApplication.java#submitForSimpleAuth(companyInfoDO.setCustBuildStatus(AWAIT_CUST_CONFIRM))
-  - from: AWAIT_CUST_CONFIRM
-    event: 客户确认（简易认证）
-    to: BUILD_SUCCESS
-    evidence: code_path:CustCompanyInfoApplication.java#confirmCustInfoForSimpleAuth(custCompanyInfoDao.updateStatus(custId,
-      BUILD_SUCCESS, CustStatusEnum.EFFECT))
-- name: 客户生命周期状态
+    evidence: code_path:CustCompanyInfoApplication.java:messageNotify
+  - from: BUILD_FAIL
+    event: 重新提交（客户录入）
+    to: CUST_CONFIRM_AWAIT
+    evidence: code_path:CustCompanyInfoApplication.java:messageNotify
+- name: 企业状态机
   field: cust_company_info.cust_status
   states:
   - value: ADD
-    label: 新增/待处理（新建企业与自主注册初始态）
-    source: code_enum
-  - value: CHANGE
-    label: 变更中（走变更流程，token 取变更记录上的运营中台 id）
+    label: 新增
     source: code_enum
   - value: EFFECT
-    label: 已生效
+    label: 生效
+    source: code_enum
+  - value: CHANGE
+    label: 变更中
     source: code_enum
   - value: FREEZE
-    label: 已冻结
+    label: 冻结
     source: code_enum
   - value: WRITEOFF
-    label: 已注销
+    label: 注销
     source: code_enum
   transitions:
   - from: ADD
     event: 建档成功
     to: EFFECT
-    evidence: 'code_path:CustCompanyInfoApplication.java#updateCustBuildStatus(custStatus=EFFECT)
-      / #confirmCustInfoForSimpleAuth'
+    evidence: code_path:CustCompanyInfoApplication.java:confirmCustInfoForSimpleAuth
   - from: EFFECT
     event: 冻结企业
     to: FREEZE
-    evidence: 'code_path:CustCompanyInfoApplication.java#freeze → #custStatusOperator
-      + #custStatusSync(CustStatusEnum.FREEZE)'
+    evidence: code_path:CustCompanyInfoApplication.java:freeze
   - from: FREEZE
     event: 解冻企业
     to: EFFECT
-    evidence: 'code_path:CustCompanyInfoApplication.java#unfreeze → #custStatusSync(CustStatusEnum.EFFECT)'
+    evidence: code_path:CustCompanyInfoApplication.java:unfreeze
   - from: EFFECT
-    event: 注销/停用企业
+    event: 注销企业
     to: WRITEOFF
-    evidence: 'code_path:CustCompanyInfoApplication.java#diable → #custStatusOperator(WRITEOFF)
-      + #custStatusSync(CustStatusEnum.WRITEOFF)'
-  - from: ADD
-    event: 发起变更流程
-    to: CHANGE
-    evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/oper/facade/cust/OperCustFacade.java#queryCustAutoCheck(process!=CHECK
-      → CustStatusEnum.CHANGE)
-- name: 经办人产品关联冻结状态
+    evidence: code_path:CustCompanyInfoApplication.java:diable
+- name: 经办人冻结状态机
   field: sys_cust_user_rel.is_freeze
   states:
   - value: N
     label: 未冻结
-    source: code_enum
+    source: code_const
   - value: Y
     label: 已冻结
-    source: code_enum
+    source: code_const
   transitions:
   - from: N
-    event: 冻结经办人（operationType=FREEZE）
+    event: 冻结经办人
     to: Y
-    evidence: code_path:CustCompanyInfoApplication 同仓 PlatFormUserApplication.java#freezeOrThawOperatorUser(sysCustUserRelDO.setIsFreeze("Y"))
+    evidence: code_path:PlatFormUserApplication.java:freezeOrThawOperatorUser
   - from: Y
-    event: 解冻经办人（operationType=THAW）
+    event: 解冻经办人
     to: N
-    evidence: code_path:PlatFormUserApplication.java#freezeOrThawOperatorUser(THAW
-      分支 setIsFreeze("N"))
-  - from: N
-    event: 冻结企业管理员关联
-    to: Y
-    evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/sys/provider/impl/SysProviderImpl.java#freezeUser(updateFreezeFlag
-      FREEZE)
-  - from: Y
-    event: 解冻用户关联
-    to: N
-    evidence: code_path:SysProviderImpl.java#activeUser(updateFreezeFlag UN_FROZEN)
-- name: 集团成员关系状态
-  field: cust_group_rel.status
-  states:
-  - value: INEFFECTIVE
-    label: 未生效
-    source: code_enum
-  - value: EFFECTIVE
-    label: 已生效
-    source: code_enum
-  transitions:
-  - from: INEFFECTIVE
-    event: 企业建档成功
-    to: EFFECTIVE
-    evidence: code_path:CustGroupRelApplication.java#addExistRootGroupRel(if BUILD_SUCCESS
-      == companyInfo.getCustBuildStatus() → setStatus(EFFECTIVE))
-  - from: INEFFECTIVE
-    event: 新建成员关系默认落库
-    to: INEFFECTIVE
-    evidence: code_path:CustGroupRelApplication.java#addExistSubCustGroupRel(setStatus(CustGroupRelStatusEnum.INEFFECTIVE))
-- name: 联系人状态
-  field: cust_person_info.status
-  states:
-  - value: ADD
-    label: 新增（CustPersonStatusConstant.ADD）
-    source: code_enum
-  - value: EFFECT
-    label: 生效（CustPersonStatusConstant.EFFECT）
-    source: code_enum
-  transitions: []
-- name: 认证方式
-  field: cust_company_info.identify_style
-  states:
-  - value: SELF
-    label: 自主注册/自主认证
-    source: code_enum
-  - value: INVITE
-    label: 邀请认证-客户录入
-    source: code_enum
-  - value: INVITE_AGW
-    label: 邀请认证-平台录入
-    source: code_enum
-  - value: SIMPLE
-    label: 简易认证
-    source: code_enum
-  transitions: []
-- name: 租户产品迁移状态
-  field: tenant_product.is_migratory
-  states:
-  - value: Y
-    label: 已迁移
-    source: code_enum
-  - value: N
-    label: 未迁移
-    source: code_enum
-  transitions: []
+    evidence: code_path:PlatFormUserApplication.java:freezeOrThawOperatorUser
 calibers:
 - name: 有效企业
   predicate: cust_company_info.enable = 'Y'
-  scope: 企业查询/证件号反查/名称反查的通用口径
-  evidence: code:CustFacade.getCustCompanyByCertificationNo / getDbTenantCodeById
-    等
-- name: 企业主数据行
-  predicate: cust_company_info.data_type = 'MAIN' AND cust_company_info.enable = 'Y'
-  scope: 建档状态与客户状态更新时必须命中主数据行
-  evidence: 'code:CustCompanyInfoApplication#appenUpdateCustBulidStatus / #updateCustBuildStatus'
+  scope: 查询企业主数据时默认过滤条件
+  evidence: code_path:PlatFormRvsApplication.java:getAndCreateTempCompany
 - name: 有效联系人
   predicate: cust_person_info.enable = 'Y' AND cust_person_info.status IN ('ADD','EFFECT')
-  scope: listCompanyUser 按企业查联系人
-  evidence: code:PlatFormUserApplication#listCompanyUser
-- name: 企业管理员
-  predicate: cust_person_info.user_type = 'admin' AND cust_person_info.enable = 'Y'
-  scope: 取管理员作为授权/推送操作人
-  evidence: code:PlatFormUserApplication#viewOperAuthFileUrl / CustFacade#getCompanyPersonByUserId
-- name: 经办人
-  predicate: cust_person_info.user_type = 'operator'
-  scope: 经办人冻结/解冻、运营人员同步的对象
-  evidence: code:PlatFormUserApplication#freezeOrThawOperatorUser / AssetOperatorSyncApplication#syncAssetOperator
-- name: 未冻结产品关联
+  scope: 查询企业联系人列表
+  evidence: code_path:PlatFormUserApplication.java:listCompanyUser
+- name: 未冻结用户关联
   predicate: sys_cust_user_rel.is_freeze = 'N'
-  scope: 按产品过滤经办人列表
-  evidence: code:PlatFormUserApplication#listCompanyUser(.filter(BooleanEnum.N.getDictKey().equals(one.getIsFreeze())))
-- name: 生效租户项目
-  predicate: tenant_project.enable = 'Y' AND tenant_project.project_status = 'EFFECTIVE'
-    AND tenant_project.platform_product_code = ?
-  scope: 平台运营方绑定项目
-  evidence: code:CustCompanyInfoApplication#bindProjectForplatformOperator
-- name: 生效租户
-  predicate: tenant_setting_config.enable = 'Y'（activeList 另含 status='Y' 判定）
-  scope: 租户列表/产品侧边栏查询
-  evidence: code:FbpSideBarQueryProcessor#queryTenant / PlatFormTenantProviderImpl#queryTenantInfoByAppId
-- name: 租户侧平台运营方
-  predicate: tenant_setting_config.platform_operator 包含 'TENANT'
-  scope: 判断是否需要校验租户自身运营方企业
-  evidence: code:PlatformComponentFacade#needPlatformOperatorCompany
-- name: 未迁移产品
-  predicate: tenant_product.is_migratory = 'Y' → 已迁移
-  scope: getIsMigratory 判定
-  evidence: code:PlatFormTenantProviderImpl#getIsMigratory
-- name: 运营中台最新通过记录
-  predicate: cust_change_record.cust_id = ? AND status = 'CUST_CHECK_PASS' ORDER BY
-    create_time DESC LIMIT 1
-  scope: 取变更渠道 oper_channel
-  evidence: code:SystemLinkFacade#getOperChannel
-- name: lc_sql_init_log 业务口径
-  predicate: 无可用业务口径（name 实测值 '2'/'3'/'a'/'b' 为脏数据，仅 4 行）
-  scope: 该表与本次「平台内部服务对接」主题无业务交集，不建立口径
-  evidence: db
+  scope: 查询有效用户关联关系
+  evidence: code_path:PlatFormUserApplication.java:listCompanyUser
+- name: 当前产品关联
+  predicate: sys_cust_user_rel.product_id = :productId
+  scope: 判断用户是否已关联指定产品
+  evidence: code_path:PlatFormUserApplication.java:addOrUpdateOperatorUser
+- name: 管理员用户
+  predicate: cust_person_info.user_type = 'admin'
+  scope: 识别企业管理员
+  evidence: code_path:CustFacade.java:getCustPerson
+- name: 经办人用户
+  predicate: cust_person_info.user_type = 'operator'
+  scope: 识别企业经办人
+  evidence: code_path:PlatFormUserApplication.java:pushToSysLink
 term_bridges:
+- term: 企业
+  aliases:
+  - 公司
+  - 客户
+  maps_to: cust_company_info
+  also_confused_with: []
+  adjudication: synonym
+  boundary: 企业主数据统一使用 cust_company_info 表
+- term: 联系人
+  aliases:
+  - 经办人
+  - 用户
+  maps_to: cust_person_info
+  also_confused_with:
+  - sys_user
+  adjudication: boundary
+  boundary: 联系人用于业务身份，sys_user 用于登录身份，通过 user_id 关联
+- term: 管理员
+  aliases:
+  - admin
+  maps_to: cust_person_info.user_type = 'admin'
+  also_confused_with: []
+  adjudication: synonym
+  boundary: 企业管理员角色
 - term: 经办人
   aliases:
   - operator
-  - 被授权人
-  - 子账号
-  - cust_person_info.user_type=operator
-  maps_to: cust_person_info.user_type = 'operator'（会话中以 UserTypeEnum.operator 判定）
-  also_confused_with:
-  - admin（客户管理员）
-  - guest（游客）
-  - sys_cust_user_rel 中 role_id 指向的普通角色
-  adjudication: boundary
-  boundary: admin 代表企业管理员、是授权/推送的操作主体；operator 为经办人，需先签署子账号授权书并可按产品冻结；guest 为游客，查询经办人时被显式过滤（filter
-    掉 guest 角色关联）。用户类型判定入口 SysProviderImpl#getUserType，取不到角色时降级为 guest。
-- term: 冻结
+  maps_to: cust_person_info.user_type = 'operator'
+  also_confused_with: []
+  adjudication: synonym
+  boundary: 企业经办人角色
+- term: 游客
   aliases:
-  - FREEZE
-  - is_freeze=Y
-  - freezeCustAdminUsers
-  - freezeCustAllUsers
-  - userType 冻结
-  maps_to: sys_cust_user_rel.is_freeze = 'Y'（企业-用户-角色-产品关联维度）
-  also_confused_with:
-  - cust_company_info.cust_status = 'FREEZE'（企业整体冻结）
-  - sys_user 登录态冻结（ISysUserProvider.freeze，代码中该分支已注释）
-  adjudication: boundary
-  boundary: 三者层级不同：企业冻结改 cust_status=FREEZE 并冻结管理员关联（freezeCustAdminUsers）；企业注销冻结全部用户（freezeCustAllUsers）；经办人冻结只改对应产品行的
-    is_freeze='Y'，且当该企业下所有关联都被冻结时把 cust_person_info.enable 置 'N'，解冻时恢复 'Y'。登录冻结代码当前被注释，不要据
-    is_freeze 推断登录态。
-- term: 建档状态
+  - guest
+  maps_to: cust_person_info.user_type = 'guest'
+  also_confused_with: []
+  adjudication: synonym
+  boundary: 企业游客角色
+- term: 租户
   aliases:
-  - cust_build_status
-  - 认证状态
-  - CustBuildStatusEnum
-  maps_to: cust_company_info.cust_build_status
-  also_confused_with:
-  - cust_company_info.cust_status（客户状态）
-  - cust_person_info.cust_build_status
-  - cust_company_info.check_status
-  adjudication: boundary
-  boundary: cust_build_status 描述认证/建档流程（INIT→CUST_CONFIRM_AWAIT→CUST_BUILDING→BUILD_SUCCESS/BUILD_FAIL，简易认证另有
-    AWAIT_CUST_CONFIRM），cust_status 描述客户生命周期（ADD/CHANGE/EFFECT/FREEZE/WRITEOFF）；两者在建档成功时联动（BUILD_SUCCESS
-    同时写 EFFECT），但企业冻结/注销只动 cust_status。
-- term: 认证方式
+  - 租户配置
+  maps_to: tenant_setting_config
+  also_confused_with: []
+  adjudication: synonym
+  boundary: 租户主数据
+- term: 产品
   aliases:
-  - identifyStyle
-  - SELF/INVITE/INVITE_AGW/SIMPLE
-  - 自主认证/邀请认证/简易认证
-  maps_to: cust_company_info.identify_style
+  - 平台产品
+  maps_to: platform_product
   also_confused_with:
-  - cust_build_type（PC_BUILD/AGW_BUILD）
-  - cust_from（平台邀请）
-  - cust_source（PLATFORM_PUSH）
-  - oper_channel（运营中台渠道）
+  - tenant_product
   adjudication: boundary
-  boundary: identify_style 决定提交后落到哪个建档状态与是否推运营中台；cust_build_type 只表达入口渠道；cust_from/cust_source
-    是来源展示字段；oper_channel 是运营中台侧渠道编码，勿混用。
-- term: 租户编码
-  aliases:
-  - dbTenantCode
-  - tenantFlgEn
-  - appTenantCode
-  - tenantFlag
-  - ssoTenantChanel
-  maps_to: tenant_setting_config.db_tenant_code（数据隔离键）
+  boundary: 平台产品定义为 platform_product，租户开通产品为 tenant_product
+- term: 项目
+  aliases: []
+  maps_to: tenant_project
   also_confused_with:
-  - sso_tenant_chanel（SSO 渠道，作为 sysChannel 用）
-  - tenant_flg_en / tenantFlag / appTenantCode（外部请求标识）
+  - cust_project_rel
   adjudication: boundary
-  boundary: dbTenantCode 是库内数据隔离与查询条件；ssoTenantChanel 是 SSO 渠道，对外请求运营中台时充当 sysChannel；appTenantCode/tenantFlag
-    是外部系统传入的租户标识，服务端需查回 dbTenantCode（getFirstByDbTenantCode），不存在时走假贴牌（TenantSettingConfigShareDO→主租户）。
-- term: 产品编码
-  aliases:
-  - productCode
-  - platformProductCode
-  - ProductCodeEnum
-  maps_to: platform_product.product_code / tenant_product.platform_product_code
-  also_confused_with:
-  - '''ACCOUNT_PRODUCT''（平台产品编码常量，侧边栏查询用）'
-  - ProductCodeEnum.ACFLOW/ORDER/ACCOUNTPRODUCT/RVSFACTOR/AMS
-  - Nacos 补充产品 supplement（默认 ORDER）
-  adjudication: boundary
-  boundary: ACCOUNT_PRODUCT 是平台侧产品编码，ACFLOW 等是业务系统产品码；ACFLOW 新增权限时会把 supplement 配置的其他产品一并加入、冻结/解冻时也按同一集合展开，因此权限判定不能只看单产品。
-- term: 企业角色
-  aliases:
-  - companyType
-  - custType
-  - roleType
-  - cust_company_type
-  maps_to: cust_company_info.cust_company_type（JSON 数组）/ cust_role_info.role_type
-    / cust_person_info.company_type
-  also_confused_with:
-  - sys_role（系统角色，如 guest、ROLE_CODE_NORMAL）
-  - userType（admin/operator/guest）
-  adjudication: boundary
-  boundary: 企业角色取值来自 CustCompanyTypeEnum（CORE/FINANCE/SUPPLIER/CORE_MANAGER/PROJECT_COMPANY/DEALER/PLATFORM_OPERATOR_COMPANY/CORPORATION_COMPANY），存
-    JSON 数组；sys_role 是用户系统角色，userType 是用户类型，三者维度不同。侧边栏只暴露其中 8 类。
-- term: 运营中台企业 id
-  aliases:
-  - platformCustId
-  - custEnterpriseId
-  - operPlatCustId
-  - platCustId
-  maps_to: cust_role_info.platform_cust_id（按企业 code + 角色一行）
-  also_confused_with:
-  - cust_company_info.id（产融内部企业 id）
-  - cust_person_info.id / user_id
-  - cust_enterprise_user_id
-  adjudication: boundary
-  boundary: 内部企业 id 与运营中台 id 必须通过 cust_role_info（或变更记录 oper_cust_info.custEnterpriseId）换算；获取
-    token 时若 cust_status=CHANGE 必须改从 cust_change_record 最新记录取 custEnterpriseId，否则用
-    cust_role_info.platform_cust_id。
-- term: 渠道
-  aliases:
-  - sysChannel
-  - channel
-  - operChannel
-  - targetSysChannel
-  - sourceSysChannel
-  maps_to: sso_tenant_chanel（来源渠道）/ 运营中台返回的 channel（运营渠道）
-  also_confused_with:
-  - tenant_setting_config.platform_secret_key（按 sysChannel 反查的秘钥）
-  - systemLinkFacade 的 commonChannel/editChannel 配置
-  adjudication: boundary
-  boundary: sourceSysChannel 表示发起系统（取自 ssoTenantChanel），targetSysChannel 表示目标互通系统；operChannel
-    是运营中台返回的获客渠道，当 identify_style=INVITE_AGW 且 channel==commonChannel 时回落变更记录的 oper_channel
-    或 editChannel。
-- term: 集团/成员
-  aliases:
-  - rootCustId
-  - parentCustId
-  - rootGroupId
-  - parentGroupId
-  - CustGroupRelDO
-  maps_to: cust_group_rel 的企业维度（cust/parent/root cust_id）与节点维度（parent/root group_id）
-  also_confused_with:
-  - cust_company_info.head_company（总部标识）
-  adjudication: boundary
-  boundary: cust_id/root_cust_id 是企业身份，parent_group_id/root_group_id 是树节点身份；同一企业在不同
-    root 集团下可有多行，逐行以 cust_type（角色）区分；CORPORATION_COMPANY 企业不可再被挂为他人子级。
-- term: 授权书/协议文件
-  aliases:
-  - operAuthAgreement
-  - filePath
-  - contractPath
-  - 子账号授权书
-  maps_to: cust_doc_facade 生成的合同文件路径，写入 PlatClientUserInfoDto.ext.filePath；模板取 tenant_setting_config.oper_auth_agreement
-  also_confused_with:
-  - CFCA 授权协议（PlatformConstant.DATA_SOURCE_CFCA_AUTH，businessType='cust_company_info'）
-  - AMS 外部 http 链接（需下载转存 COS）
-  adjudication: boundary
-  boundary: 子账号授权书用于新增/修改经办人（且仅 ACFLOW/ORDER/ACCOUNTPRODUCT 产品）；CFCA 授权协议用于开通电子签章场景；外部
-    http 链接先落产融桶再生成短链。
+  boundary: 租户项目为 tenant_project，客户关联项目为 cust_project_rel
 rules:
-- name: 新增经办人前必须签署子账号授权书
-  content: addBatchOperatorUser/updateOperUser 在写用户前先校验手机号重复与 checkAddPersonInfo，再调
-    createAndSignUserContract 生成并（在已开通 CA 时）在线签署子账号授权书，把 filePath 写入 ext；仅当 productCode
-    ∈ {ACFLOW, ORDER, ACCOUNTPRODUCT} 才生成合同，RVSFACTOR 不生成。
-  impact: 签署失败直接抛出并阻断经办人新增/修改；已开通 CA 的企业走 signOperuserAuthOnLine 真正签署，未开通只生成合同文件。
-  field_targets:
-  - cust_person_info.phone
-  - cust_person_info.user_name
-  - cust_company_info.need_register_ca
-  - cust_company_info.ca_register_status
-  - PlatClientUserInfoDto.ext.filePath
-  evidence: 'code:PlatFormUserApplication#addBatchOperatorUser / #createAndSignUserContract
-    / #checkAddPersonInfo'
-- name: 线上保理(RVSFACTOR)经办人识别以 SSO 为准且必须分配产品角色
-  content: productCode=RVSFACTOR 时，若 sso_user 已存在则强制把入参 userName 覆盖为 SSO 的 userName（因其
-    userName 恒传手机号）；且 productTypeCodeRoleList 为空时抛「请先分配产品角色！」。
-  impact: 避免同名/改名导致的历史用户错乱；未分配角色直接失败。
-  field_targets:
-  - sso_user.user_name
-  - PlatClientUserInfoDto.userName
-  - PPlatformLocalTypeUserDTO.productTypeCodeRoleList
-  evidence: 'code:PlatFormUserApplication#addOrUpdateOperatorUser / #updateOperUser'
-- name: 经办人冻结与联系人有效标志联动
-  content: 冻结：把该企业该用户在所有相关产品（ACFLOW 时会展开 supplement 配置的产品集合）上的 sys_cust_user_rel.is_freeze
-    置 'Y'；若该用户全部关联都被冻结，则把 cust_person_info.enable 置 'N'。解冻：is_freeze 置 'N'，若联系人曾被置
-    'N' 则恢复 'Y'；不支持的 operationType 抛异常。
-  impact: 决定经办人是否仍出现在企业联系人列表（查询条件含 enable='Y'）。
-  field_targets:
-  - sys_cust_user_rel.is_freeze
-  - cust_person_info.enable
-  - sys_user.update_time
-  evidence: code:PlatFormUserApplication#freezeOrThawOperatorUser
-- name: 企业冻结/解冻/注销联动用户
-  content: custStatusOperator 先校验 config.allowStatusList 是否包含当前 cust_status，不满足抛「当前操作不允许」；冻结=改
-    cust_status 并冻管理员关联（FREEZE），解冻=改回 EFFECT 并解冻管理员（UNFREEZE），注销=WRITEOFF 并冻结该企业全部用户（DISABLE），同时按企业角色逐个同步用户状态到业务系统。
-  impact: 企业级状态与用户级冻结强绑定，误操作会连带大面积用户被冻结。
-  field_targets:
-  - cust_company_info.cust_status
-  - cust_role_info.status
-  - sys_cust_user_rel.is_freeze
-  - cust_person_info.enable
-  evidence: 'code:CustCompanyInfoApplication#custStatusOperator / #freeze / #unfreeze
-    / #diable / #execCustUserStatusOperation / #performOperation'
-- name: 简易认证不支持开通电子签章
-  content: submitForSimpleAuth 中若历史/运营侧标记 need_register_ca='Y'，调用 CustCompanyCaPolicy.enforceMustNotOpenCa
-    强制校正为不开通，并把 need/ca/bs 相关字段落库修正。
-  impact: 简易建档企业不会走 CA 开通与协议同步（资金方例外分支也被该校正约束）。
-  field_targets:
-  - cust_company_info.need_register_ca
-  - cust_company_info.ca_register_status
-  - cust_company_info.need_register_bs
-  - cust_company_info.bs_register_status
-  evidence: code:CustCompanyInfoApplication#submitForSimpleAuth
-- name: 简易认证资金方直接生效
-  content: companyType=FINANCE 时，简易认证无需运营中台审批，直接 custCompanyInfoDao.updateStatus(custId,
-    BUILD_SUCCESS, EFFECT)，直签授权协议，推送企业数据到中台并初始化根组织。
-  impact: 资金方建档路径与普通企业不同，不产生运营中台审核在途。
+- name: 企业建档提交状态变更
+  content: 根据认证方式(identifyStyle)决定提交后的企业建档状态：邀请认证-平台录入进入CUST_BUILDING；邀请认证-客户录入/注册认证进入CUST_CONFIRM_AWAIT；简易认证进入AWAIT_CUST_CONFIRM；资金方简易认证直接进入BUILD_SUCCESS。
+  impact: 影响企业认证流程和后续权限开通
   field_targets:
   - cust_company_info.cust_build_status
-  - cust_company_info.cust_status
-  evidence: 'code:CustCompanyInfoApplication#submitForSimpleAuth(FINANCE 分支) / #confirmCustInfoForSimpleAuth'
-- name: 空字段补全只填空不覆盖
-  content: handleEmptyFieldsUpdate 依次处理 cust_person_info、sys_user、sso_user：仅当目标字段为空且入参非空时才更新
-    name/user_name/email，单条失败只 warn 不阻断主流程；cust_person_info 更新使用加密手机号匹配。
-  impact: 保证既有数据不被覆盖，同时让上游（AMS）补全的历史缺失字段落库；异常不外抛。
+  evidence: code_path:CustCompanyInfoApplication.java:getCustBuildStatus + submitCust
+    + submitForSimpleAuth
+- name: 企业冻结级联冻结管理员
+  content: 冻结企业时同时调用 freezeCustAdminUsers 冻结该企业下的所有管理员用户；解冻企业时同时解冻管理员。
+  impact: 企业冻结后管理员无法登录
   field_targets:
-  - cust_person_info.name
-  - cust_person_info.user_name
-  - cust_person_info.email
-  - sys_user.name
-  - sys_user.user_name
-  - sys_user.email
+  - sys_cust_user_rel.is_freeze
+  - sys_user.status
+  evidence: code_path:CustCompanyInfoApplication.java:freeze -> freezeCustAdminUsers
+- name: 经办人添加校验重复
+  content: 添加经办人时校验手机号在企业产品下是否已存在，用户名是否已存在，重复则报错。
+  impact: 防止重复添加经办人
+  field_targets:
+  - sys_cust_user_rel
   - sso_user.user_name
-  evidence: 'code:PlatFormUserApplication#handleEmptyFieldsUpdate / #updateCustPersonInfoEmptyFields
-    / #updateSysUserEmptyFields / #updateSsoUserEmptyFields'
-- name: 业务邮箱变更回写登录邮箱的条件
-  content: 仅当「旧业务邮箱 == 当前登录邮箱」或「该 userId 只关联 1 个企业」时，才把新业务邮箱同步为 sys_user 登录邮箱（sysProvider.updateEmail）；否则仅记日志不同步。
-  impact: 多企业用户的业务邮箱变更不会误改登录邮箱。
+  evidence: code_path:PlatFormUserApplication.java:checkAddPersonInfo
+- name: 经办人添加签署授权书
+  content: 添加经办人时根据产品编码(ACFLOW/ORDER/ACCOUNTPRODUCT)创建并签署子账号授权书，并将文件路径写入ext字段。
+  impact: 满足合规要求
   field_targets:
-  - cust_person_info.email
-  - sys_user.email
-  evidence: 'code:PlatFormUserApplication#updateOperUser → #updateUserLoginEmail'
-- name: 资产审核运营人员同步限供应商且只补空/离职
-  content: syncAssetOperator 仅当 companyType=SUPPLIER 才执行；目标运营人员必须存在于 operCustFacade.getOperatorList()；仅对
-    operator_id 为空或原运营人员已离职（不在有效集合中）的联系人更新 operator_id/operator_realname/operator，其余跳过并计数；更新后异步推送运营人员（custPersonSyncApplication.asyncPushOperator2Oper）并写变更记录（ASSET_AUDIT_SYNC）。
-  impact: 非供应商企业返回「企业角色不适用」；已占用运营人员不被覆盖，返回体含 updateCount/skipCount。
+  - cust_person_info.ext
+  evidence: code_path:PlatFormUserApplication.java:createAndSignUserContract
+- name: 企业删除级联删除
+  content: 删除企业时级联删除联系人、关联项目、开通产品、企业关联用户，若用户无其他未冻结关联则删除系统用户。
+  impact: 保证数据一致性
+  field_targets:
+  - cust_person_info
+  - cust_project_rel
+  - cust_auth_application
+  - sys_cust_user_rel
+  evidence: code_path:CustCompanyInfoApplication.java:deleteCustInfo
+- name: 资产审核运营人员同步更新规则
+  content: 仅当企业角色为SUPPLIER时，将企业下联系人中运营人员为空或已离职的更新为新的运营人员，并记录变更。
+  impact: 资产审核运营人员分配
   field_targets:
   - cust_person_info.operator_id
   - cust_person_info.operator_realname
   - cust_person_info.operator
-  - cust_person_info.ref_cust_company_info
-  - cust_person_info.enable
-  evidence: code:AssetOperatorSyncApplication#syncAssetOperator
-- name: AMS 新增企业联系人加锁防并发
-  content: addEnterpriseContact 以 'PPB:ADDENTERPRISECONTACT:' + companyName + '-'
-    + bizLabel 为 key 获取 Redis 锁（超时 60000ms，持有 120000ms），失败抛「获取锁失败，请稍后重试」，异常时回写 code=500/resultCode=04
-    并 final 内用 Lua 释放锁。
-  impact: 并发同名+同品牌联系人请求串行化；异常不中断上游而是以响应码返回。
-  field_targets:
-  - cust_company_info.name
-  evidence: code:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/client/cust/PlatFormAmsProviderImpl.java#addEnterpriseContact
-- name: Provider 层跨租户查询开关
-  content: PlatFormUserProviderImpl 所有方法进入应用层前统一 MetaDataThreadLocalConfig.setDbTenantCode("all")；PlatFormRvsApplication
-    与 CustGroupRelApplication 同样先置 "all"，之后按需按企业 dbTenantCode 再过滤。
-  impact: 内部服务对接默认跨租户可见，租户过滤必须显式加条件，否则会读到其他租户数据。
-  field_targets:
-  - cust_company_info.db_tenant_code
-  - cust_person_info.db_tenant_code
-  evidence: code:PlatFormUserProviderImpl（全部方法）/ PlatFormRvsApplication#getAndCreateTempCompany
-- name: RVS 临时企业初始化
-  content: getAndCreateTempCompany 按 name + certificationNo + enable='Y' + dbTenantCode
-    查企业，查不到则新建：code=uuid、custBuildStatus=INIT、custStatus=ADD、custCompanyType='[]'；查到则取第一条返回。
-  impact: RVS 侧可安全幂等调用；新建企业处于初始态，后续必须走建档流程才能生效。
-  field_targets:
-  - cust_company_info.code
-  - cust_company_info.name
-  - cust_company_info.certification_no
-  - cust_company_info.enable
-  - cust_company_info.cust_build_status
-  - cust_company_info.cust_status
-  - cust_company_info.cust_company_type
-  evidence: code:PlatFormRvsApplication#getAndCreateTempCompany
-- name: CA 状态对外返回的双重校验
-  content: queryCompanyByCustId 先取 cust_company_info.ca_register_status，再调 caCertificationPreCheckApplication.caRegisterStatusY(id)；默认返回
-    'N'，bflag 为真则 'Y'，但若 bflag 为真而库中 ca_register_status='N' 则回落 'N'。
-  impact: 对外 CA 开通状态以「实时校验 + 库值」双重收敛，避免状态超前暴露。
-  field_targets:
-  - cust_company_info.ca_register_status
-  evidence: code:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/client/cust/PlatFormCustProviderImpl.java#queryCompanyByCustId
-- name: 运营中台同步鉴权
-  content: getToken 用 md5(getSecretKey(sysChannel) + sysChannel + loginName) 作 sysSecret，秘钥取自
-    tenant_setting_config.platform_secret_key（按 sso_tenant_chanel 反查，缺失抛「租户配置秘钥信息不存在」）；返回
-    code!='200' 抛「请求token返回错误」。
-  impact: 所有跨系统同步（syncOperation/getAuthUrl/queryAuthPass）依赖该 token，租户配置缺失会整体不可用。
-  field_targets:
-  - tenant_setting_config.sso_tenant_chanel
-  - tenant_setting_config.platform_secret_key
-  evidence: 'code:SystemLinkFacade#getToken / #getSecretKey'
-- name: 互通产品授权角色区分
-  content: isOperator=true 时 role 取 OPERATOR_PER，并在请求中额外带 companyUserLoginName（企业管理员手机号）与
-    cellphone（当前经办人）；否则 role=AUTH_PER。管理员缺失抛「公司管理员信息不存在」。
-  impact: 经办人授权链接必须能定位到管理员作为授权主体。
-  field_targets:
-  - cust_person_info.phone
-  - cust_person_info.user_type
-  - cust_person_info.company_type
-  evidence: 'code:SystemLinkFacade#getAuthUrl / #getCompanyAuth / #queryAuthPass /
-    #syncAdminUserBaseInfo'
-- name: 集团成员新增的合法性约束
-  content: addExistSubCustGroupRel 前置校验 custType/dbTenantCode/parentCustId/parentGroupId/rootCustId/rootGroupId
-    非空、企业存在、企业若含 CORPORATION_COMPANY 则拒绝（「该企业已是集团公司，无法设置为其他公司的子级企业」）、同企业+同父+同根+同角色重复则拒绝；建档成功才发代办。
-  impact: 保证集团树结构唯一且层级合法。
-  field_targets:
-  - cust_group_rel.cust_id
-  - cust_group_rel.parent_cust_id
-  - cust_group_rel.root_cust_id
-  - cust_group_rel.cust_type
-  - cust_group_rel.status
-  - cust_company_info.cust_company_type
-  evidence: 'code:CustGroupRelApplication#addExistSubCustGroupRel / #addExistRootGroupRel
-    / #sendCustGroupRelNotice'
-- name: 批量导入建档的租户/角色/项目/证件号校验
-  content: importCustCompany 逐行校验：租户名必须存在（否则「租户【X】不存在」）、客户角色必须匹配 CustCompanyTypeEnum（否则「客户角色【X】不存在」）、项目必须在该租户下（「项目【X】不存在或不在当前租户下」）、AGW_BUILD
-    要求管理员邮箱非空、同租户下统一社会信用代码已存在则「录入统一社会信用代码已存在」；有错即整体返回不落库。
-  impact: 批量导入为全或无模式，避免半成功数据。
-  field_targets:
-  - cust_company_info.certification_no
-  - cust_company_info.cust_company_type
-  - cust_company_info.db_tenant_code
-  - cust_person_info.email
-  - cust_project_rel.project_id
-  evidence: 'code:CustCompanyInfoApplication#importCustCompany / #createCustCompany
-    / #batchCreateAndSubmitForInputImport'
-- name: 子账号授权书模板兜底
-  content: queryOperAuthFileUrl 按 dbTenantCode 取租户，租户为空抛「请请求正确的租户code」；oper_auth_agreement
-    为空时用 Nacos 的 operAuthAgreement（默认 DT_202507181127）兜底；授权书短链用 AES2Util(AES_PWD)
-    加密参数拼 H5 域后生成短链。
-  impact: 模板未配置不会失败，但会使用平台默认模板。
-  field_targets:
-  - tenant_setting_config.db_tenant_code
-  - tenant_setting_config.oper_auth_agreement
-  evidence: 'code:PlatFormUserApplication#queryOperAuthFileUrl / #getUrlAuthAgreementInfo'
+  evidence: code_path:AssetOperatorSyncApplication.java:syncAssetOperator
 reqdoc_claims: []
+enum_audit:
+- field: cust_company_info.cust_build_status
+  value: INIT
+  java_name: CustBuildStatusEnum.INIT
+  stored_as: getDictKey()
+  label: 初始化
+  verdict: confirm
+  evidence: PlatFormRvsApplication.java:getAndCreateTempCompany
+- field: cust_company_info.cust_status
+  value: ADD
+  java_name: CustStatusEnum.ADD
+  stored_as: getDictKey()
+  label: 新增
+  verdict: confirm
+  evidence: PlatFormRvsApplication.java:getAndCreateTempCompany
+- field: cust_person_info.user_type
+  value: admin
+  java_name: UserTypeEnum.admin
+  stored_as: getDictKey()
+  label: 管理员
+  verdict: confirm
+  evidence: CustFacade.java:getCustPerson
+- field: cust_person_info.user_type
+  value: operator
+  java_name: UserTypeEnum.operator
+  stored_as: getDictKey()
+  label: 经办人
+  verdict: confirm
+  evidence: PlatFormUserApplication.java:pushToSysLink
+- field: cust_person_info.user_type
+  value: guest
+  java_name: UserTypeEnum.guest
+  stored_as: getDictKey()
+  label: 游客
+  verdict: confirm
+  evidence: SysRoleFacade.java:getUserType
+- field: sys_cust_user_rel.is_freeze
+  value: Y
+  java_name: 字面量
+  stored_as: 字面量
+  label: 冻结
+  verdict: confirm
+  evidence: PlatFormUserApplication.java:freezeOrThawOperatorUser
+- field: sys_cust_user_rel.is_freeze
+  value: N
+  java_name: 字面量
+  stored_as: 字面量
+  label: 未冻结
+  verdict: confirm
+  evidence: PlatFormUserApplication.java:freezeOrThawOperatorUser
+relation_audit:
+- left: cust_company_info
+  right: cust_person_info
+  kind: 1:N
+  verdict: confirm
+  evidence: CustPersonInfoDO.refCustCompanyInfo 关联 CustCompanyInfoDO.code
+  note: 通过 ref_cust_company_info 关联
+- left: cust_company_info
+  right: cust_role_info
+  kind: 1:N
+  verdict: confirm
+  evidence: CustRoleInfoDO.refCustCompanyInfo 关联 CustCompanyInfoDO.code
+  note: 通过 ref_cust_company_info 关联
+- left: cust_company_info
+  right: cust_project_rel
+  kind: 1:N
+  verdict: confirm
+  evidence: CustProjectRelDO.refCustProjectRelCustCompanyInfo 关联 CustCompanyInfoDO.code
+  note: 通过 ref_cust_project_rel_cust_company_info 关联
+- left: cust_company_info
+  right: cust_auth_application
+  kind: 1:N
+  verdict: confirm
+  evidence: CustAuthApplicationDO.refCustCompanyInfo 关联 CustCompanyInfoDO.code
+  note: 通过 ref_cust_company_info 关联
+- left: sys_user
+  right: sys_cust_user_rel
+  kind: 1:N
+  verdict: confirm
+  evidence: SysCustUserRelDO.userId 关联 SysUserDO.id
+  note: 通过 user_id 关联
+- left: tenant_setting_config
+  right: cust_company_info
+  kind: 1:N
+  verdict: confirm
+  evidence: 通过 db_tenant_code 关联
+  note: 租户与企业的归属关系
+- left: tenant_project
+  right: cust_project_rel
+  kind: 1:N
+  verdict: derived
+  evidence: CustProjectRelDO.projectId 关联 TenantProjectDO.id，代码中作为字符串存储
+  note: 非外键约束，通过业务字段关联
+- left: platform_product
+  right: tenant_product
+  kind: 1:N
+  verdict: confirm
+  evidence: TenantProductDO.platformProductCode 关联 PlatformProductDO.productCode
+  note: 通过平台产品编码关联
+- left: tenant_product
+  right: cust_auth_application
+  kind: 1:N
+  verdict: derived
+  evidence: 通过 platform_product_code 关联
+  note: 非直接外键，通过产品编码关联

@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 平台运营方取值口径（PLATFORM / TENANT）
-page_key: caliber.platform_operator_value
+page_key: platform_operator_value
 domain: 平台内部服务对接
 status: draft
 aliases:
@@ -13,6 +13,7 @@ scope:
 sources:
   - semantic:field_semantics[tenant_setting_config.platform_operator]
 contract_version: "0.1"
+belong: calibers
 ---
 
 tenant_setting_config.platform_operator 以 JSON 数组存放平台运营方，取值 PLATFORM（联易融）或 TENANT（租户自身）。

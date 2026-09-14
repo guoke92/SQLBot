@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 即将到期
-page_key: calibers/expiring_soon
+page_key: expiring_soon
 domain: CA证书收费
 status: draft
 aliases: [7天内到期, renew_remind_sent=N 待提醒]
@@ -11,6 +11,7 @@ scope:
 sources:
   - db:ca_fee_company
 contract_version: "0.1"
+belong: calibers
 ---
 
 # 即将到期

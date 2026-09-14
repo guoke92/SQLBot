@@ -1,4 +1,4 @@
-schema_version: '1.0'
+schema_version: '1.1'
 repository: pplatform-web
 relationships:
 - left_table: authorization_agreement
@@ -6,6 +6,30 @@ relationships:
   right_table: cust_company_info
   right_field: id
   evidence: write-flow:CustAuthAgreementDomainServiceTest.java
+- left_table: ca_fee_company
+  left_field: certification_no
+  right_table: ca_fee_order
+  right_field: certification_no
+  kind: SHARED_KEY
+  evidence: java-eq-same:CaFeeLedgerQueryService.java
+- left_table: ca_fee_company
+  left_field: company_name
+  right_table: ca_fee_order
+  right_field: company_name
+  kind: SHARED_KEY
+  evidence: copy:CaFeeOrderService.java
+- left_table: ca_fee_company
+  left_field: service_end
+  right_table: ca_fee_order
+  right_field: service_end
+  kind: SHARED_KEY
+  evidence: copy:CaFeeOrderService.java
+- left_table: ca_fee_company
+  left_field: service_start
+  right_table: ca_fee_order
+  right_field: service_start
+  kind: SHARED_KEY
+  evidence: copy:CaFeeOrderService.java
 - left_table: ca_fee_company
   left_field: source_project_id
   right_table: ca_fee_order
@@ -17,6 +41,60 @@ relationships:
   right_field: id
   evidence: write-flow:CaFeeProjectConfigService.java
 - left_table: cust_account_info
+  left_field: account_name
+  right_table: cust_person_info
+  right_field: account_name
+  kind: SHARED_KEY
+  evidence: copy:CustPersonController.java
+- left_table: cust_account_info
+  left_field: account_no
+  right_table: cust_person_info
+  right_field: account_no
+  kind: SHARED_KEY
+  evidence: copy:CustPersonController.java
+- left_table: cust_account_info
+  left_field: bank_branch_name
+  right_table: cust_person_info
+  right_field: bank_branch_name
+  kind: SHARED_KEY
+  evidence: copy:CustPersonController.java
+- left_table: cust_account_info
+  left_field: bank_city_code
+  right_table: cust_person_info
+  right_field: bank_city_code
+  kind: SHARED_KEY
+  evidence: copy:CustPersonController.java
+- left_table: cust_account_info
+  left_field: bank_code
+  right_table: cust_person_info
+  right_field: bank_code
+  kind: SHARED_KEY
+  evidence: copy:CustPersonController.java
+- left_table: cust_account_info
+  left_field: bank_code_name
+  right_table: cust_person_info
+  right_field: bank_code_name
+  kind: SHARED_KEY
+  evidence: copy:CustPersonController.java
+- left_table: cust_account_info
+  left_field: bank_no
+  right_table: cust_person_info
+  right_field: bank_no
+  kind: SHARED_KEY
+  evidence: copy:CustPersonController.java
+- left_table: cust_account_info
+  left_field: bank_province_code
+  right_table: cust_person_info
+  right_field: bank_province_code
+  kind: SHARED_KEY
+  evidence: copy:CustPersonController.java
+- left_table: cust_account_info
+  left_field: bank_province_name
+  right_table: cust_person_info
+  right_field: bank_province_name
+  kind: SHARED_KEY
+  evidence: copy:CustPersonController.java
+- left_table: cust_account_info
   left_field: cust_id
   right_table: cust_company_info
   right_field: id
@@ -26,11 +104,23 @@ relationships:
   right_table: cust_company_info
   right_field: code
   evidence: ref-convention:CustAccountInfoDO.java
+- left_table: cust_account_info
+  left_field: ref_cust_company_info
+  right_table: cust_person_info
+  right_field: ref_cust_company_info
+  kind: SHARED_KEY
+  evidence: copy:CustPersonController.java
 - left_table: cust_auth_application
   left_field: main_data_id
   right_table: cust_company_info
   right_field: id
   evidence: write-flow:CustProductDomainService.java
+- left_table: cust_auth_application
+  left_field: platform_product_code
+  right_table: tenant_product
+  right_field: platform_product_code
+  kind: SHARED_KEY
+  evidence: copy:CustCompanyInfoApplication.java
 - left_table: cust_auth_application
   left_field: ref_cust_auth_application_tenant_product
   right_table: tenant_product
@@ -82,10 +172,22 @@ relationships:
   right_field: code
   evidence: write-flow:CustSyncEventProcessor.java
 - left_table: cust_company_info
+  left_field: cust_build_status
+  right_table: cust_person_info
+  right_field: cust_build_status
+  kind: SHARED_KEY
+  evidence: copy:CustCompanyIfoEnchanceService.java
+- left_table: cust_company_info
   left_field: person_id
   right_table: cust_person_info
   right_field: id
   evidence: write-flow:CustCompanyInfoApplication.java
+- left_table: cust_customized_product
+  left_field: logo_icon_url
+  right_table: platform_product
+  right_field: logo_icon_url
+  kind: SHARED_KEY
+  evidence: copy:CustGeneralProductApplication.java
 - left_table: cust_customized_product
   left_field: ref_cust_customized_product_cust_company_info
   right_table: cust_company_info
@@ -147,6 +249,36 @@ relationships:
   right_field: id
   evidence: write-flow:CustProjectRelEnhanceService.java
 - left_table: cust_project_rel
+  left_field: channel_code
+  right_table: tenant_project
+  right_field: channel_code
+  kind: SHARED_KEY
+  evidence: copy:CustCompanyInfoApplication.java
+- left_table: cust_project_rel
+  left_field: company_type
+  right_table: cust_person_info
+  right_field: company_type
+  kind: SHARED_KEY
+  evidence: copy:PlatFormMigratoryApplication.java
+- left_table: cust_project_rel
+  left_field: op_contact_a
+  right_table: tenant_project
+  right_field: op_contact_a
+  kind: SHARED_KEY
+  evidence: copy:TenantProjectApplication.java
+- left_table: cust_project_rel
+  left_field: op_contact_a_group
+  right_table: tenant_project
+  right_field: op_contact_a_group
+  kind: SHARED_KEY
+  evidence: copy:TenantProjectApplication.java
+- left_table: cust_project_rel
+  left_field: op_contact_b
+  right_table: tenant_project
+  right_field: op_contact_b
+  kind: SHARED_KEY
+  evidence: copy:TenantProjectApplication.java
+- left_table: cust_project_rel
   left_field: product_id
   right_table: tenant_product
   right_field: id
@@ -201,6 +333,42 @@ relationships:
   right_table: tenant_project
   right_field: ref_tenant_project_platform_product
   evidence: write-flow:CustCompanyInfoApplication.java
+- left_table: cust_project_rel
+  left_field: risk_control_contact_a
+  right_table: tenant_project
+  right_field: risk_control_contact_a
+  kind: SHARED_KEY
+  evidence: copy:TenantProjectApplication.java
+- left_table: cust_project_rel
+  left_field: risk_control_contact_a_group
+  right_table: tenant_project
+  right_field: risk_control_contact_a_group
+  kind: SHARED_KEY
+  evidence: copy:TenantProjectApplication.java
+- left_table: cust_project_rel
+  left_field: risk_control_contact_b
+  right_table: tenant_project
+  right_field: risk_control_contact_b
+  kind: SHARED_KEY
+  evidence: copy:TenantProjectApplication.java
+- left_table: cust_project_rel
+  left_field: tenant_flg_en
+  right_table: tenant_project
+  right_field: tenant_flg_en
+  kind: SHARED_KEY
+  evidence: copy:CustCompanyInfoApplication.java
+- left_table: cust_project_rel
+  left_field: verification_contact
+  right_table: tenant_project
+  right_field: verification_contact
+  kind: SHARED_KEY
+  evidence: copy:TenantProjectApplication.java
+- left_table: cust_project_rel
+  left_field: verification_contact_group
+  right_table: tenant_project
+  right_field: verification_contact_group
+  kind: SHARED_KEY
+  evidence: copy:TenantProjectApplication.java
 - left_table: cust_role_info
   left_field: ref_cust_auth_application
   right_table: cust_auth_application
@@ -216,6 +384,12 @@ relationships:
   right_table: cust_change_record
   right_field: code
   evidence: java-eq:CustSyncEventProcessor.java
+- left_table: cust_role_info
+  left_field: ref_cust_company_info
+  right_table: cust_person_info
+  right_field: ref_cust_company_info
+  kind: SHARED_KEY
+  evidence: java-eq-same:AbstractSmsMessageService.java
 - left_table: cust_shareholder_info
   left_field: ref_cust_company_info
   right_table: cust_company_info
@@ -226,16 +400,82 @@ relationships:
   right_table: cust_company_info
   right_field: id
   evidence: write-flow:SubmitCustInfoEnhanceService.java
+- left_table: cust_user_rel
+  left_field: user_type
+  right_table: cust_person_info
+  right_field: user_type
+  kind: SHARED_KEY
+  evidence: copy:SubmitCustInfoEnhanceService.java
 - left_table: funding_rule_detail
   left_field: rule_info_id
   right_table: funding_rule_info
   right_field: id
   evidence: java-eq:FundRuleInfoApplication.java
+- left_table: funding_rule_detail
+  left_field: rule_layer
+  right_table: funding_rule_front_cfg
+  right_field: rule_layer
+  kind: SHARED_KEY
+  evidence: copy:FundRuleInfoApplication.java
+- left_table: migratory_user_record
+  left_field: user_id
+  right_table: cust_person_info
+  right_field: user_id
+  kind: SHARED_KEY
+  evidence: copy:PlatFormMigratoryApplication.java
+- left_table: tenant_interworking_product
+  left_field: credit_measures
+  right_table: platform_product
+  right_field: credit_measures
+  kind: SHARED_KEY
+  evidence: copy:TenantInterworkingProductDomainService.java
+- left_table: tenant_interworking_product
+  left_field: customer_group
+  right_table: platform_product
+  right_field: customer_group
+  kind: SHARED_KEY
+  evidence: copy:TenantInterworkingProductDomainService.java
+- left_table: tenant_interworking_product
+  left_field: max_financing_amount
+  right_table: platform_product
+  right_field: max_financing_amount
+  kind: SHARED_KEY
+  evidence: copy:TenantInterworkingProductDomainService.java
+- left_table: tenant_interworking_product
+  left_field: max_financing_amount_flag
+  right_table: platform_product
+  right_field: max_financing_amount_flag
+  kind: SHARED_KEY
+  evidence: copy:TenantInterworkingProductDomainService.java
+- left_table: tenant_interworking_product
+  left_field: max_financing_period
+  right_table: platform_product
+  right_field: max_financing_period
+  kind: SHARED_KEY
+  evidence: copy:TenantInterworkingProductDomainService.java
 - left_table: tenant_interworking_product
   left_field: platform_product_code
   right_table: platform_product
   right_field: product_code
   evidence: write-flow:TenantInterworkingProductDomainService.java
+- left_table: tenant_interworking_product
+  left_field: product_cate
+  right_table: platform_product
+  right_field: product_cate
+  kind: SHARED_KEY
+  evidence: copy:TenantInterworkingProductDomainService.java
+- left_table: tenant_interworking_product
+  left_field: product_description
+  right_table: platform_product
+  right_field: product_description
+  kind: SHARED_KEY
+  evidence: copy:TenantInterworkingProductDomainService.java
+- left_table: tenant_interworking_product
+  left_field: product_summary
+  right_table: platform_product
+  right_field: product_summary
+  kind: SHARED_KEY
+  evidence: copy:TenantInterworkingProductDomainService.java
 - left_table: tenant_interworking_product
   left_field: ref_tenant_interworking_product_platform_product
   right_table: platform_product
@@ -246,6 +486,12 @@ relationships:
   right_table: tenant_setting_config
   right_field: code
   evidence: ref-convention:TenantInterworkingProductDO.java
+- left_table: tenant_interworking_project
+  left_field: platform_product_code
+  right_table: tenant_interworking_product
+  right_field: platform_product_code
+  kind: SHARED_KEY
+  evidence: copy:TenantInterworkingProjectApplicationService.java
 - left_table: tenant_interworking_project
   left_field: product_id
   right_table: tenant_interworking_product
@@ -267,10 +513,58 @@ relationships:
   right_field: ref_tenant_interworking_product_tenant_setting_config
   evidence: write-flow:TenantInterworkingProjectApplicationService.java
 - left_table: tenant_product
+  left_field: credit_measures
+  right_table: platform_product
+  right_field: credit_measures
+  kind: SHARED_KEY
+  evidence: copy:TenantProductDomainService.java
+- left_table: tenant_product
+  left_field: customer_group
+  right_table: platform_product
+  right_field: customer_group
+  kind: SHARED_KEY
+  evidence: copy:TenantProductDomainService.java
+- left_table: tenant_product
+  left_field: max_financing_amount
+  right_table: platform_product
+  right_field: max_financing_amount
+  kind: SHARED_KEY
+  evidence: copy:TenantProductDomainService.java
+- left_table: tenant_product
+  left_field: max_financing_amount_flag
+  right_table: platform_product
+  right_field: max_financing_amount_flag
+  kind: SHARED_KEY
+  evidence: copy:TenantProductDomainService.java
+- left_table: tenant_product
+  left_field: max_financing_period
+  right_table: platform_product
+  right_field: max_financing_period
+  kind: SHARED_KEY
+  evidence: copy:TenantProductDomainService.java
+- left_table: tenant_product
   left_field: platform_product_code
   right_table: platform_product
   right_field: product_code
   evidence: write-flow:TenantProductDomainService.java
+- left_table: tenant_product
+  left_field: product_cate
+  right_table: platform_product
+  right_field: product_cate
+  kind: SHARED_KEY
+  evidence: copy:TenantProductDomainService.java
+- left_table: tenant_product
+  left_field: product_description
+  right_table: platform_product
+  right_field: product_description
+  kind: SHARED_KEY
+  evidence: copy:TenantProductDomainService.java
+- left_table: tenant_product
+  left_field: product_summary
+  right_table: platform_product
+  right_field: product_summary
+  kind: SHARED_KEY
+  evidence: copy:TenantProductDomainService.java
 - left_table: tenant_product
   left_field: ref_tenant_product_project_code
   right_table: platform_product
@@ -291,6 +585,12 @@ relationships:
   right_table: tenant_product
   right_field: code
   evidence: ref-convention:TenantProductExtFieldFormDO.java
+- left_table: tenant_project
+  left_field: platform_product_code
+  right_table: tenant_product
+  right_field: platform_product_code
+  kind: SHARED_KEY
+  evidence: copy:TenantProjectDomainService.java
 - left_table: tenant_project
   left_field: product_id
   right_table: tenant_product
@@ -332,6 +632,12 @@ relationships:
   right_field: code
   evidence: ref-convention:TenantProjectApprovalDO.java
 - left_table: tenant_project_approval_business_info
+  left_field: project_config_version
+  right_table: tenant_project
+  right_field: project_config_version
+  kind: SHARED_KEY
+  evidence: copy:ProjectBusinessConfigApplication.java
+- left_table: tenant_project_approval_business_info
   left_field: ref_tenant_project_approval_business_info_project_approval
   right_table: tenant_project_approval
   right_field: code
@@ -362,6 +668,12 @@ relationships:
   right_field: code
   evidence: write-flow:ProjectApprovalDeskApplication.java
 - left_table: tenant_project_approval_flow_node
+  left_field: node_code
+  right_table: tenant_project_approval_flow
+  right_field: node_code
+  kind: SHARED_KEY
+  evidence: java-eq-same:ProjectApprovalApplication.java
+- left_table: tenant_project_approval_flow_node
   left_field: ref_tenant_project_approval_flow_node_project_approval
   right_table: tenant_project_approval
   right_field: code
@@ -371,3 +683,27 @@ relationships:
   right_table: tenant_project_approval_flow
   right_field: code
   evidence: java-eq:ProjectApprovalApplication.java
+- left_table: wec_project_operation_rel
+  left_field: company_type
+  right_table: cust_company_info
+  right_field: company_type
+  kind: SHARED_KEY
+  evidence: copy:ProjectReportApplication.java
+- left_table: wechat_project_approval_field_history
+  left_field: capital_org_full_name
+  right_table: wechat_project_approval_apply
+  right_field: capital_org_full_name
+  kind: SHARED_KEY
+  evidence: copy:ProjectStatisticsApplication.java
+- left_table: wechat_project_approval_field_history
+  left_field: project_approval_name
+  right_table: wechat_project_approval_apply
+  right_field: project_approval_name
+  kind: SHARED_KEY
+  evidence: copy:ProjectStatisticsApplication.java
+- left_table: wechat_project_approval_field_history
+  left_field: sp_no
+  right_table: wechat_project_approval_apply
+  right_field: sp_no
+  kind: SHARED_KEY
+  evidence: copy:ProjectStatisticsApplication.java

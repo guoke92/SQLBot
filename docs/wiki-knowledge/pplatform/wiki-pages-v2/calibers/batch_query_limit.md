@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 批量查询条数上限口径
-page_key: calibers/batch_query_limit
+page_key: batch_query_limit
 domain: 外部渠道与银行对接
 status: draft
 aliases:
@@ -14,6 +14,7 @@ scope:
 sources:
   - code:CustAccessApplication#batchQuery
 contract_version: "0.1"
+belong: calibers
 ---
 
 # 批量查询条数上限口径

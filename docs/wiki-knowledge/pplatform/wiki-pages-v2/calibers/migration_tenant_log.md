@@ -11,6 +11,7 @@ scope:
 sources:
   - db
 contract_version: "0.1"
+belong: calibers
 ---
 
 租户迁移监控的最小集合：在 [[tenant_migarory_log]] 中，租户迁移既可能以操作类型 `migratoryTenant` 记录，也可能以事件名称“迁移租户”记录，因此口径必须双字段取并。

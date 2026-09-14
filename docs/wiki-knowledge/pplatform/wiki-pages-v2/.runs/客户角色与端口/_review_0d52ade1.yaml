@@ -1,0 +1,7 @@
+body: '`enum_audit` 中 `cust_role_info.role_type` 的证据在分析里被截断，仅列出 CORE/SUPPLIER/FINANCE
+  三项，且 java_name 为空、无代码常量类来源。若写值点来自 `platform_product_cust_role.company_type_code`
+  的完整词表（含 DEALER、CORPORATION_COMPANY、PROJECT_COMPANY、CORE_MANAGER、PLATFORM_OPERATOR_COMPANY），需确认这些
+  code 是否真实出现在 `cust_role_info.role_type` 的 DB 分布中。当前仅按已给出的三条写入 enums 页，其余以 concept
+  页承载。'
+title: 客户角色类型枚举
+type: enum

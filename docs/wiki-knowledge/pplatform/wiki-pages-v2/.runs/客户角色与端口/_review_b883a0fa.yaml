@@ -1,0 +1,5 @@
+body: 状态机 transitions 中 ADD 的三条“企业状态联动更新”出边仅给出 ADD 为 from，未说明 EFFECT/FREEZE 是否也可被联动改写为
+  WRITEOFF（规则文案写的是“所有未注销角色”）。建议补充 EFFECT→WRITEOFF、FREEZE→WRITEOFF 的联动证据 `CustRoleApplication.java:105-125`
+  分支细节。
+title: 客户角色状态机
+type: process

@@ -2,17 +2,32 @@
 type: table
 title: CA服务费特殊企业配置
 page_key: ca_fee_special_config
-domain: 基线
+domain: CA证书收费
 status: draft
 anchors: [ca_fee_special_config]
 oid: 1
 scope:
   databases: [lowcode_pplatform]
-sources: ["db:db-catalog.yaml", "code:extract-catalog.yaml", "enrich:wiki-admin"]
-created: '2026-09-10'
-updated: '2026-09-10'
+sources: ["db:db-catalog.yaml", "code:extract-catalog.yaml"]
+created: '2026-09-14'
+updated: '2026-09-14'
 contract_version: "0.1"
+belong: tables
 ---
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # CA服务费特殊企业配置
 
@@ -22,8 +37,14 @@ contract_version: "0.1"
 table: ca_fee_special_config
 database: lowcode_pplatform
 desc: CA服务费特殊企业配置
-inactive: false
 fields:
+  - name: enable
+    type: string
+    phys: varchar(4)
+    desc: enable
+    dict: enable
+    topk: "N|Y"
+    labels: "N:否|Y:是"
   - name: id
     type: number
     phys: bigint(22)
@@ -48,7 +69,6 @@ fields:
     type: number
     phys: int(10)
     desc: 年费标准
-    group: annual_fee_group
   - name: app_tenant_code
     type: string
     phys: varchar(100)
@@ -69,26 +89,18 @@ fields:
     type: string
     phys: varchar(100)
     desc: 创建人id
-    topk: 1364399217692581890|1407266533295345665|1718930920919470081|1801438863791919106
   - name: create_time
     type: temporal
     phys: datetime
     desc: 创建时间
-    group: create_time_group, project_create_time_group, update_time_group
   - name: create_user
     type: string
     phys: varchar(100)
     desc: 创建人名称
-    topk: linyanxiang|liuning|xiaolonghao|xuemengran
   - name: db_tenant_code
     type: string
     phys: varchar(100)
     desc: 数据租户标识
-  - name: enable
-    type: string
-    phys: varchar(4)
-    desc: enable
-    topk: N|Y
   - name: name
     type: string
     phys: varchar(64)
@@ -109,22 +121,18 @@ fields:
     type: string
     phys: varchar(1024)
     desc: remark
-    topk: 1|11|111|3
   - name: update_by
     type: string
     phys: varchar(100)
     desc: 更新人id
-    topk: 1364399217692581890|1407266533295345665|1718930920919470081|1801438863791919106
   - name: update_time
     type: temporal
     phys: datetime
     desc: 更新时间
-    group: create_time_group, project_effective_time_group, update_time_group
   - name: update_user
     type: string
     phys: varchar(100)
     desc: 更新人名称
-    topk: linyanxiang|liuning|xiaolonghao|xuemengran
   - name: valid_end
     type: temporal
     phys: date

@@ -273,6 +273,179 @@ def _normalize_page(content: str) -> str:
     return f"{head}\n{inject}---\n{tail}"
 
 
+_RELATION_HEADING = "## 关联表"
+
+
+def _table_fields(block: Any) -> dict[str, dict[str, Any]]:
+    from apps.knowledge.wiki.contract import compact_block
+
+    data = compact_block(block.data if block is not None else {})
+    return {
+        f["name"]: f
+        for f in (data.get("fields") or [])
+        if isinstance(f, dict) and f.get("name")
+    }
+
+
+def _render_table_fence(base_data: dict[str, Any], fields: list[dict[str, Any]]) -> str:
+    from apps.knowledge.wiki.contract import compact_block
+
+    data = compact_block(base_data)
+
+    def _field_yaml(field: dict[str, Any]) -> list[str]:
+        lines = [f"  - name: {field['name']}"]
+        if field.get("type"):
+            lines.append(f"    type: {field['type']}")
+        if field.get("phys"):
+            lines.append(f"    phys: {field['phys']}")
+        if field.get("desc"):
+            lines.append(f"    desc: {str(field['desc']).strip()}")
+        if field.get("dict"):
+            lines.append(f"    dict: {field['dict']}")
+        if field.get("topk"):
+            lines.append(f"    topk: {json.dumps(str(field['topk']), ensure_ascii=False)}")
+        if field.get("labels"):
+            labels = field["labels"]
+            if isinstance(labels, dict):
+                from apps.knowledge.wiki.field_vocab import format_labels
+
+                labels = format_labels({str(k): str(v) for k, v in labels.items()})
+            lines.append(f"    labels: {json.dumps(str(labels), ensure_ascii=False)}")
+        if field.get("roles"):
+            lines.append(f"    roles: [{', '.join(field['roles'])}]")
+        return lines
+
+    fence_lines = [
+        "```ground:table",
+        f"table: {data.get('table', '')}".rstrip(),
+    ]
+    if data.get("database"):
+        fence_lines.append(f"database: {data['database']}")
+    if data.get("desc"):
+        fence_lines.append(f"desc: {data['desc']}")
+    if data.get("inactive"):
+        fence_lines.append("inactive: true")
+    fence_lines.append("fields:")
+    for field in fields:
+        fence_lines.extend(_field_yaml(field))
+    fence_lines.append("```")
+    return "\n".join(fence_lines)
+
+
+def _inject_table_fence(body: str, fence: str) -> str:
+    if re.search(r"```ground:table\s*\n", body):
+        return re.sub(
+            r"```ground:table\n[\s\S]*?\n```",
+            fence.replace("\\", "\\\\"),
+            body,
+            count=1,
+        )
+    if _RELATION_HEADING in body:
+        return body.replace(_RELATION_HEADING, f"{fence}\n\n{_RELATION_HEADING}", 1)
+    return body.rstrip() + "\n\n" + fence + "\n"
+
+
+_PLACEHOLDER_DOMAIN = frozenset({"", "基线", "unknown"})
+_PLACEHOLDER_DB = frozenset({"", "unknown", "customer_management"})
+_LEGAL_STORED_AS = frozenset({"name", "dictKey", "mixed", "same"})
+_BAD_ENUM_NOTE = re.compile(
+    r"getDictParam\s*=\s*['\"]?\d|dictParam 数字|getDictParam\(\)\s*的数字"
+)
+_UNDECLARED_ENUM_NOTE = re.compile(r"代码枚举未声明")
+
+
+def _note_fragments(text: str) -> list[str]:
+    parts = [p.strip() for p in re.split(r"[；;]", str(text or "")) if p.strip()]
+    seen: set[str] = set()
+    out: list[str] = []
+    for part in parts:
+        if part not in seen:
+            seen.add(part)
+            out.append(part)
+    return out
+
+
+def _merge_enum_note(existing: str, incoming: str, *, stored_as: str) -> str:
+    """拼接 note 时去重；name 落库键不是「代码未声明」。"""
+    incoming = incoming.strip()
+    existing = existing.strip()
+    if incoming and _BAD_ENUM_NOTE.search(incoming):
+        incoming = ""
+    drop_undeclared = stored_as == "name"
+    keep: list[str] = []
+    for part in _note_fragments(existing) + _note_fragments(incoming):
+        if drop_undeclared and _UNDECLARED_ENUM_NOTE.search(part):
+            continue
+        if part not in keep:
+            keep.append(part)
+    return "；".join(keep)
+
+
+def _frontmatter_meta(head: str) -> dict[str, str]:
+    meta: dict[str, str] = {}
+    for line in head.splitlines():
+        m = re.match(r"^([A-Za-z_][\w.]*):\s*(.*)$", line)
+        if m:
+            meta[m.group(1)] = m.group(2).strip().strip('"').strip("'")
+    return meta
+
+
+def _rewrite_head_field(head: str, key: str, value: str) -> str:
+    if re.search(rf"^{re.escape(key)}:", head, re.M):
+        return re.sub(rf"^{re.escape(key)}:.*$", f"{key}: {value}", head, count=1, flags=re.M)
+    return f"{head.rstrip()}\n{key}: {value}"
+
+
+def _identity_head(*, resident: str, overlay: str, catalog_db: str = "") -> str:
+    """表/枚举身份字段：非占位 domain 与物理库名不以后写主题为准。"""
+    head = resident.split("\n---\n")[0]
+    if not head.startswith("---"):
+        head = overlay.split("\n---\n")[0]
+    over = overlay.split("\n---\n")[0]
+    res_meta = _frontmatter_meta(head)
+    ov_meta = _frontmatter_meta(over)
+    domain = res_meta.get("domain") or ""
+    if domain in _PLACEHOLDER_DOMAIN:
+        alt = ov_meta.get("domain") or ""
+        if alt and alt not in _PLACEHOLDER_DOMAIN:
+            domain = alt
+    if domain:
+        head = _rewrite_head_field(head, "domain", domain)
+    db = ""
+    for source in (resident, overlay):
+        m = re.search(r"databases:\s*\n\s*-\s*(\S+)", source)
+        if m:
+            cand = m.group(1).strip().strip('"').strip("'")
+            if cand not in _PLACEHOLDER_DB:
+                db = cand
+                break
+        m = re.search(r"databases:\s*\[([^\]]+)\]", source)
+        if m:
+            cand = m.group(1).strip().strip('"').strip("'")
+            if cand not in _PLACEHOLDER_DB:
+                db = cand
+                break
+    db = db or catalog_db
+    if db:
+        if re.search(r"^scope:\s*$", head, re.M) or "databases:" in head:
+            head = re.sub(
+                r"databases:\s*\n(?:\s*-\s*\S+\n?)+",
+                f"databases:\n    - {db}\n",
+                head,
+                count=1,
+            )
+            head = re.sub(
+                r"databases:\s*\[[^\]]*\]",
+                f"databases: [{db}]",
+                head,
+                count=1,
+            )
+        else:
+            head = f"{head.rstrip()}\nscope:\n  databases: [{db}]"
+    head = re.sub(r"status: \w+", "status: draft", head)
+    return head
+
+
 def merge_same_key_page(baseline: str, semantic: str) -> str:
     """v0 §5.3 同 page_key 确定性合并（基线页 + 语义页）。
 
@@ -280,80 +453,225 @@ def merge_same_key_page(baseline: str, semantic: str) -> str:
     并入（键经 contract.compact_block 统一归一，磁盘形态与基线一致）；
     语义独有字段追加（对账层已校验存在性）；散文保留语义页（业务叙述），
     frontmatter 保留语义页但 status 归 draft（合并产物需重审）。
+
+    语义页缺 table 块、用 columns 方言、或整页解析失败时，**仍保留基线
+    ground:table**，只换散文——禁止整页覆盖冲掉列全集。
     """
-    from apps.knowledge.wiki.contract import compact_block, parse_page
+    from apps.knowledge.wiki.contract import parse_page, stamp_frontmatter
 
     try:
         base = parse_page(baseline)
-        sem = parse_page(semantic)
-    except Exception:  # noqa: BLE001 — 解析失败：语义页独写（调用方保证存在基线才进来）
+    except Exception:  # noqa: BLE001 — 基线不可解析则无从保全
         return semantic
 
     base_table = next((b for b in base.ground_blocks if b.kind == "table"), None)
-    sem_table = next((b for b in sem.ground_blocks if b.kind == "table"), None)
-    if base_table is None or sem_table is None:
+    if base_table is None:
         return semantic
 
-    base_fields = {
-        f["name"]: f
-        for f in (compact_block(x) for x in (base_table.data.get("fields") or []))
-        if isinstance(f, dict) and f.get("name")
-    }
-    sem_fields = {
-        f["name"]: f
-        for f in (compact_block(x) for x in (sem_table.data.get("fields") or []))
-        if isinstance(f, dict) and f.get("name")
-    }
+    try:
+        sem = parse_page(semantic)
+        sem_body = sem.body
+        sem_table = next((b for b in sem.ground_blocks if b.kind == "table"), None)
+    except Exception:  # noqa: BLE001 — 语义页坏掉：仍用其原文当散文载体
+        parts = semantic.split("\n---\n", 1)
+        sem_body = parts[1] if len(parts) > 1 else semantic
+        sem_table = None
 
-    merged: list[dict] = []
-    for name, field in base_fields.items():  # 基线顺序为底
+    base_fields = _table_fields(base_table)
+    sem_fields = _table_fields(sem_table) if sem_table is not None else {}
+
+    merged: list[dict[str, Any]] = []
+    for name, field in base_fields.items():
         enriched = dict(field)
         sem_desc = sem_fields.get(name, {}).get("desc")
         if sem_desc and not enriched.get("desc"):
             enriched["desc"] = sem_desc
         merged.append(enriched)
-    extras = [f for n, f in sem_fields.items() if n not in base_fields]
-    merged.extend(extras)  # 语义独有字段：对账层已校验存在性（FIELD_NOT_IN_DB）
-
-    def _field_yaml(field: dict) -> list[str]:
-        lines = [f"  - name: {field['name']}"]
-        if field.get("type"):
-            lines.append(f"    type: {field['type']}")
-        if field.get("desc"):
-            lines.append(f"    desc: {str(field['desc']).strip()}")
-        if field.get("dict"):
-            lines.append(f"    dict: {field['dict']}")
-        if field.get("roles"):
-            lines.append(f"    roles: [{', '.join(field['roles'])}]")
-        return lines
-
-    fence_lines = [
-        "```ground:table",
-        f"table: {base_table.data.get('table', base.page_key)}",
+    extras = [
+        f
+        for n, f in sem_fields.items()
+        if n not in base_fields and re.match(r"^[a-z][a-z0-9_]*$", n)
     ]
-    if base_table.data.get("database"):
-        fence_lines.append(f"database: {base_table.data['database']}")
-    if base_table.data.get("desc"):
-        fence_lines.append(f"desc: {base_table.data['desc']}")
-    if base_table.data.get("inactive"):
-        fence_lines.append("inactive: true")
-    fence_lines.append("fields:")
-    for field in merged:
-        fence_lines.extend(_field_yaml(field))
-    fence_lines.append("```")
-    merged_fence = "\n".join(fence_lines)
+    merged.extend(extras)
 
-    # 语义页正文里的 table 块替换为合并块
-    new_body = re.sub(
-        r"```ground:table\n[\s\S]*?\n```",
-        merged_fence.replace("\\", "\\\\"),
-        sem.body,
-        count=1,
+    fence = _render_table_fence(
+        {**base_table.data, "table": base_table.data.get("table", base.page_key)},
+        merged,
     )
-    # frontmatter：语义页 + status 归 draft（合并产物需重审）
-    head = semantic.split("\n---\n")[0]
-    head = re.sub(r"status: \w+", "status: draft", head)
-    return f"{head}\n---\n\n{new_body}"
+    new_body = _inject_table_fence(sem_body, fence)
+    if _RELATION_HEADING in baseline and _RELATION_HEADING not in new_body:
+        rel = baseline[baseline.find(_RELATION_HEADING) :]
+        next_h = rel.find("\n## ", 1)
+        rel_section = rel if next_h < 0 else rel[:next_h]
+        new_body = new_body.rstrip() + "\n\n" + rel_section.rstrip() + "\n"
+
+    head = _identity_head(resident=baseline, overlay=semantic)
+    out = f"{head}\n---\n\n{new_body}"
+    return stamp_frontmatter(out, stem=base.page_key, belong="tables")
+
+
+def _enum_value_map(block: Any) -> dict[str, dict[str, Any]]:
+    from apps.knowledge.wiki.contract import compact_block
+
+    data = compact_block(block.data if block is not None else {})
+    raw = data.get("values") or {}
+    out: dict[str, dict[str, Any]] = {}
+    if isinstance(raw, dict):
+        for key, value in raw.items():
+            name = str(key)
+            if isinstance(value, dict):
+                info = dict(value)
+                if "label" not in info and info.get("desc"):
+                    info["label"] = info["desc"]
+                out[name] = info
+            else:
+                out[name] = {"label": str(value)}
+    elif isinstance(raw, list):
+        for item in raw:
+            if not isinstance(item, dict) or item.get("value") is None:
+                continue
+            info = {k: v for k, v in item.items() if k != "value"}
+            if "label" not in info and item.get("desc"):
+                info["label"] = item["desc"]
+            out[str(item["value"])] = info
+    return out
+
+
+def _render_enum_fence(
+    base_data: dict[str, Any], values: dict[str, dict[str, Any]]
+) -> str:
+    from apps.knowledge.wiki.baseline import _yaml_enum_key
+
+    fields = base_data.get("fields") or []
+    field_s = (
+        ", ".join(str(f) for f in fields) if isinstance(fields, list) else str(fields)
+    )
+    rows = [
+        "```ground:enum",
+        f"enum: {base_data.get('enum', '')}".rstrip(),
+        f"fields: [{field_s}]",
+        "values:",
+    ]
+    for key, info in values.items():
+        label = str(info.get("label") or key)
+        lines = [
+            f"  {_yaml_enum_key(key)}:",
+            f"    label: {json.dumps(label, ensure_ascii=False)}",
+        ]
+        java_name = info.get("java_name")
+        if java_name and str(java_name) != str(key):
+            lines.append(
+                f"    java_name: {json.dumps(str(java_name), ensure_ascii=False)}"
+            )
+        stored = str(info.get("stored_as") or "")
+        if stored and stored not in {"dictKey", "same"}:
+            lines.append(f"    stored_as: {stored}")
+        if info.get("note"):
+            lines.append(f"    note: {json.dumps(str(info['note']), ensure_ascii=False)}")
+        aliases = info.get("aliases")
+        if isinstance(aliases, list) and aliases:
+            dumped = ", ".join(
+                json.dumps(str(a), ensure_ascii=False)
+                for a in aliases[:8]
+                if str(a) != str(key)
+            )
+            if dumped:
+                lines.append(f"    aliases: [{dumped}]")
+        rows.append("\n".join(lines))
+    rows.append("```")
+    return "\n".join(rows)
+
+
+def _inject_enum_fence(body: str, fence: str) -> str:
+    if re.search(r"```ground:enum\n[\s\S]*?\n```", body):
+        return re.sub(
+            r"```ground:enum\n[\s\S]*?\n```",
+            fence.replace("\\", "\\\\"),
+            body,
+            count=1,
+        )
+    return body.rstrip() + "\n\n" + fence + "\n"
+
+
+def merge_enum_page(baseline: str, semantic: str) -> str:
+    """枚举页合并：基线 values 键保全；LLM 可补 note/stored_as/未标注 label。
+
+    机械提取只是底稿——写值点复核可以改 stored_as、给 unlabeled 补 label，
+    但不得删基线键。语义独有键仅在形态合法时追加并标 REVIEW。
+    """
+    from apps.knowledge.wiki.contract import parse_page, stamp_frontmatter
+
+    try:
+        base = parse_page(baseline)
+    except Exception:  # noqa: BLE001
+        return semantic
+    base_enum = next((b for b in base.ground_blocks if b.kind == "enum"), None)
+    if base_enum is None:
+        return semantic
+    try:
+        sem = parse_page(semantic)
+        sem_body = sem.body
+        sem_enum = next((b for b in sem.ground_blocks if b.kind == "enum"), None)
+    except Exception:  # noqa: BLE001
+        parts = semantic.split("\n---\n", 1)
+        sem_body = parts[1] if len(parts) > 1 else semantic
+        sem_enum = None
+
+    base_vals = _enum_value_map(base_enum)
+    sem_vals = _enum_value_map(sem_enum) if sem_enum is not None else {}
+    merged: dict[str, dict[str, Any]] = {}
+    for key, info in base_vals.items():
+        out = dict(info)
+        extra = sem_vals.get(key) or {}
+        java_name = extra.get("java_name")
+        if java_name and not out.get("java_name"):
+            token = re.search(
+                r"(?:[A-Za-z]\w+\.)?([A-Za-z_][A-Za-z0-9_]*)\s*$", str(java_name)
+            )
+            out["java_name"] = token.group(1) if token else java_name
+        incoming_stored = str(extra.get("stored_as") or "").strip()
+        if incoming_stored in _LEGAL_STORED_AS:
+            out["stored_as"] = incoming_stored
+        if extra.get("note"):
+            merged_note = _merge_enum_note(
+                str(out.get("note") or ""),
+                str(extra["note"]),
+                stored_as=str(out.get("stored_as") or extra.get("stored_as") or ""),
+            )
+            if merged_note:
+                out["note"] = merged_note
+            else:
+                out.pop("note", None)
+        elif out.get("note") and str(out.get("stored_as") or "") == "name":
+            cleaned = _merge_enum_note(str(out["note"]), "", stored_as="name")
+            if cleaned:
+                out["note"] = cleaned
+            else:
+                out.pop("note", None)
+        base_label = str(out.get("label") or key)
+        sem_label = str(extra.get("label") or "").strip()
+        if sem_label and base_label in {key, ""} and sem_label != key:
+            out["label"] = sem_label
+        elif sem_label and sem_label != base_label and sem_label != key:
+            aliases = [a for a in (out.get("aliases") or []) if isinstance(a, str)]
+            if sem_label not in aliases and sem_label != key:
+                aliases.append(sem_label)
+            out["aliases"] = aliases
+        merged[key] = out
+    for key, info in sem_vals.items():
+        if key in merged:
+            continue
+        if not re.match(r"^[A-Za-z0-9_.-]{1,64}$", key):
+            continue
+        extra = dict(info)
+        extra.setdefault("note", "LLM 补充，待写值点复核")
+        merged[key] = extra
+
+    fence = _render_enum_fence(base_enum.data, merged)
+    new_body = _inject_enum_fence(sem_body, fence)
+    head = _identity_head(resident=baseline, overlay=semantic)
+    out = f"{head}\n---\n\n{new_body}"
+    return stamp_frontmatter(out, stem=base.page_key, belong="enums")
 
 
 def _drop_anchored_blocks(content: str, findings: list[dict[str, str]]) -> str:
@@ -458,19 +776,25 @@ def run_unit(
         content = _normalize_page(content)  # concept 锚点提升（纯代码归一化）
 
         rel = Path(fname)
-        belong = rel.parts[0] if rel.parts and rel.parts[0] in {
-            "tables",
-            "enums",
-            "concepts",
-            "processes",
-            "calibers",
-            "rules",
-            "metrics",
-            "patterns",
-            "queries",
-            "sources",
-            "scenarios",
-        } else None
+        belong = (
+            rel.parts[0]
+            if rel.parts
+            and rel.parts[0]
+            in {
+                "tables",
+                "enums",
+                "concepts",
+                "processes",
+                "calibers",
+                "rules",
+                "metrics",
+                "patterns",
+                "queries",
+                "sources",
+                "scenarios",
+            }
+            else None
+        )
         findings = reconcile_page(
             content,
             db_dir=db_dir,
@@ -488,6 +812,12 @@ def run_unit(
             )
             print(f"  REJECT {fname}: {page_level[0]['code']}", flush=True)
             continue
+        if belong == "enums":
+            block_findings = [
+                f
+                for f in block_findings
+                if f.get("code") != "ENUM_VALUE_NOT_IN_DB"
+            ]
         if block_findings:
             content = _drop_anchored_blocks(content, block_findings)
             dropped_blocks += len(block_findings)
@@ -526,9 +856,14 @@ def run_unit(
         # 同 page_key 已有页（基线 table/enum 页）→ v0 §5.3 确定性块合并，
         # 绝不整页覆盖：基线 fields/values 是存在性真值（51 字段全量），
         # 语义页贡献 desc/散文——覆盖会丢全量字段清单（G1 复发）。
+        from apps.knowledge.wiki.contract import stamp_frontmatter
+
         target = out_dir / fname
-        if target.exists():
+        if target.exists() and belong == "tables":
             content = merge_same_key_page(target.read_text(), content)
+        elif target.exists() and belong == "enums":
+            content = merge_enum_page(target.read_text(), content)
+        content = stamp_frontmatter(content, stem=Path(fname).stem, belong=belong or "")
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(content, encoding="utf-8")
         accepted += 1
@@ -571,15 +906,22 @@ def run_plan(
     ]
     print(f"待穿透单元 {len(todo)}/{len(units)}", flush=True)
     for unit in todo:
-        run_unit(
-            llm,
-            repo=repo,
-            substrate_dir=substrate_dir,
-            db_dir=db_dir,
-            reqdoc_root=reqdoc_root,
-            out_dir=out_dir,
-            unit=unit,
-        )
+        try:
+            run_unit(
+                llm,
+                repo=repo,
+                substrate_dir=substrate_dir,
+                db_dir=db_dir,
+                reqdoc_root=reqdoc_root,
+                out_dir=out_dir,
+                unit=unit,
+            )
+        except Exception as exc:  # noqa: BLE001 — 单主题失败不中断整批
+            topic_dir = _run_dir(out_dir, unit["topic"])
+            topic_dir.mkdir(parents=True, exist_ok=True)
+            (topic_dir / "_error").write_text(f"{type(exc).__name__}: {exc}\n")
+            print(f"[{unit['topic']}] FAIL {type(exc).__name__}: {exc}", flush=True)
+            continue
         (_run_dir(out_dir, unit["topic"]) / "_done").write_text("done")
     from apps.knowledge.wiki.baseline import rebuild_index
 
@@ -607,7 +949,26 @@ def main() -> None:
     run_p.add_argument("--reqdoc-root", default="")
     run_p.add_argument("--only", default="", help="逗号分隔 topic；强制重跑")
 
+    repair_p = sub.add_parser("repair", help="无 LLM：盖章 + 基线回填表/枚举页")
+    repair_p.add_argument("--out", required=True)
+    repair_p.add_argument("--substrate", required=True)
+    repair_p.add_argument("--db-dir", required=True)
+
     args = parser.parse_args()
+    if args.cmd == "repair":
+        from apps.knowledge.wiki.repair import repair_corpus
+
+        counts = repair_corpus(
+            Path(args.out),
+            substrate_dir=Path(args.substrate),
+            db_dir=Path(args.db_dir),
+        )
+        print(
+            f"repaired tables={counts['tables']} enums={counts['enums']} "
+            f"domains={counts.get('domains', 0)} stamped={counts['stamped']} "
+            f"predicates={counts.get('predicates', 0)}"
+        )
+        return
     from apps.ai_model.model_factory import LLMConfig, LLMFactory, OpenAILLM
 
     config = asyncio.run(_default_config())

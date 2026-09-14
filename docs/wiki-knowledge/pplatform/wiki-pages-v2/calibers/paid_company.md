@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 已缴费企业
-page_key: calibers/paid_company
+page_key: paid_company
 domain: CA证书收费
 status: draft
 aliases: [PAID 企业, pay_status=PAID]
@@ -11,6 +11,7 @@ scope:
 sources:
   - db:ca_fee_company
 contract_version: "0.1"
+belong: calibers
 ---
 
 # 已缴费企业

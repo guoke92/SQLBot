@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 外部推送企业免补签授权书
-page_key: caliber.platform_push_no_supplement
+page_key: platform-push-no-supplement
 domain: 授权协议与电子授权
 status: draft
 aliases:
@@ -14,6 +14,7 @@ sources:
   - code:CustAuthAgreementDomainService.java
   - db:cust_company_info
 contract_version: "0.1"
+belong: calibers
 ---
 
 数据来源为外部平台推送（`cust_source='PLATFORM_PUSH'`）的企业，视为授权关系已由来源系统保证，判定链路直接返回「不需签约」，不再考察 [[tables/authorization_agreement|平台级授权记录]] 或补签标志位。该口径与 [[calibers/migratory-no-supplement]] 是并列的两条免补签捷径。

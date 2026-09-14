@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 堆栈/迁移标识口径（is_stack → migratory/stock）
-page_key: caliber.tenant_stack_migratory
+page_key: tenant_stack_migratory
 domain: 平台内部服务对接
 status: draft
 aliases:
@@ -14,6 +14,7 @@ sources:
   - semantic:field_semantics[tenant_setting_config.is_stack]
   - semantic:field_semantics[tenant_product.is_migratory]
 contract_version: "0.1"
+belong: calibers
 ---
 
 租户级 is_stack 决定小程序租户信息 DTO 中 migratory/stock 的取值，产品级另有 is_migratory 表示产品迁移状态。

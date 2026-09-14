@@ -24,9 +24,28 @@ const bindVisible = ref(false)
 const bindSubmitting = ref(false)
 const bindForm = reactive({
   corpus_key: '',
-  datasource_id: undefined as number | undefined,
+  datasource_ids: [] as number[],
 })
-const suggestedRemap = ref<Record<string, string>>({})
+const suggestedRemaps = ref<Record<string, Record<string, string>>>({})
+
+const hasSuggestedRemap = computed(() =>
+  Object.values(suggestedRemaps.value).some((item) => Object.keys(item || {}).length > 0)
+)
+
+const occupiedCorpus = (datasourceId: number) => {
+  for (const row of corpora.value) {
+    if (row.corpus_key === bindForm.corpus_key) continue
+    if (row.bindings?.some((item) => item.datasource_id === datasourceId)) {
+      return row.corpus_key
+    }
+  }
+  return ''
+}
+
+const bindingsForCorpus = (corpusKey: string) => {
+  const row = corpora.value.find((item) => item.corpus_key === corpusKey)
+  return (row?.bindings || []).map((item) => item.datasource_id)
+}
 
 const hasIndexing = computed(() => corpora.value.some((row) => row.status === 'indexing'))
 
@@ -102,26 +121,38 @@ const submitImport = async () => {
 
 const openBind = (row?: WikiCorpusRow) => {
   bindForm.corpus_key = row?.corpus_key || corpora.value[0]?.corpus_key || ''
-  bindForm.datasource_id = undefined
-  suggestedRemap.value = {}
+  bindForm.datasource_ids = bindingsForCorpus(bindForm.corpus_key)
+  suggestedRemaps.value = {}
   bindVisible.value = true
+  void refreshRemap()
+}
+
+const onBindCorpusChange = () => {
+  bindForm.datasource_ids = bindingsForCorpus(bindForm.corpus_key)
+  void refreshRemap()
 }
 
 const refreshRemap = async () => {
-  if (!bindForm.corpus_key || !bindForm.datasource_id) {
-    suggestedRemap.value = {}
+  if (!bindForm.corpus_key || !bindForm.datasource_ids.length) {
+    suggestedRemaps.value = {}
     return
   }
-  try {
-    const data = await knowledgeApi.suggestRemap(bindForm.corpus_key, bindForm.datasource_id)
-    suggestedRemap.value = data?.remap_databases || {}
-  } catch {
-    suggestedRemap.value = {}
-  }
+  const next: Record<string, Record<string, string>> = {}
+  await Promise.all(
+    bindForm.datasource_ids.map(async (datasourceId) => {
+      try {
+        const data = await knowledgeApi.suggestRemap(bindForm.corpus_key, datasourceId)
+        next[String(datasourceId)] = data?.remap_databases || {}
+      } catch {
+        next[String(datasourceId)] = {}
+      }
+    })
+  )
+  suggestedRemaps.value = next
 }
 
 const submitBind = async () => {
-  if (!bindForm.corpus_key || !bindForm.datasource_id) {
+  if (!bindForm.corpus_key || !bindForm.datasource_ids.length) {
     ElMessage.warning(t('knowledge.wiki_bind_required'))
     return
   }
@@ -129,8 +160,8 @@ const submitBind = async () => {
   try {
     await knowledgeApi.bindCorpus({
       corpus_key: bindForm.corpus_key,
-      datasource_id: bindForm.datasource_id,
-      remap_databases: suggestedRemap.value,
+      datasource_ids: [...bindForm.datasource_ids],
+      remaps_by_datasource: suggestedRemaps.value,
     })
     ElMessage.success(t('knowledge.wiki_bind_done'))
     bindVisible.value = false
@@ -276,7 +307,7 @@ onBeforeUnmount(() => {
     <el-dialog v-model="bindVisible" :title="t('knowledge.wiki_bind')" width="560px">
       <el-form label-position="top">
         <el-form-item :label="t('knowledge.wiki_corpus_key')" required>
-          <el-select v-model="bindForm.corpus_key" style="width: 100%" @change="refreshRemap">
+          <el-select v-model="bindForm.corpus_key" style="width: 100%" @change="onBindCorpusChange">
             <el-option
               v-for="row in corpora"
               :key="row.corpus_key"
@@ -287,21 +318,28 @@ onBeforeUnmount(() => {
         </el-form-item>
         <el-form-item :label="t('knowledge.wiki_datasource')" required>
           <el-select
-            v-model="bindForm.datasource_id"
+            v-model="bindForm.datasource_ids"
             style="width: 100%"
             filterable
+            multiple
+            collapse-tags
+            collapse-tags-tooltip
             @change="refreshRemap"
           >
             <el-option
               v-for="ds in datasources"
               :key="ds.id"
-              :label="`${ds.name} (#${ds.id})`"
+              :label="
+                occupiedCorpus(ds.id)
+                  ? `${ds.name} (#${ds.id}) · ${t('knowledge.wiki_bound_other', { key: occupiedCorpus(ds.id) })}`
+                  : `${ds.name} (#${ds.id})`
+              "
               :value="ds.id"
             />
           </el-select>
         </el-form-item>
-        <el-form-item v-if="Object.keys(suggestedRemap).length" :label="t('knowledge.wiki_remap')">
-          <pre class="wiki-remap">{{ JSON.stringify(suggestedRemap, null, 2) }}</pre>
+        <el-form-item v-if="hasSuggestedRemap" :label="t('knowledge.wiki_remap')">
+          <pre class="wiki-remap">{{ JSON.stringify(suggestedRemaps, null, 2) }}</pre>
         </el-form-item>
       </el-form>
       <template #footer>

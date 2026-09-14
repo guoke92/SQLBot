@@ -2,17 +2,32 @@
 type: table
 title: 客户总公司信息
 page_key: cust_head_company_info
-domain: 基线
+domain: 企业建档与认证状态机
 status: draft
 anchors: [cust_head_company_info]
 oid: 1
 scope:
   databases: [lowcode_pplatform]
-sources: ["db:db-catalog.yaml", "code:extract-catalog.yaml", "enrich:wiki-admin"]
-created: '2026-09-10'
-updated: '2026-09-10'
+sources: ["db:db-catalog.yaml", "code:extract-catalog.yaml"]
+created: '2026-09-14'
+updated: '2026-09-14'
 contract_version: "0.1"
+belong: tables
 ---
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # 客户总公司信息
 
@@ -22,8 +37,14 @@ contract_version: "0.1"
 table: cust_head_company_info
 database: lowcode_pplatform
 desc: 客户总公司信息
-inactive: false
 fields:
+  - name: enable
+    type: string
+    phys: varchar(4)
+    desc: enable
+    dict: enable
+    topk: "Y"
+    labels: "Y:是"
   - name: id
     type: number
     phys: bigint(22)
@@ -33,7 +54,7 @@ fields:
     phys: varchar(512)
     desc: 法人证件类型
     dict: legal_certification_type
-    topk: CERT_GREEN_CARD|CERT_MAINLAND_PASS|CERT_PASSPORT|CERT_TAIWAN
+    topk: "CERT_GREEN_CARD|CERT_MAINLAND_PASS|CERT_PASSPORT|CERT_TAIWAN|CRET_ID|CRET_ID_HK|身份证"
   - name: act_procinst_date
     type: temporal
     phys: datetime
@@ -54,7 +75,7 @@ fields:
     type: string
     phys: varchar(100)
     desc: 逻辑租户标识
-    topk: base
+    topk: "base"
   - name: certification_no
     type: string
     phys: varchar(128)
@@ -71,7 +92,6 @@ fields:
     type: temporal
     phys: datetime
     desc: 创建时间
-    group: create_time_group, project_create_time_group, update_time_group
   - name: create_user
     type: string
     phys: varchar(100)
@@ -92,16 +112,10 @@ fields:
     type: string
     phys: varchar(100)
     desc: 数据租户标识
-  - name: enable
-    type: string
-    phys: varchar(4)
-    desc: enable
-    topk: Y
   - name: establishment_time
     type: temporal
     phys: date
     desc: 注册日期
-    group: establishment_time_group, legal_birth_date_group
   - name: head_approval_date
     type: temporal
     phys: date
@@ -114,7 +128,6 @@ fields:
     type: temporal
     phys: date
     desc: 法人生日
-    group: establishment_time_group, legal_birth_date_group
   - name: legal_certification_no
     type: string
     phys: varchar(128)
@@ -182,7 +195,6 @@ fields:
     type: temporal
     phys: datetime
     desc: 更新时间
-    group: create_time_group, project_effective_time_group, update_time_group
   - name: update_user
     type: string
     phys: varchar(100)
@@ -192,3 +204,4 @@ fields:
 ## 关联表
 
 - [[cust_company_info]]：cust_head_company_info.ref_cust_head_company_info_cust_company_info → cust_company_info.code（ref-convention:CustHeadCompanyInfoDO.java，suggested）
+- [[cust_company_info]]：cust_head_company_info.ref_cust_head_company_info_cust_company_info → cust_company_info.id（db-index:ref_-naming，suggested）

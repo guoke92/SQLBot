@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: "变更在途阻断"
-page_key: "calibers/change_in_flight_block"
+page_key: change_in_flight_block
 domain: "customer-onboarding"
 status: draft
 aliases:
@@ -13,6 +13,7 @@ sources:
   - "code_path:CustPersonApplication.java:adminChangeSaveOrUpdate"
   - "code_path:CustCompanyIfoEnchanceService.java:isOpenCa"
 contract_version: "0.1"
+belong: calibers
 ---
 
 企业存在在途变更时，主表 `cust_status` 处于变更中状态，此时新的变更提交与部分能力（如 CA 开通）会被阻断并给出显式提示。这是「同一企业同一时刻只允许一条变更流程」的口径表达。状态载体见 [[tables/cust_company_info]]，变更记录见 [[tables/cust_change_record]]。

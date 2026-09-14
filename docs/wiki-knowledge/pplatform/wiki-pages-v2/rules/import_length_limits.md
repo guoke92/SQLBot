@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 项目导入字段长度限制
-page_key: rules/import_length_limits
+page_key: import_length_limits
 domain: 租户项目
 status: draft
 aliases: [导入长度限制, bussiness_project_relation 50, invite_customer_service_words 500]
@@ -11,6 +11,7 @@ scope:
 sources:
   - code:TenantProjectApplication
 contract_version: "0.1"
+belong: rules
 ---
 
 该规则规定 [[tables/tenant_project]] 导入时两个长文本字段的上限：运营项目归属不超过 50，邀请信息-客服话术不超过 500。超出时导入应被拒绝。

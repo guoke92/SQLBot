@@ -8,28 +8,39 @@ aliases:
   - identify_style
 oid: 1
 scope:
-  databases: []
+  databases: [unknown]
 sources:
-  - db:cust_company_info.identify_style
+  - code_path:CustCompanyInfoApplication.java
+  - code_path:ApplyCompanyInfoApplication.java
 contract_version: "0.1"
 maps_to: cust_company_info.identify_style
+field_targets:
+  - cust_company_info.identify_style
+  - cust_company_info.cust_build_type
 adjudication: boundary
 also_confused_with:
-  - 录入方式
-boundary: 认证方式指 INVITE、INVITE_AGW、SELF、SIMPLE；录入方式指 AGW_BUILD、PC_BUILD、SIMPLE。
+  - cust_company_info.cust_build_type
+belong: concepts
+field_targets: [cust_company_info.identify_style]
 sources: ["enrich:wiki-admin"]
 ---
 
-“认证方式”指 `cust_company_info.identify_style`，表示企业走的是哪一条**认证流程**：`INVITE`（邀请认证-客户录入）、`INVITE_AGW`（邀请认证-平台录入）、`SELF`（自主认证）、`SIMPLE`（简易认证）。
+> (document_claim，未证实) 本页 ## 版本演进 含需求文档主张，尚未在代码中证实。
 
-认证方式直接决定建档提交后的状态去向：`INVITE`/`SELF` 提交后进入待客户确认，`INVITE_AGW` 直接进入认证中，`SIMPLE` 走简易确认路径，见 [[enterprise_auth_status_machine]]。它常与 [[build_type]]（录入方式）混用，但后者描述的是**数据由谁录入**，不是认证流程类型；两者取值集合虽有重叠（如 `SIMPLE`），语义层面不同。
+"认证方式"指企业以哪条路径完成认证：`INVITE_AGW`（平台录入邀请认证）、`INVITE`（客户录入邀请认证）、`SELF`（自主认证）、`SIMPLE`（简易认证）。它决定提交后进入哪条泳道、是否需要运营中台审核，见 [[rules/self_invite_need_audit]]、[[rules/finance_simple_direct_effect]]。
+
+## 边界与歧义
+
+与 `cust_build_type` 的边界：`identify_style` 表示认证路径（INVITE/INVITE_AGW/SELF/SIMPLE），`cust_build_type` 表示录入端（AGW_BUILD 运营/内管端、PC_BUILD 客户端）。两者是独立维度，不可互相代替或混用；DB 中 `cust_build_type` 出现 `SIMPLE` 属脏值，见 [[tables/cust_company_info]] 的 REVIEW。
 
 ## 需求背景
 
-暂无需求文档主张。
+邀请/自主认证需经运营中台审核，简易认证无需审批，这一差异完全由本字段驱动，因此字段取值一旦写错，会影响整条审批链路。
 
 ## 版本演进
 
-- v0.1：依据语义分析建立 concept 页，裁定与录入方式的边界。
+- (document_claim，未证实) 用户邀请与注册流程（邀请码 8 位 30 天有效、邮件异步、SSO/AMS 同步）：未在给定链路文件中发现实现，涉及 UserFacade/EmailAsyncService，属另一模块，与本页 INVITE 认证方式的入口相关但尚未证实。
+
+关联：[[processes/cust_build_status_state_machine]]、[[calibers/is_simple_building]]、[[calibers/need_register_ca_not_open]]。
 
 相关：[[cust_company_info]]

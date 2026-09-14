@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 资方规则详情-有效口径
-page_key: calibers/funding_rule_detail_valid_enable_y
+page_key: funding_rule_detail_valid_enable_y
 domain: funding
 status: draft
 aliases:
@@ -16,6 +16,7 @@ sources:
   - "code:FundRuleInfoApplication#getRuleInfoById"
   - "db:funding_rule_detail"
 contract_version: "0.1"
+belong: calibers
 ---
 
 # 资方规则详情-有效口径

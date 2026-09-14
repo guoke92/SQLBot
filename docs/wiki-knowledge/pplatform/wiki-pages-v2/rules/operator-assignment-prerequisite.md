@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 运营人员分配前提
-page_key: rule.operator_assignment_prerequisite
+page_key: operator-assignment-prerequisite
 domain: 客户联系人管理
 status: draft
 aliases:
@@ -13,6 +13,7 @@ sources:
   - "code:CustPersonController.sendHaveInvitationCode"
   - "code:CustPersonController.sendOperationQrCode"
 contract_version: "0.1"
+belong: rules
 ---
 
 向企业发送邀请码或客服名片前，必须先为企业管理员分配运营人员（`operator_id` 不为空）。

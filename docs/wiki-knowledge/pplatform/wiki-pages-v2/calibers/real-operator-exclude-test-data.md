@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 真实运营方（排除测试数据）口径
-page_key: calibers/real-operator-exclude-test-data
+page_key: real-operator-exclude-test-data
 domain: 企业集团关系
 status: draft
 aliases: [真实运营方, test_data != Y]
@@ -11,6 +11,7 @@ scope:
 sources:
   - code_path:CustGroupRelApplication.java:queryTenantOperatorCompany
 contract_version: "0.1"
+belong: calibers
 ---
 
 真实运营方指租户下真正承担运营主体角色的企业，判定条件为 `cust_company_info.test_data != 'Y'`（排除测试数据），使用场景为：租户存在多个 PLATFORM_OPERATOR_COMPANY 时仅保留非测试运营方。

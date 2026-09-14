@@ -1,38 +1,37 @@
 ---
 type: concept
-title: data_source
-page_key: concept/data_source
-domain: CA证书认证
+title: 数据来源
+page_key: data_source
+domain: 微企链立项与项目审批
 status: draft
-aliases: [数据来源]
+aliases:
+  - data_source
 oid: 1
 scope:
-  databases: [unknown]
-sources: [code]
+  databases:
+    - wechat_project
+sources:
+  - db:wechat_project_approval_apply
+  - code_path:ProjectStatisticsApplication.java:manualCreate
 contract_version: "0.1"
-maps_to: CA认证数据来源枚举
-adjudication: boundary
-also_confused_with: []
+maps_to: wechat_project_approval_apply.data_source
 field_targets:
-  - ca_certification_info.data_source
+  - wechat_project_approval_apply.data_source
+adjudication: synonym
+also_confused_with: []
+belong: concepts
+field_targets: [wechat_project_approval_apply.data_source]
+sources: ["enrich:wiki-admin"]
 ---
 
-data_source 标识一条 CA 认证数据是从哪个入口产生的，落在 [[tables/ca_certification_info]] 的 data_source 字段上，取值在代码中固定为三种。
-
-## 边界与辨析
-
-- CHANNEL_OPENAPI：渠道 API。经该来源进入的认证在上送签章中台时，意愿认证 JSON 可豁免（见 [[rules/submit_sign_center_completeness]]）。
-- FBP_PORTAL：产融门户。
-- OPERATION_PLATFORM：运营中台。运营中台侧的企业名与签章中台证书登记名可能不一致，这会触发升级授权书流程（[[rules/upgrade_auth_online_seal]]）。
-
-三个取值是互斥的入口归属，不代表数据质量或可信度差异；把它与「来源系统」（如 [[tables/ca_cfca_upgrade_report]] 的 source_system）混用会丢失粒度，后者描述上报异常来自哪个业务系统。
+「数据来源」区分一条立项申请是手工模拟产生还是由企微同步产生：MANUAL 表示模拟立项，WECHAT 表示真实立项。
 
 ## 需求背景
 
-语义分析中 reqdoc_claims 为空，暂无可引用的需求文档主张。三个取值的含义来自代码枚举证据。
+模拟立项时该字段被强制写为 MANUAL 并由后端生成审批编号，见 [[rules/manual_create_project_apply]]；企微审批导出要求该字段为 WECHAT，见 [[calibers/wechat_approval_export]]。因此该字段是判断「这条记录是否属于真实企微业务」的首要标志。
 
 ## 版本演进
 
-暂无文档化的版本演进证据。
+当前语义分析未提供该术语的历史变更记录。
 
-相关页面：[[tables/ca_certification_info]]、[[rules/submit_sign_center_completeness]]、[[concepts/one_cert_four_steps]]。
+相关：[[wechat_project_approval_apply]]

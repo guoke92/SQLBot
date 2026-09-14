@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 有效运营人员变更记录
-page_key: caliber.oper-change-record-valid
+page_key: oper-change-record-valid
 domain: 企业变更与运营变更
 status: draft
 aliases: [运营变更流水有效口径, enable=Y 流水]
@@ -11,6 +11,7 @@ scope:
 sources:
   - code_path:OperChangeRecordApplication.java:queryByPersonId
 contract_version: "0.1"
+belong: calibers
 ---
 
 运营人员变更流水的查询口径为 [[tables.cust_oper_change_record]] 上 `enable = 'Y'`，按联系人精确匹配后返回。完整查询行为见 [[rules.oper-change-record-query]]，术语边界见 [[concepts.oper-change-record]]。

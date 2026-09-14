@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: "已生效企业口径"
-page_key: "calibers/effect_company"
+page_key: effect_company
 domain: "customer-onboarding"
 status: draft
 aliases:
@@ -13,6 +13,7 @@ scope:
 sources:
   - "code:code_path:CustCompanyIfoEnchanceService.java:listEffectCompany,listEffectCompanyByTenantAndType"
 contract_version: "0.1"
+belong: calibers
 ---
 
 本口径是企业「有效性」的统一判定：同时满足建档成功、客户状态生效、数据标识与启用标识，才被计入已生效企业。任一条件不满足（如处于变更中、已注销、已失效）都不计入。与之相对的是变更在途阻断口径 [[calibers/change_in_flight_block]]。

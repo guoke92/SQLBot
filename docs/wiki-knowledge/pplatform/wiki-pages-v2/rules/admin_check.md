@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 管理员校验规则
-page_key: rule/admin_check
+page_key: admin_check
 domain: CA证书认证
 status: draft
 aliases: [assertCurrentUserIsAdmin, CA_CERT_NOT_ADMIN]
@@ -10,6 +10,7 @@ scope:
   databases: [unknown]
 sources: ["code_path:CaCertificationPreCheckApplication.java:assertCurrentUserIsAdmin"]
 contract_version: "0.1"
+belong: rules
 ---
 
 规则要求：当前登录用户必须是企业管理员，需同时满足 cust_person_info.user_type=admin、enable=Y、ref_cust_company_info=当前企业 code、company_type=当前登录企业类型、phone=当前登录手机号。任一不满足即抛出 CA_CERT_NOT_ADMIN 异常，无法开通 CA。

@@ -1,0 +1,4 @@
+body: 语义分析只给出表名与代码模块（lowcode-pplatform-tenant-management、lowcode-pplatform-customer-management），未给出物理库名，所有页面
+  scope.databases 暂占位为 unknown，待确认后统一回填；同一表是否跨库（如租户库与客户库的关联字段）亦待确认。
+title: scope.databases 物理库名未采集
+type: frontmatter

@@ -1,7 +1,7 @@
 ---
 type: concept
 title: 影像（媒体/文件/附件）
-page_key: concepts/media-image
+page_key: media-image
 domain: 文件/附件/媒体
 status: draft
 aliases: [影像, 媒体, 文件, 附件]
@@ -16,6 +16,7 @@ also_confused_with: [project_file_info（项目运营文件管理表）, Attachm
 adjudication: boundary
 boundary: "‘影像’指影像平台 MediaFile（catgId/busiKey/modelCode）；project_file_info 是项目运营文件元数据表，二者不同源，仅业务上都属“文件”域。"
 contract_version: "0.1"
+belong: concepts
 ---
 
 # 影像（媒体/文件/附件）

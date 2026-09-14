@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 年费定价规则
-page_key: rules/annual_fee_pricing_rule
+page_key: annual_fee_pricing_rule
 domain: CA证书收费
 status: draft
 aliases: [resolveAnnualFee, 应缴年费取值规则]
@@ -11,6 +11,7 @@ scope:
 sources:
   - code:CaFeeRuleEngineService.java:resolveAnnualFee
 contract_version: "0.1"
+belong: rules
 ---
 
 # 年费定价规则

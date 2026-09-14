@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 分公司双行处理规则
-page_key: rule/branch_dual_row
+page_key: branch_dual_row
 domain: CA证书认证
 status: draft
 aliases: [persistActivateData 双行规则]
@@ -10,6 +10,7 @@ scope:
   databases: [unknown]
 sources: ["code_path:CaActivationApplication.java:persistActivateData"]
 contract_version: "0.1"
+belong: rules
 ---
 
 规则要求：分公司场景下，CaActivationApplication 会创建两行 [[tables/ca_certification_info]]——headCompanyData=N（本企业）与 headCompanyData=Y（总公司），并分别提交签章中台；openCa 注册时自动双笔注册。影响是支持分公司代总公司完成 CA 认证。

@@ -1,47 +1,40 @@
 ---
 type: concept
-title: 企业画像
-page_key: concepts/company_profile
-domain: 企业画像
+title: 企业画像 / Profile
+page_key: company_profile
+domain: 客户管理
 status: draft
-aliases:
-  - 客户信息
-  - 企业信息主表
-  - CustCompanyInfo
+aliases: [profile-web, 性能测试接口]
 oid: 1
 scope:
-  databases: ["(待确认)"]
+  databases: ["unknown"]
 sources:
-  - code:CustCompanyInfoApplication.java
-  - code:CustCompanyIfoEnchanceService.java
+  - code_path:ProfileController.java:getAppId
+  - code_path:GptLearnService.java:checkPosterStatus
+  - db:cust_company_info
 contract_version: "0.1"
-maps_to: cust_company_info / CustCompanyInfoDO
+maps_to: cust_company_info.id
 field_targets:
-  - cust_company_info.custBuildStatus
-  - cust_company_info.custStatus
-  - cust_company_info.custCompanyType
-  - cust_company_info.certificationNo
-  - cust_company_info.dataType
-adjudication: synonym
+  - cust_company_info.id
+adjudication: boundary
 also_confused_with:
-  - 企业认证状态
-  - 企业客户状态
+  - gpt_learn_poster_log.company_id
+belong: concepts
+field_targets: [cust_company_info.id]
+sources: ["enrich:wiki-admin"]
 ---
 
-# 企业画像
+> (document_claim，未证实) 需求/系统文档层（客户管理平台业务规则文档、运营配置管理业务规则文档）通篇未出现 GP学习引流、问卷星活动、企业画像（Profile）的任何业务规则或流程表述，无法形成双源锚点。
 
-「企业画像」在本 wiki 中是同义词集合：企业画像 = 客户信息 = 企业信息主表 = `CustCompanyInfo`，代码层落点为 [[tables/cust_company_info]] / `CustCompanyInfoDO`。同义判定的依据是这些叫法在代码与表中指向同一实体，而非不同的视图或聚合。
-
-需要与之划清界限的是两个**字段级状态**概念：企业认证状态（[[processes/cust_company_info_cust_build_status]]，字段 `custBuildStatus`）与企业客户状态（[[processes/cust_company_info_cust_status]]，字段 `custStatus`）。它们是企业画像上的两个属性，不是企业画像本身。说「企业画像变了」时，应进一步确认变的是哪个属性。
-
-企业画像的常用派生口径有三条：生效企业（[[calibers/company_effect]]）、平台运营方唯一（[[calibers/platform_operator_unique]]）、主数据信用代码唯一（[[calibers/main_data_certification_unique]]）。其中 `custCompanyType` 字段还被 GP 学习域引用，用于判定金融机构用户（[[calibers/gptlearn_finance_user]]）。
+主题名与实际实现不符：`ProfileController` 的 @Api 标注为「性能测试接口」，路径 `/profile-web/`，仅提供四个能力——取企业简要信息、按 `dbTenantCode` 取租户、分页用户、取 token。代码链路中不存在画像标签、画像表或画像计算实现。
 
 ## 需求背景
 
-本分析未提供该概念的需求文档（reqdoc_claims）证据。待业务补充：企业画像是否对外提供只读视图、是否存在缓存副本。
+该主题下的接口是企业信息（[[tables/cust_company_info]]）的调试/测试入口，不应被当作「客户画像」能力引用；与之相邻的企业维度数据读取方还有 GP学习引流（按 `cust_company_info.cust_company_type` 与 `db_tenant_code` 过滤，见 [[rules/gpt_learn_finance_only]]、[[rules/poster_allowed_tenant]]）。
 
 ## 版本演进
 
-当前契约版本 0.1，暂无版本演进证据。
+- 当前观测：仅四个测试能力，无画像相关表与实现。
+- 文档侧无对应业务规则表述（见页首 document_claim，未证实）。
 
-相关页面：[[tables/cust_company_info]]、[[processes/cust_company_info_cust_build_status]]、[[processes/cust_company_info_cust_status]]、[[calibers/company_effect]]、[[calibers/platform_operator_unique]]、[[calibers/main_data_certification_unique]]、[[calibers/gptlearn_finance_user]]。
+相关：[[cust_company_info]]

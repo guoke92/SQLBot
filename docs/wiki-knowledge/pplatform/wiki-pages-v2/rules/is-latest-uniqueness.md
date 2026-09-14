@@ -1,7 +1,7 @@
 ---
 type: rule
 title: is_latest 唯一最新维护
-page_key: rule/is-latest-uniqueness
+page_key: is-latest-uniqueness
 domain: 微企链立项与项目审批
 status: draft
 aliases:
@@ -13,6 +13,7 @@ scope:
 sources:
   - code_path:ProjectApprovalApplication.java#doCreateApproval
 contract_version: "0.1"
+belong: rules
 ---
 
 同一项目可以有多条上线审批记录，但只允许一条是最新：重新发起时把原审批置 `N`、新审批置 `Y`。并且只有最新记录才允许再次重新发起，否则前置校验直接抛异常（见 [[processes/project-approval-workflow-status]] 中 PENDING 的自环transition）。

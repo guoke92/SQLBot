@@ -9,10 +9,22 @@ oid: 1
 scope:
   databases: [lowcode_pplatform]
 sources: ["code:extract-enums.yaml", "db:db-profile.yaml"]
-created: '2026-09-10'
-updated: '2026-09-10'
+created: '2026-09-14'
+updated: '2026-09-14'
 contract_version: "0.1"
+belong: enums
 ---
+
+
+
+
+
+
+
+
+
+
+
 
 # product_status
 
@@ -22,8 +34,10 @@ contract_version: "0.1"
 enum: product_status
 fields: [platform_product.product_status]
 values:
-  0:
-    label: 待生效
-  1:
-    label: 已生效
+  "0":
+    label: "待生效"
+    java_name: "TO_BE_EFFECTIVE"
+  "1":
+    label: "已生效"
+    java_name: "EFFECTIVE"
 ```

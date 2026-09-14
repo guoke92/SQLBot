@@ -1,7 +1,7 @@
 ---
 type: concept
 title: 产品编码 productCode
-page_key: concepts/product_code
+page_key: product_code
 domain: 外部渠道与银行对接
 status: draft
 aliases:
@@ -24,6 +24,7 @@ boundary: "productCode 是编码字符串，platformProductId 是主键 ID；val
 also_confused_with:
   - tenantProductId（租户产品主键）
   - platformProductId（平台产品主键）
+belong: concepts
 ---
 
 # 产品编码 productCode

@@ -1,7 +1,7 @@
 ---
 type: concept
 title: 对接人引用体系（operation_id）
-page_key: concept/operation-id-contact-reference
+page_key: operation-id-contact-reference
 domain: 微企链立项与项目审批
 status: draft
 aliases:
@@ -38,6 +38,7 @@ also_confused_with:
   - wechat_project_approval_apply.solution_manager（姓名 CSV）
   - tenant_project_approval.initiator_user_id（sys_user id）
 sources: ["enrich:wiki-admin"]
+belong: concepts
 ---
 
 「对接人」在本主题里存在三套并行的人员标识：企微 userId（`solution_manager_wxid`）、sys_user id（`tenant_project_approval.initiator_user_id`）、以及运营人员 `operation_id`（`op_contact` 家族）。这三套互不通用，写统计导入或做人员匹配时最容易在此处串号。

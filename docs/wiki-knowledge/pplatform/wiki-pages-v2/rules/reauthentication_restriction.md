@@ -12,6 +12,7 @@ scope:
 sources:
   - code:CustCompanyOperationApplication.java:reAuthentication
 contract_version: "0.1"
+belong: rules
 ---
 
 仅当认证状态为 `CUST_CONFIRM_AWAIT`（待客户确认，见 [[pending_customer_confirm]]）时，才允许将其重置为 `INIT` 以重新认证；状态不符时会抛出异常。这条规则限定了认证状态机（[[enterprise_auth_status_machine]]）中 `CUST_CONFIRM_AWAIT → INIT` 这条回退边的可执行前提。

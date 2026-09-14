@@ -1,7 +1,7 @@
 ---
 type: process
 title: 企业项目关联生效状态
-page_key: process.cust-project-rel-status
+page_key: cust-project-rel-status
 domain: 项目报表/统计/上报
 status: draft
 aliases:
@@ -15,6 +15,7 @@ sources:
   - code:CustProjectController.java
   - db:cust_project_rel
 contract_version: "0.1"
+belong: processes
 ---
 
 # 企业项目关联生效状态

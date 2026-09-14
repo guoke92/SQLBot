@@ -1,7 +1,7 @@
 ---
 type: rule
 title: TERMINATION 读时归一为挂起
-page_key: rule/legacy-termination-normalize
+page_key: legacy-termination-normalize
 domain: 微企链立项与项目审批
 status: draft
 aliases:
@@ -13,6 +13,7 @@ scope:
 sources:
   - code_path:ProjectStatisticsApplication.java#normalizeLegacyProjectPhaseCode
 contract_version: "0.1"
+belong: rules
 ---
 
 项目阶段的历史值 `TERMINATION` 不会被改库，而是在读取时被归一为「挂起」。因此库内与界面上的取值可能不一致，写筛选条件时若按 `TERMINATION` 直接查库、按挂起查界面，会得到不同结果。

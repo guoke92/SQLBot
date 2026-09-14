@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 管理员手机号变更项
-page_key: caliber.admin-phone-change-item
+page_key: admin-phone-change-item
 domain: 企业变更与运营变更
 status: draft
 aliases: [UN0012, UN0013, 管理员手机号变更]
@@ -11,6 +11,7 @@ scope:
 sources:
   - code_path:CustChangeApplication.java:getRedirectPage
 contract_version: "0.1"
+belong: calibers
 ---
 
 「管理员手机号变更项」是跳转页判定的识别口径：变更项编码落在 `UN0012`/`UN0013`（`CustUpdateItemCodeConstants`）即视为管理员手机号变更。变更单与配置的关联方式见 [[concepts.item-code]]，判定后的跳转逻辑见 [[rules.admin-phone-change-redirect]]。

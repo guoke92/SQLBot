@@ -1,7 +1,7 @@
 ---
 type: concept
 title: 微信（企微 / 服务号 / 小程序分流）
-page_key: concept/wechat
+page_key: wechat
 domain: 微信生态/小程序/扫脸
 status: draft
 aliases: [微信通知, WechatNotificationService, 企微]
@@ -20,6 +20,7 @@ also_confused_with:
   - 小程序
 boundary: "企微消息面向内部审批人（touser=企微 userId，textcard）；小程序链路（MiniProgramController）面向 C 端小程序，用 api.weixin.qq.com accessToken。二者接入主体与 token 体系不同。"
 contract_version: "0.1"
+belong: concepts
 ---
 
 # 微信（企微 / 服务号 / 小程序分流）

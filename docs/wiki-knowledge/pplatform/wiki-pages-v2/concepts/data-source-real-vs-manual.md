@@ -1,7 +1,7 @@
 ---
 type: concept
 title: 真实立项与模拟立项（data_source）
-page_key: concept/data-source-real-vs-manual
+page_key: data-source-real-vs-manual
 domain: 微企链立项与项目审批
 status: draft
 aliases:
@@ -24,6 +24,7 @@ adjudication: data_source='WECHAT' 表示由企微同步来的真实立项，'MA
 also_confused_with:
   - act_procinst_status（审批实例状态，与数据来源是两个维度）
 sources: ["enrich:wiki-admin"]
+belong: concepts
 ---
 
 同一张立项申请表里混着两类业务性质不同的数据，区分它们的唯一依据就是 `data_source`。模拟立项的用途是让统计与流程可以在缺少真实企微审批的情况下先跑起来，但它并不代表真实业务事实。

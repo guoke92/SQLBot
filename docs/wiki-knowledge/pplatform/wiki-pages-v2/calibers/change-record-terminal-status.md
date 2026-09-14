@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 变更单终态
-page_key: caliber.change-record-terminal-status
+page_key: change-record-terminal-status
 domain: 企业变更与运营变更
 status: draft
 aliases: [变更终态口径, 非终态变更单]
@@ -11,6 +11,7 @@ scope:
 sources:
   - code_path:CustChangeApplication.java:changeRebuild
 contract_version: "0.1"
+belong: calibers
 ---
 
 「变更单终态」是 [[tables.cust_change_record]] 上用于识别企业是否存在未完结变更流程的口径：`CUST_CHECK_PASS` 与 `CUST_CHECK_REJECT` 视为终态，取在途变更单时以 notIn 排除，取最新一条非终态记录用于流程重建。状态取值全集见 [[processes.cust-change-record-status]]，应用规则见 [[rules.change-record-terminal-filter]] 与 [[rules.change-rebuild]]。注意本口径只描述变更单维度，与企业生命周期状态 [[calibers.company-change-on-way]] 不同层。

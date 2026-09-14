@@ -1,7 +1,7 @@
 ---
 type: concept
 title: fundingKey（资方唯一键）
-page_key: concepts/funding_key
+page_key: funding_key
 domain: funding
 status: draft
 aliases:
@@ -23,6 +23,7 @@ adjudication: synonym
 also_confused_with:
   - fundingPartyName
 boundary: "同一资方键：异常解析场景作为 funding_party_code 使用（需先经名称-键组合映射），规则场景作为 funding_party_mark 直接使用；不可与 fundingPartyName 混淆"
+belong: concepts
 ---
 
 # fundingKey（资方唯一键）

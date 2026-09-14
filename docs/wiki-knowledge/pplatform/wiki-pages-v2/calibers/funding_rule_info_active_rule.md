@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 资方规则-生效规则口径
-page_key: calibers/funding_rule_info_active_rule
+page_key: funding_rule_info_active_rule
 domain: funding
 status: draft
 aliases:
@@ -15,6 +15,7 @@ sources:
   - "code:FundingPartyRuleProviderImpl#doQuery"
   - "code:FundRuleInfoApplication#activeRule"
 contract_version: "0.1"
+belong: calibers
 ---
 
 # 资方规则-生效规则口径

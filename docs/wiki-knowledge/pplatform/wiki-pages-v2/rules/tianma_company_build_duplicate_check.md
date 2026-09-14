@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 天马渠道企业重复建档校验
-page_key: rule.tianma_company_build_duplicate_check
+page_key: tianma_company_build_duplicate_check
 domain: 准入接入
 status: draft
 aliases: [天马渠道建档校验, 已通过其他方式完成建档, 正在通过其他方式建档]
@@ -11,6 +11,7 @@ scope:
 sources:
   - "code: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustAccessApplication.java:validateSetValueOfTianma"
 contract_version: "0.1"
+belong: rules
 ---
 
 天马渠道走独立的重复建档校验分支：与通用规则只比对统一社会信用代码不同，这里同时校验企业名称与统一社会信用代码。若命中已存在且非 `BUILD_FAIL` 的记录，则按 `cust_build_status` 的取值抛出不同提示——状态为 `BUILD_SUCCESS` 时提示“已通过其他方式完成建档”，其他状态提示“正在通过其他方式建档”。

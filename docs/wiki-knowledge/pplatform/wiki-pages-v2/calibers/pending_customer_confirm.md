@@ -12,6 +12,7 @@ scope:
 sources:
   - code:CustBuildStatusConstant.CUST_CONFIRM_AWAIT
 contract_version: "0.1"
+belong: calibers
 ---
 
 “待客户确认”是认证状态 `cust_build_status = 'CUST_CONFIRM_AWAIT'` 的记录集合（见 [[auth_status]]、[[enterprise_auth_status_machine]]）。处于该状态的企业已由平台或客户发起建档，等待客户侧确认或提交审核。

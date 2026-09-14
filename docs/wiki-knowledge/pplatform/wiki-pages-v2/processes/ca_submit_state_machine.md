@@ -1,7 +1,7 @@
 ---
 type: process
 title: CA 一证四步上送状态机
-page_key: process/ca_submit_state_machine
+page_key: ca_submit_state_machine
 domain: 微信生态/小程序/扫脸
 status: draft
 aliases: [上送状态机, submit_status 状态机]
@@ -11,6 +11,7 @@ scope:
 sources:
   - code:CaCertificationInfoAppServiceImpl.java
 contract_version: "0.1"
+belong: processes
 ---
 
 # CA 一证四步上送状态机

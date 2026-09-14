@@ -1,17 +1,33 @@
 ---
 type: table
-title: 租户产品菜单资源表（tenant_product_menu_res）
-page_key: tables/tenant_product_menu_res
-domain: 租户产品
+title: 租户产品菜单按钮表
+page_key: tenant_product_menu_res
+domain: 租户产品/互通产品/租户项目
 status: draft
-aliases: [tenant_product_menu_res, 租户产品菜单资源表]
+anchors: [tenant_product_menu_res]
 oid: 1
 scope:
-  databases: []
-sources:
-  - db:tenant_product_menu_res
+  databases: [lowcode_pplatform]
+sources: ["db:db-catalog.yaml", "code:extract-catalog.yaml"]
+created: '2026-09-14'
+updated: '2026-09-14'
 contract_version: "0.1"
+belong: tables
 ---
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 租户产品菜单资源表按「产品 code × 企业角色 × 数据租户」登记菜单资源，是本主题中唯一显式带 db_tenant_code 的菜单类配置表，因而承担了菜单配置的租户隔离维度。与 [[tables/tenant_product_menu]] 配合使用。
@@ -29,71 +45,101 @@ table: tenant_product_menu_res
 database: lowcode_pplatform
 desc: 租户产品菜单按钮表
 fields:
+  - name: company_type
+    type: string
+    phys: varchar(32)
+    desc: 企业类型
+    dict: tenant_product_menu_res__company_type
+    topk: "CORE|CORPORATION_COMPANY|PLATFORM_OPERATOR_COMPANY|SUPPLIER"
+  - name: enable
+    type: string
+    phys: varchar(4)
+    desc: enable
+    dict: enable
+    topk: "Y"
+    labels: "Y:是"
   - name: id
     type: number
+    phys: bigint(22)
     desc: 表主键
   - name: act_procinst_date
     type: temporal
+    phys: datetime
     desc: 审批结束时间
   - name: act_procinst_id
     type: string
+    phys: varchar(64)
     desc: 流程实例ID
   - name: act_procinst_no
     type: string
+    phys: varchar(255)
     desc: 流程申请编号
   - name: act_procinst_status
     type: string
+    phys: varchar(64)
     desc: 当前审批状态
   - name: app_tenant_code
     type: string
+    phys: varchar(100)
     desc: 逻辑租户标识
+    topk: "base"
   - name: code
     type: string
+    phys: varchar(64)
     desc: 编码
-  - name: company_type
-    type: string
-    desc: 企业类型
   - name: create_by
     type: string
+    phys: varchar(100)
     desc: 创建人id
   - name: create_time
     type: temporal
+    phys: datetime
     desc: 创建时间
   - name: create_user
     type: string
+    phys: varchar(100)
     desc: 创建人名称
   - name: db_tenant_code
     type: string
+    phys: varchar(100)
     desc: 数据租户标识
-  - name: enable
-    type: string
-    desc: enable
+    topk: "LN1|beehive-scf.qhhrly.cn|ning"
   - name: menu_id
     type: number
+    phys: bigint(20)
     desc: 菜单ID
   - name: name
     type: string
+    phys: varchar(64)
     desc: 名称
   - name: organization_id
     type: string
+    phys: varchar(30)
     desc: 机构编号
   - name: product_code
     type: string
+    phys: varchar(64)
     desc: 产品code
+    topk: "ACCOUNT_PRODUCT|RVSFACTOR_PC"
   - name: remark
     type: string
+    phys: varchar(1024)
     desc: remark
   - name: resource_id
     type: number
+    phys: bigint(20)
     desc: 按钮ID
   - name: update_by
     type: string
+    phys: varchar(100)
     desc: 更新人id
   - name: update_time
     type: temporal
+    phys: datetime
     desc: 更新时间
   - name: update_user
     type: string
+    phys: varchar(100)
     desc: 更新人名称
 ```
 

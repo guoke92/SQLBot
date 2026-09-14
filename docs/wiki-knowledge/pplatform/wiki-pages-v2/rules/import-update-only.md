@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 导入仅支持更新（正式链路）
-page_key: rule.import-update-only
+page_key: import-update-only
 domain: 项目报表/统计/上报
 status: draft
 aliases:
@@ -14,6 +14,7 @@ scope:
 sources:
   - code:ProjectStatisticsApplication.java
 contract_version: "0.1"
+belong: rules
 ---
 
 # 导入仅支持更新（正式链路）

@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 建档影像企业主键口径
-page_key: calibers/archived-media-busikey
+page_key: archived-media-busikey
 domain: 文件/附件/媒体
 status: draft
 aliases: [影像归属主键口径, busiKey 口径, 客户影像归属]
@@ -12,6 +12,7 @@ sources:
   - code:MediaFile.busiKey
   - code:MediaFile.userBusiKey
 contract_version: "0.1"
+belong: calibers
 ---
 
 # 建档影像企业主键口径

@@ -1,7 +1,7 @@
 ---
 type: concept
 title: 天马入站 / 天马出站
-page_key: concepts/tianma_inbound_outbound
+page_key: tianma_inbound_outbound
 domain: 外部渠道与银行对接
 status: draft
 aliases:
@@ -21,6 +21,7 @@ adjudication: boundary
 boundary: "入站方法在 TianmaController 链路中真实生效；出站方法体存在，但其唯一调用方 TianmaConsumer 全类处于注释状态，出站链路当前不可用"
 also_confused_with:
   - TianmaConsumer.platformCompanyAuditPassNotice（整类被注释）
+belong: concepts
 ---
 
 # 天马入站 / 天马出站

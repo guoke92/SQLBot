@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 有效联系人状态口径（status ∈ {ADD, EFFECT}）
-page_key: caliber.person_effective_status
+page_key: person_effective_status
 domain: 平台内部服务对接
 status: draft
 aliases:
@@ -13,6 +13,7 @@ scope:
 sources:
   - semantic:field_semantics[cust_person_info.status]
 contract_version: "0.1"
+belong: calibers
 ---
 
 联系人没有沿用 enable 作为有效性判据，而是以状态枚举判定：查询有效联系人时取 ADD 或 EFFECT。

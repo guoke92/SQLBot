@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 模拟立项编号规则
-page_key: rule.manual-project-spno
+page_key: manual-project-spno
 domain: 项目报表/统计/上报
 status: draft
 aliases:
@@ -15,6 +15,7 @@ sources:
   - code:ProjectStatisticsApplication.java
   - code:ProjectStatisticsDevImportApplication.java
 contract_version: "0.1"
+belong: rules
 ---
 
 # 模拟立项编号规则

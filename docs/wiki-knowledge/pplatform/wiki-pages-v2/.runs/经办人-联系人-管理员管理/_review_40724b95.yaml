@@ -1,0 +1,4 @@
+body: source 的 longteng（DB 69 行）、certification_type 的 CREDENTIALS_ID 均只有 DB 证据、代码枚举未声明；realname_status
+  与 phone_realname_status 并存且分布差异极大但未纳入字段语义清单。三处取值/字段需业务与研发共同确认后再升级契约。
+title: cust_person_info 中代码枚举未声明的 DB 取值
+type: table

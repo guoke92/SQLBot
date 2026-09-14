@@ -18,6 +18,8 @@ also_confused_with:
   - 认证状态
 boundary: 客户状态包括生效、冻结、注销等，与认证状态独立。
 sources: ["enrich:wiki-admin"]
+belong: concepts
+field_targets: [cust_company_info.cust_status]
 ---
 
 “客户状态”指 `cust_company_info.cust_status`，表达企业作为客户实体的经营状态：新增（`ADD`）、生效（`EFFECT`）、冻结（`FREEZE`）、注销（`WRITEOFF`）等。流转细节见 [[customer_status_machine]]。

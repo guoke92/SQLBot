@@ -9,10 +9,22 @@ oid: 1
 scope:
   databases: [lowcode_pplatform]
 sources: ["code:extract-enums.yaml", "db:db-profile.yaml"]
-created: '2026-09-10'
-updated: '2026-09-10'
+created: '2026-09-14'
+updated: '2026-09-14'
 contract_version: "0.1"
+belong: enums
 ---
+
+
+
+
+
+
+
+
+
+
+
 
 # alter_mode
 
@@ -22,8 +34,10 @@ contract_version: "0.1"
 enum: alter_mode
 fields: [cust_change_record.alter_mode]
 values:
-  1:
-    label: 平台变更
-  2:
-    label: 企业自行变更
+  "1":
+    label: "平台变更"
+    java_name: "PLAT_ALTER"
+  "2":
+    label: "企业自行变更"
+    java_name: "SELF_ALTER"
 ```

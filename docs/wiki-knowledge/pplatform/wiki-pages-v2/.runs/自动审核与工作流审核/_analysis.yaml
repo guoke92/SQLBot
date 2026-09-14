@@ -1,99 +1,102 @@
 field_semantics:
 - table: cust_company_info
-  field: check_status
-  meaning: 企业建档/变更的工作流审核状态，由运营中台回调 RtfState.getCheckStaus().name() 写入，取值 CUST_CHECK_PASS/CUST_CHECK_REJECT/CUST_CHECK_BACKTOCUSTOM/CUST_CHECK_CHECKING
-  evidence: code
-- table: cust_company_info
   field: cust_build_status
-  meaning: 企业认证/建档状态，由运营中台审核结果驱动流转（CustBuildStatusEnum）
+  meaning: 企业建档/认证状态。取值来自 CustBuildStatusEnum，代码中按 getDictKey() 落库与比较。
   evidence: code
 - table: cust_company_info
   field: identify_style
-  meaning: 建档/认证方式，决定审核轨迹取数与状态流转分支：INVITE_AGW(平台录入)、INVITE(客户录入)、SELF(自主认证)、SIMPLE(简易认证)
+  meaning: 企业认证方式。取值来自 IdentifyTypeConstant：SELF 自主认证、INVITE 客户录入、INVITE_AGW 平台录入、SIMPLE
+    简易认证。
+  evidence: code
+- table: cust_company_info
+  field: check_status
+  meaning: 企业审核状态。取值来自 OperApiConstants.CheckStatus，工作流回调按 .name() 写入；缺省时同步接口会补字面量
+    CUST_CHECK_PASS。
   evidence: code
 - table: cust_company_info
   field: cust_status
-  meaning: 企业客户状态：EFFECT 生效、CHANGE 变更中、WRITEOFF 注销、FAILURE 失效、ADD
+  meaning: 客户业务状态。代码使用 CustStatusEnum / CustStatusConstant，可见 EFFECT、CHANGE、ADD、WRITEOFF、FAILURE
+    等。
   evidence: code
 - table: cust_company_info
-  field: remark
-  meaning: 变更审核回调写入的拒绝/退回原因（rtfComment）
+  field: need_register_ca
+  meaning: 是否需要开通电子签章（CA）。取值 OpenStatus.Y/N/P，isOpenCa、createCaDoc 按 Y/N/P 判断。
+  evidence: code
+- table: cust_company_info
+  field: ca_register_status
+  meaning: CFCA/电子签章开通状态。取值 OpenStatus.Y/N/P，审核/开通链路按 Y、N、P 判断并回写。
+  evidence: code
+- table: cust_company_info
+  field: bs_register_status
+  meaning: 上上签开通状态。取值 OpenStatus.Y/N/P，setSignRegister、isOpenCa 按 Y、N、P 判断并回写。
   evidence: code
 - table: cust_change_record
   field: status
-  meaning: 变更记录审核状态，取值同 CheckStatus；退回场景写入动态值 returnCust-yyyy-MM-dd HH:mm
-  evidence: code
-- table: cust_change_record
-  field: msg_send
-  meaning: 变更结果消息是否已发送（EnableEnum.Y/N），用于回调幂等去重
+  meaning: 客户变更审核状态。工作流回调写入 CheckStatus.name()，如 CUST_CHECK_PASS、CUST_CHECK_REJECT、CUST_CHECK_BACKTOCUSTOM；自行变更退回时写入动态值
+    returnCust-yyyy-MM-dd HH:mm。
   evidence: code
 - table: cust_change_record
   field: alter_mode
-  meaning: 变更方式：PLAT_ALTER 平台提交变更 / SELF_ALTER 企业自行提交变更（AlterModeEnum）
+  meaning: 变更方式。AlterModeEnum，代码区分 PLAT_ALTER（平台提交变更）与 SELF_ALTER（企业自行提交变更）。
+  evidence: code
+- table: cust_change_record
+  field: msg_send
+  meaning: 变更审核消息是否已发送。审核回调后写 EnableEnum.Y.name()，用于幂等去重。
   evidence: code
 - table: cust_change_record
   field: oper_cust_id
-  meaning: 运营中台客户id，回调查询变更记录的主键依据
+  meaning: 运营中台客户 id。变更回调通过该字段反查本地变更记录。
   evidence: code
 - table: cust_change_record
-  field: need_cust_confirm
-  meaning: 是否需要客户确认
+  field: cust_id
+  meaning: 本地客户记录 id，关联 cust_company_info.id。
   evidence: code
 - table: cust_change_record
   field: alter_type_id
-  meaning: 变更项记录id，逗号分隔，关联 cust_change_cfg
-  evidence: code
-- table: cust_certification_info
-  field: auto_verify_status
-  meaning: 自动核查（自动化核查）结果状态
-  evidence: code
-- table: cust_certification_info
-  field: manual_verify_status
-  meaning: 人工核查结果状态
-  evidence: code
-- table: cust_certification_info
-  field: auto_verify_msg
-  meaning: 自动核查结果说明/失败原因
-  evidence: code
-- table: cust_certification_info
-  field: auto_verify_data
-  meaning: 自动核查明细JSON原文，含人脸核验结果 FaceVerifyResp.videoPath
-  evidence: code
-- table: cust_certification_info
-  field: manual_verify_msg
-  meaning: 人工核查结果说明
-  evidence: code
-- table: cust_certification_info
-  field: face_business_no
-  meaning: 人脸核验业务流水号
-  evidence: code
-- table: cust_certification_info
-  field: certification_type
-  meaning: 核查/认证类型（如 LEGAL_OCR、法人OCR）
-  evidence: code
-- table: cust_person_info
-  field: phone_realname_status
-  meaning: 手机/实名状态，取值 CustCertificationResultTypeEnum：TO_BE_VERIFIED / AUTOMATIC_AUTHENTICATION_PASSED
-    / MANUAL_AUTHENTICATION_PASSED
-  evidence: code
-- table: cust_person_info
-  field: real_name_result
-  meaning: 实名认证结果，VERIFIED_SUCCESS 表示通过（RealNameResultEnum）
-  evidence: code
-- table: cust_person_info
-  field: face_status
-  meaning: 人脸认证结果，取值同 CustCertificationResultTypeEnum
+  meaning: 变更项记录 id 列表，逗号分隔，关联 cust_change_cfg.id，用于同步运营中台变更项。
   evidence: code
 - table: cust_person_info
   field: user_type
-  meaning: 联系人类型：admin 管理员 / operator 经办人 / guest 游客（UserTypeEnum）
+  meaning: 联系人类型。UserTypeEnum，代码使用 admin（管理员）、operator（经办人）、guest（游客）。
   evidence: code
 - table: cust_person_info
-  field: company_type
-  meaning: 客户角色（CustCompanyTypeEnum，如 CORE/SUPPLIER/FINANCE/PLATFORM_OPERATOR_COMPANY）
+  field: status
+  meaning: 联系人账号状态。CustPersonStatusConstant，代码可见 ADD、EFFECT、FREEZE。
   evidence: code
+- table: cust_person_info
+  field: phone_realname_status
+  meaning: 手机实名状态。CustCertificationResultTypeEnum，代码可见 TO_BE_VERIFIED、AUTOMATIC_AUTHENTICATION_PASSED、MANUAL_AUTHENTICATION_PASSED。
+  evidence: code
+- table: cust_person_info
+  field: face_status
+  meaning: 人脸认证状态。与 CustCertificationResultTypeEnum 的自动/人工认证通过值比较。
+  evidence: code
+- table: cust_person_info
+  field: real_name_result
+  meaning: 实名认证结果。CustPersonApplication.updateFaceStatus、updateVerifyNameStatus 中写
+    RealNameResultEnum.VERIFIED_SUCCESS.getDictKey()。
+  evidence: code
+- table: cust_certification_info
+  field: auto_verify_status
+  meaning: 自动核查结果。FaceVerifyController.isFaceVerifyPassed 与 CustCertificationResultTypeEnum.AUTOMATIC_AUTHENTICATION_PASSED
+    比较。
+  evidence: code
+- table: cust_certification_info
+  field: manual_verify_status
+  meaning: 人工核查结果。FaceVerifyController.isFaceVerifyPassed 与 CustCertificationResultTypeEnum.MANUAL_AUTHENTICATION_PASSED
+    比较。
+  evidence: code
+- table: cust_certification_info
+  field: auto_verify_data
+  meaning: 自动核查原始数据 JSON。CustPersonApplication.getFaceVerifyQueryVideoDTO 从该字段反序列化
+    VerifyResultQueryResp。
+  evidence: code
+- table: cust_auth_application
+  field: open_status
+  meaning: 客户产品开通状态。DB 实测取值 NOT_OPENED、OPENING、OPENED。
+  evidence: db
 state_machines:
-- name: 企业建档认证状态机
+- name: 企业建档/认证状态机
   field: cust_company_info.cust_build_status
   states:
   - value: INIT
@@ -103,308 +106,661 @@ state_machines:
     label: 待客户确认
     source: code_enum
   - value: CUST_BUILDING
-    label: 认证审核中（运营中台审核）
+    label: 审核中/建档中
     source: code_enum
   - value: BUILD_SUCCESS
-    label: 认证/建档成功
+    label: 认证成功
     source: code_enum
   - value: BUILD_FAIL
-    label: 认证/建档失败（拒绝）
+    label: 认证失败
     source: code_enum
   - value: CUST_CHANGE
     label: 变更中
     source: code_enum
   transitions:
+  - from: INIT
+    event: 邀请认证客户录入提交
+    to: CUST_CONFIRM_AWAIT
+    evidence: code_path:CustStatusCommitProcessor.java:checkMsgSend
   - from: CUST_CONFIRM_AWAIT
-    event: 客户提交、运营中台审核中(CUST_CHECK_CHECKING)
+    event: 客户提交运营中台审核/客户确认提交
     to: CUST_BUILDING
     evidence: code_path:CustStatusCommitProcessor.java:checkMessage
   - from: CUST_BUILDING
-    event: 运营中台退回待客户确认(CUST_CHECK_BACKTOCUSTOM)
+    event: 运营中台审核退回/待客户确认
+    to: CUST_CONFIRM_AWAIT
+    evidence: code_path:CustStatusCommitProcessor.java:checkMessage
+  - from: CUST_CONFIRM_AWAIT
+    event: CUST_CHECK_CHECKING 回调
+    to: CUST_BUILDING
+    evidence: code_path:CustStatusCommitProcessor.java:checkMessage
+  - from: CUST_BUILDING
+    event: CUST_CHECK_BACKTOCUSTOM 回调
     to: CUST_CONFIRM_AWAIT
     evidence: code_path:CustStatusCommitProcessor.java:checkMessage
   - from: CUST_BUILDING
-    event: 运营中台审核通过(CUST_CHECK_PASS)
+    event: CUST_CHECK_PASS 回调
     to: BUILD_SUCCESS
     evidence: code_path:CustStatusCommitProcessor.java:checkMessage
   - from: CUST_BUILDING
-    event: 运营中台审核拒绝(CUST_CHECK_REJECT)
+    event: CUST_CHECK_REJECT 回调
     to: BUILD_FAIL
     evidence: code_path:CustStatusCommitProcessor.java:checkMessage
-  - from: CUST_BUILDING
-    event: 平台录入(INVITE_AGW)审核退回待客户确认
-    to: CUST_CONFIRM_AWAIT
-    evidence: code_path:CustStatusCommitProcessor.java:checkMessage
-- name: 工作流审核状态机
-  field: cust_company_info.check_status
+- name: 客户变更审核状态机
+  field: cust_change_record.status
   states:
   - value: CUST_CHECK_CHECKING
     label: 审核中
-    source: code_enum
+    source: code_const
+  - value: CUST_CHECK_PASS
+    label: 审核通过
+    source: code_const
+  - value: CUST_CHECK_REJECT
+    label: 审核拒绝
+    source: code_const
   - value: CUST_CHECK_BACKTOCUSTOM
     label: 退回客户确认
-    source: code_enum
-  - value: CUST_CHECK_PASS
-    label: 审核通过
-    source: code_enum
-  - value: CUST_CHECK_REJECT
-    label: 审核拒绝
-    source: code_enum
-  transitions:
-  - from: CUST_CHECK_CHECKING
-    event: 运营中台工作流回调 rtfState=通过(RtfState.PASS)
-    to: CUST_CHECK_PASS
-    evidence: code_path:CustWorkflowAuditCommitProcessor.java:process(setCheckStatus=rtfs.getCheckStaus().name())
-  - from: CUST_CHECK_CHECKING
-    event: 运营中台工作流回调 rtfState=拒绝(RtfState.REJECT)
-    to: CUST_CHECK_REJECT
-    evidence: code_path:CustWorkflowAuditCommitProcessor.java:process
-  - from: CUST_CHECK_CHECKING
-    event: 运营中台回调 rtfState=退回客户/提交客户确认（CheckStatus.CUST_CHECK_BACKTOCUSTOM）
-    to: CUST_CHECK_BACKTOCUSTOM
-    evidence: code_path:CustStatusCommitProcessor.java:process(RtfState.getByDesc->getCheckStaus)
-  - from: CUST_CHECK_BACKTOCUSTOM
-    event: 客户确认后重新提交，运营中台回调 rtfState=审核中
-    to: CUST_CHECK_CHECKING
-    evidence: code_path:CustStatusCommitProcessor.java:checkMessage(CUST_CHECK_CHECKING
-      && CUST_CONFIRM_AWAIT -> CUST_BUILDING)
-- name: 变更记录审核状态机
-  field: cust_change_record.status
-  states:
-  - value: CUST_CHECK_PASS
-    label: 审核通过
-    source: code_enum
-  - value: CUST_CHECK_REJECT
-    label: 审核拒绝
-    source: code_enum
-  - value: CUST_CHECK_BACKTOCUSTOM
-    label: 待客户确认
-    source: code_enum
+    source: code_const
   - value: returnCust-yyyy-MM-dd HH:mm
-    label: 退回（自行变更场景，按分钟动态生成）
-    source: code_enum
+    label: 退回客户（自行变更路径动态状态）
+    source: code_const
   transitions:
-  - from: CUST_CHECK_BACKTOCUSTOM
-    event: 运营中台变更审核通过(CUST_CHECK_PASS)
+  - from: CUST_CHECK_CHECKING
+    event: 运营中台审核通过
     to: CUST_CHECK_PASS
-    evidence: code_path:CustStatusCommitProcessor.java:changeMessage(recordDO.setStatus
-      + setMsgSend=Y)
-  - from: CUST_CHECK_BACKTOCUSTOM
-    event: 运营中台变更审核拒绝(CUST_CHECK_REJECT)
+    evidence: code_path:CustStatusCommitProcessor.java:changeMessage
+  - from: CUST_CHECK_CHECKING
+    event: 运营中台审核拒绝
     to: CUST_CHECK_REJECT
     evidence: code_path:CustStatusCommitProcessor.java:changeMessage
   - from: CUST_CHECK_CHECKING
-    event: 运营中台退回待客户确认(CUST_CHECK_BACKTOCUSTOM)
+    event: 运营中台退回待客户确认
     to: CUST_CHECK_BACKTOCUSTOM
     evidence: code_path:CustStatusCommitProcessor.java:changeMessage
   - from: CUST_CHECK_CHECKING
-    event: rtfComment 含『退回』且变更为企业自行提交(SELF_ALTER)
+    event: 审核意见包含“退回”且 alterMode=SELF_ALTER
     to: returnCust-yyyy-MM-dd HH:mm
-    evidence: code_path:CustStatusCommitProcessor.java:changeMessage(checkAdvice.contains("退回")
-      && SELF_ALTER)
-- name: 核查/实名认证状态机
-  field: cust_certification_info.auto_verify_status
+    evidence: code_path:CustStatusCommitProcessor.java:changeMessage
+- name: 自动/人工认证结果状态机
+  field: cust_certification_info.auto_verify_status / cust_certification_info.manual_verify_status
   states:
   - value: TO_BE_VERIFIED
-    label: 待核查/待认证
-    source: code_enum
+    label: 待认证
+    source: code_const
   - value: AUTOMATIC_AUTHENTICATION_PASSED
-    label: 自动核查通过
-    source: code_enum
+    label: 自动认证通过
+    source: code_const
   - value: MANUAL_AUTHENTICATION_PASSED
-    label: 人工核查通过
-    source: code_enum
+    label: 人工认证通过
+    source: code_const
   transitions:
   - from: TO_BE_VERIFIED
-    event: 自动核查(OCR/人脸/影像)结果通过
+    event: 自动核查通过
     to: AUTOMATIC_AUTHENTICATION_PASSED
-    evidence: code_path:AutoVerifyController.java:getFaceQrCodeByCertificationNo(autoCheckResult
-      != AUTOMATIC_AUTHENTICATION_PASSED 抛异常)
+    evidence: code_path:FaceVerifyController.java:isFaceVerifyPassed
   - from: TO_BE_VERIFIED
-    event: 人工审核提交(saveManual)
+    event: 人工审核通过
     to: MANUAL_AUTHENTICATION_PASSED
-    evidence: code_path:AutoVerifyController.java:saveManual + FaceVerifyController.java:isFaceVerifyPassed
+    evidence: code_path:CustPersonApplication.java:updateVerifyNameStatus
+- name: 联系人账号状态机
+  field: cust_person_info.status
+  states:
+  - value: ADD
+    label: 新增/待生效
+    source: code_const
+  - value: EFFECT
+    label: 生效
+    source: code_const
+  - value: FREEZE
+    label: 冻结
+    source: code_const
+  transitions:
+  - from: ADD
+    event: 保存法人作为管理员
+    to: EFFECT
+    evidence: code_path:CustPersonApplication.java:ifNessaryFrzAdm
+  - from: EFFECT
+    event: 管理员变更/手机号变更冻结旧管理员
+    to: FREEZE
+    evidence: code_path:CustPersonApplication.java:ifNessaryFrzAdm
 calibers:
-- name: 自动核查类型分支
-  predicate: FlowAutoMediaVerifyReqDTO.checkType = 'INFO'
-  scope: AutoVerifyController.autoVerify：命中 CustAutoCheckTypeEnum.INFO 走 autoVerifyService.autoVerify(appNo)，否则走
-    autoMediaVerify(appNo)
-  evidence: code_path:AutoVerifyController.java:autoVerify
-- name: 已生效企业口径
+- name: 人脸认证通过
+  predicate: cust_certification_info.auto_verify_status = 'AUTOMATIC_AUTHENTICATION_PASSED'
+    OR cust_certification_info.manual_verify_status = 'MANUAL_AUTHENTICATION_PASSED'
+  scope: FaceVerifyController.isFaceVerifyPassed
+  evidence: code_path:FaceVerifyController.java:isFaceVerifyPassed
+- name: 企业生效
   predicate: cust_company_info.cust_build_status = 'BUILD_SUCCESS' AND cust_company_info.cust_status
-    = 'EFFECT' AND cust_company_info.data_type = '1' AND cust_company_info.enable
-    = 'Y'
-  scope: listEffectCompany / listEffectCompanyByTenantAndType 等企业有效性查询
-  evidence: code:code_path:CustCompanyIfoEnchanceService.java:listEffectCompany,listEffectCompanyByTenantAndType
+    = 'EFFECT' AND cust_company_info.data_type = '1'
+  scope: listEffectCompany / listEffectCompanyByTenantAndType
+  evidence: code_path:CustCompanyIfoEnchanceService.java:listEffectCompany
+- name: 可用管理员
+  predicate: cust_person_info.user_type = 'admin' AND cust_person_info.enable = 'Y'
+  scope: 管理员查询、通知、变更校验
+  evidence: code_path:CustPersonApplication.java:listCompanyManagerUserId
 - name: 变更在途阻断
   predicate: cust_company_info.cust_status = 'CHANGE'
-  scope: adminChangeSaveOrUpdate 抛『有在途变更流程，请检查!』；isOpenCa 阻断『企业信息变更流程处理中』
-  evidence: code_path:CustPersonApplication.java:adminChangeSaveOrUpdate;CustCompanyIfoEnchanceService.java:isOpenCa
-- name: 回调消息幂等去重
-  predicate: cust_change_record.status = 本次审核状态 AND cust_change_record.msg_send =
-    'Y'
-  scope: isMsgNotify 判定消息无需重复发送
+  scope: adminChangeSaveOrUpdate 发起新变更前阻断
+  evidence: code_path:CustPersonApplication.java:adminChangeSaveOrUpdate
+- name: CA开通阻断
+  predicate: cust_company_info.cust_build_status = 'CUST_CHANGE'
+  scope: isOpenCa 返回变更流程处理中阻断提示
+  evidence: code_path:CustCompanyIfoEnchanceService.java:isOpenCa
+- name: 变更消息已发送
+  predicate: cust_change_record.status = '<当前审核状态>' AND cust_change_record.msg_send
+    = 'Y'
+  scope: isMsgNotify 幂等判断
   evidence: code_path:CustStatusCommitProcessor.java:isMsgNotify
-- name: 变更记录回查等待
-  predicate: cust_change_record.oper_cust_id = 运营中台客户id
-  scope: getChangeRecord 最多轮询15次、每次间隔1s
-  evidence: code_path:CustStatusCommitProcessor.java:getChangeRecord
-- name: 企业管理员唯一校验
-  predicate: cust_person_info.user_type = 'admin' AND cust_person_info.enable = 'Y'
-    AND ref_cust_company_info = X AND company_type = Y AND id != 当前id
-  scope: checkBeforeSave/updateAuthorAndApply：count 必须为 0
-  evidence: code_path:CustPersonApplication.java:checkBeforeSave,updateAuthorAndApply
-- name: 回调审核轨迹取数
-  predicate: identify_style = 'INVITE_AGW' 取 custWkflAppHistoryList 第 1 条；否则取最后 1
-    条
-  scope: CustWorkflowAuditCommitProcessor 填充 checkBy/checkByName
-  evidence: code_path:CustWorkflowAuditCommitProcessor.java:process
+- name: 运营方默认项目
+  predicate: cust_company_info.cust_company_type = '["PLATFORM_OPERATOR_COMPANY"]'
+  scope: setPlatClientCustProject 运营方走默认项目
+  evidence: code_path:ClientCustCommitValidatorSyncService.java:setPlatClientCustProject
 term_bridges:
 - term: 自动审核
   aliases:
-  - 自动化核查
   - 自动核查
-  maps_to: AutoVerifyService.autoVerify(信息核查)/autoMediaVerify(影像核查)，以及 cust_certification_info.auto_verify_status
+  - autoVerify
+  - autoMediaVerify
+  maps_to: cust_certification_info.auto_verify_status
   also_confused_with:
-  - CustWorkflowAuditCommitProcessor 的工作流审核通过/拒绝
-  - cust_company_info.check_status=CUST_CHECK_PASS
+  - cust_certification_info.manual_verify_status
+  - cust_person_info.face_status
   adjudication: boundary
-  boundary: 『自动核查』是准入审核前的资料/身份核查环节（OCR、人脸、影像），产出 auto_verify_status；『审核通过』是运营中台工作流/自动审核后的准入结论，产出
-    check_status=CUST_CHECK_PASS 与 cust_build_status=BUILD_SUCCESS。二者是前后置关系，不是同一值。
-- term: 人工审核
+  boundary: 自动审核/自动核查落 auto_verify_status 与 auto_verify_data；人工审核落 manual_verify_status；人脸状态落
+    cust_person_info.face_status。
+- term: 工作流审核
   aliases:
-  - 人工核查
-  maps_to: AutoVerifyController.saveManual + cust_certification_info.manual_verify_status=MANUAL_AUTHENTICATION_PASSED
+  - 运营中台审核
+  - 工作流审核执行器
+  maps_to: cust_company_info.check_status
   also_confused_with:
-  - 运营中台工作流审批人审核
+  - cust_change_record.status
   adjudication: boundary
-  boundary: 人工核查作用于单条认证影像/实名的核查结论；运营中台工作流审核作用于企业建档/变更流程结论，前者不改变 cust_build_status。
-- term: 建档状态
+  boundary: 建档审核写 cust_company_info.check_status；变更审核写 cust_change_record.status。
+- term: 审核通过
   aliases:
-  - 认证状态
-  - cust_build_status
-  maps_to: CustBuildStatusEnum
+  - 通过
+  - PASS
+  maps_to: cust_company_info.check_status = 'CUST_CHECK_PASS'
   also_confused_with:
-  - 客户状态 cust_status(CustStatusEnum)
-  - 审核状态 check_status(CheckStatus)
-  adjudication: boundary
-  boundary: cust_build_status 描述认证/建档进度；cust_status 描述企业生效/变更/注销生命周期；check_status
-    描述单次工作流审核结论。三者取值域互不相同。
-- term: 审核状态
-  aliases:
-  - check_status
-  maps_to: OperApiConstants.RtfState.getCheckStaus().name() → OperApiConstants.CheckStatus
-  also_confused_with:
-  - 变更记录 cust_change_record.status
+  - cust_change_record.status = 'CUST_CHECK_PASS'
+  - RtfState.PASS
   adjudication: synonym
-  boundary: 回调解读用 RtfState（中文描述，如 通过/拒绝/退回客户），落库前统一转 CheckStatus 枚举名；cust_change_record.status
-    在退回场景还会写入 returnCust-时间 的非枚举值。
-- term: 准入
+  boundary: 运营中台 rtfState 通过映射为 CheckStatus.CUST_CHECK_PASS，再按业务写企业或变更记录。
+- term: 拒绝
   aliases:
-  - 企业准入
-  - 建档
-  maps_to: 企业建档/认证全流程（cust_build_status 从 INIT 到 BUILD_SUCCESS）
+  - 驳回
+  - REJECT
+  maps_to: cust_company_info.check_status = 'CUST_CHECK_REJECT'
   also_confused_with:
-  - 产品开通 cust_auth_application.open_status
+  - cust_change_record.status = 'CUST_CHECK_REJECT'
+  - rtfState 包含‘拒绝’
+  adjudication: synonym
+  boundary: RtfState.REJECT 映射为 CUST_CHECK_REJECT；CustAuthValidatorProcessor 对 rtfState
+    包含‘拒绝’直接 return。
+- term: 退回
+  aliases:
+  - 退回客户
+  - BACKTOCUSTOM
+  - returnCust
+  maps_to: cust_change_record.status = 'CUST_CHECK_BACKTOCUSTOM'
+  also_confused_with:
+  - 动态状态 returnCust-yyyy-MM-dd HH:mm
   adjudication: boundary
-  boundary: 准入/建档指企业与联系人资格认证；产品开通（OPENING/OPENED/NOT_OPENED）指企业开通具体产品，属于建档成功后的独立流程。
+  boundary: 标准退回客户确认为 CUST_CHECK_BACKTOCUSTOM；自行变更且审核意见包含‘退回’时写 returnCust-分钟 动态值。
+- term: 建档
+  aliases:
+  - 认证
+  - 企业认证
+  maps_to: cust_company_info.cust_build_status
+  also_confused_with:
+  - cust_person_info.cust_build_status
+  adjudication: boundary
+  boundary: 企业级建档状态在 cust_company_info.cust_build_status；经办人/联系人也有 cust_build_status
+    冗余字段。
+- term: 管理员
+  aliases:
+  - 企业管理员
+  - admin
+  maps_to: cust_person_info.user_type = 'admin'
+  also_confused_with:
+  - cust_person_info.user_type = 'operator'
+  - cust_person_info.user_type = 'guest'
+  adjudication: boundary
+  boundary: 管理员、经办人、游客均由 cust_person_info.user_type 区分。
+- term: 电子签章
+  aliases:
+  - CA开通
+  - CFCA
+  - 上上签
+  maps_to: cust_company_info.need_register_ca
+  also_confused_with:
+  - cust_company_info.ca_register_status
+  - cust_company_info.bs_register_status
+  adjudication: boundary
+  boundary: need_register_ca 表示是否需要开通；ca_register_status/bs_register_status 表示 CFCA/上上签实际开通状态。
 rules:
-- name: 工作流回调路由规则
-  content: 运营中台建档审核回调中，checkStatus 为 CUST_CHECK_PASS 或 CUST_CHECK_REJECT 的事件被 CustSyncEventProvider.onEvent
-    直接跳过，改由 CustWorkflowAuditCommitProcessor 拉取中台数据后处理；CustSyncEventProvider 只落审核中/退回等中间状态。
-  impact: 决定通过/拒绝的落库入口，避免重复处理
+- name: 自动审核结果必须为自动认证通过才继续
+  content: getFaceQrCodeByCertificationNo 中调用 verifyPersonOCR，若 autoCheckResult 不等于
+    AUTOMATIC_AUTHENTICATION_PASSED 则抛出 autoCheckMsg。
+  impact: 阻断后续人脸二维码与建档流程。
+  field_targets:
+  - cust_certification_info.auto_verify_status
+  evidence: code_path:FaceVerifyController.java:getFaceQrCodeByCertificationNo
+- name: 工作流审核仅处理通过和拒绝
+  content: CustWorkflowAuditCommitProcessor.process 判断 rtfState 不等于 PASS 且不等于 REJECT
+    时跳过，中间状态由 CustSyncEventProvider 处理。
+  impact: 防止审核中状态重复处理，通过/拒绝走统一工作流执行器。
   field_targets:
   - cust_company_info.check_status
-  - cust_build_status
-  evidence: code_path:CustSyncEventProvider.java:onEvent;CustWorkflowAuditCommitProcessor.java:process
-- name: 工作流执行器实际处理范围与注释不一致
-  content: CustWorkflowAuditCommitProcessor 注释写『仅处拒绝，中间状态不处理』，但代码判断 rtfs != RtfState.PASS
-    && rtfs != RtfState.REJECT 才 return，实际同时处理通过和拒绝。
-  impact: 注释与实现存在差异，阅读时需以代码为准
-  field_targets:
-  - cust_company_info.check_status
+  - cust_change_record.status
   evidence: code_path:CustWorkflowAuditCommitProcessor.java:process
-- name: 统一社会信用代码一致性校验
-  content: 运营中台回调校验：process=change 或 sourceId 为空直接放行；否则按 sourceId 查企业，回调 socialUnifiedCode
-    与企业 certificationNo 不一致时抛『统一信用代码不一致』。
-  impact: 阻断错误企业回调
+- name: 外部回调通过/拒绝由工作流执行器处理
+  content: CustSyncEventProvider.onEvent 在非变更广播且 checkStatus 为 CUST_CHECK_PASS 或 CUST_CHECK_REJECT
+    时直接 return，由 CustWorkflowAuditCommitProcessor 处理。
+  impact: 避免同一审核事件被两个入口重复消费。
+  field_targets:
+  - cust_company_info.check_status
+  evidence: code_path:CustSyncEventProvider.java:onEvent
+- name: 退回/拒绝/补充跳过管理员唯一校验
+  content: CustAuthValidatorProcessor.validate 中若 rtfState 包含‘拒绝’、‘退回’或‘补充’，直接 return，不进行管理员唯一性校验。
+  impact: 退回补充场景不阻断客户提交。
+  field_targets:
+  - cust_person_info.user_type
+  - cust_person_info.phone
+  evidence: code_path:CustAuthValidatorProcessor.java:validate
+- name: 统一信用代码一致性校验
+  content: CustValidatorProcessor.validate 对比回调 socialUnifiedCode 与本地企业 certificationNo，不一致抛‘统一信用代码不一致’。
+  impact: 防止运营中台回调匹配错企业。
   field_targets:
   - cust_company_info.certification_no
   evidence: code_path:CustValidatorProcessor.java:validate
-- name: 管理员唯一校验的退回豁免
-  content: CustAuthValidatorProcessor.validate 中，rtfState 含『拒绝』『退回』『补充』时直接 return，不执行管理员信息唯一性校验。
-  impact: 退回/补充场景不阻断回传
+- name: 变更记录轮询等待
+  content: getChangeRecord 按 operCustId 查询变更记录，最多轮询 15 次，每次 sleep 1 秒，解决推运营中台后立即回调查不到数据的问题。
+  impact: 保证变更审核回调能拿到本地记录。
   field_targets:
-  - cust_person_info.name
-  - cust_person_info.certification_no
-  - cust_person_info.email
-  evidence: code_path:CustAuthValidatorProcessor.java:validate
-- name: 消息发送弱失败与去重
-  content: CustMessageSendService 所有 sendSms/sendNotice/sendMessage 均 try-catch 记录日志不抛出；变更回调发送前用
-    isSend()/isMsgNotify() 查询最近一次通知，已发送则跳过。
-  impact: 消息失败不影响主流程，回调可重入
-  field_targets:
-  - cust_change_record.msg_send
-  evidence: code_path:CustMessageSendService.java:sendSms,isSend;CustStatusCommitProcessor.java:isMsgNotify
-- name: 审核轨迹取数规则
-  content: 平台录入(INVITE_AGW)取审批历史第 1 条作为审批人，其他认证方式取最后 1 条。
-  impact: 决定 checkBy/checkByName 落库值
-  field_targets:
-  - cust_company_info.check_by
-  - check_by_name
-  evidence: code_path:CustWorkflowAuditCommitProcessor.java:process
-- name: 旧状态处理器已废弃
-  content: CustStatusCommitProcessor 标注 @Deprecated 且 @DubboService 被注释，变更消息逻辑已被新处理器替代。
-  impact: 相关状态流转仅供参考，需以新链路为准
+  - cust_change_record.oper_cust_id
+  evidence: code_path:CustStatusCommitProcessor.java:getChangeRecord
+- name: 变更消息幂等
+  content: isMsgNotify 在 recordDO.status 等于当前状态且 msgSend 为 Y 时返回 false，不再发送消息。
+  impact: 避免运营中台多次回调导致重复短信/站内信/待办。
   field_targets:
   - cust_change_record.status
-  evidence: code_path:CustStatusCommitProcessor.java:类注解
+  - cust_change_record.msg_send
+  evidence: code_path:CustStatusCommitProcessor.java:isMsgNotify
+- name: 多企业角色变更待办去重
+  content: 发送待办前调用 custMessageSendService.isSend，若已存在相同 businessId+sceneType 且未处理的待办则跳过发送。
+  impact: 多企业角色共用手机号时避免重复待办。
+  field_targets:
+  - cust_person_info.phone
+  evidence: code_path:CustMessageSendService.java:isSend
+- name: 变更审核结果写回变更记录
+  content: 审核通过/拒绝/退回客户确认时，changeMessage 更新 CustChangeRecordDO.status 与 msgSend=Y，并
+    saveOrUpdate。
+  impact: 变更记录状态与消息状态持久化。
+  field_targets:
+  - cust_change_record.status
+  - cust_change_record.msg_send
+  evidence: code_path:CustStatusCommitProcessor.java:changeMessage
+- name: CUST_CHANGE 阻断 CA 开通
+  content: isOpenCa 中若 custBuildStatus 为 CUST_CHANGE，返回阻断提示，要求先完成变更流程再处理 CA 开通。
+  impact: 变更中不允许开通 CA。
+  field_targets:
+  - cust_company_info.cust_build_status
+  evidence: code_path:CustCompanyIfoEnchanceService.java:isOpenCa
+- name: 在途变更阻断新变更
+  content: adminChangeSaveOrUpdate 中若企业 custStatus 为 CHANGE，抛异常‘有在途变更流程，请检查!’。
+  impact: 同一企业不能同时发起多个变更。
+  field_targets:
+  - cust_company_info.cust_status
+  evidence: code_path:CustPersonApplication.java:adminChangeSaveOrUpdate
+- name: 邀请码生成规则
+  content: InviteAuthCustInputRemindService 调用 ssoCodeProvider.getInvitationCode(phone,
+    6, 3600*24*180, tenantChannel)，生成 6 位、有效期 180 天的邀请码。
+  impact: 需求文档所述 8 位、30 天不成立，以代码为准。
+  field_targets:
+  - cust_person_info.phone
+  evidence: code_path:InviteAuthCustInputRemindService.java:getInviteAuthCustInputRemindTransferParam
+- name: 一个租户只能有一个平台运营方
+  content: checkCustInfoBeforeSave 中若 custCompanyType 包含 PLATFORM_OPERATOR_COMPANY，按
+    dbTenantCode 统计已有运营方数量，大于 0 则拒绝。
+  impact: 租户级唯一运营方约束。
+  field_targets:
+  - cust_company_info.cust_company_type
+  - cust_company_info.db_tenant_code
+  evidence: code_path:CustCompanyIfoEnchanceService.java:checkCustInfoBeforeSave
+- name: 统一社会信用代码唯一
+  content: checkCertificationRepeat 先校验信用代码格式，再查询同租户主数据中是否存在相同 certificationNo，冲突抛‘统一社会信用代码冲突’。
+  impact: 防止同租户重复建档。
+  field_targets:
+  - cust_company_info.certification_no
+  evidence: code_path:CustCompanyIfoEnchanceService.java:checkCertificationRepeat
+- name: 简易认证不支持供票产品
+  content: checkCustInfoBeforeSaveForDraft 中若产品为 DRAFT，则认证方式不能为 SIMPLE、必须开通电子签章、必须是总公司。
+  impact: 供票产品准入限制。
+  field_targets:
+  - cust_company_info.identify_style
+  - cust_company_info.need_register_ca
+  - cust_company_info.head_company
+  evidence: code_path:CustCompanyIfoEnchanceService.java:checkCustInfoBeforeSaveForDraft
 reqdoc_claims:
-- claim: 企业准入流程中『自动审核通过』后自动通过准入并更新企业状态为已通过
+- claim: 自动审核触发条件：企业信息完整、资质文件齐全、未命中风控规则。
   code_status: uncovered
-  code_evidence: code_path:AutoVerifyController.java:autoVerify（仅触发 autoVerify/autoMediaVerify，未见于本链路写
-    cust_status/cust_build_status 为已通过）
+  code_evidence: ''
   action: review
-- claim: 需人工审核时进入人工审核队列，由审核人员审核
+- claim: 自动审核维度：企业征信评分 >= 60 分、法人无不良信用记录、企业经营状态正常、行业不在黑名单内。
   code_status: uncovered
-  code_evidence: code_path:AutoVerifyController.java:saveManual（有人工审核提交接口，但未见队列数据结构与消费逻辑）
+  code_evidence: ''
   action: review
-- claim: 审核驳回则企业状态置为已驳回，企业修改信息后重新提交
+- claim: 企业状态流转：待提交 -> 审核中 -> 已通过；审核中 -> 已驳回 -> 待提交；已通过 -> 已冻结/已注销。
   code_status: confirmed
-  code_evidence: code_path:CustStatusCommitProcessor.java:checkMessage（CUST_CHECK_REJECT
-    → BUILD_FAIL；CUST_CHECK_BACKTOCUSTOM → CUST_CONFIRM_AWAIT 可重新提交）
-  action: anchor
-- claim: 企业状态流转：待提交 → 审核中 → 已通过；已驳回 → 待提交
-  code_status: confirmed
-  code_evidence: code_path:CustStatusCommitProcessor.java:checkMessage（CUST_CONFIRM_AWAIT→CUST_BUILDING→BUILD_SUCCESS；BUILD_FAIL/CUST_CONFIRM_AWAIT
-    回退可再提交）
-  action: anchor
-- claim: 自动审核规则：企业征信评分>=60、法人无不良信用记录、经营状态正常、行业不在黑名单
-  code_status: uncovered
-  code_evidence: 未在提供的 service/mapper 链路中出现征信评分/黑名单判定实现
-  action: review
-- claim: 企业变更需经审核，审核通过后变更生效，驳回则记录状态为已驳回并通知
-  code_status: confirmed
-  code_evidence: code_path:CustStatusCommitProcessor.java:changeMessage（CUST_CHECK_PASS/CUST_CHECK_REJECT
-    更新 cust_change_record.status 并发短信/站内信）
-  action: anchor
-- claim: 邀请码随机生成 8 位、30 天内有效
-  code_status: refuted
-  code_evidence: code_path:InviteAuthCustInputRemindService.java:getInviteAuthCustInputRemindTransferParam（getInvitationCode(phone,
-    6, 3600*24*180, ...) 为 6 位、180 天有效）
+  code_evidence: CustStatusCommitProcessor.java:checkMessage
   action: prose_only
-- claim: 邮件/短信异步发送，发送失败记录日志不抛异常
+- claim: 企业信息变更流程：提交变更申请，创建变更记录待提交，提交审核，审核通过后更新企业信息、变更记录生效。
   code_status: confirmed
-  code_evidence: code_path:CustMessageSendService.java:sendSms,sendEmail,completeNotice（均
-    try-catch 吞异常）
+  code_evidence: CustStatusCommitProcessor.java:changeMessage
   action: anchor
-- claim: 企业信息变更『同一变更项同时只能有一个待审核的变更申请』
+- claim: 变更审核通过后更新企业信息。
+  code_status: uncovered
+  code_evidence: CustStatusCommitProcessor.java:changeMessage 仅更新备注和变更记录状态，未见企业主信息回写
+  action: review
+- claim: 邀请码随机生成 8 位字符串，包含大小写字母和数字，30 天内有效。
+  code_status: refuted
+  code_evidence: InviteAuthCustInputRemindService.java:getInviteAuthCustInputRemindTransferParam
+    生成 6 位、180 天
+  action: prose_only
+- claim: 邀请邮件异步发送，失败记录日志不抛出异常，不影响主流程。
   code_status: confirmed
-  code_evidence: code_path:CustPersonApplication.java:adminChangeSaveOrUpdate（cust_status=CHANGE
-    抛『有在途变更流程，请检查!』）
+  code_evidence: CustMessageSendService.java:sendSms/sendEmail/sendNotice 均 try-catch
+    只记日志
   action: anchor
-- claim: 审核人员审核后在通过/驳回时发送结果通知
+- claim: 用户状态流转：待激活 -> 正常 -> 已冻结 -> 正常；已冻结 -> 已注销。
+  code_status: uncovered
+  code_evidence: cust_person_info.status 可见 ADD/EFFECT/FREEZE，未覆盖待激活与注销
+  action: review
+- claim: 菜单权限特殊过滤：code='0891344a3a4442179e98819cbe926ced' 的菜单记录自动过滤。
+  code_status: uncovered
+  code_evidence: ''
+  action: review
+- claim: 同一租户下统一社会信用代码唯一。
   code_status: confirmed
-  code_evidence: code_path:CustStatusCommitProcessor.java:checkMsgSend（BUILD_SUCCESS
-    发 CLIENT_INVITE_AUTH_CUST_INPUT_PASS，BUILD_FAIL 发 CLIENT_INVITE_AUTH_CUST_INPUT_REJECT，均不阻断主流程）
+  code_evidence: CustCompanyIfoEnchanceService.java:checkCertificationRepeat
   action: anchor
+- claim: 一个租户只能有一个平台运营方。
+  code_status: confirmed
+  code_evidence: CustCompanyIfoEnchanceService.java:checkCustInfoBeforeSave
+  action: anchor
+- claim: 同一变更项同时只能有一个待审核的变更申请。
+  code_status: confirmed
+  code_evidence: CustPersonApplication.java:adminChangeSaveOrUpdate 检查 cust_status=CHANGE
+  action: anchor
+- claim: 企业状态为已冻结或已注销时不允许变更。
+  code_status: uncovered
+  code_evidence: 仅见 cust_status=CHANGE 阻断，未见冻结/注销阻断
+  action: review
+- claim: 管理员手机号变更、邮箱变更等需审核。
+  code_status: confirmed
+  code_evidence: CustPersonApplication.java:adminChangeSaveOrUpdate
+  action: anchor
+- claim: 变更审核通过后发送通过通知，驳回发送驳回通知及原因。
+  code_status: confirmed
+  code_evidence: CustStatusCommitProcessor.java:changeMessage 发送 SMS/站内信
+  action: anchor
+enum_audit:
+- field: cust_company_info.cust_build_status
+  value: INIT
+  java_name: INIT
+  stored_as: getDictKey
+  label: 初始/待提交
+  verdict: confirm
+  evidence: code_path:CustStatusCommitProcessor.java:checkMsgSend
+  note: 代码以 CustBuildStatusEnum.getDictKey() 比较与写入。
+- field: cust_company_info.cust_build_status
+  value: CUST_CONFIRM_AWAIT
+  java_name: CUST_CONFIRM_AWAIT
+  stored_as: getDictKey
+  label: 待客户确认
+  verdict: confirm
+  evidence: code_path:CustStatusCommitProcessor.java:checkMsgSend
+  note: 审核退回、邀请认证提交后进入。
+- field: cust_company_info.cust_build_status
+  value: CUST_BUILDING
+  java_name: CUST_BUILDING
+  stored_as: getDictKey
+  label: 审核中/建档中
+  verdict: confirm
+  evidence: code_path:CustStatusCommitProcessor.java:checkMessage
+  note: 客户提交后进入运营中台审核。
+- field: cust_company_info.cust_build_status
+  value: BUILD_SUCCESS
+  java_name: BUILD_SUCCESS
+  stored_as: getDictKey
+  label: 认证成功
+  verdict: confirm
+  evidence: code_path:CustStatusCommitProcessor.java:checkMessage
+  note: CUST_CHECK_PASS 回调后进入。
+- field: cust_company_info.cust_build_status
+  value: BUILD_FAIL
+  java_name: BUILD_FAIL
+  stored_as: getDictKey
+  label: 认证失败
+  verdict: confirm
+  evidence: code_path:CustStatusCommitProcessor.java:checkMessage
+  note: CUST_CHECK_REJECT 回调后进入。
+- field: cust_company_info.cust_build_status
+  value: CUST_CHANGE
+  java_name: CUST_CHANGE
+  stored_as: getDictKey
+  label: 变更中
+  verdict: confirm
+  evidence: code_path:CustCompanyIfoEnchanceService.java:isOpenCa
+  note: 阻断 CA 开通。
+- field: cust_company_info.check_status
+  value: CUST_CHECK_PASS
+  java_name: CUST_CHECK_PASS
+  stored_as: .name()
+  label: 审核通过
+  verdict: confirm
+  evidence: code_path:CustWorkflowAuditCommitProcessor.java:process
+  note: 工作流审核通过时设置；同步接口缺省也会补该字面量。
+- field: cust_company_info.check_status
+  value: CUST_CHECK_REJECT
+  java_name: CUST_CHECK_REJECT
+  stored_as: .name()
+  label: 审核拒绝
+  verdict: confirm
+  evidence: code_path:CustWorkflowAuditCommitProcessor.java:process
+  note: 工作流审核拒绝时设置。
+- field: cust_company_info.check_status
+  value: CUST_CHECK_BACKTOCUSTOM
+  java_name: CUST_CHECK_BACKTOCUSTOM
+  stored_as: .name()
+  label: 退回客户确认
+  verdict: confirm
+  evidence: code_path:CustStatusCommitProcessor.java:checkMessage
+  note: 变更与建档退回客户确认时使用。
+- field: cust_company_info.check_status
+  value: CUST_CHECK_CHECKING
+  java_name: CUST_CHECK_CHECKING
+  stored_as: .name()
+  label: 审核中
+  verdict: confirm
+  evidence: code_path:CustStatusCommitProcessor.java:checkMessage
+  note: 审核中回调，用于客户确认态转审核中。
+- field: cust_change_record.status
+  value: CUST_CHECK_PASS
+  java_name: CUST_CHECK_PASS
+  stored_as: .name()
+  label: 变更审核通过
+  verdict: confirm
+  evidence: code_path:CustStatusCommitProcessor.java:changeMessage
+  note: 写 recordDO.setStatus(CheckStatus.CUST_CHECK_PASS.name())。
+- field: cust_change_record.status
+  value: CUST_CHECK_REJECT
+  java_name: CUST_CHECK_REJECT
+  stored_as: .name()
+  label: 变更审核拒绝
+  verdict: confirm
+  evidence: code_path:CustStatusCommitProcessor.java:changeMessage
+  note: 写 recordDO.setStatus(CheckStatus.CUST_CHECK_REJECT.name())。
+- field: cust_change_record.status
+  value: CUST_CHECK_BACKTOCUSTOM
+  java_name: CUST_CHECK_BACKTOCUSTOM
+  stored_as: .name()
+  label: 变更退回客户确认
+  verdict: confirm
+  evidence: code_path:CustStatusCommitProcessor.java:changeMessage
+  note: 写 recordDO.setStatus(CheckStatus.CUST_CHECK_BACKTOCUSTOM.name())。
+- field: cust_change_record.alter_mode
+  value: PLAT_ALTER
+  java_name: PLAT_ALTER
+  stored_as: getDictKey
+  label: 平台提交变更
+  verdict: confirm
+  evidence: code_path:CustStatusCommitProcessor.java:changeMessage
+  note: AlterModeEnum.getByDictKey 后与 PLAT_ALTER 比较。
+- field: cust_change_record.alter_mode
+  value: SELF_ALTER
+  java_name: SELF_ALTER
+  stored_as: getDictKey
+  label: 企业自行提交变更
+  verdict: confirm
+  evidence: code_path:CustStatusCommitProcessor.java:changeMessage
+  note: SELF_ALTER.getDictKey() 与库值比较。
+- field: cust_certification_info.auto_verify_status / cust_certification_info.manual_verify_status
+  value: AUTOMATIC_AUTHENTICATION_PASSED
+  java_name: AUTOMATIC_AUTHENTICATION_PASSED
+  stored_as: getDictKey
+  label: 自动认证通过
+  verdict: confirm
+  evidence: code_path:FaceVerifyController.java:isFaceVerifyPassed
+  note: 自动核查通过值。
+- field: cust_certification_info.auto_verify_status / cust_certification_info.manual_verify_status
+  value: MANUAL_AUTHENTICATION_PASSED
+  java_name: MANUAL_AUTHENTICATION_PASSED
+  stored_as: getDictKey
+  label: 人工认证通过
+  verdict: confirm
+  evidence: code_path:FaceVerifyController.java:isFaceVerifyPassed
+  note: 人工审核通过值。
+- field: cust_person_info.phone_realname_status
+  value: TO_BE_VERIFIED
+  java_name: TO_BE_VERIFIED
+  stored_as: getDictKey
+  label: 待认证
+  verdict: confirm
+  evidence: code_path:CustPersonApplication.java:insertOrUpdatePerson
+  note: 新增经办人默认待认证。
+- field: cust_person_info.phone_realname_status
+  value: AUTOMATIC_AUTHENTICATION_PASSED
+  java_name: AUTOMATIC_AUTHENTICATION_PASSED
+  stored_as: getDictKey
+  label: 自动认证通过
+  verdict: confirm
+  evidence: code_path:CustPersonApplication.java:insertOrUpdatePerson
+  note: 同租户已有实名通过记录时复用为自动通过。
+- field: cust_person_info.phone_realname_status
+  value: MANUAL_AUTHENTICATION_PASSED
+  java_name: MANUAL_AUTHENTICATION_PASSED
+  stored_as: getDictKey
+  label: 人工认证通过
+  verdict: confirm
+  evidence: code_path:CustPersonApplication.java:updateVerifyNameStatus
+  note: 人工核验通过后写入。
+relation_audit:
+- left: cust_person_info.ref_cust_company_info
+  right: cust_company_info.code
+  kind: REF
+  verdict: confirm
+  evidence: code_path:CustPersonApplication.java:listCompanyPerson
+  note: 大量按 refCustCompanyInfo=company.code 查询。
+- left: cust_person_info.cust_company_id
+  right: cust_company_info.id
+  kind: REF
+  verdict: confirm
+  evidence: code_path:CustPersonApplication.java:listCompanyPerson(Long custId)
+  note: 按 custCompanyId 查询企业下联系人。
+- left: cust_person_info.user_id
+  right: sys_user.id
+  kind: REF
+  verdict: confirm
+  evidence: code_path:ClientCustCommitValidatorSyncService.java:setPlatClientAdmin
+  note: sysUserProvider.selectById(v.getUserId()) 查询登录用户。
+- left: cust_change_record.cust_id
+  right: cust_company_info.id
+  kind: REF
+  verdict: confirm
+  evidence: code_path:ClientCustCommitValidatorSyncService.java:setModifyItem
+  note: 按 custId=company.id 查询变更记录。
+- left: cust_change_record.alter_type_id
+  right: cust_change_cfg.id
+  kind: REF
+  verdict: confirm
+  evidence: code_path:ClientCustCommitValidatorSyncService.java:setModifyItem
+  note: alterTypeId 逗号拆分后 in cust_change_cfg.id。
+- left: cust_change_record.oper_cust_id
+  right: external_operating_platform.cust_id
+  kind: EXTERNAL
+  verdict: derived
+  evidence: code_path:CustStatusCommitProcessor.java:getChangeRecord
+  note: operCustId 是运营中台客户 id，非本地表 JOIN。
+- left: cust_role_info.ref_cust_company_info
+  right: cust_company_info.code
+  kind: REF
+  verdict: confirm
+  evidence: code_path:ClientCustCommitValidatorSyncService.java:setPlatClientCustRole
+  note: 按 refCustCompanyInfo=company.code 查询角色。
+- left: cust_role_info.ref_cust_auth_application
+  right: cust_auth_application.code
+  kind: REF
+  verdict: derived
+  evidence: code_path:CustRoleInfoDO.java 字段命名
+  note: 代码样本未见按该字段 JOIN 查询，按命名推定。
+- left: cust_auth_application.ref_cust_company_info
+  right: cust_company_info.code
+  kind: REF
+  verdict: derived
+  evidence: code_path:CustAuthApplicationDO.java 字段命名
+  note: 代码样本未见直接 eq，按 ref 约定推定。
+- left: cust_auth_application.ref_cust_auth_application_tenant_product
+  right: tenant_product.code
+  kind: REF
+  verdict: derived
+  evidence: code_path:ClientCustCommitValidatorSyncService.java:getAppId
+  note: 先取 refCustAuthApplicationTenantProduct，再按 productCode 查 tenant_product。
+- left: cust_auth_application.platform_product_code
+  right: tenant_product.platform_product_code
+  kind: SHARED_KEY
+  verdict: derived
+  evidence: code_path:ClientCustCommitValidatorSyncService.java:setPlatClientCustProject
+  note: 同步时使用相同平台产品编码，非 SQL JOIN。
+- left: cust_certification_info.ref_cust_company_info
+  right: cust_company_info.code
+  kind: REF
+  verdict: confirm
+  evidence: code_path:CustPersonApplication.java:getFaceVerifyQueryVideoDTO
+  note: 按企业 code 查询最新人脸核查信息。
+- left: cust_project_rel.ref_cust_project_rel_cust_company_info
+  right: cust_company_info.code
+  kind: REF
+  verdict: confirm
+  evidence: code_path:CustPersonApplication.java:buildTemplateByProjectIds
+  note: 项目关联中作为企业 code 使用。
+- left: cust_project_rel.project_id
+  right: tenant_project.id
+  kind: REF
+  verdict: confirm
+  evidence: code_path:ClientCustCommitValidatorSyncService.java:setPlatClientCustProject
+  note: 按 projectId 查 TenantProjectDO.id。
+- left: cust_project_rel.product_id
+  right: tenant_product.id
+  kind: REF
+  verdict: confirm
+  evidence: code_path:ClientCustCommitValidatorSyncService.java:setPlatClientCustProject
+  note: 按 productId 查 tenantProductDao.getById。
+- left: cust_company_info.main_data_id
+  right: cust_company_info.id
+  kind: SELF
+  verdict: derived
+  evidence: code_path:CustCompanyIfoEnchanceService.java:checkCertificationRepeat
+  note: 主数据/记录数据自关联，按 mainDataId 判断冲突。

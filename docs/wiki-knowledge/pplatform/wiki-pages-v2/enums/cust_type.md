@@ -9,10 +9,13 @@ oid: 1
 scope:
   databases: [lowcode_pplatform]
 sources: ["code:extract-enums.yaml", "db:db-profile.yaml"]
-created: '2026-09-10'
-updated: '2026-09-10'
+created: '2026-09-14'
+updated: '2026-09-14'
 contract_version: "0.1"
+belong: enums
 ---
+
+
 
 # cust_type
 
@@ -20,17 +23,21 @@ contract_version: "0.1"
 
 ```ground:enum
 enum: cust_type
-fields: [ca_certification_info.cust_type, cust_change_cfg.cust_type, cust_change_record.cust_type, cust_group_rel.cust_type]
+fields: [cust_change_cfg.cust_type, cust_change_record.cust_type, cust_group_rel.cust_type]
 values:
-  1:
-    label: 个人客户
-  2:
-    label: 企业客户
-  3:
-    label: 运营方企业客户
-  4:
-    label: 企业客户
-  COMPANY:
+  "1":
+    label: "个人客户"
+    java_name: "INDIVIDUALS"
+  "2":
+    label: "企业客户"
+    java_name: "ENTERPRISE"
+  "3":
+    label: "运营方企业客户"
+    java_name: "OP_ENTERPRISE"
+  "4":
+    label: "企业客户"
+    java_name: "ENTERPRISEALL"
+  "COMPANY":
     label: "COMPANY"
-    note: db 分布存在但代码枚举未声明（REVIEW）
+    note: "db 分布存在但代码枚举未声明（REVIEW）"
 ```

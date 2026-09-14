@@ -1,41 +1,28 @@
 ---
 type: concept
 title: 管理员
-page_key: concept.admin
-domain: 客户联系人管理
+page_key: admin
+domain: cust_org_permission
 status: draft
-aliases:
-  - accountAdmin
-  - admin
-  - 企业管理员
+aliases: [admin, 企业管理员, 平台管理员]
 oid: 1
 scope:
-  databases: ["<未提供>"]
+  databases: [unknown]
 sources:
-  - "code:CustPersonApplication.getAdminByCustCodeCompanyType"
-maps_to: "cust_person_info.user_type = 'accountAdmin'"
+  - code:DataPermissionApplication.java
+contract_version: "0.1"
+maps_to: cust_person_info.user_type
+field_targets: [cust_person_info.user_type, cust_person_info.enable, cust_person_info.phone]
 adjudication: boundary
 also_confused_with:
-  - 运营人员
-  - 平台管理员
-contract_version: "0.1"
-sources: ["enrich:wiki-admin"]
+  - 需求文档中的平台管理员（跨企业）
+belong: concepts
 ---
 
-管理员指企业管理员，是 [[tables/cust_person_info]] 中 `user_type = 'accountAdmin'` 的记录，代表企业侧拥有最高权限的人。取数口径见 [[calibers/person-admin]]，其唯一性与变更约束见 [[rules/admin-uniqueness]]、[[rules/admin-change-freeze]]。
+代码中可判定的只有企业内管理员：[[cust_person_info]].user_type='accountAdmin' 且 enable='Y'，且 phone 与登录用户名密文一致。数据权限保存额外要求 companyId 必须等于当前登录企业，即无法跨企业代理配置（[[data_permission_save_admin_only]]）。需求文档中的「平台管理员」是跨企业概念，与代码可判定范围不同，不可据其推断权限行为。
 
 ## 需求背景
-
-企业侧的权限体系以管理员为顶点：平台先为企业指派运营人员，再由管理员邀请经办人加入并使用业务功能。因此「管理员」在企业语境下即企业管理员，口语中常被简称为「管理员」。
-
-## 边界
-
-管理员与**运营人员**不是同一实体：管理员是企业内部人员，落在 `user_type` 上；运营人员是平台分配给企业的对接人，落在 `operator` / `operator_id` / `operator_realname` 字段上，两者通过 `operator_id` 关联而非身份同一。与「平台管理员」同样需要区分，后者不属于本表语义。
+本页仅依据代码证据（DataPermissionApplication）。本次语义分析未包含需求文档（reqdoc）主张，故无双源 evidence。
 
 ## 版本演进
-
-- v0：首次登记，`maps_to`、adjudication 与易混项来自术语桥语义分析。
-
-相关：[[calibers/person-admin]]、[[rules/admin-uniqueness]]、[[rules/operator-assignment-prerequisite]]、[[concepts/handler]]。
-
-相关：[[cust_person_info]]
+本次语义分析未提供版本变更证据。

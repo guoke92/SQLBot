@@ -1,0 +1,4 @@
+body: 以下取值的 java_name 未在证据中逐字出现，按同枚举命名约定推定，需以写值点/枚举类源码复核：CustBuildStatusEnum 除 BUILD_SUCCESS
+  外的状态、UserTypeEnum.operator、MediaEventType.DELETE/INFO_CHANGE。
+title: 枚举 java_name 命名约定推定
+type: enum

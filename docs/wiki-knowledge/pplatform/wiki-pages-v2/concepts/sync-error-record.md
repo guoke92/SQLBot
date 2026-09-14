@@ -1,7 +1,7 @@
 ---
 type: concept
 title: 同步失败记录
-page_key: concepts/sync-error-record
+page_key: sync-error-record
 domain: 平台事件监听与同步
 status: draft
 aliases:
@@ -26,6 +26,7 @@ adjudication:
   boundary: "client_api_sync_error 记录通用客户端同步失败（CustSyncService 用 error() 写入，重试上限以 retry_num 表达，DB实测恒为3）；cust_build_record 记录建档异步流程（pushFile/startProcess）补偿，用 retry_status 表达重试状态。二者表、状态字段均不同。"
 also_confused_with:
   - cust_build_record 建档异步补偿记录
+belong: concepts
 ---
 
 「同步失败记录」特指客户端 RPC 同步调用失败的落库留痕，以服务类名 + 入参原文 + 重试次数刻画一次失败，落表 [[tables/client_api_sync_error]]。它常被与 [[concepts/compensation]] 混为一谈，但后者是建档异步流程的重放补偿，二者的表、状态字段、识别口径都不同。

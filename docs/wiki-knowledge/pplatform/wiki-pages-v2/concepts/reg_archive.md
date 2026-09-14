@@ -1,7 +1,7 @@
 ---
 type: concept
 title: 建档
-page_key: concepts/reg_archive
+page_key: reg_archive
 domain: 外部渠道与银行对接
 status: draft
 aliases:
@@ -30,6 +30,7 @@ also_confused_with:
   - 渠道建档（channelArchive）
   - 天马建档（companyArchiveOfTianma）
   - 运营中台建档（submitCust）
+belong: concepts
 ---
 
 # 建档

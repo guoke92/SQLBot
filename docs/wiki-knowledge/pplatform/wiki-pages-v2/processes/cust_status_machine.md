@@ -1,7 +1,7 @@
 ---
 type: process
 title: 客户生命周期状态机（cust_company_info.cust_status）
-page_key: process.cust_status
+page_key: cust_status_machine
 domain: 平台内部服务对接
 status: draft
 aliases:
@@ -15,6 +15,7 @@ sources:
   - semantic:state_machines[客户生命周期状态]
   - semantic:field_semantics[cust_company_info.cust_status]
 contract_version: "0.1"
+belong: processes
 ---
 
 企业作为「客户」的生命周期状态：新增、变更中、生效、冻结、注销。它独立于建档状态，但在建档成功时被同步推进为 EFFECT。

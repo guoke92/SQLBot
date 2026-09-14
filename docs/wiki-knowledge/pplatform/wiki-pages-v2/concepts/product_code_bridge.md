@@ -1,7 +1,7 @@
 ---
 type: concept
 title: 产品/项目编码术语桥（product_code / platform_product_code / product_id / project_id）
-page_key: concept.product_code_bridge
+page_key: product_code_bridge
 domain: 平台内部服务对接
 status: draft
 aliases:
@@ -41,6 +41,7 @@ field_targets:
   - cust_project_rel.ref_cust_project_rel_platform_product
 also_confused_with:
   - tenant_project.name
+belong: concepts
 ---
 
 产品编码（字典表 [[tables/platform_product]].product_code）在租户产品、租户项目、企业项目关联三处分别以 platform_product_code、ref_cust_project_rel_platform_product 等形式出现；项目与产品 id 在关系表中以字符串存储。

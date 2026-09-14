@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 经办人角色关联未冻结
-page_key: calibers/operator-role-rel-not-frozen
+page_key: operator-role-rel-not-frozen
 domain: 平台事件监听与同步
 status: draft
 aliases:
@@ -13,6 +13,7 @@ scope:
 sources:
   - code:CustSyncEventProvider.java:syncOperatorUser
 contract_version: "0.1"
+belong: calibers
 ---
 
 未冻结口径：[[tables/sys_cust_user_rel]] 中 `is_freeze='N'` 的用户-客户角色关联，用于删除企业时判断该用户是否仍被占用、是否可删。

@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 企微有效成员
-page_key: caliber/wecom_active_member
+page_key: wecom_active_member
 domain: 微信生态/小程序/扫脸
 status: draft
 aliases: [企微有效成员, 通讯录有效成员]
@@ -11,6 +11,7 @@ scope:
 sources:
   - code:WechatContactService.java
 contract_version: "0.1"
+belong: calibers
 ---
 
 # 企微有效成员

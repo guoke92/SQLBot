@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 打款次数配额
-page_key: rules/payment-count-quota
+page_key: payment-count-quota
 domain: 企业银行账户
 status: draft
 aliases: [剩余打款次数, payment_remaining_count]
@@ -12,6 +12,7 @@ sources:
   - code_path:CustAccountApplication.java:cnapsPaymentApply
   - code_path:CustAccountApplication.java:updatePayCount
 contract_version: "0.1"
+belong: rules
 ---
 
 限制单个账户发起小额打款频次的规则：剩余次数初始取自配置、每次申请成功后扣减、为 0 时阻断。语境见 [[processes/account-cnaps-payment-auth-state]]。

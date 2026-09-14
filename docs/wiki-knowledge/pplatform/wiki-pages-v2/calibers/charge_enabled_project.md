@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 收费项目
-page_key: calibers/charge_enabled_project
+page_key: charge_enabled_project
 domain: CA证书收费
 status: draft
 aliases: [charge_enabled=Y, 已开启收费项目]
@@ -11,6 +11,7 @@ scope:
 sources:
   - db:ca_fee_project_config
 contract_version: "0.1"
+belong: calibers
 ---
 
 # 收费项目

@@ -1,159 +1,182 @@
 ---
 type: table
-title: argeement_migratory_record（协议迁移记录表）
-page_key: table.argeement_migratory_record
+title: 协议迁移记录
+page_key: argeement_migratory_record
 domain: 授权协议与电子授权
 status: draft
-aliases:
-  - 协议迁移记录表
-  - 协议迁移拉取记录
+anchors: [argeement_migratory_record]
 oid: 1
 scope:
-  databases: [unknown]
-sources:
-  - db:argeement_migratory_record
-  - code:AgreementMigratoryService.java
-  - code:PlatFormMigratoryApplication.java
+  databases: [lowcode_pplatform]
+sources: ["db:db-catalog.yaml", "code:extract-catalog.yaml"]
+created: '2026-09-14'
+updated: '2026-09-14'
 contract_version: "0.1"
+belong: tables
 ---
 
 
-`argeement_migratory_record` 是「协议」主题的落地载体：每个客户 × 每个产品 × 每类协议各生成一条待拉取记录，由迁移初始化写入，再由定时任务消费拉取，直到 `status` 置 `1`（拉取结束）。它同时承载签署模式、协议文件路径与协议编号，因此是 [[concepts/agreement]] 与 [[concepts/authorization-agreement]] 的分界线：本表存协议文本与拉取事实，不记录「谁授过权」的授权关系。
 
-相关的判定口径见 [[calibers/pending-pull-agreement-records]]、[[calibers/migratory-init-five-agreements]]、[[calibers/ams-bs-channel]]；状态流转见 [[processes/agreement-migratory-pull-status]] 与 [[processes/agreement-sign-mode]]。产品维度上，`platform_product_code`（AMS/ACFLOW/BEECREDIT/ORDER/RVSFACTOR_PC/STORAGE/VOUCHER）既决定拉取哪一产品的协议，也决定产品协议类型映射；AMS 走 [[concepts/ca-cfca|上上签 BS 通道]]，其余产品走 CFCA。
 
-## 需求背景
-存量客户的协议分散在旧渠道，需要按客户维度逐产品、逐协议类型向客户端拉取并落库，因此需要一张拉取队列表：既能标记「已结束」避免重复拉取，也能限制失败重试次数（`pull_num` < 配置值 `cust.agreemeent.pull.num`，默认 20）。`is_new` 用于区分新老渠道协议，`agreement_no` 用于合同表判重，避免重复迁移。
 
-## 版本演进
-v0 初稿：仅收录语义分析中已有证据的字段语义；本次分析未提供 document_claim（未证实主张），故无标 (document_claim，未证实) 的条目。
+
+
+
+
+
+
+
+迁移时不为客户直接搬协议原文，而是先生成"待拉取清单"，再由定时任务按产品/客户分组去业务系统拉取协议文件并归档。本表既是清单也是重试状态机，见 [[agreement_pull_status]]、口径 [[pending_agreement_pull]] 与规则 [[agreement_migratory_init]]、[[agreement_pull_throttle]]。
 
 ```ground:table
 table: argeement_migratory_record
 database: lowcode_pplatform
 desc: 协议迁移记录
 fields:
+  - name: agreement_type
+    type: string
+    phys: varchar(64)
+    desc: 协议类型
+    dict: agreement_type
+    topk: "BS_Auth|CFCA_Auth|CustPersonLicense|PrivacyPolicy|ProductProtocolAcflow|ProductProtocolAms|ProductProtocolBeecredit|ProductProtocolOrder|ProductProtocolRvsfactor_PC|ProductProtocolStorage|ProductProtocolVoucher|UserProtocol"
+  - name: enable
+    type: string
+    phys: varchar(4)
+    desc: enable
+    dict: enable
+    topk: "Y"
+    labels: "Y:是"
   - name: id
     type: number
+    phys: bigint(22)
     desc: 表主键
+  - name: is_new
+    type: string
+    phys: varchar(10)
+    desc: 是否新数据
+    dict: is_new
+    topk: "no|yes"
+    labels: "no:否|yes:是"
   - name: sign_mode
     type: string
+    phys: varchar(20)
     desc: 签署模式
     dict: sign_mode
+    topk: "01|02|03"
+  - name: status
+    type: number
+    phys: int(10)
+    desc: 状态
+    dict: argeement_migratory_record__status
+    topk: "0|1"
+    labels: "0:否|1:是"
   - name: act_procinst_date
     type: temporal
+    phys: datetime
     desc: 审批结束时间
   - name: act_procinst_id
     type: string
+    phys: varchar(64)
     desc: 流程实例ID
   - name: act_procinst_no
     type: string
+    phys: varchar(255)
     desc: 流程申请编号
   - name: act_procinst_status
     type: string
+    phys: varchar(64)
     desc: 当前审批状态
   - name: agreement_name
     type: string
+    phys: varchar(128)
     desc: 协议名称
   - name: agreement_no
     type: string
+    phys: varchar(64)
     desc: 协议编号
   - name: agreement_path
     type: string
+    phys: varchar(128)
     desc: 协议路径
-  - name: agreement_type
-    type: string
-    desc: 协议类型
   - name: app_tenant_code
     type: string
+    phys: varchar(100)
     desc: 逻辑租户标识
   - name: code
     type: string
+    phys: varchar(64)
     desc: 编码
   - name: create_by
     type: string
+    phys: varchar(100)
     desc: 创建人id
   - name: create_time
     type: temporal
+    phys: datetime
     desc: 创建时间
   - name: create_user
     type: string
+    phys: varchar(100)
     desc: 创建人名称
   - name: cust_id
     type: number
+    phys: bigint(20)
     desc: 产融客户id
   - name: db_tenant_code
     type: string
+    phys: varchar(100)
     desc: 数据租户标识
   - name: effect_date
     type: temporal
+    phys: date
     desc: 协议生效日
-  - name: enable
-    type: string
-    desc: enable
   - name: expire_date
     type: temporal
+    phys: date
     desc: 失效时间
-  - name: is_new
-    type: string
-    desc: 是否新数据
   - name: name
     type: string
+    phys: varchar(64)
     desc: 名称
   - name: organization_id
     type: string
+    phys: varchar(30)
     desc: 机构编号
   - name: platform_product_code
     type: string
+    phys: varchar(64)
     desc: 产品编码
+    topk: "ACFLOW|AMS|BEECREDIT|ORDER|RVSFACTOR_PC|STORAGE|VOUCHER"
   - name: pull_num
     type: number
+    phys: int(10)
     desc: 拉取次数
   - name: remark
     type: string
+    phys: varchar(1024)
     desc: remark
   - name: sign_date
     type: temporal
+    phys: date
     desc: 签署日期
-  - name: status
-    type: number
-    desc: 状态
   - name: update_by
     type: string
+    phys: varchar(100)
     desc: 更新人id
   - name: update_time
     type: temporal
+    phys: datetime
     desc: 更新时间
   - name: update_user
     type: string
+    phys: varchar(100)
     desc: 更新人名称
 ```
 
-```ground:field
-table: argeement_migratory_record
-fields:
-  - field: status
-    meaning: "协议迁移拉取状态：'0'（BooleanEnum.no）=待拉取/未处理；'1'（BooleanEnum.yes）=拉取流程已结束（客户端返回了协议，或确认客户端无该协议后置终态，置 1 后不再进入待拉取队列）"
-    evidence: db
-  - field: pull_num
-    meaning: "已拉取尝试次数；pull() 只捞 pull_num < 配置值（cust.agreemeent.pull.num，默认 20）的记录，失败时 +1"
-    evidence: code
-  - field: is_new
-    meaning: "是否新数据：'yes'/'no'（BooleanEnum.name()）；迁移初始化写 isNew，用于区分新老渠道协议"
-    evidence: db
-  - field: sign_mode
-    meaning: "协议签署模式，语义对应 SignModeEnum 三态（NO_SIGN / OFF_LINE / ON_LINE）；DB 实存 '01' / '02' / '03'，代码未给出数值与枚举的显式映射"
-    evidence: db
-  - field: agreement_type
-    meaning: "协议类型 key（AgreementDocType.getAgreementType()）：BS_Auth（AMS 上上签）/CFCA_Auth/ProductProtocol*/CustPersonLicense/UserProtocol/PrivacyPolicy"
-    evidence: db
-  - field: agreement_path
-    meaning: "协议文件在对象存储（COS，FBP_SYSTEM 桶）的存储路径；为空表示未取到文件，createContractInfo 会过滤掉"
-    evidence: code
-  - field: agreement_no
-    meaning: "协议编号（客户端 contractAgreementNo），agreementExist 用它做合同表判重，避免重复迁移"
-    evidence: code
-  - field: platform_product_code
-    meaning: "产品编码（AMS/ACFLOW/BEECREDIT/ORDER/RVSFACTOR_PC/STORAGE/VOUCHER），决定拉取哪一产品的协议及产品协议类型映射"
-    evidence: db
-```
+## 需求背景
+
+需求要求迁移企业协议不丢失：CA 授权书、产品协议、企业授权书、用户协议、隐私政策五类协议需在迁移后逐步从业务系统拉回并归档，其中已确认业务系统无该协议的记录也允许置为已完成，不得无限重试。
+
+## 版本演进
+
+初始 `status='N'`、`pull_num=0`、`is_new=Y`；拉取成功后 `status='Y'`，失败仅 `pull_num+1` 并保持 N 等下一轮。`enable` 与 `excludeProductCode` 用于灰度与例外产品隔离。`is_new` 的落库写法与 `status` 不一致（`isNew.name()` vs `getDictKey`），属历史遗留。

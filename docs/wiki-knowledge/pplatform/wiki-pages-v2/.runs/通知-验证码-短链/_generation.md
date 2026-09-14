@@ -1,1272 +1,1362 @@
 ---FILE: tables/short_link.md ---
 ---
 type: table
-title: short_link 短链表
-page_key: table/short_link
-domain: 通知/验证码/短链
+title: 短链表 short_link
+page_key: short_link
+domain: notification
 status: draft
-aliases: [短链, 短链表, shortLink, short_link]
+aliases: [短链, 短链表, ShortLinkDO]
 oid: 1
 scope:
-  databases: [unknown]
+  databases: []
 sources:
   - db:short_link
-  - code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/controller/shortlink/ShortLinkController.java
+  - ShortLinkController.java:44-95
+  - ShortLinkDO.java:@TableName
 contract_version: "0.1"
 ---
 
-short_link 是短链跳转链路的唯一数据源：一行代表一条可访问短链，业务访问键是 `number`，跳转目标是 `source_url`。`type` 决定跳转前是否需要用 `fileService.filePathEncrypt` 换链，`is_forever` / `expire_time` 决定是否放行，`enable` 与 `db_tenant_code` 提供逻辑有效性与租户维度的过滤面。表内 `code` 属框架级通用编码字段，与业务访问口径不是同一件事，勿与 `number` 混用。
+short_link 是平台短链服务的核心存储表，承载短链码（number）、短链类型（type）、跳转目标（source_url）与有效期策略（is_forever / expire_time），并带有数据租户与逻辑租户隔离字段。访问侧由 [[short_link_type_route]] 决定跳转方式，由 [[short_link_expire_check]] 决定是否拦截过期链接，由 [[short_link_id_verify_code]] 防止短链被枚举。
+
+短链在语义上先按有效期分为 [[permanent_short_link]] 与 [[temporary_short_link]]（见 [[short_link_expire_state]]），再按类型分为 [[normal_short_link]] 与 [[file_short_link]]，两条切分维度互相独立。
 
 ## 需求背景
-
-v0 语义分析未提供 reqdoc_claims，本节暂无需求文档主张可锚定，业务定位完全来自代码与 DB 实测。
+短链服务面向通知与客户触达场景提供可对外投放的短链接，因此需要区分「永久有效」与「限时有效」两种投放策略，并对文件类目标链接隐藏真实路径。需求侧要求短链不可被顺序枚举，故在短链码中内嵌校验位。
 
 ## 版本演进
-
-v0 首版。DB 实测存量（type：FILE=605 / NORMAL=4750；is_forever 全为 Y 共 5355 条；db_tenant_code 仅 base 一个租户）是当前数据现状快照，不是版本变更记录。
+- 当前 DB 中 is_forever 全部为 "Y"，未见 "N" 样本；限时分支的行为依据代码常量与 [[temporary_short_link_expire_check]]。
+- 需求文档提出「需要短链时由 ShortLinkAppication 生成短链」，代码链路中仅见访问侧 ShortLinkController，生成侧未被证实，见 REVIEW。
 
 ```ground:table
 table: short_link
-scope.database: unknown
 fields:
-  - field: id
-    meaning: 短链主键；/sl/{number} 映射式短链中，number 去掉末位校验字符后经 LongBase64Utils.decode 还原为该 id 用于查询
-    evidence: code
-  - field: number
-    meaning: 短链编码，是 /cust-web/sl/{number} 的唯一查询键；在 /sl/{number} 中 number 末位字符为校验位（LongBase64Utils.generateVerifyCode(link.getNumber())）
-    evidence: code
-  - field: code
-    meaning: 通用编码字段（框架级），与业务访问用的 number 不是同一口径，勿混用
-    evidence: db
-  - field: source_url
-    meaning: 短链跳转的源链接；type=FILE 时该值需经 fileService.filePathEncrypt 换取可访问地址后再 redirect
-    evidence: db
-  - field: type
-    meaning: "短链类型：NORMAL=普通链接直接跳转；FILE=文件类链接需加密换链后跳转（DB 实测分布 FILE=605 / NORMAL=4750）"
-    evidence: db
-  - field: is_forever
-    meaning: 是否永久有效；=Y 时跳过 expire_time 过期校验，=N 时按到期时间判过期（DB 实测当前存量全为 Y，5355 条）
-    evidence: db
-  - field: expire_time
-    meaning: 短链到期时间，仅在 is_forever=N 时参与校验
-    evidence: db
-  - field: enable
-    meaning: 逻辑有效标识（DB 实测全为 Y）
-    evidence: db
-  - field: db_tenant_code
-    meaning: 数据租户标识（DB 实测当前存量仅 base 一个租户）
-    evidence: db
+  - name: id
+    type: ""
+    desc: 短链表主键
+    dict: ""
+  - name: code
+    type: ""
+    desc: 编码
+    dict: ""
+  - name: name
+    type: ""
+    desc: 名称
+    dict: ""
+  - name: source_url
+    type: ""
+    desc: 源链接，短链实际跳转目标
+    dict: ""
+  - name: expire_time
+    type: ""
+    desc: 到期时间，仅非永久短链访问时校验
+    dict: ""
+  - name: number
+    type: ""
+    desc: 短链编码/短链码，用于按 number 查询或生成校验码
+    dict: ""
+  - name: type
+    type: ""
+    desc: 短链类型，NORMAL=普通链接，FILE=文件链接
+    dict: ""
+  - name: is_forever
+    type: ""
+    desc: 到期类型，Y=永久有效，N=限时有效；DB 当前全为 Y
+    dict: ""
+  - name: enable
+    type: ""
+    desc: 启用标识
+    dict: ""
+  - name: db_tenant_code
+    type: ""
+    desc: 数据租户标识
+    dict: ""
+  - name: app_tenant_code
+    type: ""
+    desc: 逻辑租户标识
+    dict: ""
 ```
-
-## 关联
-
-[[concepts/短链]] · [[processes/短链类型路由]] · [[processes/短链有效期标志]] · [[calibers/短链已过期]] · [[calibers/永久短链]] · [[calibers/普通短链]] · [[calibers/文件短链]]
-
----END FILE---
-
----FILE: tables/cust_message_send_policy.md ---
----
-type: table
-title: cust_message_send_policy 消息发送策略表
-page_key: table/cust_message_send_policy
-domain: 通知/验证码/短链
-status: draft
-aliases: [消息发送策略, 消息策略表, custMessageSendPolicy]
-oid: 1
-scope:
-  databases: [unknown]
-sources:
-  - db:cust_message_send_policy
-  - code_path:lowcode-pplatform-components/lowcode-pplatform-sso-component/src/main/java/com/lls/lowcode/pplatform/facade/MessageFacade.java
-contract_version: "0.1"
----
-
-cust_message_send_policy 是通知链路的场景开关表：一行代表「某场景 × 某渠道」是否实际发送。`scenes_type` 是定位消息模板与场景实现类的主键式入口，与代码中的 SmsTemplateConstant / NoticeTemplateConstant / EmailTemplateConstansts 常量值对齐；`msg_kind` 区分短信/邮件/站内信等渠道维度；`send_enable` 是最终是否发出的闸门。
-
-## 需求背景
-
-v0 语义分析未提供 reqdoc_claims，本节暂无需求文档主张可锚定。
-
-## 版本演进
-
-v0 首版，无历史版本记录。`send_enable` 默认 Y。
-
-```ground:table
-table: cust_message_send_policy
-scope.database: unknown
-fields:
-  - field: scenes_type
-    meaning: 消息场景码，对应代码中的 SmsTemplateConstant / NoticeTemplateConstant / EmailTemplateConstansts 常量值，用于定位消息模板与场景实现类
-    evidence: db
-  - field: msg_kind
-    meaning: 消息类型（短信/邮件/站内信等渠道维度的策略分类）
-    evidence: db
-  - field: send_enable
-    meaning: 发送标识（默认 Y），控制该场景消息是否实际发送
-    evidence: db
-  - field: name
-    meaning: 策略名称
-    evidence: db
-```
-
-## 关联
-
-[[concepts/场景码]] · [[concepts/站内信]] · [[processes/消息渠道]] · [[calibers/短信发送默认参数]] · [[calibers/消息模板缺失]] · [[rules/通知发送失败不阻断主流程]] · [[rules/前置校验异常不受静默策略保护]]
-
 ---END FILE---
 
 ---FILE: tables/cust_setting_config.md ---
 ---
 type: table
-title: cust_setting_config 企业配置表
-page_key: table/cust_setting_config
-domain: 通知/验证码/短链
+title: 企业配置表 cust_setting_config
+page_key: cust_setting_config
+domain: notification
 status: draft
-aliases: [企业配置, 租户配置表, custSettingConfig]
+aliases: [企业配置, 客户配置, CustSettingConfig]
 oid: 1
 scope:
-  databases: [unknown]
+  databases: []
 sources:
   - db:cust_setting_config
+  - CustSettingConfigEnhanceService.java
 contract_version: "0.1"
 ---
 
-cust_setting_config 按企业（`cust_id`）保存认证与邀请类业务的可配置项：哪些字段算关键信息、变更是否需要审核、认证是否走人脸或打款验证、以及一组协议模板编号。它以配置驱动代替硬编码，本主题相关的主要是邀请码有效期与发送间隔这两个窗口参数。
+cust_setting_config 保存单企业维度的开关与模板配置：既包含关键/非关键信息字段清单，也包含认证审核开关、打款验证、人脸识别，以及合同与协议类模板编码，还包含邀请码的有效期与重复发送间隔。审核类开关的判定见 [[enterprise_auth_audit_caliber]] 与 [[non_key_info_audit_caliber]]，配置开关的取值集合见 [[cust_setting_config_switch]]。
 
 ## 需求背景
-
-v0 语义分析未提供 reqdoc_claims，本节暂无需求文档主张可锚定。
+企业认证与信息变更是有风险的写操作，需求侧要求企业可自行决定「认证是否需要审核」「非关键信息变更是否需要审核」，并允许开启打款验证作为认证辅助手段；邀请码则需要控制有效期与重复发送频率，防止刷取。
 
 ## 版本演进
-
-v0 首版，无历史版本记录。
+- 审核开关、人脸识别、打款验证当前以字符串字面量 "yes"/"no" 存储，未见枚举类，取值集合见 [[cust_setting_config_switch]]。
+- 邀请码有效期与重复发送间隔为「数值 + 单位」双列结构，单位由 *_unit / *_unti 列决定（sending_interval_unti 为库中实际列名拼写）。相关文档主张见 [[invitation_code_period]]。
 
 ```ground:table
 table: cust_setting_config
-scope.database: unknown
 fields:
-  - field: invitation_code_period
-    meaning: 邀请码有效期数值（DB 实测=1），需与 invitation_code_period_unit 组合使用
-    evidence: db
-  - field: invitation_code_period_unit
-    meaning: 邀请码有效期单位
-    evidence: db
-  - field: sending_interval
-    meaning: 邀请码重复发送时间间隔数值（DB 实测=1）
-    evidence: db
-  - field: sending_interval_unti
-    meaning: 邀请码重复发送时间间隔单位（列名 unti 为库表既有拼写，非笔误）
-    evidence: db
-  - field: key_word
-    meaning: 企业关键信息字段清单（JSON 数组字符串），变更审核判定用；DB 实测值含 name/custCompanyType/legalName/legalPhone/legalCertificationNo/legalCertificationType/legalEmail/registProvinceCity/timePermanent/phone/certificationNo/certificationType
-    evidence: db
-  - field: no_key_word
-    meaning: 企业非关键信息字段清单（JSON 数组字符串）；DB 实测 contactTel/custEmail/paidInCapital
-    evidence: db
-  - field: need_auth_verify
-    meaning: 企业认证是否需审核：no=直接免审（custChangeInfoNeedApply 首判），否则进入关键信息比对
-    evidence: db
-  - field: need_verify_no_key
-    meaning: 非关键信息变更是否需审核：no=非关键信息变更不触发审核
-    evidence: db
-  - field: face_recognition
-    meaning: 人脸识别开关（DB 实测 no）
-    evidence: db
-  - field: payment_verification
-    meaning: 打款验证开关（DB 实测 yes）
-    evidence: db
-  - field: payment_maximum_number
-    meaning: 最多申请打款次数（DB 实测 3）
-    evidence: db
-  - field: user_agreement
-    meaning: 用户协议模板编号（DB 实测 CT-202404031806394575219）
-    evidence: db
-  - field: privacy_policy_agreement
-    meaning: 隐私政策协议模板编号（DB 实测 CT-202404031807156758507）
-    evidence: db
-  - field: authorization_offline
-    meaning: 授权确认书-线下签署模板编号（DB 实测 CT-202404081721209495040）
-    evidence: db
-  - field: cust_id
-    meaning: 配置所属企业 id
-    evidence: db
+  - name: key_word
+    type: ""
+    desc: 企业关键信息字段 JSON 数组
+    dict: ""
+  - name: no_key_word
+    type: ""
+    desc: 企业非关键信息字段 JSON 数组
+    dict: ""
+  - name: need_auth_verify
+    type: ""
+    desc: 企业认证审核开关，yes=需要审核，no=不需要
+    dict: ""
+  - name: need_verify_no_key
+    type: ""
+    desc: 非关键信息变更审核开关，yes=需要审核，no=不需要
+    dict: ""
+  - name: face_recognition
+    type: ""
+    desc: 人脸识别开关，no=不启用
+    dict: ""
+  - name: payment_verification
+    type: ""
+    desc: 打款验证开关，yes=启用
+    dict: ""
+  - name: payment_maximum_number
+    type: ""
+    desc: 最多申请打款次数
+    dict: ""
+  - name: invitation_code_period
+    type: ""
+    desc: 邀请码有效期数值，单位由 invitation_code_period_unit 决定
+    dict: ""
+  - name: invitation_code_period_unit
+    type: ""
+    desc: 邀请码有效期单位
+    dict: ""
+  - name: sending_interval
+    type: ""
+    desc: 邀请码重复发送时间间隔数值
+    dict: ""
+  - name: sending_interval_unti
+    type: ""
+    desc: 邀请码重复发送时间间隔单位
+    dict: ""
+  - name: user_agreement
+    type: ""
+    desc: 用户协议模板编码
+    dict: ""
+  - name: privacy_policy_agreement
+    type: ""
+    desc: 隐私政策模板编码
+    dict: ""
+  - name: authorization_online
+    type: ""
+    desc: 授权确认书-线上签署模板编码
+    dict: ""
+  - name: authorization_offline
+    type: ""
+    desc: 授权确认书-线下签署模板编码
+    dict: ""
+  - name: cfca_agreement
+    type: ""
+    desc: 数字证书服务协议模板编码
+    dict: ""
 ```
-
-## 关联
-
-[[calibers/邀请码有效期]] · [[concepts/验证码]]
-
 ---END FILE---
 
----FILE: processes/短链类型路由.md ---
+---FILE: tables/cust_message_send_policy.md ---
 ---
-type: process
-title: 短链类型路由
-page_key: process/短链类型路由
-domain: 通知/验证码/短链
+type: table
+title: 消息发送策略表 cust_message_send_policy
+page_key: cust_message_send_policy
+domain: notification
 status: draft
-aliases: [短链跳转分支, NORMAL/FILE 路由]
+aliases: [消息发送策略, 消息配置, CustMessageSendPolicy]
 oid: 1
 scope:
-  databases: [unknown]
+  databases: []
 sources:
-  - code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/controller/shortlink/ShortLinkController.java
+  - db:cust_message_send_policy
+contract_version: "0.1"
+---
+
+cust_message_send_policy 以「消息类型 + 场景码」为粒度控制企业侧消息是否发送，是通知组件在客户域的开关表。发送开关默认 Y，并另有启用标识 enable 控制记录本身是否生效。
+
+## 需求背景
+通知触达需要按企业的业务场景做精细化开关（例如某企业不希望收到某类短信），因此需要按 msg_kind 与 scenes_type 组合配置发送策略，避免在代码中硬编码场景。
+
+## 版本演进
+- 当前该表只有配置语义，未见与验证码/短链链路的直接关联证据，相关通知发送规则见 [[verify_code_scenes_whitelist]] 与 [[notice_local_downstream_route]]。
+
+```ground:table
+table: cust_message_send_policy
+fields:
+  - name: msg_kind
+    type: ""
+    desc: 消息类型
+    dict: ""
+  - name: scenes_type
+    type: ""
+    desc: 场景码
+    dict: ""
+  - name: send_enable
+    type: ""
+    desc: 发送标识，默认 Y
+    dict: ""
+  - name: name
+    type: ""
+    desc: 名称
+    dict: ""
+  - name: enable
+    type: ""
+    desc: 启用标识
+    dict: ""
+```
+---END FILE---
+
+---FILE: enums/short_link_type.md ---
+---
+type: enum
+title: 短链类型 short_link.type
+page_key: short_link_type
+domain: notification
+status: draft
+aliases: [ShortLinkType, 短链类型枚举, NORMAL, FILE]
+oid: 1
+scope:
+  databases: []
+sources:
+  - ShortLinkController.java:52-55
   - db:short_link.type
 contract_version: "0.1"
 ---
 
-短链跳转在拿到 `source_url` 后并不是无条件 redirect，而是按 `short_link.type` 分流：普通链接直接下发目标地址，文件类链接必须先换取可访问地址。这一分支是短链链路里唯一影响「跳到哪里」的判定点，也是文件短链权限控制的实际落点。
+short_link.type 区分短链的跳转处理方式，取值由 [[normal_short_link]] 与 [[file_short_link]] 两个术语桥分别承接，路由行为见 [[short_link_type_route]]。
 
 ## 需求背景
-
-v0 语义分析未提供 reqdoc_claims，本节暂无需求文档主张可锚定。
+文件类目标链接不能直接把存储路径暴露给外部，因此需要与普通链接区分，前者在跳转前必须经过文件服务加密。
 
 ## 版本演进
+- 取值写点为 ShortLinkController.java:52 的 NORMAL 分支与 55 的 else 分支（FILE），与 extract-enums 基线一致。
 
-v0 首版。DB 存量分布 FILE=605 / NORMAL=4750。
-
-```ground:process
-name: 短链类型路由
+```ground:enum
 field: short_link.type
-states:
+values:
   - value: NORMAL
-    label: "普通短链：直接 302 到 source_url"
-    source: code_enum
+    java_name: ShortLinkType.NORMAL
+    stored_as: getDictKey
+    label: 普通短链
+    note: DB 值分布 NORMAL 4750；ShortLinkController.java:52 判断后直接跳转
   - value: FILE
-    label: "文件短链：source_url 需 filePathEncrypt 换链后 302"
-    source: db_dist
-transitions:
-  - from: NORMAL
-    event: GET /cust-web/sl/{number} 命中且未过期
-    to: NORMAL
-    evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/controller/shortlink/ShortLinkController.java#orderCategory
-  - from: FILE
-    event: type != NORMAL 时走 else 分支执行 filePathEncrypt(sourceUrl,false)
-    to: FILE
-    evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/controller/shortlink/ShortLinkController.java#orderCategory
+    java_name: ShortLinkType.FILE
+    stored_as: getDictKey
+    label: 文件短链
+    note: DB 值分布 FILE 605；ShortLinkController.java:55 else 分支调用 filePathEncrypt
 ```
-
-## 关联
-
-[[tables/short_link]] · [[concepts/短链]] · [[calibers/普通短链]] · [[calibers/文件短链]] · [[processes/短链有效期标志]]
-
 ---END FILE---
 
----FILE: processes/短链有效期标志.md ---
+---FILE: enums/short_link_is_forever.md ---
 ---
-type: process
-title: 短链有效期标志
-page_key: process/短链有效期标志
-domain: 通知/验证码/短链
+type: enum
+title: 到期类型 short_link.is_forever
+page_key: short_link_is_forever
+domain: notification
 status: draft
-aliases: [短链是否永久, isForever]
+aliases: [isForever, BooleanEnum.Y, BooleanEnum.N, 永久标识]
 oid: 1
 scope:
-  databases: [unknown]
+  databases: []
 sources:
-  - code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/controller/shortlink/ShortLinkController.java
+  - ShortLinkController.java:48
   - db:short_link.is_forever
 contract_version: "0.1"
 ---
 
-`is_forever` 是一个开关式取值而非流程推进字段：为 Y 时整条过期判定被短路，为 N 时才把 `expire_time` 拉进比较。当前存量全部为 Y，意味着现网短链实际处于「永不判过期」的状态。
+short_link.is_forever 是短链有效期策略开关，也是 [[short_link_expire_state]] 状态机的状态字段。Y 对应 [[permanent_short_link]]，N 对应 [[temporary_short_link]]。
 
 ## 需求背景
-
-v0 语义分析未提供 reqdoc_claims，本节暂无需求文档主张可锚定。
+短链既可能长期投放（永久有效），也可能作为限时活动的临时入口，需要以单一字段表达两种策略，避免用 expire_time 是否为空来隐式推断。
 
 ## 版本演进
+- DB 当前全部为 "Y"，"N" 仅有代码常量证据（ShortLinkController.java:48 的等于 N 判断），属于代码已实现但数据未覆盖的取值。
 
-v0 首版。DB 实测存量 is_forever 全为 Y（5355 条），N 分支目前无存量样本。
+```ground:enum
+field: short_link.is_forever
+values:
+  - value: Y
+    java_name: BooleanEnum.Y
+    stored_as: getDictKey
+    label: 永久有效
+    note: DB 全部为 Y；代码只在等于 N 时校验过期
+  - value: N
+    java_name: BooleanEnum.N
+    stored_as: getDictKey
+    label: 限时有效
+    note: DB 当前无 N 样本，仅代码常量证据
+```
+---END FILE---
+
+---FILE: enums/cust_setting_config_switch.md ---
+---
+type: enum
+title: 企业配置开关取值 cust_setting_config.*
+page_key: cust_setting_config_switch
+domain: notification
+status: draft
+aliases: [审核开关, needAuthVerify, needVerifyNoKey, faceRecognition, paymentVerification]
+oid: 1
+scope:
+  databases: []
+sources:
+  - db:cust_setting_config
+  - CustSettingConfigEnhanceService.java
+contract_version: "0.1"
+---
+
+cust_setting_config 中的审核与认证类开关统一采用字符串 "yes"/"no" 表达，代码中未见对应枚举类，判断时使用字符串字面量比较。业务术语承接见 [[enterprise_auth_audit]]、[[non_key_info_audit]]、[[face_recognition_off]]、[[payment_verification_on]]。
+
+## 需求背景
+企业侧开关需要被运营与前端直接读写，字符串 yes/no 便于配置页面展示；但这也意味着取值没有类型约束，需要文档固定口径。
+
+## 版本演进
+- 当前 yes/no 均为单行或多行 DB 样本 + 代码字面量证据，尚未抽取为枚举；若后续新增枚举类，本页需同步。
+
+```ground:enum
+field: cust_setting_config.need_auth_verify, cust_setting_config.need_verify_no_key, cust_setting_config.face_recognition, cust_setting_config.payment_verification
+values:
+  - value: "yes"
+    java_name: 无枚举
+    stored_as: 字符串字面量
+    label: need_auth_verify 需要企业认证审核
+    note: 代码判断 "no" 时不需审核
+  - value: "yes"
+    java_name: 无枚举
+    stored_as: 字符串字面量
+    label: need_verify_no_key 需要非关键信息变更审核
+    note: 代码判断 "no" 时不需审核
+  - value: "no"
+    java_name: 无枚举
+    stored_as: 字符串字面量
+    label: face_recognition 不启用人脸识别
+    note: DB 单行样本
+  - value: "yes"
+    java_name: 无枚举
+    stored_as: 字符串字面量
+    label: payment_verification 启用打款验证
+    note: DB 单行样本
+```
+---END FILE---
+
+---FILE: processes/short_link_expire_state.md ---
+---
+type: process
+title: 短链有效期状态
+page_key: short_link_expire_state
+domain: notification
+status: draft
+aliases: [短链有效期状态机, is_forever 状态]
+oid: 1
+scope:
+  databases: []
+sources:
+  - db:short_link.is_forever
+  - ShortLinkController.java:48
+contract_version: "0.1"
+---
+
+该状态机描述短链按 is_forever 的两态划分：永久有效与限时有效。两个状态对应 [[permanent_short_link]] 与 [[temporary_short_link]]，判定发生在访问跳转链路上，具体口径见 [[permanent_short_link_skip_expire]] 与 [[temporary_short_link_expire_check]]。
+
+## 需求背景
+短链的过期语义不应由 expire_time 是否为空隐式表达，需求侧要求显式的到期类型字段，使访问端可以明确区分「永不校验过期」与「必须校验过期」。
+
+## 版本演进
+- Y 态有 DB 全量数据支撑；N 态仅有代码常量证据，DB 无样本，转换条件（谁会写入 N、何时写入）在本次分析中无证据。
 
 ```ground:process
-name: 短链有效期标志
+name: 短链有效期状态
 field: short_link.is_forever
 states:
-  - value: Y
-    label: 永久有效，跳过 expire_time 校验
+  - value: "Y"
+    label: 永久有效
     source: db_dist
-  - value: N
-    label: 非永久，访问时比对 expire_time
-    source: code_enum
+  - value: "N"
+    label: 限时有效
+    source: code_const
 transitions: []
 ```
-
-## 关联
-
-[[tables/short_link]] · [[calibers/短链已过期]] · [[calibers/永久短链]] · [[processes/短链类型路由]]
-
 ---END FILE---
 
----FILE: processes/消息渠道.md ---
----
-type: process
-title: 消息渠道（MessageTypeEnum）
-page_key: process/消息渠道
-domain: 通知/验证码/短链
-status: draft
-aliases: [MessageTypeEnum, 消息类型路由, PHONE/EMAIL/NOTICE]
-oid: 1
-scope:
-  databases: [unknown]
-sources:
-  - code_path:lowcode-pplatform-components/lowcode-pplatform-sso-component/src/main/java/com/lls/lowcode/pplatform/facade/MessageFacade.java
-contract_version: "0.1"
----
-
-消息下发前先由场景实现类的 `messageType()` 决定渠道，再据此构造不同的 MessageContext：邮件走 EmailMessageContext，站内信走 NoticeMessageContext 并额外回填模板编号、system、systemName，其余（含短信）落到基础 MessageContext 并回填短信模板编号。渠道同时决定验证码是否生成——只有验证码场景才会写入 `params.smsCode` / `timeLimit`。
-
-## 需求背景
-
-v0 语义分析未提供 reqdoc_claims，本节暂无需求文档主张可锚定。
-
-## 版本演进
-
-v0 首版。
-
-```ground:process
-name: 消息渠道（MessageTypeEnum）
-field: messageContext.messageType
-states:
-  - value: PHONE
-    label: 短信渠道
-    source: code_enum
-  - value: EMAIL
-    label: 邮件渠道
-    source: code_enum
-  - value: NOTICE
-    label: 站内信渠道
-    source: code_enum
-transitions:
-  - from: EMAIL
-    event: getMessageService(scenesType).messageType()=EMAIL → new EmailMessageContext()
-    to: EMAIL
-    evidence: code_path:lowcode-pplatform-components/lowcode-pplatform-sso-component/src/main/java/com/lls/lowcode/pplatform/facade/MessageFacade.java#getMessageContext
-  - from: NOTICE
-    event: messageType()=NOTICE → new NoticeMessageContext() 并回填 noticeTemplate 的 templateNo/system/systemName
-    to: NOTICE
-    evidence: code_path:lowcode-pplatform-components/lowcode-pplatform-sso-component/src/main/java/com/lls/lowcode/pplatform/facade/MessageFacade.java#getDefaultTemplateNo
-  - from: PHONE
-    event: messageType() 非 EMAIL/NOTICE → 构造基础 MessageContext，按 messageSmsTemplate 回填 templateNo
-    to: PHONE
-    evidence: code_path:lowcode-pplatform-components/lowcode-pplatform-sso-component/src/main/java/com/lls/lowcode/pplatform/facade/MessageFacade.java#getMessageContext
-  - from: PHONE
-    event: 验证码场景（@MessageSpi.sendVerifyCode()=true）生成验证码并写入 params.smsCode/timeLimit
-    to: PHONE
-    evidence: code_path:lowcode-pplatform-components/lowcode-pplatform-sso-component/src/main/java/com/lls/lowcode/pplatform/facade/MessageFacade.java#sendVerifyCode
-```
-
-## 关联
-
-[[tables/cust_message_send_policy]] · [[concepts/站内信]] · [[concepts/场景码]] · [[concepts/验证码]] · [[calibers/短信发送默认参数]] · [[calibers/消息模板缺失]]
-
----END FILE---
-
----FILE: calibers/短链已过期.md ---
+---FILE: calibers/permanent_short_link_skip_expire.md ---
 ---
 type: caliber
-title: 短链已过期
-page_key: caliber/短链已过期
-domain: 通知/验证码/短链
+title: 永久短链不校验到期时间
+page_key: permanent_short_link_skip_expire
+domain: notification
 status: draft
-aliases: [文件链接已过期, 短链过期判定]
+aliases: [永久有效短链口径, is_forever=Y 不校验]
 oid: 1
 scope:
-  databases: [unknown]
+  databases: []
 sources:
-  - code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/controller/shortlink/ShortLinkController.java
+  - ShortLinkController.java:48
   - db:short_link.is_forever
-  - db:short_link.expire_time
 contract_version: "0.1"
 ---
 
-过期判定只在 `is_forever=N` 时才真正成立：先由永久标志短路，再用当前时间与 `expire_time` 比较。命中即抛出统一文案异常，跳转链路整体中断。
+凡是 is_forever='Y' 的短链，在访问跳转时完全不校验 expire_time，即使该列有值也不影响跳转。该口径与 [[temporary_short_link_expire_check]] 构成互斥边界，术语定义见 [[permanent_short_link]]。
 
 ## 需求背景
-
-v0 语义分析未提供 reqdoc_claims，本节暂无需求文档主张可锚定。
-
-## 版本演进
-
-v0 首版。
-
-```ground:caliber
-name: 短链已过期
-predicate: short_link.is_forever = 'N' AND short_link.expire_time <= NOW()
-scope: ShortLinkController#orderCategory / #shortLink 跳转前置校验，命中即抛 CommonException("不好意思，您访问的文件链接已过期！")
-evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/controller/shortlink/ShortLinkController.java#orderCategory + db:short_link.is_forever/expire_time
-```
-
-## 关联
-
-[[tables/short_link]] · [[processes/短链有效期标志]] · [[calibers/永久短链]]
-
----END FILE---
-
----FILE: calibers/永久短链.md ---
----
-type: caliber
-title: 永久短链
-page_key: caliber/永久短链
-domain: 通知/验证码/短链
-status: draft
-aliases: [is_forever=Y, 不过期短链]
-oid: 1
-scope:
-  databases: [unknown]
-sources:
-  - db:short_link
-  - code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/controller/shortlink/ShortLinkController.java
-contract_version: "0.1"
----
-
-永久短链是过期校验的短路条件：只要标志为 Y，`expire_time` 无论取什么值都不参与判定，直接进入解析跳转。当前存量全部命中该口径。
-
-## 需求背景
-
-v0 语义分析未提供 reqdoc_claims，本节暂无需求文档主张可锚定。
+永久短链用于长期投放（例如印刷物、长期协议链接），需求侧要求其不受投放期限影响，避免误过期导致业务中断。
 
 ## 版本演进
-
-v0 首版。DB 值分布 is_forever(Y:5355)，暂无 N 样本。
+- DB 中所有样本均为 Y，即当前线上全量短链都命中该口径。
 
 ```ground:caliber
-name: 永久短链
+name: 永久短链不校验到期时间
 predicate: short_link.is_forever = 'Y'
-scope: 跳过 expire_time 校验，直接解析跳转
-evidence: db:short_link 值分布 is_forever(Y:5355) + code_path:ShortLinkController.java#shortLink
+scope: 短链访问跳转
+evidence: ShortLinkController.java:48 + db
 ```
-
-## 关联
-
-[[tables/short_link]] · [[processes/短链有效期标志]] · [[calibers/短链已过期]]
-
 ---END FILE---
 
----FILE: calibers/普通短链.md ---
+---FILE: calibers/temporary_short_link_expire_check.md ---
 ---
 type: caliber
-title: 普通短链
-page_key: caliber/普通短链
-domain: 通知/验证码/短链
+title: 限时短链到期校验
+page_key: temporary_short_link_expire_check
+domain: notification
 status: draft
-aliases: [NORMAL 短链, 直接跳转短链]
+aliases: [限时有效短链口径, is_forever=N 校验]
 oid: 1
 scope:
-  databases: [unknown]
+  databases: []
 sources:
-  - code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/controller/shortlink/ShortLinkController.java
+  - ShortLinkController.java:48
 contract_version: "0.1"
 ---
 
-type 为 NORMAL 时，`source_url` 被视作外部可直达地址，直接 sendRedirect，不做任何换链与鉴权加工。
+is_forever='N' 的短链在访问时必须校验 expire_time，过期即拦截。该口径的拦截动作与异常语义见 [[short_link_expire_check]]，术语定义见 [[temporary_short_link]]。
 
 ## 需求背景
-
-v0 语义分析未提供 reqdoc_claims，本节暂无需求文档主张可锚定。
+限时短链承载活动、临时入口等场景，需求侧要求到期自动失效，不能依赖人工下架。
 
 ## 版本演进
-
-v0 首版。
+- 该分支当前无 DB 数据样本，仅由代码常量分支支撑；上线后一旦出现 N 态数据即会生效。
 
 ```ground:caliber
-name: 普通短链
-predicate: short_link.type = 'NORMAL'
-scope: sourceUrl 直接 resp.sendRedirect
-evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/controller/shortlink/ShortLinkController.java#orderCategory
+name: 限时短链到期校验
+predicate: short_link.is_forever = 'N'
+scope: 短链访问跳转
+evidence: ShortLinkController.java:48
 ```
-
-## 关联
-
-[[tables/short_link]] · [[processes/短链类型路由]] · [[calibers/文件短链]]
-
 ---END FILE---
 
----FILE: calibers/文件短链.md ---
+---FILE: calibers/normal_short_link_redirect.md ---
 ---
 type: caliber
-title: 文件短链
-page_key: caliber/文件短链
-domain: 通知/验证码/短链
+title: 普通短链直接跳转
+page_key: normal_short_link_redirect
+domain: notification
 status: draft
-aliases: [FILE 短链, 换链短链, filePathEncrypt]
+aliases: [NORMAL 跳转口径]
 oid: 1
 scope:
-  databases: [unknown]
+  databases: []
 sources:
-  - code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/controller/shortlink/ShortLinkController.java
+  - ShortLinkController.java:52
+contract_version: "0.1"
+---
+
+type='NORMAL' 的短链直接使用 source_url 重定向，不经过文件服务。该口径与 [[file_short_link_encrypt_redirect]] 互斥，术语定义见 [[normal_short_link]]。
+
+## 需求背景
+普通短链指向的是页面或外部系统地址，本就可公开，直接重定向可减少一次文件服务调用。
+
+## 版本演进
+- DB 中 NORMAL 值分布为 4750，是当前短链的主流形态。
+
+```ground:caliber
+name: 普通短链直接跳转
+predicate: short_link.type = 'NORMAL'
+scope: 短链访问跳转
+evidence: ShortLinkController.java:52
+```
+---END FILE---
+
+---FILE: calibers/file_short_link_encrypt_redirect.md ---
+---
+type: caliber
+title: 文件短链加密后跳转
+page_key: file_short_link_encrypt_redirect
+domain: notification
+status: draft
+aliases: [FILE 跳转口径, 文件短链加密]
+oid: 1
+scope:
+  databases: []
+sources:
+  - ShortLinkController.java:55
   - db:short_link.type
 contract_version: "0.1"
 ---
 
-文件短链口径以「非 NORMAL」定义：只要不是普通类型，`source_url` 就必须先经 filePathEncrypt 换成可访问地址再 redirect，避免把内部文件路径直接暴露给浏览器。
+type='FILE' 的短链在跳转前必须先用 filePathEncrypt(source_url,false) 处理 source_url，再重定向，避免真实文件路径暴露。术语定义见 [[file_short_link]]，对应规则见 [[short_link_type_route]]。
 
 ## 需求背景
-
-v0 语义分析未提供 reqdoc_claims，本节暂无需求文档主张可锚定。
+文件类链接的存储路径属于敏感信息，需求侧要求短链对外只暴露短链码，真实路径需加密后跳转。
 
 ## 版本演进
-
-v0 首版。DB 存量 FILE=605。
+- DB 中 FILE 值分布为 605，为短链的次要形态。
 
 ```ground:caliber
-name: 文件短链
-predicate: short_link.type = 'FILE'（即非 NORMAL）
-scope: sourceUrl 经 fileService.getDefaultFileService().filePathEncrypt(sourceUrl,false) 后再 redirect
-evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/controller/shortlink/ShortLinkController.java#shortLink + db:short_link.type(FILE:605)
+name: 文件短链加密后跳转
+predicate: short_link.type = 'FILE'
+scope: 短链访问跳转
+evidence: ShortLinkController.java:55 + db
 ```
-
-## 关联
-
-[[tables/short_link]] · [[processes/短链类型路由]] · [[calibers/普通短链]]
-
 ---END FILE---
 
----FILE: calibers/未完成待办.md ---
+---FILE: calibers/enterprise_auth_audit_caliber.md ---
 ---
 type: caliber
-title: 未完成待办
-page_key: caliber/未完成待办
-domain: 通知/验证码/短链
+title: 企业认证需要审核
+page_key: enterprise_auth_audit_caliber
+domain: notification
 status: draft
-aliases: [noticeStatus=0, 待办数量口径]
+aliases: [needAuthVerify 口径]
 oid: 1
 scope:
-  databases: [unknown]
+  databases: []
 sources:
-  - code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/facade/NoticeFacade.java
+  - CustSettingConfigEnhanceService.java
+  - db:cust_setting_config.need_auth_verify
 contract_version: "0.1"
 ---
 
-待办数以状态字面量 `'0'` 为唯一过滤条件，列表页与角标计数两条链路共用同一口径，因此两处数字天然一致。
+当 need_auth_verify='yes' 时，企业认证进入审核流程；代码中 'no' 直接返回不需要审批。术语定义见 [[enterprise_auth_audit]]，与其相邻的开关口径见 [[non_key_info_audit_caliber]]。
 
 ## 需求背景
-
-v0 语义分析未提供 reqdoc_claims，本节暂无需求文档主张可锚定。
+认证涉企业主体资质，需求侧允许企业按自身风控要求决定是否引入人工审核环节。
 
 ## 版本演进
-
-v0 首版。
+- 当前为字符串字面量判断，无枚举约束，取值见 [[cust_setting_config_switch]]。
 
 ```ground:caliber
-name: 未完成待办
-predicate: notice.notice_status = '0'
-scope: NoticeFacade#pageTodoCount 与 CustNoticeService#pageTodo 均以 noticeStatus='0' 统计个人待办数
-evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/facade/NoticeFacade.java#pageTodoCount
+name: 企业认证需要审核
+predicate: cust_setting_config.need_auth_verify = 'yes'
+scope: 企业变更/认证审核
+evidence: CustSettingConfigEnhanceService.java + db
 ```
-
-## 关联
-
-[[concepts/站内信]] · [[calibers/产融本库待办]] · [[calibers/AMS待办按联系人id查询]]
-
 ---END FILE---
 
----FILE: calibers/产融本库待办.md ---
+---FILE: calibers/non_key_info_audit_caliber.md ---
 ---
 type: caliber
-title: 产融本库待办
-page_key: caliber/产融本库待办
-domain: 通知/验证码/短链
+title: 非关键信息变更需要审核
+page_key: non_key_info_audit_caliber
+domain: notification
 status: draft
-aliases: [ACCOUNT_PRODUCT, BEECREDIT, resolveLocalNoticeSystem]
+aliases: [needVerifyNoKey 口径]
 oid: 1
 scope:
-  databases: [unknown]
+  databases: []
 sources:
-  - code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/CustNoticeService.java
+  - CustSettingConfigEnhanceService.java
+  - db:cust_setting_config.need_verify_no_key
 contract_version: "0.1"
 ---
 
-productAppId 决定待办数据落在本库还是下游系统：ACCOUNT_PRODUCT 与 BEECREDIT 映射到本地 system 值后走 NoticeProvider 直接查本库，不再发起 Dubbo 调用。
+当 need_verify_no_key='yes' 时，非关键信息变更进入审核；关键信息有变更时优先返回需要审核，非关键信息再按此开关判断。术语定义见 [[non_key_info_audit_caliber]] 对应术语页 [[non_key_info_audit]]。
 
 ## 需求背景
-
-v0 语义分析未提供 reqdoc_claims，本节暂无需求文档主张可锚定。
+企业信息中的关键信息与非关键信息风险等级不同，需求侧要求分别配置审核策略，避免为低风险变更引入高成本审核。
 
 ## 版本演进
-
-v0 首版。
+- 当前为字符串字面量判断，无枚举约束，取值见 [[cust_setting_config_switch]]。
 
 ```ground:caliber
-name: 产融本库待办
-predicate: productAppId = 'ACCOUNT_PRODUCT' → system='pplatform'；productAppId = 'BEECREDIT' → system='BEECREDIT'
-scope: CustNoticeService#resolveLocalNoticeSystem，命中则走 NoticeProvider 本库查询，不调下游 Dubbo
-evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/CustNoticeService.java#resolveLocalNoticeSystem
+name: 非关键信息变更需要审核
+predicate: cust_setting_config.need_verify_no_key = 'yes'
+scope: 企业变更审核
+evidence: CustSettingConfigEnhanceService.java + db
 ```
-
-## 关联
-
-[[calibers/未完成待办]] · [[calibers/AMS待办按联系人id查询]] · [[concepts/站内信]]
-
 ---END FILE---
 
----FILE: calibers/AMS待办按联系人id查询.md ---
+---FILE: calibers/face_recognition_off.md ---
 ---
 type: caliber
-title: AMS 待办按联系人 id 查询
-page_key: caliber/AMS待办按联系人id查询
-domain: 通知/验证码/短链
+title: 人脸识别关闭
+page_key: face_recognition_off
+domain: notification
 status: draft
-aliases: [productAppId=AMS, getPersonId, 待办 userId 口径]
+aliases: [faceRecognition=no 口径]
 oid: 1
 scope:
-  databases: [unknown]
+  databases: []
 sources:
-  - code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/CustNoticeService.java
+  - db:cust_setting_config.face_recognition
 contract_version: "0.1"
 ---
 
-AMS 场景下待办查询的主键不是登录用户 id，而是联系人（cust_person_info）的 id，由 getPersonId 取得。这个口径差异是跨系统待办对账时最容易出错的地方。
+face_recognition='no' 表示该企业不启用人脸识别作为认证手段。本口径仅有 DB 单行样本证据，代码侧未在本次分析中取得判断位置。
 
 ## 需求背景
-
-v0 语义分析未提供 reqdoc_claims，本节暂无需求文档主张可锚定。
+人脸识别属于可选认证强度配置，需求侧允许企业关闭以适配不同地区的合规要求。
 
 ## 版本演进
-
-v0 首版。
+- 仅 DB 样本支撑；若后续取到代码判断位置，应补充到本页证据。
 
 ```ground:caliber
-name: AMS 待办按联系人 id 查询
-predicate: productAppId = 'AMS' → userId = cust_person_info.id（getPersonId）
-scope: CustNoticeService#pageTodo / CustNoticeController#getProductNoticeCount
-evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/CustNoticeService.java#pageTodo
+name: 人脸识别关闭
+predicate: cust_setting_config.face_recognition = 'no'
+scope: 企业认证配置
+evidence: db
 ```
-
-## 关联
-
-[[calibers/未完成待办]] · [[calibers/产融本库待办]]
-
 ---END FILE---
 
----FILE: calibers/短信发送默认参数.md ---
+---FILE: calibers/payment_verification_on.md ---
 ---
 type: caliber
-title: 短信发送默认参数
-page_key: caliber/短信发送默认参数
-domain: 通知/验证码/短链
+title: 打款验证开启
+page_key: payment_verification_on
+domain: notification
 status: draft
-aliases: [sendSmsMessage 兜底, SMS_CUST_LIMIT_REMINDER]
+aliases: [paymentVerification=yes 口径]
 oid: 1
 scope:
-  databases: [unknown]
+  databases: []
 sources:
-  - code_path:lowcode-pplatform-components/lowcode-pplatform-notice-component/src/main/java/com/lls/lowcode/pplatform/notices/application/PlatMessageApplication.java
+  - db:cust_setting_config.payment_verification
 contract_version: "0.1"
 ---
 
-短信发送入口对三个可空入参各有一套兜底：场景码、业务类型、系统标识。空值不会导致失败，而是被静默替换为默认值，因此调用方漏传时会发出一条「默认场景」短信而非报错。
+payment_verification='yes' 表示该企业启用打款验证，认证时可通过向企业对公账户打款并回填金额完成验证。最多申请次数由 payment_maximum_number 控制。
 
 ## 需求背景
-
-v0 语义分析未提供 reqdoc_claims，本节暂无需求文档主张可锚定。
+打款验证用于在无人值守场景下替代人工审核，需求侧要求企业可自行开启。
 
 ## 版本演进
-
-v0 首版。
+- 仅 DB 样本支撑；打款次数上限字段当前无代码消费证据。
 
 ```ground:caliber
-name: 短信发送默认参数
-predicate: scenesType 为空 → SMS_CUST_LIMIT_REMINDER；businessType 为空 → 'cust_company_info'；system 为空 → pplatform
-scope: PlatMessageApplication#sendSmsMessage
-evidence: code_path:lowcode-pplatform-components/lowcode-pplatform-notice-component/src/main/java/com/lls/lowcode/pplatform/notices/application/PlatMessageApplication.java#sendSmsMessage
+name: 打款验证开启
+predicate: cust_setting_config.payment_verification = 'yes'
+scope: 企业认证配置
+evidence: db
 ```
-
-## 关联
-
-[[tables/cust_message_send_policy]] · [[concepts/场景码]] · [[processes/消息渠道]]
-
 ---END FILE---
 
----FILE: calibers/签约验证码固定场景.md ---
+---FILE: rules/notification_channel_abstraction.md ---
 ---
-type: caliber
-title: 签约验证码固定场景
-page_key: caliber/签约验证码固定场景
-domain: 通知/验证码/短链
+type: rule
+title: 通知通道三类抽象
+page_key: notification_channel_abstraction
+domain: notification
 status: draft
-aliases: [SMS_BATCH_SIGN_CONTRACT, 签约验证码场景覆盖]
+aliases: [通知组件通道抽象, 邮件短信微信]
 oid: 1
 scope:
-  databases: [unknown]
+  databases: []
 sources:
-  - code_path:lowcode-pplatform-components/lowcode-pplatform-sso-component/src/main/java/com/lls/lowcode/pplatform/facade/MessageFacade.java
+  - MessageFacade.java:MessageTypeEnum
+  - WechatNotificationService.java:1
+  - reqdoc:平台基础组件业务规则文档#2.2
 contract_version: "0.1"
 ---
 
-签约验证码重载方法不接收场景码参数，而是强制覆盖为批量签约常量。调用方传入的任何场景值在此链路上都无效。
+通知组件以邮件、短信、微信三类通道抽象承载各类触达场景，业务侧按场景选择通道，通道实现各自封装发送细节。验证码场景的选择见 [[verify_code_scenes_whitelist]]，站内信与下游路由见 [[notice_local_downstream_route]]。
 
 ## 需求背景
-
-v0 语义分析未提供 reqdoc_claims，本节暂无需求文档主张可锚定。
+需求文档（平台基础组件业务规则文档 2.2）要求通知能力以通道抽象方式提供，避免业务方直接依赖具体供应商接口；代码侧 MessageTypeEnum 与 WechatNotificationService 与该叙述一致。
 
 ## 版本演进
+- 当前抽象为三类通道；后续若新增通道类型，本页与通道相关规则需同步。
 
-v0 首版。
-
-```ground:caliber
-name: 签约验证码固定场景
-predicate: scenesType = SmsTemplateConstant.SMS_BATCH_SIGN_CONTRACT
-scope: MessageFacade#sendVerifyCode(serviceKey,businessId,businessType,system,signatoryId) 强制覆盖场景码
-evidence: code_path:lowcode-pplatform-components/lowcode-pplatform-sso-component/src/main/java/com/lls/lowcode/pplatform/facade/MessageFacade.java#sendVerifyCode
+```ground:rule
+name: 通知通道三类抽象
+content: 通知组件以邮件/短信/微信三类抽象承载触达场景
+impact: 决定业务侧按场景选择通道的调用方式
+field_targets: []
+evidence: MessageFacade.java:MessageTypeEnum + WechatNotificationService.java:1 + reqdoc:平台基础组件业务规则文档#2.2
 ```
-
-## 关联
-
-[[concepts/验证码]] · [[concepts/场景码]] · [[calibers/验证码场景白名单]] · [[rules/签约验证码接收人手机号回写合同签署表]]
-
 ---END FILE---
 
----FILE: calibers/验证码校验口径.md ---
+---FILE: rules/sms_send_fail_silent.md ---
 ---
-type: caliber
-title: 验证码校验口径
-page_key: caliber/验证码校验口径
-domain: 通知/验证码/短链
+type: rule
+title: 短信发送失败不抛异常
+page_key: sms_send_fail_silent
+domain: notification
 status: draft
-aliases: [checkIndentifyCode, indentifyWay/indentifyChannel]
+aliases: [短信失败静默, sendSmsMessage 不抛异常]
 oid: 1
 scope:
-  databases: [unknown]
+  databases: []
 sources:
-  - code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/message/NoticeIndentifyProviderImpl.java
+  - PlatMessageApplication.java:34-45
+  - reqdoc:平台基础组件业务规则文档#2.2
 contract_version: "0.1"
 ---
 
-校验入口以「识别方式 + 识别渠道」两个维度定位待校验凭证，实现本身只做透传，真正的比对逻辑在下游 IndentifycodeInfoProvider。
+PlatMessageApplication.sendSmsMessage 捕获发送异常并返回 fail，不向调用方抛出。与之同构的微信侧行为见 [[wechat_notify_fail_silent]]。
 
 ## 需求背景
-
-v0 语义分析未提供 reqdoc_claims，本节暂无需求文档主张可锚定。
+需求文档（平台基础组件业务规则文档 2.2）明确发送失败记录日志、不抛异常给业务；代码实现与该叙述一致。
 
 ## 版本演进
+- 需求文档另提出「短信需要幂等时使用 RedisSmsLock 检查/加锁」，链路上未出现 RedisSmsLock 调用，未证实，见 REVIEW。
 
-v0 首版。
-
-```ground:caliber
-name: 验证码校验口径
-predicate: indentifyWay = PHONE 或 EMAIL AND indentifyChannel = 手机号或邮箱
-scope: NoticeIndentifyProvider#checkIndentifyCode 透传 IndentifycodeInfoProvider
-evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/message/NoticeIndentifyProviderImpl.java#checkIndentifyCode
+```ground:rule
+name: 短信发送失败不抛异常
+content: PlatMessageApplication.sendSmsMessage 捕获异常并返回 fail，不向调用方抛出
+impact: 短信发送失败不影响主流程
+field_targets: []
+evidence: PlatMessageApplication.java:34-45 + reqdoc:平台基础组件业务规则文档#2.2
 ```
-
-## 关联
-
-[[concepts/验证码]] · [[calibers/验证码有效期参数]] · [[calibers/验证码场景白名单]]
-
 ---END FILE---
 
----FILE: calibers/验证码场景白名单.md ---
+---FILE: rules/wechat_notify_fail_silent.md ---
 ---
-type: caliber
+type: rule
+title: 微信验证码通知失败不抛异常
+page_key: wechat_notify_fail_silent
+domain: notification
+status: draft
+aliases: [微信通知失败静默, sendVerificationCodeNotification 返回 true]
+oid: 1
+scope:
+  databases: []
+sources:
+  - WechatNotificationService.java:70-80
+  - reqdoc:平台基础组件业务规则文档#2.2
+contract_version: "0.1"
+---
+
+WechatNotificationService.sendVerificationCodeNotification 捕获异常、记录日志并返回 true，调用方不会因微信通知失败而中断。与短信侧对称的规则见 [[sms_send_fail_silent]]。
+
+## 需求背景
+需求文档要求发送失败记录日志、不抛异常给业务；微信服务号通知依赖第三方接口，更需容错。
+
+## 版本演进
+- 当前返回值为 true 的语义是「已尽力发送」，不表示对方已收到，这一点在统计口径上需注意。
+
+```ground:rule
+name: 微信验证码通知失败不抛异常
+content: WechatNotificationService.sendVerificationCodeNotification 捕获异常记录日志并返回 true
+impact: 微信通知失败不影响主流程
+field_targets: []
+evidence: WechatNotificationService.java:70-80 + reqdoc:平台基础组件业务规则文档#2.2
+```
+---END FILE---
+
+---FILE: rules/verify_code_scenes_whitelist.md ---
+---
+type: rule
 title: 验证码场景白名单
-page_key: caliber/验证码场景白名单
-domain: 通知/验证码/短链
+page_key: verify_code_scenes_whitelist
+domain: notification
 status: draft
-aliases: [VERIFY_CODE_SCENES, 验证码场景集合]
+aliases: [VERIFY_CODE_SCENES, 验证码场景]
 oid: 1
 scope:
-  databases: [unknown]
+  databases: []
 sources:
-  - code_path:lowcode-pplatform-components/lowcode-pplatform-sso-component/src/main/java/com/lls/lowcode/pplatform/facade/MessageFacade.java
+  - MessageFacade.java:VERIFY_CODE_SCENES
 contract_version: "0.1"
 ---
 
-白名单是「允许直接调用 sendVerifyCode」的场景集合常量。不在此集合中的场景只能走普通发消息链路，不会生成验证码。
+MessageFacade.VERIFY_CODE_SCENES 指定需要走 sendVerifyCode 的场景：批量签署、落地手机、重置密码、注册手机、法人授权、客户建档认证、CA 意向确认。其余场景不生成验证码。相关的有效期依赖见 [[verify_code_period_config_require]]，落库回填见 [[verify_code_phone_writeback]]。
 
 ## 需求背景
-
-v0 语义分析未提供 reqdoc_claims，本节暂无需求文档主张可锚定。
+验证码有短信成本与骚扰风险，需求侧要求按场景白名单开放，避免任意业务调用验证码能力。
 
 ## 版本演进
+- 白名单当前为代码常量，新增场景需要改代码并发布；表 cust_message_send_policy 的场景开关与白名单的关系在本分析中无证据。
 
-v0 首版。集合成员以 MessageFacade.VERIFY_CODE_SCENES 常量为准。
-
-```ground:caliber
+```ground:rule
 name: 验证码场景白名单
-predicate: scenesType ∈ {SMS_BATCH_SIGN_CONTRACT, LANDED_PHONE, RESET_PASSWORD, REGISTER_PHONE, SMS_LEDGAL_AUTHORIZE, SMS_CUST_BUILD_AUTH, SMS_CA_INTENT_CONFIRM}
-scope: MessageFacade.VERIFY_CODE_SCENES 常量集合（直接调用 sendVerifyCode 的场景）
-evidence: code_path:lowcode-pplatform-components/lowcode-pplatform-sso-component/src/main/java/com/lls/lowcode/pplatform/facade/MessageFacade.java#VERIFY_CODE_SCENES
+content: MessageFacade.VERIFY_CODE_SCENES 指定需要走 sendVerifyCode 的场景：批量签署、落地手机、重置密码、注册手机、法人授权、客户建档认证、CA意向确认
+impact: 决定是否生成并注入验证码
+field_targets: []
+evidence: MessageFacade.java:VERIFY_CODE_SCENES
 ```
-
-## 关联
-
-[[concepts/验证码]] · [[concepts/场景码]] · [[calibers/签约验证码固定场景]] · [[processes/消息渠道]]
-
 ---END FILE---
 
----FILE: calibers/验证码有效期参数.md ---
+---FILE: rules/verify_code_period_config_require.md ---
 ---
-type: caliber
-title: 验证码有效期参数
-page_key: caliber/验证码有效期参数
-domain: 通知/验证码/短链
+type: rule
+title: 验证码有效期配置缺失抛异常
+page_key: verify_code_period_config_require
+domain: notification
 status: draft
-aliases: [timeLimit, codeDuration, 验证码有效期配置]
+aliases: [缺少验证码有效期配置, getIndentifyConfigDTO 为空]
 oid: 1
 scope:
-  databases: [unknown]
+  databases: []
 sources:
-  - code_path:lowcode-pplatform-components/lowcode-pplatform-sso-component/src/main/java/com/lls/lowcode/pplatform/facade/MessageFacade.java
+  - MessageFacade.java:sendVerifyCode
 contract_version: "0.1"
 ---
 
-有效期不是硬编码常数，而是「数值 + 单位显示名」拼接后写入模板参数 `timeLimit`。配置缺失时直接抛异常，属于前置校验而非静默降级。
+sendVerifyCode 中若 indentifycodeFacade.getIndentifyConfigDTO 返回空，抛 CommonException「缺少验证码有效期配置」。即验证码发送强依赖有效期配置。
 
 ## 需求背景
-
-v0 语义分析未提供 reqdoc_claims，本节暂无需求文档主张可锚定。
+验证码若无有效期则无法判断是否可复用，需求侧要求把有效期配置作为发送前置条件，配置缺失时快速失败而非静默发送。
 
 ## 版本演进
+- 当前为抛异常失败策略；是否应降级为默认有效期，本次分析无证据。
 
-v0 首版。
-
-```ground:caliber
-name: 验证码有效期参数
-predicate: params.timeLimit = indentifycodeCofig.codeDuration + codeDurationUnit.getDisplayName()
-scope: MessageFacade#sendVerifyCode，配置缺失抛 CommonException("缺少验证码有效期配置！")
-evidence: code_path:lowcode-pplatform-components/lowcode-pplatform-sso-component/src/main/java/com/lls/lowcode/pplatform/facade/MessageFacade.java#sendVerifyCode
+```ground:rule
+name: 验证码有效期配置缺失抛异常
+content: sendVerifyCode 中若 indentifycodeFacade.getIndentifyConfigDTO 返回空，抛 CommonException 缺少验证码有效期配置
+impact: 验证码发送依赖有效期配置
+field_targets: []
+evidence: MessageFacade.java:sendVerifyCode
 ```
-
-## 关联
-
-[[concepts/验证码]] · [[rules/前置校验异常不受静默策略保护]] · [[calibers/验证码校验口径]]
-
 ---END FILE---
 
----FILE: calibers/邀请码有效期.md ---
+---FILE: rules/contract_sign_verify_code_multi_limit.md ---
 ---
-type: caliber
-title: 邀请码有效期
-page_key: caliber/邀请码有效期
-domain: 通知/验证码/短链
+type: rule
+title: 合同签署验证码多笔限制
+page_key: contract_sign_verify_code_multi_limit
+domain: notification
 status: draft
-aliases: [invitationCodePeriod, 邀请码过期窗口]
+aliases: [多笔限制, sendVerifyCode 入参限制]
 oid: 1
 scope:
-  databases: [unknown]
+  databases: []
+sources:
+  - CustVerifyCodeController.java:sendVerifyCode
+contract_version: "0.1"
+---
+
+CustVerifyCodeController.sendVerifyCode 中 serviceKey 与 businessId 不能同时为多笔，否则抛异常，用于限制批量签署验证码的入参组合。
+
+## 需求背景
+批量签署与单笔签署的验证码归属不同，需求侧要求禁止两种多笔标识同时传入，避免验证码无法定位到唯一业务对象。
+
+## 版本演进
+- 当前为入参校验；批量签署场景的具体处理见 [[verify_code_scenes_whitelist]]。
+
+```ground:rule
+name: 合同签署验证码多笔限制
+content: CustVerifyCodeController.sendVerifyCode 中 serviceKey 与 businessId 不能同时为多笔，否则抛异常
+impact: 限制批量签署验证码入参组合
+field_targets: []
+evidence: CustVerifyCodeController.java:sendVerifyCode
+```
+---END FILE---
+
+---FILE: rules/verify_code_phone_writeback.md ---
+---
+type: rule
+title: 短信验证码手机号回填合同签署表
+page_key: verify_code_phone_writeback
+domain: notification
+status: draft
+aliases: [setVerifyContractPhone, 验证码接收人落库]
+oid: 1
+scope:
+  databases: []
+sources:
+  - CustVerifyCodeApplication.java:sendVerifyCode
+contract_version: "0.1"
+---
+
+当消息类型为 PHONE 时，CustVerifyCodeApplication 将接收手机号通过 contractSignInfoProvider.setVerifyContractPhone 写入合同签署信息，使验证码接收人可追溯。该调用为 RPC 提供方关系，目标表名未在代码中直接出现（推测为合同签署表），关系判定为 derived。
+
+## 需求背景
+签署类验证码需要留痕，需求侧要求记录验证码接收手机号，便于后续争议处理与合规审计。
+
+## 版本演进
+- 目标表为推断，未在代码中直接出现表名，见 REVIEW。
+
+```ground:rule
+name: 短信验证码手机号回填合同签署表
+content: 当消息类型为 PHONE 时，CustVerifyCodeApplication 将接收手机号通过 contractSignInfoProvider.setVerifyContractPhone 写入合同签署信息
+impact: 验证码接收人落库到合同签署侧
+field_targets: []
+evidence: CustVerifyCodeApplication.java:sendVerifyCode
+```
+---END FILE---
+
+---FILE: rules/wechat_verify_code_template_fixed.md ---
+---
+type: rule
+title: 微信验证码通知模板固定
+page_key: wechat_verify_code_template_fixed
+domain: notification
+status: draft
+aliases: [templateNo 1000001, sysCode beehive]
+oid: 1
+scope:
+  databases: []
+sources:
+  - WechatNotificationService.java:TemplateNo
+  - WechatNotificationService.java:SysCode
+contract_version: "0.1"
+---
+
+微信验证码通知固定使用 sysCode=beehive、templateNo=1000001，dataMap 含 phone_number、code、system_name 三个变量。
+
+## 需求背景
+微信服务号模板消息需预先报备，需求侧要求验证码类通知统一使用同一模板，便于模板审核与运维。
+
+## 版本演进
+- 模板号当前硬编码；若更换模板需同步发布，且涉及已报备模板的替换。
+
+```ground:rule
+name: 微信验证码通知模板固定
+content: 微信验证码通知使用 sysCode=beehive，templateNo=1000001，dataMap 含 phone_number/code/system_name
+impact: 固定短信/企微验证码模板
+field_targets: []
+evidence: WechatNotificationService.java:TemplateNo/SysCode
+```
+---END FILE---
+
+---FILE: rules/notice_local_downstream_route.md ---
+---
+type: rule
+title: 站内信本地与下游路由
+page_key: notice_local_downstream_route
+domain: notification
+status: draft
+aliases: [resolveLocalNoticeSystem, 待办路由]
+oid: 1
+scope:
+  databases: []
+sources:
+  - CustNoticeService.java:resolveLocalNoticeSystem
+contract_version: "0.1"
+---
+
+CustNoticeService.pageTodo 对 ACCOUNT_PRODUCT 映射本地 system=pplatform，BEECREDIT 映射本地 system=BEECREDIT，其余产品走 Dubbo 下游产品查询待办。
+
+## 需求背景
+站内信与待办分属不同产品线，部分产品数据在本库、部分在下游，需求侧要求查询时按产品自动路由，避免全量聚合。被否证的需求主张：「所有通知同步发送站内信」——代码中 sendAllMessageForSubmit 是分别发送站内信、待办、短信，并未统一强制站内信，故该主张不成立。
+
+## 版本演进
+- 本地映射当前为硬编码产品码集合，新增本地产品需改代码；下游路由依赖 Dubbo 可用性。
+
+```ground:rule
+name: 站内信本地与下游路由
+content: CustNoticeService.pageTodo 对 ACCOUNT_PRODUCT 映射本地 system=pplatform，BEECREDIT 映射本地 system=BEECREDIT，其余走 Dubbo 下游产品
+impact: 决定待办查询走本库还是下游
+field_targets: []
+evidence: CustNoticeService.java:resolveLocalNoticeSystem
+```
+---END FILE---
+
+---FILE: rules/todo_unread_status.md ---
+---
+type: rule
+title: 待办未读口径
+page_key: todo_unread_status
+domain: notification
+status: draft
+aliases: [noticeStatus=0, 未读条件]
+oid: 1
+scope:
+  databases: []
+sources:
+  - CustNoticeService.java:pageTodo
+  - NoticeFacade.java:pageTodoCount
+contract_version: "0.1"
+---
+
+待办查询与统计统一使用 noticeStatus='0' 作为未完成/未读条件，列表与计数共用同一口径。
+
+## 需求背景
+需求侧要求角标数量与列表内容一致，因此统计与分页必须共用同一状态条件。
+
+## 版本演进
+- 当前口径集中在两处调用点，未抽为常量，修改时需同时改分页与计数。
+
+```ground:rule
+name: 待办未读口径
+content: 待办查询与统计使用 noticeStatus='0' 作为未完成/未读条件
+impact: 待办数量统计口径
+field_targets: []
+evidence: CustNoticeService.java:pageTodo + NoticeFacade.java:pageTodoCount
+```
+---END FILE---
+
+---FILE: rules/short_link_expire_check.md ---
+---
+type: rule
+title: 短链过期校验
+page_key: short_link_expire_check
+domain: notification
+status: draft
+aliases: [链接已过期, 短链拦截]
+oid: 1
+scope:
+  databases: []
+sources:
+  - ShortLinkController.java:48
+  - ShortLinkController.java:83
+contract_version: "0.1"
+---
+
+is_forever='N' 且 expire_time <= now 时抛出链接已过期，短链访问被拦截。对应的口径页为 [[temporary_short_link_expire_check]]，永久短链不受此校验见 [[permanent_short_link_skip_expire]]。
+
+## 需求背景
+限时短链到期必须自动失效，需求侧要求访问端直接拦截而不是返回目标地址。
+
+## 版本演进
+- 该分支当前无 DB 数据，属于已实现未使用的能力。
+
+```ground:rule
+name: 短链过期校验
+content: is_forever='N' 且 expire_time <= now 时抛出链接已过期
+impact: 短链访问拦截
+field_targets:
+  - short_link.is_forever
+  - short_link.expire_time
+evidence: ShortLinkController.java:48,83
+```
+---END FILE---
+
+---FILE: rules/short_link_type_route.md ---
+---
+type: rule
+title: 短链类型路由
+page_key: short_link_type_route
+domain: notification
+status: draft
+aliases: [NORMAL 直接跳转, FILE 加密跳转]
+oid: 1
+scope:
+  databases: []
+sources:
+  - ShortLinkController.java:52-55
+  - ShortLinkController.java:92-95
+contract_version: "0.1"
+---
+
+type='NORMAL' 时直接跳转 source_url；type='FILE' 时先 filePathEncrypt(source_url,false) 再跳转。对应口径页 [[normal_short_link_redirect]] 与 [[file_short_link_encrypt_redirect]]。
+
+## 需求背景
+文件类短链需要隐藏真实存储路径，需求侧要求文件短链必须走文件服务加密后再重定向。
+
+## 版本演进
+- 两个分支当前均有 DB 数据（NORMAL 4750 / FILE 605）。
+
+```ground:rule
+name: 短链类型路由
+content: type='NORMAL' 直接跳转 source_url；type='FILE' 先 filePathEncrypt(source_url,false) 再跳转
+impact: 文件短链需走文件服务加密
+field_targets:
+  - short_link.type
+  - short_link.source_url
+evidence: ShortLinkController.java:52-55,92-95
+```
+---END FILE---
+
+---FILE: rules/short_link_id_verify_code.md ---
+---
+type: rule
+title: 短链 ID 映射校验
+page_key: short_link_id_verify_code
+domain: notification
+status: draft
+aliases: [generateVerifyCode, LongBase64Utils.decode]
+oid: 1
+scope:
+  databases: []
+sources:
+  - ShortLinkController.java:71-90
+contract_version: "0.1"
+---
+
+shortLink 接口取 number 最后一位为校验码，用 LongBase64Utils.decode 解出 id，并用 generateVerifyCode(link.number) 校验，防止短链被顺序枚举。字段含义见 [[short_link]] 的 number 与 id。
+
+## 需求背景
+短链对外可被穷举访问，需求侧要求短链码内嵌校验位，使猜测的 id 无法直接映射为可访问链接。
+
+## 版本演进
+- 当前校验在访问侧完成；生成侧如何写入校验位未在本次分析取得证据，见 REVIEW。
+
+```ground:rule
+name: 短链 ID 映射校验
+content: shortLink 接口取 number 最后一位为校验码，LongBase64Utils.decode 得到 id，并用 generateVerifyCode(link.number) 校验
+impact: 防止短链被枚举
+field_targets:
+  - short_link.number
+  - short_link.id
+evidence: ShortLinkController.java:71-90
+```
+---END FILE---
+
+---FILE: concepts/permanent_short_link.md ---
+---
+type: concept
+title: 永久短链
+page_key: permanent_short_link
+domain: notification
+status: draft
+aliases: [永久有效短链, isForever=Y]
+oid: 1
+scope:
+  databases: []
+sources:
+  - ShortLinkController.java:48
+  - db:short_link.is_forever
+maps_to: short_link.is_forever = 'Y'
+field_targets:
+  - short_link.is_forever
+  - short_link.expire_time
+adjudication: boundary
+also_confused_with:
+  - temporary_short_link
+contract_version: "0.1"
+---
+
+永久短链指 is_forever='Y' 的短链，业务上不设投放截止时间。判定边界：is_forever='Y' 时完全不校验 expire_time；'N' 时校验。与 [[temporary_short_link]] 互为边界，两者与类型维度（[[normal_short_link]] / [[file_short_link]]）正交。
+
+## 需求背景
+长期投放的短链（印刷物料、长期协议入口）不能因时间流逝而失效，需求侧要求显式的永久语义。
+
+## 版本演进
+- DB 中全部短链当前均为该状态，实际等价于「当前线上默认形态」。
+- 状态机见 [[short_link_expire_state]]，口径页见 [[permanent_short_link_skip_expire]]。
+---END FILE---
+
+---FILE: concepts/temporary_short_link.md ---
+---
+type: concept
+title: 限时短链
+page_key: temporary_short_link
+domain: notification
+status: draft
+aliases: [非永久短链, isForever=N]
+oid: 1
+scope:
+  databases: []
+sources:
+  - ShortLinkController.java:48
+maps_to: short_link.is_forever = 'N'
+field_targets:
+  - short_link.is_forever
+  - short_link.expire_time
+adjudication: boundary
+also_confused_with:
+  - permanent_short_link
+contract_version: "0.1"
+---
+
+限时短链指 is_forever='N' 的短链，业务上有明确投放截止时间。判定边界：需 expire_time > now，否则视为过期并拦截。与 [[permanent_short_link]] 互为边界。
+
+## 需求背景
+活动、临时入口类链接需要到期自动失效，需求侧要求以字段而非人工下架控制。
+
+## 版本演进
+- 该状态当前在 DB 中无数据样本，属于代码已实现、数据未启用。
+- 口径页见 [[temporary_short_link_expire_check]]，拦截规则见 [[short_link_expire_check]]。
+---END FILE---
+
+---FILE: concepts/normal_short_link.md ---
+---
+type: concept
+title: 普通短链
+page_key: normal_short_link
+domain: notification
+status: draft
+aliases: [NORMAL 短链]
+oid: 1
+scope:
+  databases: []
+sources:
+  - ShortLinkController.java:52
+maps_to: short_link.type = 'NORMAL'
+field_targets:
+  - short_link.type
+  - short_link.source_url
+adjudication: boundary
+also_confused_with:
+  - file_short_link
+contract_version: "0.1"
+---
+
+普通短链指 type='NORMAL' 的短链。判定边界：直接使用 source_url 重定向，不做加密处理。与 [[file_short_link]] 互为边界；类型维度与有效期维度（[[permanent_short_link]] / [[temporary_short_link]]）正交。
+
+## 需求背景
+指向页面与外部系统的短链本就可公开，需求侧不要求额外隐藏处理。
+
+## 版本演进
+- DB 值分布 NORMAL 4750，是短链主要形态。
+- 口径页见 [[normal_short_link_redirect]]，路由规则见 [[short_link_type_route]]。
+---END FILE---
+
+---FILE: concepts/file_short_link.md ---
+---
+type: concept
+title: 文件短链
+page_key: file_short_link
+domain: notification
+status: draft
+aliases: [FILE 短链]
+oid: 1
+scope:
+  databases: []
+sources:
+  - ShortLinkController.java:55
+maps_to: short_link.type = 'FILE'
+field_targets:
+  - short_link.type
+  - short_link.source_url
+adjudication: boundary
+also_confused_with:
+  - normal_short_link
+contract_version: "0.1"
+---
+
+文件短链指 type='FILE' 的短链。判定边界：source_url 需经 filePathEncrypt 加密后再重定向，避免暴露真实文件路径。与 [[normal_short_link]] 互为边界。
+
+## 需求背景
+文件存储路径属于敏感信息，需求侧要求对外只暴露短链码。
+
+## 版本演进
+- DB 值分布 FILE 605。
+- 口径页见 [[file_short_link_encrypt_redirect]]，路由规则见 [[short_link_type_route]]。
+---END FILE---
+
+---FILE: concepts/enterprise_auth_audit.md ---
+---
+type: concept
+title: 企业认证审核
+page_key: enterprise_auth_audit
+domain: notification
+status: draft
+aliases: [needAuthVerify]
+oid: 1
+scope:
+  databases: []
+sources:
+  - CustSettingConfigEnhanceService.java
+  - db:cust_setting_config.need_auth_verify
+maps_to: cust_setting_config.need_auth_verify = 'yes'
+field_targets:
+  - cust_setting_config.need_auth_verify
+adjudication: boundary
+also_confused_with:
+  - non_key_info_audit
+contract_version: "0.1"
+---
+
+企业认证审核指企业在认证环节需要人工审核。判定边界：代码中 'no' 直接返回不需要审批；'yes' 继续判断。与 [[non_key_info_audit]] 互为边界，二者属于不同触发路径。
+
+## 需求背景
+认证涉主体资质，需求侧允许企业按风控要求决定是否引入人工审核。
+
+## 版本演进
+- 取值以字符串字面量存储，见 [[cust_setting_config_switch]]；口径页见 [[enterprise_auth_audit_caliber]]。
+---END FILE---
+
+---FILE: concepts/non_key_info_audit.md ---
+---
+type: concept
+title: 非关键信息变更审核
+page_key: non_key_info_audit
+domain: notification
+status: draft
+aliases: [needVerifyNoKey]
+oid: 1
+scope:
+  databases: []
+sources:
+  - CustSettingConfigEnhanceService.java
+  - db:cust_setting_config.need_verify_no_key
+maps_to: cust_setting_config.need_verify_no_key = 'yes'
+field_targets:
+  - cust_setting_config.need_verify_no_key
+  - cust_setting_config.key_word
+  - cust_setting_config.no_key_word
+adjudication: boundary
+also_confused_with:
+  - enterprise_auth_audit
+contract_version: "0.1"
+---
+
+非关键信息变更审核指企业对非关键信息字段的修改需要审核。判定边界：关键信息有变更时先返回需要审核，非关键信息再按此开关判断；关键与非关键字段清单分别存于 key_word / no_key_word。与 [[enterprise_auth_audit]] 互为边界。
+
+## 需求背景
+关键与非关键信息风险等级不同，需求侧要求分别配置审核策略。
+
+## 版本演进
+- 口径页见 [[non_key_info_audit_caliber]]，取值见 [[cust_setting_config_switch]]。
+---END FILE---
+
+---FILE: concepts/invitation_code_period.md ---
+---
+type: concept
+title: 邀请码有效期
+page_key: invitation_code_period
+domain: notification
+status: draft
+aliases: [invitationCodePeriod]
+oid: 1
+scope:
+  databases: []
 sources:
   - db:cust_setting_config.invitation_code_period
   - db:cust_setting_config.invitation_code_period_unit
-contract_version: "0.1"
----
-
-邀请码有效期由配置项驱动，必须数值与单位成对读取，单看数值无法确定实际窗口。DB 实测 invitation_code_period=1。
-
-## 需求背景
-
-v0 语义分析未提供 reqdoc_claims，本节暂无需求文档主张可锚定。
-
-## 版本演进
-
-v0 首版。
-
-```ground:caliber
-name: 邀请码有效期
-predicate: cust_setting_config.invitation_code_period + invitation_code_period_unit
-scope: 邀请码有效期由配置驱动（DB 实测 invitation_code_period=1），非固定常数
-evidence: db:cust_setting_config.invitation_code_period/invitation_code_period_unit
-```
-
-## 关联
-
-[[tables/cust_setting_config]] · [[concepts/验证码]]
-
----END FILE---
-
----FILE: calibers/消息模板缺失.md ---
----
-type: caliber
-title: 消息模板缺失
-page_key: caliber/消息模板缺失
-domain: 通知/验证码/短链
-status: draft
-aliases: [消息模板查找失败, getDefaultTemplateNo 异常]
-oid: 1
-scope:
-  databases: [unknown]
-sources:
-  - code_path:lowcode-pplatform-components/lowcode-pplatform-sso-component/src/main/java/com/lls/lowcode/pplatform/facade/MessageFacade.java
-contract_version: "0.1"
----
-
-模板查找按「租户 + 场景」两个维度定位，任两者组合查不到即判定缺失并抛出带租户与场景的异常文案，便于运维直接定位配置缺口。
-
-## 需求背景
-
-v0 语义分析未提供 reqdoc_claims，本节暂无需求文档主张可锚定。
-
-## 版本演进
-
-v0 首版。
-
-```ground:caliber
-name: 消息模板缺失
-predicate: 站内信/短信/邮件模板按 dbTenantCode + scenesType 均查不到
-scope: MessageFacade#getDefaultTemplateNo 抛 CommonException("消息模板查找失败！租户【x】场景【y】")
-evidence: code_path:lowcode-pplatform-components/lowcode-pplatform-sso-component/src/main/java/com/lls/lowcode/pplatform/facade/MessageFacade.java#getDefaultTemplateNo
-```
-
-## 关联
-
-[[processes/消息渠道]] · [[concepts/场景码]] · [[rules/前置校验异常不受静默策略保护]]
-
----END FILE---
-
----FILE: concepts/短链.md ---
----
-type: concept
-title: 短链
-page_key: concept/短链
-domain: 通知/验证码/短链
-status: draft
-aliases: [短链接, shortLink, short_link]
-oid: 1
-scope:
-  databases: [unknown]
-sources:
-  - db:short_link
-  - code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/controller/shortlink/ShortLinkController.java
-maps_to: short_link 表（number 为访问键，source_url 为目标链接，type 决定是否需要换链）
-also_confused_with: ["/sl/{number} 的 id 映射方式", "short_link.code 通用编码字段"]
+maps_to: cust_setting_config.invitation_code_period
+field_targets:
+  - cust_setting_config.invitation_code_period
+  - cust_setting_config.invitation_code_period_unit
 adjudication: boundary
-boundary: /cust-web/sl/{number} 按 short_link.number 查询；/sl/{number} 则把 number 去掉末位校验字符后 Base64 解码为 short_link.id 查询，并校验末位字符 = LongBase64Utils.generateVerifyCode(link.number)；两者均可能因链接不存在/过期/校验失败抛同一文案异常
+also_confused_with:
+  - invitation_code_sending_interval
 contract_version: "0.1"
 ---
 
-短链是「一条 number 换取一次跳转」的映射凭证。系统内存在两条访问链路，取键方式完全不同：一条按业务编码 number 直查，另一条把 number 当作含校验位的 Base64 串解出主键。讨论短链时必须先说明走的是哪条链路，否则「用 number 还是 id 查」会直接对不上。
+邀请码有效期指邀请码自发出起可用的时长。判定边界：invitation_code_period 是数值列，单位由 invitation_code_period_unit 决定，二者必须成对解读；与「邀请码重复发送时间间隔」（sending_interval / sending_interval_unti）是不同语义，不可混用。
 
 ## 需求背景
-
-v0 语义分析未提供 reqdoc_claims，本节暂无需求文档主张可锚定。
-
-## 版本演进
-
-v0 首版。
-
-## 关联
-
-[[tables/short_link]] · [[processes/短链类型路由]] · [[processes/短链有效期标志]] · [[calibers/普通短链]] · [[calibers/文件短链]] · [[calibers/短链已过期]] · [[calibers/永久短链]]
-
----END FILE---
-
----FILE: concepts/验证码.md ---
----
-type: concept
-title: 验证码
-page_key: concept/验证码
-domain: 通知/验证码/短链
-status: draft
-aliases: [verifyCode, indentifyCode, smsCode]
-oid: 1
-scope:
-  databases: [unknown]
-sources:
-  - code_path:lowcode-pplatform-components/lowcode-pplatform-sso-component/src/main/java/com/lls/lowcode/pplatform/facade/MessageFacade.java
-  - code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/message/NoticeIndentifyProviderImpl.java
-maps_to: 验证码生成与校验：IndentifycodeFacade#getIndentifyCode / IndentifycodeInfoProvider#checkIndentifyCode，回填 MessageContext.verifyCode 与模板参数 smsCode
-also_confused_with: [邀请码 invitationCode, 签约签约码 serviceKey]
-adjudication: boundary
-boundary: 验证码为短时校验凭证（有效期取 indentifycodeCofig.codeDuration+单位），随消息下发；邀请码是邀请认证场景的长期凭证，有效期由 cust_setting_config.invitation_code_period/unit 控制，两者存储与校验链路不同
-contract_version: "0.1"
----
-
-验证码是一次性的短时校验凭证，生命周期压在「生成 → 随消息下发 → 用户回填 → 校验」这条链上，有效期来自 indentifycodeCofig 配置并以 timeLimit 参数渲染进模板。它与邀请码在形态上都是「一串码」，但存储与过期控制完全不在同一套机制里。
-
-## 需求背景
-
-v0 语义分析未提供 reqdoc_claims，本节暂无需求文档主张可锚定。
+邀请码需要控制有效窗口并在重复发送上做限流，防止刷取与长期滞留可用码。
 
 ## 版本演进
-
-v0 首版。
-
-## 关联
-
-[[calibers/验证码有效期参数]] · [[calibers/验证码校验口径]] · [[calibers/验证码场景白名单]] · [[calibers/签约验证码固定场景]] · [[rules/验证码接收渠道取值]] · [[processes/消息渠道]]
-
+- 需求文档提出「邀请码随机生成8位、30天有效」，代码中未见邀请码生成逻辑，DB 中 invitation_code_period=1，文档与实现一致性未证实，见 REVIEW。
 ---END FILE---
 
----FILE: concepts/站内信.md ---
----
-type: concept
-title: 站内信
-page_key: concept/站内信
-domain: 通知/验证码/短链
-status: draft
-aliases: [消息盒子, notice, NOTICE]
-oid: 1
-scope:
-  databases: [unknown]
-sources:
-  - code_path:lowcode-pplatform-components/lowcode-pplatform-sso-component/src/main/java/com/lls/lowcode/pplatform/facade/MessageFacade.java
-  - code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/facade/NoticeFacade.java
-maps_to: MessageTypeEnum.NOTICE 渠道 + noticeFacade.getNoticeTemplate(dbTenantCode, sceneType) 模板 + NoticeProvider
-also_confused_with: ["待办（noticeStatus=0）", "待办任务 notice_task_* 场景"]
-adjudication: boundary
-boundary: 站内信按 NOTICE 模板渲染消息内容；待办是站内信中 noticeStatus='0' 未完成态的子集，通过 completeBySceneType(sceneType) 关闭待办，二者共用表但统计口径不同
-contract_version: "0.1"
----
-
-站内信是 NOTICE 渠道下的消息载体，按模板渲染内容后落库并可在消息盒子中查看。待办复用同一张表，但只取未完成态子集，并通过场景关闭动作而非阅读动作来消解——这是「站内信」与「待办」最常被混为一谈的边界。
-
-## 需求背景
-
-v0 语义分析未提供 reqdoc_claims，本节暂无需求文档主张可锚定。
-
-## 版本演进
-
-v0 首版。
-
-## 关联
-
-[[processes/消息渠道]] · [[calibers/未完成待办]] · [[calibers/产融本库待办]] · [[calibers/AMS待办按联系人id查询]]
-
----END FILE---
-
----FILE: concepts/场景码.md ---
----
-type: concept
-title: 场景码
-page_key: concept/场景码
-domain: 通知/验证码/短链
-status: draft
-aliases: [scenesType, sceneType, 场景类型]
-oid: 1
-scope:
-  databases: [unknown]
-sources:
-  - db:cust_message_send_policy.scenes_type
-  - code_path:lowcode-pplatform-components/lowcode-pplatform-sso-component/src/main/java/com/lls/lowcode/pplatform/facade/MessageFacade.java
-maps_to: cust_message_send_policy.scenes_type 及 SmsTemplateConstant/NoticeTemplateConstant/EmailTemplateConstansts 常量
-also_confused_with: [businessType, msg_kind]
-adjudication: boundary
-boundary: scenesType 决定消息模板与场景实现类（@MessageSpi.scenesType）；businessType 决定业务数据来源表（如 cust_company_info / cust_person_info），二者在 SendMessageReq 中同级且都必传
-contract_version: "0.1"
----
-
-场景码回答的是「这条消息属于哪类业务事件」，是模板选择与场景实现类路由的键；businessType 回答的是「去取哪张业务表的数据」。两者在请求对象里并排出现且都必传，很容易被当作同义参数，实际上一个决定怎么发、一个决定发什么。
-
-## 需求背景
-
-v0 语义分析未提供 reqdoc_claims，本节暂无需求文档主张可锚定。
-
-## 版本演进
-
-v0 首版。
-
-## 关联
-
-[[tables/cust_message_send_policy]] · [[calibers/短信发送默认参数]] · [[calibers/验证码场景白名单]] · [[calibers/消息模板缺失]] · [[processes/消息渠道]]
-
----END FILE---
-
----FILE: concepts/通知失败不阻断业务.md ---
----
-type: concept
-title: 通知失败不阻断业务
-page_key: concept/通知失败不阻断业务
-domain: 通知/验证码/短链
-status: draft
-aliases: [发送失败仅记录日志, 静默失败策略]
-oid: 1
-scope:
-  databases: [unknown]
-sources:
-  - code_path:lowcode-pplatform-components/lowcode-pplatform-notice-component/src/main/java/com/lls/lowcode/pplatform/notices/application/PlatMessageApplication.java
-  - code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/CustMessageSendService.java
-maps_to: PlatMessageApplication#sendSmsMessage / CustMessageSendService#sendSms / WechatNotificationService#sendVerificationCodeNotification 的 catch 分支
-also_confused_with: ["MessageFacade#getDefaultTemplateNo 抛出的模板缺失异常（该场景会抛出）"]
-adjudication: boundary
-boundary: 发送动作本身失败被吞掉并返回 fail/false；但模板查找失败、验证码有效期配置缺失等前置校验异常会向上抛出，不属"静默失败"范围
-contract_version: "0.1"
----
-
-「通知失败不阻断业务」指的只覆盖发送动作本身：渠道不可用时吞掉异常、返回失败结果或记日志，让建档、变更、签约等主流程继续推进。它不覆盖前置校验——模板缺失、验证码配置缺失这类问题仍会向上抛，因为这属于配置错误而非渠道抖动。
-
-## 需求背景
-
-v0 语义分析未提供 reqdoc_claims，本节暂无需求文档主张可锚定。
-
-## 版本演进
-
-v0 首版。
-
-## 关联
-
-[[rules/通知发送失败不阻断主流程]] · [[rules/前置校验异常不受静默策略保护]] · [[calibers/消息模板缺失]]
-
----END FILE---
-
----FILE: rules/通知发送失败不阻断主流程.md ---
----
-type: rule
-title: 通知发送失败不阻断主流程
-page_key: rule/通知发送失败不阻断主流程
-domain: 通知/验证码/短链
-status: draft
-aliases: [静默降级, 通知失败仅记日志]
-oid: 1
-scope:
-  databases: [unknown]
-sources:
-  - code_path:lowcode-pplatform-components/lowcode-pplatform-notice-component/src/main/java/com/lls/lowcode/pplatform/notices/application/PlatMessageApplication.java
-  - code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/CustMessageSendService.java
-contract_version: "0.1"
----
-
-通知是主流程的旁路：短信、邮件、站内信、微信通知在各自入口都对发送动作做了异常收敛，失败结果以返回值或日志体现，不向上传播。这条规则是「渠道抖动不影响业务办理」的落地方式。
-
-## 需求背景
-
-v0 语义分析未提供 reqdoc_claims，本节暂无需求文档主张可锚定。
-
-## 版本演进
-
-v0 首版。
-
-```ground:rule
-name: 通知发送失败不阻断主流程
-content: 短信发送在 PlatMessageApplication#sendSmsMessage 中 try/catch，异常时返回 PlatMessageRespDto.fail(e.getMessage())；CustMessageSendService 各 sendSms/sendEmail/sendMessage 方法 catch 后仅记录日志；微信通知在 WechatNotificationService 中 catch 后返回 true。
-impact: 建档、变更、签约等主流程不因通知渠道不可用而回滚或失败
-field_targets: [cust_message_send_policy.send_enable]
-evidence: code_path:lowcode-pplatform-components/lowcode-pplatform-notice-component/src/main/java/com/lls/lowcode/pplatform/notices/application/PlatMessageApplication.java#sendSmsMessage + code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/service/CustMessageSendService.java#sendSms
-```
-
-## 关联
-
-[[concepts/通知失败不阻断业务]] · [[rules/前置校验异常不受静默策略保护]] · [[tables/cust_message_send_policy]]
-
----END FILE---
-
----FILE: rules/前置校验异常不受静默策略保护.md ---
----
-type: rule
-title: 前置校验异常不受静默策略保护
-page_key: rule/前置校验异常不受静默策略保护
-domain: 通知/验证码/短链
-status: draft
-aliases: [模板缺失异常, 验证码配置缺失异常]
-oid: 1
-scope:
-  databases: [unknown]
-sources:
-  - code_path:lowcode-pplatform-components/lowcode-pplatform-sso-component/src/main/java/com/lls/lowcode/pplatform/facade/MessageFacade.java
-contract_version: "0.1"
----
-
-静默降级只保护「发送」这一步。参数缺失、模板查不到、验证码有效期配置不存在这些属于配置或调用契约问题，全部以异常形式抛给调用方，让问题在接入阶段就暴露。
-
-## 需求背景
-
-v0 语义分析未提供 reqdoc_claims，本节暂无需求文档主张可锚定。
-
-## 版本演进
-
-v0 首版。
-
-```ground:rule
-name: 前置校验异常不受静默策略保护
-content: receiver/dbTenantCode/paramMap 为空分别抛 BaseException；模板查找失败抛 CommonException("消息模板查找失败！...")；验证码有效期配置缺失抛 CommonException("缺少验证码有效期配置！")。
-impact: 配置缺失会直接暴露给调用方，需在接入场景前确保模板与验证码配置就绪
-field_targets: [cust_message_send_policy.scenes_type]
-evidence: code_path:lowcode-pplatform-components/lowcode-pplatform-sso-component/src/main/java/com/lls/lowcode/pplatform/facade/MessageFacade.java#sendVerifyCode
-```
-
-## 关联
-
-[[concepts/通知失败不阻断业务]] · [[rules/通知发送失败不阻断主流程]] · [[calibers/消息模板缺失]] · [[calibers/验证码有效期参数]]
-
----END FILE---
-
----FILE: rules/验证码接收渠道取值.md ---
----
-type: rule
-title: 验证码接收渠道取值
-page_key: rule/验证码接收渠道取值
-domain: 通知/验证码/短链
-status: draft
-aliases: [receiver 取第一个, 邮箱默认第一个]
-oid: 1
-scope:
-  databases: [unknown]
-sources:
-  - code_path:lowcode-pplatform-components/lowcode-pplatform-sso-component/src/main/java/com/lls/lowcode/pplatform/facade/MessageFacade.java
-contract_version: "0.1"
----
-
-receiver 的类型决定取哪个渠道值：字符串直接使用，集合只取第 0 个，其他类型直接拒绝。这意味着多接收人场景下只有第一个人真正收到验证码并参与校验。
-
-## 需求背景
-
-v0 语义分析未提供 reqdoc_claims，本节暂无需求文档主张可锚定。
-
-## 版本演进
-
-v0 首版。
-
-```ground:rule
-name: 验证码接收渠道取值
-content: receiver 为 String 时直接作为 indentifyChannel；为 List 时取第 0 个（注释明确"邮箱默认第一个"）；其他类型落 error 日志并抛 BaseException("系统消息通知暂不支持验证码!")。
-impact: 多接收人场景只有第一个接收人参与验证码生成与校验
-field_targets: []
-evidence: code_path:lowcode-pplatform-components/lowcode-pplatform-sso-component/src/main/java/com/lls/lowcode/pplatform/facade/MessageFacade.java#sendVerifyCode
-```
-
-## 关联
-
-[[concepts/验证码]] · [[calibers/验证码校验口径]] · [[processes/消息渠道]]
-
----END FILE---
-
----FILE: rules/签约验证码接收人手机号回写合同签署表.md ---
----
-type: rule
-title: 签约验证码接收人手机号回写合同签署表
-page_key: rule/签约验证码接收人手机号回写合同签署表
-domain: 通知/验证码/短链
-status: draft
-aliases: [setVerifyContractPhone, 签署手机号回写]
-oid: 1
-scope:
-  databases: [unknown]
-sources:
-  - code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplat
-contract_version: "0.1"
----
-
-签约场景下发送验证码不是纯通知动作，它同时把接收手机号写回合同签署记录（短信渠道时），供后续签署校验比对。这条规则把「发验证码」与「合同签署状态」耦合在一起。
-
-## 需求背景
-
-v0 语义分析未提供 reqdoc_claims，本节暂无需求文档主张可锚定。
-
-## 版本演进
-
-v0 首版。
-
-```ground:rule
-name: 签约验证码接收人手机号回写合同签署表
-content: CustVerifyCodeApplication#sendVerifyCode 中，当 messageType=PHONE 时，按 serviceKey 与 businessId 的笛卡尔积调用 contractSignInfoProvider.setVerifyContractPhone(id, businessType, key, phone, companyId)。
-impact: 合同签署记录保存验证码接收手机号，供后续签署校验
-field_targets: []
-evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplat
-```
-
-## 关联
-
-[[concepts/验证码]] · [[calibers/签约验证码固定场景]] · [[rules/验证码接收渠道取值]]
-
----END FILE---
-
----REVIEW: rule | 签约验证码接收人手机号回写合同签署表---
-语义分析给出的 evidence 字符串在中途被截断（"code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplat"），无法还原完整类路径与行号锚点。本页按"字段值逐字来源"的约束保留了截断原文，未自行补全。待语义分析重新给出完整 code_path 后需回填 evidence。
+---TODO: concepts/invitation_code_sending_interval.md ---
+注：本页为 [[invitation_code_period]] 的对照术语，字段为 cust_setting_config.sending_interval / sending_interval_unti，语义为「邀请码重复发送时间间隔」。因本次语义分析的 term_bridges 未单列该术语桥（仅在 boundary 中被提及），按规则 1「禁止发明」不单独建页，仅在本注释中登记待补。
+---END TODO---
+
+---REVIEW: process | 短链生成流程---
+类型：process | 标题：短链生成流程
+问题：需求文档主张「需要短链时由 ShortLinkAppication 生成短链」，代码链路仅见访问侧 ShortLinkController，ShortLinkAppication 的生成逻辑全文未取得，生成时的字段写入（number、type、is_forever、expire_time）与校验位计算方式均无法锚定。
+证据：ShortLinkController.java:1（仅见访问）+ reqdoc:平台基础组件业务规则文档#2.2
+处理建议：补齐 ShortLinkAppication 源码后，补建 process 页并在 [[short_link]] 页补充生成侧关系。
 ---END REVIEW---
 
----REVIEW: table | short_link / cust_message_send_policy / cust_setting_config---
-三张表的物理库名在本次语义分析中未被证据覆盖：所有 DB 证据仅以 `db:<表名>` 形式给出，未出现库/实例名。frontmatter 的 scope.databases 因此暂记为 [unknown]，属占位而非推断。待补充分库信息（或确认这些表是否同库）后统一回填。
+---REVIEW: rule | 短信幂等 RedisSmsLock---
+类型：rule | 标题：短信发送幂等
+问题：需求文档主张「短信需要幂等时使用 RedisSmsLock 检查/加锁」，本次链路分析中未出现 RedisSmsLock 调用点。
+证据：链路上未出现 RedisSmsLock 调用 + reqdoc:平台基础组件业务规则文档#2.2
+处理建议：确认幂等是否由其他组件（如分布式锁封装类）承担，或确认该主张已废弃。
 ---END REVIEW---
 
----REVIEW: process | 短链类型路由---
-状态机 transitions 中 NORMAL 与 FILE 两条迁移的 evidence 均指向 ShortLinkController.java#orderCategory，但 FILE 分支的实际执行点在语义分析的另一处证据中被描述为 #shortLink。两处方法锚点是否指同一段分支逻辑尚未确认，本页按原文保留 orderCategory，未做合并。
+---REVIEW: concept | 邀请码生成与有效期---
+类型：concept | 标题：邀请码生成与有效期
+问题：需求文档主张「邀请码随机生成8位、30天有效」，与 DB cust_setting_config.invitation_code_period=1 存在数量级差异（单位未定），且未找到邀请码生成代码。
+证据：未在代码中见邀请码生成逻辑；DB cust_setting_config.invitation_code_period=1 + reqdoc:客户管理平台业务规则文档#3.2.2
+处理建议：确认 invitation_code_period_unit 的实际取值后再判定「30 天有效」是否成立，必要时在 [[invitation_code_period]] 页更新口径。
+---END REVIEW---
+
+---REVIEW: table | 短链生成侧与短信验证码落库目标表---
+类型：table | 标题：关系推断待确认
+问题：1）CustVerifyCodeApplication 通过 IContractSignInfoProvider.setVerifyContractPhone 写手机号，目标表名未在代码中直接出现，relation_audit 判定为 derived（推测为合同签署表）；2）short_link 所属物理库名未在本次分析中给出，frontmatter scope.databases 暂为空。
+处理建议：补充接口实现类与数据源配置后回填。
 ---END REVIEW---

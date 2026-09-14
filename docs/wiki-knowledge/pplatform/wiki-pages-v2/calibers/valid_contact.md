@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 有效联系人（可展示）
-page_key: caliber/valid_contact
+page_key: valid_contact
 domain: 微信生态/小程序/扫脸
 status: draft
 aliases: [有效联系人, 可展示联系人]
@@ -11,6 +11,7 @@ scope:
 sources:
   - code:PlatFormUserApplication.java
 contract_version: "0.1"
+belong: calibers
 ---
 
 # 有效联系人（可展示）

@@ -9,10 +9,22 @@ oid: 1
 scope:
   databases: [lowcode_pplatform]
 sources: ["code:extract-enums.yaml", "db:db-profile.yaml"]
-created: '2026-09-10'
-updated: '2026-09-10'
+created: '2026-09-14'
+updated: '2026-09-14'
 contract_version: "0.1"
+belong: enums
 ---
+
+
+
+
+
+
+
+
+
+
+
 
 # pay_status
 
@@ -22,8 +34,8 @@ contract_version: "0.1"
 enum: pay_status
 fields: [ca_fee_company.pay_status]
 values:
-  PAID:
-    label: 已缴费
-  UNPAID:
-    label: 未缴费
+  "PAID":
+    label: "已缴费"
+  "UNPAID":
+    label: "未缴费"
 ```

@@ -1,30 +1,31 @@
 ---
 type: caliber
 title: 企业管理员
-page_key: caliber.company_admin
-domain: 数据权限与组织
+page_key: company_admin
+domain: 经办人/联系人/管理员管理
 status: draft
-aliases: [企业管理员, admin 口径]
+aliases: [accountAdmin, 管理员口径]
 oid: 1
-scope:
-  databases: [base]
-sources: [code]
+scope.databases: [unknown]
+sources: ["db:cust_person_info.user_type 分布(55375)", "code:CustPersonApplication.java#listCompanyManagerUserId"]
 contract_version: "0.1"
+belong: calibers
 ---
 
-「企业管理员」口径由 user_type='admin' 与 enable='Y' 两个条件共同构成。因为管理员的更换是「冻结旧记录 + 新建记录」（见 [[processes/cust_person_user_type_fsm]]），缺少 enable 过滤会把历史管理员当成现任管理员。该口径是数据权限保存鉴权、数据权限查询默认 ALL、组织绑定三处的前置判定，直接决定 [[processes/data_permission_type_fsm]] 是否能落到 ALL。
+"企业管理员"口径 = user_type='accountAdmin'，用于管理员定位、管理员唯一性校验与关联重建。它与平台运营人员（operator_id）是两个完全不同的实体，后者来自运营中台（[[operator]]、[[admin]]）。
 
 ## 需求背景
-
-语义分析中未出现 reqdoc_claims 条目，本页暂无需求文档主张。
+- 管理员定位需要叠加 enable 与 company_type 条件，才能得到某企业某角色下的唯一有效管理员（[[valid_person]]、[[unique_admin_per_company_role]]）。
+- 关联重建时管理员角色码由 company_type 映射得到（[[rel_rebuild_precondition]]）。
 
 ## 版本演进
-
-v0：依据 code 证据（DataPermissionApplication）成文。
+- DB 分布显示 accountAdmin 记录数（55375）远多于 accountNormal（4205），说明历史冻结行被大量保留。
 
 ```ground:caliber
 name: 企业管理员
-predicate: "cust_person_info.user_type = 'admin' AND cust_person_info.enable = 'Y'"
-scope: 数据权限保存鉴权、数据权限查询默认 ALL、组织绑定
-evidence: code_path:DataPermissionApplication.java#assertCurrentUserIsAdminOfTargetCompany / #isEnterpriseAdmin
+predicate: "cust_person_info.user_type = 'accountAdmin'"
+scope: 管理员定位、管理员唯一性校验、关联重建
+evidence: "db:cust_person_info.user_type 分布(55375) + code:CustPersonApplication.java#listCompanyManagerUserId"
 ```
+
+相关页面：[[cust_person_info]]、[[admin]]、[[normal_person]]、[[unique_admin_per_company_role]]。

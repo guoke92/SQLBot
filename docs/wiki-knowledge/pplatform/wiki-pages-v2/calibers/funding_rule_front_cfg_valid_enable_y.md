@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 前端规则配置-有效口径
-page_key: calibers/funding_rule_front_cfg_valid_enable_y
+page_key: funding_rule_front_cfg_valid_enable_y
 domain: funding
 status: draft
 aliases:
@@ -16,6 +16,7 @@ sources:
   - "code:FundingPartyRuleProviderImpl#doQuery"
   - "db:funding_rule_front_cfg"
 contract_version: "0.1"
+belong: calibers
 ---
 
 # 前端规则配置-有效口径

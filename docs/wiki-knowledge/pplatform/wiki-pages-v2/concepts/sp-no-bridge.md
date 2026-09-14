@@ -1,7 +1,7 @@
 ---
 type: concept
 title: sp_no 立项—上线审批桥接键
-page_key: concept/sp-no-bridge
+page_key: sp-no-bridge
 domain: 微企链立项与项目审批
 status: draft
 aliases:
@@ -31,6 +31,7 @@ also_confused_with:
   - tenant_project_approval.approval_no（上线审批业务编号，平台业务编号服务生成，与 sp_no 不同源）
   - tenant_project_approval.related_approval_no（关联审批编号）
 sources: ["enrich:wiki-admin"]
+belong: concepts
 ---
 
 `sp_no` 把「企微侧」与「平台侧」串起来：企微同步以它为匹配键做只更新不新增的 upsert（见 [[rules/wechat-import-match-by-sp-no]]），平台发起上线审批时以它引用立项并回写租户项目（见 [[rules/approval-no-writeback-on-submit]]），可用编号范围由 [[calibers/project-sp-no-options]] 决定。

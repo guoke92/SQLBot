@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 异常解析导入-按产品分组RPC
-page_key: rules/exception_import_rpc_group_by_product
+page_key: exception_import_rpc_group_by_product
 domain: funding
 status: draft
 aliases:
@@ -14,6 +14,7 @@ scope:
 sources:
   - "code:ExceptionResolutionApplication#collectFundingPartyCodeErrors"
 contract_version: "0.1"
+belong: rules
 ---
 
 # 异常解析导入-按产品分组RPC

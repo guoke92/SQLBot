@@ -94,8 +94,7 @@
               "title": "书签"
             }
           }
-        ],
-        "currentTab": 1
+        ]
       }
     ],
     "direction": "horizontal",
@@ -201,7 +200,7 @@
       "bases:新建数据库": false
     }
   },
-  "active": "cd3f4b5add74d9d6",
+  "active": "3a2e8945685192f9",
   "lastOpenFiles": [
     "_index.md",
     "tables/cust_company_info.md",

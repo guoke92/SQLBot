@@ -1,0 +1,4 @@
+body: 语义分析未给出任何物理库名，全部页面的 scope.databases 暂以 unknown 占位。待确认 cust_person_info / cust_company_info
+  / sys_cust_user_rel / cust_auth_application 所属物理库后统一回填。
+title: 物理库名待确认
+type: table

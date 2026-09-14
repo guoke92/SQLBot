@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 渠道所属租户存在校验
-page_key: rule.channel_tenant_exists
+page_key: channel_tenant_exists
 domain: 准入接入
 status: draft
 aliases: [租户校验, 渠道所属租户不存在]
@@ -11,6 +11,7 @@ scope:
 sources:
   - "code: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustAccessApplication.java:validateSetValue"
 contract_version: "0.1"
+belong: rules
 ---
 
 渠道命中后，系统取其 `cust_access_secret.db_tenant_code`（见口径 [[calibers/channel_lookup]]），再去 `tenant_setting_config` 中查找对应租户配置：记录必须存在且 `enable = 'Y'`，否则抛出“渠道所属租户不存在”。

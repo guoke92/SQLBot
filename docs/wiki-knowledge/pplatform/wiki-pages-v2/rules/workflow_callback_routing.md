@@ -1,7 +1,7 @@
 ---
 type: rule
 title: "工作流回调路由规则"
-page_key: "rules/workflow_callback_routing"
+page_key: workflow_callback_routing
 domain: "customer-onboarding"
 status: draft
 aliases:
@@ -13,6 +13,7 @@ sources:
   - "code_path:CustSyncEventProvider.java:onEvent"
   - "code_path:CustWorkflowAuditCommitProcessor.java:process"
 contract_version: "0.1"
+belong: rules
 ---
 
 运营中台建档审核回调进入本域后被拆成两路：终态事件被同步事件提供者跳过，改由工作流审核执行器主动拉取中台数据后处理；中间状态（审核中、退回）仍由事件提供者落库。这条规则决定了「通过/拒绝」的唯一落库入口，避免重复处理。相关状态机见 [[processes/workflow_check_status_machine]]。

@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 授权书影像（A0004）
-page_key: calibers/auth-media-a0004
+page_key: auth-media-a0004
 domain: 文件/附件/媒体
 status: draft
 aliases: [A0004, 授权书影像, catgId=A0004]
@@ -12,6 +12,7 @@ sources:
   - code:MediaFile.catgId
   - code_path:CustMediaFacade.java:upload
 contract_version: "0.1"
+belong: calibers
 ---
 
 # 授权书影像（A0004）

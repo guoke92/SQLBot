@@ -16,6 +16,7 @@ sources:
   - code:CustCompanyInfoApplication.java:reSubmit
   - db:cust_company_info.check_status
 contract_version: "0.1"
+belong: processes
 ---
 
 本流程描述 `cust_company_info.check_status`（见 [[check_status]]）的流转，表达**运营中台对单次提交的审核结果**，与企业的整体认证状态（[[enterprise_auth_status_machine]]）不是同一维度：前者是一次审核的结果，后者是建档全过程的状态，边界说明见 [[auth_status]]。

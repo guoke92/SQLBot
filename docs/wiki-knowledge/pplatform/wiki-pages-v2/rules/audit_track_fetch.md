@@ -1,7 +1,7 @@
 ---
 type: rule
 title: "审核轨迹取数规则"
-page_key: "rules/audit_track_fetch"
+page_key: audit_track_fetch
 domain: "customer-onboarding"
 status: draft
 aliases:
@@ -12,6 +12,7 @@ scope:
 sources:
   - "code_path:CustWorkflowAuditCommitProcessor.java:process"
 contract_version: "0.1"
+belong: rules
 ---
 
 平台录入场景取审批历史第 1 条作为审批人，其他认证方式取最后 1 条，落库到企业主表的审批人与审批人名称字段。口径细节见 [[calibers/callback_audit_track_fetch]]，载体见 [[tables/cust_company_info]]。

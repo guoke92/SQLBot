@@ -1,34 +1,32 @@
 ---
 type: process
-title: 异步导入导出任务状态（async_io_task.status）
-page_key: process.async_io_task_status
-domain: 租户配置
+title: 异步导入导出任务状态机
+page_key: async_io_task_status
+domain: 租户配置/灰度/运营邮件
 status: draft
-aliases:
-  - 异步任务状态
-  - 导入导出任务状态
+aliases: [异步任务状态, async_io_task.status, PENDING/RUNNING/SUCCESS/FAILED]
 oid: 1
 scope:
-  databases:
-    - lowcode-pplatform-customer-management
+  databases: [unknown]
 sources:
-  - code:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/asyncio/service/AsyncIoTaskManager.java
-  - code:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/asyncio/job/AsyncIoTaskXxlJobHandler.java:handleNonStreamResult
+  - "code:AsyncIoTaskManager.markRunning / markSuccessWithResult / markSuccessWithFile / markImportFailed / markRunningTimeout；AsyncIoTaskXxlJobHandler.handleFailure"
+  - "db:async_io_task.status 分布（RUNNING=3）"
 contract_version: "0.1"
+belong: processes
 ---
 
-任务从 PENDING 开始，由 XXL-Job 分片抢单（见 [[calibers/pending_task_shard]]）后以 CAS 置为 RUNNING，随后分化多条终态路径：正常成功写 SUCCESS 并回填结果文件或结果 JSON；抛异常、导入部分失败、或超过 `timeoutMinutes` 被超时清理，都落 FAILED。FAILED 的 `file_url` 语义是错误文件下载地址，SUCCESS 则是结果文件地址。
+异步导入导出任务状态机描述 `async_io_task.status` 从 PENDING 出发的四条分支：正常无流返回或带文件成功上传 COS 都进入 SUCCESS；业务抛错、导入存在失败行、以及 RUNNING 停留超过 timeoutMinutes 的兜底清理都进入 FAILED。PENDING → RUNNING 使用 CAS 更新（where status=PENDING）保证并发下只有一个执行者抢到任务。
+
+相关口径：[[async_io_task_pending]]（分片拉取）、[[async_io_task_running]]（超时清理）、[[async_io_task_not_deleted]]（查询可见性）。
 
 ## 需求背景
-
-导入部分失败时业务代码可能正常返回，但运营侧需要明确感知失败并拿到错误行文件，因此把「含失败行」也判定为 FAILED；同时为防止任务卡死在 RUNNING，引入超时清理路径将其收敛到 FAILED。
+文件型导入导出需要异步执行、可观测、可重试；节点被强杀或 OOM 后必须由超时兜底把悬挂任务收敛为失败，避免任务永久停在执行中。
 
 ## 版本演进
+v0.1（本页）：首版契约，四态与六条迁移均来自语义分析证据；暂无历史版本记录。
 
-v0.1：登记当前代码枚举中的四个状态与六条迁移路径。
-
-```yaml
-state_machine: 异步导入导出任务状态
+```ground:process
+name: 异步导入导出任务状态
 field: async_io_task.status
 states:
   - value: "PENDING"
@@ -36,38 +34,36 @@ states:
     source: code_enum
   - value: "RUNNING"
     label: 执行中
-    source: code_enum
+    source: db_dist
   - value: "SUCCESS"
     label: 成功
-    source: code_enum
+    source: db_dist
   - value: "FAILED"
     label: 失败
-    source: code_enum
+    source: db_dist
 transitions:
   - from: "PENDING"
-    event: 调度抢到任务 markRunning(CAS)
+    event: "CAS markRunning（where status=PENDING）"
     to: "RUNNING"
     evidence: "code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/asyncio/service/AsyncIoTaskManager.java:markRunning"
   - from: "RUNNING"
-    event: 执行成功（下载流/结果落库）
-    to: "SUCCESS"
-    evidence: "code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/asyncio/service/AsyncIoTaskManager.java:markSuccessWithFile"
-  - from: "RUNNING"
-    event: 执行成功（结果 JSON）
+    event: "业务方法正常返回且无 stream"
     to: "SUCCESS"
     evidence: "code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/asyncio/service/AsyncIoTaskManager.java:markSuccessWithResult"
   - from: "RUNNING"
-    event: 执行抛异常
-    to: "FAILED"
-    evidence: "code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/asyncio/service/AsyncIoTaskManager.java:markFailed"
+    event: "业务方法返回下载字节流并上传 COS 成功"
+    to: "SUCCESS"
+    evidence: "code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/asyncio/service/AsyncIoTaskManager.java:markSuccessWithFile"
   - from: "RUNNING"
-    event: 导入部分失败（业务正常返回但含失败行）
+    event: "业务方法抛 Throwable（handleFailure 兜底生成错误文件）"
     to: "FAILED"
-    evidence: "code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/asyncio/job/AsyncIoTaskXxlJobHandler.java:handleNonStreamResult"
+    evidence: "code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/asyncio/job/AsyncIoTaskXxlJobHandler.java:handleFailure"
   - from: "RUNNING"
-    event: 超时清理（超过 timeoutMinutes）
+    event: "IMPORT 正常返回但存在失败行"
+    to: "FAILED"
+    evidence: "code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/asyncio/service/AsyncIoTaskManager.java:markImportFailed"
+  - from: "RUNNING"
+    event: "RUNNING 停留超过 timeoutMinutes（节点强杀/OOM 兜底）"
     to: "FAILED"
     evidence: "code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/asyncio/service/AsyncIoTaskManager.java:markRunningTimeout"
 ```
-
-相关页面：[[tables/async_io_task]]、[[calibers/pending_task_shard]]、[[calibers/not_deleted_async_task]]、[[concepts/is_deleted]]。

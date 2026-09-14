@@ -1,0 +1,3 @@
+body: 语义分析未提供任何字段的物理类型，table 页 `ground:table` 的 `type` 统一写 `unknown`，请在取得 DDL 后回填。
+title: 表字段物理类型未知
+type: table

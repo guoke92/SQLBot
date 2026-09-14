@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 集团成员单位关联唯一性
-page_key: rules/group-rel-uniqueness
+page_key: group-rel-uniqueness
 domain: 企业集团关系
 status: draft
 aliases: [成员单位重复校验, 已存在]
@@ -12,6 +12,7 @@ sources:
   - code_path:CustGroupRelApplication.java:addExistSubCustGroupRel
   - code_path:CustGroupRelApplication.java:addNewSubCustGroupRel
 contract_version: "0.1"
+belong: rules
 ---
 
 新增成员单位关系时的唯一性规则：以企业 + 租户 + 父/根企业 + 角色为组合键计数，命中即阻断。涉及表见 [[tables/cust_group_rel]]，角色字段语义见 [[concepts/cust-type]]。

@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 可触发电子授权签署的企业类型
-page_key: caliber.allowed_company_types
+page_key: allowed-company-types
 domain: 授权协议与电子授权
 status: draft
 aliases:
@@ -14,6 +14,7 @@ sources:
   - code:CustAuthSignOrchestrationApplication.java
   - db:cust_company_info
 contract_version: "0.1"
+belong: calibers
 ---
 
 签署编排只对企业角色为供应商（`SUPPLIER`）、核心企业（`CORE`）、金融机构（`FINANCE`）、项目公司（`PROJECT_COMPANY`）的企业开放。该口径与 [[calibers/offline-electronic-auth-trigger]] 是合取关系，同时使用 [[tables/cust_change_record|company_type]] 相关的角色语义。

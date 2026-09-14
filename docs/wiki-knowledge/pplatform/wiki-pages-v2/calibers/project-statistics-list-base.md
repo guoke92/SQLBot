@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 项目立项统计列表基础口径
-page_key: caliber.project-statistics-list-base
+page_key: project-statistics-list-base
 domain: 项目报表/统计/上报
 status: draft
 aliases:
@@ -14,6 +14,7 @@ scope:
 sources:
   - code:ProjectStatisticsApplication.java
 contract_version: "0.1"
+belong: calibers
 ---
 
 # 项目立项统计列表基础口径

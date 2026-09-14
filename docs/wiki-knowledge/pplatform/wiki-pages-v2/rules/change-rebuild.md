@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 流程重建（重新发起变更）
-page_key: rule.change-rebuild
+page_key: change-rebuild
 domain: 企业变更与运营变更
 status: draft
 aliases: [changeRebuild, 重新发起变更]
@@ -11,6 +11,7 @@ scope:
 sources:
   - code_path:CustChangeApplication.java:changeRebuild
 contract_version: "0.1"
+belong: rules
 ---
 
 流程重建取该企业最新一条非终态变更记录（过滤口径见 [[rules.change-record-terminal-filter]]），通过运营中台接口结束旧流程（备注：客户操作重新发起，拒绝旧流程），随后允许发起新流程；操作人须为当前企业，否则抛无权限。涉及字段见 [[tables.cust_change_record]]，终态判定见 [[processes.cust-change-record-status]] 中「重新发起」迁移与 [[calibers.change-record-terminal-status]]。

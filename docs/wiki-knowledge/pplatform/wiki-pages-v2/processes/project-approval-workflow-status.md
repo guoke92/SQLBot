@@ -1,7 +1,7 @@
 ---
 type: process
 title: 项目上线审批工作流状态机
-page_key: process/tenant_project_approval_wf_status
+page_key: project-approval-workflow-status
 domain: 微企链立项与项目审批
 status: draft
 aliases:
@@ -20,6 +20,7 @@ sources:
   - code_path:ProjectOnlineProcessOperateListener.java#resolveFlowNodeStatusUpdate
   - db:tenant_project_approval
 contract_version: "0.1"
+belong: processes
 ---
 
 工作流状态描述的是「一次上线审批单据」的生命周期，字段落在 [[tables/tenant_project_approval]] 的 `wf_status` 上。它从「由项目创建逻辑预生成的草稿」开始，经发起后进入审批中，最终收敛到完成（通过）或终止（驳回/退回结束）；重新发起会以复制的方式开出一条新记录并把旧的置为非最新，因此状态机是沿记录序列而非沿单条记录循环的。

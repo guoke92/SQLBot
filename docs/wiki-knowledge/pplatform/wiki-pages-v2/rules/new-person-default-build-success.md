@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 经办人新增来源默认认证通过
-page_key: rule.new_person_default_build_success
+page_key: new-person-default-build-success
 domain: 客户联系人管理
 status: draft
 aliases:
@@ -12,6 +12,7 @@ scope:
 sources:
   - "code:CustPersonApplication.insertOrUpdatePerson"
 contract_version: "0.1"
+belong: rules
 ---
 
 非 AMS 来源新增经办人时，默认设置建档状态为 `BUILD_SUCCESS`（即默认认证通过）。

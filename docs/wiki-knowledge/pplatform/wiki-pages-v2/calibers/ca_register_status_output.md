@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 电子签章开通状态对外口径（ca_register_status + caRegisterStatusY）
-page_key: caliber.ca_register_status_output
+page_key: ca_register_status_output
 domain: 平台内部服务对接
 status: draft
 aliases:
@@ -14,6 +14,7 @@ sources:
   - semantic:field_semantics[cust_company_info.ca_register_status]
   - semantic:field_semantics[cust_company_info.need_register_ca]
 contract_version: "0.1"
+belong: calibers
 ---
 
 对外返回企业是否已开通电子签章时，不能只看 ca_register_status，还需叠加 caRegisterStatusY 校验。

@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 问卷星活动-白名单企业口径
-page_key: calibers/wenjuan_whitelist_company
+page_key: wenjuan_whitelist_company
 domain: 问卷
 status: draft
 aliases:
@@ -15,6 +15,7 @@ sources:
   - db:cust_company_survey_whitelist
   - code:WenjuanDisplayService.java
 contract_version: "0.1"
+belong: calibers
 ---
 
 # 问卷星活动-白名单企业口径

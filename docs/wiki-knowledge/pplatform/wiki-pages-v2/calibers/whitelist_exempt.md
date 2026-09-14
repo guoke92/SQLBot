@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 白名单豁免
-page_key: calibers/whitelist_exempt
+page_key: whitelist_exempt
 domain: CA证书收费
 status: draft
 aliases: [EXEMPT_WHITELIST, 特殊配置且年费为0]
@@ -11,6 +11,7 @@ scope:
 sources:
   - db:ca_fee_company
 contract_version: "0.1"
+belong: calibers
 ---
 
 # 白名单豁免

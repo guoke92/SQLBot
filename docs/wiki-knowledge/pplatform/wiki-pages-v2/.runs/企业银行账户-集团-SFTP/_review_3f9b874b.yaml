@@ -1,0 +1,4 @@
+body: 语义分析仅标注证据来源为 `db`/`code`，未给出物理库名与列类型。各表页 `scope.databases` 暂填服务名派生的 `customer_management`，`ground:table`
+  的 `type` 一律填 `unknown`，均需回库确认后回填；确认前不要据此生成 DDL 或类型相关的对比结论。
+title: scope.databases 与字段类型未在语义分析中给出
+type: table

@@ -1,7 +1,7 @@
 ---
 type: concept
 title: 资金方 / 资方（fundingParty）
-page_key: concepts/funding_party
+page_key: funding_party
 domain: funding
 status: draft
 aliases:
@@ -26,6 +26,7 @@ also_confused_with:
   - 金融机构
   - 产品
 boundary: "资金方=资方=对接方，均指某产品下对接的金融/资金机构；仅在字段命名（code/mark）上区分，业务含义一致"
+belong: concepts
 ---
 
 # 资金方 / 资方（fundingParty）

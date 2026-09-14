@@ -1,0 +1,4 @@
+body: 'reqdoc 仅声明过滤 `0891344a3a4442179e98819cbe926ced`，代码黑名单为三条。需求文档是否应更新为三条待确认；该规则
+  evidence 采用双源写法，页面 ## 需求背景 已按 anchor 主张叙述。'
+title: 菜单固定排除 code
+type: rule

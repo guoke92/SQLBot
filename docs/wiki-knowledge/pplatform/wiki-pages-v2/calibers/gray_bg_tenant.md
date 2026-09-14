@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 灰色背景租户
-page_key: caliber.gray_bg_tenant
+page_key: gray_bg_tenant
 domain: 租户配置
 status: draft
 aliases:
@@ -15,6 +15,7 @@ sources:
   - db:tenant_setting_config.bg_color
   - code:lowcode-pplatform-tenant-management/src/main/java/com/lls/lowcode/pplatform/tenant/application/TenantAppliactionService.java:getTentantColorSet
 contract_version: "0.1"
+belong: calibers
 ---
 
 客户端读取背景色时，以 `bg_color='G'` 识别灰色租户；该口径的生效前提是全局灰度窗口处于 ON（见 [[processes/global_bg_gray_switch]]）。注意 `bg_color` 为 `null` 的租户在窗口内也会被处理成灰色，但库内取值仍是 null，因此本口径只覆盖「已显式置灰」的租户。

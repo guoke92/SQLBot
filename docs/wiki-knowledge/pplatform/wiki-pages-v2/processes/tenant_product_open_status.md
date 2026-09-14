@@ -1,52 +1,57 @@
 ---
 type: process
 title: 租户产品开通状态流转
-page_key: processes/tenant_product_open_status
+page_key: tenant_product_open_status
 domain: 租户产品
 status: draft
-aliases: [租户产品开通状态, tenant_product.open_status]
+aliases: [租户产品开通状态, tenant_product.open_status 状态机]
 oid: 1
 scope:
-  databases: []
+  databases: [lowcode-pplatform-customer-management]
 sources:
-  - code:TenantProductApplication
   - db:tenant_product
+  - code:ProductOpenStatusEnum
+  - code:TenantProductApplication
 contract_version: "0.1"
+belong: processes
 ---
 
-租户产品开通是「平台产品下发到租户」的落地动作，其状态位于 [[tables/tenant_product]] 的 open_status 列。非 ACFLOW/ORDER 类产品一次置为已开通；ACFLOW/ORDER 类产品需等待多级回调，先停留在开通中。状态的三值语义见 [[concepts/product_open_status]]，其中 N 只在数据侧出现。
+描述 [[tenant_product]] 的 `open_status` 如何从"未开通"经过"开通中"到达"已开通"，以及取消开通的回退。取值定义见 [[ProductOpenStatusEnum]]，单态口径见 [[tenant_product_not_opened]]、[[tenant_product_opening]]、[[tenant_product_opened]]、[[valid_tenant_product]]。
 
 ## 需求背景
-本次语义分析未提供需求文档主张，本节不含 (document_claim，未证实) 条目。从证据看，该流程要解决两个问题：①不同产品线的开通是否需要多级回调；②重复开通请求的幂等（见 [[rules/activation_idempotency]]）。
+语义分析未附带需求文档锚点，依据代码证据归纳：ACFLOW/ORDER 等产品为多级产品，开通需异步回调后置成功，因此必须有 `P`（开通中）中间态；非多级产品可直接由 N 到 Y。
 
 ## 版本演进
-- 代码枚举 ProductOpenStatusEnum 只覆盖 Y/P，DB 实测还有 N，说明「未开通」态在代码基线中未显式建模。
-- 未提供版本记录；无 (document_claim，未证实) 主张。
+语义分析未记录该状态机的版本演进。
 
-```ground:state_machine
+```ground:process
 name: 租户产品开通状态
 field: tenant_product.open_status
 states:
-  - value: "N"
-    label: 未开通/默认
+  - value: N
+    label: 未开通
     source: db_dist
-  - value: "P"
-    label: 开通中/等待多级回调
+  - value: P
+    label: 开通中
     source: code_enum
-  - value: "Y"
+  - value: Y
     label: 已开通
-    source: code_enum
+    source: db_dist
 transitions:
-  - from: "N"
-    event: activeAndNotify 非 ACFLOW/ORDER 产品主动开通
-    to: "Y"
+  - from: N
+    event: 开通ACFLOW/ORDER多级产品
+    to: P
+    evidence: "code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/producttype/TenantProductApplication.java:334"
+  - from: P
+    event: 多级回调后置成功
+    to: Y
     evidence: "code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/producttype/TenantProductApplication.java:activeAndNotify"
-  - from: "N"
-    event: activeAndNotify 产品为 ACFLOW/ORDER，先置为开通中等待多级回调
-    to: "P"
+  - from: N
+    event: 非多级产品直接生效
+    to: Y
     evidence: "code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/producttype/TenantProductApplication.java:activeAndNotify"
-  - from: "Y"
-    event: activeAndNotify 幂等命中已开通直接返回
-    to: "Y"
-    evidence: "code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/producttype/TenantProductApplication.java:activeAndNotify"
+  - from: Y
+    event: 取消开通产品
+    to: N
+    evidence: "code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/product/application/producttype/TenantProductApplication.java:cancel"
 ```

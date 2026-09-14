@@ -9,10 +9,22 @@ oid: 1
 scope:
   databases: [lowcode_pplatform]
 sources: ["code:extract-enums.yaml", "db:db-profile.yaml"]
-created: '2026-09-10'
-updated: '2026-09-10'
+created: '2026-09-14'
+updated: '2026-09-14'
 contract_version: "0.1"
+belong: enums
 ---
+
+
+
+
+
+
+
+
+
+
+
 
 # cust_status
 
@@ -22,18 +34,21 @@ contract_version: "0.1"
 enum: cust_status
 fields: [cust_company_info.cust_status, cust_person_info.status, cust_role_info.status, cust_user_rel.type_status]
 values:
-  ADD:
-    label: 未生效
-  EFFECT:
-    label: 已生效
-  FREEZE:
-    label: 冻结
-  WRITEOFF:
-    label: 已注销
-  FAILURE:
-    label: 失效
-  CHANGE:
-    label: 变更
+  "ADD":
+    label: "未生效"
+  "EFFECT":
+    label: "已生效"
+  "FREEZE":
+    label: "冻结"
+  "WRITEOFF":
+    label: "已注销"
+  "FAILURE":
+    label: "失效"
+  "CHANGE":
+    label: "变更"
+  "N":
+    label: "N"
+    note: "db 分布存在但代码枚举未声明（REVIEW）"
 ```
 
 ## 表述差异

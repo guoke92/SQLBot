@@ -1,7 +1,7 @@
 ---
 type: concept
 title: certificationId
-page_key: concept/certification_id
+page_key: certification_id
 domain: 微信生态/小程序/扫脸
 status: draft
 aliases: [认证 id]
@@ -18,6 +18,7 @@ also_confused_with:
   - cust_certification_info.id（低代码核查记录主键）
 boundary: "凡 FaceVerifyController 入参 certificationId 均指 ca_certification_info.id，用于 updateIntentByType/mergeEmbeddedFilePath 定位行；cust_certification_info 表行通过 certification_type + ref_cust_company_info 定位，无 certificationId 入参。"
 contract_version: "0.1"
+belong: concepts
 ---
 
 # certificationId

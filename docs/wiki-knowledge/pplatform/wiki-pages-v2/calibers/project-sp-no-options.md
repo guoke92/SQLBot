@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 立项审批编号下拉范围
-page_key: caliber/project-sp-no-options
+page_key: project-sp-no-options
 domain: 微企链立项与项目审批
 status: draft
 aliases:
@@ -14,6 +14,7 @@ scope:
 sources:
   - code_path:ProjectApprovalApplication.java#listProjectSpNo
 contract_version: "0.1"
+belong: calibers
 ---
 
 上线审批发起页的「立项审批编号」下拉只能看到两类记录：审批已通过（`act_procinst_status='2'`）且未被逻辑删除（`enable='Y'`）。排序键是 `sp_pass_time` 倒序，即最近通过的排在最前。

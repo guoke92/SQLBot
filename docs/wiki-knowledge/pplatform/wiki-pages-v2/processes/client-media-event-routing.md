@@ -1,7 +1,7 @@
 ---
 type: process
 title: 影像同步事件路由（客户影像）
-page_key: processes/client-media-event-routing
+page_key: client-media-event-routing
 domain: 文件/附件/媒体
 status: draft
 aliases: [客户影像事件路由, ClientMediaEvent.eventType 路由, 影像事件分发]
@@ -12,6 +12,7 @@ sources:
   - code:ClientMediaEvent
   - code_path:MediaEventSyncProvider.java:onCustEvent
 contract_version: "0.1"
+belong: processes
 ---
 
 # 影像同步事件路由（客户影像）

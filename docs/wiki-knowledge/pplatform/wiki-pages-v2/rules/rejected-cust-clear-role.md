@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 拒绝态企业清角色关联
-page_key: rule.rejected-cust-clear-role
+page_key: rejected-cust-clear-role
 domain: 客户角色与端口
 status: draft
 aliases:
@@ -13,6 +13,7 @@ scope:
 sources:
   - code_path:CustRoleApplication.java#addRoleInfo
 contract_version: "0.1"
+belong: rules
 ---
 
 # 拒绝态企业清角色关联

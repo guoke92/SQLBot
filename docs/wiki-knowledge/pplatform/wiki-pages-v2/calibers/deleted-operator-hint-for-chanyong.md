@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 产融项目运营人员离职提示口径
-page_key: caliber.deleted-operator-hint-for-chanyong
+page_key: deleted-operator-hint-for-chanyong
 domain: 项目报表/统计/上报
 status: draft
 aliases:
@@ -14,6 +14,7 @@ scope:
 sources:
   - code:ProjectReportController.java
 contract_version: "0.1"
+belong: calibers
 ---
 
 # 产融项目运营人员离职提示口径

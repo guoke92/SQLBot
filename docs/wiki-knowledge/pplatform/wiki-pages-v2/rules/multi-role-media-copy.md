@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 多角色建档影像复制
-page_key: rules/multi-role-media-copy
+page_key: multi-role-media-copy
 domain: 文件/附件/媒体
 status: draft
 aliases: [uploadMultiRole, 多角色影像复制, companyTypes 复制影像]
@@ -11,6 +11,7 @@ scope:
 sources:
   - code_path:CustMediaFacade.java:uploadMultiRole
 contract_version: "0.1"
+belong: rules
 ---
 
 # 多角色建档影像复制

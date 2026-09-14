@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 前方案经理联动合并
-page_key: rule.old-solution-manager-merge
+page_key: old-solution-manager-merge
 domain: 项目报表/统计/上报
 status: draft
 aliases:
@@ -15,6 +15,7 @@ sources:
   - code:ProjectStatisticsApplication.java
   - code:SysWxOrgCacheService
 contract_version: "0.1"
+belong: rules
 ---
 
 # 前方案经理联动合并

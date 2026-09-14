@@ -1,7 +1,7 @@
 ---
 type: concept
 title: 数据来源 / source
-page_key: concept.data-source
+page_key: data-source
 domain: 项目报表/统计/上报
 status: draft
 aliases:
@@ -22,6 +22,7 @@ also_confused_with:
   - "productCode（ACFLOW/RVSFACTOR_PC 等存放在 cust_project_rel.remark）"
 adjudication: boundary
 boundary: "项目台账 source 决定「读本地表 vs 调洞察平台」；项目立项统计 data_source 决定「是否企微同步生成的立项」。二者不可互换。"
+belong: concepts
 ---
 
 # 数据来源 / source

@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 集团公司不可作为子级
-page_key: rules/corp-company-cannot-be-child
+page_key: corp-company-cannot-be-child
 domain: 企业集团关系
 status: draft
 aliases: [集团角色互斥, CORPORATION_COMPANY]
@@ -12,6 +12,7 @@ sources:
   - code_path:CustGroupRelApplication.java:addExistSubCustGroupRel
   - code_path:CustGroupRelApplication.java:processCompany
 contract_version: "0.1"
+belong: rules
 ---
 
 角色互斥规则：已经是集团公司的企业不能被设置为其他公司的子级；导入场景中根企业必须是集团角色。相关口径见 [[calibers/group-root-node]] 与 [[processes/cust-group-rel-status-state]]。

@@ -1,39 +1,39 @@
 ---
 type: concept
-title: dbTenantCode
-page_key: concept.db_tenant_code
-domain: 租户配置
+title: 数据租户
+page_key: db_tenant_code
+domain: 平台事件监听与同步
 status: draft
 aliases:
+  - dbTenantCode
   - db_tenant_code
-  - 数据租户标识
-  - 数据库租户编码
-  - 租户编码
 oid: 1
 scope:
-  databases:
-    - lowcode-pplatform-tenant-management
+  databases: ["未确认"]
 sources:
-  - db:tenant_setting_config.db_tenant_code
-  - code:lowcode-pplatform-tenant-management/src/main/java/com/lls/lowcode/pplatform/tenant/service/TenantDomainService.java
+  - db:client_api_sync_error
+  - code:RegAsyncCompensationJobHandler.java:getCompensationRecords
 contract_version: "0.1"
-maps_to: tenant_setting_config.db_tenant_code
+maps_to: client_api_sync_error.db_tenant_code
 field_targets:
-  - tenant_setting_config.db_tenant_code
+  - client_api_sync_error.db_tenant_code
+  - cust_build_record.dbTenantCode
 adjudication: boundary
 also_confused_with:
-  - tenantFlgEn
+  - client_api_sync_error.app_tenant_code
+belong: concepts
+field_targets: [client_api_sync_error.db_tenant_code]
 sources: ["enrich:wiki-admin"]
 ---
 
-`dbTenantCode` 是数据租户标识/数据库租户编码，承担多租户数据隔离主键职责，对应 [[tables/tenant_setting_config]] 的唯一键 `db_tenant_code`。与之最易混淆的是 [[concepts/tenant_flg_en]]：初始化时 `tenant_flg_en` 会被写成与 `dbTenantCode` 相等，但后续语义分叉——在共享假租户场景下，同一个 `db_tenant_code` 可以对应多个 `tenant_flg_en`（见 [[calibers/shared_fake_tenant]]）。因此二者不可互换使用：`dbTenantCode` 回答「数据属于哪个租户库域」，`tenantFlgEn` 回答「以哪个项目/品牌标识对外」。
+「数据租户」是真正的数据隔离维度，代码通过 `MetaDataThreadLocalConfig.setDbTenantCode` 切换上下文。
 
 ## 需求背景
 
-多租户隔离需要一个稳定、唯一的库级主键，租户侧几乎所有查询（含 [[calibers/enabled_tenant]]）都以此为入口，因此该术语的边界必须在需求与实现两侧保持一致。
+同步任务执行前会先 `setDbTenantCode(dbTenantCode)`，见 [[cust_sync_by_role]]；补偿任务则从 [[cust_build_record]].`dbTenantCode` 还原建档企业所属租户后再重放。全量查询使用 `'all'`。与逻辑租户的区别见 [[app_tenant_code]]。
 
 ## 版本演进
 
-v0.1：确立与 `tenantFlgEn` 的边界裁决（boundary），记录初始化相等、后续分叉的事实。
+- 线程上下文方式意味着同步链路对租户上下文有隐式依赖，跨租户批次混跑时需要显式重置。
 
-相关：[[tenant_setting_config]]
+相关：[[client_api_sync_error]]

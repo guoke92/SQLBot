@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 后补合作协议判断触发条件
-page_key: rules/back_agreement_check
+page_key: back_agreement_check
 domain: 租户项目
 status: draft
 aliases: [is_back_agreement, 后补合作协议]
@@ -11,6 +11,7 @@ scope:
 sources:
   - code:ProjectApprovalApplication
 contract_version: "0.1"
+belong: rules
 ---
 
 该规则规定当 [[tables/tenant_project_approval_flow]] 中业务经理节点通过且 is_back_agreement=Y 时，触发后补合作协议的判断，对应节点状态进入 APPROVED，见 [[processes/project_approval_node_status]]。

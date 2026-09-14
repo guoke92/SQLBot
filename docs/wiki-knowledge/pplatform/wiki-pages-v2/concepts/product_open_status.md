@@ -1,52 +1,40 @@
 ---
 type: concept
-title: 开通状态（产品开通）
-page_key: concepts/product_open_status
-domain: 租户产品
+title: 产品开通状态
+page_key: product_open_status
+domain: 平台产品配置
 status: draft
-aliases: [开通状态, open_status, 产品开通状态]
+aliases: [openStatus, open_status, product_status, 开通状态]
 oid: 1
 scope:
-  databases: []
+  databases: [platform]
 sources:
-  - db:tenant_product
-  - db:cust_interworking_product
-  - code:ProductOpenStatusEnum
-  - code:CustProductActiveConstant
-maps_to:
-  - tenant_product.open_status
-  - cust_interworking_product.open_status
-field_targets:
-  - table: tenant_product
-    field: open_status
-    values: ["N", "P", "Y"]
-    process: processes/tenant_product_open_status
-  - table: cust_interworking_product
-    field: open_status
-    values: [OPENED, OPENING]
-    process: processes/interworking_product_open_status
-adjudication: >
-  「开通状态」指该租户/客户是否已经获得某产品能力，是推进态（含中间态），
-  与「启用标记 enable」不同：enable 是配置是否生效的开关（见 calibers/product_enable_flag），
-  也不等同于「项目是否生效」（见 calibers/project_effective）。
-  同名字段在不同表使用不同字面量体系：租户产品用 N/P/Y，客户互通产品用 OPENED/OPENING，
-  不可跨表直接比较。
-also_confused_with:
-  - calibers/product_enable_flag
-  - calibers/project_effective
+  - code:CustProductDomainService.java
+  - code:TenantProductApplication.java
+  - code:ProductStatusEnum.java
 contract_version: "0.1"
-sources: ["enrich:wiki-admin"]
+maps_to: cust_auth_application.open_status
+also_confused_with:
+  - tenant_product.open_status
+  - platform_product.product_status
+adjudication: boundary
+boundary: "三张表语义不同：platform_product.product_status 为产品定义层生效状态('0'/'1')；tenant_product.open_status 为租户上架状态(Y/P)；cust_auth_application.open_status 为企业级开通状态(OPENED/OPENING/NOT_OPENED)。需求文档称 PENDING/ACTIVE/CANCEL 与实现不符。"
+belong: concepts
+field_targets: [cust_auth_application.open_status]
 ---
 
-「开通状态」是本主题最容易被串用的术语：它在产品侧（[[tables/tenant_product]]）、客户侧（[[tables/cust_interworking_product]]）各自有同名列，但取值体系不同。业务上它回答「能不能用」，而不是「配置是否打开」。
+「产品开通状态」是需求文档与接口层最易混淆的术语：同一句「产品是否开通」在三张表上对应三套取值域与三种业务含义。本概念页用于固定辨析边界，默认指企业级的 [[cust_auth_application]] `open_status`。
 
 ## 需求背景
-本次语义分析未提供需求文档主张，本节不含 (document_claim，未证实) 条目。该术语桥用于避免把开通状态与启用标记、项目生效混为一谈，具体口径见 [[calibers/product_enable_flag]]。
+
+- 定义层：[[platform_product]] 的 `product_status`（'0' 待生效 / '1' 已生效），见 [[platform_product_status]]。
+- 上架层：[[tenant_product]] 的 `open_status`（Y 已上架 / P 处理中），见 [[tenant_product_open_status]]。
+- 开通层：[[cust_auth_application]] 的 `open_status`（OPENED / OPENING / NOT_OPENED），见 [[cust_product_open_status]]。
+
+需求文档把租户上架状态写作 PENDING / ACTIVE / CANCEL，实现为 P / Y，属文档与实现的命名漂移。
 
 ## 版本演进
-- 租户产品侧代码枚举 ProductOpenStatusEnum 仅覆盖 Y/P，DB 另有 N；客户互通产品侧 DB 值 OPENED 与代码常量 CustProductActiveConstant.OPENED 的对应关系未被枚举基线覆盖。
-- 两个产品线的字面量体系未统一，是历史演进遗留。
 
-本页按 concept 约定不设锚点块，字段目标见 frontmatter。
+- 三套语义在实现中长期并存，未做字段改名，仅通过本概念页的边界裁定区分。
 
-相关：[[tenant_product]]
+关联：[[cust_auth_application]]、[[tenant_product]]、[[platform_product]]、[[cust_product_open_status]]、[[tenant_product_open_status]]、[[platform_product_status]]

@@ -1,7 +1,7 @@
 ---
 type: concept
 title: 对接方标识（fundingPartyCode）
-page_key: concepts/funding_party_code
+page_key: funding_party_code
 domain: funding
 status: draft
 aliases:
@@ -25,6 +25,7 @@ also_confused_with:
   - 资金方名称(fundingPartyName)
 boundary: "异常解析表用 funding_party_code 承载资方 fundingKey；规则表用 funding_party_mark 承载同一 fundingKey，命名不同但语义同源，禁止跨表混用字段名。异常解析导入还允许填「资金方名称-fundingKey」组合串再映射为 fundingKey"
 sources: ["enrich:wiki-admin"]
+belong: concepts
 ---
 
 # 对接方标识（fundingPartyCode）

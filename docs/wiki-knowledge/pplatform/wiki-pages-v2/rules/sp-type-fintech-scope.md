@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 统计口径固定金融科技业务
-page_key: rule/sp-type-fintech-scope
+page_key: sp-type-fintech-scope
 domain: 微企链立项与项目审批
 status: draft
 aliases:
@@ -13,6 +13,7 @@ scope:
 sources:
   - code_path:ProjectStatisticsApplication.java
 contract_version: "0.1"
+belong: rules
 ---
 
 项目统计的取数范围被固定为业务类型等于「金融科技业务」，即 `sp_type='金融科技业务'`。该条件不由前端控制，属于统计口径的一部分。

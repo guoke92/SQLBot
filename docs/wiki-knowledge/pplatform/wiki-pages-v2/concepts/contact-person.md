@@ -1,7 +1,7 @@
 ---
 type: concept
 title: 联系人
-page_key: concept.contact_person
+page_key: contact-person
 domain: 客户联系人管理
 status: draft
 aliases:
@@ -19,6 +19,7 @@ also_confused_with:
   - 经办人
   - 游客
 contract_version: "0.1"
+belong: concepts
 ---
 
 联系人是 [[tables/cust_person_info]] 表记录的统称，按 `user_type` 细分为管理员（[[concepts/admin]]）、经办人（[[concepts/handler]]）、游客（[[concepts/guest]]）三类。

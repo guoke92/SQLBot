@@ -1,7 +1,7 @@
 ---
 type: process
 title: 租户推送状态（tenant_setting_config.pushing_status）
-page_key: process.tenant_pushing_status
+page_key: tenant_pushing_status
 domain: 租户配置
 status: draft
 aliases:
@@ -15,6 +15,7 @@ sources:
   - db:tenant_setting_config.pushing_status
   - code:lowcode-pplatform-tenant-management/src/main/java/com/lls/lowcode/pplatform/tenant/service/TenantDomainService.java:pushing
 contract_version: "0.1"
+belong: processes
 ---
 
 `pushing_status` 是租户推送的前置开关：推送 CREATED 类型以外的租户事件之前，会先校验该字段是否已置 `Y`，从而保证「创建事件先于其他事件」的顺序约束。当前证据中只观测到 `Y`（已推送创建事件）一个取值，未推送一侧的显式取值未在证据中给出。

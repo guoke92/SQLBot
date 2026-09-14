@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 融资金额上限口径（max_financing_amount）
-page_key: calibers/financing_amount_cap
+page_key: financing_amount_cap
 domain: 租户产品
 status: draft
 aliases: [融资金额上限, max_financing_amount]
@@ -11,6 +11,7 @@ scope:
 sources:
   - db:tenant_product
 contract_version: "0.1"
+belong: calibers
 ---
 
 本口径描述 [[tables/tenant_product]] 中融资金额上限的取值形态，用于判断「限额」时上限以什么形式表达。是否限额本身见 [[calibers/financing_limit_flag]]。

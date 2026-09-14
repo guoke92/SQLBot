@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 菜单资源列表自动过滤指定 code
-page_key: rule.menu-resource-code-filter
+page_key: menu-resource-code-filter
 domain: 客户角色与端口
 status: draft
 aliases:
@@ -15,6 +15,7 @@ sources:
   - code_path:LocalTypeRoleController.java#listResourceAuthByProductCode
   - reqdoc:cust-role-port
 contract_version: "0.1"
+belong: rules
 ---
 
 # 菜单资源列表自动过滤指定 code

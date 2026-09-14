@@ -1,7 +1,7 @@
 ---
 type: concept
 title: "准入"
-page_key: "concepts/admission"
+page_key: admission
 domain: "customer-onboarding"
 status: draft
 aliases:
@@ -21,6 +21,7 @@ adjudication: "boundary"
 also_confused_with:
   - "产品开通 cust_auth_application.open_status"
 boundary: "准入/建档指企业与联系人资格认证；产品开通（OPENING/OPENED/NOT_OPENED）指企业开通具体产品，属于建档成功后的独立流程。"
+belong: concepts
 ---
 
 「准入」（亦称建档）指企业与联系人资格从提交到认证通过的全流程，终点是 [[tables/cust_company_info]] 的 `cust_build_status = BUILD_SUCCESS`；查询层面的有效性判定见 [[calibers/effect_company]]。

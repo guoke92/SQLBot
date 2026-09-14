@@ -1,7 +1,7 @@
 ---
 type: concept
 title: 平台产品编码 PLATFORM
-page_key: concept.platform_product_code
+page_key: platform-product-code
 domain: 授权协议与电子授权
 status: draft
 aliases:
@@ -22,6 +22,7 @@ also_confused_with:
   - 业务产品编码（ACFLOW/AMS/ORDER/RVSFACTOR_PC…）
 boundary: "是否补签只看 PLATFORM 行；具体产品行的 Y 表示存量系统已授权，用于免补签判定"
 sources: ["enrich:wiki-admin"]
+belong: concepts
 ---
 
 `PLATFORM`（代码常量 `PLATFORM_PRODUCT_TYPE`）是 [[tables/authorization_agreement]] 中 `platform_product_code` 的一个特殊取值，标记该行为平台级授权。是否已授权、是否需要补签只考察该行，见 [[calibers/platform-level-authed]]。

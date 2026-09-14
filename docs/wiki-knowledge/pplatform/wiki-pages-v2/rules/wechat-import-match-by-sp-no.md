@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 企微导入按 sp_no 匹配既有记录
-page_key: rule/wechat-import-match-by-sp-no
+page_key: wechat-import-match-by-sp-no
 domain: 微企链立项与项目审批
 status: draft
 aliases:
@@ -13,6 +13,7 @@ scope:
 sources:
   - db:wechat_project_approval_apply
 contract_version: "0.1"
+belong: rules
 ---
 
 企微同步写入立项申请时，匹配键只有一个：`sp_no`。匹配到既有记录就更新，匹配不到不会新增。因此企微侧产生的数据能否进入本系统，取决于对应的 `sp_no` 记录是否已经存在。

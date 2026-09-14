@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 补偿任务租户上下文全量查询
-page_key: rules/compensation-tenant-context-all
+page_key: compensation-tenant-context-all
 domain: 平台事件监听与同步
 status: draft
 aliases:
@@ -13,6 +13,7 @@ scope:
 sources:
   - code:RegAsyncCompensationJobHandler.java:getCompensationRecords/processCompensationRecord
 contract_version: "0.1"
+belong: rules
 ---
 
 租户上下文规则：补偿任务查询时设置 `dbTenantCode='all'` 全量扫描，处理单条时再按 `record.dbTenantCode` 还原租户上下文。

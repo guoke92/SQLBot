@@ -1,0 +1,6 @@
+body: 1) `scope.databases` 无事实来源：语义分析未给出物理库名，本页暂填 `unknown`，需由维护者补全。2) 锚点块 `type`
+  列无 DDL 证据，为按语义（Y/N 标记、逗号列表、JSON 快照）推断，待 DDL 校准。3) `status` 的 DB 分布值 `'1'` 在代码常量
+  `OperApiConstants.CheckStatus` 中无对应状态，属历史默认值，语义未声明，见 [[cust_change_record_status]]
+  的 REVIEW。
+title: 企业变更记录表 (cust_change_record)
+type: table

@@ -2,139 +2,145 @@
 ---
 type: table
 title: client_api_sync_error 客户端同步失败记录表
-page_key: tables/client_api_sync_error
+page_key: client_api_sync_error
 domain: 平台事件监听与同步
 status: draft
 aliases:
-  - ClientApiSyncErrorDO
-  - 客户端同步失败记录
+  - 客户端接口同步失败记录
+  - 同步失败登记表
 oid: 1
 scope:
-  databases:
-    - unknown
+  databases: ["未确认"]
 sources:
   - db:client_api_sync_error
-  - code:CustSyncService.java:syncByRole
-  - "reqdoc:失败数据写入ClientApiSyncErrorDO，调用异常 → error(...) → 落库"
+  - code:AbstractQueueThread.java:464
 contract_version: "0.1"
 ---
 
-> 本页 ## 版本演进 收录了未在代码层证实的文档主张（document_claim，未证实）。
-
-client_api_sync_error 是「平台事件监听与同步」主题下的失败留痕表：平台事件经监听回调进入业务系统后，业务系统向客户域发起的 RPC 同步一旦异常，即以入参原文 + 服务类名 + 重试次数落库，形成可排查、可重放的记录。它与 [[tables/cust_build_record]] 的建档异步补偿是两条独立的失败处理链路，口径见 [[concepts/sync-error-record]]。
+本表是平台向客户端（客户、经办人、影像、产品、租户、项目、KA 等）发起同步调用失败时的登记表。每条记录对应一次失败的 RPC 调用，`service_class_name` 标识具体同步链路，`param` 保留请求参数原文，供重试/排查使用。与 [[cust_build_record]] 的差别在于：本表以「调用失败即登记」为粒度，重试次数有独立列 [[retry_count]]；而建档补偿把重试计数塞进 JSON。
 
 ## 需求背景
-平台侧事件触发后构造 `FbpReq<T>` 并回调 `IPlatListener.onEvent`，业务系统消费该事件时需要把数据变动同步到客户/租户等下游系统。同步失败的诉求不是「静默丢弃」而是「留痕」：失败数据写入 ClientApiSyncErrorDO，调用异常 → `error(...)` → 落库（reqdoc 主张，代码层已证实于 `CustSyncService.java:syncByRole` 中的 `custClientSyncService.error`）。因此本表保存了 `service_class_name`（区分失败来源，DB 实测 12 种）、`param`（入参原文）等重放所必需的信息。
+
+外部同步链路（用户/企业/经办人/影像/产品/租户/项目/KA）在异常时不能让主流程失败，因此统一落到本表，由后台线程池侧（`AbstractQueueThread`）写入并在启用标识为 Y 时继续被重试消费。实测 `name` 与 `remark` 中出现的「直推变更回调连通性」「self-test retry」说明本表同时被用做链路自检的落点。
 
 ## 版本演进
-- v0 契约：本表字段语义与失败态口径按 DB 实测沉淀（见 [[calibers/client-sync-error-all-disabled]]、[[calibers/client-sync-error-retry-num-3]]）。
-- 启动时重试任务扫描失败记录 → 重放同步请求（StartupSyncRetry）（document_claim，未证实）。
-- 服务停止时将队列数据落库，降低消息丢失风险（document_claim，未证实）；现有代码仅见 `CustSyncService.java:shutdownThreadPool` 的 `shutdown/awaitTermination`，未见队列落库实现。
+
+- 存量 2227 行 `enable` 全部为 N、`retry_num` 常驻 3，对应「已登记失败/已终止重试」的保留口径，见 [[sync_error_retained_scope]]。
+- `service_class_name` 的实测 TopK 以 `ClientCustSyncService`(1453) 与 `ClientOperatorSyncService`(555) 为最多，说明本表当前主要承担客户与经办人同步的失败登记。
 
 ```ground:table
 table: client_api_sync_error
-business_role: 客户端 RPC 同步调用失败落库记录，承载失败来源、入参原文与关联流程上下文，供排查与重放
 fields:
+  - name: id
+    type: unknown
+    desc: 表主键
+    dict: ""
   - name: service_class_name
-    meaning: 触发本次失败同步的客户端服务类全名，用于区分失败来源（DB实测12种：ClientCustSyncService 占1453、ClientOperatorSyncService 555等）
-    evidence: db
+    type: unknown
+    desc: 失败的客户端同步服务类名，标识具体同步链路（客户/经办人/影像/产品/租户/项目/KA等），实测 TopK 以 ClientCustSyncService(1453) 与 ClientOperatorSyncService(555) 为最多
+    dict: ""
   - name: retry_num
-    meaning: 已重试次数/重试上限；DB实测全部为3，即默认重试上限
-    evidence: db
+    type: unknown
+    desc: 已重试次数，实测存量记录常驻 3（达最大重试上限）
+    dict: ""
   - name: enable
-    meaning: 记录启用标识；DB实测2227行全部为'N'，同步失败记录均为停用态
-    evidence: db
+    type: unknown
+    desc: 启用标识，表默认 Y，但实测存量失败记录全为 N（失败记录登记后置 N）
+    dict: "EnableEnum"
   - name: param
-    meaning: 失败同步请求的入参原文（text）
-    evidence: db
-  - name: act_procinst_id
-    meaning: 关联流程实例ID
-    evidence: db
-  - name: act_procinst_no
-    meaning: 关联流程申请编号
-    evidence: db
-  - name: act_procinst_status
-    meaning: 关联流程当前审批状态
-    evidence: db
-  - name: act_procinst_date
-    meaning: 关联流程审批结束时间
-    evidence: db
-  - name: organization_id
-    meaning: 机构编号
-    evidence: db
+    type: unknown
+    desc: RPC 调用的请求参数原文
+    dict: ""
+  - name: name
+    type: unknown
+    desc: 名称/标签，实测出现“直推变更回调连通性”等自检标签
+    dict: ""
+  - name: remark
+    type: unknown
+    desc: 备注，实测出现 self-test retry 等自检说明
+    dict: ""
   - name: app_tenant_code
-    meaning: 逻辑租户标识（DB实测仅1个值 base）
-    evidence: db
+    type: unknown
+    desc: 逻辑租户标识，实测恒为 base
+    dict: ""
   - name: db_tenant_code
-    meaning: 数据租户标识
-    evidence: db
-write_contract:
-  claim: 失败数据写入 ClientApiSyncErrorDO，调用异常 → error(...) → 落库
-  evidence: "code_path:CustSyncService.java:syncByRole + reqdoc:失败数据写入ClientApiSyncErrorDO，调用异常 → error(...) → 落库"
-related_pages:
-  - tables/cust_build_record
-  - calibers/client-sync-error-all-disabled
-  - calibers/client-sync-error-retry-num-3
+    type: unknown
+    desc: 数据租户标识
+    dict: ""
+  - name: act_procinst_id
+    type: unknown
+    desc: 运营中台流程实例ID
+    dict: ""
+  - name: act_procinst_no
+    type: unknown
+    desc: 流程申请编号
+    dict: ""
+  - name: act_procinst_status
+    type: unknown
+    desc: 当前审批状态
+    dict: ""
+  - name: act_procinst_date
+    type: unknown
+    desc: 审批结束时间
+    dict: ""
 ```
-
----REVIEW: table | client_api_sync_error---
-1. `scope.databases` 在语义分析中未给出物理库名，本页（及本主题其他页）统一填 `unknown`，待确认。
-2. `retry_num` 的语义在分析中同时表述为「已重试次数/重试上限」，二者不可同时成立；DB 实测恒为 3，暂按「默认重试上限」理解（见 [[calibers/client-sync-error-retry-num-3]]），需业务确认。
-3. 启动重试（StartupSyncRetry）与服务停止队列落库两条文档主张无代码证据，已在 ## 版本演进 标注。
----END REVIEW---
 
 ---END FILE---
 
 ---FILE: tables/cust_build_record.md ---
 ---
 type: table
-title: cust_build_record 企业建档异步流程补偿记录表
-page_key: tables/cust_build_record
+title: cust_build_record 客户建档异步补偿记录表
+page_key: cust_build_record
 domain: 平台事件监听与同步
 status: draft
 aliases:
   - 建档补偿记录
-  - 补偿记录
+  - 异步建档补偿表
 oid: 1
 scope:
-  databases:
-    - unknown
+  databases: ["未确认"]
 sources:
+  - db:cust_build_record
   - code:RegAsyncService.java:saveCompensationRecord
-  - code:RegAsyncCompensationJobHandler.java:processCompensationRecord
+  - code:RegAsyncCompensationJobHandler.java:getCompensationRecords
 contract_version: "0.1"
 ---
 
-cust_build_record 记录企业建档异步流程（文件推送 / 流程拉取）失败后的补偿单元。与 [[tables/client_api_sync_error]] 的「同步失败」不同，本表以 `retry_status` 表达重试状态，并用 `remark` 前缀标记记录来源，是 [[processes/build-async-compensation-retry]] 状态机的载体表。
+本表承载客户建档异步流程失败后的补偿重试登记。与 [[client_api_sync_error]] 不同，本表没有独立的重试次数列，重试计数写在 `returnData` 的 JSON 里；失败类型写在 `remark` 前缀里，由 xxl-job 按前缀筛选后整体重放 `regAsyncService.orchestrateAsync(context)`（`pushData` 即反序列化来源）。
 
 ## 需求背景
-建档异步流程包含文件推送与流程发起两步，任一步失败都需要可重放：`pushData` 保存序列化后的 `RegAsyncContext`，补偿任务反序列化后重放整个异步流程；`returnData` 保存错误信息 JSON；`remark` 以 `COMPENSATION_` 前缀拼接失败类型（FILE_PUSH_FAIL / START_FLOW_FAIL）与重试结果后缀，使补偿任务可仅凭 remark 识别待处理记录（见 [[calibers/build-compensation-pending-records]]）。
+
+建档链路中存在「文件推送」与「拉起流程」两个易失败的外部动作，失败时不直接抛出，而是调用 `saveCompensationRecord` 落一条 PENDING 记录，由 `regAsyncCompensationJobHandler` 定时捞取重试。重试状态机见 [[cust_build_compensation_retry]]，重试上限规则见 [[compensation_max_retry]]，失败类型识别见 [[compensation_fail_type]]。
 
 ## 版本演进
-- v0 契约：字段语义与状态机取自代码枚举与补偿任务实现；`remark` 后缀承载重试终止原因（如 `_FAILED_MAX_RETRY_3`），属隐式格式约定，见 [[rules/compensation-max-retry]]。
-- 表内字段在代码层为驼峰命名（retryStatus/returnData），状态机字段引用写作 `cust_build_record.retry_status` / `cust_build_record.return_data`，映射关系待落库脚本阶段固化。
+
+- 补偿记录以 `remark LIKE 'COMPENSATION_%'` 作为识别口径，见 [[compensation_record_filter]]；job 只扫 PENDING/RETRYING，见 [[compensation_retry_task_filter]]。
+- 重试成功在 `remark` 追加 `_RETRY_SUCCESS`，达上限追加 `_FAILED_MAX_RETRY_n`，是判断记录终态最直接的旁证。
 
 ```ground:table
 table: cust_build_record
-business_role: 建档异步流程失败的补偿单元，序列化保存重放上下文并跟踪重试状态
 fields:
-  - name: retryStatus
-    meaning: 建档异步流程补偿重试状态（PENDING/RETRYING/SUCCESS/FAILED）
-    evidence: code
+  - name: retry_status
+    type: unknown
+    desc: 建档异步流程补偿重试状态（PENDING/RETRYING/SUCCESS/FAILED）
+    dict: "CompensationRetryStatus"
   - name: remark
-    meaning: 备注；补偿记录以 'COMPENSATION_' 前缀标记并拼接失败类型（FILE_PUSH_FAIL / START_FLOW_FAIL）及重试结果后缀
-    evidence: code
+    type: unknown
+    desc: 补偿标记：COMPENSATION_FILE_PUSH_FAIL / COMPENSATION_START_FLOW_FAIL，重试成功追加 _RETRY_SUCCESS，达上限追加 _FAILED_MAX_RETRY_n
+    dict: ""
   - name: pushData
-    meaning: 序列化的 RegAsyncContext，供补偿任务反序列化后重放整个异步流程
-    evidence: code
+    type: unknown
+    desc: RegAsyncContext 序列化 JSON，供补偿任务反序列化后重放 orchestrateAsync
+    dict: ""
   - name: returnData
-    meaning: 错误信息 JSON（failType/errorMessage/retryCount/lastRetryTime等）
-    evidence: code
-related_pages:
-  - processes/build-async-compensation-retry
-  - calibers/build-compensation-pending-records
-  - rules/compensation-max-retry
-  - rules/compensation-tenant-context-all
+    type: unknown
+    desc: 错误信息 JSON（failType/errorMessage/errorCode/stackTrace/retryCount/lastRetryTime）
+    dict: ""
+  - name: dbTenantCode
+    type: unknown
+    desc: 建档企业所属数据租户，补偿任务据此切换租户上下文
+    dict: ""
 ```
 
 ---END FILE---
@@ -143,52 +149,53 @@ related_pages:
 ---
 type: table
 title: cust_company_info 客户企业信息表
-page_key: tables/cust_company_info
+page_key: cust_company_info
 domain: 平台事件监听与同步
 status: draft
 aliases:
-  - 企业信息
-  - CustCompanyInfoDO
+  - 客户企业信息
+  - 建档企业主表
 oid: 1
 scope:
-  databases:
-    - unknown
+  databases: ["未确认"]
 sources:
-  - code:CustCompanyInfoApplication.java:messageNotify
+  - db:cust_company_info
   - code:CustCompanyInfoApplication.java:updateCustBuildStatus
-  - "reqdoc:企业准入存在人工审核、驳回后可修改重新提交的流程"
-  - "reqdoc:企业信息变更需在途校验，存在在途变更流程时不允许再次变更"
 contract_version: "0.1"
 ---
 
-cust_company_info 是企业认证/准入建档的主表，`custBuildStatus` 承载 [[processes/cust-company-build-status]] 状态机，`custCompanyType` 决定按角色同步的维度。
+> (document_claim，未证实) 本页「版本演进」含需求文档主张但代码未覆盖的内容。
+
+本表是客户企业的主记录，`cust_build_status` 是平台侧观察企业建档进度的核心字段，其状态机见 [[cust_build_status]]；`need_register_ca` / `ca_register_status` 用于承载电子签章开通决策，见 [[simple_auth_no_ca]]。
 
 ## 需求背景
-企业准入存在人工审核、驳回后可修改重新提交的流程，状态迁移由 `CustCompanyInfoApplication.messageNotify` 驱动；企业信息变更需在途校验，存在在途变更流程时不允许再次变更（`CustPersonApplication.adminChangeSaveOrUpdate` 在 status=CHANGE 时抛出「有在途变更流程」，配合 `CheckBusiOnWayService`）。两条主张均在代码层已证实，且是状态机与同步口径的业务前提。
+
+需求文档主张两条主线：一是「用户邀请→激活→同步用户到 SSO、同步用户到 AMS 运营中台」，二是「企业准入审核通过则更新企业状态为已通过，驳回则更新为已驳回」。后者在代码侧由 `CustCompanyInfoApplication.updateCustBuildStatus` 承接，对应状态机的审核通过与审核拒绝两条迁移。`enable` 统一由 [[enable_flag]] 描述的 EnableEnum(Y/N) 表达；企业名称/统一社会信用代码的校验在 `importCustCompany` 中存在（“录入统一社会信用代码已存在”），但唯一性是租户维度，非全局唯一——该主张仅作叙述，暂无独立代码证据支撑。
 
 ## 版本演进
-- v0 契约：建档状态枚举与迁移取自 `CustCompanyInfoApplication`；产融侧建档状态（CustBuildStatusEnum）与运营中台审核状态（OperApiConstants.CheckStatus：CUST_CHECK_PASS/REJECT/INIT 等）是两套状态体系，通过回调对齐，见 [[concepts/cust-build]]。
-- 建档成功企业（[[calibers/build-success-company]]）在存量判定中被直接跳过推送/变更，属口径而非状态机迁移。
+
+- 简易认证路径新增 CA 校正逻辑：提交时若 `need_register_ca=Y` 会被 `CustCompanyCaPolicy.enforceMustNotOpenCa` 强制校正为不开通并落库。
+- （document_claim，未证实）需求文档提出「企业信息变更流程：创建变更记录（待提交）→审核→生效/驳回」，语义分析未给出对应代码证据，变更流程的落库表与状态字段待补。
 
 ```ground:table
 table: cust_company_info
-business_role: 企业认证与准入建档主表，状态字段驱动推送/审核回调链路
 fields:
-  - name: custBuildStatus
-    meaning: 企业建档状态（CustBuildStatusEnum：INIT/BUILD_FAIL/CUST_CONFIRM_AWAIT/CUST_BUILDING/BUILD_SUCCESS/AWAIT_CUST_CONFIRM）
-    evidence: code
-  - name: custCompanyType
-    meaning: 客户角色JSON数组（如 ["SUPPLIER"]），决定按角色同步的维度
-    evidence: code
-write_contracts:
-  - claim: 企业准入存在人工审核、驳回后可修改重新提交的流程
-    evidence: "code_path:CustCompanyInfoApplication.java:messageNotify（BUILD_FAIL→重新提交→CUST_CONFIRM_AWAIT） + reqdoc:企业准入存在人工审核、驳回后可修改重新提交的流程"
-  - claim: 企业信息变更需在途校验，存在在途变更流程时不允许再次变更
-    evidence: "code_path:CustPersonApplication.java:adminChangeSaveOrUpdate（status=CHANGE 抛『有在途变更流程』）+ CheckBusiOnWayService.java + reqdoc:企业信息变更需在途校验，存在在途变更流程时不允许再次变更"
-related_pages:
-  - processes/cust-company-build-status
-  - calibers/build-success-company
-  - rules/reject-pass-callback-workflow
+  - name: cust_build_status
+    type: unknown
+    desc: 客户建档状态（INIT/BUILD_FAIL/CUST_CONFIRM_AWAIT/CUST_BUILDING/BUILD_SUCCESS/AWAIT_CUST_CONFIRM）
+    dict: "custBuildStatus 常量类"
+  - name: need_register_ca
+    type: unknown
+    desc: 是否开通电子签章；简易认证提交时若为 Y 会被强制校正为不开通并落库
+    dict: ""
+  - name: ca_register_status
+    type: unknown
+    desc: 电子签章开通状态，随 need_register_ca 的校正结果落库
+    dict: ""
+  - name: enable
+    type: unknown
+    desc: 企业启用标识，统一由 EnableEnum(Y/N) 表达
+    dict: "EnableEnum"
 ```
 
 ---END FILE---
@@ -196,47 +203,44 @@ related_pages:
 ---FILE: tables/cust_person_info.md ---
 ---
 type: table
-title: cust_person_info 客户联系人信息表
-page_key: tables/cust_person_info
+title: cust_person_info 客户人员信息表
+page_key: cust_person_info
 domain: 平台事件监听与同步
 status: draft
 aliases:
-  - 联系人
-  - 经办人
-  - CustPersonInfoDO
+  - 客户人员
+  - 经办人/管理员信息
 oid: 1
 scope:
-  databases:
-    - unknown
+  databases: ["未确认"]
 sources:
+  - db:cust_person_info
   - code:CustSyncEventProvider.java:syncOperatorUser
-  - code:CustPersonApplication.java:insertOrUpdatePerson
 contract_version: "0.1"
 ---
 
-cust_person_info 保存企业下的联系人（经办人 / 管理员），是经办人同步与账号联动（SSO/AMS）的主表。
+人员（管理员/经办人/访客）维度记录，是本主题中「用户同步」一侧的落点。冻结、删除、变更等事件最终都体现为 `user_type` 与 `enable` 的组合，见 [[operator_sync_branch]]。
 
 ## 需求背景
-企业注册/激活流程中需同步用户到 SSO 与 AMS 运营中台（`CustPersonApplication.insertOrUpdatePerson` 调用 sysUserProvider/ssoFacade，配合 `CustSyncEventProvider.syncOperatorUser`）；联系人删除或冻结时置 `enable='N'`，查询与同步默认过滤有效联系人（[[calibers/valid-contact-person]]），按角色取管理员时叠加 `userType='admin'`（[[calibers/admin-contact-person]]）。
+
+同步链路的输入来自运营中台事件：管理员与经办人分别以 `UserTypeEnum.admin` / `UserTypeEnum.operator` 的 dictKey 落库，访客为 `guest`。删除经办人时并不物理删除，而是置 `enable=N`，并且只在同手机号既是经办人又是管理员时才这样做，以免误伤管理员权限，见 [[sys_cust_user_rel]]。
 
 ## 版本演进
-- v0 契约：`userType` 取值取自 UserTypeEnum（admin/operator/guest）；删除经办人时的冻结边界见 [[rules/operator-delete-freeze-only]]。
+
+- 冻结口径引入 `UserFreezeEnum.FREEZE.getDictKey()` 写 [[sys_cust_user_rel]] 的 `is_freeze`，人员侧则写 `EnableEnum.N.name()`。
+- 存在同一文件内混用 `EnableEnum.N.name()` 与字面量 `'Y'` 的写值方式，见 [[enable_flag]] 与页末 REVIEW。
 
 ```ground:table
 table: cust_person_info
-business_role: 企业联系人（经办人/管理员）主表，enable 与 userType 共同决定同步与权限判定口径
 fields:
+  - name: user_type
+    type: unknown
+    desc: 人员用户类型，取值 admin/operator/guest，落库使用 UserTypeEnum.getDictKey()
+    dict: "UserTypeEnum"
   - name: enable
-    meaning: 联系人启用标识，Y有效/N禁用（删除或冻结时置N）
-    evidence: code
-  - name: userType
-    meaning: 联系人类型（UserTypeEnum：admin/operator/guest）
-    evidence: code
-related_pages:
-  - calibers/valid-contact-person
-  - calibers/admin-contact-person
-  - rules/operator-delete-freeze-only
-  - tables/sys_cust_user_rel
+    type: unknown
+    desc: 人员启用标识，同步冻结/删除时置 N（EnableEnum.N.name()），另有字面量 'Y' 直写
+    dict: "EnableEnum"
 ```
 
 ---END FILE---
@@ -244,1022 +248,1052 @@ related_pages:
 ---FILE: tables/sys_cust_user_rel.md ---
 ---
 type: table
-title: sys_cust_user_rel 用户-客户角色关联表
-page_key: tables/sys_cust_user_rel
+title: sys_cust_user_rel 系统客户用户角色关联表
+page_key: sys_cust_user_rel
 domain: 平台事件监听与同步
 status: draft
 aliases:
-  - 用户客户角色关联
-  - SysCustUserRel
+  - 用户角色关联
+  - 角色冻结记录
 oid: 1
 scope:
-  databases:
-    - unknown
+  databases: ["未确认"]
 sources:
+  - db:sys_cust_user_rel
   - code:CustSyncEventProvider.java:syncOperatorUser
 contract_version: "0.1"
 ---
 
-sys_cust_user_rel 承载用户与客户角色之间的关联关系，`isFreeze` 是权限回收的开关位，删除企业时以「关联是否未冻结」判断用户是否可删（[[calibers/operator-role-rel-not-frozen]]）。
+> (document_claim，未证实) 本页「版本演进」含需求文档主张但代码未覆盖的内容。
+
+用户与角色（含 accountNormal 等）的关联记录。本主题中它主要出现在「经办人删除」的分支里：不删除关联，而是冻结，见 [[operator_freeze_scope]] 与 [[operator_sync_branch]]。
 
 ## 需求背景
-经办人/管理员删除与冻结涉及账号权限回收：同一手机号既有经办人又有管理员时，DELETE 仅冻结经办人记录及其 accountNormal 角色关联（`is_freeze='Y'`），不动管理员，避免误冻管理员权限（[[rules/operator-delete-freeze-only]]）。
+
+DELETE 事件且同手机号既为经办人又为管理员时，仅把经办人记录 `enable=N`，并冻结其对 accountNormal 角色的关联（`is_freeze` 写 `UserFreezeEnum.FREEZE.getDictKey()`）。这样做的业务意图是避免把同一自然人的管理员权限一并冻掉。
 
 ## 版本演进
-- v0 契约：`isFreeze` 取值 Y/N；与 [[tables/cust_person_info]] 的 `enable` 构成两级开关（人维度 / 关联维度）。
+
+- 冻结用 `getDictKey()` 而非 `name()` 落库，与人员表的 `EnableEnum.N.name()` 写法不一致，跨表比对时需注意。
+- （document_claim，未证实）需求文档提出「权限与角色管理：管理员配置角色、分配菜单/数据权限、用户按角色加载」，语义分析未给出对应用代码证据，角色/菜单/数据权限的落点表待补。
 
 ```ground:table
 table: sys_cust_user_rel
-business_role: 用户与客户角色的关联关系，冻结位控制权限回收与用户可删判定
 fields:
-  - name: isFreeze
-    meaning: 用户-客户角色关联关系的冻结标识（Y/N）
-    evidence: code
-related_pages:
-  - calibers/operator-role-rel-not-frozen
-  - rules/operator-delete-freeze-only
+  - name: is_freeze
+    type: unknown
+    desc: 角色关联冻结标识，冻结时写 UserFreezeEnum.FREEZE.getDictKey()（Y）
+    dict: "UserFreezeEnum"
+  - name: enable
+    type: unknown
+    desc: 记录启用标识；DELETE 且同手机号既是经办人又是管理员时，仅经办人记录置 N
+    dict: "EnableEnum"
 ```
 
 ---END FILE---
 
----FILE: tables/cust_role_info.md ---
+---FILE: tables/client_cust_event.md ---
 ---
 type: table
-title: cust_role_info 客户角色信息表
-page_key: tables/cust_role_info
+title: client_cust_event 客户端客户事件表
+page_key: client_cust_event
 domain: 平台事件监听与同步
 status: draft
 aliases:
-  - 客户角色
-  - CustRoleInfoDO
+  - 客户事件
+  - 运营中台客户事件
 oid: 1
 scope:
-  databases:
-    - unknown
+  databases: ["未确认"]
 sources:
-  - code:CustSyncService.java:getRoles/syncByRole
+  - db:client_cust_event
+  - code:CustSyncEventProvider.java:onEvent
 contract_version: "0.1"
 ---
 
-cust_role_info 是「按角色维度同步」的取数表：企业事件到达后，先按 `dbTenantCode + companyCode + (companyType)` 查询有效角色，再逐角色发起同步 RPC（[[rules/sync-by-role]]）。
+承载运营中台推送给平台的客户事件，`checkStatus` 记录当前审核检查状态，状态机见 [[cust_event_check_status]]。
 
 ## 需求背景
-一次企业事件可能对应多条按角色的同步调用，角色是否有效由 `enable` 决定（[[calibers/valid-cust-role]]）；`syncByRoleOn` 开关决定是否忽略 companyType 做全角色同步，因此角色维度既影响同步条数，也影响同步范围。
+
+外部回调进入 `CustSyncEventProvider.onEvent`：当 `isChangeBroadcast=false` 且 `checkStatus` 为通过/拒绝时，本方法直接返回，交由工作流审核执行器处理，避免双写，见 [[external_callback_skip_pass_reject]]。其余事件经 `processCustEvent → custSyncEventProcessor.doEvent` 按客户事件类型落库。
 
 ## 版本演进
-- v0 契约：本页字段仅来自代码层（`CustSyncService.getRoles/syncByRole`），尚无 DB 实测佐证，落库前需抽样校验。
+
+- 状态值以 `OperApiConstants.CheckStatus.name()` 落库（`CUST_CHECK_INIT` / `CUST_CHECK_PASS` / `CUST_CHECK_REJECT` / `CUST_CHECK_BACKTOCUSTOM`），与 `cust_info_sync.process_type` 用 `getCode()` 的写法不同，跨表比对需注意。
 
 ```ground:table
-table: cust_role_info
-business_role: 客户角色信息表，作为按角色同步的取数维度
+table: client_cust_event
 fields:
-  - name: enable
-    meaning: 角色有效标识；按角色同步时取有效角色（enable='Y'）
-    evidence: code
-  - name: role_type
-    meaning: 角色类型，决定按角色同步的调用维度与 accountNormal 等角色关联
-    evidence: code
-related_pages:
-  - rules/sync-by-role
-  - calibers/valid-cust-role
+  - name: check_status
+    type: unknown
+    desc: 运营中台客户事件检查状态（CUST_CHECK_INIT/CUST_CHECK_PASS/CUST_CHECK_REJECT/CUST_CHECK_BACKTOCUSTOM），以 OperApiConstants.CheckStatus.name() 落库
+    dict: "OperApiConstants.CheckStatus"
 ```
-
----REVIEW: table | cust_role_info---
-1. 本表未出现在 `field_semantics` 中，字段（enable / role_type）仅由 `calibers` 与 `rules` 的 field_targets 推断，证据等级为 code，缺 DB 实测；字段完整清单与主键待补。
-2. `role_type` 的枚举取值集合未在语义分析中给出，暂不落枚举页。
-3. `scope.databases` 同主题其余页，填 `unknown` 待确认。
----END REVIEW---
 
 ---END FILE---
 
----FILE: processes/build-async-compensation-retry.md ---
+---FILE: tables/cust_info_sync.md ---
 ---
-type: process
-title: 建档异步流程补偿重试状态机
-page_key: processes/build-async-compensation-retry
+type: table
+title: cust_info_sync 客户信息同步记录表
+page_key: cust_info_sync
 domain: 平台事件监听与同步
 status: draft
 aliases:
-  - retry_status 状态机
-  - 补偿重试状态机
+  - 客户信息同步
+  - 同步请求记录
 oid: 1
 scope:
-  databases:
-    - unknown
+  databases: ["未确认"]
 sources:
-  - code:RegAsyncService.java:saveCompensationRecord
+  - db:cust_info_sync
+  - code:CustCompanyInfoApplication.java:syncClientForSimple
+contract_version: "0.1"
+---
+
+记录平台向运营中台发起的客户信息同步请求，`processType` 区分「建档/审核流程」与「变更流程」，是 [[cust_build_status]] 状态迁移的外部触发点。
+
+## 需求背景
+
+需求文档主张「企业准入审核通过则更新企业状态为已通过，驳回则更新为已驳回」，其上游即本表所记录的同步请求：`CUST_CHECK_INIT` 由 `operCustFacade.doSyncClient` 发起，变更侧由 `CustSyncService.requestSync(ProcessTy.CHANGE, ...)` 发起。
+
+## 版本演进
+
+- `processType` 落库使用 `ProcessTy.getCode()` 而非 `name()`，同族枚举在本主题内存在三种落库风格（name() / getCode() / getDictKey()），是排查数据时的常见陷阱。
+
+```ground:table
+table: cust_info_sync
+fields:
+  - name: process_type
+    type: unknown
+    desc: 同步流程类型（CHECK 建档/审核流程、CHANGE 变更流程），以 OperApiConstants.ProcessTy.getCode() 落库
+    dict: "OperApiConstants.ProcessTy"
+```
+
+---END FILE---
+
+---FILE: enums/cust_build_record_retry_status.md ---
+---
+type: enum
+title: cust_build_record.retry_status 补偿重试状态
+page_key: cust_build_record_retry_status
+domain: 平台事件监听与同步
+status: draft
+aliases:
+  - 补偿重试状态
+  - CompensationRetryStatus
+oid: 1
+scope:
+  databases: ["未确认"]
+sources:
+  - code:RegAsyncCompensationJobHandler.java:getCompensationRecords
   - code:RegAsyncCompensationJobHandler.java:processCompensationRecord
   - code:RegAsyncCompensationJobHandler.java:handleRetrySuccess
-  - code:RegAsyncCompensationJobHandler.java:updateRetryCount
   - code:RegAsyncCompensationJobHandler.java:markAsFailed
 contract_version: "0.1"
 ---
 
-该状态机描述建档异步流程失败记录（[[tables/cust_build_record]]）在补偿任务下的生命周期：新建即 PENDING，被扫描后进入 RETRYING，重放成功转 SUCCESS，失败则视重试次数回置 PENDING 或终态 FAILED。它是 [[concepts/compensation]] 的可执行细化。
+建档异步补偿的重试状态取值，驱动 [[cust_build_compensation_retry]] 的迁移，并被 [[compensation_retry_task_filter]] 用作待重试集合的筛选条件。
 
 ## 需求背景
-建档异步流程（文件推送 / 流程发起）失败不能只留错误日志，需要「可重放 + 有上限 + 有终态」：`saveCompensationRecord` 落 PENDING 并序列化 `RegAsyncContext`；补偿任务 `processCompensationRecord` 反序列化重放 `orchestrateAsync`；重试上限控制见 [[rules/compensation-max-retry]]，扫描可见性控制见 [[rules/compensation-tenant-context-all]]。
+
+xxl-job 只捞取 PENDING 与 RETRYING 的记录；重试成功落 SUCCESS，重试次数达上限或类型未知落 FAILED，判定逻辑见 [[compensation_max_retry]]。
 
 ## 版本演进
-- v0 契约：状态与迁移取自代码枚举与补偿任务实现，未引入 DB 实测；终态失败原因以 remark 后缀承载（如 `_FAILED_MAX_RETRY_3`）。
-- 与 [[processes/cust-company-build-status]] 的区分：本状态机关注「失败后的技术重试」，企业建档状态机关注「业务审核推进」，两者通过 custId 关联但不共享状态字段。
+
+- 四个取值均由 `CompensationRetryStatus` 常量以 MyBatis 直写落库，未见历史别名。
+
+```ground:enum
+field: cust_build_record.retry_status
+java_name: CompensationRetryStatus
+stored_as: enum 常量（MyBatis 直写）
+values:
+  - value: PENDING
+    label: 待重试
+    java_name: CompensationRetryStatus.PENDING
+    stored_as: enum 常量
+    note: ""
+  - value: RETRYING
+    label: 重试中
+    java_name: CompensationRetryStatus.RETRYING
+    stored_as: enum 常量
+    note: ""
+  - value: SUCCESS
+    label: 重试成功
+    java_name: CompensationRetryStatus.SUCCESS
+    stored_as: enum 常量
+    note: ""
+  - value: FAILED
+    label: 重试失败
+    java_name: CompensationRetryStatus.FAILED
+    stored_as: enum 常量
+    note: ""
+```
+
+---END FILE---
+
+---FILE: enums/client_cust_event_check_status.md ---
+---
+type: enum
+title: client_cust_event.check_status 客户事件检查状态
+page_key: client_cust_event_check_status
+domain: 平台事件监听与同步
+status: draft
+aliases:
+  - 客户检查状态
+  - OperApiConstants.CheckStatus
+oid: 1
+scope:
+  databases: ["未确认"]
+sources:
+  - code:CustSyncEventProvider.java:onEvent
+  - code:CustCompanyInfoApplication.java:operCustFacade.doSyncClient
+contract_version: "0.1"
+---
+
+运营中台客户事件的检查状态取值，驱动 [[cust_event_check_status]] 的迁移。
+
+## 需求背景
+
+`CUST_CHECK_PASS` / `CUST_CHECK_REJECT` 在 `isChangeBroadcast=false` 时由 [[external_callback_skip_pass_reject]] 显式跳过；`CUST_CHECK_INIT` 由平台侧 `operCustFacade.doSyncClient` 发起。
+
+## 版本演进
+
+- 以 `OperApiConstants.CheckStatus.name()` 落库；同一常量类下的 `ProcessTy` 走 `getCode()`，比对时不可想当然互推。
+
+```ground:enum
+field: client_cust_event.check_status
+java_name: OperApiConstants.CheckStatus
+stored_as: .name()
+values:
+  - value: CUST_CHECK_INIT
+    label: 提交审核发起
+    java_name: OperApiConstants.CheckStatus.CUST_CHECK_INIT
+    stored_as: .name()
+    note: ""
+  - value: CUST_CHECK_PASS
+    label: 审核通过
+    java_name: OperApiConstants.CheckStatus.CUST_CHECK_PASS
+    stored_as: .name()
+    note: 由工作流执行器处理，onEvent 中跳过
+  - value: CUST_CHECK_REJECT
+    label: 审核拒绝
+    java_name: OperApiConstants.CheckStatus.CUST_CHECK_REJECT
+    stored_as: .name()
+    note: 由工作流执行器处理，onEvent 中跳过
+  - value: CUST_CHECK_BACKTOCUSTOM
+    label: 退回客户确认
+    java_name: OperApiConstants.CheckStatus.CUST_CHECK_BACKTOCUSTOM
+    stored_as: .name()
+    note: ""
+```
+
+---END FILE---
+
+---FILE: processes/cust_build_compensation_retry.md ---
+---
+type: process
+title: 建档异步补偿重试状态机
+page_key: cust_build_compensation_retry
+domain: 平台事件监听与同步
+status: draft
+aliases:
+  - 补偿重试流程
+  - 建档补偿状态机
+oid: 1
+scope:
+  databases: ["未确认"]
+sources:
+  - code:RegAsyncService.java:saveCompensationRecord
+  - code:RegAsyncCompensationJobHandler.java:processCompensationRecord
+contract_version: "0.1"
+---
+
+用于描述 [[cust_build_record]] 的 `retry_status` 在 xxl-job 驱动下的流转。记录由建档失败时创建为 PENDING，job 捞取后置 RETRYING，成功落 SUCCESS，失败按上限回到 PENDING 或落 FAILED。
+
+## 需求背景
+
+需求侧要求建档不因外部依赖（文件推送、流程拉起）失败而中断：失败即登记补偿记录并重试，重试粒度为整条 `orchestrateAsync(context)` 重放，失败类型仅用于定位，见 [[compensation_fail_type]] 与 [[compensation_max_retry]]。job 只处理 `remark LIKE 'COMPENSATION_%'` 且状态在 PENDING/RETRYING 的记录，见 [[compensation_record_filter]]。
+
+## 版本演进
+
+- 终态标记沿用 `remark` 追加后缀（`_RETRY_SUCCESS`、`_FAILED_MAX_RETRY_n`）的方式，`retry_status` 之外还有一层文本旁证。
+- 状态取值见 [[cust_build_record_retry_status]]。
 
 ```ground:process
-name: 建档异步流程补偿重试状态机
+name: 建档异步补偿重试状态
 field: cust_build_record.retry_status
 states:
   - value: PENDING
     label: 待重试
-    source: code_enum
+    source: code_const
   - value: RETRYING
     label: 重试中
-    source: code_enum
+    source: code_const
   - value: SUCCESS
     label: 重试成功
-    source: code_enum
+    source: code_const
   - value: FAILED
-    label: 重试失败
-    source: code_enum
+    label: 重试失败/放弃
+    source: code_const
 transitions:
   - from: "(新建)"
-    event: 文件推送/流程拉取失败saveCompensationRecord
+    event: saveCompensationRecord
     to: PENDING
     evidence: "code_path:RegAsyncService.java:saveCompensationRecord"
   - from: PENDING
-    event: 补偿任务识别并开始处理processCompensationRecord
+    event: xxl-job 命中补偿记录
     to: RETRYING
-    evidence: "code_path:RegAsyncCompensationJobHandler.java:processCompensationRecord"
+    evidence: "code_path:RegAsyncCompensationJobHandler.java:processCompensationRecord(record.setRetryStatus(RETRYING))"
   - from: RETRYING
-    event: retryCompensation重放orchestrateAsync成功handleRetrySuccess
+    event: retryCompensation 成功
     to: SUCCESS
     evidence: "code_path:RegAsyncCompensationJobHandler.java:handleRetrySuccess"
   - from: RETRYING
-    event: 重试失败但未达最大重试次数updateRetryCount
+    event: 重试失败且 retryCount<maxRetryCount
     to: PENDING
-    evidence: "code_path:RegAsyncCompensationJobHandler.java:updateRetryCount"
+    evidence: "code_path:RegAsyncCompensationJobHandler.java:updateRetryCount(setRetryStatus(PENDING))"
   - from: RETRYING
-    event: 重试次数>=maxRetryCount markAsFailed(MAX_RETRY_n)
-    to: FAILED
-    evidence: "code_path:RegAsyncCompensationJobHandler.java:updateRetryCount"
-  - from: RETRYING
-    event: 失败类型未知/无法解析markAsFailed
+    event: retryCount>=maxRetryCount 或类型未知
     to: FAILED
     evidence: "code_path:RegAsyncCompensationJobHandler.java:markAsFailed"
-related_pages:
-  - tables/cust_build_record
-  - calibers/build-compensation-pending-records
-  - rules/compensation-max-retry
 ```
 
 ---END FILE---
 
----FILE: processes/cust-company-build-status.md ---
+---FILE: processes/cust_event_check_status.md ---
 ---
 type: process
-title: 企业建档状态机
-page_key: processes/cust-company-build-status
+title: 运营中台客户事件检查状态机
+page_key: cust_event_check_status
 domain: 平台事件监听与同步
 status: draft
 aliases:
-  - cust_build_status 状态机
-  - CustBuildStatusEnum
-  - 企业建档状态
+  - 客户事件检查流程
+  - 回调检查状态机
 oid: 1
 scope:
-  databases:
-    - unknown
+  databases: ["未确认"]
 sources:
-  - code:CustCompanyInfoApplication.java:getCustBuildStatus
-  - code:CustCompanyInfoApplication.java:messageNotify
-  - code:CustCompanyInfoApplication.java:updateCustBuildStatus
-  - code:CustCompanyInfoApplication.java:submitForSimpleAuth
+  - code:CustSyncEventProvider.java:onEvent
+  - code:CustSyncEventProvider.java:processCustEvent
 contract_version: "0.1"
 ---
 
-企业建档状态机描述 `cust_company_info.cust_build_status` 的推进路径：提交建档进入待客户确认或审核中，客户提交后推送运营中台，审核通过转 BUILD_SUCCESS，退回/拒绝转 CUST_CONFIRM_AWAIT 或 BUILD_FAIL；简易认证另走 AWAIT_CUST_CONFIRM 分支。详见 [[concepts/cust-build]]。
+描述 [[client_cust_event]] 的 `checkStatus` 在外部回调与平台处理之间的流转边界。关键点在于：审核通过与拒绝两个状态在本方法内不落库、不处理，交由工作流审核执行器。
 
 ## 需求背景
-企业准入存在人工审核、驳回后可修改重新提交的流程：`messageNotify` 覆盖提交（INVITE → CUST_CONFIRM_AWAIT）、推送运营中台（CUST_CONFIRM_AWAIT → CUST_BUILDING）、退回（CUST_BUILDING → CUST_CONFIRM_AWAIT）、拒绝（CUST_CONFIRM_AWAIT → BUILD_FAIL）与驳回后重新提交。审核通过由 `updateCustBuildStatus` 落 BUILD_SUCCESS。回调侧的去重策略见 [[rules/reject-pass-callback-workflow]]，终态口径见 [[calibers/build-success-company]]。
+
+需求文档主张「用户邀请→激活→同步用户到 SSO、同步用户到 AMS 运营中台」，其事件入口即本流程的外部回调；但审核结论类事件（PASS/REJECT）必须由工作流执行器 `CustWorkflowAuditCommitProcessor` 处理，以避免与工作流双写，见 [[external_callback_skip_pass_reject]]。变更广播（`isChangeBroadcast=true`）时仍走本方法。
 
 ## 版本演进
-- v0 契约：状态集合取自 CustBuildStatusEnum；产融侧状态与运营中台审核状态（OperApiConstants.CheckStatus：CUST_CHECK_PASS/REJECT/INIT 等）是两套体系，通过回调对齐。
-- 运营中台客户数据变动回调产融 CustEventListener 的入站链路（`CustSyncEventProvider.onEvent/custChangeBroadcast/syncOperatorUser`）在代码层已证实，是该状态机的驱动源之一。
+
+- 平台侧发起的检查状态由 `operCustFacade.doSyncClient` 写入 `CUST_CHECK_INIT`，取值见 [[client_cust_event_check_status]]。
+- 其余客户事件经 `processCustEvent → custSyncEventProcessor.doEvent` 按事件类型落库，是本流程与用户/企业同步（[[operator_sync_branch]]、[[company_status_sync]]）的分界。
 
 ```ground:process
-name: 企业建档状态机
+name: 运营中台客户事件检查状态
+field: ClientCustEvent.custEnterprise.checkStatus
+states:
+  - value: CUST_CHECK_INIT
+    label: 提交/审核发起
+    source: code_const
+  - value: CUST_CHECK_PASS
+    label: 审核通过
+    source: code_const
+  - value: CUST_CHECK_REJECT
+    label: 审核拒绝
+    source: code_const
+  - value: CUST_CHECK_BACKTOCUSTOM
+    label: 退回客户确认
+    source: code_const
+transitions:
+  - from: CUST_CHECK_PASS
+    event: 外部回调 onEvent(isChangeBroadcast=false)
+    to: "(跳过/由工作流执行器处理)"
+    evidence: "code_path:CustSyncEventProvider.java:onEvent"
+  - from: CUST_CHECK_REJECT
+    event: 外部回调 onEvent(isChangeBroadcast=false)
+    to: "(跳过/由工作流执行器处理)"
+    evidence: "code_path:CustSyncEventProvider.java:onEvent"
+  - from: "(其它)"
+    event: processCustEvent → custSyncEventProcessor.doEvent
+    to: 按客户事件类型落库
+    evidence: "code_path:CustSyncEventProvider.java:processCustEvent"
+```
+
+---END FILE---
+
+---FILE: processes/cust_build_status.md ---
+---
+type: process
+title: 客户建档状态机
+page_key: cust_build_status
+domain: 平台事件监听与同步
+status: draft
+aliases:
+  - 企业建档状态
+  - cust_build_status 流转
+oid: 1
+scope:
+  databases: ["未确认"]
+sources:
+  - code:CustCompanyInfoApplication.java:updateCustBuildStatus
+  - code:CustCompanyInfoApplication.java:messageNotify
+contract_version: "0.1"
+---
+
+描述 [[cust_company_info]] 的 `cust_build_status` 在「邀请录入 → 提交运营中台 → 审核」之间的流转，是平台侧观察建档进度的主视角。
+
+## 需求背景
+
+需求文档主张「企业准入审核通过则更新企业状态为已通过，驳回则更新为已驳回」，对应本状态机中 `CUST_BUILDING → BUILD_SUCCESS` 与 `CUST_BUILDING → BUILD_FAIL` 两条迁移，均由 `CustCompanyInfoApplication.updateCustBuildStatus` 承接；上游发起见 [[cust_info_sync]]。同步请求的检查状态与之对应，见 [[cust_event_check_status]]；状态变更后还联动企业/用户冻结口径，见 [[company_status_sync]]。
+
+## 版本演进
+
+- 简易认证路径新增 `AWAIT_CUST_CONFIRM`，且提交时强制不开通电子签章，见 [[simple_auth_no_ca]]。
+- 退回（运营中台退回）回落到 `CUST_CONFIRM_AWAIT`，与「待客户确认/待提交审核」共用同一状态值，语义上偏宽。
+
+```ground:process
+name: 客户建档状态
 field: cust_company_info.cust_build_status
 states:
   - value: INIT
     label: 初始
-    source: code_enum
+    source: code_const
   - value: BUILD_FAIL
-    label: 认证驳回/失败
-    source: code_enum
+    label: 审核拒绝/建档失败
+    source: code_const
   - value: CUST_CONFIRM_AWAIT
-    label: 待客户确认
-    source: code_enum
+    label: 待客户确认/待提交审核
+    source: code_const
   - value: CUST_BUILDING
-    label: 客户已提交/运营中台审核中
-    source: code_enum
+    label: 运营中台审核中
+    source: code_const
   - value: BUILD_SUCCESS
-    label: 认证通过/建档成功
-    source: code_enum
+    label: 建档成功
+    source: code_const
   - value: AWAIT_CUST_CONFIRM
-    label: 待客户确认（简易认证提交后）
-    source: code_enum
+    label: 简易认证待确认
+    source: code_const
 transitions:
-  - from: "(新建)"
-    event: 提交建档getCustBuildStatus(INVITE_AGW→CUST_BUILDING, INVITE/SELF→CUST_CONFIRM_AWAIT)
-    to: CUST_BUILDING
-    evidence: "code_path:CustCompanyInfoApplication.java:getCustBuildStatus"
-  - from: INIT
-    event: 信息提交 (INVITE)
+  - from: INIT/BUILD_FAIL
+    event: 邀请认证客户录入提交
     to: CUST_CONFIRM_AWAIT
-    evidence: "code_path:CustCompanyInfoApplication.java:messageNotify"
-  - from: BUILD_FAIL
-    event: 驳回后重新提交
-    to: CUST_CONFIRM_AWAIT
-    evidence: "code_path:CustCompanyInfoApplication.java:messageNotify"
+    evidence: "code_path:CustCompanyInfoApplication.java:messageNotify/updateCustBuildStatus"
   - from: CUST_CONFIRM_AWAIT
-    event: 客户提交推送运营中台completeSpAdminNotice
+    event: 客户提交运营中台
     to: CUST_BUILDING
-    evidence: "code_path:CustCompanyInfoApplication.java:messageNotify"
-  - from: CUST_BUILDING
-    event: 运营中台审核退回
-    to: CUST_CONFIRM_AWAIT
-    evidence: "code_path:CustCompanyInfoApplication.java:messageNotify"
-  - from: CUST_BUILDING
-    event: 认证审核通过
-    to: BUILD_SUCCESS
     evidence: "code_path:CustCompanyInfoApplication.java:updateCustBuildStatus"
-  - from: CUST_CONFIRM_AWAIT
+  - from: CUST_BUILDING
+    event: 运营中台退回
+    to: CUST_CONFIRM_AWAIT
+    evidence: "code_path:CustCompanyInfoApplication.java:updateCustBuildStatus"
+  - from: CUST_BUILDING
+    event: 运营中台审核通过
+    to: BUILD_SUCCESS
+    evidence: "code_path:CustCompanyInfoApplication.java:updateCustBuildStatus + reqdoc:企业准入审核通过则更新企业状态为已通过，驳回则更新为已驳回"
+  - from: CUST_BUILDING
     event: 审核拒绝
     to: BUILD_FAIL
-    evidence: "code_path:CustCompanyInfoApplication.java:messageNotify"
-  - from: "(简易认证)"
-    event: submitForSimpleAuth提交且非变更
-    to: AWAIT_CUST_CONFIRM
-    evidence: "code_path:CustCompanyInfoApplication.java:submitForSimpleAuth"
-related_pages:
-  - tables/cust_company_info
-  - concepts/cust-build
-  - calibers/build-success-company
-  - rules/reject-pass-callback-workflow
+    evidence: "code_path:CustCompanyInfoApplication.java:updateCustBuildStatus + reqdoc:企业准入审核通过则更新企业状态为已通过，驳回则更新为已驳回"
 ```
 
 ---END FILE---
 
----FILE: calibers/client-sync-error-all-disabled.md ---
+---FILE: calibers/sync_error_retained_scope.md ---
 ---
 type: caliber
-title: 客户端同步失败记录（全部停用态）
-page_key: calibers/client-sync-error-all-disabled
+title: 同步失败记录存量口径
+page_key: sync_error_retained_scope
 domain: 平台事件监听与同步
 status: draft
 aliases:
-  - enable='N' 口径
+  - enable=N 口径
+  - 失败记录保留口径
 oid: 1
 scope:
-  databases:
-    - unknown
+  databases: ["未确认"]
 sources:
   - db:client_api_sync_error
 contract_version: "0.1"
 ---
 
-该口径用于识别 [[tables/client_api_sync_error]] 中的失败记录集合：同步失败记录落库后均为停用态，因此按 `enable='N'` 取数即可覆盖全部失败留痕，无需额外状态过滤。
+查询 [[client_api_sync_error]] 时，`enable='N'` 是存量记录的默认观测值，应被理解为「已登记失败/已终止重试」的记录集合，而不是停用配置。
 
 ## 需求背景
-同步失败不是业务对象生命周期中的「有效记录」，而是留痕记录。DB 实测 2227 行全部为 `'N'`，说明写入即停用，业务侧不会把失败记录当作有效数据参与后续查询。该口径是 [[concepts/sync-error-record]] 的判定标准，与 [[calibers/build-compensation-pending-records]]（补偿扫描口径）分属两条链路。
+
+同步失败需要留痕以便排查与人工重放，因此失败登记后即置 N；表结构默认 Y 只是新增记录的初始值，不代表现存数据分布。统计失败量时若按 `enable='Y'` 过滤会得到空集。
 
 ## 版本演进
-- v0 契约：按 DB 实测沉淀；样本量 2227 行。
+
+- 存量 2227 行全部为 N，且 `retry_num` 常驻 3，说明这批记录已不再被重试消费。
+- 与 [[cust_build_record]] 的补偿集合不同：后者以状态列（PENDING/RETRYING）而非 `enable` 表达可重试性，见 [[compensation_retry_task_filter]]。
 
 ```ground:caliber
-name: 客户端同步失败记录（全部停用态）
+name: 同步失败记录存量口径
 predicate: "client_api_sync_error.enable = 'N'"
-scope: DB实测2227行全部为N
+scope: 存量 2227 行全部为 N，作为“已登记失败/已终止重试”记录保留
 evidence: db
-related_pages:
-  - tables/client_api_sync_error
-  - concepts/sync-error-record
 ```
 
 ---END FILE---
 
----FILE: calibers/client-sync-error-retry-num-3.md ---
+---FILE: calibers/compensation_record_filter.md ---
 ---
 type: caliber
-title: 客户端同步失败默认重试上限
-page_key: calibers/client-sync-error-retry-num-3
+title: 补偿记录筛选口径
+page_key: compensation_record_filter
 domain: 平台事件监听与同步
 status: draft
 aliases:
-  - retry_num=3 口径
+  - COMPENSATION_ 前缀筛选
+  - 补偿记录识别
 oid: 1
 scope:
-  databases:
-    - unknown
-sources:
-  - db:client_api_sync_error
-contract_version: "0.1"
----
-
-该口径描述客户端同步失败记录的重试次数取值特征：DB 实测全部为 3，与补偿链路的默认重试上限（默认 3，见 [[rules/compensation-max-retry]]）数值一致。
-
-## 需求背景
-失败重试需要可预期上限。`retry_num` 在 DB 中恒定，说明当前实现不区分单条记录的实际重试次数，而是以固定值表达上限；因此取数时不能据 `retry_num` 做「重试进度」分析。字段语义的歧义见本页 REVIEW。
-
-## 版本演进
-- v0 契约：按 DB 实测沉淀，全部为 3。
-
-```ground:caliber
-name: 客户端同步失败默认重试上限
-predicate: "client_api_sync_error.retry_num = 3"
-scope: DB实测全部为3
-evidence: db
-related_pages:
-  - tables/client_api_sync_error
-  - rules/compensation-max-retry
-```
-
----REVIEW: caliber | 客户端同步失败默认重试上限---
-`retry_num` 的语义在被测数据中无法区分「已重试次数」与「重试上限」（恒为 3）；本页按「默认重试上限」口径沉淀，与 [[rules/compensation-max-retry]] 的 maxRetryCount=3 是否同一配置项待确认。
----END REVIEW---
-
----END FILE---
-
----FILE: calibers/build-compensation-pending-records.md ---
----
-type: caliber
-title: 建档异步补偿待处理记录
-page_key: calibers/build-compensation-pending-records
-domain: 平台事件监听与同步
-status: draft
-aliases:
-  - 补偿扫描口径
-  - COMPENSATION_ 口径
-oid: 1
-scope:
-  databases:
-    - unknown
+  databases: ["未确认"]
 sources:
   - code:RegAsyncCompensationJobHandler.java:getCompensationRecords
 contract_version: "0.1"
 ---
 
-补偿任务的取数口径：仅扫描 remark 以 `COMPENSATION_` 开头且 retry_status 处于 PENDING/RETRYING 的 [[tables/cust_build_record]] 记录。
+xxl-job 从 [[cust_build_record]] 中捞取补偿记录时，以 `remark` 前缀 `COMPENSATION_` 作为唯一识别条件。
 
 ## 需求背景
-建档异步流程失败记录与普通建档记录同表存放，靠 `remark` 前缀区分身份；再叠加未终态过滤，避免把 SUCCESS/FAILED 记录重复拉入重试。任务侧另按 custId / failType / 时间范围做附加过滤，并按 [[rules/compensation-tenant-context-all]] 以 `dbTenantCode='all'` 全量扫描。
+
+`remark` 同时承载失败标记与终态后缀（`_RETRY_SUCCESS`、`_FAILED_MAX_RETRY_n`），因此只能用前缀匹配而不能用等值匹配；带后缀的历史记录仍会被捞出，是否重试再交给状态口径判断，见 [[compensation_retry_task_filter]]。
 
 ## 版本演进
-- v0 契约：口径取自 `RegAsyncCompensationJobHandler.getCompensationRecords`；`remark` 后缀格式（失败类型与重试结果）属隐式约定。
+
+- 失败类型由 `remark` 中的 `FILE_PUSH_FAIL` / `START_FLOW_FAIL` 反推，见 [[compensation_fail_type]]；这意味着新增失败类型必须同步维护该前缀约定。
 
 ```ground:caliber
-name: 建档异步补偿待处理记录
-predicate: "cust_build_record.remark LIKE 'COMPENSATION_%' AND cust_build_record.retry_status IN ('PENDING','RETRYING')"
-scope: 补偿任务扫描口径；additional过滤 custId/failType/时间范围
-evidence: code
-related_pages:
-  - tables/cust_build_record
-  - processes/build-async-compensation-retry
-  - rules/compensation-tenant-context-all
+name: 补偿记录筛选
+predicate: "cust_build_record.remark LIKE 'COMPENSATION_%'"
+scope: xxl-job 只处理 remark 以 COMPENSATION_ 开头的记录
+evidence: "code:RegAsyncCompensationJobHandler.java:getCompensationRecords"
 ```
 
 ---END FILE---
 
----FILE: calibers/valid-contact-person.md ---
+---FILE: calibers/compensation_retry_task_filter.md ---
 ---
 type: caliber
-title: 有效联系人
-page_key: calibers/valid-contact-person
+title: 补偿重试任务状态筛选口径
+page_key: compensation_retry_task_filter
 domain: 平台事件监听与同步
 status: draft
 aliases:
-  - enable='Y' 联系人
+  - 待重试集合
+  - PENDING/RETRYING 口径
 oid: 1
 scope:
-  databases:
-    - unknown
+  databases: ["未确认"]
 sources:
-  - code:CustPersonApplication.java:insertOrUpdatePerson
-  - code:CustSyncEventProvider.java:syncOperatorUser
+  - code:RegAsyncCompensationJobHandler.java:getCompensationRecords
 contract_version: "0.1"
 ---
 
-有效联系人口径：[[tables/cust_person_info]] 中 `enable='Y'` 的联系人，为同步与查询经办人/管理员时的默认过滤条件。
+`regAsyncCompensationJobHandler` 的待重试集合 = [[compensation_record_filter]] ∩ `retry_status IN ('PENDING','RETRYING')`。
 
 ## 需求背景
-联系人被删除或冻结时置 `enable='N'`，因此有效态是同步（SSO/AMS 账号联动）与查询的公共前置条件；在此之上按 `userType` 再细分（[[calibers/admin-contact-person]]）。人维度的 enable 与关联维度的冻结位（[[calibers/operator-role-rel-not-frozen]]）构成两级开关。
+
+状态筛选保证终态（SUCCESS/FAILED）不会被再次重放；状态机见 [[cust_build_compensation_retry]]，取值见 [[cust_build_record_retry_status]]。若人工需要重放一条 FAILED 记录，必须先把状态改回 PENDING，单纯清空 `remark` 后缀无效。
 
 ## 版本演进
-- v0 契约：口径取自代码层同步/查询实现，无 DB 实测。
+
+- 当前筛选为双状态等值集合，未按 `retryCount` 或时间窗口做二次过滤，重试节奏完全由 job 调度周期决定。
 
 ```ground:caliber
-name: 有效联系人
-predicate: "cust_person_info.enable = 'Y'"
-scope: 同步/查询经办人与管理员时默认过滤
-evidence: code
-related_pages:
-  - tables/cust_person_info
-  - calibers/admin-contact-person
-  - rules/operator-delete-freeze-only
+name: 补偿重试任务状态筛选
+predicate: "cust_build_record.retry_status IN ('PENDING','RETRYING')"
+scope: xxl-job regAsyncCompensationJobHandler 待重试集合
+evidence: "code:RegAsyncCompensationJobHandler.java:getCompensationRecords"
 ```
 
 ---END FILE---
 
----FILE: calibers/admin-contact-person.md ---
+---FILE: calibers/operator_freeze_scope.md ---
 ---
 type: caliber
-title: 管理员联系人
-page_key: calibers/admin-contact-person
+title: 经办人角色冻结口径
+page_key: operator_freeze_scope
 domain: 平台事件监听与同步
 status: draft
 aliases:
-  - userType=admin 口径
+  - 经办人冻结范围
+  - is_freeze=Y 口径
 oid: 1
 scope:
-  databases:
-    - unknown
+  databases: ["未确认"]
 sources:
   - code:CustSyncEventProvider.java:syncOperatorUser
 contract_version: "0.1"
 ---
 
-管理员联系人口径：在 [[calibers/valid-contact-person]] 基础上叠加 `user_type='admin'`，用于按角色取管理员做同步与待办。
+删除经办人时的冻结范围口径：只冻结经办人记录对应的 `accountNormal` 角色关联，即 [[sys_cust_user_rel]].`is_freeze='Y'`，不动管理员。
 
 ## 需求背景
-同一手机号可能同时是经办人与管理员，两类身份在权限与同步目标上不同；取管理员时必须显式限定 `userType='admin'`，否则会误取经办人。删除场景的对称约束见 [[rules/operator-delete-freeze-only]]。
+
+同手机号既为经办人又为管理员时，若按用户维度整体冻结会误伤管理员权限；因此改为按记录维度：经办人记录 `enable=N`（见 [[cust_person_info]]），并仅冻结其对 `accountNormal` 的关联。分支细节见 [[operator_sync_branch]]。
 
 ## 版本演进
-- v0 契约：口径取自代码层同步实现；`userType` 取值域为 UserTypeEnum（admin/operator/guest）。
+
+- 冻结值使用 `UserFreezeEnum.FREEZE.getDictKey()`，与人员表 `EnableEnum.N.name()` 的落库风格不同，跨表核对时需按各自风格取值。
+- 该口径只覆盖 DELETE 事件；FREEZE/THAW 走独立的冻结/解冻分支。
 
 ```ground:caliber
-name: 管理员联系人
-predicate: "cust_person_info.enable = 'Y' AND cust_person_info.user_type = 'admin'"
-scope: 按角色取管理员用于同步/待办
-evidence: code
-related_pages:
-  - tables/cust_person_info
-  - calibers/valid-contact-person
-  - rules/operator-delete-freeze-only
+name: 经办人角色冻结口径
+predicate: "sys_cust_user_rel.is_freeze = 'Y'"
+scope: DELETE 且同手机号既为经办人又为管理员时，仅冻结经办人记录对应 accountNormal 角色关联
+evidence: "code:CustSyncEventProvider.java:syncOperatorUser"
 ```
 
 ---END FILE---
 
----FILE: calibers/valid-cust-role.md ---
----
-type: caliber
-title: 有效客户角色
-page_key: calibers/valid-cust-role
-domain: 平台事件监听与同步
-status: draft
-aliases:
-  - cust_role_info.enable='Y'
-oid: 1
-scope:
-  databases:
-    - unknown
-sources:
-  - code:CustSyncService.java:getRoles/syncByRole
-contract_version: "0.1"
----
-
-有效客户角色口径：按角色同步时仅取 [[tables/cust_role_info]] 中 `enable='Y'` 的角色作为同步维度。
-
-## 需求背景
-一次企业事件会产生多条按角色的同步 RPC，若把停用角色纳入，会造成无效调用与下游脏数据；因此同步前先按 `dbTenantCode + companyCode + (companyType)` 过滤有效角色（[[rules/sync-by-role]]）。
-
-## 版本演进
-- v0 契约：口径取自代码层 `CustSyncService.getRoles/syncByRole`，无 DB 实测。
-
-```ground:caliber
-name: 有效客户角色
-predicate: "cust_role_info.enable = 'Y'"
-scope: 按角色同步时取角色维度
-evidence: code
-related_pages:
-  - tables/cust_role_info
-  - rules/sync-by-role
-```
-
----END FILE---
-
----FILE: calibers/operator-role-rel-not-frozen.md ---
----
-type: caliber
-title: 经办人角色关联未冻结
-page_key: calibers/operator-role-rel-not-frozen
-domain: 平台事件监听与同步
-status: draft
-aliases:
-  - is_freeze='N'
-oid: 1
-scope:
-  databases:
-    - unknown
-sources:
-  - code:CustSyncEventProvider.java:syncOperatorUser
-contract_version: "0.1"
----
-
-未冻结口径：[[tables/sys_cust_user_rel]] 中 `is_freeze='N'` 的用户-客户角色关联，用于删除企业时判断该用户是否仍被占用、是否可删。
-
-## 需求背景
-删除企业需要判断用户是否可回收：只要还存在未冻结的角色关联，就不能直接删除用户；冻结是回收权限的软手段（[[rules/operator-delete-freeze-only]]）。
-
-## 版本演进
-- v0 契约：口径取自代码层删除判定实现，无 DB 实测。
-
-```ground:caliber
-name: 经办人角色关联未冻结
-predicate: "sys_cust_user_rel.is_freeze = 'N'"
-scope: 删除企业时判断是否可删用户
-evidence: code
-related_pages:
-  - tables/sys_cust_user_rel
-  - rules/operator-delete-freeze-only
-```
-
----END FILE---
-
----FILE: calibers/build-success-company.md ---
----
-type: caliber
-title: 建档成功企业
-page_key: calibers/build-success-company
-domain: 平台事件监听与同步
-status: draft
-aliases:
-  - BUILD_SUCCESS 口径
-oid: 1
-scope:
-  databases:
-    - unknown
-sources:
-  - code:CustCompanyInfoApplication.java:updateCustBuildStatus
-contract_version: "0.1"
----
-
-建档成功企业口径：`cust_company_info.cust_build_status = 'BUILD_SUCCESS'` 的企业，在存量判定中直接跳过推送/变更。
-
-## 需求背景
-存量企业已经完成过推送与审核，事件回调到达时无需再次推送；用建档终态做幂等短路，可避免重复同步与重复回调。终态的写入路径见 [[processes/cust-company-build-status]] 的 `updateCustBuildStatus` 迁移。
-
-## 版本演进
-- v0 契约：口径取自代码层增量/存量判定逻辑，无 DB 实测。
-
-```ground:caliber
-name: 建档成功企业
-predicate: "cust_company_info.cust_build_status = 'BUILD_SUCCESS'"
-scope: 存量企业直接跳过推送/变更判定
-evidence: code
-related_pages:
-  - tables/cust_company_info
-  - processes/cust-company-build-status
-```
-
----END FILE---
-
----FILE: concepts/event-listener-onevent.md ---
+---FILE: concepts/retry_count.md ---
 ---
 type: concept
-title: 事件监听 / onEvent
-page_key: concepts/event-listener-onevent
+title: 重试次数
+page_key: retry_count
 domain: 平台事件监听与同步
 status: draft
 aliases:
-  - IPlatListener.onEvent
-  - PlatFormCustEventListener.onEvent
-  - IPlatListener<T extends IFlatEvent>
+  - retryNum
+  - retryCount
+  - 重试计数
 oid: 1
 scope:
-  databases:
-    - unknown
-sources:
-  - code:lowcode-pplatform-client/.../base/IPlatListener.java
-  - code:PlatTenantEventListener.java
-  - code:PlatProjectEventListener.java
-  - code:PlatProductEventListener.java
-  - code:PlatFormCustEventListener.java
-  - code:CustSyncEventProvider.java:onEvent
-  - "reqdoc:事件回调：平台触发事件 → 构造 FbpReq<T> → 回调 IPlatListener.onEvent"
-  - "reqdoc:监听器子接口：租户、项目、产品、角色、协议等扩展监听器（PlatTenantEventListener/PlatProjectEventListener/PlatProductEventListener等）均继承基接口"
-  - "reqdoc:PlatProjectEventListener 提供 queryProject/importProject/queryProjectLandTime 等查询与导入契约"
-  - "reqdoc:客户域监听器 PlatFormCustEventListener 覆盖企业信息同步/状态同步/经办人/在途校验/站内信等（含默认实现的 syncCustManager/syncDeleteCustInfo）"
-  - "reqdoc:回调链路：平台触发事件 → 构造 FbpReq<T> → 回调 IPlatListener.onEvent → 业务系统消费并记录处理结果"
-contract_version: "0.1"
-maps_to: "产融平台→业务系统的数据变动回调契约（业务系统实现子接口）"
-adjudication:
-  kind: boundary
-  boundary: "两者方向相反：IPlatListener/PlatFormCustEventListener 是产融侧对外提供的回调接口（@Api 信息变动事件），由业务系统实现；CustSyncEventProvider.onEvent 是产融侧实现运营中台 CustEventListener 的入站回调，同名字段但属对立方向。"
-also_confused_with:
-  - CustSyncEventProvider.onEvent（运营中台→产融平台的回调入口）
----
-
-> 本页 ## 版本演进 收录了未在代码层证实的文档主张（document_claim，未证实）。
-
-「事件监听 / onEvent」是一个被同名复用的契约概念，指代产融侧对外提供的、由业务系统实现的数据变动回调接口族（IPlatListener 及其扩展子接口），与产融侧作为消费方的入站回调 `CustSyncEventProvider.onEvent` 方向相反。二者同名不同向，是阅读同步链路时最容易混淆的一处。
-
-## 需求背景
-回调链路为：平台触发事件 → 构造 `FbpReq<T>` → 回调 `IPlatListener.onEvent` → 业务系统消费并记录处理结果。子接口按域扩展，租户、项目、产品、角色、协议等扩展监听器（PlatTenantEventListener / PlatProjectEventListener / PlatProductEventListener 等）均继承基接口；其中 PlatProjectEventListener 提供 queryProject / importProject / queryProjectLandTime 等查询与导入契约。客户域的 PlatFormCustEventListener 覆盖企业信息同步 / 状态同步 / 经办人 / 在途校验 / 站内信等，并含默认实现的 syncCustManager / syncDeleteCustInfo。以上四项 reqdoc 主张均已由代码层证实，锚点证据（code_path + reqdoc:slug）记于 frontmatter sources。
-
-## 版本演进
-- v0 契约：产融侧接口族以「基接口 + 分域子接口」组织；客户域实现对象见 [[concepts/cust-build]] 与 [[processes/cust-company-build-status]] 的驱动链路。
-- 接口矩阵：PlatFormAmsProvider.addEnterpriseContact（AMS 联系人同步）/ PlatFormTenantProvider.queryTenant·syncProject / PlatFormAgreementProvider.syncAgreementDoc（document_claim，未证实）。
-- MigratoryPointService 提供 push（异步）与 call（同步）接口用于迁移点数据推送（document_claim，未证实）。
-
----REVIEW: concept | 事件监听 / onEvent---
-1. 本页为 concept 页，按 v0 §3.9 不设 ground 块；reqdoc_claims 中 action=anchor 的双源证据写入 frontmatter `sources`（code_path + reqdoc:slug 形式），如与团队约定的锚点承载方式不一致请统一。
-2. PlatFormCustEventListener 的默认实现方法（syncCustManager/syncDeleteCustInfo）与 `CustSyncEventProvider.syncOperatorUser` 是否职责重叠，语义分析未给结论。
-3. 两条 action=review 的接口主张（Provider 矩阵、MigratoryPointService）无代码证据，已按规约仅置于 ## 版本演进。
----END REVIEW---
-
----END FILE---
-
----FILE: concepts/cust-build.md ---
----
-type: concept
-title: 建档
-page_key: concepts/cust-build
-domain: 平台事件监听与同步
-status: draft
-aliases:
-  - 企业建档
-  - build
-  - custBuildStatus
-oid: 1
-scope:
-  databases:
-    - unknown
-sources:
-  - code:CustCompanyInfoApplication.java:getCustBuildStatus
-  - code:CustCompanyInfoApplication.java:messageNotify
-  - code:CustCompanyInfoApplication.java:updateCustBuildStatus
-  - code:CustCompanyInfoApplication.java:submitForSimpleAuth
-  - "reqdoc:企业注册/激活流程中同步用户到SSO与AMS运营中台"
-  - "reqdoc:企业准入存在人工审核、驳回后可修改重新提交的流程"
-contract_version: "0.1"
-maps_to: "企业认证/准入的建档流程与 cust_company_info.cust_build_status"
-field_targets:
-  - cust_company_info.cust_build_status
-  - cust_company_info.cust_company_type
-adjudication:
-  kind: synonym
-  boundary: "产融侧建档状态（CustBuildStatusEnum）与运营中台审核状态（OperApiConstants.CheckStatus：CUST_CHECK_PASS/REJECT/INIT等）是两套状态体系，通过回调对齐。"
-also_confused_with:
-  - 运营中台建档审核回调
----
-
-「建档」在业务口径中指企业认证/准入的完整流程（提交、审核、退回、驳回重提、通过），在数据口径上落为 `cust_company_info.cust_build_status`。它与运营中台的「建档审核」不同源：产融侧用 CustBuildStatusEnum，运营中台用 OperApiConstants.CheckStatus，二者通过回调对齐，不能直接比等。
-
-## 需求背景
-企业准入存在人工审核、驳回后可修改重新提交的流程，状态迁移由 `CustCompanyInfoApplication.messageNotify` 驱动；审核通过由 `updateCustBuildStatus` 落终态；简易认证经 `submitForSimpleAuth` 走 AWAIT_CUST_CONFIRM 分支。企业注册/激活流程中还需同步用户到 SSO 与 AMS 运营中台（`CustPersonApplication.insertOrUpdatePerson` + `CustSyncEventProvider.syncOperatorUser`），因此建档不是单系统内部状态，而是跨系统回调收敛的结果。
-
-## 版本演进
-- v0 契约：状态与迁移见 [[processes/cust-company-build-status]]；终态口径见 [[calibers/build-success-company]]；回调侧去重见 [[rules/reject-pass-callback-workflow]]。
-
----REVIEW: concept | 建档---
-产融侧 CustBuildStatusEnum 与运营中台 CheckStatus 的对齐关系（逐一映射还是仅里程碑对齐）在语义分析中未给出逐项映射表，本页仅保留「两套体系」的边界结论，待补映射关系。
----END REVIEW---
-
----END FILE---
-
----FILE: concepts/sync-error-record.md ---
----
-type: concept
-title: 同步失败记录
-page_key: concepts/sync-error-record
-domain: 平台事件监听与同步
-status: draft
-aliases:
-  - client_api_sync_error
-  - ClientApiSyncErrorDO
-oid: 1
-scope:
-  databases:
-    - unknown
+  databases: ["未确认"]
 sources:
   - db:client_api_sync_error
-  - code:CustSyncService.java:syncByRole
+  - code:RegAsyncCompensationJobHandler.java:updateRetryCount
 contract_version: "0.1"
-maps_to: "客户端RPC同步调用失败落库记录（service_class_name + param + retry_num）"
+maps_to: client_api_sync_error.retry_num
 field_targets:
-  - client_api_sync_error.service_class_name
-  - client_api_sync_error.param
   - client_api_sync_error.retry_num
-  - client_api_sync_error.enable
-adjudication:
-  kind: boundary
-  boundary: "client_api_sync_error 记录通用客户端同步失败（CustSyncService 用 error() 写入，重试上限以 retry_num 表达，DB实测恒为3）；cust_build_record 记录建档异步流程（pushFile/startProcess）补偿，用 retry_status 表达重试状态。二者表、状态字段均不同。"
+  - cust_build_record.return_data
+adjudication: boundary
 also_confused_with:
-  - cust_build_record 建档异步补偿记录
+  - cust_build_record.return_data
 ---
 
-「同步失败记录」特指客户端 RPC 同步调用失败的落库留痕，以服务类名 + 入参原文 + 重试次数刻画一次失败，落表 [[tables/client_api_sync_error]]。它常被与 [[concepts/compensation]] 混为一谈，但后者是建档异步流程的重放补偿，二者的表、状态字段、识别口径都不同。
+「重试次数」在本主题内有两个完全不同的落点，同名不同形，是排查时的头号陷阱。
 
 ## 需求背景
-同步失败的诉求是「不吞异常、可追溯、可重试」：同步失败经 `custClientSyncService.error(e, rpcSync)` 落库后抛出（见 [[rules/sync-exception-retain-context]]），因此记录写入路径本身是异常处理链的一环。失败记录均为停用态（[[calibers/client-sync-error-all-disabled]]），重试上限以 `retry_num` 表达（[[calibers/client-sync-error-retry-num-3]]）。
+
+[[client_api_sync_error]] 用独立列 `retry_num` 记录已重试次数，实测存量常驻 3（达最大重试上限）；[[cust_build_record]] 没有独立列，补偿重试次数塞在 `return_data` JSON 的 `retryCount` 字段里，与 `lastRetryTime` 一起由补偿任务维护。上限判定见 [[compensation_max_retry]]。
 
 ## 版本演进
-- v0 契约：区分口径以表与状态字段为准；重放任务相关文档主张未证实，见 [[tables/client_api_sync_error]] 的 ## 版本演进。
+
+- 两个域各自演化：同步失败表用列 + 启用标识表达终态（见 [[sync_error_retained_scope]]），补偿表用状态列 + JSON 计数表达终态（见 [[cust_build_compensation_retry]]）。
+- 口径建议：按代码名 `retryNum` 检索时只查 `client_api_sync_error`，按 `retryCount` 检索时只查 `cust_build_record.return_data`，不要跨表合并统计。
 
 ---END FILE---
 
----FILE: concepts/compensation.md ---
+---FILE: concepts/app_tenant_code.md ---
 ---
 type: concept
-title: 补偿
-page_key: concepts/compensation
+title: 逻辑租户
+page_key: app_tenant_code
 domain: 平台事件监听与同步
 status: draft
 aliases:
-  - COMPENSATION_
-  - regAsyncCompensationJobHandler
+  - appTenantCode
+  - AppTenantCode
 oid: 1
 scope:
-  databases:
-    - unknown
+  databases: ["未确认"]
 sources:
-  - code:RegAsyncService.java:saveCompensationRecord
-  - code:RegAsyncCompensationJobHandler.java:processCompensationRecord
+  - db:client_api_sync_error
+contract_version: "0.1"
+maps_to: client_api_sync_error.app_tenant_code
+field_targets:
+  - client_api_sync_error.app_tenant_code
+adjudication: boundary
+also_confused_with:
+  - client_api_sync_error.db_tenant_code
+---
+
+「逻辑租户」指应用层的租户标识，与数据隔离租户是两件事，二者在同一张表上并列存在。
+
+## 需求背景
+
+[[client_api_sync_error]].`app_tenant_code` 为逻辑/应用租户，实测恒为 `base`；`db_tenant_code` 才是数据隔离租户，见 [[db_tenant_code]]。做数据筛选、报表分组时误用前者会得到单一分组。
+
+## 版本演进
+
+- 平台同步场景下逻辑租户长期为 `base`，说明本主题的租户差异主要体现在数据租户维度而非应用维度。
+- 代码中命名为 `appTenantCode` / `AppTenantCode`，与列名 `app_tenant_code` 需人工映射。
+
+---END FILE---
+
+---FILE: concepts/db_tenant_code.md ---
+---
+type: concept
+title: 数据租户
+page_key: db_tenant_code
+domain: 平台事件监听与同步
+status: draft
+aliases:
+  - dbTenantCode
+  - db_tenant_code
+oid: 1
+scope:
+  databases: ["未确认"]
+sources:
+  - db:client_api_sync_error
+  - code:RegAsyncCompensationJobHandler.java:getCompensationRecords
+contract_version: "0.1"
+maps_to: client_api_sync_error.db_tenant_code
+field_targets:
+  - client_api_sync_error.db_tenant_code
+  - cust_build_record.dbTenantCode
+adjudication: boundary
+also_confused_with:
+  - client_api_sync_error.app_tenant_code
+---
+
+「数据租户」是真正的数据隔离维度，代码通过 `MetaDataThreadLocalConfig.setDbTenantCode` 切换上下文。
+
+## 需求背景
+
+同步任务执行前会先 `setDbTenantCode(dbTenantCode)`，见 [[cust_sync_by_role]]；补偿任务则从 [[cust_build_record]].`dbTenantCode` 还原建档企业所属租户后再重放。全量查询使用 `'all'`。与逻辑租户的区别见 [[app_tenant_code]]。
+
+## 版本演进
+
+- 线程上下文方式意味着同步链路对租户上下文有隐式依赖，跨租户批次混跑时需要显式重置。
+
+---END FILE---
+
+---FILE: concepts/enable_flag.md ---
+---
+type: concept
+title: 启用标识
+page_key: enable_flag
+domain: 平台事件监听与同步
+status: draft
+aliases:
+  - enable
+  - EnableEnum
+oid: 1
+scope:
+  databases: ["未确认"]
+sources:
+  - db:client_api_sync_error
+  - code:CustSyncEventProvider.java:syncOperatorUser
+contract_version: "0.1"
+maps_to: client_api_sync_error.enable
+field_targets:
+  - client_api_sync_error.enable
+  - cust_company_info.enable
+  - cust_person_info.enable
+adjudication: synonym
+also_confused_with:
+  - cust_company_info.enable
+---
+
+各表的 `enable` 统一由 `EnableEnum(Y/N)` 表达，但在本主题内落库写法并不统一，是跨表比对的主要噪声来源。
+
+## 需求背景
+
+- [[client_api_sync_error]]：结构默认 Y，但存量失败记录全为 N（失败登记后置 N），见 [[sync_error_retained_scope]]。
+- [[cust_person_info]] / [[sys_cust_user_rel]]：经办人删除时写 `EnableEnum.N.name()`，而另有代码路径直接写字面量 `'Y'`。
+- [[cust_company_info]]：企业启用标识，同属 EnableEnum 语义。
+
+## 版本演进
+
+- 写值风格从字面量逐步收敛到枚举：`name()`、`getDictKey()`、字面量三者并存，见页末 REVIEW。
+
+---END FILE---
+
+---FILE: rules/external_callback_skip_pass_reject.md ---
+---
+type: rule
+title: 外部回调不处理审核通过与拒绝
+page_key: external_callback_skip_pass_reject
+domain: 平台事件监听与同步
+status: draft
+aliases:
+  - onEvent 跳过规则
+  - PASS/REJECT 不由回调处理
+oid: 1
+scope:
+  databases: ["未确认"]
+sources:
+  - code:CustSyncEventProvider.java:onEvent
+contract_version: "0.1"
+---
+
+外部回调 `onEvent(isChangeBroadcast=false)` 遇到 `CUST_CHECK_PASS` 或 `CUST_CHECK_REJECT` 时直接返回，不做任何处理。
+
+## 需求背景
+
+审核结论类事件必须由工作流审核执行器 `CustWorkflowAuditCommitProcessor` 处理，回调侧再处理一次会造成与企业建档状态机（[[cust_build_status]]）的双写。变更广播（`isChangeBroadcast=true`）时仍走本方法。状态取值见 [[client_cust_event_check_status]]，整体流转见 [[cust_event_check_status]]。
+
+## 版本演进
+
+- 该跳过逻辑与「按事件类型落库」的 `processCustEvent` 分支并存，理解入口时需先看 `isChangeBroadcast` 与 `checkStatus` 两个判别条件。
+
+```ground:rule
+name: 外部回调不处理 PASS/REJECT
+content: onEvent(isChangeBroadcast=false) 时若 checkStatus 为 CUST_CHECK_PASS 或 CUST_CHECK_REJECT，直接 return，交由工作流审核执行器 CustWorkflowAuditCommitProcessor 处理
+impact: 避免与工作流审核双写；变更广播 isChangeBroadcast=true 时仍走本方法
+field_targets: []
+evidence: "code:CustSyncEventProvider.java:onEvent"
+```
+
+---END FILE---
+
+---FILE: rules/compensation_max_retry.md ---
+---
+type: rule
+title: 补偿重试上限规则
+page_key: compensation_max_retry
+domain: 平台事件监听与同步
+status: draft
+aliases:
+  - maxRetryCount 规则
+  - 补偿重试上限
+oid: 1
+scope:
+  databases: ["未确认"]
+sources:
   - code:RegAsyncCompensationJobHandler.java:updateRetryCount
 contract_version: "0.1"
-maps_to: "建档异步流程失败后的重放补偿（RegAsyncCompensationJobHandler + RegAsyncService.saveCompensationRecord）"
+---
+
+重试次数达到上限后记录被标记为 FAILED 并放弃，否则重置为 PENDING 继续排队。
+
+## 需求背景
+
+上限默认 3。与 [[client_api_sync_error]] 的 `retry_num` 常驻 3 相互印证：两个域都采用「3 次即终止」的补偿策略，但一个用列、一个用 JSON，见 [[retry_count]]。判定时机在重试失败分支，成功分支直接落 SUCCESS，见 [[cust_build_compensation_retry]]。
+
+## 版本演进
+
+- 达上限时在 `remark` 追加 `_FAILED_MAX_RETRY_n`，使终态在文本层也可辨识，见 [[compensation_record_filter]]。
+- 上限值来源为 `maxRetryCount` 配置，改配置会影响存量尚未终止的记录。
+
+```ground:rule
+name: 补偿重试上限规则
+content: retryCount>=maxRetryCount(默认3) → markAsFailed；否则 retryStatus 重置 PENDING、retryCount+1 并写 lastRetryTime
+impact: 决定补偿记录是否最终放弃
+field_targets:
+  - cust_build_record.retry_status
+  - cust_build_record.return_data
+evidence: "code:RegAsyncCompensationJobHandler.java:updateRetryCount"
+```
+
+---END FILE---
+
+---FILE: rules/compensation_fail_type.md ---
+---
+type: rule
+title: 补偿失败类型识别规则
+page_key: compensation_fail_type
+domain: 平台事件监听与同步
+status: draft
+aliases:
+  - FILE_PUSH_FAIL/START_FLOW_FAIL 识别
+  - 失败类型判定
+oid: 1
+scope:
+  databases: ["未确认"]
+sources:
+  - code:RegAsyncCompensationJobHandler.java:extractFailType
+  - code:RegAsyncCompensationJobHandler.java:retryCompensation
+contract_version: "0.1"
+---
+
+失败类型由 `remark` 是否包含 `FILE_PUSH_FAIL` / `START_FLOW_FAIL` 反推定，但重试时并不按类型分派动作，而是整体重放建档异步流程。
+
+## 需求背景
+
+`saveCompensationRecord` 落库时以字面量拼接成 `COMPENSATION_FILE_PUSH_FAIL` / `COMPENSATION_START_FLOW_FAIL`（并非取枚举 label）。因此 [[cust_build_record]].`remark` 同时承担「筛选键」（见 [[compensation_record_filter]]）与「失败原因」两个职责。
+
+## 版本演进
+
+- 失败类型来自错误码常量 `PlatformEnumsExceptionEnum.FILE_PUSH_FAIL` / `START_FLOW_FAIL`，但落库为字符串拼接，枚举改名不会自动同步存量数据。
+- 重试粒度为全流程，意味着类型识别只影响日志与定位，不影响行为；类型未知时直接落 FAILED，见 [[compensation_max_retry]]。
+
+```ground:rule
+name: 补偿失败类型识别
+content: 按 remark 是否包含 FILE_PUSH_FAIL / START_FLOW_FAIL 判定失败类型，重试时整体重放 regAsyncService.orchestrateAsync(context)
+impact: 补偿任务按失败类型定位但重试粒度为全流程
 field_targets:
   - cust_build_record.remark
-  - cust_build_record.retry_status
-  - cust_build_record.return_data
-adjudication:
-  kind: boundary
-  boundary: "补偿以 cust_build_record.remark='COMPENSATION_'+failType 识别，状态为 retry_status；同步失败以 client_api_sync_error.enable='N' 识别。"
-also_confused_with:
-  - ClientApiSyncErrorDO 的同步失败重试
----
-
-「补偿」指建档异步流程（文件推送 / 流程发起）失败后的重放机制：失败时 `RegAsyncService.saveCompensationRecord` 落一条带 `COMPENSATION_` 前缀的 [[tables/cust_build_record]] 记录并序列化重放上下文，补偿任务 `processCompensationRecord` 反序列化后重放整个异步流程。
-
-## 需求背景
-补偿需要三个要素：识别（remark 前缀 + retry_status 未终态，见 [[calibers/build-compensation-pending-records]]）、上下文（pushData 中的 RegAsyncContext）、上限（[[rules/compensation-max-retry]]）。跨租户可见性由 [[rules/compensation-tenant-context-all]] 保证。与同步失败重试的边界见 [[concepts/sync-error-record]]。
-
-## 版本演进
-- v0 契约：状态机见 [[processes/build-async-compensation-retry]]；当前 retry_status 为代码枚举，尚无 DB 实测分布。
-
----END FILE---
-
----FILE: rules/compensation-max-retry.md ---
----
-type: rule
-title: 补偿重试上限
-page_key: rules/compensation-max-retry
-domain: 平台事件监听与同步
-status: draft
-aliases:
-  - maxRetryCount
-  - MAX_RETRY_n
-oid: 1
-scope:
-  databases:
-    - unknown
-sources:
-  - code:RegAsyncCompensationJobHandler.java:updateRetryCount
-  - db:client_api_sync_error
-contract_version: "0.1"
----
-
-补偿重试有硬上限：retryCount 从 `returnData.retryCount` 读取，达到 maxRetryCount（默认 3）时标记 FAILED（remark 追加 `_FAILED_MAX_RETRY_3`），否则重试次数 +1 并回置 PENDING。
-
-## 需求背景
-无限重放会放大下游故障；因此补偿任务必须在「重试次数」与「终态」之间做取舍。该规则决定 [[processes/build-async-compensation-retry]] 的终态收敛，并与 [[calibers/client-sync-error-retry-num-3]] 中 DB 实测 `retry_num` 恒为 3 相互印证（默认上限一致）。
-
-## 版本演进
-- v0 契约：上限默认值 3，失败原因以 remark 后缀承载；终态后不再被 [[calibers/build-compensation-pending-records]] 扫描。
-
-```ground:rule
-name: 补偿重试上限
-content: "retryCount 从 returnData.retryCount 读取，达到 maxRetryCount（默认3）时标记 FAILED（remark 追加 _FAILED_MAX_RETRY_3），否则重试次数+1并回置 PENDING"
-impact: 决定补偿记录终态；DB中 retry_num 恒为3与默认上限一致
-field_targets:
-  - cust_build_record.retry_status
-  - cust_build_record.return_data
-evidence: "RegAsyncCompensationJobHandler.java:updateRetryCount + db:client_api_sync_error.retry_num=3"
-related_pages:
-  - processes/build-async-compensation-retry
-  - calibers/client-sync-error-retry-num-3
-```
-
----REVIEW: rule | 补偿重试上限---
-本规则的证据跨两处：补偿侧 `updateRetryCount`（code）与 `client_api_sync_error.retry_num`（db）。后者属另一张表、另一条链路，语义分析以「默认上限一致」将二者关联；该等价性未经直接证据确认，标记待确认。
----END REVIEW---
-
----END FILE---
-
----FILE: rules/reject-pass-callback-workflow.md ---
----
-type: rule
-title: 拒绝/通过回调由工作流处理
-page_key: rules/reject-pass-callback-workflow
-domain: 平台事件监听与同步
-status: draft
-aliases:
-  - onEvent 审核状态短路
-oid: 1
-scope:
-  databases:
-    - unknown
-sources:
-  - code:CustSyncEventProvider.java:onEvent
-contract_version: "0.1"
----
-
-回调路由去重规则：`onEvent` 非变更广播时，checkStatus 为 CUST_CHECK_PASS 或 CUST_CHECK_REJECT 的记录直接跳过，仅处理审核中，避免与 CustWorkflowAuditCommitProcessor 重复处理。
-
-## 需求背景
-运营中台的审核终态既会通过事件回调到达产融，也会由工作流提交处理器处理；若两条路径都消费终态，会造成 [[tables/cust_company_info]] 建档状态的重复推进。因此回调侧只处理「审核中」这一中间态，终态交由工作流处理。
-
-## 版本演进
-- v0 契约：短路条件取自 `CustSyncEventProvider.onEvent`；与 [[processes/cust-company-build-status]] 中 CUST_BUILDING → BUILD_SUCCESS / CUST_CONFIRM_AWAIT 的迁移路径互补。
-
-```ground:rule
-name: 拒绝/通过回调由工作流处理
-content: "onEvent 非变更广播时，checkStatus 为 CUST_CHECK_PASS 或 CUST_CHECK_REJECT 的记录直接跳过，仅处理审核中，避免与 CustWorkflowAuditCommitProcessor 重复处理"
-impact: 回调路由去重，防止重复消费
-field_targets:
-  - cust_company_info.cust_build_status
-evidence: "CustSyncEventProvider.java:onEvent"
-related_pages:
-  - tables/cust_company_info
-  - processes/cust-company-build-status
+evidence: "code:RegAsyncCompensationJobHandler.java:extractFailType/retryCompensation"
 ```
 
 ---END FILE---
 
----FILE: rules/sync-by-role.md ---
+---FILE: rules/operator_sync_branch.md ---
 ---
 type: rule
-title: 按角色维度同步
-page_key: rules/sync-by-role
+title: 经办人同步操作分支规则
+page_key: operator_sync_branch
 domain: 平台事件监听与同步
 status: draft
 aliases:
-  - syncByRole
-  - syncByRoleOn
+  - syncOperatorUser 分支
+  - 经办人增删改冻
 oid: 1
 scope:
-  databases:
-    - unknown
-sources:
-  - code:CustSyncService.java:getRoles/syncByRole
-contract_version: "0.1"
----
-
-同步维度规则：同步前按 `dbTenantCode + companyCode + (companyType)` 查有效 CustRoleInfoDO，逐角色调用 custClientSyncService；`syncByRoleOn` 开关决定是否忽略 companyType 做全角色同步。
-
-## 需求背景
-企业在不同角色下（如 SUPPLIER）对下游系统的可见性不同，因此一次企业事件需要展开为多条按角色同步的 RPC。取数口径见 [[calibers/valid-cust-role]]，角色来源见 [[tables/cust_role_info]]；每条同步 RPC 失败即落 [[tables/client_api_sync_error]]。
-
-## 版本演进
-- v0 契约：开关名为 `syncByRoleOn`，默认行为未在语义分析中给出，需配置面确认。
-
-```ground:rule
-name: 按角色维度同步
-content: "同步前按 dbTenantCode+companyCode+(companyType) 查有效 CustRoleInfoDO，逐角色调用 custClientSyncService；syncByRoleOn 开关决定是否忽略 companyType 全角色同步"
-impact: 控制一次企业事件产生多条按角色同步的RPC
-field_targets:
-  - cust_role_info.role_type
-  - cust_role_info.enable
-evidence: "CustSyncService.java:getRoles/syncByRole"
-related_pages:
-  - tables/cust_role_info
-  - calibers/valid-cust-role
-  - tables/client_api_sync_error
-```
-
----END FILE---
-
----FILE: rules/operator-delete-freeze-only.md ---
----
-type: rule
-title: 经办人DELETE仅冻结经办人角色
-page_key: rules/operator-delete-freeze-only
-domain: 平台事件监听与同步
-status: draft
-aliases:
-  - syncOperatorUser 删除规则
-oid: 1
-scope:
-  databases:
-    - unknown
+  databases: ["未确认"]
 sources:
   - code:CustSyncEventProvider.java:syncOperatorUser
 contract_version: "0.1"
 ---
 
-删除规则：同一手机号既有经办人又有管理员时，DELETE 仅将经办人记录 `enable` 置 N 并冻结其 accountNormal 角色关联（`is_freeze='Y'`），不动管理员。
+经办人事件按操作类型分流：INSERT/UPDATE 走新增与编辑，FREEZE/THAW/DELETE 走冻结、解冻与删除。
 
 ## 需求背景
-手机号是联系人的自然标识，一人多角色常见。若删除经办人时连同管理员一并冻结，会误伤管理员权限；因此删除必须限定在经办人记录与其 accountNormal 关联上。涉及的过滤口径见 [[calibers/valid-contact-person]] 与 [[calibers/operator-role-rel-not-frozen]]。
+
+需求文档主张「用户邀请→激活→同步用户到 SSO、同步用户到 AMS 运营中台」，代码侧由 `CustSyncEventProvider.syncOperatorUser` 承接并经 `CustSyncService` 广播。DELETE 分支的特别之处在于：同手机号既为经办人又为管理员时，仅将经办人记录 `enable=N` 并冻结其对 `accountNormal` 角色的关联（[[operator_freeze_scope]]、[[sys_cust_user_rel]]），人员侧写法见 [[cust_person_info]]。落库的人员类型使用 `UserTypeEnum.getDictKey()`。
 
 ## 版本演进
-- v0 契约：规则取自 `CustSyncEventProvider.syncOperatorUser`；「accountNormal」角色关联的冻结范围未在语义分析中进一步展开。
+
+- 冻结值改用 `UserFreezeEnum.FREEZE.getDictKey()`，与人员表 `EnableEnum.N.name()` 风格不同。
+- 同步范围由 `syncByRoleOn` 控制，见 [[cust_sync_by_role]]。
 
 ```ground:rule
-name: 经办人DELETE仅冻结经办人角色
-content: "同一手机号既有经办人又有管理员时，DELETE 仅将经办人记录 enable 置N并冻结其 accountNormal 角色关联（is_freeze=Y），不动管理员"
+name: 经办人同步操作分支
+content: INSERT/UPDATE→addOperator/editOperator；FREEZE/THAW/DELETE→走冻结/解冻；DELETE 且同手机号既为经办人又为管理员时，仅将经办人记录 enable=N 并冻结其对 accountNormal 角色的 SysCustUserRel
 impact: 避免误冻管理员权限
 field_targets:
   - cust_person_info.enable
   - sys_cust_user_rel.is_freeze
-evidence: "CustSyncEventProvider.java:syncOperatorUser"
-related_pages:
-  - tables/cust_person_info
-  - tables/sys_cust_user_rel
-  - calibers/operator-role-rel-not-frozen
+evidence: "code_path:CustSyncEventProvider.java:syncOperatorUser + reqdoc:用户邀请→激活→同步用户到 SSO、同步用户到 AMS 运营中台"
 ```
 
 ---END FILE---
 
----FILE: rules/compensation-tenant-context-all.md ---
+---FILE: rules/company_status_sync.md ---
 ---
 type: rule
-title: 补偿任务租户上下文全量查询
-page_key: rules/compensation-tenant-context-all
+title: 企业状态同步口径规则
+page_key: company_status_sync
 domain: 平台事件监听与同步
 status: draft
 aliases:
-  - dbTenantCode='all'
+  - 企业冻结/注销联动
+  - custStatusSync/userStatusSync
 oid: 1
 scope:
-  databases:
-    - unknown
+  databases: ["未确认"]
 sources:
-  - code:RegAsyncCompensationJobHandler.java:getCompensationRecords/processCompensationRecord
+  - code:CustCompanyInfoApplication.java:custStatusSync
+  - code:CustCompanyInfoApplication.java:userStatusSync
 contract_version: "0.1"
 ---
 
-租户上下文规则：补偿任务查询时设置 `dbTenantCode='all'` 全量扫描，处理单条时再按 `record.dbTenantCode` 还原租户上下文。
+企业状态变更映射到平台侧状态，并联动该企业下逐联系人（用户）状态同步。
 
 ## 需求背景
-补偿任务是后台任务，不承载具体请求的租户上下文；若按当前租户过滤，会漏扫其他租户沉积的失败记录。因此查询阶段放开租户过滤，处理阶段再切回记录自身的租户，保证重放时数据源指向正确。扫描口径见 [[calibers/build-compensation-pending-records]]。
+
+映射关系：FREEZE→`CustStatusEnum.FREEZE`、UNFREEZE→`EFFECT`、DISABLE→`WRITEOFF`；企业状态经 `clientCustStatusSyncService.call`，随后对每个联系人调用 `clientUserStatusSyncService.call`。这与建档状态机 [[cust_build_status]] 的审核通过与拒绝迁移是两条不同的状态维度，前者是经营状态、后者是建档进度，切勿混用。
 
 ## 版本演进
-- v0 契约：规则取自 `getCompensationRecords/processCompensationRecord`；「all」的取值约定属实现细节，未在语义分析中展开。
+
+- 企业级与用户级两次调用为串行结构，意味着用户同步失败会直接影响该企业的整体同步结果。
 
 ```ground:rule
-name: 补偿任务租户上下文全量查询
-content: "补偿任务查询时设置 dbTenantCode='all' 全量扫描，处理单条时再按 record.dbTenantCode 还原租户上下文"
-impact: 跨租户补偿记录可见性
-field_targets:
-  - cust_build_record.db_tenant_code
-evidence: "RegAsyncCompensationJobHandler.java:getCompensationRecords/processCompensationRecord"
-related_pages:
-  - tables/cust_build_record
-  - calibers/build-compensation-pending-records
+name: 企业状态同步口径
+content: FREEZE→CustStatusEnum.FREEZE；UNFREEZE→EFFECT；DISABLE→WRITEOFF，同时 clientCustStatusSyncService.call 与逐联系人 clientUserStatusSyncService.call
+impact: 企业状态变更联动用户冻结/解冻
+field_targets: []
+evidence: "code:CustCompanyInfoApplication.java:custStatusSync/userStatusSync"
 ```
 
 ---END FILE---
 
----FILE: rules/sync-exception-retain-context.md ---
+---FILE: rules/simple_auth_no_ca.md ---
 ---
 type: rule
-title: 同步异常保留上下文不吞
-page_key: rules/sync-exception-retain-context
+title: 简易认证不支持开通电子签章规则
+page_key: simple_auth_no_ca
 domain: 平台事件监听与同步
 status: draft
 aliases:
-  - custClientSyncService.error
+  - enforceMustNotOpenCa
+  - 简易认证 CA 校正
 oid: 1
 scope:
-  databases:
-    - unknown
+  databases: ["未确认"]
 sources:
+  - code:CustCompanyInfoApplication.java:submitForSimpleAuth
+contract_version: "0.1"
+---
+
+简易认证路径提交时，即使入参 `need_register_ca=Y`，也会被强制校正为不开通并落库。
+
+## 需求背景
+
+由 `CustCompanyCaPolicy.enforceMustNotOpenCa` 执行校正，字段落点为 [[cust_company_info]].`need_register_ca` 与 `ca_register_status`。业务意图是阻断简易认证走电子签章开通流程。该分支与建档状态机的 `AWAIT_CUST_CONFIRM` 状态配套，见 [[cust_build_status]]。
+
+## 版本演进
+
+- 校正发生在提交时而非登记时，失败重试路径（[[compensation_fail_type]]）是否会再次校正需结合重放上下文判断。
+
+```ground:rule
+name: 简易认证不支持开通电子签章
+content: 简易认证提交时若 needRegisterCa=Y，强制校正为不开通并落库（CustCompanyCaPolicy.enforceMustNotOpenCa）
+impact: 阻断简易认证走 CA 开通
+field_targets:
+  - cust_company_info.need_register_ca
+  - cust_company_info.ca_register_status
+evidence: "code:CustCompanyInfoApplication.java:submitForSimpleAuth"
+```
+
+---END FILE---
+
+---FILE: rules/cust_sync_by_role.md ---
+---
+type: rule
+title: 客户同步按角色维度规则
+page_key: cust_sync_by_role
+domain: 平台事件监听与同步
+status: draft
+aliases:
+  - syncByRoleOn
+  - 按角色同步广播
+oid: 1
+scope:
+  databases: ["未确认"]
+sources:
+  - code:CustSyncService.java:getRoles
   - code:CustSyncService.java:syncByRole
-  - db:client_api_sync_error
-  - "reqdoc:失败数据写入 ClientApiSyncErrorDO，调用异常 → error(...) → 落库"
 contract_version: "0.1"
 ---
 
-异常处理规则：同步失败经 `custClientSyncService.error(e, rpcSync)` 落库 [[tables/client_api_sync_error]] 后抛出，保留上下文用于后续重放与排查。
+同步广播的范围由 `syncByRoleOn` 决定：为 true 时同步企业全部角色，为 false 时只同步指定 `companyType` 对应的角色。
 
 ## 需求背景
-同步失败若被静默吞掉，上游无法感知、下游无法重放。落库保留 `service_class_name` 与 `param`（入参原文）使失败可追溯、可重放；「失败数据写入 ClientApiSyncErrorDO，调用异常 → error(...) → 落库」这一文档主张已在代码层证实（`CustSyncService.java:syncByRole`），双源锚点见 frontmatter sources。
+
+每次同步前先 `MetaDataThreadLocalConfig.setDbTenantCode(dbTenantCode)` 切换租户上下文，见 [[db_tenant_code]]。角色维度的差异会直接影响经办人/管理员同步的分支走向，见 [[operator_sync_branch]]。
 
 ## 版本演进
-- v0 契约：规则取自 `CustSyncService.syncByRole`；失败记录后续如何被重放，见 [[tables/client_api_sync_error]] 的 ## 版本演进（含未证实主张）。
+
+- 租户上下文以 ThreadLocal 设置，若同一线程连续处理多租户批次，遗漏重置会串数据。
 
 ```ground:rule
-name: 同步异常保留上下文不吞
-content: "同步失败经 custClientSyncService.error(e, rpcSync) 落库 client_api_sync_error 后抛出，用于后续重放与排查"
-impact: 同步失败可追溯、可重试
-field_targets:
-  - client_api_sync_error.service_class_name
-  - client_api_sync_error.param
-evidence: "CustSyncService.java:syncByRole + reqdoc:失败数据写入ClientApiSyncErrorDO，调用异常 → error(...) → 落库"
-related_pages:
-  - tables/client_api_sync_error
-  - concepts/sync-error-record
-  - calibers/client-sync-error-all-disabled
+name: 客户同步按角色维度
+content: syncByRoleOn=true 时按企业全部角色同步，false 时仅同步指定 companyType 对应角色；每次同步先 MetaDataThreadLocalConfig.setDbTenantCode(dbTenantCode)
+impact: 决定同步广播范围
+field_targets: []
+evidence: "code:CustSyncService.java:getRoles/syncByRole"
 ```
 
 ---END FILE---
+
+---REVIEW: table | 物理库名未确认---
+本次语义分析未给出任何表的物理库名，所有 table 页 frontmatter 的 `scope.databases` 暂填 `"未确认"`。待补：各表所属物理库（疑似按租户分库或单一客户域库），以及分库路由依据（`db_tenant_code` 是否参与库路由）。
+---END REVIEW---
+
+---REVIEW: concept | 启用标识---
+`EnableEnum` 的落库写法在同一文件内不一致：[[cust_person_info]] 侧有 `EnableEnum.N.name()`（enum_audit 判定 confirm）与字面量 `'Y'` 直写（enum_audit 判定 reject，证据 `CustSyncEventProvider.java:doPushAfterCommit(.enable("Y"))`）并存；`sys_cust_user_rel.is_freeze` 又使用 `getDictKey()`。已按「写值点 + DB」为准记录：枚举页与表页保留各写值点的真实写法，未强行统一。待确认：字面量 `'Y'` 是历史遗留还是有意为之，以及是否有 `EnableEnum.Y.getDictKey()` 与 `'Y'` 取值是否等价（dictKey 是否即 'Y'）。
+---END REVIEW---
+
+---REVIEW: concept | 关系（relation_audit）---
+语义分析中的 `relation_audit` 在 `{"left":"PlatProductEventListener","right":"IPlatListener","kind":"extends",...}` 处被截断（证据文本止于 `public interface PlatP`），无法确认 `PlatProductEventListener` 与 `IPlatListener` 的继承/实现关系及影响范围，故本次未产出任何关系类页面。待补完整证据后再补 [[cust_event_check_status]] 的上游监听器拓扑。
+---END REVIEW---

@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 平台运营方唯一口径
-page_key: calibers/platform_operator_unique
+page_key: platform_operator_unique
 domain: 企业画像
 status: draft
 aliases:
@@ -14,6 +14,7 @@ scope:
 sources:
   - code:CustCompanyIfoEnchanceService.java
 contract_version: "0.1"
+belong: calibers
 ---
 
 # 平台运营方唯一口径

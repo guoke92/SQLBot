@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 待支付订单
-page_key: calibers/pending_order
+page_key: pending_order
 domain: CA证书收费
 status: draft
 aliases: [PENDING 订单, order_status=PENDING]
@@ -11,6 +11,7 @@ scope:
 sources:
   - db:ca_fee_order
 contract_version: "0.1"
+belong: calibers
 ---
 
 # 待支付订单

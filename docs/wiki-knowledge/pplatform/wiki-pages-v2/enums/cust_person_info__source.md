@@ -9,10 +9,22 @@ oid: 1
 scope:
   databases: [lowcode_pplatform]
 sources: ["code:extract-enums.yaml", "db:db-profile.yaml"]
-created: '2026-09-10'
-updated: '2026-09-10'
+created: '2026-09-14'
+updated: '2026-09-14'
 contract_version: "0.1"
+belong: enums
 ---
+
+
+
+
+
+
+
+
+
+
+
 
 # source
 
@@ -22,9 +34,9 @@ contract_version: "0.1"
 enum: cust_person_info__source
 fields: [cust_person_info.source]
 values:
-  AMS:
-    label: 管理员
-  longteng:
+  "AMS":
+    label: "管理员"
+  "longteng":
     label: "longteng"
-    note: db 分布存在但代码枚举未声明（REVIEW）
+    note: "db 分布存在但代码枚举未声明（REVIEW）"
 ```

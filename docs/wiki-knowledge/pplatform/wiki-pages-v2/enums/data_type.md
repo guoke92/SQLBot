@@ -9,10 +9,22 @@ oid: 1
 scope:
   databases: [lowcode_pplatform]
 sources: ["code:extract-enums.yaml", "db:db-profile.yaml"]
-created: '2026-09-10'
-updated: '2026-09-10'
+created: '2026-09-14'
+updated: '2026-09-14'
 contract_version: "0.1"
+belong: enums
 ---
+
+
+
+
+
+
+
+
+
+
+
 
 # data_type
 
@@ -22,10 +34,13 @@ contract_version: "0.1"
 enum: data_type
 fields: [cust_company_info.data_type]
 values:
-  1:
-    label: 主数据
-  0:
-    label: 流程数据
-  2:
-    label: 编辑过程
+  "1":
+    label: "主数据"
+    java_name: "DATA_TYPE_MAIN"
+  "0":
+    label: "流程数据"
+    java_name: "DATA_TYPE_APPLY"
+  "2":
+    label: "编辑过程"
+    java_name: "DATA_TYPE_RECORD"
 ```

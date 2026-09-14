@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 启用的 SFTP 渠道口径
-page_key: calibers/enabled-sftp-channel
+page_key: enabled-sftp-channel
 domain: SFTP渠道对接
 status: draft
 aliases: [启用渠道, cust_sftp.enable=Y]
@@ -11,6 +11,7 @@ scope:
 sources:
   - db
 contract_version: "0.1"
+belong: calibers
 ---
 
 启用的 SFTP 渠道指当前可参与文件交互的渠道配置，判定条件为 `cust_sftp.enable = 'Y'`，作用域为 SFTP 渠道配置表（[[tables/cust_sftp]]）。

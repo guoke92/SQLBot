@@ -1,7 +1,7 @@
 ---
 type: rule
 title: SPECIFIED 权限必须填写 org_id_list
-page_key: rule.specified_requires_org_id_list
+page_key: specified_requires_org_id_list
 domain: 数据权限与组织
 status: draft
 aliases: [SPECIFIED 必填组织]
@@ -10,6 +10,7 @@ scope:
   databases: [base]
 sources: [code]
 contract_version: "0.1"
+belong: rules
 ---
 
 把 [[tables/sys_cust_org_user_permission]].permission_type 保存为 SPECIFIED 时，org_id_list 必填；而 SAME_AS_USER_ORG 不需要填，其组织范围由用户组织绑定回填。组织ID的取值域见 [[concepts/org_identity_bridge]]，状态流转见 [[processes/data_permission_type_fsm]]。

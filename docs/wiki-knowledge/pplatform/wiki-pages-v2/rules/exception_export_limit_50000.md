@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 异常解析-导出上限50000
-page_key: rules/exception_export_limit_50000
+page_key: exception_export_limit_50000
 domain: funding
 status: draft
 aliases:
@@ -14,6 +14,7 @@ scope:
 sources:
   - "code:ExceptionResolutionApplication#exportRecords"
 contract_version: "0.1"
+belong: rules
 ---
 
 # 异常解析-导出上限50000

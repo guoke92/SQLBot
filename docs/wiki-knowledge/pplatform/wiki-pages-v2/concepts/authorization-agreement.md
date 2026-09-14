@@ -1,7 +1,7 @@
 ---
 type: concept
 title: 授权书
-page_key: concept.authorization_agreement
+page_key: authorization-agreement
 domain: 授权协议与电子授权
 status: draft
 aliases:
@@ -26,6 +26,7 @@ also_confused_with:
   - 线下电子授权书（OfflineElectronicAuth 协议文件）
   - 平台协议文本（用户协议/隐私政策）
 boundary: "authorization_agreement 是「谁授过权」的关系记录；线下电子授权书是「授权书这一份文件」的生成与签章，二者通过 cust_id 关联但生命周期不同"
+belong: concepts
 ---
 
 「授权书」在业务对话中指关系事实而非文件：它回答「某管理员是否已代表某企业完成授权」，落在 [[tables/authorization_agreement]]，以 `authed_status='Y'` 表达已授权，判定口径见 [[calibers/platform-level-authed]]，状态流转见 [[processes/authorization-agreement-authed-status]]。

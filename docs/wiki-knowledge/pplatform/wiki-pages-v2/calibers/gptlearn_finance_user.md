@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 智能审核引流-金融机构用户口径
-page_key: calibers/gptlearn_finance_user
+page_key: gptlearn_finance_user
 domain: GP学习
 status: draft
 aliases:
@@ -14,6 +14,7 @@ scope:
 sources:
   - code:GptLearnService.java
 contract_version: "0.1"
+belong: calibers
 ---
 
 # 智能审核引流-金融机构用户口径

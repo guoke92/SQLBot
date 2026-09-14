@@ -1,0 +1,6 @@
+body: '语义分析未给出物理库名，`scope.databases` 暂以占位 `<待确认>` 承载；所有 `ground:table` 的 `type` 值（varchar/text/datetime/int）系依据值语义推断（编码/编号=VARCHAR，JSON
+  报文=TEXT，计数=INT），**非数据库实测**，需以 DDL 回填。
+
+  另：物理表名拼写为 `tenant_migarory_log`（migarory），疑为历史拼写错误，已按物理名逐字落页，勿在检索时自动纠正为 migratory。'
+title: tenant_migarory_log（物理库名与列类型待确认）
+type: table

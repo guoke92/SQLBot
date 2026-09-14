@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: "回调消息幂等去重"
-page_key: "calibers/callback_msg_idempotent"
+page_key: callback_msg_idempotent
 domain: "customer-onboarding"
 status: draft
 aliases:
@@ -12,6 +12,7 @@ scope:
 sources:
   - "code_path:CustStatusCommitProcessor.java:isMsgNotify"
 contract_version: "0.1"
+belong: calibers
 ---
 
 运营中台回调可能重入，为避免同一审核结论重复发短信/站内信，发送前按「状态相同且已发送」判定跳过。该口径依赖 [[tables/cust_change_record]] 的 `msg_send` 标记，配合消息发送的弱失败策略见 [[rules/message_send_weak_failure_dedup]]。

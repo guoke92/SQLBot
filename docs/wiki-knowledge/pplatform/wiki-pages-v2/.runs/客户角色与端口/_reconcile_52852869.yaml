@@ -1,15 +1,2 @@
-- anchor: table:platform_product_cust_role
-  code: FIELD_MALFORMED
-  message: 'platform_product_cust_role: 字段行非映射 company_type_code'
-- anchor: table:platform_product_cust_role
-  code: FIELD_MALFORMED
-  message: 'platform_product_cust_role: 字段行非映射 company_type_name'
-- anchor: table:platform_product_cust_role
-  code: FIELD_MALFORMED
-  message: 'platform_product_cust_role: 字段行非映射 product_code'
-- anchor: table:platform_product_cust_role
-  code: FIELD_MALFORMED
-  message: 'platform_product_cust_role: 字段行非映射 name'
-- anchor: table:platform_product_cust_role
-  code: FIELD_MALFORMED
-  message: 'platform_product_cust_role: 字段行非映射 enable'
+- code: PAGE_CONTRACT_FAILED
+  message: frontmatter not closed (missing '\n---\n')

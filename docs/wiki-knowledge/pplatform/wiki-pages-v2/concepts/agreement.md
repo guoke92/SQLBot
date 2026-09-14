@@ -1,7 +1,7 @@
 ---
 type: concept
 title: 协议
-page_key: concept.agreement
+page_key: agreement
 domain: 授权协议与电子授权
 status: draft
 aliases:
@@ -27,6 +27,7 @@ adjudication: boundary
 also_confused_with:
   - 授权书
 boundary: "协议是文本文件与签署事实（含 sign_mode、agreement_path、agreement_no）；授权书是管理员授权状态记录，不含文件落库"
+belong: concepts
 ---
 
 「协议」指客户与平台/机构之间签署的文本及其签署事实：类型由 `AgreementDocType` 给出（`BS_Auth`/`CFCA_Auth`/产品协议/`CustPersonLicense`/`UserProtocol`/`PrivacyPolicy`），迁移记录落在 [[tables/argeement_migratory_record]]，文件路径与编号由 `agreement_path`/`agreement_no` 承载，清单见 [[calibers/migratory_init_five_agreements]]，签署方式取值见 [[processes/agreement_sign_mode]]。

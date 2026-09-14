@@ -1,7 +1,7 @@
 ---
 type: concept
 title: 平台运营方
-page_key: concept.platform_operator
+page_key: platform_operator
 domain: 租户配置
 status: draft
 aliases:
@@ -21,6 +21,7 @@ field_targets:
 adjudication: boundary
 also_confused_with: []
 sources: ["enrich:wiki-admin"]
+belong: concepts
 ---
 
 `platform_operator` 以 JSON 数组存储，元素取值 `platform` / `tenant`，可组合。它的判定是「包含」而非「等于」：仅当数组含 `platform` 时才要求运营方企业存在，见 [[calibers/platform_operator_configured]]。因此「配置了平台运营方」与「需要校验运营方企业」不是等价条件。

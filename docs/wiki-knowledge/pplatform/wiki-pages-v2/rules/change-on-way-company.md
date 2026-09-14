@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 变更在途判定（企业维度）
-page_key: rule.change-on-way-company
+page_key: change-on-way-company
 domain: 企业变更与运营变更
 status: draft
 aliases: [在途变更规则, changeHasBusiOnWay]
@@ -11,6 +11,7 @@ scope:
 sources:
   - code_path:CustChangeApplication.java:changeHasBusiOnWay
 contract_version: "0.1"
+belong: rules
 ---
 
 企业 [[tables.cust_company_info]] 的 `cust_status='CHANGE'` 即视为存在在途变更业务，`changeHasBusiOnWay` 返回 true。该判定决定变更入口是否可用以及页面跳转是否走运营中台变更待办页，口径见 [[calibers.company-change-on-way]]，状态来源见 [[processes.cust-company-info-status]]。

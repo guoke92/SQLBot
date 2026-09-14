@@ -1,7 +1,7 @@
 ---
 type: concept
 title: 账户类型（account_type）
-page_key: concepts/account-type
+page_key: account-type
 domain: 企业银行账户
 status: draft
 aliases: [account_type, BANK, OPERATION_FEE_ACCOUNT]
@@ -18,6 +18,7 @@ adjudication: boundary
 also_confused_with:
   - "'1'、'received' 等脏值"
 boundary: DB 默认值 BANK；OPERATION_FEE_ACCOUNT 为代码中未声明的真实类型，另存在 '1'/'received' 低量异常值，统计口径需排除或归并。
+belong: concepts
 ---
 
 账户类型用于区分账户用途，落库字段为 `cust_account_info.account_type`（见 [[tables/cust_account_info]]），DB 默认值为 BANK。

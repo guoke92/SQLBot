@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 多项目豁免规则
-page_key: rules/multi_project_exemption_rule
+page_key: multi_project_exemption_rule
 domain: CA证书收费
 status: draft
 aliases: [shouldPassByEvaluate, 多项目放行规则]
@@ -11,6 +11,7 @@ scope:
 sources:
   - code:CaFeePaymentCheckApplication.java:shouldPassByEvaluate
 contract_version: "0.1"
+belong: rules
 ---
 
 # 多项目豁免规则

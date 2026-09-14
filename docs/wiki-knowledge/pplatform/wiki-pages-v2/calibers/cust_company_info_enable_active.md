@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 企业有效口径
-page_key: calibers/cust_company_info_enable_active
+page_key: cust_company_info_enable_active
 domain: 外部渠道与银行对接
 status: draft
 aliases:
@@ -16,6 +16,7 @@ sources:
   - code:CustAccessApplication#batchQuery
   - code:CustAccessApplication#changeCompanyInfo
 contract_version: "0.1"
+belong: calibers
 ---
 
 # 企业有效口径

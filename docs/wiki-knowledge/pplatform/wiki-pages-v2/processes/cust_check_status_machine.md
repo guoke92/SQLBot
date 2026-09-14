@@ -1,7 +1,7 @@
 ---
 type: process
 title: 客户审核状态机
-page_key: processes/cust_check_status_machine
+page_key: cust_check_status_machine
 domain: 外部渠道与银行对接
 status: draft
 aliases:
@@ -17,6 +17,7 @@ sources:
   - code:CustAccessApplication#terminateBuildingFlow
   - code:CustAccessApplication#terminateChangingFlow
 contract_version: "0.1"
+belong: processes
 ---
 
 # 客户审核状态机

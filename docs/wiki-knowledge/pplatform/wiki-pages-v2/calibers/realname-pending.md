@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 待实名认证
-page_key: caliber.realname_pending
+page_key: realname-pending
 domain: 客户联系人管理
 status: draft
 aliases:
@@ -12,6 +12,7 @@ scope:
 sources:
   - "code:CustPersonController.getVerifyResult"
 contract_version: "0.1"
+belong: calibers
 ---
 
 待实名认证口径为 [[tables/cust_person_info]] 的 `phone_realname_status = 'TO_BE_VERIFIED'`。

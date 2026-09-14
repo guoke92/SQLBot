@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 小程序 accessToken 缓存与重试
-page_key: rule/miniprogram_access_token_cache
+page_key: miniprogram_access_token_cache
 domain: 微信生态/小程序/扫脸
 status: draft
 aliases: [accessToken缓存, token重试]
@@ -11,6 +11,7 @@ scope:
 sources:
   - code:MiniProgramController.java
 contract_version: "0.1"
+belong: rules
 ---
 
 # 小程序 accessToken 缓存与重试

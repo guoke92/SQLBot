@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 项目运营文件分页查询规则
-page_key: rules/project-file-page-query
+page_key: project-file-page-query
 domain: 文件/附件/媒体
 status: draft
 aliases: [项目运营文件列表口径, buildQueryWrapper 规则, 项目文件检索口径]
@@ -11,6 +11,7 @@ scope:
 sources:
   - code_path:ProjectFileController.java:buildQueryWrapper
 contract_version: "0.1"
+belong: rules
 ---
 
 # 项目运营文件分页查询规则

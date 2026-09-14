@@ -11,6 +11,7 @@ scope:
 sources:
   - "code: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustAccessApplication.java:validateSetValue"
 contract_version: "0.1"
+belong: calibers
 ---
 
 「企业重复建档排除条件」是重复建档校验的取数口径：判定“已存在企业”时，只统计 `cust_company_info.cust_build_status != 'BUILD_FAIL'` 的记录。也就是说，处于建档失败态的企业不算作“已建档”，允许重新发起。

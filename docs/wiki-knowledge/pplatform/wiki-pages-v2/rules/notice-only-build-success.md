@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 新增子级仅认证成功才发待办
-page_key: rules/notice-only-build-success
+page_key: notice-only-build-success
 domain: 企业集团关系
 status: draft
 aliases: [待办发送范围, sendCustGroupRelNotice]
@@ -12,6 +12,7 @@ sources:
   - code_path:CustGroupRelApplication.java:addExistSubCustGroupRel
   - code_path:CustGroupRelApplication.java:processChildCompany
 contract_version: "0.1"
+belong: rules
 ---
 
 待办发送范围规则：仅对建档成功（BUILD_SUCCESS）的企业发送集团关系待办，导入场景同理。前置口径见 [[calibers/company-build-success]]，状态语义见 [[processes/cust-group-rel-status-state]]。

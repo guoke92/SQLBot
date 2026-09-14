@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 资方规则-新增初始PENDING
-page_key: rules/rule_info_create_initial_pending
+page_key: rule_info_create_initial_pending
 domain: funding
 status: draft
 aliases:
@@ -14,6 +14,7 @@ scope:
 sources:
   - "code:FundRuleInfoApplication#saveRuleInfo"
 contract_version: "0.1"
+belong: rules
 ---
 
 # 资方规则-新增初始PENDING

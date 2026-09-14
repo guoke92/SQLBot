@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 客户端同步失败记录（全部停用态）
-page_key: calibers/client-sync-error-all-disabled
+page_key: client-sync-error-all-disabled
 domain: 平台事件监听与同步
 status: draft
 aliases:
@@ -13,6 +13,7 @@ scope:
 sources:
   - db:client_api_sync_error
 contract_version: "0.1"
+belong: calibers
 ---
 
 该口径用于识别 [[tables/client_api_sync_error]] 中的失败记录集合：同步失败记录落库后均为停用态，因此按 `enable='N'` 取数即可覆盖全部失败留痕，无需额外状态过滤。

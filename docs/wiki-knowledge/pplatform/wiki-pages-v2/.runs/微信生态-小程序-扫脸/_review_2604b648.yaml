@@ -1,0 +1,4 @@
+body: 语义分析仅给出术语桥，未给出 `tenant_project_approval_flow` 的字段清单与 DDL 证据，本页只登记术语映射与边界；`WechatContactFacade.existsUser`
+  的具体类路径待补证后写入 sources。
+title: 企微人员
+type: concept

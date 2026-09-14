@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 有效企业
-page_key: calibers/enabled_company
+page_key: enabled_company
 domain: CA证书收费
 status: draft
 aliases: [enable=Y, 逻辑有效企业]
@@ -11,6 +11,7 @@ scope:
 sources:
   - db:ca_fee_company
 contract_version: "0.1"
+belong: calibers
 ---
 
 # 有效企业

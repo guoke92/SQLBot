@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 数据权限按用户+企业+角色三维唯一
-page_key: rule.data_permission_triple_unique
+page_key: data_permission_triple_unique
 domain: 数据权限与组织
 status: draft
 aliases: [数据权限唯一三维]
@@ -10,6 +10,7 @@ scope:
   databases: [base]
 sources: [code]
 contract_version: "0.1"
+belong: rules
 ---
 
 落到 [[tables/sys_cust_org_user_permission]] 的每一条权限记录，主体是 user_id + company_id + company_type 三元组。同一用户在不同企业、或同一企业不同角色下的权限互不影响，删除/更新权限必须三键齐备，只按 user_id 操作会跨企业串权。语义模型见 [[concepts/data_permission_triple]]。

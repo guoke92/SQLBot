@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 企业可发起变更
-page_key: caliber.company-change-enable
+page_key: company-change-enable
 domain: 企业变更与运营变更
 status: draft
 aliases: [变更入口可用性, changeEnable]
@@ -11,6 +11,7 @@ scope:
 sources:
   - code_path:CustChangeApplication.java:changeEnable
 contract_version: "0.1"
+belong: calibers
 ---
 
 「企业可发起变更」是变更入口的可用性口径：企业准入审核状态不等于 `CUST_CHECK_CHECKING` 时才允许发起变更。字段语义见 [[tables.cust_company_info]]，与变更单状态 [[concepts.change-status]] 的边界见该概念页；落地规则见 [[rules.change-application-admission]]。

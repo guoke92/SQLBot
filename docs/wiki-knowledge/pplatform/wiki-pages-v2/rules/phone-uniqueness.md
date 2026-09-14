@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 手机号唯一性
-page_key: rule.phone_uniqueness
+page_key: phone-uniqueness
 domain: 客户联系人管理
 status: draft
 aliases:
@@ -12,6 +12,7 @@ scope:
 sources:
   - "code:CustPersonApplication.checkBeforeSave"
 contract_version: "0.1"
+belong: rules
 ---
 
 同一企业下手机号不能重复：新增或编辑联系人时，系统校验该手机号是否已被本企业其他联系人使用。

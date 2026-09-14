@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 渠道-租户映射口径
-page_key: calibers/channel_tenant_mapping
+page_key: channel_tenant_mapping
 domain: 外部渠道与银行对接
 status: draft
 aliases:
@@ -17,6 +17,7 @@ sources:
   - code:CustAccessApplication#getDbTenantCode
   - code:CustAccessApplication#validateChangeChannelAndTenant
 contract_version: "0.1"
+belong: calibers
 ---
 
 # 渠道-租户映射口径

@@ -1,0 +1,5 @@
+body: 全部页面 frontmatter 的 `scope.databases` 暂记为 `unknown`：语义分析只给出 `db_tenant_code`
+  取值（`all` / `LN1` / `beehive-scf.qhhrly.cn`）与模块名（如 `pplatform-apaas-service`），未给出物理库名。`beehive-scf.qhhrly.cn`
+  是租户标识而非库名，未据此回填。
+title: 物理库名未在语义分析中给出
+type: table

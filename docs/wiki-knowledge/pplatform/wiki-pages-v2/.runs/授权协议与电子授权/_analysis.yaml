@@ -1,515 +1,652 @@
 field_semantics:
-- table: argeement_migratory_record
-  field: status
-  meaning: 协议迁移拉取状态：'0'（BooleanEnum.no）=待拉取/未处理；'1'（BooleanEnum.yes）=拉取流程已结束（客户端返回了协议，或确认客户端无该协议后置终态，置
-    1 后不再进入待拉取队列）
-  evidence: db
-- table: argeement_migratory_record
-  field: pull_num
-  meaning: 已拉取尝试次数；pull() 只捞 pull_num < 配置值（cust.agreemeent.pull.num，默认 20）的记录，失败时
-    +1
-  evidence: code
-- table: argeement_migratory_record
-  field: is_new
-  meaning: 是否新数据：'yes'/'no'（BooleanEnum.name()）；迁移初始化写 isNew，用于区分新老渠道协议
-  evidence: db
-- table: argeement_migratory_record
-  field: sign_mode
-  meaning: 协议签署模式，语义对应 SignModeEnum 三态（NO_SIGN / OFF_LINE / ON_LINE）；DB 实存 '01' /
-    '02' / '03'，代码未给出数值与枚举的显式映射
-  evidence: db
-- table: argeement_migratory_record
-  field: agreement_type
-  meaning: 协议类型 key（AgreementDocType.getAgreementType()）：BS_Auth（AMS 上上签）/CFCA_Auth/ProductProtocol*/CustPersonLicense/UserProtocol/PrivacyPolicy
-  evidence: db
-- table: argeement_migratory_record
-  field: agreement_path
-  meaning: 协议文件在对象存储（COS，FBP_SYSTEM 桶）的存储路径；为空表示未取到文件，createContractInfo 会过滤掉
-  evidence: code
-- table: argeement_migratory_record
-  field: agreement_no
-  meaning: 协议编号（客户端 contractAgreementNo），agreementExist 用它做合同表判重，避免重复迁移
-  evidence: code
-- table: argeement_migratory_record
-  field: platform_product_code
-  meaning: 产品编码（AMS/ACFLOW/BEECREDIT/ORDER/RVSFACTOR_PC/STORAGE/VOUCHER），决定拉取哪一产品的协议及产品协议类型映射
-  evidence: db
 - table: authorization_agreement
   field: authed_status
-  meaning: 授权书认证状态：'Y'=已授权，'N'=未授权；DDL 默认 '0'，实测仅 N/Y 两值。平台级（platform_product_code='PLATFORM'）为
-    Y 即视为企业已完成授权
+  meaning: 授权确认书认证状态：Y=已授权，N=未授权/已禁用；DB 分布 Y=11617 / N=19547
   evidence: db
 - table: authorization_agreement
   field: platform_product_code
-  meaning: 授权所属产品编码；'PLATFORM' 为平台级授权书（代码常量 PLATFORM_PRODUCT_TYPE），其余为具体业务产品（ACFLOW/AMS/ORDER/RVSFACTOR_PC…）的存量授权
-  evidence: db
-- table: authorization_agreement
-  field: creation_type
-  meaning: 授权书产生场景/创建类型。DB 实测 AUTO、COMPANY_MANAGER_CHANGE_CODE、CUST_BUILD_INIT；代码在管理员变更场景写入
-    AuthAgreementCreationTypeEnum.CHANGE_COMPANY_MANAGER.getDictKey()，建档场景写 CUST_BUILD_INIT
-  evidence: db
-- table: authorization_agreement
-  field: enable
-  meaning: 记录有效标志；企业管理员发生变更时，原管理员的全部授权记录被置为 'N' 并同时把 authed_status 置 N
-  evidence: db
-- table: authorization_agreement
-  field: cust_manager_id
-  meaning: 企业管理员用户 id（sys/SSO userId）；授权按人（userid）维度判定，同人多企业角色只需一份平台级授权
-  evidence: code
-- table: authorization_agreement
-  field: cust_id
-  meaning: 产融侧企业 id（cust_company_info.id）
+  meaning: 授权书归属平台产品编码；PLATFORM=产融平台级管理员授权书（代码常量 PLATFORM_PRODUCT_TYPE），其余为业务线产品码（ACFLOW/AMS/ORDER/RVSFACTOR_PC/...）
   evidence: code
 - table: authorization_agreement
   field: company_type
-  meaning: 企业角色，一般单值（SUPPLIER/CORE/FINANCE/PROJECT_COMPANY…）；DB 存在 '["CORE"]' 这类 JSON
-    数组形态异常值
+  meaning: 企业角色（CustCompanyTypeEnum.getDictKey()，如 SUPPLIER/CORE/FINANCE/PROJECT_COMPANY）；DB
+    中另存有 JSON 数组与拼写异常值
   evidence: db
+- table: authorization_agreement
+  field: creation_type
+  meaning: 授权书创建类型：CUST_BUILD_INIT=建档初始化自动授权，AUTO=自动，COMPANY_MANAGER_CHANGE_CODE=管理员变更
+  evidence: db
+- table: authorization_agreement
+  field: cust_id
+  meaning: 企业ID，指向 cust_company_info.id（逻辑外键，非物理 FK）
+  evidence: code
+- table: authorization_agreement
+  field: cust_manager_id
+  meaning: 签署/被授权企业管理员用户ID（对应 cust_person_info.user_id / sys 用户）
+  evidence: code
+- table: authorization_agreement
+  field: enable
+  meaning: 逻辑启用标识，Y/N；管理员变更时原记录置 N
+  evidence: code
 - table: authorization_agreement
   field: original_cust_id
-  meaning: 源系统 custId，仅存量迁移产生的授权记录有值
+  meaning: 源系统 custId（迁移来源企业标识）
   evidence: db
-- table: authorization_agreement
-  field: act_procinst_id
-  meaning: 流程实例 ID；简易认证无流程实例，createAuthorizationAgreement 遇到空 actProcinstId 直接返回不落表
+- table: argeement_migratory_record
+  field: agreement_type
+  meaning: 协议类型（AgreementDocType.getAgreementType()）：PrivacyPolicy/UserProtocol/CustPersonLicense/CFCA_Auth/BS_Auth/ProductProtocol*
+  evidence: code
+- table: argeement_migratory_record
+  field: status
+  meaning: 协议拉取状态：0=待拉取（BooleanEnum.no），1=已拉取完成（BooleanEnum.yes）；列为 int 但存字符串数字
+  evidence: code
+- table: argeement_migratory_record
+  field: sign_mode
+  meaning: 协议签署模式：01=线上，02=线下，03=无需签署（SignModeEnum.getDictKey()）
+  evidence: code
+- table: argeement_migratory_record
+  field: is_new
+  meaning: 是否新数据，存 BooleanEnum 的 java name（yes/no）而非 dictKey
+  evidence: code
+- table: argeement_migratory_record
+  field: pull_num
+  meaning: 拉取次数，用于失败重试上限（pull_num < 配置的 pullNum）
+  evidence: code
+- table: argeement_migratory_record
+  field: agreement_path
+  meaning: 协议文件在 COS 上的存储路径（协议实体文件）
+  evidence: code
+- table: argeement_migratory_record
+  field: cust_id
+  meaning: 产融客户ID，指向 cust_company_info.id（逻辑外键）
   evidence: code
 - table: cust_company_info
   field: need_register_ca
-  meaning: 是否需要开通电子签章（CFCA）：'Y'=需开通；与 ca_register_status 一起构成 isCaRegistered 判定
+  meaning: 是否需要开通电子签章(CFCA)，Y/N
   evidence: code
 - table: cust_company_info
   field: ca_register_status
-  meaning: CFCA 开通状态：'Y'=已开通；线下电子授权书签署的前置条件（若正在重开 CA，则等开通成功后链式触发签署）
+  meaning: CFCA 开通状态（OpenStatus，Y/N）；仅 need_register_ca=Y 且本字段=Y 才算已开通
   evidence: code
 - table: cust_company_info
   field: need_register_bs
-  meaning: 是否需要开通上上签（BestSign）：AMS 产品走 BS 通道，setSignRegister 中 AMS 会把 needRegisterBs
-    置 'Y'
+  meaning: 是否需要开通上上签(BEST_SIGN)，Y/N；AMS 产品签章通道
   evidence: code
 - table: cust_company_info
   field: bs_register_status
-  meaning: 上上签开通状态：'Y'=已开通；AMS 产品线幂等判断依据
-  evidence: code
-- table: cust_company_info
-  field: cust_source
-  meaning: 建档数据来源（CustSourceEnum）：PLATFORM_PUSH=外部平台推送（免补签授权书）、MIGRATORY=存量迁移等
-  evidence: code
-- table: cust_company_info
-  field: migarory_auth_aggrement_flag
-  meaning: 迁移到授权书新渠道标识：存量迁移走新渠道时置 'Y'
+  meaning: 上上签开通状态 Y/N；迁移开通时与 ca_register_status 同时置 Y
   evidence: code
 - table: cust_company_info
   field: auth_aggrement_supplement_flag
-  meaning: 是否需展示/允许授权书补签：旧渠道迁移置 'Y'（需补签），新渠道置 'N'（不需补签）；updateAuthAggrementFlag 可人工翻转
+  meaning: 是否展示/开启授权书补签：Y=需补签；迁移新渠道企业置 N
+  evidence: code
+- table: cust_company_info
+  field: migarory_auth_aggrement_flag
+  meaning: 迁移到授权书新渠道标识（Y/N，注意字段名拼写为 migarory）
+  evidence: code
+- table: cust_company_info
+  field: cust_source
+  meaning: 建档数据来源：PLATFORM_PUSH=外部平台推送（无需授权书）、MIGRATORY=存量迁移、其他为产融自建
   evidence: code
 - table: cust_company_info
   field: identify_style
-  meaning: 认证方式（IdentifyTypeConstant）：INVITE=邀请认证客户录入、INVITE_AGW=邀请认证平台录入、SELF=自主注册、SIMPLE=简易认证
+  meaning: 认证方式：INVITE=邀请客户录入、INVITE_AGW=邀请平台录入、SELF=自主注册、SIMPLE=简易认证
   evidence: code
 - table: cust_company_info
   field: cust_build_status
-  meaning: 建档/认证状态（CustBuildStatusEnum）：INIT/CUST_CONFIRM_AWAIT/CUST_BUILDING/BUILD_SUCCESS/BUILD_FAIL
-    等
-  evidence: code
-- table: cust_company_info
-  field: check_status
-  meaning: 审核（运营中台）状态：'CUST_CHECK_PASS'=审核通过，是电子授权书签署编排的硬条件之一
-  evidence: code
-- table: cust_company_info
-  field: sign_mode
-  meaning: 产品协议签署方式（企业维度）
+  meaning: 企业认证/建档状态，取 CustBuildStatusEnum 的 name 落库（代码用 CustBuildStatusEnum.valueOf
+    反解）
   evidence: code
 - table: tenant_setting_config
   field: generate_electronic_auth_flag
-  meaning: 租户是否开启线下授权书电子签约版能力：'Y'=开启；未开启/为空/查询异常一律按关闭处理（保持现网跳过签署行为）
+  meaning: 租户是否开启线下授权书电子签约版：Y=是（注释「是否生成电子版授权书」）
   evidence: code
 - table: cust_change_record
   field: alter_mode
-  meaning: 变更方式（AlterModeEnum）：SELF_ALTER=企业自行变更（可触发电子授权签署）、PLAT_ALTER=平台代变更
+  meaning: 变更方式：SELF_ALTER=企业自行变更、PLAT_ALTER=平台发起变更
   evidence: code
 - table: cust_change_record
   field: alter_type_id
-  meaning: 变更项配置 id 列表（逗号分隔，对应 cust_change_cfg.id），据此反查 item_code 判断变更项是否在允许签署范围
+  meaning: 变更项配置ID列表（逗号分隔的 cust_change_cfg.id），用于反查 item_code
+  evidence: code
+- table: cust_change_record
+  field: cust_id
+  meaning: 变更所属企业ID
+  evidence: code
+- table: cust_change_record
+  field: oper_cust_id
+  meaning: 运营中台客户ID，用于定位对应变更单
   evidence: code
 - table: cust_change_cfg
   field: item_code
-  meaning: 变更项编码，如 UN0008/UN0012/UN0013/UN0015/UN0016
+  meaning: 变更项编码（UN0008/UN0009/UN0012/UN0013/UN0015/UN0016 等），授权书签署白名单依据
   evidence: code
 state_machines:
-- name: 授权书认证状态
+- name: 授权确认书认证状态
   field: authorization_agreement.authed_status
   states:
   - value: N
-    label: 未授权/待授权
+    label: 未授权/已禁用
     source: db_dist
   - value: Y
     label: 已授权
     source: db_dist
   transitions:
   - from: N
-    event: 建档通过/完善资料时的管理员认证（含简易认证直接通过）
+    event: 企业管理员授权认证通过（新增企业认证/补授权/完善资料）
     to: Y
-    evidence: code_path:CustAuthAgreementDomainService.java#passAuthorizationAgreementDirectly
+    evidence: code_path:CustAuthAgreementDomainService.java:passAuthorizationAgreementDirectly
   - from: N
-    event: 企业管理员变更（换人），为新管理员建/更新平台级授权记录
+    event: 存在未签署记录且当前用户为企业管理员（admin）
     to: Y
-    evidence: code_path:CustAuthAgreementDomainService.java#changeAuthorizationAgreement
-  - from: Y
-    event: 企业管理员变更，原管理员所有授权记录被禁用
+    evidence: code_path:CustAuthAgreementDomainService.java:passAuthorizationAgreementDirectly
+  - from: N
+    event: 非管理员用户被指定授权
     to: N
-    evidence: code_path:CustAuthAgreementDomainService.java#disabledAllAuthorizationAgreement
+    evidence: code_path:CustAuthAgreementDomainService.java:passAuthorizationAgreementDirectly
+  - from: Y
+    event: 企业管理员变更（换人）
+    to: N
+    evidence: code_path:CustAuthAgreementDomainService.java:disabledAllAuthorizationAgreement
 - name: 协议迁移拉取状态
   field: argeement_migratory_record.status
   states:
   - value: '0'
-    label: 待拉取（BooleanEnum.no）
-    source: code_enum
+    label: 待拉取
+    source: db_dist
   - value: '1'
-    label: 拉取结束/不再拉取（BooleanEnum.yes；含客户端确认无此协议）
-    source: code_enum
+    label: 已拉取完成
+    source: db_dist
   transitions:
   - from: '0'
-    event: 拉取到协议并落库，或客户端返回该类型协议缺失
+    event: 从业务系统拉取到协议并落库
     to: '1'
-    evidence: code_path:AgreementMigratoryService.java#setAgreement
+    evidence: code_path:AgreementMigratoryService.java:setAgreement
   - from: '0'
-    event: 拉取失败（异常/返回空），主记录回置 no 且 pullNum+1
+    event: 拉取失败，pull_num+1 后等待重试
     to: '0'
-    evidence: code_path:AgreementMigratoryService.java#setStatus
-- name: 协议签署模式
-  field: argeement_migratory_record.sign_mode
-  states:
-  - value: '01'
-    label: 签署模式取值之一（对应 SignModeEnum 的 NO_SIGN/OFF_LINE/ON_LINE，数值映射代码未显式给出）
-    source: db_dist
-  - value: '02'
-    label: 签署模式取值之一（同上）
-    source: db_dist
-  - value: '03'
-    label: 签署模式取值之一（同上）
-    source: db_dist
-  transitions: []
-- name: 客户建档/认证状态
+    evidence: code_path:AgreementMigratoryService.java:updateAgreementPullNum
+  - from: '0'
+    event: 客户端返回空协议集，标记为已完成
+    to: '1'
+    evidence: code_path:AgreementMigratoryService.java:setAgreement（agreementDocs
+      为空分支）
+- name: 企业认证/建档状态
   field: cust_company_info.cust_build_status
   states:
   - value: INIT
-    label: 待提交/初始化
+    label: 待提交
     source: code_enum
   - value: CUST_CONFIRM_AWAIT
     label: 待客户确认
     source: code_enum
+  - value: AWAIT_CUST_CONFIRM
+    label: 待客户确认（简易认证）
+    source: code_enum
   - value: CUST_BUILDING
-    label: 认证审核中
+    label: 审核中
     source: code_enum
   - value: BUILD_SUCCESS
-    label: 认证通过
+    label: 已通过
     source: code_enum
   - value: BUILD_FAIL
-    label: 认证驳回
+    label: 已驳回
     source: code_enum
   transitions:
   - from: INIT
-    event: 提交（邀请-客户录入/自主注册）
+    event: 提交建档（邀请客户录入/自主注册）
     to: CUST_CONFIRM_AWAIT
-    evidence: code_path:CustCompanyInfoApplication.java#getCustBuildStatus
-  - from: INIT
-    event: 提交（邀请-平台录入 INVITE_AGW）
-    to: CUST_BUILDING
-    evidence: code_path:CustCompanyInfoApplication.java#getCustBuildStatus
+    evidence: code_path:CustCompanyInfoApplication.java:getCustBuildStatus
+  - from: BUILD_FAIL
+    event: 驳回后修改重新提交
+    to: CUST_CONFIRM_AWAIT
+    evidence: code_path:CustCompanyInfoApplication.java:appenUpdateCustBulidStatus
   - from: CUST_CONFIRM_AWAIT
-    event: 客户在客户端提交，进入运营中台审核
+    event: 客户提交，运营中台审核
     to: CUST_BUILDING
-    evidence: code_path:CustCompanyInfoApplication.java#messageNotify
+    evidence: code_path:CustCompanyInfoApplication.java:messageNotify
   - from: CUST_BUILDING
     event: 运营中台审核退回
     to: CUST_CONFIRM_AWAIT
-    evidence: code_path:CustCompanyInfoApplication.java#messageNotify
+    evidence: code_path:CustCompanyInfoApplication.java:messageNotify
   - from: CUST_BUILDING
-    event: 运营中台审核通过
+    event: 审核通过（简易/资金方直接生效）
     to: BUILD_SUCCESS
-    evidence: code_path:CustCompanyInfoApplication.java#updateCustBuildStatus
-  - from: CUST_BUILDING
-    event: 运营中台审核驳回
+    evidence: code_path:CustCompanyInfoApplication.java:updateCustBuildStatus
+  - from: CUST_CONFIRM_AWAIT
+    event: 审核驳回
     to: BUILD_FAIL
-    evidence: code_path:CustCompanyInfoApplication.java#messageNotify
+    evidence: code_path:CustCompanyInfoApplication.java:messageNotify
 calibers:
-- name: 外部推送企业免补签授权书
-  predicate: cust_company_info.cust_source = 'PLATFORM_PUSH'
-  scope: 授权书补签判定（enableCompanyManagerAuthAggrement / hasCompanySignedAuthAggrement
-    直接返回不需签约）
-  evidence: code_path:CustAuthAgreementDomainService.java#enableCompanyManagerAuthAggrement
-- name: 存量迁移企业免补签授权书
-  predicate: cust_company_info.cust_source = 'MIGRATORY' AND cust_company_info.auth_aggrement_supplement_flag
-    = 'N'
-  scope: 授权书补签判定
-  evidence: code_path:CustAuthAgreementDomainService.java#enableCompanyManagerAuthAggrement
-- name: 平台级授权已完成
-  predicate: authorization_agreement.platform_product_code = 'PLATFORM' AND authorization_agreement.authed_status
-    = 'Y'
-  scope: 企业/管理员是否已签署平台授权书（按人维度，一个角色签过即全部免签）
-  evidence: code_path:CustAuthAgreementDomainService.java#hasCompanySignedAuthAggrement
-- name: 线下电子授权书签署触发条件
-  predicate: cust_company_info.check_status = 'CUST_CHECK_PASS' AND <企业用户>.auth_model
-    = 'off_auth' AND tenant_setting_config.generate_electronic_auth_flag = 'Y' AND
-    cust_company_info.need_register_ca = 'Y' AND cust_company_info.ca_register_status
-    = 'Y'
-  scope: 审核回调 afterCommit 编排；不满足仅记日志跳过，不阻断主流程
-  evidence: code_path:CustAuthSignOrchestrationApplication.java#evaluateIneligibilityReason
-- name: 可触发电子授权签署的企业类型
-  predicate: cust_company_info.cust_company_type ∈ {'SUPPLIER','CORE','FINANCE','PROJECT_COMPANY'}
-  scope: 电子授权书签署编排
-  evidence: code_path:CustAuthSignOrchestrationApplication.java#ALLOWED_COMPANY_TYPE_KEYS
-- name: 建档类签署仅限邀请/自主录入
-  predicate: cust_company_info.identify_style ∈ {'INVITE','SELF'}
-  scope: processType=CHECK 分支
-  evidence: code_path:CustAuthSignOrchestrationApplication.java#ALLOWED_BUILD_IDENTIFY_STYLES
-- name: 变更类签署仅限企业自行变更且变更项命中
-  predicate: cust_change_record.alter_mode = 'SELF_ALTER' AND cust_change_cfg.item_code
-    ∈ {'UN0016','UN0012','UN0013','UN0008','UN0015'}
-  scope: processType=CHANGE 分支
-  evidence: code_path:CustAuthSignOrchestrationApplication.java#isAllowedChangeScenario
+- name: 平台级授权确认书
+  predicate: authorization_agreement.platform_product_code = 'PLATFORM'
+  scope: 产融平台管理员授权书（PLATFORM_PRODUCT_TYPE），与业务线产品码并列
+  evidence: code:CustAuthAgreementDomainService.java:PLATFORM_PRODUCT_TYPE + db:PLATFORM=25156
+- name: 授权书已授权
+  predicate: authorization_agreement.authed_status = 'Y'
+  scope: 判断企业/管理员是否已签署授权书（enable=Y 时有效）
+  evidence: code:CustAuthAgreementDomainService.java:hasCompanySignedAuthAggrement
+    + db
+- name: 授权书未授权
+  predicate: authorization_agreement.authed_status = 'N'
+  scope: 需补签授权书的判定口径
+  evidence: code + db
 - name: 待拉取协议记录
-  predicate: argeement_migratory_record.status = '0' AND argeement_migratory_record.enable
-    = 'Y' AND argeement_migratory_record.pull_num < 20
-  scope: 协议拉取定时任务（20 为 cust.agreemeent.pull.num 默认值）
-  evidence: code_path:AgreementMigratoryService.java#pull
-- name: AMS 走 BS/上上签通道
-  predicate: argeement_migratory_record.platform_product_code = 'AMS' → agreement_type
-    = 'BS_Auth'；其他产品 → agreement_type = 'CFCA_Auth'
-  scope: 协议迁移初始化与签署机构选择（BEST_SIGN vs PAPER_LESS）
-  evidence: code_path:PlatFormMigratoryApplication.java#getCaAgreement
-- name: 迁移初始化五类协议
-  predicate: argeement_migratory_record.agreement_type IN ('CFCA_Auth'|'BS_Auth',
-    产品协议, 'CustPersonLicense', 'UserProtocol', 'PrivacyPolicy')
-  scope: 每个客户×每个产品各生成一条待拉取记录（按 custId+productCode+type 计数为 0 才插入）
-  evidence: code_path:PlatFormMigratoryApplication.java#setAgreementMigratory
+  predicate: argeement_migratory_record.status = '0'
+  scope: 协议迁移拉取任务取数（复合条件 enable='Y' AND pull_num<配置值）
+  evidence: code:AgreementMigratoryService.java:pull + db
+- name: 已拉取协议记录
+  predicate: argeement_migratory_record.status = '1'
+  scope: 迁移协议拉取结果终态
+  evidence: code + db
+- name: 协议迁移有效记录
+  predicate: argeement_migratory_record.enable = 'Y'
+  scope: 协议拉取一律过滤 enable=Y（DB 中全为 Y，无 N）
+  evidence: code:AgreementMigratoryService.java:pull + db
+- name: 电子授权书租户开关
+  predicate: tenant_setting_config.generate_electronic_auth_flag = 'Y'
+  scope: 租户是否开启线下授权书电子签约版；查询另带 enable='Y'
+  evidence: code:ElectronicAuthLetterApplication.java:isGenerateElectronicAuthEnabled
+- name: CFCA 已开通
+  predicate: cust_company_info.ca_register_status = 'Y'
+  scope: 电子授权书在线签署前置校验（需同时 need_register_ca='Y'）
+  evidence: code:CustAuthSignOrchestrationApplication.java:isCaRegistered
+- name: 需开通电子签章
+  predicate: cust_company_info.need_register_ca = 'Y'
+  scope: 判断企业是否需要 CFCA 电子签章能力
+  evidence: code:CustAuthSignOrchestrationApplication.java:isCaRegistered
+- name: 授权书补签开关
+  predicate: cust_company_info.auth_aggrement_supplement_flag = 'Y'
+  scope: 存量迁移企业是否仍需补签平台授权书；N 且 cust_source=MIGRATORY 则免签
+  evidence: code:CustAuthAgreementDomainService.java:enableCompanyManagerAuthAggrement
+- name: 线下签署协议
+  predicate: argeement_migratory_record.sign_mode = '02'
+  scope: 协议签署模式为线下（SignModeEnum.OFF_LINE）
+  evidence: code:AgreementMigratoryService.java:setMigrateContract + db
 term_bridges:
-- term: 授权书
+- term: 授权书（授权确认书）
   aliases:
-  - 授权确认书
+  - 客户管理员授权确认书
+  - 平台授权书
   - 授权协议
-  - 客户管理员授权认证
-  - 企业授权书
-  maps_to: authorization_agreement（表注释：授权确认书表）——记录企业管理员是否完成平台/产品级授权，authed_status=Y
-    视为已授权
+  maps_to: authorization_agreement（表注释「授权确认书表」）
   also_confused_with:
-  - 线下电子授权书（OfflineElectronicAuth 协议文件）
-  - 平台协议文本（用户协议/隐私政策）
+  - argeement_migratory_record
+  - contract_info（底层协议组件合同表）
   adjudication: boundary
-  boundary: authorization_agreement 是「谁授过权」的关系记录；线下电子授权书是「授权书这一份文件」的生成与签章，二者通过 cust_id
-    关联但生命周期不同
-- term: 协议
+  boundary: authorization_agreement 记录「企业管理员对平台」的授权确认（authed_status），不是业务协议文件；业务协议文件（产品协议/隐私政策/用户协议/CA
+    协议）走 argeement_migratory_record + 底层 BaseContractProvider，两者不可互换。
+- term: 电子授权书（电子签约版授权书）
   aliases:
-  - 用户协议
-  - 隐私政策
-  - 产品协议
-  - CA 协议
-  - BS 协议
-  maps_to: argeement_migratory_record（协议迁移记录）+ 底层 BaseContractProvider/IContractInfoProvider
-    维护的合同表；agreement_type 取 AgreementDocType
+  - 线下电子授权书
+  - off_auth 授权书
+  maps_to: cust_company_info.need_register_ca + ca_register_status + tenant_setting_config.generate_electronic_auth_flag
   also_confused_with:
-  - 授权书
+  - 线上签署授权确认书
+  - authorization_agreement.authed_status
   adjudication: boundary
-  boundary: 协议是文本文件与签署事实（含 sign_mode、agreement_path、agreement_no）；授权书是管理员授权状态记录，不含文件落库
-- term: 线下电子授权书
+  boundary: 「电子授权书」指线下授权（off_auth）场景下把纸质授权书改为 CFCA 在线签署，需租户开关 generate_electronic_auth_flag=Y
+    且企业已开通 CA；与「授权确认书」的授权状态字段不是同一语义。
+- term: 电子签章开通
   aliases:
-  - 电子签约版授权书
-  - OfflineElectronicAuth
-  maps_to: 预览接口生成的 OfflineElectronicAuth ON_LINE 合同，由 custDocFacade.signOfflineElectronicAuthAndUpload
-    签署并上传影像 A0050；是否启用由 tenant_setting_config.generate_electronic_auth_flag 控制
+  - CA 开通
+  - CFCA 注册
+  - 上上签开通
+  maps_to: cust_company_info.ca_register_status / cust_company_info.bs_register_status
   also_confused_with:
-  - authorization_agreement 授权记录
-  - 线下纸质授权书（现网 OFF_AUTH 直接跳过签署）
+  - need_register_ca
+  - need_register_bs
   adjudication: boundary
-  boundary: 开关为 N 时该方法直接返回 true（保持现网线下纸质行为），不会产生电子合同
-- term: 线下授权（off_auth）
+  boundary: need_register_* 是「要不要开」的意愿标识，*_register_status 是「已经开了」的落库结果；签署判定必须两者同时为
+    Y（isCaRegistered）。CFCA(PAPER_LESS) 与上上签(BEST_SIGN，AMS 使用) 是两个签章通道。
+- term: 协议类型（agreementType）
   aliases:
-  - OFF_AUTH
-  - 线下签署模式
-  maps_to: CustEnterpriseUserDTO.authModel = AuthModel.OFF_AUTH.getCode()（代码注释与日志字面为
-    off_auth），签署编排的硬条件之一
+  - AgreementDocType
+  - serviceKey
+  - 协议 code
+  maps_to: argeement_migratory_record.agreement_type
   also_confused_with:
-  - 线上签署（on_auth）
-  - 邀请认证-平台录入（业务上必然线下签署）
+  - platform_product_code
   adjudication: boundary
-  boundary: authModel 是企业用户在运营中台的授权模式；与企业建档方式 identify_style 正交
-- term: CA / CFCA
+  boundary: agreement_type 区分协议种类（PrivacyPolicy/UserProtocol/CustPersonLicense/CFCA_Auth/BS_Auth/ProductProtocol*），platform_product_code
+    区分业务线产品（ACFLOW/AMS/BEECREDIT/ORDER/RVSFACTOR_PC/STORAGE/VOUCHER）；同一协议类型在每个产品码下各有一条迁移记录。
+- term: 产品协议
   aliases:
-  - 电子签章
-  - 数字证书
-  - PAPER_LESS
-  maps_to: cust_company_info.need_register_ca / ca_register_status；非 AMS 产品走 CFCA（SignAgencyTransferEnum.PAPER_LESS），协议类型
-    DATA_SOURCE_CFCA_AUTH
+  - ProductProtocol
+  maps_to: argeement_migratory_record.agreement_type
   also_confused_with:
-  - 上上签 / BS（BEST_SIGN）
-  adjudication: boundary
-  boundary: AMS 产品走 BS：need_register_bs / bs_register_status、协议类型 BS_Auth、签署机构 BEST_SIGN；两者开通过程在
-    openCa 中互斥判断
-- term: 平台产品编码 PLATFORM
-  aliases:
-  - 平台级授权书
-  - PLATFORM_PRODUCT_TYPE
-  maps_to: authorization_agreement.platform_product_code = 'PLATFORM'，表示平台级授权而非某个业务产品的存量授权
-  also_confused_with:
-  - 业务产品编码（ACFLOW/AMS/ORDER/RVSFACTOR_PC…）
-  adjudication: boundary
-  boundary: 是否补签只看 PLATFORM 行；具体产品行的 Y 表示存量系统已授权，用于免补签判定
+  - 平台协议（PLATFORM_PRODUCT_TYPE）
+  adjudication: synonym
+  boundary: getProductAgreement(productCode) 按产品码返回不同 ProductProtocol* 协议类型（AMS/BEECREDIT/RVSFACTOR_PC/ACFLOW/ORDER/DEALER/STORAGE/VOUCHER）。
 rules:
-- name: 电子授权书签署编排前置条件（全满足才签署）
-  content: checkStatus=CUST_CHECK_PASS；企业用户 authModel=off_auth；租户 generate_electronic_auth_flag=Y；企业类型
-    ∈{SUPPLIER,CORE,FINANCE,PROJECT_COMPANY}；流程为建档（identifyStyle ∈{INVITE,SELF}）或企业自行变更（alterMode=SELF_ALTER
-    且变更项命中 UN0016/UN0012/UN0013/UN0008/UN0015）；need_register_ca=Y 且 ca_register_status=Y。任一不满足仅记日志跳过。
-  impact: 不阻断 CustSyncEventProcessor 主流程；CA 未开通时等待重开 CA 成功后链式触发
+- name: 线下电子授权书签署触发条件（多重与门）
+  content: 仅当 ①审核通过(checkStatus=CUST_CHECK_PASS) ②授权模式为 off_auth ③租户 generate_electronic_auth_flag=Y
+    ④企业类型∈{供应商,核心企业,金融机构,项目公司} ⑤建档流程且建档方式∈{INVITE客户录入,SELF自主注册} 或 变更流程且 alterMode=SELF_ALTER
+    且变更项∈{UN0016,UN0012,UN0013,UN0008,UN0015} ⑥need_register_ca=Y 且 ca_register_status=Y
+    时，才在事务提交后触发签署；任一不满足仅记日志跳过，不阻断主流程
+  impact: 决定线下授权书是否自动发起电子签署
   field_targets:
-  - cust_company_info.check_status
+  - cust_company_info.cust_build_status
+  - cust_company_info.identify_style
   - cust_company_info.need_register_ca
   - cust_company_info.ca_register_status
-  - cust_company_info.identify_style
   - cust_change_record.alter_mode
-  - cust_change_cfg.item_code
+  - cust_change_record.alter_type_id
   - tenant_setting_config.generate_electronic_auth_flag
-  evidence: code_path:CustAuthSignOrchestrationApplication.java#evaluateIneligibilityReason
-- name: 签署幂等与并发控制
-  content: 以 cust_auth_sign_done:{sourceMainId}:{appNo} 作为已完成标记，以 cust_auth_sign_after_audit:{sourceMainId}:{appNo}
-    做 Redis 分布式锁（默认获取超时 1000ms、锁超时 120000ms）；签署成功才写 done 标记，失败仅记日志。
-  impact: 重复回调/并发回调不会重复签署；签署失败不回滚审核主流程
+  evidence: code:CustAuthSignOrchestrationApplication.java:evaluateIneligibilityReason
+    + isCaRegistered
+- name: CFCA 未开通时的延迟补偿签署
+  content: 审核通过时若本地 ca_register_status≠Y 则跳过签署；待 CA 重开成功回调（CaActivateResult.activateSuccess=true）后再链式触发一次签署，此时即使本地状态仍非
+    Y 也继续尝试（由签章层二次校验）
+  impact: 保证 CA 开通后授权书能补签，避免永久漏签
   field_targets:
-  - cust_company_info.id
-  - cust_company_info.app_no
-  evidence: code_path:CustAuthSignOrchestrationApplication.java#executeOfflineElectronicAuthSignSafely
-- name: 租户开关关闭时保持现网行为
-  content: tenant_setting_config.generate_electronic_auth_flag 非 Y（含配置不存在、为空、查询异常）时，signOfflineElectronicAuthOnLine
-    直接返回 true，不做 CFCA 校验也不发起签署。
-  impact: 开关是灰度/回退的唯一入口
+  - cust_company_info.ca_register_status
+  evidence: code:CustAuthSignOrchestrationApplication.java:tryOfflineElectronicAuthSignAfterCaSuccess
+- name: 授权书签署幂等（Redis 锁 + 完成标记）
+  content: 签署前用 cust_auth_sign_done:{sourceMainId}:{appNo} 判重，再用 cust_auth_sign_after_audit:{sourceMainId}:{appNo}
+    抢锁（acquire-timeout 1000ms / lock-timeout 120000ms）执行，成功后写 done 标记；签署失败仅记日志不回滚主流程
+  impact: 避免重复签署与并发重复提交
+  field_targets: []
+  evidence: code:CustAuthSignOrchestrationApplication.java:executeOfflineElectronicAuthSignSafely
+- name: 企业管理员变更即作废原授权书
+  content: 管理员换人时先把原管理员在该企业下的全部授权记录 enable=N、authed_status=N（remark 记录 to|新管理员|原因），再为新管理员按企业各角色创建/更新
+    authed_status=Y 的授权记录
+  impact: 保证授权主体与当前管理员一致
   field_targets:
-  - tenant_setting_config.generate_electronic_auth_flag
-  evidence: code_path:ElectronicAuthLetterApplication.java#isGenerateElectronicAuthEnabled
-- name: 简易建档不支持开通电子签章
-  content: 简易认证提交时若 need_register_ca=Y，强制按 CustCompanyCaPolicy.enforceMustNotOpenCa
-    校正并落库 need_register_ca/ca_register_status/need_register_bs/bs_register_status。
-  impact: 简易认证企业不会触发电子签章相关协议与签署
+  - authorization_agreement.enable
+  - authorization_agreement.authed_status
+  - authorization_agreement.cust_manager_id
+  - authorization_agreement.creation_type
+  evidence: code:CustAuthAgreementDomainService.java:changeCompanyAuthorizationAgreement
+    + disabledAllAuthorizationAgreement
+- name: 存量迁移企业授权书补签的豁免
+  content: cust_source=PLATFORM_PUSH（外部平台推送）一律视为已授权；cust_source=MIGRATORY 且 auth_aggrement_supplement_flag=N（新渠道迁移）不需要签署；其余情况需检查平台授权(PLATFORM)或存量产品授权
+  impact: 决定迁移/外部企业在开通产品时是否弹补签授权书
+  field_targets:
+  - cust_company_info.cust_source
+  - cust_company_info.auth_aggrement_supplement_flag
+  - cust_company_info.migarory_auth_aggrement_flag
+  evidence: code:CustAuthAgreementDomainService.java:enableCompanyManagerAuthAggrement
+- name: 协议迁移拉取的重试与上限
+  content: 协议迁移任务每 30 秒执行，用 Redis 锁 cust_argeement_pull 防重；取 status=0 且 enable=Y、pull_num<配置值
+    的记录按产品/客户分组拉取，失败时 pull_num+1 后重试，超过上限不再拉取
+  impact: 保证协议迁移的最终一致性与有限重试
+  field_targets:
+  - argeement_migratory_record.status
+  - argeement_migratory_record.pull_num
+  - argeement_migratory_record.enable
+  evidence: code:AgreementMigratoryService.java:pull + AreementPullTask
+- name: 协议签署模式映射
+  content: 迁移协议将业务系统 signMode 映射为 SignModeEnum：NO_SIGN=03 无需签署、OFF_LINE=02 线下、ON_LINE=01
+    线上；并落 sign_type=SIGNED、business_type=cust_company_info
+  impact: 迁移后协议在产融侧的签署方式可追溯
+  field_targets:
+  - argeement_migratory_record.sign_mode
+  evidence: code:AgreementMigratoryService.java:setMigrateContract
+- name: 简易认证强制关闭电子签章
+  content: 简易认证提交时如 need_register_ca=Y 则通过 CustCompanyCaPolicy.enforceMustNotOpenCa
+    强制校正为不开通并落库
+  impact: 简易建档不支持开通电子签章
   field_targets:
   - cust_company_info.need_register_ca
   - cust_company_info.ca_register_status
   - cust_company_info.need_register_bs
   - cust_company_info.bs_register_status
-  evidence: code_path:CustCompanyInfoApplication.java#submitForSimpleAuth
-- name: 授权书按人（管理员 userid）维度判定
-  content: 同一个人多企业角色只需一份平台级授权；已存在 PLATFORM 且 authed_status=Y 即免补签，其次看该产品存量授权是否 Y。
-  impact: 避免多角色重复签署授权书
-  field_targets:
-  - authorization_agreement.cust_manager_id
-  - authorization_agreement.platform_product_code
-  - authorization_agreement.authed_status
-  evidence: code_path:CustAuthAgreementDomainService.java#enableCompanyManagerAuthAggrement
-- name: 授权书记录唯一性
-  content: authorization_agreement 唯一索引为 (db_tenant_code, act_procinst_id, cust_id,
-    cust_manager_id, platform_product_code, company_type)，即「租户+流程实例+企业+管理员+产品+角色」唯一。
-  impact: saveOrUpdate 语义按该维度幂等；角色不同会各留一条
-  field_targets:
-  - authorization_agreement.db_tenant_code
-  - authorization_agreement.act_procinst_id
-  - authorization_agreement.cust_id
-  - authorization_agreement.cust_manager_id
-  - authorization_agreement.platform_product_code
-  - authorization_agreement.company_type
-  evidence: db
-- name: 简易认证不创建授权书记录、直接置为已授权
-  content: createAuthorizationAgreement 在 actProcinstId 为空或企业为简易建档类型时直接 return；简易认证/资金方直接生效路径调用
-    passAuthorizationAgreementDirectly 写 authed_status=Y。
-  impact: 简易认证企业无授权书流程记录但有授权结果
-  field_targets:
-  - authorization_agreement.act_procinst_id
-  - authorization_agreement.authed_status
-  - cust_company_info.cust_build_type
-  evidence: code_path:CustAuthAgreementDomainService.java#createAuthorizationAgreement
-- name: CA 开通成功后链式触发签署
-  content: CaActivateResult.activateSuccess=true 时重新评估条件并直接执行签署；此时即使本地 ca_register_status
-    仍非 Y 也继续尝试（签章层二次校验）。
-  impact: 覆盖「审核通过时 CA 未开通」的场景，避免授权书漏签
-  field_targets:
-  - cust_company_info.ca_register_status
-  evidence: code_path:CustAuthSignOrchestrationApplication.java#tryOfflineElectronicAuthSignAfterCaSuccess
-- name: 协议迁移初始化幂等
-  content: 按 custId + platformProductCode + agreementType 计数为 0 才插入待拉取记录；每产品每客户最多
-    5 类协议（CA/产品/授权书/用户协议/隐私政策）。
-  impact: 重复迁移不会产生重复协议记录
-  field_targets:
-  - argeement_migratory_record.cust_id
-  - argeement_migratory_record.platform_product_code
-  - argeement_migratory_record.agreement_type
-  evidence: code_path:PlatFormMigratoryApplication.java#setAgreementMigratory
-- name: 协议拉取判重与出错回退
-  content: 落库前用 agreementExist(custId, contractAgreementNo) 查合同表判重；文件路径为空不落合同；单条异常时该记录
-    pullNum+1 保留在待拉取集合。
-  impact: 协议迁移可重试且不重复落合同
-  field_targets:
-  - argeement_migratory_record.agreement_no
-  - argeement_migratory_record.agreement_path
-  - argeement_migratory_record.pull_num
-  evidence: code_path:AgreementMigratoryService.java#setAgreement
-- name: 协议拉取任务执行频率
-  content: AreementPullTask 用 scheduleAtFixedRate(this, 0, 30, TimeUnit.SECONDS) 每
-    30 秒执行一次；代码注释写「每隔15分钟拉执行一次」，与实现不一致，以实现（30 秒）为准，并由 cust_argeement_pull 分布式锁保证单实例执行。
-  impact: 注释与实现不一致，评估任务压力/时效时以 30 秒为准
-  field_targets:
-  - argeement_migratory_record.status
-  evidence: code_path:AgreementMigratoryService.java#AreementPullTask
-- name: 协议同步入口必填 productAppId
-  content: syncAgreementDoc 对 productAppId 为空抛 SyncException("productAppId不能为空")；客户
-    custId 不存在抛 SyncException("custId记录不存在，请检查！")。
-  impact: 外部系统推送协议的前置校验
-  field_targets:
-  - argeement_migratory_record.cust_id
-  - argeement_migratory_record.platform_product_code
-  evidence: code_path:PlatFormAgreementProviderImpl.java#syncAgreementDoc
+  evidence: code:CustCompanyInfoApplication.java:submitForSimpleAuth
 reqdoc_claims:
-- claim: 协议组件按协议 code + productCode 路由到不同 *Datasource，未匹配抛 BaseException("未找到协议数据源")（系统文档
-    BR-001）
+- claim: 协议组件按协议 code + productCode 路由到对应 *Datasource，未匹配抛 BaseException("未找到协议数据源")（BR-001）
   code_status: uncovered
-  code_evidence: PlatAgreementService.java#getPrivacyPolicyPdf/getUserAttachmentPdf（仅见
-    serviceKey=DATA_SOURCE_PRIVACY_POLICY / DATA_SOURCE_USER_PROTOCOL 直连 baseContractProvider.createContract，未见多
-    Datasource 路由与对应异常）
+  code_evidence: PlatAgreementService.java:getPrivacyPolicyPdf/getUserAttachmentPdf（仅见按
+    serviceKey 直调 baseContractProvider，未见路由/未匹配异常实现）
   action: review
-- claim: 产融侧无协议主表，协议数据由底层 BaseContractProvider 维护，产融通过 dictKey + LRUCache 访问（系统文档
-    BR-001）
-  code_status: confirmed
-  code_evidence: PlatAgreementService.java（LRUCache 按 dbTenantCode+yyyyMMddHH 缓存当天结果）；CustCompanyInfoApplication.java#createPlatClientOpenCaReq（contractRelatedInfoProvider.getContractByBusiness(...,
-    DATA_SOURCE_CFCA_AUTH)）
-  action: anchor
-- claim: BR-002 企业签署辅助由 CompanySignHelper 统一封装：查询企业法人/经办人信息后调底层签署组件，涉及 cust_company_info、cust_person_info
+- claim: 企业签署辅助 CompanySignHelper 统一封装：查询企业法人/经办人信息后调底层签署组件（BR-002）
   code_status: uncovered
-  code_evidence: 本链路未出现 CompanySignHelper 类；等价逻辑在 PlatFormMigratoryApplication.java#setSignRegister（法人信息优先→管理员→AMS
-    经办人回退，失败抛 SyncException）
+  code_evidence: 未在给出的代码中出现 CompanySignHelper；PlatFormMigratoryApplication.java:setSignRegister
+    有「优先法人→管理员→经办人」的同类取值逻辑
   action: prose_only
-- claim: BR-003 产品协议按业务线 code（acflow/ams/beecredit/dealer/order/rvsfactor/storage/voucher）委派到具体
-    Datasource
+  difference: 证据层只见迁移链路的 setSignRegister 取值逻辑，未见 CompanySignHelper 类本体，无法确认其存在与职责边界
+- claim: 产品协议按业务线 code（acflow/ams/beecredit/dealer/order/rvsfactor/storage/voucher）委派到具体
+    ProductProtocol[业务线]Datasource（BR-003）
+  code_status: confirmed
+  code_evidence: PlatFormMigratoryApplication.java:getProductAgreement（按 ProductCodeEnum
+    返回 DATA_SOURCE_PRODUCT_PROTOCOL_*，未支持的产品抛 IllegalArgumentException）
+  action: anchor
+  difference: 证据中体现的是「产品码→协议类型枚举」的映射；文档描述的 ProductProtocolDelagator/Datasource 委派类本体未在证据内出现，映射口径以代码为准（DEALER
+    有分支但 DB 无该协议类型数据）
+- claim: 企业状态流转：待提交→审核中→已通过；已驳回→待提交；已通过→已冻结/已注销
+  code_status: confirmed
+  code_evidence: CustCompanyInfoApplication.java:submitCust/custStatusOperator(updateCustBuildStatus)/freeze/unfreeze/diable/enable
+  action: anchor
+  difference: 文档表述为「审核中」，代码中该状态名为 CUST_BUILDING；「已冻结/已注销」由 CustStatusEnum.FREEZE/WRITEOFF
+    承载，注销会先冻结企业全部用户
+- claim: 邀请码随机 8 位、包含大小写字母与数字、30 天内有效；同一手机号/邮箱不能重复邀请；邀请失败不影响主流程
   code_status: uncovered
-  code_evidence: 未见 ProductProtocolDelagator；等价映射在 PlatFormMigratoryApplication.java#getProductAgreement（AMS/BEECREDIT/RVSFACTOR/ACFLOW/ORDER/DEALER/STORAGE/VOUCHER
-    → DATA_SOURCE_PRODUCT_PROTOCOL_*）。差异：DB 实测 authorization_agreement/argeement_migratory_record
-    的产品编码为 RVSFACTOR_PC 而非 rvsfactor，且未出现 DEALER 数据
+  code_evidence: 未在给出的代码中出现邀请码生成/校验与有效期实现（仅见 submitCust 中 createUserAndSysUserCustGuest、sendHaveInvitationCodeForInviteToSign
+    调用）
+  action: review
+- claim: 菜单权限特殊过滤：code='0891344a3a4442179e98819cbe926ced' 的菜单记录在列表中自动过滤
+  code_status: uncovered
+  code_evidence: 证据中无菜单列表过滤逻辑（LocalTypeMenuService 未给出）
+  action: review
+- claim: 同一变更项同时只能有一个待审核的变更申请
+  code_status: confirmed
+  code_evidence: ApplyCompanyInfoApplication.java:judgeHaveApplyingRecord（dataType=APPLY
+    且 cust_build_status∉{BUILD_SUCCESS,BUILD_FAIL} 则视为有在途流程）
+  action: anchor
+- claim: 企业变更需经审核，审核通过后变更生效并保留变更历史
+  code_status: confirmed
+  code_evidence: ApplyCompanyInfoApplication.java:custChangeApplyWorkFlow / setApplyDataToMain（流程数据归档至主数据）+
+    CustChangeRecordDO 落 cust_change_record
+  action: anchor
+- claim: 流程变量 productCode 典型值 SCF/AMS 用于协议组件路由
+  code_status: refuted
+  code_evidence: PlatFormMigratoryApplication.java:getProductAgreement 使用 AMS/BEECREDIT/RVSFACTOR/ACFLOW/ORDER/DEALER/STORAGE/VOUCHER，未出现
+    SCF
   action: prose_only
-- claim: 用户邀请规则：邀请码随机 8 位、30 天有效；同一手机号/邮箱不能重复邀请；邀请失败不影响主流程（客户管理平台业务规则 3.2.2）
-  code_status: uncovered
-  code_evidence: 本链路仅见 sendSMS/custPersonApplication.sendHaveInvitationCodeForInviteToSign
-    调用点，未见邀请码生成与有效期实现
-  action: review
-- claim: 企业状态流转：待提交→审核中→已通过；已通过→已冻结/已注销（业务规则 3.1.4）
-  code_status: confirmed
-  code_evidence: CustCompanyInfoApplication.java#getCustBuildStatus/updateCustBuildStatus/messageNotify（建档状态流转）；CustCompanyInfoApplication.java#custStatusOperator/freeze/unfreeze/diable（生效↔冻结↔注销，且注销先冻结全部用户）
-  action: anchor
-- claim: 变更限制：同一变更项同时只能有一个待审核的变更申请（业务规则 3.4.3）
-  code_status: confirmed
-  code_evidence: ApplyCompanyInfoApplication.java#judgeHaveApplyingRecord（按 mainDataId+dataType=APPLY
-    且状态非终态判断在途流程）；addCustApplyWorkFlow 在非 INIT/CUST_CONFIRM_AWAIT/BUILD_FAIL 时抛「客户认证审批中或已认证完成，不能再次发起流程！」。差异：代码在途判断粒度是「企业申请维度」，未细化到单个变更项
-  action: anchor
-- claim: 自动审核规则：企业征信评分>=60、法人无不良记录、经营状态正常、行业不在黑名单（业务规则 3.1.3）
-  code_status: uncovered
-  code_evidence: 仅见 autoVerifyService.asyncAuthCheck(...) 调用点（ApplyCompanyInfoApplication.java#addCustApplyWorkFlow），未见评分阈值与风控维度实现
-  action: review
-- claim: 通知/协议等失败仅记日志、不阻塞主流程（业务规则 3.5.1、BR-001 异常处理）
-  code_status: confirmed
-  code_evidence: CustAuthSignOrchestrationApplication.java#tryScheduleOfflineElectronicAuthSignAfterAudit/executeOfflineElectronicAuthSignSafely（catch
-    后仅 log.error，不回滚主流程）；CustCompanyInfoApplication.java#sendNoticeToCustomerAuth（catch
-    返回 false）
-  action: anchor
+  difference: 「SCF」未在代码/DB 中出现（DB platform_product_code 实际值为 PLATFORM/ACFLOW/AMS/BEECREDIT/ORDER/RVSFACTOR(_PC)/STORAGE/VOUCHER/pplatform），以代码枚举为准
+enum_audit:
+- field: argeement_migratory_record.status
+  value: '0'
+  java_name: BooleanEnum.no
+  stored_as: dictKey
+  label: 待拉取
+  verdict: confirm
+  evidence: AgreementMigratoryService.java:setAreementBaseRecord(setStatus(BooleanEnum.no.getDictKey()))
+  note: 列为 int(10)，实际以字符串 '0'/'1' 存储，属类型与取值约定不一致；DB 分布 0=7974
+- field: argeement_migratory_record.status
+  value: '1'
+  java_name: BooleanEnum.yes
+  stored_as: dictKey
+  label: 已拉取完成
+  verdict: confirm
+  evidence: AgreementMigratoryService.java:setAgreement/setStatus(BooleanEnum.yes)
+  note: DB 分布 1=29586
+- field: argeement_migratory_record.sign_mode
+  value: '01'
+  java_name: SignModeEnum.ON_LINE
+  stored_as: dictKey
+  label: 线上
+  verdict: confirm
+  evidence: AgreementMigratoryService.java:setMigrateContract + SignModeEnum
+  note: DB 分布 01=4380
+- field: argeement_migratory_record.sign_mode
+  value: '02'
+  java_name: SignModeEnum.OFF_LINE
+  stored_as: dictKey
+  label: 线下
+  verdict: confirm
+  evidence: AgreementMigratoryService.java:setMigrateContract + SignModeEnum
+  note: DB 分布 02=4667
+- field: argeement_migratory_record.sign_mode
+  value: '03'
+  java_name: SignModeEnum.NO_SIGN
+  stored_as: dictKey
+  label: 无需签署
+  verdict: confirm
+  evidence: AgreementMigratoryService.java:setMigrateContract + SignModeEnum
+  note: DB 分布 03=255
+- field: argeement_migratory_record.enable
+  value: Y
+  java_name: EnableEnum.Y
+  stored_as: dictKey
+  label: 启用
+  verdict: confirm
+  evidence: AgreementMigratoryService.java:setAgreementMigratory(d.setEnable(EnableEnum.Y.name()))
+  note: 此处用 .name()，EnableEnum 的 name 与 dictKey 同值；DB 全为 Y，无 N
+- field: argeement_migratory_record.is_new
+  value: 'yes'
+  java_name: BooleanEnum.yes
+  stored_as: name
+  label: 新数据
+  verdict: correct
+  evidence: PlatFormMigratoryApplication.java:setAreementBaseRecord(bean.setIsNew(isNew.name()))
+  note: 写值用 .name() 而非 getDictKey()，故落库为 'yes'/'no'；与同表 status 用 dictKey('0'/'1')
+    的约定不一致，跨字段比对时易误判
+- field: argeement_migratory_record.is_new
+  value: 'no'
+  java_name: BooleanEnum.no
+  stored_as: name
+  label: 存量数据
+  verdict: correct
+  evidence: PlatFormMigratoryApplication.java:setAreementBaseRecord
+  note: DB 分布 no=9105 / yes=28455
+- field: authorization_agreement.authed_status
+  value: Y
+  java_name: BooleanEnum.Y
+  stored_as: dictKey
+  label: 已授权
+  verdict: confirm
+  evidence: CustAuthAgreementDomainService.java:251(passAuthorizationAgreementDirectly)
+  note: DB 分布 Y=11617
+- field: authorization_agreement.authed_status
+  value: N
+  java_name: BooleanEnum.N
+  stored_as: dictKey
+  label: 未授权/已禁用
+  verdict: confirm
+  evidence: CustAuthAgreementDomainService.java:createAuthorizationAgreement/setAuthedStatus(BooleanEnum.N)
+  note: DB 分布 N=19547
+- field: authorization_agreement.creation_type
+  value: CUST_BUILD_INIT
+  java_name: AuthAgreementCreationTypeEnum.CUST_BUILD_INIT
+  stored_as: dictKey
+  label: 建档初始化授权
+  verdict: confirm
+  evidence: CustAuthAgreementDomainService.java:passAuthorizationAgreementDirectly(默认
+    CUST_BUILD_INIT)
+  note: DB 分布 23787
+- field: authorization_agreement.creation_type
+  value: COMPANY_MANAGER_CHANGE_CODE
+  java_name: AuthAgreementCreationTypeEnum.CHANGE_COMPANY_MANAGER
+  stored_as: dictKey
+  label: 企业管理员变更
+  verdict: correct
+  evidence: CustAuthAgreementDomainService.java:430
+  note: Java 常量名为 CHANGE_COMPANY_MANAGER，落库值为 COMPANY_MANAGER_CHANGE_CODE，命名不对称；DB
+    分布 843
+- field: authorization_agreement.creation_type
+  value: AUTO
+  java_name: AuthAgreementCreationTypeEnum.AUTO
+  stored_as: dictKey
+  label: 自动创建
+  verdict: confirm
+  evidence: db:creation_type AUTO=6390（本次证据代码中未见显式写入点）
+  note: 该值在 DB 大量存在但证据代码内无 setCreationType(AUTO) 写值点，写入方在未给出的链路（产品开通/自动授权），需 REVIEW
+    补证
+- field: authorization_agreement.enable
+  value: Y
+  java_name: BooleanEnum.Y
+  stored_as: dictKey
+  label: 有效
+  verdict: confirm
+  evidence: CustAuthAgreementDomainService.java:461(disabledAll) + DB Y=30814
+  note: ''
+- field: authorization_agreement.enable
+  value: N
+  java_name: BooleanEnum.N
+  stored_as: dictKey
+  label: 失效（管理员变更后禁用）
+  verdict: confirm
+  evidence: CustAuthAgreementDomainService.java:disabledAllAuthorizationAgreement(setEnable(BooleanEnum.N))
+  note: DB N=350，与 creation_type=COMPANY_MANAGER_CHANGE_CODE 的量级不对等（843），说明部分变更记录为新记录而非禁用旧记录
+- field: authorization_agreement.company_type
+  value: PLATFORM_OPERATOR_COMPANY
+  java_name: CustCompanyTypeEnum.PLATFORM_OPERATOR_COMPANY
+  stored_as: dictKey
+  label: 平台运营方
+  verdict: confirm
+  evidence: CustCompanyInfoApplication.java(platformOperatorActiveProduct) + DB 218
+  note: ''
+- field: authorization_agreement.company_type
+  value: PLATFORM_OPREATOR_COMPANY
+  java_name: —
+  stored_as: literal
+  label: （拼写错误）平台运营方
+  verdict: reject
+  evidence: db:company_type 分布 PLATFORM_OPREATOR_COMPANY=119
+  note: 与 CustCompanyTypeEnum.PLATFORM_OPERATOR_COMPANY 拼写不同（缺 E），疑历史脏数据或早期拼写；按企业角色统计/筛选会漏数，需数据修复或查询兼容
+- field: authorization_agreement.company_type
+  value: '["CORE"]'
+  java_name: —
+  stored_as: literal
+  label: （JSON 数组形态）
+  verdict: reject
+  evidence: db:company_type 分布 '["CORE"]'=2、'["FINANCE"]'=2、'["PROJECT_COMPANY"]'=1
+  note: company_type 应为单值 dictKey；JSON 数组形态来自 cust_company_info.cust_company_type
+    的拼接写法（PlatFormMigratoryApplication.setCompany:JSONArray.toJSONString）被误写入，与 setCompanyType(companyTypeStr)
+    单值写法冲突
+relation_audit:
+- left: authorization_agreement.cust_id
+  right: cust_company_info.id
+  kind: logical_fk
+  verdict: confirm
+  evidence: CustAuthAgreementDomainService.java:setCustId(companyId) / authorizationAgreementDao.listAuthorizationAgreement(companyId)
+    / custFacade.getById(companyId)
+  note: 无 mapper JOIN，但写值点与按该字段的查询均存在，属真实关联；表无物理 FK 约束
+- left: authorization_agreement.cust_manager_id
+  right: cust_person_info.user_id
+  kind: logical_ref
+  verdict: derived
+  evidence: CustAuthAgreementDomainService.java:passAuthorizationAgreementDirectly(setCustManagerId(companyManagerUserId))
+    + custFacade.getCompanyPersonByUserId(companyId,userId)
+  note: 存的是 sys 用户ID（CompanyPersonDTO.userId），非 cust_person_info.id；关联需经 cust_person_info.user_id，属派生关系
+- left: authorization_agreement.act_procinst_id
+  right: 工作流流程实例（外部系统）
+  kind: external_ref
+  verdict: reject
+  evidence: CustAuthAgreementDomainService.java:getOne(actProcinstId,...)
+  note: 指向工作流引擎流程实例，非库内表，不构成表间关系
+- left: argeement_migratory_record.cust_id
+  right: cust_company_info.id
+  kind: logical_fk
+  verdict: confirm
+  evidence: AgreementMigratoryService.java:syncAgreementDoc(companyService.getById(custId))
+    / setAgreement(bean.setCustId(custId))
+  note: 无 JOIN，写值与查询均在代码中
+- left: argeement_migratory_record.platform_product_code
+  right: 产品编码枚举（ProductCodeEnum / AgreementDocType）
+  kind: code_enum_ref
+  verdict: derived
+  evidence: AgreementMigratoryService.java:groupingBy(getPlatformProductCode) + PlatFormMigratoryApplication.java:getProductAgreement
+  note: 非表间关系，值域由代码枚举约束（DB 中仅见 ACFLOW/AMS/BEECREDIT/ORDER/RVSFACTOR_PC/STORAGE/VOUCHER）
+- left: cust_change_record.cust_id
+  right: cust_company_info.id
+  kind: logical_fk
+  verdict: confirm
+  evidence: CustAuthSignOrchestrationApplication.java:findChangeRecord(eq(CustChangeRecordDO::getCustId,
+    custId))
+  note: ''
+- left: cust_change_record.alter_type_id
+  right: cust_change_cfg.id
+  kind: logical_ref_comma_separated
+  verdict: derived
+  evidence: CustAuthSignOrchestrationApplication.java:isAllowedChangeScenario(custChangeCfgService.list(in(getId,
+    alterTypeId.split(","))))
+  note: alter_type_id 为逗号分隔的多值字符串，非标准 FK；JOIN 需拆分，普通等值关联会失败
+- left: cust_change_record.oper_cust_id
+  right: 运营中台企业ID（外部系统）
+  kind: external_ref
+  verdict: reject
+  evidence: CustAuthSignOrchestrationApplication.java:findChangeRecord(eq(operCustId,
+    ce.getId()))
+  note: 指向运营中台，非本库表

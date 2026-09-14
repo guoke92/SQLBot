@@ -12,6 +12,7 @@ scope:
 sources:
   - code:CustDataTypeConstant.DATA_TYPE_MAIN
 contract_version: "0.1"
+belong: calibers
 ---
 
 “主数据”口径用于把同一个企业实体在 `cust_company_info` 中的**正式记录**与过程记录区分开：`data_type = '1'` 的记录代表企业主数据，是企业查询与更新的默认范围（见 [[cust_company_info]]、[[effective_company]]）。

@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 天马渠道键写入
-page_key: rules/tianma_channel_key
+page_key: tianma_channel_key
 domain: 外部渠道与银行对接
 status: draft
 aliases:
@@ -15,6 +15,7 @@ sources:
   - code:TianmaService#companyArchive
   - code:CustAccessApplication#validateSetValueOfTianma
 contract_version: "0.1"
+belong: rules
 ---
 
 # 天马渠道键写入

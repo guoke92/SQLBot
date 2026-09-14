@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 待执行任务分片
-page_key: caliber.pending_task_shard
+page_key: pending_task_shard
 domain: 租户配置
 status: draft
 aliases:
@@ -16,6 +16,7 @@ sources:
   - db:async_io_task.status
   - code:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/asyncio/service/AsyncIoTaskManager.java:listPendingByShard
 contract_version: "0.1"
+belong: calibers
 ---
 
 XXL-Job 分片广播拉取待执行任务时，用 `MOD(task_no, shardTotal) = shardIndex` 在分片间均分任务号，并叠加 `status='PENDING'` 与未删除条件。由于 `task_no` 是 DB 自增列，取模天然形成近似均匀分布，无需额外调度表。

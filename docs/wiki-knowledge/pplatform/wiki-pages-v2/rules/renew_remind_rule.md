@@ -1,7 +1,7 @@
 ---
 type: rule
 title: 续费提醒规则
-page_key: rules/renew_remind_rule
+page_key: renew_remind_rule
 domain: CA证书收费
 status: draft
 aliases: [caFeeRenewalTodoJob, 续费待办规则]
@@ -11,6 +11,7 @@ scope:
 sources:
   - code:CaFeeScheduledJobHandler.java:caFeeRenewalTodoJob
 contract_version: "0.1"
+belong: rules
 ---
 
 # 续费提醒规则

@@ -1,966 +1,1080 @@
 ---FILE: tables/cust_account_info.md ---
 ---
 type: table
-title: cust_account_info 企业银行账户表
-page_key: tables/cust_account_info
+title: 客户银行账户信息表
+page_key: cust_account_info
 domain: 企业银行账户
 status: draft
-aliases: [客户账号信息, 企业银行账户信息]
+aliases:
+  - 客户账户信息表
+  - 银行账户表
 oid: 1
 scope:
-  databases: [unknown]
+  databases:
+    - customer_management
 sources:
   - db
-  - code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustAccountApplication.java
+  - code
 contract_version: "0.1"
 ---
 
-`cust_account_info` 是企业银行账户主表，承载账号、户名、开户行、认证状态与打款计数等要素，是「企业—银行账户」一对多关系的落地表。账户的真实性通过人行小额打款（CNAPS）验证：先申请打款，再回填金额验证，状态流转见 [[processes/account-cnaps-payment-auth-state]]。其中唯一的默认还款账户口径见 [[calibers/default-repayment-account]]。
+# 客户银行账户信息表
+
+`cust_account_info` 是企业银行账户主档，承载账号、开户名、开户行、银行（总行）编码/名称等静态要素，同时承载银行小额打款认证（[[payment_auth]]）的流程状态与打款次数。账户通过 `ref_cust_company_info` 归属到企业（指向 `cust_company_info.code`，不是 id），同一归属企业内用 `default_account_flag` 维护唯一[[default_account]]。
 
 ## 需求背景
 
-企业完成建档后需绑定银行账户用于资金动作（还款代扣等），因此需要一张账户表同时解决三件事：账户归属（[[concepts/account-owner-company]]）、账户真实性认证（[[calibers/account-payment-auth-passed]]）、默认账户唯一性（[[rules/default-account-unique]]）。打款申请上送的账号/户名/银行名称与联行号存在字段复用，边界见 [[concepts/bank-no]]；账户类型的真实取值集与代码枚举基线不一致，见 [[concepts/account-type]]。新增账户受 [[rules/account-no-unique-per-company]] 约束。
+企业侧录入对公账户后需完成可用性验证：新增时同一归属企业内账号不可重复（[[account_no_unique]]）；默认还款账户在同一企业内唯一，置默认时先清旧值再置新值（[[single_default_account]]）；打款次数由 `cust_setting_config.payment_maximum_number` 初始化（[[payment_count_init]]），用尽即阻断（[[payment_count_exhausted]]）；验证金额限定在 0.01~0.99 元（[[payment_amount_range]]）；验证金额不匹配或银行库无记录时的错误次数、时间与状态存在实现与设计不一致（[[verify_fail_not_persisted]]）。
 
 ## 版本演进
 
-v0 契约按现状固化：认证状态由 [[processes/account-cnaps-payment-auth-state]] 定义为 APPLY_00 / APPLY_10 / APPLY_20 / APPLY_30 / APPLY_40 五态，DB 默认 APPLY_00；`account_type` 代码枚举基线未覆盖实测存在的 OPERATION_FEE_ACCOUNT，待后续版本补齐；`bank_branch_name` 目前不参与打款申请链路。全表通用逻辑删除口径为 enable = 'Y'（见 [[calibers/valid-record-enable-y]]）。
+- 打款认证状态由 [[bank_account_auth_state]] 描述，DB 实测出现 APPLY_00/APPLY_20/APPLY_40。
+- `account_type` 存在多种写值形态（`BANK`/`OPERATION_FEE_ACCOUNT`/`received`/`1`），见 [[account_type]]。
+- `status` 字段 DB 实测仅有 `INIT`，代码中未见状态迁移写值点，其完整生命周期尚不确定。
+- `bank_no` 在代码中被 `setCnapsCode(bankNo)` 复用为联行号传给银行，语义被复用，使用前需确认。
 
-## 字段语义锚点
-
-```ground:fields
+```ground:table
 table: cust_account_info
+title: 客户银行账户信息表
 fields:
-  - field: account_no
-    meaning: 企业银行账户账号（打款验证/默认还款账号载体）
-    evidence: db
-  - field: account_name
-    meaning: 账户名称（户名），打款申请上送 accountName
-    evidence: db
-  - field: account_type
-    meaning: 账户类型，DB 默认 BANK；实测另有 OPERATION_FEE_ACCOUNT（运营费账户），为代码枚举基线外的真实取值
-    evidence: db
-  - field: bank_no
-    meaning: 联行号；代码中同时作为 bankID 与 cnapsCode 上送人行小额打款接口（bankNo 一值两用）
-    evidence: code
-  - field: bank_code / bank_code_name
-    meaning: 银行(总行)代码/名称；申请打款时 bank_code_name 被当作请求 bankName 上送
-    evidence: code
-  - field: bank_branch_name
-    meaning: 开户行网点名称，打款申请链路未使用
-    evidence: db
-  - field: default_account_flag
-    meaning: 是否默认账户，'1'=默认，'0'=非默认；同企业下默认账号需唯一
-    evidence: db
-  - field: auth_state
-    meaning: 小额打款认证状态，DB 默认 APPLY_00，代码取值 APPLY_00/10/20/30/40
-    evidence: code
-  - field: trans_id
-    meaning: 打款申请交易ID（发起时写入银行返回的 OriginalTxSN，查询/验证均以它为准）
-    evidence: code
-  - field: trace_no
-    meaning: 银行系统跟踪号（申请打款返回）
-    evidence: code
-  - field: payment_remaining_count
-    meaning: 剩余打款次数，初始取 cust_setting_config.payment_maximum_number，每次申请 -1
-    evidence: code
-  - field: error_try_count
-    meaning: 打款金额验证失败次数，失败时累加
-    evidence: code
-  - field: error_try_time
-    meaning: 最后一次验证失败时间
-    evidence: code
-  - field: ref_cust_company_info
-    meaning: 账户归属企业标识，存的是 cust_company_info.code（企业编码），不是企业主键 id
-    evidence: code
-  - field: status
-    meaning: 账户状态，实测仅 INIT
-    evidence: db
+  - name: id
+    type: unknown
+    desc: 表主键，雪花ID
+    dict: null
+  - name: account_no
+    type: unknown
+    desc: 账户账号（银行账号），新增前按该字段+归属企业去重
+    dict: null
+  - name: account_name
+    type: unknown
+    desc: 账户名称（开户名），打款申请时作为 AccountName 传给银行
+    dict: null
+  - name: account_type
+    type: unknown
+    desc: 账户类型；DB 实测主值为 'BANK'(48428)，另有 'OPERATION_FEE_ACCOUNT'(30)、'received'(1)、'1'(5)
+    dict: AccountTypeEnum
+  - name: default_account_flag
+    type: unknown
+    desc: 是否默认还款账户，'1'=默认 / '0'=非默认；同一归属企业下仅允许一条为 '1'
+    dict: null
+  - name: ref_cust_company_info
+    type: unknown
+    desc: 归属企业编码，指向 cust_company_info.code（不是 id）
+    dict: null
+  - name: auth_state
+    type: unknown
+    desc: 银行小额打款验证认证状态，DB 默认值 APPLY_00；实测分布 APPLY_00/APPLY_20/APPLY_40
+    dict: AccountAuthState
+  - name: payment_remaining_count
+    type: unknown
+    desc: 剩余可发起打款次数，由 cust_setting_config.payment_maximum_number 初始化，每次申请成功 -1
+    dict: null
+  - name: error_try_count
+    type: unknown
+    desc: 打款验证金额错误次数，result=1/2 时 +1
+    dict: null
+  - name: error_try_time
+    type: unknown
+    desc: 最后一次打款验证错误时间
+    dict: null
+  - name: trans_id
+    type: unknown
+    desc: 银行打款申请交易流水号（OriginalTxSN），申请成功后回写并用于后续查询/验证
+    dict: null
+  - name: trace_no
+    type: unknown
+    desc: 银行返回的系统跟踪号
+    dict: null
+  - name: bank_no
+    type: unknown
+    desc: 联行号；代码中同时被 setCnapsCode(bankNo) 复用为联行号传给银行，语义被复用
+    dict: null
+  - name: bank_code
+    type: unknown
+    desc: 银行(总行)代码
+    dict: null
+  - name: bank_code_name
+    type: unknown
+    desc: 银行(总行)名称，打款申请时作为 BankName 传给银行
+    dict: null
+  - name: bank_branch_name
+    type: unknown
+    desc: 账户开户行
+    dict: null
+  - name: status
+    type: unknown
+    desc: 账户状态；DB 实测仅有 'INIT'，代码中未见状态迁移写值点
+    dict: null
+  - name: receive_payment_type
+    type: unknown
+    desc: 收付类型
+    dict: null
+  - name: enable
+    type: unknown
+    desc: 逻辑启用标识，DB 全量 'Y'
+    dict: null
+  - name: main_data_id
+    type: unknown
+    desc: 主数据id
+    dict: null
 ```
 ---END FILE---
 
 ---FILE: tables/cust_group_rel.md ---
 ---
 type: table
-title: cust_group_rel 集团成员单位关系表
-page_key: tables/cust_group_rel
-domain: 企业集团关系
+title: 集团成员单位关系表
+page_key: cust_group_rel
+domain: 集团关系
 status: draft
-aliases: [集团成员单位关系, 集团关系表]
+aliases:
+  - 集团关系表
+  - 成员单位关系表
 oid: 1
 scope:
-  databases: [unknown]
+  databases:
+    - customer_management
 sources:
   - db
-  - code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustGroupRelApplication.java
-  - code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustGroupLicenseApplication.java
+  - code
 contract_version: "0.1"
 ---
 
-`cust_group_rel` 用一行一关系的方式描述企业集团树：一行代表一个「父/根—成员单位」关系记录，树形结构由 `parent_group_id` / `root_group_id`（关系记录主键）与 `parent_cust_id` / `root_cust_id`（企业 id）两组字段共同定位。成员单位关系的状态流转见 [[processes/cust-group-rel-status-state]]，已生效口径见 [[calibers/effective-group-member]]。
+# 集团成员单位关系表
+
+`cust_group_rel` 描述集团与其成员单位之间的树形关系：一行记录代表“当前成员企业（`cust_id`）”上挂到“上一级企业（`parent_cust_id`）”的那条关系，同时冗余根集团企业（`root_cust_id`）与根节点（`root_group_id`）用于整树检索。`parent_group_id`/`root_group_id` 自引用本表 `id`，建树时按 `parent_group_id` 分组。
 
 ## 需求背景
 
-集团客户场景需要把多个独立企业组织为一棵树，并对成员关系做准入与生命周期管理：新增子级、发送签署待办、签署/拒绝、运营端直接生效、集团解散等。根节点识别口径见 [[calibers/group-root-node]] 与 [[concepts/root-flag]]；企业角色字段的实际存储形态见 [[concepts/cust-type]]；重复关联拦截见 [[rules/group-rel-uniqueness]]；集团解散前置校验见 [[rules/root-group-delete-check]]。待办发送以企业建档成功为前置，见 [[calibers/company-build-success]]。
+集团关系需要支持多级建树与按根节点拉平（`listAllNodesByRootId`）、按 `db_tenant_code` 做租户隔离。成员单位关系的生效依赖签署流程：新增关系先落未生效（[[cust_group_rel_status]]），发送签署待办（[[notice_no_duplicate]]、[[async_notice_tolerant]]）；根节点不允许再签署/拒绝（[[root_group_no_operation]]）；删除成员单位前必须做在途业务校验（[[member_remove_check_business]]）；导入时同一上级下成员单位角色必须一致（[[member_role_consistency]]）。
 
 ## 版本演进
 
-v0 契约按现状固化。`cust_type` 的库注释描述为「多企业角色用逗号分隔」，代码实际统一以 JSON 数组字符串存取并追加多角色，库注释已成为历史描述，见 [[concepts/cust-type]]。`level` 实测仅 1（根节点），层级字段尚未被真实使用。
+- `cust_type` 以 JSON 数组字符串落库（代码用 `JSONArray.toJSONString()` 写入，形如 `["CORE"]`），支持多角色逐条写入，见 [[enterprise_role]]。
+- `level` 代码仅在根节点写入 `1`，DB 实测仅出现 `'1'`；`root_flag='Y'` 29 条与 `level=1` 的 29 条一致。
+- 关系状态取值为 EFFECTIVE/INEFFECTIVE/REJECTED，见 [[cust_group_rel_status]]。
+- 需求文档另有“企业状态流转：待提交→审核中→已通过；已通过→已冻结/已注销”的主张，代码侧未被证实，见 [[cust_group_rel_status]] 版本演进说明。
 
-## 字段语义锚点
-
-```ground:fields
+```ground:table
 table: cust_group_rel
+title: 集团成员单位关系表
 fields:
-  - field: cust_id
-    meaning: 成员单位企业id（cust_company_info.id）
-    evidence: db
-  - field: parent_group_id / root_group_id
-    meaning: 父/根 关系记录主键（cust_group_rel.id），树形结构靠它组织
-    evidence: code
-  - field: parent_cust_id / root_cust_id
-    meaning: 父/根 企业id（cust_company_info.id）
-    evidence: code
-  - field: root_flag
-    meaning: 是否集团根节点，Y=集团本身，N=成员单位
-    evidence: db
-  - field: level
-    meaning: 层级，实测仅 1（根节点）
-    evidence: db
-  - field: cust_type
-    meaning: 企业角色，实际存 JSON 数组字符串（如 ["SUPPLIER"]），支持追加多角色
-    evidence: code
-  - field: status
-    meaning: 成员单位关系状态 EFFECTIVE/INEFFECTIVE/REJECTED
-    evidence: db
+  - name: id
+    type: unknown
+    desc: 表主键，集团关系树节点ID
+    dict: null
+  - name: cust_id
+    type: unknown
+    desc: 当前成员企业ID，指向 cust_company_info.id
+    dict: null
+  - name: parent_cust_id
+    type: unknown
+    desc: 上一级企业ID，指向 cust_company_info.id
+    dict: null
+  - name: parent_group_id
+    type: unknown
+    desc: 父节点ID，指向本表 cust_group_rel.id，建树时按此分组
+    dict: null
+  - name: root_cust_id
+    type: unknown
+    desc: 根集团企业ID，指向 cust_company_info.id
+    dict: null
+  - name: root_group_id
+    type: unknown
+    desc: 根节点ID，指向本表 cust_group_rel.id，用于 listAllNodesByRootId
+    dict: null
+  - name: root_flag
+    type: unknown
+    desc: 是否集团根企业，'Y'=是 / 'N'=不是；DB root_flag='Y' 29 条与 level=1 的 29 条一致
+    dict: null
+  - name: level
+    type: unknown
+    desc: 层级；代码仅在根节点写入 1，DB 实测仅出现 '1'
+    dict: null
+  - name: cust_type
+    type: unknown
+    desc: 企业角色，JSON 数组字符串（代码用 JSONArray.toJSONString() 写入，形如 ["CORE"]），支持多角色遍历写入
+    dict: null
+  - name: status
+    type: unknown
+    desc: 关系生效状态：EFFECTIVE/INEFFECTIVE/REJECTED
+    dict: null
+  - name: db_tenant_code
+    type: unknown
+    desc: 数据租户标识，DB 实测 17 个取值，是集团关系查询的关键过滤条件
+    dict: null
 ```
 ---END FILE---
 
 ---FILE: tables/cust_sftp.md ---
 ---
 type: table
-title: cust_sftp SFTP 渠道配置表
-page_key: tables/cust_sftp
-domain: SFTP渠道对接
+title: 渠道 SFTP 配置表
+page_key: cust_sftp
+domain: SFTP 渠道
 status: draft
-aliases: [SFTP 配置, 渠道 SFTP 配置]
+aliases:
+  - SFTP配置表
+  - 渠道SFTP配置
 oid: 1
 scope:
-  databases: [unknown]
+  databases:
+    - customer_management
 sources:
   - db
 contract_version: "0.1"
 ---
 
-`cust_sftp` 保存各对接渠道的 SFTP 服务器配置与登录账号，是渠道文件交换的接入元数据表：一行对应一个渠道（或渠道的某套测试配置）的 SFTP 账号。启用口径见 [[calibers/enabled-sftp-channel]]，字段混淆边界见 [[concepts/sftp-channel]]。
+# 渠道 SFTP 配置表
+
+`cust_sftp` 保存各渠道方文件交换所用的 SFTP 连接配置：渠道编码（`channel`）、主机（`host`）、端口（`port`）、登录账号（`user_name`）、渠道中文名（`name`）与数据租户标识（`db_tenant_code`）。`channel` 在实测数据中 16 条互不相同，是配置的唯一业务键。
 
 ## 需求背景
 
-不同渠道（如 bgy / tianma / meituan / sny）的文件交互独立开设 SFTP 账号，账号命名形如 `app_<渠道>_<日期/编号>`，服务器以 qa.sftp.lls.com:22 为主、个别为 uat.sftp.lls.com。渠道编码与数据租户标识是两个不同来源的概念，统计与排障时不可互相替代。
+不同渠道方（如天合光能、深天马、百果园、美团）各自需要独立的 SFTP 主机与账号，凭 [[sftp_channel]] 定位配置；`db_tenant_code` 用于租户级隔离，与渠道不是一一对应关系。
 
 ## 版本演进
 
-v0 契约按现状固化。本页字段语义均来自 DB 实测，暂无代码侧写值证据；`enable` 实测全部为 'Y'，是否存在失效配置需后续数据核对后再补充演进说明。
+- 实测 `host` 仅出现 `qa.sftp.lls.com`(15) / `uat.sftp.lls.com`(1)，仍以测试环境地址为主。
+- 实测 `port` 全部为 `'22'`，`enable` 全部为 `'Y'`。
+- `db_tenant_code` 与 `channel` 非一一对应（`ISOLATE_TAG_zjsj`、`sny` 各有 2 条），按渠道统计与按租户统计口径不同。
 
-## 字段语义锚点
-
-```ground:fields
+```ground:table
 table: cust_sftp
+title: 渠道 SFTP 配置表
 fields:
-  - field: channel
-    meaning: SFTP 对接渠道编码（如 bgy/tianma/meituan/sny）
-    evidence: db
-  - field: user_name
-    meaning: SFTP 登录账号，命名形如 app_<渠道>_<日期/编号>
-    evidence: db
-  - field: host / port
-    meaning: SFTP 服务器地址与端口，实测 qa.sftp.lls.com:22 为主、个别 uat.sftp.lls.com
-    evidence: db
-  - field: db_tenant_code
-    meaning: 所属数据租户标识
-    evidence: db
+  - name: channel
+    type: unknown
+    desc: SFTP 渠道编码（如 ZTSJ、tianma、meituan、sny_test），DB 16 条互不相同
+    dict: null
+  - name: host
+    type: unknown
+    desc: SFTP 主机地址，实测 qa.sftp.lls.com(15) / uat.sftp.lls.com(1)
+    dict: null
+  - name: port
+    type: unknown
+    desc: SFTP 端口，实测全部 '22'
+    dict: null
+  - name: user_name
+    type: unknown
+    desc: SFTP 登录账号，命名形如 app_<渠道>_<日期序列>
+    dict: null
+  - name: name
+    type: unknown
+    desc: 渠道中文名称（如 天合光能、深天马、百果园、美团）
+    dict: null
+  - name: db_tenant_code
+    type: unknown
+    desc: 数据租户标识，与 channel 非一一对应（ISOLATE_TAG_zjsj、sny 各有 2 条）
+    dict: null
+  - name: enable
+    type: unknown
+    desc: 是否启用，实测全部 'Y'
+    dict: null
 ```
 ---END FILE---
 
----FILE: processes/account-cnaps-payment-auth-state.md ---
+---FILE: enums/account_type.md ---
 ---
-type: process
-title: 银行账户小额打款认证状态机
-page_key: processes/account-cnaps-payment-auth-state
+type: enum
+title: 账户类型 account_type
+page_key: account_type
 domain: 企业银行账户
 status: draft
-aliases: [CNAPS 打款认证流程, auth_state 状态机]
+aliases:
+  - AccountTypeEnum
+  - 账户类型枚举
 oid: 1
 scope:
-  databases: [unknown]
+  databases:
+    - customer_management
 sources:
-  - code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustAccountApplication.java
+  - db
+  - code
 contract_version: "0.1"
 ---
 
-本流程描述企业银行账户（[[tables/cust_account_info]]）通过人行小额打款完成真实性认证的完整状态流转：申请打款 → 银行受理 → 金额验证。字段 `auth_state` 的五态取值与迁移条件是账户认证能力的核心契约，被 [[calibers/account-payment-auth-passed]]、[[rules/payment-confirm-precondition]]、[[rules/payment-fail-count]] 直接引用。
+# 账户类型 account_type
+
+`cust_account_info.account_type` 描述账户性质，对应 `AccountTypeEnum`。同一枚举值在代码中存在两种键形态：`name()`（如 `BANK`）与 `getDictParam()` 的数字形态（如 `1`），DB 中两种形态并存，写值点需逐个确认。
 
 ## 需求背景
 
-账户真实性无法在录入时判断，必须由银行侧发起一笔小额打款、企业侧回填收到的金额来验证账户可用。因此系统需要记录「是否已发起」「银行是否受理」「验证结果」三类事实，并对验证动作施加时序约束（未申请不能验、未受理不能验、受理失败需重新申请）。剩余次数与失败次数用于限制试探，见 [[rules/payment-count-quota]]；金额范围与单位换算见 [[rules/payment-amount-range]]；打款交易标识的取值来源见 [[concepts/trans-id-vs-trace-no]]。
+账户类型是账户统计的主口径之一：`BANK` 占 48428/48468，另有运营费账户、收款账户等少量取值，按类型统计时若只按 `BANK` 过滤会漏掉运营费账户口径（[[bank_account_type]]）。
 
 ## 版本演进
 
-v0 契约按现状固化，五态基线来自代码枚举。需注意两处与直觉不一致的现行行为：(1) 银行受理失败后可无前置状态校验地直接重新申请，属于覆盖式回退；(2) 金额不匹配或银行库无记录时同样落 APPLY_40 并累加失败次数后抛异常，故 APPLY_40 不能单独作为「验证通过」口径。
+- `BANK` 为绝对主值（48428 条），与 `.name()` 落库一致。
+- `received` 仅 1 条，属低频写入路径（`getDictKey()`）。
+- `'1'` 仅 5 条，为数字形态遗留；同值存在 `getDictParam=1` 与 `name()=BANK` 两种键，说明主路径是 `name()`。
+- `OPERATION_FEE_ACCOUNT` 30 条，代码枚举基线完全未声明，需补枚举，否则按 `account_type` 统计会漏口径。
 
-## 状态与迁移锚点
+```ground:enum
+field: cust_account_info.account_type
+values:
+  - value: BANK
+    java_name: AccountTypeEnum.BANK
+    stored_as: name()/字面量 'BANK'
+    label: 银行
+    verdict: confirm
+    evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/controller/CustPersonController.java:305
+    note: DB 实测 48428 条为字面 'BANK'，与 .name() 落库一致，底稿 stored_as=name 成立
+  - value: received
+    java_name: AccountTypeEnum.RECEIVED
+    stored_as: getDictKey()
+    label: 收款
+    verdict: confirm
+    evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/AccountTypeEnum.java
+    note: DB 仅 1 条，accessors 声明 getDictKey=1 处被引用，属低频写入路径
+  - value: "1"
+    java_name: AccountTypeEnum.BANK.getDictParam()
+    stored_as: dictParam 数字形态
+    label: 银行（数字形态）
+    verdict: correct
+    evidence: lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/enums/AccountTypeEnum.java
+    note: 枚举同值存在 getDictParam=1 与 name()=BANK 两种键；DB 中 '1' 仅 5 条、'BANK' 48428 条，说明主路径是 name()，'1' 为历史/其他写入点遗留，底稿未体现键混用
+  - value: OPERATION_FEE_ACCOUNT
+    java_name: null
+    stored_as: 字面量
+    label: 运营费账户
+    verdict: correct
+    evidence: db
+    note: DB 30 条，代码枚举基线完全未声明，需补枚举，否则按 account_type 统计会漏口径
+```
+---END FILE---
 
-```ground:state_machine
-name: 银行账户小额打款认证状态机
+---FILE: enums/auth_state.md ---
+---
+type: enum
+title: 打款认证状态 auth_state
+page_key: auth_state
+domain: 企业银行账户
+status: draft
+aliases:
+  - AccountAuthState
+  - 认证状态枚举
+oid: 1
+scope:
+  databases:
+    - customer_management
+sources:
+  - db
+  - code
+contract_version: "0.1"
+---
+
+# 打款认证状态 auth_state
+
+`cust_account_info.auth_state` 的枚举为 `AccountAuthState`，取值形如 `APPLY_00`~`APPLY_40`，状态迁移见 [[bank_account_auth_state]]。审计发现同一枚举“写值用 `getDictParam()`、查询用 `getDictKey()`”，存在键形态混用风险，需确认存储形态。
+
+## 需求背景
+
+该字段是[[payment_auth]]流程的阶段标记，决定账户能否继续发起打款、能否进入金额验证，也是[[not_applied_payment_auth]]与“已完成验证”口径的依据。
+
+## 版本演进
+
+- `APPLY_00` 为 DB 列默认值，占 49144 条，是存量主状态。
+- `APPLY_20`、`APPLY_40` 已在生产数据出现；`APPLY_10`、`APPLY_30` 仅在代码常量中出现。
+- `APPLY_10` 的审计结论为 reject：写值点用 `getDictParam()`、查询点用 `getDictKey()`，键形态不一致，审计备注在给定材料中被截断。
+
+```ground:enum
+field: cust_account_info.auth_state
+values:
+  - value: APPLY_10
+    java_name: AccountAuthState.APPLY_10
+    stored_as: 写值用 getDictParam()、查询用 getDictKey()
+    label: 打款申请已提交
+    verdict: reject
+    evidence: CustAccountApplication.java:193（getDictParam） vs CustAccountApplication.java:222（getDictKey）
+    note: 同一枚举写值与查询使用了不同的键取法，存在键形态混用风险；审计备注在语义分析中被截断，需回源码确认落库形态
+```
+---END FILE---
+
+---FILE: processes/bank_account_auth_state.md ---
+---
+type: process
+title: 银行账户打款认证状态
+page_key: bank_account_auth_state
+domain: 企业银行账户
+status: draft
+aliases:
+  - 打款认证状态机
+  - auth_state 状态机
+oid: 1
+scope:
+  databases:
+    - customer_management
+sources:
+  - db
+  - code
+contract_version: "0.1"
+---
+
+# 银行账户打款认证状态
+
+`cust_account_info.auth_state` 的生命周期：初始 `APPLY_00` → 发起小额打款申请进入 `APPLY_10` → 银行受理成功 `APPLY_20`（或受理失败 `APPLY_30`）→ 验证金额一致落 `APPLY_40`。字段枚举见 [[auth_state]]，业务术语见 [[payment_auth]]。
+
+## 需求背景
+
+账户须通过银行小额打款验证方可确认可用：申请前受打款次数约束（[[payment_count_exhausted]]、[[payment_count_init]]），验证金额受区间校验（[[payment_amount_range]]），验证失败分支存在不落库问题（[[verify_fail_not_persisted]]）。初始态口径见 [[not_applied_payment_auth]]。
+
+## 版本演进
+
+- `APPLY_00`（DB 列默认）与 `APPLY_20`/`APPLY_40` 出现在生产数据；`APPLY_10`/`APPLY_30` 见于代码常量。
+- 查询打款结果 `status=10` 时幂等重写为 `APPLY_10`。
+- `result=1/2` 两条迁移指向 `APPLY_40`，但实现中先抛异常、状态不落库，迁移实际不成立。
+
+```ground:process
+name: 银行账户打款认证状态
 field: cust_account_info.auth_state
 states:
   - value: APPLY_00
-    label: 初始/未发起打款
-    source: code_enum
+    label: 初始，未发起打款认证（DB 列默认值）
+    source: db_dist
   - value: APPLY_10
-    label: 打款申请已提交，银行受理中
-    source: code_enum
+    label: 已提交打款申请、待银行受理
+    source: code_const
   - value: APPLY_20
-    label: 银行受理成功，可进行金额验证
-    source: code_enum
+    label: 银行受理成功（允许发起金额验证）
+    source: code_const
   - value: APPLY_30
-    label: 申请打款受理失败，需重新申请
-    source: code_enum
+    label: 申请打款受理失败
+    source: code_const
   - value: APPLY_40
-    label: 已完成打款验证（金额一致，或验证不匹配/库无记录时也落该值）
-    source: code_enum
+    label: 已完成验证（金额一致时落库）
+    source: db_dist
 transitions:
   - from: APPLY_00
-    event: 申请打款 cnapsPaymentApply()
+    event: 发起小额打款申请 cnapsPaymentApply
     to: APPLY_10
-    evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustAccountApplication.java:cnapsPaymentApply
+    evidence: code_path:CustAccountApplication.java:193
   - from: APPLY_10
-    event: 查询打款结果 paymentResult() 返回 status=20
+    event: 查询打款结果 status=10（幂等重写）
+    to: APPLY_10
+    evidence: code_path:CustAccountApplication.java:222
+  - from: APPLY_10
+    event: 查询打款结果 status=20
     to: APPLY_20
-    evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustAccountApplication.java:paymentResult
+    evidence: code_path:CustAccountApplication.java:224
   - from: APPLY_10
-    event: 查询打款结果 paymentResult() 返回 status=30
+    event: 查询打款结果 status=30
     to: APPLY_30
-    evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustAccountApplication.java:paymentResult
+    evidence: code_path:CustAccountApplication.java:226
   - from: APPLY_20
-    event: 打款验证 cnapsPaymentConfirm() 金额一致 result=0
+    event: 打款验证金额一致 result=0
     to: APPLY_40
-    evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustAccountApplication.java:cnapsPaymentConfirm
+    evidence: code_path:CustAccountApplication.java:283
   - from: APPLY_20
-    event: 打款验证 cnapsPaymentConfirm() 金额不匹配/库无记录 result=1|2（同时 error_try_count+1、error_try_time=now 后抛业务异常）
+    event: 打款验证金额不匹配 result=1（抛异常，状态未落库）
     to: APPLY_40
-    evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustAccountApplication.java:cnapsPaymentConfirm
-  - from: APPLY_30
-    event: 重新申请打款 cnapsPaymentApply()（无前置状态校验，直接覆盖）
-    to: APPLY_10
-    evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustAccountApplication.java:cnapsPaymentApply
+    evidence: code_path:CustAccountApplication.java:287
+  - from: APPLY_20
+    event: 银行库无记录 result=2（抛异常，状态未落库）
+    to: APPLY_40
+    evidence: code_path:CustAccountApplication.java:293
 ```
 ---END FILE---
 
----FILE: processes/cust-group-rel-status-state.md ---
+---FILE: processes/cust_group_rel_status.md ---
 ---
 type: process
-title: 集团成员单位关系状态机
-page_key: processes/cust-group-rel-status-state
-domain: 企业集团关系
+title: 集团成员单位关系状态
+page_key: cust_group_rel_status
+domain: 集团关系
 status: draft
-aliases: [成员单位生效流程, cust_group_rel.status 状态机]
+aliases:
+  - 集团关系状态机
+  - 成员单位生效状态
 oid: 1
 scope:
-  databases: [unknown]
+  databases:
+    - customer_management
 sources:
-  - code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustGroupRelApplication.java
-  - code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustGroupLicenseApplication.java
+  - db
+  - code
 contract_version: "0.1"
 ---
 
-本流程描述集团成员单位关系（[[tables/cust_group_rel]]）从新建到生效/拒绝的状态流转：新建即 INEFFECTIVE 并发待办，成员单位签署后 EFFECTIVE，拒绝则 REJECTED，运营端亦可直接生效。生效口径被 [[calibers/effective-group-member]] 与 [[rules/effective-member-no-op]] 引用。
+> (document_claim，未证实)
+
+# 集团成员单位关系状态
+
+`cust_group_rel.status` 描述成员单位关系的生效状态：新增/待办发出后为 `INEFFECTIVE`，成员单位签署协议 `accept` 后置 `EFFECTIVE`，拒绝 `reject` 后置 `REJECTED`；集团根企业的关系在建档成功场景下可直接落 `EFFECTIVE`。
 
 ## 需求背景
 
-集团树中的成员关系必须经成员单位确认才具备业务效力，因此引入「未生效—已生效—已拒绝」三态与待办通知机制。运营端补录历史集团时允许按企业建档状态直接落生效或未生效。准入校验依赖企业建档成功（[[calibers/company-build-success]]），根节点不可作为被签对象（[[calibers/group-root-node]]）。协议签署与服务端直接生效两条路径并存，见 [[rules/effective-member-no-op]]。
+关系生效是集团业务的前置条件：查询成员只返回 `EFFECTIVE` 节点（[[effective_group_rel]]），根节点禁止再次签署或拒绝（[[root_group_no_operation]]），签署待办不可重复发送且异步容错（[[notice_no_duplicate]]、[[async_notice_tolerant]]），删除成员单位前需校验在途业务（[[member_remove_check_business]]）。
 
 ## 版本演进
 
-v0 契约按现状固化，三态基线来自代码枚举。现行实现中存在两条并存路径：一是成员单位协议签署（accept/reject），二是服务端 effectGroupRel 直接置生效；两者未在状态机层面统一收敛，后续版本可考虑合并为单一入口。新增子级的待办发送范围以企业建档成功为前提，见 [[rules/notice-only-build-success]]。
+- 新增关系（`addExistSubCustGroupRel`/`addNewSubCustGroupRel`/导入）与发送签署待办均落 `INEFFECTIVE`。
+- `effectGroupRel` 外部回调可把 `INEFFECTIVE` 置为 `EFFECTIVE`。
+- 需求文档主张“企业状态流转：待提交→审核中→已通过；已通过→已冻结/已注销”。**该主张为 document_claim，未证实**：代码侧仅见 `CustBuildStatusEnum` 的 BUILD_SUCCESS/CUST_BUILDING/BUILD_FAIL/CUST_CHANGE 被引用，冻结/注销流转的枚举与写值点未出现在给出的文件中。
 
-## 状态与迁移锚点
-
-```ground:state_machine
-name: 集团成员单位关系状态机
+```ground:process
+name: 集团成员单位关系状态
 field: cust_group_rel.status
 states:
   - value: INEFFECTIVE
-    label: 未生效（待成员单位签署/处理待办）
+    label: 未生效
     source: code_enum
   - value: EFFECTIVE
     label: 已生效
-    source: code_enum
+    source: db_dist
   - value: REJECTED
     label: 已拒绝
     source: code_enum
 transitions:
-  - from: "（新建）"
-    event: 新增成员单位子级且企业认证成功，发送待办 sendCustGroupRelNotice(groupId)
+  - from: null
+    event: 新增成员单位关系（addExistSubCustGroupRel/addNewSubCustGroupRel/导入）
     to: INEFFECTIVE
-    evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustGroupLicenseApplication.java:sendCustGroupRelNotice
-  - from: "（新建）"
-    event: 运营端新增集团根节点 addExistRootGroupRel()：企业 cust_build_status=BUILD_SUCCESS 时直接置 EFFECTIVE，否则 INEFFECTIVE
-    to: "EFFECTIVE | INEFFECTIVE"
-    evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustGroupRelApplication.java:addExistRootGroupRel
+    evidence: code_path:CustGroupRelApplication.java:addExistSubCustGroupRel
+  - from: null
+    event: 发送成员单位签署待办 sendCustGroupRelNotice
+    to: INEFFECTIVE
+    evidence: code_path:CustGroupLicenseApplication.java:sendCustGroupRelNotice
   - from: INEFFECTIVE
-    event: 签署协议 accept()（校验非 EFFECTIVE、rootFlag!=Y）
+    event: 成员单位签署协议 accept
     to: EFFECTIVE
-    evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustGroupLicenseApplication.java:accept
+    evidence: code_path:CustGroupLicenseApplication.java:accept
   - from: INEFFECTIVE
-    event: 拒绝协议 reject()
+    event: 拒绝签署协议 reject
     to: REJECTED
-    evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustGroupLicenseApplication.java:reject
-  - from: INEFFECTIVE
-    event: effectGroupRel(custId,custType) 直接生效
+    evidence: code_path:CustGroupLicenseApplication.java:reject
+  - from: null
+    event: 新增集团根企业且企业已建档成功 BUILD_SUCCESS
     to: EFFECTIVE
-    evidence: code_path:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/CustGroupRelApplication.java:effectGroupRel
+    evidence: code_path:CustGroupRelApplication.java:addExistRootGroupRel
+  - from: INEFFECTIVE
+    event: effectGroupRel 外部回调置为已生效
+    to: EFFECTIVE
+    evidence: code_path:CustGroupRelApplication.java:effectGroupRel
 ```
 ---END FILE---
 
----FILE: calibers/default-repayment-account.md ---
+---FILE: calibers/default_repayment_account.md ---
 ---
 type: caliber
-title: 默认还款账户口径
-page_key: calibers/default-repayment-account
+title: 默认还款账户
+page_key: default_repayment_account
 domain: 企业银行账户
 status: draft
-aliases: [默认账户, default_account_flag=1]
+aliases:
+  - 默认账户口径
+  - 默认还款账号
 oid: 1
 scope:
-  databases: [unknown]
+  databases:
+    - customer_management
 sources:
-  - code_path:CustAccountApplication.java:setDefaultFlag/afterSave
+  - code
 contract_version: "0.1"
 ---
 
-默认还款账户指企业名下被标记为默认的资金账户，是代扣/还款类业务的取数入口。判定条件为 `cust_account_info.default_account_flag = '1'`，作用域为同一归属企业；维护规则见 [[rules/default-account-unique]]。
+# 默认还款账户
+
+口径判断：`cust_account_info.default_account_flag = '1'`。语义为同一归属企业（`ref_cust_company_info`）下唯一的默认还款账户，由置默认与保存后逻辑互斥维护，术语辨析见 [[default_account]]。
 
 ## 需求背景
 
-一个企业可绑定多个银行账户（[[tables/cust_account_info]]），但资金动作只能落到一个账户上，因此需要「默认标记 + 同企业唯一」的显式口径，避免下游按时间或主键取到不确定账户。企业名下无默认账户时，系统按 afterSave 逻辑自动把首个账户置为默认，保证口径恒有取值。
+还款/扣款类业务需要明确“用哪个账户”，因此要求单企业唯一默认账户（[[single_default_account]]）。
 
 ## 版本演进
 
-v0 契约按现状固化。该口径同时被写入路径（setDefaultFlag 先清零再置一）与兜底路径（afterSave）维护，两条路径共同保证同企业唯一性。
-
-## 口径锚点
+- 该口径由 `setDefaultFlag`/`afterSave` 维护，属写时维护型口径，不是查询时推导。
 
 ```ground:caliber
 name: 默认还款账户
 predicate: cust_account_info.default_account_flag = '1'
-scope: 同一 ref_cust_company_info 企业下唯一
-evidence: code_path:CustAccountApplication.java:setDefaultFlag/afterSave
+scope: 同一 ref_cust_company_info 下唯一；setDefaultFlag/afterSave 维护
+evidence: code_path:CustAccountApplication.java:setDefaultFlag
 ```
 ---END FILE---
 
----FILE: calibers/account-payment-auth-passed.md ---
+---FILE: calibers/valid_account.md ---
 ---
 type: caliber
-title: 账户打款认证通过口径
-page_key: calibers/account-payment-auth-passed
+title: 有效账户
+page_key: valid_account
 domain: 企业银行账户
 status: draft
-aliases: [认证通过账户, APPLY_40]
+aliases:
+  - 启用账户口径
+  - enable=Y
 oid: 1
 scope:
-  databases: [unknown]
-sources:
-  - code_path:CustAccountApplication.java:cnapsPaymentConfirm
-contract_version: "0.1"
----
-
-账户打款认证通过指该银行账户已走完人行小额打款验证流程，判定条件为 `cust_account_info.auth_state = 'APPLY_40'`，作用域为账户维度。
-
-## 需求背景
-
-资金类业务只能使用经验证的真实账户，因此需要以认证状态作为准入口径。但现行实现中 APPLY_40 是「验证动作已终态」的标记，而非严格意义的「验证成功」，见 [[processes/account-cnaps-payment-auth-state]] 与 [[rules/payment-fail-count]]。
-
-## 版本演进
-
-v0 契约按现状固化。该口径当前不足以单独作为「验证通过」的过滤条件：建议配合 error_try_count 与 trans_id 组合判断，后续版本再决定是否拆出独立的成功状态。
-
-## 口径锚点
-
-```ground:caliber
-name: 账户打款认证通过
-predicate: cust_account_info.auth_state = 'APPLY_40'
-scope: 账户维度
-evidence: code_path:CustAccountApplication.java:cnapsPaymentConfirm
-```
----END FILE---
-
----FILE: calibers/valid-record-enable-y.md ---
----
-type: caliber
-title: 有效账户/有效记录口径
-page_key: calibers/valid-record-enable-y
-domain: 企业银行账户
-status: draft
-aliases: [逻辑删除口径, enable=Y]
-oid: 1
-scope:
-  databases: [unknown]
+  databases:
+    - customer_management
 sources:
   - db
 contract_version: "0.1"
 ---
 
-有效记录指未被逻辑删除的数据行，判定条件为 `cust_account_info.enable = 'Y'`，作用域为该表通用逻辑删除口径。
+# 有效账户
+
+口径判断：`cust_account_info.enable = 'Y'`，即逻辑启用标识为启用的账户。
 
 ## 需求背景
 
-账户数据涉及历史与失效记录，物理删除会破坏认证与打款审计链路，因此统一以 enable 标记做逻辑删除，所有列表与取数默认叠加该过滤条件。与之相邻的状态字段（如 `status`，实测仅 INIT）不可替代本口径。
+账户使用范围统计以启用标识收口，停用账户不纳入可用账户集合。
 
 ## 版本演进
 
-v0 契约按现状固化，该口径适用于 [[tables/cust_account_info]] 全表查询。
-
-## 口径锚点
+- 全表实测均为 `'Y'`，该口径目前不产生过滤差异；一旦出现 `'N'`，需确认是否配套停用功能与迁移写值点。
 
 ```ground:caliber
-name: 有效账户/有效记录
+name: 有效账户
 predicate: cust_account_info.enable = 'Y'
-scope: 全表通用逻辑删除口径
+scope: 全表实测均为 Y
 evidence: db
 ```
 ---END FILE---
 
----FILE: calibers/effective-group-member.md ---
+---FILE: calibers/bank_account_type.md ---
 ---
 type: caliber
-title: 已生效集团成员单位口径
-page_key: calibers/effective-group-member
-domain: 企业集团关系
+title: 银行账户（账户类型）
+page_key: bank_account_type
+domain: 企业银行账户
 status: draft
-aliases: [生效成员单位, status=EFFECTIVE]
+aliases:
+  - account_type=BANK
+  - 银行账户口径
 oid: 1
 scope:
-  databases: [unknown]
+  databases:
+    - customer_management
 sources:
-  - code_path:CustGroupRelApplication.java:listSubCust
+  - db
 contract_version: "0.1"
 ---
 
-已生效集团成员单位指成员关系已完成确认的节点，判定条件为 `cust_group_rel.status = 'EFFECTIVE'`，作用域为平铺列表 / 子级列表（listSubCust）的过滤口径。
+# 银行账户（账户类型）
+
+口径判断：`cust_account_info.account_type = 'BANK'`，是账户类型的主口径。
 
 ## 需求背景
 
-集团树中包含未生效与已拒绝的关系记录（[[tables/cust_group_rel]]），对外展示与统计只应包含生效节点。状态的产生与流转见 [[processes/cust-group-rel-status-state]]，重复操作拦截见 [[rules/effective-member-no-op]]。
+账户类型统计与筛选需要区分银行账户与运营费账户、收款账户，取值审计见 [[account_type]]。
 
 ## 版本演进
 
-v0 契约按现状固化，该口径与状态机三态基线一致。
-
-## 口径锚点
+- `BANK` 占 48428/48468，为主口径；`OPERATION_FEE_ACCOUNT`(30)、`received`(1)、`'1'`(5) 为少数取值，按 `BANK` 过滤时会漏掉这些账户。
 
 ```ground:caliber
-name: 已生效集团成员单位
+name: 银行账户（账户类型）
+predicate: cust_account_info.account_type = 'BANK'
+scope: 占 48428/48468，是账户类型主口径
+evidence: db
+```
+---END FILE---
+
+---FILE: calibers/not_applied_payment_auth.md ---
+---
+type: caliber
+title: 未发起打款认证
+page_key: not_applied_payment_auth
+domain: 企业银行账户
+status: draft
+aliases:
+  - auth_state=APPLY_00
+  - 未认证账户口径
+oid: 1
+scope:
+  databases:
+    - customer_management
+sources:
+  - db
+contract_version: "0.1"
+---
+
+# 未发起打款认证
+
+口径判断：`cust_account_info.auth_state = 'APPLY_00'`，即尚未发起打款认证的账户。
+
+## 需求背景
+
+用于识别待认证账户存量，是[[payment_auth]]流程的起始集合，状态迁移见 [[bank_account_auth_state]]。
+
+## 版本演进
+
+- 该值为 DB 列默认值，占 49144 条，是存量账户的绝对主状态。
+
+```ground:caliber
+name: 未发起打款认证
+predicate: cust_account_info.auth_state = 'APPLY_00'
+scope: DB 列默认值，占 49144 条
+evidence: db
+```
+---END FILE---
+
+---FILE: calibers/effective_group_rel.md ---
+---
+type: caliber
+title: 已生效集团关系
+page_key: effective_group_rel
+domain: 集团关系
+status: draft
+aliases:
+  - status=EFFECTIVE
+  - 生效成员单位口径
+oid: 1
+scope:
+  databases:
+    - customer_management
+sources:
+  - code
+contract_version: "0.1"
+---
+
+# 已生效集团关系
+
+口径判断：`cust_group_rel.status = 'EFFECTIVE'`，即签署完成、关系已生效的集团成员单位关系。
+
+## 需求背景
+
+集团成员查询 `listSubCust` 仅返回该状态节点，未生效/已拒绝关系不进入成员视图，状态来源见 [[cust_group_rel_status]]、术语见 [[member_unit]]。
+
+## 版本演进
+
+- 生效可由 `accept` 签署、根企业建档成功、`effectGroupRel` 外部回调三条路径达成，落地路径较多，排查成员缺失时需同时看签署与回调。
+
+```ground:caliber
+name: 已生效集团关系
 predicate: cust_group_rel.status = 'EFFECTIVE'
-scope: 平铺/子级列表 listSubCust 过滤口径
+scope: listSubCust 仅返回该状态节点
 evidence: code_path:CustGroupRelApplication.java:listSubCust
 ```
 ---END FILE---
 
----FILE: calibers/group-root-node.md ---
+---FILE: calibers/group_root_node.md ---
 ---
 type: caliber
-title: 集团根节点口径
-page_key: calibers/group-root-node
-domain: 企业集团关系
+title: 集团根节点
+page_key: group_root_node
+domain: 集团关系
 status: draft
-aliases: [集团本身, root_flag=Y]
+aliases:
+  - root_flag=Y
+  - 根企业口径
 oid: 1
 scope:
-  databases: [unknown]
+  databases:
+    - customer_management
 sources:
-  - code_path:CustGroupLicenseApplication.java:checkCustGroup
+  - code
 contract_version: "0.1"
 ---
 
-集团根节点指代表集团本身的关系记录，判定条件为 `cust_group_rel.root_flag = 'Y'`；root_flag = 'Y' 的企业不可签署成员单位协议，也不可作为子级被关联。字段边界见 [[concepts/root-flag]]。
+# 集团根节点
+
+口径判断：`cust_group_rel.root_flag = 'Y'`，即集团根企业所在的关系节点。
 
 ## 需求背景
 
-集团树必须有一个根来承载集团角色，根节点与成员单位在权限上互斥：根不能成为别人的子级，也不能以成员身份签署协议。相关准入校验见 [[rules/effective-member-no-op]] 与 [[rules/corp-company-cannot-be-child]]。
+根节点是集团树的树根，也是签署流程的边界：`checkCustGroup` 拒绝对根节点做签署/拒绝操作（[[root_group_no_operation]]）。术语辨析见 [[group_root]]。
 
 ## 版本演进
 
-v0 契约按现状固化；`level` 字段实测仅 1（根节点），层级能力尚未展开使用。
-
-## 口径锚点
+- DB `root_flag='Y'` 29 条与 `level=1` 的 29 条一致，当前两者可作为同一批节点的双重判据。
 
 ```ground:caliber
 name: 集团根节点
 predicate: cust_group_rel.root_flag = 'Y'
-scope: 根节点识别；root_flag=Y 的企业不可签成员单位协议
+scope: checkCustGroup 拒绝对根节点做签署/拒绝操作
 evidence: code_path:CustGroupLicenseApplication.java:checkCustGroup
 ```
 ---END FILE---
 
----FILE: calibers/company-build-success.md ---
----
-type: caliber
-title: 企业建档成功口径
-page_key: calibers/company-build-success
-domain: 企业集团关系
-status: draft
-aliases: [建档成功, BUILD_SUCCESS]
-oid: 1
-scope:
-  databases: [unknown]
-sources:
-  - code_path:CustGroupLicenseApplication.java:checkCustGroup
-  - code_path:CustGroupRelApplication.java:addExistSubCustGroupRel
-contract_version: "0.1"
----
-
-企业建档成功指企业主数据已完成认证建档，判定条件为 `cust_company_info.cust_build_status = 'BUILD_SUCCESS'`，是发送集团待办、CA 开通、集团类操作的前置条件。
-
-## 需求背景
-
-未建档完成的企业不具备签署与业务承接能力，若提前发送待办或允许操作会产生无效流程与脏状态，因此把建档成功作为一系列动作的统一闸门，见 [[rules/notice-only-build-success]] 与 [[rules/effective-member-no-op]]。
-
-## 版本演进
-
-v0 契约按现状固化。该口径同时被协议签署侧（CustGroupLicenseApplication.checkCustGroup）与关系新增/导入侧（CustGroupRelApplication）引用，是跨模块共享口径。
-
-## 口径锚点
-
-```ground:caliber
-name: 企业建档成功
-predicate: cust_company_info.cust_build_status = 'BUILD_SUCCESS'
-scope: 发送集团待办、CA 开通、集团操作的前置条件
-evidence: code_path:CustGroupLicenseApplication.java:checkCustGroup / CustGroupRelApplication.java:addExistSubCustGroupRel
-```
----END FILE---
-
----FILE: calibers/master-data-company.md ---
----
-type: caliber
-title: 主数据企业口径
-page_key: calibers/master-data-company
-domain: 企业集团关系
-status: draft
-aliases: [主数据企业, data_type=DATA_TYPE_MAIN]
-oid: 1
-scope:
-  databases: [unknown]
-sources:
-  - code_path:CustCompanyIfoEnchanceService.java:listEffectCompany
-contract_version: "0.1"
----
-
-主数据企业指以企业主数据身份存在、可对外参与集团与业务关系的企业记录，判定条件为 `cust_company_info.data_type = DATA_TYPE_MAIN`，用于把企业主数据与记录数据区分开。
-
-## 需求背景
-
-同一套企业信息表中同时承载主数据与业务记录数据，若不显式区分，集团关系与列表类查询会把非主数据记录纳入结果集，造成同企业多行、统计重复。该口径与 [[calibers/real-operator-exclude-test-data]] 共同用于结果集净化。
-
-## 版本演进
-
-v0 契约按现状固化，作为企业维度查询的基础过滤条件。
-
-## 口径锚点
-
-```ground:caliber
-name: 主数据企业
-predicate: cust_company_info.data_type = DATA_TYPE_MAIN
-scope: 企业主数据与记录数据区分
-evidence: code_path:CustCompanyIfoEnchanceService.java:listEffectCompany
-```
----END FILE---
-
----FILE: calibers/real-operator-exclude-test-data.md ---
----
-type: caliber
-title: 真实运营方（排除测试数据）口径
-page_key: calibers/real-operator-exclude-test-data
-domain: 企业集团关系
-status: draft
-aliases: [真实运营方, test_data != Y]
-oid: 1
-scope:
-  databases: [unknown]
-sources:
-  - code_path:CustGroupRelApplication.java:queryTenantOperatorCompany
-contract_version: "0.1"
----
-
-真实运营方指租户下真正承担运营主体角色的企业，判定条件为 `cust_company_info.test_data != 'Y'`（排除测试数据），使用场景为：租户存在多个 PLATFORM_OPERATOR_COMPANY 时仅保留非测试运营方。
-
-## 需求背景
-
-测试租户中常并存多个运营方企业（PLATFORM_OPERATOR_COMPANY），若不做剔除会导致运营主体识别歧义（取到测试企业），因此对运营方查询追加 test_data 过滤。注意 `!= 'Y'` 对 NULL 值的处理需按各库比较语义核对，见文末 REVIEW。
-
-## 版本演进
-
-v0 契约按现状固化，该口径仅作用于运营方识别链路。
-
-## 口径锚点
-
-```ground:caliber
-name: 真实运营方（排除测试数据）
-predicate: cust_company_info.test_data != 'Y'
-scope: 租户存在多个 PLATFORM_OPERATOR_COMPANY 时仅保留非测试运营方
-evidence: code_path:CustGroupRelApplication.java:queryTenantOperatorCompany
-```
----END FILE---
-
----FILE: calibers/enabled-sftp-channel.md ---
----
-type: caliber
-title: 启用的 SFTP 渠道口径
-page_key: calibers/enabled-sftp-channel
-domain: SFTP渠道对接
-status: draft
-aliases: [启用渠道, cust_sftp.enable=Y]
-oid: 1
-scope:
-  databases: [unknown]
-sources:
-  - db
-contract_version: "0.1"
----
-
-启用的 SFTP 渠道指当前可参与文件交互的渠道配置，判定条件为 `cust_sftp.enable = 'Y'`，作用域为 SFTP 渠道配置表（[[tables/cust_sftp]]）。
-
-## 需求背景
-
-渠道 SFTP 账号会随对接上下线增删，需要启停标记区分在用的配置；同时同名渠道可能存在 -test 后缀的测试配置，统计时需一并排除，字段边界见 [[concepts/sftp-channel]]。
-
-## 版本演进
-
-v0 契约按现状固化：该字段实测全部为 'Y'，目前无代码写值证据，启停是否由运营端维护待后续核实。
-
-## 口径锚点
-
-```ground:caliber
-name: 启用的 SFTP 渠道
-predicate: cust_sftp.enable = 'Y'
-scope: SFTP 渠道配置表（实测全部为 Y，无代码写值证据）
-evidence: db
-```
----END FILE---
-
----FILE: concepts/account-owner-company.md ---
+---FILE: concepts/default_account.md ---
 ---
 type: concept
-title: 账户归属企业（ref_cust_company_info）
-page_key: concepts/account-owner-company
+title: 默认账户
+page_key: default_account
 domain: 企业银行账户
 status: draft
-aliases: [ref_cust_company_info, 客户账号信息]
+aliases:
+  - 默认还款账号
+  - 默认还款账户
 oid: 1
 scope:
-  databases: [unknown]
+  databases:
+    - customer_management
 sources:
-  - code_path:CustAccountApplication.java
+  - code
 contract_version: "0.1"
-maps_to: cust_account_info.ref_cust_company_info = cust_company_info.code
+maps_to: cust_account_info.default_account_flag
 field_targets:
-  - cust_account_info.ref_cust_company_info
-  - cust_company_info.code
-adjudication: boundary
+  - cust_account_info.default_account_flag
 also_confused_with:
-  - cust_company_info.id
-  - cust_id
-boundary: 字段名与注释像“账号信息”，实际存企业编码；代码统一用 company.getCode() 赋值/查询，用企业主键 id 过滤会查不到数据。
----
-
-「账户归属企业」是账户表与企业的关联语义：`cust_account_info.ref_cust_company_info` 存的是 `cust_company_info.code`（企业编码），不是企业主键 id。相关表见 [[tables/cust_account_info]]。
-
-## 需求背景
-
-账户的所有校验与口径（重复账户校验、默认账户唯一、企业维度统计）都依赖这个关联字段，因此它的取值语义必须唯一确定，否则会同时影响 [[rules/account-no-unique-per-company]] 与 [[calibers/default-repayment-account]] 的正确性。
-
-## 版本演进
-
-v0 契约按现状固化：关联值为企业编码，`cust_id` 语义仅属于集团关系表，两者不可互换。
-
-## 判定边界
-
-字段名与注释像「账号信息」，实际存企业编码；代码统一用 company.getCode() 赋值/查询，用企业主键 id 过滤会查不到数据。
----END FILE---
-
----FILE: concepts/bank-no.md ---
----
-type: concept
-title: 联行号（bank_no）
-page_key: concepts/bank-no
-domain: 企业银行账户
-status: draft
-aliases: [bank_no, bankID, cnapsCode]
-oid: 1
-scope:
-  databases: [unknown]
-sources:
-  - code_path:CustAccountApplication.java
-contract_version: "0.1"
-maps_to: cust_account_info.bank_no
-field_targets:
-  - cust_account_info.bank_no
-  - cust_account_info.bank_code
-  - cust_account_info.bank_code_name
-  - cust_account_info.bank_branch_name
-adjudication: boundary
-also_confused_with:
-  - bank_code（银行总行代码）
-  - bank_id（银行ID）
-  - bank_code_name（上送 bankName）
-boundary: 代码把 bank_no 同时当作 bankID 与 cnapsCode 上送人行接口，bankName 取的是 bank_code_name（总行名称）而非开户行 branch 名称。
----
-
-联行号是账户开户行的清算行号，落库字段为 `cust_account_info.bank_no`。在打款申请链路中，代码把该字段同时作为 `bankID` 与 `cnapsCode` 上送人行小额打款接口，即「一值两用」。账户表见 [[tables/cust_account_info]]，流程见 [[processes/account-cnaps-payment-auth-state]]。
-
-## 需求背景
-
-银行侧接口需要清算行标识与银行名称；现有实现用 bank_no 顶替两个入参、用总行名称顶替开户行名称，任何按字段名直觉推断的口径（如认为 bankName 来自 bank_branch_name）都会与实际上送不一致。
-
-## 版本演进
-
-v0 契约按现状固化；`bank_branch_name` 未参与打款申请链路，后续版本若接入分支行维度需重新厘清三个字段的分工。
-
-## 判定边界
-
-代码把 bank_no 同时当作 bankID 与 cnapsCode 上送人行接口，bankName 取的是 bank_code_name（总行名称）而非开户行 branch 名称。
----END FILE---
-
----FILE: concepts/cust-type.md ---
----
-type: concept
-title: 企业角色（cust_type）
-page_key: concepts/cust-type
-domain: 企业集团关系
-status: draft
-aliases: [cust_type, 公司类型, companyType]
-oid: 1
-scope:
-  databases: [unknown]
-sources:
-  - code_path:CustGroupRelApplication.java
-contract_version: "0.1"
-maps_to: 'cust_group_rel.cust_type = JSON 数组字符串（如 ["SUPPLIER"]）'
-field_targets:
-  - cust_group_rel.cust_type
-  - cust_company_info.cust_company_type
-adjudication: boundary
-also_confused_with:
-  - DB 注释“多企业角色用逗号分隔”
-  - CustCompanyInfoDO.cust_company_type
-boundary: 库注释写逗号分隔，代码实际统一 JSONArray.toJSONString() 存取与 like '%"FINANCE"%' 精确匹配；多角色通过 addRoleToRoot 追加数组元素，不能按逗号切分解析。
----
-
-企业角色描述成员单位在集团中承担的身份（如 SUPPLIER、FINANCE），落库字段为 `cust_group_rel.cust_type`，实际以 JSON 数组字符串存储。所属表见 [[tables/cust_group_rel]]，相关唯一性校验见 [[rules/group-rel-uniqueness]]。
-
-## 需求背景
-
-同一成员单位可承担多个角色，代码通过 addRoleToRoot 向数组追加角色，并按 like 精确匹配单个角色做筛选；若按库注释的「逗号分隔」解析，将无法正确拆出角色集合。
-
-## 版本演进
-
-v0 契约按现状固化：存储形态已从注释描述的逗号分隔演进为 JSON 数组，库注释成为历史描述，以代码为准。
-
-## 判定边界
-
-库注释写逗号分隔，代码实际统一 JSONArray.toJSONString() 存取与 like '%"FINANCE"%' 精确匹配；多角色通过 addRoleToRoot 追加数组元素，不能按逗号切分解析。
----END FILE---
-
----FILE: concepts/root-flag.md ---
----
-type: concept
-title: 集团根标识（root_flag）
-page_key: concepts/root-flag
-domain: 企业集团关系
-status: draft
-aliases: [root_flag, rootFlag]
-oid: 1
-scope:
-  databases: [unknown]
-sources:
-  - code_path:CustGroupLicenseApplication.java
-contract_version: "0.1"
-maps_to: "cust_group_rel.root_flag = 'Y'（集团本身）/ 'N'（成员单位）"
-field_targets:
-  - cust_group_rel.root_flag
-  - cust_group_rel.root_group_id
-  - cust_group_rel.root_cust_id
-adjudication: boundary
-also_confused_with:
-  - root_group_id（根关系记录主键）
-  - root_cust_id（根企业id）
-boundary: root_flag=Y 的节点不允许再作为子级关联、也不允许签署成员单位协议；root_group_id/root_cust_id 是树定位字段，与布尔标识无关。
----
-
-集团根标识用于区分一行关系记录代表的是集团本身（Y）还是成员单位（N），是权限与树结构的判定基础，口径见 [[calibers/group-root-node]]，表见 [[tables/cust_group_rel]]。
-
-## 需求背景
-
-根节点与成员单位在操作权限上互斥：根节点不能再作为其他集团的子级，也不能签署成员单位协议，因此必须有一个明确的布尔标识承载该判定；树定位则另由 root_group_id / root_cust_id 承担，见 [[processes/cust-group-rel-status-state]]。
-
-## 版本演进
-
-v0 契约按现状固化，标识与树定位字段职责分离。
-
-## 判定边界
-
-root_flag=Y 的节点不允许再作为子级关联、也不允许签署成员单位协议；root_group_id/root_cust_id 是树定位字段，与布尔标识无关。
----END FILE---
-
----FILE: concepts/trans-id-vs-trace-no.md ---
----
-type: concept
-title: 打款交易标识（trans_id 与 trace_no）
-page_key: concepts/trans-id-vs-trace-no
-domain: 企业银行账户
-status: draft
-aliases: [trans_id, trace_no, OriginalTxSN]
-oid: 1
-scope:
-  databases: [unknown]
-sources:
-  - code_path:CustAccountApplication.java
-contract_version: "0.1"
-maps_to: trans_id=我方发起打款后写入的银行 OriginalTxSN；trace_no=银行返回的系统跟踪号
-field_targets:
-  - cust_account_info.trans_id
-  - cust_account_info.trace_no
-adjudication: boundary
-also_confused_with:
-  - 两者互相混用
-boundary: 查询打款结果与打款验证都以 trans_id（OriginalTxSN）为入参；trace_no 仅落库留痕，不参与后续调用。
----
-
-打款链路中存在两个容易混淆的标识：`trans_id` 是我方发起打款后写入的银行 OriginalTxSN，`trace_no` 是银行返回的系统跟踪号。两者均落库于 [[tables/cust_account_info]]，流程语境见 [[processes/account-cnaps-payment-auth-state]]。
-
-## 需求背景
-
-查询打款结果与打款验证都需要一个与银行侧一致的请求标识，现行实现统一以 trans_id 为入参，并在申请阶段就把它写入账户记录；trace_no 仅用于留痕排查，不参与后续调用。验证前置约束见 [[rules/payment-confirm-precondition]]。
-
-## 版本演进
-
-v0 契约按现状固化：两标识职责分离，混用会导致银行侧查不到记录。
-
-## 判定边界
-
-查询打款结果与打款验证都以 trans_id（OriginalTxSN）为入参；trace_no 仅落库留痕，不参与后续调用。
----END FILE---
-
----FILE: concepts/account-type.md ---
----
-type: concept
-title: 账户类型（account_type）
-page_key: concepts/account-type
-domain: 企业银行账户
-status: draft
-aliases: [account_type, BANK, OPERATION_FEE_ACCOUNT]
-oid: 1
-scope:
-  databases: [unknown]
-sources:
-  - db
-contract_version: "0.1"
-maps_to: 账户类型值（代码枚举基线缺失，取自 DB 实测）
-field_targets:
   - cust_account_info.account_type
 adjudication: boundary
-also_confused_with:
-  - "'1'、'received' 等脏值"
-boundary: DB 默认值 BANK；OPERATION_FEE_ACCOUNT 为代码中未声明的真实类型，另存在 '1'/'received' 低量异常值，统计口径需排除或归并。
 ---
 
-账户类型用于区分账户用途，落库字段为 `cust_account_info.account_type`（见 [[tables/cust_account_info]]），DB 默认值为 BANK。
+# 默认账户
+
+业务上指企业用于默认还款的那一个银行账户，落库为 `cust_account_info.default_account_flag = '1'`，口径见 [[default_repayment_account]]。
 
 ## 需求背景
 
-账户表同时承载还款账户与运营费账户等不同用途，按类型分流的统计与筛选需要一个稳定的取值集合；但代码枚举基线未声明 OPERATION_FEE_ACCOUNT，且存在 '1' / 'received' 等低量异常值，直接按枚举过滤会漏数。
+企业可维护多个账户，但还款类业务只认“默认”那一个，因此需要唯一的默认标记与置默认操作（[[single_default_account]]）。
 
 ## 版本演进
 
-v0 契约按现状固化，取值集来自 DB 实测而非代码枚举；后续版本建议将 OPERATION_FEE_ACCOUNT 补入枚举并清理异常值。
+- 默认标记由写时互斥维护（`setDefaultFlag`/`afterSave`），不是查询时按时间或类型推导。
 
-## 判定边界
+## 边界（adjudication: boundary）
 
-DB 默认值 BANK；OPERATION_FEE_ACCOUNT 为代码中未声明的真实类型，另存在 '1'/'received' 低量异常值，统计口径需排除或归并。
+`default_account_flag` 是企业维度内的默认标记，由 `setDefaultFlag`/`afterSave` 互斥维护；`account_type` 描述账户性质（银行/运营费账户），二者不可互推。统计“默认账户数”必须用 `default_account_flag`，不能用 `account_type`。
 ---END FILE---
 
----FILE: concepts/sftp-channel.md ---
+---FILE: concepts/group_root.md ---
 ---
 type: concept
-title: SFTP 渠道（channel）
-page_key: concepts/sftp-channel
-domain: SFTP渠道对接
+title: 集团（集团公司/根企业）
+page_key: group_root
+domain: 集团关系
 status: draft
-aliases: [channel, name, user_name]
+aliases:
+  - root
+  - rootGroup
 oid: 1
 scope:
-  databases: [unknown]
+  databases:
+    - customer_management
+sources:
+  - code
+contract_version: "0.1"
+maps_to: cust_group_rel.root_flag
+field_targets:
+  - cust_group_rel.root_flag
+also_confused_with:
+  - cust_company_info.cust_company_type
+adjudication: boundary
+---
+
+# 集团（集团公司/根企业）
+
+口语中的“集团/根企业”在数据上通常指 `cust_group_rel.root_flag = 'Y'` 的关系节点，口径见 [[group_root_node]]。
+
+## 需求背景
+
+集团树的构建、成员查询与签署边界都以根节点为起点：根节点禁止再次签署/拒绝（[[root_group_no_operation]]），按根节点拉平整树用于删除前校验（[[member_remove_check_business]]）。
+
+## 版本演进
+
+- 代码 `showCustGroupTree` 先看企业角色再查关系，说明“是集团”这一判断在实现中由角色与关系联合决定。
+
+## 边界（adjudication: boundary）
+
+`root_flag='Y'` 是关系表上的根节点标记；`cust_company_info.cust_company_type` 含 `CORPORATION_COMPANY` 才是企业角色意义上的集团。`showCustGroupTree` 先看角色再查关系，二者需联合判断，不可互推。
+---END FILE---
+
+---FILE: concepts/member_unit.md ---
+---
+type: concept
+title: 成员单位
+page_key: member_unit
+domain: 集团关系
+status: draft
+aliases:
+  - 子企业
+  - 子级企业
+  - 上级企业
+oid: 1
+scope:
+  databases:
+    - customer_management
+sources:
+  - code
+contract_version: "0.1"
+maps_to: cust_group_rel.cust_id
+field_targets:
+  - cust_group_rel.cust_id
+also_confused_with:
+  - cust_group_rel.parent_cust_id
+adjudication: boundary
+---
+
+# 成员单位
+
+集团关系中的“成员单位”指当前这条关系挂靠的企业，落库为 `cust_group_rel.cust_id`；其上一级企业为 `parent_cust_id`。
+
+## 需求背景
+
+成员单位的增删改查、签署待办、删除前在途校验都围绕 `cust_id` 展开（[[member_remove_check_business]]、[[notice_no_duplicate]]），角色一致性校验见 [[member_role_consistency]]。
+
+## 版本演进
+
+- 关系表同时冗余 `root_cust_id`/`root_group_id`，成员查询可按根节点一次性拉平，减少递归。
+
+## 边界（adjudication: boundary）
+
+`cust_id` 是当前成员企业，`parent_cust_id` 是其上一级企业；两者同层级语义相反，建树/校验必须区分。口语中“上级企业”“子企业”在需求文档里都出现过，落到字段前必须先确认方向。
+---END FILE---
+
+---FILE: concepts/enterprise_role.md ---
+---
+type: concept
+title: 企业角色
+page_key: enterprise_role
+domain: 集团关系
+status: draft
+aliases:
+  - custType
+  - companyType
+oid: 1
+scope:
+  databases:
+    - customer_management
+sources:
+  - code
+contract_version: "0.1"
+maps_to: cust_group_rel.cust_type
+field_targets:
+  - cust_group_rel.cust_type
+also_confused_with:
+  - cust_company_info.cust_company_type
+adjudication: boundary
+---
+
+# 企业角色
+
+关系维度上的企业角色落库为 `cust_group_rel.cust_type`，是 JSON 数组字符串（形如 `["CORE"]`），支持一条关系多角色逐条写入。
+
+## 需求背景
+
+角色决定成员单位在集团中的定位，导入时要求同一上级下所有成员单位角色一致，且与已存在上级企业角色一致（[[member_role_consistency]]）。
+
+## 版本演进
+
+- `cust_type` 采用 JSON 数组字符串存储而非单值，历史上支持过多角色；解析统计时需按数组处理。
+
+## 边界（adjudication: boundary）
+
+`cust_group_rel.cust_type` 限定该条关系下的角色（JSON 数组字符串，多角色逐条写入），`cust_company_info.cust_company_type` 是企业全局角色；导入校验要求两者一致，但两者不是同一个字段、也不总是同时存在。
+---END FILE---
+
+---FILE: concepts/payment_auth.md ---
+---
+type: concept
+title: 打款验证
+page_key: payment_auth
+domain: 企业银行账户
+status: draft
+aliases:
+  - 小额打款
+  - 打款认证
+  - 打款验证码
+oid: 1
+scope:
+  databases:
+    - customer_management
+sources:
+  - db
+  - code
+contract_version: "0.1"
+maps_to: cust_account_info.auth_state
+field_targets:
+  - cust_account_info.auth_state
+also_confused_with:
+  - cust_account_info.status
+adjudication: boundary
+---
+
+# 打款验证
+
+业务上指银行小额打款认证：向企业账户打入随机小额资金，由企业回填金额以确认账户可用。流程阶段落库在 `cust_account_info.auth_state`，取值见 [[auth_state]]，迁移见 [[bank_account_auth_state]]。
+
+## 需求背景
+
+账户验证受打款次数约束（[[payment_count_init]]、[[payment_count_exhausted]]）与金额区间约束（[[payment_amount_range]]）；验证失败的错误次数与状态存在不落库问题（[[verify_fail_not_persisted]]）。
+
+## 版本演进
+
+- 验证相关字段 `trans_id`（OriginalTxSN）、`trace_no` 由银行回写，用于后续查询与验证。
+- `error_try_count`/`error_try_time` 在失败分支被设置，但因异常提前抛出且方法无事务注解，实际可能不持久化。
+
+## 边界（adjudication: boundary）
+
+`auth_state` 描述打款认证流程阶段（`APPLY_xx`）；`status` 是账户业务状态，DB 实测仅 `INIT`，代码无迁移。两者不可互推：账户“状态正常”不代表“打款已验证”。
+---END FILE---
+
+---FILE: concepts/sftp_channel.md ---
+---
+type: concept
+title: SFTP 渠道
+page_key: sftp_channel
+domain: SFTP 渠道
+status: draft
+aliases:
+  - channel
+oid: 1
+scope:
+  databases:
+    - customer_management
 sources:
   - db
 contract_version: "0.1"
-maps_to: cust_sftp.channel = 渠道编码（英文），cust_sftp.name = 渠道中文名，cust_sftp.user_name = 登录账号
+maps_to: cust_sftp.channel
 field_targets:
   - cust_sftp.channel
-  - cust_sftp.name
-  - cust_sftp.user_name
+also_confused_with:
   - cust_sftp.db_tenant_code
 adjudication: boundary
-also_confused_with:
-  - db_tenant_code（租户标识）
-boundary: channel 与 db_tenant_code 不同源（如 ZTSJ 既是 channel 也是 tenant，但多数渠道的 tenant 是域名形式）；同名渠道存在 -test 后缀的测试配置，统计需排除。
 ---
 
-SFTP 渠道指文件交互的对接方，表 [[tables/cust_sftp]] 中用 `channel` 存渠道编码、`name` 存渠道中文名、`user_name` 存登录账号。
+# SFTP 渠道
+
+“渠道”指文件交换的对接方编码，落库为 `cust_sftp.channel`（如 ZTSJ、tianma、meituan、sny_test），是 SFTP 配置的唯一业务键。
 
 ## 需求背景
 
-渠道维度的排障与统计需要在「渠道编码」「账号」「租户」之间建立正确映射：账号命名形如 app_<渠道>_<日期/编号>，而租户标识多数为域名形式，与渠道编码并非同源。启用口径见 [[calibers/enabled-sftp-channel]]。
+不同渠道方的文件交互需要各自独立的 SFTP 主机与账号，凭渠道编码定位配置，配置表见 [[cust_sftp]]。
 
 ## 版本演进
 
-v0 契约按现状固化；同名渠道的 -test 后缀测试配置属历史遗留，建议后续版本统一清理或以字段标注。
+- 实测 16 条 `channel` 互不相同，`host` 仍以 QA 环境地址为主。
 
-## 判定边界
+## 边界（adjudication: boundary）
 
-channel 与 db_tenant_code 不同源（如 ZTSJ 既是 channel 也是 tenant，但多数渠道的 tenant 是域名形式）；同名渠道存在 -test 后缀的测试配置，统计需排除。
+`channel` 是业务渠道编码（ZTSJ/tianma/meituan），`db_tenant_code` 是数据租户标识；两者取值域不同且非一一对应（`ISOLATE_TAG_zjsj`、`sny` 各有 2 条），按渠道统计与按租户统计结论会不同。
 ---END FILE---
 
----FILE: rules/account-no-unique-per-company.md ---
+---FILE: rules/account_no_unique.md ---
 ---
 type: rule
-title: 企业账户不可重复
-page_key: rules/account-no-unique-per-company
+title: 账户不可重复添加
+page_key: account_no_unique
 domain: 企业银行账户
 status: draft
-aliases: [账户重复校验, 账户不能重复添加]
+aliases:
+  - 账号去重规则
 oid: 1
 scope:
-  databases: [unknown]
+  databases:
+    - customer_management
 sources:
-  - code_path:CustAccountApplication.java:checkBefore
+  - code
 contract_version: "0.1"
 ---
 
-新增企业银行账户时的前置唯一性校验：同一企业下 `account_no` 已存在则阻断新增。涉及表见 [[tables/cust_account_info]]，企业关联语义见 [[concepts/account-owner-company]]。
+# 账户不可重复添加
+
+新增账户前，在同一归属企业内校验 `account_no` 是否已存在，命中即拒绝并提示“账户不能重复添加”。
 
 ## 需求背景
 
-重复账号会导致打款认证与默认账户口径出现歧义（同一账号多行、默认标记分散），因此在写入前按企业维度判重。
+账户档案需要避免同一企业下重复登记同一银行账号，否则默认账户、打款次数、认证状态会出现多条并行记录。表结构见 [[cust_account_info]]。
 
 ## 版本演进
 
-v0 契约按现状固化，校验在 checkBefore 中前置执行。
-
-## 规则锚点
+- 校验在 `checkBefore` 中完成，属前置校验，非数据库唯一约束。
 
 ```ground:rule
-name: 企业账户不可重复
-content: 同一企业（ref_cust_company_info）下 account_no 已存在时抛“账户不能重复添加”，阻断新增。
-impact: 新增账户前置校验
+name: 账户不可重复添加
+content: 同一归属企业内相同 account_no 唯一，命中时报“账户不能重复添加”
+impact: 阻断新增
 field_targets:
   - cust_account_info.account_no
   - cust_account_info.ref_cust_company_info
@@ -968,410 +1082,424 @@ evidence: code_path:CustAccountApplication.java:checkBefore
 ```
 ---END FILE---
 
----FILE: rules/default-account-unique.md ---
+---FILE: rules/single_default_account.md ---
 ---
 type: rule
-title: 默认账户唯一
-page_key: rules/default-account-unique
+title: 单企业唯一默认账户
+page_key: single_default_account
 domain: 企业银行账户
 status: draft
-aliases: [默认账号唯一, setDefaultFlag]
+aliases:
+  - 默认账户互斥规则
 oid: 1
 scope:
-  databases: [unknown]
+  databases:
+    - customer_management
 sources:
-  - code_path:CustAccountApplication.java:setDefaultFlag
-  - code_path:CustAccountApplication.java:afterSave
+  - code
 contract_version: "0.1"
 ---
 
-设置默认账号时的排他性规则：先把该企业已有默认账户置为非默认，再置目标账户为默认；企业无默认账户时由 afterSave 兜底。对应口径见 [[calibers/default-repayment-account]]。
+# 单企业唯一默认账户
+
+置默认时先把该企业已有 `default_account_flag='1'` 的账户改为 `'0'`，再把当前账户置 `'1'`，保证同一企业下仅一条默认。
 
 ## 需求背景
 
-下游资金动作按「默认账户」取单条记录，若同企业出现多条默认会导致取数不确定，故在写入路径与保存后路径双重保证唯一性。企业判定基于 [[concepts/account-owner-company]]。
+还款类业务只认唯一默认账户，口径见 [[default_repayment_account]]、术语见 [[default_account]]。
 
 ## 版本演进
 
-v0 契约按现状固化，写路径与兜底路径并存。
-
-## 规则锚点
+- 由写时更新实现（先清后置），非数据库唯一索引；并发置默认时需确认是否互斥。
 
 ```ground:rule
-name: 默认账户唯一
-content: 设置默认账号时先查询该企业下 default_account_flag='1' 的记录并置为 '0'，再把目标账户置 '1'；保存后 afterSave 会在企业无默认账户时自动把首个账户置为默认。
-impact: 企业默认还款账号口径
+name: 单企业唯一默认账户
+content: 置默认时先把该企业已有 default_account_flag='1' 的账户改为 '0'，再把当前账户置 '1'
+impact: 更新存量数据
 field_targets:
   - cust_account_info.default_account_flag
-  - cust_account_info.ref_cust_company_info
-evidence: code_path:CustAccountApplication.java:setDefaultFlag / afterSave
+evidence: code_path:CustAccountApplication.java:setDefaultFlag
 ```
 ---END FILE---
 
----FILE: rules/payment-count-quota.md ---
+---FILE: rules/payment_count_init.md ---
 ---
 type: rule
-title: 打款次数配额
-page_key: rules/payment-count-quota
+title: 打款次数初始化
+page_key: payment_count_init
 domain: 企业银行账户
 status: draft
-aliases: [剩余打款次数, payment_remaining_count]
+aliases:
+  - payment_remaining_count 初始化规则
 oid: 1
 scope:
-  databases: [unknown]
+  databases:
+    - customer_management
 sources:
-  - code_path:CustAccountApplication.java:cnapsPaymentApply
-  - code_path:CustAccountApplication.java:updatePayCount
+  - code
 contract_version: "0.1"
 ---
 
-限制单个账户发起小额打款频次的规则：剩余次数初始取自配置、每次申请成功后扣减、为 0 时阻断。语境见 [[processes/account-cnaps-payment-auth-state]]。
+# 打款次数初始化
+
+从 `cust_setting_config.payment_maximum_number` 取首条配置，写入账户的 `payment_remaining_count`，作为该账户可发起打款次数的起点。
 
 ## 需求背景
 
-打款涉及真实资金与银行接口调用，需要频次刹车防止滥用与重复试探；配置项 `cust_setting_config.payment_maximum_number` 提供上限来源，账户侧记录剩余量。
+打款验证的调用次数需要受控，次数上限走配置而非硬编码，见 [[payment_auth]]、[[payment_count_exhausted]]。
 
 ## 版本演进
 
-v0 契约按现状固化；剩余次数按账户维度维护，配置变更不影响已初始化账户的剩余值。
-
-## 规则锚点
+- 取“首条配置”意味着配置表存在多条时以第一条为准，后续若配置分租户/分渠道，需要重新确认取数逻辑。
 
 ```ground:rule
-name: 打款次数配额
-content: 剩余打款次数初始值取自 cust_setting_config.payment_maximum_number（updatePayCount）；每次申请打款成功后 -1；为 0 时抛“今天打款次数已用完，请明天再试”。
-impact: 限制账户验证频率
+name: 打款次数初始化
+content: 从 cust_setting_config.payment_maximum_number 取首条配置写入 payment_remaining_count
+impact: 初始化字段
 field_targets:
   - cust_account_info.payment_remaining_count
   - cust_setting_config.payment_maximum_number
-evidence: code_path:CustAccountApplication.java:cnapsPaymentApply / updatePayCount
+evidence: code_path:CustAccountApplication.java:updatePayCount
 ```
 ---END FILE---
 
----FILE: rules/payment-amount-range.md ---
+---FILE: rules/payment_count_exhausted.md ---
 ---
 type: rule
-title: 打款验证金额范围与单位
-page_key: rules/payment-amount-range
+title: 打款次数用尽阻断
+page_key: payment_count_exhausted
 domain: 企业银行账户
 status: draft
-aliases: [验证金额0.01-0.99, checkAmount]
+aliases:
+  - 打款次数用完阻断
 oid: 1
 scope:
-  databases: [unknown]
+  databases:
+    - customer_management
 sources:
-  - code_path:CustAccountController.java:checkAmount
-  - code_path:CustAccountController.java:cnapsPaymentConfirm
+  - code
 contract_version: "0.1"
 ---
 
-打款金额验证的输入口径规则：金额必填、格式合法且严格落在 0 与 1 之间，上送银行前换算为「分」。语境见 [[processes/account-cnaps-payment-auth-state]]。
+# 打款次数用尽阻断
+
+`payment_remaining_count == 0` 时抛“今天打款次数已用完”，阻断打款申请；申请成功后剩余次数 -1。
 
 ## 需求背景
 
-小额打款金额以元为单位录入、以分为单位上送，若不做范围与单位约束，会出现「1 元打款」或单位不一致导致银行侧比对失败，进而污染失败次数（[[rules/payment-fail-count]]）。
+打款涉及真实资金与银行接口成本，需要对单账户的发起次数做上限控制，初始化规则见 [[payment_count_init]]。
 
 ## 版本演进
 
-v0 契约按现状固化，控制器层统一承担范围与格式校验。
-
-## 规则锚点
+- 提示文案为“今天打款次数已用完”，但字段语义是“剩余可发起次数”并随申请递减，未见到按日重置逻辑的写值点，日切语义待确认。
 
 ```ground:rule
-name: 打款验证金额范围与单位
-content: 控制器校验金额为空/格式错误即抛错，且必须 0 < amount < 1（提示“输入验证金额需要在0.01～0.99”）；上送银行前金额 *100 转为“分”。
-impact: 小额打款验证输入口径
+name: 打款次数用尽阻断
+content: payment_remaining_count == 0 时抛“今天打款次数已用完”，申请成功后 -1
+impact: 阻断
 field_targets:
-  - cust_account_info.auth_state
-evidence: code_path:CustAccountController.java:checkAmount / cnapsPaymentConfirm
+  - cust_account_info.payment_remaining_count
+evidence: code_path:CustAccountApplication.java:cnapsPaymentApply
 ```
 ---END FILE---
 
----FILE: rules/payment-confirm-precondition.md ---
+---FILE: rules/payment_amount_range.md ---
 ---
 type: rule
-title: 验证前置状态约束
-page_key: rules/payment-confirm-precondition
+title: 打款验证金额区间
+page_key: payment_amount_range
 domain: 企业银行账户
 status: draft
-aliases: [打款验证时序约束, cnapsPaymentConfirm 前置校验]
+aliases:
+  - 验证金额校验
 oid: 1
 scope:
-  databases: [unknown]
+  databases:
+    - customer_management
 sources:
-  - code_path:CustAccountApplication.java:cnapsPaymentConfirm
+  - code
 contract_version: "0.1"
 ---
 
-金额验证动作的时序约束规则：必须先申请打款、必须等银行受理成功，受理失败则需重新申请。状态取值见 [[processes/account-cnaps-payment-auth-state]]，交易标识要求见 [[concepts/trans-id-vs-trace-no]]。
+# 打款验证金额区间
+
+验证金额须 >0 且 <1（0.01~0.99 元），控制器换算为“分”后传给银行。
 
 ## 需求背景
 
-验证是与银行侧的一次比对动作，缺少 trans_id 或处于未受理/受理失败状态时调用必然失败并消耗配额，因此在服务层前置拦截并给出可操作提示。
+小额打款验证要求金额足够小，避免企业误当成正常回款；单位换算发生在控制器层，接口文档与页面提示需与之一致。
 
 ## 版本演进
 
-v0 契约按现状固化，三条前置条件共用同一入口校验。
-
-## 规则锚点
+- 入参以元为单位、出参以分为单位，跨层单位不一致是排查打款金额不符的常见来源。
 
 ```ground:rule
-name: 验证前置状态约束
-content: 无 trans_id 抛“请先发起申请打款”；auth_state=APPLY_10 抛“还未受理成功，请在账户收到打款金额后再验证”；auth_state=APPLY_30 抛“申请打款受理失败，请重新申请打款”。
-impact: 打款验证时序约束
+name: 打款验证金额区间
+content: 验证金额须 >0 且 <1（0.01~0.99），控制器换算为分后传银行
+impact: 入参校验
 field_targets:
   - cust_account_info.trans_id
-  - cust_account_info.auth_state
-evidence: code_path:CustAccountApplication.java:cnapsPaymentConfirm
+evidence: code_path:CustAccountInfoController.java:checkAmount
 ```
 ---END FILE---
 
----FILE: rules/payment-fail-count.md ---
+---FILE: rules/verify_fail_not_persisted.md ---
 ---
 type: rule
-title: 验证失败计数口径
-page_key: rules/payment-fail-count
+title: 验证失败不落库
+page_key: verify_fail_not_persisted
 domain: 企业银行账户
 status: draft
-aliases: [error_try_count, 验证失败累加]
+aliases:
+  - 打款验证失败状态未持久化
 oid: 1
 scope:
-  databases: [unknown]
+  databases:
+    - customer_management
 sources:
-  - code_path:CustAccountApplication.java:cnapsPaymentConfirm
+  - code
 contract_version: "0.1"
 ---
 
-打款金额验证失败时的记录规则：金额不匹配或银行库无记录时，先落状态再累加失败次数与时间，最后抛业务异常。直接决定 [[calibers/account-payment-auth-passed]] 的可用性。
+# 验证失败不落库
+
+`result=1/2` 分支在 `setErrorTryCount`/`setErrorTryTime` 之后、`saveOrUpdate` 之前直接 `throw`，且方法无事务注解，错误次数与 `APPLY_40` 实际不会持久化，属实现与设计不一致。
 
 ## 需求背景
 
-失败需要留痕以支持人工排查与风控（疑似恶意试探），同时失败请求本身也需要把账户推进到终态避免重复卡在 APPLY_20。
+设计意图是记录失败次数与时间（`error_try_count`/`error_try_time`）以便风控与运营跟进，同时把状态推进到 `APPLY_40`；实现上失败分支提前抛出，导致状态机中两条指向 `APPLY_40` 的迁移（见 [[bank_account_auth_state]]）实际不成立，[[auth_state]] 的失败态观测缺失。
 
 ## 版本演进
 
-v0 契约按现状固化，并由此产生一个已知口径缺陷：失败请求同样落 APPLY_40，故该状态不等于验证通过，需结合 error_try_count 判读。
-
-## 规则锚点
+- 该问题当前未修复：无事务包裹 + 提前 throw，错误计数与状态写入同时丢失。
+- 排查“失败次数不增长”“验证失败后状态仍是 APPLY_20”类问题时，应首先怀疑本规则。
 
 ```ground:rule
-name: 验证失败计数口径
-content: 金额不匹配（result=1）或银行库无记录（result=2）时，先置 auth_state=APPLY_40，再 error_try_count+1、error_try_time=now，然后抛业务异常——失败请求也会留下 APPLY_40 状态。
-impact: auth_state=APPLY_40 不能单独作为“验证通过”口径，需结合 error_try_count 判断
+name: 验证失败不落库
+content: result=1/2 分支在 setErrorTryCount/setErrorTryTime 之后、saveOrUpdate 之前直接 throw，且方法无事务注解，错误次数与 APPLY_40 实际不会持久化
+impact: 实现与设计不一致
 field_targets:
-  - cust_account_info.auth_state
   - cust_account_info.error_try_count
   - cust_account_info.error_try_time
+  - cust_account_info.auth_state
 evidence: code_path:CustAccountApplication.java:cnapsPaymentConfirm
 ```
 ---END FILE---
 
----FILE: rules/group-rel-uniqueness.md ---
+---FILE: rules/root_group_no_operation.md ---
 ---
 type: rule
-title: 集团成员单位关联唯一性
-page_key: rules/group-rel-uniqueness
-domain: 企业集团关系
+title: group根企业禁操作
+page_key: root_group_no_operation
+domain: 集团关系
 status: draft
-aliases: [成员单位重复校验, 已存在]
+aliases:
+  - 根节点禁止签署
 oid: 1
 scope:
-  databases: [unknown]
+  databases:
+    - customer_management
 sources:
-  - code_path:CustGroupRelApplication.java:addExistSubCustGroupRel
-  - code_path:CustGroupRelApplication.java:addNewSubCustGroupRel
+  - code
 contract_version: "0.1"
 ---
 
-新增成员单位关系时的唯一性规则：以企业 + 租户 + 父/根企业 + 角色为组合键计数，命中即阻断。涉及表见 [[tables/cust_group_rel]]，角色字段语义见 [[concepts/cust-type]]。
+# group根企业禁操作
+
+`root_flag='Y'` 或状态已 `EFFECTIVE` 的集团关系，不允许再次执行 accept/reject。
 
 ## 需求背景
 
-同一企业在同一集团树下承担同一角色只能有一条关系记录，否则生效状态、待办与统计都会重复。组合键中包含 cust_type，意味着同一企业可在不同角色下被重复关联。
+根企业自身不存在“被上级邀请签署”的场景，已生效关系重复签署也会造成状态回退，因此需要前置拦截，见 [[group_root_node]]、[[effective_group_rel]]、[[cust_group_rel_status]]。
 
 ## 版本演进
 
-v0 契约按现状固化，新增（addNewSubCustGroupRel）与既有企业关联（addExistSubCustGroupRel）共用同一唯一性判定。
-
-## 规则锚点
+- 拦截在 `checkCustGroup` 中完成，属应用层校验；直接调用底层状态更新接口不受此约束。
 
 ```ground:rule
-name: 集团成员单位关联唯一性
-content: 按 cust_id + db_tenant_code + parent_cust_id + root_cust_id + cust_type 计数，>=1 即抛“该企业{名称} - {角色}已存在”。
-impact: 重复关联拦截
+name: group根企业禁操作
+content: root_flag='Y' 或状态已 EFFECTIVE 的集团关系不允许再次 accept/reject
+impact: 阻断
 field_targets:
-  - cust_group_rel.cust_id
-  - cust_group_rel.cust_type
-  - cust_group_rel.parent_cust_id
-  - cust_group_rel.root_cust_id
-evidence: code_path:CustGroupRelApplication.java:addExistSubCustGroupRel / addNewSubCustGroupRel
-```
----END FILE---
-
----FILE: rules/corp-company-cannot-be-child.md ---
----
-type: rule
-title: 集团公司不可作为子级
-page_key: rules/corp-company-cannot-be-child
-domain: 企业集团关系
-status: draft
-aliases: [集团角色互斥, CORPORATION_COMPANY]
-oid: 1
-scope:
-  databases: [unknown]
-sources:
-  - code_path:CustGroupRelApplication.java:addExistSubCustGroupRel
-  - code_path:CustGroupRelApplication.java:processCompany
-contract_version: "0.1"
----
-
-角色互斥规则：已经是集团公司的企业不能被设置为其他公司的子级；导入场景中根企业必须是集团角色。相关口径见 [[calibers/group-root-node]] 与 [[processes/cust-group-rel-status-state]]。
-
-## 需求背景
-
-集团树是一棵有向树，若允许集团企业再成为别人的子级会产生跨集团的环与权限冲突；导入场景下根节点角色不符时无法自动创建，只能提示联系运营补建。
-
-## 版本演进
-
-v0 契约按现状固化，判断依据为企业角色字段（含 CORPORATION_COMPANY）。
-
-## 规则锚点
-
-```ground:rule
-name: 集团公司不可作为子级
-content: 目标企业 cust_company_type 含 CORPORATION_COMPANY 时抛“该企业已是集团公司，无法设置为其他公司的子级企业”；导入时根企业必须是集团角色，否则提示联系运营添加。
-impact: 集团角色互斥
-field_targets:
-  - cust_company_info.cust_company_type
-  - cust_group_rel.cust_type
-evidence: code_path:CustGroupRelApplication.java:addExistSubCustGroupRel / processCompany
-```
----END FILE---
-
----FILE: rules/effective-member-no-op.md ---
----
-type: rule
-title: 已生效成员单位不可重复操作
-page_key: rules/effective-member-no-op
-domain: 企业集团关系
-status: draft
-aliases: [checkCustGroup, 成员单位准入校验]
-oid: 1
-scope:
-  databases: [unknown]
-sources:
-  - code_path:CustGroupLicenseApplication.java:checkCustGroup
-contract_version: "0.1"
----
-
-成员单位协议操作的准入规则：已生效记录、根节点、未认证成功企业三类情形均被拒。口径见 [[calibers/effective-group-member]]、[[calibers/group-root-node]]、[[calibers/company-build-success]]。
-
-## 需求背景
-
-重复签署会破坏生效时间与协议一致性，根节点不具备成员身份，未建档完成的企业无承接能力，因此三类场景需要在操作入口一并拦截。
-
-## 版本演进
-
-v0 契约按现状固化；AGW 端登录企业在非 BUILD_SUCCESS 时同样纳入拦截。
-
-## 规则锚点
-
-```ground:rule
-name: 已生效成员单位不可重复操作
-content: checkCustGroup：groupId 对应记录 status=EFFECTIVE 时抛“集团成员单位已生效，不支持该操作”；root_flag=Y 时抛“集团公司不支持该操作”；非 AGW 端登录企业 cust_build_status 非 BUILD_SUCCESS 时抛“企业未认证成功，不能执行当前操作”。
-impact: 成员单位协议签署准入
-field_targets:
-  - cust_group_rel.status
   - cust_group_rel.root_flag
-  - cust_company_info.cust_build_status
+  - cust_group_rel.status
 evidence: code_path:CustGroupLicenseApplication.java:checkCustGroup
 ```
 ---END FILE---
 
----FILE: rules/notice-only-build-success.md ---
+---FILE: rules/notice_no_duplicate.md ---
 ---
 type: rule
-title: 新增子级仅认证成功才发待办
-page_key: rules/notice-only-build-success
-domain: 企业集团关系
+title: 待办不可重复发送
+page_key: notice_no_duplicate
+domain: 集团关系
 status: draft
-aliases: [待办发送范围, sendCustGroupRelNotice]
+aliases:
+  - 签署待办防重复
 oid: 1
 scope:
-  databases: [unknown]
+  databases:
+    - customer_management
 sources:
-  - code_path:CustGroupRelApplication.java:addExistSubCustGroupRel
-  - code_path:CustGroupRelApplication.java:processChildCompany
+  - code
 contract_version: "0.1"
 ---
 
-待办发送范围规则：仅对建档成功（BUILD_SUCCESS）的企业发送集团关系待办，导入场景同理。前置口径见 [[calibers/company-build-success]]，状态语义见 [[processes/cust-group-rel-status-state]]。
+# 待办不可重复发送
+
+`queryLatelyNotice` 命中未处理待办时抛“企业存在未办理的待办事项，不支持重复发送”，阻断再次发起签署待办。
 
 ## 需求背景
 
-建档未完成的企业尚未接入系统，此时推送待办既无人处理也会产生悬挂任务，因此以待办发送范围收敛为「建档成功节点」。
+成员单位签署待办（[[member_unit]]、[[cust_group_rel_status]]）重复推送会干扰用户并可能产生多份签署记录，因此要求同一关系上同一时刻只有一条未办理待办。
 
 ## 版本演进
 
-v0 契约按现状固化；导入链路通过把 BUILD_SUCCESS 节点加入 needSends 复用同一规则。
-
-## 规则锚点
+- 判重依赖“最近待办”查询结果，未见到按关系 ID 的唯一约束，历史脏待办可能造成长期阻断。
 
 ```ground:rule
-name: 新增子级仅认证成功才发待办
-content: addExistSubCustGroupRel 中仅当企业 cust_build_status=BUILD_SUCCESS 才 sendCustGroupRelNotice；导入场景同样只对 BUILD_SUCCESS 的节点加入 needSends。
-impact: 待办发送范围
-field_targets:
-  - cust_company_info.cust_build_status
-  - cust_group_rel.status
-evidence: code_path:CustGroupRelApplication.java:addExistSubCustGroupRel / processChildCompany
-```
----END FILE---
-
----FILE: rules/root-group-delete-check.md ---
----
-type: rule
-title: 集团删除前在途业务校验
-page_key: rules/root-group-delete-check
-domain: 企业集团关系
-status: draft
-aliases: [removeRootGroup, 集团解散校验]
-oid: 1
-scope:
-  databases: [unknown]
-sources:
-  - code_path:CustGroupRelApplication.java:removeRootGroup
-contract_version: "0.1"
----
-
-集团解散/移除成员前的约束规则：先扁平化整棵集团树做在途业务校验，通过后批量删除关系、释放额度并回收待办。相关表见 [[tables/cust_group_rel]]。
-
-## 需求背景
-
-集团关系中可能挂有额度等业务，直接删除会产生孤儿额度与在途业务，因此删除前必须逐节点校验。未生效且认证成功的子节点同时消除待办，避免遗留悬挂任务（参见 [[rules/notice-only-build-success]]）。
-
-## 版本演进
-
-v0 契约按现状固化，删除流程包含「校验—删关系—取消额度—消待办」四步。
-
-## 规则锚点
-
-```ground:rule
-name: 集团删除前在途业务校验
-content: removeRootGroup 先扁平化整棵集团树，调用 CheckGroupMemberDeleteService：额度模块 custWithActiveLimit 非空即抛 HAS_BUSINESS_PROCESS(有在途业务不允许删除)，再批量按主键删除关系并调用 limitFacade.cancelCustLimit；未生效且认证成功的子节点同时消除待办。
-impact: 集团解散/成员移除约束
+name: 待办不可重复发送
+content: queryLatelyNotice 命中未处理待办时抛“企业存在未办理的待办事项，不支持重复发送”
+impact: 阻断
 field_targets:
   - cust_group_rel.id
-  - cust_group_rel.status
-  - cust_company_info.cust_build_status
-evidence: code_path:CustGroupRelApplication.java:removeRo
+evidence: code_path:CustGroupLicenseApplication.java:sendCustGroupRelNotice
 ```
 ---END FILE---
 
----REVIEW: meta | 物理库名缺失---
-全部分析证据仅标注为 `db` 或 `code_path`，未给出任何物理库名，故本批次所有页面的 `scope.databases` 暂填 `unknown`。待补充物理库名后统一回填。
+---FILE: rules/member_remove_check_business.md ---
+---
+type: rule
+title: 成员单位删除前置在途校验
+page_key: member_remove_check_business
+domain: 集团关系
+status: draft
+aliases:
+  - 删除成员单位在途校验
+oid: 1
+scope:
+  databases:
+    - customer_management
+sources:
+  - code
+contract_version: "0.1"
+---
+
+# 成员单位删除前置在途校验
+
+`removeRootGroup` 先扁平化集团树，再调额度/产品在途校验，存在在途业务时抛 `HAS_BUSINESS_PROCESS`，阻断删除。
+
+## 需求背景
+
+成员单位可能已有额度或产品在途，直接删除会造成业务悬空，因此删除前必须整树校验。关系结构见 [[member_unit]]、[[cust_group_rel]]。
+
+需求文档另主张“删除权限：不支持物理删除，只支持逻辑删除（冻结/注销）”。该主张**与代码不符**：`removeRootGroup` 最终调用 `groupRelService.removeBatchByIds(collect)`，集团成员单位关系是物理删除；文档所述“冻结/注销”在当前证据中未出现对应写值点。
+
+## 版本演进
+
+- 当前实现为物理删除 + 前置在途校验；若后续改为逻辑删除，本规则与删除链路需同步调整。
+
+```ground:rule
+name: 成员单位删除前置在途校验
+content: removeRootGroup 先扁平化集团树，再调额度/产品在途校验，有在途业务抛 HAS_BUSINESS_PROCESS
+impact: 阻断删除
+field_targets:
+  - cust_group_rel.id
+  - cust_group_rel.root_cust_id
+evidence: code_path:CustGroupRelApplication.java:validateBusinessOnWay
+```
+---END FILE---
+
+---FILE: rules/member_role_consistency.md ---
+---
+type: rule
+title: 成员单位角色一致性
+page_key: member_role_consistency
+domain: 集团关系
+status: draft
+aliases:
+  - 导入角色一致性校验
+oid: 1
+scope:
+  databases:
+    - customer_management
+sources:
+  - code
+contract_version: "0.1"
+---
+
+# 成员单位角色一致性
+
+导入时，同一上级下所有成员单位的企业角色必须一致，且与已存在的上级企业角色一致。
+
+## 需求背景
+
+角色不一致会导致集团树内的权限/产品范围推导出错，因此导入阶段即拦截。角色字段与全局角色的区别见 [[enterprise_role]]。
+
+## 版本演进
+
+- 该校验仅在导入链路（`checkRoleExcelData`）生效，页面单个新增路径由不同校验覆盖，需注意两条入口的规则不完全对称。
+
+```ground:rule
+name: 成员单位角色一致性
+content: 导入时同一上级下所有成员单位的企业角色必须一致，且与已存在上级企业角色一致
+impact: 导入校验
+field_targets:
+  - cust_group_rel.cust_type
+evidence: code_path:CustGroupRelApplication.java:checkRoleExcelData
+```
+---END FILE---
+
+---FILE: rules/async_notice_tolerant.md ---
+---
+type: rule
+title: 签署待办异步容错发送
+page_key: async_notice_tolerant
+domain: 集团关系
+status: draft
+aliases:
+  - 待办异步发送
+oid: 1
+scope:
+  databases:
+    - customer_management
+sources:
+  - code
+  - reqdoc
+contract_version: "0.1"
+---
+
+# 签署待办异步容错发送
+
+签署待办通过 `@Async("custGroupThreadPool")` 异步发送，并在事务提交后（`TransactionSynchronization.afterCommit`）触发；发送异常仅 `log.warn`，不阻断主流程。
+
+## 需求背景
+
+需求文档要求：“消息异步发送，不阻塞主流程；发送失败记录日志，不抛出异常。”代码实现与该主张一致：异步线程池 + 事务提交后回调 + catch 记 warn，保证集团关系落库不被通知失败回滚，见 [[cust_group_rel_status]]、[[notice_no_duplicate]]。
+
+## 版本演进
+
+- 需求文档另有主张“所有通知同步发送站内信，用户登录后可查看站内信”。**该主张为 document_claim，未证实**：当前证据只覆盖 `noticeProvider`/`complete` 的待办发送与消除，站内信落库链路未出现在给出的文件中。
+- 由于异常被吞掉，通知失败只在日志可见，运营排查需以日志为准。
+
+```ground:rule
+name: 签署待办异步容错发送
+content: '@Async 线程池 + 事务提交后 afterCommit 触发，异常仅 log.warn 不阻断主流程'
+impact: 异步/容错
+field_targets:
+  - cust_group_rel.status
+evidence: code_path:CustGroupRelApplication.java:sendCustGroupRelNotice + reqdoc:msg-async-not-block
+```
+---END FILE---
+
+---REVIEW: table | scope.databases 与字段类型未在语义分析中给出 ---
+语义分析仅标注证据来源为 `db`/`code`，未给出物理库名与列类型。各表页 `scope.databases` 暂填服务名派生的 `customer_management`，`ground:table` 的 `type` 一律填 `unknown`，均需回库确认后回填；确认前不要据此生成 DDL 或类型相关的对比结论。
 ---END REVIEW---
 
----REVIEW: rule | 集团删除前在途业务校验---
-该规则的 evidence 字符串在语义分析结果中被截断（原文止于 "...CustGroupRelApplication.java:removeRo"），本页按逐字原则保留原样。校准后的方法名锚点需在下一轮语义分析中确认后再更新。
+---REVIEW: enum | cust_account_info.auth_state 键形态与审计备注截断 ---
+枚举审计中 `APPLY_10` 的 verdict 为 `reject`，证据显示写值点用 `getDictParam()`（CustAccountApplication.java:193）、查询点用 `getDictKey()`（CustAccountApplication.java:222），但审计 note 在给定材料中被截断（止于“同一枚举”）。`auth_state` 的实际落库形态、以及 APPLY_20/APPLY_30/APPLY_40 是否同样存在键混用，需回源码确认后再补 [[auth_state]] 与 [[bank_account_auth_state]]。
+---END REVIEW---
+
+---REVIEW: rule | reqdoc slug 缺失 ---
+reqdoc_claims 中 action=anchor 的主张未提供 slug，[[async_notice_tolerant]] 的 `ground:rule.evidence` 暂以 `reqdoc:msg-async-not-block` 占位。需补正式的 reqdoc slug 后再定稿双源引用；action=review 的两条主张（企业状态流转、站内信落库）同理缺 slug。
 ---END REVIEW---

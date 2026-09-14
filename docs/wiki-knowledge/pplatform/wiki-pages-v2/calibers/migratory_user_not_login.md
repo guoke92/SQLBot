@@ -11,6 +11,7 @@ scope:
 sources:
   - code_path:CustMigratoryService.java:loginAfterEjectMsg
 contract_version: "0.1"
+belong: calibers
 ---
 
 “未登录的迁移用户”是登录后弹出升级消息这一动作的判定集合：只有同时满足“迁移记录标记为未登录”和“记录有效”的用户才会被纳入。

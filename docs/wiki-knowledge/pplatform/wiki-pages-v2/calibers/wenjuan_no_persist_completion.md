@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 问卷星活动-完成态不落库口径
-page_key: calibers/wenjuan_no_persist_completion
+page_key: wenjuan_no_persist_completion
 domain: 问卷
 status: draft
 aliases:
@@ -14,6 +14,7 @@ scope:
 sources:
   - code:WenjuanDisplayService.java
 contract_version: "0.1"
+belong: calibers
 ---
 
 # 问卷星活动-完成态不落库口径

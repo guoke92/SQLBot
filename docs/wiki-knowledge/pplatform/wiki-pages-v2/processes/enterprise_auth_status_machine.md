@@ -18,6 +18,7 @@ sources:
   - code:CustCompanyOperationApplication.java:reAuthentication
   - db:cust_company_info.cust_build_status
 contract_version: "0.1"
+belong: processes
 ---
 
 本流程描述 `cust_company_info.cust_build_status`（见 [[auth_status]]）在企业建档与认证过程中的流转。该字段是**建档/认证的整体进度**，与客户生命周期状态（[[customer_status_machine]]）、运营中台单次审核状态（[[operation_check_status_machine]]）相互独立，边界见 [[customer_status]] 与 [[check_status]] 的裁定说明。

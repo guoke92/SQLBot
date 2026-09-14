@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 线下电子授权书签署触发条件
-page_key: caliber.offline_electronic_auth_trigger
+page_key: offline-electronic-auth-trigger
 domain: 授权协议与电子授权
 status: draft
 aliases:
@@ -15,6 +15,7 @@ sources:
   - db:cust_company_info
   - db:tenant_setting_config
 contract_version: "0.1"
+belong: calibers
 ---
 
 这是签署编排的准入门槛：审核通过（`check_status='CUST_CHECK_PASS'`）、企业用户授权模式为线下（`auth_model='off_auth'`）、租户开关开启（[[tables/tenant_setting_config|generate_electronic_auth_flag]]='Y'）、且企业已具备 CFCA 电子签章能力（`need_register_ca='Y'` 且 `ca_register_status='Y'`）时必须全满足。企业类型与流程类型还分别有额外口径：[[calibers/allowed-company-types]]、[[calibers/build-scope-identify-styles]]、[[calibers/change-scope-self-alter-items]]。

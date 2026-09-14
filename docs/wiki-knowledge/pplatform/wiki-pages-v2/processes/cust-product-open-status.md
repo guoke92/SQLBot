@@ -1,7 +1,7 @@
 ---
 type: process
 title: 客户产品开通状态
-page_key: processes/cust-product-open-status
+page_key: cust-product-open-status
 domain: 平台产品配置
 status: draft
 aliases: [客户产品开通状态机, cust_auth_application.open_status]
@@ -12,6 +12,7 @@ sources:
   - code:CustProductDomainService.initProduct
   - code:CustProductDomainService.doActiveProduct
 contract_version: "0.1"
+belong: processes
 ---
 
 客户产品开通状态描述 [[tables/cust_auth_application]] 中 `open_status` 的生命周期，取值为 OPENED/OPENING/NOT_OPENED 三态。初始化产品开通将状态置为「开通中」，激活动作既可从「开通中」进入「已开通」，也可从「未开通」直接进入「已开通」；「已开通」是 [[calibers/cust-open-product]] 口径的过滤条件。

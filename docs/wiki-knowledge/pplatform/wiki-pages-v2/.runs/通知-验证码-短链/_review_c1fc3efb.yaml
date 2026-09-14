@@ -1,0 +1,9 @@
+body: '类型：rule | 标题：短信发送幂等
+
+  问题：需求文档主张「短信需要幂等时使用 RedisSmsLock 检查/加锁」，本次链路分析中未出现 RedisSmsLock 调用点。
+
+  证据：链路上未出现 RedisSmsLock 调用 + reqdoc:平台基础组件业务规则文档#2.2
+
+  处理建议：确认幂等是否由其他组件（如分布式锁封装类）承担，或确认该主张已废弃。'
+title: 短信幂等 RedisSmsLock
+type: rule

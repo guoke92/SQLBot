@@ -1,7 +1,7 @@
 ---
 type: concept
 title: custRoleCombine 企业角色组合
-page_key: concepts/custRoleCombine
+page_key: custRoleCombine
 domain: 平台产品配置
 status: draft
 aliases: [custRoleCombine, 企业角色组合, cust_role_combine]
@@ -15,6 +15,8 @@ adjudication: synonym
 also_confused_with: []
 contract_version: "0.1"
 sources: ["enrich:wiki-admin"]
+belong: concepts
+field_targets: [platform_product.cust_role_combine]
 ---
 
 custRoleCombine、「企业角色组合」与 `cust_role_combine` 是同一语义，映射到 [[tables/platform_product]] 的 `cust_role_combine`。

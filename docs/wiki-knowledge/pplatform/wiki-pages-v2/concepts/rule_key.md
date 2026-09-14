@@ -1,54 +1,43 @@
 ---
 type: concept
-title: 规则键（ruleKey）
-page_key: concepts/rule_key
-domain: funding
+title: 规则字段 key（ruleKey / frontKey）
+page_key: rule_key
+domain: 资金规则与异常处理
 status: draft
 aliases:
-  - ruleKey
-  - rule_key
+  - frontKey
   - front_key
-  - 规则键
+  - rule_key
 oid: 1
 scope:
   databases:
-    - funding_rule
+    - lowcode_pplatform_customer_management
 sources:
-  - "code:FundRuleInfoApplication#saveRuleInfo"
-  - "db:funding_rule_front_cfg"
-contract_version: "0.1"
-maps_to: "funding_rule_front_cfg.front_key = funding_rule_detail.rule_key"
+  - code:lowcode-pplatform-customer-management/src/main/java/com/lls/lowcode/pplatform/cust/application/FundRuleInfoApplication.java
+  - db:funding_rule_detail
+  - db:funding_rule_front_cfg
+maps_to: funding_rule_detail.rule_key
 field_targets:
-  - funding_rule_front_cfg.front_key
   - funding_rule_detail.rule_key
+  - funding_rule_front_cfg.front_key
+  - funding_rule_front_cfg.rule_key
 adjudication: boundary
 also_confused_with:
-  - key_name
-  - front_key_name
-boundary: "detail.rule_key 存 front_cfg.front_key（机器键）；key_name/front_key_name 为展示名，导入匹配用 key_name（product+rule_layer+key_name 三元组）"
-sources: ["enrich:wiki-admin"]
+  - funding_rule_front_cfg.rule_key
+  - funding_rule_front_cfg.front_key
+contract_version: "0.1"
+belong: concepts
+field_targets: [funding_rule_detail.rule_key]
 ---
 
-# 规则键（ruleKey）
-
-## 业务定位
-
-「规则键」串起了资方规则的**定义侧**与**实例侧**：`funding_rule_front_cfg.front_key` 是机器键（定义），`funding_rule_detail.rule_key` 存的就是这个机器键（实例）。明细保存时的幂等粒度正是 `ruleInfoId + ruleKey + enable='Y'`。
-
-**边界**：`key_name` / `front_key_name` 是**展示名**，不是键。导入模板中的「规则名称」列按 `key_name` 匹配，匹配条件为 `product + rule_layer + key_name` 三元组；也就是说，人读的是名称，机器认的是键。
+三处 key 语义必须分清：[[funding_rule_detail]].rule_key 在应用层 Map 中与 [[funding_rule_front_cfg]].front_key 匹配（等价，**非 SQL JOIN**）；而 front_cfg.rule_key 是另一个字段，在 Provider 中被写成对外输出的 item.key。三者不可混用。
 
 ## 需求背景
 
-无语义分析挂载的需求文档锚点。
+- 规则保存：以 ruleMap.key 匹配 frontKey，命中已有 enable='Y' 明细即更新，否则新增；ruleMap 中不存在的 frontKey 静默跳过（[[rule_save_version_detail_sync]]）。
+- 规则导入：按 (product, rule_layer, key_name) 反查 front_cfg 拿到 frontKey 作为明细 key（[[rule_import_four_stage_validation]]）。
+- 对外输出：Provider 以 front_cfg.rule_key 作为 item.key 返回（[[rule_provider_active_only]]）。
 
 ## 版本演进
 
-无 `action=uncovered` 的主张。
-
-## 关联
-
-- 概念：[[concepts/rule_layer]]
-- 表：[[tables/funding_rule_front_cfg]]、[[tables/funding_rule_detail]]
-- 规则：[[rules/rule_detail_save_idempotent]]
-
-相关：[[funding_rule_detail]] [[funding_rule_front_cfg]]
+v0 首次建立，判定类型 boundary，边界为「detail.rule_key ↔ front_cfg.front_key 应用层等价；front_cfg.rule_key 是对外输出字段」。

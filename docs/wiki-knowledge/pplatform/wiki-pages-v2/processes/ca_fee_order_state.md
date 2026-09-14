@@ -1,7 +1,7 @@
 ---
 type: process
 title: CA服务费订单状态机
-page_key: processes/ca_fee_order_state
+page_key: ca_fee_order_state
 domain: CA证书收费
 status: draft
 aliases: [订单状态流转, order_status 状态机, CA订单状态]
@@ -15,6 +15,7 @@ sources:
   - code:CaFeeLedgerOperateService.java
   - code:CaFeeRenewalService.java
 contract_version: "0.1"
+belong: processes
 ---
 
 # CA服务费订单状态机

@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 集团根节点口径
-page_key: calibers/group-root-node
+page_key: group-root-node
 domain: 企业集团关系
 status: draft
 aliases: [集团本身, root_flag=Y]
@@ -11,6 +11,7 @@ scope:
 sources:
   - code_path:CustGroupLicenseApplication.java:checkCustGroup
 contract_version: "0.1"
+belong: calibers
 ---
 
 集团根节点指代表集团本身的关系记录，判定条件为 `cust_group_rel.root_flag = 'Y'`；root_flag = 'Y' 的企业不可签署成员单位协议，也不可作为子级被关联。字段边界见 [[concepts/root-flag]]。

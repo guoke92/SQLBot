@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 交e保清分产品口径
-page_key: calibers/bocom_clearing_product
+page_key: bocom_clearing_product
 domain: 外部渠道与银行对接
 status: draft
 aliases:
@@ -16,6 +16,7 @@ scope:
 sources:
   - code:CpcnBankProviderImpl#listXylCustAccountBanks
 contract_version: "0.1"
+belong: calibers
 ---
 
 # 交e保清分产品口径

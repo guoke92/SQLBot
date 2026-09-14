@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 异常解析-有效数据口径
-page_key: calibers/exception_resolution_valid_enable_y
+page_key: exception_resolution_valid_enable_y
 domain: funding
 status: draft
 aliases:
@@ -16,6 +16,7 @@ sources:
   - "code:FundingPartyExceptionResolutionProviderImpl#doQuery"
   - "db:funding_exception_resolution"
 contract_version: "0.1"
+belong: calibers
 ---
 
 # 异常解析-有效数据口径

@@ -1,7 +1,7 @@
 ---
 type: caliber
 title: 智能审核引流-弹出次数上限口径
-page_key: calibers/gptlearn_poster_count_limit
+page_key: gptlearn_poster_count_limit
 domain: GP学习
 status: draft
 aliases:
@@ -14,6 +14,7 @@ scope:
 sources:
   - code:GptLearnService.java
 contract_version: "0.1"
+belong: calibers
 ---
 
 # 智能审核引流-弹出次数上限口径
