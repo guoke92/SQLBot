@@ -21,6 +21,18 @@ def test_parse_comment_labels_yn_and_01() -> None:
     }
 
 
+def test_parse_comment_labels_comma_and_glued_digits() -> None:
+    """列注释常见「1,主数据，0记录数据」——逗号分隔 + 数字直接贴中文。"""
+    assert parse_comment_labels("数据类型：1,主数据，0记录数据") == {
+        "1": "主数据",
+        "0": "记录数据",
+    }
+    assert parse_comment_labels("类型：1=主数据，2=编辑过程") == {
+        "1": "主数据",
+        "2": "编辑过程",
+    }
+
+
 def test_tenant_code_is_not_an_enum_dict() -> None:
     from apps.knowledge.wiki.field_vocab import looks_like_enum_dict, looks_like_vocab
 

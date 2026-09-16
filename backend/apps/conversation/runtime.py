@@ -360,7 +360,19 @@ def submit_graph(
                         terminal_already_committed = bool(
                             current is not None and current.status in TERMINAL_STATUSES
                         )
-                        if not terminal_already_committed:
+                    if not terminal_already_committed and graph_key == "chat":
+                        try:
+                            from apps.chat.graphs.nodes.agent_finalize import (
+                                try_publish_query_salvage,
+                            )
+
+                            if try_publish_query_salvage(run_id, state):
+                                terminal_already_committed = True
+                        except Exception:
+                            traceback.print_exc()
+                    if not terminal_already_committed:
+                        with session_scope() as session:
+                            current = session.get(ConversationRun, run_id)
                             finalize_run(
                                 session,
                                 run_id=run_id,

@@ -216,6 +216,8 @@ def sync_corpus_embeddings(
             ident = f"{page.belong}/{page.page_key}" if page.belong else page.page_key
             chunks = chunk_markdown(page.body_md)
             for index, chunk in enumerate(chunks):
+                if not chunk.recall:
+                    continue
                 text = chunk_text(page.page_key, chunk)
                 digest = chunk_fingerprint(text, resolved_model, resolved_dim)
                 wanted.add((ident, index))

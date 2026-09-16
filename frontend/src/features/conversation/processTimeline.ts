@@ -92,6 +92,17 @@ export function itemKey(item: Pick<ProcessItem, 'id'> | number | string): string
   return String(item)
 }
 
+/** Live process items belong to one ConversationRun attempt. */
+export function belongsToRun(item: ProcessItem, runId?: string | null): boolean {
+  if (!runId || !item.run_id) return true
+  return item.run_id === runId
+}
+
+export function itemsForRun(items: ProcessItem[], runId?: string | null): ProcessItem[] {
+  if (!runId) return items
+  return items.filter((item) => belongsToRun(item, runId))
+}
+
 export function upsertItem(map: TimelineMap, item: ProcessItem): TimelineMap {
   const next = new Map(map)
   next.set(itemKey(item), item)

@@ -1,6 +1,6 @@
 # 源码摄取适配器 v1（llm-wiki 能力空白的补充设计）
 
-> llm-wiki 支持文档/PDF/网页摄取，**不支持从源码提取**。本 spec 是我们的独有补充。
+> **已废止（2026-09-15）。** 扫描器打底与提取流程见 [`docs/wiki/extract.md`](../wiki/extract.md)。本文仅作历史。
 > 与 v0 契约的衔接：底稿（catalog/enums/relationships YAML）常驻 `raw/sources/` 并由脚本刷新
 > ——这同时回答 v0 开放问题 5（COVERAGE_GAP 验收依赖 catalog 常驻，本适配器即其供给方）。
 > 核心原则：**确定性打底，LLM 只做语义跃迁**——代码不直接进 LLM，先过确定性扫描器打底，LLM 在扫描产物之上做语义分析。

@@ -2,7 +2,8 @@
 
 wiki 后端下 planner 的 schema_text 改由 wiki table 页渲染：物理类型(phys)、
 注释(desc)、值集(topk)、展示名(labels)、枚举页指针(enum)、**表间关联(relation 段)**
-一并呈现；字段行 ``name:type, comment[, topk=...][, labels=...][, enum=...]``。
+一并呈现；字段行 ``name:type, comment[, topk=...][, labels=...][, enum=...]``，
+全量缓存还可带 ``group=`` / ``scenes=``（投影输出会剥掉，不进规划器）。
 label 只取首个顶层逗号后的第一段；关联行以 ``关联:`` 开头，不进入 label 候选池。
 关联行尾方括号是边的观察来源（write-flow / java-eq / ref-convention /
 db-index / db-naming），不是选用建议。
@@ -15,9 +16,10 @@ db-index / db-naming），不是选用建议。
 
 1. ``WikiSchemaRenderer`` —— **全量**渲染（全部字段 + 全部紧凑 ``关联:`` 行）。
    渲染结果只依赖语料，不依赖问题，因此可在会话 plane 中按表缓存并跨轮复用。
-2. ``project_schema`` —— 提示词投影：枚举页在场时去掉 ``topk=`` / ``labels=``，
-   只留 ``enum=`` 指针（取值权威在枚举页）。不再按字数折叠字段——JOIN 键
-   进「其余字段」会丢语义。``relevant_fields`` 仍供覆盖面增量 / 枚举 pin 使用。
+2. ``project_schema`` —— 提示词投影：枚举页在场时去掉 ``topk=``，保留
+   ``labels=`` 与 ``enum=``。无场景标注的表（v1）整表入 prompt。带
+   ``group=`` / ``scenes=`` 的表按召回场景窗裁剪：always ∪ 命中场景窗 ∪
+   证据列 ∪ 问题点名列 ∪ JOIN 端点；未入窗的列不进 prompt。
 3. ``filter_schema_relations`` —— 按累计工作集投影关联行（入选 / 对端未入选 /
    丢弃噪声边）。Agent plane 的 ``schema_catalog_text`` 与 NLQ ``render_schema``
    共用 2 与 3。
@@ -150,6 +152,16 @@ def enum_page_present(dict_key: str, present_pages: Iterable[str] | None) -> boo
     return any(str(key).strip() == target for key in present_pages)
 
 
+def recalled_scenario_keys(present_pages: Iterable[str] | None) -> set[str]:
+    """``scenarios/<slug>`` store keys → scenario page_key。裸 slug 不算场景。"""
+    out: set[str] = set()
+    for raw in present_pages or ():
+        key = str(raw or "").strip()
+        if key.startswith("scenarios/") and len(key) > len("scenarios/"):
+            out.add(key.split("/", 1)[1])
+    return out
+
+
 def collect_schema_evidence(
     store: Any,
     *,
@@ -178,11 +190,20 @@ def collect_schema_evidence(
         for match in _FIELD_REF_RE.finditer(maps_to):
             _add(match.group(1), match.group(2))
         for block in getattr(page, "ground_blocks", ()) or ():
-            if getattr(block, "kind", "") != "caliber":
-                continue
-            predicate = str((getattr(block, "data", {}) or {}).get("predicate") or "")
-            for match in _FIELD_REF_RE.finditer(predicate):
-                _add(match.group(1), match.group(2))
+            kind = getattr(block, "kind", "")
+            data = getattr(block, "data", {}) or {}
+            if kind == "caliber":
+                predicate = str(data.get("predicate") or "")
+                for match in _FIELD_REF_RE.finditer(predicate):
+                    _add(match.group(1), match.group(2))
+            elif kind == "scenario":
+                for group in ("hubs", "shared"):
+                    for item in data.get(group) or []:
+                        if not isinstance(item, dict):
+                            continue
+                        table = str(item.get("table") or "")
+                        for fname in item.get("window") or []:
+                            _add(table, str(fname))
     return out
 
 
@@ -244,8 +265,16 @@ class SchemaField:
     labels: str = ""
     enum: str = ""
     owned_labels: bool = False
+    group: str = ""
+    scenes: tuple[str, ...] = ()
 
-    def render(self, *, with_topk: bool = True, with_labels: bool | None = None) -> str:
+    def render(
+        self,
+        *,
+        with_topk: bool = True,
+        with_labels: bool | None = None,
+        with_meta: bool = False,
+    ) -> str:
         show_labels = with_topk if with_labels is None else with_labels
         tail = ""
         if self.topk and with_topk:
@@ -254,6 +283,10 @@ class SchemaField:
             tail += f", labels={self.labels}"
         if self.enum:
             tail += f", enum={self.enum}"
+        if with_meta and self.group:
+            tail += f", group={self.group}"
+        if with_meta and self.scenes:
+            tail += f", scenes={'|'.join(self.scenes)}"
         return _FIELD_LINE.format(
             field=self.name,
             type=compact_field_type(self.type),
@@ -318,6 +351,8 @@ def parse_field_line(line: str) -> SchemaField | None:
     topk = ""
     labels = ""
     enum = ""
+    group = ""
+    scenes: tuple[str, ...] = ()
     for segment in segments[2:]:
         key, sep, value = segment.strip().partition("=")
         if not sep:
@@ -328,6 +363,10 @@ def parse_field_line(line: str) -> SchemaField | None:
             labels = value.strip()
         elif key == "enum":
             enum = value.strip()
+        elif key == "group":
+            group = value.strip()
+        elif key == "scenes":
+            scenes = tuple(part for part in value.strip().split("|") if part)
     return SchemaField(
         name=match.group("name"),
         type=ftype,
@@ -335,6 +374,8 @@ def parse_field_line(line: str) -> SchemaField | None:
         topk=topk,
         labels=labels,
         enum=enum,
+        group=group,
+        scenes=scenes,
     )
 
 
@@ -433,9 +474,22 @@ def _relation_endpoints(lines: Sequence[str], table: str) -> set[str]:
     return cols
 
 
-RANK_EVIDENCE = 0  # evidence / baseline column / JOIN endpoint
+RANK_EVIDENCE = 0  # evidence / baseline column / JOIN endpoint / scene window
 RANK_QUERY = 1  # comment or name matches the turn's wording
 RANK_STRUCTURAL = 2  # enum-bound, identity/FK-like, temporal or measure type
+
+
+def section_is_scene_annotated(fields: Sequence[SchemaField]) -> bool:
+    return any(item.group or item.scenes for item in fields)
+
+
+def field_in_recalled_scene(
+    item: SchemaField, recalled_scenarios: Iterable[str]
+) -> bool:
+    if item.group == "always":
+        return True
+    recalled = {str(s) for s in recalled_scenarios if str(s)}
+    return bool(recalled and set(item.scenes) & recalled)
 
 
 def field_relevance_rank(
@@ -444,9 +498,12 @@ def field_relevance_rank(
     keep: set[str],
     relation_cols: set[str],
     queries: Sequence[str],
+    recalled_scenarios: Iterable[str] = (),
 ) -> int | None:
     """The one relevance rule. ``None`` = foldable under budget pressure."""
     if item.name in keep or item.name in relation_cols:
+        return RANK_EVIDENCE
+    if field_in_recalled_scene(item, recalled_scenarios):
         return RANK_EVIDENCE
     if _query_hits_field(item.name, item.comment, queries):
         return RANK_QUERY
@@ -463,13 +520,34 @@ def field_is_relevant(
     keep: set[str],
     relation_cols: set[str],
     queries: Sequence[str],
+    recalled_scenarios: Iterable[str] = (),
 ) -> bool:
     return (
         field_relevance_rank(
-            item, keep=keep, relation_cols=relation_cols, queries=queries
+            item,
+            keep=keep,
+            relation_cols=relation_cols,
+            queries=queries,
+            recalled_scenarios=recalled_scenarios,
         )
         is not None
     )
+
+
+def _keep_scene_field(
+    item: SchemaField,
+    *,
+    keep: set[str],
+    relation_cols: set[str],
+    queries: Sequence[str],
+    recalled_scenarios: Iterable[str],
+) -> bool:
+    """Scene-annotated tables: do not dump structural/enum columns by default."""
+    if item.name in keep or item.name in relation_cols:
+        return True
+    if field_in_recalled_scene(item, recalled_scenarios):
+        return True
+    return _query_hits_field(item.name, item.comment, queries)
 
 
 # ── table section model ─────────────────────────────────────────────────────
@@ -538,24 +616,37 @@ def relevant_fields(
     *,
     queries: Sequence[str] = (),
     keep_fields: Mapping[str, Iterable[str]] | None = None,
+    present_pages: Iterable[str] | None = None,
 ) -> dict[str, set[str]]:
     """``{table: relevant field names}`` — the one relevance rule."""
     keep = merge_field_sets(keep_fields)
+    recalled = recalled_scenario_keys(present_pages)
     out: dict[str, set[str]] = {}
     for section in _parse_sections(schema_text):
         if not section.table:
             continue
         rel_cols = section.relation_cols()
-        out[section.table] = {
-            item.name
-            for item in section.fields
-            if field_is_relevant(
+        annotated = section_is_scene_annotated(section.fields)
+        names: set[str] = set()
+        for item in section.fields:
+            if annotated:
+                if _keep_scene_field(
+                    item,
+                    keep=keep.get(section.table, set()),
+                    relation_cols=rel_cols,
+                    queries=queries,
+                    recalled_scenarios=recalled,
+                ):
+                    names.add(item.name)
+            elif field_is_relevant(
                 item,
                 keep=keep.get(section.table, set()),
                 relation_cols=rel_cols,
                 queries=queries,
-            )
-        }
+                recalled_scenarios=recalled,
+            ):
+                names.add(item.name)
+        out[section.table] = names
     return out
 
 
@@ -572,12 +663,16 @@ def project_schema(
     When the enum page is actually in the prompt, drop ``topk=`` (SQL values
     live on the enum page) but keep ``labels=`` and the ``enum=`` pointer.
     Field-owned labels are column-specific overlay; enum pages still carry
-    conversion flows / state machines. Field folding by ``budget_chars`` is
-    disabled — JOIN keys must stay as full rows.
-    ``budget_chars`` is accepted for call-site compatibility and ignored.
+    conversion flows / state machines.
+
+    Tables without ``group=`` / ``scenes=`` stay full (v1). Scene-annotated
+    tables keep always ∪ recalled scenario windows ∪ evidence ∪ query hits ∪
+    JOIN endpoints. ``budget_chars`` is accepted for call-site compatibility
+    and ignored.
     """
     present = {str(key).strip() for key in (present_pages or ())}
     keep = merge_field_sets(keep_fields)
+    recalled = recalled_scenario_keys(present)
     sections = _parse_sections(schema_text)
     enum_stripped: dict[str, list[str]] = {}
     for section in sections:
@@ -586,30 +681,36 @@ def project_schema(
                 enum_stripped.setdefault(section.table, []).append(item.name)
 
     relevant: dict[str, set[str]] = {}
-    for section in sections:
-        if not section.table:
-            continue
-        rel_cols = section.relation_cols()
-        relevant[section.table] = {
-            item.name
-            for item in section.fields
-            if field_is_relevant(
-                item,
-                keep=keep.get(section.table, set()),
-                relation_cols=rel_cols,
-                queries=queries,
-            )
-        }
-
+    omitted: dict[str, int] = {}
     blocks: list[str] = []
     for section in sections:
         lines = [section.header] if section.header else []
         stripped = set(enum_stripped.get(section.table, ()))
+        rel_cols = section.relation_cols() if section.table else set()
+        annotated = section_is_scene_annotated(section.fields)
+        kept: list[SchemaField] = []
+        dropped = 0
         for item in section.fields:
+            if annotated and not _keep_scene_field(
+                item,
+                keep=keep.get(section.table, set()),
+                relation_cols=rel_cols,
+                queries=queries,
+                recalled_scenarios=recalled,
+            ):
+                dropped += 1
+                continue
+            kept.append(item)
+        if section.table:
+            relevant[section.table] = {item.name for item in kept}
+            if dropped:
+                omitted[section.table] = dropped
+        for item in kept:
             lines.append(
                 item.render(
                     with_topk=item.name not in stripped,
                     with_labels=True,
+                    with_meta=False,
                 )
             )
         lines.extend(section.others)
@@ -618,7 +719,7 @@ def project_schema(
     _ = budget_chars
     return SchemaProjection(
         text=text,
-        omitted={},
+        omitted=omitted,
         enum_stripped=enum_stripped,
         relevant={key: sorted(names) for key, names in relevant.items()},
     )
@@ -629,29 +730,45 @@ def enum_pins_for(
     *,
     queries: Sequence[str] = (),
     keep_fields: Mapping[str, Iterable[str]] | None = None,
+    present_pages: Iterable[str] | None = None,
     limit: int = 3,
 ) -> list[str]:
     """Enum pages worth pinning: dict fields the turn actually touches
-    (evidence / baseline columns / wording hits), best rank first. Structural
-    relevance alone (every enum column) does not earn a pin."""
+    (evidence / baseline columns / wording hits / recalled scene windows),
+    best rank first. Structural relevance alone (every enum column) does not
+    earn a pin."""
     keep = merge_field_sets(keep_fields)
+    recalled = recalled_scenario_keys(present_pages)
     ranked: list[tuple[int, int, str]] = []
     order = 0
     for section in _parse_sections(schema_text):
         if not section.table:
             continue
         rel_cols = section.relation_cols()
+        annotated = section_is_scene_annotated(section.fields)
         for item in section.fields:
             if not item.enum:
                 continue
-            rank = field_relevance_rank(
-                item,
-                keep=keep.get(section.table, set()),
-                relation_cols=rel_cols,
-                queries=queries,
-            )
-            if rank is None or rank >= RANK_STRUCTURAL:
-                continue
+            if annotated:
+                if not _keep_scene_field(
+                    item,
+                    keep=keep.get(section.table, set()),
+                    relation_cols=rel_cols,
+                    queries=queries,
+                    recalled_scenarios=recalled,
+                ):
+                    continue
+                rank = RANK_EVIDENCE
+            else:
+                rank = field_relevance_rank(
+                    item,
+                    keep=keep.get(section.table, set()),
+                    relation_cols=rel_cols,
+                    queries=queries,
+                    recalled_scenarios=recalled,
+                )
+                if rank is None or rank >= RANK_STRUCTURAL:
+                    continue
             key = enum_page_key(item.enum)
             if key and key not in {k for _, _, k in ranked}:
                 ranked.append((rank, order, key))
@@ -954,6 +1071,19 @@ class WikiSchemaRenderer:
             elif not owned:
                 label_map = self._enum_label_map(dict_key) if dict_key else {}
                 label_tail = format_enum_labels(values, label_map) if label_map else ""
+            scenes_raw = f.get("scenes") or []
+            if isinstance(scenes_raw, str):
+                scenes = tuple(
+                    part.strip()
+                    for part in scenes_raw.replace(",", "|").split("|")
+                    if part.strip()
+                )
+            elif isinstance(scenes_raw, list | tuple):
+                scenes = tuple(
+                    str(part).strip() for part in scenes_raw if str(part).strip()
+                )
+            else:
+                scenes = ()
             lines.append(
                 SchemaField(
                     name=name,
@@ -963,7 +1093,9 @@ class WikiSchemaRenderer:
                     labels=label_tail,
                     enum=dict_key.rsplit("/", 1)[-1] if dict_key else "",
                     owned_labels=owned,
-                ).render()
+                    group=str(f.get("group") or "").strip(),
+                    scenes=scenes,
+                ).render(with_meta=True)
             )
         lines.extend(self._wiki_relations(page_text))
         return "\n".join(lines)

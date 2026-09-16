@@ -1,6 +1,6 @@
 # Wiki 知识体系总体方案（数据问数版）
 
-> 定位：以 llm-wiki 已验证实现为基座，面向 **NL2SQL（数据问数）** 的知识体系全链路方案。
+> **已废止（2026-09-15）。** 权威迁至 [`docs/wiki/`](../wiki/README.md)。本文仅作历史。
 > 本文回答三个问题：与 llm-wiki 的横向比对结论；提取的 wiki 如何**确保**达成问数预期效果；完整流程。
 > 关联：页面契约 `docs/wiki页面契约-spec-v0.md` · 源码摄取 `docs/wiki-knowledge/wiki源码摄取适配器-v1.md` · 召回 `docs/wiki-knowledge/wiki召回接口-v1.md`
 

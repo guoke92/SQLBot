@@ -47,11 +47,32 @@ _LABEL_PAIR = re.compile(
     r"[：:\s]+"
     r"([\u4e00-\u9fffA-Za-z][\u4e00-\u9fffA-Za-z0-9_/／-]{0,15})"
 )
+# 「1,主数据」「1=主数据」「1-主数据」
+_LABEL_PUNCT = re.compile(
+    r"(?:^|[：:\s/|,;；，])"
+    r"([A-Za-z0-9_]+|[是否YN])"
+    r"\s*[,=＝\-–]\s*"
+    r"([\u4e00-\u9fff][\u4e00-\u9fffA-Za-z0-9_/／-]{0,15})"
+)
+# 「0记录数据」：数字/YN 后直接跟中文，中间没有分隔符
+_LABEL_GLUE = re.compile(
+    r"(?:^|[：:\s/|,;；，])"
+    r"([0-9]+|[YN])"
+    r"([\u4e00-\u9fff][\u4e00-\u9fffA-Za-z0-9_/／-]{0,15})"
+)
 _VOCAB_NAME = re.compile(
     r"(?:^is_|_flag$|_status$|_state$|_type$|_mode$|_result$|^enable$|"
     r"^status$|^state$|^type$|^deleted$|^valid$|^locked$)",
     re.I,
 )
+
+
+def _acceptable_label_key(key: str) -> bool:
+    if key in {"Y", "N", "y", "n", "是", "否"}:
+        return True
+    if re.fullmatch(r"[A-Za-z][A-Za-z0-9_]{0,31}", key):
+        return True
+    return bool(re.fullmatch(r"[0-9]{1,8}", key))
 
 
 def parse_comment_labels(desc: str) -> dict[str, str]:
@@ -60,16 +81,12 @@ def parse_comment_labels(desc: str) -> dict[str, str]:
     if not text:
         return {}
     out: dict[str, str] = {}
-    for key, label in _LABEL_PAIR.findall(text):
-        label = label.strip().strip("/／")
-        if not label or label == key:
-            continue
-        if key in {"Y", "N", "y", "n", "0", "1"} or re.fullmatch(
-            r"[A-Za-z][A-Za-z0-9_]{0,31}", key
-        ):
-            out[key] = label
-        elif key in {"是", "否"}:
-            out[key] = label
+    for pattern in (_LABEL_PAIR, _LABEL_PUNCT, _LABEL_GLUE):
+        for key, label in pattern.findall(text):
+            label = label.strip().strip("/／")
+            if not label or label == key or not _acceptable_label_key(key):
+                continue
+            out.setdefault(key, label)
     return out
 
 

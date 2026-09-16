@@ -15,10 +15,22 @@ import {
 } from '@/hooks/useChatStream'
 
 type ConversationTurnHandlers = {
+  onAttemptStart?: (record: ChatRecord) => void
   onEvent?: (event: ChatStreamEvent) => boolean | void | Promise<boolean | void>
   onFinish?: (record: ChatRecord) => void | Promise<void>
   onError?: (record: ChatRecord) => void
   onDone?: () => void
+}
+
+const prepareRecordForNewAttempt = (record: ChatRecord) => {
+  record.error = null
+  record.finish = false
+  record.finish_time = undefined
+  record.active_interrupt = undefined
+  record.interrupts = []
+  record.run_status = 'queued'
+  record.run_current_node = undefined
+  record.intent_reasoning_content = undefined
 }
 
 export const useConversationTurn = (options: UseChatStreamOptions = {}) => {
@@ -214,6 +226,8 @@ export const useConversationTurn = (options: UseChatStreamOptions = {}) => {
     options: { regenerate?: boolean } = {}
   ) => {
     const started = await withOwnership(async () => {
+      handlers.onAttemptStart?.(record)
+      prepareRecordForNewAttempt(record)
       const created = await runApi.create({
         question: record.question || '',
         chat_id: chatId,

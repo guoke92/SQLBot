@@ -361,7 +361,10 @@ class AgentKnowledgePlane(BaseModel):
         if not schema:
             return {}
         return relevant_fields(
-            schema, queries=self.queries, keep_fields=self.keep_fields
+            schema,
+            queries=self.queries,
+            keep_fields=self.keep_fields,
+            present_pages=self.wiki_passages.keys(),
         )
 
     def _ingest_wiki_passages(

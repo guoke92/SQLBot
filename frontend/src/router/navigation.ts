@@ -7,6 +7,7 @@ import type {
 } from 'vue-router'
 
 export interface NavigationAccess {
+  isAdmin?: boolean
   isSpaceAdmin: boolean
 }
 
@@ -18,24 +19,37 @@ export interface NavigationRoute {
   children: NavigationRoute[]
 }
 
+const canAccessMeta = (
+  meta: RouteMeta | undefined,
+  access: NavigationAccess | undefined
+) => {
+  if (!access) return true
+  if (meta?.requiresAdmin && !access.isAdmin) return false
+  if (meta?.requiresSpaceAdmin && !access.isSpaceAdmin) return false
+  return true
+}
+
 const normalizeChildren = (
   routes: readonly RouteRecordRaw[] = [],
-  parentPath = ''
+  parentPath = '',
+  access?: NavigationAccess
 ): NavigationRoute[] =>
-  routes.map((route) => {
-    const path = route.path.startsWith('/')
-      ? route.path
-      : `${parentPath.replace(/\/$/, '')}/${route.path}`
-    return {
-      ...route,
-      path,
-      meta: route.meta ?? {},
-      children: normalizeChildren(route.children ?? [], path),
-    } as NavigationRoute
-  })
+  routes
+    .filter((route) => canAccessMeta(route.meta, access))
+    .map((route) => {
+      const path = route.path.startsWith('/')
+        ? route.path
+        : `${parentPath.replace(/\/$/, '')}/${route.path}`
+      return {
+        ...route,
+        path,
+        meta: route.meta ?? {},
+        children: normalizeChildren(route.children ?? [], path, access),
+      } as NavigationRoute
+    })
 
 const canAccess = (route: RouteRecordNormalized, access: NavigationAccess) =>
-  !route.meta.requiresSpaceAdmin || access.isSpaceAdmin
+  canAccessMeta(route.meta, access)
 
 export const getMainNavigation = (router: Router, access: NavigationAccess): NavigationRoute[] => {
   const routes = router
@@ -50,7 +64,7 @@ export const getMainNavigation = (router: Router, access: NavigationAccess): Nav
     (route) =>
       ({
         ...route,
-        children: normalizeChildren(route.children ?? [], route.path),
+        children: normalizeChildren(route.children ?? [], route.path, access),
       }) as NavigationRoute
   )
 }

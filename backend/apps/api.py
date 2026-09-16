@@ -3,15 +3,30 @@ from fastapi import APIRouter
 from apps.chat.api import chat
 from apps.dashboard.api import dashboard_api
 from apps.data_training.api import data_training
-from apps.datasource.api import datasource, table_relation, recommended_problem, profiling
+from apps.datasource.api import (
+    datasource,
+    profiling,
+    recommended_problem,
+    table_relation,
+)
 from apps.datasource.api import schema_vector as schema_vector_api
-
+from apps.dev.api import router as dev_router
 from apps.dictionary import api as dictionary_api
 from apps.knowledge.api import router as knowledge_router
 from apps.mcp import mcp
-from apps.system.api import login, user, aimodel, workspace, assistant, parameter, apikey, variable_api
-from apps.terminology.api import terminology
 from apps.settings.api import base
+from apps.system.api import (
+    aimodel,
+    apikey,
+    assistant,
+    login,
+    parameter,
+    user,
+    variable_api,
+    workspace,
+)
+from apps.terminology.api import terminology
+
 #from audit.api import audit_api
 
 
@@ -29,6 +44,7 @@ api_router.include_router(schema_vector_api.router)
 api_router.include_router(profiling.router)
 api_router.include_router(dictionary_api.router)
 api_router.include_router(knowledge_router)
+api_router.include_router(dev_router)
 api_router.include_router(chat.router)
 api_router.include_router(dashboard_api.router)
 api_router.include_router(mcp.router)

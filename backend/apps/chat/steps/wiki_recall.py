@@ -914,7 +914,10 @@ def _wiki_payload_from_recall(
                 _attach_pinned_passages(
                     store,
                     keys=enum_pins_for(
-                        schema_text, queries=[query], keep_fields=evidence_fields
+                        schema_text,
+                        queries=[query],
+                        keep_fields=evidence_fields,
+                        present_pages=wiki_passages.keys(),
                     ),
                     databases=databases,
                     page_keys=page_keys,

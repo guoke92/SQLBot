@@ -393,6 +393,80 @@ def test_collect_schema_evidence_from_targets_and_caliber() -> None:
     assert evidence["cust_company_info"] == {"pay_status", "user_type", "enable"}
 
 
+def test_collect_schema_evidence_from_scenario_window() -> None:
+    scenario = _ns_page(
+        field_targets=("cust_company_info.cust_status",),
+        maps_to="",
+        ground_blocks=[
+            SimpleNamespace(
+                kind="scenario",
+                data={
+                    "scenario": "company_build",
+                    "hubs": [
+                        {
+                            "table": "cust_company_info",
+                            "window": ["id", "enable", "data_type", "cust_status"],
+                        }
+                    ],
+                },
+            )
+        ],
+    )
+
+    class _Store:
+        pages = {"scenarios/company_build": scenario}
+
+        def get_page(self, key: str) -> object | None:
+            return self.pages.get(key)
+
+    evidence = collect_schema_evidence(
+        _Store(),
+        page_keys=["scenarios/company_build"],
+        tables=["cust_company_info"],
+    )
+    assert evidence["cust_company_info"] == {
+        "cust_status",
+        "id",
+        "enable",
+        "data_type",
+    }
+
+
+def test_projection_trims_scene_windows_not_v1_tables() -> None:
+    schema = (
+        "## 企业 (cust_company_info)\n"
+        "id:bigint, 主键, group=always, scenes=company_build\n"
+        "enable:varchar, 是否启用, group=always, scenes=company_build\n"
+        "data_type:varchar, 数据类型, scenes=company_build, enum=data_type\n"
+        "cust_status:varchar, 企业状态, scenes=company_build, enum=cust_status\n"
+        "business_scope:varchar, 经营范围\n"
+        "memo:varchar, 备注\n"
+    )
+    fitted = project_schema(
+        schema,
+        queries=["有效企业"],
+        present_pages=["scenarios/company_build"],
+    )
+    assert "data_type:varchar, 数据类型, enum=data_type" in fitted.text
+    assert "cust_status:varchar, 企业状态, enum=cust_status" in fitted.text
+    assert "group=" not in fitted.text
+    assert "scenes=" not in fitted.text
+    assert "business_scope" not in fitted.text
+    assert "memo" not in fitted.text
+    assert fitted.omitted.get("cust_company_info") == 2
+
+    v1 = (
+        "## 企业 (cust_company_info)\n"
+        "id:bigint, 主键\n"
+        "business_scope:varchar, 经营范围\n"
+        "memo:varchar, 备注\n"
+    )
+    kept = project_schema(v1, queries=["有效企业"])
+    assert "business_scope:varchar, 经营范围" in kept.text
+    assert "memo:varchar, 备注" in kept.text
+    assert kept.omitted == {}
+
+
 def test_dict_topk_kept_when_enum_page_not_in_prompt() -> None:
     enum_page = _ns_page(
         type="enum",

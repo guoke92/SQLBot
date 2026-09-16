@@ -23,7 +23,11 @@ from apps.chat.presentation import (
     ResultPresentation,
     build_result_presentation,
 )
-from apps.conversation.outcome import failed_outcome, successful_outcome
+from apps.conversation.outcome import (
+    degraded_outcome,
+    failed_outcome,
+    successful_outcome,
+)
 from apps.conversation.process_timeline import (
     PREVIEW_ROW_LIMIT,
     load_result_datasets,
@@ -37,8 +41,10 @@ from common.utils.utils import SQLBotLogUtil
 # Re-export for tests / callers that historically imported from here.
 __all__ = [
     "finalize_agent_turn_node",
+    "has_publishable_query_result",
     "infer_chart_for_presentation",
     "select_delivery_datasets",
+    "try_publish_query_salvage",
 ]
 
 
@@ -74,6 +80,56 @@ def select_delivery_datasets(datasets: Sequence[Any]) -> list[Any]:
     return list(candidates[-1:]) if candidates else []
 
 
+def _safe_delivery_chart(**kwargs: Any) -> dict[str, Any] | None:
+    try:
+        return resolve_delivery_chart(**kwargs)
+    except Exception as exc:
+        SQLBotLogUtil.warning(f"delivery chart inference skipped: {exc}")
+        return None
+
+
+def has_publishable_query_result(state: Mapping[str, Any]) -> bool:
+    """True when this turn already has a required successful SQL dataset."""
+    from apps.chat.graphs.nodes.unified_agent import _agent_has_sql_result
+    from apps.conversation.messages import deserialize_messages
+
+    messages = deserialize_messages(list(state.get("messages") or []))
+    if _agent_has_sql_result(state, messages):
+        return True
+    run_id = str(state.get("run_id") or "")
+    if not run_id:
+        return False
+    try:
+        with session_scope() as session:
+            rows = load_result_datasets(session, run_id)
+        return bool(select_delivery_datasets(rows))
+    except Exception:
+        return False
+
+
+def try_publish_query_salvage(
+    run_id: str, state: Mapping[str, Any] | None = None
+) -> bool:
+    """Publish persisted SQL results as a degraded turn. True when datasets land."""
+    payload: dict[str, Any] = {
+        **dict(state or {}),
+        "run_id": run_id,
+        "analysis_incomplete": True,
+        "error": None,
+        "public_error": None,
+    }
+    if not isinstance(payload.get("turn_route"), Mapping):
+        payload["turn_route"] = {"task_kind": "query"}
+    try:
+        out = finalize_agent_turn_node(payload)
+    except Exception as exc:
+        SQLBotLogUtil.warning(f"query salvage publish failed: {exc}")
+        return False
+    answer = out.get("terminal_answer") or {}
+    datasets = answer.get("datasets") if isinstance(answer, Mapping) else None
+    return not out.get("error") and bool(datasets)
+
+
 def _assumptions_from_slots(memory_slots: Mapping[str, Any]) -> list[dict[str, Any]]:
     """Deprecated combined projection — prefer project_caliber_surface."""
     surface = project_caliber_surface(memory_slots)
@@ -82,6 +138,7 @@ def _assumptions_from_slots(memory_slots: Mapping[str, Any]) -> list[dict[str, A
 
 def finalize_agent_turn_node(state: Mapping[str, Any]) -> dict[str, Any]:
     """Assemble final TurnAnswerV1 from result_dataset rows and emit finish once."""
+    analysis_incomplete = bool(state.get("analysis_incomplete"))
     try:
         llm_service = _llm_service(state)
     except Exception:
@@ -123,7 +180,7 @@ def finalize_agent_turn_node(state: Mapping[str, Any]) -> dict[str, Any]:
         pres = build_result_presentation(
             fields, title=result_title, schema_text=schema_txt
         )
-        chart = resolve_delivery_chart(
+        chart = _safe_delivery_chart(
             presentation=cast(ResultPresentation, pres),
             fields=fields,
             rows=rows,
@@ -194,7 +251,7 @@ def finalize_agent_turn_node(state: Mapping[str, Any]) -> dict[str, Any]:
             pres = build_result_presentation(
                 fields, title=result_title, schema_text=schema_txt
             )
-            chart = resolve_delivery_chart(
+            chart = _safe_delivery_chart(
                 presentation=cast(ResultPresentation, pres),
                 fields=fields,
                 rows=[dict(r) for r in samples if isinstance(r, Mapping)],
@@ -265,7 +322,14 @@ def finalize_agent_turn_node(state: Mapping[str, Any]) -> dict[str, Any]:
 
     raw_slots = dict(state.get("memory_slots") or {})
     surface = project_caliber_surface(raw_slots)
-    outcome = successful_outcome()
+    if analysis_incomplete:
+        outcome = degraded_outcome(
+            "Summary analysis was incomplete; query results were kept.",
+            successful_steps=max(len(all_steps), 1),
+            total_steps=max(len(all_steps), 1),
+        )
+    else:
+        outcome = successful_outcome()
     plane = AgentKnowledgePlane.from_dump(state.get("knowledge_plane"))
     knowledge_refs = plane.knowledge_refs() if plane.tables or plane.page_keys else None
     snapshot_vals = _record_snapshot_values(
@@ -312,7 +376,7 @@ def finalize_agent_turn_node(state: Mapping[str, Any]) -> dict[str, Any]:
             finalize_run(
                 session,
                 run_id=run_id,
-                status="succeeded",
+                status="degraded" if analysis_incomplete else "succeeded",
                 current_node="finalize_turn",
                 record_snapshot=snapshot_vals,
             )
@@ -332,7 +396,10 @@ def finalize_agent_turn_node(state: Mapping[str, Any]) -> dict[str, Any]:
 
     return {
         **state,
+        "error": None,
+        "public_error": None,
         "terminal_answer": answer,
         "memory_slots": raw_slots,
         "outcome": outcome,
+        "analysis_incomplete": analysis_incomplete,
     }

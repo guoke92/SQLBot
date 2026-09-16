@@ -95,16 +95,16 @@ Graph docs: `backend/graphs/README.md`. Deeper backend notes: `CLAUDE.md` (may l
 | `apps/chat/steps/` | Schema/SQL/chart/knowledge steps + `observability.log_span`; recall top-up resolver+fulfiller in `recall_topup.py`, planner maps in `recall_map.py` |
 | `apps/datasource/recall/` | Value index: per-DS process-local index (published dictionary values ∪ profiling low-cardinality `top_values`), "value ⊂ text" containment matching, generation-stamped invalidation |
 | `apps/dictionary/` | Dictionary domain |
-| `apps/knowledge/` | Knowledge Architecture v3.1 (see below) |
+| `apps/knowledge/` | 问数 Wiki（权威 `docs/wiki/`） |
 | `apps/terminology/` / `apps/data_training/` | RAG terminology + Q→SQL training |
 
-### Knowledge subsystem (Architecture v3.1)
+### Knowledge subsystem
 
-- ADR: `docs/知识体系目标架构-v3.1.md`; 提取技能（唯一权威，含类型族/绑定校验码表/坏样本/成功标准）: `.cursor/skills/knowledge-extraction/`（`SKILL.md` + `reference.md` + `examples.md`）。
-- `graph/` — unit node store (assembly, decompose, feedback); `semantic/` — authoritative semantic layer (runtime K1–K5 assets are projections of approved unit revisions; `lint.py` / `schema.py` / `service.py`); `compile/` — seed policy + business-data bundle application; `capture/` + `staging/` — capture jobs and candidate admission; `lineage/` — promotion audit events; `gateway.py` — recall gateway.
-- Extracting business knowledge from a business system's source code follows the `.cursor/skills/knowledge-extraction/` skill (produces KnowledgePackageV2 unit packages).
-- `apps/knowledge/retrieval/` and `importing/` hold only stale `__pycache__` (no source) — do not import from them.
-- `apps/knowledge/wiki/` — 统一 LLM Wiki 知识体系（旧 unit/semantic 已退役）：页面契约/切块/RRF+图扩展召回（权威契约 `docs/wiki页面契约-spec-v0.md`，运行面文本直拼 prompt，召回接口 `docs/wiki-knowledge/wiki召回接口-v1.md`；**产品化统一方案** `docs/wiki-knowledge/wiki知识体系统一方案-v3.md`）
+问数 Wiki 权威在 [`docs/wiki/`](docs/wiki/README.md)（架构 / 提取 / 页面 / 运行时）。旧 unit/semantic 已退役；`knowledge-package submit` 不是 wiki 路径。扫描脚本仍复用 `.cursor/skills/knowledge-extraction/scripts/`。
+
+- `apps/knowledge/wiki/` — 页面解析、切块、RRF+图扩展召回；运行面文本直拼 prompt。
+- `apps/knowledge/retrieval/` 与 `importing/` 仅有过期 `__pycache__`，不要 import。
+- 历史 ADR `docs/知识体系目标架构-v3.1.md` 已吸收进 `docs/wiki/`，不再作为运行实现依据。
 
 ## Backend Architecture (summary)
 

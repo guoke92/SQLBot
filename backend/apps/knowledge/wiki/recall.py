@@ -95,7 +95,12 @@ class InMemoryWikiStore:
             slug: keys[0] for slug, keys in slug_claims.items() if len(keys) == 1
         }
         self.chunks: dict[str, list[Chunk]] = {
-            key: chunk_markdown(page.body) for key, page in self.pages.items()
+            key: (
+                [chunk for chunk in chunk_markdown(page.body) if chunk.recall]
+                if page.recall
+                else []
+            )
+            for key, page in self.pages.items()
         }
         self.adjacency, self.alias_map = build_graph(self.pages)
         # alias-exact 索引：别名/标题（含枚举值 label）作为查询子串的强命中通道
@@ -473,7 +478,7 @@ def _render(  # noqa: PLR0911
     has_anchor = "```ground:" in body
     if not has_anchor:
         for candidate in chunk_markdown(page.body):
-            if "```ground:" in candidate.text:
+            if candidate.recall and "```ground:" in candidate.text:
                 body = f"{body}\n\n{candidate.text}"
                 break
     return f"{header}\n\n{body}"

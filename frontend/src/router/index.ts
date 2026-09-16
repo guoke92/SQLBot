@@ -33,6 +33,8 @@ import SetAssistant from '@/views/system/embedded/iframe.vue'
 
 import Knowledge from '@/views/knowledge/index.vue'
 import SchemaVector from '@/views/schema-vector/index.vue'
+import QaAdmin from '@/views/qa-admin/index.vue'
+import ExtractKey from '@/views/system/extract-key/index.vue'
 import { i18n } from '@/i18n'
 import { watchRouter } from './watch'
 
@@ -68,6 +70,10 @@ export const routes = [
         },
       },
     ],
+  },
+  {
+    path: '/qa-admin',
+    redirect: '/system/qa-admin',
   },
   {
     path: '/dsTable',
@@ -306,6 +312,18 @@ export const routes = [
         name: 'audit',
         component: Audit,
         meta: { title: t('audit.system_log'), iconActive: 'log', iconDeActive: 'noLog' },
+      },
+      {
+        path: 'qa-admin',
+        name: 'qaAdmin',
+        component: QaAdmin,
+        meta: { title: t('menu.qa_admin'), iconActive: 'chat', iconDeActive: 'noChat' },
+      },
+      {
+        path: 'extract-key',
+        name: 'extractKey',
+        component: ExtractKey,
+        meta: { title: t('extract_key.title'), iconActive: 'log', iconDeActive: 'noLog' },
       },
     ],
   },

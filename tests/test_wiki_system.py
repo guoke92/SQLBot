@@ -122,6 +122,17 @@ def test_unknown_ground_kind_warn_and_ignore() -> None:
     assert "UNKNOWN_GROUND_KIND" in codes
 
 
+def test_scenario_ground_kind_is_accepted() -> None:
+    page = parse_page(
+        "---\ntype: scenario\ntitle: 建档\npage_key: company_build\n"
+        "status: draft\n---\n- [[cust_company_info]]\n\n"
+        "```ground:scenario\nscenario: company_build\nhubs:\n"
+        "- table: cust_company_info\n  window: [id, data_type]\n```\n"
+    )
+    assert page.unknown_ground_kinds == ()
+    assert any(block.kind == "scenario" for block in page.ground_blocks)
+
+
 def test_scope_databases_parse_and_legacy_finding() -> None:
     """scope.databases 围栏：新形态解析 + 旧 ds_id 形态记 LEGACY_SCOPE 不静默兼容。"""
     new = parse_page(

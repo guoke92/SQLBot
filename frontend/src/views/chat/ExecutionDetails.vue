@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch, inject, unref, type Ref } from 'vue'
 import { Loading } from '@element-plus/icons-vue'
 import { debounce } from 'lodash-es'
 import { useI18n } from 'vue-i18n'
@@ -12,6 +12,7 @@ import { chatApi, type ChatLogHistoryItem } from '@/api/chat'
 import { isMobile } from '@/utils/utils'
 import type { ProcessItem, ProcessTimeline } from '@/features/conversation/processTimeline'
 import ExecutionStepContent from './execution-component/ExecutionStepContent.vue'
+import { CHAT_DATA_SOURCE_KEY, type ChatDataSource } from '@/features/chat/chatDataSource'
 
 const { t, te } = useI18n()
 const timeline = ref<ProcessTimeline>({ record_id: 0, items: [] })
@@ -22,6 +23,9 @@ const activeRecordId = ref<number>()
 const selectedRunId = ref<string>()
 const loading = ref(false)
 let pollTimer: ReturnType<typeof setTimeout> | undefined
+const chatDataSourceRef = inject<Ref<ChatDataSource | null> | null>(CHAT_DATA_SOURCE_KEY, null)
+const chatDataSource = () => unref(chatDataSourceRef) || null
+const isReadOnly = () => !!chatDataSource()?.readOnly
 
 const terminal = computed(() =>
   ['succeeded', 'degraded', 'failed', 'cancelled'].includes(timeline.value.run?.status || '')
@@ -73,12 +77,15 @@ async function load(silent = false) {
   if (!activeRecordId.value || loading.value) return
   loading.value = true
   try {
+    const source = chatDataSource()
     timeline.value =
-      (await chatApi.get_timeline(activeRecordId.value, {
-        silent,
-        runId: selectedRunId.value,
-        view: 'detail',
-      })) || { record_id: activeRecordId.value, items: [] }
+      (source
+        ? await source.getTimeline(activeRecordId.value, 'detail', selectedRunId.value)
+        : await chatApi.get_timeline(activeRecordId.value, {
+            silent,
+            runId: selectedRunId.value,
+            view: 'detail',
+          })) || { record_id: activeRecordId.value, items: [] }
     selectedRunId.value = timeline.value.run?.run_id
     const important = (timeline.value.items || []).filter((item) =>
       ['running', 'failed', 'interrupted'].includes(item.status)
@@ -95,7 +102,7 @@ async function load(silent = false) {
 
 function schedulePoll() {
   if (pollTimer) clearTimeout(pollTimer)
-  if (!dialogFormVisible.value || terminal.value) return
+  if (!dialogFormVisible.value || terminal.value || isReadOnly()) return
   pollTimer = setTimeout(async () => {
     await load(true)
     schedulePoll()

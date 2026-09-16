@@ -30,7 +30,6 @@ from apps.chat.curd.chat import (
     list_recent_questions,
     rename_chat_with_user,
 )
-from apps.chat.curd.debug_bundle import build_chat_debug_bundle
 from apps.chat.models.chat_model import (
     Chat,
     ChatFinishStep,
@@ -407,38 +406,6 @@ async def chats(session: SessionDep, current_user: CurrentUser):
 
 
 @router.get(
-    "/workspace/export",
-    summary="Export workspace chats and feedback (admin / ws_admin)",
-)
-@require_permissions(permission=SqlbotPermission(role=["ws_admin"]))
-async def export_workspace_chats(
-    session: SessionDep,
-    current_user: CurrentUser,
-    oid: int | None = None,
-    feedback_only: bool = False,
-    include_sql: bool = True,
-):
-    from apps.chat.curd.workspace_export import (
-        build_workspace_chat_export,
-        resolve_export_oid,
-    )
-
-    def inner():
-        try:
-            target_oid = resolve_export_oid(current_user, oid)
-        except PermissionError as exc:
-            raise HTTPException(status_code=403, detail=str(exc)) from exc
-        return build_workspace_chat_export(
-            session,
-            oid=target_oid,
-            feedback_only=feedback_only,
-            include_sql=include_sql,
-        )
-
-    return await asyncio.to_thread(inner)
-
-
-@router.get(
     "/{chart_id}", response_model=ChatInfo, summary=f"{PLACEHOLDER_PREFIX}get_chat"
 )
 async def get_chat(
@@ -480,36 +447,6 @@ async def get_chat_with_data(
         )
 
     return await asyncio.to_thread(inner)
-
-
-@router.get(
-    "/{chart_id}/debug_bundle",
-    summary="Export a full debug bundle for one chat (owner or admin)",
-)
-async def chat_debug_bundle(
-    session: SessionDep,
-    current_user: CurrentUser,
-    chart_id: int,
-    max_rows: int = 50,
-    include_raw_logs: bool = True,
-):
-    """One-shot dump for offline triage: records, outcome, intent, logs, schema."""
-
-    def inner():
-        return build_chat_debug_bundle(
-            session,
-            current_user,
-            chart_id,
-            max_rows=max_rows if max_rows >= 0 else None,
-            include_raw_logs=include_raw_logs,
-        )
-
-    try:
-        return await asyncio.to_thread(inner)
-    except PermissionError as exc:
-        raise HTTPException(status_code=403, detail=str(exc)) from exc
-    except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @router.get(

@@ -1,6 +1,8 @@
 # Wiki 知识体系统一方案（v3 · Decision-Complete）
 
-> 日期：2026-09-07 · 状态：**统一权威稿**（取代 v2 重写稿与完整方案 v1 的「产品化决策」角色）
+> **已废止（2026-09-15）。** 权威迁至 [`docs/wiki/`](../wiki/README.md)。本文仅作历史。
+
+> 日期：2026-09-07 · 原状态：统一权威稿（已由 `docs/wiki/` 取代）
 >
 > 输入：
 > - Karpathy [LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) 方法论
@@ -35,7 +37,16 @@
 | P3 | **权威序按知识问题分源**（见 §2） | 废除「全局单调优先级」导致的语义反转；冲突进 REVIEW，禁止静默覆盖 |
 | P4 | **一物理实体一页** | 一表一页、一 dictKey 一页；slug=物理名；其余页只引用物理键 |
 | P5 | **程序管结构，LLM 管内容** | page_key/sources/contract_version/status 盖章与门禁 |
-| P6 | **召回失败零影响主链路** | wiki 任一失败 = 少一段文本；正确性由 plan_gate / 硬校验兜底 |
+| P6 | **业务召回可降级；绑定 schema 不可降级到 catalog** | 拆成 P6a/P6b，见下；细节 [`问数知识链路契约.md`](问数知识链路契约.md) |
+
+P6 不可再写成一句「wiki 挂了还能靠 catalog 问数」：
+
+| | 失败面 | 行为 |
+|---|---|---|
+| **P6a** | concept / caliber / rule / 散文召回失败或嵌入故障 | 少一段 `<business_knowledge>`；主链路仍跑；正确性靠 plan_gate / 硬校验 |
+| **P6b** | 已绑定 `wiki_corpus_binding` 时表页缺失 | `SCHEMA_PAGE_MISSING` 遥测 + **本轮不规划该表**（必要时 unsupported/澄清）+ 触发编译补页。禁止 db catalog 直渲进 prompt |
+
+未绑定数据源走 `schema_vector` 是「尚未编译 wiki」，不是 P6a 的降级通道。
 
 **新增（v3 相对 v2）**：
 
@@ -43,8 +54,9 @@
 |---|---|---|
 | P7 | **编译一次、查询复利** | 摄取时完成交叉引用、矛盾标注、合成；问答不从 raw 重推全书 |
 | P8 | **好答案回填** | 澄清结论 / 成功范式 / 人工确认可经同一 ingest→REVIEW→publish 管道入库 |
-| P9 | **运行可见性 ≠ 内容治理** | Content Status 与 Operational Visibility 解耦（§3） |
+| P9 | **运行可见性 ≠ 内容治理 ≠ 主张置信** | 页 `status`、主张 `confidence`、请求时 DS/权限掩膜三轴解耦（§3） |
 | P10 | **AccessScope 前置硬隔离** | 图扩展与召回只在授权子图上跑；拒绝话术脱敏，物理名只进审计 span |
+| P11 | **绑定语料下 wiki 是 schema 唯一运行时权威** | catalog / extract-catalog / field-roles 只做编译期基线与 lint 对照；场景窗是投影不是删列。见问数知识链路契约 |
 
 ---
 
@@ -65,41 +77,75 @@
 | 跨模块全景 | **架构 README/设计文档** | 目录结构 | 仅导航；不得当物理真值 |
 
 > 与旧 D7「库 > 代码 > 文档」兼容：库赢「存在性与实测」；代码赢「含义与流转」；文档赢「意图与时间线」。
+>
+> **编译 vs 运行**：上表是摄取/lint 的权威域。绑定语料后，规划器读的 schema 只能是 wiki 表页投影（P11 / P6b），不得在问数时再合并 catalog。
 
 ---
 
-## 3. 双轴状态机
+## 3. 三轴状态机（页 / 主张 / 请求）
 
-### 3.1 Content Status（持久化）
+禁止把下面三件事收成一个 `status`：整页草稿、字段取值争议、数据源取消勾选。
+
+### 3.1 Content Status（页级，持久化）
 
 ```
 draft → review → published → stale → review
                  published → retired
 ```
 
-- 发布门禁：`lint` 零 Error + 引用闭包可解析
+- 发布门禁：结构 lint 零 Error + 引用闭包可解析。**允许页内含 proposed/disputed 主张**——争议不是整页不下线的理由。
 - `stale`：关联 DDL/代码/文档指纹漂移（异步标记）
 - `retired`：物理实体删除或业务废弃
+- **禁止**：一个枚举值有争议就把整页改 `draft`；禁止另开「未确认 wiki」影子库。
 
-### 3.2 Operational Visibility（**请求时求值**，不冗余落库）
+### 3.1.1 Claim Confidence（主张级，写在同一 published 页上）
+
+知识面仍是「一表一页 / 一 dictKey 一页」。未确认点是页上的**主张**，REVIEW 队列只存指针 `(belong/page_key, claim_path)`。
+
+| `confidence` | 何时 | 召回面 | 规划器 |
+|---|---|---|---|
+| `confirmed` | `code_path` 或人审转正 | 向量化，硬路径 | 可 EQUI_JOIN / 可作唯一物理锚 / 可作谓词 |
+| `proposed` | 仅库信号、语义匹配、未验证 | 向量化，标软 | **禁止**硬 JOIN / 唯一锚；可作候选 |
+| `disputed` | 多源冲突（如文档称 A、代码写 B、DB 见 C） | **仍向量化**，标「争议」 | 问题依赖该主张 → **澄清，禁止静默选边** |
+| `rejected` | 人审否决 | **不**进召回面（展示区或删除） | 当不存在 |
+
+默认省略 = 按 `confirmed` 解析（仅限 lint 干净的历史页）。提取器对 proposed/disputed **必须显式写**。`ground:relation.status` 与 `confidence` 同义，取值对齐。
+
+`disputed` **不准**放进 `## 展示`：展示区是「不教规划器」；争议是「教规划器这里有冲突」。
+
+### 3.2 Operational Visibility（**请求时求值**，不改 wiki 页）
+
+全量 wiki 按库编译一次。每个问数数据源是一层**可逆透镜**：`CoreTable.checked` × `CoreField.checked`（再叠 AccessScope）。勾选变更**不重写** `wiki_page`，不另编译语料。
 
 | 求值结果 | 条件 | 运行行为 |
 |---|---|---|
-| `available` | published ∧ 依赖资源可用 ∧ 用户有权 ∧ 页面未禁用 | 可召回 / 可渲染 |
-| `resource_unavailable` | 表/字段 unchecked 或关系非 CONFIRMED 等 | 业务提示「模块维护中」；**不**吐物理名 |
-| `permission_denied` | AccessScope 排除 | 若问题命中该页别名 → **ACCESS_DENIED 终态**（脱敏话术） |
-| `page_disabled` | 管理员手动禁用（唯一需要持久的运维开关） | 同 unavailable |
+| `available` | published ∧ 锚点与当前 DS 勾选有交集 ∧ 用户有权 ∧ 未禁用 | 可召回；schema 只投影勾选列 |
+| `selection_excluded` | 表或字段 `checked=false`（库里表仍在） | **静默移出**规划器可见集；用户问到且问题只依赖它们 → 澄清「当前数据源未选择…」，**禁止 catalog 直渲** |
+| `permission_denied` | AccessScope 排除 | 命中别名 → **ACCESS_DENIED** 终态（脱敏话术，不吐物理名） |
+| `page_disabled` | 管理员手动禁用（唯一需要持久的运维开关） | 同 excluded |
 
-**唯一例外持久字段**：`page_disabled`（及 Content Status）。其余可见性一律由 `AccessScope` + 资源 checked 状态在请求路径投影。
+**唯一例外持久字段**：`page_disabled`（及 Content Status / 主张 confidence）。勾选与权限一律请求路径投影。
 
-### 3.3 双速生命周期（DDL / 启停）
+**不要混轴：** `proposed`/`disputed` JOIN ≠ `selection_excluded`。未确认的关系在勾选表上仍可见（软/澄清）；取消勾选的表即使 JOIN 已 `confirmed` 也不可规划。
+
+投影规则（可逆、可重复）：
+
+1. 表取消勾选：该表页不进 `schema_text`；仅锚在该表上的 concept/caliber/enum **整页对本 DS 不可用**；跨表页（scenario / 多端点 relation）**裁剪**未勾选端，剩余锚仍可用。
+2. 字段取消勾选（表仍勾选）：表页仍召回，渲染/投影丢掉该列；`group: always` 也必须 ⊆ 勾选列；只依赖该列的口径/概念对本轮不可执行。
+3. 再勾选回来：下一请求立刻恢复，无需 ingest。
+4. 图扩展只在掩膜后的子图上跑（P10），避免经未勾选表把知识「绕」回来。
+5. wiki 有页但未勾选 → excluded，不是 `SCHEMA_PAGE_MISSING`。勾选了但缺页 → P6b。
+
+列权限是勾选之后的访问门禁，不代替 `checked` 透镜。
+
+### 3.3 双速生命周期（DDL / 启停 / 勾选）
 
 | 层 | 延迟 | 动作 |
 |---|---|---|
-| 即时 | 毫秒 | AccessScope / checked 变更 → 页面立刻不可见或不可规划 |
+| 即时 | 毫秒 | AccessScope / `checked` 变更 → 本请求掩膜立刻变化（可逆） |
 | 异步 | 秒～分钟 | `wiki_resource_lifecycle_event` → Stale / Lint / Review 项 |
 
-禁止在 catalog 同步事务内级联重写几十个 wiki 页。
+禁止在 catalog 同步或勾选事务内级联重写 wiki 页。
 
 ---
 
@@ -208,7 +254,9 @@ Raw → Substrate(E0–E3) → Step1 结构化语义 → Step2 FILE/REVIEW
 
 ```
 load published pages
+  → filter by DS checked tables/fields（selection mask）
   → filter by AccessScope(anchors ∩ allowed tables/fields)
+  → drop rejected claims; tag proposed/disputed（仍留在子图）
   → build adjacency on remaining nodes only
   → RRF + graph expansion
 ```
@@ -224,7 +272,7 @@ load published pages
 | relation 落点 | **先 table 页内 `ground:relation` 段**（渲染简单、闭包天然）；独立 relation 页后置 |
 | 生成 | `field_relation=CONFIRMED` ∪ Mapper JOIN 底稿确定性投影；DB-only 用 FK |
 | 渲染 | `WikiSchemaRenderer` 一行式 `a.col ← b.col` |
-| 闭包 | business 召回后确定性抽物理键 → schema 清单；缺表页 → `SCHEMA_PAGE_MISSING` 遥测 |
+| 闭包 | business 召回后确定性抽物理键 → schema 清单；缺表页 → `SCHEMA_PAGE_MISSING` 遥测。**绑定语料禁止 catalog 直渲**（P6b）；场景命中写入投影窗（always ∪ window ∪ 证据/点名/JOIN） |
 | 门禁 | ready plan 引用表 ⊆ 闭包集合；缺则 advisory（不替代硬门禁） |
 
 ---
@@ -336,8 +384,9 @@ load published pages
 
 | 文档 | 关系 |
 |---|---|
-| `wiki页面契约-spec-v0.md` | **继续权威** |
-| `wiki召回接口-v1.md` / `wiki源码摄取适配器-v1.md` | 接口规范继续有效；开关描述以本 v3 为准 |
+| `wiki页面契约-spec-v0.md` | **页面格式权威**；与运行时 schema 冲突的条款以问数知识链路契约修订为准 |
+| `问数知识链路契约.md` | **提取→wiki→召回→投影→门禁** 的 hop / P6a·P6b / 切流门槛 |
+| `wiki召回接口-v1.md` / `wiki源码摄取适配器-v1.md` | 接口规范继续有效；开关描述以本 v3 为准；绑定态 schema 权威以链路契约为准 |
 | `wiki知识体系统一方案-v2.md` | 提取面 E0–E3 与评测结论仍有效；**产品化决策以本 v3 为准** |
 | `wiki知识体系完整方案-v1.md` | 三层一闭环思想保留；阶段表被 §12 取代 |
 | `知识体系目标架构-v3.1.md` | 历史 ADR；D1/D5/D7/D8 已映射进契约，不再作为运行实现依据 |
@@ -349,6 +398,6 @@ load published pages
 1. **复利**：同一业务问题第二次规划不再依赖 raw 重推断；命中 published 页与锚点闭包
 2. **正确性**：枚举 Label 零脑补；DB/代码冲突 100% 进 REVIEW 而非静默
 3. **安全**：无权用户无法经 wikilink/召回看到越权页；拒权无物理名泄漏
-4. **可用**：wiki 存储/嵌入故障时问数主链路仍可跑（降级为无知识段）
+4. **可用**：业务知识段故障时主链路仍可跑（P6a，降级为无 prose）；**绑定 schema 缺失不得用 catalog 顶上**（P6b）
 5. **运维**：DDL 删除表后即时不可规划，异步 stale，主同步不阻塞
 6. **生长**：澄清结论可转正为 concept；人工 Wiki 与摄取页同门禁

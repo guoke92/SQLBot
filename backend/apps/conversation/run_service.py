@@ -170,6 +170,18 @@ class CreateRunRequest(BaseModel):
     return_img: bool = True
 
 
+def prepare_record_for_new_attempt(record: ChatRecord) -> None:
+    """Bind the visible turn to a new immutable run attempt.
+
+    Process timeline, error, and finish belong to ``ConversationRun``. The
+    last-known-good ``TurnAnswer`` stays on ``ChatRecord`` so a failed
+    regenerate can restore it after the new attempt ends.
+    """
+    record.error = None
+    record.finish = False
+    record.finish_time = None
+
+
 def create_run(
     session: Session,
     *,
@@ -213,6 +225,8 @@ def create_run(
     )
     if active is not None:
         raise ValueError("This conversation already has an active run")
+    prepare_record_for_new_attempt(locked_record)
+    prepare_record_for_new_attempt(record)
     last_attempt = session.scalar(
         select(func.coalesce(func.max(ConversationRun.attempt_index), 0)).where(
             ConversationRun.chat_record_id == int(record.id)

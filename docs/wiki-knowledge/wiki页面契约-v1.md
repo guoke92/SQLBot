@@ -1,6 +1,6 @@
 # Wiki 页面契约 v1
 
-> **状态：已被取代（superseded）。** 权威契约 = [`docs/wiki页面契约-spec-v0.md`](../wiki页面契约-spec-v0.md)
+> **已废止。** 权威迁至 [`docs/wiki/pages.md`](../wiki/pages.md)。本文仅作历史。
 > （v0 在锚点块语法、页面身份规则、写入管线、lint 码表上全面优于本稿，评审采纳）。
 > 本文保留作设计过程记录；Python 消费实现已对齐 v0（`backend/apps/knowledge/wiki/contract.py`）。
 > 与 v0 的差异决议：锚点块改单围栏 ```ground:kind；表/枚举页 slug=物理名、业务页保留 CJK；

@@ -238,7 +238,7 @@
                     @error="onConfigAnswerError"
                     @stop="onChatStop"
                   >
-                    <ErrorInfo :error="message.record?.error" class="error-container" />
+                    <ErrorInfo v-if="!message.isTyping" :error="message.record?.error" class="error-container" />
                     <template #tool>
                       <ChatToolBar v-if="!message.isTyping" :message="message" />
                     </template>
@@ -259,7 +259,7 @@
                       @error="onPrimaryAnswerError"
                       @stop="onChatStop"
                     >
-                      <ErrorInfo :error="message.record?.error" class="error-container" />
+                      <ErrorInfo v-if="!message.isTyping" :error="message.record?.error" class="error-container" />
                       <template #tool>
                         <ChatToolBar v-if="!message.isTyping && message.record?.run_status !== 'awaiting_input'" :message="message">
                           <div class="tool-btns">
@@ -965,7 +965,7 @@ async function confirmDownFeedback() {
 }
 
 function askAgain(message: ChatMessage) {
-  if (!message.record?.id) return
+  if (!message.record?.id || isTyping.value) return
   const target = Array.isArray(chartAnswerRef.value)
     ? chartAnswerRef.value.find((item: any) => item.index() === message.index)
     : chartAnswerRef.value

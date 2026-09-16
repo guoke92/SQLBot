@@ -1,0 +1,223 @@
+# Wiki 页面目录（程序生成，勿手改）
+
+预览语料 wiki-pages-v3，未接入运行时。纪律见提取规范 §11.4。
+
+## caliber (36)
+- [[active_funding_rule]] — 对外可见资方规则
+- [[active_tenant]] — 已生效租户
+- [[approval_running]] — 上线审批中
+- [[authed_agreement]] — 已认证授权书
+- [[ca_registered_company]] — CA 已开通企业
+- [[ca_submit_success]] — 上送成功的认证行
+- [[default_bank_account]] — 默认银行账户
+- [[effective_admin]] — 有效管理员
+- [[effective_company]] — 有效企业
+- [[effective_group_member]] — 有效集团成员
+- [[effective_operator]] — 有效经办人
+- [[effective_platform_product]] — 已生效平台产品
+- [[effective_role]] — 已激活企业角色
+- [[effective_tenant_project]] — 已生效租户项目
+- [[expired_short_link]] — 已过期短链
+- [[expiring_soon]] — 即将到期待提醒
+- [[failed_migration]] — 未成功迁移推数
+- [[group_root]] — 集团根企业
+- [[in_change_company]] — 变更中企业
+- [[need_open_ca]] — 需开通 CA 尚未开通
+- [[opened_cust_product]] — 已开通企业产品
+- [[opened_tenant_product]] — 已开通租户通用产品
+- [[opening_cust_product]] — 开通中企业产品
+- [[paid_company]] — 已缴费企业
+- [[pending_change]] — 审核中的变更单
+- [[pending_migratory_login]] — 迁移用户未首登
+- [[pending_order]] — 待支付订单
+- [[pending_person]] — 未激活联系人
+- [[realname_passed_person]] — 实名已通过联系人
+- [[saas_initiation]] — SaaS 立项统计范围
+- [[self_alter_change]] — 企业自行变更单
+- [[survey_whitelist_company]] — 问卷白名单企业
+- [[unauth_bank_account]] — 未打款认证账户
+- [[unpaid_company]] — 未缴费企业
+- [[valid_access_channel]] — 有效接入渠道
+- [[whitelist_exempt]] — 白名单豁免
+
+## concept (11)
+- [[admin_user]] — 管理员
+- [[ca_registered]] — CA 已开通
+- [[company_in_change]] — 变更中
+- [[company_master]] — 企业主档身份
+- [[enterprise_role]] — 企业角色
+- [[operator_user]] — 经办人
+- [[paid]] — 已缴费
+- [[product_opened]] — 产品已开通
+- [[project_effective]] — 项目已生效
+- [[service_period]] — 服务期
+- [[wechat_sp_no]] — 企微审批单号
+
+## enum (44)
+- [[account_auth_state]] — account_auth_state
+- [[account_type]] — account_type
+- [[activate_status]] — activate_status
+- [[alter_mode]] — alter_mode
+- [[async_io_status]] — async_io_status
+- [[auth_creation_type]] — auth_creation_type
+- [[ca_data_source]] — ca_data_source
+- [[ca_status]] — ca_status
+- [[ca_submit_status]] — ca_submit_status
+- [[cert_result]] — cert_result
+- [[certification_type]] — certification_type
+- [[change_source]] — change_source
+- [[check_status]] — check_status
+- [[company_type]] — company_type
+- [[cust_build_status]] — cust_build_status
+- [[cust_product_active]] — cust_product_active
+- [[cust_source]] — cust_source
+- [[cust_status]] — cust_status
+- [[cust_type]] — cust_type
+- [[data_type]] — data_type
+- [[enable]] — enable
+- [[face_status]] — face_status
+- [[group_rel_status]] — group_rel_status
+- [[identify_style]] — identify_style
+- [[invoice_status]] — invoice_status
+- [[legal_certification_type]] — legal_certification_type
+- [[node_status]] — node_status
+- [[open_status]] — open_status
+- [[oper_change_type]] — oper_change_type
+- [[order_status]] — order_status
+- [[order_type]] — order_type
+- [[pay_status]] — pay_status
+- [[person_source]] — person_source
+- [[phone_realname_status]] — phone_realname_status
+- [[product_status]] — product_status
+- [[product_type]] — product_type
+- [[project_status]] — project_status
+- [[real_name_result]] — real_name_result
+- [[rule_status]] — rule_status
+- [[short_link_type]] — short_link_type
+- [[sign_mode]] — sign_mode
+- [[source_company_type]] — source_company_type
+- [[user_type]] — user_type
+- [[wf_status]] — wf_status
+
+## process (24)
+- [[account_auth_state_flow]] — 账户打款认证状态机
+- [[async_io_task_flow]] — 异步任务状态机
+- [[ca_fee_company_pay_status]] — 企业缴费状态机
+- [[ca_fee_order_status]] — CA 服务费订单状态机
+- [[ca_fee_renew_remind]] — 续费提醒发送闸
+- [[ca_register_status_flow]] — 企业 CA 开通状态机
+- [[ca_submit_status_flow]] — CA 上送状态机
+- [[cust_build_status_flow]] — 企业认证状态机
+- [[cust_change_record_status]] — 变更单审核状态机
+- [[cust_interworking_active_flow]] — 企业互通产品开通状态机
+- [[cust_product_active_flow]] — 企业产品开通状态机
+- [[cust_status_flow]] — 企业状态机
+- [[group_rel_status_flow]] — 集团关系状态机
+- [[interworking_open_flow]] — 租户互通产品开通状态机
+- [[migratory_log_status_flow]] — 迁移日志成功标记
+- [[migratory_user_login_flow]] — 迁移用户首登
+- [[node_status_flow]] — 上线审批节点状态机
+- [[person_status_flow]] — 联系人账号状态机
+- [[product_status_flow]] — 平台产品生效状态机
+- [[project_status_flow]] — 租户项目状态机
+- [[role_status_flow]] — 企业角色激活状态机
+- [[rule_status_flow]] — 资方规则状态机
+- [[tenant_product_open_flow]] — 租户通用产品开通状态机
+- [[wf_status_flow]] — 上线审批工作流状态机
+
+## rule (14)
+- [[account_type_stored_bank]] — 银行账户库值是 BANK
+- [[change_status_not_company_check]] — 变更单状态不是企业准入审核
+- [[cust_open_not_tenant_open]] — 企业开通不是租户开通
+- [[face_not_real_name_result]] — 分项认证不是综合实名
+- [[openapi_skip_intent]] — 开放渠道上送免意愿校验
+- [[oper_change_not_company_change]] — 运营人员变更不是企业变更单
+- [[pay_status_not_order_status]] — 企业缴费状态不是订单状态
+- [[person_status_not_build_status]] — 联系人激活不是建档过程
+- [[push_by_log_out_only]] — 重推只作出向迁移日志
+- [[renew_remind_rule]] — 续费提醒规则
+- [[role_grain_not_person]] — 企业角色行不是联系人
+- [[user_type_not_company_type]] — 联系人类型不是企业角色
+- [[wechat_stats_not_online_approval]] — 立项统计不是上线审批
+- [[wf_pending_not_node_pending]] — 待发起不是待审批
+
+## scenario (23)
+- [[authorization]] — 授权协议
+- [[bank_account]] — 企业银行账户
+- [[ca_cert]] — CA 证书认证
+- [[ca_fee]] — CA 证书收费
+- [[channel_access]] — 渠道接入
+- [[company_build]] — 企业建档
+- [[company_change]] — 企业变更
+- [[company_contact]] — 经办人与联系人
+- [[company_group]] — 企业集团关系
+- [[company_project]] — 企业项目绑定
+- [[company_role]] — 企业角色与端口
+- [[company_survey]] — 问卷与学习活动
+- [[funding_rules]] — 资金规则
+- [[interworking_product]] — 互通产品
+- [[oper_change]] — 运营人员变更
+- [[platform_product]] — 平台产品配置
+- [[product_activation]] — 企业产品开通
+- [[project_online_approval]] — 项目上线审批
+- [[tenant_config]] — 租户配置
+- [[tenant_migration]] — 租户迁移
+- [[tenant_product]] — 租户通用产品
+- [[tenant_project]] — 租户项目
+- [[wechat_project_stats]] — 企微立项统计
+
+## table (52)
+- [[argeement_migratory_record]] — 协议迁移记录
+- [[async_io_task]] — 异步导入导出任务
+- [[authorization_agreement]] — 授权确认书
+- [[ca_certification_info]] — CA 认证上送行
+- [[ca_fee_company]] — CA 服务费企业主档
+- [[ca_fee_order]] — CA 服务费订单
+- [[ca_fee_project_config]] — CA 服务费项目配置
+- [[cust_access_secret]] — 渠道接入密钥
+- [[cust_account_info]] — 企业银行账户
+- [[cust_auth_application]] — 企业产品开通
+- [[cust_change_cfg]] — 企业变更项配置
+- [[cust_change_record]] — 企业变更记录
+- [[cust_company_info]] — 企业主档
+- [[cust_company_survey_state]] — 企业问卷状态
+- [[cust_company_survey_whitelist]] — 问卷白名单
+- [[cust_config_mapping]] — 内外码映射
+- [[cust_customized_product]] — 企业定制产品入口
+- [[cust_group_rel]] — 集团成员关系
+- [[cust_interworking_product]] — 企业互通产品开通
+- [[cust_invite_info]] — 客户邀请
+- [[cust_oper_change_record]] — 运营人员变更记录
+- [[cust_person_info]] — 企业联系人
+- [[cust_project_code_record]] — 项目码录入记录
+- [[cust_project_rel]] — 企业项目关系
+- [[cust_role_info]] — 企业角色切片
+- [[cust_setting_config]] — 客户认证配置
+- [[cust_sftp]] — 渠道 SFTP
+- [[cust_survey_answer]] — 问卷答卷
+- [[funding_exception_resolution]] — 资金异常解析
+- [[funding_rule_detail]] — 资方规则明细
+- [[funding_rule_info]] — 资方规则头
+- [[gpt_learn_poster_log]] — GP 学习海报日志
+- [[migratory_user_record]] — 迁移用户记录
+- [[operation_user]] — 运营中台人员
+- [[platform_product]] — 平台产品
+- [[platform_product_client]] — 平台产品客户端
+- [[platform_product_cust_role]] — 产品企业角色矩阵
+- [[project_file_info]] — 项目运营文件
+- [[short_link]] — 短链接
+- [[tenant_interworking_product]] — 租户互通产品
+- [[tenant_interworking_project]] — 互通产品项目绑定
+- [[tenant_migarory_log]] — 租户迁移日志
+- [[tenant_product]] — 租户通用产品
+- [[tenant_product_menu]] — 租户产品菜单
+- [[tenant_product_menu_res]] — 租户产品菜单资源
+- [[tenant_project]] — 租户项目
+- [[tenant_project_approval]] — 项目上线审批单
+- [[tenant_project_approval_flow]] — 上线审批节点
+- [[tenant_setting_config]] — 租户设置
+- [[tenant_setting_config_share]] — 租户共享配置
+- [[wechat_project_approval_apply]] — 企微立项申请
+- [[wechat_project_approval_field_history]] — 立项字段历史
+
+共 204 页。

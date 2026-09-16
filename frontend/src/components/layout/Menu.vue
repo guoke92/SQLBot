@@ -22,7 +22,10 @@ const routerList = computed(() => {
   if (showSysmenu.value) {
     return getSystemNavigation(router)
   }
-  return getMainNavigation(router, { isSpaceAdmin: userStore.isSpaceAdmin })
+  return getMainNavigation(router, {
+    isAdmin: userStore.isAdmin,
+    isSpaceAdmin: userStore.isSpaceAdmin,
+  })
 })
 </script>
 

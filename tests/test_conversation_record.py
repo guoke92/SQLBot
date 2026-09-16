@@ -71,3 +71,21 @@ def test_successful_terminal_snapshot_does_not_clear_existing_error() -> None:
         for column in session.statements[0]._values
     }
     assert "error" not in values
+
+
+def test_prepare_record_for_new_attempt_clears_attempt_scoped_fields() -> None:
+    from types import SimpleNamespace
+
+    from apps.conversation.run_service import prepare_record_for_new_attempt
+
+    record = SimpleNamespace(
+        error='{"type":"internal-error"}',
+        finish=True,
+        finish_time="2026-09-15T00:00:00",
+        answer={"status": "succeeded", "content": "kept"},
+    )
+    prepare_record_for_new_attempt(record)
+    assert record.error is None
+    assert record.finish is False
+    assert record.finish_time is None
+    assert record.answer == {"status": "succeeded", "content": "kept"}

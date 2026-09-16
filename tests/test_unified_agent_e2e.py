@@ -217,3 +217,59 @@ def test_query_without_sql_routes_to_fail():
         )
         == "fail"
     )
+
+
+def test_route_after_agent_loop_salvages_sql_on_llm_error():
+    state = {
+        "error": "RateLimitError 429 TPM",
+        "messages": [],
+        "tool_steps": [
+            {
+                "ok": True,
+                "name": "execute_sql_sandbox",
+                "result": {
+                    "ok": True,
+                    "data": {
+                        "sql": "SELECT code FROM t LIMIT 1000",
+                        "required": True,
+                    },
+                },
+            }
+        ],
+    }
+    assert route_after_agent_loop(state) == "finalize_turn"
+
+
+def test_finalize_keeps_datasets_when_summary_incomplete():
+    state = {
+        "run_id": "salvage_run",
+        "record_id": 2002,
+        "final_text": "",
+        "error": "RateLimitError 429 TPM",
+        "analysis_incomplete": True,
+        "tool_steps": [
+            {
+                "ok": True,
+                "name": "execute_sql_sandbox",
+                "result": {
+                    "ok": True,
+                    "data": {
+                        "sql": "SELECT code FROM t LIMIT 1000",
+                        "fields": ["code"],
+                        "preview_rows": [{"code": "c1"}],
+                        "row_count": 1000,
+                        "limit": 1000,
+                        "truncated": True,
+                        "required": True,
+                        "result_title": "企业清单",
+                    },
+                },
+            }
+        ],
+    }
+    out = finalize_agent_turn_node(state)
+    assert out.get("error") is None
+    ans = out["terminal_answer"]
+    assert ans["status"] == "degraded"
+    assert [item["title"] for item in ans["datasets"]] == ["企业清单"]
+    assert ans["datasets"][0]["sql"]

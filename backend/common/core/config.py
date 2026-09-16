@@ -161,7 +161,9 @@ class Settings(BaseSettings):
     CONVERSATION_STATUS_PUSH_SEC: int = 10
     CONVERSATION_RUNNING_LEASE_SEC: int = 420
     LLM_REQUEST_TIMEOUT_SEC: int = 180
-    LLM_MAX_RETRIES: int = 1
+    # Extra attempts after the first consume_llm / provider call (0–5).
+    LLM_MAX_RETRIES: int = 2
+    LLM_RETRY_BACKOFF_SEC: float = 1.0
     QUERY_PLANNING_BUDGET_SEC: int = 180
     BUSINESS_TIMEZONE: str = "Asia/Shanghai"
     KNOWLEDGE_CAPTURE_LEASE_SECONDS: int = 300

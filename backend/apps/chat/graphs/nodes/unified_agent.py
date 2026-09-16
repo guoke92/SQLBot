@@ -39,6 +39,7 @@ from apps.conversation.outcome import (
     running_outcome,
 )
 from apps.conversation.process_timeline import open_process_span
+from apps.conversation.run_service import ConversationRunCancelled
 from apps.conversation.runtime_context import attach_runtime, runtime_value
 from apps.conversation.session import session_scope
 from apps.conversation.sink import StreamSink
@@ -568,10 +569,14 @@ def agent_loop_node(state: Mapping[str, Any]) -> dict[str, Any]:
                 # leave an empty "thought" row beside the answer span.
                 thought_span.discard()
                 thought_span = None
+    except ConversationRunCancelled:
+        raise
     except Exception as exc:
         SQLBotLogUtil.error(f"agent loop error: {exc}")
         if thought_span is not None:
             thought_span.close(status="failed", summary_key="chat.audit.step_failed")
+        if _agent_has_sql_result(state, messages):
+            return _salvage_after_summary_failure(state, messages)
         return {
             **state,
             "error": format_error_message(exc),
@@ -579,6 +584,8 @@ def agent_loop_node(state: Mapping[str, Any]) -> dict[str, Any]:
         }
 
     if response is None:
+        if _agent_has_sql_result(state, messages):
+            return _salvage_after_summary_failure(state, messages)
         return {
             **state,
             "error": "Model returned an empty response",
@@ -669,12 +676,28 @@ def agent_loop_node(state: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
+def _salvage_after_summary_failure(
+    state: Mapping[str, Any],
+    messages: Sequence[Any],
+) -> dict[str, Any]:
+    """Keep a successful SQL result even when the closing LLM round fails."""
+    return {
+        **state,
+        "messages": serialize_messages(messages),
+        "final_text": str(state.get("final_text") or ""),
+        "open_tool_spans": {},
+        "analysis_incomplete": True,
+    }
+
+
 def route_after_agent_loop(
     state: Mapping[str, Any],
 ) -> Literal["execute_tools", "finalize_turn", "fail"]:
-    if state.get("error"):
-        return "fail"
     messages = deserialize_messages(list(state.get("messages") or []))
+    if state.get("error"):
+        if _agent_has_sql_result(state, messages) or state.get("analysis_incomplete"):
+            return "finalize_turn"
+        return "fail"
     if messages:
         last = messages[-1]
         if isinstance(last, AIMessage) and getattr(last, "tool_calls", None):

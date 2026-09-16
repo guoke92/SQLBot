@@ -1,9 +1,6 @@
 # Wiki 页面契约 Spec v0（评审稿）
 
-> 日期：2026-08-28
-> 状态：**评审稿**——阶段一评审物，评审通过后作为 llm_wiki 项目 `schema.md` 的权威来源与投影编译器/lint 的实现依据
-> 定位：知识体系全链路切换 llm-wiki 形态后的**页面格式契约**。页面是事实载体（artifact of record），严格块是机器确定性解析的最小面。
-> 关联文档：《知识体系目标架构-v3.1》（本契约继承其 D1/D5/D7/D8 设计成果，见 §1.3 映射表）
+> **已废止（2026-09-15）。** 权威迁至 [`docs/wiki/pages.md`](wiki/pages.md)。本文仅作历史。
 
 ---
 
@@ -15,6 +12,7 @@
 4. **物理名锚定**。跨页引用一律用物理键（`表名.字段名`、`dictKey.VALUE`），不用页内逻辑 id。这是对 §7「共享表 payload 逐字复制」教训的结构性消解：表页即唯一权威声明，其余页面只引用物理键，复制税在格式层面不存在。
 5. **契约演进向后兼容**。`contract_version` 递增；新增可选字段不升版；改语义必升版并写迁移说明。解析器对未知 ground 块种类：警告 + 忽略（forward-compatible）。
 6. **合并确定性**。ground 块的合并是程序规则，不是 LLM 调用（§5.3）；LLM 合并只作用于散文区。
+7. **页是知识面，主张带置信**。未确认 / 争议写在同一 published 页的主张上（§2.5），不另开影子页、不把整页打回 draft。争议进召回面；否决进展示面。数据源勾选不改本文件所描述的页，只在请求时投影。
 
 ---
 
@@ -32,7 +30,7 @@
 | `wiki/metrics/` | `metric` | 业务语言 slug | `ground:metric` | L4 指标；references_field |
 | `wiki/rules/` | `rule` | 业务语言 slug | `ground:rule` | L4 规则；references_field |
 | `wiki/patterns/` | `pattern` | 业务语言 slug | `ground:pattern` | L5 范例；validates |
-| `wiki/scenarios/` | `scenario` | 业务语言 slug | 无（纯组织页） | 场景闭包导航 |
+| `wiki/scenarios/` | `scenario` | 业务语言 slug | `ground:scenario`（hub + window） | 问数投影窗；第一类召回对象 |
 | `wiki/queries/` | `query` | 回填问答沉淀页 | 无 | Query→wiki 回填产物 |
 | `wiki/sources/` | `source` | 源标识（脚本基线/代码域说明） | 无 | L0 证据的"源摘要"层 |
 
@@ -42,7 +40,7 @@
 - 语料内唯一身份是 **`(belong, page_key)`**：`belong` = 上级目录（`tables`/`enums`/`concepts`/…），`page_key` 只在同一目录内唯一。跨目录允许同名（如 `concepts/pay_status` 与 `enums/pay_status`）。
 - 概念/流程/口径等业务页 slug 由标题派生（kebab-case / CJK 保留）；文件名 stem 应对齐 `page_key`。
 - `[[wikilink]]`：裸 `[[pay_status]]` 仅在全库唯一时解析；歧义须写成 `[[enums/pay_status]]`。
-- 休眠表：表页照常存在，frontmatter `inactive: true`，`ground:table` 中 `fields` 为空（字段留 catalog 基线）。
+- 休眠表：表页照常存在，frontmatter `inactive: true`；`ground:table.fields` **仍为列全集**（与 db-catalog 对齐）。规划器默认不把 inactive 表纳入工作集；问到该表时仍只读 wiki，不回退 catalog。
 
 ### 1.3 与 v3.1 决策的映射（本契约"继承"而非"放弃"的证明）
 
@@ -76,6 +74,7 @@
 | `tags` | string[] | 可选 | LLM | 裸字符串数组 |
 | `related` | string[] | 可选 | LLM | **裸 page_key**，禁止 `[[..]]`/`.md`/`wiki/` 前缀（沿用 llm_wiki 规则） |
 | `inactive` | bool | 表页可选 | LLM | 休眠表标记 |
+| `recall` | bool | 可选，默认 true | 人/程序 | **false = 整页不进问数向量/词法召回**（源码地图默认 false）。页内区域另见 §2.4 |
 | `contract_version` | string | ✓ | **程序盖章** | 当前 spec 版本，如 `0.1` |
 
 ### 2.2 格式硬规则（继承 llm_wiki，全部保留）
@@ -105,6 +104,36 @@ contract_version: "0.1"
 ---
 ```
 
+### 2.4 召回面 vs 展示面（向量化分块）
+
+切块 / 词法 / embedding **只消费召回面**。页面渲染仍展示全文。
+
+| 区域 | 标记 | 向量化 |
+|---|---|---|
+| 召回面（默认） | 普通正文、` ```ground: ` | 是 |
+| 展示面 | 标题 `展示` / `版本演进` / `版本说明` / `给人看` / `本期说明` / `排期`（含子标题）；或标题含 `不召回` | 否 |
+| 展示围栏 | ` ```wiki:display ` / `display` / `wiki:norecall` | 否 |
+| 整页关闭 | frontmatter `recall: false` | 否 |
+
+`ground:` 禁止放进展示区。版本史、本期不处理只进展示面。
+
+`confidence: disputed|proposed` 的主张 **必须留在召回面**（可单独成 chunk，文首标「争议」/「未确认」）。不准为了「干净」而塞进展示区——规划器需要看见冲突才能澄清。`rejected` 才进展示区或从 values 删除。
+
+### 2.5 主张级置信（与页 `status` 分离）
+
+页 `status: published` 表示「这张知识面可被运行时消费」。页内每条主张另有 `confidence`：
+
+| 值 | 向量化 | 规划器 |
+|---|---|---|
+| `confirmed` | 是 | 硬路径 |
+| `proposed` | 是（软标） | 禁止硬 JOIN / 唯一锚 |
+| `disputed` | 是（争议标） | 依赖该主张则澄清，禁止静默选边 |
+| `rejected` | 否 | 当不存在 |
+
+REVIEW 项指向 `(belong/page_key, claim_path)`，例如 `enums/sign_status.values.WAIT`。人审转正只改该主张，不换页身份。
+
+数据源取消勾选表/字段 **不**改本页、不改 `confidence`；运行时掩膜见问数知识链路契约 P9 / §2 hop「DS 勾选掩膜」。
+
 ---
 
 ## 3. Ground 块语法（8 种）
@@ -115,7 +144,33 @@ contract_version: "0.1"
 - 块内为 **YAML**（无 `---` 文档分隔符，直接映射）。
 - **唯一键**：每 kind 有块级唯一键（见各块），同页重复键 → lint error `DUPLICATE_GROUND_BLOCK`。
 - **证据字段**：`evidence` 取值 `code_path:<file>[:<line>]` | `database_profile:<locator>` | `database_schema:<locator>` | `document_claim:<locator>`；休眠表只允许 `database_schema`。
-- **版面建议**（服务 chunk 召回）：每个 ground 块置于稳定的 `##` 小节下（如 `## 字段`、`## 关联关系`），使块与标题路径同 chunk 入索引。
+- **主张置信**：块级或条目级可选 `confidence: confirmed|proposed|disputed|rejected`（§2.5）。省略 = `confirmed`（仅兼容旧页）。`ground:relation.status` 与 `confidence` 同义。
+- **争议条目**：`disputed` 应带 `sides: [{source, value?, label?}]` 列出冲突各方，禁止只留一个「看起来像真值」的 label。
+- **版面建议**（服务 chunk 召回）：每个 ground 块置于稳定的 `##` 小节下（如 `## 字段`、`## 关联关系`），使块与标题路径同 chunk 入索引。confirmed 与 disputed 值不要糊进同一无标记向量块。
+
+### 3.0 `ground:scenario`（每场景页恰一个）
+
+场景是问数投影窗，不是 Java 包、也不是 `page-plan.yaml` 提取批次。
+
+```yaml
+scenario: company_build
+hubs:
+  - table: cust_company_info
+    role: master
+    grain: 一企一行（code）
+    window: [id, enable, create_time, update_time, code, name, cust_build_status]
+shared:
+  - table: cust_setting_config
+    role: auth_config
+    window: [id, enable, need_auth_verify]
+lifecycle:
+  - enum: cust_build_status
+    process: cust_build_status_flow
+```
+
+校验：`hubs[].table` / `shared[].table` 必须有对应 table 页；`window` 列必须在该表 `ground:table.fields` 中；lifecycle 的 enum/process 页必须存在。`window` 不得省略 always 必留列（列存在时：`id`/`enable`/`create_time`/`update_time` 及同族审计列；`code` 有则必留）。
+
+召回命中 `scenarios/<slug>` 后，`project_schema` 只把 always ∪ 该窗 ∪ 口径/证据列 ∪ 问题点名列 ∪ JOIN 端点送进 prompt。
 
 ### 3.1 `ground:table`（每表页恰一个）
 
@@ -124,19 +179,23 @@ table: cust_company_info
 database: sqlbot                # 单库可省，多库必填
 description: 企业主档表
 inactive: false
-fields:                          # 只声明有业务语义的字段；未列字段留 catalog 基线
+fields:                          # 列全集（与 compile-time db-catalog 对齐）。运行时不回退 catalog。
   - name: cust_build_type
     data_type: string            # 类型族词表：string|number|temporal|boolean|structured（沿用 §11）
     description: 建档录入方式
     dictionary: cust_build_type  # 指向 enums 页 slug；无则省略
     nullable: true
+    group: always                # 可选：always = 引用本表的场景窗默认带上
+    scenes: [company_build]      # 可选：代码证实出现在哪些 scenario page_key
   - name: sign_status
     data_type: string
     description: 签约状态
     dictionary: sign_status
 ```
 
-校验：`table` 必在 catalog；`fields[].name` 必在 catalog 该表（`FIELD_NOT_IN_CATALOG`）；`data_type` 族比对（`TYPE_FAMILY_MISMATCH`）；`dictionary` 指向的 enums 页必须存在。
+校验：`table` 必在 catalog；`fields` 必须覆盖该表 catalog 全部列（缺列 = lint error，禁止「其余留 catalog 基线」）；`fields[].name` 必在 catalog 该表（`FIELD_NOT_IN_CATALOG`）；`data_type` 族比对（`TYPE_FAMILY_MISMATCH`）；`dictionary` 指向的 enums 页必须存在。`group` / `scenes` 是投影元数据：渲染全量缓存可保留，`project_schema` 写入 prompt 前剥掉。
+
+未划入任何 `scenes` 且非 `always` 的列仍必须出现在 `fields`（未分窗）。场景窗与 `ground:scenario.window` 互为镜像。
 
 ### 3.2 `ground:enum`
 
@@ -144,8 +203,15 @@ fields:                          # 只声明有业务语义的字段；未列字
 enum: cust_build_type
 fields: [cust_company_info.cust_build_type]   # 承载字段（物理键；歧义绑定时多个）
 values:
-  PC_BUILD: { label: 平台录入 }
-  AGW_BUILD: { label: 网关录入 }
+  PC_BUILD: { label: 平台录入, confidence: confirmed }
+  AGW_BUILD: { label: 网关录入, confidence: confirmed }
+  WAIT:
+    label: 待签约
+    confidence: disputed
+    sides:
+      - { source: code, value: WAITING, label: 待签约 }
+      - { source: db, value: WAIT }
+      - { source: document, label: 待签 }
 ambiguous: false                 # 一字段绑多枚举类时 true，必须附 adjudication 指针
 ```
 
@@ -159,7 +225,7 @@ left: cust_company_info.id
 right: cust_company_detail.company_id
 cardinality: many_to_one         # one_to_one | many_to_one | one_to_many
 cast: null                       # 类型族不同必填，如 string_to_number
-status: proposed                 # proposed(默认) | confirmed(绑定执行通过)
+status: proposed                 # = confidence：proposed | confirmed | disputed | rejected
 evidence: code_path:CompanyService.java:88
 derived_from: null               # DERIVED 时：源物理键，如 cust_company_info.parent_id
 ```
@@ -317,6 +383,7 @@ parseFileBlocks（FILE 协议，不变）
 |---|---|---|---|
 | `TABLE_NOT_IN_CATALOG` | error | DATASET_NOT_FOUND | ground:table.table 不在 catalog 基线 |
 | `FIELD_NOT_IN_CATALOG` | error | FIELD_NOT_FOUND | fields[].name 不在 catalog 该表 |
+| `TABLE_FIELDS_INCOMPLETE` | error | 问数知识链路契约 | table 页 fields 未覆盖 catalog 全部列 |
 | `TYPE_FAMILY_MISMATCH` | error | FIELD_TYPE_MISMATCH | data_type 族 ≠ catalog（varchar↔bigint 对声明 FAIL） |
 | `RELATION_ENDPOINT_UNBOUND` | error | RELATIONSHIP_NOT_BOUND | 关系两端 `表.字段` 无处声明/不在 catalog |
 | `RELATION_CAST_REQUIRED` | warning | RELATIONSHIP_TYPE_MISMATCH | 两端类型族不同且未带 cast |
@@ -455,7 +522,7 @@ derived_from: null
 ## 10. 开放问题（评审需裁决）
 
 1. `ground:process` 将状态机与读写效果合一——是否需要拆分（拆分利于状态机单独召回，合一利于穿透叙事）？
-2. scenario 页是否保留为独立页面，还是降级为 `domain` 字段 + index 分组？（倾向保留：场景闭包是审计与回填的自然单元）
+2. ~~scenario 页是否保留为独立页面？~~ **已裁决（2026-09-14）**：保留为独立页，且必有 `ground:scenario`；是召回钉主档与 schema 投影窗的第一类对象。见《问数知识链路契约》。
 3. pattern SQL 的方言校验放哪端？（V0 建议 SQLBot 消费端校验，lint 只做表存在性）
 4. `status` 过滤在 V0 由消费端做，llm_wiki search 是否需要加 frontmatter 过滤参数（阶段二再说）？
 5. 目录平面（全量表/字段 catalog）在 wiki 形态下不入库——`COVERAGE_GAP` 验收依赖 catalog.yaml 常驻 `raw/sources/` 并被脚本刷新，是否可接受？

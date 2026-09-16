@@ -12,7 +12,7 @@ import {
   type ResumeAnswer,
   type ResultQuality,
 } from '@/api/chat.ts'
-import { computed, nextTick, onBeforeUnmount, ref, watch, type Ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, watch, inject, unref, type Ref } from 'vue'
 import ChartBlock from '@/views/chat/chat-block/ChartBlock.vue'
 import MdComponent from '@/views/chat/component/MdComponent.vue'
 import SQLComponent from '@/views/chat/component/SQLComponent.vue'
@@ -27,7 +27,9 @@ import ChatTokenTime from '@/views/chat/ChatTokenTime.vue'
 import { conversationStageKey } from '@/features/conversation/executionLog'
 import {
   applyDelta,
+  belongsToRun,
   extractProcessItem,
+  itemsForRun,
   removeItem,
   replaceItems,
   sortedItems,
@@ -35,6 +37,10 @@ import {
   type ProcessItem,
   type TimelineMap,
 } from '@/features/conversation/processTimeline'
+import {
+  CHAT_DATA_SOURCE_KEY,
+  type ChatDataSource,
+} from '@/features/chat/chatDataSource'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -90,6 +96,10 @@ const props = withDefaults(
     loading: false,
   }
 )
+
+const chatDataSourceRef = inject<Ref<ChatDataSource | null> | null>(CHAT_DATA_SOURCE_KEY, null)
+const chatDataSource = () => unref(chatDataSourceRef) || null
+const isReadOnly = () => !!chatDataSource()?.readOnly
 
 const emits = defineEmits([
   'finish',
@@ -158,6 +168,7 @@ const analysisText = ref('')
 const overallQuality = ref<ResultQuality>()
 const assumptions = ref<Array<Record<string, any>>>([])
 let hydratedTerminalRecordId: number | undefined
+let liveAttemptEpoch = 0
 
 function formatAssumption(item: Record<string, any>): string {
   const question = String(item.question || '').trim()
@@ -166,7 +177,9 @@ function formatAssumption(item: Record<string, any>): string {
   return answer || question
 }
 
-const timelineItems = computed(() => sortedItems(timelineMap.value))
+const timelineItems = computed(() =>
+  itemsForRun(sortedItems(timelineMap.value), props.message?.record?.run_id)
+)
 
 const isMultiStep = computed(
   () => steps.value.filter((s) => s.sql || s.chart || s.error).length > 1
@@ -277,13 +290,22 @@ function ensureStep(stepIndex: number): StepState {
 
 async function hydrateTimeline(record: ChatRecord, view: 'compact' | 'detail' = 'compact') {
   if (!record.id) return
-  const snapshot = await chatApi.get_timeline(record.id, {
-    silent: true,
-    runId: record.run_id,
-    view,
-  })
-  if (snapshot?.items) {
-    timelineMap.value = replaceItems(snapshot.items as ProcessItem[])
+  const epoch = liveAttemptEpoch
+  const requestedRunId = record.run_id
+  const source = chatDataSource()
+  const timeline = source
+    ? await source.getTimeline(record.id, view, record.run_id)
+    : await chatApi.get_timeline(record.id, {
+        silent: true,
+        runId: record.run_id,
+        view,
+      })
+  if (epoch !== liveAttemptEpoch) return
+  if (requestedRunId && record.run_id && requestedRunId !== record.run_id) return
+  if (timeline?.items) {
+    timelineMap.value = replaceItems(
+      itemsForRun(timeline.items as ProcessItem[], record.run_id)
+    )
   }
 }
 
@@ -296,10 +318,13 @@ async function hydrateDatasetRows(recordId?: number) {
       const rowCount = step.data?.row_count || 0
       if (rowCount && previewCount >= rowCount) return
       try {
+        const source = chatDataSource()
         const want = Math.max(rowCount || 0, step.data?.limit || 0, 1000)
-        const page = await chatApi.get_dataset_rows(recordId, step.datasetId, {
-          limit: want,
-        })
+        const page = source
+          ? await source.getDatasetRows(recordId, step.datasetId, { limit: want })
+          : await chatApi.get_dataset_rows(recordId, step.datasetId, {
+              limit: want,
+            })
         step.data = {
           fields: page.fields || step.data?.fields || [],
           data: page.rows || [],
@@ -431,8 +456,25 @@ function hydrateHistory(record: ChatRecord) {
 
 const turn = useConversationTurn({ bigInt: true })
 
+function beginLiveAttempt() {
+  liveAttemptEpoch += 1
+  steps.value = []
+  timelineMap.value = new Map()
+  analysisText.value = ''
+  overallQuality.value = undefined
+  assumptions.value = []
+  hydratedTerminalRecordId = undefined
+}
+
+function ingestProcessItem(record: ChatRecord, item: ProcessItem | undefined, mode: 'upsert' | 'delta') {
+  if (!item || !belongsToRun(item, record.run_id)) return
+  timelineMap.value =
+    mode === 'delta' ? applyDelta(timelineMap.value, item) : upsertItem(timelineMap.value, item)
+}
+
 function turnHandlers(currentRecord: ChatRecord) {
   return {
+    onAttemptStart: () => beginLiveAttempt(),
     onEvent: async (data: ChatStreamEvent) => {
       switch (data.type) {
         case 'question':
@@ -451,13 +493,11 @@ function turnHandlers(currentRecord: ChatRecord) {
           if (!_currentChat.value.datasource) _currentChat.value.datasource = data.id
           break
         case 'process_upsert': {
-          const item = extractProcessItem(data as Record<string, unknown>)
-          if (item) timelineMap.value = upsertItem(timelineMap.value, item)
+          ingestProcessItem(currentRecord, extractProcessItem(data as Record<string, unknown>), 'upsert')
           break
         }
         case 'process_delta': {
-          const item = extractProcessItem(data as Record<string, unknown>)
-          if (item) timelineMap.value = applyDelta(timelineMap.value, item)
+          ingestProcessItem(currentRecord, extractProcessItem(data as Record<string, unknown>), 'delta')
           break
         }
         case 'process_remove': {
@@ -473,10 +513,12 @@ function turnHandlers(currentRecord: ChatRecord) {
     },
     onError: (record: ChatRecord) => emits('error', record.id),
     onFinish: async (record: ChatRecord) => {
+      const epoch = liveAttemptEpoch
       if (analysisText.value) currentRecord.analysis = analysisText.value
       if (record.id) {
         await hydrateTimeline(record)
       }
+      if (epoch !== liveAttemptEpoch) return
       if (record.id && record.run_status !== 'awaiting_input') {
         if (hydrateRecordData(record, true)) hydratedTerminalRecordId = record.id
       }
@@ -489,6 +531,7 @@ function turnHandlers(currentRecord: ChatRecord) {
 }
 
 const sendMessage = async () => {
+  if (isReadOnly()) return
   _loading.value = true
 
   if (index.value < 0) {
@@ -502,12 +545,6 @@ const sendMessage = async () => {
     return
   }
 
-  steps.value = []
-  timelineMap.value = new Map()
-  analysisText.value = ''
-  overallQuality.value = undefined
-  assumptions.value = []
-
   try {
     await turn.run(_currentChatId.value, currentRecord, turnHandlers(currentRecord))
   } finally {
@@ -517,7 +554,7 @@ const sendMessage = async () => {
 
 const regenerate = async () => {
   const currentRecord = props.message?.record
-  if (!currentRecord?.id || !_currentChatId.value || _loading.value) return
+  if (!currentRecord?.id || !_currentChatId.value || localBusy.value || isReadOnly()) return
   _loading.value = true
   try {
     await turn.run(_currentChatId.value, currentRecord, turnHandlers(currentRecord), {
@@ -534,7 +571,7 @@ async function resumeClarification(payload: {
   displayText: string
 }) {
   const currentRecord = props.message?.record
-  if (!currentRecord || _loading.value) return
+  if (!currentRecord || _loading.value || isReadOnly()) return
   _loading.value = true
 
   try {
@@ -558,7 +595,7 @@ async function correctClarification(payload: {
   supersedesEvidenceId: string
 }) {
   const currentRecord = props.message?.record
-  if (!currentRecord || _loading.value) return
+  if (!currentRecord || _loading.value || isReadOnly()) return
   _loading.value = true
   try {
     await turn.correct(
@@ -606,6 +643,10 @@ watch(
       return
     }
     if (!['queued', 'running'].includes(status || '')) return
+    if (isReadOnly()) {
+      void hydrateTimeline(record)
+      return
+    }
     if (turn.owned.value || turn.running.value) return
     _loading.value = true
     void hydrateTimeline(record)
@@ -664,7 +705,7 @@ defineExpose({ sendMessage, regenerate, index: () => index.value, stop })
       v-for="interrupt in visibleInterrupts"
       :key="interrupt.interrupt_id"
       :interrupt="interrupt"
-      :disabled="_loading"
+      :disabled="_loading || isReadOnly()"
       :correctable="isAwaitingInput && interrupt.status === 'consumed'"
       @submit="resumeClarification"
       @correct="correctClarification"
@@ -768,7 +809,7 @@ defineExpose({ sendMessage, regenerate, index: () => index.value, stop })
     <slot></slot>
     <template #tool>
       <ChatTokenTime
-        v-if="!message?.isTyping && timelineItems.length === 0"
+        v-if="!isReadOnly() && !message?.isTyping && timelineItems.length === 0"
         :record-id="message?.record?.id"
         :duration="message?.record?.duration"
         :total-tokens="message?.record?.total_tokens"

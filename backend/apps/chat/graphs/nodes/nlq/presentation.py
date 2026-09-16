@@ -719,6 +719,26 @@ def complete_node(state: NlqState) -> NlqState:
 
 def fail_node(state: NlqState) -> NlqState:
     """Persist the canonical empty NLQ answer before emitting terminal failure."""
+    try:
+        from apps.chat.graphs.nodes.agent_finalize import (
+            finalize_agent_turn_node,
+            has_publishable_query_result,
+        )
+
+        if has_publishable_query_result(state):
+            salvaged = finalize_agent_turn_node(
+                {
+                    **state,
+                    "error": None,
+                    "public_error": None,
+                    "analysis_incomplete": True,
+                }
+            )
+            if not salvaged.get("error"):
+                return salvaged
+    except Exception as salvage_exc:
+        SQLBotLogUtil.warning(f"query salvage on fail skipped: {salvage_exc}")
+
     error = str(state.get("error") or "unknown error")
     public_error = str(state.get("public_error") or public_error_message(error))
     current_outcome = state.get("outcome")

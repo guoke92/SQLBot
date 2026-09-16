@@ -269,6 +269,31 @@ def test_chunk_markdown_caps_long_line() -> None:
     assert len(chunks) >= 2
 
 
+def test_chunk_markdown_display_zone_not_recalled() -> None:
+    body = (
+        "# 企业主档\n\n"
+        "主档一行一企。\n\n"
+        "## 版本演进\n\n"
+        "本期不处理审批撤销。\n\n"
+        "## 字段\n\n"
+        "name 是企业名称。\n"
+    )
+    chunks = chunk_markdown(body)
+    recalled = [chunk.text for chunk in chunks if chunk.recall]
+    hidden = [chunk.text for chunk in chunks if not chunk.recall]
+    assert any("一行一企" in text for text in recalled)
+    assert any("name 是企业名称" in text for text in recalled)
+    assert any("本期不处理" in text for text in hidden)
+    assert all("本期不处理" not in text for text in recalled)
+
+
+def test_chunk_markdown_display_fence_not_recalled() -> None:
+    body = "口径谓词 enable=Y\n\n```wiki:display\nV1.13 排期说明\n```\n"
+    chunks = chunk_markdown(body)
+    assert any(chunk.recall and "enable=Y" in chunk.text for chunk in chunks)
+    assert any(not chunk.recall and "排期说明" in chunk.text for chunk in chunks)
+
+
 def test_pack_indices_keeps_request_under_8k() -> None:
     texts = ["字" * 600] * 20
     groups = pack_indices_by_tokens(texts, max_tokens=7000)

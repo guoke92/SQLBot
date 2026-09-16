@@ -583,6 +583,7 @@ def reconcile_page(
             or block.data.get("metric")
             or block.data.get("rule")
             or block.data.get("pattern")
+            or block.data.get("scenario")
             or ""
         )
         return f"{block.kind}:{key}" if key else block.kind

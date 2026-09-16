@@ -5,5 +5,6 @@ declare module 'vue-router' {
     navigation?: boolean
     navigationOrder?: number
     requiresSpaceAdmin?: boolean
+    requiresAdmin?: boolean
   }
 }

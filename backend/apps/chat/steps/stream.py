@@ -16,6 +16,44 @@ from langchain_core.messages import AIMessage, BaseMessageChunk
 from apps.conversation.messages import message_content_text
 from apps.conversation.usage import usage_from_response
 from common.core.config import settings
+from common.utils.utils import SQLBotLogUtil
+
+_NON_RETRYABLE_STATUS = frozenset({400, 401, 403, 404, 409, 422})
+_RETRYABLE_STATUS = frozenset({408, 425, 429, 500, 502, 503, 504, 529})
+_RETRYABLE_NAME_TOKENS = (
+    "ratelimit",
+    "timeout",
+    "connection",
+    "unavailable",
+    "internalserver",
+    "apiconnection",
+    "apistatus",
+)
+_RETRYABLE_TEXT_TOKENS = (
+    "rate limit",
+    "ratelimit",
+    "too many requests",
+    "tpm",
+    "timeout",
+    "temporar",
+    "connection reset",
+    "econnreset",
+    "service unavailable",
+    "429",
+    "502",
+    "503",
+    "529",
+)
+_NON_RETRYABLE_TEXT_TOKENS = (
+    "invalid_request",
+    "invalid request",
+    "context length",
+    "maximum context",
+    "context_length_exceeded",
+    "authentication",
+    "unauthorized",
+    "permission denied",
+)
 
 
 def get_token_usage(chunk: BaseMessageChunk, token_usage: dict | None = None) -> None:
@@ -129,6 +167,73 @@ def _reasoning_from(response: Any) -> str:
     return str(extra.get("reasoning_content") or extra.get("reasoning") or "")
 
 
+def _llm_retry_limit() -> int:
+    try:
+        return max(0, min(int(settings.LLM_MAX_RETRIES), 5))
+    except Exception:
+        return 2
+
+
+def _llm_retry_backoff_sec() -> float:
+    try:
+        return max(0.2, min(float(settings.LLM_RETRY_BACKOFF_SEC), 15.0))
+    except Exception:
+        return 1.0
+
+
+def _status_code_from_exc(exc: BaseException) -> int | None:
+    for attr in ("status_code", "http_status"):
+        raw = getattr(exc, attr, None)
+        if isinstance(raw, int) and 100 <= raw <= 599:
+            return raw
+        if isinstance(raw, str) and raw.isdigit():
+            code = int(raw)
+            if 100 <= code <= 599:
+                return code
+    response = getattr(exc, "response", None)
+    raw = getattr(response, "status_code", None)
+    if isinstance(raw, int) and 100 <= raw <= 599:
+        return raw
+    return None
+
+
+def _retry_after_sec(exc: BaseException) -> float | None:
+    response = getattr(exc, "response", None)
+    headers = getattr(response, "headers", None)
+    if headers is None:
+        return None
+    try:
+        raw = headers.get("Retry-After") or headers.get("retry-after")
+    except Exception:
+        return None
+    if raw is None:
+        return None
+    try:
+        return max(0.2, min(float(raw), 30.0))
+    except (TypeError, ValueError):
+        return None
+
+
+def llm_error_is_retryable(exc: BaseException) -> bool:
+    """True for provider rate-limit / timeout / transient transport failures."""
+    from apps.conversation.run_service import ConversationRunCancelled
+
+    if isinstance(exc, ConversationRunCancelled):
+        return False
+    status = _status_code_from_exc(exc)
+    if status in _NON_RETRYABLE_STATUS:
+        return False
+    if status in _RETRYABLE_STATUS:
+        return True
+    text = str(exc).lower()
+    if any(token in text for token in _NON_RETRYABLE_TEXT_TOKENS):
+        return False
+    name = type(exc).__name__.lower()
+    if any(token in name for token in _RETRYABLE_NAME_TOKENS):
+        return True
+    return any(token in text for token in _RETRYABLE_TEXT_TOKENS)
+
+
 def consume_llm(
     llm: Any,
     messages: Sequence[Any],
@@ -140,7 +245,37 @@ def consume_llm(
     Providers without ``stream`` (and tests that only stub ``invoke``) fall
     back to a single blocking response. Storage is always the assembled
     assistant message plus reasoning text — never the raw chunk list.
+    Transient provider errors (429 / timeout / connection) are retried a
+    bounded number of times using ``LLM_MAX_RETRIES``.
     """
+    retries = _llm_retry_limit()
+    attempt = 0
+    while True:
+        try:
+            return _consume_llm_once(llm, messages, on_chunk=on_chunk)
+        except Exception as exc:
+            if attempt >= retries or not llm_error_is_retryable(exc):
+                raise
+            delay = _retry_after_sec(exc)
+            if delay is None:
+                delay = min(_llm_retry_backoff_sec() * (2**attempt), 30.0)
+            SQLBotLogUtil.warning(
+                "LLM call retry %s/%s after %.1fs: %s",
+                attempt + 1,
+                retries,
+                delay,
+                exc,
+            )
+            time.sleep(delay)
+            attempt += 1
+
+
+def _consume_llm_once(
+    llm: Any,
+    messages: Sequence[Any],
+    *,
+    on_chunk: Callable[[dict[str, str]], None] | None = None,
+) -> LlmCallResult:
     from apps.conversation.run_service import (
         lease_renew_interval_sec,
         renew_owned_run_lease,

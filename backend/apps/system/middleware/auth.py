@@ -21,6 +21,7 @@ from common.utils.utils import SQLBotLogUtil, get_origin_from_referer
 from common.utils.whitelist import whiteUtils
 from fastapi.security.utils import get_authorization_scheme_param
 from common.core.deps import get_i18n
+from apps.dev.extract_key import EXTRACT_HEADER, verify_extract_key
 class TokenMiddleware(BaseHTTPMiddleware):
     
     
@@ -32,6 +33,15 @@ class TokenMiddleware(BaseHTTPMiddleware):
         
         if self.is_options(request) or whiteUtils.is_whitelisted(request.url.path):
             return await call_next(request)
+        if self.is_dev_extract_path(request.url.path):
+            trans = await get_i18n(request)
+            raw_key = request.headers.get(EXTRACT_HEADER)
+            with Session(engine) as session:
+                if verify_extract_key(session, raw_key):
+                    request.state.extract_ok = True
+                    return await call_next(request)
+            message = trans('i18n_permission.authenticate_invalid', msg="extract key")
+            return JSONResponse(message, status_code=401, headers={"Access-Control-Allow-Origin": "*"})
         assistantTokenKey = settings.ASSISTANT_TOKEN_KEY
         assistantToken = request.headers.get(assistantTokenKey)
         askToken = request.headers.get("X-SQLBOT-ASK-TOKEN")
@@ -70,6 +80,10 @@ class TokenMiddleware(BaseHTTPMiddleware):
     
     def is_options(self, request: Request):
         return request.method == "OPTIONS"
+
+    def is_dev_extract_path(self, path: str) -> bool:
+        prefix = f"{settings.API_V1_STR}/dev/extract"
+        return path == prefix or path.startswith(prefix + "/")
     
     async def validateAskToken(self, askToken: Optional[str], trans: I18n):
         if not askToken:

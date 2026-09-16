@@ -3,9 +3,9 @@
 Zero-trust parsing: structural violations on required fields raise
 PageContractError; unknown ground kinds are warn-and-ignore (forward
 compatible); ground content problems surface as lint findings for the
-review queue — never silent adoption. Identity rules follow v0 §1.2:
-tables/enums use physical names (cross-language stable), business pages
-keep CJK slugs.
+review queue — never silent adoption. Identity rules follow
+``docs/wiki/pages.md``: tables/enums use physical names (cross-language
+stable), business pages keep CJK slugs.
 """
 
 from __future__ import annotations
@@ -25,7 +25,10 @@ _REVIEW_RE = re.compile(
 )
 _FENCE_CLOSE_RE = re.compile(r"^```\s*$")
 
-PHYSICAL_SLUG_RE = re.compile(r"^[a-z][a-z0-9_]*$")  # 表名/dictKey：跨语言稳定身份
+PHYSICAL_SLUG_RE = re.compile(r"^[a-z][a-z0-9_]*$")  # 表名
+ENUM_SLUG_RE = re.compile(
+    r"^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)?$"
+)  # dictKey 或 L0 表.字段
 BUSINESS_SLUG_RE = re.compile(r"^[\w-]+$")  # 业务页：CJK 保留，不罗马化（v0 §1.1）
 PAGE_STATUSES = {"draft", "published", "retired"}
 PAGE_TYPES = {
@@ -66,6 +69,7 @@ GROUND_KINDS = {
     "metric",
     "rule",
     "pattern",
+    "scenario",
 }
 # v0 §3.3 硬规则：租户/审计/同名拷贝字段不得作关系端点
 _TENANT_FIELDS = frozenset(
@@ -139,6 +143,7 @@ class WikiPage:
     also_confused_with: tuple[str, ...] = field(default_factory=tuple)
     adjudication: str = ""
     inactive: bool = False
+    recall: bool = True
     contract_version: str = "0.1"
     schema_fingerprints: tuple[str, ...] = field(
         default_factory=tuple
@@ -198,8 +203,10 @@ def infer_belong(page_type: str, *, directory: str | None = None) -> str:
 
 
 def _slug_valid(page_type: str, slug: str) -> bool:
-    if page_type in {"table", "enum"}:
+    if page_type == "table":
         return bool(PHYSICAL_SLUG_RE.match(slug))
+    if page_type == "enum":
+        return bool(ENUM_SLUG_RE.match(slug))
     return bool(BUSINESS_SLUG_RE.match(slug))
 
 
@@ -330,7 +337,7 @@ def parse_page(
         errors.append("title is required")
     if page_key and page_type in PAGE_TYPES and not _slug_valid(page_type, page_key):
         rule = (
-            "物理名（snake_case）"
+            "物理名（表 snake_case；枚举 dictKey 或 表.字段）"
             if page_type in {"table", "enum"}
             else "业务 slug（CJK 保留）"
         )
@@ -405,6 +412,7 @@ def parse_page(
         also_confused_with=strings("also_confused_with"),
         adjudication=str(meta.get("adjudication") or ""),
         inactive=bool(meta.get("inactive") or False),
+        recall=meta.get("recall") is not False,
         contract_version=str(meta.get("contract_version") or "0.1"),
         schema_fingerprints=tuple(
             str(f) for f in (refs.get("schema_fingerprints") or [])

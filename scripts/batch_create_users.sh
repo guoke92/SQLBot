@@ -6,7 +6,7 @@
 #   ./scripts/batch_create_users.sh            # dry-run：只查是否已存在
 #   ./scripts/batch_create_users.sh --apply    # 真正 POST 创建
 #
-# 环境变量（可覆盖默认，对齐 debug-pull-chat.sh）：
+# 环境变量（可覆盖默认）：
 #   SQLBOT_DEBUG_BASE_URL   默认 https://et-test.qhhrly.cn
 #   SQLBOT_DEBUG_USERNAME   默认 admin
 #   SQLBOT_DEBUG_PASSWORD   默认 Lls@123456
@@ -85,7 +85,7 @@ USER_LINES=$(cat <<'EOF'
 EOF
 )
 
-# ── 1. xpack 登录拿 token（与 debug-pull-chat.sh 同款）───────────────────────
+# ── 1. xpack 登录拿 token ────────────────────────────────────────────────────
 info "登录 ${BASE_URL} （用户 ${USERNAME}）…"
 
 LOGIN_JS="$(mktemp /tmp/sqlbot-batch-login.XXXXXX.js)"

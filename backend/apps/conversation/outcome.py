@@ -318,6 +318,24 @@ def successful_outcome(
     }
 
 
+def degraded_outcome(
+    error: BaseException | str,
+    *,
+    kind: FailureKind = "internal",
+    successful_steps: int = 1,
+    total_steps: int | None = None,
+) -> RunOutcome:
+    """Keep successful steps visible when a later non-query step fails."""
+    failure = classify_failure(error, default_kind=kind)
+    total = successful_steps if total_steps is None else total_steps
+    return {
+        "status": "degraded",
+        "failures": [failure],
+        "successful_steps": successful_steps,
+        "total_steps": total,
+    }
+
+
 def awaiting_input_outcome() -> RunOutcome:
     return {
         "status": "awaiting_input",

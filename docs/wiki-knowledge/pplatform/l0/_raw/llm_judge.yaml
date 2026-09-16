@@ -1,0 +1,7759 @@
+tables:
+  ca_certification_info:
+    table: ca_certification_info
+    enums:
+    - column: cust_type
+      verdict: keep
+      reason: 注释直接给出封闭代码集 PERSON / COMPANY，属主体类型码；采样只落到 COMPANY 一个值，属 proposed，待补全
+        PERSON 侧样本。
+    - column: op_type
+      verdict: keep
+      reason: INSERT / UPDATE 为变更操作类型码，封闭集，属 proposed。
+    - column: data_source
+      verdict: keep
+      reason: FBP_PORTAL / OPERATION_PLATFORM / CHANNEL_OPENAPI 为来源/渠道码，封闭集，属 proposed。
+    - column: submit_status
+      verdict: keep
+      reason: PENDING / SUCCESS / FAIL 为提交状态码，封闭集，属 proposed。
+    - column: enable
+      verdict: keep
+      reason: Y/N 启用开关属封闭开关码；样本仅见 Y，取值域依惯例推断，仍为 proposed。
+    - column: head_company_data
+      verdict: keep
+      reason: 注释「是否总公司」，样本 N / Y，属是非开关码，封闭集，仍为 proposed。
+    clusters:
+    - key: common
+      title: 通用/审计
+      include: always
+      fields:
+      - id
+      - code
+      - enable
+      - create_by
+      - create_user
+      - create_time
+      - update_by
+      - update_user
+      - update_time
+    - key: subject
+      title: 认证主体信息
+      fields:
+      - cust_id
+      - cust_type
+      - name
+      - organization_id
+      - head_company_data
+    - key: sync
+      title: 数据同步批次
+      fields:
+      - op_type
+      - batch_no
+      - data_date
+      - data_source
+    - key: cert_payload
+      title: 认证要素与协议
+      fields:
+      - notify_agreement_json
+      - enterprise_four_json
+      - police_two_json
+      - file_refs_json
+    - key: intent
+      title: 意愿认证
+      fields:
+      - intent_sms_json
+      - intent_h_face_json
+    - key: submit
+      title: 提交与中台结果
+      fields:
+      - submit_status
+      - submit_time
+      - sign_platform_result
+    - key: workflow
+      title: 审批流程
+      fields:
+      - act_procinst_id
+      - act_procinst_no
+      - act_procinst_status
+      - act_procinst_date
+    - key: tenant
+      title: 租户标识
+      fields:
+      - app_tenant_code
+      - db_tenant_code
+    - key: misc
+      title: 其他
+      fields:
+      - remark
+    similar_fields:
+    - fields:
+      - app_tenant_code
+      - db_tenant_code
+      note: 逻辑租户标识与数据租户标识，语义高度重叠，疑似冗余的双租户编码
+    - fields:
+      - create_by
+      - create_user
+      note: 同一创建人的 id 与名称，成对冗余
+    - fields:
+      - update_by
+      - update_user
+      note: 同一更新人的 id 与名称，成对冗余
+    - fields:
+      - create_user
+      - update_user
+      note: 均为操作人名称列，语义近义，仅靠 create/update 前缀区分
+    - fields:
+      - cust_id
+      - organization_id
+      note: 疑似同一主体的两个标识（企业Id / 机构编号），是否同源需下游确认
+  async_io_task:
+    table: async_io_task
+    enums:
+    - column: task_type
+      verdict: keep
+      reason: 任务类型为封闭业务代码集（IMPORT/EXPORT），属典型类型枚举，待人工确认中文含义
+    - column: status
+      verdict: keep
+      reason: 任务状态为封闭状态码集（SUCCESS/FAILED/RUNNING），属状态枚举，待人工确认中文含义
+    - column: is_deleted
+      verdict: keep
+      reason: 软删除开关（0 否 / 1 是），封闭开关型代码集
+    - column: enable
+      verdict: keep
+      reason: enable 为开关型代码列（Y/N），样本仅见 Y，需人工补全另一取值后再定稿
+    - column: menu_code
+      verdict: instance
+      reason: 菜单标识码随业务菜单配置增长，是菜单实体的引用标识而非封闭业务代码集，宜改入 value_index 作为取值清单
+    clusters:
+    - key: common
+      title: 通用/审计字段
+      include: always
+      fields:
+      - id
+      - code
+      - enable
+      - is_deleted
+      - create_by
+      - create_user
+      - create_time
+      - update_by
+      - update_user
+      - update_time
+    - key: task
+      title: 任务主体
+      fields:
+      - task_no
+      - task_type
+      - task_name
+    - key: biz_invoke
+      title: 异步调用上下文
+      fields:
+      - biz_class
+      - biz_method
+      - biz_args_json
+      - ctx_json
+    - key: runtime
+      title: 执行状态与结果
+      fields:
+      - status
+      - result_text
+      - error_msg
+      - start_time
+      - end_time
+    - key: file
+      title: 结果文件
+      fields:
+      - file_url
+      - file_name
+    - key: menu
+      title: 业务菜单
+      fields:
+      - menu_code
+      - menu_name
+    - key: user
+      title: 发起人
+      fields:
+      - user_id
+      - user_name
+    - key: tenant
+      title: 租户与机构
+      fields:
+      - app_tenant_code
+      - db_tenant_code
+      - organization_id
+    - key: workflow
+      title: 审批流程关联
+      fields:
+      - act_procinst_id
+      - act_procinst_no
+      - act_procinst_status
+      - act_procinst_date
+    - key: generic
+      title: 名称与备注
+      fields:
+      - name
+      - remark
+    similar_fields:
+    - fields:
+      - app_tenant_code
+      - db_tenant_code
+      note: 同为租户标识，一为逻辑租户一为数据租户，语义相邻易混用
+    - fields:
+      - create_by
+      - user_id
+      note: 创建人ID与发起人用户ID，同一行通常指向同一用户，存在冗余
+    - fields:
+      - create_user
+      - user_name
+      note: 创建人名称与发起人姓名，若为同一人则字段冗余
+    - fields:
+      - task_name
+      - name
+      note: 任务名称与通用名称列语义重叠，需确认是否重复承载业务名称
+    - fields:
+      - result_text
+      - error_msg
+      note: 业务返回与失败原因可能都来源于同一次执行返回，存在信息重叠
+  authorization_agreement:
+    table: authorization_agreement
+    enums:
+    - column: authed_status
+      verdict: keep
+      reason: 授权书认证状态，仅 N/Y 二值开关型封闭代码集，注释已明确语义，可作为 proposed 枚举
+    - column: enable
+      verdict: keep
+      reason: 标准 enable 启停开关，Y/N 二值封闭集
+    - column: creation_type
+      verdict: keep
+      reason: 创建类型，3 个互斥业务代码（CUST_BUILD_INIT/AUTO/COMPANY_MANAGER_CHANGE_CODE），属封闭类型集
+    - column: company_type
+      verdict: keep
+      reason: 企业角色/类型封闭代码集，语义为业务角色分类；但存在 ["CORE"] 数组形态与 PLATFORM_OPREATOR_COMPANY
+        拼写变体等脏值，入库前需归一化，故仍为 proposed
+    - column: platform_product_code
+      verdict: keep
+      reason: 平台产品编码，低基数封闭代码集而非实例名；含 pplaftorm 小写拼写变体、RVSFACTOR 与 RVSFACTOR_PC 疑似同义异形，需归一化后确认
+    clusters:
+    - key: common
+      title: 通用/审计字段
+      include: always
+      fields:
+      - id
+      - code
+      - enable
+      - create_by
+      - create_user
+      - create_time
+      - update_by
+      - update_user
+      - update_time
+    - key: cust
+      title: 企业主档信息
+      fields:
+      - cust_id
+      - cust_name
+      - cust_manager_id
+      - cust_manager_name
+      - original_cust_id
+    - key: act_procinst
+      title: 审批流程信息
+      fields:
+      - act_procinst_id
+      - act_procinst_no
+      - act_procinst_status
+      - act_procinst_date
+    - key: agreement
+      title: 授权书业务属性
+      fields:
+      - name
+      - platform_product_code
+      - authed_status
+      - company_type
+      - creation_type
+      - organization_id
+      - remark
+    - key: tenant
+      title: 租户标识
+      fields:
+      - app_tenant_code
+      - db_tenant_code
+    similar_fields:
+    - fields:
+      - create_by
+      - create_user
+      note: 创建人 id 与创建人名称同主体冗余，取值口径不同，勿混用
+    - fields:
+      - update_by
+      - update_user
+      note: 更新人 id 与更新人名称同主体冗余
+    - fields:
+      - cust_id
+      - original_cust_id
+      note: 本系统企业 id 与源系统 custid，命名近似易混，且类型不一致（number vs string）
+    - fields:
+      - app_tenant_code
+      - db_tenant_code
+      note: 逻辑租户标识与数据租户标识双编码，含义不同易误用
+    - fields:
+      - act_procinst_id
+      - act_procinst_no
+      note: 流程实例 ID 与流程申请编号，均为流程标识但取值口径不同
+    - fields:
+      - cust_name
+      - name
+      note: name 为授权确认书名称，cust_name 为企业名称，语义不同需区分
+  ca_fee_special_config:
+    table: ca_fee_special_config
+    enums:
+    - column: enable
+      verdict: keep
+      reason: Y/N 二值开关，属封闭代码集，可作 proposed 候选；但列注释为空，仅有原始值，未确认语义标签
+    clusters:
+    - key: common
+      title: 通用（主键/编码/开关/审计/时间戳）
+      include: always
+      fields:
+      - id
+      - code
+      - enable
+      - create_by
+      - create_user
+      - create_time
+      - update_by
+      - update_user
+      - update_time
+    - key: enterprise
+      title: 企业主体信息
+      fields:
+      - certification_no
+      - company_name
+    - key: fee
+      title: 费用配置
+      fields:
+      - annual_fee
+      - name
+      - remark
+    - key: validity
+      title: 有效期
+      fields:
+      - valid_start
+      - valid_end
+    - key: workflow
+      title: 审批流程实例
+      fields:
+      - act_procinst_id
+      - act_procinst_no
+      - act_procinst_status
+      - act_procinst_date
+    - key: tenant
+      title: 租户标识
+      fields:
+      - app_tenant_code
+      - db_tenant_code
+    - key: ref
+      title: 外部引用
+      fields:
+      - project_id
+      - organization_id
+    - key: log
+      title: 操作日志
+      fields:
+      - operate_logs
+    similar_fields:
+    - fields:
+      - app_tenant_code
+      - db_tenant_code
+      note: 逻辑租户/数据租户双份标识，同一租户维度的重复编码，疑似冗余
+    - fields:
+      - create_by
+      - create_user
+      note: 创建人 id 与名称成对拷贝
+    - fields:
+      - update_by
+      - update_user
+      note: 更新人 id 与名称成对拷贝
+    - fields:
+      - act_procinst_id
+      - act_procinst_no
+      note: 流程实例 ID 与流程申请编号，同一流程实例的两种标识
+    - fields:
+      - name
+      - company_name
+      note: 通用名称与企业名称，语义层级不同但含混，需确认 name 是否指该配置项名称
+  ca_fee_project_config:
+    table: ca_fee_project_config
+    enums:
+    - column: charge_enabled
+      verdict: keep
+      reason: Y/N 两值，属封闭布尔开关代码集，符合收费开关语义；样本仅 2 值，仍为 proposed
+    - column: enable
+      verdict: keep
+      reason: 系统通用启用开关，Y/N 封闭集；当前样本仅见 Y，N 值待线上确认，仍为 proposed
+    - column: agreement_version
+      verdict: reject
+      reason: 协议版本号，自由文本/配置值而非封闭业务代码集，distinct=1 仅为单条配置痕迹
+    clusters:
+    - key: common
+      title: 通用/审计
+      include: always
+      fields:
+      - id
+      - code
+      - enable
+      - remark
+      - create_by
+      - create_user
+      - create_time
+      - update_by
+      - update_user
+      - update_time
+    - key: fee_rule
+      title: 收费规则配置
+      fields:
+      - charge_enabled
+      - supplier_annual_fee
+      - core_annual_fee
+      - pay_channel
+      - special_company_list
+      - block_scene_list
+      - agreement_version
+      - last_toggle_time
+    - key: tenant_scope
+      title: 租户标识
+      fields:
+      - tenant_id
+      - app_tenant_code
+      - db_tenant_code
+    - key: owner
+      title: 归属对象
+      fields:
+      - project_id
+      - organization_id
+      - name
+    - key: approval_process
+      title: 审批流程
+      fields:
+      - act_procinst_id
+      - act_procinst_no
+      - act_procinst_status
+      - act_procinst_date
+    similar_fields:
+    - fields:
+      - create_by
+      - create_user
+      note: 创建人 id 与创建人名称，同一审计主体的两种表示，常同步出现
+    - fields:
+      - update_by
+      - update_user
+      note: 更新人 id 与更新人名称，同一审计主体的两种表示，常同步出现
+    - fields:
+      - tenant_id
+      - app_tenant_code
+      - db_tenant_code
+      note: 租户标识三处冗余表达，需确认逻辑租户与数据租户是否一一对应
+  ca_fee_order:
+    table: ca_fee_order
+    enums:
+    - column: company_type
+      verdict: keep
+      reason: 企业角色代码集（SUPPLIER/CORE/PROJECT_COMPANY），取值封闭且均为业务角色码，非实例名，建议人工确认后转 confirmed。
+    - column: order_type
+      verdict: keep
+      reason: 订单类型代码集（STOCK/FIRST/RENEW/RENEW_EXPIRED），业务语义封闭，属代码枚举。
+    - column: order_status
+      verdict: keep
+      reason: 订单状态机取值（CLOSED/PENDING/PAID/PAIDING/UNPAID），典型封闭状态集。
+    - column: pay_method
+      verdict: reject
+      reason: 样本 distinct=1（仅 BOCOM），无法证明是封闭代码集，更像当前只接入单一渠道的配置碎片，不宜入枚举。
+    - column: agreement_version
+      verdict: reject
+      reason: 取值 V1.0 属协议版本号标识而非业务代码集，单值样本不足以构成封闭枚举。
+    - column: agreement_signed
+      verdict: keep
+      reason: Y/N 二值开关，语义为是否已签署，属封闭布尔代码。
+    - column: invoice_status
+      verdict: keep
+      reason: 发票状态取值（PENDING/ISSUED），封闭状态码；注意表中存在 invoice_fail_reason，样本可能不完整。
+    - column: enable
+      verdict: keep
+      reason: Y/N 启用开关，通用封闭布尔代码。
+    clusters:
+    - key: common
+      title: 通用与审计字段
+      include: always
+      fields:
+      - id
+      - code
+      - name
+      - remark
+      - enable
+      - version
+      - operate_logs
+      - create_by
+      - create_user
+      - create_time
+      - update_by
+      - update_user
+      - update_time
+    - key: order
+      title: 订单与生命周期
+      fields:
+      - order_no
+      - order_type
+      - order_status
+      - close_reason
+    - key: payment
+      title: 缴费与金额
+      fields:
+      - annual_fee
+      - pay_amount
+      - pay_method
+      - pay_time
+      - pay_remark
+    - key: company
+      title: 企业主体
+      fields:
+      - company_id
+      - company_name
+      - company_type
+      - certification_no
+      - organization_id
+    - key: project
+      title: 触发项目
+      fields:
+      - project_id
+      - project_name
+    - key: bocom
+      title: 交e保银行侧交互
+      fields:
+      - bocom_plfm_ser_no
+      - bocom_plfm_bsn_id
+      - bocom_req_sn
+      - bocom_txn_sts
+      - bocom_pay_info
+    - key: service
+      title: 服务周期
+      fields:
+      - service_start
+      - service_end
+    - key: agreement
+      title: 收费协议
+      fields:
+      - agreement_version
+      - agreement_signed
+      - agreement_sign_time
+      - agreement_file_path
+    - key: invoice
+      title: 发票
+      fields:
+      - invoice_status
+      - invoice_no
+      - invoice_file_path
+      - invoice_request_id
+      - invoice_fail_reason
+    - key: tenant
+      title: 租户标识
+      fields:
+      - tenant_id
+      - app_tenant_code
+      - db_tenant_code
+    - key: approval
+      title: 审批流程
+      fields:
+      - act_procinst_id
+      - act_procinst_no
+      - act_procinst_status
+      - act_procinst_date
+    similar_fields:
+    - fields:
+      - create_by
+      - create_user
+      note: 创建人 id 与其显示名称成对存在，展示时易混用。
+    - fields:
+      - update_by
+      - update_user
+      note: 更新人 id 与其显示名称成对存在，展示时易混用。
+    - fields:
+      - tenant_id
+      - app_tenant_code
+      - db_tenant_code
+      note: 三种租户标识并列，逻辑租户与数据租户语义重叠，过滤条件易误用。
+    - fields:
+      - act_procinst_id
+      - act_procinst_no
+      note: 同属流程实例的 ID 与申请编号，命名相近需区分。
+    - fields:
+      - bocom_plfm_ser_no
+      - bocom_plfm_bsn_id
+      - bocom_req_sn
+      note: 银行侧平台流水号、业务编号、请求流水号三者命名近似，需对照业务含义使用。
+  ca_fee_company:
+    table: ca_fee_company
+    enums:
+    - column: fee_locked
+      verdict: keep
+      reason: 封闭开关值 Y/N，符合代码枚举，保持 proposed。
+    - column: pay_status
+      verdict: keep
+      reason: 缴费状态封闭代码集 PAID/UNPAID，保持 proposed。
+    - column: source_company_type
+      verdict: keep
+      reason: 来源企业角色封闭代码集 SUPPLIER/CORE/PROJECT_COMPANY，保持 proposed。
+    - column: renew_remind_sent
+      verdict: keep
+      reason: 续费待办生成标记封闭开关值 Y/N，保持 proposed。
+    - column: special_config_flag
+      verdict: keep
+      reason: 特殊配置快照存在标记封闭开关值 Y/N，保持 proposed。
+    - column: ca_status
+      verdict: keep
+      reason: CA签章状态封闭代码集 NORMAL/CANCELLED/UNKNOWN，保持 proposed。
+    - column: enable
+      verdict: reject
+      reason: 仅观测到单值 Y，缺少可枚举区分度，属于常量噪声；非实例名单，不转 value_index。
+    clusters:
+    - key: common
+      title: 通用
+      include: always
+      fields:
+      - id
+      - code
+      - enable
+      - create_by
+      - create_user
+      - create_time
+      - update_by
+      - update_user
+      - update_time
+    - key: company_identity
+      title: 企业主档身份
+      fields:
+      - certification_no
+      - company_name
+      - name
+    - key: source_lock
+      title: 来源锁定
+      fields:
+      - tenant_id
+      - source_project_id
+      - source_company_type
+    - key: service_period
+      title: 服务周期
+      fields:
+      - service_start
+      - service_end
+    - key: fee_management
+      title: 年费与缴费
+      fields:
+      - locked_annual_fee
+      - fee_locked
+      - pay_status
+      - renew_remind_sent
+    - key: special_config
+      title: 特殊配置
+      fields:
+      - special_config_flag
+      - special_annual_fee
+    - key: ca_signing
+      title: CA签章
+      fields:
+      - ca_status
+    - key: approval_flow
+      title: 审批流程
+      fields:
+      - act_procinst_id
+      - act_procinst_no
+      - act_procinst_status
+      - act_procinst_date
+    - key: tenant_org
+      title: 租户与机构
+      fields:
+      - app_tenant_code
+      - db_tenant_code
+      - organization_id
+    - key: extension
+      title: 扩展与备注
+      fields:
+      - ext_json
+      - remark
+    similar_fields:
+    - fields:
+      - company_name
+      - name
+      note: 企业名称与通用名称同表并存，疑似名称拷贝/冗余，需确认业务语义差异。
+    - fields:
+      - app_tenant_code
+      - db_tenant_code
+      note: 逻辑租户标识与数据租户标识命名高度相似，疑似重复租户编码，需确认是否同源。
+    - fields:
+      - act_procinst_id
+      - act_procinst_no
+      note: 流程实例ID与流程申请编号均为流程标识，需确认是否冗余或分别承载实例/申请编号。
+    - fields:
+      - locked_annual_fee
+      - special_annual_fee
+      note: 锁定年费标准与特殊配置年费均为年费金额，语义相近，需确认是否不同计费口径。
+  client_api_sync_error:
+    table: client_api_sync_error
+    enums:
+    - column: enable
+      verdict: keep
+      reason: 开关型代码列（Y/N 语义），属封闭业务码集；库侧样本仅出现 N（distinct=1），无法确认全集，仍为 proposed，不得视为
+        confirmed
+    clusters:
+    - key: common
+      title: 通用
+      include: always
+      fields:
+      - id
+      - code
+      - enable
+      - create_by
+      - create_user
+      - create_time
+      - update_by
+      - update_user
+      - update_time
+      - remark
+    - key: sync
+      title: 同步接口与重试
+      fields:
+      - name
+      - service_class_name
+      - param
+      - retry_num
+    - key: approval
+      title: 审批流程
+      fields:
+      - act_procinst_id
+      - act_procinst_no
+      - act_procinst_status
+      - act_procinst_date
+    - key: tenant_org
+      title: 租户与机构
+      fields:
+      - app_tenant_code
+      - db_tenant_code
+      - organization_id
+    similar_fields:
+    - fields:
+      - create_by
+      - create_user
+      note: 同一创建审计语义的 id 与名称拷贝对，展示时易混用
+    - fields:
+      - update_by
+      - update_user
+      note: 同一更新审计语义的 id 与名称拷贝对
+    - fields:
+      - app_tenant_code
+      - db_tenant_code
+      note: 逻辑租户与数据租户双写编码，命名近义，需区分使用场景
+    - fields:
+      - act_procinst_id
+      - act_procinst_no
+      note: 同属流程标识的实例ID与申请编号，语义邻近
+  cust_access_secret:
+    table: cust_access_secret
+    enums:
+    - column: enable
+      verdict: keep
+      reason: Y/N 二值开关，符合封闭开关编码特征（仍为 proposed）
+    - column: status_query_license_enabled
+      verdict: keep
+      reason: 注释明确 Y-是 N-否，Y/N 二值开关，属封闭开关编码（仍为 proposed）
+    - column: channel
+      verdict: instance
+      reason: 注释为「应用id」，取值是 trinasolar/tianma/dahua-test/app_jkny 等应用实例名，含测试后缀与大小写混杂，是实例名单而非封闭业务码集，应入
+        value_index
+    - column: encry_type
+      verdict: reject
+      reason: 仅观测到单一值 rsa，无法证明是闭集；也无码表/注释定义可选值，拿不准不保留，且不属于实例名单
+    clusters:
+    - key: common
+      title: 通用/审计
+      include: always
+      fields:
+      - id
+      - code
+      - enable
+      - create_by
+      - create_user
+      - create_time
+      - update_by
+      - update_user
+      - update_time
+    - key: basic
+      title: 名称与备注
+      fields:
+      - name
+      - remark
+    - key: crypto
+      title: 密钥材料与关联
+      fields:
+      - encry_type
+      - pub_key
+      - pri_key
+      - password
+      - key_num
+      - rel_lls_secret_id
+    - key: access
+      title: 接入渠道
+      fields:
+      - channel
+      - status_query_license_enabled
+    - key: tenant
+      title: 租户与机构归属
+      fields:
+      - app_tenant_code
+      - db_tenant_code
+      - organization_id
+    - key: act_procinst
+      title: 审批流程
+      fields:
+      - act_procinst_id
+      - act_procinst_no
+      - act_procinst_status
+      - act_procinst_date
+    similar_fields:
+    - fields:
+      - create_by
+      - create_user
+      note: 创建人 id 与创建人名称成对冗余，展示场景常同时冗余存储
+    - fields:
+      - update_by
+      - update_user
+      note: 更新人 id 与更新人名称成对冗余
+    - fields:
+      - app_tenant_code
+      - db_tenant_code
+      note: 同为租户标识列，逻辑租户与数据租户重复编码
+  argeement_migratory_record:
+    table: argeement_migratory_record
+    enums:
+    - column: platform_product_code
+      verdict: instance
+      reason: 平台产品编码，低基数产品代码列表，更像产品主数据/实例名单，无法确认是封闭业务代码集，建议改入 value_index。
+    - column: status
+      verdict: keep
+      reason: 状态码，仅 0/1 二值，符合封闭状态码集，proposed。
+    - column: agreement_type
+      verdict: keep
+      reason: 协议类型，值均为协议类型代码，符合封闭类型码集，proposed。
+    - column: is_new
+      verdict: keep
+      reason: 是否新数据，yes/no 二值开关，符合封闭开关集，proposed。
+    - column: enable
+      verdict: reject
+      reason: 仅见 Y 一个值，无法形成有区分度的封闭枚举，属通用启用位常量/噪声，建议 reject。
+    clusters:
+    - key: common
+      title: 通用
+      include: always
+      fields:
+      - id
+      - code
+      - enable
+      - create_by
+      - create_user
+      - create_time
+      - update_by
+      - update_user
+      - update_time
+    - key: agreement
+      title: 协议信息
+      fields:
+      - agreement_type
+      - agreement_path
+      - agreement_name
+      - agreement_no
+      - effect_date
+      - expire_date
+    - key: sign
+      title: 签署信息
+      fields:
+      - sign_mode
+      - sign_date
+    - key: approval
+      title: 审批流程
+      fields:
+      - act_procinst_id
+      - act_procinst_no
+      - act_procinst_status
+      - act_procinst_date
+    - key: customer_org
+      title: 客户与机构
+      fields:
+      - cust_id
+      - organization_id
+    - key: product
+      title: 产品信息
+      fields:
+      - platform_product_code
+    - key: migration
+      title: 迁移记录信息
+      fields:
+      - name
+      - status
+      - is_new
+      - pull_num
+      - remark
+    - key: tenant
+      title: 租户标识
+      fields:
+      - app_tenant_code
+      - db_tenant_code
+    similar_fields:
+    - fields:
+      - create_by
+      - create_user
+      note: 创建人ID与创建人名称，同一审计对象的配套列，存在语义近义/冗余。
+    - fields:
+      - update_by
+      - update_user
+      note: 更新人ID与更新人名称，同一审计对象的配套列，存在语义近义/冗余。
+    - fields:
+      - app_tenant_code
+      - db_tenant_code
+      note: 逻辑租户标识与数据租户标识，均标识租户，易混淆/冗余。
+    - fields:
+      - act_procinst_id
+      - act_procinst_no
+      note: 流程实例ID与流程申请编号，均定位审批流程，需区分。
+    - fields:
+      - code
+      - agreement_no
+      note: 通用编码与协议编号，可能均作业务编号使用，存在语义重叠。
+    - fields:
+      - name
+      - agreement_name
+      note: 通用名称与协议名称，存在语义重叠，需确认业务含义。
+  cust_account_info:
+    table: cust_account_info
+    enums:
+    - column: enable
+      verdict: keep
+      reason: 启用开关语义明确，属封闭代码集（Y/N），样本仅见 Y，需补全取值后仍按 proposed 处理
+    - column: default_account_flag
+      verdict: keep
+      reason: 是否默认账户标志，取值 0/1 为封闭布尔代码集
+    - column: account_type
+      verdict: keep
+      reason: 账户类型，语义为封闭类型代码集；样本混入 '1'、'received' 等非规范值，需归一化后再定稿
+    - column: status
+      verdict: keep
+      reason: 账户状态，属状态类封闭代码集；样本仅见 INIT 一个值，需补全状态机取值
+    - column: auth_state
+      verdict: keep
+      reason: 认证状态，取值 APPLY_00/APPLY_20/APPLY_40 为带前缀的状态码，属封闭代码集
+    - column: error_try_count
+      verdict: reject
+      reason: 打款错误次数为数值计数指标，非代码集也非实例名单，不应进枚举或 value_index
+    clusters:
+    - key: common
+      title: 通用（主键/编码/启用/审计时间戳）
+      include: always
+      fields:
+      - id
+      - code
+      - enable
+      - create_by
+      - create_user
+      - create_time
+      - update_by
+      - update_user
+      - update_time
+    - key: tenant
+      title: 租户标识
+      fields:
+      - app_tenant_code
+      - db_tenant_code
+    - key: identity
+      title: 客户主体与主数据
+      fields:
+      - name
+      - ref_cust_company_info
+      - organization_id
+      - main_data_id
+    - key: account
+      title: 账户信息
+      fields:
+      - account_no
+      - account_name
+      - account_type
+      - default_account_flag
+      - receive_payment_type
+      - status
+      - auth_state
+    - key: bank
+      title: 银行信息
+      fields:
+      - bank_id
+      - bank_no
+      - bank_code
+      - bank_code_name
+      - bank_branch_name
+      - bank_province_code
+      - bank_province_name
+      - bank_city_code
+      - bank_city_name
+    - key: workflow
+      title: 审批流程
+      fields:
+      - act_procinst_id
+      - act_procinst_no
+      - act_procinst_status
+      - act_procinst_date
+    - key: payment
+      title: 打款与交易跟踪
+      fields:
+      - trans_id
+      - trace_no
+      - error_try_count
+      - error_try_time
+      - payment_remaining_count
+    - key: contact
+      title: 联系方式与地址
+      fields:
+      - address
+      - telephone
+      - email
+    - key: misc
+      title: 备注及其他
+      fields:
+      - remark
+    similar_fields:
+    - fields:
+      - create_by
+      - create_user
+      note: 同一创建主体的 id 与名称两种表达，展示口径需二选一或成对使用
+    - fields:
+      - update_by
+      - update_user
+      note: 同一更新主体的 id 与名称两种表达，与 create_by/create_user 为同类冗余
+    - fields:
+      - act_procinst_id
+      - act_procinst_no
+      note: 流程实例ID与流程申请编号，可能同源标识的两种编码
+    - fields:
+      - bank_code
+      - bank_code_name
+      note: 银行(总行)代码与其名称的编码-名称对
+    - fields:
+      - bank_province_code
+      - bank_province_name
+      note: 省份编码-名称对，语义等价需保持同步
+    - fields:
+      - bank_city_code
+      - bank_city_name
+      note: 城市编码-名称对，语义等价需保持同步
+    - fields:
+      - bank_no
+      - bank_id
+      note: 联行号与银行ID均为银行标识，存在重复编码可能，需确认粒度差异
+    - fields:
+      - trans_id
+      - trace_no
+      note: 交易ID与系统跟踪号，可能为同一交易的不同跟踪标识
+    - fields:
+      - error_try_count
+      - payment_remaining_count
+      note: 同为打款次数的计数列，一为失败次数一为剩余次数，语义易混
+    - fields:
+      - app_tenant_code
+      - db_tenant_code
+      note: 逻辑租户标识与数据租户标识，命名成对，需确认是否恒等
+  ca_cfca_upgrade_report:
+    table: ca_cfca_upgrade_report
+    enums:
+    - column: company_type
+      verdict: keep
+      reason: 企业角色为封闭业务代码集，样本值均为代码形态，仍为 proposed。
+    - column: title
+      verdict: reject
+      reason: 异常标题属自由文本，非封闭业务代码集，样本差异仅为格式变体。
+    - column: biz_module
+      verdict: reject
+      reason: 所属模块混有代码与中文标签，非明确封闭代码集，建议数据治理后再评估。
+    - column: todo_triggered
+      verdict: keep
+      reason: Y/N 开关，封闭业务代码集，仍为 proposed。
+    - column: enable
+      verdict: reject
+      reason: 仅见单值 Y，无法证明封闭码集，不宜作为枚举或值索引。
+    clusters:
+    - key: common
+      title: 通用与审计
+      include: always
+      fields:
+      - id
+      - code
+      - name
+      - enable
+      - remark
+      - create_by
+      - create_user
+      - create_time
+      - update_by
+      - update_user
+      - update_time
+    - key: company
+      title: 企业与机构
+      fields:
+      - company_id
+      - company_type
+      - certification_no
+      - customer_name
+      - organization_id
+    - key: task_source
+      title: 任务与来源
+      fields:
+      - task_id
+      - source_system
+    - key: report_event
+      title: 异常上报
+      fields:
+      - title
+      - content
+      - biz_module
+      - occur_time
+      - related_biz_no
+      - trigger_scene
+      - pass_info
+    - key: notify
+      title: 待办触达
+      fields:
+      - todo_triggered
+      - notify_time
+    - key: authorized
+      title: 被授权人
+      fields:
+      - authorized_user_id
+      - authorized_user_name
+    - key: workflow
+      title: 审批流程
+      fields:
+      - act_procinst_id
+      - act_procinst_no
+      - act_procinst_status
+      - act_procinst_date
+    - key: tenant
+      title: 租户标识
+      fields:
+      - app_tenant_code
+      - db_tenant_code
+    similar_fields:
+    - fields:
+      - app_tenant_code
+      - db_tenant_code
+      note: 逻辑租户与数据租户编码，疑似重复编码，需确认是否冗余。
+    - fields:
+      - company_id
+      - organization_id
+      note: 企业 ID 与机构编号，疑似同为组织标识，需确认是否冗余。
+    - fields:
+      - create_by
+      - create_user
+      note: 创建人 ID 与名称同源成对，非重复但语义紧密。
+    - fields:
+      - update_by
+      - update_user
+      note: 更新人 ID 与名称同源成对，非重复但语义紧密。
+    - fields:
+      - authorized_user_id
+      - authorized_user_name
+      note: 被授权人 ID 与姓名同源成对，非重复但语义紧密。
+  cust_auth_application:
+    table: cust_auth_application
+    enums:
+    - column: enable
+      verdict: keep
+      reason: enable 为开关字段，属封闭布尔代码集；样本仅见 Y，N 可能未采样，仍按 proposed 保留
+    - column: open_status
+      verdict: keep
+      reason: 开通状态为封闭状态码集（OPENING/OPENED/NOT_OPENED），适合枚举页
+    - column: platform_product_code
+      verdict: instance
+      reason: 低基数产品编码值列表，更像产品主数据/值列表，未证明是封闭业务代码集，建议改入 value_index
+    clusters:
+    - key: common
+      title: 通用
+      include: always
+      fields:
+      - id
+      - code
+      - enable
+      - create_by
+      - create_user
+      - create_time
+      - update_by
+      - update_user
+      - update_time
+    - key: product_info
+      title: 产品信息
+      fields:
+      - name
+      - platform_product_code
+      - application
+    - key: approval_flow
+      title: 审批流程
+      fields:
+      - act_procinst_id
+      - act_procinst_no
+      - act_procinst_status
+      - act_procinst_date
+    - key: tenant
+      title: 租户标识
+      fields:
+      - app_tenant_code
+      - db_tenant_code
+    - key: opening
+      title: 开通信息
+      fields:
+      - open_status
+      - open_time
+    - key: relation
+      title: 关联主体
+      fields:
+      - organization_id
+      - cust_manager_id
+      - ref_cust_company_info
+      - ref_parent_company
+      - main_data_id
+      - ref_cust_auth_application_tenant_product
+    - key: ext
+      title: 备注扩展
+      fields:
+      - remark
+    similar_fields:
+    - fields:
+      - create_by
+      - create_user
+      note: 创建人ID与创建人名称成对，注意别名映射
+    - fields:
+      - update_by
+      - update_user
+      note: 更新人ID与更新人名称成对
+    - fields:
+      - app_tenant_code
+      - db_tenant_code
+      note: 逻辑租户标识与数据租户标识，疑似分层或冗余租户编码
+    - fields:
+      - code
+      - platform_product_code
+      note: 均为编码字段，可能语义重叠，需确认是否指向同一产品编码
+    - fields:
+      - application
+      - ref_cust_company_info
+      - ref_cust_auth_application_tenant_product
+      note: 多个应用字段（产品应用/客户应用/关联应用），疑似不同粒度或语义重叠
+  cust_build_record:
+    table: cust_build_record
+    enums:
+    - column: enable
+      verdict: keep
+      reason: 布尔开关型代码列（Y/N 语义），属开关类枚举；但样本 distinct=1 仅见 'Y'，未见 'N'，需补全取值后再定稿
+    - column: electronic_auth_sign_status
+      verdict: keep
+      reason: 电子授权签署状态代码集（SIGNED/PENDING），属状态类封闭代码；列注释为空，需补业务含义与完整取值
+    clusters:
+    - key: common
+      title: 通用/审计字段
+      include: always
+      fields:
+      - id
+      - code
+      - enable
+      - create_by
+      - create_user
+      - create_time
+      - update_by
+      - update_user
+      - update_time
+    - key: cust_identity
+      title: 企业/联系人身份
+      fields:
+      - name
+      - cust_id
+      - plat_cust_id
+      - person_id
+      - plat_person_id
+    - key: push_payload
+      title: 推送与返回报文
+      fields:
+      - push_data
+      - return_data
+      - remark
+    - key: push_flow
+      title: 推送渠道与状态
+      fields:
+      - channel
+      - retry_status
+      - electronic_auth_sign_status
+    - key: workflow
+      title: 审批流程实例
+      fields:
+      - act_procinst_id
+      - act_procinst_no
+      - act_procinst_status
+      - act_procinst_date
+    - key: tenant_org
+      title: 租户与机构
+      fields:
+      - app_tenant_code
+      - db_tenant_code
+      - organization_id
+    similar_fields:
+    - fields:
+      - cust_id
+      - plat_cust_id
+      note: 本系统企业ID 与 运营中台企业ID，同一主体的双列冗余映射
+    - fields:
+      - person_id
+      - plat_person_id
+      note: 本系统联系人ID 与 运营中台联系人ID，同上双列冗余映射
+    - fields:
+      - app_tenant_code
+      - db_tenant_code
+      note: 逻辑租户标识与数据租户标识，同表并存的两套租户编码
+    - fields:
+      - create_by
+      - create_user
+      - update_by
+      - update_user
+      note: 创建/更新人 id 与名称成对出现，名称列为 id 的冗余拷贝
+  cust_app_channel_config:
+    table: cust_app_channel_config
+    enums:
+    - column: code
+      verdict: instance
+      reason: 样本值 longteng 更像具体渠道/应用编码或实例标识，distinct=1，不是封闭业务代码集，应改入 value_index
+    - column: name
+      verdict: instance
+      reason: name 为名称类字段，样本为具体实例名，不是封闭代码集，应改入 value_index
+    - column: enable
+      verdict: keep
+      reason: enable 为开关类字段，样本值 Y 符合封闭开关代码特征，保留为 proposed 枚举
+    clusters:
+    - key: common
+      title: 通用与审计
+      include: always
+      fields:
+      - id
+      - code
+      - enable
+      - create_by
+      - create_user
+      - create_time
+      - update_by
+      - update_user
+      - update_time
+    - key: biz_identity
+      title: 业务主体
+      fields:
+      - app_id
+      - name
+      - organization_id
+    - key: workflow
+      title: 流程审批
+      fields:
+      - act_procinst_id
+      - act_procinst_no
+      - act_procinst_status
+      - act_procinst_date
+    - key: tenant
+      title: 租户标识
+      fields:
+      - app_tenant_code
+      - db_tenant_code
+    - key: misc
+      title: 备注信息
+      fields:
+      - remark
+    similar_fields:
+    - fields:
+      - code
+      - name
+      note: 样本值均为 longteng，编码与名称可能为同一标识的不同展示，存在冗余拷贝风险
+    - fields:
+      - app_tenant_code
+      - db_tenant_code
+      note: 逻辑租户标识与数据租户标识语义相近，可能为不同维度的租户编码
+    - fields:
+      - act_procinst_id
+      - act_procinst_no
+      note: 流程实例ID与流程申请编号均标识流程单，可能冗余或关联
+    - fields:
+      - create_by
+      - create_user
+      note: 同一创建人的ID与名称列，语义成对
+    - fields:
+      - update_by
+      - update_user
+      note: 同一更新人的ID与名称列，语义成对
+  cust_company_lifecycle_info:
+    table: cust_company_lifecycle_info
+    enums:
+    - column: type
+      verdict: keep
+      reason: 企业生命周期动作代码集，样本仅 FRZ/UNFRZ（冻结/解冻），封闭业务代码，判为 proposed 枚举
+    - column: enable
+      verdict: keep
+      reason: Y/N 开关型逻辑删除/启用标志，封闭二值代码，判为 proposed 枚举
+    clusters:
+    - key: common
+      title: 通用
+      include: always
+      fields:
+      - id
+      - code
+      - enable
+      - create_by
+      - create_user
+      - create_time
+      - update_by
+      - update_user
+      - update_time
+    - key: lifecycle
+      title: 生命周期动作
+      fields:
+      - type
+      - reason
+      - attach
+    - key: company_ref
+      title: 关联主体
+      fields:
+      - company_id
+      - ref_cust_company_info
+      - organization_id
+    - key: workflow
+      title: 审批流程
+      fields:
+      - act_procinst_id
+      - act_procinst_no
+      - act_procinst_status
+      - act_procinst_date
+    - key: tenant
+      title: 租户标识
+      fields:
+      - app_tenant_code
+      - db_tenant_code
+    - key: misc
+      title: 名称与备注
+      fields:
+      - name
+      - remark
+    similar_fields:
+    - fields:
+      - create_by
+      - create_user
+      note: 同一创建人的 id 与名称，审计冗余对
+    - fields:
+      - update_by
+      - update_user
+      note: 同一更新人的 id 与名称，审计冗余对
+    - fields:
+      - app_tenant_code
+      - db_tenant_code
+      note: 逻辑租户与数据租户两套编码，语义高度重叠
+    - fields:
+      - act_procinst_id
+      - act_procinst_no
+      note: 流程实例 id 与申请编号，同指一次审批流程
+    - fields:
+      - company_id
+      - ref_cust_company_info
+      note: 均为企业主体引用，一为 id 一为 code
+  cust_auth_application_config:
+    table: cust_auth_application_config
+    enums: []
+    clusters:
+    - key: common
+      title: 通用审计与编码
+      include: always
+      fields:
+      - id
+      - code
+      - enable
+      - create_by
+      - create_user
+      - create_time
+      - update_by
+      - update_user
+      - update_time
+    - key: basic_info
+      title: 基础信息
+      fields:
+      - name
+      - remark
+    - key: customer_org
+      title: 客户与机构
+      fields:
+      - cust_id
+      - organization_id
+    - key: product_config
+      title: 产品开通配置
+      fields:
+      - product_sign_mode
+      - product_protocol_agreement
+      - needs_company_type_configuration
+      - needs_product_agreement_configuration
+    - key: application_ref
+      title: 开通申请关联
+      fields:
+      - ref_cust_auth_application_config_cust_auth_application
+    - key: workflow
+      title: 审批流程
+      fields:
+      - act_procinst_id
+      - act_procinst_no
+      - act_procinst_status
+      - act_procinst_date
+    - key: tenant
+      title: 租户标识
+      fields:
+      - app_tenant_code
+      - db_tenant_code
+    similar_fields:
+    - fields:
+      - app_tenant_code
+      - db_tenant_code
+      note: 逻辑租户标识与数据租户标识，疑似同一租户维度的重复/双写字段，需确认口径是否一致
+    - fields:
+      - act_procinst_id
+      - act_procinst_no
+      note: 流程实例ID与流程申请编号，可能同为流程单据标识，使用需区分
+  cust_certification_info:
+    table: cust_certification_info
+    enums:
+    - column: enable
+      verdict: keep
+      reason: 开关类字段，样本值 Y 为代码开关，疑似封闭枚举，待补充完整集合
+    - column: certification_type
+      verdict: keep
+      reason: 认证类型，取值为业务代码集，疑似闭环类型枚举
+    - column: auto_verify_status
+      verdict: keep
+      reason: 自动核验状态，取值为状态业务代码，疑似闭环状态枚举
+    - column: manual_verify_status
+      verdict: keep
+      reason: 人工核验状态，取值为状态业务代码，疑似闭环状态枚举
+    clusters:
+    - key: common
+      title: 通用
+      include: always
+      fields:
+      - id
+      - code
+      - enable
+      - create_by
+      - create_user
+      - create_time
+      - update_by
+      - update_user
+      - update_time
+    - key: tenant
+      title: 租户
+      fields:
+      - app_tenant_code
+      - db_tenant_code
+    - key: certification
+      title: 认证信息
+      fields:
+      - name
+      - remark
+      - certification_type
+      - face_business_no
+      - verify_score
+    - key: related_entity
+      title: 关联主体
+      fields:
+      - organization_id
+      - ref_cust_company_info
+    - key: workflow
+      title: 流程实例
+      fields:
+      - act_procinst_id
+      - act_procinst_no
+      - act_procinst_status
+      - act_procinst_date
+    - key: auto_verify
+      title: 自动核验
+      fields:
+      - auto_verify_status
+      - auto_verify_msg
+      - auto_verify_time
+      - auto_verify_count
+      - auto_verify_data
+    - key: manual_verify
+      title: 人工核验
+      fields:
+      - manual_verify_status
+      - manual_verify_msg
+      - manual_verify_time
+      - manual_verify_count
+    similar_fields:
+    - fields:
+      - create_by
+      - create_user
+      note: 同表审计创建人字段，命名相近，可能冗余或语义重复
+    - fields:
+      - update_by
+      - update_user
+      note: 同表审计更新人字段，命名相近，可能冗余或语义重复
+    - fields:
+      - app_tenant_code
+      - db_tenant_code
+      note: 同时存在应用租户码与数据库租户码，可能为不同来源的租户标识
+  cust_company_survey_whitelist:
+    table: cust_company_survey_whitelist
+    enums:
+    - column: enable
+      verdict: reject
+      reason: 样本仅观测到单值 Y（distinct=1），无法证明存在封闭开关码集；该列属通用开关列，样本层面等同噪声/配置碎片，不进枚举页，也不作
+        value_index。
+    clusters:
+    - key: common
+      title: 通用/审计字段
+      include: always
+      fields:
+      - id
+      - enable
+      - create_by
+      - create_user
+      - create_time
+      - update_by
+      - update_user
+      - update_time
+    - key: company
+      title: 企业信息
+      fields:
+      - company_id
+      - company_name
+    - key: record_identity
+      title: 白名单记录编码与名称
+      fields:
+      - code
+      - name
+    - key: act_procinst
+      title: 审批流程实例
+      fields:
+      - act_procinst_id
+      - act_procinst_no
+      - act_procinst_status
+      - act_procinst_date
+    - key: tenant
+      title: 租户标识
+      fields:
+      - app_tenant_code
+      - db_tenant_code
+    - key: organization
+      title: 机构
+      fields:
+      - organization_id
+    similar_fields:
+    - fields:
+      - name
+      - company_name
+      note: 均为名称语义：一为记录自身名称、一为企业名称，存在冗余/拷贝可能，需上游确认取值是否同源。
+    - fields:
+      - act_procinst_id
+      - act_procinst_no
+      note: 同一流程实例的两种标识（实例ID 与 申请编号），语义近义，注意区分使用。
+    - fields:
+      - app_tenant_code
+      - db_tenant_code
+      note: 逻辑租户标识与数据租户标识为重复编码对，取值常同源，注意别混用。
+  cust_company_survey_state:
+    table: cust_company_survey_state
+    enums:
+    - column: first_visitor_lottery_shown
+      verdict: keep
+      reason: 注释明确为 Y/N 开关，属封闭布尔代码集；样本仅见 Y，枚举不全，保持 proposed
+    - column: enable
+      verdict: keep
+      reason: 启用开关（Y/N），属封闭开关类代码集；样本仅见 Y，未被证实全集，保持 proposed
+    clusters:
+    - key: common
+      title: 通用/审计
+      include: always
+      fields:
+      - id
+      - code
+      - enable
+      - create_by
+      - create_user
+      - create_time
+      - update_by
+      - update_user
+      - update_time
+    - key: survey_activity
+      title: 问卷活动基本信息
+      fields:
+      - name
+      - remark
+      - respondent
+    - key: org_relation
+      title: 企业与机构关联
+      fields:
+      - company_id
+      - organization_id
+    - key: first_visitor
+      title: 首个访客埋点
+      fields:
+      - first_visitor_user_id
+      - first_visit_time
+      - first_visitor_lottery_shown
+      - first_visitor_lottery_shown_time
+    - key: approval_flow
+      title: 流程审批实例
+      fields:
+      - act_procinst_id
+      - act_procinst_no
+      - act_procinst_status
+      - act_procinst_date
+    - key: tenant
+      title: 租户标识
+      fields:
+      - app_tenant_code
+      - db_tenant_code
+    similar_fields:
+    - fields:
+      - app_tenant_code
+      - db_tenant_code
+      note: 逻辑租户与数据租户双份编码，疑似冗余，需确认取值是否一致
+    - fields:
+      - act_procinst_id
+      - act_procinst_no
+      note: 均为流程实例标识类字段（实例ID/申请编号），可能成对冗余
+    - fields:
+      - company_id
+      - organization_id
+      note: 公司与机构编号，可能指向同一组织主体，语义重叠
+  cust_change_cfg:
+    table: cust_change_cfg
+    enums:
+    - column: cust_type
+      verdict: keep
+      reason: 客户类型为封闭业务代码集，样本值 1/2/3，属类型枚举（proposed）。
+    - column: identify_style
+      verdict: keep
+      reason: 认证方式为封闭编码集（INVITE/INVITE_AGW/SELF/SIMPLE），属类型枚举（proposed）。
+    - column: head_company
+      verdict: keep
+      reason: 是否总公司为 Y/N 开关，属封闭布尔代码集（proposed）。
+    - column: open_process
+      verdict: keep
+      reason: 开启流程为 Y/N 开关，属封闭布尔代码集（proposed）。
+    - column: item_code
+      verdict: instance
+      reason: 变更项编码是业务对象编码，低基数更像变更项名单而非状态/类型/开关枚举，建议改入 value_index。
+    - column: enable
+      verdict: reject
+      reason: 仅观测到单值 Y，缺乏枚举区分度，疑为固定启用标记/噪声，不宜进枚举页。
+    - column: client_type
+      verdict: keep
+      reason: 端类型为封闭渠道/端编码集（AGW/ACCOUNT_PRODUCT），属类型枚举（proposed）。
+    clusters:
+    - key: common
+      title: 通用
+      include: always
+      fields:
+      - id
+      - code
+      - enable
+      - create_by
+      - create_user
+      - create_time
+      - update_by
+      - update_user
+      - update_time
+    - key: change_item
+      title: 变更项配置
+      fields:
+      - name
+      - plat_item
+      - oper_item
+      - item_code
+    - key: customer_flow
+      title: 客户与流程属性
+      fields:
+      - cust_type
+      - identify_style
+      - head_company
+      - open_process
+      - client_type
+    - key: desc
+      title: 说明备注
+      fields:
+      - data_desc
+      - remark
+    - key: workflow
+      title: 流程实例
+      fields:
+      - act_procinst_id
+      - act_procinst_no
+      - act_procinst_status
+      - act_procinst_date
+    - key: tenant_org
+      title: 租户与机构
+      fields:
+      - app_tenant_code
+      - db_tenant_code
+      - organization_id
+    similar_fields:
+    - fields:
+      - code
+      - item_code
+      note: 编码与变更项编码，均为编码字段，语义可能重复或需区分。
+    - fields:
+      - plat_item
+      - oper_item
+      note: 平台变更项与运营中台变更项，名称对，语义对应。
+    - fields:
+      - app_tenant_code
+      - db_tenant_code
+      note: 逻辑租户标识与数据租户标识，语义相近，可能冗余或需区分。
+    - fields:
+      - create_by
+      - create_user
+      note: 创建人id与创建人名称，同一审计主体的 id/名称对。
+    - fields:
+      - update_by
+      - update_user
+      note: 更新人id与更新人名称，同一审计主体的 id/名称对。
+    - fields:
+      - act_procinst_id
+      - act_procinst_no
+      note: 流程实例ID与流程申请编号，语义相近，可能一个内部ID一个业务编号。
+    - fields:
+      - data_desc
+      - remark
+      note: 变更材料说明与备注，均为说明性文本，语义接近。
+  cust_change_record:
+    table: cust_change_record
+    enums:
+    - column: alter_data
+      verdict: reject
+      reason: 取值为 JSON 数组片段（如 ["UN0001","UN0008"]），是多值组合快照，取值空间随变更项组合开放，既非封闭代码集，也不是实例名单，应留在原字段内解析。
+    - column: alter_mode
+      verdict: keep
+      reason: 变更方式，仅 1/2 两个码值，属封闭业务代码集；仅缺 label 映射，保持 proposed。
+    - column: admin_auth
+      verdict: keep
+      reason: 企业管理授权，Y/N 二值开关，封闭开关集。
+    - column: legal_auth
+      verdict: keep
+      reason: 法人代表授权，Y/N 二值开关，封闭开关集。
+    - column: enable
+      verdict: keep
+      reason: enable 列 Y/N 二值启用开关，封闭开关集，属通用审计列。
+    - column: cust_company_type
+      verdict: keep
+      reason: 客户企业类型为封闭业务代码集（CORE/SUPPLIER/FINANCE 等）；另有 ["CORE","SUPPLIER"] 这类多值写法，属同一代码集的多选存储，不改变其代码集性质。
+    - column: msg_send
+      verdict: keep
+      reason: 消息发送，Y/N 二值开关，封闭开关集。
+    - column: need_cust_confirm
+      verdict: keep
+      reason: 是否需要客户确认，Y/N 二值开关，封闭开关集。
+    - column: need_resign_auth
+      verdict: keep
+      reason: 是否需要重签授权书，注释已明确 Y-是、N-否，封闭开关集。
+    - column: oper_channel
+      verdict: keep
+      reason: 运营中台变更渠道，3 个渠道码值（含 DIRECT_INIT），属渠道码类封闭取值；值风格为外系统渠道 key，建议后续补 label。
+    - column: electronic_auth_sign_status
+      verdict: keep
+      reason: 列为签署状态语义（列名 electronic_auth_sign_status），取值为 SIGNED/VOIDED/PENDING 的封闭状态码集；字段注释为空，不为其补造中文名。
+    clusters:
+    - key: common
+      title: 通用与审计
+      include: always
+      fields:
+      - id
+      - code
+      - enable
+      - create_by
+      - create_user
+      - create_time
+      - update_by
+      - update_user
+      - update_time
+      - app_tenant_code
+      - db_tenant_code
+    - key: cust
+      title: 客户主体信息
+      fields:
+      - cust_id
+      - cust_name
+      - cust_type
+      - cust_company_type
+      - pp_cust_info
+    - key: alter
+      title: 变更内容与类型
+      fields:
+      - alter_type
+      - alter_type_id
+      - alter_mode
+      - alter_data
+      - status
+    - key: oper
+      title: 运营中台信息
+      fields:
+      - oper_app_no
+      - oper_cust_id
+      - oper_cust_info
+      - oper_channel
+    - key: act_procinst
+      title: 审批流程实例
+      fields:
+      - act_procinst_id
+      - act_procinst_no
+      - act_procinst_status
+      - act_procinst_date
+    - key: auth
+      title: 授权与签署
+      fields:
+      - admin_auth
+      - legal_auth
+      - electronic_auth_sign_status
+    - key: need
+      title: 变更要求与通知
+      fields:
+      - need_cust_confirm
+      - need_resign_auth
+      - msg_send
+    - key: misc
+      title: 记录描述与归属
+      fields:
+      - name
+      - organization_id
+      - remark
+    similar_fields:
+    - fields:
+      - create_by
+      - create_user
+      note: 创建人同一语义的两种表示（id 与名称），成对冗余。
+    - fields:
+      - update_by
+      - update_user
+      note: 更新人同一语义的两种表示（id 与名称），成对冗余。
+    - fields:
+      - app_tenant_code
+      - db_tenant_code
+      note: 逻辑租户标识与数据租户标识，名称近似，疑似重复编码。
+    - fields:
+      - cust_id
+      - oper_cust_id
+      note: 本地客户 id 与运营中台客户 id 并存，易混用。
+    - fields:
+      - alter_type
+      - alter_type_id
+      note: 前缀相同但语义不同：前者为变更类型码，后者注释为变更项记录 id。
+    - fields:
+      - act_procinst_no
+      - oper_app_no
+      note: 两个流程/申请编号列，可能指向同一审批流程的不同系统编号。
+  cust_customized_product:
+    table: cust_customized_product
+    enums:
+    - column: enable
+      verdict: reject
+      reason: 注释与列名仅为 enable，样本 distinct=1 且只出现 Y，无法确认存在 N 的封闭开关集，疑为常量/噪声列，暂不建枚举页
+    clusters:
+    - key: common
+      title: 通用与审计
+      include: always
+      fields:
+      - id
+      - code
+      - enable
+      - create_by
+      - create_user
+      - create_time
+      - update_by
+      - update_user
+      - update_time
+    - key: entry_config
+      title: 快捷入口展示配置
+      fields:
+      - name
+      - url
+      - logo_icon_url
+      - view_order
+      - remark
+    - key: relation
+      title: 客户与机构关联
+      fields:
+      - cust_id
+      - organization_id
+      - ref_cust_customized_product_cust_company_info
+    - key: tenant
+      title: 租户标识
+      fields:
+      - app_tenant_code
+      - db_tenant_code
+    - key: approval
+      title: 审批流程
+      fields:
+      - act_procinst_id
+      - act_procinst_no
+      - act_procinst_status
+      - act_procinst_date
+    similar_fields:
+    - fields:
+      - create_by
+      - create_user
+      note: 同一创建人的 id 与名称双列，语义近义/冗余
+    - fields:
+      - update_by
+      - update_user
+      note: 同一更新人的 id 与名称双列，语义近义/冗余
+    - fields:
+      - app_tenant_code
+      - db_tenant_code
+      note: 逻辑租户标识与数据租户标识，疑为重复编码双写
+  cust_config_mapping:
+    table: cust_config_mapping
+    enums:
+    - column: outer_channel
+      verdict: keep
+      reason: 外部渠道码，4 个封闭取值（ACFLOW/ORDER/SELF/OPS），属渠道码类，可作 proposed 枚举页待抽样确认是否覆盖全量
+    - column: inner_code
+      verdict: instance
+      reason: 取值混杂业务角色码（DEALER/SUPPLIER 等）与机构实例编码（A0007/A0012/A0037 等），更像内部机构/组织名单而非封闭代码集，改入
+        value_index
+    - column: outer_code
+      verdict: instance
+      reason: 取值多为外部系统/机构实例编码（UN0001/A0004/CE/PROJ 等，distinct 20），属映射对象实例编码，改入 value_index
+    - column: type
+      verdict: keep
+      reason: 配置类型，3 个全大写封闭代码（COMPANY_TYPE_MAPPING/COMPANY_MEDIA/CHANGE_ITEM），符合类型码枚举特征，仍为
+        proposed
+    - column: groups
+      verdict: keep
+      reason: 分组代码（BRANCH_COMPANY/HEAD_COMPANY）为封闭分类码；样本含空串，需在枚举页标注空值需清洗
+    - column: enable
+      verdict: reject
+      reason: 仅观测到单一取值 Y，无法构成枚举页（样本未覆盖 N），开关语义已由列名体现，不建议占用枚举页
+    clusters:
+    - key: common
+      title: 通用
+      include: always
+      fields:
+      - id
+      - code
+      - enable
+      - create_by
+      - create_user
+      - create_time
+      - update_by
+      - update_user
+      - update_time
+    - key: mapping
+      title: 内外映射
+      fields:
+      - inner_code
+      - inner_name
+      - outer_channel
+      - outer_code
+      - outer_name
+    - key: classify
+      title: 分类与备注
+      fields:
+      - name
+      - type
+      - groups
+      - remark
+    - key: approval
+      title: 审批流程
+      fields:
+      - act_procinst_id
+      - act_procinst_no
+      - act_procinst_status
+      - act_procinst_date
+    - key: tenant_org
+      title: 租户与机构
+      fields:
+      - app_tenant_code
+      - db_tenant_code
+      - organization_id
+    similar_fields:
+    - fields:
+      - app_tenant_code
+      - db_tenant_code
+      note: 命名近义（逻辑租户标识 / 数据租户标识），可能为同一租户维度的重复编码，需人工确认是否冗余
+    - fields:
+      - create_by
+      - create_user
+      note: 同一审计动作的 id 与名称成对列，语义互补但易被误用，建表义说明
+    - fields:
+      - update_by
+      - update_user
+      note: 同一审计动作的 id 与名称成对列，语义互补但易被误用，建议在表义中区分
+  cust_company_info:
+    table: cust_company_info
+    enums:
+    - column: enable
+      verdict: keep
+      reason: Y/N 开关，封闭布尔码集
+    - column: need_register_ca
+      verdict: keep
+      reason: Y/N 开关（开通电子签章）
+    - column: need_register_bs
+      verdict: keep
+      reason: Y/N 开关（开通上上签电子签章）
+    - column: ca_register_status
+      verdict: keep
+      reason: N/Y/P 为 CA 开通状态码
+    - column: bs_register_status
+      verdict: keep
+      reason: N/Y 为上上签开通状态码
+    - column: cust_build_type
+      verdict: keep
+      reason: AGW_BUILD/PC_BUILD/SIMPLE 为录入方式码
+    - column: cust_build_status
+      verdict: keep
+      reason: BUILD_* / CUST_* 为构建认证状态码集
+    - column: identify_style
+      verdict: keep
+      reason: INVITE_AGW/INVITE/SIMPLE/SELF 为认证方式码
+    - column: cust_scale
+      verdict: reject
+      reason: 取值仅空串与 qw，非封闭码集，样本属脏值
+    - column: data_type
+      verdict: keep
+      reason: 0/1/2 主数据/记录数据码，注释已给出定义
+    - column: contact_address
+      verdict: reject
+      reason: 地址自由文本，取值空串/qdqw 为脏值
+    - column: sign_mode
+      verdict: reject
+      reason: 仅单值 ONLINE，无法确认封闭码集，疑配置碎片
+    - column: cust_status
+      verdict: keep
+      reason: EFFECT/ADD/CHANGE/WRITEOFF/FREEZE 为客户状态码
+    - column: apply_type
+      verdict: keep
+      reason: add/update 为流程类型码
+    - column: abroad_cust
+      verdict: keep
+      reason: 是否境外 Y/N 开关（含空值）
+    - column: outside_org
+      verdict: keep
+      reason: 外部机构开关，取值 Y/N/0/1 混用
+    - column: group_company
+      verdict: keep
+      reason: 是否归属集团开关，取值 Y/N/1 混用
+    - column: head_company
+      verdict: keep
+      reason: 是否总公司 Y/N 开关（含空值）
+    - column: legal_realname_status
+      verdict: keep
+      reason: 法人认证状态 Y/N
+    - column: test_data
+      verdict: keep
+      reason: 是否测试数据 Y/N 开关
+    - column: need_charge
+      verdict: keep
+      reason: 运营方是否收费 Y/N 开关
+    - column: check_status
+      verdict: keep
+      reason: CUST_CHECK_* 为审核状态码集
+    - column: audit_back_flag
+      verdict: keep
+      reason: 审核退回标记 Y/N
+    - column: cert_no_flag
+      verdict: reject
+      reason: 仅单值 Y，样本不足以确认为封闭码集
+    - column: cust_source
+      verdict: keep
+      reason: PPLATFORM/MIGRATORY/PLATFORM_PUSH/PLATFORM 为建档来源码集
+    - column: migarory_auth_aggrement_flag
+      verdict: keep
+      reason: Y/N 新老渠道授权书补签标识
+    - column: auth_aggrement_supplement_flag
+      verdict: keep
+      reason: 是否授权书补签 Y/N 标识
+    - column: third_auth_status
+      verdict: reject
+      reason: 仅单值 1，无法确认封闭码集
+    - column: channel_code
+      verdict: instance
+      reason: 仅单值 longteng，形似具体渠道实例名而非封闭码集，宜入 value_index
+    clusters:
+    - key: common
+      title: 通用与审计
+      include: always
+      fields:
+      - id
+      - code
+      - enable
+      - create_by
+      - create_user
+      - create_time
+      - update_by
+      - update_user
+      - update_time
+    - key: tenant
+      title: 租户标识
+      fields:
+      - app_tenant_code
+      - db_tenant_code
+    - key: workflow
+      title: 流程与审批
+      fields:
+      - act_procinst_id
+      - act_procinst_no
+      - act_procinst_status
+      - act_procinst_date
+      - apply_data_id
+      - apply_type
+      - approval_date
+      - audit_back_flag
+      - back_reason
+      - pc_task_id
+    - key: identity
+      title: 客户主档标识
+      fields:
+      - name
+      - cust_no
+      - cust_short_name
+      - cust_english_name
+      - cust_english_short_name
+      - cust_former_name
+      - certification_no
+    - key: classification
+      title: 客户分类与状态
+      fields:
+      - cust_company_type
+      - biz_cust_type
+      - cust_scale
+      - industry_involved
+      - cust_profile
+      - cust_status
+      - check_status
+      - cust_source
+      - cust_from
+      - cust_build_type
+      - cust_build_status
+      - identify_style
+      - data_type
+      - main_data_id
+      - cust_first_submit_auth
+      - abroad_cust
+      - company_size
+    - key: business
+      title: 工商与经营信息
+      fields:
+      - establishment_time
+      - register_capital
+      - paid_in_capital
+      - time_permanent
+      - business_license_start_time
+      - business_license_end_time
+      - business_status
+      - business_scope
+      - workers_no
+      - business_province
+      - business_province_code
+      - business_city
+      - business_city_code
+      - business_address
+      - business_province_city
+    - key: regist
+      title: 注册地址
+      fields:
+      - regist_province
+      - regist_province_code
+      - regist_city
+      - regist_city_code
+      - registered_address
+      - regist_province_city
+      - regist_province_city_english
+      - regist_city_english
+    - key: contact
+      title: 联系信息
+      fields:
+      - contact_province
+      - contact_province_code
+      - contact_city
+      - contact_city_code
+      - contact_address
+      - contact_province_city
+      - contact_user_name
+      - contact_tel
+      - cust_email
+    - key: legal
+      title: 法人信息
+      fields:
+      - legal_name
+      - legal_phone
+      - legal_certification_no
+      - legal_certification_type
+      - legal_email
+      - legal_certification_start_time
+      - legal_certification_end_time
+      - legal_time_permanent
+      - legal_name_english
+      - legal_name_english_end
+      - legal_birth_date
+      - legal_realname_status
+      - nationality
+      - nationality_en
+    - key: esign
+      title: 电子签章与授权
+      fields:
+      - need_register_ca
+      - need_register_bs
+      - ca_register_status
+      - bs_register_status
+      - signing_mode
+      - sign_mode
+      - need_charge
+      - migarory_auth_aggrement_flag
+      - auth_aggrement_supplement_flag
+    - key: invoicing
+      title: 开票信息
+      fields:
+      - invoicing_taxpayer_no
+      - invoicing_name
+      - invoicing_accont_no
+      - invoicing_phone
+      - invoicing_email
+      - invoicing_address
+      - invoicing_bank_name
+      - invoicing_bank_code
+      - invoicing_bank_province_city
+      - invoicing_bank_branch
+      - invoicing_bank_no
+      - billing_type
+    - key: finance
+      title: 金融机构
+      fields:
+      - finance_org_flag
+      - finance_org_type
+      - finance_org_type_name
+      - finance_org_code
+      - bank_branch
+      - third_auth_status
+    - key: channel
+      title: 客户端与渠道
+      fields:
+      - client_type
+      - channel_code
+      - tenant_flg_en
+      - outside_org
+    - key: group
+      title: 归属与关联主体
+      fields:
+      - organization_id
+      - relate_company_id
+      - relate_company_name
+      - group_company
+      - head_company
+      - core_bosc_company_id
+      - platform_cust_id
+      - manager_id
+    - key: contract
+      title: 补充合同字段
+      fields:
+      - composite_field
+      - cash_contract_no
+      - xib_factor_contract_no
+      - zybank_cash_contract_amt
+      - lybank_cash_contract_no
+    - key: misc
+      title: 扩展与其他标记
+      fields:
+      - remark
+      - ext
+      - company_ext_data
+      - test_data
+      - cert_no_flag
+    similar_fields:
+    - fields:
+      - signing_mode
+      - sign_mode
+      note: 名称近义，疑同表重复表达签署方式，需确认唯一口径
+    - fields:
+      - legal_name_english
+      - legal_name_english_end
+      note: 英文法人名重复列，命名疑似拷贝产物
+    - fields:
+      - company_size
+      - cust_scale
+      note: 均落在企业规模/纳税人类别语义上，存在重叠
+    - fields:
+      - cust_source
+      - cust_from
+      note: 均描述客户或建档来源，口径需区分
+    - fields:
+      - cust_status
+      - check_status
+      - cust_build_status
+      note: 三个状态列并存，认证/构建/客户状态语义交叉
+    - fields:
+      - business_province_city
+      - business_province
+      - business_city
+      note: 省市拼接列与省市明细列冗余
+    - fields:
+      - regist_province_city
+      - regist_province
+      - regist_city
+      note: 注册省市拼接列与明细列冗余
+    - fields:
+      - contact_province_city
+      - contact_province
+      - contact_city
+      note: 联系省市拼接列与明细列冗余
+    - fields:
+      - app_tenant_code
+      - db_tenant_code
+      note: 逻辑租户与数据租户双列，可能为同步拷贝
+    - fields:
+      - relate_company_id
+      - relate_company_name
+      note: 同一归属主体的 id 与名称两列
+    - fields:
+      - head_company
+      - group_company
+      note: 均为归属类开关，语义接近
+    - fields:
+      - migarory_auth_aggrement_flag
+      - auth_aggrement_supplement_flag
+      note: 均描述授权书补签标识
+    - fields:
+      - time_permanent
+      - legal_time_permanent
+      note: 有效期标志在企业与法人两处重复
+    - fields:
+      - regist_province_city_english
+      - regist_city_english
+      note: 注册地英文重复表达
+  cust_group_rel:
+    table: cust_group_rel
+    enums:
+    - column: root_flag
+      verdict: keep
+      reason: Y/N 二值开关，封闭代码集（样本 Y/N），proposed 待确认是否全枚举
+    - column: level
+      verdict: reject
+      reason: 层级深度数值，非封闭业务代码集；样本仅 1 个值，不足以支撑枚举页
+    - column: cust_type
+      verdict: reject
+      reason: 多企业角色序列化存储（JSON 数组/逗号分隔），取值组合开放且含重复排列，非封闭代码集
+    - column: status
+      verdict: keep
+      reason: 关系状态代码集（EFFECTIVE/INEFFECTIVE/REJECTED），proposed
+    - column: enable
+      verdict: keep
+      reason: 启用开关 Y/N 型代码集，样本仅见 Y，proposed
+    clusters:
+    - key: common
+      title: 通用/审计
+      include: always
+      fields:
+      - id
+      - code
+      - name
+      - enable
+      - remark
+      - create_by
+      - create_user
+      - create_time
+      - update_by
+      - update_user
+      - update_time
+    - key: member
+      title: 成员企业信息
+      fields:
+      - cust_id
+      - cust_type
+      - status
+      - organization_id
+    - key: group_hierarchy
+      title: 集团层级关系
+      fields:
+      - parent_group_id
+      - parent_cust_id
+      - root_group_id
+      - root_cust_id
+      - root_flag
+      - level
+    - key: approval_process
+      title: 审批流程
+      fields:
+      - act_procinst_id
+      - act_procinst_no
+      - act_procinst_status
+      - act_procinst_date
+    - key: tenant
+      title: 租户标识
+      fields:
+      - app_tenant_code
+      - db_tenant_code
+    similar_fields:
+    - fields:
+      - parent_group_id
+      - parent_cust_id
+      note: 父集团 id 与父企业 id，同层级父引用，语义高度重叠，需确认是否冗余
+    - fields:
+      - root_group_id
+      - root_cust_id
+      note: 根集团 id 与根企业 id，同一根节点两种编码，疑似冗余
+    - fields:
+      - parent_cust_id
+      - root_cust_id
+      note: 均为企业维度层级引用（父/根），含义需结合 level 区分
+    - fields:
+      - create_by
+      - create_user
+      note: 创建人 id 与创建人名称，同源冗余列
+    - fields:
+      - update_by
+      - update_user
+      note: 更新人 id 与更新人名称，同源冗余列
+    - fields:
+      - app_tenant_code
+      - db_tenant_code
+      note: 逻辑租户标识与数据租户标识，命名成对，需确认是否同值冗余
+  cust_invite_info:
+    table: cust_invite_info
+    enums:
+    - column: progress
+      verdict: keep
+      reason: 封闭业务状态代码集，取值呈状态机样式（INIT/CUST_*/BUILD_*/AWAIT_*），属进度状态枚举；仍为 proposed
+    - column: enable
+      verdict: keep
+      reason: 开关型字段，样例仅见 Y，按 Y/N 开关代码集处理；单值样例，proposed
+    clusters:
+    - key: common
+      title: 通用与审计
+      include: always
+      fields:
+      - id
+      - code
+      - enable
+      - create_by
+      - create_user
+      - create_time
+      - update_by
+      - update_user
+      - update_time
+    - key: invite
+      title: 邀请信息
+      fields:
+      - name
+      - progress
+      - invite_time
+      - invite_from
+      - invite_cust_id
+    - key: contact
+      title: 联系人信息
+      fields:
+      - contact_name
+      - contact_phone
+      - email
+    - key: act_procinst
+      title: 审批流程
+      fields:
+      - act_procinst_id
+      - act_procinst_no
+      - act_procinst_status
+      - act_procinst_date
+    - key: tenant_org
+      title: 租户与机构
+      fields:
+      - app_tenant_code
+      - db_tenant_code
+      - organization_id
+    - key: other
+      title: 其他
+      fields:
+      - remark
+    similar_fields:
+    - fields:
+      - create_by
+      - create_user
+      note: 创建人 id 与名称同源，成对冗余
+    - fields:
+      - update_by
+      - update_user
+      note: 更新人 id 与名称同源，成对冗余
+    - fields:
+      - app_tenant_code
+      - db_tenant_code
+      note: 逻辑租户标识与数据租户标识重复编码，取值可能一致
+    - fields:
+      - act_procinst_id
+      - act_procinst_no
+      note: 流程实例 ID 与流程申请编号均标识同一流程实例，存在冗余
+  cust_message_send_policy:
+    table: cust_message_send_policy
+    enums:
+    - column: scenes_type
+      verdict: keep
+      reason: 注释明确为场景码，属封闭业务代码集；无样本值，仍为 proposed
+    - column: msg_kind
+      verdict: keep
+      reason: 注释明确为消息类型，属封闭业务代码集；无样本值，仍为 proposed
+    - column: send_enable
+      verdict: keep
+      reason: 发送标识，开关类封闭代码集；无样本值，仍为 proposed
+    - column: enable
+      verdict: keep
+      reason: 通用启用标识，开关类封闭代码集；无样本值，仍为 proposed
+    - column: act_procinst_status
+      verdict: keep
+      reason: 注释明确为当前审批状态，属封闭业务状态集；无样本值，仍为 proposed
+    clusters:
+    - key: common
+      title: 通用
+      include: always
+      fields:
+      - id
+      - code
+      - enable
+      - create_by
+      - create_user
+      - create_time
+      - update_by
+      - update_user
+      - update_time
+    - key: policy
+      title: 策略配置
+      fields:
+      - scenes_type
+      - msg_kind
+      - send_enable
+      - name
+      - remark
+    - key: approval
+      title: 审批流程
+      fields:
+      - act_procinst_id
+      - act_procinst_no
+      - act_procinst_status
+      - act_procinst_date
+    - key: tenant_org
+      title: 租户与机构
+      fields:
+      - app_tenant_code
+      - db_tenant_code
+      - organization_id
+    similar_fields:
+    - fields:
+      - create_by
+      - create_user
+      note: 创建人id与创建人名称，同源审计字段
+    - fields:
+      - update_by
+      - update_user
+      note: 更新人id与更新人名称，同源审计字段
+    - fields:
+      - app_tenant_code
+      - db_tenant_code
+      note: 逻辑租户与数据租户编码，均为租户标识，注意区分
+    - fields:
+      - act_procinst_id
+      - act_procinst_no
+      note: 流程实例ID与流程申请编号，均为流程标识
+    - fields:
+      - enable
+      - send_enable
+      note: 通用启用标识与消息发送标识，均为开关类，作用域不同
+  cust_head_company_info:
+    table: cust_head_company_info
+    enums:
+    - column: enable
+      verdict: keep
+      reason: enable 为启用开关类字段，属封闭开关代码集；样本仅见 Y，作为 proposed 枚举保留，待确认是否含 N 等取值。
+    clusters:
+    - key: common
+      title: 通用审计
+      include: always
+      fields:
+      - id
+      - code
+      - enable
+      - create_by
+      - create_user
+      - create_time
+      - update_by
+      - update_user
+      - update_time
+    - key: company_base
+      title: 企业名称
+      fields:
+      - name
+      - cust_short_name
+      - cust_english_name
+      - cust_english_short_name
+    - key: registration
+      title: 工商注册
+      fields:
+      - certification_no
+      - time_permanent
+      - establishment_time
+      - regist_province_city
+      - regist_province_city_english
+      - registered_address
+      - regist_province_city_english_end
+    - key: legal
+      title: 法人信息
+      fields:
+      - legal_name
+      - legal_phone
+      - legal_certification_no
+      - legal_certification_type
+      - legal_time_permanent
+      - legal_english_first_name
+      - legal_english_sec_name
+      - legal_birth_date
+    - key: approval
+      title: 审批流程
+      fields:
+      - act_procinst_id
+      - act_procinst_no
+      - act_procinst_status
+      - act_procinst_date
+    - key: head
+      title: 总公司核准
+      fields:
+      - head_approval_date
+      - head_business_scope
+    - key: relation
+      title: 关联与组织
+      fields:
+      - ref_cust_head_company_info_cust_company_info
+      - organization_id
+    - key: tenant
+      title: 租户标识
+      fields:
+      - app_tenant_code
+      - db_tenant_code
+    - key: misc
+      title: 备注
+      fields:
+      - remark
+    similar_fields:
+    - fields:
+      - app_tenant_code
+      - db_tenant_code
+      note: 逻辑租户标识与数据租户标识，均为租户编码，存在重复/冗余可能。
+    - fields:
+      - regist_province_city
+      - regist_province_city_english
+      - regist_province_city_english_end
+      note: 注册省份、注册省市(英文)、注册市(英文)，同源注册地字段，需确认粒度与语言冗余。
+    - fields:
+      - time_permanent
+      - legal_time_permanent
+      note: 营业执照有效期与法人证件有效期，名称相似但主体不同。
+    - fields:
+      - certification_no
+      - legal_certification_no
+      note: 企业统一社会信用代码与法人证件号，名称相似但主体不同。
+    - fields:
+      - act_procinst_date
+      - head_approval_date
+      note: 审批结束时间与总公司核准日期，均涉及审批/核准时间，需确认口径。
+  cust_oper_change_record:
+    table: cust_oper_change_record
+    enums:
+    - column: change_type
+      verdict: keep
+      reason: 变更类型为封闭业务代码集，样本含 BATCH/ASSET_AUDIT_SYNC/CUST_CHANGE_CALLBACK/MANUAL，符合枚举定义，仍为
+        proposed。
+    - column: enable
+      verdict: keep
+      reason: enable 为开关型代码列，属于状态/开关枚举；样本仅 Y，仍为 proposed，需后续确认完整值域。
+    clusters:
+    - key: common
+      title: 通用与审计字段
+      include: always
+      fields:
+      - id
+      - code
+      - name
+      - enable
+      - remark
+      - create_by
+      - create_user
+      - create_time
+      - update_by
+      - update_user
+      - update_time
+    - key: tenant
+      title: 租户标识
+      fields:
+      - app_tenant_code
+      - db_tenant_code
+    - key: company
+      title: 企业信息
+      fields:
+      - company_id
+      - company_name
+      - company_code
+    - key: person
+      title: 企业联系人
+      fields:
+      - person_id
+      - person_name
+    - key: operator_change
+      title: 运营人员变更前后
+      fields:
+      - before_operator_id
+      - before_operator_name
+      - after_operator_id
+      - after_operator_name
+    - key: change_info
+      title: 变更信息
+      fields:
+      - change_type
+      - change_reason
+    - key: asset
+      title: 资产信息
+      fields:
+      - asset_id
+      - asset_no
+    - key: approval_process
+      title: 审批流程
+      fields:
+      - act_procinst_id
+      - act_procinst_no
+      - act_procinst_status
+      - act_procinst_date
+    - key: source
+      title: 来源系统
+      fields:
+      - source_system
+    - key: organization
+      title: 机构编号
+      fields:
+      - organization_id
+    similar_fields:
+    - fields:
+      - app_tenant_code
+      - db_tenant_code
+      note: 逻辑租户标识与数据租户标识，均为租户编码，语义相近需区分。
+    - fields:
+      - company_id
+      - company_code
+      note: 均为企业标识，company_id 为企业ID，company_code 为企业编号，易混。
+    - fields:
+      - asset_id
+      - asset_no
+      note: 均为资产标识，asset_id 为资产ID，asset_no 为资产编号，易混。
+    - fields:
+      - act_procinst_id
+      - act_procinst_no
+      note: 均为流程标识，act_procinst_id 为流程实例ID，act_procinst_no 为流程申请编号，易混。
+    - fields:
+      - create_by
+      - create_user
+      note: 创建人ID与创建人名称，同属创建审计信息，近义关联列。
+    - fields:
+      - update_by
+      - update_user
+      note: 更新人ID与更新人名称，同属更新审计信息，近义关联列。
+  cust_project_code_record:
+    table: cust_project_code_record
+    enums:
+    - column: status
+      verdict: keep
+      reason: 取值仅 Y/N 两值，属封闭布尔型状态开关，符合枚举页收录范围；语义（是否正确状态）仅按注释描述，仍为 proposed
+    - column: company_type
+      verdict: instance
+      reason: 取值为 ["CORE","SUPPLIER"] 这类 JSON 数组，是行级角色集合的序列化，组合空间开放（已有 13 种且会随角色增删扩张），不是单一封闭代码集；按低基数取值列表改入
+        value_index
+    - column: enable
+      verdict: reject
+      reason: 样本仅出现单值 Y（distinct=1），无法确认是封闭开关集，枚举页无信息量；该列作为通用开关留在 common 集群，不入枚举也不入
+        value_index
+    clusters:
+    - key: common
+      title: 通用（主键/编码/开关/审计/时间戳）
+      include: always
+      fields:
+      - id
+      - code
+      - enable
+      - create_by
+      - create_user
+      - create_time
+      - update_by
+      - update_user
+      - update_time
+    - key: enterprise
+      title: 企业主体与角色
+      fields:
+      - company_id
+      - company_type
+      - organization_id
+    - key: user
+      title: 录入用户
+      fields:
+      - use_id
+    - key: channel
+      title: 渠道
+      fields:
+      - channel_code
+    - key: project_code
+      title: 项目码内容
+      fields:
+      - name
+      - type
+    - key: record_state
+      title: 记录状态与备注
+      fields:
+      - status
+      - remark
+    - key: procinst
+      title: 审批流程实例
+      fields:
+      - act_procinst_id
+      - act_procinst_no
+      - act_procinst_status
+      - act_procinst_date
+    - key: tenant
+      title: 租户标识
+      fields:
+      - app_tenant_code
+      - db_tenant_code
+    similar_fields:
+    - fields:
+      - create_by
+      - create_user
+      note: 同一创建人的 id 与名称双写，取值一一对应，属冗余存储
+    - fields:
+      - update_by
+      - update_user
+      note: 同一更新人的 id 与名称双写，属冗余存储
+    - fields:
+      - app_tenant_code
+      - db_tenant_code
+      note: 两列均为租户标识（逻辑/数据），语义高度重叠，疑似重复编码
+    - fields:
+      - act_procinst_id
+      - act_procinst_no
+      note: 流程实例ID 与流程申请编号均指向同一流程实例，存在一实例两编号的冗余
+  cust_interworking_product:
+    table: cust_interworking_product
+    enums:
+    - column: open_status
+      verdict: keep
+      reason: 开通状态属于封闭状态码集，样本仅 OPENED，仍建议按 proposed 枚举维护
+    - column: platform_product_code
+      verdict: instance
+      reason: 平台产品编码是低基数产品编码/名单，更像产品实例标识而非状态/开关类业务枚举，改入 value_index
+    - column: agree_authorization_flag
+      verdict: keep
+      reason: 是否同意授权为封闭布尔开关 Y/N，样本仅 N，建议按 proposed 枚举维护
+    - column: enable
+      verdict: keep
+      reason: enable 为系统启用开关，属于封闭开关码，样本仅 Y，建议按 proposed 枚举维护
+    clusters:
+    - key: common
+      title: 通用
+      include: always
+      fields:
+      - id
+      - code
+      - enable
+      - create_by
+      - create_user
+      - create_time
+      - update_by
+      - update_user
+      - update_time
+    - key: product_info
+      title: 产品信息
+      fields:
+      - name
+      - platform_product_code
+      - product_id
+      - ref_cust_interworking_product_tenant_interworking_product
+    - key: open_info
+      title: 开通信息
+      fields:
+      - open_status
+      - open_time
+      - open_user
+    - key: agree_info
+      title: 授权信息
+      fields:
+      - agree_authorization_flag
+      - agree_authorization_time
+    - key: customer_org
+      title: 企业/机构关联
+      fields:
+      - cust_id
+      - organization_id
+      - ref_cust_interworking_product_cust_company_info
+    - key: tenant
+      title: 租户标识
+      fields:
+      - tenant_id
+      - app_tenant_code
+      - db_tenant_code
+    - key: workflow
+      title: 审批流程
+      fields:
+      - act_procinst_id
+      - act_procinst_no
+      - act_procinst_status
+      - act_procinst_date
+    - key: misc
+      title: 备注/其他
+      fields:
+      - remark
+    similar_fields:
+    - fields:
+      - create_by
+      - create_user
+      note: 创建人 id/名称成对，语义相近
+    - fields:
+      - update_by
+      - update_user
+      note: 更新人 id/名称成对，语义相近
+    - fields:
+      - tenant_id
+      - app_tenant_code
+      - db_tenant_code
+      note: 均为租户标识，逻辑/数据租户口径相近，可能冗余
+  cust_person_info:
+    table: cust_person_info
+    enums:
+    - column: enable
+      verdict: keep
+      reason: Y/N 开关，封闭代码集
+    - column: certification_type
+      verdict: keep
+      reason: 证件类型代码集，封闭
+    - column: status
+      verdict: keep
+      reason: 账号状态代码集；N 可能为异常值，建议确认
+    - column: user_type
+      verdict: keep
+      reason: 账号类型代码集；含空字符串需清洗
+    - column: face_status
+      verdict: keep
+      reason: 人脸认证状态代码集；含空字符串需清洗
+    - column: auth_application
+      verdict: reject
+      reason: JSON 数组多值，非单一代码枚举
+    - column: realname_status
+      verdict: keep
+      reason: 实名认证状态代码集；含空字符串需清洗
+    - column: test_data
+      verdict: reject
+      reason: 测试数据标记，非业务代码枚举
+    - column: company_type
+      verdict: keep
+      reason: 企业类型代码集；含一个 JSON 数组值需清洗
+    - column: cust_build_status
+      verdict: keep
+      reason: 建档状态代码集，封闭
+    - column: operator_push_system
+      verdict: keep
+      reason: 推送系统代码集，封闭
+    - column: skip_auth_flag
+      verdict: keep
+      reason: Y/N 开关，封闭代码集
+    - column: source
+      verdict: keep
+      reason: 来源代码集，封闭；longteng 为拼音标识
+    - column: real_name_result
+      verdict: keep
+      reason: 实名认证结果代码集；含空字符串需清洗
+    clusters:
+    - key: common
+      title: 通用
+      include: always
+      fields:
+      - id
+      - code
+      - enable
+      - remark
+      - create_by
+      - create_user
+      - create_time
+      - update_by
+      - update_user
+      - update_time
+    - key: tenant
+      title: 租户标识
+      fields:
+      - app_tenant_code
+      - db_tenant_code
+    - key: process
+      title: 流程审批
+      fields:
+      - act_procinst_id
+      - act_procinst_no
+      - act_procinst_status
+      - act_procinst_date
+    - key: profile
+      title: 个人基本信息
+      fields:
+      - name
+      - en_name
+      - en_name_end
+      - birth_date
+      - phone
+      - email
+    - key: certification
+      title: 认证信息
+      fields:
+      - certification_type
+      - certification_no
+      - certification_expire
+      - face_status
+      - realname_status
+      - phone_realname_status
+      - real_name_result
+      - skip_auth_flag
+    - key: account
+      title: 账号与权限
+      fields:
+      - user_id
+      - user_type
+      - user_name
+      - status
+      - source
+      - auth_application
+      - platform_user_id
+    - key: company
+      title: 企业/客户信息
+      fields:
+      - organization_id
+      - cust_company_id
+      - ref_cust_company_info
+      - main_data_id
+      - company_type
+      - cust_build_status
+    - key: operator
+      title: 运营人
+      fields:
+      - operator
+      - operator_id
+      - operator_realname
+      - operator_push_system
+    - key: handler
+      title: 经办人
+      fields:
+      - handby_person
+      - handby_person_name
+    - key: misc
+      title: 扩展/测试
+      fields:
+      - test_data
+      - ext_data
+    similar_fields:
+    - fields:
+      - en_name
+      - en_name_end
+      note: 均为英文姓名，疑重复字段
+    - fields:
+      - app_tenant_code
+      - db_tenant_code
+      note: 逻辑租户标识与数据租户标识，可能冗余
+    - fields:
+      - realname_status
+      - real_name_result
+      note: 均描述实名认证状态/结果，可能冗余
+    - fields:
+      - cust_company_id
+      - ref_cust_company_info
+      note: 均关联企业信息，可能冗余
+  cust_role_info:
+    table: cust_role_info
+    enums:
+    - column: enable
+      verdict: keep
+      reason: 启用开关类字段（Y/N 语义），属封闭开关码；当前样本仅见 'Y' 单值，需补全 N 侧取值后再定稿，暂 proposed
+    - column: status
+      verdict: keep
+      reason: ADD/EFFECT/WRITEOFF/FREEZE 为封闭的业务状态码集，符合状态类枚举，保持 proposed
+    - column: role_type
+      verdict: keep
+      reason: SUPPLIER/CORE/FINANCE 等为客户角色类型封闭码集；样本含带双引号重复值（"SUPPLIER"、"CORE"）与空串，属数据脏值，需归一化后使用，不改变枚举性质
+    clusters:
+    - key: common
+      title: 通用/审计
+      include: always
+      fields:
+      - id
+      - code
+      - enable
+      - create_by
+      - create_user
+      - create_time
+      - update_by
+      - update_user
+      - update_time
+    - key: role_profile
+      title: 角色主档属性
+      fields:
+      - name
+      - status
+      - role_type
+      - remark
+    - key: approval_proc
+      title: 流程审批信息
+      fields:
+      - act_procinst_id
+      - act_procinst_no
+      - act_procinst_status
+      - act_procinst_date
+    - key: tenant
+      title: 租户标识
+      fields:
+      - app_tenant_code
+      - db_tenant_code
+    - key: cust_ref
+      title: 客户/主数据关联
+      fields:
+      - platform_cust_id
+      - main_data_id
+      - organization_id
+      - ref_cust_company_info
+      - ref_cust_auth_application
+    similar_fields:
+    - fields:
+      - create_by
+      - create_user
+      note: 同一创建人的 id 与名称拷贝对，语义重复
+    - fields:
+      - update_by
+      - update_user
+      note: 同一更新人的 id 与名称拷贝对，语义重复
+    - fields:
+      - app_tenant_code
+      - db_tenant_code
+      note: 逻辑租户标识与数据租户标识，疑为重复租户编码，需确认取值是否一致
+  cust_project_pushcust:
+    table: cust_project_pushcust
+    enums:
+    - column: source_sso_channel
+      verdict: instance
+      reason: 低基数，但取值像具体系统/租户标识而非通用SSO渠道码，宜入value_index
+    - column: enable
+      verdict: keep
+      reason: 开关字段，样本仅Y，待确认Y/N封闭集
+    clusters:
+    - key: common
+      title: 通用/审计
+      include: always
+      fields:
+      - id
+      - code
+      - enable
+      - create_by
+      - create_user
+      - create_time
+      - update_by
+      - update_user
+      - update_time
+    - key: identity
+      title: 名称
+      fields:
+      - name
+    - key: sso
+      title: SSO渠道
+      fields:
+      - source_sso_channel
+      - target_sso_channel
+    - key: association
+      title: 业务关联
+      fields:
+      - project_id
+      - organization_id
+    - key: workflow
+      title: 审批流程
+      fields:
+      - act_procinst_id
+      - act_procinst_no
+      - act_procinst_status
+      - act_procinst_date
+    - key: tenant
+      title: 租户标识
+      fields:
+      - app_tenant_code
+      - db_tenant_code
+    - key: extra
+      title: 备注
+      fields:
+      - remark
+    similar_fields:
+    - fields:
+      - app_tenant_code
+      - db_tenant_code
+      note: 逻辑租户标识与数据租户标识，语义相近，需确认是否重复
+    - fields:
+      - act_procinst_id
+      - act_procinst_no
+      note: 均标识流程实例，需确认是否冗余
+  cust_sftp:
+    table: cust_sftp
+    enums:
+    - column: user_name
+      verdict: instance
+      reason: SFTP 登录账号，取值是外部对接方账号实例名（含日期/数字后缀），属实例名单而非封闭代码集，应入 value_index
+    - column: enable
+      verdict: keep
+      reason: 开关型代码列，样本仅出现 Y（distinct=1），语义符合启用/停用开关，但闭合性未证实，仍作 proposed 候选待补值
+    - column: channel
+      verdict: keep
+      reason: 渠道码，取值是短代码形式的渠道标识（dahua/ZTSJ/meituan 等），符合封闭业务渠道集；但含 alipayAnt-test、dahua-test、sny_test
+        等测试值，需标记清洗
+    clusters:
+    - key: common
+      title: 通用/审计与主键
+      include: always
+      fields:
+      - id
+      - code
+      - enable
+      - create_by
+      - create_user
+      - create_time
+      - update_by
+      - update_user
+      - update_time
+    - key: basic
+      title: SFTP 主档基础信息
+      fields:
+      - name
+      - remark
+    - key: conn
+      title: 连接参数
+      fields:
+      - host
+      - port
+      - user_name
+    - key: cred
+      title: 凭证与密钥
+      fields:
+      - password
+      - private_key
+      - private_key_pwd
+    - key: tenant
+      title: 租户标识
+      fields:
+      - app_tenant_code
+      - db_tenant_code
+    - key: workflow
+      title: 流程审批
+      fields:
+      - act_procinst_id
+      - act_procinst_no
+      - act_procinst_status
+      - act_procinst_date
+    - key: owner
+      title: 归属机构与渠道
+      fields:
+      - organization_id
+      - channel
+    similar_fields:
+    - fields:
+      - create_by
+      - create_user
+      note: 同一审计动作的 id 与名称成对列，检索时需成组使用
+    - fields:
+      - update_by
+      - update_user
+      note: 同一审计动作的 id 与名称成对列，检索时需成组使用
+    - fields:
+      - app_tenant_code
+      - db_tenant_code
+      note: 逻辑租户与数据租户两个租户编码，语义高度重叠，易混用
+    - fields:
+      - private_key
+      - private_key_pwd
+      note: 名称拷贝对：私钥与其口令，均属敏感字段需一同脱敏
+    - fields:
+      - act_procinst_id
+      - act_procinst_no
+      note: 同属流程标识，一为实例ID一为申请编号，均为实例值不应作枚举
+  cust_shareholder_info:
+    table: cust_shareholder_info
+    enums:
+    - column: code
+      verdict: reject
+      reason: 样本为32位随机十六进制串，疑似行级唯一业务编码/实例标识，非封闭业务代码集；唯一性高，也不适合放入 value_index。
+    - column: name
+      verdict: reject
+      reason: 关联方名称属自由文本，样本多为测试噪声值，既非枚举也不适合 value_index。
+    - column: enable
+      verdict: keep
+      reason: enable 为典型启停开关，取值应为 Y/N 一类封闭代码；当前样本仅见 Y，仍可作 proposed 枚举。
+    - column: remark
+      verdict: reject
+      reason: 备注为自由文本，样本为无意义噪声，非枚举值。
+    - column: certification_type
+      verdict: keep
+      reason: 证件类型属封闭业务代码集，样本 CRET_ID 为代码形态；样本仅一个值，保留为 proposed。
+    - column: certification_no
+      verdict: reject
+      reason: 证件号码属个人敏感信息，不应进枚举，也不应进 value_index。
+    - column: email
+      verdict: reject
+      reason: 电子邮件属联系信息/自由文本，样本为噪声值，不应进枚举或 value_index。
+    - column: fund_amount_act
+      verdict: reject
+      reason: 实际出资金额为自由数值字段，样本为随意字符串，非封闭枚举。
+    - column: fund_scale
+      verdict: reject
+      reason: 出资比例为自由数值/比例字段，样本为随意字符串，非封闭枚举。
+    - column: relation_type
+      verdict: keep
+      reason: 关联方类型取值为 LEGAL_PERSON、SENIOR_MANAGER 等封闭业务代码，符合枚举页条件，保留为 proposed。
+    clusters:
+    - key: common
+      title: 通用字段
+      include: always
+      fields:
+      - id
+      - enable
+      - create_by
+      - create_user
+      - create_time
+      - update_by
+      - update_user
+      - update_time
+    - key: approval
+      title: 审批流程
+      fields:
+      - act_procinst_id
+      - act_procinst_no
+      - act_procinst_status
+      - act_procinst_date
+    - key: tenant
+      title: 租户标识
+      fields:
+      - app_tenant_code
+      - db_tenant_code
+    - key: shareholder_identity
+      title: 关联方身份
+      fields:
+      - name
+      - code
+      - certification_type
+      - certification_no
+      - relation_type
+    - key: contact
+      title: 联系方式
+      fields:
+      - telephone
+      - email
+    - key: fund
+      title: 出资信息
+      fields:
+      - fund_type
+      - currency
+      - fund_amount_ought
+      - fund_amount_act
+      - fund_scale
+      - investment_date
+    - key: reference
+      title: 机构与关联引用
+      fields:
+      - organization_id
+      - ref_cust_company_info
+      - main_data_id
+    - key: misc
+      title: 备注及其他
+      fields:
+      - remark
+    similar_fields:
+    - fields:
+      - app_tenant_code
+      - db_tenant_code
+      note: 两列均为租户标识，语义高度相近，疑似逻辑租户/数据租户的分工或冗余编码，需确认使用口径。
+    - fields:
+      - create_by
+      - create_user
+      note: 创建人ID与创建人名称成对出现，属同一审计动作的标识/名称冗余。
+    - fields:
+      - update_by
+      - update_user
+      note: 更新人ID与更新人名称成对出现，属同一审计动作的标识/名称冗余。
+    - fields:
+      - id
+      - main_data_id
+      note: 表主键与主数据ID均为数值标识，需确认 main_data_id 是否为外部主数据引用而非本表主键别名。
+  cust_project_rel:
+    table: cust_project_rel
+    enums:
+    - column: company_type
+      verdict: keep
+      reason: 疑似封闭客户角色业务代码集，保留 proposed；注意存在拼写近似重复值
+    - column: enable
+      verdict: keep
+      reason: Y/N 启用开关，疑似封闭代码集，保留 proposed
+    - column: remark
+      verdict: reject
+      reason: 备注为自由文本/模块标签，非封闭业务代码集，且不应入 value_index
+    - column: show_flag
+      verdict: keep
+      reason: Y/N 展示标记开关，疑似封闭代码集，保留 proposed
+    - column: config_model
+      verdict: reject
+      reason: 仅一个值 admin，无法确认封闭代码集，属配置片段
+    - column: status
+      verdict: keep
+      reason: 0/1 关联状态码，含空白变体，疑似封闭状态代码集，保留 proposed
+    - column: ref_cust_project_rel_platform_product
+      verdict: instance
+      reason: 值以平台产品ID/hash为主并混有业务编码，非封闭枚举，宜入 value_index
+    - column: top_flag
+      verdict: keep
+      reason: 0/1 置顶标识开关，疑似封闭代码集，保留 proposed
+    - column: project_open_status
+      verdict: keep
+      reason: NOT_OPEN/OPENED 项目开通状态码，疑似封闭状态代码集，保留 proposed
+    clusters:
+    - key: common
+      title: 通用
+      include: always
+      fields:
+      - id
+      - code
+      - enable
+      - create_by
+      - create_user
+      - create_time
+      - update_by
+      - update_user
+      - update_time
+    - key: project
+      title: 项目
+      fields:
+      - project_id
+      - project_open_status
+      - config_model
+      - tenant_flg_en
+    - key: tenant
+      title: 租户
+      fields:
+      - tenant_code
+      - app_tenant_code
+      - db_tenant_code
+    - key: product_channel
+      title: 产品与渠道
+      fields:
+      - product_id
+      - channel_code
+      - ref_cust_project_rel_platform_product
+    - key: relation_profile
+      title: 关联信息
+      fields:
+      - name
+      - company_type
+      - organization_id
+      - ref_cust_project_rel_cust_company_info
+      - remark
+    - key: status_flags
+      title: 关联状态与标记
+      fields:
+      - status
+      - show_flag
+      - top_flag
+    - key: approval
+      title: 流程实例
+      fields:
+      - act_procinst_id
+      - act_procinst_no
+      - act_procinst_status
+      - act_procinst_date
+    - key: op_contact
+      title: 运营对接
+      fields:
+      - op_contact_a
+      - op_contact_b
+      - op_contact_a_group
+    - key: verification_contact
+      title: 查验对接
+      fields:
+      - verification_contact
+      - verification_contact_group
+    - key: risk_contact
+      title: 风控对接
+      fields:
+      - risk_control_contact_a
+      - risk_control_contact_b
+      - risk_control_contact_a_group
+    - key: op_update_audit
+      title: 运营信息更新
+      fields:
+      - op_update_user
+      - op_update_time
+    similar_fields:
+    - fields:
+      - app_tenant_code
+      - db_tenant_code
+      note: 均为租户标识（逻辑/数据），疑似重复编码或分层字段
+    - fields:
+      - tenant_code
+      - app_tenant_code
+      - db_tenant_code
+      note: 同表多个租户编码列，需确认是否冗余/层次关系
+    - fields:
+      - create_by
+      - update_by
+      note: 均为操作人ID，事件不同但语义相近
+    - fields:
+      - create_user
+      - update_user
+      note: 均为操作人名称，事件不同但语义相近
+    - fields:
+      - create_time
+      - update_time
+      note: 均为操作时间，事件不同但语义相近
+    - fields:
+      - op_contact_a_group
+      - verification_contact_group
+      - risk_control_contact_a_group
+      note: 均为联系人组别字段，业务角色不同，命名相近
+    - fields:
+      - act_procinst_id
+      - act_procinst_no
+      note: 流程实例ID与流程申请编号，均为流程标识但用途不同
+    - fields:
+      - status
+      - project_open_status
+      note: 均含状态语义，作用域不同（关联状态/项目开通状态）
+  cust_setting_config:
+    table: cust_setting_config
+    enums:
+    - column: enable
+      verdict: keep
+      reason: 启用开关列，常见为 Y/N 封闭代码；样本仅见 Y
+    - column: need_verify_no_key
+      verdict: keep
+      reason: 审核开关列，yes/no 封闭代码；样本仅见 yes
+    - column: user_agreement
+      verdict: instance
+      reason: 值为 CT- 前缀协议文档ID，非封闭代码集
+    - column: privacy_policy_agreement
+      verdict: instance
+      reason: 值为 CT- 前缀协议文档ID，非封闭代码集
+    - column: authorization_offline
+      verdict: instance
+      reason: 值为 CT- 前缀协议文档ID，非封闭代码集
+    - column: need_auth_verify
+      verdict: keep
+      reason: 审核开关列，yes/no 封闭代码；样本仅见 yes
+    - column: face_recognition
+      verdict: keep
+      reason: 开关列，yes/no 封闭代码；样本仅见 no
+    - column: payment_verification
+      verdict: keep
+      reason: 验证开关列，yes/no 封闭代码；样本仅见 yes
+    - column: invitation_code_period
+      verdict: reject
+      reason: 数值型配置，非封闭代码集/名单
+    - column: sending_interval
+      verdict: reject
+      reason: 数值型配置，非封闭代码集/名单
+    clusters:
+    - key: common
+      title: 通用
+      include: always
+      fields:
+      - id
+      - code
+      - enable
+      - create_by
+      - create_user
+      - create_time
+      - update_by
+      - update_user
+      - update_time
+    - key: base
+      title: 配置信息
+      fields:
+      - name
+      - remark
+    - key: approval
+      title: 流程审批
+      fields:
+      - act_procinst_id
+      - act_procinst_no
+      - act_procinst_status
+      - act_procinst_date
+    - key: tenant
+      title: 租户标识
+      fields:
+      - app_tenant_code
+      - db_tenant_code
+    - key: org
+      title: 企业/机构标识
+      fields:
+      - cust_id
+      - organization_id
+    - key: enterprise_key
+      title: 企业关键信息
+      fields:
+      - key_word
+      - no_key_word
+    - key: agreement
+      title: 协议签署
+      fields:
+      - user_agreement
+      - privacy_policy_agreement
+      - authorization_online
+      - authorization_offline
+      - authorization_change
+      - cfca_agreement
+    - key: verification
+      title: 认证审核
+      fields:
+      - need_verify_no_key
+      - need_auth_verify
+      - face_recognition
+    - key: payment
+      title: 打款验证
+      fields:
+      - payment_verification
+      - payment_maximum_number
+    - key: invitation
+      title: 邀请码
+      fields:
+      - invitation_code_period
+      - invitation_code_period_unit
+      - sending_interval
+      - sending_interval_unti
+    similar_fields:
+    - fields:
+      - create_by
+      - create_user
+      note: 创建人ID与创建人名称成对审计列
+    - fields:
+      - update_by
+      - update_user
+      note: 更新人ID与更新人名称成对审计列
+    - fields:
+      - app_tenant_code
+      - db_tenant_code
+      note: 逻辑租户标识与数据租户标识，疑似双写/冗余
+    - fields:
+      - authorization_change
+      - cfca_agreement
+      note: 注释均为数字证书服务协议，疑似重复编码
+    - fields:
+      - invitation_code_period_unit
+      - sending_interval_unti
+      note: 均为时间间隔单位列，后者字段名疑似拼写错误（unti），命名相近需确认是否冗余
+  cust_survey_answer:
+    table: cust_survey_answer
+    enums:
+    - column: survey_code
+      verdict: instance
+      reason: 问卷实例编码，非封闭业务代码集，建议进 value_index
+    - column: enable
+      verdict: keep
+      reason: 启用开关，Y/N 封闭代码集（样本仅 Y）
+    clusters:
+    - key: common
+      title: 通用审计与基础字段
+      include: always
+      fields:
+      - id
+      - code
+      - enable
+      - create_by
+      - create_user
+      - create_time
+      - update_by
+      - update_user
+      - update_time
+    - key: survey_answer
+      title: 调研答题
+      fields:
+      - survey_code
+      - question_no
+      - answer_value
+      - other_text
+      - submit_time
+    - key: process
+      title: 流程审批
+      fields:
+      - act_procinst_id
+      - act_procinst_no
+      - act_procinst_status
+      - act_procinst_date
+    - key: identity_context
+      title: 组织与用户
+      fields:
+      - company_id
+      - user_id
+      - organization_id
+    - key: tenant
+      title: 租户标识
+      fields:
+      - app_tenant_code
+      - db_tenant_code
+    - key: basic
+      title: 名称备注
+      fields:
+      - name
+      - remark
+    similar_fields:
+    - fields:
+      - app_tenant_code
+      - db_tenant_code
+      note: 逻辑租户与数据租户标识，语义相近，需区分使用场景
+    - fields:
+      - survey_code
+      - code
+      note: 均为编码类字段，survey_code 为问卷编码，code 为通用编码，注意区分
+  funding_rule_detail:
+    table: funding_rule_detail
+    enums:
+    - column: rule_layer
+      verdict: keep
+      reason: 规则层为封闭业务代码集，样本值 FINANCING/UNDERLYING/OTHER 符合枚举特征，建议保留为 proposed 枚举
+    - column: product_code
+      verdict: instance
+      reason: 产品编码属于产品主数据/实例名单，低基数但不宜作为封闭代码枚举，建议改入 value_index
+    - column: enable
+      verdict: keep
+      reason: enable 为典型启用开关，样本仅 Y 但语义上属于 Y/N 业务代码，建议保留为 proposed 枚举
+    - column: check_scene
+      verdict: keep
+      reason: 校验场景属于场景/类型代码，样本值 SUBMIT_VALIDATE 形如封闭业务枚举，建议保留为 proposed 枚举
+    clusters:
+    - key: common
+      title: 通用
+      include: always
+      fields:
+      - id
+      - code
+      - enable
+      - create_by
+      - create_user
+      - create_time
+      - update_by
+      - update_user
+      - update_time
+    - key: rule
+      title: 规则项
+      fields:
+      - rule_key
+      - rule_value
+      - rule_layer
+      - fund_rule_code_ref
+      - rule_info_id
+      - version
+    - key: funding_product
+      title: 资方与产品
+      fields:
+      - funding_party_mark
+      - product_code
+    - key: workflow
+      title: 审批流程
+      fields:
+      - act_procinst_id
+      - act_procinst_no
+      - act_procinst_status
+      - act_procinst_date
+    - key: org_check
+      title: 机构与校验
+      fields:
+      - organization_id
+      - check_scene
+    - key: tenant
+      title: 租户标识
+      fields:
+      - app_tenant_code
+      - db_tenant_code
+    - key: basic
+      title: 基础信息
+      fields:
+      - name
+      - remark
+    similar_fields:
+    - fields:
+      - app_tenant_code
+      - db_tenant_code
+      note: 均为租户标识，逻辑租户与数据租户语义不同，注意区分使用
+    - fields:
+      - act_procinst_id
+      - act_procinst_no
+      note: 流程实例ID与流程申请编号，均关联审批流程，标识类型不同
+    - fields:
+      - fund_rule_code_ref
+      - rule_info_id
+      note: 均指向规则信息关联，一为code一为ID，注意关联键类型
+    - fields:
+      - create_by
+      - create_user
+      note: 同一创建人的ID与名称，非完全重复，展示时可成对使用
+    - fields:
+      - update_by
+      - update_user
+      note: 同一更新人的ID与名称，非完全重复，展示时可成对使用
+  funding_exception_resolution:
+    table: funding_exception_resolution
+    enums:
+    - column: funding_party_code
+      verdict: instance
+      reason: 资金方/对接方代码，取值是各资金方实例标识，非封闭业务代码集，应改入 value_index。
+    - column: product_code
+      verdict: instance
+      reason: 产品编码，取值像产品实例/产品目录成员，非状态/类型/开关类封闭枚举，应改入 value_index。
+    - column: enable
+      verdict: keep
+      reason: 启用开关，属封闭开关代码集；当前仅见 Y，仍建议保留为 proposed 枚举。
+    clusters:
+    - key: common
+      title: 通用/审计
+      include: always
+      fields:
+      - id
+      - code
+      - name
+      - enable
+      - remark
+      - create_by
+      - create_user
+      - create_time
+      - update_by
+      - update_user
+      - update_time
+    - key: exception
+      title: 异常信息与处理
+      fields:
+      - exception_no
+      - error_keyword
+      - error_reason
+      - suggestion
+      - file_path
+    - key: funding_party
+      title: 资金方
+      fields:
+      - funding_party_code
+      - funding_party_name
+    - key: product
+      title: 产品
+      fields:
+      - product_code
+    - key: workflow
+      title: 审批流程
+      fields:
+      - act_procinst_id
+      - act_procinst_no
+      - act_procinst_status
+      - act_procinst_date
+    - key: tenant
+      title: 租户标识
+      fields:
+      - app_tenant_code
+      - db_tenant_code
+    - key: organization
+      title: 机构
+      fields:
+      - organization_id
+    similar_fields:
+    - fields:
+      - app_tenant_code
+      - db_tenant_code
+      note: 逻辑租户标识与数据租户标识，语义相近，需确认是否冗余或需同时保留。
+    - fields:
+      - create_by
+      - create_user
+      note: 创建人 ID 与创建人名称，成对字段。
+    - fields:
+      - update_by
+      - update_user
+      note: 更新人 ID 与更新人名称，成对字段。
+    - fields:
+      - funding_party_code
+      - funding_party_name
+      note: 资金方编码与资金方名称，成对字段。
+    - fields:
+      - code
+      - name
+      note: 通用编码与名称，成对字段。
+  lc_sql_init_log:
+    table: lc_sql_init_log
+    enums:
+    - column: name
+      verdict: instance
+      reason: 插件名称，取值 a/b/3/2 为低基数具体插件实例（且疑似测试数据），非封闭业务代码集，不构成枚举，应改入 value_index 作为值维度
+    clusters:
+    - key: common
+      title: 通用
+      include: always
+      fields:
+      - id
+    - key: plugin
+      title: 插件标识
+      fields:
+      - name
+    - key: sql_payload
+      title: SQL内容
+      fields:
+      - description
+    similar_fields: []
+  cust_user_rel:
+    table: cust_user_rel
+    enums:
+    - column: code
+      verdict: reject
+      reason: 样例仅 a，不像封闭业务代码集，更像占位/自由编码；非实例名单，不入 value_index
+    - column: company_type
+      verdict: reject
+      reason: 样例仅 NULL_VALUE，为空值占位，无有效代码，不入枚举/value_index
+    - column: type_status
+      verdict: keep
+      reason: 列名含 status 且值 EFFECT 呈状态代码特征，疑似封闭状态枚举；样本仅一值，保持 proposed 待确认
+    - column: user_type
+      verdict: keep
+      reason: 列名与值 admin 呈类型代码特征，疑似封闭类型枚举；样本仅一值，保持 proposed 待确认
+    - column: enable
+      verdict: keep
+      reason: 开关字段，Y 符合 Y/N 封闭开关码特征，保持 proposed 待确认
+    clusters:
+    - key: common
+      title: 通用/审计
+      include: always
+      fields:
+      - id
+      - code
+      - enable
+      - remark
+      - create_by
+      - create_user
+      - create_time
+      - update_by
+      - update_user
+      - update_time
+    - key: user
+      title: 用户
+      fields:
+      - user_id
+      - user_type
+    - key: company
+      title: 企业
+      fields:
+      - company_id
+      - company_name
+      - company_type
+    - key: role
+      title: 角色/关联
+      fields:
+      - name
+      - type_status
+    - key: process
+      title: 审批流程
+      fields:
+      - act_procinst_id
+      - act_procinst_no
+      - act_procinst_status
+      - act_procinst_date
+    - key: tenant
+      title: 租户
+      fields:
+      - app_tenant_code
+      - db_tenant_code
+    - key: org
+      title: 机构
+      fields:
+      - organization_id
+    similar_fields:
+    - fields:
+      - create_by
+      - create_user
+      note: 创建人ID与创建人名称同审计人语义，易混用
+    - fields:
+      - update_by
+      - update_user
+      note: 更新人ID与更新人名称同审计人语义，易混用
+    - fields:
+      - app_tenant_code
+      - db_tenant_code
+      note: 逻辑租户与数据租户编码，可能为重复租户标识
+  funding_rule_front_cfg:
+    table: funding_rule_front_cfg
+    enums:
+    - column: rule_layer
+      verdict: keep
+      reason: 规则层，值为 UNDERLYING/FINANCING/OTHER 的全大写封闭业务代码集，属状态/类型类枚举（proposed，待业务确认）
+    - column: product_code
+      verdict: instance
+      reason: 产品编码，ACFLOW/RVSFACTOR_PC 为具体产品实例标识而非封闭代码集，宜入 value_index 作取值索引
+    - column: front_key
+      verdict: instance
+      reason: 值形如 <字段名>_<校验类型>_<规则层> 的组合配置键，与配置行一一对应，不是封闭业务代码集，宜入 value_index
+    - column: key_type
+      verdict: keep
+      reason: 字段业务规则类型，全部为大写下划线代码（FIELD_REQUIRED/FILE_SIZE_LIMIT 等），封闭类型集（proposed）
+    - column: rule_key
+      verdict: instance
+      reason: 值为 B0003、list.contractNo、transferDate 等字段/字段组标识名单，属实例型取值而非封闭代码集，宜入 value_index
+    - column: enable
+      verdict: keep
+      reason: 启用开关型字段，属开关类封闭代码集；当前样本仅出现 Y，仅登记为 proposed 待补全 Y/N
+    - column: check_scene
+      verdict: keep
+      reason: 校验场景，值为全大写场景码 SUBMIT_VALIDATE，属封闭场景代码集；样本仅一个值，登记为 proposed
+    clusters:
+    - key: common
+      title: 通用与审计
+      include: always
+      fields:
+      - id
+      - code
+      - enable
+      - remark
+      - create_by
+      - create_user
+      - create_time
+      - update_by
+      - update_user
+      - update_time
+    - key: tenant
+      title: 租户隔离
+      fields:
+      - app_tenant_code
+      - db_tenant_code
+    - key: front
+      title: 前端展示配置
+      fields:
+      - front_key_name
+      - front_key
+      - front_field_style
+    - key: rule
+      title: 规则定义与校验
+      fields:
+      - rule_layer
+      - rule_key
+      - key_name
+      - key_type
+      - check_scene
+    - key: act_procinst
+      title: 审批流程
+      fields:
+      - act_procinst_id
+      - act_procinst_no
+      - act_procinst_status
+      - act_procinst_date
+    - key: product
+      title: 产品维度
+      fields:
+      - product_code
+      - name
+    - key: org
+      title: 机构维度
+      fields:
+      - organization_id
+    similar_fields:
+    - fields:
+      - front_key
+      - rule_key
+      note: front_key 取值由 rule_key 加上校验类型与规则层拼成，存在派生冗余
+    - fields:
+      - front_key_name
+      - key_name
+      note: 前者为前端展示字段名称、后者为字段名称描述，语义高度重叠
+    - fields:
+      - app_tenant_code
+      - db_tenant_code
+      note: 逻辑租户标识与数据租户标识两列并存，疑似同一租户编码的双份存储
+  migratory_user_record:
+    table: migratory_user_record
+    enums:
+    - column: is_login
+      verdict: keep
+      reason: 字段注释「是否登录过」，样本仅 Y/N 二值，属封闭布尔开关码集，仍为 proposed，需确认 N 是否全集
+    - column: enable
+      verdict: keep
+      reason: 列名即启用开关，属注释所称的开关类封闭码集；但样本 distinct=1 仅见 Y，未见 N，需补采样确认后固化
+    clusters:
+    - key: common
+      title: 通用与审计
+      include: always
+      fields:
+      - id
+      - code
+      - enable
+      - create_by
+      - create_user
+      - create_time
+      - update_by
+      - update_user
+      - update_time
+    - key: user_profile
+      title: 迁移用户身份与登录
+      fields:
+      - name
+      - user_id
+      - is_login
+    - key: approval_procinst
+      title: 审批流程实例
+      fields:
+      - act_procinst_id
+      - act_procinst_no
+      - act_procinst_status
+      - act_procinst_date
+    - key: tenant
+      title: 租户标识
+      fields:
+      - app_tenant_code
+      - db_tenant_code
+    - key: org
+      title: 机构归属
+      fields:
+      - organization_id
+    - key: misc
+      title: 备注
+      fields:
+      - remark
+    similar_fields:
+    - fields:
+      - create_by
+      - create_user
+      note: 创建人 id 与创建人名称，同一主体的两种标识，展示类场景可只取其一
+    - fields:
+      - update_by
+      - update_user
+      note: 更新人 id 与更新人名称，同上，冗余标识对
+    - fields:
+      - app_tenant_code
+      - db_tenant_code
+      note: 逻辑租户标识与数据租户标识并存，需确认两者是否恒等或为重复编码
+    - fields:
+      - act_procinst_id
+      - act_procinst_no
+      note: 同一流程实例的 ID 与申请编号，均为该流程的标识列
+  gpt_learn_poster_log:
+    table: gpt_learn_poster_log
+    enums:
+    - column: enable
+      verdict: keep
+      reason: 开关类字段，属于业务代码集；当前样本仅Y，按proposed保留，完整值域待确认。
+    clusters:
+    - key: common
+      title: 通用
+      include: always
+      fields:
+      - id
+      - code
+      - name
+      - enable
+      - remark
+      - create_by
+      - create_user
+      - create_time
+      - update_by
+      - update_user
+      - update_time
+    - key: user
+      title: 用户
+      fields:
+      - user_id
+      - user_name
+    - key: company
+      title: 企业
+      fields:
+      - company_id
+      - company_name
+    - key: organization
+      title: 机构
+      fields:
+      - organization_id
+    - key: tenant
+      title: 租户标识
+      fields:
+      - app_tenant_code
+      - db_tenant_code
+    - key: poster_interaction
+      title: 卡片交互
+      fields:
+      - popup_time
+      - click_time
+    - key: approval_workflow
+      title: 审批流程
+      fields:
+      - act_procinst_id
+      - act_procinst_no
+      - act_procinst_status
+      - act_procinst_date
+    similar_fields:
+    - fields:
+      - app_tenant_code
+      - db_tenant_code
+      note: 逻辑租户标识与数据租户标识，语义相近，可能为分层/冗余租户编码，需确认映射关系。
+    - fields:
+      - create_by
+      - create_user
+      note: 创建人id与创建人名称，成对使用，非重复但需注意名称同步。
+    - fields:
+      - update_by
+      - update_user
+      note: 更新人id与更新人名称，成对使用，非重复但需注意名称同步。
+    - fields:
+      - user_id
+      - user_name
+      note: 用户id与用户名，成对使用，名称非稳定键。
+    - fields:
+      - company_id
+      - company_name
+      note: 企业id与企业名称，成对使用，名称非稳定键。
+    - fields:
+      - company_id
+      - organization_id
+      note: 企业ID与机构编号均为组织标识，可能同义或存在跨系统映射，需确认。
+  org_manage:
+    table: org_manage
+    enums:
+    - column: status
+      verdict: keep
+      reason: 机构状态字段，属封闭状态码集，交由字典确认取值，暂标 proposed
+    - column: org_type
+      verdict: keep
+      reason: 机构类型字段，属封闭类型码集，暂标 proposed
+    - column: client_type
+      verdict: keep
+      reason: 端类型字段，属渠道/端编码集，暂标 proposed
+    - column: act_procinst_status
+      verdict: keep
+      reason: 审批状态字段，属流程状态码集，暂标 proposed
+    - column: enable
+      verdict: keep
+      reason: 启用开关字段，属封闭开关码集，暂标 proposed
+    - column: org_level
+      verdict: reject
+      reason: 数值型机构层级序数，非封闭业务代码集，也不适合进 value_index
+    clusters:
+    - key: common
+      title: 通用/审计
+      include: always
+      fields:
+      - id
+      - code
+      - enable
+      - create_by
+      - create_user
+      - create_time
+      - update_by
+      - update_user
+      - update_time
+    - key: org_identity
+      title: 机构身份标识
+      fields:
+      - name
+      - org_name
+      - org_no
+      - organization_id
+    - key: org_attr
+      title: 机构属性
+      fields:
+      - org_level
+      - org_type
+      - status
+      - client_type
+    - key: hierarchy
+      title: 机构层级关系
+      fields:
+      - parent_code
+    - key: workflow
+      title: 审批流程
+      fields:
+      - act_procinst_id
+      - act_procinst_no
+      - act_procinst_status
+      - act_procinst_date
+    - key: tenant
+      title: 租户标识
+      fields:
+      - app_tenant_code
+      - db_tenant_code
+    - key: misc
+      title: 备注
+      fields:
+      - remark
+    similar_fields:
+    - fields:
+      - name
+      - org_name
+      note: 均为机构名称语义，存在一列冗余，需确认哪列为展示名
+    - fields:
+      - code
+      - org_no
+      - organization_id
+      note: 三列均为机构编码/编号类标识，编码口径疑似重复
+    - fields:
+      - app_tenant_code
+      - db_tenant_code
+      note: 逻辑租户标识与数据租户标识，疑似同一租户维度的重复编码
+    - fields:
+      - create_by
+      - create_user
+      note: 同源审计对，一存创建人 id、一存创建人名称
+    - fields:
+      - update_by
+      - update_user
+      note: 同源审计对，一存更新人 id、一存更新人名称
+  funding_rule_info:
+    table: funding_rule_info
+    enums:
+    - column: product_code
+      verdict: instance
+      reason: 产品编码属于业务对象标识/名单，低基数且非状态/类型/开关类封闭代码集，建议改入 value_index。
+    - column: rule_status
+      verdict: keep
+      reason: 规则状态为封闭业务代码集（ACTIVE/INACTIVE/PENDING），保留为 proposed 枚举。
+    - column: enable
+      verdict: keep
+      reason: enable 为开关型业务代码，样本仅见 Y，保留为 proposed 枚举。
+    clusters:
+    - key: common
+      title: 通用/审计
+      include: always
+      fields:
+      - id
+      - code
+      - enable
+      - create_by
+      - create_user
+      - create_time
+      - update_by
+      - update_user
+      - update_time
+    - key: funding
+      title: 资方/机构
+      fields:
+      - funding_party_mark
+      - funding_party_name
+      - organization_id
+    - key: product
+      title: 产品
+      fields:
+      - product_code
+    - key: rule
+      title: 规则
+      fields:
+      - name
+      - rule_status
+      - version
+    - key: approval
+      title: 审批流程
+      fields:
+      - act_procinst_id
+      - act_procinst_no
+      - act_procinst_status
+      - act_procinst_date
+    - key: tenant
+      title: 租户
+      fields:
+      - app_tenant_code
+      - db_tenant_code
+    - key: remark
+      title: 备注
+      fields:
+      - remark
+    similar_fields:
+    - fields:
+      - app_tenant_code
+      - db_tenant_code
+      note: 两个租户编码语义相近，可能冗余，需区分逻辑租户与数据租户。
+    - fields:
+      - create_by
+      - create_user
+      note: 创建人 id 与名称成对，通常同源。
+    - fields:
+      - update_by
+      - update_user
+      note: 更新人 id 与名称成对，通常同源。
+  operation_user:
+    table: operation_user
+    enums:
+    - column: deleted
+      verdict: keep
+      reason: 样本仅 N/Y，为逻辑删除开关，属封闭布尔代码集；仍为 proposed。
+    - column: enable
+      verdict: keep
+      reason: 样本仅 Y/N，为启用/禁用开关，属封闭布尔代码集；仍为 proposed。
+    clusters:
+    - key: common
+      title: 通用
+      include: always
+      fields:
+      - id
+      - code
+      - enable
+      - deleted
+      - create_by
+      - create_user
+      - create_time
+      - update_by
+      - update_user
+      - update_time
+    - key: operation_identity
+      title: 运营人员身份
+      fields:
+      - operation_id
+      - operation_name
+      - operation_group
+      - name
+      - status
+      - organization_id
+    - key: workflow
+      title: 审批流程
+      fields:
+      - act_procinst_id
+      - act_procinst_no
+      - act_procinst_status
+      - act_procinst_date
+    - key: tenant
+      title: 租户标识
+      fields:
+      - app_tenant_code
+      - db_tenant_code
+    - key: misc
+      title: 其他
+      fields:
+      - remark
+    similar_fields:
+    - fields:
+      - operation_name
+      - name
+      note: operation_name 注释为运营人员姓名，name 仅注释为名称，可能语义重叠或存在冗余，需确认。
+    - fields:
+      - operation_id
+      - code
+      note: operation_id 为运营中台id，code 仅注释编码，均可能作为业务标识，需确认是否重复编码。
+    - fields:
+      - app_tenant_code
+      - db_tenant_code
+      note: 逻辑租户标识与数据租户标识名称相近，可能为不同层级租户编码，需确认是否冗余。
+    - fields:
+      - act_procinst_id
+      - act_procinst_no
+      note: 流程实例ID与流程申请编号均标识审批流程，可能为同一流程的不同编码形态。
+    - fields:
+      - status
+      - act_procinst_status
+      note: 用户状态标识与当前审批状态语义不同，但名称相近，需避免混淆。
+    - fields:
+      - deleted
+      - enable
+      note: 删除标识与启用标识均为开关字段，语义相近但用途不同。
+  project_file_info:
+    table: project_file_info
+    enums:
+    - column: file_type
+      verdict: keep
+      reason: 取值为 cust/approve/collate/other/check，属封闭的文件模块类型业务代码集，保留为 proposed，待样本复核。
+    - column: enable
+      verdict: reject
+      reason: distinct=1，仅见单值 Y，无法证明是 Y/N 封闭开关集，样本不足不 keep；亦非实例名单，故 reject，不进 value_index。
+    clusters:
+    - key: common
+      title: 通用/审计
+      include: always
+      fields:
+      - id
+      - code
+      - enable
+      - create_by
+      - create_user
+      - create_time
+      - update_by
+      - update_user
+      - update_time
+    - key: flow
+      title: 审批流程实例
+      fields:
+      - act_procinst_id
+      - act_procinst_no
+      - act_procinst_status
+      - act_procinst_date
+    - key: tenant
+      title: 租户标识
+      fields:
+      - app_tenant_code
+      - db_tenant_code
+    - key: file_content
+      title: 文件内容信息
+      fields:
+      - title
+      - name
+      - content
+      - file_type
+      - remark
+    - key: relation
+      title: 归属关联
+      fields:
+      - project_id
+      - organization_id
+    similar_fields:
+    - fields:
+      - create_by
+      - create_user
+      note: 创建人 id 与创建人名称，同一语义的编码-名称冗余对
+    - fields:
+      - update_by
+      - update_user
+      note: 更新人 id 与更新人名称，同一语义的编码-名称冗余对
+    - fields:
+      - title
+      - name
+      note: 标题与名称语义相近，需确认是否重复表达同一字段
+    - fields:
+      - app_tenant_code
+      - db_tenant_code
+      note: 逻辑租户标识与数据租户标识，两列取值可能重复，需确认是否冗余
+  platform_product_cust_role:
+    table: platform_product_cust_role
+    enums:
+    - column: product_code
+      verdict: keep
+      reason: 值均为大写下划线业务代码（VOUCHER/STORAGE/CROSSBORDER/ORDER/DEALER 等），形似平台产品线代码集，非自由文本、非实例名；仍属
+        proposed，需产品维表确认是否封闭。若实为产品维表外键，应降级为 instance。
+    - column: company_type_code
+      verdict: keep
+      reason: 企业角色编码，值 CORE/SUPPLIER/FINANCE/DEALER 等为大写业务代码，属封闭角色代码集，proposed 待人工确认。
+    - column: enable
+      verdict: keep
+      reason: Y/N 二值开关，典型启停枚举，proposed。
+    clusters:
+    - key: common
+      title: 通用与审计
+      include: always
+      fields:
+      - id
+      - code
+      - enable
+      - create_by
+      - create_user
+      - create_time
+      - update_by
+      - update_user
+      - update_time
+    - key: role
+      title: 企业角色信息
+      fields:
+      - name
+      - company_type_code
+      - company_type_name
+    - key: product
+      title: 平台产品维度
+      fields:
+      - product_code
+    - key: approval
+      title: 审批流程信息
+      fields:
+      - act_procinst_id
+      - act_procinst_no
+      - act_procinst_status
+      - act_procinst_date
+    - key: tenant
+      title: 租户标识
+      fields:
+      - app_tenant_code
+      - db_tenant_code
+    - key: org
+      title: 机构归属
+      fields:
+      - organization_id
+    - key: other
+      title: 备注
+      fields:
+      - remark
+    similar_fields:
+    - fields:
+      - company_type_code
+      - company_type_name
+      note: 同一企业角色的编码-名称对，筛选/关联应统一走 code，name 仅作展示
+    - fields:
+      - code
+      - company_type_code
+      note: 两列均为编码，前者为本表主编码、后者为企业角色编码，语义接近，需确认是否重复编码
+    - fields:
+      - name
+      - company_type_name
+      note: 两列均为名称，疑似角色名称的冗余存储，需确认是否同义
+    - fields:
+      - app_tenant_code
+      - db_tenant_code
+      note: 逻辑租户与数据租户两个标识列，含义相近易混，需确认取值口径差异
+    - fields:
+      - create_by
+      - create_user
+      note: 创建人 id 与创建人名称成对冗余
+    - fields:
+      - update_by
+      - update_user
+      note: 更新人 id 与更新人名称成对冗余
+    - fields:
+      - act_procinst_id
+      - act_procinst_no
+      note: 流程实例 ID 与流程申请编号指向同一流程，展示口径不同
+  short_link:
+    table: short_link
+    enums:
+    - column: type
+      verdict: keep
+      reason: 短链类型，观测值 NORMAL/FILE 构成封闭业务代码集（仍为 proposed，中文 label 待补）
+    - column: is_forever
+      verdict: keep
+      reason: 到期类型开关，语义为 Y/N 布尔代码；样本仅见 Y，需人工补全取值后确认
+    - column: enable
+      verdict: reject
+      reason: 通用启用标志，属系统级审计/common 字段而非业务代码集，且样本仅单值 Y，不进枚举页与 value_index
+    clusters:
+    - key: common
+      title: 通用
+      include: always
+      fields:
+      - id
+      - code
+      - enable
+      - create_by
+      - create_user
+      - create_time
+      - update_by
+      - update_user
+      - update_time
+    - key: link_content
+      title: 短链内容
+      fields:
+      - name
+      - number
+      - source_url
+    - key: expire_rule
+      title: 有效期规则
+      fields:
+      - type
+      - is_forever
+      - expire_time
+    - key: act_procinst
+      title: 审批流程
+      fields:
+      - act_procinst_id
+      - act_procinst_no
+      - act_procinst_status
+      - act_procinst_date
+    - key: tenant_org
+      title: 租户与机构
+      fields:
+      - app_tenant_code
+      - db_tenant_code
+      - organization_id
+    - key: misc
+      title: 备注
+      fields:
+      - remark
+    similar_fields:
+    - fields:
+      - code
+      - number
+      note: 两列注释同为「编码」，疑似同一短链编码的重复/别名列，需确认取值是否一致
+    - fields:
+      - app_tenant_code
+      - db_tenant_code
+      note: 逻辑租户标识与数据租户标识，命名成对，疑似同一租户键的两种存储口径
+    - fields:
+      - create_by
+      - create_user
+      note: 同一次创建的 id 与名称成对，删改同步风险
+    - fields:
+      - update_by
+      - update_user
+      note: 同一次更新的 id 与名称成对，删改同步风险
+  tenant_interworking_project:
+    table: tenant_interworking_project
+    enums:
+    - column: platform_product_code
+      verdict: instance
+      reason: 取值为 HTCP1/HTCP13/HTCP14/HTCP5/AMS 等平台产品编码，来自产品目录实例而非代码内封闭枚举，宜入 value_index
+        作实例值参考
+    - column: ref_tenant_interworking_project_tenant_setting_config
+      verdict: reject
+      reason: 取值均为 32 位十六进制 UUID，是对外部表记录的标识引用，既不是封闭代码集也不是实例名单，不应入枚举或 value_index
+    - column: enable
+      verdict: keep
+      reason: enable 为启停开关字段，属封闭代码集，样本仅见 Y 不代表集合封闭性不足，仍按 proposed 保留
+    clusters:
+    - key: common
+      title: 通用
+      include: always
+      fields:
+      - id
+      - code
+      - enable
+      - create_by
+      - create_user
+      - create_time
+      - update_by
+      - update_user
+      - update_time
+    - key: profile
+      title: 项目基本信息
+      fields:
+      - name
+      - remark
+    - key: product
+      title: 产品关联
+      fields:
+      - product_id
+      - platform_product_code
+    - key: relation
+      title: 关联主体
+      fields:
+      - tenant_id
+      - project_id
+      - organization_id
+    - key: tenant_scope
+      title: 租户标识
+      fields:
+      - app_tenant_code
+      - db_tenant_code
+    - key: approval
+      title: 审批流程
+      fields:
+      - act_procinst_id
+      - act_procinst_no
+      - act_procinst_status
+      - act_procinst_date
+    - key: ref_tenant
+      title: 租户互通关联引用
+      fields:
+      - ref_tenant_interworking_project_tenant_setting_config
+      - ref_tenant_interworking_project_tenant_interworking_product
+    similar_fields:
+    - fields:
+      - create_by
+      - create_user
+      note: 同一创建人的 ID 与名称成对冗余，语义重复
+    - fields:
+      - update_by
+      - update_user
+      note: 同一更新人的 ID 与名称成对冗余，语义重复
+    - fields:
+      - app_tenant_code
+      - db_tenant_code
+      note: 均为租户标识字符串，仅逻辑/数据口径不同，存在重复编码嫌疑
+    - fields:
+      - id
+      - project_id
+      note: 主键 id 与项目id 均指向项目，是否同义需确认，可能冗余
+  tenant_migarory_log:
+    table: tenant_migarory_log
+    enums:
+    - column: direction
+      verdict: keep
+      reason: IN/OUT 为封闭的数据方向代码集，属业务枚举（proposed）
+    - column: type
+      verdict: keep
+      reason: 迁移/同步任务类型代码集，14 个离散代码值；命名风格不统一（camelCase 与 UPPER_SNAKE 混用），仍按代码枚举提议
+    - column: status
+      verdict: keep
+      reason: Y/N 二元开关值，属封闭开关集；但注释为“迁移状态”，与字段语义不完全吻合，仅作 proposed
+    - column: enable
+      verdict: reject
+      reason: 仅出现单值 Y，无区分度，属常量噪声，不进入枚举与 value_index
+    clusters:
+    - key: common
+      title: 通用
+      include: always
+      fields:
+      - id
+      - code
+      - enable
+      - create_by
+      - create_user
+      - create_time
+      - update_by
+      - update_user
+      - update_time
+    - key: tenant_scope
+      title: 租户与机构
+      fields:
+      - app_tenant_code
+      - db_tenant_code
+      - organization_id
+    - key: job
+      title: 迁移任务属性
+      fields:
+      - name
+      - platform_product_code
+      - direction
+      - type
+      - status
+      - batch_no
+    - key: tracing
+      title: 请求链路标识
+      fields:
+      - req_sn
+      - req_no
+      - trace_id
+    - key: payload
+      title: 请求与结果数据
+      fields:
+      - request
+      - response
+      - message
+      - data
+      - remark
+    - key: metrics
+      title: 数量统计
+      fields:
+      - success_number
+      - falied_number
+      - total_number
+    - key: act_procinst
+      title: 审批流程
+      fields:
+      - act_procinst_id
+      - act_procinst_no
+      - act_procinst_status
+      - act_procinst_date
+    similar_fields:
+    - fields:
+      - req_sn
+      - req_no
+      note: 均表示请求侧编号/流水，命名近义，存在冗余可能
+    - fields:
+      - app_tenant_code
+      - db_tenant_code
+      note: 逻辑租户标识与数据租户标识，均为租户编码，语义邻近
+    - fields:
+      - request
+      - response
+      note: 请求数据与返回数据成对出现，常成对使用
+  open_sso_channel:
+    table: open_sso_channel
+    enums:
+    - column: channel_code
+      verdict: instance
+      reason: 样本仅一个具体渠道标识 longteng，更像配置实例/渠道主档，不是封闭代码集，建议改入 value_index。
+    - column: channel_kind
+      verdict: keep
+      reason: 渠道类型代码（LOCAL_SYS），符合类型枚举语义，暂 proposed，待更多值确认。
+    - column: sso_client_id
+      verdict: reject
+      reason: 每渠道独立的客户端标识/配置凭据，非封闭代码集，也不适合作为值索引。
+    - column: open_mode_default
+      verdict: keep
+      reason: 打开形态代码，注释给出 EMBED/TOP，属封闭代码集，暂 proposed。
+    - column: sso_sync_status
+      verdict: keep
+      reason: SSO 同步状态代码（SYNCED），属状态枚举，暂 proposed。
+    - column: enable
+      verdict: keep
+      reason: 通用启用开关 Y/N，属开关枚举，暂 proposed。
+    clusters:
+    - key: common
+      title: 通用
+      include: always
+      fields:
+      - id
+      - code
+      - enable
+      - remark
+      - create_by
+      - create_user
+      - create_time
+      - update_by
+      - update_user
+      - update_time
+    - key: channel_profile
+      title: 渠道档案
+      fields:
+      - channel_code
+      - channel_name
+      - channel_kind
+      - name
+    - key: credentials
+      title: 接入凭证
+      fields:
+      - app_id
+      - sso_client_id
+      - sso_client_secret
+    - key: sso_mapping
+      title: SSO系统映射
+      fields:
+      - sys_type
+      - sys_channel
+      - org_code
+      - organization_id
+    - key: open_session
+      title: 打开与会话配置
+      fields:
+      - open_mode_default
+      - default_session_expire_minute
+      - max_session_expire_minute
+    - key: sso_sync
+      title: SSO同步
+      fields:
+      - sso_sync_status
+      - sso_sync_msg
+      - sso_synced_at
+    - key: tenant
+      title: 租户标识
+      fields:
+      - app_tenant_code
+      - db_tenant_code
+    - key: approval
+      title: 审批流程
+      fields:
+      - act_procinst_id
+      - act_procinst_no
+      - act_procinst_status
+      - act_procinst_date
+    similar_fields:
+    - fields:
+      - code
+      - channel_code
+      note: 均为渠道编码，code 可能是 channel_code 的通用副本，疑似重复编码，需确认。
+    - fields:
+      - name
+      - channel_name
+      note: 均为名称，name 可能是 channel_name 的通用副本，疑似重复。
+    - fields:
+      - org_code
+      - organization_id
+      note: 机构编码/机构编号，疑似同义或冗余。
+    - fields:
+      - app_tenant_code
+      - db_tenant_code
+      note: 逻辑租户与数据租户双列，语义相近，需确认是否重复/衍生。
+  tenant_interworking_product:
+    table: tenant_interworking_product
+    enums:
+    - column: product_cate
+      verdict: keep
+      reason: 产品类型，取值为 WEAKLY/STRONG/CREDIT 的封闭业务类型码，符合枚举页定位（仍为 proposed）
+    - column: open_status
+      verdict: keep
+      reason: 产品开通状态，Y/N 开关型封闭码集
+    - column: max_financing_amount_flag
+      verdict: keep
+      reason: 是否限额融资资金上限，Y/N 开关型封闭码集
+    - column: platform_product_code
+      verdict: instance
+      reason: 指向平台产品的业务编号清单（HTCP*/AMS），随产品新增而增长，非封闭码集，宜进 value_index
+    - column: target_sys_channel
+      verdict: instance
+      reason: 取值混合了渠道码与携带 org 后缀的租户实例串（如 smebee_pc_org91210200241281392f），非纯渠道码集，宜进
+        value_index
+    - column: scope
+      verdict: keep
+      reason: 适应范围标识，ALL/SOME 的封闭二值码
+    - column: ref_tenant_interworking_product_platform_product
+      verdict: instance
+      reason: 取值为 32 位 UUID 形态的关联对象标识，属实例/外键值，宜进 value_index
+    - column: enable
+      verdict: keep
+      reason: enable 开关，语义域为封闭 Y/N；当前样本仅观测到 Y，仍按 proposed 保留
+    - column: scope_role
+      verdict: reject
+      reason: 列值为 JSON 数组序列化串（如 ["PROJECT_COMPANY","CORE"]），组合自由、非单值封闭代码，既不适合枚举页也未形成实例名单
+    clusters:
+    - key: common
+      title: 通用与审计
+      include: always
+      fields:
+      - id
+      - code
+      - enable
+      - remark
+      - create_by
+      - create_user
+      - create_time
+      - update_by
+      - update_user
+      - update_time
+    - key: product
+      title: 产品信息
+      fields:
+      - name
+      - product_cate
+      - product_summary
+      - product_description
+      - logo_icon_url
+    - key: platform_ref
+      title: 平台产品关联
+      fields:
+      - platform_product_id
+      - platform_product_code
+      - ref_tenant_interworking_product_platform_product
+    - key: financing
+      title: 融资条件
+      fields:
+      - max_financing_amount_flag
+      - max_financing_period
+      - max_financing_amount
+      - credit_measures
+      - transaction_structure
+      - customer_group
+    - key: scope
+      title: 适用范围
+      fields:
+      - scope
+      - scope_project
+      - scope_role
+    - key: tenant
+      title: 租户与机构标识
+      fields:
+      - tenant_id
+      - app_tenant_code
+      - db_tenant_code
+      - ref_tenant_interworking_product_tenant_setting_config
+      - organization_id
+    - key: channel
+      title: 渠道与开通
+      fields:
+      - target_sys_channel
+      - open_status
+    - key: approval
+      title: 审批流程
+      fields:
+      - act_procinst_id
+      - act_procinst_no
+      - act_procinst_status
+      - act_procinst_date
+    similar_fields:
+    - fields:
+      - platform_product_id
+      - platform_product_code
+      note: 同一平台产品的 id 与编号，一为数值主键、一为业务编号，取值应一一对应，存在冗余可能
+    - fields:
+      - ref_tenant_interworking_product_platform_product
+      - platform_product_id
+      note: 均为关联平台产品的标识，仅编码形态不同（UUID 串 vs 数值 id），需确认是否为重复关联
+    - fields:
+      - app_tenant_code
+      - db_tenant_code
+      note: 逻辑租户标识与数据租户标识，同后缀同义族，需确认是否同值冗余
+    - fields:
+      - create_by
+      - create_user
+      - update_by
+      - update_user
+      note: 审计人 id 与名称成对出现，非名称拷贝但属同义族，查询时易混用
+  platform_product_client:
+    table: platform_product_client
+    enums:
+    - column: client_type
+      verdict: keep
+      reason: 客户端类型业务代码集，样本值呈封闭编码形态（含空值样本但值集可作枚举），proposed
+    - column: status
+      verdict: reject
+      reason: 样本仅单值 Y，不足以判定为封闭业务代码集；且与 enable 语义重复，暂不进入枚举
+    - column: multiple_type
+      verdict: keep
+      reason: 过滤类型业务代码集，值集为封闭编码形态，proposed
+    - column: wx_flag
+      verdict: keep
+      reason: 是否小程序开关，N/Y 二值代码集，proposed
+    - column: link_type
+      verdict: keep
+      reason: 链接类型注释已给出 iframe/redirect/forward 封闭值集，样本仅 iframe，proposed
+    clusters:
+    - key: common
+      title: 通用/审计
+      include: always
+      fields:
+      - id
+      - code
+      - enable
+      - create_by
+      - create_user
+      - create_time
+      - update_by
+      - update_user
+      - update_time
+    - key: product_info
+      title: 产品标识与地址
+      fields:
+      - name
+      - platform_product_id
+      - url
+    - key: client_config
+      title: 客户端与展示配置
+      fields:
+      - client_type
+      - status
+      - multiple_type
+      - wx_flag
+      - link_type
+    - key: ext_config
+      title: 扩展配置与备注
+      fields:
+      - ext_config
+      - remark
+    - key: approval
+      title: 审批流程
+      fields:
+      - act_procinst_id
+      - act_procinst_no
+      - act_procinst_status
+      - act_procinst_date
+    - key: tenant
+      title: 租户标识
+      fields:
+      - app_tenant_code
+      - db_tenant_code
+    - key: organization
+      title: 机构归属
+      fields:
+      - organization_id
+    similar_fields:
+    - fields:
+      - status
+      - enable
+      note: 均表达启用状态，疑似同表冗余列，需确认主用列
+    - fields:
+      - app_tenant_code
+      - db_tenant_code
+      note: 逻辑租户标识与数据租户标识，名称相近，需确认是否需同时保留
+    - fields:
+      - act_procinst_id
+      - act_procinst_no
+      note: 流程实例ID与流程申请编号，均标识审批流程，需确认业务含义是否重复
+    - fields:
+      - create_by
+      - create_user
+      note: 创建人ID与创建人名称成对，同一业务实体的两列
+    - fields:
+      - update_by
+      - update_user
+      note: 更新人ID与更新人名称成对，同一业务实体的两列
+  tenant_product_menu:
+    table: tenant_product_menu
+    enums:
+    - column: product_code
+      verdict: instance
+      reason: 样本为 RVSFACTOR_PC/BEECREDIT/ACCOUNT_PRODUCT，像产品主数据名单而非封闭业务代码集，随产品接入增长，建议进
+        value_index 由产品侧字典维护
+    - column: company_type
+      verdict: keep
+      reason: 注释为「企业角色」，样本 CORE/SUPPLIER/FINANCE/DEALER 等 9 值属封闭企业角色编码集，仍是 proposed
+        待与字典表核对
+    - column: enable
+      verdict: keep
+      reason: 字段名与注释均为 enable，样本仅 Y，判断为 Y/N 启用开关，属封闭开关集，需补全 N 值后再确认
+    clusters:
+    - key: common
+      title: 通用
+      include: always
+      fields:
+      - id
+      - code
+      - enable
+      - create_by
+      - create_user
+      - create_time
+      - update_by
+      - update_user
+      - update_time
+    - key: product_menu
+      title: 产品与菜单关联
+      fields:
+      - product_code
+      - menu_id
+    - key: tenant_org
+      title: 租户与机构归属
+      fields:
+      - app_tenant_code
+      - db_tenant_code
+      - organization_id
+      - company_type
+    - key: approval
+      title: 审批流程信息
+      fields:
+      - act_procinst_id
+      - act_procinst_no
+      - act_procinst_status
+      - act_procinst_date
+    - key: describe
+      title: 名称与备注
+      fields:
+      - name
+      - remark
+    similar_fields:
+    - fields:
+      - app_tenant_code
+      - db_tenant_code
+      note: 逻辑租户标识与数据租户标识，命名成对，同表重复承载租户编码，需确认是否始终同值
+    - fields:
+      - create_by
+      - create_user
+      note: 创建人id 与创建人名称，同一审计主体的编码/名称冗余对
+    - fields:
+      - update_by
+      - update_user
+      note: 更新人id 与更新人名称，同一审计主体的编码/名称冗余对
+  platform_product:
+    table: platform_product
+    enums:
+    - column: code
+      verdict: instance
+      reason: 32位十六进制散列编码，为产品记录自身的唯一标识，非封闭代码集；低基数实例标识，改入 value_index
+    - column: product_type
+      verdict: keep
+      reason: 样本仅 INTERWORKING/GENERAL 两个大写代码，产品类型语义的封闭集，保留为 proposed
+    - column: platform_flag
+      verdict: keep
+      reason: Y/N 开关型取值，封闭代码集，保留为 proposed
+    - column: platform_code
+      verdict: instance
+      reason: 取值为 XYC/AMS/STORAGE/PPLATFORM/HTCP1..19/DRAFTQA 等平台实例编码清单（含 DRAFTQA
+        环境实例），属实例名单而非封闭业务代码集，改入 value_index
+    - column: multiple_project_flag
+      verdict: keep
+      reason: Y/N 开关型取值，封闭代码集，保留为 proposed
+    - column: multiple_cust_role_flag
+      verdict: keep
+      reason: Y/N 开关型取值，封闭代码集，保留为 proposed
+    - column: product_code
+      verdict: instance
+      reason: 取值为 HTCP*/ACFLOW/ORDER/BEECREDIT/DRAFT/AMS/RVSFACTOR_PC 等产品实例编码清单，与
+        platform_code 取值大量重叠，属实例名单，改入 value_index
+    - column: product_cate
+      verdict: keep
+      reason: 样本仅 WEAKLY/STRONG/CREDIT 三个大写代码，产品类型语义的封闭集，保留为 proposed
+    - column: product_status
+      verdict: reject
+      reason: 样本仅单值 "1"，无法确认封闭代码集，既不作枚举也不入 value_index
+    - column: product_construction_status
+      verdict: reject
+      reason: 样本仅单值 "Y"，无法确认封闭代码集，不入 value_index
+    - column: max_financing_amount_flag
+      verdict: keep
+      reason: Y/N 开关型取值，封闭代码集，保留为 proposed
+    - column: multiple_client_type
+      verdict: reject
+      reason: 仅 default/CompanyType 两值且命名风格混杂（默认标记+类名式取值），疑似配置片段，非封闭业务代码集，不入 value_index
+    - column: app_code
+      verdict: reject
+      reason: 取值为空串加两个散列编号，含空值且为外部引用哈希，无枚举或名单价值
+    - column: menu_type
+      verdict: keep
+      reason: 字段注释已明确取值域 topLeft/left，属菜单展示类型的封闭代码集，保留为 proposed（样本仅见 left）
+    - column: default_menu_index
+      verdict: reject
+      reason: 样本仅单值 "1"，且为序号而非代码集
+    - column: wkfl_flag
+      verdict: reject
+      reason: 样本仅单值 "Y"，虽注释为开关但未见反例，无法确认封闭集，不建枚举
+    - column: enable
+      verdict: keep
+      reason: Y/N 开关型取值，封闭代码集，保留为 proposed
+    - column: act_procinst_status
+      verdict: reject
+      reason: 样本仅单值 "r"，无法确认审批状态代码集，不入 value_index
+    - column: general_flag
+      verdict: reject
+      reason: 样本仅单值 "Y"，且注释与 product_type 完全重复，无法确认是独立代码集
+    clusters:
+    - key: common
+      title: 通用/审计
+      include: always
+      fields:
+      - id
+      - code
+      - enable
+      - create_by
+      - create_user
+      - create_time
+      - update_by
+      - update_user
+      - update_time
+      - app_tenant_code
+      - db_tenant_code
+    - key: product_profile
+      title: 产品主档信息
+      fields:
+      - name
+      - product_code
+      - product_type
+      - product_cate
+      - product_summary
+      - product_description
+      - customer_group
+      - product_status
+      - product_construction_status
+      - product_ref_num
+      - basic_product
+      - general_flag
+      - logo_icon_url
+    - key: platform
+      title: 平台标识
+      fields:
+      - platform_flag
+      - platform_code
+    - key: multiple
+      title: 多项目/多角色配置
+      fields:
+      - multiple_project_flag
+      - multiple_cust_role_flag
+      - multiple_client_type
+      - cust_role_combine
+    - key: financing
+      title: 融资要素
+      fields:
+      - max_financing_period
+      - max_financing_amount
+      - max_financing_amount_flag
+      - credit_measures
+      - transaction_structure
+    - key: project
+      title: 项目与外部关联编号
+      fields:
+      - project_code
+      - project_config
+      - app_code
+      - organization_id
+    - key: workflow
+      title: 审批流程
+      fields:
+      - act_procinst_id
+      - act_procinst_no
+      - act_procinst_status
+      - act_procinst_date
+      - wkfl_flag
+    - key: menu
+      title: 菜单展示配置
+      fields:
+      - menu_type
+      - default_menu_code
+      - default_menu_index
+    - key: other
+      title: 其他
+      fields:
+      - remark
+    similar_fields:
+    - fields:
+      - platform_code
+      - product_code
+      note: 取值域大量重叠（HTCP*/AMS/STORAGE 等），疑似同一套编码口径重复落地，需确认何者为准
+    - fields:
+      - default_menu_code
+      - default_menu_index
+      note: 两列注释完全相同（默认菜单编号），一为编号一为序号，疑似冗余落库
+    - fields:
+      - product_type
+      - general_flag
+      note: 两列注释完全相同（通用产品标识），语义疑似重复，取值域不一致（前为 INTERWORKING/GENERAL）
+    - fields:
+      - create_by
+      - create_user
+      - update_by
+      - update_user
+      note: 创建人/更新人的 id 与名称拷贝对，BI 侧通常只需其一
+    - fields:
+      - product_summary
+      - product_description
+      note: 产品概述与产品详细描述，近义文本列，粒度差异未证实
+    - fields:
+      - multiple_cust_role_flag
+      - cust_role_combine
+      note: 同为多企业角色语义，一为开关一为角色组合取值
+    - fields:
+      - app_code
+      - project_code
+      note: 均为外部（蜂搭平台）编号引用列，用途相近，命名口径不统一
+  tenant_product_menu_res:
+    table: tenant_product_menu_res
+    enums:
+    - column: product_code
+      verdict: instance
+      reason: 产品编码属于业务实体标识，更像产品实例名单而非封闭状态/类型码集，样本仅2值，宜入 value_index
+    - column: company_type
+      verdict: keep
+      reason: 企业类型，封闭分类代码集，样本值均为典型类型枚举
+    - column: enable
+      verdict: keep
+      reason: 启停开关字段，经典 Y/N 代码枚举；样本仅见 Y，仍属 proposed 候选
+    clusters:
+    - key: common
+      title: 通用
+      include: always
+      fields:
+      - id
+      - code
+      - enable
+      - remark
+      - create_by
+      - create_user
+      - create_time
+      - update_by
+      - update_user
+      - update_time
+    - key: act_procinst
+      title: 审批流程
+      fields:
+      - act_procinst_id
+      - act_procinst_no
+      - act_procinst_status
+      - act_procinst_date
+    - key: tenant_scope
+      title: 租户与组织
+      fields:
+      - app_tenant_code
+      - db_tenant_code
+      - company_type
+      - organization_id
+    - key: menu_resource
+      title: 产品菜单按钮
+      fields:
+      - product_code
+      - menu_id
+      - resource_id
+      - name
+    similar_fields:
+    - fields:
+      - app_tenant_code
+      - db_tenant_code
+      note: 逻辑租户标识与数据租户标识，语义相近，注意区分
+    - fields:
+      - act_procinst_id
+      - act_procinst_no
+      note: 流程实例ID与流程申请编号，均为流程标识
+    - fields:
+      - create_by
+      - create_user
+      note: 创建人ID与创建人名称，成对审计字段
+    - fields:
+      - update_by
+      - update_user
+      note: 更新人ID与更新人名称，成对审计字段
+  tenant_migarory_log_bak:
+    table: tenant_migarory_log_bak
+    enums:
+    - column: direction
+      verdict: keep
+      reason: IN/OUT 为数据方向封闭代码集，属业务枚举。
+    - column: type
+      verdict: keep
+      reason: 值均为代码风格 token（如 PROJECT_SYNC、CREATED），应属迁移/操作类型封闭代码集，建议保留为 proposed。
+    - column: status
+      verdict: keep
+      reason: Y/N 二元状态码，封闭代码集。
+    - column: platform_product_code
+      verdict: reject
+      reason: 值含 JSON 数组序列化（如 ["RVSFACTOR_PC"]、[null,null]），属配置碎片/复合值，不是干净枚举，也不宜入
+        value_index。
+    - column: success_number
+      verdict: reject
+      reason: 数值统计指标，非枚举。
+    - column: falied_number
+      verdict: reject
+      reason: 数值统计指标，非枚举。
+    - column: total_number
+      verdict: reject
+      reason: 数值统计指标，非枚举。
+    - column: enable
+      verdict: keep
+      reason: 开关字段，典型布尔编码，虽样本仅单值仍属代码枚举。
+    clusters:
+    - key: common
+      title: 通用
+      include: always
+      fields:
+      - id
+      - code
+      - enable
+      - create_by
+      - create_user
+      - create_time
+      - update_by
+      - update_user
+      - update_time
+    - key: migration_core
+      title: 迁移核心信息
+      fields:
+      - name
+      - direction
+      - type
+      - batch_no
+      - status
+      - platform_product_code
+    - key: request_payload
+      title: 请求与返回数据
+      fields:
+      - req_sn
+      - req_no
+      - request
+      - response
+      - error
+      - data
+    - key: counts
+      title: 数量统计
+      fields:
+      - success_number
+      - falied_number
+      - total_number
+    - key: approval
+      title: 审批流程
+      fields:
+      - act_procinst_id
+      - act_procinst_no
+      - act_procinst_status
+      - act_procinst_date
+    - key: tenant
+      title: 租户标识
+      fields:
+      - app_tenant_code
+      - db_tenant_code
+    - key: misc
+      title: 其他信息
+      fields:
+      - remark
+      - organization_id
+      - trace_id
+    similar_fields:
+    - fields:
+      - req_sn
+      - req_no
+      note: 均为请求相关编号，语义相近，可能冗余或分别表示流水号与业务编号。
+    - fields:
+      - app_tenant_code
+      - db_tenant_code
+      note: 均为租户编码，分别表示逻辑租户与数据租户，语义相关但用途不同。
+    - fields:
+      - act_procinst_id
+      - act_procinst_no
+      note: 均为流程实例标识，一为ID一为申请编号，可能关联同一流程实例。
+  tenant_product:
+    table: tenant_product
+    enums:
+    - column: product_cate
+      verdict: keep
+      reason: 产品类型列，3 个封闭业务代码，符合类型枚举特征；仍为 proposed，未确认取值口径
+    - column: open_status
+      verdict: keep
+      reason: 开通状态列，Y/N/P 三个短代码，疑似状态机（含处理中态），典型封闭状态集
+    - column: is_migratory
+      verdict: keep
+      reason: 是否迁移开关，注释明确 N/Y 语义，封闭布尔代码
+    - column: max_financing_amount_flag
+      verdict: keep
+      reason: 限额融资开关列，取值 Y/N 与 0/1 混用，语义仍是单一布尔开关，需治理编码不一致
+    - column: platform_product_code
+      verdict: keep
+      reason: 平台产品编号，8 个短代码形如业务产品码（ACFLOW/ORDER/VOUCHER 等），属平台侧定义的封闭产品代码集；若后续取值随产品目录增长则应降级为名单
+    - column: enable
+      verdict: keep
+      reason: 通用启用开关列，样本仅出现 Y，封闭集应为 Y/N，需补样本确认
+    - column: product_agreement
+      verdict: instance
+      reason: 取值为带时间戳的协议/合同编号（CT-/DT_ 前缀），属实例标识而非封闭代码集，应入 value_index
+    - column: ref_tenant_product_project_code
+      verdict: instance
+      reason: 取值均为 32 位十六进制 UUID，是关联实例标识而非业务代码，应入 value_index
+    - column: multiple
+      verdict: reject
+      reason: 样本仅单值 0，无法确认存在封闭代码集，语义为是否开关但取值不足以支撑枚举，疑为常量/噪声
+    clusters:
+    - key: common
+      title: 通用
+      include: always
+      fields:
+      - id
+      - code
+      - enable
+      - create_by
+      - create_user
+      - create_time
+      - update_by
+      - update_user
+      - update_time
+    - key: product_profile
+      title: 产品主档信息
+      fields:
+      - name
+      - product_cate
+      - product_summary
+      - product_description
+      - customer_group
+      - product_agreement
+      - product_web_url
+      - logo_icon_url
+      - view_order
+    - key: financing_terms
+      title: 融资要素
+      fields:
+      - max_financing_period
+      - max_financing_amount
+      - max_financing_amount_flag
+      - credit_measures
+      - transaction_structure
+    - key: platform_link
+      title: 平台产品关联
+      fields:
+      - platform_product_id
+      - platform_product_code
+      - ref_tenant_product_project_code
+    - key: tenant_scope
+      title: 租户与机构归属
+      fields:
+      - tenant_id
+      - app_tenant_code
+      - db_tenant_code
+      - organization_id
+      - ref_tenant_product_tenant_setting_config
+    - key: approval_flow
+      title: 审批流程
+      fields:
+      - act_procinst_id
+      - act_procinst_no
+      - act_procinst_status
+      - act_procinst_date
+    - key: status_flag
+      title: 状态与标记
+      fields:
+      - open_status
+      - is_migratory
+      - multiple
+    - key: other
+      title: 备注
+      fields:
+      - remark
+    similar_fields:
+    - fields:
+      - platform_product_id
+      - platform_product_code
+      - ref_tenant_product_project_code
+      note: 三者均指向平台产品，数字 id / 编号 / 关联码并存，存在冗余指向
+    - fields:
+      - app_tenant_code
+      - db_tenant_code
+      note: 逻辑租户标识与数据租户标识双写编码，多数场景同源，易冗余
+    - fields:
+      - create_by
+      - create_user
+      note: 创建人 id 与创建人名称成对存储
+    - fields:
+      - update_by
+      - update_user
+      note: 更新人 id 与更新人名称成对存储
+    - fields:
+      - product_summary
+      - product_description
+      note: 产品概述与详细描述，文本字段语义重叠
+  tenant_project_approval_flow_comment:
+    table: tenant_project_approval_flow_comment
+    enums:
+    - column: enable
+      verdict: keep
+      reason: enable 为开关/启用标识类字段，样本仅出现 'Y'，符合封闭代码集特征（疑似 Y/N），但缺少反向值佐证，仅作 proposed
+        保留
+    clusters:
+    - key: common
+      title: 通用与审计
+      include: always
+      fields:
+      - id
+      - code
+      - enable
+      - create_by
+      - create_user
+      - create_time
+      - update_by
+      - update_user
+      - update_time
+    - key: approval_flow
+      title: 审批流程实例
+      fields:
+      - ref_tenant_project_approval_flow_comment_approval
+      - act_procinst_id
+      - act_procinst_no
+      - act_procinst_status
+      - act_procinst_date
+    - key: tenant
+      title: 租户标识
+      fields:
+      - app_tenant_code
+      - db_tenant_code
+    - key: comment_body
+      title: 备注正文
+      fields:
+      - content
+      - remark
+      - name
+    - key: participant
+      title: 参与人与机构
+      fields:
+      - cc_user_id
+      - organization_id
+    similar_fields:
+    - fields:
+      - app_tenant_code
+      - db_tenant_code
+      note: 两个租户编码列并存，逻辑租户与数据租户语义高度重叠，需确认是否冗余
+    - fields:
+      - create_by
+      - create_user
+      note: 创建人 id 与创建人名称同源拷贝，常成对出现
+    - fields:
+      - update_by
+      - update_user
+      note: 更新人 id 与更新人名称同源拷贝，常成对出现
+    - fields:
+      - content
+      - remark
+      note: 均为自由文本备注列，语义相近，易混用
+    - fields:
+      - act_procinst_id
+      - ref_tenant_project_approval_flow_comment_approval
+      note: 均指向审批流程/审批单实体，存在同一业务对象双列引用嫌疑
+  tenant_project_approval_flow_config:
+    table: tenant_project_approval_flow_config
+    enums:
+    - column: flow_code
+      verdict: keep
+      reason: 注释即封闭流程编码集（NO_ONLINE/STANDARD/REGULAR），三值枚举，属于业务代码集，保持 proposed
+    - column: node_code
+      verdict: keep
+      reason: 注释为“节点编码字典”，取值为审批节点类型代码（LEGAL_REVIEW 等），非人名/实例名，属封闭节点代码集
+    - column: is_optional
+      verdict: keep
+      reason: 注释明确“是否可选节点：Y/N”，标准二值开关
+    - column: is_operate
+      verdict: keep
+      reason: 注释“是否可操作”，样本仅 Y/N 二值，同表开关口径一致，属布尔编码；建议补全注释
+    - column: enable
+      verdict: keep
+      reason: 样本仅 Y/N 二值，属通用启停开关编码
+    clusters:
+    - key: common
+      title: 通用/审计
+      include: always
+      fields:
+      - id
+      - code
+      - name
+      - enable
+      - remark
+      - create_by
+      - create_user
+      - create_time
+      - update_by
+      - update_user
+      - update_time
+    - key: flow_node
+      title: 审批流程与节点配置
+      fields:
+      - flow_code
+      - node_code
+      - node_name
+      - node_order
+      - is_optional
+      - is_operate
+    - key: approval_instance
+      title: 审批实例信息
+      fields:
+      - act_procinst_id
+      - act_procinst_no
+      - act_procinst_status
+      - act_procinst_date
+    - key: tenant
+      title: 租户标识
+      fields:
+      - app_tenant_code
+      - db_tenant_code
+    - key: organization
+      title: 机构
+      fields:
+      - organization_id
+    similar_fields:
+    - fields:
+      - app_tenant_code
+      - db_tenant_code
+      note: 逻辑租户标识与数据租户标识，语义高度重叠，疑似同一租户的双份编码
+    - fields:
+      - act_procinst_id
+      - act_procinst_no
+      note: 同为流程实例标识（内部ID与申请编号），存在标识冗余可能
+    - fields:
+      - code
+      - node_code
+      note: 表级通用“编码”与节点“编码字典”语义重叠，需确认 code 是否即节点或流程编码的副本
+  tenant_project_approval:
+    table: tenant_project_approval
+    enums:
+    - column: is_online_approval
+      verdict: keep
+      reason: Y/N 代码开关，proposed
+    - column: project_type
+      verdict: keep
+      reason: 封闭类型码 STANDARD/REGULAR，proposed
+    - column: simple_mode
+      verdict: keep
+      reason: Y/N 代码开关，proposed
+    - column: wf_status
+      verdict: keep
+      reason: 封闭流程状态码，proposed
+    - column: is_low_risk
+      verdict: keep
+      reason: Y/N 代码开关，proposed
+    - column: is_latest
+      verdict: keep
+      reason: Y/N 代码开关，proposed
+    - column: enable
+      verdict: keep
+      reason: 通用启用开关，Y/N 语义，当前样本仅 Y，仍按 proposed 保留
+    - column: is_add
+      verdict: keep
+      reason: Y/N 代码开关，proposed
+    clusters:
+    - key: common
+      title: 通用审计与编码
+      include: always
+      fields:
+      - id
+      - code
+      - enable
+      - create_by
+      - create_user
+      - create_time
+      - update_by
+      - update_user
+      - update_time
+    - key: approval_core
+      title: 审批与流程标识
+      fields:
+      - approval_no
+      - related_approval_no
+      - sp_no
+      - act_procinst_id
+      - act_procinst_no
+      - wf_procdef_key
+      - flow_code
+    - key: project
+      title: 项目属性
+      fields:
+      - project_type
+      - simple_mode
+      - project_plan
+      - is_low_risk
+      - is_latest
+      - is_add
+      - core_enterprise_names
+      - capital_names
+      - whitelist_query_result
+    - key: participants
+      title: 相关人
+      fields:
+      - solution_manager_id
+      - solution_manager_name
+      - initiator_user_id
+      - initiator_user_name
+      - wf_last_operator_id
+      - wf_last_operator
+    - key: workflow_status_time
+      title: 审批状态与时间
+      fields:
+      - is_online_approval
+      - wf_status
+      - act_procinst_status
+      - initiate_time
+      - wf_last_operate_time
+      - act_procinst_date
+      - complete_time
+    - key: tenant_org_ref
+      title: 租户与关联引用
+      fields:
+      - app_tenant_code
+      - db_tenant_code
+      - organization_id
+      - ref_tenant_project_approval_tenant_project
+      - ref_tenant_project_approval_tenant_project_approval_flow_config
+      - ref_tenant_project_approval_tenant_project_approval
+    - key: misc
+      title: 名称备注
+      fields:
+      - name
+      - remark
+    similar_fields:
+    - fields:
+      - create_by
+      - create_user
+      note: 创建人 id 与名称同源冗余对
+    - fields:
+      - update_by
+      - update_user
+      note: 更新人 id 与名称同源冗余对
+    - fields:
+      - solution_manager_id
+      - solution_manager_name
+      note: 方案经理 userId 与姓名同源冗余对
+    - fields:
+      - initiator_user_id
+      - initiator_user_name
+      note: 发起人 userId 与姓名同源冗余对
+    - fields:
+      - wf_last_operator_id
+      - wf_last_operator
+      note: 工作流最近操作人 id 与名称同源冗余对
+    - fields:
+      - app_tenant_code
+      - db_tenant_code
+      note: 逻辑租户标识与数据租户标识语义相近
+    - fields:
+      - wf_status
+      - act_procinst_status
+      note: 均表示审批/流程状态，可能冗余
+    - fields:
+      - act_procinst_date
+      - complete_time
+      note: 均表示审批结束/完成时间，可能冗余
+  tenant_project_approval_business_info:
+    table: tenant_project_approval_business_info
+    enums:
+    - column: product_code
+      verdict: keep
+      reason: 产品编码，3 个取值（ACFLOW/ORDER/RVSFACTOR_PC），形态为封闭业务编码，可作筛选枚举；注意与 source_system
+        取值完全一致，需业务确认是否同源拷贝。仍为 proposed。
+    - column: source_system
+      verdict: keep
+      reason: 来源系统编码，3 个取值且形态为渠道/来源码，符合封闭代码集；与 product_code 取值重复，需业务确认二者语义差异。
+    - column: project_config_version
+      verdict: reject
+      reason: 取值 config/configPro 属配置片段/版本串，非封闭业务代码集，也不构成实例名单，不应进枚举页或 value_index。
+    - column: asset_list_mode
+      verdict: keep
+      reason: 资产清单模式，STANDARD_LIST/SIMPLE_LIST 为典型模式类型枚举。
+    - column: enable
+      verdict: keep
+      reason: 通用启停开关（Y/N 语义），当前样本仅见 Y，属 common 开关字段，枚举页可保留。
+    clusters:
+    - key: common
+      title: 通用/审计
+      include: always
+      fields:
+      - id
+      - code
+      - enable
+      - create_by
+      - create_user
+      - create_time
+      - update_by
+      - update_user
+      - update_time
+    - key: push_payload
+      title: 推送来源与内容
+      fields:
+      - source_system
+      - product_code
+      - project_config_version
+      - attachment_json
+    - key: asset_mode
+      title: 业务与资产模式
+      fields:
+      - asset_list_mode
+      - business_flow_mode
+    - key: service_fee
+      title: 服务费要素
+      fields:
+      - service_fee_collector_financing
+      - service_fee_quote_type_financing
+      - service_fee_collect_method_financing
+      - service_fee_min_amount
+      - service_fee_min_flag
+    - key: fee_terms
+      title: 费用与报价相关
+      fields:
+      - payer
+      - quote_method
+      - review_fee
+      - zhongdeng_register
+    - key: approval_flow
+      title: 审批流程实例
+      fields:
+      - act_procinst_id
+      - act_procinst_no
+      - act_procinst_status
+      - act_procinst_date
+    - key: tenant_scope
+      title: 租户与机构归属
+      fields:
+      - app_tenant_code
+      - db_tenant_code
+      - organization_id
+    - key: linkage
+      title: 关联引用
+      fields:
+      - ref_tenant_project_approval_business_info_project_approval
+    - key: descriptive
+      title: 名称与备注
+      fields:
+      - name
+      - remark
+    similar_fields:
+    - fields:
+      - create_by
+      - create_user
+      note: 创建人id与创建人名称，同义成对字段，通常一处维护。
+    - fields:
+      - update_by
+      - update_user
+      note: 更新人id与更新人名称，同义成对字段。
+    - fields:
+      - product_code
+      - source_system
+      note: 两者取值集合（ACFLOW/ORDER/RVSFACTOR_PC）完全一致，疑似同源拷贝或冗余，需确认语义。
+    - fields:
+      - service_fee_collector_financing
+      - payer
+      note: 服务费收取方与支付方，语义邻近，可能为同一业务概念的重复表达。
+    - fields:
+      - service_fee_quote_type_financing
+      - quote_method
+      note: 服务费报价类型与报价方式，近义冗余风险。
+    - fields:
+      - app_tenant_code
+      - db_tenant_code
+      note: 逻辑租户标识与数据租户标识，需区分使用场景，勿混用。
+  tenant_project_approval_flow:
+    table: tenant_project_approval_flow
+    enums:
+    - column: node_code
+      verdict: keep
+      reason: 有限个审批节点编码，属于封闭业务代码集，取值均为大写下划线常量，建议保留为 proposed 枚举。
+    - column: node_status
+      verdict: keep
+      reason: 审批状态封闭枚举，PENDING/APPROVED/APPROVING/REJECTED 覆盖典型流程状态，建议保留为 proposed。
+    - column: is_optional
+      verdict: keep
+      reason: Y/N 二值开关，属于封闭布尔代码集，建议保留为 proposed。
+    - column: is_operate
+      verdict: keep
+      reason: Y/N 二值开关，属于封闭布尔代码集，建议保留为 proposed。
+    - column: enable
+      verdict: reject
+      reason: 仅观测到单一取值 Y，无法构成可枚举的封闭代码集，属于常量/噪声，不应进入枚举页或 value_index。
+    clusters:
+    - key: common
+      title: 通用/审计
+      include: always
+      fields:
+      - id
+      - code
+      - enable
+      - create_by
+      - create_user
+      - create_time
+      - update_by
+      - update_user
+      - update_time
+    - key: node
+      title: 审批节点
+      fields:
+      - node_code
+      - node_name
+      - node_order
+      - node_status
+    - key: approver
+      title: 审批人
+      fields:
+      - approver_user_id
+      - approver_user_name
+    - key: process
+      title: 流程实例/申请
+      fields:
+      - act_procinst_id
+      - act_procinst_no
+      - act_procinst_status
+      - act_procinst_date
+    - key: flags
+      title: 节点开关标记
+      fields:
+      - is_optional
+      - is_operate
+    - key: basic
+      title: 基础名称与备注
+      fields:
+      - name
+      - remark
+    - key: tenant
+      title: 租户标识
+      fields:
+      - app_tenant_code
+      - db_tenant_code
+    - key: relation
+      title: 关联外键
+      fields:
+      - ref_tenant_project_approval_flow_tenant_project_approval
+      - organization_id
+    similar_fields:
+    - fields:
+      - app_tenant_code
+      - db_tenant_code
+      note: 均为租户标识，逻辑租户与数据租户疑似冗余/双写，需确认口径。
+    - fields:
+      - approver_user_id
+      - approver_user_name
+      note: 审批人 id 与姓名的展示配对，非独立业务字段。
+    - fields:
+      - create_by
+      - create_user
+      note: 创建人 id 与名称配对。
+    - fields:
+      - update_by
+      - update_user
+      note: 更新人 id 与名称配对。
+    - fields:
+      - act_procinst_id
+      - act_procinst_no
+      note: 流程实例 ID 与申请编号，均用于定位审批流程，注意区分内部主键与业务编号。
+  tenant_project:
+    table: tenant_project
+    enums:
+    - column: project_status
+      verdict: keep
+      reason: 0/1/2 状态型代码，属封闭状态集（仍为 proposed）。
+    - column: test_data
+      verdict: keep
+      reason: Y/N 型标识开关，封闭代码集。
+    - column: ref_tenant_project_platform_product
+      verdict: instance
+      reason: 取值为 UUID 形式关联标识，属实例清单而非枚举，应改入 value_index。
+    - column: enable
+      verdict: keep
+      reason: 启用开关字段，观测值仅有 Y，保留为开关类枚举（proposed），待补全另一取值。
+    - column: platform_product_code
+      verdict: instance
+      reason: 取值是各产品编码，指向产品主数据实例清单，非封闭代码集，应改入 value_index。
+    - column: source
+      verdict: instance
+      reason: 项目来源取值混杂（含产品编码样式取值），更像来源名单，应改入 value_index。
+    - column: send_email
+      verdict: keep
+      reason: 0/1 开关型标识。
+    - column: is_prd
+      verdict: keep
+      reason: Y/N 开关型标识，封闭代码集。
+    - column: config_model
+      verdict: keep
+      reason: 配置模式类型码，观测仅 admin/normal 两值，属封闭类型集。
+    - column: operater_card_type
+      verdict: keep
+      reason: 运营名片类型码（WX/WX_WORK），属封闭类型集。
+    - column: cover_operator
+      verdict: keep
+      reason: Y/N 开关型标识。
+    - column: share_flag
+      verdict: keep
+      reason: Y/N 共享开关。
+    - column: project_config_version
+      verdict: keep
+      reason: 配置版本代码，观测仅 config/configPro 两值，按类型码保留（proposed）。
+    - column: project_tag
+      verdict: keep
+      reason: PRD/TEST 项目标签代码集。
+    - column: top_flag
+      verdict: keep
+      reason: 0/1 置顶开关。
+    - column: cust_oper_show
+      verdict: keep
+      reason: Y/N 展示开关。
+    - column: is_add
+      verdict: keep
+      reason: Y/N 开关，注释已给出 Y/N 语义。
+    clusters:
+    - key: common
+      title: 通用字段
+      include: always
+      fields:
+      - id
+      - code
+      - enable
+      - create_by
+      - create_user
+      - create_time
+      - update_by
+      - update_user
+      - update_time
+    - key: project
+      title: 项目主档
+      fields:
+      - name
+      - project_code
+      - project_agreement
+      - project_status
+      - project_tag
+      - project_relation
+      - bussiness_project_relation
+    - key: project_time
+      title: 项目时间
+      fields:
+      - project_create_time
+      - project_effective_time
+      - first_settlement_time
+    - key: tenant
+      title: 租户标识
+      fields:
+      - tenant_id
+      - tenant_flg_en
+      - app_tenant_code
+      - db_tenant_code
+      - share_flag
+    - key: product
+      title: 产品
+      fields:
+      - product_id
+      - platform_product_code
+    - key: channel_source
+      title: 渠道与来源
+      fields:
+      - channel_code
+      - source_id
+      - source
+    - key: approval
+      title: 审批流程
+      fields:
+      - act_procinst_id
+      - act_procinst_no
+      - act_procinst_status
+      - act_procinst_date
+      - project_approval_id
+      - wechat_audit_no
+      - wechat_audit_pass_time
+    - key: config
+      title: 配置
+      fields:
+      - config_json
+      - config_model
+      - project_config_version
+    - key: ref
+      title: 关联引用
+      fields:
+      - ref_tenant_project_platform_product
+      - ref_tenant_project_tenant_code
+      - ref_tenant_project_product_code
+      - refer_tenant_project_id
+    - key: operation_contact
+      title: 运营对接人
+      fields:
+      - operator_id
+      - operator_name
+      - operator_email
+      - op_contact_a
+      - op_contact_b
+      - op_contact_a_group
+      - op_update_user
+      - op_update_time
+    - key: operation_show
+      title: 运营展示
+      fields:
+      - operater_card_type
+      - cover_operator
+      - cust_oper_show
+      - invite_customer_service_words
+      - logo_path
+    - key: risk_verification
+      title: 风控与查验
+      fields:
+      - verification_contact
+      - verification_contact_group
+      - risk_control_contact_a
+      - risk_control_contact_b
+      - risk_control_contact_a_group
+    - key: business
+      title: 业务归属
+      fields:
+      - business_manager
+      - business_group
+      - solution_manager
+    - key: flags
+      title: 标识开关
+      fields:
+      - test_data
+      - is_prd
+      - send_email
+      - top_flag
+      - is_add
+    - key: custom
+      title: 自定义字段
+      fields:
+      - custom_field_one
+      - custom_field_two
+      - custom_field_three
+    - key: org
+      title: 机构
+      fields:
+      - organization_id
+    - key: misc
+      title: 备注文本
+      fields:
+      - remark
+      - text
+    similar_fields:
+    - fields:
+      - test_data
+      - is_prd
+      note: 同表内两个测试/生产数据标识，语义重叠，口径易冲突。
+    - fields:
+      - project_relation
+      - bussiness_project_relation
+      note: 项目归属与运营项目归属名称近义，疑似重复维护。
+    - fields:
+      - source
+      - source_id
+      note: 项目来源的名称与 ID 并存，需确认是否冗余。
+    - fields:
+      - product_id
+      - platform_product_code
+      - ref_tenant_project_product_code
+      note: 同一产品的 ID 与编码多列并存，产品关联口径重复。
+    - fields:
+      - tenant_id
+      - app_tenant_code
+      - db_tenant_code
+      - tenant_flg_en
+      note: 租户标识多列（逻辑租户/数据租户/项目英文标识），需确认取值口径。
+    - fields:
+      - act_procinst_no
+      - act_procinst_id
+      - project_approval_id
+      - wechat_audit_no
+      note: 多套审批单号/ID 并存，可能对应不同审批渠道。
+    - fields:
+      - custom_field_one
+      - custom_field_two
+      - custom_field_three
+      note: 同构自定义列，含义未定义，易混淆。
+    - fields:
+      - code
+      - project_code
+      note: 通用编码与项目编码可能指向同一业务键，需确认。
+  tenant_project_approval_flow_node:
+    table: tenant_project_approval_flow_node
+    enums:
+    - column: node_code
+      verdict: keep
+      reason: 全大写业务代码，取值集合为审批节点身份（项目经理/配置/商务/运营/法务等），符合封闭业务代码集特征，标记为 proposed 枚举。
+    - column: operate_type
+      verdict: keep
+      reason: pass/back/reject/delegate/revoke 为审批动作的封闭代码集，属状态/动作类枚举。
+    - column: approval_type
+      verdict: keep
+      reason: ONLINE_APPROVAL/BACK_AGREEMENT 为审批方式代码集，仅两个取值，封闭。
+    - column: is_low_risk
+      verdict: keep
+      reason: Y/N 布尔开关型代码，用于标识是否低风险项目，属封闭值集。
+    - column: is_back_agreement
+      verdict: keep
+      reason: Y/N 布尔开关型代码，标识是否后补合作协议，属封闭值集。
+    - column: enable
+      verdict: keep
+      reason: 启停开关字段，属开关型代码集；当前样本仅观测到 Y，N 分支待验证，结论仍为 proposed。
+    clusters:
+    - key: common
+      title: 通用与审计
+      include: always
+      fields:
+      - id
+      - code
+      - enable
+      - create_by
+      - create_user
+      - create_time
+      - update_by
+      - update_user
+      - update_time
+    - key: node_def
+      title: 流程节点定义
+      fields:
+      - node_code
+      - node_order
+      - name
+      - remark
+    - key: approval_action
+      title: 审批操作记录
+      fields:
+      - operate_type
+      - operate_time
+      - approval_type
+      - approve_comment
+      - operator_user_id
+      - operator_user_name
+    - key: transfer_cc
+      title: 转审与抄送
+      fields:
+      - transfer_to_user_id
+      - transfer_to_user_name
+      - cc_user_id
+    - key: project_flag
+      title: 项目属性开关
+      fields:
+      - is_low_risk
+      - is_back_agreement
+    - key: procinst_ref
+      title: 流程实例与关联单
+      fields:
+      - act_procinst_id
+      - act_procinst_no
+      - act_procinst_status
+      - act_procinst_date
+      - ref_tenant_project_approval_flow_node_project_approval
+      - ref_tenant_project_approval_flow_node_project_approval_flow
+    - key: tenant_org
+      title: 租户与机构
+      fields:
+      - app_tenant_code
+      - db_tenant_code
+      - organization_id
+    similar_fields:
+    - fields:
+      - operator_user_id
+      - operator_user_name
+      note: 同一操作人的 ID 与名称冗余存储。
+    - fields:
+      - transfer_to_user_id
+      - transfer_to_user_name
+      note: 同一被转审人的 ID 与名称冗余存储。
+    - fields:
+      - create_by
+      - create_user
+      note: 创建人 ID 与创建人名称，审计字段成对。
+    - fields:
+      - update_by
+      - update_user
+      note: 更新人 ID 与更新人名称，审计字段成对。
+    - fields:
+      - app_tenant_code
+      - db_tenant_code
+      note: 逻辑租户标识与数据租户标识，同为租户编码语义，疑似重复编码。
+    - fields:
+      - ref_tenant_project_approval_flow_node_project_approval
+      - ref_tenant_project_approval_flow_node_project_approval_flow
+      note: 两列均为指向审批/审批流程实体的外键引用，命名高度相似。
+    - fields:
+      - act_procinst_id
+      - act_procinst_no
+      note: 流程实例内部 ID 与流程申请编号，同指一个流程实例，一为内部主键一为业务编号。
+    - fields:
+      - node_code
+      - code
+      note: 节点编码与通用编码列并存，存在语义重叠可能。
+  tenant_project_approval_flow_file:
+    table: tenant_project_approval_flow_file
+    enums:
+    - column: catg_id
+      verdict: keep
+      reason: 影像分类编码，样本为 FBP_ 前缀的封闭业务代码集，非实例名单；保留为 proposed
+    - column: enable
+      verdict: keep
+      reason: 启用开关，属封闭代码集；当前样本仅 Y，待补全其他取值，proposed
+    clusters:
+    - key: common
+      title: 通用与审计
+      include: always
+      fields:
+      - id
+      - code
+      - name
+      - enable
+      - remark
+      - create_by
+      - create_user
+      - create_time
+      - update_by
+      - update_user
+      - update_time
+    - key: file_info
+      title: 文件信息
+      fields:
+      - file_id
+      - file_name
+      - file_url
+      - file_path
+    - key: category
+      title: 影像分类
+      fields:
+      - catg_id
+      - catg_name
+    - key: approval_flow
+      title: 审批流程实例
+      fields:
+      - act_procinst_id
+      - act_procinst_no
+      - act_procinst_status
+      - act_procinst_date
+    - key: relation
+      title: 业务关联
+      fields:
+      - busi_key
+      - ref_tenant_project_approval_flow_file_project_approval_flow_node
+      - ref_tenant_project_approval_flow_file_comment
+      - ref_tenant_project_approval_flow_file_project_approval
+    - key: tenant_org
+      title: 租户与机构
+      fields:
+      - app_tenant_code
+      - db_tenant_code
+      - organization_id
+    similar_fields:
+    - fields:
+      - file_url
+      - file_path
+      note: 文件 url 与文件路径语义相近，可能冗余或用途需进一步区分
+    - fields:
+      - ref_tenant_project_approval_flow_file_comment
+      - ref_tenant_project_approval_flow_file_project_approval
+      note: 两列注释均为“关联项目审批”，疑似重复关联列，需确认 comment 列真实含义
+    - fields:
+      - app_tenant_code
+      - db_tenant_code
+      note: 逻辑租户标识与数据租户标识成对，语义相近但用途需区分
+  tenant_project_approval_flow_credit:
+    table: tenant_project_approval_flow_credit
+    enums:
+    - column: is_group_limit
+      verdict: keep
+      reason: 注释明确为 Y/N 封闭开关，业务含义“是否为集团额度”，属于业务代码枚举（proposed）
+    - column: is_recyclable
+      verdict: keep
+      reason: 注释明确为 Y/N 封闭开关，业务含义“额度是否可循环”，属于业务代码枚举（proposed）
+    - column: enable
+      verdict: reject
+      reason: 通用启用标志，样本仅 Y，归入 common 审计字段；非业务代码枚举，也不适合 value_index
+    clusters:
+    - key: common
+      title: 通用/审计
+      include: always
+      fields:
+      - id
+      - code
+      - name
+      - remark
+      - enable
+      - create_by
+      - create_user
+      - create_time
+      - update_by
+      - update_user
+      - update_time
+    - key: tenant
+      title: 租户标识
+      fields:
+      - app_tenant_code
+      - db_tenant_code
+    - key: organization
+      title: 机构信息
+      fields:
+      - organization_id
+    - key: credit_parties
+      title: 授信双方
+      fields:
+      - credited_cust_id
+      - credited_cust_name
+      - crediting_cust_id
+      - crediting_cust_name
+    - key: credit_limit
+      title: 授信额度
+      fields:
+      - is_group_limit
+      - limit_begin_date
+      - limit_end_date
+      - credit_limit
+      - is_recyclable
+    - key: approval
+      title: 审批流程
+      fields:
+      - ref_tenant_project_approval_flow_credit_project_approval
+      - ref_tenant_project_approval_flow_credit_project_approval_node
+      - act_procinst_id
+      - act_procinst_no
+      - act_procinst_status
+      - act_procinst_date
+    - key: contact
+      title: 联系方式
+      fields:
+      - finance_email
+    similar_fields:
+    - fields:
+      - credited_cust_id
+      - credited_cust_name
+      note: 被授信方ID与名称成对，非重复
+    - fields:
+      - crediting_cust_id
+      - crediting_cust_name
+      note: 授信方ID与名称成对，非重复
+    - fields:
+      - create_by
+      - create_user
+      note: 创建人ID与创建人名称成对
+    - fields:
+      - update_by
+      - update_user
+      note: 更新人ID与更新人名称成对
+    - fields:
+      - app_tenant_code
+      - db_tenant_code
+      note: 逻辑租户标识与数据租户标识，需区分，可能冗余
+    - fields:
+      - limit_begin_date
+      - limit_end_date
+      note: 额度有效期起止，成对使用
+    - fields:
+      - act_procinst_id
+      - act_procinst_no
+      note: 流程实例ID与流程申请编号，不同标识，易混
+    - fields:
+      - ref_tenant_project_approval_flow_credit_project_approval
+      - ref_tenant_project_approval_flow_credit_project_approval_node
+      note: 项目审批与审批节点外键，层级关联
+  wechat_project_approval_field_history:
+    table: wechat_project_approval_field_history
+    enums:
+    - column: field_name
+      verdict: instance
+      reason: 取值是字段标识列名（如 project_phase、product_type、enterprise_full_name），属低基数取值清单/字段字典，不是状态、类型、开关、渠道码，宜改入
+        value_index
+    - column: change_source
+      verdict: keep
+      reason: 变更来源为封闭编码集（SYNC/EDIT/MANUAL_CREATE/IMPORT/BATCH），符合代码枚举，暂记 proposed
+    - column: operator_name
+      verdict: instance
+      reason: 人名列表（含 system-sync、FDPAdmin 等账号名），属实例/名单，宜入 value_index，不作枚举
+    - column: enable
+      verdict: keep
+      reason: 开关型字段，样本仅见 Y，属 Y/N 开关编码，暂记 proposed
+    clusters:
+    - key: common
+      title: 通用与审计
+      include: always
+      fields:
+      - id
+      - code
+      - enable
+      - create_by
+      - create_user
+      - create_time
+      - update_by
+      - update_user
+      - update_time
+    - key: field_change
+      title: 字段变更明细
+      fields:
+      - field_name
+      - field_label
+      - old_value
+      - new_value
+      - change_source
+    - key: operator
+      title: 操作人
+      fields:
+      - operator_id
+      - operator_name
+    - key: act_procinst
+      title: 审批流程实例
+      fields:
+      - act_procinst_id
+      - act_procinst_no
+      - act_procinst_status
+      - act_procinst_date
+    - key: apply_ref
+      title: 立项单引用
+      fields:
+      - apply_id
+      - sp_no
+    - key: ownership
+      title: 租户与机构标识
+      fields:
+      - app_tenant_code
+      - db_tenant_code
+      - organization_id
+    - key: generic
+      title: 通用名称与备注
+      fields:
+      - name
+      - remark
+    similar_fields:
+    - fields:
+      - app_tenant_code
+      - db_tenant_code
+      note: 逻辑租户标识与数据租户标识语义相近，取值口径可能重复，需确认是否冗余
+    - fields:
+      - operator_id
+      - operator_name
+      note: 同一操作人的ID与姓名两种表示，成对出现
+    - fields:
+      - create_by
+      - create_user
+      note: 创建人ID与创建人名称，同一主体两种表示
+    - fields:
+      - update_by
+      - update_user
+      note: 更新人ID与更新人名称，同一主体两种表示
+    - fields:
+      - field_name
+      - field_label
+      note: 字段标识列名与中文标签，同一字段的编码/标签对
+    - fields:
+      - apply_id
+      - sp_no
+      - act_procinst_no
+      note: 均为单据编号类引用列，口径可能重叠，需确认是否指向同一单据
+  tenant_setting_config_share:
+    table: tenant_setting_config_share
+    enums:
+    - column: source
+      verdict: keep
+      reason: 租户来源编码，样本值 ACFLOW 为系统码形态；仅 1 个值，码集未封闭，仍为 proposed
+    - column: privacy_policy_agreement
+      verdict: instance
+      reason: 值为协议文档号(CT-…)，是业务实体引用而非封闭码集，宜入 value_index
+    - column: user_protocol_agreement
+      verdict: instance
+      reason: 同协议文档号形态，实体引用，非枚举
+    - column: auth_agreement
+      verdict: instance
+      reason: 同协议文档号形态，实体引用，非枚举
+    - column: dbass_app_id
+      verdict: instance
+      reason: 形如 app_租户名_日期 的外部应用标识，逐租户实例值，宜入 value_index
+    - column: enable
+      verdict: keep
+      reason: Y/N 启用开关，典型封闭布尔码集
+    - column: act_procinst_status
+      verdict: keep
+      reason: 审批状态码列；样本仅 N，完整码集待确认，仍为 proposed
+    - column: tenant_flg_en
+      verdict: instance
+      reason: 值为 huishangbank/boc 等租户英文标识名单，是实例名单而非业务码集
+    - column: uat_mp_app_id
+      verdict: instance
+      reason: 微信小程序 appid 逐租户实例值（含非 wx 前缀的内部号）
+    - column: uat_mp_wx_login_name
+      verdict: reject
+      reason: 公众号登录账号，含邮箱账号，属账号/PII，不入枚举也不入 value_index
+    - column: prd_mp_app_id
+      verdict: instance
+      reason: 同 uat_mp_app_id，逐租户小程序 appid 实例值
+    - column: prd_mp_wx_login_name
+      verdict: reject
+      reason: 公众号登录账号，含邮箱账号，属账号/PII
+    - column: need_hfive
+      verdict: keep
+      reason: 是否定制 H5，Y/N 开关码集
+    - column: need_mp_wx
+      verdict: keep
+      reason: 是否定制小程序，Y/N 开关码集
+    - column: main_theme_color
+      verdict: reject
+      reason: 主题色值(#FFFFFF/#C7020B)属自由配置碎片，非封闭业务码集
+    - column: status
+      verdict: keep
+      reason: 生效状态码列；样本仅 N，码集待确认，仍为 proposed
+    - column: person_auth_agreement
+      verdict: instance
+      reason: 授权书文档号，实体引用，非枚举
+    - column: self_registration_flag
+      verdict: keep
+      reason: 是否放开自主注册，Y/N 开关码集
+    - column: company_share_flag
+      verdict: keep
+      reason: 客户认证数据是否可共享，Y/N 开关码集
+    - column: portal_flag
+      verdict: keep
+      reason: 是否启用门户，观察值为 Y/N 的封闭布尔码集
+    - column: share_flag
+      verdict: keep
+      reason: 共享租户标识，Y/N 开关码集（样本仅 N）
+    clusters:
+    - key: common
+      title: 通用/审计字段
+      include: always
+      fields:
+      - id
+      - code
+      - enable
+      - remark
+      - create_by
+      - create_user
+      - create_time
+      - update_by
+      - update_user
+      - update_time
+    - key: tenant_identity
+      title: 租户身份与标识
+      fields:
+      - name
+      - source
+      - source_id
+      - apaas_tenant_code
+      - app_tenant_code
+      - db_tenant_code
+      - tenant_flag_zh
+      - tenant_flg_en
+      - organization_id
+      - uni_social_credit_code
+    - key: domain_env
+      title: 环境域名
+      fields:
+      - dev_domain
+      - sit_domain
+      - uat_domain
+      - prd_domain
+      - hfive_dev_domain
+      - hfive_test_domain
+      - hfive_uat_domain
+      - hfive_prd_domain
+    - key: brand_visual
+      title: 品牌外观与图片
+      fields:
+      - band_name
+      - web_title
+      - web_logo_url
+      - pc_login_logo_path
+      - pc_icon_path
+      - pc_logo_path
+      - pc_home_background_path
+      - mp_home_background_path
+      - mp_logo_path
+      - mobile_indexpage_bg_logo_url
+      - mobile_indexpage_logo_url
+      - main_theme_color
+      - pcimg_loginpage_bg_logo_url
+      - pcimg_indexpage_bg_logo_url
+      - pcimg_browser_tab_icon_url
+      - pcimg_loginpage_banner_url
+    - key: agreement
+      title: 协议与合规文本
+      fields:
+      - privacy_policy_agreement
+      - user_protocol_agreement
+      - auth_agreement
+      - person_auth_agreement
+    - key: dbass
+      title: dbass 集成配置
+      fields:
+      - dbass_app_id
+      - mp_dbass_app_id
+      - dbass_private_key
+    - key: sso
+      title: SSO 渠道配置
+      fields:
+      - sso_sys_channel
+      - sso_tenant_chanel
+      - mp_sso_tenant_chanel
+      - mp_sso_sys_channel
+    - key: mp_account
+      title: 小程序与公众号账号
+      fields:
+      - uat_mp_app_id
+      - uat_mp_app_name
+      - uat_mp_wx_login_name
+      - uat_mp_wx_login_pwd
+      - prd_mp_app_id
+      - prd_mp_app_name
+      - prd_mp_wx_login_name
+      - prd_mp_wx_login_pwd
+    - key: service_ops
+      title: 客服与运营联系
+      fields:
+      - cust_service_number
+      - platform_operator
+      - operator_id
+      - operator_name
+      - operator_email
+      - send_email
+      - operator_ai_customer
+      - operator_wechat_code
+      - operator_qr_code
+      - operator_applet_code
+      - ai_zc_sysnum
+      - ai_zc_channel
+    - key: flag_status
+      title: 开关与生效状态
+      fields:
+      - need_hfive
+      - need_mp_wx
+      - self_registration_flag
+      - company_share_flag
+      - portal_flag
+      - share_flag
+      - status
+    - key: workflow
+      title: 审批流程
+      fields:
+      - act_procinst_id
+      - act_procinst_no
+      - act_procinst_status
+      - act_procinst_date
+    similar_fields:
+    - fields:
+      - pc_home_background_path
+      - pcimg_loginpage_bg_logo_url
+      note: 注释均为“PC首页背景图”，新旧两套 PC 图片字段冗余
+    - fields:
+      - pc_logo_path
+      - pcimg_indexpage_bg_logo_url
+      note: 注释均为“PC内页logo”，命名风格不同但语义重复
+    - fields:
+      - pc_icon_path
+      - pcimg_browser_tab_icon_url
+      note: 注释均为“PC浏览器页签Icon”
+    - fields:
+      - pc_login_logo_path
+      - pcimg_loginpage_banner_url
+      note: 注释均为“PC登录窗口横幅”
+    - fields:
+      - mp_logo_path
+      - mobile_indexpage_logo_url
+      note: 注释均为“移动端首页logo”
+    - fields:
+      - mp_home_background_path
+      - mobile_indexpage_bg_logo_url
+      note: 均为移动端首页背景图，命名体系不一致
+    - fields:
+      - app_tenant_code
+      - db_tenant_code
+      note: 逻辑租户标识/数据租户标识，同源近义，注意区分口径
+    - fields:
+      - tenant_flag_zh
+      - tenant_flg_en
+      note: 项目标识中/英两份，且 flag/flg 拼写不一致
+    - fields:
+      - auth_agreement
+      - person_auth_agreement
+      note: 同属授权书协议，样本中出现相同文档号，疑冗余
+    - fields:
+      - source
+      - source_id
+      note: 来源编码与来源id 成对，同源字段
+    - fields:
+      - create_by
+      - create_user
+      note: 创建人 id 与名称冗余对
+    - fields:
+      - update_by
+      - update_user
+      note: 更新人 id 与名称冗余对
+  wec_project_cust_operation_rel:
+    table: wec_project_cust_operation_rel
+    enums:
+    - column: company_type
+      verdict: keep
+      reason: 企业角色，样本 ce/cpt 为短代码，属封闭类型码；仍为 proposed 枚举。
+    - column: enable
+      verdict: keep
+      reason: 启用开关，样本仅 Y 但属封闭开关码；仍为 proposed 枚举。
+    - column: top_flag
+      verdict: keep
+      reason: 置顶标识，样本仅 0 但属封闭开关码；仍为 proposed 枚举。
+    clusters:
+    - key: common
+      title: 通用
+      include: always
+      fields:
+      - id
+      - code
+      - enable
+      - remark
+      - create_by
+      - create_user
+      - create_time
+      - update_by
+      - update_user
+      - update_time
+    - key: company
+      title: 微企链企业
+      fields:
+      - company_id
+      - company_type
+    - key: op_contact
+      title: 运营对接
+      fields:
+      - op_contact_a
+      - op_contact_b
+      - op_contact_a_group
+    - key: verification
+      title: 查验对接
+      fields:
+      - verification_contact
+      - verification_contact_group
+    - key: risk
+      title: 风控对接
+      fields:
+      - risk_control_contact_a
+      - risk_control_contact_b
+      - risk_control_contact_a_group
+    - key: workflow
+      title: 审批流程
+      fields:
+      - act_procinst_id
+      - act_procinst_no
+      - act_procinst_status
+      - act_procinst_date
+    - key: business_identity
+      title: 业务标识与名称
+      fields:
+      - wec_rel_id
+      - project_id
+      - organization_id
+      - name
+    - key: tenant
+      title: 租户标识
+      fields:
+      - app_tenant_code
+      - db_tenant_code
+    - key: top_flag
+      title: 置顶标识
+      fields:
+      - top_flag
+    similar_fields:
+    - fields:
+      - create_by
+      - create_user
+      note: 创建人ID与创建人名称，同一审计主体的两种标识，成对出现。
+    - fields:
+      - update_by
+      - update_user
+      note: 更新人ID与更新人名称，同一审计主体的两种标识，成对出现。
+    - fields:
+      - app_tenant_code
+      - db_tenant_code
+      note: 逻辑租户标识与数据租户标识，可能为重复编码，需确认是否同义。
+    - fields:
+      - op_contact_a
+      - op_contact_b
+      note: 运营对接人A/B，平行角色槽位，结构同义。
+    - fields:
+      - risk_control_contact_a
+      - risk_control_contact_b
+      note: 风控对接人A/B，平行角色槽位，结构同义。
+    - fields:
+      - op_contact_a_group
+      - verification_contact_group
+      - risk_control_contact_a_group
+      note: 各业务组别字段，命名平行，可能共用组别字典。
+    - fields:
+      - act_procinst_id
+      - act_procinst_no
+      note: 流程实例ID与流程申请编号，均为流程标识，需确认是否一一对应。
+  wechat_project_approval_apply:
+    table: wechat_project_approval_apply
+    enums:
+    - column: prd
+      verdict: keep
+      reason: 「是否投产」为 Y/N 二值开关型业务代码，属封闭代码集，保留为 proposed
+    - column: enable
+      verdict: keep
+      reason: 启用开关 Y/N，与 common 层 enable 语义一致，保留为 proposed
+    - column: project_type
+      verdict: keep
+      reason: SUB/MAIN 为项目主从类型代码，取值封闭，保留为 proposed
+    - column: ka_white_label
+      verdict: keep
+      reason: KA是否贴牌，Y/N 二值开关，保留为 proposed
+    - column: project_phase
+      verdict: keep
+      reason: 项目阶段 IMPLEMENTATION/OPERATION/HANG 为流程阶段代码，取值封闭，保留为 proposed
+    - column: data_source
+      verdict: keep
+      reason: 数据来源 WECHAT/MANUAL 为来源渠道码，属封闭代码集，保留为 proposed
+    clusters:
+    - key: common
+      title: 通用审计与标识
+      include: always
+      fields:
+      - id
+      - code
+      - name
+      - enable
+      - create_by
+      - create_user
+      - create_time
+      - update_by
+      - update_user
+      - update_time
+    - key: tenant
+      title: 租户标识
+      fields:
+      - app_tenant_code
+      - db_tenant_code
+    - key: approval_flow
+      title: 审批流程（企微审批+流程实例）
+      fields:
+      - sp_no
+      - sp_type
+      - sp_pass_time
+      - act_procinst_id
+      - act_procinst_no
+      - act_procinst_status
+      - act_procinst_date
+      - apply_start_time
+    - key: project_core
+      title: 立项项目主信息
+      fields:
+      - project_id
+      - project_approval_name
+      - project_online_name
+      - main_project_name
+      - project_type
+      - project_phase
+      - project_config_time
+      - project_focus_level
+      - project_exception_remark
+    - key: product
+      title: 产品类型
+      fields:
+      - product_type
+      - product_type_arr
+    - key: stakeholders
+      title: 项目干系人与对接人
+      fields:
+      - bussiness_manager
+      - op_contact
+      - op_contact_group
+      - archives_contact
+      - archives_contact_group
+      - risk_control_contact
+      - risk_control_contact_group
+      - project_manager
+      - solution_manager
+      - solution_manager_wxid
+      - old_solution_manager
+    - key: statics
+      title: 项目统计更新
+      fields:
+      - statics_op_user
+      - statics_op_time
+    - key: custom
+      title: 自定义扩展字段
+      fields:
+      - custom_field_one
+      - custom_field_two
+      - custom_field_three
+      - custom_field_statistics_one
+    - key: business_meta
+      title: 业务属性与来源
+      fields:
+      - prd
+      - organization_id
+      - ka_white_label
+      - business_center
+      - enterprise_full_name
+      - data_source
+      - system_delivery
+    - key: capital
+      title: 资方与金融要素
+      fields:
+      - capital_org_full_name
+      - capital_branch_name
+      - bank_quota
+      - shelf_scale
+      - core_enterprise
+      - credit_enhancer
+      - fund_manager
+      - lls_participate_role
+      - first_settlement_time
+    - key: notes
+      title: 备注文本
+      fields:
+      - comment
+      - remark
+    similar_fields:
+    - fields:
+      - comment
+      - remark
+      note: 两列均为自由文本备注，语义重叠，疑似同一用途的重复落库
+    - fields:
+      - product_type
+      - product_type_arr
+      note: 单值与数组两种形态承载同一产品类型信息，存在冗余编码
+    - fields:
+      - sp_no
+      - act_procinst_no
+      note: 企微审批编号与流程申请编号疑似同一审批单据编号的两种存储，需上游确认是否同源
+  wec_project_operation_rel:
+    table: wec_project_operation_rel
+    enums:
+    - column: project_tag
+      verdict: keep
+      reason: 样本为 TEST/PRD，疑似封闭代码型标签，仍为 proposed，待确认完整值域。
+    - column: enable
+      verdict: keep
+      reason: enable 为典型启停开关字段，当前仅见 Y，仍为 proposed。
+    - column: top_flag
+      verdict: keep
+      reason: top_flag 为置顶标识开关字段，当前仅见 0，仍为 proposed。
+    clusters:
+    - key: common
+      title: 通用
+      include: always
+      fields:
+      - id
+      - code
+      - enable
+      - create_by
+      - create_user
+      - create_time
+      - update_by
+      - update_user
+      - update_time
+    - key: tenant
+      title: 租户标识
+      fields:
+      - app_tenant_code
+      - db_tenant_code
+    - key: project
+      title: 项目归属与标签
+      fields:
+      - wec_project_id
+      - project_tag
+      - project_relation
+      - bussiness_project_relation
+      - top_flag
+    - key: wechat_audit
+      title: 企微审批
+      fields:
+      - wechat_audit_no
+      - wechat_audit_pass_time
+    - key: operation_contact
+      title: 运营对接
+      fields:
+      - op_contact_a
+      - op_contact_b
+      - op_contact_a_group
+    - key: verification
+      title: 查验对接
+      fields:
+      - verification_contact
+      - verification_contact_group
+    - key: risk_control
+      title: 风控对接
+      fields:
+      - risk_control_contact_a
+      - risk_control_contact_b
+      - risk_control_contact_a_group
+    - key: business
+      title: 业务方案
+      fields:
+      - solution_manager
+      - business_manager
+      - business_group
+    - key: settlement
+      title: 落地结算
+      fields:
+      - first_settlement_time
+    - key: custom
+      title: 自定义字段
+      fields:
+      - custom_field_one
+      - custom_field_two
+      - custom_field_three
+    - key: workflow
+      title: 审批流程
+      fields:
+      - act_procinst_id
+      - act_procinst_no
+      - act_procinst_status
+      - act_procinst_date
+    - key: organization
+      title: 机构
+      fields:
+      - organization_id
+    - key: text_misc
+      title: 名称与备注
+      fields:
+      - name
+      - remark
+      - text
+    similar_fields:
+    - fields:
+      - app_tenant_code
+      - db_tenant_code
+      note: 逻辑租户标识与数据租户标识近义，可能冗余或用途不同。
+    - fields:
+      - project_relation
+      - bussiness_project_relation
+      note: 项目归属与运营项目归属近义，且 bussiness 拼写疑似 business，注意使用边界。
+    - fields:
+      - wechat_audit_no
+      - act_procinst_no
+      note: 企微审批编号与流程申请编号均为审批编号类，可能关联同一流程。
+    - fields:
+      - act_procinst_id
+      - act_procinst_no
+      note: 流程实例ID与流程申请编号，同流程不同标识，勿混用。
+    - fields:
+      - create_by
+      - create_user
+      note: 创建人id与创建人名称，互补而非重复。
+    - fields:
+      - update_by
+      - update_user
+      note: 更新人id与更新人名称，互补而非重复。
+  tenant_setting_config:
+    table: tenant_setting_config
+    enums:
+    - column: source
+      verdict: instance
+      reason: 值为 ACFLOW/pplatform 等来源系统标识，非封闭代码集，宜入值域索引
+    - column: privacy_policy_agreement
+      verdict: reject
+      reason: 每租户独立的协议文档编号(CT-/DT_)，非枚举也非名单
+    - column: user_protocol_agreement
+      verdict: reject
+      reason: 协议文档编号实例，随租户变化，非代码枚举
+    - column: auth_agreement
+      verdict: reject
+      reason: 授权书文档编号实例，非封闭代码集
+    - column: dbass_app_id
+      verdict: reject
+      reason: 应用ID实例标识(app_ChanRongPin..._日期)，非枚举
+    - column: sso_sys_channel
+      verdict: reject
+      reason: 渠道串内嵌 org 编码等实例信息，非封闭代码集
+    - column: enable
+      verdict: keep
+      reason: Y/N 启用开关，样本仅见 Y，仍是代码位(proposed)
+    - column: act_procinst_status
+      verdict: keep
+      reason: 审批状态代码位，样本仅见 N，取值集待确认(proposed)
+    - column: need_hfive
+      verdict: keep
+      reason: 是否定制H5，Y/N 开关
+    - column: need_mp_wx
+      verdict: keep
+      reason: 是否定制小程序，Y/N 开关
+    - column: status
+      verdict: keep
+      reason: 生效状态，Y/N 开关
+    - column: person_auth_agreement
+      verdict: reject
+      reason: 协议编号与散落 Y 混存，属文档实例非枚举
+    - column: self_registration_flag
+      verdict: keep
+      reason: 是否放开自主注册，Y/N 开关
+    - column: company_share_flag
+      verdict: keep
+      reason: 客户认证数据可否用于其他贴牌平台，Y/N 开关
+    - column: send_email
+      verdict: keep
+      reason: 0/1 开关；注释缺失，语义待补(proposed)
+    - column: operator_ai_customer
+      verdict: keep
+      reason: 0/1 开关；注释缺失，语义待补(proposed)
+    - column: portal_flag
+      verdict: keep
+      reason: 是否启用门户，Y/N 开关
+    - column: share_flag
+      verdict: keep
+      reason: 租户共享标识，Y/N 开关
+    - column: recall_auth_doc_flag
+      verdict: keep
+      reason: 是否需回收授权书，Y/N 开关
+    - column: core_bosc_company_id_property_requried
+      verdict: keep
+      reason: 补充字段是否必填，Y/N 开关，样本仅见 N
+    - column: xib_factor_contract_no_property_requried
+      verdict: keep
+      reason: 补充字段是否必填，Y/N 开关，样本仅见 N
+    - column: company_size_property_requried
+      verdict: keep
+      reason: 补充字段是否必填，Y/N 开关，样本仅见 N
+    - column: billing_type_property_requried
+      verdict: keep
+      reason: 补充字段是否必填，Y/N 开关，样本仅见 N
+    - column: cash_contract_no_property_requried
+      verdict: keep
+      reason: 补充字段是否必填，Y/N 开关，样本仅见 N
+    - column: zybank_cash_contract_amt_property_requried
+      verdict: keep
+      reason: 补充字段是否必填，Y/N 开关，样本仅见 N
+    - column: lybank_cash_contract_no_property_requried
+      verdict: keep
+      reason: 补充字段是否必填，Y/N 开关，样本仅见 N
+    - column: composite_field_property_requried
+      verdict: keep
+      reason: 补充字段是否必填，Y/N 开关
+    - column: composite_field_property_requried_config_cust_role
+      verdict: reject
+      reason: 值为 JSON 序列化角色数组(["SUPPLIER"]/[])，属配置碎片
+    - column: pushing_status
+      verdict: keep
+      reason: 租户推送状态，Y/N 开关
+    - column: is_stack
+      verdict: keep
+      reason: 是否存量数据，Y/N 开关
+    - column: finance_org_type_property_requried
+      verdict: keep
+      reason: 补充字段是否必填，Y/N 开关
+    - column: finance_org_type_property_requried_config_cust_role
+      verdict: reject
+      reason: JSON 序列化角色数组，配置碎片非枚举
+    - column: sign_flag
+      verdict: keep
+      reason: 跨贴牌数据是否强制重签授权书，Y/N 开关
+    - column: main_tenant_flg_en
+      verdict: instance
+      reason: HBLT/shendu 为项目标识实例名，宜入值域索引
+    - column: bank_branch_property_requried
+      verdict: keep
+      reason: 银行分行名称是否必填，Y/N 开关
+    - column: bank_branch_property_requried_config_cust_role
+      verdict: reject
+      reason: JSON 序列化角色数组，配置碎片非枚举
+    - column: oper_auth_agreement
+      verdict: reject
+      reason: 子账户授权书文档编号实例，非枚举
+    - column: project_code_required
+      verdict: keep
+      reason: 项目码是否必填，Y/N 开关(注释已给 Y/N)
+    - column: customer_card_type
+      verdict: keep
+      reason: 客服名片类型 WX_WORK/WX，注释明确与 operCardType 枚举一致
+    - column: op_update_user
+      verdict: reject
+      reason: 租户运营更新人人名，PII，不进枚举与值域
+    - column: ai_resource_color
+      verdict: reject
+      reason: 自由填写颜色值(#RRGGBB/222)，配置碎片非枚举
+    - column: generate_electronic_auth_flag
+      verdict: keep
+      reason: 是否生成电子版授权书，Y/N 开关
+    - column: access_mode
+      verdict: keep
+      reason: 接入模式代码(DIRECT_INIT)，样本仅见 1 值，取值集待确认
+    - column: use_theme_after_login
+      verdict: keep
+      reason: 登录后是否使用该色调，Y/N 开关
+    clusters:
+    - key: common
+      title: 通用与审计
+      include: always
+      fields:
+      - id
+      - code
+      - enable
+      - remark
+      - create_by
+      - create_user
+      - create_time
+      - update_by
+      - update_user
+      - update_time
+    - key: tenant_identity
+      title: 租户主档与标识
+      fields:
+      - name
+      - source
+      - source_id
+      - apaas_tenant_code
+      - app_tenant_code
+      - db_tenant_code
+      - organization_id
+      - uni_social_credit_code
+      - tenant_flag_zh
+      - tenant_flg_en
+      - main_tenant_flg_en
+      - default_project_id
+    - key: brand_theme
+      title: 品牌展示与主题配色
+      fields:
+      - band_name
+      - cust_service_number
+      - web_title
+      - web_logo_url
+      - pc_login_logo_path
+      - pc_icon_path
+      - pc_logo_path
+      - pc_home_background_path
+      - pcimg_loginpage_bg_logo_url
+      - pcimg_indexpage_bg_logo_url
+      - pcimg_browser_tab_icon_url
+      - pcimg_loginpage_banner_url
+      - mp_home_background_path
+      - mp_logo_path
+      - mobile_indexpage_bg_logo_url
+      - mobile_indexpage_logo_url
+      - main_theme_color
+      - bg_color
+      - adapt_colour
+      - ai_resource_color
+      - use_theme_after_login
+    - key: domain_env
+      title: 各环境域名
+      fields:
+      - dev_domain
+      - sit_domain
+      - uat_domain
+      - prd_domain
+      - hfive_dev_domain
+      - hfive_test_domain
+      - hfive_uat_domain
+      - hfive_prd_domain
+    - key: agreement_auth
+      title: 协议与授权书
+      fields:
+      - privacy_policy_agreement
+      - user_protocol_agreement
+      - auth_agreement
+      - person_auth_agreement
+      - oper_auth_agreement
+      - recall_auth_doc_flag
+      - sign_flag
+      - generate_electronic_auth_flag
+    - key: platform_integration
+      title: 外部平台与单点登录集成
+      fields:
+      - dbass_app_id
+      - mp_dbass_app_id
+      - dbass_private_key
+      - sso_sys_channel
+      - sso_tenant_chanel
+      - mp_sso_sys_channel
+      - mp_sso_tenant_chanel
+      - platform_operator
+      - platform_secret_key
+      - platform_sms_signature
+    - key: mp_wx_account
+      title: 小程序与公众号账号
+      fields:
+      - uat_mp_app_id
+      - uat_mp_app_name
+      - uat_mp_wx_login_name
+      - uat_mp_wx_login_pwd
+      - prd_mp_app_id
+      - prd_mp_app_name
+      - prd_mp_wx_login_name
+      - prd_mp_wx_login_pwd
+    - key: tenant_switch
+      title: 功能开关与策略
+      fields:
+      - status
+      - pushing_status
+      - is_stack
+      - migratory_flag
+      - share_flag
+      - portal_flag
+      - self_registration_flag
+      - company_share_flag
+      - need_hfive
+      - need_mp_wx
+      - project_code_required
+      - access_mode
+    - key: approval_flow
+      title: 审批流程
+      fields:
+      - act_procinst_id
+      - act_procinst_no
+      - act_procinst_status
+      - act_procinst_date
+    - key: ops_service
+      title: 运营与客服
+      fields:
+      - operator_id
+      - operator_name
+      - operator_email
+      - operator_ai_customer
+      - operator_wechat_code
+      - operator_qr_code
+      - operator_applet_code
+      - ai_zc_sysnum
+      - ai_zc_channel
+      - customer_card_type
+      - send_email
+      - op_update_user
+      - op_update_time
+    - key: ext_field_required
+      title: 补充字段-是否必填
+      fields:
+      - core_bosc_company_id_property_requried
+      - xib_factor_contract_no_property_requried
+      - company_size_property_requried
+      - billing_type_property_requried
+      - cash_contract_no_property_requried
+      - zybank_cash_contract_amt_property_requried
+      - lybank_cash_contract_no_property_requried
+      - composite_field_property_requried
+      - finance_org_type_property_requried
+      - bank_branch_property_requried
+    - key: ext_field_company_role
+      title: 补充字段-企业角色配置
+      fields:
+      - bank_branch
+      - composite_field_property_requried_config_company_role
+      - composite_field_property_requried_company_role
+      - core_bosc_company_id_property_requried_config_cust_role
+      - xib_factor_contract_no_property_requried_config_cust_role
+      - company_size_property_requried_config_cust_role
+      - billing_type_property_requried_config_cust_role
+      - cash_contract_no_property_requried_config_cust_role
+      - zybank_cash_contract_amt_property_requried_config_cust_role
+      - lybank_cash_contract_no_property_requried_config_cust_role
+      - composite_field_property_requried_config_cust_role
+      - finance_org_type_property_requried_config_cust_role
+      - bank_branch_property_requried_config_cust_role
+    similar_fields:
+    - fields:
+      - pc_home_background_path
+      - pcimg_loginpage_bg_logo_url
+      note: 注释同为「PC首页背景图」，疑似同一配置的 path 与 url 两套列
+    - fields:
+      - pc_logo_path
+      - pcimg_indexpage_bg_logo_url
+      note: 注释同为「PC内页logo」
+    - fields:
+      - pc_icon_path
+      - pcimg_browser_tab_icon_url
+      note: 注释同为「PC浏览器页签Icon」
+    - fields:
+      - pc_login_logo_path
+      - pcimg_loginpage_banner_url
+      note: 注释同为「PC登录窗口横幅」
+    - fields:
+      - mp_home_background_path
+      - mobile_indexpage_bg_logo_url
+      note: 小程序/移动端首页背景图，语义重叠
+    - fields:
+      - mp_logo_path
+      - mobile_indexpage_logo_url
+      note: 移动端首页 logo 两套命名
+    - fields:
+      - dev_domain
+      - hfive_dev_domain
+      note: 开发环境域名重复列；sit_domain 与 hfive_test_domain 同理
+    - fields:
+      - sso_sys_channel
+      - mp_sso_sys_channel
+      note: PC 与小程序渠道号成对；sso_tenant_chanel 拼写为 chanel，与 mp_sso_tenant_chanel 同族
+    - fields:
+      - tenant_flg_en
+      - main_tenant_flg_en
+      note: 项目标识（英文）与主定制项目标识，含义相邻易混
+    - fields:
+      - composite_field_property_requried_company_role
+      - composite_field_property_requried_config_company_role
+      note: 注释完全相同，重复编码列
+    - fields:
+      - apaas_tenant_code
+      - app_tenant_code
+      - db_tenant_code
+      note: aPaaS/逻辑/数据三种租户编码并存，易混
+    - fields:
+      - composite_field_property_requried
+      - composite_field_property_requried_config_cust_role
+      note: 同一补充字段的「是否必填」与「企业角色」两份配置（表中成对出现）
+    - fields:
+      - operator_wechat_code
+      - operator_qr_code
+      - operator_applet_code
+      note: 公众号码/客服二维码/客服小程序码三列，语义相近
+stats:
+  tables: 78
+  failed: 0
+  enum_keep: 305
+  enum_instance: 166
+  enum_reject: 76
+  enum_auto_reject: 2
+note: L0 LLM refine; keep ≠ confirmed; no code_path
