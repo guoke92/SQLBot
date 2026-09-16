@@ -978,7 +978,9 @@
         "compare_results": "数据对比",
         "search_wiki": "查阅知识",
         "prepare_wiki": "准备知识",
-        "request_clarification": "请求澄清"
+        "restore_wiki": "恢复上轮知识",
+        "request_clarification": "请求澄清",
+        "complete_without_sql": "直接回答"
       }
     },
     "summary": {
@@ -989,7 +991,8 @@
       "answer_ready": "回答已生成",
       "clarification_waiting": "等待确认",
       "clarification_confirmed": "口径已确认",
-      "wiki_prepared": "召回 {count} 条知识"
+      "wiki_prepared": "召回 {count} 条知识",
+      "wiki_restored": "恢复上轮 {count} 条知识"
     },
     "audit": {
       "processing": "处理中",

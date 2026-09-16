@@ -946,7 +946,7 @@ def test_search_wiki_returns_schema_vector_hits(monkeypatch) -> None:
     assert out["data"]["stop_search"] is False
 
 
-def test_wiki_search_policy_stops_after_schema_gap() -> None:
+def test_wiki_search_policy_keeps_searching_after_schema_gap() -> None:
     from apps.chat.agent_knowledge import AgentKnowledgePlane
     from apps.chat.tools.wiki_search import apply_wiki_search_policy
 
@@ -960,9 +960,35 @@ def test_wiki_search_policy_stops_after_schema_gap() -> None:
         "hit_count": 1,
     }
     _plane, first, _delta = apply_wiki_search_policy(payload, plane)
-    assert first["recall_status"] == "stagnant"
-    assert first["stop_search"] is True
+    assert first["recall_status"] == "schema_missing"
+    assert first["stop_search"] is False
     assert plane.schema_gap_searches == 2
+
+
+def test_wiki_search_policy_keeps_new_hits_after_round_threshold() -> None:
+    from apps.chat.agent_knowledge import SEARCH_WIKI_ROUND_LIMIT, AgentKnowledgePlane
+    from apps.chat.tools.wiki_search import apply_wiki_search_policy
+
+    plane = AgentKnowledgePlane(
+        search_rounds=SEARCH_WIKI_ROUND_LIMIT,
+        schema_ready=True,
+        tables=["d_task"],
+        schema_by_table={"d_task": "# Table: d_task\n[\n(id:int, 主键)\n]"},
+    )
+    _plane, policy, delta = apply_wiki_search_policy(
+        {
+            "knowledge_text": "",
+            "schema_text": "## 机构 (d_organization)\nid:int, 主键",
+            "tables": ["d_organization"],
+            "backend": "wiki",
+            "page_keys": ["d_organization"],
+            "table_evidence": {"d_organization": ["d_organization"]},
+        },
+        plane,
+    )
+    assert delta.added_tables == ["d_organization"]
+    assert policy["recall_status"] == "hit"
+    assert policy["stop_search"] is False
 
 
 def test_wiki_search_policy_ready_unchanged_stops() -> None:
@@ -1076,4 +1102,5 @@ def test_prompt_schema_gap_block_when_wiki_has_no_schema() -> None:
     prompt = build_agent_system_prompt(knowledge_plane=plane)
     assert "<wiki_schema_gap>" in prompt
     assert "information_schema" in prompt
-    assert "早停" in prompt
+    assert "早停" not in prompt
+    assert "换更具体的检索词" in prompt

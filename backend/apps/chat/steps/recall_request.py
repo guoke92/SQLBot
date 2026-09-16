@@ -1,10 +1,10 @@
 """RecallRequest — the single input contract for turn-scoped knowledge recall.
 
-单轮：请求 = 用户问题。
-多轮（continue / revise）：跟进短句（「加上城市维度」）本身召不回任何有用页面，
-上一轮的知识面必须**显式带回来**——这里把「上轮问题 + 本轮问题」拼成检索词，
-把基线 SQL 引用的表/列 pin 成工作集与字段投影的必留项，把上轮 page_keys 作为
-待复水（rehydrate）的页面。召回内核只认这个对象，不再散落地读 memory_slots。
+独立轮：prepare_turn 不预召回；模型自己写检索词调 search_wiki。
+续问 prepare_turn：``RecallRequest.rehydrate`` — 按上轮 knowledge_refs 从
+store 按 key 复水，query 为空，跟进短句不当检索词。
+search_wiki 中途补检：``build_recall_request`` 仍把先验问题拼进检索词，
+并把当前 plane 的表/页 pin 住。召回内核只认这个对象。
 """
 
 from __future__ import annotations
@@ -33,6 +33,35 @@ class RecallRequest:
     def simple(cls, query: str) -> RecallRequest:
         text = str(query or "").strip()
         return cls(query=text, question=text)
+
+    @classmethod
+    def rehydrate(
+        cls,
+        *,
+        pin_tables: Sequence[str] = (),
+        pin_pages: Sequence[str] = (),
+        required_fields: Mapping[str, tuple[str, ...]] | None = None,
+        question: str = "",
+    ) -> RecallRequest:
+        """Restore a prior working set without a new retrieval query."""
+        tables = tuple(
+            dict.fromkeys(str(name).strip() for name in pin_tables if str(name).strip())
+        )
+        pages = tuple(
+            dict.fromkeys(str(key).strip() for key in pin_pages if str(key).strip())
+        )[:_MAX_PIN_PAGES]
+        fields = {
+            str(table): tuple(str(n) for n in names if str(n).strip())
+            for table, names in dict(required_fields or {}).items()
+            if names
+        }
+        return cls(
+            query="",
+            question=str(question or "").strip(),
+            pin_tables=tables,
+            pin_pages=pages,
+            required_fields=fields,
+        )
 
     @classmethod
     def coerce(cls, value: RecallRequest | str | None) -> RecallRequest:

@@ -90,7 +90,7 @@ def fixture_profile() -> dict:
                 "column_stats": {
                     "sign_status": {
                         "distinct": 2,
-                        "values": {"SIGNED": 80, "DRAFT": 20},
+                        "values": {"SIGNED": 80, "DRAFT": 20, "": 1},
                     },
                     "name": {
                         "distinct": 3,
@@ -131,22 +131,35 @@ def test_l0_compile_fixture(tmp_path: Path) -> None:
     assert "include: always" in company
     assert "scenes:" not in company
     assert "label:" not in (
-        out / "enums" / "cust_company_info_sign_status.md"
+        out / "enums" / "cust_company_info::sign_status.md"
     ).read_text(encoding="utf-8")
-    enum_page = (out / "enums" / "cust_company_info_sign_status.md").read_text(
+    enum_page = (out / "enums" / "cust_company_info::sign_status.md").read_text(
         encoding="utf-8"
     )
     assert "SIGNED" in enum_page
     assert "平台录入" not in enum_page
     assert "status: draft" in enum_page
+    assert "page_key: cust_company_info::sign_status" in enum_page
+    assert "cust_company_info.sign_status" in enum_page  # physical field
+    assert "cust_company_info_sign_status" not in enum_page
+    assert "[[tables/cust_company_info]]" in enum_page
+    assert "? ''" not in enum_page
+    assert "trust: proposed" in enum_page
+    assert "ambiguous:" not in enum_page
 
-    assert "confidence: proposed" in account
+    assert "trust: proposed" in account
     assert "cust_company_id" in account
     assert "cust_company_info.id" in account
     assert "type: EQUI_JOIN" in account
     assert "cardinality: one_to_many" in account
     assert "left: cust_company_info.id" in account
     assert "right: cust_account_info.cust_company_id" in account
+    assert "[[tables/cust_company_info]]" in account
+    assert "[[tables/cust_account_info]]" in company
+    assert "[[tables/cust_company_detail]]" in company
+    assert "[[enums/cust_company_info::sign_status]]" in company
+    assert "related:" in account
+    assert "related:" in company
 
     assert "cust_company_info.id" in detail
     assert "cust_company_id" in detail
@@ -167,6 +180,12 @@ def test_l0_compile_fixture(tmp_path: Path) -> None:
     assert reviews["items"]
     assert all(item["status"] == "open" for item in reviews["items"])
     assert any(item["kind"] == "unverified_join" for item in reviews["items"])
+    assert not any("#grain" in item["claim_path"] for item in reviews["items"])
+    assert not any("#clusters." in item["claim_path"] for item in reviews["items"])
+    assert not any(
+        item["kind"] == "unanchored" and item["claim_path"].startswith("enums/")
+        for item in reviews["items"]
+    )
 
     assert (out / "_log.md").exists()
     assert (out / "_index.md").exists()
@@ -199,16 +218,16 @@ def test_code_join_uses_code_not_id() -> None:
     }
     model = compile_model(catalog, {"tables": {}})
     rels = model["tables"]["cust_account_info"]["relations"]
-    assert rels == [
-        {
-            "type": "EQUI_JOIN",
-            "left": "bank.code",
-            "right": "cust_account_info.bank_code",
-            "cardinality": "one_to_many",
-            "confidence": "proposed",
-            "evidence": "database_schema:lowcode_pplatform.cust_account_info.bank_code",
-        }
-    ]
+    assert len(rels) == 1
+    assert rels[0]["left"] == "bank.code"
+    assert rels[0]["right"] == "cust_account_info.bank_code"
+    assert rels[0]["trust"] == "proposed"
+    assert rels[0]["authenticity"] == "unknown"
+    assert rels[0]["source"] == "name"
+    assert rels[0]["name_evidence"]["match"] in {"exact_table", "stem_info"}
+    assert rels[0]["overlap"] == {"probed": False}
+    anchors = model["tables"]["cust_account_info"]["name_anchors"]
+    assert "bank_code" not in anchors
     assert not any("bank.id" in (r["left"] + r["right"]) for r in rels)
     names_as_join = [
         r
@@ -269,3 +288,177 @@ def test_emit_refuses_old_corpus(tmp_path: Path) -> None:
     db_dir.mkdir()
     with pytest.raises(ValueError, match="db substrate"):
         emit(model, db_dir)
+
+
+def test_comment_labels_and_invented_dropped() -> None:
+    catalog = {
+        "database": "db",
+        "tables": {
+            "cust_group_rel": {
+                "comment": "集团关系",
+                "primary_key": ["id"],
+                "columns": {
+                    "id": _col(1, "bigint(20)", nullable=False),
+                    "status": _col(
+                        2,
+                        "varchar(32)",
+                        "状态 已生效:EFFECTIVE 未生效:INEFFECTIVE 已拒绝:REJECTED",
+                    ),
+                    "enable": _col(3, "varchar(4)", "enable"),
+                    "root_flag": _col(4, "varchar(4)", "是否集团企业 Y:是 N:不是"),
+                },
+            }
+        },
+    }
+    profile = {
+        "tables": {
+            "cust_group_rel": {
+                "column_stats": {
+                    "status": {
+                        "distinct": 3,
+                        "values": {"EFFECTIVE": 2, "INEFFECTIVE": 1, "REJECTED": 1},
+                    },
+                    "enable": {"distinct": 2, "values": {"Y": 3, "N": 1}},
+                    "root_flag": {"distinct": 2, "values": {"Y": 2, "N": 1}},
+                }
+            }
+        }
+    }
+    model = compile_model(catalog, profile)
+    status = model["enums"]["cust_group_rel::status"]["values"]
+    assert status["EFFECTIVE"]["label"] == "已生效"
+    assert status["EFFECTIVE"]["trust"] == "proposed"
+    enable = model["enums"]["cust_group_rel::enable"]["values"]
+    assert "label" not in enable["Y"]
+    flags = model["enums"]["cust_group_rel::root_flag"]["values"]
+    assert flags["Y"]["label"] == "是"
+    assert flags["N"]["label"] == "不是"
+
+
+def test_dual_identity_edges_all_kept() -> None:
+    catalog = {
+        "database": "db",
+        "tables": {
+            "cust_company_info": {
+                "comment": "企业",
+                "primary_key": ["id"],
+                "columns": {
+                    "id": _col(1, "bigint(20)", nullable=False),
+                    "code": _col(2, "varchar(32)"),
+                    "name": _col(3, "varchar(64)", "名称"),
+                },
+            },
+            "cust_person_info": {
+                "comment": "联系人",
+                "primary_key": ["id"],
+                "columns": {
+                    "id": _col(1, "bigint(20)", nullable=False),
+                    "ref_cust_company_info": _col(2, "varchar(64)", "所属企业"),
+                    "cust_company_id": _col(3, "bigint(20)", "企业id"),
+                    "name": _col(4, "varchar(64)", "姓名"),
+                },
+            },
+        },
+    }
+    model = compile_model(catalog, {"tables": {}})
+    rights = {r["right"] for r in model["tables"]["cust_person_info"]["relations"]}
+    assert rights == {
+        "cust_person_info.ref_cust_company_info",
+        "cust_person_info.cust_company_id",
+    }
+    assert all(
+        r["trust"] == "proposed" and "primary" not in r
+        for r in model["tables"]["cust_person_info"]["relations"]
+    )
+    join_reviews = [i for i in model["reviews"] if i["kind"] == "unverified_join"]
+    assert len(join_reviews) == 2
+
+
+def test_family_abbreviated_fk_and_long_ref() -> None:
+    catalog = {
+        "database": "db",
+        "tables": {
+            "funding_rule_info": {
+                "comment": "规则主表",
+                "primary_key": ["id"],
+                "columns": {
+                    "id": _col(1, "bigint(20)", nullable=False),
+                    "code": _col(2, "varchar(32)"),
+                    "product_code": _col(3, "varchar(32)"),
+                },
+            },
+            "funding_rule_detail": {
+                "comment": "规则明细",
+                "primary_key": ["id"],
+                "columns": {
+                    "id": _col(1, "bigint(20)", nullable=False),
+                    "rule_info_id": _col(2, "bigint(20)", "规则主表"),
+                    "product_code": _col(3, "varchar(32)"),
+                },
+            },
+            "ca_fee_company": {
+                "comment": "缴费企业",
+                "primary_key": ["id"],
+                "columns": {"id": _col(1, "bigint(20)", nullable=False)},
+            },
+            "ca_fee_order": {
+                "comment": "缴费订单",
+                "primary_key": ["id"],
+                "columns": {
+                    "id": _col(1, "bigint(20)", nullable=False),
+                    "company_id": _col(2, "bigint(20)"),
+                },
+            },
+            "cust_company_info": {
+                "comment": "企业",
+                "primary_key": ["id"],
+                "columns": {"id": _col(1, "bigint(20)", nullable=False)},
+            },
+            "cust_head_company_info": {
+                "comment": "总公司",
+                "primary_key": ["id"],
+                "columns": {
+                    "id": _col(1, "bigint(20)", nullable=False),
+                    "code": _col(2, "varchar(64)"),
+                },
+            },
+            "cust_survey_answer": {
+                "comment": "问卷答案",
+                "primary_key": ["id"],
+                "columns": {
+                    "id": _col(1, "bigint(20)", nullable=False),
+                    "company_id": _col(2, "bigint(20)"),
+                },
+            },
+            "cust_customized_product": {
+                "comment": "快捷入口",
+                "primary_key": ["id"],
+                "columns": {
+                    "id": _col(1, "bigint(20)", nullable=False),
+                    "ref_cust_customized_product_cust_company_info": _col(
+                        2, "varchar(64)"
+                    ),
+                    "product_code": _col(3, "varchar(32)"),
+                },
+            },
+        },
+    }
+    model = compile_model(catalog, {"tables": {}})
+    detail = model["tables"]["funding_rule_detail"]["relations"]
+    assert any(
+        r["left"] == "funding_rule_info.id" and r["right"].endswith(".rule_info_id")
+        for r in detail
+    )
+    assert not any(r["right"].endswith(".product_code") for r in detail)
+    fee = model["tables"]["ca_fee_order"]["relations"]
+    assert fee[0]["left"] == "ca_fee_company.id"
+    assert not any("cust_company_info" in r["left"] for r in fee)
+    survey = model["tables"]["cust_survey_answer"]["relations"]
+    assert survey[0]["left"] == "cust_company_info.id"
+    custom = model["tables"]["cust_customized_product"]["relations"]
+    assert any(
+        r["left"] == "cust_company_info.id"
+        and r["right"].endswith("ref_cust_customized_product_cust_company_info")
+        for r in custom
+    )
+    assert not any(r["right"].endswith(".product_code") for r in custom)

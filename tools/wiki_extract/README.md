@@ -26,7 +26,7 @@ backend/venv/bin/python -m tools.wiki_extract introspect \
   --database lowcode_pplatform
 ```
 
-从已有 `_raw` 再编译（不连库）：
+从已有 `_raw` 再编译（不连库；有 `overlap.yaml` 则合并值域复核）：
 
 ```bash
 backend/venv/bin/python -m tools.wiki_extract compile \
@@ -34,9 +34,17 @@ backend/venv/bin/python -m tools.wiki_extract compile \
   --out docs/wiki-knowledge/pplatform/l0
 ```
 
+只跑值域探测（连库，写出 `_raw/overlap.yaml`，不改页）：
+
+```bash
+backend/venv/bin/python -m tools.wiki_extract overlap \
+  --out docs/wiki-knowledge/pplatform/l0 \
+  --database lowcode_pplatform
+```
+
 可选：`--tables t1,t2`、`--skip-profile`、`--db-url`（覆盖 env）。
 
-L0 编译默认在有 LLM 配置时做 **枚举去留 + 语义字段簇 + 近义列** 初审（`keep` 仍是 proposed，不是 confirmed）：
+L0 编译默认在有 LLM 配置时做 **枚举去留 + 注释派生 label + 语义字段簇 + JOIN 真实性初审**（keep / label / JOIN 仍是 proposed，不是 confirmed；候选边全留）：
 
 ```bash
 export WIKI_EXTRACT_LLM_BASE_URL='https://api.example.com/v1'
@@ -58,6 +66,7 @@ pplatform 示例配置（无密钥）：[`profiles/pplatform.example.yaml`](prof
 <out>/
   _raw/catalog.yaml
   _raw/profile.yaml
+  _raw/overlap.yaml
   tables/*.md
   enums/*.md
   value_index.yaml
@@ -66,12 +75,14 @@ pplatform 示例配置（无密钥）：[`profiles/pplatform.example.yaml`](prof
   .runs/l0/reviews.yaml
 ```
 
-L0 不做：认证 JOIN、代码 label、`default_filter` confirmed、共写、scenario。身份束关系与 LLM/前缀字段簇均为 `proposed` 并进 REVIEW。
+L0 JOIN 口径（端点排除、类型对齐、拷贝码、likely/unlikely 阈值）只在 [`join_policy.py`](join_policy.py)；列名启发式、值域探测、LLM 初审共用，不要在各层再写一份。
+
+L0 不做：认证 JOIN、代码 confirmed label、主引用边、`inactive` 猜测、`default_filter` confirmed、共写、scenario。身份束关系全部 `proposed` 并进 `unverified_join`（含表族缩写列 `rule_info_id`→`funding_rule_info`、以及 `ref_本表_对端表`）。`label` 仅来自列注释映射。枚举页键为 `表::字段`；表/枚举页互链 `[[wikilink]]`。
 
 ## 测试
 
 ```bash
-backend/venv/bin/python -m pytest tools/wiki_extract/tests/test_l0_compile.py -v
+backend/venv/bin/python -m pytest tools/wiki_extract/tests/test_l0_compile.py tools/wiki_extract/tests/test_l0_overlap.py tools/wiki_extract/tests/test_l0_llm_refine.py -v
 ```
 
 不连真库。真库跑通不是 CI 门槛。

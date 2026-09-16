@@ -93,6 +93,7 @@ def test_search_wiki_stub_and_unchanged_stop(monkeypatch) -> None:
     assert "knowledge_text" not in first["data"]
     assert "schema_text" not in first["data"]
     assert first["data"]["added_tables"] == ["d_task"]
+    assert first["data"]["hit_count"] == 1
     assert first["data"]["stop_search"] is False
     assert second["data"]["unchanged"] is True
     assert second["data"]["stop_search"] is True
@@ -156,6 +157,78 @@ def test_execute_tools_strips_search_wiki_full_text(monkeypatch) -> None:
     data = out["tool_steps"][0]["result"]["data"]
     assert "knowledge_text" not in data
     assert data["added_tables"] == ["t1"]
+    assert out.get("tool_stop_reason") in {"", None}
+
+
+def test_execute_tools_does_not_lock_on_stop_search(monkeypatch) -> None:
+    fake_tool = MagicMock()
+    fake_tool.name = "search_wiki"
+    fake_tool.invoke.return_value = {
+        "ok": True,
+        "summary": "stagnant",
+        "data": {
+            "added_tables": [],
+            "added_pages": [],
+            "schema_ready": True,
+            "stop_search": True,
+            "recall_status": "stagnant",
+            "unchanged": True,
+            "backend": "wiki",
+            "tables": ["t1"],
+            "page_keys": ["p1"],
+        },
+        "error": None,
+        "failure": None,
+    }
+    monkeypatch.setattr(
+        "apps.conversation.tooling.open_process_span", lambda **_k: None
+    )
+    monkeypatch.setattr(
+        "apps.conversation.tooling.attach_process_span", lambda *_a, **_k: None
+    )
+    state = {
+        "run_id": "no-lock-search",
+        "record_id": 1,
+        "sink": "json",
+        "messages": [
+            SystemMessage(content="sys"),
+            HumanMessage(content="q"),
+            AIMessage(
+                content="",
+                tool_calls=[
+                    {
+                        "id": "c1",
+                        "name": "search_wiki",
+                        "args": {"query": "t1"},
+                    }
+                ],
+            ),
+        ],
+        "bound_tools": [fake_tool],
+        "knowledge_plane": {},
+        "memory_slots": {},
+    }
+    out = execute_tools_node(state)
+    assert out.get("tool_stop_reason") in {"", None}
+    assert out["tool_steps"][0]["result"]["data"]["stop_search"] is True
+
+
+def test_search_wiki_timeline_summary_uses_recall_count() -> None:
+    from apps.conversation.tooling import _wiki_search_close
+
+    key, params = _wiki_search_close(
+        "search_wiki",
+        {"ok": True, "data": {"hit_count": 4, "recall_status": "hit"}},
+    )
+    assert key == "chat.summary.wiki_prepared"
+    assert params == {"count": 4}
+    failed_key, _failed = _wiki_search_close("search_wiki", {"ok": False, "data": {}})
+    assert failed_key == "chat.summary.tool_failed"
+    ok_key, ok_params = _wiki_search_close(
+        "execute_sql_sandbox", {"ok": True, "data": {}}
+    )
+    assert ok_key == "chat.summary.tool_ok"
+    assert ok_params == {"tool": "execute_sql_sandbox"}
 
 
 def test_strip_search_wiki_payload_drops_full_text() -> None:
@@ -306,6 +379,9 @@ def test_self_budgeted_tool_calls_do_not_advance_execution_rounds() -> None:
     assert not tool_calls_advance_round(
         [{"name": "request_clarification"}, {"name": "search_wiki"}]
     )
+    assert not tool_calls_advance_round(
+        [{"name": "complete_without_sql"}, {"name": "search_wiki"}]
+    )
     assert tool_calls_advance_round(
         [{"name": "search_wiki"}, {"name": "execute_sql_sandbox"}]
     )
@@ -404,7 +480,8 @@ def test_probe_sql_limit_soft_warns_instead_of_blocking() -> None:
     err = blocked.get("error") or ""
     assert "Probe SQL limit" not in err
     assert "Datasource or protocol" in err
-    assert "probe_budget_exhausted" in err
+    assert "probe_budget" in err
+    assert "上限" not in err
 
 
 def test_display_sql_uses_protocol_formatter() -> None:
@@ -432,9 +509,12 @@ def test_consume_probe_budget_advises_without_blocking() -> None:
             assert _consume_probe_budget(True) is None
             assert _consume_probe_budget(False) is None  # 1/2
             note = _consume_probe_budget(False)  # 2/2
-            assert note and "probe_budget" in note and "探查" in note
-            over = _consume_probe_budget(False)  # 3rd
-            assert over and "probe_budget_exhausted" in over and "上限" in over
+            assert note and "probe_budget" in note and "探查已执行" in note
+            assert "上限" not in note
+            over = _consume_probe_budget(False)  # 3rd still allowed
+            assert over and "probe_budget" in over
+            assert "上限" not in over
+            assert "必要的形态验证仍可再探查" in over
     finally:
         detach_runtime(run_id)
 
@@ -516,8 +596,7 @@ def test_wiki_enum_discovery_sql_rejects_distinct_only() -> None:
         carriers,
     )
     assert not is_wiki_enum_discovery_sql(
-        "SELECT code, name FROM cust_company_info "
-        "WHERE identify_style = 'INVITE_AGW'",
+        "SELECT code, name FROM cust_company_info WHERE identify_style = 'INVITE_AGW'",
         carriers,
     )
 

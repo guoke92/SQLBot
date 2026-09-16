@@ -110,16 +110,10 @@ def _consume_probe_budget(required: bool) -> str | None:
     after = used + 1
     if after < PROBE_SQL_LIMIT:
         return None
-    if after == PROBE_SQL_LIMIT:
-        return (
-            f"[probe_budget] 这是第 {after}/{PROBE_SQL_LIMIT} 次探查。"
-            "不要再探查——下一次 execute_sql_sandbox 必须用 required=true 交付，"
-            "或调用 request_clarification。"
-        )
     return (
-        f"[probe_budget_exhausted] 探查次数已达上限（{PROBE_SQL_LIMIT}）；"
-        "上方结果仍可用于推理。停止探查——用 required=true 交付，"
-        "或在口径仍不清时调用 request_clarification。"
+        "[probe_budget] 探查已执行。若数据形态已经够用，下一次 execute_sql_sandbox "
+        "请用 required=true 交付；口径仍不清则 request_clarification。"
+        "不要继续用探查摸字段/枚举。必要的形态验证仍可再探查。"
     )
 
 
@@ -307,6 +301,8 @@ def execute_sql_sandbox(
                 result_title=result_title,
                 chart_type=resolved_chart,
             )
+            if delivery:
+                attach_runtime(run_id, sql_delivered=True)
 
         title = str(result_title or "").strip()
         summary = _with_probe_note(

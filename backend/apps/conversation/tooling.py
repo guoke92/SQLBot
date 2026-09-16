@@ -266,6 +266,26 @@ def _tool_call_signature(name: str, args: Mapping[str, Any]) -> str:
     return hashlib.sha256(payload).hexdigest()
 
 
+def _wiki_search_close(
+    name: str, result: Mapping[str, Any]
+) -> tuple[str, dict[str, Any]]:
+    """search_wiki success shows recall count; other tools keep 执行成功."""
+    if not result.get("ok"):
+        return "chat.summary.tool_failed", {"tool": name}
+    data = result.get("data") if isinstance(result.get("data"), Mapping) else {}
+    if name == "search_wiki" and str(data.get("recall_status") or "") != "dropped":
+        try:
+            count = int(data.get("hit_count") or 0)
+        except (TypeError, ValueError):
+            count = 0
+        if count <= 0:
+            count = len(data.get("added_pages") or []) + len(
+                data.get("added_tables") or []
+            )
+        return "chat.summary.wiki_prepared", {"count": count}
+    return "chat.summary.tool_ok", {"tool": name}
+
+
 def execute_tools_node(state: Mapping[str, Any]) -> dict[str, Any]:
     """Execute the latest AI tool calls sequentially with per-call audit spans."""
     messages = deserialize_messages(list(state.get("messages") or []))
@@ -368,14 +388,11 @@ def execute_tools_node(state: Mapping[str, Any]) -> dict[str, Any]:
         model_content = serialize_tool_result(safe_result)
         if span is not None:
             span.set_output(_truncate_for_log(safe_result))
+            summary_key, summary_params = _wiki_search_close(name, result)
             span.close(
                 status="completed" if result["ok"] else "failed",
-                summary_key=(
-                    "chat.summary.tool_ok"
-                    if result["ok"]
-                    else "chat.summary.tool_failed"
-                ),
-                summary_params={"tool": name},
+                summary_key=summary_key,
+                summary_params=summary_params,
                 tool={"call_id": call_id, "name": name, "args": safe_args},
             )
             data = result.get("data") if isinstance(result.get("data"), Mapping) else {}
@@ -464,13 +481,6 @@ def execute_tools_node(state: Mapping[str, Any]) -> dict[str, Any]:
             )
             previous_failure = ""
             consecutive_failures = 0
-            data = result.get("data") if isinstance(result.get("data"), Mapping) else {}
-            if (
-                name == "search_wiki"
-                and isinstance(data, Mapping)
-                and data.get("stop_search")
-            ):
-                stop_reason = "Wiki recall stalled without published table/enum schema"
         else:
             tool_steps.append(
                 {

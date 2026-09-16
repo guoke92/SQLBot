@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from typing import Any
 
 from apps.chat.agent_knowledge import (
+    SEARCH_WIKI_ROUND_LIMIT,
     WIKI_SCHEMA_GAP_SEARCH_LIMIT,
     AgentKnowledgePlane,
     MergeDelta,
@@ -89,6 +90,22 @@ def apply_wiki_search_policy(
     return plane, policy, delta
 
 
+def _search_pace_note(plane: AgentKnowledgePlane) -> str:
+    if plane.search_rounds < SEARCH_WIKI_ROUND_LIMIT:
+        return ""
+    return (
+        "已经检索多轮：优先基于当前系统提示写 SQL 或 complete_without_sql；"
+        "仅当出现新的缺口概念时再换检索词 search_wiki。"
+    )
+
+
+def _with_pace(message: str, plane: AgentKnowledgePlane) -> str:
+    note = _search_pace_note(plane)
+    if not note:
+        return message
+    return f"{message} {note}"
+
+
 def _continuation_request(plane: AgentKnowledgePlane, query: str) -> Any:
     """Mid-turn search_wiki keeps the plane's tables/pages/queries in the pin set.
 
@@ -112,6 +129,22 @@ def _continuation_request(plane: AgentKnowledgePlane, query: str) -> Any:
             for table, names in plane.keep_fields.items()
             if names
         },
+    )
+
+
+def _recall_hit_count(payload: Mapping[str, Any]) -> int:
+    try:
+        n = int(payload.get("hit_count") or 0)
+    except (TypeError, ValueError):
+        n = 0
+    if n > 0:
+        return n
+    return len(
+        [
+            str(key).strip()
+            for key in (payload.get("page_keys") or [])
+            if str(key).strip()
+        ]
     )
 
 
@@ -180,69 +213,73 @@ def search_wiki_knowledge(
             policy=policy,
             plane=plane,
             backend=str(res.get("backend") or ""),
+            hit_count=_recall_hit_count(res),
         )
         status = str(policy.get("recall_status") or "")
         backend = stub.get("backend") or "none"
 
         if policy.get("stop_search") and status == "no_new_evidence":
             return success_result(
-                (
-                    "本次检索没有新的 Wiki 证据（无证据的表未并入）。stop_search 已置位，"
-                    "不要再调用 search_wiki；请基于系统提示中的 schema_catalog 写 SQL，"
-                    "或调用 request_clarification。"
-                ),
-                data=stub,
-            )
-        if policy.get("stop_search") and status in {"round_limit", "budget_exhausted"}:
-            return success_result(
-                (
-                    "Wiki 检索预算已用完，stop_search 已置位，不要再调用 search_wiki。"
-                    "请直接写 SQL，或告知用户知识库暂未覆盖该问题。"
+                _with_pace(
+                    (
+                        "本次检索没有新的 Wiki 证据（无证据的表未并入）。"
+                        "不要用近义词再搜同一批表；出现新缺口再换检索词。"
+                        "请基于系统提示写 SQL，或 request_clarification / complete_without_sql。"
+                    ),
+                    plane,
                 ),
                 data=stub,
             )
         if policy.get("stop_search") and status == "stagnant" and plane.schema_ready:
             return success_result(
-                (
-                    "覆盖面未变化：相关表已在系统提示的 schema_catalog 中，"
-                    "不要再对同一批表调用 search_wiki。请直接写 SQL 或 request_clarification。"
-                ),
-                data=stub,
-            )
-        if policy.get("stop_search"):
-            return success_result(
-                (
-                    "Wiki 召回停滞："
-                    f"{stub.get('schema_gap_searches') or WIKI_SCHEMA_GAP_SEARCH_LIMIT} "
-                    "次检索后仍无已发布的表/枚举页。不要再调用 search_wiki，"
-                    "不要查询 information_schema / SHOW COLUMNS；停止工具调用并告知用户"
-                    "知识库暂无法回答。"
+                _with_pace(
+                    (
+                        "覆盖面未变化：相关表已在系统提示的 schema_catalog 中。"
+                        "不要对同一批表再检索；新概念再针对性 search_wiki，"
+                        "否则写 SQL 或 request_clarification。"
+                    ),
+                    plane,
                 ),
                 data=stub,
             )
         if status == "schema_missing":
+            gap = int(stub.get("schema_gap_searches") or 0)
+            extra = (
+                f"已连续 {gap} 次没有表/枚举结构，换更具体的业务检索词，或 complete_without_sql。"
+                if gap >= WIKI_SCHEMA_GAP_SEARCH_LIMIT
+                else "换更具体的检索词再 search_wiki，或 complete_without_sql。"
+            )
             return success_result(
-                (
-                    f"已检索到知识（来源 {backend}，新增表 {delta.added_tables}），"
-                    "但没有表/枚举结构。允许再做一次针对性 search_wiki；"
-                    "不要查询 information_schema。"
+                _with_pace(
+                    (
+                        f"已检索到知识（来源 {backend}，新增表 {delta.added_tables}），"
+                        f"但没有表/枚举结构。{extra}"
+                        "不要查询 information_schema。"
+                    ),
+                    plane,
                 ),
                 data=stub,
             )
         if delta.unchanged and not plane.schema_ready:
             return success_result(
-                (
-                    "没有与该检索词匹配的知识。若表/枚举结构仍缺失，允许再做一次"
-                    "针对性 search_wiki；否则停止检索。"
+                _with_pace(
+                    (
+                        "没有与该检索词匹配的知识。表/枚举结构仍缺失时，"
+                        "换更具体的检索词再 search_wiki，或 complete_without_sql。"
+                    ),
+                    plane,
                 ),
                 data=stub,
             )
         return success_result(
-            (
-                f"已并入系统提示的 schema_catalog / wiki_knowledge（来源 {backend}）："
-                f"新增表 {delta.added_tables}，新增页 {delta.added_pages}，"
-                f"新增可见字段 {stub.get('added_fields') or {}}。"
-                "全文见系统提示，勿再重复检索同一对象。"
+            _with_pace(
+                (
+                    f"已并入系统提示的 schema_catalog / wiki_knowledge（来源 {backend}）："
+                    f"新增表 {delta.added_tables}，新增页 {delta.added_pages}，"
+                    f"新增可见字段 {stub.get('added_fields') or {}}。"
+                    "全文见系统提示；同一对象不要重复检索，新缺口可以再搜。"
+                ),
+                plane,
             ),
             data=stub,
         )

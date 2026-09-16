@@ -1,14 +1,22 @@
 """End-to-end tests for Unified Agent clarification interrupt and Wiki-led context."""
 
-from unittest.mock import MagicMock, patch
-import pytest
-from langchain_core.messages import AIMessage, ToolMessage
+from unittest.mock import MagicMock
 
-from apps.chat.graphs.nodes.agent_clarify import await_agent_clarification_node
+from langchain_core.messages import AIMessage
+
 from apps.chat.graphs.nodes.unified_agent import route_after_tools_execution
-from apps.chat.task.agent_prompt import build_agent_system_prompt
+from apps.chat.semantic_planning import ClarificationCard
+from apps.chat.task.agent_prompt import (
+    _SYSTEM_PROMPT_TEMPLATE,
+    build_agent_system_prompt,
+)
 from apps.chat.tools.clarification import request_clarification
-from apps.conversation.tooling import execute_tools_node, serialize_tool_result
+from apps.chat.tools.registry import (
+    ClarificationOptionSchema,
+    RequestClarificationInput,
+    build_agent_tools,
+)
+from apps.conversation.tooling import execute_tools_node
 
 
 def test_clarification_tool_creates_interrupt_payload():
@@ -152,7 +160,8 @@ def test_wiki_primary_prompt_assembly():
     assert "禁止编造" in prompt_with_wiki
     assert "table" in prompt_with_wiki
     assert "information_schema" in prompt_with_wiki
-    assert "早停" in prompt_with_wiki
+    assert "必要的新缺口" in prompt_with_wiki
+    assert "早停" not in prompt_with_wiki
     assert "再贴 Markdown 样例表" in prompt_with_wiki
     assert "仅展示前 N 条" in prompt_with_wiki
     assert "cust_*" not in prompt_with_wiki
@@ -250,3 +259,162 @@ def test_clarification_keeps_grounded_field_options():
         "created_at",
         "updated_at",
     }
+
+
+def test_clarification_option_schema_exposes_fields():
+    properties = ClarificationOptionSchema.model_json_schema()["properties"]
+    assert "fields" in properties
+    assert "table" in properties
+    assert "field" in properties
+
+    parsed = RequestClarificationInput.model_validate(
+        {
+            "questions": [
+                {
+                    "question": "渠道和项目码分别对应哪些字段？",
+                    "options": [
+                        {
+                            "label": "渠道用渠道码，项目码用项目编码",
+                            "description": "两列各自独立",
+                            "fields": [
+                                {"table": "cust_company_info", "field": "channel_code"},
+                                {"table": "cust_company_info", "name": "project_code"},
+                            ],
+                        },
+                        {
+                            "label": "两列都用渠道码",
+                            "description": "项目码按 Wiki 别名落到渠道码",
+                            "table": "cust_company_info",
+                            "field": "channel_code",
+                        },
+                    ],
+                }
+            ]
+        }
+    )
+    first_fields = parsed.questions[0].options[0].fields
+    assert [item.name for item in first_fields] == ["channel_code", "project_code"]
+    assert parsed.questions[0].options[1].field == "channel_code"
+    assert parsed.questions[0].options[1].fields == []
+
+
+def test_multi_field_option_is_grounded_and_round_trips():
+    catalog = {
+        "cust_company_info": {"channel_code", "project_code", "company_name"},
+    }
+    res = request_clarification(
+        [
+            {
+                "question": "清单里的渠道和项目码分别取哪套字段？",
+                "options": [
+                    {
+                        "label": "渠道取渠道码，项目码取项目编码",
+                        "description": "两列含义不同，各自落独立字段",
+                        "fields": [
+                            {"table": "cust_company_info", "name": "channel_code"},
+                            {"table": "cust_company_info", "name": "project_code"},
+                        ],
+                    },
+                    {
+                        "label": "渠道和项目码都取渠道码",
+                        "description": "项目码按别名与渠道码同字段",
+                        "fields": [
+                            {"table": "cust_company_info", "field": "channel_code"},
+                        ],
+                    },
+                ],
+            }
+        ],
+        catalog=catalog,
+    )
+    assert res["ok"] is True
+    payload = res["data"]["clarification_card"]
+    option = payload["questions"][0]["options"][0]
+    names = {ref["name"] for ref in option["fields"]}
+    assert names == {"channel_code", "project_code"}
+    round_tripped = ClarificationCard.model_validate(payload)
+    restored = round_tripped.questions[0].options[0]
+    assert {ref.name for ref in restored.fields} == {"channel_code", "project_code"}
+
+
+def test_chat_117_output_field_conflict_clarifies_not_probes():
+    """Sanitized replay of chat 117: 渠道 vs 项目码 share a Wiki alias.
+
+    After at most one targeted wiki search the agent must merge the conflict
+    into request_clarification with two complete mappings. Probe SQL cannot
+    decide the business names, and 项目码 must not be silently folded onto
+    channel_code.
+    """
+    assert (
+        "一次针对性 Wiki 检索后输出字段仍冲突，立即合并澄清" in _SYSTEM_PROMPT_TEMPLATE
+    )
+    assert "禁止用 probe 代替" in _SYSTEM_PROMPT_TEMPLATE
+
+    tools = build_agent_tools(MagicMock(), access_scope=None)
+    clarify = next(item for item in tools if item.name == "request_clarification")
+    assert "output-column" in clarify.description
+    assert "alters query results" not in clarify.description
+
+    catalog = {
+        "cust_company_info": {"channel_code", "project_code", "company_name"},
+    }
+    args = RequestClarificationInput.model_validate(
+        {
+            "questions": [
+                {
+                    "question": "「渠道」和「项目码」分别对应哪套字段？",
+                    "options": [
+                        {
+                            "label": "渠道=渠道码，项目码=项目编码",
+                            "description": "两列返回不同值",
+                            "fields": [
+                                {"table": "cust_company_info", "name": "channel_code"},
+                                {"table": "cust_company_info", "name": "project_code"},
+                            ],
+                        },
+                        {
+                            "label": "项目码按渠道码理解",
+                            "description": "两列都返回渠道码，不再单独出项目编码",
+                            "fields": [
+                                {"table": "cust_company_info", "name": "channel_code"},
+                            ],
+                        },
+                    ],
+                }
+            ]
+        }
+    )
+    res = request_clarification(
+        [q.model_dump() for q in args.questions],
+        catalog=catalog,
+    )
+    assert res["ok"] is True
+    option_fields = [
+        [ref["name"] for ref in opt["fields"]]
+        for opt in res["data"]["clarification_card"]["questions"][0]["options"]
+    ]
+    assert ["channel_code", "project_code"] in option_fields
+    assert ["channel_code"] in option_fields
+
+
+def test_output_field_contrast_cases_do_not_over_clarify():
+    """Wiki=schema aliases, unique bindings, and confirmed calibers stay executable."""
+    assert "输出列在 Wiki 与 schema 中指向同一物理字段" in _SYSTEM_PROMPT_TEMPLATE
+    assert "仅当两者都有独立唯一落点时不是冲突、不澄清" in _SYSTEM_PROMPT_TEMPLATE
+    assert "已确认口径" in _SYSTEM_PROMPT_TEMPLATE
+    assert "不重问" in _SYSTEM_PROMPT_TEMPLATE
+
+    prompt = build_agent_system_prompt(
+        memory_slots={
+            "confirmed_calibers": [
+                {
+                    "question": "时间以哪个字段为准？",
+                    "label": "创建时间",
+                    "meaning": "按任务创建时间统计",
+                    "fields": [{"table": "d_task", "name": "created_at"}],
+                }
+            ]
+        }
+    )
+    assert "已确认口径" in prompt
+    assert "created_at" in prompt or "创建时间" in prompt

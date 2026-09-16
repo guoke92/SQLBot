@@ -978,7 +978,9 @@
         "compare_results": "결과 비교",
         "search_wiki": "지식 검색",
         "prepare_wiki": "지식 준비",
-        "request_clarification": "확인 요청"
+        "restore_wiki": "이전 지식 복원",
+        "request_clarification": "확인 요청",
+        "complete_without_sql": "바로 답변"
       }
     },
     "summary": {
@@ -989,7 +991,8 @@
       "answer_ready": "답변 준비됨",
       "clarification_waiting": "확인 대기",
       "clarification_confirmed": "기준 확인됨",
-      "wiki_prepared": "지식 {count}건 준비"
+      "wiki_prepared": "지식 {count}건 준비",
+      "wiki_restored": "이전 지식 {count}건 복원"
     },
     "audit": {
       "processing": "처리 중",

@@ -38,6 +38,7 @@ edges:
     paths:
       agent_loop: agent_loop
       await_clarification: await_clarification
+      finalize_turn: finalize_turn
       fail: fail
 
   - from: await_clarification

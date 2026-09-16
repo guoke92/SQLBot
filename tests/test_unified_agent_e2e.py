@@ -5,7 +5,10 @@ from apps.chat.memory_slots import MemorySlots
 from apps.chat.task.agent_prompt import build_agent_system_prompt
 from apps.chat.tools.compare_results import compare_query_results
 from apps.chat.tools.patch_sql import patch_and_compile_sql
-from apps.chat.graphs.nodes.unified_agent import route_after_agent_loop, route_after_tools_execution
+from apps.chat.graphs.nodes.unified_agent import (
+    route_after_agent_loop,
+    route_after_tools_execution,
+)
 from langchain_core.messages import AIMessage, ToolCall
 
 
@@ -37,7 +40,7 @@ def test_memory_slots_retention_and_baseline_extraction():
     # Compact one-line rendering, no raw JSON dump of the slot model.
     assert prompt.count("confirmed_calibers") == 1
     assert '"active_baseline_sql"' not in prompt
-    assert "- status NOT IN [\"CANCELLED\"]" in prompt
+    assert '- status NOT IN ["CANCELLED"]' in prompt
 
 
 def test_incremental_patch_preserves_confirmed_filters():
@@ -48,7 +51,9 @@ def test_incremental_patch_preserves_confirmed_filters():
     assert res["ok"] is True
     patched = res["data"]["sql"].lower()
     assert "month" in patched
-    assert "cancelled" in patched and ("status not in" in patched or "not status in" in patched)
+    assert "cancelled" in patched and (
+        "status not in" in patched or "not status in" in patched
+    )
     assert "group by dept, month" in patched
 
 
@@ -68,14 +73,38 @@ def test_agent_route_after_agent_loop_with_tool_call():
 
 def test_route_after_tools_clarification_interrupt():
     """验证场景2：质疑/歧义时触发澄清卡片中断路由."""
-    tool_steps_normal = [{"name": "patch_and_compile_sql", "result": {"ok": True, "data": {}}}]
-    assert route_after_tools_execution({"tool_steps": tool_steps_normal}) == "agent_loop"
+    tool_steps_normal = [
+        {"name": "patch_and_compile_sql", "result": {"ok": True, "data": {}}}
+    ]
+    assert (
+        route_after_tools_execution({"tool_steps": tool_steps_normal}) == "agent_loop"
+    )
 
-    tool_steps_clarify = [{
-        "name": "request_clarification",
-        "result": {"ok": True, "data": {"interrupt_required": True}},
-    }]
-    assert route_after_tools_execution({"tool_steps": tool_steps_clarify}) == "await_clarification"
+    tool_steps_clarify = [
+        {
+            "name": "request_clarification",
+            "result": {"ok": True, "data": {"interrupt_required": True}},
+        }
+    ]
+    assert (
+        route_after_tools_execution({"tool_steps": tool_steps_clarify})
+        == "await_clarification"
+    )
+
+    tool_steps_text = [
+        {
+            "ok": True,
+            "name": "complete_without_sql",
+            "result": {
+                "ok": True,
+                "data": {"terminal_answer": True, "content": "能力说明"},
+            },
+        }
+    ]
+    assert (
+        route_after_tools_execution({"tool_steps": tool_steps_text}) == "finalize_turn"
+    )
+
 
 from apps.chat.graphs.nodes.agent_finalize import finalize_agent_turn_node
 
@@ -186,9 +215,7 @@ def test_finalize_query_without_data_is_friendly_failure(monkeypatch):
     def _scope():
         yield object()
 
-    monkeypatch.setattr(
-        "apps.chat.graphs.nodes.agent_finalize.session_scope", _scope
-    )
+    monkeypatch.setattr("apps.chat.graphs.nodes.agent_finalize.session_scope", _scope)
     monkeypatch.setattr(
         "apps.chat.graphs.nodes.agent_finalize.load_result_datasets",
         lambda *_a, **_k: [],

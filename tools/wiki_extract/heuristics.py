@@ -6,6 +6,16 @@ import re
 from typing import Any
 
 from tools.wiki_extract.introspect import is_pii_column
+from tools.wiki_extract.join_policy import (
+    AUDIT_USER_FIELDS,
+    TENANT_FIELDS,
+    child_endpoint_reason,
+    is_blocked_fk_stem,
+    is_geo_code,
+    mysql_type_of,
+    prefix_token_score,
+    type_family,
+)
 
 COMMON_COLUMNS = (
     "id",
@@ -17,65 +27,36 @@ COMMON_COLUMNS = (
     "update_by",
     "update_user",
 )
-TENANT_FIELDS = frozenset(
-    {
-        "tenant_id",
-        "tenant_code",
-        "db_tenant_code",
-        "app_tenant_code",
-        "organization_id",
-    }
-)
-_TYPE_FAMILY = {
-    "varchar": "string",
-    "char": "string",
-    "text": "string",
-    "tinytext": "string",
-    "mediumtext": "string",
-    "longtext": "string",
-    "enum": "string",
-    "set": "string",
-    "int": "number",
-    "integer": "number",
-    "bigint": "number",
-    "smallint": "number",
-    "tinyint": "number",
-    "mediumint": "number",
-    "decimal": "number",
-    "numeric": "number",
-    "double": "number",
-    "float": "number",
-    "real": "number",
-    "bit": "boolean",
-    "bool": "boolean",
-    "boolean": "boolean",
-    "date": "temporal",
-    "datetime": "temporal",
-    "timestamp": "temporal",
-    "time": "temporal",
-    "year": "temporal",
-    "json": "structured",
-    "blob": "structured",
-    "tinyblob": "structured",
-    "mediumblob": "structured",
-    "longblob": "structured",
-    "binary": "structured",
-    "varbinary": "structured",
-}
 _FK_ID = re.compile(r"^(.+)_(id|code)$", re.I)
 _REF_TABLE = re.compile(r"^ref_(.+)$", re.I)
+_FAMILY_HUB = {
+    ("cust", "cust"): "cust_company_info",
+    ("company", "cust"): "cust_company_info",
+    ("person", "cust"): "cust_person_info",
+    ("project", "tenant"): "tenant_project",
+}
 _SNOWFLAKE = re.compile(r"^\d{15,}$")
 _CODEISH = re.compile(r"^[A-Za-z][A-Za-z0-9_]{0,63}$")
-
-
-def type_family(mysql_type: str) -> str:
-    base = (mysql_type or "").split("(")[0].strip().lower()
-    return _TYPE_FAMILY.get(base, "string")
+_NOISE_SIMILAR = TENANT_FIELDS | AUDIT_USER_FIELDS
+_CODE_TOKEN = r"(?:[A-Za-z][A-Za-z0-9_]{0,47}|[YN01])"
+_PAIR_CODE_FIRST = re.compile(
+    rf"(?P<code>{_CODE_TOKEN})\s*[-:=]\s*(?P<label>[^\s,，;；/|]{{1,24}})"
+)
+_PAIR_LABEL_FIRST = re.compile(
+    rf"(?P<label>[\u4e00-\u9fff]{{1,24}})\s*[-:=]\s*(?P<code>{_CODE_TOKEN})"
+)
+_PAIR_SPACE = re.compile(
+    rf"(?P<code>{_CODE_TOKEN})\s+(?P<label>[\u4e00-\u9fff]{{1,24}})"
+)
+_PAIR_DIGIT = re.compile(
+    r"(?P<code>[01])\s*[,，:：]\s*(?P<label>[\u4e00-\u9fff]{1,24})"
+)
+_BARE_YN = re.compile(r"(?<![A-Za-z0-9_])Y\s*[/|、,，]\s*N(?![A-Za-z0-9_])", re.I)
 
 
 def enum_page_key(table: str, column: str) -> str:
-    """L0 enum identity is 表.字段 — not table_column."""
-    return f"{table}.{column}"
+    """L0 enum page identity is 表::字段 — not 表.字段 (physical) or table_column."""
+    return f"{table}::{column}"
 
 
 def _enum_code_key(raw: object) -> str:
@@ -90,6 +71,7 @@ def compile_model(
     profile: dict[str, Any] | None = None,
     *,
     max_enum_distinct: int = 32,
+    overlap: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     database = str(catalog.get("database") or "")
     tables_in = catalog.get("tables") or {}
@@ -118,9 +100,8 @@ def compile_model(
             )
 
     for tname, compiled in tables.items():
-        relations, rel_reviews = _identity_relations(tname, compiled, tables)
-        compiled["relations"] = relations
-        reviews.extend(rel_reviews)
+        compiled["relations"] = _identity_relations(tname, compiled, tables)
+        _exclude_join_rights_from_anchors(compiled)
 
     for tname, compiled in tables.items():
         stats = (profile_tables.get(tname) or {}).get("column_stats") or {}
@@ -139,17 +120,28 @@ def compile_model(
                 if not codes:
                     continue
                 enum_key = enum_page_key(tname, cname)
+                field = _field(compiled, cname)
+                comment = str((field or {}).get("description") or "")
+                observed = [str(_enum_code_key(k)) for k in codes]
+                values = {key: {"trust": "proposed"} for key in observed if key}
+                attach_comment_labels(
+                    values,
+                    comment,
+                    extra_labels=None,
+                    evidence=f"database_schema:{database}.{tname}.{cname}",
+                )
                 enums[enum_key] = {
                     "enum": enum_key,
                     "table": tname,
                     "column": cname,
+                    "comment": comment,
                     "fields": [f"{tname}.{cname}"],
-                    "values": {str(_enum_code_key(k)): {"trust": "proposed"} for k in codes},
+                    "values": values,
                     "counts": {
                         str(_enum_code_key(k)): int(c) for k, c in codes.items()
                     },
+                    "label_conflict": _comment_code_conflict(comment, list(values)),
                 }
-                field = _field(compiled, cname)
                 if field is not None:
                     field["dictionary"] = enum_key
             else:
@@ -164,70 +156,174 @@ def compile_model(
                     }
                 )
 
-    return seal_l0_reviews(
-        {
-            "database": database,
-            "generated_at": catalog.get("generated_at"),
-            "table_order": table_names,
-            "tables": tables,
-            "enums": enums,
-            "value_index": value_index,
-            "reviews": reviews,
-        }
-    )
+    packed: dict[str, Any] = {
+        "database": database,
+        "generated_at": catalog.get("generated_at"),
+        "table_order": table_names,
+        "tables": tables,
+        "enums": enums,
+        "value_index": value_index,
+        "reviews": reviews,
+    }
+    if overlap:
+        from tools.wiki_extract.overlap import apply_overlap
+
+        apply_overlap(packed, overlap)
+    return seal_l0_reviews(packed)
 
 
 def seal_l0_reviews(model: dict[str, Any]) -> dict[str, Any]:
-    """Rebuild grain/cluster/enum/similar REVIEWs. Keep PK-missing and JOIN items."""
+    """Keep PK-missing, JOIN authenticity, similar (non-audit), enum comment conflicts."""
     kept = [
-        item
-        for item in (model.get("reviews") or [])
-        if item.get("kind") in {"missing", "unverified_join"}
+        item for item in (model.get("reviews") or []) if item.get("kind") == "missing"
     ]
     extra: list[dict[str, Any]] = []
     for tname, compiled in (model.get("tables") or {}).items():
-        extra.append(
-            _review(
-                f"tables/{tname}#grain",
-                "unanchored",
-                "warning",
-                "grain is L0 draft from PK; confirm from how code treats a row",
-            )
-        )
-        for cluster in compiled.get("clusters") or []:
-            if cluster.get("key") == "common":
-                continue
-            if cluster.get("trust") == "proposed" or cluster.get("confidence") == "proposed":
-                source = cluster.get("source") or "prefix"
-                extra.append(
-                    _review(
-                        f"tables/{tname}#clusters.{cluster['key']}",
-                        "unanchored",
-                        "warning",
-                        f"{source} cluster {cluster['key']!r} is L0-proposed (no code evidence)",
-                    )
-                )
+        for rel in compiled.get("relations") or []:
+            extra.append(_join_review(tname, compiled, rel))
         for group in compiled.get("similar_fields") or []:
             fields = [str(x) for x in (group.get("fields") or []) if x]
+            if len(fields) < 2 or _noise_similar(fields):
+                continue
             extra.append(
                 _review(
                     f"tables/{tname}#similar_fields.{'_'.join(fields[:4])}",
                     "unanchored",
-                    "warning",
+                    "info",
                     str(group.get("note") or f"similar fields: {', '.join(fields)}"),
                 )
             )
     for enum in (model.get("enums") or {}).values():
+        if not enum.get("label_conflict"):
+            continue
         extra.append(
             _review(
                 f"enums/{enum['enum']}#values",
-                "unanchored",
+                "conflict",
                 "warning",
-                "L0 enum candidate; labels require code; LLM keep ≠ confirmed",
+                "column comment codes do not overlap profile values",
             )
         )
     model["reviews"] = kept + extra
     return model
+
+
+def attach_comment_labels(
+    values: dict[str, Any],
+    comment: str,
+    extra_labels: dict[str, str] | None = None,
+    *,
+    evidence: str = "",
+) -> None:
+    """Write proposed labels only when the comment can ground them."""
+    observed = list(values)
+    parsed = parse_comment_labels(comment, observed)
+    incoming = {str(k): str(v).strip() for k, v in (extra_labels or {}).items() if v}
+    incoming_ci = {k.upper(): v for k, v in incoming.items()}
+    for code, row in values.items():
+        if not isinstance(row, dict):
+            continue
+        proposed = (
+            incoming.get(code) or incoming_ci.get(str(code).upper()) or parsed.get(code)
+        )
+        if not proposed:
+            row.pop("label", None)
+            row.pop("evidence", None)
+            continue
+        if not label_grounded(comment, str(code), proposed):
+            row.pop("label", None)
+            row.pop("evidence", None)
+            continue
+        row["label"] = proposed
+        row["trust"] = row.get("trust") or "proposed"
+        if evidence:
+            row["evidence"] = evidence
+
+
+def parse_comment_labels(
+    comment: str, codes: list[str] | None = None
+) -> dict[str, str]:
+    """Pull code→label pairs out of a column comment. Empty if there is no mapping."""
+    text = str(comment or "").strip()
+    if not text:
+        return {}
+    allow = {str(c): str(c) for c in (codes or []) if c}
+    allow_ci = {k.upper(): k for k in allow}
+    found: dict[str, str] = {}
+
+    def _take(code: str, label: str) -> None:
+        code = str(code or "").strip()
+        label = str(label or "").strip().strip("。；;,.）)")
+        if not code or not label or label.upper() == code.upper():
+            return
+        if allow:
+            key = allow.get(code) or allow_ci.get(code.upper())
+            if not key:
+                return
+            code = key
+        elif codes is not None:
+            return
+        found.setdefault(code, label)
+
+    for match in _PAIR_LABEL_FIRST.finditer(text):
+        _take(match.group("code"), match.group("label"))
+    for match in _PAIR_CODE_FIRST.finditer(text):
+        _take(match.group("code"), match.group("label"))
+    for match in _PAIR_SPACE.finditer(text):
+        _take(match.group("code"), match.group("label"))
+    for match in _PAIR_DIGIT.finditer(text):
+        _take(match.group("code"), match.group("label"))
+    return found
+
+
+def label_grounded(comment: str, code: str, label: str) -> bool:
+    """Accept a label only when the comment contains both the code and the gloss."""
+    text = str(comment or "")
+    code = str(code or "").strip()
+    label = str(label or "").strip()
+    if not text or not code or not label:
+        return False
+    if label.upper() == code.upper():
+        return False
+    if label not in text and _compact(label) not in _compact(text):
+        return False
+    if not _has_code_token(text, code):
+        return False
+    if code.upper() in {"Y", "N"} and _BARE_YN.search(text):
+        # 「是否启用：Y/N」is a field gloss, not per-code labels.
+        if not re.search(rf"{re.escape(code)}\s*[-:=]", text, re.I) and not re.search(
+            rf"[\u4e00-\u9fff]\s*[-:=]\s*{re.escape(code)}", text, re.I
+        ):
+            return False
+    idx = _code_index(text, code)
+    if idx < 0:
+        return False
+    window = text[max(0, idx - 24) : idx + len(code) + 24]
+    return label in window or _compact(label) in _compact(window)
+
+
+def _compact(text: str) -> str:
+    return re.sub(r"\s+", "", text)
+
+
+def _has_code_token(comment: str, code: str) -> bool:
+    return (
+        re.search(rf"(?<![A-Za-z0-9_]){re.escape(code)}(?![A-Za-z0-9_])", comment)
+        is not None
+    )
+
+
+def _code_index(comment: str, code: str) -> int:
+    match = re.search(rf"(?<![A-Za-z0-9_]){re.escape(code)}(?![A-Za-z0-9_])", comment)
+    return match.start() if match else -1
+
+
+def _comment_code_conflict(comment: str, observed: list[str]) -> bool:
+    mapped = {c.upper() for c in parse_comment_labels(comment, None)}
+    obs = {str(c).upper() for c in observed if c}
+    if not mapped or not obs:
+        return False
+    return mapped.isdisjoint(obs)
 
 
 def _pk_from_indexes(indexes: list[dict[str, Any]]) -> list[str]:
@@ -275,6 +371,7 @@ def _compile_table(
         item: dict[str, Any] = {
             "name": name,
             "data_type": type_family(str(info.get("type") or "")),
+            "mysql_type": str(info.get("type") or ""),
             "description": str(info.get("comment") or ""),
             "nullable": bool(info.get("nullable", True)),
         }
@@ -302,6 +399,7 @@ def _compile_table(
         "fields": fields,
         "column_names": names,
         "rows_estimate": int(tmeta.get("rows_estimate") or 0),
+        "indexed_columns": _indexed_columns(tmeta),
         "relations": [],
     }
 
@@ -333,16 +431,20 @@ def _identity_relations(
     tname: str,
     compiled: dict[str, Any],
     tables: dict[str, Any],
-) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+) -> list[dict[str, Any]]:
     relations: list[dict[str, Any]] = []
-    reviews: list[dict[str, Any]] = []
     pk_here = set(compiled.get("primary_key") or [])
     seen: set[tuple[str, str]] = set()
     for col in compiled.get("column_names") or []:
         if col in pk_here or col in TENANT_FIELDS:
             continue
-        target = _resolve_target(col, tables)
-        if not target or target == tname:
+        if child_endpoint_reason(col, mysql_type_of(compiled, col)):
+            continue
+        hit = _resolve_target_hit(col, tables, tname)
+        if not hit:
+            continue
+        target, match_kind, stem = hit
+        if target == tname:
             continue
         identity_col = _target_key(tables[target], col)
         if not identity_col or identity_col in TENANT_FIELDS:
@@ -354,6 +456,8 @@ def _identity_relations(
         if pair in seen:
             continue
         seen.add(pair)
+        field = _field(compiled, col)
+        comment = str((field or {}).get("description") or "")
         relations.append(
             {
                 "type": "EQUI_JOIN",
@@ -361,35 +465,177 @@ def _identity_relations(
                 "right": right,
                 "cardinality": "one_to_many",
                 "trust": "proposed",
+                "authenticity": "unknown",
+                "source": "name",
+                "name_evidence": {
+                    "match": match_kind,
+                    "stem": stem,
+                    "comment": comment[:80],
+                },
+                "overlap": {"probed": False},
                 "evidence": f"database_schema:{compiled.get('database')}.{tname}.{col}",
             }
         )
-        reviews.append(
-            _review(
-                f"tables/{tname}#relations.{left}__{right}",
-                "unverified_join",
-                "warning",
-                f"identity-bundle JOIN {left} → {right} is L0-proposed; needs code_path",
-            )
-        )
-    return relations, reviews
+    return relations
 
 
-def _resolve_target(col: str, tables: dict[str, Any]) -> str | None:
+def _exclude_join_rights_from_anchors(compiled: dict[str, Any]) -> None:
+    rights = {
+        str(rel.get("right") or "").split(".", 1)[-1]
+        for rel in compiled.get("relations") or []
+    }
+    compiled["name_anchors"] = [
+        col for col in (compiled.get("name_anchors") or []) if col not in rights
+    ]
+
+
+def _join_review(
+    tname: str, compiled: dict[str, Any], rel: dict[str, Any]
+) -> dict[str, Any]:
+    left = str(rel.get("left") or "")
+    right = str(rel.get("right") or "")
+    col = right.split(".", 1)[-1] if "." in right else right
+    field = _field(compiled, col)
+    comment = str((field or {}).get("description") or "")
+    auth = str(rel.get("authenticity") or "unknown")
+    name_ev = rel.get("name_evidence") or {}
+    match = str(name_ev.get("match") or "none")
+    overlap = rel.get("overlap") or {}
+    note = (
+        f"identity-bundle JOIN {left} → {right} is L0-proposed; "
+        f"authenticity={auth}; name_match={match}"
+    )
+    if overlap.get("probed"):
+        ratio = overlap.get("ratio")
+        rev = overlap.get("ratio_reverse")
+        note += f"; overlap_ratio={ratio}"
+        if rev is not None:
+            note += f"; overlap_ratio_reverse={rev}"
+        if overlap.get("deepened"):
+            note += "; deepened=true"
+    elif overlap.get("skipped"):
+        note += f"; overlap={overlap.get('skipped')}"
+    else:
+        note += "; overlap=not_probed"
+    if comment:
+        note += f"; comment={comment[:80]}"
+    extra = str(rel.get("authenticity_note") or "").strip()
+    if extra:
+        note += f"; {extra}"
+    return _review(
+        f"tables/{tname}#relations.{left}__{right}",
+        "unverified_join",
+        "warning",
+        note,
+    )
+
+
+def _noise_similar(fields: list[str]) -> bool:
+    return bool(fields) and all(name in _NOISE_SIMILAR for name in fields)
+
+
+def _resolve_target(col: str, tables: dict[str, Any], tname: str = "") -> str | None:
+    hit = _resolve_target_hit(col, tables, tname)
+    return hit[0] if hit else None
+
+
+def _resolve_target_hit(
+    col: str, tables: dict[str, Any], tname: str = ""
+) -> tuple[str, str, str] | None:
+    """Map a local column to (table, match_kind, stem). Never invent a missing table."""
+    if is_geo_code(col) or is_blocked_fk_stem(col):
+        return None
     ref = _REF_TABLE.match(col)
     if ref:
-        candidate = ref.group(1)
-        if candidate in tables:
-            return candidate
+        rest = ref.group(1)
+        if rest in tables and rest != tname:
+            return rest, "exact_table", rest
+        if tname and rest.startswith(f"{tname}_"):
+            tail = rest[len(tname) + 1 :]
+            if tail in tables and tail != tname:
+                return tail, "long_ref", tail
+        hit = _longest_table_suffix(rest, tables, exclude=tname)
+        if hit:
+            return hit, "long_ref", hit
     match = _FK_ID.match(col)
     if not match:
         return None
     stem = match.group(1)
-    if stem in tables:
-        return stem
-    if f"{stem}_info" in tables:
-        return f"{stem}_info"
+    if is_blocked_fk_stem(col):
+        return None
+    if stem in tables and stem != tname:
+        return stem, "exact_table", stem
+    info = f"{stem}_info"
+    if info in tables and info != tname:
+        return info, "stem_info", stem
+    scored = _score_suffix_tables(stem, tname, tables)
+    if scored:
+        return scored, "family_suffix", stem
+    hub = _family_hub(stem, tname, tables)
+    if hub:
+        return hub, "family_hub", stem
     return None
+
+
+def _longest_table_suffix(
+    text: str, tables: dict[str, Any], *, exclude: str
+) -> str | None:
+    best: str | None = None
+    for tbl in tables:
+        if tbl == exclude:
+            continue
+        if text == tbl or text.endswith(f"_{tbl}"):
+            if best is None or len(tbl) > len(best):
+                best = tbl
+    return best
+
+
+def _score_suffix_tables(stem: str, tname: str, tables: dict[str, Any]) -> str | None:
+    """Prefer the table sharing the longest underscore prefix with the local table."""
+    ranked: list[tuple[int, int, int, str]] = []
+    for tbl in tables:
+        if tbl == tname:
+            continue
+        if not (
+            tbl.endswith(f"_{stem}")
+            or tbl.endswith(f"_{stem}_info")
+            or tbl == f"{stem}_info"
+        ):
+            continue
+        score = prefix_token_score(tname, tbl)
+        if score <= 0:
+            continue
+        tightness = 0
+        if tbl == f"{stem}_info":
+            tightness = 3
+        elif tbl.endswith(f"_{stem}_info"):
+            tightness = 2
+        elif tbl.endswith(f"_{stem}"):
+            tightness = 1
+        # Tie-break: tighter suffix, then shorter name (cust_company_info over
+        # cust_head_company_info when both only share the family token).
+        ranked.append((score, tightness, -len(tbl), tbl))
+    if not ranked:
+        return None
+    ranked.sort(reverse=True)
+    return ranked[0][3]
+
+
+def _family_hub(stem: str, tname: str, tables: dict[str, Any]) -> str | None:
+    head = tname.split("_", 1)[0] if tname else ""
+    hub = _FAMILY_HUB.get((stem, head))
+    if hub and hub in tables and hub != tname:
+        return hub
+    return None
+
+
+def _indexed_columns(tmeta: dict[str, Any]) -> list[str]:
+    names: set[str] = set()
+    for idx in tmeta.get("indexes") or []:
+        for col in idx.get("columns") or []:
+            if col:
+                names.add(str(col))
+    return sorted(names)
 
 
 def _target_key(target: dict[str, Any], local_col: str) -> str | None:

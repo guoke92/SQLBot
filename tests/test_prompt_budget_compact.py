@@ -175,6 +175,31 @@ def test_agent_prompt_prefers_sql_accuracy_and_llm_drop() -> None:
     assert "生成准确的业务 SQL" in _SYSTEM_PROMPT_TEMPLATE
     assert "search_wiki` 的 `drop`" in _SYSTEM_PROMPT_TEMPLATE
     assert "不会因长度上限删除已入选的表" in _SYSTEM_PROMPT_TEMPLATE
+    assert "首次召回是起点" not in _SYSTEM_PROMPT_TEMPLATE
+    assert "独立轮开始时系统提示**没有** Wiki" in _SYSTEM_PROMPT_TEMPLATE
+    assert "complete_without_sql" in _SYSTEM_PROMPT_TEMPLATE
+    assert "终答只有两条路" in _SYSTEM_PROMPT_TEMPLATE
+    assert "禁止**只写纯文本就停" in _SYSTEM_PROMPT_TEMPLATE
+    assert "search_wiki` ≤" not in _SYSTEM_PROMPT_TEMPLATE
+    assert "探查 SQL（`required=false`）≤" not in _SYSTEM_PROMPT_TEMPLATE
+    assert "早停" not in _SYSTEM_PROMPT_TEMPLATE
+    assert "必要的新缺口/形态验证仍可再调" in _SYSTEM_PROMPT_TEMPLATE
+    assert "必要的形态验证仍可再探查" in _SYSTEM_PROMPT_TEMPLATE
+
+
+def test_agent_prompt_locks_output_field_ambiguity_policy() -> None:
+    """Explicit output columns follow the same caliber gate as filters."""
+    assert "用户列出的输出字段" in _SYSTEM_PROMPT_TEMPLATE
+    assert "不等于已确认物理字段" in _SYSTEM_PROMPT_TEMPLATE
+    assert "输出列值/血缘" in _SYSTEM_PROMPT_TEMPLATE
+    assert "探查 SQL 只能验证数据形态" in _SYSTEM_PROMPT_TEMPLATE
+    assert "不能裁决业务名称" in _SYSTEM_PROMPT_TEMPLATE
+    assert "无新证据" in _SYSTEM_PROMPT_TEMPLATE
+    assert "不得反复推翻" in _SYSTEM_PROMPT_TEMPLATE
+    assert "独立唯一落点" in _SYSTEM_PROMPT_TEMPLATE
+    assert "争用候选" in _SYSTEM_PROMPT_TEMPLATE
+    assert "纯别名格式差异不澄清" in _SYSTEM_PROMPT_TEMPLATE
+    assert "禁止用 probe 代替" in _SYSTEM_PROMPT_TEMPLATE
 
 
 def _wide_table_page(*, dict_key: str = "pay_status") -> SimpleNamespace:
@@ -270,9 +295,7 @@ def test_renderer_is_full_and_relations_are_tagged() -> None:
     ) in raw
     assert "enable:char, 是否启用" in raw
     assert "addr_0" in raw and "addr_41" in raw  # renderer never drops fields
-    person_rel = (
-        "关联: cust_company_info.cust_id → cust_person_info.id (cust_person_info) [write-flow]"
-    )
+    person_rel = "关联: cust_company_info.cust_id → cust_person_info.id (cust_person_info) [write-flow]"
     ghost_rel = "关联: cust_company_info.id → ghost.id (ghost) [ref-convention]"
     assert person_rel in raw
     assert ghost_rel in raw
@@ -494,9 +517,7 @@ def test_dict_topk_kept_when_enum_page_not_in_prompt() -> None:
         pages = {"state": enum_page, "t": table_page}
 
     text = WikiSchemaRenderer(_Store(), {}).render(["t"])
-    assert (
-        "state:varchar, 状态, topk=A|B, labels=A:甲类|B:乙类, enum=state"
-    ) in text
+    assert ("state:varchar, 状态, topk=A|B, labels=A:甲类|B:乙类, enum=state") in text
     # Projection with the enum page absent keeps topk+labels; present →
     # drop topk (values live on the enum page) but keep labels + enum pointer.
     kept = project_schema(text, present_pages=["t"]).text

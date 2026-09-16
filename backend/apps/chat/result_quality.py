@@ -223,7 +223,9 @@ def _score_dimensions(
 
     details: dict[str, QualityDetail] = {
         "semantic": _detail(
-            "requirements_covered" if requirements_covered else "requirements_not_fully_verified"
+            "requirements_covered"
+            if requirements_covered
+            else "requirements_not_fully_verified"
         ),
         "alignment": _detail(
             "semantic_review_verified"
@@ -313,6 +315,26 @@ def build_step_quality(
             "truncated": bool(assessment.get("truncated")),
             "step_count": 1,
         },
+    }
+
+
+def build_text_answer_quality() -> ResultQuality:
+    """Stamp for complete_without_sql: SQL fetch dimensions are skipped."""
+    dimensions = [
+        _dimension("semantic_coverage", 35, 100, _detail("text_answer_without_sql")),
+        _dimension("plan_alignment", 25, 100, _detail("text_answer_without_sql")),
+        _dimension("field_relation_evidence", 15, 75, _detail("sql_not_required")),
+        _dimension("execution_completeness", 15, 100, _detail("sql_not_required")),
+        _dimension("result_reasonableness", 10, 100, _detail("sql_not_required")),
+    ]
+    score = round(sum(item["weighted_score"] for item in dimensions))
+    return {
+        "score": score,
+        "grade": _grade(score),
+        "dimensions": dimensions,
+        "observations": [],
+        "passed_checks": ["text_answer_without_sql", "sql_not_required"],
+        "coverage": {"returned_rows": 0, "truncated": False, "step_count": 0},
     }
 
 

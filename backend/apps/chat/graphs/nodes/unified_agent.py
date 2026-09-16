@@ -24,6 +24,7 @@ from apps.chat.memory_slots import (
     answer_has_executable_sql,
     hydrate_memory_slots_from_referenced_turns,
 )
+from apps.chat.steps.recall_request import RecallRequest
 from apps.chat.steps.stream import consume_llm
 from apps.chat.task.agent_prompt import build_agent_system_prompt
 from apps.chat.tools.metadata import get_tool_title_key
@@ -125,6 +126,41 @@ def _sqlglot_dialect(llm_service: Any) -> str | None:
         return get_sqlglot_dialect(ds_type) if ds_type else None
     except Exception:  # noqa: BLE001 — dialect is a hint only
         return None
+
+
+def prepare_recall_request(
+    *,
+    relation: str,
+    question: str,
+    memory_slots: MemorySlots,
+    dialect: str | None,
+) -> RecallRequest | None:
+    """Pin-only restore for continue/revise; None means start with an empty plane."""
+    from apps.chat.steps.recall_request import sql_references
+
+    if str(relation or "independent") not in {"continue", "revise"}:
+        return None
+    refs = memory_slots.knowledge_refs or {}
+    prior_pages = [
+        str(key) for key in (refs.get("page_keys") or []) if str(key).strip()
+    ]
+    sql_tables, sql_cols = sql_references(
+        memory_slots.active_baseline_sql, dialect=dialect
+    )
+    prior_tables = [
+        str(name) for name in (refs.get("tables") or []) if str(name).strip()
+    ]
+    pin_tables = list(dict.fromkeys([*sql_tables, *prior_tables]))
+    if not prior_pages and not pin_tables:
+        return None
+    return RecallRequest.rehydrate(
+        pin_tables=pin_tables,
+        pin_pages=prior_pages,
+        required_fields={
+            table: tuple(sorted(names)) for table, names in sql_cols.items() if names
+        },
+        question=question,
+    )
 
 
 def _incomplete_query_state(
@@ -321,77 +357,71 @@ def prepare_agent_turn_node(state: Mapping[str, Any]) -> dict[str, Any]:
     referenced = list(base_state.get("referenced_turns") or [])
     memory_slots = hydrate_memory_slots_from_referenced_turns(memory_slots, referenced)
 
-    from apps.chat.steps.recall_request import build_recall_request
     from apps.chat.steps.wiki_recall import retrieve_wiki_context, wiki_span_fields
 
-    recall_request = build_recall_request(
-        question_text,
-        baseline_sql=memory_slots.active_baseline_sql,
-        prior_questions=memory_slots.prior_questions,
-        prior_page_keys=list(memory_slots.knowledge_refs.get("page_keys") or []),
-        prior_tables=list(memory_slots.knowledge_refs.get("tables") or []),
+    plane = AgentKnowledgePlane.from_dump(base_state.get("knowledge_plane"))
+    recall_request = prepare_recall_request(
+        relation=str(turn_route.get("relation") or "independent"),
+        question=question_text,
+        memory_slots=memory_slots,
         dialect=_sqlglot_dialect(llm_service),
     )
-
-    wiki_ctx: dict[str, Any] = {}
-    plane = AgentKnowledgePlane.from_dump(base_state.get("knowledge_plane"))
-    sink = StreamSink.from_state(base_state)
-    wiki_span = open_process_span(
-        kind="tool",
-        record_id=record_id,
-        sink=sink,
-        run_id=run_id,
-        graph_node="prepare_agent_turn",
-        title_key="chat.timeline.tool.prepare_wiki",
-        tool={
-            "call_id": f"prepare-wiki-{record_id or run_id}",
-            "name": "prepare_wiki",
-            "args": {"query": question_text[:240]},
-        },
-        summary_key="chat.audit.processing",
-        local_operation=True,
-    )
-    try:
-        wiki_ctx = retrieve_wiki_context(
-            llm_service,
-            recall_request,
-            access_scope=access_scope,
+    if recall_request is not None:
+        sink = StreamSink.from_state(base_state)
+        wiki_span = open_process_span(
+            kind="tool",
+            record_id=record_id,
+            sink=sink,
+            run_id=run_id,
+            graph_node="prepare_agent_turn",
+            title_key="chat.timeline.tool.restore_wiki",
+            tool={
+                "call_id": f"restore-wiki-{record_id or run_id}",
+                "name": "restore_wiki",
+                "args": recall_request.as_span_fields(),
+            },
+            summary_key="chat.audit.processing",
+            local_operation=True,
         )
-        plane.merge_recall(wiki_ctx)
-        plane.adopt_conflicts(
-            wiki_ctx.get("caliber_conflicts"),
-            memory_slots.confirmed_calibers,
-        )
-        wiki_ctx["caliber_conflicts"] = list(plane.caliber_conflicts)
-        recalled_schema = plane.schema_catalog_text()
-        if recalled_schema:
-            llm_service.chat_question.db_schema = recalled_schema
-        page_keys = list(plane.page_keys)
-        hit_count = int(wiki_ctx.get("hit_count") or len(page_keys) or 0)
-        if wiki_span is not None:
-            wiki_span.set_input(
-                {
-                    "query": question_text,
-                    "backend": wiki_ctx.get("backend"),
-                    "store_source": wiki_ctx.get("store_source"),
-                    "corpus_id": wiki_ctx.get("corpus_id"),
-                    **recall_request.as_span_fields(),
-                }
+        try:
+            wiki_ctx = retrieve_wiki_context(
+                llm_service,
+                recall_request,
+                access_scope=access_scope,
             )
-            wiki_span.set_output(
-                {**wiki_span_fields(wiki_ctx), "prompt": plane.prompt_stats()}
+            plane.merge_recall(wiki_ctx)
+            plane.adopt_conflicts(
+                wiki_ctx.get("caliber_conflicts"),
+                memory_slots.confirmed_calibers,
             )
-            wiki_span.close(
-                status="completed",
-                summary_key="chat.summary.wiki_prepared",
-                summary_params={"count": hit_count},
+            wiki_ctx["caliber_conflicts"] = list(plane.caliber_conflicts)
+            recalled_schema = plane.schema_catalog_text()
+            if recalled_schema:
+                llm_service.chat_question.db_schema = recalled_schema
+            hit_count = int(wiki_ctx.get("hit_count") or len(plane.page_keys) or 0)
+            if wiki_span is not None:
+                wiki_span.set_input(
+                    {
+                        "backend": wiki_ctx.get("backend"),
+                        "store_source": wiki_ctx.get("store_source"),
+                        "corpus_id": wiki_ctx.get("corpus_id"),
+                        **recall_request.as_span_fields(),
+                    }
+                )
+                wiki_span.set_output(
+                    {**wiki_span_fields(wiki_ctx), "prompt": plane.prompt_stats()}
+                )
+                wiki_span.close(
+                    status="completed",
+                    summary_key="chat.summary.wiki_restored",
+                    summary_params={"count": hit_count or len(plane.page_keys)},
+                )
+        except Exception as exc:
+            SQLBotLogUtil.warning(
+                f"Failed to restore prior knowledge in prepare_agent_turn: {exc}"
             )
-    except Exception as exc:
-        SQLBotLogUtil.warning(
-            f"Failed to retrieve context in prepare_agent_turn: {exc}"
-        )
-        if wiki_span is not None:
-            wiki_span.close(status="failed", summary_key="chat.audit.step_failed")
+            if wiki_span is not None:
+                wiki_span.close(status="failed", summary_key="chat.audit.step_failed")
 
     tools = build_agent_tools(llm_service, access_scope=access_scope)
     attach_runtime(
@@ -707,12 +737,16 @@ def route_after_agent_loop(
 
 def route_after_tools_execution(
     state: Mapping[str, Any],
-) -> Literal["agent_loop", "await_clarification", "fail"]:
+) -> Literal["agent_loop", "await_clarification", "finalize_turn", "fail"]:
     if state.get("error"):
         return "fail"
+    from apps.chat.tools.complete_answer import has_terminal_text_answer
+
     for step in state.get("tool_steps") or []:
         if isinstance(step, Mapping):
             data = step.get("result", {}).get("data") or {}
             if isinstance(data, Mapping) and data.get("interrupt_required"):
                 return "await_clarification"
+    if has_terminal_text_answer(state.get("tool_steps")):
+        return "finalize_turn"
     return "agent_loop"

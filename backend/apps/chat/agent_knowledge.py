@@ -19,8 +19,10 @@ WIKI_SCHEMA_GAP_SEARCH_LIMIT = 2
 PROBE_SQL_LIMIT = 2
 SEARCH_WIKI_ROUND_LIMIT = 2
 EXECUTION_ROUND_LIMIT = 5
-# Tools with their own budget above do not consume execution rounds.
-UNCOUNTED_TOOLS = frozenset({"request_clarification", "search_wiki"})
+# Search / clarify / text-exit do not consume execution rounds.
+UNCOUNTED_TOOLS = frozenset(
+    {"request_clarification", "search_wiki", "complete_without_sql"}
+)
 
 
 def tool_calls_advance_round(calls: Sequence[Mapping[str, Any]]) -> bool:
@@ -472,7 +474,7 @@ class AgentKnowledgePlane(BaseModel):
                 parts.append(
                     "<wiki_schema_gap>\n"
                     "当前 Wiki 召回没有给出可用的表结构或枚举页。"
-                    "最多再调用一次针对性 search_wiki；若仍无表/枚举，立即停止工具调用并向用户说明知识不足。"
+                    "换更具体的检索词再 search_wiki；仍无表/枚举则 complete_without_sql。"
                     "禁止查询 information_schema / SHOW COLUMNS / DESCRIBE，禁止猜测字段写 SQL。\n"
                     "</wiki_schema_gap>"
                 )
@@ -588,26 +590,18 @@ class AgentKnowledgePlane(BaseModel):
         return out
 
     def apply_search_policy(self, delta: MergeDelta) -> dict[str, Any]:
-        """Coverage policy: stop on no new evidence / round limit.
+        """Coverage policy: flag redundant searches; never hard-lock a new gap.
 
-        Table-count and char budgets must not drop already-selected tables;
-        SQL accuracy outranks prompt size. The model evicts noise via
-        ``search_wiki.drop``.
+        ``stop_search`` means this query added nothing useful. The graph must
+        still allow a later ``search_wiki`` with a different concept. Table-count
+        and char budgets must not drop already-selected tables; the model
+        evicts noise via ``search_wiki.drop``.
         """
         if self.schema_ready and delta.unchanged:
             return {
                 "recall_status": "stagnant",
                 "stop_search": True,
                 "schema_ready": True,
-                "schema_gap_searches": self.schema_gap_searches,
-            }
-        if self.search_rounds >= SEARCH_WIKI_ROUND_LIMIT and (
-            delta.added_evidence_pages or (self.schema_ready and not delta.unchanged)
-        ):
-            return {
-                "recall_status": "round_limit",
-                "stop_search": True,
-                "schema_ready": self.schema_ready,
                 "schema_gap_searches": self.schema_gap_searches,
             }
         if self.schema_ready:
@@ -619,10 +613,9 @@ class AgentKnowledgePlane(BaseModel):
                 "schema_gap_searches": 0,
             }
         self.schema_gap_searches += 1
-        stagnant = self.schema_gap_searches >= WIKI_SCHEMA_GAP_SEARCH_LIMIT
         return {
-            "recall_status": "stagnant" if stagnant else "schema_missing",
-            "stop_search": stagnant,
+            "recall_status": "schema_missing",
+            "stop_search": False,
             "schema_ready": False,
             "schema_gap_searches": self.schema_gap_searches,
         }
@@ -707,8 +700,14 @@ def search_wiki_stub(
     policy: Mapping[str, Any],
     plane: AgentKnowledgePlane,
     backend: str = "",
+    hit_count: int | None = None,
 ) -> dict[str, Any]:
     """ToolMessage payload: coverage delta only, never full schema/wiki text."""
+    recalled = (
+        int(hit_count)
+        if hit_count is not None
+        else len(delta.added_tables) + len(delta.added_pages)
+    )
     return {
         "added_tables": list(delta.added_tables),
         "added_pages": list(delta.added_pages),
@@ -720,7 +719,7 @@ def search_wiki_stub(
         "backend": backend or plane.backend,
         "tables": list(plane.tables),
         "page_keys": list(plane.page_keys),
-        "hit_count": len(delta.added_tables) + len(delta.added_pages),
+        "hit_count": recalled,
         "schema_gap_searches": int(policy.get("schema_gap_searches") or 0),
         "store_source": plane.store_source,
         "dropped_tables": list(policy.get("dropped_tables") or []),

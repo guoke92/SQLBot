@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Self
 
 from langchain_core.tools import StructuredTool
 from pydantic import BaseModel, Field, model_validator
 
 from apps.chat.tools.clarification import request_clarification
 from apps.chat.tools.compare_results import compare_query_results
+from apps.chat.tools.complete_answer import complete_without_sql
 from apps.chat.tools.execute_sql import execute_sql_sandbox
 from apps.chat.tools.patch_sql import patch_and_compile_sql
 from apps.chat.tools.wiki_search import search_wiki_knowledge
@@ -31,6 +32,34 @@ def _clarification_catalog(llm_service: Any, access_scope: Any) -> dict[str, set
         return {}
 
 
+class ClarificationFieldRefSchema(BaseModel):
+    name: str = Field(
+        default="",
+        description="Physical field name this mapping cites. Prefer this over field.",
+    )
+    field: str = Field(
+        default="",
+        description="Alias of name. Either name or field is required.",
+    )
+    table: str = Field(
+        default="",
+        description="Physical table this field belongs to. Must exist on the datasource.",
+    )
+    comment: str = Field(default="", description="Optional field comment.")
+    value: str = Field(
+        default="",
+        description="Optional enum literal when this option also fixes a value.",
+    )
+
+    @model_validator(mode="after")
+    def require_name(self) -> Self:
+        resolved = (self.name or self.field).strip()
+        if not resolved:
+            raise ValueError("Clarification field requires a name")
+        self.name = resolved
+        return self
+
+
 class ClarificationOptionSchema(BaseModel):
     label: str = Field(description="Display label of this candidate option.")
     description: str = Field(
@@ -40,11 +69,19 @@ class ClarificationOptionSchema(BaseModel):
     option_id: str = Field(default="", description="Unique identifier for this option.")
     table: str = Field(
         default="",
-        description="Physical table this option maps to. Must exist on the datasource.",
+        description="Physical table this option maps to when using a single field. Must exist on the datasource.",
     )
     field: str = Field(
         default="",
-        description="Physical field this option maps to. Must exist on that table.",
+        description="Physical field this option maps to when using a single field. Must exist on that table.",
+    )
+    fields: list[ClarificationFieldRefSchema] = Field(
+        default_factory=list,
+        description=(
+            "Complete mapping for this option. Use when one choice binds several "
+            "output columns or a composite caliber. Each item must cite a real "
+            "table/field. Legacy single table/field remains valid."
+        ),
     )
 
 
@@ -135,6 +172,15 @@ class ExecuteSqlInput(BaseModel):
     )
 
 
+class CompleteWithoutSqlInput(BaseModel):
+    content: str = Field(
+        description=(
+            "User-facing terminal answer in business language. Do not pile "
+            "physical table names. Use only when this turn will not deliver SQL."
+        ),
+    )
+
+
 class CompareResultsInput(BaseModel):
     base_sql: str = Field(
         description="Original base SQL representing prior caliber or result."
@@ -196,6 +242,10 @@ def build_agent_tools(
         )
         return dict(res)
 
+    def _complete_without_sql(content: str) -> dict[str, Any]:
+        res = complete_without_sql(content)
+        return dict(res)
+
     def _request_clarification(questions: list[Any]) -> dict[str, Any]:
         raw_list = []
         for q in questions:
@@ -217,9 +267,9 @@ def build_agent_tools(
                 "full schema lives only in the system prompt. "
                 "Pass drop=[table or page_key] to evict irrelevant knowledge from later "
                 "prompts; query may be empty when only dropping. "
-                "Call again only for a new gap. If the result is schema_missing, one more "
-                "targeted query is allowed; if it is stagnant/stop_search, stop. Never "
-                "query information_schema to fill schema gaps."
+                "Call again for a new gap; if this query added nothing, change the "
+                "keyword rather than repeating. Never query information_schema to "
+                "fill schema gaps."
             ),
             args_schema=SearchWikiInput,
         ),
@@ -248,9 +298,29 @@ def build_agent_tools(
             args_schema=CompareResultsInput,
         ),
         StructuredTool.from_function(
+            func=_complete_without_sql,
+            name="complete_without_sql",
+            description=(
+                "Finish this turn without delivering SQL. Call when the user "
+                "needs a capability/usage/knowledge explanation rather than a "
+                "dataset, or when Wiki cannot cover the question. content is "
+                "the user-facing answer. Do not use this to skip a data query; "
+                "probes (required=false) are not an exit. After a successful "
+                "delivery SQL, do not call this tool."
+            ),
+            args_schema=CompleteWithoutSqlInput,
+        ),
+        StructuredTool.from_function(
             func=_request_clarification,
             name="request_clarification",
-            description="Ask the user for clarification when there is significant business ambiguity that alters query results. Each option must map to a real table/field from search_wiki or the current schema. Do not invent products, platforms, or objects that are not in the datasource.",
+            description=(
+                "Ask the user for clarification when there is significant business "
+                "ambiguity that changes query semantics: row set, output-column "
+                "values/lineage, or aggregation/grouping caliber. Each option must "
+                "map to real table/field(s) from search_wiki or the current schema; "
+                "use fields when one option carries a complete multi-column mapping. "
+                "Do not invent products, platforms, or objects that are not in the datasource."
+            ),
             args_schema=RequestClarificationInput,
         ),
     ]

@@ -96,3 +96,20 @@ def test_batch_quality_uses_the_weakest_required_step() -> None:
     overall = build_overall_quality([good, weak])
     assert overall["score"] == weak["score"]
     assert overall["coverage"]["step_count"] == 2
+
+
+def test_text_answer_quality_skips_sql_fetch_dimensions() -> None:
+    from apps.chat.result_quality import build_text_answer_quality
+
+    empty = build_overall_quality([])
+    text = build_text_answer_quality()
+    assert empty["grade"] == "unreliable"
+    assert any(
+        detail.get("code") == "no_published_result"
+        for dim in empty["dimensions"]
+        for detail in dim.get("details") or []
+    )
+    assert text["grade"] != "unreliable"
+    assert text["score"] >= 75
+    assert "sql_not_required" in text["passed_checks"]
+    assert "text_answer_without_sql" in text["passed_checks"]

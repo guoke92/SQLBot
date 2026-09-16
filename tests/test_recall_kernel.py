@@ -117,9 +117,7 @@ def test_quality_gate_rejects_weak_pages() -> None:
         ]
     )
     trace: dict = {}
-    passages = recall(
-        "认证成功企业", store, top_k=8, mode="business", trace_out=trace
-    )
+    passages = recall("认证成功企业", store, top_k=8, mode="business", trace_out=trace)
     assert any(p.page_key == "hit" for p in passages)
     rejected = set(trace.get("gate_rejected") or [])
     assert any("unrelated" in key for key in rejected) or all(
@@ -186,7 +184,9 @@ def test_table_page_joins_only_when_query_names_it() -> None:
     class _Store:
         def __init__(self) -> None:
             self.pages = {
-                "tables/t_noise": _Page(page_key="t_noise", type="table", title="噪音表"),
+                "tables/t_noise": _Page(
+                    page_key="t_noise", type="table", title="噪音表"
+                ),
             }
 
         def get_page(self, key: str):
@@ -265,7 +265,10 @@ def test_trim_schema_chars_drops_least_evidenced() -> None:
         TableCandidate("a", ("p1", "p2"), 2.0, "anchor"),
         TableCandidate("b", ("p1",), 1.0, "anchor"),
     ]
-    bodies = {"a": "## A (a)\n" + "id:int, x\n" * 2, "b": "## B (b)\n" + "id:int, y\n" * 40}
+    bodies = {
+        "a": "## A (a)\n" + "id:int, x\n" * 2,
+        "b": "## B (b)\n" + "id:int, y\n" * 40,
+    }
     kept, cut = trim_schema_chars(tables, bodies, schema_chars=80)
     assert [item.name for item in kept] == ["a"]
     assert cut == ["b"]
@@ -321,8 +324,7 @@ def test_coverage_policy_keeps_evidenced_schema_expand() -> None:
         {
             "knowledge_text": "",
             "schema_text": (
-                "## 任务 (d_task)\nid:int, 主键\n"
-                "## 机构 (d_organization)\nid:int, 主键"
+                "## 任务 (d_task)\nid:int, 主键\n## 机构 (d_organization)\nid:int, 主键"
             ),
             "tables": ["d_task", "d_organization"],
             "page_keys": [],
@@ -336,8 +338,8 @@ def test_coverage_policy_keeps_evidenced_schema_expand() -> None:
     )
     assert "d_organization" in plane.tables
     assert delta.added_tables == ["d_organization"]
-    # Second mid-turn search may hit the round limit; the peer must still merge.
-    assert policy["recall_status"] in {"hit", "round_limit"}
+    assert policy["recall_status"] == "hit"
+    assert policy["stop_search"] is False
 
 
 def test_bundle_payload_round_trip() -> None:

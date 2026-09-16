@@ -755,9 +755,7 @@ def _schema_fallback_context(
             table_limit=budget.max_tables,
             total_limit=budget.max_tables_total,
             pinned_tables=[
-                str(name).strip()
-                for name in (pin_tables or ())
-                if str(name).strip()
+                str(name).strip() for name in (pin_tables or ()) if str(name).strip()
             ],
         )
     finally:
@@ -855,7 +853,11 @@ def _wiki_payload_from_recall(
     query = request.query
     budget = RecallBudget.from_settings()
     databases = datasource_databases(ds)
-    res = wiki_recall(query, ds_id=ds_id, databases=databases, top_k=top_k)
+    res = (
+        wiki_recall(query, ds_id=ds_id, databases=databases, top_k=top_k)
+        if str(query or "").strip()
+        else None
+    )
     store = _store(ds_id)
     trace = dict(getattr(res, "trace", None) or {})
     candidates: list[TableCandidate] = []
@@ -881,7 +883,9 @@ def _wiki_payload_from_recall(
                 source_note="上轮已用",
             )
         )
-    if store is not None and (res is not None or request.pin_tables):
+    if store is not None and (
+        res is not None or request.pin_tables or request.pin_pages
+    ):
         extra_keys = list(trace.get("closure_extra_keys") or [])
         extra_keys.extend(str(key) for key in (trace.get("conflict_page_keys") or []))
         candidates, budget_cut = resolve_wiki_tables(
@@ -997,14 +1001,15 @@ def retrieve_wiki_context(
        + anchor-closure schema. Zero hits stay on this path.
     2. Datasource has no Wiki binding: ``schema_vector`` catalog recall.
 
-    ``query`` may be a plain string (single turn / search_wiki) or a
-    ``RecallRequest`` carrying continuation pins (baseline tables, prior pages).
+    ``query`` may be a plain string (search_wiki) or a ``RecallRequest``.
+    Empty ``query`` with pins is pin-only rehydrate: restore those keys from
+    the store and skip vector recall.
     """
     from apps.knowledge.recall_kernel.types import RecallBudget
 
     request = RecallRequest.coerce(query)
     clean_query = request.query
-    if not clean_query:
+    if not clean_query and not request.is_continuation:
         return _empty_wiki_payload()
     ds = getattr(llm_service, "ds", None)
     ds_id = getattr(ds, "id", None)
@@ -1026,6 +1031,9 @@ def retrieve_wiki_context(
                 exc,
             )
             return _empty_wiki_payload(backend="wiki", store_source="db")
+
+    if not clean_query and not request.pin_tables:
+        return _empty_wiki_payload(backend="schema_vector")
 
     try:
         return _decorate_schema_fallback(

@@ -299,7 +299,14 @@ def finalize_agent_turn_node(state: Mapping[str, Any]) -> dict[str, Any]:
     route = (
         state.get("turn_route") if isinstance(state.get("turn_route"), Mapping) else {}
     )
-    if str(route.get("task_kind") or "query") == "query" and not all_steps:
+    from apps.chat.tools.complete_answer import terminal_text_from_steps
+
+    text_exit = terminal_text_from_steps(state.get("tool_steps"))
+    if all_steps:
+        text_exit = ""
+    elif text_exit:
+        final_text = text_exit
+    elif str(route.get("task_kind") or "query") == "query":
         from apps.chat.graphs.nodes.unified_agent import _incomplete_query_message
 
         text = _incomplete_query_message(state)
@@ -330,6 +337,10 @@ def finalize_agent_turn_node(state: Mapping[str, Any]) -> dict[str, Any]:
         )
     else:
         outcome = successful_outcome()
+    if text_exit and not all_steps:
+        from apps.chat.result_quality import build_text_answer_quality
+
+        outcome["quality"] = build_text_answer_quality()
     plane = AgentKnowledgePlane.from_dump(state.get("knowledge_plane"))
     knowledge_refs = plane.knowledge_refs() if plane.tables or plane.page_keys else None
     snapshot_vals = _record_snapshot_values(

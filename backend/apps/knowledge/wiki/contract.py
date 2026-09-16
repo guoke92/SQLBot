@@ -27,8 +27,8 @@ _FENCE_CLOSE_RE = re.compile(r"^```\s*$")
 
 PHYSICAL_SLUG_RE = re.compile(r"^[a-z][a-z0-9_]*$")  # 表名
 ENUM_SLUG_RE = re.compile(
-    r"^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)?$"
-)  # dictKey 或 L0 表.字段
+    r"^[a-z][a-z0-9_]*((::|\.)[a-z][a-z0-9_]*)?$"
+)  # dictKey；L0 表::字段（物理锚仍是 表.字段）
 BUSINESS_SLUG_RE = re.compile(r"^[\w-]+$")  # 业务页：CJK 保留，不罗马化（v0 §1.1）
 PAGE_STATUSES = {"draft", "published", "retired"}
 PAGE_TYPES = {
@@ -337,7 +337,7 @@ def parse_page(
         errors.append("title is required")
     if page_key and page_type in PAGE_TYPES and not _slug_valid(page_type, page_key):
         rule = (
-            "物理名（表 snake_case；枚举 dictKey 或 表.字段）"
+            "物理名（表 snake_case；枚举 dictKey 或 L0 表::字段）"
             if page_type in {"table", "enum"}
             else "业务 slug（CJK 保留）"
         )

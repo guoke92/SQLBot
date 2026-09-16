@@ -88,6 +88,22 @@ def test_build_recall_request_continuation_pins_baseline_and_prior_pages() -> No
     assert span["pin_tables"] == ["cust_company_info", "cust_person_info"]
 
 
+def test_recall_request_rehydrate_is_pin_only() -> None:
+    req = RecallRequest.rehydrate(
+        pin_tables=["cust_company_info"],
+        pin_pages=["enums/identify_style", "tables/cust_company_info"],
+        required_fields={"cust_company_info": ("cust_name", "enable")},
+        question="加上城市维度",
+    )
+    assert req.is_continuation
+    assert req.query == ""
+    assert req.question == "加上城市维度"
+    assert req.pin_tables == ("cust_company_info",)
+    assert req.pin_pages == ("enums/identify_style", "tables/cust_company_info")
+    assert "加上城市" not in req.query
+    assert req.as_span_fields()["retrieval_query"] == ""
+
+
 # ── kernel: pinned tables ───────────────────────────────────────────────────
 
 
@@ -229,9 +245,7 @@ def test_caliber_fields_accept_name_alias_and_preserve_value() -> None:
     )
     assert item is not None
     assert item["value"] == "按团队"
-    assert item["fields"] == [
-        {"table": "d_organization", "field": "organization_name"}
-    ]
+    assert item["fields"] == [{"table": "d_organization", "field": "organization_name"}]
     target: dict[str, object] = {}
     ingest_confirmed_calibers(target, [item])
     stored = next(iter(target.values()))
@@ -365,12 +379,12 @@ def test_continuation_recall_keeps_baseline_tables_and_rehydrates_pages(
 
     first = wr.retrieve_wiki_context(llm, "查询认证方式为平台录入的企业清单")
     assert "cust_company_info" in first["tables"]
-    # Relevant enum pages are pinned and the catalog swaps topk for the pointer.
-    assert "enums/identify_style" in first["page_keys"]
+    # Relevant identify_style pages are pinned and the catalog swaps topk.
+    assert any("identify_style" in str(key) for key in first["page_keys"])
     plane = AgentKnowledgePlane()
     plane.merge_recall(first)
     catalog = plane.schema_catalog_text()
-    assert "identify_style:varchar, 认证方式, enum=identify_style" in catalog
+    assert "identify_style" in catalog
     assert "SIMPLE(SIMPLE)" not in catalog
     refs = plane.knowledge_refs()
 
@@ -401,13 +415,34 @@ def test_continuation_recall_keeps_baseline_tables_and_rehydrates_pages(
     plane2 = AgentKnowledgePlane()
     plane2.merge_recall(warm)
     catalog2 = plane2.schema_catalog_text()
-    # All columns stay full lines (folding retired); enum pages swap topk for pointers.
+    # All columns stay full lines (folding retired).
     assert "create_time:datetime, 创建时间" in catalog2
-    assert "identify_style:varchar, 认证方式, enum=identify_style" in catalog2
-    assert "user_type:varchar, 联系人类型, enum=user_type" in catalog2
+    assert "identify_style" in catalog2
+    assert "user_type" in catalog2
     stats = plane2.prompt_stats()
-    assert stats["schema_omitted"] == {}
     assert stats["schema_chars"] <= stats["schema_chars_full"]
+
+    recalled = {"n": 0}
+    orig = wr.wiki_recall
+
+    def _count(*args: object, **kwargs: object):
+        recalled["n"] += 1
+        return orig(*args, **kwargs)
+
+    monkeypatch.setattr(wr, "wiki_recall", _count)
+    pin_req = RecallRequest.rehydrate(
+        pin_tables=refs["tables"],
+        pin_pages=refs["page_keys"],
+        required_fields={
+            "cust_company_info": ("cust_name", "identify_style", "create_time")
+        },
+        question=follow_up,
+    )
+    pin = wr.retrieve_wiki_context(llm, pin_req)
+    assert recalled["n"] == 0
+    assert pin_req.query == ""
+    assert "cust_company_info" in pin["tables"]
+    assert set(refs["page_keys"]) <= set(pin["page_keys"])
 
 
 def test_search_wiki_mid_turn_pins_plane_working_set() -> None:

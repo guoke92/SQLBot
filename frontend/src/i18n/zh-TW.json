@@ -978,7 +978,9 @@
         "compare_results": "資料對比",
         "search_wiki": "查閱知識",
         "prepare_wiki": "準備知識",
-        "request_clarification": "請求澄清"
+        "restore_wiki": "恢復上輪知識",
+        "request_clarification": "請求澄清",
+        "complete_without_sql": "直接回答"
       }
     },
     "summary": {
@@ -989,7 +991,8 @@
       "answer_ready": "回答已產生",
       "clarification_waiting": "等待確認",
       "clarification_confirmed": "口徑已確認",
-      "wiki_prepared": "召回 {count} 條知識"
+      "wiki_prepared": "召回 {count} 條知識",
+      "wiki_restored": "恢復上輪 {count} 條知識"
     },
     "audit": {
       "processing": "處理中",

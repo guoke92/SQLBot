@@ -31,6 +31,14 @@ AGENT_TOOLS_METADATA: dict[str, dict[str, str]] = {
         "title_key": "chat.timeline.tool.request_clarification",
         "icon": "question",
     },
+    "complete_without_sql": {
+        "title_key": "chat.timeline.tool.complete_without_sql",
+        "icon": "answer",
+    },
+    "restore_wiki": {
+        "title_key": "chat.timeline.tool.restore_wiki",
+        "icon": "book",
+    },
 }
 
 

@@ -978,7 +978,9 @@
         "compare_results": "Compare results",
         "search_wiki": "Search knowledge",
         "prepare_wiki": "Prepare knowledge",
-        "request_clarification": "Ask for clarification"
+        "restore_wiki": "Restore prior knowledge",
+        "request_clarification": "Ask for clarification",
+        "complete_without_sql": "Answer directly"
       }
     },
     "summary": {
@@ -989,7 +991,8 @@
       "answer_ready": "Answer ready",
       "clarification_waiting": "Waiting for confirmation",
       "clarification_confirmed": "Criteria confirmed",
-      "wiki_prepared": "Prepared {count} knowledge hits"
+      "wiki_prepared": "Prepared {count} knowledge hits",
+      "wiki_restored": "Restored {count} prior knowledge hits"
     },
     "audit": {
       "processing": "Processing",
