@@ -41,13 +41,13 @@ _ERROR_CODES = {
     "DUPLICATE_GROUND_BLOCK",
     "CONCEPT_UNANCHORED",
     "REF_TARGET_MISSING",
-    "ENUM_GENERIC_COLUMN",  # 泛列多表承载（历史吞吐教训：.type/.status/.code）
+    "DICT_GENERIC_COLUMN",  # 泛列多表承载（历史吞吐教训：.type/.status/.code）
     # 对账错误（reconcile_page 产出——单一权威码表，见 ingest.reconcile_page docstring）
     "PAGE_CONTRACT_FAILED",
     "TABLE_NOT_IN_DB",
     "FIELD_NOT_IN_DB",
     "FIELD_MALFORMED",
-    "ENUM_VALUE_NOT_IN_DB",
+    "DICT_VALUE_NOT_IN_DB",
     "EVIDENCE_FILE_MISSING",
     "EVIDENCE_LINE_OUT_OF_RANGE",
 }

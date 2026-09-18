@@ -588,10 +588,10 @@ def test_execute_tools_attaches_running_span_by_call_id_when_state_empty(
 
 
 _CHAT212_DSML = """<｜｜DSML｜｜tool_calls>
-<｜｜DSML｜｜invoke name="search_wiki">
-<｜｜DSML｜｜parameter name="query" string="true">研发交付 需求工作项 用户故事 任务 类型枚举 状态</｜｜DSML｜｜parameter>
+<｜｜DSML｜｜invoke name="get_table_schema">
+<｜｜DSML｜｜parameter name="tables" string="true">["d_task"]</｜｜DSML｜｜parameter>
 </｜｜DSML｜｜invoke>
-<｜｜DSML｜｜invoke name="search_wiki">
+<｜｜DSML｜｜invoke name="search_knowledge">
 <｜｜DSML｜｜parameter name="query" string="true">部门维度表 组织 系统编码</｜｜DSML｜｜parameter>
 </｜｜DSML｜｜invoke>
 </｜｜DSML｜｜tool_calls>"""
@@ -599,8 +599,8 @@ _CHAT212_DSML = """<｜｜DSML｜｜tool_calls>
 
 def test_parse_dsml_markup_recovers_search_wiki_calls() -> None:
     calls = parse_markup_tool_calls(_CHAT212_DSML)
-    assert [item["name"] for item in calls] == ["search_wiki", "search_wiki"]
-    assert calls[0]["args"]["query"] == "研发交付 需求工作项 用户故事 任务 类型枚举 状态"
+    assert [item["name"] for item in calls] == ["get_table_schema", "search_knowledge"]
+    assert calls[1]["args"]["query"] == "部门维度表 组织 系统编码"
     assert "DSML" not in strip_markup_tool_calls(_CHAT212_DSML)
     message = AIMessage(content=_CHAT212_DSML)
     recovered, remainder = resolve_message_tool_calls(message, _CHAT212_DSML)

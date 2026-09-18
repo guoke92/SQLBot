@@ -1,0 +1,65 @@
+kind: table_enhancements
+domain: remaining
+tables:
+  platform_product:
+    grain: 一平台产品一行
+    default_filter:
+      predicate: "platform_product.enable = 'Y'"
+      evidence: code_path:PlatformProductDaoImpl.java:76
+  platform_product_cust_role:
+    grain: 平台产品适配的企业角色
+  platform_product_client:
+    grain: 平台产品客户端入口
+  authorization_agreement:
+    grain: 企业授权确认书
+    default_filter:
+      predicate: "authorization_agreement.enable = 'Y'"
+      evidence: code_path:AuthorizationAgreementDaoImpl.java:44
+  argeement_migratory_record:
+    grain: 协议迁移记录
+    default_filter:
+      predicate: "argeement_migratory_record.enable = 'Y'"
+      evidence: code_path:AgreementMigratoryService.java:118
+  async_io_task:
+    grain: 一异步导入导出任务一行
+    written_with_groups:
+      - fields: [status]
+        evidence: code_path:AsyncIoTaskManager.java:114
+  operation_user:
+    grain: 运营人员
+    default_filter:
+      predicate: "operation_user.enable = 'Y'"
+      evidence: code_path:OperCustFacade.java:4166
+  org_manage:
+    grain: 组织
+  migratory_user_record:
+    grain: 用户迁移记录
+  gpt_learn_poster_log:
+    grain: 学习海报弹窗记录
+    default_filter:
+      predicate: "gpt_learn_poster_log.enable = 'Y'"
+      evidence: code_path:GptLearnPosterLogDao.java:17
+  client_api_sync_error:
+    grain: 客户端同步失败
+    default_filter:
+      predicate: "client_api_sync_error.enable = 'Y'"
+      evidence: code_path:StartupSyncRetry.java:119
+  project_file_info:
+    grain: 项目运营文件
+  short_link:
+    grain: 短链
+  wec_project_operation_rel:
+    grain: 企微项目与运营联系人
+  wec_project_cust_operation_rel:
+    grain: 企微项目客户运营关系
+  wechat_project_approval_apply:
+    grain: 企微审批单
+    default_filter:
+      predicate: "wechat_project_approval_apply.enable = 'Y'"
+      evidence: code_path:approval/ProjectApprovalApplication.java:1347
+  wechat_project_approval_field_history:
+    grain: 企微审批字段历史
+  open_sso_channel:
+    grain: SSO 渠道（catalog 有表；pplatform-web 无 @TableName DO）
+  lc_sql_init_log:
+    grain: 低代码 SQL 初始化日志（catalog 有表；pplatform-web 无 @TableName DO）

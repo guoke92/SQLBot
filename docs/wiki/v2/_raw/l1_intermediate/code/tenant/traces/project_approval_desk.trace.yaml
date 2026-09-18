@@ -1,0 +1,24 @@
+kind: trace
+domain: tenant
+trace_key: project_approval_desk
+entry: POST /app-web/projectApprovalDesk/agree
+controller: ProjectApprovalDeskController.java:64
+application: ProjectApprovalDeskApplication.agree:94
+tables: [tenant_project_approval, tenant_project_approval_flow, tenant_project_approval_flow_node]
+notes: |
+  同意/退回/驳回走工作台，写节点 operate_type 与 node_status。wf_status 要等流程结束监听才写成 FINISHED/TERMINATED。
+  催办 /remind 只发企微，不改审批表。
+  退回 back:198、驳回 reject:236 与同意不是同一事件，不要当成项目失效。
+scenario:
+  scenario_key: project_approval_desk
+  title: 项目上线审批工作台
+  hubs:
+    - table: tenant_project_approval
+      role: master
+    - table: tenant_project_approval_flow
+      role: flow_nodes
+  lifecycle:
+    - dict: tenant_project_approval__wf_status
+      process: tenant_project_approval__wf_status
+gaps:
+  - 催办不落库。撤回/REVOKED 枚举没有，不给 label。

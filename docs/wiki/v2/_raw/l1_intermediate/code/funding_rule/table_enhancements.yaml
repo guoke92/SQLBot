@@ -1,0 +1,23 @@
+kind: table_enhancements
+domain: funding_rule
+tables:
+  funding_rule_info:
+    grain: 一产品一资金方一行规则头
+    written_with_groups:
+      - fields: [rule_status, update_by, update_user, update_time]
+        evidence: code_path:FundRuleInfoApplication.java:296
+  funding_rule_detail:
+    grain: 规则头下一字段一行明细
+    default_filter:
+      predicate: "funding_rule_detail.enable = 'Y'"
+      evidence: code_path:FundRuleInfoApplication.java:371
+  funding_rule_front_cfg:
+    grain: 按产品配置前端字段
+    default_filter:
+      predicate: "funding_rule_front_cfg.enable = 'Y'"
+      evidence: code_path:FundingPartyRuleProviderImpl.java:105
+  funding_exception_resolution:
+    grain: 资金方+产品+报错关键字一行建议
+    default_filter:
+      predicate: "funding_exception_resolution.enable = 'Y'"
+      evidence: code_path:FundingPartyExceptionResolutionProviderImpl.java:107

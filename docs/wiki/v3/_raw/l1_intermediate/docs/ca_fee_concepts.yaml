@@ -1,0 +1,55 @@
+kind: concepts
+domain: ca_fee
+doc_source: "docs/wiki-knowledge/pplatform/req-index/concepts/ca证书收费.md"
+concepts:
+  - concept_key: ca_fee_paid
+    title: CA服务费已缴费
+    aliases: [电子签章服务费已缴, CA收费已缴]
+    maps_to: ca_fee_order.order_status
+    field_targets: [ca_fee_order.order_status, ca_fee_company.pay_status, ca_fee_company.service_end]
+    also_confused_with: [ca_fee_company_pay_status, ca_open_status]
+    adjudication: boundary
+    explanation: |
+      问「当前服务期是否已缴费」优先 covering_paid_ca_fee_order，或企业宽表 service_end≥today。
+      宽表 pay_status 到期会写成 UNPAID。规则引擎 feeStatus 不是表字段。
+    evidence: code_path:CaFeeRuleEngineService.java:147
+  - concept_key: ca_fee_company_pay_status
+    title: 企业宽表缴费状态
+    aliases: [台账缴费状态]
+    maps_to: ca_fee_company.pay_status
+    field_targets: [ca_fee_company.pay_status]
+    also_confused_with: [ca_fee_paid]
+    adjudication: boundary
+    explanation: 台账一统码一行。只有 PAID / UNPAID。不是订单四态，也不是 feeStatus 四态。
+    evidence: code_path:CaFeeCompanyPayStatusEnum.java:15
+  - concept_key: ca_charge_enabled
+    title: 项目是否开启 CA 收费
+    aliases: [CA收费开关]
+    maps_to: ca_fee_project_config.charge_enabled
+    field_targets: [ca_fee_project_config.charge_enabled]
+    also_confused_with: [ca_fee_paid]
+    adjudication: boundary
+    explanation: 未开收费时规则引擎直接 EXEMPT，不是「未缴费」。Y/N 本身不编字典页。
+    evidence: code_path:CaFeeRuleEngineService.java:98
+  - concept_key: ca_open_status
+    title: CA证书/签章是否有效
+    aliases: [开通CA, CA状态]
+    maps_to: ca_fee_company.ca_status
+    field_targets: [ca_fee_company.ca_status, ca_certification_info.submit_status]
+    also_confused_with: [ca_fee_paid]
+    adjudication: boundary
+    explanation: |
+      缴费宽表 ca_status 来自签章中台快照（NORMAL 才有效）。
+      一证四步 SUCCESS 是采集提交成功，不是服务费已缴，也不是证书一定有效。
+    evidence: code_path:CaFeeCertStatusEnum.java:15
+  - concept_key: cfca_four_step_submit
+    title: 一证四步提交
+    aliases: [CFCA一证四步, 开通CA采集]
+    maps_to: ca_certification_info.submit_status
+    field_targets: [ca_certification_info.submit_status]
+    also_confused_with: [ca_open_status]
+    adjudication: boundary
+    explanation: |
+      需求「cfca一证四步」落在 ca_certification_info。PENDING 采集，SUCCESS/FAIL 提交签章中台。
+      document_claim:cfca一证四步.md#25：V1.35 待办按企业+角色只生成一次，不是缴费订单，也不是 ca_status=NORMAL。
+    evidence: code_path:CaSubmitStatusEnum.java:12

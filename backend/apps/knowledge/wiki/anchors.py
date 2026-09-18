@@ -132,7 +132,7 @@ def anchor_table_attribution(
             data = getattr(block, "data", {}) or {}
             if not isinstance(data, dict):
                 continue
-            if kind == "enum":
+            if kind == "dict":
                 for item in data.get("fields") or []:
                     candidates.append((_table_of(str(item)), "field_targets"))
             elif kind == "table":

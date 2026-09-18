@@ -1,0 +1,23 @@
+kind: trace
+domain: tenant
+trace_key: tenant_interworking_product_active
+entry: POST /app-web/tenantInterworkingProduct/cmd/active
+controller: TenantInterworkingProductController.java:122
+application: TenantInterworkingProductDomainService.active:239
+tables: [tenant_interworking_product, tenant_interworking_project]
+notes: |
+  互通产品开通写 open_status=Y。取消写 N，不检查生效项目（与租户通用产品 cancel 不同）。
+  绑定项目写 tenant_interworking_project.project_id=tenant_project.id。
+scenario:
+  scenario_key: tenant_interworking_open
+  title: 开通互通产品
+  hubs:
+    - table: tenant_interworking_product
+      role: master
+    - table: tenant_interworking_project
+      role: projects
+  lifecycle:
+    - dict: tenant_interworking_product__open_status
+      process: tenant_interworking_product__open_status
+gaps:
+  - 互通取消不校验 listEffectiveProjectByProduct。

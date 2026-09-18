@@ -43,7 +43,7 @@ CATALOG = {
         },
         "cust_company_detail": {"fields": {"company_id": {"family": "number"}}},
     },
-    "enums": {
+    "dicts": {
         "cust_build_type": ["PC_BUILD", "AGW_BUILD"],
         "identify_style": ["INVITE", "INVITE_AGW", "SELF"],
     },
@@ -182,12 +182,12 @@ def test_lint_field_and_family_and_enum_baseline() -> None:
     assert "TYPE_FAMILY_MISMATCH" in codes
 
     enum_page = parse_page(
-        "---\ntype: enum\ntitle: e\npage_key: cust_build_type\ndomain: d\nstatus: published\n---\n"
-        "- [[x]]\n\n```ground:enum\nenum: cust_build_type\nfields: [cust_company_info.cust_build_type]\n"
+        "---\ntype: dict\ntitle: e\npage_key: cust_build_type\ndomain: d\nstatus: published\n---\n"
+        "- [[x]]\n\n```ground:dict\ndict: cust_build_type\nfields: [cust_company_info.cust_build_type]\n"
         "values:\n  PC_BUILD: {label: 平台录入}\n  GHOST: {label: 幻觉值}\n```\n"
     )
     codes = {f.code for f in lint_page(enum_page, known_keys={"x"}, catalog=CATALOG)}
-    assert "ENUM_NOT_IN_BASELINE" in codes  # catalog 胜，转 review
+    assert "DICT_NOT_IN_BASELINE" in codes  # catalog 胜，转 review
 
 
 def test_lint_relation_tenant_endpoint_and_term_adjudication() -> None:
@@ -211,10 +211,10 @@ def test_lint_relation_tenant_endpoint_and_term_adjudication() -> None:
 
 def test_lint_duplicate_block_ref_target_and_orphan() -> None:
     page = parse_page(
-        "---\ntype: enum\ntitle: e\npage_key: cust_build_type\ndomain: d\nstatus: published\n"
+        "---\ntype: dict\ntitle: e\npage_key: cust_build_type\ndomain: d\nstatus: published\n"
         "field_targets: [cust_company_info.nope]\n---\n- [[x]]\n\n"
-        "```ground:enum\nenum: cust_build_type\nvalues:\n  PC_BUILD: {label: 平台录入}\n```\n\n"
-        "```ground:enum\nenum: cust_build_type\nvalues:\n  PC_BUILD: {label: 平台录入}\n```\n"
+        "```ground:dict\ndict: cust_build_type\nvalues:\n  PC_BUILD: {label: 平台录入}\n```\n\n"
+        "```ground:dict\ndict: cust_build_type\nvalues:\n  PC_BUILD: {label: 平台录入}\n```\n"
     )
     codes = {f.code for f in lint_page(page, known_keys={"x"}, catalog=CATALOG)}
     assert "DUPLICATE_GROUND_BLOCK" in codes
@@ -237,7 +237,7 @@ def test_ground_fence_is_atomic_chunk() -> None:
     content = (_ROOT / "docs/wiki-knowledge/examples/cust_build_type.md").read_text()
     page = parse_page(content)
     chunks = chunk_markdown(page.body)
-    anchor_chunks = [c for c in chunks if "```ground:enum" in c.text]
+    anchor_chunks = [c for c in chunks if "```ground:dict" in c.text]
     assert len(anchor_chunks) == 1
     assert "PC_BUILD" in anchor_chunks[0].text
 
@@ -322,9 +322,9 @@ def test_recall_fencing_and_physical_mode() -> None:
 
 def test_broken_yaml_drops_block_with_finding_keeps_prose() -> None:
     content = (
-        "---\ntype: enum\ntitle: e\npage_key: cust_build_type\ndomain: d\nstatus: published\n---\n"
+        "---\ntype: dict\ntitle: e\npage_key: cust_build_type\ndomain: d\nstatus: published\n---\n"
         "- [[x]]\n\n散文区保留：平台录入=AGW_BUILD 的正文说明不应被连坐丢弃。\n\n"
-        "```ground:enum\nenum: cust_build_type\nvalues:\n  PC_BUILD: [未闭合的yaml\n```\n"
+        "```ground:dict\ndict: cust_build_type\nvalues:\n  PC_BUILD: [未闭合的yaml\n```\n"
     )
     page = parse_page(content)  # 不 raise —— v0 §0.1 丢块+警告
     assert page.ground_blocks == ()  # 坏块被丢弃
@@ -336,8 +336,8 @@ def test_broken_yaml_drops_block_with_finding_keeps_prose() -> None:
 def test_unclosed_fence_is_structural_raise() -> None:
     with pytest.raises(PageContractError):
         parse_page(
-            "---\ntype: enum\ntitle: e\npage_key: cust_build_type\nstatus: published\n---\n"
-            "- [[x]]\n\n```ground:enum\nenum: x\n"
+            "---\ntype: dict\ntitle: e\npage_key: cust_build_type\nstatus: published\n---\n"
+            "- [[x]]\n\n```ground:dict\ndict: x\n"
         )
 
 

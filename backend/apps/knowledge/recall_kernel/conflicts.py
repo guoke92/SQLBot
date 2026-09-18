@@ -161,7 +161,7 @@ def _term_index(store: Any) -> dict[str, list[TermBinding]]:
     catalogs = _enum_catalogs(store)
     for page in pages.values():
         page_type = str(getattr(page, "type", "") or "")
-        if page_type not in {"concept", "enum"}:
+        if page_type not in {"concept", "dict"}:
             continue
         targets = _page_field_targets(store, page)
         if not targets:
@@ -182,7 +182,7 @@ def _term_index(store: Any) -> dict[str, list[TermBinding]]:
                         enum_catalog=catalogs.get((table, fname), ()),
                     ),
                 )
-        if page_type != "enum":
+        if page_type != "dict":
             continue
         for label, value in _enum_labels(page):
             for table, fname in targets:
@@ -233,9 +233,9 @@ def _page_field_targets(store: Any, page: Any) -> list[tuple[str, str]]:
     maps_to = str(getattr(page, "maps_to", "") or "").strip()
     if maps_to:
         refs.append(maps_to.split("=", 1)[0].strip())
-    if str(getattr(page, "type", "") or "") == "enum":
+    if str(getattr(page, "type", "") or "") == "dict":
         for block in getattr(page, "ground_blocks", ()) or ():
-            if getattr(block, "kind", "") != "enum":
+            if getattr(block, "kind", "") != "dict":
                 continue
             for item in (getattr(block, "data", {}) or {}).get("fields") or []:
                 refs.append(str(item))
@@ -263,7 +263,7 @@ def _resolve_field_ref(store: Any, raw: str) -> tuple[str, str] | None:
     if left in table_index:
         return (left, right)
     enum_page = _resolve_page_name(store, left)
-    if enum_page is None or str(getattr(enum_page, "type", "") or "") != "enum":
+    if enum_page is None or str(getattr(enum_page, "type", "") or "") != "dict":
         return None
     for carrier in _enum_carrier_fields(store, enum_page):
         return carrier
@@ -276,7 +276,7 @@ def _enum_carrier_fields(store: Any, page: Any) -> list[tuple[str, str]]:
     for item in getattr(page, "field_targets", ()) or ():
         refs.append(str(item))
     for block in getattr(page, "ground_blocks", ()) or ():
-        if getattr(block, "kind", "") != "enum":
+        if getattr(block, "kind", "") != "dict":
             continue
         for item in (getattr(block, "data", {}) or {}).get("fields") or []:
             refs.append(str(item))
@@ -304,7 +304,7 @@ def _enum_catalogs(store: Any) -> dict[tuple[str, str], tuple[tuple[str, str], .
     catalogs: dict[tuple[str, str], tuple[tuple[str, str], ...]] = {}
     pages = getattr(store, "pages", {}) or {}
     for page in pages.values():
-        if str(getattr(page, "type", "") or "") != "enum":
+        if str(getattr(page, "type", "") or "") != "dict":
             continue
         labels = tuple(_enum_labels(page))
         if not labels:
@@ -317,7 +317,7 @@ def _enum_catalogs(store: Any) -> dict[tuple[str, str], tuple[tuple[str, str], .
 def _enum_labels(page: Any) -> list[tuple[str, str]]:
     out: list[tuple[str, str]] = []
     for block in getattr(page, "ground_blocks", ()) or ():
-        if getattr(block, "kind", "") != "enum":
+        if getattr(block, "kind", "") != "dict":
             continue
         values = (getattr(block, "data", {}) or {}).get("values") or {}
         if not isinstance(values, dict):

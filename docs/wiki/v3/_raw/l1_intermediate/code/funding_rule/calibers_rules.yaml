@@ -1,0 +1,39 @@
+kind: calibers_rules
+domain: funding_rule
+calibers:
+  - caliber_key: active_funding_rule
+    title: 生效中的资方规则
+    table: funding_rule_info
+    predicate: "funding_rule_info.rule_status = 'ACTIVE'"
+    field_targets:
+      - funding_rule_info.rule_status
+    using_relations:
+      - left: funding_rule_info.id
+        right: funding_rule_detail.rule_info_id
+    boundary: 运行时按资金方标识+产品编码取 ACTIVE。列表查询未过滤 enable。不要用 PENDING/INACTIVE 当生效规则。
+    evidence: code_path:FundingPartyRuleProviderImpl.java:95
+rules:
+  - rule_key: unique_product_funding_party_rule
+    title: 同一产品下同一资金方只能有一条规则头
+    field_targets: [funding_rule_info.product_code, funding_rule_info.funding_party_mark]
+    impact: write_constraint
+    content: 新增时按 product_code + funding_party_mark 查重，已存在则拒绝。
+    evidence: code_path:FundRuleInfoApplication.java:431
+  - rule_key: unique_exception_keyword
+    title: 同一产品同一资金方报错关键字不重复
+    field_targets: [funding_exception_resolution.product_code, funding_exception_resolution.funding_party_code, funding_exception_resolution.error_keyword]
+    impact: write_constraint
+    content: 保存异常建议时按产品+资金方+关键字查重。
+    evidence: code_path:ExceptionResolutionApplication.java:524
+  - rule_key: active_rule_ignores_enable
+    title: 运行时生效规则不看 enable
+    field_targets: [funding_rule_info.rule_status, funding_rule_info.enable]
+    impact: query_constraint
+    content: FundingPartyRuleProviderImpl 按 rule_status=ACTIVE 取规则，未过滤 enable。问生效规则不要再 AND enable=Y。
+    evidence: code_path:FundingPartyRuleProviderImpl.java:95
+  - rule_key: exception_not_rule_head
+    title: 异常建议不是规则头
+    field_targets: [funding_exception_resolution.error_keyword]
+    impact: query_constraint
+    content: 异常表无 rule_info_id。不要用它判断规则是否 ACTIVE。
+    evidence: code_path:ExceptionResolutionApplication.java:524

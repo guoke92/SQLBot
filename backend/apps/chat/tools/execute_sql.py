@@ -81,8 +81,8 @@ def _reject_enum_discovery(sql: str, llm_service: Any) -> ToolResult | None:
         return None
     return failure_result(
         "Wiki enum pages already define these field values. Do not SELECT "
-        "DISTINCT Wiki enum columns to discover codes. Use the enum page "
-        "in wiki_knowledge / schema_catalog, or search_wiki for the enum.",
+        "DISTINCT Wiki enum columns to discover codes. Use get_dict_values "
+        "or labels= on the schema field.",
         retryable=False,
     )
 

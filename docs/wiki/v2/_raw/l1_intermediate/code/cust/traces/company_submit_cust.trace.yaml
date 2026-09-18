@@ -1,0 +1,19 @@
+kind: trace
+domain: cust
+trace_key: company_submit_cust
+entry: POST /cust-web/custInfo/submitCust
+controller: CustCompanyInfoController.java:456
+application: CustCompanyInfoApplication.submitCust:1550
+tables: [cust_company_info, cust_person_info, cust_account_info, cust_role_info]
+notes: |
+  无参 submitCust 用企业 code 找启用管理员，再按 identify_style 写建档状态：
+  INVITE_AGW → CUST_BUILDING；INVITE/SELF → CUST_CONFIRM_AWAIT。
+  提交前把 check_status 置空。邀请客户录入会把 CUST_CHECK_INIT 推给运营。
+scenario:
+  scenario_key: company_invite_submit
+  title: 邀请认证提交
+  hubs:
+    - table: cust_company_info
+      role: master
+gaps:
+  - SIMPLE 不走本入口，走 simpleSubmit。

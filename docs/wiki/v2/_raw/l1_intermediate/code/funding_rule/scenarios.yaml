@@ -1,0 +1,35 @@
+kind: scenarios
+domain: funding_rule
+scenarios:
+  - scenario_key: funding_rule_config
+    title: 配置资方规则
+    aliases: [资金方规则, 资方准入规则]
+    description: 规则头按产品+资金方。明细按 rule_info_id。运行时只读 ACTIVE。
+    hubs:
+      - table: funding_rule_info
+        role: master
+    shared:
+      - table: funding_rule_detail
+        role: detail
+      - table: funding_rule_front_cfg
+        role: front
+    lifecycle:
+      - dict: funding_rule_info__rule_status
+        process: funding_rule_info__rule_status
+  - scenario_key: funding_exception_hint
+    title: 资金方异常解析建议
+    aliases: [资方报错建议]
+    description: 按资金方+产品+报错关键字匹配建议文案。不是规则头。
+    hubs:
+      - table: funding_exception_resolution
+        role: master
+  - scenario_key: funding_rule_activate
+    title: 生效资方规则
+    aliases: [规则生效, 规则失效]
+    description: active 写 ACTIVE，inActive 写 INACTIVE。运行时只读 ACTIVE，不看 enable。
+    hubs:
+      - table: funding_rule_info
+        role: master
+    lifecycle:
+      - dict: funding_rule_info__rule_status
+        process: funding_rule_info__rule_status

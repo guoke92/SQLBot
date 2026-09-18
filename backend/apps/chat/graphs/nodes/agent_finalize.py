@@ -342,7 +342,16 @@ def finalize_agent_turn_node(state: Mapping[str, Any]) -> dict[str, Any]:
 
         outcome["quality"] = build_text_answer_quality()
     plane = AgentKnowledgePlane.from_dump(state.get("knowledge_plane"))
-    knowledge_refs = plane.knowledge_refs() if plane.tables or plane.page_keys else None
+    dialect = getattr(getattr(llm_service, "ds", None), "type", None)
+    if not (plane.tables or plane.page_keys):
+        knowledge_refs = None
+    elif latest_sql:
+        knowledge_refs = plane.knowledge_refs(
+            sql=latest_sql,
+            dialect=str(dialect) if dialect else None,
+        )
+    else:
+        knowledge_refs = {"page_keys": [], "tables": []}
     snapshot_vals = _record_snapshot_values(
         all_steps,
         analysis_text=final_text,

@@ -1,0 +1,170 @@
+generated_at: '2026-09-18'
+items:
+- kind: JOIN_CONFLICT
+  target: ca_fee_project_config.id=ca_fee_order.project_id
+  message: L0 proposed edge conflicts with confirmed tenant_project.id=ca_fee_order.project_id
+  evidence: code_path:cafee/CaFeeOrderService.java:150
+  severity: warning
+  id: rv_l1_0001
+- kind: JOIN_CONFLICT
+  target: ca_fee_company.id=ca_fee_order.company_id
+  message: L0 proposed edge conflicts with confirmed cust_company_info.id=ca_fee_order.company_id
+  evidence: code_path:CaFeeBocomGateway.java:118
+  severity: warning
+  id: rv_l1_0002
+- kind: JOIN_CONFLICT
+  target: ca_fee_project_config.id=ca_fee_company.source_project_id
+  message: L0 proposed edge conflicts with confirmed tenant_project.id=ca_fee_company.source_project_id
+  evidence: code_path:cafee/CaFeeOrderService.java:456
+  severity: warning
+  id: rv_l1_0003
+- kind: JOIN_CONFLICT
+  target: cust_company_info.id=cust_project_rel.ref_cust_project_rel_cust_company_info
+  message: L0 proposed edge conflicts with confirmed cust_company_info.code=cust_project_rel.ref_cust_project_rel_cust_company_info
+  evidence: code_path:CustCompanyQueryMapper.xml:97
+  severity: warning
+  id: rv_l1_0004
+- kind: JOIN_CONFLICT
+  target: cust_company_info.id=cust_role_info.ref_cust_company_info
+  message: L0 proposed edge conflicts with confirmed cust_company_info.code=cust_role_info.ref_cust_company_info
+  evidence: code_path:CustCompanyQueryMapper.xml:80
+  severity: warning
+  id: rv_l1_0005
+- kind: JOIN_CONFLICT
+  target: cust_company_info.id=cust_person_info.ref_cust_company_info
+  message: L0 proposed edge conflicts with confirmed cust_company_info.code=cust_person_info.ref_cust_company_info
+  evidence: code_path:CustCompanyInfoApplication.java:1553
+  severity: warning
+  id: rv_l1_0006
+- kind: JOIN_CONFLICT
+  target: cust_company_info.id=cust_account_info.ref_cust_company_info
+  message: L0 proposed edge conflicts with confirmed cust_company_info.code=cust_account_info.ref_cust_company_info
+  evidence: code_path:OperCustFacade.java:3062
+  severity: warning
+  id: rv_l1_0007
+- kind: JOIN_CONFLICT
+  target: cust_company_info.id=cust_certification_info.ref_cust_company_info
+  message: L0 proposed edge conflicts with confirmed cust_company_info.code=cust_certification_info.ref_cust_company_info
+  evidence: code_path:CustCertificationInfoDao.java:16
+  severity: warning
+  id: rv_l1_0008
+- kind: JOIN_CONFLICT
+  target: cust_company_info.id=cust_head_company_info.ref_cust_head_company_info_cust_company_info
+  message: L0 proposed edge conflicts with confirmed cust_company_info.code=cust_head_company_info.ref_cust_head_company_info_cust_company_info
+  evidence: code_path:CustDocFacade.java:952
+  severity: warning
+  id: rv_l1_0009
+- kind: JOIN_CONFLICT
+  target: cust_company_info.id=cust_shareholder_info.ref_cust_company_info
+  message: L0 proposed edge conflicts with confirmed cust_company_info.code=cust_shareholder_info.ref_cust_company_info
+  evidence: code_path:ApplyCompanyInfoApplication.java:190
+  severity: warning
+  id: rv_l1_0010
+- kind: JOIN_CONFLICT
+  target: cust_company_info.id=cust_auth_application.ref_cust_company_info
+  message: L0 proposed edge conflicts with confirmed cust_company_info.code=cust_auth_application.ref_cust_company_info
+  evidence: code_path:CustAuthApplicationDaoImpl.java:73
+  severity: warning
+  id: rv_l1_0011
+- kind: JOIN_CONFLICT
+  target: cust_company_info.id=cust_interworking_product.ref_cust_interworking_product_cust_company_info
+  message: L0 proposed edge conflicts with confirmed cust_company_info.code=cust_interworking_product.ref_cust_interworking_product_cust_company_info
+  evidence: code_path:CustInterworkingProductDaoImpl.java:47
+  severity: warning
+  id: rv_l1_0012
+- kind: JOIN_CONFLICT
+  target: cust_company_info.id=cust_customized_product.ref_cust_customized_product_cust_company_info
+  message: L0 proposed edge conflicts with confirmed cust_company_info.id=cust_customized_product.cust_id
+  evidence: code_path:CustCustomizedProductDaoImpl.java:25
+  severity: warning
+  id: rv_l1_0013
+- kind: JOIN_CONFLICT
+  target: cust_company_info.id=cust_company_lifecycle_info.ref_cust_company_info
+  message: L0 proposed edge conflicts with confirmed cust_company_info.id=cust_company_lifecycle_info.company_id
+  evidence: code_path:CustCompanyInfoApplication.java:7082
+  severity: warning
+  id: rv_l1_0014
+- kind: JOIN_CONFLICT
+  target: tenant_setting_config.id=tenant_product.ref_tenant_product_tenant_setting_config
+  message: L0 proposed edge conflicts with confirmed tenant_setting_config.id=tenant_product.tenant_id
+  evidence: code_path:TenantProductDomainService.java:147
+  severity: warning
+  id: rv_l1_0015
+- kind: JOIN_CONFLICT
+  target: tenant_project.id=tenant_project_approval.ref_tenant_project_approval_tenant_project
+  message: L0 proposed edge conflicts with confirmed tenant_project.code=tenant_project_approval.ref_tenant_project_approval_tenant_project
+  evidence: code_path:ProjectApprovalApplication.java:253
+  severity: warning
+  id: rv_l1_0016
+- kind: JOIN_CONFLICT
+  target: tenant_project_approval.id=tenant_project_approval_flow.ref_tenant_project_approval_flow_tenant_project_approval
+  message: L0 proposed edge conflicts with confirmed tenant_project_approval.code=tenant_project_approval_flow.ref_tenant_project_approval_flow_tenant_project_approval
+  evidence: code_path:ProjectApprovalApplication.java:571
+  severity: warning
+  id: rv_l1_0017
+- kind: JOIN_CONFLICT
+  target: tenant_setting_config.id=tenant_interworking_product.ref_tenant_interworking_product_tenant_setting_config
+  message: L0 proposed edge conflicts with confirmed tenant_setting_config.id=tenant_interworking_product.tenant_id
+  evidence: code_path:TenantInterworkingProductDaoImpl.java:35
+  severity: warning
+  id: rv_l1_0018
+- kind: JOIN_CONFLICT
+  target: platform_product.id=tenant_interworking_product.ref_tenant_interworking_product_platform_product
+  message: L0 proposed edge conflicts with confirmed platform_product.id=tenant_interworking_product.platform_product_id
+  evidence: code_path:TenantInterworkingProductDaoImpl.java:36
+  severity: warning
+  id: rv_l1_0019
+- kind: JOIN_CONFLICT
+  target: tenant_interworking_product.id=tenant_interworking_project.ref_tenant_interworking_project_tenant_interworking_product
+  message: L0 proposed edge conflicts with confirmed tenant_interworking_product.id=tenant_interworking_project.product_id
+  evidence: code_path:TenantInterworkingProjectDaoImpl.java:32
+  severity: warning
+  id: rv_l1_0020
+- kind: JOIN_CONFLICT
+  target: tenant_setting_config.id=tenant_interworking_project.ref_tenant_interworking_project_tenant_setting_config
+  message: L0 proposed edge conflicts with confirmed tenant_setting_config.id=tenant_interworking_project.tenant_id
+  evidence: code_path:TenantInterworkingProjectDaoImpl.java:24
+  severity: warning
+  id: rv_l1_0021
+- id: rv_l1_doc_invite_platform_entry
+  kind: DOC_UNBRIDGED
+  target: concepts/invite_platform_entry
+  message: document concept has no code_path; keep proposed / REVIEW
+  evidence: document_claim:产品需求规格说明书_产融平台V1.0.0.md#1042
+  severity: warning
+- id: rv_l1_doc_invite_customer_entry
+  kind: DOC_UNBRIDGED
+  target: concepts/invite_customer_entry
+  message: document concept has no code_path; keep proposed / REVIEW
+  evidence: document_claim:产品需求规格说明书_产融平台V1.0.0.md#1040
+  severity: warning
+- id: rv_l1_doc_simple_auth
+  kind: DOC_UNBRIDGED
+  target: concepts/simple_auth
+  message: document concept has no code_path; keep proposed / REVIEW
+  evidence: document_claim:产品需求规格说明书_产融平台V1.0.0.md#1036
+  severity: warning
+- id: rv_l1_doc_bank_account_center
+  kind: DOC_UNBRIDGED
+  target: concepts/bank_account_center
+  message: document concept has no code_path; keep proposed / REVIEW
+  evidence: document_claim:银行账户归集.md#15
+  severity: warning
+- id: rv_l1_doc_no_voucher_rule_element
+  kind: DOC_UNBRIDGED
+  target: concepts/no_voucher_rule_element
+  message: document concept has no code_path; keep proposed / REVIEW
+  evidence: document_claim:对接规则要素-无凭证.md#15
+  severity: warning
+- id: rv_l1_doc_approval_credit_not_quota
+  kind: DOC_UNBRIDGED
+  target: concepts/approval_credit_not_quota
+  message: document concept has no code_path; keep proposed / REVIEW
+  evidence: document_claim:额度审核工作流.md#14
+  severity: warning
+- id: rv_l1_doc_approval_whitelist
+  kind: DOC_UNBRIDGED
+  target: concepts/approval_whitelist
+  message: document concept has no code_path; keep proposed / REVIEW
+  evidence: document_claim:白名单查询.md#15
+  severity: warning

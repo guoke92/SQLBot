@@ -1,0 +1,11 @@
+kind: trace
+domain: ca_fee
+trace_key: ca_fee_pay
+entry: POST /cust-web/caFee
+tables: [ca_fee_order, ca_fee_company, ca_fee_project_config]
+notes: |
+  CaFeeController → TodoEnsure/Payment。建单 PENDING；markPaid 写 PAID 并 syncCompanyAfterPaid。
+  订单 company_id=企业主键；企业宽表按统码。交e保开户 requireCompany(order.company_id)。
+gaps:
+  - 订单枚举 EXPIRED 未见落库。
+  - feeStatus（PAID/UNPAID/EXPIRED/EXEMPT）是规则引擎计算结果，不是表列。

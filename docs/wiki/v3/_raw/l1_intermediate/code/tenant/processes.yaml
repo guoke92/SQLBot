@@ -1,0 +1,113 @@
+kind: processes
+domain: tenant
+processes:
+  - process_key: tenant_project__project_status
+    table: tenant_project
+    field: project_status
+    title: 租户项目状态
+    description: |
+      钉 tenant_project.project_status。创建写 0 待生效；生效写 1；失效写 2（枚举名 INVLIAD）。
+      人工 /tenantProject/effective 与审批 FINISHED 都写 1。重新发起审批会对已生效项目先写 2。
+      不要把 wf_status 当成项目是否生效。
+    entry: POST /app-web/tenantProject/create
+    stages:
+      - stage: 创建
+        transitions:
+          - from: "0"
+            event: TenantProjectDomainService.create
+            to: "0"
+            evidence: code_path:TenantProjectDomainService.java:169
+            note: 新建即待生效；from/to 同为 0 表示落库初值。
+      - stage: 生效
+        transitions:
+          - from: "0"
+            event: effective / 审批通过
+            to: "1"
+            evidence: code_path:TenantProjectDomainService.java:235
+      - stage: 失效
+        transitions:
+          - from: "1"
+            event: invalid
+            to: "2"
+            evidence: code_path:TenantProjectDomainService.java:226
+  - process_key: tenant_project_approval__wf_status
+    table: tenant_project_approval
+    field: wf_status
+    title: 项目上线审批工作流
+    description: |
+      钉 tenant_project_approval.wf_status。创建 PENDING；发起 RUNNING 并写 act_procinst_id；
+      流程结束监听写成 FINISHED 或 TERMINATED，通过时副作用生效项目。
+      L0 有 REVOKED，枚举没有，不要给 label。
+    entry: POST /app-web/projectApproval
+    stages:
+      - stage: 待发起
+        transitions:
+          - from: PENDING
+            event: createInitialApproval
+            to: PENDING
+            evidence: code_path:ProjectApprovalApplication.java:392
+      - stage: 发起
+        transitions:
+          - from: PENDING
+            event: 启动工作流
+            to: RUNNING
+            side_effects:
+              - table: tenant_project_approval
+                field: act_procinst_id
+                action: 写入流程实例
+            evidence: code_path:ProjectApprovalApplication.java:700
+      - stage: 结束
+        transitions:
+          - from: RUNNING
+            event: 流程结束 pass
+            to: FINISHED
+            side_effects:
+              - table: tenant_project
+                field: project_status
+                action: effectiveProjectOnApprovalFinished 置为已生效
+            evidence: code_path:ProjectApprovalApplication.java:722
+          - from: RUNNING
+            event: 流程结束 reject/back
+            to: TERMINATED
+            evidence: code_path:ProjectOnlineProcessOperateListener.java:231
+  - process_key: tenant_product__open_status
+    table: tenant_product
+    field: open_status
+    title: 租户产品开通
+    description: 开通写 Y；取消开通写 N。有关联项目或企业已开通产品则拒绝取消。
+    entry: 租户开通产品
+    stages:
+      - stage: 开通
+        transitions:
+          - from: N
+            event: create/open
+            to: Y
+            evidence: code_path:TenantProductDomainService.java:191
+      - stage: 取消
+        transitions:
+          - from: Y
+            event: cancel
+            to: N
+            guards: 无生效项目且无企业开通该产品
+            evidence: code_path:TenantProductDomainService.java:106
+  - process_key: tenant_interworking_product__open_status
+    table: tenant_interworking_product
+    field: open_status
+    title: 互通产品开通
+    description: |
+      钉 tenant_interworking_product.open_status。active 写 Y，cancel 写 N。
+      取消不检查生效项目，不要和 tenant_product 取消规则混用。
+    entry: POST /app-web/tenantInterworkingProduct/cmd/active
+    stages:
+      - stage: 开通
+        transitions:
+          - from: N
+            event: active
+            to: Y
+            evidence: code_path:TenantInterworkingProductDomainService.java:246
+      - stage: 取消
+        transitions:
+          - from: Y
+            event: cancel
+            to: N
+            evidence: code_path:TenantInterworkingProductDomainService.java:178

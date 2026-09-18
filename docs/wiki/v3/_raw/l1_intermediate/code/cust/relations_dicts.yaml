@@ -1,0 +1,462 @@
+kind: relations_dicts
+domain: cust
+confirmed_relations:
+  - left: cust_company_info.code
+    right: cust_project_rel.ref_cust_project_rel_cust_company_info
+    type: EQUI_JOIN
+    cardinality: one_to_many
+    join_role: identity
+    evidence: code_path:CustCompanyQueryMapper.xml:97
+    note: 代码按企业 code 关联项目，不是 cust_company_info.id。
+  - left: cust_company_info.code
+    right: cust_role_info.ref_cust_company_info
+    type: EQUI_JOIN
+    cardinality: one_to_many
+    join_role: identity
+    evidence: code_path:CustCompanyQueryMapper.xml:80
+    note: listEffectCompanyByCustType 以 code 连接角色表。
+  - left: cust_company_info.code
+    right: cust_person_info.ref_cust_company_info
+    type: EQUI_JOIN
+    cardinality: one_to_many
+    join_role: identity
+    evidence: code_path:CustCompanyInfoApplication.java:1553
+    note: 人员主引用是企业 code。L0 把 id 接到 ref 列是假边。
+  - left: cust_company_info.id
+    right: cust_person_info.cust_company_id
+    type: EQUI_JOIN
+    cardinality: one_to_many
+    join_role: identity
+    priority: secondary
+    evidence: code_path:CustPersonApplication.java:740
+    note: 冗余企业 id，查询里与 code 引用并存，不是 ref_cust_company_info。
+  - left: cust_company_info.code
+    right: cust_account_info.ref_cust_company_info
+    type: EQUI_JOIN
+    cardinality: one_to_many
+    join_role: identity
+    evidence: code_path:OperCustFacade.java:3062
+    note: 银行账户按企业 code 关联，不是 id。
+  - left: cust_company_info.id
+    right: cust_build_record.cust_id
+    type: EQUI_JOIN
+    cardinality: one_to_many
+    join_role: identity
+    evidence: code_path:OperCustFacade.java:4288
+    note: 建档推送记录的 cust_id 是企业主键。
+  - left: cust_company_info.id
+    right: cust_change_record.cust_id
+    type: EQUI_JOIN
+    cardinality: one_to_many
+    join_role: identity
+    evidence: code_path:OperCustFacade.java:1417
+    note: 变更记录 cust_id 是企业主键。
+  - left: cust_company_info.code
+    right: cust_certification_info.ref_cust_company_info
+    type: EQUI_JOIN
+    cardinality: one_to_many
+    join_role: identity
+    evidence: code_path:CustCertificationInfoDao.java:16
+    note: 证照按企业 code 关联。
+  - left: cust_company_info.code
+    right: cust_head_company_info.ref_cust_head_company_info_cust_company_info
+    type: EQUI_JOIN
+    cardinality: one_to_one
+    join_role: identity
+    evidence: code_path:CustDocFacade.java:952
+    note: 总公司资料按企业 code 关联，不是 id。
+  - left: cust_company_info.id
+    right: cust_group_rel.cust_id
+    type: EQUI_JOIN
+    cardinality: one_to_many
+    join_role: identity
+    evidence: code_path:CustCompanyQueryMapper.xml:109
+    note: 集团关系 cust_id 是企业主键。
+  - left: tenant_project.id
+    right: cust_project_rel.project_id
+    type: EQUI_JOIN
+    cardinality: one_to_many
+    join_role: identity
+    cast: varchar←bigint
+    evidence: code_path:CustCompanyQueryMapper.xml:137
+    note: XML 等值 cpl.project_id = tp.id；库列 varchar(512) 对 bigint 主键，Java 常把 Long 当字符串存。
+  - left: cust_company_info.code
+    right: cust_shareholder_info.ref_cust_company_info
+    type: EQUI_JOIN
+    cardinality: one_to_many
+    join_role: identity
+    evidence: code_path:ApplyCompanyInfoApplication.java:190
+    note: 股东按企业 code 复制/查询，不是 id。
+  - left: cust_company_info.code
+    right: cust_auth_application.ref_cust_company_info
+    type: EQUI_JOIN
+    cardinality: one_to_many
+    join_role: identity
+    evidence: code_path:CustAuthApplicationDaoImpl.java:73
+    note: 产品开通按企业 code 关联，不是 id。
+  - left: cust_company_info.code
+    right: cust_interworking_product.ref_cust_interworking_product_cust_company_info
+    type: EQUI_JOIN
+    cardinality: one_to_many
+    join_role: identity
+    evidence: code_path:CustInterworkingProductDaoImpl.java:47
+    note: 互通产品按企业 code 关联。listCustAllProduct 先 getById 再取 code；不要把 cust_id 当成这条查询的 JOIN。
+  - left: cust_company_info.id
+    right: cust_customized_product.cust_id
+    type: EQUI_JOIN
+    cardinality: one_to_many
+    join_role: identity
+    evidence: code_path:CustCustomizedProductDaoImpl.java:25
+    note: 定制产品按企业主键 cust_id，不是 ref_cust_customized_product_cust_company_info。
+  - left: cust_company_info.id
+    right: cust_invite_info.invite_cust_id
+    type: EQUI_JOIN
+    cardinality: one_to_many
+    join_role: identity
+    evidence: code_path:CustCompanyIfoEnchanceService.java:1587
+    note: 邀请方企业主键。progress 回写按被邀请企业 name+db_tenant_code 匹配，不是这条 JOIN。
+  - left: cust_company_info.id
+    right: cust_company_lifecycle_info.company_id
+    type: EQUI_JOIN
+    cardinality: one_to_many
+    join_role: identity
+    evidence: code_path:CustCompanyInfoApplication.java:7082
+    note: 冻结/解冻留痕按企业主键。预生成行 enable=N，确认后改 Y。ref_cust_company_info 本路径未使用。
+  - left: cust_company_info.id
+    right: cust_project_code_record.company_id
+    type: EQUI_JOIN
+    cardinality: one_to_many
+    join_role: identity
+    evidence: code_path:CustProjectRelEnhanceService.java:407
+    note: 项目码输入记录按企业主键。
+  - left: cust_company_info.id
+    right: cust_oper_change_record.company_id
+    type: EQUI_JOIN
+    cardinality: one_to_many
+    join_role: identity
+    evidence: code_path:OperChangeRecordHelper.java:87
+    note: 运营人员变更留痕写入企业主键。列表查询按 person_id，company_code 只是冗余拷贝。
+  - left: cust_person_info.id
+    right: cust_oper_change_record.person_id
+    type: EQUI_JOIN
+    cardinality: one_to_many
+    join_role: identity
+    evidence: code_path:OperChangeRecordApplication.java:46
+    note: 变更记录按联系人主键倒序查。
+  - left: cust_company_info.id
+    right: cust_survey_answer.company_id
+    type: EQUI_JOIN
+    cardinality: one_to_many
+    join_role: identity
+    evidence: code_path:CustSurveyAnswerDao.java:18
+    note: 调研答案按登录企业主键。
+  - left: cust_company_info.id
+    right: cust_company_survey_whitelist.company_id
+    type: EQUI_JOIN
+    cardinality: one_to_many
+    join_role: identity
+    evidence: code_path:CustCompanySurveyWhitelistDao.java:19
+    note: 问卷星白名单按企业主键。
+  - left: cust_company_info.id
+    right: cust_company_survey_state.company_id
+    type: EQUI_JOIN
+    cardinality: one_to_one
+    join_role: identity
+    evidence: code_path:CustCompanySurveyStateDao.java:18
+    note: 问卷星活动状态按企业主键，一企一行。
+  - left: cust_company_info.id
+    right: cust_user_rel.company_id
+    type: EQUI_JOIN
+    cardinality: one_to_many
+    join_role: identity
+    evidence: code_path:CustCompanyIfoEnchanceService.java:566
+    note: 用户企业角色按企业主键。现网几乎无行；不要当成 sys 侧用户关系。
+  - left: tenant_project.id
+    right: cust_project_pushcust.project_id
+    type: EQUI_JOIN
+    cardinality: one_to_many
+    join_role: identity
+    cast: varchar←bigint
+    evidence: code_path:CustSyncEventProcessor.java:3106
+    note: 默认推送项目 project_id 转 Long 查 tenant_project.id。配置本身按 SSO 渠道查，不是企业 JOIN。
+dict_labels:
+  cust_company_info__cust_build_status:
+    table: cust_company_info
+    column: cust_build_status
+    values:
+      INIT: { label: 初始化, evidence: code_path:CustBuildStatusEnum.java:14 }
+      TO_BE_BUILD: { label: 未建档, evidence: code_path:CustBuildStatusEnum.java:15 }
+      BUILDING: { label: 建档中, evidence: code_path:CustBuildStatusEnum.java:16 }
+      BUILD_SUCCESS: { label: 认证成功, evidence: code_path:CustBuildStatusEnum.java:17 }
+      BUILD_FAIL: { label: 认证失败, evidence: code_path:CustBuildStatusEnum.java:18 }
+      BUILD_BACK: { label: 退回, evidence: code_path:CustBuildStatusEnum.java:19 }
+      BUILD_ACTIVATE: { label: 待激活, evidence: code_path:CustBuildStatusEnum.java:20 }
+      CUST_CONFIRM_AWAIT: { label: 待客户认证, evidence: code_path:CustBuildStatusEnum.java:21 }
+      CUST_AUDIT_AWAIT: { label: 待审核, evidence: code_path:CustBuildStatusEnum.java:23 }
+      CUST_BUILDING: { label: 审核中, evidence: code_path:CustBuildStatusEnum.java:24 }
+      CUST_BUILD_SUCCESS: { label: 审核通过, evidence: code_path:CustBuildStatusEnum.java:25 }
+      CUST_BUILD_FAIL: { label: 审核拒绝, evidence: code_path:CustBuildStatusEnum.java:26 }
+      CUST_CHANGE: { label: 变更, evidence: code_path:CustBuildStatusEnum.java:27 }
+      AWAIT_CUST_CONFIRM: { label: 待客户确认, evidence: code_path:CustBuildStatusEnum.java:30 }
+  cust_company_info__cust_status:
+    table: cust_company_info
+    column: cust_status
+    values:
+      ADD: { label: 新增, evidence: code_path:CustStatusEnum.java:19 }
+      EFFECT: { label: 生效, evidence: code_path:CustStatusEnum.java:20 }
+      FAILURE: { label: 失效, evidence: code_path:CustStatusEnum.java:21 }
+      WRITEOFF: { label: 注销, evidence: code_path:CustStatusEnum.java:22 }
+      FREEZE: { label: 冻结, evidence: code_path:CustStatusEnum.java:23 }
+      CHANGE: { label: 变更, evidence: code_path:CustStatusEnum.java:24 }
+  cust_company_info__cust_build_type:
+    table: cust_company_info
+    column: cust_build_type
+    values:
+      PC_BUILD: { label: 客户录入, evidence: code_path:CustBuildTypeConstant.java:7 }
+      AGW_BUILD: { label: 平台录入, evidence: code_path:CustBuildTypeConstant.java:12 }
+  cust_company_info__identify_style:
+    table: cust_company_info
+    column: identify_style
+    values:
+      INVITE: { label: 邀请认证-客户录入, evidence: code_path:IdentifyTypeConstant.java:12 }
+      INVITE_AGW: { label: 邀请认证-内管录入, evidence: code_path:IdentifyTypeConstant.java:16 }
+      SIMPLE: { label: 简易认证, evidence: code_path:IdentifyTypeConstant.java:20 }
+      SELF: { label: 自主认证, evidence: code_path:IdentifyTypeConstant.java:24 }
+  cust_company_info__data_type:
+    table: cust_company_info
+    column: data_type
+    values:
+      "1": { label: 主数据, evidence: code_path:CustDataTypeConstant.java:12 }
+      "0": { label: 流程数据, evidence: code_path:CustDataTypeConstant.java:14 }
+      "2": { label: 编辑过程, evidence: code_path:CustDataTypeConstant.java:16 }
+  cust_company_info__check_status:
+    table: cust_company_info
+    column: check_status
+    values:
+      CUST_CHECK_INIT: { label: 待审核, evidence: code_path:OperApiConstants.java:203 }
+      CUST_CHECK_CHECKING: { label: 审核中, evidence: code_path:OperApiConstants.java:203 }
+      CUST_CHECK_PASS: { label: 审核通过, evidence: code_path:OperApiConstants.java:203 }
+      CUST_CHECK_REJECT: { label: 审核不通过, evidence: code_path:OperApiConstants.java:203 }
+      CUST_CHECK_BACKTOCUSTOM: { label: 待客户确认, evidence: code_path:OperApiConstants.java:204 }
+      CUST_BACK: { label: 退回, evidence: code_path:OperApiConstants.java:204 }
+  cust_company_info__cust_source:
+    table: cust_company_info
+    column: cust_source
+    values:
+      PLATFORM_PUSH: { label: 运营中台推送, evidence: code_path:CustSourceEnum.java:19 }
+      MIGRATORY: { label: 存量迁移企业, evidence: code_path:CustSourceEnum.java:20 }
+      PPLATFORM: { label: 产融自建企业, evidence: code_path:CustSourceEnum.java:21 }
+  cust_person_info__user_type:
+    table: cust_person_info
+    column: user_type
+    values:
+      accountAdmin: { label: 管理员, evidence: code_path:UserTypeEnum.java:15 }
+      accountNormal: { label: 经办人, evidence: code_path:UserTypeEnum.java:16 }
+      accountGuest: { label: 游客, evidence: code_path:UserTypeEnum.java:17 }
+  cust_person_info__status:
+    table: cust_person_info
+    column: status
+    values:
+      ADD: { label: 未激活, evidence: code_path:CustPersonStatusConstant.java:11 }
+      EFFECT: { label: 已激活, evidence: code_path:CustPersonStatusConstant.java:13 }
+      WRITEOFF: { label: 注销, evidence: code_path:CustPersonStatusConstant.java:15 }
+      FREEZE: { label: 冻结, evidence: code_path:CustPersonStatusConstant.java:17 }
+  cust_role_info__status:
+    table: cust_role_info
+    column: status
+    values:
+      ADD: { label: 未激活, evidence: code_path:CustRoleStatusConstant.java:11 }
+      EFFECT: { label: 已激活, evidence: code_path:CustRoleStatusConstant.java:13 }
+      WRITEOFF: { label: 注销, evidence: code_path:CustRoleStatusConstant.java:15 }
+      FREEZE: { label: 冻结, evidence: code_path:CustRoleStatusConstant.java:17 }
+  cust_role_info__role_type:
+    table: cust_role_info
+    column: role_type
+    values:
+      SUPPLIER: { label: 供应商, evidence: code_path:CustCompanyTypeEnum.java:15 }
+      DEALER: { label: 经销商, evidence: code_path:CustCompanyTypeEnum.java:16 }
+      PROJECT_COMPANY: { label: 项目公司, evidence: code_path:CustCompanyTypeEnum.java:17 }
+      CORE: { label: 核心企业, evidence: code_path:CustCompanyTypeEnum.java:18 }
+      CORE_MANAGER: { label: 核心企业管理机构, evidence: code_path:CustCompanyTypeEnum.java:19 }
+      FINANCE: { label: 金融机构, evidence: code_path:CustCompanyTypeEnum.java:20 }
+      PLATFORM_OPERATOR_COMPANY: { label: 平台运营方, evidence: code_path:CustCompanyTypeEnum.java:21 }
+      CORE_FUNCTIONAL_DEPARTMENT: { label: 核心企业职能部门, evidence: code_path:CustCompanyTypeEnum.java:22 }
+      CORE_SUB: { label: 核心企业子公司, evidence: code_path:CustCompanyTypeEnum.java:23 }
+      CORE_BRANCH: { label: 核心企业分公司, evidence: code_path:CustCompanyTypeEnum.java:24 }
+      FACTOR_COMPANY: { label: 保理买卖方, evidence: code_path:CustCompanyTypeEnum.java:25 }
+      PLATFORM_COMPANY: { label: 平台方, evidence: code_path:CustCompanyTypeEnum.java:26 }
+      CORPORATION_COMPANY: { label: 集团公司, evidence: code_path:CustCompanyTypeEnum.java:27 }
+  cust_person_info__company_type:
+    table: cust_person_info
+    column: company_type
+    values:
+      SUPPLIER: { label: 供应商, evidence: code_path:CustCompanyTypeEnum.java:15 }
+      DEALER: { label: 经销商, evidence: code_path:CustCompanyTypeEnum.java:16 }
+      PROJECT_COMPANY: { label: 项目公司, evidence: code_path:CustCompanyTypeEnum.java:17 }
+      CORE: { label: 核心企业, evidence: code_path:CustCompanyTypeEnum.java:18 }
+      CORE_MANAGER: { label: 核心企业管理机构, evidence: code_path:CustCompanyTypeEnum.java:19 }
+      FINANCE: { label: 金融机构, evidence: code_path:CustCompanyTypeEnum.java:20 }
+      PLATFORM_OPERATOR_COMPANY: { label: 平台运营方, evidence: code_path:CustCompanyTypeEnum.java:21 }
+      CORE_FUNCTIONAL_DEPARTMENT: { label: 核心企业职能部门, evidence: code_path:CustCompanyTypeEnum.java:22 }
+      CORE_SUB: { label: 核心企业子公司, evidence: code_path:CustCompanyTypeEnum.java:23 }
+      CORE_BRANCH: { label: 核心企业分公司, evidence: code_path:CustCompanyTypeEnum.java:24 }
+      FACTOR_COMPANY: { label: 保理买卖方, evidence: code_path:CustCompanyTypeEnum.java:25 }
+      PLATFORM_COMPANY: { label: 平台方, evidence: code_path:CustCompanyTypeEnum.java:26 }
+      CORPORATION_COMPANY: { label: 集团公司, evidence: code_path:CustCompanyTypeEnum.java:27 }
+  cust_invite_info__progress:
+    table: cust_invite_info
+    column: progress
+    values:
+      INIT: { label: 初始化, evidence: code_path:CustBuildStatusEnum.java:14 }
+      BUILDING: { label: 建档中, evidence: code_path:CustBuildStatusEnum.java:16 }
+      BUILD_SUCCESS: { label: 认证成功, evidence: code_path:CustBuildStatusEnum.java:17 }
+      BUILD_FAIL: { label: 认证失败, evidence: code_path:CustBuildStatusEnum.java:18 }
+      CUST_CONFIRM_AWAIT: { label: 待客户认证, evidence: code_path:CustBuildStatusEnum.java:21 }
+      CUST_BUILDING: { label: 审核中, evidence: code_path:CustBuildStatusEnum.java:24 }
+      CUST_CHANGE: { label: 变更, evidence: code_path:CustBuildStatusEnum.java:27 }
+      AWAIT_CUST_CONFIRM: { label: 待客户确认, evidence: code_path:CustBuildStatusEnum.java:30 }
+  cust_company_info__need_register_ca:
+    table: cust_company_info
+    column: need_register_ca
+    values:
+      Y: { label: 已开通, evidence: code_path:OpenStatus.java:20 }
+      P: { label: 开通中, evidence: code_path:OpenStatus.java:20 }
+      N: { label: 未开通, evidence: code_path:OpenStatus.java:20 }
+  cust_company_info__ca_register_status:
+    table: cust_company_info
+    column: ca_register_status
+    values:
+      Y: { label: 已开通, evidence: code_path:OpenStatus.java:20 }
+      P: { label: 开通中, evidence: code_path:OpenStatus.java:20 }
+      N: { label: 未开通, evidence: code_path:OpenStatus.java:20 }
+  cust_company_info__need_register_bs:
+    table: cust_company_info
+    column: need_register_bs
+    values:
+      Y: { label: 已开通, evidence: code_path:OpenStatus.java:20 }
+      P: { label: 开通中, evidence: code_path:OpenStatus.java:20 }
+      N: { label: 未开通, evidence: code_path:OpenStatus.java:20 }
+  cust_company_info__bs_register_status:
+    table: cust_company_info
+    column: bs_register_status
+    values:
+      Y: { label: 已开通, evidence: code_path:OpenStatus.java:20 }
+      P: { label: 开通中, evidence: code_path:OpenStatus.java:20 }
+      N: { label: 未开通, evidence: code_path:OpenStatus.java:20 }
+  cust_auth_application__open_status:
+    table: cust_auth_application
+    column: open_status
+    values:
+      NOT_OPENED: { label: 未开通, evidence: code_path:CustProductActiveConstant.java:11 }
+      OPENING: { label: 开通中, evidence: code_path:CustProductActiveConstant.java:13 }
+      OPENED: { label: 已开通, evidence: code_path:CustProductActiveConstant.java:15 }
+  cust_change_record__alter_mode:
+    table: cust_change_record
+    column: alter_mode
+    values:
+      "1": { label: 平台变更, evidence: code_path:AlterModeEnum.java:10 }
+      "2": { label: 企业自行变更, evidence: code_path:AlterModeEnum.java:10 }
+  cust_change_cfg__identify_style:
+    table: cust_change_cfg
+    column: identify_style
+    values:
+      INVITE: { label: 邀请认证-客户录入, evidence: code_path:IdentifyTypeConstant.java:12 }
+      INVITE_AGW: { label: 邀请认证-内管录入, evidence: code_path:IdentifyTypeConstant.java:16 }
+      SIMPLE: { label: 简易认证, evidence: code_path:IdentifyTypeConstant.java:20 }
+      SELF: { label: 自主认证, evidence: code_path:IdentifyTypeConstant.java:24 }
+  cust_change_cfg__item_code:
+    table: cust_change_cfg
+    column: item_code
+    values:
+      UN0001: { label: 企业信息变更, evidence: code_path:CustUpdateItemCodeConstants.java:8 }
+      UN0002: { label: 法定代表人变更, evidence: code_path:CustUpdateItemCodeConstants.java:10 }
+      UN0003: { label: 法定代表人手机号码变更, evidence: code_path:CustUpdateItemCodeConstants.java:12 }
+      UN0004: { label: 法定代表人证件有效期变更, evidence: code_path:CustUpdateItemCodeConstants.java:14 }
+      UN0005: { label: 总公司法定代表人变更, evidence: code_path:CustUpdateItemCodeConstants.java:16 }
+      UN0006: { label: 总公司法定代表人手机号变更, evidence: code_path:CustUpdateItemCodeConstants.java:18 }
+      UN0007: { label: 总公司法定代表人证件有效期变更, evidence: code_path:CustUpdateItemCodeConstants.java:20 }
+      UN0008: { label: 企业授权书, evidence: code_path:CustUpdateItemCodeConstants.java:22 }
+      UN0009: { label: 增加企业角色, evidence: code_path:CustUpdateItemCodeConstants.java:24 }
+      UN0010: { label: 重新建档, evidence: code_path:CustUpdateItemCodeConstants.java:26 }
+      UN0011: { label: 总公司企业信息变更, evidence: code_path:CustUpdateItemCodeConstants.java:28 }
+      UN0012: { label: 企业管理员变更, evidence: code_path:CustUpdateItemCodeConstants.java:30 }
+      UN0013: { label: 企业管理员手机号变更, evidence: code_path:CustUpdateItemCodeConstants.java:32 }
+      UN0014: { label: 企业管理员证件有效期变更, evidence: code_path:CustUpdateItemCodeConstants.java:34 }
+      UN0015: { label: 企业管理员邮箱期变更, evidence: code_path:CustUpdateItemCodeConstants.java:36 }
+      UN0016: { label: 总公司变分公司, evidence: code_path:CustUpdateItemCodeConstants.java:38 }
+  cust_change_cfg__cust_type:
+    table: cust_change_cfg
+    column: cust_type
+    values:
+      "1": { label: 个人客户, evidence: code_path:CustTypeEnum.java:17 }
+      "2": { label: 企业客户, evidence: code_path:CustTypeEnum.java:18 }
+      "3": { label: 运营方企业客户, evidence: code_path:CustTypeEnum.java:19 }
+  cust_change_cfg__client_type:
+    table: cust_change_cfg
+    column: client_type
+    values:
+      AGW: { label: 内管, evidence: code_path:ClientTypeConstants.java:6 }
+      ACCOUNT_PRODUCT: { label: 客户端, evidence: code_path:ClientTypeConstants.java:9 }
+  cust_oper_change_record__change_type:
+    table: cust_oper_change_record
+    column: change_type
+    values:
+      MANUAL: { label: 手动变更, evidence: code_path:OperChangeRecordApplication.java:27 }
+      BATCH: { label: 批量变更, evidence: code_path:OperChangeRecordApplication.java:28 }
+      AUTO_ASSIGN: { label: 自动分配, evidence: code_path:OperChangeRecordApplication.java:29 }
+      AUTO_UPDATE: { label: 自动更新, evidence: code_path:OperChangeRecordApplication.java:30 }
+      ASSET_AUDIT_SYNC: { label: 资产审核同步, evidence: code_path:OperChangeRecordApplication.java:31 }
+      CUST_CHANGE_CALLBACK: { label: 企业变更回调, evidence: code_path:OperChangeRecordApplication.java:32 }
+  cust_project_code_record__type:
+    table: cust_project_code_record
+    column: type
+    values:
+      PC_BUILD: { label: 客户录入, evidence: code_path:CustBuildTypeConstant.java:7 }
+  cust_company_info__legal_certification_type:
+    table: cust_company_info
+    column: legal_certification_type
+    values:
+      CRET_ID: { label: 二代居民身份证, evidence: code_path:IDTypeEnum.java:17 }
+      CERT_MAINLAND_PASS: { label: 港澳居民来往内地通行证, evidence: code_path:IDTypeEnum.java:18 }
+      CERT_TAIWAN: { label: 台胞证, evidence: code_path:IDTypeEnum.java:19 }
+      CERT_GREEN_CARD: { label: 外国人永久居留证, evidence: code_path:IDTypeEnum.java:20 }
+      CERT_PASSPORT: { label: 护照, evidence: code_path:IDTypeEnum.java:21 }
+      CRET_ID_HK: { label: 香港身份证, evidence: code_path:IDTypeEnum.java:23 }
+      CERT_RESIDENT_PERMIT: { label: 港澳台居民居住证, evidence: code_path:IDTypeEnum.java:26 }
+      CERT_OTHER: { label: 其他, evidence: code_path:IDTypeEnum.java:30 }
+  cust_group_rel__status:
+    table: cust_group_rel
+    column: status
+    values:
+      INEFFECTIVE: { label: 未生效, evidence: code_path:CustGroupRelStatusEnum.java:19 }
+      EFFECTIVE: { label: 已生效, evidence: code_path:CustGroupRelStatusEnum.java:20 }
+      REJECTED: { label: 已拒绝, evidence: code_path:CustGroupRelStatusEnum.java:21 }
+  cust_person_info__certification_type:
+    table: cust_person_info
+    column: certification_type
+    values:
+      CRET_ID: { label: 二代居民身份证, evidence: code_path:IDTypeEnum.java:17 }
+      CERT_MAINLAND_PASS: { label: 港澳居民来往内地通行证, evidence: code_path:IDTypeEnum.java:18 }
+      CERT_TAIWAN: { label: 台胞证, evidence: code_path:IDTypeEnum.java:19 }
+      CERT_GREEN_CARD: { label: 外国人永久居留证, evidence: code_path:IDTypeEnum.java:20 }
+      CERT_PASSPORT: { label: 护照, evidence: code_path:IDTypeEnum.java:21 }
+      CRET_ID_HK: { label: 香港身份证, evidence: code_path:IDTypeEnum.java:23 }
+      CERT_HK_AND_MACAU_PASS: { label: 港澳通行证, evidence: code_path:IDTypeEnum.java:24 }
+      CERT_RESIDENT_PERMIT: { label: 港澳台居民居住证, evidence: code_path:IDTypeEnum.java:26 }
+  cust_certification_info__certification_type:
+    table: cust_certification_info
+    column: certification_type
+    values:
+      COMPANY_TWO_ELEMENTS: { label: 企业工商（二要素）认证, evidence: code_path:CustCertificationTypeEnum.java:14 }
+      LEGAL_THREE_ELEMENTS: { label: 法人三要素认证, evidence: code_path:CustCertificationTypeEnum.java:15 }
+      LEGAL_REAL_NAME: { label: 法人实名认证, evidence: code_path:CustCertificationTypeEnum.java:16 }
+      FACE_VERIFY: { label: 人脸识别认证, evidence: code_path:CustCertificationTypeEnum.java:17 }
+      AUTH_THREE_ELEMENTS: { label: 客户管理员三要素认证, evidence: code_path:CustCertificationTypeEnum.java:18 }
+      LEGAL_OCR: { label: 法人身份证OCR比对, evidence: code_path:CustCertificationTypeEnum.java:20 }
+      AUTH_MEDIA_OCR: { label: 客户管理员证件核查比对, evidence: code_path:CustCertificationTypeEnum.java:24 }
+  cust_account_info__account_type:
+    table: cust_account_info
+    column: account_type
+    values:
+      "1": { label: 银行, evidence: code_path:AccountTypeEnum.java:15 }
+      received: { label: 收款, evidence: code_path:AccountTypeEnum.java:18 }

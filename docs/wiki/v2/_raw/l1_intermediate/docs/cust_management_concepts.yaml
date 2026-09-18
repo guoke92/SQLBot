@@ -1,0 +1,480 @@
+kind: concepts
+domain: cust
+doc_source: "docs/wiki-knowledge/pplatform/req-index/concepts/产品需求规格说明书_产融平台V1.0.0.md"
+concepts:
+  - concept_key: invite_platform_entry
+    title: 邀请认证-平台录入
+    aliases: [邀请认证-内管录入, 平台录入认证]
+    maps_to: cust_company_info__identify_style.INVITE_AGW
+    field_targets: [cust_company_info.identify_style]
+    also_confused_with: [agw_build, invite_customer_entry]
+    adjudication: boundary
+    explanation: |
+      需求文档「邀请认证-平台录入」钉的是认证方式 identify_style=INVITE_AGW（常量注释：邀请认证-内管录入）。
+      不是 cust_build_type.AGW_BUILD。AGW_BUILD 回答档案由哪条录入通道写入。
+      document_claim:邀请认证-平台录入流程.md
+    evidence: document_claim:产品需求规格说明书_产融平台V1.0.0.md#1042
+  - concept_key: invite_customer_entry
+    title: 邀请认证-客户录入
+    aliases: [客户录入认证]
+    maps_to: cust_company_info__identify_style.INVITE
+    field_targets: [cust_company_info.identify_style]
+    also_confused_with: [pc_build, invite_platform_entry, self_auth]
+    adjudication: boundary
+    explanation: |
+      需求「邀请认证-客户录入」钉 identify_style=INVITE。document_claim:邀请认证-客户录入流程.md
+      cust_build_type.PC_BUILD 的代码注释也叫「客户录入」，那是建档通道，不是认证方式。
+      自主认证/接口建档钉 SELF，不要和 INVITE 混。
+    evidence: document_claim:产品需求规格说明书_产融平台V1.0.0.md#1040
+  - concept_key: simple_auth
+    title: 简易认证
+    aliases: [简易建档]
+    maps_to: cust_company_info__identify_style.SIMPLE
+    field_targets: [cust_company_info.identify_style]
+    also_confused_with: [invite_platform_entry, change_identify_style]
+    adjudication: boundary
+    explanation: |
+      简易认证是 identify_style=SIMPLE。提交后状态走 AWAIT_CUST_CONFIRM → BUILD_SUCCESS，不走邀请审批中的 CUST_BUILDING。
+      document_claim:简易认证流程.md#13 描述人脸后还可开通 CA；现网以 CustCompanyCaPolicy 为准，见 simple_auth_ca_history。
+      「变更认证方式」是改 identify_style 列，不是新建一条简易认证企业。
+    evidence: document_claim:产品需求规格说明书_产融平台V1.0.0.md#1036
+  - concept_key: agw_build
+    title: 平台录入（建档通道）
+    aliases: [AGW建档]
+    maps_to: cust_company_info__cust_build_type.AGW_BUILD
+    field_targets: [cust_company_info.cust_build_type]
+    also_confused_with: [invite_platform_entry, pc_build]
+    adjudication: boundary
+    explanation: CustBuildTypeConstant 注释：AGW_BUILD=平台录入，PC_BUILD=客户录入。回答档案从哪条通道写入，不回答谁邀请/何种认证。
+    evidence: code_path:CustBuildTypeConstant.java:12
+  - concept_key: pc_build
+    title: 客户录入（建档通道）
+    aliases: [PC建档]
+    maps_to: cust_company_info__cust_build_type.PC_BUILD
+    field_targets: [cust_company_info.cust_build_type]
+    also_confused_with: [invite_customer_entry, agw_build]
+    adjudication: boundary
+    explanation: PC_BUILD 是建档通道「客户录入」。需求里同名的「邀请认证-客户录入」钉的是 identify_style.INVITE。
+    evidence: code_path:CustBuildTypeConstant.java:7
+  - concept_key: core_company
+    title: 核心企业
+    aliases: [买方核心企业, 链主企业]
+    maps_to: cust_company_info.cust_company_type
+    field_targets: [cust_company_info.cust_company_type, cust_role_info.role_type]
+    also_confused_with: [add_company_role_change, finance_org_type_term, group_member_rel]
+    adjudication: boundary
+    explanation: |
+      角色码 CORE 来自 CustCompanyTypeEnum，落在 cust_company_type（JSON 数组）以及 cust_role_info.role_type。
+      问「核心企业」应过滤角色，而不是把 company_type 当成单值字典列硬套。
+      「增加企业角色」是变更项 UN0009，不是这列本身。金融机构类型是补充字段 finance_org_type。集团成员看 cust_group_rel。
+    evidence: code_path:CustCompanyTypeEnum.java:18
+  - concept_key: effective_company_term
+    title: 生效企业
+    aliases: [有效企业, 认证成功企业]
+    maps_to: cust_company_info.cust_status
+    field_targets: [cust_company_info.cust_status, cust_company_info.cust_build_status]
+    also_confused_with: [simple_auth, build_success_not_effect, visitor_flow_data]
+    adjudication: boundary
+    explanation: 列表「有效企业」是 BUILD_SUCCESS ∧ EFFECT ∧ 主数据 ∧ enable=Y，不是「认证方式=简易认证」，也不是单看认证成功，也不是 data_type=0 的游客/流程数据。
+    evidence: code_path:CustCompanyIfoEnchanceService.java:649
+  - concept_key: build_success_not_effect
+    title: 认证成功不等于生效
+    aliases: [建档成功, 认证成功企业]
+    maps_to: cust_company_info.cust_build_status
+    field_targets: [cust_company_info.cust_build_status, cust_company_info.cust_status]
+    also_confused_with: [effective_company_term, reauth_reset]
+    adjudication: boundary
+    explanation: |
+      BUILD_SUCCESS 只表示建档/认证成功。EFFECT 才是生效。
+      运营建档回调先写 BUILD_SUCCESS，再 effectCust 写 EFFECT。问有效企业必须两列一起过滤。
+    evidence: code_path:CustSyncEventProcessor.java:1052
+  - concept_key: account_admin
+    title: 企业管理员
+    aliases: [管理员, admin, accountAdmin]
+    maps_to: cust_person_info__user_type.accountAdmin
+    field_targets: [cust_person_info.user_type]
+    also_confused_with: [account_operator, admin_email_optional]
+    adjudication: boundary
+    explanation: |
+      UserTypeEnum 的 Java 名是 admin，入库 dictKey 是 accountAdmin，中文是管理员。
+      问管理员过滤 user_type=accountAdmin，不要用枚举名 admin。
+    evidence: code_path:UserTypeEnum.java:15
+  - concept_key: account_operator
+    title: 经办人
+    aliases: [经办人, operator, accountNormal]
+    maps_to: cust_person_info__user_type.accountNormal
+    field_targets: [cust_person_info.user_type]
+    also_confused_with: [account_admin, skip_realname, archive_handby, login_account_term]
+    adjudication: boundary
+    explanation: Java 名 operator，入库 accountNormal。不要和管理员混用。经办人实名认证看 skip_auth_flag，不是 user_type。
+    evidence: code_path:UserTypeEnum.java:16
+  - concept_key: company_id_vs_code
+    title: 企业主键与企业编码
+    aliases: [custId, 企业code, ref_cust_company_info]
+    maps_to: cust_company_info.code
+    field_targets: [cust_company_info.id, cust_company_info.code]
+    also_confused_with: [bank_account_center]
+    adjudication: boundary
+    explanation: |
+      人员/角色/账户/证照/股东/授权申请/互通产品按 code=ref_* 关联。
+      建档记录、变更记录、集团关系、定制产品、邀请方、项目码记录、调研/问卷、运营人员变更留痕、用户企业角色按 id=company_id/cust_id。
+      不要把 ref_* 当成企业主键。
+      建档银行账号在 cust_account_info.ref_cust_company_info=企业 code，不是需求「账户中心」里的业务产品账户。
+    evidence: code_path:CustCompanyQueryMapper.xml:80
+  - concept_key: invite_progress_copy
+    title: 邀请进度抄建档状态
+    aliases: [邀请进度, progress, 邀请供应商]
+    maps_to: cust_invite_info.progress
+    field_targets: [cust_invite_info.progress, cust_company_info.cust_build_status]
+    also_confused_with: [invite_customer_entry]
+    adjudication: boundary
+    explanation: |
+      progress 码集与 cust_build_status 相同，但是邀请表自己的列。
+      document_claim:邀请供应商功能.md#15：核心企业邀请供应商落在 cust_invite_info。
+      回写按被邀请企业 name+db_tenant_code 匹配，不是 invite_cust_id JOIN。
+    evidence: code_path:CustSyncEventProcessor.java:1128
+  - concept_key: freeze_audit
+    title: 冻结解冻留痕
+    aliases: [冻结原因, 解冻记录, 冻结依据]
+    maps_to: cust_company_lifecycle_info.type
+    field_targets: [cust_company_lifecycle_info.company_id, cust_company_lifecycle_info.type, cust_company_lifecycle_info.reason, cust_company_lifecycle_info.attach]
+    also_confused_with: [account_admin]
+    adjudication: boundary
+    explanation: |
+      V1.19 要求冻结/解冻必填原因和依据文件。现网落在 cust_company_lifecycle_info：type=FRZ/UNFRZ，company_id 企业主键。
+      预生成 enable=N，确认后 enable=Y。不要把企业冻结理解成改管理员 enable。
+      document_claim:冻结解冻留痕.md#15
+    evidence: code_path:CustCompanyInfoApplication.java:7064
+  - concept_key: admin_change_topic
+    title: 企业管理员变更
+    aliases: [管理员变更, 管理员手机号变更, 冻旧建新, UN0012, UN0013, UN0014]
+    maps_to: cust_person_info__status.FREEZE
+    field_targets: [cust_person_info.status, cust_person_info.enable, cust_person_info.user_type]
+    also_confused_with: [freeze_audit]
+    adjudication: boundary
+    explanation: |
+      需求「企业管理员变更专题」是换人：旧行 enable=N 且 status=FREEZE，新行 status=EFFECT、user_type=accountAdmin。
+      变更项码 UN0012 管理员变更、UN0013 手机号、UN0014 证件有效期，见 CustUpdateItemCodeConstants 注释。
+      不是企业冻结留痕表。V1.17 起确认人是新管理员。
+      document_claim:企业管理员变更专题.md#11
+    evidence: code_path:CustPersonApplication.java:841
+  - concept_key: simple_auth_ca_history
+    title: 简易认证与电子签章
+    aliases: [简易建档开通CA, 开通电子签章]
+    maps_to: cust_company_info.need_register_ca
+    field_targets: [cust_company_info.identify_style, cust_company_info.need_register_ca]
+    also_confused_with: [simple_auth]
+    adjudication: boundary
+    explanation: |
+      早期需求（简易认证流程、V1.7/V1.17 升级建档）允许简易认证开通 CA。
+      document_claim:简易认证流程.md#29 写「若简易建档开通了 CA，则人脸后还需同意 CFCA 协议」。
+      V1.26 变更时「开通电子签章」置灰。现网 CustCompanyCaPolicy 在 identify_style=SIMPLE 时强制四个签章字段为 N。
+      document_claim:供票产品开通校验规则.md#17：简易认证/未开通签章/非总公司不能开通供票。
+      问「简易认证是否开通签章」以现网代码为准：不开通。
+    evidence: code_path:CustCompanyCaPolicy.java:26
+  - concept_key: oper_change_trace
+    title: 运营人员变更留痕
+    aliases: [变更运营轨迹, 变更记录tab]
+    maps_to: cust_oper_change_record.change_type
+    field_targets: [cust_oper_change_record.change_type, cust_oper_change_record.person_id, cust_oper_change_record.company_id]
+    also_confused_with: [admin_change_topic, oper_staff_field]
+    adjudication: boundary
+    explanation: |
+      需求「变更运营轨迹留痕」钉的是联系人运营人员变更历史，落在 cust_oper_change_record。
+      按 person_id 倒序查；company_id 是企业主键拷贝。不是管理员冻旧建新，也不是企业冻结留痕。
+    evidence: code_path:OperChangeRecordApplication.java:46
+  - concept_key: alter_mode_self
+    title: 企业自行变更
+    aliases: [平台变更, 自行变更]
+    maps_to: cust_change_record__alter_mode.2
+    field_targets: [cust_change_record.alter_mode]
+    also_confused_with: [invite_platform_entry]
+    adjudication: boundary
+    explanation: |
+      AlterModeEnum：1=平台变更，2=企业自行变更。
+      需求「平台录入企业支持自行变更」说的是变更方式 alter_mode，不是 identify_style=INVITE_AGW。
+    evidence: code_path:AlterModeEnum.java:10
+  - concept_key: change_item_code
+    title: 变更项编码
+    aliases: [变更项, UN0001, UN0009]
+    maps_to: cust_change_cfg.item_code
+    field_targets: [cust_change_cfg.item_code]
+    also_confused_with: [add_company_role_change]
+    adjudication: boundary
+    explanation: |
+      变更项中文来自 CustUpdateItemCodeConstants 注释，配置行在 cust_change_cfg。
+      变更单 alter_type_id 存的是逗号分隔的 cfg.id，不是 item_code，不要当成 EQUI_JOIN。
+      「增加企业角色」钉 UN0009，不要用整列 item_code 当唯一过滤。
+    evidence: code_path:CustUpdateItemCodeConstants.java:8
+  - concept_key: default_push_project
+    title: 默认关联项目
+    aliases: [默认推送项目, 未填项目码自动关联]
+    maps_to: cust_project_pushcust.project_id
+    field_targets: [cust_project_pushcust.project_id]
+    also_confused_with: [project_code_input, project_code_required, project_rel_status]
+    adjudication: boundary
+    explanation: |
+      需求「默认关联项目」是租户/渠道配置。现网 cust_project_pushcust 按 SSO 渠道取 project_id，再转 Long 查 tenant_project。
+      不是客户自己录入的项目码记录。也不是 tenant_setting_config.default_project_id（项目码必填时的租户默认项目）。
+      document_claim:默认关联项目.md
+    evidence: code_path:CustSyncEventProcessor.java:3106
+  - concept_key: project_code_input
+    title: 录入项目码
+    aliases: [项目码记录, 项目专属服务码]
+    maps_to: cust_project_code_record.company_id
+    field_targets: [cust_project_code_record.company_id, cust_project_code_record.channel_code]
+    also_confused_with: [default_push_project, channel_code_term, project_rel_status]
+    adjudication: boundary
+    explanation: |
+      客户在认证过程中录入项目码，落在 cust_project_code_record.company_id=企业主键。
+      不要和租户配置的默认关联项目表搞混，也不要和项目 channel_code（渠道码）搞混。
+    evidence: code_path:CustProjectRelEnhanceService.java:364
+  - concept_key: face_verify
+    title: 人脸识别认证
+    aliases: [活体人脸, 微信扫码人脸]
+    maps_to: cust_certification_info__certification_type.FACE_VERIFY
+    field_targets: [cust_certification_info.certification_type]
+    also_confused_with: [account_admin, skip_realname]
+    adjudication: boundary
+    explanation: |
+      CustCertificationTypeEnum.FACE_VERIFY=人脸识别认证，落在证照/核验表 certification_type。
+      document_claim:人脸识别认证.md
+      document_claim:非身份证件短信认证.md：非身份证走人脸失败后的短信确认，在运营中台；本库 certification_type 仍是 FACE_VERIFY。
+      不是证件类型 CRET_ID，也不是管理员 user_type，也不是经办人 skip_auth_flag。
+    evidence: code_path:CustCertificationTypeEnum.java:17
+  - concept_key: change_identify_style
+    title: 变更认证方式
+    aliases: [切换认证方式, 认证失败改方式, 企业认证升级]
+    maps_to: cust_company_info.identify_style
+    field_targets: [cust_company_info.identify_style]
+    also_confused_with: [simple_auth, self_auth]
+    adjudication: boundary
+    explanation: |
+      document_claim:变更认证方式.md#18：自主注册认证失败且无法删除时，运营把 identify_style 改成简易/接口/保持现状。
+      document_claim:企业认证升级.md#15：简易升级为邀请，仍是改 identify_style，不是改 cust_build_type。
+      现网 CustCompanyOperationApplication.changeIdentifyStyle 只 update 该列。
+    evidence: code_path:CustCompanyOperationApplication.java:119
+  - concept_key: add_company_role_change
+    title: 增加企业角色
+    aliases: [UN0009, 新增企业角色, 增加企业角色优化]
+    maps_to: cust_change_cfg__item_code.UN0009
+    field_targets: [cust_change_cfg.item_code]
+    also_confused_with: [core_company, authorization_book, change_item_code, head_to_branch_change]
+    adjudication: boundary
+    explanation: |
+      document_claim:增加企业角色变更.md#15：14 类变更之一，常量注释「增加企业角色」= UN0009。
+      新增核心企业角色需求说走授权书；问「是不是核心企业」仍过滤角色列，不要只用变更项码。
+    evidence: code_path:CustUpdateItemCodeConstants.java:24
+  - concept_key: bank_account_center
+    title: 账户中心银行账户
+    aliases: [银行账户归集, 账户中心]
+    maps_to: cust_account_info.account_no
+    field_targets: [cust_account_info.account_no, cust_account_info.ref_cust_company_info]
+    also_confused_with: [company_id_vs_code, bank_cnaps]
+    adjudication: boundary
+    explanation: |
+      document_claim:银行账户归集.md#15：客户端「账户中心」聚合融易单/保理等业务产品账户，本库无对应产品账户表。
+      cust_account_info 是建档银行账号，ref_cust_company_info=企业 code。不要用建档账号表回答账户中心产品账户。
+    evidence: document_claim:银行账户归集.md#15
+  - concept_key: self_auth
+    title: 自主认证
+    aliases: [接口建档, 接口认证, 注册认证]
+    maps_to: cust_company_info__identify_style.SELF
+    field_targets: [cust_company_info.identify_style]
+    also_confused_with: [invite_customer_entry, change_identify_style]
+    adjudication: boundary
+    explanation: |
+      IdentifyTypeConstant 注释：SELF=自主认证。需求「接口建档」「接口认证」口语也落这一码，没有单独的接口认证枚举。
+      document_claim:接口建档.md#15。不要和 INVITE 客户录入混。
+    evidence: code_path:IdentifyTypeConstant.java:24
+  - concept_key: head_to_branch_change
+    title: 总公司变更为分公司
+    aliases: [UN0016, 总公司变分公司]
+    maps_to: cust_change_cfg__item_code.UN0016
+    field_targets: [cust_change_cfg.item_code]
+    also_confused_with: [add_company_role_change]
+    adjudication: boundary
+    explanation: |
+      document_claim:总公司变更为分公司.md#15。常量注释「总公司变分公司」= UN0016。
+      代码禁止与其它变更项同时变更。不是增加企业角色 UN0009。
+    evidence: code_path:CustUpdateItemCodeConstants.java:38
+  - concept_key: rebuild_archive_change
+    title: 重新建档
+    aliases: [UN0010]
+    maps_to: cust_change_cfg__item_code.UN0010
+    field_targets: [cust_change_cfg.item_code]
+    also_confused_with: [reauth_reset]
+    adjudication: boundary
+    explanation: |
+      变更项 UN0010 注释「重新建档」。不是内管「重新认证」把建档状态打回 INIT。
+    evidence: code_path:CustUpdateItemCodeConstants.java:26
+  - concept_key: reauth_reset
+    title: 重新认证
+    aliases: [终止认证]
+    maps_to: cust_company_info__cust_build_status.INIT
+    field_targets: [cust_company_info.cust_build_status]
+    also_confused_with: [build_success_not_effect, rebuild_archive_change]
+    adjudication: boundary
+    explanation: |
+      document_claim:终止认证.md#15 写审核退回时可终止；现网接口名 reAuthentication，只允许待客户确认 CUST_CONFIRM_AWAIT 打回 INIT。
+      以代码为准。不是变更项「重新建档」UN0010。
+    evidence: code_path:CustCompanyOperationApplication.java:165
+  - concept_key: admin_email_optional
+    title: 管理员业务邮箱
+    aliases: [管理员邮箱非必填, 业务邮箱]
+    maps_to: cust_person_info.email
+    field_targets: [cust_person_info.email]
+    also_confused_with: [account_admin]
+    adjudication: boundary
+    explanation: |
+      document_claim:管理员邮箱非必填.md#23：邀请认证-客户录入时内管录入管理员邮箱非必填。
+      现网导入校验 require=false。列是人员 email，不是登录账号。问管理员仍过滤 user_type=accountAdmin。
+    evidence: code_path:CustImportCustInfoDTO.java:92
+  - concept_key: bank_cnaps
+    title: 联行号
+    aliases: [联行号搜索, 银行联行号]
+    maps_to: cust_account_info.bank_no
+    field_targets: [cust_account_info.bank_no]
+    also_confused_with: [bank_account_center]
+    adjudication: boundary
+    explanation: |
+      document_claim:联行号搜索.md#15：建档银行账户按联行号查。列 bank_no，catalog 注释「联行号」。
+      不是账户中心业务产品账户，也不是账号 account_no。
+    evidence: code_path:OperCustFacade.java:3069
+  - concept_key: finance_org_type_term
+    title: 金融机构类型
+    aliases: [金融机构类型与编码, 补充字段金融机构]
+    maps_to: cust_company_info.finance_org_type
+    field_targets: [cust_company_info.finance_org_type, cust_company_info.finance_org_code]
+    also_confused_with: [core_company, extra_field_required]
+    adjudication: boundary
+    explanation: |
+      document_claim:金融机构类型与编码.md。catalog 注释「金融机构类型(补充字段)」。
+      不是企业角色 CORE。编码在 finance_org_code。
+    evidence: code_path:PlatFormMigratoryApplication.java:1671
+  - concept_key: extra_field_required
+    title: 补充字段是否必填
+    aliases: [补充字段, 银行分行名称必填, 补充字段企业角色维度]
+    maps_to: tenant_setting_config.bank_branch_property_requried
+    field_targets:
+      - tenant_setting_config.bank_branch_property_requried
+      - tenant_setting_config.finance_org_type_property_requried
+      - tenant_setting_config.bank_branch_property_requried_config_cust_role
+      - tenant_setting_config.finance_org_type_property_requried_config_cust_role
+    also_confused_with: [finance_org_type_term, bank_branch_name]
+    adjudication: boundary
+    explanation: |
+      document_claim:补充字段.md#13 / 补充字段企业角色维度.md#11：租户配置决定建档补充字段是否必填，并可按企业角色收窄。
+      现网必填列 *property_requried，角色列 *property_requried_config_cust_role。角色为空则视为不强制。不是企业上的取值列。
+    evidence: code_path:CustCompanyIfoEnchanceService.java:1672
+  - concept_key: visitor_flow_data
+    title: 游客流程数据
+    aliases: [游客处理, 流程数据]
+    maps_to: cust_company_info__data_type.0
+    field_targets: [cust_company_info.data_type]
+    also_confused_with: [effective_company_term]
+    adjudication: boundary
+    explanation: |
+      document_claim:游客处理.md#23：游客企业与正式表隔离。现网 data_type=0 是流程数据（常量注释），1 才是主数据有效企业。
+      不要用有效企业口径去数游客。
+    evidence: code_path:CustDataTypeConstant.java:14
+  - concept_key: project_rel_status
+    title: 企业项目关联状态
+    aliases: [关联状态, 关联已生效, 供应商关联项目即生效, 企业关联项目配置]
+    maps_to: cust_project_rel.status
+    field_targets: [cust_project_rel.status]
+    also_confused_with: [default_push_project, project_code_input]
+    adjudication: boundary
+    explanation: |
+      document_claim:关联状态.md#17 / 供应商关联项目即生效.md#28。catalog 注释「关联状态」。
+      供应商+融易单/订单融资写入 1；其它写入 0。运营确认接口写成 Y。不要把 0/1 和 Y 当成两套业务口径硬套。
+    evidence: code_path:CustSyncEventProcessor.java:3128
+  - concept_key: skip_realname
+    title: 经办人跳过实名认证
+    aliases: [经办人实名认证, skip_auth_flag]
+    maps_to: cust_person_info.skip_auth_flag
+    field_targets: [cust_person_info.skip_auth_flag]
+    also_confused_with: [account_operator, face_verify, main_custom_flg]
+    adjudication: boundary
+    explanation: |
+      document_claim:经办人实名认证.md#15：经办人首次登录要实名。catalog 注释「跳过实名认证标识」。
+      现网 skip_auth_flag=Y 表示已跳过；HBLT 等主定制可跳过。不是管理员人脸 FACE_VERIFY。
+    evidence: code_path:CustPersonController.java:643
+  - concept_key: group_member_rel
+    title: 集团成员单位
+    aliases: [集团成员管理, 集团关系]
+    maps_to: cust_group_rel.status
+    field_targets: [cust_group_rel.status, cust_group_rel.cust_id, cust_group_rel.root_cust_id]
+    also_confused_with: [core_company]
+    adjudication: boundary
+    explanation: |
+      document_claim:集团成员管理.md#13。行在 cust_group_rel，cust_id 是企业主键。
+      EFFECTIVE 已生效、INEFFECTIVE 未生效、REJECTED 已拒绝。不是企业角色 CORE。
+      客户端「组织架构树」走 sys 库 Dubbo（SysOrgFacade），本仓 catalog 无对应表，不要用 cust_group_rel 或空表 org_manage 回答。
+    evidence: code_path:CustGroupRelApplication.java:710
+  - concept_key: bank_branch_name
+    title: 企业银行分行名称
+    aliases: [银行分行名称, 银行分行名称字段]
+    maps_to: cust_company_info.bank_branch
+    field_targets: [cust_company_info.bank_branch]
+    also_confused_with: [extra_field_required]
+    adjudication: boundary
+    explanation: |
+      document_claim:银行分行名称字段.md#15。catalog 注释「银行分行名称（通用）(补充字段)」。
+      这是企业上的取值；是否必填看租户 bank_branch_property_requried。
+    evidence: code_path:CustCompanyInfoApplication.java:7035
+  - concept_key: oper_staff_field
+    title: 联系人运营人员
+    aliases: [企业信息维护-运营人员字段, 运营人员取值逻辑优化, 运营人员]
+    maps_to: cust_person_info.operator_realname
+    field_targets: [cust_person_info.operator_id, cust_person_info.operator_realname]
+    also_confused_with: [archive_handby, oper_change_trace]
+    adjudication: boundary
+    explanation: |
+      document_claim:企业信息维护-运营人员字段.md#11 / 运营人员取值逻辑优化.md#19：列表「运营人员」是联系人 operator_id / operator_realname。
+      手动更换走 changePersonOperator。变更历史在 cust_oper_change_record，不是这两列本身。不是建档经办人 handby_person_name。
+    evidence: code_path:CustPersonApplication.java:900
+  - concept_key: archive_handby
+    title: 建档经办人
+    aliases: [建档经办人名字]
+    maps_to: cust_person_info.handby_person_name
+    field_targets: [cust_person_info.handby_person, cust_person_info.handby_person_name]
+    also_confused_with: [oper_staff_field, account_operator]
+    adjudication: boundary
+    explanation: |
+      document_claim:运营人员取值逻辑优化.md#19：内管「建档经办人」与「运营人员」分列。catalog 注释「建档经办人名字」。
+      自主认证+供应商且为空时展示 --。不是 user_type=accountNormal，也不是 operator_realname。
+    evidence: code_path:CustPersonApplication.java:1788
+  - concept_key: auth_channel_flag
+    title: 新旧渠道授权书标识
+    aliases: [新旧渠道授权书补签]
+    maps_to: cust_company_info.migarory_auth_aggrement_flag
+    field_targets: [cust_company_info.migarory_auth_aggrement_flag]
+    also_confused_with: [auth_supplement_flag, cross_tenant_resign]
+    adjudication: boundary
+    explanation: |
+      catalog 注释「新旧渠道授权书补签标识，Y 新渠道:N 旧渠道」。列名拼写是 migarory。
+      迁移时新渠道写 Y 且补签开关 N。不是租户 sign_flag，也不是企业补签开关。Y/N 不编字典页。
+    evidence: code_path:PlatFormMigratoryApplication.java:1687
+  - concept_key: auth_supplement_flag
+    title: 企业授权书补签开关
+    aliases: [授权书补签逻辑优化, 是否授权书补签]
+    maps_to: cust_company_info.auth_aggrement_supplement_flag
+    field_targets: [cust_company_info.auth_aggrement_supplement_flag]
+    also_confused_with: [auth_channel_flag, cross_tenant_resign, authorization_book, electronic_auth_flag]
+    adjudication: boundary
+    explanation: |
+      document_claim:授权书补签逻辑优化.md#31：企业维度开关，可关旧渠道误触发的补签。catalog 注释「是否授权书补签标识」。
+      现网 Y 需要补签，接口对 Y/N 翻转。不是租户跨贴牌 sign_flag，也不是授权确认书行。Y/N 不编字典页。
+    evidence: code_path:CustAuthAgreementDomainService.java:564
+  - concept_key: login_account_term
+    title: 登录账号
+    aliases: [非手机号账号登录, 账号名称]
+    maps_to: cust_person_info.user_name
+    field_targets: [cust_person_info.user_name]
+    also_confused_with: [account_operator]
+    adjudication: boundary
+    explanation: |
+      document_claim:非手机号账号登录.md#14：登录可用账号名而不只是手机号。catalog 注释「登录账号」。
+      现网从 SSO userName/loginName 回写；运营回调新建管理员时常把手机号写入该列。问登录名看 user_name，不是 user_type。
+    evidence: code_path:UserInfoFacade.java:238

@@ -1,5 +1,5 @@
 ---
-type: enum
+type: dict
 title: 认证方式
 page_key: identify_style
 domain: 企业建档
@@ -20,8 +20,8 @@ contract_version: "0.1"
 本字段回答"企业如何完成认证"，不回答"企业档案由哪个渠道创建"。
 用户问"认证方式"且语境同时出现"录入/建档"时，应先澄清指向哪个字段。
 
-```ground:enum
-enum: identify_style
+```ground:dict
+dict: identify_style
 fields: [cust_company_info.identify_style]
 values:
   INVITE: { label: 平台邀请认证 }

@@ -34,7 +34,7 @@ def test_independent_prepare_skips_recall() -> None:
         relation="independent",
         question="你能做什么？",
         memory_slots=MemorySlots(
-            knowledge_refs={"page_keys": ["enums/x"], "tables": ["t"]}
+            knowledge_refs={"page_keys": ["dicts/x"], "tables": ["t"]}
         ),
         dialect="mysql",
     )
@@ -44,7 +44,7 @@ def test_independent_prepare_skips_recall() -> None:
 def test_continue_prepare_rehydrates_pins_not_followup() -> None:
     slots = MemorySlots(
         knowledge_refs={
-            "page_keys": ["enums/identify_style"],
+            "page_keys": ["dicts/identify_style"],
             "tables": ["cust_company_info"],
         },
         active_baseline_sql=(
@@ -61,7 +61,7 @@ def test_continue_prepare_rehydrates_pins_not_followup() -> None:
     assert req.query == ""
     assert "城市" not in req.query
     assert "cust_company_info" in req.pin_tables
-    assert "enums/identify_style" in req.pin_pages
+    assert "dicts/identify_style" in req.pin_pages
 
 
 def test_pin_only_retrieve_skips_vector_query(monkeypatch) -> None:
@@ -178,6 +178,119 @@ def test_finalize_text_exit_uses_tool_content(monkeypatch) -> None:
     assert quality.get("grade") != "unreliable"
 
 
+def test_complete_without_sql_writes_empty_knowledge_refs(monkeypatch) -> None:
+    @contextmanager
+    def _scope():
+        yield object()
+
+    monkeypatch.setattr("apps.chat.graphs.nodes.agent_finalize.session_scope", _scope)
+    monkeypatch.setattr(
+        "apps.chat.graphs.nodes.agent_finalize.load_result_datasets",
+        lambda *_a, **_k: [],
+    )
+    monkeypatch.setattr(
+        "apps.chat.graphs.nodes.agent_finalize.finalize_run",
+        lambda *_a, **_k: None,
+    )
+    content = "我可以帮你查询企业认证、协议签署等相关数据。"
+    out = finalize_agent_turn_node(
+        {
+            "run_id": "capability_qa",
+            "record_id": 3,
+            "final_text": "这段裸文本不该成为终答",
+            "turn_route": {"task_kind": "query"},
+            "knowledge_plane": {
+                "tables": ["cust_company_info", "cust_account_info"],
+                "page_keys": [
+                    "tables/cust_company_info",
+                    "rules/batch-delete-avoid-deadlock",
+                ],
+                "schema_by_table": {
+                    "cust_company_info": "## 企业 (cust_company_info)\nid:int, 主键",
+                    "cust_account_info": "## 账户 (cust_account_info)\nid:int, 主键",
+                },
+            },
+            "tool_steps": [
+                {
+                    "ok": True,
+                    "name": "complete_without_sql",
+                    "result": {
+                        "ok": True,
+                        "data": {"terminal_answer": True, "content": content},
+                    },
+                }
+            ],
+        }
+    )
+    assert out.get("error") is None
+    assert out["terminal_answer"]["knowledge_refs"] == {
+        "page_keys": [],
+        "tables": [],
+    }
+
+
+def test_sql_delivery_scopes_knowledge_refs_to_used_tables(monkeypatch) -> None:
+    @contextmanager
+    def _scope():
+        yield object()
+
+    monkeypatch.setattr("apps.chat.graphs.nodes.agent_finalize.session_scope", _scope)
+    monkeypatch.setattr(
+        "apps.chat.graphs.nodes.agent_finalize.load_result_datasets",
+        lambda *_a, **_k: [],
+    )
+    monkeypatch.setattr(
+        "apps.chat.graphs.nodes.agent_finalize.finalize_run",
+        lambda *_a, **_k: None,
+    )
+    out = finalize_agent_turn_node(
+        {
+            "run_id": "sql_refs",
+            "record_id": 4,
+            "final_text": "项目清单如下。",
+            "turn_route": {"task_kind": "query"},
+            "knowledge_plane": {
+                "tables": ["tenant_project", "tenant_setting_config"],
+                "page_keys": [
+                    "tables/tenant_project",
+                    "tables/tenant_setting_config",
+                    "dicts/status",
+                    "rules/excel-import",
+                ],
+                "schema_by_table": {
+                    "tenant_project": "## 项目 (tenant_project)\nid:int, 主键",
+                    "tenant_setting_config": (
+                        "## 配置 (tenant_setting_config)\nid:int, 主键"
+                    ),
+                },
+            },
+            "tool_steps": [
+                {
+                    "ok": True,
+                    "name": "execute_sql_sandbox",
+                    "result": {
+                        "ok": True,
+                        "data": {
+                            "sql": "SELECT id, name FROM tenant_project",
+                            "fields": ["id", "name"],
+                            "preview_rows": [{"id": 1, "name": "p"}],
+                            "row_count": 1,
+                            "required": True,
+                            "result_title": "项目清单",
+                        },
+                    },
+                }
+            ],
+        }
+    )
+    refs = out["terminal_answer"]["knowledge_refs"]
+    assert refs["tables"] == ["tenant_project"]
+    assert "tenant_setting_config" not in refs["tables"]
+    assert "tables/tenant_project" in refs["page_keys"]
+    assert "dicts/status" in refs["page_keys"]
+    assert "rules/excel-import" not in refs["page_keys"]
+
+
 def test_sql_delivery_wins_over_text_exit(monkeypatch) -> None:
     @contextmanager
     def _scope():
@@ -261,7 +374,8 @@ def test_prompt_names_two_exits_and_empty_start() -> None:
     assert "complete_without_sql" in _SYSTEM_PROMPT_TEMPLATE
     assert "execute_sql_sandbox(required=true)" in _SYSTEM_PROMPT_TEMPLATE
     assert "终答只有两条路" in _SYSTEM_PROMPT_TEMPLATE
-    assert "独立轮开始时系统提示**没有** Wiki" in _SYSTEM_PROMPT_TEMPLATE
+    assert "schema_outline" in _SYSTEM_PROMPT_TEMPLATE
+    assert "get_table_schema" in _SYSTEM_PROMPT_TEMPLATE
 
 
 def test_chat_yaml_execute_tools_can_finalize() -> None:

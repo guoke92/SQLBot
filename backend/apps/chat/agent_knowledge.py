@@ -17,11 +17,21 @@ from pydantic import BaseModel, ConfigDict, Field
 WIKI_SCHEMA_GAP_SEARCH_LIMIT = 2
 # Tool budgets by category (single definition; the system prompt renders them).
 PROBE_SQL_LIMIT = 2
-SEARCH_WIKI_ROUND_LIMIT = 2
+KNOWLEDGE_ROUND_LIMIT = 2
+KNOWLEDGE_SEARCH_LIMIT = 1
+SEARCH_WIKI_ROUND_LIMIT = 2  # legacy alias of KNOWLEDGE_ROUND_LIMIT
 EXECUTION_ROUND_LIMIT = 5
-# Search / clarify / text-exit do not consume execution rounds.
-UNCOUNTED_TOOLS = frozenset(
-    {"request_clarification", "search_wiki", "complete_without_sql"}
+KNOWLEDGE_TOOLS = frozenset(
+    {
+        "get_table_schema",
+        "get_table_relations",
+        "search_knowledge",
+        "get_dict_values",
+    }
+)
+# Clarify / knowledge / text-exit do not consume execution rounds.
+UNCOUNTED_TOOLS = (
+    frozenset({"request_clarification", "complete_without_sql"}) | KNOWLEDGE_TOOLS
 )
 
 
@@ -62,6 +72,11 @@ _STUB_DATA_KEYS = (
     "dropped_tables",
     "dropped_pages",
     "excluded",
+    "focus",
+    "focus_facts",
+    "rejected_tables",
+    "rejected_pages",
+    "folded_tables",
 )
 
 
@@ -115,9 +130,14 @@ class AgentKnowledgePlane(BaseModel):
     store_source: str = ""
     schema_gap_searches: int = 0
     search_rounds: int = 0
+    idle_coarse_searches: int = 0
     coverage_fp: str = ""
     caliber_conflicts: list[dict[str, Any]] = Field(default_factory=list)
     queries: list[str] = Field(default_factory=list)
+    question: str = ""
+    schema_outline: str = ""
+    knowledge_rounds: int = 0
+    knowledge_searches: int = 0
     keep_fields: dict[str, list[str]] = Field(default_factory=dict)
     # LLM-directed eviction: table names and/or wiki page_keys. Sticky until a
     # later search query explicitly names the key (restore), never auto-trimmed
@@ -134,9 +154,25 @@ class AgentKnowledgePlane(BaseModel):
         data = {k: v for k, v in dict(raw).items() if k in cls.model_fields}
         return cls.model_validate(data)
 
-    def knowledge_refs(self) -> dict[str, Any]:
-        """Durable, text-free snapshot for the next turn (rehydrated from store)."""
-        return {"page_keys": list(self.page_keys), "tables": list(self.tables)}
+    def knowledge_refs(
+        self, *, sql: str = "", dialect: str | None = None
+    ) -> dict[str, Any]:
+        """Durable snapshot. With ``sql``, only tables the statement actually used."""
+        if not str(sql or "").strip():
+            return {"page_keys": list(self.page_keys), "tables": list(self.tables)}
+        from apps.chat.steps.recall_request import sql_references
+        from apps.chat.steps.wiki_focus import is_binding_page
+
+        used, _columns = sql_references(sql, dialect=dialect)
+        if not used:
+            return {"page_keys": list(self.page_keys), "tables": list(self.tables)}
+        tables = [
+            name for name in used if name in self.tables or name in self.schema_by_table
+        ]
+        if not tables:
+            return {"page_keys": [], "tables": []}
+        pages = [key for key in self.page_keys if is_binding_page(key, tables)]
+        return {"page_keys": pages, "tables": tables}
 
     def prompt_stats(self) -> dict[str, Any]:
         """What the model sees this round (size of each system section)."""
@@ -249,6 +285,11 @@ class AgentKnowledgePlane(BaseModel):
         relevant_before = self._relevant_index()
 
         query = str(data.get("query") or "").strip()
+        question = str(data.get("question") or "").strip()
+        if question and not self.question:
+            self.question = question
+        if self.question and self.question not in self.queries:
+            self.queries.append(self.question)
         if query and query not in self.queries:
             self.queries.append(query)
         for table, names in dict(data.get("evidence_fields") or {}).items():
@@ -331,26 +372,31 @@ class AgentKnowledgePlane(BaseModel):
             unchanged=unchanged,
         )
 
-    def _full_schema_text(self) -> tuple[str, list[str]]:
+    def _full_schema_text(
+        self, tables: Sequence[str] | None = None
+    ) -> tuple[str, list[str]]:
         """Joined full bodies (tables first, then stray extras) + visible names."""
+        order = list(tables) if tables is not None else list(self.tables)
         schema = "\n".join(
             self.schema_by_table[name]
-            for name in self.tables
+            for name in order
             if self.schema_by_table.get(name) and not self.is_excluded(name)
         )
-        extra = [
-            (key, body)
-            for key, body in self.schema_by_table.items()
-            if key not in self.tables
-            and not str(key).startswith("_")
-            and body.strip()
-            and not self.is_excluded(key)
-        ]
-        if extra:
-            schema = (schema + "\n" + "\n".join(body for _, body in extra)).strip()
+        extra: list[tuple[str, str]] = []
+        if tables is None:
+            extra = [
+                (key, body)
+                for key, body in self.schema_by_table.items()
+                if key not in self.tables
+                and not str(key).startswith("_")
+                and body.strip()
+                and not self.is_excluded(key)
+            ]
+            if extra:
+                schema = (schema + "\n" + "\n".join(body for _, body in extra)).strip()
         visible = [
             name
-            for name in self.tables
+            for name in order
             if self.schema_by_table.get(name) and not self.is_excluded(name)
         ]
         visible.extend(key for key, _body in extra)
@@ -426,21 +472,41 @@ class AgentKnowledgePlane(BaseModel):
         )
 
     def schema_catalog_text(self) -> str:
-        """Prompt view of the catalog: projected fields + working-set relations."""
-        schema, visible = self._full_schema_text()
+        """Prompt view of opened tables: full fields + JOINs among the working set."""
+        from apps.chat.steps.wiki_schema import (
+            RELATION_PEER_MISSING,
+            filter_schema_relations,
+            project_schema,
+        )
+
+        schema, _visible = self._full_schema_text()
         if not schema:
             return schema
-        from apps.chat.steps.wiki_schema import filter_schema_relations, project_schema
-        from apps.knowledge.recall_kernel.types import RecallBudget
-
+        keep = {
+            table: [item.name for item in fields]
+            for table, fields in self._fields_by_table(schema).items()
+        }
         projected = project_schema(
             schema,
-            budget_chars=RecallBudget.from_settings().schema_chars,
             queries=self.queries,
-            keep_fields=self.keep_fields,
+            keep_fields=keep or self.keep_fields,
             present_pages=self.wiki_passages.keys(),
         ).text
-        return filter_schema_relations(projected, peer_tables=visible)
+        peers = [
+            name
+            for name in self.tables
+            if name and not self.is_excluded(name) and self.schema_by_table.get(name)
+        ]
+        text = filter_schema_relations(projected, peer_tables=peers)
+        return "\n".join(
+            line for line in text.splitlines() if RELATION_PEER_MISSING not in line
+        ).strip()
+
+    @staticmethod
+    def _fields_by_table(schema: str) -> dict[str, list[Any]]:
+        from apps.chat.steps.wiki_schema import schema_fields_by_table
+
+        return schema_fields_by_table(schema)
 
     def adopt_conflicts(
         self,
@@ -459,6 +525,9 @@ class AgentKnowledgePlane(BaseModel):
 
     def render_system_sections(self) -> str:
         parts: list[str] = []
+        outline = str(self.schema_outline or "").strip()
+        if outline:
+            parts.append(outline)
         index = self._knowledge_index_block()
         if index:
             parts.append(index)
@@ -466,29 +535,19 @@ class AgentKnowledgePlane(BaseModel):
         if wiki:
             parts.append(
                 "<wiki_knowledge>\n"
-                "以下是当前任务相关的业务 Wiki 知识（计算口径与业务定义；表结构见 schema_catalog）：\n"
+                "以下是当前任务相关的业务口径与概念（表结构见 schema_catalog）：\n"
                 f"{wiki}\n"
                 "</wiki_knowledge>"
             )
-            if not self.schema_ready:
-                parts.append(
-                    "<wiki_schema_gap>\n"
-                    "当前 Wiki 召回没有给出可用的表结构或枚举页。"
-                    "换更具体的检索词再 search_wiki；仍无表/枚举则 complete_without_sql。"
-                    "禁止查询 information_schema / SHOW COLUMNS / DESCRIBE，禁止猜测字段写 SQL。\n"
-                    "</wiki_schema_gap>"
-                )
         schema = self.schema_catalog_text()
         if schema:
             parts.append(
                 "<schema_catalog>\n"
-                "当前会话已召回的物理表结构（同表只保留一份，后续 search_wiki 只补充新表/新字段）。"
-                "系统不会因长度上限删除已入选的表；无关项用 search_wiki.drop 按 knowledge_index 的 key 淘汰。"
-                "字段行 `name:type, 注释, topk=库内取值, labels=取值:展示名, enum=页`："
+                "当前会话已用 get_table_schema 展开的物理表结构（同表只保留一份）。"
+                "字段行 `name:type, 注释, topk=库内取值, labels=取值:展示名, dict=字典`："
                 "`topk` 是 WHERE 必须使用的库内值；`labels` 只是展示含义，禁止写进 SQL；"
-                "`enum=<页>` 表示取值与含义见 wiki_knowledge 中的同名枚举页。"
-                "关联行尾 `[write-flow]` / `[java-eq]` / `[ref-convention]` / `[db-index]` / `[db-naming]` "
-                "标明该边是怎么被观察到的，不是选用建议；先定要查的实体和表，再在已选表之间选 JOIN。\n"
+                "`dict=<名>` 的取值见 wiki_knowledge 或 get_dict_values。"
+                "关联行只保留已展开表之间的 JOIN；跨表连线优先查阅 get_table_relations 的结果。\n"
                 f"{schema}\n"
                 "</schema_catalog>"
             )
@@ -519,8 +578,8 @@ class AgentKnowledgePlane(BaseModel):
             f"tables: {tables}\n"
             f"pages: {pages}\n"
             f"dropped: {dropped}\n"
-            "淘汰无关知识时把上列 table 名或 page key 填入 search_wiki.drop；"
-            "误淘汰后用该名字再 search_wiki 可重新并入。不要淘汰 JOIN 对端或口径仍依赖的表。\n"
+            "tables 已展开完整字段；未列出的表只存在于 schema_outline，"
+            "需要时再 get_table_schema。\n"
             "</knowledge_index>"
         )
 
@@ -589,28 +648,59 @@ class AgentKnowledgePlane(BaseModel):
             out.append(slim_item)
         return out
 
-    def apply_search_policy(self, delta: MergeDelta) -> dict[str, Any]:
-        """Coverage policy: flag redundant searches; never hard-lock a new gap.
+    def apply_search_policy(
+        self, delta: MergeDelta, *, focus: str = "all"
+    ) -> dict[str, Any]:
+        """Flag redundant searches; never hard-lock a later new-concept search.
 
-        ``stop_search`` means this query added nothing useful. The graph must
-        still allow a later ``search_wiki`` with a different concept. Table-count
-        and char budgets must not drop already-selected tables; the model
-        evicts noise via ``search_wiki.drop``.
+        ``focus=all`` only counts **admitted** new tables or binding pages
+        (dicts/calibers/concepts/tables) as progress. Rejected long-tail
+        tables, peripheral rules/process pages, and projected field folds
+        do not reset idle search guidance.
+        Local ``field``/``enum``/``term``/``relation`` checks count confirmed
+        facts (``added_fields`` or caller-supplied status).
         """
-        if self.schema_ready and delta.unchanged:
+        from apps.chat.steps.wiki_focus import (
+            LOCAL_FOCUS,
+            binding_pages,
+            normalize_focus,
+        )
+
+        kind = normalize_focus(focus)
+        if kind in LOCAL_FOCUS:
+            found = bool(delta.added_fields) or not delta.unchanged
             return {
-                "recall_status": "stagnant",
+                "recall_status": "hit" if found else "not_found",
+                "stop_search": not found,
+                "schema_ready": self.schema_ready,
+                "schema_gap_searches": self.schema_gap_searches,
+            }
+        bound = binding_pages(delta.added_pages, [*self.tables, *delta.added_tables])
+        progressed = bool(delta.added_tables or bound)
+        if progressed:
+            self.schema_gap_searches = 0
+            self.idle_coarse_searches = 0
+            return {
+                "recall_status": "hit" if self.schema_ready else "schema_missing",
+                "stop_search": False,
+                "schema_ready": self.schema_ready,
+                "schema_gap_searches": self.schema_gap_searches,
+            }
+        if self.schema_ready:
+            self.idle_coarse_searches += 1
+            return {
+                "recall_status": "diminishing_returns",
                 "stop_search": True,
                 "schema_ready": True,
                 "schema_gap_searches": self.schema_gap_searches,
             }
-        if self.schema_ready:
-            self.schema_gap_searches = 0
+        if delta.unchanged:
+            self.schema_gap_searches += 1
             return {
-                "recall_status": "hit",
+                "recall_status": "schema_missing",
                 "stop_search": False,
-                "schema_ready": True,
-                "schema_gap_searches": 0,
+                "schema_ready": False,
+                "schema_gap_searches": self.schema_gap_searches,
             }
         self.schema_gap_searches += 1
         return {
@@ -708,6 +798,17 @@ def search_wiki_stub(
         if hit_count is not None
         else len(delta.added_tables) + len(delta.added_pages)
     )
+    from apps.chat.steps.wiki_focus import LOOKUP_FOUND_LIMIT, is_peripheral_page
+
+    facts = dict(policy.get("focus_facts") or {})
+    found = list(facts.get("found") or [])[:LOOKUP_FOUND_LIMIT]
+    if found != list(facts.get("found") or []):
+        facts = {**facts, "found": found}
+    rejected_pages = [
+        key
+        for key in (policy.get("rejected_pages") or [])
+        if not is_peripheral_page(str(key))
+    ]
     return {
         "added_tables": list(delta.added_tables),
         "added_pages": list(delta.added_pages),
@@ -725,6 +826,11 @@ def search_wiki_stub(
         "dropped_tables": list(policy.get("dropped_tables") or []),
         "dropped_pages": list(policy.get("dropped_pages") or []),
         "excluded": list(plane.excluded),
+        "focus": str(policy.get("focus") or "all"),
+        "focus_facts": facts,
+        "rejected_tables": list(policy.get("rejected_tables") or []),
+        "rejected_pages": rejected_pages,
+        "folded_tables": list(policy.get("folded_tables") or []),
     }
 
 

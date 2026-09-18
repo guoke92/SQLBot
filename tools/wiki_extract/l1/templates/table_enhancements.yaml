@@ -1,0 +1,10 @@
+kind: table_enhancements
+domain: example
+tables:
+  cust_company_info:
+    default_filter:
+      predicate: "cust_company_info.enable = 'Y'"
+      evidence: code_path:ExampleMapper.xml:20
+    written_with_groups:
+      - fields: [cust_build_status, cust_status]
+        evidence: code_path:ExampleDao.java:58

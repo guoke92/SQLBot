@@ -1,0 +1,21 @@
+kind: trace
+domain: tenant
+trace_key: project_online_approval
+entry: POST /app-web/projectApproval
+tables:
+  - tenant_project_approval
+  - tenant_project_approval_flow
+  - tenant_project_approval_flow_node
+  - tenant_project_approval_business_info
+  - tenant_project_approval_flow_credit
+  - tenant_project
+notes: |
+  创建审批 ref=项目 code，is_latest=Y，wf_status=PENDING。
+  发起写成 RUNNING+act_procinst_id。监听 handleFlowAndNodeStatus 写 FINISHED/TERMINATED。
+  流程节点、业务信息、授信都按审批 code 等值，不是审批 id。
+gaps:
+  - tenant_project_approval_flow_file 的 ref_* 业务代码未见 lambdaQuery 等值，不编 JOIN。
+  - tenant_project_approval_flow_comment catalog 有表，pplatform-web 无 @TableName DO。
+  - wf_status=REVOKED、operate_type=revoke 枚举没有，不给 label。
+  - credited_cust_id / crediting_cust_id 是企业主键拷贝，本路径未回查 cust_company_info。
+  - act_procinst_id / organization_id / solution_manager_id 代码未当租户 JOIN。

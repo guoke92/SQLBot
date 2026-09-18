@@ -229,6 +229,10 @@
         "patch_and_compile_sql": "增量修改",
         "compare_results": "資料對比",
         "search_wiki": "查閱知識",
+        "get_table_schema": "展開表結構",
+        "get_table_relations": "查詢表關聯",
+        "search_knowledge": "檢索業務口徑",
+        "get_dict_values": "查詢欄位字典",
         "prepare_wiki": "準備知識",
         "restore_wiki": "恢復上輪知識",
         "request_clarification": "請求澄清",
@@ -244,7 +248,11 @@
       "clarification_waiting": "等待確認",
       "clarification_confirmed": "口徑已確認",
       "wiki_prepared": "召回 {count} 條知識",
-      "wiki_restored": "恢復上輪 {count} 條知識"
+      "wiki_lookup": "核對 {focus} {count} 項",
+      "wiki_restored": "恢復上輪 {count} 條知識",
+      "schema_loaded": "展開 {count} 張表",
+      "relations_loaded": "返回 {count} 條關聯",
+      "dict_loaded": "返回 {count} 個枚舉值"
     },
     "audit": {
       "processing": "處理中",

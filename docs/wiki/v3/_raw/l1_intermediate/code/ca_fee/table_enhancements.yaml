@@ -1,0 +1,36 @@
+kind: table_enhancements
+domain: ca_fee
+tables:
+  ca_fee_company:
+    grain: 一统码一行企业宽表，按 certification_no 唯一
+    default_filter:
+      predicate: "ca_fee_company.enable = 'Y'"
+      evidence: code_path:CaFeeCompanyBizMapper.java:13
+    written_with_groups:
+      - fields: [pay_status, service_start, service_end]
+        evidence: code_path:cafee/CaFeeOrderService.java:450
+  ca_fee_order:
+    grain: 一订单号一行
+    default_filter:
+      predicate: "ca_fee_order.enable = 'Y'"
+      evidence: code_path:CaFeeOrderBizMapper.java:13
+    written_with_groups:
+      - fields: [order_status, pay_amount, pay_time, service_start, service_end]
+        evidence: code_path:cafee/CaFeeOrderService.java:426
+  ca_fee_project_config:
+    grain: 一租户项目一行收费配置
+    default_filter:
+      predicate: "ca_fee_project_config.enable = 'Y'"
+      evidence: code_path:CaFeeProjectConfigBizMapper.java:13
+    written_with_groups:
+      - fields: [charge_enabled, last_toggle_time]
+        evidence: code_path:cafee/CaFeeProjectConfigService.java:95
+  ca_fee_special_config:
+    grain: catalog 有表；现网特殊企业写在 ca_fee_project_config.special_company_list JSON
+  ca_certification_info:
+    grain: 一证四步采集行；幂等键 cust_id + data_date + head_company_data + PENDING
+    default_filter:
+      predicate: "ca_certification_info.enable = 'Y'"
+      evidence: code_path:CaCertificationInfoAppServiceImpl.java:663
+  ca_cfca_upgrade_report:
+    grain: CFCA 升级上报（catalog 有表；pplatform-web 无 @TableName DO）

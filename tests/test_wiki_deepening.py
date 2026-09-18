@@ -65,10 +65,10 @@ def test_generic_column_blacklist_blocks_exact_and_prefix() -> None:
 
 
 def test_lint_enum_generic_column_multi_table() -> None:
-    """泛列承载多表 → ENUM_GENERIC_COLUMN lint error。"""
+    """泛列承载多表 → DICT_GENERIC_COLUMN lint error。"""
     page = parse_page(
-        "---\ntype: enum\ntitle: s\npage_key: s\nstatus: published\n---\n- [[x]]\n"
-        "```ground:enum\nenum: s\nfields: [a.status, b.status, c.status]\n"
+        "---\ntype: dict\ntitle: s\npage_key: s\nstatus: published\n---\n- [[x]]\n"
+        "```ground:dict\ndict: s\nfields: [a.status, b.status, c.status]\n"
         "values:\n  A:\n    label: 甲\n```\n"
     )
     catalog = {
@@ -77,10 +77,10 @@ def test_lint_enum_generic_column_multi_table() -> None:
             "b": {"fields": {"status": {}}},
             "c": {"fields": {"status": {}}},
         },
-        "enums": {},
+        "dicts": {},
     }
     codes = {f.code for f in lint_page(page, known_keys={"x"}, catalog=catalog)}
-    assert "ENUM_GENERIC_COLUMN" in codes
+    assert "DICT_GENERIC_COLUMN" in codes
 
 
 # ── P2：wiki schema 渲染 ────────────────────────────────────────────────────
@@ -187,13 +187,13 @@ def test_schema_renderer_inlines_enum_labels(tmp_path: Path) -> None:
     from apps.chat.presentation import schema_field_labels
 
     enum_page = SimpleNamespace(
-        body="```ground:enum\nenum: state\nfields: [t.state]\nvalues:\n"
+        body="```ground:dict\ndict: state\nfields: [t.state]\nvalues:\n"
         "  A:\n    label: 甲类\n  B:\n    label: 乙类\n```\n",
         ground_blocks=[
             SimpleNamespace(
-                kind="enum",
+                kind="dict",
                 data={
-                    "enum": "state",
+                    "dict": "state",
                     "fields": ["t.state"],
                     "values": {"A": {"label": "甲类"}, "B": {"label": "乙类"}},
                 },
@@ -215,7 +215,7 @@ def test_schema_renderer_inlines_enum_labels(tmp_path: Path) -> None:
 
     text_out = WikiSchemaRenderer(_Store(), {}).render(["t"])
     assert (
-        "state:varchar, 状态, topk=A|B, labels=A:甲类|B:乙类, enum=state"
+        "state:varchar, 状态, topk=A|B, labels=A:甲类|B:乙类, dict=state"
     ) in text_out
     # 无 dict 指针的列保持裸 topk
     assert "plain:varchar, 普通列, topk=X|Y" in text_out
@@ -241,7 +241,7 @@ def test_schema_renderer_enum_page_missing_keeps_raw_topk() -> None:
         pages = {"t": table_page}  # "gone" 页不存在
 
     text_out = WikiSchemaRenderer(_Store(), {}).render(["t"])
-    assert "state:varchar, 状态, topk=A|B, enum=gone" in text_out
+    assert "state:varchar, 状态, topk=A|B, dict=gone" in text_out
 
 
 # ── A4：锚点闭包（anchors.py） ──────────────────────────────────────────────

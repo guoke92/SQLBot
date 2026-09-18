@@ -1,0 +1,20 @@
+kind: trace
+domain: tenant
+trace_key: tenant_project_effective
+entry: POST /app-web/tenantProject/effective
+controller: TenantProjectController.java:97
+application: TenantProjectApplication.effective:872
+tables: [tenant_project, tenant_product]
+notes: |
+  人工生效写 project_status=1 并写 project_effective_time。不写审批 wf_status。
+  上线审批 FINISHED 也会调生效，不要把两入口当成两套状态列。
+scenario:
+  scenario_key: tenant_project_effective
+  title: 生效租户项目
+  hubs:
+    - table: tenant_project
+      role: master
+  lifecycle:
+    - dict: tenant_project__project_status
+      process: tenant_project__project_status
+gaps: []

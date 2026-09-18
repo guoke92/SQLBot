@@ -1,0 +1,17 @@
+kind: relations_dicts
+domain: example
+confirmed_relations:
+  - left: cust_company_info.code
+    right: cust_project_rel.ref_cust_project_rel_cust_company_info
+    type: EQUI_JOIN
+    cardinality: one_to_many
+    join_role: identity
+    evidence: code_path:ExampleMapper.xml:97
+    note: 代码按 code 关联，不是 id。varchar 存 Long 时加 cast。
+dict_labels:
+  cust_company_info__cust_build_status:
+    table: cust_company_info
+    column: cust_build_status
+    values:
+      INIT: { label: 初始化, evidence: code_path:ExampleEnum.java:14 }
+      BUILD_SUCCESS: { label: 认证成功, evidence: code_path:ExampleEnum.java:17 }

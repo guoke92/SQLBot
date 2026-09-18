@@ -1,0 +1,37 @@
+kind: trace
+domain: remaining
+trace_key: remaining_coverage
+entry: l1-coverage remaining prefixes
+tables:
+  - platform_product
+  - platform_product_client
+  - platform_product_cust_role
+  - authorization_agreement
+  - argeement_migratory_record
+  - async_io_task
+  - operation_user
+  - org_manage
+  - migratory_user_record
+  - gpt_learn_poster_log
+  - client_api_sync_error
+  - project_file_info
+  - short_link
+  - wec_project_operation_rel
+  - wec_project_cust_operation_rel
+  - wechat_project_approval_apply
+  - wechat_project_approval_field_history
+  - open_sso_channel
+  - lc_sql_init_log
+notes: catalog 剩余前缀表均已 enhancement。无等值 JOIN 记 gaps。
+gaps:
+  - open_sso_channel / lc_sql_init_log 无 @TableName DO。
+  - platform_product_client.platform_product_id 业务代码未见 lambdaQuery 等值，不编 JOIN。
+  - platform_product_cust_role.product_code 与平台产品是内存 contains，不是 SQL EQUI_JOIN。
+  - project_file_info.project_id / wechat_project_approval_apply.project_id 仅按入参过滤，未证实对 tenant_project.id。
+  - gpt_learn_poster_log.company_id / user_id、wec_project_cust_operation_rel.company_id / project_id、authorization_agreement.cust_manager_id、migratory_user_record.user_id、async_io_task.user_id、operation_user.operation_id、open_sso_channel.app_id / sso_client_id 无对端表等值 JOIN。
+  - wec_project_operation_rel.wec_project_id 以字符串存项目 id，未当 EQUI_JOIN。
+  - 各表 act_procinst_id 不是业务 JOIN。
+  - async_io_task.status 枚举无 displayName，不编 label。
+  - authorization_agreement.authed_status 为 Y/N，不另编 label。
+  - wechat_project_approval_apply.prd 为 Y/N，不编 label。
+  - wechat_project_approval_apply.data_source 常量 MANUAL/WECHAT 无 displayName，不编 label。

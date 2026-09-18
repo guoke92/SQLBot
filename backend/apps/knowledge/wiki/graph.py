@@ -18,7 +18,7 @@ def build_graph(pages: dict[str, WikiPage]) -> tuple[Adjacency, AliasMap]:
 
     Bare names (page_key / title / aliases) register only when unique across
     the store. ``belong/page_key`` always registers so ambiguous slugs can be
-    written as ``[[enums/pay_status]]``.
+    written as ``[[dicts/pay_status]]``.
     """
     claims: dict[str, list[str]] = {}
     for key, page in pages.items():

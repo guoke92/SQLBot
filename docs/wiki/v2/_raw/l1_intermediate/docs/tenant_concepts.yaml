@@ -1,0 +1,244 @@
+kind: concepts
+domain: tenant
+doc_source: "docs/wiki-knowledge/pplatform/req-index/concepts/项目上线审批流程.md"
+concepts:
+  - concept_key: project_status_vs_approval
+    title: 项目生效不是审批通过
+    aliases: [项目已生效, 审批通过]
+    maps_to: tenant_project.project_status
+    field_targets: [tenant_project.project_status, tenant_project_approval.wf_status]
+    also_confused_with: [online_approval_wf]
+    adjudication: boundary
+    explanation: |
+      问「有效项目」过滤 project_status=1 且 enable=Y。
+      wf_status=FINISHED 是审批单通过，随后才可能生效项目。不要两列互代。
+    evidence: code_path:TenantProjectDaoImpl.java:35
+  - concept_key: online_approval_wf
+    title: 项目上线审批
+    aliases: [上线审批, 立项审批, 催办, 审批催办, 审批撤回, 跨节点退回]
+    maps_to: tenant_project_approval.wf_status
+    field_targets: [tenant_project_approval.wf_status]
+    also_confused_with: [project_status_vs_approval, wechat_apply_term, approval_whitelist, approval_credit_not_quota]
+    adjudication: boundary
+    explanation: |
+      需求「项目上线审批流程」落在 tenant_project_approval。PENDING 待发起，RUNNING 审批中，FINISHED 通过，TERMINATED 拒绝。
+      按项目 code 关联，不是项目 id。企微立项单是另一张表。
+      document_claim:项目上线审批催办.md#31：催办仅 RUNNING、5 分钟一次发企微；ProjectApprovalRemindApplication 不写本表。
+      document_claim:项目上线审批撤回.md#21 要「审批撤销」；现网枚举无 REVOKED，TERMINATED 注释是审批拒绝，不要把撤销当成拒绝。
+      document_claim:项目上线审批跨节点退回.md#15：退回写节点，wf_status 仍等流程结束监听。
+    evidence: code_path:ProjectApprovalWorkflowStatusEnum.java:16
+  - concept_key: tenant_project_code_join
+    title: 审批关联项目编码
+    aliases: [项目审批关联]
+    maps_to: tenant_project_approval.ref_tenant_project_approval_tenant_project
+    field_targets: [tenant_project_approval.ref_tenant_project_approval_tenant_project, tenant_project.code]
+    also_confused_with: [project_status_vs_approval, refer_copy_project]
+    adjudication: boundary
+    explanation: L0 可能把审批接到项目 id。代码是项目 code = ref_tenant_project_approval_tenant_project。跨贴牌复制钉 refer_tenant_project_id，不是这条审批关联。
+    evidence: code_path:ProjectApprovalApplication.java:253
+  - concept_key: project_code_required
+    title: 项目码是否必填
+    aliases: [项目专属服务码必填, 自主注册项目码]
+    maps_to: tenant_setting_config.project_code_required
+    field_targets: [tenant_setting_config.project_code_required, tenant_setting_config.default_project_id]
+    also_confused_with: [default_push_project, self_reg_flag]
+    adjudication: boundary
+    explanation: |
+      租户运营配置字段，不是客户录入的 cust_project_code_record。
+      现网 Y 时必须已配 default_project_id；document_claim:租户运营配置-项目码必填.md 文案与代码相反，以 TenantDomainService 为准。
+    evidence: code_path:TenantDomainService.java:234
+  - concept_key: tenant_flg_en
+    title: 项目标识
+    aliases: [产融项目标识, tenant_flg_en]
+    maps_to: tenant_setting_config.tenant_flg_en
+    field_targets: [tenant_setting_config.tenant_flg_en]
+    also_confused_with: [open_tenant_product_term, tenant_uscc, main_custom_flg, channel_code_term]
+    adjudication: boundary
+    explanation: 租户运营配置的项目标识，导入配置按它找租户。不要和企业 tenant_flg 口头混用，也不是产品开通状态，也不是租户统码 uni_social_credit_code。
+    evidence: code_path:TenantDomainService.java:327
+  - concept_key: open_tenant_product_term
+    title: 已开通租户产品
+    aliases: [租户开通产品]
+    maps_to: tenant_product.open_status
+    field_targets: [tenant_product.open_status]
+    also_confused_with: [online_approval_wf, platform_product_master, tenant_flg_en, interworking_open_term]
+    adjudication: boundary
+    explanation: open_status=Y 才是开通。P 开通中、N 未开通。与项目上线审批、平台产品生效、互通产品开通不是同一件事。
+    evidence: code_path:ProductOpenStatusEnum.java:18
+  - concept_key: interworking_open_term
+    title: 已开通互通产品
+    aliases: [互通产品开通, 系统互通产品, 互通产品展示]
+    maps_to: tenant_interworking_product.open_status
+    field_targets: [tenant_interworking_product.open_status]
+    also_confused_with: [open_tenant_product_term]
+    adjudication: boundary
+    explanation: |
+      互通产品行在 tenant_interworking_product。取消开通不检查生效项目。
+      不要用 tenant_product.open_status 回答互通产品是否开通。
+    evidence: code_path:TenantInterworkingProductDomainService.java:246
+  - concept_key: electronic_auth_flag
+    title: 生成电子版授权书
+    aliases: [线下授权书电子版, 电子授权书开关]
+    maps_to: tenant_setting_config.generate_electronic_auth_flag
+    field_targets: [tenant_setting_config.generate_electronic_auth_flag]
+    also_confused_with: [authorization_book, cross_tenant_resign, auth_supplement_flag]
+    adjudication: boundary
+    explanation: |
+      document_claim:线下授权书自动生成电子版.md#32：租户运营配置「生成电子版授权书」。
+      现网按 db_tenant_code 且 enable=Y 读 generate_electronic_auth_flag=Y。Y/N 不编字典页。
+      不是 authorization_agreement 那张授权确认书行。
+    evidence: code_path:ElectronicAuthLetterApplication.java:49
+  - concept_key: refer_copy_project
+    title: 跨贴牌项目引用
+    aliases: [复制的租户项目, 跨贴牌复制]
+    maps_to: tenant_project.refer_tenant_project_id
+    field_targets: [tenant_project.refer_tenant_project_id]
+    also_confused_with: [tenant_project_code_join]
+    adjudication: boundary
+    explanation: |
+      document_claim:跨贴牌项目引用.md#15：配置新项目时引用其他贴牌项目。catalog 注释「复制的租户项目」。
+      ProjectClientSyncService 只 set 该列，代码未对 tenant_project.id 做 EQUI_JOIN。不要当成审批关联编码。
+    evidence: code_path:ProjectClientSyncService.java:64
+  - concept_key: tenant_uscc
+    title: 租户统一社会信用代码
+    aliases: [租户统码, 租户名称和统码]
+    maps_to: tenant_setting_config.uni_social_credit_code
+    field_targets: [tenant_setting_config.uni_social_credit_code, tenant_setting_config.name]
+    also_confused_with: [tenant_flg_en, tenant_oper_update_split]
+    adjudication: boundary
+    explanation: |
+      document_claim:租户配置支持修改名称和统码.md#14：已生效租户可改名称和统码。
+      现网 checkBeforeSave 只校验统码格式，没有冻结后禁止修改。不要用 tenant_flg_en 或企业 certification_no 回答租户统码。
+    evidence: code_path:TenantDomainService.java:230
+  - concept_key: tenant_oper_update_split
+    title: 租户运营配置更新人
+    aliases: [运营配置更新人分离, op_update_user]
+    maps_to: tenant_setting_config.op_update_user
+    field_targets: [tenant_setting_config.op_update_user, tenant_setting_config.op_update_time]
+    also_confused_with: [tenant_uscc, customer_card_term]
+    adjudication: boundary
+    explanation: |
+      document_claim:租户配置更新人分离.md#15：运营配置不覆盖标准 update_user。
+      现网 updateOperationConfigById 把原 update_user 写入 op_update_user，不改标准更新人。问运营配置谁改的看 op_update_*。
+    evidence: code_path:TenantSettingConfigController.java:114
+  - concept_key: channel_code_term
+    title: 渠道码
+    aliases: [项目渠道码, QD码]
+    maps_to: tenant_project.channel_code
+    field_targets: [tenant_project.channel_code]
+    also_confused_with: [project_code_input, tenant_flg_en]
+    adjudication: boundary
+    explanation: |
+      document_claim:渠道码.md#11：项目同步时生成的邀请注册标识码。catalog 注释「渠道码」。
+      按 channel_code 查项目。不是客户录入的项目码记录，也不是 tenant_flg_en。
+    evidence: code_path:TenantProjectDaoImpl.java:93
+  - concept_key: project_is_prd
+    title: 项目是否生产数据
+    aliases: [生产数据标签, 是否为生产数据]
+    maps_to: tenant_project.is_prd
+    field_targets: [tenant_project.is_prd]
+    also_confused_with: [wechat_prd_term, project_config_model]
+    adjudication: boundary
+    explanation: |
+      document_claim:生产数据标签.md#23：项目维度「是否为生产数据」。catalog 注释同名，列 is_prd。
+      同步时 test_data 取反。不是企微立项单 prd（是否投产）。Y/N 不编字典页。
+    evidence: code_path:TenantProjectDomainService.java:367
+  - concept_key: customer_card_term
+    title: 客服名片类型
+    aliases: [客服名片, 运营名片]
+    maps_to: tenant_setting_config.customer_card_type
+    field_targets: [tenant_setting_config.customer_card_type]
+    also_confused_with: [tenant_oper_update_split, sms_signature_term]
+    adjudication: boundary
+    explanation: |
+      document_claim:客服名片配置.md / 建档运营名片展示.md。catalog 注释 WX_WORK/WX。
+      现网经办人名片只从租户 customer_card_type 取，不再用项目 operaterCardType。
+    evidence: code_path:CustPersonApplication.java:1411
+  - concept_key: sms_signature_term
+    title: 租户短信签名
+    aliases: [短信签名]
+    maps_to: tenant_setting_config.platform_sms_signature
+    field_targets: [tenant_setting_config.platform_sms_signature]
+    also_confused_with: [customer_card_term]
+    adjudication: boundary
+    explanation: |
+      document_claim:租户配置增加短信签名展示.md#14。catalog 有 platform_sms_signature。
+      现网租户导出签名走短信模板 getMessignature(db_tenant_code)，不是直接读该列。问列表展示的签名以导出逻辑为准。
+    evidence: code_path:TenantAppliactionService.java:176
+  - concept_key: main_custom_flg
+    title: 主定制项目标识
+    aliases: [主定制, HBLT]
+    maps_to: tenant_setting_config.main_tenant_flg_en
+    field_targets: [tenant_setting_config.main_tenant_flg_en]
+    also_confused_with: [tenant_flg_en, skip_realname]
+    adjudication: boundary
+    explanation: |
+      document_claim:主定制项目标识.md#15 写「仅作数据标记」；现网 CustPersonController 对 HBLT 放开经办人跳过实名。以代码为准。
+      不是 tenant_flg_en 项目标识。
+    evidence: code_path:CustPersonController.java:633
+  - concept_key: self_reg_flag
+    title: 是否放开自主注册
+    aliases: [贴牌隐藏注册入口, 自主注册开关]
+    maps_to: tenant_setting_config.self_registration_flag
+    field_targets: [tenant_setting_config.self_registration_flag]
+    also_confused_with: [project_code_required]
+    adjudication: boundary
+    explanation: |
+      catalog 注释「是否放开自主注册」。document_claim:贴牌隐藏注册入口.md#15 描述客户端藏「+添加企业」。
+      不是项目码必填。Y/N 不编字典页。
+    evidence: code_path:AcflowTenantMigratoryService.java:186
+  - concept_key: approval_whitelist
+    title: 项目上线白名单查询
+    aliases: [核企白名单, 白名单查询]
+    maps_to: tenant_project_approval.whitelist_query_result
+    field_targets: [tenant_project_approval.whitelist_query_result]
+    also_confused_with: [online_approval_wf]
+    adjudication: boundary
+    explanation: |
+      document_claim:白名单查询.md#15：上线审批提交后锁定查询结果。catalog 注释同名。
+      pplatform-web 无 Java 赋值。不要用 wf_status 回答白名单是否命中。问卷星白名单是 cust_company_survey_whitelist。
+    evidence: document_claim:白名单查询.md#15
+  - concept_key: cross_tenant_resign
+    title: 跨租户强制补签授权书
+    aliases: [跨租户补签授权书, 强制重签授权书]
+    maps_to: tenant_setting_config.sign_flag
+    field_targets: [tenant_setting_config.sign_flag]
+    also_confused_with: [authorization_book, electronic_auth_flag, auth_supplement_flag, auth_channel_flag]
+    adjudication: boundary
+    explanation: |
+      document_claim:跨租户补签授权书.md#18。catalog 注释「接收跨贴牌数据是否强制重签授权书」。
+      现网 Y 则跨租户同步要补签。不是 generate_electronic_auth_flag，也不是企业上的补签开关。Y/N 不编字典页。
+    evidence: code_path:CustCompanyInfoApplication.java:6259
+  - concept_key: project_config_model
+    title: 项目配置模式
+    aliases: [项目配置模式XYC]
+    maps_to: tenant_project.config_model
+    field_targets: [tenant_project.config_model]
+    also_confused_with: [project_is_prd, project_config_version_term]
+    adjudication: boundary
+    explanation: |
+      catalog 注释「项目配置模式(XYC)」，默认 admin。上线审批 DTO 拷贝项目 config_model。
+      需求「项目配置 / 项目配置pro」钉在 project_config_version，不要把口语 pro 当成 config_model 的枚举码。
+    evidence: code_path:approval/ProjectApprovalApplication.java:1606
+  - concept_key: project_config_version_term
+    title: 项目配置版本
+    aliases: [项目配置pro, 项目配置pro功能新增]
+    maps_to: tenant_project.project_config_version
+    field_targets: [tenant_project.project_config_version]
+    also_confused_with: [project_config_model, project_name_term]
+    adjudication: boundary
+    explanation: |
+      document_claim:项目配置pro.md#25：关联多级流转时有「项目配置 / 项目配置pro」。catalog 注释「项目配置版本」。
+      现网同步新项目默认写 config，不是把 pro 当字典码。不要和 config_model（项目配置模式）混。
+    evidence: code_path:TenantProjectDomainService.java:101
+  - concept_key: project_name_term
+    title: 项目名称
+    aliases: [项目名称修改]
+    maps_to: tenant_project.name
+    field_targets: [tenant_project.name]
+    also_confused_with: [project_config_version_term]
+    adjudication: boundary
+    explanation: |
+      document_claim:项目名称修改.md#11：内管改项目名称。列就是 tenant_project.name。
+      跨系统同步方案需求未闭合，问数只按本列。不是项目配置版本。
+    evidence: code_path:TenantProjectDomainService.java:110

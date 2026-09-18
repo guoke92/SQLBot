@@ -1,0 +1,77 @@
+kind: scenarios
+domain: tenant
+scenarios:
+  - scenario_key: tenant_project_create
+    title: 创建租户项目
+    aliases: [新建项目, 项目配置]
+    description: 创建项目写 tenant_id=租户主键、product_id=租户产品主键、project_status=0。问有效项目用 effective_tenant_project。
+    hubs:
+      - table: tenant_project
+        role: master
+    shared:
+      - table: tenant_setting_config
+        role: tenant
+      - table: tenant_product
+        role: product
+    lifecycle:
+      - dict: tenant_project__project_status
+        process: tenant_project__project_status
+  - scenario_key: project_online_approval
+    title: 项目上线审批
+    aliases: [上线审批, 项目审批]
+    description: |
+      审批按项目 code 关联。创建 PENDING，发起 RUNNING，通过 FINISHED 并生效项目。
+      不要把 wf_status 当成 project_status。
+    hubs:
+      - table: tenant_project_approval
+        role: master
+    shared:
+      - table: tenant_project
+        role: project
+      - table: tenant_project_approval_flow
+        role: flow_nodes
+    lifecycle:
+      - dict: tenant_project_approval__wf_status
+        process: tenant_project_approval__wf_status
+      - dict: tenant_project__project_status
+        process: tenant_project__project_status
+  - scenario_key: tenant_product_open
+    title: 开通租户产品
+    aliases: [租户开通产品]
+    description: 每租户每平台产品一行。open_status=Y 才算开通。有项目则不能取消。
+    hubs:
+      - table: tenant_product
+        role: master
+    shared:
+      - table: tenant_setting_config
+        role: tenant
+    lifecycle:
+      - dict: tenant_product__open_status
+        process: tenant_product__open_status
+  - scenario_key: tenant_register_cfg
+    title: 租户自主注册配置
+    aliases: [项目码必填, 默认关联项目]
+    description: 租户配置 project_code_required 与 default_project_id。现网必填项目码时必须先有默认项目。
+    hubs:
+      - table: tenant_setting_config
+        role: master
+    shared:
+      - table: tenant_project
+        role: default_project
+  - scenario_key: tenant_interworking_open
+    title: 开通互通产品
+    aliases: [互通产品开通]
+    description: |
+      互通产品写 tenant_interworking_product.open_status。绑定项目看 tenant_interworking_project.project_id。
+      取消开通不检查生效项目，不要当成通用租户产品 cancel。
+    hubs:
+      - table: tenant_interworking_product
+        role: master
+    shared:
+      - table: tenant_interworking_project
+        role: projects
+      - table: tenant_setting_config
+        role: tenant
+    lifecycle:
+      - dict: tenant_interworking_product__open_status
+        process: tenant_interworking_product__open_status

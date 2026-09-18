@@ -1,0 +1,30 @@
+---
+type: dict
+title: funding_rule_info.product_code
+page_key: funding_rule_info__product_code
+belong: dicts
+status: draft
+anchors: [funding_rule_info.product_code]
+sources: ['database_profile:funding_rule_info.product_code']
+created: '2026-09-17'
+updated: '2026-09-17'
+contract_version: '0.1'
+related: [funding_rule_info]
+---
+
+# funding_rule_info.product_code
+
+L0 字典候选：profile 代码值；列注释无码→中文映射，故无 label。空值已丢弃。 初审 hold：证据不足，保留待人工确认。
+物理列 `funding_rule_info.product_code`，表页 [[tables/funding_rule_info]]。
+
+## 取值
+
+```ground:dict
+dict: funding_rule_info__product_code
+fields: [funding_rule_info.product_code]
+values:
+  ACFLOW: {trust: proposed}
+  RVSFACTOR_PC: {trust: proposed}
+triage: hold
+needs_review: true
+```

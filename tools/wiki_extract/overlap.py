@@ -1,6 +1,6 @@
 """Value-overlap measurement for L0 JOIN candidates.
 
-Skip lists, type compatibility, copy-key bans, and likely/unlikely thresholds
+Skip lists, type compatibility, join roles, and likely/unlikely thresholds
 live in join_policy. This module samples, measures bag inclusion, and merges
 results onto proposed EQUI_JOIN edges.
 """
@@ -15,14 +15,15 @@ from tools.wiki_extract.join_policy import (
     Inclusion,
     child_endpoint_reason,
     decide_authenticity,
-    identity_columns,
     is_fk_like,
-    link_reject_reason,
+    may_nominate_join,
     mysql_type_of,
+    parent_join_columns,
     parse_fq,
     prefix_token_score,
     qualify,
     sql_ident,
+    stamp_join_meta,
     types_compatible,
 )
 
@@ -32,7 +33,7 @@ WINDOW_LIMIT = 12
 
 # Re-exports so tests and LLM keep a stable import path.
 skip_overlap_child = child_endpoint_reason
-validate_proposed_join = link_reject_reason
+validate_proposed_join = may_nominate_join
 
 
 def apply_overlap(model: dict[str, Any], packed: dict[str, Any]) -> dict[str, Any]:
@@ -95,7 +96,7 @@ def apply_overlap(model: dict[str, Any], packed: dict[str, Any]) -> dict[str, An
                 continue
             if str(raw.get("authenticity") or "") != "likely":
                 continue
-            if link_reject_reason(model, left, right, for_overlap_add=True):
+            if may_nominate_join(model, left, right, for_overlap_add=True):
                 continue
             compiled.setdefault("relations", []).append(
                 _new_overlap_relation(compiled, raw)
@@ -106,6 +107,7 @@ def apply_overlap(model: dict[str, Any], packed: dict[str, Any]) -> dict[str, An
             added = True
         if added:
             _exclude_join_rights_from_anchors(compiled)
+        stamp_join_meta(compiled)
 
     model["_overlap"] = packed
     model["overlap_stats"] = stats
@@ -160,6 +162,7 @@ def _new_overlap_relation(
     right = str(raw.get("right") or "")
     child_col = parse_fq(right)[1]
     auth = str(raw.get("authenticity") or "likely")
+    comment = _field_desc(compiled, child_col)
     return {
         "type": "EQUI_JOIN",
         "left": left,
@@ -168,7 +171,11 @@ def _new_overlap_relation(
         "trust": "proposed",
         "authenticity": auth,
         "source": "overlap",
-        "name_evidence": {"match": "none", "stem": "", "comment": ""},
+        "name_evidence": {
+            "match": "none",
+            "stem": child_col,
+            "comment": comment,
+        },
         "overlap": {
             "probed": True,
             "ratio": raw.get("overlap_ratio"),
@@ -218,13 +225,13 @@ def build_join_window(
             )
             if score <= 0 and not comment_hit:
                 continue
-            for ident in identity_columns(pcomp):
+            for ident in parent_join_columns(pcomp):
                 left = qualify(parent, ident)
                 if not types_compatible(
                     child_type_cache.get(col, ""), mysql_type_of(pcomp, ident)
                 ):
                     continue
-                if link_reject_reason(model, left, qualify(tname, col)):
+                if may_nominate_join(model, left, qualify(tname, col)):
                     continue
                 probe = probes.get((qualify(tname, col), left), {})
                 parents.append(
@@ -351,7 +358,7 @@ def probe_overlap(
             if reason:
                 skipped.append(qualify(tname, child_col))
                 continue
-            reject = link_reject_reason(model, left, right)
+            reject = may_nominate_join(model, left, right)
             if reject == "type_mismatch":
                 packed = _skipped_pair(left, right, "name", reject)
                 edges.append(packed)
@@ -542,6 +549,14 @@ def _fetch_top(
     return _fetch_values(conn, sql, (k,))
 
 
+def cap_inclusion(hit: int, size: int) -> tuple[int, float | None]:
+    """Bag-inclusion hit may exceed the sampled bag; ratio is always ≤ 1."""
+    if size <= 0:
+        return 0, None
+    capped = min(max(int(hit), 0), int(size))
+    return capped, capped / size
+
+
 def _bag_inclusion(
     conn: Any, schema: str, table: str, column: str, values: list[Any]
 ) -> Inclusion:
@@ -562,7 +577,8 @@ def _bag_inclusion(
     except Exception:
         return Inclusion(ok=False, hit=0, sample_size=len(values), ratio=None)
     size = len(values)
-    return Inclusion(ok=True, hit=min(hit, size), sample_size=size, ratio=hit / size)
+    capped_hit, ratio = cap_inclusion(hit, size)
+    return Inclusion(ok=True, hit=capped_hit, sample_size=size, ratio=ratio)
 
 
 def _fetch_values(conn: Any, sql: str, params: tuple[Any, ...]) -> list[Any]:
@@ -572,3 +588,49 @@ def _fetch_values(conn: Any, sql: str, params: tuple[Any, ...]) -> list[Any]:
             return [row.get("v") for row in cur.fetchall() if row.get("v") is not None]
     except Exception:
         return []
+
+
+def sync_overlap_from_relations(
+    model: dict[str, Any], packed: dict[str, Any] | None = None
+) -> dict[str, Any]:
+    """Ensure LLM-proposed edges appear in _raw/overlap.yaml for traceability."""
+    base = packed if packed is not None else (model.get("_overlap") or {})
+    out = dict(base)
+    edges = [dict(e) for e in (base.get("edges") or []) if isinstance(e, dict)]
+    seen = {
+        (str(e.get("left") or ""), str(e.get("right") or ""))
+        for e in edges
+        if e.get("left") and e.get("right")
+    }
+    for compiled in (model.get("tables") or {}).values():
+        for rel in compiled.get("relations") or []:
+            left = str(rel.get("left") or "")
+            right = str(rel.get("right") or "")
+            if not left or not right or (left, right) in seen:
+                continue
+            ov = rel.get("overlap") if isinstance(rel.get("overlap"), dict) else {}
+            edges.append(
+                {
+                    "left": left,
+                    "right": right,
+                    "source": str(rel.get("source") or "name"),
+                    "sample_size": ov.get("sample_size"),
+                    "overlap_ratio": ov.get("ratio"),
+                    "overlap_ratio_reverse": ov.get("ratio_reverse"),
+                    "deepened": bool(ov.get("deepened")),
+                    "miss": ov.get("miss"),
+                    "query_ok": ov.get("query_ok", ov.get("probed")),
+                    "authenticity": str(
+                        ov.get("authenticity") or rel.get("authenticity") or "unknown"
+                    ),
+                    "evidence": rel.get("evidence"),
+                    "probed": bool(ov.get("probed")),
+                    "name_evidence": rel.get("name_evidence"),
+                    "join_role": rel.get("join_role"),
+                    "priority": rel.get("priority"),
+                }
+            )
+            seen.add((left, right))
+    out["edges"] = edges
+    model["_overlap"] = out
+    return out

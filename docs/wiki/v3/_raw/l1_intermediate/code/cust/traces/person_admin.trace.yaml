@@ -1,0 +1,17 @@
+kind: trace
+domain: cust
+trace_key: person_check_before_save
+entry: CustPersonApplication.checkBeforeSave
+application: CustPersonApplication.checkBeforeSave:322
+tables: [cust_person_info, cust_company_info]
+notes: |
+  一角色一管理员：company_type + ref_cust_company_info + enable=Y + user_type=accountAdmin。
+  手机号/证件号按企业 code 全量人员去重，不过滤 enable。
+  Java admin 入库 accountAdmin。
+scenario:
+  scenario_key: person_admin_save
+  title: 保存联系人校验
+  hubs:
+    - table: cust_person_info
+      role: master
+gaps: []

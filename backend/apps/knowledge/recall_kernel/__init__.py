@@ -7,6 +7,7 @@ from apps.knowledge.recall_kernel.conflicts import (
     unresolved_conflicts,
 )
 from apps.knowledge.recall_kernel.tables import (
+    cut_relative_tail,
     expand_schema_working_set,
     resolve_schema_vector_tables,
     resolve_wiki_tables,
@@ -26,6 +27,7 @@ __all__ = [
     "TableCandidate",
     "conflict_page_keys",
     "conflicts_to_evidence",
+    "cut_relative_tail",
     "detect_caliber_conflicts",
     "expand_schema_working_set",
     "resolve_schema_vector_tables",

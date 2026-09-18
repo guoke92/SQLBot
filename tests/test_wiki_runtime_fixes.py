@@ -311,8 +311,8 @@ def test_business_render_enum_values_block() -> None:
     from apps.knowledge.wiki.recall import _render
 
     page = parse_page(
-        "---\ntype: enum\ntitle: 建档类型\npage_key: cust_build_type\nstatus: published\n---\n"
-        "# 建档类型\n\n```ground:enum\nenum: cust_build_type\nvalues:\n"
+        "---\ntype: dict\ntitle: 建档类型\npage_key: cust_build_type\nstatus: published\n---\n"
+        "# 建档类型\n\n```ground:dict\ndict: cust_build_type\nvalues:\n"
         "  PC_BUILD:\n    label: 客户录入\n  AGW_BUILD:\n    label: 平台录入\n```\n"
     )
     chunk = chunk_markdown(page.body)[0]
@@ -824,8 +824,11 @@ def test_retrieve_wiki_context_keeps_usable_wiki_without_schema_mix(
     monkeypatch.setattr(
         wr,
         "wiki_recall",
-        lambda *a, **k: wr.WikiRecallResult(
-            text="# d_task\n任务表", hits=[{"page_key": "d_task"}], page_keys=["d_task"]
+        lambda *a, **k:         wr.WikiRecallResult(
+            text="# d_task\n任务表",
+            hits=[{"page_key": "d_task"}],
+            page_keys=["d_task"],
+            passages={"d_task": "# d_task\n任务表"},
         ),
     )
     monkeypatch.setattr(wr, "datasource_databases", lambda ds: ["aio"])
@@ -1010,7 +1013,7 @@ def test_wiki_search_policy_ready_unchanged_stops() -> None:
         plane,
     )
     assert delta.unchanged is True
-    assert out["recall_status"] == "stagnant"
+    assert out["recall_status"] == "diminishing_returns"
     assert out["stop_search"] is True
 
 
@@ -1100,7 +1103,7 @@ def test_prompt_schema_gap_block_when_wiki_has_no_schema() -> None:
         }
     )
     prompt = build_agent_system_prompt(knowledge_plane=plane)
-    assert "<wiki_schema_gap>" in prompt
+    assert "<wiki_knowledge>" in prompt
+    assert "<schema_catalog>" not in prompt
     assert "information_schema" in prompt
-    assert "早停" not in prompt
-    assert "换更具体的检索词" in prompt
+    assert "get_table_schema" in prompt

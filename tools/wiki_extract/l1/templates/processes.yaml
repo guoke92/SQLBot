@@ -1,0 +1,21 @@
+kind: processes
+domain: example
+processes:
+  - process_key: cust_company_info__cust_build_status
+    table: cust_company_info
+    field: cust_build_status
+    description: 企业建档状态流转
+    entry: 简易认证提交
+    stages:
+      - stage: 提交建档
+        transitions:
+          - from: INIT
+            event: 简易认证提交
+            to: AWAIT_CUST_CONFIRM
+            evidence: code_path:ExampleApplication.java:2028
+      - stage: 客户确认
+        transitions:
+          - from: AWAIT_CUST_CONFIRM
+            event: 确认企业信息
+            to: BUILD_SUCCESS
+            evidence: code_path:ExampleApplication.java:948

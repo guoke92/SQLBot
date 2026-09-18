@@ -233,6 +233,10 @@
         "patch_and_compile_sql": "增量修改",
         "compare_results": "数据对比",
         "search_wiki": "查阅知识",
+        "get_table_schema": "展开表结构",
+        "get_table_relations": "查询表关联",
+        "search_knowledge": "检索业务口径",
+        "get_dict_values": "查询字段字典",
         "prepare_wiki": "准备知识",
         "restore_wiki": "恢复上轮知识",
         "request_clarification": "请求澄清",
@@ -248,7 +252,11 @@
       "clarification_waiting": "等待确认",
       "clarification_confirmed": "口径已确认",
       "wiki_prepared": "召回 {count} 条知识",
-      "wiki_restored": "恢复上轮 {count} 条知识"
+      "wiki_lookup": "核对 {focus} {count} 项",
+      "wiki_restored": "恢复上轮 {count} 条知识",
+      "schema_loaded": "展开 {count} 张表",
+      "relations_loaded": "返回 {count} 条关联",
+      "dict_loaded": "返回 {count} 个枚举值"
     },
     "audit": {
       "processing": "处理中",

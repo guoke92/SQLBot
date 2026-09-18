@@ -1,0 +1,15 @@
+kind: scenarios
+domain: example
+scenarios:
+  - scenario_key: company_build
+    title: 企业建档
+    aliases: [简易建档, 客户建档]
+    hubs:
+      - table: cust_company_info
+        role: master
+    shared:
+      - table: cust_project_rel
+        role: project_link
+    lifecycle:
+      - dict: cust_company_info__cust_build_status
+        process: cust_company_info__cust_build_status

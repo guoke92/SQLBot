@@ -1,0 +1,28 @@
+kind: processes
+domain: funding_rule
+processes:
+  - process_key: funding_rule_info__rule_status
+    table: funding_rule_info
+    field: rule_status
+    title: 资方规则状态
+    description: 新建 PENDING；生效 ACTIVE；失效 INACTIVE。运行时查询只取 ACTIVE。
+    entry: POST /fund-web/ruleInfo
+    stages:
+      - stage: 新建
+        transitions:
+          - from: PENDING
+            event: saveRuleInfo 新增
+            to: PENDING
+            evidence: code_path:FundRuleInfoApplication.java:445
+      - stage: 生效
+        transitions:
+          - from: PENDING
+            event: activeRule
+            to: ACTIVE
+            evidence: code_path:FundRuleInfoApplication.java:296
+      - stage: 失效
+        transitions:
+          - from: ACTIVE
+            event: inActiveRule
+            to: INACTIVE
+            evidence: code_path:FundRuleInfoApplication.java:310

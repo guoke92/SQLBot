@@ -1,0 +1,58 @@
+kind: scenarios
+domain: remaining
+scenarios:
+  - scenario_key: platform_product_catalog
+    title: 平台产品目录
+    aliases: [产品大类, 平台产品]
+    description: 平台产品主数据。租户开通写 tenant_product.platform_product_id。问已生效用 effective_platform_product。
+    hubs:
+      - table: platform_product
+        role: master
+    shared:
+      - table: platform_product_cust_role
+        role: roles
+    lifecycle:
+      - dict: platform_product__product_status
+        process: platform_product__product_status
+  - scenario_key: authorization_agreement
+    title: 企业授权确认书
+    aliases: [授权书]
+    description: 按企业主键 cust_id 查。authed_status 是 Y/N，不另编字典。不要当成协议迁移记录。
+    hubs:
+      - table: authorization_agreement
+        role: master
+    shared:
+      - table: cust_company_info
+        role: company
+  - scenario_key: async_io_task
+    title: 异步导入导出
+    aliases: [异步任务]
+    description: 钉 async_io_task.status。PENDING→RUNNING→SUCCESS/FAILED。无中文 label。
+    hubs:
+      - table: async_io_task
+        role: master
+    lifecycle:
+      - dict: async_io_task__status
+        process: async_io_task__status
+  - scenario_key: wechat_project_approval
+    title: 企微立项审批
+    aliases: [企微审批单, 立项申请]
+    description: |
+      企微审批单在 wechat_project_approval_apply，历史按 apply_id。
+      不是 tenant_project_approval 上线审批。
+    hubs:
+      - table: wechat_project_approval_apply
+        role: master
+    shared:
+      - table: wechat_project_approval_field_history
+        role: history
+  - scenario_key: agreement_migratory
+    title: 协议迁移
+    aliases: [协议拉取]
+    description: argeement_migratory_record.cust_id=企业主键。不要和 authorization_agreement 混表。
+    hubs:
+      - table: argeement_migratory_record
+        role: master
+    shared:
+      - table: cust_company_info
+        role: company

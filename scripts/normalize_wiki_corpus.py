@@ -34,7 +34,7 @@ _WIKILINK_RE = re.compile(r"\[\[(?P<target>[^\]|]+)(?P<alias>\|[^\]]+)?\]\]")
 _RELATED_RE = re.compile(r"^related:\s*\[(.*?)\]\s*$", re.M)
 _KEEP_ORDER = [
     "tables",
-    "enums",
+    "dicts",
     "concepts",
     "processes",
     "calibers",

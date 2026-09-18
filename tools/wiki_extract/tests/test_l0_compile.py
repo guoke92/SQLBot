@@ -127,25 +127,30 @@ def test_l0_compile_fixture(tmp_path: Path) -> None:
     ):
         assert f"name: {col}" in company
 
-    assert "key: common" in company
-    assert "include: always" in company
+    assert "clusters:" not in company
+    assert "## 字段簇" not in company
     assert "scenes:" not in company
     assert "label:" not in (
-        out / "enums" / "cust_company_info::sign_status.md"
+        out / "dicts" / "cust_company_info__sign_status.md"
     ).read_text(encoding="utf-8")
-    enum_page = (out / "enums" / "cust_company_info::sign_status.md").read_text(
+    enum_page = (out / "dicts" / "cust_company_info__sign_status.md").read_text(
         encoding="utf-8"
     )
     assert "SIGNED" in enum_page
     assert "平台录入" not in enum_page
     assert "status: draft" in enum_page
-    assert "page_key: cust_company_info::sign_status" in enum_page
+    assert "page_key: cust_company_info__sign_status" in enum_page
     assert "cust_company_info.sign_status" in enum_page  # physical field
     assert "cust_company_info_sign_status" not in enum_page
     assert "[[tables/cust_company_info]]" in enum_page
     assert "? ''" not in enum_page
     assert "trust: proposed" in enum_page
-    assert "ambiguous:" not in enum_page
+    assert "type: dict" in enum_page
+    assert "belong: dicts" in enum_page
+    assert "```ground:dict" in enum_page
+    assert "dict: cust_company_info__sign_status" in enum_page
+    assert not (out / "enums").exists()
+    assert not (out / "value_index.yaml").exists()
 
     assert "trust: proposed" in account
     assert "cust_company_id" in account
@@ -154,20 +159,30 @@ def test_l0_compile_fixture(tmp_path: Path) -> None:
     assert "cardinality: one_to_many" in account
     assert "left: cust_company_info.id" in account
     assert "right: cust_account_info.cust_company_id" in account
+    assert "join_role: identity" in account
+    assert "authenticity:" in account
+    assert (
+        "name_evidence:" in account
+        or "### likely" in account
+        or "### unknown" in account
+    )
     assert "[[tables/cust_company_info]]" in account
     assert "[[tables/cust_account_info]]" in company
     assert "[[tables/cust_company_detail]]" in company
-    assert "[[enums/cust_company_info::sign_status]]" in company
+    assert "[[dicts/cust_company_info__sign_status]]" in company
     assert "related:" in account
     assert "related:" in company
 
     assert "cust_company_info.id" in detail
     assert "cust_company_id" in detail
 
-    assert "key: bank" in account
     assert "bank_name" in account
+    assert "clusters:" not in account
+    assert "## 字段簇" not in account
 
-    value_index = yaml.safe_load((out / "value_index.yaml").read_text(encoding="utf-8"))
+    value_index = yaml.safe_load(
+        (out / "instance_index.yaml").read_text(encoding="utf-8")
+    )
     names = [
         entry
         for entry in value_index["entries"]
@@ -183,13 +198,14 @@ def test_l0_compile_fixture(tmp_path: Path) -> None:
     assert not any("#grain" in item["claim_path"] for item in reviews["items"])
     assert not any("#clusters." in item["claim_path"] for item in reviews["items"])
     assert not any(
-        item["kind"] == "unanchored" and item["claim_path"].startswith("enums/")
+        item["kind"] == "unanchored" and item["claim_path"].startswith("dicts/")
         for item in reviews["items"]
     )
 
     assert (out / "_log.md").exists()
     assert (out / "_index.md").exists()
     assert (out / "_raw" / "catalog.yaml").exists()
+    assert (out / "_raw" / "profile.yaml").exists()
 
 
 def test_code_join_uses_code_not_id() -> None:
@@ -223,6 +239,8 @@ def test_code_join_uses_code_not_id() -> None:
     assert rels[0]["right"] == "cust_account_info.bank_code"
     assert rels[0]["trust"] == "proposed"
     assert rels[0]["authenticity"] == "unknown"
+    assert rels[0]["join_role"] == "business_code"
+    assert rels[0]["priority"] == "primary"
     assert rels[0]["source"] == "name"
     assert rels[0]["name_evidence"]["match"] in {"exact_table", "stem_info"}
     assert rels[0]["overlap"] == {"probed": False}
@@ -325,14 +343,62 @@ def test_comment_labels_and_invented_dropped() -> None:
         }
     }
     model = compile_model(catalog, profile)
-    status = model["enums"]["cust_group_rel::status"]["values"]
+    status = model["dicts"]["cust_group_rel__status"]["values"]
     assert status["EFFECTIVE"]["label"] == "已生效"
     assert status["EFFECTIVE"]["trust"] == "proposed"
-    enable = model["enums"]["cust_group_rel::enable"]["values"]
+    enable = model["dicts"]["cust_group_rel__enable"]["values"]
     assert "label" not in enable["Y"]
-    flags = model["enums"]["cust_group_rel::root_flag"]["values"]
+    flags = model["dicts"]["cust_group_rel__root_flag"]["values"]
     assert flags["Y"]["label"] == "是"
     assert flags["N"]["label"] == "不是"
+
+
+def test_comment_labels_from_catalog_goldens() -> None:
+    from tools.wiki_extract.heuristics import parse_comment_labels
+
+    pay = parse_comment_labels(
+        "缴费状态：PAID 已缴费 / UNPAID 未缴费", ["PAID", "UNPAID"]
+    )
+    assert pay["PAID"] == "已缴费"
+    assert pay["UNPAID"] == "未缴费"
+    renew = parse_comment_labels(
+        "本期续费待办是否已生成：Y 已生成 / N 未生成", ["Y", "N"]
+    )
+    assert renew["Y"] == "已生成"
+    assert renew["N"] == "未生成"
+    yn_gloss = parse_comment_labels("是否发起上线审批：Y/N", ["Y", "N"])
+    assert yn_gloss == {}
+    catalog = {
+        "database": "db",
+        "tables": {
+            "ca_fee_company": {
+                "comment": "缴费企业",
+                "primary_key": ["id"],
+                "columns": {
+                    "id": _col(1, "bigint(20)", nullable=False),
+                    "pay_status": _col(
+                        2, "varchar(64)", "缴费状态：PAID 已缴费 / UNPAID 未缴费"
+                    ),
+                },
+            }
+        },
+    }
+    profile = {
+        "tables": {
+            "ca_fee_company": {
+                "column_stats": {
+                    "pay_status": {
+                        "distinct": 2,
+                        "values": {"PAID": 3, "UNPAID": 1},
+                    }
+                }
+            }
+        }
+    }
+    model = compile_model(catalog, profile)
+    values = model["dicts"]["ca_fee_company__pay_status"]["values"]
+    assert values["PAID"]["label"] == "已缴费"
+    assert values["UNPAID"]["label"] == "未缴费"
 
 
 def test_dual_identity_edges_all_kept() -> None:
@@ -462,3 +528,79 @@ def test_family_abbreviated_fk_and_long_ref() -> None:
         for r in custom
     )
     assert not any(r["right"].endswith(".product_code") for r in custom)
+
+
+def test_emit_compact_field_keys_and_inline_dict() -> None:
+    from tools.wiki_extract.emit import render_table_page
+
+    compiled = {
+        "table": "ca_certification_info",
+        "database": "db",
+        "description": "CA认证信息",
+        "primary_key": ["id"],
+        "name_anchors": [],
+        "fields": [
+            {
+                "name": "id",
+                "data_type": "number",
+                "description": "表主键",
+                "nullable": False,
+            },
+            {"name": "cust_id", "data_type": "number", "description": "企业Id"},
+            {
+                "name": "cust_type",
+                "data_type": "string",
+                "description": "PERSON / COMPANY",
+                "dictionary": "ca_certification_info__cust_type",
+            },
+            {
+                "name": "enable",
+                "data_type": "string",
+                "description": "有效标识",
+                "dictionary": "ca_certification_info__enable",
+            },
+            {
+                "name": "op_type",
+                "data_type": "string",
+                "description": "INSERT / UPDATE",
+                "dictionary": "ca_certification_info__op_type",
+            },
+        ],
+    }
+    dicts = {
+        "ca_certification_info__cust_type": {
+            "values": {
+                "PERSON": {"trust": "proposed", "label": "个人"},
+                "COMPANY": {"trust": "proposed", "label": "企业"},
+            }
+        },
+        "ca_certification_info__enable": {
+            "values": {
+                "Y": {"trust": "proposed"},
+                "N": {"trust": "proposed"},
+            }
+        },
+        "ca_certification_info__op_type": {
+            "values": {
+                "INSERT": {"trust": "proposed", "label": "新增"},
+                "UPDATE": {"trust": "proposed"},
+            }
+        },
+    }
+    text = render_table_page(compiled, "2026-09-18", dicts=dicts)
+    assert "data_type:" not in text
+    assert "dictionary:" not in text
+    assert "description:" not in text
+    assert "type: number" in text
+    assert "desc: 表主键" in text
+    assert "nullable: false" in text
+    assert "dict: [PERSON, COMPANY]" in text
+    assert "label: [个人, 企业]" in text
+    assert "dict: [Y, N]" in text or "dict: ['Y', 'N']" in text
+    enable_block = text.split("name: enable", 1)[1].split("- name:", 1)[0]
+    assert "label:" not in enable_block
+    op_block = text.split("name: op_type", 1)[1].split("- name:", 1)[0]
+    assert "INSERT: 新增" in op_block
+    assert "UPDATE:" not in op_block
+    assert "[[dicts/ca_certification_info__cust_type]]" in text
+    assert "[[dicts/ca_certification_info__enable]]" in text

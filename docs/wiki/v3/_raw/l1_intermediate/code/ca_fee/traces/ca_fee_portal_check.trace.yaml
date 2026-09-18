@@ -1,0 +1,18 @@
+kind: trace
+domain: ca_fee
+trace_key: ca_fee_portal_check
+entry: POST /cust-web/caFee/portalCheck
+controller: CaFeeController.java:84
+application: CaFeeRuleEngineService.java:56
+tables: [ca_fee_project_config, ca_fee_company, ca_fee_order]
+notes: |
+  evaluate 只读，不写订单。未开收费直接 EXEMPT，不是未缴费。
+  特殊企业在项目 JSON special_company_list，不是 ca_fee_special_config 表。
+scenario:
+  scenario_key: ca_fee_evaluate
+  title: CA 收费评估
+  hubs:
+    - table: ca_fee_project_config
+      role: master
+gaps:
+  - feeStatus 是返回值不是列。

@@ -1,0 +1,11 @@
+kind: trace
+domain: funding_rule
+trace_key: funding_rule_save
+entry: POST /fund-web/ruleInfo
+tables: [funding_rule_info, funding_rule_detail, funding_rule_front_cfg]
+notes: |
+  新增头 PENDING。明细写 rule_info_id 与 fund_rule_code_ref=头 code。
+  生效 activeRule 写 ACTIVE。运行时 FundingPartyRuleProviderImpl 只查 ACTIVE。
+gaps:
+  - product_code 是入参字符串，未见对 platform_product.product_code 的 lambdaQuery 等值，不编 JOIN。
+  - funding_party_mark 未见对企业/租户主键等值。

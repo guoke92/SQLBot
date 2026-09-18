@@ -1,0 +1,28 @@
+kind: display
+domain: cust
+doc_source: "/Users/fanjunwei/Desktop/需求文档"
+items:
+  - title: 需求文档版本叠加
+    page_key: pplatform_reqdoc_versions
+    recall: false
+    content: |
+      原件在 /Users/fanjunwei/Desktop/需求文档：V1.0 规格说明书，以及 V1.3–V1.35 增量 docx（按版本号迭代）。
+      Markdown 工作副本在 docs/wiki-knowledge/pplatform/req-index/。
+      当前业务逻辑：现网源码优先，其次最新版本需求；旧版只保留叫法/别名。
+      排期、修订记录、人员分工不进问数召回。
+      企业建档基础用词仍以 V1.0 规格说明书 + 源码为准；管理员变更、冻结留痕、签章限制分别在 V1.17 / V1.19 / V1.26 及之后的增量里。
+  - title: 需求索引外链与未落库术语
+    page_key: pplatform_reqindex_unbridged_display
+    recall: false
+    content: |
+      req-index 中仅外链、无本仓赋值的条目不进召回：ca证书收费.md、资金方规则校验.md、对接规则要素-无凭证.md（已写 DOC_UNBRIDGED 概念）、跨贴牌项目引用.md 详情外链。
+      十项核查与人工核查在运营中台，本库无对应表。
+      SSO/验证码/登录安全、步骤条样式、菜单权限隐藏、额度管理按钮等 UI/安全专题暂不抽问数术语。
+      V1.35「审批撤销」现网 wf_status 无 REVOKED 码。
+      再融资收款账户.md 是线上保理账户类型，pplatform-web 无对应枚举赋值。
+  - title: 版本演进
+    page_key: pplatform_v128_revisions
+    recall: false
+    content: |
+      产融平台 V1.28 需求文档修订记录（2026-2-9 V1.0 初稿）及需求目录（运营人员取值、变更轨迹、菜单权限等）
+      属于排期/版本说明，不进问数召回。

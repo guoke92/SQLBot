@@ -1,0 +1,16 @@
+kind: trace
+domain: cust
+trace_key: company_change
+entry: CustCompanyInfoApplication 企业自行变更
+application: CustCompanyInfoApplication.java:7348
+tables: [cust_company_info, cust_change_record, cust_person_info]
+notes: |
+  发起变更前 checkBusiOnWayService.call。共写 cust_status=CHANGE、cust_build_status=CUST_CHANGE、check_status=CUST_CHECK_INIT。
+  CUST_CHANGE 会阻断开通 CA。简易认证且变更项不开流程时，OperCustFacade.resetStatus 会直接写回 BUILD_SUCCESS/EFFECT。
+scenario:
+  scenario_key: company_change_submit
+  title: 发起企业变更
+  hubs:
+    - table: cust_company_info
+      role: master
+gaps: []

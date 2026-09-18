@@ -1,0 +1,176 @@
+kind: calibers_rules
+domain: cust
+calibers:
+  - caliber_key: effective_company
+    title: 生效企业
+    table: cust_company_info
+    predicate: "cust_company_info.cust_build_status = 'BUILD_SUCCESS' AND cust_company_info.cust_status = 'EFFECT' AND cust_company_info.data_type = '1' AND cust_company_info.enable = 'Y'"
+    field_targets:
+      - cust_company_info.cust_build_status
+      - cust_company_info.cust_status
+      - cust_company_info.data_type
+      - cust_company_info.enable
+    boundary: |
+      回答「当前有效企业」。必须建档成功且生效同时成立；不要用 BUILD_SUCCESS 单独代替。
+      不含变更中（CUST_CHANGE + CHANGE）。按角色过滤时走 effective_company_by_role。
+    evidence: code_path:CustCompanyIfoEnchanceService.java:649
+  - caliber_key: effective_company_by_role
+    title: 按角色生效的企业
+    table: cust_company_info
+    predicate: "cust_role_info.role_type = :custType AND cust_role_info.enable = 'Y' AND cust_company_info.data_type = '1' AND cust_company_info.enable = 'Y' AND ((cust_company_info.cust_build_status = 'BUILD_SUCCESS' AND cust_company_info.cust_status = 'EFFECT') OR (cust_company_info.cust_build_status = 'CUST_CHANGE' AND cust_company_info.cust_status = 'CHANGE'))"
+    field_targets:
+      - cust_role_info.role_type
+      - cust_company_info.cust_build_status
+      - cust_company_info.cust_status
+    using_relations:
+      - left: cust_company_info.code
+        right: cust_role_info.ref_cust_company_info
+    boundary: 运营按企业角色拉「有效企业」；变更中企业在此口径内，与 effective_company 不同。
+    evidence: code_path:CustCompanyQueryMapper.xml:77
+  - caliber_key: changing_company
+    title: 变更中企业
+    table: cust_company_info
+    predicate: "cust_company_info.cust_build_status = 'CUST_CHANGE' AND cust_company_info.cust_status = 'CHANGE' AND cust_company_info.data_type = '1' AND cust_company_info.enable = 'Y'"
+    field_targets:
+      - cust_company_info.cust_build_status
+      - cust_company_info.cust_status
+      - cust_company_info.data_type
+      - cust_company_info.enable
+    boundary: |
+      回答「正在变更的企业」。不要当成失效或建档失败。
+      与 effective_company 互斥；effective_company_by_role 会把它算进去。
+    evidence: code_path:CustCompanyInfoApplication.java:7348
+  - caliber_key: company_admin
+    title: 企业管理员
+    table: cust_person_info
+    predicate: "cust_person_info.user_type = 'accountAdmin' AND cust_person_info.enable = 'Y' AND cust_person_info.ref_cust_company_info = :company_code"
+    field_targets:
+      - cust_person_info.user_type
+      - cust_person_info.enable
+      - cust_person_info.ref_cust_company_info
+    using_relations:
+      - left: cust_company_info.code
+        right: cust_person_info.ref_cust_company_info
+    boundary: |
+      回答「该企业的管理员」。Java 枚举名是 admin，库值是 accountAdmin。
+      listCustAdminerByCustCode 不按 company_type 过滤；一角色一管理员校验才加 company_type。
+      企业冻结不改本口径的 enable；冻旧建新才会把旧管理员 enable 置 N。
+    evidence: code_path:CustPersonInfoDao.java:40
+  - caliber_key: freeze_audit_record
+    title: 已生效的冻结解冻留痕
+    table: cust_company_lifecycle_info
+    predicate: "cust_company_lifecycle_info.enable = 'Y' AND cust_company_lifecycle_info.company_id = :company_id"
+    field_targets:
+      - cust_company_lifecycle_info.enable
+      - cust_company_lifecycle_info.company_id
+      - cust_company_lifecycle_info.type
+      - cust_company_lifecycle_info.reason
+    using_relations:
+      - left: cust_company_info.id
+        right: cust_company_lifecycle_info.company_id
+    boundary: |
+      回答「冻结/解冻记录」。预生成草稿是 enable=N，确认后才是 Y。
+      type=FRZ 冻结，type=UNFRZ 解冻。枚举没有中文 displayName，不要把 FRZ 当成别的码。
+    evidence: code_path:CustCompanyInfoApplication.java:7090
+rules:
+  - rule_key: certification_no_unique
+    title: 统一社会信用代码不可重复建档
+    field_targets: [cust_company_info.certification_no]
+    impact: write_constraint
+    content: |
+      同一租户 db_tenant_code 下 certification_no 已存在且不是当前企业时拒绝新增。
+      例外：自主认证且 BUILD_FAIL 的旧记录允许再建，但必须先删除失败记录，不是静默覆盖。
+    evidence: code_path:CustCompanyInfoApplication.java:5220
+  - rule_key: simple_auth_no_draft_product
+    title: 简易认证不开通供票产品
+    field_targets: [cust_company_info.identify_style, cust_company_info.need_register_ca, cust_company_info.head_company]
+    impact: write_constraint
+    content: relateProject 时若产品 platform_product_code 以供票前缀开头，则 identify_style 不得为 SIMPLE，且须已开通电子签章、须为总公司。
+    evidence: code_path:CustCompanyInfoApplication.java:4437
+  - rule_key: build_success_not_effect
+    title: 认证成功不等于生效
+    field_targets: [cust_company_info.cust_build_status, cust_company_info.cust_status]
+    impact: query_constraint
+    content: |
+      BUILD_SUCCESS 只回答建档/认证是否成功。EFFECT 才是生效。
+      问「有效企业 / 生效企业」必须套用 effective_company，禁止只过滤 cust_build_status。
+      运营建档回调先写 BUILD_SUCCESS，再由 effectCust 写 EFFECT，两列可能短暂不一致。
+    evidence: code_path:CustCompanyIfoEnchanceService.java:649
+  - rule_key: unique_admin_per_company_role
+    title: 同一企业同一角色只能有一个有效管理员
+    field_targets: [cust_person_info.user_type, cust_person_info.enable, cust_person_info.company_type, cust_person_info.ref_cust_company_info]
+    impact: write_constraint
+    content: |
+      保存/改管理员前统计 company_type + ref_cust_company_info + enable=Y + user_type=accountAdmin（排除自身）必须为 0。
+      冻结旧管理员（enable=N）后可以再建新管理员。企业冻结不写 person.enable，所以冻结企业仍可能挡住新增管理员。
+    evidence: code_path:CustPersonApplication.java:334
+  - rule_key: unique_phone_cert_in_company
+    title: 同一企业下手机号和证件号不可重复
+    field_targets: [cust_person_info.phone, cust_person_info.certification_no, cust_person_info.ref_cust_company_info]
+    impact: write_constraint
+    content: |
+      checkBeforeSave 按企业 code 列出全部联系人（不过滤 enable）校验手机号、证件号。
+      已冻结（enable=N）的旧行仍占用号码，不能靠冻旧绕过本规则。
+    evidence: code_path:CustPersonApplication.java:348
+  - rule_key: freeze_old_create_new_admin
+    title: 管理员变更冻旧建新
+    field_targets: [cust_person_info.enable, cust_person_info.status]
+    impact: write_constraint
+    content: |
+      管理员变更把旧行 enable=N、status=FREEZE 共写，再插入新行 status=EFFECT。
+      不要把企业冻结理解成同一套：企业 freeze 只改 cust_status 和角色 status，外加 SSO 冻管理员。
+    evidence: code_path:CustPersonApplication.java:841
+  - rule_key: freeze_cascade
+    title: 企业冻结级联角色与管理员 SSO
+    field_targets: [cust_company_info.cust_status, cust_role_info.status]
+    impact: write_constraint
+    content: |
+      freeze：cust_status 从 EFFECT/ADD 写成 FREEZE，角色 status 同步（已 WRITEOFF 跳过），再 freezeCustAdminUsers 冻 FBP 角色的 SSO。
+      列表冻结入口同时把 cust_company_lifecycle_info.type 写成 FRZ，并写入 reason/attach、enable=Y。
+      不写 cust_person_info.enable。needCheckInWay 配置为 true，实现是空 TODO，本路径不拦在途。
+    evidence: code_path:CustCompanyInfoApplication.java:712
+  - rule_key: writeoff_freeze_all_users
+    title: 企业注销冻结全部 SSO 用户
+    field_targets: [cust_company_info.cust_status, cust_role_info.status]
+    impact: write_constraint
+    content: |
+      diable：cust_status 从 EFFECT 写成 WRITEOFF，角色 status 同步，再 freezeCustAllUsers 冻结该企业全部 SSO 用户。
+      与冻结只冻管理员不同。
+    evidence: code_path:CustCompanyInfoApplication.java:901
+  - rule_key: simple_auth_no_ca
+    title: 简易认证强制不开通电子签章
+    field_targets: [cust_company_info.identify_style, cust_company_info.need_register_ca, cust_company_info.ca_register_status, cust_company_info.need_register_bs, cust_company_info.bs_register_status]
+    impact: write_constraint
+    content: |
+      identify_style=SIMPLE 时 CustCompanyCaPolicy 把 need_register_ca / ca_register_status / need_register_bs / bs_register_status 全部写成 N。
+      简易提交若历史标记需开通 CA，会先校正再落库。与 simple_auth_no_draft_product（供票产品约束）不是同一条。
+    evidence: code_path:CustCompanyCaPolicy.java:26
+  - rule_key: change_blocks_ca
+    title: 变更中禁止开通电子签章
+    field_targets: [cust_company_info.cust_build_status, cust_company_info.need_register_ca]
+    impact: write_constraint
+    content: |
+      cust_build_status=CUST_CHANGE 时 isOpenCa 返回阻断文案，不进入开通。
+      与简易认证强制 N 不同：这是变更在途拦截，不是认证方式策略。
+    evidence: code_path:CustCompanyIfoEnchanceService.java:786
+  - rule_key: change_requires_onway_check
+    title: 发起变更必须检查在途
+    field_targets: [cust_company_info.cust_status, cust_company_info.cust_build_status]
+    impact: write_constraint
+    content: |
+      企业自行变更在写成 CHANGE/CUST_CHANGE 之前调用 checkBusiOnWayService。
+      不要把冻结/注销配置里的 needCheckInWay 当成同样实现：那两处还是空 TODO。
+    evidence: code_path:CustCompanyInfoApplication.java:7345
+  - rule_key: survey_answer_once_per_company
+    title: 同一企业同一调研只答一次
+    field_targets: [cust_survey_answer.company_id, cust_survey_answer.survey_code]
+    impact: write_constraint
+    content: 已存在 company_id+survey_code 则忽略重复提交。问「是否已填调研」按这两列，不要按 user_id 去重。
+    evidence: code_path:CustSurveyAnswerDao.java:18
+  - rule_key: alter_type_id_is_csv
+    title: 变更单变更项是逗号分隔配置主键
+    field_targets: [cust_change_record.alter_type_id]
+    impact: query_constraint
+    content: |
+      alter_type_id 存多个 cust_change_cfg.id，用 split 后 IN 查询。不要把它当成 item_code，也不要编单列 EQUI_JOIN。
+    evidence: code_path:CustSyncEventProcessor.java:1898

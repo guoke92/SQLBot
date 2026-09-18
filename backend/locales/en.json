@@ -229,6 +229,10 @@
         "patch_and_compile_sql": "Patch SQL",
         "compare_results": "Compare results",
         "search_wiki": "Search knowledge",
+        "get_table_schema": "Expand table schema",
+        "get_table_relations": "Inspect table joins",
+        "search_knowledge": "Search business knowledge",
+        "get_dict_values": "Look up dictionary values",
         "prepare_wiki": "Prepare knowledge",
         "restore_wiki": "Restore prior knowledge",
         "request_clarification": "Ask for clarification",
@@ -244,7 +248,11 @@
       "clarification_waiting": "Waiting for confirmation",
       "clarification_confirmed": "Criteria confirmed",
       "wiki_prepared": "Prepared {count} knowledge hits",
-      "wiki_restored": "Restored {count} prior knowledge hits"
+      "wiki_lookup": "Verified {count} {focus} fact(s)",
+      "wiki_restored": "Restored {count} prior knowledge hits",
+      "schema_loaded": "Expanded {count} table(s)",
+      "relations_loaded": "Returned {count} join(s)",
+      "dict_loaded": "Returned {count} dictionary value(s)"
     },
     "audit": {
       "processing": "Processing",

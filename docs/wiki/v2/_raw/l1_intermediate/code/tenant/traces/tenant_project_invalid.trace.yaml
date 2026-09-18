@@ -1,0 +1,21 @@
+kind: trace
+domain: tenant
+trace_key: tenant_project_invalid
+entry: POST /app-web/tenantProject/invalid
+controller: TenantProjectController.java:106
+application: TenantProjectDomainService.invalid:225
+tables: [tenant_project]
+notes: |
+  失效写 project_status=2（枚举名 INVLIAD）。重新发起上线审批时，已生效/已失效项目会先走这条再开新审批。
+  不写 wf_status，不改 tenant_product.open_status。
+scenario:
+  scenario_key: tenant_project_invalid
+  title: 失效租户项目
+  hubs:
+    - table: tenant_project
+      role: master
+  lifecycle:
+    - dict: tenant_project__project_status
+      process: tenant_project__project_status
+gaps:
+  - 待生效（status=0）的新项目发起审批时跳过失效。

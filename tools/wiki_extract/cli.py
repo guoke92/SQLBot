@@ -1,4 +1,4 @@
-"""CLI: introspect / compile. Isolated from apps.knowledge.wiki."""
+"""CLI: introspect / compile / instance. Isolated from apps.knowledge.wiki."""
 
 from __future__ import annotations
 
@@ -12,6 +12,7 @@ import yaml
 from tools.wiki_extract.connect import MysqlTarget, connect, resolve_dsn
 from tools.wiki_extract.emit import emit
 from tools.wiki_extract.heuristics import compile_model, seal_l0_reviews
+from tools.wiki_extract.instance_index import packed_instance_index
 from tools.wiki_extract.introspect import introspect
 from tools.wiki_extract.llm_client import resolve_llm_config
 from tools.wiki_extract.llm_refine import refine_model, replay_judgments
@@ -39,7 +40,7 @@ def main(argv: list[str] | None = None) -> int:
     llm.add_argument(
         "--llm",
         action="store_true",
-        help="require LLM refine (enum keep/drop + semantic clusters)",
+        help="require LLM refine (dict keep/hold/drop + similar fields + join authenticity)",
     )
     llm.add_argument(
         "--skip-llm", action="store_true", help="mechanical heuristics only"
@@ -64,13 +65,92 @@ def main(argv: list[str] | None = None) -> int:
     _add_io_args(overlap_p)
     overlap_p.add_argument("--k", type=int, default=200, help="topK per sample path")
 
+    instance_p = sub.add_parser(
+        "instance", help="build instance_index.yaml without LLM"
+    )
+    _add_io_args(instance_p)
+    instance_p.add_argument(
+        "--from-raw",
+        default="",
+        help="build from an existing _raw directory (skip live DB)",
+    )
+
+    l1_p = sub.add_parser(
+        "l1",
+        help="aggregate l1_intermediate YAML onto L0 draft pages and emit 9 page types",
+    )
+    l1_p.add_argument(
+        "--l0",
+        required=True,
+        help="L0 wiki tree (tables/, dicts/, _raw/catalog.yaml)",
+    )
+    l1_p.add_argument(
+        "--intermediate",
+        default="",
+        help="l1_intermediate root (default: <l0>/_raw/l1_intermediate)",
+    )
+    l1_p.add_argument(
+        "--out",
+        required=True,
+        help="output tree (e.g. docs/wiki/v3); refuses wiki-pages*",
+    )
+    l1_p.add_argument(
+        "--code-root",
+        default="",
+        help="Java/XML repo used to verify code_path evidence",
+    )
+    l1_p.add_argument(
+        "--skip-code-check",
+        action="store_true",
+        help="do not resolve code_path files (tests / no local repo)",
+    )
+
+    cov_p = sub.add_parser(
+        "l1-coverage",
+        help="list catalog tables / dicts / FK-like columns not yet in L1 IR",
+    )
+    cov_p.add_argument("--l0", required=True, help="L0 wiki tree")
+    cov_p.add_argument(
+        "--intermediate",
+        default="",
+        help="l1_intermediate root (default: <l0>/_raw/l1_intermediate)",
+    )
+    cov_p.add_argument("--prefix", default="cust", help="catalog table name prefix")
+    cov_p.add_argument(
+        "--req-index",
+        default="",
+        help="optional req-index root (lists concept markdown files)",
+    )
+
     args = parser.parse_args(argv)
+    if args.cmd == "l1-coverage":
+        from tools.wiki_extract.l1.coverage import coverage_report, format_coverage
+
+        l0_dir = Path(args.l0)
+        intermediate = (
+            Path(args.intermediate) if args.intermediate else l0_dir / "_raw" / "l1_intermediate"
+        )
+        req_index = Path(args.req_index) if args.req_index else None
+        report = coverage_report(
+            l0_dir=l0_dir,
+            intermediate_dir=intermediate,
+            prefix=str(args.prefix or "cust"),
+            req_index=req_index,
+        )
+        print(format_coverage(report), end="")
+        counts = report.get("counts") or {}
+        return 0 if int(counts.get("missing_tables") or 0) == 0 else 1
+
     out = Path(args.out)
-    tables = {t.strip() for t in (args.tables or "").split(",") if t.strip()} or None
+    tables = {
+        t.strip()
+        for t in (getattr(args, "tables", "") or "").split(",")
+        if t.strip()
+    } or None
 
     if args.cmd == "introspect":
-        catalog, profile, target = _load_or_scan(args, tables)
-        _write_raw(out, catalog, profile)
+        catalog, profile, profile_instance, target = _load_or_scan(args, tables)
+        _write_raw(out, catalog, profile, profile_instance)
         print(
             f"raw catalog tables={len(catalog.get('tables') or {})} -> {out / '_raw'}",
             file=sys.stderr,
@@ -80,7 +160,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.cmd == "overlap":
-        catalog, profile, target = _load_or_scan(args, tables)
+        catalog, profile, profile_instance, target = _load_or_scan(args, tables)
         if target is None:
             print(
                 "overlap requires a live DSN (--db-url / WIKI_EXTRACT_DSN)",
@@ -88,7 +168,10 @@ def main(argv: list[str] | None = None) -> int:
             )
             return 2
         model = compile_model(
-            catalog, profile, max_enum_distinct=int(args.max_distinct)
+            catalog,
+            profile,
+            profile_instance=profile_instance,
+            max_enum_distinct=int(args.max_distinct),
         )
         conn = connect(target)
         try:
@@ -101,7 +184,7 @@ def main(argv: list[str] | None = None) -> int:
         model = seal_l0_reviews(model)
         raw_dir = out / "_raw"
         raw_dir.mkdir(parents=True, exist_ok=True)
-        _write_raw(out, catalog, profile)
+        _write_raw(out, catalog, profile, profile_instance)
         (raw_dir / "overlap.yaml").write_text(
             yaml.safe_dump(packed, allow_unicode=True, sort_keys=False),
             encoding="utf-8",
@@ -115,8 +198,31 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 0
 
+    if args.cmd == "instance":
+        catalog, profile, profile_instance, target = _load_or_scan(args, tables)
+        model = compile_model(
+            catalog,
+            profile,
+            profile_instance=profile_instance,
+            max_enum_distinct=int(args.max_distinct),
+        )
+        out.mkdir(parents=True, exist_ok=True)
+        packed = packed_instance_index(model)
+        (out / "instance_index.yaml").write_text(
+            yaml.safe_dump(packed, allow_unicode=True, sort_keys=False),
+            encoding="utf-8",
+        )
+        _write_raw(out, catalog, profile, profile_instance)
+        extra = f" via {target.masked()}" if target else " from --from-raw"
+        print(
+            f"instance_index entries={len(packed.get('entries') or [])}{extra} -> "
+            f"{out / 'instance_index.yaml'}",
+            file=sys.stderr,
+        )
+        return 0
+
     if args.cmd == "compile":
-        catalog, profile, target = _load_or_scan(args, tables)
+        catalog, profile, profile_instance, target = _load_or_scan(args, tables)
         raw = (getattr(args, "from_raw", "") or "").strip()
         overlap_pack = None
         if raw:
@@ -126,6 +232,7 @@ def main(argv: list[str] | None = None) -> int:
         model = compile_model(
             catalog,
             profile,
+            profile_instance=profile_instance,
             max_enum_distinct=int(args.max_distinct),
             overlap=overlap_pack,
         )
@@ -174,29 +281,72 @@ def main(argv: list[str] | None = None) -> int:
             )
             stats_llm = model.get("llm_stats") or {}
             llm_note = (
-                f" llm keep={stats_llm.get('enum_keep')} "
-                f"instance={stats_llm.get('enum_instance')} "
-                f"reject={stats_llm.get('enum_reject')}"
+                f" llm keep={stats_llm.get('dict_keep')} "
+                f"hold={stats_llm.get('dict_hold')} "
+                f"drop={stats_llm.get('dict_drop')}"
             )
         elif not skip_llm and judge:
             model = replay_judgments(model, judge)
             stats_llm = model.get("llm_stats") or {}
             llm_note = (
-                f" replay-llm keep={stats_llm.get('enum_keep')} "
-                f"instance={stats_llm.get('enum_instance')} "
-                f"reject={stats_llm.get('enum_reject')}"
+                f" replay-llm keep={stats_llm.get('dict_keep')} "
+                f"hold={stats_llm.get('dict_hold')} "
+                f"drop={stats_llm.get('dict_drop')}"
             )
             print("LLM refine replayed from _raw/llm_judge.yaml", file=sys.stderr)
         elif not skip_llm:
             print("LLM config missing; compiling without refine", file=sys.stderr)
-        stats = emit(model, out, catalog=catalog, profile=profile, overlap=overlap_pack)
+        stats = emit(
+            model,
+            out,
+            catalog=catalog,
+            profile=profile,
+            profile_instance=profile_instance,
+            overlap=overlap_pack,
+        )
         extra = f" via {target.masked()}" if target else " from --from-raw"
         print(
-            f"L0 draft tables={stats['tables']} enums={stats['enums']} "
+            f"L0 draft tables={stats['tables']} dicts={stats['dicts']} "
             f"reviews={stats['reviews']}{extra}{llm_note} -> {out}",
             file=sys.stderr,
         )
         return 0
+
+    if args.cmd == "l1":
+        from tools.wiki_extract.l1.reconcile import compile_l1
+
+        l0_dir = Path(args.l0)
+        intermediate = Path(args.intermediate) if args.intermediate else l0_dir / "_raw" / "l1_intermediate"
+        code_root = Path(args.code_root) if args.code_root else None
+        stats = compile_l1(
+            l0_dir=l0_dir,
+            intermediate_dir=intermediate,
+            out_dir=out,
+            code_root=code_root,
+            skip_code_check=bool(args.skip_code_check),
+        )
+        print(
+            "L1 draft "
+            + " ".join(
+                f"{k}={stats.get(k, 0)}"
+                for k in (
+                    "tables",
+                    "dicts",
+                    "concepts",
+                    "processes",
+                    "calibers",
+                    "metrics",
+                    "rules",
+                    "scenarios",
+                    "patterns",
+                    "reviews",
+                    "errors",
+                )
+            )
+            + f" -> {out}",
+            file=sys.stderr,
+        )
+        return 0 if int(stats.get("errors") or 0) == 0 else 1
     return 2
 
 
@@ -215,7 +365,7 @@ def _add_io_args(parser: argparse.ArgumentParser) -> None:
 
 def _load_or_scan(
     args: argparse.Namespace, tables: set[str] | None
-) -> tuple[dict[str, Any], dict[str, Any], MysqlTarget | None]:
+) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any], MysqlTarget | None]:
     raw = (getattr(args, "from_raw", "") or "").strip()
     if raw:
         from_raw = Path(raw)
@@ -225,15 +375,19 @@ def _load_or_scan(
         catalog = _read_yaml(catalog_path)
         profile_path = from_raw / "profile.yaml"
         profile = _read_yaml(profile_path) if profile_path.exists() else {"tables": {}}
+        inst_path = from_raw / "profile_instance.yaml"
+        profile_instance = (
+            _read_yaml(inst_path) if inst_path.exists() else {"tables": {}}
+        )
         if tables:
             catalog["tables"] = {
                 k: v for k, v in (catalog.get("tables") or {}).items() if k in tables
             }
-        return catalog, profile, None
+        return catalog, profile, profile_instance, None
     target = resolve_dsn(db_url=args.db_url, database=args.database)
     conn = connect(target)
     try:
-        catalog, profile = introspect(
+        catalog, profile, profile_instance = introspect(
             conn,
             target,
             tables=tables,
@@ -242,10 +396,15 @@ def _load_or_scan(
         )
     finally:
         conn.close()
-    return catalog, profile, target
+    return catalog, profile, profile_instance, target
 
 
-def _write_raw(out: Path, catalog: dict[str, Any], profile: dict[str, Any]) -> None:
+def _write_raw(
+    out: Path,
+    catalog: dict[str, Any],
+    profile: dict[str, Any],
+    profile_instance: dict[str, Any] | None = None,
+) -> None:
     raw = out / "_raw"
     raw.mkdir(parents=True, exist_ok=True)
     (raw / "catalog.yaml").write_text(
@@ -254,6 +413,11 @@ def _write_raw(out: Path, catalog: dict[str, Any], profile: dict[str, Any]) -> N
     (raw / "profile.yaml").write_text(
         yaml.safe_dump(profile, allow_unicode=True, sort_keys=False), encoding="utf-8"
     )
+    if profile_instance is not None:
+        (raw / "profile_instance.yaml").write_text(
+            yaml.safe_dump(profile_instance, allow_unicode=True, sort_keys=False),
+            encoding="utf-8",
+        )
 
 
 def _read_yaml(path: Path) -> dict[str, Any]:

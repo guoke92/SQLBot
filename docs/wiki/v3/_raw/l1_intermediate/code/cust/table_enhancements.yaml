@@ -1,0 +1,113 @@
+kind: table_enhancements
+domain: cust
+tables:
+  cust_company_info:
+    grain: 一企一行（code 唯一；列表有效集见 default_filter）
+    default_filter:
+      predicate: "cust_company_info.enable = 'Y' AND cust_company_info.data_type = '1'"
+      evidence: code_path:CustCompanyIfoEnchanceService.java:653
+    written_with_groups:
+      - fields: [cust_build_status, cust_status]
+        evidence: code_path:CustCompanyInfoDao.java:58
+      - fields: [cust_build_status, cust_status, check_status]
+        evidence: code_path:CustCompanyInfoApplication.java:7348
+      - fields: [cust_build_status, check_status]
+        evidence: code_path:CustSyncEventProcessor.java:2080
+      - fields: [need_register_ca, ca_register_status, need_register_bs, bs_register_status]
+        evidence: code_path:CustCompanyInfoApplication.java:1994
+  cust_project_rel:
+    default_filter:
+      predicate: "cust_project_rel.enable = 'Y'"
+      evidence: code_path:CustCompanyQueryMapper.xml:97
+  cust_person_info:
+    default_filter:
+      predicate: "cust_person_info.enable = 'Y'"
+      evidence: code_path:CustCompanyInfoApplication.java:1553
+    written_with_groups:
+      - fields: [enable, status]
+        evidence: code_path:CustCompanyInfoApplication.java:3701
+  cust_account_info:
+    default_filter:
+      predicate: "cust_account_info.enable = 'Y'"
+      evidence: code_path:CustPersonController.java:288
+  cust_build_record: {}
+  cust_change_record: {}
+  cust_role_info:
+    default_filter:
+      predicate: "cust_role_info.enable = 'Y'"
+      evidence: code_path:CustCompanyQueryMapper.xml:82
+  cust_invite_info: {}
+  cust_shareholder_info: {}
+  cust_auth_application:
+    default_filter:
+      predicate: "cust_auth_application.enable = 'Y'"
+      evidence: code_path:CustAuthApplicationDaoImpl.java:75
+  cust_customized_product:
+    default_filter:
+      predicate: "cust_customized_product.enable = 'Y'"
+      evidence: code_path:CustCustomizedProductDaoImpl.java:24
+  cust_interworking_product:
+    default_filter:
+      predicate: "cust_interworking_product.enable = 'Y'"
+      evidence: code_path:CustInterworkingProductDaoImpl.java:48
+  cust_company_lifecycle_info: {}
+  cust_certification_info: {}
+  cust_head_company_info: {}
+  cust_group_rel:
+    default_filter:
+      predicate: "cust_group_rel.enable = 'Y'"
+      evidence: code_path:CustCompanyQueryMapper.xml:112
+  cust_change_cfg:
+    grain: 变更项配置（按认证方式/客户类型查，不是企业主档）
+    default_filter:
+      predicate: "cust_change_cfg.enable = 'Y'"
+      evidence: code_path:CustCompanyInfoApplication.java:4320
+  cust_oper_change_record:
+    grain: 联系人运营人员变更留痕
+    default_filter:
+      predicate: "cust_oper_change_record.enable = 'Y'"
+      evidence: code_path:OperChangeRecordApplication.java:47
+  cust_project_code_record:
+    grain: 企业录入项目码记录
+    default_filter:
+      predicate: "cust_project_code_record.enable = 'Y'"
+      evidence: code_path:CustProjectRelEnhanceService.java:410
+  cust_project_pushcust:
+    grain: 渠道对的默认推送项目（租户/渠道配置，不是企业主档）
+  cust_survey_answer:
+    grain: 企业调研答题（一企一调研幂等）
+  cust_company_survey_whitelist:
+    grain: 问卷星参与企业白名单
+    default_filter:
+      predicate: "cust_company_survey_whitelist.enable = 'Y'"
+      evidence: code_path:CustCompanySurveyWhitelistDao.java:20
+  cust_company_survey_state:
+    grain: 企业问卷星活动状态（一企一行）
+  cust_user_rel:
+    grain: 用户企业角色（现网行极少；主路径多用 sys 侧关系）
+    default_filter:
+      predicate: "cust_user_rel.enable = 'Y'"
+      evidence: code_path:CustCompanyIfoEnchanceService.java:567
+  cust_access_secret:
+    grain: 租户渠道接入密钥，按 db_tenant_code+enable 查，不是企业主键
+    default_filter:
+      predicate: "cust_access_secret.enable = 'Y'"
+      evidence: code_path:CustSyncService.java:711
+  cust_sftp:
+    grain: 渠道 SFTP 配置，不是企业主档
+    default_filter:
+      predicate: "cust_sftp.enable = 'Y'"
+      evidence: code_path:CustAccessApplication.java:490
+  cust_config_mapping:
+    grain: 内外渠道字段映射配置，无企业 FK
+    default_filter:
+      predicate: "cust_config_mapping.enable = 'Y'"
+      evidence: code_path:CustConfigMappingDaoImpl.java:48
+  cust_setting_config:
+    grain: 租户级建档配置，运行时 list().get(0) 取第一条，不是按企业 id 查
+  cust_auth_application_config:
+    grain: 客户产品开通配置（现网 0 行；pplatform-web 无 DO / 业务引用）
+  cust_app_channel_config:
+    grain: 客户应用渠道关系（pplatform-web 无 @TableName / 业务引用）
+  cust_message_send_policy:
+    grain: 客户消息发送策略（现网 0 行；pplatform-web 无 @TableName / 业务引用）

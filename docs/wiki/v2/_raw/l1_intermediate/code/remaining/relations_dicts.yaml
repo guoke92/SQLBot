@@ -1,0 +1,35 @@
+kind: relations_dicts
+domain: remaining
+confirmed_relations:
+  - left: cust_company_info.id
+    right: authorization_agreement.cust_id
+    type: EQUI_JOIN
+    cardinality: one_to_many
+    join_role: identity
+    evidence: code_path:AuthorizationAgreementDaoImpl.java:43
+  - left: cust_company_info.id
+    right: argeement_migratory_record.cust_id
+    type: EQUI_JOIN
+    cardinality: one_to_many
+    join_role: identity
+    evidence: code_path:PlatFormMigratoryApplication.java:629
+  - left: wechat_project_approval_apply.id
+    right: wechat_project_approval_field_history.apply_id
+    type: EQUI_JOIN
+    cardinality: one_to_many
+    join_role: identity
+    evidence: code_path:FieldHistoryWriter.java:78
+dict_labels:
+  platform_product__product_status:
+    table: platform_product
+    column: product_status
+    values:
+      "0": { label: 待生效, evidence: code_path:ProductStatusEnum.java:20 }
+      "1": { label: 已生效, evidence: code_path:ProductStatusEnum.java:24 }
+  platform_product__product_type:
+    table: platform_product
+    column: product_type
+    values:
+      GENERAL: { label: 通用产品, evidence: code_path:PlatformProductTypeEnum.java:20 }
+      INTERWORKING: { label: 互通产品, evidence: code_path:PlatformProductTypeEnum.java:24 }
+      "2": { label: 全部产品, evidence: code_path:PlatformProductTypeEnum.java:28 }

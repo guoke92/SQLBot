@@ -1,0 +1,18 @@
+kind: trace
+domain: tenant
+trace_key: tenant_product_cancel
+entry: POST /app-web/tenantProduct/cmd/cancel
+controller: TenantProductController.java:145
+application: TenantProductDomainService.cancel:88
+tables: [tenant_product, tenant_project]
+notes: |
+  取消开通写 open_status=N。listEffectiveProjectByProduct 非空或企业已开通该产品则拒绝。
+  不删 tenant_product 行，不改 tenant_project.project_status。
+scenario:
+  scenario_key: tenant_product_cancel
+  title: 取消开通租户产品
+  hubs:
+    - table: tenant_product
+      role: master
+gaps:
+  - 互通产品取消不走本校验，见 tenant_interworking_product_cancel。

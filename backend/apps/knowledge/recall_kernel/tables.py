@@ -10,6 +10,46 @@ from apps.knowledge.wiki.anchors import anchor_table_attribution
 
 _MIN_TABLE_MENTION = 3
 PINNED_EVIDENCE = "pinned:baseline"
+_PERIPHERAL_BELONG = frozenset({"rules", "processes", "patterns", "queries"})
+# Keep a candidate when its rank score is at least this fraction of the
+# batch leader. High-confidence clusters (star/JOIN) stay together; a
+# long-tail passenger table is dropped even if ``max_tables`` still has room.
+RELATIVE_SCORE_RATIO = 0.4
+
+
+def rank_score(item: TableCandidate) -> float:
+    """Comparable strength: evidence count first, then the retriever score."""
+    return float(len(item.evidence)) * 10.0 + float(item.score)
+
+
+def cut_relative_tail(
+    ordered: Sequence[TableCandidate],
+    *,
+    cap: int,
+    ratio: float = RELATIVE_SCORE_RATIO,
+) -> tuple[list[TableCandidate], list[str]]:
+    """Keep the high-confidence cluster; drop the score cliff and the cap tail.
+
+    Does not invent a primary table. One strong hit keeps 1; three near-tied
+    hits keep 3; a 15 vs 0.5 cliff drops the 0.5 even when cap would allow it.
+    """
+    items = [item for item in ordered if item is not None and str(item.name).strip()]
+    if not items:
+        return [], []
+    limit = max(1, int(cap))
+    top = rank_score(items[0])
+    floor = top * float(ratio) if top > 0 else 0.0
+    kept: list[TableCandidate] = []
+    cut: list[str] = []
+    for item in items:
+        if len(kept) >= limit:
+            cut.append(item.name)
+            continue
+        if not kept or rank_score(item) + 1e-9 >= floor:
+            kept.append(item)
+            continue
+        cut.append(item.name)
+    return kept, cut
 
 
 def resolve_wiki_tables(
@@ -35,7 +75,11 @@ def resolve_wiki_tables(
     """
     cap = (budget or RecallBudget()).max_tables
     page_scores = scores or {}
-    seeds = list(dict.fromkeys([*(page_keys or []), *(extra_keys or [])]))
+    seeds = [
+        key
+        for key in dict.fromkeys([*(page_keys or []), *(extra_keys or [])])
+        if not _is_peripheral_key(key)
+    ]
     attribution = anchor_table_attribution(store, seeds) if store is not None else {}
     ranked: dict[str, TableCandidate] = {}
     pinned = [str(name).strip() for name in (pinned_tables or ()) if str(name).strip()]
@@ -97,8 +141,7 @@ def resolve_wiki_tables(
         (item for item in ranked.values() if item.source != "pinned"),
         key=lambda item: (-len(item.evidence), -item.score, item.name),
     )
-    kept = ordered[: max(1, cap)] if ordered else []
-    cut = [item.name for item in ordered[len(kept) :]]
+    kept, cut = cut_relative_tail(ordered, cap=cap)
     return [*pinned_items, *kept], cut
 
 
@@ -151,11 +194,14 @@ def resolve_schema_vector_tables(
         reverse=True,
     )
     limit = max(1, int(table_limit))
-    seeded = [
-        TableCandidate(name=name, evidence=("schema_vector",), score=score, source="schema_vector")
-        for name, score in ordered[:limit]
+    seeded_all = [
+        TableCandidate(
+            name=name, evidence=("schema_vector",), score=score, source="schema_vector"
+        )
+        for name, score in ordered
         if name
     ]
+    seeded, _cut = cut_relative_tail(seeded_all, cap=limit)
     return [*pinned_items, *seeded]
 
 
@@ -237,6 +283,13 @@ def trim_schema_chars(
         dropped = kept.pop()
         cut.append(dropped.name)
     return kept, cut
+
+
+def _is_peripheral_key(key: str) -> bool:
+    text = str(key or "").strip()
+    if "/" not in text:
+        return False
+    return text.split("/", 1)[0] in _PERIPHERAL_BELONG
 
 
 def _table_mentioned(store: Any, raw_key: str, physical: str, query: str) -> bool:

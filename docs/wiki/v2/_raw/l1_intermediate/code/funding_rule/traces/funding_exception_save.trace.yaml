@@ -1,0 +1,17 @@
+kind: trace
+domain: funding_rule
+trace_key: funding_exception_save
+entry: POST /fund-web/exceptionInfo/afterSave
+controller: FundingPartyExceptionResolutionController.java:147
+application: ExceptionResolutionApplication.java:522
+tables: [funding_exception_resolution]
+notes: |
+  保存按产品+资金方+关键字查重。无规则头 FK，不要 JOIN funding_rule_info。
+scenario:
+  scenario_key: funding_exception_save
+  title: 保存资方异常建议
+  hubs:
+    - table: funding_exception_resolution
+      role: master
+gaps:
+  - 无 rule_info_id。

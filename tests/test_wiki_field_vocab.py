@@ -271,4 +271,4 @@ def test_schema_keeps_enum_pointer_and_field_labels() -> None:
 
     text = WikiSchemaRenderer(_Store(), {}).render(["t"])
     assert "labels=Y:已生成|N:未生成" in text
-    assert "enum=enable" in text
+    assert "dict=enable" in text

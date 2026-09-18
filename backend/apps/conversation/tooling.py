@@ -10,7 +10,7 @@ from typing import Any, TypedDict, cast
 import orjson
 from langchain_core.messages import AIMessage, BaseMessage, ToolMessage
 
-from apps.chat.agent_knowledge import AgentKnowledgePlane, strip_search_wiki_payload
+from apps.chat.agent_knowledge import KNOWLEDGE_TOOLS, AgentKnowledgePlane
 from apps.chat.memory_slots import MemorySlots
 from apps.chat.steps.observability import sanitize_audit_value
 from apps.chat.tools.metadata import get_tool_title_key
@@ -266,23 +266,25 @@ def _tool_call_signature(name: str, args: Mapping[str, Any]) -> str:
     return hashlib.sha256(payload).hexdigest()
 
 
-def _wiki_search_close(
+def _knowledge_tool_close(
     name: str, result: Mapping[str, Any]
 ) -> tuple[str, dict[str, Any]]:
-    """search_wiki success shows recall count; other tools keep 执行成功."""
+    """Knowledge tools report hit counts; other tools keep 执行成功."""
     if not result.get("ok"):
         return "chat.summary.tool_failed", {"tool": name}
     data = result.get("data") if isinstance(result.get("data"), Mapping) else {}
-    if name == "search_wiki" and str(data.get("recall_status") or "") != "dropped":
-        try:
-            count = int(data.get("hit_count") or 0)
-        except (TypeError, ValueError):
-            count = 0
-        if count <= 0:
-            count = len(data.get("added_pages") or []) + len(
-                data.get("added_tables") or []
-            )
+    if name == "get_table_schema":
+        count = len(data.get("tables") or data.get("added_tables") or [])
+        return "chat.summary.schema_loaded", {"count": count}
+    if name == "get_table_relations":
+        count = len(data.get("direct") or []) + len(data.get("bridges") or [])
+        return "chat.summary.relations_loaded", {"count": count}
+    if name == "search_knowledge":
+        count = int(data.get("hit_count") or len(data.get("page_keys") or []) or 0)
         return "chat.summary.wiki_prepared", {"count": count}
+    if name == "get_dict_values":
+        count = len(data.get("values") or [])
+        return "chat.summary.dict_loaded", {"count": count}
     return "chat.summary.tool_ok", {"tool": name}
 
 
@@ -369,18 +371,6 @@ def execute_tools_node(state: Mapping[str, Any]) -> dict[str, Any]:
             else:
                 with tool_call_scope(call_id):
                     result = normalize_tool_result(tool.invoke(args))
-            if name == "search_wiki":
-                data = (
-                    result.get("data")
-                    if isinstance(result.get("data"), Mapping)
-                    else {}
-                )
-                result = {
-                    **result,
-                    "data": strip_search_wiki_payload(
-                        data if isinstance(data, Mapping) else {}
-                    ),
-                }
         except Exception as exc:
             result = tool_failure(f"{name} failed", str(exc))
 
@@ -388,7 +378,7 @@ def execute_tools_node(state: Mapping[str, Any]) -> dict[str, Any]:
         model_content = serialize_tool_result(safe_result)
         if span is not None:
             span.set_output(_truncate_for_log(safe_result))
-            summary_key, summary_params = _wiki_search_close(name, result)
+            summary_key, summary_params = _knowledge_tool_close(name, result)
             span.close(
                 status="completed" if result["ok"] else "failed",
                 summary_key=summary_key,
@@ -522,7 +512,11 @@ def execute_tools_node(state: Mapping[str, Any]) -> dict[str, Any]:
         )
 
     outgoing = [*messages, *tool_messages]
-    if any(getattr(item, "name", "") == "search_wiki" for item in tool_messages):
+    knowledge_used = any(
+        getattr(item, "name", "") in KNOWLEDGE_TOOLS for item in tool_messages
+    )
+    if knowledge_used:
+        plane.knowledge_rounds = int(plane.knowledge_rounds or 0) + 1
         slots = dict(state.get("memory_slots") or {})
         baseline = None
         try:

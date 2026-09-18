@@ -24,8 +24,8 @@ from apps.knowledge.wiki.recall import InMemoryWikiStore, recall  # noqa: E402
 
 PAGES = {
     "cust_build_type": (
-        "---\ntype: enum\ntitle: 建档类型\npage_key: cust_build_type\nstatus: published\n---\n"
-        "- [[cust_company_info]]\n\n```ground:enum\nenum: cust_build_type\n"
+        "---\ntype: dict\ntitle: 建档类型\npage_key: cust_build_type\nstatus: published\n---\n"
+        "- [[cust_company_info]]\n\n```ground:dict\ndict: cust_build_type\n"
         "fields: [cust_company_info.cust_build_type]\nvalues:\n  PC_BUILD:\n"
         "    label: 客户录入\n  AGW_BUILD:\n    label: 平台录入\n```\n"
     ),

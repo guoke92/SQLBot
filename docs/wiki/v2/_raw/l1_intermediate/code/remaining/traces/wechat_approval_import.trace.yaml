@@ -1,0 +1,22 @@
+kind: trace
+domain: remaining
+trace_key: wechat_approval_import
+entry: POST /cust-web/wechatApproval/import
+controller: WechatProjectApprovalController.java:74
+application: WechatProjectApprovalApplication.java:148
+tables: [wechat_project_approval_apply, wechat_project_approval_field_history, async_io_task]
+notes: |
+  导入走异步任务。审批单按 sp_no。字段历史 apply_id=审批单 id。
+  project_id 仅按入参过滤，未证实对 tenant_project.id。
+scenario:
+  scenario_key: wechat_project_approval
+  title: 企微立项审批单
+  hubs:
+    - table: wechat_project_approval_apply
+      role: master
+  shared:
+    - table: wechat_project_approval_field_history
+      role: history
+gaps:
+  - wechat_project_approval_apply.project_id 不编 JOIN。
+  - 与 tenant_project_approval 不是同一张表。

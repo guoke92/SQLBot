@@ -547,8 +547,8 @@ def _render_enum_fence(
         ", ".join(str(f) for f in fields) if isinstance(fields, list) else str(fields)
     )
     rows = [
-        "```ground:enum",
-        f"enum: {base_data.get('enum', '')}".rstrip(),
+        "```ground:dict",
+        f"dict: {base_data.get('dict', '')}".rstrip(),
         f"fields: [{field_s}]",
         "values:",
     ]
@@ -583,9 +583,9 @@ def _render_enum_fence(
 
 
 def _inject_enum_fence(body: str, fence: str) -> str:
-    if re.search(r"```ground:enum\n[\s\S]*?\n```", body):
+    if re.search(r"```ground:dict\n[\s\S]*?\n```", body):
         return re.sub(
-            r"```ground:enum\n[\s\S]*?\n```",
+            r"```ground:dict\n[\s\S]*?\n```",
             fence.replace("\\", "\\\\"),
             body,
             count=1,
@@ -605,13 +605,13 @@ def merge_enum_page(baseline: str, semantic: str) -> str:
         base = parse_page(baseline)
     except Exception:  # noqa: BLE001
         return semantic
-    base_enum = next((b for b in base.ground_blocks if b.kind == "enum"), None)
+    base_enum = next((b for b in base.ground_blocks if b.kind == "dict"), None)
     if base_enum is None:
         return semantic
     try:
         sem = parse_page(semantic)
         sem_body = sem.body
-        sem_enum = next((b for b in sem.ground_blocks if b.kind == "enum"), None)
+        sem_enum = next((b for b in sem.ground_blocks if b.kind == "dict"), None)
     except Exception:  # noqa: BLE001
         parts = semantic.split("\n---\n", 1)
         sem_body = parts[1] if len(parts) > 1 else semantic
@@ -671,7 +671,7 @@ def merge_enum_page(baseline: str, semantic: str) -> str:
     new_body = _inject_enum_fence(sem_body, fence)
     head = _identity_head(resident=baseline, overlay=semantic)
     out = f"{head}\n---\n\n{new_body}"
-    return stamp_frontmatter(out, stem=base.page_key, belong="enums")
+    return stamp_frontmatter(out, stem=base.page_key, belong="dicts")
 
 
 def _drop_anchored_blocks(content: str, findings: list[dict[str, str]]) -> str:
@@ -694,7 +694,7 @@ def _drop_anchored_blocks(content: str, findings: list[dict[str, str]]) -> str:
         key = ""
         for line in body.splitlines():
             m = re.match(
-                r"\s*(table|enum|process|caliber|metric|rule|pattern):\s*(.+)", line
+                r"\s*(table|dict|process|caliber|metric|rule|pattern):\s*(.+)", line
             )
             if m:
                 key = m.group(2).strip().strip('"').strip("'")
@@ -717,7 +717,7 @@ def _drop_duplicate_blocks(content: str) -> str:
         key = ""
         for line in body.splitlines():
             m = re.match(
-                r"\s*(table|enum|process|caliber|metric|rule|pattern):\s*(.+)", line
+                r"\s*(table|dict|process|caliber|metric|rule|pattern):\s*(.+)", line
             )
             if m:
                 key = m.group(2).strip().strip('"').strip("'")
@@ -782,7 +782,7 @@ def run_unit(
             and rel.parts[0]
             in {
                 "tables",
-                "enums",
+                "dicts",
                 "concepts",
                 "processes",
                 "calibers",
@@ -812,11 +812,11 @@ def run_unit(
             )
             print(f"  REJECT {fname}: {page_level[0]['code']}", flush=True)
             continue
-        if belong == "enums":
+        if belong == "dicts":
             block_findings = [
                 f
                 for f in block_findings
-                if f.get("code") != "ENUM_VALUE_NOT_IN_DB"
+                if f.get("code") != "DICT_VALUE_NOT_IN_DB"
             ]
         if block_findings:
             content = _drop_anchored_blocks(content, block_findings)
@@ -861,7 +861,7 @@ def run_unit(
         target = out_dir / fname
         if target.exists() and belong == "tables":
             content = merge_same_key_page(target.read_text(), content)
-        elif target.exists() and belong == "enums":
+        elif target.exists() and belong == "dicts":
             content = merge_enum_page(target.read_text(), content)
         content = stamp_frontmatter(content, stem=Path(fname).stem, belong=belong or "")
         target.parent.mkdir(parents=True, exist_ok=True)

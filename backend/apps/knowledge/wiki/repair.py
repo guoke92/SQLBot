@@ -139,7 +139,7 @@ def _rewrite_java_name_predicates(
     不改 ``tables/``（``cust_user_rel.user_type='admin'`` 是另一张旧表的真值）。
     """
     changed = 0
-    skip_dirs = {".runs", "tables", "enums"}
+    skip_dirs = {".runs", "tables", "dicts"}
     for path in sorted(pages_dir.rglob("*.md")):
         if path.name.startswith("_") or skip_dirs.intersection(path.parts):
             continue
@@ -243,7 +243,7 @@ def repair_corpus(
         for rel, content in enum_pages:
             path = pages_dir / rel
             path.parent.mkdir(parents=True, exist_ok=True)
-            stamped = stamp_frontmatter(content, stem=path.stem, belong="enums")
+            stamped = stamp_frontmatter(content, stem=path.stem, belong="dicts")
             if path.exists():
                 stamped = merge_enum_page(stamped, path.read_text(encoding="utf-8"))
             path.write_text(stamped, encoding="utf-8")

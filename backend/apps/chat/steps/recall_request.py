@@ -3,8 +3,8 @@
 独立轮：prepare_turn 不预召回；模型自己写检索词调 search_wiki。
 续问 prepare_turn：``RecallRequest.rehydrate`` — 按上轮 knowledge_refs 从
 store 按 key 复水，query 为空，跟进短句不当检索词。
-search_wiki 中途补检：``build_recall_request`` 仍把先验问题拼进检索词，
-并把当前 plane 的表/页 pin 住。召回内核只认这个对象。
+search_wiki 中途补检：工作集靠 ``pin_tables`` / ``pin_pages`` 保住，
+不再把先验 tool query 拼进 RRF。召回内核只认这个对象。
 """
 
 from __future__ import annotations
@@ -28,11 +28,12 @@ class RecallRequest:
     pin_tables: tuple[str, ...] = ()
     pin_pages: tuple[str, ...] = ()
     required_fields: Mapping[str, tuple[str, ...]] = field(default_factory=dict)
+    focus: str = "all"
 
     @classmethod
-    def simple(cls, query: str) -> RecallRequest:
+    def simple(cls, query: str, *, focus: str = "all") -> RecallRequest:
         text = str(query or "").strip()
-        return cls(query=text, question=text)
+        return cls(query=text, question=text, focus=str(focus or "all"))
 
     @classmethod
     def rehydrate(
@@ -42,6 +43,7 @@ class RecallRequest:
         pin_pages: Sequence[str] = (),
         required_fields: Mapping[str, tuple[str, ...]] | None = None,
         question: str = "",
+        focus: str = "all",
     ) -> RecallRequest:
         """Restore a prior working set without a new retrieval query."""
         tables = tuple(
@@ -61,6 +63,7 @@ class RecallRequest:
             pin_tables=tables,
             pin_pages=pages,
             required_fields=fields,
+            focus=str(focus or "all"),
         )
 
     @classmethod
@@ -81,6 +84,7 @@ class RecallRequest:
             "required_fields": {
                 table: list(names) for table, names in self.required_fields.items()
             },
+            "focus": str(self.focus or "all"),
         }
 
 

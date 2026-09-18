@@ -1,0 +1,31 @@
+kind: calibers_rules
+domain: remaining
+calibers:
+  - caliber_key: effective_platform_product
+    title: 已生效平台产品
+    table: platform_product
+    predicate: "platform_product.product_status = '1' AND platform_product.enable = 'Y'"
+    field_targets:
+      - platform_product.product_status
+      - platform_product.enable
+    boundary: 列表 listPlatformProduct 还可能再按 product_type 过滤。不要和租户产品 open_status 混用。
+    evidence: code_path:PlatformProductDaoImpl.java:111
+rules:
+  - rule_key: platform_product_code_unique
+    title: 平台产品编码唯一
+    field_targets: [platform_product.product_code]
+    impact: write_constraint
+    content: 保存时按 product_code 查重。
+    evidence: code_path:PlatformProductDaoImpl.java:60
+  - rule_key: platform_effective_not_tenant_open
+    title: 平台产品生效不是租户开通
+    field_targets: [platform_product.product_status, tenant_product.open_status]
+    impact: write_constraint
+    content: /platformProduct/effective 只写 product_status=1。不改 tenant_product.open_status。
+    evidence: code_path:PlatformProduct.java:100
+  - rule_key: wechat_apply_not_online_approval
+    title: 企微立项单不是上线审批单
+    field_targets: [wechat_project_approval_apply.sp_no, tenant_project_approval.wf_status]
+    impact: query_constraint
+    content: 企微审批在 wechat_project_approval_apply。项目上线审批在 tenant_project_approval。不要互代。
+    evidence: code_path:WechatProjectApprovalApplication.java:148

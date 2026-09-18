@@ -1,0 +1,10 @@
+kind: metrics
+domain: cust
+metrics:
+  - metric_key: effective_company_count
+    title: 生效企业数
+    caliber: effective_company
+    grain_table: cust_company_info
+    aggregation: count_distinct
+    field: cust_company_info.id
+    evidence: code_path:CustCompanyIfoEnchanceService.java:647

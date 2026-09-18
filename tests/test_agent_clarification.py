@@ -155,19 +155,17 @@ def test_wiki_primary_prompt_assembly():
     assert "展示标签" in prompt_with_wiki
     assert "required=false" in prompt_with_wiki
     assert "严禁再次调用" not in prompt_with_wiki
-    assert "允许再次调用" in prompt_with_wiki
-    assert "search_wiki" in prompt_with_wiki
+    assert "get_table_schema" in prompt_with_wiki
+    assert "search_knowledge" in prompt_with_wiki
     assert "禁止编造" in prompt_with_wiki
     assert "table" in prompt_with_wiki
     assert "information_schema" in prompt_with_wiki
-    assert "必要的新缺口" in prompt_with_wiki
     assert "早停" not in prompt_with_wiki
     assert "再贴 Markdown 样例表" in prompt_with_wiki
     assert "仅展示前 N 条" in prompt_with_wiki
     assert "cust_*" not in prompt_with_wiki
     assert "INVITE_AGW" not in prompt_with_wiki
     assert "要么澄清要么不得写入" not in prompt_with_wiki
-    assert "名实冲突" not in prompt_with_wiki
 
     schema_only = AgentKnowledgePlane()
     schema_only.merge_recall(
@@ -346,7 +344,8 @@ def test_chat_117_output_field_conflict_clarifies_not_probes():
     channel_code.
     """
     assert (
-        "一次针对性 Wiki 检索后输出字段仍冲突，立即合并澄清" in _SYSTEM_PROMPT_TEMPLATE
+        "一次针对性 `search_knowledge` 或字段核对后输出字段仍冲突，立即合并澄清"
+        in _SYSTEM_PROMPT_TEMPLATE
     )
     assert "禁止用 probe 代替" in _SYSTEM_PROMPT_TEMPLATE
 

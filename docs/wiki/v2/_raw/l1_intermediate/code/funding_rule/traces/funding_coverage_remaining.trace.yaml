@@ -1,0 +1,9 @@
+kind: trace
+domain: funding_rule
+trace_key: funding_coverage_remaining
+entry: l1-coverage --prefix funding
+tables: [funding_rule_info, funding_rule_detail, funding_rule_front_cfg, funding_exception_resolution]
+notes: 前缀 4 张表均已 enhancement。
+gaps:
+  - funding_exception_resolution 无规则头 FK。
+  - act_procinst_id 不是业务 JOIN。

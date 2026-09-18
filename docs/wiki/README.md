@@ -40,7 +40,10 @@ query：published ∩ 勾选 → 投影代数 → JOIN/grain 门禁 → 澄清�
 | 召回 | `recall.py`、`apps/chat/steps/wiki_recall.py` |
 | schema 投影 | `apps/chat/steps/wiki_schema.py` |
 | 提取 | `apps/knowledge/wiki/` |
-| 扫描 | `.cursor/skills/knowledge-extraction/scripts/` |
+| L0 提取 | `tools/wiki_extract/`：`tables/`、`dicts/`、`instance_index.yaml`、`_raw/` 五件套 |
+| L1 中间成果 | [l1_intermediate.md](l1_intermediate.md)（Coding Agent YAML） |
+| L1 走读 SOP | [l1_agent_playbook.md](l1_agent_playbook.md) |
+| L1 聚合渲染 | `tools/wiki_extract l1`：`reconcile.py` + `emitter.py`（9 类页，draft） |
 
 语料切流是运维，不是 SCHEMA 条款。
 

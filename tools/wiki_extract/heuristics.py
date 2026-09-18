@@ -1,32 +1,22 @@
-"""L0 heuristics: type family, common/prefix clusters, name anchors, identity joins."""
+"""L0 heuristics: type family, name anchors, identity joins."""
 
 from __future__ import annotations
 
 import re
 from typing import Any
 
-from tools.wiki_extract.introspect import is_pii_column
 from tools.wiki_extract.join_policy import (
     AUDIT_USER_FIELDS,
     TENANT_FIELDS,
     child_endpoint_reason,
-    is_blocked_fk_stem,
-    is_geo_code,
+    is_fk_like,
+    may_nominate_join,
     mysql_type_of,
+    stamp_join_meta,
     prefix_token_score,
     type_family,
 )
 
-COMMON_COLUMNS = (
-    "id",
-    "enable",
-    "create_time",
-    "update_time",
-    "create_by",
-    "create_user",
-    "update_by",
-    "update_user",
-)
 _FK_ID = re.compile(r"^(.+)_(id|code)$", re.I)
 _REF_TABLE = re.compile(r"^ref_(.+)$", re.I)
 _FAMILY_HUB = {
@@ -40,7 +30,7 @@ _CODEISH = re.compile(r"^[A-Za-z][A-Za-z0-9_]{0,63}$")
 _NOISE_SIMILAR = TENANT_FIELDS | AUDIT_USER_FIELDS
 _CODE_TOKEN = r"(?:[A-Za-z][A-Za-z0-9_]{0,47}|[YN01])"
 _PAIR_CODE_FIRST = re.compile(
-    rf"(?P<code>{_CODE_TOKEN})\s*[-:=]\s*(?P<label>[^\s,，;；/|]{{1,24}})"
+    rf"(?P<code>{_CODE_TOKEN})\s*[-:=：=]\s*(?P<label>[^\s,，;；/|]{{1,24}})"
 )
 _PAIR_LABEL_FIRST = re.compile(
     rf"(?P<label>[\u4e00-\u9fff]{{1,24}})\s*[-:=]\s*(?P<code>{_CODE_TOKEN})"
@@ -49,27 +39,25 @@ _PAIR_SPACE = re.compile(
     rf"(?P<code>{_CODE_TOKEN})\s+(?P<label>[\u4e00-\u9fff]{{1,24}})"
 )
 _PAIR_DIGIT = re.compile(
-    r"(?P<code>[01])\s*[,，:：]\s*(?P<label>[\u4e00-\u9fff]{1,24})"
+    r"(?P<code>\d{1,4})\s*[,，:：]\s*(?P<label>[\u4e00-\u9fff]{1,24})"
 )
 _BARE_YN = re.compile(r"(?<![A-Za-z0-9_])Y\s*[/|、,，]\s*N(?![A-Za-z0-9_])", re.I)
 
 
-def enum_page_key(table: str, column: str) -> str:
-    """L0 enum page identity is 表::字段 — not 表.字段 (physical) or table_column."""
-    return f"{table}::{column}"
+def dict_page_key(table: str, column: str) -> str:
+    """L0 dict page identity is 表__字段 (git-safe).
 
-
-def _enum_code_key(raw: object) -> str:
-    text = str(raw or "").strip()
-    if not text or text.lower() in {"none", "null"}:
-        return ""
-    return text
+    Not 表.字段 (collides with physical anchors), not 表_字段 (ambiguous),
+    not 表::字段 (:: breaks some git/path tooling).
+    """
+    return f"{table}__{column}"
 
 
 def compile_model(
     catalog: dict[str, Any],
     profile: dict[str, Any] | None = None,
     *,
+    profile_instance: dict[str, Any] | None = None,
     max_enum_distinct: int = 32,
     overlap: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
@@ -80,8 +68,7 @@ def compile_model(
 
     tables: dict[str, Any] = {}
     reviews: list[dict[str, Any]] = []
-    enums: dict[str, Any] = {}
-    value_index: list[dict[str, Any]] = []
+    dict_candidates: list[dict[str, Any]] = []
 
     for tname, tmeta in tables_in.items():
         pk = list(tmeta.get("primary_key") or [])
@@ -101,70 +88,33 @@ def compile_model(
 
     for tname, compiled in tables.items():
         compiled["relations"] = _identity_relations(tname, compiled, tables)
+        stamp_join_meta(compiled)
         _exclude_join_rights_from_anchors(compiled)
+
+    from tools.wiki_extract.dict_triage import (
+        apply_mechanical_only,
+        collect_candidates,
+    )
+    from tools.wiki_extract.instance_index import apply_instance_index
 
     for tname, compiled in tables.items():
         stats = (profile_tables.get(tname) or {}).get("column_stats") or {}
-        for cname, stat in stats.items():
-            if is_pii_column(cname):
-                continue
-            values = stat.get("values") or {}
-            n_distinct = int(stat.get("distinct") or len(values))
-            if n_distinct <= 0 or n_distinct > max_enum_distinct:
-                continue
-            keys = [str(v) for v in values.keys()]
-            if _looks_like_ids(keys):
-                continue
-            if _looks_like_enum_codes(keys):
-                codes = {k: v for k, v in values.items() if _enum_code_key(k)}
-                if not codes:
-                    continue
-                enum_key = enum_page_key(tname, cname)
-                field = _field(compiled, cname)
-                comment = str((field or {}).get("description") or "")
-                observed = [str(_enum_code_key(k)) for k in codes]
-                values = {key: {"trust": "proposed"} for key in observed if key}
-                attach_comment_labels(
-                    values,
-                    comment,
-                    extra_labels=None,
-                    evidence=f"database_schema:{database}.{tname}.{cname}",
-                )
-                enums[enum_key] = {
-                    "enum": enum_key,
-                    "table": tname,
-                    "column": cname,
-                    "comment": comment,
-                    "fields": [f"{tname}.{cname}"],
-                    "values": values,
-                    "counts": {
-                        str(_enum_code_key(k)): int(c) for k, c in codes.items()
-                    },
-                    "label_conflict": _comment_code_conflict(comment, list(values)),
-                }
-                if field is not None:
-                    field["dictionary"] = enum_key
-            else:
-                value_index.append(
-                    {
-                        "table": tname,
-                        "column": cname,
-                        "values": [
-                            {"value": str(k), "count": int(c)}
-                            for k, c in values.items()
-                        ],
-                    }
-                )
+        dict_candidates.extend(
+            collect_candidates(compiled, stats, max_enum_distinct=max_enum_distinct)
+        )
 
     packed: dict[str, Any] = {
         "database": database,
         "generated_at": catalog.get("generated_at"),
         "table_order": table_names,
         "tables": tables,
-        "enums": enums,
-        "value_index": value_index,
+        "dicts": {},
+        "instance_index": [],
+        "dict_candidates": dict_candidates,
         "reviews": reviews,
     }
+    apply_mechanical_only(packed)
+    apply_instance_index(packed, catalog, profile, profile_instance)
     if overlap:
         from tools.wiki_extract.overlap import apply_overlap
 
@@ -193,12 +143,12 @@ def seal_l0_reviews(model: dict[str, Any]) -> dict[str, Any]:
                     str(group.get("note") or f"similar fields: {', '.join(fields)}"),
                 )
             )
-    for enum in (model.get("enums") or {}).values():
-        if not enum.get("label_conflict"):
+    for item in (model.get("dicts") or {}).values():
+        if not item.get("label_conflict"):
             continue
         extra.append(
             _review(
-                f"enums/{enum['enum']}#values",
+                f"dicts/{item['dict']}#values",
                 "conflict",
                 "warning",
                 "column comment codes do not overlap profile values",
@@ -298,7 +248,7 @@ def label_grounded(comment: str, code: str, label: str) -> bool:
     idx = _code_index(text, code)
     if idx < 0:
         return False
-    window = text[max(0, idx - 24) : idx + len(code) + 24]
+    window = text[max(0, idx - 32) : idx + len(code) + 32]
     return label in window or _compact(label) in _compact(window)
 
 
@@ -342,42 +292,18 @@ def _compile_table(
         key=lambda kv: int((kv[1] or {}).get("pos") or 10_000),
     )
     names = [name for name, _ in ordered]
-    common_present = [c for c in COMMON_COLUMNS if c in columns]
-    if "code" in columns and "code" not in common_present:
-        common_present.append("code")
-
-    assigned: dict[str, str] = {c: "common" for c in common_present}
-    prefix_groups = _prefix_groups(names, set(assigned))
-    clusters: list[dict[str, Any]] = [
-        {"key": "common", "title": "通用", "include": "always"}
-    ]
-    for key, members in prefix_groups.items():
-        clusters.append(
-            {
-                "key": key,
-                "title": key,
-                "include": None,
-                "trust": "proposed",
-                "source": "prefix",
-                "evidence": f"database_schema:{database}.{tname} prefix:{key}_",
-            }
-        )
-        for col in members:
-            assigned[col] = key
-
     fields: list[dict[str, Any]] = []
     for name, info in ordered:
         info = info or {}
-        item: dict[str, Any] = {
-            "name": name,
-            "data_type": type_family(str(info.get("type") or "")),
-            "mysql_type": str(info.get("type") or ""),
-            "description": str(info.get("comment") or ""),
-            "nullable": bool(info.get("nullable", True)),
-        }
-        if name in assigned:
-            item["cluster"] = assigned[name]
-        fields.append(item)
+        fields.append(
+            {
+                "name": name,
+                "data_type": type_family(str(info.get("type") or "")),
+                "mysql_type": str(info.get("type") or ""),
+                "description": str(info.get("comment") or ""),
+                "nullable": bool(info.get("nullable", True)),
+            }
+        )
 
     anchors = [
         c
@@ -395,36 +321,12 @@ def _compile_table(
         "primary_key": pk,
         "grain": f"一行一记录（{pk_label}）",
         "name_anchors": anchors,
-        "clusters": clusters,
         "fields": fields,
         "column_names": names,
         "rows_estimate": int(tmeta.get("rows_estimate") or 0),
         "indexed_columns": _indexed_columns(tmeta),
         "relations": [],
     }
-
-
-def _prefix_groups(names: list[str], skip: set[str]) -> dict[str, list[str]]:
-    buckets: dict[str, list[str]] = {}
-    for name in names:
-        if name in skip:
-            continue
-        key = _prefix_key(name)
-        if not key:
-            continue
-        buckets.setdefault(key, []).append(name)
-    return {k: v for k, v in buckets.items() if len(v) >= 2}
-
-
-def _prefix_key(name: str) -> str | None:
-    parts = [p for p in name.split("_") if p]
-    if len(parts) < 2:
-        return None
-    if len(parts[0]) >= 4:
-        return parts[0]
-    if len(parts) >= 3:
-        return f"{parts[0]}_{parts[1]}"
-    return None
 
 
 def _identity_relations(
@@ -437,6 +339,8 @@ def _identity_relations(
     seen: set[tuple[str, str]] = set()
     for col in compiled.get("column_names") or []:
         if col in pk_here or col in TENANT_FIELDS:
+            continue
+        if not is_fk_like(col):
             continue
         if child_endpoint_reason(col, mysql_type_of(compiled, col)):
             continue
@@ -454,6 +358,8 @@ def _identity_relations(
         right = f"{tname}.{col}"
         pair = (left, right)
         if pair in seen:
+            continue
+        if may_nominate_join({"tables": tables}, left, right):
             continue
         seen.add(pair)
         field = _field(compiled, col)
@@ -522,9 +428,13 @@ def _join_review(
     extra = str(rel.get("authenticity_note") or "").strip()
     if extra:
         note += f"; {extra}"
+    kind = "unverified_join"
+    if str(rel.get("preview_block") or "") == "overlap_unsemantic":
+        kind = "join_overlap_unsemantic"
+        note = "值域契合但列名/注释无关联语义，保留待源码或人工复核。 " + note
     return _review(
         f"tables/{tname}#relations.{left}__{right}",
-        "unverified_join",
+        kind,
         "warning",
         note,
     )
@@ -543,8 +453,6 @@ def _resolve_target_hit(
     col: str, tables: dict[str, Any], tname: str = ""
 ) -> tuple[str, str, str] | None:
     """Map a local column to (table, match_kind, stem). Never invent a missing table."""
-    if is_geo_code(col) or is_blocked_fk_stem(col):
-        return None
     ref = _REF_TABLE.match(col)
     if ref:
         rest = ref.group(1)
@@ -561,8 +469,6 @@ def _resolve_target_hit(
     if not match:
         return None
     stem = match.group(1)
-    if is_blocked_fk_stem(col):
-        return None
     if stem in tables and stem != tname:
         return stem, "exact_table", stem
     info = f"{stem}_info"
@@ -653,7 +559,7 @@ def _target_key(target: dict[str, Any], local_col: str) -> str | None:
     return None
 
 
-def _looks_like_ids(values: list[str]) -> bool:
+def looks_like_ids(values: list[str]) -> bool:
     if not values:
         return True
     return all(
@@ -661,7 +567,7 @@ def _looks_like_ids(values: list[str]) -> bool:
     )
 
 
-def _looks_like_enum_codes(values: list[str]) -> bool:
+def looks_like_enum_codes(values: list[str]) -> bool:
     if not values:
         return False
     scored = 0

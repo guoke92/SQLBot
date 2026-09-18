@@ -1,0 +1,13 @@
+kind: concepts
+domain: example
+doc_source: "docs/example.md"
+concepts:
+  - concept_key: platform_entry
+    title: 平台录入
+    aliases: [PC端录入, 后台自建]
+    maps_to: cust_company_info__cust_build_type.AGW_BUILD
+    field_targets: [cust_company_info.cust_build_type]
+    also_confused_with: [identify_style]
+    adjudication: boundary
+    explanation: identify_style 回答认证渠道；cust_build_type.AGW_BUILD 回答由平台侧录入。
+    evidence: document_claim:example.md#1.2

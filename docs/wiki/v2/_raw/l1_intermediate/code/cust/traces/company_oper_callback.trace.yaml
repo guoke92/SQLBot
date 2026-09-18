@@ -1,0 +1,18 @@
+kind: trace
+domain: cust
+trace_key: company_oper_callback
+entry: CustSyncEventProcessor.checkHandler / changeHandler
+application: CustSyncEventProcessor.updateCustBuildStatus:2027
+tables: [cust_company_info, cust_person_info, cust_account_info, cust_certification_info, cust_head_company_info]
+notes: |
+  建档回调 checkHandler：按 check_status 改 cust_build_status，再 effectCust 把 BUILD_SUCCESS 写成 EFFECT。
+  变更通过 changeHandler 共写 BUILD_SUCCESS / EFFECT / CUST_CHECK_PASS。
+  变更拒绝 process=CHANGE 把建档状态写回 BUILD_SUCCESS，不是 BUILD_FAIL。
+scenario:
+  scenario_key: company_oper_callback
+  title: 运营审核回调
+  hubs:
+    - table: cust_company_info
+      role: master
+gaps:
+  - 变更拒绝收尾大段已注释，不要把注释代码当成现行流转。

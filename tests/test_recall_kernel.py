@@ -12,6 +12,7 @@ if str(_BACKEND) not in sys.path:
 
 from apps.chat.agent_knowledge import AgentKnowledgePlane  # noqa: E402
 from apps.knowledge.recall_kernel.tables import (  # noqa: E402
+    cut_relative_tail,
     resolve_schema_vector_tables,
     resolve_wiki_tables,
     trim_schema_chars,
@@ -214,6 +215,87 @@ def test_table_page_joins_only_when_query_names_it() -> None:
     assert [item.name for item in named] == ["t_noise"]
 
 
+def test_rule_pages_do_not_enter_semantic_window() -> None:
+    store = InMemoryWikiStore.load(
+        [
+            _page(
+                key="excel-import-rule",
+                title="项目运营配置导入规则",
+                page_type="rule",
+                anchors=("t_noise",),
+                body="项目名称 城市 行业 状态 创建时间 租户 负责人 " * 10,
+            ),
+            _page(
+                key="project-caliber",
+                title="项目清单",
+                page_type="caliber",
+                aliases=["项目清单"],
+                anchors=("t_main",),
+                body="项目清单口径：按项目主档统计。",
+            ),
+            _page(
+                key="t_main",
+                title="项目表",
+                page_type="table",
+                body="```ground:table\ntable: t_main\ndesc: 项目\nfields:\n  - name: name\n    phys: varchar\n    desc: 项目名称\n```\n",
+            ),
+            _page(
+                key="t_noise",
+                title="配置表",
+                page_type="table",
+                body="```ground:table\ntable: t_noise\ndesc: 配置\nfields:\n  - name: cfg_key\n    phys: varchar\n    desc: 配置项\n```\n",
+            ),
+        ]
+    )
+    passages = recall("项目名称 城市 行业 状态", store, top_k=8, mode="business")
+    kinds = {store.pages[p.store_key].type for p in passages}
+    assert "rule" not in kinds
+    kept, _cut = resolve_wiki_tables(
+        store,
+        page_keys=[p.store_key for p in passages] + ["rules/excel-import-rule"],
+        extra_keys=["rules/excel-import-rule"],
+        budget=RecallBudget(max_tables=4),
+    )
+    assert "t_noise" not in [item.name for item in kept]
+
+
+def test_resolve_wiki_tables_ignores_rule_page_anchors() -> None:
+    class _Page:
+        def __init__(self, **kwargs: object) -> None:
+            self.anchors = kwargs.get("anchors", ())
+            self.field_targets = kwargs.get("field_targets", ())
+            self.maps_to = kwargs.get("maps_to", "")
+            self.page_key = kwargs.get("page_key", "")
+            self.type = kwargs.get("type", "caliber")
+
+    class _Store:
+        def __init__(self) -> None:
+            self.pages = {
+                "rules/excel": _Page(
+                    anchors=("t_noise",), page_key="excel", type="rule"
+                ),
+                "calibers/main": _Page(anchors=("t_main",), page_key="main"),
+                "tables/t_main": _Page(page_key="t_main", type="table"),
+                "tables/t_noise": _Page(page_key="t_noise", type="table"),
+            }
+
+        def get_page(self, key: str):
+            return self.pages.get(key)
+
+        def has_table(self, table: str) -> bool:
+            return table in {"t_main", "t_noise"}
+
+    kept, _cut = resolve_wiki_tables(
+        _Store(),
+        page_keys=["rules/excel", "calibers/main"],
+        scores={"rules/excel": 0.99, "calibers/main": 0.4},
+        budget=RecallBudget(max_tables=4),
+    )
+    names = [item.name for item in kept]
+    assert "t_main" in names
+    assert "t_noise" not in names
+
+
 def test_schema_vector_candidates_preserve_field_boost() -> None:
     scored = [
         {"kind": "table", "table_name": "d_qa_case", "score": 0.31},
@@ -260,6 +342,27 @@ def test_expand_schema_working_set_keeps_seeds_and_admits_peers() -> None:
     assert org.evidence == ("schema_expand",)
 
 
+def test_cut_relative_tail_keeps_join_cluster_and_drops_cliff() -> None:
+    cluster = [
+        TableCandidate("tenant_project", ("p1",), 2.0, "anchor"),
+        TableCandidate("tenant_project_approval", ("p2",), 1.8, "anchor"),
+    ]
+    kept, cut = cut_relative_tail(cluster, cap=8)
+    assert [item.name for item in kept] == [
+        "tenant_project",
+        "tenant_project_approval",
+    ]
+    assert cut == []
+
+    mixed = [
+        TableCandidate("tenant_project", ("p1", "p2"), 8.0, "anchor"),
+        TableCandidate("share_cfg", ("p3",), 0.4, "anchor"),
+    ]
+    kept, cut = cut_relative_tail(mixed, cap=8)
+    assert [item.name for item in kept] == ["tenant_project"]
+    assert cut == ["share_cfg"]
+
+
 def test_trim_schema_chars_drops_least_evidenced() -> None:
     tables = [
         TableCandidate("a", ("p1", "p2"), 2.0, "anchor"),
@@ -302,7 +405,7 @@ def test_coverage_policy_stops_unevidenced_tables() -> None:
     plane, policy, delta = apply_wiki_search_policy(second, plane)
     assert "noise_table" not in plane.tables
     assert policy["stop_search"] is True
-    assert policy["recall_status"] == "no_new_evidence"
+    assert policy["recall_status"] == "diminishing_returns"
 
 
 def test_coverage_policy_keeps_evidenced_schema_expand() -> None:
@@ -394,9 +497,9 @@ def _conflict_store() -> InMemoryWikiStore:
                 "---\n\n认证方式表示认证产品模式。\n"
             ),
             (
-                "---\ntype: enum\ntitle: identify_style\n"
+                "---\ntype: dict\ntitle: identify_style\n"
                 "page_key: identify_style\nstatus: published\n---\n\n"
-                "```ground:enum\nenum: identify_style\n"
+                "```ground:dict\ndict: identify_style\n"
                 "fields: [cust_company_info.identify_style]\nvalues:\n"
                 "  INVITE:\n    label: 邀请认证\n"
                 "  INVITE_AGW:\n    label: 邀请认证-内管录入\n"
@@ -404,9 +507,9 @@ def _conflict_store() -> InMemoryWikiStore:
                 "  SELF:\n    label: 自主认证\n```\n"
             ),
             (
-                "---\ntype: enum\ntitle: cust_build_type\n"
+                "---\ntype: dict\ntitle: cust_build_type\n"
                 "page_key: cust_build_type\nstatus: published\n---\n\n"
-                "```ground:enum\nenum: cust_build_type\n"
+                "```ground:dict\ndict: cust_build_type\n"
                 "fields: [cust_company_info.cust_build_type]\nvalues:\n"
                 "  AGW_BUILD:\n    label: 平台录入\n"
                 "  PC_BUILD:\n    label: 客户录入\n```\n"
@@ -460,12 +563,12 @@ def test_pin_keys_keep_conflict_pages_in_window() -> None:
         _page(
             key="cust_build_type",
             title="录入方式",
-            page_type="enum",
+            page_type="dict",
             body="平台录入枚举。",
         )
     )
     store = InMemoryWikiStore.load(pages)
-    pin = "enums/cust_build_type"
+    pin = "dicts/cust_build_type"
     unpinned = recall("企业清单", store, top_k=8, mode="business")
     assert all(p.page_key != "cust_build_type" for p in unpinned)
     pinned = recall("企业清单", store, top_k=8, mode="business", pin_keys=[pin])

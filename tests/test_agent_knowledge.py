@@ -97,27 +97,20 @@ def test_search_wiki_stub_and_unchanged_stop(monkeypatch) -> None:
     assert first["data"]["stop_search"] is False
     assert second["data"]["unchanged"] is True
     assert second["data"]["stop_search"] is True
-    assert second["data"]["recall_status"] == "stagnant"
+    assert second["data"]["recall_status"] == "diminishing_returns"
 
 
-def test_execute_tools_strips_search_wiki_full_text(monkeypatch) -> None:
+def test_execute_tools_keeps_schema_text_for_catalog_tool(monkeypatch) -> None:
     fake_tool = MagicMock()
-    fake_tool.name = "search_wiki"
+    fake_tool.name = "get_table_schema"
     fake_tool.invoke.return_value = {
         "ok": True,
-        "summary": "merged",
+        "summary": "opened",
         "data": {
-            "knowledge_text": "FULL_WIKI_BODY",
             "schema_text": "# Table: t1\nFULL_SCHEMA",
             "added_tables": ["t1"],
-            "added_pages": ["p1"],
-            "schema_ready": True,
-            "stop_search": False,
-            "recall_status": "hit",
-            "unchanged": False,
-            "backend": "wiki",
             "tables": ["t1"],
-            "page_keys": ["p1"],
+            "schema_ready": True,
         },
         "error": None,
         "failure": None,
@@ -129,7 +122,7 @@ def test_execute_tools_strips_search_wiki_full_text(monkeypatch) -> None:
         "apps.conversation.tooling.attach_process_span", lambda *_a, **_k: None
     )
     state = {
-        "run_id": "strip-wiki",
+        "run_id": "keep-schema",
         "record_id": 1,
         "sink": "json",
         "messages": [
@@ -140,8 +133,8 @@ def test_execute_tools_strips_search_wiki_full_text(monkeypatch) -> None:
                 tool_calls=[
                     {
                         "id": "c1",
-                        "name": "search_wiki",
-                        "args": {"query": "t1"},
+                        "name": "get_table_schema",
+                        "args": {"tables": ["t1"]},
                     }
                 ],
             ),
@@ -151,18 +144,17 @@ def test_execute_tools_strips_search_wiki_full_text(monkeypatch) -> None:
         "memory_slots": {},
     }
     out = execute_tools_node(state)
-    tool_payload = str(out["messages"][-1])
-    assert "FULL_WIKI_BODY" not in tool_payload
-    assert "FULL_SCHEMA" not in tool_payload
     data = out["tool_steps"][0]["result"]["data"]
-    assert "knowledge_text" not in data
+    assert data["schema_text"] == "# Table: t1\nFULL_SCHEMA"
     assert data["added_tables"] == ["t1"]
     assert out.get("tool_stop_reason") in {"", None}
+    plane = AgentKnowledgePlane.from_dump(out.get("knowledge_plane"))
+    assert plane.knowledge_rounds == 1
 
 
 def test_execute_tools_does_not_lock_on_stop_search(monkeypatch) -> None:
     fake_tool = MagicMock()
-    fake_tool.name = "search_wiki"
+    fake_tool.name = "get_table_schema"
     fake_tool.invoke.return_value = {
         "ok": True,
         "summary": "stagnant",
@@ -198,8 +190,8 @@ def test_execute_tools_does_not_lock_on_stop_search(monkeypatch) -> None:
                 tool_calls=[
                     {
                         "id": "c1",
-                        "name": "search_wiki",
-                        "args": {"query": "t1"},
+                        "name": "get_table_schema",
+                        "args": {"tables": ["t1"]},
                     }
                 ],
             ),
@@ -214,17 +206,19 @@ def test_execute_tools_does_not_lock_on_stop_search(monkeypatch) -> None:
 
 
 def test_search_wiki_timeline_summary_uses_recall_count() -> None:
-    from apps.conversation.tooling import _wiki_search_close
+    from apps.conversation.tooling import _knowledge_tool_close
 
-    key, params = _wiki_search_close(
-        "search_wiki",
-        {"ok": True, "data": {"hit_count": 4, "recall_status": "hit"}},
+    key, params = _knowledge_tool_close(
+        "search_knowledge",
+        {"ok": True, "data": {"hit_count": 4, "page_keys": ["a", "b", "c", "d"]}},
     )
     assert key == "chat.summary.wiki_prepared"
     assert params == {"count": 4}
-    failed_key, _failed = _wiki_search_close("search_wiki", {"ok": False, "data": {}})
+    failed_key, _failed = _knowledge_tool_close(
+        "get_table_schema", {"ok": False, "data": {}}
+    )
     assert failed_key == "chat.summary.tool_failed"
-    ok_key, ok_params = _wiki_search_close(
+    ok_key, ok_params = _knowledge_tool_close(
         "execute_sql_sandbox", {"ok": True, "data": {}}
     )
     assert ok_key == "chat.summary.tool_ok"
@@ -377,13 +371,13 @@ def test_self_budgeted_tool_calls_do_not_advance_execution_rounds() -> None:
         [{"name": "request_clarification", "id": "1", "args": {}}]
     )
     assert not tool_calls_advance_round(
-        [{"name": "request_clarification"}, {"name": "search_wiki"}]
+        [{"name": "request_clarification"}, {"name": "get_table_schema"}]
     )
     assert not tool_calls_advance_round(
-        [{"name": "complete_without_sql"}, {"name": "search_wiki"}]
+        [{"name": "complete_without_sql"}, {"name": "search_knowledge"}]
     )
     assert tool_calls_advance_round(
-        [{"name": "search_wiki"}, {"name": "execute_sql_sandbox"}]
+        [{"name": "get_table_schema"}, {"name": "execute_sql_sandbox"}]
     )
     assert not tool_calls_advance_round([])
 
@@ -419,7 +413,7 @@ def test_tables_without_field_rows_are_not_schema_ready() -> None:
     assert plane.tables == []
     assert plane.schema_ready is False
     rendered = plane.render_system_sections()
-    assert "<wiki_schema_gap>" in rendered
+    assert "<wiki_knowledge>" in rendered
     assert "</schema_catalog>" not in rendered
 
 

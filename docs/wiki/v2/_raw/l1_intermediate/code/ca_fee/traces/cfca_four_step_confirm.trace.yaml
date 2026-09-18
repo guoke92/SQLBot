@@ -1,0 +1,21 @@
+kind: trace
+domain: ca_fee
+trace_key: cfca_four_step_confirm
+entry: POST /cust-web/ca/protocol/confirm
+controller: CaCertificationController.java:88
+application: CaCertificationInfoAppServiceImpl.java:467
+tables: [ca_certification_info, cust_company_info]
+notes: |
+  聚合提交写 submit_status SUCCESS/FAIL。预检失效会把企业 ca_register_status 写成 N。
+  不是 CA 服务费订单，也不改 ca_fee_company.pay_status。
+scenario:
+  scenario_key: cfca_four_step_confirm
+  title: 一证四步聚合提交
+  hubs:
+    - table: ca_certification_info
+      role: master
+  lifecycle:
+    - dict: ca_certification_info__submit_status
+      process: ca_certification_info__submit_status
+gaps:
+  - ca_cfca_upgrade_report 无 DO，不编 JOIN。

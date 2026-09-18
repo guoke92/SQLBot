@@ -1,0 +1,85 @@
+kind: calibers_rules
+domain: ca_fee
+calibers:
+  - caliber_key: covering_paid_ca_fee_order
+    title: 覆盖当日的已缴 CA 服务费订单
+    table: ca_fee_order
+    predicate: "ca_fee_order.order_status = 'PAID' AND ca_fee_order.enable = 'Y' AND ca_fee_order.service_end >= CURRENT_DATE"
+    field_targets:
+      - ca_fee_order.order_status
+      - ca_fee_order.enable
+      - ca_fee_order.service_end
+    using_relations:
+      - left: ca_fee_company.certification_no
+        right: ca_fee_order.certification_no
+    boundary: |
+      回答「这笔统码当前服务期是否已缴费」。规则引擎场景四：企业宽表 service_end≥today，否则用本口径兜底。
+      不要只用 ca_fee_company.pay_status=PAID（到期任务会把宽表写成 UNPAID）。
+    evidence: code_path:cafee/CaFeeOrderService.java:119
+  - caliber_key: in_period_ca_fee_company
+    title: 企业宽表服务期内
+    table: ca_fee_company
+    predicate: "ca_fee_company.enable = 'Y' AND ca_fee_company.service_end >= CURRENT_DATE"
+    field_targets:
+      - ca_fee_company.service_end
+      - ca_fee_company.enable
+    boundary: 规则引擎 isInServicePeriodByCompany：service_end 不早于 today。pay_status 不是本口径条件。
+    evidence: code_path:CaFeeRuleEngineService.java:268
+  - caliber_key: charge_enabled_project
+    title: 已开启 CA 收费的项目
+    table: ca_fee_project_config
+    predicate: "ca_fee_project_config.charge_enabled = 'Y' AND ca_fee_project_config.enable = 'Y'"
+    field_targets:
+      - ca_fee_project_config.charge_enabled
+      - ca_fee_project_config.enable
+    using_relations:
+      - left: tenant_project.id
+        right: ca_fee_project_config.project_id
+    boundary: 无配置或 charge_enabled≠Y 时规则引擎 feeStatus=EXEMPT（PROJECT_DISABLED），不是未缴费。
+    evidence: code_path:CaFeeRuleEngineService.java:98
+  - caliber_key: latest_success_ca_cert
+    title: 企业最新一证四步成功行
+    table: ca_certification_info
+    predicate: "ca_certification_info.submit_status = 'SUCCESS' AND ca_certification_info.enable = 'Y' AND ca_certification_info.cust_id = :company_id"
+    field_targets:
+      - ca_certification_info.submit_status
+      - ca_certification_info.enable
+      - ca_certification_info.cust_id
+    using_relations:
+      - left: cust_company_info.id
+        right: ca_certification_info.cust_id
+    boundary: 按企业主键取最新 SUCCESS。不要用 ca_fee_company.ca_status 代替一证四步提交结果。
+    evidence: code_path:CaCertificationInfoAppServiceImpl.java:661
+rules:
+  - rule_key: ca_fee_evaluate_priority
+    title: 收费评估按豁免链优先
+    field_targets: [ca_fee_project_config.charge_enabled, ca_fee_company.special_config_flag, ca_fee_company.service_end]
+    impact: query_constraint
+    content: |
+      evaluate 首个命中即返回：未开收费 → 白名单 → 延期支付 → 服务期内已缴 → 应缴 0 元 → 需缴费。
+      特殊企业在项目 JSON special_company_list，不是 ca_fee_special_config 表。
+    evidence: code_path:CaFeeRuleEngineService.java:56
+  - rule_key: mark_paid_only_pending
+    title: 仅未缴费订单可支付
+    field_targets: [ca_fee_order.order_status]
+    impact: write_constraint
+    content: markPaid 只接受 PENDING；已是 PAID 直接返回；其他状态拒绝。
+    evidence: code_path:cafee/CaFeeOrderService.java:400
+  - rule_key: close_only_pending
+    title: 仅未缴费订单可关闭
+    field_targets: [ca_fee_order.order_status]
+    impact: write_constraint
+    content: closeOrder 只关 PENDING。关单不改 ca_fee_company.pay_status。
+    evidence: code_path:cafee/CaFeeOrderService.java:302
+  - rule_key: expired_enum_unused
+    title: 订单 EXPIRED 未见落库
+    field_targets: [ca_fee_order.order_status]
+    impact: write_constraint
+    content: 枚举有 EXPIRED，现网未见 setOrderStatus(EXPIRED)。到期关待缴单写 CLOSED，宽表到期写 UNPAID。
+    evidence: code_path:cafee/CaFeeOrderService.java:312
+  - rule_key: four_step_not_fee
+    title: 一证四步成功不是已缴费
+    field_targets: [ca_certification_info.submit_status, ca_fee_order.order_status]
+    impact: write_constraint
+    content: protocol/confirm 写 submit_status。预检失效回写企业 ca_register_status=N。都不改订单 order_status。
+    evidence: code_path:CaCertificationController.java:88

@@ -1,0 +1,21 @@
+kind: trace
+domain: remaining
+trace_key: authorization_agreement_list
+entry: AuthorizationAgreementDaoImpl.listAuthorizationAgreement
+application: AuthorizationAgreementDaoImpl.java:43
+tables: [authorization_agreement, cust_company_info]
+notes: |
+  企业主键等值 cust_id。已授权过滤 authed_status=Y（BooleanEnum，不另编 label）。
+  管理员列 cust_manager_id 按入参过滤，未证实对人员表等值 JOIN。
+scenario:
+  scenario_key: authorization_agreement
+  title: 企业授权确认书
+  hubs:
+    - table: authorization_agreement
+      role: master
+  shared:
+    - table: cust_company_info
+      role: company
+gaps:
+  - cust_manager_id / original_cust_id / act_procinst_id 不编 JOIN。
+  - platform_product_code 存产品码字符串，未见对 platform_product.product_code 的 SQL EQUI_JOIN。

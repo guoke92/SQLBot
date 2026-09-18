@@ -503,10 +503,10 @@ def wiki_enum_carriers(*, ds_id: int | None) -> set[str]:
         return set()
     names: set[str] = set()
     for page in getattr(store, "pages", {}).values():
-        if str(getattr(page, "type", "") or "") != "enum":
+        if str(getattr(page, "type", "") or "") != "dict":
             continue
         for block in getattr(page, "ground_blocks", ()) or ():
-            if getattr(block, "kind", "") != "enum":
+            if getattr(block, "kind", "") != "dict":
                 continue
             data = getattr(block, "data", {}) or {}
             for item in data.get("fields") or []:
@@ -524,7 +524,7 @@ def enum_maps_for(
     """查询结果枚举翻译映射（P3）：``{表.列: {VALUE: label}}``。
 
     输入 = 查询引用的物理字段（plan_facts 提取）；映射来自权威枚举页的
-    ground:enum（强证据归并后的 value→label）。仅返回命中字段的映射，
+    ground:dict（强证据归并后的 value→label）。仅返回命中字段的映射，
     wiki 后端关闭或无枚举绑定时返回空 dict（零行为变化）。
     解析直接消费 parse_page 产出的 ``GroundAnchor.data``（与
     WikiSchemaRenderer._enum_label_map 单一真相），不再正则重解析。"""
@@ -537,10 +537,10 @@ def enum_maps_for(
         wanted = {str(r).strip() for r in field_refs if r}
         maps: dict[str, dict[str, str]] = {}
         for page in store.pages.values():
-            if page.type != "enum":
+            if page.type != "dict":
                 continue
             for anchor in page.ground_blocks or ():
-                if anchor.kind != "enum":
+                if anchor.kind != "dict":
                     continue
                 carriers = {str(c).strip() for c in anchor.data.get("fields") or []}
                 hit = carriers & wanted
@@ -682,6 +682,7 @@ def wiki_span_fields(payload: dict[str, Any] | None) -> dict[str, Any]:
         "wiki_trace": data.get("wiki_trace") or {},
         "hits": list(data.get("hits") or [])[:12],
         "recall_status": data.get("recall_status"),
+        "focus": str(data.get("focus") or "all"),
         "gate_rejected": list(data.get("gate_rejected") or [])[:20],
         "table_evidence": data.get("table_evidence") or {},
         "budget_cut": list(data.get("budget_cut") or [])[:20],
@@ -829,6 +830,42 @@ def _attach_pinned_passages(
     return attached
 
 
+def _catalog_query(request: RecallRequest) -> str:
+    return str(request.question or request.query or "").strip()
+
+
+def _bind_recall_pages(
+    store: Any,
+    page_keys: list[str],
+    tables: list[str],
+    *,
+    named_query: str,
+    pin_pages: Sequence[str],
+) -> list[str]:
+    from apps.chat.steps.wiki_focus import (
+        is_peripheral_page,
+        page_binds_to_tables,
+        page_named_in_query,
+    )
+
+    pin_set = {str(key) for key in pin_pages if str(key)}
+    kept: list[str] = []
+    for raw in page_keys:
+        key = str(raw or "").strip()
+        if not key or key in kept:
+            continue
+        if key in pin_set or page_named_in_query(key, named_query):
+            kept.append(key)
+            continue
+        if not tables:
+            if not is_peripheral_page(key):
+                kept.append(key)
+            continue
+        if page_binds_to_tables(key, tables, store):
+            kept.append(key)
+    return kept
+
+
 def _wiki_payload_from_recall(
     *,
     request: RecallRequest,
@@ -836,6 +873,10 @@ def _wiki_payload_from_recall(
     ds_id: int | None,
     top_k: int,
 ) -> dict[str, Any]:
+    from apps.chat.steps.wiki_focus import (
+        is_peripheral_page,
+        named_wiki_keys,
+    )
     from apps.chat.steps.wiki_schema import (
         collect_schema_evidence,
         enum_pins_for,
@@ -850,12 +891,14 @@ def _wiki_payload_from_recall(
         TableCandidate,
     )
 
-    query = request.query
+    rrf_query = str(request.query or "").strip()
+    catalog_query = _catalog_query(request) or rrf_query
+    named_query = rrf_query or catalog_query
     budget = RecallBudget.from_settings()
     databases = datasource_databases(ds)
     res = (
-        wiki_recall(query, ds_id=ds_id, databases=databases, top_k=top_k)
-        if str(query or "").strip()
+        wiki_recall(rrf_query, ds_id=ds_id, databases=databases, top_k=top_k)
+        if rrf_query
         else None
     )
     store = _store(ds_id)
@@ -870,37 +913,46 @@ def _wiki_payload_from_recall(
         text = str(raw_passages.get(store_key) or raw_passages.get(slug) or "").strip()
         if text:
             wiki_passages[store_key] = text
+    pin_pages = list(dict.fromkeys([*request.pin_pages, *named_wiki_keys(named_query)]))
     pinned_pages: list[str] = []
     if store is not None:
-        # 上轮知识面复水：按 key 从 store 重渲（不存全文，语料更新自动生效）。
+        # 上轮知识面复水 / 点名页：按 key 从 store 重渲。
         pinned_pages.extend(
             _attach_pinned_passages(
                 store,
-                keys=request.pin_pages,
+                keys=pin_pages,
                 databases=databases,
                 page_keys=page_keys,
                 wiki_passages=wiki_passages,
                 source_note="上轮已用",
             )
         )
-    if store is not None and (
-        res is not None or request.pin_tables or request.pin_pages
-    ):
-        extra_keys = list(trace.get("closure_extra_keys") or [])
-        extra_keys.extend(str(key) for key in (trace.get("conflict_page_keys") or []))
-        candidates, budget_cut = resolve_wiki_tables(
+    if store is not None and (res is not None or request.pin_tables or pin_pages):
+        extra_keys = [
+            key
+            for key in (
+                list(trace.get("closure_extra_keys") or [])
+                + [str(item) for item in (trace.get("conflict_page_keys") or [])]
+            )
+            if not is_peripheral_page(str(key))
+        ]
+        attribution_keys = [key for key in page_keys if not is_peripheral_page(key)]
+        rrf_candidates, budget_cut = resolve_wiki_tables(
             store,
-            page_keys=list(page_keys),
-            extra_keys=extra_keys,
-            table_pages=list(trace.get("gated_table_pages") or []),
+            page_keys=attribution_keys if rrf_query else [],
+            extra_keys=extra_keys if rrf_query else [],
+            table_pages=(
+                list(trace.get("gated_table_pages") or []) if rrf_query else []
+            ),
             scores={
                 str(key): float(score)
                 for key, score in dict(trace.get("page_scores") or {}).items()
             },
             budget=budget,
-            query=query,
+            query=named_query,
             pinned_tables=request.pin_tables,
         )
+        candidates = rrf_candidates
     table_names = [item.name for item in candidates]
     schema_text = ""
     evidence_fields: dict[str, set[str]] = {}
@@ -911,15 +963,13 @@ def _wiki_payload_from_recall(
             request.required_fields,
         )
         schema_text = render_schema(table_names, store=store, project_relations=False)
-        # 枚举页主动 pin：与本轮相关的 dict 字段，其权威枚举页进 prompt，
-        # 投影随后才允许把 topk 换成 enum= 指针。
         if store is not None:
             pinned_pages.extend(
                 _attach_pinned_passages(
                     store,
                     keys=enum_pins_for(
                         schema_text,
-                        queries=[query],
+                        queries=[catalog_query or named_query],
                         keep_fields=evidence_fields,
                         present_pages=wiki_passages.keys(),
                     ),
@@ -929,25 +979,30 @@ def _wiki_payload_from_recall(
                     source_note="字段枚举",
                 )
             )
-        # Do not drop tables to fit schema_chars — SQL accuracy outranks
-        # prompt size. Field folding still runs at render time.
         projection_stats = project_schema(
             schema_text,
             budget_chars=budget.schema_chars,
-            queries=[query],
+            queries=[catalog_query or named_query],
             keep_fields=evidence_fields,
             present_pages=wiki_passages.keys(),
         ).as_stats()
-    # Window text as produced by recall, followed by pinned passages (rehydrated
-    # prior pages / enum pages) — same order the plane renders them in.
+    page_keys = _bind_recall_pages(
+        store,
+        page_keys,
+        table_names,
+        named_query=named_query,
+        pin_pages=pin_pages,
+    )
+    wiki_passages = {
+        key: text for key, text in wiki_passages.items() if key in set(page_keys)
+    }
     wiki_text = "\n\n".join(
         part
-        for part in [
-            str(getattr(res, "text", "") or "") if res else "",
-            *(wiki_passages.get(key) or "" for key in pinned_pages),
-        ]
+        for part in [*(wiki_passages.get(key) or "" for key in page_keys)]
         if part.strip()
     )
+    if not wiki_text and res is not None and page_keys:
+        wiki_text = str(getattr(res, "text", "") or "")
     bundle = RecallBundle(
         backend="wiki",
         tables=tuple(candidates),
@@ -978,13 +1033,16 @@ def _wiki_payload_from_recall(
         },
         pinned_tables=tuple(request.pin_tables),
         pinned_pages=tuple(pinned_pages),
-        query=query,
+        query=rrf_query,
         projection=projection_stats,
     )
     payload = bundle.to_agent_payload()
     if wiki_passages:
         payload["wiki_passages"] = wiki_passages
     payload["schema_ready"] = schema_ready_from_payload(payload)
+    payload["focus"] = str(getattr(request, "focus", "all") or "all")
+    payload["question"] = catalog_query
+    payload["pinned_tables"] = list(request.pin_tables)
     return payload
 
 

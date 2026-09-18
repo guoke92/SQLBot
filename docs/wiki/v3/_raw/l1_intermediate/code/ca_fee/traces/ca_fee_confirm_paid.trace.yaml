@@ -1,0 +1,23 @@
+kind: trace
+domain: ca_fee
+trace_key: ca_fee_confirm_paid
+entry: POST /cust-web/caFee/pay/bocom/confirmPaid
+controller: CaFeeController.java:135
+application: cafee/CaFeeOrderService.java:391
+tables: [ca_fee_order, ca_fee_company]
+notes: |
+  confirmBocomPaid → markPaid。仅 PENDING 可支付；已 PAID 直接返回。
+  支付后 syncCompanyAfterPaid 写宽表 pay_status=PAID 与服务周期。
+  不写 ca_certification_info.submit_status，不写 charge_enabled。
+scenario:
+  scenario_key: ca_fee_confirm_paid
+  title: 交e保确认打款
+  hubs:
+    - table: ca_fee_order
+      role: master
+  lifecycle:
+    - dict: ca_fee_order__order_status
+      process: ca_fee_order__order_status
+gaps:
+  - EXPIRED 枚举未见落库。
+  - feeStatus 不是表列。

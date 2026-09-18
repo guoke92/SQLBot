@@ -1,0 +1,32 @@
+kind: trace
+domain: cust
+trace_key: cust_coverage_remaining
+entry: l1-coverage --prefix cust
+tables:
+  - cust_change_cfg
+  - cust_oper_change_record
+  - cust_project_code_record
+  - cust_project_pushcust
+  - cust_survey_answer
+  - cust_company_survey_whitelist
+  - cust_company_survey_state
+  - cust_user_rel
+  - cust_access_secret
+  - cust_sftp
+  - cust_config_mapping
+  - cust_setting_config
+  - cust_auth_application_config
+  - cust_app_channel_config
+  - cust_message_send_policy
+notes: |
+  覆盖剩余 cust_* 已走读。有企业主键等值的写成 JOIN；配置/密钥/SFTP 无企业身份边。
+  无 Java 引用的三张表只做 enhancement 占位，不编 JOIN。
+gaps:
+  - cust_oper_change_record.company_code 写入时拷贝企业 code，列表不按它等值查。
+  - cust_change_record.alter_type_id 是逗号分隔的 cust_change_cfg.id，split 后 IN 查询，不是单列 EQUI_JOIN。
+  - cust_access_secret.rel_lls_secret_id 代码未对平台密钥表做等值 JOIN；查询键是 db_tenant_code+enable。
+  - cust_setting_config Java 有 custId，catalog 也有 cust_id；运行时 list().get(0)，代码未按企业 id 等值查。
+  - cust_auth_application_config / cust_app_channel_config / cust_message_send_policy：pplatform-web 无 @TableName 与业务引用，走读过、无问数语义。
+  - SubmitCustInfoEnhanceService.custUserRel 组了 CustUserRelDO 但未见 save；有效查询在 getCustUserRel。
+  - L0 脏值不给 label：person.status=N、role_type 带引号 SUPPLIER、CORE_ADMIN、legal_certification_type 中文「身份证」与 CREDENTIALS_ID、account_type.BANK / OPERATION_FEE_ACCOUNT、project_code_record.type 的「产品中心*」与 userCompanyRegister。
+  - act_procinst_id / organization_id / main_data_id 代码未当企业 JOIN 使用。

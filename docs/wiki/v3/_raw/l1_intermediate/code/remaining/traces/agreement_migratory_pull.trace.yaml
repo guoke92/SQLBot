@@ -1,0 +1,20 @@
+kind: trace
+domain: remaining
+trace_key: agreement_migratory_pull
+entry: AgreementMigratoryService.onApplicationEvent
+application: AgreementMigratoryService.java:118
+tables: [argeement_migratory_record, cust_company_info]
+notes: |
+  启动后拉 enable=Y 且未完成的协议迁移行。cust_id=企业主键。
+  platform_product_code 是产品码字符串，CSV notIn 不是 EQUI_JOIN。
+scenario:
+  scenario_key: agreement_migratory
+  title: 协议迁移拉取
+  hubs:
+    - table: argeement_migratory_record
+      role: master
+  shared:
+    - table: cust_company_info
+      role: company
+gaps:
+  - agreement_type / status 无代码中文枚举，不编 label。

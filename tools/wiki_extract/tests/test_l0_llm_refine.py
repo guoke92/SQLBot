@@ -1,4 +1,4 @@
-"""LLM refine applies keep/instance/reject and semantic clusters without live LLM."""
+"""LLM refine applies keep/hold/drop without live LLM."""
 
 from __future__ import annotations
 
@@ -15,15 +15,15 @@ def test_parse_json_object_strips_fence() -> None:
 
 def test_refine_filters_enums_and_regroups() -> None:
     model = compile_model(fixture_catalog(), fixture_profile())
-    assert "cust_company_info::sign_status" in model["enums"]
+    assert "cust_company_info__sign_status" in model["dicts"]
     assert (
-        "cust_company_info_enable" not in model["enums"]
+        "cust_company_info_enable" not in model["dicts"]
     )  # enable not in fixture profile
 
     def chat(_system: str, user: str) -> dict:
         if "cust_company_info" in user and "sign_status" in user:
             return {
-                "enums": [
+                "dicts": [
                     {
                         "column": "sign_status",
                         "verdict": "keep",
@@ -56,7 +56,7 @@ def test_refine_filters_enums_and_regroups() -> None:
             }
         if "cust_account_info" in user:
             return {
-                "enums": [],
+                "dicts": [],
                 "clusters": [
                     {
                         "key": "common",
@@ -79,20 +79,17 @@ def test_refine_filters_enums_and_regroups() -> None:
                 ],
             }
         return {
-            "enums": [],
+            "dicts": [],
             "clusters": [{"key": "common", "include": "always", "fields": ["id"]}],
             "similar_fields": [],
         }
 
     refined = refine_model(model, chat, workers=1)
-    assert "cust_company_info::sign_status" in refined["enums"]
+    assert "cust_company_info__sign_status" in refined["dicts"]
     company = refined["tables"]["cust_company_info"]
-    keys = [c["key"] for c in company["clusters"]]
-    assert keys[0] == "common"
-    assert company["clusters"][0]["title"] == "通用"
-    assert "identity" in keys
+    assert "clusters" not in company
     name_field = next(f for f in company["fields"] if f["name"] == "name")
-    assert name_field["cluster"] == "identity"
+    assert "cluster" not in name_field
     assert company["similar_fields"]
     notes = [item["note"] for item in refined["reviews"]]
     assert any("similar" in n or "名称" in n for n in notes)
@@ -109,6 +106,74 @@ def test_refine_filters_enums_and_regroups() -> None:
     assert all(f["name"] != "ghost" for f in company["fields"])
 
 
+def test_llm_hold_keeps_uncertain_enum() -> None:
+    model = compile_model(fixture_catalog(), fixture_profile())
+
+    def chat(system: str, user: str) -> dict:
+        if "复核" in system:
+            return {
+                "column": "sign_status",
+                "verdict": "dict_hold",
+                "reason": "测库样本偏少，语义像状态码但未闭合",
+            }
+        if "cust_company_info" in user:
+            return {
+                "dicts": [
+                    {
+                        "column": "sign_status",
+                        "verdict": "hold",
+                        "reason": "测库样本偏少，语义像状态码但未闭合",
+                    }
+                ],
+                "clusters": [{"key": "common", "include": "always", "fields": ["id"]}],
+                "similar_fields": [],
+            }
+        return {
+            "dicts": [],
+            "clusters": [{"key": "common", "include": "always", "fields": ["id"]}],
+            "similar_fields": [],
+        }
+
+    refined = refine_model(model, chat, workers=1)
+    enum = refined["dicts"]["cust_company_info__sign_status"]
+    assert enum["triage"] == "hold"
+    assert enum["needs_review"] is True
+    assert refined["llm_stats"]["dict_hold"] >= 1
+
+
+def test_auto_reject_audit_not_value_index() -> None:
+    catalog = fixture_catalog()
+    profile = fixture_profile()
+    profile["tables"]["cust_company_info"]["column_stats"]["create_by"] = {
+        "distinct": 3,
+        "values": {"1": 1, "2": 1, "3": 1},
+    }
+    profile["tables"]["cust_company_info"]["column_stats"]["create_time"] = {
+        "distinct": 2,
+        "values": {"2024-01-01 00:00:00": 1, "2024-01-02 00:00:00": 1},
+    }
+    profile["tables"]["cust_company_info"]["column_stats"]["id"] = {
+        "distinct": 3,
+        "values": {"1001": 1, "1002": 1, "1003": 1},
+    }
+    model = compile_model(catalog, profile)
+    assert "cust_company_info__create_by" not in model["dicts"]
+    indexed = {(e["table"], e["column"]) for e in model["instance_index"]}
+    assert ("cust_company_info", "create_by") not in indexed
+    assert ("cust_company_info", "create_time") not in indexed
+    assert ("cust_company_info", "id") not in indexed
+
+    def chat(_s: str, _u: str) -> dict:
+        return {"dicts": [], "clusters": [], "similar_fields": []}
+
+    refined = refine_model(model, chat, workers=1)
+    assert "cust_company_info__create_by" not in refined["dicts"]
+    indexed = {(e["table"], e["column"]) for e in refined["instance_index"]}
+    assert ("cust_company_info", "create_by") not in indexed
+    assert ("cust_company_info", "create_time") not in indexed
+    assert ("cust_company_info", "id") not in indexed
+
+
 def test_llm_label_gate_drops_invention() -> None:
     catalog = fixture_catalog()
     catalog["tables"]["cust_company_info"]["columns"]["enable"]["comment"] = "enable"
@@ -122,7 +187,7 @@ def test_llm_label_gate_drops_invention() -> None:
     def chat(_s: str, user: str) -> dict:
         if "cust_company_info" in user:
             return {
-                "enums": [
+                "dicts": [
                     {
                         "column": "enable",
                         "verdict": "keep",
@@ -133,10 +198,10 @@ def test_llm_label_gate_drops_invention() -> None:
                 "clusters": [{"key": "common", "include": "always", "fields": ["id"]}],
                 "similar_fields": [],
             }
-        return {"enums": [], "clusters": [], "similar_fields": []}
+        return {"dicts": [], "clusters": [], "similar_fields": []}
 
     refined = refine_model(model, chat, workers=1)
-    enable_vals = refined["enums"]["cust_company_info::enable"]["values"]
+    enable_vals = refined["dicts"]["cust_company_info__enable"]["values"]
     assert "label" not in enable_vals["Y"]
     assert "label" not in enable_vals["N"]
 
@@ -171,16 +236,17 @@ def test_auto_instance_tenant_and_reject_pwd() -> None:
         "values": {"Aa11111.": 1, "lls16888": 1},
     }
     model = compile_model(catalog, profile)
-    assert "cust_company_info::app_tenant_code" in model["enums"]
-    assert "cust_company_info::login_pwd" in model["enums"]
+    assert "cust_company_info__login_pwd" not in model["dicts"]
+    indexed = {(e["table"], e["column"]) for e in model["instance_index"]}
+    assert ("cust_company_info", "app_tenant_code") in indexed
+    assert ("cust_company_info", "login_pwd") not in indexed
 
     def chat(_s: str, _u: str) -> dict:
-        return {"enums": [], "clusters": [], "similar_fields": []}
+        return {"dicts": [], "clusters": [], "similar_fields": []}
 
     refined = refine_model(model, chat, workers=1)
-    assert "cust_company_info::app_tenant_code" not in refined["enums"]
-    assert "cust_company_info::login_pwd" not in refined["enums"]
-    indexed = {(e["table"], e["column"]) for e in refined["value_index"]}
+    assert "cust_company_info__login_pwd" not in refined["dicts"]
+    indexed = {(e["table"], e["column"]) for e in refined["instance_index"]}
     assert ("cust_company_info", "app_tenant_code") in indexed
     assert ("cust_company_info", "login_pwd") not in indexed
 
@@ -191,25 +257,24 @@ def test_skip_audit_similar_reviews() -> None:
     def chat(_s: str, user: str) -> dict:
         if "cust_company_info" in user:
             return {
-                "enums": [{"column": "sign_status", "verdict": "keep"}],
+                "dicts": [{"column": "sign_status", "verdict": "keep"}],
                 "clusters": [{"key": "common", "include": "always", "fields": ["id"]}],
                 "similar_fields": [
                     {"fields": ["create_by", "update_by"], "note": "audit pair"}
                 ],
             }
-        return {"enums": [], "clusters": [], "similar_fields": []}
+        return {"dicts": [], "clusters": [], "similar_fields": []}
 
     refined = refine_model(model, chat, workers=1)
     assert not any("#similar_fields." in i["claim_path"] for i in refined["reviews"])
 
 
-def test_omitted_enum_defaults_to_instance() -> None:
+def test_omitted_enum_keeps_mechanical_enum() -> None:
     model = compile_model(fixture_catalog(), fixture_profile())
 
     def chat(_s: str, user: str) -> dict:
-        return {"enums": [], "clusters": [], "similar_fields": []}
+        return {"dicts": [], "clusters": [], "similar_fields": []}
 
     refined = refine_model(model, chat, workers=1)
-    assert "cust_company_info::sign_status" not in refined["enums"]
-    indexed = {(e["table"], e["column"]) for e in refined["value_index"]}
-    assert ("cust_company_info", "sign_status") in indexed
+    enum = refined["dicts"]["cust_company_info__sign_status"]
+    assert enum["triage"] == "keep"

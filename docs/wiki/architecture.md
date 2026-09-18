@@ -19,14 +19,14 @@
 ```mermaid
 flowchart LR
   concept["concept 说法"] -->|maps_to| phys["表.字段 / dictKey.VALUE"]
-  enum["enum 代码值"] --> phys
-  process["process 生命周期"] --> enum
+  dict["dict 字典代码值"] --> phys
+  process["process 生命周期"] --> dict
   process --> phys
   caliber["caliber 命名谓词"] --> phys
   caliber -->|跨表| rel["relation EQUI_JOIN"]
   metric["metric 聚合"] --> caliber
   metric --> table
-  scenario["scenario 选表+簇"] --> table
+  scenario["scenario 选表"] --> table
   scenario --> process
   pattern["pattern 认证 SQL"] --> table
   pattern --> caliber
@@ -36,13 +36,13 @@ flowchart LR
 
 | 层 | 对象 | 一句话 | 不承担 |
 |---|---|---|---|
-| **结构** | `table` | 一表一页：列全集、PK、grain、名称锚、**字段簇**、关系、默认过滤、共写 | 不写实例名；不按问法切列 |
-| | `enum` | 一 dictKey 一页：代码值 + 代码 label | 不当公司名词典 |
+| **结构** | `table` | 一表一页：列全集、PK、grain、名称锚、关系、默认过滤、共写 | 不写实例名；不按问法切列 |
+| | `dict` | 一 dictKey 一页：代码值 + 代码 label；目录 `dicts/` | 不当公司名/信用代码实例清单 |
 | **语义** | `concept` | 用户说法 → 唯一物理锚 | 无锚术语 |
-| | `caliber` | 可执行命名谓词 | 一枚举值一页 |
+| | `caliber` | 可执行命名谓词 | 一字典值一页 |
 | | `metric` | caliber + 聚合；粒度继承自表 | 第二套 predicate；自由散文 grain |
 | | `process` | **同一列**上的 From→To | 分类字典假流转 |
-| | `scenario` | 问法：选哪些表、每张表带哪些**簇** | Java 包；提取 topic；字段上倒挂 `scenes` |
+| | `scenario` | 问法：选哪些表 | Java 包；提取 topic；字段上倒挂 `scenes` |
 | | `rule` | 写约束 / 非默认查询约束 | 默认过滤（在表上）；共写（在字段上） |
 | **复利** | `pattern` | 认证 Q→SQL；draft 即候选，published 才 few-shot | 未过 JOIN 图的 SQL |
 | **簿记** | `_index` `_log` `source` | 给人 / lint / 出处 | 规划硬路径 |
@@ -57,13 +57,13 @@ flowchart LR
 
 ```
 说法 ──concept/aliases──► 物理键
-值   ──enum 或 value_index──► 谓词常量 / 实例名
-窗   ──scenario 选簇──► 本轮列集
+值   ──dict 或 instance_index──► 谓词常量 / 实例名
+窗   ──scenario 选表──► 本轮表集
 谓词 ──caliber + table.default_filter──► WHERE
 连接 ──table 上 confirmed EQUI_JOIN 图──► FROM/JOIN（不得出图）
 粒度 ──table.grain + metric.aggregation──► SELECT（禁止隐式 fan-out）
 共写 ──field.written_with──► 投影同伴列
-争议 ──confidence=disputed──► 澄清卡（同一 ClarificationCard）
+争议 ──trust=disputed──► 澄清卡（同一 ClarificationCard）
 好答案 ──draft pattern──► REVIEW → promote
 ```
 
@@ -73,8 +73,8 @@ flowchart LR
 |---|---|---|
 | Karpathy ingest/lint/query、raw 不可变、回流 | 四操作；`_index`/`_log` | 查询塞全书；LLM 当 JOIN 真值 |
 | Cortex 关系图、verified query、synonym | JOIN 图；`pattern`；`aliases` | 逻辑表/列改写物理身份；运行时猜多路径 |
-| MetricFlow / LookML / Cube：PK、explore、set/folder、always_filter、agg | `primary_key`/`grain`；scenario 选簇；table.clusters；`default_filter`；`aggregation` | 再编译一份隐藏列模型；explore 里点列名当字段分组 |
-| CHESS/BIRD：错表不可恢复、值要在上下文 | 列在页上、窗裁进 prompt；值在 enum/`value_index` | 问数时扫 catalog 补列 |
+| MetricFlow / LookML / Cube：PK、explore、always_filter、agg | `primary_key`/`grain`；scenario 选表；`default_filter`；`aggregation` | 再编译一份隐藏列模型；explore 里点列名当字段分组 |
+| CHESS/BIRD：错表不可恢复、值要在上下文 | 列在页上、窗裁进 prompt；值在 dict/`instance_index` | 问数时扫 catalog 补列 |
 | Vanna certified SQL | `pattern` 同一 lint | 未过门禁的 few-shot |
 
 ## 3. 原则（按层，不必当 15 条清单记）
@@ -96,22 +96,22 @@ flowchart LR
 
 - P6a 业务召回可降级（少一段散文 ≠ 乱 JOIN）。
 - P6b 绑定后缺表页不规划该表，禁止 catalog 直渲。
-- P9 三轴：页 status ≠ 主张 confidence ≠ 请求时勾选/权限。
+- P9 三轴：页 status ≠ 主张 trust ≠ 请求时勾选/权限。
 - P10 召回与图扩展只在勾选 ∩ 权限内。
-- P11 绑定后 wiki 是唯一运行时 schema；场景选簇是投影不是删列。
+- P11 绑定后 wiki 是唯一运行时 schema；场景选表是投影不是删列。
 
 **规划器法律**
 
 - P12 JOIN 图即法律：只走 confirmed EQUI_JOIN。
 - P13 粒度在表上声明一次，度量/场景继承；禁止隐式 fan-out。
-- P14 值与页分离：wiki 不写实例名。
+- P14 值与页分离：wiki 不写实例名；实例清单在 `instance_index.yaml`，不入 wiki 树。
 
 ## 4. 两层真相
 
 | 层 | 权威 | 禁止 |
 |---|---|---|
-| 编译期 | catalog = 存在/类型/可空/PK；代码 = label、JOIN、生命周期、共写、**字段簇**；profile = 实例值/`value_index` | LLM 编列、label、From→To、聚合；按问法给字段打 `scenes` |
-| 运行期已绑定 | published wiki ∩ 勾选 ∩ 权限 + `value_index` | 缺列回退 catalog；SQL 出 JOIN 图 |
+| 编译期 | catalog = 存在/类型/可空/PK；代码 = 认证 label、JOIN、生命周期、共写；列注释 = L0 派生 label（proposed）；低基数 profile = dict 候选；`profile_instance` = 实例 TopK/`instance_index`；L0 JOIN 初审 = 值域契合 ∧ 列名/注释语义 | LLM 编列、无注释脑补 label、From→To、聚合；按问法给字段打 `scenes`；仅值域契合就标 likely |
+| 运行期已绑定 | published wiki ∩ 勾选 ∩ 权限 + `instance_index` | 缺列回退 catalog；SQL 出 JOIN 图 |
 | 运行期未绑定 | 物理目录，直到第一次编译 | 长期混跑 |
 
 压缩：**库赢存在与实测；代码赢含义与流转；文档赢叫法与时间线。** 分源表见 [extract.md](extract.md)（编译时用），不在此重复。
@@ -120,7 +120,7 @@ flowchart LR
 
 | 角色 | 谁读 | 召回 |
 |---|---|---|
-| 结构合同 | 规划器 | 是（table/enum；L0 即可 promote） |
+| 结构合同 | 规划器 | 是（table/dict；L0 即可 promote） |
 | 源码地图 | agent / 人 | **否**（`recall: false`） |
 | 语义出门 | 规划器 | 仅召回面 |
 
@@ -140,7 +140,7 @@ query  → 只读 published ∩ 勾选    ← 好答案回到 ingest，不写 pu
 | 轴 | 取值 | 规划器 |
 |---|---|---|
 | 页 `status` | `draft` \| `published` \| `retired` | 只消费 published。没有 `review`/`stale` 这种页 status |
-| 主张 `confidence` | `confirmed` \| `proposed` \| `disputed` \| `rejected` | 硬路径 / 软候选 / 澄清 / 当不存在 |
+| 主张 `trust` | `confirmed` \| `proposed` \| `disputed` \| `rejected` | 硬路径 / 软候选 / 澄清 / 当不存在 |
 | 请求可见性 | 勾选 ∩ 权限 ∩ ¬disabled | `available` / `selection_excluded` / `permission_denied` |
 
 - REVIEW 是队列，不是页 status。stale 是指纹漂移，页仍 published。
@@ -152,7 +152,7 @@ query  → 只读 published ∩ 勾选    ← 好答案回到 ingest，不写 pu
 
 ## 6. 规划器法律（结构页上的图，不是旁路对象）
 
-**JOIN。** 节点 = 表。边 = 表页上 `type: EQUI_JOIN` 且 `confidence: confirmed` 的 `(left, right)`。边写在 **FK 所在表** 页（`right` 或 `left` 落在本表的那一端）；对端表不必重复，lint 按无向图收边。SQL 等值 JOIN ⊆ 勾选掩膜后的图。`SHARED_KEY` / `DERIVED` 不是边。n:n 必须落到**中间表的两条 EQUI_JOIN**，禁止把共享键当 JOIN。多路径：caliber/metric 用 `using_relations` 钉死，否则澄清。LLM 不准裁决能不能 JOIN。
+**JOIN。** 节点 = 表。边 = 表页上 `type: EQUI_JOIN` 且 `trust: confirmed` 的 `(left, right)`。边写在 **FK 所在表** 页（`right` 或 `left` 落在本表的那一端）；对端表不必重复，lint 按无向图收边。SQL 等值 JOIN ⊆ 勾选掩膜后的图。`SHARED_KEY` / `DERIVED` 不是边。n:n 必须落到**中间表的两条 EQUI_JOIN**，禁止把共享键当 JOIN。多路径：caliber/metric 用 `using_relations` 钉死，否则澄清。LLM 不准裁决能不能 JOIN。
 
 L0 只有 proposed 关系时：图在运行时为空，只允许单表 SQL。
 
@@ -162,17 +162,11 @@ L0 只有 proposed 关系时：图在运行时为空，只允许单表 SQL。
 
 **共写。** 字段的 `written_with`：同一次写入的同伴列。问到其中一列且语义是这笔写入 → 投影同伴或澄清。不是 JOIN。
 
-**值。** 代码值在 enum；哪一列存名称在 `name_anchors`；实例名在 `value_index`（profile/字典编译，随勾选过滤）。
+**值。** 固定字典取值在 dict 页解析映射；哪一列存名称在 `name_anchors`；自然语言实例定位走 `instance_index.yaml`（`profile_instance` TopK，随勾选过滤，不是 wiki 页）。
 
-**字段簇 ≠ 场景。** 表内分块是结构事实：按字段关联性 / 代码模块（同一 VO、同一 form、同一前缀、同一写入组）把列**分区**。例如账户信息 = 账号 + 户名 + 开户行，应在同一簇，不能因为「建档问法没用到开户行」就拆进未分窗。场景是问法：选哪些表、每张表带上哪些簇。字段不倒挂 `scenes` 列表。簇不是 Java 包名，也不是提取 topic。
+**Catalog Summary。** L1 编译产出一页可召回概念 `concepts/catalog_summary`：按表名前缀分组，每张表严格一行——`- 表名: 表中文名(简要业务说明与核心维度/度量)`。同类列语义合并（如银行账户信息、经营与注册省市、法人与联系人），大宽表适当增长，不逐列抄注释。详细列仍在各表页。这是全库骨架，不是第二套 schema，不得常驻成长文 system prompt。
 
-- 每列恰好一个 `cluster`（分区，不是标签云）。
-- 表上声明簇：`common`（或等价）`include: always` —— 表进入 FROM 默认带上（id / enable / 时间戳 / 有则 code）。
-- 其余簇按模块：`account`、`bank`、`build`、`cert`… 名称是领域块，证据来自代码。
-- 未归簇的列仍留表页，只在点名 / 口径 / JOIN 端点时展开（lint warning）。
-- `written_with` 仍是写入同伴；多数落在同一簇，跨簇时投影仍并入同伴。
-
-**投影代数（唯一公式）。** 表页永远是列全集。**prompt 是提示，不是存在性法律。** 三层列集不得收成一个开关：
+**投影。** 表页永远是列全集。**prompt 是提示，不是存在性法律。** 三层列集不得收成一个开关：
 
 | 层 | 集合 | 用途 |
 |---|---|---|
@@ -183,19 +177,17 @@ L0 只有 proposed 关系时：图在运行时为空，只允许单表 SQL。
 prompt 列 =
 
 ```
-(include:always 的簇
- ∪ 命中 scenario 所选簇
- ∪ 命中 concept/caliber/metric/process 锚点所在簇    ← 不要只投锚列、把同簇拆开
- ∪ 点名列所在簇
- ∪ JOIN 端点 ∪ written_with(已选列))
+(命中 scenario 所选表的 PK / name_anchors
+ ∪ 命中 concept/caliber/metric/process 锚点列
+ ∪ 点名列
+ ∪ JOIN 端点 ∪ written_with(已选列)
+ ∪ Catalog Summary 点到的主要字段)
 ∩ 勾选字段
 ```
 
-无场景命中：不靠「只留 always」撑完整问数。有锚点命中则并入其簇；仍无锚、无点名 → always 簇，禁止默默塞整表。L0 无 confirmed JOIN 时产品预期是**单表问数**（出图的边为空，不得猜 JOIN）。WHERE 另加 `default_filter`（可推翻）。场景页只写 `clusters:`。
+无场景命中：靠 Catalog Summary + 锚点/点名列，禁止默默塞整库。L0 无 confirmed JOIN 时产品预期是**单表问数**（出图的边为空，不得猜 JOIN）。WHERE 另加 `default_filter`（可推翻）。场景页只写 `hubs` / `shared` 表，不按问法给字段打 `scenes`。
 
-口径/概念命中若只投 `field_targets` 那一列，会把账户簇重新拆开，等于退回旧「场景窗点列」。
-
-**共用列。** 一列只进一个簇。建档和认证都用的列，抽成更小的独立簇，场景多选；不要一列打两个 cluster，也不要因此把两簇合成一个大杂烩。
+口径/概念命中应投锚列及其 `written_with` 同伴，不要只投散文里提到的那一列。
 
 ## 7. 争议只有一条路
 
@@ -220,20 +212,20 @@ prompt 列 =
 | 名字 | 家 | 不是 |
 |---|---|---|
 | 页 `status` | frontmatter | REVIEW；stale；`verification` |
-| `confidence` | 主张（含 relation、pattern） | 页 status。relation 旧字段 `status` 是别名 |
+| `trust` | 主张（含 relation、pattern） | 页 status。旧名 `confidence`；relation 更旧的 `status` 也是别名 |
+| `mixed` | dict 取值冲突 | 旧名 `ambiguous` |
 | `recall` | 页 | 展示区标题 |
 | `inactive` | 表 | 未勾选；retired |
 | 勾选 / `page_disabled` | 请求 / 运行库 | 不写进 markdown |
 | `maps_to` | concept 的唯一权威锚 | `field_targets` 的同义词（后者是闭包） |
 | `primary_key` / `grain` | **仅 table** | scenario/metric 上再写一套 |
-| `clusters` / `cluster` | **仅 table**（分区） | 场景；Java 包；字段上的 `scenes` 列表 |
 | `name_anchors` | table | 实例值 |
 | `default_filter` | table | 行权限；rule 页上的第二份谓词 |
-| `written_with` | table.fields | `ground:cowrite` 独立块；JOIN；字段簇本身 |
+| `written_with` | table.fields | `ground:cowrite` 独立块；JOIN |
 | `using_relations` | **仅** 跨表 caliber/metric | pattern（SQL 即边）；逻辑关系名 |
 | `aggregation` | metric | 散文「统计一下」 |
 | `claim_path` | REVIEW / 澄清 | page_key 本身 |
-| `value_index` | 运行时索引 | 不是 wiki 页 |
+| `instance_index` | 提问辅助索引 | 不是 wiki 页；不入 `dicts/` |
 | prompt 列 | 投影公式 | 不是 SQL 可用列的白名单 |
 
 ## 9. 明确不做
@@ -251,7 +243,7 @@ prompt 列 =
 ## 10. 成功标准
 
 1. 同一问题第二次规划不再翻 raw
-2. 枚举 label 零脑补；冲突 100% 进 REVIEW
+2. 字典 label 零脑补；冲突 100% 进 REVIEW
 3. SQL 的 JOIN ⊆ 掩膜后 confirmed 图；聚合 grain 能指回一张表
 4. 无权 / 未勾选不能经召回或 wikilink 漏出
 5. P6a 业务段缺失主链路仍可跑；P6b 缺表页不得 catalog 顶上

@@ -1,4 +1,4 @@
-"""Single L0 JOIN caliber: endpoints, types, copy keys, inclusion authenticity.
+"""Single L0 JOIN caliber: endpoints, types, join roles, inclusion authenticity.
 
 Name heuristics, value-overlap probes, and LLM propose/review all call this
 module. Do not re-implement skip lists, type families, or likely/unlikely
@@ -57,8 +57,10 @@ FK_STEM_BLOCKLIST = frozenset(
         "main_data",
     }
 )
-COPY_CHILD_COLUMNS = frozenset({"product_code"})
+BUSINESS_CODE_COLUMNS = frozenset({"product_code", "platform_product_code"})
 IDENTITY_COLUMNS = frozenset({"id", "code"})
+JOIN_ROLE_IDENTITY = "identity"
+JOIN_ROLE_BUSINESS_CODE = "business_code"
 TEMPORAL_TYPES = frozenset({"date", "datetime", "timestamp", "time", "year"})
 _TYPE_FAMILY = {
     "varchar": "string",
@@ -180,12 +182,125 @@ def child_endpoint_reason(column: str, mysql_type: str = "") -> str:
 
 
 def is_copy_key(right_col: str, left_col: str) -> bool:
-    """Shared business codes, not identity keys. Not an EQUI_JOIN."""
-    if right_col in COPY_CHILD_COLUMNS:
+    """True when the pair is a business-code join (still a valid EQUI_JOIN)."""
+    return classify_join_role(left_col, right_col) == JOIN_ROLE_BUSINESS_CODE
+
+
+def classify_join_role(left_col: str, right_col: str) -> str:
+    """identity = PK/id; business_code = code-to-code (product_code included)."""
+    left_col = (left_col or "").strip()
+    right_col = (right_col or "").strip()
+    if left_col == "id":
+        return JOIN_ROLE_IDENTITY
+    if _is_business_code_pair(left_col, right_col):
+        return JOIN_ROLE_BUSINESS_CODE
+    if left_col == "code":
+        return JOIN_ROLE_BUSINESS_CODE
+    if left_col in IDENTITY_COLUMNS:
+        return JOIN_ROLE_IDENTITY
+    return JOIN_ROLE_BUSINESS_CODE
+
+
+def _is_business_code_pair(left_col: str, right_col: str) -> bool:
+    if right_col in BUSINESS_CODE_COLUMNS or left_col in BUSINESS_CODE_COLUMNS:
         return True
-    if right_col == left_col and right_col not in IDENTITY_COLUMNS:
+    if right_col.endswith("_code") and left_col in {"code", right_col}:
+        return True
+    if (
+        right_col == left_col
+        and right_col not in IDENTITY_COLUMNS
+        and not right_col.endswith("_id")
+    ):
         return True
     return False
+
+
+def parent_join_columns(compiled: dict[str, Any]) -> list[str]:
+    """Parent endpoints eligible for EQUI_JOIN: identity keys plus business codes."""
+    names = set(compiled.get("column_names") or [])
+    out = list(identity_columns(compiled))
+    for col in BUSINESS_CODE_COLUMNS:
+        if col in names and col not in out:
+            out.append(col)
+    return out
+
+
+def allowed_parent_lefts(parent_c: dict[str, Any], right_col: str) -> set[str]:
+    names = set(parent_c.get("column_names") or [])
+    allowed = set(parent_join_columns(parent_c))
+    if (
+        right_col in names
+        and right_col not in IDENTITY_COLUMNS
+        and not right_col.endswith("_id")
+    ):
+        allowed.add(right_col)
+    return allowed
+
+
+def stamp_join_meta(compiled: dict[str, Any]) -> None:
+    """Annotate join_role and priority (identity beats code-to-code on the same parent)."""
+    identity_parents: set[str] = set()
+    for rel in compiled.get("relations") or []:
+        left = str(rel.get("left") or "")
+        right = str(rel.get("right") or "")
+        _, left_col = parse_fq(left)
+        _, right_col = parse_fq(right)
+        role = classify_join_role(left_col, right_col)
+        rel["join_role"] = role
+        parent, _ = parse_fq(left)
+        if role == JOIN_ROLE_IDENTITY and parent:
+            identity_parents.add(parent)
+    for rel in compiled.get("relations") or []:
+        parent, _ = parse_fq(str(rel.get("left") or ""))
+        if (
+            str(rel.get("join_role") or "") == JOIN_ROLE_BUSINESS_CODE
+            and parent in identity_parents
+        ):
+            rel["priority"] = "secondary"
+        else:
+            rel["priority"] = "primary"
+        seal_join_preview(rel)
+
+
+def has_join_semantic(rel: dict[str, Any]) -> bool:
+    """Name match or comment pointing at the peer table / FK wording."""
+    name_ev = rel.get("name_evidence") or {}
+    match = str(name_ev.get("match") or "none").strip().lower()
+    if match not in {"", "none"}:
+        return True
+    comment = str(name_ev.get("comment") or "")
+    left = str(rel.get("left") or "")
+    parent, _ = parse_fq(left)
+    if parent and parent in comment:
+        return True
+    if any(token in comment for token in ("关联", "外键", "引用")):
+        return True
+    return False
+
+
+def seal_join_preview(rel: dict[str, Any]) -> str:
+    """Edge authenticity is 初审, not bag-inclusion.
+
+    overlap.authenticity stays the value-fit probe. likely on the edge
+    requires value-fit AND name/comment semantic.
+    """
+    overlap = rel.get("overlap") if isinstance(rel.get("overlap"), dict) else {}
+    probed = bool(overlap.get("probed"))
+    inclusion = str(
+        (overlap.get("authenticity") if probed else None)
+        or rel.get("authenticity")
+        or "unknown"
+    ).lower()
+    if inclusion not in {"likely", "unlikely", "unknown"}:
+        inclusion = "unknown"
+    semantic = has_join_semantic(rel)
+    rel.pop("preview_block", None)
+    if inclusion == "likely" and not semantic:
+        rel["authenticity"] = "unknown"
+        rel["preview_block"] = "overlap_unsemantic"
+        return "unknown"
+    rel["authenticity"] = inclusion
+    return inclusion
 
 
 def identity_columns(compiled: dict[str, Any]) -> list[str]:
@@ -213,11 +328,18 @@ def parent_is_unique(compiled: dict[str, Any], column: str) -> bool:
 
 
 def types_compatible(child_mysql: str, parent_mysql: str) -> bool:
+    """EQUI_JOIN type gate for probes.
+
+    bigint/int stored as varchar on the FK side is normal in Java DO layers
+    (Long → String). Treat number↔string as compatible so overlap can still run.
+    """
     left = type_family(child_mysql)
     right = type_family(parent_mysql)
     if not left or not right:
         return True
-    return left == right
+    if left == right:
+        return True
+    return {left, right} <= {"number", "string"}
 
 
 def mysql_type_of(compiled: dict[str, Any], column: str) -> str:
@@ -301,20 +423,56 @@ def merge_llm_authenticity(
     overlap_probed: bool,
     overlap_auth: str,
     llm_auth: str | None,
+    semantic: bool = True,
 ) -> tuple[str, str]:
-    """Return (authenticity, extra_note). Missing LLM vote keeps current."""
+    """Return (authenticity, extra_note). Missing LLM vote keeps current.
+
+    LLM cannot mint likely without name/comment semantic. Overlap-likely
+    only outweighs LLM-unlikely when the edge already has semantic.
+    """
     if llm_auth is None:
         return current, ""
     if llm_auth not in {"likely", "unlikely", "unknown"}:
         llm_auth = "unknown"
+    if not semantic and llm_auth == "likely":
+        return (
+            "unknown",
+            "LLM likely ignored: overlap fit without name/comment semantic",
+        )
     if overlap_probed and overlap_auth == "likely" and llm_auth == "unlikely":
-        return "likely", "LLM unlikely vs overlap likely — edge kept"
+        if semantic:
+            return "likely", "LLM unlikely vs overlap likely — edge kept"
+        return (
+            "unknown",
+            "overlap fit without name/comment semantic — kept, not likely",
+        )
     if overlap_probed and overlap_auth == "unlikely" and llm_auth == "likely":
         return (
             "unknown",
             "LLM likely vs overlap unlikely — edge kept, authenticity=unknown",
         )
     return llm_auth, ""
+
+
+def may_nominate_join(
+    model: dict[str, Any],
+    left: str,
+    right: str,
+    *,
+    window_lefts: set[str] | None = None,
+    for_overlap_add: bool = False,
+) -> str:
+    """Empty string = pair may be an EQUI_JOIN candidate.
+
+    Name heuristics, overlap add, and LLM propose all use this gate.
+    """
+    return link_reject_reason(
+        model,
+        left,
+        right,
+        window_lefts=window_lefts,
+        for_overlap_add=for_overlap_add,
+    )
 
 
 def link_reject_reason(
@@ -330,8 +488,6 @@ def link_reject_reason(
     child, right_col = parse_fq(right)
     if not parent or not child or not left_col or not right_col:
         return "unbound"
-    if is_copy_key(right_col, left_col):
-        return "product_code_copy" if right_col in COPY_CHILD_COLUMNS else "copy_key"
     tables = model.get("tables") or {}
     if parent not in tables or child not in tables:
         return "unknown_table"
@@ -346,13 +502,14 @@ def link_reject_reason(
     reason = child_endpoint_reason(right_col, mysql_type_of(child_c, right_col))
     if reason:
         return reason
-    if not is_identity_column(parent_c, left_col):
+    if left_col not in allowed_parent_lefts(parent_c, right_col):
         return "left_not_identity"
     if not types_compatible(
         mysql_type_of(child_c, right_col), mysql_type_of(parent_c, left_col)
     ):
         return "type_mismatch"
-    if for_overlap_add:
+    role = classify_join_role(left_col, right_col)
+    if for_overlap_add and role == JOIN_ROLE_IDENTITY:
         if not parent_is_unique(parent_c, left_col):
             return "parent_not_unique"
         if left_col == "id" and not family_ok_for_overlap_add(child, parent):

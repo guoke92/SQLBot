@@ -1,0 +1,21 @@
+kind: trace
+domain: funding_rule
+trace_key: funding_rule_active
+entry: POST /fund-web/ruleInfo/active
+controller: FundingRuleInfoController.java:100
+application: FundRuleInfoApplication.java:296
+tables: [funding_rule_info]
+notes: |
+  activeRule 写 rule_status=ACTIVE。inActive 写 INACTIVE。都不删明细行。
+  运行时只读 ACTIVE，且不按 enable 过滤。
+scenario:
+  scenario_key: funding_rule_activate
+  title: 生效资方规则
+  hubs:
+    - table: funding_rule_info
+      role: master
+  lifecycle:
+    - dict: funding_rule_info__rule_status
+      process: funding_rule_info__rule_status
+gaps:
+  - 生效不校验 enable。

@@ -1,0 +1,80 @@
+kind: calibers_rules
+domain: tenant
+calibers:
+  - caliber_key: effective_tenant_project
+    title: 已生效租户项目
+    table: tenant_project
+    predicate: "tenant_project.project_status = '1' AND tenant_project.enable = 'Y'"
+    field_targets:
+      - tenant_project.project_status
+      - tenant_project.enable
+    boundary: 回答「当前有效项目」。待生效 0、已失效 2 都不算。不要用审批 wf_status=FINISHED 代替。
+    evidence: code_path:TenantProjectDaoImpl.java:35
+  - caliber_key: open_tenant_product
+    title: 已开通租户产品
+    table: tenant_product
+    predicate: "tenant_product.open_status = 'Y' AND tenant_product.enable = 'Y'"
+    field_targets:
+      - tenant_product.open_status
+      - tenant_product.enable
+    using_relations:
+      - left: tenant_setting_config.id
+        right: tenant_product.tenant_id
+    boundary: 回答「租户已开通哪些产品」。开通中 P、未开通 N 排除。
+    evidence: code_path:TenantProductDaoImpl.java:59
+  - caliber_key: latest_project_approval
+    title: 项目最新上线审批
+    table: tenant_project_approval
+    predicate: "tenant_project_approval.is_latest = 'Y' AND tenant_project_approval.enable = 'Y' AND tenant_project_approval.ref_tenant_project_approval_tenant_project = :project_code"
+    field_targets:
+      - tenant_project_approval.is_latest
+      - tenant_project_approval.enable
+      - tenant_project_approval.ref_tenant_project_approval_tenant_project
+    using_relations:
+      - left: tenant_project.code
+        right: tenant_project_approval.ref_tenant_project_approval_tenant_project
+    boundary: 回答「该项目当前审批单」。按项目 code 不是 id。历史审批 is_latest 不是 Y。
+    evidence: code_path:ProjectApprovalApplication.java:253
+rules:
+  - rule_key: project_code_required_needs_default_project
+    title: 项目码必填时必须先配默认关联项目
+    field_targets: [tenant_setting_config.project_code_required, tenant_setting_config.default_project_id]
+    impact: write_constraint
+    content: |
+      现网：project_code_required=Y 时 default_project_id 不能空。
+      V1.28 需求写的是「项目码必填则默认关联项目非必填」。以代码为准。
+    evidence: code_path:TenantDomainService.java:234
+  - rule_key: cannot_cancel_product_with_projects
+    title: 有生效项目则不能取消开通产品
+    field_targets: [tenant_product.open_status, tenant_project.product_id]
+    impact: write_constraint
+    content: listEffectiveProjectByProduct 非空，或企业已开通该租户产品，则拒绝取消开通。
+    evidence: code_path:TenantProductDomainService.java:118
+  - rule_key: no_duplicate_running_approval
+    title: 同一项目不能重复发起在途审批
+    field_targets: [tenant_project_approval.wf_status, tenant_project_approval.ref_tenant_project_approval_tenant_project]
+    impact: write_constraint
+    content: 同一项目 code 已有 PENDING 或 RUNNING 的上线审批则拒绝再发起。
+    evidence: code_path:ProjectApprovalApplication.java:345
+  - rule_key: resubmit_invalidates_effective_project
+    title: 再发起审批先失效已生效项目
+    field_targets: [tenant_project.project_status]
+    impact: write_constraint
+    content: |
+      非新增项目正式发起上线审批时，project_status 已是 1 或 2 则先 invalid 写成 2。
+      待生效 0 跳过。不改审批 wf_status。
+    evidence: code_path:ProjectApprovalApplication.java:650
+  - rule_key: approval_desk_does_not_finish_wf
+    title: 工作台同意不等于审批通过
+    field_targets: [tenant_project_approval.wf_status, tenant_project_approval_flow.node_status]
+    impact: write_constraint
+    content: |
+      agree/back/reject 写节点状态。wf_status=FINISHED/TERMINATED 由流程结束监听写入。
+      催办只发企微，不改这两列。
+    evidence: code_path:ProjectApprovalDeskApplication.java:94
+  - rule_key: interworking_cancel_skips_project_check
+    title: 互通产品取消不校验生效项目
+    field_targets: [tenant_interworking_product.open_status]
+    impact: write_constraint
+    content: 互通 cancel 直接写 open_status=N。不要套用 tenant_product 的 listEffectiveProjectByProduct 拒绝规则。
+    evidence: code_path:TenantInterworkingProductDomainService.java:178

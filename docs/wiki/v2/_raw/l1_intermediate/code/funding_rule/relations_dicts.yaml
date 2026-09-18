@@ -1,0 +1,38 @@
+kind: relations_dicts
+domain: funding_rule
+confirmed_relations:
+  - left: funding_rule_info.id
+    right: funding_rule_detail.rule_info_id
+    type: EQUI_JOIN
+    cardinality: one_to_many
+    join_role: identity
+    evidence: code_path:FundRuleInfoApplication.java:370
+  - left: funding_rule_info.code
+    right: funding_rule_detail.fund_rule_code_ref
+    type: EQUI_JOIN
+    cardinality: one_to_many
+    join_role: identity
+    evidence: code_path:FundRuleInfoApplication.java:513
+    note: 明细码引用规则头 code，与 rule_info_id 并存。
+dict_labels:
+  funding_rule_info__rule_status:
+    table: funding_rule_info
+    column: rule_status
+    values:
+      PENDING: { label: 待生效, evidence: code_path:RuleStatusEnum.java:17 }
+      ACTIVE: { label: 生效中, evidence: code_path:RuleStatusEnum.java:18 }
+      INACTIVE: { label: 已失效, evidence: code_path:RuleStatusEnum.java:19 }
+  funding_rule_detail__rule_layer:
+    table: funding_rule_detail
+    column: rule_layer
+    values:
+      UNDERLYING: { label: 底层规则, evidence: code_path:RuleLayerEnum.java:17 }
+      FINANCING: { label: 融资规则, evidence: code_path:RuleLayerEnum.java:18 }
+      OTHER: { label: 其他规则, evidence: code_path:RuleLayerEnum.java:19 }
+  funding_rule_front_cfg__rule_layer:
+    table: funding_rule_front_cfg
+    column: rule_layer
+    values:
+      UNDERLYING: { label: 底层规则, evidence: code_path:RuleLayerEnum.java:17 }
+      FINANCING: { label: 融资规则, evidence: code_path:RuleLayerEnum.java:18 }
+      OTHER: { label: 其他规则, evidence: code_path:RuleLayerEnum.java:19 }

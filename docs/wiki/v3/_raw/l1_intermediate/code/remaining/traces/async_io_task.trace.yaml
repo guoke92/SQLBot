@@ -1,0 +1,21 @@
+kind: trace
+domain: remaining
+trace_key: async_io_task
+entry: POST /cust-web/async-io/task/{taskNo}
+controller: AsyncIoTaskController.java:47
+application: AsyncIoTaskManager.java:84
+tables: [async_io_task]
+notes: |
+  注解 @AsyncIoTask 创建 PENDING；CAS 领到 RUNNING；结束 SUCCESS/FAILED。
+  查询按 task_no。枚举无中文。user_id 未对企业/人员做等值 JOIN。
+scenario:
+  scenario_key: async_io_task
+  title: 异步导入导出任务
+  hubs:
+    - table: async_io_task
+      role: master
+  lifecycle:
+    - dict: async_io_task__status
+      process: async_io_task__status
+gaps:
+  - status 无 displayName。

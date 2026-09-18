@@ -94,7 +94,7 @@ _ANALYSIS_SYSTEM = """你是业务系统代码语义分析师。输入分四层�
 6. maps_to / field_targets / calibers.predicate 必须是 表.字段 或 表.字段='值'。"""
 
 _GENERATION_SYSTEM = """你是 wiki 维护者。基于语义分析产出 v0 契约页面。每个页面一个
----FILE: <路径>.md --- ... ---END FILE--- 块（路径含子目录：tables/enums/concepts/
+---FILE: <路径>.md --- ... ---END FILE--- 块（路径含子目录：tables/dicts/concepts/
 processes/calibers/rules/metrics/patterns，子目录=type）。frontmatter 必含 type/title/page_key/domain/status: draft/aliases/oid: 1/
 scope（块式 databases）/sources/contract_version: "0.1"。
 每个 FILE 正文必须以 --- 开、--- 闭合包裹 frontmatter（不要漏写起始 ---）。
@@ -497,7 +497,7 @@ def semantic_ingest_v2(
         f"每个状态机一个 process 页、每个口径一个 caliber 页、"
         f"每个术语桥一个 concept 页、每条规则一个 rule 页（只产出分析中有证据支撑的）。\n"
         f"每个页面必须包在 ---FILE: <目录>/<slug>.md --- 与 ---END FILE--- 之间；"
-        f"目录必须是 tables/enums/concepts/processes/calibers/rules 之一。"
+        f"目录必须是 tables/dicts/concepts/processes/calibers/rules 之一。"
         f"禁止只输出 REVIEW 而不产出 FILE。"
     )
     step2 = llm.invoke(
@@ -554,7 +554,7 @@ def reconcile_page(
 
     对账码表（单一权威，admin 门禁与 REVIEW 消费同此清单）：
     PAGE_CONTRACT_FAILED / TABLE_NOT_IN_DB / FIELD_NOT_IN_DB / FIELD_MALFORMED /
-    ENUM_VALUE_NOT_IN_DB / EVIDENCE_FILE_MISSING / EVIDENCE_LINE_OUT_OF_RANGE
+    DICT_VALUE_NOT_IN_DB / EVIDENCE_FILE_MISSING / EVIDENCE_LINE_OUT_OF_RANGE
     ——全部视为 error 级（丢块依据）。
 
     findings[0..n] 带可选 ``anchor`` 键：定位出错块（kind+块内键），上层据此
@@ -577,7 +577,7 @@ def reconcile_page(
     def _anchor(block) -> str:
         key = str(
             block.data.get("table")
-            or block.data.get("enum")
+            or block.data.get("dict")
             or block.data.get("process")
             or block.data.get("caliber")
             or block.data.get("metric")
@@ -626,7 +626,7 @@ def reconcile_page(
                             "message": f"{table}.{name}",
                         }
                     )
-        elif block.kind == "enum":
+        elif block.kind == "dict":
             raw_values = data.get("values") or {}
             if isinstance(raw_values, dict):
                 values = {str(k) for k in raw_values}
@@ -656,7 +656,7 @@ def reconcile_page(
                         if outside:
                             findings.append(
                                 {
-                                    "code": "ENUM_VALUE_NOT_IN_DB",
+                                    "code": "DICT_VALUE_NOT_IN_DB",
                                     "anchor": _anchor(block),
                                     "message": f"{field_ref}: {sorted(outside)[:5]}",
                                 }

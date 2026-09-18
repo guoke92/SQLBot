@@ -1,0 +1,16 @@
+kind: calibers_rules
+domain: example
+calibers:
+  - caliber_key: effective_company
+    title: 生效企业
+    table: cust_company_info
+    predicate: "cust_company_info.cust_build_status = 'BUILD_SUCCESS' AND cust_company_info.cust_status = 'EFFECT' AND cust_company_info.enable = 'Y'"
+    field_targets: [cust_company_info.cust_build_status, cust_company_info.cust_status, cust_company_info.enable]
+    boundary: 回答「当前有效企业」；不含变更中 CUST_CHANGE
+    evidence: code_path:ExampleService.java:647
+rules:
+  - rule_key: certification_no_unique
+    field_targets: [cust_company_info.certification_no]
+    impact: write_constraint
+    content: 同一租户下统一社会信用代码不可重复建档
+    evidence: code_path:ExampleApplication.java:5220

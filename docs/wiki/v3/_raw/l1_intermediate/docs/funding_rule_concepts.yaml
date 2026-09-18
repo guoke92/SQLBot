@@ -1,0 +1,33 @@
+kind: concepts
+domain: funding_rule
+doc_source: "docs/wiki-knowledge/pplatform/req-index/concepts"
+concepts:
+  - concept_key: funding_rule_active
+    title: 生效中的资方规则
+    aliases: [资金方规则, 资方准入]
+    maps_to: funding_rule_info.rule_status
+    field_targets: [funding_rule_info.rule_status]
+    also_confused_with: [funding_exception_hint, no_voucher_rule_element]
+    adjudication: boundary
+    explanation: 运行时只取 rule_status=ACTIVE 的规则头，再按 rule_info_id 取明细。不是异常建议表，也不是需求「无凭证」要素（本仓无对应赋值）。
+    evidence: code_path:FundingPartyRuleProviderImpl.java:95
+  - concept_key: funding_exception_hint
+    title: 资金方异常解析建议
+    aliases: [资方报错建议, 异常解析]
+    maps_to: funding_exception_resolution.error_keyword
+    field_targets: [funding_exception_resolution.error_keyword, funding_exception_resolution.suggestion]
+    also_confused_with: [funding_rule_active]
+    adjudication: boundary
+    explanation: 按资金方+产品+报错关键字匹配建议。不决定规则是否生效。
+    evidence: code_path:FundingPartyExceptionResolutionProviderImpl.java:105
+  - concept_key: no_voucher_rule_element
+    title: 对接规则要素-无凭证
+    aliases: [无凭证, 无需上传凭证]
+    maps_to: funding_rule_front_cfg.front_key
+    field_targets: [funding_rule_front_cfg.front_key]
+    also_confused_with: [funding_rule_active]
+    adjudication: boundary
+    explanation: |
+      document_claim:对接规则要素-无凭证.md#15 指向外部文档，pplatform-web 无 Java 赋值/枚举注释对应「无凭证」。
+      不要用 rule_status=ACTIVE 回答是否无凭证。问数以代码为准：本要素未落库桥梁。
+    evidence: document_claim:对接规则要素-无凭证.md#15

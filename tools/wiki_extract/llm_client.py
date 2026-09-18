@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import time
 from dataclasses import dataclass
 from typing import Any
 from urllib.parse import urljoin
@@ -68,10 +69,33 @@ def chat_json(config: LlmConfig, *, system: str, user: str) -> dict[str, Any]:
         "Authorization": f"Bearer {config.api_key}",
         "Content-Type": "application/json",
     }
-    with httpx.Client(timeout=config.timeout_sec) as client:
-        response = client.post(url, headers=headers, json=payload)
-        response.raise_for_status()
-        body = response.json()
+    last_error: Exception | None = None
+    body: dict[str, Any] = {}
+    for attempt in range(6):
+        try:
+            with httpx.Client(timeout=config.timeout_sec) as client:
+                response = client.post(url, headers=headers, json=payload)
+                if response.status_code == 429:
+                    time.sleep(min(32.0, 2.0**attempt))
+                    last_error = httpx.HTTPStatusError(
+                        "429 Too Many Requests",
+                        request=response.request,
+                        response=response,
+                    )
+                    continue
+                response.raise_for_status()
+                parsed = response.json()
+        except httpx.HTTPError as exc:
+            last_error = exc
+            time.sleep(min(32.0, 2.0**attempt))
+            continue
+        if isinstance(parsed, dict):
+            body = parsed
+            last_error = None
+            break
+        last_error = ValueError("LLM JSON HTTP body is not an object")
+    if last_error is not None:
+        raise last_error
     content = (
         ((body.get("choices") or [{}])[0].get("message") or {}).get("content")
     ) or ""

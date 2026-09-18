@@ -3,10 +3,14 @@
 from __future__ import annotations
 
 import datetime as dt
+import shutil
 from pathlib import Path
 from typing import Any
 
 import yaml
+
+from tools.wiki_extract.instance_index import packed_instance_index
+from tools.wiki_extract.overlap import sync_overlap_from_relations
 
 
 class _FlowList(list):
@@ -43,27 +47,35 @@ def emit(
     *,
     catalog: dict[str, Any] | None = None,
     profile: dict[str, Any] | None = None,
+    profile_instance: dict[str, Any] | None = None,
     overlap: dict[str, Any] | None = None,
 ) -> dict[str, int]:
     out = out.resolve()
     _assert_isolated(out)
     today = str(model.get("generated_at") or dt.date.today().isoformat())
     tables_dir = out / "tables"
-    enums_dir = out / "enums"
+    dicts_dir = out / "dicts"
     raw_dir = out / "_raw"
     runs_dir = out / ".runs" / "l0"
-    for path in (tables_dir, enums_dir, raw_dir, runs_dir):
+    for path in (tables_dir, dicts_dir, raw_dir, runs_dir):
         path.mkdir(parents=True, exist_ok=True)
 
     _clear_markdown(tables_dir)
-    _clear_markdown(enums_dir)
+    _clear_markdown(dicts_dir)
+    _clear_legacy(out)
 
     if catalog is not None:
         _write_yaml(raw_dir / "catalog.yaml", catalog)
-    if overlap is not None:
-        _write_yaml(raw_dir / "overlap.yaml", overlap)
-    elif model.get("_overlap") is not None:
-        _write_yaml(raw_dir / "overlap.yaml", model["_overlap"])
+    if profile is not None:
+        _write_yaml(raw_dir / "profile.yaml", profile)
+    if profile_instance is not None:
+        _write_yaml(raw_dir / "profile_instance.yaml", profile_instance)
+    packed_overlap = overlap if overlap is not None else model.get("_overlap")
+    if packed_overlap is not None:
+        _write_yaml(
+            raw_dir / "overlap.yaml",
+            sync_overlap_from_relations(model, packed_overlap),
+        )
     if model.get("_llm_judge") is not None:
         _write_yaml(raw_dir / "llm_judge.yaml", model["_llm_judge"])
 
@@ -74,31 +86,29 @@ def emit(
         if not compiled:
             continue
         (tables_dir / f"{tname}.md").write_text(
-            render_table_page(compiled, today, neighbors=neighbors.get(tname) or []),
+            render_table_page(
+                compiled,
+                today,
+                neighbors=neighbors.get(tname) or [],
+                dicts=model.get("dicts") or {},
+            ),
             encoding="utf-8",
         )
         table_count += 1
 
-    enum_count = 0
-    for key, enum in (model.get("enums") or {}).items():
-        (enums_dir / f"{key}.md").write_text(
-            render_enum_page(enum, today), encoding="utf-8"
+    dict_count = 0
+    for key, item in (model.get("dicts") or {}).items():
+        (dicts_dir / f"{key}.md").write_text(
+            render_dict_page(item, today), encoding="utf-8"
         )
-        enum_count += 1
+        dict_count += 1
 
     reviews = _number_reviews(list(model.get("reviews") or []), today)
     _write_yaml(runs_dir / "reviews.yaml", {"generated_at": today, "items": reviews})
-    _write_yaml(
-        out / "value_index.yaml",
-        {
-            "generated_at": today,
-            "database": model.get("database"),
-            "entries": model.get("value_index") or [],
-        },
-    )
+    _write_yaml(out / "instance_index.yaml", packed_instance_index(model))
     (out / "_index.md").write_text(_index_markdown(model, today), encoding="utf-8")
     (out / "_log.md").write_text(_log_markdown(model, today), encoding="utf-8")
-    return {"tables": table_count, "enums": enum_count, "reviews": len(reviews)}
+    return {"tables": table_count, "dicts": dict_count, "reviews": len(reviews)}
 
 
 def render_table_page(
@@ -106,6 +116,8 @@ def render_table_page(
     today: str,
     *,
     neighbors: list[str] | None = None,
+    fallback_links: list[tuple[str, str]] | None = None,
+    dicts: dict[str, Any] | None = None,
 ) -> str:
     tname = str(compiled["table"])
     database = str(compiled.get("database") or "")
@@ -130,14 +142,34 @@ def render_table_page(
     ground_table = {
         "table": tname,
         "database": database,
-        "description": compiled.get("description") or tname,
-        "inactive": False,
+        "desc": compiled.get("desc") or compiled.get("description") or tname,
+        "inactive": bool(compiled.get("inactive") or False),
         "primary_key": _FlowList(list(compiled.get("primary_key") or [])),
         "grain": compiled.get("grain"),
         "name_anchors": _FlowList(list(compiled.get("name_anchors") or [])),
-        "clusters": _emit_clusters(compiled.get("clusters") or []),
-        "fields": _emit_fields(compiled.get("fields") or []),
+        "fields": _emit_fields(
+            compiled.get("fields") or [], dicts or {}, table=tname
+        ),
     }
+    default_filter = compiled.get("default_filter")
+    if isinstance(default_filter, dict) and default_filter.get("predicate"):
+        ground_table["default_filter"] = {
+            "predicate": default_filter["predicate"],
+            "trust": default_filter.get("trust") or "proposed",
+        }
+        if default_filter.get("evidence"):
+            ground_table["default_filter"]["evidence"] = default_filter["evidence"]
+        sources = list(front.get("sources") or [])
+        evidence = str(default_filter.get("evidence") or "")
+        if evidence and evidence not in sources:
+            sources.append(evidence)
+            front["sources"] = _FlowList(sources)
+    l1_note = bool(compiled.get("default_filter") or compiled.get("l1_enhanced"))
+    blurb = (
+        "L1 源码增强合同（draft）。无 code_path 的关系仍不得当认证 JOIN。"
+        if l1_note
+        else "L0 库侧合同（draft）。grain / 身份束关系均为 proposed，不得当认证 JOIN。"
+    )
     parts = [
         "---",
         _dump(front).rstrip(),
@@ -145,11 +177,7 @@ def render_table_page(
         "",
         f"# {title}",
         "",
-        "L0 库侧合同（draft）。grain / 字段簇 / 身份束关系均为 proposed，不得当认证 JOIN。",
-        "",
-        "## 字段簇",
-        "",
-        _cluster_index(compiled),
+        blurb,
         "",
         "## 字段",
         "",
@@ -161,25 +189,32 @@ def render_table_page(
     rels = list(compiled.get("relations") or [])
     if rels:
         parts.extend(["## 关联关系", ""])
-        for rel in rels:
-            parts.extend(
-                [
-                    "```ground:relation",
-                    _dump(_emit_relation(rel)).rstrip(),
-                    "```",
-                    "",
-                ]
-            )
-    links = _table_link_section(compiled, neighbors or [])
+        groups = _group_relations(rels)
+        for heading, bucket in groups:
+            if not bucket:
+                continue
+            parts.extend([f"### {heading}", ""])
+            for rel in bucket:
+                parts.extend(
+                    [
+                        "```ground:relation",
+                        _dump(_emit_relation(rel)).rstrip(),
+                        "```",
+                        "",
+                    ]
+                )
+    links = _table_link_section(
+        compiled, neighbors or [], fallback_links=fallback_links
+    )
     if links:
         parts.extend(["## 页面链接", "", links, ""])
     return "\n".join(parts).rstrip() + "\n"
 
 
-def render_enum_page(enum: dict[str, Any], today: str) -> str:
-    key = str(enum["enum"])
-    table = str(enum.get("table") or "")
-    column = str(enum.get("column") or "")
+def render_dict_page(item: dict[str, Any], today: str) -> str:
+    key = str(item.get("dict") or item.get("enum") or "")
+    table = str(item.get("table") or "")
+    column = str(item.get("column") or "")
     source = (
         f"database_profile:{table}.{column}"
         if table and column
@@ -187,10 +222,10 @@ def render_enum_page(enum: dict[str, Any], today: str) -> str:
     )
     physical = f"{table}.{column}" if table and column else key
     front = {
-        "type": "enum",
+        "type": "dict",
         "title": physical,
         "page_key": key,
-        "belong": "enums",
+        "belong": "dicts",
         "status": "draft",
         "anchors": _FlowList([physical]),
         "sources": _FlowList([source]),
@@ -200,25 +235,52 @@ def render_enum_page(enum: dict[str, Any], today: str) -> str:
     }
     if table:
         front["related"] = _FlowList([table])
-    values = _emit_enum_values(enum.get("values") or {})
+    values = _emit_dict_values(item.get("values") or {})
     ground: dict[str, Any] = {
-        "enum": key,
-        "fields": _FlowList(list(enum.get("fields") or [])),
+        "dict": key,
+        "fields": _FlowList(list(item.get("fields") or [])),
         "values": values,
     }
-    if enum.get("mixed") or enum.get("ambiguous"):
+    if item.get("mixed") or item.get("ambiguous"):
         ground["mixed"] = True
+    triage = str(item.get("triage") or "").strip()
+    if triage:
+        ground["triage"] = triage
+    if item.get("needs_review"):
+        ground["needs_review"] = True
     has_label = any(
         isinstance(meta, dict) and meta.get("label")
-        for meta in (enum.get("values") or {}).values()
+        for meta in (item.get("values") or {}).values()
     )
-    blurb = (
-        "L0 枚举候选：label 仅来自列注释解析（proposed）；无映射则省略。空值已丢弃。"
-        if has_label
-        else "L0 枚举候选：profile 代码值；列注释无码→中文映射，故无 label。空值已丢弃。"
+    has_confirmed_label = any(
+        isinstance(meta, dict)
+        and meta.get("label")
+        and str(meta.get("trust") or "") == "confirmed"
+        for meta in (item.get("values") or {}).values()
     )
+    if has_confirmed_label:
+        blurb = "L1 字典：label 来自源码 displayName/常量注释（confirmed）。L0 注释猜词已被代码覆盖。"
+    elif has_label:
+        blurb = (
+            "L0 字典候选：label 仅来自列注释解析（proposed）；无映射则省略。空值已丢弃。"
+        )
+    else:
+        blurb = "L0 字典候选：profile 代码值；列注释无码→中文映射，故无 label。空值已丢弃。"
+    if item.get("needs_review") or triage == "hold":
+        blurb += " 初审 hold：证据不足，保留待人工确认。"
     if has_label and table and column:
         front["sources"] = _FlowList([source, f"database_schema:{table}.{column}"])
+    extra_src: list[str] = []
+    for meta in (item.get("values") or {}).values():
+        ev = str((meta or {}).get("evidence") or "") if isinstance(meta, dict) else ""
+        if ev.startswith("code_path:") and ev not in extra_src:
+            extra_src.append(ev)
+    if extra_src:
+        sources = list(front.get("sources") or [])
+        for ev in extra_src:
+            if ev not in sources:
+                sources.append(ev)
+        front["sources"] = _FlowList(sources)
     return (
         "---\n"
         + _dump(front).rstrip()
@@ -227,13 +289,13 @@ def render_enum_page(enum: dict[str, Any], today: str) -> str:
         + blurb
         + (f"\n物理列 `{physical}`，表页 [[tables/{table}]]。\n" if table else "\n")
         + "\n## 取值\n\n"
-        + "```ground:enum\n"
+        + "```ground:dict\n"
         + _dump(ground).rstrip()
         + "\n```\n"
     )
 
 
-def _emit_enum_values(values: dict[str, Any]) -> dict[str, Any]:
+def _emit_dict_values(values: dict[str, Any]) -> dict[str, Any]:
     out: dict[str, Any] = {}
     for raw, meta in values.items():
         key = str(raw or "").strip()
@@ -251,78 +313,186 @@ def _emit_enum_values(values: dict[str, Any]) -> dict[str, Any]:
 
 
 def _emit_relation(rel: dict[str, Any]) -> dict[str, Any]:
-    return {
+    out: dict[str, Any] = {
         "type": rel.get("type") or "EQUI_JOIN",
         "left": rel.get("left"),
         "right": rel.get("right"),
         "cardinality": rel.get("cardinality"),
         "trust": rel.get("trust") or rel.get("confidence") or "proposed",
+        "authenticity": str(rel.get("authenticity") or "unknown"),
         "evidence": rel.get("evidence"),
     }
-
-
-def _emit_clusters(clusters: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    out: list[dict[str, Any]] = []
-    for item in clusters:
-        row: dict[str, Any] = {
-            "key": item["key"],
-            "title": item.get("title") or item["key"],
+    source = str(rel.get("source") or "").strip()
+    if source:
+        out["source"] = source
+    role = str(rel.get("join_role") or "").strip()
+    if role:
+        out["join_role"] = role
+    priority = str(rel.get("priority") or "").strip()
+    if priority:
+        out["priority"] = priority
+    name_ev = rel.get("name_evidence")
+    if isinstance(name_ev, dict) and any(name_ev.values()):
+        out["name_evidence"] = {
+            k: name_ev[k]
+            for k in ("match", "stem", "comment")
+            if name_ev.get(k) not in (None, "")
         }
-        if item.get("include"):
-            row["include"] = item["include"]
-        trust = item.get("trust") or item.get("confidence")
-        if trust:
-            row["trust"] = trust
-        if item.get("evidence"):
-            row["evidence"] = item["evidence"]
-        out.append(row)
+    overlap = rel.get("overlap")
+    if isinstance(overlap, dict) and overlap:
+        ov: dict[str, Any] = {}
+        if "probed" in overlap:
+            ov["probed"] = bool(overlap.get("probed"))
+        for key in (
+            "ratio",
+            "ratio_reverse",
+            "sample_size",
+            "miss",
+            "deepened",
+            "query_ok",
+            "authenticity",
+            "skipped",
+            "status",
+        ):
+            if key in overlap and overlap.get(key) is not None:
+                ov[key] = overlap[key]
+        if ov:
+            out["overlap"] = ov
+    note = str(rel.get("authenticity_note") or "").strip()
+    if note:
+        out["authenticity_note"] = note[:240]
+    cast = rel.get("cast")
+    if cast not in (None, "", "null"):
+        out["cast"] = cast
+    sides = rel.get("sides")
+    if isinstance(sides, list) and sides:
+        packed_sides = []
+        for side in sides:
+            if isinstance(side, dict):
+                packed_sides.append(_FlowMap({k: side[k] for k in side if side.get(k) not in (None, "")}))
+            else:
+                packed_sides.append(side)
+        out["sides"] = packed_sides
+    block = str(rel.get("preview_block") or "").strip()
+    if block:
+        out["preview_block"] = block
     return out
 
 
-def _emit_fields(fields: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def _group_relations(
+    rels: list[dict[str, Any]],
+) -> list[tuple[str, list[dict[str, Any]]]]:
+    """Group edges: confirmed likely, then disputed conflicts, then remaining L0."""
+    order = (
+        ("likely — 值域支持且列名/注释有关联语义", "likely"),
+        ("disputed — 与已确认边冲突", "disputed"),
+        ("unknown — 待复核", "unknown"),
+        ("unlikely — 值域不支持或冲突", "unlikely"),
+    )
+    buckets: dict[str, list[dict[str, Any]]] = {
+        "likely": [],
+        "disputed": [],
+        "unknown": [],
+        "unlikely": [],
+    }
+    for rel in rels:
+        if str(rel.get("trust") or "") == "disputed":
+            buckets["disputed"].append(rel)
+            continue
+        auth = str(rel.get("authenticity") or "unknown").lower()
+        if auth not in buckets:
+            auth = "unknown"
+        buckets[auth].append(rel)
+    for key in buckets:
+        buckets[key].sort(
+            key=lambda rel: 0
+            if str(rel.get("priority") or "primary") == "primary"
+            else 1
+        )
+    return [(title, buckets[key]) for title, key in order]
+
+
+def field_dict_page_key(field: dict[str, Any], table: str) -> str:
+    """Dict page_key is always 表__字段; field YAML no longer stores that filename."""
+    raw = field.get("dictionary")
+    if isinstance(raw, str) and raw.strip():
+        return raw.strip()
+    col = str(field.get("name") or "").strip()
+    if isinstance(field.get("dict"), list) and table and col:
+        return f"{table}__{col}"
+    return ""
+
+
+def _dict_value_lists(
+    page_key: str, dicts: dict[str, Any]
+) -> tuple[list[str], list[str]]:
+    item = dicts.get(page_key) or {}
+    values = item.get("values") or {}
+    if not isinstance(values, dict):
+        return [], []
+    keys: list[str] = []
+    labels: list[str] = []
+    for key, meta in values.items():
+        code = str(key).strip()
+        if not code:
+            continue
+        keys.append(code)
+        lab = ""
+        if isinstance(meta, dict):
+            lab = str(meta.get("label") or "").strip()
+            if lab == code:
+                lab = ""
+        labels.append(lab)
+    return keys, labels
+
+
+def _emit_fields(
+    fields: list[dict[str, Any]],
+    dicts: dict[str, Any],
+    *,
+    table: str = "",
+) -> list[dict[str, Any]]:
     out: list[dict[str, Any]] = []
     for item in fields:
         row: dict[str, Any] = {
             "name": item["name"],
-            "data_type": item.get("data_type") or "string",
+            "type": item.get("type") or item.get("data_type") or "string",
         }
-        desc = str(item.get("description") or "")
+        desc = str(item.get("desc") or item.get("description") or "")
         if desc:
-            row["description"] = desc
+            row["desc"] = desc
         if item.get("nullable") is False:
             row["nullable"] = False
-        if item.get("cluster"):
-            row["cluster"] = item["cluster"]
-        if item.get("dictionary"):
-            row["dictionary"] = item["dictionary"]
+        keys: list[str] = []
+        labels: list[str] = []
+        raw_dict = item.get("dict")
+        if isinstance(raw_dict, list) and raw_dict:
+            keys = [str(code).strip() for code in raw_dict if str(code).strip()]
+            raw_labels = item.get("label")
+            if isinstance(raw_labels, list):
+                labels = [str(lab).strip() for lab in raw_labels]
+            elif isinstance(raw_labels, dict):
+                labels = [str(raw_labels.get(code) or "").strip() for code in keys]
+            if len(labels) < len(keys):
+                labels.extend([""] * (len(keys) - len(labels)))
+            labels = labels[: len(keys)]
+        else:
+            page_key = field_dict_page_key(item, table)
+            if page_key:
+                keys, labels = _dict_value_lists(page_key, dicts)
+        if keys:
+            row["dict"] = _FlowList(keys)
+            labeled = {code: lab for code, lab in zip(keys, labels) if lab}
+            if labeled:
+                if len(labeled) == len(keys):
+                    row["label"] = _FlowList([labeled[code] for code in keys])
+                else:
+                    row["label"] = _FlowMap(labeled)
+        written = item.get("written_with") or []
+        if written:
+            row["written_with"] = _FlowList(list(written))
         out.append(row)
     return out
-
-
-def _cluster_index(compiled: dict[str, Any]) -> str:
-    lines: list[str] = []
-    by_cluster: dict[str, list[str]] = {}
-    unassigned: list[str] = []
-    for field in compiled.get("fields") or []:
-        cluster = str(field.get("cluster") or "")
-        name = str(field.get("name") or "")
-        if cluster:
-            by_cluster.setdefault(cluster, []).append(name)
-        else:
-            unassigned.append(name)
-    for cluster in compiled.get("clusters") or []:
-        key = str(cluster.get("key") or "")
-        members = by_cluster.get(key) or []
-        lines.append(f"### {key}")
-        lines.append("")
-        lines.append(", ".join(f"`{c}`" for c in members) if members else "（空）")
-        lines.append("")
-    if unassigned:
-        lines.append("### 未归簇")
-        lines.append("")
-        lines.append(", ".join(f"`{c}`" for c in unassigned))
-        lines.append("")
-    return "\n".join(lines).rstrip()
 
 
 def _table_of(endpoint: str) -> str:
@@ -361,13 +531,16 @@ def _table_related(compiled: dict[str, Any], neighbors: list[str]) -> list[str]:
     for other in neighbors:
         add(other)
     for field in compiled.get("fields") or []:
-        dictionary = str(field.get("dictionary") or "")
-        if dictionary:
-            add(dictionary)
+        if isinstance(field, dict):
+            add(field_dict_page_key(field, tname))
     return seen
 
 
-def _table_link_section(compiled: dict[str, Any], neighbors: list[str]) -> str:
+def _table_link_section(
+    compiled: dict[str, Any],
+    neighbors: list[str],
+    fallback_links: list[tuple[str, str]] | None = None,
+) -> str:
     tname = str(compiled.get("table") or "")
     lines: list[str] = []
     if neighbors:
@@ -376,18 +549,26 @@ def _table_link_section(compiled: dict[str, Any], neighbors: list[str]) -> str:
         for other in neighbors:
             lines.append(f"- [[tables/{other}]]")
         lines.append("")
-    enums: list[tuple[str, str]] = []
+    dicts: list[tuple[str, str]] = []
     for field in compiled.get("fields") or []:
-        dictionary = str(field.get("dictionary") or "")
+        if not isinstance(field, dict):
+            continue
+        dictionary = field_dict_page_key(field, tname)
         col = str(field.get("name") or "")
         if dictionary:
-            enums.append((dictionary, f"{tname}.{col}" if col else dictionary))
-    if enums:
+            dicts.append((dictionary, f"{tname}.{col}" if col else dictionary))
+    if dicts:
         lines.append("### 字典")
         lines.append("")
-        for key, physical in enums:
-            lines.append(f"- [[enums/{key}]]（`{physical}`）")
+        for key, physical in dicts:
+            lines.append(f"- [[dicts/{key}]]（`{physical}`）")
         lines.append("")
+    if not lines:
+        for belong, key in fallback_links or []:
+            belong = str(belong or "").strip()
+            key = str(key or "").strip()
+            if belong and key:
+                lines.append(f"- [[{belong}/{key}]]")
     return "\n".join(lines).rstrip()
 
 
@@ -403,13 +584,14 @@ def _number_reviews(items: list[dict[str, Any]], today: str) -> list[dict[str, A
 
 def _index_markdown(model: dict[str, Any], today: str) -> str:
     tables = list(model.get("table_order") or (model.get("tables") or {}).keys())
-    enums = list((model.get("enums") or {}).keys())
+    dicts = list((model.get("dicts") or {}).keys())
     lines = [
         f"# L0 index ({today})",
         "",
         f"- database: `{model.get('database')}`",
         f"- tables: {len(tables)}",
-        f"- enum candidates: {len(enums)}",
+        f"- dict candidates: {len(dicts)}",
+        f"- instance index: {len(model.get('instance_index') or [])}",
         f"- reviews: {len(model.get('reviews') or [])}",
         "",
         "## tables",
@@ -417,9 +599,9 @@ def _index_markdown(model: dict[str, Any], today: str) -> str:
     ]
     for name in tables:
         lines.append(f"- [[tables/{name}]]")
-    lines.extend(["", "## enums", ""])
-    for name in enums:
-        lines.append(f"- [[enums/{name}]]")
+    lines.extend(["", "## dicts", ""])
+    for name in dicts:
+        lines.append(f"- [[dicts/{name}]]")
     lines.append("")
     return "\n".join(lines)
 
@@ -438,10 +620,10 @@ def _log_markdown(model: dict[str, Any], today: str) -> str:
     if stats:
         llm_line = (
             "\nllm refine: "
-            f"keep={stats.get('enum_keep', 0)} "
-            f"instance={stats.get('enum_instance', 0)} "
-            f"reject={stats.get('enum_reject', 0)} "
-            f"auto_reject={stats.get('enum_auto_reject', 0)} "
+            f"keep={stats.get('dict_keep', 0)} "
+            f"hold={stats.get('dict_hold', 0)} "
+            f"drop={stats.get('dict_drop', 0)} "
+            f"auto_drop={stats.get('dict_auto_drop', 0)} "
             f"failed_tables={stats.get('failed', 0)}\n"
         )
     join_line = (
@@ -530,6 +712,15 @@ def _write_yaml(path: Path, data: Any) -> None:
 def _clear_markdown(directory: Path) -> None:
     for path in directory.glob("*.md"):
         path.unlink()
+
+
+def _clear_legacy(out: Path) -> None:
+    enums_dir = out / "enums"
+    if enums_dir.exists():
+        shutil.rmtree(enums_dir)
+    legacy_index = out / "value_index.yaml"
+    if legacy_index.exists():
+        legacy_index.unlink()
 
 
 def _assert_isolated(out: Path) -> None:

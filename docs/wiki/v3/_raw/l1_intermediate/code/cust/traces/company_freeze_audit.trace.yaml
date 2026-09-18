@@ -1,0 +1,17 @@
+kind: trace
+domain: cust
+trace_key: company_freeze_dto
+entry: CustCompanyInfoApplication.freeze(CompanyCycleInfoDto)
+application: CustCompanyInfoApplication.freeze:7064
+tables: [cust_company_info, cust_company_lifecycle_info, cust_role_info]
+notes: |
+  列表冻结先更新 lifecycle（type=FRZ, reason, attach, enable=Y），再调用 freeze(company) 写 cust_status。
+  预生成 getPrdId 行 enable=N。需求见 V1.19 冻结解冻留痕。
+scenario:
+  scenario_key: company_freeze_audit
+  title: 冻结解冻留痕
+  hubs:
+    - table: cust_company_lifecycle_info
+      role: master
+gaps:
+  - lifecycle.ref_cust_company_info 本路径未等值使用。

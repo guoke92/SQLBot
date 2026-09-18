@@ -1,0 +1,71 @@
+kind: table_enhancements
+domain: tenant
+tables:
+  tenant_setting_config:
+    grain: 一租户一行运营配置
+    default_filter:
+      predicate: "tenant_setting_config.enable = 'Y'"
+      evidence: code_path:TenantDomainService.java:344
+  tenant_setting_config_share:
+    grain: 共享租户配置副本（apaas 生成，业务侧少查）
+  tenant_product:
+    grain: 一租户一平台产品一行
+    default_filter:
+      predicate: "tenant_product.enable = 'Y'"
+      evidence: code_path:TenantProductDaoImpl.java:43
+  tenant_product_menu:
+    grain: 租户产品按企业角色的菜单
+  tenant_product_menu_res:
+    grain: 租户产品菜单按钮
+  tenant_project:
+    grain: 一租户项目一行
+    default_filter:
+      predicate: "tenant_project.enable = 'Y'"
+      evidence: code_path:TenantProjectDaoImpl.java:36
+  tenant_project_approval:
+    grain: 项目上线审批单；最新一笔 is_latest=Y
+    default_filter:
+      predicate: "tenant_project_approval.enable = 'Y'"
+      evidence: code_path:ProjectApprovalApplication.java:254
+    written_with_groups:
+      - fields: [wf_status, initiate_time, act_procinst_id]
+        evidence: code_path:ProjectApprovalApplication.java:700
+      - fields: [wf_status, complete_time]
+        evidence: code_path:ProjectApprovalApplication.java:722
+  tenant_project_approval_flow:
+    grain: 审批单节点实例，按 node_order
+    default_filter:
+      predicate: "tenant_project_approval_flow.enable = 'Y'"
+      evidence: code_path:ProjectApprovalApplication.java:571
+  tenant_project_approval_flow_node:
+    grain: 节点操作留痕
+    default_filter:
+      predicate: "tenant_project_approval_flow_node.enable = 'Y'"
+      evidence: code_path:ProjectApprovalApplication.java:824
+  tenant_project_approval_flow_config:
+    grain: 审批流程模板节点
+  tenant_project_approval_business_info:
+    grain: 审批单业务系统推送配置
+    default_filter:
+      predicate: "tenant_project_approval_business_info.enable = 'Y'"
+      evidence: code_path:ProjectApprovalApplication.java:1003
+  tenant_project_approval_flow_credit:
+    grain: 审批单授信行
+  tenant_project_approval_flow_file:
+    grain: 审批附件
+  tenant_project_approval_flow_comment:
+    grain: 审批备注（catalog 有表；pplatform-web 无 @TableName DO）
+  tenant_interworking_product:
+    grain: 一租户一互通产品一行
+    default_filter:
+      predicate: "tenant_interworking_product.enable = 'Y'"
+      evidence: code_path:TenantInterworkingProductDaoImpl.java:37
+  tenant_interworking_project:
+    grain: 互通产品绑定的项目
+    default_filter:
+      predicate: "tenant_interworking_project.enable = 'Y'"
+      evidence: code_path:TenantInterworkingProjectDaoImpl.java:25
+  tenant_migarory_log:
+    grain: 租户/项目迁移请求日志
+  tenant_migarory_log_bak:
+    grain: 迁移日志备份（无业务 DO）

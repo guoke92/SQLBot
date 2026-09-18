@@ -4,7 +4,7 @@ Zero-trust parsing: structural violations on required fields raise
 PageContractError; unknown ground kinds are warn-and-ignore (forward
 compatible); ground content problems surface as lint findings for the
 review queue — never silent adoption. Identity rules follow
-``docs/wiki/pages.md``: tables/enums use physical names (cross-language
+``docs/wiki/pages.md``: tables/dicts use physical names (cross-language
 stable), business pages keep CJK slugs.
 """
 
@@ -26,14 +26,14 @@ _REVIEW_RE = re.compile(
 _FENCE_CLOSE_RE = re.compile(r"^```\s*$")
 
 PHYSICAL_SLUG_RE = re.compile(r"^[a-z][a-z0-9_]*$")  # 表名
-ENUM_SLUG_RE = re.compile(
+DICT_SLUG_RE = re.compile(
     r"^[a-z][a-z0-9_]*((::|\.)[a-z][a-z0-9_]*)?$"
-)  # dictKey；L0 表::字段（物理锚仍是 表.字段）
+)  # dictKey；L0 表__字段（物理锚仍是 表.字段）
 BUSINESS_SLUG_RE = re.compile(r"^[\w-]+$")  # 业务页：CJK 保留，不罗马化（v0 §1.1）
 PAGE_STATUSES = {"draft", "published", "retired"}
 PAGE_TYPES = {
     "table",
-    "enum",
+    "dict",
     "concept",
     "process",
     "caliber",
@@ -46,7 +46,7 @@ PAGE_TYPES = {
 }
 TYPE_TO_BELONG = {
     "table": "tables",
-    "enum": "enums",
+    "dict": "dicts",
     "concept": "concepts",
     "process": "processes",
     "caliber": "calibers",
@@ -62,7 +62,7 @@ BELONG_DIRS = frozenset(TYPE_TO_BELONG.values())
 _KEY_PREFIXES = frozenset(PAGE_TYPES) | BELONG_DIRS
 GROUND_KINDS = {
     "table",
-    "enum",
+    "dict",
     "relation",
     "process",
     "caliber",
@@ -205,8 +205,8 @@ def infer_belong(page_type: str, *, directory: str | None = None) -> str:
 def _slug_valid(page_type: str, slug: str) -> bool:
     if page_type == "table":
         return bool(PHYSICAL_SLUG_RE.match(slug))
-    if page_type == "enum":
-        return bool(ENUM_SLUG_RE.match(slug))
+    if page_type == "dict":
+        return bool(DICT_SLUG_RE.match(slug))
     return bool(BUSINESS_SLUG_RE.match(slug))
 
 
@@ -338,7 +338,7 @@ def parse_page(
     if page_key and page_type in PAGE_TYPES and not _slug_valid(page_type, page_key):
         rule = (
             "物理名（表 snake_case；枚举 dictKey 或 L0 表::字段）"
-            if page_type in {"table", "enum"}
+            if page_type in {"table", "dict"}
             else "业务 slug（CJK 保留）"
         )
         errors.append(f"page_key {page_key!r} 不符合 {page_type} 页的 {rule}")
@@ -451,7 +451,7 @@ def lint_page(
 
     findings: list[Finding] = list(page.parse_findings)
     tables = (catalog or {}).get("tables") if isinstance(catalog, dict) else None
-    baseline_enums = (catalog or {}).get("enums") if isinstance(catalog, dict) else None
+    baseline_dicts = (catalog or {}).get("dicts") if isinstance(catalog, dict) else None
 
     for kind in page.unknown_ground_kinds:
         findings.append(
@@ -528,7 +528,7 @@ def lint_page(
     # 语义页引用了物理表（field_targets/maps_to）但正文没有对应 wikilink，
     # 图扩展与锚点闭包都会因此少带相关表页。带 catalog 时只对真实存在的
     # 表报警——DTO/参数类（MessageContext.verifyCode 等）不是表，不误报。
-    if page.type not in {"table", "enum"}:
+    if page.type not in {"table", "dict"}:
         linked = {
             normalize_link_target(link.target).replace("_", "-") for link in page.links
         }
@@ -581,7 +581,7 @@ def lint_page(
         _check_physical_ref(ref)
 
     if tables is not None:
-        _enum_carriers: dict[tuple[str, ...], str] = {}
+        _dict_carriers: dict[tuple[str, ...], str] = {}
         for block in page.ground_blocks:
             data = compact_block(block.data)
             if block.kind == "table":
@@ -610,7 +610,7 @@ def lint_page(
                                 f"{name}.{fname} 类型族与 catalog 不一致",
                             )
                         )
-            elif block.kind == "enum":
+            elif block.kind == "dict":
                 # 防复发码 1：泛列承载（.type/.status/.code 等列挂载多表）——
                 # 历史教训：19 页挂 .type、14 页挂 .status、3 页挂 .code（73 表吞吐）。
                 _GENERIC = {
@@ -624,31 +624,31 @@ def lint_page(
                     "channel",
                     "state",
                 }
-                _enum_refs = [str(r) for r in data.get("fields") or []]
+                _dict_refs = [str(r) for r in data.get("fields") or []]
                 _generic_hits = [
-                    r for r in _enum_refs if r.partition(".")[2] in _GENERIC
+                    r for r in _dict_refs if r.partition(".")[2] in _GENERIC
                 ]
                 if len(_generic_hits) > 1:
                     findings.append(
                         Finding(
-                            "ENUM_GENERIC_COLUMN",
+                            "DICT_GENERIC_COLUMN",
                             f"泛列 {sorted(set(_generic_hits))[:3]} 承载多表"
                             f"（{len(_generic_hits)} 处）——泛列只允许单表强证据绑定",
                         )
                     )
                 # 防复发码 2：同物理列多页——归并器应保证一列一权威页
-                _enum_carriers.setdefault(
-                    tuple(sorted(_enum_refs)), str(data.get("enum") or page.page_key)
+                _dict_carriers.setdefault(
+                    tuple(sorted(_dict_refs)), str(data.get("dict") or page.page_key)
                 )
-                dict_key = str(data.get("enum") or "")
-                known = (baseline_enums or {}).get(dict_key)
+                dict_key = str(data.get("dict") or "")
+                known = (baseline_dicts or {}).get(dict_key)
                 if known is not None:
                     extra = sorted(set(data.get("values") or {}) - set(known))
                     if extra:
                         findings.append(
                             Finding(
-                                "ENUM_NOT_IN_BASELINE",
-                                f"{dict_key} 声明了基线外的枚举值 {extra}（catalog 胜，转 review）",
+                                "DICT_NOT_IN_BASELINE",
+                                f"{dict_key} 声明了基线外的字典值 {extra}（catalog 胜，转 review）",
                             )
                         )
             elif block.kind == "relation":
@@ -669,8 +669,9 @@ def lint_page(
 
 
 # v0.2 紧凑键别名：description→desc、data_type→type、dictionary→dict、
-# meaning→desc（同一语义单键）。写侧统一紧凑键；读侧（lint/reconcile/merge/
-# eval）一律经 compact_block 归一——这是唯一的键归一化实现，禁止各处内联。
+# meaning→desc（同一语义单键）。表字段写侧：dict 是码值列表（不是 dict 页
+# 文件名），label 是平行释义列表。读侧（lint/reconcile/merge/eval）一律经
+# compact_block 归一——这是唯一的键归一化实现，禁止各处内联。
 _COMPACT_FIELD_ALIASES = {
     "description": "desc",
     "meaning": "desc",
@@ -699,7 +700,7 @@ def compact_block(data: Any) -> Any:
             out.pop(old, None)
     fields = out.get("fields")
     if isinstance(fields, list):
-        # enum 块的 fields 是 表.列 字符串（非 dict）——原样保留；
+        # dict 块的 fields 是 表.列 字符串（非 mapping）——原样保留；
         # table 块的 fields 是字段映射 dict——递归归一。
         out["fields"] = [compact_block(f) if isinstance(f, dict) else f for f in fields]
     raw_values = out.get("values")

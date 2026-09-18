@@ -1,5 +1,5 @@
 ---
-type: enum
+type: dict
 title: 建档录入方式
 page_key: cust_build_type
 domain: 企业建档
@@ -22,8 +22,8 @@ contract_version: "0.1"
 
 常见问法："平台录入的企业"、"PC端建档"、"网关自动建档"均指本字段。
 
-```ground:enum
-enum: cust_build_type
+```ground:dict
+dict: cust_build_type
 fields: [cust_company_info.cust_build_type]
 values:
   PC_BUILD: { label: 客户录入, note: 客户端PC端录入（源码 CustBuildTypeConstant） }

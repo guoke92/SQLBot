@@ -86,7 +86,7 @@ contract_version: "0.1"
 _ENUM_PAGE = """---
 page_key: cust_build_type
 title: 建档录入方式
-type: enum
+type: dict
 status: published
 oid: 1
 scope:
@@ -97,8 +97,8 @@ sources: [test]
 contract_version: "0.1"
 ---
 
-```ground:enum
-enum: cust_company_info.cust_build_type
+```ground:dict
+dict: cust_company_info.cust_build_type
 values:
   PC_BUILD: {label: 平台录入}
   AGW_BUILD: {label: 网关录入}
@@ -323,7 +323,7 @@ contract_version: "0.1"
 _ENUM_IDENTIFY = """---
 page_key: identify_style
 title: identify_style
-type: enum
+type: dict
 status: draft
 oid: 1
 scope:
@@ -334,8 +334,8 @@ sources: [test]
 contract_version: "0.1"
 ---
 
-```ground:enum
-enum: identify_style
+```ground:dict
+dict: identify_style
 fields: [cust_company_info.identify_style]
 values:
   INVITE_AGW: {label: 邀请认证-内管录入}
@@ -359,7 +359,7 @@ contract_version: "0.1"
 _ENUM_CUST_STATUS = """---
 page_key: cust_status
 title: cust_status
-type: enum
+type: dict
 status: draft
 oid: 1
 scope:
@@ -368,8 +368,8 @@ sources: [test]
 contract_version: "0.1"
 ---
 
-```ground:enum
-enum: cust_status
+```ground:dict
+dict: cust_status
 fields: [cust_company_info.cust_status]
 values:
   EFFECT: {label: 生效}
@@ -391,22 +391,22 @@ def test_parse_directory_keeps_concept_and_enum_with_same_filename_stem(
     tmp_path: Path,
 ) -> None:
     _write_page(tmp_path, "concepts/identify_style.md", _CONCEPT_IDENTIFY)
-    _write_page(tmp_path, "enums/identify_style.md", _ENUM_IDENTIFY)
+    _write_page(tmp_path, "dicts/identify_style.md", _ENUM_IDENTIFY)
     _write_page(tmp_path, "concepts/cust_status.md", _CONCEPT_CUST_STATUS)
-    _write_page(tmp_path, "enums/cust_status.md", _ENUM_CUST_STATUS)
+    _write_page(tmp_path, "dicts/cust_status.md", _ENUM_CUST_STATUS)
 
     parsed = parse_directory(tmp_path)
     keys = {page.page_key: page.type for _path, page, _body, _sha in parsed.pages}
     assert keys == {
         "concept_identify_style": "concept",
-        "identify_style": "enum",
+        "identify_style": "dict",
         "concept_cust_status": "concept",
-        "cust_status": "enum",
+        "cust_status": "dict",
     }
     assert not parsed.failed
     belongs = {(page.belong, page.page_key) for _path, page, _body, _sha in parsed.pages}
     assert ("concepts", "concept_identify_style") in belongs
-    assert ("enums", "identify_style") in belongs
+    assert ("dicts", "identify_style") in belongs
 
 
 def test_parse_page_normalizes_illegal_prefixed_page_key() -> None:
@@ -440,7 +440,7 @@ contract_version: "0.1"
 概念。
 """
     try:
-        parse_page(raw, belong="enums")
+        parse_page(raw, belong="dicts")
     except Exception as exc:
         assert "不一致" in str(exc)
         return
@@ -462,31 +462,31 @@ contract_version: "0.1"
     enum = """---
 page_key: pay_status
 title: pay_status
-type: enum
+type: dict
 status: draft
 sources: [test]
 contract_version: "0.1"
 ---
 
-```ground:enum
-enum: pay_status
+```ground:dict
+dict: pay_status
 fields: [ca_fee_company.pay_status]
 values:
   PAID: {label: 已缴}
 ```
 """
     _write_page(tmp_path, "concepts/pay_status.md", concept)
-    _write_page(tmp_path, "enums/pay_status.md", enum)
+    _write_page(tmp_path, "dicts/pay_status.md", enum)
     parsed = parse_directory(tmp_path)
     assert not parsed.failed
     assert len(parsed.pages) == 2
     store = InMemoryWikiStore([page for _p, page, _b, _s in parsed.pages])
     assert "concepts/pay_status" in store.pages
-    assert "enums/pay_status" in store.pages
+    assert "dicts/pay_status" in store.pages
     from apps.knowledge.wiki.graph import build_graph, fold_key
 
     _adj, alias_map = build_graph(store.pages)
-    assert alias_map[fold_key("enums/pay_status")] == "enums/pay_status"
+    assert alias_map[fold_key("dicts/pay_status")] == "dicts/pay_status"
     assert fold_key("pay_status") not in alias_map
 
 

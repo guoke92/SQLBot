@@ -29,6 +29,16 @@ def test_skip_generic_and_temporal_endpoints() -> None:
     assert child_endpoint_reason("parent_id", "bigint(20)") == ""
 
 
+def test_bigint_varchar_ref_types_compatible() -> None:
+    from tools.wiki_extract.join_policy import types_compatible
+
+    assert types_compatible("varchar(128)", "bigint(22)")
+    assert types_compatible("bigint(22)", "varchar(64)")
+    assert types_compatible("int", "varchar(32)")
+    assert not types_compatible("datetime", "bigint(22)")
+    assert not types_compatible("json", "varchar(32)")
+
+
 def test_authenticity_thresholds() -> None:
     assert decide_authenticity(sample_size=80, forward=0.99).value == "likely"
     assert decide_authenticity(sample_size=80, forward=0.0).value == "unlikely"
@@ -87,9 +97,9 @@ def test_replay_without_join_vote_keeps_overlap_likely() -> None:
         model,
         {
             "tables": {
-                "cust_account_info": {"enums": [], "clusters": [], "joins": []},
+                "cust_account_info": {"dicts": [], "clusters": [], "joins": []},
                 "cust_company_info": {
-                    "enums": [{"column": "sign_status", "verdict": "instance"}],
+                    "dicts": [{"column": "sign_status", "verdict": "instance"}],
                     "clusters": [],
                 },
             }
@@ -255,7 +265,17 @@ def test_apply_overlap_rechecks_name_edge_and_adds_likely() -> None:
     added = by_right["funding_rule_detail.fund_rule_code_ref"]
     assert added["source"] == "overlap"
     assert added["overlap"]["deepened"] is True
-    assert not any(r["right"].endswith(".product_code") for r in rels)
+    assert added["overlap"]["authenticity"] == "likely"
+    assert added["authenticity"] == "unknown"
+    assert added["preview_block"] == "overlap_unsemantic"
+    code_edge = by_right["funding_rule_detail.product_code"]
+    assert code_edge["type"] == "EQUI_JOIN"
+    assert code_edge["join_role"] == "business_code"
+    assert code_edge["priority"] == "secondary"
+    assert code_edge["authenticity"] == "unknown"
+    assert named["join_role"] == "identity"
+    assert named["priority"] == "primary"
+    assert named["authenticity"] == "likely"
     assert not any(r["type"] == "CONTAINS" for r in rels)
 
 
@@ -313,7 +333,7 @@ def test_llm_payload_carries_name_and_overlap() -> None:
             assert "ratio_reverse" in user
             assert "unresolved_join_window" in user
             return {
-                "enums": [],
+                "dicts": [],
                 "clusters": [{"key": "common", "include": "always", "fields": ["id"]}],
                 "joins": [
                     {
@@ -325,7 +345,7 @@ def test_llm_payload_carries_name_and_overlap() -> None:
                 "propose_joins": [],
             }
         return {
-            "enums": [],
+            "dicts": [],
             "clusters": [{"key": "common", "include": "always", "fields": ["id"]}],
         }
 
@@ -435,18 +455,18 @@ def test_propose_joins_window_and_hard_reject() -> None:
             "funding_rule_detail.product_code",
             window_lefts={"funding_rule_info.product_code"},
         )
-        == "product_code_copy"
+        == ""
     )
 
     def chat(_s: str, user: str) -> dict:
         if "funding_rule_detail" not in user:
             return {
-                "enums": [],
+                "dicts": [],
                 "clusters": [{"key": "common", "include": "always", "fields": ["id"]}],
             }
         assert "unresolved_join_window" in user
         return {
-            "enums": [],
+            "dicts": [],
             "clusters": [{"key": "common", "include": "always", "fields": ["id"]}],
             "joins": [],
             "propose_joins": [
@@ -472,14 +492,49 @@ def test_propose_joins_window_and_hard_reject() -> None:
         }
 
     refined = refine_model(model, chat, workers=1)
-    rights = {r["right"] for r in refined["tables"]["funding_rule_detail"]["relations"]}
+    rels = refined["tables"]["funding_rule_detail"]["relations"]
+    rights = {r["right"]: r for r in rels}
     assert "funding_rule_detail.fund_rule_code_ref" in rights
-    assert "funding_rule_detail.product_code" not in rights
-    assert all(
-        r["left"] != "nope_table.id"
-        for r in refined["tables"]["funding_rule_detail"]["relations"]
+    code_edge = rights["funding_rule_detail.product_code"]
+    assert code_edge["left"] == "funding_rule_info.product_code"
+    assert code_edge["join_role"] == "business_code"
+    assert code_edge["priority"] == "secondary"
+    assert any(
+        r["join_role"] == "identity" and r["priority"] == "primary" for r in rels
     )
-    assert all(
-        r["type"] == "EQUI_JOIN"
-        for r in refined["tables"]["funding_rule_detail"]["relations"]
+    assert all(r["left"] != "nope_table.id" for r in rels)
+    assert all(r["type"] == "EQUI_JOIN" for r in rels)
+
+
+def test_merge_llm_cannot_mint_likely_without_semantic() -> None:
+    auth, extra = merge_llm_authenticity(
+        current="unknown",
+        overlap_probed=True,
+        overlap_auth="likely",
+        llm_auth="likely",
+        semantic=False,
     )
+    assert auth == "unknown"
+    assert "semantic" in extra
+    auth, extra = merge_llm_authenticity(
+        current="unknown",
+        overlap_probed=True,
+        overlap_auth="likely",
+        llm_auth="unlikely",
+        semantic=False,
+    )
+    assert auth == "unknown"
+
+
+def test_cap_inclusion_ratio_never_exceeds_one() -> None:
+    from tools.wiki_extract.overlap import cap_inclusion
+
+    hit, ratio = cap_inclusion(80, 40)
+    assert hit == 40
+    assert ratio == 1.0
+    hit, ratio = cap_inclusion(0, 10)
+    assert hit == 0
+    assert ratio == 0.0
+    hit, ratio = cap_inclusion(5, 0)
+    assert hit == 0
+    assert ratio is None

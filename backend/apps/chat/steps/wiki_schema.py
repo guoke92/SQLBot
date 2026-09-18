@@ -138,15 +138,15 @@ def _wiki_table_block(page_text: str) -> dict[str, Any] | None:
         return None
 
 
-def enum_page_key(dict_key: str) -> str:
-    """dict 指针 → 权威枚举页 store key（``enums/<slug>``）。"""
-    slug = str(dict_key or "").strip().rsplit("/", 1)[-1]
-    return f"enums/{slug}" if slug else ""
+def dict_page_key(dict_key: str) -> str:
+    """dict 指针 → 权威字典页 store key（``dicts/<slug>``）。"""
+    slug = str(dict_key or "").strip()
+    return f"dicts/{slug}" if slug else ""
 
 
 def enum_page_present(dict_key: str, present_pages: Iterable[str] | None) -> bool:
-    """枚举页是否**真在** prompt 中——只认精确 ``enums/<slug>``，不认同名概念页。"""
-    target = enum_page_key(dict_key)
+    """字典页是否**真在** prompt 中——只认精确 ``dicts/<slug>``，不认同名概念页。"""
+    target = dict_page_key(dict_key)
     if not target or not present_pages:
         return False
     return any(str(key).strip() == target for key in present_pages)
@@ -282,7 +282,7 @@ class SchemaField:
         if self.labels and show_labels:
             tail += f", labels={self.labels}"
         if self.enum:
-            tail += f", enum={self.enum}"
+            tail += f", dict={self.enum}"
         if with_meta and self.group:
             tail += f", group={self.group}"
         if with_meta and self.scenes:
@@ -361,7 +361,7 @@ def parse_field_line(line: str) -> SchemaField | None:
             topk = value.strip()
         elif key == "labels":
             labels = value.strip()
-        elif key == "enum":
+        elif key == "dict":
             enum = value.strip()
         elif key == "group":
             group = value.strip()
@@ -769,7 +769,7 @@ def enum_pins_for(
                 )
                 if rank is None or rank >= RANK_STRUCTURAL:
                     continue
-            key = enum_page_key(item.enum)
+            key = dict_page_key(item.enum)
             if key and key not in {k for _, _, k in ranked}:
                 ranked.append((rank, order, key))
                 order += 1
@@ -994,12 +994,12 @@ class WikiSchemaRenderer:
         if not dict_key or not self._store:
             return {}
         page = _lookup_store_page(
-            self._store, dict_key, belong="enums", page_type="enum"
+            self._store, dict_key, belong="dicts", page_type="dict"
         )
         if page is None:
             return {}
         for anchor in getattr(page, "ground_blocks", ()) or ():
-            if anchor.kind != "enum":
+            if anchor.kind != "dict":
                 continue
             values = anchor.data.get("values") or {}
             return {
@@ -1051,12 +1051,39 @@ class WikiSchemaRenderer:
             comment = str(f.get("desc") or "").strip()
             ftype = str(f.get("phys") or f.get("type") or "string")
             topk = str(f.get("topk") or "").strip()
-            dict_key = str(f.get("dict") or "").strip()
+            raw_dict = f.get("dict")
+            inline_codes: list[str] = []
+            dict_key = ""
+            if isinstance(raw_dict, list):
+                inline_codes = [
+                    str(item).strip() for item in raw_dict if str(item).strip()
+                ]
+            elif raw_dict is not None and str(raw_dict).strip():
+                dict_key = str(raw_dict).strip()
             values = [item for item in topk.split("|") if item]
+            if inline_codes and not values:
+                values = inline_codes
+                topk = "|".join(inline_codes)
             raw_labels = f.get("labels")
+            raw_label = f.get("label")
             owned = False
             label_map: dict[str, str] = {}
-            if isinstance(raw_labels, dict):
+            label_tail = ""
+            if isinstance(raw_label, list) and inline_codes:
+                label_map = {
+                    str(code): str(lab).strip()
+                    for code, lab in zip(inline_codes, raw_label)
+                    if str(lab).strip()
+                }
+                owned = bool(label_map)
+            elif isinstance(raw_label, dict):
+                label_map = {
+                    str(k): str(v).strip()
+                    for k, v in raw_label.items()
+                    if str(v).strip()
+                }
+                owned = bool(label_map)
+            elif isinstance(raw_labels, dict):
                 label_map = {
                     str(k): str(v) for k, v in raw_labels.items() if str(v).strip()
                 }
@@ -1064,13 +1091,16 @@ class WikiSchemaRenderer:
             elif isinstance(raw_labels, str) and raw_labels.strip():
                 label_tail = raw_labels.strip()
                 owned = True
-            else:
-                label_tail = ""
-            if owned and isinstance(raw_labels, dict):
+            if owned and label_map:
                 label_tail = format_enum_labels(values or list(label_map), label_map)
             elif not owned:
-                label_map = self._enum_label_map(dict_key) if dict_key else {}
-                label_tail = format_enum_labels(values, label_map) if label_map else ""
+                lookup = dict_key or (
+                    f"{table}__{name}" if inline_codes and name else ""
+                )
+                label_map = self._enum_label_map(lookup) if lookup else {}
+                label_tail = (
+                    format_enum_labels(values, label_map) if label_map else ""
+                )
             scenes_raw = f.get("scenes") or []
             if isinstance(scenes_raw, str):
                 scenes = tuple(

@@ -357,9 +357,28 @@ def prepare_agent_turn_node(state: Mapping[str, Any]) -> dict[str, Any]:
     referenced = list(base_state.get("referenced_turns") or [])
     memory_slots = hydrate_memory_slots_from_referenced_turns(memory_slots, referenced)
 
-    from apps.chat.steps.wiki_recall import retrieve_wiki_context, wiki_span_fields
+    from apps.chat.steps.schema_outline import render_schema_outline
+    from apps.chat.steps.wiki_recall import (
+        _store,
+        retrieve_wiki_context,
+        wiki_span_fields,
+    )
 
     plane = AgentKnowledgePlane.from_dump(base_state.get("knowledge_plane"))
+    plane.question = plane.question or question_text
+    try:
+        ds = getattr(llm_service, "ds", None)
+        ds_id = getattr(ds, "id", None)
+        store = _store(int(ds_id)) if ds_id is not None else None
+        with session_scope() as session:
+            plane.schema_outline = render_schema_outline(
+                ds=ds,
+                access_scope=access_scope,
+                store=store,
+                session=session,
+            )
+    except Exception as exc:
+        SQLBotLogUtil.warning("schema outline render failed: %s", exc)
     recall_request = prepare_recall_request(
         relation=str(turn_route.get("relation") or "independent"),
         question=question_text,

@@ -1,0 +1,290 @@
+kind: processes
+domain: cust
+processes:
+  - process_key: cust_company_info__cust_build_status
+    table: cust_company_info
+    field: cust_build_status
+    title: 企业建档状态机
+    description: |
+      钉 cust_company_info.cust_build_status。邀请/自主提交按 identify_style 分叉；运营回调再写 check_status 并可能共写本列。
+      简易认证不走 CUST_BUILDING。变更轨把本列写成 CUST_CHANGE，与 cust_status.CHANGE、check_status.CUST_CHECK_INIT 共写。
+      不要把 identify_style / cust_build_type 编成流转。
+    entry: POST /cust-web/custInfo/submitCust
+    stages:
+      - stage: 简易认证提交
+        trigger: 运营提交简易建档
+        transitions:
+          - from: INIT
+            event: simpleSubmit → submitForSimpleAuth
+            to: AWAIT_CUST_CONFIRM
+            guards: 非变更补录且当前不是 BUILD_SUCCESS
+            evidence: code_path:CustCompanyInfoApplication.java:2028
+      - stage: 简易认证客户确认
+        trigger: 客户确认企业信息
+        transitions:
+          - from: AWAIT_CUST_CONFIRM
+            event: confirmCustInfoForSimpleAuth
+            to: BUILD_SUCCESS
+            side_effects:
+              - table: cust_company_info
+                field: cust_status
+                action: 置为 EFFECT（与建档状态共写）
+            evidence: code_path:CustCompanyInfoApplication.java:948
+      - stage: 邀请/自主提交
+        trigger: POST /cust-web/custInfo/submitCust
+        transitions:
+          - from: INIT
+            event: submitCust identify_style=INVITE_AGW
+            to: CUST_BUILDING
+            evidence: code_path:CustCompanyInfoApplication.java:1963
+          - from: INIT
+            event: submitCust identify_style=INVITE|SELF
+            to: CUST_CONFIRM_AWAIT
+            evidence: code_path:CustCompanyInfoApplication.java:1967
+          - from: BUILD_FAIL
+            event: 邀请认证拒绝后再次 submitCust
+            to: CUST_CONFIRM_AWAIT
+            guards: identify_style=INVITE
+            evidence: code_path:CustCompanyInfoApplication.java:1603
+      - stage: 运营建档回调
+        trigger: CustSyncEventProcessor.checkHandler
+        transitions:
+          - from: CUST_BUILDING
+            event: check_status=CUST_CHECK_BACKTOCUSTOM
+            to: CUST_CONFIRM_AWAIT
+            side_effects:
+              - table: cust_company_info
+                field: check_status
+                action: 置为 CUST_CHECK_BACKTOCUSTOM
+            evidence: code_path:CustSyncEventProcessor.java:2048
+          - from: CUST_CONFIRM_AWAIT
+            event: check_status=CUST_CHECK_CHECKING
+            to: CUST_BUILDING
+            evidence: code_path:CustSyncEventProcessor.java:2050
+          - from: CUST_BUILDING
+            event: check_status=CUST_CHECK_PASS
+            to: BUILD_SUCCESS
+            side_effects:
+              - table: cust_company_info
+                field: cust_status
+                action: effectCust 仅在 after=BUILD_SUCCESS 时另写 EFFECT
+              - table: cust_company_info
+                field: check_status
+                action: 置为 CUST_CHECK_PASS
+            evidence: code_path:CustSyncEventProcessor.java:2057
+          - from: CUST_BUILDING
+            event: check_status=CUST_CHECK_REJECT 且 process=CHECK
+            to: BUILD_FAIL
+            evidence: code_path:CustSyncEventProcessor.java:2073
+      - stage: 企业变更
+        trigger: 发起变更 / 变更审核通过
+        transitions:
+          - from: BUILD_SUCCESS
+            event: 企业自行变更
+            to: CUST_CHANGE
+            side_effects:
+              - table: cust_company_info
+                field: cust_status
+                action: 置为 CHANGE
+              - table: cust_company_info
+                field: check_status
+                action: 置为 CUST_CHECK_INIT
+            evidence: code_path:CustCompanyInfoApplication.java:7348
+          - from: CUST_CHANGE
+            event: 变更审核通过 check_status=CUST_CHECK_PASS
+            to: BUILD_SUCCESS
+            side_effects:
+              - table: cust_company_info
+                field: cust_status
+                action: 置为 EFFECT
+              - table: cust_company_info
+                field: check_status
+                action: 置为 CUST_CHECK_PASS
+            evidence: code_path:CustSyncEventProcessor.java:1194
+          - from: CUST_CHANGE
+            event: 变更审核拒绝 process=CHANGE
+            to: BUILD_SUCCESS
+            note: 拒绝变更只回建档成功，不走 BUILD_FAIL；checkHandler 的 effectCust 不在本分支
+            evidence: code_path:CustSyncEventProcessor.java:2075
+  - process_key: cust_company_info__cust_status
+    table: cust_company_info
+    field: cust_status
+    title: 企业生效状态机
+    description: |
+      钉 cust_company_info.cust_status。与建档状态机是两条轨道。
+      BUILD_SUCCESS 不等于 EFFECT：列表「生效企业」必须两列同时满足。简易确认共写；运营建档回调先写建档成功再 effectCust。
+    entry: confirmCustInfoForSimpleAuth
+    stages:
+      - stage: 生效
+        transitions:
+          - from: ADD
+            event: 简易认证客户确认
+            to: EFFECT
+            evidence: code_path:CustCompanyInfoDao.java:58
+          - from: ADD
+            event: 运营建档回调 effectCust
+            to: EFFECT
+            guards: updateCustBuildStatus 返回 BUILD_SUCCESS
+            evidence: code_path:CustSyncEventProcessor.java:1052
+      - stage: 变更
+        transitions:
+          - from: EFFECT
+            event: 发起变更
+            to: CHANGE
+            evidence: code_path:CustCompanyInfoApplication.java:7348
+          - from: CHANGE
+            event: 变更审核通过
+            to: EFFECT
+            evidence: code_path:CustSyncEventProcessor.java:1194
+      - stage: 冻结
+        trigger: freeze
+        transitions:
+          - from: EFFECT
+            event: 冻结企业
+            to: FREEZE
+            guards: 当前 cust_status 须为 EFFECT 或 ADD
+            side_effects:
+              - table: cust_role_info
+                field: status
+                action: 同步写成 FREEZE；已 WRITEOFF 的角色跳过
+              - table: cust_company_lifecycle_info
+                field: type
+                action: 列表冻结入口写成 FRZ 并落 reason/attach
+            note: |
+              企业冻结不写 cust_person_info.enable。管理员 SSO 账号由 freezeCustAdminUsers → iSysProvider.freezeCustAdminUsers 冻结（FBP 角色才冻）。
+              needCheckInWay 配置为 true，但 custStatusOperator 里是空 TODO，本路径没有真正拦在途。
+              列表冻结入口先写 cust_company_lifecycle_info（type=FRZ、reason/attach、enable=Y）再调 freeze(company)。
+            evidence: code_path:CustCompanyInfoApplication.java:712
+          - from: ADD
+            event: 冻结企业
+            to: FREEZE
+            evidence: code_path:CustCompanyInfoApplication.java:678
+          - from: FREEZE
+            event: 解冻企业
+            to: EFFECT
+            side_effects:
+              - table: cust_role_info
+                field: status
+                action: 同步写成 EFFECT；已 WRITEOFF 的角色跳过
+            note: 解冻同时 activeCustAdminUsers 恢复管理员 SSO。
+            evidence: code_path:CustCompanyInfoApplication.java:723
+      - stage: 注销
+        trigger: diable
+        transitions:
+          - from: EFFECT
+            event: 注销企业
+            to: WRITEOFF
+            side_effects:
+              - table: cust_role_info
+                field: status
+                action: 同步写成 WRITEOFF；已 WRITEOFF 的角色跳过
+            note: |
+              注销后 freezeCustAllUsers，冻结该企业下全部 SSO 用户，不只管理员。
+              同样 needCheckInWay 配置为 true 但实现是空 TODO。
+            evidence: code_path:CustCompanyInfoApplication.java:901
+  - process_key: cust_company_info__check_status
+    table: cust_company_info
+    field: check_status
+    title: 运营审核状态
+    description: |
+      钉 cust_company_info.check_status，码来自 OperApiConstants.CheckStatus。
+      与 cust_build_status 有映射（getCheckStatusByCustBuildStatus / getCustBuildStatus）但不是同一列。
+      库里偶发 EFFECT 不是本枚举成员，不要当审核通过。
+    entry: CustSyncEventProcessor.updateCustBuildStatus
+    stages:
+      - stage: 发起变更
+        transitions:
+          - from: CUST_CHECK_PASS
+            event: 企业自行变更
+            to: CUST_CHECK_INIT
+            evidence: code_path:CustCompanyInfoApplication.java:7350
+      - stage: 运营回写
+        transitions:
+          - from: CUST_CHECK_CHECKING
+            event: 回调 check_status
+            to: CUST_CHECK_PASS
+            evidence: code_path:CustSyncEventProcessor.java:2080
+          - from: CUST_CHECK_CHECKING
+            event: 退回客户
+            to: CUST_CHECK_BACKTOCUSTOM
+            evidence: code_path:CustSyncEventProcessor.java:2033
+          - from: CUST_CHECK_CHECKING
+            event: 审核拒绝
+            to: CUST_CHECK_REJECT
+            evidence: code_path:CustSyncEventProcessor.java:2064
+  - process_key: cust_person_info__status
+    table: cust_person_info
+    field: status
+    title: 联系人激活状态
+    description: |
+      钉 cust_person_info.status。企业冻结/注销不走本列。
+      管理员变更是冻旧建新：旧行 enable=N 且 status=FREEZE，新行 status=EFFECT。
+      Java 枚举名 admin 入库是 accountAdmin。
+    entry: CustPersonApplication.ifNessaryFrzAdm
+    stages:
+      - stage: 新建
+        transitions:
+          - from: ""
+            event: 从法人生成管理员
+            to: ADD
+            evidence: code_path:CustPersonApplication.java:402
+          - from: ADD
+            event: 管理员变更新建联系人
+            to: EFFECT
+            evidence: code_path:CustPersonApplication.java:852
+      - stage: 冻旧建新
+        trigger: 管理员/经办人变更
+        transitions:
+          - from: EFFECT
+            event: 冻结旧管理员或经办人
+            to: FREEZE
+            side_effects:
+              - table: cust_person_info
+                field: enable
+                action: 置为 N（与 status 共写）
+            evidence: code_path:CustPersonApplication.java:841
+  - process_key: cust_role_info__status
+    table: cust_role_info
+    field: status
+    title: 企业角色状态
+    description: |
+      钉 cust_role_info.status。企业冻结/注销/解冻时按 code 批量同步为企业 cust_status；已 WRITEOFF 的角色不再改。
+    entry: CustRoleApplication.updateStatusByCustCompany
+    stages:
+      - stage: 随企业状态
+        transitions:
+          - from: EFFECT
+            event: 企业冻结
+            to: FREEZE
+            evidence: code_path:CustRoleApplication.java:112
+          - from: EFFECT
+            event: 企业注销
+            to: WRITEOFF
+            evidence: code_path:CustRoleApplication.java:112
+          - from: FREEZE
+            event: 企业解冻
+            to: EFFECT
+            evidence: code_path:CustRoleApplication.java:112
+  - process_key: cust_invite_info__progress
+    table: cust_invite_info
+    field: progress
+    title: 邀请进度
+    description: |
+      钉 cust_invite_info.progress。邀请落库写成 INIT。
+      运营回调 updateInviteCustProcess 把 progress 写成被邀请企业当前 cust_build_status，匹配条件是 name+db_tenant_code，不是 invite_cust_id，也不是 EQUI_JOIN。
+    entry: CustCompanyIfoEnchanceService.inviteSave
+    stages:
+      - stage: 发出邀请
+        transitions:
+          - from: ""
+            event: inviteSave
+            to: INIT
+            evidence: code_path:CustCompanyIfoEnchanceService.java:1586
+      - stage: 同步建档状态
+        trigger: updateInviteCustProcess
+        transitions:
+          - from: INIT
+            event: 回调按企业名称+租户回写 progress
+            to: BUILD_SUCCESS
+            note: to 实际等于当时的 cust_company_info.cust_build_status，不固定 BUILD_SUCCESS。
+            evidence: code_path:CustSyncEventProcessor.java:1128

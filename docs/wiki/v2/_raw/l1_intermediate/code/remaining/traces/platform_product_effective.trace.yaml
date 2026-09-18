@@ -1,0 +1,21 @@
+kind: trace
+domain: remaining
+trace_key: platform_product_effective
+entry: POST /app-web/platformProduct/effective
+controller: PlatformProductController.java:74
+application: PlatformProduct.java:100
+tables: [platform_product]
+notes: |
+  人工生效写 product_status=1。已是 1 则直接返回。
+  不写 tenant_product.open_status。问已生效用 effective_platform_product。
+scenario:
+  scenario_key: platform_product_effective
+  title: 生效平台产品
+  hubs:
+    - table: platform_product
+      role: master
+  lifecycle:
+    - dict: platform_product__product_status
+      process: platform_product__product_status
+gaps:
+  - 未见写回待生效 0 的迁入边。

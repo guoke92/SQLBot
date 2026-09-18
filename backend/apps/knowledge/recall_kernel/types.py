@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from typing import Any, Literal
 
 TableSource = Literal[
-    "anchor", "table_page", "schema_vector", "schema_expand", "pinned"
+    "anchor", "table_page", "schema_vector", "schema_expand", "pinned", "catalog"
 ]
 RecallBackend = Literal["wiki", "schema_vector", "none", "error"]
 
@@ -126,6 +126,7 @@ class RecallBundle:
             "embedding_built": self.embedding_built,
             "gate_rejected": list(self.gate_rejected),
             "table_evidence": self.table_evidence(),
+            "table_scores": {item.name: float(item.score) for item in self.tables},
             "budget_cut": list(self.budget_cut),
             "caliber_conflicts": [dict(item) for item in self.caliber_conflicts],
             "wiki_passages": {

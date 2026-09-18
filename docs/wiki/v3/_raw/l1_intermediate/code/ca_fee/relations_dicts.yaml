@@ -1,0 +1,132 @@
+kind: relations_dicts
+domain: ca_fee
+confirmed_relations:
+  - left: tenant_project.id
+    right: ca_fee_project_config.project_id
+    type: EQUI_JOIN
+    cardinality: one_to_one
+    join_role: identity
+    evidence: code_path:cafee/CaFeeProjectConfigService.java:296
+    note: 项目配置按 tenant_project 主键，一项目一行。
+  - left: tenant_setting_config.id
+    right: ca_fee_project_config.tenant_id
+    type: EQUI_JOIN
+    cardinality: one_to_many
+    join_role: identity
+    evidence: code_path:cafee/CaFeeProjectConfigService.java:236
+    note: 新建配置写 tenant_id=项目上的租户主键。
+  - left: tenant_project.id
+    right: ca_fee_order.project_id
+    type: EQUI_JOIN
+    cardinality: one_to_many
+    join_role: identity
+    evidence: code_path:cafee/CaFeeOrderService.java:150
+  - left: tenant_setting_config.id
+    right: ca_fee_order.tenant_id
+    type: EQUI_JOIN
+    cardinality: one_to_many
+    join_role: identity
+    evidence: code_path:cafee/CaFeeOrderService.java:481
+  - left: cust_company_info.id
+    right: ca_fee_order.company_id
+    type: EQUI_JOIN
+    cardinality: one_to_many
+    join_role: identity
+    evidence: code_path:CaFeeBocomGateway.java:118
+    note: company_id 是企业主键，不是 ca_fee_company.id。
+  - left: ca_fee_company.certification_no
+    right: ca_fee_order.certification_no
+    type: EQUI_JOIN
+    cardinality: one_to_many
+    join_role: identity
+    evidence: code_path:cafee/CaFeeOrderService.java:440
+    note: 企业宽表与订单按统码关联。
+  - left: cust_company_info.certification_no
+    right: ca_fee_company.certification_no
+    type: EQUI_JOIN
+    cardinality: one_to_one
+    join_role: identity
+    evidence: code_path:CaFeeCompanyCaStatusSupport.java:85
+  - left: tenant_project.id
+    right: ca_fee_company.source_project_id
+    type: EQUI_JOIN
+    cardinality: one_to_many
+    join_role: identity
+    evidence: code_path:cafee/CaFeeOrderService.java:456
+    note: 首次锁定年费时记下源项目。
+  - left: tenant_setting_config.id
+    right: ca_fee_company.tenant_id
+    type: EQUI_JOIN
+    cardinality: one_to_many
+    join_role: identity
+    evidence: code_path:cafee/CaFeeOrderService.java:458
+  - left: cust_company_info.id
+    right: ca_certification_info.cust_id
+    type: EQUI_JOIN
+    cardinality: one_to_many
+    join_role: identity
+    evidence: code_path:CaCertificationInfoAppServiceImpl.java:151
+dict_labels:
+  ca_fee_order__order_status:
+    table: ca_fee_order
+    column: order_status
+    values:
+      PENDING: { label: 未缴费, evidence: code_path:CaFeeOrderStatusEnum.java:15 }
+      PAID: { label: 已缴费, evidence: code_path:CaFeeOrderStatusEnum.java:16 }
+      CLOSED: { label: 已关闭, evidence: code_path:CaFeeOrderStatusEnum.java:17 }
+      EXPIRED: { label: 已过期, evidence: code_path:CaFeeOrderStatusEnum.java:18 }
+  ca_fee_order__order_type:
+    table: ca_fee_order
+    column: order_type
+    values:
+      FIRST: { label: 首次缴费, evidence: code_path:CaFeeOrderTypeEnum.java:15 }
+      RENEW: { label: 即将到期续费, evidence: code_path:CaFeeOrderTypeEnum.java:16 }
+      RENEW_EXPIRED: { label: 已到期续费, evidence: code_path:CaFeeOrderTypeEnum.java:17 }
+      STOCK: { label: 存量补录, evidence: code_path:CaFeeOrderTypeEnum.java:18 }
+  ca_fee_order__pay_method:
+    table: ca_fee_order
+    column: pay_method
+    values:
+      BOCOM: { label: 交e保对公打款, evidence: code_path:CaFeePayMethodEnum.java:15 }
+  ca_fee_order__invoice_status:
+    table: ca_fee_order
+    column: invoice_status
+    values:
+      PENDING: { label: 开票中, evidence: code_path:CaFeeInvoiceStatusEnum.java:15 }
+      ISSUED: { label: 已开票, evidence: code_path:CaFeeInvoiceStatusEnum.java:16 }
+      FAILED: { label: 开票失败, evidence: code_path:CaFeeInvoiceStatusEnum.java:17 }
+      NONE: { label: 无需开票, evidence: code_path:CaFeeInvoiceStatusEnum.java:18 }
+  ca_fee_order__company_type:
+    table: ca_fee_order
+    column: company_type
+    values:
+      SUPPLIER: { label: 供应商, evidence: code_path:CustCompanyTypeEnum.java:15 }
+      CORE: { label: 核心企业, evidence: code_path:CustCompanyTypeEnum.java:18 }
+  ca_fee_company__pay_status:
+    table: ca_fee_company
+    column: pay_status
+    values:
+      PAID: { label: 已缴费, evidence: code_path:CaFeeCompanyPayStatusEnum.java:15 }
+      UNPAID: { label: 未缴费, evidence: code_path:CaFeeCompanyPayStatusEnum.java:16 }
+  ca_fee_company__ca_status:
+    table: ca_fee_company
+    column: ca_status
+    values:
+      NORMAL: { label: 有效, evidence: code_path:CaFeeCertStatusEnum.java:15 }
+      EXPIRED: { label: 已过期, evidence: code_path:CaFeeCertStatusEnum.java:16 }
+      CANCELLED: { label: 已注销, evidence: code_path:CaFeeCertStatusEnum.java:17 }
+      UNREGISTERED: { label: 未注册, evidence: code_path:CaFeeCertStatusEnum.java:18 }
+      UNKNOWN: { label: 未注册, evidence: code_path:CaFeeCertStatusEnum.java:19 }
+  ca_fee_company__source_company_type:
+    table: ca_fee_company
+    column: source_company_type
+    values:
+      SUPPLIER: { label: 供应商, evidence: code_path:CustCompanyTypeEnum.java:15 }
+      CORE: { label: 核心企业, evidence: code_path:CustCompanyTypeEnum.java:18 }
+  ca_certification_info__submit_status:
+    table: ca_certification_info
+    column: submit_status
+    values:
+      PENDING: { label: 创建后未提交、或正在采集各 JSON 列, evidence: code_path:CaSubmitStatusEnum.java:12 }
+      SUCCESS: { label: cbsSubmitBizData 成功并已回写 request_id / submit_time, evidence: code_path:CaSubmitStatusEnum.java:15 }
+      FAIL: { label: cbsSubmitBizData 失败 / 超时 / 业务校验未通过, evidence: code_path:CaSubmitStatusEnum.java:18 }

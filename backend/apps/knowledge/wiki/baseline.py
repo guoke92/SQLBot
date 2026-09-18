@@ -1,7 +1,7 @@
 """Baseline page generator (plan E2.4) — db-first table/enum pages.
 
 基线页 = 存在性真值页：db-catalog（结构权威）∪ 代码 catalog（注释/枚举语义）
-→ ``wiki-pages/tables/`` 与 ``wiki-pages/enums/``。语义层页面（Step D 产物）
+→ ``wiki-pages/tables/`` 与 ``wiki-pages/dicts/``。语义层页面（Step D 产物）
 落同名 page_key 时由 ``merge_pages`` 走 v0 §5.3 确定性块合并——同键碰撞在
 源头消解（不再有两堆语料）。
 
@@ -660,7 +660,7 @@ def build_enum_pages(
     绑定优先级（杜绝泛列吞吐）：
     1. **强证据**：setter 写值点的 表.列 绑定（table_bindings）——权威；
     2. **专有列**：dictKey == 列名，或 dictKey == 业务前缀+列名 且列名非泛列；
-    3. 都没有 → 不建页，落 ``ENUM_UNBOUND`` REVIEW（比错挂好）。
+    3. 都没有 → 不建页，落 ``DICT_UNBOUND`` REVIEW（比错挂好）。
 
     同物理列多枚举类归一为一页（page_key = 物理列名）；label 裁决序 =
     常量类 display > 枚举类 display > db 分布 > 值本身；同值次要说法进
@@ -710,7 +710,7 @@ def build_enum_pages(
             if field not in seen_fields:
                 unbound.append(
                     {
-                        "code": "ENUM_UNBOUND",
+                        "code": "DICT_UNBOUND",
                         "field": field,
                         "enum": str(entry.get("enum")),
                     }
@@ -897,8 +897,8 @@ def build_enum_pages(
                     carriers.append(carrier_ref)
         meta = page.get("meta") or {}
         rows = [
-            "```ground:enum",
-            f"enum: {page_key}",
+            "```ground:dict",
+            f"dict: {page_key}",
             f"fields: [{', '.join(carriers)}]",
             "values:",
         ]
@@ -931,7 +931,7 @@ def build_enum_pages(
         rows.append("```")
         front = (
             "---\n"
-            f"type: enum\n"
+            f"type: dict\n"
             f"title: {primary_col}\n"
             f"page_key: {page_key}\n"
             f"domain: {_DOMAIN}\n"
@@ -960,7 +960,7 @@ def build_enum_pages(
             ]
             if diff_lines:
                 body += "\n## 表述差异\n\n" + "\n".join(diff_lines) + "\n"
-        pages.append((f"enums/{page_key}.md", front + body))
+        pages.append((f"dicts/{page_key}.md", front + body))
     return pages, unbound
 
 

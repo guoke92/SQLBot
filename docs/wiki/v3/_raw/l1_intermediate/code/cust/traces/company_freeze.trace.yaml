@@ -1,0 +1,18 @@
+kind: trace
+domain: cust
+trace_key: company_freeze
+entry: CustCompanyInfoApplication.freeze
+application: CustCompanyInfoApplication.freeze:712
+tables: [cust_company_info, cust_role_info]
+notes: |
+  freeze → custStatusOperator 写 cust_status=FREEZE，角色 status 同步（跳过 WRITEOFF），再 freezeCustAdminUsers。
+  不写 cust_person_info.enable。注销 diable:901 走 WRITEOFF + freezeCustAllUsers。
+  needCheckInWay 配置为 true，实现 1072 行是空 TODO。
+scenario:
+  scenario_key: company_freeze_submit
+  title: 冻结企业
+  hubs:
+    - table: cust_company_info
+      role: master
+gaps:
+  - 冻结/注销的在途检查配置了但未实现。

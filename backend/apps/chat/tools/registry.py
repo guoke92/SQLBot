@@ -7,12 +7,17 @@ from typing import Any, Self
 from langchain_core.tools import StructuredTool
 from pydantic import BaseModel, Field, model_validator
 
+from apps.chat.tools.catalog_tools import (
+    get_dict_values,
+    get_table_relations,
+    get_table_schema,
+    search_knowledge,
+)
 from apps.chat.tools.clarification import request_clarification
 from apps.chat.tools.compare_results import compare_query_results
 from apps.chat.tools.complete_answer import complete_without_sql
 from apps.chat.tools.execute_sql import execute_sql_sandbox
 from apps.chat.tools.patch_sql import patch_and_compile_sql
-from apps.chat.tools.wiki_search import search_wiki_knowledge
 
 
 def _clarification_catalog(llm_service: Any, access_scope: Any) -> dict[str, set[str]]:
@@ -101,33 +106,58 @@ class RequestClarificationInput(BaseModel):
     )
 
 
-class SearchWikiInput(BaseModel):
-    query: str = Field(
-        default="",
+class GetTableSchemaInput(BaseModel):
+    tables: list[str] = Field(
         description=(
-            "Business concept, table name, caliber, or keyword to search Wiki for. "
-            "Use again when the first recall is incomplete, clarification introduces "
-            "new concepts, or thinking finds a missing table/enum/org mapping. "
-            "May be empty when only dropping knowledge via drop."
+            "Physical table names from schema_outline to expand (max 3). "
+            "Do not pass tables already listed in schema_catalog."
         ),
+        min_length=1,
+        max_length=3,
     )
-    drop: list[str] = Field(
-        default_factory=list,
+
+
+class GetTableRelationsInput(BaseModel):
+    tables: list[str] = Field(
         description=(
-            "Knowledge keys to evict from the session prompt: physical table names "
-            "and/or wiki page_keys listed in knowledge_index. Dropped items stay "
-            "out of later assembly unless a later search query explicitly names "
-            "them. Do not drop JOIN peers or tables still needed for the SQL."
+            "Two or more physical table names whose JOIN path is needed. "
+            "Do not call for a single-table question."
         ),
+        min_length=2,
+    )
+
+
+class SearchKnowledgeInput(BaseModel):
+    query: str = Field(
+        description=(
+            "Business caliber, formula, or proper noun to resolve. "
+            "Do not use this to discover tables or field lists."
+        ),
+        min_length=1,
+    )
+
+
+class GetDictValuesInput(BaseModel):
+    dict_name: str = Field(
+        default="",
+        description="Dictionary slug (schema dict= pointer). Prefer this when known.",
+    )
+    table: str = Field(
+        default="",
+        description="Physical table of the enum field when dict_name is unknown.",
+    )
+    field: str = Field(
+        default="",
+        description="Physical field of the enum when dict_name is unknown.",
     )
 
     @model_validator(mode="after")
-    def _need_query_or_drop(self) -> SearchWikiInput:
-        if not str(self.query or "").strip() and not [
-            item for item in self.drop if str(item).strip()
-        ]:
-            raise ValueError("search_wiki requires query and/or drop")
-        return self
+    def _need_dict_or_field(self) -> Self:
+        if str(self.dict_name or "").strip():
+            return self
+        if str(self.table or "").strip() and str(self.field or "").strip():
+            return self
+        raise ValueError("get_dict_values requires dict_name or table+field")
 
 
 class PatchSqlInput(BaseModel):
@@ -199,11 +229,27 @@ def build_agent_tools(
 ) -> list[StructuredTool]:
     """Construct bound LangChain tools scoped to current LLMService and access permissions."""
 
-    def _search_wiki(query: str = "", drop: list[str] | None = None) -> dict[str, Any]:
-        res = search_wiki_knowledge(
-            llm_service, query, drop=drop or [], access_scope=access_scope
+    def _get_table_schema(tables: list[str]) -> dict[str, Any]:
+        return dict(get_table_schema(llm_service, tables, access_scope=access_scope))
+
+    def _get_table_relations(tables: list[str]) -> dict[str, Any]:
+        return dict(get_table_relations(llm_service, tables, access_scope=access_scope))
+
+    def _search_knowledge(query: str) -> dict[str, Any]:
+        return dict(search_knowledge(llm_service, query, access_scope=access_scope))
+
+    def _get_dict_values(
+        dict_name: str = "", table: str = "", field: str = ""
+    ) -> dict[str, Any]:
+        return dict(
+            get_dict_values(
+                llm_service,
+                dict_name=dict_name,
+                table=table,
+                field=field,
+                access_scope=access_scope,
+            )
         )
-        return dict(res)
 
     def _patch_sql(
         base_sql: str, action: str, payload: dict[str, Any]
@@ -259,19 +305,44 @@ def build_agent_tools(
 
     tools: list[StructuredTool] = [
         StructuredTool.from_function(
-            func=_search_wiki,
-            name="search_wiki",
+            func=_get_table_schema,
+            name="get_table_schema",
             description=(
-                "Search Wiki for table structures, field definitions, enums, and calibers. "
-                "Returns a coverage stub (added_tables/pages, schema_ready, stop_search); "
-                "full schema lives only in the system prompt. "
-                "Pass drop=[table or page_key] to evict irrelevant knowledge from later "
-                "prompts; query may be empty when only dropping. "
-                "Call again for a new gap; if this query added nothing, change the "
-                "keyword rather than repeating. Never query information_schema to "
-                "fill schema gaps."
+                "Expand full field definitions for up to 3 tables named in "
+                "schema_outline. Does not return joins or wiki prose. "
+                "Do not recall tables already in schema_catalog. "
+                "Never query information_schema."
             ),
-            args_schema=SearchWikiInput,
+            args_schema=GetTableSchemaInput,
+        ),
+        StructuredTool.from_function(
+            func=_get_table_relations,
+            name="get_table_relations",
+            description=(
+                "Return known JOIN edges among two or more named tables. "
+                "Call only when the question spans multiple entities. "
+                "Do not call for a single-table export."
+            ),
+            args_schema=GetTableRelationsInput,
+        ),
+        StructuredTool.from_function(
+            func=_search_knowledge,
+            name="search_knowledge",
+            description=(
+                "Retrieve business caliber / concept / metric text. "
+                "Does not select tables or return DDL. At most once per turn. "
+                "Skip when field comments already explain the column."
+            ),
+            args_schema=SearchKnowledgeInput,
+        ),
+        StructuredTool.from_function(
+            func=_get_dict_values,
+            name="get_dict_values",
+            description=(
+                "Look up one field's value→label dictionary. "
+                "Skip when schema labels= or comments already list codes."
+            ),
+            args_schema=GetDictValuesInput,
         ),
         StructuredTool.from_function(
             func=_patch_sql,
@@ -287,7 +358,8 @@ def build_agent_tools(
                 "For delivery (required=true), set chart_type to table|line|bar|column|pie "
                 "and a short result_title. Do not use this to inspect catalogs "
                 "(information_schema, SHOW COLUMNS, DESCRIBE). "
-                "If Wiki has not provided table/enum schema, do not call this tool."
+                "If the needed tables are not yet in schema_catalog, call "
+                "get_table_schema first."
             ),
             args_schema=ExecuteSqlInput,
         ),
@@ -303,7 +375,7 @@ def build_agent_tools(
             description=(
                 "Finish this turn without delivering SQL. Call when the user "
                 "needs a capability/usage/knowledge explanation rather than a "
-                "dataset, or when Wiki cannot cover the question. content is "
+                "dataset, or when the catalog cannot cover the question. content is "
                 "the user-facing answer. Do not use this to skip a data query; "
                 "probes (required=false) are not an exit. After a successful "
                 "delivery SQL, do not call this tool."
@@ -317,7 +389,7 @@ def build_agent_tools(
                 "Ask the user for clarification when there is significant business "
                 "ambiguity that changes query semantics: row set, output-column "
                 "values/lineage, or aggregation/grouping caliber. Each option must "
-                "map to real table/field(s) from search_wiki or the current schema; "
+                "map to real table/field(s) from schema_outline or schema_catalog; "
                 "use fields when one option carries a complete multi-column mapping. "
                 "Do not invent products, platforms, or objects that are not in the datasource."
             ),

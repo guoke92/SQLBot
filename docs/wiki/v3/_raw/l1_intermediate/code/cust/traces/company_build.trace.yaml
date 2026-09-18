@@ -1,0 +1,19 @@
+kind: trace
+domain: cust
+trace_key: company_simple_submit
+entry: POST /cust-web/custInfo/simpleSubmit
+controller: CustCompanyInfoController.java:417
+application: CustCompanyInfoApplication.submitForSimpleAuth:1980
+tables: [cust_company_info, cust_role_info, cust_person_info]
+notes: |
+  Controller 不走 simpleSubmit(Long)，直接 submitForSimpleAuth。
+  非变更路径将 cust_build_status 写成 AWAIT_CUST_CONFIRM；确认路径在 confirmCustInfoForSimpleAuth 把建档状态与生效状态共写。
+  提交时若 need_register_ca=Y，CustCompanyCaPolicy.enforceMustNotOpenCa 强制写成 N。
+scenario:
+  scenario_key: company_simple_auth
+  title: 简易认证提交
+  hubs:
+    - table: cust_company_info
+      role: master
+gaps:
+  - TO_BE_BUILD 等枚举值在 CustBuildStatusEnum 有定义，本 trace 未看到迁入边。

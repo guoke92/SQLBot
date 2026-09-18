@@ -1,0 +1,9 @@
+kind: display
+domain: example
+doc_source: "docs/example.md"
+items:
+  - title: 版本演进
+    page_key: platform_version_history
+    recall: false
+    content: |
+      示例排期，不进问数召回。

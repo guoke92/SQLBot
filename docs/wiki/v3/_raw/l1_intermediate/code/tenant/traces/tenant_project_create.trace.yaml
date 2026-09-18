@@ -1,0 +1,12 @@
+kind: trace
+domain: tenant
+trace_key: tenant_project_create
+entry: POST /app-web/tenantProject/create
+tables: [tenant_project, tenant_setting_config, tenant_product]
+notes: |
+  TenantProjectController.create → TenantProjectApplication → TenantProjectDomainService.create。
+  写 tenant_id=setting.id、product_id=product.id、status=0、channel_code。
+  挡板开启时 createInitialApproval 插 PENDING 审批。
+gaps:
+  - tenant_project.operator_id / source_id / refer_tenant_project_id 本路径未等值 JOIN。
+  - tenant_project.act_procinst_id 工作流列，不是企业/租户身份 JOIN。

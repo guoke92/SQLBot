@@ -1,0 +1,250 @@
+kind: relations_dicts
+domain: tenant
+confirmed_relations:
+  - left: tenant_setting_config.id
+    right: tenant_project.tenant_id
+    type: EQUI_JOIN
+    cardinality: one_to_many
+    join_role: identity
+    evidence: code_path:TenantProjectDomainService.java:157
+    note: 创建项目写 tenant_id=租户配置主键；列表按 tenant_id 等值查。
+  - left: tenant_setting_config.id
+    right: tenant_product.tenant_id
+    type: EQUI_JOIN
+    cardinality: one_to_many
+    join_role: identity
+    evidence: code_path:TenantProductDomainService.java:147
+    note: 开通产品写 tenant_id=TenantDTO.id（即 tenant_setting_config.id）。
+  - left: tenant_setting_config.code
+    right: tenant_product.ref_tenant_product_tenant_setting_config
+    type: EQUI_JOIN
+    cardinality: one_to_many
+    join_role: identity
+    evidence: code_path:TenantProductDomainService.java:161
+    note: 码引用租户配置 code，与 tenant_id 并存。
+  - left: tenant_setting_config.code
+    right: tenant_project.ref_tenant_project_tenant_code
+    type: EQUI_JOIN
+    cardinality: one_to_many
+    join_role: identity
+    evidence: code_path:TenantProjectDaoImpl.java:135
+    note: 生效项目列表按租户配置 code 过滤。
+  - left: tenant_product.id
+    right: tenant_project.product_id
+    type: EQUI_JOIN
+    cardinality: one_to_many
+    join_role: identity
+    evidence: code_path:TenantProjectDaoImpl.java:34
+    note: 项目按租户产品主键关联。
+  - left: tenant_product.code
+    right: tenant_project.ref_tenant_project_product_code
+    type: EQUI_JOIN
+    cardinality: one_to_many
+    join_role: identity
+    evidence: code_path:TenantProjectDaoImpl.java:136
+    note: 码引用租户产品 code。
+  - left: platform_product.id
+    right: tenant_product.platform_product_id
+    type: EQUI_JOIN
+    cardinality: one_to_many
+    join_role: identity
+    evidence: code_path:TenantProductDaoImpl.java:42
+    note: 租户产品对平台产品主键。
+  - left: tenant_project.code
+    right: tenant_project_approval.ref_tenant_project_approval_tenant_project
+    type: EQUI_JOIN
+    cardinality: one_to_many
+    join_role: identity
+    evidence: code_path:ProjectApprovalApplication.java:253
+    note: 审批按项目 code 关联，不是 tenant_project.id。最新一笔再加 is_latest=Y。
+  - left: tenant_project_approval.id
+    right: tenant_project.project_approval_id
+    type: EQUI_JOIN
+    cardinality: one_to_one
+    join_role: identity
+    priority: secondary
+    evidence: code_path:ProjectApprovalApplication.java:405
+    note: 创建审批后回写项目上的审批主键。主查询走 code=ref。
+  - left: tenant_project.id
+    right: tenant_setting_config.default_project_id
+    type: EQUI_JOIN
+    cardinality: one_to_one
+    join_role: identity
+    evidence: code_path:TenantAppliactionService.java:449
+    note: 默认关联项目是租户配置上的项目主键。
+  - left: tenant_project_approval.code
+    right: tenant_project_approval_flow.ref_tenant_project_approval_flow_tenant_project_approval
+    type: EQUI_JOIN
+    cardinality: one_to_many
+    join_role: identity
+    evidence: code_path:ProjectApprovalApplication.java:571
+    note: 流程节点按审批单 code，不是审批 id。
+  - left: tenant_project_approval.code
+    right: tenant_project_approval_business_info.ref_tenant_project_approval_business_info_project_approval
+    type: EQUI_JOIN
+    cardinality: one_to_one
+    join_role: identity
+    evidence: code_path:ProjectApprovalApplication.java:1003
+    note: 业务推送信息按审批 code。
+  - left: tenant_project_approval.code
+    right: tenant_project_approval_flow_credit.ref_tenant_project_approval_flow_credit_project_approval
+    type: EQUI_JOIN
+    cardinality: one_to_many
+    join_role: identity
+    evidence: code_path:ProjectApprovalApplication.java:1551
+    note: 授信按审批 code。
+  - left: tenant_project_approval.code
+    right: tenant_project_approval_flow_node.ref_tenant_project_approval_flow_node_project_approval
+    type: EQUI_JOIN
+    cardinality: one_to_many
+    join_role: identity
+    evidence: code_path:ProjectOnlineProcessOperateListener.java:355
+    note: 节点操作留痕按审批 code。
+  - left: tenant_project_approval_flow.code
+    right: tenant_project_approval_flow_node.ref_tenant_project_approval_flow_node_project_approval_flow
+    type: EQUI_JOIN
+    cardinality: one_to_many
+    join_role: identity
+    evidence: code_path:ProjectApprovalApplication.java:824
+    note: 操作留痕按流程节点实例 code。
+  - left: tenant_setting_config.id
+    right: tenant_interworking_product.tenant_id
+    type: EQUI_JOIN
+    cardinality: one_to_many
+    join_role: identity
+    evidence: code_path:TenantInterworkingProductDaoImpl.java:35
+    note: 互通产品按租户配置主键。
+  - left: platform_product.id
+    right: tenant_interworking_product.platform_product_id
+    type: EQUI_JOIN
+    cardinality: one_to_many
+    join_role: identity
+    evidence: code_path:TenantInterworkingProductDaoImpl.java:36
+  - left: tenant_interworking_product.id
+    right: tenant_interworking_project.product_id
+    type: EQUI_JOIN
+    cardinality: one_to_many
+    join_role: identity
+    evidence: code_path:TenantInterworkingProjectDaoImpl.java:32
+    note: 互通项目绑定的是互通产品主键，不是 tenant_product.id。
+  - left: tenant_interworking_product.code
+    right: tenant_interworking_project.ref_tenant_interworking_project_tenant_interworking_product
+    type: EQUI_JOIN
+    cardinality: one_to_many
+    join_role: identity
+    evidence: code_path:TenantInterworkingProjectApplicationService.java:67
+  - left: tenant_setting_config.id
+    right: tenant_interworking_project.tenant_id
+    type: EQUI_JOIN
+    cardinality: one_to_many
+    join_role: identity
+    evidence: code_path:TenantInterworkingProjectDaoImpl.java:24
+  - left: tenant_project.id
+    right: tenant_interworking_project.project_id
+    type: EQUI_JOIN
+    cardinality: one_to_many
+    join_role: identity
+    evidence: code_path:TenantInterworkingProjectApplicationService.java:64
+    note: 互通项目绑定的是 tenant_project.id，不是项目 code。
+dict_labels:
+  tenant_project__project_status:
+    table: tenant_project
+    column: project_status
+    values:
+      "0": { label: 待生效, evidence: code_path:ProjectStatusEnum.java:20 }
+      "1": { label: 已生效, evidence: code_path:ProjectStatusEnum.java:24 }
+      "2": { label: 已失效, evidence: code_path:ProjectStatusEnum.java:28 }
+  tenant_project_approval__wf_status:
+    table: tenant_project_approval
+    column: wf_status
+    values:
+      PENDING: { label: 待发起, evidence: code_path:ProjectApprovalWorkflowStatusEnum.java:16 }
+      RUNNING: { label: 审批中, evidence: code_path:ProjectApprovalWorkflowStatusEnum.java:17 }
+      FINISHED: { label: 审批通过, evidence: code_path:ProjectApprovalWorkflowStatusEnum.java:18 }
+      TERMINATED: { label: 审批拒绝, evidence: code_path:ProjectApprovalWorkflowStatusEnum.java:19 }
+  tenant_project_approval__project_type:
+    table: tenant_project_approval
+    column: project_type
+    values:
+      STANDARD: { label: 标准项目, evidence: code_path:ProjectApprovalProjectTypeEnum.java:16 }
+      REGULAR: { label: 常规项目, evidence: code_path:ProjectApprovalProjectTypeEnum.java:17 }
+  tenant_project_approval_flow_config__flow_code:
+    table: tenant_project_approval_flow_config
+    column: flow_code
+    values:
+      NO_ONLINE: { label: 无需上线审批, evidence: code_path:ProjectApprovalFlowCodeEnum.java:16 }
+      STANDARD: { label: 标准项目流程, evidence: code_path:ProjectApprovalFlowCodeEnum.java:17 }
+      REGULAR: { label: 常规项目流程, evidence: code_path:ProjectApprovalFlowCodeEnum.java:18 }
+  tenant_project_approval_flow__node_status:
+    table: tenant_project_approval_flow
+    column: node_status
+    values:
+      PENDING: { label: 待审批, evidence: code_path:ProjectApprovalNodeStatusEnum.java:16 }
+      APPROVING: { label: 审批中, evidence: code_path:ProjectApprovalNodeStatusEnum.java:17 }
+      APPROVED: { label: 已通过, evidence: code_path:ProjectApprovalNodeStatusEnum.java:18 }
+      REJECTED: { label: 已拒绝, evidence: code_path:ProjectApprovalNodeStatusEnum.java:19 }
+  tenant_project_approval_flow__node_code:
+    table: tenant_project_approval_flow
+    column: node_code
+    values:
+      PROJECT_CONFIG: { label: 方案配置, evidence: code_path:ProjectApprovalNodeCodeEnum.java:16 }
+      PROJECT_MANAGER: { label: 方案经理, evidence: code_path:ProjectApprovalNodeCodeEnum.java:17 }
+      LEGAL_PROCESS: { label: 法务经办, evidence: code_path:ProjectApprovalNodeCodeEnum.java:18 }
+      LEGAL_REVIEW: { label: 法务复核, evidence: code_path:ProjectApprovalNodeCodeEnum.java:19 }
+      BUSINESS_MANAGER: { label: 业务经理审批, evidence: code_path:ProjectApprovalNodeCodeEnum.java:20 }
+      OPERATION: { label: 运营审批, evidence: code_path:ProjectApprovalNodeCodeEnum.java:21 }
+      OTHER: { label: 其他, evidence: code_path:ProjectApprovalNodeCodeEnum.java:22 }
+      SUPPLEMENT_AGREEMENT: { label: 补充协议, evidence: code_path:ProjectApprovalNodeCodeEnum.java:23 }
+  tenant_project_approval_flow_node__node_code:
+    table: tenant_project_approval_flow_node
+    column: node_code
+    values:
+      PROJECT_CONFIG: { label: 方案配置, evidence: code_path:ProjectApprovalNodeCodeEnum.java:16 }
+      PROJECT_MANAGER: { label: 方案经理, evidence: code_path:ProjectApprovalNodeCodeEnum.java:17 }
+      LEGAL_PROCESS: { label: 法务经办, evidence: code_path:ProjectApprovalNodeCodeEnum.java:18 }
+      LEGAL_REVIEW: { label: 法务复核, evidence: code_path:ProjectApprovalNodeCodeEnum.java:19 }
+      BUSINESS_MANAGER: { label: 业务经理审批, evidence: code_path:ProjectApprovalNodeCodeEnum.java:20 }
+      OPERATION: { label: 运营审批, evidence: code_path:ProjectApprovalNodeCodeEnum.java:21 }
+  tenant_project_approval_flow_config__node_code:
+    table: tenant_project_approval_flow_config
+    column: node_code
+    values:
+      PROJECT_CONFIG: { label: 方案配置, evidence: code_path:ProjectApprovalNodeCodeEnum.java:16 }
+      PROJECT_MANAGER: { label: 方案经理, evidence: code_path:ProjectApprovalNodeCodeEnum.java:17 }
+      LEGAL_PROCESS: { label: 法务经办, evidence: code_path:ProjectApprovalNodeCodeEnum.java:18 }
+      LEGAL_REVIEW: { label: 法务复核, evidence: code_path:ProjectApprovalNodeCodeEnum.java:19 }
+      BUSINESS_MANAGER: { label: 业务经理审批, evidence: code_path:ProjectApprovalNodeCodeEnum.java:20 }
+      OPERATION: { label: 运营审批, evidence: code_path:ProjectApprovalNodeCodeEnum.java:21 }
+  tenant_project_approval_flow_node__operate_type:
+    table: tenant_project_approval_flow_node
+    column: operate_type
+    values:
+      pass: { label: 同意, evidence: code_path:ProjectApprovalOperateTypeEnum.java:16 }
+      reject: { label: 驳回, evidence: code_path:ProjectApprovalOperateTypeEnum.java:17 }
+      back: { label: 退回, evidence: code_path:ProjectApprovalOperateTypeEnum.java:18 }
+      delegate: { label: 转审, evidence: code_path:ProjectApprovalOperateTypeEnum.java:19 }
+  tenant_project_approval_flow_node__approval_type:
+    table: tenant_project_approval_flow_node
+    column: approval_type
+    values:
+      ONLINE_APPROVAL: { label: 项目上线审批, evidence: code_path:ProjectApprovalTypeEnum.java:12 }
+      BACK_AGREEMENT: { label: 后补合作协议, evidence: code_path:ProjectApprovalTypeEnum.java:13 }
+  tenant_product__open_status:
+    table: tenant_product
+    column: open_status
+    values:
+      Y: { label: 已开通, evidence: code_path:ProductOpenStatusEnum.java:18 }
+      P: { label: 开通中, evidence: code_path:ProductOpenStatusEnum.java:19 }
+      N: { label: 未开通, evidence: code_path:ProductOpenStatusEnum.java:23 }
+  tenant_interworking_product__open_status:
+    table: tenant_interworking_product
+    column: open_status
+    values:
+      Y: { label: 已开通, evidence: code_path:ProductOpenStatusEnum.java:18 }
+      N: { label: 未开通, evidence: code_path:ProductOpenStatusEnum.java:23 }
+  tenant_interworking_product__scope:
+    table: tenant_interworking_product
+    column: scope
+    values:
+      ALL: { label: 全部, evidence: code_path:ProductScopeEnum.java:17 }
+      SOME: { label: 特定范围, evidence: code_path:ProductScopeEnum.java:18 }

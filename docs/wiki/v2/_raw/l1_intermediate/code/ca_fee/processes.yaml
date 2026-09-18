@@ -1,0 +1,78 @@
+kind: processes
+domain: ca_fee
+processes:
+  - process_key: ca_fee_order__order_status
+    table: ca_fee_order
+    field: order_status
+    title: CA服务费订单状态
+    description: |
+      钉 ca_fee_order.order_status。建单 PENDING；支付写 PAID 并同步企业宽表；关闭写 CLOSED。
+      枚举有 EXPIRED，现网未见 setOrderStatus(EXPIRED)。不要把企业 pay_status 或规则引擎 feeStatus 当成订单状态。
+    entry: POST /cust-web/caFee
+    stages:
+      - stage: 建单
+        transitions:
+          - from: PENDING
+            event: doCreateOrGetPendingOrderDetail
+            to: PENDING
+            evidence: code_path:cafee/CaFeeOrderService.java:486
+      - stage: 支付
+        transitions:
+          - from: PENDING
+            event: markPaid
+            to: PAID
+            side_effects:
+              - table: ca_fee_company
+                field: pay_status
+                action: syncCompanyAfterPaid 置为 PAID 并写服务周期
+            evidence: code_path:cafee/CaFeeOrderService.java:426
+      - stage: 关闭
+        transitions:
+          - from: PENDING
+            event: closeOrder
+            to: CLOSED
+            evidence: code_path:cafee/CaFeeOrderService.java:312
+  - process_key: ca_fee_company__pay_status
+    table: ca_fee_company
+    field: pay_status
+    title: CA服务费企业缴费状态
+    description: |
+      钉 ca_fee_company.pay_status。缴费成功写 PAID；服务到期任务写回 UNPAID。
+      这是宽表两态，不是规则引擎的 PAID/UNPAID/EXPIRED/EXEMPT。
+    entry: POST /cust-web/caFee
+    stages:
+      - stage: 已缴费
+        transitions:
+          - from: UNPAID
+            event: syncCompanyAfterPaid
+            to: PAID
+            evidence: code_path:cafee/CaFeeOrderService.java:450
+      - stage: 到期
+        transitions:
+          - from: PAID
+            event: markServiceExpired
+            to: UNPAID
+            evidence: code_path:CaFeeRenewalService.java:173
+  - process_key: ca_certification_info__submit_status
+    table: ca_certification_info
+    field: submit_status
+    title: 一证四步提交状态
+    description: 新建 PENDING；提交签章中台后写 SUCCESS 或 FAIL。
+    entry: POST /cust-web/ca
+    stages:
+      - stage: 采集
+        transitions:
+          - from: PENDING
+            event: createOrGetByKey
+            to: PENDING
+            evidence: code_path:CaCertificationInfoAppServiceImpl.java:178
+      - stage: 提交
+        transitions:
+          - from: PENDING
+            event: writeSubmitResult 成功
+            to: SUCCESS
+            evidence: code_path:CaCertificationInfoAppServiceImpl.java:495
+          - from: PENDING
+            event: writeSubmitResult 失败
+            to: FAIL
+            evidence: code_path:CaCertificationInfoAppServiceImpl.java:451

@@ -1,0 +1,13 @@
+kind: trace
+domain: ca_fee
+trace_key: ca_fee_coverage_remaining
+entry: l1-coverage --prefix ca
+tables: [ca_fee_special_config, ca_cfca_upgrade_report]
+notes: 前缀 6 张表均已 enhancement。无等值 JOIN 或无 DO 的记 gaps。
+gaps:
+  - ca_fee_special_config：pplatform-web 无 @TableName DO；特殊企业写在 ca_fee_project_config.special_company_list JSON。
+  - ca_fee_special_config.project_id / certification_no 未见 lambdaQuery 等值，不编 JOIN。
+  - ca_cfca_upgrade_report：catalog 有表，pplatform-web 无 @TableName DO，company_id 为 varchar 未回查企业。
+  - charge_enabled / special_config_flag / agreement_signed / fee_locked / renew_remind_sent / head_company_data 是 Y/N，不单独编 label。
+  - ca_fee_order.act_procinst_id 等流程列不是企业 JOIN。
+  - 未确认 FK：ca_certification_info.act_procinst_id；ca_cfca_upgrade_report.task_id/company_id/authorized_user_id/act_procinst_id；ca_fee_company.act_procinst_id；ca_fee_order.bocom_plfm_bsn_id/invoice_request_id；ca_fee_project_config.act_procinst_id；ca_fee_special_config.project_id。

@@ -1,0 +1,20 @@
+kind: trace
+domain: ca_fee
+trace_key: ca_fee_close
+entry: POST /cust-web/caFee/admin/ledger/batchWhitelist
+controller: CaFeeAdminController.java:134
+application: cafee/CaFeeOrderService.java:301
+tables: [ca_fee_order]
+notes: |
+  关单只接受 PENDING，写成 CLOSED。到期任务和服务到期也会关待缴单。
+  关单不改企业宽表 pay_status，不要当成已缴费或已到期。
+scenario:
+  scenario_key: ca_fee_close
+  title: 关闭待缴 CA 订单
+  hubs:
+    - table: ca_fee_order
+      role: master
+  lifecycle:
+    - dict: ca_fee_order__order_status
+      process: ca_fee_order__order_status
+gaps: []

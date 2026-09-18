@@ -296,13 +296,13 @@ def test_reconcile_enum_list_values_does_not_crash(db_env: tuple[Path, Path, Pat
 
     _tmp, db_dir, repo = db_env
     page = """---
-type: enum
+type: dict
 title: cust_status
 page_key: cust_status
 status: draft
 ---
-```ground:enum
-enum: cust_status
+```ground:dict
+dict: cust_status
 fields: [cust_company_info.cust_status]
 values:
   - value: EFFECT
@@ -525,7 +525,7 @@ class Use {
 
 def test_merge_enum_keeps_baseline_keys_and_llm_notes() -> None:
     baseline = """---
-type: enum
+type: dict
 title: account_type
 page_key: account_type
 status: draft
@@ -537,8 +537,8 @@ contract_version: "0.1"
 
 # account_type
 
-```ground:enum
-enum: account_type
+```ground:dict
+dict: account_type
 fields: [cust_account_info.account_type]
 values:
   "1":
@@ -550,7 +550,7 @@ values:
 ```
 """
     semantic = """---
-type: enum
+type: dict
 title: 账户类型
 page_key: account_type
 status: draft
@@ -564,8 +564,8 @@ contract_version: "0.1"
 
 写值点使用 AccountTypeEnum.BANK.name()。
 
-```ground:enum
-enum: account_type
+```ground:dict
+dict: account_type
 fields: [cust_account_info.account_type]
 values:
   "1":
@@ -580,7 +580,7 @@ values:
 """
     merged = merge_enum_page(baseline, semantic)
     page = parse_page(merged, page_key="account_type")
-    block = next(b for b in page.ground_blocks if b.kind == "enum")
+    block = next(b for b in page.ground_blocks if b.kind == "dict")
     values = {str(k): v for k, v in (block.data.get("values") or {}).items()}
     assert "1" in values and "BANK" in values
     assert values["1"]["label"] == "银行"
@@ -641,7 +641,7 @@ def test_merge_keeps_resident_domain_against_later_topic() -> None:
 
 def test_merge_enum_ignores_illegal_stored_as() -> None:
     baseline = """---
-type: enum
+type: dict
 title: account_type
 page_key: account_type
 domain: 基线
@@ -652,8 +652,8 @@ scope:
 contract_version: "0.1"
 ---
 
-```ground:enum
-enum: account_type
+```ground:dict
+dict: account_type
 fields: [cust_account_info.account_type]
 values:
   "1":
@@ -666,7 +666,7 @@ values:
 ```
 """
     semantic = """---
-type: enum
+type: dict
 title: 账户类型
 page_key: account_type
 domain: 企业银行账户
@@ -680,8 +680,8 @@ contract_version: "0.1"
 
 散文。
 
-```ground:enum
-enum: account_type
+```ground:dict
+dict: account_type
 fields: [cust_account_info.account_type]
 values:
   "1":
@@ -783,7 +783,7 @@ class Use {
 
 def test_merge_enum_dedupes_notes_and_drops_undeclared_name_key() -> None:
     baseline = """---
-type: enum
+type: dict
 title: sign_mode
 page_key: sign_mode
 status: draft
@@ -793,8 +793,8 @@ scope:
 contract_version: "0.1"
 ---
 
-```ground:enum
-enum: sign_mode
+```ground:dict
+dict: sign_mode
 fields: [cust_company_info.sign_mode]
 values:
   "01":
@@ -808,7 +808,7 @@ values:
 ```
 """
     semantic = """---
-type: enum
+type: dict
 title: sign_mode
 page_key: sign_mode
 status: draft
@@ -818,8 +818,8 @@ scope:
 contract_version: "0.1"
 ---
 
-```ground:enum
-enum: sign_mode
+```ground:dict
+dict: sign_mode
 fields: [cust_company_info.sign_mode]
 values:
   "ONLINE":

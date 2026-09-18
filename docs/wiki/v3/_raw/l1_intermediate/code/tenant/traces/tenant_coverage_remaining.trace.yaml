@@ -1,0 +1,24 @@
+kind: trace
+domain: tenant
+trace_key: tenant_coverage_remaining
+entry: l1-coverage --prefix tenant
+tables:
+  - tenant_setting_config_share
+  - tenant_product_menu
+  - tenant_product_menu_res
+  - tenant_project_approval_flow_config
+  - tenant_project_approval_flow_file
+  - tenant_project_approval_flow_comment
+  - tenant_migarory_log
+  - tenant_migarory_log_bak
+  - tenant_interworking_product
+  - tenant_interworking_project
+notes: 卫星表已 enhancement。写库旁路（生效/失效/取消开通/工作台/互通）另有 traces。无等值 JOIN 的记 gaps。
+gaps:
+  - tenant_setting_config_share：apaas 生成表，租户业务模块未见 enable 列表等值。
+  - tenant_product_menu.product_code / menu_id：按入参等值，未证实对 tenant_product.code 或菜单主表。
+  - tenant_product_menu_res 同上。
+  - tenant_project_approval_flow_config 是流程模板，无项目/租户 FK。
+  - tenant_migarory_log 按 req_no/req_sn 查，无租户主键 JOIN。
+  - tenant_migarory_log_bak 无业务 DO。
+  - tenant_setting_config.operator_id / core_bosc 等配置列代码未等值使用。

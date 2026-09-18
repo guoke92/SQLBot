@@ -59,14 +59,14 @@ def test_plane_wiki_passages_upsert_beats_blob() -> None:
     plane = AgentKnowledgePlane()
     plane.merge_recall(
         {
-            "wiki_passages": {"enums/pay_status": "# 缴费\nPAID = 已缴费"},
-            "page_keys": ["enums/pay_status"],
+            "wiki_passages": {"dicts/pay_status": "# 缴费\nPAID = 已缴费"},
+            "page_keys": ["dicts/pay_status"],
             "knowledge_text": "# 缴费\nPAID = 已缴费\n\n# 缴费\nPAID = 已缴费",
         }
     )
     rendered = plane.render_system_sections()
     assert rendered.count("# 缴费") == 1
-    assert "enums/pay_status" in plane.wiki_passages
+    assert "dicts/pay_status" in plane.wiki_passages
 
 
 def test_search_policy_strips_noise_table_without_new_pages() -> None:
@@ -127,12 +127,12 @@ def test_conflicts_omit_nested_enum_only_when_enum_page_text_present() -> None:
         {
             "schema_text": (
                 "## 企业 (cust_company_info)\n"
-                "identify_style:varchar(32), 认证方式, topk=INVITE_AGW, enum=identify_style"
+                "identify_style:varchar(32), 认证方式, topk=INVITE_AGW, dict=identify_style"
             ),
             "tables": ["cust_company_info"],
-            "page_keys": ["enums/identify_style"],
+            "page_keys": ["dicts/identify_style"],
             "wiki_passages": {
-                "enums/identify_style": "# 认证方式\nINVITE_AGW: 邀请认证"
+                "dicts/identify_style": "# 认证方式\nINVITE_AGW: 邀请认证"
             },
         }
     )
@@ -143,7 +143,7 @@ def test_conflicts_omit_nested_enum_only_when_enum_page_text_present() -> None:
     assert "enum_values" not in rendered
     # The catalog swaps topk for the enum pointer once the page text is present.
     assert "topk=" not in plane.schema_catalog_text()
-    assert "enum=identify_style" in plane.schema_catalog_text()
+    assert "dict=identify_style" in plane.schema_catalog_text()
 
 
 def test_conflicts_keep_nested_enum_when_only_concept_page_present() -> None:
@@ -152,7 +152,7 @@ def test_conflicts_keep_nested_enum_when_only_concept_page_present() -> None:
         {
             "schema_text": (
                 "## 企业 (cust_company_info)\n"
-                "identify_style:varchar(32), 认证方式, topk=INVITE_AGW, enum=identify_style"
+                "identify_style:varchar(32), 认证方式, topk=INVITE_AGW, dict=identify_style"
             ),
             "tables": ["cust_company_info"],
             "page_keys": ["concepts/identify_style"],
@@ -173,17 +173,16 @@ def test_soft_filter_rule_is_in_agent_prompt() -> None:
 
 def test_agent_prompt_prefers_sql_accuracy_and_llm_drop() -> None:
     assert "生成准确的业务 SQL" in _SYSTEM_PROMPT_TEMPLATE
-    assert "search_wiki` 的 `drop`" in _SYSTEM_PROMPT_TEMPLATE
-    assert "不会因长度上限删除已入选的表" in _SYSTEM_PROMPT_TEMPLATE
-    assert "首次召回是起点" not in _SYSTEM_PROMPT_TEMPLATE
-    assert "独立轮开始时系统提示**没有** Wiki" in _SYSTEM_PROMPT_TEMPLATE
+    assert "get_table_schema" in _SYSTEM_PROMPT_TEMPLATE
+    assert "schema_outline" in _SYSTEM_PROMPT_TEMPLATE
     assert "complete_without_sql" in _SYSTEM_PROMPT_TEMPLATE
     assert "终答只有两条路" in _SYSTEM_PROMPT_TEMPLATE
     assert "禁止**只写纯文本就停" in _SYSTEM_PROMPT_TEMPLATE
+    assert "search_wiki" not in _SYSTEM_PROMPT_TEMPLATE
+    assert "focus=all" not in _SYSTEM_PROMPT_TEMPLATE
     assert "search_wiki` ≤" not in _SYSTEM_PROMPT_TEMPLATE
     assert "探查 SQL（`required=false`）≤" not in _SYSTEM_PROMPT_TEMPLATE
     assert "早停" not in _SYSTEM_PROMPT_TEMPLATE
-    assert "必要的新缺口/形态验证仍可再调" in _SYSTEM_PROMPT_TEMPLATE
     assert "必要的形态验证仍可再探查" in _SYSTEM_PROMPT_TEMPLATE
 
 
@@ -227,12 +226,12 @@ def _wide_table_page(*, dict_key: str = "pay_status") -> SimpleNamespace:
 
 def _pay_status_store() -> object:
     enum_page = _ns_page(
-        type="enum",
+        type="dict",
         ground_blocks=[
             SimpleNamespace(
-                kind="enum",
+                kind="dict",
                 data={
-                    "enum": "pay_status",
+                    "dict": "pay_status",
                     "values": {
                         "PAID": {"label": "已缴费"},
                         "UNPAID": {"label": "未缴费"},
@@ -261,7 +260,7 @@ def test_compact_field_type_strips_display_width_keeps_scale_and_temporal() -> N
     assert compact_field_type("date") == "date"
     parsed = parse_field_line(
         "status:varchar(64), 联系人账号状态, topk=ADD|EFFECT, "
-        "labels=ADD:未生效|EFFECT:已生效, enum=cust_status"
+        "labels=ADD:未生效|EFFECT:已生效, dict=cust_status"
     )
     assert parsed is not None
     assert parsed.topk == "ADD|EFFECT"
@@ -273,7 +272,7 @@ def test_compact_field_type_strips_display_width_keeps_scale_and_temporal() -> N
     labeled = schema_field_labels(
         "## 表 (t)\n"
         "status:varchar, 联系人账号状态, topk=ADD|EFFECT, "
-        "labels=ADD:未生效|EFFECT:已生效, enum=cust_status\n"
+        "labels=ADD:未生效|EFFECT:已生效, dict=cust_status\n"
     )
     assert labeled.get("status") == "联系人账号状态"
 
@@ -291,7 +290,7 @@ def test_renderer_is_full_and_relations_are_tagged() -> None:
     assert "id:bigint, 主键" in raw
     assert (
         "pay_status:varchar, 缴费状态, topk=PAID|UNPAID, "
-        "labels=PAID:已缴费|UNPAID:未缴费, enum=pay_status"
+        "labels=PAID:已缴费|UNPAID:未缴费, dict=pay_status"
     ) in raw
     assert "enable:char, 是否启用" in raw
     assert "addr_0" in raw and "addr_41" in raw  # renderer never drops fields
@@ -312,12 +311,12 @@ def test_projection_never_folds_and_strips_enum_values_when_page_present() -> No
         raw,
         budget_chars=600,
         queries=["CA 已缴费企业管理员"],
-        present_pages=["enums/pay_status"],
+        present_pages=["dicts/pay_status"],
     )
     assert "addr_41" in fitted.text and OMITTED_FIELDS_PREFIX not in fitted.text
     assert "topk=" not in fitted.text
     assert "labels=PAID:已缴费|UNPAID:未缴费" in fitted.text
-    assert "enum=pay_status" in fitted.text
+    assert "dict=pay_status" in fitted.text
     assert fitted.enum_stripped == {"cust_company_info": ["pay_status"]}
     assert fitted.omitted == {}
     kept = project_schema(
@@ -329,7 +328,7 @@ def test_projection_never_folds_and_strips_enum_values_when_page_present() -> No
     )
     assert (
         "pay_status:varchar, 缴费状态, topk=PAID|UNPAID, "
-        "labels=PAID:已缴费|UNPAID:未缴费, enum=pay_status"
+        "labels=PAID:已缴费|UNPAID:未缴费, dict=pay_status"
     ) in kept.text
     assert "id:bigint, 主键" in kept.text
     assert "addr_0:varchar, 开票地址0" in kept.text
@@ -460,8 +459,8 @@ def test_projection_trims_scene_windows_not_v1_tables() -> None:
         "## 企业 (cust_company_info)\n"
         "id:bigint, 主键, group=always, scenes=company_build\n"
         "enable:varchar, 是否启用, group=always, scenes=company_build\n"
-        "data_type:varchar, 数据类型, scenes=company_build, enum=data_type\n"
-        "cust_status:varchar, 企业状态, scenes=company_build, enum=cust_status\n"
+        "data_type:varchar, 数据类型, scenes=company_build, dict=data_type\n"
+        "cust_status:varchar, 企业状态, scenes=company_build, dict=cust_status\n"
         "business_scope:varchar, 经营范围\n"
         "memo:varchar, 备注\n"
     )
@@ -470,8 +469,8 @@ def test_projection_trims_scene_windows_not_v1_tables() -> None:
         queries=["有效企业"],
         present_pages=["scenarios/company_build"],
     )
-    assert "data_type:varchar, 数据类型, enum=data_type" in fitted.text
-    assert "cust_status:varchar, 企业状态, enum=cust_status" in fitted.text
+    assert "data_type:varchar, 数据类型, dict=data_type" in fitted.text
+    assert "cust_status:varchar, 企业状态, dict=cust_status" in fitted.text
     assert "group=" not in fitted.text
     assert "scenes=" not in fitted.text
     assert "business_scope" not in fitted.text
@@ -492,12 +491,12 @@ def test_projection_trims_scene_windows_not_v1_tables() -> None:
 
 def test_dict_topk_kept_when_enum_page_not_in_prompt() -> None:
     enum_page = _ns_page(
-        type="enum",
+        type="dict",
         ground_blocks=[
             SimpleNamespace(
-                kind="enum",
+                kind="dict",
                 data={
-                    "enum": "state",
+                    "dict": "state",
                     "values": {"A": {"label": "甲类"}, "B": {"label": "乙类"}},
                 },
             )
@@ -517,15 +516,15 @@ def test_dict_topk_kept_when_enum_page_not_in_prompt() -> None:
         pages = {"state": enum_page, "t": table_page}
 
     text = WikiSchemaRenderer(_Store(), {}).render(["t"])
-    assert ("state:varchar, 状态, topk=A|B, labels=A:甲类|B:乙类, enum=state") in text
+    assert ("state:varchar, 状态, topk=A|B, labels=A:甲类|B:乙类, dict=state") in text
     # Projection with the enum page absent keeps topk+labels; present →
     # drop topk (values live on the enum page) but keep labels + enum pointer.
     kept = project_schema(text, present_pages=["t"]).text
     assert "topk=A|B" in kept and "labels=A:甲类|B:乙类" in kept
-    stripped = project_schema(text, present_pages=["enums/state"]).text
+    stripped = project_schema(text, present_pages=["dicts/state"]).text
     assert "topk=" not in stripped
     assert "labels=A:甲类|B:乙类" in stripped
-    assert "enum=state" in stripped
+    assert "dict=state" in stripped
 
 
 def test_plane_relations_refresh_when_peer_table_arrives() -> None:
@@ -564,7 +563,11 @@ def test_plane_relations_refresh_when_peer_table_arrives() -> None:
     assert RELATION_PEER_MISSING not in catalog
 
 
-def test_fk_relation_kept_when_peer_not_in_plane() -> None:
+def test_fk_relation_dropped_when_peer_not_opened() -> None:
+    """JOIN edges to unopened tables stay out of schema_catalog.
+
+    The model asks get_table_relations when it actually needs a JOIN.
+    """
     person = (
         "## 联系人 (cust_person_info)\n"
         "id:bigint, 主键\n"
@@ -575,5 +578,6 @@ def test_fk_relation_kept_when_peer_not_in_plane() -> None:
     plane = AgentKnowledgePlane()
     plane.merge_recall({"schema_text": person, "tables": ["cust_person_info"]})
     catalog = plane.schema_catalog_text()
-    assert "ref_cust_company_info → cust_company_info.code" in catalog
-    assert RELATION_PEER_MISSING in catalog
+    assert "ref_cust_company_info:varchar" in catalog
+    assert "关联:" not in catalog
+    assert RELATION_PEER_MISSING not in catalog

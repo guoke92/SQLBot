@@ -1,0 +1,59 @@
+kind: scenarios
+domain: ca_fee
+scenarios:
+  - scenario_key: ca_fee_pay
+    title: 缴纳 CA 服务费
+    aliases: [CA收费, 电子签章服务费]
+    description: |
+      项目开启收费后按统码建 PENDING 订单，交e保支付后订单 PAID、企业宽表写服务周期。
+      问「是否已缴费」用 covering_paid_ca_fee_order / in_period_ca_fee_company，不要只看 pay_status。
+    hubs:
+      - table: ca_fee_order
+        role: master
+    shared:
+      - table: ca_fee_company
+        role: ledger
+      - table: ca_fee_project_config
+        role: project_charge
+    lifecycle:
+      - dict: ca_fee_order__order_status
+        process: ca_fee_order__order_status
+      - dict: ca_fee_company__pay_status
+        process: ca_fee_company__pay_status
+  - scenario_key: ca_fee_project_toggle
+    title: 项目开启或关闭 CA 收费
+    aliases: [收费开关]
+    description: 保存项目配置写 charge_enabled。开启后异步扫描存量建单；关闭关待缴订单。
+    hubs:
+      - table: ca_fee_project_config
+        role: master
+    shared:
+      - table: tenant_project
+        role: project
+  - scenario_key: cfca_four_step
+    title: CFCA 一证四步
+    aliases: [开通CA, 证书升级采集]
+    description: 门户 /cust-web/ca 采集 JSON 列，PENDING 提交后 SUCCESS/FAIL。与 CA 服务费订单不是同一张表。
+    hubs:
+      - table: ca_certification_info
+        role: master
+    shared:
+      - table: cust_company_info
+        role: company
+    lifecycle:
+      - dict: ca_certification_info__submit_status
+        process: ca_certification_info__submit_status
+  - scenario_key: ca_fee_evaluate
+    title: CA 收费评估
+    aliases: [是否需要缴 CA 费]
+    description: |
+      portalCheck 只读 evaluate。未开收费是 EXEMPT，不是未缴费。
+      特殊企业在 special_company_list JSON。
+    hubs:
+      - table: ca_fee_project_config
+        role: master
+    shared:
+      - table: ca_fee_company
+        role: ledger
+      - table: ca_fee_order
+        role: covering_order

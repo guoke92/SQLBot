@@ -1,0 +1,240 @@
+{
+  "main": {
+    "id": "84bcf100be64cccd",
+    "type": "split",
+    "children": [
+      {
+        "id": "d9a07b9c6dd85838",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "b3d72dc0d7b3a4e3",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "_index.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "_index"
+            }
+          },
+          {
+            "id": "db7c5b9c654fa636",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "tables/cust_company_info.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "cust_company_info"
+            }
+          }
+        ],
+        "currentTab": 1
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "43bec782e0735ea8",
+    "type": "split",
+    "children": [
+      {
+        "id": "8823d10708a80575",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "cefba002d702484f",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-folder-closed",
+              "title": "文件列表"
+            }
+          },
+          {
+            "id": "ec1a903a851f3ff9",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "cust_company_lifecycle_info.code",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "搜索"
+            }
+          },
+          {
+            "id": "76cbcc230f7e0f74",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-bookmark",
+              "title": "书签"
+            }
+          }
+        ],
+        "currentTab": 1
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "4ae7e4720da8a415",
+    "type": "split",
+    "children": [
+      {
+        "id": "f5cc8ffd36482e43",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "f0afff1a6a8fe2a0",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "tables/cust_company_info.md",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "反向链接"
+            }
+          },
+          {
+            "id": "bd188a0c3abd83c9",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "tables/cust_company_info.md",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "出链"
+            }
+          },
+          {
+            "id": "fa9755ed4f0a9e88",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "标签"
+            }
+          },
+          {
+            "id": "297580920701627d",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "添加笔记属性"
+            }
+          },
+          {
+            "id": "50c6f7e0791e54c5",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "tables/cust_company_info.md",
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "大纲"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:打开快速切换": false,
+      "graph:查看关系图谱": false,
+      "canvas:新建白板": false,
+      "daily-notes:打开/创建今天的日记": false,
+      "templates:插入模板": false,
+      "command-palette:打开命令面板": false,
+      "bases:新建数据库": false
+    }
+  },
+  "active": "db7c5b9c654fa636",
+  "lastOpenFiles": [
+    "tables/cust_company_lifecycle_info.md",
+    "dicts/ca_fee_company__pay_status.md",
+    "_index.md",
+    "dicts/ca_certification_info__op_type.md",
+    "dicts/ca_certification_info__db_tenant_code.md",
+    "dicts/async_io_task__task_type.md",
+    "dicts/authorization_agreement__authed_status.md",
+    "dicts/authorization_agreement__creation_type.md",
+    "dicts/ca_certification_info__cust_type.md",
+    "dicts/async_io_task__enable.md",
+    "dicts/argeement_migratory_record__agreement_type.md",
+    "tables/ca_certification_info.md",
+    "tables/async_io_task.md",
+    "instance_index.yaml",
+    "dicts/wechat_project_approval_field_history__db_tenant_code.md",
+    "dicts/wechat_project_approval_field_history__app_tenant_code.md",
+    "dicts/wechat_project_approval_field_history__enable.md",
+    "dicts/wechat_project_approval_field_history__change_source.md",
+    "dicts/wechat_project_approval_apply__lls_participate_role.md",
+    "dicts/wechat_project_approval_apply__product_type_arr.md",
+    "dicts/wechat_project_approval_apply__system_delivery.md",
+    "dicts/wechat_project_approval_apply__data_source.md",
+    "dicts/wechat_project_approval_apply__business_center.md",
+    "dicts/wechat_project_approval_apply__project_phase.md",
+    "dicts/wechat_project_approval_apply__ka_white_label.md",
+    "dicts/wechat_project_approval_apply__project_type.md",
+    "dicts/wechat_project_approval_apply__act_procinst_status.md",
+    "_raw/profile_instance.yaml",
+    "dicts",
+    "_raw/profile.yaml"
+  ]
+}

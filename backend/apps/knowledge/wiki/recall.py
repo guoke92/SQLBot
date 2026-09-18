@@ -37,6 +37,8 @@ _DEFAULT_MIN_LEXICAL = 0.30
 _DEFAULT_PROSE_CHARS = 400
 # 对写 SQL 无增益的编辑段：剥掉后再截断，避免演进草稿挤掉业务定义
 _EDITORIAL_H2_TITLES = ("需求背景", "版本演进", "关联表")
+# business 语义窗口：口径/概念/枚举/指标。规则/流程不当表发现种子。
+_PERIPHERAL_TYPES = frozenset({"rule", "process", "pattern", "query"})
 _WIKILINK_RE = re.compile(r"\[\[[^\]]+\]\]")
 _RELATED_JUNK_RE = re.compile(r"[·,，、;；|/\s\-—–]+")
 
@@ -152,7 +154,7 @@ class InMemoryWikiStore:
     @classmethod
     def load_dir(cls, root: Path) -> InMemoryWikiStore:
         """加载页面目录（双面架构接缝：管理面写 git 目录，运行面直接消费）。
-        子目录=type 路由（tables/enums/concepts/…），必须 rglob——平面 glob
+        子目录=type 路由（tables/dicts/concepts/…），必须 rglob——平面 glob
         在子目录结构下会漏掉全部页面。`_` 前缀文件（_index.md 等）非内容页。"""
         from apps.knowledge.wiki.contract import BELONG_DIRS
 
@@ -410,14 +412,14 @@ def _caliber_predicate_block(page: WikiPage) -> str:
 
 
 def _enum_values_block(page: WikiPage) -> str:
-    """ground:enum 的 values 块原样（value: label 逐行，翻译/澄清依据）。"""
+    """ground:dict 的 values 块原样（value: label 逐行，翻译/澄清依据）。"""
     for anchor in page.ground_blocks:
-        if anchor.kind != "enum":
+        if anchor.kind != "dict":
             continue
         values = anchor.data.get("values") or {}
         if not values:
             return ""
-        lines = ["```ground:enum", f"enum: {anchor.data.get('enum', '')}"]
+        lines = ["```ground:dict", f"dict: {anchor.data.get('dict', '')}"]
         for value, meta in values.items():
             label = (
                 str((meta or {}).get("label") or value)
@@ -580,6 +582,8 @@ def recall(
         if apply_gate and page.type == "table":
             gated_table_pages.append(page_key)
             continue
+        if apply_gate and page.type in _PERIPHERAL_TYPES:
+            continue
         gated_semantic.add(page_key)
     if vector_page_scores:
         lexical_page_scores = {
@@ -692,6 +696,8 @@ def recall(
     )
     for page_key, nscore in ordered_neighbors[:quota]:
         page = visible[page_key]
+        if apply_gate and page.type in _PERIPHERAL_TYPES:
+            continue
         if page_key in gate_rejected or (apply_gate and page.type == "table"):
             if page_key not in closure_extra:
                 closure_extra.append(page_key)
