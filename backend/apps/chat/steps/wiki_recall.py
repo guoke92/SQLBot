@@ -3,7 +3,7 @@
 Runtime recall is DB-only:
 
 - bound ``wiki_corpus_binding`` → ``wiki_page`` + ``wiki_chunk_embedding``
-- unbound datasource → ``schema_vector`` (physical catalog fallback)
+- unbound datasource → empty payload (agent expands tables via catalog tools)
 
 Zero Wiki hits stay on the Wiki path. Directory markdown is an admin import
 source only — never scanned at query time.
@@ -258,11 +258,6 @@ def _recall_passages(
         )
         return None, None
     try:
-        from apps.knowledge.recall_kernel.conflicts import (
-            conflict_page_keys,
-            conflicts_to_evidence,
-            detect_caliber_conflicts,
-        )
         from apps.knowledge.wiki.recall import recall
 
         effective_top_k = top_k or int(settings.KNOWLEDGE_WIKI_RECALL_TOP_K)
@@ -273,13 +268,6 @@ def _recall_passages(
             # chunk 挤出候选，页级聚合拿不到向量分 → 相关性过滤误杀主表）。
             # 矩阵点积全量 ~600ms/3672 chunk，一次查询无页级损失。
             embedder = lambda store_, query_: index.query_scores(query_)  # noqa: E731
-        pin_keys: list[str] = []
-        if mode == "business":
-            conflicts = detect_caliber_conflicts(store, query)
-            pin_keys = conflict_page_keys(conflicts)
-            if trace_out is not None:
-                trace_out["caliber_conflicts"] = conflicts_to_evidence(conflicts)
-                trace_out["conflict_page_keys"] = list(pin_keys)
         passages = recall(
             query,
             store,
@@ -289,7 +277,6 @@ def _recall_passages(
             mode=mode,
             embedder=embedder,
             trace_out=trace_out,
-            pin_keys=pin_keys,
         )
         return store, passages
     except Exception as exc:
@@ -1050,18 +1037,13 @@ def retrieve_wiki_context(
     llm_service: Any,
     query: str | RecallRequest,
     *,
-    access_scope: Any = None,
+    access_scope: Any = None,  # noqa: ARG001 — unbound path no longer uses ACL fallback
     top_k: int | None = None,
 ) -> dict[str, Any]:
-    """Wiki (bound DB corpus) or schema_vector — never mixed.
+    """Bound wiki corpus only. Unbound datasources get an empty payload.
 
-    1. Datasource has an enabled wiki_corpus_binding: recall Wiki knowledge
-       + anchor-closure schema. Zero hits stay on this path.
-    2. Datasource has no Wiki binding: ``schema_vector`` catalog recall.
-
-    ``query`` may be a plain string (search_wiki) or a ``RecallRequest``.
-    Empty ``query`` with pins is pin-only rehydrate: restore those keys from
-    the store and skip vector recall.
+    ``query`` may be a plain string (legacy search_wiki) or a ``RecallRequest``.
+    Empty ``query`` with pins is pin-only rehydrate from the bound store.
     """
     from apps.knowledge.recall_kernel.types import RecallBudget
 
@@ -1090,22 +1072,4 @@ def retrieve_wiki_context(
             )
             return _empty_wiki_payload(backend="wiki", store_source="db")
 
-    if not clean_query and not request.pin_tables:
-        return _empty_wiki_payload(backend="schema_vector")
-
-    try:
-        return _decorate_schema_fallback(
-            _schema_fallback_context(
-                llm_service,
-                clean_query,
-                access_scope=access_scope,
-                pin_tables=request.pin_tables,
-            )
-        )
-    except Exception as exc:
-        SQLBotLogUtil.warning(
-            "retrieve_wiki_context failed in fallback branch: %s",
-            exc,
-            exc_info=True,
-        )
-        return _empty_wiki_payload(backend="error", error=str(exc))
+    return _empty_wiki_payload(backend="none")

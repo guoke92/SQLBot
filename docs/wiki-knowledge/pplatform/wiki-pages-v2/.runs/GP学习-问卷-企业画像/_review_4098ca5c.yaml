@@ -1,5 +1,0 @@
-body: 术语桥「企业首个访问用户」指出「表结构在该列（respondent）后截断」，当前可见字段为 company_id / respondent / first_visit_time
-  / first_visitor_lottery_shown / db_tenant_code。是否存在独立的 `first_visitor_user_id` 列无法确认，claimFirstVisitor
-  的判定结果是否另有落点待核实。
-title: cust_company_survey_state 表结构截断
-type: table

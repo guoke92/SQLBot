@@ -7,8 +7,8 @@ domain: funding_rule
 status: draft
 aliases: [资金方规则, 资方准入规则]
 sources: ['code_path:l1_intermediate']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [funding_rule_info, funding_rule_detail, funding_rule_front_cfg]
 ---

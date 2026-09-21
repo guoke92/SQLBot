@@ -24,8 +24,8 @@ from apps.knowledge.graph.models import (
 from apps.knowledge.semantic.schema import KnowledgePackageV2
 
 _V4_DIR = (
-    pathlib.Path(__file__).resolve().parents[1]
-    / "docs/knowledge-extraction/pplatform-web/system-knowledge-v4"
+    pathlib.Path(__file__).resolve().parents[2]
+    / ".tmp/docs/knowledge-extraction/pplatform-web/system-knowledge-v4"
 )
 
 

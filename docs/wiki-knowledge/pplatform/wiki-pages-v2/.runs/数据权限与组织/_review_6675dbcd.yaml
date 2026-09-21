@@ -1,6 +1,0 @@
-body: 本批页面 frontmatter 的 scope.databases 一律写 [unknown]：语义分析未给出任何物理库名，且表名跨 sys_* 与
-  cust_* 两族，无法在无证据情况下断言其所属物理库。同理，ground:table 中除 org_manage.status（varchar(10)，库证据）外的字段类型均写
-  unknown，原因是本次分析未提供 DDL/类型信息；字段的业务含义（desc）与取值域（dict）保留未改。涉及页面：tables/sys_cust_org_user_permission、tables/cust_person_info、tables/cust_company_info、tables/cust_group_rel、tables/operation_user、tables/org_manage。待补
-  DB 名称与字段类型证据后回填。
-title: 物理库名与字段类型缺失
-type: tables

@@ -21,4 +21,4 @@ scenario:
     - dict: tenant_project_approval__wf_status
       process: tenant_project_approval__wf_status
 gaps:
-  - 催办不落库。撤回/REVOKED 枚举没有，不给 label。
+  - 催办不落库。已撤销（REVOKED）单据工作台拒绝再操作（assertNotRevoked）。

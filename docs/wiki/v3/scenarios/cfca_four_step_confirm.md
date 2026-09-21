@@ -6,8 +6,8 @@ belong: scenarios
 domain: ca_fee
 status: draft
 sources: ['code_path:l1_intermediate']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [ca_certification_info]
 ---

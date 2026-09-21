@@ -7,9 +7,10 @@ status: draft
 anchors: [tenant_project_approval_flow_node.operate_type]
 sources: ['database_profile:tenant_project_approval_flow_node.operate_type', 'database_schema:tenant_project_approval_flow_node.operate_type',
   'code_path:ProjectApprovalOperateTypeEnum.java:16', 'code_path:ProjectApprovalOperateTypeEnum.java:18',
-  'code_path:ProjectApprovalOperateTypeEnum.java:17', 'code_path:ProjectApprovalOperateTypeEnum.java:19']
-created: '2026-09-18'
-updated: '2026-09-18'
+  'code_path:ProjectApprovalOperateTypeEnum.java:17', 'code_path:ProjectApprovalOperateTypeEnum.java:19',
+  'code_path:ProjectApprovalOperateTypeEnum.java:20']
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [tenant_project_approval_flow_node]
 ---
@@ -29,6 +30,6 @@ values:
   back: {trust: confirmed, label: 退回, evidence: 'code_path:ProjectApprovalOperateTypeEnum.java:18'}
   reject: {trust: confirmed, label: 驳回, evidence: 'code_path:ProjectApprovalOperateTypeEnum.java:17'}
   delegate: {trust: confirmed, label: 转审, evidence: 'code_path:ProjectApprovalOperateTypeEnum.java:19'}
-  revoke: {trust: proposed}
+  revoke: {trust: confirmed, label: 撤销, evidence: 'code_path:ProjectApprovalOperateTypeEnum.java:20'}
 triage: keep
 ```

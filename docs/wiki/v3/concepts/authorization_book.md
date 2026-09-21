@@ -9,8 +9,8 @@ aliases: [授权书]
 maps_to: authorization_agreement.cust_id
 field_targets: [authorization_agreement.cust_id, authorization_agreement.authed_status]
 sources: ['code_path:AuthorizationAgreementDaoImpl.java:43', 'document_claim:docs/wiki-knowledge/pplatform/req-index/concepts']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [authorization_agreement]
 also_confused_with: [agreement_migratory_term, electronic_auth_flag, add_company_role_change,

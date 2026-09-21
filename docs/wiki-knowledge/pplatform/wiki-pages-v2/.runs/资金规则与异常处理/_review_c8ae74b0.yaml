@@ -1,4 +1,0 @@
-body: funding_rule_detail.check_scene 在 DB 实测仅 SUBMIT_VALIDATE（50 条），但本主题 Application
-  / Provider 的写值点均未调用 setCheckScene。字段语义明确指向「来源在其他链路」，因此本页只登记取值分布口径（[[funding_rule_detail_check_scene_scope]]），不推断枚举全集，也不据此外推业务含义。需补查建单/校验链路后回填写值点。
-title: 校验场景（check_scene）写值点缺失
-type: calibers

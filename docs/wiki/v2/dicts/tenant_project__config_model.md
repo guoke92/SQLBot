@@ -6,15 +6,15 @@ belong: dicts
 status: draft
 anchors: [tenant_project.config_model]
 sources: ['database_profile:tenant_project.config_model']
-created: '2026-09-17'
-updated: '2026-09-17'
+created: '2026-09-20'
+updated: '2026-09-20'
 contract_version: '0.1'
 related: [tenant_project]
 ---
 
 # tenant_project.config_model
 
-L0 字典候选：profile 代码值；列注释无码→中文映射，故无 label。空值已丢弃。
+L0 字典候选：profile 代码值；列注释无码→中文映射，故无 label。空值已丢弃。 初审 hold：证据不足，保留待人工确认。
 物理列 `tenant_project.config_model`，表页 [[tables/tenant_project]]。
 
 ## 取值
@@ -25,5 +25,6 @@ fields: [tenant_project.config_model]
 values:
   admin: {trust: proposed}
   normal: {trust: proposed}
-triage: keep
+triage: hold
+needs_review: true
 ```

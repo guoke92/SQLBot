@@ -6,12 +6,14 @@ belong: tables
 status: draft
 anchors: [wec_project_operation_rel]
 sources: ['database_schema:lowcode_pplatform.wec_project_operation_rel']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
-related: [wec_project_operation_rel__project_tag, wec_project_operation_rel__enable,
-  wec_project_operation_rel__top_flag]
+related: [wec_project_operation_rel__op_contact_a, wec_project_operation_rel__verification_contact,
+  wec_project_operation_rel__risk_control_contact_a, wec_project_operation_rel__custom_field_one,
+  wec_project_operation_rel__custom_field_two, wec_project_operation_rel__project_tag,
+  wec_project_operation_rel__enable, wec_project_operation_rel__top_flag]
 ---
 
 # 微企链项目关联运营
@@ -45,6 +47,8 @@ fields:
 - name: op_contact_a
   type: string
   desc: 运营对接人A
+  dict: ['321', '463', '257', '169', '362', '210', '333', '466', '97', '420', '93',
+    '267']
 - name: op_contact_b
   type: string
   desc: 运营对接人B
@@ -54,12 +58,14 @@ fields:
 - name: verification_contact
   type: string
   desc: 查验对接人
+  dict: ['321', '463', '420', '363', '97', '454', '411', '305']
 - name: verification_contact_group
   type: string
   desc: 查验组别
 - name: risk_control_contact_a
   type: string
   desc: 风控对接人A
+  dict: ['321', '454', '344', '420', '457', '97', '141', '463', '271']
 - name: risk_control_contact_b
   type: string
   desc: 风控对接人B
@@ -81,9 +87,13 @@ fields:
 - name: custom_field_one
   type: string
   desc: 自定义字段一
+  dict: ['1', 字段1, '532423435', '532423434', '532423433', 自动化测试字段一A1, qa_cf1_1786619291710,
+    '532423436']
 - name: custom_field_two
   type: string
   desc: 自定义字段二
+  dict: ['2', 字段2, '543543544', qa_cf2_1786619291710, '543543547', 自动化测试字段二B2, '543543546',
+    '543543545']
 - name: custom_field_three
   type: string
   desc: 自定义字段三
@@ -163,6 +173,11 @@ fields:
 
 ### 字典
 
+- [[dicts/wec_project_operation_rel__op_contact_a]]（`wec_project_operation_rel.op_contact_a`）
+- [[dicts/wec_project_operation_rel__verification_contact]]（`wec_project_operation_rel.verification_contact`）
+- [[dicts/wec_project_operation_rel__risk_control_contact_a]]（`wec_project_operation_rel.risk_control_contact_a`）
+- [[dicts/wec_project_operation_rel__custom_field_one]]（`wec_project_operation_rel.custom_field_one`）
+- [[dicts/wec_project_operation_rel__custom_field_two]]（`wec_project_operation_rel.custom_field_two`）
 - [[dicts/wec_project_operation_rel__project_tag]]（`wec_project_operation_rel.project_tag`）
 - [[dicts/wec_project_operation_rel__enable]]（`wec_project_operation_rel.enable`）
 - [[dicts/wec_project_operation_rel__top_flag]]（`wec_project_operation_rel.top_flag`）

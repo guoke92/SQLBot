@@ -1,7 +1,0 @@
-body: '语义分析只提供了字段语义（meaning），未提供任何字段类型与物理库名。
-
-  因此所有 ground:table 的 type 统一写 unknown、scope.databases 写 [unknown]。
-
-  请补充每个字段的实际类型（含长度/精度）、是否可空、默认值，以及主题涉及的物理库名。'
-title: 库表字段类型与物理库名缺失
-type: table

@@ -6,8 +6,8 @@ belong: tables
 status: draft
 anchors: [tenant_migarory_log]
 sources: ['database_schema:lowcode_pplatform.tenant_migarory_log']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
 related: [platform_product, tenant_migarory_log__direction, tenant_migarory_log__type,
@@ -167,8 +167,6 @@ overlap:
   deepened: false
   query_ok: true
   authenticity: unlikely
-authenticity_note: 列名/注释（产品编码）与 platform_product.code 语义关联，但探测 overlap=0.0（10/10 未命中，sample_size=10），值域不契合，判
-  unlikely；仅名称证据不足以判 likely
 ```
 
 ## 页面链接

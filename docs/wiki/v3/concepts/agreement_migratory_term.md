@@ -9,8 +9,8 @@ aliases: [协议拉取, 企业协议迁移]
 maps_to: argeement_migratory_record.cust_id
 field_targets: [argeement_migratory_record.cust_id]
 sources: ['code_path:PlatFormMigratoryApplication.java:629', 'document_claim:docs/wiki-knowledge/pplatform/req-index/concepts']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [argeement_migratory_record]
 also_confused_with: [authorization_book]

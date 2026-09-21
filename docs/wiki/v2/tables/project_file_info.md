@@ -6,176 +6,112 @@ belong: tables
 status: draft
 anchors: [project_file_info]
 sources: ['database_schema:lowcode_pplatform.project_file_info']
-created: '2026-09-17'
-updated: '2026-09-17'
+created: '2026-09-20'
+updated: '2026-09-20'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
-related: [project_file_info__file_type, project_file_info__enable]
+related: [project_file_info__title, project_file_info__content, project_file_info__file_type,
+  project_file_info__enable]
 ---
 
 # 项目运营文件管理
 
-L0 库侧合同（draft）。grain / 字段簇 / 身份束关系均为 proposed，不得当认证 JOIN。
-
-## 字段簇
-
-### common
-
-`id`, `code`, `name`, `enable`, `remark`, `create_by`, `create_user`, `create_time`, `update_by`, `update_user`, `update_time`
-
-### audit
-
-（空）
-
-### file_content
-
-`title`, `content`, `file_type`
-
-### relation
-
-`project_id`, `organization_id`
-
-### workflow
-
-`act_procinst_id`, `act_procinst_no`, `act_procinst_status`, `act_procinst_date`
-
-### tenant
-
-`app_tenant_code`, `db_tenant_code`
+L0 库侧合同（draft）。grain / 身份束关系均为 proposed，不得当认证 JOIN。
 
 ## 字段
 
 ```ground:table
 table: project_file_info
 database: lowcode_pplatform
-description: 项目运营文件管理
+desc: 项目运营文件管理
 inactive: false
 primary_key: [id]
 grain: 一行一记录（id）
 name_anchors: [title, code, name]
-clusters:
-- key: common
-  title: 通用
-  include: always
-- key: audit
-  title: 审计
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.project_file_info
-- key: file_content
-  title: 文件内容
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.project_file_info
-- key: relation
-  title: 项目机构关联
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.project_file_info
-- key: workflow
-  title: 审批流程
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.project_file_info
-- key: tenant
-  title: 租户
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.project_file_info
 fields:
 - name: id
-  data_type: number
-  description: 表主键
+  type: number
+  desc: 表主键
   nullable: false
-  cluster: common
 - name: title
-  data_type: string
-  description: 标题
-  cluster: file_content
+  type: string
+  desc: 标题
+  dict: ['1', '2', '3', '4', '5', '22', 自动化测试注册建档文件A1, '233232', '11', '6', 标题1, '7',
+    '23432', qa_other_title_1786619365328, '8', '123', 自动化测试文件标题, '9', aaa, 自动化测试注册建档文件,
+    '10']
 - name: content
-  data_type: string
-  description: 描述
-  cluster: file_content
+  type: string
+  desc: 描述
+  dict: ['1', '2', '4', '3', '5', '22', '222', 描述1, '11', '3232424', '10', '9', '8',
+    '7', aaa, '6', '123', '2342342']
 - name: file_type
-  data_type: string
-  description: 文件模块类型
-  cluster: file_content
-  dictionary: project_file_info__file_type
+  type: string
+  desc: 文件模块类型
+  dict: [cust, approve, collate, other, check]
 - name: project_id
-  data_type: number
-  description: 关联项目ID
-  cluster: relation
+  type: number
+  desc: 关联项目ID
 - name: code
-  data_type: string
-  description: 编码
-  cluster: common
+  type: string
+  desc: 编码
 - name: name
-  data_type: string
-  description: 名称
-  cluster: common
+  type: string
+  desc: 名称
 - name: enable
-  data_type: string
-  description: enable
-  cluster: common
-  dictionary: project_file_info__enable
+  type: string
+  desc: enable
+  dict: [Y]
 - name: remark
-  data_type: string
-  description: remark
-  cluster: common
+  type: string
+  desc: remark
 - name: create_by
-  data_type: string
-  description: 创建人id
-  cluster: common
+  type: string
+  desc: 创建人id
 - name: create_user
-  data_type: string
-  description: 创建人名称
-  cluster: common
+  type: string
+  desc: 创建人名称
 - name: create_time
-  data_type: temporal
-  description: 创建时间
+  type: temporal
+  desc: 创建时间
   nullable: false
-  cluster: common
 - name: update_by
-  data_type: string
-  description: 更新人id
-  cluster: common
+  type: string
+  desc: 更新人id
 - name: update_user
-  data_type: string
-  description: 更新人名称
-  cluster: common
+  type: string
+  desc: 更新人名称
 - name: update_time
-  data_type: temporal
-  description: 更新时间
+  type: temporal
+  desc: 更新时间
   nullable: false
-  cluster: common
 - name: act_procinst_id
-  data_type: string
-  description: 流程实例ID
-  cluster: workflow
+  type: string
+  desc: 流程实例ID
 - name: app_tenant_code
-  data_type: string
-  description: 逻辑租户标识
-  cluster: tenant
+  type: string
+  desc: 逻辑租户标识
 - name: db_tenant_code
-  data_type: string
-  description: 数据租户标识
-  cluster: tenant
+  type: string
+  desc: 数据租户标识
 - name: act_procinst_no
-  data_type: string
-  description: 流程申请编号
-  cluster: workflow
+  type: string
+  desc: 流程申请编号
 - name: act_procinst_status
-  data_type: string
-  description: 当前审批状态
-  cluster: workflow
+  type: string
+  desc: 当前审批状态
 - name: act_procinst_date
-  data_type: temporal
-  description: 审批结束时间
-  cluster: workflow
+  type: temporal
+  desc: 审批结束时间
 - name: organization_id
-  data_type: string
-  description: 机构编号
-  cluster: relation
+  type: string
+  desc: 机构编号
 ```
 
 ## 页面链接
 
 ### 字典
 
+- [[dicts/project_file_info__title]]（`project_file_info.title`）
+- [[dicts/project_file_info__content]]（`project_file_info.content`）
 - [[dicts/project_file_info__file_type]]（`project_file_info.file_type`）
 - [[dicts/project_file_info__enable]]（`project_file_info.enable`）

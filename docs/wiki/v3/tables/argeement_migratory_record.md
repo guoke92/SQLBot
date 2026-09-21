@@ -6,13 +6,14 @@ belong: tables
 status: draft
 anchors: [argeement_migratory_record]
 sources: ['database_schema:lowcode_pplatform.argeement_migratory_record', 'code_path:AgreementMigratoryService.java:118']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
 related: [platform_product, cust_company_info, argeement_migratory_record__platform_product_code,
   argeement_migratory_record__status, argeement_migratory_record__agreement_type,
-  argeement_migratory_record__sign_mode, argeement_migratory_record__is_new, argeement_migratory_record__enable]
+  argeement_migratory_record__sign_mode, argeement_migratory_record__is_new, argeement_migratory_record__pull_num,
+  argeement_migratory_record__enable]
 ---
 
 # 协议迁移记录
@@ -83,6 +84,8 @@ fields:
 - name: pull_num
   type: number
   desc: 拉取次数
+  dict: ['0', '20', '1', '3', '2', '21', '4', '24', '22', '5', '28', '27', '14', '8',
+    '23', '10', '33', '25', '31', '29', '17', '11', '7', '13', '55', '51']
 - name: enable
   type: string
   desc: enable
@@ -198,4 +201,5 @@ overlap:
 - [[dicts/argeement_migratory_record__agreement_type]]（`argeement_migratory_record.agreement_type`）
 - [[dicts/argeement_migratory_record__sign_mode]]（`argeement_migratory_record.sign_mode`）
 - [[dicts/argeement_migratory_record__is_new]]（`argeement_migratory_record.is_new`）
+- [[dicts/argeement_migratory_record__pull_num]]（`argeement_migratory_record.pull_num`）
 - [[dicts/argeement_migratory_record__enable]]（`argeement_migratory_record.enable`）

@@ -6,15 +6,15 @@ belong: dicts
 status: draft
 anchors: [tenant_setting_config.company_size_property_requried]
 sources: ['database_profile:tenant_setting_config.company_size_property_requried']
-created: '2026-09-17'
-updated: '2026-09-17'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [tenant_setting_config]
 ---
 
 # tenant_setting_config.company_size_property_requried
 
-L0 字典候选：profile 代码值；列注释无码→中文映射，故无 label。空值已丢弃。
+L0 字典候选：profile 代码值；列注释无码→中文映射，故无 label。空值已丢弃。 初审 hold：证据不足，保留待人工确认。
 物理列 `tenant_setting_config.company_size_property_requried`，表页 [[tables/tenant_setting_config]]。
 
 ## 取值
@@ -24,5 +24,6 @@ dict: tenant_setting_config__company_size_property_requried
 fields: [tenant_setting_config.company_size_property_requried]
 values:
   N: {trust: proposed}
-triage: keep
+triage: hold
+needs_review: true
 ```

@@ -220,7 +220,7 @@ defineExpose({ sendMessage, index: () => index.value, stop })
 <template>
   <BaseAnswer v-if="message" :message="message" :hide-thinking-toggle="true">
     <AgentStagesView
-      v-if="timelineItems.length > 0"
+      v-if="timelineItems.length > 0 || message?.isTyping"
       :items="timelineItems"
       :is-typing="message?.isTyping"
       :record-id="message?.record?.id"

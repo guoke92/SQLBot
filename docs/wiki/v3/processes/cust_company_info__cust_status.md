@@ -11,8 +11,8 @@ sources: ['code_path:CustCompanyInfoDao.java:58', 'code_path:CustSyncEventProces
   'code_path:CustCompanyInfoApplication.java:7348', 'code_path:CustSyncEventProcessor.java:1194',
   'code_path:CustCompanyInfoApplication.java:712', 'code_path:CustCompanyInfoApplication.java:678',
   'code_path:CustCompanyInfoApplication.java:723', 'code_path:CustCompanyInfoApplication.java:901']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [cust_company_info, cust_role_info, cust_company_lifecycle_info]
 ---

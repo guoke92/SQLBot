@@ -8,15 +8,15 @@ anchors: [cust_change_cfg.identify_style]
 sources: ['database_profile:cust_change_cfg.identify_style', 'database_schema:cust_change_cfg.identify_style',
   'code_path:IdentifyTypeConstant.java:12', 'code_path:IdentifyTypeConstant.java:16',
   'code_path:IdentifyTypeConstant.java:24', 'code_path:IdentifyTypeConstant.java:20']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [cust_change_cfg]
 ---
 
 # cust_change_cfg.identify_style
 
-L1 字典：label 来自源码 displayName/常量注释（confirmed）。L0 注释猜词已被代码覆盖。
+L1 字典：label 来自源码 displayName/常量注释（confirmed）。L0 注释猜词已被代码覆盖。 初审 hold：证据不足，保留待人工确认。
 物理列 `cust_change_cfg.identify_style`，表页 [[tables/cust_change_cfg]]。
 
 ## 取值
@@ -29,5 +29,6 @@ values:
   INVITE_AGW: {trust: confirmed, label: 邀请认证-内管录入, evidence: 'code_path:IdentifyTypeConstant.java:16'}
   SELF: {trust: confirmed, label: 自主认证, evidence: 'code_path:IdentifyTypeConstant.java:24'}
   SIMPLE: {trust: confirmed, label: 简易认证, evidence: 'code_path:IdentifyTypeConstant.java:20'}
-triage: keep
+triage: hold
+needs_review: true
 ```

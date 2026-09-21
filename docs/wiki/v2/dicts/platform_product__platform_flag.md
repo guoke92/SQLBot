@@ -6,8 +6,8 @@ belong: dicts
 status: draft
 anchors: [platform_product.platform_flag]
 sources: ['database_profile:platform_product.platform_flag']
-created: '2026-09-17'
-updated: '2026-09-17'
+created: '2026-09-20'
+updated: '2026-09-20'
 contract_version: '0.1'
 related: [platform_product]
 ---

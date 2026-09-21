@@ -7,8 +7,8 @@ domain: cust
 status: draft
 field_targets: [cust_change_record.alter_type_id]
 sources: ['code_path:CustSyncEventProcessor.java:1898']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [cust_change_record]
 ---

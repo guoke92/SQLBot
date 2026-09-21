@@ -9,8 +9,8 @@ aliases: [复制的租户项目, 跨贴牌复制]
 maps_to: tenant_project.refer_tenant_project_id
 field_targets: [tenant_project.refer_tenant_project_id]
 sources: ['code_path:ProjectClientSyncService.java:64', 'document_claim:docs/wiki-knowledge/pplatform/req-index/concepts/项目上线审批流程.md']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [tenant_project]
 also_confused_with: [tenant_project_code_join]

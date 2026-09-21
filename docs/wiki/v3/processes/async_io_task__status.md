@@ -9,8 +9,8 @@ anchors: [async_io_task.status]
 field_targets: [async_io_task.status]
 sources: ['code_path:AsyncIoTaskManager.java:84', 'code_path:AsyncIoTaskManager.java:114',
   'code_path:AsyncIoTaskManager.java:122', 'code_path:AsyncIoTaskManager.java:147']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [async_io_task]
 ---

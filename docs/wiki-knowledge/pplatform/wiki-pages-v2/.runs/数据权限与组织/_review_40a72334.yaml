@@ -1,5 +1,0 @@
-body: 语义分析中该口径条目被截断：predicate 止于 "cust_person_info.user_id = ? AND cust_person_"，scope
-  与 evidence 缺失。需要确认：(1) 第二个条件的完整字段与取值（疑似 cust_person_info 上的某个状态/启用条件）；(2) 该口径的证据代码路径（疑似组织绑定相关
-  Application 方法）；(3) 是否与 [[calibers/company_admin]]、[[calibers/non_guest_user]] 存在重叠或互斥关系。补全前本页不得被下游消费。
-title: 二级组织绑定合法用户
-type: caliber

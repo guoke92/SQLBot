@@ -9,8 +9,8 @@ aliases: [贴牌隐藏注册入口, 自主注册开关]
 maps_to: tenant_setting_config.self_registration_flag
 field_targets: [tenant_setting_config.self_registration_flag]
 sources: ['code_path:AcflowTenantMigratoryService.java:186', 'document_claim:docs/wiki-knowledge/pplatform/req-index/concepts/项目上线审批流程.md']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [tenant_setting_config]
 also_confused_with: [project_code_required]

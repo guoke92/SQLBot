@@ -35,9 +35,11 @@ from apps.conversation.tooling import (
     execute_tools_node,
     normalize_tool_result,
     parse_markup_tool_calls,
+    render_tool_message,
     resolve_message_tool_calls,
     strip_markup_tool_calls,
     tool_failure,
+    tool_result_from_message,
 )
 
 
@@ -212,11 +214,15 @@ def test_execute_tools_appends_one_tool_message_per_call() -> None:
     ]
     assert [message.tool_call_id for message in tool_messages] == ["call-1", "call-2"]
     assert [
-        json.loads(str(message.content))["data"]["value"] for message in tool_messages
+        tool_result_from_message(message)["data"]["value"] for message in tool_messages
     ] == [
         "a",
         "b",
     ]
+    for message in tool_messages:
+        content = str(message.content)
+        assert not content.lstrip().startswith("{")
+        assert "value: " in content
 
 
 def test_execute_tools_redacts_results_before_returning_them_to_the_model() -> None:
@@ -251,10 +257,15 @@ def test_execute_tools_redacts_results_before_returning_them_to_the_model() -> N
         for message in deserialize_messages(result["messages"])
         if isinstance(message, ToolMessage)
     )
-    assert json.loads(str(tool_message.content))["data"] == {
+    assert tool_result_from_message(tool_message)["data"] == {
         "host": "db.local",
         "password": "<redacted>",
     }
+    content = str(tool_message.content)
+    assert "secret" not in content
+    assert "db.local" in content
+    assert "<redacted>" in content
+    assert not content.lstrip().startswith("{")
 
 
 def test_route_after_agent_uses_shared_tool_loop() -> None:
@@ -613,3 +624,131 @@ def test_parse_dsml_markup_recovers_search_wiki_calls() -> None:
     native_calls, native_text = resolve_message_tool_calls(native, "ok")
     assert native_calls[0]["name"] == "execute_sql_sandbox"
     assert native_text == "ok"
+
+
+def test_render_tool_message_schema_uses_real_newlines() -> None:
+    schema = (
+        "## 租户产品配置 (tenant_product)\n"
+        "id:number, 表主键\n"
+        "code:string, 编码"
+    )
+    text = render_tool_message(
+        "get_table_schema",
+        {
+            "ok": True,
+            "summary": "已展开表 ['tenant_product']。不要再为同一张表调用本工具。",
+            "data": {
+                "tables": ["tenant_product"],
+                "added_tables": ["tenant_product"],
+                "already": [],
+                "missing": [],
+                "schema_text": schema,
+                "schema_ready": True,
+            },
+            "error": None,
+            "failure": None,
+        },
+    )
+    assert "\\n" not in text
+    assert "\n" in text
+    assert '"ok"' not in text
+    assert "schema_text" not in text
+    assert "schema_ready" not in text
+    assert "## 租户产品配置 (tenant_product)" in text
+    assert "id:number, 表主键" in text.splitlines()
+
+
+def test_render_tool_message_keeps_knowledge_summary_only() -> None:
+    summary = (
+        "已命中 1 条业务知识。\n"
+        "concept: 产品类型\n"
+        "  page_key: concepts/product-cate"
+    )
+    text = render_tool_message(
+        "search_knowledge",
+        {
+            "ok": True,
+            "summary": summary,
+            "data": {
+                "page_keys": ["concepts/product-cate"],
+                "hits": [{"title": "产品类型", "type": "concept"}],
+                "hit_count": 1,
+            },
+            "error": None,
+            "failure": None,
+        },
+    )
+    assert text == summary
+    assert "hit_count" not in text
+
+
+def test_render_tool_message_sql_drops_orchestration_fields() -> None:
+    text = render_tool_message(
+        "execute_sql_sandbox",
+        {
+            "ok": True,
+            "summary": "Query executed successfully, returned 1 rows.",
+            "data": {
+                "sql": "SELECT 1 AS a",
+                "fields": ["a"],
+                "total_rows": 1,
+                "row_count": 1,
+                "truncated": False,
+                "sample_rows": [{"a": 1}],
+                "preview_rows": [{"a": 1}],
+                "column_stats": {"a": {"sum": 1}},
+                "dataset_id": "ds-1",
+                "plan_id": "p-1",
+                "required": True,
+            },
+            "error": None,
+            "failure": None,
+        },
+    )
+    assert "SELECT 1 AS a" in text
+    assert "a=1" in text
+    assert "column_stats" not in text
+    assert "dataset_id" not in text
+    assert '"ok"' not in text
+
+
+def test_render_tool_message_failure_is_one_line() -> None:
+    text = render_tool_message(
+        "get_table_schema",
+        {
+            "ok": False,
+            "summary": "get_table_schema 需要至少一张可见表名",
+            "data": None,
+            "error": "get_table_schema 需要至少一张可见表名",
+            "failure": {
+                "kind": "execution",
+                "message": "get_table_schema 需要至少一张可见表名",
+                "retryable": True,
+            },
+        },
+    )
+    assert text == "失败：get_table_schema 需要至少一张可见表名"
+    assert "retryable" not in text
+
+
+def test_tool_result_from_message_reads_artifact_and_legacy_json() -> None:
+    structured = {
+        "ok": True,
+        "summary": "ok",
+        "data": {"sql": "SELECT 1", "required": True},
+        "error": None,
+        "failure": None,
+    }
+    current = ToolMessage(
+        content="Query executed successfully, returned 1 rows.\nsql:\nSELECT 1",
+        tool_call_id="c1",
+        name="execute_sql_sandbox",
+        artifact=structured,
+    )
+    assert tool_result_from_message(current)["data"]["sql"] == "SELECT 1"
+    legacy = ToolMessage(
+        content=json.dumps(structured),
+        tool_call_id="c2",
+        name="execute_sql_sandbox",
+    )
+    assert tool_result_from_message(legacy)["data"]["sql"] == "SELECT 1"

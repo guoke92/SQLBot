@@ -27,6 +27,7 @@ config = context.config
 #from apps.chat.models.chat_model import SQLModel
 from apps.terminology.models.terminology_model import SQLModel
 from apps.dictionary.models import DictionaryFieldConfig, DictionaryValue  # noqa: F401
+from apps.datasource.models.value_index import CoreValueIndex  # noqa: F401
 from sqlbot_xpack.custom_prompt.models.custom_prompt_model import SQLModel
 #from apps.data_training.models.data_training_model import SQLModel
 # from apps.dashboard.models.dashboard_model import SQLModel

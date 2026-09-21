@@ -9,8 +9,8 @@ aliases: [短信签名]
 maps_to: tenant_setting_config.platform_sms_signature
 field_targets: [tenant_setting_config.platform_sms_signature]
 sources: ['code_path:TenantAppliactionService.java:176', 'document_claim:docs/wiki-knowledge/pplatform/req-index/concepts/项目上线审批流程.md']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [tenant_setting_config]
 also_confused_with: [customer_card_term]

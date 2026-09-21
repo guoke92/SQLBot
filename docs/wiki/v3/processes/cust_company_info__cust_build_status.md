@@ -13,8 +13,8 @@ sources: ['code_path:CustCompanyInfoApplication.java:2028', 'code_path:CustCompa
   'code_path:CustSyncEventProcessor.java:2050', 'code_path:CustSyncEventProcessor.java:2057',
   'code_path:CustSyncEventProcessor.java:2073', 'code_path:CustCompanyInfoApplication.java:7348',
   'code_path:CustSyncEventProcessor.java:1194', 'code_path:CustSyncEventProcessor.java:2075']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [cust_company_info]
 ---

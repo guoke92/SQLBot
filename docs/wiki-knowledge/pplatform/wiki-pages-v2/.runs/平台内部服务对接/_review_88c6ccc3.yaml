@@ -1,4 +1,0 @@
-body: 语义分析的第三台状态机在 transitions 末尾被截断，最后一条可见片段为「from N / event 冻结企业」，其后 to 值与 evidence
-  缺失。本页仅收录两条完整转换（FREEZE / THAW）。若「冻结企业」应触发关联冻结，需要补充完整证据后再追加转换。
-title: 经办人产品关联冻结状态（证据截断）
-type: process

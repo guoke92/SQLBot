@@ -6,12 +6,12 @@ belong: tables
 status: draft
 anchors: [cust_access_secret]
 sources: ['database_schema:lowcode_pplatform.cust_access_secret', 'code_path:CustSyncService.java:711']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
 related: [cust_access_secret__channel, cust_access_secret__encry_type, cust_access_secret__enable,
-  cust_access_secret__status_query_license_enabled]
+  cust_access_secret__key_num, cust_access_secret__status_query_license_enabled]
 ---
 
 # 客户接入秘钥信息
@@ -110,6 +110,7 @@ fields:
   type: number
   desc: 密钥对
   nullable: false
+  dict: ['2']
 - name: rel_lls_secret_id
   type: number
   desc: 关联平台密钥记录id
@@ -131,4 +132,5 @@ default_filter:
 - [[dicts/cust_access_secret__channel]]（`cust_access_secret.channel`）
 - [[dicts/cust_access_secret__encry_type]]（`cust_access_secret.encry_type`）
 - [[dicts/cust_access_secret__enable]]（`cust_access_secret.enable`）
+- [[dicts/cust_access_secret__key_num]]（`cust_access_secret.key_num`）
 - [[dicts/cust_access_secret__status_query_license_enabled]]（`cust_access_secret.status_query_license_enabled`）

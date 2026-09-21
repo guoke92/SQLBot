@@ -9,8 +9,8 @@ anchors: [ca_certification_info.submit_status]
 field_targets: [ca_certification_info.submit_status]
 sources: ['code_path:CaCertificationInfoAppServiceImpl.java:178', 'code_path:CaCertificationInfoAppServiceImpl.java:495',
   'code_path:CaCertificationInfoAppServiceImpl.java:451']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [ca_certification_info]
 ---

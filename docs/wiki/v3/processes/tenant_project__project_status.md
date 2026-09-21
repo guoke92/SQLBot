@@ -9,8 +9,8 @@ anchors: [tenant_project.project_status]
 field_targets: [tenant_project.project_status]
 sources: ['code_path:TenantProjectDomainService.java:169', 'code_path:TenantProjectDomainService.java:235',
   'code_path:TenantProjectDomainService.java:226']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [tenant_project]
 ---

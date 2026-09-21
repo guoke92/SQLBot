@@ -6,19 +6,21 @@ belong: tables
 status: draft
 anchors: [platform_product]
 sources: ['database_schema:lowcode_pplatform.platform_product', 'code_path:PlatformProductDaoImpl.java:76']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
 related: [argeement_migratory_record, authorization_agreement, cust_auth_application,
   cust_interworking_product, cust_project_rel, platform_product_cust_role, platform_product_client,
   tenant_interworking_product, tenant_interworking_project, tenant_migarory_log, tenant_migarory_log_bak,
-  tenant_product, tenant_project, platform_product__product_type, platform_product__platform_flag,
-  platform_product__platform_code, platform_product__multiple_project_flag, platform_product__multiple_cust_role_flag,
-  platform_product__product_code, platform_product__product_cate, platform_product__product_status,
-  platform_product__product_construction_status, platform_product__max_financing_amount_flag,
-  platform_product__multiple_client_type, platform_product__menu_type, platform_product__wkfl_flag,
-  platform_product__enable, platform_product__act_procinst_status, platform_product__general_flag]
+  tenant_product, tenant_project, platform_product__code, platform_product__product_type,
+  platform_product__platform_flag, platform_product__platform_code, platform_product__multiple_project_flag,
+  platform_product__multiple_cust_role_flag, platform_product__product_code, platform_product__product_cate,
+  platform_product__product_ref_num, platform_product__product_status, platform_product__product_construction_status,
+  platform_product__max_financing_amount_flag, platform_product__multiple_client_type,
+  platform_product__project_code, platform_product__app_code, platform_product__menu_type,
+  platform_product__default_menu_index, platform_product__wkfl_flag, platform_product__enable,
+  platform_product__act_procinst_status, platform_product__general_flag]
 ---
 
 # 平台产品基础配置
@@ -34,7 +36,7 @@ desc: 平台产品基础配置
 inactive: false
 primary_key: [id]
 grain: 一平台产品一行
-name_anchors: [code, name, platform_code, project_code, app_code, default_menu_code]
+name_anchors: [code, name, platform_code, product_code, project_code, app_code, default_menu_code]
 fields:
 - name: id
   type: number
@@ -43,6 +45,10 @@ fields:
 - name: code
   type: string
   desc: 编码
+  dict: [f285fa5cf17f4a8f9eefe93d3a513a6g, 007142024a5c425bb3673f753060e534, f285fa5cf17f4a8f9eefeadd3a513a6e,
+    f285fa5cf17f4a8f9eefe93d3a513a6b, f285fa5cf17f4a8f9eefe93d3a513a6e, 956b7f49cc00471db99e552d778a12c2,
+    007142024a5c425bb3673f753060e533, f285fa5cf17f4a8f9eefe93d3a513a63, f285fa5cf17f4a8f9eefe93d3a513a64,
+    b8468d68ba0a4762bda0f7b9164e4f6a, f285fa5cf17f4a8f9eefe93d3a513a61]
 - name: name
   type: string
   desc: 名称
@@ -78,6 +84,7 @@ fields:
   type: string
   desc: 产品类型
   dict: [WEAKLY, STRONG, CREDIT]
+  label: [弱确权, 强确权, 信用类]
 - name: product_summary
   type: string
   desc: 产品概述
@@ -102,6 +109,7 @@ fields:
 - name: product_ref_num
   type: number
   desc: 引用产品的平台数
+  dict: ['1', '5', '85', '51', '0', '35', '11', '201', '6', '2', '9', '4']
 - name: product_status
   type: string
   desc: 产品状态
@@ -122,9 +130,11 @@ fields:
 - name: project_code
   type: string
   desc: 蜂搭平台项目编号
+  dict: [0cb8c9bc0c2f4053986a9cb63060f951]
 - name: app_code
   type: string
   desc: 蜂搭平台app编号
+  dict: [be1b5de568064ef1bc2f01c8105df7b2, 8b6020c4034a47ad9a9a216e29a23616]
 - name: basic_product
   type: string
   desc: 是否是产融底座
@@ -138,6 +148,7 @@ fields:
 - name: default_menu_index
   type: number
   desc: 默认菜单编号
+  dict: ['1']
 - name: wkfl_flag
   type: string
   desc: 产品工作流启用开关
@@ -239,32 +250,6 @@ overlap:
   authenticity: likely
 ```
 
-### unknown — 待复核
-
-```ground:relation
-type: EQUI_JOIN
-left: platform_product_cust_role.product_code
-right: platform_product.product_code
-cardinality: one_to_many
-trust: proposed
-authenticity: unknown
-evidence: database_schema:lowcode_pplatform.platform_product.product_code
-source: llm
-join_role: business_code
-priority: primary
-name_evidence:
-  match: llm_propose
-  stem: product_code
-  comment: 同名列码对码，overlap 0.5/反向 0.8333，可作 EQUI_JOIN 候选边。
-overlap:
-  probed: true
-  ratio: 0.5
-  ratio_reverse: 0.8333
-  sample_size: 20
-  authenticity: unknown
-authenticity_note: 同名列码对码，overlap 0.5/反向 0.8333，可作 EQUI_JOIN 候选边。
-```
-
 ## 页面链接
 
 ### 关联表
@@ -285,6 +270,7 @@ authenticity_note: 同名列码对码，overlap 0.5/反向 0.8333，可作 EQUI_
 
 ### 字典
 
+- [[dicts/platform_product__code]]（`platform_product.code`）
 - [[dicts/platform_product__product_type]]（`platform_product.product_type`）
 - [[dicts/platform_product__platform_flag]]（`platform_product.platform_flag`）
 - [[dicts/platform_product__platform_code]]（`platform_product.platform_code`）
@@ -292,11 +278,15 @@ authenticity_note: 同名列码对码，overlap 0.5/反向 0.8333，可作 EQUI_
 - [[dicts/platform_product__multiple_cust_role_flag]]（`platform_product.multiple_cust_role_flag`）
 - [[dicts/platform_product__product_code]]（`platform_product.product_code`）
 - [[dicts/platform_product__product_cate]]（`platform_product.product_cate`）
+- [[dicts/platform_product__product_ref_num]]（`platform_product.product_ref_num`）
 - [[dicts/platform_product__product_status]]（`platform_product.product_status`）
 - [[dicts/platform_product__product_construction_status]]（`platform_product.product_construction_status`）
 - [[dicts/platform_product__max_financing_amount_flag]]（`platform_product.max_financing_amount_flag`）
 - [[dicts/platform_product__multiple_client_type]]（`platform_product.multiple_client_type`）
+- [[dicts/platform_product__project_code]]（`platform_product.project_code`）
+- [[dicts/platform_product__app_code]]（`platform_product.app_code`）
 - [[dicts/platform_product__menu_type]]（`platform_product.menu_type`）
+- [[dicts/platform_product__default_menu_index]]（`platform_product.default_menu_index`）
 - [[dicts/platform_product__wkfl_flag]]（`platform_product.wkfl_flag`）
 - [[dicts/platform_product__enable]]（`platform_product.enable`）
 - [[dicts/platform_product__act_procinst_status]]（`platform_product.act_procinst_status`）

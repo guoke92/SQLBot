@@ -88,7 +88,7 @@ fields:
   cluster: common
 - name: cust_build_status
   data_type: string
-  dictionary: cust_company_info__cust_build_status
+  dict: [BUILD_SUCCESS, INIT]
 ```
 
 ## 关联关系
@@ -399,6 +399,7 @@ def test_l1_compile_upgrades_and_emits_nine_types(tmp_path: Path) -> None:
     summary = (out / "concepts" / "catalog_summary.md").read_text(encoding="utf-8")
     assert "- cust_company_info:" in summary
     assert "page_key: catalog_summary" in summary
+    assert "recall: false" in summary
     assert "主要字段：" not in summary
     company_line = next(
         line for line in summary.splitlines() if "- cust_company_info:" in line
@@ -521,6 +522,77 @@ def test_cli_l1(tmp_path: Path) -> None:
 def test_refuses_wiki_pages_dir(tmp_path: Path) -> None:
     with pytest.raises(ValueError):
         _assert_isolated(tmp_path / "wiki-pages-v3")
+
+
+def test_ungrounded_profile_phrases_field_like_only() -> None:
+    from tools.wiki_extract.l1.emitter import (
+        _TABLE_PROFILES,
+        iter_ungrounded_profile_phrases,
+    )
+
+    catalog = {
+        "tables": {
+            "tenant_project": {
+                "columns": {
+                    "first_settlement_time": {"comment": "首笔落地时间"},
+                    "wechat_audit_pass_time": {"comment": "立项审批通过时间"},
+                }
+            }
+        }
+    }
+    original = _TABLE_PROFILES.get("tenant_project")
+    _TABLE_PROFILES["tenant_project"] = (
+        "租户项目",
+        "首笔落地时间, 项目配置提交时间, 立项审批通过时间",
+    )
+    try:
+        bad = dict(iter_ungrounded_profile_phrases(catalog))
+        assert bad.get("tenant_project") == "项目配置提交时间"
+    finally:
+        if original is None:
+            _TABLE_PROFILES.pop("tenant_project", None)
+        else:
+            _TABLE_PROFILES["tenant_project"] = original
+
+
+def test_table_field_labels_resync_from_upgraded_dict(tmp_path: Path) -> None:
+    """Field may keep code-only dict= from L0; L1 dict_labels must reflow onto the table."""
+    l0 = tmp_path / "l0"
+    ir = tmp_path / "ir"
+    out = tmp_path / "v3"
+    _seed_l0(l0)
+    _seed_ir(ir)
+    stats = compile_l1(
+        l0_dir=l0,
+        intermediate_dir=ir,
+        out_dir=out,
+        skip_code_check=True,
+    )
+    assert stats["errors"] == 0
+    table_page = (out / "tables" / "cust_company_info.md").read_text(encoding="utf-8")
+    assert "dict: [BUILD_SUCCESS, INIT]" in table_page
+    assert "label: [认证成功, 初始化]" in table_page
+    dict_page = (out / "dicts" / "cust_company_info__cust_build_status.md").read_text(
+        encoding="utf-8"
+    )
+    assert "label: 初始化" in dict_page
+
+
+def test_emit_dict_values_keeps_enum_code_none() -> None:
+    from tools.wiki_extract.emit import _emit_dict_values
+
+    values = _emit_dict_values(
+        {
+            "NONE": {"trust": "confirmed", "label": "无需开票"},
+            "PENDING": {"trust": "confirmed", "label": "开票中"},
+            "null": {"trust": "proposed"},
+            "None": {"trust": "proposed"},
+        }
+    )
+    assert "NONE" in values
+    assert values["NONE"]["label"] == "无需开票"
+    assert "null" not in values
+    assert "None" not in values
 
 
 def test_load_rejects_yml_extension(tmp_path: Path) -> None:

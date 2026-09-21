@@ -7,9 +7,10 @@ status: draft
 anchors: [tenant_project_approval.wf_status]
 sources: ['database_profile:tenant_project_approval.wf_status', 'database_schema:tenant_project_approval.wf_status',
   'code_path:ProjectApprovalWorkflowStatusEnum.java:17', 'code_path:ProjectApprovalWorkflowStatusEnum.java:18',
-  'code_path:ProjectApprovalWorkflowStatusEnum.java:19', 'code_path:ProjectApprovalWorkflowStatusEnum.java:16']
-created: '2026-09-18'
-updated: '2026-09-18'
+  'code_path:ProjectApprovalWorkflowStatusEnum.java:19', 'code_path:ProjectApprovalWorkflowStatusEnum.java:16',
+  'code_path:ProjectApprovalWorkflowStatusEnum.java:20']
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [tenant_project_approval]
 ---
@@ -29,6 +30,6 @@ values:
   FINISHED: {trust: confirmed, label: 审批通过, evidence: 'code_path:ProjectApprovalWorkflowStatusEnum.java:18'}
   TERMINATED: {trust: confirmed, label: 审批拒绝, evidence: 'code_path:ProjectApprovalWorkflowStatusEnum.java:19'}
   PENDING: {trust: confirmed, label: 待发起, evidence: 'code_path:ProjectApprovalWorkflowStatusEnum.java:16'}
-  REVOKED: {trust: proposed}
+  REVOKED: {trust: confirmed, label: 审批撤销, evidence: 'code_path:ProjectApprovalWorkflowStatusEnum.java:20'}
 triage: keep
 ```

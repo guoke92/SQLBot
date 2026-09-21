@@ -8,7 +8,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
-from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 
 _ROOT = Path(__file__).resolve().parents[1]
 _BACKEND = _ROOT / "backend"
@@ -61,11 +61,10 @@ def test_plane_same_table_merge_does_not_grow() -> None:
     assert plane.has_new_coverage(second_delta) is False
     assert len(second) == len(first)
     assert second.count("# Table: d_task") == 0
-    assert second.count("## 任务 (d_task)") == 1
-    assert "<wiki_knowledge>" in first
-    assert "<schema_catalog>" in first
-    wiki_body = first.split("<wiki_knowledge>", 1)[1].split("</wiki_knowledge>", 1)[0]
-    assert "# Table: d_task" not in wiki_body
+    assert "<wiki_knowledge>" not in first
+    assert "<schema_catalog>" not in first
+    assert "任务表口径" not in first
+    assert "## 任务 (d_task)" in plane.schema_catalog_text()
 
 
 def test_search_wiki_stub_and_unchanged_stop(monkeypatch) -> None:
@@ -150,6 +149,17 @@ def test_execute_tools_keeps_schema_text_for_catalog_tool(monkeypatch) -> None:
     assert out.get("tool_stop_reason") in {"", None}
     plane = AgentKnowledgePlane.from_dump(out.get("knowledge_plane"))
     assert plane.knowledge_rounds == 1
+    tool_message = next(
+        message
+        for message in deserialize_messages(out["messages"])
+        if isinstance(message, ToolMessage)
+    )
+    content = str(tool_message.content)
+    assert "\\n" not in content
+    assert "# Table: t1" in content
+    assert "FULL_SCHEMA" in content.splitlines()
+    assert '"ok"' not in content
+    assert "schema_text" not in content
 
 
 def test_execute_tools_does_not_lock_on_stop_search(monkeypatch) -> None:
@@ -223,6 +233,12 @@ def test_search_wiki_timeline_summary_uses_recall_count() -> None:
     )
     assert ok_key == "chat.summary.tool_ok"
     assert ok_params == {"tool": "execute_sql_sandbox"}
+    skip_key, skip_params = _knowledge_tool_close(
+        "search_knowledge",
+        {"ok": True, "data": {"skipped": "knowledge_budget"}},
+    )
+    assert skip_key == "chat.summary.tool_skipped"
+    assert skip_params == {"tool": "search_knowledge"}
 
 
 def test_strip_search_wiki_payload_drops_full_text() -> None:
@@ -322,11 +338,18 @@ def test_clarify_resume_resets_tool_rounds_and_refreshes_system(monkeypatch) -> 
     assert out["tool_stop_reason"] == ""
     confirmed = (out["memory_slots"] or {}).get("confirmed_calibers") or {}
     assert "caliber" in confirmed
-    system = deserialize_messages(out["messages"])[0]
+    messages = deserialize_messages(out["messages"])
+    system = messages[0]
     text = str(system.content)
-    assert "确认口径X" in text
-    assert "confirmed_calibers" in text
-    assert "<schema_catalog>" in text
+    assert "<schema_catalog>" not in text
+    assert "<memory_slots>" not in text
+    human_text = "\n".join(
+        str(item.content)
+        for item in messages
+        if str(getattr(item, "type", "")) == "human"
+    )
+    assert "确认口径X" in human_text
+    assert "用户已完成澄清" in human_text
 
 
 def test_select_delivery_datasets_required_only() -> None:
@@ -413,7 +436,7 @@ def test_tables_without_field_rows_are_not_schema_ready() -> None:
     assert plane.tables == []
     assert plane.schema_ready is False
     rendered = plane.render_system_sections()
-    assert "<wiki_knowledge>" in rendered
+    assert "<wiki_knowledge>" not in rendered
     assert "</schema_catalog>" not in rendered
 
 
@@ -433,9 +456,10 @@ def test_wiki_page_key_overwrite_does_not_append() -> None:
             "page_keys": ["identify_style"],
         }
     )
+    assert plane.wiki_passages.get("identify_style") == "第二版口径"
     rendered = plane.render_system_sections()
-    assert rendered.count("第一版口径") == 0
-    assert rendered.count("第二版口径") == 1
+    assert "第一版口径" not in rendered
+    assert "第二版口径" not in rendered
 
 
 def test_execute_sql_blocked_when_session_schema_missing() -> None:
@@ -548,8 +572,7 @@ def test_kernel_conflicts_are_evidence_not_auto_cards() -> None:
     plane.adopt_conflicts(evidence)
     assert plane.caliber_conflicts
     rendered = plane.render_system_sections()
-    assert "<caliber_conflicts>" in rendered
-    assert "不是澄清卡模板" in rendered
+    assert "<caliber_conflicts>" not in rendered
     assert "question_id" not in rendered
     plane.drop_resolved_conflicts(
         {
@@ -635,10 +658,11 @@ def test_exclude_knowledge_hides_from_prompt_and_blocks_remerge() -> None:
     assert dropped["tables"] == ["cust_change_cfg"]
     assert "concepts/menuKey" in dropped["pages"]
     rendered = plane.render_system_sections()
-    assert "cust_company_info" in rendered
-    assert "## 噪声" not in rendered
+    catalog = plane.schema_catalog_text()
+    assert "cust_company_info" in catalog
+    assert "## 噪声" not in catalog
     assert "# 菜单" not in rendered
-    assert "<knowledge_index>" in rendered
+    assert "<knowledge_index>" not in rendered
     assert "cust_change_cfg" in plane.excluded
     assert plane.tables == ["cust_company_info"]
 
@@ -650,7 +674,7 @@ def test_exclude_knowledge_hides_from_prompt_and_blocks_remerge() -> None:
         }
     )
     assert "cust_change_cfg" not in plane.tables
-    assert "## 噪声" not in plane.render_system_sections()
+    assert "## 噪声" not in plane.schema_catalog_text()
 
     plane.merge_recall(
         {
@@ -660,7 +684,7 @@ def test_exclude_knowledge_hides_from_prompt_and_blocks_remerge() -> None:
         }
     )
     assert "cust_change_cfg" in plane.tables
-    assert "## 噪声" in plane.render_system_sections()
+    assert "## 噪声" in plane.schema_catalog_text()
 
 
 def test_search_wiki_drop_only_skips_retrieve(monkeypatch) -> None:

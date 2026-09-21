@@ -1,9 +1,0 @@
-body: '语义分析中该规则条目被截断：content 尾部（"…project_code_requ" 处）与 evidence 字段均未采集完整，无法逐字回填
-  ground:rule 的 content / field_targets / evidence，因此本版暂不产出 rules/rule_tenant_config_excel_import.md。
-
-
-  已可确认的片段（逐字来自分析）：按 tenant_flg_en 查 tenant_setting_config（查不到报『租户不存在』）；projectCodeRequired
-  非空才覆盖；defaultProjectId 仅在数据库原值为 null 时写入，且只用 tenantProjectService.getById 校验存在性；空
-  projectMark 行在解析阶段被静默丢弃；每行异常写入错误列表并计入 failCount。待证据补全后再落页。'
-title: Excel 导入定位与写入范围
-type: rule

@@ -1,6 +1,6 @@
 ---
 description: 问数 Wiki 语料组织与生成纪律。写 wiki 页或按此组织提取时必须遵循。
-globs: docs/wiki-knowledge/**/*.md
+globs: docs/wiki/v2/**/*.md,docs/wiki/v3/**/*.md
 alwaysApply: false
 ---
 
@@ -8,17 +8,21 @@ alwaysApply: false
 
 权威全文：[`docs/wiki/extract.md`](docs/wiki/extract.md) **§7**（写页纪律）+ [`docs/wiki/pages.md`](docs/wiki/pages.md)。对象组合见 [`docs/wiki/architecture.md`](docs/wiki/architecture.md)。冲突以这三份为准。
 
-生成 `wiki-pages-v3/`（及以后按此组织的语料）时：
+工作区：`docs/wiki/v2`（L0 + `l1_intermediate`）→ `tools.wiki_extract l1` → `docs/wiki/v3`（L1 draft）。历史 `wiki-pages*` 已迁 `.tmp/`。
+
+生成 / 维护语料时：
 
 1. **场景选表+簇，不点列。** 主档 + 每张表带哪些字段簇。不要用代码包名当问数场景，也不要在字段上倒挂 `scenes`。
-2. **Wiki 是运行时唯一真相。** catalog / extract-* 只是生成基线。表页必须与 db 列全集对齐；禁止缺列靠 catalog 兜底。
-3. **字段簇按代码/关联性分区。** 同一 VO、同一 form、同一前缀、同一写入组 → 一簇（如账户 = 账号/户名/开户行）。`common`：`id` / `enable` / `create_time` / `update_time`（及 create/update 人），有 `code` 则留。租户列留表、不作 JOIN。表页按**簇**写成 `###` 小节，列名写全、禁止 `…`。未归簇列仍留表页。
-4. **字典列要能过滤。** 有中文则有 enum 页；label 跟代码。实例/非枚举 TopK 进 `value_index`，不要抄进 wiki 页。
-5. **非 table/enum 必须落到 `表.字段`。** caliber 是会被反复问的命名集合，不是一值一页。
-6. **只有生命周期列写 process**（有代码 From→To）。分类字典只列值。同一字典绑多列则每列各自 process。
-7. **label 只来自代码。** 没有中文就不写。列级 Y/N 释义不要回填进共享 `enable` 页。
+2. **Wiki 是运行时唯一真相（导入 DB 后）。** catalog / extract-* 只是生成基线。表页必须与 db 列全集对齐；禁止缺列靠 catalog 兜底。
+3. **字段簇按代码/关联性分区。** 同一 VO、同一 form、同一前缀、同一写入组 → 一簇。`common`：`id` / `enable` / `create_time` / `update_time`（及 create/update 人），有 `code` 则留。租户列留表、不作 JOIN。
+4. **字典列要能过滤。** 有中文则有 `dicts/` 页。label：代码 > 列注释码→中文 > L1 `document_claim`（proposed，码 ⊆ 已有 values）。**表字段 `dict`/`label` 与同列 dict 页交叉一致（编译回填）**。实例/非枚举 TopK 进 `instance_index`，不要抄进 wiki 页。
+5. **非 table/dict 必须落到 `表.字段`。** caliber 是会被反复问的命名集合，不是一值一页。
+6. **只有生命周期列写 process**（有代码 From→To）。分类字典只列值。
+7. **label 禁止脑补。** 无代码/注释/文档证据就不写。列级 Y/N 释义不要回填进共享 `enable` 页。
 8. **枚举声明 ≠ 写入路径 ≠ 库分布。** 未落地、脏值、跨字典同名必须写成事实，禁止生成黑话。
 9. **正文只写问数事实。** 禁止「不要给本页写 process」「本预览不另开页」。
-10. **JOIN 只教 EQUI_JOIN。** 写在表页 relation 上。同名拷贝/滚动快照不当 JOIN 键。默认过滤、共写、grain、字段簇也写在表上，不要另开 cowrite 页或 query 页。
+10. **JOIN 只教 EQUI_JOIN。** 写在表页 relation 上。同名拷贝/滚动快照不当 JOIN 键。
 11. **争议留在召回面。** `confidence: disputed` + `sides`；不准整页 draft，不准塞进 `## 展示`。
-12. **未确认不切运行时**（`KNOWLEDGE_WIKI_PAGES_DIRS`）。不改 v1/v2。
+12. **运行时召回走 DB + 向量**；本地目录仅管理端导入。默认导入源：`docs/wiki/v3`（`KNOWLEDGE_WIKI_PAGES_DIRS`）。
+13. **Catalog Summary 禁幽灵字段。** 骨架括号内短语必须对得上该表列注释/列名。
+14. **术语桥定点补。** 多表同中文名 / UI≠注释 → concept + boundary；不批量刷 maps_to；实体锚与属性锚分开。

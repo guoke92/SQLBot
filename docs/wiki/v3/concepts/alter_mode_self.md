@@ -9,8 +9,8 @@ aliases: [平台变更, 自行变更]
 maps_to: cust_change_record__alter_mode.2
 field_targets: [cust_change_record__alter_mode.2, cust_change_record.alter_mode]
 sources: ['code_path:AlterModeEnum.java:10', 'document_claim:docs/wiki-knowledge/pplatform/req-index/concepts/产品需求规格说明书_产融平台V1.0.0.md']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [cust_change_record]
 also_confused_with: [invite_platform_entry]

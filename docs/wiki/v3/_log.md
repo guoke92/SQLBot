@@ -1,11 +1,11 @@
-# L1 log (2026-09-18)
+# L1 log (2026-09-21)
 
-intermediate files: 65
+intermediate files: 67
 
 - tables: 78
-- dicts: 391
-- concepts: 81
-- processes: 16
+- dicts: 523
+- concepts: 90
+- processes: 19
 - calibers: 14
 - metrics: 1
 - rules: 31

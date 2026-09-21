@@ -10,8 +10,8 @@ maps_to: tenant_setting_config.bank_branch_property_requried
 field_targets: [tenant_setting_config.bank_branch_property_requried, tenant_setting_config.finance_org_type_property_requried,
   tenant_setting_config.bank_branch_property_requried_config_cust_role, tenant_setting_config.finance_org_type_property_requried_config_cust_role]
 sources: ['code_path:CustCompanyIfoEnchanceService.java:1672', 'document_claim:docs/wiki-knowledge/pplatform/req-index/concepts/产品需求规格说明书_产融平台V1.0.0.md']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [tenant_setting_config]
 also_confused_with: [finance_org_type_term, bank_branch_name]

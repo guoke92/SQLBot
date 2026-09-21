@@ -232,6 +232,7 @@
         "get_table_schema": "Expand table schema",
         "get_table_relations": "Inspect table joins",
         "search_knowledge": "Search business knowledge",
+        "lookup_values": "Look up instance values",
         "get_dict_values": "Look up dictionary values",
         "prepare_wiki": "Prepare knowledge",
         "restore_wiki": "Restore prior knowledge",
@@ -243,6 +244,7 @@
       "thought_done": "Thought complete",
       "tool_ok": "Succeeded",
       "tool_failed": "Failed",
+      "tool_skipped": "Round budget reached; skipped",
       "query_rows": "Returned {count} rows",
       "answer_ready": "Answer ready",
       "clarification_waiting": "Waiting for confirmation",
@@ -252,7 +254,8 @@
       "wiki_restored": "Restored {count} prior knowledge hits",
       "schema_loaded": "Expanded {count} table(s)",
       "relations_loaded": "Returned {count} join(s)",
-      "dict_loaded": "Returned {count} dictionary value(s)"
+      "dict_loaded": "Returned {count} dictionary value(s)",
+      "values_loaded": "Returned {count} instance candidate(s)"
     },
     "audit": {
       "processing": "Processing",

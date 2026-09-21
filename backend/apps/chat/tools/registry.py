@@ -11,6 +11,7 @@ from apps.chat.tools.catalog_tools import (
     get_dict_values,
     get_table_relations,
     get_table_schema,
+    lookup_values,
     search_knowledge,
 )
 from apps.chat.tools.clarification import request_clarification
@@ -110,7 +111,7 @@ class GetTableSchemaInput(BaseModel):
     tables: list[str] = Field(
         description=(
             "Physical table names from schema_outline to expand (max 3). "
-            "Do not pass tables already listed in schema_catalog."
+            "Do not pass tables already returned in this conversation's ToolMessages."
         ),
         min_length=1,
         max_length=3,
@@ -130,10 +131,26 @@ class GetTableRelationsInput(BaseModel):
 class SearchKnowledgeInput(BaseModel):
     query: str = Field(
         description=(
-            "Business caliber, formula, or proper noun to resolve. "
+            "Business caliber, concept, metric, or scenario to resolve. "
+            "Returns structured maps_to/adjudication/hubs objects, not table DDL. "
             "Do not use this to discover tables or field lists."
         ),
         min_length=1,
+    )
+
+
+class LookupValuesInput(BaseModel):
+    phrases: list[str] = Field(
+        description=(
+            "Business instance fragments named by the user, e.g. ['二部']. "
+            "Do not pass whole questions, dates, quantities, or concept names "
+            "like 平台录入 (use search_knowledge for those)."
+        ),
+        min_length=1,
+    )
+    hint_table: str = Field(
+        default="",
+        description="Optional physical table to narrow the reverse lookup.",
     )
 
 
@@ -238,6 +255,16 @@ def build_agent_tools(
     def _search_knowledge(query: str) -> dict[str, Any]:
         return dict(search_knowledge(llm_service, query, access_scope=access_scope))
 
+    def _lookup_values(phrases: list[str], hint_table: str = "") -> dict[str, Any]:
+        return dict(
+            lookup_values(
+                llm_service,
+                phrases,
+                hint_table=hint_table,
+                access_scope=access_scope,
+            )
+        )
+
     def _get_dict_values(
         dict_name: str = "", table: str = "", field: str = ""
     ) -> dict[str, Any]:
@@ -310,7 +337,7 @@ def build_agent_tools(
             description=(
                 "Expand full field definitions for up to 3 tables named in "
                 "schema_outline. Does not return joins or wiki prose. "
-                "Do not recall tables already in schema_catalog. "
+                "Do not recall tables already returned in this conversation. "
                 "Never query information_schema."
             ),
             args_schema=GetTableSchemaInput,
@@ -320,6 +347,7 @@ def build_agent_tools(
             name="get_table_relations",
             description=(
                 "Return known JOIN edges among two or more named tables. "
+                "trust is advisory only and does not forbid JOIN. "
                 "Call only when the question spans multiple entities. "
                 "Do not call for a single-table export."
             ),
@@ -329,11 +357,21 @@ def build_agent_tools(
             func=_search_knowledge,
             name="search_knowledge",
             description=(
-                "Retrieve business caliber / concept / metric text. "
-                "Does not select tables or return DDL. At most once per turn. "
-                "Skip when field comments already explain the column."
+                "Retrieve structured business caliber / concept / metric / scenario "
+                "objects (maps_to, adjudication, hubs). Does not select tables or "
+                "return DDL. Skip when field comments already explain the column."
             ),
             args_schema=SearchKnowledgeInput,
+        ),
+        StructuredTool.from_function(
+            func=_lookup_values,
+            name="lookup_values",
+            description=(
+                "Reverse-lookup open instance values from named phrases "
+                "(e.g. 二部 → 研发二部 + table.field). Evidence only, not a WHERE. "
+                "Skip dates, quantities, closed schema labels, and concept names."
+            ),
+            args_schema=LookupValuesInput,
         ),
         StructuredTool.from_function(
             func=_get_dict_values,

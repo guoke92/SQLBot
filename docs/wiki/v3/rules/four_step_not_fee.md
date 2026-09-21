@@ -7,8 +7,8 @@ domain: ca_fee
 status: draft
 field_targets: [ca_certification_info.submit_status, ca_fee_order.order_status]
 sources: ['code_path:CaCertificationController.java:88']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [ca_certification_info, ca_fee_order]
 ---

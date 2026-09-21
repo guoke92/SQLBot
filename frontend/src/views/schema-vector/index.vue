@@ -3,17 +3,17 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus-secondary'
 import { useI18n } from 'vue-i18n'
 import {
-  schemaVectorApi,
-  type SchemaVectorJob,
-  type SchemaVectorRow,
-} from '@/api/schemaVector'
+  catalogIndexApi,
+  type CatalogIndexJob,
+  type CatalogIndexRow,
+} from '@/api/catalogIndex'
 
 const { t } = useI18n()
 
 const loading = ref(false)
 const syncing = ref(false)
-const items = ref<SchemaVectorRow[]>([])
-const job = ref<SchemaVectorJob | null>(null)
+const items = ref<CatalogIndexRow[]>([])
+const job = ref<CatalogIndexJob | null>(null)
 const pollTimer = ref<number | null>(null)
 
 const isRunning = computed(() => job.value?.status === 'running')
@@ -21,7 +21,7 @@ const isRunning = computed(() => job.value?.status === 'running')
 const loadStatus = async (silent = false) => {
   if (!silent) loading.value = true
   try {
-    const data = await schemaVectorApi.status()
+    const data = await catalogIndexApi.status()
     items.value = data?.items || []
     job.value = data?.job || null
   } finally {
@@ -30,31 +30,36 @@ const loadStatus = async (silent = false) => {
 }
 
 const stateLabel = (state: string) => {
-  const key = `schema_vector.state_${state}`
+  const key = `catalog_index.state_${state}`
   const label = t(key)
   return label === key ? state : label
 }
 
 const jobStatusLabel = (status?: string) => {
   if (!status) return '-'
-  const key = `schema_vector.job_${status}`
+  const key = `catalog_index.job_${status}`
   const label = t(key)
   return label === key ? status : label
 }
 
-const syncOne = async (dsId?: number) => {
+const runAction = async (kind: 'extract' | 'wiki', dsId?: number) => {
   syncing.value = true
   try {
-    const result = await schemaVectorApi.sync(dsId)
+    const result =
+      kind === 'wiki'
+        ? await catalogIndexApi.generateWiki(Number(dsId))
+        : await catalogIndexApi.extractValues(dsId)
     job.value = result
-    ElMessage.success(t('schema_vector.sync_started'))
+    ElMessage.success(
+      t(kind === 'wiki' ? 'catalog_index.wiki_started' : 'catalog_index.extract_started'),
+    )
     await loadStatus(true)
   } catch (err: any) {
     const detail = err?.response?.data?.detail || err?.message
     if (String(detail || '').includes('already running')) {
-      ElMessage.warning(t('schema_vector.sync_busy'))
+      ElMessage.warning(t('catalog_index.sync_busy'))
     } else {
-      ElMessage.error(detail || t('schema_vector.sync_failed'))
+      ElMessage.error(detail || t('catalog_index.sync_failed'))
     }
   } finally {
     syncing.value = false
@@ -65,9 +70,6 @@ const startPolling = () => {
   stopPolling()
   pollTimer.value = window.setInterval(async () => {
     await loadStatus(true)
-    if (!isRunning.value) {
-      // keep a light poll while page is open
-    }
   }, 2500)
 }
 
@@ -89,70 +91,70 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <main v-loading="loading" class="schema-vector-page">
-    <div class="sv-toolbar">
+  <main v-loading="loading" class="catalog-index-page">
+    <div class="ci-toolbar">
       <div>
-        <h2 class="sv-title">{{ t('schema_vector.title') }}</h2>
-        <p class="sv-subtitle">{{ t('schema_vector.hint') }}</p>
+        <h2 class="ci-title">{{ t('catalog_index.title') }}</h2>
+        <p class="ci-subtitle">{{ t('catalog_index.hint') }}</p>
       </div>
-      <div class="sv-actions">
-        <el-button @click="loadStatus()">{{ t('schema_vector.refresh') }}</el-button>
-        <el-button type="primary" :loading="syncing || isRunning" @click="syncOne()">
-          {{ t('schema_vector.sync_all') }}
+      <div class="ci-actions">
+        <el-button @click="loadStatus()">{{ t('catalog_index.refresh') }}</el-button>
+        <el-button type="primary" :loading="syncing || isRunning" @click="runAction('extract')">
+          {{ t('catalog_index.extract_all') }}
         </el-button>
       </div>
     </div>
 
-    <el-card shadow="never" class="sv-job-card">
-      <div class="sv-job-row">
+    <el-card shadow="never" class="ci-job-card">
+      <div class="ci-job-row">
         <div>
-          <div class="sv-job-label">{{ t('schema_vector.job_status') }}</div>
-          <div class="sv-job-value">{{ jobStatusLabel(job?.status) }}</div>
+          <div class="ci-job-label">{{ t('catalog_index.job_status') }}</div>
+          <div class="ci-job-value">{{ jobStatusLabel(job?.status) }}</div>
         </div>
         <div>
-          <div class="sv-job-label">{{ t('schema_vector.job_phase') }}</div>
-          <div class="sv-job-value">{{ job?.phase || '-' }}</div>
+          <div class="ci-job-label">{{ t('catalog_index.job_phase') }}</div>
+          <div class="ci-job-value">{{ job?.phase || job?.kind || '-' }}</div>
         </div>
         <div>
-          <div class="sv-job-label">{{ t('schema_vector.job_message') }}</div>
-          <div class="sv-job-value">{{ job?.message || '-' }}</div>
+          <div class="ci-job-label">{{ t('catalog_index.job_message') }}</div>
+          <div class="ci-job-value">{{ job?.message || '-' }}</div>
         </div>
         <div>
-          <div class="sv-job-label">{{ t('schema_vector.job_progress') }}</div>
-          <div class="sv-job-value">
-            {{ t('schema_vector.job_counts', {
-              tables: job?.table_docs || 0,
-              fields: job?.field_docs || 0,
-              relations: job?.relation_docs || 0,
-              embedded: job?.embedded_docs || 0,
-              skipped: job?.skipped_docs || 0,
-            }) }}
+          <div class="ci-job-label">{{ t('catalog_index.job_progress') }}</div>
+          <div class="ci-job-value">
+            {{
+              t('catalog_index.job_counts', {
+                tables: job?.tables || 0,
+                pages: job?.pages || 0,
+                values: job?.value_rows || 0,
+              })
+            }}
           </div>
         </div>
       </div>
-      <div v-if="job?.error" class="sv-job-error">{{ job.error }}</div>
-      <div class="sv-job-meta">
-        <span>{{ t('schema_vector.started_at') }}: {{ job?.started_at || '-' }}</span>
-        <span>{{ t('schema_vector.finished_at') }}: {{ job?.finished_at || '-' }}</span>
+      <div v-if="job?.error" class="ci-job-error">{{ job.error }}</div>
+      <div class="ci-job-meta">
+        <span>{{ t('catalog_index.started_at') }}: {{ job?.started_at || '-' }}</span>
+        <span>{{ t('catalog_index.finished_at') }}: {{ job?.finished_at || '-' }}</span>
         <span v-if="job?.ds_ids?.length">
-          {{ t('schema_vector.scope_ds') }}: {{ job.ds_ids.join(', ') }}
+          {{ t('catalog_index.scope_ds') }}: {{ job.ds_ids.join(', ') }}
         </span>
-        <span v-else>{{ t('schema_vector.scope_all') }}</span>
+        <span v-else>{{ t('catalog_index.scope_all') }}</span>
       </div>
     </el-card>
 
-    <el-table :data="items" class="sv-table" stripe>
-      <el-table-column prop="ds_id" :label="t('schema_vector.ds_id')" width="90" />
-      <el-table-column prop="name" :label="t('schema_vector.ds_name')" min-width="160" />
-      <el-table-column :label="t('schema_vector.state')" width="120">
+    <el-table :data="items" class="ci-table" stripe>
+      <el-table-column prop="ds_id" :label="t('catalog_index.ds_id')" width="90" />
+      <el-table-column prop="name" :label="t('catalog_index.ds_name')" min-width="160" />
+      <el-table-column :label="t('catalog_index.state')" width="120">
         <template #default="{ row }">
           <el-tag
             :type="
               row.state === 'ready'
                 ? 'success'
-                : row.state === 'indexing'
+                : row.state === 'partial'
                   ? 'warning'
-                  : row.state === 'missing' || row.state === 'partial'
+                  : row.state === 'missing' || row.state === 'empty'
                     ? 'danger'
                     : 'info'
             "
@@ -162,44 +164,54 @@ onBeforeUnmount(() => {
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column :label="t('schema_vector.catalog')" min-width="160">
+      <el-table-column :label="t('catalog_index.catalog')" min-width="140">
         <template #default="{ row }">
-          {{ row.table_embeddings }} / {{ row.checked_tables }}
+          {{ row.checked_tables }} / {{ row.tables }}
         </template>
       </el-table-column>
-      <el-table-column :label="t('schema_vector.docs')" min-width="220">
+      <el-table-column :label="t('catalog_index.wiki')" min-width="200">
         <template #default="{ row }">
-          {{ t('schema_vector.doc_counts', {
-            total: row.schema_docs,
-            embedded: row.schema_embedded,
-            tables: row.schema_tables,
-            fields: row.schema_fields,
-            relations: row.schema_relations,
-          }) }}
+          <div v-if="row.corpus_key">
+            {{ row.corpus_key }} · {{ row.wiki_pages }}
+            {{ t('catalog_index.pages') }}
+          </div>
+          <div v-else>{{ t('catalog_index.wiki_unbound') }}</div>
         </template>
       </el-table-column>
-      <el-table-column prop="update_time" :label="t('schema_vector.update_time')" min-width="160" />
-      <el-table-column :label="t('schema_vector.actions')" width="140" fixed="right">
+      <el-table-column :label="t('catalog_index.values')" min-width="120">
+        <template #default="{ row }">
+          {{ row.value_rows }}
+        </template>
+      </el-table-column>
+      <el-table-column :label="t('catalog_index.actions')" width="220" fixed="right">
         <template #default="{ row }">
           <el-button
             link
             type="primary"
             :disabled="syncing || isRunning"
-            @click="syncOne(row.ds_id)"
+            @click="runAction('wiki', row.ds_id)"
           >
-            {{ t('schema_vector.sync_one') }}
+            {{ t('catalog_index.generate_wiki') }}
+          </el-button>
+          <el-button
+            link
+            type="primary"
+            :disabled="syncing || isRunning"
+            @click="runAction('extract', row.ds_id)"
+          >
+            {{ t('catalog_index.extract_one') }}
           </el-button>
         </template>
       </el-table-column>
       <template #empty>
-        <el-empty :description="t('schema_vector.empty')" />
+        <el-empty :description="t('catalog_index.empty')" />
       </template>
     </el-table>
   </main>
 </template>
 
 <style scoped>
-.schema-vector-page {
+.catalog-index-page {
   width: 100%;
   min-height: 100%;
   padding: 16px 24px 24px;
@@ -207,7 +219,7 @@ onBeforeUnmount(() => {
   background: var(--el-bg-color);
 }
 
-.sv-toolbar {
+.ci-toolbar {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
@@ -215,52 +227,52 @@ onBeforeUnmount(() => {
   margin-bottom: 16px;
 }
 
-.sv-title {
+.ci-title {
   margin: 0 0 4px;
   font-size: 18px;
   font-weight: 600;
 }
 
-.sv-subtitle {
+.ci-subtitle {
   margin: 0;
   color: var(--el-text-color-secondary);
   font-size: 13px;
 }
 
-.sv-actions {
+.ci-actions {
   display: flex;
   gap: 8px;
   flex-shrink: 0;
 }
 
-.sv-job-card {
+.ci-job-card {
   margin-bottom: 16px;
 }
 
-.sv-job-row {
+.ci-job-row {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
 }
 
-.sv-job-label {
+.ci-job-label {
   color: var(--el-text-color-secondary);
   font-size: 12px;
   margin-bottom: 4px;
 }
 
-.sv-job-value {
+.ci-job-value {
   font-size: 13px;
   word-break: break-word;
 }
 
-.sv-job-error {
+.ci-job-error {
   margin-top: 10px;
   color: var(--el-color-danger);
   font-size: 13px;
 }
 
-.sv-job-meta {
+.ci-job-meta {
   margin-top: 10px;
   display: flex;
   flex-wrap: wrap;
@@ -269,12 +281,12 @@ onBeforeUnmount(() => {
   font-size: 12px;
 }
 
-.sv-table {
+.ci-table {
   width: 100%;
 }
 
 @media (max-width: 960px) {
-  .sv-job-row {
+  .ci-job-row {
     grid-template-columns: 1fr 1fr;
   }
 }

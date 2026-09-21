@@ -147,7 +147,11 @@ def execute_sql_sandbox(
     result_title: str = "",
     chart_type: str = "",
 ) -> ToolResult:
-    """Safely execute SQL with permission rewrites and token-safe output."""
+    """Safely execute SQL with permission rewrites and token-safe output.
+
+    JOIN edges from wiki relations are advisory; this sandbox does not reject
+    queries whose tables are missing from the known relation graph.
+    """
     clean_sql = (sql or "").strip().rstrip(";")
     if not clean_sql:
         return failure_result("SQL query cannot be empty")

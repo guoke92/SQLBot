@@ -9,8 +9,8 @@ aliases: [企业信息维护-运营人员字段, 运营人员取值逻辑优化,
 maps_to: cust_person_info.operator_realname
 field_targets: [cust_person_info.operator_id, cust_person_info.operator_realname]
 sources: ['code_path:CustPersonApplication.java:900', 'document_claim:docs/wiki-knowledge/pplatform/req-index/concepts/产品需求规格说明书_产融平台V1.0.0.md']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [cust_person_info]
 also_confused_with: [archive_handby, oper_change_trace]

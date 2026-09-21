@@ -141,15 +141,9 @@ def test_wiki_primary_prompt_assembly():
         }
     )
     prompt_with_wiki = build_agent_system_prompt(knowledge_plane=plane)
-    assert "<wiki_knowledge>" in prompt_with_wiki
-    assert "cust_build_status = 'BUILD_SUCCESS'" in prompt_with_wiki
-    assert "<schema_catalog>" in prompt_with_wiki
+    assert "<wiki_knowledge>" not in prompt_with_wiki
+    assert "<schema_catalog>" not in prompt_with_wiki
     assert "<fallback_schema_summary>" not in prompt_with_wiki
-    wiki_body = prompt_with_wiki.split("<wiki_knowledge>", 1)[1].split(
-        "</wiki_knowledge>", 1
-    )[0]
-    assert "# Table:" not in wiki_body
-    assert "TABLE ca_certification_info" not in wiki_body
     assert "禁止用 SQL 摸枚举" in prompt_with_wiki
     assert "request_clarification" in prompt_with_wiki
     assert "展示标签" in prompt_with_wiki
@@ -177,8 +171,7 @@ def test_wiki_primary_prompt_assembly():
     )
     prompt_fallback = build_agent_system_prompt(knowledge_plane=schema_only)
     assert "</wiki_knowledge>" not in prompt_fallback
-    assert "<schema_catalog>" in prompt_fallback
-    assert "ca_certification_info" in prompt_fallback
+    assert "<schema_catalog>" not in prompt_fallback
 
 
 def test_execute_sql_normal_query():
@@ -398,7 +391,8 @@ def test_chat_117_output_field_conflict_clarifies_not_probes():
 
 def test_output_field_contrast_cases_do_not_over_clarify():
     """Wiki=schema aliases, unique bindings, and confirmed calibers stay executable."""
-    assert "输出列在 Wiki 与 schema 中指向同一物理字段" in _SYSTEM_PROMPT_TEMPLATE
+    assert "maps_to 或 field_targets 唯一" in _SYSTEM_PROMPT_TEMPLATE
+    assert "Wiki 与 schema 指向不同物理字段" in _SYSTEM_PROMPT_TEMPLATE
     assert "仅当两者都有独立唯一落点时不是冲突、不澄清" in _SYSTEM_PROMPT_TEMPLATE
     assert "已确认口径" in _SYSTEM_PROMPT_TEMPLATE
     assert "不重问" in _SYSTEM_PROMPT_TEMPLATE
@@ -416,4 +410,5 @@ def test_output_field_contrast_cases_do_not_over_clarify():
         }
     )
     assert "已确认口径" in prompt
-    assert "created_at" in prompt or "创建时间" in prompt
+    assert "<memory_slots>" not in prompt
+    assert "created_at" not in prompt

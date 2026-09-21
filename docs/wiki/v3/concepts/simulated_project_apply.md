@@ -9,8 +9,8 @@ aliases: [手工立项, MANUAL立项]
 maps_to: wechat_project_approval_apply.data_source
 field_targets: [wechat_project_approval_apply.data_source, wechat_project_approval_apply.sp_no]
 sources: ['code_path:ProjectStatisticsApplication.java:272', 'document_claim:docs/wiki-knowledge/pplatform/req-index/concepts']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [wechat_project_approval_apply]
 also_confused_with: [wechat_apply_term]

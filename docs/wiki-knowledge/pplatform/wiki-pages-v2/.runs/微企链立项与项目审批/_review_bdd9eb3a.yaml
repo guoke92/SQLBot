@@ -1,5 +1,0 @@
-body: '语义分析未给出各表的物理库名，本批页面按表名前缀暂写为 `wechat_project`（`wechat_project_*`）与 `tenant_project`（`tenant_project_*`）。
-
-  该项为推断值而非证据值，需在拿到真实库名（如分库/多 schema 配置）后统一回填。'
-title: scope.databases 物理库名
-type: frontmatter

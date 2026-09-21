@@ -6,12 +6,16 @@ belong: tables
 status: draft
 anchors: [cust_setting_config]
 sources: ['database_schema:lowcode_pplatform.cust_setting_config']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
-related: [cust_company_info, cust_setting_config__enable, cust_setting_config__need_verify_no_key,
-  cust_setting_config__need_auth_verify, cust_setting_config__face_recognition]
+related: [cust_company_info, cust_setting_config__code, cust_setting_config__enable,
+  cust_setting_config__need_verify_no_key, cust_setting_config__user_agreement, cust_setting_config__privacy_policy_agreement,
+  cust_setting_config__authorization_offline, cust_setting_config__need_auth_verify,
+  cust_setting_config__face_recognition, cust_setting_config__payment_verification,
+  cust_setting_config__payment_maximum_number, cust_setting_config__invitation_code_period,
+  cust_setting_config__sending_interval]
 ---
 
 # 客户认证配置
@@ -36,6 +40,7 @@ fields:
 - name: code
   type: string
   desc: 编码
+  dict: ['9999999999']
 - name: name
   type: string
   desc: 配置名称
@@ -97,15 +102,18 @@ fields:
 - name: user_agreement
   type: string
   desc: 用户协议
+  dict: [CT-202404031806394575219]
 - name: privacy_policy_agreement
   type: string
   desc: 隐私政策
+  dict: [CT-202404031807156758507]
 - name: authorization_online
   type: string
   desc: 授权确认书-线上签署
 - name: authorization_offline
   type: string
   desc: 授权确认书-线下签署
+  dict: [CT-202404081721209495040]
 - name: authorization_change
   type: string
   desc: 数字证书服务协议
@@ -123,21 +131,25 @@ fields:
 - name: payment_verification
   type: string
   desc: 打款验证
+  dict: ['yes']
 - name: payment_maximum_number
   type: number
   desc: 最多申请打款次数
+  dict: ['3']
 - name: no_key_word
   type: string
   desc: 企业非关键信息配置
 - name: invitation_code_period
   type: number
   desc: 邀请码有效期
+  dict: ['1']
 - name: invitation_code_period_unit
   type: string
   desc: 邀请码有效期单位
 - name: sending_interval
   type: number
   desc: 邀请码重复发送时间间隔
+  dict: ['1']
 - name: sending_interval_unti
   type: string
   desc: 邀请码重复发送时间间隔单位
@@ -182,7 +194,15 @@ overlap:
 
 ### 字典
 
+- [[dicts/cust_setting_config__code]]（`cust_setting_config.code`）
 - [[dicts/cust_setting_config__enable]]（`cust_setting_config.enable`）
 - [[dicts/cust_setting_config__need_verify_no_key]]（`cust_setting_config.need_verify_no_key`）
+- [[dicts/cust_setting_config__user_agreement]]（`cust_setting_config.user_agreement`）
+- [[dicts/cust_setting_config__privacy_policy_agreement]]（`cust_setting_config.privacy_policy_agreement`）
+- [[dicts/cust_setting_config__authorization_offline]]（`cust_setting_config.authorization_offline`）
 - [[dicts/cust_setting_config__need_auth_verify]]（`cust_setting_config.need_auth_verify`）
 - [[dicts/cust_setting_config__face_recognition]]（`cust_setting_config.face_recognition`）
+- [[dicts/cust_setting_config__payment_verification]]（`cust_setting_config.payment_verification`）
+- [[dicts/cust_setting_config__payment_maximum_number]]（`cust_setting_config.payment_maximum_number`）
+- [[dicts/cust_setting_config__invitation_code_period]]（`cust_setting_config.invitation_code_period`）
+- [[dicts/cust_setting_config__sending_interval]]（`cust_setting_config.sending_interval`）

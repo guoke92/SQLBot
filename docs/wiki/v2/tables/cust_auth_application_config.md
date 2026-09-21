@@ -6,8 +6,8 @@ belong: tables
 status: draft
 anchors: [cust_auth_application_config]
 sources: ['database_schema:lowcode_pplatform.cust_auth_application_config']
-created: '2026-09-17'
-updated: '2026-09-17'
+created: '2026-09-20'
+updated: '2026-09-20'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
 related: [cust_company_info, cust_auth_application]
@@ -15,168 +15,94 @@ related: [cust_company_info, cust_auth_application]
 
 # 客户产品开通配置
 
-L0 库侧合同（draft）。grain / 字段簇 / 身份束关系均为 proposed，不得当认证 JOIN。
-
-## 字段簇
-
-### common
-
-`id`, `code`, `name`, `enable`, `remark`, `create_by`, `create_user`, `create_time`, `update_by`, `update_user`, `update_time`
-
-### product_config
-
-`product_sign_mode`, `product_protocol_agreement`, `needs_company_type_configuration`, `needs_product_agreement_configuration`
-
-### relation
-
-`cust_id`, `ref_cust_auth_application_config_cust_auth_application`, `organization_id`
-
-### act_procinst
-
-`act_procinst_id`, `act_procinst_no`, `act_procinst_status`, `act_procinst_date`
-
-### tenant
-
-`app_tenant_code`, `db_tenant_code`
-
-### audit
-
-（空）
+L0 库侧合同（draft）。grain / 身份束关系均为 proposed，不得当认证 JOIN。
 
 ## 字段
 
 ```ground:table
 table: cust_auth_application_config
 database: lowcode_pplatform
-description: 客户产品开通配置
+desc: 客户产品开通配置
 inactive: false
 primary_key: [id]
 grain: 一行一记录（id）
 name_anchors: [code, name]
-clusters:
-- key: common
-  title: 通用
-  include: always
-- key: product_config
-  title: 产品开通配置
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.cust_auth_application_config
-- key: relation
-  title: 关联主体
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.cust_auth_application_config
-- key: act_procinst
-  title: 审批流程
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.cust_auth_application_config
-- key: tenant
-  title: 租户标识
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.cust_auth_application_config
-- key: audit
-  title: 审计
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.cust_auth_application_config
 fields:
 - name: id
-  data_type: number
-  description: 表主键
+  type: number
+  desc: 表主键
   nullable: false
-  cluster: common
 - name: code
-  data_type: string
-  description: 编码
-  cluster: common
+  type: string
+  desc: 编码
 - name: name
-  data_type: string
-  description: 名称
-  cluster: common
+  type: string
+  desc: 名称
 - name: cust_id
-  data_type: number
-  description: 企业id
-  cluster: relation
+  type: number
+  desc: 企业id
 - name: product_sign_mode
-  data_type: string
-  description: 产品协议签署方式
-  cluster: product_config
+  type: string
+  desc: 产品协议签署方式
 - name: product_protocol_agreement
-  data_type: string
-  description: 产品协议
-  cluster: product_config
+  type: string
+  desc: 产品协议
 - name: needs_company_type_configuration
-  data_type: string
-  description: 是否区分企业
-  cluster: product_config
+  type: string
+  desc: 是否区分企业
 - name: needs_product_agreement_configuration
-  data_type: string
-  description: 是否需要产品协议
-  cluster: product_config
+  type: string
+  desc: 是否需要产品协议
 - name: ref_cust_auth_application_config_cust_auth_application
-  data_type: string
-  description: 客户产品开通
-  cluster: relation
+  type: string
+  desc: 客户产品开通
 - name: enable
-  data_type: string
-  description: enable
-  cluster: common
+  type: string
+  desc: enable
 - name: remark
-  data_type: string
-  description: remark
-  cluster: common
+  type: string
+  desc: remark
 - name: create_by
-  data_type: string
-  description: 创建人id
-  cluster: common
+  type: string
+  desc: 创建人id
 - name: create_user
-  data_type: string
-  description: 创建人名称
-  cluster: common
+  type: string
+  desc: 创建人名称
 - name: create_time
-  data_type: temporal
-  description: 创建时间
+  type: temporal
+  desc: 创建时间
   nullable: false
-  cluster: common
 - name: update_by
-  data_type: string
-  description: 更新人id
-  cluster: common
+  type: string
+  desc: 更新人id
 - name: update_user
-  data_type: string
-  description: 更新人名称
-  cluster: common
+  type: string
+  desc: 更新人名称
 - name: update_time
-  data_type: temporal
-  description: 更新时间
+  type: temporal
+  desc: 更新时间
   nullable: false
-  cluster: common
 - name: act_procinst_id
-  data_type: string
-  description: 流程实例ID
-  cluster: act_procinst
+  type: string
+  desc: 流程实例ID
 - name: app_tenant_code
-  data_type: string
-  description: 逻辑租户标识
-  cluster: tenant
+  type: string
+  desc: 逻辑租户标识
 - name: db_tenant_code
-  data_type: string
-  description: 数据租户标识
-  cluster: tenant
+  type: string
+  desc: 数据租户标识
 - name: act_procinst_no
-  data_type: string
-  description: 流程申请编号
-  cluster: act_procinst
+  type: string
+  desc: 流程申请编号
 - name: act_procinst_status
-  data_type: string
-  description: 当前审批状态
-  cluster: act_procinst
+  type: string
+  desc: 当前审批状态
 - name: act_procinst_date
-  data_type: temporal
-  description: 审批结束时间
-  cluster: act_procinst
+  type: temporal
+  desc: 审批结束时间
 - name: organization_id
-  data_type: string
-  description: 机构编号
-  cluster: relation
+  type: string
+  desc: 机构编号
 ```
 
 ## 关联关系
@@ -205,8 +131,6 @@ overlap:
   deepened: false
   query_ok: true
   authenticity: unknown
-authenticity_note: name_evidence=family_hub(stem=cust, comment=企业id)，列名/注释与 cust_company_info
-  主档语义相符；overlap 已探测但 ratio/ratio_reverse 均为 null、sample_size=0，值域契合无证据，故不给 likely
 ```
 
 ```ground:relation
@@ -231,8 +155,6 @@ overlap:
   deepened: false
   query_ok: true
   authenticity: unknown
-authenticity_note: name_evidence=long_ref(stem=cust_auth_application)，列名由父表名拼接而来且注释「客户产品开通」一致；overlap
-  已探测但 ratio/ratio_reverse 均为 null、sample_size=0，无值域证据，故不给 likely
 ```
 
 ## 页面链接

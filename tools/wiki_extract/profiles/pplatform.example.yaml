@@ -2,10 +2,10 @@
 # Usage:
 #   export WIKI_EXTRACT_DSN='mysql://USER:PASS@HOST:PORT/lowcode_pplatform'
 #   backend/venv/bin/python -m tools.wiki_extract compile \
-#     --out docs/wiki-knowledge/pplatform/l0 \
+#     --out docs/wiki/v2 \
 #     --database lowcode_pplatform
 
 database: lowcode_pplatform
-out: docs/wiki-knowledge/pplatform/l0
+out: docs/wiki/v2
 # DSN shape only (no secrets):
 # mysql://USER:PASS@HOST:3306/lowcode_pplatform

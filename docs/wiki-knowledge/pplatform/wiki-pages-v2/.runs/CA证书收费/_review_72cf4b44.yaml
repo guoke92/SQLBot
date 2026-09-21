@@ -1,4 +1,0 @@
-body: 所有页面的 frontmatter `scope.databases` 依赖「物理库名」，但语义分析未给出任何物理库名（仅出现逻辑表名与 `db_tenant_code`
-  字段）。本次统一以 `unknown` 占位，未做任何推测映射。待补真实库名后批量回填。
-title: 全主题 scope.databases
-type: caliber

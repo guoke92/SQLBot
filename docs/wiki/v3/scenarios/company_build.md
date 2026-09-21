@@ -7,8 +7,8 @@ domain: cust
 status: draft
 aliases: [简易建档, 客户建档, 企业认证]
 sources: ['code_path:l1_intermediate']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [cust_company_info, cust_project_rel, cust_role_info, cust_person_info, cust_project_code_record,
   cust_project_pushcust]

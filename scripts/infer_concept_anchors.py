@@ -1,27 +1,14 @@
 #!/usr/bin/env python
-"""Infer concept field_targets for an existing KnowledgePackage 2.0 directory.
+"""DEPRECATED: Infer concept field_targets for a KnowledgePackage 2.0 directory.
 
-Bridge tool for packages authored before concept anchoring existed (ADR
-knowledge-architecture v3.1, decision D4: progressive contract evolution).
+Packages live under ``.tmp/docs/knowledge-extraction/…``. Wiki 主路径是
+``tools.wiki_extract``（``docs/wiki/v2`` → ``docs/wiki/v3``），不要再用本脚本
+写出 package 树。
 
-Inference rules, strongest first:
-  1. dictionary key partition - every concept dictionary key is covered by
-     some field dictionary with the same value meaning; the concept anchors
-     to all covering fields (a state concept often spans a status field and
-     an audit field).
-  2. dictionary value mention - empty-dictionary concept whose name or
-     alias appears inside a field dictionary value (e.g. the onboarding
-     concept matches the build_status values "未建档/建档中").
-  3. dataset token match - empty-dictionary entity concept anchors to the
-     id field of the dataset whose id/name tokens overlap the concept id.
-  4. field name / description mentions as weaker fallbacks.
+Bridge tool for packages authored before concept anchoring existed.
 
 Usage:
     backend/venv/bin/python scripts/infer_concept_anchors.py <package_dir> [--write]
-
-Default is a dry run printing a JSON report; --write annotates the unit
-YAML files in place. Ambiguous or unmatched concepts stay unanchored and
-feed the CONCEPT_UNANCHORED lint report for the next extraction pass.
 """
 from __future__ import annotations
 

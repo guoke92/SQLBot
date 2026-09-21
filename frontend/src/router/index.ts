@@ -32,7 +32,7 @@ import Datasource from '@/views/ds/Datasource.vue'
 import SetAssistant from '@/views/system/embedded/iframe.vue'
 
 import Knowledge from '@/views/knowledge/index.vue'
-import SchemaVector from '@/views/schema-vector/index.vue'
+import CatalogIndex from '@/views/schema-vector/index.vue'
 import QaAdmin from '@/views/qa-admin/index.vue'
 import ExtractKey from '@/views/system/extract-key/index.vue'
 import { i18n } from '@/i18n'
@@ -201,10 +201,15 @@ export const routes = [
         meta: { title: t('knowledge.title') },
       },
       {
+        path: '/set/catalog-index',
+        name: 'catalogIndex',
+        component: CatalogIndex,
+        meta: { title: t('catalog_index.title') },
+      },
+      {
         path: '/set/schema-vector',
-        name: 'schemaVector',
-        component: SchemaVector,
-        meta: { title: t('schema_vector.title') },
+        redirect: '/set/catalog-index',
+        meta: { hidden: true },
       },
       {
         path: '/set/prompt',

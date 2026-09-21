@@ -1,3 +1,0 @@
-- anchor: table:tenant_setting_config
-  code: FIELD_NOT_IN_DB
-  message: tenant_setting_config.generateElectronicAuthFlag

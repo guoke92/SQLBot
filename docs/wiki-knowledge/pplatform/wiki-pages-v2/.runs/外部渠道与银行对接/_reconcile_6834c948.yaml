@@ -1,3 +1,0 @@
-- anchor: table:cust_sftp
-  code: FIELD_NOT_IN_DB
-  message: cust_sftp.userName

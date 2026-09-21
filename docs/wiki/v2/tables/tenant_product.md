@@ -6,256 +6,175 @@ belong: tables
 status: draft
 anchors: [tenant_product]
 sources: ['database_schema:lowcode_pplatform.tenant_product']
-created: '2026-09-17'
-updated: '2026-09-17'
+created: '2026-09-20'
+updated: '2026-09-20'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
 related: [cust_auth_application, platform_product, tenant_setting_config, tenant_product_menu,
   tenant_product_menu_res, tenant_project, tenant_project_approval_business_info,
-  tenant_product__product_cate, tenant_product__open_status, tenant_product__max_financing_amount_flag,
-  tenant_product__platform_product_code, tenant_product__is_migratory, tenant_product__enable,
-  tenant_product__multiple]
+  tenant_product__platform_product_id, tenant_product__product_cate, tenant_product__max_financing_amount,
+  tenant_product__product_agreement, tenant_product__open_status, tenant_product__max_financing_amount_flag,
+  tenant_product__platform_product_code, tenant_product__is_migratory, tenant_product__view_order,
+  tenant_product__ref_tenant_product_project_code, tenant_product__enable, tenant_product__multiple]
 ---
 
 # 租户产品配置
 
-L0 库侧合同（draft）。grain / 字段簇 / 身份束关系均为 proposed，不得当认证 JOIN。
-
-## 字段簇
-
-### common
-
-`id`, `code`, `name`, `enable`, `remark`, `create_by`, `create_user`, `create_time`, `update_by`, `update_user`, `update_time`
-
-### platform_product
-
-`platform_product_id`, `product_cate`, `platform_product_code`
-
-### product_content
-
-`product_summary`, `product_description`, `product_agreement`, `product_web_url`, `logo_icon_url`, `view_order`
-
-### product_terms
-
-`customer_group`, `max_financing_period`, `max_financing_amount`, `credit_measures`, `transaction_structure`, `max_financing_amount_flag`
-
-### tenant_scope
-
-`tenant_id`, `ref_tenant_product_tenant_setting_config`, `ref_tenant_product_project_code`, `app_tenant_code`, `db_tenant_code`, `organization_id`
-
-### status_flag
-
-`open_status`, `is_migratory`, `multiple`
-
-### approval
-
-`act_procinst_id`, `act_procinst_no`, `act_procinst_status`, `act_procinst_date`
+L0 库侧合同（draft）。grain / 身份束关系均为 proposed，不得当认证 JOIN。
 
 ## 字段
 
 ```ground:table
 table: tenant_product
 database: lowcode_pplatform
-description: 租户产品配置
+desc: 租户产品配置
 inactive: false
 primary_key: [id]
 grain: 一行一记录（id）
 name_anchors: [code, name, ref_tenant_product_project_code]
-clusters:
-- key: common
-  title: 通用
-  include: always
-- key: platform_product
-  title: 平台产品归属
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.tenant_product
-- key: product_content
-  title: 产品内容与展示
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.tenant_product
-- key: product_terms
-  title: 产品业务要素
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.tenant_product
-- key: tenant_scope
-  title: 租户与机构归属
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.tenant_product
-- key: status_flag
-  title: 状态与标识
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.tenant_product
-- key: approval
-  title: 审批流程
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.tenant_product
 fields:
 - name: id
-  data_type: number
-  description: 表主键
+  type: number
+  desc: 表主键
   nullable: false
-  cluster: common
 - name: code
-  data_type: string
-  description: 编码
-  cluster: common
+  type: string
+  desc: 编码
 - name: name
-  data_type: string
-  description: 名称
-  cluster: common
+  type: string
+  desc: 名称
 - name: platform_product_id
-  data_type: number
-  description: 平台产品id
-  cluster: platform_product
+  type: number
+  desc: 平台产品id
+  dict: ['10', '2', '3', '5', '8', '26', '7', '27']
 - name: product_cate
-  data_type: string
-  description: 产品类型
-  cluster: platform_product
-  dictionary: tenant_product__product_cate
+  type: string
+  desc: 产品类型
+  dict: [STRONG, WEAKLY, CREDIT]
 - name: product_summary
-  data_type: string
-  description: 产品概述
-  cluster: product_content
+  type: string
+  desc: 产品概述
 - name: product_description
-  data_type: string
-  description: 产品详细描述
-  cluster: product_content
+  type: string
+  desc: 产品详细描述
 - name: customer_group
-  data_type: string
-  description: 客户群体
-  cluster: product_terms
+  type: string
+  desc: 客户群体
 - name: max_financing_period
-  data_type: string
-  description: 融资期限上限
-  cluster: product_terms
+  type: string
+  desc: 融资期限上限
 - name: max_financing_amount
-  data_type: string
-  description: 融资金额上限
-  cluster: product_terms
+  type: string
+  desc: 融资金额上限
+  dict: [无上限, '0', 10亿元, '99999', '9999999', '999999', '1000000', '999999999', '99999999999',
+    '8888888888888', '100000', '10000000', 以资金方审核结果为准, '500000', '9999999999999999999',
+    '4', '100', '9999999999', '99999999', 以资金方审核结果为准。, '1', '999999911', '999', '999999999999',
+    '99999999999999', '20000000']
 - name: credit_measures
-  data_type: string
-  description: 增信措施
-  cluster: product_terms
+  type: string
+  desc: 增信措施
 - name: transaction_structure
-  data_type: string
-  description: 交易结构
-  cluster: product_terms
+  type: string
+  desc: 交易结构
 - name: product_agreement
-  data_type: string
-  description: 产品协议
-  cluster: product_content
+  type: string
+  desc: 产品协议
+  dict: [CT-202406051255015994002, CT-202407032146174072045, DT_202503271081, CT-202406051255015994005,
+    CT-202409041339214541521, DT_202503181063, DT_202503271079, CT-202406051255015994008,
+    DT_202503181064, DT_202503211069, DT_202503271082, CT-202406051525505379191, CT-202407032146027188485,
+    DT_202507181127, DT_202503283482, DT_202503191068, DT_202511253668, DT_202509293315,
+    DT_202503181061, DT_202503271078, CT-202407032146345986071, DT_202609104769, CT-202503131439440219889,
+    DT_202503251071, DT_202503171058]
 - name: tenant_id
-  data_type: number
-  description: 租户id
-  cluster: tenant_scope
+  type: number
+  desc: 租户id
 - name: open_status
-  data_type: string
-  description: 产品开通状态
-  cluster: status_flag
-  dictionary: tenant_product__open_status
+  type: string
+  desc: 产品开通状态
+  dict: [Y, N, P]
 - name: max_financing_amount_flag
-  data_type: string
-  description: 是否限额融资资金上线
-  cluster: product_terms
-  dictionary: tenant_product__max_financing_amount_flag
+  type: string
+  desc: 是否限额融资资金上线
+  dict: [N, Y, '0', '1']
 - name: platform_product_code
-  data_type: string
-  description: 平台产品编号
-  cluster: platform_product
-  dictionary: tenant_product__platform_product_code
+  type: string
+  desc: 平台产品编号
+  dict: [ACFLOW, RVSFACTOR_PC, ORDER, BEECREDIT, VOUCHER, DRAFTQA, STORAGE, DRAFT]
 - name: product_web_url
-  data_type: string
-  description: 站点url
-  cluster: product_content
+  type: string
+  desc: 站点url
 - name: is_migratory
-  data_type: string
-  description: 是否迁移标识,N代表未迁移,Y代表迁移
-  cluster: status_flag
-  dictionary: tenant_product__is_migratory
+  type: string
+  desc: 是否迁移标识,N代表未迁移,Y代表迁移
+  dict: [N, Y]
 - name: logo_icon_url
-  data_type: string
-  description: 产品logo
-  cluster: product_content
+  type: string
+  desc: 产品logo
 - name: view_order
-  data_type: number
-  description: 展示顺序
-  cluster: product_content
+  type: number
+  desc: 展示顺序
+  dict: ['0', '8', '9', '11']
 - name: ref_tenant_product_tenant_setting_config
-  data_type: string
-  description: 租户-产品
-  cluster: tenant_scope
+  type: string
+  desc: 租户-产品
 - name: ref_tenant_product_project_code
-  data_type: string
-  description: 租户产品-平台产品
-  cluster: tenant_scope
+  type: string
+  desc: 租户产品-平台产品
+  dict: [b8468d68ba0a4762bda0f7b9164e4f6a, f285fa5cf17f4a8f9eefe93d3a513a6b, f285fa5cf17f4a8f9eefe93d3a513a61,
+    f285fa5cf17f4a8f9eefe93d3a513a63, f285fa5cf17f4a8f9eefe93d3a513a65, 007142024a5c425bb3673f753060e534,
+    f285fa5cf17f4a8f9eefe93d3a513a6e, f285fa5cf17f4a8f9eefeadd3a513a6e]
 - name: enable
-  data_type: string
-  description: enable
-  cluster: common
-  dictionary: tenant_product__enable
+  type: string
+  desc: enable
+  dict: [Y]
 - name: remark
-  data_type: string
-  description: remark
-  cluster: common
+  type: string
+  desc: remark
 - name: create_by
-  data_type: string
-  description: 创建人id
-  cluster: common
+  type: string
+  desc: 创建人id
 - name: create_user
-  data_type: string
-  description: 创建人名称
-  cluster: common
+  type: string
+  desc: 创建人名称
 - name: create_time
-  data_type: temporal
-  description: 创建时间
+  type: temporal
+  desc: 创建时间
   nullable: false
-  cluster: common
 - name: update_by
-  data_type: string
-  description: 更新人id
-  cluster: common
+  type: string
+  desc: 更新人id
 - name: update_user
-  data_type: string
-  description: 更新人名称
-  cluster: common
+  type: string
+  desc: 更新人名称
 - name: update_time
-  data_type: temporal
-  description: 更新时间
+  type: temporal
+  desc: 更新时间
   nullable: false
-  cluster: common
 - name: act_procinst_id
-  data_type: string
-  description: 流程实例ID
-  cluster: approval
+  type: string
+  desc: 流程实例ID
 - name: app_tenant_code
-  data_type: string
-  description: 逻辑租户标识
-  cluster: tenant_scope
+  type: string
+  desc: 逻辑租户标识
 - name: db_tenant_code
-  data_type: string
-  description: 数据租户标识
-  cluster: tenant_scope
+  type: string
+  desc: 数据租户标识
 - name: act_procinst_no
-  data_type: string
-  description: 流程申请编号
-  cluster: approval
+  type: string
+  desc: 流程申请编号
 - name: act_procinst_status
-  data_type: string
-  description: 当前审批状态
-  cluster: approval
+  type: string
+  desc: 当前审批状态
 - name: act_procinst_date
-  data_type: temporal
-  description: 审批结束时间
-  cluster: approval
+  type: temporal
+  desc: 审批结束时间
 - name: organization_id
-  data_type: string
-  description: 机构编号
-  cluster: tenant_scope
+  type: string
+  desc: 机构编号
 - name: multiple
-  data_type: string
-  description: 是否多个
-  cluster: status_flag
-  dictionary: tenant_product__multiple
+  type: string
+  desc: 是否多个
+  dict: ['0']
 ```
 
 ## 关联关系
@@ -285,7 +204,6 @@ overlap:
   deepened: false
   query_ok: true
   authenticity: likely
-authenticity_note: 列名 exact_table 匹配且注释为平台产品id，探测 overlap=1.0（8/8 命中），值域契合，判 likely。
 ```
 
 ### unlikely — 值域不支持或冲突
@@ -313,8 +231,6 @@ overlap:
   deepened: false
   query_ok: true
   authenticity: unlikely
-authenticity_note: 长引用名指向 tenant_setting_config.id，但 overlap=0.0061（165 样本仅 1 命中），值域不契合，判
-  unlikely。
 ```
 
 ```ground:relation
@@ -340,7 +256,6 @@ overlap:
   deepened: false
   query_ok: true
   authenticity: unlikely
-authenticity_note: 列名与注释有关联语义，但探测 overlap=0.0（8 样本全部未命中），值域不契合，判 unlikely，保留待人工复核。
 ```
 
 ## 页面链接
@@ -357,10 +272,15 @@ authenticity_note: 列名与注释有关联语义，但探测 overlap=0.0（8 �
 
 ### 字典
 
+- [[dicts/tenant_product__platform_product_id]]（`tenant_product.platform_product_id`）
 - [[dicts/tenant_product__product_cate]]（`tenant_product.product_cate`）
+- [[dicts/tenant_product__max_financing_amount]]（`tenant_product.max_financing_amount`）
+- [[dicts/tenant_product__product_agreement]]（`tenant_product.product_agreement`）
 - [[dicts/tenant_product__open_status]]（`tenant_product.open_status`）
 - [[dicts/tenant_product__max_financing_amount_flag]]（`tenant_product.max_financing_amount_flag`）
 - [[dicts/tenant_product__platform_product_code]]（`tenant_product.platform_product_code`）
 - [[dicts/tenant_product__is_migratory]]（`tenant_product.is_migratory`）
+- [[dicts/tenant_product__view_order]]（`tenant_product.view_order`）
+- [[dicts/tenant_product__ref_tenant_product_project_code]]（`tenant_product.ref_tenant_product_project_code`）
 - [[dicts/tenant_product__enable]]（`tenant_product.enable`）
 - [[dicts/tenant_product__multiple]]（`tenant_product.multiple`）

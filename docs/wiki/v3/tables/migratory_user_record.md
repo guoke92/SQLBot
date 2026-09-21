@@ -6,8 +6,8 @@ belong: tables
 status: draft
 anchors: [migratory_user_record]
 sources: ['database_schema:lowcode_pplatform.migratory_user_record']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
 related: [migratory_user_record__is_login, migratory_user_record__enable]

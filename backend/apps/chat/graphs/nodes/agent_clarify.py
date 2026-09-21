@@ -11,7 +11,6 @@ from langgraph.types import interrupt
 
 from apps.chat.agent_knowledge import AgentKnowledgePlane
 from apps.chat.caliber_surface import render_caliber_lines
-from apps.chat.memory_slots import MemorySlots
 from apps.conversation.messages import deserialize_messages, serialize_messages
 from apps.conversation.process_timeline import (
     attach_running_clarification_span,
@@ -179,14 +178,9 @@ def await_agent_clarification_node(state: Mapping[str, Any]) -> dict[str, Any]:
 
     messages.append(HumanMessage(content=clarify_text))
 
-    slots_model = MemorySlots.model_validate(raw_slots)
     plane = AgentKnowledgePlane.from_dump(state.get("knowledge_plane"))
     plane.drop_resolved_conflicts(confirmed)
-    messages = plane.apply_to_system_message(
-        messages,
-        memory_slots=raw_slots,
-        change_baseline=slots_model.extract_change_baseline(),
-    )
+    messages = plane.apply_to_system_message(messages)
 
     return {
         **state,

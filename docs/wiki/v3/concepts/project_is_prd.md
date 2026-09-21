@@ -9,8 +9,8 @@ aliases: [生产数据标签, 是否为生产数据]
 maps_to: tenant_project.is_prd
 field_targets: [tenant_project.is_prd]
 sources: ['code_path:TenantProjectDomainService.java:367', 'document_claim:docs/wiki-knowledge/pplatform/req-index/concepts/项目上线审批流程.md']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [tenant_project]
 also_confused_with: [wechat_prd_term, project_config_model]

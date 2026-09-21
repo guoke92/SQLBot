@@ -7,8 +7,8 @@ status: draft
 anchors: [ca_fee_company.pay_status]
 sources: ['database_profile:ca_fee_company.pay_status', 'database_schema:ca_fee_company.pay_status',
   'code_path:CaFeeCompanyPayStatusEnum.java:16', 'code_path:CaFeeCompanyPayStatusEnum.java:15']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [ca_fee_company]
 ---

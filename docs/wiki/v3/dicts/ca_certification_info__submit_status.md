@@ -8,8 +8,8 @@ anchors: [ca_certification_info.submit_status]
 sources: ['database_profile:ca_certification_info.submit_status', 'database_schema:ca_certification_info.submit_status',
   'code_path:CaSubmitStatusEnum.java:15', 'code_path:CaSubmitStatusEnum.java:12',
   'code_path:CaSubmitStatusEnum.java:18']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [ca_certification_info]
 ---

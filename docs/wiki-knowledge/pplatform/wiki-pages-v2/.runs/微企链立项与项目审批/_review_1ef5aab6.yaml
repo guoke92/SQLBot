@@ -1,6 +1,0 @@
-body: '`tenant_project` 在多个口径与规则中被引用（`project_status`、`enable`，以及「审批通过生效项目」规则的目标字段），但本次语义分析未产出其字段级释义，故未生成
-  table 页。
-
-  建议补充该表的字段语义后再产出 `tables/tenant_project.md`。'
-title: tenant_project
-type: table

@@ -10,8 +10,8 @@ maps_to: cust_company_lifecycle_info.type
 field_targets: [cust_company_lifecycle_info.company_id, cust_company_lifecycle_info.type,
   cust_company_lifecycle_info.reason, cust_company_lifecycle_info.attach]
 sources: ['code_path:CustCompanyInfoApplication.java:7064', 'document_claim:docs/wiki-knowledge/pplatform/req-index/concepts/产品需求规格说明书_产融平台V1.0.0.md']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [cust_company_lifecycle_info]
 also_confused_with: [account_admin]

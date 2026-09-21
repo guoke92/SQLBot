@@ -6,8 +6,8 @@ belong: tables
 status: draft
 anchors: [cust_build_record]
 sources: ['database_schema:lowcode_pplatform.cust_build_record']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
 related: [cust_company_info, cust_person_info, cust_build_record__enable, cust_build_record__electronic_auth_sign_status]
@@ -112,7 +112,8 @@ fields:
   desc: 渠道
 - name: electronic_auth_sign_status
   type: string
-  dict: [SIGNED, PENDING]
+  dict: [SIGNED, PENDING, UPLOAD_FAILED, FAILED, VOIDED]
+  label: [已签署, 待签署, 影像上传失败, 签署失败, 作废]
 ```
 
 ## 关联关系
@@ -170,8 +171,6 @@ overlap:
   deepened: true
   query_ok: true
   authenticity: likely
-authenticity_note: overlap 0.9699（反向 0.56，miss 18），列名族后缀命中 stem=person，本地注释「联系人ID」，值域契合且语义关联，判
-  likely。
 ```
 
 ## 页面链接

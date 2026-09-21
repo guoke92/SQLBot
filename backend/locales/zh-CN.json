@@ -236,6 +236,7 @@
         "get_table_schema": "展开表结构",
         "get_table_relations": "查询表关联",
         "search_knowledge": "检索业务口径",
+        "lookup_values": "反查实例值",
         "get_dict_values": "查询字段字典",
         "prepare_wiki": "准备知识",
         "restore_wiki": "恢复上轮知识",
@@ -247,6 +248,7 @@
       "thought_done": "思考完成",
       "tool_ok": "执行成功",
       "tool_failed": "执行失败",
+      "tool_skipped": "已达轮次建议，未执行",
       "query_rows": "返回 {count} 行",
       "answer_ready": "回答已生成",
       "clarification_waiting": "等待确认",
@@ -256,7 +258,8 @@
       "wiki_restored": "恢复上轮 {count} 条知识",
       "schema_loaded": "展开 {count} 张表",
       "relations_loaded": "返回 {count} 条关联",
-      "dict_loaded": "返回 {count} 个枚举值"
+      "dict_loaded": "返回 {count} 个枚举值",
+      "values_loaded": "返回 {count} 个实例候选"
     },
     "audit": {
       "processing": "处理中",

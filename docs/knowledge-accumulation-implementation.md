@@ -1,5 +1,7 @@
 # 知识沉淀：完整设计与实现方案
 
+> **非问数 Wiki 提取契约。** Wiki 权威见 [`docs/wiki/`](wiki/README.md)；本文件属沉淀实现规格，勿与 L0/L1 提取混用。
+
 > **权威序：** 落地计划（含 §11）> `knowledge-catalog-linkage-revision.md` > **本文** > `knowledge-accumulation-architecture.md`。  
 > 本文是 **可落地的实现规格**，与架构总览配套：  
 > - 架构与场景：`docs/knowledge-accumulation-architecture.md`  

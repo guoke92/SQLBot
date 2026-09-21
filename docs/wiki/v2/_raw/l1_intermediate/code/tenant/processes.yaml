@@ -37,7 +37,7 @@ processes:
     description: |
       钉 tenant_project_approval.wf_status。创建 PENDING；发起 RUNNING 并写 act_procinst_id；
       流程结束监听写成 FINISHED 或 TERMINATED，通过时副作用生效项目。
-      L0 有 REVOKED，枚举没有，不要给 label。
+      REVOKED=审批撤销（发起人 revokeApproval）；勿与 TERMINATED（审批拒绝）互代。
     entry: POST /app-web/projectApproval
     stages:
       - stage: 待发起
@@ -56,6 +56,20 @@ processes:
                 field: act_procinst_id
                 action: 写入流程实例
             evidence: code_path:ProjectApprovalApplication.java:700
+      - stage: 撤销
+        transitions:
+          - from: RUNNING
+            event: revokeApproval（仅发起人）
+            to: REVOKED
+            side_effects:
+              - table: tenant_project_approval_flow_node
+                field: operate_type
+                action: 写 revoke + 撤销原因
+            evidence: code_path:ProjectApprovalApplication.java:914
+          - from: PENDING
+            event: revokeApproval（仅发起人）
+            to: REVOKED
+            evidence: code_path:ProjectApprovalApplication.java:914
       - stage: 结束
         transitions:
           - from: RUNNING

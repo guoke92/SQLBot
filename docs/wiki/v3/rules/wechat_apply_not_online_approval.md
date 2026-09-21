@@ -7,8 +7,8 @@ domain: remaining
 status: draft
 field_targets: [wechat_project_approval_apply.sp_no, tenant_project_approval.wf_status]
 sources: ['code_path:WechatProjectApprovalApplication.java:148']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [wechat_project_approval_apply, tenant_project_approval]
 ---

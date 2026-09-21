@@ -7,8 +7,8 @@ domain: ca_fee
 status: draft
 aliases: [收费开关]
 sources: ['code_path:l1_intermediate']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [ca_fee_project_config, tenant_project]
 ---

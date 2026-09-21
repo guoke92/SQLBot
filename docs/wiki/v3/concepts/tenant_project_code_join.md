@@ -10,8 +10,8 @@ maps_to: tenant_project_approval.ref_tenant_project_approval_tenant_project
 field_targets: [tenant_project_approval.ref_tenant_project_approval_tenant_project,
   tenant_project.code]
 sources: ['code_path:ProjectApprovalApplication.java:253', 'document_claim:docs/wiki-knowledge/pplatform/req-index/concepts/项目上线审批流程.md']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [tenant_project_approval, tenant_project]
 also_confused_with: [project_status_vs_approval, refer_copy_project]

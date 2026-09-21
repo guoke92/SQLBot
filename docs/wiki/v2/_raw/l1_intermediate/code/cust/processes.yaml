@@ -288,3 +288,72 @@ processes:
             to: BUILD_SUCCESS
             note: to 实际等于当时的 cust_company_info.cust_build_status，不固定 BUILD_SUCCESS。
             evidence: code_path:CustSyncEventProcessor.java:1128
+
+  - process_key: cust_change_record__electronic_auth_sign_status
+    table: cust_change_record
+    field: electronic_auth_sign_status
+    title: 电子授权书签署状态（建档/变更共用）
+    description: |
+      钉 cust_change_record / cust_build_record.electronic_auth_sign_status，共用 ElectronicAuthSignStatus。
+      补偿任务扫描 PENDING/UPLOAD_FAILED；VOIDED 仅直推变更被新流水覆盖时写入，补偿不拾取。
+      PENDING 在本列=待签署，不是审批 wf_status.PENDING。
+    entry: OfflineElectronicAuthCompensationJobHandler
+    stages:
+      - stage: 待签署
+        transitions:
+          - from: ""
+            event: 直推需重签落库
+            to: PENDING
+            evidence: code_path:ChannelChangeDirectRecordService.java:152
+      - stage: 补偿签署
+        transitions:
+          - from: PENDING
+            event: 补偿任务成功
+            to: SIGNED
+            evidence: code_path:OfflineElectronicAuthCompensationJobHandler.java:26
+          - from: UPLOAD_FAILED
+            event: 补偿任务重试上传
+            to: SIGNED
+            evidence: code_path:OfflineElectronicAuthCompensationJobHandler.java:26
+          - from: PENDING
+            event: 签章失败
+            to: FAILED
+            evidence: code_path:OfflineElectronicAuthCompensationJobHandler.java:30
+          - from: PENDING
+            event: 签章成功但影像上传失败
+            to: UPLOAD_FAILED
+            evidence: code_path:OfflineElectronicAuthCompensationJobHandler.java:30
+      - stage: 作废
+        transitions:
+          - from: PENDING
+            event: 直推新流水覆盖在途变更
+            to: VOIDED
+            evidence: code_path:ChannelChangeDirectRecordService.java:93
+  - process_key: cust_change_record__oper_channel_direct
+    table: cust_change_record
+    field: oper_channel
+    title: 直推变更单
+    description: |
+      前置 tenant_setting_config.access_mode=DIRECT_INIT。
+      落库 oper_channel=DIRECT_INIT；status 写 CheckStatus；need_resign 时 electronic_auth_sign_status=PENDING 并同步企业状态。
+      本过程钉 oper_channel，不要当成 access_mode 列。
+    entry: ChannelChangeDirectRecordService.insertAccepted
+    stages:
+      - stage: 收单
+        transitions:
+          - from: ""
+            event: 直推变更受理（无需重签）
+            to: DIRECT_INIT
+            side_effects:
+              - table: cust_change_record
+                field: status
+                action: CUST_CHECK_PASS
+            evidence: code_path:ChannelChangeDirectRecordService.java:148
+          - from: ""
+            event: 直推变更受理（需重签）
+            to: DIRECT_INIT
+            side_effects:
+              - table: cust_change_record
+                field: need_resign_auth
+                action: Y + electronic_auth_sign_status=PENDING + status=CUST_CHECK_BACKTOCUSTOM
+            evidence: code_path:ChannelChangeDirectRecordService.java:148

@@ -6,8 +6,8 @@ belong: tables
 status: draft
 anchors: [cust_project_pushcust]
 sources: ['database_schema:lowcode_pplatform.cust_project_pushcust']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
 related: [tenant_project, cust_project_pushcust__source_sso_channel, cust_project_pushcust__enable]

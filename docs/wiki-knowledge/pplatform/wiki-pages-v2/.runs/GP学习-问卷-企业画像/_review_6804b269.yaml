@@ -1,5 +1,0 @@
-body: 本次语义分析的 `field_semantics` 证据仅标注 `db` / `code`，未给出承载这些表的物理库名。因此所有页面的 `scope.databases`
-  只能写占位值 `"(待确认)"`，未做任何推断。需要数据源清单（表 → 物理库）后统一回填 5 个 table 页及其引用页。此外，分析输入在 `rules`
-  第一条处结束，未见 doc_claims / reqdoc_claims 段（anchor 或 uncovered），故本期无 `## 版本演进` 的 document_claim（未证实）内容可写。
-title: 全局-物理库名未证实
-type: table

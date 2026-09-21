@@ -6,8 +6,8 @@ belong: dicts
 status: draft
 anchors: [ca_fee_order.company_type]
 sources: ['database_profile:ca_fee_order.company_type']
-created: '2026-09-17'
-updated: '2026-09-17'
+created: '2026-09-20'
+updated: '2026-09-20'
 contract_version: '0.1'
 related: [ca_fee_order]
 ---

@@ -9,11 +9,11 @@ aliases: [产品大类, 平台产品目录]
 maps_to: platform_product.product_code
 field_targets: [platform_product.product_code, platform_product.product_status]
 sources: ['code_path:PlatformProductDaoImpl.java:111', 'document_claim:docs/wiki-knowledge/pplatform/req-index/concepts']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [platform_product]
-also_confused_with: [open_tenant_product_term]
+also_confused_with: [open_tenant_product_term, product_cate_term]
 adjudication: boundary
 ---
 
@@ -21,6 +21,7 @@ adjudication: boundary
 
 平台侧产品主数据。已生效是 product_status=1 且 enable=Y。
 租户是否开通看 tenant_product.open_status，不要和平台产品状态互代。
+「产品类型」是 product_cate（强/弱/信用），不是本页 product_code。
 
 ## 页面链接
 
@@ -29,3 +30,4 @@ adjudication: boundary
 - [[dicts/platform_product__product_status]]
 - [[processes/platform_product__product_status]]
 - [[concepts/open_tenant_product_term]]
+- [[concepts/product_cate_term]]

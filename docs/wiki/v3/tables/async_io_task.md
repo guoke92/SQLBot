@@ -6,8 +6,8 @@ belong: tables
 status: draft
 anchors: [async_io_task]
 sources: ['database_schema:lowcode_pplatform.async_io_task']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
 related: [async_io_task__task_type, async_io_task__menu_code, async_io_task__status,

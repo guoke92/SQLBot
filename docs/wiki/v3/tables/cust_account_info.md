@@ -6,13 +6,13 @@ belong: tables
 status: draft
 anchors: [cust_account_info]
 sources: ['database_schema:lowcode_pplatform.cust_account_info', 'code_path:CustPersonController.java:288']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
-related: [cust_company_info, cust_account_info__enable, cust_account_info__default_account_flag,
-  cust_account_info__account_type, cust_account_info__status, cust_account_info__auth_state,
-  cust_account_info__bank_id]
+related: [cust_company_info, cust_account_info__name, cust_account_info__enable, cust_account_info__default_account_flag,
+  cust_account_info__account_type, cust_account_info__status, cust_account_info__error_try_count,
+  cust_account_info__auth_state, cust_account_info__payment_remaining_count, cust_account_info__bank_id]
 ---
 
 # 客户银行账号信息主表
@@ -41,6 +41,7 @@ fields:
 - name: name
   type: string
   desc: 名称-废弃
+  dict: [测试账户, '111', '324234']
 - name: enable
   type: string
   desc: enable
@@ -150,6 +151,7 @@ fields:
 - name: error_try_count
   type: number
   desc: 打款金额错误次数
+  dict: ['0']
 - name: error_try_time
   type: temporal
   desc: 最后一次错误时间
@@ -163,6 +165,7 @@ fields:
 - name: payment_remaining_count
   type: number
   desc: 剩余打款次数
+  dict: ['3', '5', '2', '0', '1']
 - name: ref_cust_company_info
   type: string
   desc: 客户账号信息
@@ -222,8 +225,6 @@ overlap:
   deepened: false
   query_ok: true
   authenticity: unlikely
-authenticity_note: 列名 stem 与左表精确同名，但重叠率 0.0（probed，sample 200，miss 200），本列注释「客户账号信息」亦为自指语义，不足以支撑外键，判
-  unlikely。
 sides:
 - {source: l1_code, left: cust_company_info.code, right: cust_account_info.ref_cust_company_info,
   trust: confirmed}
@@ -239,9 +240,12 @@ sides:
 
 ### 字典
 
+- [[dicts/cust_account_info__name]]（`cust_account_info.name`）
 - [[dicts/cust_account_info__enable]]（`cust_account_info.enable`）
 - [[dicts/cust_account_info__default_account_flag]]（`cust_account_info.default_account_flag`）
 - [[dicts/cust_account_info__account_type]]（`cust_account_info.account_type`）
 - [[dicts/cust_account_info__status]]（`cust_account_info.status`）
+- [[dicts/cust_account_info__error_try_count]]（`cust_account_info.error_try_count`）
 - [[dicts/cust_account_info__auth_state]]（`cust_account_info.auth_state`）
+- [[dicts/cust_account_info__payment_remaining_count]]（`cust_account_info.payment_remaining_count`）
 - [[dicts/cust_account_info__bank_id]]（`cust_account_info.bank_id`）

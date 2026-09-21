@@ -6,8 +6,8 @@ belong: tables
 status: draft
 anchors: [cust_company_survey_whitelist]
 sources: ['database_schema:lowcode_pplatform.cust_company_survey_whitelist', 'code_path:CustCompanySurveyWhitelistDao.java:20']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
 related: [cust_company_info, cust_company_survey_whitelist__enable]

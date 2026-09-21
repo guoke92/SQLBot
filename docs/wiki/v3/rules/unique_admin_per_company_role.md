@@ -8,8 +8,8 @@ status: draft
 field_targets: [cust_person_info.user_type, cust_person_info.enable, cust_person_info.company_type,
   cust_person_info.ref_cust_company_info]
 sources: ['code_path:CustPersonApplication.java:334']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [cust_person_info]
 ---

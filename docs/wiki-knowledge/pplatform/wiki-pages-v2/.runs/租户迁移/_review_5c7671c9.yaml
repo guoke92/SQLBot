@@ -1,5 +1,0 @@
-body: '语义分析只给出 `evidence: db` / `evidence: code` 级别的来源标记，未提供**物理库名**，因此本批所有页面的 `scope.databases`
-  只能填占位值 `未提供`。需补充：tenant_migarory_log 与 migratory_user_record 所在的物理库名（是否同库、是否分库）。在此之前，跨库口径（如
-  migration_log_success 与 migratory_user_not_login 的联合使用）不得视为同库可 JOIN。'
-title: tenant_migarory_log
-type: table

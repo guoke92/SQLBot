@@ -129,6 +129,9 @@ class NlqState(RunState, total=False):
     memory_slots: dict[str, Any]
     bound_tools: list[Any]
     final_text: str
+    # Index of this turn's Human in messages; finalize appends from here.
+    turn_message_start: int
+    agent_transcript_saved: bool
 
 
 def _llm_service(state: NlqState) -> LLMService:

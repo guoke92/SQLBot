@@ -1,4 +1,0 @@
-body: 该规则的 evidence 在语义分析中被截断（原始为 "code_path:CustPersonApplication.java#batchChangeOperatorTemplateDownload,#bat…"）。当前页面只写入已确认的方法名锚点，被截断的第二个代码位置待补齐后回填
-  evidence。
-title: 批量更换运营模板二选一
-type: rule

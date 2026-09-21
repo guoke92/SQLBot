@@ -1,5 +1,0 @@
-body: 语义分析输入在该规则的 field_targets / evidence 处被截断，本页 field_targets 依据 content 中显式列出的列名推导，evidence
-  仅引用 content 内出现的 CustCompanyCaPolicy.enforceMustNotOpenCa。待补全逐字 evidence 与完整 field_targets
-  后修订，或确认该规则应降级为非锚定描述。
-title: 简易认证禁止开通电子签章
-type: rule

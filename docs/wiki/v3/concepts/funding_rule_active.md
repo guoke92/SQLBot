@@ -9,8 +9,8 @@ aliases: [资金方规则, 资方准入]
 maps_to: funding_rule_info.rule_status
 field_targets: [funding_rule_info.rule_status]
 sources: ['code_path:FundingPartyRuleProviderImpl.java:95', 'document_claim:docs/wiki-knowledge/pplatform/req-index/concepts']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [funding_rule_info]
 also_confused_with: [funding_exception_hint, no_voucher_rule_element]

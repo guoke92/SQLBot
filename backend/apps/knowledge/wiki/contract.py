@@ -412,7 +412,7 @@ def parse_page(
         also_confused_with=strings("also_confused_with"),
         adjudication=str(meta.get("adjudication") or ""),
         inactive=bool(meta.get("inactive") or False),
-        recall=meta.get("recall") is not False,
+        recall=(meta.get("recall") is not False) and page_key != "catalog_summary",
         contract_version=str(meta.get("contract_version") or "0.1"),
         schema_fingerprints=tuple(
             str(f) for f in (refs.get("schema_fingerprints") or [])

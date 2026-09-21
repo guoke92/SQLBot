@@ -9,8 +9,8 @@ aliases: [已投产, 未投产]
 maps_to: wechat_project_approval_apply.prd
 field_targets: [wechat_project_approval_apply.prd]
 sources: ['code_path:SyncWechatApprovalTask.java:1224', 'document_claim:docs/wiki-knowledge/pplatform/req-index/concepts']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [wechat_project_approval_apply]
 also_confused_with: [wechat_apply_term, project_is_prd]

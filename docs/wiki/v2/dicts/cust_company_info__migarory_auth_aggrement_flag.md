@@ -6,8 +6,8 @@ belong: dicts
 status: draft
 anchors: [cust_company_info.migarory_auth_aggrement_flag]
 sources: ['database_profile:cust_company_info.migarory_auth_aggrement_flag', 'database_schema:cust_company_info.migarory_auth_aggrement_flag']
-created: '2026-09-17'
-updated: '2026-09-17'
+created: '2026-09-20'
+updated: '2026-09-20'
 contract_version: '0.1'
 related: [cust_company_info]
 ---
@@ -24,6 +24,6 @@ dict: cust_company_info__migarory_auth_aggrement_flag
 fields: [cust_company_info.migarory_auth_aggrement_flag]
 values:
   Y: {trust: proposed, label: 新渠道, evidence: 'database_schema:cust_company_info.migarory_auth_aggrement_flag'}
-  N: {trust: proposed, label: 旧渠道, evidence: 'database_schema:cust_company_info.migarory_auth_aggrement_flag'}
+  N: {trust: proposed, label: 新渠道, evidence: 'database_schema:cust_company_info.migarory_auth_aggrement_flag'}
 triage: keep
 ```

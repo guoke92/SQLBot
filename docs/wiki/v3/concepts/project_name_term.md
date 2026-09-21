@@ -9,8 +9,8 @@ aliases: [项目名称修改]
 maps_to: tenant_project.name
 field_targets: [tenant_project.name]
 sources: ['code_path:TenantProjectDomainService.java:110', 'document_claim:docs/wiki-knowledge/pplatform/req-index/concepts/项目上线审批流程.md']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [tenant_project]
 also_confused_with: [project_config_version_term]

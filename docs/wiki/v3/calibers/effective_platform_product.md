@@ -7,8 +7,8 @@ domain: remaining
 status: draft
 field_targets: [platform_product.product_status, platform_product.enable]
 sources: ['code_path:PlatformProductDaoImpl.java:111']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [platform_product]
 ---

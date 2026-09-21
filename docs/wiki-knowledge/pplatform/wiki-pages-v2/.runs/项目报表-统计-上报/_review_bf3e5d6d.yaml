@@ -1,5 +1,0 @@
-body: 需求文档主张「SSO 验证码登录改造」与项目报表/统计/上报主题无关（code_status=uncovered，action=review）。当前无代码证据可判断该主张与
-  cust_project_pushcust 的 source_sso_channel/target_sso_channel 是否存在隐性耦合：本表两个渠道字段的取值域、由谁写入、是否受登录改造影响均未确认。需业务方与代码
-  owner 确认后再决定是否将本表纳入本主题契约或移出至登录域。
-title: 客户项目推送客户SSO渠道表
-type: table

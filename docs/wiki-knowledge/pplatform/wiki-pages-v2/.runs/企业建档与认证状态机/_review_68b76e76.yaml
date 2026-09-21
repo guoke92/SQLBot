@@ -1,8 +1,0 @@
-body: '- `cust_build_type`：语义为录入方式（AGW_BUILD / PC_BUILD），但 DB 中出现 `SIMPLE` 值，属脏值；`SIMPLE`
-  本属 identify_style（简易认证）维度，需确认历史数据来源与清理口径。
-
-  - `sign_mode`：DB 实际写值为 `ONLINE`，与 SignModeEnum(01/02/03) 不一致，需确认以写值点为准还是枚举底稿为准。
-
-  - `scope.databases` 的物理库名未在本次语义分析证据中给出，暂记 `unknown`，待补充。'
-title: 企业信息表
-type: table

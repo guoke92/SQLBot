@@ -6,8 +6,8 @@ belong: tables
 status: draft
 anchors: [cust_head_company_info]
 sources: ['database_schema:lowcode_pplatform.cust_head_company_info']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
 related: [cust_company_info, cust_head_company_info__legal_certification_type, cust_head_company_info__enable]

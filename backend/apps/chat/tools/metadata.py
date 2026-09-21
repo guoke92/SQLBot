@@ -31,6 +31,10 @@ AGENT_TOOLS_METADATA: dict[str, dict[str, str]] = {
         "title_key": "chat.timeline.tool.search_knowledge",
         "icon": "book",
     },
+    "lookup_values": {
+        "title_key": "chat.timeline.tool.lookup_values",
+        "icon": "book",
+    },
     "get_dict_values": {
         "title_key": "chat.timeline.tool.get_dict_values",
         "icon": "book",

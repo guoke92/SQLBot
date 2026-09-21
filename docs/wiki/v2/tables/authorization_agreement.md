@@ -6,8 +6,8 @@ belong: tables
 status: draft
 anchors: [authorization_agreement]
 sources: ['database_schema:lowcode_pplatform.authorization_agreement']
-created: '2026-09-17'
-updated: '2026-09-17'
+created: '2026-09-20'
+updated: '2026-09-20'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
 related: [platform_product, authorization_agreement__platform_product_code, authorization_agreement__authed_status,
@@ -16,177 +16,111 @@ related: [platform_product, authorization_agreement__platform_product_code, auth
 
 # 授权确认书表
 
-L0 库侧合同（draft）。grain / 字段簇 / 身份束关系均为 proposed，不得当认证 JOIN。
-
-## 字段簇
-
-### common
-
-`id`, `code`, `name`, `enable`, `remark`, `create_by`, `create_user`, `create_time`, `update_by`, `update_user`, `update_time`, `creation_type`
-
-### cust
-
-`cust_manager_id`, `cust_id`, `original_cust_id`, `company_type`, `cust_manager_name`, `cust_name`, `organization_id`
-
-### auth
-
-`platform_product_code`, `authed_status`
-
-### act_procinst
-
-`act_procinst_id`, `act_procinst_no`, `act_procinst_status`, `act_procinst_date`
-
-### tenant
-
-`app_tenant_code`, `db_tenant_code`
+L0 库侧合同（draft）。grain / 身份束关系均为 proposed，不得当认证 JOIN。
 
 ## 字段
 
 ```ground:table
 table: authorization_agreement
 database: lowcode_pplatform
-description: 授权确认书表
+desc: 授权确认书表
 inactive: false
 primary_key: [id]
 grain: 一行一记录（id）
 name_anchors: [code, name, cust_manager_name, cust_name]
-clusters:
-- key: common
-  title: 通用
-  include: always
-- key: cust
-  title: 企业客户
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.authorization_agreement
-- key: auth
-  title: 授权要素
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.authorization_agreement
-- key: act_procinst
-  title: 审批流程
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.authorization_agreement
-- key: tenant
-  title: 租户标识
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.authorization_agreement
 fields:
 - name: id
-  data_type: number
-  description: 表主键
+  type: number
+  desc: 表主键
   nullable: false
-  cluster: common
 - name: code
-  data_type: string
-  description: 编码
-  cluster: common
+  type: string
+  desc: 编码
 - name: name
-  data_type: string
-  description: 名称
-  cluster: common
+  type: string
+  desc: 名称
 - name: cust_manager_id
-  data_type: number
-  description: 企业管理员id
-  cluster: cust
+  type: number
+  desc: 企业管理员id
 - name: platform_product_code
-  data_type: string
-  description: 平台产品id
-  cluster: auth
-  dictionary: authorization_agreement__platform_product_code
+  type: string
+  desc: 平台产品id
+  dict: [PLATFORM, ACFLOW, RVSFACTOR_PC, ORDER, AMS, STORAGE, BEECREDIT, VOUCHER,
+    pplatform, RVSFACTOR]
 - name: authed_status
-  data_type: string
-  description: 授权书认证状态
-  cluster: auth
-  dictionary: authorization_agreement__authed_status
+  type: string
+  desc: 授权书认证状态
+  dict: [N, Y]
 - name: cust_id
-  data_type: number
-  description: 企业id
-  cluster: cust
+  type: number
+  desc: 企业id
 - name: original_cust_id
-  data_type: string
-  description: 源系统custid
-  cluster: cust
+  type: string
+  desc: 源系统custid
 - name: company_type
-  data_type: string
-  description: 企业角色
-  cluster: cust
-  dictionary: authorization_agreement__company_type
+  type: string
+  desc: 企业角色
+  dict: [SUPPLIER, CORE, FINANCE, PROJECT_COMPANY, PLATFORM_OPERATOR_COMPANY, PLATFORM_OPREATOR_COMPANY,
+    CORPORATION_COMPANY, DEALER, CORE_MANAGER, '["CORE"]', '["FINANCE"]', '["PROJECT_COMPANY"]',
+    FACTOR_COMPANY]
 - name: cust_manager_name
-  data_type: string
-  description: 客户管理员名称
-  cluster: cust
+  type: string
+  desc: 客户管理员名称
 - name: cust_name
-  data_type: string
-  description: 企业名称
-  cluster: cust
+  type: string
+  desc: 企业名称
 - name: enable
-  data_type: string
-  description: enable
-  cluster: common
-  dictionary: authorization_agreement__enable
+  type: string
+  desc: enable
+  dict: [Y, N]
 - name: remark
-  data_type: string
-  description: remark
-  cluster: common
+  type: string
+  desc: remark
 - name: create_by
-  data_type: string
-  description: 创建人id
-  cluster: common
+  type: string
+  desc: 创建人id
 - name: create_user
-  data_type: string
-  description: 创建人名称
-  cluster: common
+  type: string
+  desc: 创建人名称
 - name: create_time
-  data_type: temporal
-  description: 创建时间
+  type: temporal
+  desc: 创建时间
   nullable: false
-  cluster: common
 - name: update_by
-  data_type: string
-  description: 更新人id
-  cluster: common
+  type: string
+  desc: 更新人id
 - name: update_user
-  data_type: string
-  description: 更新人名称
-  cluster: common
+  type: string
+  desc: 更新人名称
 - name: update_time
-  data_type: temporal
-  description: 更新时间
+  type: temporal
+  desc: 更新时间
   nullable: false
-  cluster: common
 - name: act_procinst_id
-  data_type: string
-  description: 流程实例ID
-  cluster: act_procinst
+  type: string
+  desc: 流程实例ID
 - name: app_tenant_code
-  data_type: string
-  description: 逻辑租户标识
-  cluster: tenant
+  type: string
+  desc: 逻辑租户标识
 - name: db_tenant_code
-  data_type: string
-  description: 数据租户标识
-  cluster: tenant
+  type: string
+  desc: 数据租户标识
 - name: act_procinst_no
-  data_type: string
-  description: 流程申请编号
-  cluster: act_procinst
+  type: string
+  desc: 流程申请编号
 - name: act_procinst_status
-  data_type: string
-  description: 当前审批状态
-  cluster: act_procinst
+  type: string
+  desc: 当前审批状态
 - name: act_procinst_date
-  data_type: temporal
-  description: 审批结束时间
-  cluster: act_procinst
+  type: temporal
+  desc: 审批结束时间
 - name: organization_id
-  data_type: string
-  description: 机构编号
-  cluster: cust
+  type: string
+  desc: 机构编号
 - name: creation_type
-  data_type: string
-  description: 创建类型
-  cluster: common
-  dictionary: authorization_agreement__creation_type
+  type: string
+  desc: 创建类型
+  dict: [CUST_BUILD_INIT, AUTO, COMPANY_MANAGER_CHANGE_CODE]
 ```
 
 ## 关联关系

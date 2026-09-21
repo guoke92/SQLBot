@@ -6,6 +6,8 @@ tables:
     default_filter:
       predicate: "tenant_setting_config.enable = 'Y'"
       evidence: code_path:TenantDomainService.java:344
+    field_notes:
+      access_mode: 空/STANDARD=现网；DIRECT_INIT=方案2直推；保存时 preserveAccessModeIfBlank
   tenant_setting_config_share:
     grain: 共享租户配置副本（apaas 生成，业务侧少查）
   tenant_product:
@@ -23,7 +25,7 @@ tables:
       predicate: "tenant_project.enable = 'Y'"
       evidence: code_path:TenantProjectDaoImpl.java:36
   tenant_project_approval:
-    grain: 项目上线审批单；最新一笔 is_latest=Y
+    grain: 项目上线审批单；列表最新一笔 is_latest=Y；在途仍受 assertNoApproval 约束
     default_filter:
       predicate: "tenant_project_approval.enable = 'Y'"
       evidence: code_path:ProjectApprovalApplication.java:254
@@ -54,7 +56,7 @@ tables:
   tenant_project_approval_flow_file:
     grain: 审批附件
   tenant_project_approval_flow_comment:
-    grain: 审批备注（catalog 有表；pplatform-web 无 @TableName DO）
+    grain: 审批备注；apaas 有 @TableName DO，业务侧少直接引用
   tenant_interworking_product:
     grain: 一租户一互通产品一行
     default_filter:

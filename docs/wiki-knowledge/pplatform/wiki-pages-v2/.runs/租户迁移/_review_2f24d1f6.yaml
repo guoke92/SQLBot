@@ -1,4 +1,0 @@
-body: 需求侧『假贴牌/二级贴牌』在语义分析中无独立字段与标识，仅有 `app_tenant_code`、`tenant_flg_en` 等近似字段，代码证据只支持展示/推送用途（bandName
-  填 brand、platName 拼提示语）。是否需新增二级贴牌标识字段属未决事项，本页按 boundary 处理，未落 ground 块。
-title: 贴牌
-type: concept

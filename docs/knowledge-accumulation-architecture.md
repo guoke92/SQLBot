@@ -1,5 +1,7 @@
 # 知识积累完整架构设计
 
+> **非问数 Wiki 提取契约。** Wiki 权威见 [`docs/wiki/`](wiki/README.md)；本文件属 Catalog/Conversation 沉淀面，勿与 L0/L1 提取混用。
+
 > **权威序：** 落地计划（含 §11）> `knowledge-catalog-linkage-revision.md` > `knowledge-accumulation-implementation.md` > **本文**。  
 > 废止/降级：自研 V-T12 join 矿（改为触发 `mine_query_log_joins`）；Catalog P0 阻塞 Conversation；MVP 含 process 表（可后置）。  
 > 覆盖：Catalog Plane（库侧挖掘）+ Conversation Plane（对话沉淀）  

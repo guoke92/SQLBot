@@ -9,8 +9,8 @@ sources: ['database_profile:ca_fee_company.ca_status', 'database_schema:ca_fee_c
   'code_path:CaFeeCertStatusEnum.java:15', 'code_path:CaFeeCertStatusEnum.java:17',
   'code_path:CaFeeCertStatusEnum.java:19', 'code_path:CaFeeCertStatusEnum.java:16',
   'code_path:CaFeeCertStatusEnum.java:18']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [ca_fee_company]
 ---

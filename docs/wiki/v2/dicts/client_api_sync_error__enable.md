@@ -6,8 +6,8 @@ belong: dicts
 status: draft
 anchors: [client_api_sync_error.enable]
 sources: ['database_profile:client_api_sync_error.enable']
-created: '2026-09-17'
-updated: '2026-09-17'
+created: '2026-09-20'
+updated: '2026-09-20'
 contract_version: '0.1'
 related: [client_api_sync_error]
 ---

@@ -9,8 +9,8 @@ anchors: [cust_company_info.check_status]
 field_targets: [cust_company_info.check_status]
 sources: ['code_path:CustCompanyInfoApplication.java:7350', 'code_path:CustSyncEventProcessor.java:2080',
   'code_path:CustSyncEventProcessor.java:2033', 'code_path:CustSyncEventProcessor.java:2064']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [cust_company_info]
 ---

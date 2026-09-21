@@ -8,8 +8,8 @@ anchors: [tenant_product.open_status]
 sources: ['database_profile:tenant_product.open_status', 'database_schema:tenant_product.open_status',
   'code_path:ProductOpenStatusEnum.java:18', 'code_path:ProductOpenStatusEnum.java:23',
   'code_path:ProductOpenStatusEnum.java:19']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [tenant_product]
 ---

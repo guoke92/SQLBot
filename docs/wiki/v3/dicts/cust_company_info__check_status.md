@@ -7,8 +7,8 @@ status: draft
 anchors: [cust_company_info.check_status]
 sources: ['database_profile:cust_company_info.check_status', 'database_schema:cust_company_info.check_status',
   'code_path:OperApiConstants.java:203', 'code_path:OperApiConstants.java:204']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [cust_company_info]
 ---

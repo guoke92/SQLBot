@@ -1,4 +1,0 @@
-body: 语义分析未给出物理库名（scope.databases 无 [DB] 证据），当前所有页面 frontmatter 的 `scope.databases`
-  以 `unknown` 占位。需补充各表的物理库名后统一回填，并确认 platform_product / tenant_product / cust_* 是否同库。
-title: 平台产品配置域全部表页
-type: tables

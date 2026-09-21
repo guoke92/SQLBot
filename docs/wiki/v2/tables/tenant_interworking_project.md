@@ -6,179 +6,116 @@ belong: tables
 status: draft
 anchors: [tenant_interworking_project]
 sources: ['database_schema:lowcode_pplatform.tenant_interworking_project']
-created: '2026-09-17'
-updated: '2026-09-17'
+created: '2026-09-20'
+updated: '2026-09-20'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
 related: [tenant_interworking_product, platform_product, tenant_project, tenant_setting_config,
-  tenant_interworking_project__platform_product_code]
+  tenant_interworking_project__code, tenant_interworking_project__platform_product_code,
+  tenant_interworking_project__ref_tenant_interworking_project_tenant_setting_config,
+  tenant_interworking_project__ref_tenant_interworking_project_tenant_interworking_product,
+  tenant_interworking_project__enable]
 ---
 
 # 租户互通产品项目
 
-L0 库侧合同（draft）。grain / 字段簇 / 身份束关系均为 proposed，不得当认证 JOIN。
-
-## 字段簇
-
-### common
-
-`id`, `code`, `name`, `enable`, `remark`, `create_by`, `create_user`, `create_time`, `update_by`, `update_user`, `update_time`
-
-### audit
-
-（空）
-
-### tenant_scope
-
-`tenant_id`, `app_tenant_code`, `db_tenant_code`, `organization_id`
-
-### product_project
-
-`product_id`, `platform_product_code`, `project_id`
-
-### relation_ref
-
-`ref_tenant_interworking_project_tenant_setting_config`, `ref_tenant_interworking_project_tenant_interworking_product`
-
-### workflow
-
-`act_procinst_id`, `act_procinst_no`, `act_procinst_status`, `act_procinst_date`
+L0 库侧合同（draft）。grain / 身份束关系均为 proposed，不得当认证 JOIN。
 
 ## 字段
 
 ```ground:table
 table: tenant_interworking_project
 database: lowcode_pplatform
-description: 租户互通产品项目
+desc: 租户互通产品项目
 inactive: false
 primary_key: [id]
 grain: 一行一记录（id）
 name_anchors: [code, name]
-clusters:
-- key: common
-  title: 通用
-  include: always
-- key: audit
-  title: 审计信息
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.tenant_interworking_project
-- key: tenant_scope
-  title: 租户与机构
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.tenant_interworking_project
-- key: product_project
-  title: 产品与项目
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.tenant_interworking_project
-- key: relation_ref
-  title: 关联引用
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.tenant_interworking_project
-- key: workflow
-  title: 审批流程
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.tenant_interworking_project
 fields:
 - name: id
-  data_type: number
-  description: 表主键
+  type: number
+  desc: 表主键
   nullable: false
-  cluster: common
 - name: code
-  data_type: string
-  description: 编码
-  cluster: common
+  type: string
+  desc: 编码
+  dict: [26c78215b94a49b7b26059e04b415f8d, 082d4b100c6e46fca373b77d90f48315, f37562e4d0d445eebe7cfcdba0648480,
+    e4ff59371e4f4307a05136657e28aaf9, 43240459f2d94548ac17d344550d8243, f97bde07a4544a1ea1bd59350de4a258,
+    f77891dd946845cbb6fd787a55f209de, 96dafc5359e14e6689893143e83804ad, 8f4686ebbe924a478e5b3a4ba0929f3a,
+    292d1283d3ec48009f882fe5675cfc08, e699b627ea8b4da1b7a15a6313b272e9, 7f3d88d76f464cbbb7fd0870ff13ed2a]
 - name: name
-  data_type: string
-  description: 名称
-  cluster: common
+  type: string
+  desc: 名称
 - name: product_id
-  data_type: number
-  description: 产品id
-  cluster: product_project
+  type: number
+  desc: 产品id
 - name: tenant_id
-  data_type: number
-  description: 租户id
-  cluster: tenant_scope
+  type: number
+  desc: 租户id
 - name: platform_product_code
-  data_type: string
-  description: 平台产品编码
-  cluster: product_project
-  dictionary: tenant_interworking_project__platform_product_code
+  type: string
+  desc: 平台产品编码
+  dict: [HTCP1, HTCP14, AMS, HTCP13, HTCP5]
 - name: project_id
-  data_type: number
-  description: 项目id
-  cluster: product_project
+  type: number
+  desc: 项目id
 - name: ref_tenant_interworking_project_tenant_setting_config
-  data_type: string
-  description: 租户项目
-  cluster: relation_ref
+  type: string
+  desc: 租户项目
+  dict: [a285d4cf94ec4384bb7b6cf5ba994b4a, d77dc6bffbcc46fba7a864a07ef63c24]
 - name: ref_tenant_interworking_project_tenant_interworking_product
-  data_type: string
-  description: 租户产品项目
-  cluster: relation_ref
+  type: string
+  desc: 租户产品项目
+  dict: [76fe2ab40aa14dffa1fe2d720f398910, 5afb2d5a0ac241f395f9dfc9436b7a93, 4932eca2392d45f8821aba513f379c7f,
+    2dbc124f73dd4e9eb96cc74685b17645, 87a6136555544df2adf6295bdd75956f, ccf30c163d794060bba0450b455b796c]
 - name: enable
-  data_type: string
-  description: enable
-  cluster: common
+  type: string
+  desc: enable
+  dict: [Y]
 - name: remark
-  data_type: string
-  description: remark
-  cluster: common
+  type: string
+  desc: remark
 - name: create_by
-  data_type: string
-  description: 创建人id
-  cluster: common
+  type: string
+  desc: 创建人id
 - name: create_user
-  data_type: string
-  description: 创建人名称
-  cluster: common
+  type: string
+  desc: 创建人名称
 - name: create_time
-  data_type: temporal
-  description: 创建时间
+  type: temporal
+  desc: 创建时间
   nullable: false
-  cluster: common
 - name: update_by
-  data_type: string
-  description: 更新人id
-  cluster: common
+  type: string
+  desc: 更新人id
 - name: update_user
-  data_type: string
-  description: 更新人名称
-  cluster: common
+  type: string
+  desc: 更新人名称
 - name: update_time
-  data_type: temporal
-  description: 更新时间
+  type: temporal
+  desc: 更新时间
   nullable: false
-  cluster: common
 - name: act_procinst_id
-  data_type: string
-  description: 流程实例ID
-  cluster: workflow
+  type: string
+  desc: 流程实例ID
 - name: app_tenant_code
-  data_type: string
-  description: 逻辑租户标识
-  cluster: tenant_scope
+  type: string
+  desc: 逻辑租户标识
 - name: db_tenant_code
-  data_type: string
-  description: 数据租户标识
-  cluster: tenant_scope
+  type: string
+  desc: 数据租户标识
 - name: act_procinst_no
-  data_type: string
-  description: 流程申请编号
-  cluster: workflow
+  type: string
+  desc: 流程申请编号
 - name: act_procinst_status
-  data_type: string
-  description: 当前审批状态
-  cluster: workflow
+  type: string
+  desc: 当前审批状态
 - name: act_procinst_date
-  data_type: temporal
-  description: 审批结束时间
-  cluster: workflow
+  type: temporal
+  desc: 审批结束时间
 - name: organization_id
-  data_type: string
-  description: 机构编号
-  cluster: tenant_scope
+  type: string
+  desc: 机构编号
 ```
 
 ## 关联关系
@@ -326,4 +263,8 @@ overlap:
 
 ### 字典
 
+- [[dicts/tenant_interworking_project__code]]（`tenant_interworking_project.code`）
 - [[dicts/tenant_interworking_project__platform_product_code]]（`tenant_interworking_project.platform_product_code`）
+- [[dicts/tenant_interworking_project__ref_tenant_interworking_project_tenant_setting_config]]（`tenant_interworking_project.ref_tenant_interworking_project_tenant_setting_config`）
+- [[dicts/tenant_interworking_project__ref_tenant_interworking_project_tenant_interworking_product]]（`tenant_interworking_project.ref_tenant_interworking_project_tenant_interworking_product`）
+- [[dicts/tenant_interworking_project__enable]]（`tenant_interworking_project.enable`）

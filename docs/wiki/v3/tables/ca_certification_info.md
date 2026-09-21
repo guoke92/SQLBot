@@ -6,12 +6,13 @@ belong: tables
 status: draft
 anchors: [ca_certification_info]
 sources: ['database_schema:lowcode_pplatform.ca_certification_info', 'code_path:CaCertificationInfoAppServiceImpl.java:663']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
 related: [cust_company_info, ca_certification_info__cust_type, ca_certification_info__op_type,
-  ca_certification_info__data_source, ca_certification_info__submit_status, ca_certification_info__head_company_data]
+  ca_certification_info__data_source, ca_certification_info__submit_status, ca_certification_info__enable,
+  ca_certification_info__head_company_data]
 ---
 
 # CA认证信息
@@ -93,6 +94,7 @@ fields:
 - name: enable
   type: string
   desc: enable
+  dict: [Y]
 - name: remark
   type: string
   desc: remark
@@ -176,4 +178,5 @@ priority: primary
 - [[dicts/ca_certification_info__op_type]]（`ca_certification_info.op_type`）
 - [[dicts/ca_certification_info__data_source]]（`ca_certification_info.data_source`）
 - [[dicts/ca_certification_info__submit_status]]（`ca_certification_info.submit_status`）
+- [[dicts/ca_certification_info__enable]]（`ca_certification_info.enable`）
 - [[dicts/ca_certification_info__head_company_data]]（`ca_certification_info.head_company_data`）

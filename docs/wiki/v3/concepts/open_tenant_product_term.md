@@ -9,8 +9,8 @@ aliases: [租户开通产品]
 maps_to: tenant_product.open_status
 field_targets: [tenant_product.open_status]
 sources: ['code_path:ProductOpenStatusEnum.java:18', 'document_claim:docs/wiki-knowledge/pplatform/req-index/concepts/项目上线审批流程.md']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [tenant_product]
 also_confused_with: [online_approval_wf, platform_product_master, tenant_flg_en, interworking_open_term]

@@ -754,7 +754,15 @@ def fail_node(state: NlqState) -> NlqState:
         outcome=outcome,
     )
     StreamSink.from_state(state).error(public_error)
-    return {**state, "error": error, "outcome": outcome}
+    failed = {**state, "error": error, "outcome": outcome}
+    if not failed.get("agent_transcript_saved"):
+        try:
+            from apps.chat.session_transcript import persist_turn_from_state
+
+            failed["agent_transcript_saved"] = persist_turn_from_state(failed)
+        except Exception as exc:
+            SQLBotLogUtil.warning(f"agent_transcript append skipped: {exc}")
+    return failed
 
 
 def _extract_title_from_sql_answer(raw_text: str, plans: list[dict[str, Any]]) -> str:

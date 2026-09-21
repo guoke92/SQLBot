@@ -21,11 +21,14 @@ concepts:
     also_confused_with: [project_status_vs_approval, wechat_apply_term, approval_whitelist, approval_credit_not_quota]
     adjudication: boundary
     explanation: |
-      需求「项目上线审批流程」落在 tenant_project_approval。PENDING 待发起，RUNNING 审批中，FINISHED 通过，TERMINATED 拒绝。
+      需求「项目上线审批流程」落在 tenant_project_approval。
+      wf_status：PENDING/RUNNING/FINISHED/TERMINATED/REVOKED（displayName=审批撤销，V1.35+）。
+      REVOKED 是发起人撤销（revokeApproval），不是 TERMINATED（审批拒绝）；撤销不改项目 project_status。
       按项目 code 关联，不是项目 id。企微立项单是另一张表。
       document_claim:项目上线审批催办.md#31：催办仅 RUNNING、5 分钟一次发企微；ProjectApprovalRemindApplication 不写本表。
-      document_claim:项目上线审批撤回.md#21 要「审批撤销」；现网枚举无 REVOKED，TERMINATED 注释是审批拒绝，不要把撤销当成拒绝。
       document_claim:项目上线审批跨节点退回.md#15：退回写节点，wf_status 仍等流程结束监听。
+      现网 assertNoApproval：同一项目仍禁止重复 PENDING/RUNNING；列表「最新一条」用 is_latest=Y。
+      document_claim:V1.37 设计拟放开多在途并增加 project_config_deleted/project_name_snapshot 留底列——live 库与现网代码尚未落地，勿当 confirmed 列。
     evidence: code_path:ProjectApprovalWorkflowStatusEnum.java:16
   - concept_key: tenant_project_code_join
     title: 审批关联项目编码
@@ -81,12 +84,12 @@ concepts:
     aliases: [线下授权书电子版, 电子授权书开关]
     maps_to: tenant_setting_config.generate_electronic_auth_flag
     field_targets: [tenant_setting_config.generate_electronic_auth_flag]
-    also_confused_with: [authorization_book, cross_tenant_resign, auth_supplement_flag]
+    also_confused_with: [authorization_book, cross_tenant_resign, auth_supplement_flag, direct_init_need_resign, electronic_auth_sign_status_term]
     adjudication: boundary
     explanation: |
       document_claim:线下授权书自动生成电子版.md#32：租户运营配置「生成电子版授权书」。
       现网按 db_tenant_code 且 enable=Y 读 generate_electronic_auth_flag=Y。Y/N 不编字典页。
-      不是 authorization_agreement 那张授权确认书行。
+      不是 authorization_agreement 那张授权确认书行，也不是 cust_*_record.electronic_auth_sign_status，也不是直推 need_resign_auth。
     evidence: code_path:ElectronicAuthLetterApplication.java:49
   - concept_key: refer_copy_project
     title: 跨贴牌项目引用
@@ -123,14 +126,17 @@ concepts:
     evidence: code_path:TenantSettingConfigController.java:114
   - concept_key: channel_code_term
     title: 渠道码
-    aliases: [项目渠道码, QD码]
+    aliases: [项目渠道码, QD码, 项目码, 项目专属服务码]
     maps_to: tenant_project.channel_code
     field_targets: [tenant_project.channel_code]
-    also_confused_with: [project_code_input, tenant_flg_en]
+    also_confused_with: [project_code_input, tenant_flg_en, open_sso_channel_term, channel_archive_longteng, tenant_code_vs_db_tenant]
     adjudication: boundary
     explanation: |
       document_claim:渠道码.md#11：项目同步时生成的邀请注册标识码。catalog 注释「渠道码」。
+      document_claim:项目码.md：业务口「项目码」即本列 channel_code（主档），不是 tenant_project.project_code（项目编码）。
       按 channel_code 查项目。不是客户录入的项目码记录，也不是 tenant_flg_en。
+      不是 open_sso_channel.channel_code（OpenAPI/SSO 渠道如 longteng），也不是 cust_company_info.channel_code / cust_access_secret.channel。
+      cust_project_rel.channel_code 是项目关联上的渠道码拷贝，仍不是 SSO 渠道主数据。
     evidence: code_path:TenantProjectDaoImpl.java:93
   - concept_key: project_is_prd
     title: 项目是否生产数据
@@ -203,11 +209,11 @@ concepts:
     aliases: [跨租户补签授权书, 强制重签授权书]
     maps_to: tenant_setting_config.sign_flag
     field_targets: [tenant_setting_config.sign_flag]
-    also_confused_with: [authorization_book, electronic_auth_flag, auth_supplement_flag, auth_channel_flag]
+    also_confused_with: [authorization_book, electronic_auth_flag, auth_supplement_flag, auth_channel_flag, direct_init_need_resign]
     adjudication: boundary
     explanation: |
       document_claim:跨租户补签授权书.md#18。catalog 注释「接收跨贴牌数据是否强制重签授权书」。
-      现网 Y 则跨租户同步要补签。不是 generate_electronic_auth_flag，也不是企业上的补签开关。Y/N 不编字典页。
+      现网 Y 则跨租户同步要补签。不是 generate_electronic_auth_flag，也不是企业上的补签开关，也不是直推 need_resign_auth。Y/N 不编字典页。
     evidence: code_path:CustCompanyInfoApplication.java:6259
   - concept_key: project_config_model
     title: 项目配置模式
@@ -242,3 +248,4 @@ concepts:
       document_claim:项目名称修改.md#11：内管改项目名称。列就是 tenant_project.name。
       跨系统同步方案需求未闭合，问数只按本列。不是项目配置版本。
     evidence: code_path:TenantProjectDomainService.java:110
+

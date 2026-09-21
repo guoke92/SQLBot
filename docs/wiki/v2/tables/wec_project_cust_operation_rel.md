@@ -6,228 +6,132 @@ belong: tables
 status: draft
 anchors: [wec_project_cust_operation_rel]
 sources: ['database_schema:lowcode_pplatform.wec_project_cust_operation_rel']
-created: '2026-09-17'
-updated: '2026-09-17'
+created: '2026-09-20'
+updated: '2026-09-20'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
-related: [wec_project_cust_operation_rel__company_type, wec_project_cust_operation_rel__enable,
-  wec_project_cust_operation_rel__top_flag]
+related: [wec_project_cust_operation_rel__company_type, wec_project_cust_operation_rel__op_contact_a,
+  wec_project_cust_operation_rel__verification_contact, wec_project_cust_operation_rel__risk_control_contact_a,
+  wec_project_cust_operation_rel__enable, wec_project_cust_operation_rel__top_flag]
 ---
 
 # 微企链项目企业关联运营
 
-L0 库侧合同（draft）。grain / 字段簇 / 身份束关系均为 proposed，不得当认证 JOIN。
-
-## 字段簇
-
-### common
-
-`id`, `code`, `name`, `enable`, `remark`, `create_by`, `create_user`, `create_time`, `update_by`, `update_user`, `update_time`
-
-### status_flag
-
-`top_flag`
-
-### tenant
-
-`app_tenant_code`, `db_tenant_code`
-
-### wec_rel
-
-`wec_rel_id`, `company_id`, `company_type`, `project_id`
-
-### op_contact
-
-`op_contact_a`, `op_contact_b`, `op_contact_a_group`
-
-### verification
-
-`verification_contact`, `verification_contact_group`
-
-### risk_control
-
-`risk_control_contact_a`, `risk_control_contact_b`, `risk_control_contact_a_group`
-
-### act_procinst
-
-`act_procinst_id`, `act_procinst_no`, `act_procinst_status`, `act_procinst_date`
-
-### 未归簇
-
-`organization_id`
+L0 库侧合同（draft）。grain / 身份束关系均为 proposed，不得当认证 JOIN。
 
 ## 字段
 
 ```ground:table
 table: wec_project_cust_operation_rel
 database: lowcode_pplatform
-description: 微企链项目企业关联运营
+desc: 微企链项目企业关联运营
 inactive: false
 primary_key: [id]
 grain: 一行一记录（id）
 name_anchors: [code, name]
-clusters:
-- key: common
-  title: 通用
-  include: always
-- key: status_flag
-  title: 状态与标识
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.wec_project_cust_operation_rel
-- key: tenant
-  title: 租户
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.wec_project_cust_operation_rel
-- key: wec_rel
-  title: 微企链关联主体
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.wec_project_cust_operation_rel
-- key: op_contact
-  title: 运营对接
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.wec_project_cust_operation_rel
-- key: verification
-  title: 查验对接
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.wec_project_cust_operation_rel
-- key: risk_control
-  title: 风控对接
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.wec_project_cust_operation_rel
-- key: act_procinst
-  title: 审批流程
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.wec_project_cust_operation_rel
 fields:
 - name: id
-  data_type: number
-  description: 表主键
+  type: number
+  desc: 表主键
   nullable: false
-  cluster: common
 - name: wec_rel_id
-  data_type: string
-  description: 微企链关联关系id
-  cluster: wec_rel
+  type: string
+  desc: 微企链关联关系id
 - name: company_id
-  data_type: string
-  description: 微企链企业id
-  cluster: wec_rel
+  type: string
+  desc: 微企链企业id
 - name: company_type
-  data_type: string
-  description: 微企链企业角色
-  cluster: wec_rel
-  dictionary: wec_project_cust_operation_rel__company_type
+  type: string
+  desc: 微企链企业角色
+  dict: [ce, cpt]
 - name: project_id
-  data_type: string
-  description: 微企链项目id
-  cluster: wec_rel
+  type: string
+  desc: 微企链项目id
 - name: op_contact_a
-  data_type: string
-  description: 运营对接人A
-  cluster: op_contact
+  type: string
+  desc: 运营对接人A
+  dict: ['420', '267', '321', '293', '411', '271', '97', '454']
 - name: op_contact_b
-  data_type: string
-  description: 运营对接人B
-  cluster: op_contact
+  type: string
+  desc: 运营对接人B
 - name: op_contact_a_group
-  data_type: string
-  description: 运营组别
-  cluster: op_contact
+  type: string
+  desc: 运营组别
 - name: verification_contact
-  data_type: string
-  description: 查验对接人
-  cluster: verification
+  type: string
+  desc: 查验对接人
+  dict: ['454', '305', '321', '141']
 - name: verification_contact_group
-  data_type: string
-  description: 查验组别
-  cluster: verification
+  type: string
+  desc: 查验组别
 - name: risk_control_contact_a
-  data_type: string
-  description: 风控对接人A
-  cluster: risk_control
+  type: string
+  desc: 风控对接人A
+  dict: ['454', '271', '321', '105', '108']
 - name: risk_control_contact_b
-  data_type: string
-  description: 风控对接人B
-  cluster: risk_control
+  type: string
+  desc: 风控对接人B
 - name: risk_control_contact_a_group
-  data_type: string
-  description: 风控组别
-  cluster: risk_control
+  type: string
+  desc: 风控组别
 - name: code
-  data_type: string
-  description: 编码
-  cluster: common
+  type: string
+  desc: 编码
 - name: name
-  data_type: string
-  description: 名称
-  cluster: common
+  type: string
+  desc: 名称
 - name: enable
-  data_type: string
-  description: enable
-  cluster: common
-  dictionary: wec_project_cust_operation_rel__enable
+  type: string
+  desc: enable
+  dict: [Y]
 - name: remark
-  data_type: string
-  description: remark
-  cluster: common
+  type: string
+  desc: remark
 - name: create_by
-  data_type: string
-  description: 创建人id
-  cluster: common
+  type: string
+  desc: 创建人id
 - name: create_user
-  data_type: string
-  description: 创建人名称
-  cluster: common
+  type: string
+  desc: 创建人名称
 - name: create_time
-  data_type: temporal
-  description: 创建时间
+  type: temporal
+  desc: 创建时间
   nullable: false
-  cluster: common
 - name: update_by
-  data_type: string
-  description: 更新人id
-  cluster: common
+  type: string
+  desc: 更新人id
 - name: update_user
-  data_type: string
-  description: 更新人名称
-  cluster: common
+  type: string
+  desc: 更新人名称
 - name: update_time
-  data_type: temporal
-  description: 更新时间
+  type: temporal
+  desc: 更新时间
   nullable: false
-  cluster: common
 - name: act_procinst_id
-  data_type: string
-  description: 流程实例ID
-  cluster: act_procinst
+  type: string
+  desc: 流程实例ID
 - name: app_tenant_code
-  data_type: string
-  description: 逻辑租户标识
-  cluster: tenant
+  type: string
+  desc: 逻辑租户标识
 - name: db_tenant_code
-  data_type: string
-  description: 数据租户标识
-  cluster: tenant
+  type: string
+  desc: 数据租户标识
 - name: act_procinst_no
-  data_type: string
-  description: 流程申请编号
-  cluster: act_procinst
+  type: string
+  desc: 流程申请编号
 - name: act_procinst_status
-  data_type: string
-  description: 当前审批状态
-  cluster: act_procinst
+  type: string
+  desc: 当前审批状态
 - name: act_procinst_date
-  data_type: temporal
-  description: 审批结束时间
-  cluster: act_procinst
+  type: temporal
+  desc: 审批结束时间
 - name: organization_id
-  data_type: string
-  description: 机构编号
+  type: string
+  desc: 机构编号
 - name: top_flag
-  data_type: string
-  description: 置顶标识
-  cluster: status_flag
-  dictionary: wec_project_cust_operation_rel__top_flag
+  type: string
+  desc: 置顶标识
+  dict: ['0']
 ```
 
 ## 页面链接
@@ -235,5 +139,8 @@ fields:
 ### 字典
 
 - [[dicts/wec_project_cust_operation_rel__company_type]]（`wec_project_cust_operation_rel.company_type`）
+- [[dicts/wec_project_cust_operation_rel__op_contact_a]]（`wec_project_cust_operation_rel.op_contact_a`）
+- [[dicts/wec_project_cust_operation_rel__verification_contact]]（`wec_project_cust_operation_rel.verification_contact`）
+- [[dicts/wec_project_cust_operation_rel__risk_control_contact_a]]（`wec_project_cust_operation_rel.risk_control_contact_a`）
 - [[dicts/wec_project_cust_operation_rel__enable]]（`wec_project_cust_operation_rel.enable`）
 - [[dicts/wec_project_cust_operation_rel__top_flag]]（`wec_project_cust_operation_rel.top_flag`）

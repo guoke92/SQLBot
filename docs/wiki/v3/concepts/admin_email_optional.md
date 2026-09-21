@@ -9,8 +9,8 @@ aliases: [管理员邮箱非必填, 业务邮箱]
 maps_to: cust_person_info.email
 field_targets: [cust_person_info.email]
 sources: ['code_path:CustImportCustInfoDTO.java:92', 'document_claim:docs/wiki-knowledge/pplatform/req-index/concepts/产品需求规格说明书_产融平台V1.0.0.md']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [cust_person_info]
 also_confused_with: [account_admin]

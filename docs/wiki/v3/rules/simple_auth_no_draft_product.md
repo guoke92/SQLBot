@@ -8,8 +8,8 @@ status: draft
 field_targets: [cust_company_info.identify_style, cust_company_info.need_register_ca,
   cust_company_info.head_company]
 sources: ['code_path:CustCompanyInfoApplication.java:4437']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [cust_company_info]
 ---

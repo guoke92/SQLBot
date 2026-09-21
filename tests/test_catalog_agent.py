@@ -18,7 +18,6 @@ from apps.chat.tools.catalog_tools import (  # noqa: E402
     MAX_TABLES_PER_CALL,
     classify_relations,
     filter_knowledge_passages,
-    knowledge_budget_result,
     parse_relation_edges,
     render_tables_schema,
     strip_relation_lines,
@@ -34,13 +33,14 @@ def _page(
     page_type: str,
     body: str,
     aliases: list[str] | None = None,
+    extra_front: str = "",
 ) -> str:
     alias_line = ""
     if aliases:
         alias_line = "aliases: [" + ", ".join(aliases) + "]\n"
     return (
         f"---\npage_key: {key}\ntype: {page_type}\ntitle: {title}\n"
-        f"status: published\n{alias_line}---\n\n{body}\n"
+        f"status: published\n{alias_line}{extra_front}---\n\n{body}\n"
     )
 
 
@@ -200,6 +200,12 @@ def _company_person_store() -> InMemoryWikiStore:
                 title="认证方式",
                 page_type="concept",
                 aliases=["认证方式"],
+                extra_front=(
+                    "maps_to: cust_company_info.identify_style\n"
+                    "field_targets: [cust_company_info.identify_style]\n"
+                    "also_confused_with: [cust_build_type]\n"
+                    "adjudication: boundary\n"
+                ),
                 body="# 认证方式\n企业认证渠道，落在 cust_company_info.identify_style。\n",
             ),
             _page(
@@ -226,6 +232,24 @@ def _company_person_store() -> InMemoryWikiStore:
                 title="导出任务规则",
                 page_type="rule",
                 body="# 导出任务\n操作手册，不得选表。\n",
+            ),
+            _page(
+                key="company_build",
+                title="企业建档",
+                page_type="scenario",
+                aliases=["企业建档"],
+                body=(
+                    "# 企业建档\n"
+                    "```ground:scenario\n"
+                    "scenario: company_build\n"
+                    "hubs:\n"
+                    "- table: cust_company_info\n"
+                    "  role: master\n"
+                    "shared:\n"
+                    "- table: cust_person_info\n"
+                    "  role: admin_person\n"
+                    "```\n"
+                ),
             ),
         ]
     )
@@ -293,14 +317,24 @@ def test_knowledge_filters_rules_and_keeps_caliber() -> None:
     keys = {str(item.page_key) for item in kept}
     assert "export_task_rule" not in keys
 
+    scenario_passages = recall("企业建档", store, top_k=8, mode="business")
+    scenario_kept = filter_knowledge_passages(scenario_passages, store)
+    scenario_types = {
+        store.pages[str(item.store_key)].type
+        for item in scenario_kept
+        if str(item.store_key) in store.pages
+    }
+    assert "scenario" in scenario_types
+
 
 def test_strip_relation_lines_and_budget_gate() -> None:
     text = "## 项目 (tenant_project)\nname:varchar, 项目名称\n关联: a.b → c.d (c)"
     assert "关联:" not in strip_relation_lines(text)
-    plane = AgentKnowledgePlane(knowledge_rounds=2)
-    blocked = knowledge_budget_result(plane)
-    assert blocked is not None
-    assert blocked["ok"] is False
+    from apps.chat.tools import catalog_tools as ct
+
+    assert not hasattr(ct, "knowledge_budget_result")
+    plane = AgentKnowledgePlane(knowledge_rounds=8)
+    assert int(plane.knowledge_rounds) == 8
 
 
 def test_agent_tools_are_orthogonal_not_search_wiki() -> None:
@@ -315,12 +349,20 @@ def test_prompt_guardrails_name_the_four_tools() -> None:
     assert "get_table_schema" in _SYSTEM_PROMPT_TEMPLATE
     assert "get_table_relations" in _SYSTEM_PROMPT_TEMPLATE
     assert "search_knowledge" in _SYSTEM_PROMPT_TEMPLATE
+    assert "lookup_values" in _SYSTEM_PROMPT_TEMPLATE
     assert "get_dict_values" in _SYSTEM_PROMPT_TEMPLATE
     assert "schema_outline" in _SYSTEM_PROMPT_TEMPLATE
     assert "单表禁用" in _SYSTEM_PROMPT_TEMPLATE
-    assert "快速通道" in _SYSTEM_PROMPT_TEMPLATE
+    assert "单表直查" in _SYSTEM_PROMPT_TEMPLATE
+    assert "lookup_values" in _SYSTEM_PROMPT_TEMPLATE
     assert "search_wiki" not in _SYSTEM_PROMPT_TEMPLATE
     assert "focus=all" not in _SYSTEM_PROMPT_TEMPLATE
+    assert "value_grounding" not in _SYSTEM_PROMPT_TEMPLATE
+    assert "caliber_conflicts" not in _SYSTEM_PROMPT_TEMPLATE
+    assert "硬预算" not in _SYSTEM_PROMPT_TEMPLATE
+    assert "轮次建议" not in _SYSTEM_PROMPT_TEMPLATE
+    assert "按需调用" in _SYSTEM_PROMPT_TEMPLATE
+    assert "全对话最多" not in _SYSTEM_PROMPT_TEMPLATE
 
 
 def test_plane_renders_outline_and_full_opened_table() -> None:
@@ -338,9 +380,298 @@ def test_plane_renders_outline_and_full_opened_table() -> None:
     )
     rendered = plane.render_system_sections()
     assert "<schema_outline>" in rendered
-    assert "项目名称" in rendered
-    assert "对端未入选" not in rendered
+    assert "项目名称" not in rendered
+    assert "tenant_project" in plane.schema_catalog_text()
+    assert "项目名称" in plane.schema_catalog_text()
+    assert "对端未入选" not in plane.schema_catalog_text()
 
 
 def test_max_tables_cap_constant() -> None:
     assert MAX_TABLES_PER_CALL == 3
+
+
+def test_inline_dict_and_label_render_on_schema() -> None:
+    body = (
+        "```ground:table\n"
+        "table: cust_company_info\n"
+        "desc: 客户企业主档案\n"
+        "fields:\n"
+        "  - name: cust_build_type\n"
+        "    phys: varchar\n"
+        "    desc: 建档类型\n"
+        "    dict: [AGW_BUILD, PC_BUILD]\n"
+        "    label:\n"
+        "      AGW_BUILD: 平台录入\n"
+        "      PC_BUILD: 客户录入\n"
+        "```\n"
+    )
+    store = InMemoryWikiStore.load(
+        [
+            _page(
+                key="cust_company_info",
+                title="客户企业主档案",
+                page_type="table",
+                body=body,
+            )
+        ]
+    )
+    schema = render_tables_schema(["cust_company_info"], store=store)
+    assert "topk=AGW_BUILD|PC_BUILD" in schema
+    assert "labels=" in schema
+    assert "平台录入" in schema
+    assert "AGW_BUILD" in schema
+
+
+def test_get_dict_values_resolves_unprefixed_and_inline(monkeypatch) -> None:
+    from apps.chat.tools import catalog_tools as ct
+    from apps.chat.tools.catalog_tools import get_dict_values
+
+    store = _company_person_store()
+    plane = AgentKnowledgePlane()
+    monkeypatch.setattr(ct, "load_plane", lambda: plane)
+    monkeypatch.setattr(ct, "save_plane", lambda _p: None)
+    monkeypatch.setattr(ct, "_catalog_sources", lambda _svc: (store, {}, []))
+    monkeypatch.setattr(ct, "_value_index_field_values", lambda *_a, **_k: [])
+
+    result = get_dict_values(SimpleNamespace(ds=None), dict_name="cust_build_type")
+    assert result["ok"] is True
+    values = (result.get("data") or {}).get("values") or []
+    labels = {item["label"] for item in values}
+    assert "平台录入" in labels
+
+    inline_body = (
+        "```ground:table\n"
+        "table: cust_company_info\n"
+        "desc: 客户企业\n"
+        "fields:\n"
+        "  - name: cust_build_type\n"
+        "    phys: varchar\n"
+        "    desc: 建档类型\n"
+        "    dict: [AGW_BUILD, PC_BUILD]\n"
+        "    label:\n"
+        "      AGW_BUILD: 平台录入\n"
+        "      PC_BUILD: 客户录入\n"
+        "```\n"
+    )
+    inline_store = InMemoryWikiStore.load(
+        [
+            _page(
+                key="cust_company_info",
+                title="客户企业",
+                page_type="table",
+                body=inline_body,
+            )
+        ]
+    )
+    monkeypatch.setattr(ct, "_catalog_sources", lambda _svc: (inline_store, {}, []))
+    inline = get_dict_values(
+        SimpleNamespace(ds=None),
+        table="cust_company_info",
+        field="cust_build_type",
+    )
+    assert inline["ok"] is True
+    inline_values = (inline.get("data") or {}).get("values") or []
+    assert any(item["value"] == "AGW_BUILD" for item in inline_values)
+    assert any(item["label"] == "平台录入" for item in inline_values)
+
+
+def test_catalog_summary_not_recalled_in_search_knowledge() -> None:
+    summary_page = _page(
+        key="catalog_summary",
+        title="全库表骨架",
+        page_type="concept",
+        body="# 全库表骨架\n\n- tenant_project: 项目运营配置(渠道, 对接人)\n- cust_company_info: 企业主表\n",
+        aliases=["Catalog Summary", "表目录", "库表一览"],
+    )
+    caliber_page = _page(
+        key="agw_build",
+        title="平台录入",
+        page_type="caliber",
+        body="# 平台录入\n「平台录入」是建档类型取值。\n",
+        aliases=["平台录入"],
+    )
+    store = InMemoryWikiStore.load([summary_page, caliber_page])
+    passages = recall("平台录入 库表一览", store, top_k=8, mode="business")
+    keys = {p.page_key for p in passages}
+    assert "catalog_summary" not in keys
+    assert "agw_build" in keys
+    from apps.knowledge.wiki.contract import parse_page
+
+    parsed = parse_page(summary_page)
+    assert parsed.page_key == "catalog_summary"
+    assert parsed.recall is False
+
+
+def test_render_schema_outline_prefers_db_catalog_summary() -> None:
+    summary_page = _page(
+        key="catalog_summary",
+        title="全库表骨架",
+        page_type="concept",
+        body=(
+            "# 全库表骨架\n\n"
+            "## project\n"
+            "- tenant_project: 租户项目全量运营配置(项目ID, 渠道码, 运营对接人A/B)\n"
+            "- secret_table: 机密表\n"
+        ),
+    )
+    store = InMemoryWikiStore.load([summary_page])
+    text = render_schema_outline(store=store)
+    assert "<schema_outline>" in text
+    assert "tenant_project: 租户项目全量运营配置(项目ID, 渠道码, 运营对接人A/B)" in text
+    assert "secret_table" in text
+
+    scoped_text = render_schema_outline(
+        store=store,
+        access_scope=SimpleNamespace(resource_names=("tenant_project",)),
+    )
+    assert "tenant_project" in scoped_text
+    assert "secret_table" in scoped_text
+
+
+def test_search_knowledge_returns_structured_hits(monkeypatch) -> None:
+    from apps.chat.tools import catalog_tools as ct
+    from apps.chat.tools.catalog_tools import search_knowledge
+    from apps.knowledge.wiki.hit import project_knowledge_hit
+
+    store = _company_person_store()
+    page = store.get_page("identify_style")
+    assert page is not None
+    hit = project_knowledge_hit(page)
+    assert hit["maps_to"] == "cust_company_info.identify_style"
+    assert hit["adjudication"] == "boundary"
+
+    plane = AgentKnowledgePlane()
+    monkeypatch.setattr(ct, "load_plane", lambda: plane)
+    monkeypatch.setattr(ct, "save_plane", lambda _p: None)
+    monkeypatch.setattr(ct, "_catalog_sources", lambda _svc: (store, {}, []))
+
+    result = search_knowledge(SimpleNamespace(ds=None), "认证方式 平台录入")
+    assert result["ok"] is True
+    hits = (result.get("data") or {}).get("hits") or []
+    keys = {item["page_key"] for item in hits}
+    assert "catalog_summary" not in keys
+    types = {item["type"] for item in hits}
+    assert "scenario" in types or "concept" in types or "caliber" in types
+    identify = next((item for item in hits if item["page_key"] == "identify_style"), None)
+    if identify is not None:
+        assert identify["maps_to"] == "cust_company_info.identify_style"
+        assert identify["adjudication"] == "boundary"
+    scenario = next((item for item in hits if item["page_key"] == "company_build"), None)
+    if scenario is not None:
+        assert scenario["hubs"]
+
+
+def test_relations_empty_graph_does_not_forbid_join() -> None:
+    from apps.chat.tools.catalog_tools import classify_relations, parse_relation_edges
+
+    grouped = classify_relations(["alpha", "beta"], parse_relation_edges(""))
+    assert grouped["direct"] == []
+    # Tool summary is assembled in get_table_relations; the data contract stays
+    # advisory — empty graph is not a hard JOIN stop.
+    assert "bridges" in grouped
+
+
+def test_relation_edges_include_trust() -> None:
+    from apps.chat.tools.catalog_tools import relation_edges_from_store
+
+    store = InMemoryWikiStore.load(
+        [
+            _page(
+                key="cust_account_info",
+                title="银行账户",
+                page_type="table",
+                body=(
+                    "```ground:table\n"
+                    "table: cust_account_info\n"
+                    "desc: 账户\n"
+                    "fields:\n"
+                    "  - name: ref_cust_company_info\n"
+                    "    phys: varchar\n"
+                    "    desc: 企业编码\n"
+                    "```\n"
+                    "```ground:relation\n"
+                    "type: EQUI_JOIN\n"
+                    "left: cust_company_info.code\n"
+                    "right: cust_account_info.ref_cust_company_info\n"
+                    "trust: confirmed\n"
+                    "```\n"
+                ),
+            )
+        ]
+    )
+    edges = relation_edges_from_store(store, ["cust_account_info", "cust_company_info"])
+    assert edges
+    assert edges[0]["trust"] == "confirmed"
+    assert "禁止 JOIN" not in edges[0]["line"]
+
+
+def test_lookup_values_skips_closed_concept_alias(monkeypatch) -> None:
+    from apps.chat.tools import catalog_tools as ct
+    from apps.chat.tools.catalog_tools import lookup_values
+
+    store = InMemoryWikiStore.load(
+        [
+            _page(
+                key="agw_build",
+                title="平台录入",
+                page_type="caliber",
+                body="# 平台录入\n建档类型取值。\n",
+                aliases=["平台录入"],
+            )
+        ]
+    )
+    monkeypatch.setattr(ct, "load_plane", lambda: AgentKnowledgePlane())
+    monkeypatch.setattr(ct, "save_plane", lambda _p: None)
+    monkeypatch.setattr(ct, "_catalog_sources", lambda _svc: (store, {}, []))
+    result = lookup_values(SimpleNamespace(ds=SimpleNamespace(id=1)), ["平台录入"])
+    assert result["ok"] is False
+    assert "概念" in str(result.get("error") or result.get("summary") or "")
+
+
+def test_search_knowledge_page_keys_are_store_keys(monkeypatch) -> None:
+    from apps.chat.tools import catalog_tools as ct
+    from apps.chat.tools.catalog_tools import search_knowledge
+
+    store = _company_person_store()
+    plane = AgentKnowledgePlane()
+    monkeypatch.setattr(ct, "load_plane", lambda: plane)
+    monkeypatch.setattr(ct, "save_plane", lambda _p: None)
+    monkeypatch.setattr(ct, "_catalog_sources", lambda _svc: (store, {}, []))
+    result = search_knowledge(SimpleNamespace(ds=None), "认证方式")
+    keys = (result.get("data") or {}).get("page_keys") or []
+    assert keys
+    assert all("/" in str(key) for key in keys)
+
+
+def test_default_wiki_pages_parse() -> None:
+    from apps.knowledge.wiki.contract import parse_page
+    from apps.knowledge.wiki.default_corpus import (
+        render_default_catalog_summary,
+        render_default_table_page,
+    )
+
+    field = SimpleNamespace(
+        field_name="name",
+        field_type="varchar",
+        custom_comment="名称",
+        field_comment="",
+    )
+    table_md = render_default_table_page(
+        table_name="tenant_project",
+        title="项目",
+        database="app",
+        fields=[field],
+        today="2026-09-20",
+    )
+    page = parse_page(table_md, belong="tables")
+    assert page.page_key == "tenant_project"
+    assert page.recall is True
+    summary = render_default_catalog_summary(
+        [("tenant_project", "项目", ["name"])],
+        database="app",
+        today="2026-09-20",
+    )
+    concept = parse_page(summary, belong="concepts")
+    assert concept.page_key == "catalog_summary"
+    assert concept.recall is False
+

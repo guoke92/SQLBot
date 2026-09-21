@@ -1,4 +1,0 @@
-body: 需要进一步提供 TenantProjectApplication 源代码或相关产品需求文档，以确认租户项目生命周期 transition（create/effective/invalid/delete）的实际实现和状态字段
-  project_status 的取值集合。
-title: tenant_project
-type: table

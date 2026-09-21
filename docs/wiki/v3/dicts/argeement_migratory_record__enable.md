@@ -6,8 +6,8 @@ belong: dicts
 status: draft
 anchors: [argeement_migratory_record.enable]
 sources: ['database_profile:argeement_migratory_record.enable']
-created: '2026-09-17'
-updated: '2026-09-17'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [argeement_migratory_record]
 ---

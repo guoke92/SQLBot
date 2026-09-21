@@ -173,9 +173,9 @@ def test_parse_directory_empty_dir(tmp_path: Path) -> None:
 
 
 def test_resolve_pages_dir_relative_to_repo_root() -> None:
-    path = resolve_pages_dir("docs/wiki-knowledge/pplatform/wiki-pages")
+    path = resolve_pages_dir("docs/wiki/v3")
     assert path.is_dir()
-    assert path.name == "wiki-pages"
+    assert path.name == "v3"
     try:
         resolve_pages_dir("   ")
     except CorpusImportError:
@@ -497,7 +497,7 @@ def test_normalize_script_dedupes_identical_body_and_rewrites_links(
 
     spec = importlib.util.spec_from_file_location(
         "normalize_wiki_corpus",
-        _ROOT / "scripts" / "normalize_wiki_corpus.py",
+        _ROOT / ".tmp" / "scripts" / "normalize_wiki_corpus.py",
     )
     assert spec is not None and spec.loader is not None
     mod = importlib.util.module_from_spec(spec)

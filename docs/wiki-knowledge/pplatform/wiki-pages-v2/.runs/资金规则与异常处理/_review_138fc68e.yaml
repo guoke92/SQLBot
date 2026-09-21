@@ -1,6 +1,0 @@
-body: 语义分析的 enum_audit 数组在 funding_rule_info.rule_status=PENDING 一条之后被截断，仅可见：value=PENDING、java_name=PENDING、stored_as=same、label=待生效、verdict=confirm、evidence=FundRuleInfoApplication.java:saveRuleInfo
-  写 setRuleStatus(RuleStatusEnum.PENDING.getDictKey())。ACTIVE / INACTIVE 两条的 java_name、stored_as、note
-  未获取，故本批次未单独产出 enum 页，状态取值与流转暂由 [[funding_rule_status_machine]] 承载。另附注：DB 未提供 funding_rule_info
-  的值分布，无法用 TopK 校验权重。待 enum_audit 补全后建立 enums 页并回链。
-title: 资方规则状态枚举（enum_audit 数据被截断）
-type: enums

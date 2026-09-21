@@ -1,4 +1,4 @@
-generated_at: '2026-09-17'
+generated_at: '2026-09-20'
 items:
 - claim_path: tables/cust_certification_info#primary_key
   kind: missing
@@ -6,7 +6,7 @@ items:
   status: open
   note: cust_certification_info has no PRIMARY KEY in INFORMATION_SCHEMA
   id: rv_l0_0001
-  created: '2026-09-17'
+  created: '2026-09-20'
 - claim_path: tables/argeement_migratory_record#relations.platform_product.code__argeement_migratory_record.platform_product_code
   kind: unverified_join
   severity: warning
@@ -15,42 +15,7 @@ items:
     is L0-proposed; authenticity=unknown; name_match=exact_table; overlap_ratio=0.0;
     comment=产品编码
   id: rv_l0_0002
-  created: '2026-09-17'
-- claim_path: tables/argeement_migratory_record#similar_fields.name_agreement_name
-  kind: unanchored
-  severity: info
-  status: open
-  note: 同表两个名称列，name 为记录名称、agreement_name 为协议名称，语义可能重叠冗余
-  id: rv_l0_0003
-  created: '2026-09-17'
-- claim_path: tables/argeement_migratory_record#similar_fields.code_agreement_no
-  kind: unanchored
-  severity: info
-  status: open
-  note: code（编码）与 agreement_no（协议编号）均为业务编号列，需确认是否同一编号的不同表达
-  id: rv_l0_0004
-  created: '2026-09-17'
-- claim_path: tables/argeement_migratory_record#similar_fields.effect_date_sign_date
-  kind: unanchored
-  severity: info
-  status: open
-  note: 协议生效日与签署日期，时间语义接近但不等价，注意下游使用区分
-  id: rv_l0_0005
-  created: '2026-09-17'
-- claim_path: tables/async_io_task#similar_fields.task_name_name
-  kind: unanchored
-  severity: info
-  status: open
-  note: name 为泛化名称字段，语义笼统，可能与 task_name（任务名称）存在冗余或历史遗留，需人工确认。
-  id: rv_l0_0006
-  created: '2026-09-17'
-- claim_path: tables/async_io_task#similar_fields.menu_code_code
-  kind: unanchored
-  severity: info
-  status: open
-  note: code 为泛化编码字段，语义笼统，可能与 menu_code（业务菜单标识）重复，需人工确认。
-  id: rv_l0_0007
-  created: '2026-09-17'
+  created: '2026-09-20'
 - claim_path: tables/authorization_agreement#relations.platform_product.code__authorization_agreement.platform_product_code
   kind: unverified_join
   severity: warning
@@ -58,487 +23,124 @@ items:
   note: identity-bundle JOIN platform_product.code → authorization_agreement.platform_product_code
     is L0-proposed; authenticity=unlikely; name_match=exact_table; overlap_ratio=0.0;
     comment=平台产品id
-  id: rv_l0_0008
-  created: '2026-09-17'
-- claim_path: tables/authorization_agreement#similar_fields.cust_id_original_cust_id
-  kind: unanchored
-  severity: info
-  status: open
-  note: 两者均为企业标识承载列，original_cust_id 注释为「源系统custid」，与本表 cust_id 语义近义但来源不同，需人工确认是外部映射还是冗余。
-  id: rv_l0_0009
-  created: '2026-09-17'
-- claim_path: tables/ca_certification_info#similar_fields.cust_id_organization_id
-  kind: unanchored
-  severity: info
-  status: open
-  note: 企业Id 与 机构编号 均指向主体标识，语义可能重叠，需确认是否为同一维度的冗余列
-  id: rv_l0_0010
-  created: '2026-09-17'
-- claim_path: tables/ca_certification_info#similar_fields.enterprise_four_json_police_two_json
-  kind: unanchored
-  severity: info
-  status: open
-  note: 企业四要素与实名核验(POLICE_TWO)均为认证材料 JSON，结构相近，注意区分用途与来源
-  id: rv_l0_0011
-  created: '2026-09-17'
-- claim_path: tables/ca_certification_info#similar_fields.intent_sms_json_intent_h_face_json
-  kind: unanchored
-  severity: info
-  status: open
-  note: 同为意愿核验结果 JSON，仅核验渠道不同（SMS_CODE / H5_FACE）
-  id: rv_l0_0012
-  created: '2026-09-17'
-- claim_path: tables/ca_certification_info#similar_fields.submit_status_act_procinst_status
-  kind: unanchored
-  severity: info
-  status: open
-  note: 提交状态与审批状态分属两条生命周期，语义相近易混用，需明确口径
-  id: rv_l0_0013
-  created: '2026-09-17'
-- claim_path: tables/ca_cfca_upgrade_report#similar_fields.company_id_certification_no_organization_id
-  kind: unanchored
-  severity: info
-  status: open
-  note: 均为企业/机构标识，可能为同一主体的不同编码，需确认是否冗余。
-  id: rv_l0_0014
-  created: '2026-09-17'
-- claim_path: tables/ca_cfca_upgrade_report#similar_fields.task_id_related_biz_no_act_procinst_no
-  kind: unanchored
-  severity: info
-  status: open
-  note: 均为业务/流程编号，语义相近，需确认是否同一业务链路标识。
-  id: rv_l0_0015
-  created: '2026-09-17'
-- claim_path: tables/ca_fee_company#relations.ca_fee_project_config.id__ca_fee_company.source_project_id
-  kind: unverified_join
-  severity: warning
-  status: open
-  note: identity-bundle JOIN ca_fee_project_config.id → ca_fee_company.source_project_id
-    is L0-proposed; authenticity=unlikely; name_match=llm_propose; overlap_ratio=0.0;
-    comment=首次锁定来源项目 ID; 列名/注释语义最贴近（来源项目 ID ↔ CA服务费项目配置主键），但探测 overlap=0.0、authenticity=unlikely，样本仅
-    13 条，值域契合度存疑，接受为待复核边。
-  id: rv_l0_0016
-  created: '2026-09-17'
-- claim_path: tables/ca_fee_company#similar_fields.locked_annual_fee_special_annual_fee
-  kind: unanchored
-  severity: info
-  status: open
-  note: 同为年费金额（元）：前者为首次锁定的标准年费，后者为特殊配置后应缴年费，同表并存易混淆，需靠 fee_locked/special_config_flag
-    区分。
-  id: rv_l0_0017
-  created: '2026-09-17'
-- claim_path: tables/ca_fee_company#similar_fields.company_name_name
-  kind: unanchored
-  severity: info
-  status: open
-  note: 企业名称与通用名称列语义重叠，name 疑为通用主数据字段，企业语义下应优先用 company_name。
-  id: rv_l0_0018
-  created: '2026-09-17'
+  id: rv_l0_0003
+  created: '2026-09-20'
 - claim_path: tables/ca_fee_order#relations.ca_fee_company.id__ca_fee_order.company_id
   kind: unverified_join
   severity: warning
   status: open
   note: identity-bundle JOIN ca_fee_company.id → ca_fee_order.company_id is L0-proposed;
     authenticity=unlikely; name_match=family_suffix; overlap_ratio=0.0; comment=企业
-    ID; 列名/注释有 company 语义关联（企业 ID），但实测 overlap 0.0（145/145 未命中），值域不契合，不能判 likely
-  id: rv_l0_0019
-  created: '2026-09-17'
-- claim_path: tables/ca_fee_order#relations.ca_fee_project_config.id__ca_fee_order.project_id
-  kind: unverified_join
-  severity: warning
-  status: open
-  note: identity-bundle JOIN ca_fee_project_config.id → ca_fee_order.project_id is
-    L0-proposed; authenticity=unlikely; name_match=llm_propose; overlap_ratio=0.0;
-    comment=触发项目 ID; 注释语义对应（项目配置主键 ← 触发项目 ID），作为该列唯一合理的父表 id 边保留待验；overlap 采样仅 10
-    且为 0.0，需人工复核
-  id: rv_l0_0020
-  created: '2026-09-17'
-- claim_path: tables/ca_fee_order#similar_fields.annual_fee_pay_amount
-  kind: unanchored
-  severity: info
-  status: open
-  note: 应缴年费与实缴金额，同一费用的两个口径，语义近义易混
-  id: rv_l0_0021
-  created: '2026-09-17'
-- claim_path: tables/ca_fee_order#similar_fields.bocom_plfm_ser_no_bocom_req_sn
-  kind: unanchored
-  severity: info
-  status: open
-  note: 均为交e保侧流水号（平台流水号/请求流水号），UUID 形态且语义接近
-  id: rv_l0_0022
-  created: '2026-09-17'
-- claim_path: tables/ca_fee_order#similar_fields.agreement_file_path_invoice_file_path
-  kind: unanchored
-  severity: info
-  status: open
-  note: 均为 COS 文件路径，命名结构相同，仅业务归属不同（协议/发票）
-  id: rv_l0_0023
-  created: '2026-09-17'
-- claim_path: tables/ca_fee_project_config#similar_fields.charge_enabled_enable
-  kind: unanchored
-  severity: info
-  status: open
-  note: 两列均为收费/启用类开关列，语义相近易混淆；charge_enabled 注释明确为「是否开启CA收费」，enable 注释仅「enable」。
-  id: rv_l0_0024
-  created: '2026-09-17'
-- claim_path: tables/ca_fee_project_config#similar_fields.supplier_annual_fee_core_annual_fee
-  kind: unanchored
-  severity: info
-  status: open
-  note: 同为角色年费金额列（供应商角色 / 核心企业角色），结构近义、仅业务角色不同。
-  id: rv_l0_0025
-  created: '2026-09-17'
-- claim_path: tables/client_api_sync_error#similar_fields.name_service_class_name
-  kind: unanchored
-  severity: info
-  status: open
-  note: 同表内都在描述「同步的是哪个服务」：name 为业务名称（直推变更回调连通性），service_class_name 为对应服务类全名，语义高度重叠，需确认是否冗余。
-  id: rv_l0_0026
-  created: '2026-09-17'
-- claim_path: tables/cust_access_secret#similar_fields.act_procinst_id_act_procinst_no
-  kind: unanchored
-  severity: info
-  status: open
-  note: 同表两条流程标识列（流程实例ID、流程申请编号）指向同一审批实例，语义接近，使用时需区分主键式实例ID与申请单编号。
-  id: rv_l0_0027
-  created: '2026-09-17'
-- claim_path: tables/cust_access_secret#similar_fields.pub_key_pri_key
-  kind: unanchored
-  severity: info
-  status: open
-  note: 公私钥成对列，命名对称为同一密钥材料的两个方向，属互补而非冗余，勿混用。
-  id: rv_l0_0028
-  created: '2026-09-17'
+    ID
+  id: rv_l0_0004
+  created: '2026-09-20'
 - claim_path: tables/cust_account_info#relations.cust_company_info.id__cust_account_info.ref_cust_company_info
   kind: unverified_join
   severity: warning
   status: open
   note: identity-bundle JOIN cust_company_info.id → cust_account_info.ref_cust_company_info
     is L0-proposed; authenticity=unlikely; name_match=exact_table; overlap_ratio=0.0;
-    comment=客户账号信息; 列名 stem 与左表精确同名，但重叠率 0.0（probed，sample 200，miss 200），本列注释「客户账号信息」亦为自指语义，不足以支撑外键，判
-    unlikely。
-  id: rv_l0_0029
-  created: '2026-09-17'
-- claim_path: tables/cust_account_info#similar_fields.name_account_name
-  kind: unanchored
-  severity: info
-  status: open
-  note: name 注释已标「名称-废弃」，与账户名称语义重叠，疑为历史冗余列。
-  id: rv_l0_0030
-  created: '2026-09-17'
-- claim_path: tables/cust_account_info#similar_fields.bank_id_bank_code
-  kind: unanchored
-  severity: info
-  status: open
-  note: 同为银行标识：bank_id 疑为银行主键引用、bank_code 为总行代码，需确认是否语义冗余。
-  id: rv_l0_0031
-  created: '2026-09-17'
-- claim_path: tables/cust_app_channel_config#similar_fields.code_name
-  kind: unanchored
-  severity: info
-  status: open
-  note: 两列取值完全相同（longteng/jingke），疑似同一渠道实体的编码与名称，存在冗余表达风险。
-  id: rv_l0_0032
-  created: '2026-09-17'
+    comment=客户账号信息
+  id: rv_l0_0005
+  created: '2026-09-20'
 - claim_path: tables/cust_auth_application#relations.platform_product.code__cust_auth_application.platform_product_code
   kind: unverified_join
   severity: warning
   status: open
   note: identity-bundle JOIN platform_product.code → cust_auth_application.platform_product_code
     is L0-proposed; authenticity=unlikely; name_match=exact_table; overlap_ratio=0.0;
-    comment=平台产品编码; 列名/注释均与「平台产品编码」相关，但 overlap=0（6/6 miss），值域完全不契合，不成立。
-  id: rv_l0_0033
-  created: '2026-09-17'
+    comment=平台产品编码
+  id: rv_l0_0006
+  created: '2026-09-20'
 - claim_path: tables/cust_auth_application#relations.cust_company_info.id__cust_auth_application.ref_cust_company_info
   kind: unverified_join
   severity: warning
   status: open
   note: identity-bundle JOIN cust_company_info.id → cust_auth_application.ref_cust_company_info
     is L0-proposed; authenticity=unlikely; name_match=exact_table; overlap_ratio=0.0;
-    comment=客户应用; 本地注释「客户应用」与对端表名相关，但 overlap=0（200/200 miss），值域不契合，不成立。
-  id: rv_l0_0034
-  created: '2026-09-17'
+    comment=客户应用
+  id: rv_l0_0007
+  created: '2026-09-20'
 - claim_path: tables/cust_auth_application#relations.tenant_product.id__cust_auth_application.ref_cust_auth_application_tenant_product
   kind: unverified_join
   severity: warning
   status: open
   note: identity-bundle JOIN tenant_product.id → cust_auth_application.ref_cust_auth_application_tenant_product
     is L0-proposed; authenticity=unlikely; name_match=long_ref; overlap_ratio=0.0;
-    comment=关联应用; 长名引用（long_ref）形似指向 tenant_product，但 overlap=0（23/23 miss），值域不契合，不成立。
-  id: rv_l0_0035
-  created: '2026-09-17'
-- claim_path: tables/cust_auth_application#similar_fields.name_application
-  kind: unanchored
-  severity: info
-  status: open
-  note: 两列值域完全相同（同为产品名称清单，26 个不重复值），注释分别为「产品名称」「产品应用」，语义高度重叠，疑为冗余/互抄。
-  id: rv_l0_0036
-  created: '2026-09-17'
-- claim_path: tables/cust_auth_application#similar_fields.code_platform_product_code
-  kind: unanchored
-  severity: info
-  status: open
-  note: 同表两个编码列，注释「编码」与「平台产品编码」边界不清，易混用，需人工确认哪一个是本表业务编码。
-  id: rv_l0_0037
-  created: '2026-09-17'
-- claim_path: tables/cust_auth_application#similar_fields.ref_cust_company_info_ref_cust_auth_application_tenant_product
-  kind: unanchored
-  severity: info
-  status: open
-  note: 同为 ref_cust 前缀的外部引用列，注释「客户应用」「关联应用」表述含糊、不易区分，建议核对实际指向。
-  id: rv_l0_0038
-  created: '2026-09-17'
+    comment=关联应用
+  id: rv_l0_0008
+  created: '2026-09-20'
 - claim_path: tables/cust_auth_application_config#relations.cust_company_info.id__cust_auth_application_config.cust_id
   kind: unverified_join
   severity: warning
   status: open
   note: identity-bundle JOIN cust_company_info.id → cust_auth_application_config.cust_id
     is L0-proposed; authenticity=unknown; name_match=family_hub; overlap_ratio=None;
-    comment=企业id; name_evidence=family_hub(stem=cust, comment=企业id)，列名/注释与 cust_company_info
-    主档语义相符；overlap 已探测但 ratio/ratio_reverse 均为 null、sample_size=0，值域契合无证据，故不给 likely
-  id: rv_l0_0039
-  created: '2026-09-17'
+    comment=企业id
+  id: rv_l0_0009
+  created: '2026-09-20'
 - claim_path: tables/cust_auth_application_config#relations.cust_auth_application.id__cust_auth_application_config.ref_cust_auth_application_config_cust_auth_application
   kind: unverified_join
   severity: warning
   status: open
   note: identity-bundle JOIN cust_auth_application.id → cust_auth_application_config.ref_cust_auth_application_config_cust_auth_application
     is L0-proposed; authenticity=unknown; name_match=long_ref; overlap_ratio=None;
-    comment=客户产品开通; name_evidence=long_ref(stem=cust_auth_application)，列名由父表名拼接而来且注释「客户产品开通」一致；overlap
-    已探测但 ratio/ratio_reverse 均为 null、sample_size=0，无值域证据，故不给 likely
-  id: rv_l0_0040
-  created: '2026-09-17'
-- claim_path: tables/cust_auth_application_config#similar_fields.needs_company_type_configuration_needs_product_agreement_configuration
-  kind: unanchored
-  severity: info
-  status: open
-  note: 同表两个「是否…」布尔配置开关，注释均为是否类语义，列名结构近乎同构，疑似同一配置组的两项，非重复列但需注意区分
-  id: rv_l0_0041
-  created: '2026-09-17'
+    comment=客户产品开通
+  id: rv_l0_0010
+  created: '2026-09-20'
 - claim_path: tables/cust_build_record#relations.cust_company_info.id__cust_build_record.cust_id
   kind: unverified_join
   severity: warning
   status: open
   note: identity-bundle JOIN cust_company_info.id → cust_build_record.cust_id is L0-proposed;
     authenticity=likely; name_match=family_hub; overlap_ratio=0.9699; overlap_ratio_reverse=0.58;
-    deepened=true; comment=企业ID; overlap 0.9699（反向 0.58，miss 18），列名族 hub 命中 stem=cust，本地注释「企业ID」，值域契合且语义关联，判
-    likely。
-  id: rv_l0_0042
-  created: '2026-09-17'
+    deepened=true; comment=企业ID
+  id: rv_l0_0011
+  created: '2026-09-20'
 - claim_path: tables/cust_build_record#relations.cust_person_info.id__cust_build_record.person_id
   kind: unverified_join
   severity: warning
   status: open
   note: identity-bundle JOIN cust_person_info.id → cust_build_record.person_id is
     L0-proposed; authenticity=likely; name_match=family_suffix; overlap_ratio=0.9699;
-    overlap_ratio_reverse=0.56; deepened=true; comment=联系人ID; overlap 0.9699（反向 0.56，miss
-    18），列名族后缀命中 stem=person，本地注释「联系人ID」，值域契合且语义关联，判 likely。
-  id: rv_l0_0043
-  created: '2026-09-17'
-- claim_path: tables/cust_build_record#similar_fields.plat_cust_id_plat_person_id
-  kind: unanchored
-  severity: info
-  status: open
-  note: 两列注释完全相同（运营中台ID），列名同前缀但主体不同（企业 vs 联系人），容易被误用。
-  id: rv_l0_0044
-  created: '2026-09-17'
-- claim_path: tables/cust_build_record#similar_fields.cust_id_plat_cust_id
-  kind: unanchored
-  severity: info
-  status: open
-  note: 指向同一企业主体的两种 ID（本地企业ID 与 运营中台ID），语义近似但取值域不同，不可互相替代。
-  id: rv_l0_0045
-  created: '2026-09-17'
-- claim_path: tables/cust_build_record#similar_fields.person_id_plat_person_id
-  kind: unanchored
-  severity: info
-  status: open
-  note: 指向同一联系人的两种 ID（本地联系人ID 与 运营中台ID），语义近似但取值域不同。
-  id: rv_l0_0046
-  created: '2026-09-17'
+    overlap_ratio_reverse=0.56; deepened=true; comment=联系人ID
+  id: rv_l0_0012
+  created: '2026-09-20'
 - claim_path: tables/cust_certification_info#relations.cust_company_info.id__cust_certification_info.ref_cust_company_info
   kind: unverified_join
   severity: warning
   status: open
   note: identity-bundle JOIN cust_company_info.id → cust_certification_info.ref_cust_company_info
     is L0-proposed; authenticity=unlikely; name_match=exact_table; overlap_ratio=0.0
-  id: rv_l0_0047
-  created: '2026-09-17'
-- claim_path: tables/cust_certification_info#similar_fields.auto_verify_status_manual_verify_status
-  kind: unanchored
-  severity: info
-  status: open
-  note: 同构核查状态列，命名与取值形态一致，分属自动/人工两条核查链路，注意沿用同一状态码语义
-  id: rv_l0_0048
-  created: '2026-09-17'
-- claim_path: tables/cust_certification_info#similar_fields.auto_verify_count_manual_verify_count
-  kind: unanchored
-  severity: info
-  status: open
-  note: 同构核查次数计数器，字段含义对称，非冗余但易混用
-  id: rv_l0_0049
-  created: '2026-09-17'
-- claim_path: tables/cust_certification_info#similar_fields.auto_verify_msg_manual_verify_msg
-  kind: unanchored
-  severity: info
-  status: open
-  note: 同构核查结果文本列，均为自由文本，易被误当作枚举
-  id: rv_l0_0050
-  created: '2026-09-17'
-- claim_path: tables/cust_change_cfg#similar_fields.plat_item_oper_item
-  kind: unanchored
-  severity: info
-  status: open
-  note: 两列同为「变更项」的不同口径（平台侧 vs 运营中台侧），取值条数一致且多项逐一对应（如"增加企业角色""企业授权书""重新建档"），疑似同一变更项定义的冗余双写，需确认是否可合并或需对齐维护。
-  id: rv_l0_0051
-  created: '2026-09-17'
+  id: rv_l0_0013
+  created: '2026-09-20'
 - claim_path: tables/cust_change_record#relations.cust_company_info.id__cust_change_record.cust_id
   kind: unverified_join
   severity: warning
   status: open
   note: identity-bundle JOIN cust_company_info.id → cust_change_record.cust_id is
     L0-proposed; authenticity=likely; name_match=family_hub; overlap_ratio=0.9683;
-    overlap_ratio_reverse=0.315; deepened=true; comment=客户记录id; cust_id 注释「客户记录id」与客户主表
-    cust_company_info.id 语义一致，值域重叠 96.83%（反向 31.5%，miss 9，sample 284），列名族同为 cust，判为
-    likely。
-  id: rv_l0_0052
-  created: '2026-09-17'
-- claim_path: tables/cust_change_record#relations.cust_change_cfg.id__cust_change_record.alter_type_id
-  kind: unverified_join
-  severity: warning
-  status: open
-  note: identity-bundle JOIN cust_change_cfg.id → cust_change_record.alter_type_id
-    is L0-proposed; authenticity=unknown; name_match=llm_propose; overlap_ratio=0.6707;
-    overlap_ratio_reverse=1.0; comment=变更项记录id; alter_type_id 注释「变更项记录id」，与 cust_change_cfg（客户变更配置）语义关联，值域部分契合（正向
-    0.6707，反向 1.0，sample 82），判为指向变更配置记录的可接受边，建议人工复核完整率。
-  id: rv_l0_0053
-  created: '2026-09-17'
-- claim_path: tables/cust_change_record#similar_fields.cust_name_name
-  kind: unanchored
-  severity: info
-  status: open
-  note: 均为名称类字段，name 注释仅「名称」，疑与 cust_name（客户名称）语义重叠，需确认 name 指向变更单名称还是客户名称。
-  id: rv_l0_0054
-  created: '2026-09-17'
-- claim_path: tables/cust_change_record#similar_fields.cust_id_oper_cust_id
-  kind: unanchored
-  severity: info
-  status: open
-  note: 均为客户 id 型字段，cust_id 注释为「客户记录id」（本地客户），oper_cust_id 为「运营中台客户id」，来源不同，引用时勿混用。
-  id: rv_l0_0055
-  created: '2026-09-17'
-- claim_path: tables/cust_change_record#similar_fields.status_act_procinst_status
-  kind: unanchored
-  severity: info
-  status: open
-  note: status「变更状态」与 act_procinst_status「当前审批状态」近似，需区分业务变更态与流程审批态。
-  id: rv_l0_0056
-  created: '2026-09-17'
-- claim_path: tables/cust_change_record#similar_fields.oper_cust_info_pp_cust_info
-  kind: unanchored
-  severity: info
-  status: open
-  note: 两列均为来源系统客户信息快照（运营中台 / 产融），结构类同，属同类冗余承载列。
-  id: rv_l0_0057
-  created: '2026-09-17'
-- claim_path: tables/cust_change_record#similar_fields.alter_type_alter_type_id
-  kind: unanchored
-  severity: info
-  status: open
-  note: 一为变更类型、一为变更项记录id，命名近义但语义层级不同（类型 vs 记录标识），注意区分使用。
-  id: rv_l0_0058
-  created: '2026-09-17'
+    overlap_ratio_reverse=0.315; deepened=true; comment=客户记录id
+  id: rv_l0_0014
+  created: '2026-09-20'
 - claim_path: tables/cust_company_info#relations.cust_company_lifecycle_info.code__cust_company_info.apply_data_id
   kind: join_overlap_unsemantic
   severity: warning
   status: open
   note: 值域契合但列名/注释无关联语义，保留待源码或人工复核。 identity-bundle JOIN cust_company_lifecycle_info.code
     → cust_company_info.apply_data_id is L0-proposed; authenticity=unknown; name_match=none;
-    overlap_ratio=1.0; comment=认证流程数据id; 值域重合 1.0，但列名/注释无关联语义（code vs 认证流程数据id），仅值域契合，待人工确认。
-  id: rv_l0_0059
-  created: '2026-09-17'
+    overlap_ratio=1.0; comment=认证流程数据id
+  id: rv_l0_0015
+  created: '2026-09-20'
 - claim_path: tables/cust_company_info#relations.cust_account_info.code__cust_company_info.apply_data_id
   kind: join_overlap_unsemantic
   severity: warning
   status: open
   note: 值域契合但列名/注释无关联语义，保留待源码或人工复核。 identity-bundle JOIN cust_account_info.code →
     cust_company_info.apply_data_id is L0-proposed; authenticity=unknown; name_match=none;
-    overlap_ratio=1.0; comment=认证流程数据id; 值域重合 1.0，但列名/注释无关联语义（code vs 认证流程数据id），仅值域契合，待人工确认。
-  id: rv_l0_0060
-  created: '2026-09-17'
-- claim_path: tables/cust_company_info#relations.cust_app_channel_config.code__cust_company_info.channel_code
-  kind: unverified_join
-  severity: warning
-  status: open
-  note: identity-bundle JOIN cust_app_channel_config.code → cust_company_info.channel_code
-    is L0-proposed; authenticity=unknown; name_match=llm_propose; overlap_ratio=1.0;
-    comment=开放平台channelcode; 码对码且值域重合 1.0，客户应用渠道关系表 code 可对应开放平台 channel_code；样本仅
-    2，建议人工确认。
-  id: rv_l0_0061
-  created: '2026-09-17'
-- claim_path: tables/cust_company_info#similar_fields.sign_mode_signing_mode
-  kind: unanchored
-  severity: info
-  status: open
-  note: 签署方式/签署模式近义，可能重复。
-  id: rv_l0_0062
-  created: '2026-09-17'
-- claim_path: tables/cust_company_info#similar_fields.cust_source_cust_from
-  kind: unanchored
-  severity: info
-  status: open
-  note: 建档数据来源/客户来源近义，可能重复。
-  id: rv_l0_0063
-  created: '2026-09-17'
-- claim_path: tables/cust_company_info#similar_fields.legal_name_english_legal_name_english_end
-  kind: unanchored
-  severity: info
-  status: open
-  note: 英文法人名两列高度相似，疑似重复。
-  id: rv_l0_0064
-  created: '2026-09-17'
-- claim_path: tables/cust_company_info#similar_fields.need_register_ca_need_register_bs
-  kind: unanchored
-  severity: info
-  status: open
-  note: 电子签章开通标志，业务相似但不同渠道。
-  id: rv_l0_0065
-  created: '2026-09-17'
-- claim_path: tables/cust_company_info#similar_fields.ca_register_status_bs_register_status
-  kind: unanchored
-  severity: info
-  status: open
-  note: 签章开通状态，业务相似但不同渠道。
-  id: rv_l0_0066
-  created: '2026-09-17'
-- claim_path: tables/cust_company_info#similar_fields.business_province_city_regist_province_city_contact_province_city
-  kind: unanchored
-  severity: info
-  status: open
-  note: 三组省市复合字段结构相近，业务域不同，非冗余。
-  id: rv_l0_0067
-  created: '2026-09-17'
-- claim_path: tables/cust_company_info#similar_fields.business_province_code_regist_province_code_contact_province_code
-  kind: unanchored
-  severity: info
-  status: open
-  note: 行政区划代码字段，业务域不同，可共用同一代码字典。
-  id: rv_l0_0068
-  created: '2026-09-17'
-- claim_path: tables/cust_company_info#similar_fields.business_city_code_regist_city_code_contact_city_code
-  kind: unanchored
-  severity: info
-  status: open
-  note: 城市代码字段，业务域不同，可共用同一代码字典。
-  id: rv_l0_0069
-  created: '2026-09-17'
-- claim_path: tables/cust_company_info#similar_fields.cust_short_name_cust_english_short_name
-  kind: unanchored
-  severity: info
-  status: open
-  note: 企业简称中英文变体。
-  id: rv_l0_0070
-  created: '2026-09-17'
+    overlap_ratio=1.0; comment=认证流程数据id
+  id: rv_l0_0016
+  created: '2026-09-20'
 - claim_path: tables/cust_company_lifecycle_info#relations.cust_company_info.id__cust_company_lifecycle_info.company_id
   kind: unverified_join
   severity: warning
@@ -546,8 +148,8 @@ items:
   note: identity-bundle JOIN cust_company_info.id → cust_company_lifecycle_info.company_id
     is L0-proposed; authenticity=unknown; name_match=family_suffix; overlap_ratio=0.9143;
     overlap_ratio_reverse=0.0; deepened=true; comment=企业id
-  id: rv_l0_0071
-  created: '2026-09-17'
+  id: rv_l0_0017
+  created: '2026-09-20'
 - claim_path: tables/cust_company_lifecycle_info#relations.cust_company_info.id__cust_company_lifecycle_info.ref_cust_company_info
   kind: unverified_join
   severity: warning
@@ -555,16 +157,8 @@ items:
   note: identity-bundle JOIN cust_company_info.id → cust_company_lifecycle_info.ref_cust_company_info
     is L0-proposed; authenticity=unknown; name_match=exact_table; overlap_ratio=None;
     comment=关联企业code
-  id: rv_l0_0072
-  created: '2026-09-17'
-- claim_path: tables/cust_company_lifecycle_info#similar_fields.company_id_ref_cust_company_info
-  kind: unanchored
-  severity: info
-  status: open
-  note: 同表两列均指向企业主体：company_id 注释「企业id」为 id 型关联，ref_cust_company_info 注释「关联企业code」为
-    code 型关联，语义重叠但键类型不同，需人工确认是否为冗余关联。
-  id: rv_l0_0073
-  created: '2026-09-17'
+  id: rv_l0_0018
+  created: '2026-09-20'
 - claim_path: tables/cust_company_survey_state#relations.cust_company_info.id__cust_company_survey_state.company_id
   kind: unverified_join
   severity: warning
@@ -572,16 +166,8 @@ items:
   note: identity-bundle JOIN cust_company_info.id → cust_company_survey_state.company_id
     is L0-proposed; authenticity=likely; name_match=family_suffix; overlap_ratio=1.0;
     comment=企业ID
-  id: rv_l0_0074
-  created: '2026-09-17'
-- claim_path: tables/cust_company_survey_state#similar_fields.company_id_respondent
-  kind: unanchored
-  severity: info
-  status: open
-  note: 两列样本值集合完全一致（11 个同一批企业/受访者ID），respondent 疑为 company_id 的冗余存储，需人工确认问卷星 respondent
-    是否即企业ID。
-  id: rv_l0_0075
-  created: '2026-09-17'
+  id: rv_l0_0019
+  created: '2026-09-20'
 - claim_path: tables/cust_company_survey_whitelist#relations.cust_company_info.id__cust_company_survey_whitelist.company_id
   kind: unverified_join
   severity: warning
@@ -589,85 +175,34 @@ items:
   note: identity-bundle JOIN cust_company_info.id → cust_company_survey_whitelist.company_id
     is L0-proposed; authenticity=likely; name_match=family_suffix; overlap_ratio=1.0;
     comment=企业id
-  id: rv_l0_0076
-  created: '2026-09-17'
-- claim_path: tables/cust_company_survey_whitelist#similar_fields.company_name_name
-  kind: unanchored
-  severity: info
-  status: open
-  note: 两者均为名称类列且都含『名称』语义：company_name 注释明确为『企业名称』，name 注释仅『名称』，需人工确认 name 是否指白名单/问卷名称，避免与
-    company_name 混用。
-  id: rv_l0_0077
-  created: '2026-09-17'
-- claim_path: tables/cust_config_mapping#similar_fields.inner_code_outer_code
-  kind: unanchored
-  severity: info
-  status: open
-  note: 两列同为编码语义，且值域存在交集（A0037/A0002 等同时出现），内外码易混用，需按 comment 区分内外侧。
-  id: rv_l0_0078
-  created: '2026-09-17'
-- claim_path: tables/cust_config_mapping#similar_fields.inner_name_outer_name
-  kind: unanchored
-  severity: info
-  status: open
-  note: 两列同为名称语义，部分值同形（如核心企业、供应商、项目公司），属内外侧对照而非冗余，聚合时勿混用。
-  id: rv_l0_0079
-  created: '2026-09-17'
-- claim_path: tables/cust_config_mapping#similar_fields.code_inner_code_outer_code
-  kind: unanchored
-  severity: info
-  status: open
-  note: code（编码）为通用列，与内外码列语义相近，需明确其指向（本表自身编码还是映射键），避免三列互串。
-  id: rv_l0_0080
-  created: '2026-09-17'
+  id: rv_l0_0020
+  created: '2026-09-20'
 - claim_path: tables/cust_customized_product#relations.cust_company_info.id__cust_customized_product.cust_id
   kind: unverified_join
   severity: warning
   status: open
   note: identity-bundle JOIN cust_company_info.id → cust_customized_product.cust_id
     is L0-proposed; authenticity=likely; name_match=family_hub; overlap_ratio=1.0;
-    comment=企业id; cust_company_info.id 与本地 cust_id 值域包含率1.0（15/15，miss=0），列名 cust
-    同族且注释明确为企业id，值域与语义均契合
-  id: rv_l0_0081
-  created: '2026-09-17'
+    comment=企业id
+  id: rv_l0_0021
+  created: '2026-09-20'
 - claim_path: tables/cust_customized_product#relations.cust_company_info.id__cust_customized_product.ref_cust_customized_product_cust_company_info
   kind: unverified_join
   severity: warning
   status: open
   note: identity-bundle JOIN cust_company_info.id → cust_customized_product.ref_cust_customized_product_cust_company_info
     is L0-proposed; authenticity=unknown; name_match=long_ref; overlap_ratio=None;
-    comment=客户关联自定义产品配置; 列名含目标表名 cust_company_info（long_ref），名称有关联语义，但值域未探测（sample_size=0），无法确认值域契合
-  id: rv_l0_0082
-  created: '2026-09-17'
-- claim_path: tables/cust_customized_product#similar_fields.cust_id_ref_cust_customized_product_cust_company_info
-  kind: unanchored
-  severity: info
-  status: open
-  note: 两列均表达与客户主体的关联，一为数值企业id、一为长引用串，语义可能冗余，待人工确认
-  id: rv_l0_0083
-  created: '2026-09-17'
+    comment=客户关联自定义产品配置
+  id: rv_l0_0022
+  created: '2026-09-20'
 - claim_path: tables/cust_group_rel#relations.cust_company_info.id__cust_group_rel.cust_id
   kind: unverified_join
   severity: warning
   status: open
   note: identity-bundle JOIN cust_company_info.id → cust_group_rel.cust_id is L0-proposed;
     authenticity=likely; name_match=family_hub; overlap_ratio=1.0; comment=企业id
-  id: rv_l0_0084
-  created: '2026-09-17'
-- claim_path: tables/cust_group_rel#similar_fields.parent_group_id_parent_cust_id
-  kind: unanchored
-  severity: info
-  status: open
-  note: 均为指向父节点的引用（父id / 父企业id），语义近义，需确认是否同一父实体的两种标识。
-  id: rv_l0_0085
-  created: '2026-09-17'
-- claim_path: tables/cust_group_rel#similar_fields.root_group_id_root_cust_id
-  kind: unanchored
-  severity: info
-  status: open
-  note: 均为指向根节点的引用（根id / 根企业id），语义近义，需确认是否冗余存储。
-  id: rv_l0_0086
-  created: '2026-09-17'
+  id: rv_l0_0023
+  created: '2026-09-20'
 - claim_path: tables/cust_head_company_info#relations.cust_company_info.id__cust_head_company_info.ref_cust_head_company_info_cust_company_info
   kind: unverified_join
   severity: warning
@@ -675,36 +210,8 @@ items:
   note: identity-bundle JOIN cust_company_info.id → cust_head_company_info.ref_cust_head_company_info_cust_company_info
     is L0-proposed; authenticity=unlikely; name_match=long_ref; overlap_ratio=0.0;
     comment=客户信息和总公司信息
-  id: rv_l0_0087
-  created: '2026-09-17'
-- claim_path: tables/cust_head_company_info#similar_fields.name_cust_english_name
-  kind: unanchored
-  severity: info
-  status: open
-  note: 同一企业名称的中英文两列，注释仅差「(英文)」，易被误当作同一指标，需按语言区分。
-  id: rv_l0_0088
-  created: '2026-09-17'
-- claim_path: tables/cust_head_company_info#similar_fields.regist_province_city_english_regist_province_city_english_end
-  kind: unanchored
-  severity: info
-  status: open
-  note: 注释分别为「注册省市(英文)」与「注册市(英文)」，命名近似但粒度可能不同，需人工核对是否冗余。
-  id: rv_l0_0089
-  created: '2026-09-17'
-- claim_path: tables/cust_head_company_info#similar_fields.time_permanent_legal_time_permanent
-  kind: unanchored
-  severity: info
-  status: open
-  note: 命名近似，分别指营业执照有效期与法人证件有效期，语义不同勿混用。
-  id: rv_l0_0090
-  created: '2026-09-17'
-- claim_path: tables/cust_head_company_info#similar_fields.cust_short_name_cust_english_short_name
-  kind: unanchored
-  severity: info
-  status: open
-  note: 企业简称的中英文两列，同义异语言。
-  id: rv_l0_0091
-  created: '2026-09-17'
+  id: rv_l0_0024
+  created: '2026-09-20'
 - claim_path: tables/cust_interworking_product#relations.cust_company_info.id__cust_interworking_product.cust_id
   kind: unverified_join
   severity: warning
@@ -712,8 +219,8 @@ items:
   note: identity-bundle JOIN cust_company_info.id → cust_interworking_product.cust_id
     is L0-proposed; authenticity=likely; name_match=family_hub; overlap_ratio=0.9948;
     comment=企业id
-  id: rv_l0_0092
-  created: '2026-09-17'
+  id: rv_l0_0025
+  created: '2026-09-20'
 - claim_path: tables/cust_interworking_product#relations.platform_product.code__cust_interworking_product.platform_product_code
   kind: unverified_join
   severity: warning
@@ -721,8 +228,8 @@ items:
   note: identity-bundle JOIN platform_product.code → cust_interworking_product.platform_product_code
     is L0-proposed; authenticity=unlikely; name_match=exact_table; overlap_ratio=0.0;
     comment=平台产品编码
-  id: rv_l0_0093
-  created: '2026-09-17'
+  id: rv_l0_0026
+  created: '2026-09-20'
 - claim_path: tables/cust_interworking_product#relations.cust_customized_product.id__cust_interworking_product.product_id
   kind: unverified_join
   severity: warning
@@ -730,8 +237,8 @@ items:
   note: identity-bundle JOIN cust_customized_product.id → cust_interworking_product.product_id
     is L0-proposed; authenticity=unlikely; name_match=family_suffix; overlap_ratio=0.0;
     comment=互通产品id
-  id: rv_l0_0094
-  created: '2026-09-17'
+  id: rv_l0_0027
+  created: '2026-09-20'
 - claim_path: tables/cust_interworking_product#relations.cust_company_info.id__cust_interworking_product.ref_cust_interworking_product_cust_company_info
   kind: unverified_join
   severity: warning
@@ -739,8 +246,8 @@ items:
   note: identity-bundle JOIN cust_company_info.id → cust_interworking_product.ref_cust_interworking_product_cust_company_info
     is L0-proposed; authenticity=unlikely; name_match=long_ref; overlap_ratio=0.005;
     comment=关联企业
-  id: rv_l0_0095
-  created: '2026-09-17'
+  id: rv_l0_0028
+  created: '2026-09-20'
 - claim_path: tables/cust_interworking_product#relations.tenant_interworking_product.id__cust_interworking_product.ref_cust_interworking_product_tenant_interworking_product
   kind: unverified_join
   severity: warning
@@ -748,57 +255,8 @@ items:
   note: identity-bundle JOIN tenant_interworking_product.id → cust_interworking_product.ref_cust_interworking_product_tenant_interworking_product
     is L0-proposed; authenticity=unlikely; name_match=long_ref; overlap_ratio=0.0;
     comment=关联互通产品
-  id: rv_l0_0096
-  created: '2026-09-17'
-- claim_path: tables/cust_interworking_product#similar_fields.cust_id_ref_cust_interworking_product_cust_company_info
-  kind: unanchored
-  severity: info
-  status: open
-  note: 一为数字企业id、一为长子串引用，注释均为「关联企业/企业id」，疑同一主体的冗余外键口径，待确认
-  id: rv_l0_0097
-  created: '2026-09-17'
-- claim_path: tables/cust_interworking_product#similar_fields.product_id_ref_cust_interworking_product_tenant_interworking_product
-  kind: unanchored
-  severity: info
-  status: open
-  note: 注释分别为「互通产品id」「关联互通产品」，疑指向同一互通产品主档的两种引用方式
-  id: rv_l0_0098
-  created: '2026-09-17'
-- claim_path: tables/cust_interworking_product#similar_fields.code_platform_product_code
-  kind: unanchored
-  severity: info
-  status: open
-  note: 均产品编码，本表编码与平台产品编码口径不同，是否冗余及映射关系待人工确认
-  id: rv_l0_0099
-  created: '2026-09-17'
-- claim_path: tables/cust_interworking_product#similar_fields.cust_id_organization_id
-  kind: unanchored
-  severity: info
-  status: open
-  note: 企业id 与机构编号，疑同一主体不同口径（类型一为 number 一为 string），待确认
-  id: rv_l0_0100
-  created: '2026-09-17'
-- claim_path: tables/cust_invite_info#similar_fields.act_procinst_id_act_procinst_no
-  kind: unanchored
-  severity: info
-  status: open
-  note: 同指向同一流程实例：一为流程实例ID、一为流程申请编号，业务定位近义，取数时易混用，需确认以哪个为准。
-  id: rv_l0_0101
-  created: '2026-09-17'
-- claim_path: tables/cust_invite_info#similar_fields.code_channel_code
-  kind: unanchored
-  severity: info
-  status: open
-  note: 均含 code 且均为字符串编码列，但注释分别为「编码」与「渠道码」，语义不同源，不做合并、仅提示区分。
-  id: rv_l0_0102
-  created: '2026-09-17'
-- claim_path: tables/cust_message_send_policy#similar_fields.enable_send_enable
-  kind: unanchored
-  severity: info
-  status: open
-  note: 均为启停/发送开关类标识，语义相近，注释分别为 'enable' 与 '发送标识'，需人工确认是否冗余
-  id: rv_l0_0103
-  created: '2026-09-17'
+  id: rv_l0_0029
+  created: '2026-09-20'
 - claim_path: tables/cust_oper_change_record#relations.cust_person_info.id__cust_oper_change_record.person_id
   kind: unverified_join
   severity: warning
@@ -806,8 +264,8 @@ items:
   note: identity-bundle JOIN cust_person_info.id → cust_oper_change_record.person_id
     is L0-proposed; authenticity=likely; name_match=family_suffix; overlap_ratio=0.9947;
     comment=企业联系人id
-  id: rv_l0_0104
-  created: '2026-09-17'
+  id: rv_l0_0030
+  created: '2026-09-20'
 - claim_path: tables/cust_oper_change_record#relations.cust_company_info.id__cust_oper_change_record.company_id
   kind: unverified_join
   severity: warning
@@ -815,8 +273,8 @@ items:
   note: identity-bundle JOIN cust_company_info.id → cust_oper_change_record.company_id
     is L0-proposed; authenticity=likely; name_match=family_suffix; overlap_ratio=1.0;
     comment=企业ID
-  id: rv_l0_0105
-  created: '2026-09-17'
+  id: rv_l0_0031
+  created: '2026-09-20'
 - claim_path: tables/cust_oper_change_record#relations.cust_company_info.code__cust_oper_change_record.company_code
   kind: unverified_join
   severity: warning
@@ -824,106 +282,35 @@ items:
   note: identity-bundle JOIN cust_company_info.code → cust_oper_change_record.company_code
     is L0-proposed; authenticity=likely; name_match=family_suffix; overlap_ratio=1.0;
     comment=企业编号
-  id: rv_l0_0106
-  created: '2026-09-17'
-- claim_path: tables/cust_oper_change_record#similar_fields.code_company_code
-  kind: unanchored
-  severity: info
-  status: open
-  note: 通用编码列 code（注释仅「编码」）与业务列 company_code（企业编号）可能语义重叠；code 实际承载对象不明，需确认是否为企业编号的冗余副本。
-  id: rv_l0_0107
-  created: '2026-09-17'
-- claim_path: tables/cust_oper_change_record#similar_fields.name_person_name_company_name
-  kind: unanchored
-  severity: info
-  status: open
-  note: 通用 name（名称）与 person_name/company_name 同表并存，名称信息可能重复承载，需确认 name 的指向对象。
-  id: rv_l0_0108
-  created: '2026-09-17'
-- claim_path: tables/cust_oper_change_record#similar_fields.asset_id_asset_no
-  kind: unanchored
-  severity: info
-  status: open
-  note: 同为资产标识（asset_id/asset_no），一为 ID 一为编号，属同对象双标识列，使用时需区分。
-  id: rv_l0_0109
-  created: '2026-09-17'
+  id: rv_l0_0032
+  created: '2026-09-20'
 - claim_path: tables/cust_person_info#relations.cust_company_info.id__cust_person_info.ref_cust_company_info
   kind: unverified_join
   severity: warning
   status: open
   note: identity-bundle JOIN cust_company_info.id → cust_person_info.ref_cust_company_info
     is L0-proposed; authenticity=unlikely; name_match=exact_table; overlap_ratio=0.0;
-    comment=关联企业; 列名含目标表名，但实测 overlap 0.0（200/200 未命中），值域不契合，维持 unlikely
-  id: rv_l0_0110
-  created: '2026-09-17'
+    comment=关联企业
+  id: rv_l0_0033
+  created: '2026-09-20'
 - claim_path: tables/cust_person_info#relations.cust_company_info.id__cust_person_info.cust_company_id
   kind: unverified_join
   severity: warning
   status: open
   note: identity-bundle JOIN cust_company_info.id → cust_person_info.cust_company_id
     is L0-proposed; authenticity=likely; name_match=stem_info; overlap_ratio=0.9939;
-    comment=冗余企业id; 冗余企业id，注释与列名均指向 cust_company_info，overlap 0.9939 值域契合，维持 likely
-  id: rv_l0_0111
-  created: '2026-09-17'
-- claim_path: tables/cust_person_info#similar_fields.en_name_en_name_end
-  kind: unanchored
-  severity: info
-  status: open
-  note: 同为英文姓名（'姓名(英文)' 与 '人名 (英文)'），语义重叠疑似冗余
-  id: rv_l0_0112
-  created: '2026-09-17'
-- claim_path: tables/cust_person_info#similar_fields.realname_status_real_name_result
-  kind: unanchored
-  severity: info
-  status: open
-  note: 均为实名认证状态类字段，语义相近
-  id: rv_l0_0113
-  created: '2026-09-17'
-- claim_path: tables/cust_person_info#similar_fields.face_status_realname_status
-  kind: unanchored
-  severity: info
-  status: open
-  note: 取值域完全一致（TO_BE_VERIFIED/AUTOMATIC_AUTHENTICATION_*），疑似共用同一认证状态码集
-  id: rv_l0_0114
-  created: '2026-09-17'
-- claim_path: tables/cust_person_info#similar_fields.cust_company_id_ref_cust_company_info
-  kind: unanchored
-  severity: info
-  status: open
-  note: 均指向企业，一为冗余企业 id、一为关联企业字段，定位重叠
-  id: rv_l0_0115
-  created: '2026-09-17'
+    comment=冗余企业id
+  id: rv_l0_0034
+  created: '2026-09-20'
 - claim_path: tables/cust_project_code_record#relations.cust_company_info.id__cust_project_code_record.company_id
   kind: unverified_join
   severity: warning
   status: open
   note: identity-bundle JOIN cust_company_info.id → cust_project_code_record.company_id
     is L0-proposed; authenticity=unknown; name_match=family_suffix; overlap_ratio=0.9278;
-    overlap_ratio_reverse=0.0; deepened=true; comment=企业id; name_evidence=family_suffix(stem=company)，本地注释「企业id」与对端主键语义一致；overlap
-    ratio=0.9278（sample_size=263，miss=19），值域高度契合，判 likely。ratio_reverse=0.0 仅说明方向不对称（父表主键未全被引用），不否定该外键边。
-  id: rv_l0_0116
-  created: '2026-09-17'
-- claim_path: tables/cust_project_code_record#similar_fields.status_enable
-  kind: unanchored
-  severity: info
-  status: open
-  note: 同表两个 Y/N 形态标志列：status 注释「是否正确状态」，enable 无业务注释，语义疑似重叠，需人工确认是否保留双标志。
-  id: rv_l0_0117
-  created: '2026-09-17'
-- claim_path: tables/cust_project_code_record#similar_fields.type_company_type
-  kind: unanchored
-  severity: info
-  status: open
-  note: 均为类型/角色描述列：type「类型」为单值混合文本，company_type「企业角色」为 JSON 多值角色码，业务含义易混，使用时需区分。
-  id: rv_l0_0118
-  created: '2026-09-17'
-- claim_path: tables/cust_project_pushcust#similar_fields.source_sso_channel_target_sso_channel
-  kind: unanchored
-  severity: info
-  status: open
-  note: 同为SSO渠道字段，但方向不同（起始/跳转），不可互相替代。
-  id: rv_l0_0119
-  created: '2026-09-17'
+    overlap_ratio_reverse=0.0; deepened=true; comment=企业id
+  id: rv_l0_0035
+  created: '2026-09-20'
 - claim_path: tables/cust_project_rel#relations.cust_customized_product.id__cust_project_rel.product_id
   kind: unverified_join
   severity: warning
@@ -931,8 +318,8 @@ items:
   note: identity-bundle JOIN cust_customized_product.id → cust_project_rel.product_id
     is L0-proposed; authenticity=unlikely; name_match=family_suffix; overlap_ratio=0.0;
     comment=产品
-  id: rv_l0_0120
-  created: '2026-09-17'
+  id: rv_l0_0036
+  created: '2026-09-20'
 - claim_path: tables/cust_project_rel#relations.cust_company_info.id__cust_project_rel.ref_cust_project_rel_cust_company_info
   kind: unverified_join
   severity: warning
@@ -940,8 +327,8 @@ items:
   note: identity-bundle JOIN cust_company_info.id → cust_project_rel.ref_cust_project_rel_cust_company_info
     is L0-proposed; authenticity=unlikely; name_match=long_ref; overlap_ratio=0.01;
     comment=客户和项目关系
-  id: rv_l0_0121
-  created: '2026-09-17'
+  id: rv_l0_0037
+  created: '2026-09-20'
 - claim_path: tables/cust_project_rel#relations.platform_product.id__cust_project_rel.ref_cust_project_rel_platform_product
   kind: unverified_join
   severity: warning
@@ -949,56 +336,26 @@ items:
   note: identity-bundle JOIN platform_product.id → cust_project_rel.ref_cust_project_rel_platform_product
     is L0-proposed; authenticity=unlikely; name_match=long_ref; overlap_ratio=0.0;
     comment=平台产品
-  id: rv_l0_0122
-  created: '2026-09-17'
-- claim_path: tables/cust_project_rel#similar_fields.op_contact_a_verification_contact_risk_control_contact_a
-  kind: unanchored
-  severity: info
-  status: open
-  note: 同为「对接人」单值人员列（运营/查验/风控），注释仅角色不同，取值形态一致（工号/人员 id），易混用。
-  id: rv_l0_0123
-  created: '2026-09-17'
-- claim_path: tables/cust_project_rel#similar_fields.op_contact_b_risk_control_contact_b
-  kind: unanchored
-  severity: info
-  status: open
-  note: 同为「对接人B」列，取值均为 JSON 数组形式的人员集合，语义结构重复。
-  id: rv_l0_0124
-  created: '2026-09-17'
-- claim_path: tables/cust_project_rel#similar_fields.op_contact_a_group_verification_contact_group_risk_control_contact_a_group
-  kind: unanchored
-  severity: info
-  status: open
-  note: 同为「组别」列（运营/查验/风控），取值风格与脏值形态一致，属同类冗余配置列。
-  id: rv_l0_0125
-  created: '2026-09-17'
+  id: rv_l0_0038
+  created: '2026-09-20'
 - claim_path: tables/cust_role_info#relations.cust_company_info.id__cust_role_info.ref_cust_company_info
   kind: unverified_join
   severity: warning
   status: open
   note: identity-bundle JOIN cust_company_info.id → cust_role_info.ref_cust_company_info
     is L0-proposed; authenticity=unlikely; name_match=exact_table; overlap_ratio=0.0;
-    comment=客户类型; name_evidence 仅为表名精确匹配（ref_cust_company_info ≈ cust_company_info），但本地注释为「客户类型」，与指向企业主档表的语义不符；overlap
-    已探测 200 条全 miss（ratio=0.0），值域不契合，判 unlikely。
-  id: rv_l0_0126
-  created: '2026-09-17'
+    comment=客户类型
+  id: rv_l0_0039
+  created: '2026-09-20'
 - claim_path: tables/cust_role_info#relations.cust_auth_application.id__cust_role_info.ref_cust_auth_application
   kind: unverified_join
   severity: warning
   status: open
   note: identity-bundle JOIN cust_auth_application.id → cust_role_info.ref_cust_auth_application
     is L0-proposed; authenticity=unknown; name_match=exact_table; overlap_ratio=0.0;
-    comment=应用客户角色; 表名精确匹配且本地注释「应用客户角色」与目标表（客户产品开通表）语义相关，但 overlap 仅探测 1 条样本且 ratio=0.0，样本量不足不能作为否定或肯定依据，维持
-    unknown。
-  id: rv_l0_0127
-  created: '2026-09-17'
-- claim_path: tables/cust_role_info#similar_fields.status_act_procinst_status
-  kind: unanchored
-  severity: info
-  status: open
-  note: 两列注释均为「状态」，一为本表业务状态（ADD/EFFECT/WRITEOFF/FREEZE），一为流程审批状态；语义范围需人工区分，存在混用/冗余风险。
-  id: rv_l0_0128
-  created: '2026-09-17'
+    comment=应用客户角色
+  id: rv_l0_0040
+  created: '2026-09-20'
 - claim_path: tables/cust_setting_config#relations.cust_company_info.id__cust_setting_config.cust_id
   kind: unverified_join
   severity: warning
@@ -1006,22 +363,8 @@ items:
   note: identity-bundle JOIN cust_company_info.id → cust_setting_config.cust_id is
     L0-proposed; authenticity=unknown; name_match=family_hub; overlap_ratio=None;
     comment=企业id
-  id: rv_l0_0129
-  created: '2026-09-17'
-- claim_path: tables/cust_setting_config#similar_fields.authorization_change_cfca_agreement
-  kind: unanchored
-  severity: info
-  status: open
-  note: 两列注释完全相同（数字证书服务协议），疑为冗余重复列，取值需人工核对
-  id: rv_l0_0130
-  created: '2026-09-17'
-- claim_path: tables/cust_sftp#similar_fields.act_procinst_id_act_procinst_no
-  kind: unanchored
-  severity: info
-  status: open
-  note: 同为流程实例标识（实例ID 与 申请编号），语义高度重叠，存在冗余关联，需确认以何者为准。
-  id: rv_l0_0131
-  created: '2026-09-17'
+  id: rv_l0_0041
+  created: '2026-09-20'
 - claim_path: tables/cust_shareholder_info#relations.cust_company_info.id__cust_shareholder_info.ref_cust_company_info
   kind: unverified_join
   severity: warning
@@ -1029,274 +372,42 @@ items:
   note: identity-bundle JOIN cust_company_info.id → cust_shareholder_info.ref_cust_company_info
     is L0-proposed; authenticity=unlikely; name_match=exact_table; overlap_ratio=0.0;
     comment=客户股东信息
-  id: rv_l0_0132
-  created: '2026-09-17'
-- claim_path: tables/cust_shareholder_info#similar_fields.fund_amount_ought_fund_amount_act
-  kind: unanchored
-  severity: info
-  status: open
-  note: 同表出资度量成对列，语义近似（应出资/实际出资），仅口径不同，易混用，需人工确认是否冗余展示
-  id: rv_l0_0133
-  created: '2026-09-17'
+  id: rv_l0_0042
+  created: '2026-09-20'
 - claim_path: tables/cust_survey_answer#relations.cust_company_info.id__cust_survey_answer.company_id
   kind: unverified_join
   severity: warning
   status: open
   note: identity-bundle JOIN cust_company_info.id → cust_survey_answer.company_id
     is L0-proposed; authenticity=likely; name_match=family_suffix; overlap_ratio=0.95;
-    overlap_ratio_reverse=0.0; deepened=true; comment=当前登录企业ID; 列名 company 家族后缀对应，注释『当前登录企业ID』与对端主键语义一致，overlap
-    正向 0.95（样本 60，miss 3），值域契合，判 likely。
-  id: rv_l0_0134
-  created: '2026-09-17'
-- claim_path: tables/cust_survey_answer#similar_fields.company_id_organization_id
-  kind: unanchored
-  severity: info
-  status: open
-  note: 当前登录企业ID（number）与机构编号（string）可能指向同一组织主档的不同层级/编码形式，存在语义重叠，需人工确认是否冗余。
-  id: rv_l0_0135
-  created: '2026-09-17'
+    overlap_ratio_reverse=0.0; deepened=true; comment=当前登录企业ID
+  id: rv_l0_0043
+  created: '2026-09-20'
 - claim_path: tables/cust_user_rel#relations.cust_company_info.id__cust_user_rel.company_id
   kind: unverified_join
   severity: warning
   status: open
   note: identity-bundle JOIN cust_company_info.id → cust_user_rel.company_id is L0-proposed;
-    authenticity=unknown; name_match=family_suffix; overlap_ratio=1.0; comment=企业id;
-    对端 cust_company_info.id 为父表主键，列名/注释（company_id 企业id 对应企业主档）语义吻合，且探测 overlap=1.0；样本量仅
-    1 行，强度有限。
-  id: rv_l0_0136
-  created: '2026-09-17'
-- claim_path: tables/cust_user_rel#similar_fields.company_id_company_name
-  kind: unanchored
-  severity: info
-  status: open
-  note: 同一企业的 id 与名称同表冗余存放（反规范化），company_name 可由 company_id 关联取得。
-  id: rv_l0_0137
-  created: '2026-09-17'
-- claim_path: tables/cust_user_rel#similar_fields.company_id_organization_id
-  kind: unanchored
-  severity: info
-  status: open
-  note: 企业id（number）与机构编号（string）疑指同一组织实体，类型与命名不一致，需人工确认是否重复标识。
-  id: rv_l0_0138
-  created: '2026-09-17'
+    authenticity=unknown; name_match=family_suffix; overlap_ratio=1.0; comment=企业id
+  id: rv_l0_0044
+  created: '2026-09-20'
 - claim_path: tables/funding_rule_detail#relations.funding_rule_info.id__funding_rule_detail.rule_info_id
   kind: unverified_join
   severity: warning
   status: open
   note: identity-bundle JOIN funding_rule_info.id → funding_rule_detail.rule_info_id
     is L0-proposed; authenticity=unknown; name_match=family_suffix; overlap_ratio=0.7273;
-    overlap_ratio_reverse=1.0; deepened=true; comment=关系规则信息ID; 列名 family_suffix 命中
-    rule_info，注释「关系规则信息ID」指向资方规则信息主表；overlap 反向 1.0（父表 id 全部被覆盖）、正向 0.7273（33 样本中
-    9 未命中，可能为探测窗口外的主表行），值域与语义均契合
-  id: rv_l0_0139
-  created: '2026-09-17'
-- claim_path: tables/funding_rule_detail#relations.funding_rule_info.code__funding_rule_detail.fund_rule_code_ref
-  kind: unverified_join
-  severity: warning
-  status: open
-  note: identity-bundle JOIN funding_rule_info.code → funding_rule_detail.fund_rule_code_ref
-    is L0-proposed; authenticity=unknown; name_match=llm_propose; overlap_ratio=0.6071;
-    overlap_ratio_reverse=1.0; comment=关联规则信息code; 注释「关联规则信息code」与对端 code 语义一致，码对码
-    EQUI_JOIN，overlap 0.6071/反向 1.0；同表已有 rule_info_id→funding_rule_info.id 主键边，本条按
-    secondary 处理
-  id: rv_l0_0140
-  created: '2026-09-17'
-- claim_path: tables/funding_rule_detail#relations.funding_rule_info.product_code__funding_rule_detail.product_code
-  kind: unverified_join
-  severity: warning
-  status: open
-  note: identity-bundle JOIN funding_rule_info.product_code → funding_rule_detail.product_code
-    is L0-proposed; authenticity=unknown; name_match=llm_propose; overlap_ratio=1.0;
-    comment=产品code; 两列同名同注释「产品code」，overlap 1.0，码对码 EQUI_JOIN 合法；同表已有 rule_info_id→funding_rule_info.id
-    主键边指向该父表，本条按 secondary 处理（样本仅 2 值，需人工复核）
-  id: rv_l0_0141
-  created: '2026-09-17'
-- claim_path: tables/funding_rule_detail#similar_fields.rule_info_id_fund_rule_code_ref
-  kind: unanchored
-  severity: info
-  status: open
-  note: 同表内两个指向 funding_rule_info 的引用列：rule_info_id 为对端主键 ID、fund_rule_code_ref 注释为「关联规则信息code」，语义近义存在冗余引用，宜以其中一条为准
-  id: rv_l0_0142
-  created: '2026-09-17'
-- claim_path: tables/funding_rule_front_cfg#similar_fields.front_key_name_key_name
-  kind: unanchored
-  severity: info
-  status: open
-  note: 均为字段名称显示文本（前端展示名 / 字段名称描述），语义高度重叠，疑似同义冗余列，建议人工确认是否二者取一或分别承载不同层级的展示名。
-  id: rv_l0_0143
-  created: '2026-09-17'
-- claim_path: tables/funding_rule_front_cfg#similar_fields.front_key_rule_key
-  kind: unanchored
-  severity: info
-  status: open
-  note: 均为配置字段 key（前端字段 key / 规则字段 key），命名相近，但样本取值粒度不同（前者含后缀与 layER 拼接），需人工确认是否冗余或为不同用途。
-  id: rv_l0_0144
-  created: '2026-09-17'
-- claim_path: tables/funding_rule_info#relations.funding_rule_detail.product_code__funding_rule_info.product_code
-  kind: unverified_join
-  severity: warning
-  status: open
-  note: identity-bundle JOIN funding_rule_detail.product_code → funding_rule_info.product_code
-    is L0-proposed; authenticity=unknown; name_match=llm_propose; overlap_ratio=1.0;
-    comment=产品code; 码对码等值关联，overlap=1.0，列名与注释完全一致；本表无指向同一父表的 id 主键边，无需标 secondary。
-  id: rv_l0_0145
-  created: '2026-09-17'
-- claim_path: tables/funding_rule_info#relations.funding_rule_front_cfg.product_code__funding_rule_info.product_code
-  kind: unverified_join
-  severity: warning
-  status: open
-  note: identity-bundle JOIN funding_rule_front_cfg.product_code → funding_rule_info.product_code
-    is L0-proposed; authenticity=unknown; name_match=llm_propose; overlap_ratio=1.0;
-    comment=产品code; 码对码等值关联，overlap=1.0，列名与注释一致。
-  id: rv_l0_0146
-  created: '2026-09-17'
-- claim_path: tables/funding_rule_info#relations.funding_exception_resolution.product_code__funding_rule_info.product_code
-  kind: unverified_join
-  severity: warning
-  status: open
-  note: identity-bundle JOIN funding_exception_resolution.product_code → funding_rule_info.product_code
-    is L0-proposed; authenticity=unknown; name_match=llm_propose; overlap_ratio=1.0;
-    comment=产品code; 码对码等值关联，overlap=1.0，列名与注释一致；样本量小，方向与基数待人工复核。
-  id: rv_l0_0147
-  created: '2026-09-17'
-- claim_path: tables/funding_rule_info#similar_fields.code_product_code
-  kind: unanchored
-  severity: info
-  status: open
-  note: 均为业务编码类字段，product_code 承载产品维度编码，与通用编码 code 语义边界不清，存在冗余/误用风险，需人工确认。
-  id: rv_l0_0148
-  created: '2026-09-17'
-- claim_path: tables/funding_rule_info#similar_fields.name_funding_party_name
-  kind: unanchored
-  severity: info
-  status: open
-  note: 通用名称与资方名称可能指向同一实体，需确认 name 是否为资方名称的通用化列。
-  id: rv_l0_0149
-  created: '2026-09-17'
-- claim_path: tables/funding_rule_info#similar_fields.act_procinst_id_act_procinst_no
-  kind: unanchored
-  severity: info
-  status: open
-  note: 同一审批流程的实例ID与申请编号，语义相近、易混用，需确认是否存在冗余。
-  id: rv_l0_0150
-  created: '2026-09-17'
-- claim_path: tables/gpt_learn_poster_log#similar_fields.act_procinst_id_act_procinst_no
-  kind: unanchored
-  severity: info
-  status: open
-  note: 同表流程标识近义列（流程实例ID / 流程申请编号），是否等价需人工确认
-  id: rv_l0_0151
-  created: '2026-09-17'
-- claim_path: tables/gpt_learn_poster_log#similar_fields.popup_time_click_time
-  kind: unanchored
-  severity: info
-  status: open
-  note: 同表卡片时点列（弹出时间/点击时间），语义相邻易混用，注意区分口径
-  id: rv_l0_0152
-  created: '2026-09-17'
-- claim_path: tables/migratory_user_record#similar_fields.act_procinst_id_act_procinst_no
-  kind: unanchored
-  severity: info
-  status: open
-  note: 同为流程单据标识：一为流程实例ID、一为流程申请编号，语义相近易混用，使用前需按注释区分
-  id: rv_l0_0153
-  created: '2026-09-17'
-- claim_path: tables/open_sso_channel#similar_fields.channel_code_code
-  kind: unanchored
-  severity: info
-  status: open
-  note: 同表两列均为渠道编码语义（channel_code 注释为业务/OpenAPI渠道码，code 仅注释「编码」），疑为冗余或一列被另一列取代，需人工确认取值是否一致。
-  id: rv_l0_0154
-  created: '2026-09-17'
-- claim_path: tables/open_sso_channel#similar_fields.channel_name_name
-  kind: unanchored
-  severity: info
-  status: open
-  note: channel_name 注释「渠道名称」与通用 name「名称」在该表中语义重叠，疑为冗余命名列。
-  id: rv_l0_0155
-  created: '2026-09-17'
-- claim_path: tables/open_sso_channel#similar_fields.org_code_organization_id
-  kind: unanchored
-  severity: info
-  status: open
-  note: org_code 注释「同步 SSO 机构编码」与 organization_id 注释「机构编号」语义相近，疑为同一机构标识的两种存储，需人工确认。
-  id: rv_l0_0156
-  created: '2026-09-17'
-- claim_path: tables/operation_user#similar_fields.code_name
-  kind: unanchored
-  severity: info
-  status: open
-  note: 同属通用字段，一为编码一为名称，语义相近、可能为同一业务对象的冗余描述列，待人工确认是否重复
-  id: rv_l0_0157
-  created: '2026-09-17'
-- claim_path: tables/operation_user#similar_fields.operation_name_name
-  kind: unanchored
-  severity: info
-  status: open
-  note: operation_name 为运营人员姓名，name 注释仅「名称」，在本表语境下可能指向同一人名字段，存在冗余可能
-  id: rv_l0_0158
-  created: '2026-09-17'
-- claim_path: tables/org_manage#similar_fields.name_org_name
-  kind: unanchored
-  severity: info
-  status: open
-  note: 名称与机构名称语义重叠，可能一者为冗余展示列
-  id: rv_l0_0159
-  created: '2026-09-17'
-- claim_path: tables/org_manage#similar_fields.code_org_no_organization_id
-  kind: unanchored
-  severity: info
-  status: open
-  note: 编码/机构号/机构编号可能表示同一机构标识，需确认是否同源
-  id: rv_l0_0160
-  created: '2026-09-17'
-- claim_path: tables/org_manage#similar_fields.status_enable
-  kind: unanchored
-  severity: info
-  status: open
-  note: 状态与启用标识均涉及启停语义，可能部分冗余
-  id: rv_l0_0161
-  created: '2026-09-17'
+    overlap_ratio_reverse=1.0; deepened=true; comment=关系规则信息ID
+  id: rv_l0_0045
+  created: '2026-09-20'
 - claim_path: tables/platform_product#relations.platform_product_cust_role.product_code__platform_product.product_ref_num
   kind: unverified_join
   severity: warning
   status: open
   note: identity-bundle JOIN platform_product_cust_role.product_code → platform_product.product_ref_num
     is L0-proposed; authenticity=likely; name_match=none; overlap_ratio=1.0; comment=引用产品的平台数
-  id: rv_l0_0162
-  created: '2026-09-17'
-- claim_path: tables/platform_product#relations.platform_product_cust_role.product_code__platform_product.product_code
-  kind: unverified_join
-  severity: warning
-  status: open
-  note: identity-bundle JOIN platform_product_cust_role.product_code → platform_product.product_code
-    is L0-proposed; authenticity=unknown; name_match=llm_propose; overlap_ratio=0.5;
-    overlap_ratio_reverse=0.8333; comment=产品编码; 同名列码对码，overlap 0.5/反向 0.8333，可作 EQUI_JOIN
-    候选边。
-  id: rv_l0_0163
-  created: '2026-09-17'
-- claim_path: tables/platform_product#similar_fields.default_menu_code_default_menu_index
-  kind: unanchored
-  severity: info
-  status: open
-  note: 注释完全相同（均为「默认菜单编号」），一为字符串码一为数值，疑似冗余或注释错抄。
-  id: rv_l0_0164
-  created: '2026-09-17'
-- claim_path: tables/platform_product#similar_fields.product_type_general_flag
-  kind: unanchored
-  severity: info
-  status: open
-  note: 注释均为「通用产品标识」，语义重复；product_type 为 GENERAL/INTERWORKING，general_flag 仅见 Y。
-  id: rv_l0_0165
-  created: '2026-09-17'
-- claim_path: tables/platform_product#similar_fields.platform_code_product_code
-  kind: unanchored
-  severity: info
-  status: open
-  note: 两列值域大量重合（HTCP1/HTCP5/HTCP6/HTCP7/HTCP13/HTCP14/HTCP15/HTCP18/HTCP19/AMS/STORAGE
-    等），疑似同源编码重复存储，需确认二者业务定位差异。
-  id: rv_l0_0166
-  created: '2026-09-17'
+  id: rv_l0_0046
+  created: '2026-09-20'
 - claim_path: tables/platform_product_client#relations.platform_product.id__platform_product_client.platform_product_id
   kind: unverified_join
   severity: warning
@@ -1304,15 +415,8 @@ items:
   note: identity-bundle JOIN platform_product.id → platform_product_client.platform_product_id
     is L0-proposed; authenticity=likely; name_match=exact_table; overlap_ratio=1.0;
     comment=平台产品id
-  id: rv_l0_0167
-  created: '2026-09-17'
-- claim_path: tables/platform_product_client#similar_fields.status_enable
-  kind: unanchored
-  severity: info
-  status: open
-  note: 二者同为启用/停用语义：status 注释「启用状态」，enable 注释「enable」，疑似同一状态的双列冗余，需确认保留口径
-  id: rv_l0_0168
-  created: '2026-09-17'
+  id: rv_l0_0047
+  created: '2026-09-20'
 - claim_path: tables/platform_product_cust_role#relations.platform_product.code__platform_product_cust_role.product_code
   kind: unverified_join
   severity: warning
@@ -1320,72 +424,44 @@ items:
   note: identity-bundle JOIN platform_product.code → platform_product_cust_role.product_code
     is L0-proposed; authenticity=unlikely; name_match=family_suffix; overlap_ratio=0.0;
     comment=产品编码
-  id: rv_l0_0169
-  created: '2026-09-17'
-- claim_path: tables/platform_product_cust_role#similar_fields.company_type_code_company_type_name
-  kind: unanchored
-  severity: info
-  status: open
-  note: 同表企业角色的编码/名称成对列，语义近义冗余，业务上应保持一致；取值数不完全对齐（8 vs 9），需人工确认。
-  id: rv_l0_0170
-  created: '2026-09-17'
-- claim_path: tables/short_link#similar_fields.code_number
-  kind: unanchored
-  severity: info
-  status: open
-  note: 两列注释均为「编码」，同表近义/冗余，需确认业务差异。
-  id: rv_l0_0171
-  created: '2026-09-17'
+  id: rv_l0_0048
+  created: '2026-09-20'
 - claim_path: tables/tenant_interworking_product#relations.platform_product.id__tenant_interworking_product.platform_product_id
   kind: unverified_join
   severity: warning
   status: open
   note: identity-bundle JOIN platform_product.id → tenant_interworking_product.platform_product_id
     is L0-proposed; authenticity=likely; name_match=exact_table; overlap_ratio=1.0;
-    comment=平台产品id; 值域完全覆盖(1.0)，列名/注释均为平台产品id，证据充分
-  id: rv_l0_0172
-  created: '2026-09-17'
+    comment=平台产品id
+  id: rv_l0_0049
+  created: '2026-09-20'
 - claim_path: tables/tenant_interworking_product#relations.platform_product.code__tenant_interworking_product.platform_product_code
   kind: unverified_join
   severity: warning
   status: open
   note: identity-bundle JOIN platform_product.code → tenant_interworking_product.platform_product_code
     is L0-proposed; authenticity=unlikely; name_match=exact_table; overlap_ratio=0.0;
-    comment=平台产品编号; 列名/注释有关联，但重叠率0/11，值域不契合；码对码候选需人工确认
-  id: rv_l0_0173
-  created: '2026-09-17'
+    comment=平台产品编号
+  id: rv_l0_0050
+  created: '2026-09-20'
 - claim_path: tables/tenant_interworking_product#relations.platform_product.id__tenant_interworking_product.ref_tenant_interworking_product_platform_product
   kind: unverified_join
   severity: warning
   status: open
   note: identity-bundle JOIN platform_product.id → tenant_interworking_product.ref_tenant_interworking_product_platform_product
     is L0-proposed; authenticity=unlikely; name_match=long_ref; overlap_ratio=0.0;
-    comment=关联产品大类; 长ref命名指向platform_product，但重叠0/3，值域不契合
-  id: rv_l0_0174
-  created: '2026-09-17'
+    comment=关联产品大类
+  id: rv_l0_0051
+  created: '2026-09-20'
 - claim_path: tables/tenant_interworking_product#relations.tenant_setting_config.id__tenant_interworking_product.ref_tenant_interworking_product_tenant_setting_config
   kind: unverified_join
   severity: warning
   status: open
   note: identity-bundle JOIN tenant_setting_config.id → tenant_interworking_product.ref_tenant_interworking_product_tenant_setting_config
     is L0-proposed; authenticity=unlikely; name_match=long_ref; overlap_ratio=0.0;
-    comment=关联租户; 长ref命名指向tenant_setting_config，但重叠0/13，值域不契合
-  id: rv_l0_0175
-  created: '2026-09-17'
-- claim_path: tables/tenant_interworking_product#similar_fields.product_summary_product_description
-  kind: unanchored
-  severity: info
-  status: open
-  note: 产品概述与详细描述语义相近，可能冗余，需确认是否合并使用
-  id: rv_l0_0176
-  created: '2026-09-17'
-- claim_path: tables/tenant_interworking_product#similar_fields.open_status_enable
-  kind: unanchored
-  severity: info
-  status: open
-  note: 产品开通状态与记录启用标识均表达状态位，可能近义/冗余
-  id: rv_l0_0177
-  created: '2026-09-17'
+    comment=关联租户
+  id: rv_l0_0052
+  created: '2026-09-20'
 - claim_path: tables/tenant_interworking_project#relations.tenant_interworking_product.id__tenant_interworking_project.product_id
   kind: unverified_join
   severity: warning
@@ -1393,8 +469,8 @@ items:
   note: identity-bundle JOIN tenant_interworking_product.id → tenant_interworking_project.product_id
     is L0-proposed; authenticity=unknown; name_match=family_suffix; overlap_ratio=0.8333;
     overlap_ratio_reverse=0.125; deepened=true; comment=产品id
-  id: rv_l0_0178
-  created: '2026-09-17'
+  id: rv_l0_0053
+  created: '2026-09-20'
 - claim_path: tables/tenant_interworking_project#relations.platform_product.code__tenant_interworking_project.platform_product_code
   kind: unverified_join
   severity: warning
@@ -1402,8 +478,8 @@ items:
   note: identity-bundle JOIN platform_product.code → tenant_interworking_project.platform_product_code
     is L0-proposed; authenticity=unlikely; name_match=exact_table; overlap_ratio=0.0;
     comment=平台产品编码
-  id: rv_l0_0179
-  created: '2026-09-17'
+  id: rv_l0_0054
+  created: '2026-09-20'
 - claim_path: tables/tenant_interworking_project#relations.tenant_project.id__tenant_interworking_project.project_id
   kind: unverified_join
   severity: warning
@@ -1411,8 +487,8 @@ items:
   note: identity-bundle JOIN tenant_project.id → tenant_interworking_project.project_id
     is L0-proposed; authenticity=likely; name_match=family_suffix; overlap_ratio=1.0;
     comment=项目id
-  id: rv_l0_0180
-  created: '2026-09-17'
+  id: rv_l0_0055
+  created: '2026-09-20'
 - claim_path: tables/tenant_interworking_project#relations.tenant_setting_config.id__tenant_interworking_project.ref_tenant_interworking_project_tenant_setting_config
   kind: unverified_join
   severity: warning
@@ -1420,8 +496,8 @@ items:
   note: identity-bundle JOIN tenant_setting_config.id → tenant_interworking_project.ref_tenant_interworking_project_tenant_setting_config
     is L0-proposed; authenticity=unknown; name_match=long_ref; overlap_ratio=0.0;
     comment=租户项目
-  id: rv_l0_0181
-  created: '2026-09-17'
+  id: rv_l0_0056
+  created: '2026-09-20'
 - claim_path: tables/tenant_interworking_project#relations.tenant_interworking_product.id__tenant_interworking_project.ref_tenant_interworking_project_tenant_interworking_product
   kind: unverified_join
   severity: warning
@@ -1429,39 +505,17 @@ items:
   note: identity-bundle JOIN tenant_interworking_product.id → tenant_interworking_project.ref_tenant_interworking_project_tenant_interworking_product
     is L0-proposed; authenticity=unlikely; name_match=long_ref; overlap_ratio=0.0;
     comment=租户产品项目
-  id: rv_l0_0182
-  created: '2026-09-17'
-- claim_path: tables/tenant_interworking_project#similar_fields.ref_tenant_interworking_project_tenant_setting_config_ref_tenant_interworking_project_tenant_interworking_product
-  kind: unanchored
-  severity: info
-  status: open
-  note: 两列均为长列名形式的引用列，语义分别为租户项目配置与租户互通产品，命名冗余、易混，需人工确认各自指向
-  id: rv_l0_0183
-  created: '2026-09-17'
+  id: rv_l0_0057
+  created: '2026-09-20'
 - claim_path: tables/tenant_migarory_log#relations.platform_product.code__tenant_migarory_log.platform_product_code
   kind: unverified_join
   severity: warning
   status: open
   note: identity-bundle JOIN platform_product.code → tenant_migarory_log.platform_product_code
     is L0-proposed; authenticity=unlikely; name_match=exact_table; overlap_ratio=0.0;
-    comment=产品编码; 列名/注释（产品编码）与 platform_product.code 语义关联，但探测 overlap=0.0（10/10 未命中，sample_size=10），值域不契合，判
-    unlikely；仅名称证据不足以判 likely
-  id: rv_l0_0184
-  created: '2026-09-17'
-- claim_path: tables/tenant_migarory_log#similar_fields.name_type
-  kind: unanchored
-  severity: info
-  status: open
-  note: 取值语义高度重叠：name 的中文业务名（迁移项目/同步项目/迁移客户/迁移租户）与 type 的驼峰码（migratoryProject/syncProject/migratoryCust/migratoryTenant）一一对应，疑为同一业务枚举的中英两列冗余
-  id: rv_l0_0185
-  created: '2026-09-17'
-- claim_path: tables/tenant_migarory_log#similar_fields.req_sn_req_no
-  kind: unanchored
-  severity: info
-  status: open
-  note: 「请求流水编码」与「请求编号」同表近义标识列，语义重叠、易混用
-  id: rv_l0_0186
-  created: '2026-09-17'
+    comment=产品编码
+  id: rv_l0_0058
+  created: '2026-09-20'
 - claim_path: tables/tenant_migarory_log_bak#relations.platform_product.code__tenant_migarory_log_bak.platform_product_code
   kind: unverified_join
   severity: warning
@@ -1469,181 +523,106 @@ items:
   note: identity-bundle JOIN platform_product.code → tenant_migarory_log_bak.platform_product_code
     is L0-proposed; authenticity=unlikely; name_match=exact_table; overlap_ratio=0.0;
     comment=产品编码
-  id: rv_l0_0187
-  created: '2026-09-17'
-- claim_path: tables/tenant_migarory_log_bak#similar_fields.req_sn_req_no
-  kind: unanchored
-  severity: info
-  status: open
-  note: 「请求流水编码」与「请求编号」同指请求单据标识，命名近义，疑似冗余列。
-  id: rv_l0_0188
-  created: '2026-09-17'
-- claim_path: tables/tenant_migarory_log_bak#similar_fields.name_type
-  kind: unanchored
-  severity: info
-  status: open
-  note: 两列取值域高度重叠（migratoryProject/迁移租户/PROJECT_SYNC/EFFECTED 等同时出现），疑似同源业务码被重复承载，建议人工确认语义分工。
-  id: rv_l0_0189
-  created: '2026-09-17'
+  id: rv_l0_0059
+  created: '2026-09-20'
 - claim_path: tables/tenant_product#relations.platform_product.id__tenant_product.platform_product_id
   kind: unverified_join
   severity: warning
   status: open
   note: identity-bundle JOIN platform_product.id → tenant_product.platform_product_id
     is L0-proposed; authenticity=likely; name_match=exact_table; overlap_ratio=1.0;
-    comment=平台产品id; 列名 exact_table 匹配且注释为平台产品id，探测 overlap=1.0（8/8 命中），值域契合，判 likely。
-  id: rv_l0_0190
-  created: '2026-09-17'
+    comment=平台产品id
+  id: rv_l0_0060
+  created: '2026-09-20'
 - claim_path: tables/tenant_product#relations.platform_product.code__tenant_product.platform_product_code
   kind: unverified_join
   severity: warning
   status: open
   note: identity-bundle JOIN platform_product.code → tenant_product.platform_product_code
     is L0-proposed; authenticity=unlikely; name_match=exact_table; overlap_ratio=0.0;
-    comment=平台产品编号; 列名与注释有关联语义，但探测 overlap=0.0（8 样本全部未命中），值域不契合，判 unlikely，保留待人工复核。
-  id: rv_l0_0191
-  created: '2026-09-17'
+    comment=平台产品编号
+  id: rv_l0_0061
+  created: '2026-09-20'
 - claim_path: tables/tenant_product#relations.tenant_setting_config.id__tenant_product.ref_tenant_product_tenant_setting_config
   kind: unverified_join
   severity: warning
   status: open
   note: identity-bundle JOIN tenant_setting_config.id → tenant_product.ref_tenant_product_tenant_setting_config
     is L0-proposed; authenticity=unlikely; name_match=long_ref; overlap_ratio=0.0061;
-    comment=租户-产品; 长引用名指向 tenant_setting_config.id，但 overlap=0.0061（165 样本仅 1 命中），值域不契合，判
-    unlikely。
-  id: rv_l0_0192
-  created: '2026-09-17'
-- claim_path: tables/tenant_product#similar_fields.product_summary_product_description
-  kind: unanchored
-  severity: info
-  status: open
-  note: 产品概述与产品详细描述同属产品文案，语义邻近易冗余，需人工确认是否重复维护。
-  id: rv_l0_0193
-  created: '2026-09-17'
-- claim_path: tables/tenant_product#similar_fields.ref_tenant_product_tenant_setting_config_ref_tenant_product_project_code
-  kind: unanchored
-  severity: info
-  status: open
-  note: 两个 ref_tenant_product_* 引用列命名同构、值形均为 UUID，注释均指向外部关联对象，存在冗余引用可能。
-  id: rv_l0_0194
-  created: '2026-09-17'
-- claim_path: tables/tenant_product#similar_fields.platform_product_id_platform_product_code
-  kind: unanchored
-  severity: info
-  status: open
-  note: 同一平台产品的 id 与 code 两种引用并存，语义重叠，属可归并的冗余引用列。
-  id: rv_l0_0195
-  created: '2026-09-17'
+    comment=租户-产品
+  id: rv_l0_0062
+  created: '2026-09-20'
 - claim_path: tables/tenant_product_menu#relations.tenant_product.code__tenant_product_menu.product_code
   kind: unverified_join
   severity: warning
   status: open
   note: identity-bundle JOIN tenant_product.code → tenant_product_menu.product_code
     is L0-proposed; authenticity=unknown; name_match=family_suffix; overlap_ratio=0.0;
-    comment=产品code; 候选边对端 tenant_product.code；name_evidence=family_suffix(product/产品code)，overlap
-    probed ratio=0.0(sample=2,miss=2)，样本过小且值域不契合，不能标 likely，保持 unknown。
-  id: rv_l0_0196
-  created: '2026-09-17'
+    comment=产品code
+  id: rv_l0_0063
+  created: '2026-09-20'
 - claim_path: tables/tenant_product_menu_res#relations.tenant_product.code__tenant_product_menu_res.product_code
   kind: unverified_join
   severity: warning
   status: open
   note: identity-bundle JOIN tenant_product.code → tenant_product_menu_res.product_code
     is L0-proposed; authenticity=unknown; name_match=family_suffix; overlap_ratio=0.0;
-    comment=产品code; 对端 tenant_product.code，name_evidence 为 family_suffix(stem=product)，注释「产品code」语义相关，但探测
-    overlap ratio=0.0（sample=2，miss=2），值域不契合，故判 unlikely。
-  id: rv_l0_0197
-  created: '2026-09-17'
+    comment=产品code
+  id: rv_l0_0064
+  created: '2026-09-20'
 - claim_path: tables/tenant_product_menu_res#relations.tenant_product_menu.id__tenant_product_menu_res.menu_id
   kind: unverified_join
   severity: warning
   status: open
   note: identity-bundle JOIN tenant_product_menu.id → tenant_product_menu_res.menu_id
     is L0-proposed; authenticity=unlikely; name_match=family_suffix; overlap_ratio=0.0;
-    comment=菜单ID; 对端 tenant_product_menu.id，列名/注释为菜单ID 家族关联，但探测 overlap ratio=0.0（sample=8，miss=8），值域不契合，维持
-    unlikely。
-  id: rv_l0_0198
-  created: '2026-09-17'
+    comment=菜单ID
+  id: rv_l0_0065
+  created: '2026-09-20'
 - claim_path: tables/tenant_project#relations.tenant_product.id__tenant_project.product_id
   kind: unverified_join
   severity: warning
   status: open
   note: identity-bundle JOIN tenant_product.id → tenant_project.product_id is L0-proposed;
-    authenticity=likely; name_match=family_suffix; overlap_ratio=1.0; comment=产品编码;
-    探测 79/79 完全覆盖(ratio 1.0)，列名 product 家族一致，两侧注释均为产品编码/产品
-  id: rv_l0_0199
-  created: '2026-09-17'
+    authenticity=likely; name_match=family_suffix; overlap_ratio=1.0; comment=产品编码
+  id: rv_l0_0066
+  created: '2026-09-20'
 - claim_path: tables/tenant_project#relations.tenant_interworking_project.code__tenant_project.project_code
   kind: unverified_join
   severity: warning
   status: open
   note: identity-bundle JOIN tenant_interworking_project.code → tenant_project.project_code
     is L0-proposed; authenticity=unlikely; name_match=family_suffix; overlap_ratio=0.0;
-    comment=项目编码; 探测 200 样本全部未命中(ratio 0.0)，project_code 与该表 code 值域不契合
-  id: rv_l0_0200
-  created: '2026-09-17'
+    comment=项目编码
+  id: rv_l0_0067
+  created: '2026-09-20'
 - claim_path: tables/tenant_project#relations.platform_product.id__tenant_project.ref_tenant_project_platform_product
   kind: unverified_join
   severity: warning
   status: open
   note: identity-bundle JOIN platform_product.id → tenant_project.ref_tenant_project_platform_product
     is L0-proposed; authenticity=unlikely; name_match=long_ref; overlap_ratio=0.0;
-    comment=平台产品-项目关联; 列名 long_ref 指向 platform_product，但仅 3 个样本且 0 命中，样本过小不足以判 unlikely，留待扩样复核
-  id: rv_l0_0201
-  created: '2026-09-17'
+    comment=平台产品-项目关联
+  id: rv_l0_0068
+  created: '2026-09-20'
 - claim_path: tables/tenant_project#relations.platform_product.code__tenant_project.platform_product_code
   kind: unverified_join
   severity: warning
   status: open
   note: identity-bundle JOIN platform_product.code → tenant_project.platform_product_code
     is L0-proposed; authenticity=unknown; name_match=exact_table; overlap_ratio=0.0;
-    comment=平台产品编码; 名称与注释完全对应(平台产品编码)，但仅 1 个样本且 0 命中，探测量不足以定论
-  id: rv_l0_0202
-  created: '2026-09-17'
+    comment=平台产品编码
+  id: rv_l0_0069
+  created: '2026-09-20'
 - claim_path: tables/tenant_project#relations.tenant_project_approval.id__tenant_project.project_approval_id
   kind: unverified_join
   severity: warning
   status: open
   note: identity-bundle JOIN tenant_project_approval.id → tenant_project.project_approval_id
     is L0-proposed; authenticity=unknown; name_match=family_suffix; overlap_ratio=None;
-    comment=项目线上审批ID; 未探测(sample_size 0)，列名与注释(项目线上审批ID)语义对应，待探测值域
-  id: rv_l0_0203
-  created: '2026-09-17'
-- claim_path: tables/tenant_project#similar_fields.project_relation_bussiness_project_relation
-  kind: unanchored
-  severity: info
-  status: open
-  note: 项目归属与运营项目归属语义相近，疑为同一归属信息的两种记录，取值均为自由文本
-  id: rv_l0_0204
-  created: '2026-09-17'
-- claim_path: tables/tenant_project#similar_fields.op_contact_a_group_verification_contact_group_risk_control_contact_a_group
-  kind: unanchored
-  severity: info
-  status: open
-  note: 三列均为「组别」，取值域高度重叠(运营一组/审核组2/ams 等)，疑共用同一组别词表
-  id: rv_l0_0205
-  created: '2026-09-17'
-- claim_path: tables/tenant_project#similar_fields.custom_field_one_custom_field_two_custom_field_three
-  kind: unanchored
-  severity: info
-  status: open
-  note: 三个自定义字段结构同构(编号后缀 0121-01/02/03)，为同类扩展位
-  id: rv_l0_0206
-  created: '2026-09-17'
-- claim_path: tables/tenant_project#similar_fields.test_data_is_prd
-  kind: unanchored
-  severity: info
-  status: open
-  note: 是否测试数据与是否生产数据语义相反且均为 Y/N，疑为同一数据环境标识的冗余表达
-  id: rv_l0_0207
-  created: '2026-09-17'
-- claim_path: tables/tenant_project#similar_fields.source_id_source
-  kind: unanchored
-  severity: info
-  status: open
-  note: 项目来源与项目来源id为同一属性的 id/码双列冗余记账
-  id: rv_l0_0208
-  created: '2026-09-17'
+    comment=项目线上审批ID
+  id: rv_l0_0070
+  created: '2026-09-20'
 - claim_path: tables/tenant_project_approval#relations.tenant_project_approval_flow.code__tenant_project_approval.flow_code
   kind: unverified_join
   severity: warning
@@ -1651,8 +630,8 @@ items:
   note: identity-bundle JOIN tenant_project_approval_flow.code → tenant_project_approval.flow_code
     is L0-proposed; authenticity=unknown; name_match=family_suffix; overlap_ratio=None;
     comment=流程配置编码（tenant_project_approval_flow_config#flow_code）
-  id: rv_l0_0209
-  created: '2026-09-17'
+  id: rv_l0_0071
+  created: '2026-09-20'
 - claim_path: tables/tenant_project_approval#relations.tenant_project.id__tenant_project_approval.ref_tenant_project_approval_tenant_project
   kind: unverified_join
   severity: warning
@@ -1660,8 +639,8 @@ items:
   note: identity-bundle JOIN tenant_project.id → tenant_project_approval.ref_tenant_project_approval_tenant_project
     is L0-proposed; authenticity=unlikely; name_match=long_ref; overlap_ratio=0.0;
     comment=关联租户项目
-  id: rv_l0_0210
-  created: '2026-09-17'
+  id: rv_l0_0072
+  created: '2026-09-20'
 - claim_path: tables/tenant_project_approval#relations.tenant_project_approval_flow_config.id__tenant_project_approval.ref_tenant_project_approval_tenant_project_approval_flow_config
   kind: unverified_join
   severity: warning
@@ -1669,50 +648,8 @@ items:
   note: identity-bundle JOIN tenant_project_approval_flow_config.id → tenant_project_approval.ref_tenant_project_approval_tenant_project_approval_flow_config
     is L0-proposed; authenticity=unknown; name_match=long_ref; overlap_ratio=None;
     comment=关联租户项目流程配置
-  id: rv_l0_0211
-  created: '2026-09-17'
-- claim_path: tables/tenant_project_approval#similar_fields.approval_no_related_approval_no_sp_no_act_procinst_no
-  kind: unanchored
-  severity: info
-  status: open
-  note: 同表多个审批/流程类编号列，命名与语义高度相近，易混用，需区分主编号与关联编号
-  id: rv_l0_0212
-  created: '2026-09-17'
-- claim_path: tables/tenant_project_approval#similar_fields.ref_tenant_project_approval_tenant_project_ref_tenant_project_approval_tenant_project_approval_flow_config_ref_tenant_project_approval_tenant_project_approval
-  kind: unanchored
-  severity: info
-  status: open
-  note: 三个 ref_ 前缀关联列命名结构几乎一致，仅尾部目标实体不同，易误关联
-  id: rv_l0_0213
-  created: '2026-09-17'
-- claim_path: tables/tenant_project_approval#similar_fields.solution_manager_id_solution_manager_name
-  kind: unanchored
-  severity: info
-  status: open
-  note: 同一方案经理主体的 id 与姓名双列，同义冗余表达（姓名类列不参与字典）
-  id: rv_l0_0214
-  created: '2026-09-17'
-- claim_path: tables/tenant_project_approval#similar_fields.initiator_user_id_initiator_user_name
-  kind: unanchored
-  severity: info
-  status: open
-  note: 同一发起人主体的 id 与姓名双列，同义冗余表达
-  id: rv_l0_0215
-  created: '2026-09-17'
-- claim_path: tables/tenant_project_approval#similar_fields.wf_last_operator_id_wf_last_operator
-  kind: unanchored
-  severity: info
-  status: open
-  note: 同一最近操作人主体的 id 与姓名双列，同义冗余表达
-  id: rv_l0_0216
-  created: '2026-09-17'
-- claim_path: tables/tenant_project_approval#similar_fields.project_type_simple_mode_is_low_risk
-  kind: unanchored
-  severity: info
-  status: open
-  note: 三项均为项目分类/风险相关标记，语义邻接，取值口径需区分
-  id: rv_l0_0217
-  created: '2026-09-17'
+  id: rv_l0_0073
+  created: '2026-09-20'
 - claim_path: tables/tenant_project_approval_business_info#relations.tenant_product.code__tenant_project_approval_business_info.product_code
   kind: unverified_join
   severity: warning
@@ -1720,474 +657,122 @@ items:
   note: identity-bundle JOIN tenant_product.code → tenant_project_approval_business_info.product_code
     is L0-proposed; authenticity=unlikely; name_match=family_suffix; overlap_ratio=0.0;
     comment=产品编码code
-  id: rv_l0_0218
-  created: '2026-09-17'
+  id: rv_l0_0074
+  created: '2026-09-20'
 - claim_path: tables/tenant_project_approval_business_info#relations.tenant_project_approval.code__tenant_project_approval_business_info.ref_tenant_project_approval_business_info_project_approval
   kind: unverified_join
   severity: warning
   status: open
   note: identity-bundle JOIN tenant_project_approval.code → tenant_project_approval_business_info.ref_tenant_project_approval_business_info_project_approval
     is L0-proposed; authenticity=likely; name_match=none; overlap_ratio=1.0; comment=关联项目审批
-  id: rv_l0_0219
-  created: '2026-09-17'
-- claim_path: tables/tenant_project_approval_business_info#similar_fields.product_code_source_system
-  kind: unanchored
-  severity: info
-  status: open
-  note: 两列值域完全相同（ACFLOW/ORDER/RVSFACTOR_PC），存在冗余或来源系统与产品线混用的风险，建议人工确认其中一列语义。
-  id: rv_l0_0220
-  created: '2026-09-17'
+  id: rv_l0_0075
+  created: '2026-09-20'
 - claim_path: tables/tenant_project_approval_flow#relations.tenant_project_approval_flow_node.code__tenant_project_approval_flow.node_code
   kind: unverified_join
   severity: warning
   status: open
   note: identity-bundle JOIN tenant_project_approval_flow_node.code → tenant_project_approval_flow.node_code
     is L0-proposed; authenticity=unlikely; name_match=family_suffix; overlap_ratio=0.0;
-    comment=节点编码; 名称证据为同族后缀（node.code ↔ node_code），但探测 overlap 比 0.0（6 值全 miss），值域不契合，判
-    unlikely，保留待人工复核。
-  id: rv_l0_0221
-  created: '2026-09-17'
+    comment=节点编码
+  id: rv_l0_0076
+  created: '2026-09-20'
 - claim_path: tables/tenant_project_approval_flow#relations.tenant_project_approval.id__tenant_project_approval_flow.ref_tenant_project_approval_flow_tenant_project_approval
   kind: unverified_join
   severity: warning
   status: open
   note: identity-bundle JOIN tenant_project_approval.id → tenant_project_approval_flow.ref_tenant_project_approval_flow_tenant_project_approval
     is L0-proposed; authenticity=unlikely; name_match=long_ref; overlap_ratio=0.0;
-    comment=关联项目审批; 注释「关联项目审批」与长引用列名指向 tenant_project_approval 主键，但探测 100 抽样 overlap
-    全 miss（ratio 0.0），值域不契合，判 unlikely。
-  id: rv_l0_0222
-  created: '2026-09-17'
-- claim_path: tables/tenant_project_approval_flow#similar_fields.code_node_code
-  kind: unanchored
-  severity: info
-  status: open
-  note: 同表两个「编码」列：code 为注释「编码」的本表通用编码，node_code 为「节点编码」（实测为 PROJECT_MANAGER 等大写节点码），语义不同，仅提示区分，是否冗余待人工确认。
-  id: rv_l0_0223
-  created: '2026-09-17'
-- claim_path: tables/tenant_project_approval_flow#similar_fields.name_node_name
-  kind: unanchored
-  severity: info
-  status: open
-  note: 两个「名称」列：name 为本表通用名称，node_name 为「节点名称（中文）」（方案经理/业务经理审批等），取值域不同，疑似仅命名相近而非冗余。
-  id: rv_l0_0224
-  created: '2026-09-17'
+    comment=关联项目审批
+  id: rv_l0_0077
+  created: '2026-09-20'
 - claim_path: tables/tenant_project_approval_flow_comment#relations.tenant_project_approval.code__tenant_project_approval_flow_comment.ref_tenant_project_approval_flow_comment_approval
   kind: unverified_join
   severity: warning
   status: open
   note: identity-bundle JOIN tenant_project_approval.code → tenant_project_approval_flow_comment.ref_tenant_project_approval_flow_comment_approval
     is L0-proposed; authenticity=likely; name_match=none; overlap_ratio=1.0; comment=关联项目审批
-  id: rv_l0_0225
-  created: '2026-09-17'
-- claim_path: tables/tenant_project_approval_flow_comment#similar_fields.content_remark
-  kind: unanchored
-  severity: info
-  status: open
-  note: content 注释「备注内容」、remark 注释仅为英文列名，同表两处自由文本备注语义重叠，疑似冗余列，需人工确认是否重复承载备注。
-  id: rv_l0_0226
-  created: '2026-09-17'
+  id: rv_l0_0078
+  created: '2026-09-20'
 - claim_path: tables/tenant_project_approval_flow_config#relations.tenant_project_approval_flow.code__tenant_project_approval_flow_config.flow_code
   kind: unverified_join
   severity: warning
   status: open
   note: identity-bundle JOIN tenant_project_approval_flow.code → tenant_project_approval_flow_config.flow_code
     is L0-proposed; authenticity=unlikely; name_match=family_suffix; overlap_ratio=0.0;
-    comment=流程编码：NO_ONLINE，STANDARD，REGULAR; 名称有 flow/code 关联，但值域重合率 0.0（样本 3 全 miss），不满足
-    likely 的值域契合条件。
-  id: rv_l0_0227
-  created: '2026-09-17'
+    comment=流程编码：NO_ONLINE，STANDARD，REGULAR
+  id: rv_l0_0079
+  created: '2026-09-20'
 - claim_path: tables/tenant_project_approval_flow_config#relations.tenant_project_approval_flow_node.code__tenant_project_approval_flow_config.node_code
   kind: unverified_join
   severity: warning
   status: open
   note: identity-bundle JOIN tenant_project_approval_flow_node.code → tenant_project_approval_flow_config.node_code
     is L0-proposed; authenticity=unlikely; name_match=family_suffix; overlap_ratio=0.0;
-    comment=节点编码字典; 名称有 node/code 关联，但值域重合率 0.0（样本 7 全 miss），不满足 likely 的值域契合条件。
-  id: rv_l0_0228
-  created: '2026-09-17'
+    comment=节点编码字典
+  id: rv_l0_0080
+  created: '2026-09-20'
 - claim_path: tables/tenant_project_approval_flow_credit#relations.tenant_project_approval.code__tenant_project_approval_flow_credit.ref_tenant_project_approval_flow_credit_project_approval
   kind: unverified_join
   severity: warning
   status: open
   note: identity-bundle JOIN tenant_project_approval.code → tenant_project_approval_flow_credit.ref_tenant_project_approval_flow_credit_project_approval
     is L0-proposed; authenticity=likely; name_match=none; overlap_ratio=1.0; comment=关联项目审批
-  id: rv_l0_0229
-  created: '2026-09-17'
+  id: rv_l0_0081
+  created: '2026-09-20'
 - claim_path: tables/tenant_project_approval_flow_credit#relations.tenant_project_approval_flow_node.code__tenant_project_approval_flow_credit.ref_tenant_project_approval_flow_credit_project_approval_node
   kind: unverified_join
   severity: warning
   status: open
   note: identity-bundle JOIN tenant_project_approval_flow_node.code → tenant_project_approval_flow_credit.ref_tenant_project_approval_flow_credit_project_approval_node
     is L0-proposed; authenticity=likely; name_match=none; overlap_ratio=1.0; comment=关联项目审批流程节点
-  id: rv_l0_0230
-  created: '2026-09-17'
+  id: rv_l0_0082
+  created: '2026-09-20'
 - claim_path: tables/tenant_project_approval_flow_file#relations.tenant_project_approval_flow_node.code__tenant_project_approval_flow_file.ref_tenant_project_approval_flow_file_project_approval_flow_node
   kind: unverified_join
   severity: warning
   status: open
   note: identity-bundle JOIN tenant_project_approval_flow_node.code → tenant_project_approval_flow_file.ref_tenant_project_approval_flow_file_project_approval_flow_node
-    is L0-proposed; authenticity=likely; name_match=none; overlap_ratio=1.0; comment=关联项目流程节点;
-    对端 tenant_project_approval_flow_node.code，overlap=1.0（样本139，miss=0）。列名内嵌被引用表名
-    project_approval_flow_node，注释「关联项目流程节点」与该表语义一致，值域与命名语义双契合，判 likely。
-  id: rv_l0_0231
-  created: '2026-09-17'
+    is L0-proposed; authenticity=likely; name_match=none; overlap_ratio=1.0; comment=关联项目流程节点
+  id: rv_l0_0083
+  created: '2026-09-20'
 - claim_path: tables/tenant_project_approval_flow_file#relations.tenant_project_approval_flow_comment.code__tenant_project_approval_flow_file.ref_tenant_project_approval_flow_file_comment
   kind: unverified_join
   severity: warning
   status: open
   note: identity-bundle JOIN tenant_project_approval_flow_comment.code → tenant_project_approval_flow_file.ref_tenant_project_approval_flow_file_comment
-    is L0-proposed; authenticity=likely; name_match=none; overlap_ratio=1.0; comment=关联项目审批;
-    对端 tenant_project_approval_flow_comment.code，overlap=1.0（样本63，miss=0）。列名内嵌被引用表名
-    comment，指向租户项目审批备注信息表，值域契合且命名有指向，判 likely。
-  id: rv_l0_0232
-  created: '2026-09-17'
+    is L0-proposed; authenticity=likely; name_match=none; overlap_ratio=1.0; comment=关联项目审批
+  id: rv_l0_0084
+  created: '2026-09-20'
 - claim_path: tables/tenant_project_approval_flow_file#relations.tenant_project_approval.code__tenant_project_approval_flow_file.ref_tenant_project_approval_flow_file_project_approval
   kind: unverified_join
   severity: warning
   status: open
   note: identity-bundle JOIN tenant_project_approval.code → tenant_project_approval_flow_file.ref_tenant_project_approval_flow_file_project_approval
-    is L0-proposed; authenticity=likely; name_match=none; overlap_ratio=1.0; comment=关联项目审批;
-    对端 tenant_project_approval.code，overlap=1.0（样本112，miss=0）。列名内嵌被引用表名 project_approval，注释「关联项目审批」与租户项目审批表语义一致，判
-    likely。
-  id: rv_l0_0233
-  created: '2026-09-17'
-- claim_path: tables/tenant_project_approval_flow_file#similar_fields.file_url_file_path
-  kind: unanchored
-  severity: info
-  status: open
-  note: 同为文件位置信息，语义高度重叠，易冗余或其一为冗余存储，建议人工确认保留口径。
-  id: rv_l0_0234
-  created: '2026-09-17'
-- claim_path: tables/tenant_project_approval_flow_file#similar_fields.catg_id_catg_name
-  kind: unanchored
-  severity: info
-  status: open
-  note: 影像分类的编码与名称成对，同一属性的两种表达，字典映射宜以 catg_id 为准。
-  id: rv_l0_0235
-  created: '2026-09-17'
-- claim_path: tables/tenant_project_approval_flow_file#similar_fields.ref_tenant_project_approval_flow_file_comment_ref_tenant_project_approval_flow_file_project_approval
-  kind: unanchored
-  severity: info
-  status: open
-  note: 两列注释均为「关联项目审批」，但列名分别指向 comment 与 approval 两张表，注释歧义易误用，需人工校对各自指向。
-  id: rv_l0_0236
-  created: '2026-09-17'
+    is L0-proposed; authenticity=likely; name_match=none; overlap_ratio=1.0; comment=关联项目审批
+  id: rv_l0_0085
+  created: '2026-09-20'
 - claim_path: tables/tenant_project_approval_flow_node#relations.tenant_project_approval.code__tenant_project_approval_flow_node.ref_tenant_project_approval_flow_node_project_approval
   kind: unverified_join
   severity: warning
   status: open
   note: identity-bundle JOIN tenant_project_approval.code → tenant_project_approval_flow_node.ref_tenant_project_approval_flow_node_project_approval
-    is L0-proposed; authenticity=likely; name_match=none; overlap_ratio=1.0; comment=关联项目审批;
-    overlap ratio=1.0（sample 127，miss 0），且本列注释『关联项目审批』明确表达指向项目审批表的关联语义，值域契合+注释关联 →
-    likely。
-  id: rv_l0_0237
-  created: '2026-09-17'
+    is L0-proposed; authenticity=likely; name_match=none; overlap_ratio=1.0; comment=关联项目审批
+  id: rv_l0_0086
+  created: '2026-09-20'
 - claim_path: tables/tenant_project_approval_flow_node#relations.tenant_project_approval_flow.code__tenant_project_approval_flow_node.ref_tenant_project_approval_flow_node_project_approval_flow
   kind: unverified_join
   severity: warning
   status: open
   note: identity-bundle JOIN tenant_project_approval_flow.code → tenant_project_approval_flow_node.ref_tenant_project_approval_flow_node_project_approval_flow
-    is L0-proposed; authenticity=likely; name_match=none; overlap_ratio=1.0; comment=关联项目审批流程;
-    overlap ratio=1.0（sample 172，miss 0），本列注释『关联项目审批流程』明确指向审批流程表，值域契合+注释关联 → likely。
-  id: rv_l0_0238
-  created: '2026-09-17'
-- claim_path: tables/tenant_project_approval_flow_node#similar_fields.ref_tenant_project_approval_flow_node_project_approval_ref_tenant_project_approval_flow_node_project_approval_flow
-  kind: unanchored
-  severity: info
-  status: open
-  note: 两个外键列名高度相似（仅结尾 approval / approval_flow 之差），分别关联项目审批与项目审批流程，易混用，建议在语义层明确区分。
-  id: rv_l0_0239
-  created: '2026-09-17'
-- claim_path: tables/tenant_project_approval_flow_node#similar_fields.operator_user_id_operator_user_name
-  kind: unanchored
-  severity: info
-  status: open
-  note: 同一操作人的 id 与姓名成对冗余存储，姓名可视为 id 的快照副本。
-  id: rv_l0_0240
-  created: '2026-09-17'
-- claim_path: tables/tenant_project_approval_flow_node#similar_fields.transfer_to_user_id_transfer_to_user_name
-  kind: unanchored
-  severity: info
-  status: open
-  note: 同一被转审人的 id 与姓名成对冗余存储，姓名可视为 id 的快照副本。
-  id: rv_l0_0241
-  created: '2026-09-17'
-- claim_path: tables/tenant_setting_config#similar_fields.pc_login_logo_path_pcimg_loginpage_banner_url
-  kind: unanchored
-  severity: info
-  status: open
-  note: 注释均为「PC登录窗口横幅」，疑似新旧两套 PC 图片字段冗余
-  id: rv_l0_0242
-  created: '2026-09-17'
-- claim_path: tables/tenant_setting_config#similar_fields.pc_icon_path_pcimg_browser_tab_icon_url
-  kind: unanchored
-  severity: info
-  status: open
-  note: 注释均为「PC浏览器页签Icon」，语义重复
-  id: rv_l0_0243
-  created: '2026-09-17'
-- claim_path: tables/tenant_setting_config#similar_fields.pc_logo_path_pcimg_indexpage_bg_logo_url
-  kind: unanchored
-  severity: info
-  status: open
-  note: 注释均为「PC内页logo」，语义重复
-  id: rv_l0_0244
-  created: '2026-09-17'
-- claim_path: tables/tenant_setting_config#similar_fields.pc_home_background_path_pcimg_loginpage_bg_logo_url
-  kind: unanchored
-  severity: info
-  status: open
-  note: 注释均为「PC首页背景图」，列名 pcimg_loginpage 与注释不一致，需人工确认归属
-  id: rv_l0_0245
-  created: '2026-09-17'
-- claim_path: tables/tenant_setting_config#similar_fields.mp_home_background_path_mobile_indexpage_bg_logo_url
-  kind: unanchored
-  severity: info
-  status: open
-  note: 均为移动端首页背景图（小程序/移动端命名并存）
-  id: rv_l0_0246
-  created: '2026-09-17'
-- claim_path: tables/tenant_setting_config#similar_fields.mp_logo_path_mobile_indexpage_logo_url
-  kind: unanchored
-  severity: info
-  status: open
-  note: 注释均为「移动端首页logo」，语义重复
-  id: rv_l0_0247
-  created: '2026-09-17'
-- claim_path: tables/tenant_setting_config#similar_fields.composite_field_property_requried_config_company_role_composite_field_property_requried_company_role
-  kind: unanchored
-  severity: info
-  status: open
-  note: 注释完全相同（工行供应链编号-补充字段-企业角色），疑似重复列
-  id: rv_l0_0248
-  created: '2026-09-17'
-- claim_path: tables/tenant_setting_config#similar_fields.enable_status
-  kind: unanchored
-  severity: info
-  status: open
-  note: 均为 Y/N 开关类取值（enable/生效状态），语义相近，需确认是否并存冗余
-  id: rv_l0_0249
-  created: '2026-09-17'
-- claim_path: tables/tenant_setting_config_share#relations.tenant_setting_config.code__tenant_setting_config_share.apaas_tenant_code
-  kind: unverified_join
-  severity: warning
-  status: open
-  note: identity-bundle JOIN tenant_setting_config.code → tenant_setting_config_share.apaas_tenant_code
-    is L0-proposed; authenticity=unknown; name_match=llm_propose; overlap_ratio=None;
-    comment=aPaaS租户编码; 码对码：aPaaS租户编码 ↔ 租户配置编码，注释同涉租户；overlap 未探明(sample 0)，仅作候选边不升格
-  id: rv_l0_0250
-  created: '2026-09-17'
-- claim_path: tables/tenant_setting_config_share#similar_fields.pc_login_logo_path_pcimg_loginpage_banner_url
-  kind: unanchored
-  severity: info
-  status: open
-  note: 注释均为「PC登录窗口横幅」，疑同义冗余（旧 pc_* 与新 pcimg_* 两套并存）
-  id: rv_l0_0251
-  created: '2026-09-17'
-- claim_path: tables/tenant_setting_config_share#similar_fields.pc_logo_path_pcimg_indexpage_bg_logo_url
-  kind: unanchored
-  severity: info
-  status: open
-  note: 注释均为「PC内页logo」，疑同义冗余
-  id: rv_l0_0252
-  created: '2026-09-17'
-- claim_path: tables/tenant_setting_config_share#similar_fields.pc_icon_path_pcimg_browser_tab_icon_url
-  kind: unanchored
-  severity: info
-  status: open
-  note: 注释均为「PC浏览器页签Icon」，疑同义冗余
-  id: rv_l0_0253
-  created: '2026-09-17'
-- claim_path: tables/tenant_setting_config_share#similar_fields.pc_home_background_path_pcimg_loginpage_bg_logo_url
-  kind: unanchored
-  severity: info
-  status: open
-  note: 注释均为「PC首页背景图」，但列名 loginpage 与注释不一致，需人工确认
-  id: rv_l0_0254
-  created: '2026-09-17'
-- claim_path: tables/tenant_setting_config_share#similar_fields.mp_logo_path_mobile_indexpage_logo_url
-  kind: unanchored
-  severity: info
-  status: open
-  note: 注释均为「移动端首页logo」，疑同义冗余
-  id: rv_l0_0255
-  created: '2026-09-17'
-- claim_path: tables/tenant_setting_config_share#similar_fields.mp_home_background_path_mobile_indexpage_bg_logo_url
-  kind: unanchored
-  severity: info
-  status: open
-  note: 小程序首页背景图与移动端首页背景图，语义近义，疑分属新旧两套字段
-  id: rv_l0_0256
-  created: '2026-09-17'
-- claim_path: tables/tenant_setting_config_share#similar_fields.tenant_flag_zh_tenant_flg_en
-  kind: unanchored
-  severity: info
-  status: open
-  note: 同租户项目标识的中/英文两列成对出现，且 flg/flag 拼写不一致
-  id: rv_l0_0257
-  created: '2026-09-17'
-- claim_path: tables/tenant_setting_config_share#similar_fields.name_band_name
-  kind: unanchored
-  severity: info
-  status: open
-  note: 租户名称与贴牌平台名称，语义相近易混用
-  id: rv_l0_0258
-  created: '2026-09-17'
-- claim_path: tables/tenant_setting_config_share#similar_fields.dbass_app_id_mp_dbass_app_id
-  kind: unanchored
-  severity: info
-  status: open
-  note: 主端 dbassAppId 与小程序 dbassAppId，同一接入信息的两端取值
-  id: rv_l0_0259
-  created: '2026-09-17'
-- claim_path: tables/tenant_setting_config_share#similar_fields.sso_sys_channel_mp_sso_sys_channel
-  kind: unanchored
-  severity: info
-  status: open
-  note: 主端与小程序端 SSO 系统渠道，语义对应
-  id: rv_l0_0260
-  created: '2026-09-17'
-- claim_path: tables/tenant_setting_config_share#similar_fields.sso_tenant_chanel_mp_sso_tenant_chanel
-  kind: unanchored
-  severity: info
-  status: open
-  note: 主端与小程序端 SSO 租户渠道（chanel 拼写疑似应为 channel）
-  id: rv_l0_0261
-  created: '2026-09-17'
-- claim_path: tables/wec_project_cust_operation_rel#similar_fields.op_contact_a_op_contact_b
-  kind: unanchored
-  severity: info
-  status: open
-  note: 同一「运营对接人」A/B 槽位，语义同构；B 侧以 JSON 数组存多人。
-  id: rv_l0_0262
-  created: '2026-09-17'
-- claim_path: tables/wec_project_cust_operation_rel#similar_fields.op_contact_a_verification_contact_risk_control_contact_a
-  kind: unanchored
-  severity: info
-  status: open
-  note: 运营/查验/风控三处「对接人 id」列结构同构，仅角色前缀不同。
-  id: rv_l0_0263
-  created: '2026-09-17'
-- claim_path: tables/wec_project_cust_operation_rel#similar_fields.op_contact_b_risk_control_contact_b
-  kind: unanchored
-  severity: info
-  status: open
-  note: 两列均为对接人 B 槽位且取值均为 JSON 数组串，口径冗余。
-  id: rv_l0_0264
-  created: '2026-09-17'
-- claim_path: tables/wec_project_cust_operation_rel#similar_fields.op_contact_a_group_verification_contact_group_risk_control_contact_a_group
-  kind: unanchored
-  severity: info
-  status: open
-  note: 三处「组别」列结构同构（对应各自对接组），取值口径不一致，存在冗余。
-  id: rv_l0_0265
-  created: '2026-09-17'
-- claim_path: tables/wec_project_operation_rel#similar_fields.op_contact_a_op_contact_b
-  kind: unanchored
-  severity: info
-  status: open
-  note: 同表运营对接人A/B，语义近义冗余（B为多人JSON拼接）。
-  id: rv_l0_0266
-  created: '2026-09-17'
-- claim_path: tables/wec_project_operation_rel#similar_fields.risk_control_contact_a_risk_control_contact_b
-  kind: unanchored
-  severity: info
-  status: open
-  note: 同表风控对接人A/B，语义近义冗余。
-  id: rv_l0_0267
-  created: '2026-09-17'
-- claim_path: tables/wec_project_operation_rel#similar_fields.op_contact_a_group_verification_contact_group_risk_control_contact_a_group
-  kind: unanchored
-  severity: info
-  status: open
-  note: 三个「组别」列取值形态一致（自由组名+测试造数），存在冗余重复维护风险。
-  id: rv_l0_0268
-  created: '2026-09-17'
-- claim_path: tables/wec_project_operation_rel#similar_fields.project_relation_bussiness_project_relation
-  kind: unanchored
-  severity: info
-  status: open
-  note: 「项目归属」与「运营项目归属」语义高度相近，易混用。
-  id: rv_l0_0269
-  created: '2026-09-17'
-- claim_path: tables/wec_project_operation_rel#similar_fields.solution_manager_business_manager
-  kind: unanchored
-  severity: info
-  status: open
-  note: 方案经理与业务经理均为人员姓名字段，取值高度重叠。
-  id: rv_l0_0270
-  created: '2026-09-17'
-- claim_path: tables/wec_project_operation_rel#similar_fields.custom_field_one_custom_field_two_custom_field_three
-  kind: unanchored
-  severity: info
-  status: open
-  note: 三个编号自定义字段，结构冗余。
-  id: rv_l0_0271
-  created: '2026-09-17'
-- claim_path: tables/wechat_project_approval_apply#similar_fields.comment_remark
-  kind: unanchored
-  severity: info
-  status: open
-  note: 同表两个自由备注列，语义重叠易混用
-  id: rv_l0_0272
-  created: '2026-09-17'
-- claim_path: tables/wechat_project_approval_apply#similar_fields.project_approval_name_project_online_name_main_project_name
-  kind: unanchored
-  severity: info
-  status: open
-  note: 立项名称/项目上线名称/主项目名称三个名称列，命名相近易混
-  id: rv_l0_0273
-  created: '2026-09-17'
-- claim_path: tables/wechat_project_approval_apply#similar_fields.product_type_product_type_arr
-  kind: unanchored
-  severity: info
-  status: open
-  note: 同一产品类型的单值列与数组列，信息冗余
-  id: rv_l0_0274
-  created: '2026-09-17'
-- claim_path: tables/wechat_project_approval_apply#similar_fields.solution_manager_old_solution_manager
-  kind: unanchored
-  severity: info
-  status: open
-  note: 现任与前方案经理，人员信息冗余
-  id: rv_l0_0275
-  created: '2026-09-17'
-- claim_path: tables/wechat_project_approval_apply#similar_fields.bussiness_manager_project_manager_solution_manager
-  kind: unanchored
-  severity: info
-  status: open
-  note: 三个“经理”角色列，命名相近但职责不同
-  id: rv_l0_0276
-  created: '2026-09-17'
-- claim_path: tables/wechat_project_approval_apply#similar_fields.custom_field_one_custom_field_statistics_one
-  kind: unanchored
-  severity: info
-  status: open
-  note: 自定义字段一与其统计用副本列
-  id: rv_l0_0277
-  created: '2026-09-17'
+    is L0-proposed; authenticity=likely; name_match=none; overlap_ratio=1.0; comment=关联项目审批流程
+  id: rv_l0_0087
+  created: '2026-09-20'
 - claim_path: tables/wechat_project_approval_field_history#relations.wechat_project_approval_apply.id__wechat_project_approval_field_history.apply_id
   kind: unverified_join
   severity: warning
   status: open
   note: identity-bundle JOIN wechat_project_approval_apply.id → wechat_project_approval_field_history.apply_id
     is L0-proposed; authenticity=likely; name_match=family_suffix; overlap_ratio=1.0;
-    comment=关联 wechat_project_approval_apply.id; apply_id 注释显式写明「关联 wechat_project_approval_apply.id」，name_evidence
-    为 family_suffix(stem=apply)；overlap 已探测 ratio=1.0、sample_size=23、miss=0，值域完全契合，判定子表→父表外键为
-    likely
-  id: rv_l0_0278
-  created: '2026-09-17'
-- claim_path: tables/wechat_project_approval_field_history#similar_fields.field_name_field_label
-  kind: unanchored
-  severity: info
-  status: open
-  note: 同一被变更字段的英文列名与中文标签，成对出现、语义重复，可作为一组展示
-  id: rv_l0_0279
-  created: '2026-09-17'
-- claim_path: tables/wechat_project_approval_field_history#similar_fields.operator_id_operator_name
-  kind: unanchored
-  severity: info
-  status: open
-  note: 同一操作人的编号与姓名两种标识，冗余可互推，非审计/租户字段对
-  id: rv_l0_0280
-  created: '2026-09-17'
+    comment=关联 wechat_project_approval_apply.id
+  id: rv_l0_0088
+  created: '2026-09-20'

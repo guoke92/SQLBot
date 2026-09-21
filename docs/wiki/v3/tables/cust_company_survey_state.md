@@ -6,12 +6,12 @@ belong: tables
 status: draft
 anchors: [cust_company_survey_state]
 sources: ['database_schema:lowcode_pplatform.cust_company_survey_state']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
 related: [cust_company_info, cust_company_survey_state__first_visitor_lottery_shown,
-  cust_company_survey_state__enable]
+  cust_company_survey_state__code, cust_company_survey_state__enable]
 ---
 
 # 企业问卷星活动状态
@@ -55,6 +55,10 @@ fields:
 - name: code
   type: string
   desc: 编码
+  dict: [83effdd380df46c4b0028ee88fd8e211, cf55012fa4224c1997957caaeb6622bf, e3e7730d06794383a95a923f37d2c814,
+    af93881a72ba4dd7aef74f0d3a5a7802, 359b199c29994394b7fe9e7f48f6eaaa, 125f6f8219634a58bd829d96a4b5dcec,
+    c909e9ac1c34490a9d834f1ec40678ed, 00499a5efa5845948d731cd49ad8447c, b185bb0d3a794fcaa9b7d7c5433e499a,
+    27cc712bf9e841f2b6877a1b917296ef, 6cb18dee96e345a294fbbae7c56969a1]
 - name: name
   type: string
   desc: 名称
@@ -147,4 +151,5 @@ authenticity_note: 问卷星活动状态按企业主键，一企一行。
 ### 字典
 
 - [[dicts/cust_company_survey_state__first_visitor_lottery_shown]]（`cust_company_survey_state.first_visitor_lottery_shown`）
+- [[dicts/cust_company_survey_state__code]]（`cust_company_survey_state.code`）
 - [[dicts/cust_company_survey_state__enable]]（`cust_company_survey_state.enable`）

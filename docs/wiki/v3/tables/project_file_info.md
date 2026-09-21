@@ -6,11 +6,12 @@ belong: tables
 status: draft
 anchors: [project_file_info]
 sources: ['database_schema:lowcode_pplatform.project_file_info']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
-related: [project_file_info__file_type, project_file_info__enable]
+related: [project_file_info__title, project_file_info__content, project_file_info__file_type,
+  project_file_info__enable]
 ---
 
 # 项目运营文件管理
@@ -35,9 +36,14 @@ fields:
 - name: title
   type: string
   desc: 标题
+  dict: ['1', '2', '3', '4', '5', '22', 自动化测试注册建档文件A1, '233232', '11', '6', 标题1, '7',
+    '23432', qa_other_title_1786619365328, '8', '123', 自动化测试文件标题, '9', aaa, 自动化测试注册建档文件,
+    '10']
 - name: content
   type: string
   desc: 描述
+  dict: ['1', '2', '4', '3', '5', '22', '222', 描述1, '11', '3232424', '10', '9', '8',
+    '7', aaa, '6', '123', '2342342']
 - name: file_type
   type: string
   desc: 文件模块类型
@@ -105,5 +111,7 @@ fields:
 
 ### 字典
 
+- [[dicts/project_file_info__title]]（`project_file_info.title`）
+- [[dicts/project_file_info__content]]（`project_file_info.content`）
 - [[dicts/project_file_info__file_type]]（`project_file_info.file_type`）
 - [[dicts/project_file_info__enable]]（`project_file_info.enable`）

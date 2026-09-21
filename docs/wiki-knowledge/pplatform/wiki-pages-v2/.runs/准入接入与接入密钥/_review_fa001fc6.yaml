@@ -1,5 +1,0 @@
-body: 状态 `BUILDING`（建档中）与 `AWAIT_CUST_CONFIRM`（等待客户确认（简易认证场景））的 `source` 标注为 `code_enum`，但迁移证据集中在
-  `CustCompanyInfoApplication:getCustBuildStatus` 与 `CustAuditMsgService:checkMsg`
-  两处；两者具体由哪段枚举或分支定义尚未定位到行级证据，需后续确认，避免与 `CUST_CONFIRM_AWAIT`、`CUST_BUILDING` 的语义边界混淆。[[processes/cust_company_info_cust_build_status]]
-title: 企业建档状态机状态枚举出处待确认
-type: process

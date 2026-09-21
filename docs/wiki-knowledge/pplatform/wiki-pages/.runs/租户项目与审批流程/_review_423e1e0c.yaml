@@ -1,5 +1,0 @@
-body: 当前语义分析在 `cust_project_rel.company_type` 的字段含义中仅给出“企业角色（companyType）”，但 `CORE`/`FINANCE`
-  两个值来自 `calibers` 中 `TenantProjectApplication.queryRelatedCompanies` 的代码证据。完整 companyType
-  枚举值列表尚未在语义分析中出现，可能存在其它角色值。
-title: 企业角色/公司类型枚举
-type: concepts

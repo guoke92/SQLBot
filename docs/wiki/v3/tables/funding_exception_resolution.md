@@ -6,11 +6,11 @@ belong: tables
 status: draft
 anchors: [funding_exception_resolution]
 sources: ['database_schema:lowcode_pplatform.funding_exception_resolution', 'code_path:FundingPartyExceptionResolutionProviderImpl.java:107']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
-related: [funding_rule_info, funding_exception_resolution__funding_party_code, funding_exception_resolution__product_code,
+related: [funding_exception_resolution__funding_party_code, funding_exception_resolution__product_code,
   funding_exception_resolution__enable]
 ---
 
@@ -121,10 +121,6 @@ default_filter:
 ```
 
 ## 页面链接
-
-### 关联表
-
-- [[tables/funding_rule_info]]
 
 ### 字典
 

@@ -8,8 +8,8 @@ anchors: [ca_fee_order.invoice_status]
 sources: ['database_profile:ca_fee_order.invoice_status', 'database_schema:ca_fee_order.invoice_status',
   'code_path:CaFeeInvoiceStatusEnum.java:15', 'code_path:CaFeeInvoiceStatusEnum.java:16',
   'code_path:CaFeeInvoiceStatusEnum.java:17', 'code_path:CaFeeInvoiceStatusEnum.java:18']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [ca_fee_order]
 ---
@@ -28,5 +28,6 @@ values:
   PENDING: {trust: confirmed, label: 开票中, evidence: 'code_path:CaFeeInvoiceStatusEnum.java:15'}
   ISSUED: {trust: confirmed, label: 已开票, evidence: 'code_path:CaFeeInvoiceStatusEnum.java:16'}
   FAILED: {trust: confirmed, label: 开票失败, evidence: 'code_path:CaFeeInvoiceStatusEnum.java:17'}
+  NONE: {trust: confirmed, label: 无需开票, evidence: 'code_path:CaFeeInvoiceStatusEnum.java:18'}
 triage: keep
 ```

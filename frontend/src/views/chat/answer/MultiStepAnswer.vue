@@ -24,7 +24,6 @@ import ClarificationCard from '@/features/conversation/ClarificationCard.vue'
 import QualityStamp from '@/features/conversation/QualityStamp.vue'
 import AgentStagesView from './AgentStagesView.vue'
 import ChatTokenTime from '@/views/chat/ChatTokenTime.vue'
-import { conversationStageKey } from '@/features/conversation/executionLog'
 import {
   applyDelta,
   belongsToRun,
@@ -224,16 +223,6 @@ const visibleInterrupts = computed<ConversationInterrupt[]>(() => {
 })
 
 const isAwaitingInput = computed(() => props.message?.record?.run_status === 'awaiting_input')
-
-const runStageText = computed(() => {
-  const record = props.message?.record
-  if (record?.run_status === 'queued') {
-    return record.run_dispatch_attempts > 1
-      ? t('qa.run_stage_redispatch')
-      : t('qa.run_stage_queued')
-  }
-  return t(conversationStageKey(record?.run_current_node))
-})
 
 function toChartJson(chart: unknown): string {
   if (chart == null || chart === '') return ''
@@ -683,12 +672,8 @@ defineExpose({ sendMessage, regenerate, index: () => index.value, stop })
 
 <template>
   <BaseAnswer v-if="message" :message="message" :hide-thinking-toggle="true">
-    <div v-if="_loading && steps.length === 0 && !isAwaitingInput && timelineItems.length === 0" class="multi-step-loading">
-      <span>{{ runStageText }}</span>
-    </div>
-
     <AgentStagesView
-      v-if="timelineItems.length > 0"
+      v-if="timelineItems.length > 0 || _loading || message?.isTyping"
       :items="timelineItems"
       :interrupts="allInterrupts"
       :is-typing="message?.isTyping"
@@ -823,16 +808,6 @@ defineExpose({ sendMessage, regenerate, index: () => index.value, stop })
 </template>
 
 <style scoped lang="less">
-.multi-step-loading {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 0;
-  color: rgba(100, 106, 115, 1);
-  font-size: 14px;
-  line-height: 22px;
-}
-
 .multi-step-container {
   display: flex;
   flex-direction: column;

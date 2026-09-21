@@ -10,8 +10,8 @@ sources: ['database_profile:cust_certification_info.certification_type', 'databa
   'code_path:CustCertificationTypeEnum.java:16', 'code_path:CustCertificationTypeEnum.java:15',
   'code_path:CustCertificationTypeEnum.java:14', 'code_path:CustCertificationTypeEnum.java:20',
   'code_path:CustCertificationTypeEnum.java:24']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [cust_certification_info]
 ---

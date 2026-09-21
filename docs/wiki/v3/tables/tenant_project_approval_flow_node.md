@@ -6,15 +6,15 @@ belong: tables
 status: draft
 anchors: [tenant_project_approval_flow_node]
 sources: ['database_schema:lowcode_pplatform.tenant_project_approval_flow_node', 'code_path:ProjectApprovalApplication.java:824']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
 related: [tenant_project_approval_flow, tenant_project_approval_flow_config, tenant_project_approval_flow_credit,
   tenant_project_approval_flow_file, tenant_project_approval, tenant_project_approval_flow_node__node_code,
-  tenant_project_approval_flow_node__operate_type, tenant_project_approval_flow_node__approval_type,
-  tenant_project_approval_flow_node__is_low_risk, tenant_project_approval_flow_node__enable,
-  tenant_project_approval_flow_node__is_back_agreement]
+  tenant_project_approval_flow_node__node_order, tenant_project_approval_flow_node__operate_type,
+  tenant_project_approval_flow_node__approval_type, tenant_project_approval_flow_node__is_low_risk,
+  tenant_project_approval_flow_node__enable, tenant_project_approval_flow_node__is_back_agreement]
 ---
 
 # 租户项目审批流程节点表
@@ -45,11 +45,13 @@ fields:
 - name: node_order
   type: number
   desc: 审批顺序，从1开始
+  dict: ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14',
+    '15', '16']
 - name: operate_type
   type: string
   desc: 操作类型
   dict: [pass, back, reject, delegate, revoke]
-  label: {pass: 同意, back: 退回, reject: 驳回, delegate: 转审}
+  label: [同意, 退回, 驳回, 转审, 撤销]
 - name: approval_type
   type: string
   desc: 审批类型
@@ -219,6 +221,7 @@ authenticity_note: 操作留痕按流程节点实例 code。
 ### 字典
 
 - [[dicts/tenant_project_approval_flow_node__node_code]]（`tenant_project_approval_flow_node.node_code`）
+- [[dicts/tenant_project_approval_flow_node__node_order]]（`tenant_project_approval_flow_node.node_order`）
 - [[dicts/tenant_project_approval_flow_node__operate_type]]（`tenant_project_approval_flow_node.operate_type`）
 - [[dicts/tenant_project_approval_flow_node__approval_type]]（`tenant_project_approval_flow_node.approval_type`）
 - [[dicts/tenant_project_approval_flow_node__is_low_risk]]（`tenant_project_approval_flow_node.is_low_risk`）

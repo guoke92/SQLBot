@@ -1,5 +1,9 @@
 # 知识提取详细约束与契约要点
 
+> **范围**：本文件只服务 `scripts/extract-*.py` 扫描语义（权威顺序、枚举/关系证据）。
+> 问数主路径是 [`docs/wiki/`](../../../docs/wiki/README.md) + [`tools/wiki_extract/`](../../../tools/wiki_extract/README.md)。
+> KnowledgePackage / assemble / submit 已废止（产物在 `.tmp/`）；勿再按旧 11 步出门。
+
 ## 1. 权威顺序与证据种类
 
 ```

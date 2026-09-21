@@ -33,7 +33,10 @@ calibers:
     using_relations:
       - left: tenant_project.code
         right: tenant_project_approval.ref_tenant_project_approval_tenant_project
-    boundary: 回答「该项目当前审批单」。按项目 code 不是 id。历史审批 is_latest 不是 Y。
+    boundary: |
+      回答「该项目当前/最新审批单」。按项目 code 不是 id。历史审批 is_latest 不是 Y。
+      现网向导仍 assertNoApproval 禁止重复在途；查「全部在途」用 wf_status IN (PENDING,RUNNING)，不要只用 is_latest。
+      留底列 project_config_deleted 见 document_claim，列未上线前不写 predicate。
     evidence: code_path:ProjectApprovalApplication.java:253
 rules:
   - rule_key: project_code_required_needs_default_project
@@ -54,8 +57,10 @@ rules:
     title: 同一项目不能重复发起在途审批
     field_targets: [tenant_project_approval.wf_status, tenant_project_approval.ref_tenant_project_approval_tenant_project]
     impact: write_constraint
-    content: 同一项目 code 已有 PENDING 或 RUNNING 的上线审批则拒绝再发起。
-    evidence: code_path:ProjectApprovalApplication.java:345
+    content: |
+      现网 assertNoApproval：同一项目 code 已有 PENDING 或 RUNNING 则拒绝再发起（prepareWizardApproval）。
+      document_claim:V1.37 设计拟放开多在途——以现网代码为准，未落地前不要按多在途口径回答。
+    evidence: code_path:ProjectApprovalApplication.java:287
   - rule_key: resubmit_invalidates_effective_project
     title: 再发起审批先失效已生效项目
     field_targets: [tenant_project.project_status]

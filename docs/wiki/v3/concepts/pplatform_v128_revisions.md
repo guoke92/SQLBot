@@ -7,8 +7,8 @@ domain: cust
 status: draft
 recall: false
 sources: ['document_claim:/Users/fanjunwei/Desktop/需求文档', 'document_claim:/Users/fanjunwei/Desktop/需求文档']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 ---
 

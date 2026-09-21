@@ -1,4 +1,0 @@
-body: '`tenant_product.open_status` 的 `P` 值：`ProductOpenStatusEnum` 文件未展开，label「处理中(多级回调)」据注释与上下文推定，需核对
-  `getDictKey()` 实际返回值与 DB 取值分布后再固化。'
-title: 租户产品表
-type: table

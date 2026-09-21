@@ -7,8 +7,8 @@ domain: cust
 status: draft
 aliases: [客户变更, 资料变更]
 sources: ['code_path:l1_intermediate']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [cust_company_info, cust_change_record, cust_change_cfg, cust_person_info]
 ---

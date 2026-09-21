@@ -6,14 +6,16 @@ belong: tables
 status: draft
 anchors: [cust_project_rel]
 sources: ['database_schema:lowcode_pplatform.cust_project_rel', 'code_path:CustCompanyQueryMapper.xml:97']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
 related: [cust_customized_product, cust_company_info, platform_product, tenant_project,
-  cust_project_rel__company_type, cust_project_rel__enable, cust_project_rel__show_flag,
-  cust_project_rel__config_model, cust_project_rel__status, cust_project_rel__top_flag,
-  cust_project_rel__project_open_status]
+  cust_project_rel__company_type, cust_project_rel__enable, cust_project_rel__remark,
+  cust_project_rel__show_flag, cust_project_rel__config_model, cust_project_rel__status,
+  cust_project_rel__ref_cust_project_rel_platform_product, cust_project_rel__op_contact_a,
+  cust_project_rel__verification_contact, cust_project_rel__risk_control_contact_a,
+  cust_project_rel__top_flag, cust_project_rel__project_open_status]
 ---
 
 # 客户项目关联表
@@ -68,6 +70,8 @@ fields:
 - name: remark
   type: string
   desc: remark
+  dict: [RVSFACTOR_PC, ACFLOW, ORDER, BEECREDIT, DRAFTQA, STORAGE, DRAFT, AMS, VOUCHER,
+    DEALER, RVSFACTOR]
 - name: create_by
   type: string
   desc: 创建人id
@@ -122,12 +126,18 @@ fields:
 - name: ref_cust_project_rel_platform_product
   type: string
   desc: 平台产品
+  dict: [b8468d68ba0a4762bda0f7b9164e4f6a, f285fa5cf17f4a8f9eefe93d3a513a6b, f285fa5cf17f4a8f9eefe93d3a513a61,
+    f285fa5cf17f4a8f9eefe93d3a513a63, ACFLOW, 007142024a5c425bb3673f753060e534, 007142024a5c425bb3673f753060e533,
+    f285fa5cf17f4a8f9eefe93d3a513a64, f285fa5cf17f4a8f9eefe93d3a513a6e, f285fa5cf17f4a8f9eefe93d3a513a65,
+    DRAFTQA, ORDER]
 - name: tenant_flg_en
   type: string
   desc: 项目标识（英文）
 - name: op_contact_a
   type: string
   desc: 运营对接人A
+  dict: ['360', OP001, '420', OP003, '383', OP010, '411', '141', '415', OP002, '333',
+    '257', '344', '466', '267', '93', '145', '305', '454']
 - name: op_contact_b
   type: string
   desc: 运营对接人B
@@ -137,12 +147,16 @@ fields:
 - name: verification_contact
   type: string
   desc: 查验对接人
+  dict: [OP004, '454', OP003, '383', '360', OP001, OP002, '344', '404', '257', '333',
+    '97', '289', '430']
 - name: verification_contact_group
   type: string
   desc: 查验组别
 - name: risk_control_contact_a
   type: string
   desc: 风控对接人A
+  dict: [OP005, '360', OP006, '383', OP001, '344', OP007, '333', '267', '97', '257',
+    '420', '441', '466', '210', OP002]
 - name: risk_control_contact_b
   type: string
   desc: 风控对接人B
@@ -300,8 +314,13 @@ overlap:
 
 - [[dicts/cust_project_rel__company_type]]（`cust_project_rel.company_type`）
 - [[dicts/cust_project_rel__enable]]（`cust_project_rel.enable`）
+- [[dicts/cust_project_rel__remark]]（`cust_project_rel.remark`）
 - [[dicts/cust_project_rel__show_flag]]（`cust_project_rel.show_flag`）
 - [[dicts/cust_project_rel__config_model]]（`cust_project_rel.config_model`）
 - [[dicts/cust_project_rel__status]]（`cust_project_rel.status`）
+- [[dicts/cust_project_rel__ref_cust_project_rel_platform_product]]（`cust_project_rel.ref_cust_project_rel_platform_product`）
+- [[dicts/cust_project_rel__op_contact_a]]（`cust_project_rel.op_contact_a`）
+- [[dicts/cust_project_rel__verification_contact]]（`cust_project_rel.verification_contact`）
+- [[dicts/cust_project_rel__risk_control_contact_a]]（`cust_project_rel.risk_control_contact_a`）
 - [[dicts/cust_project_rel__top_flag]]（`cust_project_rel.top_flag`）
 - [[dicts/cust_project_rel__project_open_status]]（`cust_project_rel.project_open_status`）

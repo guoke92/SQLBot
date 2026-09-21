@@ -8,8 +8,8 @@ status: draft
 anchors: [ca_fee_company.pay_status]
 field_targets: [ca_fee_company.pay_status]
 sources: ['code_path:cafee/CaFeeOrderService.java:450', 'code_path:CaFeeRenewalService.java:173']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [ca_fee_company]
 ---

@@ -6,14 +6,14 @@ belong: tables
 status: draft
 anchors: [ca_fee_company]
 sources: ['database_schema:lowcode_pplatform.ca_fee_company', 'code_path:CaFeeCompanyBizMapper.java:13']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
-related: [ca_fee_project_config, cust_company_info, tenant_project, tenant_setting_config,
-  ca_fee_order, ca_fee_company__fee_locked, ca_fee_company__pay_status, ca_fee_company__source_company_type,
-  ca_fee_company__renew_remind_sent, ca_fee_company__special_config_flag, ca_fee_company__ca_status,
-  ca_fee_company__enable]
+related: [cust_company_info, tenant_project, tenant_setting_config, ca_fee_order,
+  ca_fee_company__locked_annual_fee, ca_fee_company__fee_locked, ca_fee_company__pay_status,
+  ca_fee_company__source_company_type, ca_fee_company__renew_remind_sent, ca_fee_company__special_config_flag,
+  ca_fee_company__special_annual_fee, ca_fee_company__ca_status, ca_fee_company__enable]
 ---
 
 # CA服务费企业主数据
@@ -47,6 +47,8 @@ fields:
 - name: locked_annual_fee
   type: number
   desc: 首次缴费成功后锁定的年费标准（元）
+  dict: ['100', '80', '60', '88', '200', '90', '13', '70', '16', '10', '12', '50',
+    '0', '125', '190', '170', '160', '140', '180']
 - name: fee_locked
   type: string
   desc: 是否已锁定年费标准
@@ -85,6 +87,8 @@ fields:
 - name: special_annual_fee
   type: number
   desc: 特殊配置后应缴年费（元）
+  dict: ['100', '0', '200', '12', '33', '16', '190', '170', '160', '140', '180', '80',
+    '13', '70', '10']
 - name: ca_status
   type: string
   desc: CA签章状态
@@ -197,43 +201,10 @@ join_role: identity
 priority: primary
 ```
 
-### disputed — 与已确认边冲突
-
-```ground:relation
-type: EQUI_JOIN
-left: ca_fee_project_config.id
-right: ca_fee_company.source_project_id
-cardinality: one_to_many
-trust: disputed
-authenticity: unlikely
-evidence: database_schema:lowcode_pplatform.ca_fee_company.source_project_id
-source: llm
-join_role: identity
-priority: primary
-name_evidence:
-  match: llm_propose
-  stem: source_project_id
-  comment: 列名/注释语义最贴近（来源项目 ID ↔ CA服务费项目配置主键），但探测 overlap=0.0、authenticity=unlikely，样本仅
-    13 条
-overlap:
-  probed: true
-  ratio: 0.0
-  sample_size: 13
-  authenticity: unlikely
-authenticity_note: 列名/注释语义最贴近（来源项目 ID ↔ CA服务费项目配置主键），但探测 overlap=0.0、authenticity=unlikely，样本仅
-  13 条，值域契合度存疑，接受为待复核边。
-sides:
-- {source: l1_code, left: tenant_project.id, right: ca_fee_company.source_project_id,
-  trust: confirmed}
-- {source: llm, left: ca_fee_project_config.id, right: ca_fee_company.source_project_id,
-  trust: proposed}
-```
-
 ## 页面链接
 
 ### 关联表
 
-- [[tables/ca_fee_project_config]]
 - [[tables/cust_company_info]]
 - [[tables/tenant_project]]
 - [[tables/tenant_setting_config]]
@@ -241,10 +212,12 @@ sides:
 
 ### 字典
 
+- [[dicts/ca_fee_company__locked_annual_fee]]（`ca_fee_company.locked_annual_fee`）
 - [[dicts/ca_fee_company__fee_locked]]（`ca_fee_company.fee_locked`）
 - [[dicts/ca_fee_company__pay_status]]（`ca_fee_company.pay_status`）
 - [[dicts/ca_fee_company__source_company_type]]（`ca_fee_company.source_company_type`）
 - [[dicts/ca_fee_company__renew_remind_sent]]（`ca_fee_company.renew_remind_sent`）
 - [[dicts/ca_fee_company__special_config_flag]]（`ca_fee_company.special_config_flag`）
+- [[dicts/ca_fee_company__special_annual_fee]]（`ca_fee_company.special_annual_fee`）
 - [[dicts/ca_fee_company__ca_status]]（`ca_fee_company.ca_status`）
 - [[dicts/ca_fee_company__enable]]（`ca_fee_company.enable`）

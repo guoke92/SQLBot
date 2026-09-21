@@ -220,14 +220,14 @@ concepts:
     evidence: code_path:CustSyncEventProcessor.java:3106
   - concept_key: project_code_input
     title: 录入项目码
-    aliases: [项目码记录, 项目专属服务码]
-    maps_to: cust_project_code_record.company_id
-    field_targets: [cust_project_code_record.company_id, cust_project_code_record.channel_code]
+    aliases: [项目码记录, 录入的项目专属服务码]
+    maps_to: cust_project_code_record.channel_code
+    field_targets: [cust_project_code_record.channel_code, cust_project_code_record.company_id]
     also_confused_with: [default_push_project, channel_code_term, project_rel_status]
     adjudication: boundary
     explanation: |
-      客户在认证过程中录入项目码，落在 cust_project_code_record.company_id=企业主键。
-      不要和租户配置的默认关联项目表搞混，也不要和项目 channel_code（渠道码）搞混。
+      客户在认证过程中录入的项目码值落在 cust_project_code_record.channel_code；company_id 是企业主键。
+      不要和租户配置的默认关联项目表搞混，也不要和项目主档 channel_code（业务口「项目码」）搞混。
     evidence: code_path:CustProjectRelEnhanceService.java:364
   - concept_key: face_verify
     title: 人脸识别认证
@@ -450,22 +450,22 @@ concepts:
     aliases: [新旧渠道授权书补签]
     maps_to: cust_company_info.migarory_auth_aggrement_flag
     field_targets: [cust_company_info.migarory_auth_aggrement_flag]
-    also_confused_with: [auth_supplement_flag, cross_tenant_resign]
+    also_confused_with: [auth_supplement_flag, cross_tenant_resign, direct_init_need_resign]
     adjudication: boundary
     explanation: |
       catalog 注释「新旧渠道授权书补签标识，Y 新渠道:N 旧渠道」。列名拼写是 migarory。
-      迁移时新渠道写 Y 且补签开关 N。不是租户 sign_flag，也不是企业补签开关。Y/N 不编字典页。
+      迁移时新渠道写 Y 且补签开关 N。不是租户 sign_flag，也不是企业补签开关，也不是直推 need_resign_auth。Y/N 不编字典页。
     evidence: code_path:PlatFormMigratoryApplication.java:1687
   - concept_key: auth_supplement_flag
     title: 企业授权书补签开关
     aliases: [授权书补签逻辑优化, 是否授权书补签]
     maps_to: cust_company_info.auth_aggrement_supplement_flag
     field_targets: [cust_company_info.auth_aggrement_supplement_flag]
-    also_confused_with: [auth_channel_flag, cross_tenant_resign, authorization_book, electronic_auth_flag]
+    also_confused_with: [auth_channel_flag, cross_tenant_resign, authorization_book, electronic_auth_flag, direct_init_need_resign]
     adjudication: boundary
     explanation: |
       document_claim:授权书补签逻辑优化.md#31：企业维度开关，可关旧渠道误触发的补签。catalog 注释「是否授权书补签标识」。
-      现网 Y 需要补签，接口对 Y/N 翻转。不是租户跨贴牌 sign_flag，也不是授权确认书行。Y/N 不编字典页。
+      现网 Y 需要补签，接口对 Y/N 翻转。不是租户跨贴牌 sign_flag，也不是授权确认书行，也不是直推 need_resign_auth。Y/N 不编字典页。
     evidence: code_path:CustAuthAgreementDomainService.java:564
   - concept_key: login_account_term
     title: 登录账号
@@ -478,3 +478,73 @@ concepts:
       document_claim:非手机号账号登录.md#14：登录可用账号名而不只是手机号。catalog 注释「登录账号」。
       现网从 SSO userName/loginName 回写；运营回调新建管理员时常把手机号写入该列。问登录名看 user_name，不是 user_type。
     evidence: code_path:UserInfoFacade.java:238
+
+  - concept_key: direct_init_access_mode
+    title: 租户直推接入模式
+    aliases: [DIRECT_INIT, 方案2直推, 接入模式]
+    maps_to: tenant_setting_config.access_mode
+    field_targets: [tenant_setting_config.access_mode]
+    also_confused_with: [default_push_project, channel_code_term, direct_init_change_record]
+    adjudication: boundary
+    explanation: |
+      空或 STANDARD=现网；DIRECT_INIT=方案2直推（V1.36 access_mode 列）。
+      DirectInitAccessModeGuard 按企业 db_tenant_code 读租户 access_mode 放行直推 OpenAPI。
+      全量保存租户配置时前端不传 accessMode，后端 preserveAccessModeIfBlank 禁止刷空 DIRECT_INIT。
+      同码 DIRECT_INIT 也会写到 cust_change_record.oper_channel，但是变更单通道标签，不是本列。
+      STANDARD 在本列=现网；与审批 project_type/flow_code 的 STANDARD（标准项目/流程）不是同一业务。
+    evidence: code_path:DirectInitAccessModes.java:10
+
+  - concept_key: direct_init_change_record
+    title: 直推企业变更单
+    aliases: [直推变更, oper_channel直推, 渠道直推变更]
+    maps_to: cust_change_record.oper_channel
+    field_targets: [cust_change_record.oper_channel, cust_change_record.status, cust_change_record.need_resign_auth]
+    also_confused_with: [change_item_code, cross_tenant_resign, authorization_book, direct_init_access_mode, direct_init_need_resign]
+    adjudication: boundary
+    explanation: |
+      直推变更走同表 cust_change_record，oper_channel=DIRECT_INIT（与 access_mode 码相同，但是另一列）。
+      status 库内写 CheckStatus（CUST_CHECK_PASS / CUST_CHECK_BACKTOCUSTOM），对外 HTTP 映射 CustBuildStatusEnum；不要把 HTTP 建档码当成本列库值。
+      企业表 check_status / cust_build_status 由 DirectInitAccessModes 另行同步，与变更单 status 同枚举族但不同行。
+      不是运营中台 oper_channel=operation-pplatform-* 的常规变更通道。
+    evidence: code_path:ChannelChangeDirectRecordService.java:148
+
+  - concept_key: direct_init_need_resign
+    title: 直推变更需重签授权书
+    aliases: [need_resign_auth, 电子授权重签, 重签授权书]
+    maps_to: cust_change_record.need_resign_auth
+    field_targets: [cust_change_record.need_resign_auth, cust_change_record.electronic_auth_sign_status, cust_change_record.need_cust_confirm]
+    also_confused_with: [cross_tenant_resign, auth_supplement_flag, electronic_auth_flag, auth_channel_flag, electronic_auth_sign_status_term, direct_init_change_record]
+    adjudication: boundary
+    explanation: |
+      need_resign_auth：变更项含 UN0009/UN0012/UN0013/UN0016 时需重签（ChannelChangeDirectItemDetector.needResignAuth）。
+      Y 时自动补 UN0008 企业授权书；electronic_auth_sign_status=PENDING；企业 cust_status=变更中、建档状态待客户确认。
+      不是租户 sign_flag（跨贴牌补签），也不是企业 auth_aggrement_supplement_flag / migarory_auth_aggrement_flag，也不是 generate_electronic_auth_flag。
+    evidence: code_path:ChannelChangeDirectItemDetector.java:39
+
+  - concept_key: channel_archive_longteng
+    title: 龙腾渠道建档
+    aliases: [longteng建档, 渠道建档, OpenAPI建档]
+    maps_to: cust_company_info.channel_code
+    field_targets: [cust_company_info.channel_code, cust_access_secret.channel, open_sso_channel.channel_code]
+    also_confused_with: [invite_customer_entry, default_push_project, open_sso_channel_term, channel_code_term, app_channel_config_term, tenant_code_vs_db_tenant]
+    adjudication: boundary
+    explanation: |
+      渠道码 longteng 等为 open_sso_channel.channel_code / 企业 channel_code / cust_access_secret.channel。
+      CustPersonInfoSourceEnum.longteng displayName=龙腾 是人员来源，不是 oper_channel，也不是 channel_kind。
+      建档时常挂载 cust_app_channel_config（app_tenant_code=channel_code，app_id=开放平台 UUID）。
+    evidence: code_path:ChannelArchiveAppChannelConfigInitializer.java:44
+
+  - concept_key: electronic_auth_sign_status_term
+    title: 电子授权书签署状态
+    aliases: [electronic_auth_sign_status, 线下电子授权签署状态]
+    maps_to: cust_change_record.electronic_auth_sign_status
+    field_targets: [cust_change_record.electronic_auth_sign_status, cust_build_record.electronic_auth_sign_status]
+    also_confused_with: [electronic_auth_flag, direct_init_need_resign, authorization_book]
+    adjudication: boundary
+    explanation: |
+      建档单与变更单共用 ElectronicAuthSignStatus：PENDING/SIGNED/UPLOAD_FAILED/FAILED/VOIDED。
+      补偿任务 OfflineElectronicAuthCompensationJobHandler 扫描两表 PENDING/UPLOAD_FAILED。
+      VOIDED=直推在途变更被新流水覆盖，补偿不再拾取（仅变更单路径常见）。
+      不是租户 generate_electronic_auth_flag，也不是 need_resign_auth（Y/N 是否需要重签）。
+      PENDING 在本列=待签署；与审批 wf_status.PENDING（待发起）、SSO 同步 PENDING、节点待审批等同码不同义。
+    evidence: code_path:ElectronicAuthSignStatus.java:12

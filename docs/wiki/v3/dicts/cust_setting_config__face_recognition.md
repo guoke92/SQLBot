@@ -6,8 +6,8 @@ belong: dicts
 status: draft
 anchors: [cust_setting_config.face_recognition]
 sources: ['database_profile:cust_setting_config.face_recognition']
-created: '2026-09-17'
-updated: '2026-09-17'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [cust_setting_config]
 ---

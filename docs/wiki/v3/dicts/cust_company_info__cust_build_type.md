@@ -7,8 +7,8 @@ status: draft
 anchors: [cust_company_info.cust_build_type]
 sources: ['database_profile:cust_company_info.cust_build_type', 'database_schema:cust_company_info.cust_build_type',
   'code_path:CustBuildTypeConstant.java:12', 'code_path:CustBuildTypeConstant.java:7']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [cust_company_info]
 ---

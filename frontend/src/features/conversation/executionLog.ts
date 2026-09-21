@@ -6,44 +6,39 @@ export function executionStepStatus(item: { status?: string } | undefined): Exec
   return (status || 'success') as ExecutionStepStatus
 }
 
-const NODE_PHASE: Record<string, string> = {
-  prepare: 'prepare',
-  prepare_record: 'prepare',
-  ensure_datasource: 'prepare',
-  resolve_access_scope: 'prepare',
-  retrieve_context: 'understand',
-  turn_router: 'understand',
-  ground_entities: 'understand',
-  plan_query: 'plan',
-  review_query: 'plan',
-  semantic_review: 'plan',
-  await_clarification: 'plan',
-  agent: 'plan',
-  agent_loop: 'plan',
-  generate_queries: 'plan',
-  execute_tools: 'execute',
-  execute_queries: 'execute',
-  decide_next: 'execute',
-  generate_charts: 'present',
-  finalize_turn: 'present',
-  summarize_answer: 'respond',
-  stream: 'respond',
-  parse: 'review',
+/** Wait this long in queued status before showing the real dispatcher copy. */
+export const QUEUED_WAIT_MS = 2000
+
+export type ConversationPlaceholderRecord = {
+  run_status?: string
+  run_dispatch_attempts?: number
+  create_time?: Date | string
+  run_update_time?: Date | string
+  run_started_at?: Date | string
 }
 
-export function executionNodePhase(node?: string): string {
-  return NODE_PHASE[node || ''] || 'plan'
+function queuedElapsedMs(record?: ConversationPlaceholderRecord): number {
+  const stamp = record?.run_update_time || record?.create_time
+  if (!stamp) return 0
+  const ms = Date.now() - new Date(stamp).getTime()
+  return Number.isFinite(ms) ? ms : 0
 }
 
-export function conversationStageKey(node?: string): string {
-  const phase = executionNodePhase(node)
-  return {
-    prepare: 'qa.run_stage_prepare',
-    understand: 'qa.run_stage_understand',
-    plan: 'qa.run_stage_generate',
-    execute: 'qa.run_stage_execute',
-    review: 'qa.run_stage_generate',
-    present: 'qa.run_stage_chart',
-    respond: 'qa.run_stage_summary',
-  }[phase] as string
+function isRealQueue(record?: ConversationPlaceholderRecord): boolean {
+  if ((record?.run_dispatch_attempts || 0) > 1) return true
+  return queuedElapsedMs(record) >= QUEUED_WAIT_MS
+}
+
+export function conversationPlaceholderKey(record?: ConversationPlaceholderRecord): string {
+  if (record?.run_status === 'queued' && isRealQueue(record)) {
+    return (record.run_dispatch_attempts || 0) > 1
+      ? 'qa.run_stage_redispatch'
+      : 'qa.run_stage_queued'
+  }
+  return 'chat.timeline.processing'
+}
+
+/** @deprecated Prefer conversationPlaceholderKey; NLQ stage names are no longer shown. */
+export function conversationStageKey(_node?: string): string {
+  return 'chat.timeline.processing'
 }

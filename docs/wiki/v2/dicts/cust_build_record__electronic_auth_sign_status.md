@@ -6,8 +6,8 @@ belong: dicts
 status: draft
 anchors: [cust_build_record.electronic_auth_sign_status]
 sources: ['database_profile:cust_build_record.electronic_auth_sign_status']
-created: '2026-09-17'
-updated: '2026-09-17'
+created: '2026-09-20'
+updated: '2026-09-20'
 contract_version: '0.1'
 related: [cust_build_record]
 ---

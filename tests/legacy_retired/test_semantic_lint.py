@@ -83,8 +83,8 @@ def _package(
 def test_coverage_reports_gap_and_auto_covered() -> None:
     # 仓库根解析（pytest 从 backend/ 起跑时 cwd 不是 repo root）
     coverage_path = (
-        Path(__file__).resolve().parents[1]
-        / "docs/knowledge-extraction/pplatform-web/system-knowledge-v4/coverage.yaml"
+        Path(__file__).resolve().parents[2]
+        / ".tmp/docs/knowledge-extraction/pplatform-web/system-knowledge-v4/coverage.yaml"
     )
     coverage = load_coverage(coverage_path)
     package = _package()

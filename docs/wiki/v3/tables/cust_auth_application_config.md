@@ -6,8 +6,8 @@ belong: tables
 status: draft
 anchors: [cust_auth_application_config]
 sources: ['database_schema:lowcode_pplatform.cust_auth_application_config']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
 related: [cust_company_info, cust_auth_application]
@@ -131,8 +131,6 @@ overlap:
   deepened: false
   query_ok: true
   authenticity: unknown
-authenticity_note: name_evidence=family_hub(stem=cust, comment=企业id)，列名/注释与 cust_company_info
-  主档语义相符；overlap 已探测但 ratio/ratio_reverse 均为 null、sample_size=0，值域契合无证据，故不给 likely
 ```
 
 ```ground:relation
@@ -157,8 +155,6 @@ overlap:
   deepened: false
   query_ok: true
   authenticity: unknown
-authenticity_note: name_evidence=long_ref(stem=cust_auth_application)，列名由父表名拼接而来且注释「客户产品开通」一致；overlap
-  已探测但 ratio/ratio_reverse 均为 null、sample_size=0，无值域证据，故不给 likely
 ```
 
 ## 页面链接

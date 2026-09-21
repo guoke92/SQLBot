@@ -6,8 +6,8 @@ belong: dicts
 status: draft
 anchors: [async_io_task.status]
 sources: ['database_profile:async_io_task.status']
-created: '2026-09-17'
-updated: '2026-09-17'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [async_io_task]
 ---

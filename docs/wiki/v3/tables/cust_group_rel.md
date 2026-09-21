@@ -6,11 +6,12 @@ belong: tables
 status: draft
 anchors: [cust_group_rel]
 sources: ['database_schema:lowcode_pplatform.cust_group_rel', 'code_path:CustCompanyQueryMapper.xml:112']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
-related: [cust_company_info, cust_group_rel__root_flag, cust_group_rel__level, cust_group_rel__status]
+related: [cust_company_info, cust_group_rel__root_flag, cust_group_rel__level, cust_group_rel__status,
+  cust_group_rel__enable]
 ---
 
 # 集团成员单位关系表
@@ -73,6 +74,7 @@ fields:
 - name: enable
   type: string
   desc: enable
+  dict: [Y]
 - name: remark
   type: string
   desc: remark
@@ -164,3 +166,4 @@ authenticity_note: 集团关系 cust_id 是企业主键。
 - [[dicts/cust_group_rel__root_flag]]（`cust_group_rel.root_flag`）
 - [[dicts/cust_group_rel__level]]（`cust_group_rel.level`）
 - [[dicts/cust_group_rel__status]]（`cust_group_rel.status`）
+- [[dicts/cust_group_rel__enable]]（`cust_group_rel.enable`）

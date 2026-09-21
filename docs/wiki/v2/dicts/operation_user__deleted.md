@@ -6,8 +6,8 @@ belong: dicts
 status: draft
 anchors: [operation_user.deleted]
 sources: ['database_profile:operation_user.deleted']
-created: '2026-09-17'
-updated: '2026-09-17'
+created: '2026-09-20'
+updated: '2026-09-20'
 contract_version: '0.1'
 related: [operation_user]
 ---

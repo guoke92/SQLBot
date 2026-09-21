@@ -1,4 +1,0 @@
-body: 规则 `CA 上送完整性校验` 的 content 在语义分析原文中以 `；intent` 截断，无法确定「意愿认证」维度的完整校验条件（是否要求 intent_h5_face_json
-  / intent_sms_json 至少一项，以及 CHANNEL_OPENAPI 豁免的精确边界）。当前 ground 块只写入已确证部分，完整清单待补。
-title: CA 上送完整性校验
-type: rule

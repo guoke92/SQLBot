@@ -1,3 +1,0 @@
-body: AUTO_ASSIGN / AUTO_UPDATE 由代码声明但 DB 无数据，其触发场景与写入路径未在证据内；change_type 是否实际由状态迁移驱动亦未确认（本条目按无迁移的枚举形态产出）。
-title: 运营人员变更类型枚举
-type: process

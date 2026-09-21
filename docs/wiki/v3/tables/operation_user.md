@@ -6,8 +6,8 @@ belong: tables
 status: draft
 anchors: [operation_user]
 sources: ['database_schema:lowcode_pplatform.operation_user', 'code_path:OperCustFacade.java:4166']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
 related: [operation_user__deleted, operation_user__enable]

@@ -9,8 +9,8 @@ aliases: [CA收费开关]
 maps_to: ca_fee_project_config.charge_enabled
 field_targets: [ca_fee_project_config.charge_enabled]
 sources: ['code_path:CaFeeRuleEngineService.java:98', 'document_claim:docs/wiki-knowledge/pplatform/req-index/concepts/ca证书收费.md']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [ca_fee_project_config]
 also_confused_with: [ca_fee_paid]

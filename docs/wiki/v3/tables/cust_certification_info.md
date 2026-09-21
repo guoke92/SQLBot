@@ -6,12 +6,13 @@ belong: tables
 status: draft
 anchors: [cust_certification_info]
 sources: ['database_schema:lowcode_pplatform.cust_certification_info']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
 related: [cust_company_info, cust_certification_info__enable, cust_certification_info__certification_type,
-  cust_certification_info__auto_verify_status, cust_certification_info__manual_verify_status]
+  cust_certification_info__auto_verify_status, cust_certification_info__auto_verify_count,
+  cust_certification_info__manual_verify_status]
 ---
 
 # cust_certification_info
@@ -82,6 +83,8 @@ fields:
   type: temporal
 - name: auto_verify_count
   type: number
+  dict: ['0', '1', '2', '4', '3', '5', '6', '7', '8', '-1', '11', '9', '33', '-3',
+    '10', '13', '15', '21', '18', '22', '16', '-7']
 - name: auto_verify_data
   type: string
 - name: manual_verify_status
@@ -159,4 +162,5 @@ sides:
 - [[dicts/cust_certification_info__enable]]（`cust_certification_info.enable`）
 - [[dicts/cust_certification_info__certification_type]]（`cust_certification_info.certification_type`）
 - [[dicts/cust_certification_info__auto_verify_status]]（`cust_certification_info.auto_verify_status`）
+- [[dicts/cust_certification_info__auto_verify_count]]（`cust_certification_info.auto_verify_count`）
 - [[dicts/cust_certification_info__manual_verify_status]]（`cust_certification_info.manual_verify_status`）

@@ -6,8 +6,8 @@ belong: dicts
 status: draft
 anchors: [funding_rule_front_cfg.key_type]
 sources: ['database_profile:funding_rule_front_cfg.key_type']
-created: '2026-09-17'
-updated: '2026-09-17'
+created: '2026-09-20'
+updated: '2026-09-20'
 contract_version: '0.1'
 related: [funding_rule_front_cfg]
 ---

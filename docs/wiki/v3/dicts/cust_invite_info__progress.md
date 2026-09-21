@@ -10,15 +10,15 @@ sources: ['database_profile:cust_invite_info.progress', 'database_schema:cust_in
   'code_path:CustBuildStatusEnum.java:17', 'code_path:CustBuildStatusEnum.java:24',
   'code_path:CustBuildStatusEnum.java:27', 'code_path:CustBuildStatusEnum.java:18',
   'code_path:CustBuildStatusEnum.java:30', 'code_path:CustBuildStatusEnum.java:16']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [cust_invite_info]
 ---
 
 # cust_invite_info.progress
 
-L1 字典：label 来自源码 displayName/常量注释（confirmed）。L0 注释猜词已被代码覆盖。
+L1 字典：label 来自源码 displayName/常量注释（confirmed）。L0 注释猜词已被代码覆盖。 初审 hold：证据不足，保留待人工确认。
 物理列 `cust_invite_info.progress`，表页 [[tables/cust_invite_info]]。
 
 ## 取值
@@ -35,5 +35,6 @@ values:
   BUILD_FAIL: {trust: confirmed, label: 认证失败, evidence: 'code_path:CustBuildStatusEnum.java:18'}
   AWAIT_CUST_CONFIRM: {trust: confirmed, label: 待客户确认, evidence: 'code_path:CustBuildStatusEnum.java:30'}
   BUILDING: {trust: confirmed, label: 建档中, evidence: 'code_path:CustBuildStatusEnum.java:16'}
-triage: keep
+triage: hold
+needs_review: true
 ```

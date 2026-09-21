@@ -6,308 +6,201 @@ belong: tables
 status: draft
 anchors: [cust_person_info]
 sources: ['database_schema:lowcode_pplatform.cust_person_info']
-created: '2026-09-17'
-updated: '2026-09-17'
+created: '2026-09-20'
+updated: '2026-09-20'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
 related: [cust_build_record, cust_oper_change_record, cust_company_info, cust_person_info__enable,
   cust_person_info__certification_type, cust_person_info__status, cust_person_info__user_type,
-  cust_person_info__face_status, cust_person_info__realname_status, cust_person_info__company_type,
-  cust_person_info__cust_build_status, cust_person_info__operator_push_system, cust_person_info__skip_auth_flag,
-  cust_person_info__source, cust_person_info__real_name_result]
+  cust_person_info__face_status, cust_person_info__realname_status, cust_person_info__test_data,
+  cust_person_info__company_type, cust_person_info__cust_build_status, cust_person_info__operator_push_system,
+  cust_person_info__skip_auth_flag, cust_person_info__source, cust_person_info__real_name_result]
 ---
 
 # 客户联系人表
 
-L0 库侧合同（draft）。grain / 字段簇 / 身份束关系均为 proposed，不得当认证 JOIN。
-
-## 字段簇
-
-### common
-
-`id`, `code`, `name`, `enable`, `remark`, `create_by`, `create_user`, `create_time`, `update_by`, `update_user`, `update_time`, `app_tenant_code`, `db_tenant_code`, `en_name`, `en_name_end`, `test_data`, `ext_data`
-
-### identity_cert
-
-`certification_type`, `certification_no`, `certification_expire`, `face_status`, `realname_status`, `birth_date`, `phone_realname_status`, `skip_auth_flag`, `real_name_result`
-
-### contact
-
-`phone`, `email`
-
-### account
-
-`user_id`, `status`, `user_type`, `auth_application`, `platform_user_id`, `user_name`
-
-### cust_relation
-
-`organization_id`, `main_data_id`, `ref_cust_company_info`, `cust_company_id`, `company_type`, `cust_build_status`
-
-### workflow
-
-`act_procinst_id`, `act_procinst_no`, `act_procinst_status`, `act_procinst_date`
-
-### operator
-
-`operator`, `handby_person`, `operator_id`, `operator_realname`, `handby_person_name`, `operator_push_system`
-
-### 未归簇
-
-`source`
+L0 库侧合同（draft）。grain / 身份束关系均为 proposed，不得当认证 JOIN。
 
 ## 字段
 
 ```ground:table
 table: cust_person_info
 database: lowcode_pplatform
-description: 客户联系人表
+desc: 客户联系人表
 inactive: false
 primary_key: [id]
 grain: 一行一记录（id）
 name_anchors: [code, name, en_name, handby_person_name, user_name]
-clusters:
-- key: common
-  title: 通用
-  include: always
-- key: identity_cert
-  title: 证件与实名
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.cust_person_info
-- key: contact
-  title: 联系方式
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.cust_person_info
-- key: account
-  title: 账号与用户
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.cust_person_info
-- key: cust_relation
-  title: 客户与企业关联
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.cust_person_info
-- key: workflow
-  title: 审批流程
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.cust_person_info
-- key: operator
-  title: 运营与经办人
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.cust_person_info
 fields:
 - name: id
-  data_type: number
-  description: 表主键
+  type: number
+  desc: 表主键
   nullable: false
-  cluster: common
 - name: code
-  data_type: string
-  description: 编码
-  cluster: common
+  type: string
+  desc: 编码
 - name: name
-  data_type: string
-  description: 姓名
-  cluster: common
+  type: string
+  desc: 姓名
 - name: enable
-  data_type: string
-  description: enable
-  cluster: common
-  dictionary: cust_person_info__enable
+  type: string
+  desc: enable
+  dict: [Y, N]
 - name: remark
-  data_type: string
-  description: remark
-  cluster: common
+  type: string
+  desc: remark
 - name: create_by
-  data_type: string
-  description: 创建人id
-  cluster: common
+  type: string
+  desc: 创建人id
 - name: create_user
-  data_type: string
-  description: 创建人名称
-  cluster: common
+  type: string
+  desc: 创建人名称
 - name: create_time
-  data_type: temporal
-  description: 创建时间
+  type: temporal
+  desc: 创建时间
   nullable: false
-  cluster: common
 - name: update_by
-  data_type: string
-  description: 更新人id
-  cluster: common
+  type: string
+  desc: 更新人id
 - name: update_user
-  data_type: string
-  description: 更新人名称
-  cluster: common
+  type: string
+  desc: 更新人名称
 - name: update_time
-  data_type: temporal
-  description: 更新时间
+  type: temporal
+  desc: 更新时间
   nullable: false
-  cluster: common
 - name: act_procinst_id
-  data_type: string
-  description: 流程实例ID
-  cluster: workflow
+  type: string
+  desc: 流程实例ID
 - name: app_tenant_code
-  data_type: string
-  description: 逻辑租户标识
-  cluster: common
+  type: string
+  desc: 逻辑租户标识
 - name: db_tenant_code
-  data_type: string
-  description: 数据租户标识
-  cluster: common
+  type: string
+  desc: 数据租户标识
 - name: act_procinst_no
-  data_type: string
-  description: 流程申请编号
-  cluster: workflow
+  type: string
+  desc: 流程申请编号
 - name: act_procinst_status
-  data_type: string
-  description: 当前审批状态
-  cluster: workflow
+  type: string
+  desc: 当前审批状态
 - name: act_procinst_date
-  data_type: temporal
-  description: 审批结束时间
-  cluster: workflow
+  type: temporal
+  desc: 审批结束时间
 - name: organization_id
-  data_type: string
-  description: 机构编号
-  cluster: cust_relation
+  type: string
+  desc: 机构编号
 - name: phone
-  data_type: string
-  description: 手机号
-  cluster: contact
+  type: string
+  desc: 手机号
 - name: certification_type
-  data_type: string
-  description: 证件类型
-  cluster: identity_cert
-  dictionary: cust_person_info__certification_type
+  type: string
+  desc: 证件类型
+  dict: [CRET_ID, CREDENTIALS_ID, CERT_RESIDENT_PERMIT, CERT_PASSPORT, CERT_GREEN_CARD,
+    CERT_TAIWAN, CERT_MAINLAND_PASS, CERT_HK_AND_MACAU_PASS, CRET_ID_HK]
 - name: certification_no
-  data_type: string
-  description: 证件号码
-  cluster: identity_cert
+  type: string
+  desc: 证件号码
 - name: certification_expire
-  data_type: string
-  description: 证件有效期
-  cluster: identity_cert
+  type: string
+  desc: 证件有效期
 - name: email
-  data_type: string
-  description: 邮箱
-  cluster: contact
+  type: string
+  desc: 邮箱
 - name: user_id
-  data_type: number
-  description: 关联用户
-  cluster: account
+  type: number
+  desc: 关联用户
 - name: main_data_id
-  data_type: number
-  description: 主数据id
-  cluster: cust_relation
+  type: number
+  desc: 主数据id
 - name: ref_cust_company_info
-  data_type: string
-  description: 关联企业
-  cluster: cust_relation
+  type: string
+  desc: 关联企业
 - name: status
-  data_type: string
-  description: 联系人账号状态
-  cluster: account
-  dictionary: cust_person_info__status
+  type: string
+  desc: 联系人账号状态
+  dict: [ADD, EFFECT, FREEZE, N]
 - name: cust_company_id
-  data_type: number
-  description: 冗余企业id
-  cluster: cust_relation
+  type: number
+  desc: 冗余企业id
 - name: user_type
-  data_type: string
-  description: 联系人类型
-  cluster: account
-  dictionary: cust_person_info__user_type
+  type: string
+  desc: 联系人类型
+  dict: [accountAdmin, accountNormal, accountGuest]
 - name: face_status
-  data_type: string
-  description: 人脸认证结果
-  cluster: identity_cert
-  dictionary: cust_person_info__face_status
+  type: string
+  desc: 人脸认证结果
+  dict: [TO_BE_VERIFIED, AUTOMATIC_AUTHENTICATION_PASSED, MANUAL_AUTHENTICATION_PASSED,
+    AUTOMATIC_AUTHENTICATION_FAILED]
 - name: auth_application
-  data_type: string
-  description: 开通产品
-  cluster: account
+  type: string
+  desc: 开通产品
 - name: realname_status
-  data_type: string
-  description: 实名认证
-  cluster: identity_cert
-  dictionary: cust_person_info__realname_status
+  type: string
+  desc: 实名认证
+  dict: [TO_BE_VERIFIED, AUTOMATIC_AUTHENTICATION_PASSED, MANUAL_AUTHENTICATION_PASSED,
+    AUTOMATIC_AUTHENTICATION_FAILED]
 - name: platform_user_id
-  data_type: number
-  description: 运营系统用户id
-  cluster: account
+  type: number
+  desc: 运营系统用户id
 - name: en_name
-  data_type: string
-  description: 姓名(英文)
-  cluster: common
+  type: string
+  desc: 姓名(英文)
 - name: birth_date
-  data_type: temporal
-  description: 出生日期
-  cluster: identity_cert
+  type: temporal
+  desc: 出生日期
 - name: en_name_end
-  data_type: string
-  description: 人名 (英文)
-  cluster: common
+  type: string
+  desc: 人名 (英文)
 - name: test_data
-  data_type: string
-  cluster: common
+  type: string
+  dict: [N, Y]
 - name: company_type
-  data_type: string
-  cluster: cust_relation
-  dictionary: cust_person_info__company_type
+  type: string
+  dict: [SUPPLIER, CORE, FINANCE, PROJECT_COMPANY, CORPORATION_COMPANY, PLATFORM_OPERATOR_COMPANY,
+    DEALER, CORE_MANAGER, '["SUPPLIER"]']
 - name: operator
-  data_type: string
-  cluster: operator
+  type: string
 - name: handby_person
-  data_type: string
-  cluster: operator
+  type: string
 - name: operator_id
-  data_type: string
-  description: 运营人id
-  cluster: operator
+  type: string
+  desc: 运营人id
 - name: operator_realname
-  data_type: string
-  description: 运营人姓名
-  cluster: operator
+  type: string
+  desc: 运营人姓名
 - name: phone_realname_status
-  data_type: string
-  description: 手机实名状态
-  cluster: identity_cert
+  type: string
+  desc: 手机实名状态
 - name: handby_person_name
-  data_type: string
-  description: 建档经办人名字
-  cluster: operator
+  type: string
+  desc: 建档经办人名字
 - name: user_name
-  data_type: string
-  description: 登录账号
-  cluster: account
+  type: string
+  desc: 登录账号
 - name: cust_build_status
-  data_type: string
-  description: 建档状态
-  cluster: cust_relation
-  dictionary: cust_person_info__cust_build_status
+  type: string
+  desc: 建档状态
+  dict: [CUST_CONFIRM_AWAIT, BUILD_SUCCESS, BUILD_FAIL, CUST_BUILDING, INIT]
 - name: operator_push_system
-  data_type: string
-  description: 经办人推送系统列表
-  cluster: operator
-  dictionary: cust_person_info__operator_push_system
+  type: string
+  desc: 经办人推送系统列表
+  dict: [ams_supplier_pc, ams_proj_pc, ams_finance_pc, smebee_pc]
 - name: skip_auth_flag
-  data_type: string
-  description: 跳过实名认证标识
-  cluster: identity_cert
-  dictionary: cust_person_info__skip_auth_flag
+  type: string
+  desc: 跳过实名认证标识
+  dict: [N, Y]
 - name: source
-  data_type: string
-  description: 来源
-  dictionary: cust_person_info__source
+  type: string
+  desc: 来源
+  dict: [longteng, AMS, jingke]
 - name: ext_data
-  data_type: string
-  description: 扩展字段
-  cluster: common
+  type: string
+  desc: 扩展字段
 - name: real_name_result
-  data_type: string
-  description: 实名认证结果
-  cluster: identity_cert
-  dictionary: cust_person_info__real_name_result
+  type: string
+  desc: 实名认证结果
+  dict: [INIT, VERIFIED_SUCCESS, VERIFIED_FAILED]
 ```
 
 ## 关联关系
@@ -337,7 +230,6 @@ overlap:
   deepened: false
   query_ok: true
   authenticity: likely
-authenticity_note: 冗余企业id，注释与列名均指向 cust_company_info，overlap 0.9939 值域契合，维持 likely
 ```
 
 ### unlikely — 值域不支持或冲突
@@ -365,7 +257,6 @@ overlap:
   deepened: false
   query_ok: true
   authenticity: unlikely
-authenticity_note: 列名含目标表名，但实测 overlap 0.0（200/200 未命中），值域不契合，维持 unlikely
 ```
 
 ## 页面链接
@@ -384,6 +275,7 @@ authenticity_note: 列名含目标表名，但实测 overlap 0.0（200/200 未�
 - [[dicts/cust_person_info__user_type]]（`cust_person_info.user_type`）
 - [[dicts/cust_person_info__face_status]]（`cust_person_info.face_status`）
 - [[dicts/cust_person_info__realname_status]]（`cust_person_info.realname_status`）
+- [[dicts/cust_person_info__test_data]]（`cust_person_info.test_data`）
 - [[dicts/cust_person_info__company_type]]（`cust_person_info.company_type`）
 - [[dicts/cust_person_info__cust_build_status]]（`cust_person_info.cust_build_status`）
 - [[dicts/cust_person_info__operator_push_system]]（`cust_person_info.operator_push_system`）

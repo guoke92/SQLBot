@@ -147,6 +147,20 @@ confirmed_relations:
     evidence: code_path:TenantInterworkingProjectApplicationService.java:64
     note: 互通项目绑定的是 tenant_project.id，不是项目 code。
 dict_labels:
+  tenant_product__product_cate:
+    table: tenant_product
+    column: product_cate
+    values:
+      WEAKLY: { label: 弱确权, evidence: document_claim:产品产融平台语境.md#32 }
+      STRONG: { label: 强确权, evidence: document_claim:产品产融平台语境.md#32 }
+      CREDIT: { label: 信用类, evidence: document_claim:产品产融平台语境.md#32 }
+  tenant_interworking_product__product_cate:
+    table: tenant_interworking_product
+    column: product_cate
+    values:
+      WEAKLY: { label: 弱确权, evidence: document_claim:产品产融平台语境.md#32 }
+      STRONG: { label: 强确权, evidence: document_claim:产品产融平台语境.md#32 }
+      CREDIT: { label: 信用类, evidence: document_claim:产品产融平台语境.md#32 }
   tenant_project__project_status:
     table: tenant_project
     column: project_status
@@ -162,6 +176,7 @@ dict_labels:
       RUNNING: { label: 审批中, evidence: code_path:ProjectApprovalWorkflowStatusEnum.java:17 }
       FINISHED: { label: 审批通过, evidence: code_path:ProjectApprovalWorkflowStatusEnum.java:18 }
       TERMINATED: { label: 审批拒绝, evidence: code_path:ProjectApprovalWorkflowStatusEnum.java:19 }
+      REVOKED: { label: 审批撤销, evidence: code_path:ProjectApprovalWorkflowStatusEnum.java:20 }
   tenant_project_approval__project_type:
     table: tenant_project_approval
     column: project_type
@@ -223,6 +238,7 @@ dict_labels:
       reject: { label: 驳回, evidence: code_path:ProjectApprovalOperateTypeEnum.java:17 }
       back: { label: 退回, evidence: code_path:ProjectApprovalOperateTypeEnum.java:18 }
       delegate: { label: 转审, evidence: code_path:ProjectApprovalOperateTypeEnum.java:19 }
+      revoke: { label: 撤销, evidence: code_path:ProjectApprovalOperateTypeEnum.java:20 }
   tenant_project_approval_flow_node__approval_type:
     table: tenant_project_approval_flow_node
     column: approval_type
@@ -248,3 +264,10 @@ dict_labels:
     values:
       ALL: { label: 全部, evidence: code_path:ProductScopeEnum.java:17 }
       SOME: { label: 特定范围, evidence: code_path:ProductScopeEnum.java:18 }
+
+  tenant_setting_config__access_mode:
+    table: tenant_setting_config
+    column: access_mode
+    values:
+      STANDARD: { label: 现网, evidence: code_path:DirectInitAccessModes.java:10 }
+      DIRECT_INIT: { label: 方案2直推, evidence: code_path:DirectInitAccessModes.java:10 }

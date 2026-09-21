@@ -49,6 +49,8 @@ query：published ∩ 勾选 → 投影代数 → JOIN/grain 门禁 → 澄清�
 
 ## 废止
 
-下列不再权威，冲突以本目录为准：`docs/wiki-knowledge/` 下 v1–v3 方案 / 链路契约 / 提取指南 / 召回接口 / 源码适配器；`docs/wiki页面契约-spec-v0.md`；`docs/知识体系目标架构-v3.1.md`；`docs/业务系统知识库提取与构建指南-v1.md`；skill 里的 11 步与 `knowledge-package submit`（只复用扫描脚本）。
+下列不再权威（多已迁至仓库根 `.tmp/`，冲突以本目录为准）：旧 `docs/wiki-knowledge/` 方案/指南/链路契约；`docs/wiki页面契约-spec-v0.md`；`docs/知识体系目标架构-v3.1.md`；`docs/业务系统知识库提取与构建指南-v1.md`；KnowledgePackage 11 步与 `knowledge-package submit`（只复用 `extract-*.py` 扫描脚本）。
 
-语料树（`wiki-pages/` 等）不是契约，不动。
+**现行语料工作区：** `docs/wiki/v2`（L0+IR）→ `docs/wiki/v3`（L1 draft）。历史 `wiki-pages*` 在 `.tmp/`。运行时召回走 DB corpus，不依赖本地 pages 树。
+
+**导入默认：** 管理端 / `KNOWLEDGE_WIKI_PAGES_DIRS` → `docs/wiki/v3`。若现场 `.env` 仍指向旧 `wiki-pages*`，请改为此路径，否则导入失败。

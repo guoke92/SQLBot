@@ -100,11 +100,11 @@ Graph docs: `backend/graphs/README.md`. Deeper backend notes: `CLAUDE.md` (may l
 
 ### Knowledge subsystem
 
-问数 Wiki 权威在 [`docs/wiki/`](docs/wiki/README.md)（架构 / 提取 / 页面 / 运行时）。旧 unit/semantic 已退役；`knowledge-package submit` 不是 wiki 路径。扫描脚本仍复用 `.cursor/skills/knowledge-extraction/scripts/`。
+问数 Wiki 权威在 [`docs/wiki/`](docs/wiki/README.md)（架构 / 提取 / 页面 / 运行时）。工作区：`docs/wiki/v2`（L0+IR）→ `docs/wiki/v3`（L1 draft）；文档源 `docs/wiki-knowledge/pplatform/req-index/`。运行时召回：DB `wiki_corpus` + 向量（binding）。历史 ADR / KnowledgePackage / `wiki-pages*` 已迁 `.tmp/`，不再作为运行实现依据。扫描脚本仍复用 `.cursor/skills/knowledge-extraction/scripts/extract-*.py`（**不是** package submit）。
 
-- `apps/knowledge/wiki/` — 页面解析、切块、RRF+图扩展召回；运行面文本直拼 prompt。
-- `apps/knowledge/retrieval/` 与 `importing/` 仅有过期 `__pycache__`，不要 import。
-- 历史 ADR `docs/知识体系目标架构-v3.1.md` 已吸收进 `docs/wiki/`，不再作为运行实现依据。
+- `apps/knowledge/wiki/` — 页面解析、切块、RRF+图扩展召回；corpus 导入与 DB 加载。
+- `tools/wiki_extract/` — L0/L1 提取 CLI。
+- 勿 import 已退役的 semantic/graph/importing/retrieval 模块。
 
 ## Backend Architecture (summary)
 

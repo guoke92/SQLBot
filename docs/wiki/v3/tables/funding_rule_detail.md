@@ -6,12 +6,12 @@ belong: tables
 status: draft
 anchors: [funding_rule_detail]
 sources: ['database_schema:lowcode_pplatform.funding_rule_detail', 'code_path:FundRuleInfoApplication.java:371']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
-related: [funding_rule_info, funding_rule_detail__rule_layer, funding_rule_detail__product_code,
-  funding_rule_detail__enable, funding_rule_detail__check_scene]
+related: [funding_rule_info, funding_rule_detail__rule_layer, funding_rule_detail__version,
+  funding_rule_detail__product_code, funding_rule_detail__enable, funding_rule_detail__check_scene]
 ---
 
 # 资方规则信息详情
@@ -27,7 +27,7 @@ desc: 资方规则信息详情
 inactive: false
 primary_key: [id]
 grain: 规则头下一字段一行明细
-name_anchors: [code, name]
+name_anchors: [product_code, code, name]
 fields:
 - name: id
   type: number
@@ -50,6 +50,7 @@ fields:
 - name: version
   type: number
   desc: 版本
+  dict: ['1', '2', '3', '6', '4', '25', '9', '17', '8', '13', '23']
 - name: funding_party_mark
   type: string
   desc: 资方标识
@@ -152,8 +153,6 @@ overlap:
   deepened: true
   query_ok: true
   authenticity: unknown
-authenticity_note: 列名 family_suffix 命中 rule_info，注释「关系规则信息ID」指向资方规则信息主表；overlap 反向
-  1.0（父表 id 全部被覆盖）、正向 0.7273（33 样本中 9 未命中，可能为探测窗口外的主表行），值域与语义均契合
 ```
 
 ```ground:relation
@@ -167,43 +166,7 @@ evidence: code_path:FundRuleInfoApplication.java:513
 source: l1_code
 join_role: identity
 priority: primary
-name_evidence:
-  match: llm_propose
-  stem: fund_rule_code_ref
-  comment: 注释「关联规则信息code」与对端 code 语义一致，码对码 EQUI_JOIN，overlap 0.6071/反向 1.0；同表已有 rule_info_i
-overlap:
-  probed: true
-  ratio: 0.6071
-  ratio_reverse: 1.0
-  sample_size: 56
-  authenticity: unknown
 authenticity_note: 明细码引用规则头 code，与 rule_info_id 并存。
-```
-
-### unknown — 待复核
-
-```ground:relation
-type: EQUI_JOIN
-left: funding_rule_info.product_code
-right: funding_rule_detail.product_code
-cardinality: one_to_many
-trust: proposed
-authenticity: unknown
-evidence: database_schema:lowcode_pplatform.funding_rule_detail.product_code
-source: llm
-join_role: business_code
-priority: secondary
-name_evidence:
-  match: llm_propose
-  stem: product_code
-  comment: 两列同名同注释「产品code」，overlap 1.0，码对码 EQUI_JOIN 合法；同表已有 rule_info_id→funding_rule_info
-overlap:
-  probed: true
-  ratio: 1.0
-  sample_size: 2
-  authenticity: unknown
-authenticity_note: 两列同名同注释「产品code」，overlap 1.0，码对码 EQUI_JOIN 合法；同表已有 rule_info_id→funding_rule_info.id
-  主键边指向该父表，本条按 secondary 处理（样本仅 2 值，需人工复核）
 ```
 
 ## 页面链接
@@ -215,6 +178,7 @@ authenticity_note: 两列同名同注释「产品code」，overlap 1.0，码对�
 ### 字典
 
 - [[dicts/funding_rule_detail__rule_layer]]（`funding_rule_detail.rule_layer`）
+- [[dicts/funding_rule_detail__version]]（`funding_rule_detail.version`）
 - [[dicts/funding_rule_detail__product_code]]（`funding_rule_detail.product_code`）
 - [[dicts/funding_rule_detail__enable]]（`funding_rule_detail.enable`）
 - [[dicts/funding_rule_detail__check_scene]]（`funding_rule_detail.check_scene`）

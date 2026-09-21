@@ -6,11 +6,11 @@ belong: tables
 status: draft
 anchors: [funding_rule_front_cfg]
 sources: ['database_schema:lowcode_pplatform.funding_rule_front_cfg', 'code_path:FundingPartyRuleProviderImpl.java:105']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
-related: [funding_rule_info, funding_rule_front_cfg__rule_layer, funding_rule_front_cfg__product_code,
+related: [funding_rule_front_cfg__rule_layer, funding_rule_front_cfg__product_code,
   funding_rule_front_cfg__key_type, funding_rule_front_cfg__rule_key, funding_rule_front_cfg__enable,
   funding_rule_front_cfg__check_scene]
 ---
@@ -131,10 +131,6 @@ default_filter:
 ```
 
 ## 页面链接
-
-### 关联表
-
-- [[tables/funding_rule_info]]
 
 ### 字典
 

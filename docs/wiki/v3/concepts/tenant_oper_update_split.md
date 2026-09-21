@@ -9,8 +9,8 @@ aliases: [运营配置更新人分离, op_update_user]
 maps_to: tenant_setting_config.op_update_user
 field_targets: [tenant_setting_config.op_update_user, tenant_setting_config.op_update_time]
 sources: ['code_path:TenantSettingConfigController.java:114', 'document_claim:docs/wiki-knowledge/pplatform/req-index/concepts/项目上线审批流程.md']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [tenant_setting_config]
 also_confused_with: [tenant_uscc, customer_card_term]
@@ -25,5 +25,6 @@ document_claim:租户配置更新人分离.md#15：运营配置不覆盖标准 u
 ## 页面链接
 
 - [[tables/tenant_setting_config]]
+- [[dicts/tenant_setting_config__op_update_user]]
 - [[concepts/customer_card_term]]
 - [[concepts/tenant_uscc]]

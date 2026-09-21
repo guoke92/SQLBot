@@ -1,4 +1,0 @@
-body: 所有表页 frontmatter 的 scope.databases 暂填 `unknown`：语义分析仅提供字段语义与代码证据，未给出物理库名（分析中出现的是
-  db_tenant_code/app_tenant_code 等租户列）。请确认物理库名后批量回填。
-title: 物理库名未在语义分析中给出
-type: table

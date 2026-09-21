@@ -31,7 +31,11 @@ tables:
       predicate: "cust_account_info.enable = 'Y'"
       evidence: code_path:CustPersonController.java:288
   cust_build_record: {}
-  cust_change_record: {}
+  cust_change_record:
+    grain: 企业变更单；直推单 oper_channel=DIRECT_INIT + serial_no 幂等
+    written_with_groups:
+      - fields: [need_resign_auth, need_cust_confirm, electronic_auth_sign_status, status, oper_channel]
+        evidence: code_path:ChannelChangeDirectRecordService.java:148
   cust_role_info:
     default_filter:
       predicate: "cust_role_info.enable = 'Y'"
@@ -108,6 +112,9 @@ tables:
   cust_auth_application_config:
     grain: 客户产品开通配置（现网 0 行；pplatform-web 无 DO / 业务引用）
   cust_app_channel_config:
-    grain: 客户应用渠道关系（pplatform-web 无 @TableName / 业务引用）
+    grain: 租户渠道 appId 映射；建档时按 db_tenant_code 幂等初始化
+    default_filter:
+      predicate: "cust_app_channel_config.enable = 'Y'"
+      evidence: code_path:ChannelArchiveAppChannelConfigInitializer.java:44
   cust_message_send_policy:
     grain: 客户消息发送策略（现网 0 行；pplatform-web 无 @TableName / 业务引用）

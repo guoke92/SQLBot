@@ -7,8 +7,8 @@ domain: remaining
 status: draft
 field_targets: [platform_product.product_status, tenant_product.open_status]
 sources: ['code_path:PlatformProduct.java:100']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [platform_product, tenant_product]
 ---

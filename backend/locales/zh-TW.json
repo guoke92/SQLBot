@@ -232,6 +232,7 @@
         "get_table_schema": "展開表結構",
         "get_table_relations": "查詢表關聯",
         "search_knowledge": "檢索業務口徑",
+        "lookup_values": "反查實例值",
         "get_dict_values": "查詢欄位字典",
         "prepare_wiki": "準備知識",
         "restore_wiki": "恢復上輪知識",
@@ -243,6 +244,7 @@
       "thought_done": "思考完成",
       "tool_ok": "執行成功",
       "tool_failed": "執行失敗",
+      "tool_skipped": "已達輪次建議，未執行",
       "query_rows": "返回 {count} 行",
       "answer_ready": "回答已產生",
       "clarification_waiting": "等待確認",
@@ -252,7 +254,8 @@
       "wiki_restored": "恢復上輪 {count} 條知識",
       "schema_loaded": "展開 {count} 張表",
       "relations_loaded": "返回 {count} 條關聯",
-      "dict_loaded": "返回 {count} 個枚舉值"
+      "dict_loaded": "返回 {count} 個枚舉值",
+      "values_loaded": "返回 {count} 個實例候選"
     },
     "audit": {
       "processing": "處理中",

@@ -8,8 +8,8 @@ anchors: [cust_role_info.status]
 sources: ['database_profile:cust_role_info.status', 'database_schema:cust_role_info.status',
   'code_path:CustRoleStatusConstant.java:11', 'code_path:CustRoleStatusConstant.java:13',
   'code_path:CustRoleStatusConstant.java:15', 'code_path:CustRoleStatusConstant.java:17']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [cust_role_info]
 ---

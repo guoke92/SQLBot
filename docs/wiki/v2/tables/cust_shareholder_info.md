@@ -6,209 +6,139 @@ belong: tables
 status: draft
 anchors: [cust_shareholder_info]
 sources: ['database_schema:lowcode_pplatform.cust_shareholder_info']
-created: '2026-09-17'
-updated: '2026-09-17'
+created: '2026-09-20'
+updated: '2026-09-20'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
-related: [cust_company_info, cust_shareholder_info__enable, cust_shareholder_info__certification_type,
-  cust_shareholder_info__relation_type]
+related: [cust_company_info, cust_shareholder_info__code, cust_shareholder_info__name,
+  cust_shareholder_info__enable, cust_shareholder_info__remark, cust_shareholder_info__ref_cust_company_info,
+  cust_shareholder_info__certification_type, cust_shareholder_info__certification_no,
+  cust_shareholder_info__fund_amount_act, cust_shareholder_info__fund_scale, cust_shareholder_info__relation_type]
 ---
 
 # 客户关联方信息主表
 
-L0 库侧合同（draft）。grain / 字段簇 / 身份束关系均为 proposed，不得当认证 JOIN。
-
-## 字段簇
-
-### common
-
-`id`, `code`, `enable`, `remark`, `create_by`, `create_user`, `create_time`, `update_by`, `update_user`, `update_time`
-
-### relation_identity
-
-`name`, `certification_type`, `certification_no`, `telephone`, `email`, `relation_type`
-
-### fund
-
-`fund_type`, `currency`, `fund_amount_ought`, `fund_amount_act`, `fund_scale`, `investment_date`
-
-### act_procinst
-
-`act_procinst_id`, `act_procinst_no`, `act_procinst_status`, `act_procinst_date`
-
-### tenant_org
-
-`app_tenant_code`, `db_tenant_code`, `organization_id`
-
-### cust_ref
-
-`ref_cust_company_info`, `main_data_id`
+L0 库侧合同（draft）。grain / 身份束关系均为 proposed，不得当认证 JOIN。
 
 ## 字段
 
 ```ground:table
 table: cust_shareholder_info
 database: lowcode_pplatform
-description: 客户关联方信息主表
+desc: 客户关联方信息主表
 inactive: false
 primary_key: [id]
 grain: 一行一记录（id）
 name_anchors: [code, name]
-clusters:
-- key: common
-  title: 通用
-  include: always
-- key: relation_identity
-  title: 关联方身份与联系方式
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.cust_shareholder_info
-- key: fund
-  title: 出资信息
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.cust_shareholder_info
-- key: act_procinst
-  title: 审批流程
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.cust_shareholder_info
-- key: tenant_org
-  title: 租户与机构
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.cust_shareholder_info
-- key: cust_ref
-  title: 客户主档引用
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.cust_shareholder_info
 fields:
 - name: id
-  data_type: number
-  description: 表主键
+  type: number
+  desc: 表主键
   nullable: false
-  cluster: common
 - name: code
-  data_type: string
-  description: 编码
-  cluster: common
+  type: string
+  desc: 编码
+  dict: [6f4831e29b584aa5893c71b3f201a62a, f10bfdc45bc44710be7b10712ede351f, 23ec1de85da643cbb8a2a3045673da8a,
+    e6da13e575914d2db0e2d2e4590a9e3a, b0ca86d46721415abc21b5f44f844f3d, 28a82b234425439d999d153ad48887bc]
 - name: name
-  data_type: string
-  description: 关联方名称
-  cluster: relation_identity
+  type: string
+  desc: 关联方名称
+  dict: ['34', asdf, '11', asdfdf]
 - name: enable
-  data_type: string
-  description: enable
-  cluster: common
-  dictionary: cust_shareholder_info__enable
+  type: string
+  desc: enable
+  dict: [Y]
 - name: remark
-  data_type: string
-  description: remark
-  cluster: common
+  type: string
+  desc: remark
+  dict: [wert, '11']
 - name: create_by
-  data_type: string
-  description: 创建人id
-  cluster: common
+  type: string
+  desc: 创建人id
 - name: create_user
-  data_type: string
-  description: 创建人名称
-  cluster: common
+  type: string
+  desc: 创建人名称
 - name: create_time
-  data_type: temporal
-  description: 创建时间
+  type: temporal
+  desc: 创建时间
   nullable: false
-  cluster: common
 - name: update_by
-  data_type: string
-  description: 更新人id
-  cluster: common
+  type: string
+  desc: 更新人id
 - name: update_user
-  data_type: string
-  description: 更新人名称
-  cluster: common
+  type: string
+  desc: 更新人名称
 - name: update_time
-  data_type: temporal
-  description: 更新时间
+  type: temporal
+  desc: 更新时间
   nullable: false
-  cluster: common
 - name: act_procinst_id
-  data_type: string
-  description: 流程实例ID
-  cluster: act_procinst
+  type: string
+  desc: 流程实例ID
 - name: app_tenant_code
-  data_type: string
-  description: 逻辑租户标识
-  cluster: tenant_org
+  type: string
+  desc: 逻辑租户标识
 - name: db_tenant_code
-  data_type: string
-  description: 数据租户标识
-  cluster: tenant_org
+  type: string
+  desc: 数据租户标识
 - name: act_procinst_no
-  data_type: string
-  description: 流程申请编号
-  cluster: act_procinst
+  type: string
+  desc: 流程申请编号
 - name: act_procinst_status
-  data_type: string
-  description: 当前审批状态
-  cluster: act_procinst
+  type: string
+  desc: 当前审批状态
 - name: act_procinst_date
-  data_type: temporal
-  description: 审批结束时间
-  cluster: act_procinst
+  type: temporal
+  desc: 审批结束时间
 - name: organization_id
-  data_type: string
-  description: 机构编号
-  cluster: tenant_org
+  type: string
+  desc: 机构编号
 - name: ref_cust_company_info
-  data_type: string
-  description: 客户股东信息
-  cluster: cust_ref
+  type: string
+  desc: 客户股东信息
+  dict: [78bd395c9ca34fe4b87fa1a816c6714a, 313e49f751f146c9bec2d19682d756dc, 40a501bb9f1945069631e728ac752d59,
+    a1c94e1e892b4ec28c3332dac47754d3, 6c682c4d0f804d1e9705ae80daedbe19]
 - name: certification_type
-  data_type: string
-  description: 证件类型
-  cluster: relation_identity
-  dictionary: cust_shareholder_info__certification_type
+  type: string
+  desc: 证件类型
+  dict: [CRET_ID]
 - name: certification_no
-  data_type: string
-  description: 证件号码
-  cluster: relation_identity
+  type: string
+  desc: 证件号码
+  dict: [wertwetew, '11']
 - name: telephone
-  data_type: string
-  description: 联系电话
-  cluster: relation_identity
+  type: string
+  desc: 联系电话
 - name: email
-  data_type: string
-  description: 电子邮件
-  cluster: relation_identity
+  type: string
+  desc: 电子邮件
 - name: fund_type
-  data_type: string
-  description: 出资方式
-  cluster: fund
+  type: string
+  desc: 出资方式
 - name: currency
-  data_type: string
-  description: 出资币种
-  cluster: fund
+  type: string
+  desc: 出资币种
 - name: fund_amount_ought
-  data_type: string
-  description: 应出资金额
-  cluster: fund
+  type: string
+  desc: 应出资金额
 - name: fund_amount_act
-  data_type: string
-  description: 实际出资金额
-  cluster: fund
+  type: string
+  desc: 实际出资金额
+  dict: [wretwewt, '111']
 - name: fund_scale
-  data_type: string
-  description: 出资比例（%）
-  cluster: fund
+  type: string
+  desc: 出资比例（%）
+  dict: [wt, '11']
 - name: investment_date
-  data_type: temporal
-  description: 投资日期
-  cluster: fund
+  type: temporal
+  desc: 投资日期
 - name: relation_type
-  data_type: string
-  description: 关联方类型
-  cluster: relation_identity
-  dictionary: cust_shareholder_info__relation_type
+  type: string
+  desc: 关联方类型
+  dict: [LEGAL_PERSON, SENIOR_MANAGER]
 - name: main_data_id
-  data_type: number
-  description: 主数据id
-  cluster: cust_ref
+  type: number
+  desc: 主数据id
 ```
 
 ## 关联关系
@@ -248,6 +178,13 @@ overlap:
 
 ### 字典
 
+- [[dicts/cust_shareholder_info__code]]（`cust_shareholder_info.code`）
+- [[dicts/cust_shareholder_info__name]]（`cust_shareholder_info.name`）
 - [[dicts/cust_shareholder_info__enable]]（`cust_shareholder_info.enable`）
+- [[dicts/cust_shareholder_info__remark]]（`cust_shareholder_info.remark`）
+- [[dicts/cust_shareholder_info__ref_cust_company_info]]（`cust_shareholder_info.ref_cust_company_info`）
 - [[dicts/cust_shareholder_info__certification_type]]（`cust_shareholder_info.certification_type`）
+- [[dicts/cust_shareholder_info__certification_no]]（`cust_shareholder_info.certification_no`）
+- [[dicts/cust_shareholder_info__fund_amount_act]]（`cust_shareholder_info.fund_amount_act`）
+- [[dicts/cust_shareholder_info__fund_scale]]（`cust_shareholder_info.fund_scale`）
 - [[dicts/cust_shareholder_info__relation_type]]（`cust_shareholder_info.relation_type`）

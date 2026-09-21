@@ -1,4 +1,0 @@
-body: 缺失字段语义分析：语义分析仅提供状态机字段 cust_interworking_product.open_status，但 field_semantics
-  未覆盖该表其他字段。建议补充 DB 字段与代码使用证据后再生成 table 锚点块。
-title: cust_interworking_product
-type: table

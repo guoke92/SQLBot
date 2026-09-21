@@ -7,8 +7,8 @@ domain: tenant
 status: draft
 field_targets: [tenant_project.project_status, tenant_project.enable]
 sources: ['code_path:TenantProjectDaoImpl.java:35']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [tenant_project]
 ---

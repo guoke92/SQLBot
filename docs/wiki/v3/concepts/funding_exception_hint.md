@@ -9,8 +9,8 @@ aliases: [资方报错建议, 异常解析]
 maps_to: funding_exception_resolution.error_keyword
 field_targets: [funding_exception_resolution.error_keyword, funding_exception_resolution.suggestion]
 sources: ['code_path:FundingPartyExceptionResolutionProviderImpl.java:105', 'document_claim:docs/wiki-knowledge/pplatform/req-index/concepts']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [funding_exception_resolution]
 also_confused_with: [funding_rule_active]

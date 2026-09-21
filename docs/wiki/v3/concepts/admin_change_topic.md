@@ -10,8 +10,8 @@ maps_to: cust_person_info__status.FREEZE
 field_targets: [cust_person_info__status.FREEZE, cust_person_info.status, cust_person_info.enable,
   cust_person_info.user_type]
 sources: ['code_path:CustPersonApplication.java:841', 'document_claim:docs/wiki-knowledge/pplatform/req-index/concepts/产品需求规格说明书_产融平台V1.0.0.md']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [cust_person_info]
 also_confused_with: [freeze_audit]

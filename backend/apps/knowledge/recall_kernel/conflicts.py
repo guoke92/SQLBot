@@ -10,6 +10,15 @@ Detection is query-conditioned (not “any recalled page with also_confused_with
 2. Alias collision: one query phrase maps to two field_targets
 3. Boundary: both sides of a published boundary pair are phrase-matched
 
+Term sources for the bridge:
+
+- concept / dict pages (titles, aliases, enum labels)
+- table field Chinese ``desc`` (dimension side — users say field comments)
+- optional value-index hits (value side — label/code → field)
+
+Value-index hits never resolve attribution alone. Independent turns run this
+detector at prepare time so conflicts surface even before ``search_knowledge``.
+
 ``adjudication: synonym`` never conflicts. Independent requested dimensions
 (no attribution / collision / boundary) do not conflict — that is why
 「查询企业名称和认证方式」 must not open a card.
@@ -66,12 +75,23 @@ class CaliberConflict:
         )
 
 
-def detect_caliber_conflicts(store: Any, query: str) -> tuple[CaliberConflict, ...]:
-    """Return grounded conflicts for this query against the Wiki store."""
+def detect_caliber_conflicts(
+    store: Any,
+    query: str,
+    *,
+    value_hits: Sequence[Any] | None = None,
+) -> tuple[CaliberConflict, ...]:
+    """Return grounded conflicts for this query against the Wiki store.
+
+    ``value_hits`` (optional ``ValueAnchor``-like objects) merge into the term
+    index as value-side bindings so attribution still fires when the label is
+    known from the value index even if the matching wiki dict page is thin.
+    """
     text = str(query or "").strip()
-    if store is None or not text:
+    if not text:
         return ()
-    terms = _term_index(store)
+    terms = _term_index(store) if store is not None else {}
+    _merge_value_hit_terms(terms, value_hits)
     if not terms:
         return ()
     hits = _phrase_hits(text, terms)
@@ -80,7 +100,8 @@ def detect_caliber_conflicts(store: Any, query: str) -> tuple[CaliberConflict, .
     grouped: dict[frozenset[tuple[str, str]], _Draft] = {}
     _collect_attribution(text, hits, grouped)
     _collect_collisions(hits, grouped)
-    _collect_boundary(store, hits, grouped)
+    if store is not None:
+        _collect_boundary(store, hits, grouped)
     built: list[CaliberConflict] = []
     for draft in sorted(grouped.values(), key=lambda item: item.conflict_id):
         conflict = draft.build()
@@ -157,10 +178,15 @@ class _Draft:
 
 def _term_index(store: Any) -> dict[str, list[TermBinding]]:
     index: dict[str, list[TermBinding]] = {}
+    if store is None:
+        return index
     pages = getattr(store, "pages", {}) or {}
     catalogs = _enum_catalogs(store)
     for page in pages.values():
         page_type = str(getattr(page, "type", "") or "")
+        if page_type == "table":
+            _index_table_field_descs(store, page, index, catalogs)
+            continue
         if page_type not in {"concept", "dict"}:
             continue
         targets = _page_field_targets(store, page)
@@ -201,6 +227,124 @@ def _term_index(store: Any) -> dict[str, list[TermBinding]]:
                     ),
                 )
     return index
+
+
+def _index_table_field_descs(
+    store: Any,
+    page: Any,
+    index: dict[str, list[TermBinding]],
+    catalogs: dict[tuple[str, str], tuple[tuple[str, str], ...]],
+) -> None:
+    """Bind enum-carrier field Chinese ``desc`` as dimension phrases (no value).
+
+    Concept pages are optional; users routinely say the field comment
+    (「认证方式」/「录入方式」). Only fields with ``dict``/``label`` are indexed
+    so generic comments like 「创建时间」 do not spam alias_collision.
+    """
+    table_name = ""
+    fields: list[Any] = []
+    for block in getattr(page, "ground_blocks", ()) or ():
+        if getattr(block, "kind", "") != "table":
+            continue
+        data = getattr(block, "data", {}) or {}
+        table_name = str(data.get("table") or "").strip()
+        fields = list(data.get("fields") or [])
+        break
+    if not table_name:
+        # Fall back to page_key / store_key suffix.
+        raw_key = str(getattr(page, "store_key", "") or getattr(page, "page_key", ""))
+        table_name = raw_key.rsplit("/", 1)[-1].strip()
+    table_index = getattr(store, "table_index", {}) or {}
+    if table_name and table_name not in table_index:
+        # Still allow when table_index is sparse; physical name is authoritative.
+        pass
+    if not table_name or not fields:
+        return
+    store_key = str(getattr(page, "store_key", "") or getattr(page, "page_key", ""))
+    for raw in fields:
+        if isinstance(raw, Mapping):
+            fname = str(raw.get("name") or "").strip()
+            desc = str(raw.get("desc") or raw.get("comment") or "").strip()
+            has_enum = bool(raw.get("dict") or raw.get("label"))
+        else:
+            fname = str(getattr(raw, "name", "") or "").strip()
+            desc = str(
+                getattr(raw, "desc", "") or getattr(raw, "comment", "") or ""
+            ).strip()
+            has_enum = bool(
+                getattr(raw, "dict", None) or getattr(raw, "label", None)
+            )
+        # Only enum/dict carriers: plain comments like 「创建时间」collide across
+        # tables and would spam alias_collision without helping 名值错位.
+        if not fname or not desc or not has_enum:
+            continue
+        _add_term(
+            index,
+            desc,
+            TermBinding(
+                phrase=desc,
+                page_key=store_key,
+                title=desc,
+                table=table_name,
+                field=fname,
+                enum_catalog=catalogs.get((table_name, fname), ()),
+            ),
+        )
+
+
+def _merge_value_hit_terms(
+    index: dict[str, list[TermBinding]],
+    value_hits: Sequence[Any] | None,
+) -> None:
+    """Fold value-index reverse lookups into the same term bridge."""
+    catalogs_by_field: dict[tuple[str, str], list[tuple[str, str]]] = {}
+    for hit in value_hits or []:
+        table = str(getattr(hit, "table_name", "") or "").strip()
+        field = str(getattr(hit, "field_name", "") or "").strip()
+        if not table or not field:
+            continue
+        raw = str(getattr(hit, "raw_value", "") or "").strip()
+        matched = str(getattr(hit, "matched_text", "") or raw).strip()
+        val_type = str(getattr(hit, "val_type", "") or "").strip()
+        extra = getattr(hit, "extra", None)
+        extra = extra if isinstance(extra, dict) else {}
+        code = str(extra.get("code") or "").strip()
+        value = ""
+        value_label = ""
+        if val_type == "enum_label":
+            value = code or raw
+            value_label = raw
+            phrase = matched or raw
+        elif val_type == "enum_code":
+            value = raw
+            phrase = matched or raw
+        else:
+            value = raw
+            phrase = matched or raw
+        if not phrase:
+            continue
+        key = (table, field)
+        if value_label and value:
+            catalogs_by_field.setdefault(key, [])
+            pair = (value_label, value)
+            if pair not in catalogs_by_field[key]:
+                catalogs_by_field[key].append(pair)
+        catalog = tuple(catalogs_by_field.get(key) or ())
+        page_key = f"value_index:{table}.{field}"
+        _add_term(
+            index,
+            phrase,
+            TermBinding(
+                phrase=phrase,
+                page_key=page_key,
+                title=field,
+                table=table,
+                field=field,
+                value=value,
+                value_label=value_label,
+                enum_catalog=catalog,
+            ),
+        )
 
 
 def _add_term(

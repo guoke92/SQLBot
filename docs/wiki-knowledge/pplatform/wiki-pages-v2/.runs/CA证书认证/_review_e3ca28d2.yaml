@@ -1,5 +1,0 @@
-body: 语义分析未给出任何物理库名，所有 table / caliber / process / rule 页的 scope.databases 暂填 unknown。待确认
-  cust_company_info、ca_certification_info、ca_cfca_upgrade_report、cust_person_info
-  的物理库（或 schema）名后统一回填，并据此校验跨库 JOIN（如 ca_certification_info.cust_id ↔ cust_company_info.id）是否成立。
-title: 物理库名缺失
-type: table

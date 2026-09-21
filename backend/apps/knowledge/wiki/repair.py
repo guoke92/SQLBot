@@ -1,5 +1,9 @@
 """Repair an extracted wiki corpus without LLM.
 
+DEPRECATED（遗留 pages 管线）：现行 L0/L1 走 ``tools.wiki_extract`` →
+``docs/wiki/v2`` / ``docs/wiki/v3``。本模块只修历史 ``wiki-pages`` 树（通常在
+``.tmp/docs/wiki-knowledge/pplatform/wiki-pages``）。
+
 Fixes LLM drift against the machine contract:
 - stamp page_key/belong (strip ``table.`` / ``concepts/`` prefixes)
 - remesh table pages with a fresh baseline ground:table (keep semantic prose)

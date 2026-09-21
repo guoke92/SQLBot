@@ -6,8 +6,8 @@ belong: tables
 status: draft
 anchors: [short_link]
 sources: ['database_schema:lowcode_pplatform.short_link']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
 related: [short_link__type, short_link__is_forever, short_link__enable]

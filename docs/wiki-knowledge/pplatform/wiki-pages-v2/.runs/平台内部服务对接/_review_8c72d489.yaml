@@ -1,5 +1,0 @@
-body: calibers/enable_valid_flag 将 enable 的 'Y' 判定收敛为统一口径，但语义分析中「查询一律 .eq(enable,
-  'Y')」的原句只出现在 cust_company_info.enable 条目下；其余表（cust_person_info、cust_project_rel、tenant_setting_config）的
-  enable 语义为「有效标志 'Y'/'N'」。若下游需要严格区分「强制过滤条件」与「字段取值域」，应把本页拆分为企业侧强制口径与通用标志域两页。
-title: 有效标志口径的证据范围
-type: caliber

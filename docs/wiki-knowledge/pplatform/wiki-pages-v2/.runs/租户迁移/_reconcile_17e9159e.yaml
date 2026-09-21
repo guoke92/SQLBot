@@ -1,3 +1,0 @@
-- anchor: table:migratory_user_record
-  code: FIELD_NOT_IN_DB
-  message: migratory_user_record.记录初始化规则

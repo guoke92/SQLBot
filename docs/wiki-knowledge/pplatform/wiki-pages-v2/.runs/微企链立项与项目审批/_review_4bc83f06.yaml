@@ -1,6 +1,0 @@
-body: '`wechat_project_approval_apply.act_procinst_status` 的代码常量只声明 1=审批中、2=已通过，DB
-  分布中另有 3、4，业务含义未知，且未见代码分支处理。
-
-  在确认 3、4 的来源（企微接口返回码？撤销/终止态？）之前，不应写入任何页面作为可比对取值。'
-title: 企微审批实例状态值域
-type: enum

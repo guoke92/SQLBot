@@ -1,4 +1,0 @@
-body: 三张表的物理库名在本次语义分析中未被证据覆盖：所有 DB 证据仅以 `db:<表名>` 形式给出，未出现库/实例名。frontmatter 的 scope.databases
-  因此暂记为 [unknown]，属占位而非推断。待补充分库信息（或确认这些表是否同库）后统一回填。
-title: short_link / cust_message_send_policy / cust_setting_config
-type: table

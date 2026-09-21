@@ -6,8 +6,8 @@ belong: dicts
 status: draft
 anchors: [tenant_interworking_product.ref_tenant_interworking_product_tenant_setting_config]
 sources: ['database_profile:tenant_interworking_product.ref_tenant_interworking_product_tenant_setting_config']
-created: '2026-09-17'
-updated: '2026-09-17'
+created: '2026-09-20'
+updated: '2026-09-20'
 contract_version: '0.1'
 related: [tenant_interworking_product]
 ---

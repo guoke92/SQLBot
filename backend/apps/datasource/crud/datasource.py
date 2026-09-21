@@ -335,6 +335,12 @@ def sync_table_fields(session: SessionDep, trans: Trans, id: int):
     run_save_table_embeddings([table.id])
     run_save_ds_embeddings([ds.id])
     try:
+        from apps.datasource.instance_index.service import enqueue_value_index_extract
+
+        enqueue_value_index_extract(int(ds.id), [int(table.id)] if table.id else None)
+    except Exception as _value_exc:
+        SQLBotLogUtil.warning(f"enqueue value index after sync_single: {_value_exc}")
+    try:
         from apps.datasource.profiling.models import ScanRunMode, ScanTrigger
         from apps.datasource.profiling.service import (
             enqueue_table_scan,
@@ -437,6 +443,12 @@ def sync_catalog(session: SessionDep, ds: CoreDatasource, tables: list[CoreTable
     id_list = [int(table.id) for table in synced_tables if table.id is not None]
     run_save_table_embeddings(id_list)
     run_save_ds_embeddings([ds.id])
+    try:
+        from apps.datasource.instance_index.service import enqueue_value_index_extract
+
+        enqueue_value_index_extract(int(ds.id), id_list)
+    except Exception as _value_exc:  # never block sync
+        SQLBotLogUtil.warning(f"enqueue value index after sync_catalog: {_value_exc}")
     # Catalog stats + field profiling run asynchronously via metadata cognition.
     try:
         from apps.datasource.profiling.models import ScanRunMode, ScanTrigger

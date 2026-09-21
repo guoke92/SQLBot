@@ -6,30 +6,30 @@ belong: tables
 status: draft
 anchors: [cust_company_info]
 sources: ['database_schema:lowcode_pplatform.cust_company_info', 'code_path:CustCompanyIfoEnchanceService.java:653']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
 related: [argeement_migratory_record, authorization_agreement, ca_certification_info,
   ca_fee_company, ca_fee_order, cust_account_info, cust_auth_application, cust_auth_application_config,
   cust_build_record, cust_certification_info, cust_change_record, cust_company_lifecycle_info,
-  cust_app_channel_config, cust_company_survey_state, cust_company_survey_whitelist,
-  cust_customized_product, cust_group_rel, cust_head_company_info, cust_interworking_product,
-  cust_invite_info, cust_oper_change_record, cust_person_info, cust_project_code_record,
-  cust_project_rel, cust_role_info, cust_setting_config, cust_shareholder_info, cust_survey_answer,
-  cust_user_rel, cust_company_info__enable, cust_company_info__act_procinst_status,
-  cust_company_info__biz_cust_type, cust_company_info__legal_certification_type, cust_company_info__need_register_ca,
-  cust_company_info__need_register_bs, cust_company_info__ca_register_status, cust_company_info__bs_register_status,
-  cust_company_info__cust_build_type, cust_company_info__cust_build_status, cust_company_info__identify_style,
-  cust_company_info__data_type, cust_company_info__contact_province, cust_company_info__contact_province_code,
-  cust_company_info__contact_city_code, cust_company_info__signing_mode, cust_company_info__sign_mode,
-  cust_company_info__cust_status, cust_company_info__apply_type, cust_company_info__abroad_cust,
-  cust_company_info__outside_org, cust_company_info__group_company, cust_company_info__head_company,
-  cust_company_info__legal_realname_status, cust_company_info__test_data, cust_company_info__need_charge,
-  cust_company_info__check_status, cust_company_info__audit_back_flag, cust_company_info__cert_no_flag,
-  cust_company_info__cust_source, cust_company_info__migarory_auth_aggrement_flag,
-  cust_company_info__auth_aggrement_supplement_flag, cust_company_info__third_auth_status,
-  cust_company_info__channel_code]
+  cust_company_survey_state, cust_company_survey_whitelist, cust_customized_product,
+  cust_group_rel, cust_head_company_info, cust_interworking_product, cust_invite_info,
+  cust_oper_change_record, cust_person_info, cust_project_code_record, cust_project_rel,
+  cust_role_info, cust_setting_config, cust_shareholder_info, cust_survey_answer,
+  cust_user_rel, cust_company_info__enable, cust_company_info__legal_certification_type,
+  cust_company_info__need_register_ca, cust_company_info__need_register_bs, cust_company_info__ca_register_status,
+  cust_company_info__bs_register_status, cust_company_info__cust_build_type, cust_company_info__cust_build_status,
+  cust_company_info__identify_style, cust_company_info__cust_scale, cust_company_info__data_type,
+  cust_company_info__contact_province_code, cust_company_info__contact_city_code,
+  cust_company_info__contact_address, cust_company_info__signing_mode, cust_company_info__invoicing_bank_no,
+  cust_company_info__sign_mode, cust_company_info__pc_task_id, cust_company_info__cust_status,
+  cust_company_info__apply_type, cust_company_info__abroad_cust, cust_company_info__outside_org,
+  cust_company_info__group_company, cust_company_info__head_company, cust_company_info__legal_realname_status,
+  cust_company_info__test_data, cust_company_info__need_charge, cust_company_info__check_status,
+  cust_company_info__audit_back_flag, cust_company_info__cert_no_flag, cust_company_info__cust_source,
+  cust_company_info__migarory_auth_aggrement_flag, cust_company_info__auth_aggrement_supplement_flag,
+  cust_company_info__third_auth_status, cust_company_info__channel_code]
 ---
 
 # 客户信息主表
@@ -49,7 +49,7 @@ name_anchors: [code, name, cust_short_name, cust_english_name, cust_former_name,
   business_province_code, business_city_code, regist_province_code, regist_city_code,
   contact_province_code, contact_city_code, contact_user_name, invoicing_name, invoicing_bank_name,
   invoicing_bank_code, cust_english_short_name, relate_company_name, finance_org_code,
-  finance_org_type_name]
+  finance_org_type_name, channel_code]
 fields:
 - name: id
   type: number
@@ -103,7 +103,6 @@ fields:
 - name: act_procinst_status
   type: string
   desc: 当前审批状态
-  dict: [待客户确认, 认证失败, 退回, 审批中, 变更成功]
 - name: act_procinst_date
   type: temporal
   desc: 审批结束时间
@@ -125,7 +124,6 @@ fields:
 - name: biz_cust_type
   type: string
   desc: 工商类别
-  dict: [股份有限公司, 有限责任公司, 国有企业, 个体户合伙企业, 股份合作制企业, 集体企业, 联营企业, 私营企业, 企业法人, 事业单位]
 - name: cust_former_name
   type: string
   desc: 曾用名
@@ -221,6 +219,7 @@ fields:
 - name: cust_scale
   type: string
   desc: 企业规模
+  dict: [qw]
 - name: industry_involved
   type: string
   desc: 所属行业
@@ -274,7 +273,6 @@ fields:
 - name: contact_province
   type: string
   desc: 联系省份
-  dict: [澳门, 新疆维吾尔自治区]
 - name: contact_province_code
   type: string
   desc: 联系省份代码
@@ -289,6 +287,7 @@ fields:
 - name: contact_address
   type: string
   desc: 联系地址
+  dict: [qdqw]
 - name: contact_user_name
   type: string
   desc: 联系人
@@ -350,6 +349,7 @@ fields:
 - name: invoicing_bank_no
   type: string
   desc: 开票银行联行号
+  dict: ['{}', '103304362223', '103224031227', '103304362024']
 - name: apply_data_id
   type: number
   desc: 认证流程数据id
@@ -360,6 +360,8 @@ fields:
 - name: pc_task_id
   type: string
   desc: 退回客户端补充资料taskId
+  dict: ['230053', '135035', '130005', '305002', '305029', '210056', '225065', '110022',
+    '230006', '280006', '140030', '225030', '245027', '285005']
 - name: cust_status
   type: string
   desc: 客户状态
@@ -503,7 +505,7 @@ fields:
   type: string
   desc: 新旧渠道授权书补签标识，Y 新渠道:N 旧渠道
   dict: [Y, N]
-  label: [新渠道, 旧渠道]
+  label: [新渠道, 新渠道]
 - name: auth_aggrement_supplement_flag
   type: string
   desc: 是否授权书补签标识
@@ -563,7 +565,6 @@ overlap:
   deepened: false
   query_ok: true
   authenticity: likely
-authenticity_note: 值域重合 1.0，但列名/注释无关联语义（code vs 认证流程数据id），仅值域契合，待人工确认。
 preview_block: overlap_unsemantic
 ```
 
@@ -590,31 +591,7 @@ overlap:
   deepened: false
   query_ok: true
   authenticity: likely
-authenticity_note: 值域重合 1.0，但列名/注释无关联语义（code vs 认证流程数据id），仅值域契合，待人工确认。
 preview_block: overlap_unsemantic
-```
-
-```ground:relation
-type: EQUI_JOIN
-left: cust_app_channel_config.code
-right: cust_company_info.channel_code
-cardinality: one_to_many
-trust: proposed
-authenticity: unknown
-evidence: database_schema:lowcode_pplatform.cust_company_info.channel_code
-source: llm
-join_role: business_code
-priority: primary
-name_evidence:
-  match: llm_propose
-  stem: channel_code
-  comment: 码对码且值域重合 1.0，客户应用渠道关系表 code 可对应开放平台 channel_code；样本仅 2，建议人工确认。
-overlap:
-  probed: true
-  ratio: 1.0
-  sample_size: 2
-  authenticity: unknown
-authenticity_note: 码对码且值域重合 1.0，客户应用渠道关系表 code 可对应开放平台 channel_code；样本仅 2，建议人工确认。
 ```
 
 ## 页面链接
@@ -633,7 +610,6 @@ authenticity_note: 码对码且值域重合 1.0，客户应用渠道关系表 co
 - [[tables/cust_certification_info]]
 - [[tables/cust_change_record]]
 - [[tables/cust_company_lifecycle_info]]
-- [[tables/cust_app_channel_config]]
 - [[tables/cust_company_survey_state]]
 - [[tables/cust_company_survey_whitelist]]
 - [[tables/cust_customized_product]]
@@ -654,8 +630,6 @@ authenticity_note: 码对码且值域重合 1.0，客户应用渠道关系表 co
 ### 字典
 
 - [[dicts/cust_company_info__enable]]（`cust_company_info.enable`）
-- [[dicts/cust_company_info__act_procinst_status]]（`cust_company_info.act_procinst_status`）
-- [[dicts/cust_company_info__biz_cust_type]]（`cust_company_info.biz_cust_type`）
 - [[dicts/cust_company_info__legal_certification_type]]（`cust_company_info.legal_certification_type`）
 - [[dicts/cust_company_info__need_register_ca]]（`cust_company_info.need_register_ca`）
 - [[dicts/cust_company_info__need_register_bs]]（`cust_company_info.need_register_bs`）
@@ -664,12 +638,15 @@ authenticity_note: 码对码且值域重合 1.0，客户应用渠道关系表 co
 - [[dicts/cust_company_info__cust_build_type]]（`cust_company_info.cust_build_type`）
 - [[dicts/cust_company_info__cust_build_status]]（`cust_company_info.cust_build_status`）
 - [[dicts/cust_company_info__identify_style]]（`cust_company_info.identify_style`）
+- [[dicts/cust_company_info__cust_scale]]（`cust_company_info.cust_scale`）
 - [[dicts/cust_company_info__data_type]]（`cust_company_info.data_type`）
-- [[dicts/cust_company_info__contact_province]]（`cust_company_info.contact_province`）
 - [[dicts/cust_company_info__contact_province_code]]（`cust_company_info.contact_province_code`）
 - [[dicts/cust_company_info__contact_city_code]]（`cust_company_info.contact_city_code`）
+- [[dicts/cust_company_info__contact_address]]（`cust_company_info.contact_address`）
 - [[dicts/cust_company_info__signing_mode]]（`cust_company_info.signing_mode`）
+- [[dicts/cust_company_info__invoicing_bank_no]]（`cust_company_info.invoicing_bank_no`）
 - [[dicts/cust_company_info__sign_mode]]（`cust_company_info.sign_mode`）
+- [[dicts/cust_company_info__pc_task_id]]（`cust_company_info.pc_task_id`）
 - [[dicts/cust_company_info__cust_status]]（`cust_company_info.cust_status`）
 - [[dicts/cust_company_info__apply_type]]（`cust_company_info.apply_type`）
 - [[dicts/cust_company_info__abroad_cust]]（`cust_company_info.abroad_cust`）

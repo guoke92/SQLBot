@@ -9,8 +9,8 @@ aliases: [金融机构类型与编码, 补充字段金融机构]
 maps_to: cust_company_info.finance_org_type
 field_targets: [cust_company_info.finance_org_type, cust_company_info.finance_org_code]
 sources: ['code_path:PlatFormMigratoryApplication.java:1671', 'document_claim:docs/wiki-knowledge/pplatform/req-index/concepts/产品需求规格说明书_产融平台V1.0.0.md']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [cust_company_info]
 also_confused_with: [core_company, extra_field_required]

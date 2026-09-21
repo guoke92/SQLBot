@@ -7,8 +7,8 @@ domain: cust
 status: draft
 field_targets: [cust_survey_answer.company_id, cust_survey_answer.survey_code]
 sources: ['code_path:CustSurveyAnswerDao.java:18']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [cust_survey_answer]
 ---
@@ -28,3 +28,4 @@ evidence: code_path:CustSurveyAnswerDao.java:18
 ## 页面链接
 
 - [[tables/cust_survey_answer]]
+- [[dicts/cust_survey_answer__survey_code]]

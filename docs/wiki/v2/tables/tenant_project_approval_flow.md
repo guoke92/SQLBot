@@ -6,191 +6,123 @@ belong: tables
 status: draft
 anchors: [tenant_project_approval_flow]
 sources: ['database_schema:lowcode_pplatform.tenant_project_approval_flow']
-created: '2026-09-17'
-updated: '2026-09-17'
+created: '2026-09-20'
+updated: '2026-09-20'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
 related: [tenant_project_approval, tenant_project_approval_flow_node, tenant_project_approval_flow_config,
-  tenant_project_approval_flow__node_code, tenant_project_approval_flow__node_status,
-  tenant_project_approval_flow__is_optional, tenant_project_approval_flow__is_operate,
-  tenant_project_approval_flow__enable]
+  tenant_project_approval_flow__node_code, tenant_project_approval_flow__node_order,
+  tenant_project_approval_flow__node_status, tenant_project_approval_flow__is_optional,
+  tenant_project_approval_flow__is_operate, tenant_project_approval_flow__enable]
 ---
 
 # 租户项目审批流程表
 
-L0 库侧合同（draft）。grain / 字段簇 / 身份束关系均为 proposed，不得当认证 JOIN。
-
-## 字段簇
-
-### common
-
-`id`, `code`, `name`, `enable`, `remark`, `create_by`, `create_user`, `create_time`, `update_by`, `update_user`, `update_time`
-
-### node
-
-`node_code`, `node_name`, `node_order`, `node_status`, `is_optional`, `is_operate`
-
-### approver
-
-`approver_user_id`, `approver_user_name`
-
-### act_procinst
-
-`act_procinst_id`, `act_procinst_no`, `act_procinst_status`, `act_procinst_date`
-
-### tenant
-
-`app_tenant_code`, `db_tenant_code`
-
-### 未归簇
-
-`ref_tenant_project_approval_flow_tenant_project_approval`, `organization_id`
+L0 库侧合同（draft）。grain / 身份束关系均为 proposed，不得当认证 JOIN。
 
 ## 字段
 
 ```ground:table
 table: tenant_project_approval_flow
 database: lowcode_pplatform
-description: 租户项目审批流程表
+desc: 租户项目审批流程表
 inactive: false
 primary_key: [id]
 grain: 一行一记录（id）
 name_anchors: [node_name, approver_user_name, code, name]
-clusters:
-- key: common
-  title: 通用
-  include: always
-- key: node
-  title: 审批节点
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.tenant_project_approval_flow
-- key: approver
-  title: 审批人
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.tenant_project_approval_flow
-- key: act_procinst
-  title: 流程实例
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.tenant_project_approval_flow
-- key: tenant
-  title: 租户标识
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.tenant_project_approval_flow
 fields:
 - name: id
-  data_type: number
-  description: 表主键
+  type: number
+  desc: 表主键
   nullable: false
-  cluster: common
 - name: node_code
-  data_type: string
-  description: 节点编码
-  cluster: node
-  dictionary: tenant_project_approval_flow__node_code
+  type: string
+  desc: 节点编码
+  dict: [PROJECT_MANAGER, BUSINESS_MANAGER, OPERATION, PROJECT_CONFIG, LEGAL_PROCESS,
+    LEGAL_REVIEW]
 - name: node_name
-  data_type: string
-  description: 节点名称（中文）
-  cluster: node
+  type: string
+  desc: 节点名称（中文）
 - name: node_order
-  data_type: number
-  description: 节点顺序，从 1 开始
-  cluster: node
+  type: number
+  desc: 节点顺序，从 1 开始
+  dict: ['1', '2', '3', '4', '5', '6']
+  label: {'1': 开始}
 - name: node_status
-  data_type: string
-  description: 节点状态
-  cluster: node
-  dictionary: tenant_project_approval_flow__node_status
+  type: string
+  desc: 节点状态
+  dict: [PENDING, APPROVED, APPROVING, REJECTED]
 - name: is_optional
-  data_type: string
-  description: 是否可选节点：Y/N
-  cluster: node
-  dictionary: tenant_project_approval_flow__is_optional
+  type: string
+  desc: 是否可选节点：Y/N
+  dict: [N, Y]
 - name: is_operate
-  data_type: string
-  description: 是否可编辑
-  cluster: node
-  dictionary: tenant_project_approval_flow__is_operate
+  type: string
+  desc: 是否可编辑
+  dict: [Y, N]
 - name: approver_user_id
-  data_type: string
-  description: 审批人 userId
-  cluster: approver
+  type: string
+  desc: 审批人 userId
 - name: approver_user_name
-  data_type: string
-  description: 审批人姓名
-  cluster: approver
+  type: string
+  desc: 审批人姓名
 - name: ref_tenant_project_approval_flow_tenant_project_approval
-  data_type: string
-  description: 关联项目审批
+  type: string
+  desc: 关联项目审批
 - name: code
-  data_type: string
-  description: 编码
-  cluster: common
+  type: string
+  desc: 编码
 - name: name
-  data_type: string
-  description: 名称
-  cluster: common
+  type: string
+  desc: 名称
 - name: enable
-  data_type: string
-  description: enable
-  cluster: common
-  dictionary: tenant_project_approval_flow__enable
+  type: string
+  desc: enable
+  dict: [Y]
 - name: remark
-  data_type: string
-  description: remark
-  cluster: common
+  type: string
+  desc: remark
 - name: create_by
-  data_type: string
-  description: 创建人id
-  cluster: common
+  type: string
+  desc: 创建人id
 - name: create_user
-  data_type: string
-  description: 创建人名称
-  cluster: common
+  type: string
+  desc: 创建人名称
 - name: create_time
-  data_type: temporal
-  description: 创建时间
+  type: temporal
+  desc: 创建时间
   nullable: false
-  cluster: common
 - name: update_by
-  data_type: string
-  description: 更新人id
-  cluster: common
+  type: string
+  desc: 更新人id
 - name: update_user
-  data_type: string
-  description: 更新人名称
-  cluster: common
+  type: string
+  desc: 更新人名称
 - name: update_time
-  data_type: temporal
-  description: 更新时间
+  type: temporal
+  desc: 更新时间
   nullable: false
-  cluster: common
 - name: act_procinst_id
-  data_type: string
-  description: 流程实例ID
-  cluster: act_procinst
+  type: string
+  desc: 流程实例ID
 - name: app_tenant_code
-  data_type: string
-  description: 逻辑租户标识
-  cluster: tenant
+  type: string
+  desc: 逻辑租户标识
 - name: db_tenant_code
-  data_type: string
-  description: 数据租户标识
-  cluster: tenant
+  type: string
+  desc: 数据租户标识
 - name: act_procinst_no
-  data_type: string
-  description: 流程申请编号
-  cluster: act_procinst
+  type: string
+  desc: 流程申请编号
 - name: act_procinst_status
-  data_type: string
-  description: 当前审批状态
-  cluster: act_procinst
+  type: string
+  desc: 当前审批状态
 - name: act_procinst_date
-  data_type: temporal
-  description: 审批结束时间
-  cluster: act_procinst
+  type: temporal
+  desc: 审批结束时间
 - name: organization_id
-  data_type: string
-  description: 机构编号
+  type: string
+  desc: 机构编号
 ```
 
 ## 关联关系
@@ -220,8 +152,6 @@ overlap:
   deepened: false
   query_ok: true
   authenticity: unlikely
-authenticity_note: 名称证据为同族后缀（node.code ↔ node_code），但探测 overlap 比 0.0（6 值全 miss），值域不契合，判
-  unlikely，保留待人工复核。
 ```
 
 ```ground:relation
@@ -247,8 +177,6 @@ overlap:
   deepened: false
   query_ok: true
   authenticity: unlikely
-authenticity_note: 注释「关联项目审批」与长引用列名指向 tenant_project_approval 主键，但探测 100 抽样 overlap
-  全 miss（ratio 0.0），值域不契合，判 unlikely。
 ```
 
 ## 页面链接
@@ -262,6 +190,7 @@ authenticity_note: 注释「关联项目审批」与长引用列名指向 tenant
 ### 字典
 
 - [[dicts/tenant_project_approval_flow__node_code]]（`tenant_project_approval_flow.node_code`）
+- [[dicts/tenant_project_approval_flow__node_order]]（`tenant_project_approval_flow.node_order`）
 - [[dicts/tenant_project_approval_flow__node_status]]（`tenant_project_approval_flow.node_status`）
 - [[dicts/tenant_project_approval_flow__is_optional]]（`tenant_project_approval_flow.is_optional`）
 - [[dicts/tenant_project_approval_flow__is_operate]]（`tenant_project_approval_flow.is_operate`）

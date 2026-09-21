@@ -1,8 +1,0 @@
-body: '1. also_confused_with 第二项原文被截断为「cust_person_info.operator / opera」，完整条目待补全后方可确认所指字段。
-
-  2. field_targets 在语义分析中未直接给出，暂留空；若需列出该概念落点的具体字段（如 person_id / before_operator_id
-  / after_operator_id），需补充证据。
-
-  3. 各页 frontmatter 的 scope.databases（当前记为 cust）未在语义分析证据中出现，物理库名待确认。'
-title: 运营变更
-type: concept

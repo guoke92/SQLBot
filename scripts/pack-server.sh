@@ -3,7 +3,8 @@
 # AI智能问数 —— 本机打包脚本
 # 生成一个含「源码 + 构建产物 + 配置 + wiki 语料」的 tar.gz。
 # 配置通配，不绑定具体 IP/域名。
-# wiki 语料位于 docs/wiki-knowledge/（排除 embeddings-cache / .obsidian 等）。
+# wiki 语料位于 docs/wiki/v3/（L1 draft；运行时召回走 DB，本地仅供导入/打包）。
+# 历史 wiki-pages* / substrate 等已迁 .tmp/。
 #
 # 默认自动判断：
 #   - pnpm-lock.yaml 内容指纹未变 → 跳过 install
@@ -261,22 +262,33 @@ stage_code() {
     cp -f "${DEPLOY_DIR}"/*.sh "${PKG_DIR}/"
     chmod +x "${PKG_DIR}"/*.sh
 
-    # Wiki 语料：部署后路径为 /opt/sqlbot/docs/wiki-knowledge/…
-    # （_REPO_ROOT 在包内指向 /opt/sqlbot，与开发态 repo root 对齐）
-    local wiki_src="${ROOT_DIR}/docs/wiki-knowledge"
-    if [[ -d "${wiki_src}" ]]; then
-        info "暂存 wiki 语料（docs/wiki-knowledge）…"
-        mkdir -p "${PKG_DIR}/docs"
+    # Wiki 语料：部署后可供管理端导入；运行时召回使用 DB corpus。
+    # 现行工作区 docs/wiki/v3（L1 draft）+ req-index（文档源，可选）。
+    local wiki_v3="${ROOT_DIR}/docs/wiki/v3"
+    if [[ -d "${wiki_v3}" ]]; then
+        info "暂存 wiki 语料（docs/wiki/v3）…"
+        mkdir -p "${PKG_DIR}/docs/wiki"
         rsync -a --delete \
-            --exclude='embeddings-cache/' \
             --exclude='.obsidian/' \
-            --exclude='.archive/' \
             --exclude='.runs/' \
-            --exclude='tmp/' \
             --exclude='._*' \
-            "${wiki_src}/" "${PKG_DIR}/docs/wiki-knowledge/"
+            --exclude='__pycache__/' \
+            "${wiki_v3}/" "${PKG_DIR}/docs/wiki/v3/"
     else
-        warn "未找到 ${wiki_src}，跳过 wiki 语料打包"
+        warn "未找到 ${wiki_v3}，跳过 wiki 语料打包"
+    fi
+    local req_index="${ROOT_DIR}/docs/wiki-knowledge/pplatform/req-index"
+    if [[ -d "${req_index}" ]]; then
+        info "暂存 wiki 文档源（req-index）…"
+        mkdir -p "${PKG_DIR}/docs/wiki-knowledge/pplatform"
+        rsync -a --delete \
+            --exclude='.obsidian/' \
+            --exclude='._*' \
+            "${req_index}/" "${PKG_DIR}/docs/wiki-knowledge/pplatform/req-index/"
+    fi
+    if [[ -f "${ROOT_DIR}/docs/wiki-knowledge/README.md" ]]; then
+        mkdir -p "${PKG_DIR}/docs/wiki-knowledge"
+        cp -f "${ROOT_DIR}/docs/wiki-knowledge/README.md" "${PKG_DIR}/docs/wiki-knowledge/README.md"
     fi
 }
 
@@ -348,7 +360,7 @@ verify_stage_for_init() {
         "${PKG_DIR}/deploy/sqlbot.service"
         "${PKG_DIR}/deploy/sqlbot-mcp.service"
         "${PKG_DIR}/deploy/sqlbot.conf"
-        "${PKG_DIR}/docs/wiki-knowledge/pplatform/wiki-pages"
+        "${PKG_DIR}/docs/wiki/v3"
     )
 
     for path in "${required_paths[@]}"; do

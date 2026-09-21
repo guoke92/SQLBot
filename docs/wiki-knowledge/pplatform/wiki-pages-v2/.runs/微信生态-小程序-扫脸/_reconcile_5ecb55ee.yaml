@@ -1,3 +1,0 @@
-- anchor: table:ca_certification_info
-  code: FIELD_NOT_IN_DB
-  message: ca_certification_info.intent_h5_face_json

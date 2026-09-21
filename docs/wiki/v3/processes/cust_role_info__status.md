@@ -8,8 +8,8 @@ status: draft
 anchors: [cust_role_info.status]
 field_targets: [cust_role_info.status]
 sources: ['code_path:CustRoleApplication.java:112']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [cust_role_info]
 ---

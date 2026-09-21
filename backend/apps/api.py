@@ -3,13 +3,13 @@ from fastapi import APIRouter
 from apps.chat.api import chat
 from apps.dashboard.api import dashboard_api
 from apps.data_training.api import data_training
+from apps.datasource.api import catalog_index as catalog_index_api
 from apps.datasource.api import (
     datasource,
     profiling,
     recommended_problem,
     table_relation,
 )
-from apps.datasource.api import schema_vector as schema_vector_api
 from apps.dev.api import router as dev_router
 from apps.dictionary import api as dictionary_api
 from apps.knowledge.api import router as knowledge_router
@@ -40,7 +40,7 @@ api_router.include_router(base.router)
 api_router.include_router(terminology.router)
 api_router.include_router(data_training.router)
 api_router.include_router(datasource.router)
-api_router.include_router(schema_vector_api.router)
+api_router.include_router(catalog_index_api.router)
 api_router.include_router(profiling.router)
 api_router.include_router(dictionary_api.router)
 api_router.include_router(knowledge_router)

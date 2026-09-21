@@ -1,23 +1,19 @@
 """Baseline page generator (plan E2.4) — db-first table/enum pages.
 
-基线页 = 存在性真值页：db-catalog（结构权威）∪ 代码 catalog（注释/枚举语义）
-→ ``wiki-pages/tables/`` 与 ``wiki-pages/dicts/``。语义层页面（Step D 产物）
-落同名 page_key 时由 ``merge_pages`` 走 v0 §5.3 确定性块合并——同键碰撞在
-源头消解（不再有两堆语料）。
+DEPRECATED（遗留 pages 管线）：现行出门是 ``tools.wiki_extract`` →
+``docs/wiki/v2`` → ``docs/wiki/v3``。本模块仅供对照历史语料；输入/输出默认指向
+``.tmp/docs/wiki-knowledge/pplatform/…``。enrich / wiki_admin 已迁
+``.tmp/scripts/``。
 
-⚠ 重建覆盖契约：``write_pages`` 整页重写会抹掉 enrich 注入的 ``## 关联表``
-节（chat 169 复发过一次）。rebuild 之后**必须**再跑
-``backend/venv/bin/python scripts/wiki_admin.py enrich --pages <wiki-pages>``
-恢复关系节，否则表页缺关联信息、闭包归因少一路来源。
+基线页 = 存在性真值页：db-catalog（结构权威）∪ 代码 catalog（注释/枚举语义）
+→ ``wiki-pages/tables/`` 与 ``wiki-pages/dicts/``。
 
 Usage::
 
     backend/venv/bin/python -m apps.knowledge.wiki.baseline \
-        --substrate ../docs/wiki-knowledge/pplatform/substrate \
-        --db-dir ../docs/wiki-knowledge/pplatform/db \
-        --out ../docs/wiki-knowledge/pplatform/wiki-pages
-    backend/venv/bin/python scripts/wiki_admin.py enrich \
-        --pages ../docs/wiki-knowledge/pplatform/wiki-pages   # rebuild 后必跑
+        --substrate ../.tmp/docs/wiki-knowledge/pplatform/substrate \
+        --db-dir ../.tmp/docs/wiki-knowledge/pplatform/db \
+        --out ../.tmp/docs/wiki-knowledge/pplatform/wiki-pages
 """
 
 from __future__ import annotations

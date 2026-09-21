@@ -1,5 +1,0 @@
-body: reqdoc_claims 中 action=anchor 的主张未提供 slug，[[async_notice_tolerant]] 的 `ground:rule.evidence`
-  暂以 `reqdoc:msg-async-not-block` 占位。需补正式的 reqdoc slug 后再定稿双源引用；action=review 的两条主张（企业状态流转、站内信落库）同理缺
-  slug。
-title: reqdoc slug 缺失
-type: rule

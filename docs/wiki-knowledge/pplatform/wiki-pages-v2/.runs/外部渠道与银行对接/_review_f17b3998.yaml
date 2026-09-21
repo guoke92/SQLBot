@@ -1,5 +1,0 @@
-body: 语义分析中本条规则的 `evidence` 字段在 `code:TianmaService#companyArc` 处被截断，方法名不完整，本页按原文逐字保留。同一文档中另有两条规则引用
-  `code:TianmaService#companyArchive`，可据此推定指向同一方法，但**推定值不得直接写入锚点块**。请补齐证据后把 `evidence`
-  修正为完整 `code_path`，并同步更新 `contract_version`。
-title: 天马渠道键写入
-type: rule

@@ -6,12 +6,15 @@ belong: tables
 status: draft
 anchors: [tenant_interworking_project]
 sources: ['database_schema:lowcode_pplatform.tenant_interworking_project', 'code_path:TenantInterworkingProjectDaoImpl.java:25']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
 related: [tenant_project, tenant_interworking_product, tenant_setting_config, platform_product,
-  tenant_interworking_project__platform_product_code]
+  tenant_interworking_project__code, tenant_interworking_project__platform_product_code,
+  tenant_interworking_project__ref_tenant_interworking_project_tenant_setting_config,
+  tenant_interworking_project__ref_tenant_interworking_project_tenant_interworking_product,
+  tenant_interworking_project__enable]
 ---
 
 # 租户互通产品项目
@@ -36,6 +39,10 @@ fields:
 - name: code
   type: string
   desc: 编码
+  dict: [26c78215b94a49b7b26059e04b415f8d, 082d4b100c6e46fca373b77d90f48315, f37562e4d0d445eebe7cfcdba0648480,
+    e4ff59371e4f4307a05136657e28aaf9, 43240459f2d94548ac17d344550d8243, f97bde07a4544a1ea1bd59350de4a258,
+    f77891dd946845cbb6fd787a55f209de, 96dafc5359e14e6689893143e83804ad, 8f4686ebbe924a478e5b3a4ba0929f3a,
+    292d1283d3ec48009f882fe5675cfc08, e699b627ea8b4da1b7a15a6313b272e9, 7f3d88d76f464cbbb7fd0870ff13ed2a]
 - name: name
   type: string
   desc: 名称
@@ -55,12 +62,16 @@ fields:
 - name: ref_tenant_interworking_project_tenant_setting_config
   type: string
   desc: 租户项目
+  dict: [a285d4cf94ec4384bb7b6cf5ba994b4a, d77dc6bffbcc46fba7a864a07ef63c24]
 - name: ref_tenant_interworking_project_tenant_interworking_product
   type: string
   desc: 租户产品项目
+  dict: [76fe2ab40aa14dffa1fe2d720f398910, 5afb2d5a0ac241f395f9dfc9436b7a93, 4932eca2392d45f8821aba513f379c7f,
+    2dbc124f73dd4e9eb96cc74685b17645, 87a6136555544df2adf6295bdd75956f, ccf30c163d794060bba0450b455b796c]
 - name: enable
   type: string
   desc: enable
+  dict: [Y]
 - name: remark
   type: string
   desc: remark
@@ -294,4 +305,8 @@ overlap:
 
 ### 字典
 
+- [[dicts/tenant_interworking_project__code]]（`tenant_interworking_project.code`）
 - [[dicts/tenant_interworking_project__platform_product_code]]（`tenant_interworking_project.platform_product_code`）
+- [[dicts/tenant_interworking_project__ref_tenant_interworking_project_tenant_setting_config]]（`tenant_interworking_project.ref_tenant_interworking_project_tenant_setting_config`）
+- [[dicts/tenant_interworking_project__ref_tenant_interworking_project_tenant_interworking_product]]（`tenant_interworking_project.ref_tenant_interworking_project_tenant_interworking_product`）
+- [[dicts/tenant_interworking_project__enable]]（`tenant_interworking_project.enable`）

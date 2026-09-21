@@ -1,6 +1,0 @@
-body: '`tenant_project_approval.wf_status` 的 DB 分布含 `REVOKED`（已撤销）而代码枚举未声明；`tenant_project_approval_flow_file.catg_id`
-  的 DB 分布含 `FBP_OA_ATTACHMENT`、`FBP_OA_COMMENT_FILE` 而代码枚举未声明。
-
-  本次语义分析的 enum_audit 内容被截断，无法完成逐值比对，故未产出 enums/ 页面；待 enum_audit 完整后按「写值点 + DB 分布」为准补齐枚举页并复核。'
-title: 工作流状态 REVOKED 与影像分类缺口
-type: enum

@@ -24,7 +24,10 @@ tables:
   - lc_sql_init_log
 notes: catalog 剩余前缀表均已 enhancement。无等值 JOIN 记 gaps。
 gaps:
-  - open_sso_channel / lc_sql_init_log 无 @TableName DO。
+  - open_sso_channel 已有 @TableName DO（apaas + sso-component）；live 新增 tenant_code 列（与 db_tenant_code 并存）。
+  - open_sso_channel.tenant_code / db_tenant_code ↔ tenant_setting_config 为配置映射，非 EQUI_JOIN。
+  - open_sso_channel.channel_code ↔ cust_access_secret.channel / cust_company_info.channel_code 为渠道码对齐，非 FK。
+  - lc_sql_init_log 仍无 @TableName DO。
   - platform_product_client.platform_product_id 业务代码未见 lambdaQuery 等值，不编 JOIN。
   - platform_product_cust_role.product_code 与平台产品是内存 contains，不是 SQL EQUI_JOIN。
   - project_file_info.project_id / wechat_project_approval_apply.project_id 仅按入参过滤，未证实对 tenant_project.id。

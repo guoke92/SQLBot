@@ -1,3 +1,0 @@
-- anchor: table:cust_company_info
-  code: FIELD_NOT_IN_DB
-  message: cust_company_info.need_register_ca / ca_register_status / bs_register_status

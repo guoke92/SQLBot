@@ -6,11 +6,12 @@ belong: tables
 status: draft
 anchors: [cust_sftp]
 sources: ['database_schema:lowcode_pplatform.cust_sftp', 'code_path:CustAccessApplication.java:490']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
-related: [cust_sftp__enable, cust_sftp__channel]
+related: [cust_sftp__host, cust_sftp__port, cust_sftp__user_name, cust_sftp__enable,
+  cust_sftp__channel]
 ---
 
 # 客戶sftp信息
@@ -41,12 +42,18 @@ fields:
 - name: host
   type: string
   desc: 服务器地址IP地址
+  dict: [qa.sftp.lls.com, uat.sftp.lls.com]
 - name: port
   type: number
   desc: 端口
+  dict: ['22']
 - name: user_name
   type: string
   desc: 登录用户名
+  dict: [app_bosc_shtl, app_sny_202607235624, app_alipayAnt_202606301619, app_dahua2026041601,
+    app_bgy_20250306, app_cclocal_601636163, app_ztsj_2026033169, app_JingKeNengY926_20240614,
+    app_eascs_2022070823, app_trinasolar_2023051522, app_ofhbjg_20260409, app_LongTengYC_609152804,
+    meituan]
 - name: password
   type: string
   desc: 登录密码
@@ -119,5 +126,8 @@ default_filter:
 
 ### 字典
 
+- [[dicts/cust_sftp__host]]（`cust_sftp.host`）
+- [[dicts/cust_sftp__port]]（`cust_sftp.port`）
+- [[dicts/cust_sftp__user_name]]（`cust_sftp.user_name`）
 - [[dicts/cust_sftp__enable]]（`cust_sftp.enable`）
 - [[dicts/cust_sftp__channel]]（`cust_sftp.channel`）

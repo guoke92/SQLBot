@@ -6,8 +6,8 @@ belong: dicts
 status: draft
 anchors: [wec_project_cust_operation_rel.company_type]
 sources: ['database_profile:wec_project_cust_operation_rel.company_type']
-created: '2026-09-17'
-updated: '2026-09-17'
+created: '2026-09-20'
+updated: '2026-09-20'
 contract_version: '0.1'
 related: [wec_project_cust_operation_rel]
 ---

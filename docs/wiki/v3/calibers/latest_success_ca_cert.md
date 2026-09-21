@@ -8,8 +8,8 @@ status: draft
 field_targets: [ca_certification_info.submit_status, ca_certification_info.enable,
   ca_certification_info.cust_id]
 sources: ['code_path:CaCertificationInfoAppServiceImpl.java:661']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [ca_certification_info, cust_company_info]
 ---
@@ -36,5 +36,6 @@ evidence: code_path:CaCertificationInfoAppServiceImpl.java:661
 
 - [[tables/ca_certification_info]]
 - [[tables/cust_company_info]]
+- [[dicts/ca_certification_info__enable]]
 - [[dicts/ca_certification_info__submit_status]]
 - [[processes/ca_certification_info__submit_status]]

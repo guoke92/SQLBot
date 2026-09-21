@@ -1,5 +1,0 @@
-body: 语义分析中的 `relation_audit` 在 `{"left":"PlatProductEventListener","right":"IPlatListener","kind":"extends",...}`
-  处被截断（证据文本止于 `public interface PlatP`），无法确认 `PlatProductEventListener` 与 `IPlatListener`
-  的继承/实现关系及影响范围，故本次未产出任何关系类页面。待补完整证据后再补 [[cust_event_check_status]] 的上游监听器拓扑。
-title: 关系（relation_audit）
-type: concept

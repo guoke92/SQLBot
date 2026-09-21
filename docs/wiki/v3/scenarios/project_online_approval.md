@@ -7,8 +7,8 @@ domain: tenant
 status: draft
 aliases: [上线审批, 项目审批]
 sources: ['code_path:l1_intermediate']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [tenant_project_approval, tenant_project, tenant_project_approval_flow]
 ---

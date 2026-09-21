@@ -6,537 +6,352 @@ belong: tables
 status: draft
 anchors: [tenant_setting_config_share]
 sources: ['database_schema:lowcode_pplatform.tenant_setting_config_share']
-created: '2026-09-17'
-updated: '2026-09-17'
+created: '2026-09-20'
+updated: '2026-09-20'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
-related: [tenant_setting_config, tenant_setting_config_share__source, tenant_setting_config_share__enable,
-  tenant_setting_config_share__act_procinst_status, tenant_setting_config_share__tenant_flg_en,
-  tenant_setting_config_share__need_hfive, tenant_setting_config_share__need_mp_wx,
-  tenant_setting_config_share__status, tenant_setting_config_share__self_registration_flag,
-  tenant_setting_config_share__company_share_flag, tenant_setting_config_share__portal_flag,
-  tenant_setting_config_share__share_flag]
+related: [tenant_setting_config_share__code, tenant_setting_config_share__source_id,
+  tenant_setting_config_share__source, tenant_setting_config_share__cust_service_number,
+  tenant_setting_config_share__privacy_policy_agreement, tenant_setting_config_share__user_protocol_agreement,
+  tenant_setting_config_share__auth_agreement, tenant_setting_config_share__dbass_app_id,
+  tenant_setting_config_share__enable, tenant_setting_config_share__act_procinst_status,
+  tenant_setting_config_share__tenant_flg_en, tenant_setting_config_share__uat_mp_app_id,
+  tenant_setting_config_share__prd_mp_app_id, tenant_setting_config_share__need_hfive,
+  tenant_setting_config_share__need_mp_wx, tenant_setting_config_share__status, tenant_setting_config_share__person_auth_agreement,
+  tenant_setting_config_share__self_registration_flag, tenant_setting_config_share__company_share_flag,
+  tenant_setting_config_share__portal_flag, tenant_setting_config_share__share_flag]
 ---
 
 # 共享租户配置
 
-L0 库侧合同（draft）。grain / 字段簇 / 身份束关系均为 proposed，不得当认证 JOIN。
-
-## 字段簇
-
-### common
-
-`id`, `code`, `enable`, `remark`, `create_by`, `create_user`, `create_time`, `update_by`, `update_user`, `update_time`
-
-### tenant_identity
-
-`source_id`, `source`, `name`, `apaas_tenant_code`, `uni_social_credit_code`, `app_tenant_code`, `db_tenant_code`, `organization_id`, `platform_operator`, `tenant_flag_zh`, `tenant_flg_en`
-
-### brand_site
-
-`band_name`, `web_title`, `web_logo_url`, `main_theme_color`
-
-### domains
-
-`dev_domain`, `sit_domain`, `uat_domain`, `prd_domain`, `hfive_dev_domain`, `hfive_test_domain`, `hfive_uat_domain`, `hfive_prd_domain`
-
-### agreements
-
-`privacy_policy_agreement`, `user_protocol_agreement`, `auth_agreement`, `person_auth_agreement`
-
-### pc_assets
-
-`pc_login_logo_path`, `pc_icon_path`, `pc_logo_path`, `pc_home_background_path`, `pcimg_loginpage_bg_logo_url`, `pcimg_indexpage_bg_logo_url`, `pcimg_browser_tab_icon_url`, `pcimg_loginpage_banner_url`
-
-### mobile_assets
-
-`mp_home_background_path`, `mp_logo_path`, `mobile_indexpage_bg_logo_url`, `mobile_indexpage_logo_url`
-
-### mp_integration
-
-`uat_mp_app_id`, `uat_mp_app_name`, `uat_mp_wx_login_name`, `uat_mp_wx_login_pwd`, `prd_mp_app_id`, `prd_mp_app_name`, `prd_mp_wx_login_name`, `prd_mp_wx_login_pwd`
-
-### dbass
-
-`dbass_app_id`, `mp_dbass_app_id`, `dbass_private_key`
-
-### sso
-
-`sso_sys_channel`, `sso_tenant_chanel`, `mp_sso_tenant_chanel`, `mp_sso_sys_channel`
-
-### approval
-
-`act_procinst_id`, `act_procinst_no`, `act_procinst_status`, `act_procinst_date`
-
-### flags
-
-`need_hfive`, `need_mp_wx`, `status`, `self_registration_flag`, `company_share_flag`, `portal_flag`, `share_flag`
-
-### contact_service
-
-`cust_service_number`, `operator_id`, `operator_name`, `operator_email`, `send_email`, `operator_ai_customer`, `operator_wechat_code`, `operator_qr_code`, `operator_applet_code`, `ai_zc_sysnum`, `ai_zc_channel`
+L0 库侧合同（draft）。grain / 身份束关系均为 proposed，不得当认证 JOIN。
 
 ## 字段
 
 ```ground:table
 table: tenant_setting_config_share
 database: lowcode_pplatform
-description: 共享租户配置
+desc: 共享租户配置
 inactive: false
 primary_key: [id]
 grain: 一行一记录（id）
-name_anchors: [code, name, band_name, uni_social_credit_code, uat_mp_app_name, uat_mp_wx_login_name,
-  prd_mp_app_name, prd_mp_wx_login_name, operator_name, operator_wechat_code, operator_qr_code,
-  operator_applet_code]
-clusters:
-- key: common
-  title: 通用
-  include: always
-- key: tenant_identity
-  title: 租户身份与来源
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.tenant_setting_config_share
-- key: brand_site
-  title: 站点品牌
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.tenant_setting_config_share
-- key: domains
-  title: 环境域名
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.tenant_setting_config_share
-- key: agreements
-  title: 协议文档
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.tenant_setting_config_share
-- key: pc_assets
-  title: PC端页面资源
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.tenant_setting_config_share
-- key: mobile_assets
-  title: 移动端页面资源
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.tenant_setting_config_share
-- key: mp_integration
-  title: 小程序与公众号接入
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.tenant_setting_config_share
-- key: dbass
-  title: dbass应用接入
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.tenant_setting_config_share
-- key: sso
-  title: SSO单点登录渠道
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.tenant_setting_config_share
-- key: approval
-  title: 审批流程
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.tenant_setting_config_share
-- key: flags
-  title: 状态与开关
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.tenant_setting_config_share
-- key: contact_service
-  title: 客服与运营联系
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.tenant_setting_config_share
+name_anchors: [code, name, band_name, apaas_tenant_code, uni_social_credit_code, uat_mp_app_name,
+  uat_mp_wx_login_name, prd_mp_app_name, prd_mp_wx_login_name, operator_name, operator_wechat_code,
+  operator_qr_code, operator_applet_code]
 fields:
 - name: id
-  data_type: number
-  description: 表主键
+  type: number
+  desc: 表主键
   nullable: false
-  cluster: common
 - name: code
-  data_type: string
-  description: 编码
-  cluster: common
+  type: string
+  desc: 编码
+  dict: [588b10dfc1394e3cab2425bb75e32401, c5f1dda347dd43aeaafff9f85a776855, 7ec6cd3c49894ac094c5e57367bf2f89,
+    f8bbfcfffde4460380677bb04cf63ae8, 09a8f067d6c14e6eade8b24f1ce0615e, a6c9dbf3c4f145ecbf6539133cfb26d0,
+    547f3006754b46d5a5a995a1b14bbf5e, c5efb99e854749febf64f2e633e2fc12, 6ed5745b4ec947848ee53c310692655c,
+    e93f7a105bd34d99aac6232e0fdb2875, 974d473e73754925b1bfd737decf7bb0, 4e96ca4e9a59481bbfa45305cf6fdd19,
+    bfdf9141f7454175bbc6d7e2b36dcbfe, 6ad1fcd18e1a4fc2870d7e236810494b, e229b2687c02409f8a730a7185783b0f,
+    9278d4dfa17845fc8b4e7abddd539909, 291cf37d756044b1bb05e6ecfc3b38d0, b4065366c1ec4d6db1e81b24d83c0c07,
+    62564b6790aa4d949e49a36cffd00be8, d7aa0e5cbfd44f71b79734740aa99588, 925693fdf69d4f0f9753225c84d841c3,
+    20f68c6a9559400c84ad5982cf1f6e63, ab46bdfbc4ab492fb6d2e4f8c6691f96, 609cc1746f3d42f0a31bb3235f14128c,
+    d24740df39ad4f6eb7be61e78b507bee, 8855fea4d6ed4fbb9f47e3a940d59124, fd958bc7b2564a0ab469368e56984122,
+    1b499346ac034c5fa26f862945d3df3c, aa4c8bc5ea374c28bd13e26c71e89bad]
 - name: source_id
-  data_type: string
-  description: 租户来源id
-  cluster: tenant_identity
+  type: string
+  desc: 租户来源id
+  dict: ['105', '134', '116', '6931911680490856448', '102', '130', '112', '145', '125',
+    '109', '141', '120', '6972474653471547392', '106', '139', '117', '6950272254899298304',
+    '104', '133', '115', '146', '126', '110', '144', '121', '108', '140', '119', '6952907435533062144']
 - name: source
-  data_type: string
-  description: 租户来源
-  cluster: tenant_identity
-  dictionary: tenant_setting_config_share__source
+  type: string
+  desc: 租户来源
+  dict: [ACFLOW]
 - name: name
-  data_type: string
-  description: 租户名称
-  cluster: tenant_identity
+  type: string
+  desc: 租户名称
 - name: band_name
-  data_type: string
-  description: 贴牌平台名称
-  cluster: brand_site
+  type: string
+  desc: 贴牌平台名称
 - name: cust_service_number
-  data_type: string
-  description: 客服电话
-  cluster: contact_service
+  type: string
+  desc: 客服电话
+  dict: [400 025 0059, 0755-86951497]
 - name: web_title
-  data_type: string
-  description: 网站标题
-  cluster: brand_site
+  type: string
+  desc: 网站标题
 - name: web_logo_url
-  data_type: string
-  description: 网站logo
-  cluster: brand_site
+  type: string
+  desc: 网站logo
 - name: dev_domain
-  data_type: string
-  description: 开发环境域名
-  cluster: domains
+  type: string
+  desc: 开发环境域名
 - name: sit_domain
-  data_type: string
-  description: 测试环境域名
-  cluster: domains
+  type: string
+  desc: 测试环境域名
 - name: uat_domain
-  data_type: string
-  description: UAT环境域名
-  cluster: domains
+  type: string
+  desc: UAT环境域名
 - name: prd_domain
-  data_type: string
-  description: 生产环境域名
-  cluster: domains
+  type: string
+  desc: 生产环境域名
 - name: privacy_policy_agreement
-  data_type: string
-  description: 隐私协议
-  cluster: agreements
+  type: string
+  desc: 隐私协议
+  dict: [CT-202405311653384958102]
 - name: user_protocol_agreement
-  data_type: string
-  description: 用户协议
-  cluster: agreements
+  type: string
+  desc: 用户协议
+  dict: [CT-202405211357559370074]
 - name: auth_agreement
-  data_type: string
-  description: 授权书协议
-  cluster: agreements
+  type: string
+  desc: 授权书协议
+  dict: [CT-202404081721209495040]
 - name: apaas_tenant_code
-  data_type: string
-  description: aPaaS租户编码
-  cluster: tenant_identity
+  type: string
+  desc: aPaaS租户编码
 - name: dbass_app_id
-  data_type: string
-  description: dbassAppId
-  cluster: dbass
+  type: string
+  desc: dbassAppId
+  dict: [app_ChanRongPin336_20240529]
 - name: mp_dbass_app_id
-  data_type: string
-  description: 小程序dbassAppId
-  cluster: dbass
+  type: string
+  desc: 小程序dbassAppId
 - name: dbass_private_key
-  data_type: string
-  description: dbassPrivateKey
-  cluster: dbass
+  type: string
+  desc: dbassPrivateKey
 - name: sso_sys_channel
-  data_type: string
-  description: ssoSysChannel
-  cluster: sso
+  type: string
+  desc: ssoSysChannel
 - name: sso_tenant_chanel
-  data_type: string
-  description: ssoTenantChanel
-  cluster: sso
+  type: string
+  desc: ssoTenantChanel
 - name: mp_sso_tenant_chanel
-  data_type: string
-  description: mpSsoTenantChanel
-  cluster: sso
+  type: string
+  desc: mpSsoTenantChanel
 - name: pc_login_logo_path
-  data_type: string
-  description: PC登录窗口横幅
-  cluster: pc_assets
+  type: string
+  desc: PC登录窗口横幅
 - name: pc_icon_path
-  data_type: string
-  description: PC浏览器页签Icon
-  cluster: pc_assets
+  type: string
+  desc: PC浏览器页签Icon
 - name: pc_logo_path
-  data_type: string
-  description: PC内页logo
-  cluster: pc_assets
+  type: string
+  desc: PC内页logo
 - name: pc_home_background_path
-  data_type: string
-  description: PC首页背景图
-  cluster: pc_assets
+  type: string
+  desc: PC首页背景图
 - name: mp_home_background_path
-  data_type: string
-  description: 小程序首页背景图
-  cluster: mobile_assets
+  type: string
+  desc: 小程序首页背景图
 - name: mp_logo_path
-  data_type: string
-  description: 移动端首页logo
-  cluster: mobile_assets
+  type: string
+  desc: 移动端首页logo
 - name: mp_sso_sys_channel
-  data_type: string
-  description: mpSsoSysChannel
-  cluster: sso
+  type: string
+  desc: mpSsoSysChannel
 - name: uni_social_credit_code
-  data_type: string
-  description: 统一社会信用证
-  cluster: tenant_identity
+  type: string
+  desc: 统一社会信用证
 - name: enable
-  data_type: string
-  description: enable
-  cluster: common
-  dictionary: tenant_setting_config_share__enable
+  type: string
+  desc: enable
+  dict: [Y]
 - name: remark
-  data_type: string
-  description: remark
-  cluster: common
+  type: string
+  desc: remark
 - name: create_by
-  data_type: string
-  description: 创建人id
-  cluster: common
+  type: string
+  desc: 创建人id
 - name: create_user
-  data_type: string
-  description: 创建人名称
-  cluster: common
+  type: string
+  desc: 创建人名称
 - name: create_time
-  data_type: temporal
-  description: 创建时间
+  type: temporal
+  desc: 创建时间
   nullable: false
-  cluster: common
 - name: update_by
-  data_type: string
-  description: 更新人id
-  cluster: common
+  type: string
+  desc: 更新人id
 - name: update_user
-  data_type: string
-  description: 更新人名称
-  cluster: common
+  type: string
+  desc: 更新人名称
 - name: update_time
-  data_type: temporal
-  description: 更新时间
+  type: temporal
+  desc: 更新时间
   nullable: false
-  cluster: common
 - name: act_procinst_id
-  data_type: string
-  description: 流程实例ID
-  cluster: approval
+  type: string
+  desc: 流程实例ID
 - name: app_tenant_code
-  data_type: string
-  description: 逻辑租户标识
-  cluster: tenant_identity
+  type: string
+  desc: 逻辑租户标识
 - name: db_tenant_code
-  data_type: string
-  description: 数据租户标识
-  cluster: tenant_identity
+  type: string
+  desc: 数据租户标识
 - name: act_procinst_no
-  data_type: string
-  description: 流程申请编号
-  cluster: approval
+  type: string
+  desc: 流程申请编号
 - name: act_procinst_status
-  data_type: string
-  description: 当前审批状态
-  cluster: approval
-  dictionary: tenant_setting_config_share__act_procinst_status
+  type: string
+  desc: 当前审批状态
+  dict: [N]
 - name: act_procinst_date
-  data_type: temporal
-  description: 审批结束时间
-  cluster: approval
+  type: temporal
+  desc: 审批结束时间
 - name: organization_id
-  data_type: string
-  description: 机构编号
-  cluster: tenant_identity
+  type: string
+  desc: 机构编号
 - name: platform_operator
-  data_type: string
-  description: 平台运营方
-  cluster: tenant_identity
+  type: string
+  desc: 平台运营方
 - name: pcimg_loginpage_bg_logo_url
-  data_type: string
-  description: PC首页背景图
-  cluster: pc_assets
+  type: string
+  desc: PC首页背景图
 - name: pcimg_indexpage_bg_logo_url
-  data_type: string
-  description: PC内页logo
-  cluster: pc_assets
+  type: string
+  desc: PC内页logo
 - name: pcimg_browser_tab_icon_url
-  data_type: string
-  description: PC浏览器页签Icon
-  cluster: pc_assets
+  type: string
+  desc: PC浏览器页签Icon
 - name: pcimg_loginpage_banner_url
-  data_type: string
-  description: PC登录窗口横幅
-  cluster: pc_assets
+  type: string
+  desc: PC登录窗口横幅
 - name: tenant_flag_zh
-  data_type: string
-  description: 项目标识（中文）
-  cluster: tenant_identity
+  type: string
+  desc: 项目标识（中文）
 - name: tenant_flg_en
-  data_type: string
-  description: 项目标识（英文）
-  cluster: tenant_identity
-  dictionary: tenant_setting_config_share__tenant_flg_en
+  type: string
+  desc: 项目标识（英文）
+  dict: [huishangbank, hxfl, abc, jjbank, ahf, KTC, bankofdl, lande, beehiveBg, lybank,
+    beehiveICBC, njsteel, bitland, psbc, boc, rongwin, bocom, scbCommon, ceb, sdhs,
+    citicbank, sneb, czbank, spdb, dyr, uwlaser, gtdb, zybank, hsbc]
 - name: uat_mp_app_id
-  data_type: string
-  description: UAT小程序appID
-  cluster: mp_integration
+  type: string
+  desc: UAT小程序appID
+  dict: [wx3bd724e38dc5df9c, wxd4e6b0c088fb4355, '5434341', wx5a4621f15abc7462, wxdb453231b9e2a54f]
 - name: uat_mp_app_name
-  data_type: string
-  description: UAT小程序名称
-  cluster: mp_integration
+  type: string
+  desc: UAT小程序名称
 - name: uat_mp_wx_login_name
-  data_type: string
-  description: UAT公众登陆账号
-  cluster: mp_integration
+  type: string
+  desc: UAT公众登陆账号
 - name: uat_mp_wx_login_pwd
-  data_type: string
-  description: UAT公众号登录密码
-  cluster: mp_integration
+  type: string
+  desc: UAT公众号登录密码
 - name: prd_mp_app_id
-  data_type: string
-  description: 生产小程序appID
-  cluster: mp_integration
+  type: string
+  desc: 生产小程序appID
+  dict: [wx0821ca938ea7f8ee, wx2e8254825b33f21e, '85546', wxbb4672250373e63d, wxab90faadcc845329]
 - name: prd_mp_app_name
-  data_type: string
-  description: 生产小程序名称
-  cluster: mp_integration
+  type: string
+  desc: 生产小程序名称
 - name: prd_mp_wx_login_name
-  data_type: string
-  description: 生产公众号登录账号
-  cluster: mp_integration
+  type: string
+  desc: 生产公众号登录账号
 - name: prd_mp_wx_login_pwd
-  data_type: string
-  description: 生产公众号登录密码
-  cluster: mp_integration
+  type: string
+  desc: 生产公众号登录密码
 - name: need_hfive
-  data_type: string
-  description: 是否定制H5
-  cluster: flags
-  dictionary: tenant_setting_config_share__need_hfive
+  type: string
+  desc: 是否定制H5
+  dict: [Y]
 - name: mobile_indexpage_bg_logo_url
-  data_type: string
-  description: 移动端首页背景图
-  cluster: mobile_assets
+  type: string
+  desc: 移动端首页背景图
 - name: need_mp_wx
-  data_type: string
-  description: 是否定制小程序
-  cluster: flags
-  dictionary: tenant_setting_config_share__need_mp_wx
+  type: string
+  desc: 是否定制小程序
+  dict: [N, Y]
 - name: main_theme_color
-  data_type: string
-  description: 主题色
-  cluster: brand_site
+  type: string
+  desc: 主题色
 - name: status
-  data_type: string
-  description: 生效状态
-  cluster: flags
-  dictionary: tenant_setting_config_share__status
+  type: string
+  desc: 生效状态
+  dict: [N]
 - name: person_auth_agreement
-  data_type: string
-  description: 变更联系人授权书
-  cluster: agreements
+  type: string
+  desc: 变更联系人授权书
+  dict: [CT-202404081721209495040]
 - name: self_registration_flag
-  data_type: string
-  description: 是否放开自主注册
-  cluster: flags
-  dictionary: tenant_setting_config_share__self_registration_flag
+  type: string
+  desc: 是否放开自主注册
+  dict: [Y]
 - name: company_share_flag
-  data_type: string
-  description: 客户认证数据是否可用于其他贴牌平台
-  cluster: flags
-  dictionary: tenant_setting_config_share__company_share_flag
+  type: string
+  desc: 客户认证数据是否可用于其他贴牌平台
+  dict: [Y]
 - name: mobile_indexpage_logo_url
-  data_type: string
-  description: 移动端首页logo
-  cluster: mobile_assets
+  type: string
+  desc: 移动端首页logo
 - name: hfive_dev_domain
-  data_type: string
-  description: H5开发环境域名
-  cluster: domains
+  type: string
+  desc: H5开发环境域名
 - name: hfive_test_domain
-  data_type: string
-  description: H5测试环境域名
-  cluster: domains
+  type: string
+  desc: H5测试环境域名
 - name: hfive_uat_domain
-  data_type: string
-  description: H5UAT环境域名
-  cluster: domains
+  type: string
+  desc: H5UAT环境域名
 - name: hfive_prd_domain
-  data_type: string
-  description: H5生产环境域名
-  cluster: domains
+  type: string
+  desc: H5生产环境域名
 - name: operator_id
-  data_type: string
-  cluster: contact_service
+  type: string
 - name: operator_name
-  data_type: string
-  cluster: contact_service
+  type: string
 - name: operator_email
-  data_type: string
-  cluster: contact_service
+  type: string
 - name: send_email
-  data_type: string
-  cluster: contact_service
+  type: string
 - name: operator_ai_customer
-  data_type: string
-  cluster: contact_service
+  type: string
 - name: operator_wechat_code
-  data_type: string
-  description: 公众号码
-  cluster: contact_service
+  type: string
+  desc: 公众号码
 - name: operator_qr_code
-  data_type: string
-  description: 客服二维码
-  cluster: contact_service
+  type: string
+  desc: 客服二维码
 - name: operator_applet_code
-  data_type: string
-  description: 客服小程序码
-  cluster: contact_service
+  type: string
+  desc: 客服小程序码
 - name: ai_zc_sysnum
-  data_type: string
-  description: 智能客服系统号
-  cluster: contact_service
+  type: string
+  desc: 智能客服系统号
 - name: ai_zc_channel
-  data_type: string
-  description: 智能客服渠道号
-  cluster: contact_service
+  type: string
+  desc: 智能客服渠道号
 - name: portal_flag
-  data_type: string
-  description: 是否启用门户
-  cluster: flags
-  dictionary: tenant_setting_config_share__portal_flag
+  type: string
+  desc: 是否启用门户
+  dict: [Y, N]
 - name: share_flag
-  data_type: string
-  description: 共享租户
-  cluster: flags
-  dictionary: tenant_setting_config_share__share_flag
-```
-
-## 关联关系
-
-### unknown — 待复核
-
-```ground:relation
-type: EQUI_JOIN
-left: tenant_setting_config.code
-right: tenant_setting_config_share.apaas_tenant_code
-cardinality: one_to_many
-trust: proposed
-authenticity: unknown
-evidence: database_schema:lowcode_pplatform.tenant_setting_config_share.apaas_tenant_code
-source: llm
-join_role: business_code
-priority: primary
-name_evidence:
-  match: llm_propose
-  stem: apaas_tenant_code
-  comment: 码对码：aPaaS租户编码 ↔ 租户配置编码，注释同涉租户；overlap 未探明(sample 0)，仅作候选边不升格
-overlap:
-  probed: true
-  sample_size: 0
-  authenticity: unknown
-authenticity_note: 码对码：aPaaS租户编码 ↔ 租户配置编码，注释同涉租户；overlap 未探明(sample 0)，仅作候选边不升格
+  type: string
+  desc: 共享租户
+  dict: [N]
 ```
 
 ## 页面链接
 
-### 关联表
-
-- [[tables/tenant_setting_config]]
-
 ### 字典
 
+- [[dicts/tenant_setting_config_share__code]]（`tenant_setting_config_share.code`）
+- [[dicts/tenant_setting_config_share__source_id]]（`tenant_setting_config_share.source_id`）
 - [[dicts/tenant_setting_config_share__source]]（`tenant_setting_config_share.source`）
+- [[dicts/tenant_setting_config_share__cust_service_number]]（`tenant_setting_config_share.cust_service_number`）
+- [[dicts/tenant_setting_config_share__privacy_policy_agreement]]（`tenant_setting_config_share.privacy_policy_agreement`）
+- [[dicts/tenant_setting_config_share__user_protocol_agreement]]（`tenant_setting_config_share.user_protocol_agreement`）
+- [[dicts/tenant_setting_config_share__auth_agreement]]（`tenant_setting_config_share.auth_agreement`）
+- [[dicts/tenant_setting_config_share__dbass_app_id]]（`tenant_setting_config_share.dbass_app_id`）
 - [[dicts/tenant_setting_config_share__enable]]（`tenant_setting_config_share.enable`）
 - [[dicts/tenant_setting_config_share__act_procinst_status]]（`tenant_setting_config_share.act_procinst_status`）
 - [[dicts/tenant_setting_config_share__tenant_flg_en]]（`tenant_setting_config_share.tenant_flg_en`）
+- [[dicts/tenant_setting_config_share__uat_mp_app_id]]（`tenant_setting_config_share.uat_mp_app_id`）
+- [[dicts/tenant_setting_config_share__prd_mp_app_id]]（`tenant_setting_config_share.prd_mp_app_id`）
 - [[dicts/tenant_setting_config_share__need_hfive]]（`tenant_setting_config_share.need_hfive`）
 - [[dicts/tenant_setting_config_share__need_mp_wx]]（`tenant_setting_config_share.need_mp_wx`）
 - [[dicts/tenant_setting_config_share__status]]（`tenant_setting_config_share.status`）
+- [[dicts/tenant_setting_config_share__person_auth_agreement]]（`tenant_setting_config_share.person_auth_agreement`）
 - [[dicts/tenant_setting_config_share__self_registration_flag]]（`tenant_setting_config_share.self_registration_flag`）
 - [[dicts/tenant_setting_config_share__company_share_flag]]（`tenant_setting_config_share.company_share_flag`）
 - [[dicts/tenant_setting_config_share__portal_flag]]（`tenant_setting_config_share.portal_flag`）

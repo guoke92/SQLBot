@@ -7,8 +7,8 @@ domain: cust
 status: draft
 field_targets: [cust_company_info.cust_build_status, cust_company_info.cust_status]
 sources: ['code_path:CustCompanyIfoEnchanceService.java:649']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [cust_company_info]
 ---

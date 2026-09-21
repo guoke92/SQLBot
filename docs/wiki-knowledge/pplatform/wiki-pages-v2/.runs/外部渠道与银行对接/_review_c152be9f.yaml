@@ -1,5 +1,0 @@
-body: 问题：reqdoc 主张「BR-003 签名校验：参数排序拼接 + app_secret + MD5 32 位小写，由 CryptoService 统一实现，各渠道复用
-  Md5Utils/TianmaUtil」在语义分析中记录不完整（action 字段被截断），code_status=uncovered。本次链路仅见 TianmaUtil.post
-  的调用点（TianmaService.companyArchiveDetail），未见 CryptoService/Md5Utils 实现，故签名算法细节（排序规则、编码、是否含空值）全部待确认，未写入任何锚点块。同时该主张与「天马出站逻辑未生效」的结论存在交叉，需一并核实。
-title: 渠道
-type: concept

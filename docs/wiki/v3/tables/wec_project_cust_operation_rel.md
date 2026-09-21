@@ -6,12 +6,13 @@ belong: tables
 status: draft
 anchors: [wec_project_cust_operation_rel]
 sources: ['database_schema:lowcode_pplatform.wec_project_cust_operation_rel']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
-related: [wec_project_cust_operation_rel__company_type, wec_project_cust_operation_rel__enable,
-  wec_project_cust_operation_rel__top_flag]
+related: [wec_project_cust_operation_rel__company_type, wec_project_cust_operation_rel__op_contact_a,
+  wec_project_cust_operation_rel__verification_contact, wec_project_cust_operation_rel__risk_control_contact_a,
+  wec_project_cust_operation_rel__enable, wec_project_cust_operation_rel__top_flag]
 ---
 
 # 微企链项目企业关联运营
@@ -49,6 +50,7 @@ fields:
 - name: op_contact_a
   type: string
   desc: 运营对接人A
+  dict: ['420', '267', '321', '293', '411', '271', '97', '454']
 - name: op_contact_b
   type: string
   desc: 运营对接人B
@@ -58,12 +60,14 @@ fields:
 - name: verification_contact
   type: string
   desc: 查验对接人
+  dict: ['454', '305', '321', '141']
 - name: verification_contact_group
   type: string
   desc: 查验组别
 - name: risk_control_contact_a
   type: string
   desc: 风控对接人A
+  dict: ['454', '271', '321', '105', '108']
 - name: risk_control_contact_b
   type: string
   desc: 风控对接人B
@@ -135,5 +139,8 @@ fields:
 ### 字典
 
 - [[dicts/wec_project_cust_operation_rel__company_type]]（`wec_project_cust_operation_rel.company_type`）
+- [[dicts/wec_project_cust_operation_rel__op_contact_a]]（`wec_project_cust_operation_rel.op_contact_a`）
+- [[dicts/wec_project_cust_operation_rel__verification_contact]]（`wec_project_cust_operation_rel.verification_contact`）
+- [[dicts/wec_project_cust_operation_rel__risk_control_contact_a]]（`wec_project_cust_operation_rel.risk_control_contact_a`）
 - [[dicts/wec_project_cust_operation_rel__enable]]（`wec_project_cust_operation_rel.enable`）
 - [[dicts/wec_project_cust_operation_rel__top_flag]]（`wec_project_cust_operation_rel.top_flag`）

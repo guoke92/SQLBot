@@ -5,13 +5,14 @@ page_key: open_sso_channel
 belong: tables
 status: draft
 anchors: [open_sso_channel]
-sources: ['database_schema:lowcode_pplatform.open_sso_channel']
-created: '2026-09-18'
-updated: '2026-09-18'
+sources: ['database_schema:lowcode_pplatform.open_sso_channel', 'code_path:OpenSsoChannelDao.java:24']
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
-related: [open_sso_channel__channel_code, open_sso_channel__channel_kind, open_sso_channel__open_mode_default,
-  open_sso_channel__sso_sync_status, open_sso_channel__enable]
+related: [open_sso_channel__channel_code, open_sso_channel__channel_kind, open_sso_channel__app_id,
+  open_sso_channel__sso_client_id, open_sso_channel__open_mode_default, open_sso_channel__sso_sync_status,
+  open_sso_channel__enable]
 ---
 
 # 开放登录SSO渠道
@@ -26,7 +27,7 @@ database: lowcode_pplatform
 desc: 开放登录SSO渠道
 inactive: false
 primary_key: [id]
-grain: SSO 渠道（catalog 有表；pplatform-web 无 @TableName DO）
+grain: 一渠道一行；channel_code 唯一；live 另有 tenant_code 列（与 db_tenant_code 并存）
 name_anchors: [channel_code, channel_name, org_code, code, name]
 fields:
 - name: id
@@ -47,9 +48,11 @@ fields:
 - name: app_id
   type: string
   desc: 开放平台 appId
+  dict: [73d62771729e4ffba7f263cb6012746d]
 - name: sso_client_id
   type: string
   desc: SSO clientId（每渠道独立）
+  dict: [r6n8u7p3]
 - name: sso_client_secret
   type: string
   desc: SSO密钥
@@ -65,7 +68,8 @@ fields:
 - name: open_mode_default
   type: string
   desc: 默认打开形态 EMBED/TOP
-  dict: [EMBED]
+  dict: [EMBED, TOP]
+  label: [iframe 嵌入, 顶层打开（已废弃，龙腾不使用）]
 - name: default_session_expire_minute
   type: number
   desc: 默认会话过期时间
@@ -76,12 +80,15 @@ fields:
   type: string
   desc: ssoSyncStatus
   dict: [SYNCED]
+  written_with: [sso_sync_msg, sso_synced_at]
 - name: sso_sync_msg
   type: string
   desc: SSO同步描述
+  written_with: [sso_sync_status, sso_synced_at]
 - name: sso_synced_at
   type: temporal
   desc: 同步时间
+  written_with: [sso_sync_status, sso_sync_msg]
 - name: code
   type: string
   desc: 编码
@@ -136,6 +143,13 @@ fields:
 - name: organization_id
   type: string
   desc: 机构编号
+- name: tenant_code
+  type: string
+  nullable: false
+default_filter:
+  predicate: open_sso_channel.enable = 'Y'
+  trust: confirmed
+  evidence: code_path:OpenSsoChannelDao.java:24
 ```
 
 ## 页面链接
@@ -144,6 +158,8 @@ fields:
 
 - [[dicts/open_sso_channel__channel_code]]（`open_sso_channel.channel_code`）
 - [[dicts/open_sso_channel__channel_kind]]（`open_sso_channel.channel_kind`）
+- [[dicts/open_sso_channel__app_id]]（`open_sso_channel.app_id`）
+- [[dicts/open_sso_channel__sso_client_id]]（`open_sso_channel.sso_client_id`）
 - [[dicts/open_sso_channel__open_mode_default]]（`open_sso_channel.open_mode_default`）
 - [[dicts/open_sso_channel__sso_sync_status]]（`open_sso_channel.sso_sync_status`）
 - [[dicts/open_sso_channel__enable]]（`open_sso_channel.enable`）

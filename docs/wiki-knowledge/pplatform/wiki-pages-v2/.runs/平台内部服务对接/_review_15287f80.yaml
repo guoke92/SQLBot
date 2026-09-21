@@ -1,4 +1,0 @@
-body: 语义分析未给出任何物理库名（field_semantics 的 evidence 仅标注 db / code，state_machines 仅给出 code_path
-  与类名）。因此所有页面的 scope.databases 暂为空数组，待补充物理库名后再回填。不属于可推断项，未做猜测。
-title: 全部页面 scope.databases 待补
-type: frontmatter

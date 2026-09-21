@@ -6,8 +6,8 @@ belong: tables
 status: draft
 anchors: [cust_config_mapping]
 sources: ['database_schema:lowcode_pplatform.cust_config_mapping', 'code_path:CustConfigMappingDaoImpl.java:48']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
 related: [cust_config_mapping__outer_channel, cust_config_mapping__inner_code, cust_config_mapping__outer_code,

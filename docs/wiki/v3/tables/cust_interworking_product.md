@@ -6,13 +6,14 @@ belong: tables
 status: draft
 anchors: [cust_interworking_product]
 sources: ['database_schema:lowcode_pplatform.cust_interworking_product', 'code_path:CustInterworkingProductDaoImpl.java:48']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
 related: [cust_company_info, platform_product, cust_customized_product, tenant_interworking_product,
   cust_interworking_product__open_status, cust_interworking_product__platform_product_code,
-  cust_interworking_product__agree_authorization_flag, cust_interworking_product__enable]
+  cust_interworking_product__agree_authorization_flag, cust_interworking_product__ref_cust_interworking_product_tenant_interworking_product,
+  cust_interworking_product__enable]
 ---
 
 # 企业互通产品
@@ -76,6 +77,14 @@ fields:
 - name: ref_cust_interworking_product_tenant_interworking_product
   type: string
   desc: 关联互通产品
+  dict: [29b4c489bccc4c0f90293b7d22f3ea74, 7d2e4e19006c45d99eba5700ce8d2404, b3770dfd357549058a0ec1344f5144e4,
+    d75957823c444de690d1c2036bb9e844, 5afb2d5a0ac241f395f9dfc9436b7a93, 9d205a2ef8624dd8bdda73e449180cb4,
+    72ee7278ef6641d2a034d977fd9c7c3a, f97f8fc6672e4465a461170b682a85aa, 4264a4d3ef144caf851983a844b15a9d,
+    e43f564036794cfb92a92b0a31098fe1, 14ef19ef031a4b0f9e97223ec1235d0c, a5095d15ebed4eee9a8900bb3d98258f,
+    af0c15eee0bc41a8b3fa39079ea44a97, f5a6ba16bde247da8005652037051571, 4932eca2392d45f8821aba513f379c7f,
+    10947e5d6b9c4ea09ef94c5a80624336, ccf30c163d794060bba0450b455b796c, 2dbc124f73dd4e9eb96cc74685b17645,
+    11050e432dab4b24b9adbff8644ea5a2, 87a6136555544df2adf6295bdd75956f, d6a784c151cf4f8d9ffe8302bd03cbd2,
+    0f93f67a813b4fd79134f46e65017cc2]
 - name: enable
   type: string
   desc: enable
@@ -297,4 +306,5 @@ overlap:
 - [[dicts/cust_interworking_product__open_status]]（`cust_interworking_product.open_status`）
 - [[dicts/cust_interworking_product__platform_product_code]]（`cust_interworking_product.platform_product_code`）
 - [[dicts/cust_interworking_product__agree_authorization_flag]]（`cust_interworking_product.agree_authorization_flag`）
+- [[dicts/cust_interworking_product__ref_cust_interworking_product_tenant_interworking_product]]（`cust_interworking_product.ref_cust_interworking_product_tenant_interworking_product`）
 - [[dicts/cust_interworking_product__enable]]（`cust_interworking_product.enable`）

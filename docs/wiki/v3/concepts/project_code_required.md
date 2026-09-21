@@ -9,8 +9,8 @@ aliases: [项目专属服务码必填, 自主注册项目码]
 maps_to: tenant_setting_config.project_code_required
 field_targets: [tenant_setting_config.project_code_required, tenant_setting_config.default_project_id]
 sources: ['code_path:TenantDomainService.java:234', 'document_claim:docs/wiki-knowledge/pplatform/req-index/concepts/项目上线审批流程.md']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [tenant_setting_config]
 also_confused_with: [default_push_project, self_reg_flag]

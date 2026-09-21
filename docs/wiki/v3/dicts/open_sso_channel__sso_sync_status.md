@@ -6,8 +6,8 @@ belong: dicts
 status: draft
 anchors: [open_sso_channel.sso_sync_status]
 sources: ['database_profile:open_sso_channel.sso_sync_status']
-created: '2026-09-17'
-updated: '2026-09-17'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [open_sso_channel]
 ---

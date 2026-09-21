@@ -9,8 +9,8 @@ aliases: [文件管理, 异步导入导出]
 maps_to: async_io_task.status
 field_targets: [async_io_task.status, async_io_task.task_type, async_io_task.menu_code]
 sources: ['code_path:AsyncIoTaskManager.java:84', 'document_claim:docs/wiki-knowledge/pplatform/req-index/concepts']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [async_io_task]
 also_confused_with: [wechat_apply_term]

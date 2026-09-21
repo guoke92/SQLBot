@@ -6,8 +6,8 @@ belong: dicts
 status: draft
 anchors: [tenant_setting_config.customer_card_type]
 sources: ['database_profile:tenant_setting_config.customer_card_type', 'database_schema:tenant_setting_config.customer_card_type']
-created: '2026-09-17'
-updated: '2026-09-17'
+created: '2026-09-20'
+updated: '2026-09-20'
 contract_version: '0.1'
 related: [tenant_setting_config]
 ---

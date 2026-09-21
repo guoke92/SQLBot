@@ -1,3 +1,0 @@
-- anchor: table:sys_cust_user_rel
-  code: TABLE_NOT_IN_DB
-  message: sys_cust_user_rel 不在 db catalog

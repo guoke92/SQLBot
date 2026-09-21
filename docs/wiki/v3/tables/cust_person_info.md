@@ -6,15 +6,15 @@ belong: tables
 status: draft
 anchors: [cust_person_info]
 sources: ['database_schema:lowcode_pplatform.cust_person_info', 'code_path:CustCompanyInfoApplication.java:1553']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
 related: [cust_build_record, cust_oper_change_record, cust_company_info, cust_person_info__enable,
   cust_person_info__certification_type, cust_person_info__status, cust_person_info__user_type,
-  cust_person_info__face_status, cust_person_info__realname_status, cust_person_info__company_type,
-  cust_person_info__cust_build_status, cust_person_info__operator_push_system, cust_person_info__skip_auth_flag,
-  cust_person_info__source, cust_person_info__real_name_result]
+  cust_person_info__face_status, cust_person_info__realname_status, cust_person_info__test_data,
+  cust_person_info__company_type, cust_person_info__cust_build_status, cust_person_info__operator_push_system,
+  cust_person_info__skip_auth_flag, cust_person_info__source, cust_person_info__real_name_result]
 ---
 
 # 客户联系人表
@@ -161,6 +161,7 @@ fields:
   desc: 人名 (英文)
 - name: test_data
   type: string
+  dict: [N, Y]
 - name: company_type
   type: string
   dict: [SUPPLIER, CORE, FINANCE, PROJECT_COMPANY, CORPORATION_COMPANY, PLATFORM_OPERATOR_COMPANY,
@@ -204,6 +205,7 @@ fields:
   type: string
   desc: 来源
   dict: [longteng, AMS, jingke]
+  label: {longteng: 龙腾, AMS: 管理员}
 - name: ext_data
   type: string
   desc: 扩展字段
@@ -286,7 +288,6 @@ overlap:
   deepened: false
   query_ok: true
   authenticity: unlikely
-authenticity_note: 列名含目标表名，但实测 overlap 0.0（200/200 未命中），值域不契合，维持 unlikely
 sides:
 - {source: l1_code, left: cust_company_info.code, right: cust_person_info.ref_cust_company_info,
   trust: confirmed}
@@ -310,6 +311,7 @@ sides:
 - [[dicts/cust_person_info__user_type]]（`cust_person_info.user_type`）
 - [[dicts/cust_person_info__face_status]]（`cust_person_info.face_status`）
 - [[dicts/cust_person_info__realname_status]]（`cust_person_info.realname_status`）
+- [[dicts/cust_person_info__test_data]]（`cust_person_info.test_data`）
 - [[dicts/cust_person_info__company_type]]（`cust_person_info.company_type`）
 - [[dicts/cust_person_info__cust_build_status]]（`cust_person_info.cust_build_status`）
 - [[dicts/cust_person_info__operator_push_system]]（`cust_person_info.operator_push_system`）

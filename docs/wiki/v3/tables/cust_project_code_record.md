@@ -6,12 +6,11 @@ belong: tables
 status: draft
 anchors: [cust_project_code_record]
 sources: ['database_schema:lowcode_pplatform.cust_project_code_record', 'code_path:CustProjectRelEnhanceService.java:410']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
-related: [cust_company_info, cust_project_code_record__status, cust_project_code_record__type,
-  cust_project_code_record__enable]
+related: [cust_company_info, cust_project_code_record__status, cust_project_code_record__enable]
 ---
 
 # 企业项目码输入记录
@@ -58,8 +57,6 @@ fields:
 - name: type
   type: string
   desc: 类型
-  dict: [userCompanyRegister, 产品中心-企业认证成功, 产品中心, PC_BUILD]
-  label: {PC_BUILD: 客户录入}
 - name: enable
   type: string
   desc: enable
@@ -154,5 +151,4 @@ authenticity_note: 项目码输入记录按企业主键。
 ### 字典
 
 - [[dicts/cust_project_code_record__status]]（`cust_project_code_record.status`）
-- [[dicts/cust_project_code_record__type]]（`cust_project_code_record.type`）
 - [[dicts/cust_project_code_record__enable]]（`cust_project_code_record.enable`）

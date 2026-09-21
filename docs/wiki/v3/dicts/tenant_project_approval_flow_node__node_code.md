@@ -9,15 +9,15 @@ sources: ['database_profile:tenant_project_approval_flow_node.node_code', 'datab
   'code_path:ProjectApprovalNodeCodeEnum.java:17', 'code_path:ProjectApprovalNodeCodeEnum.java:16',
   'code_path:ProjectApprovalNodeCodeEnum.java:20', 'code_path:ProjectApprovalNodeCodeEnum.java:21',
   'code_path:ProjectApprovalNodeCodeEnum.java:18', 'code_path:ProjectApprovalNodeCodeEnum.java:19']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [tenant_project_approval_flow_node]
 ---
 
 # tenant_project_approval_flow_node.node_code
 
-L1 字典：label 来自源码 displayName/常量注释（confirmed）。L0 注释猜词已被代码覆盖。
+L1 字典：label 来自源码 displayName/常量注释（confirmed）。L0 注释猜词已被代码覆盖。 初审 hold：证据不足，保留待人工确认。
 物理列 `tenant_project_approval_flow_node.node_code`，表页 [[tables/tenant_project_approval_flow_node]]。
 
 ## 取值
@@ -32,5 +32,6 @@ values:
   OPERATION: {trust: confirmed, label: 运营审批, evidence: 'code_path:ProjectApprovalNodeCodeEnum.java:21'}
   LEGAL_PROCESS: {trust: confirmed, label: 法务经办, evidence: 'code_path:ProjectApprovalNodeCodeEnum.java:18'}
   LEGAL_REVIEW: {trust: confirmed, label: 法务复核, evidence: 'code_path:ProjectApprovalNodeCodeEnum.java:19'}
-triage: keep
+triage: hold
+needs_review: true
 ```

@@ -25,7 +25,9 @@
 - 文件名即 kind；也可显式写 `kind:`。
 - 物理名必须是 catalog 里的 `表` / `表.字段`。字典页键是 `表__字段`。
 - `evidence` 只许：`code_path:<file>[:<line>]`、`database_schema:`、`database_profile:`、`document_claim:`。
-- 无 `code_path` 的 JOIN / label / 默认过滤 / 共写 / 流转 **不得** 在第二步升为 `confirmed`。
+- 无 `code_path` 的 JOIN / 默认过滤 / 共写 / 流转 **不得** 在第二步升为 `confirmed`。
+- `dict_labels` 可用 `document_claim:`（码 ⊆ L0 values，保持 `proposed`）；仅 `code_path` 可升 `confirmed`。
+- Catalog Summary 由第二步生成；改 `_TABLE_PROFILES` 时短语必须对得上列注释，否则 `CATALOG_BLURB_UNGROUNDED`。
 
 模板：[`tools/wiki_extract/l1/templates/`](../../tools/wiki_extract/l1/templates/)。
 

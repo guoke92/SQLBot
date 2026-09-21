@@ -33,3 +33,17 @@ dict_labels:
       GENERAL: { label: 通用产品, evidence: code_path:PlatformProductTypeEnum.java:20 }
       INTERWORKING: { label: 互通产品, evidence: code_path:PlatformProductTypeEnum.java:24 }
       "2": { label: 全部产品, evidence: code_path:PlatformProductTypeEnum.java:28 }
+  platform_product__product_cate:
+    table: platform_product
+    column: product_cate
+    values:
+      WEAKLY: { label: 弱确权, evidence: document_claim:产品产融平台语境.md#32 }
+      STRONG: { label: 强确权, evidence: document_claim:产品产融平台语境.md#32 }
+      CREDIT: { label: 信用类, evidence: document_claim:产品产融平台语境.md#32 }
+
+  open_sso_channel__open_mode_default:
+    table: open_sso_channel
+    column: open_mode_default
+    values:
+      EMBED: { label: iframe 嵌入, evidence: code_path:LocalSysOpenModeEnum.java:10 }
+      TOP: { label: 顶层打开（已废弃，龙腾不使用）, evidence: code_path:LocalSysOpenModeEnum.java:9 }

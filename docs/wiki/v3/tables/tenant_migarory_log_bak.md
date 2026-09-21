@@ -6,12 +6,13 @@ belong: tables
 status: draft
 anchors: [tenant_migarory_log_bak]
 sources: ['database_schema:lowcode_pplatform.tenant_migarory_log_bak']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
-related: [platform_product, tenant_migarory_log_bak__direction, tenant_migarory_log_bak__type,
-  tenant_migarory_log_bak__status, tenant_migarory_log_bak__enable]
+related: [platform_product, tenant_migarory_log_bak__name, tenant_migarory_log_bak__direction,
+  tenant_migarory_log_bak__type, tenant_migarory_log_bak__status, tenant_migarory_log_bak__success_number,
+  tenant_migarory_log_bak__falied_number, tenant_migarory_log_bak__total_number, tenant_migarory_log_bak__enable]
 ---
 
 # 租户项目迁移记录表
@@ -39,6 +40,10 @@ fields:
 - name: name
   type: string
   desc: 名称
+  dict: [migratoryProject, syncProject, syncProduct, EFFECTED, migratoryCust, 迁移客户,
+    CREATED, 同步项目, ACTIVE_CFCA_SIGN, PROJECT_SYNC, CHANGED, PROJECT_SYNC_VALIDATE,
+    migratoryTenant, INPUT_project_20240905163839, 迁移租户, 同步产品, DELETED, INPUT_tenant_20240905172700,
+    INPUT_project_20240905164552]
 - name: direction
   type: string
   desc: 数据方向
@@ -80,12 +85,15 @@ fields:
 - name: success_number
   type: number
   desc: 成功数量
+  dict: ['1']
 - name: falied_number
   type: number
   desc: 失败数量
+  dict: ['1', '0']
 - name: total_number
   type: number
   desc: 总数量
+  dict: ['1']
 - name: enable
   type: string
   desc: enable
@@ -177,7 +185,11 @@ overlap:
 
 ### 字典
 
+- [[dicts/tenant_migarory_log_bak__name]]（`tenant_migarory_log_bak.name`）
 - [[dicts/tenant_migarory_log_bak__direction]]（`tenant_migarory_log_bak.direction`）
 - [[dicts/tenant_migarory_log_bak__type]]（`tenant_migarory_log_bak.type`）
 - [[dicts/tenant_migarory_log_bak__status]]（`tenant_migarory_log_bak.status`）
+- [[dicts/tenant_migarory_log_bak__success_number]]（`tenant_migarory_log_bak.success_number`）
+- [[dicts/tenant_migarory_log_bak__falied_number]]（`tenant_migarory_log_bak.falied_number`）
+- [[dicts/tenant_migarory_log_bak__total_number]]（`tenant_migarory_log_bak.total_number`）
 - [[dicts/tenant_migarory_log_bak__enable]]（`tenant_migarory_log_bak.enable`）

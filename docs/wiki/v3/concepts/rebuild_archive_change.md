@@ -9,8 +9,8 @@ aliases: [UN0010]
 maps_to: cust_change_cfg__item_code.UN0010
 field_targets: [cust_change_cfg__item_code.UN0010, cust_change_cfg.item_code]
 sources: ['code_path:CustUpdateItemCodeConstants.java:26', 'document_claim:docs/wiki-knowledge/pplatform/req-index/concepts/产品需求规格说明书_产融平台V1.0.0.md']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [cust_change_cfg]
 also_confused_with: [reauth_reset]

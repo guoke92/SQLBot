@@ -38,7 +38,7 @@ from apps.knowledge.recall_kernel.types import (  # noqa: E402
     TableCandidate,
 )
 
-_CORPUS = _ROOT / "docs" / "wiki-knowledge" / "pplatform" / "wiki-pages"
+_CORPUS = _ROOT / "docs" / "wiki" / "v3"
 
 
 # ── RecallRequest ───────────────────────────────────────────────────────────
@@ -348,14 +348,16 @@ def test_clarify_resume_message_is_chinese_and_bound(monkeypatch) -> None:
         ],
     }
     out = await_agent_clarification_node(state)
-    text = str(deserialize_messages(out["messages"])[-1].content)
+    messages = deserialize_messages(out["messages"])
+    text = str(messages[-1].content)
     assert text.startswith("用户已完成澄清")
     assert "cust_person_info.user_type" in text
     assert "不要再询问已确认的项" in text
     assert "The user" not in text
-    system = str(deserialize_messages(out["messages"])[0].content)
-    assert "confirmed_calibers（用户已确认的口径" in system
-    assert "联系人类型为管理员" in system
+    system = str(messages[0].content)
+    assert "<memory_slots>" not in system
+    assert "confirmed_calibers（用户已确认的口径" not in system
+    assert "联系人类型为管理员" in text
 
 
 # ── real corpus end-to-end (skipped when the corpus is not checked out) ─────
@@ -373,7 +375,7 @@ def test_continuation_recall_keeps_baseline_tables_and_rehydrates_pages(
     try:
         store = InMemoryWikiStore.load_dir(_CORPUS)
     except PageContractError as exc:
-        pytest.skip(f"published wiki-pages still use retired enums/ contract: {exc}")
+        pytest.skip(f"bound wiki corpus still uses retired enums/ contract: {exc}")
     monkeypatch.setattr(wr, "_store", lambda ds_id=None: store)
     monkeypatch.setattr(wr, "has_wiki_bound_corpus", lambda ds_id=None: True)
     monkeypatch.setattr(wr, "_ds_allowlisted", lambda ds_id: True)

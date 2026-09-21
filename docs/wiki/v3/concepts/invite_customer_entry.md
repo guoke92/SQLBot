@@ -9,8 +9,8 @@ aliases: [客户录入认证]
 maps_to: cust_company_info__identify_style.INVITE
 field_targets: [cust_company_info__identify_style.INVITE, cust_company_info.identify_style]
 sources: ['document_claim:产品需求规格说明书_产融平台V1.0.0.md#1040', 'document_claim:docs/wiki-knowledge/pplatform/req-index/concepts/产品需求规格说明书_产融平台V1.0.0.md']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [cust_company_info]
 also_confused_with: [pc_build, invite_platform_entry, self_auth]

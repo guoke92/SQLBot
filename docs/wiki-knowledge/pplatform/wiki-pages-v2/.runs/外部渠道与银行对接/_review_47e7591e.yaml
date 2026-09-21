@@ -1,3 +1,0 @@
-body: '`cust_status` 状态机在语义分析中 `transitions` 为空数组：`ADD` / `CHANGE` / `WRITEOFF` 之间的迁移事件没有代码证据。本页已将该状态机标注为"迁移未知"，请勿在未获证据前补写迁移边（例如常见的"建档成功→ADD"推断）。'
-title: 客户状态机
-type: process

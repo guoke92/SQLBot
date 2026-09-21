@@ -6,158 +6,104 @@ belong: tables
 status: draft
 anchors: [tenant_project_approval_flow_comment]
 sources: ['database_schema:lowcode_pplatform.tenant_project_approval_flow_comment']
-created: '2026-09-17'
-updated: '2026-09-17'
+created: '2026-09-20'
+updated: '2026-09-20'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
-related: [tenant_project_approval, tenant_project_approval_flow_file, tenant_project_approval_flow_comment__enable]
+related: [tenant_project_approval, tenant_project_approval_flow_file, tenant_project_approval_flow_comment__ref_tenant_project_approval_flow_comment_approval,
+  tenant_project_approval_flow_comment__enable]
 ---
 
 # 租户项目审批备注信息
 
-L0 库侧合同（draft）。grain / 字段簇 / 身份束关系均为 proposed，不得当认证 JOIN。
-
-## 字段簇
-
-### common
-
-`id`, `code`, `name`, `enable`, `remark`, `create_by`, `create_user`, `create_time`, `update_by`, `update_user`, `update_time`
-
-### audit
-
-（空）
-
-### comment_ref
-
-`content`, `cc_user_id`, `ref_tenant_project_approval_flow_comment_approval`
-
-### act_procinst
-
-`act_procinst_id`, `act_procinst_no`, `act_procinst_status`, `act_procinst_date`
-
-### tenant_org
-
-`app_tenant_code`, `db_tenant_code`, `organization_id`
+L0 库侧合同（draft）。grain / 身份束关系均为 proposed，不得当认证 JOIN。
 
 ## 字段
 
 ```ground:table
 table: tenant_project_approval_flow_comment
 database: lowcode_pplatform
-description: 租户项目审批备注信息
+desc: 租户项目审批备注信息
 inactive: false
 primary_key: [id]
 grain: 一行一记录（id）
 name_anchors: [code, name]
-clusters:
-- key: common
-  title: 通用
-  include: always
-- key: audit
-  title: 审计信息
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.tenant_project_approval_flow_comment
-- key: comment_ref
-  title: 备注与关联
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.tenant_project_approval_flow_comment
-- key: act_procinst
-  title: 流程实例
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.tenant_project_approval_flow_comment
-- key: tenant_org
-  title: 租户与机构
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.tenant_project_approval_flow_comment
 fields:
 - name: id
-  data_type: number
-  description: 表主键
+  type: number
+  desc: 表主键
   nullable: false
-  cluster: common
 - name: content
-  data_type: string
-  description: 备注内容
-  cluster: comment_ref
+  type: string
+  desc: 备注内容
 - name: cc_user_id
-  data_type: string
-  description: 抄送相关人员
-  cluster: comment_ref
+  type: string
+  desc: 抄送相关人员
 - name: ref_tenant_project_approval_flow_comment_approval
-  data_type: string
-  description: 关联项目审批
-  cluster: comment_ref
+  type: string
+  desc: 关联项目审批
+  dict: [23099f85ba3e478b95eeba5b4262de36, 0b913987d10e416c83bbc4810153db74, 049c5778d6384fa783a2acef5d70ce25,
+    38acfe09cd0e40bda24670a8a28c0979, 61812482bc4e4a07b58e5d4f630d0987, edd9c1a030f4438ebdcd6956cfbfaa28,
+    d96fcb4cb3284bacbafcfba37aa9d3e8, 91ed68bc0b8049e6b89a7a969b96265a, c9ebf8c5d2c244cfbb6c7888243e37c1,
+    842d002e23e444889f0c5a634091199e, 400f36ce6321401ab2d5c674d6eb7761, d18f2f09df29422981fb3e2f024dfabe,
+    25521e84d17b443e84aec5aeb0dbe4e3, d397456052f446f3aa6251077dbd3746, bad5b6f122e54a91a364dc98adb3f685,
+    2f42c8f8b89a42d38021dca2adf775a1, 71864a5c417f42189751e94d0f3354d7, 1bce949920f044cab288db282a2d3319,
+    f54697663e6b470098a13666989ac1aa, a408164d32534544bafa0f5d5c94761a, a1798bd113d541e891a42adcf2cd4522,
+    ffa673eec1184c9b89ab8abac1d56d49]
 - name: code
-  data_type: string
-  description: 编码
-  cluster: common
+  type: string
+  desc: 编码
 - name: name
-  data_type: string
-  description: 名称
-  cluster: common
+  type: string
+  desc: 名称
 - name: enable
-  data_type: string
-  description: enable
-  cluster: common
-  dictionary: tenant_project_approval_flow_comment__enable
+  type: string
+  desc: enable
+  dict: [Y]
 - name: remark
-  data_type: string
-  description: remark
-  cluster: common
+  type: string
+  desc: remark
 - name: create_by
-  data_type: string
-  description: 创建人id
-  cluster: common
+  type: string
+  desc: 创建人id
 - name: create_user
-  data_type: string
-  description: 创建人名称
-  cluster: common
+  type: string
+  desc: 创建人名称
 - name: create_time
-  data_type: temporal
-  description: 创建时间
+  type: temporal
+  desc: 创建时间
   nullable: false
-  cluster: common
 - name: update_by
-  data_type: string
-  description: 更新人id
-  cluster: common
+  type: string
+  desc: 更新人id
 - name: update_user
-  data_type: string
-  description: 更新人名称
-  cluster: common
+  type: string
+  desc: 更新人名称
 - name: update_time
-  data_type: temporal
-  description: 更新时间
+  type: temporal
+  desc: 更新时间
   nullable: false
-  cluster: common
 - name: act_procinst_id
-  data_type: string
-  description: 流程实例ID
-  cluster: act_procinst
+  type: string
+  desc: 流程实例ID
 - name: app_tenant_code
-  data_type: string
-  description: 逻辑租户标识
-  cluster: tenant_org
+  type: string
+  desc: 逻辑租户标识
 - name: db_tenant_code
-  data_type: string
-  description: 数据租户标识
-  cluster: tenant_org
+  type: string
+  desc: 数据租户标识
 - name: act_procinst_no
-  data_type: string
-  description: 流程申请编号
-  cluster: act_procinst
+  type: string
+  desc: 流程申请编号
 - name: act_procinst_status
-  data_type: string
-  description: 当前审批状态
-  cluster: act_procinst
+  type: string
+  desc: 当前审批状态
 - name: act_procinst_date
-  data_type: temporal
-  description: 审批结束时间
-  cluster: act_procinst
+  type: temporal
+  desc: 审批结束时间
 - name: organization_id
-  data_type: string
-  description: 机构编号
-  cluster: tenant_org
+  type: string
+  desc: 机构编号
 ```
 
 ## 关联关系
@@ -198,4 +144,5 @@ overlap:
 
 ### 字典
 
+- [[dicts/tenant_project_approval_flow_comment__ref_tenant_project_approval_flow_comment_approval]]（`tenant_project_approval_flow_comment.ref_tenant_project_approval_flow_comment_approval`）
 - [[dicts/tenant_project_approval_flow_comment__enable]]（`tenant_project_approval_flow_comment.enable`）

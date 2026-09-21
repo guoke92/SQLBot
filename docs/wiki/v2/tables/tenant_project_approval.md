@@ -6,286 +6,191 @@ belong: tables
 status: draft
 anchors: [tenant_project_approval]
 sources: ['database_schema:lowcode_pplatform.tenant_project_approval']
-created: '2026-09-17'
-updated: '2026-09-17'
+created: '2026-09-20'
+updated: '2026-09-20'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
 related: [tenant_project, tenant_project_approval_flow, tenant_project_approval_flow_config,
   tenant_project_approval_business_info, tenant_project_approval_flow_comment, tenant_project_approval_flow_credit,
   tenant_project_approval_flow_file, tenant_project_approval_flow_node, tenant_project_approval__is_online_approval,
-  tenant_project_approval__project_type, tenant_project_approval__simple_mode, tenant_project_approval__wf_status,
-  tenant_project_approval__is_low_risk, tenant_project_approval__is_latest, tenant_project_approval__enable,
-  tenant_project_approval__is_add]
+  tenant_project_approval__sp_no, tenant_project_approval__project_type, tenant_project_approval__simple_mode,
+  tenant_project_approval__wf_status, tenant_project_approval__is_low_risk, tenant_project_approval__is_latest,
+  tenant_project_approval__enable, tenant_project_approval__is_add]
 ---
 
 # 租户项目审批表
 
-L0 库侧合同（draft）。grain / 字段簇 / 身份束关系均为 proposed，不得当认证 JOIN。
-
-## 字段簇
-
-### common
-
-`id`, `code`, `name`, `enable`, `remark`, `create_by`, `create_user`, `create_time`, `update_by`, `update_user`, `update_time`
-
-### approval_flow
-
-`approval_no`, `is_online_approval`, `related_approval_no`, `sp_no`, `initiate_time`, `wf_procdef_key`, `wf_status`, `wf_last_operate_time`, `flow_code`, `is_latest`, `act_procinst_id`, `act_procinst_no`, `act_procinst_status`, `act_procinst_date`, `complete_time`
-
-### people
-
-`solution_manager_id`, `solution_manager_name`, `initiator_user_id`, `initiator_user_name`, `wf_last_operator_id`, `wf_last_operator`
-
-### project
-
-`project_type`, `simple_mode`, `project_plan`, `is_low_risk`, `is_add`
-
-### party
-
-`core_enterprise_names`, `capital_names`, `whitelist_query_result`
-
-### relation_ref
-
-`ref_tenant_project_approval_tenant_project`, `ref_tenant_project_approval_tenant_project_approval_flow_config`, `organization_id`, `ref_tenant_project_approval_tenant_project_approval`
-
-### tenant
-
-`app_tenant_code`, `db_tenant_code`
+L0 库侧合同（draft）。grain / 身份束关系均为 proposed，不得当认证 JOIN。
 
 ## 字段
 
 ```ground:table
 table: tenant_project_approval
 database: lowcode_pplatform
-description: 租户项目审批表
+desc: 租户项目审批表
 inactive: false
 primary_key: [id]
 grain: 一行一记录（id）
 name_anchors: [solution_manager_name, initiator_user_name, code, name]
-clusters:
-- key: common
-  title: 通用
-  include: always
-- key: approval_flow
-  title: 审批流程与状态
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.tenant_project_approval
-- key: people
-  title: 相关业务人员
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.tenant_project_approval
-- key: project
-  title: 项目属性
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.tenant_project_approval
-- key: party
-  title: 参与方与白名单
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.tenant_project_approval
-- key: relation_ref
-  title: 关联引用
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.tenant_project_approval
-- key: tenant
-  title: 租户标识
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.tenant_project_approval
 fields:
 - name: id
-  data_type: number
-  description: 表主键
+  type: number
+  desc: 表主键
   nullable: false
-  cluster: common
 - name: approval_no
-  data_type: string
-  description: 审批编号，格式：SX+yyyymmdd+xxx
-  cluster: approval_flow
+  type: string
+  desc: 审批编号，格式：SX+yyyymmdd+xxx
 - name: is_online_approval
-  data_type: string
-  description: 是否发起上线审批：Y/N
-  cluster: approval_flow
-  dictionary: tenant_project_approval__is_online_approval
+  type: string
+  desc: 是否发起上线审批：Y/N
+  dict: [Y, N]
 - name: related_approval_no
-  data_type: string
-  description: 关联审批编号
-  cluster: approval_flow
+  type: string
+  desc: 关联审批编号
 - name: sp_no
-  data_type: string
-  description: 立项审批编号（wechat_project_approval_apply#sp_no）
-  cluster: approval_flow
+  type: string
+  desc: 立项审批编号（wechat_project_approval_apply#sp_no）
+  dict: ['202604270003', '202606220002', '202605110011', '202608260001', '202607280002',
+    '202605120011', '202512290002', MN-202606230165, MN-202606030156, '202605120015',
+    '202607090020', '202606220001', '202605130016', MN-202608240181, MN-202606240169,
+    MN-202608240183, MN-202608240187, '202607280001', MN-202605060095, '202608200001',
+    '202606230004', MN-202605060097, MN-202608240189, MN-202604300059, MN-202606180162,
+    '202608060006', MN-202606010152, MN-202608240193, '202607150009', '202604090001',
+    '202607090002']
 - name: solution_manager_id
-  data_type: string
-  description: 方案经理 userId
-  cluster: people
+  type: string
+  desc: 方案经理 userId
 - name: solution_manager_name
-  data_type: string
-  description: 方案经理姓名
-  cluster: people
+  type: string
+  desc: 方案经理姓名
 - name: project_type
-  data_type: string
-  description: 项目类型：STANDARD（标准） / REGULAR（常规）
-  cluster: project
-  dictionary: tenant_project_approval__project_type
+  type: string
+  desc: 项目类型：STANDARD（标准） / REGULAR（常规）
+  dict: [STANDARD, REGULAR]
 - name: simple_mode
-  data_type: string
-  description: 是否为简易模式项目/常规非低风险项目，Y/N
-  cluster: project
-  dictionary: tenant_project_approval__simple_mode
+  type: string
+  desc: 是否为简易模式项目/常规非低风险项目，Y/N
+  dict: [N, Y]
 - name: project_plan
-  data_type: string
-  description: 项目方案描述
-  cluster: project
+  type: string
+  desc: 项目方案描述
 - name: initiator_user_id
-  data_type: string
-  description: 发起人 userId
-  cluster: people
+  type: string
+  desc: 发起人 userId
 - name: initiator_user_name
-  data_type: string
-  description: 发起人姓名
-  cluster: people
+  type: string
+  desc: 发起人姓名
 - name: initiate_time
-  data_type: temporal
-  description: 发起时间
-  cluster: approval_flow
+  type: temporal
+  desc: 发起时间
 - name: wf_procdef_key
-  data_type: string
-  description: 工作流流程定义key
-  cluster: approval_flow
+  type: string
+  desc: 工作流流程定义key
 - name: wf_status
-  data_type: string
-  description: 工作流状态
-  cluster: approval_flow
-  dictionary: tenant_project_approval__wf_status
+  type: string
+  desc: 工作流状态
+  dict: [RUNNING, FINISHED, TERMINATED, PENDING, REVOKED]
 - name: wf_last_operator_id
-  data_type: string
-  description: 工作流最近操作人ID
-  cluster: people
+  type: string
+  desc: 工作流最近操作人ID
 - name: wf_last_operator
-  data_type: string
-  description: 工作流最近操作人
-  cluster: people
+  type: string
+  desc: 工作流最近操作人
 - name: wf_last_operate_time
-  data_type: temporal
-  description: 工作流最近操作时间
-  cluster: approval_flow
+  type: temporal
+  desc: 工作流最近操作时间
 - name: is_low_risk
-  data_type: string
-  description: 是否低风险项目:Y,N
-  cluster: project
-  dictionary: tenant_project_approval__is_low_risk
+  type: string
+  desc: 是否低风险项目:Y,N
+  dict: [Y, N]
+  label: {Y: 是否低风险项目}
 - name: flow_code
-  data_type: string
-  description: 流程配置编码（tenant_project_approval_flow_config#flow_code）
-  cluster: approval_flow
+  type: string
+  desc: 流程配置编码（tenant_project_approval_flow_config#flow_code）
 - name: is_latest
-  data_type: string
-  description: 是否最新审批
-  cluster: approval_flow
-  dictionary: tenant_project_approval__is_latest
+  type: string
+  desc: 是否最新审批
+  dict: [Y, N]
 - name: core_enterprise_names
-  data_type: string
-  description: 核心企业名称(JSON格式字符串，含order字段标记顺序)
-  cluster: party
+  type: string
+  desc: 核心企业名称(JSON格式字符串，含order字段标记顺序)
 - name: capital_names
-  data_type: string
-  description: 资金方名称(JSON格式字符串，含order字段标记顺序)
-  cluster: party
+  type: string
+  desc: 资金方名称(JSON格式字符串，含order字段标记顺序)
 - name: whitelist_query_result
-  data_type: string
-  description: 白名单查询结果(JSON，提交后锁定)
-  cluster: party
+  type: string
+  desc: 白名单查询结果(JSON，提交后锁定)
 - name: ref_tenant_project_approval_tenant_project
-  data_type: string
-  description: 关联租户项目
-  cluster: relation_ref
+  type: string
+  desc: 关联租户项目
 - name: ref_tenant_project_approval_tenant_project_approval_flow_config
-  data_type: string
-  description: 关联租户项目流程配置
-  cluster: relation_ref
+  type: string
+  desc: 关联租户项目流程配置
 - name: code
-  data_type: string
-  description: 编码
-  cluster: common
+  type: string
+  desc: 编码
 - name: name
-  data_type: string
-  description: 名称
-  cluster: common
+  type: string
+  desc: 名称
 - name: enable
-  data_type: string
-  description: enable
-  cluster: common
-  dictionary: tenant_project_approval__enable
+  type: string
+  desc: enable
+  dict: [Y]
 - name: remark
-  data_type: string
-  description: remark
-  cluster: common
+  type: string
+  desc: remark
 - name: create_by
-  data_type: string
-  description: 创建人id
-  cluster: common
+  type: string
+  desc: 创建人id
 - name: create_user
-  data_type: string
-  description: 创建人名称
-  cluster: common
+  type: string
+  desc: 创建人名称
 - name: create_time
-  data_type: temporal
-  description: 创建时间
+  type: temporal
+  desc: 创建时间
   nullable: false
-  cluster: common
 - name: update_by
-  data_type: string
-  description: 更新人id
-  cluster: common
+  type: string
+  desc: 更新人id
 - name: update_user
-  data_type: string
-  description: 更新人名称
-  cluster: common
+  type: string
+  desc: 更新人名称
 - name: update_time
-  data_type: temporal
-  description: 更新时间
+  type: temporal
+  desc: 更新时间
   nullable: false
-  cluster: common
 - name: act_procinst_id
-  data_type: string
-  description: 流程实例ID
-  cluster: approval_flow
+  type: string
+  desc: 流程实例ID
 - name: app_tenant_code
-  data_type: string
-  description: 逻辑租户标识
-  cluster: tenant
+  type: string
+  desc: 逻辑租户标识
 - name: db_tenant_code
-  data_type: string
-  description: 数据租户标识
-  cluster: tenant
+  type: string
+  desc: 数据租户标识
 - name: act_procinst_no
-  data_type: string
-  description: 流程申请编号
-  cluster: approval_flow
+  type: string
+  desc: 流程申请编号
 - name: act_procinst_status
-  data_type: string
-  description: 当前审批状态
-  cluster: approval_flow
+  type: string
+  desc: 当前审批状态
 - name: act_procinst_date
-  data_type: temporal
-  description: 审批结束时间
-  cluster: approval_flow
+  type: temporal
+  desc: 审批结束时间
 - name: organization_id
-  data_type: string
-  description: 机构编号
-  cluster: relation_ref
+  type: string
+  desc: 机构编号
 - name: ref_tenant_project_approval_tenant_project_approval
-  data_type: string
-  description: 关联原审批数据
-  cluster: relation_ref
+  type: string
+  desc: 关联原审批数据
 - name: complete_time
-  data_type: temporal
-  description: 完成时间
-  cluster: approval_flow
+  type: temporal
+  desc: 完成时间
 - name: is_add
-  data_type: string
-  description: 是否新增项目；Y=是，N=否
-  cluster: project
-  dictionary: tenant_project_approval__is_add
+  type: string
+  desc: 是否新增项目；Y=是，N=否
+  dict: [Y, N]
+  label: [是, 否]
 ```
 
 ## 关联关系
@@ -383,6 +288,7 @@ overlap:
 ### 字典
 
 - [[dicts/tenant_project_approval__is_online_approval]]（`tenant_project_approval.is_online_approval`）
+- [[dicts/tenant_project_approval__sp_no]]（`tenant_project_approval.sp_no`）
 - [[dicts/tenant_project_approval__project_type]]（`tenant_project_approval.project_type`）
 - [[dicts/tenant_project_approval__simple_mode]]（`tenant_project_approval.simple_mode`）
 - [[dicts/tenant_project_approval__wf_status]]（`tenant_project_approval.wf_status`）

@@ -9,8 +9,8 @@ aliases: [客服名片, 运营名片]
 maps_to: tenant_setting_config.customer_card_type
 field_targets: [tenant_setting_config.customer_card_type]
 sources: ['code_path:CustPersonApplication.java:1411', 'document_claim:docs/wiki-knowledge/pplatform/req-index/concepts/项目上线审批流程.md']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [tenant_setting_config]
 also_confused_with: [tenant_oper_update_split, sms_signature_term]

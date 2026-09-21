@@ -17,8 +17,9 @@ from pydantic import BaseModel, ConfigDict, Field
 WIKI_SCHEMA_GAP_SEARCH_LIMIT = 2
 # Tool budgets by category (single definition; the system prompt renders them).
 PROBE_SQL_LIMIT = 2
-KNOWLEDGE_ROUND_LIMIT = 2
-KNOWLEDGE_SEARCH_LIMIT = 1
+KNOWLEDGE_ROUND_LIMIT = 2  # telemetry only; recall tools are not gated
+KNOWLEDGE_SEARCH_LIMIT = 1  # legacy unused
+KNOWLEDGE_BUDGET_SKIP = "knowledge_budget"
 SEARCH_WIKI_ROUND_LIMIT = 2  # legacy alias of KNOWLEDGE_ROUND_LIMIT
 EXECUTION_ROUND_LIMIT = 5
 KNOWLEDGE_TOOLS = frozenset(
@@ -26,6 +27,7 @@ KNOWLEDGE_TOOLS = frozenset(
         "get_table_schema",
         "get_table_relations",
         "search_knowledge",
+        "lookup_values",
         "get_dict_values",
     }
 )
@@ -138,6 +140,7 @@ class AgentKnowledgePlane(BaseModel):
     schema_outline: str = ""
     knowledge_rounds: int = 0
     knowledge_searches: int = 0
+    value_grounding: str = ""
     keep_fields: dict[str, list[str]] = Field(default_factory=dict)
     # LLM-directed eviction: table names and/or wiki page_keys. Sticky until a
     # later search query explicitly names the key (restore), never auto-trimmed
@@ -461,15 +464,10 @@ class AgentKnowledgePlane(BaseModel):
         self,
         messages: Sequence[BaseMessage],
         *,
-        memory_slots: Mapping[str, Any] | None = None,
-        change_baseline: Mapping[str, Any] | None = None,
+        memory_slots: Mapping[str, Any] | None = None,  # noqa: ARG002 — calibers live in chat
+        change_baseline: Mapping[str, Any] | None = None,  # noqa: ARG002
     ) -> list[BaseMessage]:
-        return rebuild_system_message(
-            messages,
-            plane=self,
-            memory_slots=memory_slots,
-            change_baseline=change_baseline,
-        )
+        return rebuild_system_message(messages, plane=self)
 
     def schema_catalog_text(self) -> str:
         """Prompt view of opened tables: full fields + JOINs among the working set."""
@@ -524,48 +522,8 @@ class AgentKnowledgePlane(BaseModel):
         return self.adopt_conflicts(self.caliber_conflicts, confirmed)
 
     def render_system_sections(self) -> str:
-        parts: list[str] = []
-        outline = str(self.schema_outline or "").strip()
-        if outline:
-            parts.append(outline)
-        index = self._knowledge_index_block()
-        if index:
-            parts.append(index)
-        wiki = "\n\n".join(self._wiki_texts_in_order())
-        if wiki:
-            parts.append(
-                "<wiki_knowledge>\n"
-                "以下是当前任务相关的业务口径与概念（表结构见 schema_catalog）：\n"
-                f"{wiki}\n"
-                "</wiki_knowledge>"
-            )
-        schema = self.schema_catalog_text()
-        if schema:
-            parts.append(
-                "<schema_catalog>\n"
-                "当前会话已用 get_table_schema 展开的物理表结构（同表只保留一份）。"
-                "字段行 `name:type, 注释, topk=库内取值, labels=取值:展示名, dict=字典`："
-                "`topk` 是 WHERE 必须使用的库内值；`labels` 只是展示含义，禁止写进 SQL；"
-                "`dict=<名>` 的取值见 wiki_knowledge 或 get_dict_values。"
-                "关联行只保留已展开表之间的 JOIN；跨表连线优先查阅 get_table_relations 的结果。\n"
-                f"{schema}\n"
-                "</schema_catalog>"
-            )
-        if self.caliber_conflicts:
-            import orjson
-
-            parts.append(
-                "<caliber_conflicts>\n"
-                "系统按 Wiki 术语桥自动检出的候选口径冲突。这是证据，不是澄清卡模板，"
-                "可能误报或漏报，须按系统提示 §2 用枚举页逐个核对："
-                "attribution = 名值错位（没有 value 的候选是用户维度名所绑定的字段）；"
-                "alias_collision / boundary = 一词多落。"
-                "核对成立且上下文无法判定 → 按 §3 调用 request_clarification；"
-                "不成立 → 在思考中写明理由后直接落口径。\n"
-                f"{orjson.dumps(self._slim_conflicts(), option=orjson.OPT_INDENT_2).decode()}\n"
-                "</caliber_conflicts>"
-            )
-        return "\n\n".join(parts)
+        """System prompt only carries the bound outline. Tool payloads stay in ToolMessages."""
+        return str(self.schema_outline or "").strip()
 
     def _knowledge_index_block(self) -> str:
         if not (self.tables or self.page_keys or self.excluded):
@@ -844,16 +802,12 @@ def rebuild_system_message(
     messages: Sequence[BaseMessage],
     *,
     plane: AgentKnowledgePlane,
-    memory_slots: Mapping[str, Any] | None = None,
-    change_baseline: Mapping[str, Any] | None = None,
+    memory_slots: Mapping[str, Any] | None = None,  # noqa: ARG001
+    change_baseline: Mapping[str, Any] | None = None,  # noqa: ARG001
 ) -> list[BaseMessage]:
     from apps.chat.task.agent_prompt import build_agent_system_prompt
 
-    text = build_agent_system_prompt(
-        memory_slots=memory_slots,
-        change_baseline=change_baseline,
-        knowledge_plane=plane,
-    )
+    text = build_agent_system_prompt(knowledge_plane=plane)
     out = list(messages)
     if out and isinstance(out[0], SystemMessage):
         out[0] = SystemMessage(content=text)

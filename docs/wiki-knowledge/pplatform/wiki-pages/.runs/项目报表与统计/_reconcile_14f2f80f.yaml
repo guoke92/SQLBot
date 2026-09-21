@@ -1,3 +1,0 @@
-- code: PAGE_CONTRACT_FAILED
-  message: type must be one of ['caliber', 'concept', 'enum', 'metric', 'pattern',
-    'process', 'query', 'rule', 'scenario', 'source', 'table']

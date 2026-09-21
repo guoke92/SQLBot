@@ -7,8 +7,8 @@ status: draft
 anchors: [cust_change_cfg.client_type]
 sources: ['database_profile:cust_change_cfg.client_type', 'database_schema:cust_change_cfg.client_type',
   'code_path:ClientTypeConstants.java:6', 'code_path:ClientTypeConstants.java:9']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [cust_change_cfg]
 ---

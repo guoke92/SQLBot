@@ -6,13 +6,13 @@ belong: tables
 status: draft
 anchors: [tenant_project_approval_flow_config]
 sources: ['database_schema:lowcode_pplatform.tenant_project_approval_flow_config']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
 related: [tenant_project_approval, tenant_project_approval_flow, tenant_project_approval_flow_node,
   tenant_project_approval_flow_config__flow_code, tenant_project_approval_flow_config__node_code,
-  tenant_project_approval_flow_config__node_name, tenant_project_approval_flow_config__is_optional,
+  tenant_project_approval_flow_config__node_order, tenant_project_approval_flow_config__is_optional,
   tenant_project_approval_flow_config__is_operate, tenant_project_approval_flow_config__enable]
 ---
 
@@ -50,10 +50,10 @@ fields:
 - name: node_name
   type: string
   desc: 节点名称（中文）
-  dict: [方案配置, 其他, 方案经理, 运营审批, 业务经理审批, 法务复核, 法务经办]
 - name: node_order
   type: number
   desc: 节点顺序
+  dict: ['1', '2', '3', '4', '5', '6', '7']
 - name: is_optional
   type: string
   desc: 是否可选节点：Y/N
@@ -145,7 +145,6 @@ overlap:
   deepened: false
   query_ok: true
   authenticity: unlikely
-authenticity_note: 名称有 flow/code 关联，但值域重合率 0.0（样本 3 全 miss），不满足 likely 的值域契合条件。
 ```
 
 ```ground:relation
@@ -171,7 +170,6 @@ overlap:
   deepened: false
   query_ok: true
   authenticity: unlikely
-authenticity_note: 名称有 node/code 关联，但值域重合率 0.0（样本 7 全 miss），不满足 likely 的值域契合条件。
 ```
 
 ## 页面链接
@@ -186,7 +184,7 @@ authenticity_note: 名称有 node/code 关联，但值域重合率 0.0（样本 
 
 - [[dicts/tenant_project_approval_flow_config__flow_code]]（`tenant_project_approval_flow_config.flow_code`）
 - [[dicts/tenant_project_approval_flow_config__node_code]]（`tenant_project_approval_flow_config.node_code`）
-- [[dicts/tenant_project_approval_flow_config__node_name]]（`tenant_project_approval_flow_config.node_name`）
+- [[dicts/tenant_project_approval_flow_config__node_order]]（`tenant_project_approval_flow_config.node_order`）
 - [[dicts/tenant_project_approval_flow_config__is_optional]]（`tenant_project_approval_flow_config.is_optional`）
 - [[dicts/tenant_project_approval_flow_config__is_operate]]（`tenant_project_approval_flow_config.is_operate`）
 - [[dicts/tenant_project_approval_flow_config__enable]]（`tenant_project_approval_flow_config.enable`）

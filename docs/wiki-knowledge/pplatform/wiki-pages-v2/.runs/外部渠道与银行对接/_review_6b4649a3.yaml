@@ -1,4 +1,0 @@
-body: '`scope.databases` 暂填 `unknown`：语义分析仅提供代码侧证据（DO 类名与字段语义），未给出 `cust_company_info`
-  的物理库名。请在拿到数据源配置或建表 DDL 后回填物理库名，并把 `contract_version` 提升到 0.2。'
-title: 客户企业信息表
-type: table

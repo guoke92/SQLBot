@@ -789,7 +789,7 @@ def test_retrieve_wiki_context_wiki_error_does_not_schema_vector(monkeypatch) ->
     assert out["tables"] == []
 
 
-def test_retrieve_wiki_context_no_runtime_uses_schema_vector(monkeypatch) -> None:
+def test_retrieve_wiki_context_no_runtime_is_empty(monkeypatch) -> None:
     from apps.chat.steps import wiki_recall as wr
 
     monkeypatch.setattr(wr, "has_wiki_bound_corpus", lambda ds_id=None: False)
@@ -797,22 +797,14 @@ def test_retrieve_wiki_context_no_runtime_uses_schema_vector(monkeypatch) -> Non
 
     def _fallback(*_a, **_k):
         fallback_calls["n"] += 1
-        return {
-            "knowledge_text": "",
-            "tables": ["d_task", "d_story"],
-            "schema_text": "TABLE d_task\nTABLE d_story",
-            "backend": "schema_vector",
-            "page_keys": [],
-            "hit_count": 2,
-        }
+        raise AssertionError("unbound retrieve must not use schema_vector")
 
     monkeypatch.setattr(wr, "_schema_fallback_context", _fallback)
     llm = SimpleNamespace(ds=SimpleNamespace(id=8))
     out = wr.retrieve_wiki_context(llm, "研发二部每月 task story")
-    assert fallback_calls["n"] == 1
-    assert out["backend"] == "schema_vector"
-    assert out["tables"] == ["d_task", "d_story"]
-    assert "d_task" in out["schema_text"]
+    assert fallback_calls["n"] == 0
+    assert out["backend"] in {"", "none", None} or out.get("tables") == []
+    assert not out.get("schema_text")
 
 
 def test_retrieve_wiki_context_keeps_usable_wiki_without_schema_mix(
@@ -1103,7 +1095,7 @@ def test_prompt_schema_gap_block_when_wiki_has_no_schema() -> None:
         }
     )
     prompt = build_agent_system_prompt(knowledge_plane=plane)
-    assert "<wiki_knowledge>" in prompt
+    assert "<wiki_knowledge>" not in prompt
     assert "<schema_catalog>" not in prompt
     assert "information_schema" in prompt
     assert "get_table_schema" in prompt

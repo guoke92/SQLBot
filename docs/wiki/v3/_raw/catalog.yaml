@@ -1,5 +1,5 @@
 schema_version: '1.0'
-generated_at: '2026-09-17'
+generated_at: '2026-09-20'
 source: tools.wiki_extract.introspect
 host: 172.16.111.194
 port: 23306
@@ -8,7 +8,7 @@ tables:
   argeement_migratory_record:
     engine: InnoDB
     comment: 协议迁移记录
-    rows_estimate: 37190
+    rows_estimate: 37195
     columns:
       id:
         type: bigint(22)
@@ -268,7 +268,7 @@ tables:
   async_io_task:
     engine: InnoDB
     comment: 异步导入导出任务
-    rows_estimate: 323
+    rows_estimate: 324
     columns:
       id:
         type: bigint(22)
@@ -580,7 +580,7 @@ tables:
   authorization_agreement:
     engine: InnoDB
     comment: 授权确认书表
-    rows_estimate: 30786
+    rows_estimate: 30802
     columns:
       id:
         type: bigint(22)
@@ -822,7 +822,7 @@ tables:
   ca_certification_info:
     engine: InnoDB
     comment: CA认证信息
-    rows_estimate: 907
+    rows_estimate: 768
     columns:
       id:
         type: bigint(22)
@@ -1408,7 +1408,7 @@ tables:
   ca_fee_company:
     engine: InnoDB
     comment: CA服务费企业主数据
-    rows_estimate: 1038
+    rows_estimate: 1040
     columns:
       id:
         type: bigint(22)
@@ -1696,7 +1696,7 @@ tables:
   ca_fee_order:
     engine: InnoDB
     comment: CA服务费订单
-    rows_estimate: 1521
+    rows_estimate: 1523
     columns:
       id:
         type: bigint(22)
@@ -2136,7 +2136,7 @@ tables:
   ca_fee_project_config:
     engine: InnoDB
     comment: CA服务费项目配置
-    rows_estimate: 433
+    rows_estimate: 441
     columns:
       id:
         type: bigint(22)
@@ -2594,7 +2594,7 @@ tables:
   client_api_sync_error:
     engine: InnoDB
     comment: 客户端接口同步失败记录
-    rows_estimate: 2466
+    rows_estimate: 2470
     columns:
       id:
         type: bigint(22)
@@ -2994,7 +2994,7 @@ tables:
   cust_account_info:
     engine: InnoDB
     comment: 客户银行账号信息主表
-    rows_estimate: 47558
+    rows_estimate: 47573
     columns:
       id:
         type: bigint(22)
@@ -3526,7 +3526,7 @@ tables:
   cust_auth_application:
     engine: InnoDB
     comment: 客户产品开通表
-    rows_estimate: 31447
+    rows_estimate: 31478
     columns:
       id:
         type: bigint(22)
@@ -3980,7 +3980,7 @@ tables:
   cust_build_record:
     engine: InnoDB
     comment: 建档推送运营记录表
-    rows_estimate: 18239
+    rows_estimate: 18245
     columns:
       id:
         type: bigint(22)
@@ -4208,7 +4208,7 @@ tables:
   cust_certification_info:
     engine: InnoDB
     comment: ''
-    rows_estimate: 8543
+    rows_estimate: 8564
     columns:
       id:
         type: bigint(20)
@@ -4696,7 +4696,7 @@ tables:
   cust_change_record:
     engine: InnoDB
     comment: 客户变更记录
-    rows_estimate: 5175
+    rows_estimate: 5191
     columns:
       id:
         type: bigint(22)
@@ -5012,7 +5012,7 @@ tables:
   cust_company_info:
     engine: InnoDB
     comment: 客户信息主表
-    rows_estimate: 88504
+    rows_estimate: 88522
     columns:
       id:
         type: bigint(22)
@@ -8382,7 +8382,7 @@ tables:
   cust_oper_change_record:
     engine: InnoDB
     comment: 客户操作运营变更记录
-    rows_estimate: 4255
+    rows_estimate: 4256
     columns:
       id:
         type: bigint(22)
@@ -8650,7 +8650,7 @@ tables:
   cust_person_info:
     engine: InnoDB
     comment: 客户联系人表
-    rows_estimate: 58743
+    rows_estimate: 58780
     columns:
       id:
         type: bigint(22)
@@ -9484,7 +9484,7 @@ tables:
   cust_project_rel:
     engine: InnoDB
     comment: 客户项目关联表
-    rows_estimate: 54834
+    rows_estimate: 54874
     columns:
       id:
         type: bigint(22)
@@ -9837,7 +9837,7 @@ tables:
   cust_role_info:
     engine: InnoDB
     comment: 客户产品角色关联表
-    rows_estimate: 54134
+    rows_estimate: 54160
     columns:
       id:
         type: bigint(22)
@@ -10821,7 +10821,7 @@ tables:
   cust_survey_answer:
     engine: InnoDB
     comment: 调研答案表
-    rows_estimate: 374
+    rows_estimate: 380
     columns:
       id:
         type: bigint(22)
@@ -12382,7 +12382,7 @@ tables:
   migratory_user_record:
     engine: InnoDB
     comment: 迁移用户记录表
-    rows_estimate: 6660
+    rows_estimate: 6661
     columns:
       id:
         type: bigint(22)
@@ -12820,6 +12820,14 @@ tables:
         extra: ''
         comment: 机构编号
         pos: 33
+      tenant_code:
+        type: varchar(100)
+        nullable: false
+        default: null
+        key: ''
+        extra: ''
+        comment: ''
+        pos: 34
     primary_key:
     - id
     indexes:
@@ -14243,7 +14251,7 @@ tables:
   short_link:
     engine: InnoDB
     comment: 短链接
-    rows_estimate: 5074
+    rows_estimate: 5081
     columns:
       id:
         type: bigint(22)
@@ -14978,7 +14986,7 @@ tables:
   tenant_migarory_log:
     engine: InnoDB
     comment: 租户项目迁移记录表
-    rows_estimate: 163343
+    rows_estimate: 163507
     columns:
       id:
         type: bigint(22)
@@ -15556,7 +15564,7 @@ tables:
   tenant_product:
     engine: InnoDB
     comment: 租户产品配置
-    rows_estimate: 462
+    rows_estimate: 463
     columns:
       id:
         type: bigint(22)
@@ -16284,7 +16292,7 @@ tables:
   tenant_project:
     engine: InnoDB
     comment: 租户项目配置
-    rows_estimate: 3271
+    rows_estimate: 3280
     columns:
       id:
         type: bigint(22)
@@ -16941,7 +16949,7 @@ tables:
   tenant_project_approval:
     engine: InnoDB
     comment: 租户项目审批表
-    rows_estimate: 475
+    rows_estimate: 476
     columns:
       id:
         type: bigint(22)
@@ -17333,7 +17341,7 @@ tables:
   tenant_project_approval_business_info:
     engine: InnoDB
     comment: 租户项目审批业务系统推送信息表
-    rows_estimate: 413
+    rows_estimate: 416
     columns:
       id:
         type: bigint(22)
@@ -17621,7 +17629,7 @@ tables:
   tenant_project_approval_flow:
     engine: InnoDB
     comment: 租户项目审批流程表
-    rows_estimate: 1913
+    rows_estimate: 1921
     columns:
       id:
         type: bigint(22)
@@ -18737,7 +18745,7 @@ tables:
   tenant_project_approval_flow_node:
     engine: InnoDB
     comment: 租户项目审批流程节点表
-    rows_estimate: 1108
+    rows_estimate: 1109
     columns:
       id:
         type: bigint(22)
@@ -21991,7 +21999,7 @@ tables:
   wechat_project_approval_field_history:
     engine: InnoDB
     comment: 项目立项字段更新历史
-    rows_estimate: 1660
+    rows_estimate: 1698
     columns:
       id:
         type: bigint(22)

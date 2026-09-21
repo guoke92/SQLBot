@@ -6,8 +6,8 @@ belong: tables
 status: draft
 anchors: [tenant_product_menu]
 sources: ['database_schema:lowcode_pplatform.tenant_product_menu']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
 related: [tenant_product, tenant_product_menu_res, tenant_product_menu__product_code,
@@ -128,8 +128,6 @@ overlap:
   deepened: false
   query_ok: true
   authenticity: unknown
-authenticity_note: 候选边对端 tenant_product.code；name_evidence=family_suffix(product/产品code)，overlap
-  probed ratio=0.0(sample=2,miss=2)，样本过小且值域不契合，不能标 likely，保持 unknown。
 ```
 
 ## 页面链接

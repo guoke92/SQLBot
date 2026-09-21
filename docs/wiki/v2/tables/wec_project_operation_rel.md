@@ -6,262 +6,178 @@ belong: tables
 status: draft
 anchors: [wec_project_operation_rel]
 sources: ['database_schema:lowcode_pplatform.wec_project_operation_rel']
-created: '2026-09-17'
-updated: '2026-09-17'
+created: '2026-09-20'
+updated: '2026-09-20'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
-related: [wec_project_operation_rel__project_tag, wec_project_operation_rel__enable,
-  wec_project_operation_rel__top_flag]
+related: [wec_project_operation_rel__op_contact_a, wec_project_operation_rel__verification_contact,
+  wec_project_operation_rel__risk_control_contact_a, wec_project_operation_rel__custom_field_one,
+  wec_project_operation_rel__custom_field_two, wec_project_operation_rel__project_tag,
+  wec_project_operation_rel__enable, wec_project_operation_rel__top_flag]
 ---
 
 # 微企链项目关联运营
 
-L0 库侧合同（draft）。grain / 字段簇 / 身份束关系均为 proposed，不得当认证 JOIN。
-
-## 字段簇
-
-### common
-
-`id`, `code`, `name`, `enable`, `remark`, `create_by`, `create_user`, `create_time`, `update_by`, `update_user`, `update_time`, `app_tenant_code`, `db_tenant_code`, `organization_id`, `top_flag`, `text`
-
-### project_main
-
-`wec_project_id`, `first_settlement_time`, `project_tag`, `project_relation`, `bussiness_project_relation`
-
-### project_approval
-
-`wechat_audit_no`, `wechat_audit_pass_time`, `act_procinst_id`, `act_procinst_no`, `act_procinst_status`, `act_procinst_date`
-
-### operation_contact
-
-`op_contact_a`, `op_contact_b`, `op_contact_a_group`, `solution_manager`, `business_manager`, `business_group`
-
-### verification_contact
-
-`verification_contact`, `verification_contact_group`
-
-### risk_contact
-
-`risk_control_contact_a`, `risk_control_contact_b`, `risk_control_contact_a_group`
-
-### custom_ext
-
-`custom_field_one`, `custom_field_two`, `custom_field_three`
+L0 库侧合同（draft）。grain / 身份束关系均为 proposed，不得当认证 JOIN。
 
 ## 字段
 
 ```ground:table
 table: wec_project_operation_rel
 database: lowcode_pplatform
-description: 微企链项目关联运营
+desc: 微企链项目关联运营
 inactive: false
 primary_key: [id]
 grain: 一行一记录（id）
 name_anchors: [code, name]
-clusters:
-- key: common
-  title: 通用
-  include: always
-- key: project_main
-  title: 项目主体与归属
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.wec_project_operation_rel
-- key: project_approval
-  title: 立项与审批流程
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.wec_project_operation_rel
-- key: operation_contact
-  title: 运营对接与业务经理
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.wec_project_operation_rel
-- key: verification_contact
-  title: 查验对接
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.wec_project_operation_rel
-- key: risk_contact
-  title: 风控对接
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.wec_project_operation_rel
-- key: custom_ext
-  title: 自定义扩展字段
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.wec_project_operation_rel
 fields:
 - name: id
-  data_type: number
-  description: 表主键
+  type: number
+  desc: 表主键
   nullable: false
-  cluster: common
 - name: wec_project_id
-  data_type: string
-  description: 微企链项目id
-  cluster: project_main
+  type: string
+  desc: 微企链项目id
 - name: wechat_audit_no
-  data_type: string
-  description: 企微审批编号
-  cluster: project_approval
+  type: string
+  desc: 企微审批编号
 - name: wechat_audit_pass_time
-  data_type: temporal
-  description: 项目立项审批通过时间
-  cluster: project_approval
+  type: temporal
+  desc: 项目立项审批通过时间
 - name: op_contact_a
-  data_type: string
-  description: 运营对接人A
-  cluster: operation_contact
+  type: string
+  desc: 运营对接人A
+  dict: ['321', '463', '257', '169', '362', '210', '333', '466', '97', '420', '93',
+    '267']
 - name: op_contact_b
-  data_type: string
-  description: 运营对接人B
-  cluster: operation_contact
+  type: string
+  desc: 运营对接人B
 - name: op_contact_a_group
-  data_type: string
-  description: 运营组别
-  cluster: operation_contact
+  type: string
+  desc: 运营组别
 - name: verification_contact
-  data_type: string
-  description: 查验对接人
-  cluster: verification_contact
+  type: string
+  desc: 查验对接人
+  dict: ['321', '463', '420', '363', '97', '454', '411', '305']
 - name: verification_contact_group
-  data_type: string
-  description: 查验组别
-  cluster: verification_contact
+  type: string
+  desc: 查验组别
 - name: risk_control_contact_a
-  data_type: string
-  description: 风控对接人A
-  cluster: risk_contact
+  type: string
+  desc: 风控对接人A
+  dict: ['321', '454', '344', '420', '457', '97', '141', '463', '271']
 - name: risk_control_contact_b
-  data_type: string
-  description: 风控对接人B
-  cluster: risk_contact
+  type: string
+  desc: 风控对接人B
 - name: risk_control_contact_a_group
-  data_type: string
-  description: 风控组别
-  cluster: risk_contact
+  type: string
+  desc: 风控组别
 - name: solution_manager
-  data_type: string
-  description: 方案经理
-  cluster: operation_contact
+  type: string
+  desc: 方案经理
 - name: business_manager
-  data_type: string
-  description: 业务经理
-  cluster: operation_contact
+  type: string
+  desc: 业务经理
 - name: business_group
-  data_type: string
-  description: 关联业务部门
-  cluster: operation_contact
+  type: string
+  desc: 关联业务部门
 - name: first_settlement_time
-  data_type: temporal
-  description: 首笔落地时间
-  cluster: project_main
+  type: temporal
+  desc: 首笔落地时间
 - name: custom_field_one
-  data_type: string
-  description: 自定义字段一
-  cluster: custom_ext
+  type: string
+  desc: 自定义字段一
+  dict: ['1', 字段1, '532423435', '532423434', '532423433', 自动化测试字段一A1, qa_cf1_1786619291710,
+    '532423436']
 - name: custom_field_two
-  data_type: string
-  description: 自定义字段二
-  cluster: custom_ext
+  type: string
+  desc: 自定义字段二
+  dict: ['2', 字段2, '543543544', qa_cf2_1786619291710, '543543547', 自动化测试字段二B2, '543543546',
+    '543543545']
 - name: custom_field_three
-  data_type: string
-  description: 自定义字段三
-  cluster: custom_ext
+  type: string
+  desc: 自定义字段三
 - name: project_tag
-  data_type: string
-  description: 项目标签
-  cluster: project_main
-  dictionary: wec_project_operation_rel__project_tag
+  type: string
+  desc: 项目标签
+  dict: [TEST, PRD]
 - name: project_relation
-  data_type: string
-  description: 项目归属
-  cluster: project_main
+  type: string
+  desc: 项目归属
 - name: bussiness_project_relation
-  data_type: string
-  description: 运营项目归属
-  cluster: project_main
+  type: string
+  desc: 运营项目归属
 - name: code
-  data_type: string
-  description: 编码
-  cluster: common
+  type: string
+  desc: 编码
 - name: name
-  data_type: string
-  description: 名称
-  cluster: common
+  type: string
+  desc: 名称
 - name: enable
-  data_type: string
-  description: enable
-  cluster: common
-  dictionary: wec_project_operation_rel__enable
+  type: string
+  desc: enable
+  dict: [Y]
 - name: remark
-  data_type: string
-  description: remark
-  cluster: common
+  type: string
+  desc: remark
 - name: create_by
-  data_type: string
-  description: 创建人id
-  cluster: common
+  type: string
+  desc: 创建人id
 - name: create_user
-  data_type: string
-  description: 创建人名称
-  cluster: common
+  type: string
+  desc: 创建人名称
 - name: create_time
-  data_type: temporal
-  description: 创建时间
+  type: temporal
+  desc: 创建时间
   nullable: false
-  cluster: common
 - name: update_by
-  data_type: string
-  description: 更新人id
-  cluster: common
+  type: string
+  desc: 更新人id
 - name: update_user
-  data_type: string
-  description: 更新人名称
-  cluster: common
+  type: string
+  desc: 更新人名称
 - name: update_time
-  data_type: temporal
-  description: 更新时间
+  type: temporal
+  desc: 更新时间
   nullable: false
-  cluster: common
 - name: act_procinst_id
-  data_type: string
-  description: 流程实例ID
-  cluster: project_approval
+  type: string
+  desc: 流程实例ID
 - name: app_tenant_code
-  data_type: string
-  description: 逻辑租户标识
-  cluster: common
+  type: string
+  desc: 逻辑租户标识
 - name: db_tenant_code
-  data_type: string
-  description: 数据租户标识
-  cluster: common
+  type: string
+  desc: 数据租户标识
 - name: act_procinst_no
-  data_type: string
-  description: 流程申请编号
-  cluster: project_approval
+  type: string
+  desc: 流程申请编号
 - name: act_procinst_status
-  data_type: string
-  description: 当前审批状态
-  cluster: project_approval
+  type: string
+  desc: 当前审批状态
 - name: act_procinst_date
-  data_type: temporal
-  description: 审批结束时间
-  cluster: project_approval
+  type: temporal
+  desc: 审批结束时间
 - name: organization_id
-  data_type: string
-  description: 机构编号
-  cluster: common
+  type: string
+  desc: 机构编号
 - name: top_flag
-  data_type: string
-  description: 置顶标识
-  cluster: common
-  dictionary: wec_project_operation_rel__top_flag
+  type: string
+  desc: 置顶标识
+  dict: ['0']
 - name: text
-  data_type: string
-  cluster: common
+  type: string
 ```
 
 ## 页面链接
 
 ### 字典
 
+- [[dicts/wec_project_operation_rel__op_contact_a]]（`wec_project_operation_rel.op_contact_a`）
+- [[dicts/wec_project_operation_rel__verification_contact]]（`wec_project_operation_rel.verification_contact`）
+- [[dicts/wec_project_operation_rel__risk_control_contact_a]]（`wec_project_operation_rel.risk_control_contact_a`）
+- [[dicts/wec_project_operation_rel__custom_field_one]]（`wec_project_operation_rel.custom_field_one`）
+- [[dicts/wec_project_operation_rel__custom_field_two]]（`wec_project_operation_rel.custom_field_two`）
 - [[dicts/wec_project_operation_rel__project_tag]]（`wec_project_operation_rel.project_tag`）
 - [[dicts/wec_project_operation_rel__enable]]（`wec_project_operation_rel.enable`）
 - [[dicts/wec_project_operation_rel__top_flag]]（`wec_project_operation_rel.top_flag`）

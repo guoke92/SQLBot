@@ -1,9 +1,0 @@
-body: '类型：table | 标题：关系推断待确认
-
-  问题：1）CustVerifyCodeApplication 通过 IContractSignInfoProvider.setVerifyContractPhone
-  写手机号，目标表名未在代码中直接出现，relation_audit 判定为 derived（推测为合同签署表）；2）short_link 所属物理库名未在本次分析中给出，frontmatter
-  scope.databases 暂为空。
-
-  处理建议：补充接口实现类与数据源配置后回填。'
-title: 短链生成侧与短信验证码落库目标表
-type: table

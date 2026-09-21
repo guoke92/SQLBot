@@ -1,3 +1,0 @@
-- anchor: table:wx_work_user
-  code: TABLE_NOT_IN_DB
-  message: wx_work_user 不在 db catalog

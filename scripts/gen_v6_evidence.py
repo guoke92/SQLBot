@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Generate v6 evidence definitions centrally from unit files + repo index."""
+"""DEPRECATED: KnowledgePackage v6 evidence helper.
+
+Corpus trees live under ``.tmp/docs/knowledge-extraction/…``.
+Current wiki path: ``tools.wiki_extract`` → ``docs/wiki/v2`` → ``docs/wiki/v3``.
+"""
 
 from __future__ import annotations
 
@@ -13,7 +17,7 @@ import yaml
 from apps.knowledge.semantic.schema import KnowledgeUnitEntry, collect_evidence_refs
 
 REPO = Path("/Users/fanjunwei/IdeaProjects/pplatform-web")
-V6 = Path("docs/knowledge-extraction/pplatform-web/system-knowledge-v6")
+V6 = Path(".tmp/docs/knowledge-extraction/pplatform-web/system-knowledge-v6")
 
 
 def build_index() -> dict[str, list[str]]:

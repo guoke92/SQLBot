@@ -6,8 +6,8 @@ belong: tables
 status: draft
 anchors: [cust_oper_change_record]
 sources: ['database_schema:lowcode_pplatform.cust_oper_change_record']
-created: '2026-09-17'
-updated: '2026-09-17'
+created: '2026-09-20'
+updated: '2026-09-20'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
 related: [cust_person_info, cust_company_info, cust_oper_change_record__change_type,
@@ -16,211 +16,121 @@ related: [cust_person_info, cust_company_info, cust_oper_change_record__change_t
 
 # 客户操作运营变更记录
 
-L0 库侧合同（draft）。grain / 字段簇 / 身份束关系均为 proposed，不得当认证 JOIN。
-
-## 字段簇
-
-### common
-
-`id`, `code`, `name`, `enable`, `remark`, `create_by`, `create_user`, `create_time`, `update_by`, `update_user`, `update_time`
-
-### audit
-
-（空）
-
-### tenant_source
-
-`source_system`, `app_tenant_code`, `db_tenant_code`
-
-### customer_subject
-
-`person_id`, `person_name`, `company_id`, `company_name`, `company_code`, `organization_id`
-
-### oper_change
-
-`before_operator_id`, `before_operator_name`, `after_operator_id`, `after_operator_name`, `change_type`, `change_reason`
-
-### asset
-
-`asset_id`, `asset_no`
-
-### approval
-
-`act_procinst_id`, `act_procinst_no`, `act_procinst_status`, `act_procinst_date`
+L0 库侧合同（draft）。grain / 身份束关系均为 proposed，不得当认证 JOIN。
 
 ## 字段
 
 ```ground:table
 table: cust_oper_change_record
 database: lowcode_pplatform
-description: 客户操作运营变更记录
+desc: 客户操作运营变更记录
 inactive: false
 primary_key: [id]
 grain: 一行一记录（id）
 name_anchors: [person_name, company_name, before_operator_name, after_operator_name,
   code, name]
-clusters:
-- key: common
-  title: 通用
-  include: always
-- key: audit
-  title: 审计信息
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.cust_oper_change_record
-- key: tenant_source
-  title: 租户与来源
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.cust_oper_change_record
-- key: customer_subject
-  title: 客户企业与联系人
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.cust_oper_change_record
-- key: oper_change
-  title: 运营人员变更
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.cust_oper_change_record
-- key: asset
-  title: 资产信息
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.cust_oper_change_record
-- key: approval
-  title: 审批流程
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.cust_oper_change_record
 fields:
 - name: id
-  data_type: number
-  description: 表主键
+  type: number
+  desc: 表主键
   nullable: false
-  cluster: common
 - name: person_id
-  data_type: number
-  description: 企业联系人id
-  cluster: customer_subject
+  type: number
+  desc: 企业联系人id
 - name: person_name
-  data_type: string
-  description: 联系人姓名
-  cluster: customer_subject
+  type: string
+  desc: 联系人姓名
 - name: company_id
-  data_type: number
-  description: 企业ID
-  cluster: customer_subject
+  type: number
+  desc: 企业ID
 - name: company_name
-  data_type: string
-  description: 企业名称
-  cluster: customer_subject
+  type: string
+  desc: 企业名称
 - name: company_code
-  data_type: string
-  description: 企业编号
-  cluster: customer_subject
+  type: string
+  desc: 企业编号
 - name: before_operator_id
-  data_type: string
-  description: 变更前运营人员ID
-  cluster: oper_change
+  type: string
+  desc: 变更前运营人员ID
 - name: before_operator_name
-  data_type: string
-  description: 变更前运营人员姓名
-  cluster: oper_change
+  type: string
+  desc: 变更前运营人员姓名
 - name: after_operator_id
-  data_type: string
-  description: 变更后运营人员ID
-  cluster: oper_change
+  type: string
+  desc: 变更后运营人员ID
 - name: after_operator_name
-  data_type: string
-  description: 变更后运营人员姓名
-  cluster: oper_change
+  type: string
+  desc: 变更后运营人员姓名
 - name: change_type
-  data_type: string
-  description: 变更类型
-  cluster: oper_change
-  dictionary: cust_oper_change_record__change_type
+  type: string
+  desc: 变更类型
+  dict: [BATCH, ASSET_AUDIT_SYNC, CUST_CHANGE_CALLBACK, MANUAL]
 - name: change_reason
-  data_type: string
-  description: 变更原因
-  cluster: oper_change
+  type: string
+  desc: 变更原因
 - name: asset_id
-  data_type: string
-  description: 资产id
-  cluster: asset
+  type: string
+  desc: 资产id
 - name: asset_no
-  data_type: string
-  description: 资产编号
-  cluster: asset
+  type: string
+  desc: 资产编号
 - name: source_system
-  data_type: string
-  description: 来源系统
-  cluster: tenant_source
+  type: string
+  desc: 来源系统
 - name: code
-  data_type: string
-  description: 编码
-  cluster: common
+  type: string
+  desc: 编码
 - name: name
-  data_type: string
-  description: 名称
-  cluster: common
+  type: string
+  desc: 名称
 - name: enable
-  data_type: string
-  description: enable
-  cluster: common
-  dictionary: cust_oper_change_record__enable
+  type: string
+  desc: enable
+  dict: [Y]
 - name: remark
-  data_type: string
-  description: remark
-  cluster: common
+  type: string
+  desc: remark
 - name: create_by
-  data_type: string
-  description: 创建人id
-  cluster: common
+  type: string
+  desc: 创建人id
 - name: create_user
-  data_type: string
-  description: 创建人名称
-  cluster: common
+  type: string
+  desc: 创建人名称
 - name: create_time
-  data_type: temporal
-  description: 创建时间
+  type: temporal
+  desc: 创建时间
   nullable: false
-  cluster: common
 - name: update_by
-  data_type: string
-  description: 更新人id
-  cluster: common
+  type: string
+  desc: 更新人id
 - name: update_user
-  data_type: string
-  description: 更新人名称
-  cluster: common
+  type: string
+  desc: 更新人名称
 - name: update_time
-  data_type: temporal
-  description: 更新时间
+  type: temporal
+  desc: 更新时间
   nullable: false
-  cluster: common
 - name: act_procinst_id
-  data_type: string
-  description: 流程实例ID
-  cluster: approval
+  type: string
+  desc: 流程实例ID
 - name: app_tenant_code
-  data_type: string
-  description: 逻辑租户标识
-  cluster: tenant_source
+  type: string
+  desc: 逻辑租户标识
 - name: db_tenant_code
-  data_type: string
-  description: 数据租户标识
-  cluster: tenant_source
+  type: string
+  desc: 数据租户标识
 - name: act_procinst_no
-  data_type: string
-  description: 流程申请编号
-  cluster: approval
+  type: string
+  desc: 流程申请编号
 - name: act_procinst_status
-  data_type: string
-  description: 当前审批状态
-  cluster: approval
+  type: string
+  desc: 当前审批状态
 - name: act_procinst_date
-  data_type: temporal
-  description: 审批结束时间
-  cluster: approval
+  type: temporal
+  desc: 审批结束时间
 - name: organization_id
-  data_type: string
-  description: 机构编号
-  cluster: customer_subject
+  type: string
+  desc: 机构编号
 ```
 
 ## 关联关系

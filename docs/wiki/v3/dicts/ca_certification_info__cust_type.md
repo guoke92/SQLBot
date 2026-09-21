@@ -6,8 +6,8 @@ belong: dicts
 status: draft
 anchors: [ca_certification_info.cust_type]
 sources: ['database_profile:ca_certification_info.cust_type']
-created: '2026-09-17'
-updated: '2026-09-17'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [ca_certification_info]
 ---

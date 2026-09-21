@@ -6,175 +6,110 @@ belong: tables
 status: draft
 anchors: [cust_company_survey_state]
 sources: ['database_schema:lowcode_pplatform.cust_company_survey_state']
-created: '2026-09-17'
-updated: '2026-09-17'
+created: '2026-09-20'
+updated: '2026-09-20'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
 related: [cust_company_info, cust_company_survey_state__first_visitor_lottery_shown,
-  cust_company_survey_state__enable]
+  cust_company_survey_state__code, cust_company_survey_state__enable]
 ---
 
 # 企业问卷星活动状态
 
-L0 库侧合同（draft）。grain / 字段簇 / 身份束关系均为 proposed，不得当认证 JOIN。
-
-## 字段簇
-
-### common
-
-`id`, `code`, `name`, `enable`, `remark`, `create_by`, `create_user`, `create_time`, `update_by`, `update_user`, `update_time`
-
-### survey_source
-
-`company_id`, `respondent`
-
-### first_visit
-
-`first_visitor_user_id`, `first_visit_time`, `first_visitor_lottery_shown`, `first_visitor_lottery_shown_time`
-
-### act_procinst
-
-`act_procinst_id`, `act_procinst_no`, `act_procinst_status`, `act_procinst_date`
-
-### tenant
-
-`app_tenant_code`, `db_tenant_code`
-
-### 未归簇
-
-`organization_id`
+L0 库侧合同（draft）。grain / 身份束关系均为 proposed，不得当认证 JOIN。
 
 ## 字段
 
 ```ground:table
 table: cust_company_survey_state
 database: lowcode_pplatform
-description: 企业问卷星活动状态
+desc: 企业问卷星活动状态
 inactive: false
 primary_key: [id]
 grain: 一行一记录（id）
 name_anchors: [code, name]
-clusters:
-- key: common
-  title: 通用
-  include: always
-- key: survey_source
-  title: 问卷来源与企业标识
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.cust_company_survey_state
-- key: first_visit
-  title: 首次访问与抽奖展示
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.cust_company_survey_state
-- key: act_procinst
-  title: 审批流程实例
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.cust_company_survey_state
-- key: tenant
-  title: 租户标识
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.cust_company_survey_state
 fields:
 - name: id
-  data_type: number
-  description: 表主键
+  type: number
+  desc: 表主键
   nullable: false
-  cluster: common
 - name: company_id
-  data_type: number
-  description: 企业ID
-  cluster: survey_source
+  type: number
+  desc: 企业ID
 - name: respondent
-  data_type: string
-  description: 问卷星 respondent/source
-  cluster: survey_source
+  type: string
+  desc: 问卷星 respondent/source
 - name: first_visitor_user_id
-  data_type: number
-  description: 该企业首个进入产融首页的用户ID
-  cluster: first_visit
+  type: number
+  desc: 该企业首个进入产融首页的用户ID
 - name: first_visit_time
-  data_type: temporal
-  description: 首个用户首次访问时间
-  cluster: first_visit
+  type: temporal
+  desc: 首个用户首次访问时间
 - name: first_visitor_lottery_shown
-  data_type: string
-  description: 首个用户转盘抽奖是否已展示 Y/N
-  cluster: first_visit
-  dictionary: cust_company_survey_state__first_visitor_lottery_shown
+  type: string
+  desc: 首个用户转盘抽奖是否已展示 Y/N
+  dict: [Y]
 - name: first_visitor_lottery_shown_time
-  data_type: temporal
-  description: 首个用户转盘展示时间
-  cluster: first_visit
+  type: temporal
+  desc: 首个用户转盘展示时间
 - name: code
-  data_type: string
-  description: 编码
-  cluster: common
+  type: string
+  desc: 编码
+  dict: [83effdd380df46c4b0028ee88fd8e211, cf55012fa4224c1997957caaeb6622bf, e3e7730d06794383a95a923f37d2c814,
+    af93881a72ba4dd7aef74f0d3a5a7802, 359b199c29994394b7fe9e7f48f6eaaa, 125f6f8219634a58bd829d96a4b5dcec,
+    c909e9ac1c34490a9d834f1ec40678ed, 00499a5efa5845948d731cd49ad8447c, b185bb0d3a794fcaa9b7d7c5433e499a,
+    27cc712bf9e841f2b6877a1b917296ef, 6cb18dee96e345a294fbbae7c56969a1]
 - name: name
-  data_type: string
-  description: 名称
-  cluster: common
+  type: string
+  desc: 名称
 - name: enable
-  data_type: string
-  description: enable
-  cluster: common
-  dictionary: cust_company_survey_state__enable
+  type: string
+  desc: enable
+  dict: [Y]
 - name: remark
-  data_type: string
-  description: remark
-  cluster: common
+  type: string
+  desc: remark
 - name: create_by
-  data_type: string
-  description: 创建人id
-  cluster: common
+  type: string
+  desc: 创建人id
 - name: create_user
-  data_type: string
-  description: 创建人名称
-  cluster: common
+  type: string
+  desc: 创建人名称
 - name: create_time
-  data_type: temporal
-  description: 创建时间
+  type: temporal
+  desc: 创建时间
   nullable: false
-  cluster: common
 - name: update_by
-  data_type: string
-  description: 更新人id
-  cluster: common
+  type: string
+  desc: 更新人id
 - name: update_user
-  data_type: string
-  description: 更新人名称
-  cluster: common
+  type: string
+  desc: 更新人名称
 - name: update_time
-  data_type: temporal
-  description: 更新时间
+  type: temporal
+  desc: 更新时间
   nullable: false
-  cluster: common
 - name: act_procinst_id
-  data_type: string
-  description: 流程实例ID
-  cluster: act_procinst
+  type: string
+  desc: 流程实例ID
 - name: app_tenant_code
-  data_type: string
-  description: 逻辑租户标识
-  cluster: tenant
+  type: string
+  desc: 逻辑租户标识
 - name: db_tenant_code
-  data_type: string
-  description: 数据租户标识
-  cluster: tenant
+  type: string
+  desc: 数据租户标识
 - name: act_procinst_no
-  data_type: string
-  description: 流程申请编号
-  cluster: act_procinst
+  type: string
+  desc: 流程申请编号
 - name: act_procinst_status
-  data_type: string
-  description: 当前审批状态
-  cluster: act_procinst
+  type: string
+  desc: 当前审批状态
 - name: act_procinst_date
-  data_type: temporal
-  description: 审批结束时间
-  cluster: act_procinst
+  type: temporal
+  desc: 审批结束时间
 - name: organization_id
-  data_type: string
-  description: 机构编号
+  type: string
+  desc: 机构编号
 ```
 
 ## 关联关系
@@ -215,4 +150,5 @@ overlap:
 ### 字典
 
 - [[dicts/cust_company_survey_state__first_visitor_lottery_shown]]（`cust_company_survey_state.first_visitor_lottery_shown`）
+- [[dicts/cust_company_survey_state__code]]（`cust_company_survey_state.code`）
 - [[dicts/cust_company_survey_state__enable]]（`cust_company_survey_state.enable`）

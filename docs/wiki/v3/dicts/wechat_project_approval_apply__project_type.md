@@ -6,8 +6,8 @@ belong: dicts
 status: draft
 anchors: [wechat_project_approval_apply.project_type]
 sources: ['database_profile:wechat_project_approval_apply.project_type']
-created: '2026-09-17'
-updated: '2026-09-17'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [wechat_project_approval_apply]
 ---

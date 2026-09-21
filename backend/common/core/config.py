@@ -174,7 +174,8 @@ class Settings(BaseSettings):
     # Admin-plane import default only. Runtime recall never scans this
     # directory; bound datasources use wiki_corpus_binding + DB pages,
     # unbound datasources fall back to schema_vector.
-    KNOWLEDGE_WIKI_PAGES_DIRS: str = "docs/wiki-knowledge/pplatform/wiki-pages"
+    # Legacy wiki-pages trees live under .tmp/docs/wiki-knowledge/pplatform/.
+    KNOWLEDGE_WIKI_PAGES_DIRS: str = "docs/wiki/v3"
 
     @computed_field  # type: ignore[misc]
     @property
@@ -205,8 +206,15 @@ class Settings(BaseSettings):
     RECALL_VALUE_INDEX_ENABLED: bool = True
     RECALL_VALUE_INDEX_MAX_DISTINCT_RATIO: float = 0.2
     RECALL_VALUE_INDEX_TOP_K: int = 20
+    VALUE_INDEX_ENABLED: bool = True
+    VALUE_INDEX_INSTANCE_TOP_K: int = 200
+    VALUE_INDEX_TABLE_INSTANCE_CAP: int = 2000
     RECALL_TOUP_ENABLED: bool = True
     RECALL_TOUP_DS_ALLOWLIST: str = ""  # comma-separated ds ids; empty = all
+
+    # Same-thread agent transcript: fold oldest turns at ~60% of an 80k window.
+    AGENT_TRANSCRIPT_TOKEN_BUDGET: int = 48000
+    AGENT_TRANSCRIPT_KEEP_TURNS: int = 3
 
     # API datasource SSRF protection
     API_SSRF_PROTECTION: bool = True
@@ -222,6 +230,7 @@ class Settings(BaseSettings):
         "PG_POOL_PRE_PING",
         "TABLE_EMBEDDING_ENABLED",
         "RECALL_VALUE_INDEX_ENABLED",
+        "VALUE_INDEX_ENABLED",
         "RECALL_TOUP_ENABLED",
         "KNOWLEDGE_WIKI_EMBEDDING_ENABLED",
         mode="before",

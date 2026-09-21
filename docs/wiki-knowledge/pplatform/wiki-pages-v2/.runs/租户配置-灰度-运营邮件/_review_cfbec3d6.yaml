@@ -1,4 +1,0 @@
-body: '[[processes/tenant_pushing_status]] 仅观测到 `Y`（已推送创建事件）一个取值，未推送一侧的显式取值（null /
-  N / 其他）在证据中未出现。当前锚点块只登记 `Y` 与一条 from=null 的迁移，不臆造状态值；待补充未推送侧取值与失败重试路径。'
-title: 租户推送状态取值不完整
-type: process

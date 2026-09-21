@@ -9,8 +9,8 @@ aliases: [关联状态, 关联已生效, 供应商关联项目即生效, 企业�
 maps_to: cust_project_rel.status
 field_targets: [cust_project_rel.status]
 sources: ['code_path:CustSyncEventProcessor.java:3128', 'document_claim:docs/wiki-knowledge/pplatform/req-index/concepts/产品需求规格说明书_产融平台V1.0.0.md']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [cust_project_rel]
 also_confused_with: [default_push_project, project_code_input]

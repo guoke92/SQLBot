@@ -9,8 +9,8 @@ anchors: [funding_rule_info.rule_status]
 field_targets: [funding_rule_info.rule_status]
 sources: ['code_path:FundRuleInfoApplication.java:445', 'code_path:FundRuleInfoApplication.java:296',
   'code_path:FundRuleInfoApplication.java:310']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [funding_rule_info]
 ---

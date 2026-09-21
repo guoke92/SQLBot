@@ -6,8 +6,8 @@ belong: tables
 status: draft
 anchors: [platform_product_cust_role]
 sources: ['database_schema:lowcode_pplatform.platform_product_cust_role']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
 related: [platform_product, platform_product_cust_role__product_code, platform_product_cust_role__company_type_code,

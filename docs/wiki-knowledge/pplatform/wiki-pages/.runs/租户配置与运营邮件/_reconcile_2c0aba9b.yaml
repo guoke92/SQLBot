@@ -1,2 +1,0 @@
-- code: PAGE_CONTRACT_FAILED
-  message: page_key 'tables.tenant_setting_config' 不符合 table 页的 物理名（snake_case）

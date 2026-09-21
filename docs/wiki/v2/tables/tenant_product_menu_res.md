@@ -6,8 +6,8 @@ belong: tables
 status: draft
 anchors: [tenant_product_menu_res]
 sources: ['database_schema:lowcode_pplatform.tenant_product_menu_res']
-created: '2026-09-17'
-updated: '2026-09-17'
+created: '2026-09-20'
+updated: '2026-09-20'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
 related: [tenant_product, tenant_product_menu, tenant_product_menu_res__product_code,
@@ -16,147 +16,91 @@ related: [tenant_product, tenant_product_menu, tenant_product_menu_res__product_
 
 # 租户产品菜单按钮表
 
-L0 库侧合同（draft）。grain / 字段簇 / 身份束关系均为 proposed，不得当认证 JOIN。
-
-## 字段簇
-
-### common
-
-`id`, `code`, `name`, `enable`, `remark`, `create_by`, `create_user`, `create_time`, `update_by`, `update_user`, `update_time`
-
-### product_tenant
-
-`product_code`, `company_type`, `app_tenant_code`, `db_tenant_code`, `organization_id`
-
-### menu_resource
-
-`menu_id`, `resource_id`
-
-### approval
-
-`act_procinst_id`, `act_procinst_no`, `act_procinst_status`, `act_procinst_date`
+L0 库侧合同（draft）。grain / 身份束关系均为 proposed，不得当认证 JOIN。
 
 ## 字段
 
 ```ground:table
 table: tenant_product_menu_res
 database: lowcode_pplatform
-description: 租户产品菜单按钮表
+desc: 租户产品菜单按钮表
 inactive: false
 primary_key: [id]
 grain: 一行一记录（id）
 name_anchors: [code, name]
-clusters:
-- key: common
-  title: 通用
-  include: always
-- key: product_tenant
-  title: 产品与租户归属
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.tenant_product_menu_res
-- key: menu_resource
-  title: 菜单与按钮资源
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.tenant_product_menu_res
-- key: approval
-  title: 审批流程
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.tenant_product_menu_res
 fields:
 - name: id
-  data_type: number
-  description: 表主键
+  type: number
+  desc: 表主键
   nullable: false
-  cluster: common
 - name: product_code
-  data_type: string
-  description: 产品code
-  cluster: product_tenant
-  dictionary: tenant_product_menu_res__product_code
+  type: string
+  desc: 产品code
+  dict: [ACCOUNT_PRODUCT, RVSFACTOR_PC]
 - name: company_type
-  data_type: string
-  description: 企业类型
-  cluster: product_tenant
-  dictionary: tenant_product_menu_res__company_type
+  type: string
+  desc: 企业类型
+  dict: [CORPORATION_COMPANY, PLATFORM_OPERATOR_COMPANY, CORE, SUPPLIER]
 - name: menu_id
-  data_type: number
-  description: 菜单ID
-  cluster: menu_resource
+  type: number
+  desc: 菜单ID
 - name: resource_id
-  data_type: number
-  description: 按钮ID
-  cluster: menu_resource
+  type: number
+  desc: 按钮ID
 - name: code
-  data_type: string
-  description: 编码
-  cluster: common
+  type: string
+  desc: 编码
 - name: name
-  data_type: string
-  description: 名称
-  cluster: common
+  type: string
+  desc: 名称
 - name: enable
-  data_type: string
-  description: enable
-  cluster: common
-  dictionary: tenant_product_menu_res__enable
+  type: string
+  desc: enable
+  dict: [Y]
 - name: remark
-  data_type: string
-  description: remark
-  cluster: common
+  type: string
+  desc: remark
 - name: create_by
-  data_type: string
-  description: 创建人id
-  cluster: common
+  type: string
+  desc: 创建人id
 - name: create_user
-  data_type: string
-  description: 创建人名称
-  cluster: common
+  type: string
+  desc: 创建人名称
 - name: create_time
-  data_type: temporal
-  description: 创建时间
+  type: temporal
+  desc: 创建时间
   nullable: false
-  cluster: common
 - name: update_by
-  data_type: string
-  description: 更新人id
-  cluster: common
+  type: string
+  desc: 更新人id
 - name: update_user
-  data_type: string
-  description: 更新人名称
-  cluster: common
+  type: string
+  desc: 更新人名称
 - name: update_time
-  data_type: temporal
-  description: 更新时间
+  type: temporal
+  desc: 更新时间
   nullable: false
-  cluster: common
 - name: act_procinst_id
-  data_type: string
-  description: 流程实例ID
-  cluster: approval
+  type: string
+  desc: 流程实例ID
 - name: app_tenant_code
-  data_type: string
-  description: 逻辑租户标识
-  cluster: product_tenant
+  type: string
+  desc: 逻辑租户标识
 - name: db_tenant_code
-  data_type: string
-  description: 数据租户标识
-  cluster: product_tenant
+  type: string
+  desc: 数据租户标识
 - name: act_procinst_no
-  data_type: string
-  description: 流程申请编号
-  cluster: approval
+  type: string
+  desc: 流程申请编号
 - name: act_procinst_status
-  data_type: string
-  description: 当前审批状态
-  cluster: approval
+  type: string
+  desc: 当前审批状态
 - name: act_procinst_date
-  data_type: temporal
-  description: 审批结束时间
-  cluster: approval
+  type: temporal
+  desc: 审批结束时间
 - name: organization_id
-  data_type: string
-  description: 机构编号
-  cluster: product_tenant
+  type: string
+  desc: 机构编号
 ```
 
 ## 关联关系
@@ -186,8 +130,6 @@ overlap:
   deepened: false
   query_ok: true
   authenticity: unknown
-authenticity_note: 对端 tenant_product.code，name_evidence 为 family_suffix(stem=product)，注释「产品code」语义相关，但探测
-  overlap ratio=0.0（sample=2，miss=2），值域不契合，故判 unlikely。
 ```
 
 ### unlikely — 值域不支持或冲突
@@ -215,8 +157,6 @@ overlap:
   deepened: false
   query_ok: true
   authenticity: unlikely
-authenticity_note: 对端 tenant_product_menu.id，列名/注释为菜单ID 家族关联，但探测 overlap ratio=0.0（sample=8，miss=8），值域不契合，维持
-  unlikely。
 ```
 
 ## 页面链接

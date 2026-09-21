@@ -8,8 +8,8 @@ anchors: [ca_fee_order.order_type]
 sources: ['database_profile:ca_fee_order.order_type', 'database_schema:ca_fee_order.order_type',
   'code_path:CaFeeOrderTypeEnum.java:18', 'code_path:CaFeeOrderTypeEnum.java:15',
   'code_path:CaFeeOrderTypeEnum.java:17', 'code_path:CaFeeOrderTypeEnum.java:16']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [ca_fee_order]
 ---

@@ -6,12 +6,13 @@ belong: tables
 status: draft
 anchors: [ca_fee_project_config]
 sources: ['database_schema:lowcode_pplatform.ca_fee_project_config', 'code_path:CaFeeProjectConfigBizMapper.java:13']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
-related: [ca_fee_company, ca_fee_order, tenant_project, tenant_setting_config, ca_fee_project_config__charge_enabled,
-  ca_fee_project_config__enable]
+related: [tenant_project, tenant_setting_config, ca_fee_project_config__charge_enabled,
+  ca_fee_project_config__supplier_annual_fee, ca_fee_project_config__core_annual_fee,
+  ca_fee_project_config__agreement_version, ca_fee_project_config__enable]
 ---
 
 # CA服务费项目配置
@@ -47,9 +48,12 @@ fields:
 - name: supplier_annual_fee
   type: number
   desc: 供应商角色年费（元）
+  dict: ['100', '60', '50', '80', '22', '98', '0', '125', '120', '101', '200', '88']
 - name: core_annual_fee
   type: number
   desc: 核心企业角色年费（元）
+  dict: ['100', '0', '60', '90', '200', '80', '50', '20', '99', '1', '12', '156',
+    '120', '40', '8']
 - name: pay_channel
   type: string
   desc: 缴费渠道JSON数组
@@ -62,6 +66,7 @@ fields:
 - name: agreement_version
   type: string
   desc: 当前绑定收费协议版本号
+  dict: [V1.0]
 - name: last_toggle_time
   type: temporal
   desc: 最近一次收费开关切换时间
@@ -162,12 +167,13 @@ authenticity_note: 新建配置写 tenant_id=项目上的租户主键。
 
 ### 关联表
 
-- [[tables/ca_fee_company]]
-- [[tables/ca_fee_order]]
 - [[tables/tenant_project]]
 - [[tables/tenant_setting_config]]
 
 ### 字典
 
 - [[dicts/ca_fee_project_config__charge_enabled]]（`ca_fee_project_config.charge_enabled`）
+- [[dicts/ca_fee_project_config__supplier_annual_fee]]（`ca_fee_project_config.supplier_annual_fee`）
+- [[dicts/ca_fee_project_config__core_annual_fee]]（`ca_fee_project_config.core_annual_fee`）
+- [[dicts/ca_fee_project_config__agreement_version]]（`ca_fee_project_config.agreement_version`）
 - [[dicts/ca_fee_project_config__enable]]（`ca_fee_project_config.enable`）

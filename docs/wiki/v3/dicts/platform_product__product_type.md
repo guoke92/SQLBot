@@ -8,8 +8,8 @@ anchors: [platform_product.product_type]
 sources: ['database_profile:platform_product.product_type', 'database_schema:platform_product.product_type',
   'code_path:PlatformProductTypeEnum.java:24', 'code_path:PlatformProductTypeEnum.java:20',
   'code_path:PlatformProductTypeEnum.java:28']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [platform_product]
 ---

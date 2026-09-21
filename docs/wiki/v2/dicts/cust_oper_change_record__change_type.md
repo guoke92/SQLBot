@@ -6,8 +6,8 @@ belong: dicts
 status: draft
 anchors: [cust_oper_change_record.change_type]
 sources: ['database_profile:cust_oper_change_record.change_type']
-created: '2026-09-17'
-updated: '2026-09-17'
+created: '2026-09-20'
+updated: '2026-09-20'
 contract_version: '0.1'
 related: [cust_oper_change_record]
 ---

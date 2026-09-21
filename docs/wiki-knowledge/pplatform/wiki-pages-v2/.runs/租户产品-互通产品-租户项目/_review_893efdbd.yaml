@@ -1,3 +1,0 @@
-body: 该表未进入 field_semantics，本页仅依据状态机证据登记 wf_status 取值（PENDING/RUNNING/FINISHED/TERMINATED），字段级注释、索引与约束均未知。
-title: 项目上线审批表（tenant_project_approval）
-type: table

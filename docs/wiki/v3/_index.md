@@ -1,12 +1,12 @@
-# L1 index (2026-09-18)
+# L1 index (2026-09-21)
 
 - database: `lowcode_pplatform`
 - domains: ca_fee, cust, funding_rule, remaining, tenant
-- intermediate files: 65
+- intermediate files: 67
 - tables: 78
-- dicts: 391
-- concepts: 81
-- processes: 16
+- dicts: 523
+- concepts: 90
+- processes: 19
 - calibers: 14
 - metrics: 1
 - rules: 31
@@ -147,10 +147,16 @@
 - [[concepts/auth_channel_flag]]
 - [[concepts/auth_supplement_flag]]
 - [[concepts/login_account_term]]
+- [[concepts/direct_init_access_mode]]
+- [[concepts/direct_init_change_record]]
+- [[concepts/direct_init_need_resign]]
+- [[concepts/channel_archive_longteng]]
+- [[concepts/electronic_auth_sign_status_term]]
 - [[concepts/funding_rule_active]]
 - [[concepts/funding_exception_hint]]
 - [[concepts/no_voucher_rule_element]]
 - [[concepts/platform_product_master]]
+- [[concepts/product_cate_term]]
 - [[concepts/wechat_apply_term]]
 - [[concepts/authorization_book]]
 - [[concepts/agreement_migratory_term]]
@@ -158,6 +164,9 @@
 - [[concepts/wechat_prd_term]]
 - [[concepts/async_batch_term]]
 - [[concepts/approval_credit_not_quota]]
+- [[concepts/open_sso_channel_term]]
+- [[concepts/tenant_code_vs_db_tenant]]
+- [[concepts/app_channel_config_term]]
 - [[concepts/project_status_vs_approval]]
 - [[concepts/online_approval_wf]]
 - [[concepts/tenant_project_code_join]]
@@ -192,9 +201,12 @@
 - [[processes/cust_person_info__status]]
 - [[processes/cust_role_info__status]]
 - [[processes/cust_invite_info__progress]]
+- [[processes/cust_change_record__electronic_auth_sign_status]]
+- [[processes/cust_change_record__oper_channel_direct]]
 - [[processes/funding_rule_info__rule_status]]
 - [[processes/platform_product__product_status]]
 - [[processes/async_io_task__status]]
+- [[processes/open_sso_channel__sso_sync_status]]
 - [[processes/tenant_project__project_status]]
 - [[processes/tenant_project_approval__wf_status]]
 - [[processes/tenant_product__open_status]]

@@ -9,8 +9,8 @@ aliases: [额度审核工作流, 授信额度]
 maps_to: tenant_project_approval_flow_credit.credited_cust_id
 field_targets: [tenant_project_approval_flow_credit.credited_cust_id]
 sources: ['document_claim:额度审核工作流.md#14', 'document_claim:docs/wiki-knowledge/pplatform/req-index/concepts']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [tenant_project_approval_flow_credit]
 also_confused_with: [online_approval_wf]

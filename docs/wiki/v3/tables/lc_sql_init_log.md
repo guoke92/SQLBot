@@ -6,10 +6,11 @@ belong: tables
 status: draft
 anchors: [lc_sql_init_log]
 sources: ['database_schema:lowcode_pplatform.lc_sql_init_log']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
+related: [lc_sql_init_log__name]
 ---
 
 # 蜂搭插件sql执行记录
@@ -34,6 +35,7 @@ fields:
   type: string
   desc: 插件名称
   nullable: false
+  dict: [a, b, '3', '2']
 - name: description
   type: string
   desc: sql文本
@@ -41,4 +43,6 @@ fields:
 
 ## 页面链接
 
-- [[concepts/catalog_summary]]
+### 字典
+
+- [[dicts/lc_sql_init_log__name]]（`lc_sql_init_log.name`）

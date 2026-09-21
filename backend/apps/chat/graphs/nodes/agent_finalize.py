@@ -310,13 +310,20 @@ def finalize_agent_turn_node(state: Mapping[str, Any]) -> dict[str, Any]:
         from apps.chat.graphs.nodes.unified_agent import _incomplete_query_message
 
         text = _incomplete_query_message(state)
-        return {
+        failed = {
             **state,
             "error": text,
             "public_error": text,
             "final_text": text,
             "outcome": failed_outcome(text, kind="empty_response"),
         }
+        try:
+            from apps.chat.session_transcript import persist_turn_from_state
+
+            failed["agent_transcript_saved"] = persist_turn_from_state(failed)
+        except Exception as exc:
+            SQLBotLogUtil.warning(f"agent_transcript append skipped: {exc}")
+        return failed
 
     truncated, trunc_limit = truncation_from_delivery_steps(all_steps)
     trans = getattr(llm_service, "trans", None) if llm_service is not None else None
@@ -404,6 +411,14 @@ def finalize_agent_turn_node(state: Mapping[str, Any]) -> dict[str, Any]:
     except Exception as exc:
         SQLBotLogUtil.error(f"Error finalizing agent run: {exc}")
 
+    saved = False
+    try:
+        from apps.chat.session_transcript import persist_turn_from_state
+
+        saved = persist_turn_from_state(state)
+    except Exception as exc:
+        SQLBotLogUtil.warning(f"agent_transcript append skipped: {exc}")
+
     try:
         if sink.mode == "markdown" and final_text:
             sink.text(final_text + "\n\n")
@@ -422,4 +437,5 @@ def finalize_agent_turn_node(state: Mapping[str, Any]) -> dict[str, Any]:
         "memory_slots": raw_slots,
         "outcome": outcome,
         "analysis_incomplete": analysis_incomplete,
+        "agent_transcript_saved": saved,
     }

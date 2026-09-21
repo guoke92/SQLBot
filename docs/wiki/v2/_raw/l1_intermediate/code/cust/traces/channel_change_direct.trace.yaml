@@ -1,0 +1,11 @@
+kind: trace
+domain: cust
+trace_key: channel_change_direct
+entry: ChannelChangeDirectOrchestrator
+tables: [cust_change_record, cust_company_info, tenant_setting_config]
+notes: |
+  前置：tenant_setting_config.access_mode=DIRECT_INIT。
+  落库：oper_channel=DIRECT_INIT，need_resign_auth 由变更项决定，status=CheckStatus。
+  need_resign=true 时 electronic_auth_sign_status=PENDING；签完后 SIGNED。
+  加角色（UN0009）强制 need_resign=true；与 UN0016 组织形态互斥。
+evidence: code_path:ChannelChangeDirectRecordService.java:148

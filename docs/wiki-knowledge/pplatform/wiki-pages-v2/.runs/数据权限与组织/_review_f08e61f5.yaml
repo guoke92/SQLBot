@@ -1,4 +1,0 @@
-body: 语义分析的 calibers 数组末尾被截断于「二级组织绑定合法用户」一条，且 field_semantics、state_machines 亦无截断标记。存在以下可能：其后还有未纳入本次分析的口径（例如组级/机构级数据范围、运营人员机构绑定相关口径）。本批次已按现有证据产出
-  7 个 caliber 页；待语义分析补全后需重新比对是否遗漏口径，并检查 [[calibers/org_bound_legal_user]] 的完整定义。
-title: 语义分析 calibers 条目被截断
-type: caliber

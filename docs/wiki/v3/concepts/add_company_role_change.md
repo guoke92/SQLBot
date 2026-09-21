@@ -9,8 +9,8 @@ aliases: [UN0009, 新增企业角色, 增加企业角色优化]
 maps_to: cust_change_cfg__item_code.UN0009
 field_targets: [cust_change_cfg__item_code.UN0009, cust_change_cfg.item_code]
 sources: ['code_path:CustUpdateItemCodeConstants.java:24', 'document_claim:docs/wiki-knowledge/pplatform/req-index/concepts/产品需求规格说明书_产融平台V1.0.0.md']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [cust_change_cfg]
 also_confused_with: [core_company, authorization_book, change_item_code, head_to_branch_change]

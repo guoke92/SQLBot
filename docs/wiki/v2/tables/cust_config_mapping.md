@@ -6,8 +6,8 @@ belong: tables
 status: draft
 anchors: [cust_config_mapping]
 sources: ['database_schema:lowcode_pplatform.cust_config_mapping']
-created: '2026-09-17'
-updated: '2026-09-17'
+created: '2026-09-20'
+updated: '2026-09-20'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
 related: [cust_config_mapping__outer_channel, cust_config_mapping__inner_code, cust_config_mapping__outer_code,
@@ -16,180 +16,107 @@ related: [cust_config_mapping__outer_channel, cust_config_mapping__inner_code, c
 
 # 企业信息配置表
 
-L0 库侧合同（draft）。grain / 字段簇 / 身份束关系均为 proposed，不得当认证 JOIN。
-
-## 字段簇
-
-### common
-
-`id`, `code`, `name`, `enable`, `remark`, `create_by`, `create_user`, `create_time`, `update_by`, `update_user`, `update_time`
-
-### identity_mapping
-
-`inner_code`, `inner_name`, `outer_code`, `outer_name`
-
-### classification
-
-`type`, `groups`
-
-### approval
-
-`act_procinst_id`, `act_procinst_no`, `act_procinst_status`, `act_procinst_date`
-
-### tenant
-
-`app_tenant_code`, `db_tenant_code`
-
-### audit
-
-（空）
-
-### 未归簇
-
-`outer_channel`, `organization_id`
+L0 库侧合同（draft）。grain / 身份束关系均为 proposed，不得当认证 JOIN。
 
 ## 字段
 
 ```ground:table
 table: cust_config_mapping
 database: lowcode_pplatform
-description: 企业信息配置表
+desc: 企业信息配置表
 inactive: false
 primary_key: [id]
 grain: 一行一记录（id）
 name_anchors: [code, name, inner_code, inner_name, outer_code, outer_name]
-clusters:
-- key: common
-  title: 通用
-  include: always
-- key: identity_mapping
-  title: 内外码映射
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.cust_config_mapping
-- key: classification
-  title: 分类
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.cust_config_mapping
-- key: approval
-  title: 审批流程
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.cust_config_mapping
-- key: tenant
-  title: 租户
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.cust_config_mapping
-- key: audit
-  title: 审计
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.cust_config_mapping
 fields:
 - name: id
-  data_type: number
-  description: 表主键
+  type: number
+  desc: 表主键
   nullable: false
-  cluster: common
 - name: code
-  data_type: string
-  description: 编码
-  cluster: common
+  type: string
+  desc: 编码
 - name: name
-  data_type: string
-  description: 名称
-  cluster: common
+  type: string
+  desc: 名称
 - name: outer_channel
-  data_type: string
-  description: 外部渠道
-  dictionary: cust_config_mapping__outer_channel
+  type: string
+  desc: 外部渠道
+  dict: [ACFLOW, ORDER, SELF, OPS]
 - name: inner_code
-  data_type: string
-  description: 内部编码
-  cluster: identity_mapping
-  dictionary: cust_config_mapping__inner_code
+  type: string
+  desc: 内部编码
+  dict: [CORE_FUNCTIONAL_DEPARTMENT, SUPPLIER, CORE, PLATFORM_OPREATOR_COMPANY, DEALER,
+    CORE_MANAGER, CORE_BRANCH, PROJECT_COMPANY, FINANCE, CORE_SUB, A0007, A0002, A0037,
+    HEAD_COMPANY_LEGAL, A0012, COMPANY_LEGAL, A0008, COMPANY, A0004, A0038, HEAD_COMPANY_LEGAL_CE_PERIOD,
+    A0035, COMPANY_MANAGER_CE_PERIOD, A0011, COMPANY_AUTH_AGGREMENT]
 - name: inner_name
-  data_type: string
-  description: 内部名称
-  cluster: identity_mapping
+  type: string
+  desc: 内部名称
 - name: outer_code
-  data_type: string
-  description: 外部编码
-  cluster: identity_mapping
-  dictionary: cust_config_mapping__outer_code
+  type: string
+  desc: 外部编码
+  dict: [CE, PROJ, SPY, CPT, OPE, A0004, A0037, UN0001, A0011, UN0014, A0002, UN0005,
+    A0008, A0035, A0038, UN0002, A0012, UN0008, A0007, UN0011]
 - name: outer_name
-  data_type: string
-  description: 外部名称
-  cluster: identity_mapping
+  type: string
+  desc: 外部名称
 - name: type
-  data_type: string
-  description: 类型
-  cluster: classification
-  dictionary: cust_config_mapping__type
+  type: string
+  desc: 类型
+  dict: [COMPANY_TYPE_MAPPING, COMPANY_MEDIA, CHANGE_ITEM]
 - name: groups
-  data_type: string
-  description: 分组
-  cluster: classification
-  dictionary: cust_config_mapping__groups
+  type: string
+  desc: 分组
+  dict: [BRANCH_COMPANY, HEAD_COMPANY]
 - name: enable
-  data_type: string
-  description: enable
-  cluster: common
-  dictionary: cust_config_mapping__enable
+  type: string
+  desc: enable
+  dict: [Y]
 - name: remark
-  data_type: string
-  description: remark
-  cluster: common
+  type: string
+  desc: remark
 - name: create_by
-  data_type: string
-  description: 创建人id
-  cluster: common
+  type: string
+  desc: 创建人id
 - name: create_user
-  data_type: string
-  description: 创建人名称
-  cluster: common
+  type: string
+  desc: 创建人名称
 - name: create_time
-  data_type: temporal
-  description: 创建时间
+  type: temporal
+  desc: 创建时间
   nullable: false
-  cluster: common
 - name: update_by
-  data_type: string
-  description: 更新人id
-  cluster: common
+  type: string
+  desc: 更新人id
 - name: update_user
-  data_type: string
-  description: 更新人名称
-  cluster: common
+  type: string
+  desc: 更新人名称
 - name: update_time
-  data_type: temporal
-  description: 更新时间
+  type: temporal
+  desc: 更新时间
   nullable: false
-  cluster: common
 - name: act_procinst_id
-  data_type: string
-  description: 流程实例ID
-  cluster: approval
+  type: string
+  desc: 流程实例ID
 - name: app_tenant_code
-  data_type: string
-  description: 逻辑租户标识
-  cluster: tenant
+  type: string
+  desc: 逻辑租户标识
 - name: db_tenant_code
-  data_type: string
-  description: 数据租户标识
-  cluster: tenant
+  type: string
+  desc: 数据租户标识
 - name: act_procinst_no
-  data_type: string
-  description: 流程申请编号
-  cluster: approval
+  type: string
+  desc: 流程申请编号
 - name: act_procinst_status
-  data_type: string
-  description: 当前审批状态
-  cluster: approval
+  type: string
+  desc: 当前审批状态
 - name: act_procinst_date
-  data_type: temporal
-  description: 审批结束时间
-  cluster: approval
+  type: temporal
+  desc: 审批结束时间
 - name: organization_id
-  data_type: string
-  description: 机构编号
+  type: string
+  desc: 机构编号
 ```
 
 ## 页面链接

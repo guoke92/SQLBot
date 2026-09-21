@@ -6,11 +6,11 @@ belong: tables
 status: draft
 anchors: [client_api_sync_error]
 sources: ['database_schema:lowcode_pplatform.client_api_sync_error', 'code_path:StartupSyncRetry.java:119']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
-related: [client_api_sync_error__enable]
+related: [client_api_sync_error__enable, client_api_sync_error__retry_num]
 ---
 
 # 客户端接口同步失败记录
@@ -95,6 +95,7 @@ fields:
 - name: retry_num
   type: number
   desc: 重试次数
+  dict: ['3']
 default_filter:
   predicate: client_api_sync_error.enable = 'Y'
   trust: confirmed
@@ -106,3 +107,4 @@ default_filter:
 ### 字典
 
 - [[dicts/client_api_sync_error__enable]]（`client_api_sync_error.enable`）
+- [[dicts/client_api_sync_error__retry_num]]（`client_api_sync_error.retry_num`）

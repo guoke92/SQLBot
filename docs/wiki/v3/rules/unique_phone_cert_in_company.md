@@ -7,8 +7,8 @@ domain: cust
 status: draft
 field_targets: [cust_person_info.phone, cust_person_info.certification_no, cust_person_info.ref_cust_company_info]
 sources: ['code_path:CustPersonApplication.java:348']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [cust_person_info]
 ---

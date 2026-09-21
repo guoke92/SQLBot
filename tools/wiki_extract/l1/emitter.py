@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import datetime as dt
+import re
 import shutil
+from difflib import SequenceMatcher
 from pathlib import Path
 from typing import Any
 
@@ -16,6 +18,7 @@ from tools.wiki_extract.emit import (
     render_dict_page,
     render_table_page,
 )
+from tools.wiki_extract.l1.pages import dict_from_page, parse_page
 from tools.wiki_extract.l1.schema import PAGE_TYPES, dict_page_key
 
 _SEMANTIC_DIRS = (
@@ -49,6 +52,13 @@ def emit_l1(
 
     if l0_dir is not None and copy_untouched:
         _copy_untouched(Path(l0_dir), out)
+
+    # Prefer richer labels already on disk (prior L1) when the L0 model is code-only.
+    hydrate_dict_labels_from_dir(model, out / "dicts")
+    # Keep table field dict/label aligned with the (possibly hydrated) dict pages.
+    from tools.wiki_extract.l1.reconcile import sync_table_fields_with_dicts
+
+    sync_table_fields_with_dicts(model)
 
     neighbors = _relation_neighbors(model.get("tables") or {})
     extra_neighbors = model.get("tables") or {}
@@ -87,13 +97,9 @@ def emit_l1(
         )
         table_count += 1
 
-    enhanced_dicts = set(model.get("enhanced_dicts") or [])
+    # Always rewrite dict pages from the model so they stay consistent with tables.
     dict_count = 0
     for key, item in (model.get("dicts") or {}).items():
-        if enhanced_dicts and key not in enhanced_dicts and copy_untouched:
-            if (out / "dicts" / f"{key}.md").exists():
-                dict_count += 1
-                continue
         (out / "dicts" / f"{key}.md").write_text(
             render_dict_page(_dict_item(item, key), today), encoding="utf-8"
         )
@@ -555,7 +561,7 @@ _TABLE_PROFILES: dict[str, tuple[str, str]] = {
     ),
     "cust_app_channel_config": (
         "应用与渠道映射配置",
-        "app_id, channel",
+        "app_id, app_tenant_code(渠道码), enable",
     ),
     "cust_auth_application": (
         "客户产品开通记录",
@@ -735,7 +741,7 @@ _TABLE_PROFILES: dict[str, tuple[str, str]] = {
     ),
     "tenant_project": (
         "[核心主档大宽表] 租户项目全量运营配置",
-        "项目ID/编码, 名称, 渠道码channel_code, 平台产品编码, 项目状态, 企微审批号wechat_audit_no, 立项通过时间, 运营/查验/风控对接人A/B及组别, 方案/业务经理, 项目配置提交时间, 首笔落地时间, 自定义字段一/二/三",
+        "项目ID/编码, 名称, 渠道码channel_code, 平台产品编码, 项目状态, 企微审批号wechat_audit_no, 立项审批通过时间, 运营/查验/风控对接人A/B及组别, 方案/业务经理, 首笔落地时间, 自定义字段一/二/三",
     ),
     "tenant_project_approval": (
         "[核心主档] 租户项目审批主单",
@@ -771,7 +777,7 @@ _TABLE_PROFILES: dict[str, tuple[str, str]] = {
     ),
     "tenant_setting_config": (
         "[核心配置大宽表] 贴牌租户主配置",
-        "租户code/名称, 平台名, 统码, 客服电话, 小程序/公众号, 默认项目, 协议签署配置, 业务开关",
+        "租户code/名称, 平台名, 统码, 接入模式access_mode(STANDARD/DIRECT_INIT), 客服电话, 小程序/公众号, 默认项目, 协议签署配置, 业务开关",
     ),
     "tenant_setting_config_share": (
         "[核心配置大宽表] 共享租户配置",
@@ -826,7 +832,7 @@ _TABLE_PROFILES: dict[str, tuple[str, str]] = {
     ),
     "open_sso_channel": (
         "开放登录SSO渠道配置",
-        "渠道码channel_code, 渠道名称, appId, 密钥",
+        "渠道码channel_code, tenant_code/db_tenant_code产融租户标识, appId, channel_kind LOCAL_SYS/STANDARD, SSO clientId/secret",
     ),
     "operation_user": (
         "运营人员基础信息",
@@ -872,7 +878,7 @@ def render_catalog_summary(model: dict[str, Any], today: str) -> str:
         "page_key": "catalog_summary",
         "belong": "concepts",
         "status": "draft",
-        "recall": True,
+        "recall": False,
         "aliases": _FlowList(["Catalog Summary", "表目录", "库表一览"]),
         "sources": _FlowList(
             [f"database_schema:{database}"] if database else ["database_schema:catalog"]
@@ -900,6 +906,73 @@ def _catalog_table_line(
         if desc:
             return f"- {tname}: {title}({desc})"
         return f"- {tname}: {title}"
+    keys = _catalog_keys(compiled, catalog_table)
+    core = _catalog_core(compiled, catalog_table, set(keys.split("/")) if keys else set())
+    comment = str((catalog_table.get("comment") or "")).strip() or tname
+    bits = [p for p in (keys, core) if p]
+    if bits:
+        return f"- {tname}: {comment}({', '.join(bits)})"
+    return f"- {tname}: {comment}"
+
+
+_CJK_PHRASE_RE = re.compile(r"[\u4e00-\u9fff]{3,}")
+# Only field-like blurbs (UI often invents these); skip generic nouns.
+_FIELD_LIKE_SUFFIXES = (
+    "时间",
+    "日期",
+    "金额",
+    "费率",
+    "号码",
+    "编号",
+    "额度",
+    "期限",
+)
+
+
+def iter_ungrounded_profile_phrases(
+    catalog: dict[str, Any],
+) -> list[tuple[str, str]]:
+    """Return (table, phrase) when a field-like profile blurb is not grounded."""
+    tables = catalog.get("tables") or {}
+    if not isinstance(tables, dict):
+        return []
+    bad: list[tuple[str, str]] = []
+    for tname, profile in _TABLE_PROFILES.items():
+        tmeta = tables.get(tname)
+        if not isinstance(tmeta, dict):
+            continue
+        _title, desc = profile
+        if not desc:
+            continue
+        columns = tmeta.get("columns") or {}
+        if not isinstance(columns, dict):
+            columns = {}
+        comments = [
+            str((meta or {}).get("comment") or "").strip()
+            for meta in columns.values()
+        ]
+        col_names = {str(n) for n in columns}
+        table_comment = str(tmeta.get("comment") or "").strip()
+        grounds = [c for c in comments if c] + ([table_comment] if table_comment else [])
+        grounds.extend(col_names)
+        for phrase in _CJK_PHRASE_RE.findall(str(desc)):
+            if not any(phrase.endswith(suf) for suf in _FIELD_LIKE_SUFFIXES):
+                continue
+            if _phrase_grounded(phrase, grounds):
+                continue
+            bad.append((str(tname), phrase))
+    return bad
+
+
+def _phrase_grounded(phrase: str, grounds: list[str]) -> bool:
+    for ground in grounds:
+        if not ground:
+            continue
+        if phrase in ground or ground in phrase:
+            return True
+        if len(phrase) >= 4 and SequenceMatcher(None, phrase, ground).ratio() >= 0.55:
+            return True
+    return False
 
 
 def _catalog_keys(compiled: dict[str, Any], catalog_table: dict[str, Any]) -> str:
@@ -1242,6 +1315,52 @@ def _dict_item(item: dict[str, Any], key: str) -> dict[str, Any]:
         packed.setdefault("fields", [f"{table}.{column}"])
         packed["dict"] = packed.get("dict") or dict_page_key(table, column, key)
     return packed
+
+
+def hydrate_dict_labels_from_dir(model: dict[str, Any], dicts_dir: Path) -> int:
+    """Fill empty in-memory dict labels from an existing out/dicts tree.
+
+    Prior L1 runs may have kept richer labels on disk while a fresh L0 reload
+    only has codes. Hydrate before table/dict rewrite so both stay aligned.
+    IR ``dict_labels`` (already applied) win over disk when both set a label.
+    """
+    if not dicts_dir.is_dir():
+        return 0
+    dicts = model.setdefault("dicts", {})
+    filled = 0
+    for path in sorted(dicts_dir.glob("*.md")):
+        try:
+            item = dict_from_page(parse_page(path.read_text(encoding="utf-8")))
+        except Exception:
+            continue
+        key = str(item.get("dict") or path.stem)
+        if not key:
+            continue
+        target = dicts.get(key)
+        if target is None:
+            dicts[key] = item
+            filled += 1
+            continue
+        tvals = target.setdefault("values", {})
+        if not isinstance(tvals, dict):
+            continue
+        for code, meta in (item.get("values") or {}).items():
+            if not isinstance(meta, dict):
+                continue
+            lab = str(meta.get("label") or "").strip()
+            if not lab:
+                continue
+            row = tvals.get(code)
+            if not isinstance(row, dict):
+                row = {"trust": str(meta.get("trust") or "proposed")}
+                tvals[str(code)] = row
+            if str(row.get("label") or "").strip():
+                continue
+            row["label"] = lab
+            if meta.get("evidence") and not row.get("evidence"):
+                row["evidence"] = meta.get("evidence")
+            filled += 1
+    return filled
 
 
 def _copy_untouched(l0_dir: Path, out: Path) -> None:

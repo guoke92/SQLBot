@@ -10,8 +10,11 @@ from typing import Any, TypedDict, cast
 import orjson
 from langchain_core.messages import AIMessage, BaseMessage, ToolMessage
 
-from apps.chat.agent_knowledge import KNOWLEDGE_TOOLS, AgentKnowledgePlane
-from apps.chat.memory_slots import MemorySlots
+from apps.chat.agent_knowledge import (
+    KNOWLEDGE_BUDGET_SKIP,
+    KNOWLEDGE_TOOLS,
+    AgentKnowledgePlane,
+)
 from apps.chat.steps.observability import sanitize_audit_value
 from apps.chat.tools.metadata import get_tool_title_key
 from apps.conversation.messages import deserialize_messages, serialize_messages
@@ -246,7 +249,198 @@ def normalize_tool_result(raw: Any) -> ToolResult:
 
 
 def serialize_tool_result(result: ToolResult) -> str:
+    """JSON dump for audit/debug. LLM-facing content uses ``render_tool_message``."""
     return orjson.dumps(result).decode()
+
+
+_KNOWLEDGE_TEXT_TOOLS = frozenset(
+    {
+        "search_knowledge",
+        "get_dict_values",
+        "lookup_values",
+        "get_table_relations",
+    }
+)
+_GENERIC_SKIP_KEYS = frozenset(
+    {
+        "schema_ready",
+        "interrupt_required",
+        "clarification_card",
+        "skipped",
+        "column_stats",
+        "dataset_id",
+        "plan_id",
+        "value_labels",
+    }
+)
+_SQL_PREVIEW_ROWS = 5
+
+
+def tool_result_from_message(message: Any) -> dict[str, Any]:
+    """Structured ToolResult from artifact (current) or JSON content (legacy)."""
+    artifact = getattr(message, "artifact", None)
+    if isinstance(artifact, Mapping):
+        return dict(artifact)
+    extra = getattr(message, "additional_kwargs", None) or {}
+    if isinstance(extra, Mapping):
+        stored = extra.get("result")
+        if isinstance(stored, Mapping):
+            return dict(stored)
+    raw = getattr(message, "content", "") or ""
+    if isinstance(raw, Mapping):
+        return dict(raw)
+    if not isinstance(raw, str):
+        return {}
+    stripped = raw.strip()
+    if not stripped or stripped[0] not in "{[":
+        return {}
+    try:
+        parsed = orjson.loads(stripped)
+    except Exception:
+        return {}
+    return parsed if isinstance(parsed, dict) else {}
+
+
+def render_tool_message(name: str, result: Mapping[str, Any]) -> str:
+    """Compact plaintext for the model. Never dump the ToolResult JSON envelope."""
+    if not result.get("ok"):
+        err = str(result.get("error") or result.get("summary") or "failed").strip()
+        return f"失败：{err}"
+    data = result.get("data") if isinstance(result.get("data"), Mapping) else {}
+    if not isinstance(data, Mapping):
+        data = {}
+    summary = str(result.get("summary") or "").strip()
+    if name == "get_table_schema":
+        body = str(data.get("schema_text") or "").strip()
+        if body and body not in summary:
+            return f"{summary}\n\n{body}".strip() if summary else body
+        return summary
+    if name == "execute_sql_sandbox":
+        return _render_sql_sandbox(summary, data)
+    if name == "compare_results":
+        return _render_compare_results(summary, data)
+    if name == "patch_and_compile_sql":
+        sql = str(data.get("sql") or "").strip()
+        if sql and sql not in summary:
+            return f"{summary}\n\n{sql}".strip() if summary else sql
+        return summary
+    if name in _KNOWLEDGE_TEXT_TOOLS:
+        return summary
+    chunks = [summary] if summary else []
+    if "\n" not in summary:
+        extra = _render_mapping(data, skip=_GENERIC_SKIP_KEYS)
+        if extra:
+            chunks.append(extra)
+    return "\n".join(chunks).strip()
+
+
+def _render_sql_sandbox(summary: str, data: Mapping[str, Any]) -> str:
+    lines = [summary] if summary else []
+    sql = str(data.get("sql") or "").strip()
+    if sql:
+        lines.append("sql:")
+        lines.append(sql)
+    fields = data.get("fields") or []
+    if isinstance(fields, Sequence) and not isinstance(fields, str | bytes):
+        names = [str(item).strip() for item in fields if str(item).strip()]
+        if names:
+            lines.append("fields: " + ", ".join(names))
+    if data.get("truncated"):
+        lines.append("truncated: true")
+    rows = data.get("preview_rows") or data.get("sample_rows") or []
+    preview = _format_preview_rows(rows) if isinstance(rows, Sequence) else ""
+    if preview:
+        lines.append("preview:")
+        lines.append(preview)
+    return "\n".join(lines).strip()
+
+
+def _render_compare_results(summary: str, data: Mapping[str, Any]) -> str:
+    lines = [summary] if summary else []
+    for side in ("base", "new"):
+        side_data = data.get(side)
+        if not isinstance(side_data, Mapping):
+            continue
+        count = side_data.get("row_count")
+        header = f"{side}: {count} rows" if count is not None else f"{side}:"
+        lines.append(header)
+        sql = str(side_data.get("sql") or "").strip()
+        if sql:
+            lines.append(sql)
+    return "\n".join(lines).strip()
+
+
+def _format_preview_rows(rows: Sequence[Any], *, limit: int = _SQL_PREVIEW_ROWS) -> str:
+    lines: list[str] = []
+    for row in list(rows)[:limit]:
+        if isinstance(row, Mapping):
+            parts = [f"{key}={value}" for key, value in row.items()]
+            lines.append(" | ".join(parts))
+        else:
+            lines.append(str(row))
+    return "\n".join(lines)
+
+
+def _render_mapping(
+    data: Mapping[str, Any], *, skip: frozenset[str] | set[str], indent: int = 0
+) -> str:
+    lines: list[str] = []
+    pad = "  " * indent
+    for key, value in data.items():
+        if key in skip or value in (None, "", [], {}, ()):
+            continue
+        rendered = _render_plain(value, indent=indent + 1)
+        if not rendered:
+            continue
+        if "\n" in rendered:
+            lines.append(f"{pad}{key}:")
+            lines.append(rendered)
+        else:
+            lines.append(f"{pad}{key}: {rendered}")
+    return "\n".join(lines)
+
+
+def _render_plain(value: Any, *, indent: int) -> str:
+    pad = "  " * indent
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, int | float):
+        return str(value)
+    if isinstance(value, str):
+        if "\n" in value:
+            return "\n".join(pad + line for line in value.splitlines())
+        return value
+    if isinstance(value, Mapping):
+        return _render_mapping(value, skip=set(), indent=indent)
+    if isinstance(value, Sequence) and not isinstance(value, str | bytes):
+        if not value:
+            return ""
+        if all(
+            isinstance(item, str | int | float | bool) or item is None for item in value
+        ):
+            return ", ".join(str(item) for item in value if item is not None)
+        blocks: list[str] = []
+        for item in value:
+            if isinstance(item, Mapping):
+                inner_lines = _render_mapping(item, skip=set(), indent=0).splitlines()
+                if not inner_lines:
+                    continue
+                first, *rest = inner_lines
+                blocks.append(f"{pad}- {first}")
+                blocks.extend(f"{pad}  {line}" for line in rest)
+            else:
+                text = _render_plain(item, indent=indent + 1)
+                blocks.append(f"{pad}- {text.lstrip()}" if text else f"{pad}-")
+        return "\n".join(blocks)
+    return str(value)
+
+
+def _tool_message_skipped(message: ToolMessage) -> bool:
+    payload = tool_result_from_message(message)
+    data = payload.get("data") if isinstance(payload.get("data"), Mapping) else {}
+    return isinstance(data, Mapping) and data.get("skipped") == KNOWLEDGE_BUDGET_SKIP
 
 
 def _truncate_for_log(value: Any, limit: int = _LOG_RESULT_LIMIT) -> Any:
@@ -269,10 +463,12 @@ def _tool_call_signature(name: str, args: Mapping[str, Any]) -> str:
 def _knowledge_tool_close(
     name: str, result: Mapping[str, Any]
 ) -> tuple[str, dict[str, Any]]:
-    """Knowledge tools report hit counts; other tools keep 执行成功."""
+    """Knowledge tools report hit counts; skipped budget is not a failure."""
+    data = result.get("data") if isinstance(result.get("data"), Mapping) else {}
+    if isinstance(data, Mapping) and data.get("skipped") == KNOWLEDGE_BUDGET_SKIP:
+        return "chat.summary.tool_skipped", {"tool": name}
     if not result.get("ok"):
         return "chat.summary.tool_failed", {"tool": name}
-    data = result.get("data") if isinstance(result.get("data"), Mapping) else {}
     if name == "get_table_schema":
         count = len(data.get("tables") or data.get("added_tables") or [])
         return "chat.summary.schema_loaded", {"count": count}
@@ -285,6 +481,9 @@ def _knowledge_tool_close(
     if name == "get_dict_values":
         count = len(data.get("values") or [])
         return "chat.summary.dict_loaded", {"count": count}
+    if name == "lookup_values":
+        count = len(data.get("candidates") or [])
+        return "chat.summary.values_loaded", {"count": count}
     return "chat.summary.tool_ok", {"tool": name}
 
 
@@ -375,7 +574,7 @@ def execute_tools_node(state: Mapping[str, Any]) -> dict[str, Any]:
             result = tool_failure(f"{name} failed", str(exc))
 
         safe_result = sanitize_audit_value(result)
-        model_content = serialize_tool_result(safe_result)
+        model_content = render_tool_message(name, safe_result)
         if span is not None:
             span.set_output(_truncate_for_log(safe_result))
             summary_key, summary_params = _knowledge_tool_close(name, result)
@@ -458,6 +657,8 @@ def execute_tools_node(state: Mapping[str, Any]) -> dict[str, Any]:
                 content=model_content,
                 tool_call_id=call_id,
                 name=name or None,
+                artifact=safe_result,
+                status="success" if result["ok"] else "error",
             )
         )
         if result["ok"]:
@@ -513,21 +714,12 @@ def execute_tools_node(state: Mapping[str, Any]) -> dict[str, Any]:
 
     outgoing = [*messages, *tool_messages]
     knowledge_used = any(
-        getattr(item, "name", "") in KNOWLEDGE_TOOLS for item in tool_messages
+        getattr(item, "name", "") in KNOWLEDGE_TOOLS
+        and not _tool_message_skipped(item)
+        for item in tool_messages
     )
     if knowledge_used:
         plane.knowledge_rounds = int(plane.knowledge_rounds or 0) + 1
-        slots = dict(state.get("memory_slots") or {})
-        baseline = None
-        try:
-            baseline = MemorySlots.model_validate(slots).extract_change_baseline()
-        except Exception:
-            baseline = None
-        outgoing = plane.apply_to_system_message(
-            outgoing,
-            memory_slots=slots,
-            change_baseline=baseline,
-        )
 
     return {
         **state,

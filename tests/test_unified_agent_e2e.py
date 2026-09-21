@@ -34,13 +34,9 @@ def test_memory_slots_retention_and_baseline_extraction():
         memory_slots=slots.model_dump(),
         change_baseline=baseline,
     )
-    assert "<memory_slots>" in prompt
-    assert "<change_baseline>" in prompt
-    assert "actual_amount" in prompt
-    # Compact one-line rendering, no raw JSON dump of the slot model.
-    assert prompt.count("confirmed_calibers") == 1
-    assert '"active_baseline_sql"' not in prompt
-    assert '- status NOT IN ["CANCELLED"]' in prompt
+    assert "<memory_slots>" not in prompt
+    assert "<change_baseline>" not in prompt
+    assert "硬预算" not in prompt
 
 
 def test_incremental_patch_preserves_confirmed_filters():

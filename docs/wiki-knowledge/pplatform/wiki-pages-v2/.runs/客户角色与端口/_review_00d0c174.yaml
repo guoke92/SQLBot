@@ -1,4 +1,0 @@
-body: enum_audit 将 FAILURE（失效）与 CHANGE（变更）判为 reject：二者在 CustStatusEnum.java 中定义，但
-  cust_role_info.status 的 db_dist 中无此值，实际用于 cust_company_info.cust_status。若后续出现同名状态混用，需按字段区分而非按常量类区分。
-title: CustStatusEnum 中 FAILURE/CHANGE 未用于 cust_role_info.status
-type: enum

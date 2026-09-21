@@ -124,6 +124,174 @@ def _lookup_store_page(
     return page
 
 
+def _dict_page_name(page: Any) -> str:
+    key = str(getattr(page, "page_key", "") or "").rsplit("/", 1)[-1]
+    for block in getattr(page, "ground_blocks", ()) or ():
+        if getattr(block, "kind", "") != "dict":
+            continue
+        named = str((getattr(block, "data", {}) or {}).get("dict") or "").strip()
+        if named:
+            return named.rsplit("/", 1)[-1]
+    return key
+
+
+def lookup_dict_page(
+    store: Any,
+    slug: str,
+    *,
+    table: str = "",
+    opened_tables: Sequence[str] = (),
+) -> Any | None:
+    """Resolve a dict wiki page by key, ``{table}__{field}``, or suffix scan."""
+    named = str(slug or "").strip().rsplit("/", 1)[-1]
+    if not named or store is None:
+        return None
+    ordered: list[str] = []
+    table_name = str(table or "").strip()
+    if table_name:
+        ordered.append(f"{table_name}__{named}")
+    ordered.append(named)
+    for extra in opened_tables:
+        extra_name = str(extra or "").strip()
+        if extra_name and extra_name != table_name:
+            ordered.append(f"{extra_name}__{named}")
+    seen: set[str] = set()
+    for key in ordered:
+        if key in seen:
+            continue
+        seen.add(key)
+        page = _lookup_store_page(store, key, belong="dicts", page_type="dict")
+        if page is not None:
+            return page
+    lowered = named.lower()
+    suffix = f"__{lowered}"
+    hits: list[Any] = []
+    for page in (getattr(store, "pages", {}) or {}).values():
+        if str(getattr(page, "type", "") or "") != "dict":
+            continue
+        pk = str(getattr(page, "page_key", "") or "").rsplit("/", 1)[-1].lower()
+        ground = _dict_page_name(page).lower()
+        if pk == lowered or ground == lowered or pk.endswith(suffix):
+            hits.append(page)
+    if not hits:
+        return None
+    if table_name:
+        prefix = table_name.lower() + "__"
+        for page in hits:
+            pk = str(getattr(page, "page_key", "") or "").rsplit("/", 1)[-1].lower()
+            if pk.startswith(prefix):
+                return page
+    return hits[0]
+
+
+@dataclass(frozen=True)
+class FieldEnumSpec:
+    """Inline ``dict`` / ``label`` parsed from a ``ground:table`` field row."""
+
+    codes: tuple[str, ...] = ()
+    labels: dict[str, str] = field(default_factory=dict)
+    dict_key: str = ""
+    owned_labels: bool = False
+    topk: str = ""
+    label_tail: str = ""
+
+
+def parse_field_enum(entry: Mapping[str, Any], *, table: str = "") -> FieldEnumSpec:
+    """Read field-level dict codes, labels, and optional external dict pointer."""
+    name = str(entry.get("name") or "").strip()
+    raw_dict = entry.get("dict")
+    inline_codes: list[str] = []
+    dict_key = ""
+    if isinstance(raw_dict, list):
+        inline_codes = [str(item).strip() for item in raw_dict if str(item).strip()]
+    elif raw_dict is not None and str(raw_dict).strip():
+        dict_key = str(raw_dict).strip().rsplit("/", 1)[-1]
+    topk = str(entry.get("topk") or "").strip()
+    values = [item for item in topk.split("|") if item]
+    if inline_codes and not values:
+        values = list(inline_codes)
+        topk = "|".join(inline_codes)
+    raw_labels = entry.get("labels")
+    raw_label = entry.get("label")
+    owned = False
+    label_map: dict[str, str] = {}
+    label_tail = ""
+    if isinstance(raw_label, list) and inline_codes:
+        label_map = {
+            str(code): str(lab).strip()
+            for code, lab in zip(inline_codes, raw_label, strict=False)
+            if str(lab).strip()
+        }
+        owned = bool(label_map)
+    elif isinstance(raw_label, dict):
+        label_map = {
+            str(k): str(v).strip() for k, v in raw_label.items() if str(v).strip()
+        }
+        owned = bool(label_map)
+    elif isinstance(raw_labels, dict):
+        label_map = {str(k): str(v) for k, v in raw_labels.items() if str(v).strip()}
+        owned = bool(label_map)
+    elif isinstance(raw_labels, str) and raw_labels.strip():
+        label_tail = raw_labels.strip()
+        owned = True
+    codes = tuple(values or inline_codes or tuple(label_map))
+    if owned and label_map and not label_tail:
+        label_tail = format_enum_labels(codes or list(label_map), label_map)
+    if not dict_key and inline_codes and table and name:
+        dict_key = f"{table}__{name}"
+    return FieldEnumSpec(
+        codes=codes,
+        labels=label_map,
+        dict_key=dict_key,
+        owned_labels=owned,
+        topk=topk,
+        label_tail=label_tail,
+    )
+
+
+def field_enum_rows(spec: FieldEnumSpec) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+    seen: set[str] = set()
+    for code in spec.codes or tuple(spec.labels):
+        if not code or code in seen:
+            continue
+        seen.add(code)
+        rows.append({"value": code, "label": spec.labels.get(code, "")})
+    for code, label in spec.labels.items():
+        if code in seen:
+            continue
+        seen.add(code)
+        rows.append({"value": code, "label": label})
+    return rows
+
+
+def table_field_enum(store: Any, table: str, field: str) -> FieldEnumSpec | None:
+    """Prefer inline ``ground:table.fields`` dict/label for one physical column."""
+    table_name = str(table or "").strip()
+    field_name = str(field or "").strip()
+    if not table_name or not field_name:
+        return None
+    page = _lookup_store_page(store, table_name, belong="tables", page_type="table")
+    if page is None:
+        return None
+    for block in getattr(page, "ground_blocks", ()) or ():
+        if getattr(block, "kind", "") != "table":
+            continue
+        from apps.knowledge.wiki.contract import compact_block
+
+        data = compact_block(getattr(block, "data", {}) or {})
+        for entry in data.get("fields") or []:
+            if not isinstance(entry, Mapping):
+                continue
+            if str(entry.get("name") or "") != field_name:
+                continue
+            spec = parse_field_enum(entry, table=table_name)
+            if spec.codes or spec.labels or spec.dict_key or spec.label_tail:
+                return spec
+            return spec
+    return None
+
+
 def _wiki_table_block(page_text: str) -> dict[str, Any] | None:
     """解析 table 页的 ground:table 块（已发布的权威字段清单）。"""
     m = re.search(r"```ground:table\n([\s\S]*?)\n```", page_text)
@@ -993,9 +1161,7 @@ class WikiSchemaRenderer:
         是已进 working set 的表页自带的绑定，锚点块即证据。"""
         if not dict_key or not self._store:
             return {}
-        page = _lookup_store_page(
-            self._store, dict_key, belong="dicts", page_type="dict"
-        )
+        page = lookup_dict_page(self._store, dict_key)
         if page is None:
             return {}
         for anchor in getattr(page, "ground_blocks", ()) or ():
@@ -1050,57 +1216,19 @@ class WikiSchemaRenderer:
             name = str(f.get("name") or "")
             comment = str(f.get("desc") or "").strip()
             ftype = str(f.get("phys") or f.get("type") or "string")
-            topk = str(f.get("topk") or "").strip()
-            raw_dict = f.get("dict")
-            inline_codes: list[str] = []
-            dict_key = ""
-            if isinstance(raw_dict, list):
-                inline_codes = [
-                    str(item).strip() for item in raw_dict if str(item).strip()
-                ]
-            elif raw_dict is not None and str(raw_dict).strip():
-                dict_key = str(raw_dict).strip()
-            values = [item for item in topk.split("|") if item]
-            if inline_codes and not values:
-                values = inline_codes
-                topk = "|".join(inline_codes)
-            raw_labels = f.get("labels")
-            raw_label = f.get("label")
-            owned = False
-            label_map: dict[str, str] = {}
-            label_tail = ""
-            if isinstance(raw_label, list) and inline_codes:
-                label_map = {
-                    str(code): str(lab).strip()
-                    for code, lab in zip(inline_codes, raw_label)
-                    if str(lab).strip()
-                }
-                owned = bool(label_map)
-            elif isinstance(raw_label, dict):
-                label_map = {
-                    str(k): str(v).strip()
-                    for k, v in raw_label.items()
-                    if str(v).strip()
-                }
-                owned = bool(label_map)
-            elif isinstance(raw_labels, dict):
-                label_map = {
-                    str(k): str(v) for k, v in raw_labels.items() if str(v).strip()
-                }
-                owned = bool(label_map)
-            elif isinstance(raw_labels, str) and raw_labels.strip():
-                label_tail = raw_labels.strip()
-                owned = True
-            if owned and label_map:
+            spec = parse_field_enum(f, table=table)
+            topk = spec.topk
+            values = list(spec.codes)
+            dict_key = spec.dict_key
+            owned = spec.owned_labels
+            label_map = dict(spec.labels)
+            label_tail = spec.label_tail
+            if owned and label_map and not label_tail:
                 label_tail = format_enum_labels(values or list(label_map), label_map)
             elif not owned:
-                lookup = dict_key or (
-                    f"{table}__{name}" if inline_codes and name else ""
-                )
+                lookup = dict_key or (f"{table}__{name}" if values and name else "")
                 label_map = self._enum_label_map(lookup) if lookup else {}
-                label_tail = (
-                    format_enum_labels(values, label_map) if label_map else ""
-                )
+                label_tail = format_enum_labels(values, label_map) if label_map else ""
             scenes_raw = f.get("scenes") or []
             if isinstance(scenes_raw, str):
                 scenes = tuple(

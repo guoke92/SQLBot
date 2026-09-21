@@ -6,8 +6,8 @@ belong: dicts
 status: draft
 anchors: [tenant_product_menu.company_type]
 sources: ['database_profile:tenant_product_menu.company_type']
-created: '2026-09-17'
-updated: '2026-09-17'
+created: '2026-09-20'
+updated: '2026-09-20'
 contract_version: '0.1'
 related: [tenant_product_menu]
 ---

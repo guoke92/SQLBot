@@ -1,6 +1,0 @@
-body: 语义分析中 `cust_company_info` 与 `tenant_setting_config` 仅以 `field_targets` 的形式出现在规则和状态机证据里（如
-  `cust_company_info.cust_build_status`、`tenant_setting_config.enable`），未提供字段清单与字段含义，因此本次未为这两张表产出
-  `tables/` 页面（写 ground:fields 会构成发明）。待补充库表语义后，再补建这两个 table 页，并与 [[tables/cust_access_secret]]
-  建立关联。
-title: cust_company_info / tenant_setting_config 字段级语义缺失
-type: table

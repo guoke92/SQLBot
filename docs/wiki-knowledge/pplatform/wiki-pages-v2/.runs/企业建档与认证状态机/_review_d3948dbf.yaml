@@ -1,6 +1,0 @@
-body: '- 枚举底稿中的 `CUST_BUILD_SUCCESS`（审核通过）DB 仅 1 条且主流程写值点均使用 `BUILD_SUCCESS`，疑似历史遗留/未使用常量；`BUILDING`（建档中）DB
-  仅 2 条，主流程几乎只用 `CUST_BUILDING`。二者与写值点不一致，暂以写值点 + DB 分布为准。
-
-  - 本次提供的 enum_audit 列表在中途被截断，`cust_build_status` 其余取值的 java_name/stored_as 校验未能全部覆盖，待补全底稿后复核。'
-title: 企业建档/认证状态机
-type: process

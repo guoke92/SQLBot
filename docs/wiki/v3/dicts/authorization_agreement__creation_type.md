@@ -6,8 +6,8 @@ belong: dicts
 status: draft
 anchors: [authorization_agreement.creation_type]
 sources: ['database_profile:authorization_agreement.creation_type']
-created: '2026-09-17'
-updated: '2026-09-17'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [authorization_agreement]
 ---

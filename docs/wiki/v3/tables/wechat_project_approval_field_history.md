@@ -6,12 +6,12 @@ belong: tables
 status: draft
 anchors: [wechat_project_approval_field_history]
 sources: ['database_schema:lowcode_pplatform.wechat_project_approval_field_history']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
 related: [wechat_project_approval_apply, wechat_project_approval_field_history__field_name,
-  wechat_project_approval_field_history__field_label, wechat_project_approval_field_history__change_source,
+  wechat_project_approval_field_history__change_source, wechat_project_approval_field_history__operator_name,
   wechat_project_approval_field_history__enable]
 ---
 
@@ -43,18 +43,15 @@ fields:
 - name: field_name
   type: string
   desc: 列名
-  dict: [solution_manager, project_phase, project_type, business_center, bussiness_manager,
+  dict: [solution_manager, project_phase, business_center, project_type, bussiness_manager,
     main_project_name, project_approval_name, apply_start_time, product_type, enterprise_full_name,
-    act_procinst_status, product_type_arr, capital_branch_name, capital_org_full_name,
-    ka_white_label, prd, first_settlement_time, system_delivery, sp_pass_time, old_solution_manager,
-    comment, project_focus_level, project_exception_remark, custom_field_statistics_one,
+    product_type_arr, act_procinst_status, capital_branch_name, capital_org_full_name,
+    ka_white_label, prd, first_settlement_time, system_delivery, old_solution_manager,
+    sp_pass_time, comment, project_focus_level, project_exception_remark, custom_field_statistics_one,
     data_source]
 - name: field_label
   type: string
   desc: 中文标签
-  dict: [方案经理, 项目阶段, 产品类型, 项目类型, 业务中心, 业务经理, 主项目名称, 立项名称, 发起立项时间, 企业全称, 当前审批状态, 资方分支行,
-    资方全称, KA是否贴牌, 是否投产, 首笔放款时间, 系统交付方式, 立项审批通过时间, 前方案经理, 备注, 项目投入关注度, 项目异常备注, 自定义字段一(统计用),
-    数据来源]
 - name: old_value
   type: string
   desc: 变更前值
@@ -71,6 +68,8 @@ fields:
 - name: operator_name
   type: string
   desc: 操作人姓名
+  dict: [system-sync, liuning, linyanxiang, FDPAdmin, ouyangpengfei, xiaolonghao,
+    chenkaiwen, liubeicai, caiweicheng, chenzerong, liuhaiou, huangliyu3]
 - name: code
   type: string
   desc: 编码
@@ -154,9 +153,6 @@ overlap:
   deepened: false
   query_ok: true
   authenticity: likely
-authenticity_note: apply_id 注释显式写明「关联 wechat_project_approval_apply.id」，name_evidence
-  为 family_suffix(stem=apply)；overlap 已探测 ratio=1.0、sample_size=23、miss=0，值域完全契合，判定子表→父表外键为
-  likely
 ```
 
 ## 页面链接
@@ -168,6 +164,6 @@ authenticity_note: apply_id 注释显式写明「关联 wechat_project_approval_
 ### 字典
 
 - [[dicts/wechat_project_approval_field_history__field_name]]（`wechat_project_approval_field_history.field_name`）
-- [[dicts/wechat_project_approval_field_history__field_label]]（`wechat_project_approval_field_history.field_label`）
 - [[dicts/wechat_project_approval_field_history__change_source]]（`wechat_project_approval_field_history.change_source`）
+- [[dicts/wechat_project_approval_field_history__operator_name]]（`wechat_project_approval_field_history.operator_name`）
 - [[dicts/wechat_project_approval_field_history__enable]]（`wechat_project_approval_field_history.enable`）

@@ -1,5 +1,0 @@
-body: 语义分析中该口径的 `predicate` 在 `tenant_project_approval.wf_status IN ('PENDING','RUNNING')
-  AND t` 处被截断，且 `scope` 与 `evidence` 两个字段完全缺失。由于锚点字段值必须逐字来自语义分析、禁止补全发明，本口径暂不产出 caliber
-  页；待补全 predicate 全文与 evidence 后再落页。
-title: 上线审批在途校验
-type: caliber

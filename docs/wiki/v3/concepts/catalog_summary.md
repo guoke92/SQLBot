@@ -4,11 +4,11 @@ title: 全库表骨架
 page_key: catalog_summary
 belong: concepts
 status: draft
-recall: true
+recall: false
 aliases: [Catalog Summary, 表目录, 库表一览]
 sources: ['database_schema:lowcode_pplatform']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 ---
 
@@ -32,7 +32,7 @@ contract_version: '0.1'
 
 - cust_access_secret: OpenAPI接入秘钥(应用channel, 凭证公私钥)
 - cust_account_info: [核心主档] 客户银行账号(账号, 户名, 开户行/联行号, 省市代码, 默认标识, 账户状态)
-- cust_app_channel_config: 应用与渠道映射配置(app_id, channel)
+- cust_app_channel_config: 应用与渠道映射配置(app_id, app_tenant_code(渠道码), enable)
 - cust_auth_application: 客户产品开通记录(产品编码, 开通状态, 管理员)
 - cust_auth_application_config: 客户产品开通个性配置(企业cust_id, 签署方式)
 - cust_build_record: 建档同步中台日志(企业ID, 中台企业ID, 状态)
@@ -88,7 +88,7 @@ contract_version: '0.1'
 - tenant_product: [核心主档] 租户引入产品配置(租户ID, 平台产品ID, 产品名称/类型, 目标客群, 融资额度/期限上限, 增信措施)
 - tenant_product_menu: 租户产品功能菜单(产品code, 角色, 菜单ID)
 - tenant_product_menu_res: 租户产品菜单按钮权限(产品code, 菜单ID, 按钮资源ID)
-- tenant_project: [核心主档大宽表] 租户项目全量运营配置(项目ID/编码, 名称, 渠道码channel_code, 平台产品编码, 项目状态, 企微审批号wechat_audit_no, 立项通过时间, 运营/查验/风控对接人A/B及组别, 方案/业务经理, 项目配置提交时间, 首笔落地时间, 自定义字段一/二/三)
+- tenant_project: [核心主档大宽表] 租户项目全量运营配置(项目ID/编码, 名称, 渠道码channel_code, 平台产品编码, 项目状态, 企微审批号wechat_audit_no, 立项审批通过时间, 运营/查验/风控对接人A/B及组别, 方案/业务经理, 首笔落地时间, 自定义字段一/二/三)
 - tenant_project_approval: [核心主档] 租户项目审批主单(审批号approval_no, 关联项目code, 审批类型, 工作流状态, 方案经理, 企微号sp_no, 简易/低风险)
 - tenant_project_approval_business_info: 审批项目业务推送详情(产品编码, 来源系统, 配置版本, 费率规则)
 - tenant_project_approval_flow: 项目审批流程节点实例(关联审批单, 节点编码/名称/顺序, 节点状态, 审批人)
@@ -97,7 +97,7 @@ contract_version: '0.1'
 - tenant_project_approval_flow_credit: [核心主档] 项目审批授信额度明细(核心企业/资方ID及名称, 授信额度, 集团额度标识, 额度起止日, 循环标识)
 - tenant_project_approval_flow_file: 项目审批影像附件(业务key, 影像分类, 文件名/ID/url, 审批节点)
 - tenant_project_approval_flow_node: 项目审批节点操作记录(关联审批单, 节点编码, 操作/审批类型, 操作人)
-- tenant_setting_config: [核心配置大宽表] 贴牌租户主配置(租户code/名称, 平台名, 统码, 客服电话, 小程序/公众号, 默认项目, 协议签署配置, 业务开关)
+- tenant_setting_config: [核心配置大宽表] 贴牌租户主配置(租户code/名称, 平台名, 统码, 接入模式access_mode(STANDARD/DIRECT_INIT), 客服电话, 小程序/公众号, 默认项目, 协议签署配置, 业务开关)
 - tenant_setting_config_share: [核心配置大宽表] 共享租户配置(租户名称, 平台名, 统码, 客服信息/二维码, 小程序/公众号, 域名/展示配置)
 
 ## wec（2）
@@ -119,7 +119,7 @@ contract_version: '0.1'
 - gpt_learn_poster_log: 审核卡片引流埋点日志
 - lc_sql_init_log: 底层插件SQL初始化记录
 - migratory_user_record: 账号体系迁移记录(用户ID user_id, 登录状态is_login)
-- open_sso_channel: 开放登录SSO渠道配置(渠道码channel_code, 渠道名称, appId, 密钥)
+- open_sso_channel: 开放登录SSO渠道配置(渠道码channel_code, tenant_code/db_tenant_code产融租户标识, appId, channel_kind LOCAL_SYS/STANDARD, SSO clientId/secret)
 - operation_user: 运营人员基础信息(姓名, 运营中台ID operation_id, 组别, 状态)
 - org_manage: 组织机构行政层级树(机构编码code, 机构名称, 机构号org_no, 状态)
 - short_link: 外链短链生成与重定向(短链编号, 源长链source_url, 永久有效标识)

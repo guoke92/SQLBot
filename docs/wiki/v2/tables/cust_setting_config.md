@@ -6,254 +6,156 @@ belong: tables
 status: draft
 anchors: [cust_setting_config]
 sources: ['database_schema:lowcode_pplatform.cust_setting_config']
-created: '2026-09-17'
-updated: '2026-09-17'
+created: '2026-09-20'
+updated: '2026-09-20'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
-related: [cust_company_info, cust_setting_config__enable, cust_setting_config__need_verify_no_key,
-  cust_setting_config__need_auth_verify, cust_setting_config__face_recognition]
+related: [cust_company_info, cust_setting_config__code, cust_setting_config__enable,
+  cust_setting_config__need_verify_no_key, cust_setting_config__user_agreement, cust_setting_config__privacy_policy_agreement,
+  cust_setting_config__authorization_offline, cust_setting_config__need_auth_verify,
+  cust_setting_config__face_recognition, cust_setting_config__payment_verification,
+  cust_setting_config__payment_maximum_number, cust_setting_config__invitation_code_period,
+  cust_setting_config__sending_interval]
 ---
 
 # 客户认证配置
 
-L0 库侧合同（draft）。grain / 字段簇 / 身份束关系均为 proposed，不得当认证 JOIN。
-
-## 字段簇
-
-### common
-
-`id`, `code`, `name`, `enable`, `remark`, `create_by`, `create_user`, `create_time`, `update_by`, `update_user`, `update_time`
-
-### audit
-
-（空）
-
-### tenant
-
-`app_tenant_code`, `db_tenant_code`
-
-### workflow
-
-`act_procinst_id`, `act_procinst_no`, `act_procinst_status`, `act_procinst_date`
-
-### org
-
-`organization_id`, `key_word`, `no_key_word`, `cust_id`
-
-### verify
-
-`need_verify_no_key`, `need_auth_verify`, `face_recognition`
-
-### agreement
-
-`user_agreement`, `privacy_policy_agreement`, `authorization_online`, `authorization_offline`, `authorization_change`, `cfca_agreement`
-
-### payment
-
-`payment_verification`, `payment_maximum_number`
-
-### invitation
-
-`invitation_code_period`, `invitation_code_period_unit`, `sending_interval`, `sending_interval_unti`
+L0 库侧合同（draft）。grain / 身份束关系均为 proposed，不得当认证 JOIN。
 
 ## 字段
 
 ```ground:table
 table: cust_setting_config
 database: lowcode_pplatform
-description: 客户认证配置
+desc: 客户认证配置
 inactive: false
 primary_key: [id]
 grain: 一行一记录（id）
 name_anchors: [code, name]
-clusters:
-- key: common
-  title: 通用
-  include: always
-- key: audit
-  title: 审计信息
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.cust_setting_config
-- key: tenant
-  title: 租户标识
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.cust_setting_config
-- key: workflow
-  title: 审批流程
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.cust_setting_config
-- key: org
-  title: 企业与机构
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.cust_setting_config
-- key: verify
-  title: 认证校验
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.cust_setting_config
-- key: agreement
-  title: 协议签署
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.cust_setting_config
-- key: payment
-  title: 打款验证
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.cust_setting_config
-- key: invitation
-  title: 邀请码与发送规则
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.cust_setting_config
 fields:
 - name: id
-  data_type: number
-  description: 表主键
+  type: number
+  desc: 表主键
   nullable: false
-  cluster: common
 - name: code
-  data_type: string
-  description: 编码
-  cluster: common
+  type: string
+  desc: 编码
+  dict: ['9999999999']
 - name: name
-  data_type: string
-  description: 配置名称
-  cluster: common
+  type: string
+  desc: 配置名称
 - name: enable
-  data_type: string
-  description: enable
-  cluster: common
-  dictionary: cust_setting_config__enable
+  type: string
+  desc: enable
+  dict: [Y]
 - name: remark
-  data_type: string
-  description: remark
-  cluster: common
+  type: string
+  desc: remark
 - name: create_by
-  data_type: string
-  description: 创建人id
-  cluster: common
+  type: string
+  desc: 创建人id
 - name: create_user
-  data_type: string
-  description: 创建人名称
-  cluster: common
+  type: string
+  desc: 创建人名称
 - name: create_time
-  data_type: temporal
-  description: 创建时间
+  type: temporal
+  desc: 创建时间
   nullable: false
-  cluster: common
 - name: update_by
-  data_type: string
-  description: 更新人id
-  cluster: common
+  type: string
+  desc: 更新人id
 - name: update_user
-  data_type: string
-  description: 更新人名称
-  cluster: common
+  type: string
+  desc: 更新人名称
 - name: update_time
-  data_type: temporal
-  description: 更新时间
+  type: temporal
+  desc: 更新时间
   nullable: false
-  cluster: common
 - name: act_procinst_id
-  data_type: string
-  description: 流程实例ID
-  cluster: workflow
+  type: string
+  desc: 流程实例ID
 - name: app_tenant_code
-  data_type: string
-  description: 逻辑租户标识
-  cluster: tenant
+  type: string
+  desc: 逻辑租户标识
 - name: db_tenant_code
-  data_type: string
-  description: 数据租户标识
-  cluster: tenant
+  type: string
+  desc: 数据租户标识
 - name: act_procinst_no
-  data_type: string
-  description: 流程申请编号
-  cluster: workflow
+  type: string
+  desc: 流程申请编号
 - name: act_procinst_status
-  data_type: string
-  description: 当前审批状态
-  cluster: workflow
+  type: string
+  desc: 当前审批状态
 - name: act_procinst_date
-  data_type: temporal
-  description: 审批结束时间
-  cluster: workflow
+  type: temporal
+  desc: 审批结束时间
 - name: organization_id
-  data_type: string
-  description: 机构编号
-  cluster: org
+  type: string
+  desc: 机构编号
 - name: key_word
-  data_type: string
-  description: 企业关键信息
-  cluster: org
+  type: string
+  desc: 企业关键信息
 - name: need_verify_no_key
-  data_type: string
-  description: 企业非关键信息变更审核
-  cluster: verify
-  dictionary: cust_setting_config__need_verify_no_key
+  type: string
+  desc: 企业非关键信息变更审核
+  dict: ['yes']
 - name: user_agreement
-  data_type: string
-  description: 用户协议
-  cluster: agreement
+  type: string
+  desc: 用户协议
+  dict: [CT-202404031806394575219]
 - name: privacy_policy_agreement
-  data_type: string
-  description: 隐私政策
-  cluster: agreement
+  type: string
+  desc: 隐私政策
+  dict: [CT-202404031807156758507]
 - name: authorization_online
-  data_type: string
-  description: 授权确认书-线上签署
-  cluster: agreement
+  type: string
+  desc: 授权确认书-线上签署
 - name: authorization_offline
-  data_type: string
-  description: 授权确认书-线下签署
-  cluster: agreement
+  type: string
+  desc: 授权确认书-线下签署
+  dict: [CT-202404081721209495040]
 - name: authorization_change
-  data_type: string
-  description: 数字证书服务协议
-  cluster: agreement
+  type: string
+  desc: 数字证书服务协议
 - name: cfca_agreement
-  data_type: string
-  description: 数字证书服务协议
-  cluster: agreement
+  type: string
+  desc: 数字证书服务协议
 - name: need_auth_verify
-  data_type: string
-  description: 企业认证审核
-  cluster: verify
-  dictionary: cust_setting_config__need_auth_verify
+  type: string
+  desc: 企业认证审核
+  dict: ['yes']
 - name: face_recognition
-  data_type: string
-  description: 人脸识别
-  cluster: verify
-  dictionary: cust_setting_config__face_recognition
+  type: string
+  desc: 人脸识别
+  dict: ['no']
 - name: payment_verification
-  data_type: string
-  description: 打款验证
-  cluster: payment
+  type: string
+  desc: 打款验证
+  dict: ['yes']
 - name: payment_maximum_number
-  data_type: number
-  description: 最多申请打款次数
-  cluster: payment
+  type: number
+  desc: 最多申请打款次数
+  dict: ['3']
 - name: no_key_word
-  data_type: string
-  description: 企业非关键信息配置
-  cluster: org
+  type: string
+  desc: 企业非关键信息配置
 - name: invitation_code_period
-  data_type: number
-  description: 邀请码有效期
-  cluster: invitation
+  type: number
+  desc: 邀请码有效期
+  dict: ['1']
 - name: invitation_code_period_unit
-  data_type: string
-  description: 邀请码有效期单位
-  cluster: invitation
+  type: string
+  desc: 邀请码有效期单位
 - name: sending_interval
-  data_type: number
-  description: 邀请码重复发送时间间隔
-  cluster: invitation
+  type: number
+  desc: 邀请码重复发送时间间隔
+  dict: ['1']
 - name: sending_interval_unti
-  data_type: string
-  description: 邀请码重复发送时间间隔单位
-  cluster: invitation
+  type: string
+  desc: 邀请码重复发送时间间隔单位
 - name: cust_id
-  data_type: number
-  description: 企业id
-  cluster: org
+  type: number
+  desc: 企业id
 ```
 
 ## 关联关系
@@ -292,7 +194,15 @@ overlap:
 
 ### 字典
 
+- [[dicts/cust_setting_config__code]]（`cust_setting_config.code`）
 - [[dicts/cust_setting_config__enable]]（`cust_setting_config.enable`）
 - [[dicts/cust_setting_config__need_verify_no_key]]（`cust_setting_config.need_verify_no_key`）
+- [[dicts/cust_setting_config__user_agreement]]（`cust_setting_config.user_agreement`）
+- [[dicts/cust_setting_config__privacy_policy_agreement]]（`cust_setting_config.privacy_policy_agreement`）
+- [[dicts/cust_setting_config__authorization_offline]]（`cust_setting_config.authorization_offline`）
 - [[dicts/cust_setting_config__need_auth_verify]]（`cust_setting_config.need_auth_verify`）
 - [[dicts/cust_setting_config__face_recognition]]（`cust_setting_config.face_recognition`）
+- [[dicts/cust_setting_config__payment_verification]]（`cust_setting_config.payment_verification`）
+- [[dicts/cust_setting_config__payment_maximum_number]]（`cust_setting_config.payment_maximum_number`）
+- [[dicts/cust_setting_config__invitation_code_period]]（`cust_setting_config.invitation_code_period`）
+- [[dicts/cust_setting_config__sending_interval]]（`cust_setting_config.sending_interval`）

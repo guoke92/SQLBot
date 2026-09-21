@@ -6,8 +6,8 @@ belong: tables
 status: draft
 anchors: [cust_oper_change_record]
 sources: ['database_schema:lowcode_pplatform.cust_oper_change_record', 'code_path:OperChangeRecordApplication.java:47']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
 related: [cust_person_info, cust_company_info, cust_oper_change_record__change_type,

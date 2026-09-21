@@ -1,21 +1,19 @@
 """Wiki extraction pipeline entry (plan Step A / D / E / F).
 
-提取面 v2 的编排器：Step A 提取计划（LLM×1，主题单元聚类 + 双源过滤清单
-建议）→ Step D 主题穿透（wiki.ingest，五块上下文 + 回证提示词）→
-Step E 零信任对账 → Step F 写入 ``wiki-pages/`` 子目录 + ``_index.md``。
+DEPRECATED（遗留 pages 管线）：现行出门是 ``tools.wiki_extract`` →
+``docs/wiki/v2`` → ``docs/wiki/v3``。默认 ``--out`` 指向
+``.tmp/docs/wiki-knowledge/pplatform/wiki-pages``，避免误写现行 L1 树。
 
-计划单元是**工作分批单位**，不是落库概念：最终页面按业务术语/场景/概念
-自然拆分（同一主题可能产 3-10 页）。单元聚类的认知来自 E0 系统文档
-（架构/模块/入口定位），结构事实来自 E1 调用图——文档是入口，代码是准绳。
+历史编排：Step A 提取计划 → Step D 主题穿透 → Step E 对账 → Step F 写
+``wiki-pages/``。计划单元是工作分批单位，不是落库概念。
 
 Usage::
 
     backend/venv/bin/python -m apps.knowledge.wiki.pipeline plan \
         --repo ~/IdeaProjects/pplatform-web \
-        --substrate docs/wiki-knowledge/pplatform/substrate
+        --substrate .tmp/docs/wiki-knowledge/pplatform/substrate
     backend/venv/bin/python -m apps.knowledge.wiki.pipeline run \
         --repo ... --substrate ... --topic 企业建档
-    backend/venv/bin/python -m apps.knowledge.wiki.pipeline update ...
 """
 
 from __future__ import annotations
@@ -945,7 +943,10 @@ def main() -> None:
     run_p.add_argument("--repo", required=True)
     run_p.add_argument("--substrate", required=True)
     run_p.add_argument("--db-dir", default="")
-    run_p.add_argument("--out", default="../docs/wiki-knowledge/pplatform/wiki-pages")
+    run_p.add_argument(
+        "--out",
+        default="../.tmp/docs/wiki-knowledge/pplatform/wiki-pages",
+    )
     run_p.add_argument("--reqdoc-root", default="")
     run_p.add_argument("--only", default="", help="逗号分隔 topic；强制重跑")
 

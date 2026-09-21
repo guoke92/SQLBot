@@ -1,2 +1,0 @@
-- code: PAGE_CONTRACT_FAILED
-  message: page_key 'ProductOpenStatusEnum' 不符合 enum 页的 物理名（snake_case）

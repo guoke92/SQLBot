@@ -5,12 +5,12 @@ page_key: cust_app_channel_config
 belong: tables
 status: draft
 anchors: [cust_app_channel_config]
-sources: ['database_schema:lowcode_pplatform.cust_app_channel_config']
-created: '2026-09-18'
-updated: '2026-09-18'
+sources: ['database_schema:lowcode_pplatform.cust_app_channel_config', 'code_path:ChannelArchiveAppChannelConfigInitializer.java:44']
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
-related: [cust_company_info, cust_app_channel_config__app_id, cust_app_channel_config__code,
+related: [cust_app_channel_config__app_id, cust_app_channel_config__code, cust_app_channel_config__name,
   cust_app_channel_config__enable]
 ---
 
@@ -26,7 +26,7 @@ database: lowcode_pplatform
 desc: 客户应用渠道关系
 inactive: false
 primary_key: [id]
-grain: 客户应用渠道关系（pplatform-web 无 @TableName / 业务引用）
+grain: 租户渠道 appId 映射；建档时按 db_tenant_code 幂等初始化
 name_anchors: [code, name]
 fields:
 - name: id
@@ -44,6 +44,7 @@ fields:
 - name: name
   type: string
   desc: 名称
+  dict: [longteng, jingke]
 - name: enable
   type: string
   desc: enable
@@ -92,16 +93,17 @@ fields:
 - name: organization_id
   type: string
   desc: 机构编号
+default_filter:
+  predicate: cust_app_channel_config.enable = 'Y'
+  trust: confirmed
+  evidence: code_path:ChannelArchiveAppChannelConfigInitializer.java:44
 ```
 
 ## 页面链接
-
-### 关联表
-
-- [[tables/cust_company_info]]
 
 ### 字典
 
 - [[dicts/cust_app_channel_config__app_id]]（`cust_app_channel_config.app_id`）
 - [[dicts/cust_app_channel_config__code]]（`cust_app_channel_config.code`）
+- [[dicts/cust_app_channel_config__name]]（`cust_app_channel_config.name`）
 - [[dicts/cust_app_channel_config__enable]]（`cust_app_channel_config.enable`）

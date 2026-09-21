@@ -6,459 +6,284 @@ belong: tables
 status: draft
 anchors: [tenant_project]
 sources: ['database_schema:lowcode_pplatform.tenant_project']
-created: '2026-09-17'
-updated: '2026-09-17'
+created: '2026-09-20'
+updated: '2026-09-20'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
 related: [tenant_interworking_project, tenant_product, platform_product, tenant_project_approval,
-  tenant_project__project_status, tenant_project__test_data, tenant_project__enable,
-  tenant_project__source, tenant_project__is_prd, tenant_project__config_model, tenant_project__operater_card_type,
+  tenant_project__project_status, tenant_project__test_data, tenant_project__ref_tenant_project_platform_product,
+  tenant_project__enable, tenant_project__platform_product_code, tenant_project__source,
+  tenant_project__is_prd, tenant_project__config_model, tenant_project__operater_card_type,
   tenant_project__cover_operator, tenant_project__share_flag, tenant_project__project_config_version,
-  tenant_project__project_tag, tenant_project__top_flag, tenant_project__cust_oper_show,
-  tenant_project__is_add]
+  tenant_project__op_contact_a, tenant_project__verification_contact, tenant_project__risk_control_contact_a,
+  tenant_project__business_group, tenant_project__project_tag, tenant_project__project_relation,
+  tenant_project__top_flag, tenant_project__cust_oper_show, tenant_project__is_add]
 ---
 
 # 租户项目配置
 
-L0 库侧合同（draft）。grain / 字段簇 / 身份束关系均为 proposed，不得当认证 JOIN。
-
-## 字段簇
-
-### common
-
-`id`, `code`, `name`, `enable`, `remark`, `create_by`, `create_user`, `create_time`, `update_by`, `update_user`, `update_time`
-
-### audit
-
-（空）
-
-### tenant
-
-`tenant_id`, `app_tenant_code`, `db_tenant_code`, `tenant_flg_en`, `share_flag`
-
-### project
-
-`project_code`, `project_create_time`, `project_effective_time`, `project_agreement`, `project_status`, `project_config_version`, `project_tag`, `project_relation`, `project_approval_id`
-
-### product
-
-`product_id`, `channel_code`, `platform_product_code`
-
-### ref
-
-`ref_tenant_project_platform_product`, `ref_tenant_project_tenant_code`, `ref_tenant_project_product_code`, `refer_tenant_project_id`
-
-### approval
-
-`act_procinst_id`, `act_procinst_no`, `act_procinst_status`, `act_procinst_date`, `wechat_audit_no`, `wechat_audit_pass_time`
-
-### config
-
-`config_json`, `config_model`
-
-### operator
-
-`operator_id`, `operator_name`, `operator_email`, `send_email`, `operater_card_type`, `cover_operator`, `op_update_user`, `op_update_time`, `invite_customer_service_words`, `cust_oper_show`
-
-### contact
-
-`op_contact_a`, `op_contact_b`, `op_contact_a_group`, `verification_contact`, `verification_contact_group`, `risk_control_contact_a`, `risk_control_contact_b`, `risk_control_contact_a_group`, `text`
-
-### business
-
-`solution_manager`, `business_manager`, `business_group`, `bussiness_project_relation`
-
-### flags
-
-`test_data`, `is_prd`, `top_flag`, `is_add`
-
-### custom
-
-`custom_field_one`, `custom_field_two`, `custom_field_three`
-
-### misc
-
-`organization_id`, `source_id`, `source`, `logo_path`, `first_settlement_time`
+L0 库侧合同（draft）。grain / 身份束关系均为 proposed，不得当认证 JOIN。
 
 ## 字段
 
 ```ground:table
 table: tenant_project
 database: lowcode_pplatform
-description: 租户项目配置
+desc: 租户项目配置
 inactive: false
 primary_key: [id]
 grain: 一行一记录（id）
 name_anchors: [code, name, channel_code, ref_tenant_project_tenant_code, ref_tenant_project_product_code,
   operator_name]
-clusters:
-- key: common
-  title: 通用
-  include: always
-- key: audit
-  title: 审计信息
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.tenant_project
-- key: tenant
-  title: 租户与共享
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.tenant_project
-- key: project
-  title: 项目主档
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.tenant_project
-- key: product
-  title: 产品与渠道
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.tenant_project
-- key: ref
-  title: 关联引用
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.tenant_project
-- key: approval
-  title: 审批信息
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.tenant_project
-- key: config
-  title: 配置
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.tenant_project
-- key: operator
-  title: 运营名片与运营信息
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.tenant_project
-- key: contact
-  title: 对接人与组别
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.tenant_project
-- key: business
-  title: 业务归属
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.tenant_project
-- key: flags
-  title: 数据标识
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.tenant_project
-- key: custom
-  title: 自定义字段
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.tenant_project
-- key: misc
-  title: 其他
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.tenant_project
 fields:
 - name: id
-  data_type: number
-  description: 表主键
+  type: number
+  desc: 表主键
   nullable: false
-  cluster: common
 - name: code
-  data_type: string
-  description: 编码
-  cluster: common
+  type: string
+  desc: 编码
 - name: name
-  data_type: string
-  description: 名称
-  cluster: common
+  type: string
+  desc: 名称
 - name: tenant_id
-  data_type: number
-  description: 租户编码
-  cluster: tenant
+  type: number
+  desc: 租户编码
 - name: product_id
-  data_type: number
-  description: 产品编码
-  cluster: product
+  type: number
+  desc: 产品编码
 - name: project_code
-  data_type: string
-  description: 项目编码
-  cluster: project
+  type: string
+  desc: 项目编码
 - name: project_create_time
-  data_type: temporal
-  description: 项目创建时间
-  cluster: project
+  type: temporal
+  desc: 项目创建时间
 - name: project_effective_time
-  data_type: temporal
-  description: 项目生效时间
-  cluster: project
+  type: temporal
+  desc: 项目生效时间
 - name: channel_code
-  data_type: string
-  description: 渠道码
-  cluster: product
+  type: string
+  desc: 渠道码
 - name: project_agreement
-  data_type: string
-  description: 项目协议
-  cluster: project
+  type: string
+  desc: 项目协议
 - name: project_status
-  data_type: string
-  description: 项目状态
-  cluster: project
-  dictionary: tenant_project__project_status
+  type: string
+  desc: 项目状态
+  dict: ['1', '0', '2']
 - name: test_data
-  data_type: string
-  description: 是否测试数据
-  cluster: flags
-  dictionary: tenant_project__test_data
+  type: string
+  desc: 是否测试数据
+  dict: [N, Y]
 - name: ref_tenant_project_platform_product
-  data_type: string
-  description: 平台产品-项目关联
-  cluster: ref
+  type: string
+  desc: 平台产品-项目关联
+  dict: [b8468d68ba0a4762bda0f7b9164e4f6a, f285fa5cf17f4a8f9eefe93d3a513a6b, f285fa5cf17f4a8f9eefe93d3a513a61,
+    f285fa5cf17f4a8f9eefe93d3a513a63, 007142024a5c425bb3673f753060e534, f285fa5cf17f4a8f9eefe93d3a513a6e,
+    f285fa5cf17f4a8f9eefe93d3a513a65]
 - name: ref_tenant_project_tenant_code
-  data_type: string
-  description: 租户-项目
-  cluster: ref
+  type: string
+  desc: 租户-项目
 - name: ref_tenant_project_product_code
-  data_type: string
-  description: 租户产品-项目
-  cluster: ref
+  type: string
+  desc: 租户产品-项目
 - name: enable
-  data_type: string
-  description: enable
-  cluster: common
-  dictionary: tenant_project__enable
+  type: string
+  desc: enable
+  dict: [Y]
 - name: remark
-  data_type: string
-  description: remark
-  cluster: common
+  type: string
+  desc: remark
 - name: create_by
-  data_type: string
-  description: 创建人id
-  cluster: common
+  type: string
+  desc: 创建人id
 - name: create_user
-  data_type: string
-  description: 创建人名称
-  cluster: common
+  type: string
+  desc: 创建人名称
 - name: create_time
-  data_type: temporal
-  description: 创建时间
+  type: temporal
+  desc: 创建时间
   nullable: false
-  cluster: common
 - name: update_by
-  data_type: string
-  description: 更新人id
-  cluster: common
+  type: string
+  desc: 更新人id
 - name: update_user
-  data_type: string
-  description: 更新人名称
-  cluster: common
+  type: string
+  desc: 更新人名称
 - name: update_time
-  data_type: temporal
-  description: 更新时间
-  cluster: common
+  type: temporal
+  desc: 更新时间
 - name: act_procinst_id
-  data_type: string
-  description: 流程实例ID
-  cluster: approval
+  type: string
+  desc: 流程实例ID
 - name: app_tenant_code
-  data_type: string
-  description: 逻辑租户标识
-  cluster: tenant
+  type: string
+  desc: 逻辑租户标识
 - name: db_tenant_code
-  data_type: string
-  description: 数据租户标识
-  cluster: tenant
+  type: string
+  desc: 数据租户标识
 - name: act_procinst_no
-  data_type: string
-  description: 流程申请编号
-  cluster: approval
+  type: string
+  desc: 流程申请编号
 - name: act_procinst_status
-  data_type: string
-  description: 当前审批状态
-  cluster: approval
+  type: string
+  desc: 当前审批状态
 - name: act_procinst_date
-  data_type: temporal
-  description: 审批结束时间
-  cluster: approval
+  type: temporal
+  desc: 审批结束时间
 - name: organization_id
-  data_type: string
-  description: 机构编号
-  cluster: misc
+  type: string
+  desc: 机构编号
 - name: platform_product_code
-  data_type: string
-  description: 平台产品编码
-  cluster: product
+  type: string
+  desc: 平台产品编码
+  dict: [ACFLOW, RVSFACTOR_PC, ORDER, BEECREDIT, DRAFT, STORAGE, DRAFTQA, VOUCHER]
 - name: source_id
-  data_type: string
-  description: 项目来源id
-  cluster: misc
+  type: string
+  desc: 项目来源id
 - name: source
-  data_type: string
-  description: 项目来源
-  cluster: misc
-  dictionary: tenant_project__source
+  type: string
+  desc: 项目来源
+  dict: [pplatform, ACFLOW, RVSFACTOR_PC, ORDER, STORAGE]
 - name: config_json
-  data_type: string
-  description: 配置详情
-  cluster: config
+  type: string
+  desc: 配置详情
 - name: operator_id
-  data_type: string
-  cluster: operator
+  type: string
 - name: operator_name
-  data_type: string
-  cluster: operator
+  type: string
 - name: operator_email
-  data_type: string
-  cluster: operator
+  type: string
 - name: send_email
-  data_type: string
-  cluster: operator
+  type: string
 - name: is_prd
-  data_type: string
-  description: 是否生产数据
-  cluster: flags
-  dictionary: tenant_project__is_prd
+  type: string
+  desc: 是否生产数据
+  dict: [Y, N]
 - name: config_model
-  data_type: string
-  description: 项目配置模式(XYC)
-  cluster: config
-  dictionary: tenant_project__config_model
+  type: string
+  desc: 项目配置模式(XYC)
+  dict: [admin, normal]
 - name: tenant_flg_en
-  data_type: string
-  description: 项目标识（英文）
-  cluster: tenant
+  type: string
+  desc: 项目标识（英文）
 - name: operater_card_type
-  data_type: string
-  description: 运营名片类型
-  cluster: operator
-  dictionary: tenant_project__operater_card_type
+  type: string
+  desc: 运营名片类型
+  dict: [WX_WORK, WX]
 - name: cover_operator
-  data_type: string
-  description: 是否覆盖运营
-  cluster: operator
-  dictionary: tenant_project__cover_operator
+  type: string
+  desc: 是否覆盖运营
+  dict: [Y, N]
 - name: logo_path
-  data_type: string
-  description: logo路径
-  cluster: misc
+  type: string
+  desc: logo路径
 - name: share_flag
-  data_type: string
-  description: 共享租户
-  cluster: tenant
-  dictionary: tenant_project__share_flag
+  type: string
+  desc: 共享租户
+  dict: [N, Y]
 - name: project_config_version
-  data_type: string
-  description: 项目配置版本
-  cluster: project
-  dictionary: tenant_project__project_config_version
+  type: string
+  desc: 项目配置版本
+  dict: [config, configPro]
 - name: wechat_audit_no
-  data_type: string
-  description: 企微审批编号
-  cluster: approval
+  type: string
+  desc: 企微审批编号
 - name: wechat_audit_pass_time
-  data_type: temporal
-  description: 项目立项审批通过时间
-  cluster: approval
+  type: temporal
+  desc: 项目立项审批通过时间
 - name: op_contact_a
-  data_type: string
-  description: 运营对接人A
-  cluster: contact
+  type: string
+  desc: 运营对接人A
+  dict: ['383', '412', '333', '454', '360', '141', '344', '267', '411', '420', '466',
+    '280', '430', '97', '93', '415', '463', '305', '271']
 - name: op_contact_b
-  data_type: string
-  description: 运营对接人B
-  cluster: contact
+  type: string
+  desc: 运营对接人B
 - name: op_contact_a_group
-  data_type: string
-  description: 运营组别
-  cluster: contact
+  type: string
+  desc: 运营组别
 - name: verification_contact
-  data_type: string
-  description: 查验对接人
-  cluster: contact
+  type: string
+  desc: 查验对接人
+  dict: ['360', '333', '404', OP001, '430', '383']
 - name: verification_contact_group
-  data_type: string
-  description: 查验组别
-  cluster: contact
+  type: string
+  desc: 查验组别
 - name: risk_control_contact_a
-  data_type: string
-  description: 风控对接人A
-  cluster: contact
+  type: string
+  desc: 风控对接人A
+  dict: ['383', '360', '333', '344', '97', '271', '441', '267', '454', '363', '209',
+    '210', '415', '411']
 - name: risk_control_contact_b
-  data_type: string
-  description: 风控对接人B
-  cluster: contact
+  type: string
+  desc: 风控对接人B
 - name: risk_control_contact_a_group
-  data_type: string
-  description: 风控组别
-  cluster: contact
+  type: string
+  desc: 风控组别
 - name: solution_manager
-  data_type: string
-  description: 方案经理
-  cluster: business
+  type: string
+  desc: 方案经理
 - name: business_manager
-  data_type: string
-  description: 业务经理
-  cluster: business
+  type: string
+  desc: 业务经理
 - name: business_group
-  data_type: string
-  description: 关联业务部门
-  cluster: business
+  type: string
+  desc: 关联业务部门
+  dict: [部门a, '11']
 - name: first_settlement_time
-  data_type: temporal
-  description: 首笔落地时间
-  cluster: misc
+  type: temporal
+  desc: 首笔落地时间
 - name: custom_field_one
-  data_type: string
-  description: 自定义字段一
-  cluster: custom
+  type: string
+  desc: 自定义字段一
 - name: custom_field_two
-  data_type: string
-  description: 自定义字段二
-  cluster: custom
+  type: string
+  desc: 自定义字段二
 - name: custom_field_three
-  data_type: string
-  description: 自定义字段三
-  cluster: custom
+  type: string
+  desc: 自定义字段三
 - name: project_tag
-  data_type: string
-  description: 项目标签
-  cluster: project
-  dictionary: tenant_project__project_tag
+  type: string
+  desc: 项目标签
+  dict: [PRD, TEST]
 - name: project_relation
-  data_type: string
-  description: 项目归属
-  cluster: project
+  type: string
+  desc: 项目归属
+  dict: ['111', '1111']
 - name: bussiness_project_relation
-  data_type: string
-  description: 运营项目归属
-  cluster: business
+  type: string
+  desc: 运营项目归属
 - name: top_flag
-  data_type: string
-  description: 置顶标识
-  cluster: flags
-  dictionary: tenant_project__top_flag
+  type: string
+  desc: 置顶标识
+  dict: ['0', '1']
 - name: text
-  data_type: string
-  cluster: contact
+  type: string
 - name: op_update_user
-  data_type: string
-  description: 运营信息更新人
-  cluster: operator
+  type: string
+  desc: 运营信息更新人
 - name: op_update_time
-  data_type: temporal
-  description: 运营信息更新时间
-  cluster: operator
+  type: temporal
+  desc: 运营信息更新时间
 - name: refer_tenant_project_id
-  data_type: number
-  description: 复制的租户项目
-  cluster: ref
+  type: number
+  desc: 复制的租户项目
 - name: invite_customer_service_words
-  data_type: string
-  description: 客服话术
-  cluster: operator
+  type: string
+  desc: 客服话术
 - name: cust_oper_show
-  data_type: string
-  description: 建档运营名片展示
-  cluster: operator
-  dictionary: tenant_project__cust_oper_show
+  type: string
+  desc: 建档运营名片展示
+  dict: [Y, N]
 - name: is_add
-  data_type: string
-  description: 是否新增，Y：是，N：否，默认为N
-  cluster: flags
-  dictionary: tenant_project__is_add
+  type: string
+  desc: 是否新增，Y：是，N：否，默认为N
+  dict: [N, Y]
+  label: [否, 是]
 - name: project_approval_id
-  data_type: number
-  description: 项目线上审批ID
-  cluster: project
+  type: number
+  desc: 项目线上审批ID
 ```
 
 ## 关联关系
@@ -488,7 +313,6 @@ overlap:
   deepened: false
   query_ok: true
   authenticity: likely
-authenticity_note: 探测 79/79 完全覆盖(ratio 1.0)，列名 product 家族一致，两侧注释均为产品编码/产品
 ```
 
 ### unknown — 待复核
@@ -515,7 +339,6 @@ overlap:
   deepened: false
   query_ok: true
   authenticity: unknown
-authenticity_note: 未探测(sample_size 0)，列名与注释(项目线上审批ID)语义对应，待探测值域
 ```
 
 ```ground:relation
@@ -541,7 +364,6 @@ overlap:
   deepened: false
   query_ok: true
   authenticity: unknown
-authenticity_note: 名称与注释完全对应(平台产品编码)，但仅 1 个样本且 0 命中，探测量不足以定论
 ```
 
 ### unlikely — 值域不支持或冲突
@@ -569,7 +391,6 @@ overlap:
   deepened: false
   query_ok: true
   authenticity: unlikely
-authenticity_note: 探测 200 样本全部未命中(ratio 0.0)，project_code 与该表 code 值域不契合
 ```
 
 ```ground:relation
@@ -595,7 +416,6 @@ overlap:
   deepened: false
   query_ok: true
   authenticity: unlikely
-authenticity_note: 列名 long_ref 指向 platform_product，但仅 3 个样本且 0 命中，样本过小不足以判 unlikely，留待扩样复核
 ```
 
 ## 页面链接
@@ -611,7 +431,9 @@ authenticity_note: 列名 long_ref 指向 platform_product，但仅 3 个样本�
 
 - [[dicts/tenant_project__project_status]]（`tenant_project.project_status`）
 - [[dicts/tenant_project__test_data]]（`tenant_project.test_data`）
+- [[dicts/tenant_project__ref_tenant_project_platform_product]]（`tenant_project.ref_tenant_project_platform_product`）
 - [[dicts/tenant_project__enable]]（`tenant_project.enable`）
+- [[dicts/tenant_project__platform_product_code]]（`tenant_project.platform_product_code`）
 - [[dicts/tenant_project__source]]（`tenant_project.source`）
 - [[dicts/tenant_project__is_prd]]（`tenant_project.is_prd`）
 - [[dicts/tenant_project__config_model]]（`tenant_project.config_model`）
@@ -619,7 +441,12 @@ authenticity_note: 列名 long_ref 指向 platform_product，但仅 3 个样本�
 - [[dicts/tenant_project__cover_operator]]（`tenant_project.cover_operator`）
 - [[dicts/tenant_project__share_flag]]（`tenant_project.share_flag`）
 - [[dicts/tenant_project__project_config_version]]（`tenant_project.project_config_version`）
+- [[dicts/tenant_project__op_contact_a]]（`tenant_project.op_contact_a`）
+- [[dicts/tenant_project__verification_contact]]（`tenant_project.verification_contact`）
+- [[dicts/tenant_project__risk_control_contact_a]]（`tenant_project.risk_control_contact_a`）
+- [[dicts/tenant_project__business_group]]（`tenant_project.business_group`）
 - [[dicts/tenant_project__project_tag]]（`tenant_project.project_tag`）
+- [[dicts/tenant_project__project_relation]]（`tenant_project.project_relation`）
 - [[dicts/tenant_project__top_flag]]（`tenant_project.top_flag`）
 - [[dicts/tenant_project__cust_oper_show]]（`tenant_project.cust_oper_show`）
 - [[dicts/tenant_project__is_add]]（`tenant_project.is_add`）

@@ -10,15 +10,15 @@ sources: ['database_profile:tenant_project_approval_flow.node_code', 'database_s
   'code_path:ProjectApprovalNodeCodeEnum.java:21', 'code_path:ProjectApprovalNodeCodeEnum.java:16',
   'code_path:ProjectApprovalNodeCodeEnum.java:18', 'code_path:ProjectApprovalNodeCodeEnum.java:19',
   'code_path:ProjectApprovalNodeCodeEnum.java:22', 'code_path:ProjectApprovalNodeCodeEnum.java:23']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [tenant_project_approval_flow]
 ---
 
 # tenant_project_approval_flow.node_code
 
-L1 字典：label 来自源码 displayName/常量注释（confirmed）。L0 注释猜词已被代码覆盖。
+L1 字典：label 来自源码 displayName/常量注释（confirmed）。L0 注释猜词已被代码覆盖。 初审 hold：证据不足，保留待人工确认。
 物理列 `tenant_project_approval_flow.node_code`，表页 [[tables/tenant_project_approval_flow]]。
 
 ## 取值
@@ -35,5 +35,6 @@ values:
   LEGAL_REVIEW: {trust: confirmed, label: 法务复核, evidence: 'code_path:ProjectApprovalNodeCodeEnum.java:19'}
   OTHER: {trust: confirmed, label: 其他, evidence: 'code_path:ProjectApprovalNodeCodeEnum.java:22'}
   SUPPLEMENT_AGREEMENT: {trust: confirmed, label: 补充协议, evidence: 'code_path:ProjectApprovalNodeCodeEnum.java:23'}
-triage: keep
+triage: hold
+needs_review: true
 ```

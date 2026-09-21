@@ -549,6 +549,114 @@ def test_attribution_conflict_is_query_conditioned() -> None:
     assert independent == ()
 
 
+def test_value_hits_complete_attribution_without_dict_page() -> None:
+    """Value-index label can supply the value side when wiki dict is absent."""
+    from apps.datasource.instance_index.service import ValueAnchor
+    from apps.knowledge.recall_kernel.conflicts import detect_caliber_conflicts
+    from apps.knowledge.wiki.recall import InMemoryWikiStore
+
+    store = InMemoryWikiStore.load(
+        [
+            (
+                "---\ntype: table\ntitle: 企业\npage_key: cust_company_info\n"
+                "status: published\n---\n\n"
+                "```ground:table\ntable: cust_company_info\nfields:\n"
+                "  - name: identify_style\n    desc: 认证方式\n"
+                "    dict: [INVITE_AGW, INVITE]\n"
+                "  - name: cust_build_type\n    desc: 录入方式\n"
+                "    dict: [AGW_BUILD, PC_BUILD]\n```\n"
+            ),
+        ]
+    )
+    query = "提取25年6月之前认证方式是平台录入 建档的企业清单"
+    # Dimension from field desc alone is not enough without a value binding.
+    assert detect_caliber_conflicts(store, query) == ()
+    hits = [
+        ValueAnchor(
+            table_name="cust_company_info",
+            field_name="cust_build_type",
+            raw_value="平台录入",
+            val_type="enum_label",
+            matched_text="平台录入",
+            extra={"code": "AGW_BUILD"},
+        )
+    ]
+    conflicts = detect_caliber_conflicts(store, query, value_hits=hits)
+    assert len(conflicts) == 1
+    assert conflicts[0].kind == "attribution"
+    fields = {(opt["table"], opt["field"]) for opt in conflicts[0].candidates}
+    assert fields == {
+        ("cust_company_info", "identify_style"),
+        ("cust_company_info", "cust_build_type"),
+    }
+    build = next(
+        opt for opt in conflicts[0].candidates if opt["field"] == "cust_build_type"
+    )
+    assert build["value"] == "AGW_BUILD"
+    assert build["value_label"] == "平台录入"
+
+
+def test_table_field_desc_and_dict_label_attribution() -> None:
+    """Field desc (dimension) + dict label (value) without a concept page."""
+    from apps.knowledge.recall_kernel.conflicts import detect_caliber_conflicts
+    from apps.knowledge.wiki.recall import InMemoryWikiStore
+
+    store = InMemoryWikiStore.load(
+        [
+            (
+                "---\ntype: table\ntitle: 企业\npage_key: cust_company_info\n"
+                "status: published\n---\n\n"
+                "```ground:table\ntable: cust_company_info\nfields:\n"
+                "  - name: identify_style\n    desc: 认证方式\n"
+                "    dict: [INVITE_AGW, INVITE]\n"
+                "  - name: cust_build_type\n    desc: 录入方式\n"
+                "    dict: [AGW_BUILD, PC_BUILD]\n```\n"
+            ),
+            (
+                "---\ntype: dict\ntitle: cust_build_type\n"
+                "page_key: cust_build_type\nstatus: published\n---\n\n"
+                "```ground:dict\ndict: cust_build_type\n"
+                "fields: [cust_company_info.cust_build_type]\nvalues:\n"
+                "  AGW_BUILD:\n    label: 平台录入\n"
+                "  PC_BUILD:\n    label: 客户录入\n```\n"
+            ),
+        ]
+    )
+    conflicts = detect_caliber_conflicts(
+        store, "提取25年6月之前认证方式是平台录入 建档的企业清单"
+    )
+    assert len(conflicts) == 1
+    assert conflicts[0].kind == "attribution"
+    fields = {(opt["table"], opt["field"]) for opt in conflicts[0].candidates}
+    assert fields == {
+        ("cust_company_info", "identify_style"),
+        ("cust_company_info", "cust_build_type"),
+    }
+
+
+def test_value_hit_alone_is_not_a_conflict() -> None:
+    """A lone value-index hit is evidence, not an automatic conflict."""
+    from apps.datasource.instance_index.service import ValueAnchor
+    from apps.knowledge.recall_kernel.conflicts import detect_caliber_conflicts
+
+    hits = [
+        ValueAnchor(
+            table_name="cust_company_info",
+            field_name="cust_build_type",
+            raw_value="平台录入",
+            val_type="enum_label",
+            matched_text="平台录入",
+            extra={"code": "AGW_BUILD"},
+        )
+    ]
+    assert (
+        detect_caliber_conflicts(
+            None, "平台录入建档的企业清单", value_hits=hits
+        )
+        == ()
+    )
+
+
 def test_pin_keys_keep_conflict_pages_in_window() -> None:
     pages = [
         _page(

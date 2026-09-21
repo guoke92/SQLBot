@@ -6,14 +6,14 @@ belong: tables
 status: draft
 anchors: [tenant_project_approval_flow]
 sources: ['database_schema:lowcode_pplatform.tenant_project_approval_flow', 'code_path:ProjectApprovalApplication.java:571']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
 related: [tenant_project_approval, tenant_project_approval_flow_node, tenant_project_approval_flow_config,
-  tenant_project_approval_flow__node_code, tenant_project_approval_flow__node_status,
-  tenant_project_approval_flow__is_optional, tenant_project_approval_flow__is_operate,
-  tenant_project_approval_flow__enable]
+  tenant_project_approval_flow__node_code, tenant_project_approval_flow__node_order,
+  tenant_project_approval_flow__node_status, tenant_project_approval_flow__is_optional,
+  tenant_project_approval_flow__is_operate, tenant_project_approval_flow__enable]
 ---
 
 # 租户项目审批流程表
@@ -47,6 +47,8 @@ fields:
 - name: node_order
   type: number
   desc: 节点顺序，从 1 开始
+  dict: ['1', '2', '3', '4', '5', '6']
+  label: {'1': 开始}
 - name: node_status
   type: string
   desc: 节点状态
@@ -172,8 +174,6 @@ overlap:
   deepened: false
   query_ok: true
   authenticity: unlikely
-authenticity_note: 注释「关联项目审批」与长引用列名指向 tenant_project_approval 主键，但探测 100 抽样 overlap
-  全 miss（ratio 0.0），值域不契合，判 unlikely。
 sides:
 - {source: l1_code, left: tenant_project_approval.code, right: tenant_project_approval_flow.ref_tenant_project_approval_flow_tenant_project_approval,
   trust: confirmed}
@@ -206,8 +206,6 @@ overlap:
   deepened: false
   query_ok: true
   authenticity: unlikely
-authenticity_note: 名称证据为同族后缀（node.code ↔ node_code），但探测 overlap 比 0.0（6 值全 miss），值域不契合，判
-  unlikely，保留待人工复核。
 ```
 
 ## 页面链接
@@ -221,6 +219,7 @@ authenticity_note: 名称证据为同族后缀（node.code ↔ node_code），�
 ### 字典
 
 - [[dicts/tenant_project_approval_flow__node_code]]（`tenant_project_approval_flow.node_code`）
+- [[dicts/tenant_project_approval_flow__node_order]]（`tenant_project_approval_flow.node_order`）
 - [[dicts/tenant_project_approval_flow__node_status]]（`tenant_project_approval_flow.node_status`）
 - [[dicts/tenant_project_approval_flow__is_optional]]（`tenant_project_approval_flow.is_optional`）
 - [[dicts/tenant_project_approval_flow__is_operate]]（`tenant_project_approval_flow.is_operate`）

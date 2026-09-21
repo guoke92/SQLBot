@@ -8,8 +8,8 @@ status: draft
 anchors: [cust_invite_info.progress]
 field_targets: [cust_invite_info.progress]
 sources: ['code_path:CustCompanyIfoEnchanceService.java:1586', 'code_path:CustSyncEventProcessor.java:1128']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [cust_invite_info]
 ---

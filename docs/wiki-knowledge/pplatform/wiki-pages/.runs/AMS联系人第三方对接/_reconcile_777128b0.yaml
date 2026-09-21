@@ -1,3 +1,0 @@
-- anchor: table:CustCompanyInfoDO
-  code: TABLE_NOT_IN_DB
-  message: CustCompanyInfoDO 不在 db catalog

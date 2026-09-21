@@ -15,17 +15,19 @@ from apps.system.schemas.auth import CacheName, CacheNamespace
 from apps.system.schemas.system_schema import AssistantHeader, AssistantOutDsSchema, UserInfoDTO
 from common.core.config import settings
 from common.core.db import engine
-from common.core.sqlbot_cache import cache
-from common.utils.aes_crypto import simple_aes_decrypt
-from common.utils.utils import SQLBotLogUtil, get_domain_list, string_to_numeric_hash
 from common.core.deps import Trans
 from common.core.response_middleware import ResponseMiddleware
+from common.core.sqlbot_cache import cache
+from common.utils.utils import SQLBotLogUtil, get_domain_list, string_to_numeric_hash  # noqa: I001
 
 
 @cache(namespace=CacheNamespace.EMBEDDED_INFO, cacheName=CacheName.ASSISTANT_INFO, keyExpression="assistant_id")
 async def get_assistant_info(*, session: Session, assistant_id: int) -> AssistantModel | None:
     db_model = session.get(AssistantModel, assistant_id)
     return db_model
+
+
+from common.utils.aes_crypto import simple_aes_decrypt  # noqa: E402
 
 
 def get_assistant_user(*, id: int):

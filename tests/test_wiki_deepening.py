@@ -444,7 +444,7 @@ def test_enrich_adds_relations_links_and_is_idempotent(tmp_path: Path) -> None:
 
     repo = Path(__file__).resolve().parents[1]
     spec = importlib.util.spec_from_file_location(
-        "wiki_enrich", repo / "scripts" / "wiki_enrich.py"
+        "wiki_enrich", repo / ".tmp" / "scripts" / "wiki_enrich.py"
     )
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
@@ -488,7 +488,7 @@ def test_normalize_scope_three_states(tmp_path: Path) -> None:
 
     repo = Path(__file__).resolve().parents[1]
     spec = importlib.util.spec_from_file_location(
-        "wiki_enrich", repo / "scripts" / "wiki_enrich.py"
+        "wiki_enrich", repo / ".tmp" / "scripts" / "wiki_enrich.py"
     )
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
@@ -520,7 +520,7 @@ def test_enrich_semantic_page_requires_known_table() -> None:
 
     repo = Path(__file__).resolve().parents[1]
     spec = importlib.util.spec_from_file_location(
-        "wiki_enrich", repo / "scripts" / "wiki_enrich.py"
+        "wiki_enrich", repo / ".tmp" / "scripts" / "wiki_enrich.py"
     )
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)

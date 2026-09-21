@@ -6,169 +6,111 @@ belong: tables
 status: draft
 anchors: [cust_customized_product]
 sources: ['database_schema:lowcode_pplatform.cust_customized_product']
-created: '2026-09-17'
-updated: '2026-09-17'
+created: '2026-09-20'
+updated: '2026-09-20'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
-related: [cust_company_info, cust_interworking_product, cust_project_rel, cust_customized_product__enable]
+related: [cust_company_info, cust_interworking_product, cust_project_rel, cust_customized_product__code,
+  cust_customized_product__enable]
 ---
 
 # 客户快捷入口配置
 
-L0 库侧合同（draft）。grain / 字段簇 / 身份束关系均为 proposed，不得当认证 JOIN。
-
-## 字段簇
-
-### common
-
-`id`, `code`, `enable`, `remark`, `create_by`, `create_user`, `create_time`, `update_by`, `update_user`, `update_time`
-
-### entry_display
-
-`name`, `url`, `logo_icon_url`, `view_order`
-
-### customer
-
-`cust_id`, `ref_cust_customized_product_cust_company_info`
-
-### approval
-
-`act_procinst_id`, `act_procinst_no`, `act_procinst_status`, `act_procinst_date`
-
-### tenant
-
-`app_tenant_code`, `db_tenant_code`
-
-### 未归簇
-
-`organization_id`
+L0 库侧合同（draft）。grain / 身份束关系均为 proposed，不得当认证 JOIN。
 
 ## 字段
 
 ```ground:table
 table: cust_customized_product
 database: lowcode_pplatform
-description: 客户快捷入口配置
+desc: 客户快捷入口配置
 inactive: false
 primary_key: [id]
 grain: 一行一记录（id）
 name_anchors: [code, name]
-clusters:
-- key: common
-  title: 通用
-  include: always
-- key: entry_display
-  title: 快捷入口展示
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.cust_customized_product
-- key: customer
-  title: 客户归属
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.cust_customized_product
-- key: approval
-  title: 审批流程
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.cust_customized_product
-- key: tenant
-  title: 租户标识
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.cust_customized_product
 fields:
 - name: id
-  data_type: number
-  description: 表主键
+  type: number
+  desc: 表主键
   nullable: false
-  cluster: common
 - name: code
-  data_type: string
-  description: 编码
-  cluster: common
+  type: string
+  desc: 编码
+  dict: [16d3c0b5af534650a04c091afdf7ecf4, 1610216e61e34e6bb6de7e6edf21efda, 657438ff3af74b9997a374a203f73055,
+    1ecbca6d91da4711be24dda5df18d2c5, d019609761a0448581b66902c82da564, 5ee6cb2419774bc9984050a71f1d16da,
+    b68c0f6474ae496683cd872299fda110, 8f2aa3a0d4b64a389bf076468b756d29, 41e96e8bd7914d2390d1c485bd6243e4,
+    9b849d76eda548d693f58ed2da03ea72, 1ab1a54939ed445c8bcb7a0ee8d22077, dc26f54628524fb498e39256122be054,
+    abc9fc960e124cd79acf47f372778964, e42929b50ffd4391a4de6da8d5323737, 22ca980e2a5c41b589fb8c7959d16e59,
+    658138dc149d4361a8ed9785a03efaff, c4307aec51cc47dea2104890b6e8eef0, 2867a221ed0d4f65b4decbd99b199d05,
+    e024d5e16a314577a4a4bb9b51229457, 3f659e407e744430ba36fab0934f8a92, f8e0f25e1e804362bed17d422956ed7b,
+    bcfee01811bc43f29fcd038583318f9c, 0627da4dc89b4a0b8a53a18f6a8dfcb9, 1a928de05b4e45f9929b6ed202ed238a,
+    86d9d00400d84d04ac43e0b6f3fd22a0]
 - name: name
-  data_type: string
-  description: 产品名称
-  cluster: entry_display
+  type: string
+  desc: 产品名称
 - name: cust_id
-  data_type: number
-  description: 企业id
-  cluster: customer
+  type: number
+  desc: 企业id
 - name: url
-  data_type: string
-  description: 跳转链接
-  cluster: entry_display
+  type: string
+  desc: 跳转链接
 - name: logo_icon_url
-  data_type: string
-  description: 图标
-  cluster: entry_display
+  type: string
+  desc: 图标
 - name: view_order
-  data_type: number
-  description: 显示顺序
-  cluster: entry_display
+  type: number
+  desc: 显示顺序
 - name: ref_cust_customized_product_cust_company_info
-  data_type: string
-  description: 客户关联自定义产品配置
-  cluster: customer
+  type: string
+  desc: 客户关联自定义产品配置
 - name: enable
-  data_type: string
-  description: enable
-  cluster: common
-  dictionary: cust_customized_product__enable
+  type: string
+  desc: enable
+  dict: [Y]
 - name: remark
-  data_type: string
-  description: remark
-  cluster: common
+  type: string
+  desc: remark
 - name: create_by
-  data_type: string
-  description: 创建人id
-  cluster: common
+  type: string
+  desc: 创建人id
 - name: create_user
-  data_type: string
-  description: 创建人名称
-  cluster: common
+  type: string
+  desc: 创建人名称
 - name: create_time
-  data_type: temporal
-  description: 创建时间
+  type: temporal
+  desc: 创建时间
   nullable: false
-  cluster: common
 - name: update_by
-  data_type: string
-  description: 更新人id
-  cluster: common
+  type: string
+  desc: 更新人id
 - name: update_user
-  data_type: string
-  description: 更新人名称
-  cluster: common
+  type: string
+  desc: 更新人名称
 - name: update_time
-  data_type: temporal
-  description: 更新时间
+  type: temporal
+  desc: 更新时间
   nullable: false
-  cluster: common
 - name: act_procinst_id
-  data_type: string
-  description: 流程实例ID
-  cluster: approval
+  type: string
+  desc: 流程实例ID
 - name: app_tenant_code
-  data_type: string
-  description: 逻辑租户标识
-  cluster: tenant
+  type: string
+  desc: 逻辑租户标识
 - name: db_tenant_code
-  data_type: string
-  description: 数据租户标识
-  cluster: tenant
+  type: string
+  desc: 数据租户标识
 - name: act_procinst_no
-  data_type: string
-  description: 流程申请编号
-  cluster: approval
+  type: string
+  desc: 流程申请编号
 - name: act_procinst_status
-  data_type: string
-  description: 当前审批状态
-  cluster: approval
+  type: string
+  desc: 当前审批状态
 - name: act_procinst_date
-  data_type: temporal
-  description: 审批结束时间
-  cluster: approval
+  type: temporal
+  desc: 审批结束时间
 - name: organization_id
-  data_type: string
-  description: 机构编号
+  type: string
+  desc: 机构编号
 ```
 
 ## 关联关系
@@ -198,8 +140,6 @@ overlap:
   deepened: false
   query_ok: true
   authenticity: likely
-authenticity_note: cust_company_info.id 与本地 cust_id 值域包含率1.0（15/15，miss=0），列名 cust
-  同族且注释明确为企业id，值域与语义均契合
 ```
 
 ### unknown — 待复核
@@ -226,7 +166,6 @@ overlap:
   deepened: false
   query_ok: true
   authenticity: unknown
-authenticity_note: 列名含目标表名 cust_company_info（long_ref），名称有关联语义，但值域未探测（sample_size=0），无法确认值域契合
 ```
 
 ## 页面链接
@@ -239,4 +178,5 @@ authenticity_note: 列名含目标表名 cust_company_info（long_ref），名�
 
 ### 字典
 
+- [[dicts/cust_customized_product__code]]（`cust_customized_product.code`）
 - [[dicts/cust_customized_product__enable]]（`cust_customized_product.enable`）

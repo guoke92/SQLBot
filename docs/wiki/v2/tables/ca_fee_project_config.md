@@ -6,197 +6,131 @@ belong: tables
 status: draft
 anchors: [ca_fee_project_config]
 sources: ['database_schema:lowcode_pplatform.ca_fee_project_config']
-created: '2026-09-17'
-updated: '2026-09-17'
+created: '2026-09-20'
+updated: '2026-09-20'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
-related: [ca_fee_company, ca_fee_order, ca_fee_project_config__charge_enabled, ca_fee_project_config__enable]
+related: [ca_fee_project_config__charge_enabled, ca_fee_project_config__supplier_annual_fee,
+  ca_fee_project_config__core_annual_fee, ca_fee_project_config__agreement_version,
+  ca_fee_project_config__enable]
 ---
 
 # CA服务费项目配置
 
-L0 库侧合同（draft）。grain / 字段簇 / 身份束关系均为 proposed，不得当认证 JOIN。
-
-## 字段簇
-
-### common
-
-`id`, `code`, `name`, `enable`, `remark`, `create_by`, `create_user`, `create_time`, `update_by`, `update_user`, `update_time`
-
-### fee_config
-
-`charge_enabled`, `supplier_annual_fee`, `core_annual_fee`, `pay_channel`, `special_company_list`, `block_scene_list`, `agreement_version`, `last_toggle_time`
-
-### fee_scope
-
-`project_id`, `organization_id`
-
-### tenant
-
-`tenant_id`, `app_tenant_code`, `db_tenant_code`
-
-### act_procinst
-
-`act_procinst_id`, `act_procinst_no`, `act_procinst_status`, `act_procinst_date`
+L0 库侧合同（draft）。grain / 身份束关系均为 proposed，不得当认证 JOIN。
 
 ## 字段
 
 ```ground:table
 table: ca_fee_project_config
 database: lowcode_pplatform
-description: CA服务费项目配置
+desc: CA服务费项目配置
 inactive: false
 primary_key: [id]
 grain: 一行一记录（id）
 name_anchors: [code, name]
-clusters:
-- key: common
-  title: 通用
-  include: always
-- key: fee_config
-  title: 收费配置
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.ca_fee_project_config
-- key: fee_scope
-  title: 项目与机构
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.ca_fee_project_config
-- key: tenant
-  title: 租户标识
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.ca_fee_project_config
-- key: act_procinst
-  title: 审批流程
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.ca_fee_project_config
 fields:
 - name: id
-  data_type: number
-  description: 表主键
+  type: number
+  desc: 表主键
   nullable: false
-  cluster: common
 - name: project_id
-  data_type: number
-  description: 项目ID
-  cluster: fee_scope
+  type: number
+  desc: 项目ID
 - name: tenant_id
-  data_type: number
-  description: 所属租户
-  cluster: tenant
+  type: number
+  desc: 所属租户
 - name: charge_enabled
-  data_type: string
-  description: 是否开启CA收费
-  cluster: fee_config
-  dictionary: ca_fee_project_config__charge_enabled
+  type: string
+  desc: 是否开启CA收费
+  dict: [N, Y]
 - name: supplier_annual_fee
-  data_type: number
-  description: 供应商角色年费（元）
-  cluster: fee_config
+  type: number
+  desc: 供应商角色年费（元）
+  dict: ['100', '60', '50', '80', '22', '98', '0', '125', '120', '101', '200', '88']
 - name: core_annual_fee
-  data_type: number
-  description: 核心企业角色年费（元）
-  cluster: fee_config
+  type: number
+  desc: 核心企业角色年费（元）
+  dict: ['100', '0', '60', '90', '200', '80', '50', '20', '99', '1', '12', '156',
+    '120', '40', '8']
 - name: pay_channel
-  data_type: string
-  description: 缴费渠道JSON数组
-  cluster: fee_config
+  type: string
+  desc: 缴费渠道JSON数组
 - name: special_company_list
-  data_type: string
-  description: 特殊企业配置JSON数组
-  cluster: fee_config
+  type: string
+  desc: 特殊企业配置JSON数组
 - name: block_scene_list
-  data_type: string
-  description: 拦截场景编码 JSON 数组，元素见 CaFeeInterceptSceneEnum
-  cluster: fee_config
+  type: string
+  desc: 拦截场景编码 JSON 数组，元素见 CaFeeInterceptSceneEnum
 - name: agreement_version
-  data_type: string
-  description: 当前绑定收费协议版本号
-  cluster: fee_config
+  type: string
+  desc: 当前绑定收费协议版本号
+  dict: [V1.0]
 - name: last_toggle_time
-  data_type: temporal
-  description: 最近一次收费开关切换时间
-  cluster: fee_config
+  type: temporal
+  desc: 最近一次收费开关切换时间
 - name: code
-  data_type: string
-  description: 编码
-  cluster: common
+  type: string
+  desc: 编码
 - name: name
-  data_type: string
-  description: 名称
-  cluster: common
+  type: string
+  desc: 名称
 - name: enable
-  data_type: string
-  description: enable
-  cluster: common
-  dictionary: ca_fee_project_config__enable
+  type: string
+  desc: enable
+  dict: [Y]
 - name: remark
-  data_type: string
-  description: remark
-  cluster: common
+  type: string
+  desc: remark
 - name: create_by
-  data_type: string
-  description: 创建人id
-  cluster: common
+  type: string
+  desc: 创建人id
 - name: create_user
-  data_type: string
-  description: 创建人名称
-  cluster: common
+  type: string
+  desc: 创建人名称
 - name: create_time
-  data_type: temporal
-  description: 创建时间
+  type: temporal
+  desc: 创建时间
   nullable: false
-  cluster: common
 - name: update_by
-  data_type: string
-  description: 更新人id
-  cluster: common
+  type: string
+  desc: 更新人id
 - name: update_user
-  data_type: string
-  description: 更新人名称
-  cluster: common
+  type: string
+  desc: 更新人名称
 - name: update_time
-  data_type: temporal
-  description: 更新时间
+  type: temporal
+  desc: 更新时间
   nullable: false
-  cluster: common
 - name: act_procinst_id
-  data_type: string
-  description: 流程实例ID
-  cluster: act_procinst
+  type: string
+  desc: 流程实例ID
 - name: app_tenant_code
-  data_type: string
-  description: 逻辑租户标识
-  cluster: tenant
+  type: string
+  desc: 逻辑租户标识
 - name: db_tenant_code
-  data_type: string
-  description: 数据租户标识
-  cluster: tenant
+  type: string
+  desc: 数据租户标识
 - name: act_procinst_no
-  data_type: string
-  description: 流程申请编号
-  cluster: act_procinst
+  type: string
+  desc: 流程申请编号
 - name: act_procinst_status
-  data_type: string
-  description: 当前审批状态
-  cluster: act_procinst
+  type: string
+  desc: 当前审批状态
 - name: act_procinst_date
-  data_type: temporal
-  description: 审批结束时间
-  cluster: act_procinst
+  type: temporal
+  desc: 审批结束时间
 - name: organization_id
-  data_type: string
-  description: 机构编号
-  cluster: fee_scope
+  type: string
+  desc: 机构编号
 ```
 
 ## 页面链接
 
-### 关联表
-
-- [[tables/ca_fee_company]]
-- [[tables/ca_fee_order]]
-
 ### 字典
 
 - [[dicts/ca_fee_project_config__charge_enabled]]（`ca_fee_project_config.charge_enabled`）
+- [[dicts/ca_fee_project_config__supplier_annual_fee]]（`ca_fee_project_config.supplier_annual_fee`）
+- [[dicts/ca_fee_project_config__core_annual_fee]]（`ca_fee_project_config.core_annual_fee`）
+- [[dicts/ca_fee_project_config__agreement_version]]（`ca_fee_project_config.agreement_version`）
 - [[dicts/ca_fee_project_config__enable]]（`ca_fee_project_config.enable`）

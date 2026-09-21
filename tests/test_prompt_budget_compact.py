@@ -49,10 +49,10 @@ def test_plane_per_page_merge_does_not_duplicate_wiki() -> None:
         }
     )
     rendered = plane.render_system_sections()
-    assert rendered.count("# 口径A") == 1
-    assert rendered.count("# 口径B") == 1
-    assert rendered.count("# 口径C") == 1
+    assert "# 口径A" not in rendered
     assert list(plane.wiki_passages) == ["a", "b", "c"]
+    assert plane.wiki_passages["a"].count("# 口径A") == 1
+    assert plane.wiki_passages["c"].count("# 口径C") == 1
 
 
 def test_plane_wiki_passages_upsert_beats_blob() -> None:
@@ -65,7 +65,8 @@ def test_plane_wiki_passages_upsert_beats_blob() -> None:
         }
     )
     rendered = plane.render_system_sections()
-    assert rendered.count("# 缴费") == 1
+    assert "# 缴费" not in rendered
+    assert plane.wiki_passages["dicts/pay_status"].count("# 缴费") == 1
     assert "dicts/pay_status" in plane.wiki_passages
 
 
@@ -137,10 +138,9 @@ def test_conflicts_omit_nested_enum_only_when_enum_page_text_present() -> None:
         }
     )
     plane.adopt_conflicts([_identify_style_conflict()])
-    rendered = plane.render_system_sections()
-    assert "identify_style" in rendered
-    assert "INVITE_AGW" in rendered
-    assert "enum_values" not in rendered
+    dumped = str(plane._slim_conflicts())
+    assert "identify_style" in dumped
+    assert "enum_values" not in dumped
     # The catalog swaps topk for the enum pointer once the page text is present.
     assert "topk=" not in plane.schema_catalog_text()
     assert "dict=identify_style" in plane.schema_catalog_text()
@@ -160,8 +160,8 @@ def test_conflicts_keep_nested_enum_when_only_concept_page_present() -> None:
         }
     )
     plane.adopt_conflicts([_identify_style_conflict()])
-    rendered = plane.render_system_sections()
-    assert "enum_values" in rendered
+    dumped = str(plane._slim_conflicts())
+    assert "enum_values" in dumped
     assert "topk=INVITE_AGW" in plane.schema_catalog_text()
 
 

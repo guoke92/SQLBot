@@ -7,8 +7,8 @@ domain: ca_fee
 status: draft
 field_targets: [ca_fee_project_config.charge_enabled, ca_fee_project_config.enable]
 sources: ['code_path:CaFeeRuleEngineService.java:98']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [ca_fee_project_config, tenant_project]
 ---

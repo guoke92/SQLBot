@@ -9,8 +9,8 @@ aliases: [无凭证, 无需上传凭证]
 maps_to: funding_rule_front_cfg.front_key
 field_targets: [funding_rule_front_cfg.front_key]
 sources: ['document_claim:对接规则要素-无凭证.md#15', 'document_claim:docs/wiki-knowledge/pplatform/req-index/concepts']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [funding_rule_front_cfg]
 also_confused_with: [funding_rule_active]

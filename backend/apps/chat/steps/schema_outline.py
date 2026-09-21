@@ -1,9 +1,14 @@
 """Compact datasource catalog map for the agent system prompt.
 
-Aider/Cursor keep a repo map in context so the model can choose files
-itself. The schema outline is the same idea for a datasource: every visible
-table as one line (name, comment, a few representative fields), cheap enough
-to stay resident (~800 tokens for a typical 20–80 table catalog).
+The schema outline is the datasource Repo Map: every visible table as one line
+(name, comment, a few representative fields), cheap enough to stay resident.
+
+Resolution priority (system-wide):
+1. Bound corpus outline (DB wiki page ``catalog_summary``): inject the bound
+   page body as-is. Never crop by AccessScope; never rebuild from CoreTable
+   when a bound outline exists.
+2. Dynamic catalog fallback (only if the bound wiki has no outline page):
+   ``store.table_index`` then ``CoreTable``. Still no permission crop.
 """
 
 from __future__ import annotations
@@ -34,21 +39,36 @@ _SKIP_FIELD_NAMES = frozenset(
     }
 )
 
+_OUTLINE_HINT = (
+    "当前数据源全库表大纲。这是全局地图，不是已展开的字段定义。"
+    "写 SQL 前用 get_table_schema 展开需要的表；跨表 JOIN 用 get_table_relations；"
+    "业务口径/专有名词用 search_knowledge；实例值反查用 lookup_values；"
+    "已知字段的残差码表用 get_dict_values。"
+)
+
 
 def render_schema_outline(
     *,
     ds: Any = None,
-    access_scope: Any = None,
+    access_scope: Any = None,  # noqa: ARG001 — runtime knowledge is bound wiki, not ACL
     store: Any = None,
     session: Session | None = None,
 ) -> str:
-    """Render ``<schema_outline>`` or empty when the catalog cannot be listed."""
-    allowed = _allowed_names(access_scope)
-    rows = _rows_from_store(store, allowed=allowed)
+    """Render ``<schema_outline>`` or empty when the catalog cannot be listed.
+
+    Bound ``catalog_summary`` is injected verbatim. AccessScope never crops
+    knowledge. CoreTable assembly is a last-resort fallback when the bound
+    wiki has no outline page.
+    """
+    db_summary = _fetch_catalog_summary_from_db(store=store, session=session, ds=ds)
+    if db_summary:
+        return f"<schema_outline>\n{_OUTLINE_HINT}\n{db_summary}\n</schema_outline>"
+
+    rows = _rows_from_store(store)
     if not rows and session is not None:
         ds_id = int(getattr(ds, "id", 0) or 0)
         if ds_id > 0:
-            rows = _rows_from_catalog(session, ds_id=ds_id, allowed=allowed)
+            rows = _rows_from_catalog(session, ds_id=ds_id)
     if not rows:
         return ""
     body = _format_rows(rows, with_fields=True)
@@ -56,28 +76,63 @@ def render_schema_outline(
         body = _format_rows(rows, with_fields=False)
         if len(body) > _OUTLINE_CHAR_BUDGET:
             body = body[:_OUTLINE_CHAR_BUDGET].rstrip() + "\n…(截断)"
-    return (
-        "<schema_outline>\n"
-        f"当前数据源全库表大纲（{len(rows)} 张表）。这是全局地图，不是已展开的字段定义。"
-        "写 SQL 前用 get_table_schema 展开需要的表；跨表 JOIN 用 get_table_relations；"
-        "业务口径/专有名词用 search_knowledge；字段枚举用 get_dict_values。\n"
-        f"{body}\n"
-        "</schema_outline>"
-    )
+    return f"<schema_outline>\n{_OUTLINE_HINT}\n{body}\n</schema_outline>"
 
 
-def _allowed_names(access_scope: Any) -> frozenset[str] | None:
-    if access_scope is None:
-        return None
-    names = getattr(access_scope, "resource_names", None)
-    if names is None:
-        return None
-    return frozenset(str(name) for name in names if str(name).strip())
+def _strip_frontmatter(text: str) -> str:
+    cleaned = text.strip()
+    if cleaned.startswith("---"):
+        end = cleaned.find("\n---\n", 3)
+        if end != -1:
+            return cleaned[end + 5 :].strip()
+    return cleaned
 
 
-def _rows_from_store(
-    store: Any, *, allowed: frozenset[str] | None
-) -> list[tuple[str, str, list[str]]]:
+def _fetch_catalog_summary_from_db(
+    *,
+    store: Any = None,
+    session: Session | None = None,
+    ds: Any = None,
+) -> str | None:
+    """Read catalog_summary body strictly from DB (via bound store or query)."""
+    # Prefer in-memory store already hydrated from DB wiki_page rows
+    if store is not None:
+        getter = getattr(store, "get_page", None)
+        if callable(getter):
+            page = getter("catalog_summary") or getter("concepts/catalog_summary")
+            if page is not None and getattr(page, "body", None):
+                return str(page.body).strip()
+
+    # Query DB directly via datasource binding
+    ds_id = int(getattr(ds, "id", 0) or 0)
+    if session is not None and ds_id > 0:
+        try:
+            from apps.knowledge.db_models import WikiCorpusBinding, WikiPageRow
+
+            stmt = (
+                select(WikiPageRow.body_md)
+                .join(
+                    WikiCorpusBinding,
+                    WikiCorpusBinding.corpus_id == WikiPageRow.corpus_id,
+                )
+                .where(
+                    WikiCorpusBinding.datasource_id == ds_id,
+                    WikiCorpusBinding.enabled == True,  # noqa: E712
+                    WikiPageRow.page_key == "catalog_summary",
+                    WikiPageRow.page_disabled == False,  # noqa: E712
+                )
+            )
+            raw = session.exec(stmt).first()
+            if raw:
+                return _strip_frontmatter(str(raw))
+        except Exception as exc:
+            from common.utils.utils import SQLBotLogUtil
+
+            SQLBotLogUtil.warning("Failed to query catalog_summary from DB: %s", exc)
+    return None
+
+
+def _rows_from_store(store: Any) -> list[tuple[str, str, list[str]]]:
     index = getattr(store, "table_index", None) or {}
     get_page = getattr(store, "get_page", None)
     if not index or not callable(get_page):
@@ -88,8 +143,6 @@ def _rows_from_store(
         name = _table_name(page, page_key)
         if not name:
             continue
-        if allowed is not None and name not in allowed:
-            continue
         comment = str(getattr(page, "title", "") or "").strip() or name
         fields = _rep_fields_from_page(page)
         rows.append((name, comment, fields))
@@ -98,20 +151,17 @@ def _rows_from_store(
 
 
 def _rows_from_catalog(
-    session: Session, *, ds_id: int, allowed: frozenset[str] | None
+    session: Session, *, ds_id: int
 ) -> list[tuple[str, str, list[str]]]:
     tables = list(
         session.exec(
             select(CoreTable)
-            .where(
-                CoreTable.ds_id == ds_id,
-                CoreTable.checked == True,  # noqa: E712
-            )
+            .where(CoreTable.ds_id == ds_id)
             .order_by(CoreTable.table_name.asc())
         ).all()
     )
-    if allowed is not None:
-        tables = [table for table in tables if table.table_name in allowed]
+    checked = [table for table in tables if bool(getattr(table, "checked", True))]
+    tables = checked if checked else tables
     if not tables:
         return []
     fields = list(

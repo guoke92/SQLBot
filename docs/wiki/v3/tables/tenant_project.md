@@ -6,17 +6,19 @@ belong: tables
 status: draft
 anchors: [tenant_project]
 sources: ['database_schema:lowcode_pplatform.tenant_project', 'code_path:TenantProjectDaoImpl.java:36']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
 related: [ca_fee_company, ca_fee_order, ca_fee_project_config, cust_project_pushcust,
   cust_project_rel, tenant_interworking_project, tenant_product, tenant_project_approval,
   platform_product, tenant_setting_config, tenant_project__project_status, tenant_project__test_data,
-  tenant_project__enable, tenant_project__source, tenant_project__is_prd, tenant_project__config_model,
-  tenant_project__operater_card_type, tenant_project__cover_operator, tenant_project__share_flag,
-  tenant_project__project_config_version, tenant_project__project_tag, tenant_project__top_flag,
-  tenant_project__cust_oper_show, tenant_project__is_add]
+  tenant_project__ref_tenant_project_platform_product, tenant_project__enable, tenant_project__platform_product_code,
+  tenant_project__source, tenant_project__is_prd, tenant_project__config_model, tenant_project__operater_card_type,
+  tenant_project__cover_operator, tenant_project__share_flag, tenant_project__project_config_version,
+  tenant_project__op_contact_a, tenant_project__verification_contact, tenant_project__risk_control_contact_a,
+  tenant_project__business_group, tenant_project__project_tag, tenant_project__project_relation,
+  tenant_project__top_flag, tenant_project__cust_oper_show, tenant_project__is_add]
 ---
 
 # 租户项目配置
@@ -78,6 +80,9 @@ fields:
 - name: ref_tenant_project_platform_product
   type: string
   desc: 平台产品-项目关联
+  dict: [b8468d68ba0a4762bda0f7b9164e4f6a, f285fa5cf17f4a8f9eefe93d3a513a6b, f285fa5cf17f4a8f9eefe93d3a513a61,
+    f285fa5cf17f4a8f9eefe93d3a513a63, 007142024a5c425bb3673f753060e534, f285fa5cf17f4a8f9eefe93d3a513a6e,
+    f285fa5cf17f4a8f9eefe93d3a513a65]
 - name: ref_tenant_project_tenant_code
   type: string
   desc: 租户-项目
@@ -134,6 +139,7 @@ fields:
 - name: platform_product_code
   type: string
   desc: 平台产品编码
+  dict: [ACFLOW, RVSFACTOR_PC, ORDER, BEECREDIT, DRAFT, STORAGE, DRAFTQA, VOUCHER]
 - name: source_id
   type: string
   desc: 项目来源id
@@ -191,6 +197,8 @@ fields:
 - name: op_contact_a
   type: string
   desc: 运营对接人A
+  dict: ['383', '412', '333', '454', '360', '141', '344', '267', '411', '420', '466',
+    '280', '430', '97', '93', '415', '463', '305', '271']
 - name: op_contact_b
   type: string
   desc: 运营对接人B
@@ -200,12 +208,15 @@ fields:
 - name: verification_contact
   type: string
   desc: 查验对接人
+  dict: ['360', '333', '404', OP001, '430', '383']
 - name: verification_contact_group
   type: string
   desc: 查验组别
 - name: risk_control_contact_a
   type: string
   desc: 风控对接人A
+  dict: ['383', '360', '333', '344', '97', '271', '441', '267', '454', '363', '209',
+    '210', '415', '411']
 - name: risk_control_contact_b
   type: string
   desc: 风控对接人B
@@ -221,6 +232,7 @@ fields:
 - name: business_group
   type: string
   desc: 关联业务部门
+  dict: [部门a, '11']
 - name: first_settlement_time
   type: temporal
   desc: 首笔落地时间
@@ -240,6 +252,7 @@ fields:
 - name: project_relation
   type: string
   desc: 项目归属
+  dict: ['111', '1111']
 - name: bussiness_project_relation
   type: string
   desc: 运营项目归属
@@ -401,7 +414,6 @@ overlap:
   deepened: false
   query_ok: true
   authenticity: unknown
-authenticity_note: 名称与注释完全对应(平台产品编码)，但仅 1 个样本且 0 命中，探测量不足以定论
 ```
 
 ### unlikely — 值域不支持或冲突
@@ -429,7 +441,6 @@ overlap:
   deepened: false
   query_ok: true
   authenticity: unlikely
-authenticity_note: 探测 200 样本全部未命中(ratio 0.0)，project_code 与该表 code 值域不契合
 ```
 
 ```ground:relation
@@ -455,7 +466,6 @@ overlap:
   deepened: false
   query_ok: true
   authenticity: unlikely
-authenticity_note: 列名 long_ref 指向 platform_product，但仅 3 个样本且 0 命中，样本过小不足以判 unlikely，留待扩样复核
 ```
 
 ## 页面链接
@@ -477,7 +487,9 @@ authenticity_note: 列名 long_ref 指向 platform_product，但仅 3 个样本�
 
 - [[dicts/tenant_project__project_status]]（`tenant_project.project_status`）
 - [[dicts/tenant_project__test_data]]（`tenant_project.test_data`）
+- [[dicts/tenant_project__ref_tenant_project_platform_product]]（`tenant_project.ref_tenant_project_platform_product`）
 - [[dicts/tenant_project__enable]]（`tenant_project.enable`）
+- [[dicts/tenant_project__platform_product_code]]（`tenant_project.platform_product_code`）
 - [[dicts/tenant_project__source]]（`tenant_project.source`）
 - [[dicts/tenant_project__is_prd]]（`tenant_project.is_prd`）
 - [[dicts/tenant_project__config_model]]（`tenant_project.config_model`）
@@ -485,7 +497,12 @@ authenticity_note: 列名 long_ref 指向 platform_product，但仅 3 个样本�
 - [[dicts/tenant_project__cover_operator]]（`tenant_project.cover_operator`）
 - [[dicts/tenant_project__share_flag]]（`tenant_project.share_flag`）
 - [[dicts/tenant_project__project_config_version]]（`tenant_project.project_config_version`）
+- [[dicts/tenant_project__op_contact_a]]（`tenant_project.op_contact_a`）
+- [[dicts/tenant_project__verification_contact]]（`tenant_project.verification_contact`）
+- [[dicts/tenant_project__risk_control_contact_a]]（`tenant_project.risk_control_contact_a`）
+- [[dicts/tenant_project__business_group]]（`tenant_project.business_group`）
 - [[dicts/tenant_project__project_tag]]（`tenant_project.project_tag`）
+- [[dicts/tenant_project__project_relation]]（`tenant_project.project_relation`）
 - [[dicts/tenant_project__top_flag]]（`tenant_project.top_flag`）
 - [[dicts/tenant_project__cust_oper_show]]（`tenant_project.cust_oper_show`）
 - [[dicts/tenant_project__is_add]]（`tenant_project.is_add`）

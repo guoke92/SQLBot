@@ -6,8 +6,8 @@ belong: dicts
 status: draft
 anchors: [cust_company_info.data_type]
 sources: ['database_profile:cust_company_info.data_type', 'database_schema:cust_company_info.data_type']
-created: '2026-09-17'
-updated: '2026-09-17'
+created: '2026-09-20'
+updated: '2026-09-20'
 contract_version: '0.1'
 related: [cust_company_info]
 ---
@@ -24,7 +24,7 @@ dict: cust_company_info__data_type
 fields: [cust_company_info.data_type]
 values:
   '1': {trust: proposed, label: 主数据, evidence: 'database_schema:cust_company_info.data_type'}
-  '0': {trust: proposed, label: 记录数据, evidence: 'database_schema:cust_company_info.data_type'}
+  '0': {trust: proposed}
   '2': {trust: proposed}
 triage: keep
 ```

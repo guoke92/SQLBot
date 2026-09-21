@@ -1,6 +1,0 @@
-- anchor: table:cust_company_info
-  code: FIELD_NOT_IN_DB
-  message: cust_company_info.custBuildStatus
-- anchor: table:cust_company_info
-  code: FIELD_NOT_IN_DB
-  message: cust_company_info.custCompanyType

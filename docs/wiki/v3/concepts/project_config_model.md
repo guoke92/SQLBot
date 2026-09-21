@@ -9,8 +9,8 @@ aliases: [项目配置模式XYC]
 maps_to: tenant_project.config_model
 field_targets: [tenant_project.config_model]
 sources: ['code_path:approval/ProjectApprovalApplication.java:1606', 'document_claim:docs/wiki-knowledge/pplatform/req-index/concepts/项目上线审批流程.md']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [tenant_project]
 also_confused_with: [project_is_prd, project_config_version_term]

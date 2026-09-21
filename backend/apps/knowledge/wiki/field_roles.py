@@ -1,17 +1,15 @@
 """Field-role evidence extraction (plan 补强：字段角色标注).
 
-从 mapper XML（确定性）+ service 写值点（继承 callgraph 线索）抽取每个字段的
-角色证据：query（查询条件）/ result（结果列）/ updated（修改字段）/ 统计字段。
+DEPRECATED（遗留 pages/substrate 管线）：现行 L0/L1 走 ``tools.wiki_extract``。
+默认输出应写到 ``.tmp/docs/wiki-knowledge/pplatform/substrate/``。
 
-强关联绑定（签收金额↔签收日期类）：同一次 INSERT/UPDATE 里 set 的同表多字段
-→ `set_weight: <组名>`（同组字段同时写入）。组名 = 首字段名派生（如
-`sign_amount` → `sign_amount_group`），同一 mapper 方法内的绑定共享组名。
+从 mapper XML + service 写值点抽取字段角色证据：query / result / updated。
 
 Usage::
 
     backend/venv/bin/python -m apps.knowledge.wiki.field_roles \
         --repo ~/IdeaProjects/pplatform-web \
-        --out docs/wiki-knowledge/pplatform/substrate/field-roles.yaml
+        --out .tmp/docs/wiki-knowledge/pplatform/substrate/field-roles.yaml
 """
 
 from __future__ import annotations

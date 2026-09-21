@@ -1,4 +1,0 @@
-body: '语义分析在该条 `reqdoc_claims` 处被截断（`code_status: refuted`，`code_evidence` 内容不完整），无法逐字引用，故本次未为「邀请码」主题建立
-  ground 块，也未在本主题页面中固化该结论。请在补齐完整语义分析后重跑，确认「邀请码」主题归属页面（建议 `concepts/`）及其被否定的代码证据。'
-title: 需求文档『邀请码随机生成 8 位、30 天内有效』主张被否定且证据截断
-type: rule

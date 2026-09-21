@@ -6,8 +6,8 @@ belong: dicts
 status: draft
 anchors: [funding_exception_resolution.enable]
 sources: ['database_profile:funding_exception_resolution.enable']
-created: '2026-09-17'
-updated: '2026-09-17'
+created: '2026-09-20'
+updated: '2026-09-20'
 contract_version: '0.1'
 related: [funding_exception_resolution]
 ---

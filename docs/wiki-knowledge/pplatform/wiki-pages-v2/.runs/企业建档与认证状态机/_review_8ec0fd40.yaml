@@ -1,5 +1,0 @@
-body: 状态集合存在两个来源：`code_enum`（9 个代码枚举值）与 `db_dist`（3 个数据库分布值：`CUST_AUDIT_AWAIT`、`BUILDING`、`CUST_BUILD_SUCCESS`）。其中
-  `CUST_BUILD_SUCCESS` 被标注为“认证成功（历史值）”，未确认这 3 个值是否仍在写入、还是仅存于历史数据。此外 `CUST_CONFIRM_AWAIT`
-  与 `AWAIT_CUST_CONFIRM`（待客户确认-简易认证）、`CUST_BUILDING` 与 `BUILDING` 语义高度重叠，是否为同义迁移值待确认。
-title: 企业认证状态机（cust_build_status）
-type: process

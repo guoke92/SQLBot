@@ -1,4 +1,0 @@
-body: 规则 `进入产品前项目状态检查` 的 field_targets 引用了 `tenant_project.project_status`，但本次语义分析的
-  field_semantics 未提供 tenant_project 的字段级证据，故未为其建立 table 页。待补充该表字段证据后建档。
-title: tenant_project
-type: tables

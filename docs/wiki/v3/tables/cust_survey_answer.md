@@ -6,11 +6,12 @@ belong: tables
 status: draft
 anchors: [cust_survey_answer]
 sources: ['database_schema:lowcode_pplatform.cust_survey_answer']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
-related: [cust_company_info, cust_survey_answer__question_no, cust_survey_answer__enable]
+related: [cust_company_info, cust_survey_answer__question_no, cust_survey_answer__survey_code,
+  cust_survey_answer__enable]
 ---
 
 # 调研答案表
@@ -54,6 +55,7 @@ fields:
 - name: survey_code
   type: string
   desc: 问卷code
+  dict: [XYL_2024_Q1]
 - name: code
   type: string
   desc: 编码
@@ -150,4 +152,5 @@ authenticity_note: 调研答案按登录企业主键。
 ### 字典
 
 - [[dicts/cust_survey_answer__question_no]]（`cust_survey_answer.question_no`）
+- [[dicts/cust_survey_answer__survey_code]]（`cust_survey_answer.survey_code`）
 - [[dicts/cust_survey_answer__enable]]（`cust_survey_answer.enable`）

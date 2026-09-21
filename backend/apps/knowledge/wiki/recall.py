@@ -99,7 +99,7 @@ class InMemoryWikiStore:
         self.chunks: dict[str, list[Chunk]] = {
             key: (
                 [chunk for chunk in chunk_markdown(page.body) if chunk.recall]
-                if page.recall
+                if page.recall and page.page_key != "catalog_summary"
                 else []
             )
             for key, page in self.pages.items()
@@ -108,6 +108,8 @@ class InMemoryWikiStore:
         # alias-exact 索引：别名/标题（含枚举值 label）作为查询子串的强命中通道
         self.alias_index: dict[str, str] = {}
         for key, page in self.pages.items():
+            if not page.recall or page.page_key == "catalog_summary":
+                continue
             for name in page.identity_aliases:
                 cleaned = name.strip()
                 if len(cleaned) < _MIN_TOKEN:
@@ -510,6 +512,8 @@ def recall(
         key: page
         for key, page in store.pages.items()
         if store._fenced(page, databases=names)
+        and page.recall
+        and page.page_key != "catalog_summary"
     }
     if not visible or not query.strip():
         return []

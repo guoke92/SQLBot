@@ -6,8 +6,8 @@ belong: tables
 status: draft
 anchors: [cust_build_record]
 sources: ['database_schema:lowcode_pplatform.cust_build_record']
-created: '2026-09-17'
-updated: '2026-09-17'
+created: '2026-09-20'
+updated: '2026-09-20'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
 related: [cust_company_info, cust_person_info, cust_build_record__enable, cust_build_record__electronic_auth_sign_status]
@@ -15,192 +15,104 @@ related: [cust_company_info, cust_person_info, cust_build_record__enable, cust_b
 
 # 建档推送运营记录表
 
-L0 库侧合同（draft）。grain / 字段簇 / 身份束关系均为 proposed，不得当认证 JOIN。
-
-## 字段簇
-
-### common
-
-`id`, `code`, `name`, `enable`, `remark`, `create_by`, `create_user`, `create_time`, `update_by`, `update_user`, `update_time`
-
-### subject_ref
-
-`cust_id`, `person_id`, `organization_id`
-
-### platform_ref
-
-`plat_cust_id`, `plat_person_id`
-
-### push_payload
-
-`push_data`, `return_data`
-
-### workflow
-
-`act_procinst_id`, `act_procinst_no`, `act_procinst_status`, `act_procinst_date`
-
-### retry_channel
-
-`retry_status`, `channel`
-
-### tenant
-
-`app_tenant_code`, `db_tenant_code`
-
-### 未归簇
-
-`electronic_auth_sign_status`
+L0 库侧合同（draft）。grain / 身份束关系均为 proposed，不得当认证 JOIN。
 
 ## 字段
 
 ```ground:table
 table: cust_build_record
 database: lowcode_pplatform
-description: 建档推送运营记录表
+desc: 建档推送运营记录表
 inactive: false
 primary_key: [id]
 grain: 一行一记录（id）
 name_anchors: [code, name]
-clusters:
-- key: common
-  title: 通用
-  include: always
-- key: subject_ref
-  title: 主体引用
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.cust_build_record
-- key: platform_ref
-  title: 运营中台引用
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.cust_build_record
-- key: push_payload
-  title: 推送与回执数据
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.cust_build_record
-- key: workflow
-  title: 审批流程
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.cust_build_record
-- key: retry_channel
-  title: 重试与渠道
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.cust_build_record
-- key: tenant
-  title: 租户标识
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.cust_build_record
 fields:
 - name: id
-  data_type: number
-  description: 表主键
+  type: number
+  desc: 表主键
   nullable: false
-  cluster: common
 - name: code
-  data_type: string
-  description: 编码
-  cluster: common
+  type: string
+  desc: 编码
 - name: name
-  data_type: string
-  description: 名称
-  cluster: common
+  type: string
+  desc: 名称
 - name: cust_id
-  data_type: number
-  description: 企业ID
-  cluster: subject_ref
+  type: number
+  desc: 企业ID
 - name: plat_cust_id
-  data_type: number
-  description: 运营中台ID
-  cluster: platform_ref
+  type: number
+  desc: 运营中台ID
 - name: person_id
-  data_type: number
-  description: 联系人ID
-  cluster: subject_ref
+  type: number
+  desc: 联系人ID
 - name: plat_person_id
-  data_type: number
-  description: 运营中台ID
-  cluster: platform_ref
+  type: number
+  desc: 运营中台ID
 - name: push_data
-  data_type: string
-  description: 推送json
-  cluster: push_payload
+  type: string
+  desc: 推送json
 - name: return_data
-  data_type: string
-  description: 返回data
-  cluster: push_payload
+  type: string
+  desc: 返回data
 - name: enable
-  data_type: string
-  description: enable
-  cluster: common
-  dictionary: cust_build_record__enable
+  type: string
+  desc: enable
+  dict: [Y]
 - name: remark
-  data_type: string
-  description: remark
-  cluster: common
+  type: string
+  desc: remark
 - name: create_by
-  data_type: string
-  description: 创建人id
-  cluster: common
+  type: string
+  desc: 创建人id
 - name: create_user
-  data_type: string
-  description: 创建人名称
-  cluster: common
+  type: string
+  desc: 创建人名称
 - name: create_time
-  data_type: temporal
-  description: 创建时间
+  type: temporal
+  desc: 创建时间
   nullable: false
-  cluster: common
 - name: update_by
-  data_type: string
-  description: 更新人id
-  cluster: common
+  type: string
+  desc: 更新人id
 - name: update_user
-  data_type: string
-  description: 更新人名称
-  cluster: common
+  type: string
+  desc: 更新人名称
 - name: update_time
-  data_type: temporal
-  description: 更新时间
+  type: temporal
+  desc: 更新时间
   nullable: false
-  cluster: common
 - name: act_procinst_id
-  data_type: string
-  description: 流程实例ID
-  cluster: workflow
+  type: string
+  desc: 流程实例ID
 - name: app_tenant_code
-  data_type: string
-  description: 逻辑租户标识
-  cluster: tenant
+  type: string
+  desc: 逻辑租户标识
 - name: db_tenant_code
-  data_type: string
-  description: 数据租户标识
-  cluster: tenant
+  type: string
+  desc: 数据租户标识
 - name: act_procinst_no
-  data_type: string
-  description: 流程申请编号
-  cluster: workflow
+  type: string
+  desc: 流程申请编号
 - name: act_procinst_status
-  data_type: string
-  description: 当前审批状态
-  cluster: workflow
+  type: string
+  desc: 当前审批状态
 - name: act_procinst_date
-  data_type: temporal
-  description: 审批结束时间
-  cluster: workflow
+  type: temporal
+  desc: 审批结束时间
 - name: organization_id
-  data_type: string
-  description: 机构编号
-  cluster: subject_ref
+  type: string
+  desc: 机构编号
 - name: retry_status
-  data_type: string
-  description: 补偿重试状态：PENDING-待重试，RETRYING-重试中，SUCCESS-重试成功，FAILED-重试失败
-  cluster: retry_channel
+  type: string
+  desc: 补偿重试状态：PENDING-待重试，RETRYING-重试中，SUCCESS-重试成功，FAILED-重试失败
 - name: channel
-  data_type: string
-  description: 渠道
-  cluster: retry_channel
+  type: string
+  desc: 渠道
 - name: electronic_auth_sign_status
-  data_type: string
-  dictionary: cust_build_record__electronic_auth_sign_status
+  type: string
+  dict: [SIGNED, PENDING]
 ```
 
 ## 关联关系
@@ -231,8 +143,6 @@ overlap:
   deepened: true
   query_ok: true
   authenticity: likely
-authenticity_note: overlap 0.9699（反向 0.58，miss 18），列名族 hub 命中 stem=cust，本地注释「企业ID」，值域契合且语义关联，判
-  likely。
 ```
 
 ```ground:relation
@@ -259,8 +169,6 @@ overlap:
   deepened: true
   query_ok: true
   authenticity: likely
-authenticity_note: overlap 0.9699（反向 0.56，miss 18），列名族后缀命中 stem=person，本地注释「联系人ID」，值域契合且语义关联，判
-  likely。
 ```
 
 ## 页面链接

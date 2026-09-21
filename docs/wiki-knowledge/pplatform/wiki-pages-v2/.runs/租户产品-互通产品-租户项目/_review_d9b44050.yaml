@@ -1,3 +1,0 @@
-body: 该规则的 code_path 证据在原语义分析中被截断于 "…/product/application/p"，本页按迁移描述中给出的类名与方法名（TenantInterworkingProductApplication.cancel）登记，并在路径中标注「证据截断」。需补齐完整路径与「关联项目」的判断实现后复核。
-title: 互通产品取消开通前置约束
-type: rule

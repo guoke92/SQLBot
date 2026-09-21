@@ -6,8 +6,8 @@ belong: tables
 status: draft
 anchors: [tenant_project_approval_flow_file]
 sources: ['database_schema:lowcode_pplatform.tenant_project_approval_flow_file']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
 related: [tenant_project_approval_flow_node, tenant_project_approval_flow_comment,
@@ -147,8 +147,6 @@ overlap:
   deepened: false
   query_ok: true
   authenticity: likely
-authenticity_note: 对端 tenant_project_approval_flow_node.code，overlap=1.0（样本139，miss=0）。列名内嵌被引用表名
-  project_approval_flow_node，注释「关联项目流程节点」与该表语义一致，值域与命名语义双契合，判 likely。
 ```
 
 ```ground:relation
@@ -174,8 +172,6 @@ overlap:
   deepened: false
   query_ok: true
   authenticity: likely
-authenticity_note: 对端 tenant_project_approval_flow_comment.code，overlap=1.0（样本63，miss=0）。列名内嵌被引用表名
-  comment，指向租户项目审批备注信息表，值域契合且命名有指向，判 likely。
 ```
 
 ```ground:relation
@@ -201,8 +197,6 @@ overlap:
   deepened: false
   query_ok: true
   authenticity: likely
-authenticity_note: 对端 tenant_project_approval.code，overlap=1.0（样本112，miss=0）。列名内嵌被引用表名
-  project_approval，注释「关联项目审批」与租户项目审批表语义一致，判 likely。
 ```
 
 ## 页面链接

@@ -6,11 +6,12 @@ belong: tables
 status: draft
 anchors: [cust_customized_product]
 sources: ['database_schema:lowcode_pplatform.cust_customized_product', 'code_path:CustCustomizedProductDaoImpl.java:24']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
-related: [cust_company_info, cust_interworking_product, cust_project_rel, cust_customized_product__enable]
+related: [cust_company_info, cust_interworking_product, cust_project_rel, cust_customized_product__code,
+  cust_customized_product__enable]
 ---
 
 # 客户快捷入口配置
@@ -35,6 +36,15 @@ fields:
 - name: code
   type: string
   desc: 编码
+  dict: [16d3c0b5af534650a04c091afdf7ecf4, 1610216e61e34e6bb6de7e6edf21efda, 657438ff3af74b9997a374a203f73055,
+    1ecbca6d91da4711be24dda5df18d2c5, d019609761a0448581b66902c82da564, 5ee6cb2419774bc9984050a71f1d16da,
+    b68c0f6474ae496683cd872299fda110, 8f2aa3a0d4b64a389bf076468b756d29, 41e96e8bd7914d2390d1c485bd6243e4,
+    9b849d76eda548d693f58ed2da03ea72, 1ab1a54939ed445c8bcb7a0ee8d22077, dc26f54628524fb498e39256122be054,
+    abc9fc960e124cd79acf47f372778964, e42929b50ffd4391a4de6da8d5323737, 22ca980e2a5c41b589fb8c7959d16e59,
+    658138dc149d4361a8ed9785a03efaff, c4307aec51cc47dea2104890b6e8eef0, 2867a221ed0d4f65b4decbd99b199d05,
+    e024d5e16a314577a4a4bb9b51229457, 3f659e407e744430ba36fab0934f8a92, f8e0f25e1e804362bed17d422956ed7b,
+    bcfee01811bc43f29fcd038583318f9c, 0627da4dc89b4a0b8a53a18f6a8dfcb9, 1a928de05b4e45f9929b6ed202ed238a,
+    86d9d00400d84d04ac43e0b6f3fd22a0]
 - name: name
   type: string
   desc: 产品名称
@@ -161,7 +171,6 @@ overlap:
   deepened: false
   query_ok: true
   authenticity: unknown
-authenticity_note: 列名含目标表名 cust_company_info（long_ref），名称有关联语义，但值域未探测（sample_size=0），无法确认值域契合
 sides:
 - {source: l1_code, left: cust_company_info.id, right: cust_customized_product.cust_id,
   trust: confirmed}
@@ -179,4 +188,5 @@ sides:
 
 ### 字典
 
+- [[dicts/cust_customized_product__code]]（`cust_customized_product.code`）
 - [[dicts/cust_customized_product__enable]]（`cust_customized_product.enable`）

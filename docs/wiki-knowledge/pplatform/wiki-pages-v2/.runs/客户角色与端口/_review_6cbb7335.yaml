@@ -1,4 +1,0 @@
-body: 术语桥中“端口”的 aliases 含 `companyType`，而 `cust_person_info.company_type`、`cust_project_rel.company_type`
-  也使用该名。二者指向的字段不同（前者用户当前角色、后者项目角色），是否应纳入 also_confused_with 待确认。
-title: 端口
-type: concept

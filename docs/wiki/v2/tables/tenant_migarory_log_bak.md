@@ -6,220 +6,145 @@ belong: tables
 status: draft
 anchors: [tenant_migarory_log_bak]
 sources: ['database_schema:lowcode_pplatform.tenant_migarory_log_bak']
-created: '2026-09-17'
-updated: '2026-09-17'
+created: '2026-09-20'
+updated: '2026-09-20'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
-related: [platform_product, tenant_migarory_log_bak__direction, tenant_migarory_log_bak__type,
-  tenant_migarory_log_bak__status, tenant_migarory_log_bak__enable]
+related: [platform_product, tenant_migarory_log_bak__name, tenant_migarory_log_bak__direction,
+  tenant_migarory_log_bak__type, tenant_migarory_log_bak__status, tenant_migarory_log_bak__success_number,
+  tenant_migarory_log_bak__falied_number, tenant_migarory_log_bak__total_number, tenant_migarory_log_bak__enable]
 ---
 
 # 租户项目迁移记录表
 
-L0 库侧合同（draft）。grain / 字段簇 / 身份束关系均为 proposed，不得当认证 JOIN。
-
-## 字段簇
-
-### common
-
-`id`, `code`, `name`, `enable`, `remark`, `create_by`, `create_user`, `create_time`, `update_by`, `update_user`, `update_time`
-
-### audit
-
-（空）
-
-### migration
-
-`direction`, `type`, `batch_no`, `status`, `success_number`, `falied_number`, `total_number`
-
-### payload
-
-`req_sn`, `req_no`, `request`, `response`, `error`, `data`
-
-### tenant_org
-
-`app_tenant_code`, `db_tenant_code`, `organization_id`
-
-### approval
-
-`act_procinst_id`, `act_procinst_no`, `act_procinst_status`, `act_procinst_date`
-
-### 未归簇
-
-`platform_product_code`, `trace_id`
+L0 库侧合同（draft）。grain / 身份束关系均为 proposed，不得当认证 JOIN。
 
 ## 字段
 
 ```ground:table
 table: tenant_migarory_log_bak
 database: lowcode_pplatform
-description: 租户项目迁移记录表
+desc: 租户项目迁移记录表
 inactive: false
 primary_key: [id]
 grain: 一行一记录（id）
 name_anchors: [code, name]
-clusters:
-- key: common
-  title: 通用
-  include: always
-- key: audit
-  title: 审计字段
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.tenant_migarory_log_bak
-- key: migration
-  title: 迁移任务
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.tenant_migarory_log_bak
-- key: payload
-  title: 请求与数据
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.tenant_migarory_log_bak
-- key: tenant_org
-  title: 租户与机构
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.tenant_migarory_log_bak
-- key: approval
-  title: 审批流程
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.tenant_migarory_log_bak
 fields:
 - name: id
-  data_type: number
-  description: 表主键
+  type: number
+  desc: 表主键
   nullable: false
-  cluster: common
 - name: code
-  data_type: string
-  description: 编码
-  cluster: common
+  type: string
+  desc: 编码
 - name: name
-  data_type: string
-  description: 名称
-  cluster: common
+  type: string
+  desc: 名称
+  dict: [migratoryProject, syncProject, syncProduct, EFFECTED, migratoryCust, 迁移客户,
+    CREATED, 同步项目, ACTIVE_CFCA_SIGN, PROJECT_SYNC, CHANGED, PROJECT_SYNC_VALIDATE,
+    migratoryTenant, INPUT_project_20240905163839, 迁移租户, 同步产品, DELETED, INPUT_tenant_20240905172700,
+    INPUT_project_20240905164552]
 - name: direction
-  data_type: string
-  description: 数据方向
-  cluster: migration
-  dictionary: tenant_migarory_log_bak__direction
+  type: string
+  desc: 数据方向
+  dict: [IN, OUT]
 - name: type
-  data_type: string
-  description: 类型
-  cluster: migration
-  dictionary: tenant_migarory_log_bak__type
+  type: string
+  desc: 类型
+  dict: [migratoryProject, PROJECT_SYNC, CUST_PRODUCT_SYNC, syncProject, TENANT_SYNC,
+    syncProduct, PRODUCT_SYNC, migratoryCust, migratoryTenant, CREATED, DELETED, PROJECT_SYNC_VALIDATE,
+    TENANT_SYNC_VALIDATE, EFFECTED]
 - name: batch_no
-  data_type: string
-  description: 批次号
-  cluster: migration
+  type: string
+  desc: 批次号
 - name: status
-  data_type: string
-  description: 迁移状态
-  cluster: migration
-  dictionary: tenant_migarory_log_bak__status
+  type: string
+  desc: 迁移状态
+  dict: [Y, N]
 - name: req_sn
-  data_type: string
-  description: 请求流水编码
-  cluster: payload
+  type: string
+  desc: 请求流水编码
 - name: platform_product_code
-  data_type: string
-  description: 产品编码
+  type: string
+  desc: 产品编码
 - name: req_no
-  data_type: string
-  description: 请求编号
-  cluster: payload
+  type: string
+  desc: 请求编号
 - name: request
-  data_type: string
-  description: 请求数据
-  cluster: payload
+  type: string
+  desc: 请求数据
 - name: response
-  data_type: string
-  description: 返回数据
-  cluster: payload
+  type: string
+  desc: 返回数据
 - name: error
-  data_type: string
-  description: 错误信息
-  cluster: payload
+  type: string
+  desc: 错误信息
 - name: data
-  data_type: string
-  description: 迁移数据
-  cluster: payload
+  type: string
+  desc: 迁移数据
 - name: success_number
-  data_type: number
-  description: 成功数量
-  cluster: migration
+  type: number
+  desc: 成功数量
+  dict: ['1']
 - name: falied_number
-  data_type: number
-  description: 失败数量
-  cluster: migration
+  type: number
+  desc: 失败数量
+  dict: ['1', '0']
 - name: total_number
-  data_type: number
-  description: 总数量
-  cluster: migration
+  type: number
+  desc: 总数量
+  dict: ['1']
 - name: enable
-  data_type: string
-  description: enable
-  cluster: common
-  dictionary: tenant_migarory_log_bak__enable
+  type: string
+  desc: enable
+  dict: [Y]
 - name: remark
-  data_type: string
-  description: remark
-  cluster: common
+  type: string
+  desc: remark
 - name: create_by
-  data_type: string
-  description: 创建人id
-  cluster: common
+  type: string
+  desc: 创建人id
 - name: create_user
-  data_type: string
-  description: 创建人名称
-  cluster: common
+  type: string
+  desc: 创建人名称
 - name: create_time
-  data_type: temporal
-  description: 创建时间
+  type: temporal
+  desc: 创建时间
   nullable: false
-  cluster: common
 - name: update_by
-  data_type: string
-  description: 更新人id
-  cluster: common
+  type: string
+  desc: 更新人id
 - name: update_user
-  data_type: string
-  description: 更新人名称
-  cluster: common
+  type: string
+  desc: 更新人名称
 - name: update_time
-  data_type: temporal
-  description: 更新时间
+  type: temporal
+  desc: 更新时间
   nullable: false
-  cluster: common
 - name: act_procinst_id
-  data_type: string
-  description: 流程实例ID
-  cluster: approval
+  type: string
+  desc: 流程实例ID
 - name: app_tenant_code
-  data_type: string
-  description: 逻辑租户标识
-  cluster: tenant_org
+  type: string
+  desc: 逻辑租户标识
 - name: db_tenant_code
-  data_type: string
-  description: 数据租户标识
-  cluster: tenant_org
+  type: string
+  desc: 数据租户标识
 - name: act_procinst_no
-  data_type: string
-  description: 流程申请编号
-  cluster: approval
+  type: string
+  desc: 流程申请编号
 - name: act_procinst_status
-  data_type: string
-  description: 当前审批状态
-  cluster: approval
+  type: string
+  desc: 当前审批状态
 - name: act_procinst_date
-  data_type: temporal
-  description: 审批结束时间
-  cluster: approval
+  type: temporal
+  desc: 审批结束时间
 - name: organization_id
-  data_type: string
-  description: 机构编号
-  cluster: tenant_org
+  type: string
+  desc: 机构编号
 - name: trace_id
-  data_type: string
-  description: trace_id
+  type: string
+  desc: trace_id
   nullable: false
 ```
 
@@ -260,7 +185,11 @@ overlap:
 
 ### 字典
 
+- [[dicts/tenant_migarory_log_bak__name]]（`tenant_migarory_log_bak.name`）
 - [[dicts/tenant_migarory_log_bak__direction]]（`tenant_migarory_log_bak.direction`）
 - [[dicts/tenant_migarory_log_bak__type]]（`tenant_migarory_log_bak.type`）
 - [[dicts/tenant_migarory_log_bak__status]]（`tenant_migarory_log_bak.status`）
+- [[dicts/tenant_migarory_log_bak__success_number]]（`tenant_migarory_log_bak.success_number`）
+- [[dicts/tenant_migarory_log_bak__falied_number]]（`tenant_migarory_log_bak.falied_number`）
+- [[dicts/tenant_migarory_log_bak__total_number]]（`tenant_migarory_log_bak.total_number`）
 - [[dicts/tenant_migarory_log_bak__enable]]（`tenant_migarory_log_bak.enable`）

@@ -1,6 +1,0 @@
-body: '`EnableEnum` 的落库写法在同一文件内不一致：[[cust_person_info]] 侧有 `EnableEnum.N.name()`（enum_audit
-  判定 confirm）与字面量 `''Y''` 直写（enum_audit 判定 reject，证据 `CustSyncEventProvider.java:doPushAfterCommit(.enable("Y"))`）并存；`sys_cust_user_rel.is_freeze`
-  又使用 `getDictKey()`。已按「写值点 + DB」为准记录：枚举页与表页保留各写值点的真实写法，未强行统一。待确认：字面量 `''Y''` 是历史遗留还是有意为之，以及是否有
-  `EnableEnum.Y.getDictKey()` 与 `''Y''` 取值是否等价（dictKey 是否即 ''Y''）。'
-title: 启用标识
-type: concept

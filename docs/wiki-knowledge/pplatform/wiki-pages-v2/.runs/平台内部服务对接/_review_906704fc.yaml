@@ -1,4 +1,0 @@
-body: 语义分析在 calibers 数组的「经办人用户」条目处被截断，仅取到 `name` 与 `predicate` 两个字段，`scope` 与 `evidence`
-  缺失。因此 calibers/operator_user.md 的 ground:caliber 块只写入这两个逐字值，未补写 scope/evidence；适用范围与代码出处需回溯原始分析后补齐。
-title: 经办人用户
-type: caliber

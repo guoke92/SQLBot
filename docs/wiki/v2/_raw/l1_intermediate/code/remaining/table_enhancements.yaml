@@ -60,6 +60,16 @@ tables:
   wechat_project_approval_field_history:
     grain: 企微审批字段历史
   open_sso_channel:
-    grain: SSO 渠道（catalog 有表；pplatform-web 无 @TableName DO）
+    grain: 一渠道一行；channel_code 唯一；live 另有 tenant_code 列（与 db_tenant_code 并存）
+    default_filter:
+      predicate: "open_sso_channel.enable = 'Y'"
+      evidence: code_path:OpenSsoChannelDao.java:24
+    written_with_groups:
+      - fields: [sso_sync_status, sso_sync_msg, sso_synced_at]
+        evidence: code_path:OpenSsoChannelSyncJobHandle.java:61
+    notes: |
+      @TableName DO 在 apaas + sso-component 均已存在。
+      运行时 credential.tenantCode 取自 DO.dbTenantCode（OpenSsoChannelService.requireRuntimeCredential）。
+      live 库另有 tenant_code 列（无 comment）；longteng 等是 channel_code 实例值，不是租户码。
   lc_sql_init_log:
     grain: 低代码 SQL 初始化日志（catalog 有表；pplatform-web 无 @TableName DO）

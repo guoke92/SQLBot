@@ -6,8 +6,8 @@ belong: dicts
 status: draft
 anchors: [migratory_user_record.enable]
 sources: ['database_profile:migratory_user_record.enable']
-created: '2026-09-17'
-updated: '2026-09-17'
+created: '2026-09-20'
+updated: '2026-09-20'
 contract_version: '0.1'
 related: [migratory_user_record]
 ---

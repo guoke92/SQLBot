@@ -7,16 +7,14 @@ status: draft
 anchors: [tenant_project_approval_business_info]
 sources: ['database_schema:lowcode_pplatform.tenant_project_approval_business_info',
   'code_path:ProjectApprovalApplication.java:1003']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
 related: [tenant_project_approval, tenant_product, tenant_project_approval_business_info__product_code,
   tenant_project_approval_business_info__source_system, tenant_project_approval_business_info__project_config_version,
-  tenant_project_approval_business_info__asset_list_mode, tenant_project_approval_business_info__business_flow_mode,
-  tenant_project_approval_business_info__service_fee_collector_financing, tenant_project_approval_business_info__service_fee_quote_type_financing,
-  tenant_project_approval_business_info__service_fee_collect_method_financing, tenant_project_approval_business_info__payer,
-  tenant_project_approval_business_info__service_fee_min_flag, tenant_project_approval_business_info__enable]
+  tenant_project_approval_business_info__asset_list_mode, tenant_project_approval_business_info__service_fee_min_amount,
+  tenant_project_approval_business_info__review_fee, tenant_project_approval_business_info__enable]
 ---
 
 # 租户项目审批业务系统推送信息表
@@ -60,36 +58,33 @@ fields:
 - name: business_flow_mode
   type: string
   desc: 业务流程模式
-  dict: [CONFIRM_RIGHT_AFTER, CONFIRM_RIGHT_FIRST, 后确权, 先确权]
 - name: service_fee_collector_financing
   type: string
   desc: 服务费收取方
-  dict: [PLATFORM, 平台方, OPERATOR, 运营方]
 - name: service_fee_quote_type_financing
   type: string
   desc: 服务费报价类型
-  dict: [PLATFORM_SERVICE_RATE, 固定年化利率, TOTAL_RATE, 非年化利率, 固定利率, 浮动利率, FIXED]
 - name: service_fee_collect_method_financing
   type: string
   desc: 服务费收取方式
-  dict: [OFFLINE, ONLINE, FREE, 线上收取, BOCOM_PAY, 线下收取, 银行代扣, 交e保]
 - name: payer
   type: string
   desc: 支付方
-  dict: [SUPPLIER, 融资申请人, CORE, 资金方, APPLICANT]
 - name: quote_method
   type: string
   desc: 报价方式
 - name: service_fee_min_amount
   type: string
   desc: 服务费低消金额
+  dict: ['0', '200', '200.000000', '100', '201.000000', '2010.000000']
 - name: service_fee_min_flag
   type: string
   desc: 服务费低消
-  dict: [否, 是, N]
 - name: review_fee
   type: string
   desc: 审单费
+  dict: ['0', '90', '198', '0.000000', '1.000000', '1.330000', '280', '1', '10.000000',
+    '200', '110.000000']
 - name: zhongdeng_register
   type: string
   desc: 中登登记
@@ -226,10 +221,6 @@ overlap:
 - [[dicts/tenant_project_approval_business_info__source_system]]（`tenant_project_approval_business_info.source_system`）
 - [[dicts/tenant_project_approval_business_info__project_config_version]]（`tenant_project_approval_business_info.project_config_version`）
 - [[dicts/tenant_project_approval_business_info__asset_list_mode]]（`tenant_project_approval_business_info.asset_list_mode`）
-- [[dicts/tenant_project_approval_business_info__business_flow_mode]]（`tenant_project_approval_business_info.business_flow_mode`）
-- [[dicts/tenant_project_approval_business_info__service_fee_collector_financing]]（`tenant_project_approval_business_info.service_fee_collector_financing`）
-- [[dicts/tenant_project_approval_business_info__service_fee_quote_type_financing]]（`tenant_project_approval_business_info.service_fee_quote_type_financing`）
-- [[dicts/tenant_project_approval_business_info__service_fee_collect_method_financing]]（`tenant_project_approval_business_info.service_fee_collect_method_financing`）
-- [[dicts/tenant_project_approval_business_info__payer]]（`tenant_project_approval_business_info.payer`）
-- [[dicts/tenant_project_approval_business_info__service_fee_min_flag]]（`tenant_project_approval_business_info.service_fee_min_flag`）
+- [[dicts/tenant_project_approval_business_info__service_fee_min_amount]]（`tenant_project_approval_business_info.service_fee_min_amount`）
+- [[dicts/tenant_project_approval_business_info__review_fee]]（`tenant_project_approval_business_info.review_fee`）
 - [[dicts/tenant_project_approval_business_info__enable]]（`tenant_project_approval_business_info.enable`）

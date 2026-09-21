@@ -5,8 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from typing import Any, Literal
 
-import orjson
-from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+from langchain_core.messages import AIMessage, SystemMessage
 from sqlalchemy import select
 
 from apps.chat.agent_copy import (
@@ -24,9 +23,7 @@ from apps.chat.memory_slots import (
     answer_has_executable_sql,
     hydrate_memory_slots_from_referenced_turns,
 )
-from apps.chat.steps.recall_request import RecallRequest
 from apps.chat.steps.stream import consume_llm
-from apps.chat.task.agent_prompt import build_agent_system_prompt
 from apps.chat.tools.metadata import get_tool_title_key
 from apps.chat.tools.registry import build_agent_tools
 from apps.chat.turn_contracts import TurnRoute
@@ -49,6 +46,7 @@ from apps.conversation.tooling import (
     looks_like_tool_markup,
     resolve_message_tool_calls,
     tool_calls_from_message,
+    tool_result_from_message,
 )
 from apps.datasource.access import resolve_access_scope
 from common.utils.utils import SQLBotLogUtil
@@ -103,64 +101,13 @@ def _agent_has_sql_result(state: Mapping[str, Any], messages: Sequence[Any]) -> 
     for message in messages:
         if str(getattr(message, "name", "") or "") != "execute_sql_sandbox":
             continue
-        raw = getattr(message, "content", "") or ""
-        payload: Any = raw
-        if isinstance(raw, str):
-            try:
-                payload = orjson.loads(raw)
-            except Exception:
-                payload = {}
-        if not isinstance(payload, Mapping) or payload.get("ok") is False:
+        payload = tool_result_from_message(message)
+        if not payload or payload.get("ok") is False:
             continue
         data = payload.get("data") if isinstance(payload.get("data"), Mapping) else {}
         if _required_sql_payload(data):
             return True
     return False
-
-
-def _sqlglot_dialect(llm_service: Any) -> str | None:
-    try:
-        from apps.db.db import get_sqlglot_dialect
-
-        ds_type = str(getattr(getattr(llm_service, "ds", None), "type", "") or "")
-        return get_sqlglot_dialect(ds_type) if ds_type else None
-    except Exception:  # noqa: BLE001 — dialect is a hint only
-        return None
-
-
-def prepare_recall_request(
-    *,
-    relation: str,
-    question: str,
-    memory_slots: MemorySlots,
-    dialect: str | None,
-) -> RecallRequest | None:
-    """Pin-only restore for continue/revise; None means start with an empty plane."""
-    from apps.chat.steps.recall_request import sql_references
-
-    if str(relation or "independent") not in {"continue", "revise"}:
-        return None
-    refs = memory_slots.knowledge_refs or {}
-    prior_pages = [
-        str(key) for key in (refs.get("page_keys") or []) if str(key).strip()
-    ]
-    sql_tables, sql_cols = sql_references(
-        memory_slots.active_baseline_sql, dialect=dialect
-    )
-    prior_tables = [
-        str(name) for name in (refs.get("tables") or []) if str(name).strip()
-    ]
-    pin_tables = list(dict.fromkeys([*sql_tables, *prior_tables]))
-    if not prior_pages and not pin_tables:
-        return None
-    return RecallRequest.rehydrate(
-        pin_tables=pin_tables,
-        pin_pages=prior_pages,
-        required_fields={
-            table: tuple(sorted(names)) for table, names in sql_cols.items() if names
-        },
-        question=question,
-    )
 
 
 def _incomplete_query_state(
@@ -358,11 +305,7 @@ def prepare_agent_turn_node(state: Mapping[str, Any]) -> dict[str, Any]:
     memory_slots = hydrate_memory_slots_from_referenced_turns(memory_slots, referenced)
 
     from apps.chat.steps.schema_outline import render_schema_outline
-    from apps.chat.steps.wiki_recall import (
-        _store,
-        retrieve_wiki_context,
-        wiki_span_fields,
-    )
+    from apps.chat.steps.wiki_recall import _store
 
     plane = AgentKnowledgePlane.from_dump(base_state.get("knowledge_plane"))
     plane.question = plane.question or question_text
@@ -373,74 +316,11 @@ def prepare_agent_turn_node(state: Mapping[str, Any]) -> dict[str, Any]:
         with session_scope() as session:
             plane.schema_outline = render_schema_outline(
                 ds=ds,
-                access_scope=access_scope,
                 store=store,
                 session=session,
             )
     except Exception as exc:
         SQLBotLogUtil.warning("schema outline render failed: %s", exc)
-    recall_request = prepare_recall_request(
-        relation=str(turn_route.get("relation") or "independent"),
-        question=question_text,
-        memory_slots=memory_slots,
-        dialect=_sqlglot_dialect(llm_service),
-    )
-    if recall_request is not None:
-        sink = StreamSink.from_state(base_state)
-        wiki_span = open_process_span(
-            kind="tool",
-            record_id=record_id,
-            sink=sink,
-            run_id=run_id,
-            graph_node="prepare_agent_turn",
-            title_key="chat.timeline.tool.restore_wiki",
-            tool={
-                "call_id": f"restore-wiki-{record_id or run_id}",
-                "name": "restore_wiki",
-                "args": recall_request.as_span_fields(),
-            },
-            summary_key="chat.audit.processing",
-            local_operation=True,
-        )
-        try:
-            wiki_ctx = retrieve_wiki_context(
-                llm_service,
-                recall_request,
-                access_scope=access_scope,
-            )
-            plane.merge_recall(wiki_ctx)
-            plane.adopt_conflicts(
-                wiki_ctx.get("caliber_conflicts"),
-                memory_slots.confirmed_calibers,
-            )
-            wiki_ctx["caliber_conflicts"] = list(plane.caliber_conflicts)
-            recalled_schema = plane.schema_catalog_text()
-            if recalled_schema:
-                llm_service.chat_question.db_schema = recalled_schema
-            hit_count = int(wiki_ctx.get("hit_count") or len(plane.page_keys) or 0)
-            if wiki_span is not None:
-                wiki_span.set_input(
-                    {
-                        "backend": wiki_ctx.get("backend"),
-                        "store_source": wiki_ctx.get("store_source"),
-                        "corpus_id": wiki_ctx.get("corpus_id"),
-                        **recall_request.as_span_fields(),
-                    }
-                )
-                wiki_span.set_output(
-                    {**wiki_span_fields(wiki_ctx), "prompt": plane.prompt_stats()}
-                )
-                wiki_span.close(
-                    status="completed",
-                    summary_key="chat.summary.wiki_restored",
-                    summary_params={"count": hit_count or len(plane.page_keys)},
-                )
-        except Exception as exc:
-            SQLBotLogUtil.warning(
-                f"Failed to restore prior knowledge in prepare_agent_turn: {exc}"
-            )
-            if wiki_span is not None:
-                wiki_span.close(status="failed", summary_key="chat.audit.step_failed")
 
     tools = build_agent_tools(llm_service, access_scope=access_scope)
     attach_runtime(
@@ -453,19 +333,40 @@ def prepare_agent_turn_node(state: Mapping[str, Any]) -> dict[str, Any]:
         probe_sql_calls=0,
     )
 
-    system_text = build_agent_system_prompt(
-        memory_slots=memory_slots.model_dump(),
-        change_baseline=memory_slots.extract_change_baseline(),
+    history: list[Any] = []
+    if chat_id is not None:
+        try:
+            from apps.chat.session_transcript import load_agent_transcript
+
+            with session_scope() as session:
+                history = load_agent_transcript(session, int(chat_id))
+        except Exception as exc:
+            SQLBotLogUtil.warning(
+                f"Failed to load agent_transcript for chat {chat_id}: {exc}"
+            )
+            history = []
+
+    from apps.chat.session_transcript import build_continued_messages, save_fold_meta
+
+    initial_messages, turn_message_start, fold_meta = build_continued_messages(
+        history=history,
+        question=question_text,
         knowledge_plane=plane,
     )
-    initial_messages = [
-        SystemMessage(content=system_text),
-        HumanMessage(content=question_text),
-    ]
+    if fold_meta and chat_id is not None:
+        try:
+            with session_scope() as session:
+                save_fold_meta(session, int(chat_id), fold_meta)
+                session.commit()
+        except Exception as exc:
+            SQLBotLogUtil.warning(
+                f"Failed to persist fold meta for chat {chat_id}: {exc}"
+            )
 
     return {
         **base_state,
         "messages": serialize_messages(initial_messages),
+        "turn_message_start": turn_message_start,
         "tool_rounds": 0,
         "tool_round_limit": EXECUTION_ROUND_LIMIT,
         "knowledge_plane": plane.to_dump(),

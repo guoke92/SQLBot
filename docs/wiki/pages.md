@@ -144,6 +144,7 @@ fields:
 - `primary_key` ⊆ `fields`。活跃表必填 PK；hub / 被 metric 计数的表必填 `grain`。休眠表可省略 PK/grain/`default_filter`。
 - `name_anchors` ⊆ `fields`，通常 `name`/`code`/`title`/`*_name`。已作本页 JOIN `right` 的列不得列入。实例值进 `instance_index.yaml`，不进 wiki 页。
 - 字段键用 `type` / `desc`。字典列 `dict` 列举全部码值；有中文释义时平行写 `label`（与 `dict` 等长）。仅部分码有释义时 `label` 写成 `{码: 中文}`；全部无释义则省略 `label`。不要在字段上写 dict 页文件名（页键约定 `表__字段`）。表页链接仍写作 `[[dicts/表__字段]]`。
+- **表字段 ↔ dict 页交叉一致：** 同列若存在 `dicts/表__字段`，表字段上的 `dict` / `label` **以 dict 页 `values` 为准**（L0/L1 编译回填）。禁止 dict 页已补 label 而表字段仍只留裸码。
 - `default_filter.trust` 非 confirmed 则不得自动套用。
 - 全库骨架不写在每张表上：L1 另产可召回概念页 `concepts/catalog_summary`。每表一行：`- 表名: 表中文名(简要业务说明与核心维度/度量)`（同类列语义合并，大宽表适当增长，不逐列抄注释）。明细仍在各表页。
 
@@ -181,7 +182,7 @@ values:
 mixed: false
 ```
 
-字典页是**封闭低基数代码集**（`distinct <= 32`），不是公司名/信用代码等实例清单。YAML 主键为 `dict:`。认证 `label` 只跟代码（`confirmed`）。L0 可从列注释解析 label，必须 `trust: proposed` 且 `evidence: database_schema`；注释没有「码→中文」映射则省略，禁止脑补。L1 代码 label 覆盖注释。`mixed: true`（旧名 `ambiguous`）必须能指到 concept 的 `adjudication`。空字符串不得写入 `values`。L0 无独立 dictKey 时，`page_key` / `dict` 用 `表__字段`（例 `cust_person_info__realname_status`），不要点号（会和物理锚 `表.字段` 撞名），也不要 `表_字段`，也不要用 `::`（部分 git/路径工具不友好）。`fields` / `anchors` 仍写物理列 `表.字段`。表字段上的 `dict` 列举码值，不写字典 `page_key`。
+字典页是**封闭低基数代码集**（`distinct <= 32`），不是公司名/信用代码等实例清单。YAML 主键为 `dict:`。认证 `label` 只跟代码（`confirmed`）。L0 可从列注释解析 label，必须 `trust: proposed` 且 `evidence: database_schema`；注释没有「码→中文」映射则省略，禁止脑补。L1：代码 label 覆盖注释；**代码与注释皆无中文时**，允许 `document_claim:` 写入 IR `dict_labels`（`trust: proposed`，码 ⊆ 已有 values，不得 confirmed、不得发明新码）。`mixed: true`（旧名 `ambiguous`）必须能指到 concept 的 `adjudication`。空字符串不得写入 `values`。L0 无独立 dictKey 时，`page_key` / `dict` 用 `表__字段`（例 `cust_person_info__realname_status`），不要点号（会和物理锚 `表.字段` 撞名），也不要 `表_字段`，也不要用 `::`（部分 git/路径工具不友好）。`fields` / `anchors` 仍写物理列 `表.字段`。表字段上的 `dict` 列举码值，不写字典 `page_key`。
 
 同一列可以同时有 dict 页（码表）和 `instance_index.yaml` 条目（口语/高频实例定位）；两条管线互不共用 verdict。
 
@@ -300,7 +301,7 @@ identify_style 回答谁邀请/认证渠道；cust_build_type.PC_BUILD 回答从
 
 `maps_to` / `field_targets` = `表.字段` 或 `dictKey.VALUE`。易混无 `adjudication` → `TERM_UNADJUDICATED`。
 
-全库表骨架是特殊概念页：`page_key: catalog_summary`，`recall: true`，`maps_to` 可省略；正文按前缀每表一行：`- 表名: 表中文名(简要业务说明，主键/业务键，以及核心维度/度量)`，同类列语义合并，大宽表适当增长，由 L1 编译从 catalog 生成，不要手写，不要把列注释铺进骨架。
+全库表骨架是特殊概念页：`page_key: catalog_summary`，`maps_to` 可省略；正文按前缀每表一行：`- 表名: 表中文名(简要业务说明，主键/业务键，以及核心维度/度量)`，同类列语义合并，大宽表适当增长，由 L1 编译从 catalog + 受约束的 `_TABLE_PROFILES` 生成，不要手写。**括号内短语必须能在该表列注释或物理列名上落地**；禁止 UI/需求幽灵字段。不要把列注释全文铺进骨架。
 
 ## 7. 引用
 

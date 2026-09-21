@@ -6,8 +6,8 @@ belong: dicts
 status: draft
 anchors: [cust_setting_config.need_verify_no_key]
 sources: ['database_profile:cust_setting_config.need_verify_no_key']
-created: '2026-09-17'
-updated: '2026-09-17'
+created: '2026-09-20'
+updated: '2026-09-20'
 contract_version: '0.1'
 related: [cust_setting_config]
 ---

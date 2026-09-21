@@ -6,8 +6,8 @@ belong: tables
 status: draft
 anchors: [gpt_learn_poster_log]
 sources: ['database_schema:lowcode_pplatform.gpt_learn_poster_log', 'code_path:GptLearnPosterLogDao.java:17']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
 related: [gpt_learn_poster_log__enable]

@@ -8,8 +8,8 @@ anchors: [cust_auth_application.open_status]
 sources: ['database_profile:cust_auth_application.open_status', 'database_schema:cust_auth_application.open_status',
   'code_path:CustProductActiveConstant.java:13', 'code_path:CustProductActiveConstant.java:15',
   'code_path:CustProductActiveConstant.java:11']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [cust_auth_application]
 ---

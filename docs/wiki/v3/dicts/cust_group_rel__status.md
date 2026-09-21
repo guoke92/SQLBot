@@ -8,8 +8,8 @@ anchors: [cust_group_rel.status]
 sources: ['database_profile:cust_group_rel.status', 'database_schema:cust_group_rel.status',
   'code_path:CustGroupRelStatusEnum.java:20', 'code_path:CustGroupRelStatusEnum.java:19',
   'code_path:CustGroupRelStatusEnum.java:21']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [cust_group_rel]
 ---

@@ -6,8 +6,8 @@ belong: dicts
 status: draft
 anchors: [cust_group_rel.level]
 sources: ['database_profile:cust_group_rel.level']
-created: '2026-09-17'
-updated: '2026-09-17'
+created: '2026-09-20'
+updated: '2026-09-20'
 contract_version: '0.1'
 related: [cust_group_rel]
 ---

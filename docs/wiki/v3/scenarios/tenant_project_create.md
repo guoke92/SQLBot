@@ -7,8 +7,8 @@ domain: tenant
 status: draft
 aliases: [新建项目, 项目配置]
 sources: ['code_path:l1_intermediate']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [tenant_project, tenant_setting_config, tenant_product]
 ---

@@ -1,5 +1,0 @@
-body: tenant_project / tenant_setting_config_share / operation_user / cust_project_rel
-  仅在概念边界（also_confused_with）与规则 field_targets 中作为引用对象出现（如 tenant_project.id、tenant_project.send_email、tenant_setting_config_share.tenant_flg_en、operation_user.operation_id、cust_project_rel.op_contact_a），语义分析未提供这些表的字段清单与证据，故本版不产出对应
-  table 页。
-title: 被引用但未采集字段的表
-type: table

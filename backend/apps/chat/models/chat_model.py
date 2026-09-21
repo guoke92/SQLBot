@@ -117,6 +117,9 @@ class Chat(SQLModel, table=True):
     recommended_question_answer: str = Field(sa_column=Column(Text, nullable=True))
     recommended_question: str = Field(sa_column=Column(Text, nullable=True))
     recommended_generate: bool = Field(default=False)
+    agent_transcript: Optional[dict[str, Any]] = Field(
+        default=None, sa_column=Column(JSONB, nullable=True)
+    )
 
 
 class ChatRecord(SQLModel, table=True):

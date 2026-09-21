@@ -6,8 +6,8 @@ belong: tables
 status: draft
 anchors: [cust_message_send_policy]
 sources: ['database_schema:lowcode_pplatform.cust_message_send_policy']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
 ---

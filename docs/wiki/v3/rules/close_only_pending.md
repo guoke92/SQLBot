@@ -7,8 +7,8 @@ domain: ca_fee
 status: draft
 field_targets: [ca_fee_order.order_status]
 sources: ['code_path:cafee/CaFeeOrderService.java:302']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [ca_fee_order]
 ---

@@ -6,8 +6,8 @@ belong: tables
 status: draft
 anchors: [ca_cfca_upgrade_report]
 sources: ['database_schema:lowcode_pplatform.ca_cfca_upgrade_report']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
 related: [ca_cfca_upgrade_report__source_system, ca_cfca_upgrade_report__company_type,

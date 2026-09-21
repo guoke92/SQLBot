@@ -6,15 +6,15 @@ belong: dicts
 status: draft
 anchors: [async_io_task.enable]
 sources: ['database_profile:async_io_task.enable']
-created: '2026-09-17'
-updated: '2026-09-17'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [async_io_task]
 ---
 
 # async_io_task.enable
 
-L0 字典候选：profile 代码值；列注释无码→中文映射，故无 label。空值已丢弃。 初审 hold：证据不足，保留待人工确认。
+L0 字典候选：profile 代码值；列注释无码→中文映射，故无 label。空值已丢弃。
 物理列 `async_io_task.enable`，表页 [[tables/async_io_task]]。
 
 ## 取值
@@ -24,6 +24,5 @@ dict: async_io_task__enable
 fields: [async_io_task.enable]
 values:
   Y: {trust: proposed}
-triage: hold
-needs_review: true
+triage: keep
 ```

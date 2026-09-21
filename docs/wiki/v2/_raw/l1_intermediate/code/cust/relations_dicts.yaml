@@ -460,3 +460,44 @@ dict_labels:
     values:
       "1": { label: 银行, evidence: code_path:AccountTypeEnum.java:15 }
       received: { label: 收款, evidence: code_path:AccountTypeEnum.java:18 }
+
+  cust_change_record__oper_channel:
+    table: cust_change_record
+    column: oper_channel
+    values:
+      DIRECT_INIT: { label: 方案2直推, evidence: code_path:DirectInitAccessModes.java:10 }
+  cust_change_record__electronic_auth_sign_status:
+    table: cust_change_record
+    column: electronic_auth_sign_status
+    values:
+      PENDING: { label: 待签署, evidence: code_path:ElectronicAuthSignStatus.java:12 }
+      SIGNED: { label: 已签署, evidence: code_path:ElectronicAuthSignStatus.java:15 }
+      UPLOAD_FAILED: { label: 影像上传失败, evidence: code_path:ElectronicAuthSignStatus.java:18 }
+      FAILED: { label: 签署失败, evidence: code_path:ElectronicAuthSignStatus.java:21 }
+      VOIDED: { label: 作废, evidence: code_path:ElectronicAuthSignStatus.java:24 }
+  cust_person_info__source:
+    table: cust_person_info
+    column: source
+    values:
+      AMS: { label: 管理员, evidence: code_path:CustPersonInfoSourceEnum.java:15 }
+      longteng: { label: 龙腾, evidence: code_path:CustPersonInfoSourceEnum.java:17 }
+
+  cust_change_record__status:
+    table: cust_change_record
+    column: status
+    values:
+      CUST_CHECK_INIT: { label: 待审核, evidence: code_path:OperApiConstants.java:203 }
+      CUST_CHECK_CHECKING: { label: 审核中, evidence: code_path:OperApiConstants.java:203 }
+      CUST_CHECK_PASS: { label: 审核通过, evidence: code_path:OperApiConstants.java:203 }
+      CUST_CHECK_REJECT: { label: 审核不通过, evidence: code_path:OperApiConstants.java:203 }
+      CUST_CHECK_BACKTOCUSTOM: { label: 待客户确认, evidence: code_path:OperApiConstants.java:204 }
+      CUST_BACK: { label: 退回, evidence: code_path:OperApiConstants.java:204 }
+  cust_build_record__electronic_auth_sign_status:
+    table: cust_build_record
+    column: electronic_auth_sign_status
+    values:
+      PENDING: { label: 待签署, evidence: code_path:ElectronicAuthSignStatus.java:12 }
+      SIGNED: { label: 已签署, evidence: code_path:ElectronicAuthSignStatus.java:15 }
+      UPLOAD_FAILED: { label: 影像上传失败, evidence: code_path:ElectronicAuthSignStatus.java:18 }
+      FAILED: { label: 签署失败, evidence: code_path:ElectronicAuthSignStatus.java:21 }
+      VOIDED: { label: 作废, evidence: code_path:ElectronicAuthSignStatus.java:24 }

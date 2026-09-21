@@ -299,7 +299,8 @@ def _emit_dict_values(values: dict[str, Any]) -> dict[str, Any]:
     out: dict[str, Any] = {}
     for raw, meta in values.items():
         key = str(raw or "").strip()
-        if not key or key.lower() in {"none", "null"}:
+        # Drop empty / SQL-null placeholders only. Keep real enum code "NONE".
+        if not key or key in {"null", "None", "<null>", "<NULL>"}:
             continue
         row = meta if isinstance(meta, dict) else {}
         claim = row.get("trust") or row.get("confidence") or "proposed"
@@ -452,6 +453,12 @@ def _emit_fields(
     *,
     table: str = "",
 ) -> list[dict[str, Any]]:
+    """Emit compact field rows.
+
+    When a sibling dict page exists for the column, that page is authoritative
+    for both ``dict`` codes and ``label`` text. Table fields must not keep a
+    stale code-only snapshot after dict labels are upgraded (L1 / re-emit).
+    """
     out: list[dict[str, Any]] = []
     for item in fields:
         row: dict[str, Any] = {
@@ -463,26 +470,25 @@ def _emit_fields(
             row["desc"] = desc
         if item.get("nullable") is False:
             row["nullable"] = False
-        keys: list[str] = []
-        labels: list[str] = []
+        page_key = field_dict_page_key(item, table)
+        page_keys, page_labels = (
+            _dict_value_lists(page_key, dicts) if page_key else ([], [])
+        )
         raw_dict = item.get("dict")
-        if isinstance(raw_dict, list) and raw_dict:
+        if page_keys:
+            keys = page_keys
+            label_map = {
+                code: lab for code, lab in zip(page_keys, page_labels) if lab
+            }
+        elif isinstance(raw_dict, list) and raw_dict:
             keys = [str(code).strip() for code in raw_dict if str(code).strip()]
-            raw_labels = item.get("label")
-            if isinstance(raw_labels, list):
-                labels = [str(lab).strip() for lab in raw_labels]
-            elif isinstance(raw_labels, dict):
-                labels = [str(raw_labels.get(code) or "").strip() for code in keys]
-            if len(labels) < len(keys):
-                labels.extend([""] * (len(keys) - len(labels)))
-            labels = labels[: len(keys)]
+            label_map = _field_label_map(item, keys)
         else:
-            page_key = field_dict_page_key(item, table)
-            if page_key:
-                keys, labels = _dict_value_lists(page_key, dicts)
+            keys = []
+            label_map = {}
         if keys:
             row["dict"] = _FlowList(keys)
-            labeled = {code: lab for code, lab in zip(keys, labels) if lab}
+            labeled = {code: label_map[code] for code in keys if label_map.get(code)}
             if labeled:
                 if len(labeled) == len(keys):
                     row["label"] = _FlowList([labeled[code] for code in keys])
@@ -493,6 +499,23 @@ def _emit_fields(
             row["written_with"] = _FlowList(list(written))
         out.append(row)
     return out
+
+
+def _field_label_map(item: dict[str, Any], keys: list[str]) -> dict[str, str]:
+    raw_labels = item.get("label")
+    if isinstance(raw_labels, list):
+        return {
+            code: str(lab).strip()
+            for code, lab in zip(keys, raw_labels)
+            if str(lab).strip()
+        }
+    if isinstance(raw_labels, dict):
+        return {
+            str(code): str(lab).strip()
+            for code, lab in raw_labels.items()
+            if str(code).strip() and str(lab).strip()
+        }
+    return {}
 
 
 def _table_of(endpoint: str) -> str:

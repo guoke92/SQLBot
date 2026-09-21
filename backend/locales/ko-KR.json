@@ -232,6 +232,7 @@
         "get_table_schema": "테이블 스키마 펼치기",
         "get_table_relations": "테이블 조인 조회",
         "search_knowledge": "업무 지식 검색",
+        "lookup_values": "인스턴스 값 조회",
         "get_dict_values": "사전 값 조회",
         "prepare_wiki": "지식 준비",
         "restore_wiki": "이전 지식 복원",
@@ -243,6 +244,7 @@
       "thought_done": "생각 완료",
       "tool_ok": "성공",
       "tool_failed": "실패",
+      "tool_skipped": "권장 라운드에 도달하여 건너뜀",
       "query_rows": "{count}행 반환",
       "answer_ready": "답변 준비됨",
       "clarification_waiting": "확인 대기",
@@ -252,7 +254,8 @@
       "wiki_restored": "이전 지식 {count}건 복원",
       "schema_loaded": "테이블 {count}개 펼침",
       "relations_loaded": "조인 {count}건 반환",
-      "dict_loaded": "사전 값 {count}개 반환"
+      "dict_loaded": "사전 값 {count}개 반환",
+      "values_loaded": "인스턴스 후보 {count}개 반환"
     },
     "audit": {
       "processing": "처리 중",

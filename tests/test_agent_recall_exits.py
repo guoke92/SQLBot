@@ -16,7 +16,6 @@ if str(_BACKEND) not in sys.path:
 from apps.chat.agent_knowledge import AgentKnowledgePlane  # noqa: E402
 from apps.chat.graphs.nodes.agent_finalize import finalize_agent_turn_node  # noqa: E402
 from apps.chat.graphs.nodes.unified_agent import (  # noqa: E402
-    prepare_recall_request,
     route_after_tools_execution,
 )
 from apps.chat.memory_slots import MemorySlots  # noqa: E402
@@ -29,19 +28,7 @@ from apps.chat.tools.complete_answer import complete_without_sql  # noqa: E402
 from apps.chat.tools.registry import CompleteWithoutSqlInput, build_agent_tools  # noqa: E402
 
 
-def test_independent_prepare_skips_recall() -> None:
-    req = prepare_recall_request(
-        relation="independent",
-        question="你能做什么？",
-        memory_slots=MemorySlots(
-            knowledge_refs={"page_keys": ["dicts/x"], "tables": ["t"]}
-        ),
-        dialect="mysql",
-    )
-    assert req is None
-
-
-def test_continue_prepare_rehydrates_pins_not_followup() -> None:
+def test_continue_prompt_keeps_baseline_not_restored_wiki() -> None:
     slots = MemorySlots(
         knowledge_refs={
             "page_keys": ["dicts/identify_style"],
@@ -51,17 +38,32 @@ def test_continue_prepare_rehydrates_pins_not_followup() -> None:
             "SELECT cust_name FROM cust_company_info WHERE enable='Y'"
         ),
     )
-    req = prepare_recall_request(
-        relation="continue",
-        question="再加上城市",
-        memory_slots=slots,
-        dialect="mysql",
+    plane = AgentKnowledgePlane(
+        schema_outline="<schema_outline>\n- cust_company_info: 企业\n</schema_outline>"
     )
-    assert req is not None
-    assert req.query == ""
-    assert "城市" not in req.query
-    assert "cust_company_info" in req.pin_tables
-    assert "dicts/identify_style" in req.pin_pages
+    prompt = build_agent_system_prompt(
+        memory_slots=slots.model_dump(),
+        change_baseline=slots.extract_change_baseline(),
+        knowledge_plane=plane,
+    )
+    assert "<schema_outline>" in prompt
+    assert "cust_company_info" in prompt
+    assert "<wiki_knowledge>" not in prompt
+    assert "<schema_catalog>" not in prompt
+    assert "<change_baseline>" not in prompt
+    assert "<memory_slots>" not in prompt
+    assert "cust_name FROM cust_company_info" not in prompt
+
+
+def test_independent_prompt_has_no_pin_restore() -> None:
+    prompt = build_agent_system_prompt(
+        knowledge_plane=AgentKnowledgePlane(
+            schema_outline="<schema_outline>\n- t: 表\n</schema_outline>"
+        )
+    )
+    assert "<schema_outline>" in prompt
+    assert "<wiki_knowledge>" not in prompt
+    assert "restore_wiki" not in prompt
 
 
 def test_pin_only_retrieve_skips_vector_query(monkeypatch) -> None:

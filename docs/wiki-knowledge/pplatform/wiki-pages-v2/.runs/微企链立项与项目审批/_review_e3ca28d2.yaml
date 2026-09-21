@@ -1,4 +1,0 @@
-body: 本次语义分析给出了表名与字段级证据，但未给出任何物理库名（schema/database）。所有 table/process/caliber/rule
-  页面的 `scope.databases` 因此填写占位值「未在语义分析中给出物理库名」，待补充后统一回填。
-title: 物理库名缺失
-type: table

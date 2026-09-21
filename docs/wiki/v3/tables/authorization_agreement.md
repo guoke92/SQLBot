@@ -6,8 +6,8 @@ belong: tables
 status: draft
 anchors: [authorization_agreement]
 sources: ['database_schema:lowcode_pplatform.authorization_agreement', 'code_path:AuthorizationAgreementDaoImpl.java:44']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
 related: [platform_product, cust_company_info, authorization_agreement__platform_product_code,

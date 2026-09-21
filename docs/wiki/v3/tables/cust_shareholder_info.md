@@ -6,12 +6,14 @@ belong: tables
 status: draft
 anchors: [cust_shareholder_info]
 sources: ['database_schema:lowcode_pplatform.cust_shareholder_info']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
-related: [cust_company_info, cust_shareholder_info__enable, cust_shareholder_info__certification_type,
-  cust_shareholder_info__relation_type]
+related: [cust_company_info, cust_shareholder_info__code, cust_shareholder_info__name,
+  cust_shareholder_info__enable, cust_shareholder_info__remark, cust_shareholder_info__ref_cust_company_info,
+  cust_shareholder_info__certification_type, cust_shareholder_info__certification_no,
+  cust_shareholder_info__fund_amount_act, cust_shareholder_info__fund_scale, cust_shareholder_info__relation_type]
 ---
 
 # 客户关联方信息主表
@@ -36,9 +38,12 @@ fields:
 - name: code
   type: string
   desc: 编码
+  dict: [6f4831e29b584aa5893c71b3f201a62a, f10bfdc45bc44710be7b10712ede351f, 23ec1de85da643cbb8a2a3045673da8a,
+    e6da13e575914d2db0e2d2e4590a9e3a, b0ca86d46721415abc21b5f44f844f3d, 28a82b234425439d999d153ad48887bc]
 - name: name
   type: string
   desc: 关联方名称
+  dict: ['34', asdf, '11', asdfdf]
 - name: enable
   type: string
   desc: enable
@@ -46,6 +51,7 @@ fields:
 - name: remark
   type: string
   desc: remark
+  dict: [wert, '11']
 - name: create_by
   type: string
   desc: 创建人id
@@ -90,6 +96,8 @@ fields:
 - name: ref_cust_company_info
   type: string
   desc: 客户股东信息
+  dict: [78bd395c9ca34fe4b87fa1a816c6714a, 313e49f751f146c9bec2d19682d756dc, 40a501bb9f1945069631e728ac752d59,
+    a1c94e1e892b4ec28c3332dac47754d3, 6c682c4d0f804d1e9705ae80daedbe19]
 - name: certification_type
   type: string
   desc: 证件类型
@@ -97,6 +105,7 @@ fields:
 - name: certification_no
   type: string
   desc: 证件号码
+  dict: [wertwetew, '11']
 - name: telephone
   type: string
   desc: 联系电话
@@ -115,9 +124,11 @@ fields:
 - name: fund_amount_act
   type: string
   desc: 实际出资金额
+  dict: [wretwewt, '111']
 - name: fund_scale
   type: string
   desc: 出资比例（%）
+  dict: [wt, '11']
 - name: investment_date
   type: temporal
   desc: 投资日期
@@ -188,6 +199,13 @@ sides:
 
 ### 字典
 
+- [[dicts/cust_shareholder_info__code]]（`cust_shareholder_info.code`）
+- [[dicts/cust_shareholder_info__name]]（`cust_shareholder_info.name`）
 - [[dicts/cust_shareholder_info__enable]]（`cust_shareholder_info.enable`）
+- [[dicts/cust_shareholder_info__remark]]（`cust_shareholder_info.remark`）
+- [[dicts/cust_shareholder_info__ref_cust_company_info]]（`cust_shareholder_info.ref_cust_company_info`）
 - [[dicts/cust_shareholder_info__certification_type]]（`cust_shareholder_info.certification_type`）
+- [[dicts/cust_shareholder_info__certification_no]]（`cust_shareholder_info.certification_no`）
+- [[dicts/cust_shareholder_info__fund_amount_act]]（`cust_shareholder_info.fund_amount_act`）
+- [[dicts/cust_shareholder_info__fund_scale]]（`cust_shareholder_info.fund_scale`）
 - [[dicts/cust_shareholder_info__relation_type]]（`cust_shareholder_info.relation_type`）

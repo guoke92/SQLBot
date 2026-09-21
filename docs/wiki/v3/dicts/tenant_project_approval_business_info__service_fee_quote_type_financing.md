@@ -6,8 +6,8 @@ belong: dicts
 status: draft
 anchors: [tenant_project_approval_business_info.service_fee_quote_type_financing]
 sources: ['database_profile:tenant_project_approval_business_info.service_fee_quote_type_financing']
-created: '2026-09-17'
-updated: '2026-09-17'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [tenant_project_approval_business_info]
 ---

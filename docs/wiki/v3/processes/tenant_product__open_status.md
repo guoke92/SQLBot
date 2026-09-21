@@ -8,8 +8,8 @@ status: draft
 anchors: [tenant_product.open_status]
 field_targets: [tenant_product.open_status]
 sources: ['code_path:TenantProductDomainService.java:191', 'code_path:TenantProductDomainService.java:106']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [tenant_product]
 ---

@@ -7,8 +7,8 @@ domain: funding_rule
 status: draft
 field_targets: [funding_exception_resolution.error_keyword]
 sources: ['code_path:ExceptionResolutionApplication.java:524']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [funding_exception_resolution]
 ---

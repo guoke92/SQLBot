@@ -6,24 +6,28 @@ belong: tables
 status: draft
 anchors: [tenant_setting_config]
 sources: ['database_schema:lowcode_pplatform.tenant_setting_config', 'code_path:TenantDomainService.java:344']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
 related: [ca_fee_company, ca_fee_order, ca_fee_project_config, tenant_interworking_product,
-  tenant_interworking_project, tenant_product, tenant_project, tenant_setting_config_share,
-  tenant_setting_config__source, tenant_setting_config__mp_sso_sys_channel, tenant_setting_config__enable,
-  tenant_setting_config__act_procinst_status, tenant_setting_config__need_hfive, tenant_setting_config__need_mp_wx,
-  tenant_setting_config__status, tenant_setting_config__self_registration_flag, tenant_setting_config__company_share_flag,
-  tenant_setting_config__operator_ai_customer, tenant_setting_config__portal_flag,
-  tenant_setting_config__share_flag, tenant_setting_config__recall_auth_doc_flag,
-  tenant_setting_config__core_bosc_company_id_property_requried, tenant_setting_config__xib_factor_contract_no_property_requried,
-  tenant_setting_config__company_size_property_requried, tenant_setting_config__cash_contract_no_property_requried,
+  tenant_interworking_project, tenant_product, tenant_project, tenant_setting_config__source,
+  tenant_setting_config__privacy_policy_agreement, tenant_setting_config__user_protocol_agreement,
+  tenant_setting_config__auth_agreement, tenant_setting_config__dbass_app_id, tenant_setting_config__mp_sso_sys_channel,
+  tenant_setting_config__enable, tenant_setting_config__act_procinst_status, tenant_setting_config__need_hfive,
+  tenant_setting_config__need_mp_wx, tenant_setting_config__status, tenant_setting_config__person_auth_agreement,
+  tenant_setting_config__self_registration_flag, tenant_setting_config__company_share_flag,
+  tenant_setting_config__operator_ai_customer, tenant_setting_config__ai_zc_sysnum,
+  tenant_setting_config__ai_zc_channel, tenant_setting_config__portal_flag, tenant_setting_config__share_flag,
+  tenant_setting_config__recall_auth_doc_flag, tenant_setting_config__core_bosc_company_id_property_requried,
+  tenant_setting_config__xib_factor_contract_no_property_requried, tenant_setting_config__company_size_property_requried,
+  tenant_setting_config__billing_type_property_requried, tenant_setting_config__cash_contract_no_property_requried,
   tenant_setting_config__zybank_cash_contract_amt_property_requried, tenant_setting_config__lybank_cash_contract_no_property_requried,
   tenant_setting_config__composite_field_property_requried, tenant_setting_config__pushing_status,
   tenant_setting_config__is_stack, tenant_setting_config__finance_org_type_property_requried,
   tenant_setting_config__sign_flag, tenant_setting_config__main_tenant_flg_en, tenant_setting_config__bank_branch_property_requried,
-  tenant_setting_config__project_code_required, tenant_setting_config__customer_card_type,
+  tenant_setting_config__oper_auth_agreement, tenant_setting_config__project_code_required,
+  tenant_setting_config__customer_card_type, tenant_setting_config__op_update_user,
   tenant_setting_config__generate_electronic_auth_flag, tenant_setting_config__access_mode,
   tenant_setting_config__use_theme_after_login]
 ---
@@ -89,18 +93,27 @@ fields:
 - name: privacy_policy_agreement
   type: string
   desc: 隐私协议
+  dict: [CT-202405311653384958102, DT_202503181060, DT_202503271077, CT-202503131437224998812,
+    DT_202503303500, DT_202503283481, DT_202505230361, DT_202507181127, DT_202509293314]
 - name: user_protocol_agreement
   type: string
   desc: 用户协议
+  dict: [CT-202405211357559370074, DT_202503171058, DT_202503271078, CT-202503131430531422546,
+    DT_202503283480, DT_202503303498, DT_202505230361, DT_202507181127, DT_202609105223,
+    DT_202503271073]
 - name: auth_agreement
   type: string
   desc: 授权书协议
+  dict: [CT-202404081721209495040, DT_202503251071, CT-202503131441009438408, DT_202503191068,
+    CT-202404031808238683649, DT_202503303499, DT_202505230361, DT_202507181127, DT_202511253668,
+    DT_202609175292, DT_202503283479, DT_202503271081]
 - name: apaas_tenant_code
   type: string
   desc: aPaaS租户编码
 - name: dbass_app_id
   type: string
   desc: dbassAppId
+  dict: [app_ChanRongPin336_20240529, app_ChanRongPin285_20240819]
 - name: mp_dbass_app_id
   type: string
   desc: 小程序dbassAppId
@@ -256,6 +269,9 @@ fields:
 - name: person_auth_agreement
   type: string
   desc: 变更联系人授权书
+  dict: [CT-202404081721209495040, DT_202503251071, CT-202503131441009438408, DT_202503191068,
+    CT-202404031808238683649, DT_202503303499, DT_202505230361, DT_202507181127, DT_202511253668,
+    DT_202609175292, Y, DT_202503283479, DT_202503271081]
 - name: self_registration_flag
   type: string
   desc: 是否放开自主注册
@@ -302,9 +318,12 @@ fields:
 - name: ai_zc_sysnum
   type: string
   desc: 智能客服系统号
+  dict: [3a6690d973eb4691a15d09dc3b38d81b, '999817', '071567676', '68950678', system001,
+    '177377']
 - name: ai_zc_channel
   type: string
   desc: 智能客服渠道号
+  dict: ['61', test_channel_001——998, www, '68950678', channel001, '0077']
 - name: portal_flag
   type: string
   desc: 是否启用门户
@@ -332,6 +351,7 @@ fields:
 - name: billing_type_property_requried
   type: string
   desc: 开票类型（补充字段-是否必填）
+  dict: [N]
 - name: cash_contract_no_property_requried
   type: string
   desc: 中原融资合同编号（补充字段-是否必填）
@@ -423,6 +443,7 @@ fields:
 - name: oper_auth_agreement
   type: string
   desc: 子账户授权书
+  dict: [DT_202507181127, DT_202503251071, DT_202503171058]
 - name: migratory_flag
   type: string
   desc: 迁移标志
@@ -438,6 +459,8 @@ fields:
 - name: op_update_user
   type: string
   desc: 租户运营更新人
+  dict: [liuning, duanyang, zhuliping, huangliyu, xieqingquan, linyanxiang, FDPAdmin,
+    ruanbanliang, chenqiuyun, huangliyu3]
 - name: op_update_time
   type: temporal
   desc: 租户运营更新时间
@@ -447,8 +470,8 @@ fields:
 - name: generate_electronic_auth_flag
   type: string
   desc: 是否生成电子版授权书：Y-是，N-否
-  dict: [N, Y]
-  label: [否, 是]
+  dict: [N, Y, '0']
+  label: {N: 否, Y: 是}
 - name: platform_sms_signature
   type: string
   desc: 产融平台短信签名(无方括号)
@@ -458,7 +481,8 @@ fields:
 - name: access_mode
   type: string
   desc: 接入模式
-  dict: [DIRECT_INIT]
+  dict: [DIRECT_INIT, STANDARD]
+  label: [方案2直推, 现网]
 - name: use_theme_after_login
   type: string
   desc: 登录后是否使用该色调：Y-是，N-否
@@ -499,26 +523,33 @@ authenticity_note: 默认关联项目是租户配置上的项目主键。
 - [[tables/tenant_interworking_project]]
 - [[tables/tenant_product]]
 - [[tables/tenant_project]]
-- [[tables/tenant_setting_config_share]]
 
 ### 字典
 
 - [[dicts/tenant_setting_config__source]]（`tenant_setting_config.source`）
+- [[dicts/tenant_setting_config__privacy_policy_agreement]]（`tenant_setting_config.privacy_policy_agreement`）
+- [[dicts/tenant_setting_config__user_protocol_agreement]]（`tenant_setting_config.user_protocol_agreement`）
+- [[dicts/tenant_setting_config__auth_agreement]]（`tenant_setting_config.auth_agreement`）
+- [[dicts/tenant_setting_config__dbass_app_id]]（`tenant_setting_config.dbass_app_id`）
 - [[dicts/tenant_setting_config__mp_sso_sys_channel]]（`tenant_setting_config.mp_sso_sys_channel`）
 - [[dicts/tenant_setting_config__enable]]（`tenant_setting_config.enable`）
 - [[dicts/tenant_setting_config__act_procinst_status]]（`tenant_setting_config.act_procinst_status`）
 - [[dicts/tenant_setting_config__need_hfive]]（`tenant_setting_config.need_hfive`）
 - [[dicts/tenant_setting_config__need_mp_wx]]（`tenant_setting_config.need_mp_wx`）
 - [[dicts/tenant_setting_config__status]]（`tenant_setting_config.status`）
+- [[dicts/tenant_setting_config__person_auth_agreement]]（`tenant_setting_config.person_auth_agreement`）
 - [[dicts/tenant_setting_config__self_registration_flag]]（`tenant_setting_config.self_registration_flag`）
 - [[dicts/tenant_setting_config__company_share_flag]]（`tenant_setting_config.company_share_flag`）
 - [[dicts/tenant_setting_config__operator_ai_customer]]（`tenant_setting_config.operator_ai_customer`）
+- [[dicts/tenant_setting_config__ai_zc_sysnum]]（`tenant_setting_config.ai_zc_sysnum`）
+- [[dicts/tenant_setting_config__ai_zc_channel]]（`tenant_setting_config.ai_zc_channel`）
 - [[dicts/tenant_setting_config__portal_flag]]（`tenant_setting_config.portal_flag`）
 - [[dicts/tenant_setting_config__share_flag]]（`tenant_setting_config.share_flag`）
 - [[dicts/tenant_setting_config__recall_auth_doc_flag]]（`tenant_setting_config.recall_auth_doc_flag`）
 - [[dicts/tenant_setting_config__core_bosc_company_id_property_requried]]（`tenant_setting_config.core_bosc_company_id_property_requried`）
 - [[dicts/tenant_setting_config__xib_factor_contract_no_property_requried]]（`tenant_setting_config.xib_factor_contract_no_property_requried`）
 - [[dicts/tenant_setting_config__company_size_property_requried]]（`tenant_setting_config.company_size_property_requried`）
+- [[dicts/tenant_setting_config__billing_type_property_requried]]（`tenant_setting_config.billing_type_property_requried`）
 - [[dicts/tenant_setting_config__cash_contract_no_property_requried]]（`tenant_setting_config.cash_contract_no_property_requried`）
 - [[dicts/tenant_setting_config__zybank_cash_contract_amt_property_requried]]（`tenant_setting_config.zybank_cash_contract_amt_property_requried`）
 - [[dicts/tenant_setting_config__lybank_cash_contract_no_property_requried]]（`tenant_setting_config.lybank_cash_contract_no_property_requried`）
@@ -529,8 +560,10 @@ authenticity_note: 默认关联项目是租户配置上的项目主键。
 - [[dicts/tenant_setting_config__sign_flag]]（`tenant_setting_config.sign_flag`）
 - [[dicts/tenant_setting_config__main_tenant_flg_en]]（`tenant_setting_config.main_tenant_flg_en`）
 - [[dicts/tenant_setting_config__bank_branch_property_requried]]（`tenant_setting_config.bank_branch_property_requried`）
+- [[dicts/tenant_setting_config__oper_auth_agreement]]（`tenant_setting_config.oper_auth_agreement`）
 - [[dicts/tenant_setting_config__project_code_required]]（`tenant_setting_config.project_code_required`）
 - [[dicts/tenant_setting_config__customer_card_type]]（`tenant_setting_config.customer_card_type`）
+- [[dicts/tenant_setting_config__op_update_user]]（`tenant_setting_config.op_update_user`）
 - [[dicts/tenant_setting_config__generate_electronic_auth_flag]]（`tenant_setting_config.generate_electronic_auth_flag`）
 - [[dicts/tenant_setting_config__access_mode]]（`tenant_setting_config.access_mode`）
 - [[dicts/tenant_setting_config__use_theme_after_login]]（`tenant_setting_config.use_theme_after_login`）

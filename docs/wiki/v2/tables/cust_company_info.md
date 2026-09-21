@@ -6,22 +6,22 @@ belong: tables
 status: draft
 anchors: [cust_company_info]
 sources: ['database_schema:lowcode_pplatform.cust_company_info']
-created: '2026-09-17'
-updated: '2026-09-17'
+created: '2026-09-20'
+updated: '2026-09-20'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
 related: [cust_account_info, cust_auth_application, cust_auth_application_config,
   cust_build_record, cust_certification_info, cust_change_record, cust_company_lifecycle_info,
-  cust_app_channel_config, cust_company_survey_state, cust_company_survey_whitelist,
-  cust_customized_product, cust_group_rel, cust_head_company_info, cust_interworking_product,
-  cust_oper_change_record, cust_person_info, cust_project_code_record, cust_project_rel,
-  cust_role_info, cust_setting_config, cust_shareholder_info, cust_survey_answer,
-  cust_user_rel, cust_company_info__enable, cust_company_info__act_procinst_status,
-  cust_company_info__biz_cust_type, cust_company_info__legal_certification_type, cust_company_info__need_register_ca,
+  cust_company_survey_state, cust_company_survey_whitelist, cust_customized_product,
+  cust_group_rel, cust_head_company_info, cust_interworking_product, cust_oper_change_record,
+  cust_person_info, cust_project_code_record, cust_project_rel, cust_role_info, cust_setting_config,
+  cust_shareholder_info, cust_survey_answer, cust_user_rel, cust_company_info__enable,
+  cust_company_info__legal_certification_type, cust_company_info__need_register_ca,
   cust_company_info__need_register_bs, cust_company_info__ca_register_status, cust_company_info__bs_register_status,
   cust_company_info__cust_build_type, cust_company_info__cust_build_status, cust_company_info__identify_style,
-  cust_company_info__data_type, cust_company_info__contact_province, cust_company_info__contact_province_code,
-  cust_company_info__contact_city_code, cust_company_info__signing_mode, cust_company_info__sign_mode,
+  cust_company_info__cust_scale, cust_company_info__data_type, cust_company_info__contact_province_code,
+  cust_company_info__contact_city_code, cust_company_info__contact_address, cust_company_info__signing_mode,
+  cust_company_info__invoicing_bank_no, cust_company_info__sign_mode, cust_company_info__pc_task_id,
   cust_company_info__cust_status, cust_company_info__apply_type, cust_company_info__abroad_cust,
   cust_company_info__outside_org, cust_company_info__group_company, cust_company_info__head_company,
   cust_company_info__legal_realname_status, cust_company_info__test_data, cust_company_info__need_charge,
@@ -33,64 +33,14 @@ related: [cust_account_info, cust_auth_application, cust_auth_application_config
 
 # 客户信息主表
 
-L0 库侧合同（draft）。grain / 字段簇 / 身份束关系均为 proposed，不得当认证 JOIN。
-
-## 字段簇
-
-### common
-
-`id`, `code`, `name`, `enable`, `remark`, `create_by`, `create_user`, `create_time`, `update_by`, `update_user`, `update_time`, `app_tenant_code`, `db_tenant_code`, `data_type`, `main_data_id`, `ext`, `test_data`, `company_ext_data`, `tenant_flg_en`
-
-### cust_base
-
-`cust_no`, `cust_short_name`, `cust_english_name`, `cust_company_type`, `biz_cust_type`, `cust_former_name`, `certification_no`, `cust_build_type`, `cust_build_status`, `identify_style`, `cust_scale`, `industry_involved`, `cust_profile`, `cust_email`, `client_type`, `signing_mode`, `sign_mode`, `cust_status`, `cust_english_short_name`, `abroad_cust`, `outside_org`, `group_company`, `head_company`, `cust_first_submit_auth`, `cust_from`, `cust_source`
-
-### legal
-
-`legal_name`, `legal_phone`, `legal_certification_no`, `legal_certification_type`, `legal_email`, `legal_certification_start_time`, `legal_certification_end_time`, `legal_time_permanent`, `legal_name_english`, `legal_birth_date`, `legal_name_english_end`, `legal_realname_status`
-
-### business
-
-`establishment_time`, `register_capital`, `time_permanent`, `business_license_start_time`, `business_license_end_time`, `business_province`, `paid_in_capital`, `workers_no`, `business_province_code`, `business_city`, `business_city_code`, `business_address`, `business_scope`, `business_province_city`, `business_status`, `company_size`
-
-### regist
-
-`regist_province`, `regist_province_code`, `regist_city`, `regist_city_code`, `registered_address`, `regist_province_city`, `regist_province_city_english`, `regist_city_english`
-
-### contact
-
-`contact_province`, `contact_province_code`, `contact_city`, `contact_city_code`, `contact_address`, `contact_user_name`, `contact_tel`, `contact_province_city`
-
-### invoicing
-
-`invoicing_taxpayer_no`, `invoicing_name`, `invoicing_accont_no`, `invoicing_phone`, `invoicing_email`, `invoicing_address`, `invoicing_bank_name`, `invoicing_bank_code`, `invoicing_bank_province_city`, `invoicing_bank_branch`, `invoicing_bank_no`, `billing_type`, `bank_branch`
-
-### approval
-
-`act_procinst_id`, `act_procinst_no`, `act_procinst_status`, `act_procinst_date`, `apply_data_id`, `pc_task_id`, `back_reason`, `apply_type`, `check_status`, `audit_back_flag`, `third_auth_status`, `approval_date`
-
-### signing
-
-`need_register_ca`, `need_register_bs`, `ca_register_status`, `bs_register_status`, `need_charge`
-
-### finance
-
-`finance_org_flag`, `finance_org_type`, `finance_org_code`, `finance_org_type_name`
-
-### relate
-
-`organization_id`, `relate_company_id`, `platform_cust_id`, `manager_id`, `relate_company_name`, `core_bosc_company_id`
-
-### channel_extension
-
-`nationality`, `nationality_en`, `composite_field`, `cash_contract_no`, `xib_factor_contract_no`, `zybank_cash_contract_amt`, `lybank_cash_contract_no`, `cert_no_flag`, `migarory_auth_aggrement_flag`, `auth_aggrement_supplement_flag`, `channel_code`
+L0 库侧合同（draft）。grain / 身份束关系均为 proposed，不得当认证 JOIN。
 
 ## 字段
 
 ```ground:table
 table: cust_company_info
 database: lowcode_pplatform
-description: 客户信息主表
+desc: 客户信息主表
 inactive: false
 primary_key: [id]
 grain: 一行一记录（id）
@@ -98,648 +48,467 @@ name_anchors: [code, name, cust_short_name, cust_english_name, cust_former_name,
   business_province_code, business_city_code, regist_province_code, regist_city_code,
   contact_province_code, contact_city_code, contact_user_name, invoicing_name, invoicing_bank_name,
   invoicing_bank_code, cust_english_short_name, relate_company_name, finance_org_code,
-  finance_org_type_name]
-clusters:
-- key: common
-  title: 通用
-  include: always
-- key: cust_base
-  title: 客户主档
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.cust_company_info
-- key: legal
-  title: 法人信息
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.cust_company_info
-- key: business
-  title: 经营信息
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.cust_company_info
-- key: regist
-  title: 注册信息
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.cust_company_info
-- key: contact
-  title: 联系信息
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.cust_company_info
-- key: invoicing
-  title: 开票信息
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.cust_company_info
-- key: approval
-  title: 审批流程
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.cust_company_info
-- key: signing
-  title: 签约认证
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.cust_company_info
-- key: finance
-  title: 金融机构
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.cust_company_info
-- key: relate
-  title: 归属关系
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.cust_company_info
-- key: channel_extension
-  title: 渠道与扩展
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.cust_company_info
+  finance_org_type_name, channel_code]
 fields:
 - name: id
-  data_type: number
-  description: 表主键
+  type: number
+  desc: 表主键
   nullable: false
-  cluster: common
 - name: code
-  data_type: string
-  description: 编码
-  cluster: common
+  type: string
+  desc: 编码
 - name: name
-  data_type: string
-  description: 客户名称
-  cluster: common
+  type: string
+  desc: 客户名称
 - name: enable
-  data_type: string
-  description: enable
-  cluster: common
-  dictionary: cust_company_info__enable
+  type: string
+  desc: enable
+  dict: [Y, N]
 - name: remark
-  data_type: string
-  description: remark
-  cluster: common
+  type: string
+  desc: remark
 - name: create_by
-  data_type: string
-  description: 创建人id
-  cluster: common
+  type: string
+  desc: 创建人id
 - name: create_user
-  data_type: string
-  description: 创建人名称
-  cluster: common
+  type: string
+  desc: 创建人名称
 - name: create_time
-  data_type: temporal
-  description: 创建时间
+  type: temporal
+  desc: 创建时间
   nullable: false
-  cluster: common
 - name: update_by
-  data_type: string
-  description: 更新人id
-  cluster: common
+  type: string
+  desc: 更新人id
 - name: update_user
-  data_type: string
-  description: 更新人名称
-  cluster: common
+  type: string
+  desc: 更新人名称
 - name: update_time
-  data_type: temporal
-  description: 更新时间
+  type: temporal
+  desc: 更新时间
   nullable: false
-  cluster: common
 - name: act_procinst_id
-  data_type: string
-  description: 流程实例ID
-  cluster: approval
+  type: string
+  desc: 流程实例ID
 - name: app_tenant_code
-  data_type: string
-  description: 逻辑租户标识
-  cluster: common
+  type: string
+  desc: 逻辑租户标识
 - name: db_tenant_code
-  data_type: string
-  description: 数据租户标识
-  cluster: common
+  type: string
+  desc: 数据租户标识
 - name: act_procinst_no
-  data_type: string
-  description: 流程申请编号
-  cluster: approval
+  type: string
+  desc: 流程申请编号
 - name: act_procinst_status
-  data_type: string
-  description: 当前审批状态
-  cluster: approval
-  dictionary: cust_company_info__act_procinst_status
+  type: string
+  desc: 当前审批状态
 - name: act_procinst_date
-  data_type: temporal
-  description: 审批结束时间
-  cluster: approval
+  type: temporal
+  desc: 审批结束时间
 - name: organization_id
-  data_type: string
-  description: 机构编号
-  cluster: relate
+  type: string
+  desc: 机构编号
 - name: cust_no
-  data_type: string
-  description: 客户编号
-  cluster: cust_base
+  type: string
+  desc: 客户编号
 - name: cust_short_name
-  data_type: string
-  description: 企业简称
-  cluster: cust_base
+  type: string
+  desc: 企业简称
 - name: cust_english_name
-  data_type: string
-  description: 客户英文名称
-  cluster: cust_base
+  type: string
+  desc: 客户英文名称
 - name: cust_company_type
-  data_type: string
-  description: 企业角色
-  cluster: cust_base
+  type: string
+  desc: 企业角色
 - name: biz_cust_type
-  data_type: string
-  description: 工商类别
-  cluster: cust_base
-  dictionary: cust_company_info__biz_cust_type
+  type: string
+  desc: 工商类别
 - name: cust_former_name
-  data_type: string
-  description: 曾用名
-  cluster: cust_base
+  type: string
+  desc: 曾用名
 - name: certification_no
-  data_type: string
-  description: 统一信用代码
-  cluster: cust_base
+  type: string
+  desc: 统一信用代码
 - name: establishment_time
-  data_type: temporal
-  description: 成立日期
-  cluster: business
+  type: temporal
+  desc: 成立日期
 - name: register_capital
-  data_type: number
-  description: 注册资本
-  cluster: business
+  type: number
+  desc: 注册资本
 - name: time_permanent
-  data_type: string
-  description: 营业执照有效期
-  cluster: business
+  type: string
+  desc: 营业执照有效期
 - name: business_license_start_time
-  data_type: temporal
-  description: 企业营业执照开始时间
-  cluster: business
+  type: temporal
+  desc: 企业营业执照开始时间
 - name: business_license_end_time
-  data_type: temporal
-  description: 企业营业执照结束时间
-  cluster: business
+  type: temporal
+  desc: 企业营业执照结束时间
 - name: legal_name
-  data_type: string
-  description: 法人姓名
-  cluster: legal
+  type: string
+  desc: 法人姓名
 - name: legal_phone
-  data_type: string
-  description: 法人手机号码
-  cluster: legal
+  type: string
+  desc: 法人手机号码
 - name: legal_certification_no
-  data_type: string
-  description: 法人证件号
-  cluster: legal
+  type: string
+  desc: 法人证件号
 - name: legal_certification_type
-  data_type: string
-  description: 法人证件类型
-  cluster: legal
-  dictionary: cust_company_info__legal_certification_type
+  type: string
+  desc: 法人证件类型
+  dict: [CRET_ID, CERT_PASSPORT, CERT_RESIDENT_PERMIT, CERT_TAIWAN, CERT_MAINLAND_PASS,
+    CERT_GREEN_CARD, 身份证, CRET_ID_HK, CREDENTIALS_ID, CERT_OTHER]
 - name: legal_email
-  data_type: string
-  description: 法人邮箱
-  cluster: legal
+  type: string
+  desc: 法人邮箱
 - name: legal_certification_start_time
-  data_type: temporal
-  description: 法人证件开始日期
-  cluster: legal
+  type: temporal
+  desc: 法人证件开始日期
 - name: legal_certification_end_time
-  data_type: temporal
-  description: 法人证件结束日期
-  cluster: legal
+  type: temporal
+  desc: 法人证件结束日期
 - name: legal_time_permanent
-  data_type: string
-  description: 身份证有效期标志
-  cluster: legal
+  type: string
+  desc: 身份证有效期标志
 - name: need_register_ca
-  data_type: string
-  description: 开通电子签章
-  cluster: signing
-  dictionary: cust_company_info__need_register_ca
+  type: string
+  desc: 开通电子签章
+  dict: [Y, N]
 - name: need_register_bs
-  data_type: string
-  description: 是否需要开通上上签电子签章
-  cluster: signing
-  dictionary: cust_company_info__need_register_bs
+  type: string
+  desc: 是否需要开通上上签电子签章
+  dict: [N, Y]
 - name: ca_register_status
-  data_type: string
-  description: CA开通状态
-  cluster: signing
-  dictionary: cust_company_info__ca_register_status
+  type: string
+  desc: CA开通状态
+  dict: [N, Y, P]
 - name: bs_register_status
-  data_type: string
-  description: 上上签开通状态
-  cluster: signing
-  dictionary: cust_company_info__bs_register_status
+  type: string
+  desc: 上上签开通状态
+  dict: [N, Y]
 - name: cust_build_type
-  data_type: string
-  description: 录入方式
-  cluster: cust_base
-  dictionary: cust_company_info__cust_build_type
+  type: string
+  desc: 录入方式
+  dict: [AGW_BUILD, PC_BUILD, SIMPLE]
 - name: cust_build_status
-  data_type: string
-  description: 认证状态
-  cluster: cust_base
-  dictionary: cust_company_info__cust_build_status
+  type: string
+  desc: 认证状态
+  dict: [BUILD_SUCCESS, INIT, CUST_CONFIRM_AWAIT, BUILD_FAIL, CUST_BUILDING, CUST_CHANGE,
+    AWAIT_CUST_CONFIRM, BUILD_ACTIVATE, BUILD_BACK, BUILDING, CUST_AUDIT_AWAIT, CUST_BUILD_SUCCESS]
 - name: identify_style
-  data_type: string
-  description: 认证方式
-  cluster: cust_base
-  dictionary: cust_company_info__identify_style
+  type: string
+  desc: 认证方式
+  dict: [INVITE_AGW, INVITE, SIMPLE, SELF]
 - name: cust_scale
-  data_type: string
-  description: 企业规模
-  cluster: cust_base
+  type: string
+  desc: 企业规模
+  dict: [qw]
 - name: industry_involved
-  data_type: string
-  description: 所属行业
-  cluster: cust_base
+  type: string
+  desc: 所属行业
 - name: cust_profile
-  data_type: string
-  description: 企业简介
-  cluster: cust_base
+  type: string
+  desc: 企业简介
 - name: data_type
-  data_type: string
-  description: 数据类型：1,主数据，0记录数据
-  cluster: common
-  dictionary: cust_company_info__data_type
+  type: string
+  desc: 数据类型：1,主数据，0记录数据
+  dict: ['1', '0', '2']
+  label: {'1': 主数据}
 - name: main_data_id
-  data_type: number
-  description: 主数据id
-  cluster: common
+  type: number
+  desc: 主数据id
 - name: business_province
-  data_type: string
-  description: 经营省份
-  cluster: business
+  type: string
+  desc: 经营省份
 - name: paid_in_capital
-  data_type: string
-  description: 实缴资本（元）
-  cluster: business
+  type: string
+  desc: 实缴资本（元）
 - name: workers_no
-  data_type: string
-  description: 员工
-  cluster: business
+  type: string
+  desc: 员工
 - name: business_province_code
-  data_type: string
-  description: 经营省份代码
-  cluster: business
+  type: string
+  desc: 经营省份代码
 - name: business_city
-  data_type: string
-  description: 经营市
-  cluster: business
+  type: string
+  desc: 经营市
 - name: business_city_code
-  data_type: string
-  description: 经营城市代码
-  cluster: business
+  type: string
+  desc: 经营城市代码
 - name: business_address
-  data_type: string
-  description: 经营地址
-  cluster: business
+  type: string
+  desc: 经营地址
 - name: regist_province
-  data_type: string
-  description: 注册省份
-  cluster: regist
+  type: string
+  desc: 注册省份
 - name: regist_province_code
-  data_type: string
-  description: 注册省份代码
-  cluster: regist
+  type: string
+  desc: 注册省份代码
 - name: regist_city
-  data_type: string
-  description: 注册市
-  cluster: regist
+  type: string
+  desc: 注册市
 - name: regist_city_code
-  data_type: string
-  description: 注册城市代码
-  cluster: regist
+  type: string
+  desc: 注册城市代码
 - name: registered_address
-  data_type: string
-  description: 注册地址
-  cluster: regist
+  type: string
+  desc: 注册地址
 - name: contact_province
-  data_type: string
-  description: 联系省份
-  cluster: contact
-  dictionary: cust_company_info__contact_province
+  type: string
+  desc: 联系省份
 - name: contact_province_code
-  data_type: string
-  description: 联系省份代码
-  cluster: contact
-  dictionary: cust_company_info__contact_province_code
+  type: string
+  desc: 联系省份代码
+  dict: ['820000', '650000']
 - name: contact_city
-  data_type: string
-  description: 联系市
-  cluster: contact
+  type: string
+  desc: 联系市
 - name: contact_city_code
-  data_type: string
-  description: 联系城市代码
-  cluster: contact
-  dictionary: cust_company_info__contact_city_code
+  type: string
+  desc: 联系城市代码
+  dict: ['820000', '650200']
 - name: contact_address
-  data_type: string
-  description: 联系地址
-  cluster: contact
+  type: string
+  desc: 联系地址
+  dict: [qdqw]
 - name: contact_user_name
-  data_type: string
-  description: 联系人
-  cluster: contact
+  type: string
+  desc: 联系人
 - name: contact_tel
-  data_type: string
-  description: 联系电话
-  cluster: contact
+  type: string
+  desc: 联系电话
 - name: cust_email
-  data_type: string
-  description: 公司联系邮箱
-  cluster: cust_base
+  type: string
+  desc: 公司联系邮箱
 - name: business_scope
-  data_type: string
-  description: 经营范围
-  cluster: business
+  type: string
+  desc: 经营范围
 - name: client_type
-  data_type: string
-  description: 发起变更的客户端类型
-  cluster: cust_base
+  type: string
+  desc: 发起变更的客户端类型
 - name: signing_mode
-  data_type: string
-  description: 签署模式
-  cluster: cust_base
-  dictionary: cust_company_info__signing_mode
+  type: string
+  desc: 签署模式
+  dict: ['01']
 - name: contact_province_city
-  data_type: string
-  description: 联系省市
-  cluster: contact
+  type: string
+  desc: 联系省市
 - name: business_province_city
-  data_type: string
-  description: 经营省市
-  cluster: business
+  type: string
+  desc: 经营省市
 - name: regist_province_city
-  data_type: string
-  description: 注册省市
-  cluster: regist
+  type: string
+  desc: 注册省市
 - name: invoicing_taxpayer_no
-  data_type: string
-  description: 开票纳税人识别号
-  cluster: invoicing
+  type: string
+  desc: 开票纳税人识别号
 - name: invoicing_name
-  data_type: string
-  description: 开票名称
-  cluster: invoicing
+  type: string
+  desc: 开票名称
 - name: invoicing_accont_no
-  data_type: string
-  description: 开票开户行账号
-  cluster: invoicing
+  type: string
+  desc: 开票开户行账号
 - name: invoicing_phone
-  data_type: string
-  description: 开票电话
-  cluster: invoicing
+  type: string
+  desc: 开票电话
 - name: invoicing_email
-  data_type: string
-  description: 开票电子邮箱
-  cluster: invoicing
+  type: string
+  desc: 开票电子邮箱
 - name: invoicing_address
-  data_type: string
-  description: 开票地址
-  cluster: invoicing
+  type: string
+  desc: 开票地址
 - name: invoicing_bank_name
-  data_type: string
-  description: 开票银行名称
-  cluster: invoicing
+  type: string
+  desc: 开票银行名称
 - name: invoicing_bank_code
-  data_type: string
-  description: 开票银行代码
-  cluster: invoicing
+  type: string
+  desc: 开票银行代码
 - name: invoicing_bank_province_city
-  data_type: string
-  description: 开票银行省市
-  cluster: invoicing
+  type: string
+  desc: 开票银行省市
 - name: invoicing_bank_branch
-  data_type: string
-  description: 开票银行支行
-  cluster: invoicing
+  type: string
+  desc: 开票银行支行
 - name: invoicing_bank_no
-  data_type: string
-  description: 开票银行联行号
-  cluster: invoicing
+  type: string
+  desc: 开票银行联行号
+  dict: ['{}', '103304362223', '103224031227', '103304362024']
 - name: apply_data_id
-  data_type: number
-  description: 认证流程数据id
-  cluster: approval
+  type: number
+  desc: 认证流程数据id
 - name: sign_mode
-  data_type: string
-  description: 产品协议签署方式
-  cluster: cust_base
-  dictionary: cust_company_info__sign_mode
+  type: string
+  desc: 产品协议签署方式
+  dict: [ONLINE]
 - name: pc_task_id
-  data_type: string
-  description: 退回客户端补充资料taskId
-  cluster: approval
+  type: string
+  desc: 退回客户端补充资料taskId
+  dict: ['230053', '135035', '130005', '305002', '305029', '210056', '225065', '110022',
+    '230006', '280006', '140030', '225030', '245027', '285005']
 - name: cust_status
-  data_type: string
-  description: 客户状态
-  cluster: cust_base
-  dictionary: cust_company_info__cust_status
+  type: string
+  desc: 客户状态
+  dict: [EFFECT, ADD, CHANGE, WRITEOFF, FREEZE]
 - name: back_reason
-  data_type: string
-  description: 退回原因
-  cluster: approval
+  type: string
+  desc: 退回原因
 - name: apply_type
-  data_type: string
-  description: 流程类型
-  cluster: approval
-  dictionary: cust_company_info__apply_type
+  type: string
+  desc: 流程类型
+  dict: [add, update]
 - name: cust_english_short_name
-  data_type: string
-  description: 企业简称英文
-  cluster: cust_base
+  type: string
+  desc: 企业简称英文
 - name: abroad_cust
-  data_type: string
-  description: 是否境外
-  cluster: cust_base
-  dictionary: cust_company_info__abroad_cust
+  type: string
+  desc: 是否境外
+  dict: [Y, N]
 - name: outside_org
-  data_type: string
-  description: 外部机构
-  cluster: cust_base
-  dictionary: cust_company_info__outside_org
+  type: string
+  desc: 外部机构
+  dict: [N, Y, '0', '1']
 - name: business_status
-  data_type: string
-  description: 经营状态
-  cluster: business
+  type: string
+  desc: 经营状态
 - name: relate_company_id
-  data_type: string
-  description: 归属企业id
-  cluster: relate
+  type: string
+  desc: 归属企业id
 - name: group_company
-  data_type: string
-  description: 是否归属集团或核心企业
-  cluster: cust_base
-  dictionary: cust_company_info__group_company
+  type: string
+  desc: 是否归属集团或核心企业
+  dict: [N, Y, '1']
 - name: regist_province_city_english
-  data_type: string
-  description: 注册省市(英文)
-  cluster: regist
+  type: string
+  desc: 注册省市(英文)
 - name: head_company
-  data_type: string
-  description: 是否总公司
-  cluster: cust_base
-  dictionary: cust_company_info__head_company
+  type: string
+  desc: 是否总公司
+  dict: [Y, N]
 - name: platform_cust_id
-  data_type: number
-  description: 运营中台id
-  cluster: relate
+  type: number
+  desc: 运营中台id
 - name: legal_name_english
-  data_type: string
-  description: 法人姓名(英文)
-  cluster: legal
+  type: string
+  desc: 法人姓名(英文)
 - name: manager_id
-  data_type: string
-  description: 业务经理
-  cluster: relate
+  type: string
+  desc: 业务经理
 - name: legal_birth_date
-  data_type: temporal
-  description: 法人生日
-  cluster: legal
+  type: temporal
+  desc: 法人生日
 - name: ext
-  data_type: string
-  description: 扩展信息
-  cluster: common
+  type: string
+  desc: 扩展信息
 - name: legal_name_english_end
-  data_type: string
-  description: 法人名(英文)
-  cluster: legal
+  type: string
+  desc: 法人名(英文)
 - name: regist_city_english
-  data_type: string
-  description: 市（英文）
-  cluster: regist
+  type: string
+  desc: 市（英文）
 - name: legal_realname_status
-  data_type: string
-  description: 法人认证状态
-  cluster: legal
-  dictionary: cust_company_info__legal_realname_status
+  type: string
+  desc: 法人认证状态
+  dict: [N, Y]
 - name: test_data
-  data_type: string
-  description: 是否测试数据
-  cluster: common
-  dictionary: cust_company_info__test_data
+  type: string
+  desc: 是否测试数据
+  dict: [N, Y]
 - name: company_ext_data
-  data_type: structured
-  cluster: common
+  type: structured
 - name: need_charge
-  data_type: string
-  description: 运营方是否涉及收费
-  cluster: signing
-  dictionary: cust_company_info__need_charge
+  type: string
+  desc: 运营方是否涉及收费
+  dict: [N, Y]
 - name: finance_org_flag
-  data_type: string
-  description: 金融机构身份标识
-  cluster: finance
+  type: string
+  desc: 金融机构身份标识
 - name: nationality
-  data_type: string
-  cluster: channel_extension
+  type: string
 - name: nationality_en
-  data_type: string
-  cluster: channel_extension
+  type: string
 - name: check_status
-  data_type: string
-  cluster: approval
-  dictionary: cust_company_info__check_status
+  type: string
+  dict: [CUST_CHECK_PASS, CUST_CHECK_BACKTOCUSTOM, CUST_CHECK_REJECT, CUST_CHECK_CHECKING,
+    CUST_CHECK_INIT, EFFECT]
 - name: relate_company_name
-  data_type: string
-  description: 归属集团或企业
-  cluster: relate
+  type: string
+  desc: 归属集团或企业
 - name: core_bosc_company_id
-  data_type: string
-  description: 关联核心企业（补充字段）
-  cluster: relate
+  type: string
+  desc: 关联核心企业（补充字段）
 - name: composite_field
-  data_type: string
-  description: 工行供应链编号（补充字段）
-  cluster: channel_extension
+  type: string
+  desc: 工行供应链编号（补充字段）
 - name: cash_contract_no
-  data_type: string
-  description: 中原融资合同编号（补充字段）
-  cluster: channel_extension
+  type: string
+  desc: 中原融资合同编号（补充字段）
 - name: xib_factor_contract_no
-  data_type: string
-  description: 厦银保理合同编号（补充字段）
-  cluster: channel_extension
+  type: string
+  desc: 厦银保理合同编号（补充字段）
 - name: zybank_cash_contract_amt
-  data_type: string
-  description: 中原融资合同金额（补充字段）
-  cluster: channel_extension
+  type: string
+  desc: 中原融资合同金额（补充字段）
 - name: billing_type
-  data_type: string
-  description: 开票类型（补充字段）
-  cluster: invoicing
+  type: string
+  desc: 开票类型（补充字段）
 - name: lybank_cash_contract_no
-  data_type: string
-  description: 洛阳融资合同编号（补充字段）
-  cluster: channel_extension
+  type: string
+  desc: 洛阳融资合同编号（补充字段）
 - name: company_size
-  data_type: string
-  description: 增值税纳税人类别（补充字段）
-  cluster: business
+  type: string
+  desc: 增值税纳税人类别（补充字段）
 - name: cust_first_submit_auth
-  data_type: temporal
-  description: 客户首次提交认证时间
-  cluster: cust_base
+  type: temporal
+  desc: 客户首次提交认证时间
 - name: tenant_flg_en
-  data_type: string
-  description: 项目标识（英文）
-  cluster: common
+  type: string
+  desc: 项目标识（英文）
 - name: cust_from
-  data_type: string
-  description: 客户来源
-  cluster: cust_base
+  type: string
+  desc: 客户来源
 - name: audit_back_flag
-  data_type: string
-  description: 审核退回标记
-  cluster: approval
-  dictionary: cust_company_info__audit_back_flag
+  type: string
+  desc: 审核退回标记
+  dict: [N, Y]
 - name: cert_no_flag
-  data_type: string
-  description: 执行查询统一信用证编码
-  cluster: channel_extension
-  dictionary: cust_company_info__cert_no_flag
+  type: string
+  desc: 执行查询统一信用证编码
+  dict: [Y]
 - name: cust_source
-  data_type: string
-  description: 建档数据来源
-  cluster: cust_base
-  dictionary: cust_company_info__cust_source
+  type: string
+  desc: 建档数据来源
+  dict: [PPLATFORM, MIGRATORY, PLATFORM_PUSH, PLATFORM]
 - name: migarory_auth_aggrement_flag
-  data_type: string
-  description: 新旧渠道授权书补签标识，Y 新渠道:N 旧渠道
-  cluster: channel_extension
-  dictionary: cust_company_info__migarory_auth_aggrement_flag
+  type: string
+  desc: 新旧渠道授权书补签标识，Y 新渠道:N 旧渠道
+  dict: [Y, N]
+  label: [新渠道, 新渠道]
 - name: auth_aggrement_supplement_flag
-  data_type: string
-  description: 是否授权书补签标识
-  cluster: channel_extension
-  dictionary: cust_company_info__auth_aggrement_supplement_flag
+  type: string
+  desc: 是否授权书补签标识
+  dict: [N, Y]
 - name: finance_org_type
-  data_type: string
-  description: 金融机构类型(补充字段)
-  cluster: finance
+  type: string
+  desc: 金融机构类型(补充字段)
 - name: finance_org_code
-  data_type: string
-  description: 金融机构编码(补充字段)
-  cluster: finance
+  type: string
+  desc: 金融机构编码(补充字段)
 - name: finance_org_type_name
-  data_type: string
-  cluster: finance
+  type: string
 - name: bank_branch
-  data_type: string
-  description: 银行分行名称（通用）(补充字段)
-  cluster: invoicing
+  type: string
+  desc: 银行分行名称（通用）(补充字段)
 - name: third_auth_status
-  data_type: string
-  description: 第三方认证状态
-  cluster: approval
-  dictionary: cust_company_info__third_auth_status
+  type: string
+  desc: 第三方认证状态
+  dict: ['1']
 - name: approval_date
-  data_type: temporal
-  description: 核准日期
-  cluster: approval
+  type: temporal
+  desc: 核准日期
 - name: channel_code
-  data_type: string
-  description: 开放平台channelcode
-  cluster: channel_extension
-  dictionary: cust_company_info__channel_code
+  type: string
+  desc: 开放平台channelcode
+  dict: [longteng, jingke]
 ```
 
 ## 关联关系
@@ -769,7 +538,6 @@ overlap:
   deepened: false
   query_ok: true
   authenticity: likely
-authenticity_note: 值域重合 1.0，但列名/注释无关联语义（code vs 认证流程数据id），仅值域契合，待人工确认。
 preview_block: overlap_unsemantic
 ```
 
@@ -796,31 +564,7 @@ overlap:
   deepened: false
   query_ok: true
   authenticity: likely
-authenticity_note: 值域重合 1.0，但列名/注释无关联语义（code vs 认证流程数据id），仅值域契合，待人工确认。
 preview_block: overlap_unsemantic
-```
-
-```ground:relation
-type: EQUI_JOIN
-left: cust_app_channel_config.code
-right: cust_company_info.channel_code
-cardinality: one_to_many
-trust: proposed
-authenticity: unknown
-evidence: database_schema:lowcode_pplatform.cust_company_info.channel_code
-source: llm
-join_role: business_code
-priority: primary
-name_evidence:
-  match: llm_propose
-  stem: channel_code
-  comment: 码对码且值域重合 1.0，客户应用渠道关系表 code 可对应开放平台 channel_code；样本仅 2，建议人工确认。
-overlap:
-  probed: true
-  ratio: 1.0
-  sample_size: 2
-  authenticity: unknown
-authenticity_note: 码对码且值域重合 1.0，客户应用渠道关系表 code 可对应开放平台 channel_code；样本仅 2，建议人工确认。
 ```
 
 ## 页面链接
@@ -834,7 +578,6 @@ authenticity_note: 码对码且值域重合 1.0，客户应用渠道关系表 co
 - [[tables/cust_certification_info]]
 - [[tables/cust_change_record]]
 - [[tables/cust_company_lifecycle_info]]
-- [[tables/cust_app_channel_config]]
 - [[tables/cust_company_survey_state]]
 - [[tables/cust_company_survey_whitelist]]
 - [[tables/cust_customized_product]]
@@ -854,8 +597,6 @@ authenticity_note: 码对码且值域重合 1.0，客户应用渠道关系表 co
 ### 字典
 
 - [[dicts/cust_company_info__enable]]（`cust_company_info.enable`）
-- [[dicts/cust_company_info__act_procinst_status]]（`cust_company_info.act_procinst_status`）
-- [[dicts/cust_company_info__biz_cust_type]]（`cust_company_info.biz_cust_type`）
 - [[dicts/cust_company_info__legal_certification_type]]（`cust_company_info.legal_certification_type`）
 - [[dicts/cust_company_info__need_register_ca]]（`cust_company_info.need_register_ca`）
 - [[dicts/cust_company_info__need_register_bs]]（`cust_company_info.need_register_bs`）
@@ -864,12 +605,15 @@ authenticity_note: 码对码且值域重合 1.0，客户应用渠道关系表 co
 - [[dicts/cust_company_info__cust_build_type]]（`cust_company_info.cust_build_type`）
 - [[dicts/cust_company_info__cust_build_status]]（`cust_company_info.cust_build_status`）
 - [[dicts/cust_company_info__identify_style]]（`cust_company_info.identify_style`）
+- [[dicts/cust_company_info__cust_scale]]（`cust_company_info.cust_scale`）
 - [[dicts/cust_company_info__data_type]]（`cust_company_info.data_type`）
-- [[dicts/cust_company_info__contact_province]]（`cust_company_info.contact_province`）
 - [[dicts/cust_company_info__contact_province_code]]（`cust_company_info.contact_province_code`）
 - [[dicts/cust_company_info__contact_city_code]]（`cust_company_info.contact_city_code`）
+- [[dicts/cust_company_info__contact_address]]（`cust_company_info.contact_address`）
 - [[dicts/cust_company_info__signing_mode]]（`cust_company_info.signing_mode`）
+- [[dicts/cust_company_info__invoicing_bank_no]]（`cust_company_info.invoicing_bank_no`）
 - [[dicts/cust_company_info__sign_mode]]（`cust_company_info.sign_mode`）
+- [[dicts/cust_company_info__pc_task_id]]（`cust_company_info.pc_task_id`）
 - [[dicts/cust_company_info__cust_status]]（`cust_company_info.cust_status`）
 - [[dicts/cust_company_info__apply_type]]（`cust_company_info.apply_type`）
 - [[dicts/cust_company_info__abroad_cust]]（`cust_company_info.abroad_cust`）

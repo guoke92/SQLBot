@@ -7,8 +7,8 @@ status: draft
 anchors: [ca_fee_company.source_company_type]
 sources: ['database_profile:ca_fee_company.source_company_type', 'database_schema:ca_fee_company.source_company_type',
   'code_path:CustCompanyTypeEnum.java:15', 'code_path:CustCompanyTypeEnum.java:18']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [ca_fee_company]
 ---

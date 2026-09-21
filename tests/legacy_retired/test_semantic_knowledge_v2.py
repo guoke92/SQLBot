@@ -45,8 +45,8 @@ from apps.knowledge.semantic.service import (
 )
 
 _FIXTURE = (
-    Path(__file__).resolve().parents[1]
-    / "docs/knowledge-extraction/knowledge-package-2.0.example.yaml"
+    Path(__file__).resolve().parents[2]
+    / ".tmp/docs/knowledge-extraction/knowledge-package-2.0.example.yaml"
 )
 
 

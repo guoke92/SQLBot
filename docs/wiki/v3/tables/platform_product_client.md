@@ -6,12 +6,13 @@ belong: tables
 status: draft
 anchors: [platform_product_client]
 sources: ['database_schema:lowcode_pplatform.platform_product_client']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
-related: [platform_product, platform_product_client__client_type, platform_product_client__status,
-  platform_product_client__multiple_type, platform_product_client__wx_flag, platform_product_client__link_type]
+related: [platform_product, platform_product_client__platform_product_id, platform_product_client__client_type,
+  platform_product_client__status, platform_product_client__multiple_type, platform_product_client__wx_flag,
+  platform_product_client__link_type]
 ---
 
 # 平台产品端口配置
@@ -42,6 +43,7 @@ fields:
 - name: platform_product_id
   type: number
   desc: 平台产品id
+  dict: ['6', '3', '2', '4', '5', '7', '8', '10']
 - name: url
   type: string
   desc: 产品url
@@ -155,6 +157,7 @@ overlap:
 
 ### 字典
 
+- [[dicts/platform_product_client__platform_product_id]]（`platform_product_client.platform_product_id`）
 - [[dicts/platform_product_client__client_type]]（`platform_product_client.client_type`）
 - [[dicts/platform_product_client__status]]（`platform_product_client.status`）
 - [[dicts/platform_product_client__multiple_type]]（`platform_product_client.multiple_type`）

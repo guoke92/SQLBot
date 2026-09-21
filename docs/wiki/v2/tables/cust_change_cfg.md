@@ -6,205 +6,125 @@ belong: tables
 status: draft
 anchors: [cust_change_cfg]
 sources: ['database_schema:lowcode_pplatform.cust_change_cfg']
-created: '2026-09-17'
-updated: '2026-09-17'
+created: '2026-09-20'
+updated: '2026-09-20'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
-related: [cust_change_record, cust_change_cfg__cust_type, cust_change_cfg__identify_style,
-  cust_change_cfg__head_company, cust_change_cfg__open_process, cust_change_cfg__item_code,
-  cust_change_cfg__enable, cust_change_cfg__client_type]
+related: [cust_change_cfg__cust_type, cust_change_cfg__identify_style, cust_change_cfg__head_company,
+  cust_change_cfg__open_process, cust_change_cfg__item_code, cust_change_cfg__enable,
+  cust_change_cfg__client_type]
 ---
 
 # 客户变更配置
 
-L0 库侧合同（draft）。grain / 字段簇 / 身份束关系均为 proposed，不得当认证 JOIN。
-
-## 字段簇
-
-### common
-
-`id`, `code`, `name`, `enable`, `remark`, `create_by`, `create_user`, `create_time`, `update_by`, `update_user`, `update_time`
-
-### audit
-
-（空）
-
-### change_item
-
-`plat_item`, `oper_item`, `data_desc`, `item_code`
-
-### customer
-
-`cust_type`, `identify_style`, `head_company`, `organization_id`, `client_type`
-
-### process
-
-`open_process`, `act_procinst_id`, `act_procinst_no`, `act_procinst_status`, `act_procinst_date`
-
-### tenant
-
-`app_tenant_code`, `db_tenant_code`
+L0 库侧合同（draft）。grain / 身份束关系均为 proposed，不得当认证 JOIN。
 
 ## 字段
 
 ```ground:table
 table: cust_change_cfg
 database: lowcode_pplatform
-description: 客户变更配置
+desc: 客户变更配置
 inactive: false
 primary_key: [id]
 grain: 一行一记录（id）
 name_anchors: [code, name, item_code]
-clusters:
-- key: common
-  title: 通用
-  include: always
-- key: audit
-  title: 审计信息
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.cust_change_cfg
-- key: change_item
-  title: 变更项定义
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.cust_change_cfg
-- key: customer
-  title: 客户与机构属性
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.cust_change_cfg
-- key: process
-  title: 审批流程
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.cust_change_cfg
-- key: tenant
-  title: 租户标识
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.cust_change_cfg
 fields:
 - name: id
-  data_type: number
-  description: 表主键
+  type: number
+  desc: 表主键
   nullable: false
-  cluster: common
 - name: code
-  data_type: string
-  description: 编码
-  cluster: common
+  type: string
+  desc: 编码
 - name: name
-  data_type: string
-  description: 名称
-  cluster: common
+  type: string
+  desc: 名称
 - name: plat_item
-  data_type: string
-  description: 平台变更项
-  cluster: change_item
+  type: string
+  desc: 平台变更项
 - name: oper_item
-  data_type: string
-  description: 运营中台变更项
-  cluster: change_item
+  type: string
+  desc: 运营中台变更项
 - name: data_desc
-  data_type: string
-  description: 变更需要材料说明
-  cluster: change_item
+  type: string
+  desc: 变更需要材料说明
 - name: cust_type
-  data_type: string
-  description: 客户类型
-  cluster: customer
-  dictionary: cust_change_cfg__cust_type
+  type: string
+  desc: 客户类型
+  dict: ['2', '1', '3']
 - name: identify_style
-  data_type: string
-  description: 认证方式
-  cluster: customer
-  dictionary: cust_change_cfg__identify_style
+  type: string
+  desc: 认证方式
+  dict: [INVITE, INVITE_AGW, SELF, SIMPLE]
 - name: head_company
-  data_type: string
-  description: 是否总公司
-  cluster: customer
-  dictionary: cust_change_cfg__head_company
+  type: string
+  desc: 是否总公司
+  dict: [N, Y]
 - name: open_process
-  data_type: string
-  description: 开启流程
-  cluster: process
-  dictionary: cust_change_cfg__open_process
+  type: string
+  desc: 开启流程
+  dict: [N, Y]
 - name: item_code
-  data_type: string
-  description: 变更项编码
-  cluster: change_item
-  dictionary: cust_change_cfg__item_code
+  type: string
+  desc: 变更项编码
+  dict: [UN0001, UN0009, UN0003, UN0002, UN0004, UN0015, UN0013, UN0012, UN0014, UN0005,
+    UN0008, UN0007, UN0016, UN0011, UN0006, UN0010]
 - name: enable
-  data_type: string
-  description: enable
-  cluster: common
-  dictionary: cust_change_cfg__enable
+  type: string
+  desc: enable
+  dict: [Y]
 - name: remark
-  data_type: string
-  description: remark
-  cluster: common
+  type: string
+  desc: remark
 - name: create_by
-  data_type: string
-  description: 创建人id
-  cluster: common
+  type: string
+  desc: 创建人id
 - name: create_user
-  data_type: string
-  description: 创建人名称
-  cluster: common
+  type: string
+  desc: 创建人名称
 - name: create_time
-  data_type: temporal
-  description: 创建时间
+  type: temporal
+  desc: 创建时间
   nullable: false
-  cluster: common
 - name: update_by
-  data_type: string
-  description: 更新人id
-  cluster: common
+  type: string
+  desc: 更新人id
 - name: update_user
-  data_type: string
-  description: 更新人名称
-  cluster: common
+  type: string
+  desc: 更新人名称
 - name: update_time
-  data_type: temporal
-  description: 更新时间
+  type: temporal
+  desc: 更新时间
   nullable: false
-  cluster: common
 - name: act_procinst_id
-  data_type: string
-  description: 流程实例ID
-  cluster: process
+  type: string
+  desc: 流程实例ID
 - name: app_tenant_code
-  data_type: string
-  description: 逻辑租户标识
-  cluster: tenant
+  type: string
+  desc: 逻辑租户标识
 - name: db_tenant_code
-  data_type: string
-  description: 数据租户标识
-  cluster: tenant
+  type: string
+  desc: 数据租户标识
 - name: act_procinst_no
-  data_type: string
-  description: 流程申请编号
-  cluster: process
+  type: string
+  desc: 流程申请编号
 - name: act_procinst_status
-  data_type: string
-  description: 当前审批状态
-  cluster: process
+  type: string
+  desc: 当前审批状态
 - name: act_procinst_date
-  data_type: temporal
-  description: 审批结束时间
-  cluster: process
+  type: temporal
+  desc: 审批结束时间
 - name: organization_id
-  data_type: string
-  description: 机构编号
-  cluster: customer
+  type: string
+  desc: 机构编号
 - name: client_type
-  data_type: string
-  description: 端类型
-  cluster: customer
-  dictionary: cust_change_cfg__client_type
+  type: string
+  desc: 端类型
+  dict: [AGW, ACCOUNT_PRODUCT]
 ```
 
 ## 页面链接
-
-### 关联表
-
-- [[tables/cust_change_record]]
 
 ### 字典
 

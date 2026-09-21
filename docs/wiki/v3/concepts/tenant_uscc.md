@@ -9,8 +9,8 @@ aliases: [租户统码, 租户名称和统码]
 maps_to: tenant_setting_config.uni_social_credit_code
 field_targets: [tenant_setting_config.uni_social_credit_code, tenant_setting_config.name]
 sources: ['code_path:TenantDomainService.java:230', 'document_claim:docs/wiki-knowledge/pplatform/req-index/concepts/项目上线审批流程.md']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [tenant_setting_config]
 also_confused_with: [tenant_flg_en, tenant_oper_update_split]

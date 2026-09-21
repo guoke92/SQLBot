@@ -9,8 +9,8 @@ aliases: [活体人脸, 微信扫码人脸]
 maps_to: cust_certification_info__certification_type.FACE_VERIFY
 field_targets: [cust_certification_info__certification_type.FACE_VERIFY, cust_certification_info.certification_type]
 sources: ['code_path:CustCertificationTypeEnum.java:17', 'document_claim:docs/wiki-knowledge/pplatform/req-index/concepts/产品需求规格说明书_产融平台V1.0.0.md']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [cust_certification_info]
 also_confused_with: [account_admin, skip_realname]

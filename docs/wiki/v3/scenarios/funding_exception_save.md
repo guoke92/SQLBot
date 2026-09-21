@@ -6,8 +6,8 @@ belong: scenarios
 domain: funding_rule
 status: draft
 sources: ['code_path:l1_intermediate']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [funding_exception_resolution]
 ---

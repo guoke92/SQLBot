@@ -1,5 +1,0 @@
-body: 枚举审计中 `APPLY_10` 的 verdict 为 `reject`，证据显示写值点用 `getDictParam()`（CustAccountApplication.java:193）、查询点用
-  `getDictKey()`（CustAccountApplication.java:222），但审计 note 在给定材料中被截断（止于“同一枚举”）。`auth_state`
-  的实际落库形态、以及 APPLY_20/APPLY_30/APPLY_40 是否同样存在键混用，需回源码确认后再补 [[auth_state]] 与 [[bank_account_auth_state]]。
-title: cust_account_info.auth_state 键形态与审计备注截断
-type: enum

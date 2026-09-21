@@ -6,178 +6,118 @@ belong: tables
 status: draft
 anchors: [platform_product_client]
 sources: ['database_schema:lowcode_pplatform.platform_product_client']
-created: '2026-09-17'
-updated: '2026-09-17'
+created: '2026-09-20'
+updated: '2026-09-20'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
-related: [platform_product, platform_product_client__client_type, platform_product_client__status,
-  platform_product_client__multiple_type, platform_product_client__wx_flag, platform_product_client__link_type]
+related: [platform_product, platform_product_client__platform_product_id, platform_product_client__client_type,
+  platform_product_client__status, platform_product_client__multiple_type, platform_product_client__wx_flag,
+  platform_product_client__link_type]
 ---
 
 # 平台产品端口配置
 
-L0 库侧合同（draft）。grain / 字段簇 / 身份束关系均为 proposed，不得当认证 JOIN。
-
-## 字段簇
-
-### common
-
-`id`, `code`, `name`, `enable`, `remark`, `create_by`, `create_user`, `create_time`, `update_by`, `update_user`, `update_time`
-
-### product_access
-
-`platform_product_id`, `url`, `client_type`, `status`, `multiple_type`, `ext_config`, `wx_flag`, `link_type`
-
-### approval
-
-`act_procinst_id`, `act_procinst_no`, `act_procinst_status`, `act_procinst_date`
-
-### tenant
-
-`app_tenant_code`, `db_tenant_code`
-
-### 未归簇
-
-`organization_id`
+L0 库侧合同（draft）。grain / 身份束关系均为 proposed，不得当认证 JOIN。
 
 ## 字段
 
 ```ground:table
 table: platform_product_client
 database: lowcode_pplatform
-description: 平台产品端口配置
+desc: 平台产品端口配置
 inactive: false
 primary_key: [id]
 grain: 一行一记录（id）
 name_anchors: [code, name]
-clusters:
-- key: common
-  title: 通用
-  include: always
-- key: product_access
-  title: 产品接入配置
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.platform_product_client
-- key: approval
-  title: 审批流程
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.platform_product_client
-- key: tenant
-  title: 租户隔离
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.platform_product_client
 fields:
 - name: id
-  data_type: number
-  description: 表主键
+  type: number
+  desc: 表主键
   nullable: false
-  cluster: common
 - name: code
-  data_type: string
-  description: 编码
-  cluster: common
+  type: string
+  desc: 编码
 - name: name
-  data_type: string
-  description: 名称
-  cluster: common
+  type: string
+  desc: 名称
 - name: platform_product_id
-  data_type: number
-  description: 平台产品id
-  cluster: product_access
+  type: number
+  desc: 平台产品id
+  dict: ['6', '3', '2', '4', '5', '7', '8', '10']
 - name: url
-  data_type: string
-  description: 产品url
-  cluster: product_access
+  type: string
+  desc: 产品url
 - name: client_type
-  data_type: string
-  description: 客户端类型方式
-  cluster: product_access
-  dictionary: platform_product_client__client_type
+  type: string
+  desc: 客户端类型方式
+  dict: [AMS, ORDER, RVSFACTOR_PC, BEECREDIT, ACFLOW, DEALER]
 - name: status
-  data_type: string
-  description: 启用状态
-  cluster: product_access
-  dictionary: platform_product_client__status
+  type: string
+  desc: 启用状态
+  dict: [Y]
 - name: multiple_type
-  data_type: string
-  description: 过滤类型
-  cluster: product_access
-  dictionary: platform_product_client__multiple_type
+  type: string
+  desc: 过滤类型
+  dict: [default, FINANCE, SUPPLIER, CORE, DEALER, PLATFORM_OPERATOR_COMPANY, CORE_BRANCH,
+    CORE_MANAGER, CORE_SUB, PROJECT_COMPANY]
 - name: ext_config
-  data_type: string
-  description: 其他配置信息
-  cluster: product_access
+  type: string
+  desc: 其他配置信息
 - name: wx_flag
-  data_type: string
-  description: 是否小程序
-  cluster: product_access
-  dictionary: platform_product_client__wx_flag
+  type: string
+  desc: 是否小程序
+  dict: [N, Y]
 - name: link_type
-  data_type: string
-  description: 链接类型(iframe/redirect/forward)
-  cluster: product_access
-  dictionary: platform_product_client__link_type
+  type: string
+  desc: 链接类型(iframe/redirect/forward)
+  dict: [iframe]
 - name: enable
-  data_type: string
-  description: enable
-  cluster: common
+  type: string
+  desc: enable
 - name: remark
-  data_type: string
-  description: remark
-  cluster: common
+  type: string
+  desc: remark
 - name: create_by
-  data_type: string
-  description: 创建人id
-  cluster: common
+  type: string
+  desc: 创建人id
 - name: create_user
-  data_type: string
-  description: 创建人名称
-  cluster: common
+  type: string
+  desc: 创建人名称
 - name: create_time
-  data_type: temporal
-  description: 创建时间
+  type: temporal
+  desc: 创建时间
   nullable: false
-  cluster: common
 - name: update_by
-  data_type: string
-  description: 更新人id
-  cluster: common
+  type: string
+  desc: 更新人id
 - name: update_user
-  data_type: string
-  description: 更新人名称
-  cluster: common
+  type: string
+  desc: 更新人名称
 - name: update_time
-  data_type: temporal
-  description: 更新时间
+  type: temporal
+  desc: 更新时间
   nullable: false
-  cluster: common
 - name: act_procinst_id
-  data_type: string
-  description: 流程实例ID
-  cluster: approval
+  type: string
+  desc: 流程实例ID
 - name: app_tenant_code
-  data_type: string
-  description: 逻辑租户标识
-  cluster: tenant
+  type: string
+  desc: 逻辑租户标识
 - name: db_tenant_code
-  data_type: string
-  description: 数据租户标识
-  cluster: tenant
+  type: string
+  desc: 数据租户标识
 - name: act_procinst_no
-  data_type: string
-  description: 流程申请编号
-  cluster: approval
+  type: string
+  desc: 流程申请编号
 - name: act_procinst_status
-  data_type: string
-  description: 当前审批状态
-  cluster: approval
+  type: string
+  desc: 当前审批状态
 - name: act_procinst_date
-  data_type: temporal
-  description: 审批结束时间
-  cluster: approval
+  type: temporal
+  desc: 审批结束时间
 - name: organization_id
-  data_type: string
-  description: 机构编号
+  type: string
+  desc: 机构编号
 ```
 
 ## 关联关系
@@ -217,6 +157,7 @@ overlap:
 
 ### 字典
 
+- [[dicts/platform_product_client__platform_product_id]]（`platform_product_client.platform_product_id`）
 - [[dicts/platform_product_client__client_type]]（`platform_product_client.client_type`）
 - [[dicts/platform_product_client__status]]（`platform_product_client.status`）
 - [[dicts/platform_product_client__multiple_type]]（`platform_product_client.multiple_type`）

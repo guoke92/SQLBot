@@ -782,7 +782,7 @@ class SqlProtocol(BaseProtocol):
         table_sql = self.qualify_table(ds, resource, database_name=database_name)
         field_sql = self._quote_identifier(field)
         bounded = max(100, min(int(sample_limit), 20000))
-        k = max(1, min(int(top_k), 50))
+        k = max(1, min(int(top_k), 200))
 
         # Prefer a bounded sample subquery so large facts do not full-scan.
         if self.type_key == "sqlServer":

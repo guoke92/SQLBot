@@ -16,7 +16,7 @@ const importVisible = ref(false)
 const importSubmitting = ref(false)
 const importForm = reactive({
   corpus_key: 'pplatform',
-  pages_dir: 'docs/wiki-knowledge/pplatform/wiki-pages',
+  pages_dir: 'docs/wiki/v3',
   replace: true,
 })
 

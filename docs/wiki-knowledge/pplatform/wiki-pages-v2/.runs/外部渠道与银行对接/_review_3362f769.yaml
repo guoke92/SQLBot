@@ -1,6 +1,0 @@
-body: 问题：reqdoc 主张「HSCC 蜂巢出站：WhhimService 组装 → Md5Utils 签名 → WhhimHttpClientOpenApiClient
-  → 失败抛 WhhimOpenApiException」在本次代码链路中未被覆盖（未出现 WhhimService/WhhimOpenApiException
-  类），code_status=uncovered，action=review。已按未证实内容写入 [[archive_result_outbound]] 的「版本演进」并在页首标注
-  (document_claim，未证实)，未产出任何锚点块。需补充该出站链路的代码证据或明确废弃。
-title: 建档结果出站
-type: concept

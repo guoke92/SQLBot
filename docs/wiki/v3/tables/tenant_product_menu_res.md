@@ -6,8 +6,8 @@ belong: tables
 status: draft
 anchors: [tenant_product_menu_res]
 sources: ['database_schema:lowcode_pplatform.tenant_product_menu_res']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
 related: [tenant_product, tenant_product_menu, tenant_product_menu_res__product_code,
@@ -130,8 +130,6 @@ overlap:
   deepened: false
   query_ok: true
   authenticity: unknown
-authenticity_note: 对端 tenant_product.code，name_evidence 为 family_suffix(stem=product)，注释「产品code」语义相关，但探测
-  overlap ratio=0.0（sample=2，miss=2），值域不契合，故判 unlikely。
 ```
 
 ### unlikely — 值域不支持或冲突
@@ -159,8 +157,6 @@ overlap:
   deepened: false
   query_ok: true
   authenticity: unlikely
-authenticity_note: 对端 tenant_product_menu.id，列名/注释为菜单ID 家族关联，但探测 overlap ratio=0.0（sample=8，miss=8），值域不契合，维持
-  unlikely。
 ```
 
 ## 页面链接

@@ -1,9 +1,0 @@
-body: '- claim: "SSO/DBAss 通道初始化：/initDbassAndSsoConfig 初始化 DBAss appId 和平台线路"
-
-  - code_status: uncovered
-
-  - action: review
-
-  - note: 未证实，暂不生成 ground 块。'
-title: SSO/DBAss 通道初始化
-type: reqdoc_claim

@@ -180,7 +180,22 @@ def bind_corpus(
         corpus_key,
         existing.remap_databases,
     )
+    if commit:
+        _enqueue_value_index(int(datasource_id))
     return _to_view(existing, corpus.corpus_key, ds.name)
+
+
+def _enqueue_value_index(datasource_id: int) -> None:
+    try:
+        from apps.datasource.instance_index.service import enqueue_value_index_extract
+
+        enqueue_value_index_extract(datasource_id)
+    except Exception as exc:  # noqa: BLE001
+        SQLBotLogUtil.warning(
+            "value-index extract after wiki bind ds=%s failed: %s",
+            datasource_id,
+            exc,
+        )
 
 
 def sync_corpus_bindings(
@@ -233,6 +248,8 @@ def sync_corpus_bindings(
         if int(row.datasource_id) not in keep:
             session.delete(row)
     session.commit()
+    for ds_id in ids:
+        _enqueue_value_index(int(ds_id))
     return list_bindings(session, oid, corpus_id=int(corpus.id))
 
 

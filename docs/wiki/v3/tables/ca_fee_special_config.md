@@ -6,11 +6,11 @@ belong: tables
 status: draft
 anchors: [ca_fee_special_config]
 sources: ['database_schema:lowcode_pplatform.ca_fee_special_config']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
-related: [ca_fee_special_config__enable]
+related: [ca_fee_special_config__annual_fee, ca_fee_special_config__enable]
 ---
 
 # CA服务费特殊企业配置
@@ -41,6 +41,8 @@ fields:
 - name: annual_fee
   type: number
   desc: 年费标准
+  dict: ['100', '0', '12', '200', '16', '800', '900', '99', '33', '80', '160', '70',
+    '10', '30', '6', '140', '180', '13', '170', '190', '60']
 - name: valid_start
   type: temporal
   desc: 有效期起
@@ -113,4 +115,5 @@ fields:
 
 ### 字典
 
+- [[dicts/ca_fee_special_config__annual_fee]]（`ca_fee_special_config.annual_fee`）
 - [[dicts/ca_fee_special_config__enable]]（`ca_fee_special_config.enable`）

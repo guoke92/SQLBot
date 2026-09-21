@@ -1,3 +1,0 @@
-body: adjudication 中「同名字段不可跨表比较」的依据来自两侧取值字面量不同（N/P/Y 与 OPENED/OPENING），但两侧是否曾有过统一字面量的设计意图，无证据，需业务确认。
-title: 开通状态（产品开通）
-type: concept

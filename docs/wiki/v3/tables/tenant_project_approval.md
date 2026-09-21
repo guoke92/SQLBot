@@ -6,16 +6,16 @@ belong: tables
 status: draft
 anchors: [tenant_project_approval]
 sources: ['database_schema:lowcode_pplatform.tenant_project_approval', 'code_path:ProjectApprovalApplication.java:254']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
 related: [tenant_project, tenant_project_approval_flow, tenant_project_approval_flow_config,
   tenant_project_approval_business_info, tenant_project_approval_flow_comment, tenant_project_approval_flow_credit,
   tenant_project_approval_flow_file, tenant_project_approval_flow_node, tenant_project_approval__is_online_approval,
-  tenant_project_approval__project_type, tenant_project_approval__simple_mode, tenant_project_approval__wf_status,
-  tenant_project_approval__is_low_risk, tenant_project_approval__is_latest, tenant_project_approval__enable,
-  tenant_project_approval__is_add]
+  tenant_project_approval__sp_no, tenant_project_approval__project_type, tenant_project_approval__simple_mode,
+  tenant_project_approval__wf_status, tenant_project_approval__is_low_risk, tenant_project_approval__is_latest,
+  tenant_project_approval__enable, tenant_project_approval__is_add]
 ---
 
 # 租户项目审批表
@@ -30,7 +30,7 @@ database: lowcode_pplatform
 desc: 租户项目审批表
 inactive: false
 primary_key: [id]
-grain: 项目上线审批单；最新一笔 is_latest=Y
+grain: 项目上线审批单；列表最新一笔 is_latest=Y；在途仍受 assertNoApproval 约束
 name_anchors: [solution_manager_name, initiator_user_name, code, name]
 fields:
 - name: id
@@ -50,6 +50,13 @@ fields:
 - name: sp_no
   type: string
   desc: 立项审批编号（wechat_project_approval_apply#sp_no）
+  dict: ['202604270003', '202606220002', '202605110011', '202608260001', '202607280002',
+    '202605120011', '202512290002', MN-202606230165, MN-202606030156, '202605120015',
+    '202607090020', '202606220001', '202605130016', MN-202608240181, MN-202606240169,
+    MN-202608240183, MN-202608240187, '202607280001', MN-202605060095, '202608200001',
+    '202606230004', MN-202605060097, MN-202608240189, MN-202604300059, MN-202606180162,
+    '202608060006', MN-202606010152, MN-202608240193, '202607150009', '202604090001',
+    '202607090002']
 - name: solution_manager_id
   type: string
   desc: 方案经理 userId
@@ -85,7 +92,7 @@ fields:
   type: string
   desc: 工作流状态
   dict: [RUNNING, FINISHED, TERMINATED, PENDING, REVOKED]
-  label: {RUNNING: 审批中, FINISHED: 审批通过, TERMINATED: 审批拒绝, PENDING: 待发起}
+  label: [审批中, 审批通过, 审批拒绝, 待发起, 审批撤销]
   written_with: [initiate_time, act_procinst_id, complete_time]
 - name: wf_last_operator_id
   type: string
@@ -312,6 +319,7 @@ overlap:
 ### 字典
 
 - [[dicts/tenant_project_approval__is_online_approval]]（`tenant_project_approval.is_online_approval`）
+- [[dicts/tenant_project_approval__sp_no]]（`tenant_project_approval.sp_no`）
 - [[dicts/tenant_project_approval__project_type]]（`tenant_project_approval.project_type`）
 - [[dicts/tenant_project_approval__simple_mode]]（`tenant_project_approval.simple_mode`）
 - [[dicts/tenant_project_approval__wf_status]]（`tenant_project_approval.wf_status`）

@@ -1,4 +1,0 @@
-body: funding_rule_front_cfg.rule_key 字段的具体用途在现有证据中仅标注为“可能用于前端渲染规则”，建议进一步确认其与 front_key
-  的区别和业务场景。
-title: 前端字段key
-type: concept

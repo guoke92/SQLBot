@@ -7,8 +7,8 @@ domain: tenant
 status: draft
 field_targets: [tenant_project_approval.wf_status, tenant_project_approval_flow.node_status]
 sources: ['code_path:ProjectApprovalDeskApplication.java:94']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [tenant_project_approval, tenant_project_approval_flow]
 ---

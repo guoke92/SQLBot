@@ -8,7 +8,8 @@ from typing import Any
 
 import yaml
 
-from tools.wiki_extract.l1.emitter import emit_l1
+from tools.wiki_extract.emit import _dict_value_lists, field_dict_page_key
+from tools.wiki_extract.l1.emitter import emit_l1, iter_ungrounded_profile_phrases
 from tools.wiki_extract.l1.loader import IntermediateBundle, load_intermediate
 from tools.wiki_extract.l1.pages import load_l0_corpus
 from tools.wiki_extract.l1.schema import dict_page_key, parse_code_path, physical_pair
@@ -42,6 +43,13 @@ def compile_l1(
     fatal_targets = {item.target for item in report.errors}
     model = load_l0_corpus(l0_dir)
     enhance_model(model, bundle, catalog, report, fatal_targets)
+    for table, phrase in iter_ungrounded_profile_phrases(catalog):
+        report.add(
+            "CATALOG_BLURB_UNGROUNDED",
+            f"concepts/catalog_summary#{table}",
+            f"catalog profile phrase {phrase!r} is not grounded in column comments/names",
+            severity="warning",
+        )
     reviews = _reviews_from(report, bundle)
     model["reviews"] = reviews
     model["database"] = catalog.get("database") or model.get("database")
@@ -59,8 +67,14 @@ def compile_l1(
     catalog_src = l0_dir / "_raw" / "catalog.yaml"
     if catalog_src.exists():
         dest = out_dir / "_raw" / "catalog.yaml"
-        if not dest.exists():
-            shutil.copy2(catalog_src, dest)
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(catalog_src, dest)
+    for raw_name in ("profile.yaml", "profile_instance.yaml", "overlap.yaml"):
+        src = l0_dir / "_raw" / raw_name
+        if src.exists():
+            dest = out_dir / "_raw" / raw_name
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(src, dest)
     stats["files"] = len(bundle.files)
     stats["errors"] = len(report.errors)
     stats["warnings"] = len(report.warnings)
@@ -140,9 +154,67 @@ def enhance_model(
         dict_page_key(str(b.get("table") or ""), str(b.get("column") or ""), b.get("dict") or k)
         for k, b in bundle.dict_labels.items()
     )
+    sync_table_fields_with_dicts(model, report)
     for compiled in tables.values():
         _strip_clusters(compiled)
     return model
+
+
+def sync_table_fields_with_dicts(
+    model: dict[str, Any], report: ValidationReport | None = None
+) -> int:
+    """Make table field ``dict`` / ``label`` match the sibling dict page.
+
+    Dict pages are the closed-enum authority after L0/L1 upgrades. Fields that
+    still carry a code-only snapshot from an earlier emit are rewritten in place.
+    """
+    tables = model.get("tables") or {}
+    dicts = model.get("dicts") or {}
+    synced = 0
+    for tname, compiled in tables.items():
+        if not isinstance(compiled, dict):
+            continue
+        for field in compiled.get("fields") or []:
+            if not isinstance(field, dict):
+                continue
+            page_key = field_dict_page_key(field, str(tname))
+            if not page_key or page_key not in dicts:
+                continue
+            page_keys, page_labels = _dict_value_lists(page_key, dicts)
+            if not page_keys:
+                continue
+            label_map = {
+                code: lab for code, lab in zip(page_keys, page_labels) if lab
+            }
+            raw_codes = field.get("dict")
+            before_codes = (
+                [str(c).strip() for c in raw_codes if str(c).strip()]
+                if isinstance(raw_codes, list)
+                else []
+            )
+            before_labels = field.get("label")
+            field["dict"] = list(page_keys)
+            field["dictionary"] = page_key
+            if label_map:
+                if len(label_map) == len(page_keys):
+                    field["label"] = [label_map[code] for code in page_keys]
+                else:
+                    field["label"] = dict(label_map)
+            else:
+                field.pop("label", None)
+            changed = before_codes != page_keys or before_labels != field.get("label")
+            if changed:
+                synced += 1
+                if report is not None and before_codes and set(before_codes) != set(
+                    page_keys
+                ):
+                    report.add(
+                        "FIELD_DICT_RESYNC",
+                        f"tables/{tname}#{field.get('name')}",
+                        f"field dict codes realigned to {page_key}",
+                        severity="warning",
+                    )
+    return synced
 
 
 def _strip_clusters(compiled: dict[str, Any]) -> None:
@@ -323,11 +395,14 @@ def _upgrade_dict(item: dict[str, Any], body: dict[str, Any], fatal_targets: set
         if isinstance(values.get(code), dict):
             row = dict(values[code])
         row["label"] = meta.get("label")
-        if parse_code_path(str(meta.get("evidence") or "")):
+        evidence = str(meta.get("evidence") or "").strip()
+        if parse_code_path(evidence):
             row["trust"] = "confirmed"
-            row["evidence"] = meta.get("evidence")
+            row["evidence"] = evidence
         else:
             row.setdefault("trust", "proposed")
+            if evidence:
+                row["evidence"] = evidence
         values[str(code)] = row
     item["values"] = values
     item["l1_confirmed"] = True

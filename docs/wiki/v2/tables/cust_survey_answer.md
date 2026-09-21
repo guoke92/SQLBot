@@ -6,175 +6,110 @@ belong: tables
 status: draft
 anchors: [cust_survey_answer]
 sources: ['database_schema:lowcode_pplatform.cust_survey_answer']
-created: '2026-09-17'
-updated: '2026-09-17'
+created: '2026-09-20'
+updated: '2026-09-20'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
-related: [cust_company_info, cust_survey_answer__question_no, cust_survey_answer__enable]
+related: [cust_company_info, cust_survey_answer__question_no, cust_survey_answer__survey_code,
+  cust_survey_answer__enable]
 ---
 
 # 调研答案表
 
-L0 库侧合同（draft）。grain / 字段簇 / 身份束关系均为 proposed，不得当认证 JOIN。
-
-## 字段簇
-
-### common
-
-`id`, `code`, `name`, `enable`, `remark`, `create_by`, `create_user`, `create_time`, `update_by`, `update_user`, `update_time`
-
-### survey_answer
-
-`question_no`, `answer_value`, `other_text`, `submit_time`, `survey_code`
-
-### subject
-
-`company_id`, `user_id`, `organization_id`
-
-### tenant
-
-`app_tenant_code`, `db_tenant_code`
-
-### act_procinst
-
-`act_procinst_id`, `act_procinst_no`, `act_procinst_status`, `act_procinst_date`
+L0 库侧合同（draft）。grain / 身份束关系均为 proposed，不得当认证 JOIN。
 
 ## 字段
 
 ```ground:table
 table: cust_survey_answer
 database: lowcode_pplatform
-description: 调研答案表
+desc: 调研答案表
 inactive: false
 primary_key: [id]
 grain: 一行一记录（id）
 name_anchors: [survey_code, code, name]
-clusters:
-- key: common
-  title: 通用
-  include: always
-- key: survey_answer
-  title: 调研作答内容
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.cust_survey_answer
-- key: subject
-  title: 归属主体
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.cust_survey_answer
-- key: tenant
-  title: 租户标识
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.cust_survey_answer
-- key: act_procinst
-  title: 流程实例
-  trust: proposed
-  evidence: database_schema:lowcode_pplatform.cust_survey_answer
 fields:
 - name: id
-  data_type: number
-  description: 表主键
+  type: number
+  desc: 表主键
   nullable: false
-  cluster: common
 - name: company_id
-  data_type: number
-  description: 当前登录企业ID
-  cluster: subject
+  type: number
+  desc: 当前登录企业ID
 - name: user_id
-  data_type: number
-  description: 当前登录用户ID
-  cluster: subject
+  type: number
+  desc: 当前登录用户ID
 - name: question_no
-  data_type: number
-  description: 题号（1~N）
-  cluster: survey_answer
-  dictionary: cust_survey_answer__question_no
+  type: number
+  desc: 题号（1~N）
+  dict: ['5', '3', '6', '1', '4', '2']
 - name: answer_value
-  data_type: string
-  description: 选项明文，多选每个选项单独一行
-  cluster: survey_answer
+  type: string
+  desc: 选项明文，多选每个选项单独一行
 - name: other_text
-  data_type: string
-  description: 当选项为"其他"时，填写的文本内容
-  cluster: survey_answer
+  type: string
+  desc: 当选项为"其他"时，填写的文本内容
 - name: submit_time
-  data_type: temporal
-  description: 提交时间
-  cluster: survey_answer
+  type: temporal
+  desc: 提交时间
 - name: survey_code
-  data_type: string
-  description: 问卷code
-  cluster: survey_answer
+  type: string
+  desc: 问卷code
+  dict: [XYL_2024_Q1]
 - name: code
-  data_type: string
-  description: 编码
-  cluster: common
+  type: string
+  desc: 编码
 - name: name
-  data_type: string
-  description: 名称
-  cluster: common
+  type: string
+  desc: 名称
 - name: enable
-  data_type: string
-  description: enable
-  cluster: common
-  dictionary: cust_survey_answer__enable
+  type: string
+  desc: enable
+  dict: [Y]
 - name: remark
-  data_type: string
-  description: remark
-  cluster: common
+  type: string
+  desc: remark
 - name: create_by
-  data_type: string
-  description: 创建人id
-  cluster: common
+  type: string
+  desc: 创建人id
 - name: create_user
-  data_type: string
-  description: 创建人名称
-  cluster: common
+  type: string
+  desc: 创建人名称
 - name: create_time
-  data_type: temporal
-  description: 创建时间
+  type: temporal
+  desc: 创建时间
   nullable: false
-  cluster: common
 - name: update_by
-  data_type: string
-  description: 更新人id
-  cluster: common
+  type: string
+  desc: 更新人id
 - name: update_user
-  data_type: string
-  description: 更新人名称
-  cluster: common
+  type: string
+  desc: 更新人名称
 - name: update_time
-  data_type: temporal
-  description: 更新时间
+  type: temporal
+  desc: 更新时间
   nullable: false
-  cluster: common
 - name: act_procinst_id
-  data_type: string
-  description: 流程实例ID
-  cluster: act_procinst
+  type: string
+  desc: 流程实例ID
 - name: app_tenant_code
-  data_type: string
-  description: 逻辑租户标识
-  cluster: tenant
+  type: string
+  desc: 逻辑租户标识
 - name: db_tenant_code
-  data_type: string
-  description: 数据租户标识
-  cluster: tenant
+  type: string
+  desc: 数据租户标识
 - name: act_procinst_no
-  data_type: string
-  description: 流程申请编号
-  cluster: act_procinst
+  type: string
+  desc: 流程申请编号
 - name: act_procinst_status
-  data_type: string
-  description: 当前审批状态
-  cluster: act_procinst
+  type: string
+  desc: 当前审批状态
 - name: act_procinst_date
-  data_type: temporal
-  description: 审批结束时间
-  cluster: act_procinst
+  type: temporal
+  desc: 审批结束时间
 - name: organization_id
-  data_type: string
-  description: 机构编号
-  cluster: subject
+  type: string
+  desc: 机构编号
 ```
 
 ## 关联关系
@@ -205,8 +140,6 @@ overlap:
   deepened: true
   query_ok: true
   authenticity: likely
-authenticity_note: 列名 company 家族后缀对应，注释『当前登录企业ID』与对端主键语义一致，overlap 正向 0.95（样本 60，miss
-  3），值域契合，判 likely。
 ```
 
 ## 页面链接
@@ -218,4 +151,5 @@ authenticity_note: 列名 company 家族后缀对应，注释『当前登录企�
 ### 字典
 
 - [[dicts/cust_survey_answer__question_no]]（`cust_survey_answer.question_no`）
+- [[dicts/cust_survey_answer__survey_code]]（`cust_survey_answer.survey_code`）
 - [[dicts/cust_survey_answer__enable]]（`cust_survey_answer.enable`）

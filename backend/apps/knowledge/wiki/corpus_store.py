@@ -73,7 +73,7 @@ def resolve_pages_dir(pages_dir: str | Path) -> Path:
     """Resolve import path relative to the repo root, not process cwd.
 
     Matches ``Settings.knowledge_wiki_pages_dirs_abs`` so a UI default like
-    ``docs/wiki-knowledge/pplatform/wiki-pages`` works when uvicorn cwd is
+    ``docs/wiki/v3`` works when uvicorn cwd is
     ``backend/``.
     """
     from common.core.config import _REPO_ROOT
@@ -167,13 +167,39 @@ def import_corpus(
     schedule_embed: bool = True,
 ) -> ImportResult:
     """Write parsed pages into ``wiki_corpus`` / ``wiki_page`` and bump generation."""
-    key = (corpus_key or "").strip()
-    if not key:
-        raise CorpusImportError("corpus_key is required")
     root = resolve_pages_dir(pages_dir)
     parsed = parse_directory(root)
     if not parsed.pages and not parsed.failed:
         raise CorpusImportError(f"no wiki pages found under {root}")
+    return import_parsed_pages(
+        session,
+        oid=oid,
+        corpus_key=corpus_key,
+        parsed=parsed,
+        name=name,
+        source_path=str(root),
+        replace=replace,
+        schedule_embed=schedule_embed,
+    )
+
+
+def import_parsed_pages(
+    session: Session,
+    *,
+    oid: int,
+    corpus_key: str,
+    parsed: ParsedCorpus,
+    name: str | None = None,
+    source_path: str = "",
+    replace: bool = False,
+    schedule_embed: bool = True,
+) -> ImportResult:
+    """Persist an already-parsed corpus (directory import or generated default)."""
+    key = (corpus_key or "").strip()
+    if not key:
+        raise CorpusImportError("corpus_key is required")
+    if not parsed.pages and not parsed.failed:
+        raise CorpusImportError("no wiki pages to import")
 
     existing = session.exec(
         select(WikiCorpus).where(WikiCorpus.oid == oid, WikiCorpus.corpus_key == key)
@@ -195,7 +221,7 @@ def import_corpus(
             draft_count=0,
             status="indexing",
             embedded_chunks=0,
-            source_path=str(root),
+            source_path=source_path or None,
             create_time=now,
             update_time=now,
         )
@@ -206,7 +232,8 @@ def import_corpus(
     else:
         corpus = existing
         corpus.name = name or corpus.name or key
-        corpus.source_path = str(root)
+        if source_path:
+            corpus.source_path = source_path
         corpus.embed_error = None
         replaced = True
         existing_rows = list(

@@ -6,8 +6,8 @@ belong: tables
 status: draft
 anchors: [cust_auth_application]
 sources: ['database_schema:lowcode_pplatform.cust_auth_application', 'code_path:CustAuthApplicationDaoImpl.java:75']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
 related: [platform_product, cust_company_info, tenant_product, cust_auth_application_config,
@@ -167,7 +167,6 @@ overlap:
   deepened: false
   query_ok: true
   authenticity: unlikely
-authenticity_note: 本地注释「客户应用」与对端表名相关，但 overlap=0（200/200 miss），值域不契合，不成立。
 sides:
 - {source: l1_code, left: cust_company_info.code, right: cust_auth_application.ref_cust_company_info,
   trust: confirmed}
@@ -200,7 +199,6 @@ overlap:
   deepened: false
   query_ok: true
   authenticity: unlikely
-authenticity_note: 列名/注释均与「平台产品编码」相关，但 overlap=0（6/6 miss），值域完全不契合，不成立。
 ```
 
 ```ground:relation
@@ -226,7 +224,6 @@ overlap:
   deepened: false
   query_ok: true
   authenticity: unlikely
-authenticity_note: 长名引用（long_ref）形似指向 tenant_product，但 overlap=0（23/23 miss），值域不契合，不成立。
 ```
 
 ## 页面链接

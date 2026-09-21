@@ -6,13 +6,13 @@ belong: tables
 status: draft
 anchors: [cust_change_cfg]
 sources: ['database_schema:lowcode_pplatform.cust_change_cfg', 'code_path:CustCompanyInfoApplication.java:4320']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
-related: [cust_change_record, cust_change_cfg__cust_type, cust_change_cfg__identify_style,
-  cust_change_cfg__head_company, cust_change_cfg__open_process, cust_change_cfg__item_code,
-  cust_change_cfg__enable, cust_change_cfg__client_type]
+related: [cust_change_cfg__cust_type, cust_change_cfg__identify_style, cust_change_cfg__head_company,
+  cust_change_cfg__open_process, cust_change_cfg__item_code, cust_change_cfg__enable,
+  cust_change_cfg__client_type]
 ---
 
 # 客户变更配置
@@ -135,10 +135,6 @@ default_filter:
 ```
 
 ## 页面链接
-
-### 关联表
-
-- [[tables/cust_change_record]]
 
 ### 字典
 

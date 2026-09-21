@@ -64,8 +64,9 @@ HTTP Controller
 
 优先级：**枚举第二参数 / `displayName` > 常量 Javadoc > `@ApiModelProperty`「值 中文」**。
 
-- 没有中文就不写 label
-- 不要用列注释覆盖代码 label（L0 注释是 proposed；L1 代码胜）
+- 没有中文就不写 label（代码 / 列注释 / document_claim 皆无时）
+- 不要用列注释或文档主张覆盖代码 label（L0 注释与文档是 proposed；L1 代码胜）
+- document_claim label 的码必须 ⊆ L0 已有 values，禁止发明新码或 confirmed
 - Y/N 列不要合并进共享 `enable` 页以外的释义
 
 ### 1.6 口径与规则
@@ -95,9 +96,11 @@ HTTP Controller
 1. **操作清单，不只主提交。** 从 `*Controller` / `*Application` 列出 freeze / unfreeze / disable / change / invite / Policy / `Assert.isTrue` / `checkBeforeSave`。每个公开写库方法至少一份 `traces/<op>.trace.yaml`（或在已有 process 里写清 `from→to` + 副作用）。
 2. **catalog 同前缀表。** `cust_*` 等前缀表要么 enhancement + JOIN/口径，要么在某条 trace 的 `gaps:` 写「走读过、无问数语义」。禁止默默跳过。
 3. **FK 样列扫一遍。** 已 enhancement 的表上，`ref_*` / `*_id`（排除 `id`/`create_by`）每条要么 `confirmed_relations`，要么注明「代码未等值使用」。`lambdaUpdate` 按 name 匹配不是 EQUI_JOIN，写成 process/caliber，不要假装 JOIN。
-4. **L0 keep 字典补 label。** 已 enhancement 表上的 `dicts/表__字段`：有 `displayName`/常量注释就写 `dict_labels`；没有中文就不编。L0 脏值（带引号的码、`CORE_ADMIN`、人员 `status=N`）保持 proposed、不给 label。
+4. **L0 keep 字典补 label。** 已 enhancement 表上的 `dicts/表__字段`：有 `displayName`/常量注释就写 `dict_labels`（可 confirmed）。**代码与列注释都无中文、但需求有明确码→中文、且 L0 values 已齐**时，写 `dict_labels` + `evidence: document_claim:…`（保持 proposed）。仍无证据则不编 label。L0 脏值（带引号的码、`CORE_ADMIN`、人员 `status=N`）保持 proposed、不给 label。
 5. **负向事实。** 操作 A 不写列 B 时写进 rule/process `note`（例：企业冻结不写 `cust_person_info.enable`）。问数最容易把旁路当成主路径。
 6. **文档覆盖见 §2。** 覆盖命令列出 req-index 文件数；agent 按域标签走读，禁止只读 V1.0 规格说明书。
+7. **术语桥定点补洞，不刷 maps_to。** 多表同注释中文名、UI 叫法≠列注释（如「项目码」vs「渠道码」）、实体锚≠属性锚（平台产品 vs 产品类型）→ 建/改 concept + boundary；已有 maps_to 的页无缺口则不动。
+8. **骨架禁幽灵字段。** 改 `_TABLE_PROFILES` 或走读时，括号内业务词必须对得上 catalog 列注释；L1 会报 `CATALOG_BLURB_UNGROUNDED`。
 
 ## 2. 文档走读 SOP
 
@@ -139,7 +142,9 @@ ingest **不能直吃 docx**。req-index 比 Desktop 旧时先刷新抽取，再
 - [ ] 每条将升权的主张都有真实 `code_path` 且行号落在文件内
 - [ ] JOIN 端点不是租户列 / `create_time` / 裸 `id` 对无语义列
 - [ ] process 钉的是状态列，transition 的码来自枚举 dictKey
-- [ ] concept 有唯一 `maps_to`；易混有裁决
+- [ ] concept 有唯一 `maps_to`；易混有裁决；UI 同义已挂 aliases，未批量刷 maps_to
+- [ ] 高频封闭枚举：无代码 label 时已用 document_claim 补齐，或明确接受出物理码
+- [ ] Catalog Summary / `_TABLE_PROFILES` 无幽灵字段（无 `CATALOG_BLURB_UNGROUNDED`）
 - [ ] 没有 Wiki 页面、没有 `status: published`
 - [ ] `l1-coverage --prefix <domain>` 的 missing_tables / unconfirmed_fks 要么已补 IR，要么写入 trace `gaps:`
 - [ ] 本域相关 req-index 概念已抽术语；与代码冲突的已标明代码为准

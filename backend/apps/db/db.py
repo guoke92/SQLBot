@@ -332,6 +332,7 @@ def get_engine(ds: CoreDatasource, timeout: int = 0) -> Engine:
     return engine
 
 
+@contextmanager
 def get_session(ds: CoreDatasource | AssistantOutDsSchema):
     # engine = get_engine(ds) if isinstance(ds, CoreDatasource) else get_ds_engine(ds)
     if isinstance(ds, AssistantOutDsSchema):
@@ -341,7 +342,10 @@ def get_session(ds: CoreDatasource | AssistantOutDsSchema):
     engine = get_engine(ds)
     session_maker = sessionmaker(bind=engine)
     session = session_maker()
-    return session
+    try:
+        yield session
+    finally:
+        session.close()
 
 
 def check_connection(trans: Optional[Trans], ds: CoreDatasource | AssistantOutDsSchema, is_raise: bool = False):
@@ -812,13 +816,13 @@ def exec_sql(
     db = DB.get_db(ds.type)
     if db.connect_type == ConnectType.sqlalchemy:
         with get_session(ds) as session:
-            if ms > 0 and equals_ignore_case(getattr(ds, "type", ""), "pg", "postgresql", "kingbase"):
-                try:
-                    session.execute(text(f"SET LOCAL statement_timeout = {int(ms)}"))
-                except Exception:
-                    pass
-            with session.execute(text(exec_sql_text)) as result:
-                try:
+            try:
+                if ms > 0 and equals_ignore_case(getattr(ds, "type", ""), "pg", "postgresql", "kingbase"):
+                    try:
+                        session.execute(text(f"SET LOCAL statement_timeout = {int(ms)}"))
+                    except Exception:
+                        pass
+                with session.execute(text(exec_sql_text)) as result:
                     columns = result.keys()._keys if origin_column else [item.lower() for item in result.keys()._keys]
                     fields_info = build_fields_info_from_cursor(
                         result.cursor,
@@ -839,8 +843,8 @@ def exec_sql(
                         truncated=truncated,
                         limit=limit,
                     )
-                except Exception as ex:
-                    raise SQLBotDBError(str(ex))
+            except Exception as ex:
+                raise SQLBotDBError(str(ex))
     else:
         conf = DatasourceConf(**json.loads(aes_decrypt(ds.configuration)))
         extra_config_dict = get_extra_config(conf)

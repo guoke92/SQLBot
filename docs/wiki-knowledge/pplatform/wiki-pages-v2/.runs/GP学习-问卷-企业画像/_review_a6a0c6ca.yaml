@@ -1,3 +1,0 @@
-body: 代码在 Wenjuan 链路强制 `setDbTenantCode("all")`，DB 实测仍有 1 行 `db_tenant_code=LN1`。该行来源（历史数据、其他链路写入、人工修数）未在证据中说明，需人工核实后再决定是否纳入口径。
-title: cust_company_survey_state.db_tenant_code 样本与代码口径不一致
-type: caliber

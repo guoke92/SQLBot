@@ -7,12 +7,28 @@ concepts:
     aliases: [产品大类, 平台产品目录]
     maps_to: platform_product.product_code
     field_targets: [platform_product.product_code, platform_product.product_status]
-    also_confused_with: [open_tenant_product_term]
+    also_confused_with: [open_tenant_product_term, product_cate_term]
     adjudication: boundary
     explanation: |
       平台侧产品主数据。已生效是 product_status=1 且 enable=Y。
       租户是否开通看 tenant_product.open_status，不要和平台产品状态互代。
+      「产品类型」是 product_cate（强/弱/信用），不是本页 product_code。
     evidence: code_path:PlatformProductDaoImpl.java:111
+  - concept_key: product_cate_term
+    title: 产品类型
+    aliases: [产品大类类型, 确权类型, 强确权弱确权]
+    maps_to: platform_product.product_cate
+    field_targets:
+      - platform_product.product_cate
+      - tenant_product.product_cate
+      - tenant_interworking_product.product_cate
+    also_confused_with: [platform_product_master, open_tenant_product_term]
+    adjudication: boundary
+    explanation: |
+      document_claim:产品产融平台语境.md#32：产品类型枚举为强确权、弱确权、信用类。
+      主锚 platform_product.product_cate；租户产品/互通产品同名列是租户侧拷贝，答租户开通产品类型时用 tenant_product.product_cate。
+      不是「平台产品」身份码 product_code，也不是 product_type（通用/互通）。
+    evidence: document_claim:产品产融平台语境.md#32
   - concept_key: wechat_apply_term
     title: 企微立项审批单
     aliases: [企微审批, 立项申请, 企微立项审批]
@@ -89,3 +105,45 @@ concepts:
       document_claim:额度审核工作流.md#14 是客户端额度维护多级审批，pplatform-web 无对应业务表。
       本库 tenant_project_approval_flow_credit 是项目上线审批授信（被授信方/授信方）。不要用这张表回答额度审核工作流。
     evidence: document_claim:额度审核工作流.md#14
+
+  - concept_key: open_sso_channel_term
+    title: 开放登录SSO渠道
+    aliases: [SSO渠道, 龙腾渠道, longteng, 本地化渠道]
+    maps_to: open_sso_channel.channel_code
+    field_targets: [open_sso_channel.channel_code, open_sso_channel.db_tenant_code, open_sso_channel.tenant_code, open_sso_channel.app_id]
+    also_confused_with: [channel_code_term, channel_archive_longteng, default_push_project, tenant_code_vs_db_tenant, app_channel_config_term]
+    adjudication: boundary
+    explanation: |
+      渠道主数据在 open_sso_channel。channel_code 是 OpenAPI/建档渠道标识（如 longteng）。
+      channel_kind=LOCAL_SYS/STANDARD 是渠道类型，不是 channel_code 本身。
+      运行时 SSO tenantCode 取自 db_tenant_code；live 另有 tenant_code 列。
+      不是 tenant_project.channel_code（项目邀请码），也不是 cust_project_rel.channel_code。
+      cust_app_channel_config.app_id 必须是开放平台 UUID，从 open_sso_channel 解析，禁止用 channel_code 冒充 appId。
+      CustPersonInfoSourceEnum.longteng=龙腾 是人员来源，不是本表 channel_code。
+    evidence: code_path:ChannelArchiveAppChannelConfigInitializer.java:94
+
+  - concept_key: tenant_code_vs_db_tenant
+    title: 租户码与数据租户码
+    aliases: [tenant_code, db_tenant_code, app_tenant_code, SSO租户码]
+    maps_to: open_sso_channel.db_tenant_code
+    field_targets: [open_sso_channel.db_tenant_code, open_sso_channel.tenant_code, tenant_setting_config.db_tenant_code, cust_app_channel_config.app_tenant_code, cust_app_channel_config.db_tenant_code]
+    also_confused_with: [open_sso_channel_term, channel_archive_longteng, channel_code_term, app_channel_config_term]
+    adjudication: boundary
+    explanation: |
+      业务表普遍有 db_tenant_code（数据租户）与 app_tenant_code（逻辑租户）。
+      SSO 运行时 credential.tenantCode 取自 open_sso_channel.db_tenant_code（OpenSsoChannelService.requireRuntimeCredential → tenantCode(row.getDbTenantCode())）。
+      live open_sso_channel.tenant_code 与 db_tenant_code 并存；DO 字段仍是 dbTenantCode，勿与 channel_code 互代。
+      例外：cust_app_channel_config.app_tenant_code 存的是 channel_code（渠道码），不是租户码（见 ChannelArchiveAppChannelConfigInitializer）。
+    evidence: code_path:OpenSsoChannelDao.java:24
+
+  - concept_key: app_channel_config_term
+    title: 应用渠道映射
+    aliases: [app渠道配置, cust_app_channel_config]
+    maps_to: cust_app_channel_config.app_id
+    field_targets: [cust_app_channel_config.app_id, cust_app_channel_config.app_tenant_code, cust_app_channel_config.db_tenant_code]
+    also_confused_with: [open_sso_channel_term, channel_archive_longteng, tenant_code_vs_db_tenant]
+    adjudication: boundary
+    explanation: |
+      建档初始化：按企业 db_tenant_code 幂等写 cust_app_channel_config；app_id 来自 open_sso_channel.app_id（UUID）。
+      app_tenant_code 写入 channel_code（如 longteng），不要当成租户 db_tenant_code。
+    evidence: code_path:ChannelArchiveAppChannelConfigInitializer.java:53

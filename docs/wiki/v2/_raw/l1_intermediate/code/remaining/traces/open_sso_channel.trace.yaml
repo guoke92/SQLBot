@@ -1,0 +1,12 @@
+kind: trace
+domain: remaining
+trace_key: open_sso_channel_sync
+entry: OpenSsoChannelSyncJobHandle / ChannelArchiveAppChannelConfigInitializer
+tables: [open_sso_channel, cust_app_channel_config, cust_access_secret]
+notes: |
+  channel_code（如 longteng）查 open_sso_channel 取 app_id；建档初始化 cust_app_channel_config。
+  OpenSsoChannelService.requireRuntimeCredential 要求 appId、tenantCode(db_tenant_code)、sysType、sysChannel。
+  龙腾本地化：channel_kind=LOCAL_SYS；打开形态默认 EMBED（LocalSysOpenModeEnum）。
+evidence: code_path:ChannelArchiveAppChannelConfigInitializer.java:44
+gaps:
+  - open_sso_channel.tenant_code live 有列但 DO 字段名仍是 dbTenantCode；不问数时勿与 channel_code 互代。

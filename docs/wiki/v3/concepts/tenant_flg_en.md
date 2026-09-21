@@ -9,8 +9,8 @@ aliases: [产融项目标识, tenant_flg_en]
 maps_to: tenant_setting_config.tenant_flg_en
 field_targets: [tenant_setting_config.tenant_flg_en]
 sources: ['code_path:TenantDomainService.java:327', 'document_claim:docs/wiki-knowledge/pplatform/req-index/concepts/项目上线审批流程.md']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [tenant_setting_config]
 also_confused_with: [open_tenant_product_term, tenant_uscc, main_custom_flg, channel_code_term]

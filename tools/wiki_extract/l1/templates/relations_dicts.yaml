@@ -15,3 +15,9 @@ dict_labels:
     values:
       INIT: { label: 初始化, evidence: code_path:ExampleEnum.java:14 }
       BUILD_SUCCESS: { label: 认证成功, evidence: code_path:ExampleEnum.java:17 }
+  # 代码/列注释无中文时：document_claim 仅 proposed，码必须 ⊆ L0 values
+  # example_table__cate:
+  #   table: example_table
+  #   column: cate
+  #   values:
+  #     STRONG: { label: 强确权, evidence: document_claim:产品产融平台语境.md#32 }

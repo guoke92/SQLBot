@@ -1,4 +1,0 @@
-body: '`scope.databases` 无法确定：语义分析只给出表名 `cust_company_info`，未给出物理库名，因此本次所有页面的 `scope.databases`
-  均为空数组，未做任何推断填充。请在补充物理库名后统一回填（涉及 21 个页面）。'
-title: cust_company_info
-type: table

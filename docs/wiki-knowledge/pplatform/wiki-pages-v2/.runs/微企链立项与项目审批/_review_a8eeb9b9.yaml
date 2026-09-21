@@ -1,4 +1,0 @@
-body: '`PROJECT_PHASE_OPERATION`（持续运营）与 `PROJECT_PHASE_HANG`（挂起）在本层只给出常量名，未给出字面值；`wechat_project_approval_flow_file.catg_id`
-  的 `FBP_OA_ATTACHMENT`/`FBP_OA_COMMENT_FILE` 也超出代码基线枚举覆盖范围。三处均需补枚举全集后再收敛。'
-title: project_phase 常量字面值缺失
-type: enum

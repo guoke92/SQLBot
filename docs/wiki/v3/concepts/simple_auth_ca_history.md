@@ -9,8 +9,8 @@ aliases: [简易建档开通CA, 开通电子签章]
 maps_to: cust_company_info.need_register_ca
 field_targets: [cust_company_info.identify_style, cust_company_info.need_register_ca]
 sources: ['code_path:CustCompanyCaPolicy.java:26', 'document_claim:docs/wiki-knowledge/pplatform/req-index/concepts/产品需求规格说明书_产融平台V1.0.0.md']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [cust_company_info]
 also_confused_with: [simple_auth]

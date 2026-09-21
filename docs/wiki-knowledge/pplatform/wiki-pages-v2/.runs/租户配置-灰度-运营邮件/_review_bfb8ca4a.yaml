@@ -1,5 +1,0 @@
-body: 语义分析只给出代码模块路径（lowcode-pplatform-tenant-management / lowcode-pplatform-customer-management）与表名，未给出物理库名。所有页面
-  frontmatter 的 `scope.databases` 暂以模块名占位，待补齐物理库名（含是否分库、共享库归属）后统一替换，并同步 [[calibers/shared_fake_tenant]]
-  中 `tenant_setting_config_share` 的库归属。
-title: scope.databases 物理库名缺证
-type: table

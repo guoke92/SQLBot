@@ -9,8 +9,8 @@ aliases: [有效企业, 认证成功企业]
 maps_to: cust_company_info.cust_status
 field_targets: [cust_company_info.cust_status, cust_company_info.cust_build_status]
 sources: ['code_path:CustCompanyIfoEnchanceService.java:649', 'document_claim:docs/wiki-knowledge/pplatform/req-index/concepts/产品需求规格说明书_产融平台V1.0.0.md']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [cust_company_info]
 also_confused_with: [simple_auth, build_success_not_effect, visitor_flow_data]

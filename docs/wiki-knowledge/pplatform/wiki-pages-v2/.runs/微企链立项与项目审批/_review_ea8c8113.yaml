@@ -1,4 +1,0 @@
-body: '`ProjectApprovalApplication.java#invalidateHistoricalProjectOnSubmit` 在当前给出的代码切片内未见调用点，租户项目「失效」路径的实际触发时机待核实；本主题内
-  [[processes/tenant-project-status]] 仅按可见证据登记该transition，不作调用链断言。'
-title: invalidateHistoricalProjectOnSubmit 无调用点
-type: 规则

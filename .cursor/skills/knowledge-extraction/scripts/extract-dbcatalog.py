@@ -17,7 +17,7 @@ Usage::
 
     backend/venv/bin/python .cursor/skills/knowledge-extraction/scripts/extract-dbcatalog.py \
         [--db-profile <spring properties>] [--database lowcode_pplatform] \
-        [--out-dir docs/wiki-knowledge/pplatform/db] \
+        [--out-dir docs/wiki/v2/_raw/db] \
         [--db-url mysql://host:port/db] [--db-user u] [--db-pass p] \
         [--sample-rows 5] [--max-distinct 20] [--tables t1,t2] [--skip-analyze]
 """
@@ -263,7 +263,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--db-profile", default=_DEFAULT_PROFILE)
     parser.add_argument("--database", default="")
-    parser.add_argument("--out-dir", default="docs/wiki-knowledge/pplatform/db")
+    parser.add_argument("--out-dir", default="docs/wiki/v2/_raw/db")
     parser.add_argument("--db-url", default="")
     parser.add_argument("--db-user", default="")
     parser.add_argument("--db-pass", default="")

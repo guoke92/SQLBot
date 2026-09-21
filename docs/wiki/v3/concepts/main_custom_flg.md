@@ -9,8 +9,8 @@ aliases: [主定制, HBLT]
 maps_to: tenant_setting_config.main_tenant_flg_en
 field_targets: [tenant_setting_config.main_tenant_flg_en]
 sources: ['code_path:CustPersonController.java:633', 'document_claim:docs/wiki-knowledge/pplatform/req-index/concepts/项目上线审批流程.md']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [tenant_setting_config]
 also_confused_with: [tenant_flg_en, skip_realname]

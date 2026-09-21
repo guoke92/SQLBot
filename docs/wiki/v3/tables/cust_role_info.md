@@ -6,8 +6,8 @@ belong: tables
 status: draft
 anchors: [cust_role_info]
 sources: ['database_schema:lowcode_pplatform.cust_role_info', 'code_path:CustCompanyQueryMapper.xml:82']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
 related: [cust_auth_application, cust_company_info, cust_role_info__enable, cust_role_info__status,
@@ -163,8 +163,6 @@ overlap:
   deepened: false
   query_ok: true
   authenticity: unlikely
-authenticity_note: name_evidence 仅为表名精确匹配（ref_cust_company_info ≈ cust_company_info），但本地注释为「客户类型」，与指向企业主档表的语义不符；overlap
-  已探测 200 条全 miss（ratio=0.0），值域不契合，判 unlikely。
 sides:
 - {source: l1_code, left: cust_company_info.code, right: cust_role_info.ref_cust_company_info,
   trust: confirmed}
@@ -197,8 +195,6 @@ overlap:
   deepened: false
   query_ok: true
   authenticity: unknown
-authenticity_note: 表名精确匹配且本地注释「应用客户角色」与目标表（客户产品开通表）语义相关，但 overlap 仅探测 1 条样本且 ratio=0.0，样本量不足不能作为否定或肯定依据，维持
-  unknown。
 ```
 
 ## 页面链接

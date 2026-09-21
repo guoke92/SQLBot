@@ -1,4 +1,0 @@
-body: '该术语的所指是实体级（表），按 concept 页约定 `maps_to` 必须是「表.字段」或 dictKey.VALUE，故本页暂置 `maps_to:
-  null`，仅以 `field_targets` 记录判别字段。需要维护者决策：是接受实体级 `maps_to: cust_change_record`，还是在本域新增一层聚合概念页。'
-title: 客户变更 / 企业变更
-type: concept

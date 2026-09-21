@@ -1,4 +1,0 @@
-body: 枚举审计中 `gpt_learn_poster_log.enable` 条目的 `stored_as` 值被截断（原文止于 "数"），该字段取值集合只保留
-  `Y`（DB default 'Y'）。是否存在其他取值需重新核对该字段的 DB 分布与代码赋值。
-title: gpt_learn_poster_log.enable 审计条目截断
-type: enum

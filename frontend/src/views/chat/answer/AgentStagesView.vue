@@ -82,16 +82,20 @@ const hasRunning = computed(() =>
     return false
   })
 )
-const isLive = computed(() => Boolean(props.isTyping || hasRunning.value))
+const isLive = computed(() => Boolean(props.isTyping || props.loading || hasRunning.value))
 const isTerminal = computed(() => !isLive.value)
 const showLogBtn = computed(() => chatConfig.getShowLog)
+const liveStartedAt = ref<number | null>(null)
 const computedSeconds = computed(() => {
   if (isTerminal.value && props.duration != null && props.duration > 0) {
     return Number(Number(props.duration).toFixed(2))
   }
   void nowMs.value
-  const ms = processingDurationMs(blocks.value, nowMs.value)
-  if (ms <= 0) return null
+  const fromBlocks = processingDurationMs(blocks.value, nowMs.value)
+  const fromSend =
+    isLive.value && liveStartedAt.value != null ? nowMs.value - liveStartedAt.value : 0
+  const ms = Math.max(fromBlocks, fromSend)
+  if (ms <= 0) return isLive.value ? 0 : null
   return Number((ms / 1000).toFixed(isLive.value ? 1 : 2))
 })
 
@@ -104,10 +108,13 @@ watch(
     }
     if (live) {
       processOpen.value = true
+      if (liveStartedAt.value == null) liveStartedAt.value = Date.now()
       nowMs.value = Date.now()
       liveTickTimer = setInterval(() => {
         nowMs.value = Date.now()
       }, 250)
+    } else {
+      liveStartedAt.value = null
     }
   },
   { immediate: true }
@@ -369,7 +376,7 @@ const summaryLabel = computed(() => {
 </script>
 
 <template>
-  <div v-if="blocks.length" class="agent-process">
+  <div v-if="blocks.length || isLive" class="agent-process">
     <div
       class="process-summary"
       :class="{ 'is-live': isLive }"

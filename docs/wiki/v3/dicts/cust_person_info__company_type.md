@@ -13,8 +13,8 @@ sources: ['database_profile:cust_person_info.company_type', 'database_schema:cus
   'code_path:CustCompanyTypeEnum.java:22', 'code_path:CustCompanyTypeEnum.java:23',
   'code_path:CustCompanyTypeEnum.java:24', 'code_path:CustCompanyTypeEnum.java:25',
   'code_path:CustCompanyTypeEnum.java:26']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [cust_person_info]
 ---

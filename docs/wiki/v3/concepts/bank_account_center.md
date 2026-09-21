@@ -9,8 +9,8 @@ aliases: [银行账户归集, 账户中心]
 maps_to: cust_account_info.account_no
 field_targets: [cust_account_info.account_no, cust_account_info.ref_cust_company_info]
 sources: ['document_claim:银行账户归集.md#15', 'document_claim:docs/wiki-knowledge/pplatform/req-index/concepts/产品需求规格说明书_产融平台V1.0.0.md']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [cust_account_info]
 also_confused_with: [company_id_vs_code, bank_cnaps]

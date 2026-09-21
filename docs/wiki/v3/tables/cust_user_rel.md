@@ -6,11 +6,11 @@ belong: tables
 status: draft
 anchors: [cust_user_rel]
 sources: ['database_schema:lowcode_pplatform.cust_user_rel', 'code_path:CustCompanyIfoEnchanceService.java:567']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
-related: [cust_company_info, cust_user_rel__company_type, cust_user_rel__type_status,
+related: [cust_company_info, cust_user_rel__code, cust_user_rel__company_type, cust_user_rel__type_status,
   cust_user_rel__user_type, cust_user_rel__enable]
 ---
 
@@ -36,6 +36,7 @@ fields:
 - name: code
   type: string
   desc: 编码
+  dict: [a]
 - name: name
   type: string
   desc: 名称
@@ -152,6 +153,7 @@ authenticity_note: 用户企业角色按企业主键。现网几乎无行；不�
 
 ### 字典
 
+- [[dicts/cust_user_rel__code]]（`cust_user_rel.code`）
 - [[dicts/cust_user_rel__company_type]]（`cust_user_rel.company_type`）
 - [[dicts/cust_user_rel__type_status]]（`cust_user_rel.type_status`）
 - [[dicts/cust_user_rel__user_type]]（`cust_user_rel.user_type`）

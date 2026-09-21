@@ -1,3 +1,0 @@
-body: evidence 字段仅包含 "code_path"，缺少具体文件路径与行号，需补充完整证据。
-title: 存量运营方推送
-type: rule

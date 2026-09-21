@@ -9,8 +9,8 @@ aliases: [互通产品开通, 系统互通产品, 互通产品展示]
 maps_to: tenant_interworking_product.open_status
 field_targets: [tenant_interworking_product.open_status]
 sources: ['code_path:TenantInterworkingProductDomainService.java:246', 'document_claim:docs/wiki-knowledge/pplatform/req-index/concepts/项目上线审批流程.md']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [tenant_interworking_product]
 also_confused_with: [open_tenant_product_term]

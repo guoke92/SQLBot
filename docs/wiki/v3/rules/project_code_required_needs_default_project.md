@@ -7,8 +7,8 @@ domain: tenant
 status: draft
 field_targets: [tenant_setting_config.project_code_required, tenant_setting_config.default_project_id]
 sources: ['code_path:TenantDomainService.java:234']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [tenant_setting_config]
 ---

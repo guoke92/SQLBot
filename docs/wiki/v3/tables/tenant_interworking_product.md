@@ -6,15 +6,17 @@ belong: tables
 status: draft
 anchors: [tenant_interworking_product]
 sources: ['database_schema:lowcode_pplatform.tenant_interworking_product', 'code_path:TenantInterworkingProductDaoImpl.java:37']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
 related: [cust_interworking_product, platform_product, tenant_setting_config, tenant_interworking_project,
-  tenant_interworking_product__product_cate, tenant_interworking_product__open_status,
-  tenant_interworking_product__max_financing_amount_flag, tenant_interworking_product__platform_product_code,
+  tenant_interworking_product__platform_product_id, tenant_interworking_product__product_cate,
+  tenant_interworking_product__open_status, tenant_interworking_product__max_financing_amount_flag,
+  tenant_interworking_product__credit_measures, tenant_interworking_product__max_financing_period,
+  tenant_interworking_product__max_financing_amount, tenant_interworking_product__platform_product_code,
   tenant_interworking_product__target_sys_channel, tenant_interworking_product__scope,
-  tenant_interworking_product__ref_tenant_interworking_product_tenant_setting_config,
+  tenant_interworking_product__ref_tenant_interworking_product_platform_product, tenant_interworking_product__ref_tenant_interworking_product_tenant_setting_config,
   tenant_interworking_product__enable]
 ---
 
@@ -46,10 +48,13 @@ fields:
 - name: platform_product_id
   type: number
   desc: 平台产品id
+  dict: ['11', '6', '12', '13', '14', '16', '19', '1881239448301518849', '15', '17',
+    '18']
 - name: product_cate
   type: string
   desc: 产品类型
   dict: [WEAKLY, STRONG, CREDIT]
+  label: [弱确权, 强确权, 信用类]
 - name: tenant_id
   type: number
   desc: 租户id
@@ -68,12 +73,15 @@ fields:
 - name: credit_measures
   type: string
   desc: 增信措施
+  dict: [ddd, 共同债务人增信、差额补足, HTCP15]
 - name: max_financing_period
   type: string
   desc: 融资期限上限
+  dict: ['6', 1-3年, HTCP15]
 - name: max_financing_amount
   type: string
   desc: 融资金额上限
+  dict: ['0', 不限, '88888888']
 - name: transaction_structure
   type: string
   desc: 交易结构
@@ -107,6 +115,7 @@ fields:
 - name: ref_tenant_interworking_product_platform_product
   type: string
   desc: 关联产品大类
+  dict: [f285fa5cf17f4a8f9eefe93d3a513a6g, 007142024a5c425bb3673f753060e533, 956b7f49cc00471db99e552d778a12c2]
 - name: ref_tenant_interworking_product_tenant_setting_config
   type: string
   desc: 关联租户
@@ -199,7 +208,6 @@ overlap:
   deepened: false
   query_ok: true
   authenticity: likely
-authenticity_note: 值域完全覆盖(1.0)，列名/注释均为平台产品id，证据充分
 ```
 
 ```ground:relation
@@ -241,7 +249,6 @@ overlap:
   deepened: false
   query_ok: true
   authenticity: unlikely
-authenticity_note: 长ref命名指向platform_product，但重叠0/3，值域不契合
 sides:
 - {source: l1_code, left: platform_product.id, right: tenant_interworking_product.platform_product_id,
   trust: confirmed}
@@ -272,7 +279,6 @@ overlap:
   deepened: false
   query_ok: true
   authenticity: unlikely
-authenticity_note: 长ref命名指向tenant_setting_config，但重叠0/13，值域不契合
 sides:
 - {source: l1_code, left: tenant_setting_config.id, right: tenant_interworking_product.tenant_id,
   trust: confirmed}
@@ -305,7 +311,6 @@ overlap:
   deepened: false
   query_ok: true
   authenticity: unlikely
-authenticity_note: 列名/注释有关联，但重叠率0/11，值域不契合；码对码候选需人工确认
 ```
 
 ## 页面链接
@@ -319,11 +324,16 @@ authenticity_note: 列名/注释有关联，但重叠率0/11，值域不契合�
 
 ### 字典
 
+- [[dicts/tenant_interworking_product__platform_product_id]]（`tenant_interworking_product.platform_product_id`）
 - [[dicts/tenant_interworking_product__product_cate]]（`tenant_interworking_product.product_cate`）
 - [[dicts/tenant_interworking_product__open_status]]（`tenant_interworking_product.open_status`）
 - [[dicts/tenant_interworking_product__max_financing_amount_flag]]（`tenant_interworking_product.max_financing_amount_flag`）
+- [[dicts/tenant_interworking_product__credit_measures]]（`tenant_interworking_product.credit_measures`）
+- [[dicts/tenant_interworking_product__max_financing_period]]（`tenant_interworking_product.max_financing_period`）
+- [[dicts/tenant_interworking_product__max_financing_amount]]（`tenant_interworking_product.max_financing_amount`）
 - [[dicts/tenant_interworking_product__platform_product_code]]（`tenant_interworking_product.platform_product_code`）
 - [[dicts/tenant_interworking_product__target_sys_channel]]（`tenant_interworking_product.target_sys_channel`）
 - [[dicts/tenant_interworking_product__scope]]（`tenant_interworking_product.scope`）
+- [[dicts/tenant_interworking_product__ref_tenant_interworking_product_platform_product]]（`tenant_interworking_product.ref_tenant_interworking_product_platform_product`）
 - [[dicts/tenant_interworking_product__ref_tenant_interworking_product_tenant_setting_config]]（`tenant_interworking_product.ref_tenant_interworking_product_tenant_setting_config`）
 - [[dicts/tenant_interworking_product__enable]]（`tenant_interworking_product.enable`）

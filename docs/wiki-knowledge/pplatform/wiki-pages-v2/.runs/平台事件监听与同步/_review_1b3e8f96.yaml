@@ -1,9 +1,0 @@
-body: '1. 本页为 concept 页，按 v0 §3.9 不设 ground 块；reqdoc_claims 中 action=anchor 的双源证据写入
-  frontmatter `sources`（code_path + reqdoc:slug 形式），如与团队约定的锚点承载方式不一致请统一。
-
-  2. PlatFormCustEventListener 的默认实现方法（syncCustManager/syncDeleteCustInfo）与 `CustSyncEventProvider.syncOperatorUser`
-  是否职责重叠，语义分析未给结论。
-
-  3. 两条 action=review 的接口主张（Provider 矩阵、MigratoryPointService）无代码证据，已按规约仅置于 ## 版本演进。'
-title: 事件监听 / onEvent
-type: concept

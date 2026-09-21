@@ -1,7 +1,0 @@
-body: '1. `scope.databases` 在语义分析中未给出物理库名，本页（及本主题其他页）统一填 `unknown`，待确认。
-
-  2. `retry_num` 的语义在分析中同时表述为「已重试次数/重试上限」，二者不可同时成立；DB 实测恒为 3，暂按「默认重试上限」理解（见 [[calibers/client-sync-error-retry-num-3]]），需业务确认。
-
-  3. 启动重试（StartupSyncRetry）与服务停止队列落库两条文档主张无代码证据，已在 ## 版本演进 标注。'
-title: client_api_sync_error
-type: table

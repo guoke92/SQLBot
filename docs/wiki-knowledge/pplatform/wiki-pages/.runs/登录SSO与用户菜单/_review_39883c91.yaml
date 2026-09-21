@@ -1,9 +1,0 @@
-body: '- claim: "运营配置 Excel 导入：校验模板列、项目标识存在性、默认项目ID合法性"
-
-  - code_status: uncovered
-
-  - action: review
-
-  - note: 未证实，暂不生成 ground 块。'
-title: 运营配置 Excel 导入
-type: reqdoc_claim

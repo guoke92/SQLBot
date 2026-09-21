@@ -1,4 +1,0 @@
-body: 语义分析在 impact 字段截断，且未给出 evidence 行；content 已保留为“签章中台 DBaaS 框架层 code 为 '0' 或 '200'
-  均视为成功”。不补充影响范围和代码位置。
-title: DBaaS成功码兼容0/200
-type: rule

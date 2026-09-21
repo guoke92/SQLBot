@@ -9,8 +9,8 @@ aliases: [企微审批, 立项申请, 企微立项审批]
 maps_to: wechat_project_approval_apply.sp_no
 field_targets: [wechat_project_approval_apply.sp_no]
 sources: ['code_path:WechatProjectApprovalApplication.java:148', 'document_claim:docs/wiki-knowledge/pplatform/req-index/concepts']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [wechat_project_approval_apply]
 also_confused_with: [online_approval_wf, simulated_project_apply, wechat_prd_term,

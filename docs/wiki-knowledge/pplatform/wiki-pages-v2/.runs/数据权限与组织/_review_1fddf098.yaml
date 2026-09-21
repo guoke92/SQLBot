@@ -1,4 +1,0 @@
-body: '语义分析的 field_semantics 未收录 cust_group_rel，本页仅能确认 status 字段（证据来自 CustGroupRelApplication#addExistRootGroupRel
-  / #effectGroupRel / #listSubCust）。集团关系的新增、生效、删除链路上还引用了哪些字段（如集团企业编码、成员企业编码、额度相关字段）无法从现有证据判定，需补采字段语义后再扩表。'
-title: cust_group_rel 字段覆盖不完整
-type: table

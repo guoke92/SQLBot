@@ -7,8 +7,8 @@ domain: cust
 status: draft
 aliases: [客户管理员, 冻旧建新]
 sources: ['code_path:l1_intermediate']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [cust_person_info, cust_company_info, cust_oper_change_record]
 ---

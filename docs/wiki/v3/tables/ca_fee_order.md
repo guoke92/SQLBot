@@ -6,14 +6,15 @@ belong: tables
 status: draft
 anchors: [ca_fee_order]
 sources: ['database_schema:lowcode_pplatform.ca_fee_order', 'code_path:CaFeeOrderBizMapper.java:13']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
-related: [ca_fee_company, ca_fee_project_config, tenant_project, tenant_setting_config,
-  cust_company_info, ca_fee_order__company_type, ca_fee_order__order_type, ca_fee_order__order_status,
-  ca_fee_order__pay_method, ca_fee_order__bocom_txn_sts, ca_fee_order__agreement_signed,
-  ca_fee_order__invoice_status, ca_fee_order__enable]
+related: [ca_fee_company, tenant_project, tenant_setting_config, cust_company_info,
+  ca_fee_order__company_type, ca_fee_order__order_type, ca_fee_order__order_status,
+  ca_fee_order__annual_fee, ca_fee_order__pay_amount, ca_fee_order__pay_method, ca_fee_order__bocom_plfm_bsn_id,
+  ca_fee_order__bocom_txn_sts, ca_fee_order__agreement_version, ca_fee_order__agreement_signed,
+  ca_fee_order__invoice_status, ca_fee_order__version, ca_fee_order__enable]
 ---
 
 # CA服务费订单
@@ -75,9 +76,12 @@ fields:
 - name: annual_fee
   type: number
   desc: 应缴年费（元）
+  dict: ['100', '80', '60', '50', '0', '88', '120', '99', '90', '6', '160', '40',
+    '16', '33', '156', '125', '70', '190', '170']
 - name: pay_amount
   type: number
   desc: 实缴金额（元）
+  dict: ['100', '80', '0', '60', '120', '6', '66', '99', '3', '50', '125', '90', '88']
   written_with: [order_status, pay_time, service_start, service_end]
 - name: pay_method
   type: string
@@ -97,6 +101,7 @@ fields:
 - name: bocom_plfm_bsn_id
   type: string
   desc: 平台业务编号
+  dict: ['31020250010']
 - name: bocom_req_sn
   type: string
   desc: 请求流水号
@@ -115,6 +120,7 @@ fields:
 - name: agreement_version
   type: string
   desc: 签署时绑定的收费协议版本号
+  dict: [V1.0]
 - name: agreement_signed
   type: string
   desc: 是否已签署收费协议
@@ -154,6 +160,7 @@ fields:
 - name: version
   type: number
   desc: 乐观锁版本号，更新订单状态时自增
+  dict: ['1', '0', '2', '3', '5', '4', '6', '7', '8', '18', '9']
 - name: code
   type: string
   desc: 编码
@@ -297,38 +304,9 @@ overlap:
   deepened: false
   query_ok: true
   authenticity: unlikely
-authenticity_note: 列名/注释有 company 语义关联（企业 ID），但实测 overlap 0.0（145/145 未命中），值域不契合，不能判
-  likely
 sides:
 - {source: l1_code, left: cust_company_info.id, right: ca_fee_order.company_id, trust: confirmed}
 - {source: name, left: ca_fee_company.id, right: ca_fee_order.company_id, trust: proposed}
-```
-
-```ground:relation
-type: EQUI_JOIN
-left: ca_fee_project_config.id
-right: ca_fee_order.project_id
-cardinality: one_to_many
-trust: disputed
-authenticity: unlikely
-evidence: database_schema:lowcode_pplatform.ca_fee_order.project_id
-source: llm
-join_role: identity
-priority: primary
-name_evidence:
-  match: llm_propose
-  stem: project_id
-  comment: 注释语义对应（项目配置主键 ← 触发项目 ID），作为该列唯一合理的父表 id 边保留待验；overlap 采样仅 10 且为 0.0，需人工复核
-overlap:
-  probed: true
-  ratio: 0.0
-  sample_size: 10
-  authenticity: unlikely
-authenticity_note: 注释语义对应（项目配置主键 ← 触发项目 ID），作为该列唯一合理的父表 id 边保留待验；overlap 采样仅 10 且为
-  0.0，需人工复核
-sides:
-- {source: l1_code, left: tenant_project.id, right: ca_fee_order.project_id, trust: confirmed}
-- {source: llm, left: ca_fee_project_config.id, right: ca_fee_order.project_id, trust: proposed}
 ```
 
 ## 页面链接
@@ -336,7 +314,6 @@ sides:
 ### 关联表
 
 - [[tables/ca_fee_company]]
-- [[tables/ca_fee_project_config]]
 - [[tables/tenant_project]]
 - [[tables/tenant_setting_config]]
 - [[tables/cust_company_info]]
@@ -346,8 +323,13 @@ sides:
 - [[dicts/ca_fee_order__company_type]]（`ca_fee_order.company_type`）
 - [[dicts/ca_fee_order__order_type]]（`ca_fee_order.order_type`）
 - [[dicts/ca_fee_order__order_status]]（`ca_fee_order.order_status`）
+- [[dicts/ca_fee_order__annual_fee]]（`ca_fee_order.annual_fee`）
+- [[dicts/ca_fee_order__pay_amount]]（`ca_fee_order.pay_amount`）
 - [[dicts/ca_fee_order__pay_method]]（`ca_fee_order.pay_method`）
+- [[dicts/ca_fee_order__bocom_plfm_bsn_id]]（`ca_fee_order.bocom_plfm_bsn_id`）
 - [[dicts/ca_fee_order__bocom_txn_sts]]（`ca_fee_order.bocom_txn_sts`）
+- [[dicts/ca_fee_order__agreement_version]]（`ca_fee_order.agreement_version`）
 - [[dicts/ca_fee_order__agreement_signed]]（`ca_fee_order.agreement_signed`）
 - [[dicts/ca_fee_order__invoice_status]]（`ca_fee_order.invoice_status`）
+- [[dicts/ca_fee_order__version]]（`ca_fee_order.version`）
 - [[dicts/ca_fee_order__enable]]（`ca_fee_order.enable`）

@@ -7,8 +7,8 @@ status: draft
 anchors: [tenant_project_approval.project_type]
 sources: ['database_profile:tenant_project_approval.project_type', 'database_schema:tenant_project_approval.project_type',
   'code_path:ProjectApprovalProjectTypeEnum.java:16', 'code_path:ProjectApprovalProjectTypeEnum.java:17']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [tenant_project_approval]
 ---

@@ -356,7 +356,7 @@ def _add_io_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--out",
         required=True,
-        help="output tree (e.g. docs/wiki-knowledge/pplatform/l0)",
+        help="output tree (e.g. docs/wiki/v2)",
     )
     parser.add_argument("--tables", default="", help="comma-separated table whitelist")
     parser.add_argument("--skip-profile", action="store_true")

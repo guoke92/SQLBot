@@ -6,8 +6,8 @@ belong: tables
 status: draft
 anchors: [tenant_project_approval_flow_credit]
 sources: ['database_schema:lowcode_pplatform.tenant_project_approval_flow_credit']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 databases: [lowcode_pplatform]
 related: [tenant_project_approval, tenant_project_approval_flow_node, tenant_project_approval_flow_credit__is_group_limit,

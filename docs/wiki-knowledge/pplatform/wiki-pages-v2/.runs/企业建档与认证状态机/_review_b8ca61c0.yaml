@@ -1,4 +1,0 @@
-body: '`check_status` 的取值同时包含审核结果（`CUST_CHECK_*`）与生命周期值（`EFFECT`），后者与 [[customer_status]]
-  的取值字面相同。`check_status` 与同表的 `act_procinst_status`（流程实例审批状态，中文取值）功能边界不明，未确认二者谁是运营审核的权威字段。'
-title: 运营审核状态机（check_status）
-type: process

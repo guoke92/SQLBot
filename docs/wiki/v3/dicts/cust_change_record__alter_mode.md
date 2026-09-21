@@ -7,8 +7,8 @@ status: draft
 anchors: [cust_change_record.alter_mode]
 sources: ['database_profile:cust_change_record.alter_mode', 'database_schema:cust_change_record.alter_mode',
   'code_path:AlterModeEnum.java:10']
-created: '2026-09-18'
-updated: '2026-09-18'
+created: '2026-09-21'
+updated: '2026-09-21'
 contract_version: '0.1'
 related: [cust_change_record]
 ---
