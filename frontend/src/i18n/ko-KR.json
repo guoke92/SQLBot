@@ -964,6 +964,7 @@
       "process": "처리 과정",
       "processing": "처리 중",
       "working_for": "{seconds}초 동안 처리 중",
+      "working_as": "{action} · {seconds}s",
       "worked_for": "{seconds}초 동안 처리",
       "worked_for_with_tokens": "{seconds}초 동안 처리 · {tokens} token",
       "tokens_only": "{tokens} token",

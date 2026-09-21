@@ -964,6 +964,7 @@
       "process": "处理过程",
       "processing": "处理中",
       "working_for": "处理中 {seconds}s",
+      "working_as": "{action} · {seconds}s",
       "worked_for": "处理了 {seconds}s",
       "worked_for_with_tokens": "处理了 {seconds}s，消耗了 {tokens} token",
       "tokens_only": "消耗了 {tokens} token",

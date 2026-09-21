@@ -206,7 +206,11 @@ class ExecuteSqlInput(BaseModel):
     )
     result_title: str = Field(
         default="",
-        description="Short Chinese title for a delivery result, e.g. 企业清单. Empty for probes.",
+        description=(
+            "Short title for this result card. Reuse the same title to replace "
+            "a previous delivery; use a new title to add another card. "
+            "Empty for probes."
+        ),
     )
     chart_type: str = Field(
         default="",
@@ -394,7 +398,8 @@ def build_agent_tools(
             description=(
                 "Safely execute a business SQL query against the datasource. "
                 "For delivery (required=true), set chart_type to table|line|bar|column|pie "
-                "and a short result_title. Do not use this to inspect catalogs "
+                "and a short result_title (reuse to replace a card, change to add one). "
+                "Do not use this to inspect catalogs "
                 "(information_schema, SHOW COLUMNS, DESCRIBE). "
                 "If the needed tables are not yet in schema_catalog, call "
                 "get_table_schema first."

@@ -224,6 +224,10 @@ const visibleInterrupts = computed<ConversationInterrupt[]>(() => {
 
 const isAwaitingInput = computed(() => props.message?.record?.run_status === 'awaiting_input')
 
+const deliveredDatasetIds = computed(() =>
+  steps.value.map((step) => step.datasetId).filter((id): id is string => Boolean(id))
+)
+
 function toChartJson(chart: unknown): string {
   if (chart == null || chart === '') return ''
   if (typeof chart === 'string') return chart
@@ -682,6 +686,7 @@ defineExpose({ sendMessage, regenerate, index: () => index.value, stop })
       :record-id="message?.record?.id"
       :duration="message?.record?.duration"
       :total-tokens="message?.record?.total_tokens"
+      :delivered-dataset-ids="deliveredDatasetIds"
       @submit-clarification="resumeClarification"
       @correct-clarification="correctClarification"
     />

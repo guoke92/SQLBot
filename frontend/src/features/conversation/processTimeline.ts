@@ -16,6 +16,7 @@ export interface ProcessTool {
 export interface ProcessThought {
   content?: string
   source?: 'model_reasoning' | 'scratchpad' | string
+  truncated?: boolean
 }
 
 export interface ProcessArtifact {
@@ -241,6 +242,16 @@ export function processingDurationMs(blocks: NarrativeBlock[], nowMs: number): n
     }
   }
   return ms
+}
+
+export const THOUGHT_SNIPPET_CHARS = 80
+
+export function thoughtSnippet(content: string, limit = THOUGHT_SNIPPET_CHARS): string {
+  const plain = String(content || '').replace(/\s+/g, ' ').trim()
+  if (!plain) return ''
+  const sentence = plain.split(/[。！？.!?]/)[0]?.trim() || plain
+  if (sentence.length <= limit) return sentence
+  return sentence.slice(0, limit)
 }
 
 /** Collapse request_clarification tool + wait/confirm into one clarification card. */

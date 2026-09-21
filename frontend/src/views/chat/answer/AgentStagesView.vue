@@ -13,6 +13,7 @@ import type { ConversationInterrupt, ResumeAnswer } from '@/api/chat'
 import {
   processingDurationMs,
   projectNarrative,
+  thoughtSnippet,
   type NarrativeBlock,
   type ProcessItem,
 } from '@/features/conversation/processTimeline'
@@ -30,6 +31,7 @@ const props = withDefaults(
     recordId?: number
     duration?: number | null
     totalTokens?: number | null
+    deliveredDatasetIds?: string[]
   }>(),
   {
     items: () => [],
@@ -40,6 +42,7 @@ const props = withDefaults(
     recordId: undefined,
     duration: null,
     totalTokens: null,
+    deliveredDatasetIds: () => [],
   }
 )
 
@@ -62,7 +65,7 @@ const emit = defineEmits<{
 
 const STICK_NEAR_PX = 24
 
-const processOpen = ref(true)
+const processOpen = ref(false)
 const userExpanded = ref<Record<string, boolean>>({})
 const stickCancelled = ref<Record<string, boolean>>({})
 const thoughtInlineRefs = ref<Record<string, HTMLElement | null>>({})
@@ -92,11 +95,26 @@ const computedSeconds = computed(() => {
   }
   void nowMs.value
   const fromBlocks = processingDurationMs(blocks.value, nowMs.value)
-  const fromSend =
-    isLive.value && liveStartedAt.value != null ? nowMs.value - liveStartedAt.value : 0
-  const ms = Math.max(fromBlocks, fromSend)
-  if (ms <= 0) return isLive.value ? 0 : null
-  return Number((ms / 1000).toFixed(isLive.value ? 1 : 2))
+  if (fromBlocks > 0) {
+    return Number((fromBlocks / 1000).toFixed(isLive.value ? 1 : 2))
+  }
+  if (isLive.value && liveStartedAt.value != null) {
+    const fromSend = nowMs.value - liveStartedAt.value
+    if (fromSend <= 0) return 0
+    return Number((fromSend / 1000).toFixed(1))
+  }
+  return isLive.value ? 0 : null
+})
+
+const currentAction = computed(() => {
+  if (props.awaitingInput) return t('chat.summary.clarification_waiting')
+  const running = blocks.value.find((block) => {
+    if (block.item.status === 'running') return true
+    return block.type === 'tool' && block.artifacts.some((item) => item.status === 'running')
+  })
+  if (!running) return t('chat.timeline.thinking')
+  if (running.type === 'thought') return t('chat.timeline.thinking')
+  return running.item.title || t('chat.timeline.tool.generic')
 })
 
 watch(
@@ -114,6 +132,7 @@ watch(
         nowMs.value = Date.now()
       }, 250)
     } else {
+      processOpen.value = false
       liveStartedAt.value = null
     }
   },
@@ -177,11 +196,15 @@ function toggleBlock(key: string, fallback: boolean) {
   userExpanded.value[key] = !(current === undefined ? fallback : current)
 }
 
-/** Clarification defaults expanded; thoughts/tools stay one-line until the user opens them. */
+/** Clarification and the in-flight step stay open; everything else is one line. */
 function isExpanded(block: NarrativeBlock): boolean {
   const override = userExpanded.value[block.key]
   if (override !== undefined) return override
-  return block.type === 'clarification'
+  if (block.type === 'clarification') return true
+  if (block.item.status === 'running') return true
+  return (
+    block.type === 'tool' && block.artifacts.some((item) => item.status === 'running')
+  )
 }
 
 function blockTitle(block: NarrativeBlock): string {
@@ -220,6 +243,10 @@ function thoughtPlain(item: ProcessItem): string {
   return thoughtContent(item).replace(/\s+/g, ' ').trim()
 }
 
+function thoughtLine(item: ProcessItem): string {
+  return thoughtSnippet(thoughtContent(item))
+}
+
 function toolSql(block: Extract<NarrativeBlock, { type: 'tool' }>): string {
   // Prefer tool args (model-authored, usually multi-line) when artifact SQL was
   // flattened by execution rewrite; otherwise use the artifact display SQL.
@@ -233,8 +260,11 @@ function toolSql(block: Extract<NarrativeBlock, { type: 'tool' }>): string {
 }
 
 function previewRows(block: Extract<NarrativeBlock, { type: 'tool' }>) {
-  return block.artifacts.find((item) => item.artifact?.preview_rows?.length)?.artifact
-    ?.preview_rows
+  const delivered = new Set((props.deliveredDatasetIds || []).map(String))
+  const artifact = block.artifacts.find((item) => item.artifact?.preview_rows?.length)
+  const datasetId = artifact?.artifact?.dataset_id
+  if (datasetId && delivered.has(String(datasetId))) return undefined
+  return artifact?.artifact?.preview_rows
 }
 
 function statusClass(block: NarrativeBlock): string {
@@ -246,7 +276,7 @@ function statusClass(block: NarrativeBlock): string {
 }
 
 function showInlineThought(block: NarrativeBlock): boolean {
-  return block.type === 'thought' && !isExpanded(block) && Boolean(thoughtPlain(block.item))
+  return block.type === 'thought' && !isExpanded(block) && Boolean(thoughtLine(block.item))
 }
 
 function interruptForBlock(block: NarrativeBlock): ConversationInterrupt | undefined {
@@ -357,9 +387,9 @@ const summaryLabel = computed(() => {
   const seconds = computedSeconds.value
   if (isLive.value) {
     if (seconds != null) {
-      return t('chat.timeline.working_for', { seconds })
+      return t('chat.timeline.working_as', { action: currentAction.value, seconds })
     }
-    return t('chat.timeline.processing')
+    return currentAction.value
   }
   const tokens = props.totalTokens
   if (seconds != null && tokens != null) {
@@ -424,7 +454,7 @@ const summaryLabel = computed(() => {
             }"
             @scroll.stop="onRegionScroll(block.key, 'inline', $event)"
           >
-            {{ thoughtPlain(block.item) }}
+            {{ thoughtLine(block.item) }}
           </span>
           <span
             v-else-if="blockSummary(block) && !isExpanded(block)"

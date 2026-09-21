@@ -15,9 +15,12 @@ if str(_BACKEND) not in sys.path:
 from apps.conversation.process_timeline import (  # noqa: E402
     _compact_item,
     _emit_process_event,
+    _item_from_log,
+    _process_payload,
     localize_process_event,
     localize_process_item,
     preview_rows,
+    project_thought_for_view,
     tool_title_key,
 )
 from apps.chat.graphs.nodes.agent_finalize import infer_chart_for_presentation  # noqa: E402
@@ -26,13 +29,20 @@ from apps.chat.tools.execute_sql import execute_sql_sandbox  # noqa: E402
 
 def test_markdown_sink_does_not_emit_events() -> None:
     sink = SimpleNamespace(mode="markdown", event=MagicMock())
-    _emit_process_event(sink, event_type="process_upsert", item={"id": 1, "kind": "thought"})
+    _emit_process_event(
+        sink, event_type="process_upsert", item={"id": 1, "kind": "thought"}
+    )
     sink.event.assert_not_called()
 
 
 def test_sse_sink_emits_compact_item_without_detail() -> None:
     sink = SimpleNamespace(mode="sse", event=MagicMock())
-    item = {"id": 7, "kind": "tool", "detail": {"input": "secret-prompt"}, "title_key": "k"}
+    item = {
+        "id": 7,
+        "kind": "tool",
+        "detail": {"input": "secret-prompt"},
+        "title_key": "k",
+    }
     _emit_process_event(sink, event_type="process_upsert", item=item)
     payload = sink.event.call_args.args[0]
     assert payload["type"] == "process_upsert"
@@ -40,9 +50,82 @@ def test_sse_sink_emits_compact_item_without_detail() -> None:
     assert "detail" not in payload["item"]
 
 
+def test_sse_delta_keeps_full_thought() -> None:
+    sink = SimpleNamespace(mode="sse", event=MagicMock())
+    body = "字" * 1400
+    _emit_process_event(
+        sink,
+        event_type="process_delta",
+        item={
+            "id": 3,
+            "kind": "thought",
+            "thought": {"content": body, "source": "model_reasoning"},
+            "detail": {"input": "hidden"},
+        },
+    )
+    payload = sink.event.call_args.args[0]
+    thought = payload["item"]["thought"]
+    assert payload["type"] == "process_delta"
+    assert "truncated" not in thought
+    assert thought["content"] == body
+    assert "detail" not in payload["item"]
+
+
 def test_compact_item_strips_detail() -> None:
     compact = _compact_item({"id": 1, "detail": {"x": 1}, "kind": "thought"})
     assert compact == {"id": 1, "kind": "thought"}
+
+
+def test_project_thought_for_view_keeps_full_body() -> None:
+    body = "字" * 1400
+    thought = {"source": "model_reasoning", "content": body}
+    compact = project_thought_for_view(thought, "compact")
+    assert compact is not None
+    assert "truncated" not in compact
+    assert compact["content"] == body
+    detail = project_thought_for_view(thought, "detail")
+    assert detail is not None
+    assert "truncated" not in detail
+    assert detail["content"] == body
+    emitted = _compact_item({"id": 1, "kind": "thought", "thought": thought})
+    assert "truncated" not in emitted["thought"]
+    assert emitted["thought"]["content"] == body
+
+
+def test_item_from_log_keeps_full_thought_on_compact_and_detail() -> None:
+    from apps.chat.steps.observability import make_span_message
+
+    body = "字" * 1400
+    envelope = make_span_message(
+        graph_node="agent_loop",
+        title_key="chat.timeline.thought",
+        payload=_process_payload(
+            kind="thought",
+            thought={"content": body, "source": "model_reasoning"},
+        ),
+    )
+    log = SimpleNamespace(
+        id=11,
+        run_id="r1",
+        pid=9,
+        messages=envelope,
+        reasoning_content=None,
+        finish_time=None,
+        start_time=None,
+        error=False,
+        token_usage={},
+        operate=None,
+    )
+    compact = _item_from_log(log, view="compact")  # type: ignore[arg-type]
+    assert compact is not None
+    assert "truncated" not in compact["thought"]
+    assert compact["thought"]["content"] == body
+    assert "detail" not in compact
+    detail = _item_from_log(log, view="detail")  # type: ignore[arg-type]
+    assert detail is not None
+    assert "truncated" not in detail["thought"]
+    assert detail["thought"]["content"] == body
+    assert "detail" in detail
 
 
 def test_localize_process_item_and_event() -> None:
@@ -64,14 +147,24 @@ def test_localize_process_item_and_event() -> None:
     )
     assert item["title"] == "SQL 2"
     event = localize_process_event(
-        {"type": "process_upsert", "item": {"id": 1, "title_key": "chat.timeline.tool.execute_sql_sandbox", "title_params": {}}},
+        {
+            "type": "process_upsert",
+            "item": {
+                "id": 1,
+                "title_key": "chat.timeline.tool.execute_sql_sandbox",
+                "title_params": {},
+            },
+        },
         trans,
     )
     assert event["item"]["title"] == "SQL"
 
 
 def test_tool_title_key_and_preview_rows() -> None:
-    assert tool_title_key("execute_sql_sandbox") == "chat.timeline.tool.execute_sql_sandbox"
+    assert (
+        tool_title_key("execute_sql_sandbox")
+        == "chat.timeline.tool.execute_sql_sandbox"
+    )
     assert tool_title_key("") == "chat.timeline.tool.generic"
     rows = preview_rows([{"a": 1}, {"a": 2}, {"a": 3}, {"a": 4}], limit=3)
     assert len(rows) == 3
@@ -116,9 +209,7 @@ def test_chart_inference_rejects_identifier_as_measure() -> None:
     ]
     presentation = {
         "title": "企业清单",
-        "columns": [
-            {"field": f, "label": f, "display": f} for f in fields
-        ],
+        "columns": [{"field": f, "label": f, "display": f} for f in fields],
     }
     rows = [
         {
@@ -168,7 +259,7 @@ def test_chart_inference_rejects_identifier_as_measure() -> None:
     assert credit["type"] == "table"
 
 
-def test_select_delivery_datasets_skips_probes_and_keeps_multi() -> None:
+def test_select_delivery_datasets_skips_probes_untitled_replace() -> None:
     from apps.chat.graphs.nodes.agent_finalize import select_delivery_datasets
 
     probe = SimpleNamespace(
@@ -184,7 +275,7 @@ def test_select_delivery_datasets_skips_probes_and_keeps_multi() -> None:
         dataset_id="f", required=True, status="failed", row_count=0
     )
     picked = select_delivery_datasets([probe, first, failed, second])
-    assert [item.dataset_id for item in picked] == ["a", "b"]
+    assert [item.dataset_id for item in picked] == ["b"]
 
     only_probe = select_delivery_datasets([probe])
     assert only_probe == []
@@ -197,7 +288,9 @@ def test_execute_sql_truncation_uses_protocol_max_rows(monkeypatch) -> None:
         statement="SELECT 1",
         message="",
     )
-    fake_service.protocol.validate_plan.return_value = MagicMock(success=True, message="")
+    fake_service.protocol.validate_plan.return_value = MagicMock(
+        success=True, message=""
+    )
     fake_service.protocol.execute.return_value = MagicMock(
         data=[{"id": i} for i in range(5)],
         fields=["id"],
@@ -213,7 +306,9 @@ def test_execute_sql_truncation_uses_protocol_max_rows(monkeypatch) -> None:
         "apps.chat.tools.execute_sql.current_worker_identity",
         lambda: ("run-1", "tok"),
     )
-    monkeypatch.setattr("apps.chat.tools.execute_sql.current_tool_call_id", lambda: "call-9")
+    monkeypatch.setattr(
+        "apps.chat.tools.execute_sql.current_tool_call_id", lambda: "call-9"
+    )
     monkeypatch.setattr(
         "apps.chat.tools.execute_sql.apply_wiki_enum_labels",
         lambda **_k: ([{"id": i} for i in range(5)], {"id": {"0": "zero"}}),
@@ -242,7 +337,9 @@ def test_execute_sql_probe_marks_not_required(monkeypatch) -> None:
         statement="SELECT 1",
         message="",
     )
-    fake_service.protocol.validate_plan.return_value = MagicMock(success=True, message="")
+    fake_service.protocol.validate_plan.return_value = MagicMock(
+        success=True, message=""
+    )
     fake_service.protocol.execute.return_value = MagicMock(
         data=[{"id": 1}],
         fields=["id"],
@@ -257,7 +354,9 @@ def test_execute_sql_probe_marks_not_required(monkeypatch) -> None:
         "apps.chat.tools.execute_sql.current_worker_identity",
         lambda: ("run-1", "tok"),
     )
-    monkeypatch.setattr("apps.chat.tools.execute_sql.current_tool_call_id", lambda: "call-1")
+    monkeypatch.setattr(
+        "apps.chat.tools.execute_sql.current_tool_call_id", lambda: "call-1"
+    )
     monkeypatch.setattr(
         "apps.chat.tools.execute_sql.apply_wiki_enum_labels",
         lambda **kwargs: (list(kwargs["rows"]), {}),
@@ -284,13 +383,17 @@ def test_execute_sql_respects_sql_limit_above_default(monkeypatch) -> None:
         statement="SELECT * FROM t LIMIT 2000",
         message="",
     )
-    fake_service.protocol.validate_plan.return_value = MagicMock(success=True, message="")
+    fake_service.protocol.validate_plan.return_value = MagicMock(
+        success=True, message=""
+    )
     fake_service.protocol.execute.return_value = MagicMock(
         data=[{"id": i} for i in range(2000)],
         fields=["id"],
         truncated=False,
     )
-    monkeypatch.setattr("apps.chat.tools.execute_sql.upsert_result_dataset", lambda **_k: None)
+    monkeypatch.setattr(
+        "apps.chat.tools.execute_sql.upsert_result_dataset", lambda **_k: None
+    )
     monkeypatch.setattr(
         "apps.chat.tools.execute_sql.current_worker_identity",
         lambda: ("", None),

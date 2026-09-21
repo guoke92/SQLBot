@@ -36,6 +36,7 @@ ProcessView = Literal["compact", "detail"]
 PREVIEW_ROW_LIMIT = 3
 # Durable chat_log keeps full LLM prompts up to this serialized-char ceiling.
 # Compact SSE upserts omit heavy input/output; Execution Details uses view=detail.
+# Thought body is never display-capped: compact/SSE and detail all keep the full text.
 LLM_IO_MAX_CHARS = 400_000
 _DELTA_FLUSH_CHARS = 96
 _DELTA_FLUSH_SEC = 0.5
@@ -66,6 +67,21 @@ def bound_llm_io(value: Any, *, max_chars: int = LLM_IO_MAX_CHARS) -> Any:
         "max_chars": max_chars,
         "preview": encoded[: max(0, max_chars - 128)],
     }
+
+
+def project_thought_for_view(
+    thought: Mapping[str, Any] | None,
+    view: ProcessView = "compact",
+) -> dict[str, Any] | None:
+    """Pass through the full thought for every view.
+
+    Compact vs detail only differs on whether ``detail`` (model I/O) is attached.
+    Display truncation does not shorten generation and hid the real CoT.
+    """
+    if not thought:
+        return None
+    _ = view
+    return dict(thought)
 
 
 _KIND_TITLE_KEY: dict[ProcessKind, str] = {
@@ -142,6 +158,11 @@ def localize_process_event(
 def _compact_item(item: dict[str, Any]) -> dict[str, Any]:
     compact = dict(item)
     compact.pop("detail", None)
+    thought = compact.get("thought")
+    if isinstance(thought, Mapping):
+        projected = project_thought_for_view(thought, "compact")
+        if projected is not None:
+            compact["thought"] = projected
     return compact
 
 
@@ -235,7 +256,9 @@ def _item_from_log(
     if reasoning and not str(thought_payload.get("content") or "").strip():
         thought_payload["content"] = log.reasoning_content
     if thought_payload:
-        item["thought"] = thought_payload
+        projected = project_thought_for_view(thought_payload, view)
+        if projected:
+            item["thought"] = projected
     if detail.get("artifact"):
         item["artifact"] = dict(detail["artifact"])
     if detail.get("answer"):

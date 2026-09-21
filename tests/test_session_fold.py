@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
 
@@ -163,9 +164,7 @@ def test_fold_oldest_turn_level_one_keeps_sql_from() -> None:
     assert "page_keys=concepts/p0" in text
     remaining = split_turns(folded[1:])
     assert len(remaining) == 3
-    assert any(
-        getattr(item, "tool_calls", None) for turn in remaining for item in turn
-    )
+    assert any(getattr(item, "tool_calls", None) for turn in remaining for item in turn)
 
 
 def test_fold_demotes_oldest_to_level_two() -> None:
@@ -206,7 +205,10 @@ def test_knowledge_tools_still_run_after_two_rounds() -> None:
     def get_table_schema(tables: list[str] | None = None) -> dict:
         return success_result(
             "expanded",
-            data={"tables": list(tables or ["tenant_product"]), "schema_text": "id:int"},
+            data={
+                "tables": list(tables or ["tenant_product"]),
+                "schema_text": "id:int",
+            },
         )
 
     tool = StructuredTool.from_function(
@@ -262,14 +264,33 @@ def test_system_prompt_has_no_slot_or_hard_budget_copy() -> None:
     assert "不要再调用 get_table_schema" not in prompt
     assert "轮次建议" not in prompt
     assert "按需调用" in prompt
+    assert "每轮思考不超过 8 句" in prompt
+    assert "同标题再交一次" in prompt
+    assert "不同标题则追加" in prompt
 
 
 def test_stage_copy_shows_working_for_from_send() -> None:
     stages = (_ROOT / "frontend/src/views/chat/answer/AgentStagesView.vue").read_text()
     assert "liveStartedAt" in stages
     assert "blocks.length || isLive" in stages
+    assert "Math.max(fromBlocks, fromSend)" not in stages
+    assert "working_as" in stages
+    assert "thoughtSnippet" in stages
+    assert "deliveredDatasetIds" in stages
+    assert "processOpen.value = false" in stages
     vue = (_ROOT / "frontend/src/views/chat/answer/MultiStepAnswer.vue").read_text()
     assert "conversationPlaceholderKey" not in vue
     assert "multi-step-loading" not in vue
     assert "timelineItems.length > 0 || _loading || message?.isTyping" in vue
+    assert "delivered-dataset-ids" in vue
     assert "qa.run_stage_generate" not in vue
+    timeline = (
+        _ROOT / "frontend/src/features/conversation/processTimeline.ts"
+    ).read_text()
+    assert "THOUGHT_SNIPPET_CHARS = 80" in timeline
+    assert "truncated?: boolean" in timeline
+    for locale in ("en", "zh-CN", "zh-TW", "ko-KR"):
+        data = json.loads((_ROOT / "frontend/src/i18n" / f"{locale}.json").read_text())
+        working_as = data["chat"]["timeline"]["working_as"]
+        assert "{action}" in working_as
+        assert "{seconds}" in working_as

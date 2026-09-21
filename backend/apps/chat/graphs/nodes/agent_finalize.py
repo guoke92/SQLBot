@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from typing import Any, cast
 
 from apps.chat.agent_copy import (
@@ -16,6 +16,7 @@ from apps.chat.chart_presentation import (
     infer_chart_for_presentation,
     resolve_delivery_chart,
 )
+from apps.chat.delivery import select_delivery_datasets
 from apps.chat.graphs.nodes.nlq.audit import _record_snapshot_values
 from apps.chat.graphs.nodes.nlq.presentation import _maybe_update_chat_brief
 from apps.chat.graphs.nodes.nlq.state import _llm_service
@@ -46,38 +47,6 @@ __all__ = [
     "select_delivery_datasets",
     "try_publish_query_salvage",
 ]
-
-
-def _dataset_row_count(item: Any) -> int:
-    raw = getattr(item, "row_count", None)
-    if raw is not None:
-        try:
-            return int(raw)
-        except (TypeError, ValueError):
-            pass
-    rows = getattr(item, "rows", None) or []
-    try:
-        return len(rows)
-    except TypeError:
-        return 0
-
-
-def select_delivery_datasets(datasets: Sequence[Any]) -> list[Any]:
-    """Publish required successful datasets; drop superseded empty attempts.
-
-    When a later required query returns rows, earlier 0-row attempts in the
-    same turn are discarded. If every required attempt is empty, keep the
-    last one so the UI can honestly show a 0-row result.
-    """
-    candidates = [
-        item
-        for item in datasets
-        if str(getattr(item, "status", None) or "succeeded") != "failed"
-        and getattr(item, "required", True) is not False
-    ]
-    if any(_dataset_row_count(item) > 0 for item in candidates):
-        return [item for item in candidates if _dataset_row_count(item) > 0]
-    return list(candidates[-1:]) if candidates else []
 
 
 def _safe_delivery_chart(**kwargs: Any) -> dict[str, Any] | None:

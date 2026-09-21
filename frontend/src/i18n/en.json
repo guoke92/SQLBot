@@ -964,6 +964,7 @@
       "process": "Process",
       "processing": "Working",
       "working_for": "Working for {seconds}s",
+      "working_as": "{action} · {seconds}s",
       "worked_for": "Worked for {seconds}s",
       "worked_for_with_tokens": "Worked for {seconds}s · {tokens} tokens",
       "tokens_only": "{tokens} tokens",
